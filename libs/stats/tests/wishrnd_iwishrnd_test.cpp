@@ -105,3 +105,60 @@ TEST_F(WishrndIwishrndTest, IwishrndBadDfThrows)
 {
     EXPECT_THROW(eval("iwishrnd(eye(3), 1.5);"), std::exception);
 }
+
+// ── 3-arg form: pre-computed Cholesky factor ────────────────────────
+
+TEST_F(WishrndIwishrndTest, WishrndDArgRoundTrip)
+{
+    // [W, D] = wishrnd(Sigma, df); W2 = wishrnd(Sigma, df, D) with same
+    // RNG should yield W == W2 (deterministic).
+    eval(R"(
+        Sigma = [2 0.3; 0.3 1]; df = 8;
+        rng(0); [W1, D] = wishrnd(Sigma, df);
+        rng(0); W2 = wishrnd(Sigma, df, D);
+        err = max(max(abs(W1 - W2)));
+    )");
+    EXPECT_LT(evalScalar("err"), 1e-12);
+}
+
+TEST_F(WishrndIwishrndTest, WishrndDIsUpperChol)
+{
+    // D = chol(Sigma, 'upper'); verify D' * D == Sigma.
+    eval(R"(
+        Sigma = [2 0.3; 0.3 1];
+        rng(0); [~, D] = wishrnd(Sigma, 8);
+        rec = D' * D;
+        err = max(max(abs(rec - Sigma)));
+    )");
+    EXPECT_LT(evalScalar("err"), 1e-12);
+}
+
+TEST_F(WishrndIwishrndTest, IwishrndDIIsInverseChol)
+{
+    // DI = chol(inv(Tau), 'lower'); verify DI * DI' == inv(Tau).
+    eval(R"(
+        Tau = [2 0.5; 0.5 1];
+        rng(0); [~, DI] = iwishrnd(Tau, 6);
+        rec = DI * DI';
+        err = max(max(abs(rec - inv(Tau))));
+    )");
+    EXPECT_LT(evalScalar("err"), 1e-12);
+}
+
+TEST_F(WishrndIwishrndTest, IwishrndDIArgRoundTrip)
+{
+    // Round-trip: pass DI back as 3rd arg, get same W with same RNG.
+    eval(R"(
+        Tau = [2 0.5; 0.5 1]; df = 7;
+        rng(0); [W1, DI] = iwishrnd(Tau, df);
+        rng(0); W2 = iwishrnd(Tau, df, DI);
+        err = max(max(abs(W1 - W2)));
+    )");
+    EXPECT_LT(evalScalar("err"), 1e-12);
+}
+
+TEST_F(WishrndIwishrndTest, WishrndBadDShapeThrows)
+{
+    EXPECT_THROW(eval("wishrnd([2 0.3; 0.3 1], 5, [1 0; 0 1; 0 0]);"),
+                 std::exception);
+}

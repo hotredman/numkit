@@ -408,28 +408,44 @@ static void invertLowerTriInPlace(double *L, std::size_t d)
     std::memcpy(L, Linv.data(), d * d * sizeof(double));
 }
 
-Value wishrnd(const Value &Sigma, double df,
-              std::pmr::memory_resource *mr)
+std::tuple<Value, Value>
+wishrnd_factor(const Value &Sigma, double df, const Value &D_in,
+               std::pmr::memory_resource *mr)
 {
     if (Sigma.dims().rows() != Sigma.dims().cols())
         throw Error("wishrnd: Sigma must be square",
                     0, 0, "wishrnd", "", "m:wishrnd:notSquare");
     const std::size_t d = Sigma.dims().rows();
-    if (d == 0)
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (d == 0) {
+        return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                Value::matrix(0, 0, ValueType::DOUBLE, mr)};
+    }
     if (!(df > static_cast<double>(d) - 1.0))
         throw Error("wishrnd: df must exceed p - 1",
                     0, 0, "wishrnd", "", "m:wishrnd:badDf");
 
-    // L = chol(Sigma, 'lower'), row-major.
+    // L = chol(Sigma, 'lower'), row-major. If user supplied
+    // D = chol(Sigma, 'upper'), transpose into L.
     std::vector<double> L(d * d);
-    for (std::size_t i = 0; i < d; ++i)
-        for (std::size_t j = 0; j < d; ++j)
-            L[i * d + j] = Sigma.elemAsDouble(j * d + i);
-    choleskyLowerInPlace(L.data(), d);
+    if (!D_in.isEmpty()) {
+        if (D_in.dims().rows() != d || D_in.dims().cols() != d)
+            throw Error("wishrnd: D must be p × p",
+                        0, 0, "wishrnd", "", "m:wishrnd:shapeD");
+        // D upper-tri: L[i,j] = D[j,i] for j ≤ i.
+        for (std::size_t i = 0; i < d; ++i) {
+            for (std::size_t j = 0; j < d; ++j)
+                L[i * d + j] = 0.0;
+            for (std::size_t j = 0; j <= i; ++j)
+                L[i * d + j] = D_in.elemAsDouble(i * d + j);   // col-major D[j,i]
+        }
+    } else {
+        for (std::size_t i = 0; i < d; ++i)
+            for (std::size_t j = 0; j < d; ++j)
+                L[i * d + j] = Sigma.elemAsDouble(j * d + i);
+        choleskyLowerInPlace(L.data(), d);
+    }
 
-    // Sample Bartlett factor B (lower-tri): diag = sqrt(χ²(df - i)),
-    // off-diag (i > j) = N(0, 1).
+    // Sample Bartlett factor B (lower-tri).
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
     std::normal_distribution<double> Nz(0.0, 1.0);
@@ -444,7 +460,7 @@ Value wishrnd(const Value &Sigma, double df,
             B[i * d + j] = Nz(gen);
     }
 
-    // M = L · B, both lower-triangular ⇒ M is lower-triangular.
+    // M = L · B (lower-tri).
     std::vector<double> M(d * d, 0.0);
     for (std::size_t i = 0; i < d; ++i) {
         for (std::size_t j = 0; j <= i; ++j) {
@@ -455,9 +471,9 @@ Value wishrnd(const Value &Sigma, double df,
         }
     }
 
-    // W = M · M' (symmetric, p × p).
-    auto out = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();   // col-major
+    // W = M · M'.
+    auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
+    double *od = W.doubleDataMut();
     for (std::size_t i = 0; i < d; ++i) {
         for (std::size_t j = 0; j < d; ++j) {
             double s = 0.0;
@@ -467,51 +483,74 @@ Value wishrnd(const Value &Sigma, double df,
             od[j * d + i] = s;
         }
     }
-    return out;
+
+    // Build D = L^T (upper-tri) — col-major output.
+    auto D = Value::matrix(d, d, ValueType::DOUBLE, mr);
+    double *dd = D.doubleDataMut();
+    for (std::size_t i = 0; i < d; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            dd[j * d + i] = (j >= i) ? L[j * d + i] : 0.0;
+    return {std::move(W), std::move(D)};
 }
 
-Value iwishrnd(const Value &Tau, double df,
-               std::pmr::memory_resource *mr)
+Value wishrnd(const Value &Sigma, double df,
+              std::pmr::memory_resource *mr)
+{
+    return std::get<0>(wishrnd_factor(Sigma, df, Value::Empty, mr));
+}
+
+std::tuple<Value, Value>
+iwishrnd_factor(const Value &Tau, double df, const Value &DI_in,
+                std::pmr::memory_resource *mr)
 {
     if (Tau.dims().rows() != Tau.dims().cols())
         throw Error("iwishrnd: Tau must be square",
                     0, 0, "iwishrnd", "", "m:iwishrnd:notSquare");
     const std::size_t d = Tau.dims().rows();
-    if (d == 0)
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (d == 0) {
+        return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                Value::matrix(0, 0, ValueType::DOUBLE, mr)};
+    }
     if (!(df > static_cast<double>(d) - 1.0))
         throw Error("iwishrnd: df must exceed p - 1",
                     0, 0, "iwishrnd", "", "m:iwishrnd:badDf");
 
-    // Sample Y ~ W(inv(Tau), df) via Bartlett, return inv(Y).
-    // Step 1: chol(Tau) = L_T; then chol(inv(Tau)) = inv(L_T)^T (upper).
-    // Easier approach: chol(Tau) = L_T (lower); then inv(Tau) = L_T^{-T} L_T^{-1};
-    // so chol(inv(Tau), 'lower') = L_T^{-T}? No.
-    //
-    // Direct path: form invTau, factor it, then sample as in wishrnd.
-    std::vector<double> LT(d * d);
-    for (std::size_t i = 0; i < d; ++i)
-        for (std::size_t j = 0; j < d; ++j)
-            LT[i * d + j] = Tau.elemAsDouble(j * d + i);
-    choleskyLowerInPlace(LT.data(), d);          // L_T (lower) of Tau
-
-    // Form inv(Tau) = L_T^{-T} · L_T^{-1}.
-    std::vector<double> Linv = LT;
-    invertLowerTriInPlace(Linv.data(), d);       // Linv = L_T^{-1}
-
-    std::vector<double> invTau(d * d, 0.0);
-    for (std::size_t i = 0; i < d; ++i) {
-        for (std::size_t j = 0; j <= i; ++j) {   // symmetric, fill lower then mirror
-            double s = 0.0;
-            for (std::size_t k = std::max(i, j); k < d; ++k)
-                s += Linv[k * d + i] * Linv[k * d + j];
-            invTau[i * d + j] = s;
-            if (i != j) invTau[j * d + i] = s;
+    // Need L = chol(inv(Tau), 'lower') for Bartlett construction.
+    // MATLAB convention: DI is the lower-triangular factor satisfying
+    // DI' · DI = inv(Tau) — i.e. DI = chol(inv(Tau), 'lower'). So L = DI.
+    std::vector<double> L(d * d);   // row-major lower-tri
+    if (!DI_in.isEmpty()) {
+        if (DI_in.dims().rows() != d || DI_in.dims().cols() != d)
+            throw Error("iwishrnd: DI must be p × p",
+                        0, 0, "iwishrnd", "", "m:iwishrnd:shapeDI");
+        // DI lower-tri (col-major); copy directly to row-major L.
+        for (std::size_t i = 0; i < d; ++i) {
+            for (std::size_t j = 0; j < d; ++j) L[i * d + j] = 0.0;
+            for (std::size_t j = 0; j <= i; ++j)
+                L[i * d + j] = DI_in.elemAsDouble(j * d + i);   // col-major (i,j)
         }
+    } else {
+        // Build inv(Tau) via L_T = chol(Tau, 'lower'), then chol(inv) lower.
+        std::vector<double> LT(d * d);
+        for (std::size_t i = 0; i < d; ++i)
+            for (std::size_t j = 0; j < d; ++j)
+                LT[i * d + j] = Tau.elemAsDouble(j * d + i);
+        choleskyLowerInPlace(LT.data(), d);
+        std::vector<double> Linv = LT;
+        invertLowerTriInPlace(Linv.data(), d);
+        std::vector<double> invTau(d * d, 0.0);
+        for (std::size_t i = 0; i < d; ++i) {
+            for (std::size_t j = 0; j <= i; ++j) {
+                double s = 0.0;
+                for (std::size_t k = std::max(i, j); k < d; ++k)
+                    s += Linv[k * d + i] * Linv[k * d + j];
+                invTau[i * d + j] = s;
+                if (i != j) invTau[j * d + i] = s;
+            }
+        }
+        L = invTau;
+        choleskyLowerInPlace(L.data(), d);
     }
-    // Chol(inv(Tau)) lower.
-    std::vector<double> L = invTau;
-    choleskyLowerInPlace(L.data(), d);
 
     // Bartlett sample Y ~ W(inv(Tau), df).
     auto &gen = ::numkit::builtin::sharedEngine();
@@ -547,21 +586,35 @@ Value iwishrnd(const Value &Tau, double df,
         }
     }
 
-    // Invert Y (SPD) via Cholesky.
+    // W = inv(Y) via Cholesky.
     std::vector<double> LY = Y;
     choleskyLowerInPlace(LY.data(), d);
     invertLowerTriInPlace(LY.data(), d);
-    auto out = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();   // col-major
+    auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
+    double *od = W.doubleDataMut();
     for (std::size_t i = 0; i < d; ++i) {
         for (std::size_t j = 0; j < d; ++j) {
             double s = 0.0;
             for (std::size_t k = std::max(i, j); k < d; ++k)
                 s += LY[k * d + i] * LY[k * d + j];
-            od[j * d + i] = s;       // col-major write
+            od[j * d + i] = s;
         }
     }
-    return out;
+
+    // DI = L (lower-tri) — MATLAB returns the LOWER factor with
+    // DI' · DI = inv(Tau) (its transpose is the upper Cholesky).
+    auto DI = Value::matrix(d, d, ValueType::DOUBLE, mr);
+    double *dd = DI.doubleDataMut();
+    for (std::size_t i = 0; i < d; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            dd[j * d + i] = (j <= i) ? L[i * d + j] : 0.0;
+    return {std::move(W), std::move(DI)};
+}
+
+Value iwishrnd(const Value &Tau, double df,
+               std::pmr::memory_resource *mr)
+{
+    return std::get<0>(iwishrnd_factor(Tau, df, Value::Empty, mr));
 }
 
 // ── mvtcdf ──────────────────────────────────────────────────────────
@@ -720,22 +773,30 @@ void mnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     outs[0] = mnrnd(N, args[1], m, ctx.engine->resource());
 }
 
-void wishrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void wishrnd_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("wishrnd: requires (Sigma, df)",
+        throw Error("wishrnd: requires (Sigma, df[, D])",
                     0, 0, "wishrnd", "", "m:wishrnd:nargin");
     const double df = args[1].toScalar();
-    outs[0] = wishrnd(args[0], df, ctx.engine->resource());
+    const Value D_in = (args.size() > 2) ? args[2] : Value::Empty;
+    auto [W, D] = wishrnd_factor(args[0], df, D_in, ctx.engine->resource());
+    outs[0] = std::move(W);
+    if (nargout >= 2) outs[1] = std::move(D);
 }
 
-void iwishrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void iwishrnd_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("iwishrnd: requires (Tau, df)",
+        throw Error("iwishrnd: requires (Tau, df[, DI])",
                     0, 0, "iwishrnd", "", "m:iwishrnd:nargin");
     const double df = args[1].toScalar();
-    outs[0] = iwishrnd(args[0], df, ctx.engine->resource());
+    const Value DI_in = (args.size() > 2) ? args[2] : Value::Empty;
+    auto [W, DI] = iwishrnd_factor(args[0], df, DI_in, ctx.engine->resource());
+    outs[0] = std::move(W);
+    if (nargout >= 2) outs[1] = std::move(DI);
 }
 
 void mvtcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
