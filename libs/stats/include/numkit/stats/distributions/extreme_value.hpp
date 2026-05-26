@@ -93,13 +93,39 @@ std::tuple<double, double> evstat(double mu, double sigma);
 /// @see evpdf, evcdf
 Value evfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief 95% Wald CI for evfit (`pci = evfit_ci(x, alpha)`).
+/// @brief Type-I EV (Gumbel-min) MLE fit with right-censoring and
+/// frequency weights (`[parmhat, parmci] = evfit(x, alpha, cens, freq)`).
+///
+/// Likelihood is the product of `f(x_i)` over uncensored observations
+/// and `S(x_i)` (survival) over right-censored observations, each
+/// raised to the frequency-weight `freq_i`. When both `censoring` and
+/// `freq` are empty or trivial, dispatches to the fast closed-form
+/// path; otherwise refines via 2-D Newton on (μ, σ) with FD gradient
+/// and Hessian and a backtracking line search.
+///
+/// @param x          Observations.
+/// @param censoring  Length-`n` 0/1 indicator (1 = right-censored).
+///                   Pass `Value::Empty` to disable.
+/// @param freq       Length-`n` non-negative frequency weights.
+///                   Pass `Value::Empty` to disable (uniform weight).
+/// @param mr         Memory resource.
+/// @return           `[muhat, sigmahat]` as a `1 × 2` row.
+Value evfit(const Value &x, const Value &censoring, const Value &freq,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wald CI for evfit (`pci = evfit_ci(x, alpha)`).
 ///
 /// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[mu, sigma]`
 /// from the observed Fisher information (central-FD Hessian of NLL).
 /// `mu` uses a linear Wald CI; `sigma` uses a log-scale CI (MATLAB
 /// convention).
 Value evfit_ci(const Value &x, double alpha = 0.05,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wald CI for censored/weighted evfit
+/// (`pci = evfit_ci(x, alpha, cens, freq)`).
+Value evfit_ci(const Value &x, double alpha,
+               const Value &censoring, const Value &freq,
                std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

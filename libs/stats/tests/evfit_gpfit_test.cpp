@@ -138,3 +138,51 @@ TEST_F(EvfitGpfitTest, EvfitCIShape)
     EXPECT_EQ(static_cast<int>(evalScalar("size(pci, 1)")), 2);
     EXPECT_EQ(static_cast<int>(evalScalar("size(pci, 2)")), 2);
 }
+
+// ── evfit censoring + frequency weights ─────────────────────────────
+
+TEST_F(EvfitGpfitTest, EvfitCensoredMatchesMatlab)
+{
+    // Right-censor top 20%; MATLAB MLE → (1.000018, 1.999662),
+    // CI [0.9019 1.9170; 1.0981 2.0859].
+    eval(R"(
+        n=2000; u=((1:n)' - 0.5)/n; x = evinv(u, 1.0, 2.0);
+        thr = quantile(x, 0.8);
+        xc = min(x, thr);  cens = (x >= thr);
+        [p, pci] = evfit(xc, 0.05, cens);
+    )");
+    EXPECT_NEAR(evalScalar("p(1)"),     1.000018, 1e-4);
+    EXPECT_NEAR(evalScalar("p(2)"),     1.999662, 1e-4);
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 0.9019, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 1.0981, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 1.9170, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 2.0859, 1e-3);
+}
+
+TEST_F(EvfitGpfitTest, EvfitFreqMatchesExplicitReplication)
+{
+    // freq=[3 2 1 2 3] on [1..5] ≡ expanded [1 1 1 2 2 3 4 4 5 5 5].
+    // MATLAB → (3.791736, 1.389443).
+    eval(R"(
+        x_rep = [1 2 3 4 5];
+        f_rep = [3 2 1 2 3];
+        [pa, ~] = evfit(x_rep, 0.05, [], f_rep);
+        x_exp = [1 1 1 2 2 3 4 4 5 5 5];
+        pb = evfit(x_exp);
+    )");
+    EXPECT_NEAR(evalScalar("pa(1)"), 3.791736, 1e-4);
+    EXPECT_NEAR(evalScalar("pa(2)"), 1.389443, 1e-4);
+    // freq form should match explicit replication.
+    EXPECT_NEAR(evalScalar("pa(1)"), evalScalar("pb(1)"), 1e-8);
+    EXPECT_NEAR(evalScalar("pa(2)"), evalScalar("pb(2)"), 1e-8);
+}
+
+TEST_F(EvfitGpfitTest, EvfitCensoringLengthMismatchThrows)
+{
+    EXPECT_THROW(eval("evfit([1 2 3], 0.05, [0 0]);"), std::exception);
+}
+
+TEST_F(EvfitGpfitTest, EvfitFreqLengthMismatchThrows)
+{
+    EXPECT_THROW(eval("evfit([1 2 3], 0.05, [], [1 1]);"), std::exception);
+}
