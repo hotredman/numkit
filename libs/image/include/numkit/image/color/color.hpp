@@ -440,6 +440,47 @@ Value whitepoint(const std::string &illuminant,
 /// @return      `N × 3` grayscale colormap.
 Value cmap2gray(const Value &cmap, std::pmr::memory_resource *mr = nullptr);
 
+// ── White-balance illumination estimation ─────────────────────────────
+
+/// @brief White-Patch illuminant estimate
+/// (`illum = illumwhite(A [, P] [, 'Mask', M])`).
+///
+/// Returns a 1×3 RGB row-vector approximating the scene illuminant.
+///
+/// **Algorithm.** With `P == 0`, returns per-channel max over masked
+/// pixels (classical White-Patch retinex, Land & McCann 1971). With
+/// `P > 0`, returns the per-channel mean of the top-`P`% pixels by
+/// L2 norm of `(R, G, B)` (top-percentile variant, Banić & Lončarić
+/// 2014). MATLAB default `P = 1`.
+///
+/// @param A     `H × W × 3` numeric image.
+/// @param P     Percentile in `[0, 100)`. Default 1 (top 1 %).
+/// @param mask  Optional `H × W` logical/numeric mask; empty → use all.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `1 × 3` DOUBLE illuminant.
+Value illumwhite(const Value &A, double P, const Value &mask,
+                 std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Grey-World illuminant estimate
+/// (`illum = illumgray(A [, P] [, 'Mask', M])`).
+///
+/// Returns a 1×3 RGB row-vector approximating the scene illuminant.
+///
+/// **Algorithm.** Sorts the masked pixels by L2 norm of `(R, G, B)`,
+/// optionally trims the bottom `p_lo`% and top `p_hi`%, then returns
+/// the per-channel mean of the survivors (Grey-World hypothesis,
+/// Buchsbaum 1980). `P` is either a scalar (applied to both ends) or
+/// a 2-element vector `[p_lo, p_hi]`, each in `[0, 50)`. MATLAB default
+/// `P = 0` (no trimming).
+///
+/// @param A     `H × W × 3` numeric image.
+/// @param P     Percentile(s); empty vector → P=0.
+/// @param mask  Optional `H × W` mask; empty → all.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `1 × 3` DOUBLE illuminant.
+Value illumgray(const Value &A, const std::vector<double> &P,
+                const Value &mask, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Colourise a labelled image
 /// (`RGB = label2rgb(L, cmap, background)`).
 ///
