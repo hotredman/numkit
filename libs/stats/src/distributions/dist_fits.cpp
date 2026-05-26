@@ -15,6 +15,8 @@
 #include <numkit/stats/distributions/extreme_value.hpp>
 #include <numkit/stats/distributions/gp.hpp>
 
+#include <numkit/builtin/math/special/special.hpp>   // gammainc (used by gamfit_full)
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -201,7 +203,46 @@ Value wald_ci_2d(NllFn &&nll, double t1, double t2,
 
 } // namespace
 
+// Generalised Gamma NLL with right-censoring and frequency weights.
+//   log f(x; a, b) = (a-1) log x - x/b - a log b - log Γ(a)
+//   log S(x; a, b) = log(1 - gammainc(x/b, a))
+// (gammainc(x, a) is the regularised LOWER incomplete gamma; survival
+//  is the upper tail = 1 - lower.)
+static double nll_gam_full(double a, double b,
+                           const std::vector<double> &xv,
+                           const std::vector<double> &cens,
+                           const std::vector<double> &freq,
+                           std::pmr::memory_resource *mr)
+{
+    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
+    const std::size_t n = xv.size();
+    double nuw = 0.0, lxw = 0.0, sxw = 0.0, S_cens = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double f = freq[i];
+        const double u = 1.0 - cens[i];
+        nuw += f * u;
+        lxw += f * u * std::log(xv[i]);
+        sxw += f * u * xv[i];
+        if (cens[i] > 0.5 && f > 0.0) {
+            Value xv_arg = Value::scalar(xv[i] / b, mr);
+            Value av_arg = Value::scalar(a, mr);
+            const double P = ::numkit::builtin::gammainc(xv_arg, av_arg, mr).toScalar();
+            const double Q = 1.0 - P;
+            if (!(Q > 0.0)) return std::numeric_limits<double>::infinity();
+            S_cens -= f * std::log(Q);
+        }
+    }
+    return nuw * (std::lgamma(a) + a * std::log(b))
+         - (a - 1.0) * lxw + sxw / b + S_cens;
+}
+
 Value gamfit(const Value &x, std::pmr::memory_resource *mr)
+{
+    return gamfit(x, Value::Empty, Value::Empty, mr);
+}
+
+Value gamfit(const Value &x, const Value &censoring, const Value &freq,
+             std::pmr::memory_resource *mr)
 {
     auto xv = toFlat(x);
     const std::size_t n = xv.size();
@@ -213,35 +254,123 @@ Value gamfit(const Value &x, std::pmr::memory_resource *mr)
             throw Error("gamfit: all observations must be positive",
                         0, 0, "gamfit", "", "m:gamfit:notPositive");
     }
+    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    if (!censoring.isEmpty()) {
+        if (censoring.numel() != n)
+            throw Error("gamfit: censoring length mismatch",
+                        0, 0, "gamfit", "", "m:gamfit:censLen");
+        for (std::size_t i = 0; i < n; ++i)
+            cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
+    }
+    if (!freq.isEmpty()) {
+        if (freq.numel() != n)
+            throw Error("gamfit: freq length mismatch",
+                        0, 0, "gamfit", "", "m:gamfit:freqLen");
+        for (std::size_t i = 0; i < n; ++i) {
+            wf[i] = freq.elemAsDouble(i);
+            if (!(wf[i] >= 0.0))
+                throw Error("gamfit: freq must be non-negative",
+                            0, 0, "gamfit", "", "m:gamfit:freqNeg");
+        }
+    }
 
-    double sum = 0.0, sumLog = 0.0;
-    for (double v : xv) { sum += v; sumLog += std::log(v); }
-    const double mean = sum / static_cast<double>(n);
-    const double meanLog = sumLog / static_cast<double>(n);
-    const double s = std::log(mean) - meanLog;  // ≥ 0 in general
-    if (!(s > 0.0)) {
-        // All values identical → shape undefined; return MoM fallback.
+    bool freq_trivial = true;
+    for (std::size_t i = 0; i < n; ++i)
+        if (wf[i] != 1.0) { freq_trivial = false; break; }
+    bool has_cens = false;
+    for (std::size_t i = 0; i < n; ++i)
+        if (cens[i] != 0.0) { has_cens = true; break; }
+
+    if (!has_cens && freq_trivial) {
+        // Existing closed-form path.
+        double sum = 0.0, sumLog = 0.0;
+        for (double v : xv) { sum += v; sumLog += std::log(v); }
+        const double mean = sum / static_cast<double>(n);
+        const double meanLog = sumLog / static_cast<double>(n);
+        const double s = std::log(mean) - meanLog;
+        if (!(s > 0.0)) {
+            auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+            out.doubleDataMut()[0] = std::numeric_limits<double>::infinity();
+            out.doubleDataMut()[1] = mean;
+            return out;
+        }
+        double a = (3.0 - s + std::sqrt((s - 3.0) * (s - 3.0) + 24.0 * s))
+                   / (12.0 * s);
+        for (int it = 0; it < 50; ++it) {
+            const double fa = std::log(a) - digamma(a) - s;
+            const double fpa = 1.0 / a - trigamma(a);
+            const double step = fa / fpa;
+            const double newA = a - step;
+            if (newA > 0.0) a = newA; else a *= 0.5;
+            if (std::fabs(step) < 1e-10 * std::max(a, 1.0)) break;
+        }
+        const double b = mean / a;
         auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-        out.doubleDataMut()[0] = std::numeric_limits<double>::infinity();
-        out.doubleDataMut()[1] = mean;
+        out.doubleDataMut()[0] = a;
+        out.doubleDataMut()[1] = b;
         return out;
     }
 
-    // Minka 2002 initial guess.
-    double a = (3.0 - s + std::sqrt((s - 3.0) * (s - 3.0) + 24.0 * s))
-               / (12.0 * s);
-
-    // Newton iteration on  f(a) = log a - ψ(a) - s.
-    for (int it = 0; it < 50; ++it) {
-        const double fa = std::log(a) - digamma(a) - s;
-        const double fpa = 1.0 / a - trigamma(a);
-        const double step = fa / fpa;
-        const double newA = a - step;
-        if (newA > 0.0) a = newA;
-        else            a *= 0.5;       // safeguard against bad step
-        if (std::fabs(step) < 1e-10 * std::max(a, 1.0)) break;
+    // Weighted/censored path: 2-D Newton on (a, b) via FD on
+    // nll_gam_full. Initial guess from weighted uncensored moments.
+    double nuw = 0.0, sx = 0.0, slx = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double u = 1.0 - cens[i];
+        nuw += wf[i] * u;
+        sx  += wf[i] * u * xv[i];
+        slx += wf[i] * u * std::log(xv[i]);
     }
-    const double b = mean / a;
+    if (!(nuw >= 2.0))
+        throw Error("gamfit: need at least 2 uncensored observations",
+                    0, 0, "gamfit", "", "m:gamfit:tooFewUncens");
+    const double mean_uw = sx / nuw;
+    const double meanLog_uw = slx / nuw;
+    const double s_init = std::log(mean_uw) - meanLog_uw;
+    double a, b;
+    if (s_init > 0.0) {
+        a = (3.0 - s_init + std::sqrt((s_init - 3.0) * (s_init - 3.0) + 24.0 * s_init))
+            / (12.0 * s_init);
+        b = mean_uw / a;
+    } else {
+        a = 1.0;
+        b = mean_uw;
+    }
+
+    auto nll = [&](double aa, double bb) { return nll_gam_full(aa, bb, xv, cens, wf, mr); };
+    double f_cur = nll(a, b);
+    for (int it = 0; it < 100; ++it) {
+        const double ha = std::max(std::fabs(a), 1.0) * 1e-5;
+        const double hb = std::max(std::fabs(b), 1.0) * 1e-5;
+        const double ga = (nll(a + ha, b) - nll(a - ha, b)) / (2.0 * ha);
+        const double gb = (nll(a, b + hb) - nll(a, b - hb)) / (2.0 * hb);
+        if (std::sqrt(ga * ga + gb * gb) < 1e-12) break;
+        const double Haa = (nll(a + ha, b) - 2.0 * f_cur + nll(a - ha, b)) / (ha * ha);
+        const double Hbb = (nll(a, b + hb) - 2.0 * f_cur + nll(a, b - hb)) / (hb * hb);
+        const double Hab = (nll(a + ha, b + hb) - nll(a + ha, b - hb)
+                         - nll(a - ha, b + hb) + nll(a - ha, b - hb))
+                          / (4.0 * ha * hb);
+        const double det = Haa * Hbb - Hab * Hab;
+        if (std::fabs(det) < 1e-300) break;
+        const double da = (-ga * Hbb + gb * Hab) / det;
+        const double db = (-gb * Haa + ga * Hab) / det;
+        double sc = 1.0;
+        bool ok = false;
+        for (int bt = 0; bt < 30; ++bt) {
+            const double an = a + sc * da;
+            const double bn = b + sc * db;
+            if (an > 0.0 && bn > 0.0) {
+                const double f_new = nll(an, bn);
+                if (std::isfinite(f_new) && f_new < f_cur - 1e-15) {
+                    a = an; b = bn; f_cur = f_new; ok = true;
+                    break;
+                }
+            }
+            sc *= 0.5;
+        }
+        if (!ok) break;
+        if (std::fabs(sc * da) + std::fabs(sc * db)
+            < 1e-12 * (std::fabs(a) + std::fabs(b) + 1.0)) break;
+    }
 
     auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     out.doubleDataMut()[0] = a;
@@ -992,11 +1121,35 @@ double nll_ev(double mu, double sigma, const std::vector<double> &xv)
 
 Value gamfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
+    return gamfit_ci(x, alpha, Value::Empty, Value::Empty, mr);
+}
+
+Value gamfit_ci(const Value &x, double alpha,
+                const Value &censoring, const Value &freq,
+                std::pmr::memory_resource *mr)
+{
     auto xv = toFlat(x);
-    Value parm = gamfit(x, mr);
+    const std::size_t n = xv.size();
+    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    if (!censoring.isEmpty()) {
+        for (std::size_t i = 0; i < n; ++i)
+            cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
+    }
+    if (!freq.isEmpty()) {
+        for (std::size_t i = 0; i < n; ++i) wf[i] = freq.elemAsDouble(i);
+    }
+    Value parm = gamfit(x, censoring, freq, mr);
     const double a_hat = parm.elemAsDouble(0);
     const double b_hat = parm.elemAsDouble(1);
-    return wald_ci_2d([&](double a, double b) { return nll_gam(a, b, xv); },
+    bool trivial = censoring.isEmpty() && freq.isEmpty();
+    if (trivial) {
+        return wald_ci_2d([&](double a, double b) { return nll_gam(a, b, xv); },
+                          a_hat, b_hat, CITransform::LOG, CITransform::LOG,
+                          alpha, mr);
+    }
+    return wald_ci_2d([&](double a, double b) {
+                          return nll_gam_full(a, b, xv, cens, wf, mr);
+                      },
                       a_hat, b_hat, CITransform::LOG, CITransform::LOG,
                       alpha, mr);
 }
@@ -1247,11 +1400,14 @@ void gamfit_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("gamfit: requires (x[, alpha])",
+        throw Error("gamfit: requires (x[, alpha[, cens[, freq[, options]]]])",
                     0, 0, "gamfit", "", "m:gamfit:nargin");
     auto *mr = ctx.engine->resource();
-    outs[0] = gamfit(args[0], mr);
-    if (nargout >= 2) outs[1] = gamfit_ci(args[0], parse_alpha(args), mr);
+    const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
+    outs[0] = gamfit(args[0], cens, freq, mr);
+    if (nargout >= 2)
+        outs[1] = gamfit_ci(args[0], parse_alpha(args), cens, freq, mr);
 }
 
 void wblfit_reg(Span<const Value> args, size_t nargout,

@@ -157,3 +157,42 @@ TEST_F(DistFitsTest, WblfitCensLengthMismatchThrows)
 {
     EXPECT_THROW(eval("wblfit([1 2 3], 0.05, [0 0]);"), std::exception);
 }
+
+// ── gamfit censoring + freq ─────────────────────────────────────────
+
+TEST_F(DistFitsTest, GamfitCensoredMatchesMatlab)
+{
+    // Right-censor top 20% of Gamma(3, 2) sample, n=1500.
+    // MATLAB MLE → (3.0015906199, 1.9988661241).
+    eval(R"(
+        n=1500; u=((1:n)' - 0.5)/n; x = gaminv(u, 3.0, 2.0);
+        thr = quantile(x, 0.8);
+        xc = min(x, thr); cens = (x >= thr);
+        [p, pci] = gamfit(xc, 0.05, cens);
+    )");
+    EXPECT_NEAR(evalScalar("p(1)"), 3.0015906199, 1e-5);
+    EXPECT_NEAR(evalScalar("p(2)"), 1.9988661241, 1e-5);
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 2.7791, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 3.2419, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 1.8297, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 2.1836, 1e-3);
+}
+
+TEST_F(DistFitsTest, GamfitFreqMatchesExplicitRep)
+{
+    eval(R"(
+        xv = [1 2 3 4 5]; fv = [3 2 1 2 3];
+        pa = gamfit(xv, 0.05, [], fv);
+        xexp = [1 1 1 2 2 3 4 4 5 5 5];
+        pb = gamfit(xexp);
+    )");
+    EXPECT_NEAR(evalScalar("pa(1)"), 2.9074324264, 1e-5);
+    EXPECT_NEAR(evalScalar("pa(2)"), 1.0318382545, 1e-5);
+    EXPECT_NEAR(evalScalar("pa(1)"), evalScalar("pb(1)"), 1e-6);
+    EXPECT_NEAR(evalScalar("pa(2)"), evalScalar("pb(2)"), 1e-6);
+}
+
+TEST_F(DistFitsTest, GamfitCensLengthMismatchThrows)
+{
+    EXPECT_THROW(eval("gamfit([1 2 3], 0.05, [0 0]);"), std::exception);
+}
