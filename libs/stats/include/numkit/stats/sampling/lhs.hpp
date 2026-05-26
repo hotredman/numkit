@@ -10,26 +10,49 @@
 
 namespace numkit::stats {
 
-/// @brief Latin Hypercube design (`X = lhsdesign(n, p)`).
+/// @brief Criterion for `lhsdesign` optimization.
+enum class LhsCriterion {
+    None,           ///< Single random LHS.
+    Maximin,        ///< Maximize the minimum pairwise Euclidean distance.
+    Correlation,    ///< Minimize the maximum off-diagonal column correlation.
+};
+
+/// @brief Latin Hypercube design (`X = lhsdesign(n, p[, options])`).
 ///
 /// Generates an `n × p` matrix where each column is a Latin
 /// hypercube sample: the unit interval `(0, 1)` is partitioned into
-/// `n` equal bins and exactly one sample lands in each bin. For
-/// column `j`, draw a random permutation `π_j` of `1..n` and set
-/// `X[i, j] = (π_j[i] − U) / n`, with `U ~ U(0, 1)`. Columns are
-/// independent.
+/// `n` equal bins and exactly one sample lands in each bin.
 ///
-/// Uses the shared MT19937 stream so `rng(seed)` makes designs
-/// reproducible.
+/// With `smooth = true` (default) the value within each bin is
+/// `(π[i] − U)/n` with `U ~ Uniform(0, 1)`; with `smooth = false`
+/// midpoints `(π[i] − 0.5)/n` are used.
 ///
-/// KNOWN GAPs: `'smooth' = 'off'` (midpoint sampling), `'criterion'`
-/// (maximin / correlation), and `'iterations'` are deferred.
+/// `criterion` controls optimization over `iterations` trials:
+///   * `None`         – single random design (fastest).
+///   * `Maximin`      – pick the trial maximising `min` pairwise
+///                      Euclidean distance between rows (DEFAULT,
+///                      matches MATLAB).
+///   * `Correlation`  – pick the trial minimising `max` absolute
+///                      off-diagonal Pearson correlation between
+///                      columns.
 ///
-/// @param n   Number of samples (rows).
-/// @param p   Number of variables (columns).
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `n × p` design matrix with entries in `(0, 1)`.
+/// Uses the shared MT19937 stream — `rng(seed)` makes designs
+/// reproducible. `iterations` default is 5 (MATLAB convention).
+///
+/// @param n           Number of samples (rows).
+/// @param p           Number of variables (columns).
+/// @param smooth      `true` for `(π[i] - U)/n`, `false` for midpoints.
+/// @param criterion   Optimization objective (see enum).
+/// @param iterations  Maximum trials for the criterion search (≥ 1).
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            `n × p` design matrix with entries in `(0, 1)`.
 /// @see lhsnorm
+Value lhsdesign(std::size_t n, std::size_t p,
+                bool smooth, LhsCriterion criterion, std::size_t iterations,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Latin Hypercube design with MATLAB defaults
+/// (smooth = on, criterion = maximin, iterations = 5).
 Value lhsdesign(std::size_t n, std::size_t p,
                 std::pmr::memory_resource *mr = nullptr);
 
