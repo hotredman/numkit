@@ -1,0 +1,19 @@
+{
+  "name": "ansaribradley",
+  "covers": ["ansaribradley"],
+  "namespace": "stats",
+  "setup": "a1 = [1 3 5 7 9 11 13 15 17 19]'; b1 = [2 4 6 8 10 12 14 16 18 20]'; a2 = [-1 -0.5 0 0.5 1]'; b2 = [-5 -3 -1 1 3 5]'; a3 = [1 2 2 3 4]'; b3 = [2 3 3 4 5]'; a4 = linspace(-2, 2, 20)'; b4 = linspace(-5, 5, 25)'; a5 = [1 2 3 4]'; b5 = [5 6 7]';",
+  "expr": "[h1, p1, s1] = ansaribradley(a1, b1); [h2, p2, s2] = ansaribradley(a2, b2); [h3, p3, s3] = ansaribradley(a3, b3); [h4, p4, s4] = ansaribradley(a4, b4); [hr, pr, sr] = ansaribradley(a4, b4, 'Tail', 'right'); [hl, pl, sl] = ansaribradley(a4, b4, 'Tail', 'left'); [h5, p5, s5] = ansaribradley(a5, b5);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "h1", "p1", "s1.W", "s1.Wstar",
+    "h2", "p2", "s2.W",
+    "h3", "p3", "s3.W", "s3.Wstar",
+    "h4", "p4", "s4.W", "s4.Wstar",
+    "hr", "pr",
+    "hl", "pl",
+    "h5", "p5", "s5.W"
+  ],
+  "comment": "Sig: [h, p, stats] = ansaribradley(x, y[, alpha or name-value]). Non-parametric two-sample scale test. V-shape Ansari ranks min(i, N+1-i) with mid-ranks for ties. W = sum of ranks for x. Exact path (min(m,n) ≤ 10): DP-enumerate C(N,m) permutations, scaled by LCM of tie-group sizes for exact integer arithmetic. Asymptotic path (else): conditional-permutation moments E[W] = m·mean(r), V[W] = mn/(N-1)·σ²(r) — automatically handles ties via observed ranks. Tail convention is INVERTED (MATLAB-specific): 'right' = dispersion(x) > dispersion(y) ⇒ W small ⇒ p = P(W ≤ obs); 'left' = opposite. Bit-equal MATLAB R2025b on all probe cases (asymptotic + exact + tied + tails) at 1e-9 tolerance. Full production: no GAPs."
+}

@@ -349,4 +349,33 @@ std::tuple<Value, Value, Value, Value>
 signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail,
          const std::string &method, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Ansari-Bradley two-sample scale (dispersion) test
+/// (`[h, p, W, Wstar] = ansaribradley(x, y, alpha, tail)`).
+///
+/// Non-parametric `H0`: `x` and `y` have the same dispersion
+/// (variances are equal). The Ansari-Bradley statistic `W` is the
+/// sum, in the pooled sorted sample, of the V-shaped ranks
+/// `1, 2, …, ⌈N/2⌉, …, 2, 1` over positions occupied by `x`.
+///
+/// Under `H0`, `W` is asymptotically normal with closed-form mean
+/// and variance (Hollander & Wolfe). The standardised statistic is
+/// `Wstar = (W − E[W]) / sqrt(V[W])`; the p-value follows from
+/// `Φ(Wstar)`.
+///
+/// KNOWN GAPs: tied-rank correction (MATLAB applies a small
+/// tie-correction to V[W] when ties are present) and exact
+/// permutation distribution for small samples are deferred —
+/// asymptotic only.
+///
+/// @param x      First sample.
+/// @param y      Second sample.
+/// @param alpha  Significance level (default 0.05).
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, W, Wstar)`.
+/// @see vartest2, ranksum
+std::tuple<Value, Value, Value, Value>
+ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
+              std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
