@@ -86,6 +86,8 @@ void rgb2lin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lin2rgb_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void whitepoint_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void deltaE_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void illumwhite_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void illumgray_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2double_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2uint16_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void brighten_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -319,6 +321,8 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "lin2rgb",       &image::detail::lin2rgb_reg);
     reg("color", "whitepoint",    &image::detail::whitepoint_reg);
     reg("color", "deltaE",        &image::detail::deltaE_reg);
+    reg("color", "illumwhite",    &image::detail::illumwhite_reg);
+    reg("color", "illumgray",     &image::detail::illumgray_reg);
     reg("color", "xyz2double",    &image::detail::xyz2double_reg);
     reg("color", "xyz2uint16",    &image::detail::xyz2uint16_reg);
     reg("color", "brighten",      &image::detail::brighten_reg);
