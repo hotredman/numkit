@@ -1,0 +1,17 @@
+{
+  "name": "mvt_mn",
+  "covers": ["mvtrnd", "mnrnd"],
+  "namespace": "stats",
+  "setup": "rng(0); C = [1 0.5; 0.5 1]; df = 5; p = [0.2, 0.3, 0.5];",
+  "expr": "R = mvtrnd(C, df, 3000); Cs = cov(R) * (df - 2) / df; cov_err = max(max(abs(Cs - C))); M = mnrnd(100, p, 500); m = mean(M); err1 = abs(m(1) - 20); err2 = abs(m(2) - 30); err3 = abs(m(3) - 50); all_100 = all(sum(M, 2) == 100);",
+  "iters": 3,
+  "tol": 0.2,
+  "fingerprint": [
+    "double(cov_err < 0.25)",
+    "size(R, 1)", "size(R, 2)",
+    "double(err1 < 2)", "double(err2 < 2)", "double(err3 < 3)",
+    "double(all_100)",
+    "size(M, 1)", "size(M, 2)"
+  ],
+  "comment": "Sig: R = mvtrnd(C, df, n) — multivariate-t RNG via N(0,C) / sqrt(χ²/df). R = mnrnd(N, P [, m]) — multinomial RNG via cumulative-prob sampling. Both use the shared MT19937 stream. KNOWN GAPs: mvtrnd no location parameter (always 0); mnrnd no per-sample P matrix form. Fingerprint pins distributional moments (cov ≈ scaled C, col means ≈ N·p) at statistical tolerance over 3000 samples; row sum constraint is exact."
+}

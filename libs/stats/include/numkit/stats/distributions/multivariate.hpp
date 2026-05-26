@@ -63,4 +63,45 @@ Value mvnrnd(const Value &mu, const Value &Sigma, std::size_t n = 0,
 Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Multivariate Student's-t random samples
+/// (`R = mvtrnd(C, df, n)`).
+///
+/// Draws n samples from `t_df(0, C)` via the canonical algorithm:
+/// `T = X / sqrt(χ² / df)` where `X ~ N(0, C)` and `χ² ~ χ²(df)`.
+///
+/// `C` is a `d × d` **correlation** matrix (diagonal = 1). df is the
+/// degrees of freedom (positive scalar).
+///
+/// KNOWN GAP: location parameter not supported (MATLAB also defaults
+/// to zero); pass `mu + mvtrnd(...)` at the call site if needed.
+///
+/// @param C    `d × d` correlation matrix.
+/// @param df   Degrees of freedom (`df > 0`).
+/// @param n    Sample count.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `n × d` matrix of samples.
+Value mvtrnd(const Value &C, double df, std::size_t n,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Multinomial random samples (`R = mnrnd(N, P, m)`).
+///
+/// Draws m samples from `Multinomial(N, P)` (k categories with
+/// probabilities P, total trials N per sample). Returns an `m × k`
+/// matrix where each row sums to N.
+///
+/// `P` must be a length-`k` probability vector (non-negative, sums
+/// to 1; renormalised if not). Implementation: per-trial categorical
+/// sampling via CDF lookup — O(m · N · k).
+///
+/// KNOWN GAP: `P` matrix form (per-sample probability rows) not yet
+/// supported in v1.
+///
+/// @param N   Trials per sample (positive integer).
+/// @param P   Length-k probability vector.
+/// @param m   Number of samples (default 1).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `m × k` count matrix.
+Value mnrnd(std::size_t N, const Value &P, std::size_t m = 1,
+              std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

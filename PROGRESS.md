@@ -3133,9 +3133,9 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `mvnrnd` | ✅ | 0.217 | 12.35× |  | OK | Sig: randg(shape [, m, n]) — raw gamma(shape, 1) RNG (scale = 1). Forwards to gamrnd internally. Per-element shape supported. mvnrnd(mu, Sigma [, n]) — multivariate normal RNG via in-place Cholesky on Sigma + N(0,1) draws. Supports vector mu (1×d, d×1) or matrix mu (n×d, per-row location). Bit-exact MATLAB R2025b not feasible (different RNG seeds); fingerprint pins distributional moments (mean ≈ shape, var ≈ shape for randg; mean ≈ mu, diag(cov) ≈ diag(Sigma) for mvnrnd) within statistical tolerance over n=3000 draws. |
 | `mvtcdf` | ❌ |  |  |  |  | multivariate t |
 | `mvtpdf` | ✅ | 0.008 | 135.07× | 45.79× | OK | Sig: p = mvtpdf(X, C, df). Multivariate Student-t PDF; C normalized to correlation matrix. Cholesky-based |C|^(-1/2) + quadratic form. Bit-identical to MATLAB R2025b. |
-| `mvtrnd` | ❌ |  |  |  |  |  |
+| `mvtrnd` | ✅ | 0.800 | 4.02× |  | OK | Sig: R = mvtrnd(C, df, n) — multivariate-t RNG via N(0,C) / sqrt(χ²/df). R = mnrnd(N, P [, m]) — multinomial RNG via cumulative-prob sampling. Both use the shared MT19937 stream. KNOWN GAPs: mvtrnd no location parameter (always 0); mnrnd no per-sample P matrix form. Fingerprint pins distributional moments (cov ≈ scaled C, col means ≈ N·p) at statistical tolerance over 3000 samples; row sum constraint is exact. |
 | `mnpdf` | ✅ | 0.008 | 122.66× | 53.93× | OK | Sig: p = mnpdf(X, P). Multinomial PMF: n!/(Π x_i!) · Π p_i^x_i. Computed in log-space via lgamma. Bit-identical to MATLAB R2025b on row-vector / matrix inputs. |
-| `mnrnd` | ❌ |  |  |  |  |  |
+| `mnrnd` | ✅ | 0.800 | 4.02× |  | OK | Sig: R = mvtrnd(C, df, n) — multivariate-t RNG via N(0,C) / sqrt(χ²/df). R = mnrnd(N, P [, m]) — multinomial RNG via cumulative-prob sampling. Both use the shared MT19937 stream. KNOWN GAPs: mvtrnd no location parameter (always 0); mnrnd no per-sample P matrix form. Fingerprint pins distributional moments (cov ≈ scaled C, col means ≈ N·p) at statistical tolerance over 3000 samples; row sum constraint is exact. |
 | `wishrnd` | ❌ |  |  |  |  | Wishart |
 | `iwishrnd` | ❌ |  |  |  |  | inverse Wishart |
 | `copulapdf` | ❌ |  |  |  |  |  |

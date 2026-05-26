@@ -293,6 +293,95 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     return out;
 }
 
+Value mvtrnd(const Value &C, double df, std::size_t n,
+              std::pmr::memory_resource *mr)
+{
+    if (!(df > 0.0))
+        throw Error("mvtrnd: df must be positive",
+                    0, 0, "mvtrnd", "", "m:mvtrnd:badDf");
+    if (C.dims().rows() != C.dims().cols())
+        throw Error("mvtrnd: C must be square",
+                    0, 0, "mvtrnd", "", "m:mvtrnd:notSquare");
+    const std::size_t d = C.dims().rows();
+    if (d == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Cholesky of correlation matrix.
+    std::vector<double> L(d * d);
+    for (std::size_t i = 0; i < d; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            L[i * d + j] = C.elemAsDouble(j * d + i);
+    choleskyLowerInPlace(L.data(), d);
+
+    auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    auto &gen = ::numkit::builtin::sharedEngine();
+    auto &mtx = ::numkit::builtin::rngMutex();
+    std::normal_distribution<double> Nz(0.0, 1.0);
+    std::chi_squared_distribution<double> Chi(df);
+
+    std::lock_guard<std::mutex> lk(mtx);
+    std::vector<double> z(d);
+    for (std::size_t r = 0; r < n; ++r) {
+        for (std::size_t k = 0; k < d; ++k) z[k] = Nz(gen);
+        const double scale = std::sqrt(df / Chi(gen));
+        for (std::size_t j = 0; j < d; ++j) {
+            double v = 0.0;
+            for (std::size_t k = 0; k <= j; ++k) v += L[j * d + k] * z[k];
+            od[j * n + r] = v * scale;
+        }
+    }
+    return out;
+}
+
+Value mnrnd(std::size_t N, const Value &P, std::size_t m,
+              std::pmr::memory_resource *mr)
+{
+    const std::size_t k = P.numel();
+    if (k == 0)
+        throw Error("mnrnd: P must be a non-empty probability vector",
+                    0, 0, "mnrnd", "", "m:mnrnd:emptyP");
+    // Build cumulative probability table (renormalised).
+    std::vector<double> cdf(k);
+    double sumP = 0.0;
+    for (std::size_t i = 0; i < k; ++i) {
+        const double pi = P.elemAsDouble(i);
+        if (pi < 0.0)
+            throw Error("mnrnd: probabilities must be non-negative",
+                        0, 0, "mnrnd", "", "m:mnrnd:negProb");
+        sumP += pi;
+        cdf[i] = sumP;
+    }
+    if (!(sumP > 0.0))
+        throw Error("mnrnd: sum(P) must be positive",
+                    0, 0, "mnrnd", "", "m:mnrnd:zeroP");
+    for (auto &c : cdf) c /= sumP;
+
+    auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    auto &gen = ::numkit::builtin::sharedEngine();
+    auto &mtx = ::numkit::builtin::rngMutex();
+    std::uniform_real_distribution<double> U(0.0, 1.0);
+
+    std::lock_guard<std::mutex> lk(mtx);
+    std::vector<std::size_t> counts(k);
+    for (std::size_t r = 0; r < m; ++r) {
+        std::fill(counts.begin(), counts.end(), 0u);
+        for (std::size_t t = 0; t < N; ++t) {
+            const double u = U(gen);
+            // Linear scan; k is typically small.
+            std::size_t cat = k - 1;
+            for (std::size_t i = 0; i < k; ++i) {
+                if (u <= cdf[i]) { cat = i; break; }
+            }
+            ++counts[cat];
+        }
+        for (std::size_t j = 0; j < k; ++j)
+            od[j * m + r] = static_cast<double>(counts[j]);
+    }
+    return out;
+}
+
 namespace detail {
 
 void mvncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -313,6 +402,28 @@ void mvnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     std::size_t n = 0;
     if (args.size() >= 3) n = static_cast<std::size_t>(args[2].toScalar());
     outs[0] = mvnrnd(args[0], args[1], n, ctx.engine->resource());
+}
+
+void mvtrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("mvtrnd: requires (C, df, n)",
+                    0, 0, "mvtrnd", "", "m:mvtrnd:nargin");
+    const double df = args[1].toScalar();
+    const std::size_t n = static_cast<std::size_t>(args[2].toScalar());
+    outs[0] = mvtrnd(args[0], df, n, ctx.engine->resource());
+}
+
+void mnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mnrnd: requires (N, P [, m])",
+                    0, 0, "mnrnd", "", "m:mnrnd:nargin");
+    const std::size_t N = static_cast<std::size_t>(args[0].toScalar());
+    std::size_t m = 1;
+    if (args.size() >= 3 && !args[2].isEmpty())
+        m = static_cast<std::size_t>(args[2].toScalar());
+    outs[0] = mnrnd(N, args[1], m, ctx.engine->resource());
 }
 
 } // namespace detail
