@@ -203,4 +203,78 @@ struct RobustcovResult { Value sigma; Value mu; };
 RobustcovResult robustcov(const Value &X,
                            std::pmr::memory_resource *mr = nullptr);
 
+/// @brief GLM family of error distributions.
+enum class GlmDistribution {
+    Normal,
+    Binomial,
+    Poisson,
+    Gamma,
+    InverseGaussian,
+};
+
+/// @brief GLM link function.
+enum class GlmLink {
+    Identity,    ///< g(μ) = μ
+    Logit,       ///< g(μ) = log(μ / (1 - μ))
+    Log,         ///< g(μ) = log(μ)
+    Reciprocal,  ///< g(μ) = 1 / μ
+    Probit,      ///< g(μ) = Φ^-1(μ)
+};
+
+/// @brief GLM fit result.
+struct GlmfitResult {
+    Value b;     ///< Coefficients `(p + 1) × 1` — intercept first.
+    Value dev;   ///< Deviance (scalar).
+};
+
+/// @brief Fit a generalised linear model
+/// (`[b, dev] = glmfit(X, y, distr [, link])`).
+///
+/// Solves `μ = g^{-1}(X · β)` via iteratively-reweighted least
+/// squares (IRLS) with the natural / canonical link by default.
+///
+/// Supported distributions and canonical links:
+///   - `'normal'`     → identity
+///   - `'binomial'`   → logit
+///   - `'poisson'`    → log
+///   - `'gamma'`      → reciprocal
+///
+/// A column of ones is **prepended automatically** to `X` for the
+/// intercept term (MATLAB convention). Pass `[]` for `link` to use
+/// the canonical link.
+///
+/// KNOWN GAPs (v1):
+///   - `y` for `'binomial'` must be a proportion (`y ∈ [0, 1]`); the
+///     `[successes, trials]` two-column form is not yet supported.
+///   - Returned stats reduced to `dev` (deviance) only — no standard
+///     errors, t-statistics, p-values, residuals struct.
+///   - `'constant'` name-value pair (off/on) not supported — intercept
+///     is always added.
+///
+/// @param X      Design matrix (`n × p`, no intercept column).
+/// @param y      Response (`n × 1`).
+/// @param distr  Distribution family.
+/// @param link   Link function (default = canonical for `distr`).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `{b, dev}` — coefficients with intercept first, and
+///               total deviance.
+GlmfitResult glmfit(const Value &X, const Value &y,
+                     GlmDistribution distr,
+                     GlmLink link = GlmLink::Identity,
+                     std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Evaluate a fitted GLM (`yhat = glmval(b, X, link)`).
+///
+/// Computes `yhat = g^{-1}([1, X] · b)` where `g^{-1}` is the inverse
+/// of the link used in the fit. `b` is `(p + 1) × 1` (intercept first,
+/// as returned by `glmfit`).
+///
+/// @param b      Coefficient vector from `glmfit`.
+/// @param X      Query points (`m × p`, no intercept column).
+/// @param link   Link function used in the fit.
+/// @param mr     Memory resource.
+/// @return       `m × 1` vector of predicted means.
+Value glmval(const Value &b, const Value &X, GlmLink link,
+              std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
