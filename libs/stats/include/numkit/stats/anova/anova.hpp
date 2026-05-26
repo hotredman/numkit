@@ -59,4 +59,38 @@ kruskalwallis(const Value &y, const Value &group,
 Value dummyvar(const Value &group,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Multiple-comparison correction methods for `multcompare`.
+enum class McCorrection { Bonferroni, LSD };
+
+/// @brief Pairwise post-hoc comparisons after one-way ANOVA
+/// (`c = multcompare(stats [, alpha [, ctype]])`).
+///
+/// `stats` is the 3rd output of `anova1` (a struct with fields
+/// `gnames`, `means`, `n`, `s`, `df`). For each pair `(i, j)` of
+/// groups, returns a row
+///
+///   `[ i, j, lower_CI, mean_diff, upper_CI, p_value ]`
+///
+/// where `mean_diff = means(i) - means(j)`, `p_value` is the two-sided
+/// t-test p adjusted for multiplicity, and CI half-width is
+/// `t_crit · s · sqrt(1/n_i + 1/n_j)`.
+///
+/// Supported `ctype`:
+///   - `McCorrection::Bonferroni` (default in v1) — multiply each
+///     unadjusted p by the number of pairs `K = k(k-1)/2`, clip to 1.
+///   - `McCorrection::LSD` — Fisher's least-significant-difference;
+///     no multiplicity correction (raw t-test).
+///
+/// KNOWN GAP: Tukey HSD (MATLAB default) requires the studentized
+/// range distribution — not in v1.
+///
+/// @param stats  Struct from `anova1`.
+/// @param alpha  Significance level (default 0.05).
+/// @param ctype  Correction method.
+/// @param mr     Memory resource.
+/// @return       `K × 6` matrix of pairwise comparisons.
+Value multcompare(const Value &stats, double alpha = 0.05,
+                   McCorrection ctype = McCorrection::Bonferroni,
+                   std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
