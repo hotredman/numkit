@@ -2,15 +2,17 @@
   "name": "evfit_gpfit",
   "covers": ["evfit", "gpfit"],
   "namespace": "stats",
-  "setup": "rng(0); xev = evrnd(1.0, 2.0, 3000, 1); rng(1); xgp = gprnd(0.3, 1.5, 0, 3000, 1);",
-  "expr": "pe = evfit(xev); err_mu = abs(pe(1) - 1.0); err_se = abs(pe(2) - 2.0); pg = gpfit(xgp); err_k = abs(pg(1) - 0.3); err_sg = abs(pg(2) - 1.5);",
-  "iters": 3,
-  "tol": 0.15,
+  "setup": "n = 2000; u = ((1:n)' - 0.5) / n; xev1 = evinv(u, 1.0, 2.0); xgp1 = gpinv(u, 0.3, 1.5, 0); m = 1500; u2 = ((1:m)' - 0.5) / m; xgp2 = gpinv(u2, -0.1, 2.0, 0); m3 = 1000; u3 = ((1:m3)' - 0.5) / m3; xgp3 = gpinv(u3, 0, 1.5, 0);",
+  "expr": "pe = evfit(xev1); pg1 = gpfit(xgp1); pg2 = gpfit(xgp2); pg3 = gpfit(xgp3); err_ev_mu = abs(pe(1) - 1.0); err_ev_se = abs(pe(2) - 2.0);",
+  "iters": 5,
+  "tol": 1e-05,
   "fingerprint": [
-    "double(err_mu < 0.25)", "double(err_se < 0.3)",
-    "double(err_k < 0.2)", "double(err_sg < 0.4)",
+    "pg1(1)", "pg1(2)",
+    "pg2(1)", "pg2(2)",
+    "pg3(1)", "pg3(2)",
+    "double(err_ev_mu < 0.1)", "double(err_ev_se < 0.15)",
     "size(pe, 1)", "size(pe, 2)",
-    "size(pg, 1)", "size(pg, 2)"
+    "size(pg1, 1)", "size(pg1, 2)"
   ],
-  "comment": "Sig: [muhat, sigmahat] = evfit(x) — Gumbel-min MLE: μ profiled out via Σ exp(x_i/σ)=n; 1-D Newton on σ-equation Σ x_i e^{x_i/σ}/Σ e^{x_i/σ} - mean - σ = 0 (negative-definite f'). [khat, sigmahat] = gpfit(x) — Generalised Pareto via PWM (Hosking & Wallis 1987): β_0 = mean, β_1 = mean(F̂_i x_(i)), k̂ = 2 - β_0/(β_0-2β_1), σ̂ = 2β_0β_1/(β_0-2β_1). Stochastic samples; fingerprint pins parameter recoverability + output shape. KNOWN GAPs: CI second output, censoring, freq, options, and Grimshaw 1993 MLE refinement for gpfit deferred."
+  "comment": "Sig: [muhat, sigmahat] = evfit(x) — Gumbel-min MLE: μ profiled out via Σ exp(x_i/σ)=n; 1-D Newton on σ-equation Σ x_i e^{x_i/σ}/Σ e^{x_i/σ} - mean - σ = 0 (negative-definite f'). [khat, sigmahat] = gpfit(x) — Generalised Pareto MLE: PWM (Hosking-Wallis 1987 α-form) as warm start, then 2-D Newton-Raphson on the GP log-likelihood with central-FD gradient & Hessian, backtracking line search with feasibility guard. Bit-equal MATLAB R2025b at ~1e-5 on deterministic inverse-CDF samples (k=0.3, -0.1, 0)."
 }

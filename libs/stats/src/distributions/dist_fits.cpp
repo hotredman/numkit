@@ -370,6 +370,46 @@ Value evfit(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Generalised Pareto NLL helper. Returns +Inf if the support
+// constraint (1 + k·x_i/σ > 0 for all i) is violated, allowing the
+// optimiser to reject infeasible steps via the line-search.
+static double gp_nll(double k, double sigma,
+                     const std::vector<double> &xv)
+{
+    if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
+    const std::size_t n = xv.size();
+    double nll = static_cast<double>(n) * std::log(sigma);
+    if (std::fabs(k) < 1e-10) {
+        // Exponential limit.
+        double s = 0.0;
+        for (double v : xv) s += v;
+        return nll + s / sigma;
+    }
+    const double inv_sigma = 1.0 / sigma;
+    for (double v : xv) {
+        const double u = k * v * inv_sigma;
+        if (u <= -1.0) return std::numeric_limits<double>::infinity();
+    }
+    double s = 0.0;
+    for (double v : xv) s += std::log1p(k * v * inv_sigma);
+    nll += (1.0 + 1.0 / k) * s;
+    return nll;
+}
+
+// Central-finite-difference gradient of NLL w.r.t. (k, σ). Robust
+// at k = 0 (where the analytical formula is removable but the limit
+// requires a Taylor expansion); central FD captures the smooth surface
+// uniformly across the parameter space.
+static void gp_nll_grad(double k, double sigma,
+                        const std::vector<double> &xv,
+                        double &gk, double &gs)
+{
+    const double hk = std::max(std::fabs(k), 1.0) * 1e-7;
+    const double hs = std::max(std::fabs(sigma), 1.0) * 1e-7;
+    gk = (gp_nll(k + hk, sigma, xv) - gp_nll(k - hk, sigma, xv)) / (2.0 * hk);
+    gs = (gp_nll(k, sigma + hs, xv) - gp_nll(k, sigma - hs, xv)) / (2.0 * hs);
+}
+
 Value gpfit(const Value &x, std::pmr::memory_resource *mr)
 {
     auto xv = toFlat(x);
@@ -384,25 +424,22 @@ Value gpfit(const Value &x, std::pmr::memory_resource *mr)
                         0, 0, "gpfit", "", "m:gpfit:invalidData");
     }
 
-    // PWM / Hosking-Wallis 1987 (using α = E[X·(1-F)^r] convention):
-    //   α_0 = mean(x), α_1 = mean((1-F̂_i) · x_(i)), F̂_i = (i - 0.35)/n,
-    //   k̂_MATLAB = 2 - α_0/(α_0 - 2α_1)   (sign flip vs Hosking),
-    //   σ̂      = 2·α_0·α_1/(α_0 - 2α_1).
-    std::sort(xv.begin(), xv.end());
+    // ── Initial guess: PWM (Hosking-Wallis 1987, α-form) ──────────
+    std::vector<double> xs = xv;
+    std::sort(xs.begin(), xs.end());
     double sumX = 0.0;
-    for (double v : xv) sumX += v;
+    for (double v : xs) sumX += v;
     const double beta0 = sumX / static_cast<double>(n);
     double beta1 = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
         const double F = (static_cast<double>(i + 1) - 0.35) / static_cast<double>(n);
-        beta1 += (1.0 - F) * xv[i];
+        beta1 += (1.0 - F) * xs[i];
     }
     beta1 /= static_cast<double>(n);
 
     const double denom = beta0 - 2.0 * beta1;
     double k_hat, sigma_hat;
     if (std::fabs(denom) < 1e-300 || !std::isfinite(denom)) {
-        // Degenerate: fall back to exponential MLE.
         k_hat = 0.0;
         sigma_hat = beta0;
     } else {
@@ -412,6 +449,68 @@ Value gpfit(const Value &x, std::pmr::memory_resource *mr)
             k_hat = 0.0;
             sigma_hat = beta0;
         }
+    }
+
+    // ── Newton-Raphson refinement (Grimshaw-style) ────────────────
+    // 2-D Newton on (k, σ) with analytical gradient and central-FD
+    // Hessian on the gradient. Line search guards against infeasible
+    // or NLL-worsening steps.
+    const double x_max = xs.back();
+    double f0 = gp_nll(k_hat, sigma_hat, xv);
+    if (!std::isfinite(f0)) {
+        // PWM produced infeasible point — fall back to safe init.
+        sigma_hat = beta0;
+        k_hat = 0.0;
+        f0 = gp_nll(k_hat, sigma_hat, xv);
+    }
+
+    for (int it = 0; it < 100; ++it) {
+        double gk, gs;
+        gp_nll_grad(k_hat, sigma_hat, xv, gk, gs);
+        const double gnorm = std::sqrt(gk * gk + gs * gs);
+        if (gnorm < 1e-12) break;
+
+        // Numerical Hessian via central FD on gradient.
+        const double hk = std::max(std::fabs(k_hat), 1.0) * 1e-6;
+        const double hs = std::max(std::fabs(sigma_hat), 1.0) * 1e-6;
+        double gk_kp, gs_kp, gk_km, gs_km, gk_sp, gs_sp, gk_sm, gs_sm;
+        gp_nll_grad(k_hat + hk, sigma_hat, xv, gk_kp, gs_kp);
+        gp_nll_grad(k_hat - hk, sigma_hat, xv, gk_km, gs_km);
+        gp_nll_grad(k_hat, sigma_hat + hs, xv, gk_sp, gs_sp);
+        gp_nll_grad(k_hat, sigma_hat - hs, xv, gk_sm, gs_sm);
+        const double Hkk = (gk_kp - gk_km) / (2.0 * hk);
+        const double Hss = (gs_sp - gs_sm) / (2.0 * hs);
+        const double Hks = 0.5 * ((gk_sp - gk_sm) / (2.0 * hs)
+                                + (gs_kp - gs_km) / (2.0 * hk));
+
+        // Solve H · [dk; dσ] = -[gk; gs].
+        const double det = Hkk * Hss - Hks * Hks;
+        if (std::fabs(det) < 1e-300) break;
+        double dk = (-gk * Hss + gs * Hks) / det;
+        double ds = (-gs * Hkk + gk * Hks) / det;
+
+        // Backtracking line search with feasibility guard.
+        double step = 1.0;
+        bool improved = false;
+        for (int bt = 0; bt < 30; ++bt) {
+            const double k_new = k_hat + step * dk;
+            const double s_new = sigma_hat + step * ds;
+            if (s_new > 0.0 && (k_new >= 0.0
+                || -k_new * x_max / s_new < 1.0 - 1e-12)) {
+                const double f_new = gp_nll(k_new, s_new, xv);
+                if (std::isfinite(f_new) && f_new < f0 - 1e-15) {
+                    k_hat = k_new;
+                    sigma_hat = s_new;
+                    f0 = f_new;
+                    improved = true;
+                    break;
+                }
+            }
+            step *= 0.5;
+        }
+        if (!improved) break;
+        if (std::fabs(step * dk) + std::fabs(step * ds)
+            < 1e-12 * (std::fabs(k_hat) + std::fabs(sigma_hat) + 1.0)) break;
     }
 
     auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);

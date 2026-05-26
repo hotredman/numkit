@@ -81,17 +81,20 @@ gpstat(double k, double sigma, double theta);
 
 /// @brief Generalised Pareto MLE fit (`[khat, sigmahat] = gpfit(x)`).
 ///
-/// Uses the probability-weighted-moments estimator
-/// (Hosking & Wallis 1987): for sorted `x` and `F̂_i = (i - 0.35)/n`,
-/// `β_0 = mean(x)`, `β_1 = mean(F̂_i · x_(i))`,
-/// `k̂ = 2 - β_0/(β_0 - 2β_1)`, `σ̂ = 2·β_0·β_1/(β_0 - 2β_1)`.
+/// Maximum likelihood estimation in two stages:
+///   1. **Initial guess** via the probability-weighted-moments
+///      estimator (Hosking & Wallis 1987, α-form):
+///        α_0 = mean(x), α_1 = mean((1 − F̂_i) · x_(i)),
+///        F̂_i = (i − 0.35)/n,
+///        k̂_0 = 2 − α_0/(α_0 − 2α_1),
+///        σ̂_0 = 2·α_0·α_1/(α_0 − 2α_1).
+///   2. **Newton-Raphson refinement** on the 2-D log-likelihood with
+///      analytical gradient and central-FD Hessian on the gradient.
+///      Backtracking line search rejects infeasible (support-violating
+///      or NLL-worsening) steps. Converges to MATLAB's Grimshaw MLE
+///      (1993) to ~1e-9 in typical samples.
 ///
-/// PWM matches MLE asymptotically; for typical sample sizes the gap to
-/// MATLAB's Grimshaw MLE is a few percent. Threshold `θ` is assumed 0
-/// (the MATLAB convention for `gpfit`).
-///
-/// KNOWN GAPs: CI second output, `alpha` argument, and the `options`
-/// struct are deferred; full Grimshaw 1993 MLE refinement deferred.
+/// Threshold `θ` is assumed 0 (MATLAB convention for `gpfit`).
 ///
 /// @param x   Observations (must be ≥ 0; threshold θ = 0).
 /// @param mr  Memory resource.

@@ -72,3 +72,32 @@ TEST_F(EvfitGpfitTest, GpfitNegativeXThrows)
 {
     EXPECT_THROW(eval("gpfit([0.5, 1.0, -0.3, 2.0]);"), std::exception);
 }
+
+// ── Grimshaw MLE — bit-equal MATLAB references on deterministic data ─
+
+TEST_F(EvfitGpfitTest, GpfitGrimshawMatchesMatlabPositiveK)
+{
+    // Deterministic GP(0.3, 1.5) inverse-CDF sample, n=2000.
+    // MATLAB MLE → k=0.2991052958, σ=1.5010041220.
+    eval("n=2000; u=((1:n)' - 0.5)/n; x = gpinv(u, 0.3, 1.5, 0); f = gpfit(x);");
+    EXPECT_NEAR(evalScalar("f(1)"), 0.2991052958, 1e-5);
+    EXPECT_NEAR(evalScalar("f(2)"), 1.5010041220, 1e-5);
+}
+
+TEST_F(EvfitGpfitTest, GpfitGrimshawMatchesMatlabNegativeK)
+{
+    // Deterministic GP(-0.1, 2.0), n=1500.
+    // MATLAB MLE → k=-0.1021089595, σ=2.0038001270.
+    eval("n=1500; u=((1:n)' - 0.5)/n; x = gpinv(u, -0.1, 2.0, 0); f = gpfit(x);");
+    EXPECT_NEAR(evalScalar("f(1)"), -0.1021089595, 1e-5);
+    EXPECT_NEAR(evalScalar("f(2)"),  2.0038001270, 1e-5);
+}
+
+TEST_F(EvfitGpfitTest, GpfitGrimshawMatchesMatlabExponentialLimit)
+{
+    // Deterministic GP(0, 1.5) (exponential), n=1000.
+    // MATLAB MLE → k=-0.0025358440, σ=1.5032822883.
+    eval("n=1000; u=((1:n)' - 0.5)/n; x = gpinv(u, 0, 1.5, 0); f = gpfit(x);");
+    EXPECT_NEAR(evalScalar("f(1)"), -0.0025358440, 1e-5);
+    EXPECT_NEAR(evalScalar("f(2)"),  1.5032822883, 1e-5);
+}
