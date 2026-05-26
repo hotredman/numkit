@@ -82,4 +82,37 @@ Value gevrnd(double k, double sigma, double mu,
 std::tuple<double, double>
 gevstat(double k, double sigma, double mu);
 
+/// @brief GEV MLE fit (`[parmhat, parmci] = gevfit(x, alpha)`).
+///
+/// Maximum likelihood estimation of the 3-parameter GEV `(k, σ, μ)`:
+///
+///   * Initial guess from probability-weighted moments
+///     (Hosking, Wallis & Wood 1985):
+///       `k_pwm = 7.8590·c + 2.9554·c²` where
+///       `c = 2β_1/(β_2 - β_0) − ln 2 / ln 3`,
+///       `σ_pwm = k·(β_0 − 2β_1) / (Γ(1+k)·(1 − 2^{-k}))`,
+///       `μ_pwm = β_0 + σ_pwm·(1 − Γ(1+k))/k`.
+///   * 3-D Newton refinement on `(k, σ, μ)` with FD gradient/Hessian
+///     on the log-likelihood, backtracking line search with
+///     support-constraint guard (`1 + k(x−μ)/σ > 0` for all x).
+///
+/// At `k = 0` the support constraint collapses to the Gumbel-max
+/// limit; the iteration handles it by treating `|k| < 1e−10` via the
+/// small-k Taylor expansion of `log(1+kz)/k ≈ z − k z²/2`.
+///
+/// @param x      Observations.
+/// @param mr     Memory resource.
+/// @return       `[khat, sigmahat, muhat]` as a `1 × 3` row.
+/// @see gevpdf, gevlike
+Value gevfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 95% Wald CI for gevfit (`pci = gevfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 3 confidence matrix `[lo; hi]` for `[k, σ, μ]`
+/// from the observed Fisher information (central-FD Hessian of NLL).
+/// `k` and `μ` use linear Wald CI; `σ` uses log-scale (MATLAB
+/// convention).
+Value gevfit_ci(const Value &x, double alpha = 0.05,
+                std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
