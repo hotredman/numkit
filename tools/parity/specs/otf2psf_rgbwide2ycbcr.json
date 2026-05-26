@@ -1,0 +1,26 @@
+{
+  "name": "otf2psf_rgbwide2ycbcr",
+  "namespace": "image",
+  "setup": "psf3 = [1 2 3; 4 5 6; 7 8 9]; otf3 = psf2otf(psf3); psf2 = [1 2; 3 4]; otf2 = psf2otf(psf2, [5 5]); psf1 = [1 2 3]; otf1 = psf2otf(psf1, [1 7]); psf4 = reshape(1:16, 4, 4); otf4 = psf2otf(psf4); RGB10 = uint16([940 940 940; 64 64 64; 500 500 500; 800 200 300]); RGB12 = uint16([3760 3760 3760; 256 256 256; 2000 1500 1000]);",
+  "expr": "rt3 = real(otf2psf(otf3)); rt5 = real(otf2psf(otf2)); cr2 = real(otf2psf(otf2, [2 2])); rt1 = real(otf2psf(otf1)); cr1 = real(otf2psf(otf1, [1 3])); rt4 = real(otf2psf(otf4)); y10 = double(rgbwide2ycbcr(RGB10, 10)); y12 = double(rgbwide2ycbcr(RGB12, 12));",
+  "iters": 3,
+  "tol": 1e-10,
+  "fingerprint": [
+    "rt3(1,1)", "rt3(2,2)", "rt3(3,3)",
+    "rt5(2,2)", "rt5(3,3)",
+    "cr2(1,1)", "cr2(2,2)",
+    "rt1(3)", "rt1(5)",
+    "cr1(1)", "cr1(3)",
+    "rt4(1,1)", "rt4(4,4)",
+    "y10(1,1)", "y10(1,2)", "y10(4,1)", "y10(4,3)",
+    "y12(1,1)", "y12(3,2)", "y12(3,3)"
+  ],
+  "covers": [
+    "otf2psf(otf)                no outsize, 3-D / 4-D / odd / even / 1-D",
+    "otf2psf(otf, outsize)       crop to top-left after floor(outsize/2) shift",
+    "otf2psf(otf, [1 N])         1-D crop",
+    "rgbwide2ycbcr(rgb, 10)      BT.2020 10-bit narrow-range",
+    "rgbwide2ycbcr(rgb, 12)      BT.2020 12-bit narrow-range"
+  ],
+  "comment": "otf2psf: was registered but the outsize parameter was ignored. Fixed to do circshift by floor(OUTSIZE/2) (not floor(insize/2) — MATLAB's actual algorithm), then top-left crop. Now bit-equal MATLAB on roundtrips (3x3/4x4 odd/even) and on cropped cases. rgbwide2ycbcr: ITU-R BT.2020-2 / BT.2100-2 narrow-range YCbCr encoder for 10-bit or 12-bit wide-gamut RGB. Algorithm ported verbatim from MATLAB R2025b colorspaces/+images/+color/+internal/rgbwide2ycbcrImpl.m. Y' = 0.2627·R + 0.6780·G + 0.0593·B (BT.2020 luma); then quantise to uint16 via the 219/16/128 scaling × 2^(bps-8). Bit-equal MATLAB on all tested rows."
+}
