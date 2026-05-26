@@ -118,12 +118,30 @@ Value randg(const Value &shapeArray,
 /// @return    `[ahat, bhat]` as a `1 × 2` row.
 Value gamfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Gamma MLE fit with right-censoring and frequency weights
+/// (`[parmhat, parmci] = gamfit(x, alpha, cens, freq)`).
+///
+/// Likelihood is `∏ f(x_i)^(u_i · f_i) · S(x_i)^(c_i · f_i)` where the
+/// survival is `S(x; a, b) = 1 − gammainc(x/b, a)` (upper-tail
+/// regularised incomplete gamma). When `censoring` and `freq` are both
+/// empty/trivial, falls through to the fast Newton path. Otherwise
+/// runs 2-D Newton on (a, b) with FD gradient/Hessian on the
+/// censored-weighted NLL, with backtracking line search.
+Value gamfit(const Value &x, const Value &censoring, const Value &freq,
+             std::pmr::memory_resource *mr = nullptr);
+
 /// @brief 95% Wald CI for gamfit (`pci = gamfit_ci(x, alpha)`).
 ///
 /// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
 /// the observed Fisher information at the MLE (central-FD Hessian).
 /// Both parameters use a log-scale Wald CI (MATLAB convention).
 Value gamfit_ci(const Value &x, double alpha = 0.05,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wald CI for censored/weighted gamfit
+/// (`pci = gamfit_ci(x, alpha, cens, freq)`).
+Value gamfit_ci(const Value &x, double alpha,
+                const Value &censoring, const Value &freq,
                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
