@@ -5,6 +5,7 @@
 //   convhull  — convex hull of a 2-D point cloud (Andrew's monotone chain)
 
 #include <numkit/builtin/library.hpp>
+#include <numkit/builtin/math/geom/geom.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/figure_manager.hpp>
@@ -728,38 +729,17 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = std::move(out);
 }
 
+} // namespace detail
+
 // ── griddatan ────────────────────────────────────────────────────────
 //
-// griddatan(X, v, xi [, method]) — N-D scattered-data interpolation.
-//   X  is m×n  (m data points in n-dim space)
-//   v  is m×1  (values at those points)
-//   xi is k×n  (k query points)
-// Returns vi (k×1).
-//
-// v1 method support:
-//   'nearest' — nearest-neighbour by Euclidean distance. Works for
-//               any n. O(m·k·n) brute-force search; fine for typical
-//               sizes (full kd-tree is a future-work backlog item).
-//   'linear'  — only n == 2 is supported (delegates to the same
-//               brute-force Delaunay code as griddata). KNOWN GAP:
-//               n ≥ 3 linear needs a real N-D Delaunay (Qhull-style),
-//               which is not in v1.
-//
-// Default method is 'linear' (MATLAB-compatible) — so a call without
-// the method arg on n ≥ 3 errors out with a clear pointer to the gap.
-void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("griddatan: requires (X, v, xi [, method])",
-                     0, 0, "griddatan", "", "m:griddatan:nargin");
-    const auto &Xv = args[0];
-    const auto &vv = args[1];
-    const auto &xi = args[2];
-    std::string method = "linear";
-    if (args.size() >= 4 && args[3].isChar())
-        method = args[3].toString();
+// See header (libs/builtin/include/numkit/builtin/math/geom/geom.hpp)
+// for the public C++ API + Doxygen. This source unit hosts the
+// implementation plus its adapter.
 
+Value griddatan(const Value &Xv, const Value &vv, const Value &xi,
+                const std::string &method, std::pmr::memory_resource *mr)
+{
     // Shape: X is m×n, xi is k×n. Use rows/cols directly so a row
     // vector `xi = [a b]` reads as 1×n (one query point in n-D), and
     // a column vector `xi = [a; b]` reads as 2×1 (two queries in 1-D).
@@ -773,8 +753,6 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
     if (nQry != n)
         throw Error("griddatan: cols(xi) must equal cols(X)",
                      0, 0, "griddatan", "", "m:griddatan:queryDim");
-
-    auto *mr = ctx.engine->resource();
     auto out = Value::matrix(k, 1, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
 
@@ -801,8 +779,7 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
             }
             dst[q] = Vd[bestIdx];
         }
-        outs[0] = std::move(out);
-        return;
+        return out;
     }
 
     if (method == "linear") {
@@ -825,8 +802,7 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
         }
         if (m < 3) {
             for (std::size_t q = 0; q < k; ++q) dst[q] = std::nan("");
-            outs[0] = std::move(out);
-            return;
+            return out;
         }
         auto signedArea2 = [&](std::size_t a, std::size_t b, std::size_t c) {
             return (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]);
@@ -880,8 +856,7 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
             }
             if (!found) dst[q] = std::nan("");
         }
-        outs[0] = std::move(out);
-        return;
+        return out;
     }
 
     throw Error("griddatan: unknown method '" + method
@@ -889,15 +864,27 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
                  0, 0, "griddatan", "", "m:griddatan:badMethod");
 }
 
+namespace detail {
+
+void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("griddatan: requires (X, v, xi [, method])",
+                     0, 0, "griddatan", "", "m:griddatan:nargin");
+    std::string method = "linear";
+    if (args.size() >= 4 && args[3].isChar())
+        method = args[3].toString();
+    outs[0] = griddatan(args[0], args[1], args[2], method,
+                        ctx.engine->resource());
+}
+
+} // namespace detail
+
 // ── matchpairs — linear assignment / bipartite matching ─────────────
 //
-// [M, uR, uC] = matchpairs(Cost, costUnmatched [, 'min'|'max'])
-//
-// Solves the linear assignment problem on a rectangular Cost matrix
-// with an optional unmatched-cost penalty per row / per col. Returns
-//   M  : P×2 matrix of (row, col) match pairs (1-based)
-//   uR : column of unmatched row indices
-//   uC : column of unmatched col indices
+// See header (libs/builtin/include/numkit/builtin/math/geom/geom.hpp)
+// for the public C++ API + Doxygen.
 //
 // Algorithm: classical O(N²·M) Jonker-Volgenant Hungarian on the
 // augmented (rows + cols) × (rows + cols) cost matrix:
@@ -915,47 +902,32 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
 // for col j (matched to its private col-dummy row); free dummy-dummy
 // matches absorb the leftover capacity.
 //
-// 'max' flag negates Cost before solving and re-negates the cost
-// total, matching MATLAB.
-void matchpairs_reg(Span<const Value> args, size_t nargout,
-                    Span<Value> outs, CallContext &ctx)
+// 'max' mode negates both Cost AND costUnmatched (MATLAB convention —
+// costUnmatched becomes a REWARD for leaving unmatched).
+MatchpairsResult matchpairs(const Value &C, double cU,
+                            const std::string &mode,
+                            std::pmr::memory_resource *mr)
 {
-    if (args.size() < 2)
-        throw Error("matchpairs: requires (Cost, costUnmatched [, 'min'|'max'])",
-                     0, 0, "matchpairs", "", "m:matchpairs:nargin");
-    const auto &C = args[0];
     if (C.type() == ValueType::COMPLEX)
         throw Error("matchpairs: complex Cost not supported",
                      0, 0, "matchpairs", "", "m:matchpairs:complex");
-    const double cU = args[1].toScalar();
-
     bool maximise = false;
-    if (args.size() >= 3 && args[2].isChar()) {
-        const std::string mode = args[2].toString();
-        if (mode == "max") maximise = true;
-        else if (mode != "min")
-            throw Error("matchpairs: third arg must be 'min' or 'max'",
-                         0, 0, "matchpairs", "", "m:matchpairs:badMode");
-    }
+    if (mode == "max") maximise = true;
+    else if (!mode.empty() && mode != "min")
+        throw Error("matchpairs: mode must be 'min' or 'max'",
+                     0, 0, "matchpairs", "", "m:matchpairs:badMode");
 
     const std::size_t rows = C.dims().rows();
     const std::size_t cols = C.dims().cols();
-    auto *mr = ctx.engine->resource();
 
     if (rows == 0 || cols == 0) {
-        outs[0] = Value::matrix(0, 2, ValueType::DOUBLE, mr);
-        if (nargout > 1) {
-            // All rows / all cols unmatched.
-            auto uR = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
-            for (std::size_t i = 0; i < rows; ++i) uR.doubleDataMut()[i] = i + 1;
-            outs[1] = std::move(uR);
-        }
-        if (nargout > 2) {
-            auto uC = Value::matrix(cols, 1, ValueType::DOUBLE, mr);
-            for (std::size_t j = 0; j < cols; ++j) uC.doubleDataMut()[j] = j + 1;
-            outs[2] = std::move(uC);
-        }
-        return;
+        MatchpairsResult r;
+        r.M = Value::matrix(0, 2, ValueType::DOUBLE, mr);
+        r.uR = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < rows; ++i) r.uR.doubleDataMut()[i] = i + 1;
+        r.uC = Value::matrix(cols, 1, ValueType::DOUBLE, mr);
+        for (std::size_t j = 0; j < cols; ++j) r.uC.doubleDataMut()[j] = j + 1;
+        return r;
     }
 
     // Build augmented N×N matrix.
@@ -1055,27 +1027,41 @@ void matchpairs_reg(Span<const Value> args, size_t nargout,
         if (!colUsed[j])
             unmatchedCols.push_back(static_cast<int>(j) + 1);
 
-    // Pack M as P × 2 double matrix (column-major: col 0 = rows, col 1 = cols).
-    auto M = Value::matrix(matches.size(), 2, ValueType::DOUBLE, mr);
-    double *Md = M.doubleDataMut();
-    for (std::size_t k = 0; k < matches.size(); ++k) {
-        Md[k] = matches[k].first;
-        Md[matches.size() + k] = matches[k].second;
+    // Pack outputs (column-major).
+    MatchpairsResult result;
+    result.M = Value::matrix(matches.size(), 2, ValueType::DOUBLE, mr);
+    {
+        double *Md = result.M.doubleDataMut();
+        for (std::size_t k = 0; k < matches.size(); ++k) {
+            Md[k] = matches[k].first;
+            Md[matches.size() + k] = matches[k].second;
+        }
     }
-    outs[0] = std::move(M);
+    result.uR = Value::matrix(unmatchedRows.size(), 1, ValueType::DOUBLE, mr);
+    for (std::size_t k = 0; k < unmatchedRows.size(); ++k)
+        result.uR.doubleDataMut()[k] = unmatchedRows[k];
+    result.uC = Value::matrix(unmatchedCols.size(), 1, ValueType::DOUBLE, mr);
+    for (std::size_t k = 0; k < unmatchedCols.size(); ++k)
+        result.uC.doubleDataMut()[k] = unmatchedCols[k];
+    return result;
+}
 
-    if (nargout > 1) {
-        auto uR = Value::matrix(unmatchedRows.size(), 1, ValueType::DOUBLE, mr);
-        for (std::size_t k = 0; k < unmatchedRows.size(); ++k)
-            uR.doubleDataMut()[k] = unmatchedRows[k];
-        outs[1] = std::move(uR);
-    }
-    if (nargout > 2) {
-        auto uC = Value::matrix(unmatchedCols.size(), 1, ValueType::DOUBLE, mr);
-        for (std::size_t k = 0; k < unmatchedCols.size(); ++k)
-            uC.doubleDataMut()[k] = unmatchedCols[k];
-        outs[2] = std::move(uC);
-    }
+namespace detail {
+
+void matchpairs_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("matchpairs: requires (Cost, costUnmatched [, 'min'|'max'])",
+                     0, 0, "matchpairs", "", "m:matchpairs:nargin");
+    const double cU = args[1].toScalar();
+    std::string mode = "min";
+    if (args.size() >= 3 && args[2].isChar())
+        mode = args[2].toString();
+    auto r = matchpairs(args[0], cU, mode, ctx.engine->resource());
+    outs[0] = std::move(r.M);
+    if (nargout > 1) outs[1] = std::move(r.uR);
+    if (nargout > 2) outs[2] = std::move(r.uC);
 }
 
 } // namespace detail

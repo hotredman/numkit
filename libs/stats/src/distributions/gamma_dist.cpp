@@ -106,6 +106,36 @@ Value gamrnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_reso
     return out;
 }
 
+Value randg(double shape, size_t rows, size_t cols,
+            std::pmr::memory_resource *mr)
+{
+    // randg(shape) ≡ gamrnd(shape, 1, rows, cols) — pure scale = 1.
+    return gamrnd(shape, 1.0, rows, cols, mr);
+}
+
+Value randg(const Value &shapeArray, std::pmr::memory_resource *mr)
+{
+    const std::size_t rows = shapeArray.dims().rows();
+    const std::size_t cols = shapeArray.dims().cols();
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    const std::size_t n = rows * cols;
+    if (n == 0) return out;
+    double *od = out.doubleDataMut();
+    auto &gen = ::numkit::builtin::sharedEngine();
+    auto &mtx = ::numkit::builtin::rngMutex();
+    std::lock_guard<std::mutex> lk(mtx);
+    for (std::size_t i = 0; i < n; ++i) {
+        const double a = shapeArray.elemAsDouble(i);
+        if (a <= 0.0) {
+            od[i] = std::numeric_limits<double>::quiet_NaN();
+            continue;
+        }
+        std::gamma_distribution<double> gd(a, 1.0);
+        od[i] = gd(gen);
+    }
+    return out;
+}
+
 std::tuple<double, double> gamstat(double a, double b)
 {
     if (a <= 0.0 || b <= 0.0) {
@@ -180,37 +210,19 @@ void randg_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     auto *mr = ctx.engine->resource();
     if (args.empty()) {
-        // randg() → single standard-exponential sample (shape=1, scale=1).
-        outs[0] = gamrnd(1.0, 1.0, 1, 1, mr);
+        outs[0] = randg(1.0, 1, 1, mr);
         return;
     }
     const Value &shape = args[0];
-
     // Per-element form: array shape AND no extra size args.
     if (!shape.isScalar() && args.size() == 1) {
-        const std::size_t rows = shape.dims().rows();
-        const std::size_t cols = shape.dims().cols();
-        auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
-        const std::size_t n = rows * cols;
-        auto &gen = ::numkit::builtin::sharedEngine();
-        auto &mtx = ::numkit::builtin::rngMutex();
-        std::lock_guard<std::mutex> lk(mtx);
-        for (std::size_t i = 0; i < n; ++i) {
-            const double a = shape.elemAsDouble(i);
-            if (a <= 0.0) { od[i] = std::numeric_limits<double>::quiet_NaN(); continue; }
-            std::gamma_distribution<double> gd(a, 1.0);
-            od[i] = gd(gen);
-        }
-        outs[0] = std::move(out);
+        outs[0] = randg(shape, mr);
         return;
     }
-
     // Scalar shape — pull size from the remaining args (or default 1×1).
-    const double a = shape.toScalar();
     std::size_t rows = 1, cols = 1;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = gamrnd(a, 1.0, rows, cols, mr);
+    outs[0] = randg(shape.toScalar(), rows, cols, mr);
 }
 
 } // namespace detail

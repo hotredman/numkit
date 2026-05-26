@@ -8,6 +8,8 @@
 // random samplers). Single-dim fallback to univariate normcdf works
 // trivially if needed.
 
+#include <numkit/stats/distributions/multivariate.hpp>
+
 #include <numkit/builtin/math/random/rng.hpp>   // sharedEngine / rngMutex
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
