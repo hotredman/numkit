@@ -62,6 +62,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/lasso.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lda/lda.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sampling/lhs.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/copulas/copulas.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure

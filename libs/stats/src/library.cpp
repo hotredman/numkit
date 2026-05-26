@@ -409,6 +409,10 @@ void net_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // sampling/lhs.cpp
 void lhsdesign_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void lhsnorm_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// copulas/copulas.cpp
+void copulapdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void copulacdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -769,6 +773,9 @@ void StatsLibrary::install(Engine &engine)
 
     reg("sampling", "lhsdesign", &stats::detail::lhsdesign_reg);
     reg("sampling", "lhsnorm",   &stats::detail::lhsnorm_reg);
+
+    reg("dist", "copulapdf", &stats::detail::copulapdf_reg);
+    reg("dist", "copulacdf", &stats::detail::copulacdf_reg);
 }
 
 } // namespace numkit
