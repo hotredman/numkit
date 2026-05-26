@@ -402,6 +402,47 @@ Value contrast(const Value &x, int m, std::pmr::memory_resource *mr = nullptr);
 
 // ── Colour difference / whitepoints / utility ───────────────────────
 
+/// @brief CIE94 / CIEDE2000 colour difference
+/// (`dE = imcolordiff(I1, I2, ...)`).
+///
+/// **Default standard = CIE94.** Pass `standard = "CIEDE2000"` to use
+/// the 2000 revision. Inputs may be:
+///   * `c × 3` colour lists (`c × 1` output);
+///   * `H × W × 3` images (`H × W` output);
+///   * higher-dim arrays where the 3rd dim is the colour channel
+///     (output preserves all other dims, dropping the channel axis).
+///
+/// **Weighting factors** (textile / graphic-arts defaults):
+///   * `kL`, `kC`, `kH` — parametric factors for L*, C*, H* (default 1).
+///   * `K1`, `K2` — CIE94 chroma / hue weighting constants
+///     (defaults 0.045 and 0.015 — the graphic-arts setting). For
+///     textile applications use `K1 = 0.048`, `K2 = 0.014`.
+///
+/// `is_input_lab = false` (default) → inputs are RGB and are converted
+/// to L*a*b* with @ref rgb2lab. `true` → inputs are already Lab and
+/// the conversion is skipped (only DOUBLE / SINGLE inputs allowed in
+/// that case).
+///
+/// Reference: ISO 11664-6:2014 (CIE2000) and CIE Publ. 116-1995
+/// (CIE94). MATLAB R2025b `images.color.internal.deltaE94` /
+/// `deltaE2000` — verified bit-equal on probe outputs.
+///
+/// @param I1            First colour image / list.
+/// @param I2            Second colour image / list (same shape).
+/// @param standard      "CIE94" or "CIEDE2000".
+/// @param is_input_lab  Skip the RGB→Lab step.
+/// @param kL            L\* weighting factor (must be > 0).
+/// @param kC            C\* weighting factor (must be > 0).
+/// @param kH            H\* weighting factor (must be > 0).
+/// @param K1            CIE94 chroma constant.
+/// @param K2            CIE94 hue constant.
+/// @param mr            Memory resource (nullptr → process default).
+/// @return              Per-pixel colour difference (channel dim removed).
+Value imcolordiff(const Value &I1, const Value &I2,
+                  const std::string &standard, bool is_input_lab,
+                  double kL, double kC, double kH, double K1, double K2,
+                  std::pmr::memory_resource *mr = nullptr);
+
 /// @brief CIE76 colour difference (`delE = deltaE(I1, I2, isInputLab)`).
 ///
 /// Default treats inputs as RGB and converts to L\*a\*b\* internally;
@@ -460,6 +501,33 @@ Value cmap2gray(const Value &cmap, std::pmr::memory_resource *mr = nullptr);
 /// @return      `1 × 3` DOUBLE illuminant.
 Value illumwhite(const Value &A, double P, const Value &mask,
                  std::pmr::memory_resource *mr = nullptr);
+
+/// @brief PCA-based illuminant estimate
+/// (`illum = illumpca(A [, P] [, 'Mask', M])`).
+///
+/// Returns a 1×3 RGB row-vector approximating the scene illuminant
+/// using the dominant direction of the darkest and brightest `P`% of
+/// pixels (Cheng-Prasad-Brown, JOSA A 31(5), 2014, p. 1049-1058).
+///
+/// **Algorithm.** Pixels are ordered by the magnitude of their
+/// projection on the mean colour direction. The top-`P`% brightest
+/// and bottom-`P`% darkest pixels (default `P = 3.5`) are kept; PCA
+/// (SVD of the not-mean-centred 3-column matrix) gives the principal
+/// direction, which is returned as `abs(V(:,1))` so the illuminant
+/// always lives in the first octant.
+///
+/// **Degenerate case** (single colour, `V == I`, or near-equal
+/// singular values): the mean of the selected colours is returned
+/// instead, matching MATLAB's source.
+///
+/// @param A     `H × W × 3` numeric image.
+/// @param P     Percentile in `(0, 50]`. Default 3.5. `P >= 50`
+///              uses all pixels.
+/// @param mask  Optional `H × W` mask; empty → all.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `1 × 3` DOUBLE illuminant.
+Value illumpca(const Value &A, double P, const Value &mask,
+               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Grey-World illuminant estimate
 /// (`illum = illumgray(A [, P] [, 'Mask', M])`).
