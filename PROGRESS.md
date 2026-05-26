@@ -734,7 +734,7 @@ together.
 | `gcd` | ✅ | 0.004 | 141.16× | 15.44× | OK | Sig: r = gcd(...). Spec-extension batch 2026-05-09. |
 | `isprime` | ✅ | 0.004 | 152.38× | 37.78× | OK | Sig: r = isprime(...). Spec-extension batch 2026-05-09. |
 | `lcm` | ✅ | 0.005 | 114.92× | 53.45× | OK | Sig: r = lcm(...). Spec-extension batch 2026-05-09. |
-| `matchpairs` | ❌ |  |  |  | N/A | Sig: M = matchpairs(C, COST_NON). Hungarian-style 3×4. 1000 iters. |
+| `matchpairs` | ✅ | 0.013 | 119.22× |  | OK | Sig: [M, uR, uC] = matchpairs(Cost, costUnmatched [, 'min'|'max']) — linear assignment / bipartite matching on rectangular Cost. 'min' (default): minimise total cost with costUnmatched as the per-row/col unmatched penalty. 'max': maximise total benefit with costUnmatched as the per-row/col REWARD for leaving unmatched (note: a high positive costUnmatched in 'max' mode leaves everything unmatched — matches MATLAB R2025b's documented convention). Algorithm: Jonker-Volgenant Hungarian on the augmented (m+n)×(m+n) matrix; 'max' negates both Cost and costUnmatched before solving. Total cost is what we fingerprint — assignment ordering is engine-dependent, totals are unique. Bit-exact MATLAB R2025b (tol=0) on the documented test cases. |
 | `nchoosek` | ✅ | 0.004 | 125.46× | 52.45× | OK | Sig: r = nchoosek(...). Spec-extension batch 2026-05-09. |
 | `perms` | ✅ | 0.004 | 259.93× | 47.72× | OK | Sig: r = perms(...). Spec-extension batch 2026-05-09. |
 | `primes` | ✅ | 0.005 | 127.11× | 39.56× | OK | Sig: r = primes(...). Spec-extension batch 2026-05-09. |

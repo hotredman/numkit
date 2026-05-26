@@ -118,6 +118,7 @@ void delaunay_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void histcounts2_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void griddata_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void griddatan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void matchpairs_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void findgroups_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void splitapply_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void groupcounts_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -623,6 +624,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("histcounts2", &builtin::detail::histcounts2_reg);
     engine.registerFunction("griddata",  &builtin::detail::griddata_reg);
     engine.registerFunction("griddatan", &builtin::detail::griddatan_reg);
+    engine.registerFunction("matchpairs", &builtin::detail::matchpairs_reg);
     engine.registerFunction("findgroups",  &builtin::detail::findgroups_reg);
     engine.registerFunction("splitapply",  &builtin::detail::splitapply_reg);
     engine.registerFunction("groupcounts", &builtin::detail::groupcounts_reg);
