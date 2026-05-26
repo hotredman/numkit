@@ -145,4 +145,28 @@ Value wishrnd(const Value &Sigma, double df,
 Value iwishrnd(const Value &Tau, double df,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Multivariate t cdf (`p = mvtcdf(X, C, df)`).
+///
+/// Returns the probability `P(Y ≤ X)` for `Y ~ MVT(0, C, df)`,
+/// row-wise (each row of `X` is one evaluation point).
+///
+/// Algorithm by dimension:
+///   - `d = 1` → direct `tcdf` (bit-exact).
+///   - `d ≥ 2` → deterministic Monte Carlo on the
+///               `Y = Z / sqrt(W/df)` representation with a
+///               fixed seed (`12345`), `N = 10000` draws, antithetic.
+///
+/// Each row of `X` may be a length-`d` row vector (evaluated against
+/// the supplied correlation matrix). MC error is `O(1/sqrt(N))` per
+/// row, ~0.01 absolute for moderate dimension.
+///
+/// @param X    Evaluation points (`n × d` or length-`d` row).
+/// @param C    `d × d` correlation/scale matrix (symmetric PD).
+/// @param df   Degrees of freedom (`df > 0`).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `n × 1` column of cdf values.
+/// @see mvtpdf, mvtrnd
+Value mvtcdf(const Value &X, const Value &C, double df,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
