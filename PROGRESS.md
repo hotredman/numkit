@@ -2895,7 +2895,7 @@ locations until physical migration lands.
 | `cummax` | ✅ | 2.530 | 0.58× |  | OK | Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE. |
 | `cummin` | ✅ | 2.443 | 0.68× |  | OK | Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE. |
 | `iqr` | ✅ | 0.006 | 864.90× | 177.19× | OK | Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). Closes audit/findings/stats/iqr.md (joint with quantile + prctile). |
-| `kde` | ❌ |  |  |  |  |  |
+| `kde` | ✅ | 0.087 |  |  | N/A | Sig: [f, xi, bw] = kde(x [, pts]) — MATLAB R2023b+ alias for ksdensity. Kernel density estimation with Gaussian kernel by default; bandwidth via Silverman's rule of thumb. v1 implementation: direct alias to ksdensity_reg (same adapter handles positional + name-value calls). Fingerprint pins output shapes (numel = 100 by default), bandwidth positivity, normalisation (integral ≈ 1 over [-3, 3] which captures most mass of N(0,1)). Engine-dependent randn → no bit-exact comparison; structural assertions only (tol 1e-9 on the deterministic shape numbers). |
 | `mape` | ✅ | 8.282 | 0.29× | 1.04× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
 | `max` | ✅ | 1.482 | 0.03× | 0.51× | OK | Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. |
 | `maxk` | ✅ | 77.188 | 0.01× |  | OK | Sig: B = maxk(X, K). Top 10 of 1M. 100 iters. |
@@ -2936,7 +2936,7 @@ locations until physical migration lands.
 | `geomean` | ✅ | 0.004 | 125.08× | 27.16× | OK | Sig: g = geomean(x[, dim]). (prod x)^(1/n) = exp(mean(log x)). |
 | `grpstats` | ✅ | 0.007 | 797.48× |  | OK | MATLAB grpstats: per-group statistics. Bit-equal with MATLAB R2025b on default-mean, multi-fn cell-of-strings, sum, std, numel aggregators. Other aggregators (var, sem, min, max) supported in numkit. Cell-of-fn output ordering matches MATLAB's nargout indexing. Octave 11.1.0 doesn't ship grpstats in core (statistics package only); reports N/A. |
 | `harmmean` | ✅ | 0.004 | 132.64× | 51.80× | OK | Sig: h = harmmean(x[, dim]). n / sum(1./x). Requires positive x. |
-| `kurtosis` | ❌ |  |  |  |  | already partially via `stats.descriptive`; here MATLAB stats version |
+| `kurtosis` | ✅ | 0.006 | 172.61× |  | OK | Sig: skewness(X [, flag [, dim]]) — sample skewness (3rd central moment / std³). kurtosis(X [, flag [, dim]]) — sample kurtosis (4th central moment / variance²). flag = 0 → bias-corrected estimator; flag = 1 (default) → biased moment ratio. Symmetric data → skewness = 0, kurtosis = 1.7 (for [1..5]). Matrix input reduces along first non-singleton dim → row of per-column moments. Bit-exact MATLAB R2025b on the documented signatures. |
 | `mad` | ✅ | 0.003 | 852.44× | 209.53× | OK | Sig: mad(x[, flag][, dim]). Mean (flag=0) or median (flag=1) absolute deviation. |
 | `moment` | ✅ | 0.004 | 71.32× | 173.16× | OK | Sig: m = moment(x, k[, dim]). Central k-th moment: mean((x - mean(x))^k). |
 | `nearcorr` | ⚠️ | 0.046 | 75.56× |  | OK | MATLAB nearcorr: nearest correlation matrix (Higham 2002 alternating projections + Dykstra). Identity case (input already correlation) is unchanged; Higham 3x3 textbook example produces [-0.4041, 0.4988, 0.5912] off-diagonals; output is symmetric, unit-diag, PSD (min eigval ~ 0 for indefinite inputs). Defaults tol=1e-10, maxits=100; 'tolconv'/'maxits' name-value parameters deferred for v1. Uses eig_symmetric (libs/builtin) for the PSD projection. Octave 11.1.0 doesn't ship nearcorr in core (statistics package only); reports N/A. |
@@ -2944,7 +2944,7 @@ locations until physical migration lands.
 | `partialcorri` | ❌ |  |  |  |  | with internal vars |
 | `range` | ✅ | 0.005 | 80.85× | 9.83× | OK | Sig: r = range(x[, dim]). max - min along dim. Bit-identical with MATLAB R2025b. |
 | `robustcov` | ❌ |  |  |  |  | robust covariance estimator (FAST-MCD) |
-| `skewness` | ❌ |  |  |  |  |  |
+| `skewness` | ✅ | 0.006 | 172.61× |  | OK | Sig: skewness(X [, flag [, dim]]) — sample skewness (3rd central moment / std³). kurtosis(X [, flag [, dim]]) — sample kurtosis (4th central moment / variance²). flag = 0 → bias-corrected estimator; flag = 1 (default) → biased moment ratio. Symmetric data → skewness = 0, kurtosis = 1.7 (for [1..5]). Matrix input reduces along first non-singleton dim → row of per-column moments. Bit-exact MATLAB R2025b on the documented signatures. |
 | `tabulate` | ✅ | 0.007 | 577.28× | 123.04× | OK | MATLAB tabulate: frequency table. Bit-equal with MATLAB R2025b on positive-int dense layout (with zeros for missing values), non-integer sparse layout, and NaN-excluded percentage. Octave 11.1.0 doesn't ship tabulate in core (statistics package only); reports N/A. |
 | `tiedrank` | ✅ | 0.007 | 185.97× |  | OK | MATLAB tiedrank: ranks adjusted for ties via averaging. Bit-equal with MATLAB R2025b on vector + matrix forms. Tieadj uses (t^3 - t) / 2 per tied group. Includes all-equal and no-ties edges. NaN handling tested in gtest only (parity harness fingerprint format doesn't preserve NaN trivially). |
 | `trimmean` | ✅ | 0.003 | 659.47× | 137.95× | OK | Sig: m = trimmean(x, percent[, dim]). Mean after trimming percent/2 from each end. |
