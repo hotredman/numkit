@@ -118,4 +118,12 @@ Value randg(const Value &shapeArray,
 /// @return    `[ahat, bhat]` as a `1 × 2` row.
 Value gamfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief 95% Wald CI for gamfit (`pci = gamfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
+/// the observed Fisher information at the MLE (central-FD Hessian).
+/// Both parameters use a log-scale Wald CI (MATLAB convention).
+Value gamfit_ci(const Value &x, double alpha = 0.05,
+                std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

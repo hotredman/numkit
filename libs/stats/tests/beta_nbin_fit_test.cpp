@@ -65,3 +65,57 @@ TEST_F(BetaNbinFitTest, NbinfitNonIntegerThrows)
 {
     EXPECT_THROW(eval("nbinfit([1.5, 2.5, 3.0]);"), std::exception);
 }
+
+// ── CI (Wald, observed Fisher information, MATLAB transforms) ───────
+
+TEST_F(BetaNbinFitTest, BetafitCIMatchesMatlab)
+{
+    // Deterministic Beta(2, 5) sample. MATLAB CI:
+    //   [1.8883 4.6999; 2.1207 5.3258]
+    // numkit uses analytical Hessian (trigamma); MATLAB betafit uses
+    // a simulation-based CI, so we match to ~5e-4 in width.
+    eval(R"(
+        n=2000; u=((1:n)' - 0.5)/n; x = betainv(u, 2.0, 5.0);
+        [p, pci] = betafit(x);
+    )");
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 1.8883, 0.005);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 2.1207, 0.005);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 4.6999, 0.005);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 5.3258, 0.005);
+}
+
+TEST_F(BetaNbinFitTest, NbinfitCIMatchesMatlab)
+{
+    // Deterministic NB(3, 0.4) sample via nbininv. MATLAB CI:
+    //   [2.6761 0.3729; 3.3270 0.4272]
+    eval(R"(
+        n=2000; u=((1:n)' - 0.5)/n; x = round(nbininv(u, 3.0, 0.4));
+        [p, pci] = nbinfit(x);
+    )");
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 2.6761, 0.025);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 3.3270, 0.025);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 0.3729, 0.005);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 0.4272, 0.005);
+}
+
+TEST_F(BetaNbinFitTest, BetafitCIShape)
+{
+    eval("[p, pci] = betafit(betainv(((1:200)' - 0.5)/200, 2.0, 5.0));");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pci, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pci, 2)")), 2);
+    // Lower row < parmhat < upper row.
+    EXPECT_LT(evalScalar("pci(1, 1)"), evalScalar("p(1)"));
+    EXPECT_LT(evalScalar("p(1)"),      evalScalar("pci(2, 1)"));
+}
+
+TEST_F(BetaNbinFitTest, BetafitAlphaArgument)
+{
+    // Narrower CI at α=0.01 than at default α=0.05.
+    eval(R"(
+        x = betainv(((1:500)' - 0.5)/500, 2.0, 5.0);
+        [~, ci95] = betafit(x);
+        [~, ci99] = betafit(x, 0.01);
+    )");
+    EXPECT_GT(evalScalar("ci99(2, 1) - ci99(1, 1)"),
+              evalScalar("ci95(2, 1) - ci95(1, 1)"));
+}

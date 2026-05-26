@@ -87,13 +87,19 @@ std::tuple<double, double> evstat(double mu, double sigma);
 /// Numerical stability: exponentials shifted by `max(x)/σ` (the ratio
 /// `U/T` is invariant under that shift).
 ///
-/// KNOWN GAPs: CI second output, censoring, frequency weights, and the
-/// `options` struct are deferred.
-///
 /// @param x   Observations.
 /// @param mr  Memory resource.
 /// @return    `[muhat, sigmahat]` as a `1 × 2` row.
 /// @see evpdf, evcdf
 Value evfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 95% Wald CI for evfit (`pci = evfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[mu, sigma]`
+/// from the observed Fisher information (central-FD Hessian of NLL).
+/// `mu` uses a linear Wald CI; `sigma` uses a log-scale CI (MATLAB
+/// convention).
+Value evfit_ci(const Value &x, double alpha = 0.05,
+               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

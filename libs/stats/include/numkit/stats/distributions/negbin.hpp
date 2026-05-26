@@ -85,11 +85,17 @@ std::tuple<double, double> nbinstat(double r, double p);
 ///
 /// `x` must be non-negative integers (treated as counts).
 ///
-/// KNOWN GAP: CI second output deferred.
-///
 /// @param x   Non-negative count observations.
 /// @param mr  Memory resource.
 /// @return    `[rhat, phat]` as a `1 × 2` row.
 Value nbinfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 95% Wald CI for nbinfit (`pci = nbinfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[r, p]` from
+/// the observed Fisher information at the MLE. `r` uses a log-scale
+/// Wald CI; `p` uses a logit-scale Wald CI (MATLAB convention).
+Value nbinfit_ci(const Value &x, double alpha = 0.05,
+                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
