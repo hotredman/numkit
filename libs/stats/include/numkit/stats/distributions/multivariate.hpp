@@ -145,6 +145,37 @@ Value wishrnd(const Value &Sigma, double df,
 Value iwishrnd(const Value &Tau, double df,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Wishart sample with pre-computed Cholesky factor
+/// (`W = wishrnd(Sigma, df, D)`).
+///
+/// If `D` is empty, internally compute `D = chol(Sigma, 'upper')`;
+/// otherwise reuse the supplied factor (which must satisfy
+/// `D' * D == Sigma`). The 2-output form returns the Cholesky factor.
+///
+/// @param Sigma  `p × p` covariance / scale matrix.
+/// @param df     Degrees of freedom (`df > p - 1`).
+/// @param D      Pre-computed `chol(Sigma, 'upper')`, or `Value::Empty`.
+/// @param mr     Memory resource.
+/// @return       `{W, D}` — Wishart draw and the upper-Cholesky factor.
+std::tuple<Value, Value>
+wishrnd_factor(const Value &Sigma, double df,
+               const Value &D, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Inverse-Wishart sample with pre-computed Cholesky factor
+/// (`W = iwishrnd(Tau, df, DI)`).
+///
+/// `DI = chol(inv(Tau), 'lower')`: a lower-triangular factor with
+/// `DI · DI' = inv(Tau)`. When provided, skips the inverse-Cholesky
+/// computation. (Note: MATLAB's `iwishrnd` returns a different but
+/// numerically equivalent factor `inv(chol(Tau, 'upper'))'`, which
+/// satisfies `DI' · DI = inv(Tau)` instead. Both produce statistically
+/// identical Inv-Wishart draws; the numerical orientation differs.)
+///
+/// @return  `{W, DI}` — Inv-Wishart draw and the lower-Cholesky of inv(Tau).
+std::tuple<Value, Value>
+iwishrnd_factor(const Value &Tau, double df,
+                const Value &DI, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Multivariate t cdf (`p = mvtcdf(X, C, df)`).
 ///
 /// Returns the probability `P(Y ≤ X)` for `Y ~ MVT(0, C, df)`,
