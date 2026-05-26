@@ -1,0 +1,22 @@
+{
+  "name": "ycbcr2rgbwide",
+  "namespace": "image",
+  "setup": "YCC10 = uint16([940 512 512; 64 512 512; 500 512 512; 364 477 815]); YCC12 = uint16([3760 2048 2048; 256 2048 2048; 1602 1721 2324]); YCCimg = uint16(reshape([320 320 320 610 610 610 942 942 942], 1, 3, 3));",
+  "expr": "r10 = double(ycbcr2rgbwide(YCC10, 10)); r12 = double(ycbcr2rgbwide(YCC12, 12)); rim = double(ycbcr2rgbwide(YCCimg, 10)); rt10 = double(ycbcr2rgbwide(rgbwide2ycbcr(uint16([940 940 940; 64 64 64; 500 500 500; 800 200 300]), 10), 10)); rt12 = double(ycbcr2rgbwide(rgbwide2ycbcr(uint16([3760 3760 3760; 256 256 256; 2000 1500 1000]), 12), 12));",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r10(1,1)", "r10(1,2)", "r10(2,1)", "r10(4,1)", "r10(4,2)", "r10(4,3)",
+    "r12(1,1)", "r12(3,2)", "r12(3,3)",
+    "rim(1,1,1)", "rim(1,2,2)", "rim(1,3,3)",
+    "rt10(1,1)", "rt10(4,1)", "rt10(4,3)",
+    "rt12(3,1)", "rt12(3,2)", "rt12(3,3)"
+  ],
+  "covers": [
+    "ycbcr2rgbwide(ycbcr, 10)      BT.2020 10-bit narrow-range decode",
+    "ycbcr2rgbwide(ycbcr, 12)      BT.2020 12-bit narrow-range decode",
+    "H×W×3 image input",
+    "rgbwide2ycbcr round-trip (10/12-bit)"
+  ],
+  "comment": "Inverse of rgbwide2ycbcr (cycle 28). ITU-R BT.2020-2 / BT.2100-2 narrow-range YCbCr decoder, BPS ∈ {10, 12}. Algorithm ported verbatim from MATLAB R2025b colorspaces/+images/+color/+internal/ycbcr2rgbwideImpl.m (column-major / non-codegen path). Normalises Y by [yzero, ypeak] = [64,940]/[256,3760] and Cb/Cr by chromazero=2^(bps-1), chromarange=896/3584. Computes R = 1.4746·Cr_n + Y_n, B = 1.8814·Cb_n + Y_n, G = (Y_n - 0.2627·R - 0.0593·B) / 0.6780; quantises to uint16 via rgb·nominalRange + blackLevel. Bit-equal MATLAB on all probed rows AND on round-trip with rgbwide2ycbcr (verified)."
+}

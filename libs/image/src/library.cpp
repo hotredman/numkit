@@ -91,6 +91,7 @@ void illumgray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void illumpca_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcolordiff_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgbwide2ycbcr_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ycbcr2rgbwide_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2double_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2uint16_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void brighten_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -329,6 +330,7 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "illumpca",      &image::detail::illumpca_reg);
     reg("color", "imcolordiff",   &image::detail::imcolordiff_reg);
     reg("color", "rgbwide2ycbcr", &image::detail::rgbwide2ycbcr_reg);
+    reg("color", "ycbcr2rgbwide", &image::detail::ycbcr2rgbwide_reg);
     reg("color", "xyz2double",    &image::detail::xyz2double_reg);
     reg("color", "xyz2uint16",    &image::detail::xyz2uint16_reg);
     reg("color", "brighten",      &image::detail::brighten_reg);
