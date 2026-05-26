@@ -79,4 +79,24 @@ Value gprnd(double k, double sigma, double theta,
 std::tuple<double, double>
 gpstat(double k, double sigma, double theta);
 
+/// @brief Generalised Pareto MLE fit (`[khat, sigmahat] = gpfit(x)`).
+///
+/// Uses the probability-weighted-moments estimator
+/// (Hosking & Wallis 1987): for sorted `x` and `F̂_i = (i - 0.35)/n`,
+/// `β_0 = mean(x)`, `β_1 = mean(F̂_i · x_(i))`,
+/// `k̂ = 2 - β_0/(β_0 - 2β_1)`, `σ̂ = 2·β_0·β_1/(β_0 - 2β_1)`.
+///
+/// PWM matches MLE asymptotically; for typical sample sizes the gap to
+/// MATLAB's Grimshaw MLE is a few percent. Threshold `θ` is assumed 0
+/// (the MATLAB convention for `gpfit`).
+///
+/// KNOWN GAPs: CI second output, `alpha` argument, and the `options`
+/// struct are deferred; full Grimshaw 1993 MLE refinement deferred.
+///
+/// @param x   Observations (must be ≥ 0; threshold θ = 0).
+/// @param mr  Memory resource.
+/// @return    `[khat, sigmahat]` as a `1 × 2` row.
+/// @see gppdf, gplike
+Value gpfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
