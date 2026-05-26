@@ -568,6 +568,293 @@ void polydiv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 
 } // namespace detail
 
+// ── residue / residuez — partial fraction expansion ─────────────────
+//
+// Forward form `[r, p, k] = residue(b, a)` only. The inverse form
+// `[b, a] = residue(r, p, k)` is a documented v1 gap.
+//
+// Algorithm (distinct poles):
+//   1. polydiv b/a  → quotient k (direct term), remainder b_rem (deg < deg a)
+//   2. roots(a)     → poles p (complex)
+//   3. Detect repeated poles within `1e-6 · max(1,|p|)` — throw if any.
+//   4. a'(s) = polyder(a)
+//   5. For each pole p_i, r_i = b_rem(p_i) / a'(p_i)  (Horner, complex)
+//
+// residuez is the same machinery in z-domain. We use the substitution
+// from MATLAB's `residuez.m`: reverse coefficient order to convert
+// between B(z^-1) / A(z^-1) (z-domain convention) and the standard
+// polynomial form, then apply the same residue formula. Direct term k
+// in z-domain is the polynomial in z^-1 — we return it in the same
+// MATLAB convention.
+
+namespace {
+
+// Horner's method in complex domain. Coefficients in descending order.
+Complex hornerCx(const double *coeffs, std::size_t n, Complex x)
+{
+    if (n == 0) return Complex(0, 0);
+    Complex acc(coeffs[0], 0.0);
+    for (std::size_t i = 1; i < n; ++i)
+        acc = acc * x + Complex(coeffs[i], 0.0);
+    return acc;
+}
+
+// Strip leading zeros and verify result is non-empty.
+std::vector<double> readPolyStripped(const Value &p, const char *fn)
+{
+    if (p.type() == ValueType::COMPLEX)
+        throw Error(std::string(fn) + ": complex coefficients not supported in v1",
+                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+    if (!p.isEmpty() && !p.dims().isVector() && !p.isScalar())
+        throw Error(std::string(fn) + ": arguments must be vectors",
+                     0, 0, fn, "", std::string("m:") + fn + ":notVector");
+    std::vector<double> v(p.numel());
+    for (std::size_t i = 0; i < v.size(); ++i) v[i] = p.elemAsDouble(i);
+    std::size_t lo = 0;
+    while (lo + 1 < v.size() && v[lo] == 0.0) ++lo;
+    return std::vector<double>(v.begin() + lo, v.end());
+}
+
+// Returns true if any pair of poles is within tol·max(1,|p|).
+bool hasRepeatedPoles(const std::vector<Complex> &p)
+{
+    for (std::size_t i = 0; i < p.size(); ++i)
+        for (std::size_t j = i + 1; j < p.size(); ++j) {
+            const double scale = std::max(1.0, std::max(std::abs(p[i]), std::abs(p[j])));
+            if (std::abs(p[i] - p[j]) < 1e-6 * scale)
+                return true;
+        }
+    return false;
+}
+
+// Pack a complex column. If all entries are real (within tol), return
+// a real column instead.
+Value packComplexOrReal(const std::vector<Complex> &v, std::pmr::memory_resource *mr)
+{
+    bool anyComplex = false;
+    for (const auto &z : v)
+        if (std::abs(z.imag()) > 1e-10 * (std::abs(z.real()) + 1.0)) {
+            anyComplex = true; break;
+        }
+    if (!anyComplex) {
+        auto out = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < v.size(); ++i)
+            out.doubleDataMut()[i] = v[i].real();
+        return out;
+    }
+    auto out = Value::complexMatrix(v.size(), 1, mr);
+    for (std::size_t i = 0; i < v.size(); ++i)
+        out.complexDataMut()[i] = v[i];
+    return out;
+}
+
+Value packDirectTerm(const std::vector<double> &k, std::pmr::memory_resource *mr)
+{
+    if (k.empty() || (k.size() == 1 && k[0] == 0.0))
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    auto out = Value::matrix(1, k.size(), ValueType::DOUBLE, mr);
+    std::memcpy(out.doubleDataMut(), k.data(), k.size() * sizeof(double));
+    return out;
+}
+
+// Evaluate B(z) at z = p, where B is in z^-1 ascending coefficient order
+// (MATLAB z-domain convention: b[0] + b[1]·z^-1 + ... + b[n]·z^-n).
+Complex evalZPolyCx(const double *b, std::size_t n, Complex p)
+{
+    if (n == 0) return Complex(0, 0);
+    Complex acc(0, 0);
+    const Complex inv = Complex(1, 0) / p;
+    Complex term(1, 0);   // (1/p)^k
+    for (std::size_t k = 0; k < n; ++k) {
+        acc += Complex(b[k], 0) * term;
+        term *= inv;
+    }
+    return acc;
+}
+
+ResidueResult residueS(const Value &b, const Value &a,
+                       std::pmr::memory_resource *mr)
+{
+    const char *fn = "residue";
+    auto A = readPolyStripped(a, fn);
+    auto B = readPolyStripped(b, fn);
+    if (A.empty() || A[0] == 0.0)
+        throw Error("residue: denominator must be non-zero",
+                     0, 0, fn, "", "m:residue:zeroDenom");
+
+    // Polynomial division: B = K·A + R   (deg R < deg A).
+    std::vector<double> K;
+    std::vector<double> R = B;
+    if (B.size() >= A.size()) {
+        const std::size_t qLen = B.size() - A.size() + 1;
+        K.assign(qLen, 0.0);
+        std::vector<double> bb = B;
+        const double aLead = A[0];
+        for (std::size_t i = 0; i < qLen; ++i) {
+            const double coef = bb[i] / aLead;
+            K[i] = coef;
+            for (std::size_t j = 0; j < A.size(); ++j)
+                bb[i + j] -= coef * A[j];
+        }
+        std::size_t rOff = qLen;
+        while (rOff < bb.size() && bb[rOff] == 0.0) ++rOff;
+        R.assign(bb.begin() + rOff, bb.end());
+    }
+
+    // Roots of A → s-domain poles.
+    ScratchArena scratch(mr);
+    auto rs = detail::polyRootsDurandKerner(&scratch, A.data(), A.size());
+    std::vector<Complex> poles(rs.begin(), rs.end());
+
+    if (hasRepeatedPoles(poles))
+        throw Error("residue: repeated-pole case not yet supported "
+                    "(v1 distinct-poles only — see KNOWN GAP)",
+                     0, 0, fn, "", "m:residue:repeatedPole");
+
+    // Derivative coefficients (descending).
+    std::vector<double> Aprime;
+    if (A.size() > 1) {
+        const std::size_t n = A.size() - 1;
+        Aprime.assign(n, 0.0);
+        for (std::size_t i = 0; i < n; ++i)
+            Aprime[i] = A[i] * static_cast<double>(n - i);
+    }
+
+    // Residues via standard cover-up: r_i = R(p_i) / A'(p_i).
+    std::vector<Complex> residues(poles.size(), Complex(0, 0));
+    if (!R.empty()) {
+        for (std::size_t i = 0; i < poles.size(); ++i) {
+            const Complex num = hornerCx(R.data(), R.size(), poles[i]);
+            const Complex den = hornerCx(Aprime.data(), Aprime.size(), poles[i]);
+            if (std::abs(den) < 1e-300)
+                throw Error("residue: derivative vanishes at a pole — "
+                            "likely repeated pole undetected by tolerance",
+                             0, 0, fn, "", "m:residue:denomZero");
+            residues[i] = num / den;
+        }
+    }
+
+    return {
+        packComplexOrReal(residues, mr),
+        packComplexOrReal(poles, mr),
+        packDirectTerm(K, mr),
+    };
+}
+
+ResidueResult residueZ(const Value &b, const Value &a,
+                       std::pmr::memory_resource *mr)
+{
+    const char *fn = "residuez";
+    // z-domain convention: a[0] + a[1]·z^-1 + ... + a[m]·z^-m. The
+    // leading scalar is a[0] (z^0 coefficient), not a[m].
+    auto av = readPolyStripped(a, fn);
+    auto bv = readPolyStripped(b, fn);
+    if (av.empty() || av[0] == 0.0)
+        throw Error("residuez: denominator a[0] must be non-zero",
+                     0, 0, fn, "", "m:residuez:zeroDenom");
+
+    // Normalise: divide A, B by a[0] so a[0] becomes 1. Residues come
+    // out in MATLAB's residuez convention without further scaling.
+    const double a0 = av[0];
+    std::vector<double> A = av, B = bv;
+    for (auto &x : A) x /= a0;
+    for (auto &x : B) x /= a0;
+
+    // z-domain poles = roots(A). For a polynomial in z^-1 ascending,
+    // multiplying through by z^m gives a polynomial in z whose roots
+    // ARE the z-domain poles. polyRootsDurandKerner treats its input
+    // as MATLAB-descending; for our purpose both readings have the
+    // same roots (a + b·z^-1 mult by z → a·z + b, roots match s-form).
+    ScratchArena scratch(mr);
+    auto rs = detail::polyRootsDurandKerner(&scratch, A.data(), A.size());
+    std::vector<Complex> poles(rs.begin(), rs.end());
+
+    if (hasRepeatedPoles(poles))
+        throw Error("residuez: repeated-pole case not yet supported "
+                    "(v1 distinct-poles only — see KNOWN GAP)",
+                     0, 0, fn, "", "m:residuez:repeatedPole");
+
+    const std::size_t m = poles.size();
+
+    // Direct term: only the proper case (numel(B) <= numel(A)) is
+    // supported in v1 — k is empty. The general polynomial-in-z^-1
+    // quotient for improper TFs is a documented gap.
+    std::vector<double> K;
+    if (B.size() > A.size())
+        throw Error("residuez: improper transfer functions "
+                    "(numel(b) > numel(a)) not yet supported — direct "
+                    "term in z^-1 polynomial form is a v1 KNOWN GAP",
+                     0, 0, fn, "", "m:residuez:improperTF");
+
+    // Residue formula for distinct z-poles (Oppenheim & Schafer 3e §3.4):
+    //
+    //   r_i = B(p_i) · p_i^(m-1) / prod_{j ≠ i} (p_i - p_j)
+    //
+    // where B(p_i) is evaluated treating B as a polynomial in z^-1.
+    std::vector<Complex> residues(m, Complex(0, 0));
+    for (std::size_t i = 0; i < m; ++i) {
+        const Complex Bpi = evalZPolyCx(B.data(), B.size(), poles[i]);
+        Complex pPow(1, 0);
+        for (std::size_t k = 0; k + 1 < m; ++k) pPow *= poles[i];
+        Complex denom(1, 0);
+        for (std::size_t j = 0; j < m; ++j) {
+            if (j == i) continue;
+            denom *= (poles[i] - poles[j]);
+        }
+        if (std::abs(denom) < 1e-300)
+            throw Error("residuez: denominator vanishes at a pole — "
+                        "likely repeated pole undetected by tolerance",
+                         0, 0, fn, "", "m:residuez:denomZero");
+        residues[i] = Bpi * pPow / denom;
+    }
+
+    return {
+        packComplexOrReal(residues, mr),
+        packComplexOrReal(poles, mr),
+        packDirectTerm(K, mr),
+    };
+}
+
+} // namespace
+
+ResidueResult residue(const Value &b, const Value &a,
+                      std::pmr::memory_resource *mr)
+{
+    return residueS(b, a, mr);
+}
+
+ResidueResult residuez(const Value &b, const Value &a,
+                       std::pmr::memory_resource *mr)
+{
+    return residueZ(b, a, mr);
+}
+
+namespace detail {
+
+void residue_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("residue: requires (b, a)",
+                     0, 0, "residue", "", "m:residue:nargin");
+    auto res = residue(args[0], args[1], ctx.engine->resource());
+    outs[0] = std::move(res.r);
+    if (nargout > 1) outs[1] = std::move(res.p);
+    if (nargout > 2) outs[2] = std::move(res.k);
+}
+
+void residuez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("residuez: requires (b, a)",
+                     0, 0, "residuez", "", "m:residuez:nargin");
+    auto res = residuez(args[0], args[1], ctx.engine->resource());
+    outs[0] = std::move(res.r);
+    if (nargout > 1) outs[1] = std::move(res.p);
+    if (nargout > 2) outs[2] = std::move(res.k);
+}
+
+} // namespace detail
+
 // ════════════════════════════════════════════════════════════════════════
 // Curve fitting / evaluation (moved from libs/fit)
 // ════════════════════════════════════════════════════════════════════════

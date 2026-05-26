@@ -755,7 +755,7 @@ together.
 | `polyint` | ✅ | 0.001 | 16.58× | 25.95× | OK | Sig: P_int = polyint(P). Deterministic 100-coef. 1000 iters. Element-wise SAVE. |
 | `polyval` | ✅ | 0.004 | 82.87× | 31.03× | OK | Sig: r = polyval(...). Spec-extension batch 2026-05-09. |
 | `polyvalm` | ✅ | 0.001 | 38.11× | 51.68× | OK | Sig: Y = polyvalm(P, A). Matrix poly eval x^2-3x+2. 10000 iters. |
-| `residue` | ❌ |  |  |  |  | partial-fraction |
+| `residue` | ✅ | 0.013 | 352.79× |  | OK | Sig: [r, p, k] = residue(b, a) — s-domain partial-fraction expansion. [r, p, k] = residuez(b, a) — z-domain (B/A polynomials in z^-1 ascending order). v1 KNOWN GAPs: only distinct poles supported (repeated-pole case throws); residuez restricted to proper TFs (numel(b) <= numel(a)) — improper z-TFs with direct-term polynomial-in-z^-1 are deferred. Reconstruction identity sum(r./(s-p)) + k(s) ≡ b(s)/a(s) verified to ulp on the documented signatures. Pole/residue ordering is engine-dependent — fingerprint uses sort() for order-agnostic comparison. Inverse forms [b, a] = residue(r, p, k) not yet wired. |
 | `roots` | ✅ | 0.001 | 23.65× | 34.07× | OK | Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts. |
 | `padecoef` | ✅ | 0.000 | 2.98× | 156.47× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
 
@@ -2451,7 +2451,7 @@ intentionally omitted — flat solver functions only.
 | `latcfilt` | ❌ |  |  |  |  |  |
 | `lowpass` | ✅ | 0.018 | 21.14× | 18.21× | OK | DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/lowpass.md. |
 | `medfilt1` | ✅ | 0.005 | 242.53× | 30.99× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `residuez` | ❌ |  |  |  |  |  |
+| `residuez` | ✅ | 0.013 | 352.79× |  | OK | Sig: [r, p, k] = residue(b, a) — s-domain partial-fraction expansion. [r, p, k] = residuez(b, a) — z-domain (B/A polynomials in z^-1 ascending order). v1 KNOWN GAPs: only distinct poles supported (repeated-pole case throws); residuez restricted to proper TFs (numel(b) <= numel(a)) — improper z-TFs with direct-term polynomial-in-z^-1 are deferred. Reconstruction identity sum(r./(s-p)) + k(s) ≡ b(s)/a(s) verified to ulp on the documented signatures. Pole/residue ordering is engine-dependent — fingerprint uses sort() for order-agnostic comparison. Inverse forms [b, a] = residue(r, p, k) not yet wired. |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
 | `sgolayfilt` | ✅ | 0.005 | 254.70× | 61.52× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sos2cell` | ❌ |  |  |  |  |  |

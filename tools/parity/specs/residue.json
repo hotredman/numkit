@@ -1,0 +1,20 @@
+{
+  "name": "residue",
+  "covers": ["residue", "residuez"],
+  "namespace": "builtin",
+  "setup": "b1 = [-4 8]; a1 = [1 6 8]; b2 = [2 5 3 6]; a2 = [1 6 11 6]; bz1 = [1]; az1 = [1 -0.5]; bz2 = [1 0.5]; az2 = [1 0 -0.25];",
+  "expr": "[r1, p1, k1] = residue(b1, a1); sr1 = sort(real(r1)); sp1 = sort(real(p1)); [r2, p2, k2] = residue(b2, a2); sr2 = sort(real(r2)); sp2 = sort(real(p2)); [rz1, pz1, kz1] = residuez(bz1, az1); [rz2, pz2, kz2] = residuez(bz2, az2); szp2 = sort(real(pz2));",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "sr1(1)", "sr1(2)",
+    "sp1(1)", "sp1(2)",
+    "numel(k1)",
+    "sr2(1)", "sr2(2)", "sr2(3)",
+    "sp2(1)", "sp2(2)", "sp2(3)",
+    "k2(1)",
+    "rz1(1)", "pz1(1)",
+    "szp2(1)", "szp2(2)"
+  ],
+  "comment": "Sig: [r, p, k] = residue(b, a) — s-domain partial-fraction expansion. [r, p, k] = residuez(b, a) — z-domain (B/A polynomials in z^-1 ascending order). v1 KNOWN GAPs: only distinct poles supported (repeated-pole case throws); residuez restricted to proper TFs (numel(b) <= numel(a)) — improper z-TFs with direct-term polynomial-in-z^-1 are deferred. Reconstruction identity sum(r./(s-p)) + k(s) ≡ b(s)/a(s) verified to ulp on the documented signatures. Pole/residue ordering is engine-dependent — fingerprint uses sort() for order-agnostic comparison. Inverse forms [b, a] = residue(r, p, k) not yet wired."
+}
