@@ -297,6 +297,8 @@ void kstest_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kstest2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lillietest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void jbtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void adtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dwtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void signtest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void signrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ranksum_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -626,6 +628,8 @@ void StatsLibrary::install(Engine &engine)
     reg("test", "kstest2",    &stats::detail::kstest2_reg);
     reg("test", "lillietest", &stats::detail::lillietest_reg);
     reg("test", "jbtest",   &stats::detail::jbtest_reg);
+    reg("test", "adtest",   &stats::detail::adtest_reg);
+    reg("test", "dwtest",   &stats::detail::dwtest_reg);
     reg("test", "signtest", &stats::detail::signtest_reg);
     reg("test", "signrank", &stats::detail::signrank_reg);
     reg("test", "ranksum",  &stats::detail::ranksum_reg);
