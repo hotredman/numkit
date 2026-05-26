@@ -115,3 +115,45 @@ TEST_F(DistFitsTest, GamfitAlphaArgument)
     EXPECT_GT(evalScalar("ci99(2, 1) - ci99(1, 1)"),
               evalScalar("ci95(2, 1) - ci95(1, 1)"));
 }
+
+// ── wblfit censoring + freq ─────────────────────────────────────────
+
+TEST_F(DistFitsTest, WblfitCensoredMatchesMatlab)
+{
+    // Right-censor top 20% of Wbl(2, 1.5) sample, n=1500.
+    // MATLAB → parm=(2.000016, 1.500328); CI bit-exact.
+    eval(R"(
+        n=1500; u=((1:n)' - 0.5)/n; x = wblinv(u, 2.0, 1.5);
+        thr = quantile(x, 0.8);
+        xc = min(x, thr); cens = (x >= thr);
+        [p, pci] = wblfit(xc, 0.05, cens);
+    )");
+    EXPECT_NEAR(evalScalar("p(1)"), 2.000016, 1e-4);
+    EXPECT_NEAR(evalScalar("p(2)"), 1.500328, 1e-4);
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 1.9259, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 2.0770, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 1.4289, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 1.5753, 1e-3);
+}
+
+TEST_F(DistFitsTest, WblfitFreqMatchesExplicitRep)
+{
+    // freq=[3 2 1 2 3] on [1..5] ≡ expanded [1,1,1,2,2,3,4,4,5,5,5].
+    // MATLAB → parm=(3.393773, 1.987882).
+    eval(R"(
+        xv = [1 2 3 4 5]; fv = [3 2 1 2 3];
+        pa = wblfit(xv, 0.05, [], fv);
+        xexp = [1 1 1 2 2 3 4 4 5 5 5];
+        pb = wblfit(xexp);
+    )");
+    EXPECT_NEAR(evalScalar("pa(1)"), 3.393773, 1e-4);
+    EXPECT_NEAR(evalScalar("pa(2)"), 1.987882, 1e-4);
+    // freq form == explicit replication.
+    EXPECT_NEAR(evalScalar("pa(1)"), evalScalar("pb(1)"), 1e-6);
+    EXPECT_NEAR(evalScalar("pa(2)"), evalScalar("pb(2)"), 1e-6);
+}
+
+TEST_F(DistFitsTest, WblfitCensLengthMismatchThrows)
+{
+    EXPECT_THROW(eval("wblfit([1 2 3], 0.05, [0 0]);"), std::exception);
+}

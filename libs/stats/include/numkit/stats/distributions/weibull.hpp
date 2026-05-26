@@ -93,12 +93,29 @@ std::tuple<double, double> wblstat(double a, double b);
 /// @return    `[ahat, bhat]` as a `1 × 2` row (scale, shape).
 Value wblfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Weibull MLE fit with right-censoring and frequency weights
+/// (`[parmhat, parmci] = wblfit(x, alpha, cens, freq)`).
+///
+/// Likelihood is `∏ f(x_i)^(u_i · f_i) · S(x_i)^(c_i · f_i)` where
+/// `S(x; a, b) = exp(-(x/a)^b)` is the Weibull survival. Closed-form
+/// fast path used when both `censoring` and `freq` are empty/trivial;
+/// otherwise profiles `a(b) = (Σ f_i x_i^b / Σ f_i u_i)^{1/b}` and
+/// 1-D Newtons on `b`.
+Value wblfit(const Value &x, const Value &censoring, const Value &freq,
+             std::pmr::memory_resource *mr = nullptr);
+
 /// @brief 95% Wald CI for wblfit (`pci = wblfit_ci(x, alpha)`).
 ///
 /// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
 /// the observed Fisher information (central-FD Hessian of NLL).
 /// Both parameters use a log-scale Wald CI (MATLAB convention).
 Value wblfit_ci(const Value &x, double alpha = 0.05,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wald CI for censored/weighted wblfit
+/// (`pci = wblfit_ci(x, alpha, cens, freq)`).
+Value wblfit_ci(const Value &x, double alpha,
+                const Value &censoring, const Value &freq,
                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

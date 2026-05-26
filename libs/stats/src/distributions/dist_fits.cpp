@@ -249,7 +249,31 @@ Value gamfit(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value wblfit(const Value &x, std::pmr::memory_resource *mr)
+// Generalised Weibull NLL with right-censoring and frequency weights.
+//   log f(x; a, b) = log b - b log a + (b - 1) log x - (x/a)^b
+//   log S(x; a, b) = -(x/a)^b
+// Weighted-censored NLL:
+//   Σ f_i u_i · [-log b + b log a - (b-1) log x_i] + Σ f_i (x_i/a)^b
+static double nll_wbl_full(double a, double b,
+                           const std::vector<double> &xv,
+                           const std::vector<double> &cens,
+                           const std::vector<double> &freq)
+{
+    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
+    const std::size_t n = xv.size();
+    double nuw = 0.0, lxw = 0.0, sumW = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double f = freq[i];
+        const double u = 1.0 - cens[i];
+        nuw  += f * u;
+        lxw  += f * u * std::log(xv[i]);
+        sumW += f * std::pow(xv[i] / a, b);
+    }
+    return nuw * (-std::log(b) + b * std::log(a)) - (b - 1.0) * lxw + sumW;
+}
+
+Value wblfit(const Value &x, const Value &censoring, const Value &freq,
+             std::pmr::memory_resource *mr)
 {
     auto xv = toFlat(x);
     const std::size_t n = xv.size();
@@ -261,57 +285,155 @@ Value wblfit(const Value &x, std::pmr::memory_resource *mr)
             throw Error("wblfit: all observations must be positive",
                         0, 0, "wblfit", "", "m:wblfit:notPositive");
     }
-
-    // Pre-compute log(x) once.
-    std::vector<double> lx(n);
-    double sumLog = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
-        lx[i] = std::log(xv[i]);
-        sumLog += lx[i];
+    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    if (!censoring.isEmpty()) {
+        if (censoring.numel() != n)
+            throw Error("wblfit: censoring length mismatch",
+                        0, 0, "wblfit", "", "m:wblfit:censLen");
+        for (std::size_t i = 0; i < n; ++i)
+            cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
-    const double meanLog = sumLog / static_cast<double>(n);
+    if (!freq.isEmpty()) {
+        if (freq.numel() != n)
+            throw Error("wblfit: freq length mismatch",
+                        0, 0, "wblfit", "", "m:wblfit:freqLen");
+        for (std::size_t i = 0; i < n; ++i) {
+            wf[i] = freq.elemAsDouble(i);
+            if (!(wf[i] >= 0.0))
+                throw Error("wblfit: freq must be non-negative",
+                            0, 0, "wblfit", "", "m:wblfit:freqNeg");
+        }
+    }
 
-    // Newton iteration for shape b. Implicit MLE equation:
-    //   g(b) = 1/b + meanLog - Σ x^b · log x / Σ x^b = 0
-    // Initial guess: b₀ = π / (std(log x) · sqrt(6)) (asymptotic).
+    // Detect trivial case → existing closed-form path.
+    bool freq_trivial = true;
+    for (std::size_t i = 0; i < n; ++i)
+        if (wf[i] != 1.0) { freq_trivial = false; break; }
+    bool has_cens = false;
+    for (std::size_t i = 0; i < n; ++i)
+        if (cens[i] != 0.0) { has_cens = true; break; }
+
+    if (!has_cens && freq_trivial) {
+        // Fast path: existing Newton on shape via profile σ.
+        std::vector<double> lx(n);
+        double sumLog = 0.0;
+        for (std::size_t i = 0; i < n; ++i) {
+            lx[i] = std::log(xv[i]);
+            sumLog += lx[i];
+        }
+        const double meanLog = sumLog / static_cast<double>(n);
+        double v2 = 0.0;
+        for (std::size_t i = 0; i < n; ++i) {
+            const double d = lx[i] - meanLog;
+            v2 += d * d;
+        }
+        const double sdLog = std::sqrt(v2 / static_cast<double>(n));
+        double b = 3.141592653589793 / (sdLog * std::sqrt(6.0) + 1e-12);
+        if (!(b > 0.1) || !std::isfinite(b)) b = 1.0;
+
+        for (int it = 0; it < 100; ++it) {
+            double S0 = 0.0, S1 = 0.0, S2 = 0.0;
+            for (std::size_t i = 0; i < n; ++i) {
+                const double w = std::pow(xv[i], b);
+                S0 += w;
+                S1 += w * lx[i];
+                S2 += w * lx[i] * lx[i];
+            }
+            const double R = S1 / S0;
+            const double g = 1.0 / b + meanLog - R;
+            const double dR = (S2 * S0 - S1 * S1) / (S0 * S0);
+            const double dg = -1.0 / (b * b) - dR;
+            const double step = g / dg;
+            const double newB = b - step;
+            if (newB > 0.0) b = newB; else b *= 0.5;
+            if (std::fabs(step) < 1e-10 * std::max(b, 1.0)) break;
+        }
+        double S = 0.0;
+        for (double v : xv) S += std::pow(v, b);
+        const double a = std::pow(S / static_cast<double>(n), 1.0 / b);
+        auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        out.doubleDataMut()[0] = a;
+        out.doubleDataMut()[1] = b;
+        return out;
+    }
+
+    // Weighted/censored path: profile a given b.
+    // For each b: a(b) = (Σ f x^b / Σ f u)^{1/b}.
+    // Then 1-D Newton on b via score d(NLL)/db = 0 evaluated with a(b).
+    // Initial b from naïve closed form on uncensored subset.
+    double nuw_init = 0.0;
+    double sum_lx_uncens = 0.0;
+    double sum_lx_uncens_w = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double u = 1.0 - cens[i];
+        nuw_init += wf[i] * u;
+        sum_lx_uncens_w += wf[i] * u * std::log(xv[i]);
+    }
+    const double meanLog_w = (nuw_init > 0.0) ? sum_lx_uncens_w / nuw_init : 0.0;
     double v2 = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
-        const double d = lx[i] - meanLog;
-        v2 += d * d;
+        const double u = 1.0 - cens[i];
+        const double d = std::log(xv[i]) - meanLog_w;
+        v2 += wf[i] * u * d * d;
     }
-    const double sdLog = std::sqrt(v2 / static_cast<double>(n));
-    double b = 3.141592653589793 / (sdLog * std::sqrt(6.0) + 1e-12);
-    if (!(b > 0.1) || !std::isfinite(b)) b = 1.0;
+    const double sdLog_w = (nuw_init > 0.0) ? std::sqrt(v2 / nuw_init) : 1.0;
+    double bcur = 3.141592653589793 / (sdLog_w * std::sqrt(6.0) + 1e-12);
+    if (!(bcur > 0.05) || !std::isfinite(bcur)) bcur = 1.0;
 
-    for (int it = 0; it < 100; ++it) {
-        double S0 = 0.0, S1 = 0.0, S2 = 0.0;
+    auto profile_a = [&](double b) -> double {
+        double S = 0.0, U = 0.0;
         for (std::size_t i = 0; i < n; ++i) {
-            const double w = std::pow(xv[i], b);     // x^b
-            S0 += w;
-            S1 += w * lx[i];
-            S2 += w * lx[i] * lx[i];
+            S += wf[i] * std::pow(xv[i], b);
+            U += wf[i] * (1.0 - cens[i]);
         }
-        const double R = S1 / S0;
-        const double g = 1.0 / b + meanLog - R;
-        // dR/db = (S2 · S0 - S1²) / S0²
-        const double dR = (S2 * S0 - S1 * S1) / (S0 * S0);
-        const double dg = -1.0 / (b * b) - dR;
-        const double step = g / dg;
-        const double newB = b - step;
-        if (newB > 0.0) b = newB;
-        else            b *= 0.5;
-        if (std::fabs(step) < 1e-10 * std::max(b, 1.0)) break;
-    }
+        if (!(U > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+        return std::pow(S / U, 1.0 / b);
+    };
 
-    // Scale a from MLE: a = (Σ x^b / n)^{1/b}.
-    double S = 0.0;
-    for (double v : xv) S += std::pow(v, b);
-    const double a = std::pow(S / static_cast<double>(n), 1.0 / b);
+    // Score for b under cens+freq: solve
+    //   ∂NLL/∂b = -nuw/b + Σ f u log x_i - log a · nuw
+    //           + Σ f (x/a)^b · log(x/a) - log a · nuw_uncens correction
+    // Easier: 1-D Newton via FD on `nll_wbl_full(profile_a(b), b)`.
+    auto nll_at_b = [&](double b) -> double {
+        const double a = profile_a(b);
+        return nll_wbl_full(a, b, xv, cens, wf);
+    };
+    double f_cur = nll_at_b(bcur);
+    for (int it = 0; it < 100; ++it) {
+        const double h = std::max(std::fabs(bcur), 1.0) * 1e-6;
+        const double g = (nll_at_b(bcur + h) - nll_at_b(bcur - h)) / (2.0 * h);
+        const double H = (nll_at_b(bcur + h) - 2.0 * f_cur + nll_at_b(bcur - h))
+                          / (h * h);
+        if (std::fabs(H) < 1e-300) break;
+        const double step = g / H;
+        double bn = bcur - step;
+        // Backtracking.
+        double sc = 1.0;
+        bool ok = false;
+        for (int bt = 0; bt < 30; ++bt) {
+            bn = bcur - sc * step;
+            if (bn > 0.0) {
+                const double f_new = nll_at_b(bn);
+                if (std::isfinite(f_new) && f_new < f_cur - 1e-15) {
+                    bcur = bn; f_cur = f_new; ok = true; break;
+                }
+            }
+            sc *= 0.5;
+        }
+        if (!ok) break;
+        if (std::fabs(sc * step) < 1e-12 * std::max(bcur, 1.0)) break;
+    }
+    const double a_final = profile_a(bcur);
 
     auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-    out.doubleDataMut()[0] = a;
-    out.doubleDataMut()[1] = b;
+    out.doubleDataMut()[0] = a_final;
+    out.doubleDataMut()[1] = bcur;
     return out;
+}
+
+Value wblfit(const Value &x, std::pmr::memory_resource *mr)
+{
+    return wblfit(x, Value::Empty, Value::Empty, mr);
 }
 
 Value betafit(const Value &x, std::pmr::memory_resource *mr)
@@ -881,11 +1003,37 @@ Value gamfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
 
 Value wblfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
+    return wblfit_ci(x, alpha, Value::Empty, Value::Empty, mr);
+}
+
+Value wblfit_ci(const Value &x, double alpha,
+                const Value &censoring, const Value &freq,
+                std::pmr::memory_resource *mr)
+{
     auto xv = toFlat(x);
-    Value parm = wblfit(x, mr);
+    const std::size_t n = xv.size();
+    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    if (!censoring.isEmpty()) {
+        for (std::size_t i = 0; i < n; ++i)
+            cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
+    }
+    if (!freq.isEmpty()) {
+        for (std::size_t i = 0; i < n; ++i) wf[i] = freq.elemAsDouble(i);
+    }
+    Value parm = wblfit(x, censoring, freq, mr);
     const double a_hat = parm.elemAsDouble(0);
     const double b_hat = parm.elemAsDouble(1);
-    return wald_ci_2d([&](double a, double b) { return nll_wbl(a, b, xv); },
+    // For trivial case use the simple NLL; for cens/freq use the
+    // generalised NLL.
+    bool trivial = censoring.isEmpty() && freq.isEmpty();
+    if (trivial) {
+        return wald_ci_2d([&](double a, double b) { return nll_wbl(a, b, xv); },
+                          a_hat, b_hat, CITransform::LOG, CITransform::LOG,
+                          alpha, mr);
+    }
+    return wald_ci_2d([&](double a, double b) {
+                          return nll_wbl_full(a, b, xv, cens, wf);
+                      },
                       a_hat, b_hat, CITransform::LOG, CITransform::LOG,
                       alpha, mr);
 }
@@ -1110,11 +1258,14 @@ void wblfit_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("wblfit: requires (x[, alpha])",
+        throw Error("wblfit: requires (x[, alpha[, cens[, freq[, options]]]])",
                     0, 0, "wblfit", "", "m:wblfit:nargin");
     auto *mr = ctx.engine->resource();
-    outs[0] = wblfit(args[0], mr);
-    if (nargout >= 2) outs[1] = wblfit_ci(args[0], parse_alpha(args), mr);
+    const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
+    const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
+    outs[0] = wblfit(args[0], cens, freq, mr);
+    if (nargout >= 2)
+        outs[1] = wblfit_ci(args[0], parse_alpha(args), cens, freq, mr);
 }
 
 void betafit_reg(Span<const Value> args, size_t nargout,
