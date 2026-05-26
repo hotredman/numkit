@@ -1,5 +1,6 @@
 {
   "name": "schur_convert",
+  "covers": ["cdf2rdf", "rsf2csf"],
   "namespace": "linalg",
   "setup": "A = [0 -1; 1 0]; V_c = [complex(1,0) complex(1,0); complex(0,-1) complex(0,1)] / sqrt(2); D_c = [complex(0,1) 0; 0 complex(0,-1)]; T_real = [0.5 -1.5; 1.5 0.5]; U_real = eye(2);",
   "expr": "[VR, DR] = cdf2rdf(V_c, D_c); [Uc, Tc] = rsf2csf(U_real, T_real);",

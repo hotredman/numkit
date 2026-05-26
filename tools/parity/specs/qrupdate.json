@@ -1,5 +1,6 @@
 {
   "name": "qrupdate",
+  "covers": ["qrupdate", "qrinsert", "qrdelete"],
   "namespace": "linalg",
   "setup": "A = [1 2 3; 4 5 6; 7 8 10; 1 1 1]; [Q, R] = qr(A); u = [1; 1; 1; 1]; v = [1; 0; 0]; x = [9; 8; 7; 6];",
   "expr": "[Q1, R1] = qrupdate(Q, R, u, v); [Q2, R2] = qrinsert(Q, R, 2, x); [Q3, R3] = qrdelete(Q, R, 2);",
