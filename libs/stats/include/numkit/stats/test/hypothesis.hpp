@@ -153,6 +153,49 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail,
 std::tuple<Value, Value, Value, Value>
 jbtest(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Anderson-Darling test for normality
+/// (`[h, p, adstat, cv] = adtest(x, alpha)`).
+///
+/// `H0`: `x` is drawn from a normal distribution with parameters
+/// estimated from the sample (`mu = mean(x)`, `sigma = std(x)`).
+///
+/// Algorithm: sort and z-standardise, compute
+/// `A² = -n - (1/n) · Σ (2i-1) · [ln Φ(z_i) + ln(1 - Φ(z_{n+1-i}))]`,
+/// then the Stephens-1986 small-sample adjustment
+/// `A²* = A² · (1 + 0.75/n + 2.25/n²)`. p-value from D'Agostino-Stephens
+/// (1986) piecewise rational fit for the parameters-estimated case.
+///
+/// @param x      Sample data (length ≥ 8 for reliable p-values).
+/// @param alpha  Significance level (default 0.05).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, adstat, cv)` — decision, p-value, A²*, 5%
+///               critical value (0.752 for estimated parameters).
+std::tuple<Value, Value, Value, Value>
+adtest(const Value &x, double alpha = 0.05,
+       std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Durbin-Watson test for first-order autocorrelation in
+/// regression residuals (`[p, dw] = dwtest(r, X)`).
+///
+/// `H0`: residuals are uncorrelated (DW = 2). Alternative: positive
+/// or negative first-order autocorrelation.
+///
+/// `DW = Σ_{i=2..n}(r_i - r_{i-1})² / Σ_{i=1..n} r_i²`.
+///
+/// p-value uses the **beta-approximation** (Durbin & Watson 1971):
+/// the second-moment matches of `DW` under H0 are computed from the
+/// design matrix `X` and fit to a `Beta(a, b)` on `[0, 4]`. This is
+/// MATLAB's `'approximate'` method. The exact Pan-1965 algorithm is
+/// a v1 KNOWN GAP — `method = 'exact'` is not supported and throws.
+///
+/// @param r       OLS residuals (length n, column).
+/// @param X       Design matrix (n × k) used to fit the residuals.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        `(p, dw)` — two-sided p-value, DW statistic.
+std::tuple<Value, Value>
+dwtest(const Value &r, const Value &X,
+       std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Jarque-Bera with explicit Monte-Carlo tolerance
 /// (`[h, p, jbstat, cv] = jbtest(x, alpha, mctol)`).
 ///

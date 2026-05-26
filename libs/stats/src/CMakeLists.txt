@@ -46,6 +46,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/knnsearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/hypothesis.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/resample/resample.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist.cpp
