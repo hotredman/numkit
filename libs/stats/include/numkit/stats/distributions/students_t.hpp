@@ -70,4 +70,45 @@ Value trnd(double nu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resourc
 /// @see tpdf
 std::tuple<double, double> tstat(double nu);
 
+/// @brief Noncentral Student's t pdf (`y = nctpdf(x, nu, delta)`).
+///
+/// Distribution of `T = (Z + δ)/sqrt(V/ν)` where `Z ~ N(0,1)`,
+/// `V ~ χ²(ν)`, `Z ⊥ V`. Reduces to `tpdf(x, ν)` when `δ = 0`.
+///
+/// Implementation: Owen-Lenth series in terms of the regularised
+/// incomplete beta:
+///   f(x; ν, δ) = e^{-δ²/2} Σ_k a_k(δ) · g_k(x; ν)
+/// where the sum is truncated when contributions fall below
+/// `1e-16 · running_sum`.
+///
+/// @param x      Evaluation points (any shape).
+/// @param nu     Degrees of freedom (`nu > 0`).
+/// @param delta  Noncentrality parameter.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Array of pdf values, same shape as `x`.
+/// @see nctcdf, nctinv, nctrnd, nctstat
+Value nctpdf(const Value &x, double nu, double delta,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Noncentral Student's t cdf (`p = nctcdf(x, nu, delta)`).
+///
+/// Owen series (1965, Lenth 1989):
+///   F(x; ν, δ) = Φ(-δ) + ½·Σ_k P_k · I_y(k+½, ν/2)
+///                       + (δ/(2√(2π)))·Σ_k Q_k · I_y(k+1, ν/2)
+/// where `y = x²/(x²+ν)`, `P_k = e^{-δ²/2}(δ²/2)^k/k!`,
+/// `Q_k = e^{-δ²/2}(δ²/2)^k / Γ(k+3/2)`, and the symmetry
+/// `F(x; ν, δ) = 1 - F(-x; ν, -δ)` handles negative `x`.
+///
+/// The optional `'upper'` flag returns `1 - F`.
+///
+/// @param x      Evaluation points (any shape).
+/// @param nu     Degrees of freedom (`nu > 0`).
+/// @param delta  Noncentrality parameter.
+/// @param upper  If true, return upper-tail `1 - F` (default false).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Array of cdf values in `[0, 1]`.
+/// @see nctpdf, nctinv
+Value nctcdf(const Value &x, double nu, double delta, bool upper = false,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

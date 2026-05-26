@@ -3076,8 +3076,8 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `ncfinv` | ❌ |  |  |  |  |  |
 | `ncfrnd` | ❌ |  |  |  |  |  |
 | `ncfstat` | ❌ |  |  |  |  |  |
-| `nctpdf` | ❌ |  |  |  |  | noncentral t |
-| `nctcdf` | ❌ |  |  |  |  |  |
+| `nctpdf` | ✅ | 0.039 | 155.01× |  | OK | Sig: nctpdf(x, nu, delta) — noncentral t pdf via direct series f(x;ν,δ) = ν^{ν/2}·e^{-δ²/2} / (√π·Γ(ν/2)·(ν+x²)^{(ν+1)/2}) · Σ_k Γ((ν+k+1)/2)·(xδ√2)^k / (k!·(ν+x²)^{k/2}). nctcdf(x, nu, delta[, 'upper']) — Owen (1965) series F(x;ν,δ) = Φ(-δ) + ½·Σ_k P_k·I_y(k+½, ν/2) + (δ/(2√2))·e^{-δ²/2}·Σ_k I_y(k+1, ν/2)/Γ(k+3/2), y = x²/(x²+ν). Negative x via symmetry F(x;ν,δ) = 1 - F(-x;ν,-δ). Series truncated at 1e-16 relative contribution. Bit-identical with MATLAB R2025b at 1e-8 tol. KNOWN GAPs: nctinv, nctstat, nctrnd next batch. |
+| `nctcdf` | ✅ | 0.039 | 155.01× |  | OK | Sig: nctpdf(x, nu, delta) — noncentral t pdf via direct series f(x;ν,δ) = ν^{ν/2}·e^{-δ²/2} / (√π·Γ(ν/2)·(ν+x²)^{(ν+1)/2}) · Σ_k Γ((ν+k+1)/2)·(xδ√2)^k / (k!·(ν+x²)^{k/2}). nctcdf(x, nu, delta[, 'upper']) — Owen (1965) series F(x;ν,δ) = Φ(-δ) + ½·Σ_k P_k·I_y(k+½, ν/2) + (δ/(2√2))·e^{-δ²/2}·Σ_k I_y(k+1, ν/2)/Γ(k+3/2), y = x²/(x²+ν). Negative x via symmetry F(x;ν,δ) = 1 - F(-x;ν,-δ). Series truncated at 1e-16 relative contribution. Bit-identical with MATLAB R2025b at 1e-8 tol. KNOWN GAPs: nctinv, nctstat, nctrnd next batch. |
 | `nctinv` | ❌ |  |  |  |  |  |
 | `nctrnd` | ❌ |  |  |  |  |  |
 | `nctstat` | ❌ |  |  |  |  |  |
