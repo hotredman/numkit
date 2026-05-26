@@ -104,4 +104,45 @@ Value mvtrnd(const Value &C, double df, std::size_t n,
 Value mnrnd(std::size_t N, const Value &P, std::size_t m = 1,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Wishart random matrix (`W = wishrnd(Sigma, df)`).
+///
+/// Draws one `p × p` positive-definite matrix from the Wishart
+/// distribution `W_p(Sigma, df)` via Bartlett decomposition:
+/// - Factor `Sigma = L · L'` (lower Cholesky).
+/// - Sample `B` lower triangular with
+///   `B(i,i) = sqrt(χ²(df - i))` and `B(i,j) ~ N(0,1)` for `i > j`.
+/// - Then `M = L · B` and `W = M · M'`.
+///
+/// `df` must satisfy `df > p - 1`.
+///
+/// KNOWN GAPs: third-argument `D` (pre-computed Cholesky) and the
+/// two-output `[W, D] = wishrnd(...)` form are deferred.
+///
+/// @param Sigma  `p × p` symmetric positive-definite scale matrix.
+/// @param df     Degrees of freedom (> p - 1).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Single `p × p` Wishart draw.
+/// @see iwishrnd, mvnrnd
+Value wishrnd(const Value &Sigma, double df,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Inverse-Wishart random matrix (`W = iwishrnd(Tau, df)`).
+///
+/// Draws one `p × p` positive-definite matrix from the inverse Wishart
+/// `W ~ IW_p(Tau, df)`. Implementation: sample
+/// `Y ~ W_p(inv(Tau), df)` via Bartlett, then return `inv(Y)`.
+///
+/// `df` must satisfy `df > p - 1`.
+///
+/// KNOWN GAPs: third-argument `DI` (pre-computed Cholesky of `inv(Tau)`)
+/// and the two-output `[W, DI] = iwishrnd(...)` form are deferred.
+///
+/// @param Tau  `p × p` symmetric positive-definite scale matrix.
+/// @param df   Degrees of freedom (> p - 1).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Single `p × p` inverse Wishart draw.
+/// @see wishrnd
+Value iwishrnd(const Value &Tau, double df,
+               std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
