@@ -1,0 +1,16 @@
+{
+  "name": "evfit_gpfit",
+  "covers": ["evfit", "gpfit"],
+  "namespace": "stats",
+  "setup": "rng(0); xev = evrnd(1.0, 2.0, 3000, 1); rng(1); xgp = gprnd(0.3, 1.5, 0, 3000, 1);",
+  "expr": "pe = evfit(xev); err_mu = abs(pe(1) - 1.0); err_se = abs(pe(2) - 2.0); pg = gpfit(xgp); err_k = abs(pg(1) - 0.3); err_sg = abs(pg(2) - 1.5);",
+  "iters": 3,
+  "tol": 0.15,
+  "fingerprint": [
+    "double(err_mu < 0.25)", "double(err_se < 0.3)",
+    "double(err_k < 0.2)", "double(err_sg < 0.4)",
+    "size(pe, 1)", "size(pe, 2)",
+    "size(pg, 1)", "size(pg, 2)"
+  ],
+  "comment": "Sig: [muhat, sigmahat] = evfit(x) — Gumbel-min MLE: μ profiled out via Σ exp(x_i/σ)=n; 1-D Newton on σ-equation Σ x_i e^{x_i/σ}/Σ e^{x_i/σ} - mean - σ = 0 (negative-definite f'). [khat, sigmahat] = gpfit(x) — Generalised Pareto via PWM (Hosking & Wallis 1987): β_0 = mean, β_1 = mean(F̂_i x_(i)), k̂ = 2 - β_0/(β_0-2β_1), σ̂ = 2β_0β_1/(β_0-2β_1). Stochastic samples; fingerprint pins parameter recoverability + output shape. KNOWN GAPs: CI second output, censoring, freq, options, and Grimshaw 1993 MLE refinement for gpfit deferred."
+}

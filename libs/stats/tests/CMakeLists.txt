@@ -13,6 +13,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/dist_fits_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvt_mn_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/beta_nbin_fit_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/evfit_gpfit_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_v2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/quantile_test.cpp

@@ -1,13 +1,19 @@
 // libs/stats/src/distributions/dist_fits.cpp
 //
-// MLE fitters for continuous distributions:
-//   gamfit — Gamma(a, b) shape + scale
-//   wblfit — Weibull(scale, shape)
+// MLE / moment fitters for continuous + count distributions:
+//   gamfit  — Gamma(a, b) shape + scale  (Newton on profile)
+//   wblfit  — Weibull(scale, shape)       (Newton on shape)
+//   betafit — Beta(a, b)                  (2-D Newton on digamma system)
+//   nbinfit — NegBin(r, p)                (Newton on profile)
+//   evfit   — Type-I EV (Gumbel-min)      (1-D Newton, μ profiled)
+//   gpfit   — Generalised Pareto          (PWM / Hosking-Wallis)
 
 #include <numkit/stats/distributions/gamma_dist.hpp>
 #include <numkit/stats/distributions/weibull.hpp>
 #include <numkit/stats/distributions/beta.hpp>
 #include <numkit/stats/distributions/negbin.hpp>
+#include <numkit/stats/distributions/extreme_value.hpp>
+#include <numkit/stats/distributions/gp.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -298,6 +304,122 @@ Value nbinfit(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
+Value evfit(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto xv = toFlat(x);
+    const std::size_t n = xv.size();
+    if (n < 2)
+        throw Error("evfit: need at least 2 observations",
+                    0, 0, "evfit", "", "m:evfit:tooFewObs");
+    for (double v : xv) {
+        if (!std::isfinite(v))
+            throw Error("evfit: observations must be finite",
+                        0, 0, "evfit", "", "m:evfit:notFinite");
+    }
+    double sum = 0.0;
+    for (double v : xv) sum += v;
+    const double mean = sum / static_cast<double>(n);
+    double var2 = 0.0;
+    for (double v : xv) {
+        const double d = v - mean;
+        var2 += d * d;
+    }
+    var2 /= static_cast<double>(n);
+    if (!(var2 > 0.0))
+        throw Error("evfit: zero variance (data constant)",
+                    0, 0, "evfit", "", "m:evfit:zeroVariance");
+
+    // Initial guess: var = σ² · π²/6.
+    double sigma = std::sqrt(6.0 * var2) / 3.141592653589793;
+    if (!(sigma > 0.0) || !std::isfinite(sigma)) sigma = 1.0;
+
+    double x_max = xv[0];
+    for (double v : xv) if (v > x_max) x_max = v;
+
+    // Newton on f(σ) = U/T - mean - σ = 0,
+    // with U = Σ x_i e^{(x_i - x_max)/σ}, T = Σ e^{(x_i - x_max)/σ}.
+    // f'(σ) = -Var_w(x)/σ² - 1   (Cauchy-Schwarz ⇒ always negative).
+    double T = 0.0;
+    for (int it = 0; it < 100; ++it) {
+        T = 0.0; double U = 0.0, V = 0.0;
+        for (double v : xv) {
+            const double e = std::exp((v - x_max) / sigma);
+            T += e;
+            U += v * e;
+            V += v * v * e;
+        }
+        const double meanW = U / T;
+        const double varW  = V / T - meanW * meanW;       // ≥ 0
+        const double f  = meanW - mean - sigma;
+        const double fp = -varW / (sigma * sigma) - 1.0;
+        if (!(std::fabs(fp) > 1e-300)) break;
+        const double step = f / fp;
+        const double newS = sigma - step;
+        if (newS > 0.0) sigma = newS;
+        else            sigma *= 0.5;
+        if (std::fabs(step) < 1e-12 * std::max(sigma, 1.0)) break;
+    }
+    // Recompute T with final σ for μ.
+    T = 0.0;
+    for (double v : xv) T += std::exp((v - x_max) / sigma);
+    const double mu = x_max + sigma * (std::log(T) - std::log(static_cast<double>(n)));
+
+    auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    out.doubleDataMut()[0] = mu;
+    out.doubleDataMut()[1] = sigma;
+    return out;
+}
+
+Value gpfit(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto xv = toFlat(x);
+    const std::size_t n = xv.size();
+    if (n < 2)
+        throw Error("gpfit: need at least 2 observations",
+                    0, 0, "gpfit", "", "m:gpfit:tooFewObs");
+    for (double v : xv) {
+        if (!std::isfinite(v) || v < 0.0)
+            throw Error("gpfit: observations must be finite and ≥ 0 "
+                        "(threshold θ = 0 assumed)",
+                        0, 0, "gpfit", "", "m:gpfit:invalidData");
+    }
+
+    // PWM / Hosking-Wallis 1987 (using α = E[X·(1-F)^r] convention):
+    //   α_0 = mean(x), α_1 = mean((1-F̂_i) · x_(i)), F̂_i = (i - 0.35)/n,
+    //   k̂_MATLAB = 2 - α_0/(α_0 - 2α_1)   (sign flip vs Hosking),
+    //   σ̂      = 2·α_0·α_1/(α_0 - 2α_1).
+    std::sort(xv.begin(), xv.end());
+    double sumX = 0.0;
+    for (double v : xv) sumX += v;
+    const double beta0 = sumX / static_cast<double>(n);
+    double beta1 = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double F = (static_cast<double>(i + 1) - 0.35) / static_cast<double>(n);
+        beta1 += (1.0 - F) * xv[i];
+    }
+    beta1 /= static_cast<double>(n);
+
+    const double denom = beta0 - 2.0 * beta1;
+    double k_hat, sigma_hat;
+    if (std::fabs(denom) < 1e-300 || !std::isfinite(denom)) {
+        // Degenerate: fall back to exponential MLE.
+        k_hat = 0.0;
+        sigma_hat = beta0;
+    } else {
+        k_hat = 2.0 - beta0 / denom;
+        sigma_hat = 2.0 * beta0 * beta1 / denom;
+        if (!(sigma_hat > 0.0) || !std::isfinite(sigma_hat)) {
+            k_hat = 0.0;
+            sigma_hat = beta0;
+        }
+    }
+
+    auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    out.doubleDataMut()[0] = k_hat;
+    out.doubleDataMut()[1] = sigma_hat;
+    return out;
+}
+
 // ── Adapters ─────────────────────────────────────────────────────────
 namespace detail {
 
@@ -335,6 +457,24 @@ void nbinfit_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("nbinfit: requires (x)",
                     0, 0, "nbinfit", "", "m:nbinfit:nargin");
     outs[0] = nbinfit(args[0], ctx.engine->resource());
+}
+
+void evfit_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("evfit: requires (x)",
+                    0, 0, "evfit", "", "m:evfit:nargin");
+    outs[0] = evfit(args[0], ctx.engine->resource());
+}
+
+void gpfit_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("gpfit: requires (x)",
+                    0, 0, "gpfit", "", "m:gpfit:nargin");
+    outs[0] = gpfit(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

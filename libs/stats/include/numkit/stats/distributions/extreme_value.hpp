@@ -77,4 +77,23 @@ Value evrnd(double mu, double sigma, size_t rows = 1, size_t cols = 1,
 /// @see evpdf
 std::tuple<double, double> evstat(double mu, double sigma);
 
+/// @brief Type-I EV (Gumbel-min) MLE fit (`[muhat, sigmahat] = evfit(x)`).
+///
+/// Concentrates the location out via `μ = σ · log(Σ exp(x_i/σ) / n)` and
+/// runs Newton iteration on the resulting 1-D equation
+/// `Σ x_i e^{x_i/σ} / Σ e^{x_i/σ} - mean(x) - σ = 0`. Initial guess from
+/// the moment relation `var(x) = σ² · π²/6`.
+///
+/// Numerical stability: exponentials shifted by `max(x)/σ` (the ratio
+/// `U/T` is invariant under that shift).
+///
+/// KNOWN GAPs: CI second output, censoring, frequency weights, and the
+/// `options` struct are deferred.
+///
+/// @param x   Observations.
+/// @param mr  Memory resource.
+/// @return    `[muhat, sigmahat]` as a `1 × 2` row.
+/// @see evpdf, evcdf
+Value evfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
