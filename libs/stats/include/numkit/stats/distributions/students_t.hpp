@@ -139,4 +139,21 @@ Value nctinv(const Value &p, double nu, double delta,
 /// @see nctpdf
 std::tuple<double, double> nctstat(double nu, double delta);
 
+/// @brief Noncentral Student's t random samples
+/// (`r = nctrnd(nu, delta, rows, cols)`).
+///
+/// Sampled as `T = (Z + δ) / sqrt(V / ν)` where `Z ~ N(0, 1)`,
+/// `V ~ χ²(ν)`. Uses the shared MT19937 stream so `rng(seed)`
+/// makes draws reproducible.
+///
+/// @param nu     Degrees of freedom (`nu > 0`).
+/// @param delta  Noncentrality parameter.
+/// @param rows   Output rows (default 1).
+/// @param cols   Output columns (default 1).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `rows × cols` matrix of nct-samples.
+/// @see nctpdf
+Value nctrnd(double nu, double delta, std::size_t rows = 1, std::size_t cols = 1,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
