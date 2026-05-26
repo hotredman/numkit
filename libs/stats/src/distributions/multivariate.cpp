@@ -11,6 +11,7 @@
 #include <numkit/stats/distributions/multivariate.hpp>
 
 #include <numkit/builtin/math/random/rng.hpp>   // sharedEngine / rngMutex
+#include <numkit/builtin/math/special/special.hpp>  // betainc (used by mvtcdf d=1)
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
@@ -563,6 +564,118 @@ Value iwishrnd(const Value &Tau, double df,
     return out;
 }
 
+// ── mvtcdf ──────────────────────────────────────────────────────────
+
+Value mvtcdf(const Value &X, const Value &C, double df,
+             std::pmr::memory_resource *mr)
+{
+    if (!(df > 0.0))
+        throw Error("mvtcdf: df must be positive",
+                    0, 0, "mvtcdf", "", "m:mvtcdf:badDf");
+    // Determine dimension d from C (must be square).
+    if (C.dims().rows() != C.dims().cols())
+        throw Error("mvtcdf: C must be square",
+                    0, 0, "mvtcdf", "", "m:mvtcdf:notSquareC");
+    const std::size_t d = C.dims().rows();
+    if (d == 0)
+        return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+
+    // X can be length-d row or n × d.
+    std::size_t n;
+    if (X.isScalar()) {
+        if (d != 1)
+            throw Error("mvtcdf: X is scalar but d > 1",
+                        0, 0, "mvtcdf", "", "m:mvtcdf:shapeX");
+        n = 1;
+    } else if (X.dims().rows() == 1 && X.dims().cols() == d) {
+        n = 1;
+    } else if (X.dims().cols() == d) {
+        n = X.dims().rows();
+    } else {
+        throw Error("mvtcdf: X must be 1×d or n×d",
+                    0, 0, "mvtcdf", "", "m:mvtcdf:shapeX");
+    }
+
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    if (n == 0) return out;
+    double *od = out.doubleDataMut();
+
+    // d = 1: direct tcdf.
+    if (d == 1) {
+        for (std::size_t i = 0; i < n; ++i) {
+            const double xi = X.elemAsDouble(i);
+            // tcdf via I_z(ν/2, 1/2): use the existing scalar form via Value.
+            // Cheaper: call a local scalar from students_t conventions.
+            // Use I_z = betainc(ν/(ν+x²), ν/2, 1/2); cdf = 1 - I/2 (x≥0) else I/2.
+            const double z = df / (df + xi * xi);
+            Value zv = Value::scalar(z, mr);
+            Value av = Value::scalar(0.5 * df, mr);
+            Value bv = Value::scalar(0.5, mr);
+            const double I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
+            od[i] = (xi >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
+        }
+        return out;
+    }
+
+    // d ≥ 2: deterministic Monte Carlo via Y = Z·L' / sqrt(W/df).
+    // L = chol(C, 'lower') row-major.
+    std::vector<double> L(d * d);
+    for (std::size_t i = 0; i < d; ++i)
+        for (std::size_t j = 0; j < d; ++j)
+            L[i * d + j] = C.elemAsDouble(j * d + i);
+    choleskyLowerInPlace(L.data(), d);
+
+    constexpr int N = 10000;
+    std::mt19937_64 mc_gen(12345ULL);
+    std::normal_distribution<double> Nz(0.0, 1.0);
+    std::chi_squared_distribution<double> Chi(df);
+
+    std::vector<double> z(d), y(d);
+    // Pre-generate antithetic-pair scaffolding: for each draw we evaluate
+    // both Z and -Z (sharing the same W draw) to reduce variance.
+    for (std::size_t row = 0; row < n; ++row) {
+        // Read X[row, :].
+        std::vector<double> xrow(d);
+        for (std::size_t j = 0; j < d; ++j) {
+            // X stored col-major.
+            xrow[j] = (X.isScalar()) ? X.toScalar()
+                                     : X.elemAsDouble(j * n + row);
+        }
+        int hits = 0;
+        for (int k = 0; k < N / 2; ++k) {
+            for (std::size_t j = 0; j < d; ++j) z[j] = Nz(mc_gen);
+            const double scale = std::sqrt(df / Chi(mc_gen));
+            // y = (L·z)·scale.
+            // Pass 1 — z direct.
+            for (std::size_t j = 0; j < d; ++j) {
+                double s = 0.0;
+                for (std::size_t k2 = 0; k2 <= j; ++k2)
+                    s += L[j * d + k2] * z[k2];
+                y[j] = s * scale;
+            }
+            bool all_below = true;
+            for (std::size_t j = 0; j < d; ++j) {
+                if (y[j] > xrow[j]) { all_below = false; break; }
+            }
+            if (all_below) ++hits;
+            // Pass 2 — antithetic (-z).
+            for (std::size_t j = 0; j < d; ++j) {
+                double s = 0.0;
+                for (std::size_t k2 = 0; k2 <= j; ++k2)
+                    s -= L[j * d + k2] * z[k2];
+                y[j] = s * scale;
+            }
+            all_below = true;
+            for (std::size_t j = 0; j < d; ++j) {
+                if (y[j] > xrow[j]) { all_below = false; break; }
+            }
+            if (all_below) ++hits;
+        }
+        od[row] = static_cast<double>(hits) / static_cast<double>(N);
+    }
+    return out;
+}
+
 namespace detail {
 
 void mvncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -623,6 +736,15 @@ void iwishrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                     0, 0, "iwishrnd", "", "m:iwishrnd:nargin");
     const double df = args[1].toScalar();
     outs[0] = iwishrnd(args[0], df, ctx.engine->resource());
+}
+
+void mvtcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("mvtcdf: requires (X, C, df)",
+                    0, 0, "mvtcdf", "", "m:mvtcdf:nargin");
+    const double df = args[2].toScalar();
+    outs[0] = mvtcdf(args[0], args[1], df, ctx.engine->resource());
 }
 
 } // namespace detail

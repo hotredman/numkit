@@ -139,6 +139,7 @@ void mvtrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mnrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wishrnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void iwishrnd_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void mvtcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void betafit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nbinfit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void evfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -526,6 +527,7 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "mnrnd",    &stats::detail::mnrnd_reg);
     reg("dist", "wishrnd",  &stats::detail::wishrnd_reg);
     reg("dist", "iwishrnd", &stats::detail::iwishrnd_reg);
+    reg("dist", "mvtcdf",   &stats::detail::mvtcdf_reg);
     reg("dist", "betafit",  &stats::detail::betafit_reg);
     reg("dist", "nbinfit",  &stats::detail::nbinfit_reg);
     reg("dist", "evfit",    &stats::detail::evfit_reg);
