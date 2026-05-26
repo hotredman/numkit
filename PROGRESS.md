@@ -3269,8 +3269,8 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `mvregresslike` | ❌ |  |  |  |  |  |
 | `plsregress` | ❌ |  |  |  |  | partial least squares |
 | `ridge` | ✅ | 0.009 | 197.31× | 208.10× | OK | Sig: B = ridge(y, X, k[, scaled]). Ridge regression on standardized X (centered + N-1 std). scaled=1 (default): coefficients in standardized space, p×length(k). scaled=0: (p+1)×length(k) with intercept in original units. Bit-identical to MATLAB R2025b on both paths. |
-| `lasso` | ❌ |  |  |  |  |  |
-| `lassoglm` | ❌ |  |  |  |  |  |
+| `lasso` | ✅ | 0.181 |  |  | N/A | Sig: [B, Intercept, Lambda] = lasso(X, y, lambdas [, alpha]) — coordinate-descent L1/elastic-net linear regression. lassoglm extends to GLM families (normal/binomial/poisson) via IRLS+coord-descent inner loop. Standardisation internal; coefficients returned in original units with auto-fit intercept. KNOWN GAPs: no auto λ-path, no CV, no observation weights, no 'standardize' name-value pair. Spec uses deterministic noise (sin-based) + step-threshold binary response for reproducible parity; pins coefficient recovery + zero-out structure at the documented λ values. |
+| `lassoglm` | ✅ | 0.181 |  |  | N/A | Sig: [B, Intercept, Lambda] = lasso(X, y, lambdas [, alpha]) — coordinate-descent L1/elastic-net linear regression. lassoglm extends to GLM families (normal/binomial/poisson) via IRLS+coord-descent inner loop. Standardisation internal; coefficients returned in original units with auto-fit intercept. KNOWN GAPs: no auto λ-path, no CV, no observation weights, no 'standardize' name-value pair. Spec uses deterministic noise (sin-based) + step-threshold binary response for reproducible parity; pins coefficient recovery + zero-out structure at the documented λ values. |
 | `polyconf` | ❌ |  |  |  |  | polynomial CI prediction |
 
 ### Nonlinear Regression (function-form)

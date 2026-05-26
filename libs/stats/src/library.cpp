@@ -357,6 +357,8 @@ void robustfit_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void robustcov_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void glmfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void glmval_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lasso_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lassoglm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lscov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ridge_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -691,6 +693,8 @@ void StatsLibrary::install(Engine &engine)
     reg("regress", "robustcov", &stats::detail::robustcov_reg);
     reg("regress", "glmfit",    &stats::detail::glmfit_reg);
     reg("regress", "glmval",    &stats::detail::glmval_reg);
+    reg("regress", "lasso",     &stats::detail::lasso_reg);
+    reg("regress", "lassoglm",  &stats::detail::lassoglm_reg);
     reg("regress", "lscov",   &stats::detail::lscov_reg);
     reg("regress", "ridge",   &stats::detail::ridge_reg);
 

@@ -277,4 +277,66 @@ GlmfitResult glmfit(const Value &X, const Value &y,
 Value glmval(const Value &b, const Value &X, GlmLink link,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Lasso result.
+struct LassoResult {
+    Value B;            ///< `p × nLambda` coefficient paths.
+    Value Intercept;    ///< `1 × nLambda` intercept per λ.
+    Value Lambda;       ///< `1 × nLambda` λ values actually used.
+};
+
+/// @brief LASSO / elastic-net linear regression
+/// (`[B, FitInfo] = lasso(X, y, lambdas, alpha)`).
+///
+/// Solves
+///   min_β,β0  (1/2n) · ||y - β0 - X·β||²
+///             + λ · [ α · ||β||₁  +  (1 - α)/2 · ||β||₂² ]
+/// via cyclic coordinate descent with soft-thresholding. The
+/// predictors are standardised internally; coefficients are returned
+/// in the original units. The intercept `β0` is the response mean
+/// minus the standardised-coefficient projection (auto-fit, MATLAB
+/// convention).
+///
+/// `lambdas` must be a vector of λ values (each ≥ 0). For an auto
+/// λ-path use `linspace(0, lambda_max(X, y), 100)` at the call site.
+///
+/// `alpha ∈ [0, 1]` mixes L1 (`α = 1`, pure lasso, default) and L2
+/// (`α = 0`, ridge) penalties.
+///
+/// KNOWN GAPs (v1): no auto λ-path, no cross-validation, no
+/// `'CV'`/`'NumLambda'`/`'LambdaRatio'` name-value pairs, no observation
+/// weights. Intercept is always included.
+///
+/// @param X         Design matrix (`n × p`).
+/// @param y         Response (`n × 1`).
+/// @param lambdas   Length-`nLambda` vector of regularisation values.
+/// @param alpha     Elastic-net mixing parameter.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `{B, Intercept, Lambda}`.
+LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
+                   double alpha = 1.0,
+                   std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Lasso-regularised GLM
+/// (`[B, FitInfo] = lassoglm(X, y, distr, lambdas, alpha)`).
+///
+/// L1-regularised GLM via the IRLS+coord-descent inner loop: at each
+/// IRLS step, solve a weighted lasso on the current working response.
+///
+/// Supports the same distributions as `glmfit`. v1 KNOWN GAPs: same
+/// as `lasso` (no auto λ-path, no CV), plus `lassoglm` reduces the
+/// inner IRLS to at most 25 iterations to keep the joint optimisation
+/// tractable.
+///
+/// @param X         Design matrix (`n × p`).
+/// @param y         Response (`n × 1`).
+/// @param distr     Error family.
+/// @param lambdas   `nLambda` λ values.
+/// @param alpha     Elastic-net mixing parameter.
+/// @param mr        Memory resource.
+/// @return          `{B, Intercept, Lambda}` (same layout as lasso).
+LassoResult lassoglm(const Value &X, const Value &y,
+                      GlmDistribution distr,
+                      const Value &lambdas, double alpha = 1.0,
+                      std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
