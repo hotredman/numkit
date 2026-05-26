@@ -3225,8 +3225,8 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `haltonset` | ✅ | 0.003 | 240.07× |  | OK | Sig: p = haltonset(d[, 'Skip', s, 'Leap', l]); X = net(p, n). Halton quasi-random points via radical inverse on the first d primes. Default skip = 1 (matches MATLAB; 'Skip', 0 yields the trivial origin). |
-| `lhsdesign` | ❌ |  |  |  |  | Latin hypercube |
-| `lhsnorm` | ❌ |  |  |  |  | Latin hypercube w/ normal |
+| `lhsdesign` | ✅ | 0.325 | 38.37× |  | OK | Sig: X = lhsdesign(n, p) — Latin Hypercube design; each column is a random permutation π of 1..n with X[i, j] = (π[i] - U)/n, U ~ Uniform(0, 1). Guarantees one sample per [(k-1)/n, k/n] bin in each column. Y = lhsnorm(mu, Sigma, n) — applies norminv to lhsdesign(n, d) then transforms via chol(Sigma) (upper). Shared MT19937. Fingerprint pins: in-range (exact), bin partition (exact), column mean ≈ 0.5, recovered mu and Sigma at statistical tolerance. KNOWN GAPs: 'smooth'/'criterion'/'iterations' options for lhsdesign deferred. |
+| `lhsnorm` | ✅ | 0.325 | 38.37× |  | OK | Sig: X = lhsdesign(n, p) — Latin Hypercube design; each column is a random permutation π of 1..n with X[i, j] = (π[i] - U)/n, U ~ Uniform(0, 1). Guarantees one sample per [(k-1)/n, k/n] bin in each column. Y = lhsnorm(mu, Sigma, n) — applies norminv to lhsdesign(n, d) then transforms via chol(Sigma) (upper). Shared MT19937. Fingerprint pins: in-range (exact), bin partition (exact), column mean ≈ 0.5, recovered mu and Sigma at statistical tolerance. KNOWN GAPs: 'smooth'/'criterion'/'iterations' options for lhsdesign deferred. |
 | `mhsample` | ❌ |  |  |  |  | Metropolis-Hastings |
 | `qrandstream` | ❌ |  |  |  |  | quasi-random stream constructor |
 | `slicesample` | ❌ |  |  |  |  | slice sampler |
