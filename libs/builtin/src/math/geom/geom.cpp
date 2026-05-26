@@ -889,6 +889,195 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
                  0, 0, "griddatan", "", "m:griddatan:badMethod");
 }
 
+// ── matchpairs — linear assignment / bipartite matching ─────────────
+//
+// [M, uR, uC] = matchpairs(Cost, costUnmatched [, 'min'|'max'])
+//
+// Solves the linear assignment problem on a rectangular Cost matrix
+// with an optional unmatched-cost penalty per row / per col. Returns
+//   M  : P×2 matrix of (row, col) match pairs (1-based)
+//   uR : column of unmatched row indices
+//   uC : column of unmatched col indices
+//
+// Algorithm: classical O(N²·M) Jonker-Volgenant Hungarian on the
+// augmented (rows + cols) × (rows + cols) cost matrix:
+//
+//   ┌──────────────────────┬─────────────────────┐
+//   │      Cost(rows×cols) │ diag(costUnmatched) │
+//   │                      │ + INF elsewhere     │   rows × cols  +  rows × rows
+//   ├──────────────────────┼─────────────────────┤
+//   │ diag(costUnmatched)  │   zero block        │
+//   │ + INF elsewhere      │  (dummy-dummy free) │   cols × cols  +  cols × rows
+//   └──────────────────────┴─────────────────────┘
+//
+// Each real match (i, j) costs Cost[i][j]; leaving row i unmatched
+// costs `costUnmatched` (matched to its private row-dummy col); same
+// for col j (matched to its private col-dummy row); free dummy-dummy
+// matches absorb the leftover capacity.
+//
+// 'max' flag negates Cost before solving and re-negates the cost
+// total, matching MATLAB.
+void matchpairs_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("matchpairs: requires (Cost, costUnmatched [, 'min'|'max'])",
+                     0, 0, "matchpairs", "", "m:matchpairs:nargin");
+    const auto &C = args[0];
+    if (C.type() == ValueType::COMPLEX)
+        throw Error("matchpairs: complex Cost not supported",
+                     0, 0, "matchpairs", "", "m:matchpairs:complex");
+    const double cU = args[1].toScalar();
+
+    bool maximise = false;
+    if (args.size() >= 3 && args[2].isChar()) {
+        const std::string mode = args[2].toString();
+        if (mode == "max") maximise = true;
+        else if (mode != "min")
+            throw Error("matchpairs: third arg must be 'min' or 'max'",
+                         0, 0, "matchpairs", "", "m:matchpairs:badMode");
+    }
+
+    const std::size_t rows = C.dims().rows();
+    const std::size_t cols = C.dims().cols();
+    auto *mr = ctx.engine->resource();
+
+    if (rows == 0 || cols == 0) {
+        outs[0] = Value::matrix(0, 2, ValueType::DOUBLE, mr);
+        if (nargout > 1) {
+            // All rows / all cols unmatched.
+            auto uR = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+            for (std::size_t i = 0; i < rows; ++i) uR.doubleDataMut()[i] = i + 1;
+            outs[1] = std::move(uR);
+        }
+        if (nargout > 2) {
+            auto uC = Value::matrix(cols, 1, ValueType::DOUBLE, mr);
+            for (std::size_t j = 0; j < cols; ++j) uC.doubleDataMut()[j] = j + 1;
+            outs[2] = std::move(uC);
+        }
+        return;
+    }
+
+    // Build augmented N×N matrix.
+    const std::size_t N = rows + cols;
+    constexpr double BIG = 1e15;
+    std::vector<std::vector<double>> A(N, std::vector<double>(N, BIG));
+    for (std::size_t i = 0; i < rows; ++i)
+        for (std::size_t j = 0; j < cols; ++j) {
+            double v = C.elemAsDouble(j * rows + i);
+            if (maximise) v = -v;
+            A[i][j] = v;
+        }
+    // Top-right block: diag(costUnmatched). Row i can opt-out via col cols+i.
+    // MATLAB convention: in 'max' mode the unmatched cost ALSO flips sign
+    // (it becomes a benefit/reward for leaving unmatched, so we want to
+    // maximise it → minimise -costUnmatched). Matches MATLAB R2025b's
+    // observed behaviour: max + high positive costUnmatched leaves
+    // everything unmatched, max + zero/negative costUnmatched matches.
+    const double cuSigned = maximise ? -cU : cU;
+    for (std::size_t i = 0; i < rows; ++i)
+        A[i][cols + i] = cuSigned;
+    // Bottom-left block: diag(costUnmatched). Dummy row rows+j absorbs col j.
+    for (std::size_t j = 0; j < cols; ++j)
+        A[rows + j][j] = cuSigned;
+    // Bottom-right block: zero (dummy-dummy free).
+    for (std::size_t j = 0; j < cols; ++j)
+        for (std::size_t i = 0; i < rows; ++i)
+            A[rows + j][cols + i] = 0.0;
+
+    // Jonker-Volgenant Hungarian. Indexing: 1..N internally, with row 0
+    // as a sentinel (so p[0] holds the row currently being augmented).
+    // Returns assignment[i] (0-based) giving column for row i.
+    std::vector<double> u(N + 1, 0.0), v_d(N + 1, 0.0);
+    std::vector<int> p(N + 1, 0), way(N + 1, 0);
+    for (std::size_t i = 1; i <= N; ++i) {
+        p[0] = static_cast<int>(i);
+        int j0 = 0;
+        std::vector<double> minv(N + 1, std::numeric_limits<double>::infinity());
+        std::vector<char> used(N + 1, 0);
+        do {
+            used[j0] = 1;
+            int i0 = p[j0];
+            int j1 = -1;
+            double delta = std::numeric_limits<double>::infinity();
+            for (std::size_t j = 1; j <= N; ++j) {
+                if (used[j]) continue;
+                const double cur = A[i0 - 1][j - 1] - u[i0] - v_d[j];
+                if (cur < minv[j]) {
+                    minv[j] = cur;
+                    way[j] = j0;
+                }
+                if (minv[j] < delta) {
+                    delta = minv[j];
+                    j1 = static_cast<int>(j);
+                }
+            }
+            for (std::size_t j = 0; j <= N; ++j) {
+                if (used[j]) {
+                    u[p[j]] += delta;
+                    v_d[j]  -= delta;
+                } else {
+                    minv[j] -= delta;
+                }
+            }
+            j0 = j1;
+        } while (p[j0] != 0);
+        do {
+            int j1 = way[j0];
+            p[j0] = p[j1];
+            j0 = j1;
+        } while (j0);
+    }
+
+    // Decode: for row i (1-based), assigned column = (1-based j where p[j] == i).
+    std::vector<int> rowAssign(N, -1);
+    for (std::size_t j = 1; j <= N; ++j)
+        if (p[j] > 0)
+            rowAssign[p[j] - 1] = static_cast<int>(j) - 1;
+
+    // Walk real rows, build outputs.
+    std::vector<std::pair<int, int>> matches;
+    std::vector<int> unmatchedRows;
+    matches.reserve(std::min(rows, cols));
+    unmatchedRows.reserve(rows);
+    for (std::size_t i = 0; i < rows; ++i) {
+        const int j = rowAssign[i];
+        if (j >= 0 && static_cast<std::size_t>(j) < cols)
+            matches.push_back({ static_cast<int>(i) + 1, j + 1 });
+        else
+            unmatchedRows.push_back(static_cast<int>(i) + 1);
+    }
+    // Unmatched cols: those not appearing in matches.
+    std::vector<char> colUsed(cols, 0);
+    for (const auto &pr : matches) colUsed[pr.second - 1] = 1;
+    std::vector<int> unmatchedCols;
+    for (std::size_t j = 0; j < cols; ++j)
+        if (!colUsed[j])
+            unmatchedCols.push_back(static_cast<int>(j) + 1);
+
+    // Pack M as P × 2 double matrix (column-major: col 0 = rows, col 1 = cols).
+    auto M = Value::matrix(matches.size(), 2, ValueType::DOUBLE, mr);
+    double *Md = M.doubleDataMut();
+    for (std::size_t k = 0; k < matches.size(); ++k) {
+        Md[k] = matches[k].first;
+        Md[matches.size() + k] = matches[k].second;
+    }
+    outs[0] = std::move(M);
+
+    if (nargout > 1) {
+        auto uR = Value::matrix(unmatchedRows.size(), 1, ValueType::DOUBLE, mr);
+        for (std::size_t k = 0; k < unmatchedRows.size(); ++k)
+            uR.doubleDataMut()[k] = unmatchedRows[k];
+        outs[1] = std::move(uR);
+    }
+    if (nargout > 2) {
+        auto uC = Value::matrix(unmatchedCols.size(), 1, ValueType::DOUBLE, mr);
+        for (std::size_t k = 0; k < unmatchedCols.size(); ++k)
+            uC.doubleDataMut()[k] = unmatchedCols[k];
+        outs[2] = std::move(uC);
+    }
+}
+
 } // namespace detail
 
 } // namespace numkit::builtin
