@@ -3190,7 +3190,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `lillietest` | ✅ | 0.005 | 1459.66× |  | OK | Sig: [h, p, kstat, critval] = lillietest(x[, alpha]). Lilliefors normality test using Stephens (1974) p-value approximation. KS-stat bit-identical with MATLAB R2025b; p-value/critval may differ by ~1e-3 due to approximation table interpolation. h decision matches MATLAB on probed cases. |
 | `meanEffectSize` | ❌ |  |  |  |  | Cohen's d, Hedges' g |
 | `mmdtest` | ❌ |  |  |  |  | maximum mean discrepancy |
-| `multcompare` | ❌ |  |  |  |  | post-hoc multiple comparisons |
+| `multcompare` | ✅ | 0.006 | 11414.69× |  | OK | Sig: c = multcompare(stats [, alpha [, ctype]]) — pairwise post-hoc comparisons after anova1. Returns K(K-1)/2 × 6 matrix [i, j, lower_CI, mean_diff, upper_CI, p]. v1 ships 'bonferroni' (default) and 'lsd' methods. KNOWN GAP: 'tukey-kramer' HSD requires the studentized range distribution — not yet. anova1's stats struct is also extended in this cycle to populate {means, n, s, gnames, source} fields needed by multcompare. Deterministic integer y/group inputs for parity reproducibility. |
 | `ranksum` | ✅ | 0.007 | 663.52× | 990.76× | OK | Sig: [p, h, stats] = ranksum(x, y[, alpha, tail | name-value]). Wilcoxon rank-sum (Mann-Whitney U). Default exact iff both samples have <10 obs (size-k subset-sum DP); else approximate with continuity + tie correction. |
 | `runstest` | ✅ | 0.007 | 296.79× | 63.05× | OK | Sig: [h, p, stats] = runstest(x[, v][, alpha, tail | name-value]). Wald-Wolfowitz runs test. Default v=median(x); values == v dropped. Exact dist by default via combinatorial PMF; approximate uses continuity-corrected normal. |
 | `sampsizepwr` | ❌ |  |  |  |  | sample-size / power |

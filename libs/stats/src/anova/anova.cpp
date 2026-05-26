@@ -339,9 +339,48 @@ void anova1_reg(Span<const Value> args, size_t nargout,
         outs[1] = std::move(tbl);
     }
     if (nargout > 2) {
+        // Re-bucket to populate the full stats struct expected by
+        // post-hoc tools (multcompare, etc.). The data scan is cheap;
+        // we only do it here, when the third output is actually
+        // requested.
+        auto buckets = bucket(args[0], args[1]);
+        const std::size_t K = buckets.size();
+        // means + per-group sizes.
+        Value meansV = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+        Value nV     = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+        Value gnamesV = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+        double *mD = meansV.doubleDataMut();
+        double *nD = nV.doubleDataMut();
+        double *gD = gnamesV.doubleDataMut();
+        double sse = 0.0;
+        std::size_t total = 0;
+        for (std::size_t k = 0; k < K; ++k) {
+            const auto &g = buckets[k];
+            const std::size_t ng = g.values.size();
+            double sum = 0.0;
+            for (double x : g.values) sum += x;
+            const double m = (ng > 0) ? sum / static_cast<double>(ng) : 0.0;
+            mD[k] = m;
+            nD[k] = static_cast<double>(ng);
+            gD[k] = g.label;
+            for (double x : g.values) {
+                const double d = x - m;
+                sse += d * d;
+            }
+            total += ng;
+        }
+        const double sPooled = (total > K)
+            ? std::sqrt(sse / static_cast<double>(total - K))
+            : std::numeric_limits<double>::quiet_NaN();
+
         Value s = Value::structure(mr);
-        s.field("F")        = Value::scalar(F, mr);
-        s.field("df")       = Value::scalar(dfW, mr);
+        s.field("F")      = Value::scalar(F, mr);
+        s.field("df")     = Value::scalar(dfW, mr);
+        s.field("means")  = std::move(meansV);
+        s.field("n")      = std::move(nV);
+        s.field("gnames") = std::move(gnamesV);
+        s.field("s")      = Value::scalar(sPooled, mr);
+        s.field("source") = Value::fromString("anova1", mr);
         outs[2] = std::move(s);
     }
 }
