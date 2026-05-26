@@ -1,0 +1,12 @@
+{
+  "name": "fplot3",
+  "namespace": "graphics",
+  "setup": "fx = @(t) cos(t); fy = @(t) sin(t); fz = @(t) t;",
+  "expr": "fplot3(fx, fy, fz); fplot3(fx, fy, fz, [0 2*pi]); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: graphics primitive — fplot3(funx, funy, funz [, [tmin tmax]]) draws a parametric 3-D curve sampled at 200 points. Mirrors fplot for 3 function handles. Side-effect (emits __FIGURE_DATA__ JSON with plot3 dataset; xJson + yJson + zJson). Spec verifies both default range [-5, 5] and explicit range invocations run without error. Same `r1 = 1` fingerprint pattern as other graphics-primitive specs."
+}

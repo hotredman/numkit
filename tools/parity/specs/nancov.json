@@ -1,0 +1,15 @@
+{
+  "name": "nancov",
+  "namespace": "stats",
+  "setup": "X = [1 2; 3 4; NaN 6; 5 8]; v1 = [1; 2; NaN; 4; 5]; v2 = [10; 20; 30; NaN; 50];",
+  "expr": "C = nancov(X); C0 = nancov(X, 0); C1 = nancov(X, 1); Cv = nancov(v1, v2); cs = nancov(v1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "C(1,1)", "C(1,2)", "C(2,2)",
+    "C0(1,1)", "C1(1,1)",
+    "Cv(1,1)", "Cv(2,2)", "Cv(1,2)",
+    "cs"
+  ],
+  "comment": "Sig: C = nancov(X) — NaN-aware covariance matrix; rows containing any NaN are dropped (== MATLAB cov(X, 'omitrows'), the default 'complete' mode). nancov(X, normFlag) — 0 unbiased (n-1) / 1 population (n). nancov(x, y) — between two vectors; treats [x y] as 2-column matrix. Vector input → scalar variance. KNOWN GAP: 'pairwise' mode (per-(i,j) row-drop) not in v1 — only 'complete'. Bit-exact MATLAB R2025b on the documented signatures."
+}

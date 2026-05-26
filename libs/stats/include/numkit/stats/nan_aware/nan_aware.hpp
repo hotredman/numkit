@@ -102,4 +102,37 @@ Value nanstdev(const Value &x, int normFlag = 0, int dim = 0,
 Value nanmedian(const Value &x, int dim = 0,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief NaN-aware covariance matrix (`C = nancov(X [, normFlag])`).
+///
+/// Each row of `X` is one observation, each column one variable. Rows
+/// where *any* column is NaN are dropped before computing the standard
+/// covariance — i.e. equivalent to `cov(X, 'omitrows')`. This is
+/// MATLAB's `'complete'` mode and the documented default for `nancov`.
+///
+/// The `'pairwise'` mode (each `(i,j)` entry uses rows where both
+/// columns are non-NaN) is **not** supported in v1 — KNOWN GAP.
+///
+/// @param x         Input matrix or vector.
+/// @param normFlag  0 → divide by `N - 1` (unbiased; default).
+///                  1 → divide by `N`.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `p × p` covariance matrix where `p = size(X, 2)`.
+///                  Vector input → scalar variance.
+/// @see nanvar, cov
+Value nancov(const Value &x, int normFlag = 0,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief NaN-aware covariance from two vectors (`C = nancov(x, y)`).
+///
+/// Treats `[x y]` as a 2-column matrix and applies the row-omit rule.
+/// Returns the `2 × 2` covariance matrix.
+///
+/// @param x         First vector.
+/// @param y         Second vector (same length as `x`).
+/// @param normFlag  0 → unbiased (default), 1 → population.
+/// @param mr        Memory resource.
+/// @see nancov
+Value nancov(const Value &x, const Value &y, int normFlag = 0,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
