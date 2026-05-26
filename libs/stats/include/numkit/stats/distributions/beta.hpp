@@ -78,4 +78,18 @@ Value betarnd(double a, double b, size_t rows = 1, size_t cols = 1,
 /// @see betapdf
 std::tuple<double, double> betastat(double a, double b);
 
+/// @brief Beta(a, b) MLE fit (`[ahat, bhat] = betafit(x)`).
+///
+/// Newton iteration on the digamma system
+///   `ψ(a) - ψ(a+b) = mean log(x)`
+///   `ψ(b) - ψ(a+b) = mean log(1-x)`
+/// Initial guess from method of moments. Throws on x outside [0, 1].
+///
+/// KNOWN GAP: CI second output deferred.
+///
+/// @param x   Samples in [0, 1].
+/// @param mr  Memory resource.
+/// @return    `[ahat, bhat]` as a `1 × 2` row.
+Value betafit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

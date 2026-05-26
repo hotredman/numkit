@@ -77,4 +77,19 @@ Value nbinrnd(double r, double p, size_t rows = 1, size_t cols = 1,
 /// @see nbinpdf
 std::tuple<double, double> nbinstat(double r, double p);
 
+/// @brief Negative-binomial MLE fit (`[rhat, phat] = nbinfit(x)`).
+///
+/// Newton iteration on the profile log-likelihood for the count
+/// parameter `r`, with closed-form update for `p = r/(r + mean(x))`
+/// at each step. Initial guess from moment matching.
+///
+/// `x` must be non-negative integers (treated as counts).
+///
+/// KNOWN GAP: CI second output deferred.
+///
+/// @param x   Non-negative count observations.
+/// @param mr  Memory resource.
+/// @return    `[rhat, phat]` as a `1 × 2` row.
+Value nbinfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

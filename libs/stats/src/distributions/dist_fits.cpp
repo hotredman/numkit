@@ -6,6 +6,8 @@
 
 #include <numkit/stats/distributions/gamma_dist.hpp>
 #include <numkit/stats/distributions/weibull.hpp>
+#include <numkit/stats/distributions/beta.hpp>
+#include <numkit/stats/distributions/negbin.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -174,6 +176,128 @@ Value wblfit(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
+Value betafit(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto xv = toFlat(x);
+    const std::size_t n = xv.size();
+    if (n < 2)
+        throw Error("betafit: need at least 2 observations",
+                    0, 0, "betafit", "", "m:betafit:tooFewObs");
+    for (double v : xv) {
+        if (!(v > 0.0 && v < 1.0))
+            throw Error("betafit: all observations must be in (0, 1)",
+                        0, 0, "betafit", "", "m:betafit:outOfRange");
+    }
+    double sumX = 0.0, sum1mX = 0.0, sumLogX = 0.0, sumLog1mX = 0.0;
+    for (double v : xv) {
+        sumX     += v;
+        sum1mX   += (1.0 - v);
+        sumLogX  += std::log(v);
+        sumLog1mX += std::log(1.0 - v);
+    }
+    const double meanX = sumX / static_cast<double>(n);
+    const double varX  = (sum1mX * sumX) / (static_cast<double>(n) * static_cast<double>(n));
+    // MoM initial guess: a = μ·(μ(1-μ)/σ² - 1), b = (1-μ)·(...)
+    double v0 = 0.0;
+    for (double v : xv) {
+        const double d = v - meanX;
+        v0 += d * d;
+    }
+    v0 /= static_cast<double>(n);
+    if (!(v0 > 0.0) || v0 >= meanX * (1.0 - meanX))
+        v0 = meanX * (1.0 - meanX) * 0.5;   // safeguard for MoM
+    const double common = meanX * (1.0 - meanX) / v0 - 1.0;
+    double a = meanX * common;
+    double b = (1.0 - meanX) * common;
+    if (!(a > 0.0)) a = 1.0;
+    if (!(b > 0.0)) b = 1.0;
+
+    const double sLogX  = sumLogX  / static_cast<double>(n);
+    const double sLog1X = sumLog1mX / static_cast<double>(n);
+
+    // Newton on (a, b). 2x2 system with diagonal trigamma minus
+    // ψ'(a+b) on both off-diagonal entries.
+    for (int it = 0; it < 100; ++it) {
+        const double psiAB = digamma(a + b);
+        const double f1 = digamma(a) - psiAB - sLogX;
+        const double f2 = digamma(b) - psiAB - sLog1X;
+        const double tAB = trigamma(a + b);
+        const double J11 = trigamma(a) - tAB;
+        const double J22 = trigamma(b) - tAB;
+        const double J12 = -tAB;
+        const double det = J11 * J22 - J12 * J12;
+        if (std::fabs(det) < 1e-300) break;
+        const double da = (J22 * f1 - J12 * f2) / det;
+        const double db = (J11 * f2 - J12 * f1) / det;
+        const double newA = a - da;
+        const double newB = b - db;
+        if (newA > 0.0) a = newA; else a *= 0.5;
+        if (newB > 0.0) b = newB; else b *= 0.5;
+        if (std::fabs(da) + std::fabs(db)
+            < 1e-10 * (std::fabs(a) + std::fabs(b) + 1.0)) break;
+    }
+
+    auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    out.doubleDataMut()[0] = a;
+    out.doubleDataMut()[1] = b;
+    return out;
+}
+
+Value nbinfit(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto xv = toFlat(x);
+    const std::size_t n = xv.size();
+    if (n < 2)
+        throw Error("nbinfit: need at least 2 observations",
+                    0, 0, "nbinfit", "", "m:nbinfit:tooFewObs");
+    for (double v : xv) {
+        if (v < 0.0 || std::fabs(v - std::round(v)) > 1e-9)
+            throw Error("nbinfit: observations must be non-negative integers",
+                        0, 0, "nbinfit", "", "m:nbinfit:notInteger");
+    }
+    double sum = 0.0;
+    for (double v : xv) sum += v;
+    const double meanX = sum / static_cast<double>(n);
+    double v2 = 0.0;
+    for (double v : xv) {
+        const double d = v - meanX;
+        v2 += d * d;
+    }
+    const double varX = v2 / static_cast<double>(n - 1);
+    if (varX <= meanX)
+        throw Error("nbinfit: sample is under-dispersed (var ≤ mean); "
+                    "MLE undefined for negative binomial",
+                    0, 0, "nbinfit", "", "m:nbinfit:underDispersed");
+    // MoM: r = μ² / (σ² - μ), p = μ / σ².
+    double r = (meanX * meanX) / (varX - meanX);
+    if (!(r > 0.0)) r = 1.0;
+
+    // Newton on the profile log-likelihood in r (p = r/(r + meanX)).
+    //   d/dr log L = sum [ψ(x_i + r) - ψ(r)] + n [log(r/(r + meanX))]
+    for (int it = 0; it < 100; ++it) {
+        const double frac = r / (r + meanX);
+        double S1 = 0.0, S2 = 0.0;
+        for (double v : xv) {
+            S1 += digamma(v + r) - digamma(r);
+            S2 += trigamma(v + r) - trigamma(r);
+        }
+        const double f = S1 + static_cast<double>(n) * std::log(frac);
+        const double fp = S2 + static_cast<double>(n) * meanX / (r * (r + meanX));
+        if (std::fabs(fp) < 1e-300) break;
+        const double step = f / fp;
+        const double newR = r - step;
+        if (newR > 0.0) r = newR;
+        else            r *= 0.5;
+        if (std::fabs(step) < 1e-10 * std::max(r, 1.0)) break;
+    }
+    const double p = r / (r + meanX);
+
+    auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    out.doubleDataMut()[0] = r;
+    out.doubleDataMut()[1] = p;
+    return out;
+}
+
 // ── Adapters ─────────────────────────────────────────────────────────
 namespace detail {
 
@@ -193,6 +317,24 @@ void wblfit_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("wblfit: requires (x)",
                     0, 0, "wblfit", "", "m:wblfit:nargin");
     outs[0] = wblfit(args[0], ctx.engine->resource());
+}
+
+void betafit_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("betafit: requires (x)",
+                    0, 0, "betafit", "", "m:betafit:nargin");
+    outs[0] = betafit(args[0], ctx.engine->resource());
+}
+
+void nbinfit_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("nbinfit: requires (x)",
+                    0, 0, "nbinfit", "", "m:nbinfit:nargin");
+    outs[0] = nbinfit(args[0], ctx.engine->resource());
 }
 
 } // namespace detail
