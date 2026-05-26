@@ -123,6 +123,8 @@ void randg_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mvnrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mvncdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gamstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gamfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wblfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // distributions/exponential.cpp
 void exppdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -486,6 +488,8 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "randg",    &stats::detail::randg_reg);
     reg("dist", "mvnrnd",   &stats::detail::mvnrnd_reg);
     reg("dist", "mvncdf",   &stats::detail::mvncdf_reg);
+    reg("dist", "gamfit",   &stats::detail::gamfit_reg);
+    reg("dist", "wblfit",   &stats::detail::wblfit_reg);
     reg("dist", "gamstat",  &stats::detail::gamstat_reg);
 
     reg("dist", "exppdf",   &stats::detail::exppdf_reg);
