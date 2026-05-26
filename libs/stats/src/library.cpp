@@ -349,6 +349,9 @@ void dummyvar_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // regress/regress.cpp
 void regress_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nlinfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nlparci_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nlpredci_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lscov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ridge_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -674,7 +677,10 @@ void StatsLibrary::install(Engine &engine)
     reg("anova", "kruskalwallis", &stats::detail::kruskalwallis_reg);
     reg("anova", "dummyvar",      &stats::detail::dummyvar_reg);
 
-    reg("regress", "regress", &stats::detail::regress_reg);
+    reg("regress", "regress",  &stats::detail::regress_reg);
+    reg("regress", "nlinfit",  &stats::detail::nlinfit_reg);
+    reg("regress", "nlparci",  &stats::detail::nlparci_reg);
+    reg("regress", "nlpredci", &stats::detail::nlpredci_reg);
     reg("regress", "lscov",   &stats::detail::lscov_reg);
     reg("regress", "ridge",   &stats::detail::ridge_reg);
 
