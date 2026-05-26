@@ -477,44 +477,123 @@ gray2ind(const Value &I, int n, std::pmr::memory_resource *mr)
 
 Value ind2gray(const Value &idx, const Value &map, std::pmr::memory_resource *mr)
 {
+    // MATLAB ind2gray:
+    //   1. graycm = rgb2gray(MAP)         — per-row YIQ luma, double in [0,1]
+    //   2. graycm = graycm(:,1)            — N×1 grey vector
+    //   3. Class-preserving lookup:
+    //        - double / single X: clamp(X, 1, N) then I = graycm(X)
+    //        - uint8/uint16  X: build LUT in target class (changeClass via
+    //          `uint8/uint16(round(graycm·SCALE))`), padded with last
+    //          entry to vs = 256 / 65536, then intlut.
+    //   4. Output class equals input class.
+    //
+    // Coefficients match MATLAB rgb2gray (Rec. BT.601 YIQ luma):
+    //   Y = 0.298936021293775·R + 0.587043074451121·G + 0.114020904255103·B.
+    if (map.numel() == 0)
+        throw Error("ind2gray: requires (X, MAP) with non-empty MAP",
+                    0, 0, "ind2gray", "", "m:ind2gray:nargin");
+    if (map.dims().cols() != 3 || map.dims().is3D())
+        throw Error("ind2gray: MAP must be N-by-3",
+                    0, 0, "ind2gray", "", "m:ind2gray:map");
+
+    const int M = static_cast<int>(map.dims().rows());
+    if (M < 1)
+        throw Error("ind2gray: MAP must have at least one row",
+                    0, 0, "ind2gray", "", "m:ind2gray:emptyMap");
+
+    // Build the grey colormap (length M, DOUBLE in [0, 1]).
+    constexpr double Cr = 0.298936021293775;
+    constexpr double Cg = 0.587043074451121;
+    constexpr double Cb = 0.114020904255103;
+    std::pmr::vector<double> graycm(M, mr);
+    for (int k = 0; k < M; ++k) {
+        // map is column-major M×3: map[r, c] = data[c*M + r].
+        const double r = map.elemAsDouble(0 * M + k);
+        const double g = map.elemAsDouble(1 * M + k);
+        const double b = map.elemAsDouble(2 * M + k);
+        graycm[k] = Cr * r + Cg * g + Cb * b;
+    }
+
     const auto &d = idx.dims();
     const size_t H = d.rows();
     const size_t W = d.cols();
     const size_t N = idx.numel();
+    const ValueType outT = idx.type();   // class-preserving
+
     Value out = d.is3D()
-        ? Value::matrix3d(H, W, d.pages(), ValueType::DOUBLE, mr)
-        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+        ? Value::matrix3d(H, W, d.pages(), outT, mr)
+        : Value::matrix(H, W, outT, mr);
     if (N == 0) return out;
 
-    Value m_eff;
-    int M = 0;
-    if (map.numel() == 0) {
-        double mx = 0.0;
-        for (size_t i = 0; i < N; ++i) {
-            const double v = idx.elemAsDouble(i);
-            if (v > mx) mx = v;
-        }
-        M = std::max(64, static_cast<int>(std::ceil(mx)) + 1);
-        m_eff = gray_colormap(M, mr);
-    } else {
-        if (map.dims().cols() != 3)
-            throw Error("ind2gray: map must be N-by-3",
-                        0, 0, "ind2gray", "", "m:ind2gray:map");
-        m_eff = map;
-        M = static_cast<int>(map.dims().rows());
-    }
+    // Index → grey conversion. MATLAB index conventions:
+    //   * float X is 1-based, clamped to [1, M].
+    //   * integer X is 0-based, LUT padded to vs = 256 / 65536 with the
+    //     last grey value beyond `M - 1`.
+    auto float_lookup = [&](double v) -> double {
+        long long k = static_cast<long long>(v);
+        if (k < 1)  k = 1;
+        if (k > M)  k = M;
+        return graycm[static_cast<std::size_t>(k - 1)];
+    };
+    auto int_lookup_u8 = [&](unsigned v) -> uint8_t {
+        std::size_t k = v;
+        if (k >= static_cast<std::size_t>(M))
+            k = static_cast<std::size_t>(M - 1);
+        double scaled = graycm[k] * 255.0;
+        if (scaled < 0.0)   scaled = 0.0;
+        if (scaled > 255.0) scaled = 255.0;
+        return static_cast<uint8_t>(std::lround(scaled));
+    };
+    auto int_lookup_u16 = [&](unsigned v) -> uint16_t {
+        std::size_t k = v;
+        if (k >= static_cast<std::size_t>(M))
+            k = static_cast<std::size_t>(M - 1);
+        double scaled = graycm[k] * 65535.0;
+        if (scaled < 0.0)     scaled = 0.0;
+        if (scaled > 65535.0) scaled = 65535.0;
+        return static_cast<uint16_t>(std::lround(scaled));
+    };
 
-    double *od = out.doubleDataMut();
-    const bool isFloatIdx = (idx.type() == ValueType::DOUBLE ||
-                             idx.type() == ValueType::SINGLE);
-    for (size_t i = 0; i < N; ++i) {
-        long long k = static_cast<long long>(idx.elemAsDouble(i));
-        if (isFloatIdx) k -= 1;
-        if (k < 0)  k = 0;
-        if (k >= M) k = M - 1;
-        // Read column 0 of the gray map (all 3 channels are equal in a
-        // strict grayscale colormap).
-        od[i] = m_eff.elemAsDouble(static_cast<size_t>(k));
+    switch (outT) {
+        case ValueType::DOUBLE: {
+            double *od = out.doubleDataMut();
+            for (size_t i = 0; i < N; ++i)
+                od[i] = float_lookup(idx.elemAsDouble(i));
+            break;
+        }
+        case ValueType::SINGLE: {
+            float *od = out.singleDataMut();
+            for (size_t i = 0; i < N; ++i)
+                od[i] = static_cast<float>(float_lookup(idx.elemAsDouble(i)));
+            break;
+        }
+        case ValueType::UINT8: {
+            uint8_t *od = out.uint8DataMut();
+            const uint8_t *src = idx.uint8Data();
+            for (size_t i = 0; i < N; ++i)
+                od[i] = int_lookup_u8(src[i]);
+            break;
+        }
+        case ValueType::UINT16: {
+            uint16_t *od = out.uint16DataMut();
+            const uint16_t *src = idx.uint16Data();
+            for (size_t i = 0; i < N; ++i)
+                od[i] = int_lookup_u16(src[i]);
+            break;
+        }
+        case ValueType::LOGICAL: {
+            // MATLAB historical compat: logical → uint8-like 0/1 lookup
+            // (the MATLAB source uses intlut with vs = 256 here too).
+            uint8_t *od = out.uint8DataMut();
+            const uint8_t *src = idx.logicalData();
+            for (size_t i = 0; i < N; ++i)
+                od[i] = int_lookup_u8(src[i] ? 1u : 0u);
+            break;
+        }
+        default:
+            throw Error("ind2gray: X must be double, single, uint8, uint16, "
+                        "or logical",
+                        0, 0, "ind2gray", "", "m:ind2gray:cls");
     }
     return out;
 }
