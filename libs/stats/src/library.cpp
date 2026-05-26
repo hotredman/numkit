@@ -411,6 +411,11 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "ecdf",      &stats::detail::ecdf_reg);
     reg("descriptive", "datastats", &stats::detail::datastats_reg);
     reg("descriptive", "ksdensity", &stats::detail::ksdensity_reg);
+    // MATLAB R2023b+ added `kde` as a name-value-style alias for
+    // ksdensity. The numkit ksdensity adapter already accepts the
+    // positional + name-value calling conventions, so a direct alias
+    // works for v1.
+    reg("descriptive", "kde",       &stats::detail::ksdensity_reg);
     reg("descriptive", "prepareCurveData",   &stats::detail::prepareCurveData_reg);
     reg("descriptive", "prepareSurfaceData", &stats::detail::prepareSurfaceData_reg);
     reg("descriptive", "ecdfhist",  &stats::detail::ecdfhist_reg);
