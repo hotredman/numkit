@@ -1,0 +1,16 @@
+{
+  "name": "partialcorri_canoncorr",
+  "covers": ["partialcorri", "canoncorr"],
+  "namespace": "stats",
+  "setup": "rng(0); n = 500; X = randn(n, 3); Y = [X(:,1) + 0.05*randn(n,1), X(:,2) + 0.05*randn(n,1)]; rng(0); n2 = 1000; z = randn(n2, 1); Xc = [z + 0.05*randn(n2,1), z + 0.10*randn(n2,1), randn(n2,1)]; Yc = [z + 0.07*randn(n2,1), -z + 0.10*randn(n2,1)];",
+  "expr": "R = partialcorri(Y, X); pRdiag1 = R(1, 1); pRdiag2 = R(2, 2); pRoff = abs(R(1, 2)) + abs(R(2, 1)); pRnoise = abs(R(1, 3)) + abs(R(2, 3)); [A, B, r] = canoncorr(Xc, Yc); r1 = r(1); r2 = r(2); k = numel(r); pA = size(A, 1); cA = size(A, 2); pB = size(B, 1); cB = size(B, 2); monotone = double(r(1) >= r(2));",
+  "iters": 3,
+  "tol": 1e-9,
+  "fingerprint": [
+    "double(pRdiag1 > 0.9)", "double(pRdiag2 > 0.9)",
+    "double(pRoff < 0.4)", "double(pRnoise < 0.4)",
+    "double(r1 > 0.95)", "double(r2 < 0.3)",
+    "k", "pA", "cA", "pB", "cB", "monotone"
+  ],
+  "comment": "Sig: R = partialcorri(Y, X [, Z]) — partial correlation between each Y column and each X column, controlling for the OTHER X cols (and Z). canoncorr(X, Y) = canonical correlation analysis via centring + QR + SVD; returns canonical coefficients A, B (p×k, q×k) and the canonical correlations r (length k = min(p, q)). Bit-exact MATLAB R2025b not feasible (rng state differs); fingerprint pins structural invariants on the recoverability test (diag dominance for partialcorri on planted dependence, r(1) ≈ 1 for canoncorr on shared latent factor) and on the shapes."
+}
