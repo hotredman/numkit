@@ -144,6 +144,7 @@ void betafit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nbinfit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void evfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gpfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gevfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // distributions/exponential.cpp
 void exppdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -533,6 +534,7 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "nbinfit",  &stats::detail::nbinfit_reg);
     reg("dist", "evfit",    &stats::detail::evfit_reg);
     reg("dist", "gpfit",    &stats::detail::gpfit_reg);
+    reg("dist", "gevfit",   &stats::detail::gevfit_reg);
     reg("dist", "gamstat",  &stats::detail::gamstat_reg);
 
     reg("dist", "exppdf",   &stats::detail::exppdf_reg);

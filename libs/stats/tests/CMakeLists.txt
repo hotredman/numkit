@@ -23,6 +23,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/lhsdesign_lhsnorm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvtcdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ansaribradley_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gevfit_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_v2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/quantile_test.cpp

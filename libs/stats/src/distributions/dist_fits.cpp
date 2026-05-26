@@ -14,6 +14,7 @@
 #include <numkit/stats/distributions/negbin.hpp>
 #include <numkit/stats/distributions/extreme_value.hpp>
 #include <numkit/stats/distributions/gp.hpp>
+#include <numkit/stats/distributions/gev.hpp>
 
 #include <numkit/builtin/math/special/special.hpp>   // gammainc (used by gamfit_full)
 
@@ -1380,6 +1381,304 @@ Value gpfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
                       alpha, mr);
 }
 
+// ── gevfit (3-param GEV MLE) ─────────────────────────────────────────
+
+// GEV NLL: log f(x; k, σ, μ).
+//   For k ≠ 0: t = 1 + k(x-μ)/σ;  f = (1/σ) t^{-1/k - 1} exp(-t^{-1/k})
+//     log f = -log σ + (-1 - 1/k) log t - t^{-1/k}
+//   For k → 0 (Gumbel-max limit): z = (x-μ)/σ
+//     log f = -log σ - z - exp(-z)
+// Returns +Inf if any support is violated.
+static double nll_gev(double k, double sigma, double mu,
+                      const std::vector<double> &xv)
+{
+    if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
+    const std::size_t n = xv.size();
+    double nll = static_cast<double>(n) * std::log(sigma);
+    if (std::fabs(k) < 1e-10) {
+        // Gumbel-max limit.
+        for (double x : xv) {
+            const double z = (x - mu) / sigma;
+            nll += z + std::exp(-z);
+        }
+    } else {
+        for (double x : xv) {
+            const double t = 1.0 + k * (x - mu) / sigma;
+            if (!(t > 0.0)) return std::numeric_limits<double>::infinity();
+            const double log_t = std::log(t);
+            // t^{-1/k} = exp(-log_t/k)
+            const double t_pow = std::exp(-log_t / k);
+            nll += (1.0 + 1.0 / k) * log_t + t_pow;
+        }
+    }
+    return nll;
+}
+
+Value gevfit(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto xv = toFlat(x);
+    const std::size_t n = xv.size();
+    if (n < 3)
+        throw Error("gevfit: need at least 3 observations",
+                    0, 0, "gevfit", "", "m:gevfit:tooFewObs");
+    for (double v : xv) {
+        if (!std::isfinite(v))
+            throw Error("gevfit: observations must be finite",
+                        0, 0, "gevfit", "", "m:gevfit:notFinite");
+    }
+
+    // PWM initial guess (Hosking-Wallis-Wood 1985).
+    std::vector<double> xs = xv;
+    std::sort(xs.begin(), xs.end());
+    double b0 = 0.0, b1 = 0.0, b2 = 0.0;
+    const double dN = static_cast<double>(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        const double dI = static_cast<double>(i + 1);
+        // PWM using plotting positions p_i = (i - 0.35) / n.
+        const double Fhat = (dI - 0.35) / dN;
+        b0 += xs[i];
+        b1 += xs[i] * Fhat;
+        b2 += xs[i] * Fhat * Fhat;
+    }
+    b0 /= dN; b1 /= dN; b2 /= dN;
+    // Hosking et al. 1985 approximation for k:
+    //   c = (2 b1 - b0) / (3 b2 - b0) - log(2) / log(3)
+    //   k ≈ 7.8590·c + 2.9554·c²
+    const double LN2_LN3 = 0.6309297535714574;  // ln(2)/ln(3)
+    const double denom = 3.0 * b2 - b0;
+    double k_init = 0.0;
+    if (std::fabs(denom) > 1e-300) {
+        const double c = (2.0 * b1 - b0) / denom - LN2_LN3;
+        k_init = 7.8590 * c + 2.9554 * c * c;
+    }
+    // σ via:
+    //   σ = k·(2 b1 - b0) / (Γ(1+k) · (1 - 2^{-k})), with k → 0 limit.
+    double sigma_init;
+    if (std::fabs(k_init) < 1e-6) {
+        sigma_init = (2.0 * b1 - b0) / std::log(2.0);
+    } else {
+        const double gam_1pk = std::tgamma(1.0 + k_init);
+        const double one_m_2nk = 1.0 - std::pow(2.0, -k_init);
+        sigma_init = k_init * (2.0 * b1 - b0) / (gam_1pk * one_m_2nk);
+    }
+    if (!(sigma_init > 0.0) || !std::isfinite(sigma_init))
+        sigma_init = std::max(b0 * 0.5, 1.0);
+    // μ via:
+    //   μ = b0 - σ · (1 - Γ(1+k)) / k, k → 0 limit: μ = b0 - σ · γ_E
+    double mu_init;
+    if (std::fabs(k_init) < 1e-6) {
+        mu_init = b0 - sigma_init * 0.57721566490153286;
+    } else {
+        const double gam_1pk = std::tgamma(1.0 + k_init);
+        mu_init = b0 - sigma_init * (1.0 - gam_1pk) / k_init;
+    }
+
+    // Feasibility check on initial guess; if it violates support, shift.
+    auto feasible = [&](double k, double sigma, double mu) -> bool {
+        if (!(sigma > 0.0)) return false;
+        if (std::fabs(k) < 1e-10) return true;
+        for (double v : xv) {
+            if (1.0 + k * (v - mu) / sigma <= 0.0) return false;
+        }
+        return true;
+    };
+    if (!feasible(k_init, sigma_init, mu_init)) {
+        // Fall back to safe Gumbel init.
+        k_init = 0.0;
+        sigma_init = std::sqrt(6.0 * 1.0) / 3.141592653589793;
+        double mean = 0.0;
+        for (double v : xv) mean += v;
+        mean /= dN;
+        mu_init = mean - 0.57721566490153286 * sigma_init;
+    }
+
+    // 3-D Newton on NLL with FD gradient + FD Hessian.
+    double k = k_init, sigma = sigma_init, mu = mu_init;
+    double f_cur = nll_gev(k, sigma, mu, xv);
+    if (!std::isfinite(f_cur)) {
+        k = 0.0; sigma = 1.0; mu = 0.0;
+        f_cur = nll_gev(k, sigma, mu, xv);
+    }
+
+    auto nll = [&](double K, double S, double M) { return nll_gev(K, S, M, xv); };
+    for (int it = 0; it < 200; ++it) {
+        const double hk = std::max(std::fabs(k), 0.5) * 1e-5;
+        const double hs = std::max(std::fabs(sigma), 1.0) * 1e-5;
+        const double hm = std::max(std::fabs(mu), 1.0) * 1e-5;
+        // Gradient.
+        const double gk = (nll(k + hk, sigma, mu) - nll(k - hk, sigma, mu)) / (2.0 * hk);
+        const double gs = (nll(k, sigma + hs, mu) - nll(k, sigma - hs, mu)) / (2.0 * hs);
+        const double gm = (nll(k, sigma, mu + hm) - nll(k, sigma, mu - hm)) / (2.0 * hm);
+        const double gn = std::sqrt(gk * gk + gs * gs + gm * gm);
+        if (gn < 1e-12) break;
+        // Hessian (symmetric).
+        const double Hkk = (nll(k + hk, sigma, mu) - 2.0 * f_cur + nll(k - hk, sigma, mu)) / (hk * hk);
+        const double Hss = (nll(k, sigma + hs, mu) - 2.0 * f_cur + nll(k, sigma - hs, mu)) / (hs * hs);
+        const double Hmm = (nll(k, sigma, mu + hm) - 2.0 * f_cur + nll(k, sigma, mu - hm)) / (hm * hm);
+        const double Hks = (nll(k + hk, sigma + hs, mu) - nll(k + hk, sigma - hs, mu)
+                         -  nll(k - hk, sigma + hs, mu) + nll(k - hk, sigma - hs, mu))
+                          / (4.0 * hk * hs);
+        const double Hkm = (nll(k + hk, sigma, mu + hm) - nll(k + hk, sigma, mu - hm)
+                         -  nll(k - hk, sigma, mu + hm) + nll(k - hk, sigma, mu - hm))
+                          / (4.0 * hk * hm);
+        const double Hsm = (nll(k, sigma + hs, mu + hm) - nll(k, sigma + hs, mu - hm)
+                         -  nll(k, sigma - hs, mu + hm) + nll(k, sigma - hs, mu - hm))
+                          / (4.0 * hs * hm);
+        // Solve 3x3 H · d = -g (Cramer's rule for small system).
+        const double H11 = Hkk, H12 = Hks, H13 = Hkm;
+        const double H21 = Hks, H22 = Hss, H23 = Hsm;
+        const double H31 = Hkm, H32 = Hsm, H33 = Hmm;
+        const double det = H11 * (H22 * H33 - H23 * H32)
+                         - H12 * (H21 * H33 - H23 * H31)
+                         + H13 * (H21 * H32 - H22 * H31);
+        if (std::fabs(det) < 1e-300) break;
+        // -g = b
+        const double b1n = -gk, b2n = -gs, b3n = -gm;
+        const double dk = (b1n * (H22 * H33 - H23 * H32)
+                         - H12 * (b2n * H33 - H23 * b3n)
+                         + H13 * (b2n * H32 - H22 * b3n)) / det;
+        const double ds = (H11 * (b2n * H33 - H23 * b3n)
+                         - b1n * (H21 * H33 - H23 * H31)
+                         + H13 * (H21 * b3n - b2n * H31)) / det;
+        const double dm = (H11 * (H22 * b3n - b2n * H32)
+                         - H12 * (H21 * b3n - b2n * H31)
+                         + b1n * (H21 * H32 - H22 * H31)) / det;
+        // Backtracking line search.
+        double sc = 1.0;
+        bool ok = false;
+        for (int bt = 0; bt < 30; ++bt) {
+            const double kn = k + sc * dk;
+            const double sn = sigma + sc * ds;
+            const double mn = mu + sc * dm;
+            if (sn > 0.0 && feasible(kn, sn, mn)) {
+                const double f_new = nll(kn, sn, mn);
+                if (std::isfinite(f_new) && f_new < f_cur - 1e-15) {
+                    k = kn; sigma = sn; mu = mn; f_cur = f_new;
+                    ok = true; break;
+                }
+            }
+            sc *= 0.5;
+        }
+        if (!ok) break;
+        if (std::fabs(sc * dk) + std::fabs(sc * ds) + std::fabs(sc * dm)
+            < 1e-12 * (std::fabs(k) + std::fabs(sigma) + std::fabs(mu) + 1.0)) break;
+    }
+
+    auto out = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+    out.doubleDataMut()[0] = k;
+    out.doubleDataMut()[1] = sigma;
+    out.doubleDataMut()[2] = mu;
+    return out;
+}
+
+Value gevfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
+{
+    auto xv = toFlat(x);
+    Value parm = gevfit(x, mr);
+    const double k_hat     = parm.elemAsDouble(0);
+    const double sigma_hat = parm.elemAsDouble(1);
+    const double mu_hat    = parm.elemAsDouble(2);
+
+    // Compute 3-D FD Hessian of NLL at parmhat → V = H^{-1} → SE_j.
+    auto nll = [&](double K, double S, double M) { return nll_gev(K, S, M, xv); };
+    const double hk = std::max(std::fabs(k_hat), 0.5) * 1e-5;
+    const double hs = std::max(std::fabs(sigma_hat), 1.0) * 1e-5;
+    const double hm = std::max(std::fabs(mu_hat), 1.0) * 1e-5;
+    const double f00 = nll(k_hat, sigma_hat, mu_hat);
+    const double Hkk = (nll(k_hat + hk, sigma_hat, mu_hat) - 2 * f00
+                     + nll(k_hat - hk, sigma_hat, mu_hat)) / (hk * hk);
+    const double Hss = (nll(k_hat, sigma_hat + hs, mu_hat) - 2 * f00
+                     + nll(k_hat, sigma_hat - hs, mu_hat)) / (hs * hs);
+    const double Hmm = (nll(k_hat, sigma_hat, mu_hat + hm) - 2 * f00
+                     + nll(k_hat, sigma_hat, mu_hat - hm)) / (hm * hm);
+    const double Hks = (nll(k_hat + hk, sigma_hat + hs, mu_hat)
+                     -  nll(k_hat + hk, sigma_hat - hs, mu_hat)
+                     -  nll(k_hat - hk, sigma_hat + hs, mu_hat)
+                     +  nll(k_hat - hk, sigma_hat - hs, mu_hat)) / (4 * hk * hs);
+    const double Hkm = (nll(k_hat + hk, sigma_hat, mu_hat + hm)
+                     -  nll(k_hat + hk, sigma_hat, mu_hat - hm)
+                     -  nll(k_hat - hk, sigma_hat, mu_hat + hm)
+                     +  nll(k_hat - hk, sigma_hat, mu_hat - hm)) / (4 * hk * hm);
+    const double Hsm = (nll(k_hat, sigma_hat + hs, mu_hat + hm)
+                     -  nll(k_hat, sigma_hat + hs, mu_hat - hm)
+                     -  nll(k_hat, sigma_hat - hs, mu_hat + hm)
+                     +  nll(k_hat, sigma_hat - hs, mu_hat - hm)) / (4 * hs * hm);
+    // Invert 3×3 to get cov diagonals.
+    const double H[9] = {Hkk, Hks, Hkm, Hks, Hss, Hsm, Hkm, Hsm, Hmm};
+    const double det = H[0]*(H[4]*H[8]-H[5]*H[7]) - H[1]*(H[3]*H[8]-H[5]*H[6])
+                     + H[2]*(H[3]*H[7]-H[4]*H[6]);
+    Value out = Value::matrix(2, 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (std::fabs(det) < 1e-300) {
+        for (int i = 0; i < 6; ++i) od[i] = std::numeric_limits<double>::quiet_NaN();
+        return out;
+    }
+    // V_jj = cofactor_jj / det.
+    const double V_kk = (H[4]*H[8] - H[5]*H[7]) / det;
+    const double V_ss = (H[0]*H[8] - H[2]*H[6]) / det;
+    const double V_mm = (H[0]*H[4] - H[1]*H[3]) / det;
+    const double se_k = std::sqrt(std::max(V_kk, 0.0));
+    const double se_s = std::sqrt(std::max(V_ss, 0.0));
+    const double se_m = std::sqrt(std::max(V_mm, 0.0));
+
+    // z_{α/2} via full Wichura AS-241 (handles tail beyond |q| > 0.425).
+    auto z_alpha = [](double a) -> double {
+        const double p = 1.0 - 0.5 * a;
+        const double q = p - 0.5;
+        if (std::fabs(q) <= 0.425) {
+            const double r = 0.180625 - q * q;
+            return q * (((((((2.509080928730122727e3 * r
+                + 3.343057558358812877e4) * r + 6.726577092700870006e4) * r
+                + 4.592195393154987305e4) * r + 1.373169376550946215e4) * r
+                + 1.971590950306227941e3) * r + 1.331416678917643998e2) * r
+                + 3.387132872796366608) /
+                (((((((5.226495278852854561e3 * r + 2.872908573572194738e4) * r
+                + 3.930789580009271061e4) * r + 2.121379430158659746e4) * r
+                + 5.394196021424751670e3) * r + 6.871159355626076150e2) * r
+                + 4.231333070160091088e1) * r + 1.0);
+        }
+        double r = (q < 0.0) ? p : 1.0 - p;
+        r = std::sqrt(-std::log(r));
+        double v;
+        if (r <= 5.0) {
+            r -= 1.6;
+            v = (((((((7.74545014278341407640e-4 * r
+                + 2.27238449892691845833e-2) * r + 2.41780725177450611770e-1) * r
+                + 1.27045825245236838258e0) * r + 3.64784832476320460504e0) * r
+                + 5.76949722146069140550e0) * r + 4.63033784615654529590e0) * r
+                + 1.42343711074968357734e0) /
+                (((((((1.05075007164441684324e-9 * r
+                + 5.47593808499534494600e-4) * r + 1.51986665636164571966e-2) * r
+                + 1.48103976427480074590e-1) * r + 6.89767334985100004550e-1) * r
+                + 1.67638483018380384940e0) * r + 2.05319162663775882187e0) * r
+                + 1.0);
+        } else {
+            r -= 5.0;
+            v = (((((((2.01033439929228813265e-7 * r
+                + 2.71155556874348757815e-5) * r + 1.24266094738807843860e-3) * r
+                + 2.65321895265761230930e-2) * r + 2.96560571828504891230e-1) * r
+                + 1.78482653991729133580e0) * r + 5.46378491116411436990e0) * r
+                + 6.65790464350110377720e0) /
+                (((((((2.04426310338993978564e-15 * r
+                + 1.42151175831644588870e-7) * r + 1.84631831751005468180e-5) * r
+                + 7.86869131145613259100e-4) * r + 1.48753612908506148525e-2) * r
+                + 1.36929880988350204800e-1) * r + 5.99832206555887937690e-1) * r
+                + 1.0);
+        }
+        return (q < 0.0) ? -v : v;
+    };
+    const double z = z_alpha(alpha);
+    // k linear CI, σ log CI, μ linear CI.
+    const double se_log_sigma = (sigma_hat > 0.0) ? se_s / sigma_hat : 0.0;
+    od[0] = k_hat - z * se_k;
+    od[1] = k_hat + z * se_k;
+    od[2] = sigma_hat * std::exp(-z * se_log_sigma);
+    od[3] = sigma_hat * std::exp( z * se_log_sigma);
+    od[4] = mu_hat - z * se_m;
+    od[5] = mu_hat + z * se_m;
+    return out;
+}
+
 // ── Adapters ─────────────────────────────────────────────────────────
 namespace detail {
 
@@ -1470,6 +1769,17 @@ void gpfit_reg(Span<const Value> args, size_t nargout,
     auto *mr = ctx.engine->resource();
     outs[0] = gpfit(args[0], mr);
     if (nargout >= 2) outs[1] = gpfit_ci(args[0], parse_alpha(args), mr);
+}
+
+void gevfit_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("gevfit: requires (x[, alpha])",
+                    0, 0, "gevfit", "", "m:gevfit:nargin");
+    auto *mr = ctx.engine->resource();
+    outs[0] = gevfit(args[0], mr);
+    if (nargout >= 2) outs[1] = gevfit_ci(args[0], parse_alpha(args), mr);
 }
 
 } // namespace detail
