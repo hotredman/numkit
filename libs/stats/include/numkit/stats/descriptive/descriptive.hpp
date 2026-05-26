@@ -230,6 +230,56 @@ Value mape(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resourc
 /// @see corrcoef
 Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Partial correlation between each column of `Y` and each
+/// column of `X`, controlling for the remaining columns of `X` (and
+/// optionally `Z`).
+///
+/// (`R = partialcorri(Y, X)` / `R = partialcorri(Y, X, Z)`)
+///
+/// Unlike `partialcorr_of(X, Y, Z)`, the control set varies per `X`
+/// column: for column `j`, the controls are `X(:, ~j)` (all other X
+/// columns), unioned with `Z` if supplied. Both the `y` and `x_j`
+/// columns are residualised on the control set, then the residuals
+/// are Pearson-correlated.
+///
+/// @param Y   `n × p_Y` outcome variables.
+/// @param X   `n × p_X` predictor variables.
+/// @param Z   Optional `n × p_Z` extra controls (may be an empty
+///            matrix to skip).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `p_Y × p_X` matrix of partial correlations.
+/// @see partialcorr_of, corrcoef
+Value partialcorri(const Value &Y, const Value &X, const Value &Z = {},
+                   std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Canonical correlation analysis
+/// (`[A, B, r] = canoncorr(X, Y)`).
+struct CanoncorrResult {
+    Value A;  ///< `p × k` canonical coefficients for `X`.
+    Value B;  ///< `q × k` canonical coefficients for `Y`.
+    Value r;  ///< Length-`k` canonical correlations (in `[0, 1]`,
+              ///< non-increasing). `k = min(p, q)`.
+};
+
+/// @brief Canonical correlation analysis
+/// (`[A, B, r] = canoncorr(X, Y)`).
+///
+/// Finds linear combinations `U = X·A` and `V = Y·B` such that
+/// `corr(U(:, i), V(:, i)) = r(i)` is maximised, with the standard
+/// orthogonality / unit-variance constraints on `U` and `V`.
+///
+/// Algorithm: centre `X` and `Y`; compute `QX, QY` from thin QR; SVD
+/// `QX' · QY` for the canonical directions; back-substitute through
+/// `R_X`, `R_Y` to recover `A`, `B`. `r` is the singular-value vector
+/// (clamped to `[0, 1]` to absorb FP drift).
+///
+/// @param X   `n × p` first set of variables.
+/// @param Y   `n × q` second set of variables (`rows(Y) == rows(X)`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `{A, B, r}` struct.
+CanoncorrResult canoncorr(const Value &X, const Value &Y,
+                           std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Auto-correlation across columns of X (`R = corr(X)`).
 ///
 /// Equivalent to `corrcoef(X)`. Non-Pearson type options ("Spearman",
