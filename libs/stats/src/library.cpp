@@ -105,6 +105,8 @@ void nctinv_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void nctstat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void nctrnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ncfpdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ncfcdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ncfinv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // distributions/fisher_f.cpp
 void fpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -494,6 +496,8 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "frnd",     &stats::detail::frnd_reg);
     reg("dist", "fstat",    &stats::detail::fstat_reg);
     reg("dist", "ncfpdf",   &stats::detail::ncfpdf_reg);
+    reg("dist", "ncfcdf",   &stats::detail::ncfcdf_reg);
+    reg("dist", "ncfinv",   &stats::detail::ncfinv_reg);
 
     reg("dist", "betapdf",  &stats::detail::betapdf_reg);
     reg("dist", "betacdf",  &stats::detail::betacdf_reg);

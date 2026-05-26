@@ -95,4 +95,39 @@ std::tuple<double, double> fstat(double v1, double v2);
 Value ncfpdf(const Value &x, double nu1, double nu2, double delta,
              std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Noncentral F cdf (`p = ncfcdf(x, nu1, nu2, delta)`).
+///
+/// Poisson-mixture in the regularised incomplete beta:
+///   F(x; ν₁, ν₂, δ) = Σ_k Poisson(k; δ/2) · I_y(ν₁/2 + k, ν₂/2)
+/// with `y = ν₁ x / (ν₁ x + ν₂)`. Series truncated at `1e-16`
+/// relative contribution. Reduces to `fcdf(x, ν₁, ν₂)` at `δ = 0`.
+/// The `'upper'` flag returns `1 - F`.
+///
+/// @param x      Evaluation points (any shape).
+/// @param nu1    Numerator degrees of freedom (`> 0`).
+/// @param nu2    Denominator degrees of freedom (`> 0`).
+/// @param delta  Noncentrality parameter (`>= 0`).
+/// @param upper  If true, return upper-tail `1 - F` (default false).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Array of cdf values in `[0, 1]`.
+/// @see ncfpdf, ncfinv
+Value ncfcdf(const Value &x, double nu1, double nu2, double delta,
+             bool upper = false, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Noncentral F inverse cdf (`x = ncfinv(p, nu1, nu2, delta)`).
+///
+/// Returns `x` such that `ncfcdf(x, ν₁, ν₂, δ) = p`. Newton iteration
+/// on `ncfcdf` using `ncfpdf` as derivative; safeguarded by bracketing
+/// bisection if Newton steps oscillate. Initial guess from `finv(p, ν₁, ν₂)`.
+///
+/// @param p      Probability levels in `[0, 1]` (any shape).
+/// @param nu1    Numerator degrees of freedom.
+/// @param nu2    Denominator degrees of freedom.
+/// @param delta  Noncentrality parameter.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Quantile array, same shape as `p`.
+/// @see ncfcdf
+Value ncfinv(const Value &p, double nu1, double nu2, double delta,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
