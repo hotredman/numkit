@@ -185,6 +185,142 @@ std::tuple<double, double> tstat(double nu)
     return std::make_tuple(m, v);
 }
 
+// ── Noncentral t ────────────────────────────────────────────────────
+
+namespace {
+
+// Standard normal CDF.
+inline double phiCdf(double z)
+{
+    return 0.5 * (1.0 + std::erf(z / std::sqrt(2.0)));
+}
+
+inline double betainc_scalar(double y, double a, double b, std::pmr::memory_resource *mr)
+{
+    Value yv = Value::scalar(y, mr);
+    Value av = Value::scalar(a, mr);
+    Value bv = Value::scalar(b, mr);
+    return ::numkit::builtin::betainc(yv, av, bv, mr).toScalar();
+}
+
+double nctpdf_one(double x, double nu, double delta,
+                  std::pmr::memory_resource *mr)
+{
+    if (!(nu > 0.0))
+        return std::numeric_limits<double>::quiet_NaN();
+    // δ = 0 → central tpdf.
+    if (delta == 0.0) {
+        const double log_norm = std::lgamma(0.5 * (nu + 1.0))
+                              - std::lgamma(0.5 * nu)
+                              - 0.5 * std::log(nu * M_PI);
+        return std::exp(log_norm - 0.5 * (nu + 1.0) * std::log1p(x * x / nu));
+    }
+    if (x == 0.0) {
+        // f(0; ν, δ) = Γ((ν+1)/2) / [√(νπ) · Γ(ν/2)] · exp(-δ²/2)
+        const double log_v = std::lgamma(0.5 * (nu + 1.0))
+                           - 0.5 * std::log(nu * M_PI)
+                           - std::lgamma(0.5 * nu)
+                           - 0.5 * delta * delta;
+        return std::exp(log_v);
+    }
+    const double npx2 = nu + x * x;
+    // log-prefactor: (ν/2)·log(ν) - δ²/2 - 0.5·log(π) - lgamma(ν/2)
+    //              - (ν+1)/2 · log(ν + x²)
+    const double log_pref = 0.5 * nu * std::log(nu)
+                          - 0.5 * delta * delta
+                          - 0.5 * std::log(M_PI)
+                          - std::lgamma(0.5 * nu)
+                          - 0.5 * (nu + 1.0) * std::log(npx2);
+    const double xd = x * delta;
+    const int sign_factor = (xd >= 0.0) ? 1 : -1;
+    const double log_t = std::log(std::fabs(xd) * std::sqrt(2.0));   // log(|xδ|√2)
+    const double half_log_npx2 = 0.5 * std::log(npx2);
+
+    double sum = 0.0, abs_sum = 0.0;
+    int sign_k = 1;
+    constexpr int kMax = 2000;
+    for (int k = 0; k < kMax; ++k) {
+        const double log_termk = std::lgamma(0.5 * (nu + double(k) + 1.0))
+                              + double(k) * log_t
+                              - double(k) * half_log_npx2
+                              - std::lgamma(double(k) + 1.0);
+        const double abs_term = std::exp(log_termk);
+        const double contrib = sign_k * abs_term;
+        sum += contrib;
+        abs_sum += abs_term;
+        if (k > 10 && abs_term < 1e-16 * abs_sum) break;
+        sign_k *= sign_factor;
+    }
+    double v = std::exp(log_pref) * sum;
+    if (!std::isfinite(v) || v < 0.0) v = std::max(v, 0.0);
+    return v;
+}
+
+double nctcdf_one(double x, double nu, double delta,
+                  std::pmr::memory_resource *mr)
+{
+    if (!(nu > 0.0))
+        return std::numeric_limits<double>::quiet_NaN();
+    if (delta == 0.0) {
+        // Central tcdf branch.
+        const double z = nu / (nu + x * x);
+        const double I = betainc_scalar(z, 0.5 * nu, 0.5, mr);
+        return (x >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
+    }
+    // Symmetry for negative x.
+    if (x < 0.0) return 1.0 - nctcdf_one(-x, nu, -delta, mr);
+    // At x = 0: F = Φ(-δ).
+    if (x == 0.0) return phiCdf(-delta);
+
+    const double y = (x * x) / (x * x + nu);
+    const double z = 0.5 * delta * delta;
+    const double phi_neg_d = phiCdf(-delta);
+
+    // Series 1 (P_k coefficient): Poisson pmf with mean z.
+    // Series 2 (Q_k coefficient): (δ/(2√(2π))) · (z^k / Γ(k+3/2)) · e^{-z}.
+    const double e_neg_z = std::exp(-z);
+    double alpha = e_neg_z;                                    // P_0
+    double beta  = (2.0 / std::sqrt(M_PI)) * e_neg_z;          // (z^0 / Γ(3/2)) · e^{-z}
+
+    double sum1 = 0.0, sum2 = 0.0;
+    constexpr int kMax = 2000;
+    for (int k = 0; k < kMax; ++k) {
+        const double I1 = betainc_scalar(y, double(k) + 0.5, 0.5 * nu, mr);
+        const double I2 = betainc_scalar(y, double(k) + 1.0, 0.5 * nu, mr);
+        const double t1 = alpha * I1;
+        const double t2 = beta  * I2;
+        sum1 += t1;
+        sum2 += t2;
+        if (k > 10 && t1 < 1e-16 * (sum1 + 1e-300)
+                  && t2 < 1e-16 * (sum2 + 1e-300)) break;
+        // Recurrences.
+        alpha *= z / double(k + 1);
+        beta  *= z / (double(k) + 1.5);
+    }
+
+    double F = phi_neg_d + 0.5 * sum1 + (delta / (2.0 * std::sqrt(2.0))) * sum2;
+    if (F < 0.0) F = 0.0;
+    if (F > 1.0) F = 1.0;
+    return F;
+}
+
+} // anonymous
+
+Value nctpdf(const Value &x, double nu, double delta,
+             std::pmr::memory_resource *mr)
+{
+    return elementwise(x, [&](double xi) { return nctpdf_one(xi, nu, delta, mr); }, mr);
+}
+
+Value nctcdf(const Value &x, double nu, double delta, bool upper,
+             std::pmr::memory_resource *mr)
+{
+    return elementwise(x, [&](double xi) {
+        double F = nctcdf_one(xi, nu, delta, mr);
+        return upper ? 1.0 - F : F;
+    }, mr);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -230,6 +366,26 @@ void tstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     emit_vec_stat_1arg(args, nargout, outs, ctx, "tstat",
                        [](double nu) { return tstat(nu); });
+}
+
+void nctpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("nctpdf: requires (x, nu, delta)",
+                    0, 0, "nctpdf", "", "m:nctpdf:nargin");
+    outs[0] = nctpdf(args[0], args[1].toScalar(), args[2].toScalar(),
+                     ctx.engine->resource());
+}
+
+void nctcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("nctcdf: requires (x, nu, delta[, 'upper'])",
+                    0, 0, "nctcdf", "", "m:nctcdf:nargin");
+    outs[0] = nctcdf(args[0], args[1].toScalar(), args[2].toScalar(), upper,
+                     ctx.engine->resource());
 }
 
 } // namespace detail

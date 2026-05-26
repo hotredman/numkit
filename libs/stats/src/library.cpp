@@ -99,6 +99,8 @@ void tcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void trnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nctpdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void nctcdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // distributions/fisher_f.cpp
 void fpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -476,6 +478,8 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "tinv",     &stats::detail::tinv_reg);
     reg("dist", "trnd",     &stats::detail::trnd_reg);
     reg("dist", "tstat",    &stats::detail::tstat_reg);
+    reg("dist", "nctpdf",   &stats::detail::nctpdf_reg);
+    reg("dist", "nctcdf",   &stats::detail::nctcdf_reg);
 
     reg("dist", "fpdf",     &stats::detail::fpdf_reg);
     reg("dist", "fcdf",     &stats::detail::fcdf_reg);
