@@ -176,7 +176,7 @@ std::tuple<Value, Value>
 iwishrnd_factor(const Value &Tau, double df,
                 const Value &DI, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Multivariate t cdf (`p = mvtcdf(X, C, df)`).
+/// @brief Multivariate t cdf upper-tail (`p = mvtcdf(X, C, df)`).
 ///
 /// Returns the probability `P(Y ≤ X)` for `Y ~ MVT(0, C, df)`,
 /// row-wise (each row of `X` is one evaluation point).
@@ -185,19 +185,36 @@ iwishrnd_factor(const Value &Tau, double df,
 ///   - `d = 1` → direct `tcdf` (bit-exact).
 ///   - `d ≥ 2` → deterministic Monte Carlo on the
 ///               `Y = Z / sqrt(W/df)` representation with a
-///               fixed seed (`12345`), `N = 10000` draws, antithetic.
-///
-/// Each row of `X` may be a length-`d` row vector (evaluated against
-/// the supplied correlation matrix). MC error is `O(1/sqrt(N))` per
-/// row, ~0.01 absolute for moderate dimension.
+///               fixed seed (`12345`), `N = ceil(1/tol²) ≥ 10000`
+///               draws, antithetic.
 ///
 /// @param X    Evaluation points (`n × d` or length-`d` row).
 /// @param C    `d × d` correlation/scale matrix (symmetric PD).
 /// @param df   Degrees of freedom (`df > 0`).
+/// @param tol  Target MC absolute error (default 0.01).
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `n × 1` column of cdf values.
 /// @see mvtpdf, mvtrnd
 Value mvtcdf(const Value &X, const Value &C, double df,
+             double tol = 0.01,
              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Multivariate t box cdf (`p = mvtcdf(L, U, C, df)`).
+///
+/// Returns `P(L ≤ Y ≤ U)` for `Y ~ MVT(0, C, df)`, row-wise.
+/// Each row of `L` (and `U`) is a length-`d` lower (upper) bound;
+/// entries may be `-Inf` / `+Inf`. Implemented via the same
+/// deterministic Monte Carlo path as the upper-tail form.
+///
+/// @param L    Lower bounds (`n × d` or length-`d` row); `-Inf` allowed.
+/// @param U    Upper bounds (same shape as `L`); `+Inf` allowed.
+/// @param C    Correlation/scale matrix.
+/// @param df   Degrees of freedom.
+/// @param tol  Target MC absolute error (default 0.01).
+/// @param mr   Memory resource.
+/// @return     `n × 1` column of box probabilities.
+Value mvtcdf_box(const Value &L, const Value &U, const Value &C, double df,
+                 double tol = 0.01,
+                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats
