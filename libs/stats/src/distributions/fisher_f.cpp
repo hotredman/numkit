@@ -294,6 +294,49 @@ Value ncfinv(const Value &p, double nu1, double nu2, double delta,
     return elementwise(p, [&](double pi) { return ncfinv_one(pi, nu1, nu2, delta, mr); }, mr);
 }
 
+std::tuple<double, double> ncfstat(double nu1, double nu2, double delta)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0)
+        return {nan, nan};
+    double m = nan, v = nan;
+    if (nu2 > 2.0) {
+        m = nu2 * (nu1 + delta) / (nu1 * (nu2 - 2.0));
+    }
+    if (nu2 > 4.0) {
+        const double ratio = nu2 / nu1;
+        const double num = (nu1 + delta) * (nu1 + delta)
+                         + (nu1 + 2.0 * delta) * (nu2 - 2.0);
+        const double den = (nu2 - 2.0) * (nu2 - 2.0) * (nu2 - 4.0);
+        v = 2.0 * ratio * ratio * num / den;
+    }
+    return {m, v};
+}
+
+Value ncfrnd(double nu1, double nu2, double delta,
+             std::size_t rows, std::size_t cols,
+             std::pmr::memory_resource *mr)
+{
+    auto &gen = ::numkit::builtin::sharedEngine();
+    auto &mtx = ::numkit::builtin::rngMutex();
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0 || rows * cols == 0)
+        return out;
+    double *od = out.doubleDataMut();
+    const std::size_t n = rows * cols;
+    std::poisson_distribution<int>   pd(0.5 * delta);
+    std::gamma_distribution<double>  g2(0.5 * nu2, 2.0);   // χ²(ν₂)
+    std::lock_guard<std::mutex> lk(mtx);
+    for (std::size_t i = 0; i < n; ++i) {
+        const int J = pd(gen);
+        std::gamma_distribution<double> g1(0.5 * nu1 + static_cast<double>(J), 2.0);
+        const double X1 = g1(gen);   // χ²(ν₁ + 2J) — noncentral χ² draw
+        const double X2 = g2(gen);
+        od[i] = (X1 / nu1) / (X2 / nu2);
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -369,6 +412,30 @@ void ncfinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                     0, 0, "ncfinv", "", "m:ncfinv:nargin");
     outs[0] = ncfinv(args[0], args[1].toScalar(), args[2].toScalar(),
                      args[3].toScalar(), ctx.engine->resource());
+}
+
+void ncfstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ncfstat: requires (nu1, nu2, delta)",
+                    0, 0, "ncfstat", "", "m:ncfstat:nargin");
+    auto [m, v] = ncfstat(args[0].toScalar(), args[1].toScalar(), args[2].toScalar());
+    outs[0] = Value::scalar(m, ctx.engine->resource());
+    if (nargout >= 2)
+        outs[1] = Value::scalar(v, ctx.engine->resource());
+}
+
+void ncfrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ncfrnd: requires (nu1, nu2, delta[, sz...])",
+                    0, 0, "ncfrnd", "", "m:ncfrnd:nargin");
+    const double nu1 = args[0].toScalar();
+    const double nu2 = args[1].toScalar();
+    const double delta = args[2].toScalar();
+    size_t rows, cols;
+    parse_rng_size(args, 3, rows, cols);
+    outs[0] = ncfrnd(nu1, nu2, delta, rows, cols, ctx.engine->resource());
 }
 
 } // namespace detail
