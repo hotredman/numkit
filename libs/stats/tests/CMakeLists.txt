@@ -17,6 +17,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/wishrnd_iwishrnd_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nctpdf_nctcdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nctinv_nctstat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nctrnd_ncfpdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_v2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/quantile_test.cpp

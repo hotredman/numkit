@@ -418,6 +418,26 @@ std::tuple<double, double> nctstat(double nu, double delta)
     return {m, v};
 }
 
+Value nctrnd(double nu, double delta, std::size_t rows, std::size_t cols,
+             std::pmr::memory_resource *mr)
+{
+    auto &gen = ::numkit::builtin::sharedEngine();
+    auto &mtx = ::numkit::builtin::rngMutex();
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    if (!(nu > 0.0) || rows * cols == 0) return out;
+    double *od = out.doubleDataMut();
+    const std::size_t n = rows * cols;
+    std::normal_distribution<double> nd(0.0, 1.0);
+    std::gamma_distribution<double>  gd(0.5 * nu, 2.0);   // χ²(ν) = Gamma(ν/2, 2)
+    std::lock_guard<std::mutex> lk(mtx);
+    for (std::size_t i = 0; i < n; ++i) {
+        const double Z = nd(gen);
+        const double X = gd(gen);
+        od[i] = (Z + delta) / std::sqrt(X / nu);
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -503,6 +523,18 @@ void nctstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     outs[0] = Value::scalar(m, ctx.engine->resource());
     if (nargout >= 2)
         outs[1] = Value::scalar(v, ctx.engine->resource());
+}
+
+void nctrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("nctrnd: requires (nu, delta[, sz...])",
+                    0, 0, "nctrnd", "", "m:nctrnd:nargin");
+    const double nu = args[0].toScalar();
+    const double delta = args[1].toScalar();
+    size_t rows, cols;
+    parse_rng_size(args, 2, rows, cols);
+    outs[0] = nctrnd(nu, delta, rows, cols, ctx.engine->resource());
 }
 
 } // namespace detail

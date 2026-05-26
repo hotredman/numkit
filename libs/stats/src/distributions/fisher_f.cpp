@@ -141,6 +141,58 @@ std::tuple<double, double> fstat(double v1, double v2)
     return std::make_tuple(mean, var);
 }
 
+// ── Noncentral F ────────────────────────────────────────────────────
+
+namespace {
+
+double ncfpdf_one(double x, double nu1, double nu2, double delta)
+{
+    if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0)
+        return std::numeric_limits<double>::quiet_NaN();
+    if (x <= 0.0) return 0.0;
+    if (delta == 0.0) {
+        // Central F pdf in log-space.
+        const double log_norm = std::lgamma(0.5 * (nu1 + nu2))
+                              - std::lgamma(0.5 * nu1)
+                              - std::lgamma(0.5 * nu2)
+                              + 0.5 * nu1 * (std::log(nu1) - std::log(nu2));
+        return std::exp(log_norm + (0.5 * nu1 - 1.0) * std::log(x)
+                       - 0.5 * (nu1 + nu2) * std::log1p(nu1 * x / nu2));
+    }
+    const double L = 0.5 * delta;
+    const double log_L = std::log(L);
+    const double log_r = std::log(nu1 / nu2);
+    const double log_x = std::log(x);
+    const double log_one_plus_rx = std::log1p(nu1 * x / nu2);
+
+    double sum = 0.0, abs_sum = 0.0;
+    constexpr int kMax = 2000;
+    for (int k = 0; k < kMax; ++k) {
+        // log term_k
+        const double a = 0.5 * nu1 + double(k);
+        const double b = 0.5 * nu2;
+        const double log_beta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+        const double log_term = -L + double(k) * log_L - std::lgamma(double(k) + 1.0)
+                              + a * log_r
+                              + (a - 1.0) * log_x
+                              - (a + b) * log_one_plus_rx
+                              - log_beta;
+        const double t = std::exp(log_term);
+        sum += t;
+        abs_sum += t;
+        if (k > 10 && t < 1e-16 * abs_sum) break;
+    }
+    return std::max(0.0, sum);
+}
+
+} // anonymous
+
+Value ncfpdf(const Value &x, double nu1, double nu2, double delta,
+             std::pmr::memory_resource *mr)
+{
+    return elementwise(x, [&](double xi) { return ncfpdf_one(xi, nu1, nu2, delta); }, mr);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -187,6 +239,15 @@ void fstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     emit_vec_stat_2arg(args, nargout, outs, ctx, "fstat",
                        [](double v1, double v2) { return fstat(v1, v2); });
+}
+
+void ncfpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("ncfpdf: requires (x, nu1, nu2, delta)",
+                    0, 0, "ncfpdf", "", "m:ncfpdf:nargin");
+    outs[0] = ncfpdf(args[0], args[1].toScalar(), args[2].toScalar(),
+                     args[3].toScalar(), ctx.engine->resource());
 }
 
 } // namespace detail

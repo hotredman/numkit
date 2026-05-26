@@ -75,4 +75,24 @@ Value frnd(double v1, double v2, size_t rows = 1, size_t cols = 1, std::pmr::mem
 /// @see fpdf
 std::tuple<double, double> fstat(double v1, double v2);
 
+/// @brief Noncentral F pdf (`y = ncfpdf(x, nu1, nu2, delta)`).
+///
+/// Poisson-mixture representation:
+///   f(x; ν₁, ν₂, δ) = e^{-δ/2} Σ_{k=0}^∞ (1/k!) (δ/2)^k
+///                    · (ν₁/ν₂)^{ν₁/2 + k} · x^{ν₁/2 + k − 1}
+///                    · (1 + ν₁ x / ν₂)^{−(ν₁+ν₂)/2 − k}
+///                    / B(ν₁/2 + k, ν₂/2)
+/// for `x > 0`; series truncated at `1e-16` relative contribution.
+/// Reduces to `fpdf(x, ν₁, ν₂)` at `δ = 0`.
+///
+/// @param x      Evaluation points (any shape).
+/// @param nu1    Numerator degrees of freedom (`> 0`).
+/// @param nu2    Denominator degrees of freedom (`> 0`).
+/// @param delta  Noncentrality parameter (`>= 0`).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Array of pdf values, same shape as `x`.
+/// @see ncfcdf, ncfinv, ncfrnd, ncfstat
+Value ncfpdf(const Value &x, double nu1, double nu2, double delta,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
