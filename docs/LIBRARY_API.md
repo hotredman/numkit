@@ -113,11 +113,26 @@ signature, a distinct value of an option, or a distinct edge-case
 behavior. Cover every branch; do **not** attempt the cartesian product
 of all argument combinations.
 
+**Compare against MATLAB output on every distinct argument set.** The
+goal is: numkit's implementation behaves the same as MATLAB's
+implementation for the same inputs. Concretely:
+
+  1. Every signature `fn(a)`, `fn(a, b)`, `fn(a, b, 'opt', val)` is a
+     separate test case with its own MATLAB-derived expected output.
+  2. Every distinct option value (`'tail'='right'/'left'/'both'`,
+     `'criterion'='maximin'/'none'/'correlation'`, …) is its own case.
+  3. Every edge / boundary input (`x = 0`, `x = Inf`, empty input,
+     scalar vs vector, single sample, all-NaN row, …) is its own case.
+  4. The parity spec (`tools/parity/specs/<name>.json`) covers the
+     same combinations and is run via `tools/parity/run_parity.py` —
+     this is the cross-engine validator; it must report `OK` before
+     commit.
+
 Expected values are taken from **MATLAB R2025b**, never hand-derived:
-run the function in MATLAB and compare numkit's output case by case.
+run the function in MATLAB and pin the exact numbers into the test.
 Hand-written expectations have shipped real bugs that only the
 cross-engine parity check caught — trust the reference engine, not your
-own arithmetic.
+own arithmetic. When MATLAB and Octave disagree, MATLAB wins.
 
 ## 4. Never use MATLAB source code
 
