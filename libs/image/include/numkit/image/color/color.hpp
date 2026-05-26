@@ -430,6 +430,37 @@ Value contrast(const Value &x, int m, std::pmr::memory_resource *mr = nullptr);
 Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
                     std::pmr::memory_resource *mr = nullptr);
 
+/// @brief BT.2020 / BT.2100 wide-gamut YCbCr → RGB
+/// (`rgb = ycbcr2rgbwide(YCBCR, bps)`).
+///
+/// Inverse of @ref rgbwide2ycbcr. Decodes non-constant-luminance
+/// YCbCr per ITU-R BT.2020-2 / BT.2100-2 narrow-range. `bps` must be
+/// 10 or 12. Input is UINT16 in the YCbCr nominal ranges:
+///   * Y  ∈ `[64, 940]` (10-bit) or `[256, 3760]` (12-bit)
+///   * Cb, Cr ∈ `[64, 960]` (10-bit) or `[256, 3840]` (12-bit)
+///
+/// Algorithm (matches MATLAB R2025b `ycbcr2rgbwideImpl.m`):
+///   * Normalise:
+///       `Y_n  = (Y  − yzero      )/yrange`
+///       `Cb_n = (Cb − chromazero)/chromarange`
+///       `Cr_n = (Cr − chromazero)/chromarange`
+///     where `yzero = 64/256`, `chromazero = 2^(bps − 1)`,
+///     `yrange = peak − zero`, `chromarange = (peak_chroma) − zero`.
+///   * `R = 1.4746·Cr_n + Y_n,   B = 1.8814·Cb_n + Y_n`
+///     `G = (Y_n − 0.2627·R − 0.0593·B) / 0.6780`
+///   * Quantise: `RGB_out = uint16(rgb·nominalRange + blackLevel)`
+///     where `blackLevel = 64/256`, `nominalRange = peak − black`.
+///
+/// Accepts `p × 3` colour lists and `H × W × 3` images. Bit-equal
+/// MATLAB round-trip with @ref rgbwide2ycbcr.
+///
+/// @param YCBCR           UINT16 YCbCr per BT.2020 narrow-range.
+/// @param bits_per_sample 10 or 12.
+/// @param mr              Memory resource (nullptr → process default).
+/// @return                UINT16 RGB, same shape as `YCBCR`.
+Value ycbcr2rgbwide(const Value &YCBCR, int bits_per_sample,
+                    std::pmr::memory_resource *mr = nullptr);
+
 /// @brief CIE94 / CIEDE2000 colour difference
 /// (`dE = imcolordiff(I1, I2, ...)`).
 ///

@@ -20,4 +20,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/illum_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/illumpca_imcolordiff_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/otf2psf_rgbwide_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ycbcr2rgbwide_test.cpp
 )

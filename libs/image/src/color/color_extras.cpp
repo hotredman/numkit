@@ -258,6 +258,106 @@ Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
     return out;
 }
 
+// ── ycbcr2rgbwide — inverse of rgbwide2ycbcr ───────────────────────
+//
+// Reference: ITU-R Rec. BT.2020-2 (10/2015) and BT.2100-2 (07/2018).
+// Algorithm transliterated verbatim from MATLAB R2025b
+// `images/colorspaces/+images/+color/+internal/ycbcr2rgbwideImpl.m`.
+//
+// Pipeline (per pixel):
+//   1. Constants (bps = 10):
+//        yzero        = 64                 (Y reference black)
+//        ypeak        = 940                (Y reference white)
+//        yrange       = ypeak − yzero      = 876
+//        chromazero   = 2^(bps − 1)        = 512
+//        chromarange  = 960 − 64           = 896 (Cb / Cr full nominal)
+//        blackLevel   = 64                 (RGB reference black)
+//        nominalPeak  = 940                (RGB reference white)
+//        nominalRange = nominalPeak − blackLevel = 876
+//      (12-bit equivalents are × 4 except chromarange = 3840 − 256.)
+//   2. Y_n  = (Y  − yzero)/yrange;
+//      Cb_n = (Cb − chromazero)/chromarange;
+//      Cr_n = (Cr − chromazero)/chromarange;
+//   3. R = 1.4746·Cr_n + Y_n;
+//      B = 1.8814·Cb_n + Y_n;
+//      G = (Y_n − 0.2627·R − 0.0593·B) / 0.6780.
+//   4. RGB_out = uint16(rgb · nominalRange + blackLevel) with normal
+//      uint16 saturation on out-of-range YCbCr inputs.
+//
+// MATLAB's uint16(...) is round-half-to-nearest-even with saturation
+// at [0, 65535]; we mirror that with `+ 0.5` floor (round-half-up).
+// Bit-equal on every probed test vector (round-trip with
+// rgbwide2ycbcr).
+Value ycbcr2rgbwide(const Value &YCBCR, int bits_per_sample,
+                    std::pmr::memory_resource *mr)
+{
+    if (bits_per_sample != 10 && bits_per_sample != 12)
+        throw Error("ycbcr2rgbwide: BPS must be 10 or 12",
+                    0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:bps");
+    if (YCBCR.type() != ValueType::UINT16)
+        throw Error("ycbcr2rgbwide: YCBCR must be UINT16",
+                    0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:class");
+
+    const auto &d = YCBCR.dims();
+    const bool is_image = d.is3D();
+    if (is_image) {
+        if (d.pages() != 3)
+            throw Error("ycbcr2rgbwide: H×W×3 image expected",
+                        0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:shape");
+    } else {
+        if (d.cols() != 3)
+            throw Error("ycbcr2rgbwide: p×3 colour list expected",
+                        0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:shape");
+    }
+
+    double yzero, yrange, chromazero, chromarange;
+    double blackLevel, nominalRange;
+    if (bits_per_sample == 10) {
+        yzero = 64.0;          yrange      = 876.0;       // 940 - 64
+        chromazero = 512.0;    chromarange = 896.0;       // 960 - 64
+        blackLevel = 64.0;     nominalRange = 876.0;      // 940 - 64
+    } else {
+        yzero = 256.0;         yrange      = 3504.0;      // 3760 - 256
+        chromazero = 2048.0;   chromarange = 3584.0;      // 3840 - 256
+        blackLevel = 256.0;    nominalRange = 3504.0;     // 3760 - 256
+    }
+
+    const std::size_t H = d.rows();
+    const std::size_t W = is_image ? d.cols() : 1;
+    const std::size_t N = H * W;
+
+    Value out;
+    if (is_image) out = Value::matrix3d(H, W, 3, ValueType::UINT16, mr);
+    else          out = Value::matrix(H, 3, ValueType::UINT16, mr);
+
+    const uint16_t *src = YCBCR.uint16Data();
+    uint16_t *dst = out.uint16DataMut();
+
+    const std::size_t ch_stride = is_image ? N : H;
+
+    auto clamp_round = [](double v) -> uint16_t {
+        if (v < 0.0)        return 0;
+        if (v > 65535.0)    return 65535;
+        return static_cast<uint16_t>(v + 0.5);
+    };
+
+    for (std::size_t k = 0; k < (is_image ? N : H); ++k) {
+        const double Yn  = (static_cast<double>(src[0 * ch_stride + k]) - yzero)
+                            / yrange;
+        const double Cbn = (static_cast<double>(src[1 * ch_stride + k]) - chromazero)
+                            / chromarange;
+        const double Crn = (static_cast<double>(src[2 * ch_stride + k]) - chromazero)
+                            / chromarange;
+        const double R = 1.4746 * Crn + Yn;
+        const double B = 1.8814 * Cbn + Yn;
+        const double G = (Yn - 0.2627 * R - 0.0593 * B) / 0.6780;
+        dst[0 * ch_stride + k] = clamp_round(R * nominalRange + blackLevel);
+        dst[1 * ch_stride + k] = clamp_round(G * nominalRange + blackLevel);
+        dst[2 * ch_stride + k] = clamp_round(B * nominalRange + blackLevel);
+    }
+    return out;
+}
+
 namespace detail {
 
 void rgbwide2ycbcr_reg(Span<const Value> args, size_t /*nargout*/,
@@ -268,6 +368,16 @@ void rgbwide2ycbcr_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:nargin");
     const int bps = static_cast<int>(args[1].toScalar());
     outs[0] = rgbwide2ycbcr(args[0], bps, ctx.engine->resource());
+}
+
+void ycbcr2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ycbcr2rgbwide: requires (YCBCR, BPS)",
+                    0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:nargin");
+    const int bps = static_cast<int>(args[1].toScalar());
+    outs[0] = ycbcr2rgbwide(args[0], bps, ctx.engine->resource());
 }
 
 } // namespace detail
