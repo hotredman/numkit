@@ -85,11 +85,17 @@ std::tuple<double, double> betastat(double a, double b);
 ///   `ψ(b) - ψ(a+b) = mean log(1-x)`
 /// Initial guess from method of moments. Throws on x outside [0, 1].
 ///
-/// KNOWN GAP: CI second output deferred.
-///
 /// @param x   Samples in [0, 1].
 /// @param mr  Memory resource.
 /// @return    `[ahat, bhat]` as a `1 × 2` row.
 Value betafit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 95% Wald CI for betafit (`pci = betafit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
+/// the observed Fisher information (central-FD Hessian of NLL).
+/// Both parameters use a log-scale Wald CI (MATLAB convention).
+Value betafit_ci(const Value &x, double alpha = 0.05,
+                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

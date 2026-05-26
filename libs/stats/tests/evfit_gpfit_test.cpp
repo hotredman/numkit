@@ -101,3 +101,40 @@ TEST_F(EvfitGpfitTest, GpfitGrimshawMatchesMatlabExponentialLimit)
     EXPECT_NEAR(evalScalar("f(1)"), -0.0025358440, 1e-5);
     EXPECT_NEAR(evalScalar("f(2)"),  1.5032822883, 1e-5);
 }
+
+// ── CI (Wald, observed Fisher info, MATLAB transforms) ──────────────
+
+TEST_F(EvfitGpfitTest, EvfitCIMatchesMatlab)
+{
+    // Deterministic EV(1, 2) sample. MATLAB CI:
+    //   [0.9077 1.9320; 1.0922 2.0687]
+    eval(R"(
+        n=2000; u=((1:n)' - 0.5)/n; x = evinv(u, 1.0, 2.0);
+        [p, pci] = evfit(x);
+    )");
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 0.9077, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 1.0922, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 1.9320, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 2.0687, 1e-3);
+}
+
+TEST_F(EvfitGpfitTest, GpfitCIMatchesMatlab)
+{
+    // Deterministic GP(0.3, 1.5) sample. MATLAB CI:
+    //   [0.2421 1.3985; 0.3561 1.6110]
+    eval(R"(
+        n=2000; u=((1:n)' - 0.5)/n; x = gpinv(u, 0.3, 1.5, 0);
+        [p, pci] = gpfit(x);
+    )");
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 0.2421, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 0.3561, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 1.3985, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 1.6110, 1e-3);
+}
+
+TEST_F(EvfitGpfitTest, EvfitCIShape)
+{
+    eval("[p, pci] = evfit(evinv(((1:200)' - 0.5)/200, 0.0, 1.0));");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pci, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pci, 2)")), 2);
+}

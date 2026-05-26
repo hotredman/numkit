@@ -102,4 +102,13 @@ gpstat(double k, double sigma, double theta);
 /// @see gppdf, gplike
 Value gpfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief 95% Wald CI for gpfit (`pci = gpfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[k, sigma]`
+/// from the observed Fisher information (central-FD Hessian of NLL).
+/// `k` uses a linear Wald CI; `sigma` uses a log-scale CI (MATLAB
+/// convention).
+Value gpfit_ci(const Value &x, double alpha = 0.05,
+               std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

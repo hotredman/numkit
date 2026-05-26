@@ -66,3 +66,52 @@ TEST_F(DistFitsTest, WblfitNegativeDataThrows)
 {
     EXPECT_THROW(eval("wblfit([1, 2, -3, 4]);"), std::exception);
 }
+
+// ── CI: gamfit + wblfit (Wald, observed Fisher info) ────────────────
+
+TEST_F(DistFitsTest, GamfitCIMatchesMatlab)
+{
+    // Deterministic Gamma(3, 2) sample. MATLAB CI:
+    //   [2.8302 1.8746; 3.1838 2.1309]
+    eval(R"(
+        n=2000; u=((1:n)' - 0.5)/n; x = gaminv(u, 3.0, 2.0);
+        [p, pci] = gamfit(x);
+    )");
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 2.8302, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 3.1838, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 1.8746, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 2.1309, 1e-3);
+}
+
+TEST_F(DistFitsTest, WblfitCIMatchesMatlab)
+{
+    // Deterministic Wbl(2, 1.5) sample. MATLAB CI:
+    //   [1.9394 1.4502; 2.0625 1.5528]
+    eval(R"(
+        n=2000; u=((1:n)' - 0.5)/n; x = wblinv(u, 2.0, 1.5);
+        [p, pci] = wblfit(x);
+    )");
+    EXPECT_NEAR(evalScalar("pci(1, 1)"), 1.9394, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 1)"), 2.0625, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(1, 2)"), 1.4502, 1e-3);
+    EXPECT_NEAR(evalScalar("pci(2, 2)"), 1.5528, 1e-3);
+}
+
+TEST_F(DistFitsTest, GamfitCIShape)
+{
+    eval("[p, pci] = gamfit(gaminv(((1:200)' - 0.5)/200, 3.0, 2.0));");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pci, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pci, 2)")), 2);
+}
+
+TEST_F(DistFitsTest, GamfitAlphaArgument)
+{
+    eval(R"(
+        x = gaminv(((1:500)' - 0.5)/500, 3.0, 2.0);
+        [~, ci95] = gamfit(x);
+        [~, ci99] = gamfit(x, 0.01);
+    )");
+    // Wider CI at α=0.01.
+    EXPECT_GT(evalScalar("ci99(2, 1) - ci99(1, 1)"),
+              evalScalar("ci95(2, 1) - ci95(1, 1)"));
+}
