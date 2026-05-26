@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <limits>
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
@@ -148,5 +149,58 @@ nlpredci(const Value &fun, const Value &X, const Value &beta,
          double alpha,
          ::numkit::Engine *engine,
          std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Robust regression weight functions.
+enum class RobustWeight { Bisquare, Huber };
+
+/// @brief Robust linear regression via iteratively-reweighted least
+/// squares (`[b, stats] = robustfit(X, y)`).
+///
+/// Fits `y = X · b + ε` while downweighting outliers. Algorithm:
+///   1. Initial OLS β.
+///   2. Loop: standardise residuals by `s = MAD(r) / 0.6745`, compute
+///      weights `w_i = ψ(r_i / (tune · s))` (bisquare default, tune =
+///      4.685; or Huber, tune = 1.345), refit β via weighted LS.
+///   3. Stop on convergence or 50 iterations.
+///
+/// KNOWN GAPs: column-of-ones is NOT prepended automatically — pass
+/// `[ones(n, 1), X]` for an intercept. Stats output struct
+/// (degrees of freedom, p-values, etc.) is currently scalar `s` only.
+///
+/// @param X       Design matrix (`n × p`).
+/// @param y       Response (`n × 1`).
+/// @param weight  Weight function (`Bisquare` default).
+/// @param tune    Tuning constant (`NaN` → 4.685 for bisquare, 1.345
+///                for Huber).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        `{b, s}` — coefficients and final robust scale.
+struct RobustfitResult { Value b; Value s; };
+RobustfitResult robustfit(const Value &X, const Value &y,
+                           RobustWeight weight = RobustWeight::Bisquare,
+                           double tune = std::numeric_limits<double>::quiet_NaN(),
+                           std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Robust multivariate covariance estimate via trimmed-MCD
+/// (`[sigma, mu] = robustcov(X)`).
+///
+/// Iterative concentration-step approach (a simplified FAST-MCD):
+///   1. Start from classical mean / cov.
+///   2. Compute Mahalanobis distances, keep the `h = ceil(0.75 · n)`
+///      smallest, recompute mean / cov on the kept subset.
+///   3. Iterate until the kept set stabilises (or 20 iterations).
+///   4. Apply standard consistency correction `c = MAD / chi2inv(0.75, d)`.
+///
+/// KNOWN GAPs: full FAST-MCD with multiple random elemental subsets
+/// (Rousseeuw-Van Driessen 1999), MVE method, OGK estimator — not in
+/// v1. v1 returns a single-start estimate which differs from MATLAB
+/// when the data has heavy contamination clusters.
+///
+/// @param X   Data matrix (`n × d`, rows = observations).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `{sigma, mu}` — `d × d` robust covariance and `1 × d`
+///            robust location vector.
+struct RobustcovResult { Value sigma; Value mu; };
+RobustcovResult robustcov(const Value &X,
+                           std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

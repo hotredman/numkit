@@ -352,6 +352,8 @@ void regress_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nlinfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nlparci_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nlpredci_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void robustfit_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void robustcov_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void lscov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ridge_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -681,6 +683,8 @@ void StatsLibrary::install(Engine &engine)
     reg("regress", "nlinfit",  &stats::detail::nlinfit_reg);
     reg("regress", "nlparci",  &stats::detail::nlparci_reg);
     reg("regress", "nlpredci", &stats::detail::nlpredci_reg);
+    reg("regress", "robustfit", &stats::detail::robustfit_reg);
+    reg("regress", "robustcov", &stats::detail::robustcov_reg);
     reg("regress", "lscov",   &stats::detail::lscov_reg);
     reg("regress", "ridge",   &stats::detail::ridge_reg);
 

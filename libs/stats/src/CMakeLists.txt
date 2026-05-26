@@ -55,6 +55,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/qmc/qmc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/regress.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/nlinfit.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/robust.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lda/lda.cpp
 )
 
