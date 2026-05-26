@@ -31,6 +31,7 @@ to conform — migrate opportunistically.
 
 The document has two parts:
 
+- **§0 — Scope:** what we build (functions only, no user-OOP classes).
 - **§1-§6 — MATLAB parity & provenance:** which functions we build, how
   we research and test them, error behavior, and the clean-room rules.
 - **§7-§21 — C++ signature conventions:** how to shape the public C++
@@ -41,6 +42,31 @@ A worked example to copy is linked at the end.
 ---
 
 # MATLAB parity & provenance
+
+## 0. Scope — functions only, no MATLAB-style classes
+
+numkit `libs/` ships **MATLAB functions only**. Out of scope:
+
+  * MATLAB-style OOP classes (`classdef`, methods, properties, events,
+    inheritance). Examples: `table`, `timetable`, `categorical`,
+    `containers.Map`, `dictionary`, `datetime`, `duration`,
+    `function_handle` class methods, `cvpartition` object,
+    `qrandstream` object, `digraph`/`graph` objects, all
+    `*` System Objects, `gpuArray`, etc.
+  * Anything that requires `obj = ClassName(...)` plus
+    `obj.method(...)` syntax on user-defined types.
+
+When a MATLAB function NAME exists but is class-bound (e.g.
+`readtable` returns a `table`), it stays out of scope until the
+relevant class is in scope — mark `❌` with the note "needs <class>"
+in PROGRESS.md. Plain functions that *consume* numeric/cell/struct
+arrays remain fully in scope.
+
+Rationale: numkit's value type is a tagged variant; adding user-OOP
+would multiply the type-dispatch surface, fragment the calling
+convention, and conflict with §13 (no `Engine` in the public API).
+Helper structs returned by parity functions (e.g. `RobustfitResult`,
+`GlmfitResult`) are **plain aggregates**, not classes — see §15.
 
 ## 1. Replicate the MATLAB API in full
 
