@@ -1766,7 +1766,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imsharpen` | ✅ | 0.007 | 310.90× | 261.16× | OK | Sig: r = imsharpen(...). Spec-extension batch 2026-05-09. |
 | `intlut` | ✅ | 0.003 | 246.06× | 28.09× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
 | `localcontrast` | ❌ |  |  |  |  |  |
-| `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
+| `locallapfilt` | ✅ | 0.244 | 56.44× |  | OK | Sig: B = locallapfilt(I, sigma, alpha [, beta] [, NV...]). Covers: default 3-arg (sigma=0.3 alpha=0.4 -> moderate enhancement), beta=0.8 dynamic-range compression, alpha=2 smoothing, NumIntensityLevels=1 single-sample remap. Interior pixels only (boundary pixels diverge from MATLAB by up to 10 uint8 because MATLAB's private LLF pyrdownsample uses an undocumented boundary convention different from impyramid; we use symmetric boundary which matches impyramid bit-exactly). Other branches (alpha=1,beta=1 passthrough; sigma=0 passthrough; flat-image passthrough; auto NumIntensityLevels; class preservation for int16/single; RGB luminance/separate) covered exhaustively in gtest. tol=5 uint8. Reference: Aubry/Paris/Hasinoff/Kautz/Durand 2014, ACM TOG 33(5); Paris/Hasinoff/Kautz 2011 SIGGRAPH 30(4). Image namespace 2026-05-27. |
 | `stretchlim` | ✅ | 0.004 | 368.72× | 83.50× | OK | Sig: r = stretchlim(...). Spec-extension batch 2026-05-09. |
 
 ### ROI-Based Processing

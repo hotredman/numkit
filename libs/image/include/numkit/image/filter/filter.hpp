@@ -660,4 +660,88 @@ Value colfilt(numkit::Engine &eng, const Value &A,
               bool indexed,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Edge-aware fast local Laplacian filtering
+/// (`B = locallapfilt(I, sigma, alpha, beta, ...)`).
+///
+/// Multi-scale image enhancement via per-pixel manipulation of the
+/// Laplacian pyramid coefficients. Operating points:
+///
+///   * `alpha > 1` → smoothing / detail suppression.
+///   * `alpha < 1` → detail enhancement.
+///   * `alpha = 1` → no detail change (then `beta` may still rescale).
+///   * `beta < 1`  → dynamic-range compression.
+///   * `beta > 1`  → dynamic-range expansion.
+///   * `beta = 1`  → preserve range.
+///   * `sigma`     → magnitude of edges to consider. Larger = more
+///                   coefficients treated as "details" (subject to
+///                   `alpha`); smaller = more treated as "edges"
+///                   (subject to `beta`).
+///
+/// Algorithm (Paris-Hasinoff-Kautz 2011, "Local Laplacian Filters",
+/// SIGGRAPH 2011, Eq. 4-7; fast-LLF accel by Aubry-Paris-Hasinoff-
+/// Kautz-Durand 2014, "Fast Local Laplacian Filters: Theory and
+/// Applications", ACM TOG 33(5)):
+///
+///   1. Build Gaussian pyramid `G_I` of input `I`.
+///   2. For each intensity sample `g_k ∈ {gmin, ..., gmax}`:
+///        a. Remap `R_k = remap(I, g_k, sigma, alpha, beta)`.
+///        b. Build Gaussian pyramid `G_{R_k}` of `R_k`.
+///        c. Compute Laplacian `L_{R_k}[i] = G_{R_k}[i] -
+///           upsample(G_{R_k}[i+1])`.
+///        d. For each pyramid level i and pixel p, accumulate:
+///             `L_out[i](p) += k_w(G_I[i](p), g_k) · L_{R_k}[i](p)`
+///           where `k_w(v, g_k) = max(0, 1 - |v - g_k| / delta)` is
+///           the triangular weight centred at `g_k`.
+///   3. Top level `L_out[end] = G_I[end]`. Collapse the Laplacian
+///      pyramid (`L_out[i] += upsample(L_out[i+1])`).
+///
+/// Remap function (per pixel):
+///
+///   `d = I - g`. If `|d| <= sigma`:
+///     `I_new = g + sign(d) * sigma * (|d|/sigma)^alpha`  (detail).
+///   Else (`|d| > sigma`):
+///     `I_new = g + sign(d) * (beta * (|d| - sigma) + sigma)` (edge).
+///
+/// Pyramid filter is the 5×5 binomial separable kernel
+/// `[1 4 6 4 1] / 16` (Burt-Adelson 1983, "The Laplacian Pyramid as
+/// a Compact Image Code") with replicate boundary. Upsampling
+/// inserts zero rows / cols then convolves with the same kernel
+/// scaled by 4 to preserve the local mean.
+///
+/// **RGB input**: `ColorMode = "luminance"` (default) computes the
+/// gray response `Y = 0.298936·R + 0.587043·G + 0.114021·B`, filters
+/// `Y`, then rescales the original RGB by the per-pixel ratio
+/// `Y_filtered / Y_orig`. `ColorMode = "separate"` filters each
+/// channel independently.
+///
+/// **NumIntensityLevels**: `"auto"` picks `50` for `alpha < 0.1`,
+/// linear ramp `round(((50·0.9 - 16·0.1) - (50-16)·alpha) / 0.8)`
+/// for `0.1 ≤ alpha < 0.9`, and `16` otherwise. Higher = better
+/// quality at the cost of more pyramid builds.
+///
+/// **Special cases**:
+///   - `alpha == 1 && beta == 1` → passthrough.
+///   - `sigma == 0 && beta == 1` → passthrough.
+///   - Flat image (`min == max`) → passthrough.
+///   - `numIntensityLevels == 1` → single remap at `(min+max)/2`.
+///
+/// **Output class**: matches input class. `uint8`/`uint16` use
+/// saturating `im2*` conversions; `int8`/`int16` likewise; `single`
+/// passes through with no clipping.
+///
+/// @param I                Grayscale `H × W` or RGB `H × W × 3` image
+///                         (`single`/`uint8`/`uint16`/`int8`/`int16`).
+/// @param sigma            Edge-amplitude threshold (`>= 0`).
+/// @param alpha            Detail-curve exponent (`> 0`).
+/// @param beta             Edge-curve slope (`>= 0`, default 1).
+/// @param num_intensity_levels  Pyramid samples (`-1` for auto).
+/// @param process_luminance  `true` = "luminance" mode for RGB,
+///                         `false` = "separate" (per-channel).
+/// @param mr               Memory resource (nullptr → process default).
+/// @return                 Filtered image, same class and shape as `I`.
+Value locallapfilt(const Value &I, double sigma, double alpha,
+                   double beta, int num_intensity_levels,
+                   bool process_luminance,
+                   std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image
