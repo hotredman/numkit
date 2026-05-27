@@ -870,4 +870,66 @@ Value chromadapt(const Value &A, const Value &illuminant,
                  const std::string &color_space,
                  std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Narrow-range wide-gamut RGB → CIE 1931 XYZ
+/// (`XYZ = rgbwide2xyz(RGB, BPS, ...)`).
+///
+/// Decodes BT.2020 or BT.2100 RGB values to CIE 1931 XYZ tristimulus
+/// values. Pipeline:
+///
+///   1. Remove black-level offset and scale to nominal [0, 1]:
+///      `lin = (raw - blackLevel) / (nominalPeak - blackLevel)`.
+///   2. Inverse transfer function:
+///      - BT.2020 (default), 10-bit: α = 1.099, β = 0.018.
+///      - BT.2020, 12-bit:           α = 1.0993, β = 0.0181.
+///      - BT.2100 PQ:                α = 1.099, β = 0.018 (hardcoded
+///        — MATLAB's "PQ" path actually applies the BT.2020-style
+///        transfer with fixed α/β regardless of bit depth, NOT the
+///        SMPTE ST 2084 PQ curve).
+///      - BT.2100 HLG: piecewise (v² / 3) below 1/2, (exp((v-c)/a) +
+///        b) / 12 above. Constants a = 0.17883277, b = 1 - 4a,
+///        c = 0.5 - a·ln(4a).
+///   3. Matrix transform RGB → XYZ via BT.2020 primaries (D65):
+///      `M = [0.636958 0.144617 0.168881;
+///            0.262700 0.677998 0.059302;
+///            0.000000 0.028073 1.060985]` (xr=0.708/yr=0.292,
+///      xg=0.170/yg=0.797, xb=0.131/yb=0.046 with D65).
+///   4. Optional Bradford chromatic adaptation if `whitepoint` ≠ D65.
+///
+/// Bit depths supported: 10, 12.
+///
+/// References:
+///   - ITU-R Rec. BT.2020-2 (10/2015).
+///   - ITU-R Rec. BT.2100-2 (07/2018).
+///
+/// @param RGB           Narrow-range uint16 values (10-bit: [64,940];
+///                      12-bit: [256,3760]). Shape `H × W × 3` or
+///                      `N × 3`.
+/// @param bits_per_sample  10 or 12.
+/// @param color_space      `"BT.2020"` (def) / `"BT.2100"`.
+/// @param linearization    `"PQ"` (def) / `"HLG"` — BT.2100 only.
+/// @param mr               Memory resource.
+/// @return                 DOUBLE XYZ values.
+Value rgbwide2xyz(const Value &RGB, int bits_per_sample,
+                  const std::string &color_space,
+                  const std::string &linearization,
+                  std::pmr::memory_resource *mr = nullptr);
+
+/// @brief CIE 1931 XYZ → narrow-range wide-gamut RGB
+/// (`RGB = xyz2rgbwide(XYZ, BPS, ...)`).
+///
+/// Inverse of @ref rgbwide2xyz. Same color-space and transfer-function
+/// options. Returns uint16 narrow-range values clipped to the nominal
+/// peak / black levels.
+///
+/// @param XYZ           DOUBLE XYZ values, shape `H × W × 3` or `N × 3`.
+/// @param bits_per_sample  10 or 12.
+/// @param color_space      `"BT.2020"` (def) / `"BT.2100"`.
+/// @param linearization    `"PQ"` (def) / `"HLG"` — BT.2100 only.
+/// @param mr               Memory resource.
+/// @return                 UINT16 narrow-range RGB.
+Value xyz2rgbwide(const Value &XYZ, int bits_per_sample,
+                  const std::string &color_space,
+                  const std::string &linearization,
+                  std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image

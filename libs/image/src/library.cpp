@@ -92,6 +92,8 @@ void illumpca_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcolordiff_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgbwide2ycbcr_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void ycbcr2rgbwide_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void rgbwide2xyz_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void xyz2rgbwide_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cmunique_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imfuse_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tonemap_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -370,6 +372,8 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "imcolordiff",   &image::detail::imcolordiff_reg);
     reg("color", "rgbwide2ycbcr", &image::detail::rgbwide2ycbcr_reg);
     reg("color", "ycbcr2rgbwide", &image::detail::ycbcr2rgbwide_reg);
+    reg("color", "rgbwide2xyz",   &image::detail::rgbwide2xyz_reg);
+    reg("color", "xyz2rgbwide",   &image::detail::xyz2rgbwide_reg);
     reg("color", "cmunique",      &image::detail::cmunique_reg);
     reg("color", "imfuse",        &image::detail::imfuse_reg);
     reg("color", "tonemap",       &image::detail::tonemap_reg);
