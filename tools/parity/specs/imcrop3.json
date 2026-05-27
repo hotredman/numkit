@@ -1,0 +1,25 @@
+{
+  "name": "imcrop3",
+  "namespace": "image",
+  "setup": "V = reshape(1:60, 3, 4, 5); V4 = uint8(reshape(1:96, 4, 4, 3, 2));",
+  "expr": "W = imcrop3(V, [1 1 1 2 1 2]); Wb = imcrop3(V, [2 2 1 2 1 2]); Wr = imcrop3(V, [1.6 1.6 1.6 1.4 1.4 1.4]); W4 = double(imcrop3(V4, [1 1 1 2 2 0]));",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "size(W,1)", "size(W,2)", "size(W,3)",
+    "W(1,1,1)", "W(2,3,3)",
+    "size(Wb,1)", "size(Wb,2)", "size(Wb,3)",
+    "Wb(1,1,1)", "Wb(2,3,3)",
+    "size(Wr,1)", "size(Wr,2)", "size(Wr,3)",
+    "Wr(1,1,1)", "Wr(2,2,2)",
+    "size(W4,1)", "size(W4,2)", "size(W4,3)", "size(W4,4)",
+    "W4(1,1,1,1)", "W4(3,3,1,2)"
+  ],
+  "covers": [
+    "imcrop3(V, cuboid)         3-D volume crop",
+    "imcrop3 with rounding      non-integer cuboid limits",
+    "imcrop3 on 4-D volume      4th dim (channels / time) passes through",
+    "class-preserving output    uint8 in → uint8 out"
+  ],
+  "comment": "MATLAB R2025b imcrop3.m algorithm: cuboid = [XMIN YMIN ZMIN WIDTH HEIGHT DEPTH] (spatial X/Y/Z = col/row/page). Output extracts V(round(YMIN):round(YMIN+HEIGHT), round(XMIN):round(XMIN+WIDTH), round(ZMIN):round(ZMIN+DEPTH), :) — an inclusive (width+1) × (height+1) × (depth+1) sub-block. The trailing 4th dim passes through unchanged. Class preserved. Out-of-bounds cuboid throws (matches MATLAB error message). Bit-equal MATLAB on all probed cases including the non-integer rounding case."
+}
