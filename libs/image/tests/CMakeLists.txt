@@ -36,4 +36,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/poly2mask_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/roipoly_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imfuse_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cornermetric_test.cpp
 )

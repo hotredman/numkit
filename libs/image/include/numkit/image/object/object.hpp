@@ -120,4 +120,46 @@ Value edge(const Value &I, const std::string &method,
            double thresh_lo, double thresh_hi,
            std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Corner metric matrix (`C = cornermetric(I, method, ...)`).
+///
+/// Computes per-pixel corner-likelihood using the Harris (default) or
+/// Shi–Tomasi (`"MinimumEigenvalue"`) detector. Larger output values
+/// indicate stronger corner features.
+///
+/// Algorithm (Harris 1988, Shi-Tomasi 1994):
+///   Dx = imfilter(I, [-1 0 1],  'replicate', 'conv')
+///   Dy = imfilter(I, [-1 0 1]', 'replicate', 'conv')
+///   trim 1-pixel border on Dx, Dy
+///   A = Dx², B = Dy², C = Dx·Dy
+///   smooth A, B, C with W = filter_coef · filter_coef'   (full conv)
+///   crop back to image size
+///   Harris:           cornerness = A·B − C² − k·(A+B)²
+///   MinimumEigenvalue: cornerness = ((A+B) − √((A−B)² + 4·C²)) / 2
+///
+/// Default `filter_coef = fspecial('gaussian', [5 1], 1.5)` =
+/// `[0.1201, 0.2339, 0.2921, 0.2339, 0.1201]`. `sensitivity_factor`
+/// `k ∈ (0, 0.25)` applies only to the Harris method (default 0.04).
+///
+/// References:
+///   [1] Harris & Stephens, "A Combined Corner and Edge Detector",
+///       4th Alvey Vision Conference, 1988.
+///   [2] Shi & Tomasi, "Good Features to Track", CVPR 1994.
+///
+/// Output class is DOUBLE regardless of input class. Image is
+/// internally promoted via `im2double` (uint8/uint16/single/etc.).
+///
+/// @param I                  2-D grayscale or logical image.
+/// @param method             `"Harris"` (default) or
+///                           `"MinimumEigenvalue"`.
+/// @param sensitivity_factor `k ∈ (0, 0.25)`; ignored for MinEig.
+/// @param filter_coef        1-D smoothing filter coefficients
+///                           (length ≥ 3, odd). Empty → default
+///                           5-tap Gaussian.
+/// @param mr                 Memory resource (nullptr → process default).
+/// @return                   `H × W` DOUBLE corner-metric image.
+Value cornermetric(const Value &I, const std::string &method,
+                   double sensitivity_factor,
+                   const Value &filter_coef,
+                   std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image

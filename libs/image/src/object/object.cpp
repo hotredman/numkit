@@ -7,6 +7,7 @@
 #include <numkit/image/object/object.hpp>
 
 #include <numkit/image/filter/filter.hpp>
+#include <numkit/image/type_convert/type_convert.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -599,6 +600,237 @@ void edge_reg(Span<const Value> args, size_t /*nargout*/,
         }
     }
     outs[0] = edge(args[0], m, t_lo, t_hi, ctx.engine->resource());
+}
+
+} // namespace detail
+
+// ── cornermetric (Harris / Shi-Tomasi) ────────────────────────────
+//
+// MATLAB R2025b cornermetric.m algorithm (transliterated):
+//
+//   Convert I → double via im2double.
+//   Dx = imfilter(I, [-1 0 1],  'replicate', 'conv')
+//   Dy = imfilter(I, [-1 0 1]', 'replicate', 'conv')
+//   Trim 1px border on Dx, Dy (i.e. take rows 2..end-1, cols 2..end-1).
+//   A = Dx², B = Dy², C = Dx·Dy.
+//   W = filter_coef * filter_coef'      (outer-product 2-D kernel)
+//   A,B,C ← imfilter(., W, 'replicate', 'full', 'conv').
+//   removed = (len(filter_coef) - 1) / 2 - 1; crop back to image size.
+//   Harris:           C* = A·B - C² - k·(A+B)²
+//   MinimumEigenvalue: C* = ((A+B) - sqrt((A-B)² + 4·C²)) / 2.
+//
+// References:
+//   Harris & Stephens, "A Combined Corner and Edge Detector", 1988.
+//   Shi & Tomasi,     "Good Features to Track",                1994.
+Value cornermetric(const Value &I, const std::string &method,
+                   double sensitivity_factor,
+                   const Value &filter_coef,
+                   std::pmr::memory_resource *mr)
+{
+    if (I.dims().is3D())
+        throw Error("cornermetric: I must be 2-D",
+                    0, 0, "cornermetric", "", "m:cornermetric:dim");
+    if (method != "Harris" && method != "MinimumEigenvalue")
+        throw Error("cornermetric: METHOD must be 'Harris' or "
+                    "'MinimumEigenvalue'",
+                    0, 0, "cornermetric", "", "m:cornermetric:method");
+    if (method == "Harris"
+        && (!(sensitivity_factor > 0.0) || !(sensitivity_factor < 0.25)))
+        throw Error("cornermetric: SensitivityFactor must be in (0, 0.25)",
+                    0, 0, "cornermetric", "", "m:cornermetric:k");
+
+    // Resolve filter coef vector.
+    std::pmr::vector<double> fcoef(mr);
+    if (filter_coef.numel() == 0) {
+        // Default fspecial('gaussian', [5 1], 1.5).
+        // Hardcoded exact values: g = exp(-x²/(2σ²)), normalised.
+        const double raw[5] = {
+            0.12007838770739, 0.23388075658030,
+            0.29208171142462,
+            0.23388075658030, 0.12007838770739};
+        fcoef.assign(raw, raw + 5);
+    } else {
+        if (filter_coef.numel() < 3 || (filter_coef.numel() % 2) == 0)
+            throw Error("cornermetric: FilterCoefficients length must "
+                        "be odd and ≥ 3",
+                        0, 0, "cornermetric", "",
+                        "m:cornermetric:filter");
+        fcoef.reserve(filter_coef.numel());
+        for (std::size_t i = 0; i < filter_coef.numel(); ++i)
+            fcoef.push_back(filter_coef.elemAsDouble(i));
+    }
+    const std::size_t Lc = fcoef.size();
+    const std::size_t halfLc = Lc / 2;       // (Lc-1)/2
+    if (halfLc < 1)
+        throw Error("cornermetric: filter coef too short",
+                    0, 0, "cornermetric", "", "m:cornermetric:filter");
+    const std::size_t removed = halfLc - 1;  // matches MATLAB
+
+    // Promote I → DOUBLE via im2double.
+    Value Id = im2double(I, mr);
+    const std::size_t H = Id.dims().rows();
+    const std::size_t W = Id.dims().cols();
+    if (H < 3 || W < 3)
+        throw Error("cornermetric: image too small (need ≥ 3x3)",
+                    0, 0, "cornermetric", "", "m:cornermetric:tooSmall");
+
+    // Build [-1 0 1] row + column kernels.
+    Value hx = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+    hx.doubleDataMut()[0] = -1; hx.doubleDataMut()[1] = 0; hx.doubleDataMut()[2] = 1;
+    Value hy = Value::matrix(3, 1, ValueType::DOUBLE, mr);
+    hy.doubleDataMut()[0] = -1; hy.doubleDataMut()[1] = 0; hy.doubleDataMut()[2] = 1;
+
+    Value Dx = imfilter(Id, hx, PadMode::Replicate, 0.0,
+                        /*full=*/false, /*flip_kernel=*/true, mr);
+    Value Dy = imfilter(Id, hy, PadMode::Replicate, 0.0,
+                        /*full=*/false, /*flip_kernel=*/true, mr);
+
+    // Trim 1px border: take rows 1..H-2, cols 1..W-2 (0-indexed).
+    const std::size_t Ht = H - 2;
+    const std::size_t Wt = W - 2;
+    if (Ht == 0 || Wt == 0)
+        throw Error("cornermetric: image too small after gradient trim",
+                    0, 0, "cornermetric", "", "m:cornermetric:tooSmall");
+
+    // Build A = Dx², B = Dy², C = Dx·Dy at trimmed shape.
+    Value A = Value::matrix(Ht, Wt, ValueType::DOUBLE, mr);
+    Value B = Value::matrix(Ht, Wt, ValueType::DOUBLE, mr);
+    Value Cmat = Value::matrix(Ht, Wt, ValueType::DOUBLE, mr);
+    for (std::size_t c = 0; c < Wt; ++c) {
+        for (std::size_t r = 0; r < Ht; ++r) {
+            const std::size_t src = (c + 1) * H + (r + 1);
+            const double dx = Dx.doubleData()[src];
+            const double dy = Dy.doubleData()[src];
+            const std::size_t dst = c * Ht + r;
+            A.doubleDataMut()[dst] = dx * dx;
+            B.doubleDataMut()[dst] = dy * dy;
+            Cmat.doubleDataMut()[dst] = dx * dy;
+        }
+    }
+
+    // W = filter_coef * filter_coef' (Lc x Lc outer-product kernel).
+    Value Wk = Value::matrix(Lc, Lc, ValueType::DOUBLE, mr);
+    for (std::size_t c = 0; c < Lc; ++c)
+        for (std::size_t r = 0; r < Lc; ++r)
+            Wk.doubleDataMut()[c * Lc + r] = fcoef[r] * fcoef[c];
+
+    // Filter A, B, C with 'full' shape under Replicate boundary —
+    // MATLAB's `imfilter(.,W,'replicate','full','conv')` pads the
+    // input by (Lc-1)/2 replicate on each side and then runs the
+    // convolution at the larger size. numkit's `imfilter(full=true)`
+    // uses zero-padding regardless of PadMode, so we pre-pad by
+    // (Lc-1)/2 with `padarray` and run a 'same' convolution.
+    const std::vector<int> pad{static_cast<int>(halfLc),
+                               static_cast<int>(halfLc)};
+    auto full_replicate = [&](Value X) {
+        X = padarray(X, pad, PadMode::Replicate, 0.0, "both", mr);
+        return imfilter(X, Wk, PadMode::Replicate, 0.0,
+                        /*full=*/false, /*flip_kernel=*/true, mr);
+    };
+    A = full_replicate(A);
+    B = full_replicate(B);
+    Cmat = full_replicate(Cmat);
+
+    // Crop back to (H, W) image size: rows [removed+1, end-removed].
+    const std::size_t Ha = A.dims().rows();
+    const std::size_t Wa = A.dims().cols();
+    if (Ha < H || Wa < W)
+        throw Error("cornermetric: internal shape error after filter",
+                    0, 0, "cornermetric", "", "m:cornermetric:shape");
+    auto crop_value = [&](const Value &X) {
+        Value Y = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        for (std::size_t c = 0; c < W; ++c) {
+            for (std::size_t r = 0; r < H; ++r) {
+                const std::size_t sr = r + removed;
+                const std::size_t sc = c + removed;
+                Y.doubleDataMut()[c * H + r]
+                    = X.doubleData()[sc * Ha + sr];
+            }
+        }
+        return Y;
+    };
+    A = crop_value(A);
+    B = crop_value(B);
+    Cmat = crop_value(Cmat);
+
+    // Compute cornerness.
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    const double *ap = A.doubleData();
+    const double *bp = B.doubleData();
+    const double *cp = Cmat.doubleData();
+    double *op = out.doubleDataMut();
+    const std::size_t N = H * W;
+    if (method == "Harris") {
+        const double k = sensitivity_factor;
+        for (std::size_t i = 0; i < N; ++i) {
+            const double sum = ap[i] + bp[i];
+            op[i] = ap[i] * bp[i] - cp[i] * cp[i] - k * sum * sum;
+        }
+    } else { // MinimumEigenvalue
+        for (std::size_t i = 0; i < N; ++i) {
+            const double sum = ap[i] + bp[i];
+            const double diff = ap[i] - bp[i];
+            op[i] = (sum - std::sqrt(diff * diff + 4.0 * cp[i] * cp[i])) * 0.5;
+        }
+    }
+    return out;
+}
+
+namespace detail {
+
+void cornermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cornermetric: requires (I [, METHOD] [, NV...])",
+                    0, 0, "cornermetric", "", "m:cornermetric:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &I = args[0];
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    std::string method = "Harris";
+    double sensitivity = 0.04;
+    Value filter_coef;
+    std::size_t i = 1;
+    if (i < args.size() && is_string(args[i])) {
+        std::string m = args[i].toString();
+        std::string mlo;
+        for (char ch : m)
+            mlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (m == "Harris" || m == "MinimumEigenvalue") {
+            method = m;
+            ++i;
+        } else if (mlo == "sensitivityfactor" || mlo == "filtercoefficients") {
+            // It's an NV pair name — leave i for NV parsing below.
+        } else {
+            throw Error("cornermetric: METHOD must be 'Harris' or "
+                        "'MinimumEigenvalue' (got '" + m + "')",
+                        0, 0, "cornermetric", "",
+                        "m:cornermetric:method");
+        }
+    }
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("cornermetric: expected NV-pair name",
+                        0, 0, "cornermetric", "", "m:cornermetric:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "filtercoefficients") {
+            filter_coef = args[i + 1];
+        } else if (nlo == "sensitivityfactor") {
+            sensitivity = args[i + 1].toScalar();
+        } else {
+            throw Error("cornermetric: unknown option '" + name + "'",
+                        0, 0, "cornermetric", "",
+                        "m:cornermetric:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = cornermetric(I, method, sensitivity, filter_coef, mr);
 }
 
 } // namespace detail
