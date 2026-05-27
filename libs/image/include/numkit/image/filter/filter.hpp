@@ -195,6 +195,47 @@ Value imdiffusefilt(const Value &I,
                     const std::string &conduction,
                     std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Apply a single Gabor filter to a 2-D image
+/// (`[mag, phase] = imgaborfilt(A, wavelength, orientation, ...)`).
+///
+/// Single-filter form (the `gabor` MATLAB-OOP bank object is out
+/// of scope per §0; multiple wavelengths/orientations require
+/// calling this function in a loop).
+///
+/// Frequency-domain implementation matching MATLAB R2025b's
+/// `images.internal.gaborFilterFFT`:
+///
+///   SigmaX = wavelength / π · √(log 2 / 2) · (2^B + 1) / (2^B − 1)
+///   SigmaY = SigmaX / aspect
+///   r      = max(⌈7·SigmaX⌉, ⌈7·SigmaY⌉)
+///   Pad A by `r` replicate, FFT-2D, multiply by ifftshift(H),
+///   IFFT-2D, crop back to size(A).
+///
+///   H(u, v) = 2π·SigmaX·SigmaY · exp(−½ ((u'−1/λ)²/σ_u² + v'²/σ_v²))
+///       u', v' rotated by `orientation`, σ_u = 1/(2π·SigmaX),
+///       σ_v = 1/(2π·SigmaY), u, v on a normalised frequency grid.
+///
+/// References:
+///   [1] Jain & Farrokhnia, "Unsupervised Texture Segmentation
+///       Using Gabor Filters", 1991.
+///   [2] Kruizinga & Petkov, "Nonlinear Operator in Oriented
+///       Texture", IEEE Trans. Image Processing 1999.
+///
+/// Output class equals input class (double or single).
+///
+/// @param A              2-D image (real, finite).
+/// @param wavelength     Sinusoid wavelength (pixels/cycle), ≥ 2.
+/// @param orientation    Filter orientation in degrees.
+/// @param sfb            SpatialFrequencyBandwidth (default 1).
+/// @param aspect         SpatialAspectRatio (default 0.5).
+/// @param[out] mag_out   Magnitude response.
+/// @param[out] phase_out Phase response (radians).
+/// @param mr             Memory resource (nullptr → process default).
+void imgaborfilt(const Value &A, double wavelength, double orientation,
+                 double sfb, double aspect,
+                 Value &mag_out, Value &phase_out,
+                 std::pmr::memory_resource *mr = nullptr);
+
 /// @brief 2-D median filter (`B = medfilt2(I, [m n])`).
 ///
 /// Default neighbourhood 3×3. Symmetric boundary.
