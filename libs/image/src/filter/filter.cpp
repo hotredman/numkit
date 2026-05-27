@@ -2391,6 +2391,205 @@ Value nlfilter(numkit::Engine &eng, const Value &A,
     return B;
 }
 
+// ── colfilt (column-wise neighbourhood) ───────────────────────────
+//
+// MATLAB R2025b colfilt.m:
+//   B = colfilt(A, [m n], block_type, fun)         (whole-matrix)
+//   B = colfilt(A, [m n], [mblock nblock], block_type, fun)
+//   B = colfilt(A, 'indexed', …)
+//
+// block_type ∈ {'sliding', 'distinct'} (case-insensitive, abbrev'd
+// by leading char). Sliding mode:
+//   1. Pad A by (m-1, n-1) with 0 (or 1 for 'indexed' double/single).
+//   2. X is the matrix whose columns are the m*n elements of every
+//      m × n window centred on (i, j); shape m*n × (H*W).
+//   3. Call fun(X) — must return a row vector 1 × (H*W).
+//   4. Reshape into H × W.
+// Distinct mode:
+//   1. Pad A to next multiple of [m, n].
+//   2. X has one column per distinct m × n block.
+//   3. fun(X) must return a same-size matrix; the columns are then
+//      unpacked back into blocks (col2im 'distinct').
+//   4. Crop the assembled image back to size(A).
+//
+// The optional [mblock nblock] arg is purely a memory optimisation
+// (MATLAB explicitly notes: "does not change the result"). The
+// engine adapter accepts and ignores it.
+//
+// Output class equals the class of fun()'s return value.
+Value colfilt(numkit::Engine &eng, const Value &A,
+              std::size_t m, std::size_t n,
+              const std::string &block_type, const Value &fun,
+              bool indexed,
+              std::pmr::memory_resource *mr)
+{
+    if (m < 1 || n < 1)
+        throw Error("colfilt: block size must be positive",
+                    0, 0, "colfilt", "", "m:colfilt:nhood");
+    if (!fun.isFuncHandle())
+        throw Error("colfilt: fun must be a function handle",
+                    0, 0, "colfilt", "", "m:colfilt:fun");
+
+    const auto &dA = A.dims();
+    if (dA.is3D())
+        throw Error("colfilt: A must be a 2-D image",
+                    0, 0, "colfilt", "", "m:colfilt:rank");
+    const std::size_t H = dA.rows();
+    const std::size_t W = dA.cols();
+    const ValueType inT = A.type();
+
+    std::string kind = block_type;
+    for (auto &c : kind) c = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(c)));
+    if (kind.empty())
+        throw Error("colfilt: block_type must be 'sliding' or 'distinct'",
+                    0, 0, "colfilt", "", "m:colfilt:blockType");
+    const char first = kind[0];
+    if (first != 's' && first != 'd')
+        throw Error("colfilt: block_type must be 'sliding' or 'distinct'",
+                    0, 0, "colfilt", "", "m:colfilt:blockType");
+
+    // Common padval rule.
+    double padval = 0.0;
+    if (indexed && (inT == ValueType::DOUBLE || inT == ValueType::SINGLE))
+        padval = 1.0;
+
+    if (first == 's') {
+        // ── Sliding ─────────────────────────────────────────────
+        const std::size_t pad_top  = (m - 1) / 2;
+        const std::size_t pad_left = (n - 1) / 2;
+        const std::size_t Hpad = H + m - 1;
+        const std::size_t Wpad = W + n - 1;
+        const std::size_t Ncol = H * W;
+
+        // Build X = m*n × Ncol in DOUBLE.
+        Value X = Value::matrix(m * n, Ncol, ValueType::DOUBLE, mr);
+        double *xd = X.doubleDataMut();
+
+        // Pad row-by-col into a temporary scratch.
+        std::pmr::vector<double> aa(Hpad * Wpad, padval, mr);
+        for (std::size_t j = 0; j < W; ++j)
+            for (std::size_t i = 0; i < H; ++i)
+                aa[(j + pad_left) * Hpad + (i + pad_top)] =
+                    A.elemAsDouble(j * H + i);
+
+        // For each centre (i, j), gather m*n window values into
+        // column k = j*H + i.
+        for (std::size_t j = 0; j < W; ++j) {
+            for (std::size_t i = 0; i < H; ++i) {
+                const std::size_t k = j * H + i;
+                std::size_t r = 0;
+                // im2col 'sliding' iteration order: column-major
+                // within each window, i.e. (col-major) flatten.
+                for (std::size_t wc = 0; wc < n; ++wc)
+                    for (std::size_t wr = 0; wr < m; ++wr)
+                        xd[k * (m * n) + (r++)]
+                            = aa[(j + wc) * Hpad + (i + wr)];
+            }
+        }
+
+        Value result = eng.callFunctionHandle(
+            fun, Span<const Value>(&X, 1));
+        if (result.numel() != Ncol)
+            throw Error("colfilt: sliding fun must return a 1 × N row "
+                        "vector (one value per column)",
+                        0, 0, "colfilt", "", "m:colfilt:funShape");
+
+        // Reshape result (regardless of [1, Ncol] or [Ncol, 1]) into H × W.
+        Value B = Value::matrix(H, W, result.type(), mr);
+        const auto outT = result.type();
+        for (std::size_t k = 0; k < Ncol; ++k) {
+            const double v = result.elemAsDouble(k);
+            const std::size_t idx = k;
+            switch (outT) {
+                case ValueType::DOUBLE: B.doubleDataMut()[idx]  = v; break;
+                case ValueType::SINGLE: B.singleDataMut()[idx]  = static_cast<float>(v); break;
+                case ValueType::UINT8:  B.uint8DataMut()[idx]   = static_cast<uint8_t>(v); break;
+                case ValueType::UINT16: B.uint16DataMut()[idx]  = static_cast<uint16_t>(v); break;
+                case ValueType::INT16:  B.int16DataMut()[idx]   = static_cast<int16_t>(v); break;
+                case ValueType::INT32:  B.int32DataMut()[idx]   = static_cast<int32_t>(v); break;
+                case ValueType::LOGICAL: B.logicalDataMut()[idx] = v != 0 ? 1 : 0; break;
+                default:
+                    throw Error("colfilt: unsupported fun output class",
+                                0, 0, "colfilt", "", "m:colfilt:outCls");
+            }
+        }
+        return B;
+    }
+
+    // ── Distinct ────────────────────────────────────────────────────
+    const std::size_t mpad = (H % m) ? (m - H % m) : 0;
+    const std::size_t npad = (W % n) ? (n - W % n) : 0;
+    const std::size_t Hpad = H + mpad;
+    const std::size_t Wpad = W + npad;
+    const std::size_t mblocks = Hpad / m;
+    const std::size_t nblocks = Wpad / n;
+    const std::size_t Ncol    = mblocks * nblocks;
+
+    // Pad to multiple of (m, n).
+    std::pmr::vector<double> aa(Hpad * Wpad, padval, mr);
+    for (std::size_t j = 0; j < W; ++j)
+        for (std::size_t i = 0; i < H; ++i)
+            aa[j * Hpad + i] = A.elemAsDouble(j * H + i);
+
+    // Build X = m*n × Ncol; column index k = bj * mblocks + bi.
+    Value X = Value::matrix(m * n, Ncol, ValueType::DOUBLE, mr);
+    double *xd = X.doubleDataMut();
+    for (std::size_t bj = 0; bj < nblocks; ++bj) {
+        for (std::size_t bi = 0; bi < mblocks; ++bi) {
+            const std::size_t k = bj * mblocks + bi;
+            std::size_t r = 0;
+            for (std::size_t wc = 0; wc < n; ++wc)
+                for (std::size_t wr = 0; wr < m; ++wr)
+                    xd[k * (m * n) + (r++)]
+                        = aa[(bj * n + wc) * Hpad + (bi * m + wr)];
+        }
+    }
+
+    Value result = eng.callFunctionHandle(
+        fun, Span<const Value>(&X, 1));
+    if (result.numel() != m * n * Ncol)
+        throw Error("colfilt: distinct fun must return a matrix of the "
+                    "same shape as its input (m*n × N)",
+                    0, 0, "colfilt", "", "m:colfilt:funShape");
+
+    // Reassemble padded image, then crop.
+    const auto outT = result.type();
+    std::pmr::vector<double> bb(Hpad * Wpad, 0.0, mr);
+    for (std::size_t bj = 0; bj < nblocks; ++bj) {
+        for (std::size_t bi = 0; bi < mblocks; ++bi) {
+            const std::size_t k = bj * mblocks + bi;
+            std::size_t r = 0;
+            for (std::size_t wc = 0; wc < n; ++wc)
+                for (std::size_t wr = 0; wr < m; ++wr) {
+                    const double v = result.elemAsDouble(k * (m * n) + (r++));
+                    bb[(bj * n + wc) * Hpad + (bi * m + wr)] = v;
+                }
+        }
+    }
+
+    Value B = Value::matrix(H, W, outT, mr);
+    for (std::size_t j = 0; j < W; ++j) {
+        for (std::size_t i = 0; i < H; ++i) {
+            const double v = bb[j * Hpad + i];
+            const std::size_t idx = j * H + i;
+            switch (outT) {
+                case ValueType::DOUBLE: B.doubleDataMut()[idx]  = v; break;
+                case ValueType::SINGLE: B.singleDataMut()[idx]  = static_cast<float>(v); break;
+                case ValueType::UINT8:  B.uint8DataMut()[idx]   = static_cast<uint8_t>(v); break;
+                case ValueType::UINT16: B.uint16DataMut()[idx]  = static_cast<uint16_t>(v); break;
+                case ValueType::INT16:  B.int16DataMut()[idx]   = static_cast<int16_t>(v); break;
+                case ValueType::INT32:  B.int32DataMut()[idx]   = static_cast<int32_t>(v); break;
+                case ValueType::LOGICAL: B.logicalDataMut()[idx] = v != 0 ? 1 : 0; break;
+                default:
+                    throw Error("colfilt: unsupported fun output class",
+                                0, 0, "colfilt", "", "m:colfilt:outCls");
+            }
+        }
+    }
+    return B;
+}
+
 namespace detail {
 
 void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -2427,6 +2626,61 @@ void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
     const std::size_t m = static_cast<std::size_t>(nh.elemAsDouble(0));
     const std::size_t n = static_cast<std::size_t>(nh.elemAsDouble(1));
     outs[0] = nlfilter(*ctx.engine, args[0], m, n, fn, indexed, mr);
+}
+
+void colfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("colfilt: requires (A, [m n], block_type, fun) "
+                    "or (A, [m n], [mblock nblock], block_type, fun)",
+                    0, 0, "colfilt", "", "m:colfilt:nargin");
+    auto *mr = ctx.engine->resource();
+
+    bool indexed = false;
+    std::size_t k = 1;
+    if (args[1].isChar() || args[1].isString()) {
+        std::string s = args[1].toString();
+        for (auto &c : s) c = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(c)));
+        if (s != "indexed")
+            throw Error("colfilt: unknown literal '" + args[1].toString()
+                      + "' (expected 'indexed')",
+                        0, 0, "colfilt", "", "m:colfilt:badLiteral");
+        indexed = true;
+        k = 2;
+    }
+    if (k + 2 >= args.size())
+        throw Error("colfilt: requires (A, [m n], block_type, fun)",
+                    0, 0, "colfilt", "", "m:colfilt:nargin");
+    const Value &nh = args[k];
+    if (nh.numel() != 2)
+        throw Error("colfilt: neighbourhood must be a 2-element vector",
+                    0, 0, "colfilt", "", "m:colfilt:nhood");
+    const std::size_t m = static_cast<std::size_t>(nh.elemAsDouble(0));
+    const std::size_t n = static_cast<std::size_t>(nh.elemAsDouble(1));
+
+    // Detect optional [mblock nblock] — present iff arg[k+1] is a
+    // 2-element numeric vector AND arg[k+2] is a string AND arg[k+3]
+    // exists (the function handle).
+    std::size_t bi = k + 1;
+    if (!args[bi].isChar() && !args[bi].isString()
+        && args[bi].numel() == 2
+        && (bi + 2) < args.size()
+        && (args[bi + 1].isChar() || args[bi + 1].isString())) {
+        // mblock / nblock is purely a memory optimisation per MATLAB
+        // docs — ignore it and proceed.
+        bi = bi + 1;
+    }
+    if (bi + 1 >= args.size())
+        throw Error("colfilt: missing block_type and/or fun argument",
+                    0, 0, "colfilt", "", "m:colfilt:nargin");
+    if (!args[bi].isChar() && !args[bi].isString())
+        throw Error("colfilt: block_type must be 'sliding' or 'distinct'",
+                    0, 0, "colfilt", "", "m:colfilt:blockType");
+    const std::string kind = args[bi].toString();
+    const Value &fn = args[bi + 1];
+    outs[0] = colfilt(*ctx.engine, args[0], m, n, kind, fn, indexed, mr);
 }
 
 } // namespace detail

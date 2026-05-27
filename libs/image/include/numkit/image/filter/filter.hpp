@@ -432,4 +432,51 @@ Value nlfilter(numkit::Engine &eng, const Value &A,
                bool indexed,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Column-wise neighbourhood operation
+/// (`B = colfilt(A, [m n], block_type, fun)`).
+///
+/// Rearranges either every sliding `m × n` window (`block_type =
+/// "sliding"`) or every distinct (non-overlapping) `m × n` block
+/// (`block_type = "distinct"`) of `A` into columns of a temporary
+/// matrix, calls `fun` on that matrix, then rearranges the result
+/// back. Faster than @ref nlfilter for batch-compatible kernels
+/// since `fun` is invoked once on a wide matrix.
+///
+/// **Sliding mode.** `A` is zero-padded (or one-padded under
+/// `indexed = true` for `double`/`single`). The matrix `X` passed
+/// to `fun` is `m·n × (rows·cols)` (one column per centre pixel).
+/// `fun(X)` must return a `1 × (rows·cols)` row vector, reshaped
+/// back into the original `A`'s shape.
+///
+/// **Distinct mode.** `A` is zero-padded (or one-padded under
+/// `indexed = true`) up to the next multiple of `[m n]`. `X` is
+/// `m·n × (nb_rows·nb_cols)` (one column per distinct block).
+/// `fun(X)` must return a matrix of the SAME shape; the columns
+/// are unpacked back into blocks, then the padded image is cropped
+/// to the original `size(A)`.
+///
+/// The optional `[mblock nblock]` MATLAB argument is a memory-only
+/// optimisation (the docs note it does not change the result);
+/// the engine adapter accepts it but ignores it.
+///
+/// Output class equals the class of `fun()`'s return value
+/// (matches MATLAB R2025b).
+///
+/// @param eng         Engine used to dispatch `fun`.
+/// @param A           Input image.
+/// @param m           Block rows.
+/// @param n           Block cols.
+/// @param block_type  `"sliding"` or `"distinct"` (case-insensitive,
+///                    abbreviated by leading character).
+/// @param fun         Function-handle Value.
+/// @param indexed     `true` ⇒ `'indexed'` padding (1 for floats, 0 otherwise).
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            Filtered image (same H × W as `A` in sliding;
+///                    same H × W as `A` in distinct, after cropping).
+Value colfilt(numkit::Engine &eng, const Value &A,
+              std::size_t m, std::size_t n,
+              const std::string &block_type, const Value &fun,
+              bool indexed,
+              std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image
