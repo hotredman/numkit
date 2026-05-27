@@ -1915,8 +1915,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `imfindcircles` | ❌ |  |  |  |  | circle Hough |
 | `imgradient` | ✅ | 0.006 | 262.53× |  | OK | Sig: r = imgradient(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imgradientxy` | ✅ | 0.006 | 201.62× |  | OK | Sig: r = imgradientxy(...). Spec-extension batch 2026-05-09. |
-| `imgradient3` | ❌ |  |  |  |  |  |
-| `imgradientxyz` | ❌ |  |  |  |  |  |
+| `imgradient3` | ✅ | 0.031 | 104.34× |  | OK | Sig: [Gmag,Gaz,Gel] = imgradient3(V,method) | imgradient3(Gx,Gy,Gz). Branches: V+method (sobel/prewitt/central/intermediate via imgradientxyz then polar) + (Gx,Gy,Gz) from-grads path + single-output Gmag. Image namespace 2026-05-27. |
+| `imgradientxyz` | ✅ | 0.015 | 261.23× |  | OK | Sig: [Gx,Gy,Gz] = imgradientxyz(V,method). Branches: sobel (3x3x3 [1,3,3,1]-weighted MATLAB R2025b kernel), prewitt, central (gradient()), intermediate (forward diff). Replicate boundary. Image namespace 2026-05-27. |
 | `iradon` | ❌ |  |  |  |  | inverse Radon |
 | `qtdecomp` | ❌ |  |  |  |  | quad-tree decomposition |
 | `qtgetblk` | ❌ |  |  |  |  |  |
