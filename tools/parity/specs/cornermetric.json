@@ -1,0 +1,10 @@
+{
+  "name": "cornermetric",
+  "namespace": "image",
+  "setup": "I = double([0 0 0 0 0; 0 1 1 0 0; 0 1 1 0 0; 0 0 0 0 0; 0 0 0 0 0]); Iu = uint8(I*255); Ip = peaks(8);",
+  "expr": "C1 = cornermetric(I); C2 = cornermetric(I, 'MinimumEigenvalue'); C3 = cornermetric(I, 'Harris', 'SensitivityFactor', 0.1); C4 = cornermetric(I, 'Harris', 'FilterCoefficients', [1 1 1]/3); C5 = cornermetric(Iu); C6 = cornermetric(Ip); r1 = C1(1,1); r2 = C1(2,2); r3 = C1(3,3); r4 = C2(2,2); r5 = C2(3,3); r6 = C3(2,2); r7 = C4(2,2); r8 = C5(2,2); r9 = C6(4,4); r10 = C6(5,5);",
+  "iters": 5,
+  "tol": 1e-07,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"],
+  "comment": "Sig: C = cornermetric(I [, METHOD] [, NV...]). Branches: Harris (default, k=0.04), MinimumEigenvalue, custom SensitivityFactor, custom FilterCoefficients, uint8 input class, larger peaks(8) image. Algorithm: Harris & Stephens 1988 / Shi & Tomasi 1994 corner detectors. Dx, Dy via [-1 0 1] / [-1 0 1]' conv → trim 1px → square/cross-product → smooth with outer-product Gaussian → crop → cornerness. Imfilter 'full' under Replicate boundary worked around by pre-padding with padarray. Image namespace 2026-05-27."
+}

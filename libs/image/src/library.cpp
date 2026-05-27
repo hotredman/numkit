@@ -201,6 +201,7 @@ void imgradient_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgradientxyz_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgradient3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void edge_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cornermetric_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // quality/quality.cpp
 void immse_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -463,6 +464,7 @@ void ImageLibrary::install(Engine &engine)
     reg("object", "imgradientxyz",&image::detail::imgradientxyz_reg);
     reg("object", "imgradient3",  &image::detail::imgradient3_reg);
     reg("object", "edge",         &image::detail::edge_reg);
+    reg("object", "cornermetric", &image::detail::cornermetric_reg);
 
     reg("quality", "immse", &image::detail::immse_reg);
     reg("quality", "psnr",  &image::detail::psnr_reg);
