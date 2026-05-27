@@ -28,4 +28,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/colfilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cmunique_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/deconvwnr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/edgetaper_test.cpp
 )

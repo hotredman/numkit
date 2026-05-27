@@ -164,6 +164,42 @@ Value deconvwnr(const Value &I, const Value &PSF,
                 const Value &ncorr, const Value &icorr,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Taper image edges via blur (`J = edgetaper(I, PSF)`).
+///
+/// Reduces FFT ringing in deblurring methods that use the DFT
+/// (deconvwnr, deconvreg, deconvlucy). The output is a weighted
+/// blend of `I` and `imfilter(I, PSF, 'circular')`:
+///   `J = alpha .* I + (1 − alpha) .* blurredI`
+/// where `alpha` is built from per-dimension PSF projections'
+/// autocorrelation, equalling 1 in the interior and tapering to 0
+/// at the edges over a width controlled by `PSF`.
+///
+/// Algorithm (transliterated from MATLAB R2025b `edgetaper.m`):
+///   1. For each non-singleton dim `n`:
+///        `proj   = sum(PSF along all other dims)`
+///        `Z      = |fft(proj, sizeI(n) - 1)|^2`
+///        `beta_n = real(ifft(Z))`
+///        `beta_n = [beta_n  beta_n(1)] / max(beta_n)`   (length sizeI(n))
+///   2. `alpha = outer-product of (1 − beta_n)` across the
+///      non-singleton dims.
+///   3. `blurredI = real(ifftn(fftn(I) .* psf2otf(PSF, sizeI)))`.
+///   4. `J = alpha .* I + (1 − alpha) .* blurredI`, clipped to
+///      `[min(I), max(I)]`.
+///   5. Cast back to `class(I)` for integer types.
+///
+/// Constraints: `PSF` cannot exceed half of `I` in any dimension.
+/// PSF must contain at least one non-zero element. 2-D and 1-D
+/// inputs supported (the 3-D-and-up form is rarely used but the
+/// MATLAB source documents it via the same algorithm; we throw a
+/// clear error if `I` is 3-D so the caller knows to slice).
+///
+/// @param I    Input image.
+/// @param PSF  Point-spread function (any size ≤ size(I)/2).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Tapered image, same class and shape as `I`.
+Value edgetaper(const Value &I, const Value &PSF,
+                std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Best block size for block-wise processing
 /// (`siz = bestblk(IMS, k)`).
 ///
