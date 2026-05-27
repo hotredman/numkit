@@ -1,5 +1,21 @@
-{"name": "fillmissing", "namespace": "stats", "setup": "y = [1 2 NaN 4 5 NaN 7];",
- "expr": "fp = fillmissing(y, 'previous'); fn = fillmissing(y, 'next'); fc = fillmissing(y, 'constant', 99);",
- "iters": 5, "tol": 1e-12,
- "fingerprint": ["fp(3)", "fp(6)", "fn(3)", "fn(6)", "fc(3)", "fc(6)"],
- "comment": "Sig: y = fillmissing(x, method[, value]). MATLAB-canonical methods: 'previous', 'next', 'constant'. Numkit also supports 'mean'/'median' as convenience (undocumented). Other MATLAB methods deferred."}
+{
+  "name": "fillmissing",
+  "namespace": "stats",
+  "setup": "y = [1 2 NaN 4 5 NaN 7]; ynr = [1 NaN NaN 4 NaN 6]; yends = [NaN NaN 3 NaN 5 NaN NaN]; ylt = [NaN 1 2 NaN 4 NaN]; M = [1 NaN; NaN 4; 3 NaN; 5 8];",
+  "expr": "fp = fillmissing(y, 'previous'); fn = fillmissing(y, 'next'); fc = fillmissing(y, 'constant', 99); nr = fillmissing(ynr, 'nearest'); ne = fillmissing(yends, 'nearest'); li = fillmissing(ynr, 'linear'); le = fillmissing(yends, 'linear'); lt = fillmissing(ylt, 'linear'); ML = fillmissing(M, 'linear'); MP = fillmissing(M, 'previous');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "fp(3)", "fp(6)",
+    "fn(3)", "fn(6)",
+    "fc(3)", "fc(6)",
+    "nr(2)", "nr(3)", "nr(5)",
+    "ne(1)", "ne(4)", "ne(7)",
+    "li(2)", "li(3)", "li(5)",
+    "le(1)", "le(2)", "le(7)",
+    "lt(1)", "lt(4)", "lt(6)",
+    "ML(2,1)", "ML(1,2)", "ML(3,2)",
+    "MP(1,1)", "MP(2,1)", "double(isnan(MP(1,2)))", "MP(3,2)"
+  ],
+  "comment": "fillmissing — replace NaN by method. Methods: 'constant', 'previous', 'next' (existing); 'nearest', 'linear' (added cycle 74). Per-column processing for matrices (fixes prior 1D-flat bug for previous/next). Tie-break in 'nearest' picks NEXT. 'linear' extrapolates leading/trailing NaNs via slope of nearest interior good-value pair (requires ≥2 good values). Deferred MATLAB methods: 'spline', 'pchip', 'makima', 'movmean', 'movmedian', 'knn'."
+}
