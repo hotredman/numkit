@@ -4750,13 +4750,17 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
-    // polarbubblechart(theta, rho, sz) — scatter on polar axes with
-    // per-point marker size from `sz` (in points^2, MATLAB convention).
-    // sz may be scalar (all markers same size) or vector matching N.
-    //   polarbubblechart(theta, rho, sz, color) — also accepts color
-    //   either as RGB row [r g b] or as N-by-3 / N-by-1 colormap data.
-    // Wire format: type="bubble" dataset; size column in zJson so the
-    // renderer can keep a single field per data column.
+    // polarbubblechart(theta, rho, [sz], [c]) — scatter on polar
+    // axes with per-point marker size + optional per-point colour.
+    //   sz : scalar (broadcast) | vector (per-point), points^2
+    //   c  : one of —
+    //          • RGB row [r g b]   (single colour for all points)
+    //          • RGB matrix N-by-3 (per-point RGB triplets)
+    //          • vector length N   (colormap data — index into
+    //            the active colormap; renderer maps to RGB)
+    // Wire format: type="bubble", size column in sizeJson, colour
+    // (if any) in colorJson. NEITHER lands in zJson — that's
+    // reserved for actual z-coordinates / matrices (imagesc etc.).
     reg("polar", "polarbubblechart",
         [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, CallContext &ctx) {
@@ -4768,13 +4772,38 @@ void GraphicsLibrary::install(Engine &engine)
             ds.type  = "bubble";
             ds.xJson = vecToJson(args[0]);   // theta
             ds.yJson = vecToJson(args[1]);   // rho
-            // Size column. Scalar → broadcast at render time; vector
-            // → per-point size. JSON array either way.
-            if (args.size() >= 3) ds.zJson = vecToJson(args[2]);
-            else                  ds.zJson = "[36]";  // MATLAB default
-            // Subsequent positional / N-V args (colormap, edge,
-            // alpha, etc.) handled via the standard plot-args parser.
-            parsePlotArgs(args, 3, ds);
+            // Size column.
+            ds.sizeJson = (args.size() >= 3) ? vecToJson(args[2]) : "[36]";
+            // Optional colour column. RGB-matrix shape (N-by-3) is
+            // emitted as a nested JSON array so the renderer can
+            // distinguish "one colour for all" (1-by-3) from
+            // "per-point" (N-by-3 or N-by-1 colormap index).
+            if (args.size() >= 4 && !args[3].isChar()) {
+                const Value &c = args[3];
+                const size_t R = c.dims().rows();
+                const size_t C = c.dims().cols();
+                if (R > 0 && C == 3) {
+                    // RGB matrix — emit as [[r,g,b], [r,g,b], ...].
+                    // MATLAB stores column-major, so row i of an
+                    // R×3 matrix is at linear indices i, i+R, i+2R.
+                    std::ostringstream cs;
+                    cs << '[';
+                    for (size_t i = 0; i < R; ++i) {
+                        if (i) cs << ',';
+                        cs << '['
+                           << c.doubleData()[i + 0 * R] << ','
+                           << c.doubleData()[i + 1 * R] << ','
+                           << c.doubleData()[i + 2 * R] << ']';
+                    }
+                    cs << ']';
+                    ds.colorJson = cs.str();
+                } else {
+                    // Scalar / vector → colormap index data.
+                    ds.colorJson = vecToJson(c);
+                }
+            }
+            // LineSpec etc. as a trailing string argument.
+            parsePlotArgs(args, (args.size() >= 4 && !args[3].isChar()) ? 4 : 3, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();

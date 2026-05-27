@@ -675,12 +675,35 @@ export default function PolarPlot({
             if (mode === 'bubble') {
               // polarbubblechart — scatter with per-point area
               // (sizes[i]) interpreted MATLAB-style: marker area in
-              // points^2 → diameter = sqrt(area)·k. We render SVG
-              // radius = sqrt(sizes[i]) / 2 with a small scale so
-              // typical 20-100 area values give visible bubbles
-              // without dominating the canvas.
+              // points^2 → diameter = sqrt(area)·k. SVG radius =
+              // sqrt(sizes[i]) / 2.
+              //
+              // Per-point colour (s.pointColors) accepts two shapes:
+              //   • nested RGB rows [[r,g,b], …] (1 row = shared,
+              //     N rows = per-point), each component in [0, 1]
+              //   • flat numeric vector — colormap-index data;
+              //     for now we just normalise into the palette as a
+              //     visual hint (full colormap support is a separate
+              //     follow-up). Cell colours fall back to `s.color`
+              //     when pointColors is null.
               const sizes = Array.isArray(s.sizes) ? s.sizes : null;
-              const sz0 = sizes && sizes.length === 1 ? sizes[0] : null;
+              const sz0   = sizes && sizes.length === 1 ? sizes[0] : null;
+              const pc    = Array.isArray(s.pointColors) ? s.pointColors : null;
+              const isRgbMatrix = pc && pc.length > 0 && Array.isArray(pc[0]);
+              const colorFor = (i) => {
+                if (!pc) return color;
+                if (isRgbMatrix) {
+                  const row = pc.length === 1 ? pc[0] : pc[i];
+                  if (!row) return color;
+                  const r = Math.round(255 * (row[0] || 0));
+                  const g = Math.round(255 * (row[1] || 0));
+                  const b = Math.round(255 * (row[2] || 0));
+                  return `rgb(${r},${g},${b})`;
+                }
+                // Flat numeric → simple palette wraparound.
+                const idx = Math.abs((pc[i] | 0)) % PALETTE.length;
+                return PALETTE[idx];
+              };
               return (
                 <g key={s.name}>
                   {s.theta.map((th, i) => {
@@ -691,9 +714,10 @@ export default function PolarPlot({
                                : (sizes && Number.isFinite(sizes[i])) ? sizes[i]
                                : 36;
                     const r = Math.max(1.5, Math.sqrt(Math.max(0, area)) / 2);
+                    const fc = colorFor(i);
                     return <circle key={i} cx={x} cy={y} r={r}
-                      fill={color} fillOpacity="0.5"
-                      stroke={color} strokeWidth="1" />;
+                      fill={fc} fillOpacity="0.5"
+                      stroke={fc} strokeWidth="1" />;
                   })}
                 </g>
               );
@@ -702,31 +726,33 @@ export default function PolarPlot({
               // compass — arrow from origin to each (theta, rho).
               // Arrowhead is a small filled triangle perpendicular to
               // the shaft at the tip. Shaft length matches rScale(rho)
-              // so longer vectors visibly reach further out.
+              // so longer vectors visibly reach further out. LineSpec
+              // string `s.dash` controls dash pattern (e.g. 'r--'
+              // sets dash='dashed'); arrowhead stays solid for
+              // readability even on dashed shafts.
+              const dashMap = { dashed: '4 3', dotted: '1 3', dashdot: '4 3 1 3' };
+              const dashArr = dashMap[s.dash] || null;
               return (
                 <g key={s.name}>
                   {s.theta.map((th, i) => {
                     const norm = normalizePolar(th, s.rho[i]);
                     if (!norm) return null;
                     const [xT, yT] = ptFor(norm.theta, norm.rho);
-                    // Arrowhead size scales with shaft length but
-                    // capped so it doesn't dominate short vectors.
                     const len = Math.hypot(xT, yT);
                     const head = Math.max(3, Math.min(10, len * 0.18));
-                    // Unit vector along shaft.
                     const ux = xT / (len || 1), uy = yT / (len || 1);
-                    // Perpendicular for the head base.
                     const px = -uy, py = ux;
-                    const bX = xT - ux * head;       // base centre
+                    const bX = xT - ux * head;
                     const bY = yT - uy * head;
-                    const w = head * 0.55;            // half-width
+                    const w = head * 0.55;
                     const x1 = bX + px * w, y1 = bY + py * w;
                     const x2 = bX - px * w, y2 = bY - py * w;
                     return (
                       <g key={i}>
                         <line x1={0} y1={0} x2={xT} y2={yT}
                               stroke={color} strokeWidth={s.width || 1.6}
-                              strokeLinecap="round" />
+                              strokeLinecap="round"
+                              {...(dashArr ? { strokeDasharray: dashArr } : {})} />
                         <path d={`M${xT.toFixed(2)},${yT.toFixed(2)} `
                                + `L${x1.toFixed(2)},${y1.toFixed(2)} `
                                + `L${x2.toFixed(2)},${y2.toFixed(2)} Z`}
@@ -738,6 +764,14 @@ export default function PolarPlot({
               );
             }
             if (mode === 'bar' || mode === 'rose') {
+              // rose differs visually from polarhistogram: classic
+              // MATLAB rose draws translucent wedges whose vertices
+              // touch the origin (i.e. triangle-like petals) WITHOUT
+              // a strong outline, evoking the "rose diagram" look.
+              // polarhistogram = solid filled bars with a stroke.
+              const isRose = mode === 'rose';
+              const fillOpacity = isRose ? 0.35 : 0.6;
+              const strokeW     = isRose ? 0.4  : 0.8;
               // polarhistogram — radial bars: theta is the bin centre,
               // rho is the count, and the wedge spans (theta - dθ/2,
               // theta + dθ/2) where dθ is inferred from neighbour spacing.
@@ -766,8 +800,8 @@ export default function PolarPlot({
                             + `L${xr1.toFixed(2)},${yr1.toFixed(2)} `
                             + `L${xo1.toFixed(2)},${yo1.toFixed(2)} Z`;
                     return <path key={i} d={d}
-                      fill={color} fillOpacity="0.6"
-                      stroke={color} strokeWidth="0.8" />;
+                      fill={color} fillOpacity={fillOpacity}
+                      stroke={color} strokeWidth={strokeW} />;
                   })}
                 </g>
               );

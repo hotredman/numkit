@@ -14,6 +14,19 @@ struct DatasetInfo
     std::string xJson;
     std::string yJson;
     std::string zJson;     // 2D matrix for imagesc, e.g. [[1,2],[3,4]]
+    // Per-point auxiliary columns. Decoupled from xJson/yJson/zJson
+    // because they carry semantically different data — overloading
+    // zJson for marker sizes (as the original Phase 2e polar work
+    // did) leaks coordinate semantics into a sizing channel and
+    // breaks any future 3-D polar use case.
+    //   sizeJson   — polarbubblechart / scatter point areas
+    //                (points^2, MATLAB convention).
+    //   colorJson  — per-point colour. May be a single RGB row
+    //                "[[r,g,b]]" or N rows "[[r,g,b],...]". Renderer
+    //                falls back to the dataset's `style.color` when
+    //                empty.
+    std::string sizeJson;
+    std::string colorJson;
     std::string type;      // "line", "bar", "scatter", "stem", "stairs", "imagesc", "errorbar", …
     std::string label;     // for legend
     std::string style;     // MATLAB style hint, e.g. "r--o", "b:", "g-."
@@ -460,6 +473,15 @@ public:
                         os << ",\"lineWidth\":" << ds.lineWidth;
                     if (ds.markerSize > 0)
                         os << ",\"markerSize\":" << ds.markerSize;
+                    // Per-point size / colour columns — used by
+                    // polarbubblechart and (future) bubblechart on
+                    // cartesian axes. Emitted as `size` / `pointColor`
+                    // to avoid colliding with the dataset-level
+                    // `color` style attribute.
+                    if (!ds.sizeJson.empty())
+                        os << ",\"size\":"       << ds.sizeJson;
+                    if (!ds.colorJson.empty())
+                        os << ",\"pointColor\":" << ds.colorJson;
                     if (!ds.eJson.empty())
                         os << ",\"e\":" << ds.eJson;
                     if (!ds.eNegJson.empty())
