@@ -5,6 +5,7 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -2911,6 +2912,192 @@ Value imdiffusefilt(const Value &I,
     return out;
 }
 
+// ── imgaborfilt (single-filter Gabor magnitude + phase) ──────────
+//
+// MATLAB R2025b algorithm (gaborFilterFFT.m + gabor.m):
+//   SigmaX = wavelength/π · √(log2/2) · (2^B + 1)/(2^B - 1)
+//   SigmaY = SigmaX / aspect
+//   r      = max(⌈7·SigmaX⌉, ⌈7·SigmaY⌉)
+//   Pad A by [r r] replicate, FFT-2D padded image.
+//   Build H in frequency domain:
+//     u_n = normalised frequency vector length N
+//     v_n = normalised frequency vector length M
+//     U', V' = rotated (u, v) by orientation
+//     σ_u = 1/(2π·SigmaX), σ_v = 1/(2π·SigmaY), f = 1/λ
+//     A_const = 2π·SigmaX·SigmaY
+//     H = A_const · exp(-½ ((U'-f)²/σ_u² + V'²/σ_v²))
+//   out_padded = ifft2(A_fft · ifftshift(H))
+//   out = crop r border → (M, N)
+//   mag = |out|, phase = angle(out)
+//
+// References:
+//   Jain & Farrokhnia 1991; Kruizinga & Petkov 1999.
+void imgaborfilt(const Value &A_in, double wavelength, double orientation,
+                 double sfb, double aspect,
+                 Value &mag_out, Value &phase_out,
+                 std::pmr::memory_resource *mr)
+{
+    if (A_in.dims().is3D())
+        throw Error("imgaborfilt: A must be 2-D",
+                    0, 0, "imgaborfilt", "", "m:imgaborfilt:dim");
+    if (!(wavelength >= 2.0))
+        throw Error("imgaborfilt: wavelength must be >= 2",
+                    0, 0, "imgaborfilt", "", "m:imgaborfilt:wavelength");
+    if (!(sfb > 0))
+        throw Error("imgaborfilt: SpatialFrequencyBandwidth must be > 0",
+                    0, 0, "imgaborfilt", "", "m:imgaborfilt:sfb");
+    if (!(aspect > 0))
+        throw Error("imgaborfilt: SpatialAspectRatio must be > 0",
+                    0, 0, "imgaborfilt", "", "m:imgaborfilt:aspect");
+
+    const std::size_t M = A_in.dims().rows();
+    const std::size_t N = A_in.dims().cols();
+    const ValueType outT = (A_in.type() == ValueType::SINGLE)
+                            ? ValueType::SINGLE : ValueType::DOUBLE;
+
+    // Sigma parameters.
+    const double sigmaX = wavelength / M_PI * std::sqrt(std::log(2.0) / 2.0)
+                        * (std::pow(2.0, sfb) + 1.0)
+                        / (std::pow(2.0, sfb) - 1.0);
+    const double sigmaY = sigmaX / aspect;
+    const long Rx = static_cast<long>(std::ceil(7.0 * sigmaX));
+    const long Ry = static_cast<long>(std::ceil(7.0 * sigmaY));
+    const long r = std::max(Rx, Ry);
+
+    // Pad A to (M + 2r) x (N + 2r) with replicate.
+    const std::size_t Mp = M + 2 * r;
+    const std::size_t Np = N + 2 * r;
+    // Use existing padarray (filter.cpp) if available; fall back to manual.
+    Value Ad = Value::matrix(M, N, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < M * N; ++i) Ad.doubleDataMut()[i] = A_in.elemAsDouble(i);
+    std::vector<int> pad{static_cast<int>(r), static_cast<int>(r)};
+    Value Apad = padarray(Ad, pad, PadMode::Replicate, 0.0, "both", mr);
+
+    // FFT-2D of padded image.
+    Value Afft = signal::fft2(Apad, -1, -1, mr);
+    // Normalise Afft to COMPLEX storage.
+    const std::size_t Np_pix = Mp * Np;
+    std::pmr::vector<Complex> Afc(Np_pix, Complex{0, 0}, mr);
+    if (Afft.isComplex()) {
+        const Complex *src = Afft.complexData();
+        for (std::size_t i = 0; i < Np_pix; ++i) Afc[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < Np_pix; ++i)
+            Afc[i] = Complex{Afft.elemAsDouble(i), 0.0};
+    }
+
+    // Normalised frequency vectors u (length Np), v (length Mp).
+    auto freq_vec = [&](std::size_t Nlen, std::pmr::vector<double> &out) {
+        out.resize(Nlen);
+        if (Nlen == 1) { out[0] = 0.0; return; }
+        if (Nlen % 2 == 1) {
+            const double lo = -0.5 + 1.0 / (2.0 * Nlen);
+            const double hi =  0.5 - 1.0 / (2.0 * Nlen);
+            const double step = (hi - lo) / (Nlen - 1);
+            for (std::size_t i = 0; i < Nlen; ++i) out[i] = lo + step * i;
+        } else {
+            const double lo = -0.5;
+            const double hi = 0.5 - 1.0 / Nlen;
+            const double step = (hi - lo) / (Nlen - 1);
+            for (std::size_t i = 0; i < Nlen; ++i) out[i] = lo + step * i;
+        }
+    };
+    std::pmr::vector<double> u(mr), v(mr);
+    freq_vec(Np, u);
+    freq_vec(Mp, v);
+
+    const double theta_rad = orientation * M_PI / 180.0;
+    const double cosT = std::cos(theta_rad);
+    const double sinT = std::sin(theta_rad);
+    const double sigmau = 1.0 / (2.0 * M_PI * sigmaX);
+    const double sigmav = 1.0 / (2.0 * M_PI * sigmaY);
+    const double freq   = 1.0 / wavelength;
+    const double A_const = 2.0 * M_PI * sigmaX * sigmaY;
+
+    // Build H in COMPLEX domain (real values; imag = 0). Stored col-major:
+    // H(r, c) → c*Mp + r.
+    std::pmr::vector<double> H(Np_pix, 0.0, mr);
+    for (std::size_t c = 0; c < Np; ++c) {
+        const double uc = u[c];
+        for (std::size_t r2 = 0; r2 < Mp; ++r2) {
+            const double vc = v[r2];
+            const double Upr = uc * cosT - vc * sinT;
+            const double Vpr = uc * sinT + vc * cosT;
+            const double e = -0.5 * ((Upr - freq) * (Upr - freq) / (sigmau * sigmau)
+                                   + Vpr * Vpr / (sigmav * sigmav));
+            H[c * Mp + r2] = A_const * std::exp(e);
+        }
+    }
+
+    // ifftshift(H): for each dim, shift by floor(N/2) (no rounding).
+    // ifftshift is the inverse of fftshift; for even N it's identical.
+    // Easy impl: cyclic shift each dim by -floor(N/2) (which equals
+    // shift right by ceil(N/2) when going from "0 at center" to "0 at origin").
+    auto ifftshift_2d = [&](const std::pmr::vector<double> &in,
+                            std::pmr::vector<double> &out) {
+        out.resize(Np_pix);
+        const std::size_t shR = (Mp + 1) / 2;  // ifftshift uses ceil(N/2)? No, ifftshift = shift by -floor(N/2)
+        // Actually ifftshift: shift_amt = -floor(N/2). Forward circular shift by N - floor(N/2) = ceil(N/2).
+        // So output(i) = input((i + floor(N/2)) mod N). For ifftshift it's input((i + ceil(N/2)) mod N).
+        // Let me just go with: output(i + (N - floor(N/2))) % N = input(i).
+        // Equivalent: out[i] = in[(i + floor(N/2)) mod N] for fftshift, out[i] = in[(i + ceil(N/2)) mod N] for ifftshift.
+        const std::size_t shR_eff = Mp / 2;          // floor(Mp/2) for fftshift
+        const std::size_t shC_eff = Np / 2;
+        // ifftshift = inverse of fftshift. For ifftshift, the shift amount equals (N - floor(N/2)) = ceil(N/2):
+        const std::size_t aR = Mp - shR_eff;
+        const std::size_t aC = Np - shC_eff;
+        for (std::size_t c = 0; c < Np; ++c) {
+            const std::size_t cs = (c + aC) % Np;
+            for (std::size_t r2 = 0; r2 < Mp; ++r2) {
+                const std::size_t rs = (r2 + aR) % Mp;
+                out[c * Mp + r2] = in[cs * Mp + rs];
+            }
+        }
+    };
+    std::pmr::vector<double> Hshift(mr);
+    ifftshift_2d(H, Hshift);
+
+    // Multiply: prod = Afc .* Hshift (real-valued H).
+    std::pmr::vector<Complex> prod(Np_pix, Complex{0, 0}, mr);
+    for (std::size_t i = 0; i < Np_pix; ++i) {
+        prod[i] = Complex{Afc[i].real() * Hshift[i],
+                          Afc[i].imag() * Hshift[i]};
+    }
+
+    // ifft2.
+    Value Prod = Value::matrix(Mp, Np, ValueType::COMPLEX, mr);
+    Complex *pp = Prod.complexDataMut();
+    for (std::size_t i = 0; i < Np_pix; ++i) pp[i] = prod[i];
+    Value Out = signal::ifft2(Prod, -1, -1, mr);
+
+    // Output is complex; if accidentally collapsed to DOUBLE (real-symmetric),
+    // pad imag = 0.
+    auto out_at = [&](std::size_t i) -> Complex {
+        if (Out.isComplex()) return Out.complexData()[i];
+        return Complex{Out.elemAsDouble(i), 0.0};
+    };
+
+    // Unpad: take rows [r, r+M-1] cols [r, r+N-1].
+    mag_out = Value::matrix(M, N, outT, mr);
+    phase_out = Value::matrix(M, N, outT, mr);
+    for (std::size_t c = 0; c < N; ++c) {
+        for (std::size_t rr = 0; rr < M; ++rr) {
+            const std::size_t src = (c + r) * Mp + (rr + r);
+            const Complex z = out_at(src);
+            const double m = std::hypot(z.real(), z.imag());
+            const double p = std::atan2(z.imag(), z.real());
+            const std::size_t dst = c * M + rr;
+            if (outT == ValueType::DOUBLE) {
+                mag_out.doubleDataMut()[dst]   = m;
+                phase_out.doubleDataMut()[dst] = p;
+            } else {
+                mag_out.singleDataMut()[dst]   = static_cast<float>(m);
+                phase_out.singleDataMut()[dst] = static_cast<float>(p);
+            }
+        }
+    }
+}
+
 namespace detail {
 
 void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -3002,6 +3189,48 @@ void colfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
     const std::string kind = args[bi].toString();
     const Value &fn = args[bi + 1];
     outs[0] = colfilt(*ctx.engine, args[0], m, n, kind, fn, indexed, mr);
+}
+
+void imgaborfilt_reg(Span<const Value> args, std::size_t nargout,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("imgaborfilt: requires (A, wavelength, orientation "
+                    "[, NV...]) — gabor() bank form not supported",
+                    0, 0, "imgaborfilt", "", "m:imgaborfilt:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    const Value &A = args[0];
+    const double wavelength  = args[1].toScalar();
+    const double orientation = args[2].toScalar();
+    double sfb = 1.0;
+    double aspect = 0.5;
+
+    std::size_t i = 3;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("imgaborfilt: expected NV-pair name",
+                        0, 0, "imgaborfilt", "", "m:imgaborfilt:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "spatialfrequencybandwidth")
+            sfb = args[i + 1].toScalar();
+        else if (nlo == "spatialaspectratio")
+            aspect = args[i + 1].toScalar();
+        else
+            throw Error("imgaborfilt: unknown option '" + name + "'",
+                        0, 0, "imgaborfilt", "",
+                        "m:imgaborfilt:unknownNv");
+        i += 2;
+    }
+    Value mag, phase;
+    imgaborfilt(A, wavelength, orientation, sfb, aspect, mag, phase, mr);
+    outs[0] = std::move(mag);
+    if (nargout >= 2) outs[1] = std::move(phase);
 }
 
 void imdiffusefilt_reg(Span<const Value> args, std::size_t /*nargout*/,
