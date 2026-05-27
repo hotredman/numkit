@@ -975,6 +975,145 @@ Value graydist(const Value &I, const Value &seeds,
     return T;
 }
 
+// ── bwdistgeodesic (binary geodesic distance transform) ─────────
+//
+// Like graydist but the underlying image is a binary mask BW —
+// only true pixels are traversable and the edge cost reduces to
+// the raw chamfer χ(p, q). Output:
+//   * 0     at seed pixels,
+//   * finite at reachable traversable pixels,
+//   * NaN   at false (non-traversable) pixels,
+//   * Inf   at traversable but unreachable pixels.
+// Output class is always SINGLE.
+//
+// Reference: P. Soille, *Morphological Image Analysis* §4.4.
+Value bwdistgeodesic(const Value &BW, const Value &seeds,
+                     const std::string &method,
+                     std::pmr::memory_resource *mr)
+{
+    if (BW.dims().is3D())
+        throw Error("bwdistgeodesic: BW must be 2-D",
+                    0, 0, "bwdistgeodesic", "",
+                    "m:bwdistgeodesic:dim");
+    const bool is_cb = (method == "cityblock");
+    const bool is_chess = (method == "chessboard");
+    const bool is_qe = (method == "quasi-euclidean");
+    if (!is_cb && !is_chess && !is_qe)
+        throw Error("bwdistgeodesic: METHOD must be 'cityblock', "
+                    "'chessboard', or 'quasi-euclidean'",
+                    0, 0, "bwdistgeodesic", "",
+                    "m:bwdistgeodesic:method");
+
+    const std::size_t H = BW.dims().rows();
+    const std::size_t W = BW.dims().cols();
+    const std::size_t N = H * W;
+
+    Value D = Value::matrix(H, W, ValueType::SINGLE, mr);
+    if (N == 0) return D;
+
+    // Read BW into uint8 array for fast access.
+    std::pmr::vector<std::uint8_t> mask(N, 0, mr);
+    const bool isLog = BW.isLogical();
+    for (std::size_t i = 0; i < N; ++i) {
+        const bool on = isLog ? (BW.logicalData()[i] != 0)
+                              : (BW.elemAsDouble(i) != 0.0);
+        mask[i] = on ? 1 : 0;
+    }
+
+    // Initialise: NaN for false, +Inf for true.
+    float *dp = D.singleDataMut();
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+    for (std::size_t i = 0; i < N; ++i)
+        dp[i] = mask[i] ? inf : nan;
+
+    if (seeds.numel() == 0) return D;
+
+    // Working DOUBLE buffer for Dijkstra precision.
+    std::pmr::vector<double> dist(N, std::numeric_limits<double>::infinity(), mr);
+
+    using PQNode = std::pair<double, std::size_t>;
+    auto cmp = [](const PQNode &a, const PQNode &b) { return a.first > b.first; };
+    std::priority_queue<PQNode, std::vector<PQNode>, decltype(cmp)> pq(cmp);
+
+    // Seeds: validate, then set dist=0.
+    for (std::size_t k = 0; k < seeds.numel(); ++k) {
+        const double sv = seeds.elemAsDouble(k);
+        if (!(sv >= 1) || sv != std::floor(sv))
+            throw Error("bwdistgeodesic: seed indices must be positive "
+                        "integers",
+                        0, 0, "bwdistgeodesic", "",
+                        "m:bwdistgeodesic:seed");
+        const std::size_t idx = static_cast<std::size_t>(sv) - 1;
+        if (idx >= N)
+            throw Error("bwdistgeodesic: seed index out of bounds",
+                        0, 0, "bwdistgeodesic", "",
+                        "m:bwdistgeodesic:seedOOB");
+        if (!mask[idx])
+            throw Error("bwdistgeodesic: seed must lie on a true pixel",
+                        0, 0, "bwdistgeodesic", "",
+                        "m:bwdistgeodesic:seedFalse");
+        dist[idx] = 0.0;
+        pq.emplace(0.0, idx);
+    }
+
+    struct Step { int dr, dc; double chamfer; };
+    std::array<Step, 8> steps8{};
+    int nSteps = 0;
+    if (is_cb) {
+        steps8 = {Step{-1, 0, 1.0}, Step{1, 0, 1.0},
+                  Step{0, -1, 1.0}, Step{0, 1, 1.0},
+                  Step{}, Step{}, Step{}, Step{}};
+        nSteps = 4;
+    } else if (is_chess) {
+        steps8 = {Step{-1, 0, 1.0}, Step{1, 0, 1.0},
+                  Step{0, -1, 1.0}, Step{0, 1, 1.0},
+                  Step{-1, -1, 1.0}, Step{-1, 1, 1.0},
+                  Step{1, -1, 1.0},  Step{1, 1, 1.0}};
+        nSteps = 8;
+    } else {
+        const double s2 = std::sqrt(2.0);
+        steps8 = {Step{-1, 0, 1.0}, Step{1, 0, 1.0},
+                  Step{0, -1, 1.0}, Step{0, 1, 1.0},
+                  Step{-1, -1, s2}, Step{-1, 1, s2},
+                  Step{1, -1, s2},  Step{1, 1, s2}};
+        nSteps = 8;
+    }
+
+    while (!pq.empty()) {
+        auto [d, k] = pq.top();
+        pq.pop();
+        if (d > dist[k]) continue;
+        const std::size_t r = k % H;
+        const std::size_t c = k / H;
+        for (int s = 0; s < nSteps; ++s) {
+            const long nr = static_cast<long>(r) + steps8[s].dr;
+            const long nc = static_cast<long>(c) + steps8[s].dc;
+            if (nr < 0 || nc < 0
+             || static_cast<std::size_t>(nr) >= H
+             || static_cast<std::size_t>(nc) >= W) continue;
+            const std::size_t nk = static_cast<std::size_t>(nc) * H
+                                 + static_cast<std::size_t>(nr);
+            if (!mask[nk]) continue;  // can't traverse barrier
+            const double nd = d + steps8[s].chamfer;
+            if (nd < dist[nk]) {
+                dist[nk] = nd;
+                pq.emplace(nd, nk);
+            }
+        }
+    }
+
+    // Write reachable distances back; leave NaN at false pixels and
+    // Inf at unreachable true pixels.
+    for (std::size_t i = 0; i < N; ++i) {
+        if (!mask[i]) continue;          // NaN preserved
+        if (!std::isinf(dist[i]))
+            dp[i] = static_cast<float>(dist[i]);
+        // else: already Inf from initialisation
+    }
+    return D;
+}
+
 Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::memory_resource *mr)
 {
     if (color.numel() != 3)
@@ -1505,6 +1644,80 @@ void graydist_reg(Span<const Value> a, size_t, Span<Value> o,
     for (std::size_t i = 0; i < indices.size(); ++i)
         seedVec.doubleDataMut()[i] = indices[i];
     o[0] = graydist(A, seedVec, method, mr);
+}
+
+// bwdistgeodesic adapter — same input parsing as graydist.
+void bwdistgeodesic_reg(Span<const Value> a, size_t, Span<Value> o,
+                        CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("bwdistgeodesic: requires (BW, mask | ind | C, R "
+                    "[, method])",
+                    0, 0, "bwdistgeodesic", "",
+                    "m:bwdistgeodesic:nargin");
+    auto *mr = c.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    std::string method = "chessboard";
+    std::size_t nargs = a.size();
+    if (is_string(a[nargs - 1])) {
+        method = a[nargs - 1].toString();
+        std::string lo;
+        for (char ch : method)
+            lo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        method = lo;
+        --nargs;
+    }
+
+    const Value &BW = a[0];
+    const std::size_t H = BW.dims().rows();
+    const std::size_t W = BW.dims().cols();
+
+    std::pmr::vector<double> indices(mr);
+    if (nargs == 2) {
+        const Value &arg2 = a[1];
+        if (arg2.isLogical()) {
+            if (arg2.numel() != H * W)
+                throw Error("bwdistgeodesic: MASK must be the same size as BW",
+                            0, 0, "bwdistgeodesic", "",
+                            "m:bwdistgeodesic:maskSize");
+            const std::uint8_t *m = arg2.logicalData();
+            for (std::size_t i = 0; i < arg2.numel(); ++i)
+                if (m[i]) indices.push_back(static_cast<double>(i + 1));
+        } else {
+            indices.reserve(arg2.numel());
+            for (std::size_t i = 0; i < arg2.numel(); ++i)
+                indices.push_back(arg2.elemAsDouble(i));
+        }
+    } else if (nargs == 3) {
+        const Value &C = a[1];
+        const Value &R = a[2];
+        if (C.numel() != R.numel())
+            throw Error("bwdistgeodesic: C and R must have equal length",
+                        0, 0, "bwdistgeodesic", "",
+                        "m:bwdistgeodesic:cr");
+        indices.reserve(C.numel());
+        for (std::size_t i = 0; i < C.numel(); ++i) {
+            const std::size_t cc = static_cast<std::size_t>(C.elemAsDouble(i));
+            const std::size_t rr = static_cast<std::size_t>(R.elemAsDouble(i));
+            if (cc < 1 || cc > W || rr < 1 || rr > H)
+                throw Error("bwdistgeodesic: (C, R) out of bounds",
+                            0, 0, "bwdistgeodesic", "",
+                            "m:bwdistgeodesic:crBounds");
+            const std::size_t lin = (cc - 1) * H + rr;
+            indices.push_back(static_cast<double>(lin));
+        }
+    } else {
+        throw Error("bwdistgeodesic: too many positional arguments",
+                    0, 0, "bwdistgeodesic", "",
+                    "m:bwdistgeodesic:nargin");
+    }
+
+    Value seedVec = Value::matrix(indices.size(), 1, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < indices.size(); ++i)
+        seedVec.doubleDataMut()[i] = indices[i];
+    o[0] = bwdistgeodesic(BW, seedVec, method, mr);
 }
 
 void poly2mask_reg(Span<const Value> a, size_t, Span<Value> o,

@@ -1937,7 +1937,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwconncomp` | ✅ | 0.003 | 45.72× |  | OK | Sig: cc = bwconncomp(BW[, conn]). Returns 1x1 struct with fields {Connectivity, ImageSize, NumObjects, PixelIdxList}. PixelIdxList is 1xK cell of column-vector linear indices. Bit-identical with MATLAB R2025b. |
 | `bwconvhull` | ❌ |  |  |  |  |  |
 | `bwdist` | ✅ | 0.003 | 214.42× |  | OK | Sig: r = bwdist(...). Spec-extension batch 2026-05-09. |
-| `bwdistgeodesic` | ❌ |  |  |  |  |  |
+| `bwdistgeodesic` | ✅ | 0.018 | 121.07× |  | OK | Sig: D = bwdistgeodesic(BW, mask|C,R|ind [, method]). Branches: 3 methods (cityblock/chessboard/quasi-euclidean), 4 input forms (mask, ind, (C,R), default method), barrier (NaN at false pixels), unreachable (Inf at disconnected reachable pixels). Output always SINGLE. Algorithm: Dijkstra over true-pixel subgraph with chamfer edge weights. Reference: Soille, *Morphological Image Analysis*, 2nd ed., §4.4. Image namespace 2026-05-27. |
 | `bweuler` | ✅ | 0.002 | 714.04× |  | OK | Sig: r = bweuler(...). Spec-extension batch 2026-05-09. |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |
 | `bwlabel` | ✅ | 0.002 | 60.17× |  | OK | Sig: r = bwlabel(...). Spec-extension batch 2026-05-09. |
