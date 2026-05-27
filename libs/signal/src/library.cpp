@@ -144,6 +144,8 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 void goertzel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void dct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void idct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void fwht_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void ifwht_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 // transforms/extras.cpp (E2)
 void dftmtx_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bitrevorder_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -317,6 +319,8 @@ void SignalLibrary::install(Engine &engine)
     reg("transforms", "interpft",  &signal::detail::interpft_reg);
     reg("transforms", "dct",       &signal::detail::dct_reg);
     reg("transforms", "idct",      &signal::detail::idct_reg);
+    reg("transforms", "fwht",      &signal::detail::fwht_reg);
+    reg("transforms", "ifwht",     &signal::detail::ifwht_reg);
     reg("transforms", "hilbert",   &signal::detail::hilbert_reg);
     reg("transforms", "envelope",  &signal::detail::envelope_reg);
     reg("transforms", "goertzel",  &signal::detail::goertzel_reg);
