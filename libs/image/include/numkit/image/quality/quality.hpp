@@ -146,4 +146,42 @@ Value multissim(const Value &A, const Value &Iref,
                 std::vector<Value> *quality_maps_out,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief 3-D multi-scale SSIM
+/// (`[score, qmaps] = multissim3(V, Vref, ...)`).
+///
+/// Volumetric extension of @ref multissim. Per-scale SSIM with the
+/// same formula but with all spatial operations (Gaussian smoothing,
+/// `2 × 2 × 2 / 8` box lowpass, factor-2 downsample) applied along
+/// rows, columns, AND slices. The Gaussian filter is separable and
+/// applied as three successive 1-D convolutions along each spatial
+/// axis with `filtSize = 2·ceil(3·sigma) + 1` (covers ≥99.7% of
+/// kernel mass). Replicate boundary.
+///
+/// Pipeline: identical to @ref multissim except all dimensions are
+/// downsampled per scale.
+///
+/// Reference: Wang, Z., Simoncelli, E.P., & Bovik, A.C. (2003).
+///   Multiscale structural similarity for image quality assessment.
+///   Asilomar Conf. on Signals, Systems & Computers.
+///
+/// @param V                 Input volume (`H × W × D`, grayscale).
+/// @param Vref              Reference volume (same class and size).
+/// @param num_scales        Pyramid depth (default 5).
+/// @param scale_weights     Per-scale weights (empty → default
+///                          Gaussian weights).
+/// @param sigma             Gaussian σ (default 1.5).
+/// @param dynamic_range     L (-1.0 = class default).
+/// @param quality_maps_out  Optional output: per-scale ssim maps
+///                          (length `num_scales`, each `H_i × W_i ×
+///                          D_i` DOUBLE).
+/// @param mr                Memory resource (nullptr → default).
+/// @return                  Scalar score (DOUBLE for double inputs,
+///                          SINGLE otherwise).
+Value multissim3(const Value &V, const Value &Vref,
+                 int num_scales,
+                 const std::vector<double> &scale_weights,
+                 double sigma, double dynamic_range,
+                 std::vector<Value> *quality_maps_out,
+                 std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image
