@@ -221,6 +221,7 @@ void phantom_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void psf2otf_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void otf2psf_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void deconvwnr_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void deconvreg_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void edgetaper_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fftconv2_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bestblk_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -474,6 +475,7 @@ void ImageLibrary::install(Engine &engine)
     reg("transform", "psf2otf",       &image::detail::psf2otf_reg);
     reg("transform", "otf2psf",       &image::detail::otf2psf_reg);
     reg("transform", "deconvwnr",     &image::detail::deconvwnr_reg);
+    reg("transform", "deconvreg",     &image::detail::deconvreg_reg);
     reg("transform", "edgetaper",     &image::detail::edgetaper_reg);
     reg("transform", "fftconv2",      &image::detail::fftconv2_reg);
     reg("transform", "bestblk",       &image::detail::bestblk_reg);

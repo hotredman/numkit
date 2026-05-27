@@ -164,6 +164,47 @@ Value deconvwnr(const Value &I, const Value &PSF,
                 const Value &ncorr, const Value &icorr,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Tikhonov-regularized deconvolution (`J = deconvreg(I, PSF, NP)`,
+/// `[J,LAGRA] = deconvreg(I, PSF, NP, LRANGE, REGOP)`).
+///
+/// Solves the constrained least-squares problem
+///   @f$ \min_J \lVert I - h*J \rVert^2 \; \text{s.t.} \; \lVert C*J \rVert^2 \le \text{NP} @f$
+/// where `C` is the regularization operator (default = 2-D Laplacian,
+/// `[0 1 0; 1 -4 1; 0 1 0]`). In the frequency domain
+///   @f$ J(k) = \frac{\overline{H(k)} \, I(k)}
+///                   {|H(k)|^2 + \lambda \, |C(k)|^2 + \sqrt{\epsilon}} @f$
+/// with `λ` (LAGRA) chosen so the residual power matches NP
+/// (Parseval's theorem). The Lagrange multiplier is found by
+/// fminbnd within `LRANGE = [lo hi]` (default `[1e-9, 1e9]`); a
+/// scalar `LRANGE` fixes `λ = LRANGE` and skips the search.
+///
+/// References: Gonzalez & Woods, *Digital Image Processing*,
+/// 3rd ed., §5.9; A. K. Jain, *Fundamentals of Digital Image
+/// Processing*, 1989.
+///
+/// 2-D inputs only (3-D PSF throws); per-page processing for 3-D
+/// images sharing a 2-D PSF. PSF must have ≥2 elements and not be
+/// all-zero. NP must be a finite non-negative scalar. Output class
+/// equals input class (uint8/uint16/int16/single rescaled and
+/// cast back).
+///
+/// @param I       2-D blurred image.
+/// @param PSF     Point-spread function (2-D, ≥2 elements).
+/// @param np      Noise power (default 0).
+/// @param lo,hi   LRANGE search bounds; pass `lo==hi` to fix LAGRA.
+/// @param regop   Custom regularization operator (`Value::Empty()`
+///                → default 2-D Laplacian).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        `{J, lagra}` — deblurred image and Lagrange λ.
+struct DeconvregResult {
+    Value  J;
+    double lagra;
+};
+DeconvregResult deconvreg(const Value &I, const Value &PSF,
+                          double np, double lo, double hi,
+                          const Value &regop,
+                          std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Taper image edges via blur (`J = edgetaper(I, PSF)`).
 ///
 /// Reduces FFT ringing in deblurring methods that use the DFT
