@@ -242,6 +242,7 @@ void graydiffweight_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gradientweight_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void regionfill_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poly2mask_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void roipoly_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // geom/geom.cpp
 void imresize_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -506,6 +507,7 @@ void ImageLibrary::install(Engine &engine)
     reg("segment", "gradientweight",&image::detail::gradientweight_reg);
     reg("segment", "regionfill",    &image::detail::regionfill_reg);
     reg("segment", "poly2mask",     &image::detail::poly2mask_reg);
+    reg("segment", "roipoly",       &image::detail::roipoly_reg);
 }
 
 } // namespace numkit

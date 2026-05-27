@@ -1784,7 +1784,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `regionfill` | ✅ | 0.011 | 210.10× |  | OK | Sig: J = regionfill(I, MASK). Branches: single-pixel interior mask, 3x3 interior mask, larger (4x4) mask on magic(10), edge-touching mask (3-neighbour stencil at borders). MATLAB uses sparse direct (UMFPACK); numkit uses conjugate gradient at tol 1e-12, both converge to same machine-precision Laplacian solution. (I, X, Y) polygon form requires poly2mask (deferred to its own cycle). Algorithm: discrete Laplacian Dirichlet BVP (Gonzalez & Woods §3.4; NR §2.7). Image namespace 2026-05-27. |
 | `roicolor` | ✅ | 0.003 | 67.89× | 49.52× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |
 | `roifill` | ❌ |  |  |  |  | legacy alias |
-| `roipoly` | ❌ |  |  |  |  |  |
+| `roipoly` | ✅ | 0.021 | 101.84× |  | OK | Sig: BW = roipoly(...). Branches: 3-arg (A, xi, yi), 4-arg (M, N, xi, yi), 5-arg world-coords (x, y, A, xi, yi), 5-arg identity extents, 6-arg (x, y, M, N, xi, yi), 2-output with auto-closed xi return, 5-output (xdata, ydata, BW, xi, yi). Implementation: auto-close polygon, axes2pix world→pixel, then poly2mask. Interactive forms (0/1/2-arg) throw. Image namespace 2026-05-27. |
 
 ### Morphological Operations
 

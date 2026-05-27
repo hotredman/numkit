@@ -34,4 +34,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/gradientweight_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regionfill_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/poly2mask_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/roipoly_test.cpp
 )
