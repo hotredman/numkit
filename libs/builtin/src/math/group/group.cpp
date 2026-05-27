@@ -26,7 +26,10 @@ namespace {
 // elemAsDouble (CHAR / LOGICAL fall through naturally).
 //
 // out_groups[i] is the group id of g[i]; out_unique is the sorted
-// unique value list (length = max(out_groups)).
+// unique value list (length = max(out_groups)). NaN entries get
+// out_groups[i] = 0 (sentinel for "missing"). The caller decides
+// what to do with them (findgroups → NaN; groupcounts → trailing
+// NaN bucket).
 void groupOf(const Value &g, std::vector<std::size_t> &out_groups,
              std::vector<double> &out_unique)
 {
@@ -36,7 +39,13 @@ void groupOf(const Value &g, std::vector<std::size_t> &out_groups,
 
     std::vector<double> vals(n);
     for (std::size_t i = 0; i < n; ++i) vals[i] = g.elemAsDouble(i);
-    std::vector<double> sorted = vals;
+
+    // Build sorted-unique list of finite values (skip NaN — handled
+    // separately by callers).
+    std::vector<double> sorted;
+    sorted.reserve(n);
+    for (double v : vals)
+        if (!std::isnan(v)) sorted.push_back(v);
     std::sort(sorted.begin(), sorted.end());
     sorted.erase(std::unique(sorted.begin(), sorted.end(),
                               [](double a, double b) {
@@ -44,6 +53,7 @@ void groupOf(const Value &g, std::vector<std::size_t> &out_groups,
                               }), sorted.end());
     out_unique = sorted;
     for (std::size_t i = 0; i < n; ++i) {
+        if (std::isnan(vals[i])) { out_groups[i] = 0; continue; }
         const auto it = std::lower_bound(sorted.begin(), sorted.end(), vals[i]);
         out_groups[i] = (std::size_t)(it - sorted.begin()) + 1;   // 1-based
     }
@@ -54,7 +64,8 @@ void groupOf(const Value &g, std::vector<std::size_t> &out_groups,
 // ── findgroups ───────────────────────────────────────────────────────
 // [G, ID] = findgroups(g) — G[i] is the group ID of g[i] (1-based,
 // based on sorted-unique order); ID is the column vector of unique
-// values, ID[k] = group k's representative.
+// non-NaN values. NaN entries in g map to G[i]=NaN (matches MATLAB
+// R2025b: NaN treated as missing, not a group).
 void findgroups_reg(Span<const Value> args, size_t nargout,
                     Span<Value> outs, CallContext &ctx)
 {
@@ -68,8 +79,9 @@ void findgroups_reg(Span<const Value> args, size_t nargout,
     auto G = Value::matrix(args[0].dims().rows(), args[0].dims().cols(),
                            ValueType::DOUBLE, mr);
     double *gd = G.doubleDataMut();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
     for (std::size_t i = 0; i < groups.size(); ++i)
-        gd[i] = (double)groups[i];
+        gd[i] = (groups[i] == 0) ? nan : double(groups[i]);
     outs[0] = std::move(G);
     if (nargout >= 2) {
         auto ID = Value::matrix(uniqueVals.size(), 1, ValueType::DOUBLE, mr);
@@ -138,9 +150,12 @@ void splitapply_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 // ── groupcounts ──────────────────────────────────────────────────────
-// counts = groupcounts(g) — column vector of counts, one entry per
-// unique value of g (in sorted order).
-void groupcounts_reg(Span<const Value> args, size_t /*nargout*/,
+// [C, GR, P] = groupcounts(g)
+//   C  — column vector of counts, one entry per unique value of g.
+//   GR — column of representative values (sorted-unique; NaN trailing
+//        if g contains any NaN, matching MATLAB R2025b).
+//   P  — column of percentages (100 * count / total).
+void groupcounts_reg(Span<const Value> args, size_t nargout,
                      Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
@@ -150,17 +165,45 @@ void groupcounts_reg(Span<const Value> args, size_t /*nargout*/,
     std::vector<std::size_t> groups;
     std::vector<double> uniqueVals;
     groupOf(args[0], groups, uniqueVals);
-    if (uniqueVals.empty()) {
+    // Count NaN entries separately.
+    std::size_t nan_count = 0;
+    for (auto g : groups) if (g == 0) ++nan_count;
+    const bool have_nan = nan_count > 0;
+    const std::size_t nGroups = uniqueVals.size() + (have_nan ? 1 : 0);
+    if (nGroups == 0) {
         outs[0] = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        if (nargout >= 2) outs[1] = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        if (nargout >= 3) outs[2] = Value::matrix(0, 1, ValueType::DOUBLE, mr);
         return;
     }
-    std::vector<std::size_t> counts(uniqueVals.size(), 0);
-    for (auto g : groups) counts[g - 1]++;
-    auto out = Value::matrix(counts.size(), 1, ValueType::DOUBLE, mr);
+    std::vector<std::size_t> counts(nGroups, 0);
+    for (auto g : groups) {
+        if (g == 0)        counts[uniqueVals.size()]++;  // trailing NaN bucket
+        else               counts[g - 1]++;
+    }
+    auto out = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
-    for (std::size_t i = 0; i < counts.size(); ++i)
-        dst[i] = (double)counts[i];
+    for (std::size_t i = 0; i < nGroups; ++i)
+        dst[i] = double(counts[i]);
     outs[0] = std::move(out);
+
+    if (nargout >= 2) {
+        auto GR = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+        double *gd = GR.doubleDataMut();
+        for (std::size_t i = 0; i < uniqueVals.size(); ++i)
+            gd[i] = uniqueVals[i];
+        if (have_nan)
+            gd[uniqueVals.size()] = std::numeric_limits<double>::quiet_NaN();
+        outs[1] = std::move(GR);
+    }
+    if (nargout >= 3) {
+        const double total = double(groups.size());
+        auto P = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+        double *pd = P.doubleDataMut();
+        for (std::size_t i = 0; i < nGroups; ++i)
+            pd[i] = (total > 0.0) ? 100.0 * double(counts[i]) / total : 0.0;
+        outs[2] = std::move(P);
+    }
 }
 
 } // namespace detail

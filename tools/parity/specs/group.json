@@ -1,0 +1,21 @@
+{
+  "name": "group",
+  "namespace": "builtin",
+  "covers": ["findgroups", "groupcounts"],
+  "setup": "g = [10; 20; 10; 30; 20; 10; 30]; g2 = [1; 2; NaN; 1; NaN; 3];",
+  "expr": "[G1, ID1] = findgroups(g); [G2, ID2] = findgroups(g2); [C1, GR1, P1] = groupcounts(g); [C2, GR2] = groupcounts(g2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "G1(1)", "G1(2)", "G1(4)", "G1(7)",
+    "ID1(1)", "ID1(2)", "ID1(3)",
+    "double(isnan(G2(3)))", "double(isnan(G2(5)))",
+    "size(ID2,1)",
+    "C1(1)", "C1(2)", "C1(3)",
+    "GR1(1)", "GR1(2)", "GR1(3)",
+    "P1(1)", "P1(2)",
+    "C2(1)", "C2(2)", "C2(3)", "C2(4)",
+    "GR2(1)", "GR2(3)", "double(isnan(GR2(4)))"
+  ],
+  "comment": "findgroups + groupcounts — basic group ID assignment + NaN handling (NaN entries → G=NaN in findgroups; trailing NaN bucket in groupcounts). Extended outputs: groupcounts 2-out returns GR (representative values), 3-out adds P (percentage). MATLAB R2025b convention."
+}
