@@ -249,7 +249,17 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 // pseudo_subspace.cpp (group 4 of the libs/linalg extraction).
 // Block below kept disabled until cleanup pass.
 
-Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
+// Extended topkrows. `cols` is the 0-indexed list of columns to sort by
+// (priority order — first column is primary key, etc.). If `cols` is
+// empty, sort by every column in order. `desc[j]` selects descending
+// (true) vs ascending (false) for `cols[j]`. `out_idx` (optional, may
+// be nullptr) receives the 0-indexed selected rows for the 2-output
+// form. Stable on full ties.
+Value topkrows_full(const Value &A, std::size_t k,
+                    const std::vector<std::size_t> &colsIn,
+                    const std::vector<std::uint8_t> &descIn,
+                    std::vector<std::size_t> *out_idx,
+                    std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("topkrows: input must be a 2D matrix",
@@ -258,29 +268,89 @@ Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t kk = std::min(k, m);
 
-    // Build a row-index vector and sort it by lexicographic-descending
-    // comparison of A's rows on every column.
+    // Resolve cols / desc defaults.
+    std::vector<std::size_t> cols;
+    std::vector<std::uint8_t> desc;
+    if (colsIn.empty()) {
+        cols.reserve(n);
+        for (std::size_t j = 0; j < n; ++j) cols.push_back(j);
+    } else {
+        cols = colsIn;
+    }
+    if (descIn.size() == 1) {
+        desc.assign(cols.size(), descIn[0]);
+    } else if (descIn.empty()) {
+        desc.assign(cols.size(), 1);  // default descend
+    } else if (descIn.size() == cols.size()) {
+        desc = descIn;
+    } else {
+        throw Error("topkrows: direction must be a scalar or match the "
+                    "length of col",
+                    0, 0, "topkrows", "", "m:topkrows:dirSize");
+    }
+    for (std::size_t j : cols)
+        if (j >= n)
+            throw Error("topkrows: column index out of range",
+                        0, 0, "topkrows", "", "m:topkrows:badCol");
+
     ScratchArena scratch(mr);
     ScratchVec<std::size_t> idx(m, &scratch);
     for (std::size_t i = 0; i < m; ++i) idx[i] = i;
-    const double *p = A.doubleData();
-    std::sort(idx.begin(), idx.end(),
-              [&](std::size_t a, std::size_t b) {
-                  for (std::size_t j = 0; j < n; ++j) {
-                      const double va = p[a + j * m];
-                      const double vb = p[b + j * m];
-                      if (va > vb) return true;
-                      if (va < vb) return false;
-                  }
-                  return false;  // tie
-              });
 
-    auto out = Value::matrix(kk, n, ValueType::DOUBLE, mr);
-    double *q = out.doubleDataMut();
-    for (std::size_t i = 0; i < kk; ++i)
-        for (std::size_t j = 0; j < n; ++j)
-            q[i + j * kk] = p[idx[i] + j * m];
+    // Use elemAsDouble for any-class input.
+    auto elem = [&](std::size_t r, std::size_t c) {
+        return A.elemAsDouble(r + c * m);
+    };
+    std::stable_sort(idx.begin(), idx.end(),
+        [&](std::size_t a, std::size_t b) {
+            for (std::size_t k2 = 0; k2 < cols.size(); ++k2) {
+                const std::size_t j = cols[k2];
+                const double va = elem(a, j);
+                const double vb = elem(b, j);
+                if (va == vb) continue;
+                const bool a_first = desc[k2] ? (va > vb) : (va < vb);
+                return a_first;
+            }
+            return false;  // total tie → stable order
+        });
+
+    // Preserve element class.
+    auto out = (n == 0) ? Value::matrix(kk, 0, A.type(), mr)
+                        : Value::matrix(kk, n, A.type(), mr);
+    for (std::size_t i = 0; i < kk; ++i) {
+        const std::size_t r = idx[i];
+        for (std::size_t j = 0; j < n; ++j) {
+            const std::size_t src_lin = r + j * m;
+            const std::size_t dst_lin = i + j * kk;
+            // Class-preserving copy.
+            switch (A.type()) {
+                case ValueType::DOUBLE: out.doubleDataMut()[dst_lin] = A.doubleData()[src_lin]; break;
+                case ValueType::SINGLE: out.singleDataMut()[dst_lin] = A.singleData()[src_lin]; break;
+                case ValueType::UINT8:  out.uint8DataMut()[dst_lin]  = A.uint8Data()[src_lin];  break;
+                case ValueType::UINT16: out.uint16DataMut()[dst_lin] = A.uint16Data()[src_lin]; break;
+                case ValueType::UINT32: out.uint32DataMut()[dst_lin] = A.uint32Data()[src_lin]; break;
+                case ValueType::UINT64: out.uint64DataMut()[dst_lin] = A.uint64Data()[src_lin]; break;
+                case ValueType::INT8:   out.int8DataMut()[dst_lin]   = A.int8Data()[src_lin];   break;
+                case ValueType::INT16:  out.int16DataMut()[dst_lin]  = A.int16Data()[src_lin];  break;
+                case ValueType::INT32:  out.int32DataMut()[dst_lin]  = A.int32Data()[src_lin];  break;
+                case ValueType::INT64:  out.int64DataMut()[dst_lin]  = A.int64Data()[src_lin];  break;
+                case ValueType::LOGICAL: out.logicalDataMut()[dst_lin] = A.logicalData()[src_lin]; break;
+                default:
+                    out.doubleDataMut()[dst_lin] = elem(r, j);
+                    break;
+            }
+        }
+    }
+    if (out_idx) {
+        out_idx->resize(kk);
+        for (std::size_t i = 0; i < kk; ++i) (*out_idx)[i] = idx[i];
+    }
     return out;
+}
+
+Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
+{
+    return topkrows_full(A, k, {}, {}, nullptr, mr);
 }
 
 // ── Toeplitz / Hankel / Vandermonde / Companion ─────────────────────
@@ -2435,16 +2505,72 @@ void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 //       expm_reg / logm_reg / sqrtm_reg migrated to libs/linalg
 //       (eig.cpp, matrix_functions.cpp). Block below disabled.
 
-void topkrows_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 2)
-        throw Error("topkrows: requires (A, k)",
+    if (args.size() < 2)
+        throw Error("topkrows: requires (A, k[, col[, direction]])",
                     0, 0, "topkrows", "", "m:topkrows:nargin");
     const double kd = args[1].toScalar();
     if (kd < 0.0 || kd != std::floor(kd))
         throw Error("topkrows: k must be a non-negative integer",
                     0, 0, "topkrows", "", "m:topkrows:badK");
-    outs[0] = topkrows(args[0], static_cast<std::size_t>(kd), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+
+    // Parse `col` (positive int / vector) and `direction` (string /
+    // string vector). 'ComparisonMethod' NV pair (auto/real/abs) is
+    // accept-and-ignore — numkit only supports real numeric input here.
+    std::vector<std::size_t> cols;
+    std::vector<std::uint8_t> desc;
+    size_t i = 2;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
+        // Treat as col vector.
+        const Value &c = args[i];
+        cols.reserve(c.numel());
+        for (std::size_t kk = 0; kk < c.numel(); ++kk) {
+            const double v = c.elemAsDouble(kk);
+            if (v < 1.0 || v != std::floor(v))
+                throw Error("topkrows: col must be a positive integer "
+                            "or vector of positive integers",
+                            0, 0, "topkrows", "", "m:topkrows:badCol");
+            cols.push_back(static_cast<std::size_t>(v) - 1);
+        }
+        ++i;
+    }
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        const std::string s = args[i].toString();
+        if (s == "ComparisonMethod") {
+            // accept-and-ignore; consume value
+            i += 2;
+        } else {
+            if (s == "descend")      desc.push_back(1);
+            else if (s == "ascend")  desc.push_back(0);
+            else
+                throw Error("topkrows: direction must be 'ascend' or "
+                            "'descend'",
+                            0, 0, "topkrows", "", "m:topkrows:badDir");
+            ++i;
+        }
+    }
+    // Optional trailing 'ComparisonMethod' NV (after dir).
+    while (i + 1 < args.size() && (args[i].isChar() || args[i].isString())) {
+        const std::string nm = args[i].toString();
+        if (nm == "ComparisonMethod") { i += 2; continue; }
+        throw Error("topkrows: unexpected argument '" + nm + "'",
+                    0, 0, "topkrows", "", "m:topkrows:badArg");
+    }
+
+    std::vector<std::size_t> idx_out;
+    auto B = topkrows_full(args[0], static_cast<std::size_t>(kd),
+                            cols, desc,
+                            (nargout >= 2) ? &idx_out : nullptr, mr);
+    outs[0] = std::move(B);
+    if (nargout >= 2) {
+        auto I = Value::matrix(idx_out.size(), 1, ValueType::DOUBLE, mr);
+        double *id = I.doubleDataMut();
+        for (std::size_t k2 = 0; k2 < idx_out.size(); ++k2)
+            id[k2] = double(idx_out[k2] + 1);  // 1-indexed
+        outs[1] = std::move(I);
+    }
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

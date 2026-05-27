@@ -532,7 +532,7 @@ together.
 | `table2timetable` | ❌ |  |  |  |  |  |
 | `tail` | ✅ | 0.000 | 47.20× |  | OK | Sig: Y = tail(X, K). Last 100 elements. 10000 iters. |
 | `timetable2table` | ❌ |  |  |  |  |  |
-| `topkrows` | ⚠️ | 0.004 | 77.56× |  | OK | Sig: B = topkrows(A, k). Top k rows in lex-descending order across all columns (default direction). Bit-identical with MATLAB R2025b on probed 5×2 input. Note: column-specific sort `topkrows(A, k, col)` and direction flag deferred. |
+| `topkrows` | ⚠️ | 0.006 | 85.30× |  | OK | Sig: B = topkrows(A, k[, col[, direction]]); [B,I] = topkrows(...). Top k rows by column-priority sort (default: all columns, descending lex). col selects a single column or vector of columns (priority order). direction = 'ascend' | 'descend' applies to all sort columns. 2-output returns 1-indexed row indices. ComparisonMethod NV is accept-and-ignore (numkit is real-only). Bit-identical with MATLAB R2025b on probed cases. |
 | `union` | ✅ | 0.006 | 216.83× | 42.40× | OK | Sig: r = union(...). Set op. Spec-extension batch 2026-05-09. |
 | `unique` | ✅ | 0.008 | 83.30× | 24.63× | OK | Sig: r = unique(...). Spec-extension batch 2026-05-09. |
 | `unstack` | ❌ |  |  |  |  |  |
