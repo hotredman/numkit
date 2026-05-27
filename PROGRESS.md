@@ -484,7 +484,7 @@ together.
 | `cell2table` | ❌ |  |  |  |  |  |
 | `computebygroup` | ❌ |  |  |  |  |  |
 | `convertvars` | ❌ |  |  |  |  |  |
-| `fillmissing` | ⚠️ | 0.003 |  |  | N/A | Sig: y = fillmissing(x, method[, value]). MATLAB-canonical methods: 'previous', 'next', 'constant'. Numkit also supports 'mean'/'median' as convenience (undocumented). Other MATLAB methods deferred. |
+| `fillmissing` | ⚠️ | 0.011 | 374.10× |  | OK | fillmissing — replace NaN by method. Methods: 'constant', 'previous', 'next' (existing); 'nearest', 'linear' (added cycle 74). Per-column processing for matrices (fixes prior 1D-flat bug for previous/next). Tie-break in 'nearest' picks NEXT. 'linear' extrapolates leading/trailing NaNs via slope of nearest interior good-value pair (requires ≥2 good values). Deferred MATLAB methods: 'spline', 'pchip', 'makima', 'movmean', 'movmedian', 'knn'. |
 | `findgroups` | ❌ |  |  |  |  |  |
 | `groupcounts` | ❌ |  |  |  |  |  |
 | `groupfilter` | ❌ |  |  |  |  |  |

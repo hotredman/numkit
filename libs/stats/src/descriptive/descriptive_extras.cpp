@@ -609,8 +609,118 @@ Value rmoutliers_of(const Value &x, std::pmr::memory_resource *mr)
 
 // fillmissing(x, method[, constant_value]) — replace NaN with method.
 // MATLAB-canonical methods: 'constant' (needs value), 'previous',
-// 'next'. Internal 'mean'/'median' kept as a numkit convenience but
-// undocumented (use mean(x,'omitnan') + 'constant' for portability).
+// 'next', 'nearest', 'linear'. Internal 'mean'/'median' kept as a
+// numkit convenience (undocumented; use mean(x,'omitnan') +
+// 'constant' for portability). Per-column processing matches
+// MATLAB's default (each column filled independently). For vectors
+// (rows or cols) the per-column scan reduces to a flat scan.
+namespace {
+
+// Fill a single column of length `len` (stride 1 in column-major
+// storage) according to the named method.
+void fill_one_column(double *p, std::size_t len, const std::string &method,
+                     double constVal)
+{
+    if (len == 0) return;
+    auto is_nan = [&](std::size_t i) { return std::isnan(p[i]); };
+
+    if (method == "constant") {
+        for (std::size_t i = 0; i < len; ++i)
+            if (is_nan(i)) p[i] = constVal;
+        return;
+    }
+    if (method == "previous") {
+        double last_good = std::numeric_limits<double>::quiet_NaN();
+        bool have = false;
+        for (std::size_t i = 0; i < len; ++i) {
+            if (!is_nan(i)) { last_good = p[i]; have = true; }
+            else if (have) p[i] = last_good;
+        }
+        return;
+    }
+    if (method == "next") {
+        double next_good = std::numeric_limits<double>::quiet_NaN();
+        bool have = false;
+        for (std::size_t ii = len; ii-- > 0;) {
+            if (!is_nan(ii)) { next_good = p[ii]; have = true; }
+            else if (have) p[ii] = next_good;
+        }
+        return;
+    }
+    if (method == "nearest") {
+        // For each NaN, fill with whichever of (previous-good,
+        // next-good) is closer in index. Ties → NEXT wins
+        // (matches MATLAB R2025b, probed).
+        std::vector<std::size_t> good_idx;
+        good_idx.reserve(len);
+        for (std::size_t i = 0; i < len; ++i)
+            if (!is_nan(i)) good_idx.push_back(i);
+        if (good_idx.empty()) return;
+        std::size_t k = 0;
+        for (std::size_t i = 0; i < len; ++i) {
+            if (!is_nan(i)) continue;
+            while (k < good_idx.size() && good_idx[k] <= i) ++k;
+            const bool has_next = (k < good_idx.size());
+            const bool has_prev = (k > 0);
+            if (!has_prev) { p[i] = p[good_idx[k]]; continue; }
+            if (!has_next) { p[i] = p[good_idx[k - 1]]; continue; }
+            const std::size_t pi = good_idx[k - 1];
+            const std::size_t ni = good_idx[k];
+            // Tie → next.
+            p[i] = ((i - pi) < (ni - i)) ? p[pi] : p[ni];
+        }
+        return;
+    }
+    if (method == "linear") {
+        // Internal NaN runs: linearly interpolate between the
+        // flanking good values. Leading / trailing NaN runs: linearly
+        // extrapolate using the slope of the closest interior good-
+        // value pair. With < 2 good values, extrapolation slope is
+        // undefined → leave leading/trailing NaNs in place (matches
+        // MATLAB R2025b probed behaviour).
+        std::vector<std::size_t> good_idx;
+        good_idx.reserve(len);
+        for (std::size_t i = 0; i < len; ++i)
+            if (!is_nan(i)) good_idx.push_back(i);
+        const std::size_t G = good_idx.size();
+        if (G == 0) return;
+        // Interior linear interp.
+        for (std::size_t k = 0; k + 1 < G; ++k) {
+            const std::size_t a = good_idx[k];
+            const std::size_t b = good_idx[k + 1];
+            if (b == a + 1) continue;
+            const double va = p[a];
+            const double vb = p[b];
+            const double slope = (vb - va) / double(b - a);
+            for (std::size_t j = a + 1; j < b; ++j)
+                p[j] = va + slope * double(j - a);
+        }
+        if (G < 2) return;
+        // Leading NaNs: extrapolate via slope of first two good values.
+        if (good_idx.front() > 0) {
+            const std::size_t a = good_idx[0];
+            const std::size_t b = good_idx[1];
+            const double va = p[a];
+            const double slope = (p[b] - va) / double(b - a);
+            for (std::size_t i = 0; i < a; ++i)
+                p[i] = va - slope * double(a - i);
+        }
+        // Trailing NaNs: slope of last two good values.
+        if (good_idx.back() + 1 < len) {
+            const std::size_t a = good_idx[G - 2];
+            const std::size_t b = good_idx[G - 1];
+            const double vb = p[b];
+            const double slope = (vb - p[a]) / double(b - a);
+            for (std::size_t i = b + 1; i < len; ++i)
+                p[i] = vb + slope * double(i - b);
+        }
+        return;
+    }
+    // Other methods handled by caller (mean/median use whole column).
+}
+
+} // anonymous
+
 Value fillmissing_of(const Value &x, const std::string &method, double constVal, std::pmr::memory_resource *mr)
 {
     const std::size_t n = x.numel();
@@ -623,11 +733,8 @@ Value fillmissing_of(const Value &x, const std::string &method, double constVal,
     double *od = out.doubleDataMut();
     std::copy(xd, xd + n, od);
 
-    if (method == "constant") {
-        for (std::size_t i = 0; i < n; ++i)
-            if (std::isnan(od[i])) od[i] = constVal;
-        return out;
-    }
+    // mean / median use the whole column, not the column slice — kept
+    // as the (undocumented) numkit convenience.
     if (method == "mean" || method == "median") {
         ScratchArena scratch(mr);
         ScratchVec<double> good(&scratch);
@@ -650,27 +757,24 @@ Value fillmissing_of(const Value &x, const std::string &method, double constVal,
             if (std::isnan(od[i])) od[i] = fill;
         return out;
     }
-    if (method == "previous") {
-        double last_good = std::numeric_limits<double>::quiet_NaN();
-        bool have = false;
-        for (std::size_t i = 0; i < n; ++i) {
-            if (!std::isnan(od[i])) { last_good = od[i]; have = true; }
-            else if (have) od[i] = last_good;
+
+    // constant / previous / next / nearest / linear → per-column.
+    if (method == "constant" || method == "previous" || method == "next" ||
+        method == "nearest"  || method == "linear")
+    {
+        // For a row vector treat as one column of length n.
+        if (r == 1) {
+            fill_one_column(od, c, method, constVal);
+        } else {
+            for (std::size_t col = 0; col < c; ++col)
+                fill_one_column(od + col * r, r, method, constVal);
         }
         return out;
     }
-    if (method == "next") {
-        double next_good = std::numeric_limits<double>::quiet_NaN();
-        bool have = false;
-        for (std::size_t ii = n; ii-- > 0;) {
-            if (!std::isnan(od[ii])) { next_good = od[ii]; have = true; }
-            else if (have) od[ii] = next_good;
-        }
-        return out;
-    }
+
     throw Error("fillmissing: method must be 'constant', 'previous', "
-                "'next', 'mean', or 'median' in this revision "
-                "(MATLAB also supports 'nearest', 'linear', 'spline', "
+                "'next', 'nearest', 'linear', 'mean', or 'median' in "
+                "this revision (MATLAB also supports 'spline', "
                 "'pchip', 'makima', 'movmean', 'movmedian', 'knn' -- "
                 "those are deferred)",
                 0, 0, "fillmissing", "", "m:fillmissing:method");
