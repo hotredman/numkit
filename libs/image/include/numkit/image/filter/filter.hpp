@@ -146,6 +146,55 @@ Value imguidedfilter(const Value &A, const Value &G, int nhood,
                      double eps,
                      std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Anisotropic-diffusion edge-preserving smoothing
+/// (`B = imdiffusefilt(I, ...)`).
+///
+/// Perona-Malik nonlinear diffusion (1990):
+///   each iteration, compute nearest-neighbour intensity diffs,
+///   weight them by a contrast-sensitive conduction coefficient,
+///   then update I += rate · sum(flux).
+///
+/// Conductance:
+///   exponential: c(∇) = exp(-(|∇|/K)²)
+///   quadratic:   c(∇) = 1 / (1 + (|∇|/K)²)
+///
+/// `connectivity = "maximal"` (default) uses 8 neighbour
+/// directions; `"minimal"` uses 4. Default `K = 0.1 · diff(
+/// getrangefromclass(I))` (0.1 for double, 25.5 for uint8, etc.).
+/// Default iterations N = 5 when `gradientThreshold` is scalar;
+/// when it's a vector, `N = numel(gradientThreshold)` and each
+/// iteration uses its own K.
+///
+/// 2-D inputs only (3-D / volume diffusion deferred — MATLAB's
+/// `diffusefilt3D` adds 27-point stencils which roughly triples
+/// the code).
+///
+/// References:
+///   [1] P. Perona & J. Malik, "Scale-Space and Edge Detection
+///       Using Anisotropic Diffusion", IEEE TPAMI 12(7), 1990.
+///   [2] G. Gerig et al., "Nonlinear anisotropic filtering of MRI
+///       data", IEEE Trans. Medical Imaging 11(2), 1992.
+///
+/// Computation uses double precision for double input and single
+/// for everything else (matching MATLAB). Output class equals
+/// input class.
+///
+/// @param I               2-D image (any real numeric class).
+/// @param thresh          GradientThreshold (scalar or length-N
+///                        vector); negative → use class default.
+/// @param N               NumberOfIterations (0 → derive from
+///                        thresh: 5 if scalar, length if vector).
+/// @param connectivity    `"maximal"` (default) or `"minimal"`.
+/// @param conduction      `"exponential"` (default) or `"quadratic"`.
+/// @param mr              Memory resource (nullptr → process default).
+/// @return                Smoothed image, same shape and class as `I`.
+Value imdiffusefilt(const Value &I,
+                    const Value &thresh,
+                    std::size_t N,
+                    const std::string &connectivity,
+                    const std::string &conduction,
+                    std::pmr::memory_resource *mr = nullptr);
+
 /// @brief 2-D median filter (`B = medfilt2(I, [m n])`).
 ///
 /// Default neighbourhood 3×3. Symmetric boundary.

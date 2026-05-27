@@ -1725,7 +1725,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imbilatfilt` | ✅ | 0.007 |  |  | N/A | Sig: r = imbilatfilt(...). Spec-extension batch 2026-05-09. |
 | `imboxfilt` | ✅ | 0.005 | 250.65× | 152.73× | OK | Sig: r = imboxfilt(...). Spec-extension batch 2026-05-09. |
 | `imboxfilt3` | ✅ | 0.005 | 311.39× |  | OK | Sig: r = imboxfilt3(...). Spec-extension batch 2026-05-09. |
-| `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
+| `imdiffusefilt` | ✅ | 0.030 | 118.23× |  | OK | Sig: B = imdiffusefilt(I [, NV...]). Branches: default (5 iter, maximal, exponential, K=0.1*range), NumberOfIterations override, Connectivity=minimal, ConductionMethod=quadratic, scalar GradientThreshold, vector GradientThreshold (N inferred), uint8 input class. Reference: Perona & Malik 1990; Gerig et al. 1992. 2-D only — 3-D volume diffusion deferred. Image namespace 2026-05-27. |
 | `imfilter` | ✅ | 0.005 | 93.31× | 81.59× | OK | Sig: r = imfilter(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
 | `imgaussfilt` | ✅ | 0.004 | 423.05× | 174.00× | OK | Sig: r = imgaussfilt(...). Spec-extension batch 2026-05-09. |
