@@ -850,7 +850,7 @@ together.
 | `symamd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `symbfact` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `symmlq` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `symrcm` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `symrcm` | ✅ | 0.007 | 14.03× |  | OK | symrcm — symmetric reverse Cuthill-McKee bandwidth reduction. Algorithm: for each connected component (taken in ascending unvisited-node order), start from the min-degree node (tiebreak by smallest index), BFS with degree-sorted children (tiebreak by smallest index), reverse. Matches MATLAB R2025b on the probed examples — bandwidth-reduction property is what MATLAB documents; bit-exact output requires the same starting-node heuristic (min-degree, not full Gibbs-Poole-Stockmeyer pseudoperipheral search). |
 | `tfqmr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `treelayout` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `treeplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |

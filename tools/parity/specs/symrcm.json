@@ -1,0 +1,14 @@
+{
+  "name": "symrcm",
+  "namespace": "builtin",
+  "setup": "A = [1 1 0 0 1 0; 1 1 1 0 0 0; 0 1 1 1 0 0; 0 0 1 1 1 1; 1 0 0 1 1 0; 0 0 0 1 0 1]; T = full([1 1 0 0 0; 1 1 1 0 0; 0 1 1 1 0; 0 0 1 1 1; 0 0 0 1 1]); D = [1 1 0 0; 1 1 0 0; 0 0 1 1; 0 0 1 1];",
+  "expr": "p1 = symrcm(A); p2 = symrcm(T); p3 = symrcm(D);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "p1(1)", "p1(2)", "p1(3)", "p1(4)", "p1(5)", "p1(6)",
+    "p2(1)", "p2(2)", "p2(3)", "p2(4)", "p2(5)",
+    "p3(1)", "p3(2)", "p3(3)", "p3(4)"
+  ],
+  "comment": "symrcm — symmetric reverse Cuthill-McKee bandwidth reduction. Algorithm: for each connected component (taken in ascending unvisited-node order), start from the min-degree node (tiebreak by smallest index), BFS with degree-sorted children (tiebreak by smallest index), reverse. Matches MATLAB R2025b on the probed examples — bandwidth-reduction property is what MATLAB documents; bit-exact output requires the same starting-node heuristic (min-degree, not full Gibbs-Poole-Stockmeyer pseudoperipheral search)."
+}

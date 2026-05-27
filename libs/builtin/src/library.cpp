@@ -126,6 +126,7 @@ void groupsummary_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void grouptransform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void groupfilter_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void colperm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void symrcm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void spline_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pchip_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void makima_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -639,6 +640,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("grouptransform", &builtin::detail::grouptransform_reg);
     engine.registerFunction("groupfilter", &builtin::detail::groupfilter_reg);
     engine.registerFunction("colperm", &builtin::detail::colperm_reg);
+    engine.registerFunction("symrcm", &builtin::detail::symrcm_reg);
     engine.registerFunction("spline",    &builtin::detail::spline_reg);
     engine.registerFunction("pchip",     &builtin::detail::pchip_reg);
     engine.registerFunction("makima",    &builtin::detail::makima_reg);
