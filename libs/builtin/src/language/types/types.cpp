@@ -255,6 +255,97 @@ Value isfinite(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
+// ── missing-value predicates ─────────────────────────────────────────
+
+namespace {
+
+// True iff this element-type can hold "standard" missing (i.e. NaN).
+inline bool typeHasMissing(ValueType t)
+{
+    return t == ValueType::DOUBLE || t == ValueType::SINGLE;
+}
+
+// Read element i as double for the comparison path; works for any
+// numeric class (integer types convert losslessly; LOGICAL → 0/1).
+inline double elemD(const Value &x, std::size_t i) { return x.elemAsDouble(i); }
+
+} // anonymous
+
+Value ismissing(const Value &x, const Value &indicator,
+                std::pmr::memory_resource *mr)
+{
+    std::pmr::memory_resource *p = mr;
+    auto r = createLike(x, ValueType::LOGICAL, p);
+    const std::size_t n = x.numel();
+    if (n == 0) return r;
+
+    std::uint8_t *out = r.logicalDataMut();
+
+    // Build the indicator value list (empty → standard missing only).
+    const bool have_ind = (!indicator.isEmpty());
+    std::vector<double> ind_vals;
+    if (have_ind) {
+        ind_vals.reserve(indicator.numel());
+        for (std::size_t k = 0; k < indicator.numel(); ++k)
+            ind_vals.push_back(indicator.elemAsDouble(k));
+    }
+    const bool float_class = typeHasMissing(x.type());
+
+    if (!have_ind) {
+        // Standard missing only: NaN for float, never for ints/logical.
+        if (float_class) {
+            if (x.type() == ValueType::DOUBLE) {
+                ::numkit::builtin::detail::doubleIsNaNLoop(x.doubleData(), out, n);
+            } else {  // SINGLE
+                const float *src = x.singleData();
+                for (std::size_t i = 0; i < n; ++i)
+                    out[i] = std::isnan(src[i]) ? 1u : 0u;
+            }
+        } else {
+            std::fill(out, out + n, std::uint8_t{0});
+        }
+        return r;
+    }
+
+    // With indicator: ONLY values listed in `indicator` are missing
+    // (NaN is NOT auto-flagged when an indicator is given — MATLAB
+    // behaviour, probed). NaN entries in the indicator itself match
+    // NaN values in `x` (special-cased because NaN != NaN).
+    for (std::size_t i = 0; i < n; ++i) {
+        const double xi = elemD(x, i);
+        const bool xi_nan = std::isnan(xi);
+        bool tf = false;
+        for (double v : ind_vals) {
+            if (std::isnan(v)) {
+                if (xi_nan) { tf = true; break; }
+            } else if (xi == v) {
+                tf = true; break;
+            }
+        }
+        out[i] = tf ? 1u : 0u;
+    }
+    return r;
+}
+
+Value anymissing(const Value &x, std::pmr::memory_resource *mr)
+{
+    std::pmr::memory_resource *p = mr;
+    const std::size_t n = x.numel();
+    if (n == 0) return Value::logicalScalar(false, p);
+    if (!typeHasMissing(x.type()))
+        return Value::logicalScalar(false, p);
+    if (x.type() == ValueType::DOUBLE) {
+        const double *src = x.doubleData();
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(src[i])) return Value::logicalScalar(true, p);
+    } else {
+        const float *src = x.singleData();
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(src[i])) return Value::logicalScalar(true, p);
+    }
+    return Value::logicalScalar(false, p);
+}
+
 // ── Shape predicates ─────────────────────────────────────────────────
 
 Value isvector(const Value &x, std::pmr::memory_resource *mr)
@@ -811,8 +902,19 @@ NK_PRED_REG(iscolumn)
 NK_PRED_REG(ismatrix)
 NK_PRED_REG(issortedrows)
 NK_PRED_REG(isuniform)
+NK_PRED_REG(anymissing)
 
 #undef NK_PRED_REG
+
+void ismissing_reg(Span<const Value> args, size_t, Span<Value> outs,
+                   CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ismissing: requires at least 1 argument",
+                    0, 0, "ismissing", "", "m:ismissing:nargin");
+    const Value &ind = (args.size() >= 2) ? args[1] : Value::Empty;
+    outs[0] = ismissing(args[0], ind, ctx.engine->resource());
+}
 
 void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
