@@ -2590,6 +2590,136 @@ Value colfilt(numkit::Engine &eng, const Value &A,
     return B;
 }
 
+// ── imguidedfilter (Guided Image Filter, He/Sun/Tang 2013) ────────
+//
+// Algorithm 1 from K. He, J. Sun, X. Tang,
+//   "Guided Image Filtering", IEEE TPAMI 35(6), 1397-1409, 2013.
+//
+//   meanI  = box(G)
+//   meanP  = box(A)
+//   corrI  = box(G·G)
+//   corrIP = box(G·A)
+//   varI  = corrI − meanI²
+//   covIP = corrIP − meanI·meanP
+//   a = covIP / (varI + ε)
+//   b = meanP − a·meanI
+//   meana = box(a)
+//   meanb = box(b)
+//   B = meana·G + meanb
+//
+// Grayscale guide only here. Default ε = 0.01 · range².
+Value imguidedfilter(const Value &A, const Value &G_in, int nhood,
+                     double eps_in,
+                     std::pmr::memory_resource *mr)
+{
+    if (A.dims().is3D())
+        throw Error("imguidedfilter: A must be 2-D",
+                    0, 0, "imguidedfilter", "",
+                    "m:imguidedfilter:dim");
+    if (nhood < 1 || (nhood % 2) == 0)
+        throw Error("imguidedfilter: NeighborhoodSize must be positive odd "
+                    "integer",
+                    0, 0, "imguidedfilter", "",
+                    "m:imguidedfilter:nhood");
+    const std::size_t H = A.dims().rows();
+    const std::size_t W = A.dims().cols();
+    if (H == 0 || W == 0) return A;
+
+    Value G = G_in;
+    if (G.numel() == 0) G = A;  // self-guidance
+    if (G.dims().rows() != H || G.dims().cols() != W || G.dims().is3D())
+        throw Error("imguidedfilter: G must be the same H × W as A "
+                    "(RGB guidance not yet supported)",
+                    0, 0, "imguidedfilter", "",
+                    "m:imguidedfilter:gshape");
+
+    // Resolve default ε per A's class.
+    double eps = eps_in;
+    if (eps < 0) {
+        double range = 1.0;
+        switch (A.type()) {
+            case ValueType::UINT8:  range = 255.0;       break;
+            case ValueType::UINT16: range = 65535.0;     break;
+            case ValueType::UINT32: range = 4294967295.0;break;
+            case ValueType::INT8:   range = 255.0;       break;  // [-128,127] diff=255
+            case ValueType::INT16:  range = 65535.0;     break;
+            case ValueType::INT32:  range = 4294967295.0;break;
+            default:                range = 1.0;         break;  // double/single/logical
+        }
+        eps = 0.01 * range * range;
+    }
+
+    // Cast A, G → DOUBLE.
+    const std::size_t N = H * W;
+    Value Ad = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value Gd = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < N; ++i) Ad.doubleDataMut()[i] = A.elemAsDouble(i);
+    for (std::size_t i = 0; i < N; ++i) Gd.doubleDataMut()[i] = G.elemAsDouble(i);
+
+    // I.*I, I.*P (element-wise products).
+    Value II = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value IP = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < N; ++i) {
+        const double gi = Gd.doubleData()[i];
+        const double ai = Ad.doubleData()[i];
+        II.doubleDataMut()[i] = gi * gi;
+        IP.doubleDataMut()[i] = gi * ai;
+    }
+
+    const Value meanI  = imboxfilt(Gd, nhood, mr);
+    const Value meanP  = imboxfilt(Ad, nhood, mr);
+    const Value corrI  = imboxfilt(II, nhood, mr);
+    const Value corrIP = imboxfilt(IP, nhood, mr);
+
+    // a, b.
+    Value a_ = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value b_ = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < N; ++i) {
+        const double mI = meanI.doubleData()[i];
+        const double mP = meanP.doubleData()[i];
+        const double varI  = corrI.doubleData()[i]  - mI * mI;
+        const double covIP = corrIP.doubleData()[i] - mI * mP;
+        const double a = covIP / (varI + eps);
+        a_.doubleDataMut()[i] = a;
+        b_.doubleDataMut()[i] = mP - a * mI;
+    }
+
+    const Value meana = imboxfilt(a_, nhood, mr);
+    const Value meanb = imboxfilt(b_, nhood, mr);
+
+    // B = meana·G + meanb.
+    Value Bd = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < N; ++i)
+        Bd.doubleDataMut()[i] = meana.doubleData()[i] * Gd.doubleData()[i]
+                              + meanb.doubleData()[i];
+
+    // Cast back to class(A).
+    const ValueType outT = A.type();
+    if (outT == ValueType::DOUBLE) return Bd;
+    Value Bout = Value::matrix(H, W, outT, mr);
+    auto saturate = [&](double v, double lo, double hi) {
+        v = std::round(v);
+        if (v < lo) v = lo;
+        if (v > hi) v = hi;
+        return v;
+    };
+    for (std::size_t i = 0; i < N; ++i) {
+        const double v = Bd.doubleData()[i];
+        switch (outT) {
+            case ValueType::SINGLE:  Bout.singleDataMut()[i] = static_cast<float>(v); break;
+            case ValueType::UINT8:   Bout.uint8DataMut()[i]  = static_cast<std::uint8_t>(saturate(v, 0.0, 255.0)); break;
+            case ValueType::UINT16:  Bout.uint16DataMut()[i] = static_cast<std::uint16_t>(saturate(v, 0.0, 65535.0)); break;
+            case ValueType::INT8:    Bout.int8DataMut()[i]   = static_cast<std::int8_t>(saturate(v, -128.0, 127.0)); break;
+            case ValueType::INT16:   Bout.int16DataMut()[i]  = static_cast<std::int16_t>(saturate(v, -32768.0, 32767.0)); break;
+            case ValueType::INT32:   Bout.int32DataMut()[i]  = static_cast<std::int32_t>(saturate(v, -2147483648.0, 2147483647.0)); break;
+            case ValueType::UINT32:  Bout.uint32DataMut()[i] = static_cast<std::uint32_t>(saturate(v, 0.0, 4294967295.0)); break;
+            case ValueType::LOGICAL: Bout.logicalDataMut()[i] = v >= 0.5 ? 1 : 0; break;
+            default: Bout.doubleDataMut()[i] = v; break;
+        }
+    }
+    return Bout;
+}
+
 namespace detail {
 
 void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -2681,6 +2811,72 @@ void colfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
     const std::string kind = args[bi].toString();
     const Value &fn = args[bi + 1];
     outs[0] = colfilt(*ctx.engine, args[0], m, n, kind, fn, indexed, mr);
+}
+
+void imguidedfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
+                        Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imguidedfilter: requires (A [, G] [, NV...])",
+                    0, 0, "imguidedfilter", "",
+                    "m:imguidedfilter:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    Value A = args[0];
+    Value G;  // empty → self-guide
+    int nhood = 5;
+    double eps = -1.0;  // sentinel → class-based default
+
+    std::size_t i = 1;
+    if (i < args.size() && !is_string(args[i])) {
+        G = args[i];
+        ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("imguidedfilter: expected NV-pair name",
+                        0, 0, "imguidedfilter", "",
+                        "m:imguidedfilter:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "neighborhoodsize") {
+            const Value &v = args[i + 1];
+            if (v.numel() == 1) {
+                nhood = static_cast<int>(v.toScalar());
+            } else if (v.numel() == 2) {
+                const int n0 = static_cast<int>(v.elemAsDouble(0));
+                const int n1 = static_cast<int>(v.elemAsDouble(1));
+                if (n0 != n1)
+                    throw Error("imguidedfilter: non-square NeighborhoodSize "
+                                "not yet supported",
+                                0, 0, "imguidedfilter", "",
+                                "m:imguidedfilter:nhoodNonsq");
+                nhood = n0;
+            } else {
+                throw Error("imguidedfilter: NeighborhoodSize must be a "
+                            "scalar or 2-element vector",
+                            0, 0, "imguidedfilter", "",
+                            "m:imguidedfilter:nhoodSize");
+            }
+        } else if (nlo == "degreeofsmoothing") {
+            eps = args[i + 1].toScalar();
+            if (!(eps > 0) || !std::isfinite(eps))
+                throw Error("imguidedfilter: DegreeOfSmoothing must be a "
+                            "positive finite scalar",
+                            0, 0, "imguidedfilter", "",
+                            "m:imguidedfilter:dos");
+        } else {
+            throw Error("imguidedfilter: unknown option '" + name + "'",
+                        0, 0, "imguidedfilter", "",
+                        "m:imguidedfilter:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = imguidedfilter(A, G, nhood, eps, mr);
 }
 
 } // namespace detail

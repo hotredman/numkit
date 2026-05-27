@@ -40,4 +40,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/hough_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/houghlines_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bwtraceboundary_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imguidedfilter_test.cpp
 )
