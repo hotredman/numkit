@@ -776,6 +776,238 @@ Value cornermetric(const Value &I, const std::string &method,
     return out;
 }
 
+// ── hough (Standard Hough Transform) ───────────────────────────────
+//
+// MATLAB R2025b hough.m algorithm:
+//   M, N = size(BW); D = sqrt((M-1)² + (N-1)²)
+//   q = ceil(D / rhoRes); nrho = 2*q + 1
+//   rho = linspace(-q*rhoRes, q*rhoRes, nrho)
+//   theta default = -90 : 1 : 89  (180 bins, [-90, 90))
+//   H = zeros(nrho, ntheta)
+//   for each true pixel (r, c)  // 1-indexed
+//     x = c - 1, y = r - 1       // 0-indexed image coords
+//     for each theta_k:
+//       rho_val = x*cos(theta_k) + y*sin(theta_k)
+//       bin = round(rho_val / rhoRes) + q + 1  // 1-indexed
+//       H[bin, k] += 1
+//
+// Reference: Gonzalez, Woods & Eddins, "Digital Image Processing
+// Using MATLAB", 2nd ed., Gatesmark, 2009.
+void hough(const Value &BW, double rho_res,
+           const Value &theta_deg,
+           Value &H_out, Value &T_out, Value &R_out,
+           std::pmr::memory_resource *mr)
+{
+    if (BW.dims().is3D())
+        throw Error("hough: BW must be 2-D",
+                    0, 0, "hough", "", "m:hough:dim");
+    if (!(rho_res > 0.0) || !std::isfinite(rho_res))
+        throw Error("hough: RhoResolution must be a positive scalar",
+                    0, 0, "hough", "", "m:hough:rho");
+
+    const std::size_t M = BW.dims().rows();
+    const std::size_t N = BW.dims().cols();
+
+    // Build theta grid (degrees → radians).
+    std::pmr::vector<double> theta(mr);
+    if (theta_deg.numel() == 0) {
+        theta.reserve(180);
+        for (int k = -90; k <= 89; ++k)
+            theta.push_back(static_cast<double>(k));
+    } else {
+        theta.reserve(theta_deg.numel());
+        for (std::size_t i = 0; i < theta_deg.numel(); ++i) {
+            const double v = theta_deg.elemAsDouble(i);
+            if (v < -90.0 || v >= 90.0)
+                throw Error("hough: Theta values must lie in [-90, 90)",
+                            0, 0, "hough", "", "m:hough:theta");
+            theta.push_back(v);
+        }
+    }
+    const std::size_t ntheta = theta.size();
+
+    // ρ grid.
+    const double D = std::sqrt(
+        static_cast<double>(M - 1) * (M - 1)
+      + static_cast<double>(N - 1) * (N - 1));
+    const std::size_t q = (D == 0.0)
+        ? 0
+        : static_cast<std::size_t>(std::ceil(D / rho_res));
+    const std::size_t nrho = 2 * q + 1;
+    Value R = Value::matrix(1, nrho, ValueType::DOUBLE, mr);
+    if (nrho == 1) {
+        R.doubleDataMut()[0] = 0.0;
+    } else {
+        const double lo = -static_cast<double>(q) * rho_res;
+        const double step = rho_res;
+        for (std::size_t i = 0; i < nrho; ++i)
+            R.doubleDataMut()[i] = lo + step * static_cast<double>(i);
+    }
+
+    // T echo.
+    Value T = Value::matrix(1, ntheta, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < ntheta; ++i)
+        T.doubleDataMut()[i] = theta[i];
+
+    // Pre-compute cos/sin of theta (in radians).
+    constexpr double DEG2RAD = M_PI / 180.0;
+    std::pmr::vector<double> cosT(ntheta, 0.0, mr);
+    std::pmr::vector<double> sinT(ntheta, 0.0, mr);
+    for (std::size_t k = 0; k < ntheta; ++k) {
+        cosT[k] = std::cos(theta[k] * DEG2RAD);
+        sinT[k] = std::sin(theta[k] * DEG2RAD);
+    }
+
+    // Accumulator (col-major: H(r, c) → c*nrho + r).
+    Value H = Value::matrix(nrho, ntheta, ValueType::DOUBLE, mr);
+    double *hp = H.doubleDataMut();
+
+    // Iterate true pixels of BW (logical or numeric "non-zero").
+    const bool islog = BW.isLogical();
+    for (std::size_t c = 0; c < N; ++c) {
+        for (std::size_t r = 0; r < M; ++r) {
+            const std::size_t k = c * M + r;
+            const bool on = islog
+                ? (BW.logicalData()[k] != 0)
+                : (BW.elemAsDouble(k) != 0.0);
+            if (!on) continue;
+            const double x = static_cast<double>(c);  // 0-indexed
+            const double y = static_cast<double>(r);
+            for (std::size_t tk = 0; tk < ntheta; ++tk) {
+                const double rho_val = x * cosT[tk] + y * sinT[tk];
+                // bin = round(rho_val / rho_res) + q + 1 (1-indexed)
+                long bin = static_cast<long>(std::lround(rho_val / rho_res))
+                         + static_cast<long>(q);  // 0-indexed
+                if (bin < 0 || static_cast<std::size_t>(bin) >= nrho) continue;
+                hp[tk * nrho + bin] += 1.0;
+            }
+        }
+    }
+
+    H_out = std::move(H);
+    T_out = std::move(T);
+    R_out = std::move(R);
+}
+
+// ── houghpeaks (peak extraction from Hough accumulator) ───────────
+Value houghpeaks(const Value &H, std::size_t numpeaks,
+                 double threshold,
+                 std::size_t nhoodRho, std::size_t nhoodTheta,
+                 const Value &theta_deg,
+                 std::pmr::memory_resource *mr)
+{
+    if (H.dims().is3D())
+        throw Error("houghpeaks: H must be 2-D",
+                    0, 0, "houghpeaks", "", "m:houghpeaks:dim");
+    const std::size_t nrho = H.dims().rows();
+    const std::size_t ntheta = H.dims().cols();
+    const std::size_t N = nrho * ntheta;
+
+    // Default neighbourhood: ceil(size(H)/50), bumped up to next odd, min 1.
+    auto next_odd = [](std::size_t v) -> std::size_t {
+        if (v < 1) v = 1;
+        if ((v % 2) == 0) v += 1;
+        return v;
+    };
+    if (nhoodRho == 0)   nhoodRho   = next_odd((nrho + 49) / 50);
+    if (nhoodTheta == 0) nhoodTheta = next_odd((ntheta + 49) / 50);
+    if ((nhoodRho   % 2) == 0) ++nhoodRho;
+    if ((nhoodTheta % 2) == 0) ++nhoodTheta;
+
+    // Default threshold: 0.5 * max(H(:)).
+    double mxH = 0.0;
+    for (std::size_t i = 0; i < N; ++i) {
+        const double v = H.elemAsDouble(i);
+        if (v > mxH) mxH = v;
+    }
+    if (threshold < 0.0) threshold = 0.5 * mxH;
+
+    // Detect antisymmetric theta range.
+    bool isThetaAntisym = false;
+    if (theta_deg.numel() >= 2) {
+        const std::size_t nT = theta_deg.numel();
+        double minT = theta_deg.elemAsDouble(0);
+        double maxT = theta_deg.elemAsDouble(0);
+        for (std::size_t i = 1; i < nT; ++i) {
+            const double v = theta_deg.elemAsDouble(i);
+            if (v < minT) minT = v;
+            if (v > maxT) maxT = v;
+        }
+        const double thetaRes
+            = std::fabs(maxT - minT) / static_cast<double>(nT - 1);
+        isThetaAntisym
+            = std::fabs(minT + thetaRes * nhoodTheta) <= maxT;
+    } else if (theta_deg.numel() == 0) {
+        // Default -90:1:89: minT=-90, maxT=89, thetaRes=1.
+        isThetaAntisym = std::fabs(-90.0 + 1.0 * nhoodTheta) <= 89.0;
+    }
+
+    // Working copy of H (DOUBLE).
+    std::pmr::vector<double> Hwork(N, 0.0, mr);
+    for (std::size_t i = 0; i < N; ++i) Hwork[i] = H.elemAsDouble(i);
+
+    const std::size_t halfR = nhoodRho / 2;
+    const std::size_t halfT = nhoodTheta / 2;
+
+    std::pmr::vector<std::size_t> peak_r(mr), peak_c(mr);
+    peak_r.reserve(numpeaks);
+    peak_c.reserve(numpeaks);
+
+    while (peak_r.size() < numpeaks) {
+        // Find global max.
+        std::size_t maxIdx = 0;
+        double maxV = Hwork[0];
+        for (std::size_t i = 1; i < N; ++i) {
+            if (Hwork[i] > maxV) { maxV = Hwork[i]; maxIdx = i; }
+        }
+        if (maxV < threshold) break;
+        const std::size_t p = maxIdx % nrho;  // 0-indexed rho
+        const std::size_t q = maxIdx / nrho;  // 0-indexed theta
+        peak_r.push_back(p);
+        peak_c.push_back(q);
+
+        // Suppress nhood.
+        const long p1 = static_cast<long>(p) - static_cast<long>(halfR);
+        const long p2 = static_cast<long>(p) + static_cast<long>(halfR);
+        const long q1 = static_cast<long>(q) - static_cast<long>(halfT);
+        const long q2 = static_cast<long>(q) + static_cast<long>(halfT);
+        for (long qq = q1; qq <= q2; ++qq) {
+            for (long pp = p1; pp <= p2; ++pp) {
+                // Out-of-bounds in rho: drop.
+                if (pp < 0 || pp >= static_cast<long>(nrho)) continue;
+                long qWrap = qq;
+                long pWrap = pp;
+                if (qWrap < 0 || qWrap >= static_cast<long>(ntheta)) {
+                    if (isThetaAntisym) {
+                        if (qWrap < 0) {
+                            qWrap += static_cast<long>(ntheta);
+                            pWrap = static_cast<long>(nrho) - 1 - pp;
+                        } else {
+                            qWrap -= static_cast<long>(ntheta);
+                            pWrap = static_cast<long>(nrho) - 1 - pp;
+                        }
+                        if (pWrap < 0 || pWrap >= static_cast<long>(nrho))
+                            continue;
+                    } else {
+                        continue;
+                    }
+                }
+                Hwork[static_cast<std::size_t>(qWrap) * nrho
+                    + static_cast<std::size_t>(pWrap)] = 0.0;
+            }
+        }
+    }
+
+    // Pack output (P × 2): each row [rho_idx, theta_idx], 1-indexed.
+    const std::size_t nP = peak_r.size();
+    Value P = Value::matrix(nP, 2, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < nP; ++i) {
+        P.doubleDataMut()[i]      = static_cast<double>(peak_r[i] + 1);
+        P.doubleDataMut()[nP + i] = static_cast<double>(peak_c[i] + 1);
+    }
+    return P;
+}
+
 namespace detail {
 
 void cornermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -831,6 +1063,123 @@ void cornermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
         i += 2;
     }
     outs[0] = cornermetric(I, method, sensitivity, filter_coef, mr);
+}
+
+void hough_reg(Span<const Value> args, std::size_t nargout,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("hough: requires (BW [, 'RhoResolution', val] "
+                    "[, 'Theta', vec])",
+                    0, 0, "hough", "", "m:hough:nargin");
+    auto *mr = ctx.engine->resource();
+    double rho_res = 1.0;
+    Value theta_deg;
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+    std::size_t i = 1;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("hough: expected NV-pair name",
+                        0, 0, "hough", "", "m:hough:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo.compare(0, std::min<std::size_t>(nlo.size(), 4), "rhor") == 0) {
+            rho_res = args[i + 1].toScalar();
+        } else if (nlo == "theta") {
+            theta_deg = args[i + 1];
+        } else if (nlo.compare(0, std::min<std::size_t>(nlo.size(), 6), "thetar") == 0) {
+            // 'ThetaResolution' (legacy): build theta = -90:tr:89.
+            const double tr = args[i + 1].toScalar();
+            const int n = static_cast<int>(std::ceil(90.0 / tr));
+            const double step = 90.0 / n;
+            std::pmr::vector<double> tv(mr);
+            for (int k = -n; k < n; ++k) tv.push_back(k * step);
+            theta_deg = Value::matrix(1, tv.size(), ValueType::DOUBLE, mr);
+            for (std::size_t kk = 0; kk < tv.size(); ++kk)
+                theta_deg.doubleDataMut()[kk] = tv[kk];
+        } else {
+            throw Error("hough: unknown option '" + name + "'",
+                        0, 0, "hough", "", "m:hough:unknownNv");
+        }
+        i += 2;
+    }
+    Value H, T, R;
+    hough(args[0], rho_res, theta_deg, H, T, R, mr);
+    outs[0] = std::move(H);
+    if (nargout >= 2) outs[1] = std::move(T);
+    if (nargout >= 3) outs[2] = std::move(R);
+}
+
+void houghpeaks_reg(Span<const Value> args, std::size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("houghpeaks: requires (H [, numpeaks] [, NV...])",
+                    0, 0, "houghpeaks", "", "m:houghpeaks:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    std::size_t numpeaks = 1;
+    double threshold = -1.0;  // sentinel: use default
+    std::size_t nhoodRho = 0, nhoodTheta = 0;
+    Value theta_deg;
+
+    std::size_t i = 1;
+    if (i < args.size() && !is_string(args[i])) {
+        const double npd = args[i].toScalar();
+        if (!(npd > 0) || npd != std::floor(npd))
+            throw Error("houghpeaks: NUMPEAKS must be a positive integer",
+                        0, 0, "houghpeaks", "", "m:houghpeaks:numpeaks");
+        numpeaks = static_cast<std::size_t>(npd);
+        ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("houghpeaks: expected NV-pair name",
+                        0, 0, "houghpeaks", "", "m:houghpeaks:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "threshold") {
+            threshold = args[i + 1].toScalar();
+            if (!(threshold >= 0.0))
+                throw Error("houghpeaks: Threshold must be non-negative",
+                            0, 0, "houghpeaks", "",
+                            "m:houghpeaks:threshold");
+        } else if (nlo == "nhoodsize") {
+            const Value &v = args[i + 1];
+            if (v.numel() != 2)
+                throw Error("houghpeaks: NHoodSize must be a 2-elem vector",
+                            0, 0, "houghpeaks", "",
+                            "m:houghpeaks:nhoodSize");
+            const double a = v.elemAsDouble(0);
+            const double b = v.elemAsDouble(1);
+            if (!(a > 0) || !(b > 0)
+             || a != std::floor(a) || b != std::floor(b)
+             || static_cast<int>(a) % 2 == 0
+             || static_cast<int>(b) % 2 == 0)
+                throw Error("houghpeaks: NHoodSize elements must be "
+                            "positive odd integers",
+                            0, 0, "houghpeaks", "",
+                            "m:houghpeaks:nhoodOdd");
+            nhoodRho   = static_cast<std::size_t>(a);
+            nhoodTheta = static_cast<std::size_t>(b);
+        } else if (nlo == "theta") {
+            theta_deg = args[i + 1];
+        } else {
+            throw Error("houghpeaks: unknown option '" + name + "'",
+                        0, 0, "houghpeaks", "",
+                        "m:houghpeaks:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = houghpeaks(args[0], numpeaks, threshold,
+                         nhoodRho, nhoodTheta, theta_deg, mr);
 }
 
 } // namespace detail

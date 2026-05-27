@@ -1909,7 +1909,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `cornermetric` | ✅ | 0.184 | 18.81× |  | OK | Sig: C = cornermetric(I [, METHOD] [, NV...]). Branches: Harris (default, k=0.04), MinimumEigenvalue, custom SensitivityFactor, custom FilterCoefficients, uint8 input class, larger peaks(8) image. Algorithm: Harris & Stephens 1988 / Shi & Tomasi 1994 corner detectors. Dx, Dy via [-1 0 1] / [-1 0 1]' conv → trim 1px → square/cross-product → smooth with outer-product Gaussian → crop → cornerness. Imfilter 'full' under Replicate boundary worked around by pre-padding with padarray. Image namespace 2026-05-27. |
 | `edge` | ✅ | 0.007 | 150.03× |  | OK | Sig: r = edge(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `edge3` | ❌ |  |  |  |  |  |
-| `hough` | ❌ |  |  |  |  |  |
+| `hough` | ✅ | 0.179 | 27.36× |  | OK | Sig: [H,T,R] = hough(BW [, NV...]); P = houghpeaks(H, npks [, NV...]). Branches: default Hough, RhoResolution override, custom Theta vector, houghpeaks default + Threshold + NHoodSize + Theta wrap-around. Bit-exact MATLAB R2025b (tol=0). Reference: Gonzalez/Woods/Eddins, *Digital Image Processing Using MATLAB*, 2nd ed., Gatesmark, 2009. Image namespace 2026-05-27. |
 | `houghlines` | ❌ |  |  |  |  |  |
 | `houghpeaks` | ❌ |  |  |  |  |  |
 | `imfindcircles` | ❌ |  |  |  |  | circle Hough |
