@@ -405,32 +405,142 @@ static void parseStftNVPairs(Span<const Value> args, size_t startIdx,
     }
 }
 
-void stft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+// Optional positional `fs` between `x` and any NV-pairs. Returns the
+// index where NV-pairs start (1 if no fs, 2 if fs consumed).
+static size_t parseOptionalFs(Span<const Value> args, bool &fsGiven, double &fs)
+{
+    fsGiven = false;
+    fs = 1.0;
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()
+        && args[1].numel() == 1) {
+        fs = args[1].toScalar();
+        fsGiven = true;
+        return 2;
+    }
+    return 1;
+}
+
+// Build the frequency-axis vector that MATLAB returns from
+// `[s, f, ...] = stft(...)`. The angular spacing is `f_scale / NFFT`
+// where `f_scale = fs` when given, else `2*pi` (radians/sample default).
+static Value buildFreqAxis(std::size_t NFFT, const std::string &range,
+                           bool fsGiven, double fs,
+                           std::pmr::memory_resource *mr)
+{
+    const double f_scale = fsGiven ? fs : (2.0 * M_PI);
+    const double df      = f_scale / static_cast<double>(NFFT);
+    if (range == "onesided") {
+        const std::size_t nF = NFFT / 2 + 1;
+        Value f = Value::matrix(nF, 1, ValueType::DOUBLE, mr);
+        double *fd = f.doubleDataMut();
+        for (std::size_t k = 0; k < nF; ++k)
+            fd[k] = static_cast<double>(k) * df;
+        return f;
+    }
+    if (range == "centered") {
+        Value f = Value::matrix(NFFT, 1, ValueType::DOUBLE, mr);
+        double *fd = f.doubleDataMut();
+        // Even N: bins are [-N/2+1, ..., N/2] (Nyquist at end).
+        // Odd  N: bins are [-(N-1)/2, ..., (N-1)/2].
+        const long long Nll = static_cast<long long>(NFFT);
+        const long long lo  = (Nll % 2 == 0) ? -(Nll / 2 - 1) : -((Nll - 1) / 2);
+        for (long long k = 0; k < Nll; ++k)
+            fd[k] = static_cast<double>(lo + k) * df;
+        return f;
+    }
+    // twosided: bins 0, 1, ..., N-1.
+    Value f = Value::matrix(NFFT, 1, ValueType::DOUBLE, mr);
+    double *fd = f.doubleDataMut();
+    for (std::size_t k = 0; k < NFFT; ++k)
+        fd[k] = static_cast<double>(k) * df;
+    return f;
+}
+
+// Build the time-axis vector for stft frame centres. MATLAB places
+// each frame's centre at sample `(M/2 + k*hop)` (0-based), scaled by
+// `1/fs_t` where `fs_t = fs` if given else 1 (samples).
+static Value buildTimeAxisStft(std::size_t M, std::size_t hop, std::size_t K,
+                               bool fsGiven, double fs,
+                               std::pmr::memory_resource *mr)
+{
+    const double tscale = fsGiven ? fs : 1.0;
+    const double half_M = 0.5 * static_cast<double>(M);
+    Value t = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+    double *td = t.doubleDataMut();
+    for (std::size_t k = 0; k < K; ++k)
+        td[k] = (half_M + static_cast<double>(k * hop)) / tscale;
+    return t;
+}
+
+// Resolve effective window length M given an explicit/empty Window
+// arg, matching `resolveWindow` defaults.
+static std::size_t resolveWindowLen(const Value &window)
+{
+    return (window.numel() > 0) ? window.numel() : 128;
+}
+
+void stft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
               CallContext &ctx)
 {
     if (args.empty())
         throw Error("stft: requires at least 1 argument",
                      0, 0, "stft", "", "m:stft:nargin");
+    auto *mr = ctx.engine->resource();
+
+    bool fsGiven = false;
+    double fs    = 1.0;
+    const size_t nvStart = parseOptionalFs(args, fsGiven, fs);
+
     Value window           = Value::empty();
-    std::size_t overlap    = SIZE_MAX;   // sentinel for "use default"
+    std::size_t overlap    = SIZE_MAX;
     std::size_t fftLength  = 0;
     std::string range      = "centered";  // matches MATLAB R2019b+ default
-    parseStftNVPairs(args, 1, window, overlap, fftLength, range);
-    outs[0] = stft(args[0], window, overlap, fftLength, range, ctx.engine->resource());
+    parseStftNVPairs(args, nvStart, window, overlap, fftLength, range);
+
+    // Resolve sizes (mirrors stft() internals) so we can build f, t.
+    const std::size_t M    = resolveWindowLen(window);
+    const std::size_t OL   = (overlap == SIZE_MAX) ? (3 * M) / 4 : overlap;
+    const std::size_t hop  = (OL < M) ? (M - OL) : 1;
+    const std::size_t NFFT = (fftLength == 0) ? M : fftLength;
+    const std::size_t N    = args[0].numel();
+    const std::size_t K    = (N >= M) ? ((N - M) / hop + 1) : 0;
+
+    outs[0] = stft(args[0], window, overlap, fftLength, range, mr);
+    if (nargout > 1)
+        outs[1] = buildFreqAxis(NFFT, range, fsGiven, fs, mr);
+    if (nargout > 2)
+        outs[2] = buildTimeAxisStft(M, hop, K, fsGiven, fs, mr);
 }
 
-void istft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void istft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                CallContext &ctx)
 {
     if (args.empty())
         throw Error("istft: requires at least 1 argument",
                      0, 0, "istft", "", "m:istft:nargin");
+    auto *mr = ctx.engine->resource();
+
+    bool fsGiven = false;
+    double fs    = 1.0;
+    const size_t nvStart = parseOptionalFs(args, fsGiven, fs);
+
     Value window           = Value::empty();
     std::size_t overlap    = SIZE_MAX;
     std::size_t fftLength  = 0;
-    std::string range      = "centered";  // matches MATLAB R2019b+ default
-    parseStftNVPairs(args, 1, window, overlap, fftLength, range);
-    outs[0] = istft(args[0], window, overlap, fftLength, range, ctx.engine->resource());
+    std::string range      = "centered";
+    parseStftNVPairs(args, nvStart, window, overlap, fftLength, range);
+
+    outs[0] = istft(args[0], window, overlap, fftLength, range, mr);
+    if (nargout > 1) {
+        // t = (0 : Nout-1) / fs_t. Reconstructed length is in outs[0]'s rows.
+        const std::size_t Nout = outs[0].dims().rows();
+        const double tscale    = fsGiven ? fs : 1.0;
+        Value t = Value::matrix(Nout, 1, ValueType::DOUBLE, mr);
+        double *td = t.doubleDataMut();
+        for (std::size_t i = 0; i < Nout; ++i)
+            td[i] = static_cast<double>(i) / tscale;
+        outs[1] = std::move(t);
+    }
 }
 
 } // namespace detail
