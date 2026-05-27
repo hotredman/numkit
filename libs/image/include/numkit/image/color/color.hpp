@@ -658,4 +658,58 @@ Value illumgray(const Value &A, const std::vector<double> &P,
 Value label2rgb(const Value &L, const Value &cmap, const Value &background,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Composite two images for visual comparison
+/// (`C = imfuse(A, B, method, ...)`).
+///
+/// Builds a UINT8 composite of `A` and `B` for visual comparison
+/// (e.g. registration QA). Five fusion methods (default
+/// `"falsecolor"`):
+///
+///   * `"falsecolor"` — convert each input to grayscale, scale,
+///     then assign to RGB channels per `ColorChannels` (default
+///     `"green-magenta"` = `[2 1 2]`).
+///   * `"blend"`      — alpha-blend at 50/50 in overlap; pass-
+///     through outside overlap (no spatial-ref form here, so the
+///     overlap is the whole image).
+///   * `"diff"`       — `|A - B|` as scaled grayscale.
+///   * `"checkerboard"` — alternating 8x8 super-blocks from `A`/`B`
+///     (block tile resized to image size by nearest neighbour).
+///   * `"montage"`    — `[A B]` side-by-side concatenation.
+///
+/// `Scaling` controls grayscale conversion:
+///   * `"independent"` (default) — scale each input to `[0, 1]`
+///     before `im2uint8`.
+///   * `"joint"` — concatenate, scale together, then split.
+///   * `"none"` — no rescale (just class cast).
+///
+/// `ColorChannels` for `"falsecolor"` only: 3-element vector
+/// `[R G B]` with values in `{0, 1, 2}` (image index, 0 = neither)
+/// or the named shortcuts `"red-cyan"` = `[1 2 2]`, or
+/// `"green-magenta"` = `[2 1 2]` (default).
+///
+/// If `A` and `B` differ in `H × W`, both are zero-padded to the
+/// element-wise max along each dimension before fusion.
+///
+/// Spatial referencing (the `(A, RA, B, RB)` form using `imref2d`)
+/// is **not** supported — `imref2d` is a MATLAB OOP class and §0 of
+/// the library policy forbids us from implementing it. The two-
+/// output form `[C, RC]` is therefore not exposed.
+///
+/// Output is always UINT8 with `class(C) = uint8`.
+///
+/// @param A         First image (grayscale 2-D, RGB 2-D x 3, or logical).
+/// @param B         Second image (any numeric class).
+/// @param method    `"falsecolor"` (def) / `"blend"` / `"diff"` /
+///                  `"checkerboard"` / `"montage"`.
+/// @param scaling   `"independent"` (def) / `"joint"` / `"none"`.
+/// @param channels  3-element vector in `{0,1,2}` for `"falsecolor"`
+///                  (default `[2 1 2]` = green-magenta).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          UINT8 composite image.
+Value imfuse(const Value &A, const Value &B,
+             const std::string &method,
+             const std::string &scaling,
+             const Value &channels,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image

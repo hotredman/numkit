@@ -1662,7 +1662,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 | `imnoise` | ✅ | 0.006 | 569.27× | 40.23× | OK | Sig: r = imnoise(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `phantom` | ✅ | 0.069 | 21.00× | 17.57× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
 | `imshow` | ❌ |  |  |  |  | needs graphics |
-| `imfuse` | ❌ |  |  |  |  |  |
+| `imfuse` | ✅ | 0.025 | 451.65× |  | OK | Sig: C = imfuse(A, B [, METHOD] [, NV...]). Branches: 5 methods × 3 scalings × multiple ColorChannels. Default = falsecolor green-magenta [2 1 2]. blend = uint8(0.5*A + 0.5*B). diff = scale(|A-B|) → im2uint8. checkerboard = 8x8 [1 0; 0 1] repmat → imresize-nearest → mask. montage = [A B]. Spatial referencing (imref2d) NOT supported per §0 (MATLAB-OOP). Image namespace 2026-05-27. |
 | `imshowpair` | ❌ |  |  |  |  |  |
 | `montage` | ❌ |  |  |  |  | tile images |
 | `immovie` | ❌ |  |  |  |  |  |
