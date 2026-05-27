@@ -696,6 +696,334 @@ Value checkerboard(size_t side, size_t M, size_t N, std::pmr::memory_resource *m
     return out;
 }
 
+// ── deconvwnr (Wiener inverse filter) ──────────────────────────────
+//
+// J = ifft( conj(H) * S_x / (|H|^2 * S_x + S_u) * fft(I) )
+// where H = psf2otf(PSF, size(I)); S_u is noise power spectrum and
+// S_x is signal power spectrum. Scalar NSR = S_u/S_x maps to S_u =
+// NSR, S_x = 1. Scalar NCORR/ICORR maps to S_u=NCORR, S_x=ICORR.
+//
+// Algorithm transliterated verbatim from MATLAB R2025b deconvwnr.m
+// (see Gonzalez & Woods, *Digital Image Processing*, 2e § 5.8).
+namespace {
+
+// Wide cast input I to DOUBLE, recording the source class for the
+// later quantisation cast on output.
+Value to_double_pmr(const Value &I, std::pmr::memory_resource *mr)
+{
+    const auto &d = I.dims();
+    const std::size_t H = d.rows();
+    const std::size_t W = d.cols();
+    Value out = d.is3D()
+        ? Value::matrix3d(H, W, d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const std::size_t N = I.numel();
+    switch (I.type()) {
+        case ValueType::DOUBLE:
+            std::memcpy(od, I.doubleData(), N * sizeof(double)); break;
+        case ValueType::SINGLE:
+            for (std::size_t i = 0; i < N; ++i) od[i] = I.singleData()[i]; break;
+        case ValueType::UINT8:
+            for (std::size_t i = 0; i < N; ++i) od[i] = I.uint8Data()[i] / 255.0; break;
+        case ValueType::UINT16:
+            for (std::size_t i = 0; i < N; ++i) od[i] = I.uint16Data()[i] / 65535.0; break;
+        case ValueType::INT16:
+            for (std::size_t i = 0; i < N; ++i)
+                od[i] = (I.int16Data()[i] + 32768.0) / 65535.0; break;
+        default:
+            throw Error("deconvwnr: unsupported image class",
+                        0, 0, "deconvwnr", "", "m:deconvwnr:cls");
+    }
+    return out;
+}
+
+Value real_back_to_class(const Value &Jd, ValueType outT,
+                         std::pmr::memory_resource *mr)
+{
+    const auto &d = Jd.dims();
+    Value out = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), outT, mr)
+        : Value::matrix(d.rows(), d.cols(), outT, mr);
+    const std::size_t N = Jd.numel();
+    const double *src = Jd.doubleData();
+    auto sat_u8  = [](double v) {
+        if (v <= 0.0) return uint8_t{0};
+        if (v >= 1.0) return uint8_t{255};
+        return static_cast<uint8_t>(std::lround(v * 255.0));
+    };
+    auto sat_u16 = [](double v) {
+        if (v <= 0.0) return uint16_t{0};
+        if (v >= 1.0) return uint16_t{65535};
+        return static_cast<uint16_t>(std::lround(v * 65535.0));
+    };
+    auto sat_i16 = [](double v) {
+        if (v <= 0.0) return int16_t{-32768};
+        if (v >= 1.0) return int16_t{32767};
+        return static_cast<int16_t>(std::lround(v * 65535.0 - 32768.0));
+    };
+    switch (outT) {
+        case ValueType::DOUBLE:
+            std::memcpy(out.doubleDataMut(), src, N * sizeof(double)); break;
+        case ValueType::SINGLE:
+            for (std::size_t i = 0; i < N; ++i)
+                out.singleDataMut()[i] = static_cast<float>(src[i]); break;
+        case ValueType::UINT8:
+            for (std::size_t i = 0; i < N; ++i)
+                out.uint8DataMut()[i] = sat_u8(src[i]); break;
+        case ValueType::UINT16:
+            for (std::size_t i = 0; i < N; ++i)
+                out.uint16DataMut()[i] = sat_u16(src[i]); break;
+        case ValueType::INT16:
+            for (std::size_t i = 0; i < N; ++i)
+                out.int16DataMut()[i] = sat_i16(src[i]); break;
+        default:
+            throw Error("deconvwnr: unsupported output class",
+                        0, 0, "deconvwnr", "", "m:deconvwnr:cls");
+    }
+    return out;
+}
+
+// Core impl: takes I (already DOUBLE), PSF (DOUBLE), and power-
+// spectrum scalars S_u and S_x (after the array case has been
+// reduced via fftn-and-abs). Returns DOUBLE J of size(I).
+Value deconvwnr_core_scalar_uxsx(const Value &I, const Value &PSF,
+                                 double S_u, double S_x,
+                                 std::pmr::memory_resource *mr)
+{
+    const auto &dI = I.dims();
+    const std::size_t H = dI.rows();
+    const std::size_t W = dI.cols();
+    const bool is3 = dI.is3D();
+    const std::size_t P = is3 ? dI.pages() : 1;
+
+    // 2-D OTF for now (deconvwnr handles N-D in MATLAB; we cover
+    // 2-D and 3-D via per-page processing — common in HDR / volumes).
+    std::array<std::size_t, 2> outsize{H, W};
+    Value Hf = psf2otf(PSF, Span<const std::size_t>(outsize.data(), 2), mr);
+    // psf2otf may return DOUBLE for real-symmetric PSFs; normalise
+    // to a COMPLEX buffer so the rest of this function can access
+    // both real and imag uniformly.
+    const std::size_t plane = H * W;
+    std::pmr::vector<Complex> Hcplx(plane, Complex{0, 0}, mr);
+    if (Hf.isComplex()) {
+        const Complex *src = Hf.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Hcplx[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Hcplx[i] = Complex{Hf.elemAsDouble(i), 0.0};
+    }
+    const Complex *Hd = Hcplx.data();
+    // denom = |H|^2 * S_x + S_u, clamped at sqrt(eps).
+    Value denom = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *denomD = denom.doubleDataMut();
+    const double sqrt_eps = std::sqrt(std::numeric_limits<double>::epsilon());
+    for (std::size_t i = 0; i < plane; ++i) {
+        const double m2 = Hd[i].real() * Hd[i].real() + Hd[i].imag() * Hd[i].imag();
+        double d = m2 * S_x + S_u;
+        if (d < sqrt_eps) d = sqrt_eps;
+        denomD[i] = d;
+    }
+
+    // Process each page through the same OTF.
+    Value J = is3
+        ? Value::matrix3d(H, W, P, ValueType::DOUBLE, mr)
+        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+
+    for (std::size_t pg = 0; pg < P; ++pg) {
+        Value Ip = is3 ? Value::matrix(H, W, ValueType::DOUBLE, mr) : I;
+        if (is3) {
+            double *ipd = Ip.doubleDataMut();
+            for (std::size_t i = 0; i < plane; ++i)
+                ipd[i] = I.doubleData()[pg * plane + i];
+        }
+        Value FI = signal::fft2(Ip, -1, -1, mr);
+        // FFT2 may collapse to DOUBLE when input is real-symmetric.
+        std::pmr::vector<Complex> FIcplx(plane, Complex{0, 0}, mr);
+        if (FI.isComplex()) {
+            const Complex *src = FI.complexData();
+            for (std::size_t i = 0; i < plane; ++i) FIcplx[i] = src[i];
+        } else {
+            for (std::size_t i = 0; i < plane; ++i)
+                FIcplx[i] = Complex{FI.elemAsDouble(i), 0.0};
+        }
+        Value FG = Value::matrix(H, W, ValueType::COMPLEX, mr);
+        Complex *fg = FG.complexDataMut();
+        const Complex *fi = FIcplx.data();
+        for (std::size_t i = 0; i < plane; ++i) {
+            // G(k) = conj(H(k)) * S_x / denom(k); multiply by FI(k).
+            const Complex Hk = Hd[i];
+            const Complex Hc{Hk.real(), -Hk.imag()};
+            const double g_scale = S_x / denomD[i];
+            const Complex Gk{Hc.real() * g_scale, Hc.imag() * g_scale};
+            fg[i] = Complex{Gk.real() * fi[i].real() - Gk.imag() * fi[i].imag(),
+                            Gk.real() * fi[i].imag() + Gk.imag() * fi[i].real()};
+        }
+        Value Jp = signal::ifft2(FG, -1, -1, mr);
+        // IFFT2 may also collapse to DOUBLE for purely-real spectra.
+        auto jp_at = [&](std::size_t i) -> double {
+            if (Jp.isComplex()) return Jp.complexData()[i].real();
+            return Jp.elemAsDouble(i);
+        };
+        if (is3) {
+            double *jod = J.doubleDataMut();
+            for (std::size_t i = 0; i < plane; ++i)
+                jod[pg * plane + i] = jp_at(i);
+        } else {
+            double *jod = J.doubleDataMut();
+            for (std::size_t i = 0; i < plane; ++i)
+                jod[i] = jp_at(i);
+        }
+    }
+    return J;
+}
+
+} // anonymous
+
+Value deconvwnr(const Value &I, const Value &PSF, double nsr,
+                std::pmr::memory_resource *mr)
+{
+    if (PSF.dims().is3D())
+        throw Error("deconvwnr: PSF must be 2-D",
+                    0, 0, "deconvwnr", "", "m:deconvwnr:psf");
+    const ValueType inT = I.type();
+    Value Id = to_double_pmr(I, mr);
+    Value PSFd = to_double_pmr(PSF, mr);
+    Value J = deconvwnr_core_scalar_uxsx(Id, PSFd, nsr, 1.0, mr);
+    if (inT == ValueType::DOUBLE) return J;
+    return real_back_to_class(J, inT, mr);
+}
+
+Value deconvwnr(const Value &I, const Value &PSF,
+                const Value &ncorr, const Value &icorr,
+                std::pmr::memory_resource *mr)
+{
+    if (PSF.dims().is3D())
+        throw Error("deconvwnr: PSF must be 2-D",
+                    0, 0, "deconvwnr", "", "m:deconvwnr:psf");
+    const ValueType inT = I.type();
+    Value Id = to_double_pmr(I, mr);
+    Value PSFd = to_double_pmr(PSF, mr);
+
+    // Determine S_u and S_x — scalars or same-size power spectra
+    // (we take |fftn(ACF, sizeI)| per MATLAB's powerSpectrumFromACF).
+    const auto &dI = Id.dims();
+    const std::size_t H = dI.rows();
+    const std::size_t W = dI.cols();
+    const std::size_t plane = H * W;
+
+    auto build_S = [&](const Value &acf, const char *name) -> std::pair<bool, std::pmr::vector<double>> {
+        if (acf.numel() == 1) {
+            // Scalar: uniform spectrum equal to that value.
+            std::pmr::vector<double> v(mr);
+            v.push_back(acf.toScalar());
+            return {true, std::move(v)};
+        }
+        if (acf.dims().rows() == H && acf.dims().cols() == W
+            && !acf.dims().is3D()) {
+            // Same-size ACF: |fft2(acf)|
+            Value F = signal::fft2(acf, -1, -1, mr);
+            std::pmr::vector<double> S(plane, 0.0, mr);
+            const Complex *fc = F.complexData();
+            for (std::size_t i = 0; i < plane; ++i) {
+                const double m = std::sqrt(fc[i].real() * fc[i].real()
+                                         + fc[i].imag() * fc[i].imag());
+                S[i] = m;
+            }
+            return {false, std::move(S)};
+        }
+        throw Error(std::string("deconvwnr: ") + name
+                  + " must be a scalar or same size as I "
+                    "(1-D extrapolation form not supported)",
+                    0, 0, "deconvwnr", "", "m:deconvwnr:acf");
+    };
+
+    auto [su_scalar, S_u] = build_S(ncorr, "NCORR");
+    auto [sx_scalar, S_x] = build_S(icorr, "ICORR");
+
+    Value J;
+    if (su_scalar && sx_scalar) {
+        J = deconvwnr_core_scalar_uxsx(Id, PSFd, S_u[0], S_x[0], mr);
+    } else {
+        // Non-scalar spectra: apply per pixel inside the loop. Reuse
+        // the scalar-core's H computation, then redo the denom build.
+        const bool is3 = dI.is3D();
+        const std::size_t P = is3 ? dI.pages() : 1;
+        std::array<std::size_t, 2> outsize{H, W};
+        Value Hf = psf2otf(PSFd, Span<const std::size_t>(outsize.data(), 2), mr);
+        // Same DOUBLE-vs-COMPLEX normalisation as the scalar path.
+        std::pmr::vector<Complex> Hcplx(plane, Complex{0, 0}, mr);
+        if (Hf.isComplex()) {
+            const Complex *src = Hf.complexData();
+            for (std::size_t i = 0; i < plane; ++i) Hcplx[i] = src[i];
+        } else {
+            for (std::size_t i = 0; i < plane; ++i)
+                Hcplx[i] = Complex{Hf.elemAsDouble(i), 0.0};
+        }
+        const Complex *Hd = Hcplx.data();
+        Value denom = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        double *denomD = denom.doubleDataMut();
+        const double sqrt_eps = std::sqrt(std::numeric_limits<double>::epsilon());
+        auto get_S = [&](const std::pmr::vector<double> &S, std::size_t i, bool scalar) {
+            return scalar ? S[0] : S[i];
+        };
+        for (std::size_t i = 0; i < plane; ++i) {
+            const double m2 = Hd[i].real() * Hd[i].real()
+                            + Hd[i].imag() * Hd[i].imag();
+            double d = m2 * get_S(S_x, i, sx_scalar) + get_S(S_u, i, su_scalar);
+            if (d < sqrt_eps) d = sqrt_eps;
+            denomD[i] = d;
+        }
+
+        J = is3 ? Value::matrix3d(H, W, P, ValueType::DOUBLE, mr)
+                 : Value::matrix(H, W, ValueType::DOUBLE, mr);
+        for (std::size_t pg = 0; pg < P; ++pg) {
+            Value Ip = is3 ? Value::matrix(H, W, ValueType::DOUBLE, mr) : Id;
+            if (is3) {
+                double *ipd = Ip.doubleDataMut();
+                for (std::size_t i = 0; i < plane; ++i)
+                    ipd[i] = Id.doubleData()[pg * plane + i];
+            }
+            Value FI = signal::fft2(Ip, -1, -1, mr);
+            std::pmr::vector<Complex> FIcplx(plane, Complex{0, 0}, mr);
+            if (FI.isComplex()) {
+                const Complex *src = FI.complexData();
+                for (std::size_t i = 0; i < plane; ++i) FIcplx[i] = src[i];
+            } else {
+                for (std::size_t i = 0; i < plane; ++i)
+                    FIcplx[i] = Complex{FI.elemAsDouble(i), 0.0};
+            }
+            Value FG = Value::matrix(H, W, ValueType::COMPLEX, mr);
+            Complex *fg = FG.complexDataMut();
+            const Complex *fi = FIcplx.data();
+            for (std::size_t i = 0; i < plane; ++i) {
+                const Complex Hk = Hd[i];
+                const Complex Hc{Hk.real(), -Hk.imag()};
+                const double sx_i = get_S(S_x, i, sx_scalar);
+                const double g_scale = sx_i / denomD[i];
+                const Complex Gk{Hc.real() * g_scale, Hc.imag() * g_scale};
+                fg[i] = Complex{Gk.real() * fi[i].real() - Gk.imag() * fi[i].imag(),
+                                Gk.real() * fi[i].imag() + Gk.imag() * fi[i].real()};
+            }
+            Value Jp = signal::ifft2(FG, -1, -1, mr);
+            auto jp_at = [&](std::size_t i) -> double {
+                if (Jp.isComplex()) return Jp.complexData()[i].real();
+                return Jp.elemAsDouble(i);
+            };
+            if (is3) {
+                double *jod = J.doubleDataMut();
+                for (std::size_t i = 0; i < plane; ++i)
+                    jod[pg * plane + i] = jp_at(i);
+            } else {
+                double *jod = J.doubleDataMut();
+                for (std::size_t i = 0; i < plane; ++i) jod[i] = jp_at(i);
+            }
+        }
+    }
+    if (inT == ValueType::DOUBLE) return J;
+    return real_back_to_class(J, inT, mr);
+}
+
 namespace detail {
 
 void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
@@ -829,6 +1157,27 @@ void fftconv2_reg(Span<const Value> args, size_t /*nargout*/,
         shape = args[2].toString();
     }
     outs[0] = fftconv2(args[0], args[1], shape, ctx.engine->resource());
+}
+
+void deconvwnr_reg(Span<const Value> args, std::size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("deconvwnr: requires (I, PSF [, NSR | NCORR, ICORR])",
+                    0, 0, "deconvwnr", "", "m:deconvwnr:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        outs[0] = deconvwnr(args[0], args[1], 0.0, mr);
+    } else if (args.size() == 3) {
+        // 3-arg form: scalar NSR (most common case).
+        if (args[2].numel() != 1)
+            throw Error("deconvwnr: 3-arg NSR must be a scalar; use the "
+                        "4-arg (NCORR, ICORR) form for array spectra",
+                        0, 0, "deconvwnr", "", "m:deconvwnr:nsr");
+        outs[0] = deconvwnr(args[0], args[1], args[2].toScalar(), mr);
+    } else {
+        outs[0] = deconvwnr(args[0], args[1], args[2], args[3], mr);
+    }
 }
 
 void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,

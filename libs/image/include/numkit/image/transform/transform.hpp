@@ -126,6 +126,44 @@ Value psf2otf(const Value &PSF, Span<const size_t> outsize = {},
 Value fftconv2(const Value &A, const Value &B, const std::string &shape,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Wiener deconvolution (`J = deconvwnr(I, PSF, NSR)` /
+/// `deconvwnr(I, PSF, NCORR, ICORR)`).
+///
+/// Deblurs image `I` assuming a known point-spread function `PSF`.
+/// The Wiener inverse filter
+///   `G(k) = conj(H(k)) / (|H(k)|^2 + S_u/S_x)`
+/// minimises the mean-square error between the estimated and the
+/// true images (Gonzalez & Woods, *Digital Image Processing*).
+/// `H(k)` is the OTF returned by @ref psf2otf at `size(I)`.
+///
+/// **Argument forms:**
+///   * `(I, PSF, nsr_scalar)` — scalar NSR (`S_u/S_x`); `0`
+///     produces the ideal inverse filter (subject to the small
+///     `sqrt(eps)` denominator floor).
+///   * `(I, PSF, ncorr, icorr)` — scalar noise / signal powers;
+///     equivalent to `NSR = ncorr / icorr`.
+///   * Array `NCORR` / `ICORR` (autocorrelation functions of the
+///     same size as `I`) are also supported: each is FFT'd to a
+///     power spectrum first; the 1-D extrapolation form of
+///     MATLAB's `powerSpectrumFromACF` is not implemented and
+///     throws.
+///
+/// Output class equals input class (uint8/uint16 are scaled by
+/// the class range and saturating-cast at the end). Real inputs
+/// produce a real output (the tiny imaginary part of the IFFT is
+/// discarded).
+///
+/// @param I        2-D or 3-D blurred image (any numeric class).
+/// @param PSF      Point-spread function (real, any size ≤ `I`).
+/// @param nsr      Noise-to-signal power ratio (default 0).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         Deblurred image, same class and shape as `I`.
+Value deconvwnr(const Value &I, const Value &PSF, double nsr,
+                std::pmr::memory_resource *mr = nullptr);
+Value deconvwnr(const Value &I, const Value &PSF,
+                const Value &ncorr, const Value &icorr,
+                std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Best block size for block-wise processing
 /// (`siz = bestblk(IMS, k)`).
 ///

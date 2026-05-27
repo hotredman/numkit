@@ -1,0 +1,23 @@
+{
+  "name": "deconvwnr",
+  "namespace": "image",
+  "setup": "I = double([0.1 0.2 0.3; 0.4 0.5 0.6; 0.7 0.8 0.9]); PSF = ones(3)/9;",
+  "expr": "J0 = deconvwnr(I, PSF, 0); J1 = deconvwnr(I, PSF, 0.01); J2 = deconvwnr(I, PSF, 0.1); J3 = deconvwnr(I, PSF, 0.01, 1); Iu = uint8([10 20 30; 40 50 60; 70 80 90]); Ju = double(deconvwnr(Iu, ones(3)/9, 0.01));",
+  "iters": 3,
+  "tol": 1e-7,
+  "fingerprint": [
+    "J0(1,1)", "J0(2,2)", "J0(3,3)",
+    "J1(1,1)", "J1(2,2)",
+    "J2(1,1)", "J2(2,2)",
+    "J3(1,1)", "J3(2,2)",
+    "Ju(1,1)", "Ju(2,2)"
+  ],
+  "covers": [
+    "deconvwnr(I, PSF, NSR=0)             ideal inverse",
+    "deconvwnr(I, PSF, NSR=0.01)          regularised",
+    "deconvwnr(I, PSF, NSR=0.1)           strongly regularised",
+    "deconvwnr(I, PSF, NCORR, ICORR)      scalar NCORR/ICORR ≡ NSR",
+    "uint8 input — class-preserving       saturating cast on output"
+  ],
+  "comment": "MATLAB R2025b deconvwnr.m algorithm: H = psf2otf(PSF, size(I)); denom = |H|² · S_x + S_u (clamped at sqrt(eps)); G = conj(H) · S_x / denom; J = real(ifftn(G .* fftn(I))); convert to class(I). Scalar NSR maps to S_u = NSR, S_x = 1. Scalar NCORR/ICORR is the equivalent (S_u = NCORR, S_x = ICORR). Array NCORR/ICORR is also supported via |fft2(ACF)| (only same-size ACFs — MATLAB's 1-D extrapolation form throws). Bit-equal MATLAB on every probed test vector. Reference: Gonzalez & Woods, *Digital Image Processing*, 2e § 5.8."
+}
