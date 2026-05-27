@@ -485,8 +485,8 @@ together.
 | `computebygroup` | ❌ |  |  |  |  |  |
 | `convertvars` | ❌ |  |  |  |  |  |
 | `fillmissing` | ⚠️ | 0.011 | 374.10× |  | OK | fillmissing — replace NaN by method. Methods: 'constant', 'previous', 'next' (existing); 'nearest', 'linear' (added cycle 74). Per-column processing for matrices (fixes prior 1D-flat bug for previous/next). Tie-break in 'nearest' picks NEXT. 'linear' extrapolates leading/trailing NaNs via slope of nearest interior good-value pair (requires ≥2 good values). Deferred MATLAB methods: 'spline', 'pchip', 'makima', 'movmean', 'movmedian', 'knn'. |
-| `findgroups` | ❌ |  |  |  |  |  |
-| `groupcounts` | ❌ |  |  |  |  |  |
+| `findgroups` | ✅ | 0.012 | 205.63× |  | OK | findgroups + groupcounts — basic group ID assignment + NaN handling (NaN entries → G=NaN in findgroups; trailing NaN bucket in groupcounts). Extended outputs: groupcounts 2-out returns GR (representative values), 3-out adds P (percentage). MATLAB R2025b convention. |
+| `groupcounts` | ✅ | 0.012 | 205.63× |  | OK | findgroups + groupcounts — basic group ID assignment + NaN handling (NaN entries → G=NaN in findgroups; trailing NaN bucket in groupcounts). Extended outputs: groupcounts 2-out returns GR (representative values), 3-out adds P (percentage). MATLAB R2025b convention. |
 | `groupfilter` | ❌ |  |  |  |  |  |
 | `groupsummary` | ❌ |  |  |  |  |  |
 | `grouptransform` | ❌ |  |  |  |  |  |
