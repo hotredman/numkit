@@ -428,6 +428,78 @@ Value imboxfilt(const Value &I, int filter_size, std::pmr::memory_resource *mr)
     return imfilter(I, k, PadMode::Replicate, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
 }
 
+// integralBoxFilter — 2-D box filter on a precomputed integral image.
+//
+// Given integral image I of shape (H+1) x (W+1) [optionally x C], for each
+// output pixel (oi, oj) in the underlying-image coordinates the underlying
+// box [oi..oi+fH-1, oj..oj+fW-1] has sum
+//     I[oi+fH, oj+fW] - I[oi, oj+fW] - I[oi+fH, oj] + I[oi, oj]
+// (4 lookups → O(1) per pixel regardless of filter size).
+// Output is (H - fH + 1) x (W - fW + 1) — only the no-boundary core.
+// For 3-D input the filter is applied per-channel.
+Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
+                         std::pmr::memory_resource *mr)
+{
+    if (fH <= 0 || fW <= 0)
+        throw Error("integralBoxFilter: filterSize must be positive",
+                    0, 0, "integralBoxFilter", "", "m:integralBoxFilter:badSize");
+    if ((fH & 1) == 0 || (fW & 1) == 0)
+        throw Error("integralBoxFilter: filterSize must be odd",
+                    0, 0, "integralBoxFilter", "", "m:integralBoxFilter:notOdd");
+
+    const auto &d = I.dims();
+    if (d.ndim() > 3)
+        throw Error("integralBoxFilter: input must be 2-D or 3-D integral image",
+                    0, 0, "integralBoxFilter", "", "m:integralBoxFilter:rank");
+
+    const size_t H1 = d.rows();
+    const size_t W1 = d.cols();
+    if (H1 < 1 || W1 < 1)
+        throw Error("integralBoxFilter: integral image must be at least (1+1) × (1+1)",
+                    0, 0, "integralBoxFilter", "", "m:integralBoxFilter:tiny");
+    // Underlying image height / width.
+    const size_t H = H1 - 1;
+    const size_t W = W1 - 1;
+    if (static_cast<size_t>(fH) > H || static_cast<size_t>(fW) > W)
+        throw Error("integralBoxFilter: filter size too large for integral image",
+                    0, 0, "integralBoxFilter", "", "m:integralBoxFilter:tooLarge");
+
+    const size_t C = (d.ndim() == 3) ? d.pages() : 1;
+    const size_t outH = H - static_cast<size_t>(fH) + 1;
+    const size_t outW = W - static_cast<size_t>(fW) + 1;
+
+    Value out = (C == 1)
+        ? Value::matrix(outH, outW, ValueType::DOUBLE, mr)
+        : Value::matrix3d(outH, outW, C, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    const size_t inPlane = H1 * W1;
+    const double invN = 1.0 / normFactor;
+
+    for (size_t c = 0; c < C; ++c) {
+        for (size_t oj = 0; oj < outW; ++oj) {
+            const size_t c0 = oj;
+            const size_t c1 = oj + static_cast<size_t>(fW);
+            for (size_t oi = 0; oi < outH; ++oi) {
+                const size_t r0 = oi;
+                const size_t r1 = oi + static_cast<size_t>(fH);
+                // Column-major indexing for I: idx = c·inPlane + col·H1 + row.
+                const size_t base = c * inPlane;
+                const double s =
+                      I.elemAsDouble(base + c1 * H1 + r1)
+                    - I.elemAsDouble(base + c1 * H1 + r0)
+                    - I.elemAsDouble(base + c0 * H1 + r1)
+                    + I.elemAsDouble(base + c0 * H1 + r0);
+                const size_t dstIdx = (C == 1)
+                    ? (oj * outH + oi)
+                    : (c * outH * outW + oj * outH + oi);
+                od[dstIdx] = s * invN;
+            }
+        }
+    }
+    return out;
+}
+
 Value medfilt2(const Value &I, int rows, int cols, std::pmr::memory_resource *mr)
 {
     const int H = (int)I.dims().rows();
@@ -1878,6 +1950,50 @@ void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imboxfilt", "", "m:imboxfilt:nargin");
     int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
     outs[0] = imboxfilt(args[0], fs, ctx.engine->resource());
+}
+
+void integralBoxFilter_reg(Span<const Value> args, size_t /*nargout*/,
+                            Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("integralBoxFilter: requires (I [, filterSize [, NV...]])",
+                    0, 0, "integralBoxFilter", "", "m:integralBoxFilter:nargin");
+
+    // Defaults match MATLAB: 3-by-3 box.
+    int fH = 3, fW = 3;
+    size_t nvStart = 1;
+    if (args.size() >= 2 && !args[1].isEmpty()
+        && !args[1].isChar() && !args[1].isString()) {
+        const Value &fsArg = args[1];
+        if (fsArg.numel() == 1) {
+            fH = fW = static_cast<int>(fsArg.toScalar());
+        } else if (fsArg.numel() == 2) {
+            fH = static_cast<int>(fsArg.elemAsDouble(0));
+            fW = static_cast<int>(fsArg.elemAsDouble(1));
+        } else {
+            throw Error("integralBoxFilter: filterSize must be a scalar or 2-element vector",
+                        0, 0, "integralBoxFilter", "", "m:integralBoxFilter:badSize");
+        }
+        nvStart = 2;
+    }
+
+    double normFactor = static_cast<double>(fH) * static_cast<double>(fW);
+    // NV-pair: NormalizationFactor.
+    for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("integralBoxFilter: name-value name must be a string",
+                        0, 0, "integralBoxFilter", "", "m:integralBoxFilter:badNVName");
+        const std::string key = args[i].toString();
+        std::string lower = key;
+        for (auto &ch : lower) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (lower == "normalizationfactor") {
+            normFactor = args[i + 1].toScalar();
+        } else {
+            throw Error("integralBoxFilter: unknown name-value key '" + key + "'",
+                        0, 0, "integralBoxFilter", "", "m:integralBoxFilter:badNVKey");
+        }
+    }
+    outs[0] = integralBoxFilter(args[0], fH, fW, normFactor, ctx.engine->resource());
 }
 
 void medfilt3_reg(Span<const Value> args, size_t /*nargout*/,
