@@ -1,0 +1,10 @@
+{
+  "name": "chromadapt",
+  "namespace": "image",
+  "setup": "A = uint8(reshape(linspace(20, 240, 48), [4 4 3])); ill = [220 200 160];",
+  "expr": "B = chromadapt(A, ill); r1 = double(B(2,2,1)); r2 = double(B(2,2,2)); r3 = double(B(2,2,3)); r4 = double(B(3,3,1)); r5 = double(B(3,3,2)); B = chromadapt(A, ill, 'Method', 'vonkries'); r6 = double(B(2,2,1)); r7 = double(B(2,2,3)); B = chromadapt(A, ill, 'Method', 'simple'); r8 = double(B(2,2,1)); B = chromadapt(A, ill, 'ColorSpace', 'linear-rgb'); r9 = double(B(2,2,1)); B = chromadapt(A, ill, 'ColorSpace', 'adobe-rgb-1998'); r10 = double(B(2,2,3)); B = chromadapt(A, ill, 'ColorSpace', 'prophoto-rgb'); r11 = double(B(2,2,1));",
+  "iters": 3,
+  "tol": 1,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"],
+  "comment": "Sig: B = chromadapt(A, illuminant [, NV...]). Covers: 3 Methods (bradford default, vonkries, simple) × 4 ColorSpaces (srgb default, linear-rgb, adobe-rgb-1998, prophoto-rgb). Per-pixel chromatic adaptation via Bradford / von Kries LMS matrix or per-channel Simple scaling. Reference white = D65. uint8 outputs bit-exact (11 fingerprints). Float outputs (single/double) preserve precision but values near gamut boundaries may differ in the last digit (matrix precision ~1e-6 ULPs). Inline implementation: 4 RGB color spaces (sRGB piecewise gamma, Adobe γ=2.19921875, ProPhoto piecewise γ=1.8 + D50→D65 Bradford, linear-rgb identity gamma); Bradford + vonKries adapt matrices. References: Lam 1985 PhD thesis; Hunt 'Reproduction of Colour' 6th ed. Image namespace 2026-05-27."
+}

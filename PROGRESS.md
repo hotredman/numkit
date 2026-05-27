@@ -1617,7 +1617,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
+| `chromadapt` | ✅ | 0.022 | 1084.49× |  | OK | Sig: B = chromadapt(A, illuminant [, NV...]). Covers: 3 Methods (bradford default, vonkries, simple) × 4 ColorSpaces (srgb default, linear-rgb, adobe-rgb-1998, prophoto-rgb). Per-pixel chromatic adaptation via Bradford / von Kries LMS matrix or per-channel Simple scaling. Reference white = D65. uint8 outputs bit-exact (11 fingerprints). Float outputs (single/double) preserve precision but values near gamut boundaries may differ in the last digit (matrix precision ~1e-6 ULPs). Inline implementation: 4 RGB color spaces (sRGB piecewise gamma, Adobe γ=2.19921875, ProPhoto piecewise γ=1.8 + D50→D65 Bradford, linear-rgb identity gamma); Bradford + vonKries adapt matrices. References: Lam 1985 PhD thesis; Hunt 'Reproduction of Colour' 6th ed. Image namespace 2026-05-27. |
 | `colorangle` | ✅ | 0.001 | 469.50× |  | OK | Sig: r = colorangle(...). Spec-extension batch 2026-05-09. |
 | `deltaE` | ✅ | 0.004 | 1700.22× |  | OK | Sig: D = deltaE(I1, I2). KNOWN GAP: numkit's deltaE output dimensions differ from MATLAB. Only structural numel pinned. Documented as separate ТЗ. |
 | `hsv2rgb` | ✅ | 0.004 | 444.01× | 70.17× | OK | Sig: r = hsv2rgb(...). Spec-extension batch 2026-05-09 (image namespace). |

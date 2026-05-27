@@ -810,4 +810,64 @@ Value labeloverlay(const Value &A, const Value &L,
                    double transparency,
                    std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Chromatic adaptation for white-balance correction
+/// (`B = chromadapt(A, illuminant, ...)`).
+///
+/// Rebalances RGB image colours under a known scene illuminant by
+/// mapping responses from a "source" white-point (the illuminant) to
+/// CIE D65 (the destination assumed by sRGB and most other
+/// device-RGB encodings). Three documented methods:
+///
+///   * **Bradford** (default; Lam 1985) — linear LMS-cone-space
+///     adaptation using the Bradford matrix. The CIECAM02 Bradford
+///     variant is the de-facto standard.
+///   * **von Kries** — Hunt-Pointer-Estevez sharpened LMS basis,
+///     simpler than Bradford but less perceptually uniform.
+///   * **Simple** — per-channel RGB scaling (no LMS transform).
+///     Fast but approximate; useful when the gamut transformation
+///     would clip badly.
+///
+/// Pipeline (Bradford / vonKries):
+///   1. Normalize illuminant: `illuminant_xyz = rgb2xyz(illuminant);
+///      illuminant_xyz /= illuminant_xyz(2)` (Y=1).
+///   2. Build adaptation matrix
+///      `M_adapt = M⁻¹ · diag(M·whiteD65 / M·illuminant) · M`
+///      where M is Bradford or von Kries.
+///   3. `A_XYZ = rgb2xyz(A)` (with D65 reference).
+///   4. `B_XYZ = M_adapt · A_XYZ` per pixel.
+///   5. `B = xyz2rgb(B_XYZ)` (D65 reference).
+///
+/// Pipeline (Simple):
+///   1. `illuminant_xyz` as above.
+///   2. `illuminant_rgb = xyz2rgb(illuminant_xyz)`.
+///   3. `B(:,:,c) = A(:,:,c) / illuminant_rgb(c)` (per channel).
+///
+/// `ColorSpace` controls the gamma + primaries:
+///   * `"srgb"` (default) — sRGB primaries, sRGB piecewise gamma.
+///   * `"adobe-rgb-1998"` — Adobe primaries, γ ≈ 2.2.
+///   * `"prophoto-rgb"` — ProPhoto primaries with D50 white,
+///     piecewise gamma (γ = 1.8 + linear toe).
+///   * `"linear-rgb"` — sRGB primaries, identity gamma.
+///
+/// Output class matches input (`uint8` / `uint16` / `single` /
+/// `double`).
+///
+/// @param A             RGB image (`H × W × 3`, uint8/uint16/single/double).
+/// @param illuminant    3-element numeric vector in the *same* RGB
+///                      colour space as A (NOT XYZ).
+/// @param method        `"bradford"` (def) / `"vonkries"` / `"simple"`.
+/// @param color_space   `"srgb"` (def) / `"adobe-rgb-1998"` /
+///                      `"prophoto-rgb"` / `"linear-rgb"`.
+/// @param mr            Memory resource (nullptr → process default).
+/// @return              Adapted RGB image, same class as `A`.
+///
+/// References:
+///   - Lam, K.M. (1985). Metamerism and Colour Constancy. PhD thesis,
+///     University of Bradford.
+///   - Hunt, R. W. G. (2005). The Reproduction of Colour, 6th ed.
+Value chromadapt(const Value &A, const Value &illuminant,
+                 const std::string &method,
+                 const std::string &color_space,
+                 std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image
