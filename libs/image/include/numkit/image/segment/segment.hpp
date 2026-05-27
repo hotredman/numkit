@@ -84,6 +84,43 @@ Value label2idx(const Value &L,
 Value grayconnected(const Value &I, int row, int col, double tol,
                     std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Pixel weights from grayscale intensity difference
+/// (`W = graydiffweight(I, refGrayVal [, NV...])`).
+///
+/// Used by Fast-Marching-Method-based segmentation (`imsegfmm`).
+/// For each pixel: `d = |I − refGrayVal|`; linearly scale `d` to
+/// `[1e-3, 1]`; then `W = 1 / (d^(1/RolloffFactor))`. Pixels close
+/// to the reference get a very large weight (~10^6 with the default
+/// `RolloffFactor = 0.5`); far pixels get weight 1.
+///
+/// **Reference value source.** This typed entry-point takes a scalar
+/// `refGrayVal`; the engine adapter additionally exposes the four
+/// MATLAB R2025b signatures
+///   `graydiffweight(I, refGrayVal)`,
+///   `graydiffweight(I, MASK)`               — mean of `I(MASK)`,
+///   `graydiffweight(I, C, R)`               — mean at linear (R, C),
+///   `graydiffweight(V, C, R, P)`            — 3-D version,
+/// each of which resolves to a single scalar reference internally.
+///
+/// **Options:**
+///   * `RolloffFactor` (default 0.5) — controls how fast `W` falls.
+///   * `GrayDifferenceCutoff` (default `+Inf`) — when finite, any
+///     pixel with `d > cutoff` (BEFORE scaling) is forced to 1
+///     (largest scaled-`d`, smallest output weight).
+///
+/// Output class: `single` if `I` is `single`, else `double` (matches
+/// MATLAB R2025b).
+///
+/// @param I              Grayscale 2-D / 3-D image (any numeric class).
+/// @param ref_gray_val   Reference intensity (scalar).
+/// @param rolloff_factor `> 0`. Default 0.5.
+/// @param cutoff         `>= 0` or `+Inf` (no cutoff). Default `+Inf`.
+/// @param mr             Memory resource (nullptr → process default).
+/// @return               Weight array (same shape as `I`).
+Value graydiffweight(const Value &I, double ref_gray_val,
+                     double rolloff_factor, double cutoff,
+                     std::pmr::memory_resource *mr = nullptr);
+
 /// Paint a binary mask onto an image with a colour
 /// (`J = imoverlay(I, BW, color)`).
 ///

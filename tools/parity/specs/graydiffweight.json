@@ -1,0 +1,25 @@
+{
+  "name": "graydiffweight",
+  "namespace": "image",
+  "setup": "I = double([1 2 3; 2 3 4; 3 4 5]);",
+  "expr": "W1 = graydiffweight(I, 3.0); W2 = graydiffweight(I, 3.0, 'RolloffFactor', 2); W3 = graydiffweight(I, 3.0, 'GrayDifferenceCutoff', 1); M = false(size(I)); M(1,1)=true; M(3,3)=true; W4 = graydiffweight(I, M); W5 = graydiffweight(I, [1;3], [1;3]); V = double(reshape(1:24, 2, 3, 4)); W6 = graydiffweight(V, 12.0);",
+  "iters": 3,
+  "tol": 1e-9,
+  "fingerprint": [
+    "W1(1,1)", "W1(1,2)", "W1(1,3)", "W1(2,2)", "W1(3,1)", "W1(3,3)",
+    "W2(1,3)", "W2(2,2)", "W2(3,1)",
+    "W3(1,1)", "W3(1,3)", "W3(3,3)",
+    "W4(1,3)", "W4(2,2)", "W4(3,1)",
+    "W5(1,3)", "W5(2,2)", "W5(3,1)",
+    "W6(1,1,1)", "W6(2,3,2)", "W6(2,3,4)"
+  ],
+  "covers": [
+    "graydiffweight(I, refGrayVal)         scalar reference",
+    "graydiffweight(I, MASK)                mean over masked pixels",
+    "graydiffweight(I, C, R)                mean over indexed pixels",
+    "RolloffFactor (default 0.5)            controls falloff",
+    "GrayDifferenceCutoff (default Inf)     hard threshold",
+    "3-D volume input"
+  ],
+  "comment": "MATLAB R2025b graydiffweight.m algorithm: d = |I - refGrayVal|; if cutoff finite, mark isSuppressed = (d > cutoff); d_scaled = imlinscale(d, [1e-3, 1]); if cutoff, d_scaled(isSuppressed) = 1; W = 1 ./ (d_scaled .^ (1/rolloffFactor)). Output class is single if input single, else double. 4 input signatures (scalar refGrayVal / logical MASK / column-row indices C,R / 3-D C,R,P) — the adapter computes the scalar reference upfront from the appropriate stats before dispatching. Bit-equal MATLAB on every probed case."
+}

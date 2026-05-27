@@ -23,4 +23,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ycbcr2rgbwide_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ind2gray_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imcrop3_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/graydiffweight_test.cpp
 )

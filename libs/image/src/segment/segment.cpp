@@ -10,8 +10,10 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 namespace numkit::image {
@@ -229,6 +231,74 @@ Value grayconnected(const Value &I, int row, int col, double tol, std::pmr::memo
     return out;
 }
 
+// ── graydiffweight (FMM intensity-difference weights) ──────────────
+//
+// MATLAB R2025b graydiffweight.m → call sequence:
+//   d = |I − refGrayVal|
+//   if cutoff < Inf: isSuppressed = (d > cutoff)
+//   d_scaled = imlinscale(d, [1e-3, 1])    — linear (min, max)→(1e-3, 1)
+//   if cutoff: d_scaled(isSuppressed) = 1
+//   W = 1 ./ (d_scaled .^ (1 / rolloffFactor))
+// Output class is single if input was single, otherwise double.
+// (The 4 input signatures collapse to a single scalar `refGrayVal`
+// here; the adapter computes the mean over MASK / (C, R) / (C, R, P)
+// before dispatching to this typed entry-point.)
+Value graydiffweight(const Value &I, double ref_gray_val,
+                     double rolloff_factor, double cutoff,
+                     std::pmr::memory_resource *mr)
+{
+    if (!(rolloff_factor > 0.0))
+        throw Error("graydiffweight: RolloffFactor must be positive",
+                    0, 0, "graydiffweight", "", "m:graydiffweight:rolloff");
+    if (!(cutoff >= 0.0))
+        throw Error("graydiffweight: GrayDifferenceCutoff must be "
+                    "non-negative",
+                    0, 0, "graydiffweight", "", "m:graydiffweight:cutoff");
+
+    const ValueType outT = (I.type() == ValueType::SINGLE)
+                          ? ValueType::SINGLE : ValueType::DOUBLE;
+    const auto &d = I.dims();
+    const std::size_t N = I.numel();
+    Value W = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), outT, mr)
+        : Value::matrix(d.rows(), d.cols(), outT, mr);
+    if (N == 0) return W;
+
+    // Pass 1 — compute |I − ref| in DOUBLE temporary; track min/max.
+    std::pmr::vector<double> diff(N, mr);
+    double dmin = std::numeric_limits<double>::infinity();
+    double dmax = -std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < N; ++i) {
+        const double v = std::fabs(I.elemAsDouble(i) - ref_gray_val);
+        diff[i] = v;
+        if (v < dmin) dmin = v;
+        if (v > dmax) dmax = v;
+    }
+
+    // Linear scale to [1e-3, 1].
+    const double lo = 1e-3, hi = 1.0;
+    const double range = dmax - dmin;
+    const double slope = (range > 0.0) ? (hi - lo) / range : 0.0;
+
+    const double inv_rolloff = 1.0 / rolloff_factor;
+    const bool finite_cutoff = std::isfinite(cutoff);
+
+    auto store = [&](std::size_t i, double v) {
+        if (outT == ValueType::DOUBLE) W.doubleDataMut()[i] = v;
+        else                            W.singleDataMut()[i] = static_cast<float>(v);
+    };
+
+    for (std::size_t i = 0; i < N; ++i) {
+        double s;
+        if (range > 0.0) s = lo + slope * (diff[i] - dmin);
+        else             s = lo;     // constant-image edge case
+        if (finite_cutoff && diff[i] > cutoff) s = hi;
+        const double w = 1.0 / std::pow(s, inv_rolloff);
+        store(i, w);
+    }
+    return W;
+}
+
 Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::memory_resource *mr)
 {
     if (color.numel() != 3)
@@ -354,6 +424,120 @@ void boundarymask_reg(Span<const Value> a, size_t, Span<Value> o,
     const int conn = (a.size() >= 2 && !a[1].isEmpty())
                      ? static_cast<int>(a[1].toScalar()) : 8;
     o[0] = boundarymask(a[0], conn, c.engine->resource());
+}
+
+// graydiffweight adapter — handles all 4 input signatures plus the
+// 'RolloffFactor' / 'GrayDifferenceCutoff' name-value pairs by
+// computing the scalar reference value upfront and dispatching to
+// the typed entry-point.
+void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
+                        CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("graydiffweight: requires (I, refGrayVal | MASK | "
+                    "C, R [, P]) [, NV...]",
+                    0, 0, "graydiffweight", "", "m:graydiffweight:nargin");
+    auto *mr = c.engine->resource();
+    const Value &I = a[0];
+    const auto &d = I.dims();
+    const std::size_t N = I.numel();
+    const std::size_t H = d.rows();
+    const std::size_t W_ = d.cols();
+    const std::size_t P = d.is3D() ? d.pages() : 1;
+
+    // Identify which signature is in play, then determine where the
+    // name-value pairs start.
+    double ref_gray_val = 0.0;
+    std::size_t nv_start = 2;
+
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+    const bool a1_str = is_string(a[1]);
+
+    if (!a1_str && a[1].isLogical()) {
+        // (I, MASK) — mean of I over MASK = true.
+        if (a[1].numel() != N)
+            throw Error("graydiffweight: MASK must match I in shape",
+                        0, 0, "graydiffweight", "", "m:graydiffweight:mask");
+        long double sum = 0.0L; std::size_t cnt = 0;
+        const std::uint8_t *m = a[1].logicalData();
+        for (std::size_t i = 0; i < N; ++i)
+            if (m[i]) { sum += I.elemAsDouble(i); ++cnt; }
+        if (cnt == 0)
+            throw Error("graydiffweight: MASK must contain at least one true",
+                        0, 0, "graydiffweight", "", "m:graydiffweight:emptyMask");
+        ref_gray_val = static_cast<double>(sum / static_cast<long double>(cnt));
+        nv_start = 2;
+    }
+    else if (!a1_str && a[1].numel() == 1 &&
+             (a.size() < 3 || a[2].isChar() || a[2].isString())) {
+        // (I, refGrayVal) — scalar reference.
+        ref_gray_val = a[1].toScalar();
+        nv_start = 2;
+    }
+    else if (!a1_str && a.size() >= 3 && !is_string(a[2])) {
+        // (I, C, R [, P]) — mean over indexed pixels.
+        const Value &C = a[1], &R = a[2];
+        const bool has_P = (a.size() >= 4 && !is_string(a[3]));
+        const Value *Pi = has_P ? &a[3] : nullptr;
+        if (C.numel() != R.numel() || (Pi && Pi->numel() != C.numel()))
+            throw Error("graydiffweight: C, R [, P] must have equal length",
+                        0, 0, "graydiffweight", "", "m:graydiffweight:crp");
+        long double sum = 0.0L; std::size_t cnt = 0;
+        for (std::size_t i = 0; i < C.numel(); ++i) {
+            const std::size_t c1 = static_cast<std::size_t>(C.elemAsDouble(i));
+            const std::size_t r1 = static_cast<std::size_t>(R.elemAsDouble(i));
+            const std::size_t p1 = Pi ? static_cast<std::size_t>(Pi->elemAsDouble(i))
+                                       : 1;
+            if (c1 < 1 || c1 > W_ || r1 < 1 || r1 > H || p1 < 1 || p1 > P)
+                throw Error("graydiffweight: (C, R [, P]) index out of range",
+                            0, 0, "graydiffweight", "",
+                            "m:graydiffweight:idx");
+            // Column-major linear: r-1 + H*(c-1) + H*W*(p-1).
+            const std::size_t lin = (r1 - 1) + H * (c1 - 1)
+                                  + H * W_ * (p1 - 1);
+            sum += I.elemAsDouble(lin);
+            ++cnt;
+        }
+        ref_gray_val = static_cast<double>(sum / static_cast<long double>(cnt));
+        nv_start = has_P ? 4 : 3;
+    }
+    else {
+        throw Error("graydiffweight: 2nd argument must be a numeric "
+                    "scalar, a logical MASK, or numeric C [, R [, P]]",
+                    0, 0, "graydiffweight", "", "m:graydiffweight:arg2");
+    }
+
+    // Name-value pairs.
+    double rolloff = 0.5;
+    double cutoff  = std::numeric_limits<double>::infinity();
+    std::size_t i = nv_start;
+    while (i + 1 < a.size()) {
+        if (!is_string(a[i]))
+            throw Error("graydiffweight: expected NV-pair name string",
+                        0, 0, "graydiffweight", "",
+                        "m:graydiffweight:badNvArg");
+        std::string name = a[i].toString();
+        std::string nlo = name;
+        for (auto &ch : nlo)
+            ch = static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        // Allow MATLAB-style abbreviation.
+        if (nlo.compare(0, std::min<std::size_t>(nlo.size(), 4), "roll") == 0)
+            rolloff = a[i + 1].toScalar();
+        else if (nlo.compare(0, std::min<std::size_t>(nlo.size(), 4), "gray") == 0)
+            cutoff = a[i + 1].toScalar();
+        else
+            throw Error("graydiffweight: unknown option '" + name + "'",
+                        0, 0, "graydiffweight", "",
+                        "m:graydiffweight:unknownNv");
+        i += 2;
+    }
+    if (i < a.size())
+        throw Error("graydiffweight: trailing unpaired NV argument",
+                    0, 0, "graydiffweight", "",
+                    "m:graydiffweight:unpaired");
+
+    o[0] = graydiffweight(I, ref_gray_val, rolloff, cutoff, mr);
 }
 
 void label2idx_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
