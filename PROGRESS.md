@@ -1608,7 +1608,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `otsuthresh` | ✅ | 0.004 | 164.98× | 104.53× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2gray` | ✅ | 0.004 | 95.17× | 21.46× | OK | Sig: r = rgb2gray(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgb2ind` | ❌ |  |  |  |  | colour quantize |
-| `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
+| `rgb2lightness` | ✅ | 0.007 | 48.59× |  | OK | Sig: L = rgb2lightness(RGB). Returns the L* (lightness) channel of CIELAB. Cycle 65 backfill (impl was added in cycle 3 of the sweep but parity spec was missing). 6 fingerprints at diagonal + 2 corners. tol=0.01 (single-vs-double precision in rgb2lab pipeline). Algorithm: rgb2lab(RGB) → page 0 → cast to SINGLE. Image namespace 2026-05-27. |
 | `demosaic` | ❌ |  |  |  |  | Bayer → RGB |
 
 ### Color Space Conversion

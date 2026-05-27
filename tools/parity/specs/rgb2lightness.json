@@ -1,0 +1,10 @@
+{
+  "name": "rgb2lightness",
+  "namespace": "image",
+  "setup": "A = uint8(reshape(linspace(20, 240, 48), [4 4 3]));",
+  "expr": "L = rgb2lightness(A); r1 = double(L(1,1)); r2 = double(L(2,2)); r3 = double(L(3,3)); r4 = double(L(4,4)); r5 = double(L(1,4)); r6 = double(L(4,1));",
+  "iters": 3,
+  "tol": 0.01,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6"],
+  "comment": "Sig: L = rgb2lightness(RGB). Returns the L* (lightness) channel of CIELAB. Cycle 65 backfill (impl was added in cycle 3 of the sweep but parity spec was missing). 6 fingerprints at diagonal + 2 corners. tol=0.01 (single-vs-double precision in rgb2lab pipeline). Algorithm: rgb2lab(RGB) → page 0 → cast to SINGLE. Image namespace 2026-05-27."
+}
