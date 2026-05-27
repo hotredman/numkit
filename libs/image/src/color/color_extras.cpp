@@ -21,14 +21,17 @@
 
 #include <numkit/image/color/color.hpp>
 #include <numkit/image/type_convert/type_convert.hpp>
+#include <numkit/image/geom/geom.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 
 namespace numkit::image {
@@ -652,6 +655,443 @@ void cmunique_reg(Span<const Value> args, size_t nargout,
     }
     outs[0] = std::move(result.first);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(result.second);
+}
+
+} // namespace detail (cmunique adapter)
+
+// ── imfuse (composite two images for visual comparison) ───────────
+//
+// MATLAB R2025b imfuse.m algorithm (programmatic, no imref2d form):
+//
+//   1. Zero-pad A and B to common size = element-wise max(sz_A, sz_B).
+//   2. Per `scaling`:
+//        "independent" → scale each to [0, 1] before im2uint8;
+//        "joint"       → concatenate, scale together, split;
+//        "none"        → just cast to uint8 (via im2uint8).
+//   3. Per `method`:
+//        "falsecolor"  → grayscale-convert, scale, assign per
+//                        ColorChannels to RGB channels.
+//        "blend"       → 0.5*A + 0.5*B in overlap (whole image
+//                        without imref2d).
+//        "diff"        → scale(|A-B|).
+//        "checkerboard"→ 8x8 [1 0; 0 1] repmat → imresize-nearest
+//                        to image size; A on 1, B on 0.
+//        "montage"     → horizontal concat [A B].
+namespace {
+
+// Get H, W (ignoring channels) of a 2-D or 3-D image.
+inline void hw_of(const Value &I, std::size_t &H, std::size_t &W) {
+    H = I.dims().rows();
+    W = I.dims().cols();
+}
+
+// Channels: 1 for HxW, 3 (or other) for HxWx3.
+inline std::size_t channels_of(const Value &I) {
+    return I.dims().is3D() ? I.dims().pages() : 1;
+}
+
+// Zero-pad I to (outH, outW) with the same channel count.
+Value pad_zeros(const Value &I, std::size_t outH, std::size_t outW,
+                std::pmr::memory_resource *mr)
+{
+    std::size_t H, W;
+    hw_of(I, H, W);
+    const std::size_t C = channels_of(I);
+    if (H == outH && W == outW) return I;
+    const ValueType T = I.type();
+    Value out = (C == 1)
+        ? Value::matrix(outH, outW, T, mr)
+        : Value::matrix3d(outH, outW, C, T, mr);
+    for (std::size_t ch = 0; ch < C; ++ch) {
+        for (std::size_t c = 0; c < W; ++c) {
+            for (std::size_t r = 0; r < H; ++r) {
+                const std::size_t src_idx = (C == 1)
+                    ? c * H + r
+                    : ch * H * W + c * H + r;
+                const std::size_t dst_idx = (C == 1)
+                    ? c * outH + r
+                    : ch * outH * outW + c * outH + r;
+                const double v = I.elemAsDouble(src_idx);
+                switch (T) {
+                    case ValueType::DOUBLE:  out.doubleDataMut()[dst_idx]  = v; break;
+                    case ValueType::SINGLE:  out.singleDataMut()[dst_idx]  = static_cast<float>(v); break;
+                    case ValueType::UINT8:   out.uint8DataMut()[dst_idx]   = static_cast<std::uint8_t>(v); break;
+                    case ValueType::UINT16:  out.uint16DataMut()[dst_idx]  = static_cast<std::uint16_t>(v); break;
+                    case ValueType::UINT32:  out.uint32DataMut()[dst_idx]  = static_cast<std::uint32_t>(v); break;
+                    case ValueType::INT8:    out.int8DataMut()[dst_idx]    = static_cast<std::int8_t>(v); break;
+                    case ValueType::INT16:   out.int16DataMut()[dst_idx]   = static_cast<std::int16_t>(v); break;
+                    case ValueType::INT32:   out.int32DataMut()[dst_idx]   = static_cast<std::int32_t>(v); break;
+                    case ValueType::LOGICAL: out.logicalDataMut()[dst_idx] = v != 0.0 ? 1 : 0; break;
+                    default: out.doubleDataMut()[dst_idx] = v; break;
+                }
+            }
+        }
+    }
+    return out;
+}
+
+// MATLAB R2025b scaleGrayscaleImage: cast to single, scale [min,max] → [0,1].
+Value scale_grayscale_image(const Value &I, std::pmr::memory_resource *mr) {
+    if (I.isLogical()) return I;
+    const std::size_t N = I.numel();
+    Value out = (I.dims().is3D())
+        ? Value::matrix3d(I.dims().rows(), I.dims().cols(),
+                          I.dims().pages(), ValueType::SINGLE, mr)
+        : Value::matrix(I.dims().rows(), I.dims().cols(),
+                        ValueType::SINGLE, mr);
+    float *od = out.singleDataMut();
+    if (N == 0) return out;
+    float mn = std::numeric_limits<float>::infinity();
+    float mx = -std::numeric_limits<float>::infinity();
+    for (std::size_t i = 0; i < N; ++i) {
+        const float v = static_cast<float>(I.elemAsDouble(i));
+        od[i] = v;
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+    }
+    if (mn == mx) return out;  // constant passthrough as-is
+    const float inv = 1.0f / (mx - mn);
+    for (std::size_t i = 0; i < N; ++i) od[i] = (od[i] - mn) * inv;
+    return out;
+}
+
+// Joint scale.
+void scale_two_grayscale_images(Value &A, Value &B,
+                                std::pmr::memory_resource *mr) {
+    float mn = std::numeric_limits<float>::infinity();
+    float mx = -std::numeric_limits<float>::infinity();
+    for (std::size_t i = 0; i < A.numel(); ++i) {
+        const float v = static_cast<float>(A.elemAsDouble(i));
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+    }
+    for (std::size_t i = 0; i < B.numel(); ++i) {
+        const float v = static_cast<float>(B.elemAsDouble(i));
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+    }
+    auto rescale = [&](const Value &X) {
+        Value Y = X.dims().is3D()
+            ? Value::matrix3d(X.dims().rows(), X.dims().cols(),
+                              X.dims().pages(), ValueType::SINGLE, mr)
+            : Value::matrix(X.dims().rows(), X.dims().cols(),
+                            ValueType::SINGLE, mr);
+        float *yd = Y.singleDataMut();
+        for (std::size_t i = 0; i < X.numel(); ++i) {
+            const float v = static_cast<float>(X.elemAsDouble(i));
+            yd[i] = (mn == mx) ? v : (v - mn) / (mx - mn);
+        }
+        return Y;
+    };
+    A = rescale(A);
+    B = rescale(B);
+}
+
+void make_similar(Value &A, Value &B, const std::string &scaling,
+                  std::pmr::memory_resource *mr)
+{
+    const bool aIsRGB = A.dims().is3D();
+    const bool bIsRGB = B.dims().is3D();
+    if (!aIsRGB && !bIsRGB) {
+        if (scaling == "joint") {
+            scale_two_grayscale_images(A, B, mr);
+        } else if (scaling == "independent") {
+            A = scale_grayscale_image(A, mr);
+            B = scale_grayscale_image(B, mr);
+        }
+        A = im2uint8(A, mr);
+        B = im2uint8(B, mr);
+    } else if (aIsRGB && bIsRGB) {
+        A = im2uint8(A, mr);
+        B = im2uint8(B, mr);
+    } else if (aIsRGB && !bIsRGB) {
+        if (scaling != "none") B = scale_grayscale_image(B, mr);
+        Value Bg = im2uint8(B, mr);
+        const std::size_t H = Bg.dims().rows();
+        const std::size_t W = Bg.dims().cols();
+        Value Brep = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
+        for (std::size_t ch = 0; ch < 3; ++ch)
+            for (std::size_t i = 0; i < H * W; ++i)
+                Brep.uint8DataMut()[ch * H * W + i] = Bg.uint8Data()[i];
+        B = Brep;
+        A = im2uint8(A, mr);
+    } else {
+        if (scaling != "none") A = scale_grayscale_image(A, mr);
+        Value Ag = im2uint8(A, mr);
+        const std::size_t H = Ag.dims().rows();
+        const std::size_t W = Ag.dims().cols();
+        Value Arep = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
+        for (std::size_t ch = 0; ch < 3; ++ch)
+            for (std::size_t i = 0; i < H * W; ++i)
+                Arep.uint8DataMut()[ch * H * W + i] = Ag.uint8Data()[i];
+        A = Arep;
+        B = im2uint8(B, mr);
+    }
+}
+
+} // anonymous (imfuse helpers)
+
+Value imfuse(const Value &Ain, const Value &Bin,
+             const std::string &method,
+             const std::string &scaling,
+             const Value &channels,
+             std::pmr::memory_resource *mr)
+{
+    static const std::array<const char *, 5> methods{
+        "falsecolor", "blend", "diff", "checkerboard", "montage"};
+    bool method_ok = false;
+    for (auto m : methods) if (method == m) { method_ok = true; break; }
+    if (!method_ok)
+        throw Error("imfuse: unknown METHOD '" + method
+                  + "' (allowed: falsecolor / blend / diff / "
+                    "checkerboard / montage)",
+                    0, 0, "imfuse", "", "m:imfuse:method");
+    if (scaling != "independent" && scaling != "joint" && scaling != "none")
+        throw Error("imfuse: unknown SCALING '" + scaling + "'",
+                    0, 0, "imfuse", "", "m:imfuse:scaling");
+
+    std::size_t Ha, Wa, Hb, Wb;
+    hw_of(Ain, Ha, Wa);
+    hw_of(Bin, Hb, Wb);
+
+    Value A, B;
+    if (method == "montage") {
+        const std::size_t H = std::max(Ha, Hb);
+        A = pad_zeros(Ain, H, Wa, mr);
+        B = pad_zeros(Bin, H, Wb, mr);
+    } else {
+        const std::size_t H = std::max(Ha, Hb);
+        const std::size_t W = std::max(Wa, Wb);
+        A = pad_zeros(Ain, H, W, mr);
+        B = pad_zeros(Bin, H, W, mr);
+    }
+
+    if (method == "falsecolor") {
+        if (A.dims().is3D()) A = rgb2gray(A, mr);
+        if (B.dims().is3D()) B = rgb2gray(B, mr);
+        if (scaling == "joint")        scale_two_grayscale_images(A, B, mr);
+        else if (scaling == "independent") {
+            A = scale_grayscale_image(A, mr);
+            B = scale_grayscale_image(B, mr);
+        }
+        A = im2uint8(A, mr);
+        B = im2uint8(B, mr);
+        std::array<int, 3> ch{2, 1, 2};  // green-magenta default
+        if (channels.numel() == 3) {
+            for (int k = 0; k < 3; ++k) {
+                const double v = channels.elemAsDouble(k);
+                if (v != 0.0 && v != 1.0 && v != 2.0)
+                    throw Error("imfuse: ColorChannels values must be 0, 1, or 2",
+                                0, 0, "imfuse", "", "m:imfuse:channels");
+                ch[k] = static_cast<int>(v);
+            }
+        }
+        const std::size_t H = A.dims().rows();
+        const std::size_t W = A.dims().cols();
+        const std::size_t plane = H * W;
+        Value R = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
+        std::uint8_t *rd = R.uint8DataMut();
+        for (int p = 0; p < 3; ++p) {
+            const std::uint8_t *src = (ch[p] == 1) ? A.uint8Data()
+                                    : (ch[p] == 2) ? B.uint8Data()
+                                    : nullptr;
+            std::uint8_t *dst = rd + p * plane;
+            if (src) std::memcpy(dst, src, plane);
+        }
+        return R;
+    }
+
+    if (method == "blend") {
+        make_similar(A, B, scaling, mr);
+        const std::size_t H = A.dims().rows();
+        const std::size_t W = A.dims().cols();
+        const std::size_t C = channels_of(A);
+        Value R = (C == 1)
+            ? Value::matrix(H, W, ValueType::UINT8, mr)
+            : Value::matrix3d(H, W, C, ValueType::UINT8, mr);
+        const std::size_t N = H * W * C;
+        const std::uint8_t *ap = A.uint8Data();
+        const std::uint8_t *bp = B.uint8Data();
+        std::uint8_t *rp = R.uint8DataMut();
+        for (std::size_t i = 0; i < N; ++i) {
+            const float v = 0.5f * static_cast<float>(ap[i])
+                          + 0.5f * static_cast<float>(bp[i]);
+            int rv = static_cast<int>(v + 0.5f);
+            if (rv < 0) rv = 0; else if (rv > 255) rv = 255;
+            rp[i] = static_cast<std::uint8_t>(rv);
+        }
+        return R;
+    }
+
+    if (method == "diff") {
+        if (A.dims().is3D()) A = rgb2gray(A, mr);
+        if (B.dims().is3D()) B = rgb2gray(B, mr);
+        if (scaling == "joint") scale_two_grayscale_images(A, B, mr);
+        else if (scaling == "independent") {
+            A = scale_grayscale_image(A, mr);
+            B = scale_grayscale_image(B, mr);
+        }
+        const std::size_t H = A.dims().rows();
+        const std::size_t W = A.dims().cols();
+        const std::size_t N = H * W;
+        Value diff = Value::matrix(H, W, ValueType::SINGLE, mr);
+        for (std::size_t i = 0; i < N; ++i) {
+            const float va = static_cast<float>(A.elemAsDouble(i));
+            const float vb = static_cast<float>(B.elemAsDouble(i));
+            diff.singleDataMut()[i] = std::fabs(va - vb);
+        }
+        diff = scale_grayscale_image(diff, mr);
+        return im2uint8(diff, mr);
+    }
+
+    if (method == "checkerboard") {
+        make_similar(A, B, scaling, mr);
+        const std::size_t H = A.dims().rows();
+        const std::size_t W = A.dims().cols();
+        const std::size_t C = channels_of(A);
+        // 16x16 base = [1 0; 0 1] tiled 8x8.
+        Value base = Value::matrix(16, 16, ValueType::LOGICAL, mr);
+        std::uint8_t *bbp = base.logicalDataMut();
+        for (std::size_t c = 0; c < 16; ++c)
+            for (std::size_t r = 0; r < 16; ++r) {
+                const std::size_t br = r / 8;
+                const std::size_t bc = c / 8;
+                bbp[c * 16 + r] = static_cast<std::uint8_t>((br + bc + 1) % 2);
+            }
+        Value mask = imresize(base, H, W, "nearest", mr);
+        Value R = (C == 1)
+            ? Value::matrix(H, W, ValueType::UINT8, mr)
+            : Value::matrix3d(H, W, C, ValueType::UINT8, mr);
+        const std::uint8_t *m = mask.logicalData();
+        const std::uint8_t *ap = A.uint8Data();
+        const std::uint8_t *bp2 = B.uint8Data();
+        std::uint8_t *rp = R.uint8DataMut();
+        const std::size_t plane = H * W;
+        for (std::size_t ch = 0; ch < C; ++ch) {
+            const std::uint8_t *a_ch = ap + ch * plane;
+            const std::uint8_t *b_ch = bp2 + ch * plane;
+            std::uint8_t *r_ch = rp + ch * plane;
+            for (std::size_t i = 0; i < plane; ++i)
+                r_ch[i] = m[i] ? a_ch[i] : b_ch[i];
+        }
+        return R;
+    }
+
+    // method == "montage"
+    make_similar(A, B, scaling, mr);
+    const std::size_t H = A.dims().rows();
+    const std::size_t WAa = A.dims().cols();
+    const std::size_t WBb = B.dims().cols();
+    const std::size_t C = channels_of(A);
+    const std::size_t Wt = WAa + WBb;
+    Value R = (C == 1)
+        ? Value::matrix(H, Wt, ValueType::UINT8, mr)
+        : Value::matrix3d(H, Wt, C, ValueType::UINT8, mr);
+    const std::uint8_t *ap = A.uint8Data();
+    const std::uint8_t *bp = B.uint8Data();
+    std::uint8_t *rp = R.uint8DataMut();
+    for (std::size_t ch = 0; ch < C; ++ch) {
+        for (std::size_t c = 0; c < WAa; ++c)
+            for (std::size_t r = 0; r < H; ++r)
+                rp[ch * H * Wt + c * H + r]
+                    = ap[ch * H * WAa + c * H + r];
+        for (std::size_t c = 0; c < WBb; ++c)
+            for (std::size_t r = 0; r < H; ++r)
+                rp[ch * H * Wt + (WAa + c) * H + r]
+                    = bp[ch * H * WBb + c * H + r];
+    }
+    return R;
+}
+
+namespace detail {
+
+void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imfuse: requires (A, B [, METHOD] [, NV...])",
+                    0, 0, "imfuse", "", "m:imfuse:nargin");
+    auto *mr = ctx.engine->resource();
+
+    const Value &A = args[0];
+    const Value &B = args[1];
+
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+    std::string method = "falsecolor";
+    std::string scaling = "independent";
+    Value channels;  // empty → default (green-magenta)
+    std::size_t i = 2;
+    if (i < args.size() && is_string(args[i])) {
+        std::string m = args[i].toString();
+        static const std::array<const char *, 5> mset{
+            "falsecolor", "blend", "diff", "checkerboard", "montage"};
+        static const std::array<const char *, 2> nvset{
+            "Scaling", "ColorChannels"};
+        bool is_method = false;
+        for (auto mm : mset) if (m == mm) { is_method = true; break; }
+        bool is_nv = false;
+        // Case-insensitive NV-name check.
+        std::string mlo;
+        for (char ch : m)
+            mlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (mlo == "scaling" || mlo == "colorchannels") is_nv = true;
+        if (is_method) { method = m; ++i; }
+        else if (!is_nv)
+            throw Error("imfuse: unknown METHOD '" + m + "' (allowed: "
+                        "falsecolor / blend / diff / checkerboard / "
+                        "montage)",
+                        0, 0, "imfuse", "", "m:imfuse:method");
+        // else: leave i=2 so it gets parsed as NV pair below.
+    }
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("imfuse: expected NV-pair name string",
+                        0, 0, "imfuse", "", "m:imfuse:badNvArg");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "scaling") {
+            scaling = args[i + 1].toString();
+            // MATLAB lowercases for switch — replicate.
+            std::string slo;
+            for (char ch : scaling)
+                slo += static_cast<char>(std::tolower(
+                    static_cast<unsigned char>(ch)));
+            scaling = slo;
+        } else if (nlo == "colorchannels") {
+            const Value &v = args[i + 1];
+            if (is_string(v)) {
+                std::string s = v.toString();
+                std::string slo;
+                for (char ch : s)
+                    slo += static_cast<char>(std::tolower(
+                        static_cast<unsigned char>(ch)));
+                channels = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+                if (slo == "red-cyan") {
+                    channels.doubleDataMut()[0] = 1;
+                    channels.doubleDataMut()[1] = 2;
+                    channels.doubleDataMut()[2] = 2;
+                } else if (slo == "green-magenta") {
+                    channels.doubleDataMut()[0] = 2;
+                    channels.doubleDataMut()[1] = 1;
+                    channels.doubleDataMut()[2] = 2;
+                } else {
+                    throw Error("imfuse: unknown ColorChannels '" + s + "'",
+                                0, 0, "imfuse", "", "m:imfuse:channels");
+                }
+            } else {
+                channels = v;
+            }
+        } else {
+            throw Error("imfuse: unknown option '" + name + "'",
+                        0, 0, "imfuse", "", "m:imfuse:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = imfuse(A, B, method, scaling, channels, mr);
 }
 
 } // namespace detail
