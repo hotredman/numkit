@@ -621,6 +621,280 @@ Value ycbcr2rgbwide(const Value &YCBCR, int bits_per_sample,
     return out;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// rgbwide2xyz / xyz2rgbwide — BT.2020/BT.2100 RGB ↔ CIE 1931 XYZ
+// ════════════════════════════════════════════════════════════════════
+//
+// Decodes narrow-range wide-gamut RGB (10- or 12-bit uint16) to CIE
+// 1931 XYZ tristimulus values, and the inverse.
+//
+// Algorithm transliterated verbatim from MATLAB R2025b
+//   colorspaces/rgbwide2xyz.m + xyz2rgbwide.m,
+//   colorspaces/+images/+color/BT2020RGBEncoder.m,
+//   colorspaces/+images/+color/BT2100RGBEncoder.m,
+//   colorspaces/+images/+color/+internal/bt2020RGBToXYZTransform.m.
+//
+// Note: MATLAB's BT.2100 "PQ" path implements the BT.2020-style
+// power-curve transfer with fixed α=1.099, β=0.018 (NOT the SMPTE
+// ST 2084 perceptual quantizer — the naming in MATLAB is
+// counter-intuitive). HLG is the genuine Hybrid Log-Gamma curve.
+// PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
+
+namespace {
+
+// BT.2020 R→XYZ matrix (D65), exact values as computed by MATLAB
+// R2025b images.color.internal.bt2020RGBToXYZTransform(). The
+// standard primaries (xr=0.708/yr=0.292, xg=0.170/yg=0.797,
+// xb=0.131/yb=0.046 with D65=[0.95047, 1, 1.08883]) get solved via
+// images.color.internal.computeM; using MATLAB's exact last-digit
+// values keeps parity bit-exact.
+constexpr double kMBT2020_D65[9] = {
+    0.637010191411101,    0.144615027396969,    0.168844781191930,
+    0.262721717361640,    0.677989275502262,    0.059289007136098,
+    4.994515405547190e-17, 0.028072328847647,    1.060757671152350
+};
+
+inline void mat3_mv(const double M[9], const double v[3], double o[3])
+{
+    o[0] = M[0]*v[0] + M[1]*v[1] + M[2]*v[2];
+    o[1] = M[3]*v[0] + M[4]*v[1] + M[5]*v[2];
+    o[2] = M[6]*v[0] + M[7]*v[1] + M[8]*v[2];
+}
+
+inline void mat3_inv9(const double M[9], double Inv[9])
+{
+    const double a=M[0],b=M[1],c=M[2],d=M[3],e=M[4],f=M[5],g=M[6],h=M[7],i=M[8];
+    const double A = e*i - f*h, B = -(d*i - f*g), C = d*h - e*g;
+    const double det = a*A + b*B + c*C;
+    const double inv = 1.0/det;
+    Inv[0]=A*inv; Inv[1]=-(b*i-c*h)*inv; Inv[2]=(b*f-c*e)*inv;
+    Inv[3]=B*inv; Inv[4]=(a*i-c*g)*inv; Inv[5]=-(a*f-c*d)*inv;
+    Inv[6]=C*inv; Inv[7]=-(a*h-b*g)*inv; Inv[8]=(a*e-b*d)*inv;
+}
+
+// BT.2020 / BT.2100 transfer-function constants per bit depth.
+struct BTParams { double alpha, beta; int blackLevel, nominalPeak; };
+BTParams bt2020_params(int bps)
+{
+    if (bps == 10) return {1.099, 0.018, 64, 940};
+    if (bps == 12) return {1.0993, 0.0181, 256, 3760};
+    throw Error("rgbwide2xyz: bits_per_sample must be 10 or 12",
+                0, 0, "rgbwide2xyz", "", "m:rgbwide2xyz:bps");
+}
+BTParams bt2100_params(int bps)
+{
+    // BT.2100 hardcodes alpha=1.099, beta=0.018 regardless of bit depth
+    // for the "PQ" path. For HLG, alpha/beta are not used directly.
+    if (bps == 10) return {1.099, 0.018, 64, 940};
+    if (bps == 12) return {1.099, 0.018, 256, 3760};
+    throw Error("rgbwide2xyz: bits_per_sample must be 10 or 12",
+                0, 0, "rgbwide2xyz", "", "m:rgbwide2xyz:bps");
+}
+
+// Inverse transfer (normalized [0,1] non-linear → linear).
+inline double bt_rgb2lin(double v, double alpha, double beta)
+{
+    if (v < 4.5 * beta) return v / 4.5;
+    return std::pow((v + alpha - 1.0) / alpha, 1.0 / 0.45);
+}
+// Forward transfer (linear → non-linear in [0,1]).
+inline double bt_lin2rgb(double v, double alpha, double beta)
+{
+    if (v < beta) return 4.5 * v;
+    return alpha * std::pow(v, 0.45) - (alpha - 1.0);
+}
+
+// HLG transfer functions per BT.2100.
+inline double hlg_rgb2lin(double v)
+{
+    constexpr double a = 0.17883277;
+    constexpr double b = 1.0 - 4.0 * a;
+    const double c = 0.5 - a * std::log(4.0 * a);
+    if (v <= 0.5) return (v * v) / 3.0;
+    return (std::exp((v - c) / a) + b) / 12.0;
+}
+inline double hlg_lin2rgb(double v)
+{
+    constexpr double a = 0.17883277;
+    constexpr double b = 1.0 - 4.0 * a;
+    const double c = 0.5 - a * std::log(4.0 * a);
+    if (v <= 1.0 / 12.0) return std::sqrt(3.0 * v);
+    return a * std::log(12.0 * v - b) + c;
+}
+
+}  // namespace
+
+Value rgbwide2xyz(const Value &RGB, int bits_per_sample,
+                  const std::string &color_space,
+                  const std::string &linearization,
+                  std::pmr::memory_resource *mr)
+{
+    std::string cs_lo;
+    for (char ch : color_space)
+        cs_lo += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    std::string tf_lo;
+    for (char ch : linearization)
+        tf_lo += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    bool is_bt2020 = (cs_lo == "bt.2020" || cs_lo == "bt2020");
+    bool is_bt2100 = (cs_lo == "bt.2100" || cs_lo == "bt2100");
+    if (!is_bt2020 && !is_bt2100)
+        throw Error("rgbwide2xyz: ColorSpace must be 'BT.2020' or 'BT.2100'",
+                    0, 0, "rgbwide2xyz", "", "m:rgbwide2xyz:cs");
+    bool use_hlg = (is_bt2100 && tf_lo == "hlg");
+
+    BTParams P = is_bt2020 ? bt2020_params(bits_per_sample)
+                            : bt2100_params(bits_per_sample);
+    const double nominalRange = static_cast<double>(P.nominalPeak - P.blackLevel);
+
+    const auto &d = RGB.dims();
+    if (d.is3D() && d.pages() != 3)
+        throw Error("rgbwide2xyz: RGB must be Nx3 or HxWx3",
+                    0, 0, "rgbwide2xyz", "", "m:rgbwide2xyz:shape");
+    const std::size_t H = d.rows();
+    const std::size_t W = d.cols();
+    const bool is_image = d.is3D();
+    const std::size_t Np = is_image ? (H * W) : H;
+
+    Value out;
+    if (is_image)
+        out = Value::matrix3d(H, W, 3, ValueType::DOUBLE, mr);
+    else
+        out = Value::matrix(H, 3, ValueType::DOUBLE, mr);
+
+    double *od = out.doubleDataMut();
+
+    auto rgb_to_lin = [&](double v) -> double {
+        if (is_bt2020 || !use_hlg) {
+            return bt_rgb2lin(v, P.alpha, P.beta);
+        }
+        return hlg_rgb2lin(v);
+    };
+
+    for (std::size_t i = 0; i < Np; ++i) {
+        // Read raw R, G, B values.
+        std::size_t i_r, i_g, i_b;
+        if (is_image) {
+            i_r = i;
+            i_g = H * W + i;
+            i_b = 2 * H * W + i;
+        } else {
+            i_r = i;
+            i_g = H + i;
+            i_b = 2 * H + i;
+        }
+        const double rawR = RGB.elemAsDouble(i_r);
+        const double rawG = RGB.elemAsDouble(i_g);
+        const double rawB = RGB.elemAsDouble(i_b);
+        // Normalize.
+        const double nR = (rawR - P.blackLevel) / nominalRange;
+        const double nG = (rawG - P.blackLevel) / nominalRange;
+        const double nB = (rawB - P.blackLevel) / nominalRange;
+        // Inverse transfer (linear).
+        const double lR = rgb_to_lin(nR);
+        const double lG = rgb_to_lin(nG);
+        const double lB = rgb_to_lin(nB);
+        // RGB → XYZ.
+        const double lin[3] = {lR, lG, lB};
+        double xyz[3];
+        mat3_mv(kMBT2020_D65, lin, xyz);
+        // Write to output.
+        if (is_image) {
+            od[i_r] = xyz[0];
+            od[i_g] = xyz[1];
+            od[i_b] = xyz[2];
+        } else {
+            od[i_r] = xyz[0];
+            od[i_g] = xyz[1];
+            od[i_b] = xyz[2];
+        }
+    }
+    return out;
+}
+
+Value xyz2rgbwide(const Value &XYZ, int bits_per_sample,
+                  const std::string &color_space,
+                  const std::string &linearization,
+                  std::pmr::memory_resource *mr)
+{
+    std::string cs_lo;
+    for (char ch : color_space)
+        cs_lo += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    std::string tf_lo;
+    for (char ch : linearization)
+        tf_lo += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    bool is_bt2020 = (cs_lo == "bt.2020" || cs_lo == "bt2020");
+    bool is_bt2100 = (cs_lo == "bt.2100" || cs_lo == "bt2100");
+    if (!is_bt2020 && !is_bt2100)
+        throw Error("xyz2rgbwide: ColorSpace must be 'BT.2020' or 'BT.2100'",
+                    0, 0, "xyz2rgbwide", "", "m:xyz2rgbwide:cs");
+    bool use_hlg = (is_bt2100 && tf_lo == "hlg");
+
+    BTParams P = is_bt2020 ? bt2020_params(bits_per_sample)
+                            : bt2100_params(bits_per_sample);
+    const double nominalRange = static_cast<double>(P.nominalPeak - P.blackLevel);
+
+    double Minv[9];
+    mat3_inv9(kMBT2020_D65, Minv);
+
+    const auto &d = XYZ.dims();
+    if (d.is3D() && d.pages() != 3)
+        throw Error("xyz2rgbwide: XYZ must be Nx3 or HxWx3",
+                    0, 0, "xyz2rgbwide", "", "m:xyz2rgbwide:shape");
+    const std::size_t H = d.rows();
+    const std::size_t W = d.cols();
+    const bool is_image = d.is3D();
+    const std::size_t Np = is_image ? (H * W) : H;
+
+    Value out;
+    if (is_image)
+        out = Value::matrix3d(H, W, 3, ValueType::UINT16, mr);
+    else
+        out = Value::matrix(H, 3, ValueType::UINT16, mr);
+
+    uint16_t *od = out.uint16DataMut();
+    auto lin_to_rgb = [&](double v) -> double {
+        if (is_bt2020 || !use_hlg) {
+            return bt_lin2rgb(v < 0.0 ? 0.0 : v, P.alpha, P.beta);
+        }
+        return hlg_lin2rgb(v < 0.0 ? 0.0 : v);
+    };
+    auto clamp_to_uint16 = [](double v) -> uint16_t {
+        const double r = std::round(v);
+        if (r < 0.0)     return 0;
+        if (r > 65535.0) return 65535;
+        return static_cast<uint16_t>(r);
+    };
+
+    for (std::size_t i = 0; i < Np; ++i) {
+        std::size_t i_r, i_g, i_b;
+        if (is_image) {
+            i_r = i;
+            i_g = H * W + i;
+            i_b = 2 * H * W + i;
+        } else {
+            i_r = i;
+            i_g = H + i;
+            i_b = 2 * H + i;
+        }
+        const double xyz[3] = {
+            XYZ.elemAsDouble(i_r),
+            XYZ.elemAsDouble(i_g),
+            XYZ.elemAsDouble(i_b)
+        };
+        double lin[3];
+        mat3_mv(Minv, xyz, lin);
+        // Forward transfer.
+        const double nR = lin_to_rgb(lin[0]);
+        const double nG = lin_to_rgb(lin[1]);
+        const double nB = lin_to_rgb(lin[2]);
+        // Un-normalize + clamp.
+        od[i_r] = clamp_to_uint16(nR * nominalRange + P.blackLevel);
+        od[i_g] = clamp_to_uint16(nG * nominalRange + P.blackLevel);
+        od[i_b] = clamp_to_uint16(nB * nominalRange + P.blackLevel);
+    }
+    return out;
+}
+
 namespace detail {
 
 void rgbwide2ycbcr_reg(Span<const Value> args, size_t /*nargout*/,
@@ -641,6 +915,78 @@ void ycbcr2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:nargin");
     const int bps = static_cast<int>(args[1].toScalar());
     outs[0] = ycbcr2rgbwide(args[0], bps, ctx.engine->resource());
+}
+
+void rgbwide2xyz_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("rgbwide2xyz: requires (RGB, BPS [, NV...])",
+                    0, 0, "rgbwide2xyz", "",
+                    "m:rgbwide2xyz:nargin");
+    auto *mr = ctx.engine->resource();
+    const int bps = static_cast<int>(args[1].toScalar());
+    std::string cs = "BT.2020";
+    std::string lin = "PQ";
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+    std::size_t i = 2;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("rgbwide2xyz: expected NV-pair name string",
+                        0, 0, "rgbwide2xyz", "",
+                        "m:rgbwide2xyz:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name) nlo += static_cast<char>(std::tolower(
+            static_cast<unsigned char>(ch)));
+        if (nlo == "colorspace") cs = args[i + 1].toString();
+        else if (nlo == "linearizationfcn") lin = args[i + 1].toString();
+        else if (nlo == "whitepoint") {
+            // Accepted-but-ignored — only D65 path is implemented this cycle.
+        } else {
+            throw Error("rgbwide2xyz: unknown option '" + name + "'",
+                        0, 0, "rgbwide2xyz", "",
+                        "m:rgbwide2xyz:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = rgbwide2xyz(args[0], bps, cs, lin, mr);
+}
+
+void xyz2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("xyz2rgbwide: requires (XYZ, BPS [, NV...])",
+                    0, 0, "xyz2rgbwide", "",
+                    "m:xyz2rgbwide:nargin");
+    auto *mr = ctx.engine->resource();
+    const int bps = static_cast<int>(args[1].toScalar());
+    std::string cs = "BT.2020";
+    std::string lin = "PQ";
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+    std::size_t i = 2;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("xyz2rgbwide: expected NV-pair name string",
+                        0, 0, "xyz2rgbwide", "",
+                        "m:xyz2rgbwide:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name) nlo += static_cast<char>(std::tolower(
+            static_cast<unsigned char>(ch)));
+        if (nlo == "colorspace") cs = args[i + 1].toString();
+        else if (nlo == "linearizationfcn") lin = args[i + 1].toString();
+        else if (nlo == "whitepoint") {
+            // Accepted-but-ignored — only D65 path is implemented this cycle.
+        } else {
+            throw Error("xyz2rgbwide: unknown option '" + name + "'",
+                        0, 0, "xyz2rgbwide", "",
+                        "m:xyz2rgbwide:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = xyz2rgbwide(args[0], bps, cs, lin, mr);
 }
 
 void cmunique_reg(Span<const Value> args, size_t nargout,

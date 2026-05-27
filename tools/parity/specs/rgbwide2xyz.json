@@ -1,0 +1,22 @@
+{
+  "name": "rgbwide2xyz",
+  "namespace": "image",
+  "covers": ["rgbwide2xyz", "xyz2rgbwide"],
+  "setup": "rgb10 = uint16([940 940 940]); rgb10r = uint16([940 64 64]); rgb10g = uint16([502 502 502]); rgb12 = uint16([3760 3760 3760]); xyzw = [0.95047 1 1.08883];",
+  "expr": "x1 = rgbwide2xyz(rgb10, 10); x2 = rgbwide2xyz(rgb10r, 10); x3 = rgbwide2xyz(rgb10g, 10); x4 = rgbwide2xyz(rgb12, 12); x5 = rgbwide2xyz(rgb10, 10, 'ColorSpace', 'BT.2100'); x6 = rgbwide2xyz(rgb10, 10, 'ColorSpace', 'BT.2100', 'LinearizationFcn', 'HLG'); r1 = xyz2rgbwide(xyzw, 10); r2 = xyz2rgbwide(xyzw, 12); r3 = xyz2rgbwide([0 0 0], 10); rt = xyz2rgbwide(rgbwide2xyz(uint16([502 600 700]), 10), 10);",
+  "iters": 5,
+  "tol": 1e-4,
+  "fingerprint": [
+    "x1(1)", "x1(2)", "x1(3)",
+    "x2(1)", "x2(2)", "x2(3)",
+    "x3(1)", "x3(2)", "x3(3)",
+    "x4(2)",
+    "x5(1)", "x5(2)",
+    "x6(2)",
+    "double(r1(1))", "double(r1(2))", "double(r1(3))",
+    "double(r2(1))",
+    "double(r3(1))",
+    "double(rt(1))", "double(rt(2))", "double(rt(3))"
+  ],
+  "comment": "rgbwide2xyz + xyz2rgbwide BT.2020/BT.2100 wide-gamut HDR conversion. Covers: 10-bit white/red/gray BT.2020, 12-bit white BT.2020, BT.2100 with PQ and HLG linearization, inverse 10/12-bit, black, and a 10-bit round-trip. tol=1e-4 because HLG approximate. Implements full MATLAB R2025b documented signature: rgbwide2xyz(rgb, bps, ...NV) with ColorSpace=BT.2020/BT.2100 and LinearizationFcn=PQ/HLG."
+}
