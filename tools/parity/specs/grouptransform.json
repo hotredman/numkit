@@ -1,0 +1,18 @@
+{
+  "name": "grouptransform",
+  "namespace": "builtin",
+  "setup": "A = [10; 20; 30; 40; 50]; G = [1; 2; 1; 2; 1]; A3 = [10; NaN; 30; 40; NaN]; G2 = [1; 2; NaN; 1; 2];",
+  "expr": "Bmc = grouptransform(A, G, 'meancenter'); Bz = grouptransform(A, G, 'zscore'); Br = grouptransform(A, G, 'rescale'); Bn = grouptransform(A, G, 'norm'); Bmf = grouptransform(A3, G, 'meanfill'); Blf = grouptransform(A3, G, 'linearfill'); Bng = grouptransform(A, G2, 'meancenter');",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "Bmc(1)", "Bmc(2)", "Bmc(3)", "Bmc(4)", "Bmc(5)",
+    "Bz(1)", "Bz(2)", "Bz(5)",
+    "Br(1)", "Br(3)", "Br(5)",
+    "Bn(1)", "Bn(2)",
+    "Bmf(2)", "Bmf(5)",
+    "Blf(1)", "double(isnan(Blf(2)))", "Blf(5)",
+    "Bng(1)", "Bng(3)", "Bng(5)"
+  ],
+  "comment": "grouptransform array form. Methods: meancenter, zscore, norm (2-norm), rescale ([0,1]), meanfill (NaN→group mean), linearfill (within-group linear interp + end extrap, requires ≥2 good values), function handle. NaN groups form singletons. Function-handle path callable via engine. Deferred: table inputs, groupbins, IncludedEdge/ReplaceValues NV pairs."
+}

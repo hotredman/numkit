@@ -100,4 +100,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/standardize_missing_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/group_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/groupsummary_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/grouptransform_test.cpp
 )

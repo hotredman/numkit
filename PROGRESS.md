@@ -489,7 +489,7 @@ together.
 | `groupcounts` | ✅ | 0.012 | 205.63× |  | OK | findgroups + groupcounts — basic group ID assignment + NaN handling (NaN entries → G=NaN in findgroups; trailing NaN bucket in groupcounts). Extended outputs: groupcounts 2-out returns GR (representative values), 3-out adds P (percentage). MATLAB R2025b convention. |
 | `groupfilter` | ❌ |  |  |  |  |  |
 | `groupsummary` | ✅ | 0.012 | 513.89× |  | OK | groupsummary array form — methods: sum/mean/median/max/min/std/numunique/nnz/mode/all/any. 3-output [B, BG, BC]. NaN groups form a trailing bucket. Table form, groupbins, function-handle methods, multi-grouping-vars, IncludeMissingGroups/IncludeEmptyGroups NV are deferred (table type not in numkit, binning/handle paths need engine plumbing). |
-| `grouptransform` | ❌ |  |  |  |  |  |
+| `grouptransform` | ✅ | 0.010 | 739.83× |  | OK | grouptransform array form. Methods: meancenter, zscore, norm (2-norm), rescale ([0,1]), meanfill (NaN→group mean), linearfill (within-group linear interp + end extrap, requires ≥2 good values), function handle. NaN groups form singletons. Function-handle path callable via engine. Deferred: table inputs, groupbins, IncludedEdge/ReplaceValues NV pairs. |
 | `head` | ✅ | 0.000 | 133.94× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
 | `height` | ❌ |  |  |  |  |  |
 | `inner2outer` | ❌ |  |  |  |  |  |
