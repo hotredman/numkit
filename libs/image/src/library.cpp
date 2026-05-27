@@ -100,6 +100,8 @@ void tonemap_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void labeloverlay_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void chromadapt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void demosaic_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void raw2planar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void planar2raw_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2double_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2uint16_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void brighten_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -383,6 +385,8 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "labeloverlay",  &image::detail::labeloverlay_reg);
     reg("color", "chromadapt",    &image::detail::chromadapt_reg);
     reg("color", "demosaic",      &image::detail::demosaic_reg);
+    reg("color", "raw2planar",    &image::detail::raw2planar_reg);
+    reg("color", "planar2raw",    &image::detail::planar2raw_reg);
     reg("color", "xyz2double",    &image::detail::xyz2double_reg);
     reg("color", "xyz2uint16",    &image::detail::xyz2uint16_reg);
     reg("color", "brighten",      &image::detail::brighten_reg);

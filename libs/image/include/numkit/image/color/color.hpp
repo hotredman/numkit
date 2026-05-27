@@ -965,4 +965,29 @@ Value demosaic(const Value &I, const std::string &sensorAlignment,
                int bitsPerSample = 0,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Deinterleave a Bayer CFA mosaic into its four sensor planes
+/// (`P = raw2planar(cfa)`).
+///
+/// Splits an `M×N` mosaic into an `(M/2)×(N/2)×4` array where the
+/// channels are, in order, the (odd-row, odd-col), (odd-row, even-col),
+/// (even-row, odd-col), (even-row, even-col) sub-samples. No
+/// interpolation; pure parity-based copy. Class preserved.
+///
+/// @param cfa  `M×N` numeric / logical mosaic. `M`, `N` must be even.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `(M/2)×(N/2)×4` array of the input class.
+Value raw2planar(const Value &cfa, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Re-interleave 4 sensor planes into a full Bayer CFA mosaic
+/// (`cfa = planar2raw(I)`).
+///
+/// Inverse of @ref raw2planar. Takes an `(M)×(N)×4` array and
+/// produces a `(2M)×(2N)` mosaic by inverse parity-based copy.
+/// Class preserved.
+///
+/// @param I   `M×N×4` numeric / logical sensor-plane array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `(2M)×(2N)` mosaic of the input class.
+Value planar2raw(const Value &I, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image
