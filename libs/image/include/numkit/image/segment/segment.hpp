@@ -121,6 +121,54 @@ Value graydiffweight(const Value &I, double ref_gray_val,
                      double rolloff_factor, double cutoff,
                      std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Pixel weights from image gradient magnitude
+/// (`W = gradientweight(I [, sigma], 'RolloffFactor', P, 'WeightCutoff', K)`).
+///
+/// Companion to @ref graydiffweight for Fast-Marching-Method based
+/// segmentation (`imsegfmm`): output is large in smooth regions and
+/// small on edges, so the FMM front travels fast inside objects and
+/// stalls at boundaries.
+///
+/// Algorithm (transliterated from MATLAB R2025b
+/// `images.internal.imgradientdog` + `gradientweight.m`):
+///
+///   1. Derivative-of-Gaussian (DoG) kernels of radius
+///      `r = ceil(2σ)` along each axis:
+///        `hx(x) = -x · exp(-x²/(2σ²))` for `x ∈ {-r,...,r}`,
+///        normalised so the positive half (`hx(1..r)`) sums to 1.
+///        `hy` is the column-transpose with `σ_y`.
+///   2. `Gx = imfilter(I, hx, 'replicate')`,
+///      `Gy = imfilter(I, hy, 'replicate')`,
+///      `Gmag = hypot(Gx, Gy)`.
+///   3. `W = imlinscale(Gmag, [0, 1])`              (linear rescale).
+///   4. `W = W .^ (1 / RolloffFactor)`,
+///      `W = (1 − W) ./ (1 + W)`.
+///   5. `W(W < WeightCutoff) = 1e-3`               (FMM stop floor).
+///
+/// `σ` may be a scalar (replicated per dim) or a 2-element vector
+/// `[σ_x, σ_y]`. Constant-image fast-path returns `ones(size(I))`.
+///
+/// Output class: `single` if `I` is `single`, else `double`
+/// (matches MATLAB R2025b — uint8/int8/etc → double).
+///
+/// 2-D inputs only (3-D throws — MATLAB calls `imgradientdog3` for
+/// volumes; not yet ported).
+///
+/// References: Gonzalez & Woods, *Digital Image Processing*, §10
+/// (edge detection via gradient magnitude); Sethian, *Level Set
+/// Methods and Fast Marching Methods*, Cambridge 1999 (FMM weights).
+///
+/// @param I              2-D grayscale image (any numeric class).
+/// @param sigma_x        DoG σ along x (cols). Must be `> 0`.
+/// @param sigma_y        DoG σ along y (rows). Must be `> 0`.
+/// @param rolloff_factor `> 0`. Default 3. Controls falloff steepness.
+/// @param weight_cutoff  `∈ [1e-3, 1]`. Default 0.25. Threshold floor.
+/// @param mr             Memory resource (nullptr → process default).
+/// @return               Weight array, same H×W as `I`.
+Value gradientweight(const Value &I, double sigma_x, double sigma_y,
+                     double rolloff_factor, double weight_cutoff,
+                     std::pmr::memory_resource *mr = nullptr);
+
 /// Paint a binary mask onto an image with a colour
 /// (`J = imoverlay(I, BW, color)`).
 ///
