@@ -746,4 +746,68 @@ Value tonemap(const Value &HDR,
               int ntilesR, int ntilesC,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Overlay a label / mask / categorical-index image on a 2-D base
+/// (`B = labeloverlay(A, L, ...)`).
+///
+/// Each non-zero label `k > 0` is painted with a colour
+/// `cmap(k+1, :)` blended into the base via
+/// `B = (1-α)·A + α·cmap`, where `α = 1 - transparency`. Label 0
+/// (or labels not in `included_labels`) passes the base through
+/// untouched. Output is always UINT8 (`im2uint8` conversion at the
+/// end), and always 3-channel — grayscale `A` is replicated to RGB.
+///
+/// Pipeline (MATLAB R2025b labeloverlay.m + LabelColormapHelper.m):
+///   1. `A = im2single(A)`. Replicate to 3 planes if grayscale.
+///   2. `maxLabel = max(L(:))`, `totalLabels = maxLabel + 1`.
+///   3. Resolve colormap:
+///      - `"jet"` (default) → `cmap = jet(totalLabels)`.
+///      - Named string `"hsv"`/`"parula"`/... → `feval(name, totalLabels)`.
+///      - Numeric `Nx3` → used as-is.
+///   4. ColorAssignment:
+///      - `Auto` → `NoShuffle` if `colormap` was numeric, else `Shuffle`.
+///      - `Shuffle` → permute cmap rows by `randperm(N)` with
+///        MATLAB-canonical Mersenne-Twister seed 0 (bit-identical
+///        with `rng('default'); randperm(N)`).
+///      - `ContrastingNeighbors` → greedy graph colouring of the
+///        8-connected adjacency graph of `L`.
+///   5. Build `alphamap`. If `0 ∈ included_labels`: `alphamap(k+1)=α`
+///      for each included `k`. Else: insert a dummy row at the top of
+///      `cmap` (= `cmap(1,:)`) and `0` at the front of `alphamap`, so
+///      label 0 paints the base untouched.
+///   6. Per pixel: `B(r,c,ch) = (1-alphamap(L+1)) · A(r,c,ch)
+///      + alphamap(L+1) · cmap(L+1,ch)`.
+///   7. `im2uint8(B)`.
+///
+/// Inputs may be grayscale (`H × W`) or RGB (`H × W × 3`). Logical
+/// masks are treated as a label matrix with values in `{0, 1}`. The
+/// `categorical` input form is **not** supported because `categorical`
+/// is a MATLAB OOP class (see policy §0); use a `uint8`/`uint16`
+/// label matrix instead.
+///
+/// @param A                  Base image (uint8/uint16/int16/single/double).
+/// @param L                  Label / mask matrix (non-negative integer).
+/// @param colormap           Colormap. Pass `Value::Empty` for default
+///                           `"jet"`. May be a numeric `Nx3` array
+///                           or a string name (`"jet"`, `"hsv"`,
+///                           `"parula"`, `"hot"`, `"cool"`, `"spring"`,
+///                           `"summer"`, `"autumn"`, `"winter"`,
+///                           `"gray"`, `"bone"`, `"copper"`, `"pink"`,
+///                           `"lines"`, `"colorcube"`, `"prism"`,
+///                           `"flag"`).
+/// @param color_assignment   `"auto"` (def) / `"shuffle"` /
+///                           `"noshuffle"` / `"contrasting-neighbors"`.
+/// @param included_labels    Pass `Value::Empty` for default
+///                           `1:maxLabel`. Otherwise a vector of
+///                           non-negative integers.
+/// @param transparency       Alpha blend ∈ [0, 1]. `0` = opaque
+///                           colour, `1` = invisible (default 0.5).
+/// @param mr                 Memory resource (nullptr → process default).
+/// @return                   UINT8 `H × W × 3` overlay image.
+Value labeloverlay(const Value &A, const Value &L,
+                   const Value &colormap,
+                   const std::string &color_assignment,
+                   const Value &included_labels,
+                   double transparency,
+                   std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image

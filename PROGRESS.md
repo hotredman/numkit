@@ -1890,7 +1890,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `imsegkmeans3` | ❌ |  |  |  |  |  |
 | `jaccard` | ✅ | 0.004 | 153.27× |  | OK | Sig: r = jaccard(...). Spec-extension batch 2026-05-09. |
 | `label2idx` | ✅ | 0.004 | 152.60× |  | OK | Sig: ix = label2idx(L). Spec-extension batch 2026-05-09 (cycle 44). |
-| `labeloverlay` | ❌ |  |  |  |  |  |
+| `labeloverlay` | ✅ | 0.022 | 541.50× |  | OK | Sig: B = labeloverlay(A, L [, NV...]). Cover: default (auto/shuffle/jet), Transparency=0 (pure colour), IncludedLabels filter (skip label 2 -> A passthrough), ColorAssignment='noshuffle' on jet. Default shuffle uses MATLAB rng('default') = MT19937 seed-0 randperm; numkit implements MatlabMT19937 + sort(rand) bit-identically. Output uint8 H×W×3 always. tol=0 (exact uint8 match). Other branches (logical BW mask, custom Nx3 Colormap, RGB input, Transparency=1 passthrough) covered exhaustively in gtest. categorical input form not implemented (MATLAB OOP class — policy §0). Image namespace 2026-05-27. |
 | `lazysnapping` | ❌ |  |  |  |  |  |
 | `superpixels` | ❌ |  |  |  |  | SLIC |
 | `superpixels3` | ❌ |  |  |  |  |  |
