@@ -1,0 +1,10 @@
+{
+  "name": "graydist",
+  "namespace": "image",
+  "setup": "A = [1 2 3 4; 2 11 12 2; 3 13 14 3; 4 15 16 4]; seed = false(4,4); seed(1,1) = true; seed2 = false(4,4); seed2(1,1)=true; seed2(4,4)=true; Au = uint8(A);",
+  "expr": "D = graydist(A, seed, 'cityblock'); D2 = graydist(A, seed, 'chessboard'); D3 = graydist(A, seed, 'quasi-euclidean'); D4 = graydist(A, seed); D5 = graydist(A, 1, 1, 'cityblock'); D6 = graydist(A, 1, 'cityblock'); D7 = graydist(A, seed2, 'cityblock'); D8 = graydist(Au, seed, 'cityblock'); r1 = D(2,2); r2 = D(3,3); r3 = D(4,4); r4 = D2(2,2); r5 = D2(3,3); r6 = D3(2,2); r7 = D3(3,3); r8 = D5(2,2); r9 = D6(2,2); r10 = D7(3,3); r11 = D7(4,3); r12 = double(D8(2,2));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"],
+  "comment": "Sig: T = graydist(I, mask | C, R | ind [, method]). Branches: 4 input forms (mask, (C,R), ind, defaults), 3 methods (cityblock, chessboard, quasi-euclidean), multi-seed, uint8 input. Algorithm: Dijkstra with chamfer-weighted edges, cost(p→q) = χ(p,q)·(I(p)+I(q))/2. Output class: DOUBLE for double input, SINGLE otherwise. Reference: Soille, *Morphological Image Analysis*, 2nd ed., §4.4. Image namespace 2026-05-27."
+}

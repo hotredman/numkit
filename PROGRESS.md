@@ -1948,7 +1948,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwselect3` | ❌ |  |  |  |  |  |
 | `cc2bw` | ❌ |  |  |  |  |  |
 | `corr2` | ✅ | 0.002 | 308.03× |  | OK | Sig: r = corr2(...). Spec-extension batch 2026-05-09.  |
-| `graydist` | ❌ |  |  |  |  |  |
+| `graydist` | ✅ | 0.014 | 162.79× |  | OK | Sig: T = graydist(I, mask | C, R | ind [, method]). Branches: 4 input forms (mask, (C,R), ind, defaults), 3 methods (cityblock, chessboard, quasi-euclidean), multi-seed, uint8 input. Algorithm: Dijkstra with chamfer-weighted edges, cost(p→q) = χ(p,q)·(I(p)+I(q))/2. Output class: DOUBLE for double input, SINGLE otherwise. Reference: Soille, *Morphological Image Analysis*, 2nd ed., §4.4. Image namespace 2026-05-27. |
 | `imcontour` | ❌ |  |  |  |  |  |
 | `imhist` | ✅ | 0.005 | 160.94× | 53.90× | OK | Sig: r = imhist(...). Spec-extension batch 2026-05-09. |
 | `impixel` | ❌ |  |  |  |  |  |
