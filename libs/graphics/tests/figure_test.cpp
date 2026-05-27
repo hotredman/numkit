@@ -685,11 +685,13 @@ TEST_F(PolarTest, PolarbubblechartEmitsBubbleDatasetWithSizeColumn)
     EXPECT_TRUE(ax().polar);
     ASSERT_EQ(ax().datasets.size(), 1u);
     EXPECT_EQ(ax().datasets[0].type, "bubble");
-    // Size column carried in zJson; check expected numbers are there.
-    const auto &z = ax().datasets[0].zJson;
-    EXPECT_NE(z.find("10"),  std::string::npos);
-    EXPECT_NE(z.find("50"),  std::string::npos);
-    EXPECT_NE(z.find("100"), std::string::npos);
+    // Size column lives in its OWN sizeJson field (no longer in zJson
+    // which is reserved for true z-coordinates / matrices).
+    const auto &sz = ax().datasets[0].sizeJson;
+    EXPECT_NE(sz.find("10"),  std::string::npos);
+    EXPECT_NE(sz.find("50"),  std::string::npos);
+    EXPECT_NE(sz.find("100"), std::string::npos);
+    EXPECT_TRUE(ax().datasets[0].zJson.empty());
 }
 
 TEST_F(PolarTest, PolarbubblechartDefaultSizeWhenSzOmitted)
@@ -698,7 +700,32 @@ TEST_F(PolarTest, PolarbubblechartDefaultSizeWhenSzOmitted)
     // convention for marker area in points^2).
     eval("figure(1); polarbubblechart([0 1.5], [1 2]);");
     ASSERT_EQ(ax().datasets.size(), 1u);
-    EXPECT_EQ(ax().datasets[0].zJson, "[36]");
+    EXPECT_EQ(ax().datasets[0].sizeJson, "[36]");
+}
+
+TEST_F(PolarTest, PolarbubblechartAcceptsRgbMatrixColor)
+{
+    // polarbubblechart(theta, rho, sz, c) with c as an N-by-3 RGB
+    // matrix → colorJson holds nested arrays, one per point.
+    eval("figure(1); polarbubblechart([0 1.5], [1 2], 50, [1 0 0; 0 1 0]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    const auto &c = ax().datasets[0].colorJson;
+    EXPECT_FALSE(c.empty());
+    // Should look like [[1,0,0],[0,1,0]].
+    EXPECT_NE(c.find("[["), std::string::npos);
+    EXPECT_NE(c.find("]]"), std::string::npos);
+}
+
+TEST_F(PolarTest, PolarbubblechartAcceptsColormapIndexColor)
+{
+    // c as an N-by-1 column → treated as colormap-index data;
+    // we emit it as a flat JSON array (renderer maps via active
+    // colormap). 1-by-3 row would instead be a single RGB triple
+    // per MATLAB convention, so the test uses a column.
+    eval("figure(1); polarbubblechart([0 1.5 3], [1 2 3], 30, [0.1; 0.5; 0.9]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_NE(ax().datasets[0].colorJson.find("0.5"), std::string::npos);
+    EXPECT_EQ(ax().datasets[0].colorJson.find("[["), std::string::npos);  // flat
 }
 
 TEST_F(PolarTest, RoseEmitsHistogramWithTypeRose)

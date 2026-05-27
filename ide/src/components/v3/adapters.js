@@ -624,9 +624,18 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
         mode,
         theta: Array.isArray(d.x) ? d.x.map(Number) : [],
         rho:   Array.isArray(d.y) ? d.y.map(Number) : [],
-        // Per-point size (polarbubblechart) — array or scalar.
-        sizes: Array.isArray(d.z) ? d.z.map(Number) : null,
+        // Per-point size (polarbubblechart). Wire field is `size`,
+        // distinct from the dataset-level `markerSize` style attr.
+        sizes: Array.isArray(d.size) ? d.size.map(Number) : null,
+        // Per-point colour: either an array of [r,g,b] triplets
+        // (1×3 for a shared color, N×3 for per-point) OR a flat
+        // array of colormap-index scalars. Renderer handles both.
+        pointColors: Array.isArray(d.pointColor) ? d.pointColor : null,
         color: styleObj.color || d.color || KIND_PALETTE[i % KIND_PALETTE.length],
+        // LineSpec dash pattern + marker for compass (and future
+        // line-style honoring modes). 'solid' default keeps
+        // existing visuals.
+        dash:  styleObj.dash || null,
         width: d.lineWidth || styleObj.lineWidth || 1.6,
       };
     });
