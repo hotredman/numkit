@@ -1903,7 +1903,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `bwboundaries` | ✅ | 0.003 | 2304.33× |  | OK | Sig: r = bwboundaries(...). Spec-extension batch 2026-05-09. |
-| `bwtraceboundary` | ❌ |  |  |  |  |  |
+| `bwtraceboundary` | ✅ | 0.018 | 117.95× |  | OK | Sig: B = bwtraceboundary(BW, P, fstep, conn, n, dir). Branches: default 8-conn CW from E, 4-conn, S start, L-shape (concave), single pixel (returns [P; P]), counterclockwise direction, limit N. Bit-exact MATLAB R2025b (tol=0). Algorithm: Moore-Neighbor tracing, Pavlidis 1982. Notable: fstep specifies the OPPOSITE of the notional 'previous' pixel direction — search starts one step CW of (fstep + nd/2) % nd. Image namespace 2026-05-27. |
 | `circles2mask` | ❌ |  |  |  |  |  |
 | `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
 | `cornermetric` | ✅ | 0.184 | 18.81× |  | OK | Sig: C = cornermetric(I [, METHOD] [, NV...]). Branches: Harris (default, k=0.04), MinimumEigenvalue, custom SensitivityFactor, custom FilterCoefficients, uint8 input class, larger peaks(8) image. Algorithm: Harris & Stephens 1988 / Shi & Tomasi 1994 corner detectors. Dx, Dy via [-1 0 1] / [-1 0 1]' conv → trim 1px → square/cross-product → smooth with outer-product Gaussian → crop → cornerness. Imfilter 'full' under Replicate boundary worked around by pre-padding with padarray. Image namespace 2026-05-27. |
