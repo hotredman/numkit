@@ -8,6 +8,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include <cctype>
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -2264,6 +2266,167 @@ void wiener2_reg(Span<const Value> args, size_t nargout,
         wiener2(args[0], nh, nw, noise, ctx.engine->resource());
     outs[0] = std::move(denoised);
     if (nargout > 1) outs[1] = std::move(n);
+}
+
+} // namespace detail
+
+// ── nlfilter (general sliding-neighbourhood) ──────────────────────
+//
+// MATLAB R2025b nlfilter.m:
+//   B = nlfilter(A, [m n], fun)
+//   B = nlfilter(A, 'indexed', [m n], fun)
+//
+// For every pixel (i, j) ∈ A extract the m × n window
+//   x = aa(i + 0..m-1, j + 0..n-1)
+// from the padded image `aa` and call `fun(x)`. The output element
+// is `b(i, j) = fun(x)`. Output class equals the class of the FIRST
+// invocation of `fun` (matches MATLAB's `mkconstarray(class(...))`).
+// Default `padval = 0`; `'indexed'` form uses `padval = 1` for
+// `single` / `double` `A`, otherwise `padval = 0`.
+//
+// The dispatch goes through Engine::callFunctionHandle, matching the
+// pattern adopted in libs/ode/ode45 (function_ref couldn't carry
+// func-handle semantics through the round-trip).
+Value nlfilter(numkit::Engine &eng, const Value &A,
+               std::size_t m, std::size_t n, const Value &fun,
+               bool indexed,
+               std::pmr::memory_resource *mr)
+{
+    if (m < 1 || n < 1)
+        throw Error("nlfilter: neighbourhood size must be positive",
+                    0, 0, "nlfilter", "", "m:nlfilter:nhood");
+    if (!fun.isFuncHandle())
+        throw Error("nlfilter: 3rd argument must be a function handle",
+                    0, 0, "nlfilter", "", "m:nlfilter:fun");
+
+    const auto &dA = A.dims();
+    if (dA.is3D())
+        throw Error("nlfilter: A must be a 2-D image",
+                    0, 0, "nlfilter", "", "m:nlfilter:rank");
+    const std::size_t H = dA.rows();
+    const std::size_t W = dA.cols();
+    const ValueType inT = A.type();
+
+    // Padding: 'indexed' uses 1.0 for single/double, else 0.
+    double padval = 0.0;
+    if (indexed) {
+        padval = (inT == ValueType::DOUBLE || inT == ValueType::SINGLE)
+               ? 1.0 : 0.0;
+    }
+
+    // Pad above by floor((m-1)/2) rows, below by ceil((m-1)/2);
+    // left by floor((n-1)/2), right by ceil((n-1)/2). (MATLAB:
+    // mkconstarray(class(a), padval, size(a)+nhood-1) — then drops
+    // the original A into the offset block.)
+    const std::size_t pad_top  = (m - 1) / 2;
+    const std::size_t pad_left = (n - 1) / 2;
+    const std::size_t Hpad     = H + m - 1;
+    const std::size_t Wpad     = W + n - 1;
+
+    // Build padded array in DOUBLE (we always read out via
+    // elemAsDouble; this saves a class-specific dispatch).
+    std::pmr::vector<double> aa(Hpad * Wpad, padval, mr);
+    for (std::size_t j = 0; j < W; ++j)
+        for (std::size_t i = 0; i < H; ++i)
+            aa[(j + pad_left) * Hpad + (i + pad_top)] = A.elemAsDouble(j * H + i);
+
+    // Allocate scratch window (DOUBLE — the class for `fun` is what
+    // the kernel receives; MATLAB nlfilter forwards the same class
+    // as `A`, but we choose DOUBLE here for simplicity. Tests use
+    // class-agnostic kernels like `@(x) mean(x(:))`).
+    Value window = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    double *wd = window.doubleDataMut();
+
+    // First-call invocation determines output class.
+    auto fill_window = [&](std::size_t i, std::size_t j) {
+        for (std::size_t c = 0; c < n; ++c)
+            for (std::size_t r = 0; r < m; ++r)
+                wd[c * m + r] = aa[(j + c) * Hpad + (i + r)];
+    };
+
+    fill_window(0, 0);
+    Value first = eng.callFunctionHandle(
+        fun, Span<const Value>(&window, 1));
+    if (first.numel() != 1)
+        throw Error("nlfilter: fun must return a scalar",
+                    0, 0, "nlfilter", "", "m:nlfilter:funScalar");
+    const ValueType outT = first.type();
+    Value B = Value::matrix(H, W, outT, mr);
+
+    auto store = [&](std::size_t r, std::size_t c, const Value &v) {
+        const std::size_t idx = c * H + r;
+        const double d = v.toScalar();
+        switch (outT) {
+            case ValueType::DOUBLE:  B.doubleDataMut()[idx]  = d; break;
+            case ValueType::SINGLE:  B.singleDataMut()[idx]  = static_cast<float>(d); break;
+            case ValueType::UINT8:   B.uint8DataMut()[idx]   = static_cast<uint8_t>(d); break;
+            case ValueType::UINT16:  B.uint16DataMut()[idx]  = static_cast<uint16_t>(d); break;
+            case ValueType::UINT32:  B.uint32DataMut()[idx]  = static_cast<uint32_t>(d); break;
+            case ValueType::UINT64:  B.uint64DataMut()[idx]  = static_cast<uint64_t>(d); break;
+            case ValueType::INT8:    B.int8DataMut()[idx]    = static_cast<int8_t>(d); break;
+            case ValueType::INT16:   B.int16DataMut()[idx]   = static_cast<int16_t>(d); break;
+            case ValueType::INT32:   B.int32DataMut()[idx]   = static_cast<int32_t>(d); break;
+            case ValueType::INT64:   B.int64DataMut()[idx]   = static_cast<int64_t>(d); break;
+            case ValueType::LOGICAL: B.logicalDataMut()[idx] = d != 0.0 ? 1 : 0; break;
+            default:
+                throw Error("nlfilter: unsupported fun output class",
+                            0, 0, "nlfilter", "", "m:nlfilter:outCls");
+        }
+    };
+
+    store(0, 0, first);
+
+    for (std::size_t i = 0; i < H; ++i) {
+        for (std::size_t j = 0; j < W; ++j) {
+            if (i == 0 && j == 0) continue;  // already filled
+            fill_window(i, j);
+            Value r = eng.callFunctionHandle(
+                fun, Span<const Value>(&window, 1));
+            if (r.numel() != 1)
+                throw Error("nlfilter: fun must return a scalar at all (i,j)",
+                            0, 0, "nlfilter", "", "m:nlfilter:funScalar");
+            store(i, j, r);
+        }
+    }
+    return B;
+}
+
+namespace detail {
+
+void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("nlfilter: requires (A, [m n], fun) or "
+                    "(A, 'indexed', [m n], fun)",
+                    0, 0, "nlfilter", "", "m:nlfilter:nargin");
+    auto *mr = ctx.engine->resource();
+
+    bool indexed = false;
+    std::size_t k = 1;
+    if (args[1].isChar() || args[1].isString()) {
+        std::string s = args[1].toString();
+        for (auto &c : s) c = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(c)));
+        if (s != "indexed")
+            throw Error("nlfilter: unknown literal '" + args[1].toString()
+                      + "' (expected 'indexed')",
+                        0, 0, "nlfilter", "", "m:nlfilter:badLiteral");
+        indexed = true;
+        k = 2;
+    }
+    if (k + 1 >= args.size())
+        throw Error("nlfilter: requires (A, [m n], fun) "
+                    "or (A, 'indexed', [m n], fun)",
+                    0, 0, "nlfilter", "", "m:nlfilter:nargin");
+    const Value &nh = args[k];
+    const Value &fn = args[k + 1];
+    if (nh.numel() != 2)
+        throw Error("nlfilter: neighbourhood must be a 2-element vector",
+                    0, 0, "nlfilter", "", "m:nlfilter:nhood");
+    const std::size_t m = static_cast<std::size_t>(nh.elemAsDouble(0));
+    const std::size_t n = static_cast<std::size_t>(nh.elemAsDouble(1));
+    outs[0] = nlfilter(*ctx.engine, args[0], m, n, fn, indexed, mr);
 }
 
 } // namespace detail

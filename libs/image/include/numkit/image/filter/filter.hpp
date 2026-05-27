@@ -12,6 +12,8 @@
 #include <tuple>
 #include <vector>
 
+namespace numkit { class Engine; }
+
 namespace numkit::image {
 
 /// @brief Boundary handling for image filtering / padding.
@@ -402,5 +404,32 @@ freqz2(const Value &h, size_t M, size_t N,
 std::tuple<Value, Value>
 wiener2(const Value &I, size_t nh, size_t nw, double noise,
         std::pmr::memory_resource *mr = nullptr);
+
+/// @brief General sliding-neighbourhood operation
+/// (`B = nlfilter(A, [m n], fun)`).
+///
+/// For every pixel in `A` extracts the `m × n` window centred on
+/// that pixel (top-left bias for even sizes: pad rows above =
+/// `floor((m-1)/2)`, below = `ceil((m-1)/2)`; similarly cols) and
+/// passes it to `fun`. The result of `fun(window)` (a scalar) is
+/// written to `B(i, j)`. Output class is the class of the FIRST
+/// `fun` invocation's return value, matching MATLAB's behaviour.
+///
+/// **Padding.** Default `padval = 0`. The `'indexed'` form uses
+/// `padval = 1` for `single` / `double` `A`, otherwise `padval = 0`.
+///
+/// @param eng         Engine used to dispatch `fun`.
+/// @param A           Input image.
+/// @param m           Neighbourhood row count.
+/// @param n           Neighbourhood column count.
+/// @param fun         Function-handle Value invoked as `fun(window)`.
+/// @param indexed     `true` → 'indexed' padding rule (see above).
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            Filtered image, same H×W as `A`, class = output
+///                    class of `fun`.
+Value nlfilter(numkit::Engine &eng, const Value &A,
+               std::size_t m, std::size_t n, const Value &fun,
+               bool indexed,
+               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image
