@@ -6,6 +6,7 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color_extras.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/color/chromadapt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/color/illum.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/demosaic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_design.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/locallapfilt.cpp

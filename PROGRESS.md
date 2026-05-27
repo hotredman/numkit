@@ -1609,7 +1609,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `rgb2gray` | ✅ | 0.004 | 95.17× | 21.46× | OK | Sig: r = rgb2gray(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `rgb2ind` | ❌ |  |  |  |  | colour quantize |
 | `rgb2lightness` | ✅ | 0.007 | 48.59× |  | OK | Sig: L = rgb2lightness(RGB). Returns the L* (lightness) channel of CIELAB. Cycle 65 backfill (impl was added in cycle 3 of the sweep but parity spec was missing). 6 fingerprints at diagonal + 2 corners. tol=0.01 (single-vs-double precision in rgb2lab pipeline). Algorithm: rgb2lab(RGB) → page 0 → cast to SINGLE. Image namespace 2026-05-27. |
-| `demosaic` | ❌ |  |  |  |  | Bayer → RGB |
+| `demosaic` | ✅ | 0.049 | 23.20× |  | OK | demosaic — Bayer mosaic → RGB via Malvar-He-Cutler 2004. Covers all 4 sensor alignments (rggb/bggr/grbg/gbrg), constant DC preservation, distinguishable pattern (verified interior + boundary), smooth gradient, uint16 class preservation, BitsPerSample NV (accept-and-ignore per MATLAB behavior). Boundary uses mirror-through-pixel-1 (Bayer-preserving). |
 
 ### Color Space Conversion
 

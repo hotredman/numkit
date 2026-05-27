@@ -1,0 +1,21 @@
+{
+  "name": "demosaic",
+  "namespace": "image",
+  "setup": "I = uint8(zeros(8,8)); I(1:2:end,1:2:end) = 100; I(1:2:end,2:2:end) = 50; I(2:2:end,1:2:end) = 60; I(2:2:end,2:2:end) = 200; Ic = uint8(128*ones(8,8)); [X,Y] = meshgrid(1:8, 1:8); Ig = uint8(X*8 + Y); I16 = uint16(1000*ones(6,6));",
+  "expr": "R1 = demosaic(I, 'rggb'); R2 = demosaic(I, 'bggr'); R3 = demosaic(I, 'grbg'); R4 = demosaic(I, 'gbrg'); Rc = demosaic(Ic, 'rggb'); Rg = demosaic(Ig, 'rggb'); R16 = demosaic(I16, 'rggb'); Rb = demosaic(I16, 'rggb', 'BitsPerSample', 12);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "double(R1(4,4,1))", "double(R1(4,4,2))", "double(R1(4,4,3))",
+    "double(R1(3,3,1))", "double(R1(3,3,2))", "double(R1(3,3,3))",
+    "double(R1(1,2,1))", "double(R1(2,1,1))",
+    "double(R2(4,4,1))", "double(R2(4,4,3))",
+    "double(R3(4,4,2))", "double(R3(4,4,3))",
+    "double(R4(4,4,1))", "double(R4(4,4,3))",
+    "double(Rc(4,4,1))", "double(Rc(4,4,2))", "double(Rc(4,4,3))",
+    "double(Rg(3,3,1))", "double(Rg(5,5,3))",
+    "double(R16(3,3,2))",
+    "double(Rb(3,3,1))"
+  ],
+  "comment": "demosaic — Bayer mosaic → RGB via Malvar-He-Cutler 2004. Covers all 4 sensor alignments (rggb/bggr/grbg/gbrg), constant DC preservation, distinguishable pattern (verified interior + boundary), smooth gradient, uint16 class preservation, BitsPerSample NV (accept-and-ignore per MATLAB behavior). Boundary uses mirror-through-pixel-1 (Bayer-preserving)."
+}
