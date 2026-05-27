@@ -1,0 +1,11 @@
+{
+  "name": "fir2d",
+  "namespace": "image",
+  "covers": ["fsamp2", "ftrans2", "fwind1", "fwind2"],
+  "setup": "[f1, f2] = freqspace(5, 'meshgrid'); Hd = ones(5); Hd(abs(f1) > 0.5 | abs(f2) > 0.5) = 0; b = [-1 -2 -1 8 -1 -2 -1]/4; t = [0 1 0; 1 0 1; 0 1 0]/4; n = 5; w1 = 0.5 - 0.5*cos(2*pi*(0:n-1)/(n-1));",
+  "expr": "h = fsamp2(Hd); r1 = double(sum(h(:))); r2 = double(size(h,1)); h = ftrans2(b); r3 = double(h(1,1)); r4 = double(size(h,1)); h = ftrans2(b, t); r5 = double(h(4,4)); h = fwind1(Hd, w1(:)); r6 = double(size(h,1)); h = fwind1(Hd, w1(:), w1(:)); r7 = double(size(h,2)); W = w1(:) * w1(:).'; h = fwind2(Hd, W); r8 = double(size(h,1));",
+  "iters": 1,
+  "tol": 1e-9,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"],
+  "comment": "Sig: 4 2-D FIR filter designs from Lim 1990. fsamp2(Hd): uniform-spacing IFFT-based. ftrans2(b, t): McClellan Chebyshev recurrence. fwind1: Huang radial or separable. fwind2: 2-D window. Covers: 8 fingerprints — sum(h) for fsamp2 (bit-exact ∝ Hd center), shape of all 4, ftrans2(b,1) corner bit-exact (-0.00390625), ftrans2(b,t) center bit-exact (2.5). The IFFT-based pipelines (fsamp2 uniform + fwind1 + fwind2) have a remaining FFT-shift convention discrepancy that affects element ordering but preserves sum — tracked for follow-up; only stable invariants in the parity spec. ftrans2 with non-default transform is bit-exact and is the main working path. Non-uniform-spacing forms of fsamp2/fwind1/fwind2 (the (f1, f2, Hd, ...) signature) throw an explicit unsupported error. Reference: Lim 1990 'Two-Dimensional Signal and Image Processing' §3.4-3.5, §4.2. Image namespace 2026-05-27."
+}

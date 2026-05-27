@@ -115,16 +115,18 @@ void imnlmfilt_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void locallapfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imreducehaze_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fibermetric_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fsamp2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ftrans2_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fwind1_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fwind2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imboxfilt3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convmtx2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void freqz2_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaussfilt3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 // filter/filter_design.cpp
 void fspecial3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void fwind2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fsamp2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ftrans2_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fwind1_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// fsamp2 / ftrans2 / fwind1 / fwind2 now live in filter/fir2d.cpp
+// (cycle 65). Declared above near fibermetric_reg.
 void gabor_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void medfilt3_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void medfilt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -390,15 +392,15 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "locallapfilt",   &image::detail::locallapfilt_reg);
     reg("filter", "imreducehaze",   &image::detail::imreducehaze_reg);
     reg("filter", "fibermetric",    &image::detail::fibermetric_reg);
+    reg("filter", "fsamp2",         &image::detail::fsamp2_reg);
+    reg("filter", "ftrans2",        &image::detail::ftrans2_reg);
+    reg("filter", "fwind1",         &image::detail::fwind1_reg);
+    reg("filter", "fwind2",         &image::detail::fwind2_reg);
     reg("filter", "imboxfilt3",   &image::detail::imboxfilt3_reg);
     reg("filter", "convmtx2",     &image::detail::convmtx2_reg);
     reg("filter", "freqz2",       &image::detail::freqz2_reg);
     reg("filter", "imgaussfilt3", &image::detail::imgaussfilt3_reg);
     reg("filter", "fspecial3",    &image::detail::fspecial3_reg);
-    reg("filter", "fwind2",       &image::detail::fwind2_reg);
-    reg("filter", "fsamp2",       &image::detail::fsamp2_reg);
-    reg("filter", "ftrans2",      &image::detail::ftrans2_reg);
-    reg("filter", "fwind1",       &image::detail::fwind1_reg);
     reg("filter", "gabor",        &image::detail::gabor_reg);
     reg("filter", "medfilt3",     &image::detail::medfilt3_reg);
     reg("filter", "medfilt2",     &image::detail::medfilt2_reg);

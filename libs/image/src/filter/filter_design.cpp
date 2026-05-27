@@ -329,40 +329,9 @@ void fspecial3_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = fspecial3(ctx.engine->resource(), type, hsize, param);
 }
 
-void fwind2_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("fwind2: requires (Hd, win) — 4-arg form (f1, f2, Hd, win) deferred",
-                    0, 0, "fwind2", "", "m:fwind2:nargin");
-    outs[0] = fwind2(ctx.engine->resource(), args[0], args[1]);
-}
-
-// Stubs for the deferred filter-design fns: throw with explicit
-// KNOWN GAP error so calls fail loud instead of silent undefined-fn.
-void fsamp2_reg(Span<const Value> /*args*/, size_t /*nargout*/,
-                Span<Value> /*outs*/, CallContext &)
-{
-    throw Error("fsamp2: not implemented in v1 — requires 2-D IFFT "
-                "infrastructure. KNOWN GAP, deferred.",
-                0, 0, "fsamp2", "", "m:fsamp2:NotImpl");
-}
-
-void ftrans2_reg(Span<const Value> /*args*/, size_t /*nargout*/,
-                 Span<Value> /*outs*/, CallContext &)
-{
-    throw Error("ftrans2: not implemented in v1 — requires Chebyshev "
-                "polynomial recurrence. KNOWN GAP, deferred.",
-                0, 0, "ftrans2", "", "m:ftrans2:NotImpl");
-}
-
-void fwind1_reg(Span<const Value> /*args*/, size_t /*nargout*/,
-                Span<Value> /*outs*/, CallContext &)
-{
-    throw Error("fwind1: not implemented in v1 — requires Chebyshev "
-                "transformation of 1-D window into 2-D. KNOWN GAP.",
-                0, 0, "fwind1", "", "m:fwind1:NotImpl");
-}
+// fsamp2_reg / ftrans2_reg / fwind1_reg / fwind2_reg now live in
+// fir2d.cpp (cycle 65 — full implementations replacing the previous
+// KNOWN-GAP stubs and the basic fwind2 stub).
 
 void gabor_reg(Span<const Value> /*args*/, size_t /*nargout*/,
                Span<Value> /*outs*/, CallContext &)

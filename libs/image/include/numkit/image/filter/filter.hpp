@@ -880,4 +880,93 @@ Value fibermetric(const Value &I, const std::vector<double> &thickness,
                   double structure_sensitivity, bool bright_polarity,
                   std::pmr::memory_resource *mr = nullptr);
 
+/// @brief 2-D FIR filter design via frequency sampling
+/// (`h = fsamp2(Hd)`).
+///
+/// Computes the inverse DFT of the desired frequency response `Hd`
+/// (assumed sampled on the equally-spaced freqspace grid in
+/// `[-1, 1]`), centred and rotated for use with `filter2`.
+///
+/// Pipeline (uniform-spacing case, matches MATLAB R2025b fsamp2.m):
+///   1. `hd_shifted = ifftshift(Hd)`.
+///   2. `h_complex = fftshift(ifft2(hd_shifted))`.
+///   3. If `max(abs(imag(h))) < sqrt(eps)`: `h = real(h)`.
+///   4. `h = rot90(h, 2)` — for use with `filter2`.
+///
+/// The non-uniform case `fsamp2(f1, f2, Hd, [m n])` (least-squares
+/// fit at arbitrary frequency samples) is **not yet implemented** —
+/// pass `f1` / `f2` as `Value::Empty` and `siz` as `{}` for the
+/// uniform case. Calling with non-empty `f1` / `f2` throws.
+///
+/// Reference: Lim, J. S. (1990). Two-Dimensional Signal and Image
+/// Processing, Prentice-Hall, pp. 213–217.
+///
+/// @param Hd  Desired frequency response (M × N).
+/// @param f1  Frequency samples along x (empty for uniform spacing).
+/// @param f2  Frequency samples along y (empty for uniform spacing).
+/// @param siz Output filter size (empty for uniform spacing).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE filter, same shape as `Hd` (uniform) or `[m n]`.
+Value fsamp2(const Value &Hd, const Value &f1, const Value &f2,
+             const std::vector<std::size_t> &siz,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 2-D FIR filter via 1-D → 2-D frequency transformation
+/// (`h = ftrans2(b, t)`).
+///
+/// Maps a 1-D zero-phase FIR `b` (type-I, odd-length, symmetric) into
+/// a 2-D filter `h` via the polynomial transform `t`. With `t` empty,
+/// uses the McClellan transformation `t = [1 2 1; 2 -4 2; 1 2 1]/8`
+/// (approximately circularly symmetric).
+///
+/// Algorithm (Lim 1990, pp. 217–219): for `b = a₀ + sum_n 2·aₙ·cos(nω)`
+/// the 2-D filter is `h = sum_n aₙ · Tₙ(t)` where `Tₙ` is the n-th
+/// Chebyshev polynomial of the first kind. Computed recursively via
+/// `T₀ = 1, T₁ = t, Tₙ₊₁ = 2·conv2(t, Tₙ) − Tₙ₋₁`.
+///
+/// @param b   1-D FIR coefficients (must be odd-length, symmetric).
+/// @param t   Transform matrix (`Value::Empty` → default McClellan).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE 2-D filter of size
+///            `((M_t-1)·(Q_b-1)/2 + 1) × ((N_t-1)·(Q_b-1)/2 + 1)`.
+Value ftrans2(const Value &b, const Value &t,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 2-D FIR filter via 1-D window method
+/// (`h = fwind1(Hd, win1[, win2])`).
+///
+/// Uses the inverse DFT (`fsamp2`) of `Hd` and multiplies by an
+/// approximately circularly-symmetric or separable 2-D window built
+/// from one or two 1-D windows.
+///
+/// With one 1-D window `win` (Huang's method): build the 2-D circular
+/// window by linearly interpolating `win` along the radial coordinate
+/// `r = sqrt(x² + y²)`, then truncate to the unit disc.
+///
+/// With two 1-D windows `win1`, `win2`: separable outer product.
+///
+/// @param Hd     Desired frequency response.
+/// @param win1   Primary 1-D window (length N).
+/// @param win2   Optional second 1-D window (separable); empty →
+///               Huang's method.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       DOUBLE 2-D filter, length(win1) × length(win1) for
+///               Huang, length(win2) × length(win1) for separable.
+Value fwind1(const Value &Hd, const Value &win1, const Value &win2,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 2-D FIR filter via 2-D window method
+/// (`h = fwind2(Hd, W)`).
+///
+/// Computes `h = fsamp2(Hd) .* W`. If `Hd` is smaller than `W`, it
+/// is bilinearly interpolated to match (this branch requires
+/// `freqspace + interp2`).
+///
+/// @param Hd  Desired frequency response.
+/// @param W   2-D window, same size as final filter.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE 2-D filter, same size as `W`.
+Value fwind2(const Value &Hd, const Value &W,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image

@@ -91,34 +91,14 @@ TEST_F(FilterDesignTest, Fwind2BasicShape)
     EXPECT_NEAR(evalScalar("sum(h(:))"), 1.0, 1e-9);
 }
 
-TEST_F(FilterDesignTest, Fwind2ShapeMismatchThrows)
-{
-    bool threw = false;
-    try { eval("fwind2(ones(7), ones(5));"); } catch (...) { threw = true; }
-    EXPECT_TRUE(threw);
-}
-
-// ── KNOWN GAP stubs throw ─────────────────────────────────────────────
-TEST_F(FilterDesignTest, Fsamp2KnownGap)
-{
-    bool threw = false;
-    try { eval("fsamp2(ones(7));"); } catch (...) { threw = true; }
-    EXPECT_TRUE(threw);
-}
-
-TEST_F(FilterDesignTest, Ftrans2KnownGap)
-{
-    bool threw = false;
-    try { eval("ftrans2([1 2 1]/4);"); } catch (...) { threw = true; }
-    EXPECT_TRUE(threw);
-}
-
-TEST_F(FilterDesignTest, Fwind1KnownGap)
-{
-    bool threw = false;
-    try { eval("fwind1(ones(7), ones(1, 7));"); } catch (...) { threw = true; }
-    EXPECT_TRUE(threw);
-}
+// Fwind2 with a shape mismatch was previously a hard-error; we now
+// interpolate Hd to match W's size automatically (matches MATLAB).
+// Test removed in cycle 65 when fsamp2/ftrans2/fwind1/fwind2 stubs
+// were replaced with full implementations in fir2d.cpp.
+//
+// Likewise, the Fsamp2KnownGap / Ftrans2KnownGap / Fwind1KnownGap
+// tests are removed — those functions are now implemented (see
+// fir2d_test.cpp for their regression coverage).
 
 TEST_F(FilterDesignTest, GaborKnownGap)
 {
