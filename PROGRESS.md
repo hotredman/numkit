@@ -1779,7 +1779,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 |---|:---:|---:|---:|---:|:---:|---|
 | `inpaintCoherent` | ❌ |  |  |  |  | coherence-transport inpainting |
 | `inpaintExemplar` | ❌ |  |  |  |  | exemplar inpainting |
-| `poly2mask` | ❌ |  |  |  |  |  |
+| `poly2mask` | ✅ | 0.078 | 14.60× |  | OK | Sig: BW = poly2mask(X, Y, M, N). Branches: integer-aligned square, off-grid square (frac vertices), triangle (diagonal edge), degenerate (zero-area) triangle, self-closing polygon, pentagon (irrational vertices), self-intersecting bowtie, large rectangle, empty inputs (T6 implicit). Bit-equal MATLAB R2025b via reverse-engineered ray-cast rule: per non-horizontal edge, cy ∈ (ylo, yhi] → cx > xi (strict) → toggle. Foley/van Dam scanline polygon fill, X11-half-open horizontal edges. Image namespace 2026-05-27. |
 | `reducepoly` | ❌ |  |  |  |  | Douglas-Peucker simplify |
 | `regionfill` | ✅ | 0.011 | 210.10× |  | OK | Sig: J = regionfill(I, MASK). Branches: single-pixel interior mask, 3x3 interior mask, larger (4x4) mask on magic(10), edge-touching mask (3-neighbour stencil at borders). MATLAB uses sparse direct (UMFPACK); numkit uses conjugate gradient at tol 1e-12, both converge to same machine-precision Laplacian solution. (I, X, Y) polygon form requires poly2mask (deferred to its own cycle). Algorithm: discrete Laplacian Dirichlet BVP (Gonzalez & Woods §3.4; NR §2.7). Image namespace 2026-05-27. |
 | `roicolor` | ✅ | 0.003 | 67.89× | 49.52× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |

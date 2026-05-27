@@ -202,6 +202,40 @@ Value gradientweight(const Value &I, double sigma_x, double sigma_y,
 Value regionfill(const Value &I, const Value &mask,
                  std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Convert polygon to binary mask (`BW = poly2mask(X, Y, M, N)`).
+///
+/// Scan-converts the polygon `(X, Y)` into an `M × N` binary mask
+/// using MATLAB R2025b's pixel-centre containment rule (verified
+/// empirically against the closed-source `images.internal.builtins
+/// .poly2mask`):
+///
+///   Pixel `(r, c)` is set in `BW` iff its centre `(c, r)` lies in
+///   the polygon under even-odd ray-casting with each non-horizontal
+///   edge contributing only when @f$ \text{centre}_y \in
+///   (\min(y_1, y_2), \max(y_1, y_2)] @f$ (half-open below, closed
+///   above) and the crossing condition is @f$ \text{centre}_x >
+///   x_\text{intersect} @f$.  This handles vertex sharing and edge
+///   coincidence without double-counting.
+///
+/// The polygon is auto-closed (last vertex joined to first) if the
+/// caller hasn't already supplied a closing vertex.  Empty `X` /
+/// `Y` returns `false(M, N)`.
+///
+/// References: classic scanline polygon fill (Foley/van Dam et al.,
+/// *Computer Graphics: Principles and Practice*, 2nd ed., §3.5);
+/// half-open horizontal-edge convention from PostScript / X11
+/// `XFillPolygon`.
+///
+/// @param X   Polygon X coordinates (any real numeric vector).
+/// @param Y   Polygon Y coordinates (matching length).
+/// @param M   Mask height (rows).
+/// @param N   Mask width (cols).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `M × N` logical mask.
+Value poly2mask(const Value &X, const Value &Y,
+                std::size_t M, std::size_t N,
+                std::pmr::memory_resource *mr = nullptr);
+
 /// Paint a binary mask onto an image with a colour
 /// (`J = imoverlay(I, BW, color)`).
 ///
