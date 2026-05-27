@@ -106,21 +106,21 @@ CCInfoBPF parse_cc(const Value &CC, const char *fn)
     CCInfoBPF info;
     if (!CC.isStruct() || CC.numel() != 1)
         throw Error(std::string(fn) + ": CC must be a 1×1 struct",
-                    0, 0, fn, "", std::string("m:") + fn + ":notStruct");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":notStruct");
     const auto &el = CC.structArrayElem(0);
     auto need = [&](const char *name) -> const Value & {
         auto it = el.find(name);
         if (it == el.end())
             throw Error(std::string(fn) + ": CC missing '" + name + "'",
                         0, 0, fn, "",
-                        std::string("m:") + fn + ":noField");
+                        std::string("numkit:") + fn + ":noField");
         return it->second;
     };
     const Value &sz = need("ImageSize");
     if (sz.numel() < 2)
         throw Error(std::string(fn) + ": CC.ImageSize too short",
                     0, 0, fn, "",
-                    std::string("m:") + fn + ":sizeDim");
+                    std::string("numkit:") + fn + ":sizeDim");
     info.H = static_cast<int>(sz.elemAsDouble(0));
     info.W = static_cast<int>(sz.elemAsDouble(1));
     auto itConn = el.find("Connectivity");
@@ -593,19 +593,19 @@ compute_attribute(const std::vector<Comp> &comps,
     } else if (attrib_lower == "minintensity") {
         if (marker.isEmpty())
             throw Error("bwpropfilt: MinIntensity needs a marker image",
-                        0, 0, "bwpropfilt", "", "m:bwpropfilt:needMarker");
+                        0, 0, "bwpropfilt", "", "numkit:bwpropfilt:needMarker");
         for (std::size_t i = 0; i < comps.size(); ++i)
             v[i] = attr_min_intensity(comps[i], marker);
     } else if (attrib_lower == "maxintensity") {
         if (marker.isEmpty())
             throw Error("bwpropfilt: MaxIntensity needs a marker image",
-                        0, 0, "bwpropfilt", "", "m:bwpropfilt:needMarker");
+                        0, 0, "bwpropfilt", "", "numkit:bwpropfilt:needMarker");
         for (std::size_t i = 0; i < comps.size(); ++i)
             v[i] = attr_max_intensity(comps[i], marker);
     } else if (attrib_lower == "meanintensity") {
         if (marker.isEmpty())
             throw Error("bwpropfilt: MeanIntensity needs a marker image",
-                        0, 0, "bwpropfilt", "", "m:bwpropfilt:needMarker");
+                        0, 0, "bwpropfilt", "", "numkit:bwpropfilt:needMarker");
         for (std::size_t i = 0; i < comps.size(); ++i)
             v[i] = attr_mean_intensity(comps[i], marker);
     } else {
@@ -615,7 +615,7 @@ compute_attribute(const std::vector<Comp> &comps,
                       "FilledArea, MajorAxisLength, MaxIntensity, "
                       "MeanIntensity, MinIntensity, MinorAxisLength, "
                       "Orientation, Perimeter, PerimeterOld, Solidity)",
-                    0, 0, "bwpropfilt", "", "m:bwpropfilt:badAttr");
+                    0, 0, "bwpropfilt", "", "numkit:bwpropfilt:badAttr");
     }
     return v;
     (void)W;
@@ -752,7 +752,7 @@ void bwpropfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
     //   bwpropfilt(..., conn)
     if (args.size() < 3)
         throw Error("bwpropfilt: requires (IN, attrib, range_or_n)",
-                    0, 0, "bwpropfilt", "", "m:bwpropfilt:nargin");
+                    0, 0, "bwpropfilt", "", "numkit:bwpropfilt:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -769,13 +769,13 @@ void bwpropfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
     // attrib.
     if (i >= args.size() || !is_string(args[i]))
         throw Error("bwpropfilt: expected attribute string",
-                    0, 0, "bwpropfilt", "", "m:bwpropfilt:noAttr");
+                    0, 0, "bwpropfilt", "", "numkit:bwpropfilt:noAttr");
     const std::string attrib = args[i].toString();
     ++i;
     // range or n.
     if (i >= args.size())
         throw Error("bwpropfilt: requires range or n",
-                    0, 0, "bwpropfilt", "", "m:bwpropfilt:noRange");
+                    0, 0, "bwpropfilt", "", "numkit:bwpropfilt:noRange");
     const Value &p = args[i];
     ++i;
     double p_min = 0, p_max = 0;
@@ -785,17 +785,17 @@ void bwpropfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
         keep_n = static_cast<std::size_t>(p.toScalar());
         if (keep_n == 0)
             throw Error("bwpropfilt: n must be a positive integer",
-                        0, 0, "bwpropfilt", "", "m:bwpropfilt:nZero");
+                        0, 0, "bwpropfilt", "", "numkit:bwpropfilt:nZero");
     } else if (p.numel() == 2) {
         p_min = p.elemAsDouble(0);
         p_max = p.elemAsDouble(1);
         if (p_min > p_max)
             throw Error("bwpropfilt: range must be nondecreasing",
                         0, 0, "bwpropfilt", "",
-                        "m:bwpropfilt:rangeOrder");
+                        "numkit:bwpropfilt:rangeOrder");
     } else {
         throw Error("bwpropfilt: p must be scalar n or 2-element range",
-                    0, 0, "bwpropfilt", "", "m:bwpropfilt:pShape");
+                    0, 0, "bwpropfilt", "", "numkit:bwpropfilt:pShape");
     }
     int conn = 8;
     // Optional 'keep' direction (only with scalar n).
@@ -810,7 +810,7 @@ void bwpropfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
         else throw Error("bwpropfilt: keep direction must be "
                          "'largest' or 'smallest'",
                          0, 0, "bwpropfilt", "",
-                         "m:bwpropfilt:dirBad");
+                         "numkit:bwpropfilt:dirBad");
         ++i;
     }
     // Optional connectivity arg (numeric scalar).
@@ -819,11 +819,11 @@ void bwpropfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (conn != 4 && conn != 8)
             throw Error("bwpropfilt: connectivity must be 4 or 8",
                         0, 0, "bwpropfilt", "",
-                        "m:bwpropfilt:connBad");
+                        "numkit:bwpropfilt:connBad");
         if (first_is_struct)
             throw Error("bwpropfilt: connectivity not allowed with CC input",
                         0, 0, "bwpropfilt", "",
-                        "m:bwpropfilt:connWithCC");
+                        "numkit:bwpropfilt:connWithCC");
         ++i;
     }
 

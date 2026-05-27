@@ -40,19 +40,19 @@ Value rcosdesign(double beta, int span, int sps,
 {
     if (!(beta >= 0.0 && beta <= 1.0))
         throw Error("rcosdesign: beta must be in [0, 1]",
-                    0, 0, "rcosdesign", "", "m:rcosdesign:beta");
+                    0, 0, "rcosdesign", "", "numkit:rcosdesign:beta");
     if (span <= 0)
         throw Error("rcosdesign: span must be a positive integer",
-                    0, 0, "rcosdesign", "", "m:rcosdesign:span");
+                    0, 0, "rcosdesign", "", "numkit:rcosdesign:span");
     if (sps <= 0)
         throw Error("rcosdesign: sps must be a positive integer",
-                    0, 0, "rcosdesign", "", "m:rcosdesign:sps");
+                    0, 0, "rcosdesign", "", "numkit:rcosdesign:sps");
 
     const bool rrc = (shape == "sqrt" || shape == "Sqrt" || shape == "SQRT");
     if (!rrc && shape != "normal" && shape != "Normal" &&
         shape != "NORMAL" && !shape.empty())
         throw Error("rcosdesign: shape must be 'normal' or 'sqrt'",
-                    0, 0, "rcosdesign", "", "m:rcosdesign:shape");
+                    0, 0, "rcosdesign", "", "numkit:rcosdesign:shape");
 
     // Filter length.
     const int N = span * sps + 1;
@@ -127,13 +127,13 @@ Value gaussdesign(double BT, int span, int sps,
 {
     if (!(BT > 0.0))
         throw Error("gaussdesign: BT must be positive",
-                    0, 0, "gaussdesign", "", "m:gaussdesign:BT");
+                    0, 0, "gaussdesign", "", "numkit:gaussdesign:BT");
     if (span <= 0)
         throw Error("gaussdesign: span must be a positive integer",
-                    0, 0, "gaussdesign", "", "m:gaussdesign:span");
+                    0, 0, "gaussdesign", "", "numkit:gaussdesign:span");
     if (sps <= 0)
         throw Error("gaussdesign: sps must be a positive integer",
-                    0, 0, "gaussdesign", "", "m:gaussdesign:sps");
+                    0, 0, "gaussdesign", "", "numkit:gaussdesign:sps");
 
     const int N = span * sps + 1;
     const double centre = 0.5 * (1 + N);  // mean(1:N)
@@ -167,7 +167,7 @@ Value rectpulse(const Value &x, int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("rectpulse: n must be a positive integer",
-                    0, 0, "rectpulse", "", "m:rectpulse:n");
+                    0, 0, "rectpulse", "", "numkit:rectpulse:n");
 
     const auto &d = x.dims();
     const size_t H = d.rows();
@@ -215,7 +215,7 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("intdump: n must be a positive integer",
-                    0, 0, "intdump", "", "m:intdump:n");
+                    0, 0, "intdump", "", "numkit:intdump:n");
 
     const auto &d = x.dims();
     const size_t H = d.rows();
@@ -228,7 +228,7 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
     if (is_row) {
         if (W % un != 0)
             throw Error("intdump: row length must be a multiple of n",
-                        0, 0, "intdump", "", "m:intdump:size");
+                        0, 0, "intdump", "", "numkit:intdump:size");
         const size_t Wo = W / un;
         out = Value::matrix(1, Wo, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
@@ -241,7 +241,7 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
     } else if (is_col) {
         if (H % un != 0)
             throw Error("intdump: column length must be a multiple of n",
-                        0, 0, "intdump", "", "m:intdump:size");
+                        0, 0, "intdump", "", "numkit:intdump:size");
         const size_t Ho = H / un;
         out = Value::matrix(Ho, 1, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
@@ -255,7 +255,7 @@ Value intdump(const Value &x, int n, std::pmr::memory_resource *mr)
         // Matrix: average n consecutive rows per column.
         if (H % un != 0)
             throw Error("intdump: row count must be a multiple of n",
-                        0, 0, "intdump", "", "m:intdump:size");
+                        0, 0, "intdump", "", "numkit:intdump:size");
         const size_t Ho = H / un;
         out = Value::matrix(Ho, W, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
@@ -278,7 +278,7 @@ void rcosdesign_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("rcosdesign: requires (beta, span, sps [, shape])",
-                    0, 0, "rcosdesign", "", "m:rcosdesign:nargin");
+                    0, 0, "rcosdesign", "", "numkit:rcosdesign:nargin");
     const double beta = args[0].toScalar();
     const int span    = static_cast<int>(args[1].toScalar());
     const int sps     = static_cast<int>(args[2].toScalar());
@@ -286,7 +286,7 @@ void rcosdesign_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 4 && !args[3].isEmpty()) {
         if (!args[3].isChar() && !args[3].isString())
             throw Error("rcosdesign: shape must be a string",
-                        0, 0, "rcosdesign", "", "m:rcosdesign:shape");
+                        0, 0, "rcosdesign", "", "numkit:rcosdesign:shape");
         shape = args[3].toString();
     }
     outs[0] = rcosdesign(beta, span, sps, shape, ctx.engine->resource());
@@ -297,7 +297,7 @@ void gaussdesign_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("gaussdesign: requires (BT, span, sps)",
-                    0, 0, "gaussdesign", "", "m:gaussdesign:nargin");
+                    0, 0, "gaussdesign", "", "numkit:gaussdesign:nargin");
     const double BT  = args[0].toScalar();
     const int span   = static_cast<int>(args[1].toScalar());
     const int sps    = static_cast<int>(args[2].toScalar());
@@ -309,7 +309,7 @@ void rectpulse_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("rectpulse: requires (x, n)",
-                    0, 0, "rectpulse", "", "m:rectpulse:nargin");
+                    0, 0, "rectpulse", "", "numkit:rectpulse:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     outs[0] = rectpulse(args[0], n, ctx.engine->resource());
 }
@@ -319,7 +319,7 @@ void intdump_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("intdump: requires (x, n)",
-                    0, 0, "intdump", "", "m:intdump:nargin");
+                    0, 0, "intdump", "", "numkit:intdump:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     outs[0] = intdump(args[0], n, ctx.engine->resource());
 }

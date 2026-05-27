@@ -56,7 +56,7 @@ findBracket(FnHandle fn, double x0, std::pmr::memory_resource *mr)
     }
     throw Error("fzero: failed to find a bracket containing a sign change "
                  "near x0",
-                 0, 0, "fzero", "", "m:fzero:noBracket");
+                 0, 0, "fzero", "", "numkit:fzero:noBracket");
 }
 
 // Brent's method on [a, b] with f(a)*f(b) < 0 (or one of them == 0).
@@ -73,7 +73,7 @@ double brent(FnHandle fn, double a, double b, std::pmr::memory_resource *mr)
     if ((fa < 0) == (fb < 0))
         throw Error("fzero: f(a) and f(b) must have opposite signs "
                      "(no sign change in the supplied interval)",
-                     0, 0, "fzero", "", "m:fzero:noSignChange");
+                     0, 0, "fzero", "", "numkit:fzero:noSignChange");
 
     double c = a, fc = fa, d = b - a, e = d;
     for (int it = 0; it < kMaxIter; ++it) {
@@ -121,7 +121,7 @@ double brent(FnHandle fn, double a, double b, std::pmr::memory_resource *mr)
         fb = cb::evalScalar(fn, b, mr);
     }
     throw Error("fzero: failed to converge within iteration limit",
-                 0, 0, "fzero", "", "m:fzero:noConverge");
+                 0, 0, "fzero", "", "numkit:fzero:noConverge");
 }
 
 } // namespace
@@ -130,7 +130,7 @@ Value fzero(FnHandle fn, double x0, std::pmr::memory_resource *mr)
 {
     if (!std::isfinite(x0))
         throw Error("fzero: x0 must be finite",
-                     0, 0, "fzero", "", "m:fzero:badX0");
+                     0, 0, "fzero", "", "numkit:fzero:badX0");
     auto [a, b] = findBracket(fn, x0, mr);
     if (a == b) return Value::scalar(a, mr);
     if (a > b) std::swap(a, b);
@@ -142,7 +142,7 @@ Value fzero(FnHandle fn, double a, double b,
 {
     if (!std::isfinite(a) || !std::isfinite(b) || a >= b)
         throw Error("fzero: interval [a, b] must satisfy a < b and be finite",
-                     0, 0, "fzero", "", "m:fzero:badInterval");
+                     0, 0, "fzero", "", "numkit:fzero:badInterval");
     return Value::scalar(brent(fn, a, b, mr), mr);
 }
 
@@ -332,7 +332,7 @@ Value fminbnd(FnHandle fn, double lo, double hi, double tol,
 {
     if (!std::isfinite(lo) || !std::isfinite(hi) || lo >= hi)
         throw Error("fminbnd: lo < hi must be finite",
-                     0, 0, "fminbnd", "", "m:fminbnd:badRange");
+                     0, 0, "fminbnd", "", "numkit:fminbnd:badRange");
     if (!(tol > 0)) tol = 1e-6;
     return Value::scalar(brentMin(fn, lo, hi, tol, mr), mr);
 }
@@ -343,7 +343,7 @@ Value fminsearch(FnHandle fn, Span<const double> x0, double tol,
     const size_t n = x0.size();
     if (n == 0)
         throw Error("fminsearch: x0 must be non-empty",
-                     0, 0, "fminsearch", "", "m:fminsearch:badX0");
+                     0, 0, "fminsearch", "", "numkit:fminsearch:badX0");
     if (!(tol > 0)) tol = 1e-4;
     ScratchArena scratch(mr);
     auto best = nelderMead(fn, x0.data(), n, tol, &scratch);
@@ -367,7 +367,7 @@ void requireFuncHandle(const Value &fn, const char *who)
     if (!fn.isFuncHandle()
         && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
         throw Error(std::string(who) + ": 1st argument must be a function handle",
-                     0, 0, who, "", std::string("m:") + who + ":fnType");
+                     0, 0, who, "", std::string("numkit:") + who + ":fnType");
 }
 } // anon
 
@@ -375,7 +375,7 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
-                     0, 0, "fzero", "", "m:fzero:nargin");
+                     0, 0, "fzero", "", "numkit:fzero:nargin");
     requireFuncHandle(args[0], "fzero");
     auto handle = args[0];
     auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
@@ -393,7 +393,7 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     } else {
         throw Error("fzero: 2nd argument must be a scalar x0 or a 2-element "
                      "interval [a, b]",
-                     0, 0, "fzero", "", "m:fzero:badX0");
+                     0, 0, "fzero", "", "numkit:fzero:badX0");
     }
 }
 
@@ -401,7 +401,7 @@ void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("fminbnd: requires (fn, lo, hi[, tol])",
-                     0, 0, "fminbnd", "", "m:fminbnd:nargin");
+                     0, 0, "fminbnd", "", "numkit:fminbnd:nargin");
     requireFuncHandle(args[0], "fminbnd");
     const double lo = args[1].toScalar();
     const double hi = args[2].toScalar();
@@ -420,7 +420,7 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 2)
         throw Error("fminsearch: requires (fn, x0[, tol])",
-                     0, 0, "fminsearch", "", "m:fminsearch:nargin");
+                     0, 0, "fminsearch", "", "numkit:fminsearch:nargin");
     requireFuncHandle(args[0], "fminsearch");
     const double tol = (args.size() >= 3 && !args[2].isEmpty()) ? args[2].toScalar() : 1e-4;
     auto handle = args[0];

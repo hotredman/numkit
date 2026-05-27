@@ -126,13 +126,13 @@ Value fsamp2(const Value &Hd, const Value &f1, const Value &f2,
         throw Error("fsamp2: non-uniform-spacing form "
                     "fsamp2(f1, f2, Hd, [m n]) is not yet supported — "
                     "use the uniform fsamp2(Hd) form.",
-                    0, 0, "fsamp2", "", "m:fsamp2:nonuniform");
+                    0, 0, "fsamp2", "", "numkit:fsamp2:nonuniform");
     if (Hd.numel() == 0)
         throw Error("fsamp2: Hd must be nonempty",
-                    0, 0, "fsamp2", "", "m:fsamp2:empty");
+                    0, 0, "fsamp2", "", "numkit:fsamp2:empty");
     if (Hd.dims().is3D() || Hd.dims().rows() < 2 || Hd.dims().cols() < 2)
         throw Error("fsamp2: Hd must be 2-D with at least 2 rows and 2 cols",
-                    0, 0, "fsamp2", "", "m:fsamp2:shape");
+                    0, 0, "fsamp2", "", "numkit:fsamp2:shape");
 
     Value Hd_d = as_double(Hd, mr);
     // 1. Inverse fftshift — use numkit::signal's tested implementation
@@ -185,17 +185,17 @@ Value ftrans2(const Value &b_in, const Value &t_in,
     const std::size_t L = b.numel();
     if (L == 0)
         throw Error("ftrans2: b must be nonempty",
-                    0, 0, "ftrans2", "", "m:ftrans2:bEmpty");
+                    0, 0, "ftrans2", "", "numkit:ftrans2:bEmpty");
     if (L % 2 == 0)
         throw Error("ftrans2: b must be odd-length",
-                    0, 0, "ftrans2", "", "m:ftrans2:bLen");
+                    0, 0, "ftrans2", "", "numkit:ftrans2:bLen");
     // Check zero.
     bool all_zero = true;
     for (std::size_t i = 0; i < L; ++i)
         if (b.elemAsDouble(i) != 0.0) { all_zero = false; break; }
     if (all_zero)
         throw Error("ftrans2: b must have at least one nonzero element",
-                    0, 0, "ftrans2", "", "m:ftrans2:bZero");
+                    0, 0, "ftrans2", "", "numkit:ftrans2:bZero");
     // Check symmetry: b == rot90(b, 2) within sqrt(eps).
     const double sqrt_eps = std::sqrt(std::numeric_limits<double>::epsilon());
     for (std::size_t i = 0; i < L; ++i) {
@@ -203,7 +203,7 @@ Value ftrans2(const Value &b_in, const Value &t_in,
         const double c = b.elemAsDouble(L - 1 - i);
         if (std::fabs(a - c) > sqrt_eps)
             throw Error("ftrans2: b must be symmetric",
-                        0, 0, "ftrans2", "", "m:ftrans2:bSym");
+                        0, 0, "ftrans2", "", "numkit:ftrans2:bSym");
     }
     // Resolve transform matrix t.
     Value t;
@@ -224,7 +224,7 @@ Value ftrans2(const Value &b_in, const Value &t_in,
             if (t.elemAsDouble(i) != 0.0) { tzero = false; break; }
         if (tzero)
             throw Error("ftrans2: t must have at least one nonzero element",
-                        0, 0, "ftrans2", "", "m:ftrans2:tZero");
+                        0, 0, "ftrans2", "", "numkit:ftrans2:tZero");
     }
 
     // Convert b to Chebyshev coefficients a:
@@ -327,10 +327,10 @@ Value fwind1(const Value &Hd, const Value &win1, const Value &win2,
 {
     if (Hd.numel() == 0)
         throw Error("fwind1: Hd must be nonempty",
-                    0, 0, "fwind1", "", "m:fwind1:empty");
+                    0, 0, "fwind1", "", "numkit:fwind1:empty");
     if (win1.numel() < 2)
         throw Error("fwind1: window length must be >= 2",
-                    0, 0, "fwind1", "", "m:fwind1:winShort");
+                    0, 0, "fwind1", "", "numkit:fwind1:winShort");
 
     const std::size_t n = win1.numel();
     std::vector<double> w1(n);
@@ -343,7 +343,7 @@ Value fwind1(const Value &Hd, const Value &win1, const Value &win2,
             if (std::fabs(w1[i] - w1[n - 1 - i]) > sqrt_eps)
                 throw Error("fwind1: 1-D window must be symmetric",
                             0, 0, "fwind1", "",
-                            "m:fwind1:winSym");
+                            "numkit:fwind1:winSym");
     }
 
     // Build 2-D window.
@@ -449,10 +449,10 @@ Value fwind2(const Value &Hd, const Value &W,
 {
     if (Hd.numel() == 0)
         throw Error("fwind2: Hd must be nonempty",
-                    0, 0, "fwind2", "", "m:fwind2:empty");
+                    0, 0, "fwind2", "", "numkit:fwind2:empty");
     if (W.numel() == 0)
         throw Error("fwind2: W must be nonempty",
-                    0, 0, "fwind2", "", "m:fwind2:wEmpty");
+                    0, 0, "fwind2", "", "numkit:fwind2:wEmpty");
     const std::size_t Mh = Hd.dims().rows();
     const std::size_t Nh = Hd.dims().cols();
     const std::size_t Mw = W.dims().rows();
@@ -514,7 +514,7 @@ void fsamp2_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fsamp2: requires (Hd) or (f1, f2, Hd, [m n])",
-                    0, 0, "fsamp2", "", "m:fsamp2:nargin");
+                    0, 0, "fsamp2", "", "numkit:fsamp2:nargin");
     if (args.size() == 1) {
         outs[0] = fsamp2(args[0], Value::Empty, Value::Empty, {},
                          ctx.engine->resource());
@@ -527,7 +527,7 @@ void fsamp2_reg(Span<const Value> args, std::size_t /*nargout*/,
         return;
     }
     throw Error("fsamp2: requires 1 or 4 arguments",
-                0, 0, "fsamp2", "", "m:fsamp2:nargin");
+                0, 0, "fsamp2", "", "numkit:fsamp2:nargin");
 }
 
 void ftrans2_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -535,7 +535,7 @@ void ftrans2_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("ftrans2: requires (b [, t])",
-                    0, 0, "ftrans2", "", "m:ftrans2:nargin");
+                    0, 0, "ftrans2", "", "numkit:ftrans2:nargin");
     Value t = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = ftrans2(args[0], t, ctx.engine->resource());
 }
@@ -545,7 +545,7 @@ void fwind1_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("fwind1: requires (Hd, win) or (Hd, win1, win2)",
-                    0, 0, "fwind1", "", "m:fwind1:nargin");
+                    0, 0, "fwind1", "", "numkit:fwind1:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         // (Hd, win) — Huang's method.
@@ -556,7 +556,7 @@ void fwind1_reg(Span<const Value> args, std::size_t /*nargout*/,
     } else {
         // (f1, f2, Hd, ...) — non-uniform spacing case (not supported).
         throw Error("fwind1: non-uniform-spacing form is not yet supported",
-                    0, 0, "fwind1", "", "m:fwind1:nonuniform");
+                    0, 0, "fwind1", "", "numkit:fwind1:nonuniform");
     }
 }
 
@@ -565,13 +565,13 @@ void fwind2_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("fwind2: requires (Hd, W) or (f1, f2, Hd, W)",
-                    0, 0, "fwind2", "", "m:fwind2:nargin");
+                    0, 0, "fwind2", "", "numkit:fwind2:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         outs[0] = fwind2(args[0], args[1], mr);
     } else {
         throw Error("fwind2: non-uniform-spacing form is not yet supported",
-                    0, 0, "fwind2", "", "m:fwind2:nonuniform");
+                    0, 0, "fwind2", "", "numkit:fwind2:nonuniform");
     }
 }
 

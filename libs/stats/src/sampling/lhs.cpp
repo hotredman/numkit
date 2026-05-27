@@ -33,7 +33,7 @@ void choleskyUpperInPlace(double *S, std::size_t n)
         if (diag <= 0.0)
             throw Error("lhsnorm: Sigma must be positive definite "
                         "(Cholesky failed at row " + std::to_string(j + 1) + ")",
-                        0, 0, "lhsnorm", "", "m:lhsnorm:notPD");
+                        0, 0, "lhsnorm", "", "numkit:lhsnorm:notPD");
         const double Rjj = std::sqrt(diag);
         S[j * n + j] = Rjj;
         for (std::size_t i = j + 1; i < n; ++i) {
@@ -188,7 +188,7 @@ Value lhsnorm(const Value &mu, const Value &Sigma, std::size_t n,
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
         throw Error("lhsnorm: Sigma must be d × d where d = length(mu)",
-                    0, 0, "lhsnorm", "", "m:lhsnorm:shape");
+                    0, 0, "lhsnorm", "", "numkit:lhsnorm:shape");
 
     // U is the LHS uniform design (n × d).
     Value U = lhsdesign(n, d, mr);
@@ -229,7 +229,7 @@ void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("lhsdesign: requires (n, p[, Name, Value, ...])",
-                    0, 0, "lhsdesign", "", "m:lhsdesign:nargin");
+                    0, 0, "lhsdesign", "", "numkit:lhsdesign:nargin");
     const std::size_t n = static_cast<std::size_t>(args[0].toScalar());
     const std::size_t p = static_cast<std::size_t>(args[1].toScalar());
     bool smooth = true;
@@ -239,7 +239,7 @@ void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     for (std::size_t k = 2; k + 1 < args.size(); k += 2) {
         if (!args[k].isChar() && !args[k].isString())
             throw Error("lhsdesign: name-value arguments expected",
-                        0, 0, "lhsdesign", "", "m:lhsdesign:badNameValue");
+                        0, 0, "lhsdesign", "", "numkit:lhsdesign:badNameValue");
         std::string name = args[k].toString();
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (name == "smooth") {
@@ -253,13 +253,13 @@ void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             else if (v == "maximin")     crit = LhsCriterion::Maximin;
             else if (v == "correlation") crit = LhsCriterion::Correlation;
             else throw Error("lhsdesign: unknown criterion '" + v + "'",
-                             0, 0, "lhsdesign", "", "m:lhsdesign:badCriterion");
+                             0, 0, "lhsdesign", "", "numkit:lhsdesign:badCriterion");
         } else if (name == "iterations") {
             iters = static_cast<std::size_t>(args[k + 1].toScalar());
             if (iters < 1) iters = 1;
         } else {
             throw Error("lhsdesign: unknown option '" + name + "'",
-                        0, 0, "lhsdesign", "", "m:lhsdesign:badOption");
+                        0, 0, "lhsdesign", "", "numkit:lhsdesign:badOption");
         }
     }
     outs[0] = lhsdesign(n, p, smooth, crit, iters, ctx.engine->resource());
@@ -269,7 +269,7 @@ void lhsnorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("lhsnorm: requires (mu, Sigma, n)",
-                    0, 0, "lhsnorm", "", "m:lhsnorm:nargin");
+                    0, 0, "lhsnorm", "", "numkit:lhsnorm:nargin");
     const std::size_t n = static_cast<std::size_t>(args[2].toScalar());
     outs[0] = lhsnorm(args[0], args[1], n, ctx.engine->resource());
 }

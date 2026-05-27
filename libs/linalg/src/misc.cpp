@@ -38,7 +38,7 @@ rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *
 {
     if (A.dims().is3D())
         throw Error("rref: input must be 2D",
-                    0, 0, "rref", "", "m:rref:Not2D");
+                    0, 0, "rref", "", "numkit:rref:Not2D");
 
     const size_t M = A.dims().rows();
     const size_t N = A.dims().cols();
@@ -52,7 +52,7 @@ rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *
     ScratchVec<double> B(M * N, &scratch);
     if (A.isComplex())
         throw Error("rref: complex input not supported in v1",
-                    0, 0, "rref", "", "m:rref:NoComplex");
+                    0, 0, "rref", "", "numkit:rref:NoComplex");
     std::copy(A.doubleData(), A.doubleData() + M * N, B.begin());
 
     double tol = tol_user;
@@ -119,10 +119,10 @@ planerot(const Value &xy, std::pmr::memory_resource *mr)
 {
     if (xy.dims().is3D() || xy.numel() != 2)
         throw Error("planerot: input must be a 2-element vector",
-                    0, 0, "planerot", "", "m:planerot:BadShape");
+                    0, 0, "planerot", "", "numkit:planerot:BadShape");
     if (xy.isComplex())
         throw Error("planerot: complex input not supported",
-                    0, 0, "planerot", "", "m:planerot:NoComplex");
+                    0, 0, "planerot", "", "numkit:planerot:NoComplex");
 
     const double x = xy.elemAsDouble(0);
     const double y = xy.elemAsDouble(1);
@@ -161,7 +161,7 @@ void rref_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("rref: requires (A [, tol])",
-                    0, 0, "rref", "", "m:rref:nargin");
+                    0, 0, "rref", "", "numkit:rref:nargin");
     bool have_tol = (args.size() >= 2);
     double tol = have_tol ? args[1].toScalar() : 0.0;
     auto [R, jb] = rref(args[0], have_tol, tol, ctx.engine->resource());
@@ -174,7 +174,7 @@ void planerot_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("planerot: requires ([x; y])",
-                    0, 0, "planerot", "", "m:planerot:nargin");
+                    0, 0, "planerot", "", "numkit:planerot:nargin");
     auto [G, y] = planerot(args[0], ctx.engine->resource());
     outs[0] = G;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = y;

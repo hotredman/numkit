@@ -37,14 +37,14 @@ void biterr_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("biterr: requires (x, y[, k])",
-                    0, 0, "biterr", "", "m:biterr:nargin");
+                    0, 0, "biterr", "", "numkit:biterr:nargin");
     auto *mr = ctx.engine->resource();
     const Value &X = args[0];
     const Value &Y = args[1];
     const std::size_t n = X.numel();
     if (Y.numel() != n)
         throw Error("biterr: x and y must have the same number of elements",
-                    0, 0, "biterr", "", "m:biterr:size");
+                    0, 0, "biterr", "", "numkit:biterr:size");
 
     const double *xd = X.doubleData();
     const double *yd = Y.doubleData();
@@ -55,14 +55,14 @@ void biterr_reg(Span<const Value> args, size_t nargout,
         k_bits = static_cast<int>(args[2].toScalar());
         if (k_bits < 1)
             throw Error("biterr: k must be >= 1",
-                        0, 0, "biterr", "", "m:biterr:k");
+                        0, 0, "biterr", "", "numkit:biterr:k");
     } else {
         std::uint64_t mx = 0;
         for (std::size_t i = 0; i < n; ++i) {
             const double xv = xd[i], yv = yd[i];
             if (xv < 0.0 || yv < 0.0)
                 throw Error("biterr: inputs must be non-negative integers",
-                            0, 0, "biterr", "", "m:biterr:negative");
+                            0, 0, "biterr", "", "numkit:biterr:negative");
             const std::uint64_t xi = static_cast<std::uint64_t>(xv);
             const std::uint64_t yi = static_cast<std::uint64_t>(yv);
             mx = std::max(mx, std::max(xi, yi));
@@ -96,14 +96,14 @@ void symerr_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() != 2)
         throw Error("symerr: requires (x, y)",
-                    0, 0, "symerr", "", "m:symerr:nargin");
+                    0, 0, "symerr", "", "numkit:symerr:nargin");
     auto *mr = ctx.engine->resource();
     const Value &X = args[0];
     const Value &Y = args[1];
     const std::size_t n = X.numel();
     if (Y.numel() != n)
         throw Error("symerr: x and y must have the same number of elements",
-                    0, 0, "symerr", "", "m:symerr:size");
+                    0, 0, "symerr", "", "numkit:symerr:size");
 
     const double *xd = X.doubleData();
     const double *yd = Y.doubleData();

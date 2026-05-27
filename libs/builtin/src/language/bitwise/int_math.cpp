@@ -125,7 +125,7 @@ Value bitcmp(const Value &a, int width, std::pmr::memory_resource *mr)
 {
     if (width != 8 && width != 16 && width != 32 && width != 64)
         throw Error("bitcmp: width must be 8, 16, 32, or 64",
-                     0, 0, "bitcmp", "", "m:bitcmp:badWidth");
+                     0, 0, "bitcmp", "", "numkit:bitcmp:badWidth");
     const uint64_t mask = (width == 64) ? ~uint64_t{0}
                                         : ((uint64_t{1} << width) - 1);
     return unaryDouble(a, [mask](double xv) {
@@ -142,7 +142,7 @@ Value bitset(const Value &a, const Value &n, const Value *val, std::pmr::memory_
     const int v = val ? static_cast<int>(val->toScalar()) : 1;
     if (v != 0 && v != 1)
         throw Error("bitset: third argument must be 0 or 1",
-                     0, 0, "bitset", "", "m:bitset:badVal");
+                     0, 0, "bitset", "", "numkit:bitset:badVal");
     return elementwiseDouble(a, n, [v](double xv, double nv) {
         const int64_t x = toInt64(xv);
         const int bit = static_cast<int>(nv);
@@ -192,7 +192,7 @@ ValueType pickBitwiseResultType(const Value &a, const Value &b, const char *fn)
         if (t0 != t1)
             throw Error(std::string(fn) + ": integer inputs must be the same class",
                          0, 0, fn, "",
-                         std::string("m:") + fn + ":mixedInt");
+                         std::string("numkit:") + fn + ":mixedInt");
         return t0;
     }
     // One int, one non-int.
@@ -200,13 +200,13 @@ ValueType pickBitwiseResultType(const Value &a, const Value &b, const char *fn)
         if (!dbl1 || !b.isScalar())
             throw Error(std::string(fn) + ": integer + non-scalar-double mix",
                          0, 0, fn, "",
-                         std::string("m:") + fn + ":badMix");
+                         std::string("numkit:") + fn + ":badMix");
         return t0;
     }
     if (!dbl0 || !a.isScalar())
         throw Error(std::string(fn) + ": integer + non-scalar-double mix",
                      0, 0, fn, "",
-                     std::string("m:") + fn + ":badMix");
+                     std::string("numkit:") + fn + ":badMix");
     return t1;
 }
 
@@ -233,7 +233,7 @@ Value runBitwiseBinary(const Value &a, const Value &b, const char *fnName, Fn fn
     {                                                                                  \
         if (args.size() < 2)                                                           \
             throw Error(#name ": requires 2 arguments",                               \
-                         0, 0, #name, "", "m:" #name ":nargin");                       \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                       \
         outs[0] = runBitwiseBinary(args[0], args[1], \
                                    #name, fn, ctx.engine->resource());                                         \
     }
@@ -244,7 +244,7 @@ Value runBitwiseBinary(const Value &a, const Value &b, const char *fnName, Fn fn
     {                                                                          \
         if (args.size() < 2)                                                   \
             throw Error(#name ": requires 2 arguments",                       \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
@@ -263,7 +263,7 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("bitcmp: requires at least 1 argument",
-                     0, 0, "bitcmp", "", "m:bitcmp:nargin");
+                     0, 0, "bitcmp", "", "numkit:bitcmp:nargin");
     auto *mr = ctx.engine->resource();
 
     int width = 0;
@@ -278,7 +278,7 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             else if (t == "uint64" || t == "int64") { width = 64; explicitType = t; }
             else
                 throw Error("bitcmp: unknown type name",
-                             0, 0, "bitcmp", "", "m:bitcmp:badType");
+                             0, 0, "bitcmp", "", "numkit:bitcmp:badType");
         } else {
             width = static_cast<int>(args[1].toScalar());
         }
@@ -290,7 +290,7 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             throw Error(
                 "bitcmp: 1-arg form requires an integer input "
                 "(use bitcmp(A, 'uintN') for double inputs).",
-                0, 0, "bitcmp", "", "m:bitcmp:doubleNeedsClass");
+                0, 0, "bitcmp", "", "numkit:bitcmp:doubleNeedsClass");
         explicitType = mtypeName(t);
         switch (t) {
         case ValueType::INT8: case ValueType::UINT8:  width = 8;  break;
@@ -315,7 +315,7 @@ void bitset_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("bitset: requires (A, n) or (A, n, val)",
-                     0, 0, "bitset", "", "m:bitset:nargin");
+                     0, 0, "bitset", "", "numkit:bitset:nargin");
     const Value *val = (args.size() >= 3 && !args[2].isEmpty())
                            ? &args[2] : nullptr;
     outs[0] = bitset(args[0], args[1], val, ctx.engine->resource());
@@ -326,7 +326,7 @@ void bitget_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("bitget: requires (A, n)",
-                     0, 0, "bitget", "", "m:bitget:nargin");
+                     0, 0, "bitget", "", "numkit:bitget:nargin");
     outs[0] = bitget(args[0], args[1], ctx.engine->resource());
 }
 

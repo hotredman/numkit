@@ -37,19 +37,19 @@ KnnOpts parse_knn_args(Span<const Value> args, const char *fn)
     while (i < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected name-value pair",
-                        0, 0, fn, "", "m:knn:nvpair");
+                        0, 0, fn, "", "numkit:knn:nvpair");
         std::string name = args[i].toString();
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (i + 1 >= args.size())
             throw Error(std::string(fn) + ": '" + name + "' missing value",
-                        0, 0, fn, "", "m:knn:nvval");
+                        0, 0, fn, "", "numkit:knn:nvval");
         const Value &v = args[i + 1];
         if (name == "k") {
             o.K = static_cast<int>(v.toScalar());
         } else if (name == "distance") {
             if (!v.isChar() && !v.isString())
                 throw Error(std::string(fn) + ": Distance must be a string",
-                            0, 0, fn, "", "m:knn:dist");
+                            0, 0, fn, "", "numkit:knn:dist");
             o.metric = v.toString();
         } else if (name == "p" || name == "minkowskiexponent") {
             o.p = v.toScalar();
@@ -72,10 +72,10 @@ knnsearch(const Value &X, const Value &Y, int K, const std::string &metric, doub
     const size_t Ny = dy.rows();
     if (dx.cols() != dy.cols())
         throw Error("knnsearch: X and Y must have the same column count",
-                    0, 0, "knnsearch", "", "m:knnsearch:cols");
+                    0, 0, "knnsearch", "", "numkit:knnsearch:cols");
     if (K < 1)
         throw Error("knnsearch: K must be a positive integer",
-                    0, 0, "knnsearch", "", "m:knnsearch:K");
+                    0, 0, "knnsearch", "", "numkit:knnsearch:K");
     const int Keff = std::min(static_cast<int>(Nx), K);
 
     Value Idx = Value::matrix(Ny, static_cast<size_t>(K), ValueType::DOUBLE, mr);
@@ -92,7 +92,7 @@ knnsearch(const Value &X, const Value &Y, int K, const std::string &metric, doub
     const size_t Dc = D.dims().cols();
     if (Dr != Nx || Dc != Ny)
         throw Error("knnsearch: pdist2 returned unexpected shape",
-                    0, 0, "knnsearch", "", "m:knnsearch:internal");
+                    0, 0, "knnsearch", "", "numkit:knnsearch:internal");
     const double *dd = D.doubleData();
 
     std::vector<std::pair<double, size_t>> heap;
@@ -135,10 +135,10 @@ rangesearch(const Value &X, const Value &Y, double r, const std::string &metric,
     const size_t Ny = dy.rows();
     if (dx.cols() != dy.cols())
         throw Error("rangesearch: X and Y must have the same column count",
-                    0, 0, "rangesearch", "", "m:rangesearch:cols");
+                    0, 0, "rangesearch", "", "numkit:rangesearch:cols");
     if (!(r >= 0.0))
         throw Error("rangesearch: r must be non-negative",
-                    0, 0, "rangesearch", "", "m:rangesearch:r");
+                    0, 0, "rangesearch", "", "numkit:rangesearch:r");
 
     Value IdxCells = Value::cell(Ny, 1, mr);
     Value DCells   = Value::cell(Ny, 1, mr);
@@ -182,7 +182,7 @@ void knnsearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("knnsearch: requires (X, Y [, K | name-value pairs])",
-                    0, 0, "knnsearch", "", "m:knnsearch:nargin");
+                    0, 0, "knnsearch", "", "numkit:knnsearch:nargin");
     KnnOpts o = parse_knn_args(args, "knnsearch");
     auto [Idx, D] = knnsearch(args[0], args[1], o.K, o.metric, o.p, ctx.engine->resource());
     outs[0] = std::move(Idx);
@@ -193,7 +193,7 @@ void rangesearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("rangesearch: requires (X, Y, r [, name-value pairs])",
-                    0, 0, "rangesearch", "", "m:rangesearch:nargin");
+                    0, 0, "rangesearch", "", "numkit:rangesearch:nargin");
     const double r = args[2].toScalar();
     KnnOpts o;
     // parse remaining name-value
@@ -205,17 +205,17 @@ void rangesearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
         while (i < args.size()) {
             if (!args[i].isChar() && !args[i].isString())
                 throw Error("rangesearch: expected name-value pair",
-                            0, 0, "rangesearch", "", "m:rangesearch:nvpair");
+                            0, 0, "rangesearch", "", "numkit:rangesearch:nvpair");
             std::string name = args[i].toString();
             for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (i + 1 >= args.size())
                 throw Error("rangesearch: '" + name + "' missing value",
-                            0, 0, "rangesearch", "", "m:rangesearch:nvval");
+                            0, 0, "rangesearch", "", "numkit:rangesearch:nvval");
             const Value &v = args[i + 1];
             if (name == "distance") {
                 if (!v.isChar() && !v.isString())
                     throw Error("rangesearch: Distance must be a string",
-                                0, 0, "rangesearch", "", "m:rangesearch:dist");
+                                0, 0, "rangesearch", "", "numkit:rangesearch:dist");
                 o.metric = v.toString();
             } else if (name == "p" || name == "minkowskiexponent") {
                 o.p = v.toScalar();

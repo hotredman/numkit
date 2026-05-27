@@ -88,7 +88,7 @@ Value linkage(const Value &Y, const std::string &method, const std::string &metr
         N = solve_N_from_pdist(n);
         if (N * (N - 1) / 2 != n)
             throw Error("linkage: pdist input has invalid length",
-                        0, 0, "linkage", "", "m:linkage:size");
+                        0, 0, "linkage", "", "numkit:linkage:size");
         D.resize(n);
         for (size_t i = 0; i < n; ++i) D[i] = Y.elemAsDouble(i);
     } else {
@@ -98,7 +98,7 @@ Value linkage(const Value &Y, const std::string &method, const std::string &metr
         N = Yrows;
         if (N * (N - 1) / 2 != n)
             throw Error("linkage: bad pdist intermediate", 0, 0, "linkage", "",
-                        "m:linkage:internal");
+                        "numkit:linkage:internal");
         D.resize(n);
         for (size_t i = 0; i < n; ++i) D[i] = Yp.elemAsDouble(i);
     }
@@ -213,7 +213,7 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
         throw Error("cluster: Z must be (N-1)×3", 0, 0, "cluster", "",
-                    "m:cluster:size");
+                    "numkit:cluster:size");
     const size_t N = M + 1;
     ScratchArena scratch(mr);
     ScratchVec<int>    a(M, &scratch), b(M, &scratch);
@@ -366,11 +366,11 @@ std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, std::pmr:
     const size_t N = M + 1;
     if (Z.dims().cols() != 3)
         throw Error("cophenet: Z must be (N-1)×3", 0, 0, "cophenet", "",
-                    "m:cophenet:size");
+                    "numkit:cophenet:size");
     const size_t Yn = Y.numel();
     if (N * (N - 1) / 2 != Yn)
         throw Error("cophenet: Y / Z size mismatch", 0, 0, "cophenet", "",
-                    "m:cophenet:size");
+                    "numkit:cophenet:size");
 
     ScratchArena scratch(mr);
     ScratchVec<int>    a(M, &scratch), b(M, &scratch);
@@ -443,7 +443,7 @@ Value inconsistent(const Value &Z, int depth, std::pmr::memory_resource *mr) {
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
         throw Error("inconsistent: Z must be (N-1)×3", 0, 0, "inconsistent", "",
-                    "m:inconsistent:size");
+                    "numkit:inconsistent:size");
     if (depth <= 0) depth = 2;
     const size_t N = M + 1;
 
@@ -503,7 +503,7 @@ void linkage_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("linkage: requires Y[, method[, metric]]",
-                    0, 0, "linkage", "", "m:linkage:nargin");
+                    0, 0, "linkage", "", "numkit:linkage:nargin");
     auto lower = [](std::string s) {
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
@@ -529,7 +529,7 @@ void cluster_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("cluster: requires (Z, options)", 0, 0, "cluster", "",
-                    "m:cluster:nargin");
+                    "numkit:cluster:nargin");
     int maxclust = -1;
     double cutoff = -1.0;
     int depth = 2;
@@ -556,7 +556,7 @@ void clusterdata_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("clusterdata: requires (X, ...)", 0, 0, "clusterdata", "",
-                    "m:clusterdata:nargin");
+                    "numkit:clusterdata:nargin");
     int maxclust = -1;
     double cutoff = -1.0;
     int depth = 2;
@@ -599,7 +599,7 @@ void cophenet_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("cophenet: requires (Z, Y)", 0, 0, "cophenet", "",
-                    "m:cophenet:nargin");
+                    "numkit:cophenet:nargin");
     auto [c, d] = cophenet_full(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(c);
     if (nargout > 1) outs[1] = std::move(d);
@@ -610,7 +610,7 @@ void inconsistent_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("inconsistent: requires (Z[, depth])", 0, 0, "inconsistent",
-                    "", "m:inconsistent:nargin");
+                    "", "numkit:inconsistent:nargin");
     int depth = (args.size() >= 2 && !args[1].isEmpty())
                 ? (int)args[1].toScalar() : 2;
     outs[0] = inconsistent(args[0], depth, ctx.engine->resource());

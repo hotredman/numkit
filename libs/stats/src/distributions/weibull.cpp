@@ -122,7 +122,7 @@ inline double argB(Span<const Value> args, size_t i) {
 void wblpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("wblpdf: requires (x[, a, b])", 0, 0, "wblpdf", "", "m:wblpdf:nargin");
+        throw Error("wblpdf: requires (x[, a, b])", 0, 0, "wblpdf", "", "numkit:wblpdf:nargin");
     outs[0] = wblpdf(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
@@ -131,7 +131,7 @@ void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
     if (stripped.empty())
-        throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "m:wblcdf:nargin");
+        throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "numkit:wblcdf:nargin");
     Value v = wblcdf(stripped[0], argA(stripped, 1), argB(stripped, 2), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -140,7 +140,7 @@ void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void wblinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("wblinv: requires (p[, a, b])", 0, 0, "wblinv", "", "m:wblinv:nargin");
+        throw Error("wblinv: requires (p[, a, b])", 0, 0, "wblinv", "", "numkit:wblinv:nargin");
     outs[0] = wblinv(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 

@@ -67,7 +67,7 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("wkeep: requires (x, n[, OPT]) or (X, [R C][, [fr fc]])",
-                    0, 0, "wkeep", "", "m:wkeep:nargin");
+                    0, 0, "wkeep", "", "numkit:wkeep:nargin");
     const Value &x = args[0];
     auto *mr = ctx.engine->resource();
     size_t rows, cols;
@@ -80,7 +80,7 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
         if (R < 0 || C < 0 ||
             static_cast<size_t>(R) > rows || static_cast<size_t>(C) > cols)
             throw Error("wkeep: requested [R C] out of bounds",
-                        0, 0, "wkeep", "", "m:wkeep:range");
+                        0, 0, "wkeep", "", "numkit:wkeep:range");
         long long fr1, fc1;  // 1-based corners
         if (args.size() >= 3 && args[2].numel() == 2) {
             fr1 = static_cast<long long>(args[2].elemAsDouble(0));
@@ -94,7 +94,7 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
             fr1 + R - 1 > static_cast<long long>(rows) ||
             fc1 + C - 1 > static_cast<long long>(cols))
             throw Error("wkeep: 2-D window out of range",
-                        0, 0, "wkeep", "", "m:wkeep:range");
+                        0, 0, "wkeep", "", "numkit:wkeep:range");
         Value y = Value::matrix(static_cast<size_t>(R),
                                 static_cast<size_t>(C), ValueType::DOUBLE, mr);
         if (R == 0 || C == 0) { outs[0] = y; return; }
@@ -116,7 +116,7 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
     const long long n = static_cast<long long>(args[1].toScalar());
     if (n < 0 || static_cast<size_t>(n) > N)
         throw Error("wkeep: n must satisfy 0 ≤ n ≤ length(x)",
-                    0, 0, "wkeep", "", "m:wkeep:n");
+                    0, 0, "wkeep", "", "numkit:wkeep:n");
 
     long long start1 = 1;                                  // 1-based start
     if (args.size() >= 3) {
@@ -132,7 +132,7 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
             else
                 throw Error("wkeep: unknown option '" + s +
                             "' (expected 'c', 'l', 'r' or a numeric start)",
-                            0, 0, "wkeep", "", "m:wkeep:opt");
+                            0, 0, "wkeep", "", "numkit:wkeep:opt");
         } else {
             start1 = static_cast<long long>(opt.toScalar());
         }
@@ -141,7 +141,7 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
     }
     if (start1 < 1 || start1 + n - 1 > static_cast<long long>(N))
         throw Error("wkeep: requested window is out of range",
-                    0, 0, "wkeep", "", "m:wkeep:range");
+                    0, 0, "wkeep", "", "numkit:wkeep:range");
 
     const bool col = isCol(rows, cols);
     size_t outRows, outCols;
@@ -288,7 +288,7 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("wextend: requires (type, mode, x, lf[, side])",
-                    0, 0, "wextend", "", "m:wextend:nargin");
+                    0, 0, "wextend", "", "numkit:wextend:nargin");
 
     // type: 1, 2, 'ar', 'ac'.
     int dim = 0;          // 0 = 2-D both axes (when type=2)
@@ -306,17 +306,17 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         else if (s == "ac") { dim = 2; extRows = false; extCols = true; }
         else
             throw Error("wextend: type must be 1, 2, 'ar', or 'ac'",
-                        0, 0, "wextend", "", "m:wextend:dim");
+                        0, 0, "wextend", "", "numkit:wextend:dim");
     } else {
         const int t = static_cast<int>(args[0].toScalar());
         if (t != 1 && t != 2)
             throw Error("wextend: type must be 1, 2, 'ar', or 'ac'",
-                        0, 0, "wextend", "", "m:wextend:dim");
+                        0, 0, "wextend", "", "numkit:wextend:dim");
         dim = t;
     }
     if (!args[1].isChar() && !args[1].isString())
         throw Error("wextend: mode must be a character vector",
-                    0, 0, "wextend", "", "m:wextend:mode");
+                    0, 0, "wextend", "", "numkit:wextend:mode");
     const std::string mode = lower(args[1].toString());
     static const char *kModes[] = {"sym", "symh", "symw",
                                     "asym", "asymh", "asymw",
@@ -328,12 +328,12 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("wextend: unsupported mode '" + mode +
                     "' (supported: sym/symh/symw, asym/asymh/asymw, "
                     "sp0/sp1, per, zpd, ppd)",
-                    0, 0, "wextend", "", "m:wextend:mode");
+                    0, 0, "wextend", "", "numkit:wextend:mode");
     const Value &x = args[2];
     const long long lf = static_cast<long long>(args[3].toScalar());
     if (lf < 0)
         throw Error("wextend: lf must be ≥ 0",
-                    0, 0, "wextend", "", "m:wextend:lf");
+                    0, 0, "wextend", "", "numkit:wextend:lf");
 
     char side = 'b';
     if (args.size() >= 5 && (args[4].isChar() || args[4].isString())) {
@@ -344,7 +344,7 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         else
             throw Error("wextend: unknown side '" + s +
                         "' (expected 'b', 'l' or 'r')",
-                        0, 0, "wextend", "", "m:wextend:side");
+                        0, 0, "wextend", "", "numkit:wextend:side");
     }
 
     auto *mr = ctx.engine->resource();

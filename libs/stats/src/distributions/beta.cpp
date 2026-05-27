@@ -123,7 +123,7 @@ namespace detail {
 void betapdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("betapdf: requires (x, a, b)", 0, 0, "betapdf", "", "m:betapdf:nargin");
+        throw Error("betapdf: requires (x, a, b)", 0, 0, "betapdf", "", "numkit:betapdf:nargin");
     outs[0] = betapdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -132,7 +132,7 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
-        throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "m:betacdf:nargin");
+        throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "numkit:betacdf:nargin");
     Value v = betacdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -141,14 +141,14 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("betainv: requires (p, a, b)", 0, 0, "betainv", "", "m:betainv:nargin");
+        throw Error("betainv: requires (p, a, b)", 0, 0, "betainv", "", "numkit:betainv:nargin");
     outs[0] = betainv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("betarnd: requires (a, b[, sz...])", 0, 0, "betarnd", "", "m:betarnd:nargin");
+        throw Error("betarnd: requires (a, b[, sz...])", 0, 0, "betarnd", "", "numkit:betarnd:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     size_t rows, cols;

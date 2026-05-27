@@ -227,12 +227,12 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     const std::size_t n = y.numel();
     if (X.dims().rows() != n)
         throw Error("glmfit: rows(X) must equal length(y)",
-                    0, 0, "glmfit", "", "m:glmfit:shapeMismatch");
+                    0, 0, "glmfit", "", "numkit:glmfit:shapeMismatch");
     const std::size_t p_in = X.dims().cols();
     const std::size_t p = p_in + 1;   // +1 for auto intercept
     if (n <= p)
         throw Error("glmfit: need rows(X) > cols(X) + 1",
-                    0, 0, "glmfit", "", "m:glmfit:noDOF");
+                    0, 0, "glmfit", "", "numkit:glmfit:noDOF");
 
     // If user passed Identity AND it's not Normal, treat that as
     // "default" and switch to canonical link.
@@ -345,7 +345,7 @@ Value glmval(const Value &b, const Value &X, GlmLink link,
     const std::size_t p_in = X.dims().cols();
     if (p != p_in + 1)
         throw Error("glmval: length(b) must equal cols(X) + 1",
-                    0, 0, "glmval", "", "m:glmval:shapeMismatch");
+                    0, 0, "glmval", "", "numkit:glmval:shapeMismatch");
 
     const LinkFn fn = makeLink(link);
     std::vector<double> bv(p);
@@ -374,7 +374,7 @@ static GlmDistribution parseDistr(const std::string &s, const char *fn)
     if (s == "inverse gaussian"
         || s == "inversegaussian") return GlmDistribution::InverseGaussian;
     throw Error(std::string(fn) + ": unknown distribution '" + s + "'",
-                0, 0, fn, "", std::string("m:") + fn + ":badDistr");
+                0, 0, fn, "", std::string("numkit:") + fn + ":badDistr");
 }
 
 static GlmLink parseLink(const std::string &s, const char *fn)
@@ -386,7 +386,7 @@ static GlmLink parseLink(const std::string &s, const char *fn)
     if (s == "reciprocal")  return GlmLink::Reciprocal;
     if (s == "probit")      return GlmLink::Probit;
     throw Error(std::string(fn) + ": unknown link '" + s + "'",
-                0, 0, fn, "", std::string("m:") + fn + ":badLink");
+                0, 0, fn, "", std::string("numkit:") + fn + ":badLink");
 }
 
 void glmfit_reg(Span<const Value> args, size_t nargout,
@@ -394,10 +394,10 @@ void glmfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("glmfit: requires (X, y, distr [, link])",
-                    0, 0, "glmfit", "", "m:glmfit:nargin");
+                    0, 0, "glmfit", "", "numkit:glmfit:nargin");
     if (!args[2].isChar())
         throw Error("glmfit: distr must be a string",
-                    0, 0, "glmfit", "", "m:glmfit:badDistr");
+                    0, 0, "glmfit", "", "numkit:glmfit:badDistr");
     const GlmDistribution d = parseDistr(args[2].toString(), "glmfit");
     GlmLink link = GlmLink::Identity;
     if (args.size() >= 4 && args[3].isChar())
@@ -412,10 +412,10 @@ void glmval_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("glmval: requires (b, X, link)",
-                    0, 0, "glmval", "", "m:glmval:nargin");
+                    0, 0, "glmval", "", "numkit:glmval:nargin");
     if (!args[2].isChar())
         throw Error("glmval: link must be a string",
-                    0, 0, "glmval", "", "m:glmval:badLink");
+                    0, 0, "glmval", "", "numkit:glmval:badLink");
     GlmLink link = parseLink(args[2].toString(), "glmval");
     outs[0] = glmval(args[0], args[1], link, ctx.engine->resource());
 }

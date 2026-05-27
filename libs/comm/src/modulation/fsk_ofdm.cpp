@@ -45,10 +45,10 @@ Value fskmod(const Value &x, int M, double freq_sep, int nsamp,
 {
     if (M < 2)
         throw Error("fskmod: M must be ≥ 2", 0, 0, "fskmod", "",
-                    "m:fskmod:badM");
+                    "numkit:fskmod:badM");
     if (freq_sep <= 0.0 || nsamp <= 0 || fs <= 0.0)
         throw Error("fskmod: freq_sep / nsamp / fs must be positive",
-                    0, 0, "fskmod", "", "m:fskmod:badparam");
+                    0, 0, "fskmod", "", "numkit:fskmod:badparam");
 
     const size_t Nsym = x.numel();
     const size_t Nout = Nsym * (size_t)nsamp;
@@ -84,10 +84,10 @@ Value fskdemod(const Value &y, int M, double freq_sep, int nsamp,
 {
     if (M < 2)
         throw Error("fskdemod: M must be ≥ 2", 0, 0, "fskdemod", "",
-                    "m:fskdemod:badM");
+                    "numkit:fskdemod:badM");
     if (freq_sep <= 0.0 || nsamp <= 0 || fs <= 0.0)
         throw Error("fskdemod: freq_sep / nsamp / fs must be positive",
-                    0, 0, "fskdemod", "", "m:fskdemod:badparam");
+                    0, 0, "fskdemod", "", "numkit:fskdemod:badparam");
 
     const size_t Nsamps = y.numel();
     const size_t Nsym = Nsamps / (size_t)nsamp;
@@ -138,13 +138,13 @@ Value ofdmmod(const Value &in, int nfft, int cplen,
 {
     if (nfft <= 0 || cplen < 0)
         throw Error("ofdmmod: bad nfft / cplen", 0, 0, "ofdmmod", "",
-                    "m:ofdmmod:badparam");
+                    "numkit:ofdmmod:badparam");
 
     const size_t rows = in.dims().rows();
     const size_t cols = in.dims().cols();
     if ((int)rows != nfft)
         throw Error("ofdmmod: in must have nfft rows", 0, 0, "ofdmmod", "",
-                    "m:ofdmmod:size");
+                    "numkit:ofdmmod:size");
     const size_t Nsym = cols;
     const size_t out_per_sym = (size_t)(nfft + cplen);
     Value out = Value::matrix(out_per_sym * Nsym, 1, ValueType::COMPLEX, mr);
@@ -189,7 +189,7 @@ Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
 {
     if (nfft <= 0 || cplen < 0)
         throw Error("ofdmdemod: bad nfft / cplen", 0, 0, "ofdmdemod", "",
-                    "m:ofdmdemod:badparam");
+                    "numkit:ofdmdemod:badparam");
     if (symoffset < 0)         symoffset = cplen;
     if (symoffset > cplen)     symoffset = cplen;
 
@@ -197,7 +197,7 @@ Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
     const size_t Nsamps = in.numel();
     if (Nsamps % out_per_sym != 0)
         throw Error("ofdmdemod: input length must be a multiple of (nfft + cplen)",
-                    0, 0, "ofdmdemod", "", "m:ofdmdemod:size");
+                    0, 0, "ofdmdemod", "", "numkit:ofdmdemod:size");
     const size_t Nsym = Nsamps / out_per_sym;
 
     Value out = Value::matrix((size_t)nfft, Nsym, ValueType::COMPLEX, mr);
@@ -240,7 +240,7 @@ void fskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 5)
         throw Error("fskmod: requires (x, M, freq_sep, nsamp, fs[, phase_cont, order])",
-                    0, 0, "fskmod", "", "m:fskmod:nargin");
+                    0, 0, "fskmod", "", "numkit:fskmod:nargin");
     const int    M   = (int)args[1].toScalar();
     const double sep = args[2].toScalar();
     const int    n   = (int)args[3].toScalar();
@@ -263,7 +263,7 @@ void fskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 5)
         throw Error("fskdemod: requires (y, M, freq_sep, nsamp, fs[, order])",
-                    0, 0, "fskdemod", "", "m:fskdemod:nargin");
+                    0, 0, "fskdemod", "", "numkit:fskdemod:nargin");
     const int    M   = (int)args[1].toScalar();
     const double sep = args[2].toScalar();
     const int    n   = (int)args[3].toScalar();
@@ -277,7 +277,7 @@ void ofdmmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ofdmmod: requires (in, nfft, cplen)",
-                    0, 0, "ofdmmod", "", "m:ofdmmod:nargin");
+                    0, 0, "ofdmmod", "", "numkit:ofdmmod:nargin");
     const int nfft  = (int)args[1].toScalar();
     const int cplen = (int)args[2].toScalar();
     outs[0] = ofdmmod(args[0], nfft, cplen, ctx.engine->resource());
@@ -288,7 +288,7 @@ void ofdmdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ofdmdemod: requires (in, nfft, cplen[, symoffset])",
-                    0, 0, "ofdmdemod", "", "m:ofdmdemod:nargin");
+                    0, 0, "ofdmdemod", "", "numkit:ofdmdemod:nargin");
     const int nfft  = (int)args[1].toScalar();
     const int cplen = (int)args[2].toScalar();
     const int sym   = (args.size() >= 4 && !args[3].isEmpty())

@@ -104,7 +104,7 @@ namespace detail {
 void unidpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("unidpdf: requires (k, N)", 0, 0, "unidpdf", "", "m:unidpdf:nargin");
+        throw Error("unidpdf: requires (k, N)", 0, 0, "unidpdf", "", "numkit:unidpdf:nargin");
     outs[0] = unidpdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -113,7 +113,7 @@ void unidcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
-        throw Error("unidcdf: requires (k, N[, 'upper'])", 0, 0, "unidcdf", "", "m:unidcdf:nargin");
+        throw Error("unidcdf: requires (k, N[, 'upper'])", 0, 0, "unidcdf", "", "numkit:unidcdf:nargin");
     Value v = unidcdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -122,14 +122,14 @@ void unidcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void unidinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("unidinv: requires (p, N)", 0, 0, "unidinv", "", "m:unidinv:nargin");
+        throw Error("unidinv: requires (p, N)", 0, 0, "unidinv", "", "numkit:unidinv:nargin");
     outs[0] = unidinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void unidrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("unidrnd: requires N[, sz...]", 0, 0, "unidrnd", "", "m:unidrnd:nargin");
+        throw Error("unidrnd: requires N[, sz...]", 0, 0, "unidrnd", "", "numkit:unidrnd:nargin");
     const double N = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);

@@ -91,7 +91,7 @@ Value swt(const Value &x, int n, const std::string &wname, std::pmr::memory_reso
 {
     if (n < 1)
         throw Error("swt: level must be ≥ 1",
-                    0, 0, "swt", "", "m:swt:level");
+                    0, 0, "swt", "", "numkit:swt:level");
     const size_t N = x.numel();
     if (N == 0)
         return Value::matrix(static_cast<size_t>(n + 1), 0,
@@ -100,7 +100,7 @@ Value swt(const Value &x, int n, const std::string &wname, std::pmr::memory_reso
     const size_t needed = static_cast<size_t>(1) << n;
     if (N % needed != 0)
         throw Error("swt: signal length must be divisible by 2^n",
-                    0, 0, "swt", "", "m:swt:size");
+                    0, 0, "swt", "", "numkit:swt:size");
 
     auto fb = wavelet_filters(wname);
     std::vector<double> a(N);
@@ -129,7 +129,7 @@ Value iswt(const Value &swc, const std::string &wname, std::pmr::memory_resource
     const size_t N = swc.dims().cols();
     if (H < 2)
         throw Error("iswt: input must have at least 2 rows",
-                    0, 0, "iswt", "", "m:iswt:size");
+                    0, 0, "iswt", "", "numkit:iswt:size");
     const int n = static_cast<int>(H) - 1;
     if (N == 0)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
@@ -173,7 +173,7 @@ Value modwt(const Value &x, int n, const std::string &wname, std::pmr::memory_re
 {
     if (n < 1)
         throw Error("modwt: level must be ≥ 1",
-                    0, 0, "modwt", "", "m:modwt:level");
+                    0, 0, "modwt", "", "numkit:modwt:level");
     const size_t N = x.numel();
     if (N == 0)
         return Value::matrix(static_cast<size_t>(n + 1), 0,
@@ -212,7 +212,7 @@ Value imodwt(const Value &swc, const std::string &wname, std::pmr::memory_resour
     const size_t N = swc.dims().cols();
     if (H < 2)
         throw Error("imodwt: input must have at least 2 rows",
-                    0, 0, "imodwt", "", "m:imodwt:size");
+                    0, 0, "imodwt", "", "numkit:imodwt:size");
     const int n = static_cast<int>(H) - 1;
     if (N == 0)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
@@ -245,7 +245,7 @@ namespace detail {
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected string argument",
-                    0, 0, "", "", "m:wavelet:type");
+                    0, 0, "", "", "numkit:wavelet:type");
     return v.toString();
 }
 
@@ -254,7 +254,7 @@ void swt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("swt: requires (x, n, wname)",
-                    0, 0, "swt", "", "m:swt:nargin");
+                    0, 0, "swt", "", "numkit:swt:nargin");
     outs[0] = swt(args[0], static_cast<int>(args[1].toScalar()), argString(args[2]), ctx.engine->resource());
 }
 
@@ -263,7 +263,7 @@ void iswt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("iswt: requires (swc, wname)",
-                    0, 0, "iswt", "", "m:iswt:nargin");
+                    0, 0, "iswt", "", "numkit:iswt:nargin");
     outs[0] = iswt(args[0], argString(args[1]), ctx.engine->resource());
 }
 
@@ -278,7 +278,7 @@ void modwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // Default wname = 'sym4'; default lev = floor(log2(N)).
     if (args.empty())
         throw Error("modwt: requires (x[, wname[, lev]])",
-                    0, 0, "modwt", "", "m:modwt:nargin");
+                    0, 0, "modwt", "", "numkit:modwt:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const size_t N = x.numel();
@@ -306,7 +306,7 @@ void imodwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imodwt: requires (swc, wname)",
-                    0, 0, "imodwt", "", "m:imodwt:nargin");
+                    0, 0, "imodwt", "", "numkit:imodwt:nargin");
     outs[0] = imodwt(args[0], argString(args[1]), ctx.engine->resource());
 }
 

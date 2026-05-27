@@ -275,14 +275,14 @@ Value cepstralCoefficients(const Value &S, int numCoeffs, std::pmr::memory_resou
     if (S.dims().is3D())
         throw Error("cepstralCoefficients: input must be 2-D",
                     0, 0, "cepstralCoefficients", "",
-                    "m:cepstralCoefficients:Not2D");
+                    "numkit:cepstralCoefficients:Not2D");
     const size_t L = S.dims().rows();
     const size_t M = S.dims().cols();
     const size_t N = static_cast<size_t>(numCoeffs);
     if (numCoeffs < 2)
         throw Error("cepstralCoefficients: NumCoeffs must be > 1",
                     0, 0, "cepstralCoefficients", "",
-                    "m:cepstralCoefficients:BadN");
+                    "numkit:cepstralCoefficients:BadN");
 
     Value out = Value::matrix(M, N, ValueType::DOUBLE, mr);
     if (L == 0 || M == 0) return out;
@@ -557,7 +557,7 @@ void cepstralCoefficients_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("cepstralCoefficients: requires (S [, NumCoeffs])",
                     0, 0, "cepstralCoefficients", "",
-                    "m:cepstralCoefficients:nargin");
+                    "numkit:cepstralCoefficients:nargin");
     int nc = 13;
     if (args.size() >= 2) nc = static_cast<int>(args[1].toScalar());
     outs[0] = cepstralCoefficients(args[0], nc, ctx.engine->resource());
@@ -568,7 +568,7 @@ void mfcc_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("mfcc: requires (x, fs [, NumCoeffs])",
-                    0, 0, "mfcc", "", "m:mfcc:nargin");
+                    0, 0, "mfcc", "", "numkit:mfcc:nargin");
     int nc = 13;
     if (args.size() >= 3) nc = static_cast<int>(args[2].toScalar());
     auto [c, d, dd] = mfcc(args[0], args[1].toScalar(), nc,
@@ -583,7 +583,7 @@ void gtcc_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("gtcc: requires (x, fs [, NumCoeffs])",
-                    0, 0, "gtcc", "", "m:gtcc:nargin");
+                    0, 0, "gtcc", "", "numkit:gtcc:nargin");
     int nc = 13;
     if (args.size() >= 3) nc = static_cast<int>(args[2].toScalar());
     auto [c, d, dd] = gtcc(args[0], args[1].toScalar(), nc,

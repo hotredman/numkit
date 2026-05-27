@@ -26,7 +26,7 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
 
     if (clust.numel() != N)
         throw Error("silhouette: clust length must equal size(X, 1)",
-                    0, 0, "silhouette", "", "m:silhouette:size");
+                    0, 0, "silhouette", "", "numkit:silhouette:size");
 
     // Pull labels into int vector. MATLAB allows numeric or char/string —
     // we accept anything that elemAsDouble can read (round to int).
@@ -43,7 +43,7 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
     Value D = pdist2(X, X, metric, p, mr);
     if (D.dims().rows() != N || D.dims().cols() != N)
         throw Error("silhouette: pdist2 returned unexpected shape",
-                    0, 0, "silhouette", "", "m:silhouette:internal");
+                    0, 0, "silhouette", "", "numkit:silhouette:internal");
     const double *dd = D.doubleData();
 
     Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
@@ -93,12 +93,12 @@ void silhouette_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("silhouette: requires (X, clust [, metric [, p]])",
-                    0, 0, "silhouette", "", "m:silhouette:nargin");
+                    0, 0, "silhouette", "", "numkit:silhouette:nargin");
     std::string metric = "sqeuclidean";
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (!args[2].isChar() && !args[2].isString())
             throw Error("silhouette: metric must be a string",
-                        0, 0, "silhouette", "", "m:silhouette:metric");
+                        0, 0, "silhouette", "", "numkit:silhouette:metric");
         metric = args[2].toString();
     }
     double p = 2.0;

@@ -167,7 +167,7 @@ void normpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("normpdf: requires at least 1 argument",
-                     0, 0, "normpdf", "", "m:normpdf:nargin");
+                     0, 0, "normpdf", "", "numkit:normpdf:nargin");
     auto [mu, sigma] = parseMuSigma(args, 1);
     outs[0] = normpdf(args[0], mu, sigma, ctx.engine->resource());
 }
@@ -176,7 +176,7 @@ void normcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("normcdf: requires at least 1 argument",
-                     0, 0, "normcdf", "", "m:normcdf:nargin");
+                     0, 0, "normcdf", "", "numkit:normcdf:nargin");
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     auto [mu, sigma] = parseMuSigma(args.subspan(0, n), 1);
@@ -189,7 +189,7 @@ void norminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("norminv: requires at least 1 argument",
-                     0, 0, "norminv", "", "m:norminv:nargin");
+                     0, 0, "norminv", "", "numkit:norminv:nargin");
     auto [mu, sigma] = parseMuSigma(args, 1);
     outs[0] = norminv(args[0], mu, sigma, ctx.engine->resource());
 }
@@ -198,7 +198,7 @@ void normrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("normrnd: requires (mu, sigma[, sz...])",
-                     0, 0, "normrnd", "", "m:normrnd:nargin");
+                     0, 0, "normrnd", "", "numkit:normrnd:nargin");
     const double mu = args[0].toScalar();
     const double sigma = args[1].toScalar();
     size_t rows, cols;

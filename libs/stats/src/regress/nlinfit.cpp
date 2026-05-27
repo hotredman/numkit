@@ -200,16 +200,16 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
 {
     if (!engine)
         throw Error("nlinfit: engine pointer required for function-handle eval",
-                    0, 0, "nlinfit", "", "m:nlinfit:noEngine");
+                    0, 0, "nlinfit", "", "numkit:nlinfit:noEngine");
     if (!fun.isFuncHandle())
         throw Error("nlinfit: `fun` must be a function handle",
-                    0, 0, "nlinfit", "", "m:nlinfit:notFuncHandle");
+                    0, 0, "nlinfit", "", "numkit:nlinfit:notFuncHandle");
 
     const std::size_t n = y.numel();
     const std::size_t p = beta0.numel();
     if (p == 0)
         throw Error("nlinfit: beta0 cannot be empty",
-                    0, 0, "nlinfit", "", "m:nlinfit:emptyBeta0");
+                    0, 0, "nlinfit", "", "numkit:nlinfit:emptyBeta0");
 
     std::vector<double> beta = toFlatDouble(beta0);
     std::vector<double> yv = toFlatDouble(y);
@@ -289,10 +289,10 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
     const std::size_t n = R.numel();
     if (J.dims().rows() != n || J.dims().cols() != p)
         throw Error("nlparci: J must be (n × p) consistent with R, beta",
-                    0, 0, "nlparci", "", "m:nlparci:shapeMismatch");
+                    0, 0, "nlparci", "", "numkit:nlparci:shapeMismatch");
     if (n <= p)
         throw Error("nlparci: need n > p degrees of freedom",
-                    0, 0, "nlparci", "", "m:nlparci:noDOF");
+                    0, 0, "nlparci", "", "numkit:nlparci:noDOF");
 
     // MSE = ||R||² / (n - p).
     double sse = 0.0;
@@ -329,20 +329,20 @@ nlpredci(const Value &fun, const Value &X, const Value &beta,
 {
     if (!engine)
         throw Error("nlpredci: engine pointer required",
-                    0, 0, "nlpredci", "", "m:nlpredci:noEngine");
+                    0, 0, "nlpredci", "", "numkit:nlpredci:noEngine");
     if (!fun.isFuncHandle())
         throw Error("nlpredci: `fun` must be a function handle",
-                    0, 0, "nlpredci", "", "m:nlpredci:notFuncHandle");
+                    0, 0, "nlpredci", "", "numkit:nlpredci:notFuncHandle");
 
     const std::size_t p = beta.numel();
     const std::size_t n = R.numel();
     const std::size_t m = X.dims().rows();
     if (J.dims().rows() != n || J.dims().cols() != p)
         throw Error("nlpredci: J must be (n × p) consistent with R, beta",
-                    0, 0, "nlpredci", "", "m:nlpredci:shapeMismatch");
+                    0, 0, "nlpredci", "", "numkit:nlpredci:shapeMismatch");
     if (n <= p)
         throw Error("nlpredci: need n > p degrees of freedom",
-                    0, 0, "nlpredci", "", "m:nlpredci:noDOF");
+                    0, 0, "nlpredci", "", "numkit:nlpredci:noDOF");
 
     double sse = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
@@ -404,7 +404,7 @@ void nlinfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("nlinfit: requires (X, y, fun, beta0)",
-                    0, 0, "nlinfit", "", "m:nlinfit:nargin");
+                    0, 0, "nlinfit", "", "numkit:nlinfit:nargin");
     auto res = nlinfit(args[0], args[1], args[2], args[3],
                        ctx.engine, ctx.engine->resource());
     outs[0] = std::move(res.beta);
@@ -419,7 +419,7 @@ void nlparci_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("nlparci: requires (beta, R, J [, alpha])",
-                    0, 0, "nlparci", "", "m:nlparci:nargin");
+                    0, 0, "nlparci", "", "numkit:nlparci:nargin");
     double alpha = 0.05;
     if (args.size() >= 4 && !args[3].isEmpty())
         alpha = args[3].toScalar();
@@ -432,7 +432,7 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 5)
         throw Error("nlpredci: requires (fun, X, beta, R, J [, alpha])",
-                    0, 0, "nlpredci", "", "m:nlpredci:nargin");
+                    0, 0, "nlpredci", "", "numkit:nlpredci:nargin");
     double alpha = 0.05;
     if (args.size() >= 6 && !args[5].isEmpty())
         alpha = args[5].toScalar();

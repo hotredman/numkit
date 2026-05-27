@@ -55,7 +55,7 @@ Value db(const Value &x, const std::string &signalType, std::pmr::memory_resourc
         scale = 10.0;
     else
         throw Error("db: signalType must be 'voltage' or 'power'",
-                     0, 0, "db", "", "m:db:badType");
+                     0, 0, "db", "", "numkit:db:badType");
     auto out = createLike(x, ValueType::DOUBLE, mr);
     forEachAsMag(x, out.doubleDataMut(),
                  [scale](double v) { return scale * std::log10(v); });
@@ -104,12 +104,12 @@ void db_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("db: requires at least 1 argument",
-                     0, 0, "db", "", "m:db:nargin");
+                     0, 0, "db", "", "numkit:db:nargin");
     std::string mode = "voltage";
     if (args.size() >= 2) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("db: 2nd argument must be a string",
-                         0, 0, "db", "", "m:db:badType");
+                         0, 0, "db", "", "numkit:db:badType");
         mode = args[1].toString();
     }
     outs[0] = db(args[0], mode, ctx.engine->resource());
@@ -119,7 +119,7 @@ void db2mag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("db2mag: requires 1 argument",
-                     0, 0, "db2mag", "", "m:db2mag:nargin");
+                     0, 0, "db2mag", "", "numkit:db2mag:nargin");
     outs[0] = db2mag(args[0], ctx.engine->resource());
 }
 
@@ -127,7 +127,7 @@ void mag2db_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("mag2db: requires 1 argument",
-                     0, 0, "mag2db", "", "m:mag2db:nargin");
+                     0, 0, "mag2db", "", "numkit:mag2db:nargin");
     outs[0] = mag2db(args[0], ctx.engine->resource());
 }
 
@@ -135,7 +135,7 @@ void db2pow_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("db2pow: requires 1 argument",
-                     0, 0, "db2pow", "", "m:db2pow:nargin");
+                     0, 0, "db2pow", "", "numkit:db2pow:nargin");
     outs[0] = db2pow(args[0], ctx.engine->resource());
 }
 
@@ -143,7 +143,7 @@ void pow2db_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("pow2db: requires 1 argument",
-                     0, 0, "pow2db", "", "m:pow2db:nargin");
+                     0, 0, "pow2db", "", "numkit:pow2db:nargin");
     outs[0] = pow2db(args[0], ctx.engine->resource());
 }
 

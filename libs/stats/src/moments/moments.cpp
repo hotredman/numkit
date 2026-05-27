@@ -96,10 +96,10 @@ Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char 
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim, fn);
@@ -132,7 +132,7 @@ void skewness_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("skewness: requires at least 1 argument",
-                     0, 0, "skewness", "", "m:skewness:nargin");
+                     0, 0, "skewness", "", "numkit:skewness:nargin");
     int normFlag = 1;  // MATLAB default
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
@@ -147,7 +147,7 @@ void kurtosis_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("kurtosis: requires at least 1 argument",
-                     0, 0, "kurtosis", "", "m:kurtosis:nargin");
+                     0, 0, "kurtosis", "", "numkit:kurtosis:nargin");
     int normFlag = 1;
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())

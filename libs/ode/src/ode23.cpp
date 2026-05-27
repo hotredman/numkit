@@ -162,7 +162,7 @@ void eval_rhs(Engine &eng, const Value &fnh, double t,
     if (out_buf.numel() != d)
         throw Error("ode23: RHS returned " + std::to_string(out_buf.numel())
                   + " values but expected " + std::to_string(d),
-                    0, 0, "ode23", "", "m:ode23:badRhsSize");
+                    0, 0, "ode23", "", "numkit:ode23:badRhsSize");
     dydt.resize(d);
     for (std::size_t i = 0; i < d; ++i) dydt[i] = out_buf.elemAsDouble(i);
 }
@@ -177,19 +177,19 @@ ode23(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
     const std::size_t nspan = tspan.numel();
     if (nspan < 2)
         throw Error("ode23: tspan must have at least 2 elements",
-                    0, 0, "ode23", "", "m:ode23:tspanShort");
+                    0, 0, "ode23", "", "numkit:ode23:tspanShort");
     std::vector<double> ts(nspan);
     for (std::size_t i = 0; i < nspan; ++i) ts[i] = tspan.elemAsDouble(i);
     const double t0 = ts.front();
     const double tf = ts.back();
     if (t0 == tf)
         throw Error("ode23: tspan(end) must differ from tspan(1)",
-                    0, 0, "ode23", "", "m:ode23:tspanDegenerate");
+                    0, 0, "ode23", "", "numkit:ode23:tspanDegenerate");
     const double dir = (tf > t0) ? 1.0 : -1.0;
     for (std::size_t i = 1; i < nspan; ++i) {
         if ((ts[i] - ts[i - 1]) * dir <= 0.0)
             throw Error("ode23: tspan must be strictly monotonic",
-                        0, 0, "ode23", "", "m:ode23:tspanMono");
+                        0, 0, "ode23", "", "numkit:ode23:tspanMono");
     }
 
     const std::size_t d = y0.numel();
@@ -199,7 +199,7 @@ ode23(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
     OdeOpts O = read_opts(opts);
     if (O.abs_tol.size() != 1 && O.abs_tol.size() != d)
         throw Error("ode23: AbsTol must be scalar or match length(y0)",
-                    0, 0, "ode23", "", "m:ode23:absTolSize");
+                    0, 0, "ode23", "", "numkit:ode23:absTolSize");
     auto atol_i = [&](std::size_t i) {
         return (O.abs_tol.size() == 1) ? O.abs_tol[0] : O.abs_tol[i];
     };
@@ -349,16 +349,16 @@ ode23(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
             if (failed_in_a_row > 10)
                 throw Error("ode23: 10 consecutive step rejections; "
                             "tolerances may be too tight or RHS too stiff",
-                            0, 0, "ode23", "", "m:ode23:tooManyFailures");
+                            0, 0, "ode23", "", "numkit:ode23:tooManyFailures");
             if (h < std::fabs(t) * 1e-15)
                 throw Error("ode23: step size underflow",
-                            0, 0, "ode23", "", "m:ode23:stepUnderflow");
+                            0, 0, "ode23", "", "numkit:ode23:stepUnderflow");
         }
     }
     if (step_count >= max_steps)
         throw Error("ode23: exceeded " + std::to_string(max_steps)
                   + " integration steps",
-                    0, 0, "ode23", "", "m:ode23:tooManySteps");
+                    0, 0, "ode23", "", "numkit:ode23:tooManySteps");
 
     // Assemble output: t (m × 1) and y (m × d).
     const std::size_t m = t_out.size();
@@ -380,7 +380,7 @@ void ode23_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("ode23: requires (f, tspan, y0[, opts])",
-                    0, 0, "ode23", "", "m:ode23:nargin");
+                    0, 0, "ode23", "", "numkit:ode23:nargin");
     auto *mr = ctx.engine->resource();
     const Value opts_v = (args.size() > 3) ? args[3] : Value::Empty;
     auto [tv, yv] = ode23(*ctx.engine, args[0], args[1], args[2], opts_v, mr);

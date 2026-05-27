@@ -609,32 +609,32 @@ Value imreducehaze(const Value &I, double amount,
     // ── Validate inputs ──────────────────────────────────────────
     if (!std::isfinite(amount) || amount < 0.0 || amount > 1.0)
         throw Error("imreducehaze: amount must be in [0, 1]",
-                    0, 0, "imreducehaze", "", "m:imreducehaze:amount");
+                    0, 0, "imreducehaze", "", "numkit:imreducehaze:amount");
     const auto &d = I.dims();
     if (d.rows() == 0 || d.cols() == 0)
         throw Error("imreducehaze: I must be non-empty",
-                    0, 0, "imreducehaze", "", "m:imreducehaze:empty");
+                    0, 0, "imreducehaze", "", "numkit:imreducehaze:empty");
     const bool isRGB = d.is3D() && d.pages() == 3;
     const bool isGray = !d.is3D() || (d.is3D() && d.pages() == 1);
     if (!isRGB && !isGray)
         throw Error("imreducehaze: I must be H×W (grayscale) or H×W×3 (RGB)",
-                    0, 0, "imreducehaze", "", "m:imreducehaze:shape");
+                    0, 0, "imreducehaze", "", "numkit:imreducehaze:shape");
     const ValueType origClass = I.type();
     if (origClass != ValueType::UINT8 && origClass != ValueType::UINT16
         && origClass != ValueType::SINGLE && origClass != ValueType::DOUBLE)
         throw Error("imreducehaze: I must be uint8 / uint16 / single / double",
-                    0, 0, "imreducehaze", "", "m:imreducehaze:class");
+                    0, 0, "imreducehaze", "", "numkit:imreducehaze:class");
 
     const std::string m = lower_str(method);
     if (m != "simpledcp" && m != "approxdcp")
         throw Error("imreducehaze: Method must be 'simpledcp' or 'approxdcp'",
-                    0, 0, "imreducehaze", "", "m:imreducehaze:method");
+                    0, 0, "imreducehaze", "", "numkit:imreducehaze:method");
     const std::string ce = lower_str(contrast_enhancement);
     if (ce != "global" && ce != "boost" && ce != "none")
         throw Error("imreducehaze: ContrastEnhancement must be 'global', "
                     "'boost', or 'none'",
                     0, 0, "imreducehaze", "",
-                    "m:imreducehaze:contrastEnhancement");
+                    "numkit:imreducehaze:contrastEnhancement");
     if (ce != "boost" && boost_amount > 0.0
         && !atmospheric_light.isEmpty())   /* sentinel never used */ {
         // BoostAmount can only be specified when ContrastEnhancement is
@@ -644,7 +644,7 @@ Value imreducehaze(const Value &I, double amount,
                           || !std::isfinite(boost_amount)))
         throw Error("imreducehaze: BoostAmount must be in [0, 1]",
                     0, 0, "imreducehaze", "",
-                    "m:imreducehaze:boostAmount");
+                    "numkit:imreducehaze:boostAmount");
 
     // ── Short-circuit: amount == 0 → passthrough ──────────────────
     if (amount == 0.0) {
@@ -667,12 +667,12 @@ Value imreducehaze(const Value &I, double amount,
             throw Error("imreducehaze: AtmosphericLight must be a 3-element "
                         "vector for RGB input",
                         0, 0, "imreducehaze", "",
-                        "m:imreducehaze:atmRGB");
+                        "numkit:imreducehaze:atmRGB");
         if (!isRGB && N != 1)
             throw Error("imreducehaze: AtmosphericLight must be a scalar for "
                         "grayscale input",
                         0, 0, "imreducehaze", "",
-                        "m:imreducehaze:atmGray");
+                        "numkit:imreducehaze:atmGray");
         atm.resize(P);
         for (std::size_t p = 0; p < P; ++p)
             atm[p] = static_cast<float>(atmospheric_light.elemAsDouble(
@@ -779,7 +779,7 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
     if (args.empty())
         throw Error("imreducehaze: requires (I [, AMOUNT] [, NV...])",
                     0, 0, "imreducehaze", "",
-                    "m:imreducehaze:nargin");
+                    "numkit:imreducehaze:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -800,7 +800,7 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
         if (!is_string(args[i]))
             throw Error("imreducehaze: expected NV-pair name string",
                         0, 0, "imreducehaze", "",
-                        "m:imreducehaze:badNv");
+                        "numkit:imreducehaze:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -818,7 +818,7 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
         } else {
             throw Error("imreducehaze: unknown option '" + name + "'",
                         0, 0, "imreducehaze", "",
-                        "m:imreducehaze:unknownNv");
+                        "numkit:imreducehaze:unknownNv");
         }
         i += 2;
     }
@@ -832,7 +832,7 @@ void imreducehaze_reg(Span<const Value> args, std::size_t nargout,
             throw Error("imreducehaze: BoostAmount may only be specified "
                         "when ContrastEnhancement is 'boost'",
                         0, 0, "imreducehaze", "",
-                        "m:imreducehaze:boostNotAllowed");
+                        "numkit:imreducehaze:boostNotAllowed");
     }
 
     Value T, L;

@@ -91,7 +91,7 @@ Value nearcorr(const Value &A, std::pmr::memory_resource *mr)
     const size_t C = A.dims().cols();
     if (R != C)
         throw Error("nearcorr: input must be square",
-                    0, 0, "nearcorr", "", "m:nearcorr:NotSquare");
+                    0, 0, "nearcorr", "", "numkit:nearcorr:NotSquare");
     if (R == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -143,7 +143,7 @@ void nearcorr_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("nearcorr: requires (A)",
-                    0, 0, "nearcorr", "", "m:nearcorr:nargin");
+                    0, 0, "nearcorr", "", "numkit:nearcorr:nargin");
     outs[0] = nearcorr(args[0], ctx.engine->resource());
 }
 

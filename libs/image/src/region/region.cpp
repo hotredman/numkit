@@ -193,21 +193,21 @@ CCInfo parse_cc(const Value &CC, const char *fn)
     if (!CC.isStruct() || CC.numel() != 1)
         throw Error(std::string(fn) + ": CC must be a 1×1 struct from "
                     "bwconncomp",
-                    0, 0, fn, "", std::string("m:") + fn + ":notStruct");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":notStruct");
     const auto &el = CC.structArrayElem(0);
     auto need = [&](const char *name) -> const Value & {
         auto it = el.find(name);
         if (it == el.end())
             throw Error(std::string(fn) + ": CC missing field '"
                         + name + "'", 0, 0, fn, "",
-                        std::string("m:") + fn + ":noField");
+                        std::string("numkit:") + fn + ":noField");
         return it->second;
     };
     const Value &sz = need("ImageSize");
     if (sz.numel() < 2)
         throw Error(std::string(fn) + ": CC.ImageSize must have >= 2 dims",
                     0, 0, fn, "",
-                    std::string("m:") + fn + ":sizeDim");
+                    std::string("numkit:") + fn + ":sizeDim");
     info.H = static_cast<std::size_t>(sz.elemAsDouble(0));
     info.W = static_cast<std::size_t>(sz.elemAsDouble(1));
     const Value &nob = need("NumObjects");
@@ -281,7 +281,7 @@ Value cc2bw(const Value &CC, const Value &objects_to_keep,
                 throw Error("cc2bw: ObjectsToKeep logical vector length "
                             "must equal NumObjects",
                             0, 0, "cc2bw", "",
-                            "m:cc2bw:logicalLen");
+                            "numkit:cc2bw:logicalLen");
             for (std::size_t i = 0; i < K; ++i)
                 keep[i] = objects_to_keep.elemAsDouble(i) != 0.0 ? 1 : 0;
         } else {
@@ -292,13 +292,13 @@ Value cc2bw(const Value &CC, const Value &objects_to_keep,
                     throw Error("cc2bw: ObjectsToKeep must be positive "
                                 "integers or a logical vector",
                                 0, 0, "cc2bw", "",
-                                "m:cc2bw:badIdx");
+                                "numkit:cc2bw:badIdx");
                 const std::size_t idx = static_cast<std::size_t>(v);
                 if (idx > K)
                     throw Error("cc2bw: ObjectsToKeep index exceeds "
                                 "NumObjects",
                                 0, 0, "cc2bw", "",
-                                "m:cc2bw:idxRange");
+                                "numkit:cc2bw:idxRange");
                 keep[idx - 1] = 1;
             }
         }
@@ -755,7 +755,7 @@ Value fchcode(const Value &bound, std::pmr::memory_resource *mr)
 {
     if (bound.dims().cols() != 2)
         throw Error("fchcode: bound must be K-by-2",
-                    0, 0, "fchcode", "", "m:fchcode:size");
+                    0, 0, "fchcode", "", "numkit:fchcode:size");
     size_t K = bound.dims().rows();
 
     // Direction map matching Octave (rows = dr+2, cols = dc+2):
@@ -942,13 +942,13 @@ Value bweuler(const Value &BW, int conn, std::pmr::memory_resource *mr)
                                      1,  2, 0, -1, 0, -1, -1, 0};
     if (conn != 4 && conn != 8)
         throw Error("bweuler: connectivity must be 4 or 8",
-                    0, 0, "bweuler", "", "m:bweuler:conn");
+                    0, 0, "bweuler", "", "numkit:bweuler:conn");
     const int *lut = (conn == 4) ? lut4 : lut8;
 
     const auto &d = BW.dims();
     if (d.is3D())
         throw Error("bweuler: BW must have 2 dimensions",
-                    0, 0, "bweuler", "", "m:bweuler:dims");
+                    0, 0, "bweuler", "", "numkit:bweuler:dims");
 
     const int M = static_cast<int>(d.rows());
     const int N = static_cast<int>(d.cols());
@@ -989,7 +989,7 @@ void bwlabel_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("bwlabel: requires (BW[, conn])", 0, 0, "bwlabel", "",
-                    "m:bwlabel:nargin");
+                    "numkit:bwlabel:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
     auto [L, n] = bwlabel(args[0], conn, ctx.engine->resource());
@@ -1002,7 +1002,7 @@ void bwconncomp_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwconncomp: requires (BW[, conn])", 0, 0, "bwconncomp", "",
-                    "m:bwconncomp:nargin");
+                    "numkit:bwconncomp:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
     outs[0] = bwconncomp(args[0], conn, ctx.engine->resource());
@@ -1013,7 +1013,7 @@ void labelmatrix_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("labelmatrix: requires (CC)", 0, 0, "labelmatrix", "",
-                    "m:labelmatrix:nargin");
+                    "numkit:labelmatrix:nargin");
     outs[0] = labelmatrix(args[0], ctx.engine->resource());
 }
 
@@ -1022,7 +1022,7 @@ void cc2bw_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("cc2bw: requires (CC [, NV...])", 0, 0, "cc2bw", "",
-                    "m:cc2bw:nargin");
+                    "numkit:cc2bw:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
     Value objs;  // empty → keep all
@@ -1030,7 +1030,7 @@ void cc2bw_reg(Span<const Value> args, size_t /*nargout*/,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("cc2bw: expected NV-pair name string",
-                        0, 0, "cc2bw", "", "m:cc2bw:badNv");
+                        0, 0, "cc2bw", "", "numkit:cc2bw:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -1041,7 +1041,7 @@ void cc2bw_reg(Span<const Value> args, size_t /*nargout*/,
         } else {
             throw Error("cc2bw: unknown option '" + name + "'",
                         0, 0, "cc2bw", "",
-                        "m:cc2bw:unknownNv");
+                        "numkit:cc2bw:unknownNv");
         }
         i += 2;
     }
@@ -1053,7 +1053,7 @@ void bwarea_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwarea: requires BW", 0, 0, "bwarea", "",
-                    "m:bwarea:nargin");
+                    "numkit:bwarea:nargin");
     outs[0] = bwarea(args[0], ctx.engine->resource());
 }
 
@@ -1062,7 +1062,7 @@ void bwperim_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwperim: requires (BW[, conn])", 0, 0, "bwperim", "",
-                    "m:bwperim:nargin");
+                    "numkit:bwperim:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
     outs[0] = bwperim(args[0], conn, ctx.engine->resource());
@@ -1073,7 +1073,7 @@ void bwareaopen_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bwareaopen: requires (BW, P[, conn])", 0, 0,
-                    "bwareaopen", "", "m:bwareaopen:nargin");
+                    "bwareaopen", "", "numkit:bwareaopen:nargin");
     const int P = (int)args[1].toScalar();
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? (int)args[2].toScalar() : 8;
@@ -1085,7 +1085,7 @@ void bwboundaries_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwboundaries: requires (BW[, conn])", 0, 0,
-                    "bwboundaries", "", "m:bwboundaries:nargin");
+                    "bwboundaries", "", "numkit:bwboundaries:nargin");
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
     outs[0] = bwboundaries(args[0], conn, ctx.engine->resource());
@@ -1096,12 +1096,12 @@ void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("regionprops: requires (BW_or_L[, props...])",
-                    0, 0, "regionprops", "", "m:regionprops:nargin");
+                    0, 0, "regionprops", "", "numkit:regionprops:nargin");
     std::vector<std::string> props;
     for (size_t i = 1; i < args.size(); ++i) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("regionprops: property names must be strings",
-                        0, 0, "regionprops", "", "m:regionprops:type");
+                        0, 0, "regionprops", "", "numkit:regionprops:type");
         props.push_back(args[i].toString());
     }
     outs[0] = regionprops(args[0], props, ctx.engine->resource());
@@ -1112,7 +1112,7 @@ void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bwdist: requires (BW)",
-                    0, 0, "bwdist", "", "m:bwdist:nargin");
+                    0, 0, "bwdist", "", "numkit:bwdist:nargin");
     outs[0] = bwdist(args[0], ctx.engine->resource());
 }
 
@@ -1121,7 +1121,7 @@ void roicolor_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("roicolor: requires (A, low, high) or (A, v)",
-                    0, 0, "roicolor", "", "m:roicolor:nargin");
+                    0, 0, "roicolor", "", "numkit:roicolor:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 3) {
         outs[0] = roicolor(args[0], args[1], args[2].toScalar(), /*is_range=*/true, mr);
@@ -1135,7 +1135,7 @@ void fchcode_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fchcode: requires (bound)",
-                    0, 0, "fchcode", "", "m:fchcode:nargin");
+                    0, 0, "fchcode", "", "numkit:fchcode:nargin");
     outs[0] = fchcode(args[0], ctx.engine->resource());
 }
 
@@ -1144,7 +1144,7 @@ void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bwareafilt: requires (BW, range|n [, keep] [, conn])",
-                    0, 0, "bwareafilt", "", "m:bwareafilt:nargin");
+                    0, 0, "bwareafilt", "", "numkit:bwareafilt:nargin");
     auto *mr = ctx.engine->resource();
     double lo = 0.0, hi = std::numeric_limits<double>::infinity();
     size_t n_keep = 0;
@@ -1173,7 +1173,7 @@ void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
             if      (lo_s == "largest")  keep_largest = true;
             else if (lo_s == "smallest") keep_largest = false;
             else throw Error("bwareafilt: keep must be 'largest' or 'smallest'",
-                             0, 0, "bwareafilt", "", "m:bwareafilt:keep");
+                             0, 0, "bwareafilt", "", "numkit:bwareafilt:keep");
         } else if (a.numel() == 1) {
             conn = static_cast<int>(a.toScalar());
         }
@@ -1187,7 +1187,7 @@ void bwselect_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("bwselect: requires (BW, cols, rows[, conn])",
-                    0, 0, "bwselect", "", "m:bwselect:nargin");
+                    0, 0, "bwselect", "", "numkit:bwselect:nargin");
     int conn = 8;
     if (args.size() >= 4 && !args[3].isEmpty())
         conn = static_cast<int>(args[3].toScalar());
@@ -1201,7 +1201,7 @@ void bweuler_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bweuler: requires (BW [, n])",
-                    0, 0, "bweuler", "", "m:bweuler:nargin");
+                    0, 0, "bweuler", "", "numkit:bweuler:nargin");
     int conn = 8;
     if (args.size() >= 2 && !args[1].isEmpty())
         conn = static_cast<int>(args[1].toScalar());

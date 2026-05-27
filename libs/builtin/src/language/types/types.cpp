@@ -732,7 +732,7 @@ Value cast(const Value &x, const std::string &classname, std::pmr::memory_resour
     if (classname == "char")    return toChar(x, mr);
     if (classname == "string")  return toString(x, mr);
     throw Error("cast: unsupported class '" + classname + "'",
-                 0, 0, "cast", "", "m:cast:badClass");
+                 0, 0, "cast", "", "numkit:cast:badClass");
 }
 
 namespace {
@@ -827,18 +827,18 @@ Value typecast(const Value &x, const std::string &classname, std::pmr::memory_re
     TypeInfo info = typeInfoFor(classname);
     if (info.elemSize == 0)
         throw Error("typecast: unsupported class '" + classname + "'",
-                     0, 0, "typecast", "", "m:typecast:badClass");
+                     0, 0, "typecast", "", "numkit:typecast:badClass");
 
     const size_t srcElemSize = elemSizeOf(x.type());
     if (srcElemSize == 0)
         throw Error("typecast: input type does not have a contiguous byte buffer",
-                     0, 0, "typecast", "", "m:typecast:badInputType");
+                     0, 0, "typecast", "", "numkit:typecast:badInputType");
 
     const size_t totalBytes = x.numel() * srcElemSize;
     if (totalBytes % info.elemSize != 0)
         throw Error("typecast: input byte count must be a multiple of the "
                     "destination element size",
-                     0, 0, "typecast", "", "m:typecast:badSize");
+                     0, 0, "typecast", "", "numkit:typecast:badSize");
     const size_t newCount = totalBytes / info.elemSize;
 
     // Output is always a row vector (matches MATLAB).
@@ -864,7 +864,7 @@ Value swapbytes(const Value &x, std::pmr::memory_resource *mr)
     case ValueType::DOUBLE:  return swapBytesArray<double>(x, mr);
     default:
         throw Error("swapbytes: input must be a numeric or logical array",
-                     0, 0, "swapbytes", "", "m:swapbytes:badType");
+                     0, 0, "swapbytes", "", "numkit:swapbytes:badType");
     }
 }
 
@@ -917,7 +917,7 @@ void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("logical: requires 1 argument", 0, 0, "logical", "",
-                     "m:logical:nargin");
+                     "numkit:logical:nargin");
     outs[0] = logical(args[0], ctx.engine->resource());
 }
 
@@ -928,7 +928,7 @@ void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     {                                                                               \
         if (args.empty())                                                           \
             throw Error(#FN ": requires 1 argument", 0, 0, #FN, "",                \
-                         "m:" #FN ":nargin");                                  \
+                         "numkit:" #FN ":nargin");                                  \
         outs[0] = FN(args[0], ctx.engine->resource());                             \
     }
 
@@ -963,7 +963,7 @@ void ismissing_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ismissing: requires at least 1 argument",
-                    0, 0, "ismissing", "", "m:ismissing:nargin");
+                    0, 0, "ismissing", "", "numkit:ismissing:nargin");
     const Value &ind = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = ismissing(args[0], ind, ctx.engine->resource());
 }
@@ -974,7 +974,7 @@ void standardizeMissing_reg(Span<const Value> args, size_t, Span<Value> outs,
     if (args.size() < 2)
         throw Error("standardizeMissing: requires (A, indicator)",
                     0, 0, "standardizeMissing", "",
-                    "m:standardizeMissing:nargin");
+                    "numkit:standardizeMissing:nargin");
     outs[0] = standardizeMissing(args[0], args[1], ctx.engine->resource());
 }
 
@@ -982,7 +982,7 @@ void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.empty())
         throw Error("issorted: requires 1 argument", 0, 0, "issorted", "",
-                     "m:issorted:nargin");
+                     "numkit:issorted:nargin");
     const Value &mode = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = issorted(args[0], mode, ctx.engine->resource());
 }
@@ -1009,7 +1009,7 @@ void allfinite_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.empty())
         throw Error("allfinite: requires 1 argument", 0, 0, "allfinite", "",
-                     "m:allfinite:nargin");
+                     "numkit:allfinite:nargin");
     outs[0] = allfinite(args[0], ctx.engine->resource());
 }
 
@@ -1017,7 +1017,7 @@ void anynan_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
 {
     if (args.empty())
         throw Error("anynan: requires 1 argument", 0, 0, "anynan", "",
-                     "m:anynan:nargin");
+                     "numkit:anynan:nargin");
     outs[0] = anynan(args[0], ctx.engine->resource());
 }
 
@@ -1025,7 +1025,7 @@ void isequal_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("isequal requires at least 2 arguments", 0, 0, "isequal", "",
-                     "m:isequal:nargin");
+                     "numkit:isequal:nargin");
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], false);
@@ -1036,7 +1036,7 @@ void isequaln_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("isequaln requires at least 2 arguments", 0, 0, "isequaln", "",
-                     "m:isequaln:nargin");
+                     "numkit:isequaln:nargin");
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], true);
@@ -1047,7 +1047,7 @@ void class_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 {
     if (args.empty())
         throw Error("class: requires 1 argument", 0, 0, "class", "",
-                     "m:class:nargin");
+                     "numkit:class:nargin");
     outs[0] = classOf(args[0], ctx.engine->resource());
 }
 
@@ -1056,16 +1056,16 @@ void cast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
 {
     if (args.size() < 2)
         throw Error("cast: requires (x, classname) or (x, 'like', y)",
-                     0, 0, "cast", "", "m:cast:nargin");
+                     0, 0, "cast", "", "numkit:cast:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("cast: second arg must be a class name or 'like'",
-                     0, 0, "cast", "", "m:cast:badClass");
+                     0, 0, "cast", "", "numkit:cast:badClass");
     auto *mr = ctx.engine->resource();
     // 'like' form: cast(x, 'like', y) — pull class name from y.
     if (args[1].toString() == "like") {
         if (args.size() < 3)
             throw Error("cast: 'like' form requires (x, 'like', y)",
-                         0, 0, "cast", "", "m:cast:nargin");
+                         0, 0, "cast", "", "numkit:cast:nargin");
         // mtypeName mirrors MATLAB's class() output (double / single /
         // int*/ uint* / logical / char / string); cast() dispatches on
         // these strings.
@@ -1079,7 +1079,7 @@ void swapbytes_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.empty())
         throw Error("swapbytes: requires 1 argument",
-                     0, 0, "swapbytes", "", "m:swapbytes:nargin");
+                     0, 0, "swapbytes", "", "numkit:swapbytes:nargin");
     outs[0] = swapbytes(args[0], ctx.engine->resource());
 }
 
@@ -1087,10 +1087,10 @@ void typecast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("typecast: requires 2 arguments (x, classname)",
-                     0, 0, "typecast", "", "m:typecast:nargin");
+                     0, 0, "typecast", "", "numkit:typecast:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("typecast: classname must be a char or string",
-                     0, 0, "typecast", "", "m:typecast:badClass");
+                     0, 0, "typecast", "", "numkit:typecast:badClass");
     outs[0] = typecast(args[0], args[1].toString(), ctx.engine->resource());
 }
 

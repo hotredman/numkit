@@ -88,7 +88,7 @@ void requireSosShape(const Value &sos, const char *fn)
 {
     if (sos.dims().cols() != 6 || sos.dims().rows() == 0)
         throw Error(std::string(fn) + ": sos must be an L×6 matrix",
-                     0, 0, fn, "", std::string("m:") + fn + ":badShape");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badShape");
 }
 
 } // namespace
@@ -148,11 +148,11 @@ tf2ss(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     if (a.numel() == 0)
         throw Error("tf2ss: denominator a must be non-empty",
-                     0, 0, "tf2ss", "", "m:tf2ss:badArg");
+                     0, 0, "tf2ss", "", "numkit:tf2ss:badArg");
     const double a0 = a.elemAsDouble(0);
     if (std::abs(a0) < 1e-15)
         throw Error("tf2ss: a(1) must be non-zero",
-                     0, 0, "tf2ss", "", "m:tf2ss:badArg");
+                     0, 0, "tf2ss", "", "numkit:tf2ss:badArg");
 
     // Normalise so a(1) = 1.
     const size_t na = a.numel();
@@ -174,7 +174,7 @@ tf2ss(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     // Denominator order N. State dimension = N.
     if (na < 2)
         throw Error("tf2ss: order must be >= 1 (denominator length >= 2)",
-                     0, 0, "tf2ss", "", "m:tf2ss:badArg");
+                     0, 0, "tf2ss", "", "numkit:tf2ss:badArg");
     const size_t N = na - 1;
 
     // Direct feed-through D = bh[0]   (since b is normalised + padded
@@ -231,14 +231,14 @@ ss2tf(const Value &A, const Value &B, const Value &C, double D,
 {
     if (A.dims().rows() != A.dims().cols())
         throw Error("ss2tf: A must be square",
-                     0, 0, "ss2tf", "", "m:ss2tf:badShape");
+                     0, 0, "ss2tf", "", "numkit:ss2tf:badShape");
     const size_t N = A.dims().rows();
     if (B.dims().rows() != N || B.dims().cols() != 1)
         throw Error("ss2tf: B must be N×1",
-                     0, 0, "ss2tf", "", "m:ss2tf:badShape");
+                     0, 0, "ss2tf", "", "numkit:ss2tf:badShape");
     if (C.dims().rows() != 1 || C.dims().cols() != N)
         throw Error("ss2tf: C must be 1×N",
-                     0, 0, "ss2tf", "", "m:ss2tf:badShape");
+                     0, 0, "ss2tf", "", "numkit:ss2tf:badShape");
 
     const double Dscalar = D;
 
@@ -379,7 +379,7 @@ ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_res
     const std::size_t K = std::max(Knum, Kden);
     if (K == 0)
         throw Error("ctf2zp: NUM/DEN must be non-empty",
-                    0, 0, "ctf2zp", "", "m:ctf2zp:Empty");
+                    0, 0, "ctf2zp", "", "numkit:ctf2zp:Empty");
 
     // SV defaults to 1 if not provided.
     std::vector<double> sv;
@@ -393,7 +393,7 @@ ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_res
         for (std::size_t i = 0; i <= K; ++i) sv[i] = SV.elemAsDouble(i);
     } else {
         throw Error("ctf2zp: SV must be scalar or K+1 vector",
-                    0, 0, "ctf2zp", "", "m:ctf2zp:invalidSVDims");
+                    0, 0, "ctf2zp", "", "numkit:ctf2zp:invalidSVDims");
     }
 
     // Helper to extract row i of a matrix (or replicate if matrix is just
@@ -520,7 +520,7 @@ Value scaleFilterSections(const Value &CTFNum, const Value &SV,
             "Invalid number of scale values. Specify either a scalar "
             "or a vector of length equal to the number of sections + 1.",
             0, 0, "scaleFilterSections", "",
-            "m:scaleFilterSections:invalidNumberOfScaleValues");
+            "numkit:scaleFilterSections:invalidNumberOfScaleValues");
     }
 
     // Result type: COMPLEX iff either input carries complex data.
@@ -581,7 +581,7 @@ void sos2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("sos2tf: requires at least 1 argument (sos)",
-                     0, 0, "sos2tf", "", "m:sos2tf:nargin");
+                     0, 0, "sos2tf", "", "numkit:sos2tf:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     auto [b, a] = sos2tf(args[0], g, ctx.engine->resource());
     outs[0] = std::move(b);
@@ -592,7 +592,7 @@ void sos2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("sos2zp: requires at least 1 argument (sos)",
-                     0, 0, "sos2zp", "", "m:sos2zp:nargin");
+                     0, 0, "sos2zp", "", "numkit:sos2zp:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     auto [z, p, gain] = sos2zp(args[0], g, ctx.engine->resource());
     outs[0] = std::move(z);
@@ -604,7 +604,7 @@ void tf2zpk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 2)
         throw Error("tf2zpk: requires (b, a)",
-                     0, 0, "tf2zpk", "", "m:tf2zpk:nargin");
+                     0, 0, "tf2zpk", "", "numkit:tf2zpk:nargin");
     auto [z, p, gain] = tf2zpk(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
@@ -615,7 +615,7 @@ void tf2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 2)
         throw Error("tf2ss: requires (b, a)",
-                     0, 0, "tf2ss", "", "m:tf2ss:nargin");
+                     0, 0, "tf2ss", "", "numkit:tf2ss:nargin");
     auto [A, B, C, D] = tf2ss(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
@@ -627,7 +627,7 @@ void ss2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 4)
         throw Error("ss2tf: requires (A, B, C, D)",
-                     0, 0, "ss2tf", "", "m:ss2tf:nargin");
+                     0, 0, "ss2tf", "", "numkit:ss2tf:nargin");
     const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
     auto [b, a] = ss2tf(args[0], args[1], args[2], D, ctx.engine->resource());
     outs[0] = std::move(b);
@@ -638,7 +638,7 @@ void ss2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 4)
         throw Error("ss2zp: requires (A, B, C, D)",
-                     0, 0, "ss2zp", "", "m:ss2zp:nargin");
+                     0, 0, "ss2zp", "", "numkit:ss2zp:nargin");
     const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
     auto [z, p, gain] = ss2zp(args[0], args[1], args[2], D, ctx.engine->resource());
     outs[0] = std::move(z);
@@ -650,7 +650,7 @@ void zp2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 3)
         throw Error("zp2ss: requires (z, p, k)",
-                     0, 0, "zp2ss", "", "m:zp2ss:nargin");
+                     0, 0, "zp2ss", "", "numkit:zp2ss:nargin");
     auto [A, B, C, D] = zp2ss(args[0], args[1], args[2].toScalar(), ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
@@ -662,7 +662,7 @@ void sos2ss_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("sos2ss: requires at least 1 argument (sos)",
-                     0, 0, "sos2ss", "", "m:sos2ss:nargin");
+                     0, 0, "sos2ss", "", "numkit:sos2ss:nargin");
     const double g = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     auto [A, B, C, D] = sos2ss(args[0], g, ctx.engine->resource());
     outs[0] = std::move(A);
@@ -675,7 +675,7 @@ void ss2sos_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 4)
         throw Error("ss2sos: requires (A, B, C, D)",
-                     0, 0, "ss2sos", "", "m:ss2sos:nargin");
+                     0, 0, "ss2sos", "", "numkit:ss2sos:nargin");
     const double D = (args[3].numel() == 0) ? 0.0 : args[3].elemAsDouble(0);
     outs[0] = ss2sos(args[0], args[1], args[2], D, ctx.engine->resource());
 }
@@ -685,7 +685,7 @@ void ctf2zp_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("ctf2zp: requires (NUM [, DEN [, SV]])",
-                    0, 0, "ctf2zp", "", "m:ctf2zp:nargin");
+                    0, 0, "ctf2zp", "", "numkit:ctf2zp:nargin");
     auto *mr = ctx.engine->resource();
     Value DEN = (args.size() >= 2) ? args[1] : Value::scalar(1.0, mr);
     const Value &SV = (args.size() >= 3) ? args[2] : Value::Empty;
@@ -701,7 +701,7 @@ void scaleFilterSections_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("scaleFilterSections: requires (CTFNum, SV)",
                     0, 0, "scaleFilterSections", "",
-                    "m:scaleFilterSections:nargin");
+                    "numkit:scaleFilterSections:nargin");
     outs[0] = scaleFilterSections(args[0], args[1], ctx.engine->resource());
 }
 

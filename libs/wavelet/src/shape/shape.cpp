@@ -123,7 +123,7 @@ fbspwavf(double lb, double ub, size_t N, int m, double fb, double fc, std::pmr::
 {
     if (m < 1)
         throw Error("fbspwavf: order m must be >= 1",
-                    0, 0, "fbspwavf", "", "m:fbspwavf:order");
+                    0, 0, "fbspwavf", "", "numkit:fbspwavf:order");
     Value xv = linspace_row(lb, ub, N, mr);
     Value pv = Value::matrix(1, N, ValueType::COMPLEX, mr);
     if (N == 0) return {std::move(pv), std::move(xv)};
@@ -180,13 +180,13 @@ static void shape_grid_reg(const char *fn,
 {
     if (args.size() < 3)
         throw Error(std::string(fn) + ": requires (LB, UB, N)",
-                    0, 0, fn, "", "m:wav:nargin");
+                    0, 0, fn, "", "numkit:wav:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const double Nd = args[2].toScalar();
     if (!(Nd >= 0.0))
         throw Error(std::string(fn) + ": N must be non-negative",
-                    0, 0, fn, "", "m:wav:N");
+                    0, 0, fn, "", "numkit:wav:N");
     const size_t N = static_cast<size_t>(Nd);
     auto [psi, x] = impl(lb, ub, N, ctx.engine->resource());
     outs[0] = std::move(psi);
@@ -210,7 +210,7 @@ void meyeraux_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("meyeraux: requires x",
-                    0, 0, "meyeraux", "", "m:meyeraux:nargin");
+                    0, 0, "meyeraux", "", "numkit:meyeraux:nargin");
     outs[0] = meyeraux(args[0], ctx.engine->resource());
 }
 
@@ -219,7 +219,7 @@ void shanwavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 5)
         throw Error("shanwavf: requires (LB, UB, N, fb, fc)",
-                    0, 0, "shanwavf", "", "m:shanwavf:nargin");
+                    0, 0, "shanwavf", "", "numkit:shanwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
@@ -235,7 +235,7 @@ void cmorwavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("cmorwavf: requires (LB, UB, N[, fb, fc])",
-                    0, 0, "cmorwavf", "", "m:cmorwavf:nargin");
+                    0, 0, "cmorwavf", "", "numkit:cmorwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
@@ -252,7 +252,7 @@ void fbspwavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 6)
         throw Error("fbspwavf: requires (LB, UB, N, m, fb, fc)",
-                    0, 0, "fbspwavf", "", "m:fbspwavf:nargin");
+                    0, 0, "fbspwavf", "", "numkit:fbspwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());

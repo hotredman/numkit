@@ -30,7 +30,7 @@ std::vector<Group> bucket(const Value &y, const Value &group)
     const size_t N = y.numel();
     if (group.numel() != N)
         throw Error("anova1: y and group must be the same length",
-                    0, 0, "anova1", "", "m:anova1:size");
+                    0, 0, "anova1", "", "numkit:anova1:size");
     std::vector<Group> g;
     for (size_t i = 0; i < N; ++i) {
         const double yi = y.elemAsDouble(i);
@@ -111,12 +111,12 @@ anova2(const Value &Y, std::pmr::memory_resource *mr)
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (Y.dims().ndim() != 2)
         throw Error("anova2: input must be a 2D matrix",
-                    0, 0, "anova2", "", "m:anova2:notMatrix");
+                    0, 0, "anova2", "", "numkit:anova2:notMatrix");
     const std::size_t m = static_cast<std::size_t>(Y.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(Y.dims().dim(1));
     if (m < 2 || n < 2)
         throw Error("anova2: input must be at least 2x2",
-                    0, 0, "anova2", "", "m:anova2:tooSmall");
+                    0, 0, "anova2", "", "numkit:anova2:tooSmall");
 
     const double *yd = Y.doubleData();
     const double N = static_cast<double>(m * n);
@@ -295,7 +295,7 @@ void anova1_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("anova1: requires (y, group[, 'off'])",
-                    0, 0, "anova1", "", "m:anova1:nargin");
+                    0, 0, "anova1", "", "numkit:anova1:nargin");
     auto *mr = ctx.engine->resource();
     auto [p, F, dfB, dfW, ssB, ssW] = anova1(args[0], args[1], mr);
     outs[0] = Value::scalar(p, mr);
@@ -390,7 +390,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("kruskalwallis: requires (y[, group][, 'off'])",
-                    0, 0, "kruskalwallis", "", "m:kruskalwallis:nargin");
+                    0, 0, "kruskalwallis", "", "numkit:kruskalwallis:nargin");
     auto *mr = ctx.engine->resource();
 
     // Matrix-only form: when group is omitted (or the 2nd arg is the
@@ -422,7 +422,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
         gArg = std::move(gFlat);
     } else if (!haveExplicitGroup) {
         throw Error("kruskalwallis: vector y requires explicit group argument",
-                    0, 0, "kruskalwallis", "", "m:kruskalwallis:noGroup");
+                    0, 0, "kruskalwallis", "", "numkit:kruskalwallis:noGroup");
     }
     (void)flagPos;   // 'off'/'on' display flag accepted but ignored
     auto [p, H, df, sumR2] = kruskalwallis(yArg, gArg, mr);
@@ -535,7 +535,7 @@ void dummyvar_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("dummyvar: requires GROUP",
-                    0, 0, "dummyvar", "", "m:dummyvar:nargin");
+                    0, 0, "dummyvar", "", "numkit:dummyvar:nargin");
     outs[0] = dummyvar(args[0], ctx.engine->resource());
 }
 
@@ -544,7 +544,7 @@ void anova2_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("anova2: requires (Y[, reps])",
-                    0, 0, "anova2", "", "m:anova2:nargin");
+                    0, 0, "anova2", "", "numkit:anova2:nargin");
     // reps argument: only reps=1 (default) supported in this revision.
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const int reps = static_cast<int>(args[1].toScalar());
@@ -552,7 +552,7 @@ void anova2_reg(Span<const Value> args, size_t nargout,
             throw Error("anova2: reps > 1 (with replication / interaction) "
                         "is deferred -- only reps=1 (without replication) "
                         "supported in this revision",
-                        0, 0, "anova2", "", "m:anova2:reps");
+                        0, 0, "anova2", "", "numkit:anova2:reps");
     }
     auto *mr = ctx.engine->resource();
     auto [pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE] =

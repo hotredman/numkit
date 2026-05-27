@@ -47,7 +47,7 @@ Agg parseFnName(const std::string &name)
     if (name == "sem")   return Agg::Sem;
     throw Error("grpstats: unsupported fn name (got '" + name
                 + "'); expected one of {mean,std,sum,numel,min,max,var,sem}",
-                0, 0, "grpstats", "", "m:grpstats:UnsupportedFn");
+                0, 0, "grpstats", "", "numkit:grpstats:UnsupportedFn");
 }
 
 // Apply aggregator to a vector of values (NaN excluded).
@@ -121,7 +121,7 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
     const size_t Ncols = X.dims().cols();
     if (group.numel() != Nrows && !(Nrows == 1 && group.numel() == Ncols))
         throw Error("grpstats: group length must match number of rows of X",
-                    0, 0, "grpstats", "", "m:grpstats:LenMismatch");
+                    0, 0, "grpstats", "", "numkit:grpstats:LenMismatch");
 
     // For row-vector input, MATLAB applies per-element groups (treating
     // X as length(X) observations of 1 column).
@@ -186,7 +186,7 @@ void grpstats_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("grpstats: requires (X, group [, fn])",
-                    0, 0, "grpstats", "", "m:grpstats:nargin");
+                    0, 0, "grpstats", "", "numkit:grpstats:nargin");
     auto *mr = ctx.engine->resource();
 
     std::vector<std::string> fn_names;
@@ -200,12 +200,12 @@ void grpstats_reg(Span<const Value> args, size_t nargout,
                 if (!(el.isChar() || el.isString()))
                     throw Error("grpstats: cell fn names must be strings",
                                 0, 0, "grpstats", "",
-                                "m:grpstats:BadCell");
+                                "numkit:grpstats:BadCell");
                 fn_names.push_back(el.toString());
             }
         } else {
             throw Error("grpstats: fn arg must be a string or cell of strings",
-                        0, 0, "grpstats", "", "m:grpstats:BadFnArg");
+                        0, 0, "grpstats", "", "numkit:grpstats:BadFnArg");
         }
     }
 

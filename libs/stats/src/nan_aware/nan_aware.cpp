@@ -37,7 +37,7 @@ void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
 double medianFromSlice(double *data, size_t n)
@@ -297,10 +297,10 @@ Value nancov(const Value &x, const Value &y, int normFlag,
     validateNormFlag(normFlag, "nancov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("nancov: two-input form requires vector arguments",
-                    0, 0, "nancov", "", "m:nancov:notVector");
+                    0, 0, "nancov", "", "numkit:nancov:notVector");
     if (x.numel() != y.numel())
         throw Error("nancov: x and y must have the same length",
-                    0, 0, "nancov", "", "m:nancov:lengthMismatch");
+                    0, 0, "nancov", "", "numkit:nancov:lengthMismatch");
 
     const std::size_t n = x.numel();
     if (n == 0)
@@ -337,7 +337,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires at least 1 argument",                 \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         int dim = 0;                                                             \
         if (args.size() >= 2 && !args[1].isEmpty())                              \
             dim = static_cast<int>(args[1].toScalar());                          \
@@ -360,7 +360,7 @@ NK_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
     {                                                                             \
         if (args.empty())                                                         \
             throw Error(#name ": requires at least 1 argument",                  \
-                         0, 0, #name, "", "m:" #name ":nargin");                  \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                  \
         int dim = 0;                                                              \
         if (args.size() == 2 && !args[1].isEmpty())                               \
             dim = static_cast<int>(args[1].toScalar());                           \
@@ -379,7 +379,7 @@ void nanvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("nanvar: requires at least 1 argument",
-                     0, 0, "nanvar", "", "m:nanvar:nargin");
+                     0, 0, "nanvar", "", "numkit:nanvar:nargin");
     int w = 0, dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         w = static_cast<int>(args[1].toScalar());
@@ -393,7 +393,7 @@ void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("nanstd: requires at least 1 argument",
-                     0, 0, "nanstd", "", "m:nanstd:nargin");
+                     0, 0, "nanstd", "", "numkit:nanstd:nargin");
     int w = 0, dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         w = static_cast<int>(args[1].toScalar());
@@ -413,7 +413,7 @@ void nancov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("nancov: requires at least 1 argument",
-                     0, 0, "nancov", "", "m:nancov:nargin");
+                     0, 0, "nancov", "", "numkit:nancov:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = nancov(args[0], 0, mr);

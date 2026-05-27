@@ -77,7 +77,7 @@ bool popPair(ScratchVec<Complex> &pool, RootPair &out)
         }
         if (mateIdx >= pool.size())
             throw Error("zp2sos: complex root has no conjugate in input",
-                         0, 0, "zp2sos", "", "m:zp2sos:noConj");
+                         0, 0, "zp2sos", "", "numkit:zp2sos:noConj");
         out = { pick, pool[mateIdx], true };
         const size_t hi = std::max(pickIdx, mateIdx);
         const size_t lo = std::min(pickIdx, mateIdx);
@@ -150,7 +150,7 @@ bool popClosestZeroPair(ScratchVec<Complex> &zeros, Complex target,
         }
         if (mateIdx >= zeros.size())
             throw Error("zp2sos: complex zero has no conjugate in input",
-                         0, 0, "zp2sos", "", "m:zp2sos:noConj");
+                         0, 0, "zp2sos", "", "numkit:zp2sos:noConj");
         out = { pick, zeros[mateIdx], true };
         const size_t hi = std::max(pickIdx, mateIdx);
         const size_t lo = std::min(pickIdx, mateIdx);
@@ -173,7 +173,7 @@ ScratchVec<Complex> readComplexVec(const Value &v, const char *fn, std::pmr::mem
         for (size_t i = 0; i < v.numel(); ++i) out.push_back(Complex(p[i], 0.0));
     } else {
         throw Error(std::string(fn) + ": zeros/poles must be DOUBLE or COMPLEX",
-                     0, 0, fn, "", std::string("m:") + fn + ":type");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
     }
     return out;
 }
@@ -198,7 +198,7 @@ inline ScratchVec<double> coeffsAsVector(const Value &v, std::pmr::memory_resour
 {
     if (v.type() != ValueType::DOUBLE || !v.dims().isVector())
         throw Error("tf2sos: b/a must be DOUBLE row/column vectors",
-                     0, 0, "tf2sos", "", "m:tf2sos:type");
+                     0, 0, "tf2sos", "", "numkit:tf2sos:type");
     const size_t n = v.numel();
     ScratchVec<double> out(n, mr);
     const double *p = v.doubleData();
@@ -213,7 +213,7 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
 {
     if (polesV.isEmpty())
         throw Error("zp2sos: at least one pole is required",
-                     0, 0, "zp2sos", "", "m:zp2sos:noPoles");
+                     0, 0, "zp2sos", "", "numkit:zp2sos:noPoles");
 
     ScratchArena scratch(mr);
     auto zeros = readComplexVec(zerosV, "zp2sos", &scratch);
@@ -229,7 +229,7 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
         RootPair polePair;
         if (!popPair(poles, polePair))
             throw Error("zp2sos: internal — ran out of poles",
-                         0, 0, "zp2sos", "", "m:zp2sos:internal");
+                         0, 0, "zp2sos", "", "numkit:zp2sos:internal");
         const auto polQ = pairToQuad(polePair);
         a1s[s] = polQ.b1;
         a2s[s] = polQ.b2;
@@ -247,7 +247,7 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
     }
     if (!zeros.empty())
         throw Error("zp2sos: more zeros than poles is not supported",
-                     0, 0, "zp2sos", "", "m:zp2sos:moreZeros");
+                     0, 0, "zp2sos", "", "numkit:zp2sos:moreZeros");
 
     return std::make_tuple(buildSosMatrix(b1s.data(), b2s.data(), a1s.data(), a2s.data(), L, /*leadingGain=*/1.0, mr),
                            gain);
@@ -272,10 +272,10 @@ tf2sosWithGain(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     auto av = coeffsAsVector(a, &scratch);
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2sos: a(1) must be nonzero",
-                     0, 0, "tf2sos", "", "m:tf2sos:zeroLead");
+                     0, 0, "tf2sos", "", "numkit:tf2sos:zeroLead");
     if (bv.empty())
         throw Error("tf2sos: b is empty",
-                     0, 0, "tf2sos", "", "m:tf2sos:emptyB");
+                     0, 0, "tf2sos", "", "numkit:tf2sos:emptyB");
 
     const double gain = bv[0] / av[0];
     auto zeros = polyRootsDurandKerner(&scratch, bv.data(), bv.size());
@@ -310,7 +310,7 @@ void zp2sos_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2 || args.size() > 3)
         throw Error("zp2sos: requires (z, p[, k])",
-                     0, 0, "zp2sos", "", "m:zp2sos:nargin");
+                     0, 0, "zp2sos", "", "numkit:zp2sos:nargin");
     const double gain = (args.size() >= 3 && !args[2].isEmpty())
                             ? args[2].toScalar()
                             : 1.0;
@@ -329,7 +329,7 @@ void tf2sos_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() != 2)
         throw Error("tf2sos: requires (b, a)",
-                     0, 0, "tf2sos", "", "m:tf2sos:nargin");
+                     0, 0, "tf2sos", "", "numkit:tf2sos:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [sos, g] = tf2sosWithGain(args[0], args[1], mr);

@@ -374,11 +374,11 @@ Value fibermetric(const Value &I, const std::vector<double> &thickness_in,
     const auto &d = I.dims();
     if (d.rows() < 2 || d.cols() < 2)
         throw Error("fibermetric: I must be 2-D or 3-D with all dims >= 2",
-                    0, 0, "fibermetric", "", "m:fibermetric:shape");
+                    0, 0, "fibermetric", "", "numkit:fibermetric:shape");
     const bool is3d = d.is3D() && d.pages() > 1;
     if (is3d && d.pages() < 2)
         throw Error("fibermetric: 3-D input must have at least 2 slices",
-                    0, 0, "fibermetric", "", "m:fibermetric:slices");
+                    0, 0, "fibermetric", "", "numkit:fibermetric:slices");
 
     // Default thickness.
     std::vector<double> thickness = thickness_in;
@@ -388,7 +388,7 @@ Value fibermetric(const Value &I, const std::vector<double> &thickness_in,
             throw Error("fibermetric: thickness must be a vector of positive "
                         "integers",
                         0, 0, "fibermetric", "",
-                        "m:fibermetric:thickness");
+                        "numkit:fibermetric:thickness");
 
     // Default c = range/100.
     double c = structure_sensitivity;
@@ -396,7 +396,7 @@ Value fibermetric(const Value &I, const std::vector<double> &thickness_in,
     if (!std::isfinite(c) || c <= 0.0)
         throw Error("fibermetric: StructureSensitivity must be > 0",
                     0, 0, "fibermetric", "",
-                    "m:fibermetric:sens");
+                    "numkit:fibermetric:sens");
 
     // Output class.
     const ValueType outClass = (I.type() == ValueType::DOUBLE)
@@ -425,7 +425,7 @@ void fibermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
     if (args.empty())
         throw Error("fibermetric: requires (I [, THICKNESS] [, NV...])",
                     0, 0, "fibermetric", "",
-                    "m:fibermetric:nargin");
+                    "numkit:fibermetric:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -447,7 +447,7 @@ void fibermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("fibermetric: expected NV-pair name string",
                         0, 0, "fibermetric", "",
-                        "m:fibermetric:badNv");
+                        "numkit:fibermetric:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -459,7 +459,7 @@ void fibermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
                 throw Error("fibermetric: StructureSensitivity must be "
                             "a positive finite scalar",
                             0, 0, "fibermetric", "",
-                            "m:fibermetric:sens");
+                            "numkit:fibermetric:sens");
         } else if (nlo == "objectpolarity") {
             std::string s = args[i + 1].toString();
             std::string slo;
@@ -471,11 +471,11 @@ void fibermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
             else throw Error("fibermetric: ObjectPolarity must be "
                              "'bright' or 'dark'",
                              0, 0, "fibermetric", "",
-                             "m:fibermetric:polarity");
+                             "numkit:fibermetric:polarity");
         } else {
             throw Error("fibermetric: unknown option '" + name + "'",
                         0, 0, "fibermetric", "",
-                        "m:fibermetric:unknownNv");
+                        "numkit:fibermetric:unknownNv");
         }
         i += 2;
     }

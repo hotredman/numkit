@@ -147,7 +147,7 @@ Value to_int_impl(const Value &x, ValueType target, double scale, double bias_af
         }
         default:
             throw Error("im2int: unsupported source class", 0, 0, "im2int", "",
-                        "m:im2int:badtype");
+                        "numkit:im2int:badtype");
     }
     return out;
 }
@@ -222,7 +222,7 @@ Value rgb2gray(const Value &x, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (!d.is3D() || d.pages() != 3)
         throw Error("rgb2gray: input must be H×W×3", 0, 0, "rgb2gray", "",
-                    "m:rgb2gray:size");
+                    "numkit:rgb2gray:size");
     const size_t H = d.rows(), W = d.cols();
     const size_t plane = H * W;
     Value out = Value::matrix(H, W, x.type(), mr);
@@ -237,7 +237,7 @@ Value rgb2gray(const Value &x, std::pmr::memory_resource *mr)
             case ValueType::INT16:  out.int16DataMut()[i]  = satCast<int16_t>(v); break;
             default:
                 throw Error("rgb2gray: unsupported class", 0, 0, "rgb2gray", "",
-                            "m:rgb2gray:badtype");
+                            "numkit:rgb2gray:badtype");
         }
     };
 
@@ -318,7 +318,7 @@ Value iptnum2ordinal(double n, std::pmr::memory_resource *mr)
 {
     if (!std::isfinite(n) || n <= 0.0 || n != std::floor(n))
         throw Error("iptnum2ordinal: num must be a real positive integer",
-                    0, 0, "iptnum2ordinal", "", "m:iptnum2ordinal:n");
+                    0, 0, "iptnum2ordinal", "", "numkit:iptnum2ordinal:n");
 
     static const char *kWords[] = {
         nullptr,    "first",      "second",   "third",
@@ -385,7 +385,7 @@ Value imcast(const Value &I, const std::string &type, std::pmr::memory_resource 
         return out;
     }
     throw Error("imcast: unsupported TYPE", 0, 0, "imcast", "",
-                "m:imcast:type");
+                "numkit:imcast:type");
 }
 
 namespace {
@@ -416,7 +416,7 @@ gray2ind(const Value &I, int n, std::pmr::memory_resource *mr)
 {
     if (n < 1 || n > 65536)
         throw Error("gray2ind: N must be in [1, 65536]",
-                    0, 0, "gray2ind", "", "m:gray2ind:n");
+                    0, 0, "gray2ind", "", "numkit:gray2ind:n");
 
     const ValueType cls = I.type();
     const auto &d = I.dims();
@@ -442,14 +442,14 @@ gray2ind(const Value &I, int n, std::pmr::memory_resource *mr)
         case ValueType::LOGICAL: scale = 1.0;                        break;
         default:
             throw Error("gray2ind: unsupported class",
-                        0, 0, "gray2ind", "", "m:gray2ind:cls");
+                        0, 0, "gray2ind", "", "numkit:gray2ind:cls");
     }
     if (isFloat) {
         for (size_t i = 0; i < N; ++i) {
             const double v = I.elemAsDouble(i);
             if (v < 0.0 || v > 1.0)
                 throw Error("gray2ind: float values must be in [0, 1]",
-                            0, 0, "gray2ind", "", "m:gray2ind:range");
+                            0, 0, "gray2ind", "", "numkit:gray2ind:range");
         }
     }
     const double k = static_cast<double>(n - 1) / scale;
@@ -491,15 +491,15 @@ Value ind2gray(const Value &idx, const Value &map, std::pmr::memory_resource *mr
     //   Y = 0.298936021293775·R + 0.587043074451121·G + 0.114020904255103·B.
     if (map.numel() == 0)
         throw Error("ind2gray: requires (X, MAP) with non-empty MAP",
-                    0, 0, "ind2gray", "", "m:ind2gray:nargin");
+                    0, 0, "ind2gray", "", "numkit:ind2gray:nargin");
     if (map.dims().cols() != 3 || map.dims().is3D())
         throw Error("ind2gray: MAP must be N-by-3",
-                    0, 0, "ind2gray", "", "m:ind2gray:map");
+                    0, 0, "ind2gray", "", "numkit:ind2gray:map");
 
     const int M = static_cast<int>(map.dims().rows());
     if (M < 1)
         throw Error("ind2gray: MAP must have at least one row",
-                    0, 0, "ind2gray", "", "m:ind2gray:emptyMap");
+                    0, 0, "ind2gray", "", "numkit:ind2gray:emptyMap");
 
     // Build the grey colormap (length M, DOUBLE in [0, 1]).
     constexpr double Cr = 0.298936021293775;
@@ -593,7 +593,7 @@ Value ind2gray(const Value &idx, const Value &map, std::pmr::memory_resource *mr
         default:
             throw Error("ind2gray: X must be double, single, uint8, uint16, "
                         "or logical",
-                        0, 0, "ind2gray", "", "m:ind2gray:cls");
+                        0, 0, "ind2gray", "", "numkit:ind2gray:cls");
     }
     return out;
 }
@@ -602,7 +602,7 @@ Value ind2rgb(const Value &idx, const Value &map, std::pmr::memory_resource *mr)
 {
     if (map.dims().cols() != 3)
         throw Error("ind2rgb: map must be N-by-3",
-                    0, 0, "ind2rgb", "", "m:ind2rgb:map");
+                    0, 0, "ind2rgb", "", "numkit:ind2rgb:map");
     const auto &d = idx.dims();
     const size_t H = d.rows();
     const size_t W = d.cols();
@@ -650,7 +650,7 @@ Value getrangefromclass(const Value &I, std::pmr::memory_resource *mr)
         default:
             throw Error("getrangefromclass: unrecognized image class",
                         0, 0, "getrangefromclass", "",
-                        "m:getrangefromclass:cls");
+                        "numkit:getrangefromclass:cls");
     }
     return r;
 }
@@ -663,7 +663,7 @@ Value isbw(const Value &BW, const std::string &mode, std::pmr::memory_resource *
         return bool_scalar(BW.type() == ValueType::LOGICAL, mr);
     if (mode != "non-logical")
         throw Error("isbw: MODE must be 'logical' or 'non-logical'",
-                    0, 0, "isbw", "", "m:isbw:mode");
+                    0, 0, "isbw", "", "numkit:isbw:mode");
     if (BW.type() == ValueType::LOGICAL) return bool_scalar(true, mr);
     if (is_int_image_class(BW.type()) ||
         BW.type() == ValueType::DOUBLE || BW.type() == ValueType::SINGLE)
@@ -721,15 +721,15 @@ Value intlut(const Value &A, const Value &LUT, std::pmr::memory_resource *mr)
         case ValueType::INT16:  expectedLen = 65536; break;
         default:
             throw Error("intlut: A must be uint8, uint16, or int16",
-                        0, 0, "intlut", "", "m:intlut:atype");
+                        0, 0, "intlut", "", "numkit:intlut:atype");
     }
     if (ltype != ValueType::UINT8 && ltype != ValueType::UINT16 &&
         ltype != ValueType::INT16)
         throw Error("intlut: LUT must be uint8, uint16, or int16",
-                    0, 0, "intlut", "", "m:intlut:luttype");
+                    0, 0, "intlut", "", "numkit:intlut:luttype");
     if (LUT.numel() != expectedLen)
         throw Error("intlut: LUT length does not match input class range",
-                    0, 0, "intlut", "", "m:intlut:lutsize");
+                    0, 0, "intlut", "", "numkit:intlut:lutsize");
 
     Value out = alloc_like(A, ltype, mr);
     const size_t N = A.numel();
@@ -778,7 +778,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires X", 0, 0, #name, "",                  \
-                        "m:" #name ":nargin");                                  \
+                        "numkit:" #name ":nargin");                                  \
         outs[0] = name(args[0], ctx.engine->resource());                        \
     }
 
@@ -797,13 +797,13 @@ void mat2gray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("mat2gray: requires X[, [lo hi]]", 0, 0, "mat2gray", "",
-                    "m:mat2gray:nargin");
+                    "numkit:mat2gray:nargin");
     double lo = std::numeric_limits<double>::quiet_NaN();
     double hi = std::numeric_limits<double>::quiet_NaN();
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (args[1].numel() != 2)
             throw Error("mat2gray: range must be a 2-element vector",
-                        0, 0, "mat2gray", "", "m:mat2gray:size");
+                        0, 0, "mat2gray", "", "numkit:mat2gray:size");
         lo = args[1].elemAsDouble(0);
         hi = args[1].elemAsDouble(1);
     }
@@ -815,7 +815,7 @@ void iptnum2ordinal_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("iptnum2ordinal: requires (n)",
-                    0, 0, "iptnum2ordinal", "", "m:iptnum2ordinal:nargin");
+                    0, 0, "iptnum2ordinal", "", "numkit:iptnum2ordinal:nargin");
     outs[0] = iptnum2ordinal(args[0].toScalar(), ctx.engine->resource());
 }
 
@@ -824,10 +824,10 @@ void imcast_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imcast: requires (I, type)",
-                    0, 0, "imcast", "", "m:imcast:nargin");
+                    0, 0, "imcast", "", "numkit:imcast:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("imcast: TYPE must be a string",
-                    0, 0, "imcast", "", "m:imcast:type");
+                    0, 0, "imcast", "", "numkit:imcast:type");
     outs[0] = imcast(args[0], args[1].toString(), ctx.engine->resource());
 }
 
@@ -836,7 +836,7 @@ void gray2ind_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("gray2ind: requires (I [, n])",
-                    0, 0, "gray2ind", "", "m:gray2ind:nargin");
+                    0, 0, "gray2ind", "", "numkit:gray2ind:nargin");
     int n = (args[0].type() == ValueType::LOGICAL) ? 2 : 64;
     if (args.size() >= 2 && !args[1].isEmpty())
         n = static_cast<int>(args[1].toScalar());
@@ -850,7 +850,7 @@ void ind2gray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("ind2gray: requires (idx [, map])",
-                    0, 0, "ind2gray", "", "m:ind2gray:nargin");
+                    0, 0, "ind2gray", "", "numkit:ind2gray:nargin");
     Value mp;
     if (args.size() >= 2 && !args[1].isEmpty()) mp = args[1];
     outs[0] = ind2gray(args[0], mp, ctx.engine->resource());
@@ -861,7 +861,7 @@ void ind2rgb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ind2rgb: requires (idx, map)",
-                    0, 0, "ind2rgb", "", "m:ind2rgb:nargin");
+                    0, 0, "ind2rgb", "", "numkit:ind2rgb:nargin");
     outs[0] = ind2rgb(args[0], args[1], ctx.engine->resource());
 }
 
@@ -871,7 +871,7 @@ void getrangefromclass_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("getrangefromclass: requires (I)",
                     0, 0, "getrangefromclass", "",
-                    "m:getrangefromclass:nargin");
+                    "numkit:getrangefromclass:nargin");
     outs[0] = getrangefromclass(args[0], ctx.engine->resource());
 }
 
@@ -880,12 +880,12 @@ void isbw_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("isbw: requires (BW [, mode])",
-                    0, 0, "isbw", "", "m:isbw:nargin");
+                    0, 0, "isbw", "", "numkit:isbw:nargin");
     std::string mode = "logical";
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("isbw: MODE must be a string",
-                        0, 0, "isbw", "", "m:isbw:mode");
+                        0, 0, "isbw", "", "numkit:isbw:mode");
         mode = args[1].toString();
     }
     outs[0] = isbw(args[0], mode, ctx.engine->resource());
@@ -896,7 +896,7 @@ void isgray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("isgray: requires (I)", 0, 0, "isgray", "",
-                    "m:isgray:nargin");
+                    "numkit:isgray:nargin");
     outs[0] = isgray(args[0], ctx.engine->resource());
 }
 
@@ -905,7 +905,7 @@ void isind_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("isind: requires (I)", 0, 0, "isind", "",
-                    "m:isind:nargin");
+                    "numkit:isind:nargin");
     outs[0] = isind(args[0], ctx.engine->resource());
 }
 
@@ -914,7 +914,7 @@ void isrgb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("isrgb: requires (I)", 0, 0, "isrgb", "",
-                    "m:isrgb:nargin");
+                    "numkit:isrgb:nargin");
     outs[0] = isrgb(args[0], ctx.engine->resource());
 }
 
@@ -923,7 +923,7 @@ void iscolormap_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("iscolormap: requires (cmap)", 0, 0, "iscolormap", "",
-                    "m:iscolormap:nargin");
+                    "numkit:iscolormap:nargin");
     outs[0] = iscolormap(args[0], ctx.engine->resource());
 }
 
@@ -932,7 +932,7 @@ void intlut_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("intlut: requires (A, LUT)", 0, 0, "intlut", "",
-                    "m:intlut:nargin");
+                    "numkit:intlut:nargin");
     outs[0] = intlut(args[0], args[1], ctx.engine->resource());
 }
 

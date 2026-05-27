@@ -51,12 +51,12 @@ Value expm(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("expm: input must be a 2D matrix",
-                    0, 0, "expm", "", "m:expm:notMatrix");
+                    0, 0, "expm", "", "numkit:expm:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("expm: matrix must be square",
-                    0, 0, "expm", "", "m:expm:notSquare");
+                    0, 0, "expm", "", "numkit:expm:notSquare");
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Padé(6) scaling-and-squaring.
@@ -128,7 +128,7 @@ Value expm(const Value &A, std::pmr::memory_resource *mr)
     if (!numkit::builtin::detail::la_solve(Q.data(), n, n, P.data(), n,
                                             out.doubleDataMut(), &scratch))
         throw Error("expm: Padé denominator is singular",
-                    0, 0, "expm", "", "m:expm:singular");
+                    0, 0, "expm", "", "numkit:expm:singular");
 
     if (s > 0) {
         ScratchVec<double> tmp(n * n, &scratch);
@@ -186,13 +186,13 @@ Value applyScalarFnSym(const Value &A, double (*f)(double),
 Value logm_sym(const Value &A, std::pmr::memory_resource *mr)
 {
     return applyScalarFnSym(A, [](double x) { return std::log(x); },
-                            "logm", "m:logm:negativeEigenvalue", mr);
+                            "logm", "numkit:logm:negativeEigenvalue", mr);
 }
 
 Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr)
 {
     return applyScalarFnSym(A, [](double x) { return std::sqrt(x); },
-                            "sqrtm", "m:sqrtm:negativeEigenvalue", mr);
+                            "sqrtm", "numkit:sqrtm:negativeEigenvalue", mr);
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -204,14 +204,14 @@ Value expmv(double t, const Value &A, const Value &v, std::pmr::memory_resource 
 {
     if (A.dims().ndim() != 2)
         throw Error("expmv: A must be a 2D matrix",
-                    0, 0, "expmv", "", "m:expmv:notMatrix");
+                    0, 0, "expmv", "", "numkit:expmv:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (static_cast<std::size_t>(A.dims().dim(1)) != n)
         throw Error("expmv: A must be square",
-                    0, 0, "expmv", "", "m:expmv:notSquare");
+                    0, 0, "expmv", "", "numkit:expmv:notSquare");
     if (v.numel() != n)
         throw Error("expmv: length(v) must equal size(A, 1)",
-                    0, 0, "expmv", "", "m:expmv:badV");
+                    0, 0, "expmv", "", "numkit:expmv:badV");
     if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
     // beta = ||v||₂
@@ -304,7 +304,7 @@ void expm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() != 1)
         throw Error("expm: requires exactly 1 argument",
-                    0, 0, "expm", "", "m:expm:nargin");
+                    0, 0, "expm", "", "numkit:expm:nargin");
     outs[0] = expm(args[0], ctx.engine->resource());
 }
 
@@ -312,7 +312,7 @@ void logm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() != 1)
         throw Error("logm: requires exactly 1 argument",
-                    0, 0, "logm", "", "m:logm:nargin");
+                    0, 0, "logm", "", "numkit:logm:nargin");
     outs[0] = logm_sym(args[0], ctx.engine->resource());
 }
 
@@ -320,7 +320,7 @@ void sqrtm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() != 1)
         throw Error("sqrtm: requires exactly 1 argument",
-                    0, 0, "sqrtm", "", "m:sqrtm:nargin");
+                    0, 0, "sqrtm", "", "numkit:sqrtm:nargin");
     outs[0] = sqrtm_sym(args[0], ctx.engine->resource());
 }
 
@@ -331,7 +331,7 @@ void expmv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() != 3)
         throw Error("expmv: requires (t, A, v)",
-                    0, 0, "expmv", "", "m:expmv:nargin");
+                    0, 0, "expmv", "", "numkit:expmv:nargin");
     const double t = args[0].toScalar();
     outs[0] = expmv(t, args[1], args[2], ctx.engine->resource());
 }

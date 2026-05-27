@@ -156,7 +156,7 @@ void downsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 2)
         throw Error("downsample: requires 2 arguments",
-                     0, 0, "downsample", "", "m:downsample:nargin");
+                     0, 0, "downsample", "", "numkit:downsample:nargin");
     outs[0] = downsample(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
@@ -164,7 +164,7 @@ void upsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("upsample: requires 2 arguments",
-                     0, 0, "upsample", "", "m:upsample:nargin");
+                     0, 0, "upsample", "", "numkit:upsample:nargin");
     outs[0] = upsample(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
@@ -172,7 +172,7 @@ void decimate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("decimate: requires 2 arguments",
-                     0, 0, "decimate", "", "m:decimate:nargin");
+                     0, 0, "decimate", "", "numkit:decimate:nargin");
     outs[0] = decimate(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
@@ -180,7 +180,7 @@ void resample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 3)
         throw Error("resample: requires 3 arguments",
-                     0, 0, "resample", "", "m:resample:nargin");
+                     0, 0, "resample", "", "numkit:resample:nargin");
     outs[0] = resample(args[0], static_cast<size_t>(args[1].toScalar()), static_cast<size_t>(args[2].toScalar()), ctx.engine->resource());
 }
 

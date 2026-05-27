@@ -226,7 +226,7 @@ namespace detail {
 void poisspdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("poisspdf: requires (k, lambda)", 0, 0, "poisspdf", "", "m:poisspdf:nargin");
+        throw Error("poisspdf: requires (k, lambda)", 0, 0, "poisspdf", "", "numkit:poisspdf:nargin");
     outs[0] = poisspdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -235,7 +235,7 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
-        throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "m:poisscdf:nargin");
+        throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "numkit:poisscdf:nargin");
     Value v = poisscdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -244,14 +244,14 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 void poissinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("poissinv: requires (p, lambda)", 0, 0, "poissinv", "", "m:poissinv:nargin");
+        throw Error("poissinv: requires (p, lambda)", 0, 0, "poissinv", "", "numkit:poissinv:nargin");
     outs[0] = poissinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("poissrnd: requires lambda[, sz...]", 0, 0, "poissrnd", "", "m:poissrnd:nargin");
+        throw Error("poissrnd: requires lambda[, sz...]", 0, 0, "poissrnd", "", "numkit:poissrnd:nargin");
     const double lambda = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);

@@ -125,7 +125,7 @@ namespace detail {
 void chi2pdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("chi2pdf: requires (x, k)", 0, 0, "chi2pdf", "", "m:chi2pdf:nargin");
+        throw Error("chi2pdf: requires (x, k)", 0, 0, "chi2pdf", "", "numkit:chi2pdf:nargin");
     outs[0] = chi2pdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -134,7 +134,7 @@ void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
-        throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "m:chi2cdf:nargin");
+        throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "numkit:chi2cdf:nargin");
     Value v = chi2cdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -143,14 +143,14 @@ void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("chi2inv: requires (p, k)", 0, 0, "chi2inv", "", "m:chi2inv:nargin");
+        throw Error("chi2inv: requires (p, k)", 0, 0, "chi2inv", "", "numkit:chi2inv:nargin");
     outs[0] = chi2inv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("chi2rnd: requires k[, sz...]", 0, 0, "chi2rnd", "", "m:chi2rnd:nargin");
+        throw Error("chi2rnd: requires k[, sz...]", 0, 0, "chi2rnd", "", "numkit:chi2rnd:nargin");
     const double k = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);

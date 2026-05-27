@@ -118,7 +118,7 @@ void evpdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("evpdf: requires x[, mu, sigma]",
-                    0, 0, "evpdf", "", "m:evpdf:nargin");
+                    0, 0, "evpdf", "", "numkit:evpdf:nargin");
     const double mu    = (args.size() >= 2) ? args[1].toScalar() : 0.0;
     const double sigma = (args.size() >= 3) ? args[2].toScalar() : 1.0;
     outs[0] = evpdf(args[0], mu, sigma, ctx.engine->resource());
@@ -131,7 +131,7 @@ void evcdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 1)
         throw Error("evcdf: requires x[, mu, sigma][, 'upper']",
-                    0, 0, "evcdf", "", "m:evcdf:nargin");
+                    0, 0, "evcdf", "", "numkit:evcdf:nargin");
     const double mu    = (n >= 2) ? args[1].toScalar() : 0.0;
     const double sigma = (n >= 3) ? args[2].toScalar() : 1.0;
     Value v = evcdf(args[0], mu, sigma, ctx.engine->resource());
@@ -144,7 +144,7 @@ void evinv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("evinv: requires p[, mu, sigma]",
-                    0, 0, "evinv", "", "m:evinv:nargin");
+                    0, 0, "evinv", "", "numkit:evinv:nargin");
     const double mu    = (args.size() >= 2) ? args[1].toScalar() : 0.0;
     const double sigma = (args.size() >= 3) ? args[2].toScalar() : 1.0;
     outs[0] = evinv(args[0], mu, sigma, ctx.engine->resource());
@@ -155,7 +155,7 @@ void evrnd_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("evrnd: requires (mu, sigma[, m, n])",
-                    0, 0, "evrnd", "", "m:evrnd:nargin");
+                    0, 0, "evrnd", "", "numkit:evrnd:nargin");
     const double mu    = args[0].toScalar();
     const double sigma = args[1].toScalar();
     size_t rows = 1, cols = 1;

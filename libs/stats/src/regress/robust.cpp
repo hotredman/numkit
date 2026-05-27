@@ -131,10 +131,10 @@ RobustfitResult robustfit(const Value &X, const Value &y,
     const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("robustfit: length(y) must equal rows(X)",
-                    0, 0, "robustfit", "", "m:robustfit:shapeMismatch");
+                    0, 0, "robustfit", "", "numkit:robustfit:shapeMismatch");
     if (p == 0 || n <= p)
         throw Error("robustfit: need rows(X) > cols(X)",
-                    0, 0, "robustfit", "", "m:robustfit:noDOF");
+                    0, 0, "robustfit", "", "numkit:robustfit:noDOF");
 
     if (std::isnan(tune)) {
         tune = (weight == RobustWeight::Bisquare) ? 4.685 : 1.345;
@@ -286,7 +286,7 @@ RobustcovResult robustcov(const Value &X, std::pmr::memory_resource *mr)
     const std::size_t d = X.dims().cols();
     if (n <= d + 1)
         throw Error("robustcov: need n > d + 1 observations",
-                    0, 0, "robustcov", "", "m:robustcov:noDOF");
+                    0, 0, "robustcov", "", "numkit:robustcov:noDOF");
 
     std::vector<double> Xv(n * d);
     for (std::size_t i = 0; i < n * d; ++i) Xv[i] = X.elemAsDouble(i);
@@ -350,7 +350,7 @@ void robustfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("robustfit: requires (X, y [, wfun [, tune]])",
-                    0, 0, "robustfit", "", "m:robustfit:nargin");
+                    0, 0, "robustfit", "", "numkit:robustfit:nargin");
     RobustWeight w = RobustWeight::Bisquare;
     if (args.size() >= 3 && args[2].isChar()) {
         const std::string s = args[2].toString();
@@ -358,7 +358,7 @@ void robustfit_reg(Span<const Value> args, size_t nargout,
         else if (s == "bisquare") w = RobustWeight::Bisquare;
         else
             throw Error("robustfit: weight must be 'bisquare' or 'huber'",
-                        0, 0, "robustfit", "", "m:robustfit:badWeight");
+                        0, 0, "robustfit", "", "numkit:robustfit:badWeight");
     }
     double tune = std::numeric_limits<double>::quiet_NaN();
     if (args.size() >= 4 && !args[3].isEmpty())
@@ -373,7 +373,7 @@ void robustcov_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("robustcov: requires (X)",
-                    0, 0, "robustcov", "", "m:robustcov:nargin");
+                    0, 0, "robustcov", "", "numkit:robustcov:nargin");
     auto r = robustcov(args[0], ctx.engine->resource());
     outs[0] = std::move(r.sigma);
     if (nargout > 1) outs[1] = std::move(r.mu);

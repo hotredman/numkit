@@ -99,7 +99,7 @@ pca(const Value &X, std::pmr::memory_resource *mr)
     const size_t D = X.dims().cols();
     if (N < 2 || D < 1)
         throw Error("pca: need at least 2 rows and 1 column",
-                    0, 0, "pca", "", "m:pca:size");
+                    0, 0, "pca", "", "numkit:pca:size");
 
     std::vector<double> Xv = read_rows(X);
 
@@ -199,7 +199,7 @@ pcacov(const Value &C, std::pmr::memory_resource *mr) {
     const size_t D = C.dims().rows();
     if (C.dims().cols() != D)
         throw Error("pcacov: C must be square", 0, 0, "pcacov", "",
-                    "m:pcacov:size");
+                    "numkit:pcacov:size");
 
     std::vector<double> A(D * D);
     for (size_t r = 0; r < D; ++r)
@@ -250,7 +250,7 @@ pcares_full(const Value &X, int ndim, std::pmr::memory_resource *mr) {
     const size_t D = X.dims().cols();
     if (ndim < 0 || (size_t)ndim > D)
         throw Error("pcares: ndim must be in 0..D", 0, 0, "pcares", "",
-                    "m:pcares:badndim");
+                    "numkit:pcares:badndim");
 
     Value res   = Value::matrix(N, D, ValueType::DOUBLE, mr);
     Value recon = Value::matrix(N, D, ValueType::DOUBLE, mr);
@@ -286,7 +286,7 @@ void pca_reg(Span<const Value> args, size_t nargout,
              Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("pca: requires X", 0, 0, "pca", "", "m:pca:nargin");
+        throw Error("pca: requires X", 0, 0, "pca", "", "numkit:pca:nargin");
     auto [coeff, score, latent, tsq, explained, mu] =
         pca(args[0], ctx.engine->resource());
     outs[0] = std::move(coeff);
@@ -302,7 +302,7 @@ void pcacov_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("pcacov: requires C", 0, 0, "pcacov", "",
-                    "m:pcacov:nargin");
+                    "numkit:pcacov:nargin");
     auto [coeff, latent, explained] = pcacov(args[0], ctx.engine->resource());
     outs[0] = std::move(coeff);
     if (nargout > 1) outs[1] = std::move(latent);
@@ -314,7 +314,7 @@ void pcares_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("pcares: requires (X, ndim)", 0, 0, "pcares", "",
-                    "m:pcares:nargin");
+                    "numkit:pcares:nargin");
     auto [res, recon] = pcares_full(args[0], (int)args[1].toScalar(), ctx.engine->resource());
     outs[0] = std::move(res);
     if (nargout > 1) outs[1] = std::move(recon);

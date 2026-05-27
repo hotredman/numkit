@@ -47,7 +47,7 @@ Value filter(const Value &b, const Value &a, const Value &x, std::pmr::memory_re
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw Error("filter: a(1) must be nonzero",
-                     0, 0, "filter", "", "m:filter:zeroLead");
+                     0, 0, "filter", "", "numkit:filter:zeroLead");
 
     ScratchArena scratch(mr);
     auto bn = ScratchVec<double>(nb, &scratch);
@@ -76,7 +76,7 @@ Value filtfilt(const Value &b, const Value &a, const Value &x, std::pmr::memory_
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw Error("filtfilt: a(1) must be nonzero",
-                     0, 0, "filtfilt", "", "m:filtfilt:zeroLead");
+                     0, 0, "filtfilt", "", "numkit:filtfilt:zeroLead");
 
     ScratchArena scratch(mr);
     auto bn = ScratchVec<double>(nb, &scratch);
@@ -120,7 +120,7 @@ void filter_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("filter: requires 3 arguments",
-                     0, 0, "filter", "", "m:filter:nargin");
+                     0, 0, "filter", "", "numkit:filter:nargin");
     outs[0] = filter(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -128,7 +128,7 @@ void filtfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 3)
         throw Error("filtfilt: requires 3 arguments",
-                     0, 0, "filtfilt", "", "m:filtfilt:nargin");
+                     0, 0, "filtfilt", "", "numkit:filtfilt:nargin");
     outs[0] = filtfilt(args[0], args[1], args[2], ctx.engine->resource());
 }
 

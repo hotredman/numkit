@@ -72,7 +72,7 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
     const size_t C = SIGMA.dims().cols();
     if (R != C)
         throw Error("cholcov: SIGMA must be square",
-                    0, 0, "cholcov", "", "m:cholcov:NotSquare");
+                    0, 0, "cholcov", "", "numkit:cholcov:NotSquare");
     if (R == 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return {std::move(T), Value::scalar(0.0, mr)};
@@ -134,7 +134,7 @@ void cholcov_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("cholcov: requires (SIGMA)",
-                    0, 0, "cholcov", "", "m:cholcov:nargin");
+                    0, 0, "cholcov", "", "numkit:cholcov:nargin");
     auto *mr = ctx.engine->resource();
     auto [T, p] = cholcov(args[0], mr);
     outs[0] = std::move(T);

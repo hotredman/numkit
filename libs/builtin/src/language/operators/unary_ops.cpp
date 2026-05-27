@@ -46,7 +46,7 @@ Value uminus(const Value &x, std::pmr::memory_resource *mr)
         default: break;
         }
     }
-    throw Error("Unsupported unary -", 0, 0, "uminus", "", "m:uminus:unsupportedTypes");
+    throw Error("Unsupported unary -", 0, 0, "uminus", "", "numkit:uminus:unsupportedTypes");
 }
 
 Value uplus(const Value &x, std::pmr::memory_resource *)
@@ -85,7 +85,7 @@ Value ctranspose(const Value &x, std::pmr::memory_resource *mr)
     std::pmr::memory_resource *p = mr;
     if (x.dims().is3D())
         throw Error("transpose is not defined for N-D arrays",
-                     0, 0, "ctranspose", "", "m:transpose:3DInput");
+                     0, 0, "ctranspose", "", "numkit:transpose:3DInput");
     const size_t rows = x.dims().rows(), cols = x.dims().cols();
 
     if (x.isComplex()) {
@@ -107,7 +107,7 @@ Value ctranspose(const Value &x, std::pmr::memory_resource *mr)
         return r;
     }
     throw Error("Transpose not supported for this type",
-                 0, 0, "ctranspose", "", "m:transpose:unsupportedType");
+                 0, 0, "ctranspose", "", "numkit:transpose:unsupportedType");
 }
 
 Value transposeNC(const Value &x, std::pmr::memory_resource *mr)
@@ -115,7 +115,7 @@ Value transposeNC(const Value &x, std::pmr::memory_resource *mr)
     std::pmr::memory_resource *p = mr;
     if (x.dims().is3D())
         throw Error("transpose is not defined for N-D arrays",
-                     0, 0, "transpose", "", "m:transpose:3DInput");
+                     0, 0, "transpose", "", "numkit:transpose:3DInput");
     const size_t rows = x.dims().rows(), cols = x.dims().cols();
 
     if (x.isComplex()) {
@@ -137,7 +137,7 @@ Value transposeNC(const Value &x, std::pmr::memory_resource *mr)
         return r;
     }
     throw Error("Transpose not supported for this type",
-                 0, 0, "transpose", "", "m:transpose:unsupportedType");
+                 0, 0, "transpose", "", "numkit:transpose:unsupportedType");
 }
 
 // ── Named-function adapters for unary operators ──────────────────────
@@ -151,7 +151,7 @@ namespace detail {
     {                                                                                 \
         if (args.empty())                                                             \
             throw Error(#MATLAB_NAME ": requires 1 argument",                        \
-                         0, 0, #MATLAB_NAME, "", "m:" #MATLAB_NAME ":nargin");        \
+                         0, 0, #MATLAB_NAME, "", "numkit:" #MATLAB_NAME ":nargin");        \
         outs[0] = CXX_FN(args[0], ctx.engine->resource());                           \
     }
 

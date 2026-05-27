@@ -49,7 +49,7 @@ adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0)
         throw Error("adtest: alpha must be in (0, 1)",
-                    0, 0, "adtest", "", "m:adtest:badAlpha");
+                    0, 0, "adtest", "", "numkit:adtest:badAlpha");
 
     // Pull data as DOUBLE vector, drop NaNs.
     const std::size_t N = x.numel();
@@ -63,7 +63,7 @@ adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
     const std::size_t n = v.size();
     if (n < 4)
         throw Error("adtest: need at least 4 non-NaN observations",
-                    0, 0, "adtest", "", "m:adtest:tooFewObs");
+                    0, 0, "adtest", "", "numkit:adtest:tooFewObs");
 
     // Sample mean and unbiased std.
     double mean = 0.0;
@@ -78,7 +78,7 @@ adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
     const double sd = std::sqrt(s2);
     if (!(sd > 0.0))
         throw Error("adtest: sample has zero variance",
-                    0, 0, "adtest", "", "m:adtest:zeroVar");
+                    0, 0, "adtest", "", "numkit:adtest:zeroVar");
 
     // Standardise + sort.
     std::vector<double> z = v;
@@ -128,14 +128,14 @@ dwtest(const Value &r, const Value &X, std::pmr::memory_resource *mr)
     const std::size_t n = r.numel();
     if (n < 3)
         throw Error("dwtest: need at least 3 residuals",
-                    0, 0, "dwtest", "", "m:dwtest:tooFewObs");
+                    0, 0, "dwtest", "", "numkit:dwtest:tooFewObs");
     const std::size_t k = X.dims().cols();
     if (X.dims().rows() != n)
         throw Error("dwtest: rows(X) must equal length(r)",
-                    0, 0, "dwtest", "", "m:dwtest:shapeMismatch");
+                    0, 0, "dwtest", "", "numkit:dwtest:shapeMismatch");
     if (k >= n)
         throw Error("dwtest: design matrix has no degrees of freedom",
-                    0, 0, "dwtest", "", "m:dwtest:noDOF");
+                    0, 0, "dwtest", "", "numkit:dwtest:noDOF");
 
     // Pull residuals.
     std::vector<double> rv(n);
@@ -150,7 +150,7 @@ dwtest(const Value &r, const Value &X, std::pmr::memory_resource *mr)
     }
     if (!(den > 0.0))
         throw Error("dwtest: residuals are all zero",
-                    0, 0, "dwtest", "", "m:dwtest:zeroResid");
+                    0, 0, "dwtest", "", "numkit:dwtest:zeroResid");
     const double dw = num / den;
 
     // Two-sided approximate p-value via the beta-on-[0, 4] fit
@@ -193,7 +193,7 @@ void adtest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("adtest: requires (x [, alpha])",
-                    0, 0, "adtest", "", "m:adtest:nargin");
+                    0, 0, "adtest", "", "numkit:adtest:nargin");
     double alpha = 0.05;
     if (args.size() >= 2 && !args[1].isEmpty())
         alpha = args[1].toScalar();
@@ -209,7 +209,7 @@ void dwtest_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("dwtest: requires (residuals, design)",
-                    0, 0, "dwtest", "", "m:dwtest:nargin");
+                    0, 0, "dwtest", "", "numkit:dwtest:nargin");
     auto [p, dw] = dwtest(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(p);
     if (nargout > 1) outs[1] = std::move(dw);

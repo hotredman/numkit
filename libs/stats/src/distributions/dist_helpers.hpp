@@ -71,7 +71,7 @@ inline void emit_vec_stat_1arg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error(std::string(fnName) + ": requires 1 arg",
-                    0, 0, fnName, "", "m:nargin");
+                    0, 0, fnName, "", "numkit:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = args[0];
     if (p.isScalar()) {
@@ -106,7 +106,7 @@ inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error(std::string(fnName) + ": requires 2 args",
-                    0, 0, fnName, "", "m:nargin");
+                    0, 0, fnName, "", "numkit:nargin");
     auto *mr = ctx.engine->resource();
     const Value &av = args[0];
     const Value &bv = args[1];
@@ -120,7 +120,7 @@ inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
     }
     if (na > 1 && nb > 1 && na != nb)
         throw Error(std::string(fnName) + ": args must be same size or scalar",
-                    0, 0, fnName, "", "m:dim");
+                    0, 0, fnName, "", "numkit:dim");
     const Value &ref = (na >= nb) ? av : bv;
     const auto &d = ref.dims();
     Value out_m = d.is3D()
@@ -150,7 +150,7 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error(std::string(fnName) + ": requires 3 args",
-                    0, 0, fnName, "", "m:nargin");
+                    0, 0, fnName, "", "numkit:nargin");
     auto *mr = ctx.engine->resource();
     const Value &av = args[0];
     const Value &bv = args[1];
@@ -166,7 +166,7 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
     auto sizeOK = [&](size_t n){ return n == 1 || n == nmax; };
     if (!sizeOK(na) || !sizeOK(nb) || !sizeOK(nc))
         throw Error(std::string(fnName) + ": args must be same size or scalar",
-                    0, 0, fnName, "", "m:dim");
+                    0, 0, fnName, "", "numkit:dim");
     const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : cv);
     const auto &d = ref.dims();
     Value out_m = d.is3D()

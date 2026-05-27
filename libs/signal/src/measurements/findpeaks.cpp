@@ -49,7 +49,7 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("findpeaks: requires 1 argument",
-                     0, 0, "findpeaks", "", "m:findpeaks:nargin");
+                     0, 0, "findpeaks", "", "numkit:findpeaks:nargin");
     auto [vals, idxs] = findpeaks(args[0], ctx.engine->resource());
     outs[0] = std::move(vals);
     if (nargout > 1) outs[1] = std::move(idxs);

@@ -103,7 +103,7 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
 {
     if (kReq < 0)
         throw Error(std::string(fn) + ": k must be non-negative",
-                     0, 0, fn, "", std::string("m:") + fn + ":badK");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -132,7 +132,7 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
         throw Error(std::string(fn) + ": ND (rank>=4) input not yet supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":nd");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":nd");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -215,7 +215,7 @@ Value rmse(const Value &f, const Value &a, int dim, std::pmr::memory_resource *m
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("rmse: F and A must have compatible sizes",
-                     0, 0, "rmse", "", "m:rmse:sizeMismatch");
+                     0, 0, "rmse", "", "numkit:rmse:sizeMismatch");
     // Build the squared-difference array, then reduce.
     const size_t n = std::max(f.numel(), a.numel());
     auto diff = (f.numel() >= a.numel())
@@ -256,7 +256,7 @@ Value mape(const Value &f, const Value &a, int dim, std::pmr::memory_resource *m
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("mape: F and A must have compatible sizes",
-                     0, 0, "mape", "", "m:mape:sizeMismatch");
+                     0, 0, "mape", "", "numkit:mape:sizeMismatch");
     const size_t n = std::max(f.numel(), a.numel());
     auto pct = (f.numel() >= a.numel())
                   ? createLike(f, ValueType::DOUBLE, mr)
@@ -299,13 +299,13 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::m
 {
     if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
         throw Error("partialcorr: X, Y, Z must be 2D matrices",
-                    0, 0, "partialcorr", "", "m:partialcorr:notMatrix");
+                    0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t mY = static_cast<std::size_t>(Y.dims().dim(0));
     const std::size_t mZ = static_cast<std::size_t>(Z.dims().dim(0));
     if (mY != m || mZ != m)
         throw Error("partialcorr: X, Y, Z must have the same number of rows",
-                    0, 0, "partialcorr", "", "m:partialcorr:dimMismatch");
+                    0, 0, "partialcorr", "", "numkit:partialcorr:dimMismatch");
     const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
     const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
     const std::size_t pZ = static_cast<std::size_t>(Z.dims().dim(1));
@@ -526,7 +526,7 @@ Value partialcorr_xx(const Value &X, std::pmr::memory_resource *mr)
 {
     if (X.dims().ndim() != 2)
         throw Error("partialcorr: X must be a 2D matrix",
-                    0, 0, "partialcorr", "", "m:partialcorr:notMatrix");
+                    0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
 
@@ -614,7 +614,7 @@ Value corr_xy(const Value &X, const Value &Y, std::pmr::memory_resource *mr)
                             ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
     if (static_cast<std::size_t>(Y.dims().dim(0)) != n)
         throw Error("corr: X and Y must have the same number of rows",
-                    0, 0, "corr", "", "m:corr:rows");
+                    0, 0, "corr", "", "numkit:corr:rows");
     const std::size_t q = (Y.dims().ndim() >= 2)
                             ? static_cast<std::size_t>(Y.dims().dim(1)) : 1;
 
@@ -988,7 +988,7 @@ Value filloutliers_of(const Value &x,
                         "'center', 'clip', 'previous', 'next', "
                         "'nearest', or 'linear'",
                         0, 0, "filloutliers", "",
-                        "m:filloutliers:fillmethod");
+                        "numkit:filloutliers:fillmethod");
     } else {
         fill_is_constant = true;
         constVal = fillArg.toScalar();
@@ -1199,7 +1199,7 @@ Value fillmissing_of(const Value &x, const std::string &method, double constVal,
                 "this revision (MATLAB also supports 'spline', "
                 "'pchip', 'makima', 'movmean', 'movmedian', 'knn' -- "
                 "those are deferred)",
-                0, 0, "fillmissing", "", "m:fillmissing:method");
+                0, 0, "fillmissing", "", "numkit:fillmissing:method");
 }
 
 // rmmissing(x) — drop NaN entries.
@@ -1349,7 +1349,7 @@ Value trimmean_of(const Value &x, double pct, int dim, std::pmr::memory_resource
 {
     if (pct < 0.0 || pct >= 100.0)
         throw Error("trimmean: percent must be in [0, 100)",
-                    0, 0, "trimmean", "", "m:trimmean:badPct");
+                    0, 0, "trimmean", "", "numkit:trimmean:badPct");
     const int d = resolveDim(x, dim, "trimmean");
     const double p = pct;
     return applyAlongDim(x, d,
@@ -1382,7 +1382,7 @@ KsKernel parse_ks_kernel(const std::string &raw) {
     if (s == "triangle" || s == "triangular")              return KsKernel::Triangle;
     if (s == "epanechnikov" || s == "epan")                return KsKernel::Epanechnikov;
     throw Error("ksdensity: unknown Kernel '" + raw + "'",
-                0, 0, "ksdensity", "", "m:ksdensity:kernel");
+                0, 0, "ksdensity", "", "numkit:ksdensity:kernel");
 }
 inline double ks_pdf(double u, KsKernel k) {
     switch (k) {
@@ -1561,10 +1561,10 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::stri
         }
     } else if (mode == "icdf") {
         throw Error("ksdensity: 'Function'='icdf' is not yet supported",
-                    0, 0, "ksdensity", "", "m:ksdensity:icdf_nyi");
+                    0, 0, "ksdensity", "", "numkit:ksdensity:icdf_nyi");
     } else {
         throw Error("ksdensity: unknown Function '" + mode + "'",
-                    0, 0, "ksdensity", "", "m:ksdensity:badfn");
+                    0, 0, "ksdensity", "", "numkit:ksdensity:badfn");
     }
 
     Value xiV = Value::matrix(1, M, ValueType::DOUBLE, mr);
@@ -1617,7 +1617,7 @@ prepareCurveData(const Value &x, const Value &y, const Value &w, std::pmr::memor
     if (Nx != Ny || (hasW && Nw != Nx))
         throw Error("prepareCurveData: x, y" +
                     std::string(hasW ? ", w" : "") + " must be same length",
-                    0, 0, "prepareCurveData", "", "m:prepCD:size");
+                    0, 0, "prepareCurveData", "", "numkit:prepCD:size");
 
     std::vector<double> xv(Nx), yv(Nx), wv(hasW ? Nx : 0);
     std::vector<uint8_t> keep(Nx, 1);
@@ -1668,7 +1668,7 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::mem
                         out[r + c * rows] = v.elemAsDouble(r);
             } else {
                 throw Error("prepareSurfaceData: x, y, z size mismatch",
-                            0, 0, "prepareSurfaceData", "", "m:prepSD:size");
+                            0, 0, "prepareSurfaceData", "", "numkit:prepSD:size");
             }
         }
         return out;
@@ -1761,7 +1761,7 @@ void prepareCurveData_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("prepareCurveData: requires (X, Y[, W])",
-                    0, 0, "prepareCurveData", "", "m:prepCD:nargin");
+                    0, 0, "prepareCurveData", "", "numkit:prepCD:nargin");
     auto *mr = ctx.engine->resource();
     Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &w = (args.size() >= 3) ? args[2] : w_empty;
@@ -1776,7 +1776,7 @@ void prepareSurfaceData_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("prepareSurfaceData: requires (X, Y, Z)",
-                    0, 0, "prepareSurfaceData", "", "m:prepSD:nargin");
+                    0, 0, "prepareSurfaceData", "", "numkit:prepSD:nargin");
     auto [xo, yo, zo] = prepareSurfaceData(args[0], args[1], args[2], ctx.engine->resource());
     outs[0] = std::move(xo);
     if (nargout > 1) outs[1] = std::move(yo);
@@ -1788,7 +1788,7 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("ksdensity: requires (x[, pts][, N-V pairs])",
-                    0, 0, "ksdensity", "", "m:ksdensity:nargin");
+                    0, 0, "ksdensity", "", "numkit:ksdensity:nargin");
     auto *mr = ctx.engine->resource();
     Value pts = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     double bw_user = 0.0;
@@ -1817,7 +1817,7 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
                 const std::string s = lower(v.toString());
                 if (s != "normal-approx" && s != "plug-in")
                     throw Error("ksdensity: unknown Bandwidth string '" + s + "'",
-                                0, 0, "ksdensity", "", "m:ksdensity:bw");
+                                0, 0, "ksdensity", "", "numkit:ksdensity:bw");
                 bw_user = 0.0;
             } else {
                 bw_user = v.toScalar();
@@ -1831,7 +1831,7 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
                  || name == "boundarycorrection") {
             if (!v.isEmpty())
                 throw Error("ksdensity: '" + name + "' is not yet supported",
-                            0, 0, "ksdensity", "", "m:ksdensity:nyi");
+                            0, 0, "ksdensity", "", "numkit:ksdensity:nyi");
         }
         // 'PlotFcn' silently ignored (no-op headless).
         i += 2;
@@ -1847,7 +1847,7 @@ void datastats_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("datastats: requires X[, Y]",
-                    0, 0, "datastats", "", "m:datastats:nargin");
+                    0, 0, "datastats", "", "numkit:datastats:nargin");
     auto build = [&](const Value &v) {
         auto [num, mx, mn, me, md, rg, sd] =
             datastats(v, ctx.engine->resource());
@@ -1873,7 +1873,7 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("bounds: requires at least 1 argument",
-                     0, 0, "bounds", "", "m:bounds:nargin");
+                     0, 0, "bounds", "", "numkit:bounds:nargin");
     int dim = 0;
     bool flatten = false;
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -1884,7 +1884,7 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
                            [](unsigned char c){ return std::tolower(c); });
             if (s == "all") flatten = true;
             else throw Error("bounds: unknown flag '" + s + "'",
-                             0, 0, "bounds", "", "m:bounds:badFlag");
+                             0, 0, "bounds", "", "numkit:bounds:badFlag");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -1898,7 +1898,7 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error("bounds: vecdim entries out of range",
-                                0, 0, "bounds", "", "m:bounds:vecdim");
+                                0, 0, "bounds", "", "numkit:bounds:vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
@@ -1906,7 +1906,7 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
             if (!allCovered)
                 throw Error("bounds: partial vecdim reduction is not yet "
                             "supported (only full-flatten vecdim)",
-                            0, 0, "bounds", "", "m:bounds:vecdim");
+                            0, 0, "bounds", "", "numkit:bounds:vecdim");
             flatten = true;
         }
     }
@@ -1931,7 +1931,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("iqr: requires at least 1 argument",
-                     0, 0, "iqr", "", "m:iqr:nargin");
+                     0, 0, "iqr", "", "numkit:iqr:nargin");
     int dim = 0;
     bool flatten = false;
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -1942,7 +1942,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") flatten = true;
             else throw Error("iqr: unknown flag '" + s + "'",
-                              0, 0, "iqr", "", "m:iqr:badFlag");
+                              0, 0, "iqr", "", "numkit:iqr:badFlag");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -1956,7 +1956,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error("iqr: vecdim entries out of range",
-                                0, 0, "iqr", "", "m:iqr:vecdim");
+                                0, 0, "iqr", "", "numkit:iqr:vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
@@ -1964,7 +1964,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
             if (!allCovered)
                 throw Error("iqr: partial vecdim reduction is not yet "
                             "supported (only full-flatten vecdim like [1 2])",
-                            0, 0, "iqr", "", "m:iqr:vecdim");
+                            0, 0, "iqr", "", "numkit:iqr:vecdim");
             flatten = true;
         }
     }
@@ -1986,7 +1986,7 @@ void maxk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("maxk: requires at least 2 arguments (x, k)",
-                     0, 0, "maxk", "", "m:maxk:nargin");
+                     0, 0, "maxk", "", "numkit:maxk:nargin");
     const int k = static_cast<int>(args[1].toScalar());
     int dim = 0;
     // Optional positional dim (numeric scalar that's not a string).
@@ -2001,7 +2001,7 @@ void maxk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("maxk: expected Name-Value pair",
-                        0, 0, "maxk", "", "m:maxk:nv");
+                        0, 0, "maxk", "", "numkit:maxk:nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c){ return std::tolower(c); });
@@ -2011,14 +2011,14 @@ void maxk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                            [](unsigned char c){ return std::tolower(c); });
             if (m != "real" && m != "abs" && m != "auto")
                 throw Error("maxk: ComparisonMethod must be 'real', 'abs' or 'auto'",
-                            0, 0, "maxk", "", "m:maxk:cm");
+                            0, 0, "maxk", "", "numkit:maxk:cm");
             // For real input 'auto'/'real' identical; 'abs' is a parity gap.
             if (m == "abs")
                 throw Error("maxk: ComparisonMethod='abs' not yet supported",
-                            0, 0, "maxk", "", "m:maxk:cmAbs");
+                            0, 0, "maxk", "", "numkit:maxk:cmAbs");
         } else {
             throw Error("maxk: unknown Name-Value '" + name + "'",
-                        0, 0, "maxk", "", "m:maxk:nv");
+                        0, 0, "maxk", "", "numkit:maxk:nv");
         }
         i += 2;
     }
@@ -2029,7 +2029,7 @@ void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("mink: requires at least 2 arguments (x, k)",
-                     0, 0, "mink", "", "m:mink:nargin");
+                     0, 0, "mink", "", "numkit:mink:nargin");
     const int k = static_cast<int>(args[1].toScalar());
     int dim = 0;
     size_t i = 2;
@@ -2040,7 +2040,7 @@ void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mink: expected Name-Value pair",
-                        0, 0, "mink", "", "m:mink:nv");
+                        0, 0, "mink", "", "numkit:mink:nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c){ return std::tolower(c); });
@@ -2050,13 +2050,13 @@ void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                            [](unsigned char c){ return std::tolower(c); });
             if (m != "real" && m != "abs" && m != "auto")
                 throw Error("mink: ComparisonMethod must be 'real', 'abs' or 'auto'",
-                            0, 0, "mink", "", "m:mink:cm");
+                            0, 0, "mink", "", "numkit:mink:cm");
             if (m == "abs")
                 throw Error("mink: ComparisonMethod='abs' not yet supported",
-                            0, 0, "mink", "", "m:mink:cmAbs");
+                            0, 0, "mink", "", "numkit:mink:cmAbs");
         } else {
             throw Error("mink: unknown Name-Value '" + name + "'",
-                        0, 0, "mink", "", "m:mink:nv");
+                        0, 0, "mink", "", "numkit:mink:nv");
         }
         i += 2;
     }
@@ -2079,7 +2079,7 @@ void parseDimOrAll(const Value &x, Span<const Value> args, size_t pos,
                        [](unsigned char c){ return std::tolower(c); });
         if (s == "all") { flatten = true; return; }
         throw Error(std::string(fn) + ": unknown flag '" + s + "'",
-                    0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
     }
     if (a.numel() == 1) { dim = static_cast<int>(a.toScalar()); return; }
     // vecdim — full-flatten only
@@ -2090,14 +2090,14 @@ void parseDimOrAll(const Value &x, Span<const Value> args, size_t pos,
         int d = static_cast<int>(a.elemAsDouble(i));
         if (d < 1 || d > rank)
             throw Error(std::string(fn) + ": vecdim entries out of range",
-                        0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
         seen[d] = true;
     }
     bool allCovered = true;
     for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
     if (!allCovered)
         throw Error(std::string(fn) + ": partial vecdim reduction not supported",
-                    0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
     flatten = true;
 }
 
@@ -2117,7 +2117,7 @@ void mape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("mape: requires 2 arguments (F, A)",
-                     0, 0, "mape", "", "m:mape:nargin");
+                     0, 0, "mape", "", "numkit:mape:nargin");
     int dim = 0; bool flatten = false;
     parseDimOrAll(args[0], args, 2, dim, flatten, "mape");
     auto *mr = ctx.engine->resource();
@@ -2132,7 +2132,7 @@ void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("rmse: requires at least 2 arguments (F, A)",
-                     0, 0, "rmse", "", "m:rmse:nargin");
+                     0, 0, "rmse", "", "numkit:rmse:nargin");
     int dim = 0; bool flatten = false;
     parseDimOrAll(args[0], args, 2, dim, flatten, "rmse");
     auto *mr = ctx.engine->resource();
@@ -2147,7 +2147,7 @@ void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.empty())
         throw Error("ecdf: requires (y[, N-V pairs])",
-                     0, 0, "ecdf", "", "m:ecdf:nargin");
+                     0, 0, "ecdf", "", "numkit:ecdf:nargin");
     auto *mr = ctx.engine->resource();
     std::string function_mode = "cdf";
     double alpha = 0.05;
@@ -2170,7 +2170,7 @@ void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
                 throw Error("ecdf: 'Censoring' is not yet supported "
                             "(Kaplan-Meier estimator). Skip the arg or "
                             "filter censored observations beforehand.",
-                            0, 0, "ecdf", "", "m:ecdf:censoring_nyi");
+                            0, 0, "ecdf", "", "numkit:ecdf:censoring_nyi");
         }
         else if (key == "iterationlimit" || key == "tolerance"
                  || key == "icmfrequency" || key == "bounds") {
@@ -2189,7 +2189,7 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("ecdfhist: requires (f, x [, m])",
-                     0, 0, "ecdfhist", "", "m:ecdfhist:nargin");
+                     0, 0, "ecdfhist", "", "numkit:ecdfhist:nargin");
     int m = 10;
     if (args.size() >= 3 && !args[2].isEmpty())
         m = static_cast<int>(args[2].toScalar());
@@ -2205,7 +2205,7 @@ void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
     auto *mr = ctx.engine->resource();
     if (args.empty())
         throw Error("partialcorr: requires (X), (X, Z), or (X, Y, Z)",
-                    0, 0, "partialcorr", "", "m:partialcorr:nargin");
+                    0, 0, "partialcorr", "", "numkit:partialcorr:nargin");
     // Skip trailing string args (NV-pair names like 'Rows'/'Type') —
     // MATLAB's NV-pairs are accept-and-ignore here (Pearson + complete
     // rows is the only path implemented).
@@ -2220,7 +2220,7 @@ void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
         outs[0] = partialcorr_of(args[0], args[1], args[2], mr);
     } else {
         throw Error("partialcorr: too many positional arguments",
-                    0, 0, "partialcorr", "", "m:partialcorr:nargin");
+                    0, 0, "partialcorr", "", "numkit:partialcorr:nargin");
     }
 }
 
@@ -2230,7 +2230,7 @@ void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("corr: requires at least 1 argument",
-                    0, 0, "corr", "", "m:corr:nargin");
+                    0, 0, "corr", "", "numkit:corr:nargin");
     auto *mr = ctx.engine->resource();
     // Distinguish corr(X[, NV…]) from corr(X, Y[, NV…]). Y is detected
     // as the 2nd positional non-string argument.
@@ -2249,7 +2249,7 @@ void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("detrend: requires at least 1 argument",
-                    0, 0, "detrend", "", "m:detrend:nargin");
+                    0, 0, "detrend", "", "numkit:detrend:nargin");
     int order = 1;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (args[1].isChar() || args[1].isString()) {
@@ -2257,7 +2257,7 @@ void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
             if (s == "constant") order = 0;
             else if (s == "linear") order = 1;
             else throw Error("detrend: string mode must be 'constant' or 'linear'",
-                             0, 0, "detrend", "", "m:detrend:mode");
+                             0, 0, "detrend", "", "numkit:detrend:mode");
         } else {
             order = static_cast<int>(args[1].toScalar());
         }
@@ -2271,7 +2271,7 @@ void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("isoutlier: requires at least 1 argument",
-                    0, 0, "isoutlier", "", "m:isoutlier:nargin");
+                    0, 0, "isoutlier", "", "numkit:isoutlier:nargin");
     outs[0] = isoutlier_of(args[0], ctx.engine->resource());
 }
 
@@ -2279,7 +2279,7 @@ void rmoutliers_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("rmoutliers: requires at least 1 argument",
-                    0, 0, "rmoutliers", "", "m:rmoutliers:nargin");
+                    0, 0, "rmoutliers", "", "numkit:rmoutliers:nargin");
     outs[0] = rmoutliers_of(args[0], ctx.engine->resource());
 }
 
@@ -2287,10 +2287,10 @@ void fillmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 {
     if (args.size() < 2)
         throw Error("fillmissing: requires (x, method[, constant_value])",
-                    0, 0, "fillmissing", "", "m:fillmissing:nargin");
+                    0, 0, "fillmissing", "", "numkit:fillmissing:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("fillmissing: method must be a string",
-                    0, 0, "fillmissing", "", "m:fillmissing:method");
+                    0, 0, "fillmissing", "", "numkit:fillmissing:method");
     const std::string m = args[1].toString();
     const double cv = (args.size() >= 3) ? args[2].toScalar() : 0.0;
     outs[0] = fillmissing_of(args[0], m, cv, ctx.engine->resource());
@@ -2300,7 +2300,7 @@ void rmmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("rmmissing: requires at least 1 argument",
-                    0, 0, "rmmissing", "", "m:rmmissing:nargin");
+                    0, 0, "rmmissing", "", "numkit:rmmissing:nargin");
     outs[0] = rmmissing_of(args[0], ctx.engine->resource());
 }
 
@@ -2308,7 +2308,7 @@ void standardizeMissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Val
 {
     if (args.size() < 2)
         throw Error("standardizeMissing: requires (x, sentinel)",
-                    0, 0, "standardizeMissing", "", "m:standardizeMissing:nargin");
+                    0, 0, "standardizeMissing", "", "numkit:standardizeMissing:nargin");
     outs[0] = standardizeMissing_of(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -2322,7 +2322,7 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("filloutliers: requires (A, fillmethod[, findmethod][, NV])",
-                    0, 0, "filloutliers", "", "m:filloutliers:nargin");
+                    0, 0, "filloutliers", "", "numkit:filloutliers:nargin");
     std::string detect = "median";
     double tf = 3.0;
     bool tf_set = false;
@@ -2344,21 +2344,21 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
                             "(MATLAB also supports 'grubbs', 'gesd', "
                             "'movmedian', 'movmean' — deferred)",
                             0, 0, "filloutliers", "",
-                            "m:filloutliers:findmethod");
+                            "numkit:filloutliers:findmethod");
             ++i;
         }
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("filloutliers: expected name-value pair",
-                        0, 0, "filloutliers", "", "m:filloutliers:nv");
+                        0, 0, "filloutliers", "", "numkit:filloutliers:nv");
         const std::string nm = args[i].toString();
         if (nm == "ThresholdFactor" || nm == "thresholdfactor") {
             tf = args[i + 1].toScalar(); tf_set = true;
         } else {
             throw Error("filloutliers: unsupported name-value parameter '"
                         + nm + "'",
-                        0, 0, "filloutliers", "", "m:filloutliers:nv");
+                        0, 0, "filloutliers", "", "numkit:filloutliers:nv");
         }
         i += 2;
     }
@@ -2380,7 +2380,7 @@ void range_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("range: requires at least 1 argument",
-                    0, 0, "range", "", "m:range:nargin");
+                    0, 0, "range", "", "numkit:range:nargin");
     const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
     outs[0] = range_of(args[0], dim, ctx.engine->resource());
 }
@@ -2389,7 +2389,7 @@ void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("mad: requires at least 1 argument",
-                    0, 0, "mad", "", "m:mad:nargin");
+                    0, 0, "mad", "", "numkit:mad:nargin");
     const int flag = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
     const int dim  = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
     outs[0] = mad_of(args[0], flag, dim, ctx.engine->resource());
@@ -2399,7 +2399,7 @@ void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("geomean: requires at least 1 argument",
-                    0, 0, "geomean", "", "m:geomean:nargin");
+                    0, 0, "geomean", "", "numkit:geomean:nargin");
     const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
     outs[0] = geomean_of(args[0], dim, ctx.engine->resource());
 }
@@ -2408,7 +2408,7 @@ void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("harmmean: requires at least 1 argument",
-                    0, 0, "harmmean", "", "m:harmmean:nargin");
+                    0, 0, "harmmean", "", "numkit:harmmean:nargin");
     const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
     outs[0] = harmmean_of(args[0], dim, ctx.engine->resource());
 }
@@ -2417,7 +2417,7 @@ void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("moment: requires (x, order)",
-                    0, 0, "moment", "", "m:moment:nargin");
+                    0, 0, "moment", "", "numkit:moment:nargin");
     const int order = static_cast<int>(args[1].toScalar());
     const int dim   = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
     outs[0] = moment_of(args[0], order, dim, ctx.engine->resource());
@@ -2427,7 +2427,7 @@ void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("trimmean: requires (x, percent)",
-                    0, 0, "trimmean", "", "m:trimmean:nargin");
+                    0, 0, "trimmean", "", "numkit:trimmean:nargin");
     const double pct = args[1].toScalar();
     const int dim    = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
     outs[0] = trimmean_of(args[0], pct, dim, ctx.engine->resource());
@@ -2445,12 +2445,12 @@ ecdfhist(const Value &f, const Value &x, int m, std::pmr::memory_resource *mr)
 {
     if (m < 1)
         throw Error("ecdfhist: number of bins must be >= 1",
-                    0, 0, "ecdfhist", "", "m:ecdfhist:nbins");
+                    0, 0, "ecdfhist", "", "numkit:ecdfhist:nbins");
     const size_t Lf = f.numel();
     const size_t Lx = x.numel();
     if (Lf != Lx)
         throw Error("ecdfhist: f and x must have the same length",
-                    0, 0, "ecdfhist", "", "m:ecdfhist:size");
+                    0, 0, "ecdfhist", "", "numkit:ecdfhist:size");
     if (Lf < 2) {
         Value n_empty = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
         Value c_empty = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
@@ -2519,7 +2519,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &functio
     const bool has_freq = (freq && freq->numel() == n);
     if (freq && freq->numel() != 0 && freq->numel() != n)
         throw Error("ecdf: Frequency length must match data length",
-                    0, 0, "ecdf", "", "m:ecdf:freqsize");
+                    0, 0, "ecdf", "", "numkit:ecdf:freqsize");
 
     // Collect (value, weight) pairs, dropping NaNs. Sort by value.
     std::vector<std::pair<double, double>> vw;
@@ -2596,7 +2596,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &functio
         }
     } else {
         throw Error("ecdf: unknown Function mode '" + mode + "'",
-                    0, 0, "ecdf", "", "m:ecdf:badmode");
+                    0, 0, "ecdf", "", "numkit:ecdf:badmode");
     }
 
     R.f = Value::matrix(L, 1, ValueType::DOUBLE, mr);

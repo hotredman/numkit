@@ -181,12 +181,12 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("poly: input must be a 2D matrix",
-                    0, 0, "poly", "", "m:poly:notMatrix");
+                    0, 0, "poly", "", "numkit:poly:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("poly: matrix must be square (use poly(roots) for vector input)",
-                    0, 0, "poly", "", "m:poly:notSquare");
+                    0, 0, "poly", "", "numkit:poly:notSquare");
     if (n == 0) {
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = 1.0;
@@ -263,7 +263,7 @@ Value topkrows_full(const Value &A, std::size_t k,
 {
     if (A.dims().ndim() != 2)
         throw Error("topkrows: input must be a 2D matrix",
-                    0, 0, "topkrows", "", "m:topkrows:notMatrix");
+                    0, 0, "topkrows", "", "numkit:topkrows:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t kk = std::min(k, m);
@@ -286,12 +286,12 @@ Value topkrows_full(const Value &A, std::size_t k,
     } else {
         throw Error("topkrows: direction must be a scalar or match the "
                     "length of col",
-                    0, 0, "topkrows", "", "m:topkrows:dirSize");
+                    0, 0, "topkrows", "", "numkit:topkrows:dirSize");
     }
     for (std::size_t j : cols)
         if (j >= n)
             throw Error("topkrows: column index out of range",
-                        0, 0, "topkrows", "", "m:topkrows:badCol");
+                        0, 0, "topkrows", "", "numkit:topkrows:badCol");
 
     ScratchArena scratch(mr);
     ScratchVec<std::size_t> idx(m, &scratch);
@@ -387,7 +387,7 @@ Value toeplitz(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
     const std::size_t n = r.size();
     if (m == 0 || n == 0)
         throw Error("toeplitz: inputs must be non-empty",
-                    0, 0, "toeplitz", "", "m:toeplitz:empty");
+                    0, 0, "toeplitz", "", "numkit:toeplitz:empty");
     auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
     // T[i, j] = c[i-j]  (i >= j)
     //        = r[j-i]  (i <  j)
@@ -415,7 +415,7 @@ Value hankel(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
     const std::size_t n = r.size();
     if (m == 0 || n == 0)
         throw Error("hankel: inputs must be non-empty",
-                    0, 0, "hankel", "", "m:hankel:empty");
+                    0, 0, "hankel", "", "numkit:hankel:empty");
     auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
     // H[i, j] = c[i + j]                       if i + j <  m
     //         = r[i + j - m + 1]               otherwise
@@ -454,7 +454,7 @@ Value compan(const Value &pV, std::pmr::memory_resource *mr)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (p[0] == 0.0)
         throw Error("compan: leading coefficient must be non-zero",
-                    0, 0, "compan", "", "m:compan:zeroLead");
+                    0, 0, "compan", "", "numkit:compan:zeroLead");
 
     const std::size_t n = pn - 1;
     auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
@@ -561,7 +561,7 @@ Value hadamard(size_t n, std::pmr::memory_resource *mr)
     // and are deferred (see header).
     if ((n & (n - 1)) != 0)
         throw Error("hadamard: only powers of 2 are supported in this revision (12·2^k and 20·2^k via Paley are deferred)",
-                    0, 0, "hadamard", "", "m:hadamard:badN");
+                    0, 0, "hadamard", "", "numkit:hadamard:badN");
 
     auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
     // Sylvester recursion: H_1 = [1]; H_{2k} = [Hk Hk; Hk -Hk].
@@ -689,7 +689,7 @@ Value reshape(const Value &x, size_t rows, size_t cols, size_t pages, std::pmr::
     const size_t newNumel = rows * cols * (pages == 0 ? 1 : pages);
     if (newNumel != x.numel())
         throw Error("Number of elements must not change in reshape",
-                     0, 0, "reshape", "", "m:reshape:elementCountMismatch");
+                     0, 0, "reshape", "", "numkit:reshape:elementCountMismatch");
 
     DimsArg d{rows, cols, pages};
 
@@ -725,12 +725,12 @@ Value reshapeND(const Value &x, Span<const size_t> dims, std::pmr::memory_resour
     for (std::size_t i = 0; i < nDims; ++i) newNumel *= dims[i];
     if (newNumel != x.numel())
         throw Error("Number of elements must not change in reshape",
-                     0, 0, "reshape", "", "m:reshape:elementCountMismatch");
+                     0, 0, "reshape", "", "numkit:reshape:elementCountMismatch");
 
     if (x.type() == ValueType::CELL || x.type() == ValueType::STRING) {
         if (nDims > 3)
             throw Error("reshape: ND CELL/STRING (>3) not yet supported",
-                         0, 0, "reshape", "", "m:reshape:cellND");
+                         0, 0, "reshape", "", "numkit:reshape:cellND");
         // Fall through to legacy path for 2D / 3D cell.
         const size_t r = nDims > 0 ? dims[0] : 1;
         const size_t c = nDims > 1 ? dims[1] : 1;
@@ -748,7 +748,7 @@ Value transpose(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.dims().is3D())
         throw Error("transpose is not defined for N-D arrays",
-                     0, 0, "transpose", "", "m:transpose:3DInput");
+                     0, 0, "transpose", "", "numkit:transpose:3DInput");
     const size_t rows = x.dims().rows(), cols = x.dims().cols();
     auto r = Value::matrix(cols, rows, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < rows; ++i)
@@ -814,7 +814,7 @@ Value pageTransposeAny(const Value &x, bool conjugate, std::pmr::memory_resource
     case ValueType::LOGICAL: return pageTransposeT<uint8_t>(x, ValueType::LOGICAL, conjugate, mr);
     default:
         throw Error("pagetranspose: unsupported input type",
-                     0, 0, "pagetranspose", "", "m:pagetranspose:badType");
+                     0, 0, "pagetranspose", "", "numkit:pagetranspose:badType");
     }
 }
 
@@ -1099,7 +1099,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
     const int ynd = yd.ndim();
     if (xnd < 2 || ynd < 2)
         throw Error("pagemtimes: each input must have at least 2 dimensions",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:rank");
+                     0, 0, "pagemtimes", "", "numkit:pagemtimes:rank");
 
     const size_t xRowDim = xd.dim(0), xColDim = xd.dim(1);
     const size_t yRowDim = yd.dim(0), yColDim = yd.dim(1);
@@ -1110,7 +1110,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
     const size_t N  = (ty == TranspOp::None) ? yColDim : yRowDim;
     if (Kx != Ky)
         throw Error("pagemtimes: inner matrix dimensions must agree",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:innerdim");
+                     0, 0, "pagemtimes", "", "numkit:pagemtimes:innerdim");
     const size_t K = Kx;
 
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -1124,7 +1124,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
         if (xBatch[i] != yBatch[i] && xBatch[i] != 1 && yBatch[i] != 1)
             throw Error("pagemtimes: batch dimensions must broadcast "
                          "(each axis must match or be 1)",
-                         0, 0, "pagemtimes", "", "m:pagemtimes:dimagree");
+                         0, 0, "pagemtimes", "", "numkit:pagemtimes:dimagree");
         outBatch[i] = std::max(xBatch[i], yBatch[i]);
     }
 
@@ -1221,7 +1221,7 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
     };
     if (!isFloatLike(x.type()) || !isFloatLike(y.type()))
         throw Error("pagemtimes: inputs must be 'single', 'double', or complex",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:type");
+                     0, 0, "pagemtimes", "", "numkit:pagemtimes:type");
     if (x.isComplex() || y.isComplex())
         return pagemtimesImpl<Complex>(x, tx, y, ty, mr);
     if (x.type() == ValueType::SINGLE || y.type() == ValueType::SINGLE)
@@ -1300,7 +1300,7 @@ Value toDoubleMatrix2D(const Value &x, const char *fn, std::pmr::memory_resource
 {
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": input must be 2D",
-                     0, 0, fn, "", std::string("m:") + fn + ":bad2D");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":bad2D");
     const size_t R = x.dims().rows();
     const size_t C = x.dims().cols();
     if (x.type() == ValueType::DOUBLE) {
@@ -1346,7 +1346,7 @@ sortRowsImpl(const Value &x, const int *cols, std::size_t nCols, std::pmr::memor
             const int absC = (rawCol < 0) ? -rawCol : rawCol;
             if (rawCol == 0 || static_cast<size_t>(absC) > C)
                 throw Error("sortrows: column index out of range",
-                             0, 0, "sortrows", "", "m:sortrows:badCol");
+                             0, 0, "sortrows", "", "numkit:sortrows:badCol");
         }
     }
 
@@ -1483,7 +1483,7 @@ void forEachNonzero(const Value &x, Visit visit)
     }
     default:
         throw Error("nnz/nonzeros: unsupported element type",
-                     0, 0, "nnz", "", "m:nnz:badType");
+                     0, 0, "nnz", "", "numkit:nnz:badType");
     }
 }
 
@@ -1590,7 +1590,7 @@ Value nonzeros(const Value &x, std::pmr::memory_resource *mr)
     }
     default:
         throw Error("nonzeros: unsupported element type",
-                     0, 0, "nonzeros", "", "m:nonzeros:badType");
+                     0, 0, "nonzeros", "", "numkit:nonzeros:badType");
     }
 }
 
@@ -1724,7 +1724,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
         constexpr int kMaxNd = Dims::kMaxRank;
         if (dd.ndim() > kMaxNd)
             throw Error("cumsum: rank exceeds 32",
-                         0, 0, "cumsum", "", "m:cumsum:tooManyDims");
+                         0, 0, "cumsum", "", "numkit:cumsum:tooManyDims");
         size_t outDims[kMaxNd];
         for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
         auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, mr);
@@ -1916,7 +1916,7 @@ Value cumScanDispatch(const Value &x, int dim, ScanFn scan, Op scalarOp, const c
         constexpr int kMaxNd = Dims::kMaxRank;
         if (dd.ndim() > kMaxNd)
             throw Error(std::string(fn) + ": rank exceeds 32",
-                         0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
         size_t outDims[kMaxNd];
         for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
         auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, mr);
@@ -2043,7 +2043,7 @@ Value makeDiffOutput(const Dims &srcDims, int d, size_t step, std::pmr::memory_r
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error("diff: rank exceeds 32",
-                     0, 0, "diff", "", "m:diff:tooManyDims");
+                     0, 0, "diff", "", "numkit:diff:tooManyDims");
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = srcDims.dim(i);
     outDims[d - 1] = (outDims[d - 1] >= step) ? outDims[d - 1] - step : 0;
@@ -2075,7 +2075,7 @@ Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (n < 0)
         throw Error("diff: order n must be non-negative",
-                     0, 0, "diff", "", "m:diff:badOrder");
+                     0, 0, "diff", "", "numkit:diff:badOrder");
 
     if (n == 0) {
         // Identity copy preserving DOUBLE shape.
@@ -2185,7 +2185,7 @@ namespace { inline void fillOnes(Value &v, ValueType t)
       case ValueType::UINT32:  { auto *p = v.uint32DataMut();  std::fill(p, p + n, uint32_t(1)); break; }
       case ValueType::UINT64:  { auto *p = v.uint64DataMut();  std::fill(p, p + n, uint64_t(1)); break; }
       default: throw Error("ones: unsupported type for fill",
-                           0, 0, "ones", "", "m:ones:badType");
+                           0, 0, "ones", "", "numkit:ones:badType");
     }
 }}
 
@@ -2218,7 +2218,7 @@ namespace { ValueType colonOutType(const Value *ops, size_t n)
         else if (t != nonDouble)
             throw Error("colon: operands must be all the same type, "
                         "or mixed with real scalar doubles",
-                        0, 0, "colon", "", "m:colon:typeMix");
+                        0, 0, "colon", "", "numkit:colon:typeMix");
     }
     return nonDouble;
 }}
@@ -2237,7 +2237,7 @@ void colon_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
                                           args[2].toScalar(), t, mr);
     } else {
         throw Error("colon: requires 2 or 3 arguments",
-                    0, 0, "colon", "", "m:colon:nargin");
+                    0, 0, "colon", "", "numkit:colon:nargin");
     }
 }
 
@@ -2267,7 +2267,7 @@ void sparse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     throw Error("sparse: numkit has no sparse storage; supports only "
                 "sparse(M, N) → dense zeros and sparse(A) → A passthrough",
-                0, 0, "sparse", "", "m:sparse:NoSparse");
+                0, 0, "sparse", "", "numkit:sparse:NoSparse");
 }
 
 // `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions (not
@@ -2297,7 +2297,7 @@ void nan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("nan: type must be 'double' or 'single' (NaN is float-only)",
-                    0, 0, "nan", "", "m:nan:badType");
+                    0, 0, "nan", "", "numkit:nan:badType");
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
@@ -2318,7 +2318,7 @@ void inf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("inf: type must be 'double' or 'single' (Inf is float-only)",
-                    0, 0, "inf", "", "m:inf:badType");
+                    0, 0, "inf", "", "numkit:inf:badType");
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
@@ -2387,7 +2387,7 @@ void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
       case ValueType::UINT16: { auto *p = m.uint16DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
       case ValueType::UINT32: { auto *p = m.uint32DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
       case ValueType::UINT64: { auto *p = m.uint64DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
-      default: throw Error("eye: unsupported type", 0, 0, "eye", "", "m:eye:badType");
+      default: throw Error("eye: unsupported type", 0, 0, "eye", "", "numkit:eye:badType");
     }
     outs[0] = std::move(m);
 }
@@ -2396,11 +2396,11 @@ void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() != 1)
         throw Error("magic: requires exactly 1 argument",
-                     0, 0, "magic", "", "m:magic:nargin");
+                     0, 0, "magic", "", "numkit:magic:nargin");
     const double nd = args[0].toScalar();
     if (nd < 0.0 || nd != std::floor(nd))
         throw Error("magic: N must be a non-negative integer",
-                     0, 0, "magic", "", "m:magic:badN");
+                     0, 0, "magic", "", "numkit:magic:badN");
     outs[0] = magic(static_cast<size_t>(nd), ctx.engine->resource());
 }
 
@@ -2408,7 +2408,7 @@ void toeplitz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("toeplitz: requires 1 or 2 arguments",
-                    0, 0, "toeplitz", "", "m:toeplitz:nargin");
+                    0, 0, "toeplitz", "", "numkit:toeplitz:nargin");
     const Value &r = args.size() == 2 ? args[1] : Value::Empty;
     outs[0] = toeplitz(args[0], r, ctx.engine->resource());
 }
@@ -2417,7 +2417,7 @@ void hankel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("hankel: requires 1 or 2 arguments",
-                    0, 0, "hankel", "", "m:hankel:nargin");
+                    0, 0, "hankel", "", "numkit:hankel:nargin");
     const Value &r = args.size() == 2 ? args[1] : Value::Empty;
     outs[0] = hankel(args[0], r, ctx.engine->resource());
 }
@@ -2426,7 +2426,7 @@ void vander_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() != 1)
         throw Error("vander: requires exactly 1 argument",
-                    0, 0, "vander", "", "m:vander:nargin");
+                    0, 0, "vander", "", "numkit:vander:nargin");
     outs[0] = vander(args[0], ctx.engine->resource());
 }
 
@@ -2434,7 +2434,7 @@ void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() != 1)
         throw Error("compan: requires exactly 1 argument",
-                    0, 0, "compan", "", "m:compan:nargin");
+                    0, 0, "compan", "", "numkit:compan:nargin");
     outs[0] = compan(args[0], ctx.engine->resource());
 }
 
@@ -2446,11 +2446,11 @@ size_t requireSizeArg(Span<const Value> args, const char *fn)
 {
     if (args.size() != 1)
         throw Error(std::string(fn) + ": requires exactly 1 argument",
-                    0, 0, fn, "", std::string("m:") + fn + ":nargin");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
     const double nd = args[0].toScalar();
     if (nd < 0.0 || nd != std::floor(nd))
         throw Error(std::string(fn) + ": N must be a non-negative integer",
-                    0, 0, fn, "", std::string("m:") + fn + ":badN");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badN");
     return static_cast<size_t>(nd);
 }
 
@@ -2485,7 +2485,7 @@ void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (!args.empty())
         throw Error("rosser: takes no arguments",
-                    0, 0, "rosser", "", "m:rosser:nargin");
+                    0, 0, "rosser", "", "numkit:rosser:nargin");
     outs[0] = rosser(ctx.engine->resource());
 }
 
@@ -2509,11 +2509,11 @@ void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("topkrows: requires (A, k[, col[, direction]])",
-                    0, 0, "topkrows", "", "m:topkrows:nargin");
+                    0, 0, "topkrows", "", "numkit:topkrows:nargin");
     const double kd = args[1].toScalar();
     if (kd < 0.0 || kd != std::floor(kd))
         throw Error("topkrows: k must be a non-negative integer",
-                    0, 0, "topkrows", "", "m:topkrows:badK");
+                    0, 0, "topkrows", "", "numkit:topkrows:badK");
     auto *mr = ctx.engine->resource();
 
     // Parse `col` (positive int / vector) and `direction` (string /
@@ -2531,7 +2531,7 @@ void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
             if (v < 1.0 || v != std::floor(v))
                 throw Error("topkrows: col must be a positive integer "
                             "or vector of positive integers",
-                            0, 0, "topkrows", "", "m:topkrows:badCol");
+                            0, 0, "topkrows", "", "numkit:topkrows:badCol");
             cols.push_back(static_cast<std::size_t>(v) - 1);
         }
         ++i;
@@ -2547,7 +2547,7 @@ void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
             else
                 throw Error("topkrows: direction must be 'ascend' or "
                             "'descend'",
-                            0, 0, "topkrows", "", "m:topkrows:badDir");
+                            0, 0, "topkrows", "", "numkit:topkrows:badDir");
             ++i;
         }
     }
@@ -2556,7 +2556,7 @@ void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         const std::string nm = args[i].toString();
         if (nm == "ComparisonMethod") { i += 2; continue; }
         throw Error("topkrows: unexpected argument '" + nm + "'",
-                    0, 0, "topkrows", "", "m:topkrows:badArg");
+                    0, 0, "topkrows", "", "numkit:topkrows:badArg");
     }
 
     std::vector<std::size_t> idx_out;
@@ -2577,7 +2577,7 @@ void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.empty())
         throw Error("Not enough input arguments",
-                     0, 0, "size", "", "m:size:nargin");
+                     0, 0, "size", "", "numkit:size:nargin");
     auto *mr = ctx.engine->resource();
 
     if (args.size() >= 2) {
@@ -2615,7 +2615,7 @@ void length_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("length: requires 1 argument",
-                     0, 0, "length", "", "m:length:nargin");
+                     0, 0, "length", "", "numkit:length:nargin");
     outs[0] = length(args[0], ctx.engine->resource());
 }
 
@@ -2623,7 +2623,7 @@ void numel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("numel: requires 1 argument",
-                     0, 0, "numel", "", "m:numel:nargin");
+                     0, 0, "numel", "", "numkit:numel:nargin");
     outs[0] = numel(args[0], ctx.engine->resource());
 }
 
@@ -2631,7 +2631,7 @@ void ndims_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("ndims: requires 1 argument",
-                     0, 0, "ndims", "", "m:ndims:nargin");
+                     0, 0, "ndims", "", "numkit:ndims:nargin");
     outs[0] = ndims(args[0], ctx.engine->resource());
 }
 
@@ -2639,7 +2639,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("reshape: requires at least 2 arguments",
-                     0, 0, "reshape", "", "m:reshape:nargin");
+                     0, 0, "reshape", "", "numkit:reshape:nargin");
 
     const auto &x = args[0];
     auto *mr = ctx.engine->resource();
@@ -2660,7 +2660,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
             if (args[i + 1].isEmpty()) {
                 if (inferPos >= 0)
                     throw Error("reshape: only one dimension may be inferred via []",
-                                 0, 0, "reshape", "", "m:reshape:tooManyInferred");
+                                 0, 0, "reshape", "", "numkit:reshape:tooManyInferred");
                 inferPos = static_cast<int>(i);
             } else {
                 dims[i] = static_cast<size_t>(args[i + 1].toScalar());
@@ -2670,7 +2670,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         if (inferPos >= 0) {
             if (knownProd == 0 || x.numel() % knownProd != 0)
                 throw Error("reshape: size of array must be divisible by product of known dims",
-                             0, 0, "reshape", "", "m:reshape:indivisible");
+                             0, 0, "reshape", "", "numkit:reshape:indivisible");
             dims[inferPos] = x.numel() / knownProd;
         }
     }
@@ -2684,7 +2684,7 @@ void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("transpose: requires 1 argument",
-                     0, 0, "transpose", "", "m:transpose:nargin");
+                     0, 0, "transpose", "", "numkit:transpose:nargin");
     outs[0] = transpose(args[0], ctx.engine->resource());
 }
 
@@ -2693,7 +2693,7 @@ void pagetranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("pagetranspose: requires 1 argument",
-                     0, 0, "pagetranspose", "", "m:pagetranspose:nargin");
+                     0, 0, "pagetranspose", "", "numkit:pagetranspose:nargin");
     outs[0] = pagetranspose(args[0], ctx.engine->resource());
 }
 
@@ -2702,7 +2702,7 @@ void pagectranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("pagectranspose: requires 1 argument",
-                     0, 0, "pagectranspose", "", "m:pagectranspose:nargin");
+                     0, 0, "pagectranspose", "", "numkit:pagectranspose:nargin");
     outs[0] = pagectranspose(args[0], ctx.engine->resource());
 }
 
@@ -2714,7 +2714,7 @@ void peaks_reg(Span<const Value> args, size_t, Span<Value> outs,
         const double dn = args[0].toScalar();
         if (dn < 0 || dn > 1.0e9 || std::isnan(dn))
             throw Error("peaks: n must be a non-negative integer",
-                         0, 0, "peaks", "", "m:peaks:badN");
+                         0, 0, "peaks", "", "numkit:peaks:badN");
         n = static_cast<size_t>(dn);
     }
     outs[0] = peaks(n, ctx.engine->resource());
@@ -2766,7 +2766,7 @@ void ellipsoid_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 6)
         throw Error("ellipsoid: requires (xc, yc, zc, xr, yr, zr [, n])",
-                     0, 0, "ellipsoid", "", "m:ellipsoid:nargin");
+                     0, 0, "ellipsoid", "", "numkit:ellipsoid:nargin");
     const double xc = args[0].toScalar();
     const double yc = args[1].toScalar();
     const double zc = args[2].toScalar();
@@ -2786,14 +2786,14 @@ void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     auto parseFlag = [](const Value &v) -> TranspOp {
         if (!v.isChar() && !v.isString())
             throw Error("pagemtimes: transpose flag must be a string",
-                         0, 0, "pagemtimes", "", "m:pagemtimes:flagType");
+                         0, 0, "pagemtimes", "", "numkit:pagemtimes:flagType");
         const std::string s = v.toString();
         if (s == "none")       return TranspOp::None;
         if (s == "transpose")  return TranspOp::Transpose;
         if (s == "ctranspose") return TranspOp::CTranspose;
         throw Error("pagemtimes: invalid transpose flag '" + s
                      + "' (expected 'none', 'transpose', or 'ctranspose')",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:invalidFlag");
+                     0, 0, "pagemtimes", "", "numkit:pagemtimes:invalidFlag");
     };
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
@@ -2805,14 +2805,14 @@ void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         return;
     }
     throw Error("pagemtimes: expected 2 or 4 arguments",
-                 0, 0, "pagemtimes", "", "m:pagemtimes:nargin");
+                 0, 0, "pagemtimes", "", "numkit:pagemtimes:nargin");
 }
 
 void diag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("diag: requires 1 argument",
-                     0, 0, "diag", "", "m:diag:nargin");
+                     0, 0, "diag", "", "numkit:diag:nargin");
     outs[0] = diag(args[0], ctx.engine->resource());
 }
 
@@ -2820,7 +2820,7 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.empty())
         throw Error("sort: requires 1 argument",
-                     0, 0, "sort", "", "m:sort:nargin");
+                     0, 0, "sort", "", "numkit:sort:nargin");
     auto [sorted, idx] = sort(args[0], ctx.engine->resource());
     outs[0] = std::move(sorted);
     if (nargout > 1)
@@ -2831,7 +2831,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("sortrows: requires at least 1 argument",
-                     0, 0, "sortrows", "", "m:sortrows:nargin");
+                     0, 0, "sortrows", "", "numkit:sortrows:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto cols = ScratchVec<int>(&scratch);
@@ -2839,13 +2839,13 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         const auto &c = args[1];
         if (c.type() == ValueType::CHAR || c.type() == ValueType::STRING)
             throw Error("sortrows: column spec must be numeric",
-                         0, 0, "sortrows", "", "m:sortrows:badColType");
+                         0, 0, "sortrows", "", "numkit:sortrows:badColType");
         cols.reserve(c.numel());
         for (size_t i = 0; i < c.numel(); ++i) {
             const double v = c.elemAsDouble(i);
             if (v != std::floor(v))
                 throw Error("sortrows: column index must be an integer",
-                             0, 0, "sortrows", "", "m:sortrows:badCol");
+                             0, 0, "sortrows", "", "numkit:sortrows:badCol");
             cols.push_back(static_cast<int>(v));
         }
     }
@@ -2859,7 +2859,7 @@ void find_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("find: requires 1 argument",
-                     0, 0, "find", "", "m:find:nargin");
+                     0, 0, "find", "", "numkit:find:nargin");
     outs[0] = find(args[0], ctx.engine->resource());
 }
 
@@ -2867,7 +2867,7 @@ void nnz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("nnz: requires 1 argument",
-                     0, 0, "nnz", "", "m:nnz:nargin");
+                     0, 0, "nnz", "", "numkit:nnz:nargin");
     outs[0] = nnz(args[0], ctx.engine->resource());
 }
 
@@ -2875,7 +2875,7 @@ void nonzeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("nonzeros: requires 1 argument",
-                     0, 0, "nonzeros", "", "m:nonzeros:nargin");
+                     0, 0, "nonzeros", "", "numkit:nonzeros:nargin");
     outs[0] = nonzeros(args[0], ctx.engine->resource());
 }
 
@@ -2893,7 +2893,7 @@ void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("meshgrid: requires at least 1 argument",
-                     0, 0, "meshgrid", "", "m:meshgrid:nargin");
+                     0, 0, "meshgrid", "", "numkit:meshgrid:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         // meshgrid(x) ≡ meshgrid(x, x). See BUGS.md #21.
@@ -2916,14 +2916,14 @@ void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         return;
     }
     throw Error("meshgrid: 4+ inputs are not supported",
-                 0, 0, "meshgrid", "", "m:meshgrid:tooManyInputs");
+                 0, 0, "meshgrid", "", "numkit:meshgrid:tooManyInputs");
 }
 
 void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("ndgrid: requires at least 2 arguments",
-                     0, 0, "ndgrid", "", "m:ndgrid:nargin");
+                     0, 0, "ndgrid", "", "numkit:ndgrid:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
         auto [X, Y] = ndgrid(args[0], args[1], mr);
@@ -2939,7 +2939,7 @@ void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         return;
     }
     throw Error("ndgrid: 4+ inputs are not yet supported",
-                 0, 0, "ndgrid", "", "m:ndgrid:tooManyInputs");
+                 0, 0, "ndgrid", "", "numkit:ndgrid:tooManyInputs");
 }
 
 // NOTE: kron_reg migrated to libs/linalg/src/vector_ops.cpp.
@@ -2948,7 +2948,7 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("cumsum: requires at least 1 argument",
-                     0, 0, "cumsum", "", "m:cumsum:nargin");
+                     0, 0, "cumsum", "", "numkit:cumsum:nargin");
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         dim = static_cast<int>(args[1].toScalar());
@@ -2962,7 +2962,7 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         int dim = 0;                                                           \
         if (args.size() >= 2 && !args[1].isEmpty())                            \
             dim = static_cast<int>(args[1].toScalar());                        \
@@ -2992,7 +2992,7 @@ void parseCumDirNan(Span<const Value> args, size_t start,
     while (i < args.size()) {
         if (!(args[i].isChar() || args[i].isString())) {
             throw Error("cummax/cummin: trailing positional must be a string flag",
-                        0, 0, "cummax/cummin", "", "m:cum:badArg");
+                        0, 0, "cummax/cummin", "", "numkit:cum:badArg");
         }
         std::string s = args[i].toString();
         for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -3002,7 +3002,7 @@ void parseCumDirNan(Span<const Value> args, size_t start,
         else if (s == "includenan") include_nan = true;
         else
             throw Error("cummax/cummin: unknown flag '" + s + "'",
-                        0, 0, "cummax/cummin", "", "m:cum:flag");
+                        0, 0, "cummax/cummin", "", "numkit:cum:flag");
         ++i;
     }
 }
@@ -3075,7 +3075,7 @@ void cummax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("cummax: requires at least 1 argument",
-                     0, 0, "cummax", "", "m:cummax:nargin");
+                     0, 0, "cummax", "", "numkit:cummax:nargin");
     outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
                                   return cummax(v, d, mr);
                               }, ctx.engine->resource());
@@ -3085,7 +3085,7 @@ void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("cummin: requires at least 1 argument",
-                     0, 0, "cummin", "", "m:cummin:nargin");
+                     0, 0, "cummin", "", "numkit:cummin:nargin");
     outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
                                   return cummin(v, d, mr);
                               }, ctx.engine->resource());
@@ -3095,14 +3095,14 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("diff: requires at least 1 argument",
-                     0, 0, "diff", "", "m:diff:nargin");
+                     0, 0, "diff", "", "numkit:diff:nargin");
     int n = 1;
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double nv = args[1].toScalar();
         if (nv != std::floor(nv) || nv < 0)
             throw Error("diff: order n must be a non-negative integer",
-                         0, 0, "diff", "", "m:diff:badOrder");
+                         0, 0, "diff", "", "numkit:diff:badOrder");
         n = static_cast<int>(nv);
     }
     if (args.size() >= 3 && !args[2].isEmpty())
@@ -3118,7 +3118,7 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         int dim = 0;                                                           \
         if (args.size() >= 2 && !args[1].isEmpty())                            \
             dim = static_cast<int>(args[1].toScalar());                        \
@@ -3134,7 +3134,7 @@ void xor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("xor: requires 2 arguments",
-                     0, 0, "xor", "", "m:xor:nargin");
+                     0, 0, "xor", "", "numkit:xor:nargin");
     outs[0] = xorOf(args[0], args[1], ctx.engine->resource());
 }
 

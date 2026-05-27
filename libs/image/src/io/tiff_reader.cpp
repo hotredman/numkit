@@ -54,7 +54,7 @@ struct ByteReader {
     void check(std::size_t off, std::size_t n, const char *what) const {
         if (off > size || off + n > size)
             throw Error(std::string("tiff: out-of-bounds read ") + what,
-                        0, 0, "imread", "", "m:imread:tiffEOF");
+                        0, 0, "imread", "", "numkit:imread:tiffEOF");
     }
 
     std::uint16_t u16(std::size_t off) const {
@@ -112,7 +112,7 @@ readEntryValues(const ByteReader &br, std::uint16_t type,
 {
     if (type == 0 || type > 12)
         throw Error("tiff: unknown tag type " + std::to_string(type),
-                    0, 0, "imread", "", "m:imread:tiffType");
+                    0, 0, "imread", "", "numkit:imread:tiffType");
     const std::size_t w = kTypeWidth[type];
     const std::size_t total = w * static_cast<std::size_t>(count);
     // If total ≤ 4 bytes, the value is packed into the entry's
@@ -216,14 +216,14 @@ decodeStrips(const ByteReader &br, const TiffImage &img)
     if (img.compression != 1)
         throw Error("tiff: compression " + std::to_string(img.compression)
                     + " not supported in this revision (only uncompressed)",
-                    0, 0, "imread", "", "m:imread:tiffCompression");
+                    0, 0, "imread", "", "numkit:imread:tiffCompression");
     if (img.planarConfig != 1)
         throw Error("tiff: PlanarConfiguration=2 (planar) not supported",
-                    0, 0, "imread", "", "m:imread:tiffPlanar");
+                    0, 0, "imread", "", "numkit:imread:tiffPlanar");
     if (img.stripOffsets.empty() || img.stripByteCounts.empty()
         || img.stripOffsets.size() != img.stripByteCounts.size())
         throw Error("tiff: malformed StripOffsets / StripByteCounts",
-                    0, 0, "imread", "", "m:imread:tiffStrips");
+                    0, 0, "imread", "", "numkit:imread:tiffStrips");
 
     const std::size_t bytesPerSample = img.bitsPerSample / 8;
     const std::size_t expected = static_cast<std::size_t>(img.width)
@@ -240,7 +240,7 @@ decodeStrips(const ByteReader &br, const TiffImage &img)
     }
     if (raw.size() < expected)
         throw Error("tiff: strip data truncated", 0, 0, "imread", "",
-                    "m:imread:tiffTruncated");
+                    "numkit:imread:tiffTruncated");
     raw.resize(expected);
     return raw;
 }
@@ -263,7 +263,7 @@ Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
     } else {
         throw Error("tiff: BitsPerSample " + std::to_string(img.bitsPerSample)
                     + " not supported in this revision (8 or 16 only)",
-                    0, 0, "imread", "", "m:imread:tiffBits");
+                    0, 0, "imread", "", "numkit:imread:tiffBits");
     }
 
     Value out;
@@ -274,7 +274,7 @@ Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
     } else {
         throw Error("tiff: SamplesPerPixel " + std::to_string(S)
                     + " not supported (must be 1, 3, or 4)",
-                    0, 0, "imread", "", "m:imread:tiffSamples");
+                    0, 0, "imread", "", "numkit:imread:tiffSamples");
     }
 
     // For each output pixel (r, c, s) we look up TIFF (r, c, s) row-major.
@@ -327,18 +327,18 @@ Value readTiff(const std::string &path, std::pmr::memory_resource *mr)
     std::ifstream f(path, std::ios::binary);
     if (!f)
         throw Error("imread: cannot open '" + path + "'",
-                    0, 0, "imread", "", "m:imread:open");
+                    0, 0, "imread", "", "numkit:imread:open");
     f.seekg(0, std::ios::end);
     const std::streamoff sz = f.tellg();
     f.seekg(0, std::ios::beg);
     if (sz < 8)
         throw Error("imread: file too small for TIFF header",
-                    0, 0, "imread", "", "m:imread:tiffShort");
+                    0, 0, "imread", "", "numkit:imread:tiffShort");
     std::vector<std::uint8_t> buf(static_cast<std::size_t>(sz));
     f.read(reinterpret_cast<char *>(buf.data()), sz);
     if (!f)
         throw Error("imread: read failed for '" + path + "'",
-                    0, 0, "imread", "", "m:imread:read");
+                    0, 0, "imread", "", "numkit:imread:read");
 
     // Byte order: 'II' little-endian, 'MM' big-endian.
     bool be;
@@ -346,28 +346,28 @@ Value readTiff(const std::string &path, std::pmr::memory_resource *mr)
     else if (buf[0] == 'M' && buf[1] == 'M') be = true;
     else
         throw Error("imread: '" + path + "' is not a TIFF (bad byte-order mark)",
-                    0, 0, "imread", "", "m:imread:tiffMagic");
+                    0, 0, "imread", "", "numkit:imread:tiffMagic");
 
     ByteReader br{buf.data(), buf.size(), be};
 
     // Magic 42 + first IFD offset.
     if (br.u16(2) != 42)
         throw Error("imread: bad TIFF magic", 0, 0, "imread", "",
-                    "m:imread:tiffMagic");
+                    "numkit:imread:tiffMagic");
     const std::uint32_t ifd0 = br.u32(4);
     if (ifd0 == 0 || ifd0 + 2 > buf.size())
         throw Error("imread: bad first-IFD offset", 0, 0, "imread", "",
-                    "m:imread:tiffIFD");
+                    "numkit:imread:tiffIFD");
 
     TiffImage img = parseFirstIFD(br, ifd0);
     if (img.width == 0 || img.height == 0)
         throw Error("imread: TIFF has zero width or height",
-                    0, 0, "imread", "", "m:imread:tiffShape");
+                    0, 0, "imread", "", "numkit:imread:tiffShape");
     if (img.photometric != 1 && img.photometric != 2)
         throw Error("tiff: PhotometricInterpretation "
                     + std::to_string(img.photometric)
                     + " not supported (only 1=BlackIsZero or 2=RGB)",
-                    0, 0, "imread", "", "m:imread:tiffPhotometric");
+                    0, 0, "imread", "", "numkit:imread:tiffPhotometric");
 
     auto raw = decodeStrips(br, img);
     return rowMajorToValue(raw, img, mr);
@@ -381,13 +381,13 @@ void peekTiff(const std::string &path, std::uint32_t &W, std::uint32_t &H,
     std::ifstream f(path, std::ios::binary);
     if (!f)
         throw Error("imfinfo: cannot open '" + path + "'",
-                    0, 0, "imfinfo", "", "m:imfinfo:open");
+                    0, 0, "imfinfo", "", "numkit:imfinfo:open");
     f.seekg(0, std::ios::end);
     const std::streamoff sz = f.tellg();
     f.seekg(0, std::ios::beg);
     if (sz < 8)
         throw Error("imfinfo: file too small for TIFF header",
-                    0, 0, "imfinfo", "", "m:imfinfo:tiffShort");
+                    0, 0, "imfinfo", "", "numkit:imfinfo:tiffShort");
     std::vector<std::uint8_t> buf(static_cast<std::size_t>(sz));
     f.read(reinterpret_cast<char *>(buf.data()), sz);
 
@@ -396,12 +396,12 @@ void peekTiff(const std::string &path, std::uint32_t &W, std::uint32_t &H,
     else if (buf[0] == 'M' && buf[1] == 'M') be = true;
     else
         throw Error("imfinfo: not a TIFF", 0, 0, "imfinfo", "",
-                    "m:imfinfo:tiffMagic");
+                    "numkit:imfinfo:tiffMagic");
 
     ByteReader br{buf.data(), buf.size(), be};
     if (br.u16(2) != 42)
         throw Error("imfinfo: bad TIFF magic", 0, 0, "imfinfo", "",
-                    "m:imfinfo:tiffMagic");
+                    "numkit:imfinfo:tiffMagic");
     TiffImage img = parseFirstIFD(br, br.u32(4));
     W        = img.width;
     H        = img.height;

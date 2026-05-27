@@ -56,7 +56,7 @@ void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
@@ -245,7 +245,7 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("median: complex inputs are not supported (no defined ordering)",
-                     0, 0, "median", "", "m:median:complex");
+                     0, 0, "median", "", "numkit:median:complex");
     const int d = resolveDim(x, dim, "median");
     Value r = applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
@@ -319,7 +319,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
 {
     if (p.numel() == 0)
         throw Error(std::string(fn) + ": p must be non-empty",
-                     0, 0, fn, "", std::string("m:") + fn + ":emptyP");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":emptyP");
 
     ScratchArena scratch(mr);
 
@@ -330,7 +330,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
             throw Error(std::string(fn) + ": probabilities out of range",
-                         0, 0, fn, "", std::string("m:") + fn + ":badProb");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":badProb");
     }
 
     const size_t k = probs.size();
@@ -700,10 +700,10 @@ dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char 
     case ValueType::CHAR:    return run(char    {}, ValueType::CHAR);
     case ValueType::COMPLEX:
         throw Error(std::string(fn) + ": not defined for complex inputs",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     default:
         throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("m:") + fn + ":type");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
     }
 }
 
@@ -727,17 +727,17 @@ void validateCovInputs(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": only vector and 2D matrix inputs are supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":rank");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":rank");
 }
 
 void validateNormFlagCov(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
 // Build an n×p column-major DOUBLE buffer from x. Vector input is
@@ -831,10 +831,10 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
     validateCovInputs(y, "cov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("cov: two-input form requires vector arguments",
-                     0, 0, "cov", "", "m:cov:notVector");
+                     0, 0, "cov", "", "numkit:cov:notVector");
     if (x.numel() != y.numel())
         throw Error("cov: x and y must have the same length",
-                     0, 0, "cov", "", "m:cov:lengthMismatch");
+                     0, 0, "cov", "", "numkit:cov:lengthMismatch");
     const std::size_t n = x.numel();
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);
@@ -857,7 +857,7 @@ Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error("corrcoef: covariance matrix must be square",
-                     0, 0, "corrcoef", "", "m:corrcoef:internal");
+                     0, 0, "corrcoef", "", "numkit:corrcoef:internal");
     const std::size_t p = C.dims().rows();
     auto R = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return R;
@@ -945,7 +945,7 @@ inline void rejectComplexOmitNan(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": 'omitnan' for complex input is not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":complexOmitNan");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complexOmitNan");
 }
 
 } // namespace
@@ -969,7 +969,7 @@ double weightedVarFlat(const double *x, const double *w, size_t n,
         if (omitNan && std::isnan(xi)) continue;
         if (wi < 0.0)
             throw Error("var/std: weights must be non-negative",
-                        0, 0, "var/std", "", "m:varstd:negWeight");
+                        0, 0, "var/std", "", "numkit:varstd:negWeight");
         sw  += wi;
         sxw += wi * xi;
     }
@@ -1045,7 +1045,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (normFlag != 0 && normFlag != 1)
                 throw Error(std::string(fn) + ": w must be 0 or 1, or a "
                             "weight vector",
-                            0, 0, fn, "", std::string("m:") + fn + ":w");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":w");
         } else {
             isWeightVec = true;
             wVec = &args[1];
@@ -1062,7 +1062,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") flattenAll = true;
             else throw Error(std::string(fn) + ": unknown dim flag '" + s + "'",
-                              0, 0, fn, "", std::string("m:") + fn + ":dim");
+                              0, 0, fn, "", std::string("numkit:") + fn + ":dim");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -1076,7 +1076,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(std::string(fn) + ": vecdim entries out of range",
-                                0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
@@ -1084,7 +1084,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (!allCovered)
                 throw Error(std::string(fn) + ": partial vecdim reduction is "
                             "not yet supported (only full-flatten vecdim)",
-                            0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
             flattenAll = true;
         }
     }
@@ -1098,7 +1098,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (xv.size() != wv.size())
                 throw Error(std::string(fn) + ": weight vector length must "
                             "match number of elements",
-                            0, 0, fn, "", std::string("m:") + fn + ":wlen");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":wlen");
             const double v = weightedVarFlat(xv.data(), wv.data(),
                                              xv.size(), sqrtIt, omitNan);
             return Value::scalar(v, mr);
@@ -1106,7 +1106,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         // For matrix + weight + dim: defer (out of scope this cycle).
         throw Error(std::string(fn) + ": weight vector with non-flat dim "
                     "not yet supported",
-                    0, 0, fn, "", std::string("m:") + fn + ":wDim");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":wDim");
     }
 
     // ── Flatten 'all' / vecdim path ───────────────────────────────────
@@ -1137,7 +1137,7 @@ void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("var: requires at least 1 argument",
-                     0, 0, "var", "", "m:var:nargin");
+                     0, 0, "var", "", "numkit:var:nargin");
     outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->resource());
 }
 
@@ -1146,7 +1146,7 @@ void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("std: requires at least 1 argument",
-                     0, 0, "std", "", "m:std:nargin");
+                     0, 0, "std", "", "numkit:std:nargin");
     outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->resource());
 }
 
@@ -1155,7 +1155,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("median: requires at least 1 argument",
-                     0, 0, "median", "", "m:median:nargin");
+                     0, 0, "median", "", "numkit:median:nargin");
     bool omitNan = false;
     size_t n = stripNanFlag(args, omitNan, "median");
     int dim = 0;
@@ -1168,7 +1168,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") isAll = true;
             else throw Error("median: unknown flag '" + s + "'",
-                              0, 0, "median", "", "m:median:badFlag");
+                              0, 0, "median", "", "numkit:median:badFlag");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -1180,14 +1180,14 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 int d = static_cast<int>(a.elemAsDouble(i));
                 if (d < 1 || d > rank)
                     throw Error("median: vecdim entries out of range",
-                                0, 0, "median", "", "m:median:vecdim");
+                                0, 0, "median", "", "numkit:median:vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
             for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
             if (!allCovered)
                 throw Error("median: partial vecdim reduction not supported",
-                            0, 0, "median", "", "m:median:vecdim");
+                            0, 0, "median", "", "numkit:median:vecdim");
             isAll = true;
         }
     }
@@ -1195,7 +1195,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         // 'all' → flatten + median over all elements (skipping NaN if omitnan).
         if (args[0].type() == ValueType::COMPLEX)
             throw Error("median: complex inputs are not supported",
-                         0, 0, "median", "", "m:median:complex");
+                         0, 0, "median", "", "numkit:median:complex");
         const size_t total = args[0].numel();
         ScratchArena scratch(ctx.engine->resource());
         auto buf = ScratchVec<double>(total, &scratch);
@@ -1260,7 +1260,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(std::string(fn) + ": vecdim entries out of range",
-                                0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
@@ -1269,7 +1269,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
                 throw Error(std::string(fn) + ": partial vecdim reduction is "
                             "not yet supported in numkit (only full-flatten "
                             "vecdim like [1 2] or 'all')",
-                            0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
             q.flatten = true;
         }
         ++i;
@@ -1287,14 +1287,14 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected Name-Value pair",
-                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c) { return std::tolower(c); });
         if (name == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(std::string(fn) + ": Method must be a string",
-                            0, 0, fn, "", std::string("m:") + fn + ":method");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
             std::string m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c) { return std::tolower(c); });
@@ -1305,10 +1305,10 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
             else
                 throw Error(std::string(fn) + ": Method must be one of "
                             "{midpoint, inclusive, exclusive, approximate}",
-                            0, 0, fn, "", std::string("m:") + fn + ":method");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         }
         i += 2;
     }
@@ -1320,7 +1320,7 @@ void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("quantile: requires (X, p[, dim] [, Method=method])",
-                     0, 0, "quantile", "", "m:quantile:nargin");
+                     0, 0, "quantile", "", "numkit:quantile:nargin");
     auto q = parseQArgs(args, 2, args[0], "quantile");
     outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 1.0, "quantile", ctx.engine->resource());
 }
@@ -1330,7 +1330,7 @@ void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("prctile: requires (X, p[, dim] [, Method=method])",
-                     0, 0, "prctile", "", "m:prctile:nargin");
+                     0, 0, "prctile", "", "numkit:prctile:nargin");
     auto q = parseQArgs(args, 2, args[0], "prctile");
     outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 0.01, "prctile", ctx.engine->resource());
 }
@@ -1340,7 +1340,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("mode: requires at least 1 argument",
-                     0, 0, "mode", "", "m:mode:nargin");
+                     0, 0, "mode", "", "numkit:mode:nargin");
     int dim = 0;
     bool flatten = false;
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -1351,7 +1351,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                            [](unsigned char c){ return std::tolower(c); });
             if (s == "all") flatten = true;
             else throw Error("mode: unknown flag '" + s + "'",
-                             0, 0, "mode", "", "m:mode:badFlag");
+                             0, 0, "mode", "", "numkit:mode:badFlag");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -1363,14 +1363,14 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 int d = static_cast<int>(a.elemAsDouble(i));
                 if (d < 1 || d > rank)
                     throw Error("mode: vecdim entries out of range",
-                                0, 0, "mode", "", "m:mode:vecdim");
+                                0, 0, "mode", "", "numkit:mode:vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
             for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
             if (!allCovered)
                 throw Error("mode: partial vecdim reduction not yet supported",
-                            0, 0, "mode", "", "m:mode:vecdim");
+                            0, 0, "mode", "", "numkit:mode:vecdim");
             flatten = true;
         }
     }
@@ -1399,7 +1399,7 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("cov: requires at least 1 argument",
-                     0, 0, "cov", "", "m:cov:nargin");
+                     0, 0, "cov", "", "numkit:cov:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = cov(args[0], 0, mr);
@@ -1429,7 +1429,7 @@ void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("corrcoef: requires at least 1 argument",
-                     0, 0, "corrcoef", "", "m:corrcoef:nargin");
+                     0, 0, "corrcoef", "", "numkit:corrcoef:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = corrcoef(args[0], mr);

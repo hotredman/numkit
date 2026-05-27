@@ -90,7 +90,7 @@ SS toSSiso(const Value &sys, std::pmr::memory_resource *mr) {
         Cv = std::move(ss.C); Dv = std::move(ss.D);
     } else {
         throw Error("c2d/d2c: expected an LTI struct (tf/zpk/ss)",
-                    0, 0, "discretize", "", "m:control:kind");
+                    0, 0, "discretize", "", "numkit:control:kind");
     }
     SS s;
     s.n = Av.dims().rows();
@@ -147,7 +147,7 @@ void tustinDiscretise(const Mat &A, const Vec &B, const Vec &C, double D,
     Mat X  = Mplus;
     if (!solveInPlace(Mc, X, n, n))
         throw Error("c2d (tustin): I − A·Ts/2 is singular",
-                    0, 0, "c2d", "", "m:c2d:singular");
+                    0, 0, "c2d", "", "numkit:c2d:singular");
     Ad = X;
 
     // B_d = √Ts · inv(M_minus) · B.
@@ -156,7 +156,7 @@ void tustinDiscretise(const Mat &A, const Vec &B, const Vec &C, double D,
     for (size_t i = 0; i < n; ++i) Bm[i] = B[i];
     if (!solveInPlace(Mc2, Bm, n, 1))
         throw Error("c2d (tustin): I − A·Ts/2 is singular",
-                    0, 0, "c2d", "", "m:c2d:singular");
+                    0, 0, "c2d", "", "numkit:c2d:singular");
     Bd.assign(n, 0.0);
     const double sTs = std::sqrt(Ts);
     for (size_t i = 0; i < n; ++i) Bd[i] = sTs * Bm[i];
@@ -170,7 +170,7 @@ void tustinDiscretise(const Mat &A, const Vec &B, const Vec &C, double D,
     for (size_t i = 0; i < n; ++i) Cm[i] = C[i];
     if (!solveInPlace(McT, Cm, n, 1))
         throw Error("c2d (tustin): I − A·Ts/2 is singular",
-                    0, 0, "c2d", "", "m:c2d:singular");
+                    0, 0, "c2d", "", "numkit:c2d:singular");
     Cd.assign(n, 0.0);
     for (size_t i = 0; i < n; ++i) Cd[i] = sTs * Cm[i];
 
@@ -182,7 +182,7 @@ void tustinDiscretise(const Mat &A, const Vec &B, const Vec &C, double D,
     for (size_t i = 0; i < n; ++i) yvec[i] = B[i];
     if (!solveInPlace(Mc3, yvec, n, 1))
         throw Error("c2d (tustin): I − A·Ts/2 is singular",
-                    0, 0, "c2d", "", "m:c2d:singular");
+                    0, 0, "c2d", "", "numkit:c2d:singular");
     double cy = 0.0;
     for (size_t i = 0; i < n; ++i) cy += C[i] * yvec[i];
     Dd = D + (Ts / 2.0) * cy;
@@ -225,11 +225,11 @@ Value c2d(const Value &sys, double Ts, const std::string &method, std::pmr::memo
 {
     if (Ts <= 0.0)
         throw Error("c2d: Ts must be positive",
-                    0, 0, "c2d", "", "m:c2d:Ts");
+                    0, 0, "c2d", "", "numkit:c2d:Ts");
     SS s = toSSiso(sys, mr);
     if (s.Ts > 0.0)
         throw Error("c2d: input system is already discrete (Ts > 0)",
-                    0, 0, "c2d", "", "m:c2d:already_discrete");
+                    0, 0, "c2d", "", "numkit:c2d:already_discrete");
 
     Mat Ad; Vec Bd, Cd; double Dd;
     if (method.empty() || method == "zoh") {
@@ -241,7 +241,7 @@ Value c2d(const Value &sys, double Ts, const std::string &method, std::pmr::memo
         tustinDiscretise(s.A, s.B, s.C, s.D, s.n, Ts, Ad, Bd, Cd, Dd);
     } else {
         throw Error("c2d: method must be 'zoh' or 'tustin'",
-                    0, 0, "c2d", "", "m:c2d:method");
+                    0, 0, "c2d", "", "numkit:c2d:method");
     }
 
     const std::string origKind = sys.isStruct() && sys.hasField("kind")
@@ -255,10 +255,10 @@ Value d2c(const Value &sys, const std::string &method, std::pmr::memory_resource
     SS s = toSSiso(sys, mr);
     if (s.Ts <= 0.0)
         throw Error("d2c: input system is already continuous (Ts == 0)",
-                    0, 0, "d2c", "", "m:d2c:already_continuous");
+                    0, 0, "d2c", "", "numkit:d2c:already_continuous");
     if (!method.empty() && method != "tustin" && method != "bilinear")
         throw Error("d2c: only 'tustin' is supported",
-                    0, 0, "d2c", "", "m:d2c:method");
+                    0, 0, "d2c", "", "numkit:d2c:method");
     const double Ts = s.Ts;
 
     // Inverse of Tustin: from
@@ -283,7 +283,7 @@ Value d2c(const Value &sys, const std::string &method, std::pmr::memory_resource
     Mat X = Aminus;
     if (!solveInPlace(ApCopy, X, s.n, s.n))
         throw Error("d2c (tustin): A_d + I is singular",
-                    0, 0, "d2c", "", "m:d2c:singular");
+                    0, 0, "d2c", "", "numkit:d2c:singular");
     // Now A = (2/Ts) · X.
     Mat Ac(s.n * s.n, 0.0);
     for (size_t i = 0; i < s.n * s.n; ++i) Ac[i] = (2.0 / Ts) * X[i];
@@ -304,7 +304,7 @@ Value d2c(const Value &sys, const std::string &method, std::pmr::memory_resource
     for (size_t i = 0; i < s.n; ++i) Bvec[i] = s.B[i];
     if (!solveInPlace(ApCopy2, Bvec, s.n, 1))
         throw Error("d2c (tustin): A_d + I is singular",
-                    0, 0, "d2c", "", "m:d2c:singular");
+                    0, 0, "d2c", "", "numkit:d2c:singular");
     Vec Bc(s.n, 0.0);
     const double inv_sqrtTs = 2.0 / std::sqrt(Ts);
     for (size_t i = 0; i < s.n; ++i) Bc[i] = inv_sqrtTs * Bvec[i];
@@ -320,7 +320,7 @@ Value d2c(const Value &sys, const std::string &method, std::pmr::memory_resource
     for (size_t i = 0; i < s.n; ++i) Cvec[i] = s.C[i];
     if (!solveInPlace(ApT, Cvec, s.n, 1))
         throw Error("d2c (tustin): A_d + I is singular",
-                    0, 0, "d2c", "", "m:d2c:singular");
+                    0, 0, "d2c", "", "numkit:d2c:singular");
     Vec Cc(s.n, 0.0);
     for (size_t i = 0; i < s.n; ++i) Cc[i] = inv_sqrtTs * Cvec[i];
 
@@ -353,7 +353,7 @@ namespace detail {
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("control discretize: expected a string method",
-                    0, 0, "discretize", "", "m:discretize:type");
+                    0, 0, "discretize", "", "numkit:discretize:type");
     return v.toString();
 }
 
@@ -361,7 +361,7 @@ void c2d_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 2)
         throw Error("c2d: requires (sys, Ts [, method])",
-                    0, 0, "c2d", "", "m:c2d:nargin");
+                    0, 0, "c2d", "", "numkit:c2d:nargin");
     std::string method;
     if (a.size() >= 3 && !a[2].isEmpty()) method = argString(a[2]);
     o[0] = c2d(a[0], a[1].toScalar(), method, c.engine->resource());
@@ -371,7 +371,7 @@ void d2c_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("d2c: requires (sys [, method])",
-                    0, 0, "d2c", "", "m:d2c:nargin");
+                    0, 0, "d2c", "", "numkit:d2c:nargin");
     std::string method;
     if (a.size() >= 2 && !a[1].isEmpty()) method = argString(a[1]);
     o[0] = d2c(a[0], method, c.engine->resource());

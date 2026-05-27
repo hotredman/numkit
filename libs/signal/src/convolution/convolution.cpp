@@ -38,7 +38,7 @@ Value conv(const Value &a, const Value &b, const std::string &shape, std::pmr::m
         outStart = std::min(na, nb) - 1;
     } else if (shape != "full") {
         throw Error("conv: shape must be 'full', 'same', or 'valid'",
-                     0, 0, "conv", "", "m:conv:badShape");
+                     0, 0, "conv", "", "numkit:conv:badShape");
     }
 
     auto r = Value::matrix(1, outLen, ValueType::DOUBLE, mr);
@@ -54,7 +54,7 @@ deconv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     const size_t nb = b.numel(), na = a.numel();
     if (na > nb)
         throw Error("deconv: denominator longer than numerator",
-                     0, 0, "deconv", "", "m:deconv:denomTooLong");
+                     0, 0, "deconv", "", "numkit:deconv:denomTooLong");
 
     ScratchArena scratch(mr);
     ScratchVec<double> rem(b.doubleData(), b.doubleData() + nb, &scratch);
@@ -66,7 +66,7 @@ deconv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw Error("deconv: leading coefficient is zero",
-                     0, 0, "deconv", "", "m:deconv:zeroLead");
+                     0, 0, "deconv", "", "numkit:deconv:zeroLead");
 
     for (size_t i = 0; i < nq; ++i) {
         q[i] = rem[i] / a0;
@@ -207,17 +207,17 @@ Value cropConv2(const double *full, size_t fullR, size_t fullC, size_t M, size_t
         return out;
     }
     throw Error("conv2: shape must be 'full', 'same', or 'valid'",
-                 0, 0, "conv2", "", "m:conv2:badShape");
+                 0, 0, "conv2", "", "numkit:conv2:badShape");
 }
 
 void requireDouble2D(const Value &v, const char *name)
 {
     if (v.type() != ValueType::DOUBLE)
         throw Error(std::string(name) + ": only DOUBLE inputs are supported",
-                     0, 0, name, "", std::string("m:") + name + ":notDouble");
+                     0, 0, name, "", std::string("numkit:") + name + ":notDouble");
     if (v.dims().ndim() > 2)
         throw Error(std::string(name) + ": input must be 1-D or 2-D",
-                     0, 0, name, "", std::string("m:") + name + ":nd");
+                     0, 0, name, "", std::string("numkit:") + name + ":nd");
 }
 
 } // namespace
@@ -262,7 +262,7 @@ Value convn(const Value &A, const Value &B, const std::string &shape, std::pmr::
 {
     if (A.type() != ValueType::DOUBLE || B.type() != ValueType::DOUBLE)
         throw Error("convn: only DOUBLE inputs are supported",
-                     0, 0, "convn", "", "m:convn:notDouble");
+                     0, 0, "convn", "", "numkit:convn:notDouble");
     const int da = A.dims().ndim(), db = B.dims().ndim();
     const int nd = std::max(da, db);
     if (nd <= 1) {
@@ -273,7 +273,7 @@ Value convn(const Value &A, const Value &B, const std::string &shape, std::pmr::
     }
     if (nd != 3) {
         throw Error("convn: only 1-D, 2-D, 3-D inputs supported",
-                     0, 0, "convn", "", "m:convn:nd");
+                     0, 0, "convn", "", "numkit:convn:nd");
     }
     // 3-D: direct nested-loop convolution.
     const size_t M = A.dims().rows(), N = A.dims().cols();
@@ -350,7 +350,7 @@ Value convn(const Value &A, const Value &B, const std::string &shape, std::pmr::
         return crop;
     }
     throw Error("convn: shape must be 'full', 'same', or 'valid'",
-                 0, 0, "convn", "", "m:convn:badShape");
+                 0, 0, "convn", "", "numkit:convn:badShape");
 }
 
 // ── Engine adapters ───────────────────────────────────────────────────
@@ -360,7 +360,7 @@ void conv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("conv: requires at least 2 arguments",
-                     0, 0, "conv", "", "m:conv:nargin");
+                     0, 0, "conv", "", "numkit:conv:nargin");
 
     std::string shape = "full";
     if (args.size() >= 3 && args[2].isChar())
@@ -373,7 +373,7 @@ void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 2)
         throw Error("deconv: requires 2 arguments",
-                     0, 0, "deconv", "", "m:deconv:nargin");
+                     0, 0, "deconv", "", "numkit:deconv:nargin");
 
     auto [q, r] = deconv(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(q);
@@ -385,7 +385,7 @@ void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.empty())
         throw Error("xcorr: requires at least 1 argument",
-                     0, 0, "xcorr", "", "m:xcorr:nargin");
+                     0, 0, "xcorr", "", "numkit:xcorr:nargin");
 
     // Autocorrelation when called with a single arg, or when second
     // arg is a char flag like 'unbiased' (MATLAB compat: flag is accepted
@@ -406,7 +406,7 @@ void xcov_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("xcov: requires at least 1 argument",
-                     0, 0, "xcov", "", "m:xcov:nargin");
+                     0, 0, "xcov", "", "numkit:xcov:nargin");
     auto *mr = ctx.engine->resource();
     auto result = (args.size() >= 2)
         ? xcov(args[0], args[1], mr)
@@ -420,7 +420,7 @@ void conv2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("conv2: requires at least 2 arguments",
-                     0, 0, "conv2", "", "m:conv2:nargin");
+                     0, 0, "conv2", "", "numkit:conv2:nargin");
     std::string shape = "full";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
@@ -432,7 +432,7 @@ void filter2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("filter2: requires at least 2 arguments (h, X)",
-                     0, 0, "filter2", "", "m:filter2:nargin");
+                     0, 0, "filter2", "", "numkit:filter2:nargin");
     std::string shape = "same";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
@@ -444,7 +444,7 @@ void convn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("convn: requires at least 2 arguments",
-                     0, 0, "convn", "", "m:convn:nargin");
+                     0, 0, "convn", "", "numkit:convn:nargin");
     std::string shape = "full";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();

@@ -72,7 +72,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma, std::pmr::memo
     if (!mu.isEmpty()) {
         if (mu.numel() != d)
             throw Error("mvnpdf: mu must have d entries",
-                        0, 0, "mvnpdf", "", "m:mvnpdf:mu");
+                        0, 0, "mvnpdf", "", "numkit:mvnpdf:mu");
         for (size_t i = 0; i < d; ++i) muv[i] = mu.elemAsDouble(i);
     }
 
@@ -86,7 +86,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma, std::pmr::memo
     } else {
         if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
             throw Error("mvnpdf: Sigma must be d×d (or 1×d diag)",
-                        0, 0, "mvnpdf", "", "m:mvnpdf:Sigma");
+                        0, 0, "mvnpdf", "", "numkit:mvnpdf:Sigma");
         for (size_t j = 0; j < d; ++j)
             for (size_t i = 0; i < d; ++i)
                 Sig[i + j * d] = Sigma.elemAsDouble(i + j * d);
@@ -95,7 +95,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma, std::pmr::memo
     std::vector<double> L(d * d, 0.0);
     if (!cholesky(Sig.data(), L.data(), d))
         throw Error("mvnpdf: Sigma must be positive definite",
-                    0, 0, "mvnpdf", "", "m:mvnpdf:psd");
+                    0, 0, "mvnpdf", "", "numkit:mvnpdf:psd");
 
     double sumLogDiag = 0.0;
     for (size_t i = 0; i < d; ++i) sumLogDiag += std::log(L[i + i * d]);
@@ -126,7 +126,7 @@ Value mvtpdf(const Value &X, const Value &C, double df, std::pmr::memory_resourc
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
     if (!(df > 0.0))
         throw Error("mvtpdf: df must be positive",
-                    0, 0, "mvtpdf", "", "m:mvtpdf:df");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:df");
 
     // Build C matrix (d×d). Allow length-d row → diag.
     std::vector<double> Cm(d * d, 0.0);
@@ -135,7 +135,7 @@ Value mvtpdf(const Value &X, const Value &C, double df, std::pmr::memory_resourc
     } else {
         if (C.dims().rows() != d || C.dims().cols() != d)
             throw Error("mvtpdf: C must be d×d (or 1×d diag)",
-                        0, 0, "mvtpdf", "", "m:mvtpdf:C");
+                        0, 0, "mvtpdf", "", "numkit:mvtpdf:C");
         for (size_t j = 0; j < d; ++j)
             for (size_t i = 0; i < d; ++i)
                 Cm[i + j * d] = C.elemAsDouble(i + j * d);
@@ -148,7 +148,7 @@ Value mvtpdf(const Value &X, const Value &C, double df, std::pmr::memory_resourc
         const double v = Cm[i + i * d];
         if (!(v > 0.0))
             throw Error("mvtpdf: diagonal of C must be positive",
-                        0, 0, "mvtpdf", "", "m:mvtpdf:diag");
+                        0, 0, "mvtpdf", "", "numkit:mvtpdf:diag");
         diagSqrt[i] = std::sqrt(v);
     }
     std::vector<double> R(d * d, 0.0);
@@ -159,7 +159,7 @@ Value mvtpdf(const Value &X, const Value &C, double df, std::pmr::memory_resourc
     std::vector<double> L(d * d, 0.0);
     if (!cholesky(R.data(), L.data(), d))
         throw Error("mvtpdf: correlation matrix must be positive definite",
-                    0, 0, "mvtpdf", "", "m:mvtpdf:psd");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:psd");
     double sumLogDiag = 0.0;
     for (size_t i = 0; i < d; ++i) sumLogDiag += std::log(L[i + i * d]);
 
@@ -193,7 +193,7 @@ Value mnpdf(const Value &X, const Value &P, std::pmr::memory_resource *mr)
     const size_t kx    = X.dims().cols();
     if (kx != k && X.numel() != k)
         throw Error("mnpdf: X must have the same number of columns as P",
-                    0, 0, "mnpdf", "", "m:mnpdf:size");
+                    0, 0, "mnpdf", "", "numkit:mnpdf:size");
 
     std::vector<double> p(k);
     for (size_t j = 0; j < k; ++j) p[j] = P.elemAsDouble(j);
@@ -232,7 +232,7 @@ void mvnpdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("mvnpdf: requires X[, mu, Sigma]",
-                    0, 0, "mvnpdf", "", "m:mvnpdf:nargin");
+                    0, 0, "mvnpdf", "", "numkit:mvnpdf:nargin");
     auto *mr = ctx.engine->resource();
     Value empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &mu  = (args.size() >= 2) ? args[1] : empty;
@@ -245,7 +245,7 @@ void mnpdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("mnpdf: requires (X, P)",
-                    0, 0, "mnpdf", "", "m:mnpdf:nargin");
+                    0, 0, "mnpdf", "", "numkit:mnpdf:nargin");
     outs[0] = mnpdf(args[0], args[1], ctx.engine->resource());
 }
 
@@ -254,7 +254,7 @@ void mvtpdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("mvtpdf: requires (X, C, df)",
-                    0, 0, "mvtpdf", "", "m:mvtpdf:nargin");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:nargin");
     const double df = args[2].toScalar();
     outs[0] = mvtpdf(args[0], args[1], df, ctx.engine->resource());
 }

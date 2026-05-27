@@ -69,7 +69,7 @@ NumDen toNumDen(const Value &sys, std::pmr::memory_resource *mr) {
         return {coeffsReal(num), coeffsReal(den)};
     }
     throw Error("control connect: expected tf/zpk/ss struct",
-                0, 0, "control", "", "m:control:kind");
+                0, 0, "control", "", "numkit:control:kind");
 }
 
 // Polynomial addition right-aligned (highest order first, MATLAB style).
@@ -107,7 +107,7 @@ double Ts_combine(double Ts1, double Ts2, const char *op) {
     if (Ts2 == -1.0) return Ts1;
     throw Error(std::string("control ") + op +
                 ": sample times must match (Ts mismatch)",
-                0, 0, op, "", "m:control:Ts");
+                0, 0, op, "", "numkit:control:Ts");
 }
 
 } // anonymous
@@ -156,21 +156,21 @@ namespace detail {
 void series_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
     if (a.size() < 2)
         throw Error("series: requires (sys1, sys2)",
-                    0, 0, "series", "", "m:series:nargin");
+                    0, 0, "series", "", "numkit:series:nargin");
     o[0] = series(a[0], a[1], c.engine->resource());
 }
 
 void parallel_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
     if (a.size() < 2)
         throw Error("parallel: requires (sys1, sys2)",
-                    0, 0, "parallel", "", "m:parallel:nargin");
+                    0, 0, "parallel", "", "numkit:parallel:nargin");
     o[0] = parallel(a[0], a[1], c.engine->resource());
 }
 
 void feedback_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
     if (a.size() < 2)
         throw Error("feedback: requires (G, H [, sign])",
-                    0, 0, "feedback", "", "m:feedback:nargin");
+                    0, 0, "feedback", "", "numkit:feedback:nargin");
     int sign = -1;
     if (a.size() >= 3 && !a[2].isEmpty())
         sign = static_cast<int>(a[2].toScalar());

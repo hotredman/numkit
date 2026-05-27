@@ -117,7 +117,7 @@ namespace detail {
 void geopdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("geopdf: requires (k, p)", 0, 0, "geopdf", "", "m:geopdf:nargin");
+        throw Error("geopdf: requires (k, p)", 0, 0, "geopdf", "", "numkit:geopdf:nargin");
     outs[0] = geopdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -126,7 +126,7 @@ void geocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
-        throw Error("geocdf: requires (k, p[, 'upper'])", 0, 0, "geocdf", "", "m:geocdf:nargin");
+        throw Error("geocdf: requires (k, p[, 'upper'])", 0, 0, "geocdf", "", "numkit:geocdf:nargin");
     Value v = geocdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -135,14 +135,14 @@ void geocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void geoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("geoinv: requires (q, p)", 0, 0, "geoinv", "", "m:geoinv:nargin");
+        throw Error("geoinv: requires (q, p)", 0, 0, "geoinv", "", "numkit:geoinv:nargin");
     outs[0] = geoinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void geornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("geornd: requires p[, m, n]", 0, 0, "geornd", "", "m:geornd:nargin");
+        throw Error("geornd: requires p[, m, n]", 0, 0, "geornd", "", "numkit:geornd:nargin");
     const double p = args[0].toScalar();
     size_t rows = 1, cols = 1;
     if (args.size() >= 2 && !args[1].isEmpty()) rows = static_cast<size_t>(args[1].toScalar());

@@ -65,7 +65,7 @@ std::string argName(const Value &v, const char *fn)
 {
     if (!v.isChar() && !v.isString())
         throw Error(std::string(fn) + ": wavelet name must be a character vector",
-                    0, 0, fn, "", "m:wavelet:type");
+                    0, 0, fn, "", "numkit:wavelet:type");
     return v.toString();
 }
 
@@ -78,11 +78,11 @@ void dbwavf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("dbwavf: requires the wavelet name (e.g. 'db4')",
-                    0, 0, "dbwavf", "", "m:dbwavf:nargin");
+                    0, 0, "dbwavf", "", "numkit:dbwavf:nargin");
     const std::string name = argName(args[0], "dbwavf");
     if (name.rfind("db", 0) != 0 && name != "haar")
         throw Error("dbwavf: name must be 'haar' or 'dbN' (got '" + name + "')",
-                    0, 0, "dbwavf", "", "m:dbwavf:name");
+                    0, 0, "dbwavf", "", "numkit:dbwavf:name");
     outs[0] = family_scaling(ctx.engine->resource(), name);
 }
 
@@ -91,11 +91,11 @@ void coifwavf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("coifwavf: requires the wavelet name (e.g. 'coif1')",
-                    0, 0, "coifwavf", "", "m:coifwavf:nargin");
+                    0, 0, "coifwavf", "", "numkit:coifwavf:nargin");
     const std::string name = argName(args[0], "coifwavf");
     if (name.rfind("coif", 0) != 0)
         throw Error("coifwavf: name must be 'coifK' (got '" + name + "')",
-                    0, 0, "coifwavf", "", "m:coifwavf:name");
+                    0, 0, "coifwavf", "", "numkit:coifwavf:name");
     outs[0] = family_scaling(ctx.engine->resource(), name);
 }
 
@@ -104,11 +104,11 @@ void symwavf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("symwavf: requires the wavelet name (e.g. 'sym4')",
-                    0, 0, "symwavf", "", "m:symwavf:nargin");
+                    0, 0, "symwavf", "", "numkit:symwavf:nargin");
     const std::string name = argName(args[0], "symwavf");
     if (name.rfind("sym", 0) != 0)
         throw Error("symwavf: name must be 'symN' (got '" + name + "')",
-                    0, 0, "symwavf", "", "m:symwavf:name");
+                    0, 0, "symwavf", "", "numkit:symwavf:name");
     outs[0] = family_scaling(ctx.engine->resource(), name);
 }
 
@@ -118,12 +118,12 @@ void orthfilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("orthfilt: requires a scaling filter W",
-                    0, 0, "orthfilt", "", "m:orthfilt:nargin");
+                    0, 0, "orthfilt", "", "numkit:orthfilt:nargin");
     const Value &W = args[0];
     const size_t N = W.numel();
     if (N == 0)
         throw Error("orthfilt: scaling filter must be non-empty",
-                    0, 0, "orthfilt", "", "m:orthfilt:empty");
+                    0, 0, "orthfilt", "", "numkit:orthfilt:empty");
 
     std::vector<double> Lo_R(N), Lo_D(N), Hi_R(N), Hi_D(N);
     for (size_t k = 0; k < N; ++k)

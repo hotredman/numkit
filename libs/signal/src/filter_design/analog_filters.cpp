@@ -780,7 +780,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires N",                                    \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         const int N = static_cast<int>(args[0].toScalar());                     \
         auto [z, p, k] = name(N, ctx.engine->resource());                       \
         outs[0] = std::move(z);                                                  \
@@ -794,7 +794,7 @@ namespace detail {
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#name ": requires (N, ripple_or_atten_dB)",             \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         const int N = static_cast<int>(args[0].toScalar());                     \
         const double r = args[1].toScalar();                                    \
         auto [z, p, k] = name(N, r, ctx.engine->resource());                    \
@@ -814,7 +814,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("ellipap: requires (N, Rp, Rs)",
-                     0, 0, "ellipap", "", "m:ellipap:nargin");
+                     0, 0, "ellipap", "", "numkit:ellipap:nargin");
     const int N     = static_cast<int>(args[0].toScalar());
     const double Rp = args[1].toScalar();
     const double Rs = args[2].toScalar();
@@ -849,7 +849,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
         }                                                                        \
         if (args.size() < 4)                                                     \
             throw Error(#name ": requires (z, p, k, Wo) or (b, a, Wo)",         \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         const double Wo = args[3].toScalar();                                   \
         auto [z, p, k] = fn(args[0], args[1], args[2].toScalar(), Wo, mr);      \
         outs[0] = std::move(z);                                                  \
@@ -883,7 +883,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
         }                                                                        \
         if (args.size() < 5)                                                     \
             throw Error(#name ": requires (z, p, k, Wo, Bw) or (b, a, Wo, Bw)", \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         const double Wo = args[3].toScalar();                                   \
         const double Bw = args[4].toScalar();                                   \
         auto [z, p, k] = fn(args[0], args[1], args[2].toScalar(), Wo, Bw, mr);  \
@@ -901,7 +901,7 @@ void bilinear_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("bilinear: requires (b, a, fs[, fp])",
-                     0, 0, "bilinear", "", "m:bilinear:nargin");
+                     0, 0, "bilinear", "", "numkit:bilinear:nargin");
     const double fs = args[2].toScalar();
     const double fp = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 0.0;
     auto [bd, ad] = bilinear(args[0], args[1], fs, fp, ctx.engine->resource());
@@ -913,7 +913,7 @@ void impinvar_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("impinvar: requires (b, a, fs[, tol])",
-                     0, 0, "impinvar", "", "m:impinvar:nargin");
+                     0, 0, "impinvar", "", "numkit:impinvar:nargin");
     const double fs  = args[2].toScalar();
     const double tol = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 1e-3;
     auto [bd, ad] = impinvar(args[0], args[1], fs, tol, ctx.engine->resource());
@@ -925,7 +925,7 @@ void freqs_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 3)
         throw Error("freqs: requires (b, a, w)",
-                     0, 0, "freqs", "", "m:freqs:nargin");
+                     0, 0, "freqs", "", "numkit:freqs:nargin");
     outs[0] = freqs(args[0], args[1], args[2], ctx.engine->resource());
 }
 

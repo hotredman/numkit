@@ -31,11 +31,11 @@ double normaliseW(double f, double fs, const char *fnName)
 {
     if (!(fs > 0))
         throw Error(std::string(fnName) + ": fs must be positive",
-                     0, 0, fnName, "", std::string("m:") + fnName + ":badFs");
+                     0, 0, fnName, "", std::string("numkit:") + fnName + ":badFs");
     const double w = 2.0 * f / fs;
     if (!(w > 0.0) || !(w < 1.0))
         throw Error(std::string(fnName) + ": cutoff must be in (0, fs/2)",
-                     0, 0, fnName, "", std::string("m:") + fnName + ":badCutoff");
+                     0, 0, fnName, "", std::string("numkit:") + fnName + ":badCutoff");
     return w;
 }
 
@@ -43,7 +43,7 @@ void validateOrder(int order, const char *fnName)
 {
     if (order < 1)
         throw Error(std::string(fnName) + ": order must be >= 1",
-                     0, 0, fnName, "", std::string("m:") + fnName + ":badOrder");
+                     0, 0, fnName, "", std::string("numkit:") + fnName + ":badOrder");
 }
 
 // MATLAB lowpass/highpass/bandpass/bandstop default parameters --
@@ -95,7 +95,7 @@ Value bandpass(const Value &x, double flo, double fhi, double fs, int order, std
     validateOrder(order, "bandpass");
     if (!(flo < fhi))
         throw Error("bandpass: low cutoff must be < high cutoff",
-                     0, 0, "bandpass", "", "m:bandpass:badRange");
+                     0, 0, "bandpass", "", "numkit:bandpass:badRange");
     const double Wlo = normaliseW(flo, fs, "bandpass");
     const double Whi = normaliseW(fhi, fs, "bandpass");
     const int N = (order == 8) ? kDefaultIirOrder : order;
@@ -109,7 +109,7 @@ Value bandstop(const Value &x, double flo, double fhi, double fs, int order, std
     validateOrder(order, "bandstop");
     if (!(flo < fhi))
         throw Error("bandstop: low cutoff must be < high cutoff",
-                     0, 0, "bandstop", "", "m:bandstop:badRange");
+                     0, 0, "bandstop", "", "numkit:bandstop:badRange");
     const double Wlo = normaliseW(flo, fs, "bandstop");
     const double Whi = normaliseW(fhi, fs, "bandstop");
     const int N = (order == 8) ? kDefaultIirOrder : order;
@@ -131,7 +131,7 @@ void lowpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("lowpass: requires (x, fpass[, fs])",
-                     0, 0, "lowpass", "", "m:lowpass:nargin");
+                     0, 0, "lowpass", "", "numkit:lowpass:nargin");
     const double fs = (args.size() >= 3) ? args[2].toScalar() : 2.0;
     const int order = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 8;
     outs[0] = lowpass(args[0], args[1].toScalar(), fs, order, ctx.engine->resource());
@@ -141,7 +141,7 @@ void highpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("highpass: requires (x, fpass[, fs])",
-                     0, 0, "highpass", "", "m:highpass:nargin");
+                     0, 0, "highpass", "", "numkit:highpass:nargin");
     const double fs = (args.size() >= 3) ? args[2].toScalar() : 2.0;
     const int order = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 8;
     outs[0] = highpass(args[0], args[1].toScalar(), fs, order, ctx.engine->resource());
@@ -151,10 +151,10 @@ void bandpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("bandpass: requires (x, [flo fhi][, fs])",
-                     0, 0, "bandpass", "", "m:bandpass:nargin");
+                     0, 0, "bandpass", "", "numkit:bandpass:nargin");
     if (args[1].numel() != 2)
         throw Error("bandpass: cutoff must be a 2-element [flo fhi]",
-                     0, 0, "bandpass", "", "m:bandpass:badCutoff");
+                     0, 0, "bandpass", "", "numkit:bandpass:badCutoff");
     const double fs = (args.size() >= 3) ? args[2].toScalar() : 2.0;
     const int order = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 8;
     outs[0] = bandpass(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), fs, order, ctx.engine->resource());
@@ -164,10 +164,10 @@ void bandstop_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("bandstop: requires (x, [flo fhi][, fs])",
-                     0, 0, "bandstop", "", "m:bandstop:nargin");
+                     0, 0, "bandstop", "", "numkit:bandstop:nargin");
     if (args[1].numel() != 2)
         throw Error("bandstop: cutoff must be a 2-element [flo fhi]",
-                     0, 0, "bandstop", "", "m:bandstop:badCutoff");
+                     0, 0, "bandstop", "", "numkit:bandstop:badCutoff");
     const double fs = (args.size() >= 3) ? args[2].toScalar() : 2.0;
     const int order = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 8;
     outs[0] = bandstop(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), fs, order, ctx.engine->resource());

@@ -137,12 +137,12 @@ Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
         throw Error("subspace: inputs must be 2D matrices",
-                    0, 0, "subspace", "", "m:subspace:notMatrix");
+                    0, 0, "subspace", "", "numkit:subspace:notMatrix");
     const std::size_t mA = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t mB = static_cast<std::size_t>(B.dims().dim(0));
     if (mA != mB)
         throw Error("subspace: inputs must have the same number of rows",
-                    0, 0, "subspace", "", "m:subspace:dimMismatch");
+                    0, 0, "subspace", "", "numkit:subspace:dimMismatch");
 
     auto Qa = orth(A, -1.0, mr);
     auto Qb = orth(B, -1.0, mr);
@@ -186,7 +186,7 @@ void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("pinv: requires (A) or (A, tol)",
-                    0, 0, "pinv", "", "m:pinv:nargin");
+                    0, 0, "pinv", "", "numkit:pinv:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
     outs[0] = pinv(args[0], tol, ctx.engine->resource());
 }
@@ -195,7 +195,7 @@ void orth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("orth: requires (A) or (A, tol)",
-                    0, 0, "orth", "", "m:orth:nargin");
+                    0, 0, "orth", "", "numkit:orth:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
     outs[0] = orth(args[0], tol, ctx.engine->resource());
 }
@@ -204,7 +204,7 @@ void null_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("null: requires (A) or (A, tol)",
-                    0, 0, "null", "", "m:null:nargin");
+                    0, 0, "null", "", "numkit:null:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
     outs[0] = null_basis(args[0], tol, ctx.engine->resource());
 }
@@ -213,7 +213,7 @@ void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() != 2)
         throw Error("subspace: requires (A, B)",
-                    0, 0, "subspace", "", "m:subspace:nargin");
+                    0, 0, "subspace", "", "numkit:subspace:nargin");
     outs[0] = subspace(args[0], args[1], ctx.engine->resource());
 }
 

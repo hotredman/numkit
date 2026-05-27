@@ -53,7 +53,7 @@ pageShape(const Value &A, const char *who)
     const int nd = A.dims().ndim();
     if (nd < 2 || nd > 3)
         throw Error(std::string(who) + ": input must be 2-D or 3-D",
-                    0, 0, who, "", std::string("m:") + who + ":badDim");
+                    0, 0, who, "", std::string("numkit:") + who + ":badDim");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t p = (nd == 2) ? 1 : static_cast<std::size_t>(A.dims().dim(2));
@@ -80,7 +80,7 @@ Value pageinv(const Value &A, std::pmr::memory_resource *mr)
     auto [m, n, pages] = pageShape(A, "pageinv");
     if (m != n)
         throw Error("pageinv: each page must be square",
-                    0, 0, "pageinv", "", "m:pageinv:notSquare");
+                    0, 0, "pageinv", "", "numkit:pageinv:notSquare");
     auto out = makePageOutput(m, n, pages, A.dims().ndim() == 3, mr);
     if (m == 0) return out;
 
@@ -98,7 +98,7 @@ Value pageinv(const Value &A, std::pmr::memory_resource *mr)
                                                 I_buf.data(), n,
                                                 dst + p * stride, &scratch))
             throw Error("pageinv: page is singular",
-                        0, 0, "pageinv", "", "m:pageinv:singular");
+                        0, 0, "pageinv", "", "numkit:pageinv:singular");
     }
     return out;
 }
@@ -112,7 +112,7 @@ Value pageeig_values(const Value &A, std::pmr::memory_resource *mr)
     auto [m, n, pages] = pageShape(A, "pageeig");
     if (m != n)
         throw Error("pageeig: each page must be square",
-                    0, 0, "pageeig", "", "m:pageeig:notSquare");
+                    0, 0, "pageeig", "", "numkit:pageeig:notSquare");
 
     if (A.dims().ndim() == 2) {
         // Reuse 2-D dispatch — symmetric → real eigvals; non-sym → general.
@@ -129,7 +129,7 @@ Value pageeig_values(const Value &A, std::pmr::memory_resource *mr)
         catch (const Error &) { evs = eig_general_values(pg, mr); }
         if (evs.isComplex())
             throw Error("pageeig: page has complex eigenvalues (deferred)",
-                        0, 0, "pageeig", "", "m:pageeig:complex");
+                        0, 0, "pageeig", "", "numkit:pageeig:complex");
         std::copy(evs.doubleData(), evs.doubleData() + n, od + p * n);
     }
     return out;
@@ -141,7 +141,7 @@ pageeig_VD(const Value &A, std::pmr::memory_resource *mr)
     auto [m, n, pages] = pageShape(A, "pageeig");
     if (m != n)
         throw Error("pageeig: each page must be square",
-                    0, 0, "pageeig", "", "m:pageeig:notSquare");
+                    0, 0, "pageeig", "", "numkit:pageeig:notSquare");
 
     if (A.dims().ndim() == 2) {
         try { return eig_symmetric(A, mr); }
@@ -288,7 +288,7 @@ void checkPagePair(const Value &A, const Value &B, const char *who,
     const int ndb = B.dims().ndim();
     if (nda < 2 || nda > 3 || ndb < 2 || ndb > 3)
         throw Error(std::string(who) + ": inputs must be 2-D or 3-D",
-                    0, 0, who, "", std::string("m:") + who + ":badDim");
+                    0, 0, who, "", std::string("numkit:") + who + ":badDim");
     const std::size_t pa = (nda == 2) ? 1 : static_cast<std::size_t>(A.dims().dim(2));
     const std::size_t pb = (ndb == 2) ? 1 : static_cast<std::size_t>(B.dims().dim(2));
     if (pa == pb)            pages = pa;
@@ -296,7 +296,7 @@ void checkPagePair(const Value &A, const Value &B, const char *who,
     else if (pb == 1)        pages = pa;
     else
         throw Error(std::string(who) + ": page counts of A and B must match (or broadcast)",
-                    0, 0, who, "", std::string("m:") + who + ":pageMismatch");
+                    0, 0, who, "", std::string("numkit:") + who + ":pageMismatch");
 }
 
 Value pageOfA(const Value &A, std::size_t p, std::size_t m, std::size_t n,
@@ -319,7 +319,7 @@ Value pagemldivide(const Value &A, const Value &B, std::pmr::memory_resource *mr
     const std::size_t nB = static_cast<std::size_t>(B.dims().dim(1));
     if (mA != mB)
         throw Error("pagemldivide: row counts of A and B must match",
-                    0, 0, "pagemldivide", "", "m:pagemldivide:badRows");
+                    0, 0, "pagemldivide", "", "numkit:pagemldivide:badRows");
 
     const bool any3d = A.dims().ndim() == 3 || B.dims().ndim() == 3;
     auto out = any3d
@@ -349,7 +349,7 @@ Value pagemrdivide(const Value &A, const Value &B, std::pmr::memory_resource *mr
     const std::size_t nB = static_cast<std::size_t>(B.dims().dim(1));
     if (nA != nB)
         throw Error("pagemrdivide: column counts of A and B must match",
-                    0, 0, "pagemrdivide", "", "m:pagemrdivide:badCols");
+                    0, 0, "pagemrdivide", "", "numkit:pagemrdivide:badCols");
 
     const bool any3d = A.dims().ndim() == 3 || B.dims().ndim() == 3;
     auto out = any3d
@@ -401,7 +401,7 @@ Value pagelsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_u
     const std::size_t nB = static_cast<std::size_t>(B.dims().dim(1));
     if (mA != mB)
         throw Error("pagelsqminnorm: row counts of A and B must match",
-                    0, 0, "pagelsqminnorm", "", "m:pagelsqminnorm:badRows");
+                    0, 0, "pagelsqminnorm", "", "numkit:pagelsqminnorm:badRows");
 
     const bool any3d = A.dims().ndim() == 3 || B.dims().ndim() == 3;
     auto out = any3d
@@ -429,7 +429,7 @@ void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() != 1)
         throw Error("pageinv: requires exactly 1 argument",
-                    0, 0, "pageinv", "", "m:pageinv:nargin");
+                    0, 0, "pageinv", "", "numkit:pageinv:nargin");
     outs[0] = pageinv(args[0], ctx.engine->resource());
 }
 
@@ -437,7 +437,7 @@ void pageeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("pageeig: requires exactly 1 argument",
-                    0, 0, "pageeig", "", "m:pageeig:nargin");
+                    0, 0, "pageeig", "", "numkit:pageeig:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [V, D] = pageeig_VD(args[0], mr);
@@ -452,7 +452,7 @@ void pagesvd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("pagesvd: requires exactly 1 argument",
-                    0, 0, "pagesvd", "", "m:pagesvd:nargin");
+                    0, 0, "pagesvd", "", "numkit:pagesvd:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [U, S, V] = pagesvd_decompose(args[0], mr);
@@ -468,7 +468,7 @@ void pagepinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty() || args.size() > 2)
         throw Error("pagepinv: requires (A) or (A, tol)",
-                    0, 0, "pagepinv", "", "m:pagepinv:nargin");
+                    0, 0, "pagepinv", "", "numkit:pagepinv:nargin");
     const double tol = (args.size() == 2) ? args[1].toScalar() : -1.0;
     outs[0] = pagepinv(args[0], tol, ctx.engine->resource());
 }
@@ -477,7 +477,7 @@ void pagenorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty() || args.size() > 2)
         throw Error("pagenorm: requires (A) or (A, p)",
-                    0, 0, "pagenorm", "", "m:pagenorm:nargin");
+                    0, 0, "pagenorm", "", "numkit:pagenorm:nargin");
     double p = 2.0;
     if (args.size() == 2) {
         if (args[1].isChar() || args[1].isString()) {
@@ -485,7 +485,7 @@ void pagenorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
             if      (s == "fro" || s == "Fro") p = -2.0; // sentinel
             else if (s == "inf" || s == "Inf") p = std::numeric_limits<double>::infinity();
             else throw Error("pagenorm: string p must be 'fro' or 'inf'",
-                             0, 0, "pagenorm", "", "m:pagenorm:badStringP");
+                             0, 0, "pagenorm", "", "numkit:pagenorm:badStringP");
         } else {
             p = args[1].toScalar();
         }
@@ -496,7 +496,7 @@ void pagenorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         const int nd = args[0].dims().ndim();
         if (nd < 2 || nd > 3)
             throw Error("pagenorm: input must be 2-D or 3-D",
-                        0, 0, "pagenorm", "", "m:pagenorm:badDim");
+                        0, 0, "pagenorm", "", "numkit:pagenorm:badDim");
         const std::size_t m = static_cast<std::size_t>(args[0].dims().dim(0));
         const std::size_t n = static_cast<std::size_t>(args[0].dims().dim(1));
         const std::size_t pages = (nd == 2) ? 1
@@ -520,7 +520,7 @@ void pagemldivide_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> ou
 {
     if (args.size() != 2)
         throw Error("pagemldivide: requires (A, B)",
-                    0, 0, "pagemldivide", "", "m:pagemldivide:nargin");
+                    0, 0, "pagemldivide", "", "numkit:pagemldivide:nargin");
     outs[0] = pagemldivide(args[0], args[1], ctx.engine->resource());
 }
 
@@ -528,7 +528,7 @@ void pagemrdivide_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> ou
 {
     if (args.size() != 2)
         throw Error("pagemrdivide: requires (A, B)",
-                    0, 0, "pagemrdivide", "", "m:pagemrdivide:nargin");
+                    0, 0, "pagemrdivide", "", "numkit:pagemrdivide:nargin");
     outs[0] = pagemrdivide(args[0], args[1], ctx.engine->resource());
 }
 
@@ -536,7 +536,7 @@ void pagelsqminnorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> 
 {
     if (args.size() < 2 || args.size() > 3)
         throw Error("pagelsqminnorm: requires (A, B[, tol])",
-                    0, 0, "pagelsqminnorm", "", "m:pagelsqminnorm:nargin");
+                    0, 0, "pagelsqminnorm", "", "numkit:pagelsqminnorm:nargin");
     const bool have_tol = (args.size() == 3);
     const double tol = have_tol ? args[2].toScalar() : 0.0;
     outs[0] = pagelsqminnorm(args[0], args[1], have_tol, tol, ctx.engine->resource());

@@ -49,7 +49,7 @@ wavedec(const Value &x, int n, const std::string &wname,
 {
     if (n < 1)
         throw Error("wavedec: level must be ≥ 1",
-                    0, 0, "wavedec", "", "m:wavedec:level");
+                    0, 0, "wavedec", "", "numkit:wavedec:level");
 
     // Run n successive single-level DWTs on the running approximation.
     // Stash each cD in `details[level-1]` (0-indexed: details[0] = cD_1
@@ -96,7 +96,7 @@ Value waverec(const Value &C, const Value &L, const std::string &wname,
     const size_t Lcount = L.numel();
     if (Lcount < 3)
         throw Error("waverec: L must have at least 3 entries (1 level)",
-                    0, 0, "waverec", "", "m:waverec:size");
+                    0, 0, "waverec", "", "numkit:waverec:size");
     const int n = static_cast<int>(Lcount) - 2; // number of decomposition levels
     auto sliceLen = [&](size_t idx) -> size_t {
         return static_cast<size_t>(L.elemAsDouble(idx));
@@ -108,7 +108,7 @@ Value waverec(const Value &C, const Value &L, const std::string &wname,
     const size_t aLen = sliceLen(0);
     if (off + aLen > Cv.size())
         throw Error("waverec: C/L mismatch (approx)",
-                    0, 0, "waverec", "", "m:waverec:bounds");
+                    0, 0, "waverec", "", "numkit:waverec:bounds");
     std::vector<double> running(Cv.begin() + off, Cv.begin() + off + aLen);
     off += aLen;
 
@@ -117,7 +117,7 @@ Value waverec(const Value &C, const Value &L, const std::string &wname,
         const size_t dLen = sliceLen(1 + k);
         if (off + dLen > Cv.size())
             throw Error("waverec: C/L mismatch (detail)",
-                        0, 0, "waverec", "", "m:waverec:bounds");
+                        0, 0, "waverec", "", "numkit:waverec:bounds");
         std::vector<double> detail(Cv.begin() + off, Cv.begin() + off + dLen);
         off += dLen;
 
@@ -145,12 +145,12 @@ static Value appcoef_with_filters(const Value &C, const Value &L,
     const size_t Lcount = L.numel();
     if (Lcount < 3)
         throw Error("appcoef: L too short",
-                    0, 0, "appcoef", "", "m:appcoef:size");
+                    0, 0, "appcoef", "", "numkit:appcoef:size");
     const int nMax = static_cast<int>(Lcount) - 2;
     if (level < 0) level = nMax;          // default = coarsest
     if (level < 0 || level > nMax)
         throw Error("appcoef: level out of range",
-                    0, 0, "appcoef", "", "m:appcoef:level");
+                    0, 0, "appcoef", "", "numkit:appcoef:level");
 
     auto Cv = vecFromValue(C);
     auto sliceLen = [&](size_t idx) -> size_t {
@@ -189,11 +189,11 @@ Value detcoef(const Value &C, const Value &L, int level,
     const size_t Lcount = L.numel();
     if (Lcount < 3)
         throw Error("detcoef: L too short",
-                    0, 0, "detcoef", "", "m:detcoef:size");
+                    0, 0, "detcoef", "", "numkit:detcoef:size");
     const int nMax = static_cast<int>(Lcount) - 2;
     if (level < 1 || level > nMax)
         throw Error("detcoef: level out of range",
-                    0, 0, "detcoef", "", "m:detcoef:level");
+                    0, 0, "detcoef", "", "numkit:detcoef:level");
 
     // C layout: [cA_n, cD_n, cD_{n-1}, ..., cD_1].
     // Detail at MATLAB level `level` (1=finest, nMax=coarsest) lives
@@ -211,7 +211,7 @@ Value detcoef(const Value &C, const Value &L, int level,
     auto Cv = vecFromValue(C);
     if (off + dLen > Cv.size())
         throw Error("detcoef: C/L bounds",
-                    0, 0, "detcoef", "", "m:detcoef:bounds");
+                    0, 0, "detcoef", "", "numkit:detcoef:bounds");
     std::vector<double> out(Cv.begin() + off, Cv.begin() + off + dLen);
     return rowFromVec(out, mr);
 }
@@ -221,7 +221,7 @@ namespace detail {
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected string argument",
-                    0, 0, "", "", "m:wavelet:type");
+                    0, 0, "", "", "numkit:wavelet:type");
     return v.toString();
 }
 
@@ -230,7 +230,7 @@ void wavedec_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("wavedec: requires (x, n, wname)",
-                    0, 0, "wavedec", "", "m:wavedec:nargin");
+                    0, 0, "wavedec", "", "numkit:wavedec:nargin");
     auto *mr = ctx.engine->resource();
     auto [C, L] = wavedec(args[0], static_cast<int>(args[1].toScalar()),
                           argString(args[2]), mr);
@@ -243,7 +243,7 @@ void waverec_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("waverec: requires (C, L, wname)",
-                    0, 0, "waverec", "", "m:waverec:nargin");
+                    0, 0, "waverec", "", "numkit:waverec:nargin");
     outs[0] = waverec(args[0], args[1], argString(args[2]),
                       ctx.engine->resource());
 }
@@ -254,7 +254,7 @@ void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 3)
         throw Error("appcoef: requires (C, L, wname[, level]) or "
                     "(C, L, Lo_R, Hi_R[, level])",
-                    0, 0, "appcoef", "", "m:appcoef:nargin");
+                    0, 0, "appcoef", "", "numkit:appcoef:nargin");
     auto *mr = ctx.engine->resource();
 
     // Parse trailing 'mode' / Mode= N-V: only 'sym' supported.
@@ -271,7 +271,7 @@ void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 if (m != "sym" && m != "symh")
                     throw Error("appcoef: only 'mode'='sym' is implemented "
                                 "(got '" + m + "')",
-                                0, 0, "appcoef", "", "m:appcoef:mode_nyi");
+                                0, 0, "appcoef", "", "numkit:appcoef:mode_nyi");
             }
         }
     };
@@ -300,7 +300,7 @@ void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (args.size() < 4 || (args[3].isChar() || args[3].isString()))
             throw Error("appcoef: custom-filter form requires "
                         "(C, L, Lo_R, Hi_R)",
-                        0, 0, "appcoef", "", "m:appcoef:nargin");
+                        0, 0, "appcoef", "", "numkit:appcoef:nargin");
         size_t i = 4;
         if (i < args.size() && !args[i].isEmpty()
             && args[i].numel() == 1
@@ -320,7 +320,7 @@ void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("detcoef: requires (C, L[, level[, 'cells']])",
-                    0, 0, "detcoef", "", "m:detcoef:nargin");
+                    0, 0, "detcoef", "", "numkit:detcoef:nargin");
     auto *mr = ctx.engine->resource();
     // Default level = max (deepest decomposition level) when not supplied.
     // MATLAB R2025b: detcoef(c, l) returns the level numel(L) - 2 detail.
@@ -330,7 +330,7 @@ void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             static_cast<long long>(args[1].numel()) - 2;
         if (maxLev < 1)
             throw Error("detcoef: L is too short to infer a default level",
-                        0, 0, "detcoef", "", "m:detcoef:size");
+                        0, 0, "detcoef", "", "numkit:detcoef:size");
         outs[0] = detcoef(args[0], args[1], static_cast<int>(maxLev), mr);
         return;
     }
@@ -360,7 +360,7 @@ void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // Single-level scalar form (existing behavior).
     if (levArg.numel() != 1)
         throw Error("detcoef: level must be scalar (or use 'cells' form)",
-                    0, 0, "detcoef", "", "m:detcoef:level");
+                    0, 0, "detcoef", "", "numkit:detcoef:level");
     const int level = static_cast<int>(levArg.toScalar());
     outs[0] = detcoef(args[0], args[1], level, mr);
 }

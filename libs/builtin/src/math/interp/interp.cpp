@@ -238,7 +238,7 @@ interpMakima(const double *x, const double *y, size_t n,
 {
     if (n < 2)
         throw Error("makima: need at least 2 data points",
-                     0, 0, "makima", "", "m:makima:tooFewPoints");
+                     0, 0, "makima", "", "numkit:makima:tooFewPoints");
     if (n < 3)
         return interpLinear(x, y, n, xq, nq, mr);
 
@@ -320,10 +320,10 @@ Value interp1(const Value &x, const Value &y, const Value &xq, const std::string
 
     if (n != y.numel())
         throw Error("interp1: x and y must have same length",
-                     0, 0, "interp1", "", "m:interp1:lengthMismatch");
+                     0, 0, "interp1", "", "numkit:interp1:lengthMismatch");
     if (n < 2)
         throw Error("interp1: need at least 2 data points",
-                     0, 0, "interp1", "", "m:interp1:tooFewPoints");
+                     0, 0, "interp1", "", "numkit:interp1:tooFewPoints");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
@@ -352,7 +352,7 @@ Value interp1(const Value &x, const Value &y, const Value &xq, const std::string
         return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     throw Error("interp1: unknown method '" + method + "'",
-                 0, 0, "interp1", "", "m:interp1:badMethod");
+                 0, 0, "interp1", "", "numkit:interp1:badMethod");
 }
 
 // ── interp2 ───────────────────────────────────────────────────────────
@@ -369,9 +369,9 @@ Interp2Method parseInterp2Method(const std::string &m)
     if (s == "spline" || s == "cubic" || s == "pchip")
         throw Error("interp2: '" + m + "' method not yet supported "
                      "(only 'linear' and 'nearest' for now)",
-                     0, 0, "interp2", "", "m:interp2:unsupportedMethod");
+                     0, 0, "interp2", "", "numkit:interp2:unsupportedMethod");
     throw Error("interp2: unknown method '" + m + "'",
-                 0, 0, "interp2", "", "m:interp2:badMethod");
+                 0, 0, "interp2", "", "numkit:interp2:badMethod");
 }
 
 // Locate the cell index i such that grid[i] <= q <= grid[i+1]; returns
@@ -395,7 +395,7 @@ void validateMonotonicAscending(const double *g, std::size_t n, const char *axis
         if (g[i] <= g[i - 1])
             throw Error(std::string("interp2: ") + axis
                          + " must be strictly increasing",
-                         0, 0, "interp2", "", "m:interp2:notMonotonic");
+                         0, 0, "interp2", "", "numkit:interp2:notMonotonic");
 }
 
 // Fast path: V is column-major (rows = R, cols = C). Sample one bilinear
@@ -490,19 +490,19 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
 {
     if (V.type() == ValueType::COMPLEX)
         throw Error("interp2: complex inputs are not supported",
-                     0, 0, "interp2", "", "m:interp2:complex");
+                     0, 0, "interp2", "", "numkit:interp2:complex");
     if (V.dims().is3D() || V.dims().ndim() > 2)
         throw Error("interp2: V must be a 2D matrix",
-                     0, 0, "interp2", "", "m:interp2:rank");
+                     0, 0, "interp2", "", "numkit:interp2:rank");
 
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     if (xN != C)
         throw Error("interp2: length(X) must equal cols(V)",
-                     0, 0, "interp2", "", "m:interp2:gridSize");
+                     0, 0, "interp2", "", "numkit:interp2:gridSize");
     if (yN != R)
         throw Error("interp2: length(Y) must equal rows(V)",
-                     0, 0, "interp2", "", "m:interp2:gridSize");
+                     0, 0, "interp2", "", "numkit:interp2:gridSize");
     validateMonotonicAscending(xGrid, C, "X");
     validateMonotonicAscending(yGrid, R, "Y");
 
@@ -566,7 +566,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
     if (Xq.numel() != Yq.numel())
         throw Error("interp2: Xq and Yq must have the same numel "
                     "for matrix-form queries",
-                     0, 0, "interp2", "", "m:interp2:queryShape");
+                     0, 0, "interp2", "", "numkit:interp2:queryShape");
     const auto &qd = Xq.dims();
     const std::size_t nq = Xq.numel();
     auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, mr);
@@ -585,7 +585,7 @@ Value interp2(const Value &V, const Value &Xq, const Value &Yq, const std::strin
 {
     if (V.dims().is3D() || V.dims().ndim() > 2)
         throw Error("interp2: V must be a 2D matrix",
-                     0, 0, "interp2", "", "m:interp2:rank");
+                     0, 0, "interp2", "", "numkit:interp2:rank");
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     ScratchArena scratch(mr);
@@ -656,20 +656,20 @@ Value interp3Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
 {
     if (V.type() == ValueType::COMPLEX)
         throw Error("interp3: complex inputs are not supported",
-                     0, 0, "interp3", "", "m:interp3:complex");
+                     0, 0, "interp3", "", "numkit:interp3:complex");
     if (!V.dims().is3D())
         throw Error("interp3: V must be a 3D array",
-                     0, 0, "interp3", "", "m:interp3:rank");
+                     0, 0, "interp3", "", "numkit:interp3:rank");
     if (Xq.numel() != Yq.numel() || Xq.numel() != Zq.numel())
         throw Error("interp3: Xq, Yq, Zq must have the same numel",
-                     0, 0, "interp3", "", "m:interp3:queryShape");
+                     0, 0, "interp3", "", "numkit:interp3:queryShape");
 
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
     if (xN != C || yN != R || zN != P)
         throw Error("interp3: grid lengths must equal V's dim sizes",
-                     0, 0, "interp3", "", "m:interp3:gridSize");
+                     0, 0, "interp3", "", "numkit:interp3:gridSize");
     validateMonotonicAscending(xGrid, C, "X");
     validateMonotonicAscending(yGrid, R, "Y");
     validateMonotonicAscending(zGrid, P, "Z");
@@ -703,7 +703,7 @@ Value interp3(const Value &V, const Value &Xq, const Value &Yq, const Value &Zq,
 {
     if (!V.dims().is3D())
         throw Error("interp3: V must be a 3D array",
-                     0, 0, "interp3", "", "m:interp3:rank");
+                     0, 0, "interp3", "", "numkit:interp3:rank");
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
@@ -734,10 +734,10 @@ Value spline(const Value &x, const Value &y, const Value &xq, std::pmr::memory_r
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("spline: x and y must have same length",
-                     0, 0, "spline", "", "m:spline:lengthMismatch");
+                     0, 0, "spline", "", "numkit:spline:lengthMismatch");
     if (n < 2)
         throw Error("spline: need at least 2 data points",
-                     0, 0, "spline", "", "m:spline:tooFewPoints");
+                     0, 0, "spline", "", "numkit:spline:tooFewPoints");
 
     ScratchArena scratch(mr);
     auto yq = interpSpline(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel(), &scratch);
@@ -750,10 +750,10 @@ Value pchip(const Value &x, const Value &y, const Value &xq, std::pmr::memory_re
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("pchip: x and y must have same length",
-                     0, 0, "pchip", "", "m:pchip:lengthMismatch");
+                     0, 0, "pchip", "", "numkit:pchip:lengthMismatch");
     if (n < 2)
         throw Error("pchip: need at least 2 data points",
-                     0, 0, "pchip", "", "m:pchip:tooFewPoints");
+                     0, 0, "pchip", "", "numkit:pchip:tooFewPoints");
 
     ScratchArena scratch(mr);
     auto yq = interpPchip(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel(), &scratch);
@@ -770,10 +770,10 @@ Value makima(const Value &x, const Value &y, const Value &xq,
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("makima: x and y must have same length",
-                     0, 0, "makima", "", "m:makima:lengthMismatch");
+                     0, 0, "makima", "", "numkit:makima:lengthMismatch");
     if (n < 2)
         throw Error("makima: need at least 2 data points",
-                     0, 0, "makima", "", "m:makima:tooFewPoints");
+                     0, 0, "makima", "", "numkit:makima:tooFewPoints");
 
     ScratchArena scratch(mr);
     auto yq = interpMakima(x.doubleData(), y.doubleData(), n,
@@ -790,16 +790,16 @@ Value mkpp(const Value &breaks, const Value &coefs, std::pmr::memory_resource *m
 {
     if (breaks.numel() < 2)
         throw Error("mkpp: breaks must have at least 2 entries",
-                     0, 0, "mkpp", "", "m:mkpp:breaks");
+                     0, 0, "mkpp", "", "numkit:mkpp:breaks");
     const size_t L = breaks.numel() - 1;  // pieces
     if (coefs.dims().ndim() > 2)
         throw Error("mkpp: only 2-D coefs (pieces × order) supported",
-                     0, 0, "mkpp", "", "m:mkpp:rank");
+                     0, 0, "mkpp", "", "numkit:mkpp:rank");
     const size_t pieces = coefs.dims().rows();
     const size_t order  = coefs.dims().cols();
     if (pieces != L)
         throw Error("mkpp: rows(coefs) must equal numel(breaks) - 1",
-                     0, 0, "mkpp", "", "m:mkpp:shape");
+                     0, 0, "mkpp", "", "numkit:mkpp:shape");
 
     auto pp = Value::structure(mr);
     pp.field("form")   = Value::fromString("pp", mr);
@@ -815,7 +815,7 @@ Value ppval(const Value &pp, const Value &x, std::pmr::memory_resource *mr)
 {
     if (!pp.isStruct() || !pp.hasField("breaks") || !pp.hasField("coefs"))
         throw Error("ppval: first argument must be a pp struct",
-                     0, 0, "ppval", "", "m:ppval:notPp");
+                     0, 0, "ppval", "", "numkit:ppval:notPp");
     const Value &breaks = pp.field("breaks");
     const Value &coefs  = pp.field("coefs");
     const size_t L      = breaks.numel() - 1;
@@ -859,7 +859,7 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("interp1: requires at least 3 arguments",
-                     0, 0, "interp1", "", "m:interp1:nargin");
+                     0, 0, "interp1", "", "numkit:interp1:nargin");
     std::string method = "linear";
     if (args.size() >= 4 && args[3].isChar())
         method = args[3].toString();
@@ -877,10 +877,10 @@ Value splinePp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const size_t n = x.numel();
     if (n != y.numel())
         throw Error("spline: x and y must have same length",
-                     0, 0, "spline", "", "m:spline:lengthMismatch");
+                     0, 0, "spline", "", "numkit:spline:lengthMismatch");
     if (n < 2)
         throw Error("spline: need at least 2 data points",
-                     0, 0, "spline", "", "m:spline:tooFewPoints");
+                     0, 0, "spline", "", "numkit:spline:tooFewPoints");
 
     ScratchArena scratch(mr);
     const double *xd = x.doubleData();
@@ -928,7 +928,7 @@ void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     if (args.size() < 3)
         throw Error("spline: requires (x, y) or (x, y, xq)",
-                     0, 0, "spline", "", "m:spline:nargin");
+                     0, 0, "spline", "", "numkit:spline:nargin");
     outs[0] = spline(args[0], args[1], args[2], mr);
 }
 
@@ -936,7 +936,7 @@ void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("interp2: requires at least 3 arguments",
-                     0, 0, "interp2", "", "m:interp2:nargin");
+                     0, 0, "interp2", "", "numkit:interp2:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     auto isMethodArg = [](const Value &v) {
         return v.isChar() || v.isString();
@@ -956,14 +956,14 @@ void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         return;
     }
     throw Error("interp2: invalid argument count or types",
-                 0, 0, "interp2", "", "m:interp2:nargin");
+                 0, 0, "interp2", "", "numkit:interp2:nargin");
 }
 
 void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
         throw Error("interp3: requires at least 4 arguments",
-                     0, 0, "interp3", "", "m:interp3:nargin");
+                     0, 0, "interp3", "", "numkit:interp3:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     auto isMethodArg = [](const Value &v) {
         return v.isChar() || v.isString();
@@ -983,14 +983,14 @@ void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         return;
     }
     throw Error("interp3: invalid argument count or types",
-                 0, 0, "interp3", "", "m:interp3:nargin");
+                 0, 0, "interp3", "", "numkit:interp3:nargin");
 }
 
 void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
         throw Error("pchip: requires 3 arguments",
-                     0, 0, "pchip", "", "m:pchip:nargin");
+                     0, 0, "pchip", "", "numkit:pchip:nargin");
     outs[0] = pchip(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -998,7 +998,7 @@ void makima_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("makima: requires 3 arguments — pp-form (2-arg) not yet supported",
-                     0, 0, "makima", "", "m:makima:nargin");
+                     0, 0, "makima", "", "numkit:makima:nargin");
     outs[0] = makima(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -1011,7 +1011,7 @@ void interpn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("interpn: requires at least 2 arguments",
-                     0, 0, "interpn", "", "m:interpn:nargin");
+                     0, 0, "interpn", "", "numkit:interpn:nargin");
     const auto &V0 = args[0];
     const int ndV = V0.dims().is3D() ? 3
                   : (V0.dims().ndim() <= 2 ? 2 : V0.dims().ndim());
@@ -1024,7 +1024,7 @@ void interpn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
         return;
     }
     throw Error("interpn: 4+-D inputs are not yet supported",
-                 0, 0, "interpn", "", "m:interpn:rank");
+                 0, 0, "interpn", "", "numkit:interpn:rank");
 }
 
 // polyfit_reg / polyval_reg → math/elementary/polynomials.cpp
@@ -1034,7 +1034,7 @@ void mkpp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("mkpp: requires (breaks, coefs)",
-                     0, 0, "mkpp", "", "m:mkpp:nargin");
+                     0, 0, "mkpp", "", "numkit:mkpp:nargin");
     outs[0] = mkpp(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1042,7 +1042,7 @@ void ppval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("ppval: requires (pp, x)",
-                     0, 0, "ppval", "", "m:ppval:nargin");
+                     0, 0, "ppval", "", "numkit:ppval:nargin");
     outs[0] = ppval(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1050,11 +1050,11 @@ void unmkpp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("unmkpp: requires 1 argument",
-                     0, 0, "unmkpp", "", "m:unmkpp:nargin");
+                     0, 0, "unmkpp", "", "numkit:unmkpp:nargin");
     const Value &pp = args[0];
     if (!pp.isStruct() || !pp.hasField("breaks") || !pp.hasField("coefs"))
         throw Error("unmkpp: input must be a pp struct",
-                     0, 0, "unmkpp", "", "m:unmkpp:notPp");
+                     0, 0, "unmkpp", "", "numkit:unmkpp:notPp");
     outs[0] = pp.field("breaks");
     if (nargout > 1) outs[1] = pp.field("coefs");
     if (nargout > 2) outs[2] = pp.hasField("pieces") ? pp.field("pieces")

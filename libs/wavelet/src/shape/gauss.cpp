@@ -97,7 +97,7 @@ gauswavf(double lb, double ub, size_t N, int p, std::pmr::memory_resource *mr)
     if (N == 0) return {std::move(pv), std::move(xv)};
     if (p < 1)
         throw Error("gauswavf: derivative order p must be ≥ 1",
-                    0, 0, "gauswavf", "", "m:gauswavf:p");
+                    0, 0, "gauswavf", "", "numkit:gauswavf:p");
 
     const double *xd = xv.doubleData();
     double *pd = pv.doubleDataMut();
@@ -121,7 +121,7 @@ cgauwavf(double lb, double ub, size_t N, int p, std::pmr::memory_resource *mr)
     if (N == 0) return {std::move(pv), std::move(xv)};
     if (p < 1)
         throw Error("cgauwavf: derivative order p must be ≥ 1",
-                    0, 0, "cgauwavf", "", "m:cgauwavf:p");
+                    0, 0, "cgauwavf", "", "numkit:cgauwavf:p");
 
     const double *xd = xv.doubleData();
     Complex *pd = pv.complexDataMut();
@@ -174,12 +174,12 @@ static int parseGaussOrder(const Value &arg, const char *prefix, const char *fn)
         if (s.size() <= plen || s.compare(0, plen, prefix) != 0)
             throw Error(std::string(fn) + ": bad wname '" + s +
                         "' (expected " + prefix + "N)",
-                         0, 0, fn, "", "m:wname");
+                         0, 0, fn, "", "numkit:wname");
         try { return std::stoi(s.substr(plen)); }
         catch (...) {
             throw Error(std::string(fn) + ": bad wname '" + s +
                         "' (cannot parse order N)",
-                         0, 0, fn, "", "m:wname");
+                         0, 0, fn, "", "numkit:wname");
         }
     }
     return static_cast<int>(arg.toScalar());
@@ -190,7 +190,7 @@ void gauswavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("gauswavf: requires (LB, UB, N[, p|'gausN'])",
-                    0, 0, "gauswavf", "", "m:gauswavf:nargin");
+                    0, 0, "gauswavf", "", "numkit:gauswavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());
@@ -206,7 +206,7 @@ void cgauwavf_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("cgauwavf: requires (LB, UB, N[, p|'cgauN'])",
-                    0, 0, "cgauwavf", "", "m:cgauwavf:nargin");
+                    0, 0, "cgauwavf", "", "numkit:cgauwavf:nargin");
     const double lb = args[0].toScalar();
     const double ub = args[1].toScalar();
     const size_t N  = static_cast<size_t>(args[2].toScalar());

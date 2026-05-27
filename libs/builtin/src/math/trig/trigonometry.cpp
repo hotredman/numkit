@@ -165,7 +165,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
@@ -216,7 +216,7 @@ void atan2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("atan2: requires 2 arguments",
-                     0, 0, "atan2", "", "m:atan2:nargin");
+                     0, 0, "atan2", "", "numkit:atan2:nargin");
     outs[0] = atan2(args[0], args[1], ctx.engine->resource());
 }
 
@@ -224,7 +224,7 @@ void atan2d_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("atan2d: requires 2 arguments",
-                     0, 0, "atan2d", "", "m:atan2d:nargin");
+                     0, 0, "atan2d", "", "numkit:atan2d:nargin");
     outs[0] = atan2d(args[0], args[1], ctx.engine->resource());
 }
 
@@ -232,7 +232,7 @@ void cart2pol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("cart2pol: requires at least 2 arguments",
-                     0, 0, "cart2pol", "", "m:cart2pol:nargin");
+                     0, 0, "cart2pol", "", "numkit:cart2pol:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 3) {
         auto [theta, rho, z] = cart2pol(args[0], args[1], args[2], mr);
@@ -250,7 +250,7 @@ void pol2cart_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("pol2cart: requires at least 2 arguments",
-                     0, 0, "pol2cart", "", "m:pol2cart:nargin");
+                     0, 0, "pol2cart", "", "numkit:pol2cart:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 3) {
         auto [xv, yv, zv] = pol2cart(args[0], args[1], args[2], mr);
@@ -268,7 +268,7 @@ void cart2sph_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("cart2sph: requires 3 arguments",
-                     0, 0, "cart2sph", "", "m:cart2sph:nargin");
+                     0, 0, "cart2sph", "", "numkit:cart2sph:nargin");
     auto [az, el, r] = cart2sph(args[0], args[1], args[2], ctx.engine->resource());
     outs[0] = std::move(az);
     if (nargout > 1) outs[1] = std::move(el);
@@ -279,7 +279,7 @@ void sph2cart_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("sph2cart: requires 3 arguments",
-                     0, 0, "sph2cart", "", "m:sph2cart:nargin");
+                     0, 0, "sph2cart", "", "numkit:sph2cart:nargin");
     auto [xv, yv, zv] = sph2cart(args[0], args[1], args[2], ctx.engine->resource());
     outs[0] = std::move(xv);
     if (nargout > 1) outs[1] = std::move(yv);

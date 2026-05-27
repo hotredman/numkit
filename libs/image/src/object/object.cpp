@@ -184,7 +184,7 @@ imgradientxyz(const Value &V, const std::string &method, std::pmr::memory_resour
 {
     if (!V.dims().is3D())
         throw Error("imgradientxyz: V must be 3-D",
-                    0, 0, "imgradientxyz", "", "m:imgradientxyz:rank");
+                    0, 0, "imgradientxyz", "", "numkit:imgradientxyz:rank");
     const ValueType inT = V.type();
     const ValueType outT = (inT == ValueType::SINGLE)
                          ? ValueType::SINGLE : ValueType::DOUBLE;
@@ -330,7 +330,7 @@ imgradientxyz(const Value &V, const std::string &method, std::pmr::memory_resour
     } else {
         throw Error("imgradientxyz: method must be 'sobel', 'prewitt', "
                     "'central', or 'intermediate'",
-                    0, 0, "imgradientxyz", "", "m:imgradientxyz:method");
+                    0, 0, "imgradientxyz", "", "numkit:imgradientxyz:method");
     }
 
     if (outT == ValueType::SINGLE) {
@@ -358,7 +358,7 @@ imgradient3_from_grads(const Value &Gx, const Value &Gy, const Value &Gz,
         || Gx.dims().cols() != Gz.dims().cols()
         || Gx.dims().pages() != Gz.dims().pages())
         throw Error("imgradient3: Gx, Gy, Gz must have the same size",
-                    0, 0, "imgradient3", "", "m:imgradient3:size");
+                    0, 0, "imgradient3", "", "numkit:imgradient3:size");
     const std::size_t N = Gx.numel();
     const ValueType outT = (Gx.type() == ValueType::SINGLE
                          || Gy.type() == ValueType::SINGLE
@@ -524,7 +524,7 @@ void imgradientxy_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("imgradientxy: requires (I[, method])", 0, 0,
-                    "imgradientxy", "", "m:imgradientxy:nargin");
+                    "imgradientxy", "", "numkit:imgradientxy:nargin");
     const auto m = parse_method(args, 1, "sobel");
     auto [Gx, Gy] = imgradientxy(args[0], m, ctx.engine->resource());
     outs[0] = std::move(Gx);
@@ -536,7 +536,7 @@ void imgradient_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("imgradient: requires (I[, method])", 0, 0,
-                    "imgradient", "", "m:imgradient:nargin");
+                    "imgradient", "", "numkit:imgradient:nargin");
     const auto m = parse_method(args, 1, "sobel");
     auto [Gmag, Gdir] = imgradient(args[0], m, ctx.engine->resource());
     outs[0] = std::move(Gmag);
@@ -548,7 +548,7 @@ void imgradientxyz_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("imgradientxyz: requires (V[, method])",
-                    0, 0, "imgradientxyz", "", "m:imgradientxyz:nargin");
+                    0, 0, "imgradientxyz", "", "numkit:imgradientxyz:nargin");
     const auto m = parse_method(args, 1, "sobel");
     auto [Gx, Gy, Gz] = imgradientxyz(args[0], m, ctx.engine->resource());
     outs[0] = std::move(Gx);
@@ -561,7 +561,7 @@ void imgradient3_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("imgradient3: requires (V[, method]) or (Gx, Gy, Gz)",
-                    0, 0, "imgradient3", "", "m:imgradient3:nargin");
+                    0, 0, "imgradient3", "", "numkit:imgradient3:nargin");
     auto *mr = ctx.engine->resource();
     // Detect (Gx, Gy, Gz) form: three numeric args, NO string arg.
     if (args.size() == 3
@@ -588,7 +588,7 @@ void edge_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("edge: requires (I[, method, thresh])", 0, 0, "edge", "",
-                    "m:edge:nargin");
+                    "numkit:edge:nargin");
     const auto m = parse_method(args, 1, "sobel");
     double t_lo = std::nan(""), t_hi = std::nan("");
     if (args.size() >= 3 && !args[2].isEmpty() && !(args[2].isChar() || args[2].isString())) {
@@ -629,15 +629,15 @@ Value cornermetric(const Value &I, const std::string &method,
 {
     if (I.dims().is3D())
         throw Error("cornermetric: I must be 2-D",
-                    0, 0, "cornermetric", "", "m:cornermetric:dim");
+                    0, 0, "cornermetric", "", "numkit:cornermetric:dim");
     if (method != "Harris" && method != "MinimumEigenvalue")
         throw Error("cornermetric: METHOD must be 'Harris' or "
                     "'MinimumEigenvalue'",
-                    0, 0, "cornermetric", "", "m:cornermetric:method");
+                    0, 0, "cornermetric", "", "numkit:cornermetric:method");
     if (method == "Harris"
         && (!(sensitivity_factor > 0.0) || !(sensitivity_factor < 0.25)))
         throw Error("cornermetric: SensitivityFactor must be in (0, 0.25)",
-                    0, 0, "cornermetric", "", "m:cornermetric:k");
+                    0, 0, "cornermetric", "", "numkit:cornermetric:k");
 
     // Resolve filter coef vector.
     std::pmr::vector<double> fcoef(mr);
@@ -654,7 +654,7 @@ Value cornermetric(const Value &I, const std::string &method,
             throw Error("cornermetric: FilterCoefficients length must "
                         "be odd and ≥ 3",
                         0, 0, "cornermetric", "",
-                        "m:cornermetric:filter");
+                        "numkit:cornermetric:filter");
         fcoef.reserve(filter_coef.numel());
         for (std::size_t i = 0; i < filter_coef.numel(); ++i)
             fcoef.push_back(filter_coef.elemAsDouble(i));
@@ -663,7 +663,7 @@ Value cornermetric(const Value &I, const std::string &method,
     const std::size_t halfLc = Lc / 2;       // (Lc-1)/2
     if (halfLc < 1)
         throw Error("cornermetric: filter coef too short",
-                    0, 0, "cornermetric", "", "m:cornermetric:filter");
+                    0, 0, "cornermetric", "", "numkit:cornermetric:filter");
     const std::size_t removed = halfLc - 1;  // matches MATLAB
 
     // Promote I → DOUBLE via im2double.
@@ -672,7 +672,7 @@ Value cornermetric(const Value &I, const std::string &method,
     const std::size_t W = Id.dims().cols();
     if (H < 3 || W < 3)
         throw Error("cornermetric: image too small (need ≥ 3x3)",
-                    0, 0, "cornermetric", "", "m:cornermetric:tooSmall");
+                    0, 0, "cornermetric", "", "numkit:cornermetric:tooSmall");
 
     // Build [-1 0 1] row + column kernels.
     Value hx = Value::matrix(1, 3, ValueType::DOUBLE, mr);
@@ -690,7 +690,7 @@ Value cornermetric(const Value &I, const std::string &method,
     const std::size_t Wt = W - 2;
     if (Ht == 0 || Wt == 0)
         throw Error("cornermetric: image too small after gradient trim",
-                    0, 0, "cornermetric", "", "m:cornermetric:tooSmall");
+                    0, 0, "cornermetric", "", "numkit:cornermetric:tooSmall");
 
     // Build A = Dx², B = Dy², C = Dx·Dy at trimmed shape.
     Value A = Value::matrix(Ht, Wt, ValueType::DOUBLE, mr);
@@ -736,7 +736,7 @@ Value cornermetric(const Value &I, const std::string &method,
     const std::size_t Wa = A.dims().cols();
     if (Ha < H || Wa < W)
         throw Error("cornermetric: internal shape error after filter",
-                    0, 0, "cornermetric", "", "m:cornermetric:shape");
+                    0, 0, "cornermetric", "", "numkit:cornermetric:shape");
     auto crop_value = [&](const Value &X) {
         Value Y = Value::matrix(H, W, ValueType::DOUBLE, mr);
         for (std::size_t c = 0; c < W; ++c) {
@@ -800,10 +800,10 @@ void hough(const Value &BW, double rho_res,
 {
     if (BW.dims().is3D())
         throw Error("hough: BW must be 2-D",
-                    0, 0, "hough", "", "m:hough:dim");
+                    0, 0, "hough", "", "numkit:hough:dim");
     if (!(rho_res > 0.0) || !std::isfinite(rho_res))
         throw Error("hough: RhoResolution must be a positive scalar",
-                    0, 0, "hough", "", "m:hough:rho");
+                    0, 0, "hough", "", "numkit:hough:rho");
 
     const std::size_t M = BW.dims().rows();
     const std::size_t N = BW.dims().cols();
@@ -820,7 +820,7 @@ void hough(const Value &BW, double rho_res,
             const double v = theta_deg.elemAsDouble(i);
             if (v < -90.0 || v >= 90.0)
                 throw Error("hough: Theta values must lie in [-90, 90)",
-                            0, 0, "hough", "", "m:hough:theta");
+                            0, 0, "hough", "", "numkit:hough:theta");
             theta.push_back(v);
         }
     }
@@ -898,7 +898,7 @@ Value houghpeaks(const Value &H, std::size_t numpeaks,
 {
     if (H.dims().is3D())
         throw Error("houghpeaks: H must be 2-D",
-                    0, 0, "houghpeaks", "", "m:houghpeaks:dim");
+                    0, 0, "houghpeaks", "", "numkit:houghpeaks:dim");
     const std::size_t nrho = H.dims().rows();
     const std::size_t ntheta = H.dims().cols();
     const std::size_t N = nrho * ntheta;
@@ -1036,13 +1036,13 @@ Value houghlines(const Value &BW, const Value &theta_deg,
 {
     if (BW.dims().is3D())
         throw Error("houghlines: BW must be 2-D",
-                    0, 0, "houghlines", "", "m:houghlines:dim");
+                    0, 0, "houghlines", "", "numkit:houghlines:dim");
     if (!(fillgap > 0.0) || !std::isfinite(fillgap))
         throw Error("houghlines: FillGap must be positive",
-                    0, 0, "houghlines", "", "m:houghlines:fillgap");
+                    0, 0, "houghlines", "", "numkit:houghlines:fillgap");
     if (!(minlength > 0.0) || !std::isfinite(minlength))
         throw Error("houghlines: MinLength must be positive",
-                    0, 0, "houghlines", "", "m:houghlines:minlength");
+                    0, 0, "houghlines", "", "numkit:houghlines:minlength");
 
     const std::size_t M = BW.dims().rows();
     const std::size_t N = BW.dims().cols();
@@ -1050,10 +1050,10 @@ Value houghlines(const Value &BW, const Value &theta_deg,
     const std::size_t ntheta = theta_deg.numel();
     if (nrho < 2 || ntheta == 0)
         throw Error("houghlines: rho/theta vectors too small",
-                    0, 0, "houghlines", "", "m:houghlines:vec");
+                    0, 0, "houghlines", "", "numkit:houghlines:vec");
     if (peaks.dims().cols() != 2 || peaks.dims().is3D())
         throw Error("houghlines: PEAKS must be P × 2",
-                    0, 0, "houghlines", "", "m:houghlines:peaks");
+                    0, 0, "houghlines", "", "numkit:houghlines:peaks");
     const std::size_t nPeaks = peaks.dims().rows();
 
     // Gather nonzero pixel (x, y) = (col-1, row-1).
@@ -1232,7 +1232,7 @@ void cornermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("cornermetric: requires (I [, METHOD] [, NV...])",
-                    0, 0, "cornermetric", "", "m:cornermetric:nargin");
+                    0, 0, "cornermetric", "", "numkit:cornermetric:nargin");
     auto *mr = ctx.engine->resource();
     const Value &I = args[0];
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
@@ -1256,13 +1256,13 @@ void cornermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
             throw Error("cornermetric: METHOD must be 'Harris' or "
                         "'MinimumEigenvalue' (got '" + m + "')",
                         0, 0, "cornermetric", "",
-                        "m:cornermetric:method");
+                        "numkit:cornermetric:method");
         }
     }
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("cornermetric: expected NV-pair name",
-                        0, 0, "cornermetric", "", "m:cornermetric:badNv");
+                        0, 0, "cornermetric", "", "numkit:cornermetric:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -1275,7 +1275,7 @@ void cornermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
         } else {
             throw Error("cornermetric: unknown option '" + name + "'",
                         0, 0, "cornermetric", "",
-                        "m:cornermetric:unknownNv");
+                        "numkit:cornermetric:unknownNv");
         }
         i += 2;
     }
@@ -1288,7 +1288,7 @@ void hough_reg(Span<const Value> args, std::size_t nargout,
     if (args.empty())
         throw Error("hough: requires (BW [, 'RhoResolution', val] "
                     "[, 'Theta', vec])",
-                    0, 0, "hough", "", "m:hough:nargin");
+                    0, 0, "hough", "", "numkit:hough:nargin");
     auto *mr = ctx.engine->resource();
     double rho_res = 1.0;
     Value theta_deg;
@@ -1297,7 +1297,7 @@ void hough_reg(Span<const Value> args, std::size_t nargout,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("hough: expected NV-pair name",
-                        0, 0, "hough", "", "m:hough:badNv");
+                        0, 0, "hough", "", "numkit:hough:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -1319,7 +1319,7 @@ void hough_reg(Span<const Value> args, std::size_t nargout,
                 theta_deg.doubleDataMut()[kk] = tv[kk];
         } else {
             throw Error("hough: unknown option '" + name + "'",
-                        0, 0, "hough", "", "m:hough:unknownNv");
+                        0, 0, "hough", "", "numkit:hough:unknownNv");
         }
         i += 2;
     }
@@ -1336,7 +1336,7 @@ void houghlines_reg(Span<const Value> args, std::size_t /*nargout*/,
     if (args.size() < 4)
         throw Error("houghlines: requires (BW, theta, rho, peaks "
                     "[, NV...])",
-                    0, 0, "houghlines", "", "m:houghlines:nargin");
+                    0, 0, "houghlines", "", "numkit:houghlines:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
     double fillgap = 20.0;
@@ -1345,7 +1345,7 @@ void houghlines_reg(Span<const Value> args, std::size_t /*nargout*/,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("houghlines: expected NV-pair name",
-                        0, 0, "houghlines", "", "m:houghlines:badNv");
+                        0, 0, "houghlines", "", "numkit:houghlines:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -1358,7 +1358,7 @@ void houghlines_reg(Span<const Value> args, std::size_t /*nargout*/,
         } else {
             throw Error("houghlines: unknown option '" + name + "'",
                         0, 0, "houghlines", "",
-                        "m:houghlines:unknownNv");
+                        "numkit:houghlines:unknownNv");
         }
         i += 2;
     }
@@ -1371,7 +1371,7 @@ void houghpeaks_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("houghpeaks: requires (H [, numpeaks] [, NV...])",
-                    0, 0, "houghpeaks", "", "m:houghpeaks:nargin");
+                    0, 0, "houghpeaks", "", "numkit:houghpeaks:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -1385,14 +1385,14 @@ void houghpeaks_reg(Span<const Value> args, std::size_t /*nargout*/,
         const double npd = args[i].toScalar();
         if (!(npd > 0) || npd != std::floor(npd))
             throw Error("houghpeaks: NUMPEAKS must be a positive integer",
-                        0, 0, "houghpeaks", "", "m:houghpeaks:numpeaks");
+                        0, 0, "houghpeaks", "", "numkit:houghpeaks:numpeaks");
         numpeaks = static_cast<std::size_t>(npd);
         ++i;
     }
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("houghpeaks: expected NV-pair name",
-                        0, 0, "houghpeaks", "", "m:houghpeaks:badNv");
+                        0, 0, "houghpeaks", "", "numkit:houghpeaks:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -1403,13 +1403,13 @@ void houghpeaks_reg(Span<const Value> args, std::size_t /*nargout*/,
             if (!(threshold >= 0.0))
                 throw Error("houghpeaks: Threshold must be non-negative",
                             0, 0, "houghpeaks", "",
-                            "m:houghpeaks:threshold");
+                            "numkit:houghpeaks:threshold");
         } else if (nlo == "nhoodsize") {
             const Value &v = args[i + 1];
             if (v.numel() != 2)
                 throw Error("houghpeaks: NHoodSize must be a 2-elem vector",
                             0, 0, "houghpeaks", "",
-                            "m:houghpeaks:nhoodSize");
+                            "numkit:houghpeaks:nhoodSize");
             const double a = v.elemAsDouble(0);
             const double b = v.elemAsDouble(1);
             if (!(a > 0) || !(b > 0)
@@ -1419,7 +1419,7 @@ void houghpeaks_reg(Span<const Value> args, std::size_t /*nargout*/,
                 throw Error("houghpeaks: NHoodSize elements must be "
                             "positive odd integers",
                             0, 0, "houghpeaks", "",
-                            "m:houghpeaks:nhoodOdd");
+                            "numkit:houghpeaks:nhoodOdd");
             nhoodRho   = static_cast<std::size_t>(a);
             nhoodTheta = static_cast<std::size_t>(b);
         } else if (nlo == "theta") {
@@ -1427,7 +1427,7 @@ void houghpeaks_reg(Span<const Value> args, std::size_t /*nargout*/,
         } else {
             throw Error("houghpeaks: unknown option '" + name + "'",
                         0, 0, "houghpeaks", "",
-                        "m:houghpeaks:unknownNv");
+                        "numkit:houghpeaks:unknownNv");
         }
         i += 2;
     }

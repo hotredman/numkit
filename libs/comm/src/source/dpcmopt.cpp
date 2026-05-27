@@ -105,7 +105,7 @@ DpcmOptResult dpcmopt(const Value &training_set, int ord,
     if (ord < 1)
         throw numkit::Error("The predictor order must be a positive "
                             "integer.",
-                            0, 0, "dpcmopt", "", "m:dpcmopt:InvalidOrd");
+                            0, 0, "dpcmopt", "", "numkit:dpcmopt:InvalidOrd");
 
     const std::size_t N = training_set.numel();
     // N must be at least ord + 3 so the smallest autocorrelation
@@ -113,7 +113,7 @@ DpcmOptResult dpcmopt(const Value &training_set, int ord,
     if (N < static_cast<std::size_t>(ord) + 3)
         throw numkit::Error("The size of the training set is not large "
                             "enough for the given predictor order.",
-                            0, 0, "dpcmopt", "", "m:dpcmopt:InvalidInput");
+                            0, 0, "dpcmopt", "", "numkit:dpcmopt:InvalidInput");
 
     numkit::ScratchArena arena(mr);
 
@@ -189,7 +189,7 @@ void dpcmopt_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("dpcmopt: requires (training_set, ord [, ini_codebook])",
-                    0, 0, "dpcmopt", "", "m:dpcmopt:nargin");
+                    0, 0, "dpcmopt", "", "numkit:dpcmopt:nargin");
     auto *mr = ctx.engine->resource();
     const int ord = static_cast<int>(args[1].toScalar());
 
@@ -197,7 +197,7 @@ void dpcmopt_reg(Span<const Value> args, size_t nargout,
                           ? args[2] : Value::Empty;
     if (ini.isEmpty() && nargout > 1)
         throw Error("dpcmopt: ini_codebook required for codebook/partition outputs",
-                    0, 0, "dpcmopt", "", "m:dpcmopt:NeedIniCodebook");
+                    0, 0, "dpcmopt", "", "numkit:dpcmopt:NeedIniCodebook");
 
     auto res = dpcmopt(args[0], ord, ini, mr);
     outs[0] = std::move(res.predictor);

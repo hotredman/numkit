@@ -249,29 +249,29 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("gamfit: need at least 2 observations",
-                    0, 0, "gamfit", "", "m:gamfit:tooFewObs");
+                    0, 0, "gamfit", "", "numkit:gamfit:tooFewObs");
     for (double v : xv) {
         if (!(v > 0.0))
             throw Error("gamfit: all observations must be positive",
-                        0, 0, "gamfit", "", "m:gamfit:notPositive");
+                        0, 0, "gamfit", "", "numkit:gamfit:notPositive");
     }
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("gamfit: censoring length mismatch",
-                        0, 0, "gamfit", "", "m:gamfit:censLen");
+                        0, 0, "gamfit", "", "numkit:gamfit:censLen");
         for (std::size_t i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("gamfit: freq length mismatch",
-                        0, 0, "gamfit", "", "m:gamfit:freqLen");
+                        0, 0, "gamfit", "", "numkit:gamfit:freqLen");
         for (std::size_t i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("gamfit: freq must be non-negative",
-                            0, 0, "gamfit", "", "m:gamfit:freqNeg");
+                            0, 0, "gamfit", "", "numkit:gamfit:freqNeg");
         }
     }
 
@@ -323,7 +323,7 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
     }
     if (!(nuw >= 2.0))
         throw Error("gamfit: need at least 2 uncensored observations",
-                    0, 0, "gamfit", "", "m:gamfit:tooFewUncens");
+                    0, 0, "gamfit", "", "numkit:gamfit:tooFewUncens");
     const double mean_uw = sx / nuw;
     const double meanLog_uw = slx / nuw;
     const double s_init = std::log(mean_uw) - meanLog_uw;
@@ -409,29 +409,29 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("wblfit: need at least 2 observations",
-                    0, 0, "wblfit", "", "m:wblfit:tooFewObs");
+                    0, 0, "wblfit", "", "numkit:wblfit:tooFewObs");
     for (double v : xv) {
         if (!(v > 0.0))
             throw Error("wblfit: all observations must be positive",
-                        0, 0, "wblfit", "", "m:wblfit:notPositive");
+                        0, 0, "wblfit", "", "numkit:wblfit:notPositive");
     }
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("wblfit: censoring length mismatch",
-                        0, 0, "wblfit", "", "m:wblfit:censLen");
+                        0, 0, "wblfit", "", "numkit:wblfit:censLen");
         for (std::size_t i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("wblfit: freq length mismatch",
-                        0, 0, "wblfit", "", "m:wblfit:freqLen");
+                        0, 0, "wblfit", "", "numkit:wblfit:freqLen");
         for (std::size_t i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("wblfit: freq must be non-negative",
-                            0, 0, "wblfit", "", "m:wblfit:freqNeg");
+                            0, 0, "wblfit", "", "numkit:wblfit:freqNeg");
         }
     }
 
@@ -572,11 +572,11 @@ Value betafit(const Value &x, std::pmr::memory_resource *mr)
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("betafit: need at least 2 observations",
-                    0, 0, "betafit", "", "m:betafit:tooFewObs");
+                    0, 0, "betafit", "", "numkit:betafit:tooFewObs");
     for (double v : xv) {
         if (!(v > 0.0 && v < 1.0))
             throw Error("betafit: all observations must be in (0, 1)",
-                        0, 0, "betafit", "", "m:betafit:outOfRange");
+                        0, 0, "betafit", "", "numkit:betafit:outOfRange");
     }
     double sumX = 0.0, sum1mX = 0.0, sumLogX = 0.0, sumLog1mX = 0.0;
     for (double v : xv) {
@@ -639,11 +639,11 @@ Value nbinfit(const Value &x, std::pmr::memory_resource *mr)
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("nbinfit: need at least 2 observations",
-                    0, 0, "nbinfit", "", "m:nbinfit:tooFewObs");
+                    0, 0, "nbinfit", "", "numkit:nbinfit:tooFewObs");
     for (double v : xv) {
         if (v < 0.0 || std::fabs(v - std::round(v)) > 1e-9)
             throw Error("nbinfit: observations must be non-negative integers",
-                        0, 0, "nbinfit", "", "m:nbinfit:notInteger");
+                        0, 0, "nbinfit", "", "numkit:nbinfit:notInteger");
     }
     double sum = 0.0;
     for (double v : xv) sum += v;
@@ -657,7 +657,7 @@ Value nbinfit(const Value &x, std::pmr::memory_resource *mr)
     if (varX <= meanX)
         throw Error("nbinfit: sample is under-dispersed (var ≤ mean); "
                     "MLE undefined for negative binomial",
-                    0, 0, "nbinfit", "", "m:nbinfit:underDispersed");
+                    0, 0, "nbinfit", "", "numkit:nbinfit:underDispersed");
     // MoM: r = μ² / (σ² - μ), p = μ / σ².
     double r = (meanX * meanX) / (varX - meanX);
     if (!(r > 0.0)) r = 1.0;
@@ -736,30 +736,30 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("evfit: need at least 2 observations",
-                    0, 0, "evfit", "", "m:evfit:tooFewObs");
+                    0, 0, "evfit", "", "numkit:evfit:tooFewObs");
     for (double v : xv) {
         if (!std::isfinite(v))
             throw Error("evfit: observations must be finite",
-                        0, 0, "evfit", "", "m:evfit:notFinite");
+                        0, 0, "evfit", "", "numkit:evfit:notFinite");
     }
     // Parse censoring (zeros if empty) and freq (ones if empty).
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("evfit: censoring must match data length",
-                        0, 0, "evfit", "", "m:evfit:censLen");
+                        0, 0, "evfit", "", "numkit:evfit:censLen");
         for (std::size_t i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("evfit: freq must match data length",
-                        0, 0, "evfit", "", "m:evfit:freqLen");
+                        0, 0, "evfit", "", "numkit:evfit:freqLen");
         for (std::size_t i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("evfit: freq must be non-negative",
-                            0, 0, "evfit", "", "m:evfit:freqNeg");
+                            0, 0, "evfit", "", "numkit:evfit:freqNeg");
         }
     }
 
@@ -778,7 +778,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
     }
     if (sum_uw < 2.0)
         throw Error("evfit: need at least 2 uncensored observations",
-                    0, 0, "evfit", "", "m:evfit:tooFewUncens");
+                    0, 0, "evfit", "", "numkit:evfit:tooFewUncens");
     const double mean_uw = sum_uwx / sum_uw;
     double var_uw = sum_uwxx / sum_uw - mean_uw * mean_uw;
     // Constant uncensored data is degenerate (no info about σ).
@@ -792,7 +792,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
         const bool has_cens_local = (sum_uw < sum_fw);
         if (!has_cens_local && freq_trivial)
             throw Error("evfit: zero variance (data constant)",
-                        0, 0, "evfit", "", "m:evfit:zeroVariance");
+                        0, 0, "evfit", "", "numkit:evfit:zeroVariance");
         var_uw = 1.0;
     }
 
@@ -941,12 +941,12 @@ Value gpfit(const Value &x, std::pmr::memory_resource *mr)
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("gpfit: need at least 2 observations",
-                    0, 0, "gpfit", "", "m:gpfit:tooFewObs");
+                    0, 0, "gpfit", "", "numkit:gpfit:tooFewObs");
     for (double v : xv) {
         if (!std::isfinite(v) || v < 0.0)
             throw Error("gpfit: observations must be finite and ≥ 0 "
                         "(threshold θ = 0 assumed)",
-                        0, 0, "gpfit", "", "m:gpfit:invalidData");
+                        0, 0, "gpfit", "", "numkit:gpfit:invalidData");
     }
 
     // ── Initial guess: PWM (Hosking-Wallis 1987, α-form) ──────────
@@ -1420,11 +1420,11 @@ Value gevfit(const Value &x, std::pmr::memory_resource *mr)
     const std::size_t n = xv.size();
     if (n < 3)
         throw Error("gevfit: need at least 3 observations",
-                    0, 0, "gevfit", "", "m:gevfit:tooFewObs");
+                    0, 0, "gevfit", "", "numkit:gevfit:tooFewObs");
     for (double v : xv) {
         if (!std::isfinite(v))
             throw Error("gevfit: observations must be finite",
-                        0, 0, "gevfit", "", "m:gevfit:notFinite");
+                        0, 0, "gevfit", "", "numkit:gevfit:notFinite");
     }
 
     // PWM initial guess (Hosking-Wallis-Wood 1985).
@@ -1700,7 +1700,7 @@ void gamfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("gamfit: requires (x[, alpha[, cens[, freq[, options]]]])",
-                    0, 0, "gamfit", "", "m:gamfit:nargin");
+                    0, 0, "gamfit", "", "numkit:gamfit:nargin");
     auto *mr = ctx.engine->resource();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
@@ -1714,7 +1714,7 @@ void wblfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("wblfit: requires (x[, alpha[, cens[, freq[, options]]]])",
-                    0, 0, "wblfit", "", "m:wblfit:nargin");
+                    0, 0, "wblfit", "", "numkit:wblfit:nargin");
     auto *mr = ctx.engine->resource();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
@@ -1728,7 +1728,7 @@ void betafit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("betafit: requires (x[, alpha])",
-                    0, 0, "betafit", "", "m:betafit:nargin");
+                    0, 0, "betafit", "", "numkit:betafit:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = betafit(args[0], mr);
     if (nargout >= 2) outs[1] = betafit_ci(args[0], parse_alpha(args), mr);
@@ -1739,7 +1739,7 @@ void nbinfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("nbinfit: requires (x[, alpha])",
-                    0, 0, "nbinfit", "", "m:nbinfit:nargin");
+                    0, 0, "nbinfit", "", "numkit:nbinfit:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = nbinfit(args[0], mr);
     if (nargout >= 2) outs[1] = nbinfit_ci(args[0], parse_alpha(args), mr);
@@ -1750,7 +1750,7 @@ void evfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("evfit: requires (x[, alpha[, cens[, freq[, options]]]])",
-                    0, 0, "evfit", "", "m:evfit:nargin");
+                    0, 0, "evfit", "", "numkit:evfit:nargin");
     auto *mr = ctx.engine->resource();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
@@ -1765,7 +1765,7 @@ void gpfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("gpfit: requires (x[, alpha])",
-                    0, 0, "gpfit", "", "m:gpfit:nargin");
+                    0, 0, "gpfit", "", "numkit:gpfit:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = gpfit(args[0], mr);
     if (nargout >= 2) outs[1] = gpfit_ci(args[0], parse_alpha(args), mr);
@@ -1776,7 +1776,7 @@ void gevfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("gevfit: requires (x[, alpha])",
-                    0, 0, "gevfit", "", "m:gevfit:nargin");
+                    0, 0, "gevfit", "", "numkit:gevfit:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = gevfit(args[0], mr);
     if (nargout >= 2) outs[1] = gevfit_ci(args[0], parse_alpha(args), mr);

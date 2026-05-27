@@ -38,7 +38,7 @@ Metric parse_metric(const std::string &raw) {
     if (s == "jaccard")          return Metric::Jaccard;
     if (s == "mahalanobis")      return Metric::Mahalanobis;
     throw Error("pdist: unknown metric '" + raw + "'", 0, 0, "pdist", "",
-                "m:pdist:badmetric");
+                "numkit:pdist:badmetric");
 }
 
 // Invert a small dense matrix in-place (D × D, row-major in `A`) using
@@ -64,7 +64,7 @@ inline void invert_small(double *A, size_t D,
         if (pmax < 1e-14)
             throw Error("pdist: covariance matrix is singular for "
                         "Mahalanobis distance",
-                        0, 0, "pdist", "", "m:pdist:singular");
+                        0, 0, "pdist", "", "numkit:pdist:singular");
         if (piv != k) {
             for (size_t c = 0; c < 2 * D; ++c)
                 std::swap(aug[k * 2 * D + c], aug[piv * 2 * D + c]);
@@ -231,7 +231,7 @@ Value pdist(const Value &X, const std::string &metric, double p, const Value *C_
             const Value &C = *C_opt;
             if (C.dims().rows() != D || C.dims().cols() != D)
                 throw Error("pdist: mahalanobis covariance C must be D×D",
-                            0, 0, "pdist", "", "m:pdist:mahal");
+                            0, 0, "pdist", "", "numkit:pdist:mahal");
             for (size_t r = 0; r < D; ++r)
                 for (size_t c = 0; c < D; ++c)
                     Cinv[r * D + c] = C.elemAsDouble(c * D + r);
@@ -278,7 +278,7 @@ Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p
     const size_t Dy = Y.dims().cols();
     if (Dx != Dy)
         throw Error("pdist2: column counts must match", 0, 0, "pdist2", "",
-                    "m:pdist2:size");
+                    "numkit:pdist2:size");
     Value out = Value::matrix(Mx, My, ValueType::DOUBLE, mr);
     if (Mx == 0 || My == 0) return out;
     double *od = out.doubleDataMut();
@@ -294,7 +294,7 @@ Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p
             const Value &C = *C_opt;
             if (C.dims().rows() != Dx || C.dims().cols() != Dx)
                 throw Error("pdist2: mahalanobis covariance C must be D×D",
-                            0, 0, "pdist2", "", "m:pdist2:mahal");
+                            0, 0, "pdist2", "", "numkit:pdist2:mahal");
             for (size_t r = 0; r < Dx; ++r)
                 for (size_t c = 0; c < Dx; ++c)
                     Cinv[r * Dx + c] = C.elemAsDouble(c * Dx + r);
@@ -384,7 +384,7 @@ Value squareform(const Value &d, std::pmr::memory_resource *mr) {
         const size_t N = (size_t)std::round(Nf);
         if (N * (N - 1) / 2 != n)
             throw Error("squareform: vector length must be triangular number",
-                        0, 0, "squareform", "", "m:squareform:size");
+                        0, 0, "squareform", "", "numkit:squareform:size");
         Value out = Value::matrix(N, N, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
         size_t k = 0;
@@ -399,7 +399,7 @@ Value squareform(const Value &d, std::pmr::memory_resource *mr) {
     // Square → vector.
     if (r != c)
         throw Error("squareform: matrix must be square", 0, 0, "squareform", "",
-                    "m:squareform:size");
+                    "numkit:squareform:size");
     const size_t N = r;
     Value out = Value::matrix(1, N * (N - 1) / 2, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -417,10 +417,10 @@ Value mahal(const Value &Y, const Value &X, std::pmr::memory_resource *mr)
     const size_t My = Y.dims().rows();
     if (Y.dims().cols() != D)
         throw Error("mahal: Y and X must have same column count",
-                    0, 0, "mahal", "", "m:mahal:size");
+                    0, 0, "mahal", "", "numkit:mahal:size");
     if (Mx < 2)
         throw Error("mahal: X must have at least 2 rows for covariance",
-                    0, 0, "mahal", "", "m:mahal:size");
+                    0, 0, "mahal", "", "numkit:mahal:size");
 
     ScratchArena scratch(mr);
 
@@ -452,7 +452,7 @@ Value mahal(const Value &Y, const Value &X, std::pmr::memory_resource *mr)
             if (i == j) {
                 if (s <= 0.0)
                     throw Error("mahal: covariance matrix is not positive definite",
-                                0, 0, "mahal", "", "m:mahal:notpd");
+                                0, 0, "mahal", "", "numkit:mahal:notpd");
                 L[i * D + j] = std::sqrt(s);
             } else {
                 L[i * D + j] = s / L[j * D + j];
@@ -513,7 +513,7 @@ void pdist_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("pdist: requires X[, metric[, p|C]]", 0, 0, "pdist", "",
-                    "m:pdist:nargin");
+                    "numkit:pdist:nargin");
     auto a = parse_metric_args(args, 1);
     outs[0] = pdist(args[0], a.metric, a.p, a.C, ctx.engine->resource());
 }
@@ -523,7 +523,7 @@ void pdist2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pdist2: requires (X, Y[, metric[, p|C]])", 0, 0, "pdist2", "",
-                    "m:pdist2:nargin");
+                    "numkit:pdist2:nargin");
 
     // Walk args[2..]: extract optional 'Smallest'/'Largest' N-V pair, then
     // pass the rest to the standard metric/p/C parser.
@@ -579,7 +579,7 @@ void squareform_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("squareform: requires d", 0, 0, "squareform", "",
-                    "m:squareform:nargin");
+                    "numkit:squareform:nargin");
     outs[0] = squareform(args[0], ctx.engine->resource());
 }
 
@@ -588,7 +588,7 @@ void mahal_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("mahal: requires (Y, X)", 0, 0, "mahal", "",
-                    "m:mahal:nargin");
+                    "numkit:mahal:nargin");
     outs[0] = mahal(args[0], args[1], ctx.engine->resource());
 }
 

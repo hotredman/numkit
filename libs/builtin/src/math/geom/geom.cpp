@@ -45,17 +45,17 @@ void inpolygon_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("inpolygon: requires (xq, yq, xv, yv)",
-                     0, 0, "inpolygon", "", "m:inpolygon:nargin");
+                     0, 0, "inpolygon", "", "numkit:inpolygon:nargin");
     const auto &xq = args[0];
     const auto &yq = args[1];
     const auto &xv = args[2];
     const auto &yv = args[3];
     if (xq.numel() != yq.numel())
         throw Error("inpolygon: xq and yq must have the same numel",
-                     0, 0, "inpolygon", "", "m:inpolygon:queryShape");
+                     0, 0, "inpolygon", "", "numkit:inpolygon:queryShape");
     if (xv.numel() != yv.numel())
         throw Error("inpolygon: xv and yv must have the same numel",
-                     0, 0, "inpolygon", "", "m:inpolygon:polyShape");
+                     0, 0, "inpolygon", "", "numkit:inpolygon:polyShape");
 
     auto *mr = ctx.engine->resource();
     const std::size_t nQ = xq.numel();
@@ -128,13 +128,13 @@ void boundary_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("boundary: requires (x, y)",
-                     0, 0, "boundary", "", "m:boundary:nargin");
+                     0, 0, "boundary", "", "numkit:boundary:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("boundary: x and y must have the same numel",
-                     0, 0, "boundary", "", "m:boundary:shape");
+                     0, 0, "boundary", "", "numkit:boundary:shape");
     double shrink = 0.0;
     if (args.size() >= 3) shrink = args[2].toScalar();
     if (!std::isfinite(shrink)) shrink = 0.0;
@@ -283,13 +283,13 @@ void polyarea_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("polyarea: requires (x, y)",
-                     0, 0, "polyarea", "", "m:polyarea:nargin");
+                     0, 0, "polyarea", "", "numkit:polyarea:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("polyarea: x and y must have the same numel",
-                     0, 0, "polyarea", "", "m:polyarea:shape");
+                     0, 0, "polyarea", "", "numkit:polyarea:shape");
     auto *mr = ctx.engine->resource();
     if (n < 3) {
         outs[0] = Value::scalar(0.0, mr);
@@ -320,13 +320,13 @@ void convhull_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("convhull: requires (x, y)",
-                     0, 0, "convhull", "", "m:convhull:nargin");
+                     0, 0, "convhull", "", "numkit:convhull:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("convhull: x and y must have the same numel",
-                     0, 0, "convhull", "", "m:convhull:shape");
+                     0, 0, "convhull", "", "numkit:convhull:shape");
     auto *mr = ctx.engine->resource();
     if (n < 3) {
         // Degenerate — return [1, 2, ..., n, 1] so the polygon wraps.
@@ -420,7 +420,7 @@ void histcounts2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("histcounts2: requires (x, y)",
-                     0, 0, "histcounts2", "", "m:histcounts2:nargin");
+                     0, 0, "histcounts2", "", "numkit:histcounts2:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = std::min(xv.numel(), yv.numel());
@@ -545,13 +545,13 @@ void delaunay_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("delaunay: requires (x, y)",
-                     0, 0, "delaunay", "", "m:delaunay:nargin");
+                     0, 0, "delaunay", "", "numkit:delaunay:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("delaunay: x and y must have the same numel",
-                     0, 0, "delaunay", "", "m:delaunay:shape");
+                     0, 0, "delaunay", "", "numkit:delaunay:shape");
     auto *mr = ctx.engine->resource();
     if (n < 3) {
         outs[0] = Value::matrix(0, 3, ValueType::DOUBLE, mr);
@@ -636,7 +636,7 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 5)
         throw Error("griddata: requires (x, y, v, xq, yq)",
-                     0, 0, "griddata", "", "m:griddata:nargin");
+                     0, 0, "griddata", "", "numkit:griddata:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const auto &vv = args[2];
@@ -645,10 +645,10 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t n = xv.numel();
     if (yv.numel() != n || vv.numel() != n)
         throw Error("griddata: x, y, v must have the same numel",
-                     0, 0, "griddata", "", "m:griddata:shape");
+                     0, 0, "griddata", "", "numkit:griddata:shape");
     if (xq.numel() != yq.numel())
         throw Error("griddata: xq and yq must have the same numel",
-                     0, 0, "griddata", "", "m:griddata:queryShape");
+                     0, 0, "griddata", "", "numkit:griddata:queryShape");
     auto *mr = ctx.engine->resource();
     auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
                              ValueType::DOUBLE, mr);
@@ -747,12 +747,12 @@ Value griddatan(const Value &Xv, const Value &vv, const Value &xi,
     const std::size_t n = Xv.dims().cols();
     if (vv.numel() != m)
         throw Error("griddatan: length(v) must equal rows(X)",
-                     0, 0, "griddatan", "", "m:griddatan:shape");
+                     0, 0, "griddatan", "", "numkit:griddatan:shape");
     const std::size_t k    = xi.dims().rows();
     const std::size_t nQry = xi.dims().cols();
     if (nQry != n)
         throw Error("griddatan: cols(xi) must equal cols(X)",
-                     0, 0, "griddatan", "", "m:griddatan:queryDim");
+                     0, 0, "griddatan", "", "numkit:griddatan:queryDim");
     auto out = Value::matrix(k, 1, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
 
@@ -788,7 +788,7 @@ Value griddatan(const Value &Xv, const Value &vv, const Value &xi,
                         "'nearest' for higher dimensions; N-D Delaunay "
                         "is a v1 KNOWN GAP)",
                          0, 0, "griddatan", "",
-                         "m:griddatan:linearNDUnsupported");
+                         "numkit:griddatan:linearNDUnsupported");
         // Delegate to griddata-style barycentric. Repack: X(:,1) = x,
         // X(:,2) = y, then reuse the brute-force logic by constructing
         // a temporary call.
@@ -861,7 +861,7 @@ Value griddatan(const Value &Xv, const Value &vv, const Value &xi,
 
     throw Error("griddatan: unknown method '" + method
                 + "' (supported: 'linear', 'nearest')",
-                 0, 0, "griddatan", "", "m:griddatan:badMethod");
+                 0, 0, "griddatan", "", "numkit:griddatan:badMethod");
 }
 
 namespace detail {
@@ -871,7 +871,7 @@ void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("griddatan: requires (X, v, xi [, method])",
-                     0, 0, "griddatan", "", "m:griddatan:nargin");
+                     0, 0, "griddatan", "", "numkit:griddatan:nargin");
     std::string method = "linear";
     if (args.size() >= 4 && args[3].isChar())
         method = args[3].toString();
@@ -910,12 +910,12 @@ MatchpairsResult matchpairs(const Value &C, double cU,
 {
     if (C.type() == ValueType::COMPLEX)
         throw Error("matchpairs: complex Cost not supported",
-                     0, 0, "matchpairs", "", "m:matchpairs:complex");
+                     0, 0, "matchpairs", "", "numkit:matchpairs:complex");
     bool maximise = false;
     if (mode == "max") maximise = true;
     else if (!mode.empty() && mode != "min")
         throw Error("matchpairs: mode must be 'min' or 'max'",
-                     0, 0, "matchpairs", "", "m:matchpairs:badMode");
+                     0, 0, "matchpairs", "", "numkit:matchpairs:badMode");
 
     const std::size_t rows = C.dims().rows();
     const std::size_t cols = C.dims().cols();
@@ -1053,7 +1053,7 @@ void matchpairs_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("matchpairs: requires (Cost, costUnmatched [, 'min'|'max'])",
-                     0, 0, "matchpairs", "", "m:matchpairs:nargin");
+                     0, 0, "matchpairs", "", "numkit:matchpairs:nargin");
     const double cU = args[1].toScalar();
     std::string mode = "min";
     if (args.size() >= 3 && args[2].isChar())

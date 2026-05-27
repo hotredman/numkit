@@ -100,7 +100,7 @@ Value polyscale(const Value &p, const Value &scale,
         throw numkit::Error(
             "polyscale: scale must be a scalar or a vector matching the "
             "polynomial length",
-            0, 0, "polyscale", "", "m:polyscale:BadScale");
+            0, 0, "polyscale", "", "numkit:polyscale:BadScale");
     }
 
     // Result is complex iff either input is complex.
@@ -177,7 +177,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
     // Matrix input is not allowed.
     if (!isVectorShape(a)) {
         throw numkit::Error("Input must be a vector.",
-                            0, 0, "polystab", "", "m:polystab:notVector");
+                            0, 0, "polystab", "", "numkit:polystab:notVector");
     }
 
     // Empty input → empty result (0×0).
@@ -317,7 +317,7 @@ void polyscale_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("polyscale: requires (p, scale)",
-                    0, 0, "polyscale", "", "m:polyscale:nargin");
+                    0, 0, "polyscale", "", "numkit:polyscale:nargin");
     outs[0] = polyscale(args[0], args[1], ctx.engine->resource());
 }
 
@@ -326,7 +326,7 @@ void polystab_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("polystab: requires (a)",
-                    0, 0, "polystab", "", "m:polystab:nargin");
+                    0, 0, "polystab", "", "numkit:polystab:nargin");
     outs[0] = polystab(args[0], ctx.engine->resource());
 }
 
