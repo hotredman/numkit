@@ -1762,7 +1762,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imhistmatch` | ✅ | 0.006 | 680.24× |  | OK | Sig: r = imhistmatch(...). Spec-extension batch 2026-05-09. |
 | `imhistmatchn` | ✅ | 0.005 | 598.84× |  | OK | Sig: r = imhistmatchn(...). Spec-extension batch 2026-05-09. |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
-| `imreducehaze` | ❌ |  |  |  |  |  |
+| `imreducehaze` | ✅ | 3.115 | 9.72× |  | OK | Sig: [J, T, L] = imreducehaze(I [, amount] [, NV...]). Covers: default simpledcp + global stretch (bit-exact 11 fingerprints incl. T thickness map + L atmospheric light); ContrastEnhancement='none' branch (skips global stretch); explicit AtmosphericLight (RGB triplet bypasses estimation); amount=0 passthrough. Other branches (Method='approxdcp', grayscale input, single/double inputs, boost contrast, BoostAmount NV, quadtree branch for size >=64) covered exhaustively in gtest. tol=1 uint8 (default rounding accumulation). approxdcp diverges ~15-30 uint8 from MATLAB due to imhist bucket boundaries + missing Fast-Guided-Filter subsample; documented in gtest, not fingerprinted here. References: He/Sun/Tang 2011 IEEE TPAMI 33(12); Dubok et al. 2014 ICIP. Image namespace 2026-05-27. |
 | `imsharpen` | ✅ | 0.007 | 310.90× | 261.16× | OK | Sig: r = imsharpen(...). Spec-extension batch 2026-05-09. |
 | `intlut` | ✅ | 0.003 | 246.06× | 28.09× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
 | `localcontrast` | ❌ |  |  |  |  |  |

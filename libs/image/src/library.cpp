@@ -112,6 +112,7 @@ void imdiffusefilt_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaborfilt_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imnlmfilt_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void locallapfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imreducehaze_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imboxfilt3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convmtx2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void freqz2_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -379,6 +380,7 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imgaborfilt",    &image::detail::imgaborfilt_reg);
     reg("filter", "imnlmfilt",      &image::detail::imnlmfilt_reg);
     reg("filter", "locallapfilt",   &image::detail::locallapfilt_reg);
+    reg("filter", "imreducehaze",   &image::detail::imreducehaze_reg);
     reg("filter", "imboxfilt3",   &image::detail::imboxfilt3_reg);
     reg("filter", "convmtx2",     &image::detail::convmtx2_reg);
     reg("filter", "freqz2",       &image::detail::freqz2_reg);
