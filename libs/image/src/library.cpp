@@ -223,6 +223,7 @@ void mean2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void std2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void corr2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void multissim_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void multissim3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // transform/transform.cpp
 void dct2_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -500,6 +501,7 @@ void ImageLibrary::install(Engine &engine)
     reg("quality", "std2",  &image::detail::std2_reg);
     reg("quality", "corr2", &image::detail::corr2_reg);
     reg("quality", "multissim", &image::detail::multissim_reg);
+    reg("quality", "multissim3", &image::detail::multissim3_reg);
 
     reg("transform", "dct2",          &image::detail::dct2_reg);
     reg("transform", "idct2",         &image::detail::idct2_reg);

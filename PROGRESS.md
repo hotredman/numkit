@@ -1982,7 +1982,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `brisque` | ❌ |  |  |  |  | no-reference quality (needs trained model) |
 | `immse` | ✅ | 0.004 | 82.46× | 12.42× | OK | Sig: r = immse(...). Spec-extension batch 2026-05-09. |
 | `multissim` | ✅ | 25.114 | 0.19× |  | OK | Sig: [score, qmaps] = multissim(I, Iref [, NV...]). Covers: default 5-scale, NumScales={1,3}, custom ScaleWeights (Wang 2003), Sigma=0.5, DynamicRange=128, identical-images (== 1), double input class preservation. Deterministic gradient input avoids rand/randn divergence between MATLAB and numkit MT19937. tol=1e-4 (single-vs-double precision in box filter accumulation; algorithm bit-equivalent). qualityMap output (cell of per-scale ssim maps) and error guards covered exhaustively in gtest. Reference: Wang/Simoncelli/Bovik 2003, Asilomar Conf. on Signals/Systems/Computers. Image namespace 2026-05-27. |
-| `multissim3` | ❌ |  |  |  |  |  |
+| `multissim3` | ✅ | 4.596 | 2.91× |  | OK | Sig: [score, qmaps] = multissim3(V, Vref [, NV...]). 3-D volumetric extension of multissim. Covers: default 5-scale, NumScales={1,3}, custom ScaleWeights (Wang 2003), Sigma=0.5, DynamicRange=128, identical, double in/out. Algorithm identical to multissim but with 3-D Gaussian (separable 1-D across rows/cols/slices), 2x2x2/8 box lowpass, factor-2 downsample in all 3 dims. tol=1e-4 (float-vs-double precision). Reference: Wang/Simoncelli/Bovik 2003. Image namespace 2026-05-27. |
 | `niqe` | ❌ |  |  |  |  | no-reference (needs model) |
 | `piqe` | ❌ |  |  |  |  | perceptual no-reference |
 | `psnr` | ✅ | 0.003 | 693.26× | 52.36× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |

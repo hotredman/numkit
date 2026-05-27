@@ -495,6 +495,329 @@ Value multissim(const Value &A, const Value &Iref,
     return cast_score_value(score, origClass, mr);
 }
 
+// ════════════════════════════════════════════════════════════════════
+// multissim3 — 3-D multi-scale SSIM (Wang/Simoncelli/Bovik 2003)
+// ════════════════════════════════════════════════════════════════════
+//
+// Volumetric extension of multissim. Same algorithm but:
+//   - Gaussian smoothing is 3-D separable (3 successive 1-D convs
+//     along rows / cols / slices) with the same filter size
+//     2·ceil(3σ)+1.
+//   - Lowpass is a 2×2×2 box (ones/8) with replicate boundary,
+//     anchor at the top-front-left corner of the kernel (matches
+//     MATLAB's imfilter even-size convention).
+//   - Downsample factor 2 in ALL three dims (rows/cols/slices).
+//
+// Transliterated verbatim from MATLAB R2025b multissim3.m +
+// algmultissim.m (numSpatialDims=3 branch) + parserMultissim.m.
+
+namespace {
+
+// Volume buffer mirror of the 2-D "image-in-DOUBLE" used by multissim.
+struct Vol {
+    std::size_t H = 0, W = 0, D = 0;
+    std::vector<double> v;  // column-major: idx = z*H*W + c*H + r
+    Vol() = default;
+    Vol(std::size_t h, std::size_t w, std::size_t d)
+        : H(h), W(w), D(d), v(h * w * d, 0.0) {}
+    double &at(std::size_t r, std::size_t c, std::size_t z) {
+        return v[z * H * W + c * H + r];
+    }
+    double at(std::size_t r, std::size_t c, std::size_t z) const {
+        return v[z * H * W + c * H + r];
+    }
+};
+
+Vol to_double_vol(const Value &V)
+{
+    const std::size_t H = V.dims().rows();
+    const std::size_t W = V.dims().cols();
+    const std::size_t D = V.dims().is3D() ? V.dims().pages() : 1;
+    Vol out(H, W, D);
+    const ValueType t = V.type();
+    const std::size_t N = H * W * D;
+    for (std::size_t i = 0; i < N; ++i) {
+        double v = V.elemAsDouble(i);
+        if (t == ValueType::INT16) v += 32768.0;
+        out.v[i] = v;
+    }
+    return out;
+}
+
+Value vol_to_value(const Vol &V, std::pmr::memory_resource *mr)
+{
+    Value out = V.D == 1
+        ? Value::matrix(V.H, V.W, ValueType::DOUBLE, mr)
+        : Value::matrix3d(V.H, V.W, V.D, ValueType::DOUBLE, mr);
+    std::memcpy(out.doubleDataMut(), V.v.data(),
+                V.v.size() * sizeof(double));
+    return out;
+}
+
+// Build a 1-D Gaussian kernel with `filtSize` elements, mean = (filtSize-1)/2.
+std::vector<double> gauss1d(double sigma, int filtSize)
+{
+    std::vector<double> k(static_cast<std::size_t>(filtSize));
+    const double half = (filtSize - 1) / 2.0;
+    double s = 0.0;
+    for (int i = 0; i < filtSize; ++i) {
+        const double x = i - half;
+        k[i] = std::exp(-0.5 * (x / sigma) * (x / sigma));
+        s += k[i];
+    }
+    for (double &v : k) v /= s;
+    return k;
+}
+
+inline std::size_t reflect_clamp(long i, std::size_t n)
+{
+    // Replicate boundary: clamp to [0, n-1].
+    if (i < 0) return 0;
+    if (i >= static_cast<long>(n)) return n - 1;
+    return static_cast<std::size_t>(i);
+}
+
+// Separable 3-D Gaussian: convolve along rows, then cols, then slices.
+// All passes use replicate boundary.
+Vol gauss3d_filter(const Vol &In, const std::vector<double> &k)
+{
+    const std::size_t H = In.H;
+    const std::size_t W = In.W;
+    const std::size_t D = In.D;
+    const int kn = static_cast<int>(k.size());
+    const int half = kn / 2;
+    Vol tmp(H, W, D), out(H, W, D);
+    // Rows pass: for each (c, z), convolve along r.
+    for (std::size_t z = 0; z < D; ++z)
+        for (std::size_t c = 0; c < W; ++c)
+            for (std::size_t r = 0; r < H; ++r) {
+                double s = 0.0;
+                for (int j = -half; j <= half; ++j) {
+                    const std::size_t rr = reflect_clamp(
+                        static_cast<long>(r) + j, H);
+                    s += k[static_cast<std::size_t>(j + half)] * In.at(rr, c, z);
+                }
+                tmp.at(r, c, z) = s;
+            }
+    // Cols pass.
+    Vol tmp2(H, W, D);
+    for (std::size_t z = 0; z < D; ++z)
+        for (std::size_t c = 0; c < W; ++c)
+            for (std::size_t r = 0; r < H; ++r) {
+                double s = 0.0;
+                for (int j = -half; j <= half; ++j) {
+                    const std::size_t cc = reflect_clamp(
+                        static_cast<long>(c) + j, W);
+                    s += k[static_cast<std::size_t>(j + half)] * tmp.at(r, cc, z);
+                }
+                tmp2.at(r, c, z) = s;
+            }
+    // Slices pass.
+    for (std::size_t z = 0; z < D; ++z)
+        for (std::size_t c = 0; c < W; ++c)
+            for (std::size_t r = 0; r < H; ++r) {
+                double s = 0.0;
+                for (int j = -half; j <= half; ++j) {
+                    const std::size_t zz = reflect_clamp(
+                        static_cast<long>(z) + j, D);
+                    s += k[static_cast<std::size_t>(j + half)] * tmp2.at(r, c, zz);
+                }
+                out.at(r, c, z) = s;
+            }
+    return out;
+}
+
+// 2×2×2 box lowpass with replicate boundary, anchor at top-front-left.
+//   Out(r,c,z) = (1/8) * sum_(i,j,k) In(r+i, c+j, z+k), i,j,k ∈ {0,1}
+Vol lowpass_2x2x2(const Vol &In)
+{
+    const std::size_t H = In.H;
+    const std::size_t W = In.W;
+    const std::size_t D = In.D;
+    Vol out(H, W, D);
+    for (std::size_t z = 0; z < D; ++z) {
+        const std::size_t zn = (z + 1 < D) ? (z + 1) : (D - 1);
+        for (std::size_t c = 0; c < W; ++c) {
+            const std::size_t cn = (c + 1 < W) ? (c + 1) : (W - 1);
+            for (std::size_t r = 0; r < H; ++r) {
+                const std::size_t rn = (r + 1 < H) ? (r + 1) : (H - 1);
+                out.at(r, c, z) =
+                    0.125 * (In.at(r, c, z) + In.at(rn, c, z)
+                          + In.at(r, cn, z) + In.at(rn, cn, z)
+                          + In.at(r, c, zn) + In.at(rn, c, zn)
+                          + In.at(r, cn, zn) + In.at(rn, cn, zn));
+            }
+        }
+    }
+    return out;
+}
+
+Vol downsample_2x2x2(const Vol &In)
+{
+    const std::size_t H = (In.H + 1) / 2;
+    const std::size_t W = (In.W + 1) / 2;
+    const std::size_t D = (In.D + 1) / 2;
+    Vol out(H, W, D);
+    for (std::size_t z = 0; z < D; ++z)
+        for (std::size_t c = 0; c < W; ++c)
+            for (std::size_t r = 0; r < H; ++r)
+                out.at(r, c, z) = In.at(r * 2, c * 2, z * 2);
+    return out;
+}
+
+// 3-D SSIM map. Same formula as ssim_map_double but operates on Vol.
+Vol ssim_map_vol(const Vol &A, const Vol &B,
+                 const std::vector<double> &k,
+                 double C1, double C2, bool include_luminance)
+{
+    const std::size_t H = A.H, W = A.W, D = A.D;
+    Vol AA(H, W, D), BB(H, W, D), AB(H, W, D);
+    for (std::size_t i = 0; i < A.v.size(); ++i) {
+        const double a = A.v[i], b = B.v[i];
+        AA.v[i] = a * a;
+        BB.v[i] = b * b;
+        AB.v[i] = a * b;
+    }
+    Vol mu_a = gauss3d_filter(A, k);
+    Vol mu_b = gauss3d_filter(B, k);
+    Vol sa2  = gauss3d_filter(AA, k);
+    Vol sb2  = gauss3d_filter(BB, k);
+    Vol sab  = gauss3d_filter(AB, k);
+    Vol out(H, W, D);
+    for (std::size_t i = 0; i < A.v.size(); ++i) {
+        const double mua = mu_a.v[i], mub = mu_b.v[i];
+        const double mu_xy = mua * mub;
+        const double mux2 = mua * mua;
+        const double muy2 = mub * mub;
+        double vx = sa2.v[i] - mux2;
+        double vy = sb2.v[i] - muy2;
+        if (vx < 0.0) vx = 0.0;
+        if (vy < 0.0) vy = 0.0;
+        const double cov = sab.v[i] - mu_xy;
+        const double num2 = 2.0 * cov + C2;
+        const double den2 = vx + vy + C2;
+        double m;
+        if (include_luminance) {
+            const double num1 = 2.0 * mu_xy + C1;
+            const double den1 = mux2 + muy2 + C1;
+            m = (den1 != 0.0 && den2 != 0.0) ? (num1 * num2) / (den1 * den2) : 1.0;
+        } else {
+            m = (den2 != 0.0) ? num2 / den2 : 1.0;
+        }
+        if (m > 1.0) m = 1.0;
+        out.v[i] = m;
+    }
+    return out;
+}
+
+} // namespace
+
+Value multissim3(const Value &V, const Value &Vref,
+                 int num_scales,
+                 const std::vector<double> &scale_weights_in,
+                 double sigma, double dynamic_range_in,
+                 std::vector<Value> *quality_maps_out,
+                 std::pmr::memory_resource *mr)
+{
+    if (V.dims().rows() != Vref.dims().rows()
+        || V.dims().cols() != Vref.dims().cols()
+        || V.dims().pages() != Vref.dims().pages())
+        throw Error("multissim3: V and Vref must have the same size",
+                    0, 0, "multissim3", "", "m:multissim3:size");
+    if (V.type() != Vref.type())
+        throw Error("multissim3: V and Vref must have the same class",
+                    0, 0, "multissim3", "", "m:multissim3:class");
+    if (num_scales < 1)
+        throw Error("multissim3: NumScales must be a positive integer",
+                    0, 0, "multissim3", "",
+                    "m:multissim3:numScales");
+    if (!std::isfinite(sigma) || sigma <= 0.0)
+        throw Error("multissim3: Sigma must be a positive scalar",
+                    0, 0, "multissim3", "",
+                    "m:multissim3:sigma");
+
+    const ValueType origClass = V.type();
+    Vol Ad = to_double_vol(V);
+    Vol Bd = to_double_vol(Vref);
+
+    // Verify downsampleability.
+    {
+        std::size_t h = Ad.H, w = Ad.W, d = Ad.D;
+        for (int i = 1; i < num_scales; ++i) {
+            if (h <= 1 || w <= 1 || d <= 1)
+                throw Error("multissim3: volume too small for NumScales="
+                            + std::to_string(num_scales),
+                            0, 0, "multissim3", "",
+                            "m:multissim3:tooSmall");
+            h = (h + 1) / 2;
+            w = (w + 1) / 2;
+            d = (d + 1) / 2;
+        }
+    }
+
+    const double L = (dynamic_range_in > 0.0)
+                   ? dynamic_range_in
+                   : class_dynamic_range(origClass);
+    const double C1 = (0.01 * L) * (0.01 * L);
+    const double C2 = (0.03 * L) * (0.03 * L);
+
+    std::vector<double> sw = scale_weights_in.empty()
+        ? default_scale_weights(num_scales)
+        : scale_weights_in;
+    if (static_cast<int>(sw.size()) != num_scales)
+        throw Error("multissim3: length(ScaleWeights) must equal NumScales",
+                    0, 0, "multissim3", "", "m:multissim3:swLen");
+    double swsum = 0.0;
+    for (double v : sw) {
+        if (v < 0.0)
+            throw Error("multissim3: ScaleWeights must be non-negative",
+                        0, 0, "multissim3", "", "m:multissim3:swNeg");
+        swsum += v;
+    }
+    if (swsum <= 0.0)
+        throw Error("multissim3: ScaleWeights must have at least one "
+                    "positive element",
+                    0, 0, "multissim3", "", "m:multissim3:swZero");
+    for (double &v : sw) v /= swsum;
+
+    const int filtRadius = static_cast<int>(std::ceil(sigma * 3.0));
+    const int filtSize = 2 * filtRadius + 1;
+    std::vector<double> gk = gauss1d(sigma, filtSize);
+
+    if (quality_maps_out) quality_maps_out->clear();
+
+    double total_log_score = 0.0;
+    bool has_log = true;
+    double total_score = 1.0;
+    auto apply_weight = [](double base, double exp) -> double {
+        if (exp != std::floor(exp) && base < 0.0) base = 0.0;
+        return std::pow(base, exp);
+    };
+
+    for (int i = 0; i < num_scales; ++i) {
+        const bool last = (i == num_scales - 1);
+        Vol ssimmap = ssim_map_vol(Ad, Bd, gk, C1, C2,
+                                   /*include_luminance=*/last);
+        const std::size_t Nm = ssimmap.v.size();
+        long double s = 0.0L;
+        for (double x : ssimmap.v) s += x;
+        const double mean_map = static_cast<double>(
+            s / static_cast<long double>(Nm));
+        total_score *= apply_weight(mean_map, sw[i]);
+        if (mean_map > 0.0) total_log_score += sw[i] * std::log(mean_map);
+        else                has_log = false;
+        if (quality_maps_out) quality_maps_out->push_back(vol_to_value(ssimmap, mr));
+        if (!last) {
+            Vol Al = lowpass_2x2x2(Ad);
+            Vol Bl = lowpass_2x2x2(Bd);
+            Ad = downsample_2x2x2(Al);
+            Bd = downsample_2x2x2(Bl);
+        }
+    }
+    double score = has_log ? std::exp(total_log_score) : total_score;
+    return cast_score_value(score, origClass, mr);
+}
+
 Value corr2(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     const size_t N = A.numel();
@@ -582,6 +905,62 @@ void corr2_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("corr2: requires (A, B)", 0, 0, "corr2", "",
                     "m:corr2:nargin");
     outs[0] = corr2(args[0], args[1], ctx.engine->resource());
+}
+
+void multissim3_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("multissim3: requires (V, Vref [, NV...])",
+                    0, 0, "multissim3", "",
+                    "m:multissim3:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    int num_scales = 5;
+    std::vector<double> scale_weights;
+    double sigma = 1.5;
+    double dynamic_range = -1.0;
+
+    std::size_t i = 2;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("multissim3: expected NV-pair name string",
+                        0, 0, "multissim3", "", "m:multissim3:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "numscales") {
+            num_scales = static_cast<int>(args[i + 1].toScalar());
+        } else if (nlo == "scaleweights") {
+            const Value &v = args[i + 1];
+            const std::size_t N = v.numel();
+            scale_weights.resize(N);
+            for (std::size_t k = 0; k < N; ++k)
+                scale_weights[k] = v.elemAsDouble(k);
+        } else if (nlo == "sigma") {
+            sigma = args[i + 1].toScalar();
+        } else if (nlo == "dynamicrange") {
+            dynamic_range = args[i + 1].toScalar();
+        } else {
+            throw Error("multissim3: unknown option '" + name + "'",
+                        0, 0, "multissim3", "",
+                        "m:multissim3:unknownNv");
+        }
+        i += 2;
+    }
+    std::vector<Value> qmaps;
+    outs[0] = multissim3(args[0], args[1], num_scales, scale_weights,
+                         sigma, dynamic_range,
+                         nargout >= 2 ? &qmaps : nullptr, mr);
+    if (nargout >= 2 && outs.size() >= 2) {
+        Value cell = Value::cell(1, qmaps.size(), mr);
+        for (std::size_t k = 0; k < qmaps.size(); ++k)
+            cell.cellAt(k) = std::move(qmaps[k]);
+        outs[1] = std::move(cell);
+    }
 }
 
 void multissim_reg(Span<const Value> args, size_t nargout,

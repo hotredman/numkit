@@ -1,0 +1,10 @@
+{
+  "name": "multissim3",
+  "namespace": "image",
+  "setup": "[X, Y, Z] = ndgrid(1:16, 1:16, 1:16); A = uint8(min(255, X + Y + Z)); B = uint8(min(255, X + Y + 2*Z));",
+  "expr": "r1 = double(multissim3(A, B)); r2 = double(multissim3(A, B, 'NumScales', 1)); r3 = double(multissim3(A, B, 'NumScales', 3)); r4 = double(multissim3(A, B, 'ScaleWeights', [0.0448 0.2856 0.3001 0.2363 0.1333])); r5 = double(multissim3(A, B, 'Sigma', 0.5)); r6 = double(multissim3(A, B, 'DynamicRange', 128)); r7 = double(multissim3(A, A)); Ad = double(A)/255; Bd = double(B)/255; r8 = double(multissim3(Ad, Bd));",
+  "iters": 1,
+  "tol": 1e-4,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"],
+  "comment": "Sig: [score, qmaps] = multissim3(V, Vref [, NV...]). 3-D volumetric extension of multissim. Covers: default 5-scale, NumScales={1,3}, custom ScaleWeights (Wang 2003), Sigma=0.5, DynamicRange=128, identical, double in/out. Algorithm identical to multissim but with 3-D Gaussian (separable 1-D across rows/cols/slices), 2x2x2/8 box lowpass, factor-2 downsample in all 3 dims. tol=1e-4 (float-vs-double precision). Reference: Wang/Simoncelli/Bovik 2003. Image namespace 2026-05-27."
+}
