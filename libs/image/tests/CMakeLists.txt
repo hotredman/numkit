@@ -48,4 +48,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/imnlmfilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tonemap_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/labeloverlay_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/locallapfilt_test.cpp
 )
