@@ -763,10 +763,12 @@ export default function Sidebar({
         <select className="ws-picker"
           value={source}
           onChange={(e) => switchSource(e.target.value)}>
-          <option value="examples">Examples</option>
-          <option value="temporary">Temporary</option>
+          {/* Order: most-frequently-used (Local) first, then
+              Temporary, GitHub, Examples last. */}
           {localAvailable && <option value="localFolder">Local Folder</option>}
+          <option value="temporary">Temporary</option>
           <option value="github">GitHub</option>
+          <option value="examples">Examples</option>
         </select>
         {!isExamples && !isGithub && (
           <button className="sidebar-icon" title="New file"
