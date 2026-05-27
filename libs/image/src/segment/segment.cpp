@@ -12,10 +12,14 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <queue>
+#include <utility>
+#include <vector>
 #include <vector>
 
 namespace numkit::image {
@@ -835,6 +839,142 @@ Value roipoly(double xdata_lo, double xdata_hi,
     return poly2mask(roix, roiy, M, N, mr);
 }
 
+// ── graydist (gray-weighted geodesic distance transform) ────────
+//
+// MATLAB R2025b graydist algorithm:
+//   T(seed) = 0
+//   Edge cost p→q: χ(p,q) · (I(p) + I(q)) / 2
+//     χ depends on method:
+//       chessboard:        8-conn, χ = 1 for all neighbours
+//       cityblock:         4-conn, χ = 1 (orth only)
+//       quasi-euclidean:   8-conn, χ = 1 (orth), χ = √2 (diag)
+//   T(p) = min over neighbours q: T(q) + cost(q→p)
+//   Solved by Dijkstra with binary heap.
+//
+// Reference: Soille, *Morphological Image Analysis*, 2nd ed.,
+//   Springer, §4.4 (chamfer geodesic distance transform).
+Value graydist(const Value &I, const Value &seeds,
+               const std::string &method,
+               std::pmr::memory_resource *mr)
+{
+    if (I.dims().is3D())
+        throw Error("graydist: I must be 2-D",
+                    0, 0, "graydist", "", "m:graydist:dim");
+    const bool is_cb = (method == "cityblock");
+    const bool is_chess = (method == "chessboard");
+    const bool is_qe = (method == "quasi-euclidean");
+    if (!is_cb && !is_chess && !is_qe)
+        throw Error("graydist: METHOD must be 'cityblock', "
+                    "'chessboard', or 'quasi-euclidean'",
+                    0, 0, "graydist", "", "m:graydist:method");
+
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    const std::size_t N = H * W;
+
+    // Output class: DOUBLE for DOUBLE input, SINGLE otherwise.
+    const ValueType outT = (I.type() == ValueType::DOUBLE)
+                            ? ValueType::DOUBLE : ValueType::SINGLE;
+    Value T = Value::matrix(H, W, outT, mr);
+
+    // Initialise with +Inf.
+    if (outT == ValueType::DOUBLE) {
+        double *p = T.doubleDataMut();
+        for (std::size_t i = 0; i < N; ++i)
+            p[i] = std::numeric_limits<double>::infinity();
+    } else {
+        float *p = T.singleDataMut();
+        for (std::size_t i = 0; i < N; ++i)
+            p[i] = std::numeric_limits<float>::infinity();
+    }
+    if (N == 0 || seeds.numel() == 0) return T;
+
+    // Working DOUBLE distance buffer (precision; cast back at end).
+    std::pmr::vector<double> dist(N, std::numeric_limits<double>::infinity(), mr);
+    // Read image into a double array (uniform access).
+    std::pmr::vector<double> Idata(N, 0.0, mr);
+    for (std::size_t i = 0; i < N; ++i) Idata[i] = I.elemAsDouble(i);
+
+    // Min-heap as (dist, index) pairs. Use std::priority_queue.
+    using PQNode = std::pair<double, std::size_t>;
+    auto cmp = [](const PQNode &a, const PQNode &b) { return a.first > b.first; };
+    std::priority_queue<PQNode, std::vector<PQNode>, decltype(cmp)> pq(cmp);
+
+    // Seed pixels: T = 0, push.
+    for (std::size_t k = 0; k < seeds.numel(); ++k) {
+        const double sv = seeds.elemAsDouble(k);
+        if (!(sv >= 1) || sv != std::floor(sv))
+            throw Error("graydist: seed indices must be positive integers",
+                        0, 0, "graydist", "", "m:graydist:seed");
+        const std::size_t idx = static_cast<std::size_t>(sv) - 1;
+        if (idx >= N)
+            throw Error("graydist: seed index out of bounds",
+                        0, 0, "graydist", "", "m:graydist:seedOOB");
+        dist[idx] = 0.0;
+        pq.emplace(0.0, idx);
+    }
+
+    // Neighbour offsets in (dr, dc) and chamfer weight.
+    struct Step { int dr, dc; double chamfer; };
+    std::array<Step, 8> steps8{};
+    int nSteps = 0;
+    if (is_cb) {
+        steps8 = {Step{-1, 0, 1.0}, Step{1, 0, 1.0},
+                  Step{0, -1, 1.0}, Step{0, 1, 1.0},
+                  Step{}, Step{}, Step{}, Step{}};
+        nSteps = 4;
+    } else if (is_chess) {
+        steps8 = {Step{-1, 0, 1.0}, Step{1, 0, 1.0},
+                  Step{0, -1, 1.0}, Step{0, 1, 1.0},
+                  Step{-1, -1, 1.0}, Step{-1, 1, 1.0},
+                  Step{1, -1, 1.0},  Step{1, 1, 1.0}};
+        nSteps = 8;
+    } else {
+        const double s2 = std::sqrt(2.0);
+        steps8 = {Step{-1, 0, 1.0}, Step{1, 0, 1.0},
+                  Step{0, -1, 1.0}, Step{0, 1, 1.0},
+                  Step{-1, -1, s2}, Step{-1, 1, s2},
+                  Step{1, -1, s2},  Step{1, 1, s2}};
+        nSteps = 8;
+    }
+
+    // Dijkstra main loop.
+    while (!pq.empty()) {
+        auto [d, k] = pq.top();
+        pq.pop();
+        if (d > dist[k]) continue;  // stale heap entry
+        const std::size_t r = k % H;
+        const std::size_t c = k / H;
+        const double Iq = Idata[k];
+        for (int s = 0; s < nSteps; ++s) {
+            const long nr = static_cast<long>(r) + steps8[s].dr;
+            const long nc = static_cast<long>(c) + steps8[s].dc;
+            if (nr < 0 || nc < 0
+             || static_cast<std::size_t>(nr) >= H
+             || static_cast<std::size_t>(nc) >= W) continue;
+            const std::size_t nk = static_cast<std::size_t>(nc) * H
+                                 + static_cast<std::size_t>(nr);
+            const double Ip = Idata[nk];
+            const double w = steps8[s].chamfer * (Iq + Ip) * 0.5;
+            const double nd = d + w;
+            if (nd < dist[nk]) {
+                dist[nk] = nd;
+                pq.emplace(nd, nk);
+            }
+        }
+    }
+
+    // Write back to T with class cast.
+    if (outT == ValueType::DOUBLE) {
+        double *p = T.doubleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p[i] = dist[i];
+    } else {
+        float *p = T.singleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p[i] = static_cast<float>(dist[i]);
+    }
+    return T;
+}
+
 Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::memory_resource *mr)
 {
     if (color.numel() != 3)
@@ -1290,6 +1430,81 @@ void roipoly_reg(Span<const Value> a, size_t nargout, Span<Value> o,
             throw Error("roipoly: too many output arguments (max 5)",
                         0, 0, "roipoly", "", "m:roipoly:tooManyOutputs");
     }
+}
+
+// graydist adapter — handles the 4 input forms + optional METHOD.
+void graydist_reg(Span<const Value> a, size_t, Span<Value> o,
+                  CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("graydist: requires (A, mask | ind | C, R "
+                    "[, method])",
+                    0, 0, "graydist", "", "m:graydist:nargin");
+    auto *mr = c.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    // Strip trailing method string if present.
+    std::string method = "chessboard";
+    std::size_t nargs = a.size();
+    if (is_string(a[nargs - 1])) {
+        method = a[nargs - 1].toString();
+        std::string lo;
+        for (char ch : method)
+            lo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        method = lo;
+        --nargs;
+    }
+
+    const Value &A = a[0];
+    const std::size_t H = A.dims().rows();
+    const std::size_t W = A.dims().cols();
+
+    // Build 1-based linear seed indices.
+    std::pmr::vector<double> indices(mr);
+    if (nargs == 2) {
+        const Value &arg2 = a[1];
+        if (arg2.isLogical()) {
+            // Mask: same size as A.
+            if (arg2.numel() != H * W)
+                throw Error("graydist: MASK must be the same size as A",
+                            0, 0, "graydist", "", "m:graydist:maskSize");
+            const std::uint8_t *m = arg2.logicalData();
+            for (std::size_t i = 0; i < arg2.numel(); ++i)
+                if (m[i]) indices.push_back(static_cast<double>(i + 1));
+        } else {
+            // Linear indices.
+            indices.reserve(arg2.numel());
+            for (std::size_t i = 0; i < arg2.numel(); ++i)
+                indices.push_back(arg2.elemAsDouble(i));
+        }
+    } else if (nargs == 3) {
+        // (A, C, R) — column-then-row coordinates.
+        const Value &C = a[1];
+        const Value &R = a[2];
+        if (C.numel() != R.numel())
+            throw Error("graydist: C and R must have equal length",
+                        0, 0, "graydist", "", "m:graydist:cr");
+        indices.reserve(C.numel());
+        for (std::size_t i = 0; i < C.numel(); ++i) {
+            const std::size_t cc = static_cast<std::size_t>(C.elemAsDouble(i));
+            const std::size_t rr = static_cast<std::size_t>(R.elemAsDouble(i));
+            if (cc < 1 || cc > W || rr < 1 || rr > H)
+                throw Error("graydist: (C, R) out of bounds",
+                            0, 0, "graydist", "", "m:graydist:crBounds");
+            // Column-major 1-based linear index.
+            const std::size_t lin = (cc - 1) * H + rr;  // 1-based
+            indices.push_back(static_cast<double>(lin));
+        }
+    } else {
+        throw Error("graydist: too many positional arguments",
+                    0, 0, "graydist", "", "m:graydist:nargin");
+    }
+
+    Value seedVec = Value::matrix(indices.size(), 1, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < indices.size(); ++i)
+        seedVec.doubleDataMut()[i] = indices[i];
+    o[0] = graydist(A, seedVec, method, mr);
 }
 
 void poly2mask_reg(Span<const Value> a, size_t, Span<Value> o,

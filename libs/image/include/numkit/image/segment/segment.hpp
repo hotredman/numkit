@@ -274,6 +274,35 @@ Value roipoly(double xdata_lo, double xdata_hi,
               const Value &xi, const Value &yi,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Gray-weighted geodesic distance transform
+/// (`T = graydist(I, seeds [, method])`).
+///
+/// Computes the minimum-cost path length from each pixel to the
+/// nearest seed, where the cost of stepping from pixel `p` to
+/// neighbour `q` is
+///   @f$ \text{cost}(p, q) = \chi(p, q) \cdot \frac{I(p) + I(q)}{2} @f$
+/// with chamfer weight `χ` depending on `method`:
+///   * `"chessboard"` (default) — 8-conn, χ = 1 for all neighbours.
+///   * `"cityblock"`             — 4-conn, χ = 1 (orth only).
+///   * `"quasi-euclidean"`       — 8-conn, χ = 1 (orth), χ = √2 (diag).
+///
+/// Solved by Dijkstra over the pixel grid. Output is DOUBLE for
+/// DOUBLE input, SINGLE otherwise (matches MATLAB R2025b).
+///
+/// Reference: Soille, *Morphological Image Analysis*, 2nd ed.,
+/// Springer, §4.4 (chamfer geodesic distance transform).
+///
+/// @param I        2-D grayscale image (any real numeric class).
+/// @param seeds    Linear seed indices (1-based, into column-major
+///                 storage of `I`). Empty → all-Inf output.
+/// @param method   `"chessboard"` (default) / `"cityblock"` /
+///                 `"quasi-euclidean"`.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         Distance transform `T`, same shape as `I`.
+Value graydist(const Value &I, const Value &seeds,
+               const std::string &method,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// Paint a binary mask onto an image with a colour
 /// (`J = imoverlay(I, BW, color)`).
 ///
