@@ -230,6 +230,33 @@ Value mape(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resourc
 /// @see corrcoef
 Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief One-argument partial correlation: pairwise partial correlation
+/// between columns of `X`, controlling for the remaining columns of `X`
+/// (`R = partialcorr(X)`).
+///
+/// For each pair `(i, j)` with `i ≠ j` the control set is the columns of
+/// `X` excluding both `i` and `j` (augmented with an intercept column).
+/// The diagonal is forced to 1.
+///
+/// @param X   `n × p` matrix; columns are the variables.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `p × p` symmetric partial-correlation matrix.
+/// @see partialcorr_xz, partialcorr_of
+Value partialcorr_xx(const Value &X, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Two-argument partial correlation
+/// (`R = partialcorr(X, Z)`).
+///
+/// Pairwise partial correlation between columns of `X` controlling for
+/// the columns of `Z`. Output is `p × p` symmetric with diagonal 1.
+///
+/// @param X   `n × p` matrix of variables of interest.
+/// @param Z   `n × r` controlling variables.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `p × p` symmetric partial-correlation matrix.
+/// @see partialcorr_xx, partialcorr_of
+Value partialcorr_xz(const Value &X, const Value &Z, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Partial correlation between each column of `Y` and each
 /// column of `X`, controlling for the remaining columns of `X` (and
 /// optionally `Z`).

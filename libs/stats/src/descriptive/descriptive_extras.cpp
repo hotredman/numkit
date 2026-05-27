@@ -430,6 +430,172 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::m
     return Rout;
 }
 
+// ── partialcorr 1-arg / 2-arg forms ─────────────────────────────────
+//
+// `partialcorr(X, Z)` is `partialcorr(X, X, Z)` with the diagonal forced
+// to exactly 1 (FP cancellation drops self-correlation to 1 - O(ε), but
+// MATLAB returns exactly 1).
+//
+// `partialcorr(X)` residualises on a per-pair-distinct control set:
+// for pair (i, j), control = all X columns except i and j (plus
+// intercept). Implementation matches the residualise-then-Pearson
+// approach used by `partialcorr_of`, but rebuilds the design matrix
+// per pair. For small p (typical use ≤ 20) this is cheap; cost is
+// O(p² · (p³ + m·p²)).
+
+namespace {
+
+// Residualise `wCol` (length m) on a column-major design matrix `C`
+// of size m × pC (already includes intercept if needed). Returns the
+// residual vector via `out`. Uses (C'C)\C'·w via Gauss elimination.
+void residualiseColumn_local(const double *C, std::size_t m,
+                              std::size_t pC, const double *MM,
+                              const double *wCol, double *out,
+                              std::pmr::memory_resource *mr)
+{
+    ScratchArena scratch(mr);
+    ScratchVec<double> b(pC, 0.0, &scratch);
+    for (std::size_t i = 0; i < pC; ++i)
+        for (std::size_t k = 0; k < m; ++k)
+            b[i] += C[k + i * m] * wCol[k];
+    // Solve MM · coef = b. MM is column-major pC×pC.
+    ScratchVec<double> Mc(MM, MM + pC * pC, &scratch);
+    bool singular = false;
+    for (std::size_t kc = 0; kc < pC && !singular; ++kc) {
+        std::size_t piv = kc;
+        double pmax = std::fabs(Mc[kc + kc * pC]);
+        for (std::size_t r = kc + 1; r < pC; ++r) {
+            const double v = std::fabs(Mc[r + kc * pC]);
+            if (v > pmax) { pmax = v; piv = r; }
+        }
+        if (pmax == 0.0) { singular = true; break; }
+        if (piv != kc) {
+            for (std::size_t j = 0; j < pC; ++j)
+                std::swap(Mc[kc + j * pC], Mc[piv + j * pC]);
+            std::swap(b[kc], b[piv]);
+        }
+        const double pivVal = Mc[kc + kc * pC];
+        for (std::size_t r = kc + 1; r < pC; ++r) {
+            const double f = Mc[r + kc * pC] / pivVal;
+            for (std::size_t j = kc; j < pC; ++j)
+                Mc[r + j * pC] -= f * Mc[kc + j * pC];
+            b[r] -= f * b[kc];
+        }
+    }
+    if (singular) {
+        std::fill(b.begin(), b.end(), 0.0);
+    } else {
+        for (std::size_t kk = pC; kk-- > 0;) {
+            double s = b[kk];
+            for (std::size_t j = kk + 1; j < pC; ++j)
+                s -= Mc[kk + j * pC] * b[j];
+            b[kk] = s / Mc[kk + kk * pC];
+        }
+    }
+    for (std::size_t k = 0; k < m; ++k) {
+        double pred = 0.0;
+        for (std::size_t i = 0; i < pC; ++i)
+            pred += C[k + i * m] * b[i];
+        out[k] = wCol[k] - pred;
+    }
+}
+
+double pearsonOnResiduals(const double *a, const double *b, std::size_t m)
+{
+    // Residuals from a regression with an intercept have mean ≈ 0, but
+    // we still subtract the mean defensively for numerical safety.
+    double ma = 0.0, mb = 0.0;
+    for (std::size_t k = 0; k < m; ++k) { ma += a[k]; mb += b[k]; }
+    ma /= static_cast<double>(m);
+    mb /= static_cast<double>(m);
+    double sab = 0.0, saa = 0.0, sbb = 0.0;
+    for (std::size_t k = 0; k < m; ++k) {
+        const double da = a[k] - ma;
+        const double db = b[k] - mb;
+        sab += da * db;
+        saa += da * da;
+        sbb += db * db;
+    }
+    if (saa <= 0.0 || sbb <= 0.0) return std::nan("");
+    return sab / std::sqrt(saa * sbb);
+}
+
+} // namespace
+
+Value partialcorr_xx(const Value &X, std::pmr::memory_resource *mr)
+{
+    if (X.dims().ndim() != 2)
+        throw Error("partialcorr: X must be a 2D matrix",
+                    0, 0, "partialcorr", "", "m:partialcorr:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
+    const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
+
+    auto Rout = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *R = Rout.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i) R[i + i * p] = 1.0;
+    if (p < 2 || m < 2) return Rout;
+
+    const double *Xd = X.doubleData();
+    ScratchArena scratch(mr);
+    // Control matrix: intercept + (p - 2) "other" cols = (p - 1) cols.
+    const std::size_t pC = (p >= 2) ? (p - 1) : 1;
+    ScratchVec<double> C(m * pC, 0.0, &scratch);
+    ScratchVec<double> MM(pC * pC, 0.0, &scratch);
+    ScratchVec<double> ri(m, 0.0, &scratch);
+    ScratchVec<double> rj(m, 0.0, &scratch);
+
+    for (std::size_t i = 0; i < p; ++i) {
+        for (std::size_t j = i + 1; j < p; ++j) {
+            // Build C column-major: col 0 = intercept, then X cols ≠ i, j.
+            std::fill(C.begin(), C.end(), 0.0);
+            for (std::size_t k = 0; k < m; ++k) C[k + 0 * m] = 1.0;
+            std::size_t cidx = 1;
+            for (std::size_t k = 0; k < p; ++k) {
+                if (k == i || k == j) continue;
+                for (std::size_t r = 0; r < m; ++r)
+                    C[r + cidx * m] = Xd[r + k * m];
+                ++cidx;
+            }
+            // MM = C' · C  (column-major pC × pC).
+            std::fill(MM.begin(), MM.end(), 0.0);
+            for (std::size_t a = 0; a < pC; ++a)
+                for (std::size_t b = 0; b < pC; ++b) {
+                    double s = 0.0;
+                    for (std::size_t k = 0; k < m; ++k)
+                        s += C[k + a * m] * C[k + b * m];
+                    MM[a + b * pC] = s;
+                }
+            residualiseColumn_local(C.data(), m, pC, MM.data(),
+                                     Xd + i * m, ri.data(), mr);
+            residualiseColumn_local(C.data(), m, pC, MM.data(),
+                                     Xd + j * m, rj.data(), mr);
+            const double rij = pearsonOnResiduals(ri.data(), rj.data(), m);
+            R[i + j * p] = rij;
+            R[j + i * p] = rij;
+        }
+    }
+    return Rout;
+}
+
+Value partialcorr_xz(const Value &X, const Value &Z, std::pmr::memory_resource *mr)
+{
+    // Equivalent to partialcorr_of(X, X, Z) with diagonal forced to 1
+    // (FP cancellation in self-correlation may drift to 1 - O(ε)).
+    auto R = partialcorr_of(X, X, Z, mr);
+    const std::size_t p = static_cast<std::size_t>(R.dims().dim(0));
+    double *Rd = R.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i) Rd[i + i * p] = 1.0;
+    // Symmetrise: off-diagonal pairs are mathematically equal but may
+    // differ by O(ε) due to non-associative summation in cov.
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = i + 1; j < p; ++j) {
+            const double m = 0.5 * (Rd[i + j * p] + Rd[j + i * p]);
+            Rd[i + j * p] = m;
+            Rd[j + i * p] = m;
+        }
+    return R;
+}
+
 // ── corr (Pearson alias) ─────────────────────────────────────────────
 
 Value corr_xx(const Value &X, std::pmr::memory_resource *mr)
@@ -2036,10 +2202,26 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 3)
-        throw Error("partialcorr: requires (X, Y, Z)",
+    auto *mr = ctx.engine->resource();
+    if (args.empty())
+        throw Error("partialcorr: requires (X), (X, Z), or (X, Y, Z)",
                     0, 0, "partialcorr", "", "m:partialcorr:nargin");
-    outs[0] = partialcorr_of(args[0], args[1], args[2], ctx.engine->resource());
+    // Skip trailing string args (NV-pair names like 'Rows'/'Type') —
+    // MATLAB's NV-pairs are accept-and-ignore here (Pearson + complete
+    // rows is the only path implemented).
+    std::size_t posN = args.size();
+    while (posN > 0 && (args[posN - 1].isChar() || args[posN - 1].isString()))
+        --posN;
+    if (posN == 1) {
+        outs[0] = partialcorr_xx(args[0], mr);
+    } else if (posN == 2) {
+        outs[0] = partialcorr_xz(args[0], args[1], mr);
+    } else if (posN == 3) {
+        outs[0] = partialcorr_of(args[0], args[1], args[2], mr);
+    } else {
+        throw Error("partialcorr: too many positional arguments",
+                    0, 0, "partialcorr", "", "m:partialcorr:nargin");
+    }
 }
 
 // ── corr / detrend adapters ──────────────────────────────────────────
