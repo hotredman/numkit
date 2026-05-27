@@ -1,0 +1,10 @@
+{
+  "name": "poly2mask",
+  "namespace": "image",
+  "setup": "xp = 5+[2*cos((0:4)*2*pi/5)]; yp = 5+[2*sin((0:4)*2*pi/5)];",
+  "expr": "M1 = poly2mask([1 3 3 1], [1 1 3 3], 5, 5); M2 = poly2mask([2 5 5 2], [2 2 5 5], 7, 7); M3 = poly2mask([1 4 1], [1 1 4], 5, 5); M4 = poly2mask([0.5 3.5 3.5 0.5], [0.5 0.5 3.5 3.5], 5, 5); M5 = poly2mask([1 2 1], [1 1 2], 5, 5); M6 = poly2mask([1 4 4 1 1], [1 1 4 4 1], 6, 6); M7 = poly2mask(xp, yp, 11, 11); M8 = poly2mask([1 5 3 5 1], [1 1 3 5 5], 5, 5); M9 = poly2mask([10 100 100 10], [10 10 80 80], 100, 110); r1 = sum(M1(:)); r2 = sum(M2(:)); r3 = sum(M3(:)); r4 = sum(M4(:)); r5 = sum(M5(:)); r6 = sum(M6(:)); r7 = sum(M7(:)); r8 = sum(M8(:)); r9 = sum(M9(:)); r10 = double(M7(5,5)); r11 = double(M8(3,3));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"],
+  "comment": "Sig: BW = poly2mask(X, Y, M, N). Branches: integer-aligned square, off-grid square (frac vertices), triangle (diagonal edge), degenerate (zero-area) triangle, self-closing polygon, pentagon (irrational vertices), self-intersecting bowtie, large rectangle, empty inputs (T6 implicit). Bit-equal MATLAB R2025b via reverse-engineered ray-cast rule: per non-horizontal edge, cy ∈ (ylo, yhi] → cx > xi (strict) → toggle. Foley/van Dam scanline polygon fill, X11-half-open horizontal edges. Image namespace 2026-05-27."
+}

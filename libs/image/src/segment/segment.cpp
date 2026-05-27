@@ -700,6 +700,84 @@ Value regionfill(const Value &I, const Value &mask,
     return J;
 }
 
+// ── poly2mask (polygon → binary mask scan conversion) ─────────────
+//
+// Empirically reverse-engineered from MATLAB R2025b's closed-source
+// images.internal.builtins.poly2mask:
+//
+//   Pixel (r, c) ∈ BW iff its centre (c, r) is "inside" the polygon
+//   under the following even-odd ray-casting variant:
+//
+//     For each non-horizontal edge (x1, y1) → (x2, y2):
+//       if centre_y ∈ (min(y1,y2), max(y1,y2)]   ← half-open below,
+//                                                   closed above
+//          xi = x1 + (centre_y - y1) * (x2 - x1) / (y2 - y1)
+//          if centre_x > xi                      ← strict greater
+//             count ^= 1
+//
+//   The (ylo, yhi] interval ensures shared-vertex edges contribute
+//   exactly once. The strict-greater x-test combined with the
+//   half-open y rule reproduces MATLAB's bit-equal coverage of:
+//     • integer-vertex rectangles aligned with the pixel grid,
+//     • diagonal edges crossing pixel centres,
+//     • degenerate (zero-area) sub-pixel polygons,
+//     • polygons touching the image border.
+//
+// References: classic scanline polygon fill
+//   Foley/van Dam et al., *Computer Graphics: P&P* §3.5;
+//   X11 XFillPolygon half-open horizontal-edge convention.
+Value poly2mask(const Value &X, const Value &Y,
+                std::size_t M, std::size_t N,
+                std::pmr::memory_resource *mr)
+{
+    const std::size_t nx = X.numel();
+    const std::size_t ny = Y.numel();
+    if (nx != ny)
+        throw Error("poly2mask: X and Y must have the same length",
+                    0, 0, "poly2mask", "",
+                    "m:poly2mask:vectorSizeMismatch");
+
+    Value BW = Value::matrix(M, N, ValueType::LOGICAL, mr);
+    if (nx == 0 || M == 0 || N == 0) return BW;  // empty → all-false
+
+    // Convert vertices to DOUBLE; auto-close if needed.
+    std::pmr::vector<double> vx(mr), vy(mr);
+    vx.reserve(nx + 1);
+    vy.reserve(nx + 1);
+    for (std::size_t i = 0; i < nx; ++i) {
+        vx.push_back(X.elemAsDouble(i));
+        vy.push_back(Y.elemAsDouble(i));
+    }
+    if (vx.front() != vx.back() || vy.front() != vy.back()) {
+        vx.push_back(vx.front());
+        vy.push_back(vy.front());
+    }
+    const std::size_t nv = vx.size();
+
+    // For each pixel, run the half-open even-odd ray-cast.
+    std::uint8_t *bw = BW.logicalDataMut();
+    for (std::size_t c = 0; c < N; ++c) {
+        const double cx = static_cast<double>(c + 1);   // 1-based centre x
+        for (std::size_t r = 0; r < M; ++r) {
+            const double cy = static_cast<double>(r + 1);
+            int crossings = 0;
+            for (std::size_t i = 0; i + 1 < nv; ++i) {
+                const double y1 = vy[i], y2 = vy[i + 1];
+                if (y1 == y2) continue;             // horizontal, skip
+                const double ylo = std::min(y1, y2);
+                const double yhi = std::max(y1, y2);
+                if (cy <= ylo || cy > yhi) continue;
+                const double x1 = vx[i], x2 = vx[i + 1];
+                const double xi = x1 + (cy - y1) * (x2 - x1) / (y2 - y1);
+                if (cx > xi) crossings ^= 1;
+            }
+            // Column-major linear index: c * M + r.
+            bw[c * M + r] = static_cast<std::uint8_t>(crossings);
+        }
+    }
+    return BW;
+}
+
 Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::memory_resource *mr)
 {
     if (color.numel() != 3)
@@ -1011,8 +1089,7 @@ void gradientweight_reg(Span<const Value> a, size_t, Span<Value> o,
     o[0] = gradientweight(I, sigma_x, sigma_y, rolloff, cutoff, mr);
 }
 
-// regionfill adapter — (I, mask) form only. (I, x, y) polygon form
-// requires poly2mask (separate fn, not yet implemented).
+// regionfill adapter — both (I, MASK) and (I, X, Y) polygon forms.
 void regionfill_reg(Span<const Value> a, size_t, Span<Value> o,
                     CallContext &c)
 {
@@ -1020,12 +1097,35 @@ void regionfill_reg(Span<const Value> a, size_t, Span<Value> o,
         throw Error("regionfill: requires (I, MASK) or (I, X, Y)",
                     0, 0, "regionfill", "", "m:regionfill:nargin");
     auto *mr = c.engine->resource();
-    if (a.size() >= 3)
-        throw Error("regionfill: (I, X, Y) polygon form requires "
-                    "poly2mask which is not yet implemented; use "
-                    "(I, MASK) form",
-                    0, 0, "regionfill", "", "m:regionfill:polyNotImpl");
-    o[0] = regionfill(a[0], a[1], mr);
+    if (a.size() == 2) {
+        o[0] = regionfill(a[0], a[1], mr);
+        return;
+    }
+    // (I, X, Y) form — build mask via poly2mask using I's H/W.
+    const Value &I = a[0];
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    Value mask = poly2mask(a[1], a[2], H, W, mr);
+    o[0] = regionfill(I, mask, mr);
+}
+
+void poly2mask_reg(Span<const Value> a, size_t, Span<Value> o,
+                   CallContext &c)
+{
+    if (a.size() < 4)
+        throw Error("poly2mask: requires (X, Y, M, N)",
+                    0, 0, "poly2mask", "", "m:poly2mask:nargin");
+    auto *mr = c.engine->resource();
+    const double Md = a[2].toScalar();
+    const double Nd = a[3].toScalar();
+    if (!std::isfinite(Md) || !std::isfinite(Nd)
+     || Md < 0.0 || Nd < 0.0
+     || Md != std::floor(Md) || Nd != std::floor(Nd))
+        throw Error("poly2mask: M and N must be non-negative integers",
+                    0, 0, "poly2mask", "", "m:poly2mask:mn");
+    o[0] = poly2mask(a[0], a[1],
+                     static_cast<std::size_t>(Md),
+                     static_cast<std::size_t>(Nd), mr);
 }
 
 void label2idx_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)

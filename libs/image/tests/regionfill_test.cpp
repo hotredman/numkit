@@ -102,9 +102,9 @@ TEST_F(RegionfillTest, MaskSizeMismatchThrows)
     EXPECT_THROW(eval("regionfill(I, false(4,4));"), std::exception);
 }
 
-TEST_F(RegionfillTest, PolygonFormNotImplementedThrows)
+TEST_F(RegionfillTest, PolygonForm)
 {
-    // (I, X, Y) form requires poly2mask — separate cycle.
-    EXPECT_THROW(eval("regionfill(I, [1 4 4 1], [1 1 4 4]);"),
-                 std::exception);
+    // (I, X, Y) form goes through poly2mask, then mask-form solve.
+    eval("Jp = regionfill(I, [2 4 4 2], [2 2 4 4]);");
+    EXPECT_NEAR(evalScalar("Jp(3,3)"), 13.0, 1e-9);
 }
