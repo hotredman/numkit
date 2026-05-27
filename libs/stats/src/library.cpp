@@ -36,6 +36,7 @@ void moment_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void trimmean_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isoutlier_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rmoutliers_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void filloutliers_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void fillmissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void rmmissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void standardizeMissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -450,6 +451,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "trimmean",  &stats::detail::trimmean_reg);
     reg("descriptive", "isoutlier",          &stats::detail::isoutlier_reg);
     reg("descriptive", "rmoutliers",         &stats::detail::rmoutliers_reg);
+    reg("descriptive", "filloutliers",       &stats::detail::filloutliers_reg);
     reg("descriptive", "fillmissing",        &stats::detail::fillmissing_reg);
     reg("descriptive", "rmmissing",          &stats::detail::rmmissing_reg);
     reg("descriptive", "standardizeMissing", &stats::detail::standardizeMissing_reg);

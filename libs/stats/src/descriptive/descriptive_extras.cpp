@@ -586,6 +586,202 @@ Value isoutlier_of(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
+// ── filloutliers — detect outliers then replace with fillmethod ─────
+//
+// Detection methods covered:
+//   * "median" (default) — outliers > 3 * 1.4826 * MAD from median.
+//   * "mean"             — outliers > 3 * std    from mean.
+//   * "quartiles"        — outside [Q1 - 1.5·IQR, Q3 + 1.5·IQR].
+//
+// Fill methods covered (vector-wise, single-column path):
+//   * numeric scalar     — constant fill.
+//   * "center"           — center value used by detection (median /
+//                          mean / 0.5*(Q1+Q3)).
+//   * "clip"             — clamp to [L, U] threshold.
+//   * "previous"         — last non-outlier value (NaN if leading).
+//   * "next"             — first non-outlier value (NaN if trailing).
+//   * "nearest"          — closer of prev/next (ties → NEXT, MATLAB).
+//   * "linear"           — linear interpolation between flanking
+//                          non-outliers; extrapolates ends from the
+//                          slope of the nearest interior pair.
+//
+// Deferred (require extra infrastructure or rare): "spline", "pchip",
+// "makima", "movmedian"/"movmean" detection, "grubbs", "gesd",
+// SamplePoints / OutlierLocations / MaxNumOutliers / ReplaceValues.
+// ThresholdFactor is honoured for "median" and "mean" methods.
+namespace {
+
+// Forward-declare the per-column fillmissing kernel (defined later in
+// this TU). We need it for the previous/next/nearest/linear fill paths.
+void fill_one_column(double *p, std::size_t len, const std::string &method,
+                     double constVal);
+
+struct FoDetect {
+    std::vector<uint8_t> mask;  // 1 where outlier
+    double center, lo, hi;      // threshold center, L, U
+};
+
+FoDetect detect_one_column(const double *x, std::size_t n,
+                           const std::string &method, double tf)
+{
+    FoDetect r;
+    r.mask.assign(n, 0);
+    r.center = std::numeric_limits<double>::quiet_NaN();
+    r.lo = -std::numeric_limits<double>::infinity();
+    r.hi =  std::numeric_limits<double>::infinity();
+    if (n == 0) return r;
+
+    if (method == "mean") {
+        double s = 0.0, ss = 0.0;
+        std::size_t k = 0;
+        for (std::size_t i = 0; i < n; ++i) {
+            if (std::isnan(x[i])) continue;
+            s += x[i]; ss += x[i]*x[i]; ++k;
+        }
+        if (k < 2) return r;
+        const double m = s / double(k);
+        const double v = (ss - double(k) * m * m) / double(k - 1);
+        const double sd = std::sqrt(std::max(0.0, v));
+        const double t = tf * sd;
+        r.center = m; r.lo = m - t; r.hi = m + t;
+    } else if (method == "quartiles") {
+        std::vector<double> buf;
+        buf.reserve(n);
+        for (std::size_t i = 0; i < n; ++i)
+            if (!std::isnan(x[i])) buf.push_back(x[i]);
+        if (buf.size() < 4) return r;
+        std::sort(buf.begin(), buf.end());
+        // MATLAB uses the linear-interpolation 'lower' definition for
+        // quartiles by default (R-default '7' percentile rule).
+        auto quant = [&](double p) {
+            const double h = (double(buf.size()) - 1.0) * p;
+            const std::size_t f = static_cast<std::size_t>(std::floor(h));
+            const double frac = h - double(f);
+            const std::size_t g = std::min(f + 1, buf.size() - 1);
+            return buf[f] + frac * (buf[g] - buf[f]);
+        };
+        const double q1 = quant(0.25);
+        const double q3 = quant(0.75);
+        const double iqr = q3 - q1;
+        r.center = 0.5 * (q1 + q3);
+        r.lo = q1 - tf * 0.5 * iqr;   // tf = 3 → 1.5·IQR (MATLAB default tf=1.5)
+        r.hi = q3 + tf * 0.5 * iqr;
+    } else {  // "median" (default)
+        std::vector<double> buf;
+        buf.reserve(n);
+        for (std::size_t i = 0; i < n; ++i)
+            if (!std::isnan(x[i])) buf.push_back(x[i]);
+        if (buf.empty()) return r;
+        std::sort(buf.begin(), buf.end());
+        auto medOf = [](std::vector<double> &v) {
+            const std::size_t k = v.size();
+            return (k % 2 == 1) ? v[k / 2]
+                                 : 0.5 * (v[k / 2 - 1] + v[k / 2]);
+        };
+        const double med = medOf(buf);
+        std::vector<double> dev;
+        dev.reserve(buf.size());
+        for (double v : buf) dev.push_back(std::fabs(v - med));
+        std::sort(dev.begin(), dev.end());
+        const double mad = medOf(dev);
+        // MATLAB-exact normal-consistency constant: 1/norminv(0.75)
+        // = -1/(sqrt(2)*erfcinv(3/2)) ≈ 1.4826022185056. Using the
+        // looser 1.4826 misses MATLAB's 'clip' threshold by ~1e-5.
+        constexpr double kMADc = 1.4826022185056;
+        const double scaled = mad * kMADc;
+        const double t = tf * scaled;
+        r.center = med; r.lo = med - t; r.hi = med + t;
+    }
+    for (std::size_t i = 0; i < n; ++i)
+        r.mask[i] = (std::isnan(x[i]) ? 0
+                  : ((x[i] < r.lo || x[i] > r.hi) ? 1 : 0));
+    return r;
+}
+
+// Apply a per-column fill given the column data, outlier mask, and
+// detection thresholds. p is overwritten in place.
+void apply_fill(double *p, std::size_t n,
+                const std::vector<uint8_t> &mask, double centerVal,
+                double lo, double hi, const std::string &fill,
+                double constVal, bool fill_is_constant)
+{
+    if (n == 0) return;
+    if (fill_is_constant) {
+        for (std::size_t i = 0; i < n; ++i)
+            if (mask[i]) p[i] = constVal;
+        return;
+    }
+    if (fill == "center") {
+        for (std::size_t i = 0; i < n; ++i)
+            if (mask[i]) p[i] = centerVal;
+        return;
+    }
+    if (fill == "clip") {
+        for (std::size_t i = 0; i < n; ++i)
+            if (mask[i]) p[i] = (p[i] > hi ? hi : (p[i] < lo ? lo : p[i]));
+        return;
+    }
+    // For previous/next/nearest/linear, treat outliers as NaN, run
+    // the fillmissing per-column path, then restore non-outlier
+    // values unchanged.
+    std::vector<double> work(p, p + n);
+    for (std::size_t i = 0; i < n; ++i) if (mask[i]) work[i] = std::numeric_limits<double>::quiet_NaN();
+    fill_one_column(work.data(), n, fill, 0.0);  // constVal unused
+    for (std::size_t i = 0; i < n; ++i)
+        if (mask[i]) p[i] = work[i];
+}
+
+} // anonymous
+
+Value filloutliers_of(const Value &x,
+                      const Value &fillArg,       // string OR numeric scalar
+                      const std::string &detect,
+                      double thresholdFactor,
+                      std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const double *xd = x.doubleData();
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    std::copy(xd, xd + n, od);
+
+    // Parse fill arg: scalar numeric → constant fill; string → method.
+    bool fill_is_constant = false;
+    double constVal = 0.0;
+    std::string fillMethod;
+    if (fillArg.isChar() || fillArg.isString()) {
+        fillMethod = fillArg.toString();
+        if (fillMethod != "center" && fillMethod != "clip" &&
+            fillMethod != "previous" && fillMethod != "next" &&
+            fillMethod != "nearest" && fillMethod != "linear")
+            throw Error("filloutliers: fillmethod must be a scalar, "
+                        "'center', 'clip', 'previous', 'next', "
+                        "'nearest', or 'linear'",
+                        0, 0, "filloutliers", "",
+                        "m:filloutliers:fillmethod");
+    } else {
+        fill_is_constant = true;
+        constVal = fillArg.toScalar();
+    }
+
+    auto run_col = [&](double *p, std::size_t len) {
+        FoDetect d = detect_one_column(p, len, detect, thresholdFactor);
+        apply_fill(p, len, d.mask, d.center, d.lo, d.hi,
+                   fillMethod, constVal, fill_is_constant);
+    };
+    if (r == 1) {
+        run_col(od, c);
+    } else {
+        for (std::size_t col = 0; col < c; ++col)
+            run_col(od + col * r, r);
+    }
+    return out;
+}
+
 // rmoutliers(x) — drop elements flagged by isoutlier; vector form.
 Value rmoutliers_of(const Value &x, std::pmr::memory_resource *mr)
 {
@@ -1863,6 +2059,68 @@ void standardizeMissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Val
         throw Error("standardizeMissing: requires (x, sentinel)",
                     0, 0, "standardizeMissing", "", "m:standardizeMissing:nargin");
     outs[0] = standardizeMissing_of(args[0], args[1].toScalar(), ctx.engine->resource());
+}
+
+// filloutliers(A, fillmethod[, findmethod][, NV])
+//   fillmethod : numeric scalar | "center" | "clip" | "previous" |
+//                "next" | "nearest" | "linear"
+//   findmethod : "median" (default) | "mean" | "quartiles"
+//   NV         : ThresholdFactor (default per-method)
+void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("filloutliers: requires (A, fillmethod[, findmethod][, NV])",
+                    0, 0, "filloutliers", "", "m:filloutliers:nargin");
+    std::string detect = "median";
+    double tf = 3.0;
+    bool tf_set = false;
+    std::size_t i = 2;
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        const std::string s = args[i].toString();
+        // Distinguish findmethod string vs NV name. NV names are known.
+        if (s == "ThresholdFactor" || s == "thresholdfactor" ||
+            s == "MaxNumOutliers"  || s == "maxnumoutliers"  ||
+            s == "SamplePoints"    || s == "samplepoints"    ||
+            s == "OutlierLocations") {
+            // fall through — handled by NV loop below.
+        } else {
+            detect = s;
+            if (detect != "median" && detect != "mean" &&
+                detect != "quartiles")
+                throw Error("filloutliers: findmethod must be 'median', "
+                            "'mean', or 'quartiles' in this revision "
+                            "(MATLAB also supports 'grubbs', 'gesd', "
+                            "'movmedian', 'movmean' — deferred)",
+                            0, 0, "filloutliers", "",
+                            "m:filloutliers:findmethod");
+            ++i;
+        }
+    }
+    while (i + 1 < args.size()) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("filloutliers: expected name-value pair",
+                        0, 0, "filloutliers", "", "m:filloutliers:nv");
+        const std::string nm = args[i].toString();
+        if (nm == "ThresholdFactor" || nm == "thresholdfactor") {
+            tf = args[i + 1].toScalar(); tf_set = true;
+        } else {
+            throw Error("filloutliers: unsupported name-value parameter '"
+                        + nm + "'",
+                        0, 0, "filloutliers", "", "m:filloutliers:nv");
+        }
+        i += 2;
+    }
+    // MATLAB's per-method default ThresholdFactor.
+    if (!tf_set) {
+        if (detect == "quartiles") tf = 3.0;     // 1.5·IQR → scaled by 0.5 internally so 3.0 here
+        else                       tf = 3.0;
+    } else if (detect == "quartiles") {
+        // User-set tf for quartiles means "k" in [Q1 - k·IQR, Q3 + k·IQR].
+        // Our internal formula uses 0.5·tf·IQR, so multiply by 2.
+        tf = 2.0 * tf;
+    }
+    outs[0] = filloutliers_of(args[0], args[1], detect, tf, ctx.engine->resource());
 }
 
 // ── range / mad / geomean / harmmean / moment / trimmean adapters ────

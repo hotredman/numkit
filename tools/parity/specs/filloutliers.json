@@ -1,0 +1,21 @@
+{
+  "name": "filloutliers",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 100 5 6 7];",
+  "expr": "Bl = filloutliers(x, 'linear'); Bp = filloutliers(x, 'previous'); Bn = filloutliers(x, 'next'); Bnr = filloutliers(x, 'nearest'); Bc = filloutliers(x, 'center'); Bcp = filloutliers(x, 'clip'); B0 = filloutliers(x, 0); Bm = filloutliers(x, 'linear', 'mean'); Bm1 = filloutliers(x, 'linear', 'mean', 'ThresholdFactor', 1); Bq = filloutliers(x, 'linear', 'quartiles');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "Bl(5)", "Bl(1)", "Bl(8)",
+    "Bp(5)",
+    "Bn(5)",
+    "Bnr(5)",
+    "Bc(5)",
+    "Bcp(5)",
+    "B0(5)",
+    "Bm(5)",
+    "Bm1(5)",
+    "Bq(5)"
+  ],
+  "comment": "filloutliers — detect (median/mean/quartiles) + replace outliers with fillmethod (constant scalar, 'center', 'clip', 'previous', 'next', 'nearest', 'linear'). Per-column processing for matrices. Tie-break on 'nearest' = NEXT (matches fillmissing). Deferred: 'spline'/'pchip'/'makima' fills, 'grubbs'/'gesd'/'movmedian'/'movmean' detection, SamplePoints/MaxNumOutliers/OutlierLocations/ReplaceValues NV-pairs."
+}
