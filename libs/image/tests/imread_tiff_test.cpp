@@ -87,3 +87,54 @@ TEST_F(ImreadTiffTest, ImfinfoGray16)
     EXPECT_DOUBLE_EQ(engine.eval("s.NumberOfChannels").toScalar(), 1.0);
     EXPECT_DOUBLE_EQ(engine.eval("s.BitDepth").toScalar(), 16.0);
 }
+
+// ── compression decoders (cycle 92) ─────────────────────────────────
+
+// PackBits: deterministic run-length-encoded uint8 gray must match
+// the uncompressed reference byte-for-byte.
+TEST_F(ImreadTiffTest, PackBitsMatchesUncompressed)
+{
+    engine.eval("A = imread('" + path("gray8_none.tif") + "');");
+    engine.eval("B = imread('" + path("gray8_packbits.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
+}
+
+// LZW with horizontal predictor (TIFF's default for imwrite).
+TEST_F(ImreadTiffTest, LzwMatchesUncompressed)
+{
+    engine.eval("A = imread('" + path("gray8_none.tif") + "');");
+    engine.eval("B = imread('" + path("gray8_lzw.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
+}
+
+// RGB-8 with LZW exercises chunky sample interleaving.
+TEST_F(ImreadTiffTest, LzwRgb8)
+{
+    engine.eval("A = imread('" + path("rgb8_none.tif") + "');");
+    engine.eval("B = imread('" + path("rgb8_lzw.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
+}
+
+// 16-bit gray with PackBits exercises byte-pair packing.
+TEST_F(ImreadTiffTest, PackBitsGray16)
+{
+    engine.eval("A = imread('" + path("gray16_none.tif") + "');");
+    engine.eval("B = imread('" + path("gray16_packbits.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
+    EXPECT_EQ(engine.eval("class(B)").toString(), "uint16");
+}
+
+// LZW + 16-bit gray exercises the multi-byte horizontal predictor.
+TEST_F(ImreadTiffTest, LzwGray16)
+{
+    engine.eval("A = imread('" + path("gray16_none.tif") + "');");
+    engine.eval("B = imread('" + path("gray16_lzw.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
+}
+
+// Deflate not yet supported — must throw a clear message.
+TEST_F(ImreadTiffTest, DeflateNotYetSupported)
+{
+    EXPECT_THROW(engine.eval("imread('" + path("gray8_deflate.tif") + "');"),
+                 std::exception);
+}
