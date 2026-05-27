@@ -1,0 +1,13 @@
+{
+  "name": "image_imread_tiff",
+  "namespace": "image",
+  "setup": "p1 = [tempname '.tif']; fid = fopen(p1, 'w'); fwrite(fid, [73,73,42,0,24,0,0,0,1,5,9,13], 'uint8'); fwrite(fid, [2,6,10,14,3,7,11,15,4,8,12,16], 'uint8'); fwrite(fid, [14,0,0,1,3,0,1,0,0,0,4,0], 'uint8'); fwrite(fid, [0,0,1,1,3,0,1,0,0,0,4,0], 'uint8'); fwrite(fid, [0,0,2,1,3,0,1,0,0,0,8,0], 'uint8'); fwrite(fid, [0,0,3,1,3,0,1,0,0,0,1,0], 'uint8'); fwrite(fid, [0,0,6,1,3,0,1,0,0,0,1,0], 'uint8'); fwrite(fid, [0,0,17,1,4,0,1,0,0,0,8,0], 'uint8'); fwrite(fid, [0,0,18,1,3,0,1,0,0,0,1,0], 'uint8'); fwrite(fid, [0,0,21,1,3,0,1,0,0,0,1,0], 'uint8'); fwrite(fid, [0,0,22,1,3,0,1,0,0,0,0,8], 'uint8'); fwrite(fid, [0,0,23,1,4,0,1,0,0,0,16,0], 'uint8'); fwrite(fid, [0,0,26,1,5,0,1,0,0,0,198,0], 'uint8'); fwrite(fid, [0,0,27,1,5,0,1,0,0,0,206,0], 'uint8'); fwrite(fid, [0,0,28,1,3,0,1,0,0,0,1,0], 'uint8'); fwrite(fid, [0,0,40,1,3,0,1,0,0,0,2,0], 'uint8'); fwrite(fid, [0,0,0,0,0,0,72,0,0,0,1,0], 'uint8'); fwrite(fid, [0,0,72,0,0,0,1,0,0,0], 'uint8'); fclose(fid);",
+  "expr": "A = imread(p1); A11 = double(A(1,1)); A21 = double(A(2,1)); A12 = double(A(1,2)); A44 = double(A(4,4)); szA1 = size(A,1); szA2 = size(A,2); cls = class(A); is_uint8 = strcmp(cls, 'uint8');",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "A11", "A21", "A12", "A44",
+    "szA1", "szA2", "is_uint8"
+  ],
+  "comment": "Minimal TIFF reader baseline (cycle 90). Inlines a 4x4 uint8 grayscale TIFF (MATLAB-imwrite-uncompressed format, 122 bytes header + 16 pixels) as chunked fwrite('uint8') calls to a tempname'd file, then validates imread output. Both engines hit the same on-disk bytes. Exercises: TIFF magic detection, IFD walk, uncompressed strip decode, row-major → column-major transpose, uint8 output dtype. Bit-equal MATLAB R2025b on all 7 fingerprints (tol=0 since pixel values are integers). Compression schemes (LZW / PackBits / Deflate), 16-bit RGB + multi-page TIFF deferred to later cycles."
+}
