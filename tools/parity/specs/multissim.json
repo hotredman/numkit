@@ -1,0 +1,10 @@
+{
+  "name": "multissim",
+  "namespace": "image",
+  "setup": "[X, Y] = meshgrid(1:32, 1:32); A = uint8(min(255, X + Y)); B = uint8(min(255, X + 2*Y));",
+  "expr": "r1 = double(multissim(A, B)); r2 = double(multissim(A, B, 'NumScales', 1)); r3 = double(multissim(A, B, 'NumScales', 3)); r4 = double(multissim(A, B, 'ScaleWeights', [0.0448 0.2856 0.3001 0.2363 0.1333])); r5 = double(multissim(A, B, 'Sigma', 0.5)); r6 = double(multissim(A, B, 'DynamicRange', 128)); r7 = double(multissim(A, A)); Ad = double(A)/255; Bd = double(B)/255; r8 = double(multissim(Ad, Bd));",
+  "iters": 3,
+  "tol": 1e-4,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"],
+  "comment": "Sig: [score, qmaps] = multissim(I, Iref [, NV...]). Covers: default 5-scale, NumScales={1,3}, custom ScaleWeights (Wang 2003), Sigma=0.5, DynamicRange=128, identical-images (== 1), double input class preservation. Deterministic gradient input avoids rand/randn divergence between MATLAB and numkit MT19937. tol=1e-4 (single-vs-double precision in box filter accumulation; algorithm bit-equivalent). qualityMap output (cell of per-scale ssim maps) and error guards covered exhaustively in gtest. Reference: Wang/Simoncelli/Bovik 2003, Asilomar Conf. on Signals/Systems/Computers. Image namespace 2026-05-27."
+}

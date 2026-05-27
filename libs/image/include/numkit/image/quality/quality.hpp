@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <vector>
 #include <numkit/core/value.hpp>
 
 namespace numkit::image {
@@ -83,5 +84,66 @@ Value mean2(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @return    Scalar standard deviation.
 /// @see mean2
 Value std2(const Value &A, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Multi-scale structural similarity index
+/// (`[score, qmaps] = multissim(I, Iref, ...)`).
+///
+/// Wang-Simoncelli-Bovik 2003 multi-scale SSIM, "Asilomar Conf. on
+/// Signals, Systems & Computers". Generalizes SSIM by averaging
+/// the contrast-and-structural component across a Gaussian pyramid
+/// and applying the full SSIM formula only at the coarsest scale.
+///
+/// Algorithm:
+///
+///   1. For each scale `i = 1 .. numScales - 1`:
+///      - `ssimmap_i = (2·σxy + C₂) / (σx² + σy² + C₂)` (no luminance).
+///      - Mean over `ssimmap_i`, clamped to ≤ 1, raised to
+///        `scaleWeights[i]` (negative bases clamped to 0).
+///      - Lowpass with `[1 1; 1 1] / 4` (replicate boundary).
+///      - Downsample by 2 (take rows/cols 1:2:end).
+///   2. At the coarsest scale, compute the full SSIM with luminance:
+///      `(2·μx·μy + C₁)·(2·σxy + C₂) /
+///       ((μx² + μy² + C₁)·(σx² + σy² + C₂))`.
+///   3. `score = prod_i (mean(ssimmap_i)^scaleWeights[i])`.
+///
+/// Local statistics use an `N × N` isotropic Gaussian filter with
+/// standard deviation `sigma` and `N = 2·ceil(3·sigma) + 1` (so
+/// `≥ 99.7%` of the kernel mass is included). Replicate boundary.
+///
+/// `C₁ = (0.01·L)²`, `C₂ = (0.03·L)²`, where `L` is the dynamic
+/// range (255 for uint8, 65535 for uint16/int16, 1 for single /
+/// double). `dynamic_range = -1.0` activates the class default.
+///
+/// `scaleWeights` defaults to `fspecial('gaussian', [1 numScales], 1)`
+/// = a length-`numScales` Gaussian sample then normalised to sum to 1.
+/// Pass an empty `std::vector` to get the default; otherwise the
+/// vector is normalised internally to sum to 1.
+///
+/// Class support: `uint8`/`uint16`/`int16`/`single`/`double`. Image
+/// classes are promoted to SINGLE internally except `double`, which
+/// is computed in double. Output is SINGLE for single inputs,
+/// DOUBLE for double, otherwise SINGLE.
+///
+/// When `quality_maps_out` is non-null, the per-scale quality maps
+/// are written to it (length `numScales`, with `qmaps[i]` sized to
+/// match the i-th downsampled image).
+///
+/// @param A                 First image (grayscale `H × W`).
+/// @param Iref              Reference image (same class and size).
+/// @param num_scales        Pyramid depth (default 5).
+/// @param scale_weights     Per-scale weights, length = num_scales.
+///                          Empty → default Gaussian weights.
+/// @param sigma             Gaussian filter σ (default 1.5).
+/// @param dynamic_range     `L` (-1.0 = class default).
+/// @param quality_maps_out  Optional output: per-scale `ssimmap`.
+/// @param mr                Memory resource (nullptr → process default).
+/// @return                  Scalar (SINGLE / DOUBLE) MS-SSIM score in
+///                          `(-1, 1]` (1 = identical).
+Value multissim(const Value &A, const Value &Iref,
+                int num_scales,
+                const std::vector<double> &scale_weights,
+                double sigma, double dynamic_range,
+                std::vector<Value> *quality_maps_out,
+                std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image
