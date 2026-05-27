@@ -114,6 +114,7 @@ void imfilter_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaussfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imboxfilt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void integralBoxFilter_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void modefilt_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imguidedfilter_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imdiffusefilt_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaborfilt_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -399,6 +400,7 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imgaussfilt",  &image::detail::imgaussfilt_reg);
     reg("filter", "imboxfilt",    &image::detail::imboxfilt_reg);
     reg("filter", "integralBoxFilter", &image::detail::integralBoxFilter_reg);
+    reg("filter", "modefilt",     &image::detail::modefilt_reg);
     reg("filter", "imguidedfilter", &image::detail::imguidedfilter_reg);
     reg("filter", "imdiffusefilt",  &image::detail::imdiffusefilt_reg);
     reg("filter", "imgaborfilt",    &image::detail::imgaborfilt_reg);

@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <cstring>
 #include <mutex>
 #include <random>
@@ -494,6 +495,143 @@ Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
                     ? (oj * outH + oi)
                     : (c * outH * outW + oj * outH + oi);
                 od[dstIdx] = s * invN;
+            }
+        }
+    }
+    return out;
+}
+
+// modefilt — 2-D mode filter. For each output pixel we histogram the
+// neighbourhood and pick the most-common value (ties → smallest value).
+//
+// For UINT8 / LOGICAL we use a 256-bucket array (cache-friendly, no
+// hashing). For all other numeric types we fall back to an ordered
+// std::map<double, int> per pixel — slower but generic enough.
+//
+// Padding modes (MATLAB-compatible):
+//   "symmetric" (default) — mirror reflection without duplicating edge
+//                            (so abcde → cba|abcde|edc)
+//   "replicate"           — repeat edge pixel (aaaa|abcde|eeee)
+//   "zeros"               — zero pad
+Value modefilt(const Value &A, int fH, int fW,
+               const std::string &padopt, std::pmr::memory_resource *mr)
+{
+    if (fH <= 0 || fW <= 0)
+        throw Error("modefilt: filter size must be positive",
+                    0, 0, "modefilt", "", "numkit:modefilt:badSize");
+    if ((fH & 1) == 0 || (fW & 1) == 0)
+        throw Error("modefilt: filter size must be odd",
+                    0, 0, "modefilt", "", "numkit:modefilt:notOdd");
+
+    int padMode;  // 0=symmetric, 1=replicate, 2=zeros
+    if (padopt.empty() || padopt == "symmetric") padMode = 0;
+    else if (padopt == "replicate")              padMode = 1;
+    else if (padopt == "zeros" || padopt == "zero") padMode = 2;
+    else throw Error("modefilt: padopt must be 'symmetric', 'replicate', or 'zeros'",
+                     0, 0, "modefilt", "", "numkit:modefilt:badPad");
+
+    const auto &d = A.dims();
+    if (d.ndim() > 2)
+        throw Error("modefilt: 3-D input not yet supported",
+                    0, 0, "modefilt", "", "numkit:modefilt:rank");
+    const int H = static_cast<int>(d.rows());
+    const int W = static_cast<int>(d.cols());
+    const int hh = fH / 2;
+    const int hw = fW / 2;
+    Value out = Value::matrix(H, W, A.type(), mr);
+
+    // Index access with padding: returns the input index for sample
+    // location (rr, cc), or -1 if the pixel should be treated as zero.
+    auto padIdx = [&](int rr, int cc) -> long long {
+        auto reflect = [](int v, int N, int mode) -> int {
+            if (mode == 1) {  // replicate
+                if (v < 0) return 0;
+                if (v >= N) return N - 1;
+                return v;
+            }
+            if (mode == 2) {  // zeros — caller checks for -1
+                if (v < 0 || v >= N) return -1;
+                return v;
+            }
+            // symmetric (mirror without dup): for v < 0, use -v - 1;
+            // for v >= N, use 2N - v - 1. Iterate if still out-of-bounds.
+            while (v < 0 || v >= N) {
+                if (v < 0)      v = -v - 1;
+                if (v >= N)     v = 2 * N - v - 1;
+            }
+            return v;
+        };
+        int r = reflect(rr, H, padMode);
+        int c = reflect(cc, W, padMode);
+        if (r < 0 || c < 0) return -1;
+        return static_cast<long long>(c) * H + r;
+    };
+
+    auto getDouble = [&](long long idx) -> double {
+        return idx < 0 ? 0.0 : A.elemAsDouble(static_cast<size_t>(idx));
+    };
+
+    // Fast UINT8 / LOGICAL path with 256-bucket histogram.
+    const ValueType vt = A.type();
+    const bool fastByte = (vt == ValueType::UINT8 || vt == ValueType::LOGICAL);
+
+    for (int c = 0; c < W; ++c) {
+        for (int r = 0; r < H; ++r) {
+            if (fastByte) {
+                int hist[256] = {0};
+                for (int dc = -hw; dc <= hw; ++dc)
+                    for (int dr = -hh; dr <= hh; ++dr) {
+                        const long long idx = padIdx(r + dr, c + dc);
+                        const int v = static_cast<int>(getDouble(idx));
+                        if (v >= 0 && v < 256) ++hist[v];
+                    }
+                // Ties → smallest value wins (matches MATLAB's documented
+                // `mode` behaviour). MATLAB's modefilt internal MEX uses an
+                // undocumented order-dependent rule for ties that doesn't
+                // match base mode in all edge cases; we follow the spec.
+                int bestVal = 0, bestCnt = -1;
+                for (int v = 0; v < 256; ++v) {
+                    if (hist[v] > bestCnt) {
+                        bestCnt = hist[v];
+                        bestVal = v;
+                    }
+                }
+                if (vt == ValueType::UINT8)
+                    out.uint8DataMut()[c * H + r] =
+                        static_cast<std::uint8_t>(bestVal);
+                else
+                    out.logicalDataMut()[c * H + r] =
+                        static_cast<std::uint8_t>(bestVal != 0);
+                continue;
+            }
+            // Generic path: ordered map keyed by value → count.
+            std::map<double, int> hist;
+            for (int dc = -hw; dc <= hw; ++dc)
+                for (int dr = -hh; dr <= hh; ++dr) {
+                    const long long idx = padIdx(r + dr, c + dc);
+                    if (idx < 0 && padMode != 2) continue;
+                    hist[getDouble(idx)]++;
+                }
+            // Smallest-wins-on-tie (see fastByte path comment).
+            int bestCnt = -1;
+            double bestVal = 0.0;
+            for (auto &kv : hist) {
+                if (kv.second > bestCnt) {
+                    bestCnt = kv.second;
+                    bestVal = kv.first;
+                }
+            }
+            // Store into output of matching dtype.
+            const size_t dst = static_cast<size_t>(c) * H + static_cast<size_t>(r);
+            switch (vt) {
+                case ValueType::DOUBLE: out.doubleDataMut()[dst] = bestVal; break;
+                case ValueType::SINGLE: out.singleDataMut()[dst] = static_cast<float>(bestVal); break;
+                case ValueType::UINT16: out.uint16DataMut()[dst] = static_cast<std::uint16_t>(bestVal); break;
+                case ValueType::UINT32: out.uint32DataMut()[dst] = static_cast<std::uint32_t>(bestVal); break;
+                case ValueType::INT8:   out.int8DataMut()[dst]   = static_cast<std::int8_t>(bestVal); break;
+                case ValueType::INT16:  out.int16DataMut()[dst]  = static_cast<std::int16_t>(bestVal); break;
+                case ValueType::INT32:  out.int32DataMut()[dst]  = static_cast<std::int32_t>(bestVal); break;
+                default:                out.doubleDataMut()[dst] = bestVal; break;
             }
         }
     }
@@ -1950,6 +2088,40 @@ void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imboxfilt", "", "numkit:imboxfilt:nargin");
     int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
     outs[0] = imboxfilt(args[0], fs, ctx.engine->resource());
+}
+
+void modefilt_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("modefilt: requires (A[, filtSize[, padopt]])",
+                    0, 0, "modefilt", "", "numkit:modefilt:nargin");
+    int fH = 3, fW = 3;
+    std::string padopt = "symmetric";
+    size_t i = 1;
+    // 2nd arg may be filter-size (numeric) or padopt (string).
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (args[1].isChar() || args[1].isString()) {
+            padopt = args[1].toString();
+            i = 2;
+        } else {
+            if (args[1].numel() == 1) {
+                fH = fW = static_cast<int>(args[1].toScalar());
+            } else if (args[1].numel() >= 2) {
+                fH = static_cast<int>(args[1].elemAsDouble(0));
+                fW = static_cast<int>(args[1].elemAsDouble(1));
+            }
+            i = 2;
+        }
+    }
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (args[2].isChar() || args[2].isString())
+            padopt = args[2].toString();
+        else
+            throw Error("modefilt: padopt must be a string",
+                        0, 0, "modefilt", "", "numkit:modefilt:badPad");
+    }
+    outs[0] = modefilt(args[0], fH, fW, padopt, ctx.engine->resource());
 }
 
 void integralBoxFilter_reg(Span<const Value> args, size_t /*nargout*/,
