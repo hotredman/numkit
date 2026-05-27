@@ -183,6 +183,25 @@ Value isfinite(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value ismissing(const Value &x, const Value &indicator,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Replace nonstandard missing-value indicators with NaN
+/// (`B = standardizeMissing(A, indicator)`).
+///
+/// For DOUBLE / SINGLE inputs, every element matching any value in
+/// `indicator` is replaced with NaN. For integer / logical inputs
+/// the array passes through unchanged — those classes have no
+/// standard missing value (matching MATLAB R2025b).
+///
+/// `NaN` in the indicator never matches (because `NaN != NaN` under
+/// `==`); use `ismissing` instead if NaN match is needed.
+///
+/// @param x          Input array.
+/// @param indicator  Scalar or vector of "nonstandard missing" values.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Array of the input class with replacements made.
+/// @see ismissing, anymissing
+Value standardizeMissing(const Value &x, const Value &indicator,
+                         std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Scalar "any missing in array" check (`tf = anymissing(A)`).
 ///
 /// True iff `ismissing(A)` is true for at least one element. Always

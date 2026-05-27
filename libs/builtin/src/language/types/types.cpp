@@ -327,6 +327,58 @@ Value ismissing(const Value &x, const Value &indicator,
     return r;
 }
 
+Value standardizeMissing(const Value &x, const Value &indicator,
+                         std::pmr::memory_resource *mr)
+{
+    std::pmr::memory_resource *p = mr;
+    const std::size_t n = x.numel();
+    const ValueType T = x.type();
+
+    // Integer / logical / char: no missing concept → return a copy.
+    if (!typeHasMissing(T))
+        return x;
+
+    // Build indicator list (skip NaN — won't match anything via ==).
+    std::vector<double> ind_vals;
+    if (!indicator.isEmpty()) {
+        ind_vals.reserve(indicator.numel());
+        for (std::size_t k = 0; k < indicator.numel(); ++k) {
+            const double v = indicator.elemAsDouble(k);
+            if (!std::isnan(v)) ind_vals.push_back(v);
+        }
+    }
+
+    Value out = createLike(x, T, p);
+    if (n == 0) return out;
+
+    if (T == ValueType::DOUBLE) {
+        const double *src = x.doubleData();
+        double *dst       = out.doubleDataMut();
+        const double nan  = std::numeric_limits<double>::quiet_NaN();
+        for (std::size_t i = 0; i < n; ++i) {
+            const double v = src[i];
+            bool hit = false;
+            for (double ind : ind_vals) {
+                if (v == ind) { hit = true; break; }
+            }
+            dst[i] = hit ? nan : v;
+        }
+    } else {  // SINGLE
+        const float *src = x.singleData();
+        float *dst       = out.singleDataMut();
+        const float nan  = std::numeric_limits<float>::quiet_NaN();
+        for (std::size_t i = 0; i < n; ++i) {
+            const float v = src[i];
+            bool hit = false;
+            for (double ind : ind_vals) {
+                if (v == static_cast<float>(ind)) { hit = true; break; }
+            }
+            dst[i] = hit ? nan : v;
+        }
+    }
+    return out;
+}
+
 Value anymissing(const Value &x, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
@@ -914,6 +966,16 @@ void ismissing_reg(Span<const Value> args, size_t, Span<Value> outs,
                     0, 0, "ismissing", "", "m:ismissing:nargin");
     const Value &ind = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = ismissing(args[0], ind, ctx.engine->resource());
+}
+
+void standardizeMissing_reg(Span<const Value> args, size_t, Span<Value> outs,
+                            CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("standardizeMissing: requires (A, indicator)",
+                    0, 0, "standardizeMissing", "",
+                    "m:standardizeMissing:nargin");
+    outs[0] = standardizeMissing(args[0], args[1], ctx.engine->resource());
 }
 
 void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

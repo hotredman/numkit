@@ -1,0 +1,19 @@
+{
+  "name": "standardizeMissing",
+  "namespace": "builtin",
+  "setup": "X1 = [1 2 -99 4]; X2 = [1 -99 -88 4]; X3 = [1 -99; -99 4]; X4 = [1 2 NaN 4]; X5 = [1 NaN -99 4]; X8 = uint8([1 2 3 5]); X16 = int16([1 -99 4]); Xs = single([1.5 2 -99 4]);",
+  "expr": "B1 = standardizeMissing(X1, -99); B2 = standardizeMissing(X2, [-99 -88]); B3 = standardizeMissing(X3, -99); B4 = standardizeMissing(X4, NaN); B5 = standardizeMissing(X5, [NaN -99]); Bu = double(standardizeMissing(X8, 3)); Bi = double(standardizeMissing(X16, int16(-99))); Bs = double(standardizeMissing(Xs, single(-99)));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "B1(1)", "B1(2)", "isnan(B1(3))*1.0", "B1(4)",
+    "B2(1)", "isnan(B2(2))*1.0", "isnan(B2(3))*1.0", "B2(4)",
+    "B3(1,1)", "isnan(B3(1,2))*1.0", "isnan(B3(2,1))*1.0", "B3(2,2)",
+    "B4(1)", "B4(2)", "isnan(B4(3))*1.0", "B4(4)",
+    "B5(1)", "isnan(B5(2))*1.0", "isnan(B5(3))*1.0", "B5(4)",
+    "Bu(1)", "Bu(2)", "Bu(3)", "Bu(4)",
+    "Bi(1)", "Bi(2)", "Bi(3)",
+    "Bs(1)", "Bs(2)", "isnan(Bs(3))*1.0", "Bs(4)"
+  ],
+  "comment": "standardizeMissing — replace nonstandard missing-value indicators with NaN. Covers: double/single/uint8/int16 inputs, scalar/vector indicator, matrix inputs, NaN-in-indicator (no-op since NaN!=NaN), mixed [NaN -99] indicator. Integer/logical types pass through unchanged (no missing concept) per MATLAB R2025b."
+}
