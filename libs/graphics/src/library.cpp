@@ -4689,50 +4689,62 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // Shared helper for the two angular-histogram builtins. Bins
+    // theta values into `nbins` sectors of width 2π/nbins over
+    // [0, 2π), wraps negative/out-of-range inputs, and emits the
+    // bin centres + counts as two JSON arrays — `tx` (theta) and
+    // `ty` (count). Used by polarhistogram (type="bar") and the
+    // legacy rose (type="rose"); the only difference is the
+    // dataset `type` tag and the default bin count.
+    auto computeAngularHistogram = [](const Value &theta, int nbins,
+                                      std::string &txOut, std::string &tyOut) {
+        const double TAU = 2 * 3.14159265358979323846;
+        const double bw  = TAU / nbins;
+        std::vector<double> counts(nbins, 0.0);
+        const size_t N = theta.numel();
+        for (size_t i = 0; i < N; ++i) {
+            double t = theta.doubleData()[i];
+            if (!std::isfinite(t)) continue;
+            t = std::fmod(t, TAU);
+            if (t < 0) t += TAU;
+            int b = (int)(t / bw);
+            if (b >= nbins) b = nbins - 1;
+            if (b < 0) b = 0;
+            counts[b] += 1;
+        }
+        std::ostringstream tx, ty;
+        tx << '['; ty << '[';
+        for (int i = 0; i < nbins; ++i) {
+            if (i) { tx << ','; ty << ','; }
+            tx << (bw * (i + 0.5));    // bin centre
+            ty << counts[i];
+        }
+        tx << ']'; ty << ']';
+        txOut = tx.str();
+        tyOut = ty.str();
+    };
+
     // polarhistogram(theta[, nbins]) — bins θ values into nbins angular
     // sectors over [0, 2π) and emits a polar bar dataset where each
     // bin centre carries its count. PolarPlot renders the bars as
     // wedges from the origin.
     reg("polar", "polarhistogram",
-        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+        [computeAngularHistogram](Span<const Value> args, size_t nargout,
+                                  Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
-            const auto &theta = args[0];
-            const size_t N = theta.numel();
             int nbins = (args.size() >= 2 && args[1].numel() == 1)
                         ? std::max(1, (int)args[1].toScalar())
                         : 36;   // 10° bins by default
-            const double TAU = 2 * 3.14159265358979323846;
-            const double bw = TAU / nbins;
-
-            std::vector<double> counts(nbins, 0.0);
-            for (size_t i = 0; i < N; ++i) {
-                double t = theta.doubleData()[i];
-                if (!std::isfinite(t)) continue;
-                // Wrap into [0, 2π).
-                t = std::fmod(t, TAU);
-                if (t < 0) t += TAU;
-                int b = (int)(t / bw);
-                if (b >= nbins) b = nbins - 1;
-                if (b < 0) b = 0;
-                counts[b] += 1;
-            }
-            std::ostringstream tx, ty;
-            tx << '['; ty << '[';
-            for (int i = 0; i < nbins; ++i) {
-                if (i) { tx << ','; ty << ','; }
-                tx << (bw * (i + 0.5));    // bin centre
-                ty << counts[i];
-            }
-            tx << ']'; ty << ']';
-
+            std::string tx, ty;
+            computeAngularHistogram(args[0], nbins, tx, ty);
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             fm.currentAxes().polar = true;
             DatasetInfo ds;
-            ds.type = "bar";              // routed to wedge renderer
-            ds.xJson = tx.str();
-            ds.yJson = ty.str();
+            ds.type = "bar";
+            ds.xJson = std::move(tx);
+            ds.yJson = std::move(ty);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
@@ -4770,47 +4782,27 @@ void GraphicsLibrary::install(Engine &engine)
 
     // rose(theta[, nbins]) — angular histogram, the classic MATLAB
     // function (deprecated in favour of polarhistogram but kept for
-    // legacy code). Behaviour mirrors polarhistogram exactly; we
-    // tag the dataset as type="rose" so a future renderer could
-    // emphasise the wedges-from-origin look (concentric wedges with
-    // vertices touching the centre) instead of stacked bars.
+    // legacy code). Same bin counting as polarhistogram (shared
+    // helper); tagged type="rose" so a future renderer can give it
+    // the classic wedges-from-origin look. Default nbins=20 matches
+    // MATLAB (polarhistogram defaults to 36).
     reg("polar", "rose",
-        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+        [computeAngularHistogram](Span<const Value> args, size_t nargout,
+                                  Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
-            const auto &theta = args[0];
-            const size_t N = theta.numel();
             int nbins = (args.size() >= 2 && args[1].numel() == 1)
                         ? std::max(1, (int)args[1].toScalar())
-                        : 20;   // MATLAB default for rose
-            const double TAU = 2 * 3.14159265358979323846;
-            const double bw  = TAU / nbins;
-            std::vector<double> counts(nbins, 0.0);
-            for (size_t i = 0; i < N; ++i) {
-                double t = theta.doubleData()[i];
-                if (!std::isfinite(t)) continue;
-                t = std::fmod(t, TAU);
-                if (t < 0) t += TAU;
-                int b = (int)(t / bw);
-                if (b >= nbins) b = nbins - 1;
-                if (b < 0) b = 0;
-                counts[b] += 1;
-            }
-            std::ostringstream tx, ty;
-            tx << '['; ty << '[';
-            for (int i = 0; i < nbins; ++i) {
-                if (i) { tx << ','; ty << ','; }
-                tx << (bw * (i + 0.5));
-                ty << counts[i];
-            }
-            tx << ']'; ty << ']';
+                        : 20;
+            std::string tx, ty;
+            computeAngularHistogram(args[0], nbins, tx, ty);
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             fm.currentAxes().polar = true;
             DatasetInfo ds;
             ds.type  = "rose";
-            ds.xJson = tx.str();
-            ds.yJson = ty.str();
+            ds.xJson = std::move(tx);
+            ds.yJson = std::move(ty);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value::empty();
