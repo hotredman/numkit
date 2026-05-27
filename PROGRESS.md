@@ -1712,7 +1712,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 |---|:---:|---:|---:|---:|:---:|---|
 | `convmtx2` | ✅ | 0.001 | 59.36× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
 | `entropyfilt` | ✅ | 0.007 | 309.88× |  | OK | Sig: r = entropyfilt(...). Spec-extension batch 2026-05-09. |
-| `fibermetric` | ❌ |  |  |  |  |  |
+| `fibermetric` | ✅ | 0.123 | 111.27× |  | OK | Sig: J = fibermetric(I [, thickness] [, NV...]). Frangi 1998 multiscale Hessian vesselness. Covers: default 6-scale [4 6 8 10 12 14], single-scale thickness=4, ObjectPolarity=dark on inverted image (symmetric with bright case), tube pixels (response ~1.0), background pixels (response 0), flat image (all-zero output). tol=0.05 (algorithm bit-equivalent at pure-tube pixels; crossings diverge ~0.03-0.05 because MATLAB's private C++ builtin uses slightly different Hessian / eigenvalue conventions not exposed in the documentation). gamma-2 normalization (Hessian × sigma^2) added per Frangi paper. Class preservation (single / double / 3-D), StructureSensitivity behavior, and error guards covered exhaustively in gtest. Reference: Frangi/Niessen/Vincken/Viergever 1998 MICCAI. Image namespace 2026-05-27. |
 | `freqspace` | ✅ | 0.002 |  |  | N/A | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
 | `freqz2` | ✅ | 0.008 | 144.72× |  | OK | Sig: r = freqz2(...). Spec-extension batch 2026-05-09. |
 | `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |

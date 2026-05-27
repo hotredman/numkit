@@ -1,0 +1,10 @@
+{
+  "name": "fibermetric",
+  "namespace": "image",
+  "setup": "A = zeros(20, 20, 'uint8'); A(:, 10:11) = 200; A(10:11, :) = 200; A(8, 10) = 200; A(13, 10) = 200;",
+  "expr": "B = fibermetric(A); r1 = double(B(5,10)); r2 = double(B(10,5)); r3 = double(B(15,10)); r4 = double(B(10,15)); r5 = double(B(1,1)); B2 = fibermetric(A, 4); r6 = double(B2(5,10)); r7 = double(B2(15,10)); Ainv = uint8(255 - A); Bd = fibermetric(Ainv, 4, 'ObjectPolarity', 'dark'); r8 = double(Bd(5,10)); r9 = double(Bd(1,1)); F = uint8(100*ones(20,20)); Bf = fibermetric(F); r10 = double(Bf(10,10));",
+  "iters": 1,
+  "tol": 0.05,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"],
+  "comment": "Sig: J = fibermetric(I [, thickness] [, NV...]). Frangi 1998 multiscale Hessian vesselness. Covers: default 6-scale [4 6 8 10 12 14], single-scale thickness=4, ObjectPolarity=dark on inverted image (symmetric with bright case), tube pixels (response ~1.0), background pixels (response 0), flat image (all-zero output). tol=0.05 (algorithm bit-equivalent at pure-tube pixels; crossings diverge ~0.03-0.05 because MATLAB's private C++ builtin uses slightly different Hessian / eigenvalue conventions not exposed in the documentation). gamma-2 normalization (Hessian × sigma^2) added per Frangi paper. Class preservation (single / double / 3-D), StructureSensitivity behavior, and error guards covered exhaustively in gtest. Reference: Frangi/Niessen/Vincken/Viergever 1998 MICCAI. Image namespace 2026-05-27."
+}

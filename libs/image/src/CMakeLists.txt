@@ -9,6 +9,7 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_design.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/locallapfilt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/imreducehaze.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/fibermetric.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/contrast/contrast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/morph/morph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/region/region.cpp

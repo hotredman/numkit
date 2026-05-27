@@ -11,6 +11,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <vector>
 
 namespace numkit { class Engine; }
 
@@ -822,5 +823,61 @@ Value imreducehaze(const Value &I, double amount,
                    double boost_amount,
                    Value &t_out, Value &L_out,
                    std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Multi-scale Frangi vesselness filter
+/// (`J = fibermetric(I, thickness, ...)`).
+///
+/// Enhances elongated / tubular structures (vessels, fibres, filaments)
+/// at user-specified scales. For each thickness `t_i`:
+///
+///   - σ_i = t_i / 6.
+///   - Gaussian-smooth `I` with FilterSize = `2·ceil(3σ_i)+1`.
+///   - Compute Hessian (3 elements for 2-D, 6 for 3-D) by central
+///     finite differences.
+///   - Compute Hessian eigenvalues.
+///   - Apply Frangi 1998 vesselness:
+///     * **2-D**: `λ₁, λ₂` with `|λ₁| ≤ |λ₂|`. Bright structures need
+///       `λ₂ < 0`; dark need `λ₂ > 0` (else vesselness = 0).
+///       `Rβ = λ₁/λ₂`,  `S = sqrt(λ₁² + λ₂²)`.
+///       `V = exp(-Rβ²/(2·β²)) · (1 - exp(-S²/(2·c²)))`,
+///       with `β = 0.5` (fixed).
+///     * **3-D**: `λ₁, λ₂, λ₃` with `|λ₁| ≤ |λ₂| ≤ |λ₃|`. Bright
+///       need `λ₂ < 0 && λ₃ < 0`; dark need both `> 0`.
+///       `Rα = |λ₂|/|λ₃|` (plate-vs-line),
+///       `Rβ = |λ₁|/sqrt(|λ₂·λ₃|)` (blobness),
+///       `S² = λ₁² + λ₂² + λ₃²`.
+///       `V = (1 - exp(-Rα²/(2α²))) · exp(-Rβ²/(2β²)) ·
+///             (1 - exp(-S²/(2c²)))`,
+///       with `α = β = 0.5` (fixed).
+///
+/// Per-pixel max over all `thickness` scales.
+///
+/// `c` (`structure_sensitivity`) defaults to
+/// `diff(getrangefromclass(I)) / 100` (e.g. 2.55 for uint8,
+/// 655.35 for uint16, 0.01 for single/double). Pass `-1.0` for the
+/// class default.
+///
+/// `bright_polarity = true` (default) detects light-on-dark structures.
+/// `false` detects dark-on-light.
+///
+/// **Input class**: `uint8`, `uint16`, `uint32`, `int8`, `int16`,
+/// `int32`, `single`, `double` 2-D or 3-D image (all dimensions ≥ 2).
+/// **Output class**: `single` for everything except `double` input,
+/// which preserves `double`.
+///
+/// References:
+///   Frangi, A. F., Niessen, W. J., Vincken, K. L., Viergever, M. A.
+///   (1998). Multiscale vessel enhancement filtering. MICCAI 1998.
+///
+/// @param I                       Grayscale 2-D image or 3-D volume.
+/// @param thickness               Vector of thickness scales (default
+///                                = `[4 6 8 10 12 14]` if empty).
+/// @param structure_sensitivity   `c` (`-1` = class default).
+/// @param bright_polarity         `true` = bright (default).
+/// @param mr                      Memory resource (nullptr → default).
+/// @return                        Vesselness response, same shape as `I`.
+Value fibermetric(const Value &I, const std::vector<double> &thickness,
+                  double structure_sensitivity, bool bright_polarity,
+                  std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image
