@@ -1,0 +1,21 @@
+{
+  "name": "imrotate3",
+  "namespace": "image",
+  "setup": "A = reshape(double(1:27), 3, 3, 3);",
+  "expr": "B1 = imrotate3(A, 90, [0 0 1]); B2 = imrotate3(A, 90, [1 0 0]); B3 = imrotate3(A, 90, [0 1 0]); B4 = imrotate3(A, 45, [0 0 1]); B5 = imrotate3(A, 45, [0 0 1], 'linear', 'crop'); B6 = imrotate3(A, 60, [1 1 1]); B7 = imrotate3(A, 30, [0 0 1], 'nearest'); B8 = imrotate3(A, 30, [0 0 1], 'cubic'); B9 = imrotate3(A, 0, [0 0 1]); B10 = imrotate3(A, 45, [0 0 1], 'linear', 'loose', 'FillValues', -99);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "B1(1,1,1)", "B1(2,2,2)", "B1(3,3,3)", "B1(1,3,1)", "B1(3,1,1)",
+    "B2(1,1,1)", "B2(2,2,2)", "B2(3,3,3)",
+    "B3(1,1,1)", "B3(3,3,3)",
+    "B4(3,3,2)", "B4(3,3,3)",
+    "B5(2,2,2)",
+    "B6(3,3,3)",
+    "B7(3,3,2)",
+    "B8(3,3,2)",
+    "B9(1,1,1)", "B9(2,2,2)", "B9(3,3,3)",
+    "B10(1,1,1)"
+  ],
+  "comment": "imrotate3 — 3-D Rodrigues rotation. Covers: axis-aligned 90° around z/x/y, 45° z (loose + crop), oblique 60° around [1 1 1], methods nearest/cubic, identity (angle=0), FillValues NV. Default method='linear', default bbox='loose'. Standard right-hand rule CCW around axis."
+}

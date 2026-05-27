@@ -60,4 +60,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/rgb2lightness_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rgbwide2xyz_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imresize3_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imrotate3_test.cpp
 )

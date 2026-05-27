@@ -277,6 +277,7 @@ void imresize3_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcrop_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcrop3_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imrotate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imrotate3_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imtranslate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void impyramid_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void axes2pix_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -545,6 +546,7 @@ void ImageLibrary::install(Engine &engine)
     reg("geom", "imcrop",      &image::detail::imcrop_reg);
     reg("geom", "imcrop3",     &image::detail::imcrop3_reg);
     reg("geom", "imrotate",    &image::detail::imrotate_reg);
+    reg("geom", "imrotate3",   &image::detail::imrotate3_reg);
     reg("geom", "imtranslate", &image::detail::imtranslate_reg);
     reg("geom", "impyramid",   &image::detail::impyramid_reg);
     reg("geom", "axes2pix",    &image::detail::axes2pix_reg);
