@@ -1946,14 +1946,14 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwpropfilt` | ❌ |  |  |  |  |  |
 | `bwselect` | ✅ | 0.002 | 726.57× |  | OK | Sig: r = bwselect(...). Spec-extension batch 2026-05-09. |
 | `bwselect3` | ❌ |  |  |  |  |  |
-| `cc2bw` | ❌ |  |  |  |  |  |
+| `cc2bw` | ✅ | 0.011 | 285.73× |  | OK | Sig: L = labelmatrix(CC), BW = cc2bw(CC [, NV]). Companion CC-struct conversions used after bwconncomp. labelmatrix walks PixelIdxList writing comp-k label into each listed pixel; output class is uint8/uint16/uint32/double based on NumObjects. cc2bw similarly rasterizes the cells into a logical mask, with optional ObjectsToKeep filter (numeric vec / logical vec). Covers: default cc2bw (full reconstruction), ObjectsToKeep=2 (single), ObjectsToKeep=[1 3] (vector), labelmatrix values at 4 component positions, column-major component-numbering (verified against MATLAB's first-pixel-encountered convention). This cycle also fixed numkit's bwconncomp to scan column-major in BOTH the labelling pass and the relabel pass — previously it scanned row-major in the relabel pass, causing component numbering to diverge from MATLAB (objects 2 and 3 swapped on the test BW). tol=0 (bit-exact). Image namespace 2026-05-27. |
 | `corr2` | ✅ | 0.002 | 308.03× |  | OK | Sig: r = corr2(...). Spec-extension batch 2026-05-09.  |
 | `graydist` | ✅ | 0.014 | 162.79× |  | OK | Sig: T = graydist(I, mask | C, R | ind [, method]). Branches: 4 input forms (mask, (C,R), ind, defaults), 3 methods (cityblock, chessboard, quasi-euclidean), multi-seed, uint8 input. Algorithm: Dijkstra with chamfer-weighted edges, cost(p→q) = χ(p,q)·(I(p)+I(q))/2. Output class: DOUBLE for double input, SINGLE otherwise. Reference: Soille, *Morphological Image Analysis*, 2nd ed., §4.4. Image namespace 2026-05-27. |
 | `imcontour` | ❌ |  |  |  |  |  |
 | `imhist` | ✅ | 0.005 | 160.94× | 53.90× | OK | Sig: r = imhist(...). Spec-extension batch 2026-05-09. |
 | `impixel` | ❌ |  |  |  |  |  |
 | `improfile` | ❌ |  |  |  |  |  |
-| `labelmatrix` | ❌ |  |  |  |  |  |
+| `labelmatrix` | ✅ | 0.011 | 285.73× |  | OK | Sig: L = labelmatrix(CC), BW = cc2bw(CC [, NV]). Companion CC-struct conversions used after bwconncomp. labelmatrix walks PixelIdxList writing comp-k label into each listed pixel; output class is uint8/uint16/uint32/double based on NumObjects. cc2bw similarly rasterizes the cells into a logical mask, with optional ObjectsToKeep filter (numeric vec / logical vec). Covers: default cc2bw (full reconstruction), ObjectsToKeep=2 (single), ObjectsToKeep=[1 3] (vector), labelmatrix values at 4 component positions, column-major component-numbering (verified against MATLAB's first-pixel-encountered convention). This cycle also fixed numkit's bwconncomp to scan column-major in BOTH the labelling pass and the relabel pass — previously it scanned row-major in the relabel pass, causing component numbering to diverge from MATLAB (objects 2 and 3 swapped on the test BW). tol=0 (bit-exact). Image namespace 2026-05-27. |
 | `mean2` | ✅ | 0.003 | 84.66× | 76.00× | OK | Sig: r = mean2(...). Spec-extension batch 2026-05-09. |
 | `poly2label` | ❌ |  |  |  |  |  |
 | `regionprops` | ✅ | 0.005 | 653.98× | 264.15× | OK | Sig: r = regionprops(...). Spec-extension batch 2026-05-09. |
