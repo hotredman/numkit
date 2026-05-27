@@ -162,4 +162,70 @@ Value cornermetric(const Value &I, const std::string &method,
                    const Value &filter_coef,
                    std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Standard Hough transform (`[H, T, R] = hough(BW, ...)`).
+///
+/// Computes the parameter-space accumulator for the line
+/// @f$ \rho = x \cos\theta + y \sin\theta @f$ over the foreground
+/// pixels of binary image `BW`. Each true pixel votes for every
+/// `(θ, ρ)` bin on its sinusoid; peaks in `H` represent collinear
+/// pixels.
+///
+/// Default `θ` grid is `-90 : 1 : 89` degrees (180 bins). Default
+/// `ρ` grid is `linspace(-D, D, 2·⌈D/rhoRes⌉+1)` where
+/// `D = √((M-1)² + (N-1)²)`. Custom `theta` (any vector in
+/// `[-90, 90)`) and `rhoRes` (positive scalar) override the
+/// defaults.
+///
+/// Reference: Gonzalez, Woods & Eddins, *Digital Image Processing
+/// Using MATLAB*, 2nd ed., Gatesmark, 2009.
+///
+/// @param BW          2-D binary mask (logical; numeric is cast).
+/// @param rho_res     Bin spacing along `ρ`. Default 1.
+/// @param theta_deg   Theta grid in degrees (any vector in
+///                    `[-90, 90)`). Empty → default `-90:1:89`.
+/// @param[out] H_out  Accumulator (`nRho × nTheta` DOUBLE).
+/// @param[out] T_out  θ vector echoed (1 × nTheta).
+/// @param[out] R_out  ρ vector (1 × nRho).
+/// @param mr          Memory resource (nullptr → process default).
+void hough(const Value &BW, double rho_res,
+           const Value &theta_deg,
+           Value &H_out, Value &T_out, Value &R_out,
+           std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Find peaks in a Hough-transform accumulator
+/// (`P = houghpeaks(H, NumPeaks, ...)`).
+///
+/// Iteratively picks the global maximum of `H`, records its
+/// `[rho_idx, theta_idx]`, then zeroes out a rectangular
+/// neighbourhood of size `NHoodSize` around it. Stops when either
+/// `NumPeaks` peaks are found or the current max falls below
+/// `threshold` (default `0.5·max(H(:))`).
+///
+/// When `theta` covers a full antisymmetric range
+/// `[-90, 90)`, the neighbourhood suppression wraps across the
+/// θ edge with rho flip (so a peak near θ = ±90° also suppresses
+/// the equivalent peak on the opposite side).
+///
+/// `NHoodSize` default: smallest odd integers ≥ `size(H) / 50`,
+/// minimum `[1 1]`.
+///
+/// @param H         `nRho × nTheta` Hough accumulator from @ref hough.
+/// @param numpeaks  Max number of peaks to return.
+/// @param threshold Minimum accumulator value (negative → use
+///                  default `0.5·max(H(:))`).
+/// @param nhoodRho  Suppression neighbourhood rows (odd).
+///                  Pass 0 → use default.
+/// @param nhoodTheta Suppression neighbourhood cols (odd).
+///                  Pass 0 → use default.
+/// @param theta_deg Theta vector used by @ref hough (empty →
+///                  `-90:1:89`, suppression wraps over `[-90, 90)`).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `P × 2` DOUBLE matrix; each row `[rho_idx,
+///                  theta_idx]` is 1-based into `H`.
+Value houghpeaks(const Value &H, std::size_t numpeaks,
+                 double threshold,
+                 std::size_t nhoodRho, std::size_t nhoodTheta,
+                 const Value &theta_deg,
+                 std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image
