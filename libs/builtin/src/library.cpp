@@ -363,6 +363,7 @@ void issortedrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isuniform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ismissing_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void anymissing_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void standardizeMissing_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // issymmetric / ishermitian / isbanded / isdiag / istril / istriu /
 // bandwidth _reg adapters → libs/linalg (predicates.cpp)
 // vecnorm_reg, rref_reg, rcond_reg, planerot_reg, ldl_reg,
@@ -1173,6 +1174,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("isfinite",  &builtin::detail::isfinite_reg);
     engine.registerFunction("ismissing", &builtin::detail::ismissing_reg);
     engine.registerFunction("anymissing",&builtin::detail::anymissing_reg);
+    engine.registerFunction("standardizeMissing", &builtin::detail::standardizeMissing_reg);
     engine.registerFunction("isvector",   &builtin::detail::isvector_reg);
     engine.registerFunction("isrow",      &builtin::detail::isrow_reg);
     engine.registerFunction("iscolumn",   &builtin::detail::iscolumn_reg);
