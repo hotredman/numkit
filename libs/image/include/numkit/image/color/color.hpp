@@ -127,6 +127,36 @@ Value lab2rgb(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @return     Lightness image.
 Value rgb2lightness(const Value &RGB, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Eliminate duplicate colors in colormap; convert
+/// grayscale or RGB to indexed (`[Y, newmap] = cmunique(...)`).
+///
+/// Three input signatures:
+///   * `cmunique(X, MAP)`   — quantise `MAP` to 1/1024 and drop
+///                             duplicate rows; rebuild `X` to
+///                             reference the compressed map.
+///   * `cmunique(RGB)`      — treat each pixel as a distinct
+///                             colour, then run the dedup pass.
+///   * `cmunique(I)`        — treat each intensity as the grey
+///                             triplet `[I I I]`, then dedup.
+///
+/// The output index `Y` is `uint8` if `newmap` has ≤ 256 rows and
+/// `double` otherwise (matches MATLAB R2025b).
+///
+/// @param X    Indexed image (uint8 / uint16 / double / single).
+/// @param MAP  `N × 3` double colormap.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Pair `(Y, newmap)` with the smallest equivalent
+///             colormap.
+std::pair<Value, Value>
+cmunique_xm(const Value &X, const Value &MAP,
+            std::pmr::memory_resource *mr = nullptr);
+std::pair<Value, Value>
+cmunique_rgb(const Value &RGB,
+             std::pmr::memory_resource *mr = nullptr);
+std::pair<Value, Value>
+cmunique_i(const Value &I,
+           std::pmr::memory_resource *mr = nullptr);
+
 /// @brief RGB → indexed image with a fixed colormap
 /// (`[ind, cmap] = rgb2ind(RGB, cmap)`).
 ///

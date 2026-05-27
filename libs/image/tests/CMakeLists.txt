@@ -26,4 +26,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/graydiffweight_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nlfilter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/colfilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmunique_test.cpp
 )
