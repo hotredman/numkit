@@ -1,0 +1,10 @@
+{
+  "name": "imgradientxyz",
+  "namespace": "image",
+  "setup": "V = double(reshape(1:60, 3, 4, 5));",
+  "expr": "[Gx, Gy, Gz] = imgradientxyz(V); [Gxp, Gyp, Gzp] = imgradientxyz(V, 'prewitt'); [Gxc, Gyc, Gzc] = imgradientxyz(V, 'central'); [Gxi, Gyi, Gzi] = imgradientxyz(V, 'intermediate'); r1 = Gx(2,2,2); r2 = Gy(2,2,2); r3 = Gz(2,2,2); r4 = Gx(1,1,1); r5 = Gz(3,4,5); r6 = Gxp(2,2,2); r7 = Gyp(2,2,2); r8 = Gzp(2,2,2); r9 = Gxc(2,2,2); r10 = Gzc(2,2,2); r11 = Gxi(2,2,2); r12 = Gxi(3,4,5);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"],
+  "comment": "Sig: [Gx,Gy,Gz] = imgradientxyz(V,method). Branches: sobel (3x3x3 [1,3,3,1]-weighted MATLAB R2025b kernel), prewitt, central (gradient()), intermediate (forward diff). Replicate boundary. Image namespace 2026-05-27."
+}

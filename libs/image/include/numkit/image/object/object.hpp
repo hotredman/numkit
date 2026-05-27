@@ -49,6 +49,48 @@ std::tuple<Value, Value>
 imgradient(const Value &I, const std::string &method,
            std::pmr::memory_resource *mr = nullptr);
 
+/// 3-D component gradients
+/// (`[Gx, Gy, Gz] = imgradientxyz(V, method)`).
+///
+/// Supports `"sobel"` (default), `"prewitt"`, `"central"`, and
+/// `"intermediate"`. The Sobel / Prewitt kernels are the standard
+/// 3×3×3 separable extensions used by MATLAB R2025b (Sobel weights
+/// `[1, 3, 3, 1]`-style — not the naive `[1, 2, 1]` 2-D extension).
+/// `"central"` ≡ `gradient(V)`; `"intermediate"` ≡ forward `diff`
+/// with the trailing slice zero-padded.
+///
+/// Replicate boundary handling for the convolution kernels.
+/// Output class is `single` if `V` is `single`, else `double`.
+///
+/// @param V       3-D grayscale volume.
+/// @param method  `"sobel"` / `"prewitt"` / `"central"` /
+///                `"intermediate"`.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(Gx, Gy, Gz)` (same shape as `V`).
+std::tuple<Value, Value, Value>
+imgradientxyz(const Value &V, const std::string &method,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// 3-D gradient magnitude + spherical direction
+/// (`[Gmag, Gaz, Gelev] = imgradient3(V, method)` or
+/// `(Gx, Gy, Gz)` inputs).
+///
+/// `Gmag = hypot(hypot(Gx, Gy), Gz)`,
+/// `Gaz = atan2(-Gy, Gx)` (degrees),
+/// `Gelev = atan2(Gz, hypot(Gx, Gy))` (degrees).
+///
+/// Single-output form returns only `Gmag`. The `(Gx, Gy, Gz)`
+/// alternate form skips the convolution step (used when the
+/// caller already has the directional gradients).
+///
+/// @see imgradientxyz
+std::tuple<Value, Value, Value>
+imgradient3(const Value &V, const std::string &method,
+            std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value, Value>
+imgradient3_from_grads(const Value &Gx, const Value &Gy, const Value &Gz,
+                       std::pmr::memory_resource *mr = nullptr);
+
 /// Binary edge map (`BW = edge(I, method, thresh_lo, thresh_hi)`).
 ///
 /// Detector dispatch:

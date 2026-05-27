@@ -90,6 +90,311 @@ imgradientxy(const Value &I, const std::string &method, std::pmr::memory_resourc
     return std::make_tuple(std::move(Gx), std::move(Gy));
 }
 
+// ── 3-D imgradientxyz / imgradient3 ────────────────────────────────
+//
+// MATLAB R2025b imgradientxyz.m uses non-standard 3-D Sobel kernels
+// with [1, 3, 3, 1]-style weights (NOT the naive [1, 2, 1] 2-D
+// extension); the actual hx/hy/hz tensors are reproduced verbatim
+// from the MATLAB source below. Prewitt uses [1, 1, 1]; central is
+// `gradient(V)`; intermediate is forward `diff` with the trailing
+// slice zeroed.
+namespace {
+
+// Convolve V (3-D DOUBLE) with a 3×3×3 kernel K (27 doubles, row-
+// then-col-then-page layout matching `K[r, c, p]` indexing) using
+// 'replicate' boundary handling. Returns DOUBLE same shape.
+//
+// Convention: V is stored column-major H × W × D, linear index
+//   k(r, c, p) = r + H * c + H * W * p
+// Sobel-style direct correlation (no kernel flip — kernel embeds
+// the sign convention).
+Value conv3d_replicate(const Value &V, const double K[27],
+                       std::pmr::memory_resource *mr)
+{
+    const auto &d = V.dims();
+    const std::size_t H = d.rows();
+    const std::size_t W = d.cols();
+    const std::size_t D = d.is3D() ? d.pages() : 1;
+    Value out = (D > 1)
+        ? Value::matrix3d(H, W, D, ValueType::DOUBLE, mr)
+        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const double *vd = V.doubleData();
+
+    auto clamp = [](long long x, std::size_t n) -> std::size_t {
+        if (x < 0) return 0;
+        if (x >= static_cast<long long>(n)) return n - 1;
+        return static_cast<std::size_t>(x);
+    };
+
+    for (std::size_t p = 0; p < D; ++p) {
+        for (std::size_t c = 0; c < W; ++c) {
+            for (std::size_t r = 0; r < H; ++r) {
+                double sum = 0.0;
+                for (int dp = -1; dp <= 1; ++dp) {
+                    const std::size_t pp = clamp(
+                        static_cast<long long>(p) + dp, D);
+                    for (int dc = -1; dc <= 1; ++dc) {
+                        const std::size_t cc = clamp(
+                            static_cast<long long>(c) + dc, W);
+                        for (int dr = -1; dr <= 1; ++dr) {
+                            const std::size_t rr = clamp(
+                                static_cast<long long>(r) + dr, H);
+                            const int ki = (dr + 1)
+                                         + 3 * (dc + 1)
+                                         + 9 * (dp + 1);
+                            sum += K[ki] * vd[rr + H * cc + H * W * pp];
+                        }
+                    }
+                }
+                od[r + H * c + H * W * p] = sum;
+            }
+        }
+    }
+    return out;
+}
+
+// Cast V to DOUBLE (or SINGLE if outT is SINGLE).
+Value promote_to_double(const Value &V, std::pmr::memory_resource *mr)
+{
+    const std::size_t N = V.numel();
+    const auto &d = V.dims();
+    Value out = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (std::size_t i = 0; i < N; ++i) od[i] = V.elemAsDouble(i);
+    return out;
+}
+
+Value zeros_like(const Value &V, ValueType t,
+                 std::pmr::memory_resource *mr)
+{
+    const auto &d = V.dims();
+    return d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), t, mr)
+        : Value::matrix(d.rows(), d.cols(), t, mr);
+}
+
+} // anonymous
+
+std::tuple<Value, Value, Value>
+imgradientxyz(const Value &V, const std::string &method, std::pmr::memory_resource *mr)
+{
+    if (!V.dims().is3D())
+        throw Error("imgradientxyz: V must be 3-D",
+                    0, 0, "imgradientxyz", "", "m:imgradientxyz:rank");
+    const ValueType inT = V.type();
+    const ValueType outT = (inT == ValueType::SINGLE)
+                         ? ValueType::SINGLE : ValueType::DOUBLE;
+    Value Vd = promote_to_double(V, mr);
+
+    Value Gx, Gy, Gz;
+    if (method == "sobel") {
+        // MATLAB R2025b imgradientxyz.m kernels.
+        // hx (X = horizontal / cols, derivative along c):
+        //   page 1: [-1 0 1; -3 0 3; -1 0 1]
+        //   page 2: [-3 0 3; -6 0 6; -3 0 3]
+        //   page 3: [-1 0 1; -3 0 3; -1 0 1]
+        // hy (Y = vertical / rows, derivative along r):
+        //   page 1: [-1 -3 -1; 0 0 0; 1 3 1]
+        //   page 2: [-3 -6 -3; 0 0 0; 3 6 3]
+        //   page 3: [-1 -3 -1; 0 0 0; 1 3 1]
+        // hz (Z = depth / pages, derivative along p):
+        //   page 1: [-1 -3 -1; -3 -6 -3; -1 -3 -1]
+        //   page 2: [ 0  0  0;  0  0  0;  0  0  0]
+        //   page 3: [ 1  3  1;  3  6  3;  1  3  1]
+        // K index = (dr+1) + 3*(dc+1) + 9*(dp+1).
+        auto build = [](const double rows3[3][3][3], double K[27]) {
+            for (int p = 0; p < 3; ++p)
+                for (int c = 0; c < 3; ++c)
+                    for (int r = 0; r < 3; ++r)
+                        K[r + 3 * c + 9 * p] = rows3[p][r][c];
+        };
+        const double hx3[3][3][3] = {
+            {{-1, 0, 1}, {-3, 0, 3}, {-1, 0, 1}},
+            {{-3, 0, 3}, {-6, 0, 6}, {-3, 0, 3}},
+            {{-1, 0, 1}, {-3, 0, 3}, {-1, 0, 1}},
+        };
+        const double hy3[3][3][3] = {
+            {{-1, -3, -1}, {0, 0, 0}, {1, 3, 1}},
+            {{-3, -6, -3}, {0, 0, 0}, {3, 6, 3}},
+            {{-1, -3, -1}, {0, 0, 0}, {1, 3, 1}},
+        };
+        const double hz3[3][3][3] = {
+            {{-1, -3, -1}, {-3, -6, -3}, {-1, -3, -1}},
+            {{ 0,  0,  0}, { 0,  0,  0}, { 0,  0,  0}},
+            {{ 1,  3,  1}, { 3,  6,  3}, { 1,  3,  1}},
+        };
+        double Kx[27], Ky[27], Kz[27];
+        build(hx3, Kx); build(hy3, Ky); build(hz3, Kz);
+        Gx = conv3d_replicate(Vd, Kx, mr);
+        Gy = conv3d_replicate(Vd, Ky, mr);
+        Gz = conv3d_replicate(Vd, Kz, mr);
+    } else if (method == "prewitt") {
+        auto build = [](const double rows3[3][3][3], double K[27]) {
+            for (int p = 0; p < 3; ++p)
+                for (int c = 0; c < 3; ++c)
+                    for (int r = 0; r < 3; ++r)
+                        K[r + 3 * c + 9 * p] = rows3[p][r][c];
+        };
+        const double hx3[3][3][3] = {
+            {{-1, 0, 1}, {-1, 0, 1}, {-1, 0, 1}},
+            {{-1, 0, 1}, {-1, 0, 1}, {-1, 0, 1}},
+            {{-1, 0, 1}, {-1, 0, 1}, {-1, 0, 1}},
+        };
+        const double hy3[3][3][3] = {
+            {{-1, -1, -1}, {0, 0, 0}, {1, 1, 1}},
+            {{-1, -1, -1}, {0, 0, 0}, {1, 1, 1}},
+            {{-1, -1, -1}, {0, 0, 0}, {1, 1, 1}},
+        };
+        const double hz3[3][3][3] = {
+            {{-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}},
+            {{ 0,  0,  0}, { 0,  0,  0}, { 0,  0,  0}},
+            {{ 1,  1,  1}, { 1,  1,  1}, { 1,  1,  1}},
+        };
+        double Kx[27], Ky[27], Kz[27];
+        build(hx3, Kx); build(hy3, Ky); build(hz3, Kz);
+        Gx = conv3d_replicate(Vd, Kx, mr);
+        Gy = conv3d_replicate(Vd, Ky, mr);
+        Gz = conv3d_replicate(Vd, Kz, mr);
+    } else if (method == "central" || method == "intermediate") {
+        // gradient(V) for 'central'; forward diff with zero pad for
+        // 'intermediate'. Both are straight per-axis differences.
+        const auto &d = Vd.dims();
+        const std::size_t H = d.rows();
+        const std::size_t W = d.cols();
+        const std::size_t D = d.pages();
+        Gx = zeros_like(Vd, ValueType::DOUBLE, mr);
+        Gy = zeros_like(Vd, ValueType::DOUBLE, mr);
+        Gz = zeros_like(Vd, ValueType::DOUBLE, mr);
+        double *gxd = Gx.doubleDataMut();
+        double *gyd = Gy.doubleDataMut();
+        double *gzd = Gz.doubleDataMut();
+        const double *vd = Vd.doubleData();
+        auto idx = [&](std::size_t r, std::size_t c, std::size_t p) {
+            return r + H * c + H * W * p;
+        };
+        if (method == "central") {
+            // Gx[r,c,p] = (V[r,c+1,p] - V[r,c-1,p]) / 2  (central),
+            // forward at c=0 and backward at c=W-1.
+            for (std::size_t p = 0; p < D; ++p)
+                for (std::size_t r = 0; r < H; ++r)
+                    for (std::size_t c = 0; c < W; ++c) {
+                        if (W == 1) { gxd[idx(r, c, p)] = 0.0; continue; }
+                        if (c == 0)
+                            gxd[idx(r, c, p)] = vd[idx(r, 1, p)] - vd[idx(r, 0, p)];
+                        else if (c == W - 1)
+                            gxd[idx(r, c, p)] = vd[idx(r, W - 1, p)] - vd[idx(r, W - 2, p)];
+                        else
+                            gxd[idx(r, c, p)] = 0.5 * (vd[idx(r, c + 1, p)] - vd[idx(r, c - 1, p)]);
+                    }
+            for (std::size_t p = 0; p < D; ++p)
+                for (std::size_t c = 0; c < W; ++c)
+                    for (std::size_t r = 0; r < H; ++r) {
+                        if (H == 1) { gyd[idx(r, c, p)] = 0.0; continue; }
+                        if (r == 0)
+                            gyd[idx(r, c, p)] = vd[idx(1, c, p)] - vd[idx(0, c, p)];
+                        else if (r == H - 1)
+                            gyd[idx(r, c, p)] = vd[idx(H - 1, c, p)] - vd[idx(H - 2, c, p)];
+                        else
+                            gyd[idx(r, c, p)] = 0.5 * (vd[idx(r + 1, c, p)] - vd[idx(r - 1, c, p)]);
+                    }
+            for (std::size_t c = 0; c < W; ++c)
+                for (std::size_t r = 0; r < H; ++r)
+                    for (std::size_t p = 0; p < D; ++p) {
+                        if (D == 1) { gzd[idx(r, c, p)] = 0.0; continue; }
+                        if (p == 0)
+                            gzd[idx(r, c, p)] = vd[idx(r, c, 1)] - vd[idx(r, c, 0)];
+                        else if (p == D - 1)
+                            gzd[idx(r, c, p)] = vd[idx(r, c, D - 1)] - vd[idx(r, c, D - 2)];
+                        else
+                            gzd[idx(r, c, p)] = 0.5 * (vd[idx(r, c, p + 1)] - vd[idx(r, c, p - 1)]);
+                    }
+        } else {
+            // intermediate: forward diff with last slice = 0.
+            for (std::size_t p = 0; p < D; ++p)
+                for (std::size_t r = 0; r < H; ++r)
+                    for (std::size_t c = 0; c + 1 < W; ++c)
+                        gxd[idx(r, c, p)] = vd[idx(r, c + 1, p)] - vd[idx(r, c, p)];
+            for (std::size_t p = 0; p < D; ++p)
+                for (std::size_t c = 0; c < W; ++c)
+                    for (std::size_t r = 0; r + 1 < H; ++r)
+                        gyd[idx(r, c, p)] = vd[idx(r + 1, c, p)] - vd[idx(r, c, p)];
+            for (std::size_t c = 0; c < W; ++c)
+                for (std::size_t r = 0; r < H; ++r)
+                    for (std::size_t p = 0; p + 1 < D; ++p)
+                        gzd[idx(r, c, p)] = vd[idx(r, c, p + 1)] - vd[idx(r, c, p)];
+        }
+    } else {
+        throw Error("imgradientxyz: method must be 'sobel', 'prewitt', "
+                    "'central', or 'intermediate'",
+                    0, 0, "imgradientxyz", "", "m:imgradientxyz:method");
+    }
+
+    if (outT == ValueType::SINGLE) {
+        // Cast to single.
+        auto cast_single = [&](Value &G) {
+            const std::size_t N = G.numel();
+            Value gs = zeros_like(G, ValueType::SINGLE, mr);
+            for (std::size_t i = 0; i < N; ++i)
+                gs.singleDataMut()[i] = static_cast<float>(G.doubleData()[i]);
+            G = std::move(gs);
+        };
+        cast_single(Gx); cast_single(Gy); cast_single(Gz);
+    }
+    return std::make_tuple(std::move(Gx), std::move(Gy), std::move(Gz));
+}
+
+std::tuple<Value, Value, Value>
+imgradient3_from_grads(const Value &Gx, const Value &Gy, const Value &Gz,
+                       std::pmr::memory_resource *mr)
+{
+    if (Gx.dims().rows() != Gy.dims().rows()
+        || Gx.dims().cols() != Gy.dims().cols()
+        || Gx.dims().pages() != Gy.dims().pages()
+        || Gx.dims().rows() != Gz.dims().rows()
+        || Gx.dims().cols() != Gz.dims().cols()
+        || Gx.dims().pages() != Gz.dims().pages())
+        throw Error("imgradient3: Gx, Gy, Gz must have the same size",
+                    0, 0, "imgradient3", "", "m:imgradient3:size");
+    const std::size_t N = Gx.numel();
+    const ValueType outT = (Gx.type() == ValueType::SINGLE
+                         || Gy.type() == ValueType::SINGLE
+                         || Gz.type() == ValueType::SINGLE)
+                         ? ValueType::SINGLE : ValueType::DOUBLE;
+    auto alloc = [&]() {
+        return zeros_like(Gx, outT, mr);
+    };
+    Value Gmag = alloc(), Gaz = alloc(), Gelev = alloc();
+    constexpr double D2R = 180.0 / 3.14159265358979323846;
+    for (std::size_t i = 0; i < N; ++i) {
+        const double gx = Gx.elemAsDouble(i);
+        const double gy = Gy.elemAsDouble(i);
+        const double gz = Gz.elemAsDouble(i);
+        const double mag = std::hypot(std::hypot(gx, gy), gz);
+        const double az  = std::atan2(-gy, gx) * D2R;
+        const double el  = std::atan2(gz, std::hypot(gx, gy)) * D2R;
+        if (outT == ValueType::DOUBLE) {
+            Gmag.doubleDataMut()[i]  = mag;
+            Gaz.doubleDataMut()[i]   = az;
+            Gelev.doubleDataMut()[i] = el;
+        } else {
+            Gmag.singleDataMut()[i]  = static_cast<float>(mag);
+            Gaz.singleDataMut()[i]   = static_cast<float>(az);
+            Gelev.singleDataMut()[i] = static_cast<float>(el);
+        }
+    }
+    return std::make_tuple(std::move(Gmag), std::move(Gaz), std::move(Gelev));
+}
+
+std::tuple<Value, Value, Value>
+imgradient3(const Value &V, const std::string &method, std::pmr::memory_resource *mr)
+{
+    auto [Gx, Gy, Gz] = imgradientxyz(V, method, mr);
+    return imgradient3_from_grads(Gx, Gy, Gz, mr);
+}
+
 std::tuple<Value, Value>
 imgradient(const Value &I, const std::string &method, std::pmr::memory_resource *mr)
 {
@@ -235,6 +540,46 @@ void imgradient_reg(Span<const Value> args, size_t nargout,
     auto [Gmag, Gdir] = imgradient(args[0], m, ctx.engine->resource());
     outs[0] = std::move(Gmag);
     if (nargout > 1) outs[1] = std::move(Gdir);
+}
+
+void imgradientxyz_reg(Span<const Value> args, size_t nargout,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imgradientxyz: requires (V[, method])",
+                    0, 0, "imgradientxyz", "", "m:imgradientxyz:nargin");
+    const auto m = parse_method(args, 1, "sobel");
+    auto [Gx, Gy, Gz] = imgradientxyz(args[0], m, ctx.engine->resource());
+    outs[0] = std::move(Gx);
+    if (nargout > 1) outs[1] = std::move(Gy);
+    if (nargout > 2) outs[2] = std::move(Gz);
+}
+
+void imgradient3_reg(Span<const Value> args, size_t nargout,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imgradient3: requires (V[, method]) or (Gx, Gy, Gz)",
+                    0, 0, "imgradient3", "", "m:imgradient3:nargin");
+    auto *mr = ctx.engine->resource();
+    // Detect (Gx, Gy, Gz) form: three numeric args, NO string arg.
+    if (args.size() == 3
+        && !args[0].isChar() && !args[0].isString()
+        && !args[1].isChar() && !args[1].isString()
+        && !args[2].isChar() && !args[2].isString()
+        && args[0].dims().is3D() && args[1].dims().is3D() && args[2].dims().is3D()) {
+        auto [Gmag, Gaz, Gelev] =
+            imgradient3_from_grads(args[0], args[1], args[2], mr);
+        outs[0] = std::move(Gmag);
+        if (nargout > 1) outs[1] = std::move(Gaz);
+        if (nargout > 2) outs[2] = std::move(Gelev);
+        return;
+    }
+    const auto m = parse_method(args, 1, "sobel");
+    auto [Gmag, Gaz, Gelev] = imgradient3(args[0], m, mr);
+    outs[0] = std::move(Gmag);
+    if (nargout > 1) outs[1] = std::move(Gaz);
+    if (nargout > 2) outs[2] = std::move(Gelev);
 }
 
 void edge_reg(Span<const Value> args, size_t /*nargout*/,
