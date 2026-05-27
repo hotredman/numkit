@@ -1683,7 +1683,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imresize` | ✅ | 0.005 | 683.41× | 190.17× | OK | Sig: r = imresize(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imresize3` | ✅ | 0.117 | 58.88× |  | OK | imresize3 — 3-D volume resampling. Covers: scale=2 (cubic default, nearest, linear), shrink scale=0.5 (cubic+AA default, linear, box, cubic noAA), explicit size vector [2 2 3] (uses out/in scale per axis), Lanczos2/3 kernels, even 4x4x4 input, NV-pair 'Scale' and 'OutputSize'. tol=1e-6 (lanczos referenced to MATLAB at ~1e-7). |
 | `imrotate` | ✅ | 0.004 | 354.18× | 63.68× | OK | Sig: r = imrotate(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `imrotate3` | ❌ |  |  |  |  |  |
+| `imrotate3` | ✅ | 0.031 | 544.96× |  | OK | imrotate3 — 3-D Rodrigues rotation. Covers: axis-aligned 90° around z/x/y, 45° z (loose + crop), oblique 60° around [1 1 1], methods nearest/cubic, identity (angle=0), FillValues NV. Default method='linear', default bbox='loose'. Standard right-hand rule CCW around axis. |
 | `imtransform` | ❌ |  |  |  |  | legacy maketform path |
 | `imtranslate` | ✅ | 0.004 | 1417.15× |  | OK | Sig: r = imtranslate(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imwarp` | ❌ |  |  |  |  |  |

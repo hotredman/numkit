@@ -162,6 +162,38 @@ Value imresize3(const Value &V, double scale,
                 const std::string &method, bool antialias,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Rotate a 3-D volume around an arbitrary axis
+/// (`B = imrotate3(V, angle, W, method, bbox, FillValues=v)`).
+///
+/// Rotates `V` by `angle` degrees counterclockwise (right-hand rule)
+/// around the axis vector W = [Wx Wy Wz] passing through the centre
+/// of the volume. Uses the Rodrigues rotation matrix and applies an
+/// inverse-warp on each output voxel:
+///
+///     (xs, ys, zs) = inCentre + R · ((xo, yo, zo) − outCentre)
+///
+/// where the spatial X / Y / Z = col / row / page (MATLAB
+/// convention). Out-of-bounds source samples evaluate to `fill`.
+///
+/// References:
+/// - Rodrigues 1840 — axis-angle rotation matrix.
+/// - Keys 1981 — Catmull-Rom tricubic kernel.
+///
+/// @param V          3-D numeric volume.
+/// @param angle_deg  Rotation in degrees (CCW, right-hand rule).
+/// @param Wx,Wy,Wz   Components of the axis vector (need not be unit).
+/// @param method     `"nearest"`, `"linear"` (default), or `"cubic"`.
+/// @param bbox       `"loose"` (default — expand to fit rotated extent)
+///                   or `"crop"` (keep input dims).
+/// @param fill       Out-of-bounds fill value (default 0).
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Rotated volume; element type preserved.
+Value imrotate3(const Value &V, double angle_deg,
+                double Wx, double Wy, double Wz,
+                const std::string &method, const std::string &bbox,
+                double fill,
+                std::pmr::memory_resource *mr = nullptr);
+
 /// Burt–Adelson image pyramid step (`B = impyramid(A, type)`).
 ///
 /// Implements one level of the classic Burt–Adelson Gaussian pyramid
