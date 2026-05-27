@@ -1,0 +1,16 @@
+{
+  "name": "groupfilter",
+  "namespace": "builtin",
+  "setup": "A = [10; 20; 30; 40; 50; 60]; G = [1; 2; 1; 2; 1; 2]; A2 = [10 100; 20 200; 30 300; 40 400; 50 500; 60 600]; G2 = [1; 2; NaN; 1; 2; NaN];",
+  "expr": "Bs = groupfilter(A, G, @(x) mean(x) > 30); Bv = groupfilter(A, G, @(x) x > mean(x)); Ba = groupfilter(A, G, @(x) numel(x) > 2); Bm = groupfilter(A2, G, @(x) mean(x) > 30); Bn = groupfilter(A, G2, @(x) mean(x) > 25);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "size(Bs,1)", "Bs(1)", "Bs(2)", "Bs(3)",
+    "size(Bv,1)", "Bv(1)", "Bv(2)",
+    "size(Ba,1)",
+    "size(Bm,1)", "size(Bm,2)", "Bm(1,1)", "Bm(1,2)", "Bm(3,2)",
+    "size(Bn,1)", "Bn(1)", "Bn(2)", "Bn(3)", "Bn(4)"
+  ],
+  "comment": "groupfilter array form — function-handle predicate per group. Scalar result → keep/drop whole group. Vector of length kn → per-row mask. Other shapes (e.g. mean(matrix)=row-vec) → all(result(:)) reduction. NaN entries in groupvars form singleton groups. Deferred: table inputs, groupbins, IncludedEdge/datavars NV."
+}
