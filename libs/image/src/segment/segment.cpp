@@ -5,6 +5,7 @@
 // bwlabel / regionprops infrastructure.
 
 #include <numkit/image/segment/segment.hpp>
+#include <numkit/image/filter/filter.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -299,6 +300,168 @@ Value graydiffweight(const Value &I, double ref_gray_val,
     return W;
 }
 
+// ── gradientweight (FMM gradient-based pixel weights) ──────────────
+//
+// MATLAB R2025b gradientweight.m / images.internal.imgradientdog
+// algorithm:
+//   r        = ceil(2*sigma)             (per axis)
+//   x        = -r:r
+//   hx(x)    = -x * exp(-x^2 / (2*sigma_x^2))
+//   norm     = sum(hx(1..r))             (positive half — MATLAB 1-idx)
+//   hx       = hx / norm
+//   hy       = same with sigma_y, oriented vertical (column)
+//   Gx       = imfilter(I, hx, 'replicate')
+//   Gy       = imfilter(I, hy, 'replicate')
+//   W = hypot(Gx, Gy)
+//   W = imlinscale(W, [0 1])
+//   W = W ^ (1 / rolloff_factor)
+//   W = (1 - W) / (1 + W)
+//   W(W < cutoff) = 1e-3
+// Output class: single if input single, else double.
+// 2-D only here (MATLAB calls imgradientdog3 for 3-D volumes).
+Value gradientweight(const Value &I, double sigma_x, double sigma_y,
+                     double rolloff_factor, double weight_cutoff,
+                     std::pmr::memory_resource *mr)
+{
+    if (!(sigma_x > 0.0) || !std::isfinite(sigma_x)
+     || !(sigma_y > 0.0) || !std::isfinite(sigma_y))
+        throw Error("gradientweight: sigma must be positive and finite",
+                    0, 0, "gradientweight", "", "m:gradientweight:sigma");
+    if (!(rolloff_factor > 0.0) || !std::isfinite(rolloff_factor))
+        throw Error("gradientweight: RolloffFactor must be positive "
+                    "and finite",
+                    0, 0, "gradientweight", "", "m:gradientweight:rolloff");
+    if (!(weight_cutoff >= 1e-3 && weight_cutoff <= 1.0))
+        throw Error("gradientweight: WeightCutoff must be in [1e-3, 1]",
+                    0, 0, "gradientweight", "", "m:gradientweight:cutoff");
+    if (I.dims().is3D())
+        throw Error("gradientweight: 3-D inputs not supported "
+                    "(slice and call per page)",
+                    0, 0, "gradientweight", "", "m:gradientweight:dim");
+
+    const ValueType outT = (I.type() == ValueType::SINGLE)
+                          ? ValueType::SINGLE : ValueType::DOUBLE;
+    const std::size_t H = I.dims().rows();
+    const std::size_t W_ = I.dims().cols();
+    const std::size_t N = H * W_;
+
+    // Empty: return same-shape DOUBLE empty.
+    if (N == 0) return Value::matrix(H, W_, outT, mr);
+
+    // Constant-image fast-path: |max - min| <= eps(maxabs)*1000 → W = 1.
+    double minI = std::numeric_limits<double>::infinity();
+    double maxI = -std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < N; ++i) {
+        const double v = I.elemAsDouble(i);
+        if (v < minI) minI = v;
+        if (v > maxI) maxI = v;
+    }
+    const double absMax = std::max(std::fabs(minI), std::fabs(maxI));
+    const double e = std::nextafter(absMax,
+                          std::numeric_limits<double>::infinity()) - absMax;
+    if (maxI - e * 1000.0 <= minI) {
+        Value Wones = Value::matrix(H, W_, outT, mr);
+        if (outT == ValueType::DOUBLE) {
+            double *p = Wones.doubleDataMut();
+            for (std::size_t i = 0; i < N; ++i) p[i] = 1.0;
+        } else {
+            float *p = Wones.singleDataMut();
+            for (std::size_t i = 0; i < N; ++i) p[i] = 1.0f;
+        }
+        return Wones;
+    }
+
+    // Build DoG kernel along a single axis with given sigma. `norm_count`
+    // is the number of left-half elements summed for normalisation
+    // (MATLAB uses `filtRadius(1)` for BOTH hx and hy — so for hy on
+    // anisotropic σ, this is the x-axis radius, not the y-axis radius.
+    // We replicate the MATLAB R2025b behaviour exactly).
+    auto build_dog = [&](double sigma, int norm_count, std::size_t &len) {
+        const int r = static_cast<int>(std::ceil(2.0 * sigma));
+        len = 2 * static_cast<std::size_t>(r) + 1;
+        std::pmr::vector<double> h(len, 0.0, mr);
+        double norm = 0.0;
+        for (int k = 0; k < static_cast<int>(len); ++k) {
+            const int x = k - r;
+            h[k] = -static_cast<double>(x)
+                 * std::exp(-static_cast<double>(x * x)
+                            / (2.0 * sigma * sigma));
+            // MATLAB: norm = sum(h(1..norm_count)) -- 1-indexed
+            // (k = 0..norm_count-1 in 0-indexed, the left half).
+            if (k < norm_count) norm += h[k];
+        }
+        if (norm == 0.0) norm = 1.0;
+        for (std::size_t k = 0; k < len; ++k) h[k] /= norm;
+        return h;
+    };
+
+    const int rx = static_cast<int>(std::ceil(2.0 * sigma_x));
+    std::size_t hxLen = 0, hyLen = 0;
+    auto hxBuf = build_dog(sigma_x, rx, hxLen);
+    auto hyBuf = build_dog(sigma_y, rx, hyLen);     // MATLAB-bug-compatible
+
+    // Cast I to DOUBLE for filtering (matches MATLAB internal).
+    Value Id;
+    if (I.type() == ValueType::DOUBLE) {
+        Id = I;
+    } else {
+        Id = Value::matrix(H, W_, ValueType::DOUBLE, mr);
+        double *p = Id.doubleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p[i] = I.elemAsDouble(i);
+    }
+
+    // hx as 1×Nx row vector; hy as Ny×1 column vector.
+    Value hx = Value::matrix(1, hxLen, ValueType::DOUBLE, mr);
+    for (std::size_t k = 0; k < hxLen; ++k)
+        hx.doubleDataMut()[k] = hxBuf[k];
+    Value hy = Value::matrix(hyLen, 1, ValueType::DOUBLE, mr);
+    for (std::size_t k = 0; k < hyLen; ++k)
+        hy.doubleDataMut()[k] = hyBuf[k];
+
+    // Gx, Gy via imfilter (replicate boundary, same size, correlation).
+    Value Gx = imfilter(Id, hx, PadMode::Replicate, 0.0,
+                        /*full=*/false, /*flip_kernel=*/false, mr);
+    Value Gy = imfilter(Id, hy, PadMode::Replicate, 0.0,
+                        /*full=*/false, /*flip_kernel=*/false, mr);
+
+    // Gmag = hypot(Gx, Gy); track min/max for imlinscale.
+    std::pmr::vector<double> Gmag(N, 0.0, mr);
+    double gmin = std::numeric_limits<double>::infinity();
+    double gmax = -std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < N; ++i) {
+        const double gx = Gx.elemAsDouble(i);
+        const double gy = Gy.elemAsDouble(i);
+        const double g = std::hypot(gx, gy);
+        Gmag[i] = g;
+        if (g < gmin) gmin = g;
+        if (g > gmax) gmax = g;
+    }
+    // imlinscale to [0, 1].
+    const double gabsMin = std::min(std::fabs(gmin), std::fabs(gmax));
+    const double e2 = std::nextafter(gabsMin,
+                          std::numeric_limits<double>::infinity()) - gabsMin;
+    const bool spread_ok = (gmax - gmin) > e2;
+    const double slope = spread_ok ? 1.0 / (gmax - gmin) : 0.0;
+
+    const double inv_rolloff = 1.0 / rolloff_factor;
+    const double floorOfW    = 1e-3;
+
+    Value Wout = Value::matrix(H, W_, outT, mr);
+    auto store = [&](std::size_t i, double v) {
+        if (outT == ValueType::DOUBLE) Wout.doubleDataMut()[i] = v;
+        else                            Wout.singleDataMut()[i] = static_cast<float>(v);
+    };
+    for (std::size_t i = 0; i < N; ++i) {
+        double w = spread_ok ? slope * (Gmag[i] - gmin) : 0.0;
+        // W = W^(1/rolloff); W = (1-W)/(1+W); cutoff
+        w = std::pow(w, inv_rolloff);
+        w = (1.0 - w) / (1.0 + w);
+        if (w < weight_cutoff) w = floorOfW;
+        store(i, w);
+    }
+    return Wout;
+}
+
 Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::memory_resource *mr)
 {
     if (color.numel() != 3)
@@ -538,6 +701,76 @@ void graydiffweight_reg(Span<const Value> a, size_t, Span<Value> o,
                     "m:graydiffweight:unpaired");
 
     o[0] = graydiffweight(I, ref_gray_val, rolloff, cutoff, mr);
+}
+
+// gradientweight adapter — parses (I [, sigma] [, NV...]).
+//   sigma: scalar (replicated) or 2-element [sigma_x sigma_y]; default 1.5.
+//   'RolloffFactor': positive scalar, default 3.
+//   'WeightCutoff':  scalar in [1e-3, 1], default 0.25.
+void gradientweight_reg(Span<const Value> a, size_t, Span<Value> o,
+                        CallContext &c)
+{
+    if (a.empty())
+        throw Error("gradientweight: requires (I [, sigma] [, NV...])",
+                    0, 0, "gradientweight", "", "m:gradientweight:nargin");
+    auto *mr = c.engine->resource();
+    const Value &I = a[0];
+
+    double sigma_x = 1.5, sigma_y = 1.5;
+    double rolloff = 3.0;
+    double cutoff  = 0.25;
+
+    std::size_t nv_start = 1;
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    // Optional sigma argument.
+    if (a.size() >= 2 && !is_string(a[1])) {
+        const Value &s = a[1];
+        const std::size_t ns = s.numel();
+        if (ns == 1) {
+            sigma_x = sigma_y = s.toScalar();
+        } else if (ns == 2) {
+            sigma_x = s.elemAsDouble(0);
+            sigma_y = s.elemAsDouble(1);
+        } else {
+            throw Error("gradientweight: sigma must be a scalar or "
+                        "2-element vector",
+                        0, 0, "gradientweight", "",
+                        "m:gradientweight:sigmaSize");
+        }
+        nv_start = 2;
+    }
+
+    // Name-value pairs.
+    std::size_t i = nv_start;
+    while (i + 1 < a.size()) {
+        if (!is_string(a[i]))
+            throw Error("gradientweight: expected NV-pair name string",
+                        0, 0, "gradientweight", "",
+                        "m:gradientweight:badNvArg");
+        std::string name = a[i].toString();
+        std::string nlo = name;
+        for (auto &ch : nlo)
+            ch = static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        // MATLAB-style abbreviation: "RolloffFactor" / "WeightCutoff".
+        if (nlo.compare(0, std::min<std::size_t>(nlo.size(), 4), "roll") == 0)
+            rolloff = a[i + 1].toScalar();
+        else if (nlo.compare(0, std::min<std::size_t>(nlo.size(), 6), "weight") == 0
+              || nlo.compare(0, std::min<std::size_t>(nlo.size(), 3), "cut") == 0)
+            cutoff = a[i + 1].toScalar();
+        else
+            throw Error("gradientweight: unknown option '" + name + "'",
+                        0, 0, "gradientweight", "",
+                        "m:gradientweight:unknownNv");
+        i += 2;
+    }
+    if (i < a.size())
+        throw Error("gradientweight: trailing unpaired NV argument",
+                    0, 0, "gradientweight", "",
+                    "m:gradientweight:unpaired");
+
+    o[0] = gradientweight(I, sigma_x, sigma_y, rolloff, cutoff, mr);
 }
 
 void label2idx_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
