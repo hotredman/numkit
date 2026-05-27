@@ -46,6 +46,47 @@ bwlabel(const Value &BW, int conn,
 Value bwconncomp(const Value &BW, int conn,
                  std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Connected-component label matrix (`L = labelmatrix(CC)`).
+///
+/// Converts a `bwconncomp` struct into a label matrix the same size
+/// as the original image. Background pixels get label `0`; component
+/// `k` (1-based) is written into all positions in `CC.PixelIdxList{k}`.
+///
+/// Output class follows MATLAB's rule:
+///   - `NumObjects ≤ 255`         → `uint8`
+///   - `NumObjects ≤ 65535`        → `uint16`
+///   - `NumObjects ≤ 2³² - 1`      → `uint32`
+///   - otherwise                   → `double`
+///
+/// @param CC  Struct from @ref bwconncomp (must contain fields
+///            `ImageSize`, `NumObjects`, `PixelIdxList`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Label matrix sized like the source image.
+/// @see bwconncomp, cc2bw, label2rgb
+Value labelmatrix(const Value &CC,
+                  std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Reconstruct binary image from a `bwconncomp` struct
+/// (`BW = cc2bw(CC, ...)`).
+///
+/// Walks the `PixelIdxList` cell array and sets each listed pixel
+/// to `true`. With `objects_to_keep` empty, returns the union of
+/// all components (i.e. the original input mask). Otherwise only
+/// the selected components are rasterised.
+///
+/// `objects_to_keep` may be either:
+///   - A numeric vector of 1-based component indices (e.g. `[1 3]`).
+///   - A logical vector of length `NumObjects` (`true` = keep).
+///
+/// @param CC                Struct from @ref bwconncomp.
+/// @param objects_to_keep   Empty (= all) / numeric vector / logical
+///                          vector. The vector orientation is ignored.
+/// @param mr                Memory resource (nullptr → process default).
+/// @return                  LOGICAL mask sized like the source image.
+/// @see bwconncomp, labelmatrix, bwpropfilt
+Value cc2bw(const Value &CC, const Value &objects_to_keep,
+            std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Total foreground area (`A = bwarea(BW)`).
 ///
 /// Returns the integer pixel count (the optional quarter-pixel

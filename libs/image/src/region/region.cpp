@@ -37,19 +37,22 @@ label_components(const std::vector<uint8_t> &fg, int H, int W, int conn)
     };
 
     int next_label = 1;
-    for (int r = 0; r < H; ++r) {
-        for (int c = 0; c < W; ++c) {
+    // MATLAB-compatible column-major scan order — labels are assigned
+    // in the order each new component is first encountered in
+    // column-major (col 0 row 0..H-1, col 1 row 0..H-1, ...) order.
+    // Already-labelled neighbours at this scan point are: W (r, c-1),
+    // N (r-1, c), and for 8-conn also NW (r-1, c-1) and SW (r+1, c-1).
+    for (int c = 0; c < W; ++c) {
+        for (int r = 0; r < H; ++r) {
             const size_t k = (size_t)r * (size_t)W + (size_t)c;
             if (!fg[k]) continue;
-            // Look at already-labelled neighbours: N (r-1, c), W (r, c-1),
-            // and for 8-connectivity also NW (r-1, c-1) and NE (r-1, c+1).
             int nb[4] = {0, 0, 0, 0};
             int nc = 0;
-            if (r > 0)              { const int v = L[(size_t)(r - 1) * (size_t)W + (size_t)c];     if (v) nb[nc++] = v; }
             if (c > 0)              { const int v = L[(size_t)r * (size_t)W + (size_t)(c - 1)];     if (v) nb[nc++] = v; }
+            if (r > 0)              { const int v = L[(size_t)(r - 1) * (size_t)W + (size_t)c];     if (v) nb[nc++] = v; }
             if (conn == 8) {
-                if (r > 0 && c > 0)            { const int v = L[(size_t)(r - 1) * (size_t)W + (size_t)(c - 1)]; if (v) nb[nc++] = v; }
-                if (r > 0 && c + 1 < W)        { const int v = L[(size_t)(r - 1) * (size_t)W + (size_t)(c + 1)]; if (v) nb[nc++] = v; }
+                if (c > 0 && r > 0)            { const int v = L[(size_t)(r - 1) * (size_t)W + (size_t)(c - 1)]; if (v) nb[nc++] = v; }
+                if (c > 0 && r + 1 < H)        { const int v = L[(size_t)(r + 1) * (size_t)W + (size_t)(c - 1)]; if (v) nb[nc++] = v; }
             }
             if (nc == 0) {
                 parent.push_back(next_label);
@@ -64,14 +67,26 @@ label_components(const std::vector<uint8_t> &fg, int H, int W, int conn)
         }
     }
 
-    // Second pass: collapse + relabel into 1..K.
+    // Second pass: collapse + relabel into 1..K in COLUMN-MAJOR
+    // scan order (so labels match MATLAB's first-pixel-encountered
+    // convention).
     std::vector<int> remap(parent.size(), 0);
     int K = 0;
+    for (int c = 0; c < W; ++c) {
+        for (int r = 0; r < H; ++r) {
+            const size_t i = (size_t)r * (size_t)W + (size_t)c;
+            if (L[i] == 0) continue;
+            const int root = find(L[i]);
+            if (remap[(size_t)root] == 0) remap[(size_t)root] = ++K;
+            L[i] = remap[(size_t)root];
+        }
+    }
+    // Apply remap to ALL pixels (in case any were missed by the
+    // column-major walk above — none should be, but defensive).
     for (size_t i = 0; i < L.size(); ++i) {
         if (L[i] == 0) continue;
         const int root = find(L[i]);
-        if (remap[(size_t)root] == 0) remap[(size_t)root] = ++K;
-        L[i] = remap[(size_t)root];
+        if (remap[(size_t)root] != 0) L[i] = remap[(size_t)root];
     }
     return {L, K};
 }
@@ -151,6 +166,159 @@ Value bwconncomp(const Value &BW, int conn, std::pmr::memory_resource *mr)
     el.emplace("PixelIdxList", std::move(pixList));
 
     return cc;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// labelmatrix / cc2bw — CC struct conversions
+// ────────────────────────────────────────────────────────────────────
+//
+// Both functions accept a struct produced by bwconncomp and rasterise
+// its PixelIdxList cells back into the image grid. Algorithms are
+// straightforward direct transliterations of MATLAB R2025b
+// labelmatrix.m / cc2bw.m.
+
+namespace {
+
+// Common helper: extract (H, W) image size and PixelIdxList from a CC
+// struct. Validates field presence + types.
+struct CCInfo {
+    std::size_t H = 0, W = 0;
+    std::size_t K = 0;             // NumObjects
+    const Value *pixList = nullptr;  // 1×K cell of column-vector indices
+};
+
+CCInfo parse_cc(const Value &CC, const char *fn)
+{
+    CCInfo info;
+    if (!CC.isStruct() || CC.numel() != 1)
+        throw Error(std::string(fn) + ": CC must be a 1×1 struct from "
+                    "bwconncomp",
+                    0, 0, fn, "", std::string("m:") + fn + ":notStruct");
+    const auto &el = CC.structArrayElem(0);
+    auto need = [&](const char *name) -> const Value & {
+        auto it = el.find(name);
+        if (it == el.end())
+            throw Error(std::string(fn) + ": CC missing field '"
+                        + name + "'", 0, 0, fn, "",
+                        std::string("m:") + fn + ":noField");
+        return it->second;
+    };
+    const Value &sz = need("ImageSize");
+    if (sz.numel() < 2)
+        throw Error(std::string(fn) + ": CC.ImageSize must have >= 2 dims",
+                    0, 0, fn, "",
+                    std::string("m:") + fn + ":sizeDim");
+    info.H = static_cast<std::size_t>(sz.elemAsDouble(0));
+    info.W = static_cast<std::size_t>(sz.elemAsDouble(1));
+    const Value &nob = need("NumObjects");
+    info.K = static_cast<std::size_t>(nob.toScalar());
+    const Value &pl = need("PixelIdxList");
+    info.pixList = &pl;
+    return info;
+}
+
+}  // namespace
+
+Value labelmatrix(const Value &CC, std::pmr::memory_resource *mr)
+{
+    const CCInfo info = parse_cc(CC, "labelmatrix");
+    const std::size_t H = info.H, W = info.W, K = info.K;
+    // Choose output class per MATLAB:
+    //   K ≤ 255      → uint8
+    //   K ≤ 65535    → uint16
+    //   K ≤ 2³² - 1  → uint32
+    //   else         → double
+    ValueType ot;
+    if      (K <= 255)        ot = ValueType::UINT8;
+    else if (K <= 65535)      ot = ValueType::UINT16;
+    else if (K <= 0xFFFFFFFFULL) ot = ValueType::UINT32;
+    else                       ot = ValueType::DOUBLE;
+    Value L = Value::matrix(H, W, ot, mr);
+    // Zero-fill is already done by matrix constructor; defensive memset
+    // is unnecessary.
+    auto write_label = [&](std::size_t idx0, std::size_t lab) {
+        // idx0: 0-based linear index in column-major H×W.
+        if (idx0 >= H * W) return;
+        switch (ot) {
+            case ValueType::UINT8:  L.uint8DataMut()[idx0]
+                = static_cast<uint8_t>(lab);  break;
+            case ValueType::UINT16: L.uint16DataMut()[idx0]
+                = static_cast<uint16_t>(lab); break;
+            case ValueType::UINT32: L.uint32DataMut()[idx0]
+                = static_cast<uint32_t>(lab); break;
+            default:                L.doubleDataMut()[idx0]
+                = static_cast<double>(lab);   break;
+        }
+    };
+    for (std::size_t k = 0; k < K; ++k) {
+        const Value &cell = info.pixList->cellAt(k);
+        const std::size_t N = cell.numel();
+        for (std::size_t i = 0; i < N; ++i) {
+            const std::size_t idx1 = static_cast<std::size_t>(
+                cell.elemAsDouble(i));   // 1-based
+            if (idx1 == 0) continue;
+            write_label(idx1 - 1, k + 1);
+        }
+    }
+    return L;
+}
+
+Value cc2bw(const Value &CC, const Value &objects_to_keep,
+            std::pmr::memory_resource *mr)
+{
+    const CCInfo info = parse_cc(CC, "cc2bw");
+    const std::size_t H = info.H, W = info.W, K = info.K;
+
+    // Resolve which components to rasterise.
+    std::vector<char> keep(K, 0);
+    if (objects_to_keep.isEmpty()) {
+        std::fill(keep.begin(), keep.end(), 1);
+    } else {
+        const std::size_t N = objects_to_keep.numel();
+        if (objects_to_keep.type() == ValueType::LOGICAL) {
+            // Logical mask: length must equal K.
+            if (N != K)
+                throw Error("cc2bw: ObjectsToKeep logical vector length "
+                            "must equal NumObjects",
+                            0, 0, "cc2bw", "",
+                            "m:cc2bw:logicalLen");
+            for (std::size_t i = 0; i < K; ++i)
+                keep[i] = objects_to_keep.elemAsDouble(i) != 0.0 ? 1 : 0;
+        } else {
+            // Numeric indices — must be positive integers ≤ K.
+            for (std::size_t i = 0; i < N; ++i) {
+                const double v = objects_to_keep.elemAsDouble(i);
+                if (!std::isfinite(v) || v <= 0.0 || std::floor(v) != v)
+                    throw Error("cc2bw: ObjectsToKeep must be positive "
+                                "integers or a logical vector",
+                                0, 0, "cc2bw", "",
+                                "m:cc2bw:badIdx");
+                const std::size_t idx = static_cast<std::size_t>(v);
+                if (idx > K)
+                    throw Error("cc2bw: ObjectsToKeep index exceeds "
+                                "NumObjects",
+                                0, 0, "cc2bw", "",
+                                "m:cc2bw:idxRange");
+                keep[idx - 1] = 1;
+            }
+        }
+    }
+
+    Value BW = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    uint8_t *bd = BW.logicalDataMut();
+    std::fill(bd, bd + H * W, static_cast<uint8_t>(0));
+    for (std::size_t k = 0; k < K; ++k) {
+        if (!keep[k]) continue;
+        const Value &cell = info.pixList->cellAt(k);
+        const std::size_t N = cell.numel();
+        for (std::size_t i = 0; i < N; ++i) {
+            const std::size_t idx1 = static_cast<std::size_t>(
+                cell.elemAsDouble(i));
+            if (idx1 == 0 || idx1 > H * W) continue;
+            bd[idx1 - 1] = 1;
+        }
+    }
+    return BW;
 }
 
 Value bwarea(const Value &BW, std::pmr::memory_resource *mr) {
@@ -838,6 +1006,46 @@ void bwconncomp_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? (int)args[1].toScalar() : 8;
     outs[0] = bwconncomp(args[0], conn, ctx.engine->resource());
+}
+
+void labelmatrix_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("labelmatrix: requires (CC)", 0, 0, "labelmatrix", "",
+                    "m:labelmatrix:nargin");
+    outs[0] = labelmatrix(args[0], ctx.engine->resource());
+}
+
+void cc2bw_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cc2bw: requires (CC [, NV...])", 0, 0, "cc2bw", "",
+                    "m:cc2bw:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+    Value objs;  // empty → keep all
+    std::size_t i = 1;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("cc2bw: expected NV-pair name string",
+                        0, 0, "cc2bw", "", "m:cc2bw:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "objectstokeep") {
+            objs = args[i + 1];
+        } else {
+            throw Error("cc2bw: unknown option '" + name + "'",
+                        0, 0, "cc2bw", "",
+                        "m:cc2bw:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = cc2bw(args[0], objs, mr);
 }
 
 void bwarea_reg(Span<const Value> args, size_t /*nargout*/,
