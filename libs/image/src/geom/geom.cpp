@@ -214,6 +214,120 @@ Value imcrop(const Value &A, double xmin, double ymin, double width, double heig
     return B;
 }
 
+// ── imcrop3 (3-D / 4-D volume cropping, MATLAB R2025b imcrop3.m) ──
+//
+// CUBOID = [XMIN YMIN ZMIN WIDTH HEIGHT DEPTH] (MATLAB's spatial
+// X/Y/Z = col/row/page convention). xLimits = [round(XMIN),
+// round(XMIN+WIDTH)] and similarly for y, z (1-based, inclusive).
+// Output extracts V(yLim, xLim, zLim, :) so the 4th dimension
+// (channels / time) passes through unchanged. Class-preserving.
+// Out-of-bounds cuboid throws (matches MATLAB's error message
+// `images:imcrop3:cropCuboidOutofBounds`).
+Value imcrop3(const Value &V, const Value &cuboid, std::pmr::memory_resource *mr)
+{
+    if (cuboid.numel() != 6)
+        throw Error("imcrop3: CUBOID must be a 6-element vector "
+                    "[XMIN YMIN ZMIN WIDTH HEIGHT DEPTH]",
+                    0, 0, "imcrop3", "", "m:imcrop3:cuboid");
+
+    // Resolve input shape: H × W × D × T  (T defaults to 1 for 3-D inputs).
+    const auto &dV = V.dims();
+    const int nd = dV.ndims();
+    if (nd < 3)
+        throw Error("imcrop3: V must be at least 3-D",
+                    0, 0, "imcrop3", "", "m:imcrop3:rank");
+    const std::size_t H = dV.dim(0);
+    const std::size_t W = dV.dim(1);
+    const std::size_t D = dV.dim(2);
+    const std::size_t T = (nd >= 4) ? dV.dim(3) : 1;
+
+    // Round limits per MATLAB source.
+    auto rd = [&](std::size_t k) {
+        return static_cast<long long>(std::lround(cuboid.elemAsDouble(k)));
+    };
+    const long long xmin = rd(0);
+    const long long ymin = rd(1);
+    const long long zmin = rd(2);
+    const long long xmax = static_cast<long long>(std::lround(
+        cuboid.elemAsDouble(0) + cuboid.elemAsDouble(3)));
+    const long long ymax = static_cast<long long>(std::lround(
+        cuboid.elemAsDouble(1) + cuboid.elemAsDouble(4)));
+    const long long zmax = static_cast<long long>(std::lround(
+        cuboid.elemAsDouble(2) + cuboid.elemAsDouble(5)));
+
+    auto in_range = [](long long lo, long long hi, std::size_t N) {
+        return lo >= 1 && lo <= static_cast<long long>(N)
+            && hi >= 1 && hi <= static_cast<long long>(N) && lo <= hi;
+    };
+    if (!in_range(xmin, xmax, W)
+        || !in_range(ymin, ymax, H)
+        || !in_range(zmin, zmax, D))
+        throw Error("imcrop3: cuboid is out of bounds of the input "
+                    "volume — lower bound must be >= 1 and upper "
+                    "bound must not exceed the image size",
+                    0, 0, "imcrop3", "", "m:imcrop3:cropCuboidOutofBounds");
+
+    const std::size_t outH = static_cast<std::size_t>(ymax - ymin + 1);
+    const std::size_t outW = static_cast<std::size_t>(xmax - xmin + 1);
+    const std::size_t outD = static_cast<std::size_t>(zmax - zmin + 1);
+
+    // Allocate the output with class preserved. For 3-D inputs we
+    // return a 3-D Value; for 4-D inputs we keep the 4th dim.
+    const ValueType t = V.type();
+    Value B;
+    if (T == 1) {
+        B = (outD == 1) ? Value::matrix(outH, outW, t, mr)
+                         : Value::matrix3d(outH, outW, outD, t, mr);
+    } else {
+        const std::size_t dims4[4] = { outH, outW, outD, T };
+        B = Value::matrixND(dims4, 4, t, mr);
+    }
+
+    // Column-major linear index for the input (H, W, D, T):
+    //   idx = r + H*c + H*W*p + H*W*D*tt
+    auto src_lin = [&](std::size_t r, std::size_t c, std::size_t p,
+                       std::size_t tt) {
+        return r + H * c + H * W * p + H * W * D * tt;
+    };
+    auto dst_lin = [&](std::size_t r, std::size_t c, std::size_t p,
+                       std::size_t tt) {
+        return r + outH * c + outH * outW * p + outH * outW * outD * tt;
+    };
+
+    // Per-class byte-copy avoids any quantisation. Use elemAs* / write
+    // helpers to dispatch by element type.
+    auto write_one = [&](std::size_t di, std::size_t si) {
+        switch (t) {
+            case ValueType::DOUBLE:  B.doubleDataMut()[di]  = V.doubleData()[si];  break;
+            case ValueType::SINGLE:  B.singleDataMut()[di]  = V.singleData()[si];  break;
+            case ValueType::UINT8:   B.uint8DataMut()[di]   = V.uint8Data()[si];   break;
+            case ValueType::UINT16:  B.uint16DataMut()[di]  = V.uint16Data()[si];  break;
+            case ValueType::UINT32:  B.uint32DataMut()[di]  = V.uint32Data()[si];  break;
+            case ValueType::UINT64:  B.uint64DataMut()[di]  = V.uint64Data()[si];  break;
+            case ValueType::INT8:    B.int8DataMut()[di]    = V.int8Data()[si];    break;
+            case ValueType::INT16:   B.int16DataMut()[di]   = V.int16Data()[si];   break;
+            case ValueType::INT32:   B.int32DataMut()[di]   = V.int32Data()[si];   break;
+            case ValueType::INT64:   B.int64DataMut()[di]   = V.int64Data()[si];   break;
+            case ValueType::LOGICAL: B.logicalDataMut()[di] = V.logicalData()[si]; break;
+            default:
+                throw Error("imcrop3: unsupported class for V",
+                            0, 0, "imcrop3", "", "m:imcrop3:cls");
+        }
+    };
+
+    const std::size_t y0 = static_cast<std::size_t>(ymin - 1);
+    const std::size_t x0 = static_cast<std::size_t>(xmin - 1);
+    const std::size_t z0 = static_cast<std::size_t>(zmin - 1);
+
+    for (std::size_t tt = 0; tt < T; ++tt)
+        for (std::size_t p = 0; p < outD; ++p)
+            for (std::size_t c = 0; c < outW; ++c)
+                for (std::size_t r = 0; r < outH; ++r)
+                    write_one(dst_lin(r, c, p, tt),
+                              src_lin(y0 + r, x0 + c, z0 + p, tt));
+    return B;
+}
+
 Value imrotate(const Value &A, double angle, const std::string &method, const std::string &bbox, std::pmr::memory_resource *mr)
 {
     const Shape s = shapeOf(A);
@@ -483,6 +597,15 @@ void imcrop_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("imcrop: rect must have 4 elements",
                     0, 0, "imcrop", "", "m:imcrop:rect");
     outs[0] = imcrop(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), args[1].elemAsDouble(2), args[1].elemAsDouble(3), ctx.engine->resource());
+}
+
+void imcrop3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imcrop3: requires (V, cuboid)",
+                    0, 0, "imcrop3", "", "m:imcrop3:nargin");
+    outs[0] = imcrop3(args[0], args[1], ctx.engine->resource());
 }
 
 void imrotate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

@@ -60,6 +60,26 @@ Value imcrop(const Value &A, double xmin, double ymin,
              double width, double height,
              std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Crop a 3-D image volume (`VOUT = imcrop3(V, cuboid)`).
+///
+/// `cuboid = [XMIN YMIN ZMIN WIDTH HEIGHT DEPTH]`. The crop volume
+/// covers columns `round(XMIN) .. round(XMIN+WIDTH)`, rows
+/// `round(YMIN) .. round(YMIN+HEIGHT)`, and pages
+/// `round(ZMIN) .. round(ZMIN+DEPTH)` — i.e. an inclusive
+/// `(width+1) × (height+1) × (depth+1)` block in MATLAB's spatial
+/// (X, Y, Z) = (col, row, page) convention.
+///
+/// Class is preserved. Multi-channel 3-D / 4-D volumes are supported:
+/// the 4th dimension passes through unchanged. Out-of-bounds cuboid
+/// throws.
+///
+/// @param V       3-D / 4-D numeric, logical, or integer volume.
+/// @param cuboid  6-element `[XMIN YMIN ZMIN W H D]` vector.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Cropped sub-volume.
+Value imcrop3(const Value &V, const Value &cuboid,
+              std::pmr::memory_resource *mr = nullptr);
+
 /// Rotate an image counter-clockwise (`B = imrotate(A, angle, method, bbox)`).
 ///
 /// @param A       Input image.
