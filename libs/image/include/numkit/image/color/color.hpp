@@ -712,4 +712,38 @@ Value imfuse(const Value &A, const Value &B,
              const Value &channels,
              std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Render high-dynamic-range image for low-dynamic-range
+/// display (`RGB = tonemap(HDR, ...)`).
+///
+/// Ward's log-luminance equalisation followed by adaptive
+/// histogram equalisation + lightness/saturation remap. Output is
+/// always UINT8.
+///
+/// Pipeline (MATLAB R2025b tonemap.m):
+///   1. Replace zeros with the global non-zero minimum.
+///   2. RGBlog2 = log2(HDR);  RGBlog2Scaled = mat2gray(RGBlog2).
+///   3. Grayscale path: adapthisteq(NumTiles=ntiles) → imadjust(LRemap, [0 1]).
+///      RGB path: rgb2lab → L/100 → adapthisteq → imadjust → ·100;
+///      a/b channels multiplied by saturation; lab2rgb.
+///   4. im2uint8(result).
+///
+/// References: G. Ward et al., "A Visibility Matching Tone
+/// Reproduction Operator for High Dynamic Range Scenes", IEEE
+/// TVCG 3(4), 1997.
+///
+/// @param HDR        2-D grayscale or H×W×3 single/double HDR
+///                   image (nonnegative).
+/// @param lremap_lo  AdjustLightness low (∈ [0, 1]). Default 0.
+/// @param lremap_hi  AdjustLightness high (∈ [0, 1]). Default 1.
+/// @param saturation AdjustSaturation (≥ 0). Default 1.
+/// @param ntilesR    NumberOfTiles rows (default 4).
+/// @param ntilesC    NumberOfTiles cols (default 4).
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           UINT8 LDR image, same H×W×{1,3} as HDR.
+Value tonemap(const Value &HDR,
+              double lremap_lo, double lremap_hi,
+              double saturation,
+              int ntilesR, int ntilesC,
+              std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image
