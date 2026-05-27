@@ -42,10 +42,13 @@ TEST_F(CorrDetrendTest, CorrThreeColumns)
     EXPECT_DOUBLE_EQ(evalScalar("C(2,3)"), 1.0);
 }
 
-TEST_F(CorrDetrendTest, CorrTwoArgRejected)
+TEST_F(CorrDetrendTest, CorrTwoArgRowMismatchRejected)
 {
-    // Two-arg form deferred.
-    EXPECT_THROW(eval("corr([1 2; 3 4], [5; 6]);"), std::exception);
+    // Two-arg form added cycle 84. Row-count mismatch still throws.
+    EXPECT_THROW(eval("corr([1 2; 3 4; 5 6], [7; 8]);"), std::exception);
+    // Sanity: matching rows produce a valid result.
+    eval("C = corr([1;2;3;4;5], [2;4;6;8;10]);");
+    EXPECT_NEAR(evalScalar("C"), 1.0, 1e-12);
 }
 
 // ── detrend ───────────────────────────────────────────────
