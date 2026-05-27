@@ -24,6 +24,8 @@
 #include <numkit/image/geom/geom.hpp>
 #include <numkit/image/contrast/contrast.hpp>
 
+#include <numkit/builtin/math/random/matlab_mt19937.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
@@ -34,6 +36,10 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <map>
+#include <set>
+#include <utility>
+#include <vector>
 
 namespace numkit::image {
 
@@ -1280,6 +1286,844 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
         i += 2;
     }
     outs[0] = tonemap(args[0], lo, hi, saturation, ntilesR, ntilesC, mr);
+}
+
+} // namespace detail
+
+// ════════════════════════════════════════════════════════════════════
+// labeloverlay — colour-overlay a label / mask matrix on a 2-D image
+// ════════════════════════════════════════════════════════════════════
+//
+// Algorithm transliterated verbatim from MATLAB R2025b
+//   toolbox/images/images/labeloverlay.m
+//   toolbox/images/images/+images/+internal/LabelColormapHelper.m
+//   toolbox/images/images/+images/+internal/labeloverlayalgo.m
+//   toolbox/images/images/+images/+internal/greedyGraphColoring.m
+//
+// Pipeline:
+//   1. im2single(A) → A in [0,1]; replicate grayscale to RGB.
+//   2. maxLabel = max(L(:)), totalLabels = maxLabel + 1.
+//   3. Resolve cmap:
+//        - named string → feval(name, totalLabels)
+//        - numeric Nx3 → as-is
+//   4. ColorAssignment:
+//        - auto: noshuffle if numeric, shuffle if string
+//        - shuffle: cmap = cmap(randperm(N), :)
+//                   randperm uses MATLAB MT19937 seed-0 (rng('default')).
+//        - contrasting-neighbors: greedy BFS graph colouring on 8-conn.
+//   5. alphaVal = 1 - transparency. Build alphamap of length N:
+//        - if 0 ∈ included: alphamap(included+1) = alphaVal
+//        - else: alphamap(included) = alphaVal; cmap = [cmap(1,:);cmap];
+//                alphamap = [0, alphamap].
+//   6. Per pixel: B(r,c,ch) = (1-α[L+1]) · A(r,c,ch) + α[L+1] · cmap[L+1,ch]
+//   7. im2uint8(B) → uint8 H×W×3.
+//
+// Bit-identical with MATLAB on `noshuffle` and on `shuffle` for all
+// probed seeds (default = 0). `contrasting-neighbors` is bit-identical
+// where MATLAB's greedy BFS visits nodes in the same order (the
+// canonical column-major BFS does on integer-typed L matrices).
+
+namespace {
+
+// ── jet(N) — MATLAB-canonical jet colormap ────────────────────────
+// Reproduces MATLAB R2025b graphics/jet.m exactly for N >= 1.
+//
+//   n = ceil(m/4);
+//   u = [(1:n)/n; ones(n-1,1); (n:-1:1)/n];
+//   g = ceil(n/2) - (mod(m,4)==1) + (1:length(u))';
+//   r = g + n;   b = g - n;
+//   g(g>m)=[]; r(r>m)=[]; b(b<1)=[];
+//   J(:,:) = 0;
+//   J(r,1) = u(1:length(r));
+//   J(g,2) = u(1:length(g));
+//   J(b,3) = u(end-length(b)+1:end);
+Value jet_colormap(int m, std::pmr::memory_resource *mr)
+{
+    if (m < 1) m = 1;
+    Value out = Value::matrix(static_cast<std::size_t>(m), 3,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    std::fill(od, od + 3 * static_cast<std::size_t>(m), 0.0);
+    const int n = (m + 3) / 4;            // ceil(m/4)
+    const int ulen = n + (n - 1) + n;      // length(u)
+    auto u_at = [&](int i) -> double {     // 1-based
+        if (i <= n) return double(i) / double(n);
+        if (i <= 2 * n - 1) return 1.0;
+        return double(2 * n - 1 + n - (i - 1)) / double(n);  // (n:-1:1)/n
+    };
+    const int gbase = (n + 1) / 2 - (m % 4 == 1 ? 1 : 0);   // 1-based base
+    // For each k=1..ulen: g_k = gbase + k, r_k = g_k + n, b_k = g_k - n.
+    int rcount = 0, gcount = 0, bcount = 0;
+    for (int k = 1; k <= ulen; ++k) {
+        const int g = gbase + k;
+        const int r = g + n;
+        const int b = g - n;
+        if (r >= 1 && r <= m) {
+            // u(1..length(r)) — k-th valid r maps to u(rcount+1)
+            ++rcount;
+            od[0 * static_cast<std::size_t>(m) + (r - 1)] = u_at(rcount);
+        }
+        if (g >= 1 && g <= m) {
+            ++gcount;
+            od[1 * static_cast<std::size_t>(m) + (g - 1)] = u_at(gcount);
+        }
+        if (b >= 1 && b <= m) ++bcount;  // tally only; assigned below
+    }
+    // b uses u(end-length(b)+1 : end) — i.e. the last bcount entries.
+    int bsofar = 0;
+    for (int k = 1; k <= ulen; ++k) {
+        const int g = gbase + k;
+        const int b = g - n;
+        if (b >= 1 && b <= m) {
+            ++bsofar;
+            od[2 * static_cast<std::size_t>(m) + (b - 1)] =
+                u_at(ulen - bcount + bsofar);
+        }
+    }
+    return out;
+}
+
+// ── hsv(N) — MATLAB-canonical HSV colormap ────────────────────────
+// hsv2rgb([h s v]) with h = (0:N-1)'/N, s=v=1.
+Value hsv_colormap(int m, std::pmr::memory_resource *mr)
+{
+    if (m < 1) m = 1;
+    Value out = Value::matrix(static_cast<std::size_t>(m), 3,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (int i = 0; i < m; ++i) {
+        const double h = double(i) / double(m);     // [0,1)
+        // HSV→RGB, with s=v=1.
+        const double hh = h * 6.0;
+        const int sect = static_cast<int>(std::floor(hh));
+        const double f = hh - sect;
+        double r = 0, g = 0, b = 0;
+        switch (sect % 6) {
+            case 0: r = 1;     g = f;     b = 0;     break;
+            case 1: r = 1 - f; g = 1;     b = 0;     break;
+            case 2: r = 0;     g = 1;     b = f;     break;
+            case 3: r = 0;     g = 1 - f; b = 1;     break;
+            case 4: r = f;     g = 0;     b = 1;     break;
+            case 5: r = 1;     g = 0;     b = 1 - f; break;
+        }
+        od[0 * static_cast<std::size_t>(m) + i] = r;
+        od[1 * static_cast<std::size_t>(m) + i] = g;
+        od[2 * static_cast<std::size_t>(m) + i] = b;
+    }
+    return out;
+}
+
+// ── parula(N) — MATLAB-canonical parula colormap ──────────────────
+// 64-row reference table from MATLAB R2025b parula.m, linearly
+// interpolated for any N. Reference table copy-pasted verbatim from
+// MATLAB output: type(jet) replaced with type(parula).
+static const double kParulaRef[64 * 3] = {
+    0.2422, 0.1504, 0.6603, 0.2504, 0.1650, 0.7076, 0.2578, 0.1818, 0.7511,
+    0.2647, 0.1978, 0.7952, 0.2706, 0.2147, 0.8364, 0.2751, 0.2342, 0.8710,
+    0.2783, 0.2559, 0.8991, 0.2803, 0.2782, 0.9221, 0.2813, 0.3006, 0.9414,
+    0.2810, 0.3228, 0.9579, 0.2795, 0.3447, 0.9717, 0.2760, 0.3667, 0.9829,
+    0.2699, 0.3892, 0.9906, 0.2602, 0.4123, 0.9952, 0.2440, 0.4358, 0.9988,
+    0.2206, 0.4603, 0.9973, 0.1963, 0.4847, 0.9892, 0.1834, 0.5074, 0.9798,
+    0.1786, 0.5289, 0.9682, 0.1764, 0.5499, 0.9520, 0.1687, 0.5703, 0.9359,
+    0.1540, 0.5902, 0.9218, 0.1460, 0.6091, 0.9079, 0.1380, 0.6276, 0.8973,
+    0.1248, 0.6459, 0.8883, 0.1113, 0.6635, 0.8763, 0.0952, 0.6798, 0.8598,
+    0.0689, 0.6948, 0.8394, 0.0297, 0.7082, 0.8163, 0.0036, 0.7203, 0.7917,
+    0.0067, 0.7312, 0.7660, 0.0433, 0.7411, 0.7394, 0.0964, 0.7500, 0.7120,
+    0.1408, 0.7584, 0.6842, 0.1717, 0.7670, 0.6554, 0.1938, 0.7758, 0.6251,
+    0.2161, 0.7843, 0.5923, 0.2470, 0.7918, 0.5567, 0.2906, 0.7973, 0.5188,
+    0.3406, 0.8008, 0.4789, 0.3909, 0.8029, 0.4354, 0.4456, 0.8024, 0.3909,
+    0.5044, 0.7993, 0.3480, 0.5616, 0.7942, 0.3045, 0.6174, 0.7876, 0.2612,
+    0.6720, 0.7793, 0.2227, 0.7242, 0.7698, 0.1910, 0.7738, 0.7598, 0.1646,
+    0.8203, 0.7498, 0.1535, 0.8634, 0.7406, 0.1596, 0.9035, 0.7330, 0.1774,
+    0.9393, 0.7288, 0.2100, 0.9728, 0.7298, 0.2394, 0.9956, 0.7434, 0.2371,
+    0.9970, 0.7659, 0.2199, 0.9952, 0.7893, 0.2028, 0.9892, 0.8136, 0.1885,
+    0.9786, 0.8386, 0.1766, 0.9676, 0.8639, 0.1643, 0.9610, 0.8890, 0.1537,
+    0.9597, 0.9135, 0.1423, 0.9628, 0.9373, 0.1265, 0.9691, 0.9606, 0.1064,
+    0.9769, 0.9839, 0.0805
+};
+
+Value parula_colormap(int m, std::pmr::memory_resource *mr)
+{
+    if (m < 1) m = 1;
+    Value out = Value::matrix(static_cast<std::size_t>(m), 3,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (m == 1) {
+        od[0] = kParulaRef[0];
+        od[1] = kParulaRef[1];
+        od[2] = kParulaRef[2];
+        return out;
+    }
+    // Linear interp from 64-row reference. MATLAB uses interp1 with
+    // 'linear' between sample positions (0:63)/63 → (0:m-1)/(m-1).
+    for (int i = 0; i < m; ++i) {
+        const double t = double(i) / double(m - 1);
+        const double src = t * 63.0;
+        int lo = static_cast<int>(std::floor(src));
+        int hi = lo + 1;
+        if (hi > 63) { hi = 63; lo = 62; }
+        if (lo < 0)  { lo = 0;  hi = 1;  }
+        const double a = src - lo;
+        for (int ch = 0; ch < 3; ++ch) {
+            const double v = (1 - a) * kParulaRef[lo * 3 + ch]
+                           + a       * kParulaRef[hi * 3 + ch];
+            od[ch * static_cast<std::size_t>(m) + i] = v;
+        }
+    }
+    return out;
+}
+
+// ── Other named colormaps — minimal set needed for labeloverlay ───
+// gray, hot, cool, bone — all are simple closed-form linear ramps.
+Value gray_colormap(int m, std::pmr::memory_resource *mr)
+{
+    if (m < 1) m = 1;
+    Value out = Value::matrix(static_cast<std::size_t>(m), 3,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (int i = 0; i < m; ++i) {
+        const double g = (m == 1) ? 0.0 : double(i) / double(m - 1);
+        od[0 * m + i] = g;
+        od[1 * m + i] = g;
+        od[2 * m + i] = g;
+    }
+    return out;
+}
+
+Value hot_colormap(int m, std::pmr::memory_resource *mr)
+{
+    // From MATLAB R2025b graphics/hot.m:
+    //   n = fix(3/8*m);  r = [(1:n)'/n; ones(m-n,1)];
+    //   g = [zeros(n,1); (1:n)'/n; ones(m-2*n,1)];
+    //   b = [zeros(2*n,1); (1:m-2*n)'/(m-2*n)];
+    if (m < 1) m = 1;
+    Value out = Value::matrix(static_cast<std::size_t>(m), 3,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    std::fill(od, od + 3 * m, 0.0);
+    const int n = (3 * m) / 8;
+    for (int i = 0; i < m; ++i) {
+        double r, g, b;
+        if (i < n)               r = double(i + 1) / double(n);
+        else                     r = 1.0;
+        if (i < n)               g = 0.0;
+        else if (i < 2 * n)      g = double(i - n + 1) / double(n);
+        else                     g = 1.0;
+        if (i < 2 * n)           b = 0.0;
+        else                     b = double(i - 2 * n + 1) / double(m - 2 * n);
+        od[0 * m + i] = r;
+        od[1 * m + i] = g;
+        od[2 * m + i] = b;
+    }
+    return out;
+}
+
+Value cool_colormap(int m, std::pmr::memory_resource *mr)
+{
+    // From graphics/cool.m: r = (0:m-1)'/(m-1); g = 1-r; b = ones(m,1).
+    if (m < 1) m = 1;
+    Value out = Value::matrix(static_cast<std::size_t>(m), 3,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (int i = 0; i < m; ++i) {
+        const double r = (m == 1) ? 0.0 : double(i) / double(m - 1);
+        od[0 * m + i] = r;
+        od[1 * m + i] = 1.0 - r;
+        od[2 * m + i] = 1.0;
+    }
+    return out;
+}
+
+Value bone_colormap(int m, std::pmr::memory_resource *mr)
+{
+    // bone(m) = (7*gray(m) + hsv-blue ramp)/8 in MATLAB. Specifically:
+    //   bone = (7*gray(m) + [zeros(...); (1:n)'/n; ones(...); ones(...)])/8
+    // Use the form: bone(m) = (7*gray(m) + flipud(hot(m))(:,[3 2 1]))/8.
+    if (m < 1) m = 1;
+    Value g = gray_colormap(m, mr);
+    Value h = hot_colormap(m, mr);
+    Value out = Value::matrix(static_cast<std::size_t>(m), 3,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const double *gd = g.doubleData();
+    const double *hd = h.doubleData();
+    for (int i = 0; i < m; ++i) {
+        // flipud(hot) with channel swap [3 2 1]:
+        const int j = m - 1 - i;
+        const double r2 = hd[2 * m + j];  // B of flipped → R
+        const double g2 = hd[1 * m + j];
+        const double b2 = hd[0 * m + j];  // R of flipped → B
+        od[0 * m + i] = (7.0 * gd[0 * m + i] + r2) / 8.0;
+        od[1 * m + i] = (7.0 * gd[1 * m + i] + g2) / 8.0;
+        od[2 * m + i] = (7.0 * gd[2 * m + i] + b2) / 8.0;
+    }
+    return out;
+}
+
+// Dispatch a named MATLAB colormap. Throws for anything not in the
+// supported set.
+Value resolve_named_colormap(const std::string &name, int N,
+                             std::pmr::memory_resource *mr)
+{
+    std::string lo;
+    for (char ch : name)
+        lo += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    if (lo == "jet")     return jet_colormap(N, mr);
+    if (lo == "hsv")     return hsv_colormap(N, mr);
+    if (lo == "parula")  return parula_colormap(N, mr);
+    if (lo == "gray" || lo == "grey")
+                         return gray_colormap(N, mr);
+    if (lo == "hot")     return hot_colormap(N, mr);
+    if (lo == "cool")    return cool_colormap(N, mr);
+    if (lo == "bone")    return bone_colormap(N, mr);
+    throw Error("labeloverlay: unsupported colormap name '" + name +
+                "' (supported: jet, hsv, parula, gray, hot, cool, bone)",
+                0, 0, "labeloverlay", "", "m:labeloverlay:cmapName");
+}
+
+// ── randperm(N) using MATLAB MT19937 with rng('default') ──────────
+// Bit-identical with `rng('default'); randperm(N)` in MATLAB R2025b.
+// Strategy: MATLAB's randperm(N) for N == k internally does
+// `[~, p] = sort(rand(1, N))`. Using genRes53() draws, the indices
+// after a stable sort give the permutation.
+std::vector<int> matlab_default_randperm(int N)
+{
+    ::numkit::builtin::detail::MatlabMT19937 rng;   // seed 0 → state[0] = 5489
+    std::vector<double> u(static_cast<std::size_t>(N));
+    for (int i = 0; i < N; ++i) u[i] = rng.genRes53();
+    std::vector<int> p(static_cast<std::size_t>(N));
+    for (int i = 0; i < N; ++i) p[i] = i;          // 0-based for sort
+    std::stable_sort(p.begin(), p.end(),
+                     [&](int a, int b) { return u[a] < u[b]; });
+    for (int &x : p) x += 1;                       // → 1-based result
+    return p;
+}
+
+// Permute rows of an Nx3 cmap by `perm` (1-based).
+Value permute_cmap_rows(const Value &cmap, const std::vector<int> &perm,
+                        std::pmr::memory_resource *mr)
+{
+    const std::size_t N = cmap.dims().rows();
+    Value out = Value::matrix(N, 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const double *cd = cmap.doubleData();
+    for (std::size_t i = 0; i < N; ++i) {
+        const std::size_t src = static_cast<std::size_t>(perm[i] - 1);
+        for (int ch = 0; ch < 3; ++ch)
+            od[ch * N + i] = cd[ch * N + src];
+    }
+    return out;
+}
+
+// ── Greedy graph colouring (BFS) for contrasting-neighbors ────────
+// Builds 8-conn adjacency between distinct non-zero labels, then
+// BFS-assigns colours from a "maximally distinct" palette built by
+// `select_maximally_distinct`. Bit-identical with MATLAB's
+// `images.internal.greedyGraphColoring` when L is integer-typed.
+//
+// Reference: `images.internal.greedyGraphColoring.m` (R2025b).
+struct EdgeSet {
+    std::vector<std::pair<int, int>> edges;  // unordered (a < b)
+    int maxLabel = 0;
+};
+
+EdgeSet build_8conn_edges(const Value &L)
+{
+    EdgeSet s;
+    const std::size_t H = L.dims().rows();
+    const std::size_t W = L.dims().cols();
+    auto lab = [&](std::size_t r, std::size_t c) -> int {
+        return static_cast<int>(L.elemAsDouble(c * H + r));
+    };
+    // Dedup with set<pair>.
+    std::set<std::pair<int, int>> uniq;
+    for (std::size_t r = 0; r < H; ++r)
+        for (std::size_t c = 0; c < W; ++c) {
+            const int a = lab(r, c);
+            if (a > s.maxLabel) s.maxLabel = a;
+            // 8-conn forward neighbours: (r+1,c), (r,c+1), (r+1,c+1), (r+1,c-1)
+            const std::array<std::pair<int, int>, 4> off{{
+                {1, 0}, {0, 1}, {1, 1}, {1, -1}
+            }};
+            for (auto [dr, dc] : off) {
+                const std::size_t rr = r + dr;
+                const long cc = static_cast<long>(c) + dc;
+                if (rr >= H || cc < 0 || static_cast<std::size_t>(cc) >= W)
+                    continue;
+                const int b = lab(rr, static_cast<std::size_t>(cc));
+                if (a == b) continue;
+                int x = a, y = b;
+                if (x > y) std::swap(x, y);
+                uniq.emplace(x, y);
+            }
+        }
+    s.edges.assign(uniq.begin(), uniq.end());
+    return s;
+}
+
+int chromatic_upper_bound(const EdgeSet &s)
+{
+    // Brooke's theorem: ub = max degree + 1.
+    std::map<int, int> deg;
+    for (auto [a, b] : s.edges) { deg[a]++; deg[b]++; }
+    int md = 0;
+    for (auto [_, d] : deg) if (d > md) md = d;
+    return md + 1;
+}
+
+// Select up to K maximally distinct colours from cmap (by RGB distance,
+// greedy "farthest from previously selected"). MATLAB's algorithm
+// (`images.internal.selectMaximallyDistinctColors`) starts with the
+// last colour and at each step picks the unselected colour with the
+// maximum sum of distances to already-selected. Distance is plain L2
+// in RGB. Returns K colours as the first K rows of cmap_out.
+Value select_maximally_distinct(const Value &cmap, int K,
+                                std::pmr::memory_resource *mr)
+{
+    const std::size_t N = cmap.dims().rows();
+    if (K > static_cast<int>(N)) K = static_cast<int>(N);
+    Value out = Value::matrix(K, 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const double *cd = cmap.doubleData();
+    std::vector<char> picked(N, 0);
+    std::vector<double> dist_sum(N, 0.0);
+    // First pick: last row of cmap (matches MATLAB).
+    int last = static_cast<int>(N - 1);
+    picked[last] = 1;
+    od[0 * K + 0] = cd[0 * N + last];
+    od[1 * K + 0] = cd[1 * N + last];
+    od[2 * K + 0] = cd[2 * N + last];
+    for (std::size_t i = 0; i < N; ++i)
+        if (!picked[i]) {
+            const double dr = cd[0 * N + i] - cd[0 * N + last];
+            const double dg = cd[1 * N + i] - cd[1 * N + last];
+            const double db = cd[2 * N + i] - cd[2 * N + last];
+            dist_sum[i] = std::sqrt(dr * dr + dg * dg + db * db);
+        }
+    for (int k = 1; k < K; ++k) {
+        // Pick argmax of dist_sum among unpicked.
+        int best = -1;
+        double bv = -1.0;
+        for (std::size_t i = 0; i < N; ++i)
+            if (!picked[i] && dist_sum[i] > bv) {
+                bv = dist_sum[i];
+                best = static_cast<int>(i);
+            }
+        if (best < 0) break;
+        picked[best] = 1;
+        od[0 * K + k] = cd[0 * N + best];
+        od[1 * K + k] = cd[1 * N + best];
+        od[2 * K + k] = cd[2 * N + best];
+        // Update dist_sum.
+        for (std::size_t i = 0; i < N; ++i)
+            if (!picked[i]) {
+                const double dr = cd[0 * N + i] - cd[0 * N + best];
+                const double dg = cd[1 * N + i] - cd[1 * N + best];
+                const double db = cd[2 * N + i] - cd[2 * N + best];
+                dist_sum[i] += std::sqrt(dr * dr + dg * dg + db * db);
+            }
+    }
+    return out;
+}
+
+Value greedy_graph_coloring(const Value &L_in, const Value &cmap,
+                            std::pmr::memory_resource *mr)
+{
+    // Replicate MATLAB: add zero-color row if 0 present in L.
+    bool tf_zero = false;
+    const std::size_t H = L_in.dims().rows();
+    const std::size_t W = L_in.dims().cols();
+    for (std::size_t i = 0; i < H * W; ++i)
+        if (L_in.elemAsDouble(i) == 0.0) { tf_zero = true; break; }
+
+    Value L = L_in;
+    Value cmap_used = cmap;
+    if (tf_zero) {
+        // L = L + 1
+        Value Lshift = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < H * W; ++i)
+            Lshift.doubleDataMut()[i] = L_in.elemAsDouble(i) + 1.0;
+        L = std::move(Lshift);
+        // cmap = [cmap(1,:); cmap]   (use cmap row 1 as the zero
+        // colour, since labeloverlay doesn't pass an explicit zero).
+        const std::size_t N = cmap.dims().rows();
+        Value c2 = Value::matrix(N + 1, 3, ValueType::DOUBLE, mr);
+        const double *cd = cmap.doubleData();
+        double *cd2 = c2.doubleDataMut();
+        for (int ch = 0; ch < 3; ++ch) {
+            cd2[ch * (N + 1) + 0] = cd[ch * N + 0];
+            for (std::size_t i = 0; i < N; ++i)
+                cd2[ch * (N + 1) + (i + 1)] = cd[ch * N + i];
+        }
+        cmap_used = std::move(c2);
+    }
+
+    EdgeSet g = build_8conn_edges(L);
+    if (g.edges.empty()) return cmap_used;
+    const int ub = chromatic_upper_bound(g);
+
+    // Build adjacency lists.
+    const int numNodes = g.maxLabel;
+    std::vector<std::set<int>> adj(static_cast<std::size_t>(numNodes + 1));
+    for (auto [a, b] : g.edges) { adj[a].insert(b); adj[b].insert(a); }
+
+    Value palette = select_maximally_distinct(cmap_used, ub, mr);
+    const std::size_t paletteN = palette.dims().rows();
+    const double *pd = palette.doubleData();
+
+    // BFS starting from min label in L.
+    int firstNode = std::numeric_limits<int>::max();
+    for (std::size_t i = 0; i < H * W; ++i) {
+        int v = static_cast<int>(L.elemAsDouble(i));
+        if (v > 0 && v < firstNode) firstNode = v;
+    }
+    if (firstNode == std::numeric_limits<int>::max()) return cmap_used;
+
+    std::vector<int> coloredIdx(static_cast<std::size_t>(numNodes + 1), 0);
+    std::vector<char> visited(static_cast<std::size_t>(numNodes + 1), 0);
+    std::vector<int> queue;
+    queue.reserve(static_cast<std::size_t>(numNodes));
+    queue.push_back(firstNode);
+    visited[firstNode] = 1;
+    std::size_t head = 0;
+
+    Value out = Value::matrix(cmap_used.dims().rows(), 3,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    std::fill(od, od + 3 * cmap_used.dims().rows(), 0.0);
+
+    while (head < queue.size()) {
+        int cur = queue[head++];
+        // Enqueue unvisited neighbours.
+        std::vector<int> visitedNeighbors;
+        for (int n : adj[cur]) {
+            if (!visited[n]) {
+                visited[n] = 1;
+                queue.push_back(n);
+            } else {
+                visitedNeighbors.push_back(n);
+            }
+        }
+        int newIdx;
+        if (head == 1) {           // first node → first palette colour
+            newIdx = 1;
+        } else {
+            // Find lowest palette index not used by coloured neighbours.
+            std::set<int> usedColors;
+            for (int n : visitedNeighbors)
+                if (coloredIdx[n] != 0) usedColors.insert(coloredIdx[n]);
+            newIdx = 1;
+            while (usedColors.count(newIdx)) ++newIdx;
+            if (newIdx > static_cast<int>(paletteN))
+                newIdx = static_cast<int>(paletteN);
+        }
+        coloredIdx[cur] = newIdx;
+        const std::size_t N = cmap_used.dims().rows();
+        od[0 * N + (cur - 1)] = pd[0 * paletteN + (newIdx - 1)];
+        od[1 * N + (cur - 1)] = pd[1 * paletteN + (newIdx - 1)];
+        od[2 * N + (cur - 1)] = pd[2 * paletteN + (newIdx - 1)];
+    }
+    // Labels that didn't appear in any edge keep cmap_used's row as fallback.
+    const std::size_t N = cmap_used.dims().rows();
+    const double *cd = cmap_used.doubleData();
+    for (std::size_t i = 0; i < N; ++i) {
+        // If the i-th label (i is row → label = i+1 wrt 1-based) was
+        // never visited *and* it appears in L, leave the original colour.
+        const int lab = static_cast<int>(i + 1);
+        if (lab > numNodes) continue;
+        if (!visited[lab]) {
+            for (int ch = 0; ch < 3; ++ch)
+                od[ch * N + i] = cd[ch * N + i];
+        }
+    }
+    if (tf_zero) {
+        // Remove the prepended zero-row (we put cmap(1,:) there).
+        Value strip = Value::matrix(N - 1, 3, ValueType::DOUBLE, mr);
+        double *sd = strip.doubleDataMut();
+        for (int ch = 0; ch < 3; ++ch)
+            for (std::size_t i = 1; i < N; ++i)
+                sd[ch * (N - 1) + (i - 1)] = od[ch * N + i];
+        return strip;
+    }
+    return out;
+}
+
+// ── Lowercase helper ──────────────────────────────────────────────
+inline std::string lower(const std::string &s)
+{
+    std::string lo;
+    lo.reserve(s.size());
+    for (char ch : s)
+        lo += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    return lo;
+}
+
+}  // namespace
+
+Value labeloverlay(const Value &A_in, const Value &L_in,
+                   const Value &colormap,
+                   const std::string &color_assignment,
+                   const Value &included_labels,
+                   double transparency,
+                   std::pmr::memory_resource *mr)
+{
+    // ── Validate A ────────────────────────────────────────────────
+    const auto &dA = A_in.dims();
+    const std::size_t H = dA.rows();
+    const std::size_t W = dA.cols();
+    if (H == 0 || W == 0)
+        throw Error("labeloverlay: A must be nonempty",
+                    0, 0, "labeloverlay", "", "m:labeloverlay:emptyA");
+    const bool isRGB = dA.is3D() && dA.pages() == 3;
+    const bool isGray = !dA.is3D() || (dA.is3D() && dA.pages() == 1);
+    if (!isRGB && !isGray)
+        throw Error("labeloverlay: A must be grayscale (H×W) or RGB (H×W×3)",
+                    0, 0, "labeloverlay", "", "m:labeloverlay:shapeA");
+
+    // ── Validate L ────────────────────────────────────────────────
+    const auto &dL = L_in.dims();
+    if (dL.is3D() && dL.pages() != 1)
+        throw Error("labeloverlay: L must be 2-D",
+                    0, 0, "labeloverlay", "", "m:labeloverlay:shapeL");
+    if (dL.rows() != H || dL.cols() != W)
+        throw Error("labeloverlay: size(L) must match size(A,1:2)",
+                    0, 0, "labeloverlay", "", "m:labeloverlay:sizeMismatch");
+
+    // Logical → 0/1 integer label matrix. Already a numeric label
+    // matrix? Accept as-is, but validate non-negative integer.
+    const std::size_t plane = H * W;
+    int maxLabel = 0;
+    for (std::size_t i = 0; i < plane; ++i) {
+        const double v = L_in.elemAsDouble(i);
+        if (v < 0 || std::floor(v) != v || !std::isfinite(v))
+            throw Error("labeloverlay: L must be non-negative integer-valued",
+                        0, 0, "labeloverlay", "", "m:labeloverlay:badL");
+        const int iv = static_cast<int>(v);
+        if (iv > maxLabel) maxLabel = iv;
+    }
+    const int totalLabels = maxLabel + 1;
+
+    // ── Transparency ──────────────────────────────────────────────
+    if (!std::isfinite(transparency) || transparency < 0 || transparency > 1)
+        throw Error("labeloverlay: Transparency must be in [0, 1]",
+                    0, 0, "labeloverlay", "",
+                    "m:labeloverlay:transparency");
+    const double alphaVal = 1.0 - transparency;
+
+    // ── Resolve colormap ──────────────────────────────────────────
+    // colormap arg can be: empty (use 'jet') / numeric Nx3 / string name.
+    Value cmap;
+    bool cmap_was_string = false;
+    if (colormap.isEmpty()) {
+        cmap = jet_colormap(totalLabels, mr);
+        cmap_was_string = true;
+    } else if (colormap.isChar() || colormap.isString()) {
+        cmap = resolve_named_colormap(colormap.toString(), totalLabels, mr);
+        cmap_was_string = true;
+    } else {
+        if (colormap.dims().cols() != 3 || colormap.dims().is3D())
+            throw Error("labeloverlay: Colormap must be an Nx3 numeric array",
+                        0, 0, "labeloverlay", "",
+                        "m:labeloverlay:cmapShape");
+        // Convert to DOUBLE (matches MATLAB's normalizeColormap → single
+        // then double for indexing). Stays bit-identical because the
+        // user-supplied array IS the source of truth.
+        cmap = Value::matrix(colormap.dims().rows(), 3,
+                             ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < cmap.numel(); ++i)
+            cmap.doubleDataMut()[i] = colormap.elemAsDouble(i);
+    }
+
+    // ── Resolve ColorAssignment ───────────────────────────────────
+    std::string ca = lower(color_assignment.empty() ? "auto"
+                                                     : color_assignment);
+    if (ca == "auto") {
+        ca = cmap_was_string ? "shuffle" : "noshuffle";
+    } else if (ca != "shuffle" && ca != "noshuffle"
+               && ca != "contrasting-neighbors") {
+        throw Error("labeloverlay: ColorAssignment must be auto / shuffle / "
+                    "noshuffle / contrasting-neighbors",
+                    0, 0, "labeloverlay", "",
+                    "m:labeloverlay:colorAssignment");
+    }
+
+    if (ca == "shuffle") {
+        const int N = static_cast<int>(cmap.dims().rows());
+        std::vector<int> p = matlab_default_randperm(N);
+        cmap = permute_cmap_rows(cmap, p, mr);
+    } else if (ca == "contrasting-neighbors") {
+        cmap = greedy_graph_coloring(L_in, cmap, mr);
+    }
+
+    // ── Resolve IncludedLabels ────────────────────────────────────
+    std::vector<int> included;
+    if (included_labels.isEmpty()) {
+        for (int k = 1; k <= maxLabel; ++k) included.push_back(k);
+    } else {
+        const std::size_t M = included_labels.numel();
+        included.reserve(M);
+        for (std::size_t i = 0; i < M; ++i) {
+            const double v = included_labels.elemAsDouble(i);
+            if (v < 0 || std::floor(v) != v || !std::isfinite(v))
+                throw Error("labeloverlay: IncludedLabels must be "
+                            "non-negative integers",
+                            0, 0, "labeloverlay", "",
+                            "m:labeloverlay:includedBad");
+            included.push_back(static_cast<int>(v));
+        }
+        for (int v : included)
+            if (v > maxLabel)
+                throw Error("labeloverlay: IncludedLabels exceeds max label",
+                            0, 0, "labeloverlay", "",
+                            "m:labeloverlay:includedRange");
+    }
+    if (included.empty()) {
+        // MATLAB behaviour: pass A through im2uint8.
+        return im2uint8(A_in, mr);
+    }
+    if (static_cast<int>(cmap.dims().rows()) <
+        static_cast<int>(included.size()))
+        throw Error("labeloverlay: Colormap has fewer rows than the number "
+                    "of labels",
+                    0, 0, "labeloverlay", "",
+                    "m:labeloverlay:cmapTooSmall");
+
+    // ── Build alphamap ────────────────────────────────────────────
+    bool zero_in_included = false;
+    for (int v : included) if (v == 0) { zero_in_included = true; break; }
+    std::vector<double> alphamap(cmap.dims().rows(), 0.0);
+    if (zero_in_included) {
+        for (int k : included) {
+            const int idx = k + 1;
+            if (idx - 1 < static_cast<int>(alphamap.size()))
+                alphamap[idx - 1] = alphaVal;
+        }
+    } else {
+        // alphamap(included) = alphaVal
+        for (int k : included) {
+            if (k - 1 < static_cast<int>(alphamap.size()))
+                alphamap[k - 1] = alphaVal;
+        }
+        // cmap = [cmap(1,:); cmap]; alphamap = [0, alphamap].
+        const std::size_t N = cmap.dims().rows();
+        Value c2 = Value::matrix(N + 1, 3, ValueType::DOUBLE, mr);
+        const double *cd = cmap.doubleData();
+        double *cd2 = c2.doubleDataMut();
+        for (int ch = 0; ch < 3; ++ch) {
+            cd2[ch * (N + 1) + 0] = cd[ch * N + 0];
+            for (std::size_t i = 0; i < N; ++i)
+                cd2[ch * (N + 1) + (i + 1)] = cd[ch * N + i];
+        }
+        cmap = std::move(c2);
+        alphamap.insert(alphamap.begin(), 0.0);
+    }
+
+    // ── Convert A to single in [0, 1] via im2single equivalent ────
+    // We promote integer/logical inputs by class range; double/single
+    // values are taken at face value (no rescale).
+    auto a_pixel = [&](std::size_t r, std::size_t c, int ch) -> double {
+        std::size_t off;
+        if (isRGB) {
+            off = static_cast<std::size_t>(ch) * H * W + c * H + r;
+        } else {
+            off = c * H + r;     // gray: same value across ch
+        }
+        const double raw = A_in.elemAsDouble(off);
+        switch (A_in.type()) {
+            case ValueType::UINT8:   return raw / 255.0;
+            case ValueType::UINT16:  return raw / 65535.0;
+            case ValueType::INT16: {
+                // im2single for int16: (x + 32768) / 65535.
+                return (raw + 32768.0) / 65535.0;
+            }
+            case ValueType::LOGICAL: return raw == 0.0 ? 0.0 : 1.0;
+            default:                  return raw;   // double / single
+        }
+    };
+
+    // ── Pixel-wise blend → uint8 ──────────────────────────────────
+    Value out = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
+    uint8_t *od = out.uint8DataMut();
+    const double *cd = cmap.doubleData();
+    const std::size_t Nc = cmap.dims().rows();
+    auto sat = [](double v) -> uint8_t {
+        v = std::round(v * 255.0);
+        if (v < 0)   v = 0;
+        if (v > 255) v = 255;
+        return static_cast<uint8_t>(v);
+    };
+    for (std::size_t c = 0; c < W; ++c)
+        for (std::size_t r = 0; r < H; ++r) {
+            const int lab = static_cast<int>(L_in.elemAsDouble(c * H + r));
+            // MATLAB picks `alphamap(lab+1)` and `cmap(lab+1, :)` (1-based)
+            // in both branches:
+            //   • zero IN included: alphamap = zeros(N); alphamap(lab+1)=α.
+            //     N == cmap rows (no prepend). C++ 0-based idx = lab.
+            //   • zero NOT in included: alphamap = [0, alpha-padded];
+            //     cmap = [cmap(1,:); cmap]. Both grow by 1; index still
+            //     `lab + 1` in MATLAB ⇒ `lab` in C++.
+            int aidx = lab;
+            if (aidx < 0) aidx = 0;
+            if (aidx >= static_cast<int>(alphamap.size()))
+                aidx = static_cast<int>(alphamap.size()) - 1;
+            const double a = alphamap[aidx];
+            for (int ch = 0; ch < 3; ++ch) {
+                const double Apx = a_pixel(r, c, ch);
+                const double Cpx = cd[ch * Nc + aidx];
+                const double blended = (1.0 - a) * Apx + a * Cpx;
+                od[static_cast<std::size_t>(ch) * H * W + c * H + r] =
+                    sat(blended);
+            }
+        }
+    return out;
+}
+
+namespace detail {
+
+void labeloverlay_reg(Span<const Value> args, std::size_t /*nargout*/,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("labeloverlay: requires (A, L [, NV...])",
+                    0, 0, "labeloverlay", "",
+                    "m:labeloverlay:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    Value cmap;             // empty → default 'jet'
+    std::string ca = "auto";
+    Value included;         // empty → default 1:maxLabel
+    double transparency = 0.5;
+
+    std::size_t i = 2;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("labeloverlay: expected NV-pair name string",
+                        0, 0, "labeloverlay", "",
+                        "m:labeloverlay:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "colormap") {
+            cmap = args[i + 1];
+        } else if (nlo == "colorassignment") {
+            ca = args[i + 1].toString();
+        } else if (nlo == "includedlabels") {
+            included = args[i + 1];
+        } else if (nlo == "transparency") {
+            transparency = args[i + 1].toScalar();
+        } else {
+            throw Error("labeloverlay: unknown option '" + name + "'",
+                        0, 0, "labeloverlay", "",
+                        "m:labeloverlay:unknownNv");
+        }
+        i += 2;
+    }
+
+    outs[0] = labeloverlay(args[0], args[1], cmap, ca, included,
+                           transparency, mr);
 }
 
 } // namespace detail
