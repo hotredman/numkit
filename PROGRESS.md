@@ -1730,7 +1730,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imgaborfilt` | ❌ |  |  |  |  |  |
 | `imgaussfilt` | ✅ | 0.004 | 423.05× | 174.00× | OK | Sig: r = imgaussfilt(...). Spec-extension batch 2026-05-09. |
 | `imgaussfilt3` | ✅ | 0.005 | 414.09× |  | OK | Sig: r = imgaussfilt3(...). Spec-extension batch 2026-05-09. |
-| `imguidedfilter` | ❌ |  |  |  |  |  |
+| `imguidedfilter` | ✅ | 0.145 | 24.28× |  | OK | Sig: B = imguidedfilter(A [, G] [, NV...]). Branches: default self-guide (NeighborhoodSize=[5 5], eps=0.01*range²), scalar NHood, custom DegreeOfSmoothing, cross-guidance (A!=G), uint8 input class. Bit-equal MATLAB R2025b at 1e-10. Grayscale-guide only; RGB-guide (color covariance Cramer's rule) and Fast Guided Filter downsample variant deferred. Reference: K. He, J. Sun, X. Tang, 'Guided Image Filtering', IEEE TPAMI 35(6), 2013. Image namespace 2026-05-27. |
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
 | `integralBoxFilter` | ❌ |  |  |  |  |  |
 | `integralBoxFilter3` | ❌ |  |  |  |  |  |

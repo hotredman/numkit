@@ -106,6 +106,46 @@ Value imgaussfilt(const Value &I, double sigma, int filter_size,
 Value imboxfilt(const Value &I, int filter_size,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Edge-preserving guided filter (`B = imguidedfilter(A, G, ...)`).
+///
+/// Smooths image `A` using `G` as a guidance image (often `A`
+/// itself for edge-preserving denoising). Outputs a value whose
+/// local linear regression on `G` (within a neighborhood) best
+/// reconstructs `A`:
+///
+///   meanI  = box(G)
+///   meanP  = box(A)
+///   corrI  = box(G·G)
+///   corrIP = box(G·A)
+///   varI  = corrI − meanI²
+///   covIP = corrIP − meanI·meanP
+///   a = covIP / (varI + ε)
+///   b = meanP − a·meanI
+///   B = box(a)·G + box(b)
+///
+/// Reference: K. He, J. Sun, X. Tang,
+///   "Guided Image Filtering",
+///   IEEE TPAMI 35(6), 1397-1409, 2013.
+///
+/// **Grayscale guide only** here. RGB-guide (color-covariance 3×3
+/// inversion via Cramer's rule) and the Fast-Guided-Filter
+/// downsample variant are deferred.
+///
+/// Default `nhood = 5` (square 5×5). Default `eps = 0.01 · diff(
+/// getrangefromclass(A))²` (e.g. 0.01 for double, 650.25 for uint8).
+///
+/// Output class equals input class of `A`.
+///
+/// @param A      Image to filter (2-D; multi-channel uses same G per channel).
+/// @param G      Guidance image (`Value::Empty` → reuse `A`). Same H×W as A.
+/// @param nhood  Neighborhood side length (positive odd; default 5).
+/// @param eps    Smoothing degree (negative → use class-based default).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Filtered image, same shape and class as `A`.
+Value imguidedfilter(const Value &A, const Value &G, int nhood,
+                     double eps,
+                     std::pmr::memory_resource *mr = nullptr);
+
 /// @brief 2-D median filter (`B = medfilt2(I, [m n])`).
 ///
 /// Default neighbourhood 3×3. Symmetric boundary.
