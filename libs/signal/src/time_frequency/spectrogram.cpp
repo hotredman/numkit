@@ -16,8 +16,10 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <limits>
 #include <memory_resource>
 #include <string>
+#include <tuple>
 
 namespace numkit::signal {
 
@@ -336,7 +338,112 @@ Value istft(const Value &S, const Value &window, std::size_t overlap, std::size_
     return out;
 }
 
+// ── iscola — Constant OverLap-Add compliance check ─────────────────
+//
+// MATLAB sig: [tf, m, maxDev] = iscola(window, noverlap[, method]).
+// Default method is 'wola' (sum of squared window); 'ola' uses the
+// unsquared window. The algorithm builds K = ceil(M/hop) + 2 frames
+// stacked at multiples of hop = M - noverlap, sums them up sample-by-
+// sample, then inspects the stable overlap region (where every interior
+// sample is covered by `nOverlapWindows = ceil(M/hop)` frames). The
+// region length is at least `hop` so the periodicity-1 sum can be
+// fully characterised by its median and its maximum deviation. Match
+// boundary: `maxDev < 2 * eps` (probed against MATLAB R2025b: dev = 1·eps
+// passes, dev ≥ 2·eps fails).
+
+std::tuple<Value, Value, Value>
+iscola(const Value &window, std::size_t noverlap, const std::string &method,
+       std::pmr::memory_resource *mr)
+{
+    const std::size_t M = window.numel();
+    if (M == 0)
+        throw Error("iscola: window must be non-empty",
+                     0, 0, "iscola", "", "m:iscola:badWindow");
+    if (noverlap >= M)
+        throw Error("iscola: noverlap must be < window length",
+                     0, 0, "iscola", "", "m:iscola:badOverlap");
+    if (method != "ola" && method != "wola")
+        throw Error("iscola: method must be 'ola' or 'wola'",
+                     0, 0, "iscola", "", "m:iscola:badMethod");
+
+    const std::size_t hop  = M - noverlap;
+    const std::size_t nOvw = (M + hop - 1) / hop;        // ceil(M/hop)
+    const std::size_t K    = nOvw + 2;
+    const std::size_t Ltot = (K - 1) * hop + M;
+    const bool isWola      = (method == "wola");
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> s(Ltot, 0.0, &scratch);
+    for (std::size_t k = 0; k < K; ++k)
+        for (std::size_t i = 0; i < M; ++i) {
+            const double wi = window.elemAsDouble(i);
+            s[k * hop + i] += isWola ? wi * wi : wi;
+        }
+
+    // Stable region: [(nOvw - 1)*hop, K*hop). Take the first `hop`-long
+    // window of it — by periodicity within the stable region every
+    // hop-sized slice has the same content (up to FP).
+    const std::size_t stableStart = (nOvw - 1) * hop;
+    ScratchVec<double> stable(s.begin() + stableStart,
+                               s.begin() + stableStart + hop, &scratch);
+
+    // Median.
+    ScratchVec<double> sorted(stable.begin(), stable.end(), &scratch);
+    std::sort(sorted.begin(), sorted.end());
+    const std::size_t H = sorted.size();
+    const double median = (H % 2 == 0)
+        ? 0.5 * (sorted[H / 2 - 1] + sorted[H / 2])
+        : sorted[H / 2];
+
+    // Max absolute deviation from the median.
+    double maxDev = 0.0;
+    for (double v : stable)
+        maxDev = std::max(maxDev, std::abs(v - median));
+
+    // MATLAB tolerance is relative to the median (probed): dev/|m| ≤ eps
+    // passes, dev/|m| > eps fails. e.g. hann@48 'ola' has dev = 2·eps and
+    // m = 2 → ratio = eps (exact boundary), tf = 1.
+    const double eps = std::numeric_limits<double>::epsilon();
+    const double tol = (std::abs(median) > 0.0) ? std::abs(median) * eps : eps;
+    const bool   tf  = (maxDev <= tol);
+
+    Value out_tf  = Value::scalar(tf ? 1.0 : 0.0, mr);
+    Value out_m   = Value::scalar(median, mr);
+    Value out_dev = Value::scalar(maxDev, mr);
+    return { std::move(out_tf), std::move(out_m), std::move(out_dev) };
+}
+
 namespace detail {
+
+void iscola_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("iscola: requires (window, noverlap [, method])",
+                     0, 0, "iscola", "", "m:iscola:nargin");
+    if (args[1].numel() != 1)
+        throw Error("iscola: noverlap must be a scalar",
+                     0, 0, "iscola", "", "m:iscola:badOverlap");
+    const double novS = args[1].toScalar();
+    if (!(novS >= 0.0))
+        throw Error("iscola: noverlap must be non-negative",
+                     0, 0, "iscola", "", "m:iscola:badOverlap");
+    const std::size_t noverlap = static_cast<std::size_t>(novS);
+
+    std::string method = "wola";  // MATLAB default
+    if (args.size() >= 3) {
+        if (!(args[2].isChar() || args[2].isString()))
+            throw Error("iscola: method must be a string",
+                         0, 0, "iscola", "", "m:iscola:badMethod");
+        method = args[2].toString();
+    }
+
+    auto [tf, m, dev] = iscola(args[0], noverlap, method,
+                                ctx.engine->resource());
+    outs[0] = std::move(tf);
+    if (nargout > 1) outs[1] = std::move(m);
+    if (nargout > 2) outs[2] = std::move(dev);
+}
 
 void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {

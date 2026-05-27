@@ -1,0 +1,13 @@
+{
+  "name": "signal_iscola",
+  "namespace": "signal",
+  "setup": "w = hann(64, 'periodic'); w2 = hamming(64, 'periodic'); wr = ones(1, 64);",
+  "expr": "[tf1, m1, d1] = iscola(w, 32, 'ola'); [tf2, m2, d2] = iscola(w, 32, 'wola'); [tf3, m3, d3] = iscola(w, 32); [tf4, m4, d4] = iscola(w2, 32, 'ola'); [tf5, m5, d5] = iscola(wr, 0, 'ola'); [tf6, m6, d6] = iscola(w, 31, 'ola'); [tf7, m7, d7] = iscola(w, 48, 'ola'); tfs = iscola(w, 32, 'ola');",
+  "iters": 10,
+  "tol": 1e-12,
+  "fingerprint": [
+    "tf1", "m1", "tf2", "m2", "tf3", "m3", "tf4", "m4",
+    "tf5", "m5", "tf6", "m6", "tf7", "m7", "tfs"
+  ],
+  "comment": "MATLAB Signal Toolbox iscola — Constant OverLap-Add compliance check. Sums (possibly squared) window shifted by hop = M - noverlap in the stable overlap region; tf = 1 iff maxDev ≤ |m| · eps. Default method 'wola' (sum of w²). Hann 50% overlap: COLA under 'ola' (m=1), not 'wola' (m=0.75, dev=0.25). Hamming 50%: COLA under 'ola' (m=1.08). Rectangular hop=M: trivially COLA (m=1). Hann 75% overlap: m=2 under 'ola'. Bit-equal MATLAB R2025b on 8 probed cases. Octave 11.1.0 ships iscola in the signal package (not core), reports N/A there."
+}
