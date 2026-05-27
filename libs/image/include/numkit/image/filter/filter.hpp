@@ -744,4 +744,83 @@ Value locallapfilt(const Value &I, double sigma, double alpha,
                    bool process_luminance,
                    std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Dark-channel-prior haze removal
+/// (`[J, T, L] = imreducehaze(I, amount, ...)`).
+///
+/// Single-image dehazing via the dark-channel-prior atmospheric
+/// model (He-Sun-Tang 2011, "Single Image Haze Removal Using Dark
+/// Channel Prior", IEEE TPAMI 33(12)). Two algorithm flavours:
+///
+///   * `"simpledcp"` (default) — per-pixel dark channel
+///     `D(x) = min_c I_c(x)`; atmospheric light estimated by
+///     5-level quadtree decomposition (Dubok et al. 2014, ICIP)
+///     on the dark channel; transmission map refined via
+///     guided filter with a 5×5 neighbourhood and ε=0.01;
+///     ω=0.9 (mild residual haze).
+///   * `"approxdcp"` — patched dark channel via min-erosion with
+///     square strel of size `ceil(min(H,W)/400·15)`; atmospheric
+///     light estimated from the 0.1% brightest dark-channel pixels;
+///     transmission map computed via `1 - imopen(A/L, strel)` and
+///     refined with guided filter (radius `ceil(min(H,W)/50)`,
+///     ε=1e-4, subsample=min(4, radius)); ω=0.95.
+///
+/// Atmospheric-light estimation:
+///   - When `atmospheric_light` is `Value::Empty` and method is
+///     `"simpledcp"`: quadtree on `min_c I_c` eroded by the strel,
+///     picking the brightest-mean quadrant for 5 levels, then the
+///     pixel in that quadrant with minimum Euclidean distance to
+///     `[1, 1, 1]`. For images smaller than 64×64 the quadtree is
+///     skipped and the full image is searched.
+///   - When `atmospheric_light` is `Value::Empty` and method is
+///     `"approxdcp"`: take the 0.1% brightest pixels of the
+///     dark channel; among those, pick the pixel with the highest
+///     grayscale luminance.
+///
+/// Scene radiance: `R(x) = L + (I(x) - L) / max(t̃(x), t₀)` with
+/// `t̃ = 1 - ω·(1-t)`, `t₀ = 0.1`. Final blend by user `amount`:
+/// `t' = min(1, t̃ + amount)`, `J = R·t' + L·(1-t')`.
+///
+/// Post-processing (`contrast_enhancement`):
+///   * `"global"` (default) — `A.^0.75`, `mat2gray`, `stretchlim
+///     [0.001 0.999]`, `imadjust` with `clip + 0.8·(max(clip,mean)
+///     - clip)`.
+///   * `"boost"` — `J·(1 + amount·boost_amount·(1-T))`.
+///   * `"none"`  — no post-processing.
+///
+/// Outputs:
+///   - `J` — dehazed image, same class and shape as `I`. For
+///     `uint8`/`uint16` returns saturated `im2*`; for `single` /
+///     `double` returns clipped to `[0, 1]`.
+///   - `T` — haze thickness (`1 - t`), DOUBLE H×W.
+///   - `L` — estimated atmospheric light. DOUBLE 1×3 for RGB,
+///     DOUBLE scalar for grayscale.
+///
+/// Returns only `J` (the typed entry-point packs `T` and `L` into
+/// `t_out` / `L_out` references). When `amount == 0`, the function
+/// short-circuits to return the input unchanged with empty `T` /
+/// `L`.
+///
+/// @param I                   `H × W` (grayscale) or `H × W × 3`
+///                            (RGB), `uint8`/`uint16`/`single`/
+///                            `double`.
+/// @param amount              ∈ [0, 1]. 1 = full removal.
+/// @param method              `"simpledcp"` (def) / `"approxdcp"`.
+/// @param atmospheric_light   Empty → estimate. Otherwise 1×3
+///                            (RGB) or scalar (grayscale) DOUBLE in
+///                            `[0, 1]`.
+/// @param contrast_enhancement `"global"` (def) / `"boost"` / `"none"`.
+/// @param boost_amount        ∈ [0, 1] for `"boost"`, default 0.1.
+/// @param t_out               (output) Haze thickness, DOUBLE H×W.
+/// @param L_out               (output) Atmospheric light, DOUBLE
+///                            1×3 (RGB) or scalar (gray).
+/// @param mr                  Memory resource (nullptr → default).
+/// @return                    Dehazed image `J`.
+Value imreducehaze(const Value &I, double amount,
+                   const std::string &method,
+                   const Value &atmospheric_light,
+                   const std::string &contrast_enhancement,
+                   double boost_amount,
+                   Value &t_out, Value &L_out,
+                   std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image

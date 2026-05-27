@@ -1,0 +1,10 @@
+{
+  "name": "imreducehaze",
+  "namespace": "image",
+  "setup": "rng(0); A = uint8(255 * rand(32, 32, 3)); A = uint8(min(255, double(A) + 80));",
+  "expr": "[B, T, L] = imreducehaze(A); r1 = double(B(8,8,1)); r2 = double(B(8,8,2)); r3 = double(B(16,16,1)); r4 = T(8,8); r5 = T(16,16); r6 = L(1); r7 = L(3); B2 = imreducehaze(A, 1, 'ContrastEnhancement', 'none'); r8 = double(B2(8,8,1)); B3 = imreducehaze(A, 1, 'AtmosphericLight', [0.9 0.9 0.9]); r9 = double(B3(8,8,1)); r10 = double(B3(8,8,2)); B4 = imreducehaze(A, 0); r11 = double(B4(8,8,1));",
+  "iters": 1,
+  "tol": 1,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"],
+  "comment": "Sig: [J, T, L] = imreducehaze(I [, amount] [, NV...]). Covers: default simpledcp + global stretch (bit-exact 11 fingerprints incl. T thickness map + L atmospheric light); ContrastEnhancement='none' branch (skips global stretch); explicit AtmosphericLight (RGB triplet bypasses estimation); amount=0 passthrough. Other branches (Method='approxdcp', grayscale input, single/double inputs, boost contrast, BoostAmount NV, quadtree branch for size >=64) covered exhaustively in gtest. tol=1 uint8 (default rounding accumulation). approxdcp diverges ~15-30 uint8 from MATLAB due to imhist bucket boundaries + missing Fast-Guided-Filter subsample; documented in gtest, not fingerprinted here. References: He/Sun/Tang 2011 IEEE TPAMI 33(12); Dubok et al. 2014 ICIP. Image namespace 2026-05-27."
+}
