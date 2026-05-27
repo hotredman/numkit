@@ -22,6 +22,7 @@
 #include <numkit/image/color/color.hpp>
 #include <numkit/image/type_convert/type_convert.hpp>
 #include <numkit/image/geom/geom.hpp>
+#include <numkit/image/contrast/contrast.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -1003,6 +1004,140 @@ Value imfuse(const Value &Ain, const Value &Bin,
     return R;
 }
 
+// ── tonemap (HDR → LDR for display) ─────────────────────────────
+//
+// MATLAB R2025b tonemap.m algorithm:
+//   1. min_nz = min over non-zero entries of HDR.
+//   2. Replace zeros with min_nz.
+//   3. log2 → mat2gray (global min/max → [0, 1]).
+//   4. Grayscale: adapthisteq(NumTiles) → imadjust(LRemap, [0 1]).
+//      RGB: rgb2lab → L/100 → adapthisteq → imadjust → *100;
+//           a,b channels × saturation; lab2rgb.
+//   5. im2uint8.
+//
+// References:
+//   G. Ward et al., "A Visibility Matching Tone Reproduction
+//   Operator for High Dynamic Range Scenes", IEEE TVCG 3(4), 1997.
+Value tonemap(const Value &HDR,
+              double lremap_lo, double lremap_hi,
+              double saturation,
+              int ntilesR, int ntilesC,
+              std::pmr::memory_resource *mr)
+{
+    if (!(lremap_lo >= 0.0 && lremap_lo <= 1.0
+       && lremap_hi >= 0.0 && lremap_hi <= 1.0
+       && lremap_lo < lremap_hi))
+        throw Error("tonemap: AdjustLightness must satisfy "
+                    "0 <= lo < hi <= 1",
+                    0, 0, "tonemap", "", "m:tonemap:adjust");
+    if (!(saturation >= 0))
+        throw Error("tonemap: AdjustSaturation must be non-negative",
+                    0, 0, "tonemap", "", "m:tonemap:sat");
+    if (ntilesR < 2 || ntilesC < 2)
+        throw Error("tonemap: NumberOfTiles values must be >= 2",
+                    0, 0, "tonemap", "", "m:tonemap:tiles");
+
+    const std::size_t H = HDR.dims().rows();
+    const std::size_t W = HDR.dims().cols();
+    const bool isRGB = HDR.dims().is3D();
+    if (isRGB && HDR.dims().pages() != 3)
+        throw Error("tonemap: HDR must be H×W or H×W×3",
+                    0, 0, "tonemap", "", "m:tonemap:shape");
+    const std::size_t C = isRGB ? 3 : 1;
+    const std::size_t plane = H * W;
+    const std::size_t Ntot = plane * C;
+
+    // Step 1+2: read into double; find min nonzero; replace zeros with min_nz.
+    std::pmr::vector<double> data(Ntot, 0.0, mr);
+    double min_nz = std::numeric_limits<double>::infinity();
+    bool any_nz = false;
+    for (std::size_t i = 0; i < Ntot; ++i) {
+        const double v = HDR.elemAsDouble(i);
+        if (v < 0.0)
+            throw Error("tonemap: HDR must be non-negative",
+                        0, 0, "tonemap", "", "m:tonemap:negative");
+        data[i] = v;
+        if (v != 0.0) {
+            any_nz = true;
+            if (v < min_nz) min_nz = v;
+        }
+    }
+
+    if (!any_nz) {
+        // All zeros → output is all zeros uint8.
+        Value out = isRGB
+            ? Value::matrix3d(H, W, 3, ValueType::UINT8, mr)
+            : Value::matrix(H, W, ValueType::UINT8, mr);
+        std::memset(out.uint8DataMut(), 0, Ntot);
+        return out;
+    }
+    for (std::size_t i = 0; i < Ntot; ++i)
+        if (data[i] == 0.0) data[i] = min_nz;
+
+    // Step 3: log2, then mat2gray to [0, 1].
+    double gmin = std::numeric_limits<double>::infinity();
+    double gmax = -std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < Ntot; ++i) {
+        const double v = std::log2(data[i]);
+        data[i] = v;
+        if (v < gmin) gmin = v;
+        if (v > gmax) gmax = v;
+    }
+    const double span = gmax - gmin;
+    if (span > 0.0) {
+        const double inv = 1.0 / span;
+        for (std::size_t i = 0; i < Ntot; ++i) data[i] = (data[i] - gmin) * inv;
+    } else {
+        // Constant log image → all zeros after mat2gray.
+        std::fill(data.begin(), data.end(), 0.0);
+    }
+
+    // Wrap into a Value for downstream helpers.
+    auto wrap_plane = [&](std::size_t ch) {
+        Value V = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < plane; ++i)
+            V.doubleDataMut()[i] = data[ch * plane + i];
+        return V;
+    };
+
+    AdaptHistEqOptions opts;
+    opts.numTilesR = ntilesR;
+    opts.numTilesC = ntilesC;
+
+    if (!isRGB) {
+        // Grayscale: adapthisteq → imadjust.
+        Value G = wrap_plane(0);
+        G = adapthisteq(G, opts, mr);
+        G = imadjust(G, lremap_lo, lremap_hi, 0.0, 1.0, 1.0, mr);
+        return im2uint8(G, mr);
+    }
+
+    // RGB path.
+    Value RGB = Value::matrix3d(H, W, 3, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < Ntot; ++i)
+        RGB.doubleDataMut()[i] = data[i];
+    Value Lab = rgb2lab(RGB, mr);  // H x W x 3 double
+
+    // L / 100.
+    for (std::size_t i = 0; i < plane; ++i)
+        Lab.doubleDataMut()[i] /= 100.0;
+    // Wrap L into a 2-D image; apply adapthisteq + imadjust; write back.
+    Value Lplane = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < plane; ++i)
+        Lplane.doubleDataMut()[i] = Lab.doubleData()[i];
+    Lplane = adapthisteq(Lplane, opts, mr);
+    Lplane = imadjust(Lplane, lremap_lo, lremap_hi, 0.0, 1.0, 1.0, mr);
+    for (std::size_t i = 0; i < plane; ++i)
+        Lab.doubleDataMut()[i] = Lplane.elemAsDouble(i) * 100.0;
+    // a, b * saturation.
+    for (std::size_t i = 0; i < plane; ++i) {
+        Lab.doubleDataMut()[plane + i]      *= saturation;
+        Lab.doubleDataMut()[2 * plane + i] *= saturation;
+    }
+    Value rgb_out = lab2rgb(Lab, mr);  // H x W x 3 double in [0, 1] (clipped)
+    return im2uint8(rgb_out, mr);
+}
+
 namespace detail {
 
 void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -1092,6 +1227,59 @@ void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
         i += 2;
     }
     outs[0] = imfuse(A, B, method, scaling, channels, mr);
+}
+
+void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("tonemap: requires (HDR [, NV...])",
+                    0, 0, "tonemap", "", "m:tonemap:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    double lo = 0.0, hi = 1.0;
+    double saturation = 1.0;
+    int ntilesR = 4, ntilesC = 4;
+
+    std::size_t i = 1;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("tonemap: expected NV-pair name",
+                        0, 0, "tonemap", "", "m:tonemap:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "adjustlightness") {
+            const Value &v = args[i + 1];
+            if (v.numel() != 2)
+                throw Error("tonemap: AdjustLightness must be [lo hi]",
+                            0, 0, "tonemap", "", "m:tonemap:adjustLen");
+            lo = v.elemAsDouble(0);
+            hi = v.elemAsDouble(1);
+        } else if (nlo == "adjustsaturation") {
+            saturation = args[i + 1].toScalar();
+        } else if (nlo == "numberoftiles") {
+            const Value &v = args[i + 1];
+            if (v.numel() == 1) {
+                ntilesR = ntilesC = static_cast<int>(v.toScalar());
+            } else if (v.numel() == 2) {
+                ntilesR = static_cast<int>(v.elemAsDouble(0));
+                ntilesC = static_cast<int>(v.elemAsDouble(1));
+            } else {
+                throw Error("tonemap: NumberOfTiles must be a scalar or "
+                            "2-element vector",
+                            0, 0, "tonemap", "", "m:tonemap:tilesLen");
+            }
+        } else {
+            throw Error("tonemap: unknown option '" + name + "'",
+                        0, 0, "tonemap", "", "m:tonemap:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = tonemap(args[0], lo, hi, saturation, ntilesR, ntilesC, mr);
 }
 
 } // namespace detail

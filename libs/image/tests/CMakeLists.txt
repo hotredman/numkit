@@ -46,4 +46,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/bwdistgeodesic_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imgaborfilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imnlmfilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tonemap_test.cpp
 )
