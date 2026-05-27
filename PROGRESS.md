@@ -479,7 +479,7 @@ together.
 |---|:---:|---:|---:|---:|:---:|---|
 | `addprop` | ❌ |  |  |  |  |  |
 | `addvars` | ❌ |  |  |  |  |  |
-| `anymissing` | ❌ |  |  |  |  |  |
+| `anymissing` | ✅ | 0.015 | 168.31× |  | OK | anymissing + ismissing — standard NaN missing + custom indicator. Covers: double/single/uint8/logical/empty inputs for anymissing, ismissing with no indicator (NaN only) and scalar/vector indicator. Per MATLAB R2025b: when indicator is provided, NaN is NOT auto-flagged — only values matching the indicator are missing (NaN in indicator does match NaN in x). |
 | `array2table` | ❌ |  |  |  |  |  |
 | `cell2table` | ❌ |  |  |  |  |  |
 | `computebygroup` | ❌ |  |  |  |  |  |
@@ -496,7 +496,7 @@ together.
 | `innerjoin` | ❌ |  |  |  |  |  |
 | `intersect` | ✅ | 0.005 | 333.24× | 82.01× | OK | Sig: r = intersect(...). Set op. Spec-extension batch 2026-05-09. |
 | `ismember` | ✅ | 0.005 | 121.13× | 50.29× | OK | Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09. |
-| `ismissing` | ❌ |  |  |  |  |  |
+| `ismissing` | ✅ | 0.015 | 168.31× |  | OK | anymissing + ismissing — standard NaN missing + custom indicator. Covers: double/single/uint8/logical/empty inputs for anymissing, ismissing with no indicator (NaN only) and scalar/vector indicator. Per MATLAB R2025b: when indicator is provided, NaN is NOT auto-flagged — only values matching the indicator are missing (NaN in indicator does match NaN in x). |
 | `issortedrows` | ✅ | 0.012 | 0.67× |  | OK | Sig: TF = issortedrows(X). 10k×3 pre-sorted. 1000 iters. |
 | `join` | ✅ | 0.004 | 28.48× |  | OK | Sig: r = join(...). Spec-extension batch 2026-05-09. |
 | `jointables` | ❌ |  |  |  |  |  |

@@ -160,6 +160,40 @@ Value isinf(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @return    LOGICAL array, same shape as `x`. @see isnan, isinf, allfinite
 Value isfinite(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Elementwise missing-value test (`tf = ismissing(A[, indicator])`).
+///
+/// Without `indicator`: returns true where `A` contains the standard
+/// missing value for its class. For DOUBLE / SINGLE this is `NaN`;
+/// for integer / logical / character types nothing is treated as
+/// missing (the result is all-false).
+///
+/// With `indicator` (scalar or vector): returns true where the
+/// element matches any value in `indicator`. The element-wise
+/// comparison uses `==` semantics; `NaN` in DOUBLE / SINGLE inputs
+/// is still treated as missing (it matches if `indicator` contains
+/// `NaN`, otherwise it is treated as missing only when no indicator
+/// is provided).
+///
+/// @param x          Input array (any numeric or logical class).
+/// @param indicator  Empty (default) for standard missing only, OR
+///                   scalar / vector of values to also treat as missing.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           LOGICAL array of the same shape as `x`.
+/// @see isnan, anymissing, rmmissing
+Value ismissing(const Value &x, const Value &indicator,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Scalar "any missing in array" check (`tf = anymissing(A)`).
+///
+/// True iff `ismissing(A)` is true for at least one element. Always
+/// false for integer / logical / character / empty inputs.
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL scalar.
+/// @see ismissing, isnan
+Value anymissing(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 // ── Shape predicates ─────────────────────────────────────────────────
 
 /// @brief True for vectors (`tf = isvector(x)`).

@@ -1,0 +1,17 @@
+{
+  "name": "anymissing",
+  "namespace": "builtin",
+  "covers": ["anymissing", "ismissing"],
+  "setup": "X1 = [1 2 3]; X2 = [1 NaN 3]; X3 = [1 NaN; 2 3]; X4 = uint8([1 2 3]); X5 = []; X6 = logical([1 0 1]); X7 = [1 2 -99 4 NaN]; X8 = [1 2 -99 -88 4];",
+  "expr": "a1 = double(anymissing(X1)); a2 = double(anymissing(X2)); a3 = double(anymissing(X3)); a4 = double(anymissing(X4)); a5 = double(anymissing(X5)); a6 = double(anymissing(X6)); a7 = double(anymissing(single([1 NaN 3]))); m1 = double(ismissing([1 NaN 3 NaN])); m2 = double(ismissing(uint8([1 2 3]))); m3 = double(ismissing(X7, -99)); m4 = double(ismissing(X8, [-99 -88]));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "a1", "a2", "a3", "a4", "a5", "a6", "a7",
+    "m1(1)", "m1(2)", "m1(3)", "m1(4)",
+    "sum(m2)",
+    "m3(1)", "m3(3)", "m3(5)",
+    "m4(3)", "m4(4)", "m4(5)"
+  ],
+  "comment": "anymissing + ismissing — standard NaN missing + custom indicator. Covers: double/single/uint8/logical/empty inputs for anymissing, ismissing with no indicator (NaN only) and scalar/vector indicator. Per MATLAB R2025b: when indicator is provided, NaN is NOT auto-flagged — only values matching the indicator are missing (NaN in indicator does match NaN in x)."
+}
