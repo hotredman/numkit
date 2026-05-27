@@ -152,6 +152,13 @@ Value modefilt(const Value &A, int fH, int fW,
                const std::string &padopt,
                std::pmr::memory_resource *mr = nullptr);
 
+/// 3-D variant: `modefilt(V, [fH fW fD], padopt)`. Same algorithm
+/// extended over the third dimension. Default fD = 3 when called
+/// from MATLAB on a 3-D input.
+Value modefilt3D(const Value &A, int fH, int fW, int fD,
+                 const std::string &padopt,
+                 std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Edge-preserving guided filter (`B = imguidedfilter(A, G, ...)`).
 ///
 /// Smooths image `A` using `G` as a guidance image (often `A`

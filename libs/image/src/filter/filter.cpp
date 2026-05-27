@@ -513,13 +513,17 @@ Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
 //                            (so abcde → cba|abcde|edc)
 //   "replicate"           — repeat edge pixel (aaaa|abcde|eeee)
 //   "zeros"               — zero pad
-Value modefilt(const Value &A, int fH, int fW,
-               const std::string &padopt, std::pmr::memory_resource *mr)
+// Internal 2-D and 3-D worker: when fD > 0 the input is treated as a
+// 3-D volume and the filter window is fH × fW × fD; otherwise pure 2-D.
+static Value modefilt_impl(const Value &A, int fH, int fW, int fD,
+                            const std::string &padopt,
+                            std::pmr::memory_resource *mr)
 {
-    if (fH <= 0 || fW <= 0)
+    const bool is3D = (fD > 0);
+    if (fH <= 0 || fW <= 0 || (is3D && fD <= 0))
         throw Error("modefilt: filter size must be positive",
                     0, 0, "modefilt", "", "numkit:modefilt:badSize");
-    if ((fH & 1) == 0 || (fW & 1) == 0)
+    if ((fH & 1) == 0 || (fW & 1) == 0 || (is3D && (fD & 1) == 0))
         throw Error("modefilt: filter size must be odd",
                     0, 0, "modefilt", "", "numkit:modefilt:notOdd");
 
@@ -531,40 +535,45 @@ Value modefilt(const Value &A, int fH, int fW,
                      0, 0, "modefilt", "", "numkit:modefilt:badPad");
 
     const auto &d = A.dims();
-    if (d.ndim() > 2)
-        throw Error("modefilt: 3-D input not yet supported",
+    if (d.ndim() > 3 || (!is3D && d.ndim() > 2))
+        throw Error("modefilt: input rank does not match filter rank",
                     0, 0, "modefilt", "", "numkit:modefilt:rank");
     const int H = static_cast<int>(d.rows());
     const int W = static_cast<int>(d.cols());
+    const int D = is3D ? static_cast<int>(d.is3D() ? d.pages() : 1) : 1;
     const int hh = fH / 2;
     const int hw = fW / 2;
-    Value out = Value::matrix(H, W, A.type(), mr);
+    const int hd = is3D ? (fD / 2) : 0;
+    Value out = is3D ? Value::matrix3d(H, W, D, A.type(), mr)
+                     : Value::matrix(H, W, A.type(), mr);
 
     // Index access with padding: returns the input index for sample
-    // location (rr, cc), or -1 if the pixel should be treated as zero.
-    auto padIdx = [&](int rr, int cc) -> long long {
-        auto reflect = [](int v, int N, int mode) -> int {
-            if (mode == 1) {  // replicate
-                if (v < 0) return 0;
-                if (v >= N) return N - 1;
-                return v;
-            }
-            if (mode == 2) {  // zeros — caller checks for -1
-                if (v < 0 || v >= N) return -1;
-                return v;
-            }
-            // symmetric (mirror without dup): for v < 0, use -v - 1;
-            // for v >= N, use 2N - v - 1. Iterate if still out-of-bounds.
-            while (v < 0 || v >= N) {
-                if (v < 0)      v = -v - 1;
-                if (v >= N)     v = 2 * N - v - 1;
-            }
+    // location (rr, cc, pp), or -1 if the pixel should be treated as zero.
+    auto reflect = [&](int v, int N) -> int {
+        if (padMode == 1) {  // replicate
+            if (v < 0) return 0;
+            if (v >= N) return N - 1;
             return v;
-        };
-        int r = reflect(rr, H, padMode);
-        int c = reflect(cc, W, padMode);
-        if (r < 0 || c < 0) return -1;
-        return static_cast<long long>(c) * H + r;
+        }
+        if (padMode == 2) {  // zeros — caller checks for -1
+            if (v < 0 || v >= N) return -1;
+            return v;
+        }
+        // symmetric (mirror without dup).
+        while (v < 0 || v >= N) {
+            if (v < 0)      v = -v - 1;
+            if (v >= N)     v = 2 * N - v - 1;
+        }
+        return v;
+    };
+    auto padIdx = [&](int rr, int cc, int pp) -> long long {
+        int r = reflect(rr, H);
+        int c = reflect(cc, W);
+        int p = is3D ? reflect(pp, D) : 0;
+        if (r < 0 || c < 0 || (is3D && p < 0)) return -1;
+        const long long plane = static_cast<long long>(H) * W;
+        return static_cast<long long>(p) * plane
+             + static_cast<long long>(c) * H + r;
     };
 
     auto getDouble = [&](long long idx) -> double {
@@ -575,13 +584,17 @@ Value modefilt(const Value &A, int fH, int fW,
     const ValueType vt = A.type();
     const bool fastByte = (vt == ValueType::UINT8 || vt == ValueType::LOGICAL);
 
-    for (int c = 0; c < W; ++c) {
-        for (int r = 0; r < H; ++r) {
-            if (fastByte) {
+    const long long plane = static_cast<long long>(H) * W;
+    const int pMax = is3D ? D : 1;
+    for (int p = 0; p < pMax; ++p) {
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                if (fastByte) {
                 int hist[256] = {0};
+                for (int dp = -hd; dp <= hd; ++dp)
                 for (int dc = -hw; dc <= hw; ++dc)
                     for (int dr = -hh; dr <= hh; ++dr) {
-                        const long long idx = padIdx(r + dr, c + dc);
+                        const long long idx = padIdx(r + dr, c + dc, p + dp);
                         const int v = static_cast<int>(getDouble(idx));
                         if (v >= 0 && v < 256) ++hist[v];
                     }
@@ -596,19 +609,22 @@ Value modefilt(const Value &A, int fH, int fW,
                         bestVal = v;
                     }
                 }
+                const long long dstIdx = static_cast<long long>(p) * plane
+                                          + static_cast<long long>(c) * H + r;
                 if (vt == ValueType::UINT8)
-                    out.uint8DataMut()[c * H + r] =
+                    out.uint8DataMut()[dstIdx] =
                         static_cast<std::uint8_t>(bestVal);
                 else
-                    out.logicalDataMut()[c * H + r] =
+                    out.logicalDataMut()[dstIdx] =
                         static_cast<std::uint8_t>(bestVal != 0);
                 continue;
             }
             // Generic path: ordered map keyed by value → count.
             std::map<double, int> hist;
+            for (int dp = -hd; dp <= hd; ++dp)
             for (int dc = -hw; dc <= hw; ++dc)
                 for (int dr = -hh; dr <= hh; ++dr) {
-                    const long long idx = padIdx(r + dr, c + dc);
+                    const long long idx = padIdx(r + dr, c + dc, p + dp);
                     if (idx < 0 && padMode != 2) continue;
                     hist[getDouble(idx)]++;
                 }
@@ -622,7 +638,8 @@ Value modefilt(const Value &A, int fH, int fW,
                 }
             }
             // Store into output of matching dtype.
-            const size_t dst = static_cast<size_t>(c) * H + static_cast<size_t>(r);
+            const size_t dst = static_cast<size_t>(p) * static_cast<size_t>(plane)
+                              + static_cast<size_t>(c) * H + static_cast<size_t>(r);
             switch (vt) {
                 case ValueType::DOUBLE: out.doubleDataMut()[dst] = bestVal; break;
                 case ValueType::SINGLE: out.singleDataMut()[dst] = static_cast<float>(bestVal); break;
@@ -633,9 +650,24 @@ Value modefilt(const Value &A, int fH, int fW,
                 case ValueType::INT32:  out.int32DataMut()[dst]  = static_cast<std::int32_t>(bestVal); break;
                 default:                out.doubleDataMut()[dst] = bestVal; break;
             }
+            }
         }
     }
     return out;
+}
+
+// Public 2-D entry point — pure 2-D semantics (fD = 0 means no 3rd dim).
+Value modefilt(const Value &A, int fH, int fW,
+               const std::string &padopt, std::pmr::memory_resource *mr)
+{
+    return modefilt_impl(A, fH, fW, /*fD=*/0, padopt, mr);
+}
+
+// Public 3-D entry point — fD is the depth-axis window length.
+Value modefilt3D(const Value &A, int fH, int fW, int fD,
+                 const std::string &padopt, std::pmr::memory_resource *mr)
+{
+    return modefilt_impl(A, fH, fW, fD, padopt, mr);
 }
 
 Value medfilt2(const Value &I, int rows, int cols, std::pmr::memory_resource *mr)
@@ -2096,22 +2128,26 @@ void modefilt_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("modefilt: requires (A[, filtSize[, padopt]])",
                     0, 0, "modefilt", "", "numkit:modefilt:nargin");
-    int fH = 3, fW = 3;
+    // Defaults adapt to input rank — MATLAB picks [3 3] for 2-D, [3 3 3] for 3-D.
+    const bool input3D = (args[0].dims().ndim() == 3);
+    int fH = 3, fW = 3, fD = input3D ? 3 : 0;
     std::string padopt = "symmetric";
-    size_t i = 1;
-    // 2nd arg may be filter-size (numeric) or padopt (string).
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (args[1].isChar() || args[1].isString()) {
             padopt = args[1].toString();
-            i = 2;
         } else {
             if (args[1].numel() == 1) {
                 fH = fW = static_cast<int>(args[1].toScalar());
-            } else if (args[1].numel() >= 2) {
+                if (input3D) fD = fH;
+            } else if (args[1].numel() == 2) {
                 fH = static_cast<int>(args[1].elemAsDouble(0));
                 fW = static_cast<int>(args[1].elemAsDouble(1));
+                if (input3D) fD = 1;  // no 3rd dim filter specified
+            } else if (args[1].numel() >= 3) {
+                fH = static_cast<int>(args[1].elemAsDouble(0));
+                fW = static_cast<int>(args[1].elemAsDouble(1));
+                fD = static_cast<int>(args[1].elemAsDouble(2));
             }
-            i = 2;
         }
     }
     if (args.size() >= 3 && !args[2].isEmpty()) {
@@ -2121,7 +2157,10 @@ void modefilt_reg(Span<const Value> args, size_t /*nargout*/,
             throw Error("modefilt: padopt must be a string",
                         0, 0, "modefilt", "", "numkit:modefilt:badPad");
     }
-    outs[0] = modefilt(args[0], fH, fW, padopt, ctx.engine->resource());
+    if (input3D)
+        outs[0] = modefilt3D(args[0], fH, fW, fD, padopt, ctx.engine->resource());
+    else
+        outs[0] = modefilt(args[0], fH, fW, padopt, ctx.engine->resource());
 }
 
 void integralBoxFilter_reg(Span<const Value> args, size_t /*nargout*/,
