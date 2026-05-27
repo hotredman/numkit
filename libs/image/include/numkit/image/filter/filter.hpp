@@ -127,6 +127,31 @@ Value imboxfilt(const Value &I, int filter_size,
 Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
                         std::pmr::memory_resource *mr = nullptr);
 
+/// @brief 2-D mode filter
+/// (`B = modefilt(A, [fH fW], padopt)`).
+///
+/// Replaces each pixel with the most common value (mode) in an
+/// `fH × fW` window centred at that pixel. Ties are broken by the
+/// SMALLEST value (matches MATLAB's documented `mode` behaviour).
+///
+/// **Tie-break note**: MATLAB's modefilt MEX uses an undocumented
+/// order-dependent rule that diverges from base `mode` for some tied
+/// inputs (especially with `zeros` padding at image edges). numkit
+/// follows the documented `mode` rule (smallest-wins-on-tie) which is
+/// deterministic and predictable.
+///
+/// @param A         Input image (UINT8/UINT16/INT/DOUBLE 2-D array).
+///                  Float inputs are processed by binning unique values.
+/// @param fH        Filter height (positive odd integer).
+/// @param fW        Filter width  (positive odd integer).
+/// @param padopt    `"symmetric"` (default), `"replicate"`, or `"zeros"`.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Same-shape mode-filtered image, same class as `A`.
+/// @see medfilt2, imboxfilt
+Value modefilt(const Value &A, int fH, int fW,
+               const std::string &padopt,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Edge-preserving guided filter (`B = imguidedfilter(A, G, ...)`).
 ///
 /// Smooths image `A` using `G` as a guidance image (often `A`
