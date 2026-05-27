@@ -1205,6 +1205,289 @@ Value edgetaper(const Value &I, const Value &PSF, std::pmr::memory_resource *mr)
     return real_back_to_class(Jd, inT, mr);
 }
 
+// ── deconvreg (Tikhonov-regularized deconvolution) ──────────────
+//
+// MATLAB R2025b deconvreg.m algorithm (Gonzalez & Woods 1992;
+// Jain 1989), 2-D specialisation:
+//
+//   otf = psf2otf(PSF, sizeI)
+//   regop = default 2-D Laplacian if REGOP empty:
+//             [0  1  0;
+//              1 -4  1;
+//              0  1  0]
+//   REGOP_FT = psf2otf(regop, sizeI)
+//   fI       = fft2(I)
+//   H2 = |OTF|^2, R2 = |REGOP_FT|^2
+//
+//   If LRANGE = [lo, hi] with lo < hi:
+//     λ = fminbnd(ResOffset, lo, hi)
+//       ResOffset(λ) = | λ^2 * sum( (R2*|fI|)^2
+//                                   / (H4 + λ*2*H2*R2 + λ^2*R4 + √eps) )
+//                       - NP * numel(I) |
+//   Else λ = LRANGE(1).
+//
+//   Denom = max(H2 + λ*R2, √eps)
+//   J = real(ifft2(conj(otf) .* fI ./ Denom))
+//   cast J back to class(I) for integer types.
+//
+// fminbnd uses Brent's golden-section + parabolic-interpolation
+// method (Brent 1973, Forsythe/Malcolm/Moler 1976). MATLAB's default
+// TolX = 1e-4.
+namespace {
+
+// Brent's method (translation of MATLAB R2025b fminbnd) — find
+// minimum of unimodal f on [ax, bx] within TolX tolerance.
+template<typename F>
+double fminbnd_brent(F f, double ax, double bx,
+                     double tol = 1e-4, int maxiter = 500)
+{
+    const double seps  = std::sqrt(std::numeric_limits<double>::epsilon());
+    const double c     = 0.5 * (3.0 - std::sqrt(5.0));   // golden ratio
+    double a = ax, b = bx;
+    double v = a + c * (b - a);
+    double w = v, xf = v;
+    double d = 0.0, e = 0.0;
+    double x  = xf;
+    double fx = f(x);
+    double fv = fx, fw = fx;
+    int iter = 0;
+    double xm = 0.5 * (a + b);
+    double tol1 = seps * std::fabs(xf) + tol / 3.0;
+    double tol2 = 2.0 * tol1;
+
+    while (std::fabs(xf - xm) > tol2 - 0.5 * (b - a)) {
+        if (++iter > maxiter) break;
+        bool gold = true;
+        if (std::fabs(e) > tol1) {
+            // parabolic fit
+            double r = (xf - w) * (fx - fv);
+            double q = (xf - v) * (fx - fw);
+            double p = (xf - v) * q - (xf - w) * r;
+            q = 2.0 * (q - r);
+            if (q > 0.0) p = -p;
+            q = std::fabs(q);
+            double etemp = e;
+            e = d;
+            if (std::fabs(p) < std::fabs(0.5 * q * etemp)
+                && p > q * (a - xf) && p < q * (b - xf)) {
+                d = p / q;
+                double u = xf + d;
+                if (u - a < tol2 || b - u < tol2) {
+                    double si = (xm - xf >= 0.0) ? 1.0 : -1.0;
+                    d = tol1 * si;
+                }
+                gold = false;
+            }
+        }
+        if (gold) {
+            e = (xf >= xm) ? (a - xf) : (b - xf);
+            d = c * e;
+        }
+        double si = (d >= 0.0) ? 1.0 : -1.0;
+        double u  = xf + ((std::fabs(d) >= tol1) ? d : tol1 * si);
+        double fu = f(u);
+        if (fu <= fx) {
+            if (u >= xf) a = xf; else b = xf;
+            v = w;  fv = fw;
+            w = xf; fw = fx;
+            xf = u; fx = fu;
+        } else {
+            if (u < xf) a = u; else b = u;
+            if (fu <= fw || w == xf) {
+                v = w;  fv = fw;
+                w = u;  fw = fu;
+            } else if (fu <= fv || v == xf || v == w) {
+                v = u;  fv = fu;
+            }
+        }
+        xm = 0.5 * (a + b);
+        tol1 = seps * std::fabs(xf) + tol / 3.0;
+        tol2 = 2.0 * tol1;
+        x = xf;
+    }
+    return xf;
+}
+
+} // anonymous (Brent)
+
+DeconvregResult deconvreg(const Value &I, const Value &PSF,
+                          double np, double lo, double hi,
+                          const Value &regop,
+                          std::pmr::memory_resource *mr)
+{
+    if (PSF.dims().is3D())
+        throw Error("deconvreg: PSF must be 2-D (slice 3-D inputs and "
+                    "call per page)",
+                    0, 0, "deconvreg", "", "m:deconvreg:psf");
+    if (PSF.numel() < 2)
+        throw Error("deconvreg: PSF must have at least 2 elements",
+                    0, 0, "deconvreg", "", "m:deconvreg:psfTooSmall");
+    if (!std::isfinite(np) || np < 0.0)
+        throw Error("deconvreg: NP must be a finite non-negative scalar",
+                    0, 0, "deconvreg", "", "m:deconvreg:np");
+    if (!std::isfinite(lo) || !std::isfinite(hi) || lo < 0.0 || hi < lo)
+        throw Error("deconvreg: LRANGE must be finite, non-negative, "
+                    "and lo <= hi",
+                    0, 0, "deconvreg", "", "m:deconvreg:lrange");
+
+    const ValueType inT = I.type();
+    Value Id   = to_double_pmr(I, mr);
+    Value PSFd = to_double_pmr(PSF, mr);
+
+    const auto &dI = Id.dims();
+    const std::size_t H = dI.rows();
+    const std::size_t W = dI.cols();
+    if (H < 3 || W < 3)
+        throw Error("deconvreg: image too small (min 3x3)",
+                    0, 0, "deconvreg", "", "m:deconvreg:tooSmall");
+
+    // PSF must not be all zeros.
+    {
+        bool allzero = true;
+        for (std::size_t i = 0; i < PSFd.numel(); ++i)
+            if (PSFd.elemAsDouble(i) != 0.0) { allzero = false; break; }
+        if (allzero)
+            throw Error("deconvreg: PSF cannot be all zeros",
+                        0, 0, "deconvreg", "", "m:deconvreg:psfAllZero");
+    }
+
+    const std::size_t plane = H * W;
+    std::array<std::size_t, 2> outsize{H, W};
+
+    // OTF of PSF.
+    Value Hf = psf2otf(PSFd, Span<const std::size_t>(outsize.data(), 2), mr);
+    std::pmr::vector<Complex> Hcplx(plane, Complex{0, 0}, mr);
+    if (Hf.isComplex()) {
+        const Complex *src = Hf.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Hcplx[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Hcplx[i] = Complex{Hf.elemAsDouble(i), 0.0};
+    }
+
+    // Build REGOP (default Laplacian if none provided).
+    Value REGOP_in;
+    if (regop.isEmpty()) {
+        // 2-D Laplacian per MATLAB source:
+        //   regop = [0 1 0; 1 -4 1; 0 1 0]
+        REGOP_in = Value::matrix(3, 3, ValueType::DOUBLE, mr);
+        double *rd = REGOP_in.doubleDataMut();
+        // column-major:
+        //   col 0: [0; 1; 0]
+        //   col 1: [1; -4; 1]
+        //   col 2: [0; 1; 0]
+        rd[0] = 0;  rd[1] = 1;  rd[2] = 0;
+        rd[3] = 1;  rd[4] = -4; rd[5] = 1;
+        rd[6] = 0;  rd[7] = 1;  rd[8] = 0;
+    } else {
+        if (regop.dims().is3D())
+            throw Error("deconvreg: REGOP must be 2-D",
+                        0, 0, "deconvreg", "", "m:deconvreg:regop");
+        REGOP_in = to_double_pmr(regop, mr);
+    }
+    Value REGOPft = psf2otf(REGOP_in,
+                            Span<const std::size_t>(outsize.data(), 2), mr);
+    std::pmr::vector<Complex> Rcplx(plane, Complex{0, 0}, mr);
+    if (REGOPft.isComplex()) {
+        const Complex *src = REGOPft.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Rcplx[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Rcplx[i] = Complex{REGOPft.elemAsDouble(i), 0.0};
+    }
+
+    // Pre-compute spectral magnitudes.
+    std::pmr::vector<double> H2(plane, 0.0, mr);
+    std::pmr::vector<double> R2(plane, 0.0, mr);
+    for (std::size_t i = 0; i < plane; ++i) {
+        H2[i] = Hcplx[i].real() * Hcplx[i].real()
+              + Hcplx[i].imag() * Hcplx[i].imag();
+        R2[i] = Rcplx[i].real() * Rcplx[i].real()
+              + Rcplx[i].imag() * Rcplx[i].imag();
+    }
+
+    // Determine λ — fixed-or-search.
+    double lagra;
+    if (lo == hi) {
+        lagra = lo;
+    } else {
+        // FFT of image, magnitudes for ResOffset.
+        Value FI = signal::fft2(Id, -1, -1, mr);
+        std::pmr::vector<Complex> FIcplx(plane, Complex{0, 0}, mr);
+        if (FI.isComplex()) {
+            const Complex *src = FI.complexData();
+            for (std::size_t i = 0; i < plane; ++i) FIcplx[i] = src[i];
+        } else {
+            for (std::size_t i = 0; i < plane; ++i)
+                FIcplx[i] = Complex{FI.elemAsDouble(i), 0.0};
+        }
+        std::pmr::vector<double> R4G2(plane, 0.0, mr);
+        std::pmr::vector<double> H4  (plane, 0.0, mr);
+        std::pmr::vector<double> R4  (plane, 0.0, mr);
+        std::pmr::vector<double> H2R22(plane, 0.0, mr);
+        for (std::size_t i = 0; i < plane; ++i) {
+            const double absFI = std::sqrt(FIcplx[i].real() * FIcplx[i].real()
+                                         + FIcplx[i].imag() * FIcplx[i].imag());
+            const double r4g2  = R2[i] * absFI;
+            R4G2[i] = r4g2 * r4g2;
+            H4[i]   = H2[i] * H2[i];
+            R4[i]   = R2[i] * R2[i];
+            H2R22[i] = 2.0 * H2[i] * R2[i];
+        }
+        const double scaled_np = np * static_cast<double>(plane);
+        const double seps = std::sqrt(std::numeric_limits<double>::epsilon());
+
+        auto ResOffset = [&](double L) -> double {
+            double s = 0.0;
+            for (std::size_t i = 0; i < plane; ++i) {
+                const double denom = H4[i] + L * H2R22[i]
+                                   + L * L * R4[i] + seps;
+                s += R4G2[i] / denom;
+            }
+            return std::fabs(L * L * s - scaled_np);
+        };
+        lagra = fminbnd_brent(ResOffset, lo, hi);
+    }
+
+    // Reconstruct: J = real(ifft2(conj(otf) * fI / Denom)).
+    Value FI = signal::fft2(Id, -1, -1, mr);
+    std::pmr::vector<Complex> FIcplx(plane, Complex{0, 0}, mr);
+    if (FI.isComplex()) {
+        const Complex *src = FI.complexData();
+        for (std::size_t i = 0; i < plane; ++i) FIcplx[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            FIcplx[i] = Complex{FI.elemAsDouble(i), 0.0};
+    }
+    const double seps = std::sqrt(std::numeric_limits<double>::epsilon());
+
+    Value FG = Value::matrix(H, W, ValueType::COMPLEX, mr);
+    Complex *fg = FG.complexDataMut();
+    for (std::size_t i = 0; i < plane; ++i) {
+        double denom = H2[i] + lagra * R2[i];
+        if (denom < seps) denom = seps;
+        const Complex Hc{Hcplx[i].real(), -Hcplx[i].imag()};
+        // (conj(H) / denom) * FI
+        const double inv = 1.0 / denom;
+        const Complex G{Hc.real() * inv, Hc.imag() * inv};
+        fg[i] = Complex{G.real() * FIcplx[i].real() - G.imag() * FIcplx[i].imag(),
+                        G.real() * FIcplx[i].imag() + G.imag() * FIcplx[i].real()};
+    }
+    Value Jc = signal::ifft2(FG, -1, -1, mr);
+    Value Jd = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *jd = Jd.doubleDataMut();
+    auto jc_at = [&](std::size_t i) -> double {
+        if (Jc.isComplex()) return Jc.complexData()[i].real();
+        return Jc.elemAsDouble(i);
+    };
+    for (std::size_t i = 0; i < plane; ++i) jd[i] = jc_at(i);
+
+    Value Jout = (inT == ValueType::DOUBLE)
+                   ? Jd
+                   : real_back_to_class(Jd, inT, mr);
+    return DeconvregResult{std::move(Jout), lagra};
+}
+
 namespace detail {
 
 void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1347,6 +1630,44 @@ void edgetaper_reg(Span<const Value> args, std::size_t /*nargout*/,
         throw Error("edgetaper: requires (I, PSF)",
                     0, 0, "edgetaper", "", "m:edgetaper:nargin");
     outs[0] = edgetaper(args[0], args[1], ctx.engine->resource());
+}
+
+void deconvreg_reg(Span<const Value> args, std::size_t nargout,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || args.size() > 5)
+        throw Error("deconvreg: requires (I, PSF [, NP [, LRANGE [, REGOP]]])",
+                    0, 0, "deconvreg", "", "m:deconvreg:nargin");
+    auto *mr = ctx.engine->resource();
+    double np = 0.0;
+    double lo = 1e-9, hi = 1e9;
+    Value regop = Value::Empty;
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (args[2].numel() != 1)
+            throw Error("deconvreg: NP must be a scalar",
+                        0, 0, "deconvreg", "", "m:deconvreg:np");
+        np = args[2].toScalar();
+    }
+    if (args.size() >= 4 && !args[3].isEmpty()) {
+        const Value &lr = args[3];
+        if (lr.numel() == 1) {
+            lo = hi = lr.toScalar();
+        } else if (lr.numel() == 2) {
+            lo = lr.elemAsDouble(0);
+            hi = lr.elemAsDouble(1);
+            if (hi < lo)
+                throw Error("deconvreg: LRANGE must satisfy lo <= hi",
+                            0, 0, "deconvreg", "", "m:deconvreg:lrange");
+        } else {
+            throw Error("deconvreg: LRANGE must be a scalar or 2-element vector",
+                        0, 0, "deconvreg", "", "m:deconvreg:lrange");
+        }
+    }
+    if (args.size() >= 5 && !args[4].isEmpty())
+        regop = args[4];
+    auto r = deconvreg(args[0], args[1], np, lo, hi, regop, mr);
+    outs[0] = std::move(r.J);
+    if (nargout > 1) outs[1] = Value::scalar(r.lagra, mr);
 }
 
 void deconvwnr_reg(Span<const Value> args, std::size_t /*nargout*/,
