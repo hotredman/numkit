@@ -303,6 +303,34 @@ Value graydist(const Value &I, const Value &seeds,
                const std::string &method,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Geodesic distance transform of binary image
+/// (`D = bwdistgeodesic(BW, seeds [, method])`).
+///
+/// Like @ref graydist, but the underlying image is a logical mask
+/// `BW` — only true pixels are traversable, and the edge cost
+/// reduces to the raw chamfer distance χ(p, q) (no intensity
+/// weighting). Returned distances are:
+///   * `0` at seed pixels,
+///   * positive finite values for traversable, reachable pixels,
+///   * `NaN` for pixels where `BW` is false,
+///   * `Inf` for traversable but unreachable pixels.
+///
+/// Output class is always SINGLE.
+///
+/// Reference: P. Soille, *Morphological Image Analysis*, 2nd ed.,
+/// Springer, §4.4 (chamfer geodesic distance).
+///
+/// @param BW       2-D binary mask (logical or numeric non-zero).
+/// @param seeds    Linear seed indices (1-based, into column-major
+///                 storage of `BW`). Must point to true pixels.
+/// @param method   `"chessboard"` (default) / `"cityblock"` /
+///                 `"quasi-euclidean"`.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         SINGLE distance transform, same shape as `BW`.
+Value bwdistgeodesic(const Value &BW, const Value &seeds,
+                     const std::string &method,
+                     std::pmr::memory_resource *mr = nullptr);
+
 /// Paint a binary mask onto an image with a colour
 /// (`J = imoverlay(I, BW, color)`).
 ///
