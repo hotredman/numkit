@@ -932,4 +932,37 @@ Value xyz2rgbwide(const Value &XYZ, int bits_per_sample,
                   const std::string &linearization,
                   std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Convert a Bayer-encoded mosaic to a truecolor RGB image
+/// (`RGB = demosaic(I, sensorAlignment, BitsPerSample=bps)`).
+///
+/// Implements the high-quality linear interpolation of Malvar, He, and
+/// Cutler (ICASSP 2004): five 5×5 integer kernels (G-at-RB,
+/// R/B-at-G-same-row, R/B-at-G-diff-row, R-at-B / B-at-R) reconstruct
+/// the missing channels at each pixel. At the sensor positions
+/// themselves the raw mosaic value is returned unchanged.
+///
+/// Boundary handling reflects through the FIRST pixel
+/// (`k=-1 → orig(1)`, `k=N → orig(N-2)`) so the mirrored
+/// neighbourhood preserves the Bayer pattern — this differs from
+/// `imfilter`'s standard `symmetric` mode and matches MATLAB R2025b.
+///
+/// @param I                Bayer mosaic (`M×N`, uint8 / uint16 /
+///                         uint32). `M`, `N` must both be even.
+/// @param sensorAlignment  One of `"rggb"`, `"bggr"`, `"grbg"`,
+///                         `"gbrg"` — colour of the (1,1) pixel and
+///                         its right neighbour.
+/// @param bitsPerSample    Optional bits-per-sample for clamping the
+///                         output (e.g. 12 for 12-bit data in a
+///                         uint16 container). 0 means use the class
+///                         maximum (default).
+/// @param mr               Memory resource (nullptr → process default).
+/// @return                 `M×N×3` truecolor image of the input class.
+///
+/// References:
+///   - Malvar, He, Cutler. "High-Quality Linear Interpolation for
+///     Demosaicing of Bayer-Patterned Color Images", IEEE ICASSP 2004.
+Value demosaic(const Value &I, const std::string &sensorAlignment,
+               int bitsPerSample = 0,
+               std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image
