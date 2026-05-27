@@ -282,7 +282,7 @@ void envspectrum_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("envspectrum: requires 1 argument",
-                     0, 0, "envspectrum", "", "m:envspectrum:nargin");
+                     0, 0, "envspectrum", "", "numkit:envspectrum:nargin");
     double fs = 0.0;
     if (args.size() >= 2 && !args[1].isEmpty()) fs = args[1].toScalar();
     auto [Es, F] = envspectrum(args[0], fs, ctx.engine->resource());
@@ -295,7 +295,7 @@ void tachorpm_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("tachorpm: requires (x, fs[, threshold[, ppr]])",
-                     0, 0, "tachorpm", "", "m:tachorpm:nargin");
+                     0, 0, "tachorpm", "", "numkit:tachorpm:nargin");
     const double fs = args[1].toScalar();
     const Value &thr = (args.size() >= 3) ? args[2] : Value::Empty;
     int ppr = 1;
@@ -310,7 +310,7 @@ void rainflow_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rainflow: requires 1 argument",
-                     0, 0, "rainflow", "", "m:rainflow:nargin");
+                     0, 0, "rainflow", "", "numkit:rainflow:nargin");
     outs[0] = rainflow(args[0], ctx.engine->resource());
 }
 
@@ -395,7 +395,7 @@ void tsa_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("tsa: requires (x, fs, tPulse) or (x, fs, rpm, fs_rpm[, n_per_rev])",
-                     0, 0, "tsa", "", "m:tsa:nargin");
+                     0, 0, "tsa", "", "numkit:tsa:nargin");
     const double fs = args[1].toScalar();
     if (args.size() == 3) {
         // MATLAB form: tsa(x, fs, tPulse)

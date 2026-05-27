@@ -128,7 +128,7 @@ void nakapdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("nakapdf: requires (x, mu, omega)",
-                    0, 0, "nakapdf", "", "m:nakapdf:nargin");
+                    0, 0, "nakapdf", "", "numkit:nakapdf:nargin");
     outs[0] = nakapdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -139,7 +139,7 @@ void nakacdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("nakacdf: requires (x, mu, omega[, 'upper'])",
-                    0, 0, "nakacdf", "", "m:nakacdf:nargin");
+                    0, 0, "nakacdf", "", "numkit:nakacdf:nargin");
     Value v = nakacdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -150,7 +150,7 @@ void nakainv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("nakainv: requires (p, mu, omega)",
-                    0, 0, "nakainv", "", "m:nakainv:nargin");
+                    0, 0, "nakainv", "", "numkit:nakainv:nargin");
     outs[0] = nakainv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -159,7 +159,7 @@ void nakarnd_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("nakarnd: requires (mu, omega[, m, n])",
-                    0, 0, "nakarnd", "", "m:nakarnd:nargin");
+                    0, 0, "nakarnd", "", "numkit:nakarnd:nargin");
     const double mu    = args[0].toScalar();
     const double omega = args[1].toScalar();
     size_t rows = 1, cols = 1;

@@ -57,10 +57,10 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     const size_t Nsamp = sample.dims().rows();
     if (sample.dims().cols() != d)
         throw Error("classify: sample and training must have the same number of columns",
-                    0, 0, "classify", "", "m:classify:cols");
+                    0, 0, "classify", "", "numkit:classify:cols");
     if (group.numel() != Ntr)
         throw Error("classify: group must have one entry per training row",
-                    0, 0, "classify", "", "m:classify:group");
+                    0, 0, "classify", "", "numkit:classify:group");
 
     std::string type = type_in;
     for (auto &c : type) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -70,7 +70,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     if (type != "linear" && type != "diaglinear"
         && type != "quadratic" && type != "diagquadratic")
         throw Error("classify: unsupported type (linear|diaglinear|quadratic|diagquadratic)",
-                    0, 0, "classify", "", "m:classify:type");
+                    0, 0, "classify", "", "numkit:classify:type");
 
     // Identify unique group labels (sorted ascending).
     std::vector<double> labels;
@@ -145,7 +145,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
         double *L = Lblocks.data() + k * d * d;
         if (!cholesky(sigBlock(k), L, d))
             throw Error("classify: covariance is not positive definite",
-                        0, 0, "classify", "", "m:classify:psd");
+                        0, 0, "classify", "", "numkit:classify:psd");
         double s = 0.0;
         for (size_t i = 0; i < d; ++i) s += std::log(L[i + i * d]);
         sumLogDiag[k] = s;
@@ -232,7 +232,7 @@ void classify_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("classify: requires (sample, training, group[, type])",
-                    0, 0, "classify", "", "m:classify:nargin");
+                    0, 0, "classify", "", "numkit:classify:nargin");
     std::string type;
     if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         type = args[3].toString();

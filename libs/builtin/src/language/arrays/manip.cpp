@@ -88,7 +88,7 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
     if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
         throw Error(std::string("repmat: ND repmat does not support type '")
                      + mtypeName(t) + "'",
-                     0, 0, "repmat", "", "m:repmat:typeND");
+                     0, 0, "repmat", "", "numkit:repmat:typeND");
 
     const auto &inDims = x.dims();
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -96,7 +96,7 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
     int outNdim = std::max(inDims.ndim(), ntiles);
     if (outNdim > kMaxNd)
         throw Error("repmat: rank exceeds 32",
-                     0, 0, "repmat", "", "m:repmat:tooManyDims");
+                     0, 0, "repmat", "", "numkit:repmat:tooManyDims");
     if (outNdim < 1) outNdim = 1;
 
     // STRING / CELL store contents as vector<Value> in cellData, not a
@@ -122,13 +122,13 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
                 r = Value::stringArray3D(outD[0], outD[1], outD[2], mr);
             else
                 throw Error("repmat: ND > 3 not supported for string",
-                             0, 0, "repmat", "", "m:repmat:tooManyDimsStr");
+                             0, 0, "repmat", "", "numkit:repmat:tooManyDimsStr");
         } else { // CELL
             if (outNdim <= 2)
                 r = Value::cell(outD[0], outNdim >= 2 ? outD[1] : 1, mr);
             else
                 throw Error("repmat: ND > 2 not supported for cell",
-                             0, 0, "repmat", "", "m:repmat:tooManyDimsCell");
+                             0, 0, "repmat", "", "numkit:repmat:tooManyDimsCell");
         }
         if (x.numel() == 0) return r;
 
@@ -227,13 +227,13 @@ Value flipNDAlongAxis(const Value &x, int axis, const char *fn, std::pmr::memory
         || t == ValueType::FUNC_HANDLE)
         throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
-                     0, 0, fn, "", std::string("m:") + fn + ":typeND");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error(std::string(fn) + ": rank exceeds 32",
-                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
 
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = d.dim(i);
@@ -402,11 +402,11 @@ Value rot90(const Value &x, int k, std::pmr::memory_resource *mr)
             || t == ValueType::FUNC_HANDLE)
             throw Error(std::string("rot90: ND fallback does not support type '")
                          + mtypeName(t) + "'",
-                         0, 0, "rot90", "", "m:rot90:typeND");
+                         0, 0, "rot90", "", "numkit:rot90:typeND");
         constexpr int kMaxNd = Dims::kMaxRank;
         if (nd > kMaxNd)
             throw Error("rot90: rank exceeds 32",
-                         0, 0, "rot90", "", "m:rot90:tooManyDims");
+                         0, 0, "rot90", "", "numkit:rot90:tooManyDims");
         size_t outDims[kMaxNd];
         outDims[0] = (kMod == 1 || kMod == 3) ? C : R;
         outDims[1] = (kMod == 1 || kMod == 3) ? R : C;
@@ -534,13 +534,13 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
         || t == ValueType::FUNC_HANDLE)
         throw Error(std::string("circshift: ND fallback does not support type '")
                      + mtypeName(t) + "'",
-                     0, 0, "circshift", "", "m:circshift:typeND");
+                     0, 0, "circshift", "", "numkit:circshift:typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error("circshift: rank exceeds 32",
-                     0, 0, "circshift", "", "m:circshift:tooManyDims");
+                     0, 0, "circshift", "", "numkit:circshift:tooManyDims");
 
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = d.dim(i);
@@ -695,13 +695,13 @@ Value trilTriuND(const Value &x, int k, PageBytesFn pageFn, const char *fn, std:
     const int nd = dd.ndim();
     if (nd > kMaxNd)
         throw Error(std::string(fn) + ": rank exceeds 32",
-                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
     const ValueType t = x.type();
     if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
         || t == ValueType::FUNC_HANDLE)
         throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
-                     0, 0, fn, "", std::string("m:") + fn + ":typeND");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":typeND");
 
     const size_t R = dd.rows(), C = dd.cols();
     size_t outDimArr[kMaxNd];
@@ -797,10 +797,10 @@ Value repelem(const Value &x, size_t n, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1 && !x.isScalar()))
         throw Error("repelem: 1-arg form requires a vector input",
-                     0, 0, "repelem", "", "m:repelem:notVector");
+                     0, 0, "repelem", "", "numkit:repelem:notVector");
     if (x.type() != ValueType::DOUBLE)
         throw Error("repelem: only DOUBLE inputs are supported",
-                     0, 0, "repelem", "", "m:repelem:type");
+                     0, 0, "repelem", "", "numkit:repelem:type");
 
     const size_t inN = x.numel();
     const size_t outN = inN * n;
@@ -825,10 +825,10 @@ Value repelem(const Value &x, size_t m, size_t n, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("repelem: 3-arg form is 2-D only",
-                     0, 0, "repelem", "", "m:repelem:rank");
+                     0, 0, "repelem", "", "numkit:repelem:rank");
     if (x.type() != ValueType::DOUBLE)
         throw Error("repelem: only DOUBLE inputs are supported",
-                     0, 0, "repelem", "", "m:repelem:type");
+                     0, 0, "repelem", "", "numkit:repelem:type");
 
     const size_t R = d.rows(), C = d.cols();
     const size_t outR = R * m, outC = C * n;
@@ -871,10 +871,10 @@ Value paddata(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
     if (!isVectorLike(v))
         throw Error("paddata: vector input required",
-                     0, 0, "paddata", "", "m:paddata:notVector");
+                     0, 0, "paddata", "", "numkit:paddata:notVector");
     if (!v.isEmpty() && v.type() != ValueType::DOUBLE)
         throw Error("paddata: only DOUBLE inputs supported",
-                     0, 0, "paddata", "", "m:paddata:type");
+                     0, 0, "paddata", "", "numkit:paddata:type");
     const size_t cur = v.numel();
     if (cur >= n) return v;
     const auto &d = v.dims();
@@ -891,10 +891,10 @@ Value trimdata(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
     if (!isVectorLike(v))
         throw Error("trimdata: vector input required",
-                     0, 0, "trimdata", "", "m:trimdata:notVector");
+                     0, 0, "trimdata", "", "numkit:trimdata:notVector");
     if (!v.isEmpty() && v.type() != ValueType::DOUBLE)
         throw Error("trimdata: only DOUBLE inputs supported",
-                     0, 0, "trimdata", "", "m:trimdata:type");
+                     0, 0, "trimdata", "", "numkit:trimdata:type");
     const size_t cur = v.numel();
     if (cur <= n) return v;
     const auto &d = v.dims();
@@ -920,7 +920,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("repmat: requires at least 2 arguments",
-                     0, 0, "repmat", "", "m:repmat:nargin");
+                     0, 0, "repmat", "", "numkit:repmat:nargin");
     auto *mr = ctx.engine->resource();
 
     // Forms:
@@ -936,7 +936,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         const size_t k = v.numel();
         if (k == 0) {
             throw Error("repmat: tile vector must not be empty",
-                         0, 0, "repmat", "", "m:repmat:badTileVec");
+                         0, 0, "repmat", "", "numkit:repmat:badTileVec");
         }
         if (k == 1) {
             const size_t s = static_cast<size_t>(v.toScalar());
@@ -973,7 +973,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires 1 argument",                        \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         outs[0] = name(args[0], ctx.engine->resource());                      \
     }
 
@@ -987,7 +987,7 @@ void rot90_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("rot90: requires at least 1 argument",
-                     0, 0, "rot90", "", "m:rot90:nargin");
+                     0, 0, "rot90", "", "numkit:rot90:nargin");
     int k = (args.size() >= 2 && !args[1].isEmpty())
                 ? static_cast<int>(args[1].toScalar())
                 : 1;
@@ -999,13 +999,13 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("circshift: requires (X, k) or (X, shiftVec)",
-                     0, 0, "circshift", "", "m:circshift:nargin");
+                     0, 0, "circshift", "", "numkit:circshift:nargin");
     const Value &k = args[1];
     auto *mr = ctx.engine->resource();
     const size_t nk = k.numel();
     if (nk == 0)
         throw Error("circshift: shift vector must not be empty",
-                     0, 0, "circshift", "", "m:circshift:badShift");
+                     0, 0, "circshift", "", "numkit:circshift:badShift");
 
     if (nk == 1) {
         outs[0] = circshift(args[0], static_cast<int64_t>(k.toScalar()), mr);
@@ -1029,7 +1029,7 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         int k = (args.size() >= 2 && !args[1].isEmpty())                       \
                     ? static_cast<int>(args[1].toScalar())                     \
                     : 0;                                                        \
@@ -1046,7 +1046,7 @@ void flip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("flip: requires at least 1 argument",
-                     0, 0, "flip", "", "m:flip:nargin");
+                     0, 0, "flip", "", "numkit:flip:nargin");
     int dim = (args.size() >= 2 && !args[1].isEmpty())
                   ? static_cast<int>(args[1].toScalar())
                   : 0;
@@ -1058,7 +1058,7 @@ void repelem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("repelem: requires at least 2 arguments",
-                     0, 0, "repelem", "", "m:repelem:nargin");
+                     0, 0, "repelem", "", "numkit:repelem:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         const size_t n = static_cast<size_t>(args[1].toScalar());
@@ -1076,13 +1076,13 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("sub2ind: requires siz and at least 1 subscript",
-                     0, 0, "sub2ind", "", "m:sub2ind:nargin");
+                     0, 0, "sub2ind", "", "numkit:sub2ind:nargin");
     auto *mr = ctx.engine->resource();
     const Value &siz = args[0];
     const size_t nDims = siz.numel();
     if (nDims == 0)
         throw Error("sub2ind: siz must not be empty",
-                     0, 0, "sub2ind", "", "m:sub2ind:badSiz");
+                     0, 0, "sub2ind", "", "numkit:sub2ind:badSiz");
 
     ScratchArena scratch(mr);
     auto dims = ScratchVec<size_t>(nDims, &scratch);
@@ -1093,7 +1093,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     const size_t nSubs = args.size() - 1;
     if (nSubs > nDims)
         throw Error("sub2ind: too many subscript arrays for given siz",
-                     0, 0, "sub2ind", "", "m:sub2ind:tooManySubs");
+                     0, 0, "sub2ind", "", "numkit:sub2ind:tooManySubs");
 
     // All sub arrays must agree on shape; result inherits that shape.
     const Value &shapeRef = args[1];
@@ -1101,7 +1101,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     for (size_t a = 1; a < args.size(); ++a) {
         if (args[a].numel() != outN)
             throw Error("sub2ind: subscript arrays must be the same size",
-                         0, 0, "sub2ind", "", "m:sub2ind:shape");
+                         0, 0, "sub2ind", "", "numkit:sub2ind:shape");
     }
 
     auto r = (shapeRef.isScalar())
@@ -1136,7 +1136,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#FN " requires (v, n)",                                  \
-                         0, 0, #FN, "", "m:" #FN ":nargin");                     \
+                         0, 0, #FN, "", "numkit:" #FN ":nargin");                     \
         const size_t n = static_cast<size_t>(args[1].toScalar());                \
         outs[0] = FN(args[0], n, ctx.engine->resource());                       \
     }
@@ -1155,14 +1155,14 @@ void ind2sub_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ind2sub: requires siz and ind",
-                     0, 0, "ind2sub", "", "m:ind2sub:nargin");
+                     0, 0, "ind2sub", "", "numkit:ind2sub:nargin");
     auto *mr = ctx.engine->resource();
     const Value &siz = args[0];
     const Value &ind = args[1];
     const size_t nDims = siz.numel();
     if (nDims == 0)
         throw Error("ind2sub: siz must not be empty",
-                     0, 0, "ind2sub", "", "m:ind2sub:badSiz");
+                     0, 0, "ind2sub", "", "numkit:ind2sub:badSiz");
 
     ScratchArena scratch(mr);
     auto dims = ScratchVec<size_t>(nDims, &scratch);

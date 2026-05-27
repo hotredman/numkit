@@ -68,13 +68,13 @@ Value imread(const std::string &path, std::pmr::memory_resource *mr)
         const char *err = stbi_failure_reason();
         throw Error(std::string("imread: failed to load '") + path + "'" +
                     (err ? std::string(" — ") + err : std::string()),
-                    0, 0, "imread", "", "m:imread:load");
+                    0, 0, "imread", "", "numkit:imread:load");
     }
     int C = channelsInFile;
     if (C != 1 && C != 3 && C != 4) {
         stbi_image_free(pixels);
         throw Error("imread: unsupported channel count " + std::to_string(C),
-                    0, 0, "imread", "", "m:imread:channels");
+                    0, 0, "imread", "", "numkit:imread:channels");
     }
 
     Value out;
@@ -133,7 +133,7 @@ void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource 
         C = 4;
     } else {
         throw Error("imwrite: input must be H×W or H×W×{1,3,4}",
-                    0, 0, "imwrite", "", "m:imwrite:shape");
+                    0, 0, "imwrite", "", "numkit:imwrite:shape");
     }
 
     // Convert numkit column-major (y, x, c) → stb row-major
@@ -184,11 +184,11 @@ void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource 
     } else {
         throw Error("imwrite: unsupported extension '" + ext +
                     "' (try .png / .bmp / .tga / .jpg)",
-                    0, 0, "imwrite", "", "m:imwrite:ext");
+                    0, 0, "imwrite", "", "numkit:imwrite:ext");
     }
     if (!rc)
         throw Error("imwrite: failed to write '" + path + "'",
-                    0, 0, "imwrite", "", "m:imwrite:write");
+                    0, 0, "imwrite", "", "numkit:imwrite:write");
 }
 
 namespace {
@@ -268,7 +268,7 @@ Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
         const char *err = stbi_failure_reason();
         throw Error(std::string("imfinfo: failed to read '") + path + "'" +
                     (err ? std::string(" — ") + err : std::string()),
-                    0, 0, "imfinfo", "", "m:imfinfo:read");
+                    0, 0, "imfinfo", "", "numkit:imfinfo:read");
     }
 
     std::string fmt = detectFormat(path);
@@ -304,10 +304,10 @@ void imread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("imread: requires a path string",
-                    0, 0, "imread", "", "m:imread:nargin");
+                    0, 0, "imread", "", "numkit:imread:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imread: path must be a string",
-                    0, 0, "imread", "", "m:imread:type");
+                    0, 0, "imread", "", "numkit:imread:type");
     outs[0] = imread(args[0].toString(), ctx.engine->resource());
 }
 
@@ -316,10 +316,10 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
 {
     if (args.size() < 2)
         throw Error("imwrite: requires (A, path)",
-                    0, 0, "imwrite", "", "m:imwrite:nargin");
+                    0, 0, "imwrite", "", "numkit:imwrite:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("imwrite: path must be a string",
-                    0, 0, "imwrite", "", "m:imwrite:type");
+                    0, 0, "imwrite", "", "numkit:imwrite:type");
     imwrite(args[0], args[1].toString(), ctx.engine->resource());
 }
 
@@ -328,10 +328,10 @@ void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("imfinfo: requires a path string",
-                    0, 0, "imfinfo", "", "m:imfinfo:nargin");
+                    0, 0, "imfinfo", "", "numkit:imfinfo:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imfinfo: path must be a string",
-                    0, 0, "imfinfo", "", "m:imfinfo:type");
+                    0, 0, "imfinfo", "", "numkit:imfinfo:type");
     outs[0] = imfinfo(args[0].toString(), ctx.engine->resource());
 }
 

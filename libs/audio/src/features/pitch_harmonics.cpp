@@ -913,7 +913,7 @@ void pitch_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pitch: requires (x, fs)",
-                    0, 0, "pitch", "", "m:pitch:nargin");
+                    0, 0, "pitch", "", "numkit:pitch:nargin");
     std::string method = "NCF";
     double minF = 50.0, maxF = 400.0;
     // Parse Name-Value pairs starting at args[2].
@@ -932,12 +932,12 @@ void pitch_reg(Span<const Value> args, size_t /*nargout*/,
             const Value &r = args[i + 1];
             if (r.numel() != 2)
                 throw Error("pitch: Range must be a 2-element vector [lo hi]",
-                            0, 0, "pitch", "", "m:pitch:BadRange");
+                            0, 0, "pitch", "", "numkit:pitch:BadRange");
             const double lo = r.elemAsDouble(0);
             const double hi = r.elemAsDouble(1);
             if (!(lo > 0.0 && hi > lo))
                 throw Error("pitch: Range must satisfy 0 < Range(1) < Range(2)",
-                            0, 0, "pitch", "", "m:pitch:BadRange");
+                            0, 0, "pitch", "", "numkit:pitch:BadRange");
             minF = lo;
             maxF = hi;
         }
@@ -960,7 +960,7 @@ void harmonicRatio_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("harmonicRatio: requires (x, fs)",
-                    0, 0, "harmonicRatio", "", "m:harmonicRatio:nargin");
+                    0, 0, "harmonicRatio", "", "numkit:harmonicRatio:nargin");
     outs[0] = harmonicRatio(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 

@@ -45,7 +45,7 @@ Shape shapeOf(const Value &A) {
     else if (A.numel() == s.H * s.W * 4)     s.C = 4;
     else
         throw Error("image geom: input must be H×W or H×W×{1,3,4}",
-                    0, 0, "geom", "", "m:image:geom:shape");
+                    0, 0, "geom", "", "numkit:image:geom:shape");
     return s;
 }
 
@@ -180,7 +180,7 @@ Value imresize(const Value &A, double scale, const std::string &method, std::pmr
     const Shape s = shapeOf(A);
     if (!(scale > 0.0))
         throw Error("imresize: scale must be > 0",
-                    0, 0, "imresize", "", "m:imresize:scale");
+                    0, 0, "imresize", "", "numkit:imresize:scale");
     const size_t outH = static_cast<size_t>(std::round(scale * double(s.H)));
     const size_t outW = static_cast<size_t>(std::round(scale * double(s.W)));
     return imresize(A, outH, outW, method, mr);
@@ -228,14 +228,14 @@ Value imcrop3(const Value &V, const Value &cuboid, std::pmr::memory_resource *mr
     if (cuboid.numel() != 6)
         throw Error("imcrop3: CUBOID must be a 6-element vector "
                     "[XMIN YMIN ZMIN WIDTH HEIGHT DEPTH]",
-                    0, 0, "imcrop3", "", "m:imcrop3:cuboid");
+                    0, 0, "imcrop3", "", "numkit:imcrop3:cuboid");
 
     // Resolve input shape: H × W × D × T  (T defaults to 1 for 3-D inputs).
     const auto &dV = V.dims();
     const int nd = dV.ndims();
     if (nd < 3)
         throw Error("imcrop3: V must be at least 3-D",
-                    0, 0, "imcrop3", "", "m:imcrop3:rank");
+                    0, 0, "imcrop3", "", "numkit:imcrop3:rank");
     const std::size_t H = dV.dim(0);
     const std::size_t W = dV.dim(1);
     const std::size_t D = dV.dim(2);
@@ -265,7 +265,7 @@ Value imcrop3(const Value &V, const Value &cuboid, std::pmr::memory_resource *mr
         throw Error("imcrop3: cuboid is out of bounds of the input "
                     "volume — lower bound must be >= 1 and upper "
                     "bound must not exceed the image size",
-                    0, 0, "imcrop3", "", "m:imcrop3:cropCuboidOutofBounds");
+                    0, 0, "imcrop3", "", "numkit:imcrop3:cropCuboidOutofBounds");
 
     const std::size_t outH = static_cast<std::size_t>(ymax - ymin + 1);
     const std::size_t outW = static_cast<std::size_t>(xmax - xmin + 1);
@@ -311,7 +311,7 @@ Value imcrop3(const Value &V, const Value &cuboid, std::pmr::memory_resource *mr
             case ValueType::LOGICAL: B.logicalDataMut()[di] = V.logicalData()[si]; break;
             default:
                 throw Error("imcrop3: unsupported class for V",
-                            0, 0, "imcrop3", "", "m:imcrop3:cls");
+                            0, 0, "imcrop3", "", "numkit:imcrop3:cls");
         }
     };
 
@@ -412,7 +412,7 @@ Value axes2pix(double n, const Value &extent, const Value &axesCoord, std::pmr::
 {
     if (extent.numel() < 1)
         throw Error("axes2pix: EXTENT must be a non-empty vector",
-                    0, 0, "axes2pix", "", "m:axes2pix:extent");
+                    0, 0, "axes2pix", "", "numkit:axes2pix:extent");
 
     const double e0 = extent.elemAsDouble(0);
     const double e1 = extent.elemAsDouble(extent.numel() - 1);
@@ -451,7 +451,7 @@ Value impyramid(const Value &A, const std::string &type, std::pmr::memory_resour
     if      (type == "reduce" || type == "Reduce") reduce = true;
     else if (type == "expand" || type == "Expand") reduce = false;
     else throw Error("impyramid: type must be 'reduce' or 'expand'",
-                     0, 0, "impyramid", "", "m:impyramid:type");
+                     0, 0, "impyramid", "", "numkit:impyramid:type");
 
     size_t Hout, Wout;
     if (reduce) { Hout = (s.H + 1) / 2; Wout = (s.W + 1) / 2; }
@@ -628,7 +628,7 @@ R3Kernel parseR3Kernel(const std::string &m) {
     if (eq("lanczos2") || eq("Lanczos2")) return {k_lanczos2,   4.0, false};
     if (eq("lanczos3") || eq("Lanczos3")) return {k_lanczos3,   6.0, false};
     throw Error("imresize3: unknown method '" + m + "'",
-                0, 0, "imresize3", "", "m:imresize3:method");
+                0, 0, "imresize3", "", "numkit:imresize3:method");
 }
 
 struct ContribRow { int firstIdx; std::vector<double> w; };  // firstIdx 0-indexed
@@ -687,13 +687,13 @@ Value imresize3_core(const Value &V,
     const auto &dims = V.dims();
     if (dims.ndims() < 2)
         throw Error("imresize3: V must be a 3-D volume",
-                    0, 0, "imresize3", "", "m:imresize3:rank");
+                    0, 0, "imresize3", "", "numkit:imresize3:rank");
     const size_t inR = dims.dim(0);
     const size_t inC = (dims.ndims() >= 2) ? dims.dim(1) : 1;
     const size_t inD = (dims.ndims() >= 3) ? dims.dim(2) : 1;
     if (V.numel() != inR * inC * inD)
         throw Error("imresize3: V must be a 3-D numeric volume",
-                    0, 0, "imresize3", "", "m:imresize3:shape");
+                    0, 0, "imresize3", "", "numkit:imresize3:shape");
 
     const ValueType T = V.type();
     if (outR == 0 || outC == 0 || outD == 0)
@@ -808,7 +808,7 @@ Value imresize3(const Value &V, double scale,
 {
     if (!(scale > 0.0))
         throw Error("imresize3: scale must be > 0",
-                    0, 0, "imresize3", "", "m:imresize3:scale");
+                    0, 0, "imresize3", "", "numkit:imresize3:scale");
     const auto &dims = V.dims();
     const size_t inR = dims.dim(0);
     const size_t inC = (dims.ndims() >= 2) ? dims.dim(1) : 1;
@@ -826,7 +826,7 @@ namespace detail {
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("image geom: expected a string argument",
-                    0, 0, "geom", "", "m:image:geom:type");
+                    0, 0, "geom", "", "numkit:image:geom:type");
     return v.toString();
 }
 
@@ -835,7 +835,7 @@ void imresize_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imresize: requires (A, scale_or_size [, method])",
-                    0, 0, "imresize", "", "m:imresize:nargin");
+                    0, 0, "imresize", "", "numkit:imresize:nargin");
     auto *mr = ctx.engine->resource();
     std::string method = "bilinear";
     if (args.size() >= 3 && !args[2].isEmpty()) method = argString(args[2]);
@@ -848,7 +848,7 @@ void imresize_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     } else {
         throw Error("imresize: 2nd arg must be a scalar scale "
                     "or a 2-element [outH outW]",
-                    0, 0, "imresize", "", "m:imresize:size");
+                    0, 0, "imresize", "", "numkit:imresize:size");
     }
 }
 
@@ -857,10 +857,10 @@ void imcrop_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imcrop: requires (A, [xmin ymin width height])",
-                    0, 0, "imcrop", "", "m:imcrop:nargin");
+                    0, 0, "imcrop", "", "numkit:imcrop:nargin");
     if (args[1].numel() < 4)
         throw Error("imcrop: rect must have 4 elements",
-                    0, 0, "imcrop", "", "m:imcrop:rect");
+                    0, 0, "imcrop", "", "numkit:imcrop:rect");
     outs[0] = imcrop(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), args[1].elemAsDouble(2), args[1].elemAsDouble(3), ctx.engine->resource());
 }
 
@@ -869,7 +869,7 @@ void imcrop3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imcrop3: requires (V, cuboid)",
-                    0, 0, "imcrop3", "", "m:imcrop3:nargin");
+                    0, 0, "imcrop3", "", "numkit:imcrop3:nargin");
     outs[0] = imcrop3(args[0], args[1], ctx.engine->resource());
 }
 
@@ -878,7 +878,7 @@ void imrotate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imrotate: requires (A, angle [, method [, bbox]])",
-                    0, 0, "imrotate", "", "m:imrotate:nargin");
+                    0, 0, "imrotate", "", "numkit:imrotate:nargin");
     std::string method = "bilinear";
     std::string bbox   = "loose";
     if (args.size() >= 3 && !args[2].isEmpty()) method = argString(args[2]);
@@ -891,10 +891,10 @@ void imtranslate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 {
     if (args.size() < 2)
         throw Error("imtranslate: requires (A, [dx dy])",
-                    0, 0, "imtranslate", "", "m:imtranslate:nargin");
+                    0, 0, "imtranslate", "", "numkit:imtranslate:nargin");
     if (args[1].numel() < 2)
         throw Error("imtranslate: vector must have 2 elements",
-                    0, 0, "imtranslate", "", "m:imtranslate:vec");
+                    0, 0, "imtranslate", "", "numkit:imtranslate:vec");
     outs[0] = imtranslate(args[0], args[1].elemAsDouble(0), args[1].elemAsDouble(1), ctx.engine->resource());
 }
 
@@ -903,7 +903,7 @@ void axes2pix_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("axes2pix: requires (n, extent, axesCoord)",
-                    0, 0, "axes2pix", "", "m:axes2pix:nargin");
+                    0, 0, "axes2pix", "", "numkit:axes2pix:nargin");
     const double n = args[0].toScalar();
     outs[0] = axes2pix(n, args[1], args[2], ctx.engine->resource());
 }
@@ -913,7 +913,7 @@ void impyramid_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("impyramid: requires (A, type)", 0, 0, "impyramid", "",
-                    "m:impyramid:nargin");
+                    "numkit:impyramid:nargin");
     const std::string type = argString(args[1]);
     outs[0] = impyramid(args[0], type, ctx.engine->resource());
 }
@@ -948,7 +948,7 @@ Rot3 rodrigues(double Wx, double Wy, double Wz, double theta)
     const double n = std::sqrt(Wx*Wx + Wy*Wy + Wz*Wz);
     if (n < 1e-15)
         throw Error("imrotate3: rotation axis must be non-zero",
-                    0, 0, "imrotate3", "", "m:imrotate3:axis");
+                    0, 0, "imrotate3", "", "numkit:imrotate3:axis");
     const double ux = Wx / n, uy = Wy / n, uz = Wz / n;
     const double c = std::cos(theta), s = std::sin(theta), t = 1.0 - c;
     Rot3 R;
@@ -1050,13 +1050,13 @@ Value imrotate3(const Value &V, double angle_deg,
     const auto &dims = V.dims();
     if (dims.ndims() < 2)
         throw Error("imrotate3: V must be a 3-D volume",
-                    0, 0, "imrotate3", "", "m:imrotate3:rank");
+                    0, 0, "imrotate3", "", "numkit:imrotate3:rank");
     const size_t H = dims.dim(0);
     const size_t W = dims.dim(1);
     const size_t D = (dims.ndims() >= 3) ? dims.dim(2) : 1;
     if (V.numel() != H * W * D)
         throw Error("imrotate3: V must be a 3-D numeric volume",
-                    0, 0, "imrotate3", "", "m:imrotate3:shape");
+                    0, 0, "imrotate3", "", "numkit:imrotate3:shape");
 
     const ValueType T = V.type();
     const double theta = angle_deg * M_PI / 180.0;
@@ -1081,7 +1081,7 @@ Value imrotate3(const Value &V, double angle_deg,
         outD = std::max(size_t(1), size_t(std::ceil(snap(ze))));
     } else {
         throw Error("imrotate3: bbox must be 'loose' or 'crop'",
-                    0, 0, "imrotate3", "", "m:imrotate3:bbox");
+                    0, 0, "imrotate3", "", "numkit:imrotate3:bbox");
     }
 
     Value B = (outD == 1) ? Value::matrix(outH, outW, T, mr)
@@ -1101,7 +1101,7 @@ Value imrotate3(const Value &V, double angle_deg,
     else if (method == "cubic"   || method == "Cubic")   code = 2;
     else
         throw Error("imrotate3: method must be 'nearest', 'linear', or 'cubic'",
-                    0, 0, "imrotate3", "", "m:imrotate3:method");
+                    0, 0, "imrotate3", "", "numkit:imrotate3:method");
 
     for (size_t p = 1; p <= outD; ++p) {
         const double dzo = double(p) - czOut;
@@ -1138,7 +1138,7 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 1)
         throw Error("imresize3: requires (V, scale_or_size [, method] [, NV])",
-                    0, 0, "imresize3", "", "m:imresize3:nargin");
+                    0, 0, "imresize3", "", "numkit:imresize3:nargin");
     auto *mr = ctx.engine->resource();
     const Value &V = args[0];
 
@@ -1167,7 +1167,7 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         } else {
             throw Error("imresize3: 2nd arg must be scalar scale or "
                         "[numrows numcols numplanes]",
-                        0, 0, "imresize3", "", "m:imresize3:size");
+                        0, 0, "imresize3", "", "numkit:imresize3:size");
         }
         i = 2;
     }
@@ -1196,7 +1196,7 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         } else if (name == "OutputSize" || name == "outputsize") {
             if (val.numel() != 3)
                 throw Error("imresize3: OutputSize must be a 3-element vector",
-                            0, 0, "imresize3", "", "m:imresize3:size");
+                            0, 0, "imresize3", "", "numkit:imresize3:size");
             haveSize3 = true;
             outRows = static_cast<size_t>(val.elemAsDouble(0));
             outCols = static_cast<size_t>(val.elemAsDouble(1));
@@ -1211,12 +1211,12 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             } else {
                 throw Error("imresize3: Scale must be a positive number "
                             "or a 3-element vector",
-                            0, 0, "imresize3", "", "m:imresize3:scaleNV");
+                            0, 0, "imresize3", "", "numkit:imresize3:scaleNV");
             }
         } else {
             throw Error("imresize3: unknown name-value parameter '"
                         + name + "'",
-                        0, 0, "imresize3", "", "m:imresize3:nv");
+                        0, 0, "imresize3", "", "numkit:imresize3:nv");
         }
         i += 2;
     }
@@ -1235,11 +1235,11 @@ void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         } else {
             throw Error("imresize3: must specify scale, size, or "
                         "Scale/OutputSize NV",
-                        0, 0, "imresize3", "", "m:imresize3:noSize");
+                        0, 0, "imresize3", "", "numkit:imresize3:noSize");
         }
         if (!(sR > 0 && sC > 0 && sD > 0))
             throw Error("imresize3: scale factors must be > 0",
-                        0, 0, "imresize3", "", "m:imresize3:scale");
+                        0, 0, "imresize3", "", "numkit:imresize3:scale");
         outRows = static_cast<size_t>(std::round(sR * double(inR)));
         outCols = static_cast<size_t>(std::round(sC * double(inC)));
         outDeps = static_cast<size_t>(std::round(sD * double(inD)));
@@ -1279,12 +1279,12 @@ void imrotate3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("imrotate3: requires (V, angle, W [, method [, bbox]])",
-                    0, 0, "imrotate3", "", "m:imrotate3:nargin");
+                    0, 0, "imrotate3", "", "numkit:imrotate3:nargin");
     auto *mr = ctx.engine->resource();
     const double angle = args[1].toScalar();
     if (args[2].numel() != 3)
         throw Error("imrotate3: axis W must be a 3-element vector",
-                    0, 0, "imrotate3", "", "m:imrotate3:axis");
+                    0, 0, "imrotate3", "", "numkit:imrotate3:axis");
     const double Wx = args[2].elemAsDouble(0);
     const double Wy = args[2].elemAsDouble(1);
     const double Wz = args[2].elemAsDouble(2);
@@ -1308,7 +1308,7 @@ void imrotate3_reg(Span<const Value> args, size_t /*nargout*/,
             fill = val.toScalar();
         } else {
             throw Error("imrotate3: unknown name-value parameter '" + name + "'",
-                        0, 0, "imrotate3", "", "m:imrotate3:nv");
+                        0, 0, "imrotate3", "", "numkit:imrotate3:nv");
         }
         i += 2;
     }

@@ -51,7 +51,7 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
         throw Error(std::string(fn) + ": Window length must be a finite, "
                     "positive, real scalar or 2-element vector of finite, "
                     "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("m:") + fn + ":badK");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     };
     if (k.size() == 1) {
         const size_t n = k[0];
@@ -75,7 +75,7 @@ ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
         throw Error(std::string(fn) + ": Window length must be a finite, "
                     "positive, real scalar or 2-element vector of finite, "
                     "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("m:") + fn + ":badK");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     };
     ScratchVec<size_t> out(&scratch);
     if (k.isScalar()) {
@@ -149,7 +149,7 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected a Name-Value pair",
-                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         const std::string name = toLower(args[i].toString());
         const Value &val = args[i + 1];
         if (name == "endpoints") {
@@ -162,33 +162,33 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
                 else
                     throw Error(std::string(fn) + ": Endpoints must be "
                                 "'shrink', 'discard', 'fill' or a scalar",
-                                0, 0, fn, "", std::string("m:") + fn + ":ep");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":ep");
             } else if (val.isScalar()) {
                 o.ep = EndpointMode::Scalar;
                 o.ep_fill = val.toScalar();
             } else {
                 throw Error(std::string(fn) + ": Endpoints must be a string "
                             "or numeric scalar",
-                            0, 0, fn, "", std::string("m:") + fn + ":ep");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":ep");
             }
         } else if (name == "samplepoints") {
             throw Error(std::string(fn) + ": 'SamplePoints' is not yet "
                         "supported in numkit (parity gap; see audit findings)",
-                        0, 0, fn, "", std::string("m:") + fn + ":samplePts");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
         } else if (name == "datavariables" || name == "replacevalues") {
             throw Error(std::string(fn) + ": '" + name + "' is for table/"
                         "timetable inputs (numkit does not implement those)",
-                        0, 0, fn, "", std::string("m:") + fn + ":tableOnly");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":tableOnly");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         }
         i += 2;
     }
     if (i != args.size())
         throw Error(std::string(fn) + ": dangling argument at position " +
                     std::to_string(i + 1),
-                    0, 0, fn, "", std::string("m:") + fn + ":nargin");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
     return o;
 }
 
@@ -518,7 +518,7 @@ Value movvar_impl(const Value &x, Span<const size_t> k, int normFlag, const MovO
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error("movvar: normFlag must be 0 or 1",
-                     0, 0, "movvar", "", "m:movvar:badNormFlag");
+                     0, 0, "movvar", "", "numkit:movvar:badNormFlag");
     const auto w = decodeWindow(k, "movvar");
     const int d = resolveDim(x, opt.dim, "movvar");
     return movingDriverDim(x, w, d, opt, [normFlag](const double *win, size_t n) { return winVar(win, n, normFlag); }, mr);
@@ -614,7 +614,7 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
     }
     throw Error("smoothdata: method '" + method + "' not supported "
                  "(supported: 'movmean', 'movmedian', 'gaussian')",
-                 0, 0, "smoothdata", "", "m:smoothdata:unsupportedMethod");
+                 0, 0, "smoothdata", "", "numkit:smoothdata:unsupportedMethod");
 }
 
 // ── hampel ────────────────────────────────────────────────────────────
@@ -622,13 +622,13 @@ Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *m
 {
     if (k < 0)
         throw Error("hampel: k must be >= 0",
-                     0, 0, "hampel", "", "m:hampel:badK");
+                     0, 0, "hampel", "", "numkit:hampel:badK");
     if (nsigmas <= 0)
         throw Error("hampel: nsigmas must be positive",
-                     0, 0, "hampel", "", "m:hampel:badSigmas");
+                     0, 0, "hampel", "", "numkit:hampel:badSigmas");
     if (!x.dims().isVector() && !x.isScalar())
         throw Error("hampel: vector input only (matrix form deferred)",
-                     0, 0, "hampel", "", "m:hampel:notVector");
+                     0, 0, "hampel", "", "numkit:hampel:notVector");
 
     constexpr double kMadToStd = 1.4826;
     auto out = createLike(x, ValueType::DOUBLE, mr);
@@ -679,7 +679,7 @@ void movmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("movmean: requires at least 2 arguments (x, k)",
-                     0, 0, "movmean", "", "m:movmean:nargin");
+                     0, 0, "movmean", "", "numkit:movmean:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmean", scratch);
@@ -691,7 +691,7 @@ void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movsum: requires at least 2 arguments (x, k)",
-                     0, 0, "movsum", "", "m:movsum:nargin");
+                     0, 0, "movsum", "", "numkit:movsum:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movsum", scratch);
@@ -703,7 +703,7 @@ void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmin: requires at least 2 arguments (x, k)",
-                     0, 0, "movmin", "", "m:movmin:nargin");
+                     0, 0, "movmin", "", "numkit:movmin:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmin", scratch);
@@ -715,7 +715,7 @@ void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmax: requires at least 2 arguments (x, k)",
-                     0, 0, "movmax", "", "m:movmax:nargin");
+                     0, 0, "movmax", "", "numkit:movmax:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmax", scratch);
@@ -727,7 +727,7 @@ void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("movprod: requires at least 2 arguments (x, k)",
-                     0, 0, "movprod", "", "m:movprod:nargin");
+                     0, 0, "movprod", "", "numkit:movprod:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movprod", scratch);
@@ -739,7 +739,7 @@ void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("movmedian: requires at least 2 arguments (x, k)",
-                     0, 0, "movmedian", "", "m:movmedian:nargin");
+                     0, 0, "movmedian", "", "numkit:movmedian:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmedian", scratch);
@@ -751,7 +751,7 @@ void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movvar: requires at least 2 arguments (x, k)",
-                     0, 0, "movvar", "", "m:movvar:nargin");
+                     0, 0, "movvar", "", "numkit:movvar:nargin");
     int normFlag = 0;
     size_t extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
@@ -774,7 +774,7 @@ void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movstd: requires at least 2 arguments (x, k)",
-                     0, 0, "movstd", "", "m:movstd:nargin");
+                     0, 0, "movstd", "", "numkit:movstd:nargin");
     int normFlag = 0;
     size_t extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
@@ -796,7 +796,7 @@ void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmad: requires at least 2 arguments (x, k)",
-                     0, 0, "movmad", "", "m:movmad:nargin");
+                     0, 0, "movmad", "", "numkit:movmad:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmad", scratch);
@@ -808,7 +808,7 @@ void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("smoothdata: requires at least 1 argument",
-                     0, 0, "smoothdata", "", "m:smoothdata:nargin");
+                     0, 0, "smoothdata", "", "numkit:smoothdata:nargin");
     std::string method = "movmean";
     int k = 0;
     if (args.size() >= 2) {
@@ -828,7 +828,7 @@ void hampel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("hampel: requires at least 1 argument",
-                     0, 0, "hampel", "", "m:hampel:nargin");
+                     0, 0, "hampel", "", "numkit:hampel:nargin");
     const int k = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 3;
     const double nsigmas = (args.size() >= 3) ? args[2].toScalar() : 3.0;
     outs[0] = hampel(args[0], k, nsigmas, ctx.engine->resource());

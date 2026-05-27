@@ -37,11 +37,11 @@ namespace {
 void requireValidArgs(const Value &x, int p, const char *fn) {
     if (p < 1)
         throw Error(std::string(fn) + ": order p must be ≥ 1",
-                    0, 0, fn, "", "m:ar:order");
+                    0, 0, fn, "", "numkit:ar:order");
     if (static_cast<size_t>(p) >= x.numel())
         throw Error(std::string(fn) +
                     ": order p must be < length(x)",
-                    0, 0, fn, "", "m:ar:order");
+                    0, 0, fn, "", "numkit:ar:order");
 }
 
 // Evaluate Pxx(f) = σ² / |A(e^{jω})|² on a one-sided grid of nOut bins.
@@ -196,7 +196,7 @@ void pyulear_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("pyulear: requires (x, p[, nfft])",
-                    0, 0, "pyulear", "", "m:pyulear:nargin");
+                    0, 0, "pyulear", "", "numkit:pyulear:nargin");
     const int p     = static_cast<int>(args[1].toScalar());
     const size_t nf = (args.size() >= 3 && !args[2].isEmpty())
                       ? static_cast<size_t>(args[2].toScalar()) : 0;
@@ -210,7 +210,7 @@ void pburg_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("pburg: requires (x, p[, nfft])",
-                    0, 0, "pburg", "", "m:pburg:nargin");
+                    0, 0, "pburg", "", "numkit:pburg:nargin");
     const int p     = static_cast<int>(args[1].toScalar());
     const size_t nf = (args.size() >= 3 && !args[2].isEmpty())
                       ? static_cast<size_t>(args[2].toScalar()) : 0;

@@ -391,7 +391,7 @@ reduceMinMaxComplexAll(const Value &x, std::pmr::memory_resource *mr, const char
 {
     if (x.numel() == 0)
         throw Error(std::string(fn) + " of empty array is not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":empty");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":empty");
     const Complex *data = x.complexData();
     const bool allReal = allImagZero(data, x.numel());
     if (x.isScalar() || x.dims().isVector()) {
@@ -632,7 +632,7 @@ reduceMinMaxComplexNanAll(const Value &x, std::pmr::memory_resource *mr, const c
 {
     if (x.numel() == 0)
         throw Error(std::string(fn) + " of empty array is not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":empty");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":empty");
     const Complex *data = x.complexData();
     auto isNan = [](Complex c) { return std::isnan(c.real()) || std::isnan(c.imag()); };
     // For all-real check, only consider non-NaN elements.
@@ -804,7 +804,7 @@ dispatchMinMaxAll(const Value &x, Cmp cmp, std::pmr::memory_resource *mr, const 
     case ValueType::COMPLEX: return reduceMinMaxComplexAll<IsMax>(x, mr, fn);
     default:
         throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("m:") + fn + ":type");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
     }
 }
 
@@ -828,7 +828,7 @@ dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, std::pmr::memory_resour
     case ValueType::COMPLEX: return reduceMinMaxComplexAlongDim<IsMax>(x, dim, mr, fn);
     default:
         throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("m:") + fn + ":type");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
     }
 }
 
@@ -993,7 +993,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "m:" #name ":nargin");           \
+                         0, 0, #name, "", "numkit:" #name ":nargin");           \
         outs[0] = fn(args[0], ctx.engine->resource());                         \
     }
 
@@ -1010,7 +1010,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "m:" #name ":nargin");           \
+                         0, 0, #name, "", "numkit:" #name ":nargin");           \
         outs[0] = fn(args[0], &outs[0], ctx.engine->resource());               \
     }
 
@@ -1060,7 +1060,7 @@ OutTypeMode parseOutTypeMode(const Value &arg, const char *fn)
     if (s == "double")  return OutTypeMode::Double;
     if (s == "native")  return OutTypeMode::Native;
     throw Error(std::string(fn) + ": unknown output type '" + s + "'",
-                 0, 0, fn, "", std::string("m:") + fn + ":outtype");
+                 0, 0, fn, "", std::string("numkit:") + fn + ":outtype");
 }
 
 ValueType resolveNativeOutType(ValueType inType, const char *fn)
@@ -1074,7 +1074,7 @@ ValueType resolveNativeOutType(ValueType inType, const char *fn)
     case ValueType::CHAR:
         // MATLAB: 'native' is only defined for numeric (non-logical) inputs.
         throw Error(std::string(fn) + ": 'native' is not defined for logical/char inputs",
-                     0, 0, fn, "", std::string("m:") + fn + ":nativeType");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":nativeType");
     case ValueType::COMPLEX:
         // COMPLEX is handled before this call (dispatchReductionAdapter
         // routes it to the complex path), so reaching this branch is a
@@ -1082,7 +1082,7 @@ ValueType resolveNativeOutType(ValueType inType, const char *fn)
         return ValueType::COMPLEX;
     default:
         throw Error(std::string(fn) + ": unsupported input type for 'native'",
-                     0, 0, fn, "", std::string("m:") + fn + ":type");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
     }
 }
 
@@ -1413,7 +1413,7 @@ Value runNativeReduction(const Value &x, int dim, ValueType outType, std::pmr::m
     case ValueType::UINT64: return run(uint64_t{});
     default:
         throw Error("internal: unsupported native output type",
-                     0, 0, "", "", "m:nativeReduce:type");
+                     0, 0, "", "", "numkit:nativeReduce:type");
     }
 }
 
@@ -1575,7 +1575,7 @@ Value runNanReduction(const Value &x, int dim, ValueType outType, std::pmr::memo
     case ValueType::UINT64: return run(uint64_t{});
     default:
         throw Error("internal: unsupported nan-aware output type",
-                     0, 0, "", "", "m:nanReduce:type");
+                     0, 0, "", "", "numkit:nanReduce:type");
     }
 }
 
@@ -1662,27 +1662,27 @@ ReductionFlags parseReductionFlags(Span<const Value> args, const char *fn)
             case StringFlag::All:
                 if (haveDim)
                     throw Error(std::string(fn) + ": dim specified twice",
-                                 0, 0, fn, "", std::string("m:") + fn + ":dupDim");
+                                 0, 0, fn, "", std::string("numkit:") + fn + ":dupDim");
                 r.isAll = true; haveDim = true; break;
             case StringFlag::OutType:
                 if (haveOutType)
                     throw Error(std::string(fn) + ": output type specified twice",
-                                 0, 0, fn, "", std::string("m:") + fn + ":outtypeDup");
+                                 0, 0, fn, "", std::string("numkit:") + fn + ":outtypeDup");
                 r.outMode = parseOutTypeMode(a, fn); haveOutType = true; break;
             case StringFlag::NanFlag:
                 if (haveNanFlag)
                     throw Error(std::string(fn) + ": nan flag specified twice",
-                                 0, 0, fn, "", std::string("m:") + fn + ":nanFlagDup");
+                                 0, 0, fn, "", std::string("numkit:") + fn + ":nanFlagDup");
                 r.omitNan = (lowercaseStr(a) == "omitnan");
                 haveNanFlag = true; break;
             default:
                 throw Error(std::string(fn) + ": unknown flag '" + lowercaseStr(a) + "'",
-                             0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                             0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
             }
         } else {
             if (haveDim)
                 throw Error(std::string(fn) + ": dim specified twice",
-                             0, 0, fn, "", std::string("m:") + fn + ":dupDim");
+                             0, 0, fn, "", std::string("numkit:") + fn + ":dupDim");
             r.dim = static_cast<int>(a.toScalar());
             haveDim = true;
         }
@@ -1752,7 +1752,7 @@ Value dispatchReductionAdapter(Span<const Value> args, const char *fn,
     {                                                                             \
         if (args.empty())                                                         \
             throw Error(#name ": requires at least 1 argument",                  \
-                         0, 0, #name, "", "m:" #name ":nargin");                  \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                  \
         outs[0] = dispatchReductionAdapter(args, #name,                           \
             [&](const Value &x, int dim, bool isAll) {                           \
                 if (isAll)                                                        \
@@ -1825,7 +1825,7 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.empty())
         throw Error("max: requires at least 1 argument",
-                     0, 0, "max", "", "m:max:nargin");
+                     0, 0, "max", "", "numkit:max:nargin");
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
     if (n >= 2 && !args[1].isEmpty()) {
@@ -1852,7 +1852,7 @@ void min_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.empty())
         throw Error("min: requires at least 1 argument",
-                     0, 0, "min", "", "m:min:nargin");
+                     0, 0, "min", "", "numkit:min:nargin");
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
     if (n >= 2 && !args[1].isEmpty()) {
@@ -1877,7 +1877,7 @@ void linspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("linspace: requires at least 2 arguments",
-                     0, 0, "linspace", "", "m:linspace:nargin");
+                     0, 0, "linspace", "", "numkit:linspace:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 100u;
@@ -1888,7 +1888,7 @@ void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("logspace: requires at least 2 arguments",
-                     0, 0, "logspace", "", "m:logspace:nargin");
+                     0, 0, "logspace", "", "numkit:logspace:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 50u;

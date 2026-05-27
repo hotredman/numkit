@@ -25,7 +25,7 @@ Value medfilt1(const Value &x, size_t k, std::pmr::memory_resource *mr)
 {
     if (k == 0)
         throw Error("medfilt1: window length must be >= 1",
-                     0, 0, "medfilt1", "", "m:medfilt1:badK");
+                     0, 0, "medfilt1", "", "numkit:medfilt1:badK");
 
     const size_t n = x.numel();
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -97,7 +97,7 @@ void medfilt1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("medfilt1: requires at least 1 argument",
-                     0, 0, "medfilt1", "", "m:medfilt1:nargin");
+                     0, 0, "medfilt1", "", "numkit:medfilt1:nargin");
     size_t k = 3;
     if (args.size() >= 2 && !args[1].isEmpty())
         k = static_cast<size_t>(args[1].toScalar());

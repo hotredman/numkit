@@ -346,7 +346,7 @@ namespace detail {
 void fpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("fpdf: requires (x, v1, v2)", 0, 0, "fpdf", "", "m:fpdf:nargin");
+        throw Error("fpdf: requires (x, v1, v2)", 0, 0, "fpdf", "", "numkit:fpdf:nargin");
     outs[0] = fpdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -355,7 +355,7 @@ void fcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
-        throw Error("fcdf: requires (x, v1, v2[, 'upper'])", 0, 0, "fcdf", "", "m:fcdf:nargin");
+        throw Error("fcdf: requires (x, v1, v2[, 'upper'])", 0, 0, "fcdf", "", "numkit:fcdf:nargin");
     Value v = fcdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -364,14 +364,14 @@ void fcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 void finv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("finv: requires (p, v1, v2)", 0, 0, "finv", "", "m:finv:nargin");
+        throw Error("finv: requires (p, v1, v2)", 0, 0, "finv", "", "numkit:finv:nargin");
     outs[0] = finv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void frnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("frnd: requires (v1, v2[, sz...])", 0, 0, "frnd", "", "m:frnd:nargin");
+        throw Error("frnd: requires (v1, v2[, sz...])", 0, 0, "frnd", "", "numkit:frnd:nargin");
     const double v1 = args[0].toScalar();
     const double v2 = args[1].toScalar();
     size_t rows, cols;
@@ -389,7 +389,7 @@ void ncfpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 4)
         throw Error("ncfpdf: requires (x, nu1, nu2, delta)",
-                    0, 0, "ncfpdf", "", "m:ncfpdf:nargin");
+                    0, 0, "ncfpdf", "", "numkit:ncfpdf:nargin");
     outs[0] = ncfpdf(args[0], args[1].toScalar(), args[2].toScalar(),
                      args[3].toScalar(), ctx.engine->resource());
 }
@@ -400,7 +400,7 @@ void ncfcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
         throw Error("ncfcdf: requires (x, nu1, nu2, delta[, 'upper'])",
-                    0, 0, "ncfcdf", "", "m:ncfcdf:nargin");
+                    0, 0, "ncfcdf", "", "numkit:ncfcdf:nargin");
     outs[0] = ncfcdf(args[0], args[1].toScalar(), args[2].toScalar(),
                      args[3].toScalar(), upper, ctx.engine->resource());
 }
@@ -409,7 +409,7 @@ void ncfinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 4)
         throw Error("ncfinv: requires (p, nu1, nu2, delta)",
-                    0, 0, "ncfinv", "", "m:ncfinv:nargin");
+                    0, 0, "ncfinv", "", "numkit:ncfinv:nargin");
     outs[0] = ncfinv(args[0], args[1].toScalar(), args[2].toScalar(),
                      args[3].toScalar(), ctx.engine->resource());
 }
@@ -418,7 +418,7 @@ void ncfstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 3)
         throw Error("ncfstat: requires (nu1, nu2, delta)",
-                    0, 0, "ncfstat", "", "m:ncfstat:nargin");
+                    0, 0, "ncfstat", "", "numkit:ncfstat:nargin");
     auto [m, v] = ncfstat(args[0].toScalar(), args[1].toScalar(), args[2].toScalar());
     outs[0] = Value::scalar(m, ctx.engine->resource());
     if (nargout >= 2)
@@ -429,7 +429,7 @@ void ncfrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("ncfrnd: requires (nu1, nu2, delta[, sz...])",
-                    0, 0, "ncfrnd", "", "m:ncfrnd:nargin");
+                    0, 0, "ncfrnd", "", "numkit:ncfrnd:nargin");
     const double nu1 = args[0].toScalar();
     const double nu2 = args[1].toScalar();
     const double delta = args[2].toScalar();

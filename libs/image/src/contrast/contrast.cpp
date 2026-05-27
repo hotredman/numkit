@@ -66,7 +66,7 @@ inline void store_classed(Value &out, size_t i, double v, ValueType t) {
         }
         default:
             throw Error("contrast: unsupported class", 0, 0, "contrast", "",
-                        "m:contrast:badtype");
+                        "numkit:contrast:badtype");
     }
 }
 
@@ -371,13 +371,13 @@ Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts,
     // ---- 1. validate options ------------------------------------
     if (opts.numTilesR < 2 || opts.numTilesC < 2)
         throw Error("adapthisteq: NumTiles must be >= 2 in each dimension",
-                    0, 0, "adapthisteq", "", "m:adapthisteq:badTiles");
+                    0, 0, "adapthisteq", "", "numkit:adapthisteq:badTiles");
     if (!(opts.clipLimit >= 0.0 && opts.clipLimit <= 1.0))
         throw Error("adapthisteq: ClipLimit must be in [0, 1]",
-                    0, 0, "adapthisteq", "", "m:adapthisteq:badClip");
+                    0, 0, "adapthisteq", "", "numkit:adapthisteq:badClip");
     if (opts.nBins < 2)
         throw Error("adapthisteq: NBins must be >= 2",
-                    0, 0, "adapthisteq", "", "m:adapthisteq:badBins");
+                    0, 0, "adapthisteq", "", "numkit:adapthisteq:badBins");
 
     int dist;
     if      (opts.distribution == "uniform")     dist = 0;
@@ -386,30 +386,30 @@ Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts,
     else
         throw Error("adapthisteq: Distribution must be 'uniform', "
                     "'rayleigh' or 'exponential'",
-                    0, 0, "adapthisteq", "", "m:adapthisteq:badDistribution");
+                    0, 0, "adapthisteq", "", "numkit:adapthisteq:badDistribution");
 
     bool rangeOriginal;
     if      (opts.range == "full")     rangeOriginal = false;
     else if (opts.range == "original") rangeOriginal = true;
     else
         throw Error("adapthisteq: Range must be 'full' or 'original'",
-                    0, 0, "adapthisteq", "", "m:adapthisteq:badRange");
+                    0, 0, "adapthisteq", "", "numkit:adapthisteq:badRange");
 
     // ---- 2. validate input shape --------------------------------
     const Dims &d = I.dims();
     if (d.ndim() > 2 || (d.ndim() == 3 && d.pages() > 1))
         throw Error("adapthisteq: input must be a 2-D greyscale image",
-                    0, 0, "adapthisteq", "", "m:adapthisteq:unsupportedShape");
+                    0, 0, "adapthisteq", "", "numkit:adapthisteq:unsupportedShape");
     if (I.isComplex() || I.isCell() || I.isStruct() ||
         I.isString() || I.isFuncHandle())
         throw Error("adapthisteq: input must be a real numeric image",
-                    0, 0, "adapthisteq", "", "m:adapthisteq:unsupportedShape");
+                    0, 0, "adapthisteq", "", "numkit:adapthisteq:unsupportedShape");
 
     const size_t H = d.rows();
     const size_t W = d.cols();
     if (H == 0 || W == 0)
         throw Error("adapthisteq: input image is empty",
-                    0, 0, "adapthisteq", "", "m:adapthisteq:unsupportedShape");
+                    0, 0, "adapthisteq", "", "numkit:adapthisteq:unsupportedShape");
 
     const ValueType outType = I.type();
     const int numTilesR = opts.numTilesR;
@@ -684,7 +684,7 @@ multithresh(const Value &I, int N, std::pmr::memory_resource *mr) {
     }
     if (N > 5)
         throw Error("multithresh: N > 5 not supported (exhaustive search would be too slow)",
-                    0, 0, "multithresh", "", "m:multithresh:tooMany");
+                    0, 0, "multithresh", "", "numkit:multithresh:tooMany");
 
     const int L = default_nbins(I);
     auto [counts_v, _] = imhist(I, L, mr);
@@ -813,7 +813,7 @@ Value imbinarize(const Value &I, const Value &T, std::pmr::memory_resource *mr)
     if (T.numel() != I.numel())
         throw Error("imbinarize: per-pixel T must have the same number "
                     "of elements as I",
-                    0, 0, "imbinarize", "", "m:imbinarize:Tshape");
+                    0, 0, "imbinarize", "", "numkit:imbinarize:Tshape");
     const size_t N = I.numel();
     Value out;
     const auto &d = I.dims();
@@ -949,7 +949,7 @@ Value adaptthresh(const Value &I, double sensitivity, int neighborhood, const st
 {
     if (!(sensitivity >= 0.0 && sensitivity <= 1.0))
         throw Error("adaptthresh: sensitivity must be in [0, 1]",
-                    0, 0, "adaptthresh", "", "m:adaptthresh:sens");
+                    0, 0, "adaptthresh", "", "numkit:adaptthresh:sens");
 
     const int H = static_cast<int>(I.dims().rows());
     const int W = static_cast<int>(I.dims().cols());
@@ -998,7 +998,7 @@ Value adaptthresh(const Value &I, double sensitivity, int neighborhood, const st
         localStat = imgaussfilt(Inorm, sigma, neighborhood, mr);
     } else {
         throw Error("adaptthresh: statistic must be 'mean' or 'gaussian'",
-                    0, 0, "adaptthresh", "", "m:adaptthresh:stat");
+                    0, 0, "adaptthresh", "", "numkit:adaptthresh:stat");
     }
 
     // Apply sensitivity shift.
@@ -1068,7 +1068,7 @@ Value imflatfield(const Value &I, double sigma, const Value &mask, std::pmr::mem
     const bool have_mask = (mask.numel() > 0);
     if (have_mask && (mask.dims().rows() != H || mask.dims().cols() != W))
         throw Error("imflatfield: mask must match spatial dims of I",
-                    0, 0, "imflatfield", "", "m:imflatfield:masksize");
+                    0, 0, "imflatfield", "", "numkit:imflatfield:masksize");
     std::vector<double> meanA(pages, 0.0);
     for (size_t p = 0; p < pages; ++p) {
         const double *ap = idd + p * plane;
@@ -1106,7 +1106,7 @@ Value wcodemat(const Value &X, int nb, const std::string &opt, int absol, std::p
 {
     if (nb < 1)
         throw Error("wcodemat: NB must be a positive integer",
-                    0, 0, "wcodemat", "", "m:wcodemat:nb");
+                    0, 0, "wcodemat", "", "numkit:wcodemat:nb");
 
     const auto &d = X.dims();
     const size_t H = d.rows();
@@ -1180,7 +1180,7 @@ Value wcodemat(const Value &X, int nb, const std::string &opt, int absol, std::p
         }
     } else {
         throw Error("wcodemat: opt must be 'mat', 'row', or 'col'",
-                    0, 0, "wcodemat", "", "m:wcodemat:opt");
+                    0, 0, "wcodemat", "", "numkit:wcodemat:opt");
     }
     return out;
 }
@@ -1247,7 +1247,7 @@ Value grayslice(const Value &I, int N, std::pmr::memory_resource *mr)
 {
     if (N < 1)
         throw Error("grayslice: N must be a positive integer",
-                    0, 0, "grayslice", "", "m:grayslice:n");
+                    0, 0, "grayslice", "", "numkit:grayslice:n");
     const ValueType ct = I.type();
     const bool isInt16 = (ct == ValueType::INT16);
     const bool isFloat = (ct == ValueType::DOUBLE || ct == ValueType::SINGLE);
@@ -1309,7 +1309,7 @@ void imhistmatch_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imhistmatch: requires (I, ref [, nbins])",
-                    0, 0, "imhistmatch", "", "m:imhistmatch:nargin");
+                    0, 0, "imhistmatch", "", "numkit:imhistmatch:nargin");
     int n = (args.size() >= 3 && !args[2].isEmpty())
             ? (int)args[2].toScalar() : 0;
     outs[0] = imhistmatch(args[0], args[1], n, ctx.engine->resource());
@@ -1320,7 +1320,7 @@ void imhist_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("imhist: requires (I[, n])", 0, 0, "imhist", "",
-                    "m:imhist:nargin");
+                    "numkit:imhist:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 0;
     auto [c, x] = imhist(args[0], n, ctx.engine->resource());
 
@@ -1357,7 +1357,7 @@ void stretchlim_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("stretchlim: requires (I[, tol])", 0, 0, "stretchlim", "",
-                    "m:stretchlim:nargin");
+                    "numkit:stretchlim:nargin");
     double lo = 0.01, hi = 0.99;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &t = args[1];
@@ -1377,7 +1377,7 @@ void imadjust_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imadjust: requires (I[, [low_in high_in]][, [low_out high_out]][, gamma])",
-                    0, 0, "imadjust", "", "m:imadjust:nargin");
+                    0, 0, "imadjust", "", "numkit:imadjust:nargin");
     double low_in  = std::numeric_limits<double>::quiet_NaN();
     double high_in = std::numeric_limits<double>::quiet_NaN();
     double low_out = 0.0;
@@ -1408,7 +1408,7 @@ void histeq_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("histeq: requires (I[, n])", 0, 0, "histeq", "",
-                    "m:histeq:nargin");
+                    "numkit:histeq:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 64;
     outs[0] = histeq(args[0], n, ctx.engine->resource());
 }
@@ -1418,7 +1418,7 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("adapthisteq: requires (I[, NV-pairs...])",
-                     0, 0, "adapthisteq", "", "m:adapthisteq:nargin");
+                     0, 0, "adapthisteq", "", "numkit:adapthisteq:nargin");
 
     AdaptHistEqOptions opts;
 
@@ -1431,13 +1431,13 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
     for (size_t i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar())
             throw Error("adapthisteq: NV-pair name must be a string",
-                         0, 0, "adapthisteq", "", "m:adapthisteq:badNVName");
+                         0, 0, "adapthisteq", "", "numkit:adapthisteq:badNVName");
         const std::string key = args[i].toString();
         const Value &v        = args[i + 1];
         if (eqIgnoreCase(key, "NumTiles")) {
             if (v.numel() < 2)
                 throw Error("adapthisteq: NumTiles must be 2-element",
-                             0, 0, "adapthisteq", "", "m:adapthisteq:badNumTiles");
+                             0, 0, "adapthisteq", "", "numkit:adapthisteq:badNumTiles");
             opts.numTilesR = (int)v.elemAsDouble(0);
             opts.numTilesC = (int)v.elemAsDouble(1);
         } else if (eqIgnoreCase(key, "ClipLimit"))    opts.clipLimit    = v.toScalar();
@@ -1447,7 +1447,7 @@ void adapthisteq_reg(Span<const Value> args, size_t /*nargout*/,
         else if (eqIgnoreCase(key, "Range"))          opts.range        = v.toString();
         else {
             throw Error("adapthisteq: unknown NV-pair key '" + key + "'",
-                         0, 0, "adapthisteq", "", "m:adapthisteq:badNVKey");
+                         0, 0, "adapthisteq", "", "numkit:adapthisteq:badNVKey");
         }
     }
     outs[0] = adapthisteq(args[0], opts, ctx.engine->resource());
@@ -1458,7 +1458,7 @@ void graythresh_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("graythresh: requires I", 0, 0, "graythresh", "",
-                    "m:graythresh:nargin");
+                    "numkit:graythresh:nargin");
     auto [t, em] = graythresh(args[0], ctx.engine->resource());
     outs[0] = std::move(t);
     if (nargout > 1) outs[1] = std::move(em);
@@ -1469,7 +1469,7 @@ void otsuthresh_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("otsuthresh: requires counts", 0, 0, "otsuthresh", "",
-                    "m:otsuthresh:nargin");
+                    "numkit:otsuthresh:nargin");
     auto [t, em] = otsuthresh(args[0], ctx.engine->resource());
     outs[0] = std::move(t);
     if (nargout > 1) outs[1] = std::move(em);
@@ -1480,7 +1480,7 @@ void multithresh_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("multithresh: requires (I[, N])", 0, 0, "multithresh", "",
-                    "m:multithresh:nargin");
+                    "numkit:multithresh:nargin");
     int N = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 1;
     auto [t, em] = multithresh(args[0], N, ctx.engine->resource());
     outs[0] = std::move(t);
@@ -1492,7 +1492,7 @@ void imbinarize_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imbinarize: requires (I[, thresh])", 0, 0, "imbinarize", "",
-                    "m:imbinarize:nargin");
+                    "numkit:imbinarize:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 2 && !args[1].isEmpty()) {
         // Dispatch on T's shape: scalar → fast path, matrix → per-pixel.
@@ -1513,7 +1513,7 @@ void imquantize_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imquantize: requires (I, levels)", 0, 0, "imquantize", "",
-                    "m:imquantize:nargin");
+                    "numkit:imquantize:nargin");
     outs[0] = imquantize(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1522,7 +1522,7 @@ void adaptthresh_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("adaptthresh: requires (I [, sensitivity [, n [, stat]]])",
-                    0, 0, "adaptthresh", "", "m:adaptthresh:nargin");
+                    0, 0, "adaptthresh", "", "numkit:adaptthresh:nargin");
     const double sens = (args.size() >= 2 && !args[1].isEmpty())
                         ? args[1].toScalar() : 0.5;
     const int nbh     = (args.size() >= 3 && !args[2].isEmpty())
@@ -1531,7 +1531,7 @@ void adaptthresh_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 4 && !args[3].isEmpty()) {
         if (!args[3].isChar() && !args[3].isString())
             throw Error("adaptthresh: statistic must be a string",
-                        0, 0, "adaptthresh", "", "m:adaptthresh:type");
+                        0, 0, "adaptthresh", "", "numkit:adaptthresh:type");
         stat = args[3].toString();
     }
     outs[0] = adaptthresh(args[0], sens, nbh, stat, ctx.engine->resource());
@@ -1542,7 +1542,7 @@ void imflatfield_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imflatfield: requires (I, sigma [, mask])",
-                    0, 0, "imflatfield", "", "m:imflatfield:nargin");
+                    0, 0, "imflatfield", "", "numkit:imflatfield:nargin");
     const double sigma = args[1].toScalar();
     Value mask;
     if (args.size() >= 3 && !args[2].isEmpty()) mask = args[2];
@@ -1554,14 +1554,14 @@ void wcodemat_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("wcodemat: requires (X [, nb [, opt [, absol]]])",
-                    0, 0, "wcodemat", "", "m:wcodemat:nargin");
+                    0, 0, "wcodemat", "", "numkit:wcodemat:nargin");
     int nb = (args.size() >= 2 && !args[1].isEmpty())
              ? static_cast<int>(args[1].toScalar()) : 16;
     std::string opt = "mat";
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (!args[2].isChar() && !args[2].isString())
             throw Error("wcodemat: opt must be a string",
-                        0, 0, "wcodemat", "", "m:wcodemat:opt");
+                        0, 0, "wcodemat", "", "numkit:wcodemat:opt");
         opt = args[2].toString();
     }
     int absol = (args.size() >= 4 && !args[3].isEmpty())
@@ -1574,7 +1574,7 @@ void entropy_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("entropy: requires (I [, nbins])", 0, 0, "entropy", "",
-                    "m:entropy:nargin");
+                    "numkit:entropy:nargin");
     int nbins = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         nbins = static_cast<int>(args[1].toScalar());
@@ -1586,7 +1586,7 @@ void grayslice_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("grayslice: requires (I [, n])", 0, 0, "grayslice", "",
-                    "m:grayslice:nargin");
+                    "numkit:grayslice:nargin");
     auto *mr = ctx.engine->resource();
     // Decide which overload to dispatch on, mirroring MATLAB's
     // magic-polymorphism of grayslice's 2nd argument.
@@ -1607,7 +1607,7 @@ void grayslice_reg(Span<const Value> args, size_t /*nargout*/,
             outs[0] = grayslice(args[0], Span<const double>(levels, 1), mr);
         } else {
             throw Error("grayslice: N must be a positive number",
-                        0, 0, "grayslice", "", "m:grayslice:n");
+                        0, 0, "grayslice", "", "numkit:grayslice:n");
         }
     } else if (n.numel() > 1) {
         ScratchArena scratch(mr);
@@ -1617,7 +1617,7 @@ void grayslice_reg(Span<const Value> args, size_t /*nargout*/,
                             mr);
     } else {
         throw Error("grayslice: N must be scalar >= 1 or a vector",
-                    0, 0, "grayslice", "", "m:grayslice:nargin");
+                    0, 0, "grayslice", "", "numkit:grayslice:nargin");
     }
 }
 

@@ -512,23 +512,23 @@ Value locallapfilt(const Value &I, double sigma, double alpha, double beta,
 {
     if (!std::isfinite(sigma) || sigma < 0.0)
         throw Error("locallapfilt: sigma must be a non-negative finite scalar",
-                    0, 0, "locallapfilt", "", "m:locallapfilt:sigma");
+                    0, 0, "locallapfilt", "", "numkit:locallapfilt:sigma");
     if (!std::isfinite(alpha) || alpha <= 0.0)
         throw Error("locallapfilt: alpha must be a positive finite scalar",
-                    0, 0, "locallapfilt", "", "m:locallapfilt:alpha");
+                    0, 0, "locallapfilt", "", "numkit:locallapfilt:alpha");
     if (!std::isfinite(beta) || beta < 0.0)
         throw Error("locallapfilt: beta must be a non-negative finite scalar",
-                    0, 0, "locallapfilt", "", "m:locallapfilt:beta");
+                    0, 0, "locallapfilt", "", "numkit:locallapfilt:beta");
 
     const auto &dI = I.dims();
     if (dI.rows() == 0 || dI.cols() == 0)
         throw Error("locallapfilt: I must be non-empty",
-                    0, 0, "locallapfilt", "", "m:locallapfilt:empty");
+                    0, 0, "locallapfilt", "", "numkit:locallapfilt:empty");
     const bool isRGB = dI.is3D() && dI.pages() == 3;
     const bool isGray = !dI.is3D() || (dI.is3D() && dI.pages() == 1);
     if (!isRGB && !isGray)
         throw Error("locallapfilt: I must be H×W (grayscale) or H×W×3 (RGB)",
-                    0, 0, "locallapfilt", "", "m:locallapfilt:shape");
+                    0, 0, "locallapfilt", "", "numkit:locallapfilt:shape");
 
     // ── Special-case passthroughs (must short-circuit before pyramid) ──
     if ((alpha == 1.0 && beta == 1.0) || (sigma == 0.0 && beta == 1.0)) {
@@ -592,7 +592,7 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
     if (args.size() < 3)
         throw Error("locallapfilt: requires (I, sigma, alpha [, beta] [, NV...])",
                     0, 0, "locallapfilt", "",
-                    "m:locallapfilt:nargin");
+                    "numkit:locallapfilt:nargin");
     auto *mr = ctx.engine->resource();
 
     const Value &I = args[0];
@@ -610,7 +610,7 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (args[i].numel() != 1)
             throw Error("locallapfilt: beta must be a scalar",
                         0, 0, "locallapfilt", "",
-                        "m:locallapfilt:betaShape");
+                        "numkit:locallapfilt:betaShape");
         beta = args[i].toScalar();
         ++i;
     }
@@ -619,7 +619,7 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("locallapfilt: expected NV-pair name string",
                         0, 0, "locallapfilt", "",
-                        "m:locallapfilt:badNv");
+                        "numkit:locallapfilt:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -637,14 +637,14 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
                     throw Error("locallapfilt: NumIntensityLevels string "
                                 "must be 'auto'",
                                 0, 0, "locallapfilt", "",
-                                "m:locallapfilt:nIntStr");
+                                "numkit:locallapfilt:nIntStr");
                 nlevels = -1;
             } else {
                 nlevels = static_cast<int>(v.toScalar());
                 if (nlevels < 1)
                     throw Error("locallapfilt: NumIntensityLevels must be >= 1",
                                 0, 0, "locallapfilt", "",
-                                "m:locallapfilt:nIntRange");
+                                "numkit:locallapfilt:nIntRange");
             }
         } else if (nlo == "colormode") {
             std::string s = args[i + 1].toString();
@@ -657,11 +657,11 @@ void locallapfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
             else throw Error("locallapfilt: ColorMode must be 'luminance' or "
                              "'separate'",
                              0, 0, "locallapfilt", "",
-                             "m:locallapfilt:colorMode");
+                             "numkit:locallapfilt:colorMode");
         } else {
             throw Error("locallapfilt: unknown option '" + name + "'",
                         0, 0, "locallapfilt", "",
-                        "m:locallapfilt:unknownNv");
+                        "numkit:locallapfilt:unknownNv");
         }
         i += 2;
     }

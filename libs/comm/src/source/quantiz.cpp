@@ -55,7 +55,7 @@ quantiz(const Value &sig, const Value &partition, const Value &codebook,
     if (codebook.numel() != partition.numel() + 1)
         throw Error("quantiz: length(codebook) must equal "
                     "length(partition) + 1",
-                    0, 0, "quantiz", "", "m:quantiz:invalidCodebook");
+                    0, 0, "quantiz", "", "numkit:quantiz:invalidCodebook");
 
     Value indx = quantiz_indx(sig, partition, mr);
     const double *idx = indx.doubleData();
@@ -82,7 +82,7 @@ void quantiz_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("quantiz: requires (sig, partition [, codebook])",
-                    0, 0, "quantiz", "", "m:quantiz:nargin");
+                    0, 0, "quantiz", "", "numkit:quantiz:nargin");
     auto *mr = ctx.engine->resource();
 
     if (nargout <= 1 && args.size() == 2) {
@@ -92,7 +92,7 @@ void quantiz_reg(Span<const Value> args, size_t nargout,
     }
     if (args.size() < 3)
         throw Error("quantiz: codebook required for quantv/distor outputs",
-                    0, 0, "quantiz", "", "m:quantiz:fewInputs");
+                    0, 0, "quantiz", "", "numkit:quantiz:fewInputs");
     auto r = quantiz(args[0], args[1], args[2], mr);
     outs[0] = std::move(r.indx);
     if (nargout > 1) outs[1] = std::move(r.quantv);

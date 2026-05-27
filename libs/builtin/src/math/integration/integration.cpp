@@ -94,10 +94,10 @@ Value gradient(const Value &f, double h, std::pmr::memory_resource *mr)
 {
     if (h <= 0)
         throw Error("gradient: spacing h must be positive",
-                     0, 0, "gradient", "", "m:gradient:badSpacing");
+                     0, 0, "gradient", "", "numkit:gradient:badSpacing");
     if (f.type() == ValueType::COMPLEX)
         throw Error("gradient: complex inputs are not supported",
-                     0, 0, "gradient", "", "m:gradient:complex");
+                     0, 0, "gradient", "", "numkit:gradient:complex");
 
     auto src = toDoubleCopy(f, mr);
     auto out = createLike(f, ValueType::DOUBLE, mr);
@@ -109,7 +109,7 @@ Value gradient(const Value &f, double h, std::pmr::memory_resource *mr)
     }
     if (d.is3D() || d.ndim() > 2)
         throw Error("gradient: only 1D vector and 2D matrix inputs are supported",
-                     0, 0, "gradient", "", "m:gradient:rank");
+                     0, 0, "gradient", "", "numkit:gradient:rank");
     gradientAlongCols(src.doubleData(), out.doubleDataMut(),
                       d.rows(), d.cols(), h);
     return out;
@@ -120,14 +120,14 @@ gradient2(const Value &f, double hx, double hy, std::pmr::memory_resource *mr)
 {
     if (hx <= 0 || hy <= 0)
         throw Error("gradient: spacing arguments must be positive",
-                     0, 0, "gradient", "", "m:gradient:badSpacing");
+                     0, 0, "gradient", "", "numkit:gradient:badSpacing");
     if (f.type() == ValueType::COMPLEX)
         throw Error("gradient: complex inputs are not supported",
-                     0, 0, "gradient", "", "m:gradient:complex");
+                     0, 0, "gradient", "", "numkit:gradient:complex");
     const auto &d = f.dims();
     if (d.is3D() || d.ndim() > 2)
         throw Error("gradient: 2-output form requires a 2D matrix input",
-                     0, 0, "gradient", "", "m:gradient:rank");
+                     0, 0, "gradient", "", "numkit:gradient:rank");
 
     auto src = toDoubleCopy(f, mr);
     auto fx = createLike(f, ValueType::DOUBLE, mr);
@@ -192,7 +192,7 @@ Value cumtrapz(const Value &y, std::pmr::memory_resource *mr)
 {
     if (y.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: complex inputs are not supported",
-                     0, 0, "cumtrapz", "", "m:cumtrapz:complex");
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complex");
 
     auto ys = toDoubleCopy(y, mr);
     if (y.dims().isVector() || y.isScalar()) {
@@ -205,16 +205,16 @@ Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX || y.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: complex inputs are not supported",
-                     0, 0, "cumtrapz", "", "m:cumtrapz:complex");
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complex");
 
     auto ys = toDoubleCopy(y, mr);
     if (y.dims().isVector() || y.isScalar()) {
         if (!x.dims().isVector() && !x.isScalar())
             throw Error("cumtrapz: when y is a vector, x must also be a vector",
-                         0, 0, "cumtrapz", "", "m:cumtrapz:shapeMismatch");
+                         0, 0, "cumtrapz", "", "numkit:cumtrapz:shapeMismatch");
         if (x.numel() != y.numel())
             throw Error("cumtrapz: x and y must have the same length",
-                         0, 0, "cumtrapz", "", "m:cumtrapz:lengthMismatch");
+                         0, 0, "cumtrapz", "", "numkit:cumtrapz:lengthMismatch");
         auto xs = toDoubleCopy(x, mr);
         return cumtrapzVector(ys.doubleData(), xs.doubleData(), y.numel(), y.dims(), /*unitSpacing=*/false, mr);
     }
@@ -235,7 +235,7 @@ Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     }
     if (x.dims().rows() != rows || x.dims().cols() != cols)
         throw Error("cumtrapz: x size must match y or be a column-length vector",
-                     0, 0, "cumtrapz", "", "m:cumtrapz:shapeMismatch");
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:shapeMismatch");
     return cumtrapzMatrixCols(ys.doubleData(), xs.doubleData(), rows, cols, mr);
 }
 
@@ -324,10 +324,10 @@ Value integral(FnHandle fn, double a, double b, double absTol,
 {
     if (!std::isfinite(a) || !std::isfinite(b))
         throw Error("integral: bounds must be finite",
-                     0, 0, "integral", "", "m:integral:badBounds");
+                     0, 0, "integral", "", "numkit:integral:badBounds");
     if (absTol <= 0)
         throw Error("integral: absTol must be positive",
-                     0, 0, "integral", "", "m:integral:badTol");
+                     0, 0, "integral", "", "numkit:integral:badTol");
     const double sign = (b < a) ? -1.0 : 1.0;
     if (b < a) std::swap(a, b);
     if (a == b) return Value::scalar(0.0, mr);
@@ -343,7 +343,7 @@ void gradient_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("gradient: requires at least 1 argument",
-                     0, 0, "gradient", "", "m:gradient:nargin");
+                     0, 0, "gradient", "", "numkit:gradient:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
 
     double hx = 1.0, hy = 1.0;
@@ -364,7 +364,7 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("cumtrapz: requires at least 1 argument",
-                     0, 0, "cumtrapz", "", "m:cumtrapz:nargin");
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = cumtrapz(args[0], mr);
@@ -377,26 +377,26 @@ void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 3)
         throw Error("integral: requires at least 3 arguments (fn, a, b)",
-                     0, 0, "integral", "", "m:integral:nargin");
+                     0, 0, "integral", "", "numkit:integral:nargin");
     if (!args[0].isFuncHandle()
         && !(args[0].isCell() && args[0].numel() >= 1
              && args[0].cellAt(0).isFuncHandle()))
         throw Error("integral: 1st argument must be a function handle",
-                     0, 0, "integral", "", "m:integral:fnType");
+                     0, 0, "integral", "", "numkit:integral:fnType");
     const double a = args[1].toScalar();
     const double b = args[2].toScalar();
     double absTol = 1e-10;
     for (size_t i = 3; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("integral: expected option name (string)",
-                         0, 0, "integral", "", "m:integral:badFlag");
+                         0, 0, "integral", "", "numkit:integral:badFlag");
         std::string key = args[i].toString();
         for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (key == "abstol") {
             absTol = args[i + 1].toScalar();
         } else {
             throw Error("integral: unsupported option '" + key + "'",
-                         0, 0, "integral", "", "m:integral:badFlag");
+                         0, 0, "integral", "", "numkit:integral:badFlag");
         }
     }
     auto handle = args[0];
@@ -413,7 +413,7 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("trapz: requires at least 1 argument",
-                     0, 0, "trapz", "", "m:trapz:nargin");
+                     0, 0, "trapz", "", "numkit:trapz:nargin");
     if (args.size() == 1)
         outs[0] = trapz(args[0], ctx.engine->resource());
     else
@@ -441,7 +441,7 @@ Value trapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const size_t n = x.numel();
     if (y.numel() != n)
         throw Error("trapz: x and y must have same length",
-                     0, 0, "trapz", "", "m:trapz:lengthMismatch");
+                     0, 0, "trapz", "", "numkit:trapz:lengthMismatch");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();

@@ -61,7 +61,7 @@ crosstab(const Value &x, const Value &y_opt, std::pmr::memory_resource *mr)
     const bool have_y = !y_opt.isEmpty();
     if (have_y && y_opt.numel() != Nx)
         throw Error("crosstab: x and y must have the same length",
-                    0, 0, "crosstab", "", "m:crosstab:LenMismatch");
+                    0, 0, "crosstab", "", "numkit:crosstab:LenMismatch");
 
     auto u_x = sortedUniqueNoNaN(x);
     const size_t R = u_x.size();
@@ -137,7 +137,7 @@ void crosstab_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("crosstab: requires (x [, y])",
-                    0, 0, "crosstab", "", "m:crosstab:nargin");
+                    0, 0, "crosstab", "", "numkit:crosstab:nargin");
     auto *mr = ctx.engine->resource();
     const Value &y_opt = (args.size() >= 2) ? args[1] : Value::Empty;
     auto [T, chi2, p] = crosstab(args[0], y_opt, mr);

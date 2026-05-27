@@ -168,7 +168,7 @@ void ncx2pdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ncx2pdf: requires (x, k, lambda)",
-                    0, 0, "ncx2pdf", "", "m:ncx2pdf:nargin");
+                    0, 0, "ncx2pdf", "", "numkit:ncx2pdf:nargin");
     outs[0] = ncx2pdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -179,7 +179,7 @@ void ncx2cdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("ncx2cdf: requires (x, k, lambda[, 'upper'])",
-                    0, 0, "ncx2cdf", "", "m:ncx2cdf:nargin");
+                    0, 0, "ncx2cdf", "", "numkit:ncx2cdf:nargin");
     Value v = ncx2cdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -190,7 +190,7 @@ void ncx2inv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ncx2inv: requires (p, k, lambda)",
-                    0, 0, "ncx2inv", "", "m:ncx2inv:nargin");
+                    0, 0, "ncx2inv", "", "numkit:ncx2inv:nargin");
     outs[0] = ncx2inv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -199,7 +199,7 @@ void ncx2rnd_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ncx2rnd: requires (k, lambda[, m, n])",
-                    0, 0, "ncx2rnd", "", "m:ncx2rnd:nargin");
+                    0, 0, "ncx2rnd", "", "numkit:ncx2rnd:nargin");
     const double k      = args[0].toScalar();
     const double lambda = args[1].toScalar();
     size_t rows = 1, cols = 1;

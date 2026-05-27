@@ -161,24 +161,24 @@ Value stft(const Value &x, const Value &window, std::size_t overlap, std::size_t
     const size_t M = win.size();
     if (M == 0)
         throw Error("stft: window must be non-empty",
-                     0, 0, "stft", "", "m:stft:badWindow");
+                     0, 0, "stft", "", "numkit:stft:badWindow");
     if (M > N)
         throw Error("stft: signal shorter than window length",
-                     0, 0, "stft", "", "m:stft:shortSignal");
+                     0, 0, "stft", "", "numkit:stft:shortSignal");
 
     const size_t OL  = (overlap == SIZE_MAX) ? (3 * M) / 4 : overlap;
     if (OL >= M)
         throw Error("stft: OverlapLength must be < window length",
-                     0, 0, "stft", "", "m:stft:badOverlap");
+                     0, 0, "stft", "", "numkit:stft:badOverlap");
     const size_t NFFT = (fftLength == 0) ? M : fftLength;
     if (NFFT < M)
         throw Error("stft: FFTLength must be >= window length",
-                     0, 0, "stft", "", "m:stft:badNfft");
+                     0, 0, "stft", "", "numkit:stft:badNfft");
 
     if (range != "twosided" && range != "onesided" && range != "centered")
         throw Error("stft: FrequencyRange must be 'twosided', 'centered' "
                     "or 'onesided'",
-                     0, 0, "stft", "", "m:stft:badRange");
+                     0, 0, "stft", "", "numkit:stft:badRange");
 
     const size_t hop = M - OL;
     const size_t K   = (N - M) / hop + 1;
@@ -251,17 +251,17 @@ Value istft(const Value &S, const Value &window, std::size_t overlap, std::size_
     const size_t M = win.size();
     if (M == 0)
         throw Error("istft: window must be non-empty",
-                     0, 0, "istft", "", "m:istft:badWindow");
+                     0, 0, "istft", "", "numkit:istft:badWindow");
 
     const size_t OL  = (overlap == SIZE_MAX) ? (3 * M) / 4 : overlap;
     if (OL >= M)
         throw Error("istft: OverlapLength must be < window length",
-                     0, 0, "istft", "", "m:istft:badOverlap");
+                     0, 0, "istft", "", "numkit:istft:badOverlap");
 
     if (range != "twosided" && range != "onesided" && range != "centered")
         throw Error("istft: FrequencyRange must be 'twosided', 'centered' "
                     "or 'onesided'",
-                     0, 0, "istft", "", "m:istft:badRange");
+                     0, 0, "istft", "", "numkit:istft:badRange");
 
     const bool   isOneSided = (range == "onesided");
     const bool   isCentered = (range == "centered");
@@ -276,14 +276,14 @@ Value istft(const Value &S, const Value &window, std::size_t overlap, std::size_
                                                      : ((NFFT + 1) / 2));
     if (!isOneSided && inRows != NFFT)
         throw Error("istft: STFT row count does not match FFTLength",
-                     0, 0, "istft", "", "m:istft:badShape");
+                     0, 0, "istft", "", "numkit:istft:badShape");
     if (isOneSided && inRows != NFFT / 2 + 1)
         throw Error("istft: one-sided STFT row count must equal "
                     "FFTLength/2 + 1",
-                     0, 0, "istft", "", "m:istft:badShape");
+                     0, 0, "istft", "", "numkit:istft:badShape");
     if (NFFT < M)
         throw Error("istft: FFTLength must be >= window length",
-                     0, 0, "istft", "", "m:istft:badNfft");
+                     0, 0, "istft", "", "numkit:istft:badNfft");
 
     const size_t hop = M - OL;
     const size_t Nout = (K - 1) * hop + M;
@@ -358,13 +358,13 @@ iscola(const Value &window, std::size_t noverlap, const std::string &method,
     const std::size_t M = window.numel();
     if (M == 0)
         throw Error("iscola: window must be non-empty",
-                     0, 0, "iscola", "", "m:iscola:badWindow");
+                     0, 0, "iscola", "", "numkit:iscola:badWindow");
     if (noverlap >= M)
         throw Error("iscola: noverlap must be < window length",
-                     0, 0, "iscola", "", "m:iscola:badOverlap");
+                     0, 0, "iscola", "", "numkit:iscola:badOverlap");
     if (method != "ola" && method != "wola")
         throw Error("iscola: method must be 'ola' or 'wola'",
-                     0, 0, "iscola", "", "m:iscola:badMethod");
+                     0, 0, "iscola", "", "numkit:iscola:badMethod");
 
     const std::size_t hop  = M - noverlap;
     const std::size_t nOvw = (M + hop - 1) / hop;        // ceil(M/hop)
@@ -420,21 +420,21 @@ void iscola_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("iscola: requires (window, noverlap [, method])",
-                     0, 0, "iscola", "", "m:iscola:nargin");
+                     0, 0, "iscola", "", "numkit:iscola:nargin");
     if (args[1].numel() != 1)
         throw Error("iscola: noverlap must be a scalar",
-                     0, 0, "iscola", "", "m:iscola:badOverlap");
+                     0, 0, "iscola", "", "numkit:iscola:badOverlap");
     const double novS = args[1].toScalar();
     if (!(novS >= 0.0))
         throw Error("iscola: noverlap must be non-negative",
-                     0, 0, "iscola", "", "m:iscola:badOverlap");
+                     0, 0, "iscola", "", "numkit:iscola:badOverlap");
     const std::size_t noverlap = static_cast<std::size_t>(novS);
 
     std::string method = "wola";  // MATLAB default
     if (args.size() >= 3) {
         if (!(args[2].isChar() || args[2].isString()))
             throw Error("iscola: method must be a string",
-                         0, 0, "iscola", "", "m:iscola:badMethod");
+                         0, 0, "iscola", "", "numkit:iscola:badMethod");
         method = args[2].toString();
     }
 
@@ -449,7 +449,7 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("spectrogram: requires at least 1 argument",
-                     0, 0, "spectrogram", "", "m:spectrogram:nargin");
+                     0, 0, "spectrogram", "", "numkit:spectrogram:nargin");
 
     // MATLAB's spectrogram(x, N) accepts a scalar-N (window length) and
     // builds a Hamming window of that length. If arg 1 is a vector, it's
@@ -499,7 +499,7 @@ static void parseStftNVPairs(Span<const Value> args, size_t startIdx,
     for (size_t i = startIdx; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar())
             throw Error("stft: name-value pair name must be a string",
-                         0, 0, "stft", "", "m:stft:badNVName");
+                         0, 0, "stft", "", "numkit:stft:badNVName");
         const std::string key = args[i].toString();
         const Value &val      = args[i + 1];
         if (eqIgnoreCase(key, "Window"))           window    = val;
@@ -508,7 +508,7 @@ static void parseStftNVPairs(Span<const Value> args, size_t startIdx,
         else if (eqIgnoreCase(key, "FrequencyRange")) range  = val.toString();
         else
             throw Error("stft: unknown name-value key '" + key + "'",
-                         0, 0, "stft", "", "m:stft:badNVKey");
+                         0, 0, "stft", "", "numkit:stft:badNVKey");
     }
 }
 
@@ -591,7 +591,7 @@ void stft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("stft: requires at least 1 argument",
-                     0, 0, "stft", "", "m:stft:nargin");
+                     0, 0, "stft", "", "numkit:stft:nargin");
     auto *mr = ctx.engine->resource();
 
     bool fsGiven = false;
@@ -624,7 +624,7 @@ void istft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("istft: requires at least 1 argument",
-                     0, 0, "istft", "", "m:istft:nargin");
+                     0, 0, "istft", "", "numkit:istft:nargin");
     auto *mr = ctx.engine->resource();
 
     bool fsGiven = false;

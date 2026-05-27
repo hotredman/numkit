@@ -435,7 +435,7 @@ const Cd *constellationFor(int M, size_t &len_out)
         default:
             throw Error("mil188qam: M must be one of {16, 32, 64, 256}",
                         0, 0, "mil188qam", "",
-                        "m:mil188qam:UnsupportedM");
+                        "numkit:mil188qam:UnsupportedM");
     }
 }
 
@@ -455,7 +455,7 @@ Value mil188qammod(const Value &x, int M, std::pmr::memory_resource *mr)
         if (xi < 0.0 || xi >= static_cast<double>(N))
             throw Error("mil188qammod: input out of range [0, M-1]",
                         0, 0, "mil188qammod", "",
-                        "m:mil188qammod:OutOfRange");
+                        "numkit:mil188qammod:OutOfRange");
         o[i] = C[static_cast<size_t>(xi)];
     }
     return out;
@@ -496,7 +496,7 @@ void mil188qammod_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("mil188qammod: requires (x, M)",
                     0, 0, "mil188qammod", "",
-                    "m:mil188qammod:nargin");
+                    "numkit:mil188qammod:nargin");
     const int M = static_cast<int>(args[1].toScalar());
     outs[0] = mil188qammod(args[0], M, ctx.engine->resource());
 }
@@ -507,7 +507,7 @@ void mil188qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("mil188qamdemod: requires (y, M)",
                     0, 0, "mil188qamdemod", "",
-                    "m:mil188qamdemod:nargin");
+                    "numkit:mil188qamdemod:nargin");
     const int M = static_cast<int>(args[1].toScalar());
     outs[0] = mil188qamdemod(args[0], M, ctx.engine->resource());
 }

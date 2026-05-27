@@ -71,7 +71,7 @@ void findgroups_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("findgroups: requires 1 argument",
-                     0, 0, "findgroups", "", "m:findgroups:nargin");
+                     0, 0, "findgroups", "", "numkit:findgroups:nargin");
     auto *mr = ctx.engine->resource();
     std::vector<std::size_t> groups;
     std::vector<double> uniqueVals;
@@ -103,20 +103,20 @@ void splitapply_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("splitapply: requires (@fn, x [, x2, ...], G)",
-                     0, 0, "splitapply", "", "m:splitapply:nargin");
+                     0, 0, "splitapply", "", "numkit:splitapply:nargin");
     if (!args[0].isFuncHandle())
         throw Error("splitapply: first argument must be a function handle",
-                     0, 0, "splitapply", "", "m:splitapply:notHandle");
+                     0, 0, "splitapply", "", "numkit:splitapply:notHandle");
     const Value &G = args[args.size() - 1];
     const std::size_t nIn = args.size() - 2;   // excluding handle + G
     if (nIn == 0)
         throw Error("splitapply: at least one data array required",
-                     0, 0, "splitapply", "", "m:splitapply:noData");
+                     0, 0, "splitapply", "", "numkit:splitapply:noData");
     const std::size_t n = G.numel();
     for (std::size_t k = 0; k < nIn; ++k) {
         if (args[1 + k].numel() != n)
             throw Error("splitapply: data and G must have the same numel",
-                         0, 0, "splitapply", "", "m:splitapply:shape");
+                         0, 0, "splitapply", "", "numkit:splitapply:shape");
     }
     auto *mr = ctx.engine->resource();
     // Bucket indices by group ID.
@@ -160,7 +160,7 @@ void groupcounts_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("groupcounts: requires 1 argument",
-                     0, 0, "groupcounts", "", "m:groupcounts:nargin");
+                     0, 0, "groupcounts", "", "numkit:groupcounts:nargin");
     auto *mr = ctx.engine->resource();
     std::vector<std::size_t> groups;
     std::vector<double> uniqueVals;
@@ -230,11 +230,11 @@ void groupsummary_reg(Span<const Value> args, size_t nargout,
         throw Error("groupsummary: requires (A, groupvars, method) "
                     "in this revision (table inputs + groupbins NV "
                     "deferred)",
-                    0, 0, "groupsummary", "", "m:groupsummary:nargin");
+                    0, 0, "groupsummary", "", "numkit:groupsummary:nargin");
     if (!args[2].isChar() && !args[2].isString())
         throw Error("groupsummary: method must be a string in this "
                     "revision (function-handle methods deferred)",
-                    0, 0, "groupsummary", "", "m:groupsummary:method");
+                    0, 0, "groupsummary", "", "numkit:groupsummary:method");
     auto *mr = ctx.engine->resource();
     const Value &A = args[0];
     const Value &G = args[1];
@@ -245,7 +245,7 @@ void groupsummary_reg(Span<const Value> args, size_t nargout,
     if (G.numel() != nRows)
         throw Error("groupsummary: groupvars must have length "
                     "size(A, 1)",
-                    0, 0, "groupsummary", "", "m:groupsummary:shape");
+                    0, 0, "groupsummary", "", "numkit:groupsummary:shape");
 
     // Group the rows.
     std::vector<std::size_t> groups;
@@ -354,7 +354,7 @@ void groupsummary_reg(Span<const Value> args, size_t nargout,
                 throw Error("groupsummary: method '" + method
                             + "' not supported in this revision",
                             0, 0, "groupsummary", "",
-                            "m:groupsummary:badMethod");
+                            "numkit:groupsummary:badMethod");
             }
             bd[g + c * nGroups] = out;
         }
@@ -400,7 +400,7 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 3)
         throw Error("grouptransform: requires (A, groupvars, method)",
                     0, 0, "grouptransform", "",
-                    "m:grouptransform:nargin");
+                    "numkit:grouptransform:nargin");
     auto *mr = ctx.engine->resource();
     const Value &A = args[0];
     const Value &G = args[1];
@@ -411,7 +411,7 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
     if (G.numel() != nRows)
         throw Error("grouptransform: groupvars must have length size(A,1)",
                     0, 0, "grouptransform", "",
-                    "m:grouptransform:shape");
+                    "numkit:grouptransform:shape");
 
     // Group the rows. NaN entries → group 0 (sentinel); place them
     // in a trailing bucket.
@@ -449,7 +449,7 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
             throw Error("grouptransform: method must be a string or "
                         "function handle",
                         0, 0, "grouptransform", "",
-                        "m:grouptransform:method");
+                        "numkit:grouptransform:method");
         method = methodV.toString();
         if (method != "zscore" && method != "norm" &&
             method != "meancenter" && method != "rescale" &&
@@ -458,7 +458,7 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
                         "'norm', 'meancenter', 'rescale', 'meanfill', "
                         "'linearfill', or a function handle",
                         0, 0, "grouptransform", "",
-                        "m:grouptransform:badMethod");
+                        "numkit:grouptransform:badMethod");
     }
 
     for (std::size_t c = 0; c < nCols; ++c) {
@@ -489,7 +489,7 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
                                 "return a scalar or a vector of the "
                                 "same length as the group",
                                 0, 0, "grouptransform", "",
-                                "m:grouptransform:handleSize");
+                                "numkit:grouptransform:handleSize");
                 }
                 continue;
             }
@@ -626,10 +626,10 @@ void groupfilter_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("groupfilter: requires (A, groupvars, @predicate)",
-                    0, 0, "groupfilter", "", "m:groupfilter:nargin");
+                    0, 0, "groupfilter", "", "numkit:groupfilter:nargin");
     if (!args[2].isFuncHandle())
         throw Error("groupfilter: predicate must be a function handle",
-                    0, 0, "groupfilter", "", "m:groupfilter:method");
+                    0, 0, "groupfilter", "", "numkit:groupfilter:method");
     auto *mr = ctx.engine->resource();
     const Value &A = args[0];
     const Value &G = args[1];
@@ -639,7 +639,7 @@ void groupfilter_reg(Span<const Value> args, size_t nargout,
     const std::size_t nCols = (A.dims().ndim() >= 2) ? A.dims().cols() : 1;
     if (G.numel() != nRows)
         throw Error("groupfilter: groupvars must have length size(A,1)",
-                    0, 0, "groupfilter", "", "m:groupfilter:shape");
+                    0, 0, "groupfilter", "", "numkit:groupfilter:shape");
 
     std::vector<std::size_t> groups;
     std::vector<double> uniqueVals;

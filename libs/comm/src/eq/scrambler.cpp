@@ -45,11 +45,11 @@ void validatePoly(const std::vector<int> &poly, const char *name) {
     if (poly.size() < 2)
         throw Error(std::string(name) +
                     ": polynomial must have at least 2 coefficients (degree ≥ 1)",
-                    0, 0, name, "", "m:scrambler:poly");
+                    0, 0, name, "", "numkit:scrambler:poly");
     if (poly[0] == 0)
         throw Error(std::string(name) +
                     ": polynomial constant term g_0 must be non-zero",
-                    0, 0, name, "", "m:scrambler:poly");
+                    0, 0, name, "", "numkit:scrambler:poly");
 }
 
 Value packDoubles(std::pmr::memory_resource *mr,
@@ -76,7 +76,7 @@ Value scrambler(const Value &x, const Value &poly,
     const size_t n = polyVec.size() - 1;
     if (state.size() != n)
         throw Error("scrambler: initState length must equal polynomial order",
-                    0, 0, "scrambler", "", "m:scrambler:state");
+                    0, 0, "scrambler", "", "numkit:scrambler:state");
 
     std::vector<int> y(xBits.size(), 0);
     for (size_t k = 0; k < xBits.size(); ++k) {
@@ -102,7 +102,7 @@ Value descrambler(const Value &y, const Value &poly,
     const size_t n = polyVec.size() - 1;
     if (state.size() != n)
         throw Error("descrambler: initState length must equal polynomial order",
-                    0, 0, "descrambler", "", "m:descrambler:state");
+                    0, 0, "descrambler", "", "numkit:descrambler:state");
 
     std::vector<int> x(yBits.size(), 0);
     for (size_t k = 0; k < yBits.size(); ++k) {
@@ -124,7 +124,7 @@ void scrambler_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("scrambler: requires (x, poly, initState)",
-                    0, 0, "scrambler", "", "m:scrambler:nargin");
+                    0, 0, "scrambler", "", "numkit:scrambler:nargin");
     outs[0] = scrambler(args[0], args[1], args[2],
                         ctx.engine->resource());
 }
@@ -134,7 +134,7 @@ void descrambler_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("descrambler: requires (y, poly, initState)",
-                    0, 0, "descrambler", "", "m:descrambler:nargin");
+                    0, 0, "descrambler", "", "numkit:descrambler:nargin");
     outs[0] = descrambler(args[0], args[1], args[2],
                           ctx.engine->resource());
 }

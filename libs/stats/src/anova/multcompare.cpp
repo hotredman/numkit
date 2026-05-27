@@ -36,14 +36,14 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
 {
     if (!stats.isStruct())
         throw Error("multcompare: stats must be a struct (from anova1)",
-                    0, 0, "multcompare", "", "m:multcompare:notStruct");
+                    0, 0, "multcompare", "", "numkit:multcompare:notStruct");
     if (!stats.hasField("means") || !stats.hasField("n")
         || !stats.hasField("s") || !stats.hasField("df"))
         throw Error("multcompare: stats must have fields {means, n, s, df}",
-                    0, 0, "multcompare", "", "m:multcompare:missingField");
+                    0, 0, "multcompare", "", "numkit:multcompare:missingField");
     if (alpha <= 0.0 || alpha >= 1.0)
         throw Error("multcompare: alpha must be in (0, 1)",
-                    0, 0, "multcompare", "", "m:multcompare:badAlpha");
+                    0, 0, "multcompare", "", "numkit:multcompare:badAlpha");
 
     const Value &means = stats.field("means");
     const Value &nv    = stats.field("n");
@@ -52,7 +52,7 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
     const std::size_t K = means.numel();
     if (K < 2)
         throw Error("multcompare: need at least 2 groups",
-                    0, 0, "multcompare", "", "m:multcompare:tooFewGroups");
+                    0, 0, "multcompare", "", "numkit:multcompare:tooFewGroups");
 
     std::vector<double> m(K), n(K);
     for (std::size_t i = 0; i < K; ++i) {
@@ -112,7 +112,7 @@ void multcompare_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("multcompare: requires (stats [, alpha [, ctype]])",
-                    0, 0, "multcompare", "", "m:multcompare:nargin");
+                    0, 0, "multcompare", "", "numkit:multcompare:nargin");
     double alpha = 0.05;
     if (args.size() >= 2 && !args[1].isEmpty())
         alpha = args[1].toScalar();
@@ -124,10 +124,10 @@ void multcompare_reg(Span<const Value> args, size_t /*nargout*/,
         else if (s == "tukey-kramer" || s == "hsd")
             throw Error("multcompare: 'tukey-kramer' not yet supported "
                         "(v1 ships 'bonferroni' and 'lsd' only)",
-                        0, 0, "multcompare", "", "m:multcompare:badCtype");
+                        0, 0, "multcompare", "", "numkit:multcompare:badCtype");
         else
             throw Error("multcompare: unknown ctype '" + s + "'",
-                        0, 0, "multcompare", "", "m:multcompare:badCtype");
+                        0, 0, "multcompare", "", "numkit:multcompare:badCtype");
     }
     outs[0] = multcompare(args[0], alpha, ctype, ctx.engine->resource());
 }

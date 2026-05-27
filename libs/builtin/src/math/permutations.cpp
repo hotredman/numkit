@@ -28,7 +28,7 @@ void colperm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("colperm: requires 1 argument",
-                     0, 0, "colperm", "", "m:colperm:nargin");
+                     0, 0, "colperm", "", "numkit:colperm:nargin");
     auto *mr = ctx.engine->resource();
     const Value &S = args[0];
     const auto &d = S.dims();
@@ -36,7 +36,7 @@ void colperm_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t N = (d.ndim() >= 2) ? d.cols() : 1;
     if (S.numel() != M * N)
         throw Error("colperm: input must be a 2-D matrix",
-                     0, 0, "colperm", "", "m:colperm:shape");
+                     0, 0, "colperm", "", "numkit:colperm:shape");
 
     // Count nonzeros per column.
     std::vector<std::size_t> nnz(N, 0);
@@ -89,7 +89,7 @@ void symrcm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("symrcm: requires 1 argument",
-                     0, 0, "symrcm", "", "m:symrcm:nargin");
+                     0, 0, "symrcm", "", "numkit:symrcm:nargin");
     auto *mr = ctx.engine->resource();
     const Value &S = args[0];
     const auto &d = S.dims();
@@ -97,7 +97,7 @@ void symrcm_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t N = (d.ndim() >= 2) ? d.cols() : 1;
     if (M != N)
         throw Error("symrcm: input must be a square matrix",
-                     0, 0, "symrcm", "", "m:symrcm:shape");
+                     0, 0, "symrcm", "", "numkit:symrcm:shape");
     const std::size_t n = M;
     if (n == 0) {
         outs[0] = Value::matrix(1, 0, ValueType::DOUBLE, mr);

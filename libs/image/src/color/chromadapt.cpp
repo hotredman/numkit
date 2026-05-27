@@ -66,7 +66,7 @@ CS parse_color_space(const std::string &s)
     if (lo == "linear-rgb")      return CS::LinearRGB;
     throw Error("chromadapt: ColorSpace must be 'srgb', "
                 "'adobe-rgb-1998', 'prophoto-rgb', or 'linear-rgb'",
-                0, 0, "chromadapt", "", "m:chromadapt:colorSpace");
+                0, 0, "chromadapt", "", "numkit:chromadapt:colorSpace");
 }
 
 // ── Gamma encode / decode helpers ────────────────────────────────
@@ -380,21 +380,21 @@ Value chromadapt(const Value &A, const Value &illuminant_in,
     const auto &dA = A.dims();
     if (!dA.is3D() || dA.pages() != 3)
         throw Error("chromadapt: A must be H × W × 3 RGB",
-                    0, 0, "chromadapt", "", "m:chromadapt:shape");
+                    0, 0, "chromadapt", "", "numkit:chromadapt:shape");
     const std::size_t H = dA.rows();
     const std::size_t W = dA.cols();
     if (H == 0 || W == 0)
         throw Error("chromadapt: A must be nonempty",
-                    0, 0, "chromadapt", "", "m:chromadapt:empty");
+                    0, 0, "chromadapt", "", "numkit:chromadapt:empty");
     if (illuminant_in.numel() != 3)
         throw Error("chromadapt: illuminant must be a 3-element vector",
-                    0, 0, "chromadapt", "", "m:chromadapt:illShape");
+                    0, 0, "chromadapt", "", "numkit:chromadapt:illShape");
 
     const ValueType origClass = A.type();
     if (origClass != ValueType::UINT8 && origClass != ValueType::UINT16
         && origClass != ValueType::SINGLE && origClass != ValueType::DOUBLE)
         throw Error("chromadapt: A must be uint8 / uint16 / single / double",
-                    0, 0, "chromadapt", "", "m:chromadapt:class");
+                    0, 0, "chromadapt", "", "numkit:chromadapt:class");
 
     // Resolve method.
     std::string m;
@@ -403,7 +403,7 @@ Value chromadapt(const Value &A, const Value &illuminant_in,
     if (m != "bradford" && m != "vonkries" && m != "simple")
         throw Error("chromadapt: Method must be 'bradford', 'vonkries', "
                     "or 'simple'",
-                    0, 0, "chromadapt", "", "m:chromadapt:method");
+                    0, 0, "chromadapt", "", "numkit:chromadapt:method");
 
     const CS cs = parse_color_space(color_space);
 
@@ -419,7 +419,7 @@ Value chromadapt(const Value &A, const Value &illuminant_in,
     }
     if (ill_rgb01[0] == 0.0 && ill_rgb01[1] == 0.0 && ill_rgb01[2] == 0.0)
         throw Error("chromadapt: illuminant cannot be [0 0 0]",
-                    0, 0, "chromadapt", "", "m:chromadapt:illBlack");
+                    0, 0, "chromadapt", "", "numkit:chromadapt:illBlack");
 
     // Compute illuminant XYZ (D65).
     double ill_xyz[3];
@@ -482,7 +482,7 @@ void chromadapt_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("chromadapt: requires (A, illuminant [, NV...])",
-                    0, 0, "chromadapt", "", "m:chromadapt:nargin");
+                    0, 0, "chromadapt", "", "numkit:chromadapt:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
     std::string method = "bradford";
@@ -491,7 +491,7 @@ void chromadapt_reg(Span<const Value> args, std::size_t /*nargout*/,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("chromadapt: expected NV-pair name string",
-                        0, 0, "chromadapt", "", "m:chromadapt:badNv");
+                        0, 0, "chromadapt", "", "numkit:chromadapt:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -501,7 +501,7 @@ void chromadapt_reg(Span<const Value> args, std::size_t /*nargout*/,
         else if (nlo == "colorspace")  colorSpace = args[i + 1].toString();
         else throw Error("chromadapt: unknown option '" + name + "'",
                          0, 0, "chromadapt", "",
-                         "m:chromadapt:unknownNv");
+                         "numkit:chromadapt:unknownNv");
         i += 2;
     }
     outs[0] = chromadapt(args[0], args[1], method, colorSpace, mr);

@@ -76,11 +76,11 @@ SS toSSiso(const Value &sys, std::pmr::memory_resource *mr) {
             Cv = std::move(ss.C); Dv = std::move(ss.D);
         } else {
             throw Error("control response: unknown LTI kind",
-                        0, 0, "response", "", "m:control:kind");
+                        0, 0, "response", "", "numkit:control:kind");
         }
     } else {
         throw Error("control response: expected an LTI struct",
-                    0, 0, "response", "", "m:control:kind");
+                    0, 0, "response", "", "numkit:control:kind");
     }
 
     SS s;
@@ -312,12 +312,12 @@ Value lsim(const Value &sys, const Value &uIn, const Value &tIn,
     SS s = toSSiso(sys, mr);
     if (tIn.numel() < 2)
         throw Error("lsim: t must have at least 2 samples",
-                    0, 0, "lsim", "", "m:lsim:t");
+                    0, 0, "lsim", "", "numkit:lsim:t");
     Vec t(tIn.numel());
     for (size_t i = 0; i < tIn.numel(); ++i) t[i] = tIn.elemAsDouble(i);
     if (uIn.numel() != t.size())
         throw Error("lsim: u and t must be the same length",
-                    0, 0, "lsim", "", "m:lsim:size");
+                    0, 0, "lsim", "", "numkit:lsim:size");
     Vec u(t.size());
     for (size_t i = 0; i < t.size(); ++i) u[i] = uIn.elemAsDouble(i);
     Vec x0(s.n, 0.0);
@@ -334,7 +334,7 @@ void step_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
 {
     if (a.empty())
         throw Error("step: requires (sys [, t])",
-                    0, 0, "step", "", "m:step:nargin");
+                    0, 0, "step", "", "numkit:step:nargin");
     Value tArg = (a.size() >= 2) ? a[1] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
     auto [y, t] = step_response(a[0], tArg, c.engine->resource());
     if (outs.size() >= 1) outs[0] = std::move(y);
@@ -346,7 +346,7 @@ void impulse_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
 {
     if (a.empty())
         throw Error("impulse: requires (sys [, t])",
-                    0, 0, "impulse", "", "m:impulse:nargin");
+                    0, 0, "impulse", "", "numkit:impulse:nargin");
     Value tArg = (a.size() >= 2) ? a[1] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
     auto [y, t] = impulse_response(a[0], tArg, c.engine->resource());
     if (outs.size() >= 1) outs[0] = std::move(y);
@@ -358,7 +358,7 @@ void lsim_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
 {
     if (a.size() < 3)
         throw Error("lsim: requires (sys, u, t [, x0])",
-                    0, 0, "lsim", "", "m:lsim:nargin");
+                    0, 0, "lsim", "", "numkit:lsim:nargin");
     Value x0 = (a.size() >= 4) ? a[3] : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
     outs[0] = lsim(a[0], a[1], a[2], x0, c.engine->resource());
 }

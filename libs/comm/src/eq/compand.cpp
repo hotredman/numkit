@@ -34,10 +34,10 @@ Value compand(const Value &x, double param, double V,
 {
     if (param <= 0.0)
         throw Error("compand: param (μ or A) must be positive",
-                    0, 0, "compand", "", "m:compand:param");
+                    0, 0, "compand", "", "numkit:compand:param");
     if (V <= 0.0)
         throw Error("compand: V (peak magnitude) must be positive",
-                    0, 0, "compand", "", "m:compand:V");
+                    0, 0, "compand", "", "numkit:compand:V");
 
     const bool isMu = (method.size() >= 2
                        && (method[0] == 'm' || method[0] == 'M')
@@ -46,7 +46,7 @@ Value compand(const Value &x, double param, double V,
                        && (method[0] == 'a' || method[0] == 'A'));
     if (!isMu && !isA)
         throw Error("compand: method must start with 'mu/' or 'A/'",
-                    0, 0, "compand", "", "m:compand:method");
+                    0, 0, "compand", "", "numkit:compand:method");
     const bool isCompress =
         method.find("compressor") != std::string::npos;
     const bool isExpand =
@@ -54,7 +54,7 @@ Value compand(const Value &x, double param, double V,
     if (!isCompress && !isExpand)
         throw Error("compand: method must end with '/compressor' or "
                     "'/expander'",
-                    0, 0, "compand", "", "m:compand:method");
+                    0, 0, "compand", "", "numkit:compand:method");
 
     Value out = Value::matrix(x.dims().rows(), x.dims().cols(),
                               ValueType::DOUBLE, mr);
@@ -123,10 +123,10 @@ void compand_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("compand: requires (x, param, V, method)",
-                    0, 0, "compand", "", "m:compand:nargin");
+                    0, 0, "compand", "", "numkit:compand:nargin");
     if (!args[3].isChar() && !args[3].isString())
         throw Error("compand: method must be a string",
-                    0, 0, "compand", "", "m:compand:method");
+                    0, 0, "compand", "", "numkit:compand:method");
     const double param = args[1].toScalar();
     const double V     = args[2].toScalar();
     const std::string method = args[3].toString();

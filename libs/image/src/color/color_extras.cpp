@@ -50,7 +50,7 @@ Value rgb2lightness(const Value &RGB, std::pmr::memory_resource *mr)
 {
     if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
         throw Error("rgb2lightness: input must be H×W×3",
-                    0, 0, "rgb2lightness", "", "m:rgb2lightness:Shape");
+                    0, 0, "rgb2lightness", "", "numkit:rgb2lightness:Shape");
     Value lab = rgb2lab(RGB, mr);
     const size_t H = lab.dims().rows();
     const size_t W = lab.dims().cols();
@@ -83,10 +83,10 @@ rgb2ind_inmap(const Value &RGB, const Value &cmap, std::pmr::memory_resource *mr
 {
     if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
         throw Error("rgb2ind: input must be H×W×3",
-                    0, 0, "rgb2ind", "", "m:rgb2ind:Shape");
+                    0, 0, "rgb2ind", "", "numkit:rgb2ind:Shape");
     if (cmap.dims().is3D() || cmap.dims().cols() != 3)
         throw Error("rgb2ind: colormap must be K×3",
-                    0, 0, "rgb2ind", "", "m:rgb2ind:CmapShape");
+                    0, 0, "rgb2ind", "", "numkit:rgb2ind:CmapShape");
 
     const size_t H = RGB.dims().rows();
     const size_t W = RGB.dims().cols();
@@ -148,7 +148,7 @@ void rgb2lightness_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rgb2lightness: requires (RGB)",
-                    0, 0, "rgb2lightness", "", "m:rgb2lightness:nargin");
+                    0, 0, "rgb2lightness", "", "numkit:rgb2lightness:nargin");
     outs[0] = rgb2lightness(args[0], ctx.engine->resource());
 }
 
@@ -158,7 +158,7 @@ void rgb2ind_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("rgb2ind: requires (RGB, inmap [, dithering]) — "
                     "Q/tol forms deferred",
-                    0, 0, "rgb2ind", "", "m:rgb2ind:nargin");
+                    0, 0, "rgb2ind", "", "numkit:rgb2ind:nargin");
     // Optional 3rd arg: 'dither' (default in MATLAB) | 'nodither'.
     // Numkit always behaves as 'nodither'; if 'dither' is requested we
     // throw to keep parity honest (KNOWN GAP).
@@ -167,17 +167,17 @@ void rgb2ind_reg(Span<const Value> args, size_t nargout,
         if (s == "dither")
             throw Error("rgb2ind: 'dither' option not implemented in v1 "
                         "(KNOWN GAP); pass 'nodither' instead",
-                        0, 0, "rgb2ind", "", "m:rgb2ind:NoDither");
+                        0, 0, "rgb2ind", "", "numkit:rgb2ind:NoDither");
         if (s != "nodither")
             throw Error("rgb2ind: dithering arg must be 'dither' or 'nodither'",
-                        0, 0, "rgb2ind", "", "m:rgb2ind:BadOpt");
+                        0, 0, "rgb2ind", "", "numkit:rgb2ind:BadOpt");
     }
     // Q (positive integer scalar) and tol (real in [0,1]) forms throw.
     if (args[1].numel() == 1) {
         throw Error("rgb2ind: scalar Q (min-variance quant) and tol "
                     "(uniform quant) forms not implemented in v1; pass "
                     "an explicit K×3 colormap instead (KNOWN GAP)",
-                    0, 0, "rgb2ind", "", "m:rgb2ind:NotImpl");
+                    0, 0, "rgb2ind", "", "numkit:rgb2ind:NotImpl");
     }
     auto [X, cmap] = rgb2ind_inmap(args[0], args[1], ctx.engine->resource());
     outs[0] = X;
@@ -210,10 +210,10 @@ Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
 {
     if (bits_per_sample != 10 && bits_per_sample != 12)
         throw Error("rgbwide2ycbcr: BPS must be 10 or 12",
-                    0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:bps");
+                    0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:bps");
     if (RGB.type() != ValueType::UINT16)
         throw Error("rgbwide2ycbcr: RGB must be UINT16",
-                    0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:class");
+                    0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:class");
 
     const auto &d = RGB.dims();
     // Two shapes: p × 3 colour list, or H × W × 3 image.
@@ -221,11 +221,11 @@ Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
     if (is_image) {
         if (d.pages() != 3)
             throw Error("rgbwide2ycbcr: H×W×3 image expected",
-                        0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:shape");
+                        0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:shape");
     } else {
         if (d.cols() != 3)
             throw Error("rgbwide2ycbcr: p×3 colour list expected",
-                        0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:shape");
+                        0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:shape");
     }
 
     const double blackLevel  = (bits_per_sample == 10) ?  64.0 : 256.0;
@@ -309,7 +309,7 @@ inline double im2double_scalar(const Value &v, std::size_t i)
         case ValueType::SINGLE: return static_cast<double>(v.singleData()[i]);
         default:
             throw Error("cmunique: unsupported image class",
-                        0, 0, "cmunique", "", "m:cmunique:cls");
+                        0, 0, "cmunique", "", "numkit:cmunique:cls");
     }
 }
 
@@ -456,7 +456,7 @@ cmunique_xm(const Value &X, const Value &MAP, std::pmr::memory_resource *mr)
 {
     if (MAP.dims().cols() != 3 || MAP.dims().is3D())
         throw Error("cmunique: MAP must be N×3",
-                    0, 0, "cmunique", "", "m:cmunique:map");
+                    0, 0, "cmunique", "", "numkit:cmunique:map");
     const std::size_t M = MAP.dims().rows();
     const std::size_t H = X.dims().rows();
     const std::size_t W = X.dims().cols();
@@ -483,7 +483,7 @@ cmunique_rgb(const Value &RGB, std::pmr::memory_resource *mr)
 {
     if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
         throw Error("cmunique: RGB must be H×W×3",
-                    0, 0, "cmunique", "", "m:cmunique:rgb");
+                    0, 0, "cmunique", "", "numkit:cmunique:rgb");
     const std::size_t H = RGB.dims().rows();
     const std::size_t W = RGB.dims().cols();
     const std::size_t N = H * W;
@@ -504,7 +504,7 @@ cmunique_i(const Value &I, std::pmr::memory_resource *mr)
 {
     if (I.dims().ndims() > 2)
         throw Error("cmunique: I must be a 2-D intensity image",
-                    0, 0, "cmunique", "", "m:cmunique:i");
+                    0, 0, "cmunique", "", "numkit:cmunique:i");
     const std::size_t H = I.dims().rows();
     const std::size_t W = I.dims().cols();
     const std::size_t N = H * W;
@@ -556,21 +556,21 @@ Value ycbcr2rgbwide(const Value &YCBCR, int bits_per_sample,
 {
     if (bits_per_sample != 10 && bits_per_sample != 12)
         throw Error("ycbcr2rgbwide: BPS must be 10 or 12",
-                    0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:bps");
+                    0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:bps");
     if (YCBCR.type() != ValueType::UINT16)
         throw Error("ycbcr2rgbwide: YCBCR must be UINT16",
-                    0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:class");
+                    0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:class");
 
     const auto &d = YCBCR.dims();
     const bool is_image = d.is3D();
     if (is_image) {
         if (d.pages() != 3)
             throw Error("ycbcr2rgbwide: H×W×3 image expected",
-                        0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:shape");
+                        0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:shape");
     } else {
         if (d.cols() != 3)
             throw Error("ycbcr2rgbwide: p×3 colour list expected",
-                        0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:shape");
+                        0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:shape");
     }
 
     double yzero, yrange, chromazero, chromarange;
@@ -679,7 +679,7 @@ BTParams bt2020_params(int bps)
     if (bps == 10) return {1.099, 0.018, 64, 940};
     if (bps == 12) return {1.0993, 0.0181, 256, 3760};
     throw Error("rgbwide2xyz: bits_per_sample must be 10 or 12",
-                0, 0, "rgbwide2xyz", "", "m:rgbwide2xyz:bps");
+                0, 0, "rgbwide2xyz", "", "numkit:rgbwide2xyz:bps");
 }
 BTParams bt2100_params(int bps)
 {
@@ -688,7 +688,7 @@ BTParams bt2100_params(int bps)
     if (bps == 10) return {1.099, 0.018, 64, 940};
     if (bps == 12) return {1.099, 0.018, 256, 3760};
     throw Error("rgbwide2xyz: bits_per_sample must be 10 or 12",
-                0, 0, "rgbwide2xyz", "", "m:rgbwide2xyz:bps");
+                0, 0, "rgbwide2xyz", "", "numkit:rgbwide2xyz:bps");
 }
 
 // Inverse transfer (normalized [0,1] non-linear → linear).
@@ -739,7 +739,7 @@ Value rgbwide2xyz(const Value &RGB, int bits_per_sample,
     bool is_bt2100 = (cs_lo == "bt.2100" || cs_lo == "bt2100");
     if (!is_bt2020 && !is_bt2100)
         throw Error("rgbwide2xyz: ColorSpace must be 'BT.2020' or 'BT.2100'",
-                    0, 0, "rgbwide2xyz", "", "m:rgbwide2xyz:cs");
+                    0, 0, "rgbwide2xyz", "", "numkit:rgbwide2xyz:cs");
     bool use_hlg = (is_bt2100 && tf_lo == "hlg");
 
     BTParams P = is_bt2020 ? bt2020_params(bits_per_sample)
@@ -749,7 +749,7 @@ Value rgbwide2xyz(const Value &RGB, int bits_per_sample,
     const auto &d = RGB.dims();
     if (d.is3D() && d.pages() != 3)
         throw Error("rgbwide2xyz: RGB must be Nx3 or HxWx3",
-                    0, 0, "rgbwide2xyz", "", "m:rgbwide2xyz:shape");
+                    0, 0, "rgbwide2xyz", "", "numkit:rgbwide2xyz:shape");
     const std::size_t H = d.rows();
     const std::size_t W = d.cols();
     const bool is_image = d.is3D();
@@ -826,7 +826,7 @@ Value xyz2rgbwide(const Value &XYZ, int bits_per_sample,
     bool is_bt2100 = (cs_lo == "bt.2100" || cs_lo == "bt2100");
     if (!is_bt2020 && !is_bt2100)
         throw Error("xyz2rgbwide: ColorSpace must be 'BT.2020' or 'BT.2100'",
-                    0, 0, "xyz2rgbwide", "", "m:xyz2rgbwide:cs");
+                    0, 0, "xyz2rgbwide", "", "numkit:xyz2rgbwide:cs");
     bool use_hlg = (is_bt2100 && tf_lo == "hlg");
 
     BTParams P = is_bt2020 ? bt2020_params(bits_per_sample)
@@ -839,7 +839,7 @@ Value xyz2rgbwide(const Value &XYZ, int bits_per_sample,
     const auto &d = XYZ.dims();
     if (d.is3D() && d.pages() != 3)
         throw Error("xyz2rgbwide: XYZ must be Nx3 or HxWx3",
-                    0, 0, "xyz2rgbwide", "", "m:xyz2rgbwide:shape");
+                    0, 0, "xyz2rgbwide", "", "numkit:xyz2rgbwide:shape");
     const std::size_t H = d.rows();
     const std::size_t W = d.cols();
     const bool is_image = d.is3D();
@@ -902,7 +902,7 @@ void rgbwide2ycbcr_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("rgbwide2ycbcr: requires (RGB, BPS)",
-                    0, 0, "rgbwide2ycbcr", "", "m:rgbwide2ycbcr:nargin");
+                    0, 0, "rgbwide2ycbcr", "", "numkit:rgbwide2ycbcr:nargin");
     const int bps = static_cast<int>(args[1].toScalar());
     outs[0] = rgbwide2ycbcr(args[0], bps, ctx.engine->resource());
 }
@@ -912,7 +912,7 @@ void ycbcr2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ycbcr2rgbwide: requires (YCBCR, BPS)",
-                    0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:nargin");
+                    0, 0, "ycbcr2rgbwide", "", "numkit:ycbcr2rgbwide:nargin");
     const int bps = static_cast<int>(args[1].toScalar());
     outs[0] = ycbcr2rgbwide(args[0], bps, ctx.engine->resource());
 }
@@ -923,7 +923,7 @@ void rgbwide2xyz_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("rgbwide2xyz: requires (RGB, BPS [, NV...])",
                     0, 0, "rgbwide2xyz", "",
-                    "m:rgbwide2xyz:nargin");
+                    "numkit:rgbwide2xyz:nargin");
     auto *mr = ctx.engine->resource();
     const int bps = static_cast<int>(args[1].toScalar());
     std::string cs = "BT.2020";
@@ -934,7 +934,7 @@ void rgbwide2xyz_reg(Span<const Value> args, size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("rgbwide2xyz: expected NV-pair name string",
                         0, 0, "rgbwide2xyz", "",
-                        "m:rgbwide2xyz:badNv");
+                        "numkit:rgbwide2xyz:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name) nlo += static_cast<char>(std::tolower(
@@ -946,7 +946,7 @@ void rgbwide2xyz_reg(Span<const Value> args, size_t /*nargout*/,
         } else {
             throw Error("rgbwide2xyz: unknown option '" + name + "'",
                         0, 0, "rgbwide2xyz", "",
-                        "m:rgbwide2xyz:unknownNv");
+                        "numkit:rgbwide2xyz:unknownNv");
         }
         i += 2;
     }
@@ -959,7 +959,7 @@ void xyz2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("xyz2rgbwide: requires (XYZ, BPS [, NV...])",
                     0, 0, "xyz2rgbwide", "",
-                    "m:xyz2rgbwide:nargin");
+                    "numkit:xyz2rgbwide:nargin");
     auto *mr = ctx.engine->resource();
     const int bps = static_cast<int>(args[1].toScalar());
     std::string cs = "BT.2020";
@@ -970,7 +970,7 @@ void xyz2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("xyz2rgbwide: expected NV-pair name string",
                         0, 0, "xyz2rgbwide", "",
-                        "m:xyz2rgbwide:badNv");
+                        "numkit:xyz2rgbwide:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name) nlo += static_cast<char>(std::tolower(
@@ -982,7 +982,7 @@ void xyz2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
         } else {
             throw Error("xyz2rgbwide: unknown option '" + name + "'",
                         0, 0, "xyz2rgbwide", "",
-                        "m:xyz2rgbwide:unknownNv");
+                        "numkit:xyz2rgbwide:unknownNv");
         }
         i += 2;
     }
@@ -994,7 +994,7 @@ void cmunique_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("cmunique: requires (X, MAP), (RGB), or (I)",
-                    0, 0, "cmunique", "", "m:cmunique:nargin");
+                    0, 0, "cmunique", "", "numkit:cmunique:nargin");
     auto *mr = ctx.engine->resource();
     std::pair<Value, Value> result;
     if (args.size() == 1) {
@@ -1198,10 +1198,10 @@ Value imfuse(const Value &Ain, const Value &Bin,
         throw Error("imfuse: unknown METHOD '" + method
                   + "' (allowed: falsecolor / blend / diff / "
                     "checkerboard / montage)",
-                    0, 0, "imfuse", "", "m:imfuse:method");
+                    0, 0, "imfuse", "", "numkit:imfuse:method");
     if (scaling != "independent" && scaling != "joint" && scaling != "none")
         throw Error("imfuse: unknown SCALING '" + scaling + "'",
-                    0, 0, "imfuse", "", "m:imfuse:scaling");
+                    0, 0, "imfuse", "", "numkit:imfuse:scaling");
 
     std::size_t Ha, Wa, Hb, Wb;
     hw_of(Ain, Ha, Wa);
@@ -1235,7 +1235,7 @@ Value imfuse(const Value &Ain, const Value &Bin,
                 const double v = channels.elemAsDouble(k);
                 if (v != 0.0 && v != 1.0 && v != 2.0)
                     throw Error("imfuse: ColorChannels values must be 0, 1, or 2",
-                                0, 0, "imfuse", "", "m:imfuse:channels");
+                                0, 0, "imfuse", "", "numkit:imfuse:channels");
                 ch[k] = static_cast<int>(v);
             }
         }
@@ -1381,20 +1381,20 @@ Value tonemap(const Value &HDR,
        && lremap_lo < lremap_hi))
         throw Error("tonemap: AdjustLightness must satisfy "
                     "0 <= lo < hi <= 1",
-                    0, 0, "tonemap", "", "m:tonemap:adjust");
+                    0, 0, "tonemap", "", "numkit:tonemap:adjust");
     if (!(saturation >= 0))
         throw Error("tonemap: AdjustSaturation must be non-negative",
-                    0, 0, "tonemap", "", "m:tonemap:sat");
+                    0, 0, "tonemap", "", "numkit:tonemap:sat");
     if (ntilesR < 2 || ntilesC < 2)
         throw Error("tonemap: NumberOfTiles values must be >= 2",
-                    0, 0, "tonemap", "", "m:tonemap:tiles");
+                    0, 0, "tonemap", "", "numkit:tonemap:tiles");
 
     const std::size_t H = HDR.dims().rows();
     const std::size_t W = HDR.dims().cols();
     const bool isRGB = HDR.dims().is3D();
     if (isRGB && HDR.dims().pages() != 3)
         throw Error("tonemap: HDR must be H×W or H×W×3",
-                    0, 0, "tonemap", "", "m:tonemap:shape");
+                    0, 0, "tonemap", "", "numkit:tonemap:shape");
     const std::size_t C = isRGB ? 3 : 1;
     const std::size_t plane = H * W;
     const std::size_t Ntot = plane * C;
@@ -1407,7 +1407,7 @@ Value tonemap(const Value &HDR,
         const double v = HDR.elemAsDouble(i);
         if (v < 0.0)
             throw Error("tonemap: HDR must be non-negative",
-                        0, 0, "tonemap", "", "m:tonemap:negative");
+                        0, 0, "tonemap", "", "numkit:tonemap:negative");
         data[i] = v;
         if (v != 0.0) {
             any_nz = true;
@@ -1497,7 +1497,7 @@ void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imfuse: requires (A, B [, METHOD] [, NV...])",
-                    0, 0, "imfuse", "", "m:imfuse:nargin");
+                    0, 0, "imfuse", "", "numkit:imfuse:nargin");
     auto *mr = ctx.engine->resource();
 
     const Value &A = args[0];
@@ -1528,13 +1528,13 @@ void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
             throw Error("imfuse: unknown METHOD '" + m + "' (allowed: "
                         "falsecolor / blend / diff / checkerboard / "
                         "montage)",
-                        0, 0, "imfuse", "", "m:imfuse:method");
+                        0, 0, "imfuse", "", "numkit:imfuse:method");
         // else: leave i=2 so it gets parsed as NV pair below.
     }
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("imfuse: expected NV-pair name string",
-                        0, 0, "imfuse", "", "m:imfuse:badNvArg");
+                        0, 0, "imfuse", "", "numkit:imfuse:badNvArg");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -1567,14 +1567,14 @@ void imfuse_reg(Span<const Value> args, std::size_t /*nargout*/,
                     channels.doubleDataMut()[2] = 2;
                 } else {
                     throw Error("imfuse: unknown ColorChannels '" + s + "'",
-                                0, 0, "imfuse", "", "m:imfuse:channels");
+                                0, 0, "imfuse", "", "numkit:imfuse:channels");
                 }
             } else {
                 channels = v;
             }
         } else {
             throw Error("imfuse: unknown option '" + name + "'",
-                        0, 0, "imfuse", "", "m:imfuse:unknownNv");
+                        0, 0, "imfuse", "", "numkit:imfuse:unknownNv");
         }
         i += 2;
     }
@@ -1586,7 +1586,7 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("tonemap: requires (HDR [, NV...])",
-                    0, 0, "tonemap", "", "m:tonemap:nargin");
+                    0, 0, "tonemap", "", "numkit:tonemap:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -1598,7 +1598,7 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("tonemap: expected NV-pair name",
-                        0, 0, "tonemap", "", "m:tonemap:badNv");
+                        0, 0, "tonemap", "", "numkit:tonemap:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -1608,7 +1608,7 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
             const Value &v = args[i + 1];
             if (v.numel() != 2)
                 throw Error("tonemap: AdjustLightness must be [lo hi]",
-                            0, 0, "tonemap", "", "m:tonemap:adjustLen");
+                            0, 0, "tonemap", "", "numkit:tonemap:adjustLen");
             lo = v.elemAsDouble(0);
             hi = v.elemAsDouble(1);
         } else if (nlo == "adjustsaturation") {
@@ -1623,11 +1623,11 @@ void tonemap_reg(Span<const Value> args, std::size_t /*nargout*/,
             } else {
                 throw Error("tonemap: NumberOfTiles must be a scalar or "
                             "2-element vector",
-                            0, 0, "tonemap", "", "m:tonemap:tilesLen");
+                            0, 0, "tonemap", "", "numkit:tonemap:tilesLen");
             }
         } else {
             throw Error("tonemap: unknown option '" + name + "'",
-                        0, 0, "tonemap", "", "m:tonemap:unknownNv");
+                        0, 0, "tonemap", "", "numkit:tonemap:unknownNv");
         }
         i += 2;
     }
@@ -1924,7 +1924,7 @@ Value resolve_named_colormap(const std::string &name, int N,
     if (lo == "bone")    return bone_colormap(N, mr);
     throw Error("labeloverlay: unsupported colormap name '" + name +
                 "' (supported: jet, hsv, parula, gray, hot, cool, bone)",
-                0, 0, "labeloverlay", "", "m:labeloverlay:cmapName");
+                0, 0, "labeloverlay", "", "numkit:labeloverlay:cmapName");
 }
 
 // ── randperm(N) using MATLAB MT19937 with rng('default') ──────────
@@ -2219,21 +2219,21 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
     const std::size_t W = dA.cols();
     if (H == 0 || W == 0)
         throw Error("labeloverlay: A must be nonempty",
-                    0, 0, "labeloverlay", "", "m:labeloverlay:emptyA");
+                    0, 0, "labeloverlay", "", "numkit:labeloverlay:emptyA");
     const bool isRGB = dA.is3D() && dA.pages() == 3;
     const bool isGray = !dA.is3D() || (dA.is3D() && dA.pages() == 1);
     if (!isRGB && !isGray)
         throw Error("labeloverlay: A must be grayscale (H×W) or RGB (H×W×3)",
-                    0, 0, "labeloverlay", "", "m:labeloverlay:shapeA");
+                    0, 0, "labeloverlay", "", "numkit:labeloverlay:shapeA");
 
     // ── Validate L ────────────────────────────────────────────────
     const auto &dL = L_in.dims();
     if (dL.is3D() && dL.pages() != 1)
         throw Error("labeloverlay: L must be 2-D",
-                    0, 0, "labeloverlay", "", "m:labeloverlay:shapeL");
+                    0, 0, "labeloverlay", "", "numkit:labeloverlay:shapeL");
     if (dL.rows() != H || dL.cols() != W)
         throw Error("labeloverlay: size(L) must match size(A,1:2)",
-                    0, 0, "labeloverlay", "", "m:labeloverlay:sizeMismatch");
+                    0, 0, "labeloverlay", "", "numkit:labeloverlay:sizeMismatch");
 
     // Logical → 0/1 integer label matrix. Already a numeric label
     // matrix? Accept as-is, but validate non-negative integer.
@@ -2243,7 +2243,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         const double v = L_in.elemAsDouble(i);
         if (v < 0 || std::floor(v) != v || !std::isfinite(v))
             throw Error("labeloverlay: L must be non-negative integer-valued",
-                        0, 0, "labeloverlay", "", "m:labeloverlay:badL");
+                        0, 0, "labeloverlay", "", "numkit:labeloverlay:badL");
         const int iv = static_cast<int>(v);
         if (iv > maxLabel) maxLabel = iv;
     }
@@ -2253,7 +2253,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
     if (!std::isfinite(transparency) || transparency < 0 || transparency > 1)
         throw Error("labeloverlay: Transparency must be in [0, 1]",
                     0, 0, "labeloverlay", "",
-                    "m:labeloverlay:transparency");
+                    "numkit:labeloverlay:transparency");
     const double alphaVal = 1.0 - transparency;
 
     // ── Resolve colormap ──────────────────────────────────────────
@@ -2270,7 +2270,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         if (colormap.dims().cols() != 3 || colormap.dims().is3D())
             throw Error("labeloverlay: Colormap must be an Nx3 numeric array",
                         0, 0, "labeloverlay", "",
-                        "m:labeloverlay:cmapShape");
+                        "numkit:labeloverlay:cmapShape");
         // Convert to DOUBLE (matches MATLAB's normalizeColormap → single
         // then double for indexing). Stays bit-identical because the
         // user-supplied array IS the source of truth.
@@ -2290,7 +2290,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         throw Error("labeloverlay: ColorAssignment must be auto / shuffle / "
                     "noshuffle / contrasting-neighbors",
                     0, 0, "labeloverlay", "",
-                    "m:labeloverlay:colorAssignment");
+                    "numkit:labeloverlay:colorAssignment");
     }
 
     if (ca == "shuffle") {
@@ -2314,14 +2314,14 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
                 throw Error("labeloverlay: IncludedLabels must be "
                             "non-negative integers",
                             0, 0, "labeloverlay", "",
-                            "m:labeloverlay:includedBad");
+                            "numkit:labeloverlay:includedBad");
             included.push_back(static_cast<int>(v));
         }
         for (int v : included)
             if (v > maxLabel)
                 throw Error("labeloverlay: IncludedLabels exceeds max label",
                             0, 0, "labeloverlay", "",
-                            "m:labeloverlay:includedRange");
+                            "numkit:labeloverlay:includedRange");
     }
     if (included.empty()) {
         // MATLAB behaviour: pass A through im2uint8.
@@ -2332,7 +2332,7 @@ Value labeloverlay(const Value &A_in, const Value &L_in,
         throw Error("labeloverlay: Colormap has fewer rows than the number "
                     "of labels",
                     0, 0, "labeloverlay", "",
-                    "m:labeloverlay:cmapTooSmall");
+                    "numkit:labeloverlay:cmapTooSmall");
 
     // ── Build alphamap ────────────────────────────────────────────
     bool zero_in_included = false;
@@ -2432,7 +2432,7 @@ void labeloverlay_reg(Span<const Value> args, std::size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("labeloverlay: requires (A, L [, NV...])",
                     0, 0, "labeloverlay", "",
-                    "m:labeloverlay:nargin");
+                    "numkit:labeloverlay:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -2446,7 +2446,7 @@ void labeloverlay_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (!is_string(args[i]))
             throw Error("labeloverlay: expected NV-pair name string",
                         0, 0, "labeloverlay", "",
-                        "m:labeloverlay:badNv");
+                        "numkit:labeloverlay:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -2463,7 +2463,7 @@ void labeloverlay_reg(Span<const Value> args, std::size_t /*nargout*/,
         } else {
             throw Error("labeloverlay: unknown option '" + name + "'",
                         0, 0, "labeloverlay", "",
-                        "m:labeloverlay:unknownNv");
+                        "numkit:labeloverlay:unknownNv");
         }
         i += 2;
     }

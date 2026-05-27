@@ -33,17 +33,17 @@ void validatePerm(const int *perm, std::size_t N, const char *fn)
 {
     if (N == 0)
         throw Error(std::string(fn) + ": perm vector must not be empty",
-                     0, 0, fn, "", std::string("m:") + fn + ":emptyPerm");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":emptyPerm");
     if (N > Dims::kMaxRank)
         throw Error(std::string(fn) + ": perm length exceeds 32",
-                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
     int sorted[Dims::kMaxRank];
     for (std::size_t i = 0; i < N; ++i) sorted[i] = perm[i];
     std::sort(sorted, sorted + N);
     for (std::size_t i = 0; i < N; ++i) {
         if (sorted[i] != static_cast<int>(i + 1))
             throw Error(std::string(fn) + ": perm must be a permutation of 1..N",
-                         0, 0, fn, "", std::string("m:") + fn + ":badPerm");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":badPerm");
     }
 }
 
@@ -104,7 +104,7 @@ Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *m
     const int inNd = std::max<int>(dd.ndim(), static_cast<int>(n));
     if (inNd > Dims::kMaxRank)
         throw Error("permute: rank exceeds 32",
-                     0, 0, "permute", "", "m:permute:tooManyDims");
+                     0, 0, "permute", "", "numkit:permute:tooManyDims");
 
     // All shape arrays on the stack — no per-call heap traffic. Avoids
     // 4 std::vector allocs that dominated cost at small sizes (post-ND
@@ -280,7 +280,7 @@ Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
         } else {
             if (dd.rows() != R || dd.cols() != C)
                 throw Error("cat: dim 3 inputs must agree on rows and cols",
-                             0, 0, "cat", "", "m:cat:badDims");
+                             0, 0, "cat", "", "numkit:cat:badDims");
         }
         totalPages += dd.is3D() ? dd.pages() : 1;
     }
@@ -321,7 +321,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
     constexpr int kMaxNd = Dims::kMaxRank;
     if (outNdim > kMaxNd)
         throw Error("cat: rank exceeds 32",
-                     0, 0, "cat", "", "m:cat:tooManyDims");
+                     0, 0, "cat", "", "numkit:cat:tooManyDims");
 
     size_t outDim[kMaxNd];
     for (int j = 0; j < outNdim; ++j) outDim[j] = 0;
@@ -336,7 +336,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
             || t == ValueType::FUNC_HANDLE)
             throw Error(std::string("cat: ND cat does not support type '")
                          + mtypeName(t) + "'",
-                         0, 0, "cat", "", "m:cat:typeND");
+                         0, 0, "cat", "", "numkit:cat:typeND");
         const auto &d = v.dims();
         if (!anchored) {
             for (int j = 0; j < outNdim; ++j)
@@ -346,7 +346,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
         } else {
             if (t != outType)
                 throw Error("cat: ND cat requires all inputs to share a type",
-                             0, 0, "cat", "", "m:cat:typeMismatchND");
+                             0, 0, "cat", "", "numkit:cat:typeMismatchND");
             for (int j = 0; j < outNdim; ++j) {
                 const size_t vd = (j < d.ndim()) ? d.dim(j) : 1;
                 if (j == k) {
@@ -355,7 +355,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
                     throw Error("cat: dim " + std::to_string(dim)
                                  + " inputs must agree on all axes except dim "
                                  + std::to_string(dim),
-                                 0, 0, "cat", "", "m:cat:badDims");
+                                 0, 0, "cat", "", "numkit:cat:badDims");
                 }
             }
         }
@@ -400,7 +400,7 @@ Value cat(int dim, Span<const Value> values, std::pmr::memory_resource *mr)
 {
     if (dim < 1)
         throw Error("cat: dim must be a positive integer",
-                     0, 0, "cat", "", "m:cat:badDim");
+                     0, 0, "cat", "", "numkit:cat:badDim");
     switch (dim) {
         case 1: return vertcat(values, mr);
         case 2: return horzcat(values, mr);
@@ -424,7 +424,7 @@ Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr)
     for (size_t i = 0; i < count; ++i) {
         if (values[i].dims().is3D())
             throw Error("blkdiag: 3D inputs are not supported",
-                         0, 0, "blkdiag", "", "m:blkdiag:3D");
+                         0, 0, "blkdiag", "", "numkit:blkdiag:3D");
         totalRows += values[i].dims().rows();
         totalCols += values[i].dims().cols();
     }
@@ -486,7 +486,7 @@ Value shiftdim(const Value &x, int n, std::pmr::memory_resource *mr)
     constexpr int kMaxNd = Dims::kMaxRank;
     if (newN > kMaxNd)
         throw Error("shiftdim: rank exceeds 32",
-                     0, 0, "shiftdim", "", "m:shiftdim:tooManyDims");
+                     0, 0, "shiftdim", "", "numkit:shiftdim:tooManyDims");
     size_t newDims[kMaxNd];
     for (int i = 0; i < k; ++i) newDims[i] = 1;
     for (int i = 0; i < N; ++i) newDims[k + i] = d.dim(i);
@@ -546,7 +546,7 @@ void permute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("permute: requires (A, perm)",
-                     0, 0, "permute", "", "m:permute:nargin");
+                     0, 0, "permute", "", "numkit:permute:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto perm = permFromValue(args[1], &scratch);
@@ -558,7 +558,7 @@ void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ipermute: requires (A, perm)",
-                     0, 0, "ipermute", "", "m:ipermute:nargin");
+                     0, 0, "ipermute", "", "numkit:ipermute:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto perm = permFromValue(args[1], &scratch);
@@ -570,7 +570,7 @@ void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("squeeze: requires 1 argument",
-                     0, 0, "squeeze", "", "m:squeeze:nargin");
+                     0, 0, "squeeze", "", "numkit:squeeze:nargin");
     outs[0] = squeeze(args[0], ctx.engine->resource());
 }
 
@@ -579,7 +579,7 @@ void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("cat: requires (dim, A, ...)",
-                     0, 0, "cat", "", "m:cat:nargin");
+                     0, 0, "cat", "", "numkit:cat:nargin");
     const int dim = static_cast<int>(args[0].toScalar());
     // Pass &args[1] as the start of the values array.
     outs[0] = cat(dim, args.subspan(1), ctx.engine->resource());
@@ -596,7 +596,7 @@ void shiftdim_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("shiftdim: requires 1 or 2 arguments",
-                     0, 0, "shiftdim", "", "m:shiftdim:nargin");
+                     0, 0, "shiftdim", "", "numkit:shiftdim:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const int n = static_cast<int>(args[1].toScalar());

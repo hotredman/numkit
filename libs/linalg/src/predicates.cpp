@@ -35,7 +35,7 @@ inline void requireMatrix(const Value &A, const char *who)
 {
     if (A.dims().is3D())
         throw Error(std::string(who) + ": input must be 2D",
-                    0, 0, who, "", std::string("m:") + who + ":Not2D");
+                    0, 0, who, "", std::string("numkit:") + who + ":Not2D");
 }
 
 bool isbandedImpl(const Value &A, long lower, long upper)
@@ -150,7 +150,7 @@ Value isbanded(const Value &A, long lower, long upper, std::pmr::memory_resource
     requireMatrix(A, "isbanded");
     if (lower < 0 || upper < 0)
         throw Error("isbanded: bandwidths must be non-negative",
-                    0, 0, "isbanded", "", "m:isbanded:NegBand");
+                    0, 0, "isbanded", "", "numkit:isbanded:NegBand");
     return Value::logicalScalar(isbandedImpl(A, lower, upper), mr);
 }
 
@@ -200,7 +200,7 @@ Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_re
     if (which == "lower") return Value::scalar(static_cast<double>(lo), mr);
     if (which == "upper") return Value::scalar(static_cast<double>(up), mr);
     throw Error("bandwidth: option must be 'lower' or 'upper'",
-                0, 0, "bandwidth", "", "m:bandwidth:BadOpt");
+                0, 0, "bandwidth", "", "numkit:bandwidth:BadOpt");
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -213,12 +213,12 @@ static bool parseSkewOpt(const Value &v, const char *who)
 {
     if (!v.isChar() && !v.isString())
         throw Error(std::string(who) + ": option must be 'skew' or 'nonskew'",
-                    0, 0, who, "", std::string("m:") + who + ":BadOpt");
+                    0, 0, who, "", std::string("numkit:") + who + ":BadOpt");
     std::string s = v.toString();
     if (s == "skew")     return true;
     if (s == "nonskew")  return false;
     throw Error(std::string(who) + ": option must be 'skew' or 'nonskew'",
-                0, 0, who, "", std::string("m:") + who + ":BadOpt");
+                0, 0, who, "", std::string("numkit:") + who + ":BadOpt");
 }
 
 void issymmetric_reg(Span<const Value> args, size_t /*nargout*/,
@@ -226,7 +226,7 @@ void issymmetric_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("issymmetric: requires (A)",
-                    0, 0, "issymmetric", "", "m:issymmetric:nargin");
+                    0, 0, "issymmetric", "", "numkit:issymmetric:nargin");
     bool skew = (args.size() >= 2) && parseSkewOpt(args[1], "issymmetric");
     outs[0] = issymmetric(args[0], skew, ctx.engine->resource());
 }
@@ -236,7 +236,7 @@ void ishermitian_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("ishermitian: requires (A)",
-                    0, 0, "ishermitian", "", "m:ishermitian:nargin");
+                    0, 0, "ishermitian", "", "numkit:ishermitian:nargin");
     bool skew = (args.size() >= 2) && parseSkewOpt(args[1], "ishermitian");
     outs[0] = ishermitian(args[0], skew, ctx.engine->resource());
 }
@@ -246,7 +246,7 @@ void isbanded_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("isbanded: requires (A, lower, upper)",
-                    0, 0, "isbanded", "", "m:isbanded:nargin");
+                    0, 0, "isbanded", "", "numkit:isbanded:nargin");
     long lower = static_cast<long>(args[1].toScalar());
     long upper = static_cast<long>(args[2].toScalar());
     outs[0] = isbanded(args[0], lower, upper, ctx.engine->resource());
@@ -256,7 +256,7 @@ void isdiag_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("isdiag: requires (A)", 0, 0, "isdiag", "", "m:isdiag:nargin");
+        throw Error("isdiag: requires (A)", 0, 0, "isdiag", "", "numkit:isdiag:nargin");
     outs[0] = isdiag(args[0], ctx.engine->resource());
 }
 
@@ -264,7 +264,7 @@ void istril_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("istril: requires (A)", 0, 0, "istril", "", "m:istril:nargin");
+        throw Error("istril: requires (A)", 0, 0, "istril", "", "numkit:istril:nargin");
     outs[0] = istril(args[0], ctx.engine->resource());
 }
 
@@ -272,7 +272,7 @@ void istriu_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("istriu: requires (A)", 0, 0, "istriu", "", "m:istriu:nargin");
+        throw Error("istriu: requires (A)", 0, 0, "istriu", "", "numkit:istriu:nargin");
     outs[0] = istriu(args[0], ctx.engine->resource());
 }
 
@@ -281,7 +281,7 @@ void bandwidth_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("bandwidth: requires (A) or (A, opt)",
-                    0, 0, "bandwidth", "", "m:bandwidth:nargin");
+                    0, 0, "bandwidth", "", "numkit:bandwidth:nargin");
     if (args.size() == 1) {
         auto [lo, up] = bandwidth(args[0], ctx.engine->resource());
         outs[0] = lo;
@@ -290,7 +290,7 @@ void bandwidth_reg(Span<const Value> args, size_t nargout,
     }
     if (!args[1].isChar() && !args[1].isString())
         throw Error("bandwidth: option must be 'lower' or 'upper'",
-                    0, 0, "bandwidth", "", "m:bandwidth:BadOpt");
+                    0, 0, "bandwidth", "", "numkit:bandwidth:BadOpt");
     outs[0] = bandwidthOpt(args[0], args[1].toString(), ctx.engine->resource());
 }
 

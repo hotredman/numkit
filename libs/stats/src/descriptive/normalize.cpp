@@ -38,7 +38,7 @@ void forEachColumn(const Value &A, Op op) {
     // mean/var on 2-D path).
     if (N != H * W)
         throw Error("normalize/rescale/zscore: only 1-D or 2-D inputs supported",
-                    0, 0, "normalize", "", "m:normalize:nd");
+                    0, 0, "normalize", "", "numkit:normalize:nd");
     std::vector<double> buf(H);
     for (size_t j = 0; j < W; ++j) {
         for (size_t i = 0; i < H; ++i) buf[i] = A.elemAsDouble(j * H + i);
@@ -155,7 +155,7 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
             for (size_t i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
         } else {
             throw Error("normalize: unknown method '" + m + "'",
-                        0, 0, "normalize", "", "m:normalize:method");
+                        0, 0, "normalize", "", "numkit:normalize:method");
         }
         writeColumn(out, j, y.data(), n, H, W);
     });
@@ -199,12 +199,12 @@ void normalize_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("normalize: requires (A [, method])",
-                    0, 0, "normalize", "", "m:normalize:nargin");
+                    0, 0, "normalize", "", "numkit:normalize:nargin");
     std::string method = "zscore";
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("normalize: method must be a string",
-                        0, 0, "normalize", "", "m:normalize:type");
+                        0, 0, "normalize", "", "numkit:normalize:type");
         method = args[1].toString();
     }
     outs[0] = normalize(args[0], method, ctx.engine->resource());
@@ -215,7 +215,7 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rescale: requires (A [, lo, hi])",
-                    0, 0, "rescale", "", "m:rescale:nargin");
+                    0, 0, "rescale", "", "numkit:rescale:nargin");
     const double lo = (args.size() >= 2 && !args[1].isEmpty())
                       ? args[1].toScalar() : 0.0;
     const double hi = (args.size() >= 3 && !args[2].isEmpty())
@@ -228,7 +228,7 @@ void zscore_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("zscore: requires (A)",
-                    0, 0, "zscore", "", "m:zscore:nargin");
+                    0, 0, "zscore", "", "numkit:zscore:nargin");
     outs[0] = zscore(args[0], ctx.engine->resource());
 }
 

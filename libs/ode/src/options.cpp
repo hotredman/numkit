@@ -81,18 +81,18 @@ Value odeset(const Value *args, std::size_t nargs,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("odeset: expected a string option name at arg "
                       + std::to_string(i + 1),
-                        0, 0, "odeset", "", "m:odeset:badArg");
+                        0, 0, "odeset", "", "numkit:odeset:badArg");
         const std::string name = canonical_name(args[i].toString());
         if (name.empty())
             throw Error("odeset: unknown option '" + args[i].toString() + "'",
-                        0, 0, "odeset", "", "m:odeset:badName");
+                        0, 0, "odeset", "", "numkit:odeset:badName");
         out.field(name.c_str()) = args[i + 1];
         i += 2;
     }
     if (i < nargs)
         throw Error("odeset: trailing unmatched argument at position "
                   + std::to_string(i + 1),
-                    0, 0, "odeset", "", "m:odeset:unpaired");
+                    0, 0, "odeset", "", "numkit:odeset:unpaired");
     return out;
 }
 
@@ -101,14 +101,14 @@ Value odeget(const Value &opts, const Value &name,
 {
     if (!opts.isStruct())
         throw Error("odeget: first argument must be a struct",
-                    0, 0, "odeget", "", "m:odeget:notStruct");
+                    0, 0, "odeget", "", "numkit:odeget:notStruct");
     if (!name.isChar() && !name.isString())
         throw Error("odeget: name must be a string",
-                    0, 0, "odeget", "", "m:odeget:badName");
+                    0, 0, "odeget", "", "numkit:odeget:badName");
     const std::string canon = canonical_name(name.toString());
     if (canon.empty())
         throw Error("odeget: unknown option '" + name.toString() + "'",
-                    0, 0, "odeget", "", "m:odeget:badName");
+                    0, 0, "odeget", "", "numkit:odeget:badName");
     if (opts.hasField(canon.c_str())) {
         const Value &v = opts.field(canon.c_str());
         if (!v.isEmpty()) return v;
@@ -132,7 +132,7 @@ void odeget_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("odeget: requires (opts, name[, default])",
-                    0, 0, "odeget", "", "m:odeget:nargin");
+                    0, 0, "odeget", "", "numkit:odeget:nargin");
     auto *mr = ctx.engine->resource();
     const Value def = (args.size() > 2) ? args[2] : Value::Empty;
     outs[0] = odeget(args[0], args[1], def, mr);

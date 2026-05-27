@@ -645,23 +645,23 @@ TEST_P(LastwarnTest, ClearedStateIsEmpty)
 
 TEST_P(LastwarnTest, WarningSetsState)
 {
-    eval("warning('m:test:foo', 'something happened');");
+    eval("warning('numkit:test:foo', 'something happened');");
     eval("[m, i] = lastwarn();");
     EXPECT_EQ(getVarPtr("m")->toString(), "something happened");
-    EXPECT_EQ(getVarPtr("i")->toString(), "m:test:foo");
+    EXPECT_EQ(getVarPtr("i")->toString(), "numkit:test:foo");
 }
 
 TEST_P(LastwarnTest, ManualSetForm)
 {
-    eval("lastwarn('manual reset', 'm:reset');");
+    eval("lastwarn('manual reset', 'numkit:reset');");
     eval("[m, i] = lastwarn();");
     EXPECT_EQ(getVarPtr("m")->toString(), "manual reset");
-    EXPECT_EQ(getVarPtr("i")->toString(), "m:reset");
+    EXPECT_EQ(getVarPtr("i")->toString(), "numkit:reset");
 }
 
 TEST_P(LastwarnTest, ManualResetWithEmpty)
 {
-    eval("warning('m:test:bar', 'first');");
+    eval("warning('numkit:test:bar', 'first');");
     eval("lastwarn('');");
     eval("[m, i] = lastwarn();");
     EXPECT_EQ(getVarPtr("m")->toString(), "");

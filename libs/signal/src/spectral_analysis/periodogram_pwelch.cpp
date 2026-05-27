@@ -195,7 +195,7 @@ CrossWelchOut crossWelch(const Value &x, const Value &y, const Value &window, si
     const size_t ny = y.numel();
     if (nx != ny)
         throw Error("cpsd/mscohere: x and y must have the same length",
-                    0, 0, "cpsd", "", "m:cpsd:size");
+                    0, 0, "cpsd", "", "numkit:cpsd:size");
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
 
@@ -351,7 +351,7 @@ void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("periodogram: requires at least 1 argument",
-                     0, 0, "periodogram", "", "m:periodogram:nargin");
+                     0, 0, "periodogram", "", "numkit:periodogram:nargin");
 
     Value window = Value::empty();
     if (args.size() >= 2 && !args[1].isChar())
@@ -369,7 +369,7 @@ void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("pwelch: requires at least 1 argument",
-                     0, 0, "pwelch", "", "m:pwelch:nargin");
+                     0, 0, "pwelch", "", "numkit:pwelch:nargin");
 
     Value window = Value::empty();
     if (args.size() >= 2 && !args[1].isChar())
@@ -388,7 +388,7 @@ void cpsd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.size() < 2)
         throw Error("cpsd: requires (x, y[, window, noverlap, nfft, fs])",
-                    0, 0, "cpsd", "", "m:cpsd:nargin");
+                    0, 0, "cpsd", "", "numkit:cpsd:nargin");
     Value window = Value::empty();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
@@ -403,7 +403,7 @@ void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("mscohere: requires (x, y[, window, noverlap, nfft, fs])",
-                    0, 0, "mscohere", "", "m:mscohere:nargin");
+                    0, 0, "mscohere", "", "numkit:mscohere:nargin");
     Value window = Value::empty();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
@@ -418,7 +418,7 @@ void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("tfestimate: requires (x, y[, window, noverlap, nfft, fs])",
-                    0, 0, "tfestimate", "", "m:tfestimate:nargin");
+                    0, 0, "tfestimate", "", "numkit:tfestimate:nargin");
     Value window = Value::empty();
     if (args.size() >= 3 && !args[2].isChar()) window = args[2];
     const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;

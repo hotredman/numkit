@@ -59,7 +59,7 @@ Size3 parseHsize(const Value &hsize)
                 static_cast<size_t>(hsize.elemAsDouble(2))};
     }
     throw Error("fspecial3: hsize must be scalar or 3-element vector",
-                0, 0, "fspecial3", "", "m:fspecial3:BadHsize");
+                0, 0, "fspecial3", "", "numkit:fspecial3:BadHsize");
 }
 
 inline size_t lin3(size_t r, size_t c, size_t p, size_t H, size_t W)
@@ -93,7 +93,7 @@ Sig3 parseSigma3(const Value &sig, double defv = 1.0)
         return {sig.elemAsDouble(0), sig.elemAsDouble(1), sig.elemAsDouble(2)};
     }
     throw Error("fspecial3: sigma must be scalar or 3-element vector",
-                0, 0, "fspecial3", "", "m:fspecial3:BadSigma");
+                0, 0, "fspecial3", "", "numkit:fspecial3:BadSigma");
 }
 
 } // namespace
@@ -144,7 +144,7 @@ Value fspecial3(std::pmr::memory_resource *mr, const std::string &type,
                 sc = param.elemAsDouble(2);
             } else {
                 throw Error("fspecial3: ellipsoid semiaxes must be scalar or 3-vec",
-                            0, 0, "fspecial3", "", "m:fspecial3:BadSemiaxes");
+                            0, 0, "fspecial3", "", "numkit:fspecial3:BadSemiaxes");
             }
         }
         const double cy = (static_cast<double>(s.H) - 1.0) / 2.0;
@@ -239,13 +239,13 @@ Value fspecial3(std::pmr::memory_resource *mr, const std::string &type,
             if (dir == "Z" || dir == "z") return  static_cast<double>(-dp) * sm(dr) * sm(dc);
             (void)dv;
             throw Error("fspecial3: direction must be 'X', 'Y', or 'Z'",
-                        0, 0, "fspecial3", "", "m:fspecial3:BadDir");
+                        0, 0, "fspecial3", "", "numkit:fspecial3:BadDir");
         });
         return out;
     }
 
     throw Error("fspecial3: unsupported type '" + type + "'",
-                0, 0, "fspecial3", "", "m:fspecial3:BadType");
+                0, 0, "fspecial3", "", "numkit:fspecial3:BadType");
 }
 
 // ── fwind2 ────────────────────────────────────────────────────────────
@@ -258,12 +258,12 @@ Value fwind2(std::pmr::memory_resource *mr, const Value &Hd, const Value &w)
 {
     if (Hd.dims().is3D() || w.dims().is3D())
         throw Error("fwind2: inputs must be 2-D",
-                    0, 0, "fwind2", "", "m:fwind2:Not2D");
+                    0, 0, "fwind2", "", "numkit:fwind2:Not2D");
     const size_t H = Hd.dims().rows();
     const size_t W = Hd.dims().cols();
     if (w.dims().rows() != H || w.dims().cols() != W)
         throw Error("fwind2: window must match Hd shape",
-                    0, 0, "fwind2", "", "m:fwind2:ShapeMismatch");
+                    0, 0, "fwind2", "", "numkit:fwind2:ShapeMismatch");
 
     Value h = Value::matrix(H, W, ValueType::DOUBLE, mr);
     if (H == 0 || W == 0) return h;
@@ -310,10 +310,10 @@ void fspecial3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fspecial3: requires at least (type)",
-                    0, 0, "fspecial3", "", "m:fspecial3:nargin");
+                    0, 0, "fspecial3", "", "numkit:fspecial3:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("fspecial3: type must be a string",
-                    0, 0, "fspecial3", "", "m:fspecial3:BadType");
+                    0, 0, "fspecial3", "", "numkit:fspecial3:BadType");
     const std::string type = args[0].toString();
     Value empty;
     // Sobel/prewitt: 2nd arg is direction string (no hsize — fixed 3x3x3).
@@ -338,7 +338,7 @@ void gabor_reg(Span<const Value> /*args*/, size_t /*nargout*/,
 {
     throw Error("gabor: not implemented in v1 — Gabor filter object "
                 "requires class infrastructure. KNOWN GAP.",
-                0, 0, "gabor", "", "m:gabor:NotImpl");
+                0, 0, "gabor", "", "numkit:gabor:NotImpl");
 }
 
 } // namespace detail

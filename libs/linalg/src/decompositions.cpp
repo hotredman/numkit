@@ -25,12 +25,12 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("chol: input must be a 2D matrix",
-                    0, 0, "chol", "", "m:chol:notMatrix");
+                    0, 0, "chol", "", "numkit:chol:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("chol: matrix must be square",
-                    0, 0, "chol", "", "m:chol:notSquare");
+                    0, 0, "chol", "", "numkit:chol:notSquare");
     if (m == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -47,7 +47,7 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
             s -= r[k + j * n] * r[k + j * n];
         if (s <= 0.0)
             throw Error("chol: matrix is not positive-definite",
-                        0, 0, "chol", "", "m:chol:notPosDef");
+                        0, 0, "chol", "", "numkit:chol:notPosDef");
         r[j + j * n] = std::sqrt(s);
         const double inv_diag = 1.0 / r[j + j * n];
         for (std::size_t i = j + 1; i < n; ++i) {
@@ -105,12 +105,12 @@ lu_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("lu: input must be a 2D matrix",
-                    0, 0, "lu", "", "m:lu:notMatrix");
+                    0, 0, "lu", "", "numkit:lu:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("lu: square matrix required for [L,U,P] form",
-                    0, 0, "lu", "", "m:lu:notSquare");
+                    0, 0, "lu", "", "numkit:lu:notSquare");
 
     ScratchArena scratch(mr);
     ScratchVec<double> LU(m * n, &scratch);
@@ -118,7 +118,7 @@ lu_decompose(const Value &A, std::pmr::memory_resource *mr)
     std::copy(A.doubleData(), A.doubleData() + m * n, LU.begin());
     if (!luPivotInplace(LU.data(), piv.data(), n))
         throw Error("lu: matrix is singular",
-                    0, 0, "lu", "", "m:lu:singular");
+                    0, 0, "lu", "", "numkit:lu:singular");
 
     auto Lout = Value::matrix(n, n, ValueType::DOUBLE, mr);
     auto Uout = Value::matrix(n, n, ValueType::DOUBLE, mr);
@@ -151,12 +151,12 @@ Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("lu: input must be a 2D matrix",
-                    0, 0, "lu", "", "m:lu:notMatrix");
+                    0, 0, "lu", "", "numkit:lu:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("lu: square matrix required",
-                    0, 0, "lu", "", "m:lu:notSquare");
+                    0, 0, "lu", "", "numkit:lu:notSquare");
     ScratchArena scratch(mr);
     ScratchVec<std::int32_t> piv(n, &scratch);
     auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
@@ -164,7 +164,7 @@ Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
     std::copy(A.doubleData(), A.doubleData() + m * n, LU);
     if (!luPivotInplace(LU, piv.data(), n))
         throw Error("lu: matrix is singular",
-                    0, 0, "lu", "", "m:lu:singular");
+                    0, 0, "lu", "", "numkit:lu:singular");
     return out;
 }
 
@@ -252,13 +252,13 @@ qr_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("qr: input must be a 2D matrix",
-                    0, 0, "qr", "", "m:qr:notMatrix");
+                    0, 0, "qr", "", "numkit:qr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m < n)
         throw Error("qr: number of rows must be >= number of columns "
                     "(wide matrices via row-pivoted QR are deferred)",
-                    0, 0, "qr", "", "m:qr:wide");
+                    0, 0, "qr", "", "numkit:qr:wide");
     auto Q = Value::matrix(m, m, ValueType::DOUBLE, mr);
     auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
     qrFullHouseholder(A.doubleData(), m, n, Q.doubleDataMut(), R.doubleDataMut(), mr);
@@ -269,12 +269,12 @@ Value qr_R_only(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("qr: input must be a 2D matrix",
-                    0, 0, "qr", "", "m:qr:notMatrix");
+                    0, 0, "qr", "", "numkit:qr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m < n)
         throw Error("qr: number of rows must be >= number of columns",
-                    0, 0, "qr", "", "m:qr:wide");
+                    0, 0, "qr", "", "numkit:qr:wide");
     ScratchArena scratch(mr);
     ScratchVec<double> Q_unused(m * m, &scratch);
     auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
@@ -352,7 +352,7 @@ svd_decompose(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("svd: input must be a 2D matrix",
-                    0, 0, "svd", "", "m:svd:notMatrix");
+                    0, 0, "svd", "", "numkit:svd:notMatrix");
     const std::size_t m_in = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n_in = static_cast<std::size_t>(A.dims().dim(1));
 
@@ -523,17 +523,17 @@ qrupdate(const Value &Q, const Value &R, const Value &u, const Value &v,
 {
     if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
         throw Error("qrupdate: Q and R must be 2D matrices",
-                    0, 0, "qrupdate", "", "m:qrupdate:notMatrix");
+                    0, 0, "qrupdate", "", "numkit:qrupdate:notMatrix");
     const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
     const std::size_t mq = static_cast<std::size_t>(Q.dims().dim(1));
     const std::size_t mr2 = static_cast<std::size_t>(R.dims().dim(0));
     const std::size_t n  = static_cast<std::size_t>(R.dims().dim(1));
     if (mq != m || mr2 != m)
         throw Error("qrupdate: Q must be m×m and R must be m×n",
-                    0, 0, "qrupdate", "", "m:qrupdate:badShape");
+                    0, 0, "qrupdate", "", "numkit:qrupdate:badShape");
     if (u.numel() != m || v.numel() != n)
         throw Error("qrupdate: length(u) must equal size(R, 1) and length(v) must equal size(R, 2)",
-                    0, 0, "qrupdate", "", "m:qrupdate:badVec");
+                    0, 0, "qrupdate", "", "numkit:qrupdate:badVec");
 
     auto Q1 = Value::matrix(m, m, ValueType::DOUBLE, mr);
     auto R1 = Value::matrix(m, n, ValueType::DOUBLE, mr);
@@ -592,19 +592,19 @@ qrinsert(const Value &Q, const Value &R, std::size_t k_1based, const Value &x,
 {
     if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
         throw Error("qrinsert: Q and R must be 2D matrices",
-                    0, 0, "qrinsert", "", "m:qrinsert:notMatrix");
+                    0, 0, "qrinsert", "", "numkit:qrinsert:notMatrix");
     const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(R.dims().dim(1));
     if (static_cast<std::size_t>(Q.dims().dim(1)) != m
         || static_cast<std::size_t>(R.dims().dim(0)) != m)
         throw Error("qrinsert: Q must be m×m and R must be m×n",
-                    0, 0, "qrinsert", "", "m:qrinsert:badShape");
+                    0, 0, "qrinsert", "", "numkit:qrinsert:badShape");
     if (x.numel() != m)
         throw Error("qrinsert: x must have length size(Q, 1)",
-                    0, 0, "qrinsert", "", "m:qrinsert:badX");
+                    0, 0, "qrinsert", "", "numkit:qrinsert:badX");
     if (k_1based < 1 || k_1based > n + 1)
         throw Error("qrinsert: k must be in 1..n+1",
-                    0, 0, "qrinsert", "", "m:qrinsert:badK");
+                    0, 0, "qrinsert", "", "numkit:qrinsert:badK");
     const std::size_t k = k_1based - 1;
 
     // y = Q' * x (length m).
@@ -657,19 +657,19 @@ qrdelete(const Value &Q, const Value &R, std::size_t k_1based,
 {
     if (Q.dims().ndim() != 2 || R.dims().ndim() != 2)
         throw Error("qrdelete: Q and R must be 2D matrices",
-                    0, 0, "qrdelete", "", "m:qrdelete:notMatrix");
+                    0, 0, "qrdelete", "", "numkit:qrdelete:notMatrix");
     const std::size_t m = static_cast<std::size_t>(Q.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(R.dims().dim(1));
     if (static_cast<std::size_t>(Q.dims().dim(1)) != m
         || static_cast<std::size_t>(R.dims().dim(0)) != m)
         throw Error("qrdelete: Q must be m×m and R must be m×n",
-                    0, 0, "qrdelete", "", "m:qrdelete:badShape");
+                    0, 0, "qrdelete", "", "numkit:qrdelete:badShape");
     if (n == 0)
         throw Error("qrdelete: R has no columns to delete",
-                    0, 0, "qrdelete", "", "m:qrdelete:empty");
+                    0, 0, "qrdelete", "", "numkit:qrdelete:empty");
     if (k_1based < 1 || k_1based > n)
         throw Error("qrdelete: k must be in 1..n",
-                    0, 0, "qrdelete", "", "m:qrdelete:badK");
+                    0, 0, "qrdelete", "", "numkit:qrdelete:badK");
     const std::size_t k = k_1based - 1;
 
     // New R is m × (n-1) — drop column k, shift columns k+1..n-1 left.
@@ -711,17 +711,17 @@ Value cholupdate(const Value &R, const Value &x, int sign,
 {
     if (R.dims().ndim() != 2)
         throw Error("cholupdate: R must be a 2D matrix",
-                    0, 0, "cholupdate", "", "m:cholupdate:notMatrix");
+                    0, 0, "cholupdate", "", "numkit:cholupdate:notMatrix");
     const std::size_t n = static_cast<std::size_t>(R.dims().dim(0));
     if (n != static_cast<std::size_t>(R.dims().dim(1)))
         throw Error("cholupdate: R must be square",
-                    0, 0, "cholupdate", "", "m:cholupdate:notSquare");
+                    0, 0, "cholupdate", "", "numkit:cholupdate:notSquare");
     if (x.numel() != n)
         throw Error("cholupdate: x must have length equal to size(R, 1)",
-                    0, 0, "cholupdate", "", "m:cholupdate:badX");
+                    0, 0, "cholupdate", "", "numkit:cholupdate:badX");
     if (sign != 1 && sign != -1)
         throw Error("cholupdate: sign must be '+' (1) or '-' (-1)",
-                    0, 0, "cholupdate", "", "m:cholupdate:badSign");
+                    0, 0, "cholupdate", "", "numkit:cholupdate:badSign");
     if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -791,7 +791,7 @@ Value cholupdate(const Value &R, const Value &x, int sign,
         return chol(Btmp, mr);
     } catch (const Error &) {
         throw Error("cholupdate: downdate would break positive-definiteness",
-                    0, 0, "cholupdate", "", "m:cholupdate:downdateFailed");
+                    0, 0, "cholupdate", "", "numkit:cholupdate:downdateFailed");
     }
 }
 
@@ -805,7 +805,7 @@ void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() != 1)
         throw Error("chol: requires exactly 1 argument",
-                    0, 0, "chol", "", "m:chol:nargin");
+                    0, 0, "chol", "", "numkit:chol:nargin");
     outs[0] = chol(args[0], ctx.engine->resource());
 }
 
@@ -813,7 +813,7 @@ void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
 {
     if (args.size() != 1)
         throw Error("lu: requires exactly 1 argument",
-                    0, 0, "lu", "", "m:lu:nargin");
+                    0, 0, "lu", "", "numkit:lu:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [L, U, P] = lu_decompose(args[0], mr);
@@ -829,7 +829,7 @@ void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
 {
     if (args.size() != 1)
         throw Error("qr: requires exactly 1 argument",
-                    0, 0, "qr", "", "m:qr:nargin");
+                    0, 0, "qr", "", "numkit:qr:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [Q, R] = qr_decompose(args[0], mr);
@@ -844,7 +844,7 @@ void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.size() != 1)
         throw Error("svd: requires exactly 1 argument",
-                    0, 0, "svd", "", "m:svd:nargin");
+                    0, 0, "svd", "", "numkit:svd:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [U, S, V] = svd_decompose(args[0], mr);
@@ -860,7 +860,7 @@ void qrupdate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() != 4)
         throw Error("qrupdate: requires (Q, R, u, v)",
-                    0, 0, "qrupdate", "", "m:qrupdate:nargin");
+                    0, 0, "qrupdate", "", "numkit:qrupdate:nargin");
     auto [Q1, R1] = qrupdate(args[0], args[1], args[2], args[3], ctx.engine->resource());
     outs[0] = std::move(Q1);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(R1);
@@ -870,17 +870,17 @@ void qrinsert_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 4 || args.size() > 5)
         throw Error("qrinsert: requires (Q, R, k, x[, 'col']) — row form is not yet supported",
-                    0, 0, "qrinsert", "", "m:qrinsert:nargin");
+                    0, 0, "qrinsert", "", "numkit:qrinsert:nargin");
     if (args.size() == 5) {
         if (!(args[4].isChar() || args[4].isString())
             || args[4].toString() != "col")
             throw Error("qrinsert: row form not supported in v1 — pass 'col' or omit",
-                        0, 0, "qrinsert", "", "m:qrinsert:rowDeferred");
+                        0, 0, "qrinsert", "", "numkit:qrinsert:rowDeferred");
     }
     const double kd = args[2].toScalar();
     if (kd < 1.0 || kd != std::floor(kd))
         throw Error("qrinsert: k must be a positive integer",
-                    0, 0, "qrinsert", "", "m:qrinsert:badK");
+                    0, 0, "qrinsert", "", "numkit:qrinsert:badK");
     auto [Q1, R1] = qrinsert(args[0], args[1],
                              static_cast<std::size_t>(kd), args[3],
                              ctx.engine->resource());
@@ -892,17 +892,17 @@ void qrdelete_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 3 || args.size() > 4)
         throw Error("qrdelete: requires (Q, R, k[, 'col']) — row form is not yet supported",
-                    0, 0, "qrdelete", "", "m:qrdelete:nargin");
+                    0, 0, "qrdelete", "", "numkit:qrdelete:nargin");
     if (args.size() == 4) {
         if (!(args[3].isChar() || args[3].isString())
             || args[3].toString() != "col")
             throw Error("qrdelete: row form not supported in v1 — pass 'col' or omit",
-                        0, 0, "qrdelete", "", "m:qrdelete:rowDeferred");
+                        0, 0, "qrdelete", "", "numkit:qrdelete:rowDeferred");
     }
     const double kd = args[2].toScalar();
     if (kd < 1.0 || kd != std::floor(kd))
         throw Error("qrdelete: k must be a positive integer",
-                    0, 0, "qrdelete", "", "m:qrdelete:badK");
+                    0, 0, "qrdelete", "", "numkit:qrdelete:badK");
     auto [Q1, R1] = qrdelete(args[0], args[1],
                              static_cast<std::size_t>(kd),
                              ctx.engine->resource());
@@ -914,7 +914,7 @@ void cholupdate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 2 || args.size() > 3)
         throw Error("cholupdate: requires (R, x[, sign])",
-                    0, 0, "cholupdate", "", "m:cholupdate:nargin");
+                    0, 0, "cholupdate", "", "numkit:cholupdate:nargin");
     int sign = 1;
     if (args.size() == 3) {
         if (args[2].isChar() || args[2].isString()) {
@@ -922,7 +922,7 @@ void cholupdate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
             if      (s == "+") sign = 1;
             else if (s == "-") sign = -1;
             else throw Error("cholupdate: sign must be '+' or '-'",
-                             0, 0, "cholupdate", "", "m:cholupdate:badSign");
+                             0, 0, "cholupdate", "", "numkit:cholupdate:badSign");
         } else {
             sign = (args[2].toScalar() >= 0.0) ? 1 : -1;
         }

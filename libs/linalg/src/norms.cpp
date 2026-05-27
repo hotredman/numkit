@@ -57,7 +57,7 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
     // Matrix forms.
     if (x.dims().ndim() != 2)
         throw Error("norm: input must be vector or 2D matrix",
-                    0, 0, "norm", "", "m:norm:badShape");
+                    0, 0, "norm", "", "numkit:norm:badShape");
     const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
     const double *d = x.doubleData();
@@ -78,7 +78,7 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
         return Value::scalar(mx, mr);
     }
     throw Error("norm: matrix p-norms only support 1, 2, inf, 'fro'",
-                0, 0, "norm", "", "m:norm:badP");
+                0, 0, "norm", "", "numkit:norm:badP");
 }
 
 Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
@@ -95,7 +95,7 @@ Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
     // Matrix inf-norm: max row sum.
     if (x.dims().ndim() != 2)
         throw Error("norm: input must be vector or 2D matrix",
-                    0, 0, "norm", "", "m:norm:badShape");
+                    0, 0, "norm", "", "numkit:norm:badShape");
     const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
     const double *d = x.doubleData();
@@ -129,7 +129,7 @@ Value vecnorm(const Value &A, double p, int dim, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("vecnorm: 3-D arrays not supported",
-                    0, 0, "vecnorm", "", "m:vecnorm:3D");
+                    0, 0, "vecnorm", "", "numkit:vecnorm:3D");
     const size_t R = A.dims().rows();
     const size_t C = A.dims().cols();
 
@@ -141,7 +141,7 @@ Value vecnorm(const Value &A, double p, int dim, std::pmr::memory_resource *mr)
     }
     if (dim != 1 && dim != 2)
         throw Error("vecnorm: dim must be 1 or 2",
-                    0, 0, "vecnorm", "", "m:vecnorm:BadDim");
+                    0, 0, "vecnorm", "", "numkit:vecnorm:BadDim");
 
     auto p_norm = [&](auto getAbs, size_t n) -> double {
         if (n == 0) return 0.0;
@@ -219,7 +219,7 @@ void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty() || args.size() > 2)
         throw Error("norm: requires (X) or (X, p)",
-                    0, 0, "norm", "", "m:norm:nargin");
+                    0, 0, "norm", "", "numkit:norm:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = norm_value(args[0], 2.0, mr);
@@ -237,7 +237,7 @@ void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
             return;
         }
         throw Error("norm: string p must be 'fro' or 'inf'",
-                    0, 0, "norm", "", "m:norm:badStringP");
+                    0, 0, "norm", "", "numkit:norm:badStringP");
     }
     const double pv = p.toScalar();
     if (std::isinf(pv)) {
@@ -252,7 +252,7 @@ void vecnorm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("vecnorm: requires (A [, p [, dim]])",
-                    0, 0, "vecnorm", "", "m:vecnorm:nargin");
+                    0, 0, "vecnorm", "", "numkit:vecnorm:nargin");
     double p = 2.0;
     int dim = 0;
     if (args.size() >= 2) p = args[1].toScalar();

@@ -27,14 +27,14 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
         throw Error("linsolve: A and B must be 2D matrices",
-                    0, 0, "linsolve", "", "m:linsolve:notMatrix");
+                    0, 0, "linsolve", "", "numkit:linsolve:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t mb = static_cast<std::size_t>(B.dims().dim(0));
     const std::size_t nrhs = static_cast<std::size_t>(B.dims().dim(1));
     if (m != mb)
         throw Error("linsolve: A and B must have the same number of rows",
-                    0, 0, "linsolve", "", "m:linsolve:badDims");
+                    0, 0, "linsolve", "", "numkit:linsolve:badDims");
 
     ScratchArena scratch(mr);
     ScratchVec<double> A_buf(m * n, &scratch);
@@ -46,7 +46,7 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
     if (!numkit::builtin::detail::la_solve(A_buf.data(), m, n, B_buf.data(), nrhs,
                                             out.doubleDataMut(), &scratch))
         throw Error("linsolve: A is singular or rank-deficient",
-                    0, 0, "linsolve", "", "m:linsolve:singular");
+                    0, 0, "linsolve", "", "numkit:linsolve:singular");
     return out;
 }
 
@@ -55,15 +55,15 @@ Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
 {
     if (A.dims().is3D() || B.dims().is3D())
         throw Error("lsqminnorm: inputs must be 2D",
-                    0, 0, "lsqminnorm", "", "m:lsqminnorm:Not2D");
+                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:Not2D");
     if (A.isComplex() || B.isComplex())
         throw Error("lsqminnorm: complex input not supported in v1",
-                    0, 0, "lsqminnorm", "", "m:lsqminnorm:NoComplex");
+                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:NoComplex");
 
     const size_t M = A.dims().rows();
     if (B.dims().rows() != M)
         throw Error("lsqminnorm: A and B must have same number of rows",
-                    0, 0, "lsqminnorm", "", "m:lsqminnorm:DimMismatch");
+                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:DimMismatch");
 
     Value Ap = pinv(A, have_tol ? tol_user : -1.0, mr);
     return numkit::builtin::mtimes(Ap, B, mr);
@@ -87,15 +87,15 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
 {
     if (C.dims().is3D() || d.dims().is3D())
         throw Error("lsqnonneg: inputs must be 2D",
-                    0, 0, "lsqnonneg", "", "m:lsqnonneg:Not2D");
+                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:Not2D");
     if (C.isComplex() || d.isComplex())
         throw Error("lsqnonneg: real-only inputs in v1",
-                    0, 0, "lsqnonneg", "", "m:lsqnonneg:NoComplex");
+                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:NoComplex");
     const size_t M = C.dims().rows();
     const size_t N = C.dims().cols();
     if (d.numel() != M)
         throw Error("lsqnonneg: C and d must have compatible sizes",
-                    0, 0, "lsqnonneg", "", "m:lsqnonneg:DimMismatch");
+                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:DimMismatch");
 
     NnlsResult R;
     R.exitflag = 1;
@@ -247,7 +247,7 @@ void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2 || args.size() > 3)
         throw Error("linsolve: requires (A, B[, opts])",
-                    0, 0, "linsolve", "", "m:linsolve:nargin");
+                    0, 0, "linsolve", "", "numkit:linsolve:nargin");
     // 3rd arg (opts struct) accepted for MATLAB-compat but ignored.
     outs[0] = linsolve(args[0], args[1], ctx.engine->resource());
 }
@@ -257,7 +257,7 @@ void lsqminnorm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("lsqminnorm: requires (A, B [, tol])",
-                    0, 0, "lsqminnorm", "", "m:lsqminnorm:nargin");
+                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:nargin");
     bool have_tol = (args.size() >= 3);
     double tol = have_tol ? args[2].toScalar() : 0.0;
     outs[0] = lsqminnorm(args[0], args[1], have_tol, tol, ctx.engine->resource());
@@ -268,7 +268,7 @@ void lsqnonneg_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("lsqnonneg: requires (C, d)",
-                    0, 0, "lsqnonneg", "", "m:lsqnonneg:nargin");
+                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:nargin");
     auto R = lsqnonneg_impl(args[0], args[1], ctx.engine->resource());
     outs[0] = R.x;
     if (nargout >= 2 && outs.size() >= 2)

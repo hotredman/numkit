@@ -447,7 +447,7 @@ namespace detail {
 void tpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("tpdf: requires (x, nu)", 0, 0, "tpdf", "", "m:tpdf:nargin");
+        throw Error("tpdf: requires (x, nu)", 0, 0, "tpdf", "", "numkit:tpdf:nargin");
     outs[0] = tpdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -456,7 +456,7 @@ void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
-        throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "m:tcdf:nargin");
+        throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "numkit:tcdf:nargin");
     Value v = tcdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -465,14 +465,14 @@ void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("tinv: requires (p, nu)", 0, 0, "tinv", "", "m:tinv:nargin");
+        throw Error("tinv: requires (p, nu)", 0, 0, "tinv", "", "numkit:tinv:nargin");
     outs[0] = tinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("trnd: requires nu[, sz...]", 0, 0, "trnd", "", "m:trnd:nargin");
+        throw Error("trnd: requires nu[, sz...]", 0, 0, "trnd", "", "numkit:trnd:nargin");
     const double nu = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
@@ -489,7 +489,7 @@ void nctpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("nctpdf: requires (x, nu, delta)",
-                    0, 0, "nctpdf", "", "m:nctpdf:nargin");
+                    0, 0, "nctpdf", "", "numkit:nctpdf:nargin");
     outs[0] = nctpdf(args[0], args[1].toScalar(), args[2].toScalar(),
                      ctx.engine->resource());
 }
@@ -500,7 +500,7 @@ void nctcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("nctcdf: requires (x, nu, delta[, 'upper'])",
-                    0, 0, "nctcdf", "", "m:nctcdf:nargin");
+                    0, 0, "nctcdf", "", "numkit:nctcdf:nargin");
     outs[0] = nctcdf(args[0], args[1].toScalar(), args[2].toScalar(), upper,
                      ctx.engine->resource());
 }
@@ -509,7 +509,7 @@ void nctinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("nctinv: requires (p, nu, delta)",
-                    0, 0, "nctinv", "", "m:nctinv:nargin");
+                    0, 0, "nctinv", "", "numkit:nctinv:nargin");
     outs[0] = nctinv(args[0], args[1].toScalar(), args[2].toScalar(),
                      ctx.engine->resource());
 }
@@ -518,7 +518,7 @@ void nctstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("nctstat: requires (nu, delta)",
-                    0, 0, "nctstat", "", "m:nctstat:nargin");
+                    0, 0, "nctstat", "", "numkit:nctstat:nargin");
     auto [m, v] = nctstat(args[0].toScalar(), args[1].toScalar());
     outs[0] = Value::scalar(m, ctx.engine->resource());
     if (nargout >= 2)
@@ -529,7 +529,7 @@ void nctrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("nctrnd: requires (nu, delta[, sz...])",
-                    0, 0, "nctrnd", "", "m:nctrnd:nargin");
+                    0, 0, "nctrnd", "", "numkit:nctrnd:nargin");
     const double nu = args[0].toScalar();
     const double delta = args[1].toScalar();
     size_t rows, cols;

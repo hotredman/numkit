@@ -245,7 +245,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     if (axisLen <= 1 && outAxisLen > 1)
         throw Error("fft: extending dimension beyond ndims is not supported "
                      "when the axis length is 1",
-                     0, 0, "fft", "", "m:fft:extendDim");
+                     0, 0, "fft", "", "numkit:fft:extendDim");
 
     // fftLen IS the user-visible length: we compute a true N-point DFT.
     // The pow2 path uses Cooley-Tukey radix-2 directly; non-pow2 routes
@@ -698,7 +698,7 @@ Value fft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (dim < 0 || dim > 3)
         throw Error("fft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "fft", "", "m:fft:invalidDim");
+                     0, 0, "fft", "", "numkit:fft:invalidDim");
     if (dim == 0) dim = resolveDefaultDim(x);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
@@ -709,7 +709,7 @@ Value ifft(const Value &X, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (dim < 0 || dim > 3)
         throw Error("ifft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "ifft", "", "m:ifft:invalidDim");
+                     0, 0, "ifft", "", "numkit:ifft:invalidDim");
     if (dim == 0) dim = resolveDefaultDim(X);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
@@ -760,7 +760,7 @@ Value fftnImpl(const Value &X, Span<const std::size_t> sz,
     const int ndim = effectiveNdim(X);
     if (sz.size() > static_cast<std::size_t>(ndim))
         throw Error("fftn: size vector length exceeds ndims(X)",
-                     0, 0, "fftn", "", "m:fftn:badSize");
+                     0, 0, "fftn", "", "numkit:fftn:badSize");
     Value Y = X;
     for (int d = 1; d <= ndim; ++d) {
         int n = -1;
@@ -908,7 +908,7 @@ Value czt(const Value &x, int m, Complex w, Complex a, std::pmr::memory_resource
 
     if (d.is3D())
         throw Error("czt: 3-D input not supported",
-                     0, 0, "czt", "", "m:czt:unsupportedNd");
+                     0, 0, "czt", "", "numkit:czt:unsupportedNd");
 
     // Matrix: czt each column independently.
     Value out = Value::complexMatrix(static_cast<std::size_t>(m), C, mr);
@@ -934,10 +934,10 @@ Value interpft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("interpft: output length n must be positive",
-                     0, 0, "interpft", "", "m:interpft:badN");
+                     0, 0, "interpft", "", "numkit:interpft:badN");
     if (dim < 0 || dim > 3)
         throw Error("interpft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "interpft", "", "m:interpft:badDim");
+                     0, 0, "interpft", "", "numkit:interpft:badDim");
 
     // Resolve auto-dim same way `fft` does.
     int useDim = dim;
@@ -1057,7 +1057,7 @@ Value interpft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     }
 
     throw Error("interpft: dim 3 / N-D inputs not yet supported",
-                 0, 0, "interpft", "", "m:interpft:dimUnsupported");
+                 0, 0, "interpft", "", "numkit:interpft:dimUnsupported");
 }
 
 // ── Engine adapters ────────────────────────────────────────────────────
@@ -1073,7 +1073,7 @@ void fft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("fft: requires at least 1 argument",
-                     0, 0, "fft", "", "m:fft:nargin");
+                     0, 0, "fft", "", "numkit:fft:nargin");
 
     int n = -1;
     int dim = 0;   // 0 = auto (first non-singleton) — resolved in public fft()
@@ -1089,7 +1089,7 @@ void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("ifft: requires at least 1 argument",
-                     0, 0, "ifft", "", "m:ifft:nargin");
+                     0, 0, "ifft", "", "numkit:ifft:nargin");
 
     int n = -1;
     int dim = 0;   // 0 = auto (first non-singleton) — resolved in public fft()
@@ -1106,7 +1106,7 @@ void fft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("fft2: requires at least 1 argument",
-                     0, 0, "fft2", "", "m:fft2:nargin");
+                     0, 0, "fft2", "", "numkit:fft2:nargin");
     int m = -1, n = -1;
     if (args.size() >= 2 && !args[1].isEmpty())
         m = static_cast<int>(args[1].toScalar());
@@ -1120,7 +1120,7 @@ void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ifft2: requires at least 1 argument",
-                     0, 0, "ifft2", "", "m:ifft2:nargin");
+                     0, 0, "ifft2", "", "numkit:ifft2:nargin");
     int m = -1, n = -1;
     if (args.size() >= 2 && !args[1].isEmpty())
         m = static_cast<int>(args[1].toScalar());
@@ -1134,7 +1134,7 @@ void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("interpft: requires 2 arguments (x, n)",
-                     0, 0, "interpft", "", "m:interpft:nargin");
+                     0, 0, "interpft", "", "numkit:interpft:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     int dim = 0;
     if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
@@ -1152,7 +1152,7 @@ static void extractSizeArg(const Value &v, std::vector<std::size_t> &dst)
         const double d = v.elemAsDouble(i);
         if (d <= 0 || d != std::floor(d))
             throw Error("fftn: size entries must be positive integers",
-                         0, 0, "fftn", "", "m:fftn:badSize");
+                         0, 0, "fftn", "", "numkit:fftn:badSize");
         dst[i] = static_cast<std::size_t>(d);
     }
 }
@@ -1162,7 +1162,7 @@ void fftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("fftn: requires at least 1 argument",
-                     0, 0, "fftn", "", "m:fftn:nargin");
+                     0, 0, "fftn", "", "numkit:fftn:nargin");
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
@@ -1174,7 +1174,7 @@ void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ifftn: requires at least 1 argument",
-                     0, 0, "ifftn", "", "m:ifftn:nargin");
+                     0, 0, "ifftn", "", "numkit:ifftn:nargin");
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
@@ -1187,7 +1187,7 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     using Cd = std::complex<double>;
     if (args.empty())
         throw Error("czt: requires at least 1 argument",
-                     0, 0, "czt", "", "m:czt:nargin");
+                     0, 0, "czt", "", "numkit:czt:nargin");
     const Value &x = args[0];
 
     // MATLAB: czt([]) returns empty without complaining about defaults.
@@ -1202,7 +1202,7 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         m = static_cast<int>(args[1].toScalar());
     if (m <= 0)
         throw Error("czt: m must be a positive integer",
-                     0, 0, "czt", "", "m:czt:badM");
+                     0, 0, "czt", "", "numkit:czt:badM");
 
     Cd w(std::cos(-2.0 * M_PI / m), std::sin(-2.0 * M_PI / m));
     if (args.size() >= 3 && !args[2].isEmpty()) {

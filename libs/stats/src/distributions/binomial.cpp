@@ -129,7 +129,7 @@ namespace detail {
 void binopdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("binopdf: requires (k, n, p)", 0, 0, "binopdf", "", "m:binopdf:nargin");
+        throw Error("binopdf: requires (k, n, p)", 0, 0, "binopdf", "", "numkit:binopdf:nargin");
     outs[0] = binopdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -138,7 +138,7 @@ void binocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
-        throw Error("binocdf: requires (k, n, p[, 'upper'])", 0, 0, "binocdf", "", "m:binocdf:nargin");
+        throw Error("binocdf: requires (k, n, p[, 'upper'])", 0, 0, "binocdf", "", "numkit:binocdf:nargin");
     Value v = binocdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -147,14 +147,14 @@ void binocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void binoinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("binoinv: requires (p, n, prob)", 0, 0, "binoinv", "", "m:binoinv:nargin");
+        throw Error("binoinv: requires (p, n, prob)", 0, 0, "binoinv", "", "numkit:binoinv:nargin");
     outs[0] = binoinv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void binornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("binornd: requires (n, p[, sz...])", 0, 0, "binornd", "", "m:binornd:nargin");
+        throw Error("binornd: requires (n, p[, sz...])", 0, 0, "binornd", "", "numkit:binornd:nargin");
     const double n = args[0].toScalar();
     const double p = args[1].toScalar();
     size_t rows, cols;

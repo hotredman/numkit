@@ -82,14 +82,14 @@ balance_impl(const Value &A, bool /*noperm*/, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("balance: input must be 2D",
-                    0, 0, "balance", "", "m:balance:Not2D");
+                    0, 0, "balance", "", "numkit:balance:Not2D");
     const size_t n = A.dims().rows();
     if (A.dims().cols() != n)
         throw Error("balance: matrix must be square",
-                    0, 0, "balance", "", "m:balance:NotSquare");
+                    0, 0, "balance", "", "numkit:balance:NotSquare");
     if (A.isComplex())
         throw Error("balance: complex input not supported in v1",
-                    0, 0, "balance", "", "m:balance:NoComplex");
+                    0, 0, "balance", "", "numkit:balance:NoComplex");
 
     BalanceResult R;
     R.B = Value::matrix(n, n, ValueType::DOUBLE, mr);
@@ -120,17 +120,17 @@ void balance_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("balance: requires (A [, 'noperm'])",
-                    0, 0, "balance", "", "m:balance:nargin");
+                    0, 0, "balance", "", "numkit:balance:nargin");
     bool noperm = false;
     if (args.size() >= 2) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("balance: optional arg must be 'noperm'",
-                        0, 0, "balance", "", "m:balance:BadOpt");
+                        0, 0, "balance", "", "numkit:balance:BadOpt");
         std::string s = args[1].toString();
         if (s == "noperm") noperm = true;
         else
             throw Error("balance: unknown option '" + s + "'",
-                        0, 0, "balance", "", "m:balance:BadOpt");
+                        0, 0, "balance", "", "numkit:balance:BadOpt");
     }
 
     auto R = balance_impl(args[0], noperm, ctx.engine->resource());

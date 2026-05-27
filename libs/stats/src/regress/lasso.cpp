@@ -87,17 +87,17 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
 {
     if (alpha < 0.0 || alpha > 1.0)
         throw Error("lasso: alpha must be in [0, 1]",
-                    0, 0, "lasso", "", "m:lasso:badAlpha");
+                    0, 0, "lasso", "", "numkit:lasso:badAlpha");
 
     const std::size_t n = X.dims().rows();
     const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("lasso: length(y) must equal rows(X)",
-                    0, 0, "lasso", "", "m:lasso:shapeMismatch");
+                    0, 0, "lasso", "", "numkit:lasso:shapeMismatch");
     const std::size_t nL = lambdas.numel();
     if (nL == 0)
         throw Error("lasso: lambdas must be a non-empty vector",
-                    0, 0, "lasso", "", "m:lasso:emptyLambda");
+                    0, 0, "lasso", "", "numkit:lasso:emptyLambda");
 
     // Copy X (n×p, col-major) and standardise in place.
     std::vector<double> Xs(n * p);
@@ -225,17 +225,17 @@ LassoResult lassoglm(const Value &X, const Value &y,
 {
     if (alpha < 0.0 || alpha > 1.0)
         throw Error("lassoglm: alpha must be in [0, 1]",
-                    0, 0, "lassoglm", "", "m:lassoglm:badAlpha");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:badAlpha");
 
     const std::size_t n = X.dims().rows();
     const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("lassoglm: length(y) must equal rows(X)",
-                    0, 0, "lassoglm", "", "m:lassoglm:shapeMismatch");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:shapeMismatch");
     const std::size_t nL = lambdas.numel();
     if (nL == 0)
         throw Error("lassoglm: lambdas must be a non-empty vector",
-                    0, 0, "lassoglm", "", "m:lassoglm:emptyLambda");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:emptyLambda");
 
     const LinkPair link = pickLink(distr);
 
@@ -367,7 +367,7 @@ void lasso_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("lasso: requires (X, y, lambdas [, alpha])",
-                    0, 0, "lasso", "", "m:lasso:nargin");
+                    0, 0, "lasso", "", "numkit:lasso:nargin");
     double alpha = 1.0;
     if (args.size() >= 4 && !args[3].isEmpty())
         alpha = args[3].toScalar();
@@ -382,10 +382,10 @@ void lassoglm_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("lassoglm: requires (X, y, distr, lambdas [, alpha])",
-                    0, 0, "lassoglm", "", "m:lassoglm:nargin");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:nargin");
     if (!args[2].isChar())
         throw Error("lassoglm: distr must be a string",
-                    0, 0, "lassoglm", "", "m:lassoglm:badDistr");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
     const std::string s = args[2].toString();
     GlmDistribution d;
     if (s == "normal")        d = GlmDistribution::Normal;
@@ -394,7 +394,7 @@ void lassoglm_reg(Span<const Value> args, size_t nargout,
     else
         throw Error("lassoglm: unsupported distribution '" + s
                     + "' (v1: normal, binomial, poisson)",
-                    0, 0, "lassoglm", "", "m:lassoglm:badDistr");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
     double alpha = 1.0;
     if (args.size() >= 5 && !args[4].isEmpty())
         alpha = args[4].toScalar();

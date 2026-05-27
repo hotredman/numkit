@@ -34,7 +34,7 @@ inline double evalScalar(FnHandle fn, double x,
     fn(args, outs, mr);
     if (!out.isScalar() && out.numel() != 1)
         throw Error("callback: handle must return a scalar value",
-                     0, 0, "callback", "", "m:callback:nonScalar");
+                     0, 0, "callback", "", "numkit:callback:nonScalar");
     return out.elemAsDouble(0);
 }
 

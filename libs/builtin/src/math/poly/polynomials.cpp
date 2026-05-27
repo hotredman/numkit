@@ -22,10 +22,10 @@ Value roots(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.type() == ValueType::COMPLEX)
         throw Error("roots: complex coefficient input is not supported",
-                     0, 0, "roots", "", "m:roots:complex");
+                     0, 0, "roots", "", "numkit:roots:complex");
     if (!p.dims().isVector() && !p.isScalar() && !p.isEmpty())
         throw Error("roots: argument must be a vector",
-                     0, 0, "roots", "", "m:roots:notVector");
+                     0, 0, "roots", "", "numkit:roots:notVector");
 
     ScratchArena scratch(mr);
 
@@ -65,10 +65,10 @@ ScratchVec<double> readPolyAsDouble(const Value &p, const char *fn, std::pmr::me
 {
     if (p.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex coefficient input is not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     if (!p.dims().isVector() && !p.isScalar() && !p.isEmpty())
         throw Error(std::string(fn) + ": argument must be a vector",
-                     0, 0, fn, "", std::string("m:") + fn + ":notVector");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":notVector");
     const std::size_t n = p.numel();
     ScratchVec<double> v(n, mr);
     for (std::size_t i = 0; i < n; ++i) v[i] = p.elemAsDouble(i);
@@ -165,7 +165,7 @@ ScratchVec<detail::Complex> readVecAsComplex(const Value &v, const char *fn, std
 {
     if (!v.dims().isVector() && !v.isScalar() && !v.isEmpty())
         throw Error(std::string(fn) + ": argument must be a vector",
-                     0, 0, fn, "", std::string("m:") + fn + ":notVector");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":notVector");
     const std::size_t n = v.numel();
     ScratchVec<detail::Complex> r(n, mr);
     if (v.type() == ValueType::COMPLEX) {
@@ -234,7 +234,7 @@ tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     auto av = readPolyAsDouble(a, "tf2zp", &scratch);
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2zp: leading denominator coefficient must be non-zero",
-                     0, 0, "tf2zp", "", "m:tf2zp:badDen");
+                     0, 0, "tf2zp", "", "numkit:tf2zp:badDen");
     if (bv.empty()) {
         // Numerator = 0 → no zeros, gain 0.
         auto z = Value::matrix(0, 1, ValueType::DOUBLE, mr);
@@ -291,7 +291,7 @@ Value polyvalm(const Value &p, const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() > 2 || A.dims().rows() != A.dims().cols())
         throw Error("polyvalm: A must be a square matrix",
-                     0, 0, "polyvalm", "", "m:polyvalm:notSquare");
+                     0, 0, "polyvalm", "", "numkit:polyvalm:notSquare");
     const size_t n = A.dims().rows();
     const size_t k = p.numel();
 
@@ -339,7 +339,7 @@ PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     if (a.isEmpty() || a.numel() == 0)
         throw Error("polydiv: divisor must be non-empty",
-                     0, 0, "polydiv", "", "m:polydiv:emptyA");
+                     0, 0, "polydiv", "", "numkit:polydiv:emptyA");
     const size_t na = a.numel();
     const size_t nb = b.numel();
     // Strip leading zeros from a (matches MATLAB behaviour).
@@ -348,7 +348,7 @@ PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     const size_t aEff = na - aOff;
     if (aEff == 0 || a.doubleData()[aOff] == 0.0)
         throw Error("polydiv: divisor is zero", 0, 0, "polydiv", "",
-                     "m:polydiv:zeroDivisor");
+                     "numkit:polydiv:zeroDivisor");
 
     if (nb < aEff) {
         // Quotient is 0; remainder == b.
@@ -405,7 +405,7 @@ PadeCoef padecoef(double T, int N, std::pmr::memory_resource *mr)
 {
     if (N < 0)
         throw Error("padecoef: order N must be >= 0",
-                     0, 0, "padecoef", "", "m:padecoef:badN");
+                     0, 0, "padecoef", "", "numkit:padecoef:badN");
 
     const size_t n = static_cast<size_t>(N) + 1;
 
@@ -449,7 +449,7 @@ void roots_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("roots: requires 1 argument",
-                     0, 0, "roots", "", "m:roots:nargin");
+                     0, 0, "roots", "", "numkit:roots:nargin");
     outs[0] = roots(args[0], ctx.engine->resource());
 }
 
@@ -457,7 +457,7 @@ void polyder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("polyder: requires at least 1 argument",
-                     0, 0, "polyder", "", "m:polyder:nargin");
+                     0, 0, "polyder", "", "numkit:polyder:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = polyder(args[0], mr);
@@ -472,7 +472,7 @@ void polyint_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("polyint: requires at least 1 argument",
-                     0, 0, "polyint", "", "m:polyint:nargin");
+                     0, 0, "polyint", "", "numkit:polyint:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     double k = 0.0;
     if (args.size() >= 2) k = args[1].toScalar();
@@ -483,7 +483,7 @@ void tf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 2)
         throw Error("tf2zp: requires 2 arguments (b, a)",
-                     0, 0, "tf2zp", "", "m:tf2zp:nargin");
+                     0, 0, "tf2zp", "", "numkit:tf2zp:nargin");
     auto [zr, pr, kr] = tf2zp(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(zr);
     if (nargout > 1) outs[1] = std::move(pr);
@@ -494,7 +494,7 @@ void zp2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 3)
         throw Error("zp2tf: requires 3 arguments (z, p, k)",
-                     0, 0, "zp2tf", "", "m:zp2tf:nargin");
+                     0, 0, "zp2tf", "", "numkit:zp2tf:nargin");
     auto [bv, av] = zp2tf(args[0], args[1], args[2].toScalar(), ctx.engine->resource());
     outs[0] = std::move(bv);
     if (nargout > 1) outs[1] = std::move(av);
@@ -504,7 +504,7 @@ void polyfit_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("polyfit: requires 3 arguments",
-                     0, 0, "polyfit", "", "m:polyfit:nargin");
+                     0, 0, "polyfit", "", "numkit:polyfit:nargin");
     outs[0] = polyfit(args[0], args[1], static_cast<int>(args[2].toScalar()), ctx.engine->resource());
 }
 
@@ -512,7 +512,7 @@ void polyval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("polyval: requires 2 arguments",
-                     0, 0, "polyval", "", "m:polyval:nargin");
+                     0, 0, "polyval", "", "numkit:polyval:nargin");
     outs[0] = polyval(args[0], args[1], ctx.engine->resource());
 }
 
@@ -520,7 +520,7 @@ void poly_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("poly: requires 1 argument",
-                     0, 0, "poly", "", "m:poly:nargin");
+                     0, 0, "poly", "", "numkit:poly:nargin");
     // Dispatch (matches MATLAB behavior):
     //   square matrix (n×n, n>1) -> characteristic polynomial via Souriau-Faddeev
     //   anything else (vector of roots) -> expand (λ - r_1)(λ - r_2)...
@@ -539,7 +539,7 @@ void polyvalm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("polyvalm: requires (p, A)",
-                     0, 0, "polyvalm", "", "m:polyvalm:nargin");
+                     0, 0, "polyvalm", "", "numkit:polyvalm:nargin");
     outs[0] = polyvalm(args[0], args[1], ctx.engine->resource());
 }
 
@@ -548,7 +548,7 @@ void padecoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("padecoef: requires 2 arguments (T, N)",
-                     0, 0, "padecoef", "", "m:padecoef:nargin");
+                     0, 0, "padecoef", "", "numkit:padecoef:nargin");
     const double T = args[0].toScalar();
     const int    N = static_cast<int>(args[1].toScalar());
     auto p = padecoef(T, N, ctx.engine->resource());
@@ -560,7 +560,7 @@ void polydiv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("polydiv: requires (b, a)",
-                     0, 0, "polydiv", "", "m:polydiv:nargin");
+                     0, 0, "polydiv", "", "numkit:polydiv:nargin");
     auto res = polydiv(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(res.q);
     if (nargout > 1) outs[1] = std::move(res.r);
@@ -604,10 +604,10 @@ std::vector<double> readPolyStripped(const Value &p, const char *fn)
 {
     if (p.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex coefficients not supported in v1",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     if (!p.isEmpty() && !p.dims().isVector() && !p.isScalar())
         throw Error(std::string(fn) + ": arguments must be vectors",
-                     0, 0, fn, "", std::string("m:") + fn + ":notVector");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":notVector");
     std::vector<double> v(p.numel());
     for (std::size_t i = 0; i < v.size(); ++i) v[i] = p.elemAsDouble(i);
     std::size_t lo = 0;
@@ -680,7 +680,7 @@ ResidueResult residueS(const Value &b, const Value &a,
     auto B = readPolyStripped(b, fn);
     if (A.empty() || A[0] == 0.0)
         throw Error("residue: denominator must be non-zero",
-                     0, 0, fn, "", "m:residue:zeroDenom");
+                     0, 0, fn, "", "numkit:residue:zeroDenom");
 
     // Polynomial division: B = K·A + R   (deg R < deg A).
     std::vector<double> K;
@@ -709,7 +709,7 @@ ResidueResult residueS(const Value &b, const Value &a,
     if (hasRepeatedPoles(poles))
         throw Error("residue: repeated-pole case not yet supported "
                     "(v1 distinct-poles only — see KNOWN GAP)",
-                     0, 0, fn, "", "m:residue:repeatedPole");
+                     0, 0, fn, "", "numkit:residue:repeatedPole");
 
     // Derivative coefficients (descending).
     std::vector<double> Aprime;
@@ -729,7 +729,7 @@ ResidueResult residueS(const Value &b, const Value &a,
             if (std::abs(den) < 1e-300)
                 throw Error("residue: derivative vanishes at a pole — "
                             "likely repeated pole undetected by tolerance",
-                             0, 0, fn, "", "m:residue:denomZero");
+                             0, 0, fn, "", "numkit:residue:denomZero");
             residues[i] = num / den;
         }
     }
@@ -751,7 +751,7 @@ ResidueResult residueZ(const Value &b, const Value &a,
     auto bv = readPolyStripped(b, fn);
     if (av.empty() || av[0] == 0.0)
         throw Error("residuez: denominator a[0] must be non-zero",
-                     0, 0, fn, "", "m:residuez:zeroDenom");
+                     0, 0, fn, "", "numkit:residuez:zeroDenom");
 
     // Normalise: divide A, B by a[0] so a[0] becomes 1. Residues come
     // out in MATLAB's residuez convention without further scaling.
@@ -772,7 +772,7 @@ ResidueResult residueZ(const Value &b, const Value &a,
     if (hasRepeatedPoles(poles))
         throw Error("residuez: repeated-pole case not yet supported "
                     "(v1 distinct-poles only — see KNOWN GAP)",
-                     0, 0, fn, "", "m:residuez:repeatedPole");
+                     0, 0, fn, "", "numkit:residuez:repeatedPole");
 
     const std::size_t m = poles.size();
 
@@ -784,7 +784,7 @@ ResidueResult residueZ(const Value &b, const Value &a,
         throw Error("residuez: improper transfer functions "
                     "(numel(b) > numel(a)) not yet supported — direct "
                     "term in z^-1 polynomial form is a v1 KNOWN GAP",
-                     0, 0, fn, "", "m:residuez:improperTF");
+                     0, 0, fn, "", "numkit:residuez:improperTF");
 
     // Residue formula for distinct z-poles (Oppenheim & Schafer 3e §3.4):
     //
@@ -804,7 +804,7 @@ ResidueResult residueZ(const Value &b, const Value &a,
         if (std::abs(denom) < 1e-300)
             throw Error("residuez: denominator vanishes at a pole — "
                         "likely repeated pole undetected by tolerance",
-                         0, 0, fn, "", "m:residuez:denomZero");
+                         0, 0, fn, "", "numkit:residuez:denomZero");
         residues[i] = Bpi * pPow / denom;
     }
 
@@ -835,7 +835,7 @@ void residue_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("residue: requires (b, a)",
-                     0, 0, "residue", "", "m:residue:nargin");
+                     0, 0, "residue", "", "numkit:residue:nargin");
     auto res = residue(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(res.r);
     if (nargout > 1) outs[1] = std::move(res.p);
@@ -846,7 +846,7 @@ void residuez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("residuez: requires (b, a)",
-                     0, 0, "residuez", "", "m:residuez:nargin");
+                     0, 0, "residuez", "", "numkit:residuez:nargin");
     auto res = residuez(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(res.r);
     if (nargout > 1) outs[1] = std::move(res.p);
@@ -866,7 +866,7 @@ Value polyfit(const Value &x, const Value &y, int deg, std::pmr::memory_resource
 
     if (static_cast<size_t>(np) > m)
         throw Error("polyfit: not enough data points",
-                     0, 0, "polyfit", "", "m:polyfit:tooFewPoints");
+                     0, 0, "polyfit", "", "numkit:polyfit:tooFewPoints");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
@@ -917,7 +917,7 @@ Value polyfit(const Value &x, const Value &y, int deg, std::pmr::memory_resource
         const double pivot = aug[k * (np + 1) + k];
         if (std::abs(pivot) < 1e-15)
             throw Error("polyfit: singular matrix",
-                         0, 0, "polyfit", "", "m:polyfit:singular");
+                         0, 0, "polyfit", "", "numkit:polyfit:singular");
 
         for (int c = k; c <= np; ++c)
             aug[k * (np + 1) + c] /= pivot;

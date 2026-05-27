@@ -61,7 +61,7 @@ Value rectpuls(std::pmr::memory_resource *mr, const Value &t, double w)
 {
     if (w <= 0)
         throw Error("rectpuls: width w must be positive",
-                     0, 0, "rectpuls", "", "m:rectpuls:badWidth");
+                     0, 0, "rectpuls", "", "numkit:rectpuls:badWidth");
     auto out = createLike(t, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t n = t.numel();
@@ -74,7 +74,7 @@ Value tripuls(std::pmr::memory_resource *mr, const Value &t, double w)
 {
     if (w <= 0)
         throw Error("tripuls: width w must be positive",
-                     0, 0, "tripuls", "", "m:tripuls:badWidth");
+                     0, 0, "tripuls", "", "numkit:tripuls:badWidth");
     auto out = createLike(t, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t n = t.numel();
@@ -87,7 +87,7 @@ Value gauspuls(std::pmr::memory_resource *mr, const Value &t, double fc, double 
 {
     if (fc <= 0 || bw <= 0)
         throw Error("gauspuls: fc and bw must be positive",
-                     0, 0, "gauspuls", "", "m:gauspuls:badArg");
+                     0, 0, "gauspuls", "", "numkit:gauspuls:badArg");
     const double alpha = gauspulsAlpha(fc, bw);
     auto out = createLike(t, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -123,7 +123,7 @@ Value pulstranHandle(Span<const double> t, Span<const double> d,
         if (r.numel() != n)
             throw Error("pulstran: handle must return a vector of the same "
                          "length as t",
-                         0, 0, "pulstran", "", "m:pulstran:badHandleOutput");
+                         0, 0, "pulstran", "", "numkit:pulstran:badHandleOutput");
         for (size_t i = 0; i < n; ++i)
             dst[i] += r.elemAsDouble(i);
     }
@@ -167,7 +167,7 @@ Value pulstran(std::pmr::memory_resource *mr, const Value &t, const Value &d,
         throw Error("pulstran: unsupported pulse function '" + fnName
                      + "' (built-ins: 'rectpuls'/'tripuls'/'gauspuls'). "
                      + "Custom handles need the engine callback API (planned).",
-                     0, 0, "pulstran", "", "m:pulstran:fnUnsupported");
+                     0, 0, "pulstran", "", "numkit:pulstran:fnUnsupported");
     }
     return out;
 }
@@ -176,7 +176,7 @@ Value square(std::pmr::memory_resource *mr, const Value &t, double duty)
 {
     if (duty < 0.0 || duty > 100.0)
         throw Error("square: duty cycle must be in [0, 100]",
-                     0, 0, "square", "", "m:square:badDuty");
+                     0, 0, "square", "", "numkit:square:badDuty");
     constexpr double kTwoPi = 6.28318530717958647692;
     const double threshold = duty / 100.0;
     auto out = createLike(t, ValueType::DOUBLE, mr);
@@ -196,7 +196,7 @@ Value sawtooth(std::pmr::memory_resource *mr, const Value &t, double width)
 {
     if (width < 0.0 || width > 1.0)
         throw Error("sawtooth: width must be in [0, 1]",
-                     0, 0, "sawtooth", "", "m:sawtooth:badWidth");
+                     0, 0, "sawtooth", "", "numkit:sawtooth:badWidth");
     constexpr double kTwoPi = 6.28318530717958647692;
     auto out = createLike(t, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -241,7 +241,7 @@ Value gmonopuls(std::pmr::memory_resource *mr, const Value &t, double fc)
 {
     if (fc <= 0)
         throw Error("gmonopuls: fc must be positive",
-                     0, 0, "gmonopuls", "", "m:gmonopuls:badFc");
+                     0, 0, "gmonopuls", "", "numkit:gmonopuls:badFc");
     // Standard normalised gmonopuls: y(t) = 2·√e·π·fc·t · exp(-2·(π·fc·t)²)
     // peaks at +1 when t = 1/(2π·fc).
     constexpr double kPi = 3.14159265358979323846;
@@ -262,7 +262,7 @@ Value diric(std::pmr::memory_resource *mr, const Value &x, int n)
 {
     if (n < 1)
         throw Error("diric: n must be a positive integer",
-                     0, 0, "diric", "", "m:diric:badN");
+                     0, 0, "diric", "", "numkit:diric:badN");
     constexpr double kTwoPi = 6.28318530717958647692;
     auto out = createLike(x, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
@@ -289,7 +289,7 @@ Value chirp(std::pmr::memory_resource *mr, const Value &t,
 {
     if (t1 <= 0)
         throw Error("chirp: t1 must be positive",
-                     0, 0, "chirp", "", "m:chirp:badT1");
+                     0, 0, "chirp", "", "numkit:chirp:badT1");
 
     std::string m = method;
     for (auto &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -301,15 +301,15 @@ Value chirp(std::pmr::memory_resource *mr, const Value &t,
     else if (m == "logarithmic")           mode = Mode::Logarithmic;
     else
         throw Error("chirp: method must be 'linear', 'quadratic', or 'logarithmic'",
-                     0, 0, "chirp", "", "m:chirp:badMethod");
+                     0, 0, "chirp", "", "numkit:chirp:badMethod");
 
     if (mode == Mode::Logarithmic) {
         if (f0 <= 0 || f1 <= 0)
             throw Error("chirp: 'logarithmic' requires f0 > 0 and f1 > 0",
-                         0, 0, "chirp", "", "m:chirp:badFreq");
+                         0, 0, "chirp", "", "numkit:chirp:badFreq");
         if (f0 == f1)
             throw Error("chirp: 'logarithmic' requires f0 != f1",
-                         0, 0, "chirp", "", "m:chirp:badFreq");
+                         0, 0, "chirp", "", "numkit:chirp:badFreq");
     }
 
     auto out = createLike(t, ValueType::DOUBLE, mr);
@@ -372,7 +372,7 @@ Value demod(const Value &y, double Fc, double Fs,
     constexpr double kPi = 3.14159265358979323846;
     if (Fs <= 0.0)
         throw Error("demod: Fs must be positive",
-                    0, 0, "demod", "", "m:demod:BadFs");
+                    0, 0, "demod", "", "numkit:demod:BadFs");
 
     const std::size_t N = y.numel();
     if (N == 0)
@@ -387,7 +387,7 @@ Value demod(const Value &y, double Fc, double Fs,
     if (!isAmFamily && !isFmPm)
         throw Error("demod: only am/amdsb-sc/amdsb-tc/fm/pm supported "
                     "(amssb/pwm/ptm/ppm/qam deferred)",
-                    0, 0, "demod", "", "m:demod:UnsupportedMethod");
+                    0, 0, "demod", "", "numkit:demod:UnsupportedMethod");
 
     // Convert row vector to column for processing.
     const bool isRowVec = (y.dims().rows() == 1 && y.dims().cols() > 1);
@@ -512,7 +512,7 @@ Value modulate(const Value &x, double Fc, double Fs,
     constexpr double kPi = 3.14159265358979323846;
     if (Fs <= 0.0)
         throw Error("modulate: Fs must be positive",
-                    0, 0, "modulate", "", "m:modulate:BadFs");
+                    0, 0, "modulate", "", "numkit:modulate:BadFs");
 
     const std::size_t N = x.numel();
     if (N == 0)
@@ -617,7 +617,7 @@ Value modulate(const Value &x, double Fc, double Fs,
         }
     } else {
         throw Error("modulate: method must be 'am'/'amdsb-sc'/'amdsb-tc'/'amssb'/'fm'/'pm'",
-                    0, 0, "modulate", "", "m:modulate:UnsupportedMethod");
+                    0, 0, "modulate", "", "numkit:modulate:UnsupportedMethod");
     }
 
     if (isRowVec && len > 0) {
@@ -646,14 +646,14 @@ Value vcoImpl(const Value &x, double Fc, double range1, double fs,
     constexpr double kPi = 3.14159265358979323846;
     if (fs <= 0.0)
         throw Error("vco: fs must be positive",
-                    0, 0, "vco", "", "m:vco:BadFs");
+                    0, 0, "vco", "", "numkit:vco:BadFs");
     const size_t N = x.numel();
     // Range check: x ∈ [-1, 1].
     for (size_t i = 0; i < N; ++i) {
         const double v = x.elemAsDouble(i);
         if (v > 1.0 || v < -1.0)
             throw Error("vco: x values must be in [-1, 1]",
-                        0, 0, "vco", "", "m:vco:InvalidRange");
+                        0, 0, "vco", "", "numkit:vco:InvalidRange");
     }
 
     // Allocate output (same shape as x).
@@ -718,12 +718,12 @@ void demod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 4)
         throw Error("demod: requires (y, Fc, Fs, method [, opt])",
-                    0, 0, "demod", "", "m:demod:nargin");
+                    0, 0, "demod", "", "numkit:demod:nargin");
     const double Fc = args[1].toScalar();
     const double Fs = args[2].toScalar();
     if (!args[3].isChar() && !args[3].isString())
         throw Error("demod: method must be a string",
-                    0, 0, "demod", "", "m:demod:BadMethodType");
+                    0, 0, "demod", "", "numkit:demod:BadMethodType");
     std::string method = args[3].toString();
     const Value &opt = (args.size() >= 5) ? args[4] : Value::Empty;
     outs[0] = demod(args[0], Fc, Fs, method, opt, ctx.engine->resource());
@@ -733,12 +733,12 @@ void modulate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 4)
         throw Error("modulate: requires (x, Fc, Fs, method [, opt])",
-                    0, 0, "modulate", "", "m:modulate:nargin");
+                    0, 0, "modulate", "", "numkit:modulate:nargin");
     const double Fc = args[1].toScalar();
     const double Fs = args[2].toScalar();
     if (!args[3].isChar() && !args[3].isString())
         throw Error("modulate: method must be a string",
-                    0, 0, "modulate", "", "m:modulate:BadMethodType");
+                    0, 0, "modulate", "", "numkit:modulate:BadMethodType");
     std::string method = args[3].toString();
     const Value &opt = (args.size() >= 5) ? args[4] : Value::Empty;
     outs[0] = modulate(args[0], Fc, Fs, method, opt, ctx.engine->resource());
@@ -748,7 +748,7 @@ void vco_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("vco: requires (x [, range [, fs]])",
-                    0, 0, "vco", "", "m:vco:nargin");
+                    0, 0, "vco", "", "numkit:vco:nargin");
     auto *mr = ctx.engine->resource();
     double fs = 1.0;
     if (args.size() >= 3 && !args[2].isEmpty()) fs = args[2].toScalar();
@@ -761,7 +761,7 @@ void vco_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
                           fs, mr);
         else
             throw Error("vco: range must be scalar Fc or [Fmin Fmax]",
-                        0, 0, "vco", "", "m:vco:BadRange");
+                        0, 0, "vco", "", "numkit:vco:BadRange");
     } else {
         outs[0] = vco(args[0], fs / 4.0, fs, mr);
     }
@@ -771,7 +771,7 @@ void rectpuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("rectpuls: requires at least 1 argument",
-                     0, 0, "rectpuls", "", "m:rectpuls:nargin");
+                     0, 0, "rectpuls", "", "numkit:rectpuls:nargin");
     const double w = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     outs[0] = rectpuls(ctx.engine->resource(), args[0], w);
 }
@@ -780,7 +780,7 @@ void tripuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("tripuls: requires at least 1 argument",
-                     0, 0, "tripuls", "", "m:tripuls:nargin");
+                     0, 0, "tripuls", "", "numkit:tripuls:nargin");
     const double w = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     outs[0] = tripuls(ctx.engine->resource(), args[0], w);
 }
@@ -789,7 +789,7 @@ void gauspuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("gauspuls: requires at least 2 arguments (t, fc)",
-                     0, 0, "gauspuls", "", "m:gauspuls:nargin");
+                     0, 0, "gauspuls", "", "numkit:gauspuls:nargin");
     const double fc = args[1].toScalar();
     const double bw = (args.size() >= 3) ? args[2].toScalar() : 0.5;
     outs[0] = gauspuls(ctx.engine->resource(), args[0], fc, bw);
@@ -799,7 +799,7 @@ void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 3)
         throw Error("pulstran: requires at least 3 arguments (t, d, fn)",
-                     0, 0, "pulstran", "", "m:pulstran:nargin");
+                     0, 0, "pulstran", "", "numkit:pulstran:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args[2].isFuncHandle()) {
         const auto &handle = args[2];
@@ -838,7 +838,7 @@ void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     }
     if (!args[2].isChar() && !args[2].isString())
         throw Error("pulstran: 3rd argument must be a string name or a function handle",
-                     0, 0, "pulstran", "", "m:pulstran:fnType");
+                     0, 0, "pulstran", "", "numkit:pulstran:fnType");
     const std::string fnName = args[2].toString();
     const double fcOrW = (args.size() >= 4) ? args[3].toScalar() : 1.0;
     const double bw    = (args.size() >= 5) ? args[4].toScalar() : 0.5;
@@ -849,7 +849,7 @@ void square_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("square: requires at least 1 argument",
-                     0, 0, "square", "", "m:square:nargin");
+                     0, 0, "square", "", "numkit:square:nargin");
     const double duty = (args.size() >= 2) ? args[1].toScalar() : 50.0;
     outs[0] = square(ctx.engine->resource(), args[0], duty);
 }
@@ -858,7 +858,7 @@ void sawtooth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("sawtooth: requires at least 1 argument",
-                     0, 0, "sawtooth", "", "m:sawtooth:nargin");
+                     0, 0, "sawtooth", "", "numkit:sawtooth:nargin");
     const double width = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     outs[0] = sawtooth(ctx.engine->resource(), args[0], width);
 }
@@ -867,7 +867,7 @@ void sinc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("sinc: requires 1 argument",
-                     0, 0, "sinc", "", "m:sinc:nargin");
+                     0, 0, "sinc", "", "numkit:sinc:nargin");
     outs[0] = sinc(ctx.engine->resource(), args[0]);
 }
 
@@ -875,7 +875,7 @@ void gmonopuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("gmonopuls: requires 2 arguments (t, fc)",
-                     0, 0, "gmonopuls", "", "m:gmonopuls:nargin");
+                     0, 0, "gmonopuls", "", "numkit:gmonopuls:nargin");
     outs[0] = gmonopuls(ctx.engine->resource(), args[0], args[1].toScalar());
 }
 
@@ -883,7 +883,7 @@ void diric_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("diric: requires 2 arguments (x, n)",
-                     0, 0, "diric", "", "m:diric:nargin");
+                     0, 0, "diric", "", "numkit:diric:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     outs[0] = diric(ctx.engine->resource(), args[0], n);
 }
@@ -892,7 +892,7 @@ void chirp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 4)
         throw Error("chirp: requires at least 4 arguments (t, f0, t1, f1)",
-                     0, 0, "chirp", "", "m:chirp:nargin");
+                     0, 0, "chirp", "", "numkit:chirp:nargin");
     const double f0 = args[1].toScalar();
     const double t1 = args[2].toScalar();
     const double f1 = args[3].toScalar();
@@ -900,7 +900,7 @@ void chirp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() >= 5) {
         if (!args[4].isChar() && !args[4].isString())
             throw Error("chirp: method must be a string",
-                         0, 0, "chirp", "", "m:chirp:badMethodType");
+                         0, 0, "chirp", "", "numkit:chirp:badMethodType");
         method = args[4].toString();
     }
     outs[0] = chirp(ctx.engine->resource(), args[0], f0, t1, f1, method);

@@ -37,15 +37,15 @@ size_t toSubIndex(double v, size_t maxAllowed, const char *fn)
 {
     if (!std::isfinite(v) || v < 1.0)
         throw Error(std::string(fn) + ": subscripts must be positive integers",
-                     0, 0, fn, "", std::string("m:") + fn + ":subRange");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":subRange");
     const double rounded = std::round(v);
     if (std::abs(v - rounded) > 1e-9)
         throw Error(std::string(fn) + ": subscripts must be integer-valued",
-                     0, 0, fn, "", std::string("m:") + fn + ":subInt");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":subInt");
     const size_t idx = static_cast<size_t>(rounded);
     if (maxAllowed > 0 && idx > maxAllowed)
         throw Error(std::string(fn) + ": subscript exceeds output dimension",
-                     0, 0, fn, "", std::string("m:") + fn + ":subOOB");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":subOOB");
     return idx;
 }
 
@@ -88,7 +88,7 @@ ScratchVec<size_t> resolveOutShape(const Value &subs, const size_t *userShape, s
     if (nUserShape > 0) {
         if (nUserShape < D)
             throw Error(std::string(fn) + ": sz length must be at least size(subs, 2)",
-                         0, 0, fn, "", std::string("m:") + fn + ":sizeRank");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":sizeRank");
         ScratchVec<size_t> out(userShape, userShape + nUserShape, mr);
         return out;
     }
@@ -149,15 +149,15 @@ Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outSha
 
     if (subs.type() != ValueType::DOUBLE)
         throw Error("accumarray: subs must be DOUBLE",
-                     0, 0, fn, "", "m:accumarray:subType");
+                     0, 0, fn, "", "numkit:accumarray:subType");
     if (vals.type() != ValueType::DOUBLE)
         throw Error("accumarray: vals must be DOUBLE",
-                     0, 0, fn, "", "m:accumarray:valType");
+                     0, 0, fn, "", "numkit:accumarray:valType");
 
     const auto &sd = subs.dims();
     if (sd.ndim() > 2)
         throw Error("accumarray: subs must be a 2D matrix",
-                     0, 0, fn, "", "m:accumarray:subND");
+                     0, 0, fn, "", "numkit:accumarray:subND");
 
     const size_t N = sd.rows();
     const size_t D = (sd.ndim() <= 1 || sd.cols() == 0) ? 1 : sd.cols();
@@ -165,7 +165,7 @@ Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outSha
     const bool valIsScalar = vals.isScalar();
     if (!valIsScalar && vals.numel() != N)
         throw Error("accumarray: vals must be a scalar or a length-N vector",
-                     0, 0, fn, "", "m:accumarray:valSize");
+                     0, 0, fn, "", "numkit:accumarray:valSize");
 
     ScratchArena scratch(mr);
     auto shape = resolveOutShape(subs, outShape.data(), outShape.size(), fn, &scratch);
@@ -230,7 +230,7 @@ AccumReducer parseReducerFromHandle(const Value &h)
 {
     if (!h.isFuncHandle())
         throw Error("accumarray: fn argument must be a function handle",
-                     0, 0, "accumarray", "", "m:accumarray:fnType");
+                     0, 0, "accumarray", "", "numkit:accumarray:fnType");
     std::string s = h.funcHandleName();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -243,7 +243,7 @@ AccumReducer parseReducerFromHandle(const Value &h)
     if (s == "all")  return AccumReducer::All;
     throw Error("accumarray: unsupported function handle '@" + s
                  + "' (built-in reducers: @sum/@max/@min/@prod/@mean/@any/@all)",
-                 0, 0, "accumarray", "", "m:accumarray:fnUnsupported");
+                 0, 0, "accumarray", "", "numkit:accumarray:fnUnsupported");
 }
 
 ScratchVec<size_t> parseSizeArg(const Value &sz, std::pmr::memory_resource *mr)
@@ -252,7 +252,7 @@ ScratchVec<size_t> parseSizeArg(const Value &sz, std::pmr::memory_resource *mr)
     if (sz.isEmpty()) return shape;
     if (sz.type() != ValueType::DOUBLE || !sz.dims().isVector())
         throw Error("accumarray: sz must be a numeric row vector",
-                     0, 0, "accumarray", "", "m:accumarray:sizeType");
+                     0, 0, "accumarray", "", "numkit:accumarray:sizeType");
     const size_t k = sz.numel();
     shape.resize(k);
     const double *p = sz.doubleData();
@@ -260,7 +260,7 @@ ScratchVec<size_t> parseSizeArg(const Value &sz, std::pmr::memory_resource *mr)
         const double v = p[i];
         if (!std::isfinite(v) || v < 0)
             throw Error("accumarray: sz entries must be non-negative integers",
-                         0, 0, "accumarray", "", "m:accumarray:sizeRange");
+                         0, 0, "accumarray", "", "numkit:accumarray:sizeRange");
         shape[i] = static_cast<size_t>(std::round(v));
     }
     return shape;
@@ -273,10 +273,10 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("accumarray: requires at least 2 arguments (subs, vals)",
-                     0, 0, "accumarray", "", "m:accumarray:nargin");
+                     0, 0, "accumarray", "", "numkit:accumarray:nargin");
     if (args.size() > 6)
         throw Error("accumarray: too many arguments",
-                     0, 0, "accumarray", "", "m:accumarray:nargin");
+                     0, 0, "accumarray", "", "numkit:accumarray:nargin");
 
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
@@ -292,7 +292,7 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 5 && !args[4].isEmpty()) {
         if (!args[4].isScalar())
             throw Error("accumarray: fillval must be a scalar",
-                         0, 0, "accumarray", "", "m:accumarray:fillType");
+                         0, 0, "accumarray", "", "numkit:accumarray:fillType");
         fillVal = args[4].toScalar();
     }
     if (args.size() >= 6 && !args[5].isEmpty()) {
@@ -301,7 +301,7 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
         // returning a dense result.
         if (args[5].toScalar() != 0.0)
             throw Error("accumarray: sparse output (issparse=1) is not supported",
-                         0, 0, "accumarray", "", "m:accumarray:sparse");
+                         0, 0, "accumarray", "", "numkit:accumarray:sparse");
     }
 
     outs[0] = accumarray(args[0], args[1], Span<const size_t>(shape.data(), shape.size()), op, fillVal, mr);

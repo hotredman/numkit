@@ -124,7 +124,7 @@ std::size_t resolveLen(std::size_t L, std::size_t n)
     if (n == 0) return nextPow2(L);
     if (!isPowerOfTwo(n))
         throw Error("fwht: transform length must be a power of 2",
-                     0, 0, "fwht", "", "m:fwht:badLength");
+                     0, 0, "fwht", "", "numkit:fwht:badLength");
     return n;
 }
 
@@ -184,12 +184,12 @@ Value runWalshHadamard(const Value &x, std::size_t n,
 {
     if (ordering != "sequency" && ordering != "hadamard" && ordering != "dyadic")
         throw Error("fwht: ordering must be 'sequency', 'hadamard', or 'dyadic'",
-                     0, 0, "fwht", "", "m:fwht:badOrdering");
+                     0, 0, "fwht", "", "numkit:fwht:badOrdering");
 
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("fwht: input must be a vector or matrix",
-                     0, 0, "fwht", "", "m:fwht:notMatrix");
+                     0, 0, "fwht", "", "numkit:fwht:notMatrix");
     if (x.numel() == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -264,7 +264,7 @@ static void parseFwhtArgs(Span<const Value> args,
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (!(args[2].isChar() || args[2].isString()))
             throw Error("fwht: ordering must be a string",
-                         0, 0, "fwht", "", "m:fwht:badOrdering");
+                         0, 0, "fwht", "", "numkit:fwht:badOrdering");
         ordering = args[2].toString();
     }
 }
@@ -274,7 +274,7 @@ void fwht_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fwht: requires (x [, n [, ordering]])",
-                     0, 0, "fwht", "", "m:fwht:nargin");
+                     0, 0, "fwht", "", "numkit:fwht:nargin");
     std::size_t n; std::string ordering;
     parseFwhtArgs(args, n, ordering);
     outs[0] = fwht(args[0], n, ordering, ctx.engine->resource());
@@ -285,7 +285,7 @@ void ifwht_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("ifwht: requires (y [, n [, ordering]])",
-                     0, 0, "ifwht", "", "m:ifwht:nargin");
+                     0, 0, "ifwht", "", "numkit:ifwht:nargin");
     std::size_t n; std::string ordering;
     parseFwhtArgs(args, n, ordering);
     outs[0] = ifwht(args[0], n, ordering, ctx.engine->resource());

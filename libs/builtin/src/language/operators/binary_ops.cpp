@@ -109,7 +109,7 @@ Value plus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateAdd(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw Error("Unsupported types for +", 0, 0, "plus", "", "m:plus:unsupportedTypes");
+    throw Error("Unsupported types for +", 0, 0, "plus", "", "numkit:plus:unsupportedTypes");
 }
 
 Value minus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -133,7 +133,7 @@ Value minus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateSub(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw Error("Unsupported types for -", 0, 0, "minus", "", "m:minus:unsupportedTypes");
+    throw Error("Unsupported types for -", 0, 0, "minus", "", "numkit:minus:unsupportedTypes");
 }
 
 Value times(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -157,7 +157,7 @@ Value times(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateMul(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw Error("Unsupported types for .*", 0, 0, "times", "", "m:times:unsupportedTypes");
+    throw Error("Unsupported types for .*", 0, 0, "times", "", "numkit:times:unsupportedTypes");
 }
 
 Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -174,7 +174,7 @@ Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     // garbage, which is worse than failing loudly.
     if ((a.dims().is3D() || b.dims().is3D()) && !a.isScalar() && !b.isScalar())
         throw Error("MTIMES is not supported for N-D arrays",
-                     0, 0, "mtimes", "", "m:mtimes:notSupportedND");
+                     0, 0, "mtimes", "", "numkit:mtimes:notSupportedND");
 
     if (a.isComplex() || b.isComplex()) {
         auto [ca, cb] = promoteToComplex(a, b, p);
@@ -183,7 +183,7 @@ Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         size_t M = ca.dims().rows(), K = ca.dims().cols(), N = cb.dims().cols();
         if (K != cb.dims().rows())
             throw Error("Inner matrix dimensions must agree", 0, 0, "mtimes", "",
-                         "m:innerdim");
+                         "numkit:innerdim");
         auto r = Value::complexMatrix(M, N, p);
         for (size_t i = 0; i < M; ++i)
             for (size_t j = 0; j < N; ++j) {
@@ -205,13 +205,13 @@ Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         size_t M = a.dims().rows(), K = a.dims().cols(), N = b.dims().cols();
         if (K != b.dims().rows())
             throw Error("Inner matrix dimensions must agree", 0, 0, "mtimes", "",
-                         "m:innerdim");
+                         "numkit:innerdim");
         auto r = Value::matrix(M, N, ValueType::DOUBLE, p);
         detail::matmulDoubleLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(),
                                  M, N, K);
         return r;
     }
-    throw Error("Unsupported types for *", 0, 0, "mtimes", "", "m:mtimes:unsupportedTypes");
+    throw Error("Unsupported types for *", 0, 0, "mtimes", "", "numkit:mtimes:unsupportedTypes");
 }
 
 Value rdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -236,7 +236,7 @@ Value rdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         if (!r.isUnset()) return r;
     }
     throw Error("Unsupported types for ./", 0, 0, "rdivide", "",
-                 "m:rdivide:unsupportedTypes");
+                 "numkit:rdivide:unsupportedTypes");
 }
 
 // Internal helper: solve A·X = B via square LU or tall QR. Returns the
@@ -267,12 +267,12 @@ Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::
     const std::size_t k  = B.dims().cols();
     if (bm != m)
         throw Error(std::string(opname) + ": matrix dimensions must agree",
-                    0, 0, opname, "", std::string("m:") + opname + ":dim");
+                    0, 0, opname, "", std::string("numkit:") + opname + ":dim");
     if (m < n)
         throw Error(std::string(opname)
                     + ": underdetermined (wide A, m<n) not yet supported",
                     0, 0, opname, "",
-                    std::string("m:") + opname + ":wide");
+                    std::string("numkit:") + opname + ":wide");
 
     ScratchArena arena(mr);
     ScratchVec<double> A_buf(m * n, &arena);
@@ -286,7 +286,7 @@ Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::
         throw Error(std::string(opname)
                     + ": matrix is singular or rank-deficient",
                     0, 0, opname, "",
-                    std::string("m:") + opname + ":singular");
+                    std::string("numkit:") + opname + ":singular");
     return X;
 }
 
@@ -335,7 +335,7 @@ Value mrdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         // dimensions must agree". Match that behavior — do NOT silently
         // expand to scalar·inv(B).
         throw Error("mrdivide: matrix dimensions must agree",
-                    0, 0, "mrdivide", "", "m:mrdivide:dim");
+                    0, 0, "mrdivide", "", "numkit:mrdivide:dim");
     }
     // Matrix right division: X = A / B  ↔  X · B = A.
     // Standard identity: X = (B' \ A')'. Same LU/QR primitives as mldivide.
@@ -356,7 +356,7 @@ Value mldivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         return mldivide(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
     if (a.isComplex() || b.isComplex())
         throw Error("mldivide: complex matrix systems not yet supported",
-                    0, 0, "mldivide", "", "m:mldivide:complex");
+                    0, 0, "mldivide", "", "numkit:mldivide:complex");
     if (a.isScalar() && b.isScalar())
         return Value::scalar(b.toScalar() / a.toScalar(), p);
     if (a.isScalar() && !b.isScalar()) {
@@ -406,7 +406,7 @@ Value power(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         }
     }
     throw Error("Matrix power not implemented", 0, 0, "power", "",
-                 "m:power:notImplemented");
+                 "numkit:power:notImplemented");
 }
 
 Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -440,7 +440,7 @@ Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr
         if (!r.isUnset()) return r;
     }
     throw Error("Unsupported types for .^", 0, 0, "elementPower", "",
-                 "m:elementPower:unsupportedTypes");
+                 "numkit:elementPower:unsupportedTypes");
 }
 
 // ── Comparisons ──────────────────────────────────────────────────────────
@@ -493,7 +493,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
             if (v.isString() || v.isChar())
                 return v.toString();
             throw Error("Comparison between string and non-string is not supported",
-                         0, 0, "compare", "", "m:compare:stringType");
+                         0, 0, "compare", "", "numkit:compare:stringType");
         };
         std::string sa = toStr(a), sb = toStr(b);
         switch (c) {
@@ -511,7 +511,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
         if (c != Cmp::EQ && c != Cmp::NE)
             throw Error(std::string("Operator '") + cmpOpName(c)
                              + "' is not supported for complex operands",
-                         0, 0, "compare", "", "m:compare:complexOrder");
+                         0, 0, "compare", "", "numkit:compare:complexOrder");
         const bool isEq = (c == Cmp::EQ);
         auto ceq = [](Complex x, Complex y) {
             return x.real() == y.real() && x.imag() == y.imag();
@@ -547,7 +547,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
         }
         if (a.dims() != b.dims())
             throw Error("Matrix dimensions must agree for comparison",
-                         0, 0, "compare", "", "m:dimagree");
+                         0, 0, "compare", "", "numkit:dimagree");
         auto r = createLike(a, ValueType::LOGICAL, nullptr);
         for (size_t i = 0; i < a.numel(); ++i)
             r.logicalDataMut()[i] =
@@ -615,7 +615,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
         Dims outD;
         if (!broadcastDimsND(a.dims(), b.dims(), outD))
             throw Error("ND dimensions must broadcast for comparison: each axis must match or be 1",
-                         0, 0, "compare", "", "m:dimagree");
+                         0, 0, "compare", "", "numkit:dimagree");
         auto r = createForDims(outD, ValueType::LOGICAL, nullptr);
         uint8_t *dst = r.logicalDataMut();
         forEachNDPair(a.dims(), b.dims(), outD,
@@ -647,7 +647,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
         size_t outR, outC, outP;
         if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
             throw Error("3D dimensions must broadcast for comparison: each axis must match or be 1",
-                         0, 0, "compare", "", "m:dimagree");
+                         0, 0, "compare", "", "numkit:dimagree");
 
         if (aR == bR && aC == bC && aP == bP) {
             auto r = createLike(a, ValueType::LOGICAL, nullptr);
@@ -674,7 +674,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
     size_t outR, outC;
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
         throw Error("Matrix dimensions must agree for comparison",
-                     0, 0, "compare", "", "m:dimagree");
+                     0, 0, "compare", "", "numkit:dimagree");
 
     auto r = Value::matrix(outR, outC, ValueType::LOGICAL, nullptr);
     uint8_t *dst = r.logicalDataMut();
@@ -748,7 +748,7 @@ Value logicalBinary(const char *opName, Op op,
     }
     if (a.numel() != b.numel())
         throw Error(std::string("Matrix dimensions must agree for ") + opName,
-                     0, 0, opName, "", "m:dimagree");
+                     0, 0, opName, "", "numkit:dimagree");
     auto aa = toBoolArray(a, &scratch);
     auto bb = toBoolArray(b, &scratch);
     auto r = createLike(a, ValueType::LOGICAL, mr);
@@ -782,7 +782,7 @@ namespace detail {
     {                                                                                 \
         if (args.size() < 2)                                                          \
             throw Error(#MATLAB_NAME ": requires 2 arguments",                       \
-                         0, 0, #MATLAB_NAME, "", "m:" #MATLAB_NAME ":nargin");        \
+                         0, 0, #MATLAB_NAME, "", "numkit:" #MATLAB_NAME ":nargin");        \
         outs[0] = CXX_FN(args[0], args[1], ctx.engine->resource());                  \
     }
 
@@ -810,7 +810,7 @@ void ldivide_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ldivide: requires 2 arguments",
-                     0, 0, "ldivide", "", "m:ldivide:nargin");
+                     0, 0, "ldivide", "", "numkit:ldivide:nargin");
     outs[0] = rdivide(args[1], args[0], ctx.engine->resource());
 }
 
@@ -820,7 +820,7 @@ void and_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("and: requires 2 arguments",
-                     0, 0, "and", "", "m:and:nargin");
+                     0, 0, "and", "", "numkit:and:nargin");
     outs[0] = logicalAnd(args[0], args[1], ctx.engine->resource());
 }
 
@@ -829,7 +829,7 @@ void or_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("or: requires 2 arguments",
-                     0, 0, "or", "", "m:or:nargin");
+                     0, 0, "or", "", "numkit:or:nargin");
     outs[0] = logicalOr(args[0], args[1], ctx.engine->resource());
 }
 

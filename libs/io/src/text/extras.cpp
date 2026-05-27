@@ -24,12 +24,12 @@ std::string slurpFile(Engine &engine, const std::string &filename, const char *f
     auto resolved = engine.resolvePath(filename);
     if (!resolved.fs)
         throw Error(std::string(fnName) + ": cannot resolve filesystem for '" + filename + "'",
-                     0, 0, fnName, "", std::string("m:") + fnName + ":noFs");
+                     0, 0, fnName, "", std::string("numkit:") + fnName + ":noFs");
     try {
         return resolved.fs->readFile(resolved.path);
     } catch (const std::exception &e) {
         throw Error(std::string(fnName) + ": " + e.what(),
-                     0, 0, fnName, "", std::string("m:") + fnName + ":readFailed");
+                     0, 0, fnName, "", std::string("numkit:") + fnName + ":readFailed");
     }
 }
 
@@ -39,12 +39,12 @@ void spitFile(Engine &engine, const std::string &filename, const std::string &co
     auto resolved = engine.resolvePath(filename);
     if (!resolved.fs)
         throw Error(std::string(fnName) + ": cannot resolve filesystem for '" + filename + "'",
-                     0, 0, fnName, "", std::string("m:") + fnName + ":noFs");
+                     0, 0, fnName, "", std::string("numkit:") + fnName + ":noFs");
     try {
         resolved.fs->writeFile(resolved.path, content);
     } catch (const std::exception &e) {
         throw Error(std::string(fnName) + ": " + e.what(),
-                     0, 0, fnName, "", std::string("m:") + fnName + ":writeFailed");
+                     0, 0, fnName, "", std::string("numkit:") + fnName + ":writeFailed");
     }
 }
 
@@ -158,7 +158,7 @@ void writelines(Engine &engine, const Value &lines, const std::string &filename)
             const Value &cell = lines.cellAt(i);
             if (!cell.isChar() && !cell.isString())
                 throw Error("writelines: each cell element must be a string",
-                             0, 0, "writelines", "", "m:writelines:badCell");
+                             0, 0, "writelines", "", "numkit:writelines:badCell");
             append(cell.toString());
         }
     } else if (lines.isString()) {
@@ -167,7 +167,7 @@ void writelines(Engine &engine, const Value &lines, const std::string &filename)
             append(lines.stringElem(i));
     } else {
         throw Error("writelines: lines must be a string, string array, or cell of strings",
-                     0, 0, "writelines", "", "m:writelines:badArg");
+                     0, 0, "writelines", "", "numkit:writelines:badArg");
     }
     spitFile(engine, filename, os.str(), "writelines");
 }
@@ -225,11 +225,11 @@ void writematrix(Engine &engine, const Value &m, const std::string &filename)
 {
     if (m.isComplex())
         throw Error("writematrix: complex matrices are not supported",
-                     0, 0, "writematrix", "", "m:writematrix:complex");
+                     0, 0, "writematrix", "", "numkit:writematrix:complex");
     const auto &d = m.dims();
     if (d.is3D())
         throw Error("writematrix: 3-D arrays are not supported",
-                     0, 0, "writematrix", "", "m:writematrix:nd");
+                     0, 0, "writematrix", "", "numkit:writematrix:nd");
     const size_t R = d.rows(), C = d.cols();
 
     std::ostringstream os;
@@ -264,7 +264,7 @@ void fileread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("fileread: requires a filename string",
-                     0, 0, "fileread", "", "m:fileread:nargin");
+                     0, 0, "fileread", "", "numkit:fileread:nargin");
     outs[0] = fileread(*ctx.engine, args[0].toString(), ctx.engine->resource());
 }
 
@@ -272,7 +272,7 @@ void readlines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("readlines: requires a filename string",
-                     0, 0, "readlines", "", "m:readlines:nargin");
+                     0, 0, "readlines", "", "numkit:readlines:nargin");
     outs[0] = readlines(*ctx.engine, args[0].toString(), ctx.engine->resource());
 }
 
@@ -280,10 +280,10 @@ void writelines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 2)
         throw Error("writelines: requires (lines, filename)",
-                     0, 0, "writelines", "", "m:writelines:nargin");
+                     0, 0, "writelines", "", "numkit:writelines:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("writelines: filename must be a string",
-                     0, 0, "writelines", "", "m:writelines:badFilename");
+                     0, 0, "writelines", "", "numkit:writelines:badFilename");
     writelines(*ctx.engine, args[0], args[1].toString());
     outs[0] = Value::empty();
 }
@@ -292,7 +292,7 @@ void readmatrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("readmatrix: requires a filename string",
-                     0, 0, "readmatrix", "", "m:readmatrix:nargin");
+                     0, 0, "readmatrix", "", "numkit:readmatrix:nargin");
     outs[0] = readmatrix(*ctx.engine, args[0].toString(), ctx.engine->resource());
 }
 
@@ -300,10 +300,10 @@ void writematrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 {
     if (args.size() < 2)
         throw Error("writematrix: requires (M, filename)",
-                     0, 0, "writematrix", "", "m:writematrix:nargin");
+                     0, 0, "writematrix", "", "numkit:writematrix:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("writematrix: filename must be a string",
-                     0, 0, "writematrix", "", "m:writematrix:badFilename");
+                     0, 0, "writematrix", "", "numkit:writematrix:badFilename");
     writematrix(*ctx.engine, args[0], args[1].toString());
     outs[0] = Value::empty();
 }
@@ -312,7 +312,7 @@ void type_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("type: requires a filename string",
-                     0, 0, "type", "", "m:type:nargin");
+                     0, 0, "type", "", "numkit:type:nargin");
     type(*ctx.engine, args[0].toString());
     outs[0] = Value::empty();
 }

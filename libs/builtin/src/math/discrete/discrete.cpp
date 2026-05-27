@@ -149,10 +149,10 @@ void validateUniqueRowsInput(const Value &x, const char *fn)
 {
     if (x.type() != ValueType::DOUBLE)
         throw Error(std::string(fn) + ": 'rows' flag requires a DOUBLE matrix",
-                     0, 0, fn, "", std::string("m:") + fn + ":rowsType");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":rowsType");
     if (x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": 'rows' flag requires a 2D matrix",
-                     0, 0, fn, "", std::string("m:") + fn + ":rowsND");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":rowsND");
 }
 
 std::pmr::unordered_set<double, DoubleHashEq0>
@@ -171,12 +171,12 @@ void validateEdges(const Value &edges, const char *fn)
 {
     if (edges.numel() < 2)
         throw Error(std::string(fn) + ": edges must have length >= 2",
-                     0, 0, fn, "", std::string("m:") + fn + ":shortEdges");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":shortEdges");
     const double *e = edges.doubleData();
     for (size_t i = 1; i < edges.numel(); ++i)
         if (!(e[i] >= e[i - 1]))
             throw Error(std::string(fn) + ": edges must be ascending",
-                         0, 0, fn, "", std::string("m:") + fn + ":badEdges");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":badEdges");
 }
 
 bool edgesAreUniform(const double *e, size_t nEdges, double &outStep)
@@ -663,7 +663,7 @@ Value isprime(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("isprime: complex inputs are not supported",
-                     0, 0, "isprime", "", "m:isprime:complex");
+                     0, 0, "isprime", "", "numkit:isprime:complex");
     auto out = createLike(x, ValueType::LOGICAL, mr);
     uint8_t *dst = out.logicalDataMut();
     const size_t N = x.numel();
@@ -679,7 +679,7 @@ Value factor(double n, std::pmr::memory_resource *mr)
     std::uint64_t u;
     if (!isExactNonnegInt(n, u))
         throw Error("factor: argument must be a non-negative integer scalar",
-                     0, 0, "factor", "", "m:factor:badArg");
+                     0, 0, "factor", "", "numkit:factor:badArg");
     if (u == 0 || u == 1) {
         auto r = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = static_cast<double>(u);
@@ -727,7 +727,7 @@ double factorialDouble(double v, const char *fn)
     if (!std::isfinite(v) || v < 0 || v != std::floor(v))
         throw Error(std::string(fn)
                      + ": entries must be non-negative integers",
-                     0, 0, fn, "", std::string("m:") + fn + ":badArg");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badArg");
     if (v > 170.0)
         return std::numeric_limits<double>::infinity();
     double r = 1.0;
@@ -742,18 +742,18 @@ Value perms(const Value &v, std::pmr::memory_resource *mr)
 {
     if (v.type() == ValueType::COMPLEX)
         throw Error("perms: complex inputs are not supported",
-                     0, 0, "perms", "", "m:perms:complex");
+                     0, 0, "perms", "", "numkit:perms:complex");
     if (v.isEmpty()) {
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
     }
     if (!v.dims().isVector())
         throw Error("perms: argument must be a vector",
-                     0, 0, "perms", "", "m:perms:notVector");
+                     0, 0, "perms", "", "numkit:perms:notVector");
 
     const size_t n = v.numel();
     if (n > static_cast<size_t>(kPermMaxN))
         throw Error("perms: numel(v) > 11 is not supported (n! is too large)",
-                     0, 0, "perms", "", "m:perms:tooLarge");
+                     0, 0, "perms", "", "numkit:perms:tooLarge");
 
     ScratchArena scratch(mr);
     auto vals = ScratchVec<double>(n, &scratch);
@@ -781,7 +781,7 @@ Value factorial(const Value &n, std::pmr::memory_resource *mr)
 {
     if (n.type() == ValueType::COMPLEX)
         throw Error("factorial: complex inputs are not supported",
-                     0, 0, "factorial", "", "m:factorial:complex");
+                     0, 0, "factorial", "", "numkit:factorial:complex");
     auto out = createLike(n, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t N = n.numel();
@@ -794,13 +794,13 @@ Value nchoosek(double n, double k, std::pmr::memory_resource *mr)
 {
     if (!std::isfinite(n) || !std::isfinite(k))
         throw Error("nchoosek: arguments must be finite",
-                     0, 0, "nchoosek", "", "m:nchoosek:badArg");
+                     0, 0, "nchoosek", "", "numkit:nchoosek:badArg");
     if (n < 0 || k < 0 || n != std::floor(n) || k != std::floor(k))
         throw Error("nchoosek: arguments must be non-negative integers",
-                     0, 0, "nchoosek", "", "m:nchoosek:badArg");
+                     0, 0, "nchoosek", "", "numkit:nchoosek:badArg");
     if (k > n)
         throw Error("nchoosek: k must satisfy 0 ≤ k ≤ n",
-                     0, 0, "nchoosek", "", "m:nchoosek:kTooLarge");
+                     0, 0, "nchoosek", "", "numkit:nchoosek:kTooLarge");
 
     double kk = (k > n - k) ? n - k : k;
     if (kk == 0.0)
@@ -965,7 +965,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("unique: requires 1 argument",
-                     0, 0, "unique", "", "m:unique:nargin");
+                     0, 0, "unique", "", "numkit:unique:nargin");
     auto *mr = ctx.engine->resource();
 
     bool useRows = false;
@@ -973,7 +973,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         const Value &a = args[i];
         if (a.type() != ValueType::CHAR)
             throw Error("unique: extra arguments must be string flags",
-                         0, 0, "unique", "", "m:unique:badArg");
+                         0, 0, "unique", "", "numkit:unique:badArg");
         std::string s = a.toString();
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c) { return std::tolower(c); });
@@ -982,7 +982,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
             // accepted but no-op for now
         } else {
             throw Error("unique: unknown flag '" + s + "'",
-                         0, 0, "unique", "", "m:unique:badFlag");
+                         0, 0, "unique", "", "numkit:unique:badFlag");
         }
     }
 
@@ -1011,7 +1011,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     {                                                                          \
         if (args.size() < 2)                                                   \
             throw Error(#name ": requires 2 arguments",                       \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
@@ -1028,7 +1028,7 @@ void primes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("primes: requires 1 argument",
-                     0, 0, "primes", "", "m:primes:nargin");
+                     0, 0, "primes", "", "numkit:primes:nargin");
     outs[0] = primes(args[0].toScalar(), ctx.engine->resource());
 }
 
@@ -1036,7 +1036,7 @@ void isprime_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("isprime: requires 1 argument",
-                     0, 0, "isprime", "", "m:isprime:nargin");
+                     0, 0, "isprime", "", "numkit:isprime:nargin");
     outs[0] = isprime(args[0], ctx.engine->resource());
 }
 
@@ -1044,10 +1044,10 @@ void factor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("factor: requires 1 argument",
-                     0, 0, "factor", "", "m:factor:nargin");
+                     0, 0, "factor", "", "numkit:factor:nargin");
     if (!args[0].isScalar())
         throw Error("factor: argument must be a scalar",
-                     0, 0, "factor", "", "m:factor:notScalar");
+                     0, 0, "factor", "", "numkit:factor:notScalar");
     outs[0] = factor(args[0].toScalar(), ctx.engine->resource());
 }
 
@@ -1055,7 +1055,7 @@ void perms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("perms: requires 1 argument",
-                     0, 0, "perms", "", "m:perms:nargin");
+                     0, 0, "perms", "", "numkit:perms:nargin");
     outs[0] = perms(args[0], ctx.engine->resource());
 }
 
@@ -1063,7 +1063,7 @@ void factorial_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("factorial: requires 1 argument",
-                     0, 0, "factorial", "", "m:factorial:nargin");
+                     0, 0, "factorial", "", "numkit:factorial:nargin");
     outs[0] = factorial(args[0], ctx.engine->resource());
 }
 
@@ -1071,11 +1071,11 @@ void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("nchoosek: requires 2 arguments (n, k)",
-                     0, 0, "nchoosek", "", "m:nchoosek:nargin");
+                     0, 0, "nchoosek", "", "numkit:nchoosek:nargin");
     if (!args[0].isScalar() || !args[1].isScalar())
         throw Error("nchoosek: vector input form is not yet supported "
                      "(nchoosek(v, k) for k-combinations of v)",
-                     0, 0, "nchoosek", "", "m:nchoosek:vectorForm");
+                     0, 0, "nchoosek", "", "numkit:nchoosek:vectorForm");
     outs[0] = nchoosek(args[0].toScalar(), args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -1086,7 +1086,7 @@ void setxor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("setxor: requires 2 arguments",
-                     0, 0, "setxor", "", "m:setxor:nargin");
+                     0, 0, "setxor", "", "numkit:setxor:nargin");
     outs[0] = setxor(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1095,7 +1095,7 @@ void allunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("allunique: requires 1 argument",
-                     0, 0, "allunique", "", "m:allunique:nargin");
+                     0, 0, "allunique", "", "numkit:allunique:nargin");
     outs[0] = allunique(args[0], ctx.engine->resource());
 }
 
@@ -1104,7 +1104,7 @@ void numunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("numunique: requires 1 argument",
-                     0, 0, "numunique", "", "m:numunique:nargin");
+                     0, 0, "numunique", "", "numkit:numunique:nargin");
     outs[0] = numunique(args[0], ctx.engine->resource());
 }
 
@@ -1113,7 +1113,7 @@ void ismembertol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 {
     if (args.size() < 2)
         throw Error("ismembertol: requires (A, S, [tol])",
-                     0, 0, "ismembertol", "", "m:ismembertol:nargin");
+                     0, 0, "ismembertol", "", "numkit:ismembertol:nargin");
     double tol = (args.size() >= 3 && !args[2].isEmpty())
                      ? args[2].toScalar()
                      : 1e-6;
@@ -1125,7 +1125,7 @@ void uniquetol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("uniquetol: requires (A, [tol])",
-                     0, 0, "uniquetol", "", "m:uniquetol:nargin");
+                     0, 0, "uniquetol", "", "numkit:uniquetol:nargin");
     double tol = (args.size() >= 2 && !args[1].isEmpty())
                      ? args[1].toScalar()
                      : 1e-6;

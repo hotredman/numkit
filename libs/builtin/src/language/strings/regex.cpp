@@ -25,7 +25,7 @@ std::regex compileRegex(const std::string &pat, bool ignoreCase)
         return std::regex(pat, flags);
     } catch (const std::regex_error &e) {
         throw Error(std::string("regex: invalid pattern — ") + e.what(),
-                     0, 0, "regexp", "", "m:regexp:badPattern");
+                     0, 0, "regexp", "", "numkit:regexp:badPattern");
     }
 }
 
@@ -51,7 +51,7 @@ Value regexpFind(const Value &s, const Value &pat, const std::string &option, bo
 {
     if ((!s.isChar() && !s.isString()) || (!pat.isChar() && !pat.isString()))
         throw Error("regexp: s and pat must be strings",
-                     0, 0, "regexp", "", "m:regexp:badArg");
+                     0, 0, "regexp", "", "numkit:regexp:badArg");
     const std::string text = s.toString();
     const std::regex  re   = compileRegex(pat.toString(), ignoreCase);
 
@@ -104,7 +104,7 @@ Value regexpFind(const Value &s, const Value &pat, const std::string &option, bo
     if (!opt.empty())
         throw Error("regexp: unknown option '" + option
                      + "' (supported: 'match' / 'tokens' / 'split')",
-                     0, 0, "regexp", "", "m:regexp:badOption");
+                     0, 0, "regexp", "", "numkit:regexp:badOption");
 
     // Default: 1-based start indices.
     ScratchVec<double> idx(&scratch);
@@ -120,7 +120,7 @@ Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreC
         || (!pat.isChar() && !pat.isString())
         || (!rep.isChar() && !rep.isString()))
         throw Error("regexprep: s, pat, rep must be strings",
-                     0, 0, "regexprep", "", "m:regexprep:badArg");
+                     0, 0, "regexprep", "", "numkit:regexprep:badArg");
     const std::string text    = s.toString();
     const std::regex  re      = compileRegex(pat.toString(), ignoreCase);
     const std::string repText = rep.toString();
@@ -170,7 +170,7 @@ Value regexptranslate(const std::string &op, const std::string &s, std::pmr::mem
     }
     throw Error("regexptranslate: unsupported op '" + op + "' "
                 "(supported: 'escape', 'wildcard')",
-                 0, 0, "regexptranslate", "", "m:regexptranslate:badOp");
+                 0, 0, "regexptranslate", "", "numkit:regexptranslate:badOp");
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -183,12 +183,12 @@ void regexp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
 {
     if (args.size() < 2)
         throw Error("regexp: requires at least 2 arguments (s, pat)",
-                     0, 0, "regexp", "", "m:regexp:nargin");
+                     0, 0, "regexp", "", "numkit:regexp:nargin");
     std::string opt;
     if (args.size() >= 3) {
         if (!args[2].isChar() && !args[2].isString())
             throw Error("regexp: option must be a string",
-                         0, 0, "regexp", "", "m:regexp:badOption");
+                         0, 0, "regexp", "", "numkit:regexp:badOption");
         opt = args[2].toString();
     }
     outs[0] = regexpFind(args[0], args[1], opt, false, ctx.engine->resource());
@@ -198,12 +198,12 @@ void regexpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("regexpi: requires at least 2 arguments (s, pat)",
-                     0, 0, "regexpi", "", "m:regexpi:nargin");
+                     0, 0, "regexpi", "", "numkit:regexpi:nargin");
     std::string opt;
     if (args.size() >= 3) {
         if (!args[2].isChar() && !args[2].isString())
             throw Error("regexpi: option must be a string",
-                         0, 0, "regexpi", "", "m:regexpi:badOption");
+                         0, 0, "regexpi", "", "numkit:regexpi:badOption");
         opt = args[2].toString();
     }
     outs[0] = regexpFind(args[0], args[1], opt, true, ctx.engine->resource());
@@ -213,7 +213,7 @@ void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.size() < 3)
         throw Error("regexprep: requires 3 arguments (s, pat, rep)",
-                     0, 0, "regexprep", "", "m:regexprep:nargin");
+                     0, 0, "regexprep", "", "numkit:regexprep:nargin");
     outs[0] = regexprep(args[0], args[1], args[2], false, ctx.engine->resource());
 }
 
@@ -222,13 +222,13 @@ void regexptranslate_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("regexptranslate: requires 2 arguments (op, str)",
-                     0, 0, "regexptranslate", "", "m:regexptranslate:nargin");
+                     0, 0, "regexptranslate", "", "numkit:regexptranslate:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("regexptranslate: op must be a char or string",
-                     0, 0, "regexptranslate", "", "m:regexptranslate:badOp");
+                     0, 0, "regexptranslate", "", "numkit:regexptranslate:badOp");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("regexptranslate: str must be a char or string",
-                     0, 0, "regexptranslate", "", "m:regexptranslate:badStr");
+                     0, 0, "regexptranslate", "", "numkit:regexptranslate:badStr");
     outs[0] = regexptranslate(args[0].toString(), args[1].toString(), ctx.engine->resource());
 }
 

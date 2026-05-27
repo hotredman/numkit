@@ -113,7 +113,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
@@ -132,7 +132,7 @@ void pow2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("pow2: requires 1 or 2 arguments",
-                     0, 0, "pow2", "", "m:pow2:nargin");
+                     0, 0, "pow2", "", "numkit:pow2:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 2)
         outs[0] = pow2(args[0], args[1], mr);
@@ -144,7 +144,7 @@ void realpow_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("realpow: requires 2 arguments",
-                     0, 0, "realpow", "", "m:realpow:nargin");
+                     0, 0, "realpow", "", "numkit:realpow:nargin");
     outs[0] = realpow(args[0], args[1], ctx.engine->resource());
 }
 

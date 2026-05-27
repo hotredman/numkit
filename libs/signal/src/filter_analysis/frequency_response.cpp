@@ -129,7 +129,7 @@ void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() < 2)
         throw Error("freqz: requires at least 2 arguments",
-                     0, 0, "freqz", "", "m:freqz:nargin");
+                     0, 0, "freqz", "", "numkit:freqz:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
 
     auto [H, W] = freqz(args[0], args[1], npts, ctx.engine->resource());
@@ -142,7 +142,7 @@ void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.size() < 2)
         throw Error("phasez: requires at least 2 arguments",
-                     0, 0, "phasez", "", "m:phasez:nargin");
+                     0, 0, "phasez", "", "numkit:phasez:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
     auto [phi, W] = phasez(args[0], args[1], npts, ctx.engine->resource());
     outs[0] = std::move(phi);
@@ -153,7 +153,7 @@ void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("grpdelay: requires at least 2 arguments",
-                     0, 0, "grpdelay", "", "m:grpdelay:nargin");
+                     0, 0, "grpdelay", "", "numkit:grpdelay:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
     auto [gd, W] = grpdelay(args[0], args[1], npts, ctx.engine->resource());
     outs[0] = std::move(gd);

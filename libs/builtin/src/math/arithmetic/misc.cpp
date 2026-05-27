@@ -70,7 +70,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
@@ -83,7 +83,7 @@ void mod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("mod: requires 2 arguments",
-                     0, 0, "mod", "", "m:mod:nargin");
+                     0, 0, "mod", "", "numkit:mod:nargin");
     outs[0] = mod(args[0], args[1], ctx.engine->resource());
 }
 
@@ -91,7 +91,7 @@ void rem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("rem: requires 2 arguments",
-                     0, 0, "rem", "", "m:rem:nargin");
+                     0, 0, "rem", "", "numkit:rem:nargin");
     outs[0] = rem(args[0], args[1], ctx.engine->resource());
 }
 
@@ -99,7 +99,7 @@ void hypot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("hypot: requires 2 arguments",
-                     0, 0, "hypot", "", "m:hypot:nargin");
+                     0, 0, "hypot", "", "numkit:hypot:nargin");
     outs[0] = hypot(args[0], args[1], ctx.engine->resource());
 }
 
@@ -107,7 +107,7 @@ void nthroot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("nthroot: requires 2 arguments",
-                     0, 0, "nthroot", "", "m:nthroot:nargin");
+                     0, 0, "nthroot", "", "numkit:nthroot:nargin");
     outs[0] = nthroot(args[0], args[1], ctx.engine->resource());
 }
 

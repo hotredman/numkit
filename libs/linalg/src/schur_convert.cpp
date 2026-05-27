@@ -48,15 +48,15 @@ cdf2rdf(const Value &V, const Value &D, std::pmr::memory_resource *mr)
 {
     if (V.dims().ndim() != 2 || D.dims().ndim() != 2)
         throw Error("cdf2rdf: V and D must be 2-D matrices",
-                    0, 0, "cdf2rdf", "", "m:cdf2rdf:notMatrix");
+                    0, 0, "cdf2rdf", "", "numkit:cdf2rdf:notMatrix");
     const std::size_t n = static_cast<std::size_t>(D.dims().dim(0));
     if (n != static_cast<std::size_t>(D.dims().dim(1)))
         throw Error("cdf2rdf: D must be square",
-                    0, 0, "cdf2rdf", "", "m:cdf2rdf:notSquare");
+                    0, 0, "cdf2rdf", "", "numkit:cdf2rdf:notSquare");
     if (static_cast<std::size_t>(V.dims().dim(0)) != n
         || static_cast<std::size_t>(V.dims().dim(1)) != n)
         throw Error("cdf2rdf: V and D shape mismatch",
-                    0, 0, "cdf2rdf", "", "m:cdf2rdf:shapeMismatch");
+                    0, 0, "cdf2rdf", "", "numkit:cdf2rdf:shapeMismatch");
     if (n == 0)
         return std::make_tuple(
             Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -98,11 +98,11 @@ cdf2rdf(const Value &V, const Value &D, std::pmr::memory_resource *mr)
         // Expect a conjugate pair at (i, i+1).
         if (i + 1 >= n)
             throw Error("cdf2rdf: dangling complex eigenvalue at end of D",
-                        0, 0, "cdf2rdf", "", "m:cdf2rdf:badPair");
+                        0, 0, "cdf2rdf", "", "numkit:cdf2rdf:badPair");
         Complex lam2 = getD(i + 1, i + 1);
         if (!isApproxConj(lam, lam2, kPairTol))
             throw Error("cdf2rdf: complex eigenvalues must come in conjugate pairs",
-                        0, 0, "cdf2rdf", "", "m:cdf2rdf:badPair");
+                        0, 0, "cdf2rdf", "", "numkit:cdf2rdf:badPair");
         const double a = lam.real();
         const double b = lam.imag();   // assume b > 0; swap if not
         const double bb = (b >= 0.0) ? b : -b;
@@ -133,15 +133,15 @@ rsf2csf(const Value &UR, const Value &TR, std::pmr::memory_resource *mr)
 {
     if (UR.dims().ndim() != 2 || TR.dims().ndim() != 2)
         throw Error("rsf2csf: UR and TR must be 2-D matrices",
-                    0, 0, "rsf2csf", "", "m:rsf2csf:notMatrix");
+                    0, 0, "rsf2csf", "", "numkit:rsf2csf:notMatrix");
     const std::size_t n = static_cast<std::size_t>(TR.dims().dim(0));
     if (n != static_cast<std::size_t>(TR.dims().dim(1)))
         throw Error("rsf2csf: TR must be square",
-                    0, 0, "rsf2csf", "", "m:rsf2csf:notSquare");
+                    0, 0, "rsf2csf", "", "numkit:rsf2csf:notSquare");
     if (static_cast<std::size_t>(UR.dims().dim(0)) != n
         || static_cast<std::size_t>(UR.dims().dim(1)) != n)
         throw Error("rsf2csf: UR and TR shape mismatch",
-                    0, 0, "rsf2csf", "", "m:rsf2csf:shapeMismatch");
+                    0, 0, "rsf2csf", "", "numkit:rsf2csf:shapeMismatch");
     if (n == 0)
         return std::make_tuple(
             Value::matrix(0, 0, ValueType::COMPLEX, mr),
@@ -248,7 +248,7 @@ void cdf2rdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() != 2)
         throw Error("cdf2rdf: requires (V, D)",
-                    0, 0, "cdf2rdf", "", "m:cdf2rdf:nargin");
+                    0, 0, "cdf2rdf", "", "numkit:cdf2rdf:nargin");
     auto [VR, DR] = cdf2rdf(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(VR);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(DR);
@@ -258,7 +258,7 @@ void rsf2csf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() != 2)
         throw Error("rsf2csf: requires (U, T)",
-                    0, 0, "rsf2csf", "", "m:rsf2csf:nargin");
+                    0, 0, "rsf2csf", "", "numkit:rsf2csf:nargin");
     auto [U, T] = rsf2csf(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(U);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(T);

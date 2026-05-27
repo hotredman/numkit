@@ -63,7 +63,7 @@ Value pammod(const Value &x, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pammod: M must be ≥ 2", 0, 0, "pammod", "",
-                    "m:pammod:badM");
+                    "numkit:pammod:badM");
     Value out = alloc_complex_like(mr, x);   // PAM is real-valued but
     // MATLAB still returns complex when ini_phase ≠ 0; for simplicity always
     // return complex.
@@ -86,7 +86,7 @@ Value pamdemod(const Value &y, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pamdemod: M must be ≥ 2", 0, 0, "pamdemod", "",
-                    "m:pamdemod:badM");
+                    "numkit:pamdemod:badM");
     Value out = alloc_double_like(mr, y);
     const size_t N = y.numel();
     if (N == 0) return out;
@@ -116,7 +116,7 @@ Value qammod(const Value &x, int M, const std::string &symbol_order,
 {
     if (M < 4)
         throw Error("qammod: M must be ≥ 4", 0, 0, "qammod", "",
-                    "m:qammod:badM");
+                    "numkit:qammod:badM");
     auto [KI, KQ] = qam_grid(M);
 
     // Pre-compute scaling for unit average power.
@@ -152,7 +152,7 @@ Value qamdemod(const Value &y, int M, const std::string &symbol_order,
 {
     if (M < 4)
         throw Error("qamdemod: M must be ≥ 4", 0, 0, "qamdemod", "",
-                    "m:qamdemod:badM");
+                    "numkit:qamdemod:badM");
     auto [KI, KQ] = qam_grid(M);
 
     double scale = 1.0;
@@ -246,7 +246,7 @@ void pammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pammod: requires (x, M[, ini_phase, symbol_order])",
-                    0, 0, "pammod", "", "m:pammod:nargin");
+                    0, 0, "pammod", "", "numkit:pammod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -260,7 +260,7 @@ void pamdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pamdemod: requires (y, M[, ini_phase, symbol_order])",
-                    0, 0, "pamdemod", "", "m:pamdemod:nargin");
+                    0, 0, "pamdemod", "", "numkit:pamdemod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -274,7 +274,7 @@ void qammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("qammod: requires (x, M[, symbol_order, 'UnitAveragePower', tf])",
-                    0, 0, "qammod", "", "m:qammod:nargin");
+                    0, 0, "qammod", "", "numkit:qammod:nargin");
     const int M = (int)args[1].toScalar();
     auto order = parse_order(args, 2);
     bool up = parse_unit_power(args, 2);
@@ -286,7 +286,7 @@ void qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("qamdemod: requires (y, M[, symbol_order, 'UnitAveragePower', tf])",
-                    0, 0, "qamdemod", "", "m:qamdemod:nargin");
+                    0, 0, "qamdemod", "", "numkit:qamdemod:nargin");
     const int M = (int)args[1].toScalar();
     auto order = parse_order(args, 2);
     bool up = parse_unit_power(args, 2);
@@ -298,7 +298,7 @@ void modnorm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("modnorm: requires (ref, type, target)",
-                    0, 0, "modnorm", "", "m:modnorm:nargin");
+                    0, 0, "modnorm", "", "numkit:modnorm:nargin");
     std::string type = "avpow";
     if (args[1].isChar() || args[1].isString()) type = args[1].toString();
     const double target = args[2].toScalar();

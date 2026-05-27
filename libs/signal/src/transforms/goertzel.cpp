@@ -71,7 +71,7 @@ void goertzel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("goertzel: requires (x[, ind])",
-                     0, 0, "goertzel", "", "m:goertzel:nargin");
+                     0, 0, "goertzel", "", "numkit:goertzel:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1 || args[1].isEmpty()) {
         // 1-arg form (or empty 2nd arg): MATLAB defaults `ind = 1:N`

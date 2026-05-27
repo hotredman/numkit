@@ -104,12 +104,12 @@ Value inv(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("inv: input must be a 2D matrix",
-                    0, 0, "inv", "", "m:inv:notMatrix");
+                    0, 0, "inv", "", "numkit:inv:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("inv: matrix must be square",
-                    0, 0, "inv", "", "m:inv:notSquare");
+                    0, 0, "inv", "", "numkit:inv:notSquare");
     if (m == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -122,7 +122,7 @@ Value inv(const Value &A, std::pmr::memory_resource *mr)
     auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
     if (!laSolveWrap(A_buf.data(), m, n, I_buf.data(), n, out.doubleDataMut(), &scratch))
         throw Error("inv: matrix is singular to working precision",
-                    0, 0, "inv", "", "m:inv:singular");
+                    0, 0, "inv", "", "numkit:inv:singular");
     return out;
 }
 
@@ -130,7 +130,7 @@ Value trace(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("trace: input must be a 2D matrix",
-                    0, 0, "trace", "", "m:trace:notMatrix");
+                    0, 0, "trace", "", "numkit:trace:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t k = std::min(m, n);
@@ -145,12 +145,12 @@ Value det(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("det: input must be a 2D matrix",
-                    0, 0, "det", "", "m:det:notMatrix");
+                    0, 0, "det", "", "numkit:det:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("det: matrix must be square",
-                    0, 0, "det", "", "m:det:notSquare");
+                    0, 0, "det", "", "numkit:det:notSquare");
     if (m == 0)
         return Value::scalar(1.0, mr);
 
@@ -206,12 +206,12 @@ Value cond_pnorm(const Value &A, int p_kind, std::pmr::memory_resource *mr)
 
     if (A.dims().ndim() != 2)
         throw Error("cond: input must be a 2D matrix",
-                    0, 0, "cond", "", "m:cond:notMatrix");
+                    0, 0, "cond", "", "numkit:cond:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("cond: matrix must be square for non-2-norm forms",
-                    0, 0, "cond", "", "m:cond:notSquare");
+                    0, 0, "cond", "", "numkit:cond:notSquare");
     if (m == 0)
         return Value::scalar(0.0, mr);
 
@@ -222,7 +222,7 @@ Value cond_pnorm(const Value &A, int p_kind, std::pmr::memory_resource *mr)
         case 4: return norm_fro(X, mr).toScalar();
         default:
             throw Error("cond: p must be 1, 2, Inf, or 'fro'",
-                        0, 0, "cond", "", "m:cond:badP");
+                        0, 0, "cond", "", "numkit:cond:badP");
         }
     };
 
@@ -260,17 +260,17 @@ Value rcond(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("rcond: input must be 2D",
-                    0, 0, "rcond", "", "m:rcond:Not2D");
+                    0, 0, "rcond", "", "numkit:rcond:Not2D");
     const size_t M = A.dims().rows();
     const size_t N = A.dims().cols();
     if (M != N)
         throw Error("rcond: matrix must be square",
-                    0, 0, "rcond", "", "m:rcond:NotSquare");
+                    0, 0, "rcond", "", "numkit:rcond:NotSquare");
     if (M == 0)
         return Value::scalar(std::numeric_limits<double>::infinity(), mr);
     if (A.isComplex())
         throw Error("rcond: complex input not supported in v1",
-                    0, 0, "rcond", "", "m:rcond:NoComplex");
+                    0, 0, "rcond", "", "numkit:rcond:NoComplex");
 
     const double anorm = matrix_one_norm(A.doubleData(), M, N);
     if (anorm == 0.0) return Value::scalar(0.0, mr);
@@ -299,12 +299,12 @@ Value condest(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("condest: input must be 2D",
-                    0, 0, "condest", "", "m:condest:Not2D");
+                    0, 0, "condest", "", "numkit:condest:Not2D");
     const size_t M = A.dims().rows();
     const size_t N = A.dims().cols();
     if (M != N)
         throw Error("condest: matrix must be square",
-                    0, 0, "condest", "", "m:condest:NotSquare");
+                    0, 0, "condest", "", "numkit:condest:NotSquare");
     if (M == 0)
         return Value::scalar(0.0, mr);
 
@@ -343,12 +343,12 @@ Value condeig(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("condeig: input must be a 2D matrix",
-                    0, 0, "condeig", "", "m:condeig:notMatrix");
+                    0, 0, "condeig", "", "numkit:condeig:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("condeig: matrix must be square",
-                    0, 0, "condeig", "", "m:condeig:notSquare");
+                    0, 0, "condeig", "", "numkit:condeig:notSquare");
     if (n == 0)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
@@ -389,7 +389,7 @@ Value condeig(const Value &A, std::pmr::memory_resource *mr)
     if (!numkit::builtin::detail::la_solve(V_buf.data(), n, n, I_buf.data(), n,
                                             Vinv.data(), &scratch))
         throw Error("condeig: right eigenvector matrix is singular",
-                    0, 0, "condeig", "", "m:condeig:singular");
+                    0, 0, "condeig", "", "numkit:condeig:singular");
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *s = out.doubleDataMut();
@@ -434,7 +434,7 @@ void inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("inv: requires exactly 1 argument",
-                    0, 0, "inv", "", "m:inv:nargin");
+                    0, 0, "inv", "", "numkit:inv:nargin");
     outs[0] = inv(args[0], ctx.engine->resource());
 }
 
@@ -442,7 +442,7 @@ void trace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() != 1)
         throw Error("trace: requires exactly 1 argument",
-                    0, 0, "trace", "", "m:trace:nargin");
+                    0, 0, "trace", "", "numkit:trace:nargin");
     outs[0] = trace(args[0], ctx.engine->resource());
 }
 
@@ -450,7 +450,7 @@ void det_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("det: requires exactly 1 argument",
-                    0, 0, "det", "", "m:det:nargin");
+                    0, 0, "det", "", "numkit:det:nargin");
     outs[0] = det(args[0], ctx.engine->resource());
 }
 
@@ -458,7 +458,7 @@ void rank_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("rank: requires (A) or (A, tol)",
-                    0, 0, "rank", "", "m:rank:nargin");
+                    0, 0, "rank", "", "numkit:rank:nargin");
     const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
     outs[0] = rank_of(args[0], tol, ctx.engine->resource());
 }
@@ -467,7 +467,7 @@ void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty() || args.size() > 2)
         throw Error("cond: requires (A) or (A, p)",
-                    0, 0, "cond", "", "m:cond:nargin");
+                    0, 0, "cond", "", "numkit:cond:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = cond_2norm(args[0], mr);
@@ -480,14 +480,14 @@ void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         if      (s == "fro" || s == "Fro") p_kind = 4;
         else if (s == "inf" || s == "Inf") p_kind = 3;
         else throw Error("cond: string p must be 'fro' or 'inf'",
-                         0, 0, "cond", "", "m:cond:badStringP");
+                         0, 0, "cond", "", "numkit:cond:badStringP");
     } else {
         const double pv = p.toScalar();
         if      (pv == 1.0) p_kind = 1;
         else if (pv == 2.0) p_kind = 2;
         else if (std::isinf(pv)) p_kind = 3;
         else throw Error("cond: numeric p must be 1, 2, or Inf",
-                         0, 0, "cond", "", "m:cond:badP");
+                         0, 0, "cond", "", "numkit:cond:badP");
     }
     outs[0] = cond_pnorm(args[0], p_kind, mr);
 }
@@ -496,7 +496,7 @@ void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() != 1)
         throw Error("normest: requires exactly 1 argument",
-                    0, 0, "normest", "", "m:normest:nargin");
+                    0, 0, "normest", "", "numkit:normest:nargin");
     outs[0] = normest(args[0], ctx.engine->resource());
 }
 
@@ -504,7 +504,7 @@ void rcond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("rcond: requires (A)",
-                    0, 0, "rcond", "", "m:rcond:nargin");
+                    0, 0, "rcond", "", "numkit:rcond:nargin");
     outs[0] = rcond(args[0], ctx.engine->resource());
 }
 
@@ -512,7 +512,7 @@ void condest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("condest: requires (A)",
-                    0, 0, "condest", "", "m:condest:nargin");
+                    0, 0, "condest", "", "numkit:condest:nargin");
     outs[0] = condest(args[0], ctx.engine->resource());
 }
 
@@ -525,7 +525,7 @@ void condeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() != 1)
         throw Error("condeig: requires (A)",
-                    0, 0, "condeig", "", "m:condeig:nargin");
+                    0, 0, "condeig", "", "numkit:condeig:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout <= 1) {
         outs[0] = condeig(args[0], mr);

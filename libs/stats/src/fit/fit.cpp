@@ -403,7 +403,7 @@ binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource 
     const bool scalarN = (Nn == 1);
     if (!scalarN && Nn != Nx)
         throw Error("binofit: x and n must be the same length",
-                    0, 0, "binofit", "", "m:binofit:size");
+                    0, 0, "binofit", "", "numkit:binofit:size");
 
     Value phat = Value::matrix(Nx, 1, ValueType::DOUBLE, mr);
     Value pci  = Value::matrix(Nx, 2, ValueType::DOUBLE, mr);
@@ -475,10 +475,10 @@ double normlike(double mu, double sigma, const Value &x, const Value &cens, cons
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("normlike: censoring must match the data length",
-                    0, 0, "normlike", "", "m:normlike:cens");
+                    0, 0, "normlike", "", "numkit:normlike:cens");
     if (useF && freq.numel() != N)
         throw Error("normlike: freq must match the data length",
-                    0, 0, "normlike", "", "m:normlike:freq");
+                    0, 0, "normlike", "", "numkit:normlike:freq");
 
     const double inv_s   = 1.0 / sigma;
     const double inv_2s2 = 0.5 * inv_s * inv_s;
@@ -544,10 +544,10 @@ static double explike_full(double mu, const Value &x,
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("explike: censoring must match the data length",
-                    0, 0, "explike", "", "m:explike:cens");
+                    0, 0, "explike", "", "numkit:explike:cens");
     if (useF && freq.numel() != N)
         throw Error("explike: freq must match the data length",
-                    0, 0, "explike", "", "m:explike:freq");
+                    0, 0, "explike", "", "numkit:explike:freq");
 
     const double inv_mu  = 1.0 / mu;
     const double inv_mu2 = inv_mu * inv_mu;
@@ -620,10 +620,10 @@ static double lognlike_full(double mu, double sigma, const Value &x,
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("lognlike: censoring must match the data length",
-                    0, 0, "lognlike", "", "m:lognlike:cens");
+                    0, 0, "lognlike", "", "numkit:lognlike:cens");
     if (useF && freq.numel() != N)
         throw Error("lognlike: freq must match the data length",
-                    0, 0, "lognlike", "", "m:lognlike:freq");
+                    0, 0, "lognlike", "", "numkit:lognlike:freq");
 
     const double inv_s   = 1.0 / sigma;
     const double inv_s2  = inv_s * inv_s;
@@ -757,10 +757,10 @@ double wbllike_full(double scale, double shape, const Value &x, const Value &cen
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("wbllike: censoring must match the data length",
-                    0, 0, "wbllike", "", "m:wbllike:cens");
+                    0, 0, "wbllike", "", "numkit:wbllike:cens");
     if (useF && freq.numel() != N)
         throw Error("wbllike: freq must match the data length",
-                    0, 0, "wbllike", "", "m:wbllike:freq");
+                    0, 0, "wbllike", "", "numkit:wbllike:freq");
     const double logA = std::log(scale);
     const double logK = std::log(shape);
     double nL = 0.0;
@@ -804,10 +804,10 @@ double evlike_full(double mu, double sigma, const Value &x, const Value &cens, c
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
         throw Error("evlike: censoring must match the data length",
-                    0, 0, "evlike", "", "m:evlike:cens");
+                    0, 0, "evlike", "", "numkit:evlike:cens");
     if (useF && freq.numel() != N)
         throw Error("evlike: freq must match the data length",
-                    0, 0, "evlike", "", "m:evlike:freq");
+                    0, 0, "evlike", "", "numkit:evlike:freq");
     const double inv_s = 1.0 / sigma;
     const double logS  = std::log(sigma);
     double nL = 0.0;
@@ -895,7 +895,7 @@ void normfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("normfit: requires X[, alpha[, censoring[, freq[, options]]]]",
-                    0, 0, "normfit", "", "m:normfit:nargin");
+                    0, 0, "normfit", "", "numkit:normfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
@@ -911,7 +911,7 @@ void poissfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("poissfit: requires X[, alpha]",
-                    0, 0, "poissfit", "", "m:poissfit:nargin");
+                    0, 0, "poissfit", "", "numkit:poissfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     auto [lam, ci] = poissfit(args[0], alpha, ctx.engine->resource());
     outs[0] = std::move(lam);
@@ -923,7 +923,7 @@ void expfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("expfit: requires X[, alpha[, censoring[, freq]]]",
-                    0, 0, "expfit", "", "m:expfit:nargin");
+                    0, 0, "expfit", "", "numkit:expfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
@@ -937,7 +937,7 @@ void unifit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("unifit: requires X[, alpha]",
-                    0, 0, "unifit", "", "m:unifit:nargin");
+                    0, 0, "unifit", "", "numkit:unifit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     auto [a, b, aci, bci] = unifit(args[0], alpha, ctx.engine->resource());
     outs[0] = std::move(a);
@@ -951,7 +951,7 @@ void lognfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("lognfit: requires X[, alpha[, censoring[, freq[, options]]]]",
-                    0, 0, "lognfit", "", "m:lognfit:nargin");
+                    0, 0, "lognfit", "", "numkit:lognfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     // 3rd arg = censoring (may be empty []), 4th = freq (may be empty),
     // 5th = options struct (silently ignored — we use fixed 200 / 1e-10).
@@ -967,7 +967,7 @@ void binofit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("binofit: requires (X, N[, alpha])",
-                    0, 0, "binofit", "", "m:binofit:nargin");
+                    0, 0, "binofit", "", "numkit:binofit:nargin");
     const double alpha = parse_alpha_arg(args, 2, 0.05);
     auto [phat, pci] = binofit(args[0], args[1], alpha, ctx.engine->resource());
     outs[0] = std::move(phat);
@@ -979,7 +979,7 @@ void raylfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("raylfit: requires X[, alpha]",
-                    0, 0, "raylfit", "", "m:raylfit:nargin");
+                    0, 0, "raylfit", "", "numkit:raylfit:nargin");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     auto [shat, sci] = raylfit(args[0], alpha, ctx.engine->resource());
     outs[0] = std::move(shat);
@@ -1098,7 +1098,7 @@ static void like2_reg(const char *fn,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error(std::string(fn) + ": requires (params[2], data)",
-                    0, 0, fn, "", "m:like:nargin");
+                    0, 0, fn, "", "numkit:like:nargin");
     const double p0 = args[0].elemAsDouble(0);
     const double p1 = args[0].elemAsDouble(1);
     const double nL = impl(p0, p1, args[1], ctx.engine->resource());
@@ -1110,7 +1110,7 @@ void normlike_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error("normlike: requires (params=[mu sigma], data[, cens, freq])",
-                    0, 0, "normlike", "", "m:normlike:nargin");
+                    0, 0, "normlike", "", "numkit:normlike:nargin");
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
@@ -1192,7 +1192,7 @@ void lognlike_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error("lognlike: requires (params=[mu sigma], data[, cens, freq])",
-                    0, 0, "lognlike", "", "m:lognlike:nargin");
+                    0, 0, "lognlike", "", "numkit:lognlike:nargin");
     auto *mr = ctx.engine->resource();
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
@@ -1211,7 +1211,7 @@ void gamlike_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error("gamlike: requires (params=[a b], data)",
-                    0, 0, "gamlike", "", "m:gamlike:nargin");
+                    0, 0, "gamlike", "", "numkit:gamlike:nargin");
     auto *mr = ctx.engine->resource();
     const double a  = args[0].elemAsDouble(0);
     const double b  = args[0].elemAsDouble(1);
@@ -1234,7 +1234,7 @@ void betalike_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error("betalike: requires (params=[a b], data)",
-                    0, 0, "betalike", "", "m:betalike:nargin");
+                    0, 0, "betalike", "", "numkit:betalike:nargin");
     auto *mr = ctx.engine->resource();
     const double a  = args[0].elemAsDouble(0);
     const double b  = args[0].elemAsDouble(1);
@@ -1291,7 +1291,7 @@ void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error("wbllike: requires (params=[scale shape], data[, cens, freq])",
-                    0, 0, "wbllike", "", "m:wbllike:nargin");
+                    0, 0, "wbllike", "", "numkit:wbllike:nargin");
     const double scale = args[0].elemAsDouble(0);
     const double shape = args[0].elemAsDouble(1);
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
@@ -1308,7 +1308,7 @@ void evlike_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error("evlike: requires (params=[mu sigma], data[, cens, freq])",
-                    0, 0, "evlike", "", "m:evlike:nargin");
+                    0, 0, "evlike", "", "numkit:evlike:nargin");
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
@@ -1326,7 +1326,7 @@ void explike_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("explike: requires (mu, data[, cens, freq])",
-                    0, 0, "explike", "", "m:explike:nargin");
+                    0, 0, "explike", "", "numkit:explike:nargin");
     auto *mr = ctx.engine->resource();
     const double mu = args[0].toScalar();
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -1344,7 +1344,7 @@ void gevlike_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2 || args[0].numel() < 3)
         throw Error("gevlike: requires (params=[k sigma mu], data)",
-                    0, 0, "gevlike", "", "m:gevlike:nargin");
+                    0, 0, "gevlike", "", "numkit:gevlike:nargin");
     auto *mr = ctx.engine->resource();
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
@@ -1367,7 +1367,7 @@ void gplike_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error("gplike: requires (params=[k sigma], data)",
-                    0, 0, "gplike", "", "m:gplike:nargin");
+                    0, 0, "gplike", "", "numkit:gplike:nargin");
     auto *mr = ctx.engine->resource();
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
@@ -1397,20 +1397,20 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("mle: requires (data[, options])",
-                    0, 0, "mle", "", "m:mle:nargin");
+                    0, 0, "mle", "", "numkit:mle:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const std::size_t N = x.numel();
     if (N < 2)
         throw Error("mle: need at least 2 observations",
-                    0, 0, "mle", "", "m:mle:tooSmall");
+                    0, 0, "mle", "", "numkit:mle:tooSmall");
 
     std::string dist = "normal";
     bool custom_fn = false;
     for (std::size_t i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mle: option name must be a string",
-                        0, 0, "mle", "", "m:mle:badOption");
+                        0, 0, "mle", "", "numkit:mle:badOption");
         const std::string opt = args[i].toString();
         if (opt == "distribution" || opt == "Distribution")
             dist = args[i + 1].toString();
@@ -1421,14 +1421,14 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         else if (opt == "start" || opt == "Start") { /* paired with custom_fn */ }
         else
             throw Error("mle: unknown option '" + opt + "'",
-                        0, 0, "mle", "", "m:mle:badOption");
+                        0, 0, "mle", "", "numkit:mle:badOption");
     }
     if (custom_fn)
         throw Error("mle: custom 'pdf'/'logpdf'/'nloglf' fitting via "
                     "Nelder-Mead is deferred -- supported distributions "
                     "in this revision: 'normal', 'exponential', "
                     "'poisson', 'lognormal'",
-                    0, 0, "mle", "", "m:mle:customFnNYI");
+                    0, 0, "mle", "", "numkit:mle:customFnNYI");
 
     const double *xd = x.doubleData();
 
@@ -1453,7 +1453,7 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         for (std::size_t i = 0; i < N; ++i) {
             if (xd[i] < 0.0)
                 throw Error("mle: exponential requires non-negative data",
-                            0, 0, "mle", "", "m:mle:badData");
+                            0, 0, "mle", "", "numkit:mle:badData");
             sum += xd[i];
         }
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
@@ -1466,7 +1466,7 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         for (std::size_t i = 0; i < N; ++i) {
             if (xd[i] < 0.0 || xd[i] != std::floor(xd[i]))
                 throw Error("mle: poisson requires non-negative integer data",
-                            0, 0, "mle", "", "m:mle:badData");
+                            0, 0, "mle", "", "numkit:mle:badData");
             sum += xd[i];
         }
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
@@ -1479,7 +1479,7 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         for (std::size_t i = 0; i < N; ++i) {
             if (xd[i] <= 0.0)
                 throw Error("mle: lognormal requires strictly positive data",
-                            0, 0, "mle", "", "m:mle:badData");
+                            0, 0, "mle", "", "numkit:mle:badData");
             sum_log += std::log(xd[i]);
         }
         const double mu = sum_log / static_cast<double>(N);
@@ -1498,7 +1498,7 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
     throw Error("mle: distribution '" + dist + "' not supported "
                 "(supported: normal, exponential, poisson, lognormal). "
                 "Custom pdf/logpdf/nloglf via Nelder-Mead is deferred.",
-                0, 0, "mle", "", "m:mle:dist");
+                0, 0, "mle", "", "numkit:mle:dist");
 }
 
 // ── fitdist (returns probability-distribution struct) ──────────────
@@ -1518,16 +1518,16 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("fitdist: requires (data, 'DistributionName')",
-                    0, 0, "fitdist", "", "m:fitdist:nargin");
+                    0, 0, "fitdist", "", "numkit:fitdist:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("fitdist: 2nd argument must be a distribution-name string",
-                    0, 0, "fitdist", "", "m:fitdist:badName");
+                    0, 0, "fitdist", "", "numkit:fitdist:badName");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const std::size_t N = x.numel();
     if (N < 2)
         throw Error("fitdist: need at least 2 observations",
-                    0, 0, "fitdist", "", "m:fitdist:tooSmall");
+                    0, 0, "fitdist", "", "numkit:fitdist:tooSmall");
 
     const std::string raw = args[1].toString();
     // Canonicalise.
@@ -1552,7 +1552,7 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("fitdist: distribution '" + raw + "' not supported "
                     "(supported: 'Normal', 'Exponential', 'Poisson', "
                     "'Lognormal'). Other MATLAB distributions deferred.",
-                    0, 0, "fitdist", "", "m:fitdist:dist");
+                    0, 0, "fitdist", "", "numkit:fitdist:dist");
     }
 
     // Compute parameters per MATLAB convention. NB: fitdist uses

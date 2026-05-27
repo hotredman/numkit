@@ -39,12 +39,12 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("poly: input must be a 2D matrix",
-                    0, 0, "poly", "", "m:poly:notMatrix");
+                    0, 0, "poly", "", "numkit:poly:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("poly: matrix must be square (use poly(roots) for vector input)",
-                    0, 0, "poly", "", "m:poly:notSquare");
+                    0, 0, "poly", "", "numkit:poly:notSquare");
     if (n == 0) {
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = 1.0;
@@ -103,17 +103,17 @@ eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("eig: input must be a 2D matrix",
-                    0, 0, "eig", "", "m:eig:notMatrix");
+                    0, 0, "eig", "", "numkit:eig:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
         throw Error("eig: matrix must be square",
-                    0, 0, "eig", "", "m:eig:notSquare");
+                    0, 0, "eig", "", "numkit:eig:notSquare");
 
     auto eig_vals = eig_general_values(A, mr);
     const std::size_t k = eig_vals.numel();
     if (k != n)
         throw Error("eig: char-poly returned wrong number of eigenvalues",
-                    0, 0, "eig", "", "m:eig:internalError");
+                    0, 0, "eig", "", "numkit:eig:internalError");
 
     // Verify all real -- complex eigvecs need Francis QR (deferred).
     if (eig_vals.isComplex()) {
@@ -124,7 +124,7 @@ eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
                             "eigenvalues requires Francis QR iteration "
                             "(deferred to Phase 2c-3-future). For "
                             "eigenvalues only, use 'e = eig(A)' (single output).",
-                            0, 0, "eig", "", "m:eig:complexEigvecs");
+                            0, 0, "eig", "", "numkit:eig:complexEigvecs");
         }
     }
 
@@ -262,16 +262,16 @@ eig_symmetric(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("eig: input must be a 2D matrix",
-                    0, 0, "eig", "", "m:eig:notMatrix");
+                    0, 0, "eig", "", "numkit:eig:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("eig: matrix must be square",
-                    0, 0, "eig", "", "m:eig:notSquare");
+                    0, 0, "eig", "", "numkit:eig:notSquare");
     if (!isSymmetricApprox(A, 1e-10))
         throw Error("eig: only symmetric matrices supported in this revision "
                     "(general eig via Hessenberg + Francis QR is deferred to Phase 2b)",
-                    0, 0, "eig", "", "m:eig:notSymmetric");
+                    0, 0, "eig", "", "numkit:eig:notSymmetric");
     if (n == 0) {
         return std::make_tuple(
             Value::matrix(0, 0, ValueType::DOUBLE, mr),
@@ -388,12 +388,12 @@ hess(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("hess: input must be a 2D matrix",
-                    0, 0, "hess", "", "m:hess:notMatrix");
+                    0, 0, "hess", "", "numkit:hess:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("hess: matrix must be square",
-                    0, 0, "hess", "", "m:hess:notSquare");
+                    0, 0, "hess", "", "numkit:hess:notSquare");
     auto Hout = Value::matrix(n, n, ValueType::DOUBLE, mr);
     auto Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
     if (n == 0) return std::make_tuple(std::move(Pout), std::move(Hout));
@@ -424,19 +424,19 @@ Value sylvester_sym(const Value &A, const Value &B, const Value &C,
 {
     if (A.dims().ndim() != 2 || B.dims().ndim() != 2 || C.dims().ndim() != 2)
         throw Error("sylvester: A, B, C must be 2D matrices",
-                    0, 0, "sylvester", "", "m:sylvester:notMatrix");
+                    0, 0, "sylvester", "", "numkit:sylvester:notMatrix");
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t m = static_cast<std::size_t>(B.dims().dim(0));
     if (A.dims().dim(0) != A.dims().dim(1))
         throw Error("sylvester: A must be square",
-                    0, 0, "sylvester", "", "m:sylvester:badA");
+                    0, 0, "sylvester", "", "numkit:sylvester:badA");
     if (B.dims().dim(0) != B.dims().dim(1))
         throw Error("sylvester: B must be square",
-                    0, 0, "sylvester", "", "m:sylvester:badB");
+                    0, 0, "sylvester", "", "numkit:sylvester:badB");
     if (C.dims().dim(0) != static_cast<int>(n) ||
         C.dims().dim(1) != static_cast<int>(m))
         throw Error("sylvester: C must be n × m where A is n×n, B is m×m",
-                    0, 0, "sylvester", "", "m:sylvester:badC");
+                    0, 0, "sylvester", "", "numkit:sylvester:badC");
 
     auto [Va, Da] = eig_symmetric(A, mr);   // throws if non-sym
     auto [Vb, Db] = eig_symmetric(B, mr);   // throws if non-sym
@@ -475,7 +475,7 @@ Value sylvester_sym(const Value &A, const Value &B, const Value &C,
             const double denom = dai + dbj;
             if (std::fabs(denom) < 1e-300)
                 throw Error("sylvester: A and -B share an eigenvalue (no unique solution)",
-                            0, 0, "sylvester", "", "m:sylvester:singular");
+                            0, 0, "sylvester", "", "numkit:sylvester:singular");
             Y[i + j * n] /= denom;
         }
     }
@@ -565,17 +565,17 @@ void validatePolyeigCoeffs(Span<const Value> coeffs)
 {
     if (coeffs.size() < 2)
         throw Error("polyeig: requires at least 2 coefficient matrices (A0, A1, ...)",
-                    0, 0, "polyeig", "", "m:polyeig:nargin");
+                    0, 0, "polyeig", "", "numkit:polyeig:nargin");
     const std::size_t n = static_cast<std::size_t>(coeffs[0].dims().dim(0));
     if (n != static_cast<std::size_t>(coeffs[0].dims().dim(1)))
         throw Error("polyeig: coefficient matrices must be square",
-                    0, 0, "polyeig", "", "m:polyeig:notSquare");
+                    0, 0, "polyeig", "", "numkit:polyeig:notSquare");
     for (std::size_t i = 1; i < coeffs.size(); ++i) {
         if (coeffs[i].dims().ndim() != 2
             || static_cast<std::size_t>(coeffs[i].dims().dim(0)) != n
             || static_cast<std::size_t>(coeffs[i].dims().dim(1)) != n)
             throw Error("polyeig: all coefficient matrices must be n × n with matching n",
-                        0, 0, "polyeig", "", "m:polyeig:shapeMismatch");
+                        0, 0, "polyeig", "", "numkit:polyeig:shapeMismatch");
     }
 }
 
@@ -628,11 +628,11 @@ Value ordeig(const Value &T, std::pmr::memory_resource *mr)
 {
     if (T.dims().ndim() != 2)
         throw Error("ordeig: T must be a 2D matrix",
-                    0, 0, "ordeig", "", "m:ordeig:notMatrix");
+                    0, 0, "ordeig", "", "numkit:ordeig:notMatrix");
     const std::size_t n = static_cast<std::size_t>(T.dims().dim(0));
     if (n != static_cast<std::size_t>(T.dims().dim(1)))
         throw Error("ordeig: T must be square",
-                    0, 0, "ordeig", "", "m:ordeig:notSquare");
+                    0, 0, "ordeig", "", "numkit:ordeig:notSquare");
     if (n == 0)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
@@ -697,7 +697,7 @@ void ordeig_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() != 1)
         throw Error("ordeig: requires (T)",
-                    0, 0, "ordeig", "", "m:ordeig:nargin");
+                    0, 0, "ordeig", "", "numkit:ordeig:nargin");
     outs[0] = ordeig(args[0], ctx.engine->resource());
 }
 
@@ -705,7 +705,7 @@ void polyeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("polyeig: requires at least 2 coefficient matrices",
-                    0, 0, "polyeig", "", "m:polyeig:nargin");
+                    0, 0, "polyeig", "", "numkit:polyeig:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [V, e] = polyeig_VE(args, mr);
@@ -720,7 +720,7 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 {
     if (args.size() != 1)
         throw Error("eig: requires exactly 1 argument",
-                    0, 0, "eig", "", "m:eig:nargin");
+                    0, 0, "eig", "", "numkit:eig:nargin");
     auto *mr = ctx.engine->resource();
 
     // Dispatch: symmetric -> Jacobi (eigenvalues + eigenvectors).
@@ -749,7 +749,7 @@ void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.size() != 1)
         throw Error("hess: requires exactly 1 argument",
-                    0, 0, "hess", "", "m:hess:nargin");
+                    0, 0, "hess", "", "numkit:hess:nargin");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [P, H] = hess(args[0], mr);
@@ -764,7 +764,7 @@ void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.size() != 1)
         throw Error("schur: requires exactly 1 argument",
-                    0, 0, "schur", "", "m:schur:nargin");
+                    0, 0, "schur", "", "numkit:schur:nargin");
     auto *mr = ctx.engine->resource();
     auto [U, T] = schur_sym(args[0], mr);
     if (nargout >= 2) {
@@ -779,7 +779,7 @@ void sylvester_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() != 3)
         throw Error("sylvester: requires (A, B, C)",
-                    0, 0, "sylvester", "", "m:sylvester:nargin");
+                    0, 0, "sylvester", "", "numkit:sylvester:nargin");
     outs[0] = sylvester_sym(args[0], args[1], args[2], ctx.engine->resource());
 }
 

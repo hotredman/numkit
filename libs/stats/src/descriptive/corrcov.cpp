@@ -31,10 +31,10 @@ corrcov(const Value &C, std::pmr::memory_resource *mr)
     const size_t Cn = C.dims().cols();
     if (R != Cn)
         throw Error("corrcov: input must be a square matrix",
-                    0, 0, "corrcov", "", "m:corrcov:NotSquare");
+                    0, 0, "corrcov", "", "numkit:corrcov:NotSquare");
     if (R == 0)
         throw Error("corrcov: input must be non-empty",
-                    0, 0, "corrcov", "", "m:corrcov:Empty");
+                    0, 0, "corrcov", "", "numkit:corrcov:Empty");
 
     // sigma(i) = sqrt(C(i, i)).
     std::vector<double> sigma(R);
@@ -43,7 +43,7 @@ corrcov(const Value &C, std::pmr::memory_resource *mr)
         if (v < 0.0)
             throw Error("corrcov: negative variance on diagonal",
                         0, 0, "corrcov", "",
-                        "m:corrcov:NegativeVar");
+                        "numkit:corrcov:NegativeVar");
         sigma[i] = std::sqrt(v);
     }
 
@@ -73,7 +73,7 @@ void corrcov_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("corrcov: requires (C)",
-                    0, 0, "corrcov", "", "m:corrcov:nargin");
+                    0, 0, "corrcov", "", "numkit:corrcov:nargin");
     auto *mr = ctx.engine->resource();
     auto [Rv, Sv] = corrcov(args[0], mr);
     outs[0] = std::move(Rv);

@@ -41,7 +41,7 @@ double sum_squared_error(const Value &A, const Value &B) {
 Value immse(const Value &A, const Value &B, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("immse: A and B must have the same number of elements",
-                    0, 0, "immse", "", "m:immse:size");
+                    0, 0, "immse", "", "numkit:immse:size");
     const double mse = (A.numel() > 0)
                        ? sum_squared_error(A, B) / double(A.numel())
                        : 0.0;
@@ -51,7 +51,7 @@ Value immse(const Value &A, const Value &B, std::pmr::memory_resource *mr) {
 Value psnr(const Value &A, const Value &B, double peak, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("psnr: A and B must have the same number of elements",
-                    0, 0, "psnr", "", "m:psnr:size");
+                    0, 0, "psnr", "", "numkit:psnr:size");
     if (std::isnan(peak)) peak = class_peak(A.type());
     if (A.numel() == 0) return Value::scalar(std::numeric_limits<double>::infinity(), mr);
     const double mse = sum_squared_error(A, B) / double(A.numel());
@@ -63,7 +63,7 @@ Value psnr(const Value &A, const Value &B, double peak, std::pmr::memory_resourc
 Value ssim(const Value &A, const Value &B, std::pmr::memory_resource *mr) {
     if (A.numel() != B.numel())
         throw Error("ssim: A and B must have the same number of elements",
-                    0, 0, "ssim", "", "m:ssim:size");
+                    0, 0, "ssim", "", "numkit:ssim:size");
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
     if (H == 0 || W == 0) return Value::scalar(1.0, mr);
@@ -384,16 +384,16 @@ Value multissim(const Value &A, const Value &Iref,
     if (A.dims().rows() != Iref.dims().rows()
         || A.dims().cols() != Iref.dims().cols())
         throw Error("multissim: I and Iref must have the same size",
-                    0, 0, "multissim", "", "m:multissim:size");
+                    0, 0, "multissim", "", "numkit:multissim:size");
     if (A.type() != Iref.type())
         throw Error("multissim: I and Iref must have the same class",
-                    0, 0, "multissim", "", "m:multissim:class");
+                    0, 0, "multissim", "", "numkit:multissim:class");
     if (num_scales < 1)
         throw Error("multissim: NumScales must be a positive integer",
-                    0, 0, "multissim", "", "m:multissim:numScales");
+                    0, 0, "multissim", "", "numkit:multissim:numScales");
     if (!std::isfinite(sigma) || sigma <= 0.0)
         throw Error("multissim: Sigma must be a positive scalar",
-                    0, 0, "multissim", "", "m:multissim:sigma");
+                    0, 0, "multissim", "", "numkit:multissim:sigma");
 
     const ValueType origClass = A.type();
     const std::size_t H = A.dims().rows();
@@ -407,7 +407,7 @@ Value multissim(const Value &A, const Value &Iref,
                 throw Error("multissim: image too small for NumScales="
                             + std::to_string(num_scales),
                             0, 0, "multissim", "",
-                            "m:multissim:tooSmall");
+                            "numkit:multissim:tooSmall");
             h = (h + 1) / 2;
             w = (w + 1) / 2;
         }
@@ -427,20 +427,20 @@ Value multissim(const Value &A, const Value &Iref,
     if (static_cast<int>(sw.size()) != num_scales)
         throw Error("multissim: length(ScaleWeights) must equal NumScales",
                     0, 0, "multissim", "",
-                    "m:multissim:swLen");
+                    "numkit:multissim:swLen");
     double swsum = 0.0;
     for (double v : sw) {
         if (v < 0.0)
             throw Error("multissim: ScaleWeights must be non-negative",
                         0, 0, "multissim", "",
-                        "m:multissim:swNeg");
+                        "numkit:multissim:swNeg");
         swsum += v;
     }
     if (swsum <= 0.0)
         throw Error("multissim: ScaleWeights must have at least one "
                     "positive element",
                     0, 0, "multissim", "",
-                    "m:multissim:swZero");
+                    "numkit:multissim:swZero");
     for (double &v : sw) v /= swsum;
 
     // ── Gaussian kernel ────────────────────────────────────────
@@ -723,18 +723,18 @@ Value multissim3(const Value &V, const Value &Vref,
         || V.dims().cols() != Vref.dims().cols()
         || V.dims().pages() != Vref.dims().pages())
         throw Error("multissim3: V and Vref must have the same size",
-                    0, 0, "multissim3", "", "m:multissim3:size");
+                    0, 0, "multissim3", "", "numkit:multissim3:size");
     if (V.type() != Vref.type())
         throw Error("multissim3: V and Vref must have the same class",
-                    0, 0, "multissim3", "", "m:multissim3:class");
+                    0, 0, "multissim3", "", "numkit:multissim3:class");
     if (num_scales < 1)
         throw Error("multissim3: NumScales must be a positive integer",
                     0, 0, "multissim3", "",
-                    "m:multissim3:numScales");
+                    "numkit:multissim3:numScales");
     if (!std::isfinite(sigma) || sigma <= 0.0)
         throw Error("multissim3: Sigma must be a positive scalar",
                     0, 0, "multissim3", "",
-                    "m:multissim3:sigma");
+                    "numkit:multissim3:sigma");
 
     const ValueType origClass = V.type();
     Vol Ad = to_double_vol(V);
@@ -748,7 +748,7 @@ Value multissim3(const Value &V, const Value &Vref,
                 throw Error("multissim3: volume too small for NumScales="
                             + std::to_string(num_scales),
                             0, 0, "multissim3", "",
-                            "m:multissim3:tooSmall");
+                            "numkit:multissim3:tooSmall");
             h = (h + 1) / 2;
             w = (w + 1) / 2;
             d = (d + 1) / 2;
@@ -766,18 +766,18 @@ Value multissim3(const Value &V, const Value &Vref,
         : scale_weights_in;
     if (static_cast<int>(sw.size()) != num_scales)
         throw Error("multissim3: length(ScaleWeights) must equal NumScales",
-                    0, 0, "multissim3", "", "m:multissim3:swLen");
+                    0, 0, "multissim3", "", "numkit:multissim3:swLen");
     double swsum = 0.0;
     for (double v : sw) {
         if (v < 0.0)
             throw Error("multissim3: ScaleWeights must be non-negative",
-                        0, 0, "multissim3", "", "m:multissim3:swNeg");
+                        0, 0, "multissim3", "", "numkit:multissim3:swNeg");
         swsum += v;
     }
     if (swsum <= 0.0)
         throw Error("multissim3: ScaleWeights must have at least one "
                     "positive element",
-                    0, 0, "multissim3", "", "m:multissim3:swZero");
+                    0, 0, "multissim3", "", "numkit:multissim3:swZero");
     for (double &v : sw) v /= swsum;
 
     const int filtRadius = static_cast<int>(std::ceil(sigma * 3.0));
@@ -823,7 +823,7 @@ Value corr2(const Value &A, const Value &B, std::pmr::memory_resource *mr)
     const size_t N = A.numel();
     if (B.numel() != N)
         throw Error("corr2: A and B must have the same number of elements",
-                    0, 0, "corr2", "", "m:corr2:size");
+                    0, 0, "corr2", "", "numkit:corr2:size");
     if (N == 0) return Value::scalar(std::nan(""), mr);
     long double sa = 0.0L, sb = 0.0L;
     for (size_t i = 0; i < N; ++i) {
@@ -856,7 +856,7 @@ void immse_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("immse: requires (A, B)", 0, 0, "immse", "",
-                    "m:immse:nargin");
+                    "numkit:immse:nargin");
     outs[0] = immse(args[0], args[1], ctx.engine->resource());
 }
 
@@ -865,7 +865,7 @@ void psnr_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("psnr: requires (A, B[, peak])", 0, 0, "psnr", "",
-                    "m:psnr:nargin");
+                    "numkit:psnr:nargin");
     const double peak = (args.size() >= 3 && !args[2].isEmpty())
                         ? args[2].toScalar() : std::nan("");
     outs[0] = psnr(args[0], args[1], peak, ctx.engine->resource());
@@ -876,7 +876,7 @@ void ssim_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ssim: requires (A, B)", 0, 0, "ssim", "",
-                    "m:ssim:nargin");
+                    "numkit:ssim:nargin");
     outs[0] = ssim(args[0], args[1], ctx.engine->resource());
 }
 
@@ -885,7 +885,7 @@ void mean2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("mean2: requires (A)", 0, 0, "mean2", "",
-                    "m:mean2:nargin");
+                    "numkit:mean2:nargin");
     outs[0] = mean2(args[0], ctx.engine->resource());
 }
 
@@ -894,7 +894,7 @@ void std2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("std2: requires (A)", 0, 0, "std2", "",
-                    "m:std2:nargin");
+                    "numkit:std2:nargin");
     outs[0] = std2(args[0], ctx.engine->resource());
 }
 
@@ -903,7 +903,7 @@ void corr2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("corr2: requires (A, B)", 0, 0, "corr2", "",
-                    "m:corr2:nargin");
+                    "numkit:corr2:nargin");
     outs[0] = corr2(args[0], args[1], ctx.engine->resource());
 }
 
@@ -913,7 +913,7 @@ void multissim3_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("multissim3: requires (V, Vref [, NV...])",
                     0, 0, "multissim3", "",
-                    "m:multissim3:nargin");
+                    "numkit:multissim3:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -926,7 +926,7 @@ void multissim3_reg(Span<const Value> args, size_t nargout,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("multissim3: expected NV-pair name string",
-                        0, 0, "multissim3", "", "m:multissim3:badNv");
+                        0, 0, "multissim3", "", "numkit:multissim3:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -947,7 +947,7 @@ void multissim3_reg(Span<const Value> args, size_t nargout,
         } else {
             throw Error("multissim3: unknown option '" + name + "'",
                         0, 0, "multissim3", "",
-                        "m:multissim3:unknownNv");
+                        "numkit:multissim3:unknownNv");
         }
         i += 2;
     }
@@ -968,7 +968,7 @@ void multissim_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("multissim: requires (I, Iref [, NV...])",
-                    0, 0, "multissim", "", "m:multissim:nargin");
+                    0, 0, "multissim", "", "numkit:multissim:nargin");
     auto *mr = ctx.engine->resource();
     auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
 
@@ -981,7 +981,7 @@ void multissim_reg(Span<const Value> args, size_t nargout,
     while (i + 1 < args.size()) {
         if (!is_string(args[i]))
             throw Error("multissim: expected NV-pair name string",
-                        0, 0, "multissim", "", "m:multissim:badNv");
+                        0, 0, "multissim", "", "numkit:multissim:badNv");
         std::string name = args[i].toString();
         std::string nlo;
         for (char ch : name)
@@ -1002,7 +1002,7 @@ void multissim_reg(Span<const Value> args, size_t nargout,
         } else {
             throw Error("multissim: unknown option '" + name + "'",
                         0, 0, "multissim", "",
-                        "m:multissim:unknownNv");
+                        "numkit:multissim:unknownNv");
         }
         i += 2;
     }

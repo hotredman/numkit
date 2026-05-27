@@ -31,7 +31,7 @@ void gaussJordan(double *A, double *B, int N, int M)
         if (maxAbs < 1e-300)
             throw Error("sgolay: singular normal equations "
                          "(framelen too small for order)",
-                         0, 0, "sgolay", "", "m:sgolay:singular");
+                         0, 0, "sgolay", "", "numkit:sgolay:singular");
         if (piv != k) {
             for (int c = 0; c < N; ++c) std::swap(A[k * N + c], A[piv * N + c]);
             for (int c = 0; c < M; ++c) std::swap(B[k * M + c], B[piv * M + c]);
@@ -114,16 +114,16 @@ Value sgolay(int order, int framelen, std::pmr::memory_resource *mr)
 {
     if (framelen <= 0)
         throw Error("sgolay: framelen must be positive",
-                     0, 0, "sgolay", "", "m:sgolay:badArg");
+                     0, 0, "sgolay", "", "numkit:sgolay:badArg");
     if ((framelen & 1) == 0)
         throw Error("sgolay: framelen must be odd",
-                     0, 0, "sgolay", "", "m:sgolay:evenFramelen");
+                     0, 0, "sgolay", "", "numkit:sgolay:evenFramelen");
     if (order < 0)
         throw Error("sgolay: order must be non-negative",
-                     0, 0, "sgolay", "", "m:sgolay:badArg");
+                     0, 0, "sgolay", "", "numkit:sgolay:badArg");
     if (order >= framelen)
         throw Error("sgolay: order must be less than framelen",
-                     0, 0, "sgolay", "", "m:sgolay:orderTooHigh");
+                     0, 0, "sgolay", "", "numkit:sgolay:orderTooHigh");
 
     ScratchArena scratch(mr);
     auto B = buildProjection(order, framelen, &scratch);
@@ -140,15 +140,15 @@ Value sgolayfilt(const Value &x, int order, int framelen, std::pmr::memory_resou
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("sgolayfilt: complex inputs are not supported",
-                     0, 0, "sgolayfilt", "", "m:sgolayfilt:complex");
+                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:complex");
     if (!x.dims().isVector() && !x.isScalar())
         throw Error("sgolayfilt: input must be a vector",
-                     0, 0, "sgolayfilt", "", "m:sgolayfilt:notVector");
+                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:notVector");
 
     const int n = static_cast<int>(x.numel());
     if (n < framelen)
         throw Error("sgolayfilt: signal length must be >= framelen",
-                     0, 0, "sgolayfilt", "", "m:sgolayfilt:tooShort");
+                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:tooShort");
 
     ScratchArena scratch(mr);
     auto B = buildProjection(order, framelen, &scratch);  // throws if shape invalid
@@ -198,7 +198,7 @@ void sgolay_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("sgolay: requires 2 arguments (order, framelen)",
-                     0, 0, "sgolay", "", "m:sgolay:nargin");
+                     0, 0, "sgolay", "", "numkit:sgolay:nargin");
     outs[0] = sgolay(static_cast<int>(args[0].toScalar()), static_cast<int>(args[1].toScalar()), ctx.engine->resource());
 }
 
@@ -206,7 +206,7 @@ void sgolayfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 3)
         throw Error("sgolayfilt: requires 3 arguments (x, order, framelen)",
-                     0, 0, "sgolayfilt", "", "m:sgolayfilt:nargin");
+                     0, 0, "sgolayfilt", "", "numkit:sgolayfilt:nargin");
     outs[0] = sgolayfilt(args[0], static_cast<int>(args[1].toScalar()), static_cast<int>(args[2].toScalar()), ctx.engine->resource());
 }
 

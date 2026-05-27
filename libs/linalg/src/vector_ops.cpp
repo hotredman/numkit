@@ -20,7 +20,7 @@ Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     const auto &db = b.dims();
     if (da.rows() != db.rows() || da.cols() != db.cols())
         throw Error("cross: A and B must have the same shape",
-                     0, 0, "cross", "", "m:cross:shapeMismatch");
+                     0, 0, "cross", "", "numkit:cross:shapeMismatch");
 
     const size_t nr = da.rows();
     const size_t nc = da.cols();
@@ -31,7 +31,7 @@ Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     else if (nc == 3) crossDim = 1; // cross along cols (each row is a 3-vec)
     else
         throw Error("cross: A and B must have at least one dimension of length 3",
-                     0, 0, "cross", "", "m:cross:badSize");
+                     0, 0, "cross", "", "numkit:cross:badSize");
 
     auto out = Value::matrix(nr, nc, ValueType::DOUBLE, mr);
     const double *ad = a.doubleData();
@@ -67,7 +67,7 @@ Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.numel() != b.numel())
         throw Error("dot: vectors must have same length",
-                     0, 0, "dot", "", "m:dot:lengthMismatch");
+                     0, 0, "dot", "", "numkit:dot:lengthMismatch");
     double s = 0;
     for (size_t i = 0; i < a.numel(); ++i)
         s += a.doubleData()[i] * b.doubleData()[i];
@@ -78,11 +78,11 @@ Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
         throw Error("kron: complex inputs are not supported",
-                     0, 0, "kron", "", "m:kron:complex");
+                     0, 0, "kron", "", "numkit:kron:complex");
     if (a.dims().is3D() || a.dims().ndim() > 2
         || b.dims().is3D() || b.dims().ndim() > 2)
         throw Error("kron: inputs must be 2D",
-                     0, 0, "kron", "", "m:kron:rank");
+                     0, 0, "kron", "", "numkit:kron:rank");
 
     const size_t rA = a.dims().rows(), cA = a.dims().cols();
     const size_t rB = b.dims().rows(), cB = b.dims().cols();
@@ -117,7 +117,7 @@ void cross_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("cross: requires 2 arguments",
-                     0, 0, "cross", "", "m:cross:nargin");
+                     0, 0, "cross", "", "numkit:cross:nargin");
     outs[0] = cross(args[0], args[1], ctx.engine->resource());
 }
 
@@ -125,7 +125,7 @@ void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("dot: requires 2 arguments",
-                     0, 0, "dot", "", "m:dot:nargin");
+                     0, 0, "dot", "", "numkit:dot:nargin");
     outs[0] = dot(args[0], args[1], ctx.engine->resource());
 }
 
@@ -133,7 +133,7 @@ void kron_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("kron: requires 2 arguments",
-                     0, 0, "kron", "", "m:kron:nargin");
+                     0, 0, "kron", "", "numkit:kron:nargin");
     outs[0] = kron(args[0], args[1], ctx.engine->resource());
 }
 

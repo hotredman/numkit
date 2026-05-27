@@ -154,7 +154,7 @@ namespace detail {
 void gampdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("gampdf: requires (x, a, b)", 0, 0, "gampdf", "", "m:gampdf:nargin");
+        throw Error("gampdf: requires (x, a, b)", 0, 0, "gampdf", "", "numkit:gampdf:nargin");
     outs[0] = gampdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -163,7 +163,7 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
-        throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "m:gamcdf:nargin");
+        throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "numkit:gamcdf:nargin");
     Value v = gamcdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -172,14 +172,14 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("gaminv: requires (p, a, b)", 0, 0, "gaminv", "", "m:gaminv:nargin");
+        throw Error("gaminv: requires (p, a, b)", 0, 0, "gaminv", "", "numkit:gaminv:nargin");
     outs[0] = gaminv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("gamrnd: requires (a, b[, sz...])", 0, 0, "gamrnd", "", "m:gamrnd:nargin");
+        throw Error("gamrnd: requires (a, b[, sz...])", 0, 0, "gamrnd", "", "numkit:gamrnd:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     size_t rows, cols;

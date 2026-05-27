@@ -53,7 +53,7 @@ void croutLDL(const double *A_in, size_t n,
         if (std::abs(D_out[k]) < tol)
             throw Error("ldl: zero pivot encountered (matrix needs "
                         "Bunch-Kaufman pivoting; not supported in v1)",
-                        0, 0, "ldl", "", "m:ldl:NeedsBKPivoting");
+                        0, 0, "ldl", "", "numkit:ldl:NeedsBKPivoting");
 
         L_out[k + k * n] = 1.0;
 
@@ -84,14 +84,14 @@ ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource
 {
     if (A.dims().is3D())
         throw Error("ldl: input must be 2D",
-                    0, 0, "ldl", "", "m:ldl:Not2D");
+                    0, 0, "ldl", "", "numkit:ldl:Not2D");
     const size_t n = A.dims().rows();
     if (A.dims().cols() != n)
         throw Error("ldl: matrix must be square",
-                    0, 0, "ldl", "", "m:ldl:NotSquare");
+                    0, 0, "ldl", "", "numkit:ldl:NotSquare");
     if (A.isComplex())
         throw Error("ldl: complex Hermitian input not supported in v1",
-                    0, 0, "ldl", "", "m:ldl:NoComplex");
+                    0, 0, "ldl", "", "numkit:ldl:NoComplex");
 
     if (n == 0) {
         Value L0 = Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -147,14 +147,14 @@ void ldl_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("ldl: requires (A [, opt...])",
-                    0, 0, "ldl", "", "m:ldl:nargin");
+                    0, 0, "ldl", "", "numkit:ldl:nargin");
 
     bool upper = false;
     bool vec_perm = false;
     for (size_t i = 1; i < args.size(); ++i) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("ldl: optional args must be 'lower'/'upper'/'matrix'/'vector'",
-                        0, 0, "ldl", "", "m:ldl:BadOpt");
+                        0, 0, "ldl", "", "numkit:ldl:BadOpt");
         std::string s = args[i].toString();
         if      (s == "lower")  upper = false;
         else if (s == "upper")  upper = true;
@@ -162,7 +162,7 @@ void ldl_reg(Span<const Value> args, size_t nargout,
         else if (s == "vector") vec_perm = true;
         else
             throw Error("ldl: unknown option '" + s + "'",
-                        0, 0, "ldl", "", "m:ldl:BadOpt");
+                        0, 0, "ldl", "", "numkit:ldl:BadOpt");
     }
 
     auto [L, D, P] = ldl(args[0], upper, vec_perm, ctx.engine->resource());
