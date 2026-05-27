@@ -1338,6 +1338,18 @@ export default function CompositePlot({
     if (hFigId < 0) return;
     if (!hFullRows || !hFullCols) return;
     if (W < 4 || H < 4) return;
+    // Skip the tile overlay for tiny source images. The display tile
+    // re-resamples through the engine (LOD pyramid + box average) and
+    // for sources smaller than ~64×64 the resampling boundaries don't
+    // align with cell edges → user sees mis-aligned pixels under
+    // zoom-in. The browser's native upscaling on the base <image>
+    // with `imageRendering: pixelated` produces sharp, correctly-
+    // positioned cells for these sizes without engine round-trip.
+    const TILE_MIN_SOURCE = 64;
+    if (hFullRows < TILE_MIN_SOURCE && hFullCols < TILE_MIN_SOURCE) {
+      setTileOverlay(null);
+      return;
+    }
 
     const handle = setTimeout(() => {
       // Map viewport (in original-data coords) to fractional source-cell
