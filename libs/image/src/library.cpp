@@ -159,6 +159,7 @@ void strel_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imerode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imdilate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwmorph_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwtraceboundary_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imopen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imclose_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imreconstruct_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -427,6 +428,7 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imerode",   &image::detail::imerode_reg);
     reg("morph", "imdilate",  &image::detail::imdilate_reg);
     reg("morph", "bwmorph",   &image::detail::bwmorph_reg);
+    reg("morph", "bwtraceboundary", &image::detail::bwtraceboundary_reg);
     reg("morph", "imopen",    &image::detail::imopen_reg);
     reg("morph", "imclose",   &image::detail::imclose_reg);
     reg("morph", "imreconstruct", &image::detail::imreconstruct_reg);

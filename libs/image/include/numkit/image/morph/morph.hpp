@@ -363,4 +363,43 @@ Value bwhitmiss(const Value &BW, const Value &se1, const Value &se2,
 Value bwmorph(const Value &BW, const std::string &op, int n,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Trace object boundary in a binary image
+/// (`B = bwtraceboundary(BW, P, fstep, conn, m, dir)`).
+///
+/// Moore-Neighbor boundary tracing starting from foreground pixel
+/// `P` and initial search direction `fstep`. The trace walks the
+/// 8-connected (default) or 4-connected boundary and emits row/col
+/// coordinates.
+///
+/// **fstep semantics.** `fstep` defines the direction of the
+/// notional "previous" pixel as the OPPOSITE of `fstep`, so the
+/// search starts one position clockwise of that previous direction.
+/// This matches MATLAB R2025b behaviour even when `fstep` points
+/// into the object interior (the search just sweeps around to the
+/// first valid boundary neighbour).
+///
+/// **Termination.** Stops when the boundary loop closes (we
+/// revisit `P` after ≥ 1 step), when `m` pixels have been emitted,
+/// or when no neighbours exist (isolated pixel → returns
+/// `[P; P]`).
+///
+/// Reference: Moore-Neighbor tracing, Pavlidis 1982,
+/// *Algorithms for Graphics and Image Processing*, §7.5.
+///
+/// @param BW       2-D binary mask (logical or numeric non-zero).
+/// @param P        `[row, col]` 1-based starting boundary pixel.
+/// @param fstep    `"N"` / `"NE"` / `"E"` / `"SE"` / `"S"` /
+///                 `"SW"` / `"W"` / `"NW"`. For `conn = 4`, only
+///                 `"N"` / `"E"` / `"S"` / `"W"`.
+/// @param conn     `8` (default) or `4`.
+/// @param m        Maximum number of pixels to extract
+///                 (`std::numeric_limits<size_t>::max()` for Inf).
+/// @param dir      `"clockwise"` (default) or `"counterclockwise"`.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `Q × 2` DOUBLE matrix of `[row, col]` pixels.
+Value bwtraceboundary(const Value &BW, const Value &P,
+                      const std::string &fstep, int conn,
+                      std::size_t m, const std::string &dir,
+                      std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image

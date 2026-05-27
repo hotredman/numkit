@@ -1794,6 +1794,167 @@ Value bwmorph(const Value &BW, const std::string &op, int n,
     return emitLogical(bw.data());
 }
 
+// ── bwtraceboundary (Moore-Neighbor boundary tracing) ─────────────
+//
+// Reverse-engineered from MATLAB R2025b (closed-source
+// images.internal.builtins.bwtraceboundary):
+//
+//   8-conn dirs (CW order):  N NE E SE S SW W NW
+//   4-conn dirs (CW order):  N E S W
+//
+//   Initial back_dir = opposite(fstep) (the notional "previous"
+//   pixel direction).
+//   Search start = (back_dir + 1) % nd for clockwise tracing
+//                  (back_dir - 1 + nd) % nd for counterclockwise.
+//   For each step:
+//     scan nd neighbours in rotation order; first foreground hit =
+//     next boundary pixel. Update back_dir to the OPPOSITE of the
+//     move direction.
+//   Stop when:
+//     * len(B) >= m, or
+//     * we just moved to P (loop closed, |B| >= 2), or
+//     * no foreground neighbour found (isolated → append P, done).
+//
+// Reference: Moore-Neighbor tracing,
+//   Pavlidis 1982 §7.5; classic 8-connected variant.
+namespace {
+
+// dr/dc tables for 8-conn (CW from N) and 4-conn (CW from N).
+const int kDr8[8] = {-1, -1,  0,  1,  1,  1,  0, -1};
+const int kDc8[8] = { 0,  1,  1,  1,  0, -1, -1, -1};
+const int kDr4[4] = {-1,  0,  1,  0};
+const int kDc4[4] = { 0,  1,  0, -1};
+
+int name_to_dir8(const std::string &s) {
+    if (s == "N")  return 0;
+    if (s == "NE") return 1;
+    if (s == "E")  return 2;
+    if (s == "SE") return 3;
+    if (s == "S")  return 4;
+    if (s == "SW") return 5;
+    if (s == "W")  return 6;
+    if (s == "NW") return 7;
+    return -1;
+}
+int name_to_dir4(const std::string &s) {
+    if (s == "N") return 0;
+    if (s == "E") return 1;
+    if (s == "S") return 2;
+    if (s == "W") return 3;
+    return -1;
+}
+
+} // anonymous
+
+Value bwtraceboundary(const Value &BW, const Value &P,
+                      const std::string &fstep, int conn,
+                      std::size_t m, const std::string &dir,
+                      std::pmr::memory_resource *mr)
+{
+    if (BW.dims().is3D())
+        throw Error("bwtraceboundary: BW must be 2-D",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:dim");
+    if (conn != 4 && conn != 8)
+        throw Error("bwtraceboundary: CONN must be 4 or 8",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:conn");
+    if (P.numel() != 2)
+        throw Error("bwtraceboundary: P must be a 2-element vector",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:p");
+    if (dir != "clockwise" && dir != "counterclockwise")
+        throw Error("bwtraceboundary: DIR must be 'clockwise' or "
+                    "'counterclockwise'",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:dir");
+
+    const std::size_t M = BW.dims().rows();
+    const std::size_t N = BW.dims().cols();
+    const long pr = static_cast<long>(P.elemAsDouble(0)) - 1;  // 0-based
+    const long pc = static_cast<long>(P.elemAsDouble(1)) - 1;
+    if (pr < 0 || pc < 0
+     || static_cast<std::size_t>(pr) >= M
+     || static_cast<std::size_t>(pc) >= N)
+        throw Error("bwtraceboundary: P out of bounds",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:pbounds");
+
+    // Validate starting pixel is foreground.
+    auto fg_at = [&](long r, long c) -> bool {
+        if (r < 0 || c < 0
+         || static_cast<std::size_t>(r) >= M
+         || static_cast<std::size_t>(c) >= N) return false;
+        const std::size_t k = static_cast<std::size_t>(c) * M
+                            + static_cast<std::size_t>(r);
+        if (BW.isLogical()) return BW.logicalData()[k] != 0;
+        return BW.elemAsDouble(k) != 0.0;
+    };
+    if (!fg_at(pr, pc))
+        throw Error("bwtraceboundary: P must be a foreground pixel",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:pfg");
+
+    const int nd = conn;
+    const int *Dr = (conn == 8) ? kDr8 : kDr4;
+    const int *Dc = (conn == 8) ? kDc8 : kDc4;
+    const int fidx = (conn == 8) ? name_to_dir8(fstep) : name_to_dir4(fstep);
+    if (fidx < 0)
+        throw Error("bwtraceboundary: invalid FSTEP for given CONN",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:fstep");
+
+    const int rot = (dir == "clockwise") ? +1 : -1;
+
+    // Initial back_dir = opposite(fstep). Search starts +rot from back_dir.
+    int back_dir = (fidx + nd / 2) % nd;
+
+    std::pmr::vector<long> br(mr), bc(mr);
+    br.reserve(64);
+    bc.reserve(64);
+    br.push_back(pr);
+    bc.push_back(pc);
+
+    long cur_r = pr, cur_c = pc;
+    const std::size_t cap = (m == 0) ? std::numeric_limits<std::size_t>::max() : m;
+
+    while (br.size() < cap) {
+        bool found = false;
+        for (int k = 0; k < nd; ++k) {
+            int d = (back_dir + rot * (k + 1) + nd * 8) % nd;
+            // ((back_dir + rot) + rot*k) mod nd — start at one step past back_dir.
+            const long nr = cur_r + Dr[d];
+            const long nc = cur_c + Dc[d];
+            if (fg_at(nr, nc)) {
+                br.push_back(nr);
+                bc.push_back(nc);
+                cur_r = nr;
+                cur_c = nc;
+                back_dir = (d + nd / 2) % nd;  // opposite of move direction
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            // Isolated pixel: replicate P0 as the closing entry.
+            br.push_back(pr);
+            bc.push_back(pc);
+            break;
+        }
+        // Loop closed: revisited start.
+        if (cur_r == pr && cur_c == pc && br.size() >= 2) break;
+    }
+
+    // Pack output (Q × 2) of doubles, 1-based.
+    const std::size_t Q = br.size();
+    Value out = Value::matrix(Q, 2, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < Q; ++i) {
+        out.doubleDataMut()[i]     = static_cast<double>(br[i] + 1);
+        out.doubleDataMut()[Q + i] = static_cast<double>(bc[i] + 1);
+    }
+    return out;
+}
+
 namespace detail {
 
 void bwmorph_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -1818,6 +1979,56 @@ void bwmorph_reg(Span<const Value> args, std::size_t /*nargout*/,
         else               n = static_cast<int>(v);
     }
     outs[0] = bwmorph(args[0], op, n, ctx.engine->resource());
+}
+
+void bwtraceboundary_reg(Span<const Value> args, std::size_t /*nargout*/,
+                         Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("bwtraceboundary: requires (BW, P, FSTEP [, conn] "
+                    "[, n, dir])",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:nargin");
+    auto *mr = ctx.engine->resource();
+    if (!args[2].isChar() && !args[2].isString())
+        throw Error("bwtraceboundary: FSTEP must be a string",
+                    0, 0, "bwtraceboundary", "",
+                    "m:bwtraceboundary:fstep");
+    std::string fstep = args[2].toString();
+    // Upper-case fstep.
+    for (auto &ch : fstep)
+        ch = static_cast<char>(std::toupper(
+            static_cast<unsigned char>(ch)));
+
+    int conn = 8;
+    std::size_t m_max = std::numeric_limits<std::size_t>::max();
+    std::string dir = "clockwise";
+    if (args.size() >= 4 && !args[3].isEmpty())
+        conn = static_cast<int>(args[3].toScalar());
+    if (args.size() >= 5 && !args[4].isEmpty()) {
+        const double v = args[4].toScalar();
+        if (!std::isinf(v)) {
+            if (!(v > 0))
+                throw Error("bwtraceboundary: N must be positive or Inf",
+                            0, 0, "bwtraceboundary", "",
+                            "m:bwtraceboundary:n");
+            m_max = static_cast<std::size_t>(v);
+        }
+    }
+    if (args.size() >= 6 && !args[5].isEmpty()) {
+        if (!args[5].isChar() && !args[5].isString())
+            throw Error("bwtraceboundary: DIR must be a string",
+                        0, 0, "bwtraceboundary", "",
+                        "m:bwtraceboundary:dirArg");
+        dir = args[5].toString();
+        std::string dlo;
+        for (char ch : dir)
+            dlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        dir = dlo;
+    }
+    outs[0] = bwtraceboundary(args[0], args[1], fstep, conn,
+                              m_max, dir, mr);
 }
 
 } // namespace detail
