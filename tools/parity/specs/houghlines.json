@@ -1,0 +1,10 @@
+{
+  "name": "houghlines",
+  "namespace": "image",
+  "setup": "BW = false(11, 11); BW(6, 1:11) = true; BW(1:11, 6) = true; [H, T, R] = hough(BW); P = houghpeaks(H, 2); P3 = houghpeaks(H, 1);",
+  "expr": "lines = houghlines(BW, T, R, P, 'FillGap', 5, 'MinLength', 3); lines2 = houghlines(BW, T, R, P); lines3 = houghlines(BW, T, R, P3, 'MinLength', 3); r1 = double(length(lines)); r2 = lines(1).point1(1); r3 = lines(1).point1(2); r4 = lines(1).point2(1); r5 = lines(1).point2(2); r6 = lines(1).theta; r7 = lines(1).rho; r8 = lines(2).point1(1); r9 = lines(2).theta; r10 = double(length(lines2)); r11 = double(length(lines3));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"],
+  "comment": "Sig: lines = houghlines(BW, theta, rho, peaks [, NV...]). Branches: default fillgap=20 minlength=40, custom FillGap/MinLength (3 small example), single peak. Returns struct array with point1/point2 [x y] endpoints + theta + rho. Bit-exact MATLAB R2025b (tol=0). Reference: Gonzalez/Woods/Eddins, *Digital Image Processing Using MATLAB*, Prentice Hall, 2003. Image namespace 2026-05-27."
+}

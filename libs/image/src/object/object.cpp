@@ -1008,6 +1008,223 @@ Value houghpeaks(const Value &H, std::size_t numpeaks,
     return P;
 }
 
+// ── houghlines (line segment extraction from Hough peaks) ────────
+//
+// MATLAB R2025b houghlines.m algorithm:
+//   nonzeropix = [x y]; with x=col-1, y=row-1 from find(BW).
+//   For each peak (rbin, cbin):
+//     theta_c = theta(cbin) * pi/180
+//     rho_xy  = x*cos(theta_c) + y*sin(theta_c)
+//     slope = (nrho - 1) / (rho(end) - rho(1))
+//     rho_bin_index = round(slope * (rho_xy - rho(1)) + 1)
+//     idx = where rho_bin_index == rbin
+//     r = y(idx) + 1, c = x(idx) + 1  (back to 1-based pixel coords)
+//     resort pixels along the dominant axis (row vs col range)
+//     xy = [c r]
+//     diff_sq = sum((xy(i+1,:) - xy(i,:))^2, 2)
+//     fillgap_idx = where diff_sq > fillgap^2
+//     split xy at gaps; for each segment [p1, p2]:
+//       if ||p2 - p1||^2 >= minlength^2:
+//         add line struct {point1=p1, point2=p2, theta, rho}
+//
+// Reference: Gonzalez/Woods/Eddins, *Digital Image Processing
+// Using MATLAB*, Prentice Hall 2003.
+Value houghlines(const Value &BW, const Value &theta_deg,
+                 const Value &rho, const Value &peaks,
+                 double fillgap, double minlength,
+                 std::pmr::memory_resource *mr)
+{
+    if (BW.dims().is3D())
+        throw Error("houghlines: BW must be 2-D",
+                    0, 0, "houghlines", "", "m:houghlines:dim");
+    if (!(fillgap > 0.0) || !std::isfinite(fillgap))
+        throw Error("houghlines: FillGap must be positive",
+                    0, 0, "houghlines", "", "m:houghlines:fillgap");
+    if (!(minlength > 0.0) || !std::isfinite(minlength))
+        throw Error("houghlines: MinLength must be positive",
+                    0, 0, "houghlines", "", "m:houghlines:minlength");
+
+    const std::size_t M = BW.dims().rows();
+    const std::size_t N = BW.dims().cols();
+    const std::size_t nrho = rho.numel();
+    const std::size_t ntheta = theta_deg.numel();
+    if (nrho < 2 || ntheta == 0)
+        throw Error("houghlines: rho/theta vectors too small",
+                    0, 0, "houghlines", "", "m:houghlines:vec");
+    if (peaks.dims().cols() != 2 || peaks.dims().is3D())
+        throw Error("houghlines: PEAKS must be P × 2",
+                    0, 0, "houghlines", "", "m:houghlines:peaks");
+    const std::size_t nPeaks = peaks.dims().rows();
+
+    // Gather nonzero pixel (x, y) = (col-1, row-1).
+    const bool islog = BW.isLogical();
+    std::pmr::vector<double> px(mr), py(mr);
+    px.reserve(M * N / 16);
+    py.reserve(M * N / 16);
+    // Walk column-major to match MATLAB's find() order.
+    for (std::size_t c = 0; c < N; ++c) {
+        for (std::size_t r = 0; r < M; ++r) {
+            const std::size_t k = c * M + r;
+            const bool on = islog
+                ? (BW.logicalData()[k] != 0)
+                : (BW.elemAsDouble(k) != 0.0);
+            if (!on) continue;
+            px.push_back(static_cast<double>(c));
+            py.push_back(static_cast<double>(r));
+        }
+    }
+    const std::size_t nP = px.size();
+
+    constexpr double DEG2RAD = M_PI / 180.0;
+    const double rho_first = rho.elemAsDouble(0);
+    const double rho_last  = rho.elemAsDouble(nrho - 1);
+    const double slope     = static_cast<double>(nrho - 1)
+                           / (rho_last - rho_first);
+    const double fillgap_sq   = fillgap   * fillgap;
+    const double minlength_sq = minlength * minlength;
+
+    // Collect line segments.
+    struct Seg {
+        double p1x, p1y, p2x, p2y;
+        double theta, rho;
+    };
+    std::pmr::vector<Seg> segs(mr);
+
+    std::pmr::vector<std::size_t> idx(mr);
+    std::pmr::vector<std::size_t> rseg(mr), cseg(mr);
+    idx.reserve(nP / 4);
+    rseg.reserve(nP / 4);
+    cseg.reserve(nP / 4);
+
+    for (std::size_t k = 0; k < nPeaks; ++k) {
+        const long rbin = static_cast<long>(peaks.elemAsDouble(k));
+        const long cbin = static_cast<long>(peaks.elemAsDouble(nPeaks + k));
+        if (cbin < 1 || cbin > static_cast<long>(ntheta)) continue;
+        const double theta_c = theta_deg.elemAsDouble(cbin - 1) * DEG2RAD;
+        const double cosT = std::cos(theta_c);
+        const double sinT = std::sin(theta_c);
+
+        // Pick pixels whose rho-bin matches.
+        idx.clear();
+        for (std::size_t i = 0; i < nP; ++i) {
+            const double rho_xy = px[i] * cosT + py[i] * sinT;
+            const long bin = static_cast<long>(std::lround(
+                slope * (rho_xy - rho_first) + 1.0));
+            if (bin == rbin) idx.push_back(i);
+        }
+        if (idx.empty()) continue;
+
+        // Convert back to 1-based (r, c).
+        rseg.clear(); cseg.clear();
+        for (std::size_t i : idx) {
+            rseg.push_back(static_cast<std::size_t>(py[i]) + 1);
+            cseg.push_back(static_cast<std::size_t>(px[i]) + 1);
+        }
+
+        // Determine sort key: r_range vs c_range.
+        std::size_t rmin = rseg[0], rmax = rseg[0];
+        std::size_t cmin = cseg[0], cmax = cseg[0];
+        for (std::size_t i = 1; i < rseg.size(); ++i) {
+            if (rseg[i] < rmin) rmin = rseg[i];
+            if (rseg[i] > rmax) rmax = rseg[i];
+            if (cseg[i] < cmin) cmin = cseg[i];
+            if (cseg[i] > cmax) cmax = cseg[i];
+        }
+        const std::size_t r_range = rmax - rmin;
+        const std::size_t c_range = cmax - cmin;
+        // Sort rows by (key1, key2): if r_range > c_range, key1=r, key2=c;
+        // else key1=c, key2=r.
+        std::pmr::vector<std::size_t> order(mr);
+        order.reserve(rseg.size());
+        for (std::size_t i = 0; i < rseg.size(); ++i) order.push_back(i);
+        if (r_range > c_range) {
+            std::sort(order.begin(), order.end(),
+                      [&](std::size_t a, std::size_t b) {
+                          if (rseg[a] != rseg[b]) return rseg[a] < rseg[b];
+                          return cseg[a] < cseg[b];
+                      });
+        } else {
+            std::sort(order.begin(), order.end(),
+                      [&](std::size_t a, std::size_t b) {
+                          if (cseg[a] != cseg[b]) return cseg[a] < cseg[b];
+                          return rseg[a] < rseg[b];
+                      });
+        }
+
+        // Build sorted (xy = [c r]).
+        std::pmr::vector<long> xs(mr), ys(mr);
+        xs.reserve(rseg.size());
+        ys.reserve(rseg.size());
+        for (std::size_t i : order) {
+            xs.push_back(static_cast<long>(cseg[i]));
+            ys.push_back(static_cast<long>(rseg[i]));
+        }
+
+        // diff_sq = (xs[i+1]-xs[i])^2 + (ys[i+1]-ys[i])^2.
+        // Find gaps where diff_sq > fillgap^2.
+        std::pmr::vector<std::size_t> gap_at(mr);
+        for (std::size_t i = 0; i + 1 < xs.size(); ++i) {
+            const long dx = xs[i + 1] - xs[i];
+            const long dy = ys[i + 1] - ys[i];
+            const double d2 = static_cast<double>(dx) * dx
+                            + static_cast<double>(dy) * dy;
+            if (d2 > fillgap_sq) gap_at.push_back(i + 1);  // 1-based start
+        }
+        // Segments split by gap_at indices: idx = [0; gap_at; size].
+        // MATLAB: for p=1:length(idx)-1: p1=xy(idx(p)+1,:); p2=xy(idx(p+1),:);
+        std::pmr::vector<std::size_t> splits(mr);
+        splits.push_back(0);
+        for (auto g : gap_at) splits.push_back(g);
+        splits.push_back(xs.size());
+        for (std::size_t p = 0; p + 1 < splits.size(); ++p) {
+            const std::size_t lo = splits[p];      // exclusive lower (gap start)
+            const std::size_t hi = splits[p + 1];  // inclusive upper
+            if (hi <= lo) continue;
+            // p1 = xy(lo+1) in MATLAB 1-idx; here 0-indexed → xs[lo].
+            // p2 = xy(hi) in MATLAB → xs[hi-1].
+            const long p1x = xs[lo];
+            const long p1y = ys[lo];
+            const long p2x = xs[hi - 1];
+            const long p2y = ys[hi - 1];
+            const double linelen_sq
+                = static_cast<double>(p2x - p1x) * (p2x - p1x)
+                + static_cast<double>(p2y - p1y) * (p2y - p1y);
+            if (linelen_sq >= minlength_sq) {
+                Seg s;
+                s.p1x = static_cast<double>(p1x);
+                s.p1y = static_cast<double>(p1y);
+                s.p2x = static_cast<double>(p2x);
+                s.p2y = static_cast<double>(p2y);
+                s.theta = theta_deg.elemAsDouble(cbin - 1);
+                s.rho   = rho.elemAsDouble(rbin - 1);
+                segs.push_back(s);
+            }
+        }
+    }
+
+    // Build 1 × N struct array.
+    const std::size_t nL = segs.size();
+    if (nL == 0) {
+        // Empty struct with the four fields (MATLAB: 1 × 0 struct).
+        Value out = Value::structArray(1, 0, mr);
+        return out;
+    }
+    Value out = Value::structArray(1, nL, mr);
+    for (std::size_t i = 0; i < nL; ++i) {
+        Value p1 = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        p1.doubleDataMut()[0] = segs[i].p1x;
+        p1.doubleDataMut()[1] = segs[i].p1y;
+        Value p2 = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        p2.doubleDataMut()[0] = segs[i].p2x;
+        p2.doubleDataMut()[1] = segs[i].p2y;
+        out.setField(i, "point1", p1);
+        out.setField(i, "point2", p2);
+        out.setField(i, "theta", Value::scalar(segs[i].theta, mr));
+        out.setField(i, "rho",   Value::scalar(segs[i].rho,   mr));
+    }
+    return out;
+}
+
 namespace detail {
 
 void cornermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -1111,6 +1328,42 @@ void hough_reg(Span<const Value> args, std::size_t nargout,
     outs[0] = std::move(H);
     if (nargout >= 2) outs[1] = std::move(T);
     if (nargout >= 3) outs[2] = std::move(R);
+}
+
+void houghlines_reg(Span<const Value> args, std::size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("houghlines: requires (BW, theta, rho, peaks "
+                    "[, NV...])",
+                    0, 0, "houghlines", "", "m:houghlines:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+    double fillgap = 20.0;
+    double minlength = 40.0;
+    std::size_t i = 4;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("houghlines: expected NV-pair name",
+                        0, 0, "houghlines", "", "m:houghlines:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "fillgap") {
+            fillgap = args[i + 1].toScalar();
+        } else if (nlo == "minlength") {
+            minlength = args[i + 1].toScalar();
+        } else {
+            throw Error("houghlines: unknown option '" + name + "'",
+                        0, 0, "houghlines", "",
+                        "m:houghlines:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = houghlines(args[0], args[1], args[2], args[3],
+                         fillgap, minlength, mr);
 }
 
 void houghpeaks_reg(Span<const Value> args, std::size_t /*nargout*/,

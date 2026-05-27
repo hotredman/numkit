@@ -204,6 +204,7 @@ void edge_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cornermetric_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void hough_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void houghpeaks_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void houghlines_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // quality/quality.cpp
 void immse_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -469,6 +470,7 @@ void ImageLibrary::install(Engine &engine)
     reg("object", "cornermetric", &image::detail::cornermetric_reg);
     reg("object", "hough",        &image::detail::hough_reg);
     reg("object", "houghpeaks",   &image::detail::houghpeaks_reg);
+    reg("object", "houghlines",   &image::detail::houghlines_reg);
 
     reg("quality", "immse", &image::detail::immse_reg);
     reg("quality", "psnr",  &image::detail::psnr_reg);
