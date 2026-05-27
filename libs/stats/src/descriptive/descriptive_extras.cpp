@@ -439,7 +439,67 @@ Value corr_xx(const Value &X, std::pmr::memory_resource *mr)
 
 Value corr_xy(const Value &X, const Value &Y, std::pmr::memory_resource *mr)
 {
-    return corrcoef(X, Y, mr);
+    // Pairwise Pearson correlation: X (n×p), Y (n×q) → p×q matrix where
+    // out(i,j) = corr(X(:,i), Y(:,j)). Matches MATLAB corr(X, Y).
+    // Vector × vector returns a 1×1 matrix (scalar-convertible) —
+    // differs from corrcoef(x,y) which returns the 2×2 [x;y] matrix.
+    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
+    const std::size_t p = (X.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
+    if (static_cast<std::size_t>(Y.dims().dim(0)) != n)
+        throw Error("corr: X and Y must have the same number of rows",
+                    0, 0, "corr", "", "m:corr:rows");
+    const std::size_t q = (Y.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(Y.dims().dim(1)) : 1;
+
+    auto out = Value::matrix(p, q, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    // Pre-compute means + centered-norms per column.
+    std::vector<double> mx(p), my(q);
+    std::vector<double> nrmX(p), nrmY(q);
+    for (std::size_t i = 0; i < p; ++i) {
+        double s = 0.0;
+        for (std::size_t r = 0; r < n; ++r)
+            s += X.elemAsDouble(r + i * n);
+        mx[i] = s / double(n);
+    }
+    for (std::size_t j = 0; j < q; ++j) {
+        double s = 0.0;
+        for (std::size_t r = 0; r < n; ++r)
+            s += Y.elemAsDouble(r + j * n);
+        my[j] = s / double(n);
+    }
+    for (std::size_t i = 0; i < p; ++i) {
+        double ss = 0.0;
+        for (std::size_t r = 0; r < n; ++r) {
+            const double d = X.elemAsDouble(r + i * n) - mx[i];
+            ss += d * d;
+        }
+        nrmX[i] = std::sqrt(ss);
+    }
+    for (std::size_t j = 0; j < q; ++j) {
+        double ss = 0.0;
+        for (std::size_t r = 0; r < n; ++r) {
+            const double d = Y.elemAsDouble(r + j * n) - my[j];
+            ss += d * d;
+        }
+        nrmY[j] = std::sqrt(ss);
+    }
+    for (std::size_t j = 0; j < q; ++j) {
+        for (std::size_t i = 0; i < p; ++i) {
+            double s = 0.0;
+            for (std::size_t r = 0; r < n; ++r) {
+                const double dx = X.elemAsDouble(r + i * n) - mx[i];
+                const double dy = Y.elemAsDouble(r + j * n) - my[j];
+                s += dx * dy;
+            }
+            const double denom = nrmX[i] * nrmY[j];
+            od[i + j * p] = (denom > 0.0) ? (s / denom)
+                                          : std::numeric_limits<double>::quiet_NaN();
+        }
+    }
+    return out;
 }
 
 // ── detrend (polynomial trend removal) ──────────────────────────────
@@ -1986,12 +2046,21 @@ void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 
 void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 1)
-        throw Error("corr: requires (X). Two-argument form (X, Y) for "
-                    "matrix-vs-matrix correlation matrix is deferred -- use "
-                    "corr([X Y]) and slice the off-diagonal block instead.",
+    if (args.empty())
+        throw Error("corr: requires at least 1 argument",
                     0, 0, "corr", "", "m:corr:nargin");
-    outs[0] = corr_xx(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    // Distinguish corr(X[, NV…]) from corr(X, Y[, NV…]). Y is detected
+    // as the 2nd positional non-string argument.
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()) {
+        outs[0] = corr_xy(args[0], args[1], mr);
+        // NV-pairs after Y (Type / Rows / Tail / Weights) currently
+        // accept-and-ignore: Pearson is the only Type implemented in
+        // corr_xy via corrcoef. Spearman/Kendall on the two-arg path
+        // are deferred (single-arg form already throws on those).
+    } else {
+        outs[0] = corr_xx(args[0], mr);
+    }
 }
 
 void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

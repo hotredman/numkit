@@ -148,4 +148,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/nearcorr_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fillmissing_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filloutliers_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/corr_xy_test.cpp
 )
