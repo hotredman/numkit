@@ -240,6 +240,7 @@ void grayconnected_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imoverlay_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void graydiffweight_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gradientweight_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void regionfill_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // geom/geom.cpp
 void imresize_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -502,6 +503,7 @@ void ImageLibrary::install(Engine &engine)
     reg("segment", "imoverlay",     &image::detail::imoverlay_reg);
     reg("segment", "graydiffweight",&image::detail::graydiffweight_reg);
     reg("segment", "gradientweight",&image::detail::gradientweight_reg);
+    reg("segment", "regionfill",    &image::detail::regionfill_reg);
 }
 
 } // namespace numkit

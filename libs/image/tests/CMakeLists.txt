@@ -32,4 +32,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/imgradientxyz_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/deconvreg_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gradientweight_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regionfill_test.cpp
 )
