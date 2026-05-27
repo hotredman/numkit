@@ -38,8 +38,29 @@ std::string lowerExt(const std::string &path) {
 
 } // anonymous
 
+// Sniff TIFF magic — 'II*\0' little-endian or 'MM\0*' big-endian.
+// Returns true on either form. (stb_image rejects TIFF, so we route
+// to our own minimal reader instead.)
+static bool isTiffFile(const std::string &path) {
+    std::FILE *f = std::fopen(path.c_str(), "rb");
+    if (!f) return false;
+    unsigned char hdr[4] = {0};
+    const std::size_t n = std::fread(hdr, 1, 4, f);
+    std::fclose(f);
+    if (n < 4) return false;
+    if (hdr[0] == 'I' && hdr[1] == 'I' && hdr[2] == 0x2A && hdr[3] == 0x00)
+        return true;
+    if (hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0x00 && hdr[3] == 0x2A)
+        return true;
+    return false;
+}
+
 Value imread(const std::string &path, std::pmr::memory_resource *mr)
 {
+    // TIFF route — stb_image doesn't decode TIFF, so dispatch to our
+    // minimal in-tree reader first.
+    if (isTiffFile(path)) return readTiff(path, mr);
+
     int W = 0, H = 0, channelsInFile = 0;
     // 0 = take whatever channel count the file has (1, 3, or 4).
     unsigned char *pixels = stbi_load(path.c_str(), &W, &H, &channelsInFile, 0);
@@ -187,6 +208,14 @@ std::string detectFormat(const std::string &path) {
     if (n >= 8 && hdr[0] == 0x89 && hdr[1] == 'P' && hdr[2] == 'N' &&
         hdr[3] == 'G' && hdr[4] == 0x0D && hdr[5] == 0x0A)
         return "png";
+    // TIFF little-endian: II + 0x2A 0x00
+    if (n >= 4 && hdr[0] == 'I' && hdr[1] == 'I' && hdr[2] == 0x2A &&
+        hdr[3] == 0x00)
+        return "tif";
+    // TIFF big-endian: MM + 0x00 0x2A
+    if (n >= 4 && hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0x00 &&
+        hdr[3] == 0x2A)
+        return "tif";
     // JPEG: starts with FF D8 FF
     if (n >= 3 && hdr[0] == 0xFF && hdr[1] == 0xD8 && hdr[2] == 0xFF)
         return "jpg";
@@ -224,7 +253,18 @@ const char *colorTypeFromChannels(int c) {
 Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
 {
     int W = 0, H = 0, channels = 0;
-    if (!stbi_info(path.c_str(), &W, &H, &channels)) {
+    int bitsPerSample = 8;
+
+    if (isTiffFile(path)) {
+        // TIFF route — stb doesn't peek TIFFs.
+        std::uint32_t W32 = 0, H32 = 0;
+        std::uint16_t bits = 8, chs = 1;
+        peekTiff(path, W32, H32, bits, chs);
+        W = static_cast<int>(W32);
+        H = static_cast<int>(H32);
+        channels = static_cast<int>(chs);
+        bitsPerSample = static_cast<int>(bits);
+    } else if (!stbi_info(path.c_str(), &W, &H, &channels)) {
         const char *err = stbi_failure_reason();
         throw Error(std::string("imfinfo: failed to read '") + path + "'" +
                     (err ? std::string(" — ") + err : std::string()),
@@ -250,6 +290,7 @@ Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
     s.field("Width")             = Value::scalar(double(W), mr);
     s.field("Height")            = Value::scalar(double(H), mr);
     s.field("NumberOfChannels")  = Value::scalar(double(channels), mr);
+    s.field("BitDepth")          = Value::scalar(double(bitsPerSample * channels), mr);
     s.field("ColorType")         =
         Value::fromString(colorTypeFromChannels(channels), mr);
     s.field("FileSize")          = Value::scalar(double(fileSize), mr);
