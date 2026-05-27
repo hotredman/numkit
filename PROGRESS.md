@@ -517,7 +517,7 @@ together.
 | `setdiff` | ✅ | 0.004 | 380.45× | 51.37× | OK | Sig: r = setdiff(...). Set op. Spec-extension batch 2026-05-09. |
 | `setxor` | ✅ | 0.004 | 420.21× | 79.60× | OK | Sig: r = setxor(...). Set op. Spec-extension batch 2026-05-09. |
 | `sortrows` | ✅ | 0.413 | 0.92× | 0.19× | OK | Sig: B = sortrows(A). 10k×3 sort by first col. 100 iters. |
-| `splitapply` | ❌ |  |  |  |  |  |
+| `splitapply` | ✅ | 0.009 | 235.21× |  | OK | splitapply — apply scalar-returning function handle per group, return one row per group. Supports multi-input handles (x, y, ..., G). Vector-output handles error in MATLAB R2025b (must wrap in cell). Output is column vector ordered by ascending group ID. |
 | `splitvars` | ❌ |  |  |  |  |  |
 | `stack` | ❌ |  |  |  |  |  |
 | `stackedplot` | ❌ |  |  |  |  |  |

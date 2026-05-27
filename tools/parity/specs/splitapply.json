@@ -1,0 +1,17 @@
+{
+  "name": "splitapply",
+  "namespace": "builtin",
+  "setup": "g = [1;2;1;2;1]; x = [10;20;30;40;50]; y = [100;200;300;400;500];",
+  "expr": "Bs = splitapply(@sum, x, g); Bm = splitapply(@mean, x, g); Bx = splitapply(@max, x, g); Bn = splitapply(@min, x, g); B2 = splitapply(@(a,b) sum(a)+sum(b), x, y, g);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "Bs(1)", "Bs(2)",
+    "Bm(1)", "Bm(2)",
+    "Bx(1)", "Bx(2)",
+    "Bn(1)", "Bn(2)",
+    "B2(1)", "B2(2)",
+    "size(Bs,1)", "size(Bs,2)"
+  ],
+  "comment": "splitapply — apply scalar-returning function handle per group, return one row per group. Supports multi-input handles (x, y, ..., G). Vector-output handles error in MATLAB R2025b (must wrap in cell). Output is column vector ordered by ascending group ID."
+}
