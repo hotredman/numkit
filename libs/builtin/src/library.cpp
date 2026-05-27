@@ -122,6 +122,7 @@ void matchpairs_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void findgroups_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void splitapply_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void groupcounts_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void groupsummary_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void spline_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pchip_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void makima_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -631,6 +632,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("findgroups",  &builtin::detail::findgroups_reg);
     engine.registerFunction("splitapply",  &builtin::detail::splitapply_reg);
     engine.registerFunction("groupcounts", &builtin::detail::groupcounts_reg);
+    engine.registerFunction("groupsummary", &builtin::detail::groupsummary_reg);
     engine.registerFunction("spline",    &builtin::detail::spline_reg);
     engine.registerFunction("pchip",     &builtin::detail::pchip_reg);
     engine.registerFunction("makima",    &builtin::detail::makima_reg);

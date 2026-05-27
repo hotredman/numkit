@@ -206,5 +206,176 @@ void groupcounts_reg(Span<const Value> args, size_t nargout,
     }
 }
 
+// ── groupsummary ────────────────────────────────────────────────────
+// Array form:
+//   [B, BG, BC] = groupsummary(A, G, method)
+//
+//   A      column vector or matrix (DOUBLE).
+//   G      column vector of grouping values; same length as size(A,1).
+//   method scalar string: "sum" | "mean" | "median" | "max" | "min" |
+//          "std" | "var" | "numunique" | "nnz" | "mode" | "all" | "any"
+//
+//   B   nGroups × cols of A
+//   BG  column vector of unique group representatives (NaN trailing)
+//   BC  column vector of element counts per group
+//
+// Table form, groupbins, function-handle methods, multi-grouping vars,
+// IncludeMissingGroups/IncludeEmptyGroups NV — deferred (table type
+// not in numkit; binning + function-handle paths require additional
+// engine plumbing).
+void groupsummary_reg(Span<const Value> args, size_t nargout,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("groupsummary: requires (A, groupvars, method) "
+                    "in this revision (table inputs + groupbins NV "
+                    "deferred)",
+                    0, 0, "groupsummary", "", "m:groupsummary:nargin");
+    if (!args[2].isChar() && !args[2].isString())
+        throw Error("groupsummary: method must be a string in this "
+                    "revision (function-handle methods deferred)",
+                    0, 0, "groupsummary", "", "m:groupsummary:method");
+    auto *mr = ctx.engine->resource();
+    const Value &A = args[0];
+    const Value &G = args[1];
+    const std::string method = args[2].toString();
+
+    const std::size_t nRows = A.dims().rows();
+    const std::size_t nCols = (A.dims().ndim() >= 2) ? A.dims().cols() : 1;
+    if (G.numel() != nRows)
+        throw Error("groupsummary: groupvars must have length "
+                    "size(A, 1)",
+                    0, 0, "groupsummary", "", "m:groupsummary:shape");
+
+    // Group the rows.
+    std::vector<std::size_t> groups;
+    std::vector<double> uniqueVals;
+    groupOf(G, groups, uniqueVals);
+    std::size_t nan_count = 0;
+    for (auto g : groups) if (g == 0) ++nan_count;
+    const bool have_nan = nan_count > 0;
+    const std::size_t nGroups = uniqueVals.size() + (have_nan ? 1 : 0);
+
+    // Bucket row indices by group ID (0 = NaN bucket → group index
+    // uniqueVals.size()).
+    std::vector<std::vector<std::size_t>> buckets(nGroups);
+    for (std::size_t i = 0; i < groups.size(); ++i) {
+        const std::size_t gi = (groups[i] == 0) ? uniqueVals.size()
+                                                : (groups[i] - 1);
+        buckets[gi].push_back(i);
+    }
+
+    // Allocate B as nGroups × nCols.
+    auto B = (nCols == 1) ? Value::matrix(nGroups, 1, ValueType::DOUBLE, mr)
+                          : Value::matrix(nGroups, nCols, ValueType::DOUBLE, mr);
+    double *bd = B.doubleDataMut();
+
+    // Per-group, per-column reduction.
+    auto Aget = [&](std::size_t r, std::size_t c) {
+        return A.elemAsDouble(r + c * nRows);
+    };
+
+    for (std::size_t c = 0; c < nCols; ++c) {
+        for (std::size_t g = 0; g < nGroups; ++g) {
+            const auto &rows = buckets[g];
+            const std::size_t kn = rows.size();
+            double out = 0.0;
+            if (method == "sum") {
+                for (auto r : rows) out += Aget(r, c);
+            } else if (method == "mean") {
+                if (kn == 0) out = std::numeric_limits<double>::quiet_NaN();
+                else {
+                    double s = 0.0;
+                    for (auto r : rows) s += Aget(r, c);
+                    out = s / double(kn);
+                }
+            } else if (method == "median") {
+                std::vector<double> v; v.reserve(kn);
+                for (auto r : rows) v.push_back(Aget(r, c));
+                std::sort(v.begin(), v.end());
+                out = (kn == 0)            ? std::numeric_limits<double>::quiet_NaN()
+                    : (kn % 2 == 1)        ? v[kn / 2]
+                                            : 0.5 * (v[kn / 2 - 1] + v[kn / 2]);
+            } else if (method == "max") {
+                out = -std::numeric_limits<double>::infinity();
+                for (auto r : rows) {
+                    const double v = Aget(r, c);
+                    if (v > out) out = v;
+                }
+                if (kn == 0) out = std::numeric_limits<double>::quiet_NaN();
+            } else if (method == "min") {
+                out = std::numeric_limits<double>::infinity();
+                for (auto r : rows) {
+                    const double v = Aget(r, c);
+                    if (v < out) out = v;
+                }
+                if (kn == 0) out = std::numeric_limits<double>::quiet_NaN();
+            } else if (method == "std" || method == "var") {
+                if (kn < 2) out = std::numeric_limits<double>::quiet_NaN();
+                else {
+                    double s = 0.0, ss = 0.0;
+                    for (auto r : rows) { double v = Aget(r, c); s += v; ss += v*v; }
+                    const double m = s / double(kn);
+                    const double v = (ss - double(kn) * m * m) / double(kn - 1);
+                    out = (method == "var") ? std::max(0.0, v)
+                                             : std::sqrt(std::max(0.0, v));
+                }
+            } else if (method == "numunique") {
+                std::vector<double> v; v.reserve(kn);
+                for (auto r : rows) v.push_back(Aget(r, c));
+                std::sort(v.begin(), v.end());
+                v.erase(std::unique(v.begin(), v.end()), v.end());
+                out = double(v.size());
+            } else if (method == "nnz") {
+                std::size_t k = 0;
+                for (auto r : rows) if (Aget(r, c) != 0.0) ++k;
+                out = double(k);
+            } else if (method == "mode") {
+                std::vector<double> v; v.reserve(kn);
+                for (auto r : rows) v.push_back(Aget(r, c));
+                std::sort(v.begin(), v.end());
+                std::size_t best_run = 0, cur_run = 0;
+                double best_val = std::numeric_limits<double>::quiet_NaN();
+                for (std::size_t i = 0; i < v.size(); ++i) {
+                    if (i == 0 || v[i] != v[i - 1]) cur_run = 1;
+                    else                            ++cur_run;
+                    if (cur_run > best_run) { best_run = cur_run; best_val = v[i]; }
+                }
+                out = best_val;
+            } else if (method == "all") {
+                bool ok = true;
+                for (auto r : rows) if (Aget(r, c) == 0.0) { ok = false; break; }
+                out = ok ? 1.0 : 0.0;
+            } else if (method == "any") {
+                bool ok = false;
+                for (auto r : rows) if (Aget(r, c) != 0.0) { ok = true; break; }
+                out = ok ? 1.0 : 0.0;
+            } else {
+                throw Error("groupsummary: method '" + method
+                            + "' not supported in this revision",
+                            0, 0, "groupsummary", "",
+                            "m:groupsummary:badMethod");
+            }
+            bd[g + c * nGroups] = out;
+        }
+    }
+    outs[0] = std::move(B);
+
+    if (nargout >= 2) {
+        auto BG = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+        double *gd = BG.doubleDataMut();
+        for (std::size_t i = 0; i < uniqueVals.size(); ++i) gd[i] = uniqueVals[i];
+        if (have_nan)
+            gd[uniqueVals.size()] = std::numeric_limits<double>::quiet_NaN();
+        outs[1] = std::move(BG);
+    }
+    if (nargout >= 3) {
+        auto BC = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+        double *cd = BC.doubleDataMut();
+        for (std::size_t g = 0; g < nGroups; ++g) cd[g] = double(buckets[g].size());
+        outs[2] = std::move(BC);
+    }
+}
+
 } // namespace detail
 } // namespace numkit::builtin

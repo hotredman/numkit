@@ -1,0 +1,22 @@
+{
+  "name": "groupsummary",
+  "namespace": "builtin",
+  "setup": "A = [10; 20; 30; 40; 50]; G = [1; 2; 1; 2; 1]; A2 = [10 100; 20 200; 30 300; 40 400; 50 500]; G2 = [1; 2; NaN; 1; 2];",
+  "expr": "[Bs, BGs, BCs] = groupsummary(A, G, 'sum'); Bm = groupsummary(A, G, 'mean'); Bmd = groupsummary(A, G, 'median'); Bx = groupsummary(A, G, 'max'); Bn = groupsummary(A, G, 'min'); Bsd = groupsummary(A, G, 'std'); Bu = groupsummary(A, G, 'numunique'); BM = groupsummary(A2, G, 'sum'); BNn = groupsummary(A, G2, 'sum');",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "Bs(1)", "Bs(2)",
+    "BGs(1)", "BGs(2)",
+    "BCs(1)", "BCs(2)",
+    "Bm(1)", "Bm(2)",
+    "Bmd(1)",
+    "Bx(1)", "Bx(2)",
+    "Bn(1)", "Bn(2)",
+    "Bsd(1)", "Bsd(2)",
+    "Bu(1)", "Bu(2)",
+    "BM(1,1)", "BM(1,2)", "BM(2,1)", "BM(2,2)",
+    "BNn(1)", "BNn(2)", "BNn(3)"
+  ],
+  "comment": "groupsummary array form — methods: sum/mean/median/max/min/std/numunique/nnz/mode/all/any. 3-output [B, BG, BC]. NaN groups form a trailing bucket. Table form, groupbins, function-handle methods, multi-grouping-vars, IncludeMissingGroups/IncludeEmptyGroups NV are deferred (table type not in numkit, binning/handle paths need engine plumbing)."
+}
