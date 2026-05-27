@@ -85,3 +85,29 @@ TEST_F(ModefiltTest, UnknownPadOptThrows)
 {
     EXPECT_THROW(engine.eval("modefilt(A, [3 3], 'bogus');"), std::exception);
 }
+
+// 3-D mode filter — salt-and-pepper recovery in a volume.
+TEST_F(ModefiltTest, ThreeDimensionalSaltPepperRecovery)
+{
+    engine.eval("V = uint8(ones(5, 5, 5)); V(3,3,3) = 100; "
+                "B = modefilt(V, [3 3 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(B,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B,2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B,3)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(3,3,3)"), 1.0);  // 26 ones beat 1 outlier
+}
+
+// 3-D default filter size is [3 3 3] when input is 3-D.
+TEST_F(ModefiltTest, ThreeDimensionalDefaultFilter)
+{
+    engine.eval("V = uint8(ones(3, 3, 3)); V(2,2,2) = 0; B = modefilt(V);");
+    EXPECT_DOUBLE_EQ(evalScalar("B(2,2,2)"), 1.0);
+}
+
+// 3-D with anisotropic filter [3 3 1] (per-slice, no depth blur).
+TEST_F(ModefiltTest, ThreeDimensionalAnisotropic)
+{
+    engine.eval("V = uint8(ones(5, 5, 5)); V(3,3,3) = 100; "
+                "B = modefilt(V, [3 3 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("B(3,3,3)"), 1.0);  // 8 ones beat 1 outlier in slice
+}
