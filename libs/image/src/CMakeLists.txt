@@ -23,6 +23,7 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/io/stb_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/io/io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/io/tiff_reader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/tiff_writer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/geom/geom.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/segment/segment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/region/bwpropfilt.cpp

@@ -132,9 +132,123 @@ TEST_F(ImreadTiffTest, LzwGray16)
     EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
 }
 
-// Deflate not yet supported — must throw a clear message.
-TEST_F(ImreadTiffTest, DeflateNotYetSupported)
+// Deflate (zlib) now works end-to-end on MATLAB-generated fixtures.
+TEST_F(ImreadTiffTest, DeflateMatchesUncompressed)
 {
-    EXPECT_THROW(engine.eval("imread('" + path("gray8_deflate.tif") + "');"),
+    engine.eval("A = imread('" + path("gray8_none.tif") + "');");
+    engine.eval("B = imread('" + path("gray8_deflate.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
+}
+
+TEST_F(ImreadTiffTest, DeflateRgb8)
+{
+    engine.eval("A = imread('" + path("rgb8_none.tif") + "');");
+    engine.eval("B = imread('" + path("rgb8_deflate.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
+}
+
+TEST_F(ImreadTiffTest, DeflateGray16)
+{
+    engine.eval("A = imread('" + path("gray16_none.tif") + "');");
+    engine.eval("B = imread('" + path("gray16_deflate.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("isequal(A, B)").toScalar(), 1.0);
+}
+
+// ── multi-page (cycle 92) ────────────────────────────────────────────
+
+TEST_F(ImreadTiffTest, MultiPageReadsAllPages)
+{
+    engine.eval("p = '" + path("multipage_gray8.tif") + "';");
+    engine.eval("A1 = imread(p, 1); A2 = imread(p, 2); A3 = imread(p, 3);");
+    EXPECT_DOUBLE_EQ(engine.eval("A1(1,1)").toScalar(),   1.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A1(4,4)").toScalar(),  16.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A2(1,1)").toScalar(), 100.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A2(4,4)").toScalar(), 115.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A3(1,1)").toScalar(), 200.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A3(4,4)").toScalar(), 215.0);
+}
+
+TEST_F(ImreadTiffTest, MultiPageOutOfRangeThrows)
+{
+    EXPECT_THROW(engine.eval("imread('" + path("multipage_gray8.tif") + "', 4);"),
+                 std::exception);
+}
+
+// ── palette photometric=3 (cycle 92) ─────────────────────────────────
+
+TEST_F(ImreadTiffTest, PaletteReturnsIndexed)
+{
+    // Single-output `imread` of a palette TIFF returns the raw indices
+    // (matches MATLAB's default; ind2rgb separately maps via cmap).
+    engine.eval("A = imread('" + path("palette_indexed.tif") + "');");
+    EXPECT_EQ(engine.eval("class(A)").toString(), "uint8");
+    EXPECT_DOUBLE_EQ(engine.eval("size(A,1)").toScalar(), 4.0);
+    EXPECT_DOUBLE_EQ(engine.eval("size(A,2)").toScalar(), 4.0);
+}
+
+// ── writer round-trip (cycle 92) ─────────────────────────────────────
+//
+// Writes a deterministic image through every compression scheme, reads
+// it back, asserts isequal. Tempname keeps the test self-contained.
+
+class TiffWriterTest : public ::testing::Test
+{
+public:
+    numkit::Engine engine;
+    void SetUp() override { engine.eval("import compat.*;"); }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    void roundTrip(const std::string &mat, const std::string &comp) {
+        engine.eval("p = [tempname '.tif']; "
+                    + mat + " "
+                    "imwrite(A, p, 'tif', 'Compression', '" + comp + "'); "
+                    "B = imread(p); "
+                    "ok = isequal(A, B); "
+                    "delete(p);");
+        EXPECT_DOUBLE_EQ(evalScalar("ok"), 1.0) << "scheme=" << comp;
+    }
+};
+
+TEST_F(TiffWriterTest, Gray8RoundTripAllSchemes)
+{
+    const std::string mat =
+        "A = uint8(reshape(mod((0:63)*17, 256), 8, 8));";
+    for (auto c : {"none", "packbits", "lzw", "deflate"})
+        roundTrip(mat, c);
+}
+
+TEST_F(TiffWriterTest, Rgb8RoundTripAllSchemes)
+{
+    const std::string mat = "A = uint8(reshape(0:191, 8, 8, 3));";
+    for (auto c : {"none", "packbits", "lzw", "deflate"})
+        roundTrip(mat, c);
+}
+
+TEST_F(TiffWriterTest, Uint16RoundTripAllSchemes)
+{
+    const std::string mat =
+        "A = uint16(reshape(50000:50063, 8, 8));";
+    for (auto c : {"none", "packbits", "lzw", "deflate"})
+        roundTrip(mat, c);
+}
+
+TEST_F(TiffWriterTest, MultiPageWriteAndRead)
+{
+    engine.eval(
+        "p = [tempname '.tif']; "
+        "imwrite(uint8(reshape(1:16, 4, 4)),    p, 'tif', 'Compression', 'none'); "
+        "imwrite(uint8(reshape(100:115, 4, 4)), p, 'tif', 'Compression', 'none', 'WriteMode', 'append'); "
+        "imwrite(uint8(reshape(200:215, 4, 4)), p, 'tif', 'Compression', 'none', 'WriteMode', 'append'); "
+        "A1 = imread(p, 1); A2 = imread(p, 2); A3 = imread(p, 3); "
+        "delete(p);");
+    EXPECT_DOUBLE_EQ(evalScalar("A1(1,1)"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A1(4,4)"),  16.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A2(1,1)"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A3(4,4)"), 215.0);
+}
+
+TEST_F(TiffWriterTest, UnknownCompressionThrows)
+{
+    engine.eval("p = [tempname '.tif']; A = uint8([1 2; 3 4]);");
+    EXPECT_THROW(engine.eval("imwrite(A, p, 'tif', 'Compression', 'bogus');"),
                  std::exception);
 }

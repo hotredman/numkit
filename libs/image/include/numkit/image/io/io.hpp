@@ -98,9 +98,13 @@ Value imfinfo(const std::string &path,
 Value readTiff(const std::string &path,
                std::pmr::memory_resource *mr = nullptr);
 
+/// Multi-page form: read the `page`-th IFD (1-based). MATLAB's
+/// `imread(file, k)` semantics.
+Value readTiff(const std::string &path, std::uint32_t page,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// Peek a TIFF file's first-IFD metadata without decoding pixels.
 /// Output struct: `Width`, `Height`, `BitsPerSample`, `NumberOfChannels`.
-/// Throws on malformed TIFFs; baseline-only (same coverage as readTiff).
 ///
 /// @see imfinfo
 void peekTiff(const std::string &path,
@@ -108,5 +112,25 @@ void peekTiff(const std::string &path,
               std::uint32_t &H,
               std::uint16_t &bits,
               std::uint16_t &channels);
+
+/// Count the number of IFDs (pages) in a TIFF file. Walks the IFD chain
+/// without decoding any pixel data.
+std::uint32_t tiffNumPages(const std::string &path);
+
+/// Write `A` to `path` as a baseline TIFF. Companion to readTiff().
+///
+/// Supports uint8 / uint16 inputs (other numeric types are clamped to
+/// uint8). Channels: 1 (gray), 3 (RGB), 4 (RGBA). Compression options:
+/// `"none"`, `"packbits"`, `"lzw"`, `"deflate"` (Deflate requires
+/// NUMKIT_WITH_ZLIB at build time).
+///
+/// @param A            Image (uint8 / uint16; 1, 3, or 4 channels).
+/// @param path         Output path.
+/// @param compression  Compression scheme name.
+/// @param appendMode   If true and the file already exists, append a
+///                     new IFD; otherwise overwrite.
+void writeTiff(const Value &A, const std::string &path,
+               const std::string &compression = "none",
+               bool appendMode = false);
 
 } // namespace numkit::image

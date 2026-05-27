@@ -91,6 +91,24 @@ if(NUMKIT_WITH_MATIO)
         GIT_TAG        v1.5.30
     )
     FetchContent_MakeAvailable(matio)
+
+    # zlib — for Deflate decompression in TIFF reader. Tiny build,
+    # static library, no examples / tests.
+    set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(SKIP_INSTALL_ALL    ON  CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        zlib_pkg
+        GIT_REPOSITORY https://github.com/madler/zlib.git
+        GIT_TAG        v1.3.1
+    )
+    FetchContent_MakeAvailable(zlib_pkg)
+    # Expose zlib's source-dir as an include path: the generated zlib.h
+    # ends up in zlib_pkg_BINARY_DIR alongside the static lib.
+    if(TARGET zlibstatic)
+        set_target_properties(zlibstatic PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES
+            "${zlib_pkg_SOURCE_DIR};${zlib_pkg_BINARY_DIR}")
+    endif()
 endif()
 
 # ──────────────────────────────────────────────
@@ -189,6 +207,12 @@ endif()
 if(NUMKIT_WITH_MATIO)
     target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:matio>)
     target_compile_definitions(numkit PRIVATE NUMKIT_WITH_MATIO)
+    # zlib comes with matio's FetchContent block — used by the TIFF
+    # reader's Deflate path (libs/image/src/io/tiff_reader.cpp).
+    if(TARGET zlibstatic)
+        target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:zlibstatic>)
+        target_compile_definitions(numkit PRIVATE NUMKIT_WITH_ZLIB)
+    endif()
 endif()
 
 if(NUMKIT_WITH_SIMD)
