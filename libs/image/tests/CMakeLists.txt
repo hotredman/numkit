@@ -50,4 +50,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/labeloverlay_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/locallapfilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imreducehaze_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/multissim_test.cpp
 )
