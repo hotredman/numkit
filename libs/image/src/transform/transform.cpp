@@ -1024,6 +1024,187 @@ Value deconvwnr(const Value &I, const Value &PSF,
     return real_back_to_class(J, inT, mr);
 }
 
+// ── edgetaper (image-edge taper for FFT-based deblur) ─────────────
+//
+// MATLAB R2025b edgetaper.m algorithm:
+//
+//   For each non-singleton PSF dim n:
+//     proj   = sum(PSF over all other dims)
+//     beta_n = autocorr of proj at length sizeI(n) - 1, normalised,
+//              padded symmetrically to length sizeI(n).
+//   alpha = outer product of (1 - beta_n) across all NS dims.
+//   blurredI = real(ifftn(fftn(I) .* psf2otf(PSF, sizeI)))
+//   J = alpha .* I + (1 - alpha) .* blurredI, clipped to [min(I), max(I)]
+//   cast back to class(I).
+//
+// We restrict to 2-D inputs (the most common case); MATLAB extends
+// the same algorithm to N-D, but the 3-D-and-up form is rarely
+// used. A 3-D input throws a clear "use slice + loop" error.
+Value edgetaper(const Value &I, const Value &PSF, std::pmr::memory_resource *mr)
+{
+    const auto &dI   = I.dims();
+    const auto &dPSF = PSF.dims();
+    if (dI.is3D())
+        throw Error("edgetaper: I must be 2-D (slice 3-D inputs and call "
+                    "per page)",
+                    0, 0, "edgetaper", "", "m:edgetaper:rank");
+    if (dPSF.is3D())
+        throw Error("edgetaper: PSF must be 2-D",
+                    0, 0, "edgetaper", "", "m:edgetaper:psfRank");
+    const std::size_t H  = dI.rows();
+    const std::size_t W  = dI.cols();
+    const std::size_t PH = dPSF.rows();
+    const std::size_t PW = dPSF.cols();
+    if (H * W < 2)
+        throw Error("edgetaper: I must have at least 2 elements",
+                    0, 0, "edgetaper", "", "m:edgetaper:tooSmall");
+    if (PH * PW < 2)
+        throw Error("edgetaper: PSF must have at least 2 elements",
+                    0, 0, "edgetaper", "", "m:edgetaper:psfTooSmall");
+    if (2 * PH > H || 2 * PW > W)
+        throw Error("edgetaper: PSF size must be smaller than half of "
+                    "the image size in any nonsingleton dimension",
+                    0, 0, "edgetaper", "", "m:edgetaper:psfSize");
+
+    // Promote to DOUBLE for the math (we round back to class at the end).
+    const ValueType inT = I.type();
+    Value Id   = to_double_pmr(I, mr);
+    Value PSFd = to_double_pmr(PSF, mr);
+    const double *psfd = PSFd.doubleData();
+
+    // Track input range for the final clip.
+    double Imin =  std::numeric_limits<double>::infinity();
+    double Imax = -std::numeric_limits<double>::infinity();
+    {
+        const std::size_t N = Id.numel();
+        const double *id = Id.doubleData();
+        for (std::size_t k = 0; k < N; ++k) {
+            if (id[k] < Imin) Imin = id[k];
+            if (id[k] > Imax) Imax = id[k];
+        }
+    }
+
+    auto compute_beta = [&](std::size_t dim, std::size_t sizeI_n) {
+        // proj over the OTHER dim of PSF.
+        std::pmr::vector<double> proj(mr);
+        if (dim == 0) {
+            // sum along columns (per row).
+            proj.resize(PH, 0.0);
+            for (std::size_t c = 0; c < PW; ++c)
+                for (std::size_t r = 0; r < PH; ++r)
+                    proj[r] += psfd[c * PH + r];
+        } else {
+            // dim == 1: sum along rows (per col).
+            proj.resize(PW, 0.0);
+            for (std::size_t c = 0; c < PW; ++c)
+                for (std::size_t r = 0; r < PH; ++r)
+                    proj[c] += psfd[c * PH + r];
+        }
+        // fft length = sizeI(n) - 1.
+        const std::size_t L = sizeI_n - 1;
+        Value vec = Value::matrix(1, L, ValueType::DOUBLE, mr);
+        double *vd = vec.doubleDataMut();
+        for (std::size_t k = 0; k < L; ++k)
+            vd[k] = (k < proj.size()) ? proj[k] : 0.0;
+        // F = fft(proj_padded) — dim=0 → first non-singleton (cols of 1×L row).
+        Value F = signal::fft(vec, -1, 0, mr);
+        std::pmr::vector<double> Zsq(L, 0.0, mr);
+        if (F.isComplex()) {
+            const Complex *fc = F.complexData();
+            for (std::size_t k = 0; k < L; ++k)
+                Zsq[k] = fc[k].real() * fc[k].real()
+                       + fc[k].imag() * fc[k].imag();
+        } else {
+            for (std::size_t k = 0; k < L; ++k) {
+                const double v = F.elemAsDouble(k);
+                Zsq[k] = v * v;
+            }
+        }
+        // ifft(|F|^2) — real autocorrelation.
+        Value Zv = Value::matrix(1, L, ValueType::DOUBLE, mr);
+        for (std::size_t k = 0; k < L; ++k) Zv.doubleDataMut()[k] = Zsq[k];
+        Value Z = signal::ifft(Zv, -1, 0, mr);
+        std::pmr::vector<double> zr(L, 0.0, mr);
+        if (Z.isComplex()) {
+            const Complex *zc = Z.complexData();
+            for (std::size_t k = 0; k < L; ++k) zr[k] = zc[k].real();
+        } else {
+            for (std::size_t k = 0; k < L; ++k) zr[k] = Z.elemAsDouble(k);
+        }
+        // Make symmetric: append first element.
+        zr.push_back(zr.front());
+        // Normalise by max.
+        double zmax = 0.0;
+        for (double v : zr) if (v > zmax) zmax = v;
+        if (zmax > 0.0) for (auto &v : zr) v /= zmax;
+        return zr;       // length sizeI_n
+    };
+
+    std::pmr::vector<double> beta_r = compute_beta(0, H);
+    std::pmr::vector<double> beta_c = compute_beta(1, W);
+
+    // alpha = (1 - beta_r) * (1 - beta_c)'  — H × W outer product.
+    Value alpha = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *ad = alpha.doubleDataMut();
+    for (std::size_t c = 0; c < W; ++c)
+        for (std::size_t r = 0; r < H; ++r)
+            ad[c * H + r] = (1.0 - beta_r[r]) * (1.0 - beta_c[c]);
+
+    // blurredI = real(ifft2(fft2(I) .* psf2otf(PSF, sizeI))).
+    std::array<std::size_t, 2> outsize{H, W};
+    Value Hotf = psf2otf(PSFd, Span<const std::size_t>(outsize.data(), 2), mr);
+    const std::size_t plane = H * W;
+    std::pmr::vector<Complex> Hc(plane, Complex{0, 0}, mr);
+    if (Hotf.isComplex()) {
+        const Complex *src = Hotf.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Hc[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Hc[i] = Complex{Hotf.elemAsDouble(i), 0.0};
+    }
+    Value FI = signal::fft2(Id, -1, -1, mr);
+    std::pmr::vector<Complex> Fic(plane, Complex{0, 0}, mr);
+    if (FI.isComplex()) {
+        const Complex *src = FI.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Fic[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Fic[i] = Complex{FI.elemAsDouble(i), 0.0};
+    }
+    Value FG = Value::matrix(H, W, ValueType::COMPLEX, mr);
+    Complex *fg = FG.complexDataMut();
+    for (std::size_t i = 0; i < plane; ++i)
+        fg[i] = Complex{Fic[i].real() * Hc[i].real() - Fic[i].imag() * Hc[i].imag(),
+                        Fic[i].real() * Hc[i].imag() + Fic[i].imag() * Hc[i].real()};
+    Value Blur = signal::ifft2(FG, -1, -1, mr);
+    auto blur_at = [&](std::size_t i) -> double {
+        if (Blur.isComplex()) return Blur.complexData()[i].real();
+        return Blur.elemAsDouble(i);
+    };
+
+    // J = alpha .* I + (1 - alpha) .* blurredI, clipped to [Imin, Imax].
+    Value Jd = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *jd = Jd.doubleDataMut();
+    const double *id = Id.doubleData();
+    for (std::size_t i = 0; i < plane; ++i) {
+        const double a = ad[i];
+        double v = a * id[i] + (1.0 - a) * blur_at(i);
+        if (v < Imin) v = Imin;
+        if (v > Imax) v = Imax;
+        jd[i] = v;
+    }
+
+    if (inT == ValueType::DOUBLE || inT == ValueType::SINGLE) {
+        if (inT == ValueType::DOUBLE) return Jd;
+        // SINGLE: cast back.
+        Value out = Value::matrix(H, W, ValueType::SINGLE, mr);
+        for (std::size_t i = 0; i < plane; ++i)
+            out.singleDataMut()[i] = static_cast<float>(jd[i]);
+        return out;
+    }
+    return real_back_to_class(Jd, inT, mr);
+}
+
 namespace detail {
 
 void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1157,6 +1338,15 @@ void fftconv2_reg(Span<const Value> args, size_t /*nargout*/,
         shape = args[2].toString();
     }
     outs[0] = fftconv2(args[0], args[1], shape, ctx.engine->resource());
+}
+
+void edgetaper_reg(Span<const Value> args, std::size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("edgetaper: requires (I, PSF)",
+                    0, 0, "edgetaper", "", "m:edgetaper:nargin");
+    outs[0] = edgetaper(args[0], args[1], ctx.engine->resource());
 }
 
 void deconvwnr_reg(Span<const Value> args, std::size_t /*nargout*/,

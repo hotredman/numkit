@@ -1,0 +1,20 @@
+{
+  "name": "edgetaper",
+  "namespace": "image",
+  "setup": "I = double(reshape(1:64, 8, 8)); PSF = fspecial('gaussian', 3, 1); Iu = uint8(I); Ione = ones(8,8);",
+  "expr": "J = edgetaper(I, PSF); Ju = double(edgetaper(Iu, PSF)); Jone = edgetaper(Ione, PSF);",
+  "iters": 3,
+  "tol": 1e-9,
+  "fingerprint": [
+    "J(1,1)", "J(1,4)", "J(4,4)", "J(8,8)",
+    "Ju(1,1)", "Ju(4,4)", "Ju(8,8)",
+    "Jone(1,1)", "Jone(8,8)",
+    "size(J,1)", "size(J,2)"
+  ],
+  "covers": [
+    "edgetaper(I, PSF)             double image",
+    "uint8 input — class-preserving",
+    "constant image → J ≡ I        (alpha-symmetric edge case)"
+  ],
+  "comment": "MATLAB R2025b edgetaper.m algorithm — per-dim PSF projection autocorrelation builds an alpha matrix that equals 1 in the interior and tapers to 0 at edges; J = alpha*I + (1-alpha)*blurredI clipped to [min(I), max(I)]. blurredI is circular ifft2(fft2(I) .* psf2otf(PSF, sizeI)). The center of I is preserved exactly (J(4,4) = 28 in our 8×8 1..64 test). Corner values tapered symmetrically toward the image mean (J(1,1)=20.733, J(8,8)=44.267, mean=32.5). Bit-equal MATLAB on all probed cases (residual from psf2otf complex coercion handled). uint8 input class-preserving via saturating cast."
+}
