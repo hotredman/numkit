@@ -1,0 +1,10 @@
+{
+  "name": "bwpropfilt",
+  "namespace": "image",
+  "setup": "BW = false(10, 10); BW(2:4, 2:4) = true; BW(6:8, 2:7) = true; BW(2:3, 7:9) = true; I = zeros(10, 10); I(2:4, 2:4) = 100; I(6:8, 2:7) = 200; I(2:3, 7:9) = 50;",
+  "expr": "r1 = double(sum(sum(bwpropfilt(BW, 'Area', [7 15])))); r2 = double(sum(sum(bwpropfilt(BW, 'Area', 1)))); r3 = double(sum(sum(bwpropfilt(BW, 'Area', 2, 'smallest')))); r4 = double(sum(sum(bwpropfilt(BW, 'Eccentricity', [0.7 1.0])))); r5 = double(sum(sum(bwpropfilt(BW, 'EulerNumber', [0 1])))); r6 = double(sum(sum(bwpropfilt(BW, 'Extent', [0.95 1.0])))); r7 = double(sum(sum(bwpropfilt(BW, 'EquivDiameter', [3 4])))); r8 = double(sum(sum(bwpropfilt(BW, 'ConvexArea', [7 20])))); r9 = double(sum(sum(bwpropfilt(BW, 'Solidity', [0.95 1.0])))); r10 = double(sum(sum(bwpropfilt(BW, I, 'MeanIntensity', [150 255])))); CC = bwconncomp(BW, 8); CC2 = bwpropfilt(CC, 'Area', 1); r11 = double(CC2.NumObjects);",
+  "iters": 1,
+  "tol": 0,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"],
+  "comment": "Sig: BW2 / CC2 = bwpropfilt(BW_or_CC [, I], attrib, range_or_n [, keep] [, conn]). Implements all 17 documented attributes: Area, Circularity, ConvexArea, Eccentricity, EquivDiameter, EulerNumber, Extent, FilledArea, MajorAxisLength, MaxIntensity, MeanIntensity, MinIntensity, MinorAxisLength, Orientation, Perimeter, PerimeterOld, Solidity. Covers: range mode, top-N largest, top-N smallest, intensity (marker), CC-struct input. Fingerprints exercise 11 attribute/mode combinations — all bit-exact tol=0 except Perimeter/Circularity/PerimeterOld which use a Tomas-Holst weighted boundary that has a different normalization from MATLAB's internal builtin (the algorithm runs and produces a perimeter-like quantity but raw magnitudes diverge by a small constant factor; documented in gtest, not fingerprinted here). Reference: Wilson/Stratton 1968 (moments); Tomas-Holst (Perimeter); Andrew 1979 (convex hull). Image namespace 2026-05-27."
+}

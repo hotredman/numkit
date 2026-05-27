@@ -87,6 +87,58 @@ Value labelmatrix(const Value &CC,
 Value cc2bw(const Value &CC, const Value &objects_to_keep,
             std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Filter connected components by attribute value
+/// (`BW2 = bwpropfilt(BW, attrib, range_or_n, ...)`).
+///
+/// Compute a region attribute (one of 17) for every connected
+/// component and return only those whose values satisfy the
+/// filter. The filter is either a `[min max]` numeric range or a
+/// top-`n` selector with `keep_largest` / `keep_smallest`. Optional
+/// marker image enables intensity-based attributes.
+///
+/// Supported attributes (case-insensitive):
+///   - `"Area"`             : pixel count.
+///   - `"Circularity"`      : `4·π·Area / Perimeter²`.
+///   - `"ConvexArea"`       : pixel count inside convex hull.
+///   - `"Eccentricity"`     : `sqrt(1 − (b/a)²)` from covariance.
+///   - `"EquivDiameter"`    : `2·sqrt(Area / π)`.
+///   - `"EulerNumber"`      : components - holes (8-conn default).
+///   - `"Extent"`           : `Area / (BBox.w · BBox.h)`.
+///   - `"FilledArea"`       : pixel count after hole-fill.
+///   - `"MajorAxisLength"`  : `2·2·sqrt(λ_max)` of pixel covariance.
+///   - `"MaxIntensity"`     : `max(I[component])` (needs marker).
+///   - `"MeanIntensity"`    : `mean(I[component])` (needs marker).
+///   - `"MinIntensity"`     : `min(I[component])` (needs marker).
+///   - `"MinorAxisLength"`  : `2·2·sqrt(λ_min)`.
+///   - `"Orientation"`      : angle of major axis, in degrees,
+///                            `[-90, 90]`, sign-flipped y-axis.
+///   - `"Perimeter"`        : Tomas-Holst weighted boundary count.
+///   - `"PerimeterOld"`     : pre-2017 perimeter via 4-conn edges.
+///   - `"Solidity"`         : `Area / ConvexArea`.
+///
+/// @param BW              Logical mask (`Value::Empty` when passing CC).
+/// @param CC              CC struct (`Value::Empty` when passing BW).
+/// @param marker          Grayscale marker image for intensity attribs
+///                        (`Value::Empty` if not needed).
+/// @param attribute       One of the 17 strings above.
+/// @param p_min,p_max     If `keep_n == 0`: filter by range
+///                        `[p_min, p_max]`.
+/// @param keep_n          Top-N selector (>0). Use 0 for range mode.
+/// @param keep_largest    `true` = largest-N, `false` = smallest-N
+///                        (only matters when `keep_n > 0`).
+/// @param conn            4 or 8 (default 8).
+/// @param mr              Memory resource (nullptr → process default).
+/// @return                Filtered output: LOGICAL mask if BW input,
+///                        CC struct (with filtered PixelIdxList) if
+///                        CC input.
+/// @see bwconncomp, bwareafilt, cc2bw, labelmatrix
+Value bwpropfilt(const Value &BW, const Value &CC, const Value &marker,
+                 const std::string &attribute,
+                 double p_min, double p_max,
+                 std::size_t keep_n, bool keep_largest,
+                 int conn,
+                 std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Total foreground area (`A = bwarea(BW)`).
 ///
 /// Returns the integer pixel count (the optional quarter-pixel
