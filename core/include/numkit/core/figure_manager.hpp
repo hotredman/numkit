@@ -247,6 +247,18 @@ struct AxesState
 
     std::string thetaDir = "counterclockwise";
     std::string thetaZeroLocation = "right";
+    // Custom polar tick positions + labels — MATLAB thetaticks(),
+    // rticks(), thetaticklabels(), rticklabels(). Empty JSON arrays
+    // = renderer falls back to its auto-generated nice ticks.
+    //   thetaticks: array of DEGREES (e.g. [0 45 90 135 180])
+    //   rticks:     array of radial values matching rlim units
+    //   *ticklabels: array of strings, one per corresponding tick;
+    //                length must match the tick array for it to take
+    //                effect (renderer drops to auto when mismatched).
+    std::string thetaticksJson;
+    std::string rticksJson;
+    std::string thetaticklabelsJson;
+    std::string rticklabelsJson;
 
     // Position in subplot grid (1-based), 0 = not a subplot
     int subplotIndex = 0;
@@ -551,6 +563,14 @@ public:
                 if (ax.polar) {
                     os << ",\"thetaDir\":\"" << ax.thetaDir << "\"";
                     os << ",\"thetaZeroLocation\":\"" << ax.thetaZeroLocation << "\"";
+                    if (!ax.thetaticksJson.empty())
+                        os << ",\"thetaticks\":"      << ax.thetaticksJson;
+                    if (!ax.rticksJson.empty())
+                        os << ",\"rticks\":"          << ax.rticksJson;
+                    if (!ax.thetaticklabelsJson.empty())
+                        os << ",\"thetaticklabels\":" << ax.thetaticklabelsJson;
+                    if (!ax.rticklabelsJson.empty())
+                        os << ",\"rticklabels\":"     << ax.rticklabelsJson;
                 }
                 if (!ax.legendLabels.empty()) {
                     os << ",\"legend\":[";
