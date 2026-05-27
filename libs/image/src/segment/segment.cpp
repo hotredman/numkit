@@ -462,6 +462,244 @@ Value gradientweight(const Value &I, double sigma_x, double sigma_y,
     return Wout;
 }
 
+// ── regionfill (Laplacian inpainting) ──────────────────────────────
+//
+// MATLAB R2025b regionfill.m algorithm:
+//
+//   1. maskPerimeter = (dilate(mask, cross) & !mask)
+//        — the 1-pixel ring of known boundary values around each hole.
+//   2. For each interior masked pixel (r, c):
+//        4 J(r,c) − J_N − J_S − J_W − J_E = sum of perimeter neighbours
+//      Pixels on the image border get a 3-neighbour stencil; corners
+//      get 2.
+//   3. Stack the equations into a sparse SPD linear system Ax = b
+//      indexed by mask pixel and solve.
+//
+// MATLAB uses sparse-direct (UMFPACK via `\`); we use unpreconditioned
+// conjugate gradient at tol 1e-12 against the implicit stencil matrix
+// (no need to materialise A — apply Laplacian directly via the mask).
+// CG converges in O(√n) iterations for the 2-D Laplacian, so a typical
+// 1000-unknown mask takes ~30 iterations.
+//
+// References: Gonzalez & Woods §3.4 (Laplacian);
+//             Press et al., *Numerical Recipes* §2.7.
+Value regionfill(const Value &I, const Value &mask,
+                 std::pmr::memory_resource *mr)
+{
+    if (I.dims().is3D())
+        throw Error("regionfill: I must be 2-D",
+                    0, 0, "regionfill", "", "m:regionfill:mustBe2D");
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    if (H < 3 || W < 3)
+        throw Error("regionfill: I must be at least 3x3",
+                    0, 0, "regionfill", "",
+                    "m:regionfill:mustBeLargerThan2by2");
+    if (mask.dims().rows() != H || mask.dims().cols() != W
+     || mask.dims().is3D())
+        throw Error("regionfill: MASK must be 2-D and the same size as I",
+                    0, 0, "regionfill", "",
+                    "m:regionfill:mustBeSameSizeAsI");
+    const std::size_t N = H * W;
+
+    // Convert mask to plain uint8 array (0/1) in column-major (matches
+    // I's storage).
+    std::pmr::vector<std::uint8_t> M(N, 0, mr);
+    if (mask.isLogical()) {
+        const std::uint8_t *src = mask.logicalData();
+        for (std::size_t i = 0; i < N; ++i) M[i] = src[i] ? 1 : 0;
+    } else {
+        for (std::size_t i = 0; i < N; ++i) {
+            const double v = mask.elemAsDouble(i);
+            if (std::isnan(v))
+                throw Error("regionfill: MASK cannot contain NaN",
+                            0, 0, "regionfill", "",
+                            "m:regionfill:maskNaN");
+            M[i] = (v != 0.0) ? 1 : 0;
+        }
+    }
+
+    // Cast I to DOUBLE for the solve; remember original class for output.
+    const ValueType inT = I.type();
+    std::pmr::vector<double> Idata(N, 0.0, mr);
+    for (std::size_t i = 0; i < N; ++i) Idata[i] = I.elemAsDouble(i);
+
+    // Helper: column-major (r, c) → linear index.
+    auto lin = [&](std::size_t r, std::size_t c) { return c * H + r; };
+
+    // Compute mask perimeter: pixels (r,c) where M[r,c]==0 AND at least
+    // one of the 4 N/S/W/E neighbours is masked.
+    std::pmr::vector<std::uint8_t> P(N, 0, mr);
+    for (std::size_t c = 0; c < W; ++c) {
+        for (std::size_t r = 0; r < H; ++r) {
+            const std::size_t k = lin(r, c);
+            if (M[k]) continue;
+            bool touches = false;
+            if (r > 0      && M[lin(r - 1, c)]) touches = true;
+            if (r + 1 < H  && M[lin(r + 1, c)]) touches = true;
+            if (c > 0      && M[lin(r, c - 1)]) touches = true;
+            if (c + 1 < W  && M[lin(r, c + 1)]) touches = true;
+            P[k] = touches ? 1 : 0;
+        }
+    }
+
+    // Build mask-pixel-to-unknown index map.
+    std::pmr::vector<std::int32_t> idxOf(N, -1, mr);
+    std::pmr::vector<std::size_t>  pixOf(mr);
+    pixOf.reserve(N / 4);
+    for (std::size_t i = 0; i < N; ++i) {
+        if (M[i]) {
+            idxOf[i] = static_cast<std::int32_t>(pixOf.size());
+            pixOf.push_back(i);
+        }
+    }
+    const std::size_t nU = pixOf.size();
+
+    // Output: start as copy of I (as DOUBLE so we can write the solve).
+    std::pmr::vector<double> Jout(Idata.begin(), Idata.end(), mr);
+
+    if (nU == 0) {
+        // No mask pixels → J = I unchanged.
+        Value J = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < N; ++i) J.doubleDataMut()[i] = Jout[i];
+        if (inT == ValueType::DOUBLE) return J;
+        Value Jc = Value::matrix(H, W, inT, mr);
+        for (std::size_t i = 0; i < N; ++i) {
+            const double v = Jout[i];
+            switch (inT) {
+                case ValueType::SINGLE: Jc.singleDataMut()[i] = static_cast<float>(v); break;
+                case ValueType::UINT8:  Jc.uint8DataMut()[i]  = static_cast<std::uint8_t>(std::clamp(v, 0.0, 255.0)); break;
+                case ValueType::UINT16: Jc.uint16DataMut()[i] = static_cast<std::uint16_t>(std::clamp(v, 0.0, 65535.0)); break;
+                case ValueType::INT8:   Jc.int8DataMut()[i]   = static_cast<std::int8_t>(std::clamp(v, -128.0, 127.0)); break;
+                case ValueType::INT16:  Jc.int16DataMut()[i]  = static_cast<std::int16_t>(std::clamp(v, -32768.0, 32767.0)); break;
+                case ValueType::INT32:  Jc.int32DataMut()[i]  = static_cast<std::int32_t>(v); break;
+                default: Jc.doubleDataMut()[i] = v; break;
+            }
+        }
+        return Jc;
+    }
+
+    // Pre-compute per-unknown stencil data:
+    //   numNbrs[i]    = # of on-grid neighbours (2/3/4)
+    //   rhs[i]        = sum of perimeter-neighbour intensities
+    //   nbrs[i]       = up to 4 unknown indices of N/S/W/E (or -1 if
+    //                   off-grid or non-mask).
+    std::pmr::vector<std::int32_t> numNbrs(nU, 0, mr);
+    std::pmr::vector<double>        rhs(nU, 0.0, mr);
+    // Flat array of 4 neighbours per unknown.
+    std::pmr::vector<std::int32_t>  nbrs(nU * 4, -1, mr);
+
+    auto add_dir = [&](std::size_t i, std::size_t nr, std::size_t nc,
+                       bool valid, std::size_t slot) {
+        if (!valid) return;
+        const std::size_t nk = lin(nr, nc);
+        ++numNbrs[i];
+        if (M[nk]) {
+            nbrs[i * 4 + slot] = idxOf[nk];
+        } else if (P[nk]) {
+            rhs[i] += Idata[nk];
+        }
+        // else: in-grid, non-mask, non-perimeter — known but contributes 0.
+    };
+
+    for (std::size_t i = 0; i < nU; ++i) {
+        const std::size_t k = pixOf[i];
+        const std::size_t c = k / H;
+        const std::size_t r = k % H;
+        add_dir(i, r - 1, c, r > 0,      0); // N
+        add_dir(i, r + 1, c, r + 1 < H,  1); // S
+        add_dir(i, r, c - 1, c > 0,      2); // W
+        add_dir(i, r, c + 1, c + 1 < W,  3); // E
+    }
+
+    // Apply A = stencil matrix (no materialisation):
+    //   y[i] = numNbrs[i] * x[i] - sum_{j in nbrs[i]} x[j]
+    auto matvec = [&](const std::pmr::vector<double> &x,
+                      std::pmr::vector<double> &y) {
+        for (std::size_t i = 0; i < nU; ++i) {
+            double s = static_cast<double>(numNbrs[i]) * x[i];
+            const std::int32_t *nb = &nbrs[i * 4];
+            if (nb[0] >= 0) s -= x[nb[0]];
+            if (nb[1] >= 0) s -= x[nb[1]];
+            if (nb[2] >= 0) s -= x[nb[2]];
+            if (nb[3] >= 0) s -= x[nb[3]];
+            y[i] = s;
+        }
+    };
+
+    // Conjugate gradient solver, tol = 1e-12 (relative).
+    std::pmr::vector<double> x(nU, 0.0, mr);
+    std::pmr::vector<double> r(nU, 0.0, mr);
+    std::pmr::vector<double> p(nU, 0.0, mr);
+    std::pmr::vector<double> Ap(nU, 0.0, mr);
+
+    for (std::size_t i = 0; i < nU; ++i) { r[i] = rhs[i]; p[i] = rhs[i]; }
+    double rdotr = 0.0;
+    double bnorm = 0.0;
+    for (std::size_t i = 0; i < nU; ++i) {
+        rdotr += r[i] * r[i];
+        bnorm += rhs[i] * rhs[i];
+    }
+    const double bn = std::sqrt(bnorm);
+    const double tol = (bn > 0.0)
+                         ? (1e-12 * bn) * (1e-12 * bn)
+                         : 1e-24;
+
+    const std::size_t maxiter = nU * 4 + 200;  // safety cap
+    for (std::size_t it = 0; it < maxiter; ++it) {
+        if (rdotr <= tol) break;
+        matvec(p, Ap);
+        double pAp = 0.0;
+        for (std::size_t i = 0; i < nU; ++i) pAp += p[i] * Ap[i];
+        if (pAp <= 0.0) break;
+        const double alpha = rdotr / pAp;
+        for (std::size_t i = 0; i < nU; ++i) {
+            x[i] += alpha * p[i];
+            r[i] -= alpha * Ap[i];
+        }
+        double rdotr_new = 0.0;
+        for (std::size_t i = 0; i < nU; ++i) rdotr_new += r[i] * r[i];
+        const double beta = rdotr_new / rdotr;
+        for (std::size_t i = 0; i < nU; ++i)
+            p[i] = r[i] + beta * p[i];
+        rdotr = rdotr_new;
+    }
+
+    // Write solution back to Jout.
+    for (std::size_t i = 0; i < nU; ++i) Jout[pixOf[i]] = x[i];
+
+    // Build typed output.
+    Value J = Value::matrix(H, W, inT, mr);
+    if (inT == ValueType::DOUBLE) {
+        double *p_ = J.doubleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p_[i] = Jout[i];
+    } else if (inT == ValueType::SINGLE) {
+        float *p_ = J.singleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p_[i] = static_cast<float>(Jout[i]);
+    } else {
+        // Integer classes: round + saturate.
+        auto saturate = [&](double v, double lo, double hi) {
+            v = std::round(v);
+            if (v < lo) v = lo;
+            if (v > hi) v = hi;
+            return v;
+        };
+        for (std::size_t i = 0; i < N; ++i) {
+            const double v = Jout[i];
+            switch (inT) {
+                case ValueType::UINT8:  J.uint8DataMut()[i]  = static_cast<std::uint8_t>(saturate(v, 0.0, 255.0)); break;
+                case ValueType::UINT16: J.uint16DataMut()[i] = static_cast<std::uint16_t>(saturate(v, 0.0, 65535.0)); break;
+                case ValueType::UINT32: J.uint32DataMut()[i] = static_cast<std::uint32_t>(saturate(v, 0.0, 4294967295.0)); break;
+                case ValueType::INT8:   J.int8DataMut()[i]   = static_cast<std::int8_t>(saturate(v, -128.0, 127.0)); break;
+                case ValueType::INT16:  J.int16DataMut()[i]  = static_cast<std::int16_t>(saturate(v, -32768.0, 32767.0)); break;
+                case ValueType::INT32:  J.int32DataMut()[i]  = static_cast<std::int32_t>(saturate(v, -2147483648.0, 2147483647.0)); break;
+                default: J.doubleDataMut()[i] = v; break;
+            }
+        }
+    }
+    return J;
+}
+
 Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::memory_resource *mr)
 {
     if (color.numel() != 3)
@@ -771,6 +1009,23 @@ void gradientweight_reg(Span<const Value> a, size_t, Span<Value> o,
                     "m:gradientweight:unpaired");
 
     o[0] = gradientweight(I, sigma_x, sigma_y, rolloff, cutoff, mr);
+}
+
+// regionfill adapter — (I, mask) form only. (I, x, y) polygon form
+// requires poly2mask (separate fn, not yet implemented).
+void regionfill_reg(Span<const Value> a, size_t, Span<Value> o,
+                    CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("regionfill: requires (I, MASK) or (I, X, Y)",
+                    0, 0, "regionfill", "", "m:regionfill:nargin");
+    auto *mr = c.engine->resource();
+    if (a.size() >= 3)
+        throw Error("regionfill: (I, X, Y) polygon form requires "
+                    "poly2mask which is not yet implemented; use "
+                    "(I, MASK) form",
+                    0, 0, "regionfill", "", "m:regionfill:polyNotImpl");
+    o[0] = regionfill(a[0], a[1], mr);
 }
 
 void label2idx_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)

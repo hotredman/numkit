@@ -169,6 +169,39 @@ Value gradientweight(const Value &I, double sigma_x, double sigma_y,
                      double rolloff_factor, double weight_cutoff,
                      std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Fill image regions via inward Laplacian interpolation
+/// (`J = regionfill(I, MASK)`).
+///
+/// Smoothly inpaints the masked region by solving the discrete
+/// Dirichlet boundary value problem
+///   @f$ \nabla^2 J = 0 @f$
+/// over masked pixels, with the unmasked pixels on the mask
+/// perimeter as boundary conditions.  Each interior unknown
+/// satisfies @f$ 4 J(r,c) - J_N - J_S - J_W - J_E = 0 @f$; for
+/// pixels on the image border the on-grid neighbour count drops
+/// to 3 (edge) or 2 (corner). Solved with conjugate gradient at
+/// tol 1e-12 (matrix is sparse SPD; ~`sqrt(nMask)` iterations).
+///
+/// References: Gonzalez & Woods, *Digital Image Processing*,
+/// §3.4 (Laplacian); Press et al., *Numerical Recipes*, §2.7
+/// (sparse iterative solvers).
+///
+/// **Constraints:**
+///   * `I` 2-D numeric, ≥ 3 × 3.
+///   * `MASK` same size as `I`, logical or numeric (cast to
+///     logical; NaNs are forbidden).
+///   * Polygon form `regionfill(I, X, Y)` requires `poly2mask`
+///     (separate function, not yet implemented).
+///
+/// Output class equals input class (cast back from DOUBLE solve).
+///
+/// @param I     2-D grayscale image (any real numeric class).
+/// @param mask  Logical mask of pixels to fill.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Filled image, same class and shape as `I`.
+Value regionfill(const Value &I, const Value &mask,
+                 std::pmr::memory_resource *mr = nullptr);
+
 /// Paint a binary mask onto an image with a colour
 /// (`J = imoverlay(I, BW, color)`).
 ///
