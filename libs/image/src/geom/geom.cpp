@@ -556,6 +556,271 @@ Value impyramid(const Value &A, const std::string &type, std::pmr::memory_resour
     return B;
 }
 
+// ── imresize3 (3-D volume resampling, MATLAB R2025b imresize3.m) ────
+//
+// Separable 1-D resampling along H / W / D with the same kernel and
+// boundary convention as MATLAB's imresize:
+//
+//   * 1-indexed source coordinate     u = o/scale + 0.5(1 − 1/scale)
+//   * mirror boundary on the source   aux = [1..N, N..1], cycle 2N
+//   * P = ceil(kernel_width) + 2      taps per output sample
+//   * antialiasing for shrink         h(x) = scale·k(scale·x)
+//                                      kw   = kw_base / scale
+//   * weights normalized to sum 1
+//
+// References:
+//   * Keys, "Cubic convolution interpolation for digital image
+//     processing", IEEE TASSP, 1981 — Catmull-Rom cubic (a = −0.5)
+//     used here as MATLAB's default 'cubic'.
+//   * Duchon, "Lanczos filtering in 1- and 2-dimensional kernel
+//     interpolation", J. Appl. Meteor., 1979 — Lanczos windowed sinc.
+//   * Smith, "A pixel is not a little square…", Microsoft Tech Memo
+//     6, 1995 — pixel-center coordinate convention used by MATLAB.
+//
+// Kernel half-widths (kernel_width here is total support, MATLAB
+// convention):
+//   nearest    -- handled directly (no kernel)
+//   box        kw = 1
+//   triangle / linear kw = 2
+//   cubic      kw = 4
+//   lanczos2   kw = 4
+//   lanczos3   kw = 6
+//
+namespace {
+
+inline double k_box(double x) {
+    return (x >= -0.5 && x < 0.5) ? 1.0 : 0.0;
+}
+inline double k_triangle(double x) {
+    x = std::fabs(x);
+    return (x < 1.0) ? (1.0 - x) : 0.0;
+}
+inline double k_cubic(double x) {
+    const double a = std::fabs(x);
+    if (a < 1.0) return ((1.5 * a - 2.5) * a * a + 1.0);
+    if (a < 2.0) return (((-0.5 * a + 2.5) * a - 4.0) * a + 2.0);
+    return 0.0;
+}
+inline double sinc_pi(double x) {
+    if (std::fabs(x) < 1e-12) return 1.0;
+    const double px = M_PI * x;
+    return std::sin(px) / px;
+}
+inline double k_lanczos2(double x) {
+    return (std::fabs(x) < 2.0) ? sinc_pi(x) * sinc_pi(x / 2.0) : 0.0;
+}
+inline double k_lanczos3(double x) {
+    return (std::fabs(x) < 3.0) ? sinc_pi(x) * sinc_pi(x / 3.0) : 0.0;
+}
+
+struct R3Kernel { double (*fn)(double); double width; bool isNearest; };
+
+R3Kernel parseR3Kernel(const std::string &m) {
+    auto eq = [&](const char *s) { return m == s; };
+    if (eq("nearest") || eq("Nearest"))   return {nullptr,      0.0, true};
+    if (eq("box") || eq("Box"))           return {k_box,        1.0, false};
+    if (eq("triangle") || eq("Triangle") ||
+        eq("linear")   || eq("Linear")  ||
+        eq("bilinear") || eq("Bilinear"))
+                                          return {k_triangle,   2.0, false};
+    if (eq("cubic") || eq("Cubic") ||
+        eq("bicubic") || eq("Bicubic"))   return {k_cubic,      4.0, false};
+    if (eq("lanczos2") || eq("Lanczos2")) return {k_lanczos2,   4.0, false};
+    if (eq("lanczos3") || eq("Lanczos3")) return {k_lanczos3,   6.0, false};
+    throw Error("imresize3: unknown method '" + m + "'",
+                0, 0, "imresize3", "", "m:imresize3:method");
+}
+
+struct ContribRow { int firstIdx; std::vector<double> w; };  // firstIdx 0-indexed
+
+std::vector<ContribRow>
+buildContrib(size_t inLen, size_t outLen, double scale,
+             const R3Kernel &k, bool aa)
+{
+    // `scale` is the user-supplied scale (NOT outLen/inLen) — MATLAB
+    // distinguishes the two even when round(scale*inLen)==outLen.
+    // For the size-vector overload the caller passes outLen/inLen.
+    double kw  = k.width;
+    double scl = 1.0;
+    if (aa && scale < 1.0) { scl = scale; kw = k.width / scale; }
+    const int P = static_cast<int>(std::ceil(kw)) + 2;
+
+    std::vector<ContribRow> rows(outLen);
+    for (size_t o = 0; o < outLen; ++o) {
+        // MATLAB 1-indexed input center
+        const double u = (double(o) + 1.0) / scale + 0.5 * (1.0 - 1.0 / scale);
+        const int left = static_cast<int>(std::floor(u - kw / 2.0));  // 1-indexed
+        ContribRow &row = rows[o];
+        row.firstIdx = left - 1;            // convert to 0-indexed
+        row.w.assign(P, 0.0);
+        double sum = 0.0;
+        for (int j = 0; j < P; ++j) {
+            const double off = u - double(left + j);
+            const double w   = scl * k.fn(scl * off);
+            row.w[j] = w;
+            sum += w;
+        }
+        if (sum != 0.0)
+            for (auto &w : row.w) w /= sum;
+    }
+    return rows;
+}
+
+inline int mirrorIdx(int i, int N) {
+    if (N <= 1) return 0;
+    const int cycle = 2 * N;
+    int m = ((i % cycle) + cycle) % cycle;
+    if (m >= N) m = cycle - 1 - m;
+    return m;
+}
+
+} // anonymous
+
+// Lower-level entry: scale is the user-supplied (per-axis) scale.
+// Pass scale=outLen/inLen for the size-vector branch.
+Value imresize3_core(const Value &V,
+                     size_t outR, size_t outC, size_t outD,
+                     double scaleY, double scaleX, double scaleZ,
+                     const std::string &method, bool antialias,
+                     std::pmr::memory_resource *mr)
+{
+    const auto &dims = V.dims();
+    if (dims.ndims() < 2)
+        throw Error("imresize3: V must be a 3-D volume",
+                    0, 0, "imresize3", "", "m:imresize3:rank");
+    const size_t inR = dims.dim(0);
+    const size_t inC = (dims.ndims() >= 2) ? dims.dim(1) : 1;
+    const size_t inD = (dims.ndims() >= 3) ? dims.dim(2) : 1;
+    if (V.numel() != inR * inC * inD)
+        throw Error("imresize3: V must be a 3-D numeric volume",
+                    0, 0, "imresize3", "", "m:imresize3:shape");
+
+    const ValueType T = V.type();
+    if (outR == 0 || outC == 0 || outD == 0)
+        return Value::matrix3d(outR, outC, outD, T, mr);
+
+    const R3Kernel k = parseR3Kernel(method);
+
+    // Nearest-neighbour fast path. MATLAB's nearest uses the centered-
+    // coord mapping (same u as the kernel path) then rounds.
+    if (k.isNearest) {
+        Value B = Value::matrix3d(outR, outC, outD, T, mr);
+        auto uCoord = [](double o1, double sc) {
+            return (o1) / sc + 0.5 * (1.0 - 1.0 / sc);
+        };
+        for (size_t z = 0; z < outD; ++z) {
+            const double uz = uCoord(double(z) + 1.0, scaleZ);
+            int zi = static_cast<int>(std::floor(uz + 0.5)) - 1;
+            zi = mirrorIdx(zi, static_cast<int>(inD));
+            for (size_t x = 0; x < outC; ++x) {
+                const double ux = uCoord(double(x) + 1.0, scaleX);
+                int xi = static_cast<int>(std::floor(ux + 0.5)) - 1;
+                xi = mirrorIdx(xi, static_cast<int>(inC));
+                for (size_t y = 0; y < outR; ++y) {
+                    const double uy = uCoord(double(y) + 1.0, scaleY);
+                    int yi = static_cast<int>(std::floor(uy + 0.5)) - 1;
+                    yi = mirrorIdx(yi, static_cast<int>(inR));
+                    const double v = V.elemAsDouble(
+                        size_t(yi) + size_t(xi) * inR + size_t(zi) * inR * inC);
+                    writeNative(B, y + x * outR + z * outR * outC, v, T);
+                }
+            }
+        }
+        return B;
+    }
+
+    auto cy = buildContrib(inR, outR, scaleY, k, antialias);
+    auto cx = buildContrib(inC, outC, scaleX, k, antialias);
+    auto cz = buildContrib(inD, outD, scaleZ, k, antialias);
+
+    // Pass 1: along rows.   tmp1[outR × inC × inD]
+    std::vector<double> tmp1(outR * inC * inD);
+    for (size_t z = 0; z < inD; ++z) {
+        for (size_t x = 0; x < inC; ++x) {
+            for (size_t y = 0; y < outR; ++y) {
+                const ContribRow &r = cy[y];
+                double s = 0.0;
+                for (size_t j = 0; j < r.w.size(); ++j) {
+                    const int yi = mirrorIdx(r.firstIdx + int(j), int(inR));
+                    s += r.w[j] *
+                         V.elemAsDouble(size_t(yi) + x * inR + z * inR * inC);
+                }
+                tmp1[y + x * outR + z * outR * inC] = s;
+            }
+        }
+    }
+
+    // Pass 2: along cols.   tmp2[outR × outC × inD]
+    std::vector<double> tmp2(outR * outC * inD);
+    for (size_t z = 0; z < inD; ++z) {
+        for (size_t x = 0; x < outC; ++x) {
+            const ContribRow &r = cx[x];
+            for (size_t y = 0; y < outR; ++y) {
+                double s = 0.0;
+                for (size_t j = 0; j < r.w.size(); ++j) {
+                    const int xi = mirrorIdx(r.firstIdx + int(j), int(inC));
+                    s += r.w[j] * tmp1[y + size_t(xi) * outR + z * outR * inC];
+                }
+                tmp2[y + x * outR + z * outR * outC] = s;
+            }
+        }
+    }
+
+    // Pass 3: along planes.  B [outR × outC × outD], with class clip.
+    Value B = Value::matrix3d(outR, outC, outD, T, mr);
+    for (size_t z = 0; z < outD; ++z) {
+        const ContribRow &r = cz[z];
+        for (size_t x = 0; x < outC; ++x) {
+            for (size_t y = 0; y < outR; ++y) {
+                double s = 0.0;
+                for (size_t j = 0; j < r.w.size(); ++j) {
+                    const int zi = mirrorIdx(r.firstIdx + int(j), int(inD));
+                    s += r.w[j] *
+                         tmp2[y + x * outR + size_t(zi) * outR * outC];
+                }
+                writeNative(B, y + x * outR + z * outR * outC, s, T);
+            }
+        }
+    }
+    return B;
+}
+
+Value imresize3(const Value &V,
+                size_t outR, size_t outC, size_t outD,
+                const std::string &method, bool antialias,
+                std::pmr::memory_resource *mr)
+{
+    // Size-vector entry: use outLen/inLen as the per-axis scale.
+    const auto &dims = V.dims();
+    const size_t inR = dims.dim(0);
+    const size_t inC = (dims.ndims() >= 2) ? dims.dim(1) : 1;
+    const size_t inD = (dims.ndims() >= 3) ? dims.dim(2) : 1;
+    return imresize3_core(V, outR, outC, outD,
+        double(outR) / double(inR ? inR : 1),
+        double(outC) / double(inC ? inC : 1),
+        double(outD) / double(inD ? inD : 1),
+        method, antialias, mr);
+}
+
+Value imresize3(const Value &V, double scale,
+                const std::string &method, bool antialias,
+                std::pmr::memory_resource *mr)
+{
+    if (!(scale > 0.0))
+        throw Error("imresize3: scale must be > 0",
+                    0, 0, "imresize3", "", "m:imresize3:scale");
+    const auto &dims = V.dims();
+    const size_t inR = dims.dim(0);
+    const size_t inC = (dims.ndims() >= 2) ? dims.dim(1) : 1;
+    const size_t inD = (dims.ndims() >= 3) ? dims.dim(2) : 1;
+    return imresize3_core(V,
+        static_cast<size_t>(std::round(scale * double(inR))),
+        static_cast<size_t>(std::round(scale * double(inC))),
+        static_cast<size_t>(std::round(scale * double(inD))),
+        scale, scale, scale,
+        method, antialias, mr);
+}
+
 namespace detail {
 
 static std::string argString(const Value &v) {
@@ -651,6 +916,147 @@ void impyramid_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                     "m:impyramid:nargin");
     const std::string type = argString(args[1]);
     outs[0] = impyramid(args[0], type, ctx.engine->resource());
+}
+
+// imresize3 — MATLAB:
+//   B = imresize3(V, scale)
+//   B = imresize3(V, [r c d])
+//   B = imresize3(___, method)
+//   B = imresize3(___, Name=Value)         Method / Antialiasing / Scale / OutputSize
+void imresize3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                   CallContext &ctx)
+{
+    if (args.size() < 1)
+        throw Error("imresize3: requires (V, scale_or_size [, method] [, NV])",
+                    0, 0, "imresize3", "", "m:imresize3:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &V = args[0];
+
+    // Defaults
+    std::string method = "cubic";
+    bool antialiasSet  = false;
+    bool antialias     = true;        // initial — recomputed once scale known
+    bool haveScaleNum  = false;       // scalar Scale OR per-axis Scale
+    double scaleScalar = 1.0;
+    std::vector<double> scaleVec3;    // length 3 if 3-vec scale provided
+    bool haveSize3     = false;
+    size_t outRows = 0, outCols = 0, outDeps = 0;
+
+    // Positional: scale/size, then optional method (string).
+    size_t i = 1;
+    if (args.size() >= 2 && !args[1].isEmpty()
+        && !args[1].isChar() && !args[1].isString()) {
+        const Value &s = args[1];
+        if (s.numel() == 1) {
+            haveScaleNum = true; scaleScalar = s.toScalar();
+        } else if (s.numel() == 3) {
+            haveSize3 = true;
+            outRows = static_cast<size_t>(s.elemAsDouble(0));
+            outCols = static_cast<size_t>(s.elemAsDouble(1));
+            outDeps = static_cast<size_t>(s.elemAsDouble(2));
+        } else {
+            throw Error("imresize3: 2nd arg must be scalar scale or "
+                        "[numrows numcols numplanes]",
+                        0, 0, "imresize3", "", "m:imresize3:size");
+        }
+        i = 2;
+    }
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        const std::string s = argString(args[i]);
+        // First trailing string is the method positional. Subsequent
+        // strings are NV-pair names handled in the loop below.
+        // Heuristic: only treat as positional method if it's NOT a
+        // known NV-pair name.
+        const bool isNV = (s == "Antialiasing" || s == "antialiasing" ||
+                           s == "Method"       || s == "method" ||
+                           s == "OutputSize"   || s == "outputsize" ||
+                           s == "Scale"        || s == "scale");
+        if (!isNV) { method = s; ++i; }
+    }
+
+    // NV pairs.
+    while (i + 1 < args.size()) {
+        const std::string name = argString(args[i]);
+        const Value &val = args[i + 1];
+        if (name == "Antialiasing" || name == "antialiasing") {
+            antialiasSet = true;
+            antialias = (val.toScalar() != 0.0);
+        } else if (name == "Method" || name == "method") {
+            method = argString(val);
+        } else if (name == "OutputSize" || name == "outputsize") {
+            if (val.numel() != 3)
+                throw Error("imresize3: OutputSize must be a 3-element vector",
+                            0, 0, "imresize3", "", "m:imresize3:size");
+            haveSize3 = true;
+            outRows = static_cast<size_t>(val.elemAsDouble(0));
+            outCols = static_cast<size_t>(val.elemAsDouble(1));
+            outDeps = static_cast<size_t>(val.elemAsDouble(2));
+        } else if (name == "Scale" || name == "scale") {
+            if (val.numel() == 1) {
+                haveScaleNum = true; scaleScalar = val.toScalar();
+            } else if (val.numel() == 3) {
+                scaleVec3.assign({val.elemAsDouble(0),
+                                  val.elemAsDouble(1),
+                                  val.elemAsDouble(2)});
+            } else {
+                throw Error("imresize3: Scale must be a positive number "
+                            "or a 3-element vector",
+                            0, 0, "imresize3", "", "m:imresize3:scaleNV");
+            }
+        } else {
+            throw Error("imresize3: unknown name-value parameter '"
+                        + name + "'",
+                        0, 0, "imresize3", "", "m:imresize3:nv");
+        }
+        i += 2;
+    }
+
+    // Resolve output dims.
+    const auto &d = V.dims();
+    const size_t inR = d.dim(0);
+    const size_t inC = (d.ndims() >= 2) ? d.dim(1) : 1;
+    const size_t inD = (d.ndims() >= 3) ? d.dim(2) : 1;
+    if (!haveSize3) {
+        double sR, sC, sD;
+        if (!scaleVec3.empty()) {
+            sR = scaleVec3[0]; sC = scaleVec3[1]; sD = scaleVec3[2];
+        } else if (haveScaleNum) {
+            sR = sC = sD = scaleScalar;
+        } else {
+            throw Error("imresize3: must specify scale, size, or "
+                        "Scale/OutputSize NV",
+                        0, 0, "imresize3", "", "m:imresize3:noSize");
+        }
+        if (!(sR > 0 && sC > 0 && sD > 0))
+            throw Error("imresize3: scale factors must be > 0",
+                        0, 0, "imresize3", "", "m:imresize3:scale");
+        outRows = static_cast<size_t>(std::round(sR * double(inR)));
+        outCols = static_cast<size_t>(std::round(sC * double(inC)));
+        outDeps = static_cast<size_t>(std::round(sD * double(inD)));
+    }
+
+    // Per-axis scale that drives the u formula. MATLAB uses the
+    // user-supplied scale when given (scalar or 3-vec), and out/in
+    // when only a size vector is given — these produce DIFFERENT
+    // values even when round(scale * inLen) == outLen.
+    double scY, scX, scZ;
+    if (haveSize3 && scaleVec3.empty() && !haveScaleNum) {
+        scY = double(outRows) / double(inR ? inR : 1);
+        scX = double(outCols) / double(inC ? inC : 1);
+        scZ = double(outDeps) / double(inD ? inD : 1);
+    } else if (!scaleVec3.empty()) {
+        scY = scaleVec3[0]; scX = scaleVec3[1]; scZ = scaleVec3[2];
+    } else {  // scalar scale (positional or 'Scale' NV)
+        scY = scX = scZ = scaleScalar;
+    }
+
+    // Resolve antialiasing default = true if any output dim < input dim
+    if (!antialiasSet) {
+        antialias = (outRows < inR) || (outCols < inC) || (outDeps < inD);
+    }
+
+    outs[0] = imresize3_core(V, outRows, outCols, outDeps,
+                             scY, scX, scZ, method, antialias, mr);
 }
 
 } // namespace detail

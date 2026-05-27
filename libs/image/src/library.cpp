@@ -273,6 +273,7 @@ void bwdistgeodesic_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // geom/geom.cpp
 void imresize_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imresize3_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcrop_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcrop3_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imrotate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -540,6 +541,7 @@ void ImageLibrary::install(Engine &engine)
     reg("io", "imfinfo", &image::detail::imfinfo_reg);
 
     reg("geom", "imresize",    &image::detail::imresize_reg);
+    reg("geom", "imresize3",   &image::detail::imresize3_reg);
     reg("geom", "imcrop",      &image::detail::imcrop_reg);
     reg("geom", "imcrop3",     &image::detail::imcrop3_reg);
     reg("geom", "imrotate",    &image::detail::imrotate_reg);

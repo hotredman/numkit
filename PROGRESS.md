@@ -1681,7 +1681,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imcrop3` | ✅ | 0.005 | 1.00× |  | OK | Sig: Vout = imcrop3(V, cuboid). 3-D / 4-D volume cropping. cuboid = [XMIN YMIN ZMIN WIDTH HEIGHT DEPTH] in MATLAB's spatial X/Y/Z = col/row/page convention. Output extracts V(round(YMIN):round(YMIN+HEIGHT), round(XMIN):round(XMIN+WIDTH), round(ZMIN):round(ZMIN+DEPTH), :) — inclusive (width+1) × (height+1) × (depth+1) block. 4th dim (channels/time) passes through unchanged. Class-preserving for numeric, logical, and integer volumes. Out-of-bounds cuboid throws (matches MATLAB error msg). Bit-equal MATLAB R2025b on all probed cases. 9 gtest TEST_F cover 3-D shape + values, interior crop, non-integer rounding, 4-D pass-through + class preservation, out-of-bounds throws, bad cuboid length, low-dim input. |
 | `impyramid` | ✅ | 0.004 | 1807.01× | 225.63× | OK | Sig: r = impyramid(...). Spec-extension batch 2026-05-09. |
 | `imresize` | ✅ | 0.005 | 683.41× | 190.17× | OK | Sig: r = imresize(...). Spec-extension batch 2026-05-09 (image namespace). |
-| `imresize3` | ❌ |  |  |  |  |  |
+| `imresize3` | ✅ | 0.117 | 58.88× |  | OK | imresize3 — 3-D volume resampling. Covers: scale=2 (cubic default, nearest, linear), shrink scale=0.5 (cubic+AA default, linear, box, cubic noAA), explicit size vector [2 2 3] (uses out/in scale per axis), Lanczos2/3 kernels, even 4x4x4 input, NV-pair 'Scale' and 'OutputSize'. tol=1e-6 (lanczos referenced to MATLAB at ~1e-7). |
 | `imrotate` | ✅ | 0.004 | 354.18× | 63.68× | OK | Sig: r = imrotate(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `imrotate3` | ❌ |  |  |  |  |  |
 | `imtransform` | ❌ |  |  |  |  | legacy maketform path |

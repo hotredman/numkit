@@ -125,6 +125,43 @@ Value imtranslate(const Value &A, double dx, double dy,
 Value axes2pix(double n, const Value &extent, const Value &axesCoord,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Resample a 3-D volume to a new size
+/// (`B = imresize3(V, scale|[r c d], method, ...)`).
+///
+/// Separable 1-D resampling along rows / cols / planes using the
+/// same kernel and boundary convention as MATLAB R2025b imresize:
+/// 1-indexed centered coordinate `u = o/scale + 0.5·(1 − 1/scale)`,
+/// mirror boundary `aux = [1..N, N..1]` of cycle `2N`,
+/// `P = ⌈kernel_width⌉ + 2` taps per output sample, weights
+/// normalized to sum to 1. With `antialias = true` and a shrink
+/// (`scale < 1`) the kernel is stretched via
+/// `h(x) = scale · k(scale · x)` (MATLAB's anti-aliasing).
+///
+/// References:
+/// - Keys 1981 — Catmull-Rom cubic (default 'cubic', `a = −0.5`).
+/// - Duchon 1979 — Lanczos windowed-sinc kernels.
+/// - Smith 1995 ("A pixel is not a little square…") — pixel-center
+///   coordinate convention.
+///
+/// @param V         3-D numeric volume.
+/// @param outR      Output row count.
+/// @param outC      Output column count.
+/// @param outD      Output plane count.
+/// @param method    `"nearest"`, `"box"`, `"triangle"` (= `"linear"`),
+///                  `"cubic"` (default), `"lanczos2"`, or `"lanczos3"`.
+/// @param antialias `true` to enable anti-aliasing when shrinking.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Resampled volume; element type preserved with clip.
+Value imresize3(const Value &V, size_t outR, size_t outC, size_t outD,
+                const std::string &method, bool antialias,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Resample a 3-D volume by a uniform scale factor
+/// (`B = imresize3(V, scale, ...)`). See size-vector overload.
+Value imresize3(const Value &V, double scale,
+                const std::string &method, bool antialias,
+                std::pmr::memory_resource *mr = nullptr);
+
 /// Burt–Adelson image pyramid step (`B = impyramid(A, type)`).
 ///
 /// Implements one level of the classic Burt–Adelson Gaussian pyramid
