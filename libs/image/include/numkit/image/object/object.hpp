@@ -228,4 +228,37 @@ Value houghpeaks(const Value &H, std::size_t numpeaks,
                  const Value &theta_deg,
                  std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Extract line segments from Hough-transform peaks
+/// (`lines = houghlines(BW, theta, rho, peaks, ...)`).
+///
+/// Walks each peak from @ref houghpeaks, finds the nonzero pixels of
+/// `BW` that map to that bin, sorts them along the line direction,
+/// then splits the run into segments wherever consecutive pixels are
+/// farther than `FillGap` apart. Segments shorter than `MinLength`
+/// are discarded.
+///
+/// Returned struct-array fields per segment:
+///   * `point1`  — `[x1, y1]` endpoint (1-based image coords).
+///   * `point2`  — `[x2, y2]` endpoint.
+///   * `theta`   — bin angle in degrees.
+///   * `rho`     — bin distance.
+///
+/// Reference: Gonzalez/Woods/Eddins, *Digital Image Processing
+/// Using MATLAB*, Prentice Hall 2003.
+///
+/// @param BW         2-D binary image (logical or numeric).
+/// @param theta_deg  θ vector from @ref hough.
+/// @param rho        ρ vector from @ref hough.
+/// @param peaks      `P × 2` index matrix from @ref houghpeaks.
+/// @param fillgap    Merge consecutive sub-segments within this
+///                   pixel distance. Default 20.
+/// @param minlength  Discard segments shorter than this. Default 40.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           `1 × N` struct array (possibly empty) with the
+///                   four fields above.
+Value houghlines(const Value &BW, const Value &theta_deg,
+                 const Value &rho, const Value &peaks,
+                 double fillgap, double minlength,
+                 std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::image

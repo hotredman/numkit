@@ -1910,7 +1910,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `edge` | ✅ | 0.007 | 150.03× |  | OK | Sig: r = edge(...). Spec-extension batch 2026-05-09 (image namespace). |
 | `edge3` | ❌ |  |  |  |  |  |
 | `hough` | ✅ | 0.179 | 27.36× |  | OK | Sig: [H,T,R] = hough(BW [, NV...]); P = houghpeaks(H, npks [, NV...]). Branches: default Hough, RhoResolution override, custom Theta vector, houghpeaks default + Threshold + NHoodSize + Theta wrap-around. Bit-exact MATLAB R2025b (tol=0). Reference: Gonzalez/Woods/Eddins, *Digital Image Processing Using MATLAB*, 2nd ed., Gatesmark, 2009. Image namespace 2026-05-27. |
-| `houghlines` | ❌ |  |  |  |  |  |
+| `houghlines` | ✅ | 0.017 | 168.47× |  | OK | Sig: lines = houghlines(BW, theta, rho, peaks [, NV...]). Branches: default fillgap=20 minlength=40, custom FillGap/MinLength (3 small example), single peak. Returns struct array with point1/point2 [x y] endpoints + theta + rho. Bit-exact MATLAB R2025b (tol=0). Reference: Gonzalez/Woods/Eddins, *Digital Image Processing Using MATLAB*, Prentice Hall, 2003. Image namespace 2026-05-27. |
 | `houghpeaks` | ❌ |  |  |  |  |  |
 | `imfindcircles` | ❌ |  |  |  |  | circle Hough |
 | `imgradient` | ✅ | 0.006 | 262.53× |  | OK | Sig: r = imgradient(...). Spec-extension batch 2026-05-09 (image namespace). |
