@@ -258,6 +258,259 @@ Value rgbwide2ycbcr(const Value &RGB, int bits_per_sample,
     return out;
 }
 
+// ── cmunique (remove duplicate colormap entries) ───────────────────
+//
+// MATLAB R2025b cmunique.m algorithm (transliterated verbatim):
+//
+//   tol = 1/1024
+//   map  = round(map / tol) * tol                — quantise
+//   [~, ndx] = sortrows(map, [3 2 1])             — sort by (B, G, R)
+//   pos(ndx) = 1:length(ndx)                      — inverse perm
+//   d  = all(abs(diff(map(ndx,:)))' < tol)'       — consecutive dup
+//   loc = (1:length(ndx))' - [0; cumsum(d)]       — sorted→compressed
+//   c(:) = loc(pos(c))                            — remap indices
+//   ndx(d) = []                                   — drop dup rows
+//   map = map(ndx, :)                             — compressed map
+//   n  = histcounts(c, 1:nmap+1)
+//   d  = (n == 0)                                  — unused rows
+//   loc = (1:nmap) - cumsum(d)                    — compressed→final
+//   c(:) = loc(c)
+//   map(d, :) = []
+//   if max(c) ≤ 256: c = uint8(c - 1)             — 0-based output
+//
+// For the (RGB) and (I) one-arg forms, build the per-pixel "big
+// colormap" (1 row per pixel, im2double-converted) and `c =
+// reshape(1:m*n, m, n)` first, then run the same compression pass.
+//
+// Reference: see MATLAB toolbox source
+// `toolbox/matlab/graphics/graphics/graph3d/cmunique.m`.
+
+namespace {
+
+// Convert input pixel value (any class) to double in [0, 1] per
+// MATLAB's im2double rules (uint8 / uint16 scaled by intmax; double
+// and single passed through).
+inline double im2double_scalar(const Value &v, std::size_t i)
+{
+    switch (v.type()) {
+        case ValueType::UINT8:  return v.uint8Data()[i] / 255.0;
+        case ValueType::UINT16: return v.uint16Data()[i] / 65535.0;
+        case ValueType::DOUBLE: return v.doubleData()[i];
+        case ValueType::SINGLE: return static_cast<double>(v.singleData()[i]);
+        default:
+            throw Error("cmunique: unsupported image class",
+                        0, 0, "cmunique", "", "m:cmunique:cls");
+    }
+}
+
+// Core compression pass. `c` is a 1-based double index vector of
+// length N referencing `map_in` (M × 3 colormap). Outputs `(Y,
+// newmap)` per MATLAB rules — Y is uint8 if newmap has ≤ 256 rows.
+std::pair<Value, Value>
+cmunique_core(std::pmr::vector<double> &c, std::size_t H, std::size_t W,
+              const std::pmr::vector<double> &map_in, std::size_t M,
+              std::pmr::memory_resource *mr)
+{
+    constexpr double tol = 1.0 / 1024.0;
+
+    // Quantise map.
+    std::pmr::vector<double> map(3 * M, mr);
+    for (std::size_t k = 0; k < 3 * M; ++k)
+        map[k] = std::round(map_in[k] / tol) * tol;
+
+    // Sort indices by columns [3 2 1] ascending. map is col-major
+    // M × 3: map[r, c] = map_in[c * M + r].
+    std::pmr::vector<std::size_t> ndx(M, mr);
+    for (std::size_t k = 0; k < M; ++k) ndx[k] = k;
+    std::sort(ndx.begin(), ndx.end(),
+        [&](std::size_t a, std::size_t b) {
+            const double a3 = map[2 * M + a], b3 = map[2 * M + b];
+            if (a3 != b3) return a3 < b3;
+            const double a2 = map[1 * M + a], b2 = map[1 * M + b];
+            if (a2 != b2) return a2 < b2;
+            return map[0 * M + a] < map[0 * M + b];
+        });
+
+    // pos[ndx[k]] = k+1 (1-based).
+    std::pmr::vector<std::size_t> pos(M, mr);
+    for (std::size_t k = 0; k < M; ++k) pos[ndx[k]] = k + 1;
+
+    // d[k] = (consecutive sorted rows k and k+1 match within tol).
+    std::pmr::vector<unsigned char> d(M > 0 ? M - 1 : 0, 0, mr);
+    for (std::size_t k = 0; k + 1 < M; ++k) {
+        const std::size_t a = ndx[k], b = ndx[k + 1];
+        const bool same =
+            std::fabs(map[0 * M + a] - map[0 * M + b]) < tol &&
+            std::fabs(map[1 * M + a] - map[1 * M + b]) < tol &&
+            std::fabs(map[2 * M + a] - map[2 * M + b]) < tol;
+        d[k] = same ? 1 : 0;
+    }
+
+    // loc[k] = (k+1) - cumsum(d)[k]  with prefix [0; cumsum(d)].
+    std::pmr::vector<std::size_t> loc(M, mr);
+    std::size_t csum = 0;
+    for (std::size_t k = 0; k < M; ++k) {
+        loc[k] = (k + 1) - csum;
+        if (k < d.size()) csum += d[k];
+    }
+
+    // Remap c: c[i] = loc[pos[c[i] - 1] - 1].  (Both pos and loc
+    // are 1-based on output; we convert input c to 0-based then
+    // back.)
+    const std::size_t N = c.size();
+    for (std::size_t i = 0; i < N; ++i) {
+        const std::size_t orig = static_cast<std::size_t>(c[i]) - 1;
+        const std::size_t sorted_pos = pos[orig] - 1;
+        c[i] = static_cast<double>(loc[sorted_pos]);
+    }
+
+    // Drop duplicate rows from ndx (positions where d is true).
+    std::pmr::vector<std::size_t> kept_ndx(mr);
+    kept_ndx.reserve(M);
+    for (std::size_t k = 0; k < M; ++k) {
+        const bool drop = (k < d.size()) && d[k];
+        if (!drop) kept_ndx.push_back(ndx[k]);
+    }
+    const std::size_t nmap1 = kept_ndx.size();
+
+    // Build compressed map.
+    std::pmr::vector<double> map1(3 * nmap1, mr);
+    for (std::size_t k = 0; k < nmap1; ++k) {
+        map1[0 * nmap1 + k] = map[0 * M + kept_ndx[k]];
+        map1[1 * nmap1 + k] = map[1 * M + kept_ndx[k]];
+        map1[2 * nmap1 + k] = map[2 * M + kept_ndx[k]];
+    }
+
+    // Count usage of each compressed colour.
+    std::pmr::vector<std::size_t> nuse(nmap1, 0, mr);
+    for (std::size_t i = 0; i < N; ++i) {
+        const std::size_t k = static_cast<std::size_t>(c[i]);
+        if (k >= 1 && k <= nmap1) ++nuse[k - 1];
+    }
+    // d2[k] = (nuse[k] == 0). Remap unused → drop.
+    std::pmr::vector<unsigned char> d2(nmap1, 0, mr);
+    for (std::size_t k = 0; k < nmap1; ++k) d2[k] = (nuse[k] == 0) ? 1 : 0;
+    // loc2[k] = (k+1) - cumsum(d2)[k+1].
+    std::pmr::vector<std::size_t> loc2(nmap1, mr);
+    std::size_t cs = 0;
+    for (std::size_t k = 0; k < nmap1; ++k) {
+        cs += d2[k];
+        loc2[k] = (k + 1) - cs;
+    }
+    for (std::size_t i = 0; i < N; ++i) {
+        const std::size_t k = static_cast<std::size_t>(c[i]) - 1;
+        c[i] = static_cast<double>(loc2[k]);
+    }
+    // Remove unused rows from map1.
+    std::pmr::vector<double> map2_R(mr), map2_G(mr), map2_B(mr);
+    for (std::size_t k = 0; k < nmap1; ++k) {
+        if (!d2[k]) {
+            map2_R.push_back(map1[0 * nmap1 + k]);
+            map2_G.push_back(map1[1 * nmap1 + k]);
+            map2_B.push_back(map1[2 * nmap1 + k]);
+        }
+    }
+    const std::size_t nmap2 = map2_R.size();
+
+    // Determine final output class for Y.
+    double max_c = 0.0;
+    for (std::size_t i = 0; i < N; ++i) if (c[i] > max_c) max_c = c[i];
+    const bool to_uint8 = (max_c <= 256.0);
+
+    Value Y = to_uint8
+        ? Value::matrix(H, W, ValueType::UINT8, mr)
+        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+    if (to_uint8) {
+        std::uint8_t *yp = Y.uint8DataMut();
+        for (std::size_t i = 0; i < N; ++i)
+            yp[i] = static_cast<std::uint8_t>(c[i] - 1.0);   // 0-based
+    } else {
+        double *yp = Y.doubleDataMut();
+        for (std::size_t i = 0; i < N; ++i) yp[i] = c[i];     // 1-based
+    }
+
+    Value newmap = Value::matrix(nmap2, 3, ValueType::DOUBLE, mr);
+    double *np = newmap.doubleDataMut();
+    for (std::size_t k = 0; k < nmap2; ++k) {
+        np[0 * nmap2 + k] = map2_R[k];
+        np[1 * nmap2 + k] = map2_G[k];
+        np[2 * nmap2 + k] = map2_B[k];
+    }
+    return {std::move(Y), std::move(newmap)};
+}
+
+} // anonymous
+
+std::pair<Value, Value>
+cmunique_xm(const Value &X, const Value &MAP, std::pmr::memory_resource *mr)
+{
+    if (MAP.dims().cols() != 3 || MAP.dims().is3D())
+        throw Error("cmunique: MAP must be N×3",
+                    0, 0, "cmunique", "", "m:cmunique:map");
+    const std::size_t M = MAP.dims().rows();
+    const std::size_t H = X.dims().rows();
+    const std::size_t W = X.dims().cols();
+    const std::size_t N = X.numel();
+
+    std::pmr::vector<double> map_in(3 * M, mr);
+    for (std::size_t c = 0; c < 3; ++c)
+        for (std::size_t r = 0; r < M; ++r)
+            map_in[c * M + r] = MAP.elemAsDouble(c * M + r);
+
+    // Convert X to double + offset for integer classes (MATLAB:
+    // c = double(a) + 1 for non-double X).
+    std::pmr::vector<double> c(N, mr);
+    const bool isInt = (X.type() == ValueType::UINT8
+                     || X.type() == ValueType::UINT16);
+    for (std::size_t i = 0; i < N; ++i)
+        c[i] = X.elemAsDouble(i) + (isInt ? 1.0 : 0.0);
+
+    return cmunique_core(c, H, W, map_in, M, mr);
+}
+
+std::pair<Value, Value>
+cmunique_rgb(const Value &RGB, std::pmr::memory_resource *mr)
+{
+    if (!RGB.dims().is3D() || RGB.dims().pages() != 3)
+        throw Error("cmunique: RGB must be H×W×3",
+                    0, 0, "cmunique", "", "m:cmunique:rgb");
+    const std::size_t H = RGB.dims().rows();
+    const std::size_t W = RGB.dims().cols();
+    const std::size_t N = H * W;
+    const std::size_t M = N;
+    std::pmr::vector<double> map_in(3 * M, mr);
+    // map(:, c) = im2double(reshape(RGB(:,:,c), [], 1))
+    for (std::size_t c = 0; c < 3; ++c)
+        for (std::size_t k = 0; k < N; ++k)
+            map_in[c * M + k] = im2double_scalar(RGB, c * N + k);
+    // c = reshape(1:N, H, W) — column-major identity 1..N.
+    std::pmr::vector<double> idx(N, mr);
+    for (std::size_t i = 0; i < N; ++i) idx[i] = static_cast<double>(i + 1);
+    return cmunique_core(idx, H, W, map_in, M, mr);
+}
+
+std::pair<Value, Value>
+cmunique_i(const Value &I, std::pmr::memory_resource *mr)
+{
+    if (I.dims().ndims() > 2)
+        throw Error("cmunique: I must be a 2-D intensity image",
+                    0, 0, "cmunique", "", "m:cmunique:i");
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    const std::size_t N = H * W;
+    const std::size_t M = N;
+    std::pmr::vector<double> map_in(3 * M, mr);
+    for (std::size_t k = 0; k < N; ++k) {
+        const double v = im2double_scalar(I, k);
+        map_in[0 * M + k] = v;
+        map_in[1 * M + k] = v;
+        map_in[2 * M + k] = v;
+    }
+    std::pmr::vector<double> idx(N, mr);
+    for (std::size_t i = 0; i < N; ++i) idx[i] = static_cast<double>(i + 1);
+    return cmunique_core(idx, H, W, map_in, M, mr);
+}
+
 // ── ycbcr2rgbwide — inverse of rgbwide2ycbcr ───────────────────────
 //
 // Reference: ITU-R Rec. BT.2020-2 (10/2015) and BT.2100-2 (07/2018).
@@ -378,6 +631,27 @@ void ycbcr2rgbwide_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "ycbcr2rgbwide", "", "m:ycbcr2rgbwide:nargin");
     const int bps = static_cast<int>(args[1].toScalar());
     outs[0] = ycbcr2rgbwide(args[0], bps, ctx.engine->resource());
+}
+
+void cmunique_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cmunique: requires (X, MAP), (RGB), or (I)",
+                    0, 0, "cmunique", "", "m:cmunique:nargin");
+    auto *mr = ctx.engine->resource();
+    std::pair<Value, Value> result;
+    if (args.size() == 1) {
+        const auto &d = args[0].dims();
+        if (d.is3D() && d.pages() == 3)
+            result = cmunique_rgb(args[0], mr);
+        else
+            result = cmunique_i(args[0], mr);
+    } else {
+        result = cmunique_xm(args[0], args[1], mr);
+    }
+    outs[0] = std::move(result.first);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(result.second);
 }
 
 } // namespace detail

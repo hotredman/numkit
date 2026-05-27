@@ -1584,6 +1584,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 |---|:---:|---:|---:|---:|:---:|---|
 | `adaptthresh` | ✅ | 0.012 | 215.07× |  | OK | Sig: r = adaptthresh(...). Spec-extension batch 2026-05-09. |
 | `cmap2gray` | ✅ | 0.002 | 129.19× |  | OK | Sig: r = cmap2gray(...). Spec-extension batch 2026-05-09. |
+| `cmunique` | ✅ | 0.011 | 1.00× |  | OK | Sig: [Y, newmap] = cmunique(X, MAP) or cmunique(RGB) or cmunique(I). Eliminates duplicate colormap rows; for RGB / I builds the per-pixel "big colormap" first then dedupes. Quantises MAP to 1/1024, sorts by columns [3 2 1], drops consecutive duplicate rows, remaps X. Then drops unused entries with a second remap pass. Output Y is uint8 (0-based) when newmap has ≤ 256 rows else double (1-based). Matches MATLAB R2025b cmunique.m verbatim. 9 gtest TEST_F cover (X, MAP) double + uint8 forms, (RGB), (I), output class, empty image, validation (bad MAP shape, 4-D input rejected), no-duplicate case. |
 | `getrangefromclass` | ✅ | 0.004 | 76.05× | 15.53× | OK | Sig: r = getrangefromclass(...). Spec-extension batch 2026-05-09. |
 | `gray2ind` | ✅ | 0.004 | 465.01× | 58.99× | OK | Sig: r = gray2ind(...). Spec-extension batch 2026-05-09. |
 | `graythresh` | ✅ | 0.005 | 329.40× | 107.09× | OK | Sig: t = graythresh(I). MATLAB convention: thresh = mean(find(sigma_b == max)) / (L - 1). Bit-identical with MATLAB R2025b on bimodal probe. |
