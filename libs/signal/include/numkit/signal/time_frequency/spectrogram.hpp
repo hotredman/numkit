@@ -95,4 +95,27 @@ Value istft(const Value &                S,
             const std::string &          range,
             std::pmr::memory_resource *  mr = nullptr);
 
+/// @brief Constant OverLap-Add (COLA) compliance check
+/// (`tf = iscola(window, noverlap[, method])`).
+///
+/// Sums the (possibly squared) window shifted by `hop = M - noverlap`
+/// in the stable overlap region and tests whether the result is
+/// constant to within `2 * eps`. Returns the truth value plus the
+/// median `m` and the maximum deviation `maxDev` of the stable region.
+///
+/// @param window    Analysis window vector (length `M`).
+/// @param noverlap  Number of samples shared between consecutive frames
+///                  (must satisfy `0 <= noverlap < M`).
+/// @param method    `"wola"` (default, sum of `w²`) or `"ola"` (sum of `w`).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Tuple `(tf, m, maxDev)` — `tf` is `1.0` or `0.0`,
+///                  `m` is the median of the stable-region sum,
+///                  `maxDev` is the maximum absolute deviation from `m`.
+/// @see stft, istft
+std::tuple<Value, Value, Value>
+iscola(const Value &                window,
+       std::size_t                  noverlap,
+       const std::string &          method,
+       std::pmr::memory_resource *  mr = nullptr);
+
 } // namespace numkit::signal
