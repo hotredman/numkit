@@ -808,7 +808,7 @@ together.
 | `bicgstabl` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `cgs` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `colamd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `colperm` | ❌ |  |  |  |  |  |
+| `colperm` | ✅ | 0.004 | 53.58× |  | OK | colperm — column permutation sorted by ascending nonzero count, stable on ties. Documented for sparse matrices but works on any 2-D dense matrix (entry != 0 counts as nonzero). Output is a row vector of 1-indexed column indices. |
 | `condest` | ✅ | 0.003 | 349.23× |  | OK | Sig: c = condest(A). 1-norm condition number estimate. KNOWN GAP: MATLAB uses Higham 1988 power-iteration estimator (LAPACK dlacn1) that approximates norm(inv(A),1); we compute it exactly via inv(A). Matches MATLAB on well-conditioned A. For hilb(4) ≈ 1.5e4 and other near-singular inputs, our exact value differs from MATLAB's iterative estimate. Wide tol=0.5 (relative) accepts ±50% drift on near-singular inputs; pin only the well-conditioned cases I3 / D / UT for exact match. |
 | `dissect` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `dmperm` | ❌ |  |  |  |  |  |

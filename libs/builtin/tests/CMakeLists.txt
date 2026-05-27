@@ -103,4 +103,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/grouptransform_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/groupfilter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/splitapply_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/colperm_test.cpp
 )
