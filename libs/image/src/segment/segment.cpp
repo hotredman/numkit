@@ -6,6 +6,7 @@
 
 #include <numkit/image/segment/segment.hpp>
 #include <numkit/image/filter/filter.hpp>
+#include <numkit/image/geom/geom.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -778,6 +779,62 @@ Value poly2mask(const Value &X, const Value &Y,
     return BW;
 }
 
+// ── roipoly (programmatic polygon ROI mask) ───────────────────────
+//
+// MATLAB R2025b roipoly.m algorithm (non-interactive forms):
+//   1. Auto-close polygon: append (xi(1), yi(1)) if not already closed.
+//   2. Map world → pixel:
+//        roix = axes2pix(N, [xdata_lo xdata_hi], xi)
+//        roiy = axes2pix(M, [ydata_lo ydata_hi], yi)
+//   3. BW = poly2mask(roix, roiy, M, N).
+//
+// The interactive (figure-based) syntaxes are out of scope — they
+// require a mouse and have no headless semantics.
+Value roipoly(double xdata_lo, double xdata_hi,
+              double ydata_lo, double ydata_hi,
+              std::size_t M, std::size_t N,
+              const Value &xi, const Value &yi,
+              std::pmr::memory_resource *mr)
+{
+    if (xi.numel() != yi.numel())
+        throw Error("roipoly: xi and yi must have the same length",
+                    0, 0, "roipoly", "", "m:roipoly:xiyiMustBeSameLength");
+
+    // Auto-close polygon.
+    const std::size_t n0 = xi.numel();
+    std::pmr::vector<double> xc(mr), yc(mr);
+    xc.reserve(n0 + 1);
+    yc.reserve(n0 + 1);
+    for (std::size_t i = 0; i < n0; ++i) {
+        xc.push_back(xi.elemAsDouble(i));
+        yc.push_back(yi.elemAsDouble(i));
+    }
+    if (n0 > 0 && (xc.front() != xc.back() || yc.front() != yc.back())) {
+        xc.push_back(xc.front());
+        yc.push_back(yc.front());
+    }
+
+    // Build extent vectors for axes2pix.
+    Value xExt = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    xExt.doubleDataMut()[0] = xdata_lo;
+    xExt.doubleDataMut()[1] = xdata_hi;
+    Value yExt = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    yExt.doubleDataMut()[0] = ydata_lo;
+    yExt.doubleDataMut()[1] = ydata_hi;
+
+    // Wrap closed vertices as Value rows for axes2pix.
+    const std::size_t nc = xc.size();
+    Value xClosed = Value::matrix(nc, 1, ValueType::DOUBLE, mr);
+    Value yClosed = Value::matrix(nc, 1, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < nc; ++i) {
+        xClosed.doubleDataMut()[i] = xc[i];
+        yClosed.doubleDataMut()[i] = yc[i];
+    }
+    Value roix = axes2pix(static_cast<double>(N), xExt, xClosed, mr);
+    Value roiy = axes2pix(static_cast<double>(M), yExt, yClosed, mr);
+    return poly2mask(roix, roiy, M, N, mr);
+}
+
 Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::memory_resource *mr)
 {
     if (color.numel() != 3)
@@ -1107,6 +1164,132 @@ void regionfill_reg(Span<const Value> a, size_t, Span<Value> o,
     const std::size_t W = I.dims().cols();
     Value mask = poly2mask(a[1], a[2], H, W, mr);
     o[0] = regionfill(I, mask, mr);
+}
+
+// roipoly adapter — handles the 4 programmatic signatures and the
+// 1/2/3/4/5-output forms. Interactive (1 / 2 / 0-arg) variants throw.
+void roipoly_reg(Span<const Value> a, size_t nargout, Span<Value> o,
+                 CallContext &c)
+{
+    if (a.size() < 3 || a.size() > 6)
+        throw Error("roipoly: interactive forms not supported; use "
+                    "(A, xi, yi) | (M, N, xi, yi) | (x, y, A, xi, yi) "
+                    "| (x, y, M, N, xi, yi)",
+                    0, 0, "roipoly", "", "m:roipoly:nargin");
+    auto *mr = c.engine->resource();
+
+    // Helper: pull [lo, hi] from a Value that's either a 2-elem extent
+    // vector or a scalar (treated as a degenerate extent).
+    auto extent = [&](const Value &v, double dflt_lo, double dflt_hi,
+                      double &lo, double &hi) {
+        if (v.numel() == 0) { lo = dflt_lo; hi = dflt_hi; }
+        else if (v.numel() == 1) {
+            lo = hi = v.toScalar();
+        } else {
+            lo = v.elemAsDouble(0);
+            hi = v.elemAsDouble(v.numel() - 1);
+        }
+    };
+
+    double xlo = 0, xhi = 0, ylo = 0, yhi = 0;
+    std::size_t M = 0, N = 0;
+    Value xi, yi;
+
+    switch (a.size()) {
+        case 3: {
+            // (A, xi, yi)
+            const Value &A = a[0];
+            M = A.dims().rows();
+            N = A.dims().cols();
+            xlo = 1.0;  xhi = static_cast<double>(N);
+            ylo = 1.0;  yhi = static_cast<double>(M);
+            xi = a[1]; yi = a[2];
+            break;
+        }
+        case 4: {
+            // (M, N, xi, yi)
+            const double Md = a[0].toScalar();
+            const double Nd = a[1].toScalar();
+            if (Md < 0 || Nd < 0 || Md != std::floor(Md) || Nd != std::floor(Nd))
+                throw Error("roipoly: M and N must be non-negative integers",
+                            0, 0, "roipoly", "", "m:roipoly:mn");
+            M = static_cast<std::size_t>(Md);
+            N = static_cast<std::size_t>(Nd);
+            xlo = 1.0;  xhi = static_cast<double>(N);
+            ylo = 1.0;  yhi = static_cast<double>(M);
+            xi = a[2]; yi = a[3];
+            break;
+        }
+        case 5: {
+            // (x, y, A, xi, yi)
+            const Value &A = a[2];
+            M = A.dims().rows();
+            N = A.dims().cols();
+            extent(a[0], 1.0, static_cast<double>(N), xlo, xhi);
+            extent(a[1], 1.0, static_cast<double>(M), ylo, yhi);
+            xi = a[3]; yi = a[4];
+            break;
+        }
+        case 6: {
+            // (x, y, M, N, xi, yi)
+            const double Md = a[2].toScalar();
+            const double Nd = a[3].toScalar();
+            if (Md < 0 || Nd < 0 || Md != std::floor(Md) || Nd != std::floor(Nd))
+                throw Error("roipoly: M and N must be non-negative integers",
+                            0, 0, "roipoly", "", "m:roipoly:mn");
+            M = static_cast<std::size_t>(Md);
+            N = static_cast<std::size_t>(Nd);
+            extent(a[0], 1.0, static_cast<double>(N), xlo, xhi);
+            extent(a[1], 1.0, static_cast<double>(M), ylo, yhi);
+            xi = a[4]; yi = a[5];
+            break;
+        }
+    }
+
+    // Build the auto-closed xi/yi for the multi-output forms (matches
+    // MATLAB's behaviour: outputs the closed polygon as a column vector).
+    const std::size_t n0 = xi.numel();
+    std::pmr::vector<double> xc(mr), yc(mr);
+    xc.reserve(n0 + 1);
+    yc.reserve(n0 + 1);
+    for (std::size_t i = 0; i < n0; ++i) {
+        xc.push_back(xi.elemAsDouble(i));
+        yc.push_back(yi.elemAsDouble(i));
+    }
+    if (n0 > 0 && (xc.front() != xc.back() || yc.front() != yc.back())) {
+        xc.push_back(xc.front());
+        yc.push_back(yc.front());
+    }
+    const std::size_t nc = xc.size();
+    Value xiOut = Value::matrix(nc, 1, ValueType::DOUBLE, mr);
+    Value yiOut = Value::matrix(nc, 1, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < nc; ++i) {
+        xiOut.doubleDataMut()[i] = xc[i];
+        yiOut.doubleDataMut()[i] = yc[i];
+    }
+
+    Value BW = roipoly(xlo, xhi, ylo, yhi, M, N, xi, yi, mr);
+
+    // Output dispatch.
+    Value xDataOut = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    xDataOut.doubleDataMut()[0] = xlo; xDataOut.doubleDataMut()[1] = xhi;
+    Value yDataOut = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    yDataOut.doubleDataMut()[0] = ylo; yDataOut.doubleDataMut()[1] = yhi;
+
+    switch (nargout) {
+        case 0: case 1: o[0] = std::move(BW); break;
+        case 2: o[0] = std::move(BW); o[1] = std::move(xiOut); break;
+        case 3: o[0] = std::move(BW); o[1] = std::move(xiOut);
+                o[2] = std::move(yiOut); break;
+        case 4: o[0] = std::move(xDataOut); o[1] = std::move(yDataOut);
+                o[2] = std::move(BW); o[3] = std::move(xiOut); break;
+        case 5: o[0] = std::move(xDataOut); o[1] = std::move(yDataOut);
+                o[2] = std::move(BW); o[3] = std::move(xiOut);
+                o[4] = std::move(yiOut); break;
+        default:
+            throw Error("roipoly: too many output arguments (max 5)",
+                        0, 0, "roipoly", "", "m:roipoly:tooManyOutputs");
+    }
 }
 
 void poly2mask_reg(Span<const Value> a, size_t, Span<Value> o,

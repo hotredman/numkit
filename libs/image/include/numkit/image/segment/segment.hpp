@@ -236,6 +236,44 @@ Value poly2mask(const Value &X, const Value &Y,
                 std::size_t M, std::size_t N,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Polygonal region-of-interest mask
+/// (`BW = roipoly(A, xi, yi)`, world-coord variants).
+///
+/// Programmatic (non-interactive) implementation of MATLAB R2025b's
+/// roipoly. Auto-closes the polygon, maps `(xi, yi)` from world to
+/// pixel coordinates via @ref axes2pix using the image extents
+/// `[xdata_lo, xdata_hi]` × `[ydata_lo, ydata_hi]`, then scan-
+/// converts via @ref poly2mask.
+///
+/// **Argument forms** (handled by the engine adapter; this typed
+/// entry-point takes the fully-expanded set):
+///   * `roipoly(A, xi, yi)`     — image-based, world extents
+///     default to `[1 size(A,2)]` × `[1 size(A,1)]`.
+///   * `roipoly(M, N, xi, yi)`  — size-based, default extents.
+///   * `roipoly(x, y, A, xi, yi)` — world extents from `x`, `y`.
+///   * `roipoly(x, y, M, N, xi, yi)` — world extents and explicit
+///     size.
+///
+/// Interactive forms (`roipoly()`, `roipoly(A)`, `roipoly(M,N)`)
+/// throw — they require a figure / mouse and have no headless
+/// semantics.
+///
+/// @param xdata_lo  Image extent low along x (typically `1`).
+/// @param xdata_hi  Image extent high along x (typically `N`).
+/// @param ydata_lo  Image extent low along y (typically `1`).
+/// @param ydata_hi  Image extent high along y (typically `M`).
+/// @param M         Mask height.
+/// @param N         Mask width.
+/// @param xi        Polygon X coordinates (world units).
+/// @param yi        Polygon Y coordinates (world units).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `M × N` logical mask.
+Value roipoly(double xdata_lo, double xdata_hi,
+              double ydata_lo, double ydata_hi,
+              std::size_t M, std::size_t N,
+              const Value &xi, const Value &yi,
+              std::pmr::memory_resource *mr = nullptr);
+
 /// Paint a binary mask onto an image with a colour
 /// (`J = imoverlay(I, BW, color)`).
 ///
