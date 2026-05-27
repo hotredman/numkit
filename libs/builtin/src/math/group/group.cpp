@@ -606,5 +606,113 @@ void grouptransform_reg(Span<const Value> args, size_t nargout,
     }
 }
 
+// ── groupfilter ────────────────────────────────────────────────────
+// Array form:
+//   B = groupfilter(A, groupvars, @predicate)
+//   [B, BG] = groupfilter(...)
+//
+// Predicate is a function handle invoked once per group with the
+// group's slice of A (size kn × nCols for matrix A; kn × 1 vector
+// for column A). The predicate's return decides which rows survive:
+//   * scalar logical → all rows in the group kept (true) or dropped
+//   * column-vector of length kn → element-wise row mask
+//   * any other shape → reduced via all(result(:)) (matches MATLAB
+//     R2025b probed behaviour, e.g. mean(matrix)>30 is reduced)
+//
+// Returned rows preserve the original order from A.
+// Deferred: table inputs, groupbins, IncludedEdge/datavars.
+void groupfilter_reg(Span<const Value> args, size_t nargout,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("groupfilter: requires (A, groupvars, @predicate)",
+                    0, 0, "groupfilter", "", "m:groupfilter:nargin");
+    if (!args[2].isFuncHandle())
+        throw Error("groupfilter: predicate must be a function handle",
+                    0, 0, "groupfilter", "", "m:groupfilter:method");
+    auto *mr = ctx.engine->resource();
+    const Value &A = args[0];
+    const Value &G = args[1];
+    const Value &pred = args[2];
+
+    const std::size_t nRows = A.dims().rows();
+    const std::size_t nCols = (A.dims().ndim() >= 2) ? A.dims().cols() : 1;
+    if (G.numel() != nRows)
+        throw Error("groupfilter: groupvars must have length size(A,1)",
+                    0, 0, "groupfilter", "", "m:groupfilter:shape");
+
+    std::vector<std::size_t> groups;
+    std::vector<double> uniqueVals;
+    groupOf(G, groups, uniqueVals);
+    std::size_t nan_count = 0;
+    for (auto g : groups) if (g == 0) ++nan_count;
+    const bool have_nan = nan_count > 0;
+    const std::size_t nGroups = uniqueVals.size() + (have_nan ? 1 : 0);
+    std::vector<std::vector<std::size_t>> buckets(nGroups);
+    for (std::size_t i = 0; i < groups.size(); ++i) {
+        const std::size_t gi = (groups[i] == 0) ? uniqueVals.size()
+                                                : (groups[i] - 1);
+        buckets[gi].push_back(i);
+    }
+
+    // Compute keep-mask per row of A by visiting groups in their
+    // natural order, then materialise B in original-row order.
+    std::vector<std::uint8_t> keep(nRows, 0);
+    auto Aget = [&](std::size_t r, std::size_t c) {
+        return A.elemAsDouble(r + c * nRows);
+    };
+    for (const auto &rows : buckets) {
+        const std::size_t kn = rows.size();
+        if (kn == 0) continue;
+        // Build group slice: kn × nCols.
+        auto sub = (nCols == 1)
+            ? Value::matrix(kn, 1, ValueType::DOUBLE, mr)
+            : Value::matrix(kn, nCols, ValueType::DOUBLE, mr);
+        double *sd = sub.doubleDataMut();
+        for (std::size_t c = 0; c < nCols; ++c)
+            for (std::size_t j = 0; j < kn; ++j)
+                sd[j + c * kn] = Aget(rows[j], c);
+        std::array<Value, 1> callArgs{sub};
+        Value r = ctx.engine->callFunctionHandle(
+            pred, Span<const Value>(callArgs.data(), 1), ctx.env);
+        const std::size_t rn = r.numel();
+        if (rn == kn) {
+            for (std::size_t j = 0; j < kn; ++j)
+                keep[rows[j]] = (r.elemAsDouble(j) != 0.0) ? 1u : 0u;
+        } else {
+            // Scalar OR multi-element non-kn shape → reduce via all().
+            bool all_true = true;
+            for (std::size_t j = 0; j < rn; ++j)
+                if (r.elemAsDouble(j) == 0.0) { all_true = false; break; }
+            const std::uint8_t v = all_true ? 1u : 0u;
+            for (std::size_t j = 0; j < kn; ++j)
+                keep[rows[j]] = v;
+        }
+    }
+
+    // Count kept rows (in original order).
+    std::vector<std::size_t> kept_idx;
+    kept_idx.reserve(nRows);
+    for (std::size_t i = 0; i < nRows; ++i)
+        if (keep[i]) kept_idx.push_back(i);
+    const std::size_t kRows = kept_idx.size();
+
+    auto B = (nCols == 1) ? Value::matrix(kRows, 1, ValueType::DOUBLE, mr)
+                          : Value::matrix(kRows, nCols, ValueType::DOUBLE, mr);
+    double *bd = B.doubleDataMut();
+    for (std::size_t c = 0; c < nCols; ++c)
+        for (std::size_t j = 0; j < kRows; ++j)
+            bd[j + c * kRows] = Aget(kept_idx[j], c);
+    outs[0] = std::move(B);
+
+    if (nargout >= 2) {
+        auto BG = Value::matrix(kRows, 1, ValueType::DOUBLE, mr);
+        double *gd = BG.doubleDataMut();
+        for (std::size_t j = 0; j < kRows; ++j)
+            gd[j] = G.elemAsDouble(kept_idx[j]);
+        outs[1] = std::move(BG);
+    }
+}
+
 } // namespace detail
 } // namespace numkit::builtin
