@@ -35,6 +35,10 @@
 #include <string>
 #include <vector>
 
+#ifdef NUMKIT_WITH_ZLIB
+#  include <zlib.h>
+#endif
+
 namespace numkit::image {
 
 namespace {
@@ -118,6 +122,14 @@ struct TiffImage {
     std::uint16_t planarConfig = 1;
     std::uint16_t sampleFormat = 1;  // 1=uint, 2=int, 3=float
     std::uint16_t predictor = 1;     // 1=none, 2=horizontal differencing
+    // Colour map for Photometric=3 (palette). Layout is 3·(2^BitsPerSample)
+    // uint16 values: all R entries, then all G entries, then all B.
+    std::vector<std::uint32_t> colorMap;
+    // Tile layout (tags 322/323/324/325). When tileWidth > 0 the data is
+    // organised in tiles rather than strips.
+    std::uint32_t tileWidth = 0, tileLength = 0;
+    std::vector<std::uint32_t> tileOffsets;
+    std::vector<std::uint32_t> tileByteCounts;
 };
 
 // Parse a single IFD at the given byte offset. Returns the next-IFD
@@ -150,6 +162,11 @@ TiffImage parseIFD(const ByteReader &br, std::size_t ifdOffset,
             case 279: img.stripByteCounts = readEntryValues(br, type, count, voff, e); break;
             case 284: img.planarConfig = static_cast<std::uint16_t>(firstVal()); break;
             case 317: img.predictor    = static_cast<std::uint16_t>(firstVal()); break;
+            case 320: img.colorMap     = readEntryValues(br, type, count, voff, e); break;
+            case 322: img.tileWidth    = firstVal(); break;
+            case 323: img.tileLength   = firstVal(); break;
+            case 324: img.tileOffsets  = readEntryValues(br, type, count, voff, e); break;
+            case 325: img.tileByteCounts = readEntryValues(br, type, count, voff, e); break;
             case 339: img.sampleFormat = static_cast<std::uint16_t>(firstVal()); break;
             default: break;
         }
@@ -303,6 +320,47 @@ decodeLZW(const std::uint8_t *src, std::size_t srcLen, std::size_t outHint)
     return LzwDecoder(src, srcLen, outHint).decode();
 }
 
+// ── Deflate decoder (zlib-wrapped — TIFF compression 8 / 32946) ─────
+//
+// TIFF "Deflate" wraps the raw deflate stream in a 2-byte zlib header
+// + 4-byte Adler-32 checksum (RFC 1950). zlib's inflateInit() handles
+// this transparently. We grow the output buffer as needed.
+#ifdef NUMKIT_WITH_ZLIB
+std::vector<std::uint8_t>
+decodeDeflate(const std::uint8_t *src, std::size_t srcLen, std::size_t outHint)
+{
+    z_stream zs;
+    std::memset(&zs, 0, sizeof(zs));
+    if (inflateInit(&zs) != Z_OK)
+        throw Error("tiff: zlib inflateInit failed", 0, 0, "imread", "",
+                    "numkit:imread:tiffDeflate");
+    zs.next_in = const_cast<Bytef *>(src);
+    zs.avail_in = static_cast<uInt>(srcLen);
+
+    std::vector<std::uint8_t> out;
+    out.resize(outHint > 0 ? outHint : srcLen * 4);
+    std::size_t produced = 0;
+    while (true) {
+        if (produced == out.size())
+            out.resize(out.size() * 2);
+        zs.next_out  = out.data() + produced;
+        zs.avail_out = static_cast<uInt>(out.size() - produced);
+        const int rc = inflate(&zs, Z_NO_FLUSH);
+        produced = out.size() - zs.avail_out;
+        if (rc == Z_STREAM_END) break;
+        if (rc != Z_OK) {
+            inflateEnd(&zs);
+            throw Error(std::string("tiff: Deflate decode failed: ")
+                        + (zs.msg ? zs.msg : zError(rc)),
+                        0, 0, "imread", "", "numkit:imread:tiffDeflate");
+        }
+    }
+    inflateEnd(&zs);
+    out.resize(produced);
+    return out;
+}
+#endif
+
 // ── Horizontal differencing predictor (TIFF tag 317, value 2) ────────
 //
 // Used with LZW/Deflate to improve compression. The encoder stored
@@ -352,77 +410,181 @@ void applyHorizontalUndiff(std::vector<std::uint8_t> &buf,
     }
 }
 
-// ── strip decoder ────────────────────────────────────────────────────
-
-std::vector<std::uint8_t>
-decodeStrips(const ByteReader &br, const TiffImage &img)
+// ── unified block decoder (strip or tile) ───────────────────────────
+//
+// Decompress one block (strip or tile) at file offset `off` with byte
+// count `cnt`. The caller passes the expected uncompressed `hintBytes`
+// (used by decoders to reserve buffers). Result is appended into out.
+void decompressBlock(const ByteReader &br, std::size_t off, std::size_t cnt,
+                     std::uint16_t compression, std::size_t hintBytes,
+                     std::vector<std::uint8_t> &out)
 {
-    if (img.planarConfig != 1)
-        throw Error("tiff: PlanarConfiguration=2 (planar) not yet supported",
-                    0, 0, "imread", "", "numkit:imread:tiffPlanar");
-    if (img.stripOffsets.empty() || img.stripByteCounts.empty()
-        || img.stripOffsets.size() != img.stripByteCounts.size())
-        throw Error("tiff: malformed StripOffsets / StripByteCounts",
-                    0, 0, "imread", "", "numkit:imread:tiffStrips");
+    br.check(off, cnt, "blockData");
+    const std::uint8_t *src = br.buf + off;
+    switch (compression) {
+        case 1:
+            out.insert(out.end(), src, src + cnt);
+            break;
+        case 32773: {
+            auto dec = decodePackBits(src, cnt, hintBytes);
+            out.insert(out.end(), dec.begin(), dec.end());
+            break;
+        }
+        case 5: {
+            auto dec = decodeLZW(src, cnt, hintBytes);
+            out.insert(out.end(), dec.begin(), dec.end());
+            break;
+        }
+        case 8:
+        case 32946: {  // Deflate / Adobe-Deflate
+#ifdef NUMKIT_WITH_ZLIB
+            auto dec = decodeDeflate(src, cnt, hintBytes);
+            out.insert(out.end(), dec.begin(), dec.end());
+            break;
+#else
+            throw Error("tiff: Deflate requires zlib at build time "
+                        "(NUMKIT_WITH_ZLIB not defined)",
+                        0, 0, "imread", "", "numkit:imread:tiffDeflate");
+#endif
+        }
+        default:
+            throw Error("tiff: compression " + std::to_string(compression)
+                        + " not supported",
+                        0, 0, "imread", "", "numkit:imread:tiffCompression");
+    }
+}
 
-    const std::size_t bytesPerSample = img.bitsPerSample / 8;
-    const std::size_t rowBytes = static_cast<std::size_t>(img.width)
-                                  * img.samplesPerPixel * bytesPerSample;
-    const std::size_t expected = rowBytes * img.height;
+// Decode the full image (all strips or tiles, chunky or planar) into a
+// single row-major chunky-interleaved buffer of size
+// H * W * SamplesPerPixel * bytesPerSample.
+std::vector<std::uint8_t>
+decodeImage(const ByteReader &br, const TiffImage &img)
+{
+    const std::size_t H = img.height, W = img.width, S = img.samplesPerPixel;
+    const std::size_t bps = img.bitsPerSample / 8;
+    const std::size_t rowBytes = W * S * bps;
+    const std::size_t totalBytes = rowBytes * H;
 
-    std::vector<std::uint8_t> raw;
-    raw.reserve(expected);
-    for (std::size_t i = 0; i < img.stripOffsets.size(); ++i) {
-        const std::size_t off = img.stripOffsets[i];
-        const std::size_t cnt = img.stripByteCounts[i];
-        br.check(off, cnt, "stripData");
-        const std::uint8_t *src = br.buf + off;
-        const std::size_t  stripRows = std::min<std::size_t>(
-            img.rowsPerStrip,
-            img.height - i * std::max<std::size_t>(1, img.rowsPerStrip));
-        const std::size_t  stripHint = rowBytes * (stripRows > 0 ? stripRows
-                                                                 : img.rowsPerStrip);
+    const bool tiled = (img.tileWidth > 0 && img.tileLength > 0);
+    const bool planar = (img.planarConfig == 2);
 
-        switch (img.compression) {
-            case 1: {  // none
-                raw.insert(raw.end(), src, src + cnt);
-                break;
+    // For predictor application we need a planar-aware decode first if
+    // PlanarConfiguration=2; we reassemble at the end.
+    std::vector<std::uint8_t> dst(totalBytes, 0);
+
+    auto putChunky = [&](const std::uint8_t *plane, std::size_t r0,
+                         std::size_t c0, std::size_t rh, std::size_t cw,
+                         std::size_t srcStride) {
+        // Copy a rectangular block from a per-tile/per-strip planar
+        // buffer (chunky-interleaved, S samples × bps bytes per pixel)
+        // into the destination at (r0, c0). `srcStride` is the per-row
+        // byte stride within the source block; output stride is rowBytes.
+        for (std::size_t r = 0; r < rh; ++r) {
+            const std::size_t outR = r0 + r;
+            if (outR >= H) break;
+            const std::size_t copyCols = std::min(cw, W - c0);
+            const std::uint8_t *sRow = plane + r * srcStride;
+            std::uint8_t *dRow = dst.data() + outR * rowBytes
+                                  + c0 * S * bps;
+            std::memcpy(dRow, sRow, copyCols * S * bps);
+        }
+    };
+
+    auto putPlanar = [&](const std::uint8_t *plane, std::size_t r0,
+                          std::size_t c0, std::size_t rh, std::size_t cw,
+                          std::size_t s, std::size_t srcStride) {
+        // Source is single-component (bps bytes per pixel); insert into
+        // the chunky destination at sample index s.
+        for (std::size_t r = 0; r < rh; ++r) {
+            const std::size_t outR = r0 + r;
+            if (outR >= H) break;
+            const std::size_t copyCols = std::min(cw, W - c0);
+            const std::uint8_t *sRow = plane + r * srcStride;
+            for (std::size_t c = 0; c < copyCols; ++c) {
+                const std::size_t outIdx =
+                    outR * rowBytes + (c0 + c) * S * bps + s * bps;
+                std::memcpy(dst.data() + outIdx, sRow + c * bps, bps);
             }
-            case 32773: {  // PackBits
-                auto dec = decodePackBits(src, cnt, stripHint);
-                raw.insert(raw.end(), dec.begin(), dec.end());
-                break;
+        }
+    };
+
+    const std::size_t numPlanes = planar ? S : 1;
+    const std::size_t spp_block = planar ? 1 : S;
+
+    if (tiled) {
+        const std::size_t tilesAcross = (W + img.tileWidth - 1) / img.tileWidth;
+        const std::size_t tilesDown   = (H + img.tileLength - 1) / img.tileLength;
+        const std::size_t tilesPerPlane = tilesAcross * tilesDown;
+        if (img.tileOffsets.size() != tilesPerPlane * numPlanes
+            || img.tileByteCounts.size() != tilesPerPlane * numPlanes)
+            throw Error("tiff: malformed tile arrays", 0, 0, "imread", "",
+                        "numkit:imread:tiffTiles");
+        const std::size_t tileBytes = static_cast<std::size_t>(img.tileWidth)
+                                       * img.tileLength * spp_block * bps;
+        const std::size_t srcStride = img.tileWidth * spp_block * bps;
+        for (std::size_t p = 0; p < numPlanes; ++p) {
+            for (std::size_t ty = 0; ty < tilesDown; ++ty) {
+                for (std::size_t tx = 0; tx < tilesAcross; ++tx) {
+                    const std::size_t i = p * tilesPerPlane
+                                          + ty * tilesAcross + tx;
+                    std::vector<std::uint8_t> tile;
+                    tile.reserve(tileBytes);
+                    decompressBlock(br, img.tileOffsets[i],
+                                    img.tileByteCounts[i], img.compression,
+                                    tileBytes, tile);
+                    if (tile.size() < tileBytes) tile.resize(tileBytes, 0);
+                    const std::size_t r0 = ty * img.tileLength;
+                    const std::size_t c0 = tx * img.tileWidth;
+                    if (planar)
+                        putPlanar(tile.data(), r0, c0,
+                                  img.tileLength, img.tileWidth, p, srcStride);
+                    else
+                        putChunky(tile.data(), r0, c0,
+                                  img.tileLength, img.tileWidth, srcStride);
+                }
             }
-            case 5: {  // LZW
-                auto dec = decodeLZW(src, cnt, stripHint);
-                raw.insert(raw.end(), dec.begin(), dec.end());
-                break;
+        }
+    } else {
+        // Strip-based layout.
+        if (img.stripOffsets.empty()
+            || img.stripOffsets.size() != img.stripByteCounts.size())
+            throw Error("tiff: malformed StripOffsets / StripByteCounts",
+                        0, 0, "imread", "", "numkit:imread:tiffStrips");
+        const std::size_t stripsPerPlane = img.stripOffsets.size() / numPlanes;
+        if (img.stripOffsets.size() % numPlanes != 0)
+            throw Error("tiff: strip count not divisible by plane count",
+                        0, 0, "imread", "", "numkit:imread:tiffStrips");
+        const std::size_t rpsEff = (img.rowsPerStrip > 0
+                                     && img.rowsPerStrip < 0x80000000u)
+                                     ? img.rowsPerStrip : H;
+        const std::size_t srcStride = W * spp_block * bps;
+        for (std::size_t p = 0; p < numPlanes; ++p) {
+            for (std::size_t si = 0; si < stripsPerPlane; ++si) {
+                const std::size_t globalIdx = p * stripsPerPlane + si;
+                const std::size_t r0 = si * rpsEff;
+                const std::size_t rh = std::min(rpsEff, H - r0);
+                const std::size_t hint = srcStride * rh;
+                std::vector<std::uint8_t> strip;
+                strip.reserve(hint);
+                decompressBlock(br, img.stripOffsets[globalIdx],
+                                img.stripByteCounts[globalIdx],
+                                img.compression, hint, strip);
+                if (strip.size() < hint) strip.resize(hint, 0);
+                if (planar)
+                    putPlanar(strip.data(), r0, 0, rh, W, p, srcStride);
+                else
+                    putChunky(strip.data(), r0, 0, rh, W, srcStride);
             }
-            case 8:
-            case 32946:  // Adobe-Deflate alias
-                throw Error("tiff: Deflate compression not yet supported "
-                            "(planned for next cycle — needs zlib FetchContent)",
-                            0, 0, "imread", "", "numkit:imread:tiffDeflate");
-            default:
-                throw Error("tiff: compression " + std::to_string(img.compression)
-                            + " not supported",
-                            0, 0, "imread", "",
-                            "numkit:imread:tiffCompression");
         }
     }
-    if (raw.size() < expected)
-        throw Error("tiff: strip data truncated", 0, 0, "imread", "",
-                    "numkit:imread:tiffTruncated");
-    raw.resize(expected);
 
     if (img.predictor == 2)
-        applyHorizontalUndiff(raw, img.height, img.width,
-                               img.samplesPerPixel, bytesPerSample);
+        applyHorizontalUndiff(dst, H, W, S, bps);
     else if (img.predictor != 1)
         throw Error("tiff: Predictor " + std::to_string(img.predictor)
                     + " not supported (only 1=none and 2=horizontal)",
                     0, 0, "imread", "", "numkit:imread:tiffPredictor");
-    return raw;
+    return dst;
 }
 
 // ── row-major chunky bytes → numkit column-major Value ───────────────
@@ -583,29 +745,62 @@ ByteReader openTiff(std::vector<std::uint8_t> &buf, const char *who)
 
 } // anonymous
 
+// Walk the IFD chain to locate the IFD for the given 1-based page index.
+// Returns the file offset of that IFD; throws if `page` is out of range.
+std::uint32_t locateIFDForPage(const ByteReader &br, std::size_t bufSize,
+                                std::uint32_t page, const char *who)
+{
+    if (page == 0)
+        throw Error(std::string(who) + ": page index must be >= 1",
+                    0, 0, who, "", std::string("numkit:") + who + ":badPage");
+    std::uint32_t off = br.u32(4);
+    for (std::uint32_t p = 1; p <= page; ++p) {
+        if (off == 0 || off + 2 > bufSize)
+            throw Error(std::string(who) + ": requested page "
+                        + std::to_string(page)
+                        + " is beyond end of TIFF (only "
+                        + std::to_string(p - 1) + " pages found)",
+                        0, 0, who, "", std::string("numkit:") + who + ":pageRange");
+        if (p == page) return off;
+        // Skip this IFD to next-IFD offset.
+        const std::uint16_t n = br.u16(off);
+        off = br.u32(off + 2 + 12u * n);
+    }
+    return off;
+}
+
 // ── public API ──────────────────────────────────────────────────────
 
 Value readTiff(const std::string &path, std::pmr::memory_resource *mr)
 {
+    return readTiff(path, 1u, mr);
+}
+
+Value readTiff(const std::string &path, std::uint32_t page,
+               std::pmr::memory_resource *mr)
+{
     auto buf = loadBytes(path, "imread");
     auto br = openTiff(buf, "imread");
-    std::uint32_t ifdOff = br.u32(4);
-    if (ifdOff == 0 || ifdOff + 2 > buf.size())
-        throw Error("imread: bad first-IFD offset", 0, 0, "imread", "",
-                    "numkit:imread:tiffIFD");
+    const std::uint32_t ifdOff = locateIFDForPage(br, buf.size(), page, "imread");
 
     std::uint32_t next = 0;
     TiffImage img = parseIFD(br, ifdOff, &next);
     if (img.width == 0 || img.height == 0)
         throw Error("imread: TIFF has zero width or height",
                     0, 0, "imread", "", "numkit:imread:tiffShape");
-    if (img.photometric != 0 && img.photometric != 1 && img.photometric != 2)
+    if (img.photometric != 0 && img.photometric != 1 && img.photometric != 2
+        && img.photometric != 3)
         throw Error("tiff: PhotometricInterpretation "
                     + std::to_string(img.photometric)
-                    + " not supported (only 0/1=gray, 2=RGB)",
+                    + " not supported (only 0/1=gray, 2=RGB, 3=palette)",
                     0, 0, "imread", "", "numkit:imread:tiffPhotometric");
 
-    auto raw = decodeStrips(br, img);
+    auto raw = decodeImage(br, img);
+
+    // Palette: MATLAB's single-output `imread(file)` for palette TIFFs
+    // returns the *indexed* values; the colormap is accessible via
+    // imfinfo or the two-output form. We return uint8/uint16 indices
+    // unchanged — no palette expansion in the single-output path.
     return rowMajorToValue(raw, img, br.bigEndian, mr);
 }
 
@@ -619,6 +814,20 @@ void peekTiff(const std::string &path, std::uint32_t &W, std::uint32_t &H,
     W = img.width; H = img.height;
     bits = img.bitsPerSample;
     channels = img.samplesPerPixel;
+}
+
+std::uint32_t tiffNumPages(const std::string &path)
+{
+    auto buf = loadBytes(path, "imfinfo");
+    auto br = openTiff(buf, "imfinfo");
+    std::uint32_t off = br.u32(4);
+    std::uint32_t n = 0;
+    while (off != 0 && off + 2 <= buf.size()) {
+        ++n;
+        const std::uint16_t k = br.u16(off);
+        off = br.u32(off + 2 + 12u * k);
+    }
+    return n;
 }
 
 } // namespace numkit::image

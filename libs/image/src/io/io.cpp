@@ -121,6 +121,17 @@ Value imread(const std::string &path, std::pmr::memory_resource *mr)
 
 void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource * /*mr*/)
 {
+    // TIFF route — dispatch to the in-tree writer (handles uint8/uint16,
+    // all compression schemes, and multi-page via writeMode=append in
+    // the imwrite_reg adapter).
+    {
+        const std::string ext = lowerExt(path);
+        if (ext == "tif" || ext == "tiff") {
+            writeTiff(A, path, "none", /*appendMode=*/false);
+            return;
+        }
+    }
+
     // Accept H×W or H×W×{1,3,4}. Read shape via Dims.
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
@@ -308,7 +319,18 @@ void imread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imread: path must be a string",
                     0, 0, "imread", "", "numkit:imread:type");
-    outs[0] = imread(args[0].toString(), ctx.engine->resource());
+    const std::string path = args[0].toString();
+    // 2nd numeric arg = page index (TIFF multi-page support).
+    if (args.size() >= 2 && !args[1].isEmpty()
+        && !args[1].isChar() && !args[1].isString()) {
+        const std::uint32_t page = static_cast<std::uint32_t>(args[1].toScalar());
+        if (!isTiffFile(path))
+            throw Error("imread: page index only supported for TIFF files",
+                        0, 0, "imread", "", "numkit:imread:notTiff");
+        outs[0] = readTiff(path, page, ctx.engine->resource());
+        return;
+    }
+    outs[0] = imread(path, ctx.engine->resource());
 }
 
 void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*/,
@@ -320,7 +342,55 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
     if (!args[1].isChar() && !args[1].isString())
         throw Error("imwrite: path must be a string",
                     0, 0, "imwrite", "", "numkit:imwrite:type");
-    imwrite(args[0], args[1].toString(), ctx.engine->resource());
+
+    const std::string path = args[1].toString();
+    const std::string ext = lowerExt(path);
+
+    // TIFF route — collect optional 3rd positional 'tif' format string,
+    // then NV-pairs ('Compression', 'none'|'packbits'|'lzw'|'deflate';
+    // 'WriteMode', 'overwrite'|'append').
+    if (ext == "tif" || ext == "tiff") {
+        std::string compression = "none";
+        bool appendMode = false;
+        // Optional 3rd positional 'tif'/'tiff' format keyword (MATLAB
+        // syntax `imwrite(A, path, 'tif', ...)`). Skip it as NV-pair start
+        // and tolerate.
+        size_t nvStart = 2;
+        if (args.size() >= 3 && (args[2].isChar() || args[2].isString())) {
+            std::string s = args[2].toString();
+            std::string lo;
+            lo.reserve(s.size());
+            for (char c : s) lo.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+            if (lo == "tif" || lo == "tiff") nvStart = 3;
+        }
+        for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
+            if (!args[i].isChar() && !args[i].isString())
+                throw Error("imwrite TIFF: NV name must be a string",
+                            0, 0, "imwrite", "", "numkit:imwrite:badNVName");
+            std::string key = args[i].toString();
+            std::string lkey;
+            lkey.reserve(key.size());
+            for (char c : key) lkey.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+            const Value &v = args[i + 1];
+            if (lkey == "compression") {
+                compression = v.toString();
+                for (auto &c : compression)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            } else if (lkey == "writemode") {
+                std::string m = v.toString();
+                std::string lo;
+                for (char c : m) lo.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+                appendMode = (lo == "append");
+            } else {
+                throw Error("imwrite TIFF: unknown NV key '" + key + "'",
+                            0, 0, "imwrite", "", "numkit:imwrite:badNVKey");
+            }
+        }
+        writeTiff(args[0], path, compression, appendMode);
+        return;
+    }
+
+    imwrite(args[0], path, ctx.engine->resource());
 }
 
 void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
