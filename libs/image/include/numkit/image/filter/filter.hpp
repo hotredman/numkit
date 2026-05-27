@@ -236,6 +236,57 @@ void imgaborfilt(const Value &A, double wavelength, double orientation,
                  Value &mag_out, Value &phase_out,
                  std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Non-local means denoising
+/// (`[J, estDoS] = imnlmfilt(I, ...)`).
+///
+/// Buades–Coll–Morel (2005) NLM filter — replace each pixel with
+/// a weighted average of similar-patch pixels within a search
+/// window. MATLAB uses the box-blur patch-distance variant
+/// (mean squared pixel diff over the comparison window), not the
+/// Gaussian-weighted original.
+///
+///   for each pixel p:
+///     for each q in S×S search window around p:
+///       d² = (1/|N|) Σ_{x∈N} (I(p+x) − I(q+x))²
+///       w(p, q) = exp(−d² / h²)
+///     J(p) = Σ_q w·I(q) / Σ_q w
+///
+/// The centre weight w(p, p) is set to the maximum non-self weight
+/// (Buades' "max-trick") to avoid the self-similarity blowup.
+///
+/// Default `DegreeOfSmoothing` h is the Immerkaer-1996 noise
+/// estimate:
+///   |Laplacian(I)| · √(π/2) / (6·(W−2)·(H−2))
+///
+/// Reference:
+///   [1] A. Buades, B. Coll, J.-M. Morel,
+///       "A Non-Local Algorithm for Image Denoising", CVPR 2005.
+///   [2] J. Immerkaer, "Fast Noise Variance Estimation",
+///       CVIU 64(2), 1996.
+///
+/// Grayscale 2-D inputs only here; the RGB / colour path
+/// (Euclidean distance summed across channels) is deferred.
+///
+/// Image must be at least 21×21 (MATLAB's hard minimum).
+/// `SearchWindowSize` and `ComparisonWindowSize` must be odd
+/// positive integers; `CWS ≤ SWS ≤ min(H, W)`.
+///
+/// Output class equals input class.
+///
+/// @param I               2-D grayscale image.
+/// @param dos             DegreeOfSmoothing h (negative → use
+///                        Immerkaer estimate).
+/// @param swsize          SearchWindowSize (default 21).
+/// @param cwsize          ComparisonWindowSize (default 5).
+/// @param[out] J_out      Denoised image.
+/// @param[out] est_out    Effective `h` used (estimated if input
+///                        was negative).
+/// @param mr              Memory resource (nullptr → process default).
+void imnlmfilt(const Value &I, double dos,
+               int swsize, int cwsize,
+               Value &J_out, double &est_out,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief 2-D median filter (`B = medfilt2(I, [m n])`).
 ///
 /// Default neighbourhood 3×3. Symmetric boundary.

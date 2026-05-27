@@ -3098,6 +3098,208 @@ void imgaborfilt(const Value &A_in, double wavelength, double orientation,
     }
 }
 
+// ── imnlmfilt (Non-Local Means denoising) ────────────────────────
+//
+// MATLAB R2025b imnlmfilt: exhaustive search-window NLM with
+// box-blur patch-distance (Buades-Coll-Morel 2005).
+//
+//   for each pixel p:
+//     for each q in S×S search window:
+//       d² = (1/|N|) Σ_{x∈N} (I_pad(p+x) - I_pad(q+x))²
+//       w(p, q) = exp(-d² / h²)
+//     w(p, p) is set to max over non-self weights ("Buades trick")
+//     J(p) = Σ_q w·I(q) / Σ_q w
+//
+// Default h via Immerkaer-1996 noise estimate:
+//   h = |L*I| · √(π/2) / (6·(W-2)·(H-2))
+//   L = [1 -2 1; -2 4 -2; 1 -2 1] (Laplacian kernel)
+//
+// References:
+//   Buades-Coll-Morel "A Non-Local Algorithm for Image Denoising"
+//   CVPR 2005;
+//   Immerkaer "Fast Noise Variance Estimation" CVIU 1996.
+//
+// 2-D grayscale only.
+namespace {
+
+double immerkaer_dos(const Value &I, std::pmr::memory_resource * /*mr*/) {
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    if (H < 3 || W < 3) return 1.0;
+
+    // MATLAB always casts to single in estimateDegreeOfSmoothing.m, so
+    // we do the same to bit-match (matters at the ~1e-8 level).
+    const float K[3][3] = {{1, -2, 1}, {-2, 4, -2}, {1, -2, 1}};
+    const std::size_t Mp = H + 2;
+    const std::size_t Wp = W + 2;
+    auto Ival = [&](std::size_t r, std::size_t c) -> float {
+        return static_cast<float>(I.elemAsDouble(c * H + r));
+    };
+    float sum_abs = 0.0f;
+    for (std::size_t oc = 0; oc < Wp; ++oc) {
+        for (std::size_t orr = 0; orr < Mp; ++orr) {
+            float s = 0.0f;
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    const long ir = static_cast<long>(orr) - i;
+                    const long ic = static_cast<long>(oc) - j;
+                    if (ir < 0 || ic < 0
+                     || static_cast<std::size_t>(ir) >= H
+                     || static_cast<std::size_t>(ic) >= W) continue;
+                    s += K[i][j] * Ival(ir, ic);
+                }
+            }
+            sum_abs += std::fabs(s);
+        }
+    }
+    const float dos = sum_abs * std::sqrt(static_cast<float>(M_PI) * 0.5f)
+                    / (6.0f * (W - 2) * (H - 2));
+    return (dos == 0.0f)
+            ? static_cast<double>(std::numeric_limits<float>::epsilon())
+            : static_cast<double>(dos);
+}
+
+} // anonymous
+
+void imnlmfilt(const Value &I, double dos,
+               int swsize, int cwsize,
+               Value &J_out, double &est_out,
+               std::pmr::memory_resource *mr)
+{
+    if (I.dims().is3D())
+        throw Error("imnlmfilt: RGB / colour inputs not yet supported",
+                    0, 0, "imnlmfilt", "", "m:imnlmfilt:dim");
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    if (H < 21 || W < 21)
+        throw Error("imnlmfilt: image must be at least 21x21",
+                    0, 0, "imnlmfilt", "", "m:imnlmfilt:size");
+    if (swsize < 1 || (swsize % 2) == 0)
+        throw Error("imnlmfilt: SearchWindowSize must be a positive odd "
+                    "integer",
+                    0, 0, "imnlmfilt", "", "m:imnlmfilt:sws");
+    if (cwsize < 1 || (cwsize % 2) == 0)
+        throw Error("imnlmfilt: ComparisonWindowSize must be a positive "
+                    "odd integer",
+                    0, 0, "imnlmfilt", "", "m:imnlmfilt:cws");
+    if (cwsize > swsize)
+        throw Error("imnlmfilt: ComparisonWindowSize must be <= "
+                    "SearchWindowSize",
+                    0, 0, "imnlmfilt", "", "m:imnlmfilt:cwsTooLarge");
+    if (static_cast<std::size_t>(swsize) > std::min(H, W))
+        throw Error("imnlmfilt: SearchWindowSize must be <= min(H, W)",
+                    0, 0, "imnlmfilt", "", "m:imnlmfilt:swsTooLarge");
+
+    const ValueType outT = I.type();
+    const std::size_t N = H * W;
+
+    // Cast I to DOUBLE.
+    std::pmr::vector<double> Iv(N, 0.0, mr);
+    for (std::size_t i = 0; i < N; ++i) Iv[i] = I.elemAsDouble(i);
+
+    // Resolve h.
+    double h = dos;
+    if (h < 0) {
+        Value Ivv = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < N; ++i) Ivv.doubleDataMut()[i] = Iv[i];
+        h = immerkaer_dos(Ivv, mr);
+    }
+    est_out = h;
+
+    const int sh = (swsize - 1) / 2;
+    const int ch = (cwsize - 1) / 2;
+    const int pad = sh + ch;
+    const std::size_t Mp = H + 2 * pad;
+    const std::size_t Wp = W + 2 * pad;
+
+    // Build replicate-padded image.
+    std::pmr::vector<double> P(Mp * Wp, 0.0, mr);
+    for (std::size_t c = 0; c < Wp; ++c) {
+        for (std::size_t r = 0; r < Mp; ++r) {
+            const long ir = static_cast<long>(r) - pad;
+            const long ic = static_cast<long>(c) - pad;
+            const long irc = std::clamp(ir, 0L, static_cast<long>(H - 1));
+            const long icc = std::clamp(ic, 0L, static_cast<long>(W - 1));
+            P[c * Mp + r] = Iv[static_cast<std::size_t>(icc) * H
+                              + static_cast<std::size_t>(irc)];
+        }
+    }
+
+    const double inv_h2 = 1.0 / (h * h);
+    const double inv_cwsq = 1.0 / static_cast<double>(cwsize * cwsize);
+
+    // Build output.
+    std::pmr::vector<double> Out(N, 0.0, mr);
+
+    for (std::size_t c = 0; c < W; ++c) {
+        for (std::size_t r = 0; r < H; ++r) {
+            const std::size_t pr = r + pad;
+            const std::size_t pc = c + pad;
+            double sum_w = 0.0;
+            double sum_wI = 0.0;
+            double max_w = 0.0;
+
+            // Iterate search window q = p + (dr, dc).
+            for (int dc = -sh; dc <= sh; ++dc) {
+                for (int dr = -sh; dr <= sh; ++dr) {
+                    if (dr == 0 && dc == 0) continue;  // skip self
+                    const std::size_t qr = pr + dr;
+                    const std::size_t qc = pc + dc;
+                    // Compute squared patch distance.
+                    double d2 = 0.0;
+                    for (int ac = -ch; ac <= ch; ++ac) {
+                        for (int ar = -ch; ar <= ch; ++ar) {
+                            const double a = P[(pc + ac) * Mp + (pr + ar)];
+                            const double b = P[(qc + ac) * Mp + (qr + ar)];
+                            const double d = a - b;
+                            d2 += d * d;
+                        }
+                    }
+                    d2 *= inv_cwsq;
+                    const double w = std::exp(-d2 * inv_h2);
+                    sum_w  += w;
+                    sum_wI += w * P[qc * Mp + qr];
+                    if (w > max_w) max_w = w;
+                }
+            }
+            // Centre pixel uses max non-self weight.
+            sum_w  += max_w;
+            sum_wI += max_w * Iv[c * H + r];
+
+            Out[c * H + r] = sum_wI / sum_w;
+        }
+    }
+
+    // Cast back to input class.
+    J_out = Value::matrix(H, W, outT, mr);
+    if (outT == ValueType::DOUBLE) {
+        double *p = J_out.doubleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p[i] = Out[i];
+    } else if (outT == ValueType::SINGLE) {
+        float *p = J_out.singleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p[i] = static_cast<float>(Out[i]);
+    } else {
+        auto saturate = [&](double v, double lo, double hi) {
+            v = std::round(v);
+            if (v < lo) v = lo;
+            if (v > hi) v = hi;
+            return v;
+        };
+        for (std::size_t i = 0; i < N; ++i) {
+            const double v = Out[i];
+            switch (outT) {
+                case ValueType::UINT8:  J_out.uint8DataMut()[i]  = static_cast<std::uint8_t>(saturate(v, 0.0, 255.0)); break;
+                case ValueType::UINT16: J_out.uint16DataMut()[i] = static_cast<std::uint16_t>(saturate(v, 0.0, 65535.0)); break;
+                case ValueType::INT8:   J_out.int8DataMut()[i]   = static_cast<std::int8_t>(saturate(v, -128.0, 127.0)); break;
+                case ValueType::INT16:  J_out.int16DataMut()[i]  = static_cast<std::int16_t>(saturate(v, -32768.0, 32767.0)); break;
+                case ValueType::INT32:  J_out.int32DataMut()[i]  = static_cast<std::int32_t>(saturate(v, -2147483648.0, 2147483647.0)); break;
+                case ValueType::UINT32: J_out.uint32DataMut()[i] = static_cast<std::uint32_t>(saturate(v, 0.0, 4294967295.0)); break;
+                default: J_out.doubleDataMut()[i] = v; break;
+            }
+        }
+    }
+}
+
 namespace detail {
 
 void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -3189,6 +3391,51 @@ void colfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
     const std::string kind = args[bi].toString();
     const Value &fn = args[bi + 1];
     outs[0] = colfilt(*ctx.engine, args[0], m, n, kind, fn, indexed, mr);
+}
+
+void imnlmfilt_reg(Span<const Value> args, std::size_t nargout,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imnlmfilt: requires (I [, NV...])",
+                    0, 0, "imnlmfilt", "", "m:imnlmfilt:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    double dos = -1.0;
+    int swsize = 21;
+    int cwsize = 5;
+    std::size_t i = 1;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("imnlmfilt: expected NV-pair name",
+                        0, 0, "imnlmfilt", "", "m:imnlmfilt:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "degreeofsmoothing") {
+            dos = args[i + 1].toScalar();
+            if (!(dos > 0))
+                throw Error("imnlmfilt: DegreeOfSmoothing must be positive",
+                            0, 0, "imnlmfilt", "", "m:imnlmfilt:dos");
+        } else if (nlo == "searchwindowsize") {
+            swsize = static_cast<int>(args[i + 1].toScalar());
+        } else if (nlo == "comparisonwindowsize") {
+            cwsize = static_cast<int>(args[i + 1].toScalar());
+        } else {
+            throw Error("imnlmfilt: unknown option '" + name + "'",
+                        0, 0, "imnlmfilt", "",
+                        "m:imnlmfilt:unknownNv");
+        }
+        i += 2;
+    }
+    Value J;
+    double est;
+    imnlmfilt(args[0], dos, swsize, cwsize, J, est, mr);
+    outs[0] = std::move(J);
+    if (nargout >= 2) outs[1] = Value::scalar(est, mr);
 }
 
 void imgaborfilt_reg(Span<const Value> args, std::size_t nargout,

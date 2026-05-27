@@ -1731,7 +1731,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imgaussfilt` | ✅ | 0.004 | 423.05× | 174.00× | OK | Sig: r = imgaussfilt(...). Spec-extension batch 2026-05-09. |
 | `imgaussfilt3` | ✅ | 0.005 | 414.09× |  | OK | Sig: r = imgaussfilt3(...). Spec-extension batch 2026-05-09. |
 | `imguidedfilter` | ✅ | 0.145 | 24.28× |  | OK | Sig: B = imguidedfilter(A [, G] [, NV...]). Branches: default self-guide (NeighborhoodSize=[5 5], eps=0.01*range²), scalar NHood, custom DegreeOfSmoothing, cross-guidance (A!=G), uint8 input class. Bit-equal MATLAB R2025b at 1e-10. Grayscale-guide only; RGB-guide (color covariance Cramer's rule) and Fast Guided Filter downsample variant deferred. Reference: K. He, J. Sun, X. Tang, 'Guided Image Filtering', IEEE TPAMI 35(6), 2013. Image namespace 2026-05-27. |
-| `imnlmfilt` | ❌ |  |  |  |  | non-local means |
+| `imnlmfilt` | ✅ | 12.433 | 0.42× |  | OK | Sig: [J, estDoS] = imnlmfilt(I [, NV...]). Non-local means denoising via exhaustive S×S search-window x C×C comparison-window. Algorithm: Buades-Coll-Morel 2005; box-blur patch distance, Buades 'max trick' for centre weight, Immerkaer-1996 noise estimate (single-precision per MATLAB). Branches: default, custom DegreeOfSmoothing, custom ComparisonWindowSize, custom SearchWindowSize, uint8 input. Grayscale 2-D only (RGB deferred). Image namespace 2026-05-27. |
 | `integralBoxFilter` | ❌ |  |  |  |  |  |
 | `integralBoxFilter3` | ❌ |  |  |  |  |  |
 | `integralImage` | ✅ | 0.004 | 197.14× | 71.90× | OK | Sig: r = integralImage(...). Spec-extension batch 2026-05-09. |
