@@ -549,6 +549,50 @@ ismemberComplex(const Value &a, const Value &b, bool wantLoc, std::pmr::memory_r
     return {std::move(tf), std::move(loc)};
 }
 
+// Complex set operations (C output only, matching numkit's real setops which
+// produce just C — ia/ib are not implemented for real either). Equality is
+// EXACT (re&im); ordering is |z| then angle ('sorted', default); 'stable'
+// keeps first-occurrence order (A then, for union, B). A NaN component is
+// skipped (matches the real setops). Reals vs complex compare as z+0i.
+enum class CxSetOp { Intersect, Union, Diff };
+Value complexSetOp(const Value &a, const Value &b, CxSetOp op, bool stable,
+                   std::pmr::memory_resource *mr)
+{
+    ScratchArena scratch(mr);
+    std::pmr::unordered_set<CxKey, CxKeyHash> setB(&scratch);
+    setB.reserve(b.numel());
+    for (std::size_t i = 0; i < b.numel(); ++i) {
+        const Complex z = elemAsComplex(b, i);
+        if (std::isnan(z.real()) || std::isnan(z.imag())) continue;
+        setB.insert(CxKey{z.real(), z.imag()});
+    }
+    std::pmr::unordered_set<CxKey, CxKeyHash> seen(&scratch);
+    seen.reserve(a.numel() + b.numel());
+    auto out = ScratchVec<Complex>(&scratch);
+
+    auto consider = [&](Complex z) {
+        if (std::isnan(z.real()) || std::isnan(z.imag())) return;   // skip NaN (as real setops do)
+        const CxKey k{z.real(), z.imag()};
+        const bool inB = setB.count(k) != 0;
+        bool keep = (op == CxSetOp::Union) ? true
+                  : (op == CxSetOp::Intersect) ? inB
+                                               : !inB;            // Diff
+        if (keep && seen.insert(k).second) out.push_back(z);
+    };
+    for (std::size_t i = 0; i < a.numel(); ++i) consider(elemAsComplex(a, i));
+    if (op == CxSetOp::Union)
+        for (std::size_t i = 0; i < b.numel(); ++i) consider(elemAsComplex(b, i));
+
+    if (!stable)
+        std::stable_sort(out.begin(), out.end(),
+                         [](Complex x, Complex y) { return cxUniqLess(x, y); });
+
+    auto r = Value::matrix(1, out.size(), ValueType::COMPLEX, mr);
+    if (!out.empty())
+        std::copy(out.begin(), out.end(), r.complexDataMut());
+    return r;
+}
+
 Value ismember(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
@@ -583,6 +627,8 @@ Value ismember(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 
 Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr, bool stable)
 {
+    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
+        return complexSetOp(a, b, CxSetOp::Union, stable, mr);
     ScratchArena scratch(mr);
     if (stable) {
         // MATLAB 'stable': unique(A) in A-order, then B's new values in
@@ -609,6 +655,8 @@ Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr, bo
 
 Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr, bool stable)
 {
+    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
+        return complexSetOp(a, b, CxSetOp::Intersect, stable, mr);
     if (stable) {
         // MATLAB 'stable': values present in BOTH, in A-order (first
         // occurrence wins).
@@ -648,6 +696,8 @@ Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr
 
 Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr, bool stable)
 {
+    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
+        return complexSetOp(a, b, CxSetOp::Diff, stable, mr);
     ScratchArena scratch(mr);
     auto setB = hashSetNoNaN(b, &scratch);
     std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
