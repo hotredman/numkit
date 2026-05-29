@@ -2,7 +2,7 @@
   "name": "svd",
   "namespace": "builtin",
   "setup": "A = [1 2 3; 4 5 6; 7 8 10]; At = [1 2 3; 4 5 6; 7 8 10; 1 0 1]; Aw = [1 2 3 4; 5 6 7 8; 9 10 11 13]; D = diag([5 3 1]);",
-  "expr": "s = svd(A); st = svd(At); sw = svd(Aw); sd = svd(D); [U, S, V] = svd(A); err = max(max(abs(U*S*V' - A))); orth_u = max(max(abs(U'*U - eye(3)))); orth_v = max(max(abs(V'*V - eye(3))));",
+  "expr": "s = svd(A); st = svd(At); sw = svd(Aw); sd = svd(D); [U, S, V] = svd(A); err = max(max(abs(U*S*V' - A))); orth_u = max(max(abs(U'*U - eye(3)))); orth_v = max(max(abs(V'*V - eye(3)))); [Ue, Se, Ve] = svd(At, 'econ'); ueC = size(Ue,2); seR = size(Se,1); veC = size(Ve,2); recE = max(max(abs(Ue*Se*Ve' - At)));",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
@@ -10,7 +10,8 @@
     "st(1)", "st(2)", "st(3)",
     "sw(1)", "sw(2)", "sw(3)",
     "sd(1)", "sd(2)", "sd(3)",
-    "err", "orth_u", "orth_v"
+    "err", "orth_u", "orth_v",
+    "Se(1,1)", "Se(3,3)", "ueC", "seR", "veC", "recE"
   ],
-  "comment": "Sig: s = svd(A) | [U, S, V] = svd(A). One-sided Jacobi SVD; A = U*S*V'. Bit-identical singular values with MATLAB R2025b on probed matrices (3x3 / 4x3 tall / 3x4 wide / diagonal). U/V vectors not compared directly (sign ambiguity); identity U*S*V' = A and orthogonality verified to ulp."
+  "comment": "Sig: s = svd(A) | [U, S, V] = svd(A) | svd(A,'econ'). One-sided Jacobi SVD; A = U*S*V'. Bit-identical singular values with MATLAB R2025b (3x3 / 4x3 tall / 3x4 wide / diagonal). 'econ' on a 4x3 tall matrix: Ue 4x3, Se 3x3, Ve 3x3 (k=min(m,n)=3), reconstruction Ue*Se*Ve'=At. U/V signs not compared (ambiguity); reconstruction + orthogonality verified to ulp. Queue-clearing 2026-05-29: 'econ' previously errored 'requires exactly 1 argument'."
 }
