@@ -117,6 +117,43 @@ Value pixel_transform_raw(const Value &x, const char *fn, Op op, std::pmr::memor
     return out;
 }
 
+// Convert a [0,1] DOUBLE result into the requested output class, matching
+// MATLAB's class-preserving colour conversions: DOUBLE passes through,
+// SINGLE is cast, and integer classes are scaled to their full studio
+// range, rounded, and saturated.
+Value finalize_class(const Value &res01, ValueType cls, std::pmr::memory_resource *mr) {
+    if (cls == ValueType::DOUBLE) return res01;
+    const auto &d = res01.dims();
+    Value out = d.is3D() ? Value::matrix3d(d.rows(), d.cols(), d.pages(), cls, mr)
+                         : Value::matrix(d.rows(), d.cols(), cls, mr);
+    const size_t N = res01.numel();
+    const double *rd = res01.doubleData();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = rd[i];
+        const double c = std::clamp(v, 0.0, 1.0);
+        switch (cls) {
+            case ValueType::SINGLE: out.singleDataMut()[i] = static_cast<float>(v); break;
+            case ValueType::UINT8:  out.uint8DataMut()[i]  = static_cast<uint8_t>(std::lround(c * 255.0)); break;
+            case ValueType::UINT16: out.uint16DataMut()[i] = static_cast<uint16_t>(std::lround(c * 65535.0)); break;
+            case ValueType::INT16:  out.int16DataMut()[i]  = static_cast<int16_t>(std::lround(c * 65535.0) - 32768); break;
+            default:                 out.doubleDataMut()[i] = v; break;
+        }
+    }
+    return out;
+}
+
+// Build a [0,1] DOUBLE copy of an image, scaling integer classes by their
+// max (used to normalise integer YCbCr input before the inverse).
+Value to_unit_double(const Value &x, std::pmr::memory_resource *mr) {
+    const auto &d = x.dims();
+    Value out = d.is3D() ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+                         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    const size_t N = x.numel();
+    double *od = out.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) od[i] = element_to_unit(x, i);
+    return out;
+}
+
 } // anonymous
 
 // ════════════════════════════════════════════════════════════════════
@@ -207,42 +244,44 @@ Value ntsc2rgb(const Value &x, std::pmr::memory_resource *mr) {
 }
 
 Value rgb2ycbcr(const Value &x, std::pmr::memory_resource *mr) {
-    return pixel_transform(x, "rgb2ycbcr", [](double r, double g, double b) {
-        // BT.601 conversion (8-bit-style numbers, normalised by 255).
+    // pixel_transform normalises integer input to [0,1] via element_to_unit,
+    // so the BT.601 op always sees R,G,B in [0,1] and yields studio-swing
+    // Y/Cb/Cr in [0,1]. finalize_class then restores the input's class
+    // (integer -> studio-range integers; double/single unchanged).
+    Value res = pixel_transform(x, "rgb2ycbcr", [](double r, double g, double b) {
         const double y  = ( 65.481 * r + 128.553 * g +  24.966 * b +  16.0) / 255.0;
         const double cb = (-37.797 * r -  74.203 * g + 112.0   * b + 128.0) / 255.0;
         const double cr = (112.0   * r -  93.786 * g -  18.214 * b + 128.0) / 255.0;
         return std::array<double, 3>{y, cb, cr};
     }, mr);
+    return finalize_class(res, x.type(), mr);
 }
 
 Value ycbcr2rgb(const Value &x, std::pmr::memory_resource *mr) {
-    return pixel_transform_raw(x, "ycbcr2rgb", [](double y, double cb, double cr) {
-        // Inverse BT.601 (matches MATLAB ycbcr2rgb on DOUBLE input).
-        const double Y  = y  * 255.0;
-        const double Cb = cb * 255.0;
-        const double Cr = cr * 255.0;
-        const double r = (   298.082 * Y +    0.0   * (Cb - 128.0) + 408.583 * (Cr - 128.0)) / 255.0 / 255.0 - 222.921 / 255.0;
-        const double g = (   298.082 * Y -  100.291 * (Cb - 128.0) - 208.120 * (Cr - 128.0)) / 255.0 / 255.0 + 135.576 / 255.0;
-        const double bo= (   298.082 * Y +  516.412 * (Cb - 128.0) +    0.0  * (Cr - 128.0)) / 255.0 / 255.0 - 276.836 / 255.0;
-        // The above factoring isn't pretty — explicit inverse matrix:
-        //   R = 1.164*(Y-16) + 1.596*(Cr-128)
-        //   G = 1.164*(Y-16) - 0.392*(Cb-128) - 0.813*(Cr-128)
-        //   B = 1.164*(Y-16) + 2.017*(Cb-128)
-        // Use that directly for clarity / accuracy:
-        const double Ys = 1.16438356 * (Y - 16.0);
-        const double Cbs = Cb - 128.0;
-        const double Crs = Cr - 128.0;
-        double R = (Ys                + 1.59602715 * Crs) / 255.0;
-        double G = (Ys - 0.39176229*Cbs - 0.81296765 * Crs) / 255.0;
-        double B = (Ys + 2.01723214 * Cbs                 ) / 255.0;
-        // Clip [0, 1].
+    // Integer YCbCr input is normalised to [0,1] before the inverse;
+    // finalize_class then restores the input class (integer -> [0,255]/
+    // [0,65535] saturated, double/single unchanged).
+    const ValueType cls = x.type();
+    const bool isInt = (cls == ValueType::UINT8 || cls == ValueType::UINT16
+                        || cls == ValueType::INT16);
+    Value src = isInt ? to_unit_double(x, mr) : x;
+    Value res = pixel_transform_raw(src, "ycbcr2rgb", [](double y, double cb, double cr) {
+        // Inverse BT.601 = inv([65.481 128.553 24.966; -37.797 -74.203 112;
+        // 112 -93.786 -18.214]) applied to [255Y-16; 255Cb-128; 255Cr-128].
+        // Full-precision coefficients (bit-exact vs MATLAB R2025b; the
+        // previous 8-digit-rounded factoring drifted ~1e-7).
+        const double Yp  = 255.0 * y  - 16.0;
+        const double Cbp = 255.0 * cb - 128.0;
+        const double Crp = 255.0 * cr - 128.0;
+        double R = 0.0045662100456621011 * Yp + 1.1808799897946412e-09 * Cbp + 0.0062589289699439363 * Crp;
+        double G = 0.0045662100456621011 * Yp - 0.0015363236860449021 * Cbp - 0.003188110949655707 * Crp;
+        double B = 0.0045662100456621011 * Yp + 0.0079107162335547414 * Cbp + 1.1977497040190077e-08 * Crp;
         R = std::clamp(R, 0.0, 1.0);
         G = std::clamp(G, 0.0, 1.0);
         B = std::clamp(B, 0.0, 1.0);
-        (void)r; (void)g; (void)bo;  // silence unused warnings
         return std::array<double, 3>{R, G, B};
     }, mr);
+    return finalize_class(res, cls, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════

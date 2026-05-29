@@ -63,6 +63,35 @@ TEST_F(ImageBatch2Test, ColorConversions)
     EXPECT_DOUBLE_EQ(evalScalar("numel(rgb3)"), 12.0);
 }
 
+// Class-preserving YCbCr conversions (MATLAB R2025b): integer input keeps
+// its class and is scaled to the studio integer range; double stays [0,1]
+// with the full-precision inverse.
+TEST_F(ImageBatch2Test, YcbcrClassPreservation)
+{
+    eval("R8 = uint8(cat(3,[10 40;70 200],[20 50;80 0],[30 60;90 120]));");
+    eval("y8 = rgb2ycbcr(R8);");
+    EXPECT_TRUE(eval("y8").type() == ValueType::UINT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y8(1,1,1))"), 32.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y8(1,1,2))"), 134.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y8(1,1,3))"), 123.0);
+
+    eval("y16 = rgb2ycbcr(uint16(cat(3,1000,2000,3000)));");
+    EXPECT_TRUE(eval("y16").type() == ValueType::UINT16);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y16(1,1,1))"), 5671.0);
+
+    eval("Y8 = uint8(cat(3,[80 130;60 200],[128 90;160 110],[128 170;60 140]));");
+    eval("r8 = ycbcr2rgb(Y8);");
+    EXPECT_TRUE(eval("r8").type() == ValueType::UINT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(r8(1,1,1))"), 75.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(r8(2,2,2))"), 212.0);
+
+    // Double path is now bit-exact (full-precision inverse matrix).
+    eval("rd = ycbcr2rgb(cat(3,0.30,0.50,0.50));");
+    EXPECT_TRUE(eval("rd").type() == ValueType::DOUBLE);
+    EXPECT_NEAR(evalScalar("rd(1,1,1)"), 0.273126242687, 1e-9);
+    EXPECT_NEAR(evalScalar("rd(1,1,2)"), 0.27861792508, 1e-9);
+}
+
 TEST_F(ImageBatch2Test, ImConvert)
 {
     eval("d = im2double(uint8([0 128 255]));");
