@@ -173,8 +173,55 @@ TEST_P(DspGapsTest, FindpeaksLocationForm)
     EXPECT_EQ(l->numel(), 5u);
     EXPECT_DOUBLE_EQ(l->doubleData()[0], 0.5);
     EXPECT_DOUBLE_EQ(l->doubleData()[2], 2.5);
-    // Unsupported option fails loudly (no silent ignore).
-    EXPECT_THROW(eval("findpeaks([0 1 0 2 0], 'MinPeakProminence', 1);"), std::exception);
+    // A genuinely unsupported option still fails loudly (no silent ignore).
+    EXPECT_THROW(eval("findpeaks([0 1 0 2 0], 'MinPeakWidth', 1);"), std::exception);
+}
+
+// ── MinPeakProminence + width / prominence outputs ─────────────
+// y = [1 3 2 5 1 6 1 4 2]: peaks at 2,4,6,8 with prominences 1,4,5,2.
+
+TEST_P(DspGapsTest, FindpeaksMinPeakProminence)
+{
+    eval("function [a,b] = fpMPP(x)\n"
+         "  [a,b] = findpeaks(x, 'MinPeakProminence', 3);\n"
+         "end");
+    eval("[v, l] = fpMPP([1 3 2 5 1 6 1 4 2]);");
+    auto *v = getVarPtr("v");
+    auto *l = getVarPtr("l");
+    ASSERT_EQ(v->numel(), 2u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 5.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 6.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 4.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[1], 6.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksProminenceOutput)
+{
+    eval("function [a,b,c,d] = fp4(x)\n"
+         "  [a,b,c,d] = findpeaks(x);\n"
+         "end");
+    eval("[pk, lc, w, p] = fp4([1 3 2 5 1 6 1 4 2]);");
+    auto *p = getVarPtr("p");
+    ASSERT_EQ(p->numel(), 4u);
+    EXPECT_DOUBLE_EQ(p->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[2], 5.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[3], 2.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksWidthOutput)
+{
+    eval("function [a,b,c,d] = fp4w(x)\n"
+         "  [a,b,c,d] = findpeaks(x);\n"
+         "end");
+    eval("[pk, lc, w, p] = fp4w([1 3 2 5 1 6 1 4 2]);");
+    auto *w = getVarPtr("w");
+    ASSERT_EQ(w->numel(), 4u);
+    // Half-prominence widths, verified against MATLAB R2025b.
+    EXPECT_NEAR(w->doubleData()[0], 0.75,               1e-12);
+    EXPECT_NEAR(w->doubleData()[1], 1.1666666666666667, 1e-12);
+    EXPECT_NEAR(w->doubleData()[2], 1.0,                1e-12);
+    EXPECT_NEAR(w->doubleData()[3], 0.8333333333333333, 1e-12);
 }
 
 // ── goertzel ────────────────────────────────────────────────
