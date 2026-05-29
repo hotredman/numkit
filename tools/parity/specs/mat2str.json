@@ -2,7 +2,7 @@
   "name": "mat2str",
   "namespace": "builtin",
   "setup": "",
-  "expr": "a = mat2str([1 2;3 4]); b = mat2str(1+2i); c = mat2str([1+2i 3-4i]); d = mat2str([1.5+2.25i -3i], 5); e = mat2str(complex(1,0));",
+  "expr": "a = mat2str([1 2;3 4]); b = mat2str(1+2i); c = mat2str([1+2i 3-4i]); d = mat2str([1.5+2.25i -3i], 5); e = mat2str(complex(1,0)); i1 = mat2str(int8([1 2;3 4])); ni1 = numel(i1); ci1a = double(i1(1)); ci1b = double(i1(5)); ci1c = double(i1(end)); i4 = mat2str(int32([-5 7])); ni4 = numel(i4); ci4 = double(i4(2)); l1 = mat2str(true); nl1 = numel(l1); cl1 = double(l1(1)); l2 = mat2str([true false true]); nl2 = numel(l2); k1 = mat2str(int8([1 2;3 4]), 'class'); nk1 = numel(k1); ck1 = double(k1(1)); k2 = mat2str(true, 'class'); nk2 = numel(k2);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
@@ -10,7 +10,11 @@
     "double(b(1))", "double(b(end))", "numel(b)",
     "double(c(2))", "numel(c)",
     "double(d(end))", "numel(d)",
-    "double(e(1))", "numel(e)"
+    "double(e(1))", "numel(e)",
+    "ni1", "ci1a", "ci1b", "ci1c",
+    "ni4", "ci4",
+    "nl1", "cl1", "nl2",
+    "nk1", "ck1", "nk2"
   ],
-  "comment": "Sig: s = mat2str(X[, n]). Char-code fingerprints (string == comparison gives a vector → use double(s(k))). Covers real matrix + complex scalar/row/col + a purely-imaginary element ('0-3i', no '-0') + all-zero-imag complex printed as real. Queue-clearing 2026-05-29: mat2str on a COMPLEX array previously threw 'Not a double array' / 'Cannot convert complex to scalar'; now formats re±|im|i."
+  "comment": "Sig: s = mat2str(X[, n][, 'class']). Char-code fingerprints (string == comparison gives a vector -> use double(s(k))). Covers real matrix + complex scalar/row/col + purely-imaginary element + all-zero-imag-as-real; PLUS integer types (mat2str(int8([1 2;3 4]))='[1 2;3 4]' BARE, no class wrapper) + logical (mat2str(true)='true', [true false true]) + 'class' flag (int8([1 2;3 4]), logical(true)). numkit threw 'Not a double array' on integer/logical input before 2026-05-30. NOTE: semicolons appear only inside matrix-literal INPUTS ([1 2;3 4]); never put a ; inside a quoted string in a spec expr (breaks the harness splitter). Queue-clearing 2026-05-29 (complex) + integer/logical/class 2026-05-30."
 }
