@@ -1190,7 +1190,146 @@ Value imoverlay(const Value &I, const Value &BW, const Value &color, std::pmr::m
     return out;
 }
 
+// ── reducepoly (Ramer-Douglas-Peucker polyline simplification) ────────
+//
+// MATLAB R2025b reducepoly.m: recursively splits the polyline at the
+// vertex farthest from the chord between the current endpoints; a run is
+// replaced by its endpoints once no interior vertex deviates by more than
+// the (bbox-diagonal-normalised) tolerance.
+//
+// Reference: D. Douglas & T. Peucker, "Algorithms for the reduction of
+// the number of points required to represent a digitized line or its
+// caricature", Cartographica 10(2):112-122, 1973; Ramer 1972.
+namespace {
+
+// Recursively returns the kept vertex indices for the sub-polyline
+// [lo, hi]. Mirrors douglasPeucker in reducepoly.m, including the
+// first-farthest tie-break and the degenerate near-zero-chord branch.
+template <typename T>
+std::vector<int> rdpKeep(const T *xs, const T *ys, int lo, int hi, T tolEff)
+{
+    const int n = hi - lo + 1;
+    if (n <= 2) {
+        if (lo == hi) return {lo};
+        return {lo, hi};
+    }
+    const T x1 = xs[lo], y1 = ys[lo], x2 = xs[hi], y2 = ys[hi];
+    const T dx = x2 - x1, dy = y2 - y1;
+    const T dNode = std::sqrt(dx * dx + dy * dy);
+    const double EPS = 2.220446049250313e-16;  // MATLAB eps(1)
+
+    T maxd = -1;
+    int far = -1;
+    for (int g = lo + 1; g <= hi - 1; ++g) {
+        const T xk = xs[g], yk = ys[g];
+        T d;
+        if (static_cast<double>(dNode) > EPS) {
+            // |det([1 x1 y1; 1 x2 y2; 1 xk yk])| / dNode (chord-perp dist).
+            const T det = (x2 * yk - y2 * xk) - x1 * (yk - y2) + y1 * (xk - x2);
+            d = std::abs(det) / dNode;
+        } else {
+            const T ex = xk - x1, ey = yk - y1;
+            d = std::sqrt(ex * ex + ey * ey);
+        }
+        if (d > maxd) { maxd = d; far = g; }  // strict > keeps FIRST farthest
+    }
+    if (maxd > tolEff) {
+        std::vector<int> r1 = rdpKeep(xs, ys, lo, far, tolEff);
+        std::vector<int> r2 = rdpKeep(xs, ys, far, hi, tolEff);
+        r1.insert(r1.end(), r2.begin() + 1, r2.end());  // drop duplicate `far`
+        return r1;
+    }
+    return {lo, hi};
+}
+
+template <typename T>
+std::vector<int> rdpRun(const Value &P, int n, double tol)
+{
+    std::vector<T> xs(static_cast<size_t>(n)), ys(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        xs[static_cast<size_t>(i)] = static_cast<T>(P.elemAsDouble(static_cast<size_t>(i)));
+        ys[static_cast<size_t>(i)] = static_cast<T>(P.elemAsDouble(static_cast<size_t>(i) + static_cast<size_t>(n)));
+    }
+    // scaling = norm(max(P) - min(P)) over each column (bbox diagonal).
+    T minx = xs[0], maxx = xs[0], miny = ys[0], maxy = ys[0];
+    for (int i = 1; i < n; ++i) {
+        minx = std::min(minx, xs[size_t(i)]); maxx = std::max(maxx, xs[size_t(i)]);
+        miny = std::min(miny, ys[size_t(i)]); maxy = std::max(maxy, ys[size_t(i)]);
+    }
+    const T sdx = maxx - minx, sdy = maxy - miny;
+    const T scaling = std::sqrt(sdx * sdx + sdy * sdy);
+    const double EPS = 2.220446049250313e-16;
+    const T tolEff = static_cast<T>(tol == 0.0 ? EPS : tol) * scaling;
+    return rdpKeep<T>(xs.data(), ys.data(), 0, n - 1, tolEff);
+}
+
+} // namespace
+
+Value reducepoly(const Value &P, double tolerance, std::pmr::memory_resource *mr)
+{
+    const auto &d = P.dims();
+    if (d.ndim() > 2 || (d.cols() != 2 && P.numel() != 0))
+        throw Error("reducepoly: P must be an n-by-2 matrix",
+                    0, 0, "reducepoly", "", "numkit:reducepoly:shape");
+    if (tolerance < 0.0 || tolerance > 1.0)
+        throw Error("reducepoly: tolerance must be in [0, 1]",
+                    0, 0, "reducepoly", "", "numkit:reducepoly:tol");
+
+    const int n = static_cast<int>(d.rows());
+    const ValueType cls = P.type();
+
+    auto storeAt = [&](Value &out, size_t oidx, double v) {
+        switch (cls) {
+            case ValueType::SINGLE: out.singleDataMut()[oidx] = static_cast<float>(v); break;
+            case ValueType::UINT8:  out.uint8DataMut()[oidx]  = static_cast<uint8_t>(std::lround(v)); break;
+            case ValueType::UINT16: out.uint16DataMut()[oidx] = static_cast<uint16_t>(std::lround(v)); break;
+            case ValueType::UINT32: out.uint32DataMut()[oidx] = static_cast<uint32_t>(std::lround(v)); break;
+            case ValueType::INT8:   out.int8DataMut()[oidx]   = static_cast<int8_t>(std::lround(v)); break;
+            case ValueType::INT16:  out.int16DataMut()[oidx]  = static_cast<int16_t>(std::lround(v)); break;
+            case ValueType::INT32:  out.int32DataMut()[oidx]  = static_cast<int32_t>(std::lround(v)); break;
+            case ValueType::INT64:  out.int64DataMut()[oidx]  = static_cast<int64_t>(std::llround(v)); break;
+            default:                out.doubleDataMut()[oidx] = v; break;
+        }
+    };
+
+    // n <= 1: return the input unchanged (per MATLAB).
+    if (n <= 1) {
+        Value out = Value::matrix(static_cast<size_t>(n), n == 0 ? 0 : 2, cls, mr);
+        for (int i = 0; i < n; ++i) {
+            storeAt(out, static_cast<size_t>(i), P.elemAsDouble(static_cast<size_t>(i)));
+            storeAt(out, static_cast<size_t>(i) + static_cast<size_t>(n),
+                    P.elemAsDouble(static_cast<size_t>(i) + static_cast<size_t>(n)));
+        }
+        return out;
+    }
+
+    // Compute in double for DOUBLE input, single otherwise (matches MATLAB,
+    // which casts non-float to single and keeps single/double as-is).
+    const std::vector<int> keep = (cls == ValueType::DOUBLE)
+        ? rdpRun<double>(P, n, tolerance)
+        : rdpRun<float>(P, n, tolerance);
+
+    const size_t m = keep.size();
+    Value out = Value::matrix(m, 2, cls, mr);
+    for (size_t j = 0; j < m; ++j) {
+        const size_t k = static_cast<size_t>(keep[j]);
+        storeAt(out, j,           P.elemAsDouble(k));                       // x
+        storeAt(out, j + m,       P.elemAsDouble(k + static_cast<size_t>(n)));  // y
+    }
+    return out;
+}
+
 namespace detail {
+
+void reducepoly_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.empty())
+        throw Error("reducepoly: requires (P[, tolerance])",
+                    0, 0, "reducepoly", "", "numkit:reducepoly:nargin");
+    double tol = 0.001;
+    if (a.size() >= 2 && !a[1].isEmpty()) tol = a[1].toScalar();
+    o[0] = reducepoly(a[0], tol, c.engine->resource());
+}
 
 void imoverlay_reg(Span<const Value> a, size_t, Span<Value> o,
                    CallContext &c)

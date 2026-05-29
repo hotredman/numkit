@@ -236,6 +236,33 @@ Value poly2mask(const Value &X, const Value &Y,
                 std::size_t M, std::size_t N,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Reduce point density of a polyline / polygon
+/// (`P_reduced = reducepoly(P, tolerance)`).
+///
+/// Ramer-Douglas-Peucker line simplification: recursively split the run
+/// of points at the vertex farthest from the chord between the current
+/// endpoints; a run is collapsed to its endpoints once no interior
+/// vertex deviates from that chord by more than `tolerance`. `tolerance`
+/// is in `[0, 1]` and is normalised by the bounding-box diagonal
+/// `norm(max(P) - min(P))`; `0` is treated as `eps` (minimal reduction),
+/// `1` leaves only the endpoints. The first farthest vertex wins on ties.
+///
+/// `P` is an `n × 2` `[x y]` matrix. Output class equals the input class
+/// (integer inputs are computed in single and cast back); the output
+/// rows are exact copies of retained input vertices.
+///
+/// Reference: D. Douglas & T. Peucker, *Cartographica* 10(2):112-122,
+/// 1973.
+///
+/// @param P          `n × 2` point matrix.
+/// @param tolerance  Sensitivity in `[0, 1]` (default 0.001 in adapter).
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           `m × 2` reduced point matrix, same class as `P`.
+/// @throws Error     `P` not `n × 2`, or `tolerance` outside `[0, 1]`.
+/// @see poly2mask, roipoly, bwboundaries
+Value reducepoly(const Value &P, double tolerance,
+                 std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Polygonal region-of-interest mask
 /// (`BW = roipoly(A, xi, yi)`, world-coord variants).
 ///

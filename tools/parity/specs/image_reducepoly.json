@@ -1,0 +1,17 @@
+{
+  "name": "image_reducepoly",
+  "namespace": "image",
+  "setup": "P = [0 0; 1 0.05; 2 0.0; 3 1; 4 2; 5 2.05; 6 2]; C = [0 0; 1 1; 2 2; 3 3; 4 4]; T = [0 0; 1 1; 2 0; 3 1; 4 0];",
+  "expr": "Rd = reducepoly(P); R1 = reducepoly(P, 0.1); Rc = reducepoly(C, 0.01); Rt = reducepoly(T, 0.1); R0 = reducepoly(P, 0); Rg = reducepoly([0 0; 5 5], 0.5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "size(Rd,1)", "size(Rd,2)", "Rd(1,1)", "Rd(2,1)", "Rd(2,2)", "Rd(4,1)", "Rd(4,2)", "Rd(end,1)", "Rd(end,2)",
+    "size(R1,1)", "R1(1,1)", "R1(2,1)", "R1(2,2)",
+    "size(Rc,1)",
+    "size(Rt,1)", "Rt(3,1)", "Rt(3,2)",
+    "size(R0,1)",
+    "size(Rg,1)"
+  ],
+  "comment": "MATLAB Image Toolbox reducepoly — Ramer-Douglas-Peucker polyline simplification. tolerance in [0,1] normalised by the bbox diagonal norm(max(P)-min(P)); 0 -> eps (minimal reduction), 1 -> endpoints only. Recursive split at the vertex with max chord-perpendicular distance (|det([1 x y; ...])|/chordLen), first-farthest wins on ties; a run collapses to its endpoints once max deviation <= tolerance. Output rows are exact copies of retained input vertices; class preserved (integer computed in single, cast back). Verified vs MATLAB R2025b: default keeps 6 of 7 (drops the vertex collinear with its neighbours), tol>=0.1 keeps only endpoints, collinear -> 2, triangle-wave -> all 5. Bit-equal (tol=1e-12). Octave 11.1.0 ships reducepoly in the image package only -> reports N/A there."
+}
