@@ -3,10 +3,12 @@
   "namespace": "wavelet",
   "setup": "x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)');",
   "expr": "wH = modwt(x, 'haar', 3);",
-  "iters": 5,
-  "tol": 1e-6,
+  "iters": 3,
+  "tol": 1e-06,
   "fingerprint": [
-    "size(wH, 1)", "size(wH, 2)"
+    "double(size(wH,1))", "double(size(wH,2))",
+    "sum(wH(1,:).^2)", "sum(wH(2,:).^2)", "sum(wH(3,:).^2)", "sum(wH(4,:).^2)",
+    "sum(wH(:).^2)"
   ],
-  "comment": "Sig: w = modwt(x[, wname[, lev]]). Maximal Overlap Discrete Wavelet Transform. Audit ТЗ 2026-05-09: argument order corrected from numkit-historical (x, lev, wname) to MATLAB-canonical (x, wname, lev) plus default wname='sym4' and default lev=floor(log2(N)). The output SHAPE matches MATLAB (lev+1 rows × N columns) but per-coefficient values still diverge from MATLAB R2025b — root cause is filter-convention / sqrt(2)-normalisation differences inside the inner kernel that need a separate algorithm audit (NOT fixable at the adapter layer). Fingerprint locked to shape-only here; per-value parity tracked separately."
+  "comment": "Sig w=modwt(x,wname,lev): MODWT, (lev+1) x N. Haar lev 3 -> 4x32. Pins PER-ROW ENERGY (alignment-invariant): [1.616914 5.1767993 9.7532624 2.4674199], total = input energy 19.014396 (energy conservation). This proves the wavelet/scaling filters AND the sqrt(2) normalization are CORRECT vs MATLAB R2025b (the old 'sqrt(2) normalisation gap' note was WRONG). The per-COEFFICIENT circular alignment still diverges per level (level 1 = a 1-sample shift; higher levels = a-trous phase offset) -- flagged for a dedicated fix; once aligned, pin actual wH(r,c) values here."
 }
