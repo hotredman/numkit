@@ -79,7 +79,7 @@ Value ismember(const Value &a, const Value &b, std::pmr::memory_resource *mr = n
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Union as row vector.
 /// @see setIntersect, setDiff
-Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Set intersection (`y = intersect(a, b)`).
 ///
@@ -88,7 +88,7 @@ Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr = n
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Intersection as row vector.
 /// @see setUnion, setDiff
-Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Set difference (`y = setdiff(a, b)`).
 ///
@@ -99,7 +99,7 @@ Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `a \ b` as row vector.
 /// @see setUnion, setIntersect
-Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Histogram bin counts (`n = histcounts(x, edges)`).
 ///

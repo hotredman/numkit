@@ -409,9 +409,23 @@ Value ismember(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 
 // ── union / intersect / setdiff ────────────────────────────────────
 
-Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr)
+Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr, bool stable)
 {
     ScratchArena scratch(mr);
+    if (stable) {
+        // MATLAB 'stable': unique(A) in A-order, then B's new values in
+        // B-order (first occurrence wins).
+        std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
+        auto out = ScratchVec<double>(&scratch);
+        out.reserve(a.numel() + b.numel());
+        const double *pa = a.doubleData();
+        for (size_t i = 0; i < a.numel(); ++i)
+            if (!std::isnan(pa[i]) && seen.insert(pa[i]).second) out.push_back(pa[i]);
+        const double *pbS = b.doubleData();
+        for (size_t i = 0; i < b.numel(); ++i)
+            if (!std::isnan(pbS[i]) && seen.insert(pbS[i]).second) out.push_back(pbS[i]);
+        return rowFromVec(out.data(), out.size(), mr);
+    }
     auto s = hashSetNoNaN(a, &scratch);
     const double *pb = b.doubleData();
     for (size_t i = 0; i < b.numel(); ++i)
@@ -421,8 +435,23 @@ Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return rowFromVec(out.data(), out.size(), mr);
 }
 
-Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr)
+Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr, bool stable)
 {
+    if (stable) {
+        // MATLAB 'stable': values present in BOTH, in A-order (first
+        // occurrence wins).
+        ScratchArena scr(mr);
+        auto setB = hashSetNoNaN(b, &scr);
+        std::pmr::unordered_set<double, DoubleHashEq0> seen(&scr);
+        auto out = ScratchVec<double>(&scr);
+        const double *pa = a.doubleData();
+        for (size_t i = 0; i < a.numel(); ++i) {
+            const double v = pa[i];
+            if (!std::isnan(v) && setB.count(v) && seen.insert(v).second)
+                out.push_back(v);
+        }
+        return rowFromVec(out.data(), out.size(), mr);
+    }
     const bool aSmaller = a.numel() <= b.numel();
     const Value &small = aSmaller ? a : b;
     const Value &large = aSmaller ? b : a;
@@ -445,7 +474,7 @@ Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr
     return rowFromVec(out.data(), out.size(), mr);
 }
 
-Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr)
+Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr, bool stable)
 {
     ScratchArena scratch(mr);
     auto setB = hashSetNoNaN(b, &scratch);
@@ -454,13 +483,15 @@ Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     auto out = ScratchVec<double>(&scratch);
     out.reserve(a.numel());
     const double *pa = a.doubleData();
+    // This loop already walks A in order keeping first occurrences, so for
+    // 'stable' we simply skip the final sort.
     for (size_t i = 0; i < a.numel(); ++i) {
         const double v = pa[i];
         if (std::isnan(v)) continue;
         if (setB.count(v) == 0 && seen.insert(v).second)
             out.push_back(v);
     }
-    std::sort(out.begin(), out.end());
+    if (!stable) std::sort(out.begin(), out.end());
     return rowFromVec(out.data(), out.size(), mr);
 }
 
@@ -1016,10 +1047,44 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
 NK_BIN_SETOP_REG(ismember,  ismember)
-NK_BIN_SETOP_REG(union,     setUnion)
-NK_BIN_SETOP_REG(intersect, setIntersect)
-NK_BIN_SETOP_REG(setdiff,   setDiff)
 NK_BIN_SETOP_REG(histcounts, histcounts)
+
+// union / intersect / setdiff accept a trailing 'sorted' (default) or
+// 'stable' setOrder flag; 'stable' keeps first-occurrence (A-then-B) order.
+namespace {
+bool wantsStable(Span<const Value> args, size_t start)
+{
+    for (size_t i = start; i < args.size(); ++i) {
+        if (args[i].isChar() || args[i].isString()) {
+            std::string s = args[i].toString();
+            for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (s == "stable") return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
+void union_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("union: requires 2 arguments", 0, 0, "union", "", "numkit:union:nargin");
+    outs[0] = setUnion(args[0], args[1], ctx.engine->resource(), wantsStable(args, 2));
+}
+
+void intersect_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("intersect: requires 2 arguments", 0, 0, "intersect", "", "numkit:intersect:nargin");
+    outs[0] = setIntersect(args[0], args[1], ctx.engine->resource(), wantsStable(args, 2));
+}
+
+void setdiff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("setdiff: requires 2 arguments", 0, 0, "setdiff", "", "numkit:setdiff:nargin");
+    outs[0] = setDiff(args[0], args[1], ctx.engine->resource(), wantsStable(args, 2));
+}
 NK_BIN_SETOP_REG(discretize, discretize)
 
 #undef NK_BIN_SETOP_REG
