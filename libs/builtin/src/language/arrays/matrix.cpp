@@ -1246,11 +1246,73 @@ Value diag(const Value &x, std::pmr::memory_resource *mr)
 }
 
 // ── Sort / find ──────────────────────────────────────────────────────
+// Complex sort (MATLAB rule): order by magnitude |z| ascending; ties broken
+// by phase angle arg(z) in (-pi, pi] ascending. A NaN component (|z| = NaN)
+// sorts LAST for ascending, FIRST for descending. 'descend' fully reverses
+// both keys. Unlike min/max there is NO all-real fast path — a COMPLEX-typed
+// all-real input still sorts by |z|+angle (so sort([2 -2]+0i) = [2 -2]).
+std::tuple<Value, Value> sortComplex(const Value &x, int dim, bool descend,
+                                     std::pmr::memory_resource *mr)
+{
+    const size_t R = x.dims().rows(), C = x.dims().cols();
+    const size_t P = x.dims().is3D() ? x.dims().pages() : 1;
+    const int sortDim = (dim >= 1) ? std::min(dim - 1, 2)
+                                   : ((R > 1) ? 0 : (C > 1) ? 1 : 2);
+    const size_t N = (sortDim == 0) ? R : (sortDim == 1) ? C : P;
+
+    auto r = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::COMPLEX, mr)
+                             : Value::matrix(R, C, ValueType::COMPLEX, mr);
+    auto idx = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                               : Value::matrix(R, C, ValueType::DOUBLE, mr);
+
+    const size_t slice0 = (sortDim == 0) ? 1 : R;
+    const size_t slice1 = (sortDim == 1) ? 1 : C;
+    const size_t slice2 = (sortDim == 2) ? 1 : P;
+    const Complex *src = x.complexData();
+    ScratchArena scratch(mr);
+    ScratchVec<std::pair<Complex, size_t>> buf(N, &scratch);
+
+    for (size_t pp = 0; pp < slice2; ++pp)
+        for (size_t c = 0; c < slice1; ++c)
+            for (size_t rr = 0; rr < slice0; ++rr) {
+                for (size_t k = 0; k < N; ++k) {
+                    const size_t rIdx = (sortDim == 0) ? k : rr;
+                    const size_t cIdx = (sortDim == 1) ? k : c;
+                    const size_t pIdx = (sortDim == 2) ? k : pp;
+                    buf[k] = {src[pIdx * R * C + cIdx * R + rIdx], k};
+                }
+                std::stable_sort(buf.begin(), buf.end(),
+                          [descend](const auto &a, const auto &b) {
+                              const double am = std::abs(a.first), bm = std::abs(b.first);
+                              const bool an = std::isnan(am), bn = std::isnan(bm);
+                              if (an || bn) {
+                                  if (an && bn) return false;
+                                  return descend ? an : bn;
+                              }
+                              if (am != bm) return descend ? (am > bm) : (am < bm);
+                              const double aa = std::arg(a.first), ba = std::arg(b.first);
+                              if (aa != ba) return descend ? (aa > ba) : (aa < ba);
+                              return false;
+                          });
+                for (size_t k = 0; k < N; ++k) {
+                    const size_t rIdx = (sortDim == 0) ? k : rr;
+                    const size_t cIdx = (sortDim == 1) ? k : c;
+                    const size_t pIdx = (sortDim == 2) ? k : pp;
+                    const size_t lin = pIdx * R * C + cIdx * R + rIdx;
+                    r.complexDataMut()[lin] = buf[k].first;
+                    idx.doubleDataMut()[lin] = static_cast<double>(buf[k].second + 1);
+                }
+            }
+    return std::make_tuple(std::move(r), std::move(idx));
+}
+
 std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
                               std::pmr::memory_resource *mr)
 {
     if (x.isScalar())
         return std::make_tuple(x, Value::scalar(1.0, mr));
+    if (x.type() == ValueType::COMPLEX)
+        return sortComplex(x, dim, descend, mr);
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
     const size_t P = x.dims().is3D() ? x.dims().pages() : 1;

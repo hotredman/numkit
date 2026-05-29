@@ -1,14 +1,17 @@
 {
   "name": "sort",
   "namespace": "builtin",
-  "setup": "v = [3 1 NaN 2];",
-  "expr": "[sa, ia] = sort(v); [sd, id] = sort(v, 'descend'); m = sort([3 5; 1 2; 8 4], 1, 'descend');",
+  "setup": "v = [3 1 NaN 2]; z = [3+4i 1 5i]; t = [2+0i, -2, 1i, -1i];",
+  "expr": "[sa, ia] = sort(v); [sd, id] = sort(v, 'descend'); m = sort([3 5; 1 2; 8 4], 1, 'descend'); [cz, ci] = sort(z); cd = sort(z, 'descend'); ct = sort(t);",
   "iters": 3,
   "tol": 1e-12,
   "fingerprint": [
     "sa(1)", "sa(3)", "double(isnan(sa(4)))", "ia(1)", "ia(2)",
     "double(isnan(sd(1)))", "sd(2)", "sd(4)", "id(1)",
-    "m(1,1)", "m(3,1)", "m(1,2)"
+    "m(1,1)", "m(3,1)", "m(1,2)",
+    "real(cz(1))", "real(cz(2))", "imag(cz(2))", "imag(cz(3))", "ci(1)", "ci(3)",
+    "imag(cd(1))", "real(cd(3))",
+    "imag(ct(1))", "imag(ct(2))", "real(ct(3))", "real(ct(4))"
   ],
-  "comment": "Sig [s,i]=sort(X[,dim][,direction]): default ASCEND with NaN LAST: sort([3 1 NaN 2])=[1 2 3 NaN], idx=[2 4 1 3]. 'descend' with NaN FIRST: [NaN 3 2 1], idx(1)=3. Matrix sort(M,1,'descend') sorts each column descending: col1 [8 3 1], col2 [5 4 2]. numkit previously IGNORED the 'descend' direction (always ascended) and left NaN unsorted in place -- fixed (direction + dim parsing in sort_reg, NaN-aware stable comparator)."
+  "comment": "Sig [s,i]=sort(X[,dim][,direction]): default ASCEND with NaN LAST: sort([3 1 NaN 2])=[1 2 3 NaN], idx=[2 4 1 3]. 'descend' with NaN FIRST: [NaN 3 2 1], idx(1)=3. Matrix sort(M,1,'descend') sorts each column descending: col1 [8 3 1], col2 [5 4 2]. COMPLEX sort orders by magnitude |z| then phase angle arg(z): sort([3+4i 1 5i])=[1 3+4i 5i] idx [2 1 3]; 'descend' reverses -> 5i first, 1 last; sort([2 -2 1i -1i])=[-1i 1i 2 -2] (mag 1s before mag 2s, angle ties). numkit previously: 'descend' ignored + NaN unsorted (fixed earlier); COMPLEX sort threw 'Not a double array' (added sortComplex 2026-05-29)."
 }
