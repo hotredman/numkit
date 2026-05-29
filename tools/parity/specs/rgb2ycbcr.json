@@ -1,19 +1,24 @@
 {
   "name": "rgb2ycbcr",
   "namespace": "image",
-  "setup": "RGB = cat(3, [0.10 0.40; 0.70 1.00], [0.20 0.50; 0.80 0.00], [0.30 0.60; 0.90 0.50]);",
-  "expr": "y = rgb2ycbcr(RGB);",
-  "iters": 5,
+  "setup": "R8 = uint8(cat(3,[10 40;70 200],[20 50;80 0],[30 60;90 120])); R16 = uint16(cat(3,[1000 4000;7000 20000],[2000 5000;8000 0],[3000 6000;9000 12000])); Rd = cat(3,[0.10 0.40;0.70 1.00],[0.20 0.50;0.80 0.00],[0.30 0.60;0.90 0.50]);",
+  "expr": "y8 = rgb2ycbcr(R8); y16 = rgb2ycbcr(R16); yd = rgb2ycbcr(Rd);",
+  "iters": 3,
   "tol": 1e-09,
   "fingerprint": [
-    "size(y,3)",
-    "y(1,1,1)",
-    "y(1,1,2)",
-    "y(1,1,3)",
-    "y(2,2,1)",
-    "y(2,2,2)",
-    "y(2,2,3)",
-    "sum(y(:))"
+    "double(y8(1,1,1))",
+    "double(y8(1,1,2))",
+    "double(y8(1,1,3))",
+    "double(y8(2,2,1))",
+    "double(y8(2,2,3))",
+    "double(y16(1,1,1))",
+    "double(y16(1,1,2))",
+    "double(y16(1,1,3))",
+    "yd(1,1,1)",
+    "yd(1,1,2)",
+    "yd(1,1,3)",
+    "yd(2,2,1)",
+    "sum(yd(:))"
   ],
-  "comment": "MATLAB rgb2ycbcr — RGB->YCbCr (BT.601). DOUBLE-input path: studio swing scaled to [0,1]; pins Y/Cb/Cr at two pixels. Bit-equal MATLAB R2025b (tol=1e-9). NOTE: integer-class (uint8/uint16) input is a separate numkit gap (currently returns DOUBLE in [0,1] not same-class studio integers) — tracked in a dedicated fix task."
+  "comment": "MATLAB rgb2ycbcr — RGB->YCbCr (BT.601), class-preserving across uint8 / uint16 / double. uint8 in -> uint8 out studio range (Y in [16,235], Cb/Cr in [16,240]); uint16 in -> uint16 out (scaled by 65535); double in -> double studio swing in [0,1]. Pins Y/Cb/Cr values at two pixels for all three classes. Bit-equal MATLAB R2025b (tol=1e-9). Octave ships it in image pkg only."
 }
