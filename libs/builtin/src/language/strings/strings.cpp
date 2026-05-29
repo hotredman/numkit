@@ -264,33 +264,92 @@ Value blanks(size_t n, std::pmr::memory_resource *mr)
 
 namespace {
 
-Value strsplitImpl(const std::string &s, char delim, std::pmr::memory_resource *mr)
+// Length of the LONGEST delimiter (literal) in `delims` matching `s` at
+// position `i`, or 0 if none match. Longest-match so a delimiter ", " wins
+// over "," when both are listed.
+size_t matchDelimAt(const std::string &s, size_t i,
+                    const std::pmr::vector<std::string> &delims)
+{
+    size_t best = 0;
+    for (const auto &d : delims)
+        if (!d.empty() && d.size() > best && i + d.size() <= s.size() &&
+            s.compare(i, d.size(), d) == 0)
+            best = d.size();
+    return best;
+}
+
+// Core split used by every strsplit entry point. Matches MATLAB R2025b:
+//   - any of `delims` (literal, longest-match) is a split point;
+//   - CollapseDelimiters=true (default) merges only CONSECUTIVE delimiters,
+//     so leading/trailing empty tokens are still produced
+//     (',a,b,' -> {'','a','b',''}); collapse=false splits at every
+//     occurrence ('a,,b' -> {'a','','b'});
+//   - the result always has at least one element ('' -> {''}).
+Value strsplitImpl(const std::string &s,
+                   const std::pmr::vector<std::string> &delims, bool collapse,
+                   std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     ScratchVec<std::string> parts(&scratch);
-    std::istringstream iss(s);
-    std::string token;
-    while (std::getline(iss, token, delim))
-        if (!token.empty())
-            parts.push_back(token);
+    std::string current;
+    const size_t n = s.size();
+    size_t i = 0;
+    while (i < n) {
+        size_t mlen = matchDelimAt(s, i, delims);
+        if (mlen > 0) {
+            parts.push_back(current);
+            current.clear();
+            i += mlen;
+            if (collapse) {
+                size_t m2;
+                while (i < n && (m2 = matchDelimAt(s, i, delims)) > 0)
+                    i += m2;
+            }
+        } else {
+            current.push_back(s[i++]);
+        }
+    }
+    parts.push_back(current);
     auto c = Value::cell(1, parts.size());
-    for (size_t i = 0; i < parts.size(); ++i)
-        c.cellAt(i) = Value::fromString(parts[i], mr);
+    for (size_t k = 0; k < parts.size(); ++k)
+        c.cellAt(k) = Value::fromString(parts[k], mr);
     return c;
+}
+
+// Append the MATLAB default whitespace delimiter set to `delims`.
+void appendDefaultWhitespace(ScratchVec<std::string> &delims)
+{
+    const char ws[] = {' ', '\t', '\n', '\r', '\f', '\v'};
+    for (char w : ws)
+        delims.push_back(std::string(1, w));
+}
+
+// Build the delimiter list from a string OR a cell array of strings.
+void appendDelims(const Value &delim, ScratchVec<std::string> &delims)
+{
+    if (delim.isCell())
+        for (size_t i = 0; i < delim.numel(); ++i)
+            delims.push_back(delim.cellAt(i).toString());
+    else
+        delims.push_back(delim.toString());
 }
 
 } // namespace
 
 Value strsplit(const Value &s, std::pmr::memory_resource *mr)
 {
-    return strsplitImpl(s.toString(), ' ', mr);
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> delims(&scratch);
+    appendDefaultWhitespace(delims);
+    return strsplitImpl(s.toString(), delims, /*collapse=*/true, mr);
 }
 
 Value strsplit(const Value &s, const Value &delim, std::pmr::memory_resource *mr)
 {
-    std::string d = delim.toString();
-    char ch = d.empty() ? ' ' : d[0];
-    return strsplitImpl(s.toString(), ch, mr);
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> delims(&scratch);
+    appendDelims(delim, delims);
+    return strsplitImpl(s.toString(), delims, /*collapse=*/true, mr);
 }
 
 Value strcat(Span<const Value> parts, std::pmr::memory_resource *mr)
@@ -1580,10 +1639,28 @@ void strsplit_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.empty())
         throw Error("strsplit: requires 1 argument", 0, 0, "strsplit", "",
                      "numkit:strsplit:nargin");
-    if (args.size() == 1)
-        outs[0] = strsplit(args[0], ctx.engine->resource());
-    else
-        outs[0] = strsplit(args[0], args[1], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> delims(&scratch);
+    bool collapse = true;
+    // arg 1 (optional) is the delimiter: a string or cell array of strings.
+    // Name-Value pairs (CollapseDelimiters) follow at arg 2+.
+    size_t optStart = 1;
+    if (args.size() >= 2) {
+        appendDelims(args[1], delims);
+        optStart = 2;
+    } else {
+        appendDefaultWhitespace(delims);
+    }
+    for (size_t k = optStart; k + 1 < args.size(); k += 2) {
+        std::string name = args[k].toString();
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
+        if (name == "collapsedelimiters")
+            collapse = !args[k + 1].isEmpty() && args[k + 1].toScalar() != 0.0;
+        // DelimiterType='RegularExpression' is not supported (literal only).
+    }
+    outs[0] = strsplitImpl(args[0].toString(), delims, collapse, mr);
 }
 
 void strcat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
