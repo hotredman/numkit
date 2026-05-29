@@ -316,6 +316,7 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
         return Value::fromString("[]", mr);
 
     auto fmt = [precision](double v) {
+        if (v == 0.0) v = 0.0;   // normalize -0 → 0 (MATLAB never prints "-0")
         std::ostringstream os;
         os.precision(precision);
         os << v;
@@ -327,6 +328,38 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
         throw Error("mat2str: only 2-D inputs are supported",
                      0, 0, "mat2str", "", "numkit:mat2str:rank");
     const size_t R = d.rows(), C = d.cols();
+
+    // Complex: format each element as re±|im|i. If every imaginary part is
+    // zero the array is printed as real (matches MATLAB mat2str).
+    if (x.type() == ValueType::COMPLEX) {
+        const Complex *cd = x.complexData();
+        const size_t n = x.numel();
+        bool allReal = true;
+        for (size_t i = 0; i < n; ++i)
+            if (cd[i].imag() != 0.0) { allReal = false; break; }
+        auto fmtC = [&](const Complex &z) -> std::string {
+            if (allReal) return fmt(z.real());
+            const double im = z.imag();
+            std::string s = fmt(z.real());
+            s += (im < 0.0 ? '-' : '+');
+            s += fmt(im < 0.0 ? -im : im);
+            s += 'i';
+            return s;
+        };
+        if (x.isScalar()) return Value::fromString(fmtC(cd[0]), mr);
+        std::string out;
+        out.reserve(n * (precision + 8) + R + 4);
+        out.push_back('[');
+        for (size_t r = 0; r < R; ++r) {
+            if (r > 0) out.push_back(';');
+            for (size_t c = 0; c < C; ++c) {
+                if (c > 0) out.push_back(' ');
+                out += fmtC(cd[c * R + r]);
+            }
+        }
+        out.push_back(']');
+        return Value::fromString(out, mr);
+    }
 
     if (x.isScalar()) {
         return Value::fromString(fmt(x.toScalar()), mr);
