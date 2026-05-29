@@ -553,9 +553,15 @@ ecdfhist(const Value &f, const Value &x, int m = 10, std::pmr::memory_resource *
 /// @param A       Input matrix.
 /// @param method  Normalisation method name (see list above).
 /// @param mr      Memory resource (nullptr → process default).
+/// @param param   Optional method parameter (nullptr → default): for
+///                "range" a `[lo hi]` vector; for "norm" the exponent p
+///                (Inf allowed); for "scale" a divisor string
+///                ('std'/'first'/'iqr'/'mad') or numeric; for "center"
+///                'mean'/'median' or numeric.
 /// @return        Normalised matrix, same shape as `A`.
 /// @see rescale, zscore
-Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr = nullptr);
+Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr = nullptr,
+                const Value *param = nullptr);
 
 /// @brief Linear range remap (`Y = rescale(A, lo, hi)`).
 ///
