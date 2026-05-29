@@ -622,6 +622,61 @@ Value discretize(const Value &x, const Value &edges, std::pmr::memory_resource *
     return r;
 }
 
+// ── histc (legacy) ──────────────────────────────────────────────────
+//
+// 0-based bin for v given ascending edges e[0..nE-1]: k in [0, nE-2] when
+// e[k] <= v < e[k+1]; nE-1 when v == e[nE-1] (last bin = exact equal to
+// last edge). Returns SIZE_MAX when v is NaN or outside [e[0], e[nE-1]].
+namespace {
+inline std::size_t histcBin(double v, const double *e, std::size_t nE)
+{
+    if (std::isnan(v) || v < e[0] || v > e[nE - 1]) return SIZE_MAX;
+    if (v == e[nE - 1]) return nE - 1;
+    std::size_t lo = 0, hi = nE;
+    while (lo < hi) {
+        const std::size_t mid = lo + (hi - lo) / 2;
+        if (e[mid] <= v) lo = mid + 1; else hi = mid;
+    }
+    return lo - 1;            // e[lo-1] <= v < e[lo]
+}
+} // namespace
+
+Value histc(const Value &x, const Value &edges, std::pmr::memory_resource *mr)
+{
+    validateEdges(edges, "histc");
+    const std::size_t nE = edges.numel();
+    const double *e = edges.doubleData();
+
+    const std::size_t rows = static_cast<std::size_t>(x.dims().rows());
+    const std::size_t cols = x.numel() == 0 ? 0 : x.numel() / std::max<std::size_t>(rows, 1);
+    const double *p = x.doubleData();
+
+    // Row vector -> count along the row, return a 1 × nE row. Otherwise
+    // (column vector / matrix) count each column -> nE × ncols.
+    if (rows == 1) {
+        Value r = Value::matrix(1, nE, ValueType::DOUBLE, mr);
+        double *dst = r.doubleDataMut();
+        std::fill(dst, dst + nE, 0.0);
+        const std::size_t n = x.numel();
+        for (std::size_t i = 0; i < n; ++i) {
+            const std::size_t b = histcBin(p[i], e, nE);
+            if (b != SIZE_MAX) dst[b] += 1.0;
+        }
+        return r;
+    }
+
+    const std::size_t H = rows, W = cols;
+    Value r = Value::matrix(nE, W, ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    std::fill(dst, dst + nE * W, 0.0);
+    for (std::size_t c = 0; c < W; ++c)
+        for (std::size_t i = 0; i < H; ++i) {
+            const std::size_t b = histcBin(p[c * H + i], e, nE);
+            if (b != SIZE_MAX) dst[c * nE + b] += 1.0;
+        }
+    return r;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Number theory
 // ════════════════════════════════════════════════════════════════════════
@@ -1047,6 +1102,32 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
 NK_BIN_SETOP_REG(histcounts, histcounts)
+
+// histc(x, edges): legacy bin counts (length(edges) bins, last = exact
+// equal to edges(end)). [n, bin] = histc(...) also returns the 1-based bin
+// index of each element (0 if out of range), same shape as x.
+void histc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("histc: requires (x, edges)",
+                     0, 0, "histc", "", "numkit:histc:nargin");
+    auto *mr = ctx.engine->resource();
+    outs[0] = histc(args[0], args[1], mr);
+    if (nargout > 1) {
+        const Value &x = args[0], &edges = args[1];
+        const std::size_t nE = edges.numel();
+        const double *e = edges.doubleData();
+        Value binOut = createLike(x, ValueType::DOUBLE, mr);
+        double *bd = binOut.doubleDataMut();
+        const double *p = x.doubleData();
+        const std::size_t n = x.numel();
+        for (std::size_t i = 0; i < n; ++i) {
+            const std::size_t b = histcBin(p[i], e, nE);
+            bd[i] = (b == SIZE_MAX) ? 0.0 : static_cast<double>(b + 1);
+        }
+        outs[1] = std::move(binOut);
+    }
+}
 
 // ismember(a,b): tf membership mask; [tf,loc] = ismember(...) also returns
 // loc(i) = the LOWEST 1-based index of a(i) in b (0 if absent), per MATLAB.
