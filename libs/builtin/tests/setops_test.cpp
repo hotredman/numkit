@@ -70,6 +70,43 @@ TEST_P(SetOpsTest, UniqueWithIndices)
     EXPECT_DOUBLE_EQ(ic->doubleData()[5], 2.0);
 }
 
+// Complex unique: MATLAB orders unique values by magnitude |z| then phase
+// angle arg(z); dedup by exact equality. Was unsupported (threw "Not a
+// double array"). vs MATLAB R2025b. 2026-05-29.
+TEST_P(SetOpsTest, UniqueComplex)
+{
+    eval("function [a, b, c] = wrapc(x)\n"
+         "  [a, b, c] = unique(x);\n"
+         "end");
+    eval("[U, ia, ic] = wrapc([3+4i 1 3+4i 5i]);");
+    auto *U  = getVarPtr("U");
+    auto *ia = getVarPtr("ia");
+    auto *ic = getVarPtr("ic");
+    ASSERT_NE(U, nullptr);
+    EXPECT_EQ(U->numel(), 3u);
+    // [1, 3+4i, 5i] (by |z| then angle)
+    EXPECT_DOUBLE_EQ(U->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(U->complexData()[0].imag(), 0.0);
+    EXPECT_DOUBLE_EQ(U->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(U->complexData()[1].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(U->complexData()[2].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(ia->doubleData()[0], 2.0);   // 1 first at idx 2
+    EXPECT_DOUBLE_EQ(ia->doubleData()[1], 1.0);   // 3+4i first at idx 1
+    EXPECT_DOUBLE_EQ(ia->doubleData()[2], 4.0);   // 5i first at idx 4
+    EXPECT_DOUBLE_EQ(ic->doubleData()[0], 2.0);   // X(1)=3+4i -> U(2)
+    EXPECT_DOUBLE_EQ(ic->doubleData()[2], 2.0);   // X(3)=3+4i -> U(2)
+    EXPECT_DOUBLE_EQ(ic->doubleData()[3], 3.0);   // X(4)=5i   -> U(3)
+
+    // 'stable' keeps first-occurrence order.
+    eval("cs = unique([3+4i 1 3+4i 5i], 'stable');");
+    auto *cs = getVarPtr("cs");
+    ASSERT_NE(cs, nullptr);
+    EXPECT_EQ(cs->numel(), 3u);
+    EXPECT_DOUBLE_EQ(cs->complexData()[0].real(), 3.0);   // 3+4i first
+    EXPECT_DOUBLE_EQ(cs->complexData()[1].real(), 1.0);
+    EXPECT_DOUBLE_EQ(cs->complexData()[2].imag(), 5.0);
+}
+
 // unique(x,'stable') keeps first-occurrence order (was no-op -> sorted). vs MATLAB.
 TEST_P(SetOpsTest, UniqueStable)
 {
