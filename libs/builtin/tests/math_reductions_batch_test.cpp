@@ -148,3 +148,36 @@ TEST_F(MathReductionsBatchTest, PartialEmptyReductionKeepsShape)
     EXPECT_DOUBLE_EQ(evalScalar("b(2)"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("numel(sum(zeros(3,0)))"), 0.0);
 }
+
+// MATLAB R2025b: max/min of an EMPTY array returns empty and never errors.
+// Shape = input size with the operating dim clamped to min(size,1):
+// max([])=0x0, max(zeros(0,3))=0x3, max(zeros(3,0))=1x0.
+// DEEP-PROBE 2026-05-29: numkit previously threw "min/max of empty array
+// is not supported".
+TEST_F(MathReductionsBatchTest, MaxMinEmptyReturnsEmpty)
+{
+    EXPECT_NO_THROW(eval("max([]);"));
+    EXPECT_NO_THROW(eval("min([]);"));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(max([]))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(max([]),1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(max([]),2)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(min([]))"), 0.0);
+
+    // 0x3 stays 0x3; 3x0 collapses the (>0) operating dim -> 1x0.
+    EXPECT_DOUBLE_EQ(evalScalar("size(max(zeros(0,3)),1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(max(zeros(0,3)),2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(max(zeros(3,0)),1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(max(zeros(3,0)),2)"), 0.0);
+}
+
+// [M,I] = max([]) -> both empty; non-empty index regression still holds.
+TEST_F(MathReductionsBatchTest, MaxEmptyTwoOutputAndIndexRegression)
+{
+    eval("function [m,i] = mx2(v)\n  [m,i] = max(v);\nend");
+    eval("[me, ie] = mx2([]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(me)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ie)"), 0.0);
+    eval("[mv, iv] = mx2([3 1 5 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("mv"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("iv"), 3.0);
+}
