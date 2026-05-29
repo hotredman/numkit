@@ -92,10 +92,21 @@ imhist(const Value &I, int n, std::pmr::memory_resource *mr)
     Value x = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *cd = c.doubleDataMut();
     double *xd = x.doubleDataMut();
-    const double step = (n > 1) ? 1.0 / double(n - 1) : 0.0;
+    // Bin locations x span the input CLASS's display range, not [0,1]:
+    // double/single/logical -> [0,1]; uint8 -> [0,255]; uint16 ->
+    // [0,65535]; int16 -> [-32768,32767]. (Counts above are computed on
+    // the normalized value, so only the x labels depend on class.)
+    double lo = 0.0, hi = 1.0;
+    switch (I.type()) {
+        case ValueType::UINT8:  hi = 255.0; break;
+        case ValueType::UINT16: hi = 65535.0; break;
+        case ValueType::INT16:  lo = -32768.0; hi = 32767.0; break;
+        default: break;  // DOUBLE / SINGLE / LOGICAL / other -> [0,1]
+    }
+    const double step = (n > 1) ? (hi - lo) / double(n - 1) : 0.0;
     for (int i = 0; i < n; ++i) {
         cd[i] = (double)counts[i];
-        xd[i] = i * step;
+        xd[i] = lo + i * step;
     }
     return std::make_tuple(std::move(c), std::move(x));
 }
