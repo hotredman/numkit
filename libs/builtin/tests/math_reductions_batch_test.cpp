@@ -71,6 +71,30 @@ TEST_F(MathReductionsBatchTest, Cumprod)
     EXPECT_DOUBLE_EQ(evalScalar("y(5)"), 120.0);
 }
 
+// cumsum/cumprod 'reverse' direction + 'omitnan' nanflag (were unsupported
+// -> threw "Cannot convert char to scalar"). vs MATLAB R2025b.
+TEST_F(MathReductionsBatchTest, CumsumProdReverseAndOmitnan)
+{
+    eval("rr = cumsum([1 2 3 4], 'reverse');");
+    EXPECT_DOUBLE_EQ(evalScalar("rr(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rr(2)"),  9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rr(4)"),  4.0);
+    eval("pr = cumprod([1 2 3 4], 'reverse');");
+    EXPECT_DOUBLE_EQ(evalScalar("pr(1)"), 24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("pr(3)"), 12.0);
+    // 'omitnan' treats NaN as the identity (0 for sum, 1 for prod);
+    // default 'includenan' propagates NaN.
+    eval("so = cumsum([1 NaN 3], 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("so(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("so(3)"), 4.0);
+    eval("si = cumsum([1 NaN 3]);");
+    EXPECT_TRUE(std::isnan(evalScalar("si(3)")));
+    // dim + direction together.
+    eval("md = cumsum([1 2 3; 4 5 6], 2, 'reverse');");
+    EXPECT_DOUBLE_EQ(evalScalar("md(1,1)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("md(1,3)"), 3.0);
+}
+
 TEST_F(MathReductionsBatchTest, Diff)
 {
     eval("y = diff([1, 4, 9, 16, 25]);");

@@ -2976,32 +2976,9 @@ void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 // NOTE: kron_reg migrated to libs/linalg/src/vector_ops.cpp.
 
-void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("cumsum: requires at least 1 argument",
-                     0, 0, "cumsum", "", "numkit:cumsum:nargin");
-    int dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        dim = static_cast<int>(args[1].toScalar());
-    outs[0] = (dim > 0) ? cumsum(args[0], dim, ctx.engine->resource())
-                        : cumsum(args[0], ctx.engine->resource());
-}
-
-#define NK_CUM_REG(name)                                                       \
-    void name##_reg(Span<const Value> args, size_t /*nargout*/,               \
-                    Span<Value> outs, CallContext &ctx)                       \
-    {                                                                          \
-        if (args.empty())                                                      \
-            throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "numkit:" #name ":nargin");               \
-        int dim = 0;                                                           \
-        if (args.size() >= 2 && !args[1].isEmpty())                            \
-            dim = static_cast<int>(args[1].toScalar());                        \
-        outs[0] = name(args[0], dim, ctx.engine->resource());                 \
-    }
-
-NK_CUM_REG(cumprod)
+// cumsum_reg / cumprod_reg are defined below (after the cum-flag helpers),
+// where flip() is in scope — they parse the 'reverse'/'forward' direction
+// and 'omitnan'/'includenan' flags like MATLAB.
 
 // MATLAB cummax / cummin accept positional 'reverse' / 'omitnan' /
 // 'includenan' string flags after the optional dim. Trick: 'reverse'
@@ -3121,6 +3098,71 @@ void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
                                   return cummin(v, d, mr);
                               }, ctx.engine->resource());
+}
+
+namespace {
+
+// cumsum/cumprod option handling. Unlike cummax/cummin (whose kernel skips
+// NaN), the cumsum/cumprod kernels PROPAGATE NaN — which is MATLAB's
+// 'includenan' default. So 'omitnan' is implemented by replacing NaN with
+// the additive/multiplicative identity (0 / 1) BEFORE the scan. 'reverse'
+// = flip → scan → flip along the operating dimension.
+Value cumScanFlags(const Value &x, Span<const Value> args, bool isProd,
+                   std::pmr::memory_resource *mr)
+{
+    int dim = 0; bool reverse = false; bool omitnan = false;
+    size_t i = 1;
+    if (i < args.size() && !args[i].isEmpty()
+        && !args[i].isChar() && !args[i].isString()) {
+        dim = static_cast<int>(args[i].toScalar()); ++i;
+    }
+    for (; i < args.size(); ++i) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string s = args[i].toString();
+        for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if      (s == "reverse")    reverse = true;
+        else if (s == "forward")    reverse = false;
+        else if (s == "omitnan")    omitnan = true;
+        else if (s == "includenan") omitnan = false;
+    }
+    // Effective (1-based) dim: first non-singleton when unspecified.
+    int effDim = dim;
+    if (effDim <= 0) {
+        const auto &dd = x.dims();
+        effDim = 1;
+        for (int k = 0; k < dd.ndim(); ++k)
+            if (dd.dim(k) > 1) { effDim = k + 1; break; }
+    }
+    Value src = x;
+    if (omitnan && src.type() == ValueType::DOUBLE) {
+        const double id = isProd ? 1.0 : 0.0;
+        double *d = src.doubleDataMut();
+        const size_t n = src.numel();
+        for (size_t k = 0; k < n; ++k)
+            if (std::isnan(d[k])) d[k] = id;
+    }
+    if (reverse) src = flip(src, effDim, mr);
+    Value out = isProd ? cumprod(src, effDim, mr) : cumsum(src, effDim, mr);
+    if (reverse) out = flip(out, effDim, mr);
+    return out;
+}
+
+} // anonymous
+
+void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cumsum: requires at least 1 argument",
+                     0, 0, "cumsum", "", "numkit:cumsum:nargin");
+    outs[0] = cumScanFlags(args[0], args, /*isProd=*/false, ctx.engine->resource());
+}
+
+void cumprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cumprod: requires at least 1 argument",
+                     0, 0, "cumprod", "", "numkit:cumprod:nargin");
+    outs[0] = cumScanFlags(args[0], args, /*isProd=*/true, ctx.engine->resource());
 }
 
 void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
