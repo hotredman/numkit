@@ -1,12 +1,19 @@
 {
   "name": "rgb2ycbcr",
   "namespace": "image",
-  "setup": "",
-  "expr": "ycbcr = rgb2ycbcr(zeros(2,2,3)); r1 = double(numel(ycbcr));",
+  "setup": "RGB = cat(3, [0.10 0.40; 0.70 1.00], [0.20 0.50; 0.80 0.00], [0.30 0.60; 0.90 0.50]);",
+  "expr": "y = rgb2ycbcr(RGB);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "size(y,3)",
+    "y(1,1,1)",
+    "y(1,1,2)",
+    "y(1,1,3)",
+    "y(2,2,1)",
+    "y(2,2,2)",
+    "y(2,2,3)",
+    "sum(y(:))"
   ],
-  "comment": "Sig: r = rgb2ycbcr(...). Spec-extension batch 2026-05-09 (image namespace)."
+  "comment": "MATLAB rgb2ycbcr — RGB->YCbCr (BT.601). DOUBLE-input path: studio swing scaled to [0,1]; pins Y/Cb/Cr at two pixels. Bit-equal MATLAB R2025b (tol=1e-9). NOTE: integer-class (uint8/uint16) input is a separate numkit gap (currently returns DOUBLE in [0,1] not same-class studio integers) — tracked in a dedicated fix task."
 }
