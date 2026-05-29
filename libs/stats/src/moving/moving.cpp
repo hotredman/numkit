@@ -38,8 +38,9 @@ int resolveDim(const Value &x, int dim, const char *fn)
     return validateDim(x, dim, fn);
 }
 
-// Decode the `k` argument: scalar → centred [floor((k-1)/2), floor(k/2)];
-// 2-element vector → [kb, kf].
+// Decode the `k` argument: scalar → MATLAB backward-leaning window
+// [floor(k/2), floor((k-1)/2)] (even k centred on current+previous; odd k
+// symmetric); 2-element vector → [kb, kf].
 struct Window {
     long kb;   // samples back (inclusive of centre? no — i-kb is the start)
     long kf;   // samples forward
@@ -56,7 +57,12 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
     if (k.size() == 1) {
         const size_t n = k[0];
         if (n == 0) badK();
-        return {static_cast<long>((n - 1) / 2), static_cast<long>(n / 2)};
+        // MATLAB: a scalar window of even length is centred about the CURRENT
+        // and PREVIOUS elements — it leans BACKWARD: kb = floor(k/2),
+        // kf = floor((k-1)/2). e.g. movsum([1 2 3 4],2) = [1 3 5 7] (window
+        // [i-1, i]). Odd k is symmetric (kb == kf). numkit previously leaned
+        // forward (kb/kf swapped), diverging from MATLAB for even windows.
+        return {static_cast<long>(n / 2), static_cast<long>((n - 1) / 2)};
     }
     if (k.size() == 2) {
         return {static_cast<long>(k[0]), static_cast<long>(k[1])};

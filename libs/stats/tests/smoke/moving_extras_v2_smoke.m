@@ -52,3 +52,11 @@ try
 catch err
     fprintf('  caught: %s\n', err.message);
 end
+
+% Even-length scalar window leans BACKWARD (current+previous), MATLAB R2025b.
+fprintf('=== even-window backward alignment ===\n');
+fprintf('  movsum([1 2 3 4],2)   = %s (expect [1 3 5 7])\n', mat2str(movsum([1 2 3 4],2)));
+fprintf('  movmean([1 2 3 4],2)  = %s (expect [1 1.5 2.5 3.5])\n', mat2str(movmean([1 2 3 4],2)));
+fprintf('  movmax([1 5 2 8],2)   = %s (expect [1 5 5 8])\n', mat2str(movmax([1 5 2 8],2)));
+fprintf('  movsum([1 2 3 4 5 6],4) = %s (expect [3 6 10 14 18 15])\n', mat2str(movsum([1 2 3 4 5 6],4)));
+fprintf('  movsum([1 2 3 4],3) = %s (odd unchanged, expect [3 6 9 7])\n', mat2str(movsum([1 2 3 4],3)));
