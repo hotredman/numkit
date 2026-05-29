@@ -1798,6 +1798,24 @@ TEST_P(BuiltinTest, Floor)
     EXPECT_DOUBLE_EQ(evalScalar("floor(-3.2);"), -4.0);
 }
 
+// round(x, N) decimals + round(x, N, 'significant'). vs MATLAB R2025b.
+TEST_P(BuiltinTest, RoundDigits)
+{
+    EXPECT_NEAR(evalScalar("round(3.14159, 2);"), 3.14, 1e-12);
+    EXPECT_NEAR(evalScalar("round(3.14159, 4);"), 3.1416, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("round(12345, -2);"), 12300.0);
+    EXPECT_NEAR(evalScalar("round(3.14159, 3, 'significant');"), 3.14, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("round(12345, 2, 'significant');"), 12000.0);
+    EXPECT_NEAR(evalScalar("round(0.0012345, 2, 'significant');"), 0.0012, 1e-12);
+    // round(x) (0-arg) unchanged; half-away-from-zero.
+    EXPECT_DOUBLE_EQ(evalScalar("round(2.5);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("round(-2.5);"), -3.0);
+    // vector + bad type.
+    eval("v = round([3.14159 2.71828], 2);");
+    EXPECT_NEAR(evalScalar("v(2)"), 2.72, 1e-12);
+    EXPECT_THROW(eval("round(1.5, 2, 'bogus');"), std::exception);
+}
+
 TEST_P(BuiltinTest, Mod)
 {
     EXPECT_DOUBLE_EQ(evalScalar("mod(7, 3);"), 1.0);
