@@ -200,6 +200,62 @@ TEST_P(CalculusTest, CumtrapzMatrixIntegratesColumns)
     EXPECT_DOUBLE_EQ((*c)(1, 1), 3.0);
 }
 
+TEST_P(CalculusTest, CumtrapzDim1MatchesColumnDefault)
+{
+    // cumtrapz(A, 1) == cumtrapz(A): integrate down columns.
+    eval("c = cumtrapz([1 2; 3 4], 1);");
+    auto *c = engine.getVariable("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 3.0);
+}
+
+TEST_P(CalculusTest, CumtrapzDim2IntegratesRows)
+{
+    // cumtrapz(A, 2): integrate along each row with unit spacing.
+    //   row 1 = [1 2] → [0, 0.5*(1+2)] = [0, 1.5]
+    //   row 2 = [3 4] → [0, 0.5*(3+4)] = [0, 3.5]
+    eval("c = cumtrapz([1 2; 3 4], 2);");
+    auto *c = engine.getVariable("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(rows(*c), 2u);
+    EXPECT_EQ(cols(*c), 2u);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 1.5);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 3.5);
+}
+
+TEST_P(CalculusTest, CumtrapzVectorDimNoOpAlongSingleton)
+{
+    // Row vector along dim 1 (singleton) → all zeros, same shape.
+    eval("c = cumtrapz([1 2 3 4], 1);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(c->numel(), 4u);
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[1], 0.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[2], 0.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[3], 0.0);
+}
+
+TEST_P(CalculusTest, CumtrapzXYDim2RowWise)
+{
+    // cumtrapz(X, Y, 2): X is a coordinate vector of length size(Y,2),
+    // broadcast across rows (MATLAB form).
+    //   X = [0 1 2], Y row 1 = [3 4 5] → [0, 3.5, 8]; row 2 = [1 1 1] → [0, 1, 2]
+    eval("c = cumtrapz([0 1 2], [3 4 5; 1 1 1], 2);");
+    auto *c = engine.getVariable("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 3.5);
+    EXPECT_DOUBLE_EQ((*c)(0, 2), 8.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 2), 2.0);
+}
+
 TEST_P(CalculusTest, CumtrapzComplexThrows)
 {
     EXPECT_THROW(eval("c = cumtrapz([1+2i, 3, 5]);"), std::exception);

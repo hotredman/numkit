@@ -186,7 +186,41 @@ Value cumtrapzMatrixCols(const double *src, const double *xData, size_t rows, si
     return out;
 }
 
+// Row-wise (dim 2) cumulative trapezoid: each row integrated across cols.
+Value cumtrapzMatrixRows(const double *src, const double *xData, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+{
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    if (rows == 0 || cols == 0) return out;
+    for (size_t r = 0; r < rows; ++r) {
+        dst[r] = 0.0;                       // first column = 0
+        for (size_t c = 1; c < cols; ++c) {
+            const double dx = xData ? (xData[c * rows + r] - xData[(c - 1) * rows + r]) : 1.0;
+            dst[c * rows + r] = dst[(c - 1) * rows + r]
+                              + 0.5 * (src[(c - 1) * rows + r] + src[c * rows + r]) * dx;
+        }
+    }
+    return out;
+}
+
 } // namespace
+
+// cumtrapz(Y, dim): unit-spacing cumulative trapezoid along dim (1 or 2).
+// A vector is treated as the matrix it is (1×N or N×1): integrating along
+// the singleton dimension is a no-op (all zeros), matching MATLAB — e.g.
+// cumtrapz([1 2 3 4], 1) → [0 0 0 0], cumtrapz([1 2 3 4], 2) → cumulative.
+Value cumtrapzDim(const Value &y, int dim, std::pmr::memory_resource *mr)
+{
+    if (y.type() == ValueType::COMPLEX)
+        throw Error("cumtrapz: complex inputs are not supported",
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complex");
+    auto ys = toDoubleCopy(y, mr);
+    const size_t rows = y.dims().rows(), cols = y.dims().cols();
+    if (dim <= 0) dim = 1;
+    if (dim == 2)
+        return cumtrapzMatrixRows(ys.doubleData(), nullptr, rows, cols, mr);
+    return cumtrapzMatrixCols(ys.doubleData(), nullptr, rows, cols, mr);
+}
 
 Value cumtrapz(const Value &y, std::pmr::memory_resource *mr)
 {
@@ -415,7 +449,49 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         outs[0] = cumtrapz(args[0], mr);
         return;
     }
-    outs[0] = cumtrapz(args[0], args[1], mr);
+    if (args.size() == 2) {
+        // A scalar 2nd arg is always the dim → cumtrapz(Y, dim).
+        // Otherwise it is X in cumtrapz(X, Y) (X is a coordinate vector
+        // or same-size matrix).
+        if (args[1].isScalar()) {
+            outs[0] = cumtrapzDim(args[0], static_cast<int>(args[1].toScalar()), mr);
+            return;
+        }
+        outs[0] = cumtrapz(args[0], args[1], mr);
+        return;
+    }
+    // cumtrapz(X, Y, dim): X is a coordinate vector of length size(Y,dim)
+    // (MATLAB), broadcast across the other dimension. numkit also accepts
+    // an X matrix the same size as Y (per-element spacing — extension).
+    const int dim = static_cast<int>(args[2].toScalar());
+    const Value &x = args[0], &y = args[1];
+    if (x.type() == ValueType::COMPLEX || y.type() == ValueType::COMPLEX)
+        throw Error("cumtrapz: complex inputs are not supported",
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complex");
+    const size_t rows = y.dims().rows(), cols = y.dims().cols();
+    auto ys = toDoubleCopy(y, mr);
+    auto xs = toDoubleCopy(x, mr);
+    const double *xsrc = xs.doubleData();
+
+    auto xMat = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    double *dx = xMat.doubleDataMut();
+    const bool xIsVec = x.dims().isVector() || x.isScalar();
+    if (x.dims().rows() == rows && x.dims().cols() == cols) {
+        std::memcpy(dx, xsrc, rows * cols * sizeof(double));   // per-element
+    } else if (xIsVec && dim == 2 && x.numel() == cols) {
+        for (size_t c = 0; c < cols; ++c)
+            for (size_t r = 0; r < rows; ++r) dx[c * rows + r] = xsrc[c];
+    } else if (xIsVec && dim != 2 && x.numel() == rows) {
+        for (size_t c = 0; c < cols; ++c)
+            for (size_t r = 0; r < rows; ++r) dx[c * rows + r] = xsrc[r];
+    } else {
+        throw Error("cumtrapz: X must be a vector of length size(Y,dim)",
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:shapeMismatch");
+    }
+    if (dim == 2)
+        outs[0] = cumtrapzMatrixRows(ys.doubleData(), dx, rows, cols, mr);
+    else
+        outs[0] = cumtrapzMatrixCols(ys.doubleData(), dx, rows, cols, mr);
 }
 
 void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
