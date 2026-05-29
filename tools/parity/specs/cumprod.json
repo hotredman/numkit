@@ -2,11 +2,12 @@
   "name": "cumprod",
   "namespace": "builtin",
   "setup": "x = [1 2 3 4];",
-  "expr": "rf = cumprod(x); rr = cumprod(x, 'reverse'); ro = cumprod([2 NaN 4], 'omitnan');",
+  "expr": "rf = cumprod(x); rr = cumprod(x, 'reverse'); ro = cumprod([2 NaN 4], 'omitnan'); ip = cumprod(int8([5 10 10])); ip3 = double(ip(3)); cip = double(strcmp(class(ip),'int8')); ip2 = cumprod(int8([2 3 4])); ip2c = double(ip2(3));",
   "iters": 3,
   "tol": 1e-12,
   "fingerprint": [
-    "rf(4)", "rr(1)", "rr(2)", "rr(4)", "ro(2)", "ro(3)"
+    "rf(4)", "rr(1)", "rr(2)", "rr(4)", "ro(2)", "ro(3)",
+    "ip3", "cip", "ip2c"
   ],
-  "comment": "Sig cumprod(X[,dim][,direction][,nanflag]). forward cumprod([1 2 3 4])(4)=24. 'reverse' = [24 24 12 4]. 'omitnan' treats NaN as 1: cumprod([2 NaN 4],'omitnan')=[2 2 8]. numkit previously ERRORED on 'reverse'/'omitnan' -- fixed."
+  "comment": "Sig cumprod(X[,dim][,direction][,nanflag]). forward cumprod([1 2 3 4])(4)=24. 'reverse' = [24 24 12 4]. 'omitnan' treats NaN as 1: cumprod([2 NaN 4],'omitnan')=[2 2 8]. INTEGER input keeps the class and accumulates NATIVELY with saturation: cumprod(int8([5 10 10]))=[5 50 127] int8 (500 saturates to 127), cumprod(int8([2 3 4]))=[2 6 24]. numkit previously threw 'Not a double array' on integer input; fixed 2026-05-30. (Earlier: 'reverse'/'omitnan' flag parsing.)"
 }

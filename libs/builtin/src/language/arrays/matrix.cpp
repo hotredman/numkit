@@ -19,7 +19,9 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <type_traits>
 #include <vector>
 
@@ -1833,8 +1835,81 @@ ndgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource
 // NOTE: kron / cross / dot migrated to libs/linalg/src/vector_ops.cpp.
 
 // ── Reductions and products ──────────────────────────────────────────
+
+namespace {
+
+// Integer cumsum / cumprod. MATLAB keeps the integer class and accumulates
+// NATIVELY with saturation at each step — the saturated running value is
+// carried forward, so cumsum(int8([100 100 -100]))=[100 127 27] int8 and
+// cumprod(int8([5 10 10]))=[5 50 127] int8. Generic strided scan over the
+// chosen dimension d (column-major: stride = prod(dims[0..d-2]),
+// len = dims[d-1]). Linear iteration is valid for any dim because element i
+// depends only on i-stride (< i). NOTE: int64/uint64 above 2^53 lose
+// precision (accumulated through double) — the same limitation as the rest
+// of numkit's numeric core; int8/16/32 and uint8/16/32 are exact.
+template <typename T>
+void cumIntegerScanInto(const Value &x, T *dst, size_t strideD, size_t lenD,
+                        bool isProd)
+{
+    const double lo = static_cast<double>(std::numeric_limits<T>::min());
+    const double hi = static_cast<double>(std::numeric_limits<T>::max());
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const size_t coord = (i / strideD) % lenD;
+        const double cur = x.elemAsDouble(i);
+        double v = cur;
+        if (coord != 0) {
+            const double prev = static_cast<double>(dst[i - strideD]);
+            v = isProd ? prev * cur : prev + cur;
+        }
+        if (v < lo) v = lo;
+        else if (v > hi) v = hi;        // saturate to the class range
+        dst[i] = static_cast<T>(v);
+    }
+}
+
+Value cumIntegerNative(const Value &x, int dim, bool isProd,
+                       std::pmr::memory_resource *mr)
+{
+    const auto &dd = x.dims();
+    const int nd = dd.ndim();
+    int d;
+    if (dim > 0) {
+        d = detail::resolveDim(x, dim, isProd ? "cumprod" : "cumsum");
+    } else {
+        d = 1;                          // first non-singleton dim (MATLAB default)
+        for (int k = 0; k < nd; ++k)
+            if (dd.dim(k) > 1) { d = k + 1; break; }
+    }
+    size_t strideD = 1;
+    for (int k = 0; k < d - 1; ++k) strideD *= dd.dim(k);
+    const size_t lenD = (d - 1 < nd) ? dd.dim(d - 1) : 1;
+
+    size_t outDims[Dims::kMaxRank];
+    for (int k = 0; k < nd; ++k) outDims[k] = dd.dim(k);
+    Value r = Value::matrixND(outDims, nd, x.type(), mr);
+    if (x.numel() == 0 || lenD == 0 || strideD == 0) return r;
+
+    switch (x.type()) {
+    case ValueType::INT8:   cumIntegerScanInto<int8_t>  (x, r.int8DataMut(),   strideD, lenD, isProd); break;
+    case ValueType::INT16:  cumIntegerScanInto<int16_t> (x, r.int16DataMut(),  strideD, lenD, isProd); break;
+    case ValueType::INT32:  cumIntegerScanInto<int32_t> (x, r.int32DataMut(),  strideD, lenD, isProd); break;
+    case ValueType::INT64:  cumIntegerScanInto<int64_t> (x, r.int64DataMut(),  strideD, lenD, isProd); break;
+    case ValueType::UINT8:  cumIntegerScanInto<uint8_t> (x, r.uint8DataMut(),  strideD, lenD, isProd); break;
+    case ValueType::UINT16: cumIntegerScanInto<uint16_t>(x, r.uint16DataMut(), strideD, lenD, isProd); break;
+    case ValueType::UINT32: cumIntegerScanInto<uint32_t>(x, r.uint32DataMut(), strideD, lenD, isProd); break;
+    case ValueType::UINT64: cumIntegerScanInto<uint64_t>(x, r.uint64DataMut(), strideD, lenD, isProd); break;
+    default: break;
+    }
+    return r;
+}
+
+} // namespace
+
 Value cumsum(const Value &x, std::pmr::memory_resource *mr)
 {
+    if (isIntegerType(x.type()))
+        return cumIntegerNative(x, 0, /*isProd=*/false, mr);
     if (x.isScalar()) {
         auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = x.toScalar();
@@ -1859,6 +1934,8 @@ Value cumsum(const Value &x, std::pmr::memory_resource *mr)
 // not a reduction). Vector / scalar input ignores dim and walks linearly.
 Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
+    if (isIntegerType(x.type()))
+        return cumIntegerNative(x, dim, /*isProd=*/false, mr);
     if (dim <= 0) return cumsum(x, mr);
     if (x.dims().isVector() || x.isScalar()) return cumsum(x, mr);
 
@@ -2120,6 +2197,8 @@ Value cumScanDispatch(const Value &x, int dim, ScanFn scan, Op scalarOp, const c
 
 Value cumprod(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
+    if (isIntegerType(x.type()))
+        return cumIntegerNative(x, dim, /*isProd=*/true, mr);
     return cumScanDispatch(x, dim, cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
 }
 
