@@ -1588,9 +1588,46 @@ TEST_P(GridKronTest, KronEmptyAGivesEmpty)
     EXPECT_EQ(K->numel(), 0u);
 }
 
-TEST_P(GridKronTest, KronComplexThrows)
+// Complex kron: ordinary Kronecker product with complex element products
+// (no conjugation). Was rejected ("complex inputs are not supported"). vs
+// MATLAB R2025b. 2026-05-29.
+TEST_P(GridKronTest, KronComplex)
 {
-    EXPECT_THROW(eval("K = kron([1 2], [3+4i, 5]);"), std::exception);
+    eval("K = kron([1 2], [3+4i, 5]);");   // [1*[3+4i 5], 2*[3+4i 5]] = [3+4i 5 6+8i 10]
+    auto *K = getVarPtr("K");
+    ASSERT_NE(K, nullptr);
+    EXPECT_EQ(K->numel(), 4u);
+    EXPECT_DOUBLE_EQ(K->complexData()[0].real(), 3.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[0].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[1].real(), 5.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[2].real(), 6.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[2].imag(), 8.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[3].real(), 10.0);
+    // column-vector kron with a complex row: kron([1+1i;2],[1 1i]) = [1+1i -1+1i; 2 2i]
+    eval("K2 = kron([1+1i; 2], [1 1i]);");
+    auto *K2 = getVarPtr("K2");
+    ASSERT_NE(K2, nullptr);
+    EXPECT_DOUBLE_EQ(K2->complexData()[0].real(), 1.0);   // (1,1)=1+1i
+    EXPECT_DOUBLE_EQ(K2->complexData()[0].imag(), 1.0);
+}
+
+// Complex cross: ordinary cross product with complex arithmetic (no conj).
+TEST_P(GridKronTest, CrossComplex)
+{
+    eval("c = cross([1+1i 0 0], [0 1 0]);");   // [0 0 1+1i]
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(c->numel(), 3u);
+    EXPECT_DOUBLE_EQ(c->complexData()[2].real(), 1.0);
+    EXPECT_DOUBLE_EQ(c->complexData()[2].imag(), 1.0);
+    // column 3-vectors: cross([1i;2;3],[4;5i;6]) = [12-15i; 12-6i; -13]
+    eval("cc = cross([1i; 2; 3], [4; 5i; 6]);");
+    auto *cc = getVarPtr("cc");
+    ASSERT_NE(cc, nullptr);
+    EXPECT_DOUBLE_EQ(cc->complexData()[0].real(), 12.0);
+    EXPECT_DOUBLE_EQ(cc->complexData()[0].imag(), -15.0);
+    EXPECT_DOUBLE_EQ(cc->complexData()[2].real(), -13.0);
+    EXPECT_DOUBLE_EQ(cc->complexData()[2].imag(), 0.0);
 }
 
 TEST_P(GridKronTest, Kron3DInputThrows)

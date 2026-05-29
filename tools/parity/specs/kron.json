@@ -2,13 +2,15 @@
   "name": "kron",
   "namespace": "linalg",
   "setup": "",
-  "expr": "K = kron([1 0; 0 1], [1 1; 1 1]); r1 = K(1,1); r2 = K(2,2); r3 = double(numel(K));",
+  "expr": "K = kron([1 0; 0 1], [1 1; 1 1]); r1 = K(1,1); r2 = K(2,2); r3 = double(numel(K)); kc = kron([1i 2], [1 1]); km = kron([1+1i; 2], [1 1i]);",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
     "r1",
     "r2",
-    "r3"
+    "r3",
+    "imag(kc(1))", "real(kc(3))", "double(numel(kc))",
+    "real(km(1,1))", "imag(km(1,1))", "imag(km(1,2))"
   ],
-  "comment": "Sig: r = kron(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = kron(...). Spec-extension batch 2026-05-09. COMPLEX: ordinary Kronecker product with complex element products (no conjugation): kron([1i 2],[1 1])=[1i 1i 2 2]; kron([1+1i;2],[1 1i])=[1+1i -1+1i; 2 2i]. numkit previously rejected COMPLEX ('not supported') -- added 2026-05-29."
 }
