@@ -371,7 +371,7 @@ together.
 | `sprintf` | ✅ | 0.006 | 31.24× |  | OK | Sig: r = sprintf(fmt, ...). Spec-extension batch 2026-05-09. Note: numkit sprintf("...") with double-quoted format returns empty — only single-quoted char format works. Documented as separate gap (string vs char distinction in format arg). |
 | `sscanf` | ✅ | 0.001 | 4.92× | 72.29× | OK | Sig: A = sscanf(S, FMT). 5 floats. 100k iters. |
 | `startsWith` | ✅ | 0.005 | 29.41× | 42.69× | OK | Sig: r = startsWith(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `str2double` | ✅ | 0.004 | 116.12× | 42.43× | OK | Sig: r = str2double(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
+| `str2double` | ✅ | 0.010 | 62.02× |  | OK | Sig: r = str2double(...). MATLAB strips ALL commas (thousands separators) and requires the ENTIRE trimmed token to parse: str2double('1,234')=1234, '1,2,3'=123, '1,000,000'=1e6; '42abc'/'42 7'/',' -> NaN. numkit previously used std::stod (lenient prefix parse: '1,234'->1, '42abc'->42); fixed 2026-05-29. (Complex literals like '2i'/'3+4i' remain a separate unimplemented gap.) Spec-extension batch 2026-05-09. |
 | `strcat` | ✅ | 0.006 | 149.79× |  | OK | Sig: r = strcat(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics. |
 | `strcmp` | ✅ | 0.000 | 6.89× | 25.11× | OK | Sig: TF = strcmp(A, B). char-vs-char only. 100k iters. Logical-scalar fp (BUGS #14). |
 | `strcmpi` | ✅ | 0.000 | 5.20× | 26.22× | OK | Sig: TF = strcmpi(A, B). 100k iters. |

@@ -84,6 +84,25 @@ TEST(BuiltinStringsPublicApi, Str2DoubleFailureReturnsNaN)
     EXPECT_TRUE(std::isnan(r.toScalar()));
 }
 
+// MATLAB str2double strips ALL commas (thousands separators) and requires the
+// ENTIRE trimmed token to parse: '1,234'->1234, '1,2,3'->123, but '42abc' /
+// '42 7' / ',' -> NaN (std::stod used to parse just a numeric prefix). 2026-05-29.
+TEST(BuiltinStringsPublicApi, Str2DoubleCommasAndConsumeAll)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto s2d = [&](const char *s) {
+        return numkit::builtin::str2double(mkStr(mr, s), mr).toScalar();
+    };
+    EXPECT_DOUBLE_EQ(s2d("1,234"),     1234.0);
+    EXPECT_DOUBLE_EQ(s2d("1,2,3"),     123.0);
+    EXPECT_DOUBLE_EQ(s2d("1,000,000"), 1000000.0);
+    EXPECT_DOUBLE_EQ(s2d("1,234.5"),   1234.5);
+    EXPECT_DOUBLE_EQ(s2d("  42  "),    42.0);
+    EXPECT_TRUE(std::isnan(s2d("42abc")));
+    EXPECT_TRUE(std::isnan(s2d("42 7")));
+    EXPECT_TRUE(std::isnan(s2d(",")));
+}
+
 // ── toString / toChar ────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, ToStringFromScalar)
 {

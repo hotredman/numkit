@@ -19,6 +19,7 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <sstream>
@@ -91,11 +92,32 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr)
 
 Value str2double(const Value &s, std::pmr::memory_resource *mr)
 {
-    try {
-        return Value::scalar(std::stod(s.toString()), mr);
-    } catch (...) {
-        return Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
+    // MATLAB str2double: strip ALL commas (thousands separators), trim
+    // surrounding whitespace, then the ENTIRE remaining token must parse as a
+    // single real number — otherwise NaN. So '1,234' -> 1234, '1,2,3' -> 123,
+    // '  42  ' -> 42, but '42abc' / '42 7' / ',' -> NaN. (std::stod was lenient:
+    // it parsed a numeric PREFIX, so '42abc' wrongly gave 42 and '1,234' gave 1.
+    // Complex literals like '2i'/'3+4i' are a separate unimplemented gap.)
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    std::string t;
+    {
+        const std::string str = s.toString();
+        t.reserve(str.size());
+        for (char c : str)
+            if (c != ',') t.push_back(c);
     }
+    const char *ws = " \t\n\r\f\v";
+    const size_t b = t.find_first_not_of(ws);
+    if (b == std::string::npos) return Value::scalar(nan, mr);   // empty / all-whitespace
+    const size_t e = t.find_last_not_of(ws);
+    t = t.substr(b, e - b + 1);
+
+    const char *cs = t.c_str();
+    char *end = nullptr;
+    const double v = std::strtod(cs, &end);
+    if (end == cs || *end != '\0')                              // no parse, or trailing junk
+        return Value::scalar(nan, mr);
+    return Value::scalar(v, mr);
 }
 
 Value toString(const Value &x, std::pmr::memory_resource *mr)
