@@ -246,7 +246,7 @@ together.
 | `paddata` | ✅ | 0.000 | 119.76× |  | OK | Sig: Y = paddata(X, M). Pad to 1500. 1000 iters. |
 | `permute` | ✅ | 0.006 | 27.75× | 15.34× | OK | Sig: r = permute(...). Shape op. Spec-extension batch 2026-05-09. |
 | `rand` | ✅ | 6.486 | 0.54× | 0.92× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
-| `repelem` | ✅ | 2.037 | 0.61× | 1.00× | OK | Sig: Y = repelem(X, K). 1k vec each elem 1000x. 50 iters. |
+| `repelem` | ✅ | 0.006 | 21.08× |  | OK | Sig: y = repelem(v, n | counts); Y = repelem(A, r, c) with r/c scalar or vector. Covers: scalar count (fast path), per-element count vector (incl. a zero count dropping an element), column-vector orientation, and matrix per-row/per-column counts (scalar+vector mix both ways). Queue-clearing 2026-05-29: numkit previously threw 'Cannot convert double to scalar' on any count vector. |
 | `repmat` | ✅ | 0.005 | 153.30× | 35.72× | OK | Sig: r = repmat(...). Spec-extension batch 2026-05-09. |
 | `reshape` | ✅ | 0.004 | 31.87× | 45.21× | OK | Sig: r = reshape(...). Shape op. Spec-extension batch 2026-05-09. |
 | `resize` | ✅ | 0.001 | 124.99× | 8828.50× | OK | Sig: Y = resize(X, M). Resize to 1500 (pad with zeros). 1000 iters. |

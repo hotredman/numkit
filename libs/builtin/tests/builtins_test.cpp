@@ -1725,6 +1725,72 @@ TEST_P(BuiltinTest, RepelemMatrixBlocks)
     EXPECT_DOUBLE_EQ((*B)(3, 5), 4.0);
 }
 
+TEST_P(BuiltinTest, RepelemCountVector)
+{
+    // Per-element counts: 1->1x, 2->2x, 3->3x → [1 2 2 3 3 3].
+    eval("v = repelem([1 2 3], [1 2 3]);");
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->numel(), 6u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[4], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[5], 3.0);
+}
+
+TEST_P(BuiltinTest, RepelemCountVectorZeroDropsElement)
+{
+    // A zero count drops that element; column orientation preserved.
+    eval("c = repelem([1; 2; 3], [2 0 1]);");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(rows(*c), 3u);
+    EXPECT_EQ(cols(*c), 1u);
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[2], 3.0);
+}
+
+TEST_P(BuiltinTest, RepelemMatrixScalarRowVectorCol)
+{
+    // r scalar (2), c vector [1 2] → 4x3.
+    eval("A = [1 2; 3 4]; B = repelem(A, 2, [1 2]);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(rows(*B), 4u);
+    EXPECT_EQ(cols(*B), 3u);
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 1.0);  // col 0 once
+    EXPECT_DOUBLE_EQ((*B)(0, 1), 2.0);  // col 1 twice
+    EXPECT_DOUBLE_EQ((*B)(0, 2), 2.0);
+    EXPECT_DOUBLE_EQ((*B)(3, 2), 4.0);
+}
+
+TEST_P(BuiltinTest, RepelemMatrixRowVectorScalarCol)
+{
+    // r vector [2 1], c scalar 3 → 3x6.
+    eval("A = [1 2; 3 4]; B = repelem(A, [2 1], 3);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(rows(*B), 3u);
+    EXPECT_EQ(cols(*B), 6u);
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 1.0);  // row 0 twice
+    EXPECT_DOUBLE_EQ((*B)(1, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 0), 3.0);  // row 1 once
+    EXPECT_DOUBLE_EQ((*B)(2, 5), 4.0);
+}
+
+TEST_P(BuiltinTest, RepelemNegativeCountThrows)
+{
+    EXPECT_THROW(eval("y = repelem([1 2 3], [1 -1 2]);"), std::exception);
+}
+
+TEST_P(BuiltinTest, RepelemCountLengthMismatchThrows)
+{
+    EXPECT_THROW(eval("y = repelem([1 2 3], [1 2]);"), std::exception);
+}
+
 TEST_P(BuiltinTest, Sub2IndIndSub)
 {
     // 2-D: column-major. siz=[3 4], (2,3) → 8.
