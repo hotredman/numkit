@@ -102,3 +102,54 @@ TEST_F(EigTest, EigPositiveDefinite)
     eval("S = [4 12 -16; 12 37 -43; -16 -43 98]; e = eig(S);");
     EXPECT_GT(evalScalar("min(e)"), 0.0);
 }
+
+// ── 'vector' / 'matrix' options + generalized eig(A,B) ──────────
+
+TEST_F(EigTest, EigVectorOptionIsColumnVector)
+{
+    eval("A = [2 0 0; 0 3 0; 0 0 5]; e = eig(A, 'vector');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(e, 2)")), 1);   // column
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(e)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("e(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(3)"), 5.0);
+}
+
+TEST_F(EigTest, EigMatrixOptionIsDiagonal)
+{
+    eval("A = [2 0 0; 0 3 0; 0 0 5]; D = eig(A, 'matrix');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(D, 1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(D, 2)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1, 1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(3, 3)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1, 2)"), 0.0);              // off-diagonal zero
+}
+
+TEST_F(EigTest, EigGeneralizedDiagonal)
+{
+    // eig(A,B) = eigenvalues of B\A. A=diag(2,3,5), B=diag(1,2,1).
+    eval("A = [2 0 0; 0 3 0; 0 0 5]; B = [1 0 0; 0 2 0; 0 0 1];"
+         "e = sort(eig(A, B));");
+    EXPECT_NEAR(evalScalar("e(1)"), 1.5, 1e-12);
+    EXPECT_NEAR(evalScalar("e(2)"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("e(3)"), 5.0, 1e-12);
+}
+
+TEST_F(EigTest, EigGeneralizedSymmetricPairReal)
+{
+    // Symmetric-definite pair: real eigenvalues matching MATLAB R2025b.
+    eval("A = [4 1; 1 3]; B = [2 0; 0 1]; e = sort(eig(A, B));");
+    EXPECT_NEAR(evalScalar("e(1)"), 1.6339745962155614, 1e-10);
+    EXPECT_NEAR(evalScalar("e(2)"), 3.3660254037844384, 1e-10);
+}
+
+TEST_F(EigTest, EigGeneralizedVDReconstructs)
+{
+    // [V,D] = eig(A,B) satisfies A*V = B*V*D.
+    eval("A = [4 1; 1 3]; B = [2 0; 0 1]; [V, D] = eig(A, B);");
+    EXPECT_NEAR(evalScalar("max(max(abs(A*V - B*V*D)))"), 0.0, 1e-10);
+}
+
+TEST_F(EigTest, EigUnknownOptionThrows)
+{
+    EXPECT_THROW(eval("eig([1 2; 3 4], 'bogus');"), std::exception);
+}

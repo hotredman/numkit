@@ -19,6 +19,7 @@
 #include <numkit/linalg/properties.hpp>               // inv (for polyeig)
 #include <numkit/builtin/math/poly/polynomials.hpp>   // roots
 #include <numkit/builtin/language/arrays/matrix.hpp>  // (header path; symbols moved)
+#include <numkit/builtin/language/operators/binary_ops.hpp>  // mtimes (eig(A,B))
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/span.hpp>
@@ -28,6 +29,7 @@
 #include <cmath>
 #include <complex>
 #include <string>
+#include <tuple>
 
 namespace numkit::linalg {
 
@@ -716,33 +718,76 @@ void polyeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     }
 }
 
+namespace {
+
+// Eigenvalues of M as a column vector, choosing the symmetric (Jacobi) or
+// general (char-poly + roots) path automatically.
+Value eigValuesAuto(const Value &M, std::pmr::memory_resource *mr)
+{
+    return isSymmetricApprox(M, 1e-10) ? eig_values(M, mr)
+                                       : eig_general_values(M, mr);
+}
+
+// [V, D] of M, choosing the symmetric or general path automatically.
+std::tuple<Value, Value> eigVDAuto(const Value &M, std::pmr::memory_resource *mr)
+{
+    return isSymmetricApprox(M, 1e-10) ? eig_symmetric(M, mr)
+                                       : eig_general_VD(M, mr);
+}
+
+} // namespace
+
 void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 1)
-        throw Error("eig: requires exactly 1 argument",
+    if (args.empty() || args.size() > 3)
+        throw Error("eig: requires 1 to 3 arguments",
                     0, 0, "eig", "", "numkit:eig:nargin");
     auto *mr = ctx.engine->resource();
 
-    // Dispatch: symmetric -> Jacobi (eigenvalues + eigenvectors).
-    // Asymmetric -> general path (char poly + roots; [V, D] form via
-    // null-vector extraction in eig_general_VD).
-    if (isSymmetricApprox(args[0], 1e-10)) {
-        if (nargout >= 2) {
-            auto [V, D] = eig_symmetric(args[0], mr);
-            outs[0] = std::move(V);
-            outs[1] = std::move(D);
+    // Parse trailing args: an optional second matrix B (generalized
+    // problem A·v = λ·B·v) and/or a string flag 'vector'/'matrix'
+    // ('chol'/'qz'/'nobalance' accepted and ignored — we always reduce
+    // the generalized problem to the standard one B\A).
+    const Value *A = &args[0];
+    const Value *B = nullptr;
+    bool wantMatrix = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i].type() == ValueType::CHAR) {
+            std::string s = args[i].toString();
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (s == "matrix") wantMatrix = true;
+            else if (s == "vector") { /* default for the 1-output form */ }
+            else if (s == "chol" || s == "qz" || s == "nobalance") { /* accept */ }
+            else
+                throw Error("eig: unknown option '" + s + "'",
+                            0, 0, "eig", "", "numkit:eig:badOption");
         } else {
-            outs[0] = eig_values(args[0], mr);
-        }
-    } else {
-        if (nargout >= 2) {
-            auto [V, D] = eig_general_VD(args[0], mr);
-            outs[0] = std::move(V);
-            outs[1] = std::move(D);
-        } else {
-            outs[0] = eig_general_values(args[0], mr);
+            if (B)
+                throw Error("eig: at most one matrix B is allowed",
+                            0, 0, "eig", "", "numkit:eig:tooManyMatrices");
+            B = &args[i];
         }
     }
+
+    // Reduce a generalized problem (A, B) to the standard problem on
+    // M = B\A = inv(B)·A. The eigenvalues of M equal the generalized
+    // eigenvalues, and any eigenvector v of M satisfies A·v = B·v·λ.
+    Value M = B ? builtin::mtimes(inv(*B, mr), *A, mr) : *A;
+
+    if (nargout >= 2) {
+        auto [V, D] = eigVDAuto(M, mr);
+        outs[0] = std::move(V);
+        outs[1] = std::move(D);
+        return;
+    }
+    if (wantMatrix) {                       // 'matrix' → diagonal D even with 1 output
+        auto [V, D] = eigVDAuto(M, mr);
+        (void)V;
+        outs[0] = std::move(D);
+        return;
+    }
+    outs[0] = eigValuesAuto(M, mr);
 }
 
 void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
