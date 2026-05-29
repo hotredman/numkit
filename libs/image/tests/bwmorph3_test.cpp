@@ -29,6 +29,9 @@ TEST_F(Bwmorph3Test, BranchpointsCountGtThree)
     eval("J = bwmorph3(V, 'branchpoints');");
     EXPECT_TRUE(eval("J").type() == ValueType::LOGICAL);
     EXPECT_EQ(static_cast<int>(evalScalar("nnz(J)")), 26);   // dense blob, all >3
+    // Spatial: a set cube-corner is a branchpoint; the hole is not.
+    EXPECT_DOUBLE_EQ(evalScalar("double(J(2,2,2))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J(3,3,3))"), 0.0);   // the hole
     // A z-line has no branch points.
     EXPECT_EQ(static_cast<int>(evalScalar("nnz(bwmorph3(L,'branchpoints'))")), 0);
 }
@@ -45,7 +48,12 @@ TEST_F(Bwmorph3Test, EndpointsCountEqTwo)
 {
     EXPECT_EQ(static_cast<int>(evalScalar("nnz(bwmorph3(V,'endpoints'))")), 0);
     // z-line: the two ends each have exactly one neighbour.
-    EXPECT_EQ(static_cast<int>(evalScalar("nnz(bwmorph3(L,'endpoints'))")), 2);
+    eval("E = bwmorph3(L,'endpoints');");
+    EXPECT_EQ(static_cast<int>(evalScalar("nnz(E)")), 2);
+    // Spatial: the endpoints are the two line ends, not interior voxels.
+    EXPECT_DOUBLE_EQ(evalScalar("double(E(3,3,2))"), 1.0);  // first end
+    EXPECT_DOUBLE_EQ(evalScalar("double(E(3,3,6))"), 1.0);  // last end
+    EXPECT_DOUBLE_EQ(evalScalar("double(E(3,3,4))"), 0.0);  // interior
 }
 
 TEST_F(Bwmorph3Test, FillFillsInteriorHole)
@@ -65,10 +73,15 @@ TEST_F(Bwmorph3Test, MajorityFourteenOf27)
 
 TEST_F(Bwmorph3Test, RemoveStripsInterior)
 {
-    eval("J = bwmorph3(V, 'remove');");
+    // A SOLID 3x3x3 cube exercises the strip path: the centre voxel has all
+    // six face-neighbours set, so it is removed; the 26 boundary voxels each
+    // touch a 0 face and are kept. (V has a hole, so nothing would be removed
+    // there — a solid cube is needed to actually test removal.)
+    eval("Vs = false(5,5,5); Vs(2:4,2:4,2:4) = true;");
+    eval("J = bwmorph3(Vs, 'remove');");
     EXPECT_EQ(static_cast<int>(evalScalar("nnz(J)")), 26);
-    // Centre is unset -> stays 0.
-    EXPECT_DOUBLE_EQ(evalScalar("double(J(3,3,3))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J(3,3,3))"), 0.0);  // interior -> removed
+    EXPECT_DOUBLE_EQ(evalScalar("double(J(2,3,3))"), 1.0);  // boundary -> kept
 }
 
 TEST_F(Bwmorph3Test, TwoDInputTreatedAsSinglePlane)
