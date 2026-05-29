@@ -190,19 +190,35 @@ Value rowFromVec(const Vec &v, std::pmr::memory_resource *mr) {
     return r;
 }
 
+// State trajectory → MATLAB-style N×n matrix (rows = time, cols = states).
+// xTraj is already column-major time×state, so it copies straight in.
+Value matFromTraj(const Vec &xTraj, size_t N, size_t n, std::pmr::memory_resource *mr) {
+    Value m = Value::matrix(N, n, ValueType::DOUBLE, mr);
+    if (!xTraj.empty()) std::copy(xTraj.begin(), xTraj.end(), m.doubleDataMut());
+    return m;
+}
+
 // Run the discrete simulation for a SISO system on input u[0..N-1]
 // (length N matches t). Returns y[0..N-1].
-Vec simulate(const SS &sys, const Vec &t, const Vec &u, const Vec &x0)
+// xTraj (optional, size N*n): the state trajectory in column-major
+// time×state layout, xTraj[s*N + k] = state s at time t[k].
+Vec simulate(const SS &sys, const Vec &t, const Vec &u, const Vec &x0,
+             Vec *xTraj = nullptr)
 {
     const size_t N = t.size();
     const size_t n = sys.n;
     Vec x = x0;
     if (x.size() != n) x.assign(n, 0.0);
     Vec y(N, 0.0);
+    if (xTraj) xTraj->assign(N * n, 0.0);
+    auto record = [&](size_t k) {
+        if (xTraj) for (size_t i = 0; i < n; ++i) (*xTraj)[i * N + k] = x[i];
+    };
 
     if (sys.Ts > 0.0) {
         // Already discrete.
         for (size_t k = 0; k < N; ++k) {
+            record(k);
             double yk = sys.D * u[k];
             for (size_t i = 0; i < n; ++i) yk += sys.C[i] * x[i];
             y[k] = yk;
@@ -232,6 +248,7 @@ Vec simulate(const SS &sys, const Vec &t, const Vec &u, const Vec &x0)
         Mat Ad; Vec Bd;
         zohDiscretise(sys.A, sys.B, n, dt, Ad, Bd);
         for (size_t k = 0; k < N; ++k) {
+            record(k);
             double yk = sys.D * u[k];
             for (size_t i = 0; i < n; ++i) yk += sys.C[i] * x[i];
             y[k] = yk;
@@ -249,6 +266,7 @@ Vec simulate(const SS &sys, const Vec &t, const Vec &u, const Vec &x0)
     } else {
         // Non-uniform grid: per-step expm.
         for (size_t k = 0; k < N; ++k) {
+            record(k);
             double yk = sys.D * u[k];
             for (size_t i = 0; i < n; ++i) yk += sys.C[i] * x[i];
             y[k] = yk;
@@ -274,19 +292,21 @@ Vec simulate(const SS &sys, const Vec &t, const Vec &u, const Vec &x0)
 
 std::pair<Value, Value>
 step_response(const Value &sys, const Value &tArg,
-              std::pmr::memory_resource *mr)
+              std::pmr::memory_resource *mr, Value *xOut)
 {
     SS s = toSSiso(sys, mr);
     Vec t = readTimeArg(sys, tArg, mr);
     Vec u(t.size(), 1.0);   // unit step
     Vec x0(s.n, 0.0);
-    Vec y = simulate(s, t, u, x0);
+    Vec xTraj;
+    Vec y = simulate(s, t, u, x0, xOut ? &xTraj : nullptr);
+    if (xOut) *xOut = matFromTraj(xTraj, t.size(), s.n, mr);
     return {rowFromVec(y, mr), rowFromVec(t, mr)};
 }
 
 std::pair<Value, Value>
 impulse_response(const Value &sys, const Value &tArg,
-                 std::pmr::memory_resource *mr)
+                 std::pmr::memory_resource *mr, Value *xOut)
 {
     SS s = toSSiso(sys, mr);
     Vec t = readTimeArg(sys, tArg, mr);
@@ -301,13 +321,15 @@ impulse_response(const Value &sys, const Value &tArg,
         // through the delta in u(t)). Simulate with u ≡ 0 and IC = B.
         x0 = s.B;
     }
-    Vec y = simulate(s, t, u, x0);
+    Vec xTraj;
+    Vec y = simulate(s, t, u, x0, xOut ? &xTraj : nullptr);
+    if (xOut) *xOut = matFromTraj(xTraj, t.size(), s.n, mr);
     return {rowFromVec(y, mr), rowFromVec(t, mr)};
 }
 
 Value lsim(const Value &sys, const Value &uIn, const Value &tIn,
            const Value &x0In,
-           std::pmr::memory_resource *mr)
+           std::pmr::memory_resource *mr, Value *xOut)
 {
     SS s = toSSiso(sys, mr);
     if (tIn.numel() < 2)
@@ -323,7 +345,9 @@ Value lsim(const Value &sys, const Value &uIn, const Value &tIn,
     Vec x0(s.n, 0.0);
     if (x0In.numel() == s.n)
         for (size_t i = 0; i < s.n; ++i) x0[i] = x0In.elemAsDouble(i);
-    Vec y = simulate(s, t, u, x0);
+    Vec xTraj;
+    Vec y = simulate(s, t, u, x0, xOut ? &xTraj : nullptr);
+    if (xOut) *xOut = matFromTraj(xTraj, t.size(), s.n, mr);
     return rowFromVec(y, mr);
 }
 
@@ -336,9 +360,12 @@ void step_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
         throw Error("step: requires (sys [, t])",
                     0, 0, "step", "", "numkit:step:nargin");
     Value tArg = (a.size() >= 2) ? a[1] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
-    auto [y, t] = step_response(a[0], tArg, c.engine->resource());
+    Value xOut;
+    auto [y, t] = step_response(a[0], tArg, c.engine->resource(),
+                                outs.size() >= 3 ? &xOut : nullptr);
     if (outs.size() >= 1) outs[0] = std::move(y);
     if (outs.size() >= 2) outs[1] = std::move(t);
+    if (outs.size() >= 3) outs[2] = std::move(xOut);
 }
 
 void impulse_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
@@ -348,9 +375,12 @@ void impulse_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
         throw Error("impulse: requires (sys [, t])",
                     0, 0, "impulse", "", "numkit:impulse:nargin");
     Value tArg = (a.size() >= 2) ? a[1] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
-    auto [y, t] = impulse_response(a[0], tArg, c.engine->resource());
+    Value xOut;
+    auto [y, t] = impulse_response(a[0], tArg, c.engine->resource(),
+                                   outs.size() >= 3 ? &xOut : nullptr);
     if (outs.size() >= 1) outs[0] = std::move(y);
     if (outs.size() >= 2) outs[1] = std::move(t);
+    if (outs.size() >= 3) outs[2] = std::move(xOut);
 }
 
 void lsim_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
@@ -360,7 +390,17 @@ void lsim_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
         throw Error("lsim: requires (sys, u, t [, x0])",
                     0, 0, "lsim", "", "numkit:lsim:nargin");
     Value x0 = (a.size() >= 4) ? a[3] : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
-    outs[0] = lsim(a[0], a[1], a[2], x0, c.engine->resource());
+    Value xOut;
+    outs[0] = lsim(a[0], a[1], a[2], x0, c.engine->resource(),
+                   outs.size() >= 3 ? &xOut : nullptr);
+    // MATLAB: [y, t, x] = lsim(...). t echoes the input time grid.
+    if (outs.size() >= 2) {
+        Value t = Value::matrix(a[2].numel(), 1, ValueType::DOUBLE, c.engine->resource());
+        for (std::size_t i = 0; i < a[2].numel(); ++i)
+            t.doubleDataMut()[i] = a[2].elemAsDouble(i);
+        outs[1] = std::move(t);
+    }
+    if (outs.size() >= 3) outs[2] = std::move(xOut);
 }
 
 } // namespace detail

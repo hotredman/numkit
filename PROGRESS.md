@@ -1257,7 +1257,7 @@ output args).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `step` | ✅ | 0.010 | 3082.45× | 357.88× | OK | Sig: [y, t] = step(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. Bit-identical with MATLAB R2025b on probed 1st-order system. |
+| `step` | ✅ | 0.013 | 3045.89× |  | OK | Sig: [y, t, x] = step(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. 3rd output x = state trajectory (length(t) x nStates). State values are realization-dependent, so the spec uses an explicit ss() system (fixed realization) — matches MATLAB R2025b bit-for-bit. Queue-clearing 2026-05-29: x output added (step/impulse/lsim previously returned only [y,t]). |
 | `stepinfo` | ✅ | 0.021 | 1514.09× |  | OK | Sig: r = stepinfo(...). Spec-extension batch 2026-05-09. |
 | `impulse` | ✅ | 0.010 | 2765.48× | 377.39× | OK | Sig: [y, t] = impulse(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. Bit-identical with MATLAB R2025b on probed 1st-order system. |
 | `initial` | ❌ |  |  |  |  | response from initial state |
