@@ -28,7 +28,10 @@ namespace numkit::builtin {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Row vector of unique values (ascending).
 /// @see uniqueWithIndices, uniqueRows
-Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr);
+///
+/// `stable` (MATLAB 'stable' setOrder) keeps values in first-occurrence
+/// order instead of sorting. Default false = 'sorted'.
+Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Unique with index outputs
 /// (`[C, ia, ic] = unique(X)`).
@@ -41,7 +44,7 @@ Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(C, ia, ic)` triple.
 std::tuple<Value, Value, Value>
-uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr);
+uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Unique rows of a matrix (`C = unique(X, 'rows')`).
 ///

@@ -70,6 +70,31 @@ TEST_P(SetOpsTest, UniqueWithIndices)
     EXPECT_DOUBLE_EQ(ic->doubleData()[5], 2.0);
 }
 
+// unique(x,'stable') keeps first-occurrence order (was no-op -> sorted). vs MATLAB.
+TEST_P(SetOpsTest, UniqueStable)
+{
+    eval("u = unique([3 1 4 1 5 9 2 6 5 3], 'stable');");
+    auto *u = getVarPtr("u");
+    EXPECT_EQ(u->numel(), 7u);
+    EXPECT_DOUBLE_EQ(u->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[2], 4.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[6], 6.0);
+    // [u,ia,ic] = unique(...,'stable').
+    eval("function [a,b,c] = wrapStable(x)\n"
+         "  [a,b,c] = unique(x, 'stable');\n"
+         "end");
+    eval("[U, ia, ic] = wrapStable([3 1 4 1 5]);");
+    auto *U = getVarPtr("U"); auto *ia = getVarPtr("ia"); auto *ic = getVarPtr("ic");
+    EXPECT_DOUBLE_EQ(U->doubleData()[0], 3.0);   // first-occurrence order
+    EXPECT_DOUBLE_EQ(U->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(ia->doubleData()[3], 5.0);  // 5 first at idx 5
+    EXPECT_DOUBLE_EQ(ic->doubleData()[3], 2.0);  // X(4)=1 -> u position 2
+    // 'sorted' (default) still sorts.
+    eval("s = unique([3 1 4 1 5], 'sorted');");
+    EXPECT_DOUBLE_EQ(getVarPtr("s")->doubleData()[0], 1.0);
+}
+
 TEST_P(SetOpsTest, UniqueMatrixFlattens)
 {
     // unique flattens column-major

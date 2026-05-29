@@ -534,7 +534,7 @@ together.
 | `timetable2table` | ❌ |  |  |  |  |  |
 | `topkrows` | ⚠️ | 0.006 | 85.30× |  | OK | Sig: B = topkrows(A, k[, col[, direction]]); [B,I] = topkrows(...). Top k rows by column-priority sort (default: all columns, descending lex). col selects a single column or vector of columns (priority order). direction = 'ascend' | 'descend' applies to all sort columns. 2-output returns 1-indexed row indices. ComparisonMethod NV is accept-and-ignore (numkit is real-only). Bit-identical with MATLAB R2025b on probed cases. |
 | `union` | ✅ | 0.002 | 424.06× |  | OK | Sig union(A,B[,setOrder]). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A) in A-order then new-of-B in B-order: union([3 1],[2 1],'stable') = [3 1 2]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
-| `unique` | ✅ | 0.008 | 83.30× | 24.63× | OK | Sig: r = unique(...). Spec-extension batch 2026-05-09. |
+| `unique` | ✅ | 0.004 | 336.27× |  | OK | Sig: u = unique(x); u = unique(x,'stable'); [u,ia,ic] = unique(x,setOrder). Covers: default 'sorted' (ascending), 'stable' (first-occurrence order, no sort), and three-output 'stable' index vectors (ia into x, ic into u). Spec-extension batch 2026-05-09; 'stable' added queue-clearing 2026-05-29. |
 | `unstack` | ❌ |  |  |  |  |  |
 | `unstacktablevariables` | ❌ |  |  |  |  |  |
 | `varfun` | ❌ |  |  |  |  |  |
@@ -574,7 +574,7 @@ together.
 | `setdiff` | ✅ | 0.005 | 668.51× |  | OK | Sig setdiff(A,B[,setOrder]): A elements not in B. Default 'sorted': setdiff([3 1 2 5 4],[2 5]) = [1 3 4]. 'stable' keeps A-order (first occurrence): [3 1 4]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
 | `setxor` | ✅ | 0.004 | 420.21× | 79.60× | OK | Sig: r = setxor(...). Set op. Spec-extension batch 2026-05-09. |
 | `union` | ✅ | 0.002 | 424.06× |  | OK | Sig union(A,B[,setOrder]). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A) in A-order then new-of-B in B-order: union([3 1],[2 1],'stable') = [3 1 2]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
-| `unique` | ✅ | 0.008 | 83.30× | 24.63× | OK | Sig: r = unique(...). Spec-extension batch 2026-05-09. |
+| `unique` | ✅ | 0.004 | 336.27× |  | OK | Sig: u = unique(x); u = unique(x,'stable'); [u,ia,ic] = unique(x,setOrder). Covers: default 'sorted' (ascending), 'stable' (first-occurrence order, no sort), and three-output 'stable' index vectors (ia into x, ic into u). Spec-extension batch 2026-05-09; 'stable' added queue-clearing 2026-05-29. |
 | `uniquetol` | ✅ | 0.223 | 0.69× | 7.76× | OK | Sig: U = uniquetol(X, TOL). 10k with rounded vals. 10 iters. Fixed global tol*max(|A|) 2026-05-09. |
 
 ### Arithmetic

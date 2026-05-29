@@ -197,16 +197,30 @@ bool edgesAreUniform(const double *e, size_t nEdges, double &outStep)
 
 // ── unique ─────────────────────────────────────────────────────────
 
-Value unique(const Value &x, std::pmr::memory_resource *mr)
+Value unique(const Value &x, std::pmr::memory_resource *mr, bool stable)
 {
     const size_t n = x.numel();
     if (n == 0) return emptyRow(mr);
 
     ScratchArena scratch(mr);
+    const double *p = x.doubleData();
+
+    if (stable) {
+        // First-occurrence order, no sort. Each NaN is distinct (kept).
+        std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
+        seen.reserve(n / 2 + 1);
+        auto out = ScratchVec<double>(&scratch);
+        out.reserve(n);
+        for (size_t i = 0; i < n; ++i) {
+            if (std::isnan(p[i])) out.push_back(std::nan(""));
+            else if (seen.insert(p[i]).second) out.push_back(p[i]);
+        }
+        return rowFromVec(out.data(), out.size(), mr);
+    }
+
     std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
     seen.reserve(n / 2 + 1);
     size_t nanCount = 0;
-    const double *p = x.doubleData();
     for (size_t i = 0; i < n; ++i) {
         if (std::isnan(p[i])) ++nanCount;
         else seen.insert(p[i]);
@@ -222,12 +236,47 @@ Value unique(const Value &x, std::pmr::memory_resource *mr)
 }
 
 std::tuple<Value, Value, Value>
-uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr)
+uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable)
 {
     const size_t n = x.numel();
     if (n == 0) {
         return std::make_tuple(emptyRow(mr), emptyRow(mr),
                                emptyRow(mr));
+    }
+
+    if (stable) {
+        // First-occurrence order. C = X(ia); X = C(ic). Each NaN distinct.
+        ScratchArena scratch(mr);
+        std::pmr::unordered_map<double, size_t, DoubleHashEq0> posByVal(&scratch);
+        posByVal.reserve(n / 2 + 1);
+        auto uVals = ScratchVec<double>(&scratch);
+        auto iaVec = ScratchVec<double>(&scratch);
+        auto ic    = ScratchVec<double>(n, &scratch);
+        const double *p = x.doubleData();
+        for (size_t i = 0; i < n; ++i) {
+            if (std::isnan(p[i])) {
+                uVals.push_back(std::nan(""));
+                iaVec.push_back(static_cast<double>(i + 1));
+                ic[i] = static_cast<double>(uVals.size());      // own position
+            } else {
+                auto it = posByVal.find(p[i]);
+                if (it == posByVal.end()) {
+                    posByVal.emplace(p[i], uVals.size());        // 0-based pos
+                    uVals.push_back(p[i]);
+                    iaVec.push_back(static_cast<double>(i + 1));
+                    ic[i] = static_cast<double>(uVals.size());   // 1-based
+                } else {
+                    ic[i] = static_cast<double>(it->second + 1);
+                }
+            }
+        }
+        auto cOut  = Value::matrix(1, uVals.size(), ValueType::DOUBLE, mr);
+        auto iaRow = Value::matrix(1, iaVec.size(), ValueType::DOUBLE, mr);
+        std::copy(uVals.begin(), uVals.end(), cOut.doubleDataMut());
+        std::copy(iaVec.begin(), iaVec.end(), iaRow.doubleDataMut());
+        auto icRow = Value::matrix(1, n, ValueType::DOUBLE, mr);
+        std::copy(ic.begin(), ic.end(), icRow.doubleDataMut());
+        return std::make_tuple(std::move(cOut), std::move(iaRow), std::move(icRow));
     }
 
     ScratchArena scratch(mr);
@@ -1055,6 +1104,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     auto *mr = ctx.engine->resource();
 
     bool useRows = false;
+    bool stable  = false;
     for (size_t i = 1; i < args.size(); ++i) {
         const Value &a = args[i];
         if (a.type() != ValueType::CHAR)
@@ -1064,8 +1114,10 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c) { return std::tolower(c); });
         if (s == "rows") useRows = true;
-        else if (s == "first" || s == "last" || s == "sorted" || s == "stable") {
-            // accepted but no-op for now
+        else if (s == "stable") stable = true;
+        else if (s == "sorted") stable = false;
+        else if (s == "first" || s == "last") {
+            // occurrence selector — accepted but no-op (first is the default).
         } else {
             throw Error("unique: unknown flag '" + s + "'",
                          0, 0, "unique", "", "numkit:unique:badFlag");
@@ -1073,6 +1125,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
     if (useRows) {
+        // 'rows' + 'stable' not yet combined; rows path stays sorted.
         if (nargout <= 1) { outs[0] = uniqueRows(args[0], mr); return; }
         auto [c, ia, ic] = uniqueRowsWithIndices(args[0], mr);
         outs[0] = std::move(c);
@@ -1082,10 +1135,10 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
     if (nargout <= 1) {
-        outs[0] = unique(args[0], mr);
+        outs[0] = unique(args[0], mr, stable);
         return;
     }
-    auto [c, ia, ic] = uniqueWithIndices(args[0], mr);
+    auto [c, ia, ic] = uniqueWithIndices(args[0], mr, stable);
     outs[0] = std::move(c);
     if (nargout > 1) outs[1] = std::move(ia);
     if (nargout > 2) outs[2] = std::move(ic);
