@@ -3151,7 +3151,20 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
             dim = static_cast<int>(args[i].toScalar());
         }
     }
-    auto [sorted, idx] = sort(args[0], dim, descend, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    // Integer types: MATLAB keeps the class on the sorted VALUES (the index
+    // output stays double). Sort through the double path (the order is
+    // identical) then cast the sorted values back to the integer class.
+    if (isIntegerType(args[0].type())) {
+        const ValueType vt = args[0].type();
+        Value xd = copyToDouble(args[0], mr);
+        auto [sortedD, idxD] = sort(xd, dim, descend, mr);
+        outs[0] = doubleToIntegerExact(sortedD, vt, mr);
+        if (nargout > 1)
+            outs[1] = std::move(idxD);
+        return;
+    }
+    auto [sorted, idx] = sort(args[0], dim, descend, mr);
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);

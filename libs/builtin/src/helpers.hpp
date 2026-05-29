@@ -147,6 +147,42 @@ inline Value absIntegerSaturate(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
+// Cast a DOUBLE Value to an integer class by per-element static_cast with
+// saturation. Used to restore the integer class after computing through the
+// double path (e.g. sort of an integer array: sort as double, cast the sorted
+// values back). Values that are already exact in-range integers round-trip
+// exactly. `vt` must be an integer ValueType.
+inline Value doubleToIntegerExact(const Value &d, ValueType vt,
+                                  std::pmr::memory_resource *mr)
+{
+    Value r = createForDims(d.dims(), vt, mr);
+    const double *src = d.doubleData();
+    const size_t n = d.numel();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = src[i];
+            if (v < lo) v = lo;
+            else if (v > hi) v = hi;
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (vt) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
 // Exact same-class copy of an integer-typed Value (raw typed copy, so int64
 // values above 2^53 are preserved). Used for operations that are the
 // IDENTITY on integers but keep the class (floor/ceil/round/fix in MATLAB).
