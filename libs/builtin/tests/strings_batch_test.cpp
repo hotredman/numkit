@@ -85,6 +85,36 @@ TEST_F(StringsBatchTest, Strsplit)
     EXPECT_DOUBLE_EQ(evalScalar("numel(p)"), 3.0);
 }
 
+// strsplit: cell-array delimiters, multi-char delimiters, and the
+// CollapseDelimiters option. vs MATLAB R2025b. 2026-05-30.
+TEST_F(StringsBatchTest, StrsplitCellMultiCollapse)
+{
+    // Cell array of delimiters, longest-match.
+    eval("c1 = strsplit('a, b; c', {', ', '; '});");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c1)"), 3.0);
+    EXPECT_EQ(evalString("c1{1}"), "a");
+    EXPECT_EQ(evalString("c1{2}"), "b");
+    EXPECT_EQ(evalString("c1{3}"), "c");
+    // Multi-character delimiter string.
+    eval("c2 = strsplit('a==b==c', '==');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c2)"), 3.0);
+    EXPECT_EQ(evalString("c2{2}"), "b");
+    // collapse=true (default): leading/trailing empties kept, internal merged.
+    eval("c3 = strsplit(',a,b,', ',');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c3)"), 4.0);
+    EXPECT_EQ(evalString("c3{1}"), "");
+    EXPECT_EQ(evalString("c3{4}"), "");
+    eval("c4 = strsplit('a,,b', ',');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c4)"), 2.0);  // internal '' collapsed
+    // CollapseDelimiters=false: split at every occurrence.
+    eval("c5 = strsplit('a,,b', ',', 'CollapseDelimiters', false);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c5)"), 3.0);
+    EXPECT_EQ(evalString("c5{2}"), "");
+    // Default whitespace delimiter, collapse.
+    eval("c6 = strsplit('  a  b  ');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c6)"), 4.0);
+}
+
 TEST_F(StringsBatchTest, Strtok)
 {
     eval("[t, rem] = strtok(\"hello world\");");
