@@ -1,4 +1,12 @@
-{"name": "harmmean", "namespace": "stats", "setup": "v = [1 2 4];",
- "expr": "h1 = harmmean(v); h2 = harmmean([2 4 6 8]);", "iters": 5, "tol": 1e-12,
- "fingerprint": ["h1", "h2"],
- "comment": "Sig: h = harmmean(x[, dim]). n / sum(1./x). Requires positive x."}
+{
+  "name": "harmmean",
+  "namespace": "stats",
+  "setup": "M = magic(4);",
+  "expr": "h1 = harmmean([2 4 6 8]); hM = harmmean(M); hd = harmmean(M, 2);",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "h1", "hM(1)", "hM(2)", "hd(1)"
+  ],
+  "comment": "Sig h=harmmean(X[,dim]): harmonic mean = n / sum(1./x). Vector harmmean([2 4 6 8])=3.84. Matrix default per-column: harmmean(magic(4)) cols (1,2)=(6.414254, 4.967742). dim=2 per-row pinned too."
+}

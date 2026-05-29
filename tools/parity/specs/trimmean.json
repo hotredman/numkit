@@ -1,4 +1,12 @@
-{"name": "trimmean", "namespace": "stats", "setup": "v = [1 5 3 8 2 7 4 6 100];",
- "expr": "t1 = trimmean(v, 25); t2 = trimmean(v, 50);", "iters": 5, "tol": 1e-10,
- "fingerprint": ["t1", "t2"],
- "comment": "Sig: m = trimmean(x, percent[, dim]). Mean after trimming percent/2 from each end."}
+{
+  "name": "trimmean",
+  "namespace": "stats",
+  "setup": "v = [1 2 3 4 5 6 7 8 100 -50]; M = magic(5);",
+  "expr": "t0 = trimmean(v, 0); t20 = trimmean(v, 20); tM = trimmean(M, 40);",
+  "iters": 3,
+  "tol": 1e-10,
+  "fingerprint": [
+    "t0", "t20", "tM(1)", "tM(2)", "tM(3)"
+  ],
+  "comment": "Sig m=trimmean(x,percent[,dim]): mean after trimming percent/2 from each end. v=[1..8 100 -50]: percent=0 -> plain mean 8.6; percent=20 trims 1 from each end (the 100 and -50 outliers) -> 4.5. Matrix per-column: trimmean(magic(5),40) = [12.666667 12 13 ...]."
+}
