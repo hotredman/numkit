@@ -18,11 +18,16 @@ namespace {
 
 // Direct Form II transposed core, applied to a flat input buffer.
 // Used by both filter() and filtfilt()'s forward/backward passes.
-ScratchVec<double> applyFilterDf2t(const double *bn, size_t nb, const double *an, size_t na, const double *input, size_t len, std::pmr::memory_resource *mr)
+// Optional `zi` (length ziLen) seeds the initial delay state; when
+// `zfOut` is non-null the final state (length nfilt-1) is written there —
+// this implements MATLAB's filter(b,a,x,zi) and [y,zf] = filter(...).
+ScratchVec<double> applyFilterDf2t(const double *bn, size_t nb, const double *an, size_t na, const double *input, size_t len, std::pmr::memory_resource *mr, const double *zi = nullptr, size_t ziLen = 0, double *zfOut = nullptr)
 {
     const size_t nfilt = std::max(nb, na);
     ScratchVec<double> out(len, mr);
     ScratchVec<double> z(nfilt, mr);
+    for (size_t i = 0; i < nfilt; ++i)
+        z[i] = (zi && i < ziLen) ? zi[i] : 0.0;
     for (size_t n = 0; n < len; ++n) {
         out[n] = (nb > 0 ? bn[0] : 0.0) * input[n] + z[0];
         for (size_t i = 1; i < nfilt; ++i) {
@@ -31,6 +36,8 @@ ScratchVec<double> applyFilterDf2t(const double *bn, size_t nb, const double *an
                        + (i < nfilt - 1 ? z[i] : 0.0);
         }
     }
+    if (zfOut)
+        for (size_t i = 0; i + 1 < nfilt; ++i) zfOut[i] = z[i];
     return out;
 }
 
@@ -116,12 +123,48 @@ Value filtfilt(const Value &b, const Value &a, const Value &x, std::pmr::memory_
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void filter_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
         throw Error("filter: requires 3 arguments",
                      0, 0, "filter", "", "numkit:filter:nargin");
-    outs[0] = filter(args[0], args[1], args[2], ctx.engine->resource());
+    // Fast path: plain filter(b,a,x) with one output.
+    auto *mr = ctx.engine->resource();
+    const bool hasZi = (args.size() >= 4 && !args[3].isEmpty()
+                        && !args[3].isChar() && !args[3].isString());
+    if (!hasZi && nargout <= 1) {
+        outs[0] = filter(args[0], args[1], args[2], mr);
+        return;
+    }
+    // [y, zf] = filter(b,a,x[,zi]): thread initial conditions zi through the
+    // DF2T state and return the final state zf (length max(na,nb)-1).
+    const Value &b = args[0], &a = args[1], &x = args[2];
+    const size_t nb = b.numel(), na = a.numel(), nx = x.numel();
+    const double *bd = b.doubleData(), *ad = a.doubleData(), *xd = x.doubleData();
+    const double a0 = ad[0];
+    if (a0 == 0.0)
+        throw Error("filter: a(1) must be nonzero",
+                     0, 0, "filter", "", "numkit:filter:zeroLead");
+    ScratchArena scratch(mr);
+    auto bn = ScratchVec<double>(nb, &scratch);
+    auto an = ScratchVec<double>(na, &scratch);
+    for (size_t i = 0; i < nb; ++i) bn[i] = bd[i] / a0;
+    for (size_t i = 0; i < na; ++i) an[i] = ad[i] / a0;
+    const size_t nfilt = std::max(nb, na);
+    const size_t zfLen = (nfilt > 0) ? nfilt - 1 : 0;
+    const double *ziPtr = hasZi ? args[3].doubleData() : nullptr;
+    const size_t  ziLen = hasZi ? args[3].numel() : 0;
+    ScratchVec<double> zf(zfLen, &scratch);
+    auto out = applyFilterDf2t(bn.data(), nb, an.data(), na, xd, nx, &scratch,
+                               ziPtr, ziLen, zfLen ? zf.data() : nullptr);
+    Value r = createLike(x, ValueType::DOUBLE, mr);
+    if (nx) std::memcpy(r.doubleDataMut(), out.data(), nx * sizeof(double));
+    outs[0] = std::move(r);
+    if (nargout > 1) {
+        Value zfv = Value::matrix(zfLen, 1, ValueType::DOUBLE, mr);
+        if (zfLen) std::memcpy(zfv.doubleDataMut(), zf.data(), zfLen * sizeof(double));
+        outs[1] = std::move(zfv);
+    }
 }
 
 void filtfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

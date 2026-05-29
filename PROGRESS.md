@@ -2475,7 +2475,7 @@ intentionally omitted — flat solver functions only.
 | `zp2ss` | ✅ | 0.005 | 575.94× | 410.85× | OK | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `zp2tf` | ✅ | 0.003 | 539.36× |  | OK | Sig [b,a]=zp2tf(z,p,k): zero/pole/gain -> transfer function. Real zeros {1,2}, poles {3,4}, k=5: b=k*conv([1 -1],[1 -2])=[5 -15 10], a=conv([1 -3],[1 -4])=[1 -7 12]. Complex-conjugate poles 0.3+-0.4i with one zero 0.5, k=2: bc=[2 -1], ac=[1 -0.6 0.25] (real coeffs from the conjugate pair). |
 | `zpk` | ✅ | 0.004 | 1543.92× | 157.31× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
-| `filter` | ✅ | 0.001 | 66.72× |  | OK | Sig: r = filter(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `filter` | ✅ | 0.006 | 24.94× |  | OK | Sig [y,zf]=filter(b,a,x[,zi]): IIR/FIR filtering (Direct Form II transposed). y=[1 3.5 6.75 10.375]; final state zf=9.1875 (length max(na,nb)-1). Initial conditions zi seed the state: filter(...,10) -> y(1)=b(1)*x(1)+zi(1)=11. 3-tap FIR zf2 has length 2 = [3.5 1.25]. numkit previously had NO zf 2nd output (errored) and IGNORED the zi 4th arg -- fixed (thread DF2T state through the kernel). |
 | `filter2` | ✅ | 0.047 | 1.39× |  | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 
 ### Multirate Signal Processing
