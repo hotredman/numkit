@@ -1,0 +1,16 @@
+{
+  "name": "abs_integer",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = abs(int8(-128)); va = double(a); ca = double(strcmp(class(a),'int8')); b = abs(int16(-32768)); vb = double(b); c = abs(int8([-3 -128 5])); c1 = double(c(1)); c2 = double(c(2)); c3 = double(c(3)); d = abs(uint8(200)); vd = double(d); cd = double(strcmp(class(d),'uint8')); e = abs(int32(-7)); ve = double(e); ce = double(strcmp(class(e),'int32')); f = abs(-3.5); g = abs(3-4i);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "va", "ca", "vb",
+    "c1", "c2", "c3",
+    "vd", "cd",
+    "ve", "ce",
+    "f", "g"
+  ],
+  "comment": "Sig: y = abs(X). For INTEGER input MATLAB keeps the class and SATURATES: abs(int8(-128))=127 int8 (not 128), abs(int16(-32768))=32767 int16, abs(int8([-3 -128 5]))=[3 127 5]; unsigned types are returned unchanged (abs(uint8(200))=200). double/complex paths unchanged (abs(-3.5)=3.5, abs(3-4i)=5). numkit previously returned DOUBLE 128 for abs(int8(-128)); fixed 2026-05-30 (absIntegerSaturate in helpers.hpp, dispatched from both abs backends). NOTE: ; only inside matrix-literal INPUTS."
+}

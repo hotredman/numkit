@@ -20,6 +20,9 @@ namespace numkit::builtin {
 
 Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
+    // Integer types keep their class and saturate (abs(int8(-128))=127 int8).
+    if (isIntegerType(x.type()))
+        return absIntegerSaturate(x, mr);
     if (x.isComplex()) {
         if (x.isScalar())
             return Value::scalar(std::abs(x.toComplex()), mr);

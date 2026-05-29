@@ -113,6 +113,40 @@ inline Value createLike(const Value &src, ValueType type, std::pmr::memory_resou
     return createForDims(src.dims(), type, mr);
 }
 
+// abs() for an integer-typed Value: MATLAB keeps the integer class and
+// SATURATES, so abs(intmin) -> intmax (abs(int8(-128))=127 int8); unsigned
+// types are returned unchanged. Reading via elemAsDouble + clamp to the
+// type range handles every signed/unsigned width uniformly (|intmin| would
+// overflow the type, the clamp catches it). Caller guards isIntegerType().
+inline Value absIntegerSaturate(const Value &x, std::pmr::memory_resource *mr)
+{
+    Value r = createLike(x, x.type(), mr);
+    const size_t n = x.numel();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = std::fabs(x.elemAsDouble(i));
+            if (v < lo) v = lo;
+            else if (v > hi) v = hi;
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (x.type()) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
 // Shape-preserving empty result for a binary op where at least one
 // operand is empty. The non-scalar operand contributes the output
 // shape; if both are non-scalar the dims must match, otherwise throw.
