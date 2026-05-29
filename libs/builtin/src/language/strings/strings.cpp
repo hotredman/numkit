@@ -945,6 +945,61 @@ Value hex2dec(const Value &s, std::pmr::memory_resource *mr)
 }
 
 namespace {
+// Parse a base-`base` (2..36) digit string: 0-9 then A-Z / a-z. Whitespace
+// is skipped (MATLAB pads short rows of a char matrix with spaces).
+uint64_t parseBaseN(const std::string &s, int base)
+{
+    uint64_t v = 0;
+    for (char c : s) {
+        if (std::isspace(static_cast<unsigned char>(c))) continue;
+        int d;
+        if      (c >= '0' && c <= '9') d = c - '0';
+        else if (c >= 'a' && c <= 'z') d = 10 + (c - 'a');
+        else if (c >= 'A' && c <= 'Z') d = 10 + (c - 'A');
+        else throw Error(std::string("base2dec: invalid digit '") + c + "'",
+                          0, 0, "base2dec", "", "numkit:base2dec:badDigit");
+        if (d >= base)
+            throw Error(std::string("base2dec: digit '") + c +
+                            "' out of range for base " + std::to_string(base),
+                          0, 0, "base2dec", "", "numkit:base2dec:badDigit");
+        v = v * static_cast<uint64_t>(base) + static_cast<uint64_t>(d);
+    }
+    return v;
+}
+} // anon
+
+Value dec2base(const Value &d, int base, int minWidth, std::pmr::memory_resource *mr)
+{
+    if (base < 2 || base > 36)
+        throw Error("dec2base: base must be in 2..36",
+                     0, 0, "dec2base", "", "numkit:dec2base:badBase");
+    return vecToBaseMatrix(d, base, minWidth, mr);
+}
+
+Value base2dec(const Value &s, int base, std::pmr::memory_resource *mr)
+{
+    if (base < 2 || base > 36)
+        throw Error("base2dec: base must be in 2..36",
+                     0, 0, "base2dec", "", "numkit:base2dec:badBase");
+    const size_t rows = static_cast<size_t>(s.dims().rows());
+    // A char MATRIX (multiple rows) parses each row -> column vector.
+    if (rows > 1 && s.type() == ValueType::CHAR) {
+        const size_t cols = s.numel() / rows;
+        const char *src = static_cast<const char *>(s.rawData());
+        Value out = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t r = 0; r < rows; ++r) {
+            std::string row;
+            row.reserve(cols);
+            for (size_t c = 0; c < cols; ++c) row.push_back(src[c * rows + r]);
+            od[r] = static_cast<double>(parseBaseN(row, base));
+        }
+        return out;
+    }
+    return Value::scalar(static_cast<double>(parseBaseN(s.toString(), base)), mr);
+}
+
+namespace {
 
 // MATLAB's rat() uses the **regularized** continued-fraction expansion:
 // at each step it picks `a = round(r)` (nearest integer, half-away-from-
@@ -1773,6 +1828,26 @@ void hex2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("hex2dec requires 1 argument",
                      0, 0, "hex2dec", "", "numkit:hex2dec:nargin");
     outs[0] = hex2dec(args[0], ctx.engine->resource());
+}
+
+void dec2base_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("dec2base requires (d, base[, len])",
+                     0, 0, "dec2base", "", "numkit:dec2base:nargin");
+    const int base = static_cast<int>(args[1].toScalar());
+    const int len  = (args.size() >= 3 && !args[2].isEmpty())
+                       ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = dec2base(args[0], base, len, ctx.engine->resource());
+}
+
+void base2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("base2dec requires (s, base)",
+                     0, 0, "base2dec", "", "numkit:base2dec:nargin");
+    const int base = static_cast<int>(args[1].toScalar());
+    outs[0] = base2dec(args[0], base, ctx.engine->resource());
 }
 
 void rat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

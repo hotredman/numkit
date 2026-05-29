@@ -322,6 +322,8 @@ void dec2bin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void dec2hex_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bin2dec_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void hex2dec_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void dec2base_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void base2dec_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rats_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1144,6 +1146,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("replaceBetween", &builtin::detail::replaceBetween_reg);
     engine.registerFunction("dec2bin",    &builtin::detail::dec2bin_reg);
     engine.registerFunction("dec2hex",    &builtin::detail::dec2hex_reg);
+    engine.registerFunction("dec2base",   &builtin::detail::dec2base_reg);
+    engine.registerFunction("base2dec",   &builtin::detail::base2dec_reg);
     engine.registerFunction("bin2dec",    &builtin::detail::bin2dec_reg);
     engine.registerFunction("hex2dec",    &builtin::detail::hex2dec_reg);
     engine.registerFunction("rat",        &builtin::detail::rat_reg);
