@@ -894,17 +894,103 @@ void chol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (nargout > 1) outs[1] = Value::scalar(0.0);
 }
 
+namespace {
+
+// First `k` columns of a DOUBLE matrix (column-major → block copy).
+Value firstCols(const Value &A, size_t k, std::pmr::memory_resource *mr)
+{
+    const size_t r = A.dims().rows();
+    auto out = Value::matrix(r, k, ValueType::DOUBLE, mr);
+    const double *src = A.doubleData();
+    double *dst = out.doubleDataMut();
+    for (size_t i = 0; i < r * k; ++i) dst[i] = src[i];
+    return out;
+}
+
+// Top-left kr×kc block of a DOUBLE matrix.
+Value topLeftBlock(const Value &A, size_t kr, size_t kc, std::pmr::memory_resource *mr)
+{
+    const size_t r = A.dims().rows();
+    auto out = Value::matrix(kr, kc, ValueType::DOUBLE, mr);
+    const double *src = A.doubleData();
+    double *dst = out.doubleDataMut();
+    for (size_t c = 0; c < kc; ++c)
+        for (size_t i = 0; i < kr; ++i)
+            dst[c * kr + i] = src[c * r + i];
+    return out;
+}
+
+// Convert a permutation matrix P (n×n, P·A = L·U) to a 1-based row-index
+// row vector p such that A(p,:) = L·U.
+Value permMatrixToVector(const Value &P, std::pmr::memory_resource *mr)
+{
+    const size_t n = P.dims().rows();
+    auto p = Value::matrix(1, n, ValueType::DOUBLE, mr);
+    const double *pd = P.doubleData();
+    double *out = p.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) {
+        size_t col = 0;
+        double best = -1.0;
+        for (size_t j = 0; j < n; ++j) {
+            const double v = pd[j * n + i];   // P(i, j), column-major
+            if (v > best) { best = v; col = j; }
+        }
+        out[i] = static_cast<double>(col + 1);   // 1-based
+    }
+    return p;
+}
+
+// Parse a trailing 'econ' / 0 economy flag for svd/qr.
+bool wantsEcon(Span<const Value> args, const char *fn)
+{
+    if (args.size() < 2) return false;
+    if (args.size() > 2)
+        throw Error(std::string(fn) + ": too many arguments",
+                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
+    const Value &o = args[1];
+    if (o.type() == ValueType::CHAR) {
+        std::string s = o.toString();
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (s == "econ") return true;
+        throw Error(std::string(fn) + ": unknown option '" + s + "'",
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badOption");
+    }
+    if (o.isScalar() && o.toScalar() == 0.0) return true;   // legacy svd(A,0)/qr(A,0)
+    throw Error(std::string(fn) + ": invalid second argument",
+                0, 0, fn, "", std::string("numkit:") + fn + ":badArg");
+}
+
+} // namespace
+
 void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 1)
-        throw Error("lu: requires exactly 1 argument",
+    if (args.empty() || args.size() > 2)
+        throw Error("lu: requires 1 or 2 arguments",
                     0, 0, "lu", "", "numkit:lu:nargin");
     auto *mr = ctx.engine->resource();
+
+    bool vectorP = false;
+    if (args.size() == 2) {
+        if (args[1].type() != ValueType::CHAR)
+            throw Error("lu: second argument must be the flag 'vector'",
+                        0, 0, "lu", "", "numkit:lu:badArg");
+        std::string s = args[1].toString();
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (s == "vector") vectorP = true;
+        else if (s == "matrix") vectorP = false;   // explicit default
+        else throw Error("lu: unknown option '" + s + "'",
+                         0, 0, "lu", "", "numkit:lu:badOption");
+    }
+
     if (nargout >= 2) {
         auto [L, U, P] = lu_decompose(args[0], mr);
         outs[0] = std::move(L);
         outs[1] = std::move(U);
-        if (nargout >= 3) outs[2] = std::move(P);
+        if (nargout >= 3)
+            outs[2] = (vectorP && nargout >= 3) ? permMatrixToVector(P, mr)
+                                                : std::move(P);
     } else {
         outs[0] = lu_combined(args[0], mr);
     }
@@ -912,32 +998,46 @@ void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
 
 void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 1)
-        throw Error("qr: requires exactly 1 argument",
-                    0, 0, "qr", "", "numkit:qr:nargin");
+    const bool econ = wantsEcon(args, "qr");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [Q, R] = qr_decompose(args[0], mr);
+        if (econ) {
+            const size_t m = args[0].dims().rows(), n = args[0].dims().cols();
+            const size_t k = std::min(m, n);
+            Q = firstCols(Q, k, mr);                // m×k
+            R = topLeftBlock(R, k, n, mr);          // k×n
+        }
         outs[0] = std::move(Q);
         outs[1] = std::move(R);
     } else {
-        outs[0] = qr_R_only(args[0], mr);
+        Value R = qr_R_only(args[0], mr);
+        if (econ) {
+            const size_t m = args[0].dims().rows(), n = args[0].dims().cols();
+            R = topLeftBlock(R, std::min(m, n), n, mr);
+        }
+        outs[0] = std::move(R);
     }
 }
 
 void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 1)
-        throw Error("svd: requires exactly 1 argument",
-                    0, 0, "svd", "", "numkit:svd:nargin");
+    const bool econ = wantsEcon(args, "svd");
     auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
         auto [U, S, V] = svd_decompose(args[0], mr);
+        if (econ) {
+            const size_t m = args[0].dims().rows(), n = args[0].dims().cols();
+            const size_t k = std::min(m, n);
+            U = firstCols(U, k, mr);                // m×k
+            S = topLeftBlock(S, k, k, mr);          // k×k
+            V = firstCols(V, k, mr);                // n×k
+        }
         outs[0] = std::move(U);
         outs[1] = std::move(S);
         if (nargout >= 3) outs[2] = std::move(V);
     } else {
-        outs[0] = svd_values(args[0], mr);
+        outs[0] = svd_values(args[0], mr);          // 'econ' irrelevant for sv vector
     }
 }
 

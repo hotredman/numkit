@@ -91,3 +91,26 @@ TEST_F(SvdTest, SvdScalar)
     eval("s = svd(7.5);");
     EXPECT_DOUBLE_EQ(evalScalar("s(1)"), 7.5);
 }
+
+TEST_F(SvdTest, SvdEconTall)
+{
+    // 3x2 tall: economy → U 3x2, S 2x2, V 2x2, U*S*V' == A.
+    eval("A = [1 2; 3 4; 5 6]; [U, S, V] = svd(A, 'econ');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(U,1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(U,2)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(S,1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(S,2)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(V,1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(V,2)")), 2);
+    EXPECT_NEAR(evalScalar("S(1,1)"), 9.5255180915651074, 1e-9);
+    EXPECT_NEAR(evalScalar("S(2,2)"), 0.5143005806586447, 1e-9);
+    EXPECT_NEAR(evalScalar("max(max(abs(U*S*V' - A)))"), 0.0, 1e-12);
+}
+
+TEST_F(SvdTest, SvdEconLegacyZero)
+{
+    // svd(A, 0) is the legacy spelling of 'econ'.
+    eval("A = [1 2; 3 4; 5 6]; [U, S, V] = svd(A, 0);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(U,2)")), 2);
+    EXPECT_NEAR(evalScalar("max(max(abs(U*S*V' - A)))"), 0.0, 1e-12);
+}
