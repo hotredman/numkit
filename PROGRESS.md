@@ -610,7 +610,7 @@ together.
 | `prod` | ✅ | 0.005 | 24.64× | 25.71× | OK | Sig: r = prod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `rdivide` | ✅ | 0.004 | 35.37× | 47.71× | OK | Sig: r = rdivide(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
 | `rem` | ✅ | 0.004 | 28.02× | 8.61× | OK | Sig: r = rem(...). Spec-extension batch 2026-05-09. |
-| `round` | ✅ | 0.003 | 33.27× | 28.43× | OK | Sig: r = round(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `round` | ✅ | 0.004 | 34.81× |  | OK | Sig round(x[,N[,'decimals'|'significant']]). round(x) = nearest int (half-away-from-zero). round(x,N) = N decimal places (N may be negative). round(x,N,'significant') = N significant digits. round(3.14159,2)=3.14; round(12345,-2)=12300; round(3.14159,3,'significant')=3.14; round(12345,2,'significant')=12000. numkit previously took only round(x) -- N + 'significant' added. Matches MATLAB R2025b. |
 | `sum` | ✅ | 0.004 | 28.54× | 46.09× | OK | Sig: r = sum(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `tensorprod` | ❌ |  |  |  |  | tensor contraction |
 | `times` | ✅ | 0.005 | 53.58× | 12.10× | OK | Sig: r = times(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |

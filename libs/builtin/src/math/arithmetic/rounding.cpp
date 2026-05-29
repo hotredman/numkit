@@ -42,6 +42,20 @@ Value roundLikeDispatch(const Value &x, ScalarOp scalar, SimdOp simdLoop, std::p
     return unaryDouble(x, scalar, mr);
 }
 
+// round(x, N): N decimal places (N may be negative). round(x, N,
+// 'significant'): N significant digits. Round-half-away-from-zero (MATLAB).
+inline double roundNScalar(double v, int n, bool significant)
+{
+    if (!std::isfinite(v)) return v;
+    int digits = n;
+    if (significant) {
+        if (v == 0.0) return 0.0;
+        digits = n - static_cast<int>(std::floor(std::log10(std::fabs(v)))) - 1;
+    }
+    const double f = std::pow(10.0, digits);
+    return std::round(v * f) / f;
+}
+
 } // namespace
 
 Value floor(const Value &x, std::pmr::memory_resource *mr)
@@ -57,6 +71,11 @@ Value ceil(const Value &x, std::pmr::memory_resource *mr)
 Value round(const Value &x, std::pmr::memory_resource *mr)
 {
     return roundLikeDispatch(x, [](double v) { return std::round(v); }, ::numkit::builtin::detail::doubleRoundLoop, mr);
+}
+
+Value roundN(const Value &x, int n, bool significant, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [n, significant](double v) { return roundNScalar(v, n, significant); }, mr);
 }
 
 Value fix(const Value &x, std::pmr::memory_resource *mr)
@@ -97,12 +116,39 @@ namespace detail {
 
 NK_UNARY_ADAPTER(floor,   floor)
 NK_UNARY_ADAPTER(ceil,    ceil)
-NK_UNARY_ADAPTER(round,   round)
 NK_UNARY_ADAPTER(fix,     fix)
 NK_UNARY_ADAPTER(sign,    sign)
 NK_UNARY_ADAPTER(subplus, subplus)
 
 #undef NK_UNARY_ADAPTER
+
+// round(x) | round(x, N) | round(x, N, 'decimals'|'significant').
+void round_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("round: requires 1 argument",
+                     0, 0, "round", "", "numkit:round:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() < 2 || args[1].isEmpty()) {
+        outs[0] = round(args[0], mr);
+        return;
+    }
+    const int n = static_cast<int>(args[1].toScalar());
+    bool significant = false;
+    if (args.size() >= 3 && (args[2].isChar() || args[2].isString())) {
+        std::string s = args[2].toString();
+        for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if      (s == "significant") significant = true;
+        else if (s == "decimals")    significant = false;
+        else
+            throw Error("round: type must be 'decimals' or 'significant'",
+                         0, 0, "round", "", "numkit:round:badType");
+    }
+    if (significant && n < 1)
+        throw Error("round: N must be >= 1 for 'significant'",
+                     0, 0, "round", "", "numkit:round:badN");
+    outs[0] = roundN(args[0], n, significant, mr);
+}
 
 } // namespace detail
 
