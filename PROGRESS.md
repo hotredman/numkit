@@ -3217,7 +3217,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |
 | `datasample` | ✅ | 0.002 | 192.23× |  | OK | Sig: y = datasample(X, K[, dim, ...]). Default dim auto-selected: row vector samples columns (dim=2), otherwise dim=1. Output SHAPE bit-identical with MATLAB R2025b; values may differ due to RNG cascade -- shape probe used here. |
 | `jackknife` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
-| `randsample` | ✅ | 0.003 | 190.89× | 62.39× | OK | Sig: y = randsample(n, k). Spec-extension batch 2026-05-09 (cycle 41). |
+| `randsample` | ✅ | 0.010 | 271.41× |  | OK | Sig y=randsample(n,k) / y=randsample(pop,k[,replace,weights]). Population-vector form samples the vector's values along its length. Weights with all mass on one element are deterministic: randsample([10 20 30],4,true,[0 0 1]) = [30 30 30 30]; column population -> column output. numkit previously routed the population vector to datasample(dim=1) -> a row-vector population collapsed to N=1 and the weighted form ERRORED (weights length != sample-axis) -- fixed. Matches MATLAB R2025b. |
 
 ### Quasirandom Sequences and MCMC
 
