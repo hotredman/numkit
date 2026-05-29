@@ -1002,6 +1002,82 @@ Value makelut(numkit::Engine &eng, const Value &fun, int n,
     return lut;
 }
 
+// bwmorph3 — morphological operations on a binary volume. Each voxel is
+// evaluated from its 3×3×3 neighbourhood (zero-padded at the border).
+// Clean-room port of MATLAB R2025b's bwmorph3Algorithm neighbourhood
+// rules (count = number of set voxels in the 27-neighbourhood INCLUDING
+// the centre; faces6 = the six 6-connected face neighbours):
+//   branchpoints : centre set  AND  count > 3
+//   clean        : centre set  AND  count != 1   (drop isolated voxels)
+//   endpoints    : centre set  AND  count == 2   (centre + exactly one)
+//   fill         : centre set  OR   faces6 == 6  (fill 6-conn holes)
+//   majority     : count > 13                    (≥14 of 27)
+//   remove       : centre set  AND  faces6 != 6  (strip interior voxels)
+Value bwmorph3(const Value &V, const std::string &op, std::pmr::memory_resource *mr)
+{
+    enum Op { BRANCH, CLEAN, ENDP, FILL, MAJORITY, REMOVE } o;
+    if      (op == "branchpoints") o = BRANCH;
+    else if (op == "clean")        o = CLEAN;
+    else if (op == "endpoints")    o = ENDP;
+    else if (op == "fill")         o = FILL;
+    else if (op == "majority")     o = MAJORITY;
+    else if (op == "remove")       o = REMOVE;
+    else throw Error("bwmorph3: unknown operation '" + op + "'",
+                     0, 0, "bwmorph3", "", "numkit:bwmorph3:badOp");
+
+    const auto &d = V.dims();
+    if (d.ndim() > 3)
+        throw Error("bwmorph3: input must be a 2-D or 3-D array",
+                    0, 0, "bwmorph3", "", "numkit:bwmorph3:rank");
+    const int H = static_cast<int>(d.rows());
+    const int W = static_cast<int>(d.cols());
+    const int P = d.is3D() ? static_cast<int>(d.pages()) : 1;
+
+    Value out = (P > 1) ? Value::matrix3d(H, W, P, ValueType::LOGICAL, mr)
+                        : Value::matrix(H, W, ValueType::LOGICAL, mr);
+    if (H == 0 || W == 0 || P == 0) return out;
+    uint8_t *od = out.logicalDataMut();
+
+    const size_t plane = static_cast<size_t>(H) * static_cast<size_t>(W);
+    auto at = [&](int r, int c, int p) -> int {
+        if (r < 0 || r >= H || c < 0 || c >= W || p < 0 || p >= P) return 0;
+        return V.elemAsDouble(static_cast<size_t>(p) * plane
+                              + static_cast<size_t>(c) * static_cast<size_t>(H)
+                              + static_cast<size_t>(r)) != 0.0 ? 1 : 0;
+    };
+
+    for (int p = 0; p < P; ++p) {
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                const int centre = at(r, c, p);
+                // 27-neighbourhood count (includes centre) and 6 faces.
+                int count = 0;
+                for (int dp = -1; dp <= 1; ++dp)
+                    for (int dc = -1; dc <= 1; ++dc)
+                        for (int dr = -1; dr <= 1; ++dr)
+                            count += at(r + dr, c + dc, p + dp);
+                const int faces6 = at(r - 1, c, p) + at(r + 1, c, p)
+                                 + at(r, c - 1, p) + at(r, c + 1, p)
+                                 + at(r, c, p - 1) + at(r, c, p + 1);
+                int v = 0;
+                switch (o) {
+                    case BRANCH:   v = (centre && count > 3); break;
+                    case CLEAN:    v = (centre && count != 1); break;
+                    case ENDP:     v = (centre && count == 2); break;
+                    case FILL:     v = (centre || faces6 == 6); break;
+                    case MAJORITY: v = (count > 13); break;
+                    case REMOVE:   v = (centre && faces6 != 6); break;
+                }
+                const size_t idx = static_cast<size_t>(p) * plane
+                                 + static_cast<size_t>(c) * static_cast<size_t>(H)
+                                 + static_cast<size_t>(r);
+                od[idx] = static_cast<uint8_t>(v ? 1 : 0);
+            }
+        }
+    }
+    return out;
+}
+
 Value bwhitmiss(const Value &BW, const Value &se1, const Value &se2, std::pmr::memory_resource *mr)
 {
     const size_t H = BW.dims().rows();
@@ -1317,6 +1393,15 @@ void makelut_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "makelut", "", "numkit:makelut:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     outs[0] = makelut(*ctx.engine, args[0], n, ctx.engine->resource());
+}
+
+void bwmorph3_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || !(args[1].isChar() || args[1].isString()))
+        throw Error("bwmorph3: requires (V, operation)",
+                    0, 0, "bwmorph3", "", "numkit:bwmorph3:nargin");
+    outs[0] = bwmorph3(args[0], args[1].toString(), ctx.engine->resource());
 }
 
 void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,

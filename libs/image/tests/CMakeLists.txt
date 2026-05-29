@@ -18,6 +18,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/graycomatrix_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bwmorph_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bwlookup_makelut_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bwmorph3_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/illum_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/illumpca_imcolordiff_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/otf2psf_rgbwide_test.cpp

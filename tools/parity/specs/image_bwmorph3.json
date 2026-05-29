@@ -1,0 +1,16 @@
+{
+  "name": "image_bwmorph3",
+  "namespace": "image",
+  "setup": "V = false(5,5,5); V(2:4,2:4,2:4) = true; V(3,3,3) = false; L = false(5,5,7); L(3,3,2:6) = true; B = logical([0 1 1 0; 1 1 1 1; 0 1 1 0; 0 0 1 0]);",
+  "expr": "br = bwmorph3(V,'branchpoints'); cl = bwmorph3(V,'clean'); ep = bwmorph3(V,'endpoints'); fl = bwmorph3(V,'fill'); mj = bwmorph3(V,'majority'); rm = bwmorph3(V,'remove'); lep = bwmorph3(L,'endpoints'); lbr = bwmorph3(L,'branchpoints'); b2c = bwmorph3(B,'clean'); b2r = bwmorph3(B,'remove'); b2f = bwmorph3(B,'fill');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "nnz(br)", "nnz(cl)", "nnz(ep)", "nnz(fl)", "nnz(mj)", "nnz(rm)",
+    "fl(3,3,3)", "mj(3,3,3)", "rm(3,3,3)", "br(2,2,2)",
+    "size(br,1)", "size(br,3)",
+    "nnz(lep)", "nnz(lbr)",
+    "nnz(b2c)", "nnz(b2r)", "nnz(b2f)", "size(b2c,1)", "size(b2c,2)"
+  ],
+  "comment": "MATLAB Image Toolbox bwmorph3 — morphological operations on a binary volume. All 6 documented ops, each a 3x3x3 neighbourhood rule (count = set voxels incl. centre; faces6 = six 6-connected faces): branchpoints (centre & count>3), clean (centre & count!=1, drops isolated), endpoints (centre & count==2), fill (centre | faces6==6), majority (count>13 i.e. >=14 of 27), remove (centre & faces6!=6). Zero-padded border; output always LOGICAL, same size as input; 2-D input treated as a single-plane volume. Clean-room port of MATLAB R2025b bwmorph3Algorithm rules. Verified on cube-minus-hole (26/26/0/27/7/26), a z-line (2 endpoints, 0 branchpoints) and a 2-D mask. Bit-equal MATLAB R2025b (tol=1e-12). Octave 11.1.0 ships bwmorph3 in the image package only -> reports N/A there."
+}
