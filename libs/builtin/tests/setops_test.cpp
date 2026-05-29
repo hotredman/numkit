@@ -236,6 +236,47 @@ TEST_P(SetOpsTest, SetdiffEmpty)
     EXPECT_EQ(u->numel(), 0u);
 }
 
+// Complex intersect/union/setdiff (C output): exact-equality membership,
+// values ordered by |z| then angle ('sorted'); 'stable' keeps first-occur
+// order. Was unsupported (threw "Not a double array"). vs MATLAB R2025b.
+TEST_P(SetOpsTest, SetOpsComplex)
+{
+    // intersect sorted -> [3+4i 5i]
+    eval("ci = intersect([1 5i 3+4i 2], [3+4i 5i 7]);");
+    auto *ci = getVarPtr("ci");
+    ASSERT_NE(ci, nullptr); ASSERT_EQ(ci->numel(), 2u);
+    EXPECT_DOUBLE_EQ(ci->complexData()[0].real(), 3.0);
+    EXPECT_DOUBLE_EQ(ci->complexData()[0].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(ci->complexData()[1].imag(), 5.0);
+    // intersect stable -> [5i 3+4i] (A-order)
+    eval("cis = intersect([1 5i 3+4i 2], [3+4i 5i 7], 'stable');");
+    auto *cis = getVarPtr("cis");
+    ASSERT_NE(cis, nullptr);
+    EXPECT_DOUBLE_EQ(cis->complexData()[0].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(cis->complexData()[1].real(), 3.0);
+
+    // union sorted -> [1 3+4i 5i]
+    eval("cu = union([1 5i], [3+4i 1]);");
+    auto *cu = getVarPtr("cu");
+    ASSERT_NE(cu, nullptr); ASSERT_EQ(cu->numel(), 3u);
+    EXPECT_DOUBLE_EQ(cu->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(cu->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(cu->complexData()[2].imag(), 5.0);
+    // union stable -> [1 5i 3+4i]
+    eval("cus = union([1 5i], [3+4i 1], 'stable');");
+    auto *cus = getVarPtr("cus");
+    ASSERT_NE(cus, nullptr);
+    EXPECT_DOUBLE_EQ(cus->complexData()[1].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(cus->complexData()[2].real(), 3.0);
+
+    // setdiff sorted -> [1 3+4i]
+    eval("cd = setdiff([1 5i 3+4i], [5i]);");
+    auto *cd = getVarPtr("cd");
+    ASSERT_NE(cd, nullptr); ASSERT_EQ(cd->numel(), 2u);
+    EXPECT_DOUBLE_EQ(cd->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(cd->complexData()[1].imag(), 4.0);
+}
+
 // ── histcounts ──────────────────────────────────────────────
 
 TEST_P(SetOpsTest, HistcountsBasic)

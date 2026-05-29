@@ -2,11 +2,13 @@
   "name": "union",
   "namespace": "builtin",
   "setup": "",
-  "expr": "u = union([1 2 3], [3 4 5]); s = union([3 1], [2 1], 'stable');",
+  "expr": "u = union([1 2 3], [3 4 5]); s = union([3 1], [2 1], 'stable'); c = union([1 5i], [3+4i 1]); cs = union([1 5i], [3+4i 1], 'stable');",
   "iters": 3,
   "tol": 0,
   "fingerprint": [
-    "double(numel(u))", "u(1)", "u(5)", "double(numel(s))", "s(1)", "s(2)", "s(3)"
+    "double(numel(u))", "u(1)", "u(5)", "double(numel(s))", "s(1)", "s(2)", "s(3)",
+    "double(numel(c))", "real(c(1))", "real(c(2))", "imag(c(3))",
+    "imag(cs(2))", "real(cs(3))"
   ],
-  "comment": "Sig union(A,B[,setOrder]). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A) in A-order then new-of-B in B-order: union([3 1],[2 1],'stable') = [3 1 2]. numkit previously IGNORED 'stable' (always sorted) -- fixed."
+  "comment": "Sig union(A,B[,setOrder]). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A) in A-order then new-of-B in B-order: union([3 1],[2 1],'stable') = [3 1 2]. COMPLEX (C output only): exact-equality, |z|+angle order: union([1 5i],[3+4i 1])=[1 3+4i 5i], 'stable'=[1 5i 3+4i]. numkit previously IGNORED 'stable' (fixed) and threw on COMPLEX (added 2026-05-29)."
 }

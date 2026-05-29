@@ -2,11 +2,13 @@
   "name": "intersect",
   "namespace": "builtin",
   "setup": "",
-  "expr": "u = intersect([1 2 3 4], [2 4 6]); s = intersect([4 2 3 1], [1 2 4], 'stable');",
+  "expr": "u = intersect([1 2 3 4], [2 4 6]); s = intersect([4 2 3 1], [1 2 4], 'stable'); c = intersect([1 5i 3+4i 2], [3+4i 5i 7]); cs = intersect([1 5i 3+4i 2], [3+4i 5i 7], 'stable');",
   "iters": 3,
   "tol": 0,
   "fingerprint": [
-    "double(numel(u))", "u(1)", "u(2)", "double(numel(s))", "s(1)", "s(2)", "s(3)"
+    "double(numel(u))", "u(1)", "u(2)", "double(numel(s))", "s(1)", "s(2)", "s(3)",
+    "double(numel(c))", "real(c(1))", "imag(c(1))", "imag(c(2))",
+    "imag(cs(1))", "real(cs(2))"
   ],
-  "comment": "Sig intersect(A,B[,setOrder]). Default 'sorted': intersect([1 2 3 4],[2 4 6]) = [2 4]. 'stable' keeps A-order: intersect([4 2 3 1],[1 2 4],'stable') = [4 2 1]. numkit previously IGNORED 'stable' (always sorted) -- fixed."
+  "comment": "Sig intersect(A,B[,setOrder]). Default 'sorted': intersect([1 2 3 4],[2 4 6]) = [2 4]. 'stable' keeps A-order: intersect([4 2 3 1],[1 2 4],'stable') = [4 2 1]. COMPLEX (C output only): exact-equality membership, |z|+angle order: intersect([1 5i 3+4i 2],[3+4i 5i 7])=[3+4i 5i], 'stable'=[5i 3+4i]. numkit previously IGNORED 'stable' (fixed) and threw on COMPLEX (added 2026-05-29)."
 }
