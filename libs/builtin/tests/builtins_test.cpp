@@ -1978,6 +1978,37 @@ TEST_P(BuiltinTest, Mod)
     EXPECT_DOUBLE_EQ(evalScalar("mod(10, 5);"), 0.0);
 }
 
+// mod/rem on integer types keep the integer class (a double operand is
+// promoted to the integer class). numkit previously returned double / threw
+// on integer arrays. DEEP-PROBE 2026-05-30.
+TEST_P(BuiltinTest, ModRemIntegerClass)
+{
+    eval("a = mod(int8(7), int8(3));");          // 1 int8
+    EXPECT_DOUBLE_EQ(evalScalar("double(a);"), 1.0);
+    EXPECT_TRUE(evalBool("isequal(class(a), 'int8');"));
+    eval("b = rem(int8(-7), int8(3));");         // -1 int8
+    EXPECT_DOUBLE_EQ(evalScalar("double(b);"), -1.0);
+    EXPECT_TRUE(evalBool("isequal(class(b), 'int8');"));
+    eval("c = mod(int8(-7), int8(3));");         // 2 int8 (floored)
+    EXPECT_DOUBLE_EQ(evalScalar("double(c);"), 2.0);
+    // Integer VECTOR (previously threw "Not a double array").
+    eval("d = mod(int8([7 8 9]), int8(3));");    // [1 2 0] int8
+    EXPECT_TRUE(evalBool("isequal(class(d), 'int8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(d(1));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(d(3));"), 0.0);
+    // Mixed int + double -> integer class.
+    eval("e = mod(int8(7), 3);");
+    EXPECT_TRUE(evalBool("isequal(class(e), 'int8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(e);"), 1.0);
+    eval("f = rem(uint8(200), uint8(7));");      // 4 uint8
+    EXPECT_DOUBLE_EQ(evalScalar("double(f);"), 4.0);
+    EXPECT_TRUE(evalBool("isequal(class(f), 'uint8');"));
+    // double inputs unchanged (regress).
+    EXPECT_DOUBLE_EQ(evalScalar("mod(5.5, 2);"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("rem(-7, 3);"), -1.0);
+    EXPECT_TRUE(evalBool("isequal(class(mod(7, 3)), 'double');"));
+}
+
 // ── Reshape ─────────────────────────────────────────────────
 
 TEST_P(BuiltinTest, Reshape)

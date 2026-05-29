@@ -2,7 +2,7 @@
   "name": "mod",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = mod(10, 3); r2 = mod(-10, 3); r3 = mod(10, -3); r4 = mod(-10, -3); r5 = mod(0, 5);",
+  "expr": "r1 = mod(10, 3); r2 = mod(-10, 3); r3 = mod(10, -3); r4 = mod(-10, -3); r5 = mod(0, 5); mi = mod(int8(-7), int8(3)); vmi = double(mi); cmi = double(strcmp(class(mi),'int8')); mv = mod(int8([7 8 9]), int8(3)); mv1 = double(mv(1)); mv3 = double(mv(3)); mx = mod(int8(7), 3); cmx = double(strcmp(class(mx),'int8'));",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
@@ -10,7 +10,8 @@
     "r2",
     "r3",
     "r4",
-    "r5"
+    "r5",
+    "vmi", "cmi", "mv1", "mv3", "cmx"
   ],
-  "comment": "Sig: r = mod(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = mod(...). INTEGER input keeps the class: mod(int8(-7),int8(3))=2 int8 (floored), mod(int8([7 8 9]),int8(3))=[1 2 0] int8; a double operand is promoted to the integer class (mod(int8(7),3)=1 int8). numkit previously returned double / threw on integer arrays; fixed 2026-05-30. Spec-extension batch 2026-05-09 + integer-class. NOTE: ; only inside matrix-literal INPUTS."
 }
