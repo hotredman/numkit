@@ -61,6 +61,43 @@ Value padarray(const Value &x, const std::vector<int> &padsize,
 Value fspecial(const std::string &type, const std::vector<double> &params,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Build a predefined 3-D filter kernel
+/// (`h = fspecial3(type, ...)`).
+///
+/// Supported `type` values and their positional arguments (`a1`, `a2`):
+///
+/// | type        | a1                 | a2       | output            |
+/// |-------------|--------------------|----------|-------------------|
+/// | `average`   | hsize ([5 5 5])    | —        | `ones/prod`       |
+/// | `gaussian`  | hsize ([5 5 5])    | sigma (1)| normalised, Σ=1   |
+/// | `log`       | hsize ([5 5 5])    | sigma (1)| ∇²G, zero-mean    |
+/// | `ellipsoid` | semiaxes (5)       | —        | mask/count        |
+/// | `laplacian` | gamma1 (0)         | gamma2(0)| 3×3×3, Σ=0        |
+/// | `prewitt`   | direction (`"X"`)  | —        | 3×3×3 gradient    |
+/// | `sobel`     | direction (`"X"`)  | —        | 3×3×3 gradient    |
+///
+/// `hsize` / `semiaxes` / `sigma` accept a scalar (applied to all three
+/// axes) or a 3-element `[row col page]` vector. For `ellipsoid` the
+/// output size is `2·ceil(semiaxes)+1` per axis and the kernel is the
+/// integer-grid mask `{(Δr/a)²+(Δc/b)²+(Δp/c)² ≤ 1}` normalised by voxel
+/// count. For `laplacian`, `gamma1` weights the 12 edge neighbours and
+/// `gamma2` the 8 corner neighbours; both must be `≥ 0` with
+/// `gamma1+gamma2 ≤ 1`. `direction` is `"X"` (cols), `"Y"` (rows), or
+/// `"Z"` (pages).
+///
+/// Reference: J. Lim, *Two-Dimensional Signal and Image Processing*,
+/// Prentice Hall, 1990 (LoG and gradient kernels).
+///
+/// @param type  Kernel name (see table).
+/// @param a1    First type-specific argument (`Value::Empty` → default).
+/// @param a2    Second type-specific argument (`Value::Empty` → default).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      DOUBLE 3-D kernel.
+/// @throws Error  Unknown type, bad shape, or invalid gamma.
+/// @see fspecial, imboxfilt3, imgaussfilt3
+Value fspecial3(const std::string &type, const Value &a1, const Value &a2,
+                std::pmr::memory_resource *mr = nullptr);
+
 /// @brief 2-D linear filtering (`B = imfilter(I, h, ...)`).
 ///
 /// Direct convolution or correlation of `I` with kernel `h`.
@@ -126,6 +163,33 @@ Value imboxfilt(const Value &I, int filter_size,
 /// @see integralImage, imboxfilt
 Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
                         std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 3-D box filter on a precomputed integral volume
+/// (`B = integralBoxFilter3(A, [fH fW fP], NormalizationFactor, n)`).
+///
+/// Given the summed-volume table `A` of shape `(H+1) × (W+1) × (D+1)`
+/// (output of `integralImage3`), computes the sum of underlying voxels
+/// in an `fH × fW × fP` window using eight lookups (inclusion-exclusion),
+/// then multiplies by `normFactor`. Output size is
+/// `(H − fH + 1) × (W − fW + 1) × (D − fP + 1)` — only the fully-supported
+/// (no-boundary) core, matching MATLAB.
+///
+/// Unlike the 2-D `integralBoxFilter` (whose `normFactor` is a divisor),
+/// here `normFactor` is the MATLAB-style **multiplier**: the box sum is
+/// multiplied by it. The default (set by the adapter) is
+/// `1 / (fH·fW·fP)`, giving the mean; pass `1` for the raw sum.
+///
+/// @param I           Integral volume (output of `integralImage3`).
+/// @param fH          Box height (positive odd integer).
+/// @param fW          Box width  (positive odd integer).
+/// @param fP          Box depth  (positive odd integer).
+/// @param normFactor  Multiplier applied to each box sum.
+/// @param mr          Memory resource (nullptr → process default).
+/// @return            Filtered volume, size `(H−fH+1)×(W−fW+1)×(D−fP+1)`.
+/// @see integralImage3, imboxfilt3, integralBoxFilter
+Value integralBoxFilter3(const Value &I, int fH, int fW, int fP,
+                         double normFactor,
+                         std::pmr::memory_resource *mr = nullptr);
 
 /// @brief 2-D mode filter
 /// (`B = modefilt(A, [fH fW], padopt)`).

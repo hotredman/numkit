@@ -1,0 +1,17 @@
+{
+  "name": "image_integralBoxFilter3",
+  "namespace": "image",
+  "setup": "V = reshape(1:125, 5, 5, 5); J = integralImage3(V);",
+  "expr": "B = integralBoxFilter3(J); Bs = integralBoxFilter3(J, 3); Bv = integralBoxFilter3(J, [1 3 5]); Bn1 = integralBoxFilter3(J, 3, 'NormalizationFactor', 1); Bh = integralBoxFilter3(J, 3, 'NormalizationFactor', 0.5);",
+  "iters": 10,
+  "tol": 1e-12,
+  "fingerprint": [
+    "size(B,1)", "size(B,2)", "size(B,3)",
+    "B(1,1,1)", "B(2,2,2)", "B(3,3,3)", "B(1,3,2)",
+    "Bs(1,1,1)", "Bs(3,3,3)",
+    "size(Bv,1)", "size(Bv,2)", "size(Bv,3)", "Bv(1,1,1)", "Bv(5,3,1)",
+    "Bn1(1,1,1)", "Bn1(3,3,3)",
+    "Bh(1,1,1)", "Bh(2,2,2)"
+  ],
+  "comment": "MATLAB Image Toolbox integralBoxFilter3 — O(1)-per-voxel 3-D box filter via 8-corner inclusion-exclusion on a precomputed integralImage3 summed-volume table. Output size (H-fH+1) x (W-fW+1) x (D-fP+1) — only the fully-supported (no-boundary) core. filterSize: scalar (cubic) or 3-vector [r c p], all ODD. NormalizationFactor NV-pair is a MULTIPLIER (MATLAB semantics): box-sum * normFactor; default 1/prod(filterSize) (mean), pass 1 for raw sum, 0.5 for half. Verified on integralImage3 of reshape(1:125,5,5,5): default 3x3x3 box, scalar 3, vector [1 3 5] -> size [5 3 1], raw-sum, and 0.5 multiplier. Bit-equal MATLAB R2025b (tol=1e-12). Octave 11.1.0 doesn't ship integralBoxFilter3 in core -> reports N/A there."
+}

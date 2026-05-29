@@ -501,6 +501,76 @@ Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
     return out;
 }
 
+// integralBoxFilter3 — 3-D box filter on a precomputed integral volume.
+//
+// Given integral volume I of shape (H+1) × (W+1) × (D+1) (output of
+// integralImage3), for each output voxel (oi, oj, ok) the underlying box
+// [oi..oi+fH-1, oj..oj+fW-1, ok..ok+fP-1] has sum given by the 8-corner
+// inclusion-exclusion query on I (constant time regardless of box size).
+// Output is (H - fH + 1) × (W - fW + 1) × (D - fP + 1) — the no-boundary
+// core, matching MATLAB. `normFactor` is a MULTIPLIER (MATLAB semantics):
+// each box sum is multiplied by it.
+Value integralBoxFilter3(const Value &I, int fH, int fW, int fP,
+                         double normFactor, std::pmr::memory_resource *mr)
+{
+    if (fH <= 0 || fW <= 0 || fP <= 0)
+        throw Error("integralBoxFilter3: filterSize must be positive",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badSize");
+    if ((fH & 1) == 0 || (fW & 1) == 0 || (fP & 1) == 0)
+        throw Error("integralBoxFilter3: Expected filterSize to be odd.",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:notOdd");
+
+    const auto &d = I.dims();
+    if (d.ndim() > 3)
+        throw Error("integralBoxFilter3: input must be a 3-D integral volume",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:rank");
+    const size_t H1 = d.rows();
+    const size_t W1 = d.cols();
+    const size_t D1 = d.is3D() ? d.pages() : 1;
+    if (H1 < 2 || W1 < 2 || D1 < 2)
+        throw Error("integralBoxFilter3: integral volume must be at least (1+1)^3",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:tiny");
+    // Underlying volume size.
+    const size_t H = H1 - 1, W = W1 - 1, D = D1 - 1;
+    if (static_cast<size_t>(fH) > H || static_cast<size_t>(fW) > W
+        || static_cast<size_t>(fP) > D)
+        throw Error("integralBoxFilter3: Filter size is too large for integral image.",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:tooLarge");
+
+    const size_t outH = H - static_cast<size_t>(fH) + 1;
+    const size_t outW = W - static_cast<size_t>(fW) + 1;
+    const size_t outD = D - static_cast<size_t>(fP) + 1;
+
+    Value out = (outD > 1)
+        ? Value::matrix3d(outH, outW, outD, ValueType::DOUBLE, mr)
+        : Value::matrix(outH, outW, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    const size_t plane = H1 * W1;  // page stride in I
+    // Column-major, page-major index into the integral volume I.
+    auto Iat = [&](size_t r, size_t c, size_t p) -> double {
+        return I.elemAsDouble(p * plane + c * H1 + r);
+    };
+
+    for (size_t ok = 0; ok < outD; ++ok) {
+        const size_t p0 = ok, p1 = ok + static_cast<size_t>(fP);
+        for (size_t oj = 0; oj < outW; ++oj) {
+            const size_t c0 = oj, c1 = oj + static_cast<size_t>(fW);
+            for (size_t oi = 0; oi < outH; ++oi) {
+                const size_t r0 = oi, r1 = oi + static_cast<size_t>(fH);
+                const double s =
+                      Iat(r1, c1, p1)
+                    - Iat(r0, c1, p1) - Iat(r1, c0, p1) - Iat(r1, c1, p0)
+                    + Iat(r0, c0, p1) + Iat(r0, c1, p0) + Iat(r1, c0, p0)
+                    - Iat(r0, c0, p0);
+                const size_t dstIdx = ok * outH * outW + oj * outH + oi;
+                od[dstIdx] = s * normFactor;
+            }
+        }
+    }
+    return out;
+}
+
 // modefilt — 2-D mode filter. For each output pixel we histogram the
 // neighbourhood and pick the most-common value (ties → smallest value).
 //
@@ -2205,6 +2275,51 @@ void integralBoxFilter_reg(Span<const Value> args, size_t /*nargout*/,
         }
     }
     outs[0] = integralBoxFilter(args[0], fH, fW, normFactor, ctx.engine->resource());
+}
+
+void integralBoxFilter3_reg(Span<const Value> args, size_t /*nargout*/,
+                            Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("integralBoxFilter3: requires (A [, filterSize [, NV...]])",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:nargin");
+
+    // Default: 3×3×3 box.
+    int fH = 3, fW = 3, fP = 3;
+    size_t nvStart = 1;
+    if (args.size() >= 2 && !args[1].isEmpty()
+        && !args[1].isChar() && !args[1].isString()) {
+        const Value &fsArg = args[1];
+        if (fsArg.numel() == 1) {
+            fH = fW = fP = static_cast<int>(fsArg.toScalar());
+        } else if (fsArg.numel() == 3) {
+            fH = static_cast<int>(fsArg.elemAsDouble(0));
+            fW = static_cast<int>(fsArg.elemAsDouble(1));
+            fP = static_cast<int>(fsArg.elemAsDouble(2));
+        } else {
+            throw Error("integralBoxFilter3: filterSize must be a scalar or 3-element vector",
+                        0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badSize");
+        }
+        nvStart = 2;
+    }
+
+    // MATLAB default NormalizationFactor = 1/prod(filterSize) (mean).
+    double normFactor = 1.0 / (static_cast<double>(fH) * static_cast<double>(fW)
+                               * static_cast<double>(fP));
+    for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("integralBoxFilter3: name-value name must be a string",
+                        0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badNVName");
+        std::string lower = args[i].toString();
+        for (auto &ch : lower) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (lower == "normalizationfactor") {
+            normFactor = args[i + 1].toScalar();
+        } else {
+            throw Error("integralBoxFilter3: unknown name-value key",
+                        0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badNVKey");
+        }
+    }
+    outs[0] = integralBoxFilter3(args[0], fH, fW, fP, normFactor, ctx.engine->resource());
 }
 
 void medfilt3_reg(Span<const Value> args, size_t /*nargout*/,
