@@ -1231,7 +1231,7 @@ intentionally omitted.
 | `modred` | ❌ |  |  |  |  | model reduction |
 | `hsvd` | ❌ |  |  |  |  | Hankel singular values |
 | `pade` | ❌ |  |  |  |  | Padé approximation of delay |
-| `ss2tf` | ✅ | 0.005 | 579.63× | 338.63× | OK | Sig: r = ss2tf(...). Spec-extension batch 2026-05-09. |
+| `ss2tf` | ✅ | 0.002 | 1830.53× |  | OK | MATLAB ss2tf — state-space to transfer function. A=[-2 1;0 -3], B=[1;1], C=[1 0], D=0 -> b=[0 1 4], a=[1 5 6] (denominator = char poly (s+2)(s+3)). Pins numerator + denominator coefficients (was numel(b)-only). Bit-equal MATLAB R2025b. |
 
 ### Interconnections
 
@@ -1313,8 +1313,8 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
 | `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
 | `reg` | ❌ |  |  |  |  | full-state controller + observer |
-| `ctrb` | ✅ | 0.003 | 65.88× |  | OK | Sig: r = ctrb(...). Spec-extension batch 2026-05-09. |
-| `obsv` | ✅ | 0.004 | 93.11× | 35.88× | OK | Sig: r = obsv(...). Spec-extension batch 2026-05-09. |
+| `ctrb` | ✅ | 0.001 | 186.79× |  | OK | MATLAB ctrb — controllability matrix [B A*B]. A=[1 2;3 4], B=[5;6] -> [5 17; 6 39]. Pins all entries (was numel-only). Bit-equal MATLAB R2025b. |
+| `obsv` | ✅ | 0.001 | 153.23× |  | OK | MATLAB obsv — observability matrix [C; C*A]. A=[1 2;3 4], C=[5 6] -> [5 6; 23 34]. Pins all entries (was numel-only). Bit-equal MATLAB R2025b. |
 | `gram` | ❌ |  |  |  |  | controllability/observability gramian |
 | `ctrbf` | ❌ |  |  |  |  | controllable-form decomposition |
 | `obsvf` | ❌ |  |  |  |  | observable-form decomposition |
@@ -2123,11 +2123,11 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `cond` | ✅ | 0.007 | 42.48× |  | OK | Sig: c = cond(A [, p]) for p ∈ {1, 2, Inf, 'fro'} — closed the original ⚠️ gap (see also `cond_pnorm` row). p=2 default routes through `cond_2norm` (sigma_max/sigma_min via SVD); other p use `norm(A,p)·norm(inv(A),p)`. Bit-identical with MATLAB R2025b on all probed p. |
 | `condeig` | ✅ | 0.003 | 73.67× |  | OK | Sig: s = condeig(A). Eigenvalue condition numbers; s_i = 1/|cos(angle(v_i, w_i))| where v_i is right eigvec, w_i = inv(V)'s i-th column. Symmetric A → all s_i == 1 (perfectly conditioned). Non-symmetric → larger s_i flags ill-conditioned eigenvalues. Tol 1e-9 is loose because condeig values themselves can be large; we pin the structure (symmetric=1.0; non-sym pair has matching s_i; ill-cond is huge). |
 | `condest` | ✅ | 0.003 | 349.23× |  | OK | Sig: c = condest(A). 1-norm condition number estimate. KNOWN GAP: MATLAB uses Higham 1988 power-iteration estimator (LAPACK dlacn1) that approximates norm(inv(A),1); we compute it exactly via inv(A). Matches MATLAB on well-conditioned A. For hilb(4) ≈ 1.5e4 and other near-singular inputs, our exact value differs from MATLAB's iterative estimate. Wide tol=0.5 (relative) accepts ±50% drift on near-singular inputs; pin only the well-conditioned cases I3 / D / UT for exact match. |
-| `cross` | ✅ | 0.001 | 39.42× |  | OK | Sig: r = cross(...). Spec-extension batch 2026-05-09. |
+| `cross` | ✅ | 0.005 | 98.38× |  | OK | MATLAB cross — vector cross product. Vector form [1 2 3]x[4 5 6]=[-3 6 -3]; column-wise on a 3x3 matrix (cross of corresponding columns). Pins all components + matrix entries. Bit-equal MATLAB R2025b. |
 | `ctranspose` | ✅ | 0.002 | 34.78× |  | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `det` | ✅ | 0.006 | 39.53× |  | OK | Sig: d = det(A). Determinant via LU with partial pivoting; sign tracked from row swaps. Singular A returns 0. Bit-identical with MATLAB R2025b on probed cases (2×2, triangular 3×3, identity 5×5, singular rank-1, magic(4)). |
-| `dot` | ✅ | 0.001 | 29.56× |  | OK | Sig: r = dot(...). Spec-extension batch 2026-05-09. |
+| `dot` | ✅ | 0.003 | 44.70× |  | OK | MATLAB dot — scalar/column-wise dot product. [1 2 3].[4 5 6]=32; 3x2 matrices -> per-column dot (1x2). Pins the scalar + per-column values. Bit-equal MATLAB R2025b. |
 | `eig` | ⚠️ | 0.013 | 10.99× |  | OK | Sig: e = eig(A) | [V, D] = eig(A). Symmetric: classical Jacobi (eigenvectors + ascending real eigenvalues). General (non-symmetric): characteristic polynomial via Souriau-Faddeev + roots() (eigenvalues only; possibly complex). [V, D] form for general matrices requires QR iteration -- deferred to Phase 2c-3. Sort applied for order-agnostic comparison. |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `expm` | ✅ | 0.005 |  |  | N/A | Sig: E = expm(A). Matrix exponential via Padé(6) with scaling-and-squaring (Higham 2005). Works for any square matrix. Bit-identical with MATLAB R2025b on rotation generator + symmetric + zero cases. |
@@ -2949,7 +2949,7 @@ locations until physical migration lands.
 | `tabulate` | ✅ | 0.007 | 577.28× | 123.04× | OK | MATLAB tabulate: frequency table. Bit-equal with MATLAB R2025b on positive-int dense layout (with zeros for missing values), non-integer sparse layout, and NaN-excluded percentage. Octave 11.1.0 doesn't ship tabulate in core (statistics package only); reports N/A. |
 | `tiedrank` | ✅ | 0.007 | 185.97× |  | OK | MATLAB tiedrank: ranks adjusted for ties via averaging. Bit-equal with MATLAB R2025b on vector + matrix forms. Tieadj uses (t^3 - t) / 2 per tied group. Includes all-equal and no-ties edges. NaN handling tested in gtest only (parity harness fingerprint format doesn't preserve NaN trivially). |
 | `trimmean` | ✅ | 0.003 | 659.47× | 137.95× | OK | Sig: m = trimmean(x, percent[, dim]). Mean after trimming percent/2 from each end. |
-| `zscore` | ✅ | 0.004 | 285.18× | 126.07× | OK | Sig: z = zscore(x). Spec-extension batch 2026-05-09 (cycle 41). |
+| `zscore` | ✅ | 0.002 | 584.45× |  | OK | MATLAB zscore — centre + scale to unit std. DEFAULT flag 0 uses the SAMPLE std (N-1): z0(1)=-1.40312152 (previously numkit wrongly used N -> -1.5). flag 1 uses population std (N). dim arg: zscore(M,0,2) operates along rows. Pins actual normalised values across flag 0/1 and dim 1/2. Bit-equal MATLAB R2025b (tol=1e-9). The old spec only checked abs(mean(z))<1e-9, which is true for BOTH normalisations and hid the bug. |
 | `nancov` | ✅ | 0.004 | 387.07× |  | OK | Sig: C = nancov(X) — NaN-aware covariance matrix; rows containing any NaN are dropped (== MATLAB cov(X, 'omitrows'), the default 'complete' mode). nancov(X, normFlag) — 0 unbiased (n-1) / 1 population (n). nancov(x, y) — between two vectors; treats [x y] as 2-column matrix. Vector input → scalar variance. KNOWN GAP: 'pairwise' mode (per-(i,j) row-drop) not in v1 — only 'complete'. Bit-exact MATLAB R2025b on the documented signatures. |
 | `nansum` | ✅ | 0.008 | 153.07× |  | OK | Sig: legacy NaN-aware reductions (recommended modern form: `sum(..., 'omitnan')` / `mean(..., 'omitnan')`). nansum: NaN entries dropped; all-NaN slice → 0 (NaN is additive identity). nanmean: NaN entries dropped; divisor is count of valid obs; all-NaN slice → NaN. Bit-exact MATLAB R2025b on the pinned 1-D and 2-D cases. nanstd/nanvar/nanmedian/nanmax/nanmin also work but are NOT in PROGRESS.md (MATLAB R2025b removed their formal doc entry — only legacy). |
 | `nanmean` | ✅ | 0.008 | 153.07× |  | OK | Sig: legacy NaN-aware reductions (recommended modern form: `sum(..., 'omitnan')` / `mean(..., 'omitnan')`). nansum: NaN entries dropped; all-NaN slice → 0 (NaN is additive identity). nanmean: NaN entries dropped; divisor is count of valid obs; all-NaN slice → NaN. Bit-exact MATLAB R2025b on the pinned 1-D and 2-D cases. nanstd/nanvar/nanmedian/nanmax/nanmin also work but are NOT in PROGRESS.md (MATLAB R2025b removed their formal doc entry — only legacy). |

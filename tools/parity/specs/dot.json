@@ -2,11 +2,14 @@
   "name": "dot",
   "namespace": "linalg",
   "setup": "",
-  "expr": "r1 = dot([1 2 3], [4 5 6]);",
+  "expr": "d1 = dot([1 2 3], [4 5 6]); dm = dot([1 2; 3 4; 5 6], [7 8; 9 10; 11 12]);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1"
+    "d1",
+    "dm(1)",
+    "dm(2)",
+    "sum(dm)"
   ],
-  "comment": "Sig: r = dot(...). Spec-extension batch 2026-05-09."
+  "comment": "MATLAB dot — scalar/column-wise dot product. [1 2 3].[4 5 6]=32; 3x2 matrices -> per-column dot (1x2). Pins the scalar + per-column values. Bit-equal MATLAB R2025b."
 }
