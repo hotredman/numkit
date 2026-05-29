@@ -35,6 +35,40 @@ Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         throw Error("cross: A and B must have at least one dimension of length 3",
                      0, 0, "cross", "", "numkit:cross:badSize");
 
+    // Complex cross-product — ordinary complex arithmetic, NO conjugation
+    // (unlike dot). Either operand complex takes this path; reals -> z+0i.
+    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX) {
+        const bool aCx = (a.type() == ValueType::COMPLEX);
+        const bool bCx = (b.type() == ValueType::COMPLEX);
+        auto ga = [&](size_t i) {
+            return aCx ? a.complexData()[i] : Complex(a.elemAsDouble(i), 0.0);
+        };
+        auto gb = [&](size_t i) {
+            return bCx ? b.complexData()[i] : Complex(b.elemAsDouble(i), 0.0);
+        };
+        auto outc = Value::matrix(nr, nc, ValueType::COMPLEX, mr);
+        Complex *oc = outc.complexDataMut();
+        if (crossDim == 0) {
+            for (size_t c = 0; c < nc; ++c) {
+                const size_t base = c * 3;
+                const Complex a0 = ga(base), a1 = ga(base + 1), a2 = ga(base + 2);
+                const Complex b0 = gb(base), b1 = gb(base + 1), b2 = gb(base + 2);
+                oc[base    ] = a1 * b2 - a2 * b1;
+                oc[base + 1] = a2 * b0 - a0 * b2;
+                oc[base + 2] = a0 * b1 - a1 * b0;
+            }
+        } else {
+            for (size_t r = 0; r < nr; ++r) {
+                const Complex a0 = ga(r), a1 = ga(r + nr), a2 = ga(r + 2 * nr);
+                const Complex b0 = gb(r), b1 = gb(r + nr), b2 = gb(r + 2 * nr);
+                oc[r           ] = a1 * b2 - a2 * b1;
+                oc[r +     nr  ] = a2 * b0 - a0 * b2;
+                oc[r + 2 * nr  ] = a0 * b1 - a1 * b0;
+            }
+        }
+        return outc;
+    }
+
     auto out = Value::matrix(nr, nc, ValueType::DOUBLE, mr);
     const double *ad = a.doubleData();
     const double *bd = b.doubleData();
@@ -126,9 +160,6 @@ Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 
 Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
-    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
-        throw Error("kron: complex inputs are not supported",
-                     0, 0, "kron", "", "numkit:kron:complex");
     if (a.dims().is3D() || a.dims().ndim() > 2
         || b.dims().is3D() || b.dims().ndim() > 2)
         throw Error("kron: inputs must be 2D",
@@ -137,6 +168,31 @@ Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     const size_t rA = a.dims().rows(), cA = a.dims().cols();
     const size_t rB = b.dims().rows(), cB = b.dims().cols();
     const size_t rOut = rA * rB, cOut = cA * cB;
+
+    // Complex Kronecker product — ordinary complex element products (no
+    // conjugation). Either operand complex takes this path; reals -> z+0i.
+    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX) {
+        const bool aCx = (a.type() == ValueType::COMPLEX);
+        const bool bCx = (b.type() == ValueType::COMPLEX);
+        auto outc = Value::matrix(rOut, cOut, ValueType::COMPLEX, mr);
+        if (rOut == 0 || cOut == 0) return outc;
+        Complex *dst = outc.complexDataMut();
+        for (size_t ja = 0; ja < cA; ++ja)
+            for (size_t ia = 0; ia < rA; ++ia) {
+                const Complex av = aCx ? a.complexData()[ia + ja * rA]
+                                       : Complex(a.elemAsDouble(ia + ja * rA), 0.0);
+                for (size_t jb = 0; jb < cB; ++jb) {
+                    const size_t jOut = ja * cB + jb;
+                    for (size_t ib = 0; ib < rB; ++ib) {
+                        const size_t iOut = ia * rB + ib;
+                        const Complex bv = bCx ? b.complexData()[ib + jb * rB]
+                                               : Complex(b.elemAsDouble(ib + jb * rB), 0.0);
+                        dst[jOut * rOut + iOut] = av * bv;
+                    }
+                }
+            }
+        return outc;
+    }
 
     auto out = Value::matrix(rOut, cOut, ValueType::DOUBLE, mr);
     if (rOut == 0 || cOut == 0) return out;
