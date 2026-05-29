@@ -609,6 +609,46 @@ Value histcounts(const Value &x, const Value &edges, std::pmr::memory_resource *
     return r;
 }
 
+Value histcounts(const Value &x, const Value &edges, HistNorm norm, std::pmr::memory_resource *mr)
+{
+    Value counts = histcounts(x, edges, mr);   // raw count row vector
+    if (norm == HistNorm::Count) return counts;
+
+    const size_t nBins = counts.numel();
+    double *c = counts.doubleDataMut();
+    const double N = static_cast<double>(x.numel());
+    const double *e = edges.doubleData();
+
+    switch (norm) {
+    case HistNorm::Count:
+        break;                              // handled above
+    case HistNorm::Probability:
+        if (N > 0) for (size_t i = 0; i < nBins; ++i) c[i] /= N;
+        break;
+    case HistNorm::CountDensity:
+        for (size_t i = 0; i < nBins; ++i) c[i] /= (e[i + 1] - e[i]);
+        break;
+    case HistNorm::Pdf:
+        if (N > 0)
+            for (size_t i = 0; i < nBins; ++i) c[i] /= (N * (e[i + 1] - e[i]));
+        break;
+    case HistNorm::CumCount: {
+        double acc = 0.0;
+        for (size_t i = 0; i < nBins; ++i) { acc += c[i]; c[i] = acc; }
+        break;
+    }
+    case HistNorm::Cdf: {
+        double acc = 0.0;
+        for (size_t i = 0; i < nBins; ++i) {
+            acc += c[i];
+            c[i] = (N > 0) ? acc / N : 0.0;
+        }
+        break;
+    }
+    }
+    return counts;
+}
+
 Value discretize(const Value &x, const Value &edges, std::pmr::memory_resource *mr)
 {
     validateEdges(edges, "discretize");
@@ -1154,7 +1194,42 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
-NK_BIN_SETOP_REG(histcounts, histcounts)
+// histcounts(x, edges[, 'Normalization', mode]): bin counts, optionally
+// normalized. mode ∈ {count, probability, countdensity, pdf, cumcount, cdf}.
+void histcounts_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("histcounts: requires at least 2 arguments",
+                     0, 0, "histcounts", "", "numkit:histcounts:nargin");
+    auto *mr = ctx.engine->resource();
+
+    HistNorm norm = HistNorm::Count;
+    for (size_t i = 2; i + 1 < args.size(); ++i) {
+        if (args[i].type() != ValueType::CHAR) continue;
+        std::string key = args[i].toString();
+        std::transform(key.begin(), key.end(), key.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (key != "normalization") continue;
+        if (args[i + 1].type() != ValueType::CHAR)
+            throw Error("histcounts: 'Normalization' value must be a string",
+                         0, 0, "histcounts", "", "numkit:histcounts:badNorm");
+        std::string m = args[i + 1].toString();
+        std::transform(m.begin(), m.end(), m.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if      (m == "count")        norm = HistNorm::Count;
+        else if (m == "probability")  norm = HistNorm::Probability;
+        else if (m == "countdensity") norm = HistNorm::CountDensity;
+        else if (m == "pdf")          norm = HistNorm::Pdf;
+        else if (m == "cumcount")     norm = HistNorm::CumCount;
+        else if (m == "cdf")          norm = HistNorm::Cdf;
+        else
+            throw Error("histcounts: unknown Normalization '" + m + "'",
+                         0, 0, "histcounts", "", "numkit:histcounts:badNorm");
+        ++i;   // consume the value
+    }
+    outs[0] = histcounts(args[0], args[1], norm, mr);
+}
 
 // histc(x, edges): legacy bin counts (length(edges) bins, last = exact
 // equal to edges(end)). [n, bin] = histc(...) also returns the 1-based bin

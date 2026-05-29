@@ -113,6 +113,34 @@ Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr = nu
 /// @see discretize
 Value histcounts(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Bin-count normalization mode (`'Normalization'` of `histcounts`).
+enum class HistNorm {
+    Count,         ///< raw counts (default)
+    Probability,   ///< count / numel(x)
+    CountDensity,  ///< count / binwidth
+    Pdf,           ///< count / (numel(x) · binwidth)
+    CumCount,      ///< cumulative count
+    Cdf            ///< cumulative count / numel(x)
+};
+
+/// @brief Histogram bin counts with a normalization mode
+/// (`n = histcounts(x, edges, 'Normalization', mode)`).
+///
+/// `Count` returns the raw count row vector (identical to the 2-arg
+/// overload). The other modes scale the count vector as documented in
+/// `HistNorm`. The normalization total is `numel(x)` — out-of-range values
+/// are excluded from the bins but still counted in the total, matching
+/// MATLAB R2025b.
+///
+/// @param x      Data array.
+/// @param edges  Bin edges (length `nbins + 1`).
+/// @param norm   Normalization mode.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Row vector of normalized bin values (length `nbins`).
+/// @see histcounts, discretize
+Value histcounts(const Value &x, const Value &edges, HistNorm norm,
+                 std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Bin assignment (`bin = discretize(x, edges)`).
 ///
 /// 1-based bin index per element; `NaN` for out-of-range entries.

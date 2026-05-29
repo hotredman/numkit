@@ -236,6 +236,58 @@ TEST_P(SetOpsTest, HistcountsBadEdgesThrows)
     EXPECT_THROW(eval("histcounts([1 2 3], [1]);"), std::runtime_error);
 }
 
+// ── histcounts 'Normalization' ──────────────────────────────
+// x has 9 elements, 2 out of range → N = 9 (numel, not in-range count).
+TEST_P(SetOpsTest, HistcountsNormProbability)
+{
+    eval("h = histcounts([1 2 2 3 3 3 5 99 -7], [0 2 4 6], "
+         "'Normalization', 'probability');");
+    auto *h = getVarPtr("h");
+    ASSERT_NE(h, nullptr);
+    EXPECT_NEAR(h->doubleData()[0], 1.0 / 9.0, 1e-12);
+    EXPECT_NEAR(h->doubleData()[1], 5.0 / 9.0, 1e-12);
+    EXPECT_NEAR(h->doubleData()[2], 1.0 / 9.0, 1e-12);
+}
+
+TEST_P(SetOpsTest, HistcountsNormCumcountAndCdf)
+{
+    eval("cc = histcounts([1 2 2 3 3 3 5 99 -7], [0 2 4 6], "
+         "'Normalization', 'cumcount');");
+    auto *cc = getVarPtr("cc");
+    ASSERT_NE(cc, nullptr);
+    EXPECT_DOUBLE_EQ(cc->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(cc->doubleData()[1], 6.0);
+    EXPECT_DOUBLE_EQ(cc->doubleData()[2], 7.0);
+    eval("cf = histcounts([1 2 2 3 3 3 5 99 -7], [0 2 4 6], "
+         "'Normalization', 'cdf');");
+    auto *cf = getVarPtr("cf");
+    EXPECT_NEAR(cf->doubleData()[2], 7.0 / 9.0, 1e-12);  // not 1.0: 2 out of range
+}
+
+TEST_P(SetOpsTest, HistcountsNormCountDensityAndPdf)
+{
+    // Nonuniform edges [0 1 4 6] → binwidths [1 3 2]; data 4 pts all in range.
+    eval("cd = histcounts([0.5 2 3 5], [0 1 4 6], "
+         "'Normalization', 'countdensity');");
+    auto *cd = getVarPtr("cd");
+    ASSERT_NE(cd, nullptr);
+    EXPECT_NEAR(cd->doubleData()[0], 1.0, 1e-12);          // 1/1
+    EXPECT_NEAR(cd->doubleData()[1], 2.0 / 3.0, 1e-12);    // 2/3
+    EXPECT_NEAR(cd->doubleData()[2], 0.5, 1e-12);          // 1/2
+    eval("pf = histcounts([0.5 2 3 5], [0 1 4 6], "
+         "'Normalization', 'pdf');");
+    auto *pf = getVarPtr("pf");
+    EXPECT_NEAR(pf->doubleData()[0], 0.25, 1e-12);         // 1/(4*1)
+    EXPECT_NEAR(pf->doubleData()[1], 2.0 / 12.0, 1e-12);   // 2/(4*3)
+    EXPECT_NEAR(pf->doubleData()[2], 1.0 / 8.0, 1e-12);    // 1/(4*2)
+}
+
+TEST_P(SetOpsTest, HistcountsNormUnknownThrows)
+{
+    EXPECT_THROW(eval("histcounts([1 2 3], [0 2 4], 'Normalization', 'bogus');"),
+                 std::runtime_error);
+}
+
 // ── histc (legacy) ──────────────────────────────────────────
 // n has length(edges); last bin = exact-equal to edges(end). vs MATLAB.
 TEST_P(SetOpsTest, HistcCounts)
