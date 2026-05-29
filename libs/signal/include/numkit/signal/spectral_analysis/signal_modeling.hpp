@@ -166,10 +166,15 @@ poly2rc(const Value &                a,
 
 /// Reflection coefficients → AR poly (step-up recursion).
 /// @param k   Reflection coefficients.
+/// @param r0  Zero-lag autocorrelation (for the second output efinal).
 /// @param mr  Memory resource (nullptr → process default).
-/// @return    AR coefficient vector of length `numel(k) + 1`.
-Value rc2poly(const Value &                k,
-              std::pmr::memory_resource *  mr = nullptr);
+/// @return    Tuple `(a, efinal)`: AR coefficient vector of length
+///            `numel(k) + 1`, and the final prediction error
+///            `efinal = r0 * prod(1 - k.^2)`.
+std::tuple<Value, Value>
+rc2poly(const Value &                k,
+        double                       r0 = 1.0,
+        std::pmr::memory_resource *  mr = nullptr);
 
 /// @brief Inverse-sine parameterisation → reflection coefficients.
 ///

@@ -1,12 +1,12 @@
 {
   "name": "sgolayfilt",
   "namespace": "signal",
-  "setup": "",
-  "expr": "y = sgolayfilt([1 2 3 4 5 6 7], 2, 5); r1 = double(numel(y));",
-  "iters": 5,
-  "tol": 1e-06,
+  "setup": "x = [3 1 4 1 5 9 2 6 5 3];",
+  "expr": "y = sgolayfilt(x, 2, 5);",
+  "iters": 3,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "double(numel(y))", "y(1)", "y(3)", "y(5)", "y(8)", "y(10)"
   ],
-  "comment": "Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig y=sgolayfilt(x,order,framelen): Savitzky-Golay smoothing (order-2 quadratic, frame 5). Interior points use the central SG weights; the first/last (framelen-1)/2 points use the asymmetric edge polynomials (NOT steady-state). x=[3 1 4 1 5 9 2 6 5 3] -> y(1)=2.857143 (left edge), y(5)=5.342857 (interior), y(10)=3.914286 (right edge)."
 }

@@ -1148,7 +1148,7 @@ vector path-loss models and coordinate transforms.
 | `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
 | `bersync` | ❌ |  |  |  |  | with imperfect sync |
 | `semianalytic` | ❌ |  |  |  |  | semi-analytic BER |
-| `marcumq` | ✅ | 0.112 | 8.50× | 3.29× | OK | Sig: r = marcumq(...). Spec-extension batch 2026-05-09. |
+| `marcumq` | ✅ | 0.439 | 4.06× |  | OK | Sig Q=marcumq(a,b[,m]): generalized Marcum Q-function. marcumq(2,1)=0.918108 (b<a -> near 1), marcumq(1,2)=0.269012 (b>a -> small), marcumq(2,3,2)=0.352698 (order m=2). tol 1e-5: numkit's series approximation differs from MATLAB by ~5e-7. |
 | `qfunc` | ✅ | 0.001 | 37.94× |  | OK | Sig q=qfunc(x)=0.5*erfc(x/sqrt(2)): upper tail of the standard normal. qfunc(-1.5)=0.933193, qfunc(0)=0.5, qfunc(1)=0.158655, qfunc(2)=0.0227501. Vectorised input; pins the symmetric pair and two positive arguments. |
 | `qfuncinv` | ✅ | 0.001 | 58.61× |  | OK | Sig x=qfuncinv(p)=sqrt(2)*erfcinv(2p): inverse Q-function. qfuncinv(0.5)=0, qfuncinv(0.1)=1.281552, qfuncinv(0.9)=-1.281552 (odd symmetry about 0.5), qfuncinv(0.025)=1.959964. tol 1e-7: numkit erfcinv differs from MATLAB by ~1e-9. |
 | `noisebw` | ✅ | 0.015 | 257.10× |  | OK | Sig: bw = noisebw(num, den, Nsamp, fs). Equivalent noise bandwidth via NBW = (fs/N) * sum(|H|^2) / max(|H|^2). Matches MATLAB R2025b within ~0.5 Hz on probed FIR (numerical-grid difference). |
@@ -2320,7 +2320,7 @@ intentionally omitted — flat solver functions only.
 | `framesig` | ❌ |  |  |  |  |  |
 | `gauspuls` | ✅ | 0.003 | 240.89× | 30.94× | OK | Sig: r = gauspuls(...). Spec-extension batch 2026-05-09. |
 | `gmonopuls` | ✅ | 0.048 | 0.54× | 1.30× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
-| `marcumq` | ✅ | 0.112 | 8.50× | 3.29× | OK | Sig: r = marcumq(...). Spec-extension batch 2026-05-09. |
+| `marcumq` | ✅ | 0.439 | 4.06× |  | OK | Sig Q=marcumq(a,b[,m]): generalized Marcum Q-function. marcumq(2,1)=0.918108 (b<a -> near 1), marcumq(1,2)=0.269012 (b>a -> small), marcumq(2,3,2)=0.352698 (order m=2). tol 1e-5: numkit's series approximation differs from MATLAB by ~5e-7. |
 | `modulate` | ❌ |  |  |  |  |  |
 | `pulstran` | ✅ | 0.004 | 347.92× | 23.82× | OK | Sig: r = pulstran(...). Spec-extension batch 2026-05-09. |
 | `rectpuls` | ✅ | 0.004 | 392.67× | 30.16× | OK | Sig: r = rectpuls(...). Spec-extension batch 2026-05-09. |
@@ -2454,7 +2454,7 @@ intentionally omitted — flat solver functions only.
 | `medfilt1` | ✅ | 0.005 | 242.53× | 30.99× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `residuez` | ✅ | 0.013 | 352.79× |  | OK | Sig: [r, p, k] = residue(b, a) — s-domain partial-fraction expansion. [r, p, k] = residuez(b, a) — z-domain (B/A polynomials in z^-1 ascending order). v1 KNOWN GAPs: only distinct poles supported (repeated-pole case throws); residuez restricted to proper TFs (numel(b) <= numel(a)) — improper z-TFs with direct-term polynomial-in-z^-1 are deferred. Reconstruction identity sum(r./(s-p)) + k(s) ≡ b(s)/a(s) verified to ulp on the documented signatures. Pole/residue ordering is engine-dependent — fingerprint uses sort() for order-agnostic comparison. Inverse forms [b, a] = residue(r, p, k) not yet wired. |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
-| `sgolayfilt` | ✅ | 0.005 | 254.70× | 61.52× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `sgolayfilt` | ✅ | 0.002 | 539.68× |  | OK | Sig y=sgolayfilt(x,order,framelen): Savitzky-Golay smoothing (order-2 quadratic, frame 5). Interior points use the central SG weights; the first/last (framelen-1)/2 points use the asymmetric edge polynomials (NOT steady-state). x=[3 1 4 1 5 9 2 6 5 3] -> y(1)=2.857143 (left edge), y(5)=5.342857 (interior), y(10)=3.914286 (right edge). |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
 | `sos2ss` | ✅ | 0.006 | 320.05× | 370.01× | OK | Sig: [A,B,C,D] = sos2ss(SOS[, g]). Re-closed after tf2ss canonical-form fix 2026-05-09. |
@@ -2468,7 +2468,7 @@ intentionally omitted — flat solver functions only.
 | `tf2latc` | ❌ |  |  |  |  | lattice |
 | `tf2sos` | ✅ | 0.006 | 1133.25× | 373.81× | OK | Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `tf2ss` | ✅ | 0.005 | 197.09× | 373.86× | OK | Sig: r = tf2ss(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `tf2zp` | ✅ | 0.005 | 210.93× | 336.96× | OK | Sig: r = tf2zp(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `tf2zp` | ✅ | 0.002 | 142.10× |  | OK | Sig [z,p,k]=tf2zp(b,a): transfer function -> zero/pole/gain. b=[1 0.5 -0.06] roots {-0.6, 0.1}; a=[1 -0.3 0.02] roots {0.2, 0.1}; k=b(1)/a(1)=1. Pinned with min/max (order-invariant: the root-finder may return z/p in a different order than MATLAB but the SETs must match). |
 | `tf2zpk` | ✅ | 0.005 | 345.72× |  | OK | Sig: r = tf2zpk(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zp2ctf` | ❌ |  |  |  |  |  |
 | `zp2sos` | ✅ | 0.004 | 1186.37× | 105.34× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2500,7 +2500,7 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `ac2poly` | ✅ | 0.003 | 218.59× |  | OK | Sig: r = ac2poly(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `ac2rc` | ✅ | 0.001 | 157.73× |  | OK | Sig: [k, R0] = ac2rc(R). KNOWN GAP: numkit's ac2rc differs from MATLAB on k(2) and R0 — only k(1) bit-identical (-0.5). Documented as separate ТЗ. |
+| `ac2rc` | ✅ | 0.002 | 151.90× |  | OK | Sig k=ac2rc(R): autocorrelation -> reflection coeffs (Levinson). R=[4 1 -0.5 0.3] -> k=[-0.25 0.2 -0.180556], bit-exact vs MATLAB R2025b. (Earlier spec claimed a KNOWN GAP using R=[2 1 0.5] which gives the degenerate k=[-0.5 0] -- no real gap.) NOTE: the optional 2nd output [k,R0]=ac2rc(R) is NOT fingerprinted: MATLAB R2025b returns R0 as the FULL input vector R (size N x 1), not the scalar zero-lag, which is shape-incompatible with numkit's scalar R0=R(1) and breaks the harness's per-fingerprint row alignment. k (the documented primary output) is fully validated. |
 | `arburg` | ✅ | 0.007 | 130.07× |  | OK | Sig: r = arburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `arcov` | ✅ | 0.004 | 538.29× |  | OK | Sig: r = arcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `armcov` | ✅ | 0.005 | 212.20× |  | OK | Sig: r = armcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
@@ -2512,15 +2512,15 @@ intentionally omitted — flat solver functions only.
 | `lar2rc` | ✅ | 0.004 | 54.93× |  | OK | Sig: k = lar2rc(g). Spec-extension batch 2026-05-09 (cycle 40). |
 | `levinson` | ✅ | 0.004 | 174.10× |  | OK | Sig [a,e,k]=levinson(r,p): Levinson-Durbin AR fit. Branch 1 = valid PSD autocorr r=[1 .6 .3 .1]: a(2)=-0.65025, e=0.63177, k(1)=-0.6. Branch 2 = NON-PSD r=[4 -2 -3 1 1.5] (|k(2)|>1): MATLAB runs the full recursion through negative residual energy (a=[1 -1.78571 -1.25 -2.21429], e=9.10714, k(3)=-2.21429); numkit previously early-exited at e<=0 leaving a/k zeroed and e=0 -- fixed (drop the e<=0 bail, guard only exact-zero divide). |
 | `lpc` | ✅ | 0.006 | 217.39× | 93.01× | OK | Sig: r = lpc(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `lsf2poly` | ✅ | 0.004 | 282.89× |  | OK | Sig: a = lsf2poly(lsf). Fixed parity-based factor distribution 2026-05-09. |
+| `lsf2poly` | ✅ | 0.002 | 301.34× |  | OK | Sig a=lsf2poly(lsf): line spectral frequencies -> AR poly (inverse of poly2lsf; rebuild P and Q from the alternating even/odd LSF sets, a=(P+Q)/2 minus trailing). lsf=[0.5 1.0 1.5 2.0 2.5] (5 freqs) -> order-5 a=[1 -0.271332 0.154985 -0.095420 0.054365 -0.023021]. |
 | `poly2ac` | ✅ | 0.004 | 326.99× |  | OK | Sig: r = poly2ac(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
-| `poly2lsf` | ✅ | 0.006 | 256.23× |  | OK | Sig: lsf = poly2lsf(a). Spec-extension batch 2026-05-09 (cycle 40). |
+| `poly2lsf` | ✅ | 0.003 | 314.22× |  | OK | Sig lsf=poly2lsf(a): AR poly -> line spectral frequencies (roots of P=A+A_R and Q=A-A_R on the unit circle, angles in (0,pi), sorted ascending). a=[1 0.6 0.2 0.1] (order 3) -> 3 LSFs [1.068750 1.823477 2.552095]. |
 | `poly2rc` | ✅ | 0.002 | 764.11× |  | OK | Sig [k,r0]=poly2rc(a,efinal): AR poly -> reflection coeffs via step-down, plus zero-lag autocorrelation R0=efinal/prod(1-k.^2). For a=[1 .6 .2 -.1], efinal=4: k=[0.496 0.262626 -0.1], r0=5.755727. Single-output k=poly2rc([1 .6 .2])=[0.5; 0.2]. numkit previously returned only k (no r0 2nd output) -- added efinal arg + R0. |
 | `prony` | ✅ | 0.004 | 230.29× |  | OK | Sig: [b,a] = prony(h, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
-| `rc2ac` | ✅ | 0.004 | 495.61× |  | OK | Sig: r = rc2ac(k, R0). Spec-extension batch 2026-05-09 (cycle 40). |
+| `rc2ac` | ✅ | 0.001 | 1052.98× |  | OK | Sig R=rc2ac(k,R0): reflection coeffs + zero-lag energy -> autocorrelation sequence (inverse Levinson step-up). k=[0.5 0.3 0.2], R0=2 -> R=[2 -1 0.05 -0.0055]. R(1)=R0; R(2)=-k(1)*R0; later lags from the recursion. |
 | `rc2is` | ✅ | 0.004 | 56.88× |  | OK | Sig: is = rc2is(k). Spec-extension batch 2026-05-09 (cycle 40). |
 | `rc2lar` | ✅ | 0.004 | 58.27× |  | OK | Sig: g = rc2lar(k). Spec-extension batch 2026-05-09 (cycle 40). |
-| `rc2poly` | ✅ | 0.004 | 215.97× |  | OK | Sig: a = rc2poly(k). Spec-extension batch 2026-05-09 (cycle 40). |
+| `rc2poly` | ✅ | 0.004 | 812.93× |  | OK | Sig [a,efinal]=rc2poly(k,r0): reflection coeffs -> AR poly via step-up. k=[-0.5 0.4 0.2] -> a=[1 -0.62 0.26 0.2]. Two-output form [a,efinal]=rc2poly([0.5 0.3],4): a=[1 0.65 0.3], efinal=r0*prod(1-k.^2)=4*0.75*0.91=2.73. numkit previously returned only a (no efinal 2nd output) -- added r0 arg + efinal. |
 | `rlevinson` | ✅ | 0.004 | 308.33× |  | OK | Sig: r = rlevinson(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
 | `schurrc` | ✅ | 0.003 | 272.94× |  | OK | Sig: K = schurrc(R). Schur reflection coefficients from autocorrelation R, length numel(R)-1. Element-wise SAVE. |
 | `stmcb` | ❌ |  |  |  |  | Steiglitz-McBride |
@@ -2793,7 +2793,7 @@ intentionally omitted — flat solver functions only.
 | `hampel` | ✅ | 0.004 | 161.76× |  | OK | Sig: r = hampel(...). Spec-extension batch 2026-05-09. |
 | `medfilt1` | ✅ | 0.005 | 242.53× | 30.99× | OK | Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `sgolay` | ✅ | 0.004 | 143.88× | 35.14× | OK | Sig: r = sgolay(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `sgolayfilt` | ✅ | 0.005 | 254.70× | 61.52× | OK | Sig: r = sgolayfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `sgolayfilt` | ✅ | 0.002 | 539.68× |  | OK | Sig y=sgolayfilt(x,order,framelen): Savitzky-Golay smoothing (order-2 quadratic, frame 5). Interior points use the central SG weights; the first/last (framelen-1)/2 points use the asymmetric edge polynomials (NOT steady-state). x=[3 1 4 1 5 9 2 6 5 3] -> y(1)=2.857143 (left edge), y(5)=5.342857 (interior), y(10)=3.914286 (right edge). |
 
 ### Vibration Analysis
 

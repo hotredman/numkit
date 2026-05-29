@@ -2,12 +2,12 @@
   "name": "tf2zp",
   "namespace": "signal",
   "setup": "",
-  "expr": "[z, p, k] = tf2zp([1 0.5], [1 0.25]); r1 = double(numel(z)); r2 = double(numel(p));",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "[z, p, k] = tf2zp([1 0.5 -0.06], [1 -0.3 0.02]);",
+  "iters": 3,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "double(numel(z))", "double(numel(p))",
+    "min(z)", "max(z)", "min(p)", "max(p)", "k"
   ],
-  "comment": "Sig: r = tf2zp(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig [z,p,k]=tf2zp(b,a): transfer function -> zero/pole/gain. b=[1 0.5 -0.06] roots {-0.6, 0.1}; a=[1 -0.3 0.02] roots {0.2, 0.1}; k=b(1)/a(1)=1. Pinned with min/max (order-invariant: the root-finder may return z/p in a different order than MATLAB but the SETs must match)."
 }
