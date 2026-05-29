@@ -27,18 +27,41 @@ Value rad2deg(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [k](double v) { return v * k; }, mr);
 }
 
+// mod/rem share class handling: if either operand is integer-typed, MATLAB
+// keeps that integer class on the result (mod(int8(7),int8(3))=1 int8; a
+// double operand is promoted to the integer class). elementwiseDouble's array
+// path reads doubleData(), which throws on integer ARRAYS, so integer operands
+// are first promoted to double; the result is cast back (values are already in
+// range, so the cast is exact). The all-double path is untouched.
+namespace {
+template <typename Op>
+Value modRemImpl(const Value &a, const Value &b, Op op,
+                 std::pmr::memory_resource *mr)
+{
+    const bool ai = isIntegerType(a.type());
+    const bool bi = isIntegerType(b.type());
+    if (!ai && !bi)
+        return elementwiseDouble(a, b, op, mr);
+    Value ad = ai ? toDoubleValue(a, mr) : a;
+    Value bd = bi ? toDoubleValue(b, mr) : b;
+    Value r = elementwiseDouble(ad, bd, op, mr);
+    return doubleToIntegerExact(r, ai ? a.type() : b.type(), mr);
+}
+} // namespace
+
 Value mod(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
-    return elementwiseDouble(a, b,
-                             [](double aa, double bb) {
-                                 return bb != 0 ? aa - std::floor(aa / bb) * bb : aa;
-                             },
-                             mr);
+    return modRemImpl(a, b,
+                      [](double aa, double bb) {
+                          return bb != 0 ? aa - std::floor(aa / bb) * bb : aa;
+                      },
+                      mr);
 }
 
 Value rem(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
-    return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmod(aa, bb); }, mr);
+    return modRemImpl(a, b,
+                      [](double aa, double bb) { return std::fmod(aa, bb); }, mr);
 }
 
 // hypot moved to math/trig/trig_highway.cpp (composes Sqrt(a²+b²) via

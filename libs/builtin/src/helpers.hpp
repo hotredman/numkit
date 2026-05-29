@@ -147,23 +147,23 @@ inline Value absIntegerSaturate(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
-// Cast a DOUBLE Value to an integer class by per-element static_cast with
+// Cast a numeric Value to an integer class by per-element static_cast with
 // saturation. Used to restore the integer class after computing through the
-// double path (e.g. sort of an integer array: sort as double, cast the sorted
-// values back). Values that are already exact in-range integers round-trip
-// exactly. `vt` must be an integer ValueType.
+// double path (e.g. sort of an integer array; mod/rem of integers). Values
+// that are already exact in-range integers round-trip exactly. Reads via
+// elemAsDouble so a scalar-stored result is handled too. `vt` must be an
+// integer ValueType.
 inline Value doubleToIntegerExact(const Value &d, ValueType vt,
                                   std::pmr::memory_resource *mr)
 {
     Value r = createForDims(d.dims(), vt, mr);
-    const double *src = d.doubleData();
     const size_t n = d.numel();
     auto fill = [&](auto *dst) {
         using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
         const double lo = static_cast<double>(std::numeric_limits<T>::min());
         const double hi = static_cast<double>(std::numeric_limits<T>::max());
         for (size_t i = 0; i < n; ++i) {
-            double v = src[i];
+            double v = d.elemAsDouble(i);
             if (v < lo) v = lo;
             else if (v > hi) v = hi;
             dst[i] = static_cast<T>(v);
@@ -180,6 +180,20 @@ inline Value doubleToIntegerExact(const Value &d, ValueType vt,
     case ValueType::UINT64: fill(r.uint64DataMut()); break;
     default: break;
     }
+    return r;
+}
+
+// Convert any numeric Value to a DOUBLE Value (element-wise via elemAsDouble,
+// so integer arrays — which lack a doubleData() buffer — are handled). A
+// DOUBLE input is returned as-is (shares storage). Used to route integer
+// operands through double-only elementwise helpers, then cast the result back.
+inline Value toDoubleValue(const Value &x, std::pmr::memory_resource *mr)
+{
+    if (x.type() == ValueType::DOUBLE) return x;
+    Value r = createForDims(x.dims(), ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) dst[i] = x.elemAsDouble(i);
     return r;
 }
 
