@@ -25,3 +25,10 @@ fprintf('\n=== std mirrors var (sqrt) ===\n');
 disp(std(A));
 fprintf('  expect [1.5811 1.5811 1.5811]\n');
 fprintf('  std(A, 0, "all") = %.4f\n', std(A, 0, 'all'));
+
+fprintf('\n=== single-element variance -> 0 (not NaN) ===\n');
+fprintf('  var(5)        = %g (expect 0)\n', var(5));
+fprintf('  var([7])      = %g (expect 0)\n', var([7]));
+fprintf('  var(5, 1)     = %g (expect 0)\n', var(5, 1));
+fprintf('  std(5)        = %g (expect 0)\n', std(5));
+fprintf('  std([7])      = %g (expect 0)\n', std([7]));

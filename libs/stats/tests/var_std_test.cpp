@@ -82,6 +82,42 @@ TEST_F(VarStdTest, StdWeighted)
                 std::sqrt(1.7142857142857142), 1e-10);
 }
 
+// --- Single-element variance (n == 1). MATLAB returns 0 for BOTH the
+// default N-1 normalization and the N normalization — not NaN from 0/0.
+// Regression for the DEEP-PROBE find 2026-05-29.
+TEST_F(VarStdTest, VarSingleScalarIsZero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("var(5)"), 0.0);
+}
+
+TEST_F(VarStdTest, VarSingleElementVectorIsZero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("var([7])"), 0.0);
+}
+
+TEST_F(VarStdTest, VarSingleNormFlag1IsZero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("var(5, 1)"), 0.0);
+}
+
+TEST_F(VarStdTest, StdSingleScalarIsZero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("std(5)"), 0.0);
+}
+
+TEST_F(VarStdTest, StdSingleElementVectorIsZero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("std([7])"), 0.0);
+}
+
+// NOTE: var([1 2 3], 0, 1) -> [0 0 0] in MATLAB (reduce along singleton
+// dim 1 = per-column, each one element). numkit currently returns scalar 1
+// because the CORE reduction path collapses a vector along an explicit
+// singleton dim instead of treating it as a no-op (sum([1 2 3],1) and
+// mean([1 2 3],1) show the same core bug). That is a separate, deeper core
+// fix (wide blast radius across all reductions) — deferred to a supervised
+// cycle. The single-element n==1 -> 0 fix above is independent and correct.
+
 TEST_F(VarStdTest, BadDimFlagThrows)
 {
     EXPECT_THROW(eval("var(A, 0, 'unknown');"), numkit::Error);

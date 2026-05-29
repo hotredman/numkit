@@ -1,16 +1,17 @@
 {
   "name": "nan_legacy",
-  "covers": ["nansum", "nanmean"],
+  "covers": ["nansum", "nanmean", "nanvar", "nanstd"],
   "namespace": "stats",
   "setup": "v = [1 2 NaN 4 5]; M = [1 2 3; NaN 5 6; 7 NaN 9];",
-  "expr": "s = nansum(v); m = nanmean(v); sM = nansum(M); mM = nanmean(M); allnan = nansum([NaN NaN]); allnanm = nanmean([NaN NaN]);",
+  "expr": "s = nansum(v); m = nanmean(v); sM = nansum(M); mM = nanmean(M); allnan = nansum([NaN NaN]); allnanm = nanmean([NaN NaN]); vv = nanvar([NaN 1 2 3 NaN 4 5]); vone = nanvar([NaN 5 NaN]); vone1 = nanvar([NaN 5 NaN], 1); sone = nanstd([NaN 5 NaN]);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
     "s", "m",
     "sM(1)", "sM(2)", "sM(3)",
     "mM(1)", "mM(2)", "mM(3)",
-    "allnan", "double(isnan(allnanm))"
+    "allnan", "double(isnan(allnanm))",
+    "vv", "vone", "vone1", "sone"
   ],
-  "comment": "Sig: legacy NaN-aware reductions (recommended modern form: `sum(..., 'omitnan')` / `mean(..., 'omitnan')`). nansum: NaN entries dropped; all-NaN slice → 0 (NaN is additive identity). nanmean: NaN entries dropped; divisor is count of valid obs; all-NaN slice → NaN. Bit-exact MATLAB R2025b on the pinned 1-D and 2-D cases. nanstd/nanvar/nanmedian/nanmax/nanmin also work but are NOT in PROGRESS.md (MATLAB R2025b removed their formal doc entry — only legacy)."
+  "comment": "Sig: legacy NaN-aware reductions (recommended modern form: `sum(..., 'omitnan')` / `mean(..., 'omitnan')`). nansum: NaN entries dropped; all-NaN slice → 0 (NaN is additive identity). nanmean: NaN entries dropped; divisor is count of valid obs; all-NaN slice → NaN. nanvar/nanstd: NaN entries dropped; a SINGLE non-NaN value → 0 for BOTH N-1 (default) and N normalizations (NOT NaN from 0/0) — verified MATLAB R2025b nanvar([NaN 5 NaN])==0. Bit-exact MATLAB R2025b on the pinned cases. nanstd/nanvar/nanmedian/nanmax/nanmin work but are NOT in PROGRESS.md (legacy; modern form is var(...,'omitnan'))."
 }

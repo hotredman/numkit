@@ -136,7 +136,9 @@ void addInto(double *dst, const double *src, std::size_t n)
 double varianceTwoPass(const double *p, std::size_t n, int normFlag)
 {
     if (n == 0) return std::nan("");
-    if (n == 1) return (normFlag == 1) ? 0.0 : std::nan("");
+    // MATLAB: variance of a single observation is 0 for BOTH the N-1
+    // (default) and N normalizations — not NaN from the 0/0 of N-1.
+    if (n == 1) return 0.0;
     const double mean  = sumScan(p, n) / static_cast<double>(n);
     const double ss    = sumSquaredDeviationsScan(p, n, mean);
     const double denom = (normFlag == 1) ? static_cast<double>(n)
