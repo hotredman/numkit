@@ -33,6 +33,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifdef NUMKIT_WITH_ZLIB
@@ -49,6 +50,7 @@ struct ByteReader {
     const std::uint8_t *buf;
     std::size_t size;
     bool bigEndian;
+    bool isBigTiff;   // BigTIFF (magic 43, 8-byte offsets, 20-byte IFD entries)
 
     void check(std::size_t off, std::size_t n, const char *what) const {
         if (off > size || off + n > size)
@@ -72,36 +74,86 @@ struct ByteReader {
               (std::uint32_t(b) << 8)  | (std::uint32_t(c) << 16) |
               (std::uint32_t(d) << 24);
     }
+    std::uint64_t u64(std::size_t off) const {
+        check(off, 8, "u64");
+        std::uint64_t v = 0;
+        if (bigEndian) {
+            for (int i = 0; i < 8; ++i)
+                v = (v << 8) | buf[off + i];
+        } else {
+            for (int i = 0; i < 8; ++i)
+                v |= static_cast<std::uint64_t>(buf[off + i]) << (8 * i);
+        }
+        return v;
+    }
+    // BigTIFF-aware offset read (4 bytes for classic, 8 bytes for BigTIFF).
+    std::uint64_t offsetAt(std::size_t off) const {
+        return isBigTiff ? u64(off) : static_cast<std::uint64_t>(u32(off));
+    }
 };
 
-constexpr std::size_t kTypeWidth[13] = {
-    0, 1, 1, 2, 4, 8, 1, 1, 2, 4, 8, 4, 8
+// TIFF tag type sizes. Indices 1..18 are valid (TIFF 6 + BigTIFF extensions).
+constexpr std::size_t kTypeWidth[19] = {
+    0,
+    1,   // 1  BYTE
+    1,   // 2  ASCII
+    2,   // 3  SHORT
+    4,   // 4  LONG
+    8,   // 5  RATIONAL
+    1,   // 6  SBYTE
+    1,   // 7  UNDEFINED
+    2,   // 8  SSHORT
+    4,   // 9  SLONG
+    8,   // 10 SRATIONAL
+    4,   // 11 FLOAT
+    8,   // 12 DOUBLE
+    4,   // 13 IFD (LONG-sized IFD pointer)
+    0,   // 14 unused
+    0,   // 15 unused
+    8,   // 16 LONG8       (BigTIFF)
+    8,   // 17 SLONG8      (BigTIFF)
+    8,   // 18 IFD8        (BigTIFF, 8-byte IFD pointer)
 };
 
-std::vector<std::uint32_t>
+// Read all values of an IFD entry as uint64s. Classic and BigTIFF
+// differ in:
+//   * IFD entry size (12 / 20 bytes)
+//   * "inline value" threshold (4 / 8 bytes) and the slot's position
+//     within the entry (bytes 8..11 vs 12..19)
+//   * The value-field is u32 in classic, u64 in BigTIFF.
+//
+// Tags whose values we care about (offsets, widths, photometric, etc.)
+// fit cleanly into uint64. Float / rational types are not consumed by
+// this reader, so we just return zero for those.
+std::vector<std::uint64_t>
 readEntryValues(const ByteReader &br, std::uint16_t type,
-                std::uint32_t count, std::uint32_t valueOffset,
+                std::uint64_t count, std::uint64_t valueOffset,
                 std::size_t entryOffset)
 {
-    if (type == 0 || type > 12)
+    if (type == 0 || type > 18 || kTypeWidth[type] == 0)
         throw Error("tiff: unknown tag type " + std::to_string(type),
                     0, 0, "imread", "", "numkit:imread:tiffType");
-    const std::size_t w = kTypeWidth[type];
+    const std::size_t w     = kTypeWidth[type];
     const std::size_t total = w * static_cast<std::size_t>(count);
-    const std::size_t base = (total <= 4)
-        ? (entryOffset + 8)
+    const std::size_t inlineCap   = br.isBigTiff ? 8u : 4u;
+    const std::size_t inlineSlotOff = br.isBigTiff ? 12u : 8u;
+    const std::size_t base = (total <= inlineCap)
+        ? (entryOffset + inlineSlotOff)
         : static_cast<std::size_t>(valueOffset);
 
-    std::vector<std::uint32_t> out;
-    out.reserve(count);
-    for (std::uint32_t i = 0; i < count; ++i) {
-        const std::size_t off = base + i * w;
+    std::vector<std::uint64_t> out;
+    out.reserve(static_cast<std::size_t>(count));
+    for (std::uint64_t i = 0; i < count; ++i) {
+        const std::size_t off = base + static_cast<std::size_t>(i) * w;
         switch (type) {
             case 1: case 6: case 7: case 2:
                 br.check(off, 1, "byte");
                 out.push_back(br.buf[off]); break;
             case 3: case 8:  out.push_back(br.u16(off)); break;
-            case 4: case 9:  out.push_back(br.u32(off)); break;
+            case 4: case 9: case 11: case 13:
+                out.push_back(br.u32(off)); break;
+            case 16: case 17: case 18:
+                out.push_back(br.u64(off)); break;
             default:         out.push_back(0); break;
         }
     }
@@ -117,61 +169,70 @@ struct TiffImage {
     std::uint16_t photometric = 1;
     std::uint16_t samplesPerPixel = 1;
     std::uint32_t rowsPerStrip = 0;
-    std::vector<std::uint32_t> stripOffsets;
-    std::vector<std::uint32_t> stripByteCounts;
+    // Offsets / counts widened to u64 so the same struct serves both
+    // classic and BigTIFF without secondary casts.
+    std::vector<std::uint64_t> stripOffsets;
+    std::vector<std::uint64_t> stripByteCounts;
     std::uint16_t planarConfig = 1;
-    std::uint16_t sampleFormat = 1;  // 1=uint, 2=int, 3=float
-    std::uint16_t predictor = 1;     // 1=none, 2=horizontal differencing
-    // Colour map for Photometric=3 (palette). Layout is 3·(2^BitsPerSample)
-    // uint16 values: all R entries, then all G entries, then all B.
-    std::vector<std::uint32_t> colorMap;
-    // Tile layout (tags 322/323/324/325). When tileWidth > 0 the data is
-    // organised in tiles rather than strips.
+    std::uint16_t sampleFormat = 1;
+    std::uint16_t predictor = 1;
+    // Colour map for Photometric=3 (palette): 3·(2^BitsPerSample) uint16
+    // values, all R entries then all G then all B.
+    std::vector<std::uint64_t> colorMap;
+    // Tile layout (tags 322/323/324/325).
     std::uint32_t tileWidth = 0, tileLength = 0;
-    std::vector<std::uint32_t> tileOffsets;
-    std::vector<std::uint32_t> tileByteCounts;
+    std::vector<std::uint64_t> tileOffsets;
+    std::vector<std::uint64_t> tileByteCounts;
 };
 
 // Parse a single IFD at the given byte offset. Returns the next-IFD
-// offset (0 if last) via out-param.
+// offset (0 if last) via out-param. Handles both classic and BigTIFF
+// entry layouts:
+//   classic   : count(u16) + N×12-byte-entries [tag(2),type(2),count(4),value(4)] + next(u32)
+//   BigTIFF   : count(u64) + N×20-byte-entries [tag(2),type(2),count(8),value(8)] + next(u64)
 TiffImage parseIFD(const ByteReader &br, std::size_t ifdOffset,
-                    std::uint32_t *nextIfdOffset)
+                    std::uint64_t *nextIfdOffset)
 {
     TiffImage img;
-    const std::uint16_t n = br.u16(ifdOffset);
-    std::size_t e = ifdOffset + 2;
-    for (std::uint16_t i = 0; i < n; ++i, e += 12) {
+    const std::uint64_t n = br.isBigTiff ? br.u64(ifdOffset) : br.u16(ifdOffset);
+    const std::size_t entrySize = br.isBigTiff ? 20u : 12u;
+    const std::size_t countOff  = 4;
+    const std::size_t voffOff   = br.isBigTiff ? 12u : 8u;
+    std::size_t e = ifdOffset + (br.isBigTiff ? 8u : 2u);
+    for (std::uint64_t i = 0; i < n; ++i, e += entrySize) {
         const std::uint16_t tag   = br.u16(e + 0);
         const std::uint16_t type  = br.u16(e + 2);
-        const std::uint32_t count = br.u32(e + 4);
-        const std::uint32_t voff  = br.u32(e + 8);
-        auto firstVal = [&]() -> std::uint32_t {
+        const std::uint64_t count = br.isBigTiff ? br.u64(e + countOff)
+                                                  : static_cast<std::uint64_t>(br.u32(e + countOff));
+        const std::uint64_t voff  = br.isBigTiff ? br.u64(e + voffOff)
+                                                  : static_cast<std::uint64_t>(br.u32(e + voffOff));
+        auto firstVal = [&]() -> std::uint64_t {
             if (count == 0) return 0;
             const auto v = readEntryValues(br, type, count, voff, e);
             return v.empty() ? 0u : v[0];
         };
         switch (tag) {
-            case 256: img.width  = firstVal(); break;
-            case 257: img.height = firstVal(); break;
+            case 256: img.width  = static_cast<std::uint32_t>(firstVal()); break;
+            case 257: img.height = static_cast<std::uint32_t>(firstVal()); break;
             case 258: img.bitsPerSample = static_cast<std::uint16_t>(firstVal()); break;
             case 259: img.compression = static_cast<std::uint16_t>(firstVal()); break;
             case 262: img.photometric = static_cast<std::uint16_t>(firstVal()); break;
             case 273: img.stripOffsets = readEntryValues(br, type, count, voff, e); break;
             case 277: img.samplesPerPixel = static_cast<std::uint16_t>(firstVal()); break;
-            case 278: img.rowsPerStrip = firstVal(); break;
+            case 278: img.rowsPerStrip = static_cast<std::uint32_t>(firstVal()); break;
             case 279: img.stripByteCounts = readEntryValues(br, type, count, voff, e); break;
             case 284: img.planarConfig = static_cast<std::uint16_t>(firstVal()); break;
             case 317: img.predictor    = static_cast<std::uint16_t>(firstVal()); break;
             case 320: img.colorMap     = readEntryValues(br, type, count, voff, e); break;
-            case 322: img.tileWidth    = firstVal(); break;
-            case 323: img.tileLength   = firstVal(); break;
+            case 322: img.tileWidth    = static_cast<std::uint32_t>(firstVal()); break;
+            case 323: img.tileLength   = static_cast<std::uint32_t>(firstVal()); break;
             case 324: img.tileOffsets  = readEntryValues(br, type, count, voff, e); break;
             case 325: img.tileByteCounts = readEntryValues(br, type, count, voff, e); break;
             case 339: img.sampleFormat = static_cast<std::uint16_t>(firstVal()); break;
             default: break;
         }
     }
-    if (nextIfdOffset) *nextIfdOffset = br.u32(e);
+    if (nextIfdOffset) *nextIfdOffset = br.offsetAt(e);
     return img;
 }
 
@@ -736,10 +797,23 @@ ByteReader openTiff(std::vector<std::uint8_t> &buf, const char *who)
     else
         throw Error(std::string(who) + ": not a TIFF (bad byte-order mark)",
                     0, 0, who, "", std::string("numkit:") + who + ":tiffMagic");
-    ByteReader br{buf.data(), buf.size(), be};
-    if (br.u16(2) != 42)
+    ByteReader br{buf.data(), buf.size(), be, /*isBigTiff=*/false};
+    const std::uint16_t magic = br.u16(2);
+    if (magic == 42) {
+        // classic TIFF — nothing more to set up.
+    } else if (magic == 43) {
+        // BigTIFF header layout (after byte-order + magic):
+        //   bytes 4-5 : bytesPerOffset (always 8)
+        //   bytes 6-7 : constant 0
+        //   bytes 8-15: first IFD offset (8 bytes)
+        if (br.u16(4) != 8 || br.u16(6) != 0)
+            throw Error(std::string(who) + ": bad BigTIFF header",
+                        0, 0, who, "", std::string("numkit:") + who + ":tiffMagic");
+        br.isBigTiff = true;
+    } else {
         throw Error(std::string(who) + ": bad TIFF magic", 0, 0, who, "",
                     std::string("numkit:") + who + ":tiffMagic");
+    }
     return br;
 }
 
@@ -747,15 +821,23 @@ ByteReader openTiff(std::vector<std::uint8_t> &buf, const char *who)
 
 // Walk the IFD chain to locate the IFD for the given 1-based page index.
 // Returns the file offset of that IFD; throws if `page` is out of range.
-std::uint32_t locateIFDForPage(const ByteReader &br, std::size_t bufSize,
+// BigTIFF-aware first-IFD offset (4 bytes at offset 4 for classic,
+// 8 bytes at offset 8 for BigTIFF).
+inline std::uint64_t firstIFDOffset(const ByteReader &br) {
+    return br.isBigTiff ? br.u64(8) : static_cast<std::uint64_t>(br.u32(4));
+}
+
+std::uint64_t locateIFDForPage(const ByteReader &br, std::size_t bufSize,
                                 std::uint32_t page, const char *who)
 {
     if (page == 0)
         throw Error(std::string(who) + ": page index must be >= 1",
                     0, 0, who, "", std::string("numkit:") + who + ":badPage");
-    std::uint32_t off = br.u32(4);
+    std::uint64_t off = firstIFDOffset(br);
+    const std::size_t entrySize = br.isBigTiff ? 20u : 12u;
+    const std::size_t countHdr  = br.isBigTiff ? 8u  : 2u;
     for (std::uint32_t p = 1; p <= page; ++p) {
-        if (off == 0 || off + 2 > bufSize)
+        if (off == 0 || off + countHdr > bufSize)
             throw Error(std::string(who) + ": requested page "
                         + std::to_string(page)
                         + " is beyond end of TIFF (only "
@@ -763,8 +845,11 @@ std::uint32_t locateIFDForPage(const ByteReader &br, std::size_t bufSize,
                         0, 0, who, "", std::string("numkit:") + who + ":pageRange");
         if (p == page) return off;
         // Skip this IFD to next-IFD offset.
-        const std::uint16_t n = br.u16(off);
-        off = br.u32(off + 2 + 12u * n);
+        const std::uint64_t n = br.isBigTiff
+            ? br.u64(static_cast<std::size_t>(off))
+            : static_cast<std::uint64_t>(br.u16(static_cast<std::size_t>(off)));
+        off = br.offsetAt(static_cast<std::size_t>(off) + countHdr
+                           + entrySize * static_cast<std::size_t>(n));
     }
     return off;
 }
@@ -781,10 +866,10 @@ Value readTiff(const std::string &path, std::uint32_t page,
 {
     auto buf = loadBytes(path, "imread");
     auto br = openTiff(buf, "imread");
-    const std::uint32_t ifdOff = locateIFDForPage(br, buf.size(), page, "imread");
+    const std::uint64_t ifdOff = locateIFDForPage(br, buf.size(), page, "imread");
 
-    std::uint32_t next = 0;
-    TiffImage img = parseIFD(br, ifdOff, &next);
+    std::uint64_t next = 0;
+    TiffImage img = parseIFD(br, static_cast<std::size_t>(ifdOff), &next);
     if (img.width == 0 || img.height == 0)
         throw Error("imread: TIFF has zero width or height",
                     0, 0, "imread", "", "numkit:imread:tiffShape");
@@ -804,13 +889,61 @@ Value readTiff(const std::string &path, std::uint32_t page,
     return rowMajorToValue(raw, img, br.bigEndian, mr);
 }
 
+// Two-output API for palette TIFFs. Returns (indices, cmap) where
+// `cmap` is K×3 DOUBLE in [0, 1] for Photometric=3, or empty otherwise.
+//
+// TIFF ColorMap tag (320) layout per spec: `3 · (2^BitsPerSample)` SHORT
+// values laid out [all R; all G; all B] in [0, 65535]. We normalise to
+// [0, 1] and stack as MATLAB's K×3 cmap.
+std::pair<Value, Value>
+readTiffWithMap(const std::string &path, std::uint32_t page,
+                std::pmr::memory_resource *mr)
+{
+    auto buf = loadBytes(path, "imread");
+    auto br  = openTiff(buf, "imread");
+    const std::uint64_t ifdOff = locateIFDForPage(br, buf.size(), page, "imread");
+
+    std::uint64_t next = 0;
+    TiffImage img = parseIFD(br, static_cast<std::size_t>(ifdOff), &next);
+    if (img.width == 0 || img.height == 0)
+        throw Error("imread: TIFF has zero width or height",
+                    0, 0, "imread", "", "numkit:imread:tiffShape");
+    if (img.photometric != 0 && img.photometric != 1 && img.photometric != 2
+        && img.photometric != 3)
+        throw Error("tiff: PhotometricInterpretation "
+                    + std::to_string(img.photometric)
+                    + " not supported (only 0/1=gray, 2=RGB, 3=palette)",
+                    0, 0, "imread", "", "numkit:imread:tiffPhotometric");
+
+    auto raw = decodeImage(br, img);
+    Value indices = rowMajorToValue(raw, img, br.bigEndian, mr);
+
+    Value cmap = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (img.photometric == 3) {
+        const std::size_t K = std::size_t{1} << img.bitsPerSample;
+        if (img.colorMap.size() != 3 * K)
+            throw Error("imread: palette TIFF has malformed ColorMap "
+                        "(expected 3 × " + std::to_string(K) + " entries)",
+                        0, 0, "imread", "", "numkit:imread:tiffColorMap");
+        cmap = Value::matrix(K, 3, ValueType::DOUBLE, mr);
+        double *cd = cmap.doubleDataMut();
+        constexpr double kInv65535 = 1.0 / 65535.0;
+        for (std::size_t k = 0; k < K; ++k) {
+            cd[0 * K + k] = img.colorMap[0 * K + k] * kInv65535;   // R
+            cd[1 * K + k] = img.colorMap[1 * K + k] * kInv65535;   // G
+            cd[2 * K + k] = img.colorMap[2 * K + k] * kInv65535;   // B
+        }
+    }
+    return { std::move(indices), std::move(cmap) };
+}
+
 void peekTiff(const std::string &path, std::uint32_t &W, std::uint32_t &H,
               std::uint16_t &bits, std::uint16_t &channels)
 {
     auto buf = loadBytes(path, "imfinfo");
     auto br = openTiff(buf, "imfinfo");
-    std::uint32_t next = 0;
-    TiffImage img = parseIFD(br, br.u32(4), &next);
+    std::uint64_t next = 0;
+    TiffImage img = parseIFD(br, static_cast<std::size_t>(firstIFDOffset(br)), &next);
     W = img.width; H = img.height;
     bits = img.bitsPerSample;
     channels = img.samplesPerPixel;
@@ -820,12 +953,17 @@ std::uint32_t tiffNumPages(const std::string &path)
 {
     auto buf = loadBytes(path, "imfinfo");
     auto br = openTiff(buf, "imfinfo");
-    std::uint32_t off = br.u32(4);
+    const std::size_t entrySize = br.isBigTiff ? 20u : 12u;
+    const std::size_t countHdr  = br.isBigTiff ? 8u  : 2u;
+    std::uint64_t off = firstIFDOffset(br);
     std::uint32_t n = 0;
-    while (off != 0 && off + 2 <= buf.size()) {
+    while (off != 0 && static_cast<std::size_t>(off) + countHdr <= buf.size()) {
         ++n;
-        const std::uint16_t k = br.u16(off);
-        off = br.u32(off + 2 + 12u * k);
+        const std::uint64_t k = br.isBigTiff
+            ? br.u64(static_cast<std::size_t>(off))
+            : static_cast<std::uint64_t>(br.u16(static_cast<std::size_t>(off)));
+        off = br.offsetAt(static_cast<std::size_t>(off) + countHdr
+                           + entrySize * static_cast<std::size_t>(k));
     }
     return n;
 }

@@ -252,3 +252,97 @@ TEST_F(TiffWriterTest, UnknownCompressionThrows)
     EXPECT_THROW(engine.eval("imwrite(A, p, 'tif', 'Compression', 'bogus');"),
                  std::exception);
 }
+
+// ── gap-closure cycle: items 1-4 ─────────────────────────────────────
+
+// Item 1: [A, map] = imread(palette_file) — two-output form returns
+// the colormap as K×3 DOUBLE in [0, 1].
+TEST_F(ImreadTiffTest, PaletteTwoOutputReturnsColormap)
+{
+    engine.eval("[A, map] = imread('" + path("palette_indexed.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("size(map,1)").toScalar(), 256.0);
+    EXPECT_DOUBLE_EQ(engine.eval("size(map,2)").toScalar(),   3.0);
+    EXPECT_EQ(engine.eval("class(map)").toString(), "double");
+    // The 5-entry MATLAB cmap was [0 0 0; 1 0 0; 0 1 0; 0 0 1; 1 1 1].
+    EXPECT_DOUBLE_EQ(engine.eval("map(2,1)").toScalar(), 1.0);  // R of red
+    EXPECT_DOUBLE_EQ(engine.eval("map(2,2)").toScalar(), 0.0);  // G of red
+    EXPECT_DOUBLE_EQ(engine.eval("map(3,2)").toScalar(), 1.0);  // G of green
+    EXPECT_DOUBLE_EQ(engine.eval("map(4,3)").toScalar(), 1.0);  // B of blue
+    EXPECT_DOUBLE_EQ(engine.eval("map(5,1)").toScalar(), 1.0);  // white
+    EXPECT_DOUBLE_EQ(engine.eval("map(5,3)").toScalar(), 1.0);
+}
+
+// Item 2: BigTIFF reader — magic 43, 8-byte IFD offsets / counts.
+TEST_F(ImreadTiffTest, BigTiffGray8)
+{
+    engine.eval("A = imread('" + path("bigtiff_gray8.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("size(A,1)").toScalar(), 4.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A(1,1)").toScalar(),  1.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A(4,4)").toScalar(), 16.0);
+}
+
+TEST_F(ImreadTiffTest, BigTiffRgb8)
+{
+    engine.eval("A = imread('" + path("bigtiff_rgb8.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("size(A,3)").toScalar(), 3.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A(1,1,1)").toScalar(),  0.0);
+    EXPECT_DOUBLE_EQ(engine.eval("A(4,4,3)").toScalar(), 47.0);
+}
+
+TEST_F(ImreadTiffTest, BigTiffImfinfo)
+{
+    engine.eval("s = imfinfo('" + path("bigtiff_gray8.tif") + "');");
+    EXPECT_DOUBLE_EQ(engine.eval("s.Width").toScalar(),  4.0);
+    EXPECT_DOUBLE_EQ(engine.eval("s.Height").toScalar(), 4.0);
+}
+
+// Item 3: Writer LZW with horizontal predictor — round-trip + read back.
+TEST_F(TiffWriterTest, LzwWithPredictorRoundTrip)
+{
+    engine.eval("p = [tempname '.tif']; "
+                "A = uint8(reshape(mod((0:63)*17, 256), 8, 8)); "
+                "imwrite(A, p, 'tif', 'Compression', 'lzw'); "
+                "B = imread(p); ok = isequal(A, B); delete(p);");
+    EXPECT_DOUBLE_EQ(evalScalar("ok"), 1.0);
+}
+
+// Item 4: Writer integer / float dtypes — round-trip preserves class.
+TEST_F(TiffWriterTest, Int16RoundTrip)
+{
+    engine.eval("p = [tempname '.tif']; "
+                "A = int16([-1000 0 1000; 2000 -2000 32000]); "
+                "imwrite(A, p, 'tif'); B = imread(p); "
+                "ok = isequal(A, B); cls = class(B); delete(p);");
+    EXPECT_DOUBLE_EQ(evalScalar("ok"), 1.0);
+    EXPECT_EQ(engine.eval("cls").toString(), "int16");
+}
+
+TEST_F(TiffWriterTest, Int32RoundTrip)
+{
+    engine.eval("p = [tempname '.tif']; "
+                "A = int32([-100000 200000; 300000 -400000]); "
+                "imwrite(A, p, 'tif'); B = imread(p); "
+                "ok = isequal(A, B); cls = class(B); delete(p);");
+    EXPECT_DOUBLE_EQ(evalScalar("ok"), 1.0);
+    EXPECT_EQ(engine.eval("cls").toString(), "int32");
+}
+
+TEST_F(TiffWriterTest, SingleRoundTrip)
+{
+    engine.eval("p = [tempname '.tif']; "
+                "A = single([1.5 2.5 3.5; -1.5 -2.5 -3.5]); "
+                "imwrite(A, p, 'tif'); B = imread(p); "
+                "ok = isequal(A, B); cls = class(B); delete(p);");
+    EXPECT_DOUBLE_EQ(evalScalar("ok"), 1.0);
+    EXPECT_EQ(engine.eval("cls").toString(), "single");
+}
+
+TEST_F(TiffWriterTest, DoubleRoundTrip)
+{
+    engine.eval("p = [tempname '.tif']; "
+                "A = [1.234567890123 -3.14159265359; 2.718281828 0.0]; "
+                "imwrite(A, p, 'tif'); B = imread(p); "
+                "ok = isequal(A, B); cls = class(B); delete(p);");
+    EXPECT_DOUBLE_EQ(evalScalar("ok"), 1.0);
+    EXPECT_EQ(engine.eval("cls").toString(), "double");
+}
