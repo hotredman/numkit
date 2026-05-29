@@ -359,7 +359,7 @@ together.
 | `num2str` | ✅ | 0.004 | 353.70× |  | OK | Sig: r = num2str(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
 | `pad` | ✅ | 0.004 | 30.75× |  | OK | Sig: r = pad(...). Spec-extension batch 2026-05-09. |
 | `plus` | ✅ | 0.005 | 30.18× | 11.25× | OK | Sig: r = plus(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
-| `regexp` | ✅ | 0.298 | 0.21× |  | OK | Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters. |
+| `regexp` | ✅ | 0.049 | 4.58× |  | OK | Sig: M = regexp(S, PAT, 'match' | 'names'). 'names' maps (?<name>...) named tokens to a struct (scalar for one match, 1xN struct array for N). Fingerprints use char-codes of struct fields (scalars). numkit rewrites (?<name>...) to a plain capture group (std::regex ECMAScript can't parse the raw syntax) and tracks the name->index map. Queue-clearing 2026-05-29: 'names' previously errored 'regex_error(error_syntax)'. Minor gap: a 0-match 'names' result is 0x0 (size matches) but does not retain field names (isfield would need core struct-schema support). |
 | `regexpi` | ✅ | 0.074 | 0.43× |  | OK | Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters. |
 | `regexprep` | ✅ | 0.255 | 0.18× | 0.86× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
 | `regexptranslate` | ✅ | 0.000 | 18.47× | 90.35× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
