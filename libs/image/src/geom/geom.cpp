@@ -333,6 +333,58 @@ Value imrotate(const Value &A, double angle, const std::string &method, const st
     const Shape s = shapeOf(A);
     const ValueType t = A.type();
     const bool nearest = methodIsNearest(method);
+    const bool isCrop = (bbox == "crop" || bbox == "Crop");
+
+    // Exact 90-degree-multiple path: pure index permutation (rot90), no
+    // interpolation or rounding — matches MATLAB bit-exactly and avoids the
+    // half-pixel .5-tie ambiguity that an interpolated rotation hits at
+    // these angles. 'crop' then centre-extracts the input-sized window.
+    {
+        double a = std::fmod(angle, 360.0);
+        if (a < 0.0) a += 360.0;
+        const long kk = std::lround(a / 90.0);
+        if (std::abs(a - double(kk) * 90.0) < 1e-9) {
+            const int k = static_cast<int>(((kk % 4) + 4) % 4);
+            const size_t Hl = (k % 2 == 0) ? s.H : s.W;  // loose dims
+            const size_t Wl = (k % 2 == 0) ? s.W : s.H;
+            const size_t oH = isCrop ? s.H : Hl;
+            const size_t oW = isCrop ? s.W : Wl;
+            long rowOff = 0, colOff = 0;
+            if (isCrop) {
+                rowOff = static_cast<long>(std::floor((double(Hl) - double(s.H)) / 2.0));
+                colOff = static_cast<long>(std::floor((double(Wl) - double(s.W)) / 2.0));
+                // For the 270-degree quarter turn (k==3) the leftover half
+                // pixel of an odd size difference falls on the opposite side
+                // vs 90 degrees (k==1) — MATLAB centres the crop accordingly.
+                if (k == 3 && ((static_cast<long>(Hl) - static_cast<long>(s.H)) & 1L))
+                    rowOff += 1;
+            }
+            Value B = makeOut(oH, oW, s.C, t, mr);
+            Shape sd{oH, oW, s.C};
+            const long H = static_cast<long>(s.H), W = static_cast<long>(s.W);
+            for (size_t c = 0; c < s.C; ++c)
+                for (size_t i = 0; i < oH; ++i)
+                    for (size_t j = 0; j < oW; ++j) {
+                        const long li = static_cast<long>(i) + rowOff;  // loose coords
+                        const long lj = static_cast<long>(j) + colOff;
+                        double v = 0.0;
+                        if (li >= 0 && li < static_cast<long>(Hl) &&
+                            lj >= 0 && lj < static_cast<long>(Wl)) {
+                            long sr = 0, sc = 0;  // map loose -> source (inverse rot90^k)
+                            switch (k) {
+                                case 0: sr = li;        sc = lj;        break;
+                                case 1: sr = lj;        sc = W - 1 - li; break;
+                                case 2: sr = H - 1 - li; sc = W - 1 - lj; break;
+                                default:sr = H - 1 - lj; sc = li;        break;  // k==3
+                            }
+                            v = sample(A, s, static_cast<int>(sr), static_cast<int>(sc), c);
+                        }
+                        writePixel(B, sd, i, j, c, v, t);
+                    }
+            return B;
+        }
+    }
+
     const double rad = angle * M_PI / 180.0;
     const double co = std::cos(rad);
     const double si = std::sin(rad);
@@ -380,8 +432,12 @@ Value imrotate(const Value &A, double angle, const std::string &method, const st
                 const double ys = si * dx + co * dy + cyIn;
                 double v;
                 if (nearest) {
-                    int yi = int(std::floor(ys + 0.5));
-                    int xi = int(std::floor(xs + 0.5));
+                    // MATLAB's imrotate nearest rounds the source coordinate
+                    // half-to-even (std::nearbyint, the default FP rounding):
+                    // an exact .5 tie goes to the even integer (e.g. 0.5->0),
+                    // unlike floor(x+0.5) (half-up) or lround (half-away).
+                    int yi = static_cast<int>(std::nearbyint(ys));
+                    int xi = static_cast<int>(std::nearbyint(xs));
                     v = sample(A, s, yi, xi, c);
                 } else {
                     v = bilinear(A, s, ys, xs, c);
@@ -879,10 +935,23 @@ void imrotate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("imrotate: requires (A, angle [, method [, bbox]])",
                     0, 0, "imrotate", "", "numkit:imrotate:nargin");
-    std::string method = "bilinear";
+    // MATLAB R2025b default method is 'nearest' (not bilinear), and the
+    // 3rd argument may be EITHER a method or a bbox keyword:
+    //   imrotate(A, angle, method [, bbox])   or   imrotate(A, angle, bbox)
+    std::string method = "nearest";
     std::string bbox   = "loose";
-    if (args.size() >= 3 && !args[2].isEmpty()) method = argString(args[2]);
-    if (args.size() >= 4 && !args[3].isEmpty()) bbox   = argString(args[3]);
+    auto isBboxKw = [](const std::string &s) {
+        return s == "loose" || s == "Loose" || s == "crop" || s == "Crop";
+    };
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        const std::string s3 = argString(args[2]);
+        if (isBboxKw(s3)) {
+            bbox = s3;                       // imrotate(A, angle, bbox)
+        } else {
+            method = s3;                     // imrotate(A, angle, method [, bbox])
+            if (args.size() >= 4 && !args[3].isEmpty()) bbox = argString(args[3]);
+        }
+    }
     outs[0] = imrotate(args[0], args[1].toScalar(), method, bbox, ctx.engine->resource());
 }
 

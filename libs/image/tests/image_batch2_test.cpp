@@ -92,6 +92,33 @@ TEST_F(ImageBatch2Test, YcbcrClassPreservation)
     EXPECT_NEAR(evalScalar("rd(1,1,2)"), 0.27861792508, 1e-9);
 }
 
+// imrotate: default method is 'nearest'; the 3-arg form takes a bbox
+// keyword; 'crop' keeps the input size for 90/270 of a non-square image;
+// nearest rounds half-to-even. (All vs MATLAB R2025b.)
+TEST_F(ImageBatch2Test, ImrotateDefaultBboxCrop)
+{
+    eval("J = reshape(1:12, 3, 4);");
+    // Default method = nearest (sum 86, not bilinear's 78.7625).
+    eval("D = imrotate(J, 30);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(D,1)")), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(D(:))"), 86.0);
+    // nearest half-to-even: the .5-tie pixel D30(3,2) is 4, not 5.
+    eval("Rn = imrotate(J, 30, 'nearest');");
+    EXPECT_DOUBLE_EQ(evalScalar("Rn(3,2)"), 4.0);
+    // 3-arg form: arg3 is a bbox keyword; 'crop' keeps input size 3x4.
+    eval("C90 = imrotate(J, 90, 'crop');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C90,1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C90,2)")), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(C90(:))"), 72.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C90(1,1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C90(1,2)"), 10.0);
+    // 270 crop also keeps 3x4 (direction-dependent centring).
+    eval("C270 = imrotate(J, 270, 'crop');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C270,1)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(C270(:))"), 72.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C270(3,4)"), 10.0);
+}
+
 TEST_F(ImageBatch2Test, ImConvert)
 {
     eval("d = im2double(uint8([0 128 255]));");
