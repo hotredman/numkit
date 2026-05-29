@@ -9,6 +9,8 @@
 #include <numkit/core/span.hpp>
 #include <numkit/core/types.hpp>
 
+#include <complex>
+
 namespace numkit::linalg {
 
 Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -72,6 +74,37 @@ Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     const size_t H = da.rows(), W = da.cols();
     // Vectors (row or column) -> a single scalar.
     const bool isVector = (!da.is3D()) && (H == 1 || W == 1);
+
+    // MATLAB: dot conjugates the FIRST argument — dot(a,b) = sum(conj(a).*b).
+    // Complex inputs (either operand) take the complex path; the result is
+    // complex (per-column for matrices). The real path below drops to scalar
+    // doubles via elemAsDouble, which would discard the imaginary part.
+    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX) {
+        const bool aCx = (a.type() == ValueType::COMPLEX);
+        const bool bCx = (b.type() == ValueType::COMPLEX);
+        auto getA = [&](size_t i) {
+            return aCx ? a.complexData()[i] : Complex(a.elemAsDouble(i), 0.0);
+        };
+        auto getB = [&](size_t i) {
+            return bCx ? b.complexData()[i] : Complex(b.elemAsDouble(i), 0.0);
+        };
+        if (isVector) {
+            Complex s(0.0, 0.0);
+            for (size_t i = 0; i < a.numel(); ++i)
+                s += std::conj(getA(i)) * getB(i);
+            return Value::complexScalar(s, mr);
+        }
+        Value out = Value::matrix(1, W, ValueType::COMPLEX, mr);
+        Complex *od = out.complexDataMut();
+        for (size_t j = 0; j < W; ++j) {
+            Complex s(0.0, 0.0);
+            for (size_t i = 0; i < H; ++i)
+                s += std::conj(getA(j * H + i)) * getB(j * H + i);
+            od[j] = s;
+        }
+        return out;
+    }
+
     if (isVector) {
         double s = 0.0;
         for (size_t i = 0; i < a.numel(); ++i)

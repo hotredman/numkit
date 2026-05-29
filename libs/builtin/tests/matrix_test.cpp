@@ -1599,5 +1599,36 @@ TEST_P(GridKronTest, Kron3DInputThrows)
     EXPECT_THROW(eval("K = kron(A, [1 2; 3 4]);"), std::exception);
 }
 
+// Complex dot: MATLAB conjugates the FIRST argument -> dot(a,b)=sum(conj(a).*b),
+// per-column for matrices. numkit previously dropped the imaginary part via
+// elemAsDouble (returned a wrong real scalar). vs MATLAB R2025b. 2026-05-29.
+TEST_P(GridKronTest, DotComplexConjugatesFirstArg)
+{
+    eval("z = dot([1+2i 3], [4 5i]);");   // conj([1+2i 3]).*[4 5i] = [4-8i,15i] -> 4+7i
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 4.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].imag(), 7.0);
+
+    // per-column on matrices: dot([1+1i 2;3 4i],[1 1i;1 1]) = [4-1i, -2i]
+    eval("m = dot([1+1i 2; 3 4i], [1 1i; 1 1]);");
+    auto *m = getVarPtr("m");
+    ASSERT_NE(m, nullptr);
+    EXPECT_EQ(m->numel(), 2u);
+    EXPECT_DOUBLE_EQ(m->complexData()[0].real(), 4.0);
+    EXPECT_DOUBLE_EQ(m->complexData()[0].imag(), -1.0);
+    EXPECT_DOUBLE_EQ(m->complexData()[1].real(), 0.0);
+    EXPECT_DOUBLE_EQ(m->complexData()[1].imag(), -2.0);
+
+    // real-vs-complex (a real): conj([1 2])=[1 2] -> [1i,4i] -> 5i
+    eval("rc = dot([1 2], [1i 2i]);");
+    auto *rc = getVarPtr("rc");
+    ASSERT_NE(rc, nullptr);
+    EXPECT_DOUBLE_EQ(rc->complexData()[0].imag(), 5.0);
+
+    // real path unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("dot([1 2 3],[4 5 6]);"), 32.0);
+}
+
 INSTANTIATE_DUAL(GridKronTest);
 
