@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+namespace numkit { class Engine; }
+
 namespace numkit::image {
 
 /// @file
@@ -321,6 +323,48 @@ Value bwunpack(const Value &BWP, size_t M,
 /// @see bwmorph
 Value applylut(const Value &BW, const Value &LUT,
                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Nonlinear neighbourhood filter via lookup table
+/// (`A = bwlookup(BW, lut)`).
+///
+/// Performs a 2×2 (`lut` length 16) or 3×3 (`lut` length 512) nonlinear
+/// neighbourhood filtering operation on binary image `BW`. Each output
+/// pixel is `lut` indexed by the bit pattern of its neighbourhood
+/// (zero-padded at the border), with the same index convention as
+/// @ref applylut / @ref makelut. The modern replacement for `applylut`,
+/// restricted to the documented 16- and 512-element table sizes.
+///
+/// @param BW   Binary input (logical or numeric, treated as `BW != 0`).
+/// @param lut  Lookup table — exactly 16 or 512 elements.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Filtered image, same shape as `BW`, class of `lut`.
+/// @throws Error  `lut` not 16 or 512 elements.
+/// @see makelut, applylut
+Value bwlookup(const Value &BW, const Value &lut,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Build a lookup table for @ref bwlookup
+/// (`lut = makelut(fun, n)`).
+///
+/// Evaluates `fun` on every one of the `2^(n²)` binary `n × n`
+/// neighbourhoods and returns the `2^(n²)`-element column vector of
+/// results. `n` is 2 (length 16) or 3 (length 512). The neighbourhood
+/// for table index `k` (0-based) has, in column-major order, position
+/// `i` set to bit `(k >> (n²−1−i)) & 1` — the inverse of the
+/// `reshape(2^[nq−1:−1:0], n, n)` weight kernel used by `bwlookup`, so
+/// `bwlookup(BW, makelut(fun, n))` applies `fun` to each neighbourhood.
+/// `fun` receives a logical `n × n` matrix and returns a scalar; the
+/// output table is always DOUBLE.
+///
+/// @param eng  Engine used to invoke the function handle.
+/// @param fun  Function handle: `(logical n×n) → scalar`.
+/// @param n    Neighbourhood size (2 or 3).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `2^(n²) × 1` DOUBLE lookup table.
+/// @throws Error  `n` not 2 or 3, or `fun` returns a non-scalar.
+/// @see bwlookup, applylut
+Value makelut(numkit::Engine &eng, const Value &fun, int n,
+              std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Binary hit-or-miss transform (`J = bwhitmiss(BW, se1, se2)`).
 ///
