@@ -607,6 +607,49 @@ TEST_P(SortFindTest, SortDescendAndNaNPlacement)
     EXPECT_DOUBLE_EQ(yd->doubleData()[4], 1.0);
 }
 
+// Complex sort: MATLAB orders by magnitude |z|, ties by phase angle arg(z)
+// ascending; 'descend' reverses; NaN-component sorts last/first. Was
+// unsupported (threw "Not a double array"). vs MATLAB R2025b. 2026-05-29.
+TEST_P(SortFindTest, SortComplexByMagnitudeThenAngle)
+{
+    eval("[y, i] = sort([3+4i 1 5i]);");
+    auto *y = getVarPtr("y");
+    auto *ii = getVarPtr("i");
+    ASSERT_NE(y, nullptr); ASSERT_NE(ii, nullptr);
+    ASSERT_EQ(y->numel(), 3u);
+    // [1, 3+4i, 5i]
+    EXPECT_DOUBLE_EQ(y->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[0].imag(), 0.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[1].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[2].real(), 0.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[2].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[2], 3.0);
+
+    // descend reverses; ties broken by angle (|1i|=|-1i|=1 < |2|=|-2|=2).
+    eval("d = sort([3+4i 1 5i], 'descend');");
+    auto *d = getVarPtr("d");
+    ASSERT_NE(d, nullptr);
+    EXPECT_DOUBLE_EQ(d->complexData()[0].imag(), 5.0);   // 5i first
+    EXPECT_DOUBLE_EQ(d->complexData()[2].real(), 1.0);   // 1 last
+
+    eval("t = sort([2+0i, -2, 1i, -1i]);");
+    auto *t = getVarPtr("t");
+    ASSERT_NE(t, nullptr);
+    EXPECT_DOUBLE_EQ(t->complexData()[0].imag(), -1.0);  // -1i (mag 1, angle -pi/2)
+    EXPECT_DOUBLE_EQ(t->complexData()[1].imag(),  1.0);  //  1i (mag 1, angle  pi/2)
+    EXPECT_DOUBLE_EQ(t->complexData()[2].real(),  2.0);  //  2  (mag 2, angle 0)
+    EXPECT_DOUBLE_EQ(t->complexData()[3].real(), -2.0);  // -2  (mag 2, angle pi)
+
+    // NaN component sorts last for ascend.
+    eval("n = sort([1+1i, NaN, 2]);");
+    auto *n = getVarPtr("n");
+    ASSERT_NE(n, nullptr);
+    EXPECT_TRUE(std::isnan(n->complexData()[2].real()));
+}
+
 TEST_P(SortFindTest, FindRowVectorReturnsRow)
 {
     eval("ix = find([0 1 0 2 0]);");
