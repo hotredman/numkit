@@ -101,6 +101,82 @@ TEST_P(DspGapsTest, FindpeaksFlatTopNotPeak)
     EXPECT_EQ(v->numel(), 0u);
 }
 
+// findpeaks Name-Value options vs MATLAB R2025b. x peaks: 1@2,2@4,3@6,2@8,1@10.
+TEST_P(DspGapsTest, FindpeaksMinPeakHeight)
+{
+    // Strictly greater than MinPeakHeight: MPH=2 drops the 2-valued peaks.
+    eval("v = findpeaks([0 1 0 2 0 3 0 2 0 1 0], 'MinPeakHeight', 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksThreshold)
+{
+    // Threshold = min vertical drop to immediate neighbors (>=).
+    eval("v = findpeaks([0 1 0 2 0 3 0 2 0 1 0], 'Threshold', 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 3u);  // values 2,3,2
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 2.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksNPeaksAndSort)
+{
+    eval("function [a,b] = fpDesc(x)\n"
+         "  [a,b] = findpeaks(x, 'SortStr', 'descend');\n"
+         "end");
+    // SortStr descend: tallest first, ties broken by ascending location.
+    eval("[v, l] = fpDesc([0 1 0 2 0 3 0 2 0 1 0]);");
+    auto *v = getVarPtr("v");
+    auto *l = getVarPtr("l");
+    EXPECT_EQ(v->numel(), 5u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 6.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[1], 4.0);  // 2@4 before 2@8
+    // NPeaks + descend = the 2 tallest.
+    eval("function [a,b] = fpN2Desc(x)\n"
+         "  [a,b] = findpeaks(x, 'NPeaks', 2, 'SortStr', 'descend');\n"
+         "end");
+    eval("[v2, l2] = fpN2Desc([0 1 0 2 0 3 0 2 0 1 0]);");
+    auto *v2 = getVarPtr("v2");
+    auto *l2 = getVarPtr("l2");
+    EXPECT_EQ(v2->numel(), 2u);
+    EXPECT_DOUBLE_EQ(v2->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(l2->doubleData()[1], 4.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksMinPeakDistance)
+{
+    eval("function [a,b] = fpMPD(x)\n"
+         "  [a,b] = findpeaks(x, 'MinPeakDistance', 3);\n"
+         "end");
+    // Greedy tallest-first, removes peaks within distance; output by location.
+    eval("[v, l] = fpMPD([0 1 0 2 0 3 0 2 0 1 0]);");
+    auto *v = getVarPtr("v");
+    auto *l = getVarPtr("l");
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[1], 6.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[2], 10.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksLocationForm)
+{
+    eval("function [a,b] = fpX(x, X)\n"
+         "  [a,b] = findpeaks(x, X);\n"
+         "end");
+    // findpeaks(Y,X): locations reported as X values.
+    eval("X = 0:0.5:5; [v, l] = fpX([0 1 0 2 0 3 0 2 0 1 0], X);");
+    auto *l = getVarPtr("l");
+    EXPECT_EQ(l->numel(), 5u);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 0.5);
+    EXPECT_DOUBLE_EQ(l->doubleData()[2], 2.5);
+    // Unsupported option fails loudly (no silent ignore).
+    EXPECT_THROW(eval("findpeaks([0 1 0 2 0], 'MinPeakProminence', 1);"), std::exception);
+}
+
 // ── goertzel ────────────────────────────────────────────────
 
 TEST_P(DspGapsTest, GoertzelMatchesDFTBin)

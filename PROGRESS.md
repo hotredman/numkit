@@ -2637,7 +2637,7 @@ intentionally omitted — flat solver functions only.
 | `db` | ✅ | 0.436 | 0.44× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.002 | 52.11× |  | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `db2pow` | ✅ | 0.002 | 56.49× |  | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.002 |  |  | N/A | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
+| `findpeaks` | ✅ | 0.007 | 1180.14× |  | OK | Sig [pks,locs]=findpeaks(Y[,X|Fs],Name,Value). Default = strict local maxima (1-based idx), row in / row out. Options: MinPeakHeight (keep value>MPH, strictly), Threshold (min vertical drop to neighbors >=), MinPeakDistance (greedy tallest-first, remove peaks within distance, output by location), NPeaks (first N after SortStr), SortStr none/ascend/descend (by height, ties=ascending location). findpeaks(Y,X)/findpeaks(Y,Fs) report X-unit/time locations. numkit previously IGNORED every option -- now honored. MinPeakProminence/width outputs deferred (error loudly). Matches MATLAB R2025b. |
 | `mag2db` | ✅ | 0.004 | 66.82× | 42.43× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
 | `pburg` | ✅ | 0.012 | 719.34× | 43.53× | OK | Sig: r = pburg(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pcov` | ❌ |  |  |  |  |  |
@@ -2655,7 +2655,7 @@ intentionally omitted — flat solver functions only.
 | `db` | ✅ | 0.436 | 0.44× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.002 | 52.11× |  | OK | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `db2pow` | ✅ | 0.002 | 56.49× |  | OK | Sig: r = db2pow(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.002 |  |  | N/A | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
+| `findpeaks` | ✅ | 0.007 | 1180.14× |  | OK | Sig [pks,locs]=findpeaks(Y[,X|Fs],Name,Value). Default = strict local maxima (1-based idx), row in / row out. Options: MinPeakHeight (keep value>MPH, strictly), Threshold (min vertical drop to neighbors >=), MinPeakDistance (greedy tallest-first, remove peaks within distance, output by location), NPeaks (first N after SortStr), SortStr none/ascend/descend (by height, ties=ascending location). findpeaks(Y,X)/findpeaks(Y,Fs) report X-unit/time locations. numkit previously IGNORED every option -- now honored. MinPeakProminence/width outputs deferred (error loudly). Matches MATLAB R2025b. |
 | `mag2db` | ✅ | 0.004 | 66.82× | 42.43× | OK | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
 | `mscohere` | ✅ | 0.036 | 297.87× | 21.14× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
 | `periodogram` | ✅ | 0.006 | 937.94× | 56.31× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
@@ -2765,7 +2765,7 @@ intentionally omitted — flat solver functions only.
 | `filenames2labels` | ❌ |  |  |  |  |  |
 | `findchangepts` | ❌ |  |  |  |  | change-point detection |
 | `finddelay` | ✅ | 0.002 |  |  | N/A | Sig: r = finddelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `findpeaks` | ✅ | 0.002 |  |  | N/A | Sig: r = findpeaks(...). Spec-extension batch 2026-05-09. |
+| `findpeaks` | ✅ | 0.007 | 1180.14× |  | OK | Sig [pks,locs]=findpeaks(Y[,X|Fs],Name,Value). Default = strict local maxima (1-based idx), row in / row out. Options: MinPeakHeight (keep value>MPH, strictly), Threshold (min vertical drop to neighbors >=), MinPeakDistance (greedy tallest-first, remove peaks within distance, output by location), NPeaks (first N after SortStr), SortStr none/ascend/descend (by height, ties=ascending location). findpeaks(Y,X)/findpeaks(Y,Fs) report X-unit/time locations. numkit previously IGNORED every option -- now honored. MinPeakProminence/width outputs deferred (error loudly). Matches MATLAB R2025b. |
 | `findsignal` | ❌ |  |  |  |  | pattern search |
 | `folders2labels` | ❌ |  |  |  |  |  |
 | `framelbl` | ❌ |  |  |  |  |  |
