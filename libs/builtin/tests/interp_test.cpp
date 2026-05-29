@@ -75,6 +75,28 @@ TEST_F(InterpTest, NearestAtNode)
 }
 
 // ============================================================
+// interp1 — 'previous' / 'next' (step interpolation) vs MATLAB R2025b
+// ============================================================
+
+TEST_F(InterpTest, PreviousAndNext)
+{
+    // 'next' = value at the smallest knot >= xq; 'previous' = at the
+    // largest knot <= xq.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],1.5,'next')"),     20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],1.5,'previous')"), 10.0);
+    // At an exact knot both return that knot's value.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],2,'next')"),     20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],2,'previous')"), 20.0);
+    // Outside [x(1), x(end)] -> NaN (default, no extrapolation).
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],3.5,'previous')")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0.5,'next')")));
+    // Vector query.
+    eval("v = interp1([1 2 3],[10 20 30],[1.5 2.5],'previous');");
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(2)"), 20.0);
+}
+
+// ============================================================
 // interp1 — spline
 // ============================================================
 

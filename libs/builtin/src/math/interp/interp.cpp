@@ -69,6 +69,39 @@ interpNearest(const double *x, const double *y, size_t n, const double *xq, size
     return yq;
 }
 
+// 'previous': value at the largest knot <= xq. 'next': value at the
+// smallest knot >= xq. Queries outside [x[0], x[n-1]] -> NaN (MATLAB's
+// default, no extrapolation). x is assumed ascending.
+ScratchVec<double>
+interpPrevious(const double *x, const double *y, size_t n, const double *xq, size_t nq, std::pmr::memory_resource *mr)
+{
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    ScratchVec<double> yq(nq, mr);
+    for (size_t k = 0; k < nq; ++k) {
+        const double q = xq[k];
+        if (q < x[0] || q > x[n - 1]) { yq[k] = NaN; continue; }
+        size_t i = 0;
+        for (size_t j = 0; j < n && x[j] <= q; ++j) i = j;
+        yq[k] = y[i];
+    }
+    return yq;
+}
+
+ScratchVec<double>
+interpNext(const double *x, const double *y, size_t n, const double *xq, size_t nq, std::pmr::memory_resource *mr)
+{
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    ScratchVec<double> yq(nq, mr);
+    for (size_t k = 0; k < nq; ++k) {
+        const double q = xq[k];
+        if (q < x[0] || q > x[n - 1]) { yq[k] = NaN; continue; }
+        size_t i = n - 1;
+        for (size_t j = 0; j < n; ++j) { if (x[j] >= q) { i = j; break; } }
+        yq[k] = y[i];
+    }
+    return yq;
+}
+
 // Build the n-vector of second derivatives at knots (sigma) using
 // MATLAB's not-a-knot boundary conditions. Falls back to natural BCs
 // for n == 3 (NaK is degenerate). Tridiagonal system has the standard
@@ -337,6 +370,14 @@ Value interp1(const Value &x, const Value &y, const Value &xq, const std::string
     }
     if (method == "nearest") {
         auto yq = interpNearest(xd, yd, n, xqd, nq, &scratch);
+        return packInterpResult(yq.data(), yq.size(), xq, mr);
+    }
+    if (method == "previous") {
+        auto yq = interpPrevious(xd, yd, n, xqd, nq, &scratch);
+        return packInterpResult(yq.data(), yq.size(), xq, mr);
+    }
+    if (method == "next") {
+        auto yq = interpNext(xd, yd, n, xqd, nq, &scratch);
         return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     if (method == "spline") {
