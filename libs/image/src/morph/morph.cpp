@@ -958,6 +958,50 @@ Value applylut(const Value &BW, const Value &LUT, std::pmr::memory_resource *mr)
     return out;
 }
 
+// bwlookup — modern neighbourhood-LUT filter. Identical index convention
+// to applylut, restricted to the documented 16- (2×2) and 512- (3×3)
+// element table sizes.
+Value bwlookup(const Value &BW, const Value &lut, std::pmr::memory_resource *mr)
+{
+    const size_t n = lut.numel();
+    if (n != 16 && n != 512)
+        throw Error("bwlookup: Expected LUT (argument 2) to have 16 or 512 elements.",
+                    0, 0, "bwlookup", "", "numkit:bwlookup:lutsize");
+    return applylut(BW, lut, mr);
+}
+
+// makelut — build a bwlookup/applylut table by evaluating `fun` on every
+// 2^(n²) binary n×n neighbourhood. Index k's neighbourhood (col-major)
+// has position i set to bit (nq-1-i) of k — the inverse of the
+// reshape(2^[nq-1:-1:0], n, n) weight kernel used by applylut, so
+// bwlookup(BW, makelut(fun, n)) applies fun to each neighbourhood.
+Value makelut(numkit::Engine &eng, const Value &fun, int n,
+              std::pmr::memory_resource *mr)
+{
+    if (n != 2 && n != 3)
+        throw Error("makelut: N must be 2 or 3.",
+                    0, 0, "makelut", "", "numkit:makelut:badN");
+    const int nq = n * n;
+    const size_t N = size_t{1} << nq;   // 16 or 512
+    Value lut = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    double *ld = lut.doubleDataMut();
+
+    // Reusable logical neighbourhood, mutated per table entry.
+    Value nh = Value::matrix(static_cast<size_t>(n), static_cast<size_t>(n),
+                             ValueType::LOGICAL, mr);
+    uint8_t *nd = nh.logicalDataMut();
+    for (size_t k = 0; k < N; ++k) {
+        for (int i = 0; i < nq; ++i)
+            nd[i] = static_cast<uint8_t>((k >> (nq - 1 - i)) & size_t{1});
+        Value r = eng.callFunctionHandle(fun, Span<const Value>(&nh, 1));
+        if (r.numel() != 1)
+            throw Error("makelut: fun must return a scalar",
+                        0, 0, "makelut", "", "numkit:makelut:funScalar");
+        ld[k] = r.toScalar();
+    }
+    return lut;
+}
+
 Value bwhitmiss(const Value &BW, const Value &se1, const Value &se2, std::pmr::memory_resource *mr)
 {
     const size_t H = BW.dims().rows();
@@ -1254,6 +1298,25 @@ void applylut_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("applylut: requires (BW, LUT)",
                     0, 0, "applylut", "", "numkit:applylut:nargin");
     outs[0] = applylut(args[0], args[1], ctx.engine->resource());
+}
+
+void bwlookup_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("bwlookup: requires (BW, lut)",
+                    0, 0, "bwlookup", "", "numkit:bwlookup:nargin");
+    outs[0] = bwlookup(args[0], args[1], ctx.engine->resource());
+}
+
+void makelut_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("makelut: requires (fun, n)",
+                    0, 0, "makelut", "", "numkit:makelut:nargin");
+    const int n = static_cast<int>(args[1].toScalar());
+    outs[0] = makelut(*ctx.engine, args[0], n, ctx.engine->resource());
 }
 
 void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
