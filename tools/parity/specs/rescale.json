@@ -1,0 +1,16 @@
+{
+  "name": "rescale",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5];",
+  "expr": "a = rescale(x); b = rescale(x,0,10); c = rescale(x,'InputMin',2,'InputMax',4); d = rescale(x,0,10,'InputMin',2,'InputMax',4); e = rescale(x,'InputMax',3);",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "a(2)",
+    "b(3)",
+    "c(1)", "c(3)", "c(5)",
+    "d(3)", "d(5)",
+    "e(1)", "e(5)"
+  ],
+  "comment": "Sig rescale(A[,lo,hi][,'InputMin',a,'InputMax',b]). Maps A onto [lo,hi] (default [0,1]); 'InputMin'/'InputMax' override the data min/max AND clamp values to that range. rescale([1..5],'InputMin',2,'InputMax',4)=[0 0 .5 1 1]; with lo/hi 0,10 -> [0 0 5 10 10]; 'InputMax',3 -> [0 .5 1 1 1]. numkit previously errored 'Cannot convert char to scalar' on the NV form -- now supported. Matches MATLAB R2025b. (MATLAB rescale supports only InputMin/InputMax NV, not Output*.)"
+}

@@ -7,6 +7,7 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <limits>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -567,13 +568,19 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
 ///
 /// Linearly maps `A` onto `[lo, hi]`. Constant input collapses to `lo`.
 ///
-/// @param A   Input array.
-/// @param lo  Target lower bound (default 0 via overload).
-/// @param hi  Target upper bound (default 1 via overload).
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Rescaled array, same shape as `A`.
+/// @param A         Input array.
+/// @param lo        Target lower bound (default 0 via overload).
+/// @param hi        Target upper bound (default 1 via overload).
+/// @param mr        Memory resource (nullptr → process default).
+/// @param inputMin  Input lower bound (NaN → per-column data min). When
+///                  given, values are clamped to `[inputMin, inputMax]`
+///                  before mapping (MATLAB 'InputMin'/'InputMax').
+/// @param inputMax  Input upper bound (NaN → per-column data max).
+/// @return          Rescaled array, same shape as `A`.
 /// @see normalize
-Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr = nullptr);
+Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr = nullptr,
+              double inputMin = std::numeric_limits<double>::quiet_NaN(),
+              double inputMax = std::numeric_limits<double>::quiet_NaN());
 
 /// @brief Z-score normalisation (`Y = zscore(A)`).
 ///
