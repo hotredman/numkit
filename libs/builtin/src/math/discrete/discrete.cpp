@@ -1046,8 +1046,36 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
-NK_BIN_SETOP_REG(ismember,  ismember)
 NK_BIN_SETOP_REG(histcounts, histcounts)
+
+// ismember(a,b): tf membership mask; [tf,loc] = ismember(...) also returns
+// loc(i) = the LOWEST 1-based index of a(i) in b (0 if absent), per MATLAB.
+void ismember_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ismember: requires 2 arguments", 0, 0, "ismember", "", "numkit:ismember:nargin");
+    auto *mr = ctx.engine->resource();
+    outs[0] = ismember(args[0], args[1], mr);
+    if (nargout > 1) {
+        const Value &a = args[0], &b = args[1];
+        ScratchArena scratch(mr);
+        std::pmr::unordered_map<double, double, DoubleHashEq0> idxB(&scratch);
+        idxB.reserve(b.numel());
+        const double *pb = b.doubleData();
+        for (size_t i = 0; i < b.numel(); ++i)
+            if (!std::isnan(pb[i]))
+                idxB.emplace(pb[i], static_cast<double>(i + 1));  // emplace keeps the lowest index
+        Value loc = createLike(a, ValueType::DOUBLE, mr);
+        double *lo = loc.doubleDataMut();
+        const double *pa = a.doubleData();
+        for (size_t i = 0; i < a.numel(); ++i) {
+            const double v = pa[i];
+            auto it = std::isnan(v) ? idxB.end() : idxB.find(v);
+            lo[i] = (it != idxB.end()) ? it->second : 0.0;
+        }
+        outs[1] = std::move(loc);
+    }
+}
 
 // union / intersect / setdiff accept a trailing 'sorted' (default) or
 // 'stable' setOrder flag; 'stable' keeps first-occurrence (A-then-B) order.

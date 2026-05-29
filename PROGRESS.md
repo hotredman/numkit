@@ -495,7 +495,7 @@ together.
 | `inner2outer` | ❌ |  |  |  |  |  |
 | `innerjoin` | ❌ |  |  |  |  |  |
 | `intersect` | ✅ | 0.003 | 380.87× |  | OK | Sig intersect(A,B[,setOrder]). Default 'sorted': intersect([1 2 3 4],[2 4 6]) = [2 4]. 'stable' keeps A-order: intersect([4 2 3 1],[1 2 4],'stable') = [4 2 1]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
-| `ismember` | ✅ | 0.005 | 121.13× | 50.29× | OK | Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09. |
+| `ismember` | ✅ | 0.005 | 179.36× |  | OK | Sig [tf,loc]=ismember(A,B): tf membership mask + loc = LOWEST 1-based index of each A element in B (0 if absent). ismember([2 5 8 1],[5 2 9]) -> tf=[1 1 0 0], loc=[2 1 0 0]. Tie rule (B has dups): ismember([3 1 2],[2 1 3 1]) -> loc=[3 2 1] (lowest index). numkit previously had NO 2nd output loc -- added. |
 | `ismissing` | ✅ | 0.015 | 168.31× |  | OK | anymissing + ismissing — standard NaN missing + custom indicator. Covers: double/single/uint8/logical/empty inputs for anymissing, ismissing with no indicator (NaN only) and scalar/vector indicator. Per MATLAB R2025b: when indicator is provided, NaN is NOT auto-flagged — only values matching the indicator are missing (NaN in indicator does match NaN in x). |
 | `issortedrows` | ✅ | 0.012 | 0.67× |  | OK | Sig: TF = issortedrows(X). 10k×3 pre-sorted. 1000 iters. |
 | `join` | ✅ | 0.004 | 28.48× |  | OK | Sig: r = join(...). Spec-extension batch 2026-05-09. |
@@ -566,7 +566,7 @@ together.
 | `allunique` | ✅ | 0.004 | 46.74× |  | OK | Sig: r = allunique(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `innerjoin` | ❌ |  |  |  |  |  |
 | `intersect` | ✅ | 0.003 | 380.87× |  | OK | Sig intersect(A,B[,setOrder]). Default 'sorted': intersect([1 2 3 4],[2 4 6]) = [2 4]. 'stable' keeps A-order: intersect([4 2 3 1],[1 2 4],'stable') = [4 2 1]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
-| `ismember` | ✅ | 0.005 | 121.13× | 50.29× | OK | Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09. |
+| `ismember` | ✅ | 0.005 | 179.36× |  | OK | Sig [tf,loc]=ismember(A,B): tf membership mask + loc = LOWEST 1-based index of each A element in B (0 if absent). ismember([2 5 8 1],[5 2 9]) -> tf=[1 1 0 0], loc=[2 1 0 0]. Tie rule (B has dups): ismember([3 1 2],[2 1 3 1]) -> loc=[3 2 1] (lowest index). numkit previously had NO 2nd output loc -- added. |
 | `ismembertol` | ✅ | 0.004 | 36.05× | 79.55× | OK | Sig: r = ismembertol(...). Spec-extension batch 2026-05-09. |
 | `join` | ✅ | 0.004 | 28.48× |  | OK | Sig: r = join(...). Spec-extension batch 2026-05-09. |
 | `numunique` | ✅ | 0.116 | 1.15× |  | OK | Sig: N = numunique(X). 10k with 137 distinct. 1000 iters. |
