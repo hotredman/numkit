@@ -2,12 +2,12 @@
   "name": "tf2sos",
   "namespace": "signal",
   "setup": "",
-  "expr": "sos = tf2sos([1 1 1], [1 0.5 0.25]); r1 = double(size(sos,1)); r2 = double(size(sos,2));",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "s = tf2sos([1 1 1], [1 0.5 0.25]); s2 = tf2sos([1 0.5], [1 -0.3 0.02 0.001]); [b2, a2] = sos2tf(s2);",
+  "iters": 2,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "double(size(s,1))", "s(1,1)", "s(1,5)", "s(1,6)",
+    "b2(1)", "b2(2)", "b2(3)", "a2(2)"
   ],
-  "comment": "Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig sos=tf2sos(b,a): transfer function -> SOS. Equal-degree b=[1 1 1],a=[1 0.5 0.25] -> single biquad row [1 1 1 1 0.5 0.25]. Degree-deficient b=[1 0.5] (3 poles) must REPRODUCE the original numerator: sos2tf(tf2sos(...)) = b2=[1 0.5 0 0] (surplus zeros LEFT-aligned at infinity, NOT pushed to origin like zp2sos) with a2=[1 -0.3 0.02 0.001]."
 }

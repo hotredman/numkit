@@ -1,12 +1,12 @@
 {
   "name": "zp2sos",
   "namespace": "signal",
-  "setup": "",
-  "expr": "sos = zp2sos([0.5], [0.25; -0.5], 1); r1 = double(size(sos,1));",
-  "iters": 5,
-  "tol": 1e-06,
+  "setup": "z = [0.5; -0.3]; p = [0.2; 0.1; -0.4; 0.6];",
+  "expr": "S = zp2sos(z, p, 2); [bb, aa] = sos2tf(S);",
+  "iters": 2,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "double(size(S,1))", "bb(1)", "bb(3)", "bb(4)", "bb(5)", "aa(end)", "double(sum(aa))"
   ],
-  "comment": "Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig sos=zp2sos(z,p,k): zero/pole/gain -> second-order sections. 2 zeros, 4 poles -> 2 sections. Validated via the canonical sos2tf round-trip (section ORDER may differ between engines, the product TF must not): bb=[0 0 2 -0.4 -0.3], aa(end)=-0.0048, sum(aa)=0.4032. The leading zeros bb(1)=0, bb(3)=2 confirm MATLAB's convention of placing SURPLUS zeros at the ORIGIN (degree-deficient numerator with z^-2 delay); numkit previously left them at infinity (bb=[2 -0.4 -0.3 0 0]) -- fixed (right-align empty biquad sections). tf2sos keeps the opposite (left-aligned) convention."
 }

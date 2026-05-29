@@ -2,11 +2,11 @@
   "name": "rectpulse",
   "namespace": "comm",
   "setup": "",
-  "expr": "y = rectpulse([1 -1 1 -1], 4); r1 = double(numel(y));",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "y = rectpulse([1 2 -3], 3);",
+  "iters": 3,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1"
+    "double(numel(y))", "y(1)", "y(3)", "y(4)", "y(6)", "y(9)"
   ],
-  "comment": "Sig: r = rectpulse(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig y=rectpulse(x,nsamp): rectangular pulse shaping — repeat each sample nsamp times (column-wise). [1 2 -3] with nsamp=3 -> [1;1;1;2;2;2;-3;-3;-3] (length 9). y(1)=y(3)=1, y(4)=2, y(6)=2, y(9)=-3."
 }
