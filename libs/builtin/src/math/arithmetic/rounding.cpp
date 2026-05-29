@@ -90,11 +90,17 @@ Value fix(const Value &x, std::pmr::memory_resource *mr)
 
 Value sign(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryDouble(x,
-                       [](double v) {
-                           return std::isnan(v) ? v : (v > 0) ? 1.0 : (v < 0 ? -1.0 : 0.0);
-                       },
-                       mr);
+    auto signOp = [](double v) {
+        return std::isnan(v) ? v : (v > 0) ? 1.0 : (v < 0 ? -1.0 : 0.0);
+    };
+    // Integer types keep their class (sign(int8(-5))=-1 int8). Promote to
+    // double first (unaryDouble's array path needs doubleData), then cast the
+    // -1/0/1 result back to the integer class.
+    if (isIntegerType(x.type())) {
+        Value d = unaryDouble(toDoubleValue(x, mr), signOp, mr);
+        return doubleToIntegerExact(d, x.type(), mr);
+    }
+    return unaryDouble(x, signOp, mr);
 }
 
 Value subplus(const Value &x, std::pmr::memory_resource *mr)

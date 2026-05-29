@@ -235,6 +235,32 @@ TEST_P(ArithmeticTest, AbsIntegerSaturates)
     EXPECT_DOUBLE_EQ(evalScalar("abs(3-4i);"), 5.0);
 }
 
+// sign() on integer types keeps the class (sign(int8(-5))=-1 int8). numkit
+// previously returned double and threw on integer arrays. DEEP-PROBE 2026-05-30.
+TEST_P(ArithmeticTest, SignIntegerKeepsClass)
+{
+    eval("a = sign(int8(-5));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(a);"), -1.0);
+    EXPECT_TRUE(evalBool("isequal(class(a), 'int8');"));
+    eval("b = sign(int8([-5 0 9]));");                  // [-1 0 1] int8
+    EXPECT_TRUE(evalBool("isequal(class(b), 'int8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(1));"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(2));"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(3));"),  1.0);
+    eval("c = sign(uint8(0));");                        // 0 uint8 (never -1)
+    EXPECT_DOUBLE_EQ(evalScalar("double(c);"), 0.0);
+    EXPECT_TRUE(evalBool("isequal(class(c), 'uint8');"));
+    eval("d = sign(int32([-100 100]));");
+    EXPECT_TRUE(evalBool("isequal(class(d), 'int32');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(d(1));"), -1.0);
+    // double inputs unchanged (regress).
+    EXPECT_DOUBLE_EQ(evalScalar("sign(-3.5);"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sign(0);"),     0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sign(2.1);"),   1.0);
+    EXPECT_TRUE(evalBool("isequal(class(sign(-3.5)), 'double');"));
+    EXPECT_TRUE(evalBool("isnan(sign(NaN));"));
+}
+
 INSTANTIATE_DUAL(ArithmeticTest);
 
 // ============================================================
