@@ -147,6 +147,28 @@ inline Value absIntegerSaturate(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
+// Exact same-class copy of an integer-typed Value (raw typed copy, so int64
+// values above 2^53 are preserved). Used for operations that are the
+// IDENTITY on integers but keep the class (floor/ceil/round/fix in MATLAB).
+// Caller guards isIntegerType().
+inline Value copyIntegerSameClass(const Value &x, std::pmr::memory_resource *mr)
+{
+    Value r = createLike(x, x.type(), mr);
+    const size_t n = x.numel();
+    switch (x.type()) {
+    case ValueType::INT8:   std::copy(x.int8Data(),   x.int8Data()   + n, r.int8DataMut());   break;
+    case ValueType::INT16:  std::copy(x.int16Data(),  x.int16Data()  + n, r.int16DataMut());  break;
+    case ValueType::INT32:  std::copy(x.int32Data(),  x.int32Data()  + n, r.int32DataMut());  break;
+    case ValueType::INT64:  std::copy(x.int64Data(),  x.int64Data()  + n, r.int64DataMut());  break;
+    case ValueType::UINT8:  std::copy(x.uint8Data(),  x.uint8Data()  + n, r.uint8DataMut());  break;
+    case ValueType::UINT16: std::copy(x.uint16Data(), x.uint16Data() + n, r.uint16DataMut()); break;
+    case ValueType::UINT32: std::copy(x.uint32Data(), x.uint32Data() + n, r.uint32DataMut()); break;
+    case ValueType::UINT64: std::copy(x.uint64Data(), x.uint64Data() + n, r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
 // Shape-preserving empty result for a binary op where at least one
 // operand is empty. The non-scalar operand contributes the output
 // shape; if both are non-scalar the dims must match, otherwise throw.

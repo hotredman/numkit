@@ -31,6 +31,11 @@ namespace {
 template <typename ScalarOp, typename SimdOp>
 Value roundLikeDispatch(const Value &x, ScalarOp scalar, SimdOp simdLoop, std::pmr::memory_resource *mr)
 {
+    // floor/ceil/round/fix are the IDENTITY on integer-typed values; MATLAB
+    // keeps the integer class. (The double path below would throw on integer
+    // storage / drop the class for a scalar.)
+    if (isIntegerType(x.type()))
+        return copyIntegerSameClass(x, mr);
     if (x.isScalar())
         return Value::scalar(scalar(x.toScalar()), mr);
     if (x.type() == ValueType::DOUBLE) {
