@@ -40,8 +40,21 @@ namespace numkit::builtin {
 // See BUGS.md #26.
 Value num2str(const Value &x, std::pmr::memory_resource *mr)
 {
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), "%.5g", x.toScalar());
+    const double v = x.toScalar();
+    // MATLAB num2str default precision is MAGNITUDE-AWARE, not a fixed 5 sig
+    // figs: it keeps ~4 digits after the integer part, so prec = digits-left-
+    // of-decimal + 4 = max(floor(log10|v|),0) + 5. Hence num2str(1000000) =
+    // "1000000" and num2str(1000000.5) = "1000000.5" (a fixed "%.5g" wrongly
+    // gave "1e+06"). Non-finite values use MATLAB's capitalised spelling.
+    if (std::isnan(v)) return Value::fromString("NaN", mr);
+    if (std::isinf(v)) return Value::fromString(v < 0 ? "-Inf" : "Inf", mr);
+    int prec = 5;
+    if (v != 0.0) {
+        const int e = static_cast<int>(std::floor(std::log10(std::fabs(v))));
+        prec = (e > 0 ? e : 0) + 5;
+    }
+    char buf[512];
+    std::snprintf(buf, sizeof(buf), "%.*g", prec, v);
     return Value::fromString(std::string(buf), mr);
 }
 
