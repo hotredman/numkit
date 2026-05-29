@@ -43,6 +43,45 @@ TEST_F(Misc5BatchTest, Polyval)
     EXPECT_DOUBLE_EQ(evalScalar("polyval([1 0], 7)"),    7.0);
 }
 
+// [p,S,mu] = polyfit centers/scales by mu = [mean(x); std(x)] and returns
+// an S struct (df, normr, R). Values verified against MATLAB R2025b.
+TEST_F(Misc5BatchTest, PolyfitSMu)
+{
+    eval("x = [1 2 3 4 5]; y = [2.1 3.9 6.2 7.8 10.1];"
+         "[p, S, mu] = polyfit(x, y, 1);");
+    EXPECT_NEAR(evalScalar("mu(1)"), 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("mu(2)"), 1.5811388300841898, 1e-12);   // std N-1
+    EXPECT_NEAR(evalScalar("p(1)"),  3.1464662718675380, 1e-9);    // centered slope (= 1.99·std)
+    EXPECT_NEAR(evalScalar("p(2)"),  6.02,               1e-12);   // value at mean
+    EXPECT_NEAR(evalScalar("S.normr"), 0.32710854467592304, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("S.df"), 3.0);
+}
+
+// [y,delta] = polyval(p,x,S,mu) returns the prediction + error estimate.
+TEST_F(Misc5BatchTest, PolyvalDelta)
+{
+    eval("x = [1 2 3 4 5]; y = [2.1 3.9 6.2 7.8 10.1];"
+         "[p, S, mu] = polyfit(x, y, 1);"
+         "[yhat, delta] = polyval(p, 3, S, mu);");
+    EXPECT_NEAR(evalScalar("yhat"),  6.02,     1e-12);
+    EXPECT_NEAR(evalScalar("delta"), 0.20688160865577232, 1e-9);
+}
+
+// [p,S] without mu does NOT center; delta from the raw-x S still matches.
+TEST_F(Misc5BatchTest, PolyfitSNoCenter)
+{
+    eval("x = [1 2 3 4 5]; y = [2.1 3.9 6.2 7.8 10.1];"
+         "[p, S] = polyfit(x, y, 1);");
+    EXPECT_NEAR(evalScalar("p(1)"), 1.99, 1e-9);   // uncentered slope
+    EXPECT_NEAR(evalScalar("p(2)"), 0.05, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("S.df"), 3.0);
+}
+
+TEST_F(Misc5BatchTest, PolyvalDeltaRequiresStruct)
+{
+    EXPECT_THROW(eval("[y, d] = polyval([1 0], [1 2 3]);"), std::exception);
+}
+
 TEST_F(Misc5BatchTest, Ppval)
 {
     eval("pp = mkpp([0 1 2], [1 0; 1 0]);");
