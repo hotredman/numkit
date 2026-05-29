@@ -233,14 +233,19 @@ void randsample_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 4 && args[3].numel() > 0) weights = args[3];
 
     // Form 1: N is a scalar count → sample integers 1..N.
-    // Form 2: N is a population vector → sample its values.
+    // Form 2: N is a population vector → sample its values. Sample along the
+    // vector's length: a row vector samples columns (dim 2), a column vector
+    // samples rows (dim 1). (Routing everything to dim 1 broke row-vector
+    // populations — N collapsed to the single row, so a length-N weights
+    // vector mismatched and any K>1 without replacement failed.)
     if (args[0].numel() == 1) {
         const int N = (int)args[0].toScalar();
         const int K = (int)args[1].toScalar();
         outs[0] = randsample(N, K, with_replacement, weights, ctx.engine->resource());
     } else {
         const int K = (int)args[1].toScalar();
-        outs[0] = datasample(args[0], K, 1, with_replacement, weights, ctx.engine->resource());
+        const int dim = (args[0].dims().rows() == 1) ? 2 : 1;
+        outs[0] = datasample(args[0], K, dim, with_replacement, weights, ctx.engine->resource());
     }
 }
 
