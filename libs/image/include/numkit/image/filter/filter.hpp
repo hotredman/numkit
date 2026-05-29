@@ -148,16 +148,20 @@ Value imboxfilt(const Value &I, int filter_size,
 /// (`B = integralBoxFilter(I, [fH fW], normFactor)`).
 ///
 /// Computes the sum of underlying pixels in an `fH × fW` window using
-/// four lookups in the integral image, then divides by `normFactor`.
+/// four lookups in the integral image, then multiplies by `normFactor`.
 /// Output size is `(H - fH + 1) × (W - fW + 1)` where the integral image
 /// `I` has shape `(H+1) × (W+1)` — only the fully-supported (no-boundary)
 /// region is returned, matching MATLAB. 3-D input `(H+1) × (W+1) × C`
 /// is processed per-channel.
 ///
+/// `normFactor` is a MATLAB-style **multiplier**: the box sum is
+/// multiplied by it. The default (set by the adapter) is `1/(fH·fW)`,
+/// giving the mean; pass `1` for the raw sum.
+///
 /// @param I            Integral image (output of `integralImage`).
 /// @param fH           Box height (positive odd integer).
 /// @param fW           Box width  (positive odd integer).
-/// @param normFactor   Normalisation divisor (use `fH · fW` for mean).
+/// @param normFactor   Multiplier applied to each box sum (`1/(fH·fW)` → mean).
 /// @param mr           Memory resource (nullptr → process default).
 /// @return             Filtered values, size `(H - fH + 1) × (W - fW + 1)[ × C]`.
 /// @see integralImage, imboxfilt

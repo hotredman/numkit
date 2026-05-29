@@ -2,7 +2,7 @@
   "name": "image_integralBoxFilter",
   "namespace": "image",
   "setup": "A = magic(8); I = integralImage(A);",
-  "expr": "B3 = integralBoxFilter(I); B5 = integralBoxFilter(I, 5); Br = integralBoxFilter(I, [3 5]); Bn1 = integralBoxFilter(I, 3, 'NormalizationFactor', 1); Bsmall = integralBoxFilter(I, [5 3]);",
+  "expr": "B3 = integralBoxFilter(I); B5 = integralBoxFilter(I, 5); Br = integralBoxFilter(I, [3 5]); Bn1 = integralBoxFilter(I, 3, 'NormalizationFactor', 1); Bsmall = integralBoxFilter(I, [5 3]); Bh = integralBoxFilter(I, 3, 'NormalizationFactor', 0.5); Bx2 = integralBoxFilter(I, 3, 'NormalizationFactor', 2);",
   "iters": 10,
   "tol": 1e-12,
   "fingerprint": [
@@ -11,7 +11,8 @@
     "B5(1,1)", "B5(end,end)", "size(B5,1)", "size(B5,2)",
     "Br(1,1)", "Br(end,end)", "size(Br,1)", "size(Br,2)",
     "Bn1(1,1)", "Bn1(end,end)",
-    "Bsmall(1,1)", "size(Bsmall,1)", "size(Bsmall,2)"
+    "Bsmall(1,1)", "size(Bsmall,1)", "size(Bsmall,2)",
+    "Bh(1,1)", "Bh(6,6)", "Bx2(1,1)"
   ],
-  "comment": "MATLAB Image Toolbox integralBoxFilter — O(1)-per-pixel box filter via 4-point lookup in a precomputed integral image. Output size (H - fH + 1) × (W - fW + 1) — only the fully-supported core (no boundary). filterSize accepts scalar (square box) or 2-vector [rows cols]; both must be ODD. NormalizationFactor NV-pair (default fH·fW for mean). 3-D color input processed per-channel. Bit-equal MATLAB R2025b on magic(8) integral image with 3×3, 5×5, [3 5], [5 3] filters + Normalization=1 raw-sum case. Octave 11.1.0 doesn't ship integralBoxFilter in core; reports N/A there."
+  "comment": "MATLAB Image Toolbox integralBoxFilter — O(1)-per-pixel box filter via 4-point lookup in a precomputed integral image. Output size (H - fH + 1) × (W - fW + 1) — only the fully-supported core (no boundary). filterSize accepts scalar (square box) or 2-vector [rows cols]; both must be ODD. NormalizationFactor NV-pair is a MULTIPLIER applied to the box sum (box-sum * normFactor), NOT a divisor — default 1/(fH·fW) gives the mean, 1 gives the raw sum, 0.5 halves it, 2 doubles it. Bit-equal MATLAB R2025b on magic(8) integral image with 3×3, 5×5, [3 5], [5 3] filters + NormalizationFactor in {1, 0.5, 2}. Octave 11.1.0 doesn't ship integralBoxFilter in core; reports N/A there."
 }
