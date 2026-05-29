@@ -182,6 +182,40 @@ TEST_F(ConvolutionTest, XcorrLagsRange)
     EXPECT_DOUBLE_EQ(evalScalar("lags(7)"), 3.0);
 }
 
+// xcorr scaleopt (was accepted-and-ignored -> raw correlation). vs MATLAB.
+// xcorr([1 2 3]) raw = [3 8 14 8 3]; energy at lag 0 = 14.
+TEST_F(ConvolutionTest, XcorrScaleOpts)
+{
+    eval("c = xcorr([1 2 3], [1 2 3], 'coeff');");   // peak normalized to 1
+    EXPECT_NEAR(evalScalar("c(3)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("c(2)"), 8.0 / 14.0, 1e-12);
+    eval("cb = xcorr([1 2 3], [1 2 3], 'biased');"); // divide by N=3
+    EXPECT_NEAR(evalScalar("cb(3)"), 14.0 / 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cb(1)"), 1.0, 1e-12);
+    eval("cu = xcorr([1 2 3], [1 2 3], 'unbiased');"); // divide by N-|lag|
+    EXPECT_NEAR(evalScalar("cu(3)"), 14.0 / 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cu(2)"), 8.0 / 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cu(1)"), 3.0 / 1.0, 1e-12);
+    // single-arg autocorr honors scaleopt too
+    eval("ca = xcorr([1 2 3], 'coeff');");
+    EXPECT_NEAR(evalScalar("ca(3)"), 1.0, 1e-12);
+    // unknown scaleopt throws
+    EXPECT_THROW(eval("xcorr([1 2 3], [1 2 3], 'bogus');"), std::exception);
+}
+
+// xcorr maxlag crop (+ combined with scaleopt).
+TEST_F(ConvolutionTest, XcorrMaxLag)
+{
+    eval("[c, lags] = xcorr([1 2 3], [1 2 3], 1);");
+    EXPECT_EQ(eval("c").numel(), 3u);
+    EXPECT_DOUBLE_EQ(evalScalar("lags(1)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("lags(3)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 14.0);      // lag 0
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"),  8.0);      // lag -1
+    eval("c2 = xcorr([1 2 3], [1 2 3], 1, 'coeff');");
+    EXPECT_NEAR(evalScalar("c2(2)"), 1.0, 1e-12);
+}
+
 // ── Pack 36: conv2 / filter2 / convn ────────────────────────────────
 TEST_F(ConvolutionTest, Conv2FullKnownExample)
 {
