@@ -134,14 +134,15 @@ Value qammod(const Value &x, int M, const std::string &symbol_order,
     Cd *od = out.complexDataMut();
     for (size_t i = 0; i < N; ++i) {
         const int s = (int)x.elemAsDouble(i);
-        // Decompose s into (sI, sQ) with sI = s mod KI, sQ = s div KI
-        // (column-major fill); then Gray-encode each axis independently.
-        const int sI = s % KI;
-        const int sQ = s / KI;
-        const int kI = (symbol_order == "bin") ? sI : to_gray(sI);
-        const int kQ = (symbol_order == "bin") ? sQ : to_gray(sQ);
-        const double I = (2.0 * double(kI) - double(KI - 1)) * scale;
-        const double Q = (2.0 * double(kQ) - double(KQ - 1)) * scale;
+        // MATLAB layout: the symbol indexes a column-major grid where the
+        // column (I axis) = s / KQ and the row (Q axis) = s % KQ. Each axis
+        // is Gray-coded; I increases left→right, Q DECREASES top→bottom.
+        const int col = s / KQ;
+        const int row = s % KQ;
+        const int gcol = (symbol_order == "bin") ? col : to_gray(col);
+        const int grow = (symbol_order == "bin") ? row : to_gray(row);
+        const double I = (2.0 * double(gcol) - double(KI - 1)) * scale;
+        const double Q = (double(KQ - 1) - 2.0 * double(grow)) * scale;
         od[i] = Cd(I, Q);
     }
     return out;
@@ -171,13 +172,13 @@ Value qamdemod(const Value &y, int M, const std::string &symbol_order,
              : Cd(y.elemAsDouble(i), 0.0);
         const double I = c.real() / scale;
         const double Q = c.imag() / scale;
-        int kI = (int)std::lround(0.5 * (I + double(KI - 1)));
-        int kQ = (int)std::lround(0.5 * (Q + double(KQ - 1)));
-        kI = std::clamp(kI, 0, KI - 1);
-        kQ = std::clamp(kQ, 0, KQ - 1);
-        const int sI = (symbol_order == "bin") ? kI : from_gray(kI);
-        const int sQ = (symbol_order == "bin") ? kQ : from_gray(kQ);
-        od[i] = double(sQ * KI + sI);
+        int gcol = (int)std::lround(0.5 * (I + double(KI - 1)));
+        int grow = (int)std::lround(0.5 * (double(KQ - 1) - Q));   // Q decreases
+        gcol = std::clamp(gcol, 0, KI - 1);
+        grow = std::clamp(grow, 0, KQ - 1);
+        const int col = (symbol_order == "bin") ? gcol : from_gray(gcol);
+        const int row = (symbol_order == "bin") ? grow : from_gray(grow);
+        od[i] = double(col * KQ + row);
     }
     return out;
 }
