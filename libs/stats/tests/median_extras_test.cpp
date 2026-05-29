@@ -27,6 +27,21 @@ TEST_F(MedianExtrasTest, DefaultPoisonsNaN)
     EXPECT_TRUE(std::isnan(evalScalar("median(v)")));
 }
 
+// MATLAB R2025b: median of an empty array -> NaN (not a 0x0 empty).
+// 0x0 [] -> scalar NaN; median(zeros(0,3))=[NaN NaN NaN] (1x3);
+// median(zeros(3,0))=1x0; median([],2)=0x1. DEEP-PROBE 2026-05-29.
+TEST_F(MedianExtrasTest, EmptyIsNaN)
+{
+    EXPECT_TRUE(std::isnan(evalScalar("median([])")));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(median([]))"), 1.0);
+    eval("c = median(zeros(0,3));");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c)"), 3.0);
+    EXPECT_TRUE(std::isnan(evalScalar("c(2)")));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(median(zeros(3,0)))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(median([],2),1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(median([],2),2)"), 1.0);
+}
+
 TEST_F(MedianExtrasTest, OmitnanExplicit)
 {
     EXPECT_DOUBLE_EQ(evalScalar("median(v, 'omitnan')"), 5);

@@ -117,6 +117,46 @@ inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_re
     return createMatrix(outShape, ValueType::DOUBLE, mr);
 }
 
+// MATLAB empty-input result for the NaN-returning descriptive reductions
+// (var / std / median / mode), mirroring mean's empty rule:
+//   * default (no explicit dim) of the 0x0 [] -> scalar NaN
+//   * otherwise the operating dim (explicit dim when given, else the first
+//     dim whose size != 1 — MATLAB treats a size-0 dim as non-singleton)
+//     collapses to 1 and the result is NaN-filled.
+// A size-0 sibling dim keeps the result empty, e.g. var(zeros(3,0))=1x0,
+// median([],2)=0x1. numkit previously returned a 0x0 empty for all of these.
+inline Value emptyStatReductionFill(const Value &x, int dim, double fill,
+                                    std::pmr::memory_resource *mr)
+{
+    const auto &dd = x.dims();
+    if (dim < 1 && dd.ndim() == 2 && dd.rows() == 0 && dd.cols() == 0)
+        return Value::scalar(fill, mr);
+    int opDim = dim;
+    if (opDim < 1) {
+        opDim = 1;
+        const int nd = dd.ndim();
+        for (int i = 0; i < nd; ++i)
+            if (dd.dim(i) != 1) { opDim = i + 1; break; }
+    }
+    DimsArg o{dd.rows(), dd.cols(), dd.is3D() ? dd.pages() : 0};
+    switch (opDim) {
+        case 1: o.rows  = 1; break;
+        case 2: o.cols  = 1; break;
+        case 3: o.pages = (o.pages == 0) ? 0 : 1; break;
+        default: break;
+    }
+    Value out = createMatrix(o, ValueType::DOUBLE, mr);
+    double *p = out.doubleDataMut();
+    const size_t n = out.numel();
+    for (size_t i = 0; i < n; ++i) p[i] = fill;
+    return out;
+}
+
+inline Value emptyStatReductionNaN(const Value &x, int dim, std::pmr::memory_resource *mr)
+{
+    return emptyStatReductionFill(x, dim, std::nan(""), mr);
+}
+
 // Complex variance along dim: walks slices via stride math, gathers
 // each slice into a Complex scratch buffer, computes per-slice complex
 // variance, writes DOUBLE output.
@@ -150,7 +190,7 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
                        std::pmr::memory_resource *mr, bool sqrtIt, bool omitNan = false)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return emptyStatReductionNaN(x, dim, mr);
     const Complex *src = x.complexData();
     if (x.isScalar() || x.dims().isVector()) {
         double v = complexVarianceFromSlice(src, x.numel(), normFlag, omitNan);
@@ -178,7 +218,7 @@ Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
     if (x.type() == ValueType::COMPLEX)
         return varianceComplex(x, normFlag, dim, mr, /*sqrtIt=*/false);
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return emptyStatReductionNaN(x, dim, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
         return Value::scalar(varianceTwoPass(x.doubleData(), x.numel(), normFlag), mr);
 
@@ -198,7 +238,7 @@ Value stdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr
     if (x.type() == ValueType::COMPLEX)
         return varianceComplex(x, normFlag, dim, mr, /*sqrtIt=*/true);
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return emptyStatReductionNaN(x, dim, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
         return Value::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
 
@@ -246,6 +286,8 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
     if (x.type() == ValueType::COMPLEX)
         throw Error("median: complex inputs are not supported (no defined ordering)",
                      0, 0, "median", "", "numkit:median:complex");
+    if (x.isEmpty())
+        return emptyStatReductionNaN(x, dim, mr);
     const int d = resolveDim(x, dim, "median");
     Value r = applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
@@ -712,6 +754,12 @@ dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char 
 std::tuple<Value, Value>
 mode(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
+    // MATLAB: mode of an empty array -> NaN-shaped value, 0-shaped count.
+    // [M,F]=mode([]) gives M=NaN, F=0; mode(zeros(0,3))=[NaN NaN NaN] with
+    // F=[0 0 0]; mode(zeros(3,0))=1x0 empties.
+    if (x.isEmpty())
+        return { emptyStatReductionFill(x, dim, std::nan(""), mr),
+                 emptyStatReductionFill(x, dim, 0.0, mr) };
     const int d = resolveDim(x, dim, "mode");
     return dispatchMode(x, d, mr, "mode");
 }

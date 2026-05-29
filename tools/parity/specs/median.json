@@ -2,12 +2,15 @@
   "name": "median",
   "namespace": "core",
   "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = median(x);",
+  "expr": "y = median(x); e0 = median([]); ne0 = numel(e0); ie0 = double(isnan(e0)); ec = median(zeros(0,3)); er = median(zeros(3,0));",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = median(X). 1M-pt full sort + middle. 50 iters. Scalar fp.",
+  "comment": "Sig: M = median(X). 1M-pt full sort + middle. 50 iters. Scalar fp. DEEP-PROBE 2026-05-29: median of an EMPTY array -> NaN (not 0x0): median([])=NaN scalar; median(zeros(0,3))=[NaN NaN NaN] (1x3); median(zeros(3,0))=1x0.",
   "fingerprint": [
     "double(y)",
-    "numel(y)"
+    "numel(y)",
+    "ne0", "ie0",
+    "size(ec,1)", "size(ec,2)", "double(isnan(ec(1)))",
+    "size(er,1)", "size(er,2)"
   ]
 }
