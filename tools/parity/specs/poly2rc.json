@@ -2,9 +2,12 @@
   "name": "poly2rc",
   "namespace": "signal",
   "setup": "",
-  "expr": "k = poly2rc([1 0.6 0.2]); r1 = double(numel(k));",
-  "iters": 5,
+  "expr": "[k,r0] = poly2rc([1 0.6 0.2 -0.1], 4); k2 = poly2rc([1 0.6 0.2]);",
+  "iters": 3,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: k = poly2rc(a). Spec-extension batch 2026-05-09 (cycle 40)."
+  "fingerprint": [
+    "k(1)", "k(2)", "k(3)", "r0",
+    "k2(1)", "k2(2)"
+  ],
+  "comment": "Sig [k,r0]=poly2rc(a,efinal): AR poly -> reflection coeffs via step-down, plus zero-lag autocorrelation R0=efinal/prod(1-k.^2). For a=[1 .6 .2 -.1], efinal=4: k=[0.496 0.262626 -0.1], r0=5.755727. Single-output k=poly2rc([1 .6 .2])=[0.5; 0.2]. numkit previously returned only k (no r0 2nd output) -- added efinal arg + R0."
 }

@@ -1,13 +1,13 @@
 {
   "name": "wthresh",
   "namespace": "wavelet",
-  "setup": "",
-  "expr": "y = wthresh([0 1 2 3 4], \"s\", 1); r1 = y(1); r2 = y(3);",
-  "iters": 5,
-  "tol": 1e-06,
+  "setup": "v = [-3 -1.5 -0.5 0.5 1.5 3];",
+  "expr": "ys = wthresh(v, 's', 1); yh = wthresh(v, 'h', 1);",
+  "iters": 3,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1",
-    "r2"
+    "ys(1)", "ys(2)", "ys(3)", "ys(5)", "ys(6)",
+    "yh(1)", "yh(2)", "yh(3)", "yh(5)", "yh(6)"
   ],
-  "comment": "Sig: r = wthresh(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig y=wthresh(x,sorh,t): soft 's' shrinks toward 0 by t (sign(x)*max(|x|-t,0)) -> [-2 -0.5 0 0 0.5 2] for t=1; hard 'h' zeroes |x|<=t and keeps the rest -> [-3 -1.5 0 0 1.5 3]. Pins both the kept-and-shrunk values and the zeroed sub-threshold entries for both modes."
 }

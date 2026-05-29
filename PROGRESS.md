@@ -1149,8 +1149,8 @@ vector path-loss models and coordinate transforms.
 | `bersync` | ❌ |  |  |  |  | with imperfect sync |
 | `semianalytic` | ❌ |  |  |  |  | semi-analytic BER |
 | `marcumq` | ✅ | 0.112 | 8.50× | 3.29× | OK | Sig: r = marcumq(...). Spec-extension batch 2026-05-09. |
-| `qfunc` | ✅ | 0.003 | 61.05× |  | OK | Sig: r = qfunc(...). Spec-extension batch 2026-05-09. |
-| `qfuncinv` | ✅ | 0.003 | 57.98× |  | OK | Sig: r = qfuncinv(...). Spec-extension batch 2026-05-09. |
+| `qfunc` | ✅ | 0.001 | 37.94× |  | OK | Sig q=qfunc(x)=0.5*erfc(x/sqrt(2)): upper tail of the standard normal. qfunc(-1.5)=0.933193, qfunc(0)=0.5, qfunc(1)=0.158655, qfunc(2)=0.0227501. Vectorised input; pins the symmetric pair and two positive arguments. |
+| `qfuncinv` | ✅ | 0.001 | 58.61× |  | OK | Sig x=qfuncinv(p)=sqrt(2)*erfcinv(2p): inverse Q-function. qfuncinv(0.5)=0, qfuncinv(0.1)=1.281552, qfuncinv(0.9)=-1.281552 (odd symmetry about 0.5), qfuncinv(0.025)=1.959964. tol 1e-7: numkit erfcinv differs from MATLAB by ~1e-9. |
 | `noisebw` | ✅ | 0.015 | 257.10× |  | OK | Sig: bw = noisebw(num, den, Nsamp, fs). Equivalent noise bandwidth via NBW = (fs/N) * sum(|H|^2) / max(|H|^2). Matches MATLAB R2025b within ~0.5 Hz on probed FIR (numerical-grid difference). |
 
 ## Control
@@ -2091,7 +2091,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `filemarker` | ❌ |  |  |  |  |  |
-| `fileparts` | ✅ | 0.003 |  |  | N/A | Sig: r = fileparts(...). Spec-extension batch 2026-05-09. |
+| `fileparts` | ✅ | 0.007 | 107.20× |  | OK | Sig [path,name,ext]=fileparts(f): splits a path. Multi-dot '/path/to/archive.tar.gz' -> path='/path/to', name='archive.tar' (only the LAST dot starts the extension), ext='.gz'. No-extension 'README' -> name='README', ext='' (empty). strcmp/isempty pin exact string equality (not a loose proxy). |
 | `filesep` | ✅ | 0.002 |  |  | N/A | Sig: r = filesep(...). Spec-extension batch 2026-05-09. |
 | `fullfile` | ✅ | 0.003 | 559.25× |  | OK | Sig: r = fullfile(...). Spec-extension batch 2026-05-09. |
 | `matlabdrive` | ❌ |  |  |  |  |  |
@@ -2510,12 +2510,12 @@ intentionally omitted — flat solver functions only.
 | `invfreqz` | ✅ | 0.010 | 134.25× | 130.89× | OK | Sig: [b,a] = invfreqz(h, w, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `is2rc` | ✅ | 0.004 | 65.88× |  | OK | Sig: k = is2rc(is). Spec-extension batch 2026-05-09 (cycle 40). |
 | `lar2rc` | ✅ | 0.004 | 54.93× |  | OK | Sig: k = lar2rc(g). Spec-extension batch 2026-05-09 (cycle 40). |
-| `levinson` | ✅ | 0.005 | 121.88× | 27.07× | OK | Sig: [a, e, k] = levinson(r, p). Spec-extension batch 2026-05-09 (cycle 40). |
+| `levinson` | ✅ | 0.004 | 174.10× |  | OK | Sig [a,e,k]=levinson(r,p): Levinson-Durbin AR fit. Branch 1 = valid PSD autocorr r=[1 .6 .3 .1]: a(2)=-0.65025, e=0.63177, k(1)=-0.6. Branch 2 = NON-PSD r=[4 -2 -3 1 1.5] (|k(2)|>1): MATLAB runs the full recursion through negative residual energy (a=[1 -1.78571 -1.25 -2.21429], e=9.10714, k(3)=-2.21429); numkit previously early-exited at e<=0 leaving a/k zeroed and e=0 -- fixed (drop the e<=0 bail, guard only exact-zero divide). |
 | `lpc` | ✅ | 0.006 | 217.39× | 93.01× | OK | Sig: r = lpc(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `lsf2poly` | ✅ | 0.004 | 282.89× |  | OK | Sig: a = lsf2poly(lsf). Fixed parity-based factor distribution 2026-05-09. |
 | `poly2ac` | ✅ | 0.004 | 326.99× |  | OK | Sig: r = poly2ac(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
 | `poly2lsf` | ✅ | 0.006 | 256.23× |  | OK | Sig: lsf = poly2lsf(a). Spec-extension batch 2026-05-09 (cycle 40). |
-| `poly2rc` | ✅ | 0.004 | 274.60× |  | OK | Sig: k = poly2rc(a). Spec-extension batch 2026-05-09 (cycle 40). |
+| `poly2rc` | ✅ | 0.002 | 764.11× |  | OK | Sig [k,r0]=poly2rc(a,efinal): AR poly -> reflection coeffs via step-down, plus zero-lag autocorrelation R0=efinal/prod(1-k.^2). For a=[1 .6 .2 -.1], efinal=4: k=[0.496 0.262626 -0.1], r0=5.755727. Single-output k=poly2rc([1 .6 .2])=[0.5; 0.2]. numkit previously returned only k (no r0 2nd output) -- added efinal arg + R0. |
 | `prony` | ✅ | 0.004 | 230.29× |  | OK | Sig: [b,a] = prony(h, nb, na). Spec-extension batch 2026-05-09 (cycle 43). |
 | `rc2ac` | ✅ | 0.004 | 495.61× |  | OK | Sig: r = rc2ac(k, R0). Spec-extension batch 2026-05-09 (cycle 40). |
 | `rc2is` | ✅ | 0.004 | 56.88× |  | OK | Sig: is = rc2is(k). Spec-extension batch 2026-05-09 (cycle 40). |
@@ -2922,7 +2922,7 @@ locations until physical migration lands.
 | `summary` | ❌ |  |  |  |  |  |
 | `var` | ✅ | 0.013 | 144.87× | 66.76× | OK | Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Closes audit/findings/stats/var.md. |
 | `xcorr` | ✅ | 0.004 | 360.50× | 69.56× | OK | Sig: r = xcorr(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `xcov` | ✅ | 0.004 | 453.00× | 211.18× | OK | Sig: r = xcov(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `xcov` | ✅ | 0.006 | 378.98× |  | OK | Sig c=xcov(x,y,scaleopt): cross-covariance of mean-removed signals with scaling. zero-lag is index 5 (length 2N-1=9). 'none' c(5)=5 raw; 'biased' divides every lag by N=5 -> c(5)=1, c(4)=-1.56, c(6)=0.6; 'unbiased' divides lag m by (N-|m|) -> c(5)=1, c(3)=1.26667, c(7)=-2.53333; 'coeff' divides by sqrt(Cxx0*Cyy0)=sqrt(22.8*10) -> c(5)=0.331133. numkit previously ignored scaleopt entirely (returned raw for all). Fixed in convolution.cpp. |
 
 ### Descriptive Statistics — extras
 
@@ -3454,7 +3454,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dwt2` | ✅ | 0.008 | 169.98× |  | OK | Sig: r = dwt2(...). Spec-extension batch 2026-05-09. |
+| `dwt2` | ✅ | 0.006 | 426.67× |  | OK | Sig [cA,cH,cV,cD]=dwt2(X,'haar'): single-level 2-D Haar DWT, 4x4 ramp -> 2x2 subbands. Approximation cA=[7 11; 23 27] (col-major: cA(1,1)=7, cA(2,2)=27); horizontal cH(1,1)=-1; vertical cV(1,1)=-4; diagonal cD(1,1)=0 (separable ramp has no diagonal detail); sum(cA)=68. Pins distinct cA entries (not a constant) so the orientation/scaling of all four subbands is fixed. |
 | `idwt2` | ✅ | 0.015 | 300.81× |  | OK | Sig: r = idwt2(...). Spec-extension batch 2026-05-09. |
 | `wavedec2` | ❌ |  |  |  |  |  |
 | `waverec2` | ❌ |  |  |  |  |  |
@@ -3511,7 +3511,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `thselect` | ❌ |  |  |  |  | threshold selection |
 | `wthcoef` | ❌ |  |  |  |  | apply threshold to detail coeffs |
 | `wthcoef2` | ❌ |  |  |  |  |  |
-| `wthresh` | ✅ | 0.004 | 705.63× |  | OK | Sig: r = wthresh(...). Spec-extension batch 2026-05-09. |
+| `wthresh` | ✅ | 0.002 | 807.84× |  | OK | Sig y=wthresh(x,sorh,t): soft 's' shrinks toward 0 by t (sign(x)*max(|x|-t,0)) -> [-2 -0.5 0 0 0.5 2] for t=1; hard 'h' zeroes |x|<=t and keeps the rest -> [-3 -1.5 0 0 1.5 3]. Pins both the kept-and-shrunk values and the zeroed sub-threshold entries for both modes. |
 | `wmulden` | ❌ |  |  |  |  | multivariate denoising |
 | `measerr` | ❌ |  |  |  |  | quality measures (PSNR/MSE/MAX/L2) |
 | `wnoise` | ❌ |  |  |  |  | noisy test signal |
@@ -3781,3 +3781,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `image_roifilt2` | — | 0.010 | 178.06× |  | OK | MATLAB Image Toolbox roifilt2 — filter a region of interest. Form 1 roifilt2(h,I,BW): imfilter(I,h) (correlation, zero boundary, same size) with only the BW pixels replaced (output equals I elsewhere); output class = class(I). Form 2 roifilt2(I,BW,fun): apply fun to the whole image, keep only BW pixels; output class follows fun's result (uint8 fun -> uint8, double fun -> double). MATLAB crops to the ROI bbox + ceil(size(h)/2) pad purely as an optimisation; the masked pixels' values equal full-image imfilter, so we filter the full image. Verified vs MATLAB R2025b on magic(6) with a 3x3 Laplacian + 3x3 averaging filter (form 1) and uint8 x*2 / double+0.5 handles (form 2). Bit-equal (tol=1e-12) for ODD filters. NOTE: even-size filters inherit numkit imfilter's even-kernel anchoring, which currently differs from MATLAB by one pixel (a pre-existing imfilter gap tracked separately) — not exercised here. Octave 11.1.0 ships roifilt2 in the image package only -> reports N/A there. |
 | `padarray_dir` | — | 0.004 | 156.43× |  | OK | MATLAB padarray — scalar pad value + direction coverage: asymmetric padsize [1 2] with value 7; 'pre'/'post'/'both' directions (value 0/9). Pins sizes + boundary pixels. Bit-equal MATLAB R2025b (tol=1e-12). |
 | `imrotate_bbox` | — | 0.003 | 341.72× |  | OK | MATLAB imrotate bbox + default coverage. 'crop' keeps the INPUT size for 90 deg / 270 deg of a non-square image (3x4, via exact rot90 + centred extraction with direction-dependent half-pixel placement). Default method is 'nearest' (imrotate(J,30) == nearest, sum 86), and the 3-arg form imrotate(A,angle,bbox) treats arg3 as a bbox keyword. Bit-equal MATLAB R2025b. |
+| `xcov_maxlag` | — | 0.004 | 153.44× |  | OK | xcov maxlag + autocov forms. xcov(x,y,2): crops to lags -2..2 -> length 2*2+1=5 (numkit previously ignored maxlag, returning full length 9), zero-lag at index 3 = 5, c(1)=3.8, c(5)=-7.6. xcov(x,y,2,'biased'): same crop then /N=5 -> c(3)=1, c(1)=0.76, c(5)=-1.52. xcov(x): auto-covariance, zero-lag c(5)=sum((x-mean(x)).^2)=22.8. |
