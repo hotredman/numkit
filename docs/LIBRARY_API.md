@@ -523,6 +523,19 @@ Functions in `namespace detail`, anonymous namespaces, or `.cpp`-local
 helpers may use whatever signature is convenient. Only public-facing
 declarations in `libs/<ns>/include/**` must follow these rules.
 
+## 22. File-format I/O placement
+
+Readers and writers for on-disk file formats live in the **domain
+library that owns the data type they handle**, not in a unified formats
+library. Image formats → `libs/image/src/io/`. Audio formats →
+`libs/audio/src/io/`. General / cross-domain (CSV, .mat, future HDF5 /
+Parquet / Zarr) → `libs/io/`. Raw byte-stream primitives (`fopen`,
+`fread`, …) live in `libs/io/src/file_io/`.
+
+Decision tree, current layout, and the reasoning behind the per-domain
+split are in [`FORMAT_HOMES.md`](FORMAT_HOMES.md). Consult it before
+adding a new format implementation.
+
 ---
 
 ## A worked example
