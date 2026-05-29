@@ -114,3 +114,21 @@ TEST_F(FilterTest, FiltfiltSmooths)
     double outputVar = evalScalar("sum((y - mean(y)).^2)");
     EXPECT_LT(outputVar, inputVar);
 }
+
+// filter final-state output [y,zf] and initial-conditions input
+// filter(b,a,x,zi). Both were unsupported (zf undefined; zi ignored).
+// vs MATLAB R2025b.
+TEST_F(FilterTest, FilterFinalStateAndInitialConditions)
+{
+    eval("[y, zf] = filter([1 1], [1 -0.5], [1 2 3 4]);");
+    EXPECT_NEAR(evalScalar("y(4)"),  10.375, 1e-12);
+    EXPECT_NEAR(evalScalar("zf"),     9.1875, 1e-12);   // final DF2T state
+    // zi seeds the state: y(1) = b(1)*x(1) + zi(1) = 1 + 10 = 11.
+    eval("yi = filter([1 1], [1 -0.5], [1 2 3 4], 10);");
+    EXPECT_NEAR(evalScalar("yi(1)"), 11.0, 1e-12);
+    // zf length = max(na,nb)-1 = 2 for a 3-tap FIR.
+    eval("[y2, zf2] = filter([1 0.5 0.25], 1, [1 2 3 4 5]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(zf2)")), 2);
+    EXPECT_NEAR(evalScalar("zf2(1)"), 3.5,  1e-12);
+    EXPECT_NEAR(evalScalar("zf2(2)"), 1.25, 1e-12);
+}
