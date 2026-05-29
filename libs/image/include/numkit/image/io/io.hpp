@@ -14,6 +14,7 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 #include <string>
+#include <utility>
 
 namespace numkit::image {
 
@@ -102,6 +103,15 @@ Value readTiff(const std::string &path,
 /// `imread(file, k)` semantics.
 Value readTiff(const std::string &path, std::uint32_t page,
                std::pmr::memory_resource *mr = nullptr);
+
+/// Two-output read for palette TIFFs: returns `(indices, colormap)`.
+/// `indices` is the same as `readTiff` (uint8 / uint16). `colormap` is
+/// K×3 DOUBLE in [0, 1] for palette files (Photometric = 3), or empty
+/// for non-palette files. K = 2^BitsPerSample. Matches MATLAB's
+/// `[A, map] = imread(file)` for indexed images.
+std::pair<Value, Value>
+readTiffWithMap(const std::string &path, std::uint32_t page,
+                std::pmr::memory_resource *mr = nullptr);
 
 /// Peek a TIFF file's first-IFD metadata without decoding pixels.
 /// Output struct: `Width`, `Height`, `BitsPerSample`, `NumberOfChannels`.

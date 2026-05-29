@@ -227,50 +227,161 @@ std::vector<std::uint8_t> encodeDeflate(const std::uint8_t *src, std::size_t n)
 
 // ── chunky row-major bytes from numkit Value ───────────────────────
 
-// Encode the image's pixels into row-major chunky uint8/uint16 bytes,
-// LE within each sample. Throws for unsupported dtypes.
-std::vector<std::uint8_t>
-extractChunkyBytes(const Value &A, std::size_t H, std::size_t W, std::size_t S,
-                   std::size_t &bps_out)
+// Map an input ValueType to TIFF (BitsPerSample, SampleFormat). Native
+// MATLAB-image types (uint8/16, int8/16/32, single, double, logical)
+// map 1:1. Generic numeric inputs that don't have a natural integer
+// repr default to uint8 (with clamp), preserving the pre-cycle-92
+// behaviour.
+struct DtypeMap {
+    std::size_t   bytesPerSample;
+    std::uint16_t bitsPerSample;
+    std::uint16_t sampleFormat;  // 1=uint, 2=int, 3=float
+    enum class Mode { U8, U16, U32, I8, I16, I32, F32, F64 } mode;
+};
+
+DtypeMap mapDtype(ValueType vt)
 {
-    const ValueType vt = A.type();
-    std::size_t bps;
-    bool isU16 = false;
     switch (vt) {
         case ValueType::UINT8:
         case ValueType::LOGICAL:
         case ValueType::CHAR:
-        case ValueType::DOUBLE:  // clamp to 0..255
-        case ValueType::SINGLE:
-            bps = 1; break;
-        case ValueType::UINT16:
-            bps = 2; isU16 = true; break;
+            return { 1, 8,  1, DtypeMap::Mode::U8  };
+        case ValueType::UINT16:  return { 2, 16, 1, DtypeMap::Mode::U16 };
+        case ValueType::UINT32:  return { 4, 32, 1, DtypeMap::Mode::U32 };
+        case ValueType::INT8:    return { 1, 8,  2, DtypeMap::Mode::I8  };
+        case ValueType::INT16:   return { 2, 16, 2, DtypeMap::Mode::I16 };
+        case ValueType::INT32:   return { 4, 32, 2, DtypeMap::Mode::I32 };
+        case ValueType::SINGLE:  return { 4, 32, 3, DtypeMap::Mode::F32 };
+        case ValueType::DOUBLE:  return { 8, 64, 3, DtypeMap::Mode::F64 };
         default:
-            throw Error("imwrite TIFF: unsupported input type (need uint8/uint16 or numeric → uint8)",
+            throw Error("imwrite TIFF: unsupported input type",
                         0, 0, "imwrite", "", "numkit:imwrite:tiffType");
     }
-    bps_out = bps;
+}
+
+// Encode pixels in row-major chunky layout, little-endian within each
+// sample. The destination byte count is H · W · S · bytesPerSample.
+std::vector<std::uint8_t>
+extractChunkyBytes(const Value &A, std::size_t H, std::size_t W, std::size_t S,
+                   const DtypeMap &dm)
+{
+    const std::size_t bps = dm.bytesPerSample;
     const std::size_t plane = H * W;
     std::vector<std::uint8_t> bytes(H * W * S * bps);
+
+    auto writeU16 = [](std::uint8_t *p, std::uint16_t v) {
+        p[0] = static_cast<std::uint8_t>(v & 0xFF);
+        p[1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
+    };
+    auto writeU32 = [](std::uint8_t *p, std::uint32_t v) {
+        for (int i = 0; i < 4; ++i)
+            p[i] = static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF);
+    };
+    auto writeU64 = [](std::uint8_t *p, std::uint64_t v) {
+        for (int i = 0; i < 8; ++i)
+            p[i] = static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF);
+    };
+
     for (std::size_t r = 0; r < H; ++r)
         for (std::size_t c = 0; c < W; ++c)
             for (std::size_t s = 0; s < S; ++s) {
                 const std::size_t srcIdx = (S == 1)
                     ? (c * H + r)
                     : (s * plane + c * H + r);
-                const std::size_t dstByte = (r * W + c) * S * bps + s * bps;
-                if (isU16) {
-                    const std::uint16_t v = A.uint16Data()[srcIdx];
-                    bytes[dstByte]     = static_cast<std::uint8_t>(v & 0xFF);
-                    bytes[dstByte + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
-                } else {
-                    double dv = A.elemAsDouble(srcIdx);
-                    if (dv < 0) dv = 0;
-                    if (dv > 255) dv = 255;
-                    bytes[dstByte] = static_cast<std::uint8_t>(static_cast<int>(dv));
+                std::uint8_t *dst = bytes.data() + (r * W + c) * S * bps + s * bps;
+                switch (dm.mode) {
+                    case DtypeMap::Mode::U8: {
+                        double dv = A.elemAsDouble(srcIdx);
+                        if (dv < 0) dv = 0; if (dv > 255) dv = 255;
+                        *dst = static_cast<std::uint8_t>(static_cast<int>(dv));
+                        break;
+                    }
+                    case DtypeMap::Mode::U16:
+                        writeU16(dst, A.uint16Data()[srcIdx]); break;
+                    case DtypeMap::Mode::U32:
+                        writeU32(dst, A.uint32Data()[srcIdx]); break;
+                    case DtypeMap::Mode::I8: {
+                        std::int8_t v = A.int8Data()[srcIdx];
+                        std::memcpy(dst, &v, 1); break;
+                    }
+                    case DtypeMap::Mode::I16: {
+                        std::int16_t v = A.int16Data()[srcIdx];
+                        std::uint16_t u; std::memcpy(&u, &v, 2);
+                        writeU16(dst, u); break;
+                    }
+                    case DtypeMap::Mode::I32: {
+                        std::int32_t v = A.int32Data()[srcIdx];
+                        std::uint32_t u; std::memcpy(&u, &v, 4);
+                        writeU32(dst, u); break;
+                    }
+                    case DtypeMap::Mode::F32: {
+                        float f = A.singleData()[srcIdx];
+                        std::uint32_t u; std::memcpy(&u, &f, 4);
+                        writeU32(dst, u); break;
+                    }
+                    case DtypeMap::Mode::F64: {
+                        double d = A.doubleData()[srcIdx];
+                        std::uint64_t u; std::memcpy(&u, &d, 8);
+                        writeU64(dst, u); break;
+                    }
                 }
             }
     return bytes;
+}
+
+// Apply horizontal differencing predictor in-place: for each row,
+// replace pixel[i, s] with pixel[i, s] - pixel[i-1, s] (per sample
+// component for chunky layout, first pixel unchanged). Used to improve
+// LZW / Deflate compression ratios — must set Predictor tag (317) = 2
+// when applied. MATLAB's `imwrite(..., 'tif', 'Compression', 'lzw')`
+// applies this by default.
+void applyHorizontalDiff(std::vector<std::uint8_t> &buf, std::size_t H,
+                          std::size_t W, std::size_t S, std::size_t bps)
+{
+    const std::size_t rowBytes = W * S * bps;
+    if (bps == 1) {
+        for (std::size_t r = 0; r < H; ++r) {
+            std::uint8_t *row = buf.data() + r * rowBytes;
+            // Walk RTL so each diff sees the original prev pixel.
+            for (std::size_t c = W; c-- > 1;) {
+                for (std::size_t s = 0; s < S; ++s)
+                    row[c * S + s] = static_cast<std::uint8_t>(
+                        row[c * S + s] - row[(c - 1) * S + s]);
+            }
+        }
+    } else if (bps == 2) {
+        for (std::size_t r = 0; r < H; ++r) {
+            std::uint8_t *row = buf.data() + r * rowBytes;
+            for (std::size_t c = W; c-- > 1;) {
+                for (std::size_t s = 0; s < S; ++s) {
+                    const std::size_t off = (c * S + s) * 2;
+                    const std::size_t pof = ((c - 1) * S + s) * 2;
+                    std::uint16_t cur, prv;
+                    std::memcpy(&cur, row + off, 2);
+                    std::memcpy(&prv, row + pof, 2);
+                    const std::uint16_t v = static_cast<std::uint16_t>(cur - prv);
+                    std::memcpy(row + off, &v, 2);
+                }
+            }
+        }
+    } else if (bps == 4) {
+        for (std::size_t r = 0; r < H; ++r) {
+            std::uint8_t *row = buf.data() + r * rowBytes;
+            for (std::size_t c = W; c-- > 1;) {
+                for (std::size_t s = 0; s < S; ++s) {
+                    const std::size_t off = (c * S + s) * 4;
+                    const std::size_t pof = ((c - 1) * S + s) * 4;
+                    std::uint32_t cur, prv;
+                    std::memcpy(&cur, row + off, 4);
+                    std::memcpy(&prv, row + pof, 4);
+                    const std::uint32_t v = cur - prv;
+                    std::memcpy(row + off, &v, 4);
+                }
+            }
+        }
+    }
+    // bps==8 (DOUBLE) is supported only without predictor (predictor=2
+    // is undefined for floating-point widths > 4 in the TIFF spec).
 }
 
 // Resolve the compression code from a string ('none'|'packbits'|'lzw'|'deflate').
@@ -331,8 +442,21 @@ void writePage(std::vector<std::uint8_t> &buf, const Value &A,
         throw Error("imwrite TIFF: only 1, 3, or 4 channels supported",
                     0, 0, "imwrite", "", "numkit:imwrite:tiffShape");
 
-    std::size_t bps = 0;
-    auto bytes = extractChunkyBytes(A, H, W, S, bps);
+    const DtypeMap dm = mapDtype(A.type());
+    const std::size_t bps = dm.bytesPerSample;
+    auto bytes = extractChunkyBytes(A, H, W, S, dm);
+
+    // Horizontal predictor — improves LZW / Deflate compression and
+    // matches MATLAB's default `imwrite(..., 'tif', 'Compression', 'lzw')`
+    // output. TIFF spec restricts predictor=2 to 8/16/32-bit integer
+    // samples (not float). Apply only when both apply.
+    const bool useHPred = (compression == 5 || compression == 8 || compression == 32946)
+                          && (dm.sampleFormat != 3)
+                          && (bps == 1 || bps == 2 || bps == 4);
+    if (useHPred)
+        applyHorizontalDiff(bytes, H, W, S, bps);
+    const std::uint16_t predictor = useHPred ? 2u : 1u;
+
     auto strip = compressStrip(bytes.data(), bytes.size(), compression);
 
     // Pad to even offset for tag alignment (TIFF convention recommends).
@@ -346,7 +470,7 @@ void writePage(std::vector<std::uint8_t> &buf, const Value &A,
     if ((buf.size() & 1) != 0) buf.push_back(0);
 
     const std::uint16_t photometric = (S == 1) ? 1u : 2u;
-    const std::uint16_t bitsPerSample = static_cast<std::uint16_t>(bps * 8);
+    const std::uint16_t bitsPerSample = dm.bitsPerSample;
 
     std::uint32_t bpsArrayOffset = 0;
     if (S > 1) {
@@ -383,8 +507,10 @@ void writePage(std::vector<std::uint8_t> &buf, const Value &A,
     entries.push_back({277, 3, 1, static_cast<std::uint32_t>(S)});
     entries.push_back({278, 4, 1, static_cast<std::uint32_t>(H)});
     entries.push_back({279, 4, 1, static_cast<std::uint32_t>(strip.size())});
-    entries.push_back({284, 3, 1, 1u});  // PlanarConfig chunky
-    entries.push_back({339, 3, 1, 1u});  // SampleFormat = unsigned int
+    entries.push_back({284, 3, 1, 1u});                // PlanarConfig chunky
+    if (predictor != 1)
+        entries.push_back({317, 3, 1, predictor});     // Predictor=2 (horizontal)
+    entries.push_back({339, 3, 1, dm.sampleFormat});   // SampleFormat (1/2/3)
 
     // IFD layout: 2-byte count + 12-byte entries + 4-byte next-IFD offset.
     const std::size_t ifdBytes = 2 + entries.size() * 12 + 4;

@@ -38,9 +38,9 @@ std::string lowerExt(const std::string &path) {
 
 } // anonymous
 
-// Sniff TIFF magic — 'II*\0' little-endian or 'MM\0*' big-endian.
-// Returns true on either form. (stb_image rejects TIFF, so we route
-// to our own minimal reader instead.)
+// Sniff TIFF magic — accepts both classic TIFF (magic 42 = 0x2A) and
+// BigTIFF (magic 43 = 0x2B) in either byte order. stb_image doesn't
+// decode TIFF, so we route to our in-tree reader.
 static bool isTiffFile(const std::string &path) {
     std::FILE *f = std::fopen(path.c_str(), "rb");
     if (!f) return false;
@@ -48,9 +48,13 @@ static bool isTiffFile(const std::string &path) {
     const std::size_t n = std::fread(hdr, 1, 4, f);
     std::fclose(f);
     if (n < 4) return false;
-    if (hdr[0] == 'I' && hdr[1] == 'I' && hdr[2] == 0x2A && hdr[3] == 0x00)
+    // Little-endian: II + magic + 0
+    if (hdr[0] == 'I' && hdr[1] == 'I' && hdr[3] == 0x00 &&
+        (hdr[2] == 0x2A || hdr[2] == 0x2B))
         return true;
-    if (hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0x00 && hdr[3] == 0x2A)
+    // Big-endian: MM + 0 + magic
+    if (hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0x00 &&
+        (hdr[3] == 0x2A || hdr[3] == 0x2B))
         return true;
     return false;
 }
@@ -219,13 +223,13 @@ std::string detectFormat(const std::string &path) {
     if (n >= 8 && hdr[0] == 0x89 && hdr[1] == 'P' && hdr[2] == 'N' &&
         hdr[3] == 'G' && hdr[4] == 0x0D && hdr[5] == 0x0A)
         return "png";
-    // TIFF little-endian: II + 0x2A 0x00
-    if (n >= 4 && hdr[0] == 'I' && hdr[1] == 'I' && hdr[2] == 0x2A &&
-        hdr[3] == 0x00)
+    // TIFF (classic) little-endian: II + 0x2A 0x00; BigTIFF: II + 0x2B 0x00
+    if (n >= 4 && hdr[0] == 'I' && hdr[1] == 'I' && hdr[3] == 0x00 &&
+        (hdr[2] == 0x2A || hdr[2] == 0x2B))
         return "tif";
-    // TIFF big-endian: MM + 0x00 0x2A
+    // TIFF (classic) big-endian: MM + 0x00 0x2A; BigTIFF: MM + 0x00 0x2B
     if (n >= 4 && hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0x00 &&
-        hdr[3] == 0x2A)
+        (hdr[3] == 0x2A || hdr[3] == 0x2B))
         return "tif";
     // JPEG: starts with FF D8 FF
     if (n >= 3 && hdr[0] == 0xFF && hdr[1] == 0xD8 && hdr[2] == 0xFF)
@@ -310,7 +314,7 @@ Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
 
 namespace detail {
 
-void imread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void imread_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 CallContext &ctx)
 {
     if (args.empty())
@@ -320,13 +324,30 @@ void imread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("imread: path must be a string",
                     0, 0, "imread", "", "numkit:imread:type");
     const std::string path = args[0].toString();
-    // 2nd numeric arg = page index (TIFF multi-page support).
+
+    // Optional 2nd numeric arg = page index (TIFF multi-page).
+    std::uint32_t page = 1;
+    bool pageGiven = false;
     if (args.size() >= 2 && !args[1].isEmpty()
         && !args[1].isChar() && !args[1].isString()) {
-        const std::uint32_t page = static_cast<std::uint32_t>(args[1].toScalar());
+        page = static_cast<std::uint32_t>(args[1].toScalar());
+        pageGiven = true;
         if (!isTiffFile(path))
             throw Error("imread: page index only supported for TIFF files",
                         0, 0, "imread", "", "numkit:imread:notTiff");
+    }
+
+    // Two-output form `[A, map] = imread(file)` — supported for TIFF
+    // palette files. For other formats and for one-output reads we keep
+    // the existing single-Value path.
+    if (nargout >= 2 && isTiffFile(path)) {
+        auto pair = readTiffWithMap(path, page, ctx.engine->resource());
+        outs[0] = std::move(pair.first);
+        outs[1] = std::move(pair.second);
+        return;
+    }
+
+    if (pageGiven) {
         outs[0] = readTiff(path, page, ctx.engine->resource());
         return;
     }
