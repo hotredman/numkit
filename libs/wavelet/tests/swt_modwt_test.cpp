@@ -11,15 +11,14 @@
 //   2. modwt now accepts the 3 MATLAB invocation forms:
 //        modwt(x), modwt(x, wname), modwt(x, wname, lev).
 //
-// Two known sub-fixes still pending (out of scope for this ТЗ — kernel-
-// level investigation needed):
+// One known sub-fix still pending (out of scope — kernel-level):
 //   a. swt detail rows differ from MATLAB by sign (Hi_D vs Hi_R QMF
 //      convention). Approximation row matches bit-identical.
-//   b. modwt per-coefficient values differ from MATLAB (sqrt(2)-
-//      normalisation convention). Output SHAPE matches.
-//   Both inverses (iswt/imodwt) DO recover the original signal to
-//   machine precision — that's the structurally important invariant
-//   and what these tests pin.
+//   (b. modwt per-coefficient values: FIXED 2026-05-29 — the MODWT
+//      filters are wrev(Lo_D)/√2 and wrev(Hi_D)/√2 applied as a look-back
+//      circular convolution; now bit-identical with MATLAB R2025b.)
+//   Both inverses (iswt/imodwt) recover the original signal to machine
+//   precision — the structurally important invariant these tests pin.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -72,6 +71,27 @@ TEST_F(SwtModwtTest, ModwtTwoArgNumericLevelDefaultWname)
     eval("w = modwt(x, 4);");
     EXPECT_DOUBLE_EQ(evalScalar("size(w, 1)"), 5.0);
     EXPECT_DOUBLE_EQ(evalScalar("size(w, 2)"), 32.0);
+}
+
+// ─── modwt coefficient values now match MATLAB R2025b ──────────────
+
+TEST_F(SwtModwtTest, ModwtHaarCoefficientsMatchMatlab)
+{
+    eval("xv = [1 2 3 4 5 6 7 8]; w = modwt(xv, 'haar', 2);");
+    // Detail level 1, row 1: circular wrap puts 0.5*(x1-x8) = -3.5 at t=1.
+    EXPECT_NEAR(evalScalar("w(1,1)"), -3.5, 1e-12);
+    EXPECT_NEAR(evalScalar("w(1,2)"),  0.5, 1e-12);
+    // Scaling row (level 2): 0.25*sum of 4 circular samples.
+    EXPECT_NEAR(evalScalar("w(3,1)"), 5.5, 1e-12);
+    EXPECT_NEAR(evalScalar("w(3,2)"), 4.5, 1e-12);
+}
+
+TEST_F(SwtModwtTest, ModwtDb2FirstDetailMatchesMatlab)
+{
+    eval("xv = [1 2 3 4 5 6 7 8]; w = modwt(xv, 'db2', 1);");
+    EXPECT_NEAR(evalScalar("w(1,1)"),  0.73205080756887719, 1e-10);
+    EXPECT_NEAR(evalScalar("w(1,2)"),  2.0,                 1e-10);
+    EXPECT_NEAR(evalScalar("w(1,3)"), -2.7320508075688772,  1e-10);
 }
 
 // ─── swt: argument order unchanged (already MATLAB-compat) ──────────

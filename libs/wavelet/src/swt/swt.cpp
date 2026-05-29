@@ -182,8 +182,15 @@ Value modwt(const Value &x, int n, const std::string &wname, std::pmr::memory_re
     auto fb = wavelet_filters(wname);
     // Pre-scale filters by 1/√2 once (so the inner correlation is a
     // straight sum without per-tap multiplications).
+    // MODWT (Percival & Walden): W_{j,t} = Σ_l h̃_l X_{(t-l) mod N} with
+    // the MODWT filters h̃ = wrev(Hi_D)/√2, g̃ = wrev(Lo_D)/√2 (the
+    // analysis filters are TIME-REVERSED relative to wfilters' Hi_D/Lo_D,
+    // then applied as a look-back circular convolution). This matches
+    // MATLAB R2025b modwt (e.g. Haar W_{1,1} wraps to 0.5·(x1−xN)).
     const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
     std::vector<double> hLo = fb.Lo_D, hHi = fb.Hi_D;
+    std::reverse(hLo.begin(), hLo.end());
+    std::reverse(hHi.begin(), hHi.end());
     for (auto &v : hLo) v *= inv_sqrt2;
     for (auto &v : hHi) v *= inv_sqrt2;
 
@@ -197,8 +204,8 @@ Value modwt(const Value &x, int n, const std::string &wname, std::pmr::memory_re
 
     for (int k = 0; k < n; ++k) {
         const size_t step = static_cast<size_t>(1) << k;
-        auto a_next = circ_corr_fwd(a, hLo, step);
-        auto d_next = circ_corr_fwd(a, hHi, step);
+        auto a_next = circ_corr_back(a, hLo, step);
+        auto d_next = circ_corr_back(a, hHi, step);
         for (size_t c = 0; c < N; ++c) od[c * H + k] = d_next[c];
         a = std::move(a_next);
     }
@@ -219,19 +226,22 @@ Value imodwt(const Value &swc, const std::string &wname, std::pmr::memory_resour
 
     auto fb = wavelet_filters(wname);
     const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+    // Use the same reversed MODWT filters as the forward; the inverse is
+    // its exact transpose, so the look-back analysis becomes a look-forward
+    // synthesis (no /2 — the /√2 in forward absorbed the redundancy).
     std::vector<double> hLo = fb.Lo_D, hHi = fb.Hi_D;
+    std::reverse(hLo.begin(), hLo.end());
+    std::reverse(hHi.begin(), hHi.end());
     for (auto &v : hLo) v *= inv_sqrt2;
     for (auto &v : hHi) v *= inv_sqrt2;
 
     auto a = rowOf(swc, static_cast<size_t>(n), N);
 
-    // Inverse: sum of two transposed correlations (no /2 — the /√2
-    // in forward already absorbed the redundancy factor).
     for (int k = n - 1; k >= 0; --k) {
         const size_t step = static_cast<size_t>(1) << k;
         auto d = rowOf(swc, static_cast<size_t>(k), N);
-        auto lo = circ_corr_back(a, hLo, step);
-        auto hi = circ_corr_back(d, hHi, step);
+        auto lo = circ_corr_fwd(a, hLo, step);
+        auto hi = circ_corr_fwd(d, hHi, step);
         for (size_t i = 0; i < N; ++i) a[i] = lo[i] + hi[i];
     }
 
