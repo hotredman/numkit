@@ -273,3 +273,34 @@ TEST_F(ConvolutionTest, XcovTwoSignalsLength)
     EXPECT_EQ(static_cast<int>(evalScalar("length(c)")), 7);
     EXPECT_EQ(static_cast<int>(evalScalar("length(lags)")), 7);
 }
+
+// scaleopt: 'biased' divides every lag by N; 'unbiased' by (N-|lag|);
+// 'coeff' by sqrt(Cxx0*Cyy0). zero-lag sits at index 5 for length-5 inputs.
+// (Regression: numkit used to ignore scaleopt entirely.) vs MATLAB R2025b.
+TEST_F(ConvolutionTest, XcovScaleopt)
+{
+    eval("x = [1 3 -2 4 0]; y = [2 -1 0 3 1];");
+    eval("cn = xcov(x,y); cb = xcov(x,y,'biased');");
+    EXPECT_NEAR(evalScalar("cn(5)"), 5.0, 1e-12);     // raw zero-lag
+    EXPECT_NEAR(evalScalar("cb(5)"), 1.0, 1e-12);     // /N=5
+    EXPECT_NEAR(evalScalar("cb(4)"), -1.56, 1e-12);
+    eval("cu = xcov(x,y,'unbiased'); cc = xcov(x,y,'coeff');");
+    EXPECT_NEAR(evalScalar("cu(3)"), 1.2666666666666666, 1e-12);
+    EXPECT_NEAR(evalScalar("cc(5)"), 0.331133089266, 1e-9);
+}
+
+// maxlag crops the result to lags -maxlag..maxlag (length 2*maxlag+1).
+// (Regression: numkit used to ignore the maxlag scalar arg, returning
+// the full length-9 vector.) vs MATLAB R2025b.
+TEST_F(ConvolutionTest, XcovMaxlag)
+{
+    eval("x = [1 3 -2 4 0]; y = [2 -1 0 3 1];");
+    eval("cm = xcov(x,y,2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(cm)")), 5);
+    EXPECT_NEAR(evalScalar("cm(3)"), 5.0, 1e-12);     // zero-lag at center
+    EXPECT_NEAR(evalScalar("cm(1)"), 3.8, 1e-12);
+    EXPECT_NEAR(evalScalar("cm(5)"), -7.6, 1e-12);
+    eval("cmb = xcov(x,y,2,'biased');");              // maxlag + scaleopt
+    EXPECT_NEAR(evalScalar("cmb(3)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cmb(1)"), 0.76, 1e-12);
+}

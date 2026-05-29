@@ -1,12 +1,14 @@
 {
   "name": "dwt2",
   "namespace": "wavelet",
-  "setup": "",
-  "expr": "[ca, ch, cv, cd] = dwt2(eye(4), \"haar\"); r1 = double(numel(ca));",
-  "iters": 5,
-  "tol": 1e-06,
+  "setup": "M = reshape(1:16, 4, 4);",
+  "expr": "[cA, cH, cV, cD] = dwt2(M, 'haar');",
+  "iters": 3,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1"
+    "cA(1,1)", "cA(1,2)", "cA(2,1)", "cA(2,2)",
+    "cH(1,1)", "cV(1,1)", "cD(1,1)",
+    "double(sum(cA(:)))"
   ],
-  "comment": "Sig: r = dwt2(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig [cA,cH,cV,cD]=dwt2(X,'haar'): single-level 2-D Haar DWT, 4x4 ramp -> 2x2 subbands. Approximation cA=[7 11; 23 27] (col-major: cA(1,1)=7, cA(2,2)=27); horizontal cH(1,1)=-1; vertical cV(1,1)=-4; diagonal cD(1,1)=0 (separable ramp has no diagonal detail); sum(cA)=68. Pins distinct cA entries (not a constant) so the orientation/scaling of all four subbands is fixed."
 }

@@ -153,11 +153,16 @@ Value rc2ac(const Value &k, double r0,
             std::pmr::memory_resource *mr = nullptr);
 
 /// AR poly → reflection coefficients (step-down recursion).
-/// @param a   AR coefficient vector.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Reflection coefficients of length `numel(a) - 1`.
-Value poly2rc(const Value &                a,
-              std::pmr::memory_resource *  mr = nullptr);
+/// @param a       AR coefficient vector.
+/// @param efinal  Final prediction error (for the second output R0).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(k, R0)`: reflection coefficients of length
+///                `numel(a) - 1`, and the zero-lag autocorrelation
+///                `R0 = efinal / prod(1 - k.^2)`.
+std::tuple<Value, Value>
+poly2rc(const Value &                a,
+        double                       efinal = 0.0,
+        std::pmr::memory_resource *  mr     = nullptr);
 
 /// Reflection coefficients → AR poly (step-up recursion).
 /// @param k   Reflection coefficients.

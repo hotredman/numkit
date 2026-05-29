@@ -86,7 +86,13 @@ LevinsonResult levinsonCore(const std::vector<double> &r, int p)
         // Numerator of the i-th reflection coefficient.
         double num = r[i];
         for (int j = 1; j < i; ++j) num += a_prev[j] * r[i - j];
-        const double k = -num / e;
+        // MATLAB's levinson runs the full recursion even when the
+        // residual energy goes non-positive (a non-PSD autocorrelation,
+        // i.e. an unstable model). It does NOT early-exit: e simply
+        // climbs back up through the (1 - k^2) factor. Match that — only
+        // guard the exact-zero divide. (For valid PSD input e stays > 0,
+        // so this changes nothing for the well-posed case.)
+        const double k = (e != 0.0) ? -num / e : 0.0;
         res.k[i - 1] = k;
 
         // Update a using a_prev: a_new[j] = a_prev[j] + k * a_prev[i-j]
@@ -97,7 +103,6 @@ LevinsonResult levinsonCore(const std::vector<double> &r, int p)
         a_new[i] = k;
         a_prev = std::move(a_new);
         e *= (1.0 - k * k);
-        if (e <= 0.0) { e = 0.0; break; }
     }
     res.a = a_prev;
     res.e = e;
@@ -318,7 +323,8 @@ Value rc2ac(const Value &k, double r0, std::pmr::memory_resource *mr)
     return rowVec(R, mr);
 }
 
-Value poly2rc(const Value &a, std::pmr::memory_resource *mr)
+std::tuple<Value, Value>
+poly2rc(const Value &a, double efinal, std::pmr::memory_resource *mr)
 {
     auto av = readVec(a);
     const int p = static_cast<int>(av.size()) - 1;
@@ -334,7 +340,13 @@ Value poly2rc(const Value &a, std::pmr::memory_resource *mr)
             prev[j] = (cur[j] - ki * cur[i - j]) / denom;
         cur = prev;
     }
-    return colVec(k, mr);
+    // Zero-lag autocorrelation R0 = efinal / prod_i (1 - k_i^2). This is
+    // the second output [k, R0] = poly2rc(a, efinal): the energy of the
+    // signal whose AR model is `a` with final prediction error `efinal`.
+    double prod = 1.0;
+    for (double ki : k) prod *= (1.0 - ki * ki);
+    const double r0 = (prod != 0.0) ? efinal / prod : 0.0;
+    return std::make_tuple(colVec(k, mr), Value::scalar(r0, mr));
 }
 
 Value rc2poly(const Value &k, std::pmr::memory_resource *mr)
@@ -947,6 +959,20 @@ void rc2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     outs[0] = rc2ac(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
+void poly2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("poly2rc: requires at least 1 argument (a)",
+                     0, 0, "poly2rc", "", "numkit:poly2rc:nargin");
+    // [k, r0] = poly2rc(a, efinal). efinal (final prediction error) is
+    // only needed for the second output; defaults to 0.
+    const double efinal = (args.size() >= 2 && !args[1].isEmpty())
+                              ? args[1].toScalar() : 0.0;
+    auto [k, r0] = poly2rc(args[0], efinal, ctx.engine->resource());
+    outs[0] = std::move(k);
+    if (nargout > 1) outs[1] = std::move(r0);
+}
+
 #define NK_UNARY_CONV_REG(name)                                                 \
     void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
                     Span<Value> outs, CallContext &ctx)                        \
@@ -957,7 +983,6 @@ void rc2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         outs[0] = name(args[0], ctx.engine->resource());                         \
     }
 
-NK_UNARY_CONV_REG(poly2rc)
 NK_UNARY_CONV_REG(rc2poly)
 NK_UNARY_CONV_REG(is2rc)
 NK_UNARY_CONV_REG(rc2is)

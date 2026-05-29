@@ -127,3 +127,38 @@ TEST_F(SpectralTest, SpectrogramTimeVector)
     // Each time point is center of segment
     EXPECT_NEAR(evalScalar("T(1)"), 64.0, 1.0); // winLen/2
 }
+
+// ── Levinson-Durbin: valid + non-PSD recursion ───────────────────────
+// Valid PSD autocorrelation: standard AR fit (vs MATLAB R2025b).
+TEST_F(SpectralTest, LevinsonValidPsd)
+{
+    eval("[a, e, k] = levinson([1 0.6 0.3 0.1], 3);");
+    EXPECT_NEAR(evalScalar("a(2)"), -0.650246305419, 1e-12);
+    EXPECT_NEAR(evalScalar("a(4)"),  0.064039408867, 1e-12);
+    EXPECT_NEAR(evalScalar("e"),     0.631773399015, 1e-12);
+    EXPECT_NEAR(evalScalar("k(1)"), -0.6,            1e-12);
+}
+
+// Non-PSD autocorrelation (|k(2)|>1): MATLAB runs the full recursion
+// through negative residual energy; numkit used to early-exit at e<=0,
+// zeroing the tail of a/k and returning e=0. Regression guard.
+TEST_F(SpectralTest, LevinsonNonPsdRunsFullRecursion)
+{
+    eval("[a, e, k] = levinson([4 -2 -3 1 1.5], 3);");
+    EXPECT_NEAR(evalScalar("a(2)"), -1.785714285714, 1e-10);
+    EXPECT_NEAR(evalScalar("a(3)"), -1.25,           1e-10);
+    EXPECT_NEAR(evalScalar("a(4)"), -2.214285714286, 1e-10);
+    EXPECT_NEAR(evalScalar("e"),     9.107142857143, 1e-10);
+    EXPECT_NEAR(evalScalar("k(3)"), -2.214285714286, 1e-10);
+}
+
+// poly2rc second output R0 = efinal / prod(1 - k.^2). numkit used to
+// return only k (no R0). vs MATLAB R2025b.
+TEST_F(SpectralTest, Poly2rcReturnsR0)
+{
+    eval("[k, r0] = poly2rc([1 0.6 0.2 -0.1], 4);");
+    EXPECT_NEAR(evalScalar("k(1)"),  0.496,          1e-12);
+    EXPECT_NEAR(evalScalar("k(2)"),  0.262626262626, 1e-12);
+    EXPECT_NEAR(evalScalar("k(3)"), -0.1,            1e-12);
+    EXPECT_NEAR(evalScalar("r0"),    5.755726948310, 1e-9);
+}
