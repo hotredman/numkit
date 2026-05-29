@@ -1298,13 +1298,18 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
             std::string m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c) { return std::tolower(c); });
-            if      (m == "midpoint")    q.method = QMethod::Midpoint;
+            // MATLAB's documented values are 'exact' (default) and
+            // 'approximate'. 'exact' is the linear-interpolation order-
+            // statistic method, which is numkit's Midpoint. The
+            // midpoint/inclusive/exclusive names are kept for compatibility.
+            if      (m == "exact")       q.method = QMethod::Midpoint;
+            else if (m == "midpoint")    q.method = QMethod::Midpoint;
             else if (m == "inclusive")   q.method = QMethod::Inclusive;
             else if (m == "exclusive")   q.method = QMethod::Exclusive;
             else if (m == "approximate") q.method = QMethod::Approximate;
             else
-                throw Error(std::string(fn) + ": Method must be one of "
-                            "{midpoint, inclusive, exclusive, approximate}",
+                throw Error(std::string(fn) + ": Method must be 'exact' or "
+                            "'approximate'",
                             0, 0, fn, "", std::string("numkit:") + fn + ":method");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
