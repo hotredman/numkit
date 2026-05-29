@@ -66,12 +66,29 @@ Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.numel() != b.numel())
-        throw Error("dot: vectors must have same length",
+        throw Error("dot: A and B must be the same size",
                      0, 0, "dot", "", "numkit:dot:lengthMismatch");
-    double s = 0;
-    for (size_t i = 0; i < a.numel(); ++i)
-        s += a.doubleData()[i] * b.doubleData()[i];
-    return Value::scalar(s, mr);
+    const auto &da = a.dims();
+    const size_t H = da.rows(), W = da.cols();
+    // Vectors (row or column) -> a single scalar.
+    const bool isVector = (!da.is3D()) && (H == 1 || W == 1);
+    if (isVector) {
+        double s = 0.0;
+        for (size_t i = 0; i < a.numel(); ++i)
+            s += a.elemAsDouble(i) * b.elemAsDouble(i);
+        return Value::scalar(s, mr);
+    }
+    // Matrices: per-column dot (sum along dim 1) -> 1 x W row vector,
+    // matching MATLAB (the previous code flattened everything to a scalar).
+    Value out = Value::matrix(1, W, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (size_t j = 0; j < W; ++j) {
+        double s = 0.0;
+        for (size_t i = 0; i < H; ++i)
+            s += a.elemAsDouble(j * H + i) * b.elemAsDouble(j * H + i);
+        od[j] = s;
+    }
+    return out;
 }
 
 Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)

@@ -2,11 +2,16 @@
   "name": "obsv",
   "namespace": "control",
   "setup": "",
-  "expr": "O = obsv([1 0; 0 1], [1 0]); r1 = double(numel(O));",
+  "expr": "O = obsv([1 2; 3 4], [5 6]);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1"
+    "size(O,1)",
+    "size(O,2)",
+    "O(1,1)",
+    "O(1,2)",
+    "O(2,1)",
+    "O(2,2)"
   ],
-  "comment": "Sig: r = obsv(...). Spec-extension batch 2026-05-09."
+  "comment": "MATLAB obsv — observability matrix [C; C*A]. A=[1 2;3 4], C=[5 6] -> [5 6; 23 34]. Pins all entries (was numel-only). Bit-equal MATLAB R2025b."
 }
