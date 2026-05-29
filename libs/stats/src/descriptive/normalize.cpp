@@ -121,7 +121,8 @@ bool methodMatches(const std::string &m, const char *want) {
 
 } // anonymous
 
-Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr)
+Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr,
+                const Value *param)
 {
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
@@ -129,6 +130,17 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
     if (H == 0 || W == 0) return out;
 
     const std::string m = method.empty() ? std::string("zscore") : method;
+
+    // Decode the optional method parameter once. A string param (e.g.
+    // 'first'/'median') vs a numeric param (range bounds / norm-p / divisor).
+    const bool hasParam = (param != nullptr && !param->isEmpty());
+    const bool paramIsStr = hasParam && (param->isChar() || param->isString());
+    std::string paramStr;
+    if (paramIsStr) {
+        paramStr = param->toString();
+        for (char &c : paramStr) if (c >= 'A' && c <= 'Z') c = char(c + 32);
+    }
+    const double paramNum = (hasParam && !paramIsStr) ? param->elemAsDouble(0) : 0.0;
 
     forEachColumn(A, [&](size_t j, double *col, size_t n) {
         std::vector<double> y(n);
@@ -138,25 +150,66 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
             const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
             for (size_t i = 0; i < n; ++i) y[i] = (col[i] - mu) * inv;
         } else if (methodMatches(m, "center")) {
-            const double mu = colMean(col, n);
-            for (size_t i = 0; i < n; ++i) y[i] = col[i] - mu;
+            // default 'mean'; 'median' or a numeric centre also accepted.
+            double c;
+            if (hasParam && !paramIsStr)              c = paramNum;
+            else if (paramIsStr && paramStr == "median") {
+                std::vector<double> tmp(col, col + n); c = colMedian(tmp);
+            } else                                     c = colMean(col, n);
+            for (size_t i = 0; i < n; ++i) y[i] = col[i] - c;
         } else if (methodMatches(m, "scale")) {
-            const double sd = colStdSample(col, n);  // MATLAB default: N-1
-            const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
+            // default 'std'; 'first'/'iqr'/'mad' or a numeric divisor.
+            double sc;
+            if (hasParam && !paramIsStr)               sc = paramNum;
+            else if (paramIsStr && paramStr == "first") sc = col[0];
+            else if (paramIsStr && paramStr == "iqr") {
+                std::vector<double> tmp(col, col + n);  sc = colIQR(std::move(tmp));
+            } else if (paramIsStr && paramStr == "mad") {
+                std::vector<double> tmp(col, col + n);
+                const double med = colMedian(tmp);
+                for (double &v : tmp) v = std::fabs(v - med);
+                sc = colMedian(tmp);
+            } else                                      sc = colStdSample(col, n);
+            const double inv = (sc != 0.0) ? 1.0 / sc : 0.0;
             for (size_t i = 0; i < n; ++i) y[i] = col[i] * inv;
         } else if (methodMatches(m, "range")) {
+            // default [0 1]; custom [lo hi] supported.
+            double rlo = 0.0, rhi = 1.0;
+            if (hasParam && !paramIsStr && param->numel() >= 2) {
+                rlo = param->elemAsDouble(0);
+                rhi = param->elemAsDouble(1);
+            }
             double lo = col[0], hi = col[0];
             for (size_t i = 1; i < n; ++i) {
                 if (col[i] < lo) lo = col[i];
                 if (col[i] > hi) hi = col[i];
             }
             const double r = hi - lo;
-            const double inv = (r != 0.0) ? 1.0 / r : 0.0;
-            for (size_t i = 0; i < n; ++i) y[i] = (col[i] - lo) * inv;
+            if (r != 0.0) {
+                const double scl = (rhi - rlo) / r;
+                for (size_t i = 0; i < n; ++i) y[i] = rlo + (col[i] - lo) * scl;
+            } else {
+                for (size_t i = 0; i < n; ++i) y[i] = rlo;
+            }
         } else if (methodMatches(m, "norm")) {
-            double s = 0.0;
-            for (size_t i = 0; i < n; ++i) s += col[i] * col[i];
-            const double L = std::sqrt(s);
+            // default p=2; p=1 / p=Inf / general p supported.
+            const double p = hasParam && !paramIsStr ? paramNum : 2.0;
+            double L;
+            if (std::isinf(p)) {
+                L = 0.0;
+                for (size_t i = 0; i < n; ++i) L = std::max(L, std::fabs(col[i]));
+            } else if (p == 1.0) {
+                L = 0.0;
+                for (size_t i = 0; i < n; ++i) L += std::fabs(col[i]);
+            } else if (p == 2.0) {
+                double s = 0.0;
+                for (size_t i = 0; i < n; ++i) s += col[i] * col[i];
+                L = std::sqrt(s);
+            } else {
+                double s = 0.0;
+                for (size_t i = 0; i < n; ++i) s += std::pow(std::fabs(col[i]), p);
+                L = std::pow(s, 1.0 / p);
+            }
             const double inv = (L != 0.0) ? 1.0 / L : 0.0;
             for (size_t i = 0; i < n; ++i) y[i] = col[i] * inv;
         } else if (methodMatches(m, "medianiqr")) {
@@ -251,13 +304,18 @@ void normalize_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("normalize: requires (A [, method])",
                     0, 0, "normalize", "", "numkit:normalize:nargin");
     std::string method = "zscore";
+    const Value *param = nullptr;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("normalize: method must be a string",
                         0, 0, "normalize", "", "numkit:normalize:type");
         method = args[1].toString();
+        // Optional method parameter: range bounds / norm-p / scale divisor
+        // / center reference. (Previously dropped -> options were ignored.)
+        if (args.size() >= 3 && !args[2].isEmpty())
+            param = &args[2];
     }
-    outs[0] = normalize(args[0], method, ctx.engine->resource());
+    outs[0] = normalize(args[0], method, ctx.engine->resource(), param);
 }
 
 void rescale_reg(Span<const Value> args, size_t /*nargout*/,
