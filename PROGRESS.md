@@ -2898,11 +2898,11 @@ locations until physical migration lands.
 | `iqr` | ✅ | 0.006 | 864.90× | 177.19× | OK | Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). Closes audit/findings/stats/iqr.md (joint with quantile + prctile). |
 | `kde` | ✅ | 0.087 |  |  | N/A | Sig: [f, xi, bw] = kde(x [, pts]) — MATLAB R2023b+ alias for ksdensity. Kernel density estimation with Gaussian kernel by default; bandwidth via Silverman's rule of thumb. v1 implementation: direct alias to ksdensity_reg (same adapter handles positional + name-value calls). Fingerprint pins output shapes (numel = 100 by default), bandwidth positivity, normalisation (integral ≈ 1 over [-3, 3] which captures most mass of N(0,1)). Engine-dependent randn → no bit-exact comparison; structural assertions only (tol 1e-9 on the deterministic shape numbers). |
 | `mape` | ✅ | 8.282 | 0.29× | 1.04× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
-| `max` | ✅ | 1.482 | 0.03× | 0.51× | OK | Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. |
+| `max` | ✅ | 1.779 | 0.04× |  | OK | Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: max of an EMPTY array returns empty and never errors — shape = input size with operating dim clamped to min(size,1): max([])=0x0, max(zeros(0,3))=0x3, max(zeros(3,0))=1x0. |
 | `maxk` | ✅ | 77.188 | 0.01× |  | OK | Sig: B = maxk(X, K). Top 10 of 1M. 100 iters. |
 | `mean` | ✅ | 1.346 | 0.05× |  | OK | Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: mean([])=NaN as a SCALAR (numel 1, NOT 1x0). |
 | `median` | ✅ | 3.840 | 1.15× | 1.83× | OK | Sig: M = median(X). 1M-pt full sort + middle. 50 iters. Scalar fp. |
-| `min` | ✅ | 1.492 | 0.03× | 0.51× | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. |
+| `min` | ✅ | 1.626 | 0.04× |  | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: min of an EMPTY array returns empty and never errors — shape = input size with operating dim clamped to min(size,1): min([])=0x0, min(zeros(0,3))=0x3, min(zeros(3,0))=1x0. |
 | `mink` | ✅ | 77.249 | 0.01× |  | OK | Sig: B = mink(X, K). Bot 10 of 1M. 100 iters. |
 | `mode` | ✅ | 18.694 | 0.49× | 2.65× | OK | Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp. |
 | `movmad` | ✅ | 0.008 | 21.64× | 718.96× | OK | Sig: movmad(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movmad.md. |

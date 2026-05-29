@@ -2,12 +2,16 @@
   "name": "max",
   "namespace": "core",
   "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = max(x);",
+  "expr": "y = max(x); e0 = max([]); ne0 = numel(e0); ec = max(zeros(0,3)); er = max(zeros(3,0));",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = max(X). 1M-pt. 100 iters. Scalar fp.",
+  "comment": "Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: max of an EMPTY array returns empty and never errors — shape = input size with operating dim clamped to min(size,1): max([])=0x0, max(zeros(0,3))=0x3, max(zeros(3,0))=1x0.",
   "fingerprint": [
     "double(y)",
-    "numel(y)"
+    "numel(y)",
+    "ne0",
+    "size(e0,1)", "size(e0,2)",
+    "size(ec,1)", "size(ec,2)",
+    "size(er,1)", "size(er,2)"
   ]
 }

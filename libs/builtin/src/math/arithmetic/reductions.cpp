@@ -281,6 +281,36 @@ allocMinMaxOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memo
             createMatrix(outShape, ValueType::DOUBLE, mr)};
 }
 
+// MATLAB: max/min of an EMPTY array returns empty and never errors. The
+// result has the input's size with the operating dimension clamped to
+// min(size,1):  max([])=0x0, max(zeros(0,3))=0x3, max(zeros(3,0))=1x0.
+// The operating dim is the explicit dim when given (dimArg>=1), otherwise
+// the first dimension whose size != 1 (MATLAB treats a size-0 dim as
+// non-singleton here), defaulting to 1. Value keeps the input class; the
+// index output is an empty DOUBLE of the same shape.
+inline std::tuple<Value, Value>
+emptyMinMaxResult(const Value &x, int dimArg, ValueType outType, std::pmr::memory_resource *mr)
+{
+    const auto &d = x.dims();
+    int opDim = dimArg;
+    if (opDim < 1) {
+        opDim = 1;
+        const int nd = d.ndim();
+        for (int i = 0; i < nd; ++i)
+            if (d.dim(i) != 1) { opDim = i + 1; break; }
+    }
+    auto clamp1 = [](size_t s) -> size_t { return s < 1 ? s : 1; };
+    DimsArg o{d.rows(), d.cols(), d.is3D() ? d.pages() : 0};
+    switch (opDim) {
+        case 1: o.rows  = clamp1(o.rows); break;
+        case 2: o.cols  = clamp1(o.cols); break;
+        case 3: o.pages = (o.pages == 0) ? 0 : 1; break;
+        default: break;
+    }
+    return {createMatrix(o, outType, mr),
+            createMatrix(o, ValueType::DOUBLE, mr)};
+}
+
 template <typename T, typename Cmp>
 std::tuple<Value, Value>
 reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, std::pmr::memory_resource *mr)
@@ -766,6 +796,7 @@ template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
 dispatchMinMaxNanAll(const Value &x, Cmp cmp, std::pmr::memory_resource *mr, const char *fn)
 {
+    if (x.numel() == 0) return emptyMinMaxResult(x, -1, x.type(), mr);
     switch (x.type()) {
     case ValueType::DOUBLE:  return reduceMinMaxNanAllT<double>(x, cmp, ValueType::DOUBLE, mr);
     case ValueType::SINGLE:  return reduceMinMaxNanAllT<float >(x, cmp, ValueType::SINGLE, mr);
@@ -780,6 +811,7 @@ std::tuple<Value, Value>
 dispatchMinMaxNanAlongDim(const Value &x, int dim, Cmp cmp,
                           std::pmr::memory_resource *mr, const char *fn)
 {
+    if (x.numel() == 0) return emptyMinMaxResult(x, dim, x.type(), mr);
     switch (x.type()) {
     case ValueType::DOUBLE:  return reduceMinMaxNanAlongDimT<double>(x, dim, cmp, ValueType::DOUBLE, mr);
     case ValueType::SINGLE:  return reduceMinMaxNanAlongDimT<float >(x, dim, cmp, ValueType::SINGLE, mr);
@@ -795,6 +827,7 @@ template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
 dispatchMinMaxAll(const Value &x, Cmp cmp, std::pmr::memory_resource *mr, const char *fn)
 {
+    if (x.numel() == 0) return emptyMinMaxResult(x, -1, x.type(), mr);
     switch (x.type()) {
     case ValueType::DOUBLE:  return reduceMinMaxAllT<double  >(x, cmp, ValueType::DOUBLE,  mr);
     case ValueType::SINGLE:  return reduceMinMaxAllT<float   >(x, cmp, ValueType::SINGLE,  mr);
@@ -819,6 +852,7 @@ template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
 dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, std::pmr::memory_resource *mr, const char *fn)
 {
+    if (x.numel() == 0) return emptyMinMaxResult(x, dim, x.type(), mr);
     switch (x.type()) {
     case ValueType::DOUBLE:  return reduceMinMaxAlongDimT<double  >(x, dim, cmp, ValueType::DOUBLE,  mr);
     case ValueType::SINGLE:  return reduceMinMaxAlongDimT<float   >(x, dim, cmp, ValueType::SINGLE,  mr);
