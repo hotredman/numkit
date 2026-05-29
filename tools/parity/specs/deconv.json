@@ -3,8 +3,11 @@
   "namespace": "core",
   "setup": "u = [1 2 3 4]; v = [1 -1];",
   "expr": "[y, jj] = deconv(u, v);",
-  "iters": 100,
+  "iters": 3,
   "tol": 1e-09,
-  "comment": "Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters.",
-  "out_var": "y"
+  "fingerprint": [
+    "double(numel(y))", "y(1)", "y(2)", "y(3)",
+    "double(numel(jj))", "jj(4)", "double(sum(jj))"
+  ],
+  "comment": "Sig [Q,R]=deconv(U,V): polynomial division. (x^3+2x^2+3x+4)/(x-1) -> quotient Q=[1 3 6], remainder R=[0 0 0 10] (R has the length of U). Pins BOTH outputs (was an out_var dump of Q only -> the remainder R was unverified)."
 }

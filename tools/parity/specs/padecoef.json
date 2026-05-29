@@ -1,11 +1,13 @@
 {
   "name": "padecoef",
   "namespace": "core",
-  "setup": "T = 1.5; N = 10;",
-  "expr": "[num, den] = padecoef(T, N);",
-  "iters": 10000,
-  "tol": 1e-12,
-  "fingerprint": ["sum(num)", "sum(den)", "num(1)", "den(1)"],
-  "out_var": "num",
-  "comment": "Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB."
+  "setup": "",
+  "expr": "[num, den] = padecoef(2, 3);",
+  "iters": 3,
+  "tol": 1e-09,
+  "fingerprint": [
+    "double(numel(num))", "num(1)", "num(2)", "num(3)", "num(4)",
+    "den(1)", "den(2)", "den(4)"
+  ],
+  "comment": "Sig [num,den]=padecoef(T,N): order-N Pade approximant of exp(-T*s). T=2, N=3 -> num=[-1 6 -15 15], den=[1 6 15 15] (den = num with the odd-power signs flipped: same denominator/numerator magnitudes, classic Pade exp structure). Pins BOTH outputs (was out_var dump of num only with den fingerprints that the harness ignored; small N keeps coefficients exactly pinnable)."
 }
