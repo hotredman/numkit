@@ -16,3 +16,13 @@ disp('cumprod([1..5]):'); disp(cumprod([1 2 3 4 5]));
 disp('diff([1 4 9 16 25]):'); disp(diff([1 4 9 16 25]));
 disp('diag([1 2 3]):'); disp(diag([1 2 3]));
 fprintf('sum([1..5]) = %g, prod([1..5]) = %g\n', sum(1:5), prod(1:5));
+
+% Empty-input identities (MATLAB R2025b): default reduction of the 0x0 []
+% returns the scalar identity, NOT a 1x0 empty.
+fprintf('\n=== empty [] reductions -> scalar identity ===\n');
+fprintf('sum([])   = %g (expect 0,   numel %d expect 1)\n', sum([]),  numel(sum([])));
+fprintf('prod([])  = %g (expect 1,   numel %d expect 1)\n', prod([]), numel(prod([])));
+fprintf('mean([])  isnan=%d (expect 1, numel %d expect 1)\n', isnan(mean([])), numel(mean([])));
+disp('sum(zeros(0,3)):');  disp(sum(zeros(0,3)));  fprintf('  expect [0 0 0]\n');
+disp('prod(zeros(0,3)):'); disp(prod(zeros(0,3))); fprintf('  expect [1 1 1]\n');
+fprintf('numel(sum(zeros(3,0))) = %d (expect 0, stays 1x0)\n', numel(sum(zeros(3,0))));

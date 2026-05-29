@@ -607,11 +607,11 @@ together.
 | `pagetranspose` | ✅ | 0.081 | 0.45× | 0.63× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
 | `plus` | ✅ | 0.005 | 30.18× | 11.25× | OK | Sig: r = plus(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
 | `power` | ✅ | 0.004 | 32.88× | 10.31× | OK | Sig: r = power(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
-| `prod` | ✅ | 0.005 | 24.64× | 25.71× | OK | Sig: r = prod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `prod` | ✅ | 0.005 | 14.89× |  | OK | Sig: r = prod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. DEEP-PROBE 2026-05-29: empty-input identities — prod([])=1 (scalar, numel 1, NOT 1x0); partial empty keeps per-column shape: prod(zeros(0,3))=[1 1 1]. |
 | `rdivide` | ✅ | 0.004 | 35.37× | 47.71× | OK | Sig: r = rdivide(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
 | `rem` | ✅ | 0.004 | 28.02× | 8.61× | OK | Sig: r = rem(...). Spec-extension batch 2026-05-09. |
 | `round` | ✅ | 0.004 | 34.81× |  | OK | Sig round(x[,N[,'decimals'|'significant']]). round(x) = nearest int (half-away-from-zero). round(x,N) = N decimal places (N may be negative). round(x,N,'significant') = N significant digits. round(3.14159,2)=3.14; round(12345,-2)=12300; round(3.14159,3,'significant')=3.14; round(12345,2,'significant')=12000. numkit previously took only round(x) -- N + 'significant' added. Matches MATLAB R2025b. |
-| `sum` | ✅ | 0.004 | 28.54× | 46.09× | OK | Sig: r = sum(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `sum` | ✅ | 0.008 | 19.09× |  | OK | Sig: r = sum(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. DEEP-PROBE 2026-05-29: empty-input identities — sum([])=0 (scalar, numel 1, NOT 1x0); partial empties keep per-column shape: sum(zeros(0,3))=[0 0 0], numel(sum(zeros(3,0)))=0. |
 | `tensorprod` | ❌ |  |  |  |  | tensor contraction |
 | `times` | ✅ | 0.005 | 53.58× | 12.10× | OK | Sig: r = times(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
 | `transpose` | ✅ | 0.005 | 34.14× | 36.09× | OK | Sig: r = transpose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
@@ -2900,7 +2900,7 @@ locations until physical migration lands.
 | `mape` | ✅ | 8.282 | 0.29× | 1.04× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
 | `max` | ✅ | 1.482 | 0.03× | 0.51× | OK | Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. |
 | `maxk` | ✅ | 77.188 | 0.01× |  | OK | Sig: B = maxk(X, K). Top 10 of 1M. 100 iters. |
-| `mean` | ✅ | 1.401 | 0.04× | 0.71× | OK | Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp. |
+| `mean` | ✅ | 1.346 | 0.05× |  | OK | Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: mean([])=NaN as a SCALAR (numel 1, NOT 1x0). |
 | `median` | ✅ | 3.840 | 1.15× | 1.83× | OK | Sig: M = median(X). 1M-pt full sort + middle. 50 iters. Scalar fp. |
 | `min` | ✅ | 1.492 | 0.03× | 0.51× | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. |
 | `mink` | ✅ | 77.249 | 0.01× |  | OK | Sig: B = mink(X, K). Bot 10 of 1M. 100 iters. |

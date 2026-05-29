@@ -49,6 +49,13 @@ Value reduce(const Value &x, Op op, double init, std::pmr::memory_resource *mr, 
         return fastDouble ? x.doubleData()[i] : x.elemAsDouble(i);
     };
 
+    // MATLAB: a default reduction of the 0x0 empty [] returns the scalar
+    // identity, NOT a 1x0 empty: sum([])=0, prod([])=1, mean([])=NaN.
+    // (Partial empties like zeros(0,3) keep their per-column shape and are
+    // handled by the matrix path below.)
+    if (x.dims().ndim() == 2 && x.dims().rows() == 0 && x.dims().cols() == 0)
+        return Value::scalar(meanMode ? std::nan("") : init, mr);
+
     if (x.dims().isVector() || x.isScalar()) {
         double acc = init;
         for (size_t i = 0; i < x.numel(); ++i)

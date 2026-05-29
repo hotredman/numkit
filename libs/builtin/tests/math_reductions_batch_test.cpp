@@ -18,6 +18,7 @@
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
+#include <cmath>
 
 using namespace numkit;
 
@@ -120,4 +121,30 @@ TEST_F(MathReductionsBatchTest, ProdSum)
     EXPECT_DOUBLE_EQ(evalScalar("prod([1, 2, 3, 4, 5])"), 120.0);
     EXPECT_DOUBLE_EQ(evalScalar("sum([2.5, 3.5])"),       6.0);
     EXPECT_DOUBLE_EQ(evalScalar("prod([0.5, 4])"),        2.0);
+}
+
+// MATLAB R2025b: a default reduction of the 0x0 empty [] returns the scalar
+// identity, NOT a 1x0 empty: sum([])==0, prod([])==1, mean([])==NaN.
+// DEEP-PROBE 2026-05-29: numkit previously returned a 1x0 empty for all three.
+TEST_F(MathReductionsBatchTest, EmptyDefaultReductionScalarIdentity)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("sum([])"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(sum([]))"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("prod([])"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(prod([]))"), 1.0);
+    EXPECT_TRUE(std::isnan(evalScalar("mean([])")));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(mean([]))"), 1.0);
+}
+
+// Partial empties keep their per-column shape (unchanged by the 0x0 guard):
+// sum(zeros(0,3)) -> [0 0 0] (1x3); sum(zeros(3,0)) -> 1x0 empty.
+TEST_F(MathReductionsBatchTest, PartialEmptyReductionKeepsShape)
+{
+    eval("a = sum(zeros(0,3));");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(3)"), 0.0);
+    eval("b = prod(zeros(0,3));");
+    EXPECT_DOUBLE_EQ(evalScalar("b(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(sum(zeros(3,0)))"), 0.0);
 }

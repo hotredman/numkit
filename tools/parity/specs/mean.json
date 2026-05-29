@@ -2,12 +2,14 @@
   "name": "mean",
   "namespace": "core",
   "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = mean(x);",
+  "expr": "y = mean(x); me0 = mean([]); nme0 = numel(mean([]));",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp.",
+  "comment": "Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: mean([])=NaN as a SCALAR (numel 1, NOT 1x0).",
   "fingerprint": [
     "double(y)",
-    "numel(y)"
+    "numel(y)",
+    "double(isnan(me0))",
+    "nme0"
   ]
 }
