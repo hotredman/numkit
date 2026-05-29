@@ -1053,6 +1053,44 @@ TEST_P(SortFindTest, Nonzeros3DColumnMajor)
     EXPECT_DOUBLE_EQ(v->doubleData()[2], 30.0);
 }
 
+// sort() on integer types keeps the class on the sorted VALUES (the index
+// output stays double), across dim and 'descend'. numkit previously threw
+// "Not a double array". DEEP-PROBE 2026-05-30.
+TEST_P(SortFindTest, SortIntegerKeepsClass)
+{
+    eval("a = sort(int8([3 -128 5]));");
+    auto *a = getVarPtr("a");
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->type(), numkit::ValueType::INT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(1))"), -128.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(2))"),    3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(3))"),    5.0);
+    eval("b = sort(int8([3 -128 5]), 'descend');");
+    EXPECT_EQ(getVarPtr("b")->type(), numkit::ValueType::INT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(1))"),    5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(3))"), -128.0);
+    // [s,i]: values keep class, index output is double.
+    eval("[s, ix] = sort(int8([30 10 20]));");
+    EXPECT_EQ(getVarPtr("s")->type(),  numkit::ValueType::INT8);
+    EXPECT_EQ(getVarPtr("ix")->type(), numkit::ValueType::DOUBLE);
+    EXPECT_DOUBLE_EQ(evalScalar("double(s(1))"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(3)"), 1.0);
+    // Per-dim matrix keeps class.
+    eval("c = sort(int32([3 1 2; 6 5 4]), 2);");
+    EXPECT_EQ(getVarPtr("c")->type(), numkit::ValueType::INT32);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(2,3))"), 6.0);
+    eval("u = sort(uint8([200 5 100]));");
+    EXPECT_EQ(getVarPtr("u")->type(), numkit::ValueType::UINT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(u(1))"), 5.0);
+    // double input unchanged (regress).
+    eval("[sd, id] = sort([3 1 2]);");
+    EXPECT_EQ(getVarPtr("sd")->type(), numkit::ValueType::DOUBLE);
+    EXPECT_DOUBLE_EQ(evalScalar("sd(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("id(1)"), 2.0);
+}
+
 INSTANTIATE_DUAL(SortFindTest);
 
 // ============================================================
