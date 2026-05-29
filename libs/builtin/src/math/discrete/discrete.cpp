@@ -498,8 +498,61 @@ uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr)
 
 // ── ismember ───────────────────────────────────────────────────────
 
+// ── complex ismember ───────────────────────────────────────────────
+// MATLAB ismember supports complex: membership is EXACT equality (real AND
+// imag equal); Locb is the LOWEST 1-based index in B of a match (0 if none).
+// A NaN component never matches. Reals compared against complex are treated
+// as z+0i. Triggered whenever either operand is COMPLEX.
+struct CxKey { double re, im; bool operator==(const CxKey &o) const { return re == o.re && im == o.im; } };
+struct CxKeyHash {
+    std::size_t operator()(const CxKey &k) const {
+        const double r = (k.re == 0.0) ? 0.0 : k.re;   // -0 and +0 hash alike
+        const double i = (k.im == 0.0) ? 0.0 : k.im;
+        std::uint64_t br, bi;
+        std::memcpy(&br, &r, sizeof(br));
+        std::memcpy(&bi, &i, sizeof(bi));
+        return std::hash<std::uint64_t>{}(br) ^ (std::hash<std::uint64_t>{}(bi) * 0x9e3779b97f4a7c15ULL);
+    }
+};
+inline Complex elemAsComplex(const Value &v, std::size_t k)
+{
+    return (v.type() == ValueType::COMPLEX) ? v.complexData()[k]
+                                            : Complex(v.elemAsDouble(k), 0.0);
+}
+std::pair<Value, Value>
+ismemberComplex(const Value &a, const Value &b, bool wantLoc, std::pmr::memory_resource *mr)
+{
+    const std::size_t na = a.numel(), nb = b.numel();
+    Value tf = createLike(a, ValueType::LOGICAL, mr);
+    Value loc;
+    double *lo = nullptr;
+    if (wantLoc) { loc = createLike(a, ValueType::DOUBLE, mr); lo = loc.doubleDataMut(); }
+    if (na == 0) return {std::move(tf), std::move(loc)};
+    uint8_t *out = tf.logicalDataMut();
+
+    ScratchArena scratch(mr);
+    std::pmr::unordered_map<CxKey, double, CxKeyHash> idxB(&scratch);
+    idxB.reserve(nb);
+    for (std::size_t i = 0; i < nb; ++i) {
+        const Complex z = elemAsComplex(b, i);
+        if (std::isnan(z.real()) || std::isnan(z.imag())) continue;
+        idxB.emplace(CxKey{z.real(), z.imag()}, static_cast<double>(i + 1)); // lowest index wins
+    }
+    for (std::size_t i = 0; i < na; ++i) {
+        const Complex z = elemAsComplex(a, i);
+        if (std::isnan(z.real()) || std::isnan(z.imag())) { out[i] = 0; if (lo) lo[i] = 0.0; continue; }
+        auto it = idxB.find(CxKey{z.real(), z.imag()});
+        const bool found = (it != idxB.end());
+        out[i] = found ? 1 : 0;
+        if (lo) lo[i] = found ? it->second : 0.0;
+    }
+    return {std::move(tf), std::move(loc)};
+}
+
 Value ismember(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
+    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
+        return ismemberComplex(a, b, /*wantLoc=*/false, mr).first;
     const size_t na = a.numel();
     const size_t nb = b.numel();
 
@@ -1334,6 +1387,12 @@ void ismember_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("ismember: requires 2 arguments", 0, 0, "ismember", "", "numkit:ismember:nargin");
     auto *mr = ctx.engine->resource();
+    if (args[0].type() == ValueType::COMPLEX || args[1].type() == ValueType::COMPLEX) {
+        auto [tf, loc] = ismemberComplex(args[0], args[1], /*wantLoc=*/nargout > 1, mr);
+        outs[0] = std::move(tf);
+        if (nargout > 1) outs[1] = std::move(loc);
+        return;
+    }
     outs[0] = ismember(args[0], args[1], mr);
     if (nargout > 1) {
         const Value &a = args[0], &b = args[1];
