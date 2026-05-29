@@ -366,6 +366,37 @@ Value bwlookup(const Value &BW, const Value &lut,
 Value makelut(numkit::Engine &eng, const Value &fun, int n,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Morphological operations on a binary volume
+/// (`J = bwmorph3(V, operation)`).
+///
+/// Evaluates each voxel from its `3×3×3` neighbourhood (zero-padded at
+/// the border). With `count` = number of set voxels in the
+/// 27-neighbourhood *including the centre* and `faces6` = the six
+/// 6-connected face neighbours:
+///
+/// | operation       | rule                                  |
+/// |-----------------|---------------------------------------|
+/// | `branchpoints`  | centre set **and** `count > 3`        |
+/// | `clean`         | centre set **and** `count != 1`       |
+/// | `endpoints`     | centre set **and** `count == 2`       |
+/// | `fill`          | centre set **or** `faces6 == 6`       |
+/// | `majority`      | `count > 13` (≥ 14 of 27)             |
+/// | `remove`        | centre set **and** `faces6 != 6`      |
+///
+/// Accepts a 2-D image (treated as a single-plane volume) or a 3-D
+/// volume; the output is always LOGICAL of the same size. Input is taken
+/// as `V != 0`. Clean-room port of MATLAB R2025b's `bwmorph3` rules.
+///
+/// @param V    Binary volume (numeric or logical, 2-D or 3-D).
+/// @param op   One of `branchpoints` / `clean` / `endpoints` / `fill` /
+///             `majority` / `remove`.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     LOGICAL volume, same size as `V`.
+/// @throws Error  Unknown operation, or rank > 3.
+/// @see bwmorph, bwskel, imerode, imdilate
+Value bwmorph3(const Value &V, const std::string &op,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Binary hit-or-miss transform (`J = bwhitmiss(BW, se1, se2)`).
 ///
 /// @f$ J = \text{imerode}(BW, se_1)\ \wedge\ \text{imerode}(\sim BW, se_2) @f$.
