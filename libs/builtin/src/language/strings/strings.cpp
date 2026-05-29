@@ -409,6 +409,33 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
     if (x.isEmpty())
         return Value::fromString("[]", mr);
 
+    const auto &d = x.dims();
+    if (d.ndim() > 2)
+        throw Error("mat2str: only 2-D inputs are supported",
+                     0, 0, "mat2str", "", "numkit:mat2str:rank");
+    const size_t R = d.rows(), C = d.cols();
+
+    // Logical: elements print as the words true / false (MATLAB R2025b),
+    // e.g. mat2str(true) -> "true", mat2str([true false]) -> "[true false]".
+    if (x.isLogical()) {
+        auto fmtL = [](double v) -> const char * {
+            return v != 0.0 ? "true" : "false";
+        };
+        if (x.isScalar())
+            return Value::fromString(fmtL(x.elemAsDouble(0)), mr);
+        std::string out;
+        out.push_back('[');
+        for (size_t r = 0; r < R; ++r) {
+            if (r > 0) out.push_back(';');
+            for (size_t c = 0; c < C; ++c) {
+                if (c > 0) out.push_back(' ');
+                out += fmtL(x.elemAsDouble(c * R + r));
+            }
+        }
+        out.push_back(']');
+        return Value::fromString(out, mr);
+    }
+
     auto fmt = [precision](double v) {
         if (v == 0.0) v = 0.0;   // normalize -0 → 0 (MATLAB never prints "-0")
         std::ostringstream os;
@@ -416,12 +443,6 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
         os << v;
         return os.str();
     };
-
-    const auto &d = x.dims();
-    if (d.ndim() > 2)
-        throw Error("mat2str: only 2-D inputs are supported",
-                     0, 0, "mat2str", "", "numkit:mat2str:rank");
-    const size_t R = d.rows(), C = d.cols();
 
     // Complex: format each element as re±|im|i. If every imaginary part is
     // zero the array is printed as real (matches MATLAB mat2str).
@@ -455,8 +476,11 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
         return Value::fromString(out, mr);
     }
 
+    // Real numeric (double / single / int8..uint64). Read via elemAsDouble so
+    // integer and single arrays format the same way MATLAB mat2str does:
+    // bare values with no class wrapper (mat2str(int8([1 2])) -> "[1 2]").
     if (x.isScalar()) {
-        return Value::fromString(fmt(x.toScalar()), mr);
+        return Value::fromString(fmt(x.elemAsDouble(0)), mr);
     }
 
     std::string out;
@@ -466,7 +490,7 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
         if (r > 0) out.push_back(';');
         for (size_t c = 0; c < C; ++c) {
             if (c > 0) out.push_back(' ');
-            out += fmt(x.doubleData()[c * R + r]);
+            out += fmt(x.elemAsDouble(c * R + r));
         }
     }
     out.push_back(']');
@@ -1771,10 +1795,30 @@ void mat2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("mat2str: requires at least 1 argument", 0, 0, "mat2str", "",
                      "numkit:mat2str:nargin");
+    auto *mr = ctx.engine->resource();
     int prec = 15;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        prec = static_cast<int>(args[1].toScalar());
-    outs[0] = mat2str(args[0], prec, ctx.engine->resource());
+    bool withClass = false;
+    // Trailing args (in any order): a numeric precision, and/or the literal
+    // 'class' flag which wraps the output with the class name
+    // (mat2str(int8([1 2]),'class') -> "int8([1 2])").
+    for (size_t k = 1; k < args.size(); ++k) {
+        const Value &a = args[k];
+        if (a.type() == ValueType::CHAR || a.isString()) {
+            std::string s = a.toString();
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char ch) { return std::tolower(ch); });
+            if (s == "class") withClass = true;
+        } else if (!a.isEmpty()) {
+            prec = static_cast<int>(a.toScalar());
+        }
+    }
+    Value r = mat2str(args[0], prec, mr);
+    if (withClass) {
+        std::string wrapped = std::string(mtypeName(args[0].type())) + "(" +
+                              r.toString() + ")";
+        r = Value::fromString(wrapped, mr);
+    }
+    outs[0] = r;
 }
 
 void strjoin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

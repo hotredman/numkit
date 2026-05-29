@@ -1649,6 +1649,35 @@ TEST_P(BuiltinTest, Mat2strComplex)
     EXPECT_EQ(getVarPtr("c5")->toString(), "1");
 }
 
+// mat2str on integer + logical types and the 'class' option. vs MATLAB
+// R2025b: integers print BARE (no class wrapper), logical prints true/false,
+// and 'class' wraps the result with the class name. 2026-05-30.
+TEST_P(BuiltinTest, Mat2strIntegerLogical)
+{
+    eval("i1 = mat2str(int8([1 2; 3 4]));");
+    EXPECT_EQ(getVarPtr("i1")->toString(), "[1 2;3 4]");
+    eval("i2 = mat2str(int8(5));");
+    EXPECT_EQ(getVarPtr("i2")->toString(), "5");
+    eval("i3 = mat2str(uint8([255 0; 1 2]));");
+    EXPECT_EQ(getVarPtr("i3")->toString(), "[255 0;1 2]");
+    eval("i4 = mat2str(int32([-5 7]));");
+    EXPECT_EQ(getVarPtr("i4")->toString(), "[-5 7]");
+    // Logical -> true / false.
+    eval("l1 = mat2str(true);");
+    EXPECT_EQ(getVarPtr("l1")->toString(), "true");
+    eval("l2 = mat2str([true false true]);");
+    EXPECT_EQ(getVarPtr("l2")->toString(), "[true false true]");
+    eval("l3 = mat2str(logical([1 0; 0 1]));");
+    EXPECT_EQ(getVarPtr("l3")->toString(), "[true false;false true]");
+    // 'class' option wraps with the class name.
+    eval("k1 = mat2str(int8([1 2; 3 4]), 'class');");
+    EXPECT_EQ(getVarPtr("k1")->toString(), "int8([1 2;3 4])");
+    eval("k2 = mat2str(true, 'class');");
+    EXPECT_EQ(getVarPtr("k2")->toString(), "logical(true)");
+    eval("k3 = mat2str([1 2], 'class');");
+    EXPECT_EQ(getVarPtr("k3")->toString(), "double([1 2])");
+}
+
 TEST_P(BuiltinTest, Strjoin)
 {
     eval("s = strjoin({'a', 'b', 'c'});");
