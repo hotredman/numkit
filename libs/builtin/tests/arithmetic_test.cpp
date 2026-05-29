@@ -208,6 +208,33 @@ TEST_P(ArithmeticTest, BroadcastComparison)
     EXPECT_EQ(cols(*A), 3u);
 }
 
+// abs() on integer types: MATLAB keeps the class and SATURATES, so
+// abs(intmin) -> intmax (abs(int8(-128))=127); numkit previously returned a
+// DOUBLE (and the wrong value 128). DEEP-PROBE 2026-05-30.
+TEST_P(ArithmeticTest, AbsIntegerSaturates)
+{
+    eval("a = abs(int8(-128));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(a);"), 127.0);   // saturates, not 128
+    EXPECT_TRUE(evalBool("isequal(class(a), 'int8');"));
+    eval("b = abs(int16(-32768));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(b);"), 32767.0);
+    eval("c = abs(int8([-3 -128 5]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(1));"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(2));"), 127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(3));"), 5.0);
+    EXPECT_TRUE(evalBool("isequal(class(c), 'int8');"));
+    eval("d = abs(uint8(200));");                        // unsigned unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("double(d);"), 200.0);
+    EXPECT_TRUE(evalBool("isequal(class(d), 'uint8');"));
+    eval("e = abs(int32(-7));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(e);"), 7.0);
+    EXPECT_TRUE(evalBool("isequal(class(e), 'int32');"));
+    // double / complex unchanged (regress).
+    EXPECT_DOUBLE_EQ(evalScalar("abs(-3.5);"), 3.5);
+    EXPECT_TRUE(evalBool("isequal(class(abs(-3.5)), 'double');"));
+    EXPECT_DOUBLE_EQ(evalScalar("abs(3-4i);"), 5.0);
+}
+
 INSTANTIATE_DUAL(ArithmeticTest);
 
 // ============================================================
