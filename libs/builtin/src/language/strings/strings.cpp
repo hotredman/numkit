@@ -478,12 +478,28 @@ Value strjoin(const Value &c, const Value &delim, std::pmr::memory_resource *mr)
     if (!c.isCell())
         throw Error("strjoin: first argument must be a cell array",
                      0, 0, "strjoin", "", "numkit:strjoin:notCell");
-    const std::string sep = delim.isEmpty() ? std::string(" ") : delim.toString();
-    std::string out;
     const size_t n = c.numel();
-    for (size_t i = 0; i < n; ++i) {
-        if (i > 0) out += sep;
-        out += c.cellAt(i).toString();
+    std::string out;
+    if (delim.isCell()) {
+        // MATLAB R2025b: a cell array of numel(C)-1 delimiters, interleaved
+        // between consecutive elements: strjoin({'a','b','c'},{', ',' and '})
+        // -> 'a, b and c'.
+        const size_t nd = delim.numel();
+        if (n > 0 && nd != n - 1)
+            throw Error("strjoin: delimiter cell array must have one fewer "
+                         "element than the first argument",
+                         0, 0, "strjoin", "", "numkit:strjoin:badDelimCount");
+        for (size_t i = 0; i < n; ++i) {
+            if (i > 0) out += delim.cellAt(i - 1).toString();
+            out += c.cellAt(i).toString();
+        }
+    } else {
+        const std::string sep =
+            delim.isEmpty() ? std::string(" ") : delim.toString();
+        for (size_t i = 0; i < n; ++i) {
+            if (i > 0) out += sep;
+            out += c.cellAt(i).toString();
+        }
     }
     return Value::fromString(out, mr);
 }

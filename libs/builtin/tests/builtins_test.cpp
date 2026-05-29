@@ -1655,6 +1655,13 @@ TEST_P(BuiltinTest, Strjoin)
     EXPECT_EQ(getVarPtr("s")->toString(), "a b c");
     eval("s2 = strjoin({'foo', 'bar', 'baz'}, '-');");
     EXPECT_EQ(getVarPtr("s2")->toString(), "foo-bar-baz");
+    // Cell array of N-1 delimiters, interleaved between elements (MATLAB R2025b).
+    eval("s3 = strjoin({'a', 'b', 'c'}, {', ', ' and '});");
+    EXPECT_EQ(getVarPtr("s3")->toString(), "a, b and c");
+    eval("s4 = strjoin({'x', 'y'}, {'->'});");
+    EXPECT_EQ(getVarPtr("s4")->toString(), "x->y");
+    eval("s5 = strjoin({'solo'}, {});");   // single element, no delimiters
+    EXPECT_EQ(getVarPtr("s5")->toString(), "solo");
 }
 
 TEST_P(BuiltinTest, Strtok)
