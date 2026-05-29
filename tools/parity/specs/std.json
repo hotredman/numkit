@@ -2,14 +2,15 @@
   "name": "std",
   "namespace": "stats",
   "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]; v8 = [1 2 3 4 5]'; W = [1 2 1 2 1]';",
-  "expr": "sA = std(A); sA1 = std(A, 1); s_all = std(A, 0, 'all'); s_vec = std(A, 0, [1 2]); s_w = std(v8, W); s_s1 = std(5); s_se = std([7]);",
+  "expr": "sA = std(A); sA1 = std(A, 1); s_all = std(A, 0, 'all'); s_vec = std(A, 0, [1 2]); s_w = std(v8, W); s_s1 = std(5); s_se = std([7]); s_e0 = double(isnan(std([]))); s_ne0 = numel(std([]));",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
     "sA(1)", "sA(2)", "sA(3)",
     "sA1(1)",
     "s_all", "s_vec", "s_w",
-    "s_s1", "s_se"
+    "s_s1", "s_se",
+    "s_e0", "s_ne0"
   ],
-  "comment": "Sig: S = std(A[, w | W][, dim | 'all' | vecdim][, nanflag]). Same surface as var. Single-element std = 0 (NOT NaN): std(5)=0, std([7])=0. Closes audit/findings/stats/std.md + DEEP-PROBE 2026-05-29 n==1 fix."
+  "comment": "Sig: S = std(A[, w | W][, dim | 'all' | vecdim][, nanflag]). Same surface as var. Single-element std = 0 (NOT NaN): std(5)=0, std([7])=0. EMPTY std -> NaN scalar (not 0x0): std([])=NaN. Closes audit/findings/stats/std.md + DEEP-PROBE 2026-05-29 n==1 + empty fixes."
 }

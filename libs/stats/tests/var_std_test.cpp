@@ -118,6 +118,28 @@ TEST_F(VarStdTest, StdSingleElementVectorIsZero)
 // fix (wide blast radius across all reductions) — deferred to a supervised
 // cycle. The single-element n==1 -> 0 fix above is independent and correct.
 
+// MATLAB R2025b: var/std of an empty array -> NaN (not a 0x0 empty).
+// 0x0 [] -> scalar NaN; partial empties collapse the operating dim:
+// var(zeros(0,3))=[NaN NaN NaN] (1x3), var(zeros(3,0))=1x0, var([],0,2)=0x1.
+// DEEP-PROBE 2026-05-29: numkit previously returned a 0x0 empty for all.
+TEST_F(VarStdTest, VarStdEmptyIsNaN)
+{
+    EXPECT_TRUE(std::isnan(evalScalar("var([])")));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(var([]))"), 1.0);
+    EXPECT_TRUE(std::isnan(evalScalar("std([])")));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(std([]))"), 1.0);
+
+    eval("c = var(zeros(0,3));");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c)"), 3.0);
+    EXPECT_TRUE(std::isnan(evalScalar("c(1)")));
+    EXPECT_TRUE(std::isnan(evalScalar("c(3)")));
+
+    EXPECT_DOUBLE_EQ(evalScalar("numel(var(zeros(3,0)))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(var(zeros(3,0)),1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(var([],0,2),1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(var([],0,2),2)"), 1.0);
+}
+
 TEST_F(VarStdTest, BadDimFlagThrows)
 {
     EXPECT_THROW(eval("var(A, 0, 'unknown');"), numkit::Error);
