@@ -164,3 +164,16 @@ TEST_F(QuantileTest, IqrPartialVecdimRejected)
     EXPECT_THROW(eval("A3 = repmat(A, [1 1 2]); iqr(A3, [1 2]);"),
                  numkit::Error);
 }
+
+// MATLAB's 'Method' is 'exact' (default) / 'approximate'. 'exact' is the
+// linear-interpolation order-statistic method (numkit's default). Was
+// rejected before. vs MATLAB R2025b.
+TEST_F(QuantileTest, MethodExactAlias)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("quantile([1 2 3 4], 0.25, 'Method', 'exact')"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("quantile([1 2 3 4], 0.25, 'Method', 'approximate')"), 1.5);
+    // 'exact' == the default.
+    EXPECT_DOUBLE_EQ(evalScalar("quantile(v10, 0.5, 'Method', 'exact')"),
+                     evalScalar("quantile(v10, 0.5)"));
+    EXPECT_THROW(eval("quantile([1 2 3 4], 0.25, 'Method', 'bogus');"), numkit::Error);
+}

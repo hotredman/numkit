@@ -2,7 +2,7 @@
   "name": "quantile",
   "namespace": "stats",
   "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]; v10 = [1:10]';",
-  "expr": "q1 = quantile(v10, 0.25); q2 = quantile(v10, 0.5); q3 = quantile(v10, 0.75); qv = quantile(v10, [0.25 0.5 0.75]); qA = quantile(A, 0.5); qD2 = quantile(A, 0.5, 2); q_all = quantile(A, 0.5, 'all'); q_vec = quantile(A, 0.5, [1 2]); q_inc = quantile(v10, 0.25, 'Method', 'inclusive'); q_exc = quantile(v10, 0.25, 'Method', 'exclusive');",
+  "expr": "q1 = quantile(v10, 0.25); q2 = quantile(v10, 0.5); q3 = quantile(v10, 0.75); qv = quantile(v10, [0.25 0.5 0.75]); qA = quantile(A, 0.5); qD2 = quantile(A, 0.5, 2); q_all = quantile(A, 0.5, 'all'); q_vec = quantile(A, 0.5, [1 2]); q_exact = quantile([1 2 3 4], 0.25, 'Method', 'exact'); q_approx = quantile([1 2 3 4], 0.25, 'Method', 'approximate');",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
@@ -11,7 +11,7 @@
     "qA(1)", "qA(2)", "qA(3)",
     "qD2(1)", "qD2(3)", "qD2(5)",
     "q_all", "q_vec",
-    "q_inc", "q_exc"
+    "q_exact", "q_approx"
   ],
-  "comment": "Sig: Q = quantile(A, p [, dim | 'all' | vecdim] [, Method=method]). Default = 'midpoint' (MATLAB R2025b R2007a algorithm), positions (k-0.5)/N. Methods: midpoint (default) | inclusive (Type-7) | exclusive (Type-6) | approximate (falls back to midpoint). Integer-n form (quantile(A, n) for evenly-spaced quantiles) NOT yet supported — pass an explicit p vector. Closes audit/findings/stats/quantile.md."
+  "comment": "Sig: Q = quantile(A, p [, dim | 'all' | vecdim] [, 'Method', m]). Default = the MATLAB 'exact' algorithm (R2007a linear-interpolation, positions (k-0.5)/N). MATLAB's documented Method values are 'exact' (default) and 'approximate'; numkit also keeps midpoint/inclusive/exclusive for compatibility. quantile([1 2 3 4],0.25,'exact') = 1.5. numkit previously rejected 'exact' -- alias added. Closes audit/findings/stats/quantile.md."
 }
