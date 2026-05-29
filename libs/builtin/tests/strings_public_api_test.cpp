@@ -6,6 +6,7 @@
 #include <numkit/builtin/language/strings/strings.hpp>
 #include <numkit/builtin/language/strings/regex.hpp>
 
+#include <limits>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
@@ -31,6 +32,28 @@ TEST(BuiltinStringsPublicApi, Num2StrScalar)
     Value r = numkit::builtin::num2str(Value::scalar(3.14, mr), mr);
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "3.14");
+}
+
+// MATLAB num2str default precision is magnitude-aware (~4 digits after the
+// integer part), NOT a fixed 5 sig figs. num2str(1000000)="1000000" (numkit
+// previously gave "1e+06" from a fixed "%.5g"). 2026-05-29.
+TEST(BuiltinStringsPublicApi, Num2StrMagnitudeAware)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto n2s = [&](double v) {
+        return numkit::builtin::num2str(Value::scalar(v, mr), mr).toString();
+    };
+    EXPECT_EQ(n2s(1000000.0),   "1000000");
+    EXPECT_EQ(n2s(1000000.5),   "1000000.5");
+    EXPECT_EQ(n2s(123456789.0), "123456789");
+    EXPECT_EQ(n2s(12345.678),   "12345.678");
+    EXPECT_EQ(n2s(3.14159265),  "3.1416");      // small magnitude -> 5 sig figs
+    EXPECT_EQ(n2s(-42.0),       "-42");
+    EXPECT_EQ(n2s(0.0),         "0");
+    EXPECT_EQ(n2s(0.00012345),  "0.00012345");
+    EXPECT_EQ(n2s(std::numeric_limits<double>::infinity()), "Inf");
+    EXPECT_EQ(n2s(-std::numeric_limits<double>::infinity()), "-Inf");
+    EXPECT_EQ(n2s(std::nan("")), "NaN");
 }
 
 TEST(BuiltinStringsPublicApi, Str2NumSuccess)

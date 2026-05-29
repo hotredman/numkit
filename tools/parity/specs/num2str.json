@@ -2,12 +2,13 @@
   "name": "num2str",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strcmp(num2str(42), \"42\")); r2 = double(strlength(num2str(3.14)));",
+  "expr": "r1 = double(strcmp(num2str(42), \"42\")); r2 = double(strlength(num2str(3.14))); b1 = double(strcmp(num2str(1000000), \"1000000\")); b2 = double(strcmp(num2str(1000000.5), \"1000000.5\")); b3 = double(strcmp(num2str(123456789), \"123456789\")); b4 = double(strcmp(num2str(12345.678), \"12345.678\")); b5 = double(strcmp(num2str(pi), \"3.1416\")); b6 = double(strcmp(num2str(0.00012345), \"0.00012345\"));",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
     "r1",
-    "r2"
+    "r2",
+    "b1", "b2", "b3", "b4", "b5", "b6"
   ],
-  "comment": "Sig: r = num2str(...). I/O / matrix-ops. Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = num2str(...). DEFAULT precision is MAGNITUDE-AWARE (~4 digits after the integer part), not a fixed 5 sig figs: num2str(1000000)=\"1000000\", num2str(1000000.5)=\"1000000.5\", num2str(123456789)=\"123456789\", num2str(12345.678)=\"12345.678\", num2str(pi)=\"3.1416\". numkit previously used a fixed \"%.5g\" -> \"1e+06\" for large values; fixed 2026-05-29. Spec-extension batch 2026-05-09."
 }
