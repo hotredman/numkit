@@ -93,6 +93,30 @@ TEST_F(SignalBatch3Test, Multirate)
     EXPECT_GT(evalScalar("numel(y)"), 0.0);
 }
 
+// downsample/upsample phase argument (was silently ignored). vs MATLAB R2025b.
+TEST_F(SignalBatch3Test, MultiratePhaseArgument)
+{
+    // downsample(x, n, phase): keep x[phase], x[phase+n], …
+    eval("y = downsample(1:10, 3, 1);");      // [2 5 8]
+    EXPECT_DOUBLE_EQ(evalScalar("numel(y)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 8.0);
+    eval("y2 = downsample(1:10, 3, 2);");     // [3 6 9]
+    EXPECT_DOUBLE_EQ(evalScalar("y2(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y2(3)"), 9.0);
+
+    // upsample(x, n, phase): place samples at offset phase.
+    eval("u = upsample(1:3, 3, 1);");         // [0 1 0 0 2 0 0 3 0]
+    EXPECT_DOUBLE_EQ(evalScalar("numel(u)"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(5)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(8)"), 3.0);
+
+    // phase >= n is rejected.
+    EXPECT_THROW(eval("downsample(1:10, 3, 3);"), std::exception);
+}
+
 TEST_F(SignalBatch3Test, ARSpectralEstimators)
 {
     // pburg / pyulear: AR-based spectral estimators bit-identical to MATLAB.

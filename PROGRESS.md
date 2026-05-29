@@ -2485,13 +2485,13 @@ intentionally omitted — flat solver functions only.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `decimate` | ✅ | 0.006 | 1325.17× |  | OK | Sig: r = decimate(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `downsample` | ✅ | 0.003 | 234.92× |  | OK | Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `downsample` | ✅ | 0.006 | 196.44× |  | OK | Sig y=downsample(x,n[,phase]). Keeps x[phase], x[phase+n], … (phase 0..n-1). downsample(1:10,3) -> [1 4 7 10]; phase 1 -> [2 5 8]; phase 2 -> [3 6 9]. numkit previously IGNORED phase -- now honored. Matches MATLAB R2025b. |
 | `fillgaps` | ❌ |  |  |  |  |  |
 | `interp` | ✅ | 0.004 |  | 386.44× | OK | Sig: r = interp(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `intfilt` | ✅ | 0.004 | 739.12× |  | OK | Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align. |
 | `resample` | ✅ | 0.004 | 2051.94× | 63.96× | OK | Sig: r = resample(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `upfirdn` | ✅ | 0.004 | 239.04× | 29.69× | OK | Sig: y = upfirdn(x, h, p, q). Output length ceil(((Lx-1)*p + Lh) / q). Bit-identical with MATLAB R2025b after rewrite 2026-05-09. |
-| `upsample` | ✅ | 0.005 | 146.36× | 38.40× | OK | Sig: r = upsample(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `upsample` | ✅ | 0.005 | 208.27× |  | OK | Sig y=upsample(x,n[,phase]). Places samples at offset phase: y[phase + i*n] = x[i] (phase 0..n-1). upsample(1:3,3) -> [1 0 0 2 0 0 3 0 0]; phase 1 -> [0 1 0 0 2 0 0 3 0]; phase 2 -> [0 0 1 0 0 2 0 0 3]. numkit previously IGNORED phase -- now honored. Matches MATLAB R2025b. |
 
 ### Signal Modeling
 
