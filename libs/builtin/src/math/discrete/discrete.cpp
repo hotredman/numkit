@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -73,6 +74,71 @@ inline Value rowFromVec(const double *data, std::size_t n, std::pmr::memory_reso
     if (n > 0)
         std::copy(data, data + n, r.doubleDataMut());
     return r;
+}
+
+// ── complex unique ─────────────────────────────────────────────────
+// MATLAB unique() supports COMPLEX: values are ordered by magnitude |z|
+// then phase angle arg(z) (the same key as complex sort); a value with a
+// NaN component sorts last and is always distinct. Two complex values are
+// "equal" iff identical (real AND imag equal). Dedup is first-occurrence;
+// ia/ic match numkit's double-unique row orientation. (Linear first-occur
+// scan: O(n*u) — fine for the small complex sets unique() sees in practice.)
+inline bool cxUniqLess(Complex a, Complex b)
+{
+    const double am = std::abs(a), bm = std::abs(b);
+    const bool an = std::isnan(am), bn = std::isnan(bm);
+    if (an || bn) { if (an && bn) return false; return bn; }   // non-NaN < NaN
+    if (am != bm) return am < bm;
+    return std::arg(a) < std::arg(b);
+}
+inline bool cxUniqEqual(Complex a, Complex b)
+{
+    return a.real() == b.real() && a.imag() == b.imag();        // NaN never equal
+}
+
+std::tuple<Value, Value, Value>
+uniqueComplexFull(const Value &x, std::pmr::memory_resource *mr, bool stable)
+{
+    const size_t n = x.numel();
+    const Complex *p = x.complexData();
+    ScratchArena scratch(mr);
+
+    struct UC { Complex v; size_t firstIdx; };
+    auto uniq = ScratchVec<UC>(&scratch);
+    auto ic0  = ScratchVec<size_t>(n, &scratch);   // original -> 0-based pos in uniq
+    for (size_t i = 0; i < n; ++i) {
+        const Complex z = p[i];
+        const bool nanComp = std::isnan(z.real()) || std::isnan(z.imag());
+        size_t found = static_cast<size_t>(-1);
+        if (!nanComp)
+            for (size_t k = 0; k < uniq.size(); ++k)
+                if (cxUniqEqual(uniq[k].v, z)) { found = k; break; }
+        if (found == static_cast<size_t>(-1)) { ic0[i] = uniq.size(); uniq.push_back({z, i}); }
+        else                                   { ic0[i] = found; }
+    }
+
+    const size_t u = uniq.size();
+    auto perm = ScratchVec<size_t>(u, &scratch);
+    for (size_t k = 0; k < u; ++k) perm[k] = k;
+    if (!stable)
+        std::stable_sort(perm.begin(), perm.end(),
+                         [&](size_t a, size_t b) { return cxUniqLess(uniq[a].v, uniq[b].v); });
+    auto newRank = ScratchVec<size_t>(u, &scratch);
+    for (size_t k = 0; k < u; ++k) newRank[perm[k]] = k;
+
+    auto cOut  = Value::matrix(1, u, ValueType::COMPLEX, mr);
+    auto iaRow = Value::matrix(1, u, ValueType::DOUBLE, mr);
+    auto icRow = Value::matrix(1, n, ValueType::DOUBLE, mr);
+    Complex *cd = cOut.complexDataMut();
+    double  *ia = iaRow.doubleDataMut();
+    double  *ici = icRow.doubleDataMut();
+    for (size_t k = 0; k < u; ++k) {
+        cd[k] = uniq[perm[k]].v;
+        ia[k] = static_cast<double>(uniq[perm[k]].firstIdx + 1);
+    }
+    for (size_t i = 0; i < n; ++i)
+        ici[i] = static_cast<double>(newRank[ic0[i]] + 1);
+    return std::make_tuple(std::move(cOut), std::move(iaRow), std::move(icRow));
 }
 
 // ── 'rows' helpers ─────────────────────────────────────────────
@@ -201,6 +267,8 @@ Value unique(const Value &x, std::pmr::memory_resource *mr, bool stable)
 {
     const size_t n = x.numel();
     if (n == 0) return emptyRow(mr);
+    if (x.type() == ValueType::COMPLEX)
+        return std::get<0>(uniqueComplexFull(x, mr, stable));
 
     ScratchArena scratch(mr);
     const double *p = x.doubleData();
@@ -243,6 +311,8 @@ uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable)
         return std::make_tuple(emptyRow(mr), emptyRow(mr),
                                emptyRow(mr));
     }
+    if (x.type() == ValueType::COMPLEX)
+        return uniqueComplexFull(x, mr, stable);
 
     if (stable) {
         // First-occurrence order. C = X(ia); X = C(ic). Each NaN distinct.

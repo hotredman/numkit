@@ -23,3 +23,11 @@ fprintf('u(ic) ok : %d\n', isequal(u(ic), xx(:).'));   % expect 1
 
 % 'first'/'last' keep sorted order (occurrence selector only).
 fprintf('first  : %s\n', mat2str(unique([2 2 1 1], 'first')));  % expect [1 2]
+
+% Complex unique: order by magnitude |z| then phase angle arg(z). MATLAB R2025b.
+[cu, cia, cic] = unique([3+4i 1 3+4i 5i]);
+fprintf('\ncomplex C  : %s (expect [1 3+4i 5i])\n', mat2str(cu));
+fprintf('complex ia : %s (expect [2 1 4])\n', mat2str(cia(:).'));
+fprintf('complex ic : %s (expect [2 1 2 3])\n', mat2str(cic(:).'));
+fprintf('complex stable : %s (expect [3+4i 1 5i])\n', mat2str(unique([3+4i 1 3+4i 5i], 'stable')));
+fprintf('complex ties   : %s (expect [-1i 1i 2 -2])\n', mat2str(unique([2+0i -2 1i -1i 2])));
