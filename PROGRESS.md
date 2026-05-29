@@ -749,7 +749,7 @@ together.
 |---|:---:|---:|---:|---:|:---:|---|
 | `poly` | ✅ | 0.003 | 175.94× | 25.73× | OK | Sig: p = poly(A) for square matrix. Char polynomial via Souriau-Faddeev-LeVerrier; p = [1 c1 c2 ... cn] such that roots(p) == eig(A). Bit-identical with MATLAB R2025b on probed companion-form matrix. |
 | `polyder` | ✅ | 0.001 | 69.72× | 34.70× | OK | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
-| `polydiv` | ✅ | 0.001 | 55.07× | 81.50× | OK | Sig: [Q, R] = polydiv(U, V). Polynomial div via deconv. 10000 iters. |
+| `polydiv` | ✅ | 0.001 | 43.42× |  | OK | Sig [Q,R]=polydiv(U,V) (via deconv): polynomial division. (x^3-2x+1)/(x-1) divides EXACTLY -> Q=[1 1 -1], R=[0 0 0 0] (sum(|R|)=0). Pins BOTH outputs (was out_var dump of Q only). |
 | `polyeig` | ✅ | 0.013 | 41.41× |  | OK | Sig: e = polyeig(A0, A1, ..., Ak). Polynomial eigenvalue problem via companion linearisation + char-poly + roots(). Eigenvalues-only form. Linear test: (A0 + λI)x = 0 → e = eigvals(-A0) = [-2, -3]. Quadratic test: (λ²-5λ+6)·I → e = {2, 2, 3, 3}. Real ordering may differ — fingerprint sorts. Tol 1e-5 because the characteristic-polynomial → roots() path has lower precision than direct eig (residual imag part ~1e-7 for nominally-real eigvals). |
 | `polyfit` | ✅ | 0.004 | 171.66× | 39.45× | OK | Sig: r = polyfit(...). Spec-extension batch 2026-05-09. |
 | `polyint` | ✅ | 0.001 | 16.58× | 25.95× | OK | Sig: P_int = polyint(P). Deterministic 100-coef. 1000 iters. Element-wise SAVE. |
@@ -757,7 +757,7 @@ together.
 | `polyvalm` | ✅ | 0.001 | 38.11× | 51.68× | OK | Sig: Y = polyvalm(P, A). Matrix poly eval x^2-3x+2. 10000 iters. |
 | `residue` | ✅ | 0.013 | 352.79× |  | OK | Sig: [r, p, k] = residue(b, a) — s-domain partial-fraction expansion. [r, p, k] = residuez(b, a) — z-domain (B/A polynomials in z^-1 ascending order). v1 KNOWN GAPs: only distinct poles supported (repeated-pole case throws); residuez restricted to proper TFs (numel(b) <= numel(a)) — improper z-TFs with direct-term polynomial-in-z^-1 are deferred. Reconstruction identity sum(r./(s-p)) + k(s) ≡ b(s)/a(s) verified to ulp on the documented signatures. Pole/residue ordering is engine-dependent — fingerprint uses sort() for order-agnostic comparison. Inverse forms [b, a] = residue(r, p, k) not yet wired. |
 | `roots` | ✅ | 0.001 | 23.65× | 34.07× | OK | Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts. |
-| `padecoef` | ✅ | 0.000 | 2.98× | 156.47× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
+| `padecoef` | ✅ | 0.001 | 274.18× |  | OK | Sig [num,den]=padecoef(T,N): order-N Pade approximant of exp(-T*s). T=2, N=3 -> num=[-1 6 -15 15], den=[1 6 15 15] (den = num with the odd-power signs flipped: same denominator/numerator magnitudes, classic Pade exp structure). Pins BOTH outputs (was out_var dump of num only with den fingerprints that the harness ignored; small N keeps coefficients exactly pinnable). |
 
 ### Random Number Generation
 
@@ -2543,7 +2543,7 @@ intentionally omitted — flat solver functions only.
 | `conv` | ✅ | 0.001 | 138.07× |  | OK | Sig: r = conv(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `conv2` | ✅ | 0.003 | 31.03× |  | OK | Sig: r = conv2(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `convn` | ✅ | 0.001 | 119.44× |  | OK | Sig: r = convn(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `deconv` | ✅ | 0.001 | 21.62× |  | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
+| `deconv` | ✅ | 0.003 | 51.19× |  | OK | Sig [Q,R]=deconv(U,V): polynomial division. (x^3+2x^2+3x+4)/(x-1) -> quotient Q=[1 3 6], remainder R=[0 0 0 10] (R has the length of U). Pins BOTH outputs (was an out_var dump of Q only -> the remainder R was unverified). |
 
 ### Transforms
 
@@ -3340,7 +3340,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `knnsearch` | ✅ | 0.005 | 1184.94× | 172.63× | OK | Sig: [Idx, D] = knnsearch(X, Y, 'K', K). Brute-force k-nearest neighbour. 6-point X, 2-query Y, K=3, default Euclidean. Element-wise SAVE on idx (1-based row indices). |
+| `knnsearch` | ✅ | 0.002 | 1963.34× |  | OK | Sig [Idx,D]=knnsearch(X,Y,'K',3): brute-force kNN, default Euclidean. Distinct-distance queries so order is deterministic. Query [1.2 1.8]: nearest = rows [2 1 3], D=[0.282843 0.824621 1.131371]; query [8.7 8.2]: rows [5 4 6], D(1)=0.360555. Pins BOTH idx AND D (was an out_var dump of idx only -> distances D were unverified). Earlier query [1.5 1.5] gave all-equal D=0.707 (degenerate). |
 | `rangesearch` | ✅ | 0.005 | 910.87× | 85.00× | OK | Sig: [Idx, D] = rangesearch(X, Y, r). Cell-array output unwrapped to a numeric row in SAVE (idx = idxC{1}). All 3 points in cluster 1 are within r=1.0 of (1.5, 1.5). Explicit fingerprint avoids sum on the cell. |
 | `createns` | ❌ |  |  |  |  | tree constructor (returns struct, not class) |
 

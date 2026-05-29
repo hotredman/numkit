@@ -3,8 +3,11 @@
   "namespace": "core",
   "setup": "u = [1 0 -2 1]; v = [1 -1];",
   "expr": "[y, jj] = deconv(u, v);",
-  "iters": 100,
+  "iters": 3,
   "tol": 1e-09,
-  "comment": "Sig: [Q, R] = polydiv(U, V). Polynomial div via deconv. 10000 iters.",
-  "out_var": "y"
+  "fingerprint": [
+    "double(numel(y))", "y(1)", "y(2)", "y(3)",
+    "jj(1)", "jj(4)", "double(sum(abs(jj)))"
+  ],
+  "comment": "Sig [Q,R]=polydiv(U,V) (via deconv): polynomial division. (x^3-2x+1)/(x-1) divides EXACTLY -> Q=[1 1 -1], R=[0 0 0 0] (sum(|R|)=0). Pins BOTH outputs (was out_var dump of Q only)."
 }
