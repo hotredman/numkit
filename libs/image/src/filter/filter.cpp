@@ -2716,6 +2716,73 @@ void wiener2_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
+// ── roifilt2 (filter a region of interest) ────────────────────────
+//
+// MATLAB R2025b roifilt2.m:
+//   J = roifilt2(h, I, BW)   — filter I with the 2-D linear filter h,
+//                              keep only the masked (BW) pixels.
+//   J = roifilt2(I, BW, fun) — apply fun to I, keep only masked pixels.
+//
+// In both forms the output equals I outside the mask and the filtered
+// value inside it. For the filter form MATLAB crops to the ROI bounding
+// box (padded by ceil(size(h)/2)) purely as an optimisation; since that
+// pad always covers the filter radius, the masked pixels' values equal
+// those of imfilter over the whole image, so we filter the full image
+// directly. imfilter is invoked with MATLAB's defaults (correlation,
+// zero boundary, same size). The function form's output class follows
+// the class of fun's result; the filter form's follows class(I).
+namespace {
+
+// out = cast(I, class(filtRes)); out(BW) = filtRes(BW).
+Value roifilt2_combine(const Value &I, const Value &filtRes, const Value &BW,
+                       std::pmr::memory_resource *mr)
+{
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    if (BW.dims().rows() != H || BW.dims().cols() != W)
+        throw Error("roifilt2: I and BW must be the same size",
+                    0, 0, "roifilt2", "", "numkit:roifilt2:imageMaskSizeMismatch");
+    if (filtRes.dims().rows() != H || filtRes.dims().cols() != W)
+        throw Error("roifilt2: filtered result size mismatch",
+                    0, 0, "roifilt2", "", "numkit:roifilt2:imageSizeMismatch");
+    const ValueType cls = filtRes.type();
+    Value out = Value::matrix(H, W, cls, mr);
+    const std::size_t N = H * W;
+    auto store = [&](std::size_t i, double v) {
+        switch (cls) {
+            case ValueType::SINGLE: out.singleDataMut()[i] = static_cast<float>(v); break;
+            case ValueType::UINT8:  out.uint8DataMut()[i]  = static_cast<uint8_t>(std::lround(v)); break;
+            case ValueType::UINT16: out.uint16DataMut()[i] = static_cast<uint16_t>(std::lround(v)); break;
+            case ValueType::UINT32: out.uint32DataMut()[i] = static_cast<uint32_t>(std::lround(v)); break;
+            case ValueType::INT8:   out.int8DataMut()[i]   = static_cast<int8_t>(std::lround(v)); break;
+            case ValueType::INT16:  out.int16DataMut()[i]  = static_cast<int16_t>(std::lround(v)); break;
+            case ValueType::INT32:  out.int32DataMut()[i]  = static_cast<int32_t>(std::lround(v)); break;
+            case ValueType::INT64:  out.int64DataMut()[i]  = static_cast<int64_t>(std::llround(v)); break;
+            case ValueType::LOGICAL:out.logicalDataMut()[i]= (v != 0.0) ? 1u : 0u; break;
+            default:                out.doubleDataMut()[i] = v; break;
+        }
+    };
+    for (std::size_t i = 0; i < N; ++i) {
+        const bool masked = BW.elemAsDouble(i) != 0.0;
+        store(i, (masked ? filtRes : I).elemAsDouble(i));
+    }
+    return out;
+}
+
+} // namespace
+
+// Filter form: J = roifilt2(h, I, BW).
+Value roifilt2(const Value &h, const Value &I, const Value &BW,
+               std::pmr::memory_resource *mr)
+{
+    if (I.dims().ndim() > 2)
+        throw Error("roifilt2: I must be a 2-D image",
+                    0, 0, "roifilt2", "", "numkit:roifilt2:imageMustBe2D");
+    // imfilter defaults: correlation, zero boundary, same size.
+    Value filtFull = imfilter(I, h, PadMode::Constant, 0.0, false, false, mr);
+    return roifilt2_combine(I, filtFull, BW, mr);
+}
+
 // ── nlfilter (general sliding-neighbourhood) ──────────────────────
 //
 // MATLAB R2025b nlfilter.m:
@@ -3746,6 +3813,29 @@ void imnlmfilt(const Value &I, double dos,
 }
 
 namespace detail {
+
+void roifilt2_reg(Span<const Value> args, std::size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("roifilt2: requires (h, I, BW) or (I, BW, fun)",
+                    0, 0, "roifilt2", "", "numkit:roifilt2:nargin");
+    auto *mr = ctx.engine->resource();
+    // Function-handle form: J = roifilt2(I, BW, fun).
+    if (args[2].isFuncHandle() || args[2].isChar() || args[2].isString()) {
+        const Value &I = args[0];
+        const Value &BW = args[1];
+        if (I.dims().ndim() > 2)
+            throw Error("roifilt2: I must be a 2-D image",
+                        0, 0, "roifilt2", "", "numkit:roifilt2:imageMustBe2D");
+        Value filtRes = ctx.engine->callFunctionHandle(
+            args[2], Span<const Value>(&I, 1));
+        outs[0] = roifilt2_combine(I, filtRes, BW, mr);
+        return;
+    }
+    // Filter form: J = roifilt2(h, I, BW).
+    outs[0] = roifilt2(args[0], args[1], args[2], mr);
+}
 
 void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)

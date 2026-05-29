@@ -227,6 +227,29 @@ Value modefilt3D(const Value &A, int fH, int fW, int fD,
                  const std::string &padopt,
                  std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Filter a region of interest (`J = roifilt2(h, I, BW)`).
+///
+/// Filters the grayscale image `I` with the 2-D linear filter `h`
+/// (`imfilter` defaults: correlation, zero boundary, same size) and
+/// returns `I` with only the masked (`BW`) pixels replaced by the
+/// filtered values. The output equals `I` outside the mask. Output
+/// class equals `class(I)`.
+///
+/// The function-handle form `J = roifilt2(I, BW, fun)` — apply `fun` to
+/// `I`, then keep only the masked pixels (output class follows `fun`'s
+/// result) — is handled by the registration adapter, which needs the
+/// engine to invoke the handle.
+///
+/// @param h    2-D linear filter kernel.
+/// @param I    Grayscale 2-D image.
+/// @param BW   Mask (logical or numeric, `BW != 0`), same size as `I`.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Filtered image, same size and class as `I`.
+/// @throws Error  `I` not 2-D, or `BW` size mismatch.
+/// @see imfilter, filter2, roipoly
+Value roifilt2(const Value &h, const Value &I, const Value &BW,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Edge-preserving guided filter (`B = imguidedfilter(A, G, ...)`).
 ///
 /// Smooths image `A` using `G` as a guidance image (often `A`
