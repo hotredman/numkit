@@ -162,3 +162,27 @@ TEST_F(SpectralTest, Poly2rcReturnsR0)
     EXPECT_NEAR(evalScalar("k(3)"), -0.1,            1e-12);
     EXPECT_NEAR(evalScalar("r0"),    5.755726948310, 1e-9);
 }
+
+// rc2poly second output efinal = r0 * prod(1 - k.^2) (inverse of poly2rc's
+// R0). numkit used to return only a (no efinal). vs MATLAB R2025b.
+TEST_F(SpectralTest, Rc2polyReturnsEfinal)
+{
+    eval("a = rc2poly([-0.5 0.4 0.2]);");
+    EXPECT_NEAR(evalScalar("a(2)"), -0.62, 1e-12);
+    EXPECT_NEAR(evalScalar("a(3)"),  0.26, 1e-12);
+    EXPECT_NEAR(evalScalar("a(4)"),  0.20, 1e-12);
+    eval("[a2, e2] = rc2poly([0.5 0.3], 4);");
+    EXPECT_NEAR(evalScalar("a2(2)"), 0.65, 1e-12);
+    EXPECT_NEAR(evalScalar("a2(3)"), 0.30, 1e-12);
+    EXPECT_NEAR(evalScalar("e2"),    2.73, 1e-12);   // 4*(1-0.25)*(1-0.09)
+}
+
+// ac2rc on a non-trivial autocorrelation: reflection coeffs match MATLAB
+// (an earlier spec claimed a KNOWN GAP on a degenerate input — none here).
+TEST_F(SpectralTest, Ac2rcReflectionCoeffs)
+{
+    eval("k = ac2rc([4 1 -0.5 0.3]);");
+    EXPECT_NEAR(evalScalar("k(1)"), -0.25,           1e-12);
+    EXPECT_NEAR(evalScalar("k(2)"),  0.2,            1e-12);
+    EXPECT_NEAR(evalScalar("k(3)"), -0.180555555556, 1e-10);
+}

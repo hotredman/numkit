@@ -349,7 +349,8 @@ poly2rc(const Value &a, double efinal, std::pmr::memory_resource *mr)
     return std::make_tuple(colVec(k, mr), Value::scalar(r0, mr));
 }
 
-Value rc2poly(const Value &k, std::pmr::memory_resource *mr)
+std::tuple<Value, Value>
+rc2poly(const Value &k, double r0, std::pmr::memory_resource *mr)
 {
     auto kv = readVec(k);
     const int p = static_cast<int>(kv.size());
@@ -362,7 +363,12 @@ Value rc2poly(const Value &k, std::pmr::memory_resource *mr)
         a_new[i] = ki;
         a = std::move(a_new);
     }
-    return rowVec(a, mr);
+    // efinal = r0 * prod_i (1 - k_i^2): the final prediction error of the
+    // AR model, the inverse of poly2rc's R0 relation. Second output of
+    // [a, efinal] = rc2poly(k, r0).
+    double prod = 1.0;
+    for (double ki : kv) prod *= (1.0 - ki * ki);
+    return std::make_tuple(rowVec(a, mr), Value::scalar(r0 * prod, mr));
 }
 
 // is2rc / rc2is — inverse-sine parameterisation, k = sin(is).
@@ -973,6 +979,20 @@ void poly2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     if (nargout > 1) outs[1] = std::move(r0);
 }
 
+void rc2poly_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rc2poly: requires at least 1 argument (k)",
+                     0, 0, "rc2poly", "", "numkit:rc2poly:nargin");
+    // [a, efinal] = rc2poly(k, r0). r0 (zero-lag autocorrelation) is only
+    // needed for the second output efinal = r0*prod(1-k.^2); defaults to 1.
+    const double r0 = (args.size() >= 2 && !args[1].isEmpty())
+                          ? args[1].toScalar() : 1.0;
+    auto [a, efinal] = rc2poly(args[0], r0, ctx.engine->resource());
+    outs[0] = std::move(a);
+    if (nargout > 1) outs[1] = std::move(efinal);
+}
+
 #define NK_UNARY_CONV_REG(name)                                                 \
     void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
                     Span<Value> outs, CallContext &ctx)                        \
@@ -983,7 +1003,6 @@ void poly2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
         outs[0] = name(args[0], ctx.engine->resource());                         \
     }
 
-NK_UNARY_CONV_REG(rc2poly)
 NK_UNARY_CONV_REG(is2rc)
 NK_UNARY_CONV_REG(rc2is)
 NK_UNARY_CONV_REG(lar2rc)
