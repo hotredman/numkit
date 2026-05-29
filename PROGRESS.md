@@ -586,8 +586,8 @@ together.
 | `bsxfun` | ✅ | 2.207 | 0.51× |  | OK | Sig: D = bsxfun(@op, A, B). Broadcast 1x1k + 1kx1 → 1k×1k. 100 iters. |
 | `ceil` | ✅ | 0.000 | 102.29× |  | OK | Sig: r = ceil(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `ctranspose` | ✅ | 0.002 | 34.78× |  | OK | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
-| `cumprod` | ✅ | 0.001 | 49.37× |  | OK | Sig: r = cumprod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cumsum` | ✅ | 0.001 | 48.03× |  | OK | Sig: r = cumsum(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cumprod` | ✅ | 0.003 | 11.38× |  | OK | Sig cumprod(X[,dim][,direction][,nanflag]). forward cumprod([1 2 3 4])(4)=24. 'reverse' = [24 24 12 4]. 'omitnan' treats NaN as 1: cumprod([2 NaN 4],'omitnan')=[2 2 8]. numkit previously ERRORED on 'reverse'/'omitnan' -- fixed. |
+| `cumsum` | ✅ | 0.006 | 9.37× |  | OK | Sig cumsum(X[,dim][,direction][,nanflag]). forward (default) cumsum([1 2 3 4])(4)=10. 'reverse' = [10 9 7 4]. 'omitnan' treats NaN as 0: cumsum([1 NaN 3],'omitnan')=[1 1 4] (default 'includenan' propagates NaN). dim+reverse: cumsum([1 2 3;4 5 6],2,'reverse') row1=[6 5 3]. numkit previously ERRORED on 'reverse'/'omitnan' (Cannot convert char to scalar) -- fixed (flag parsing in cumsum_reg). |
 | `diff` | ✅ | 0.001 | 33.97× |  | OK | Sig: r = diff(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `fix` | ✅ | 0.000 |  |  | N/A | Sig: r = fix(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `floor` | ✅ | 0.000 |  |  | N/A | Sig: r = floor(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |

@@ -1,16 +1,12 @@
 {
   "name": "cumsum",
   "namespace": "builtin",
-  "setup": "x = [1, 2, 3, 4, 5];",
-  "expr": "r = cumsum(x);",
-  "iters": 5,
+  "setup": "x = [1 2 3 4]; M = [1 2 3; 4 5 6];",
+  "expr": "rf = cumsum(x); rr = cumsum(x, 'reverse'); ro = cumsum([1 NaN 3], 'omitnan'); rd = cumsum(M, 2, 'reverse');",
+  "iters": 3,
   "tol": 1e-12,
   "fingerprint": [
-    "r(1)",
-    "r(2)",
-    "r(3)",
-    "r(4)",
-    "r(5)"
+    "rf(4)", "rr(1)", "rr(2)", "rr(4)", "ro(2)", "ro(3)", "rd(1,1)", "rd(1,3)"
   ],
-  "comment": "Sig: r = cumsum(...). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
+  "comment": "Sig cumsum(X[,dim][,direction][,nanflag]). forward (default) cumsum([1 2 3 4])(4)=10. 'reverse' = [10 9 7 4]. 'omitnan' treats NaN as 0: cumsum([1 NaN 3],'omitnan')=[1 1 4] (default 'includenan' propagates NaN). dim+reverse: cumsum([1 2 3;4 5 6],2,'reverse') row1=[6 5 3]. numkit previously ERRORED on 'reverse'/'omitnan' (Cannot convert char to scalar) -- fixed (flag parsing in cumsum_reg)."
 }
