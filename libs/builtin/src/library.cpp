@@ -241,6 +241,7 @@ void numunique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ismembertol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void uniquetol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void histcounts_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void histc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void discretize_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // accum.cpp
@@ -953,6 +954,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("ismembertol",&builtin::detail::ismembertol_reg);
     engine.registerFunction("uniquetol",  &builtin::detail::uniquetol_reg);
     engine.registerFunction("histcounts", &builtin::detail::histcounts_reg);
+    engine.registerFunction("histc", &builtin::detail::histc_reg);
     engine.registerFunction("discretize", &builtin::detail::discretize_reg);
     engine.registerFunction("accumarray", &builtin::detail::accumarray_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);

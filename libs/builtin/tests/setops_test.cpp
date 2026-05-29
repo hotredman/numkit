@@ -211,6 +211,37 @@ TEST_P(SetOpsTest, HistcountsBadEdgesThrows)
     EXPECT_THROW(eval("histcounts([1 2 3], [1]);"), std::runtime_error);
 }
 
+// ── histc (legacy) ──────────────────────────────────────────
+// n has length(edges); last bin = exact-equal to edges(end). vs MATLAB.
+TEST_P(SetOpsTest, HistcCounts)
+{
+    eval("h = histc([1 2 2 3 5], [0 2 4 6]);");
+    auto *h = getVarPtr("h");
+    EXPECT_EQ(h->numel(), 4u);                  // length(edges), not edges-1
+    EXPECT_DOUBLE_EQ(h->doubleData()[0], 1.0);  // [0,2): {1}
+    EXPECT_DOUBLE_EQ(h->doubleData()[1], 3.0);  // [2,4): {2,2,3}
+    EXPECT_DOUBLE_EQ(h->doubleData()[2], 1.0);  // [4,6): {5}
+    EXPECT_DOUBLE_EQ(h->doubleData()[3], 0.0);  // == 6: none
+}
+
+TEST_P(SetOpsTest, HistcBinIndexAndColumnwise)
+{
+    // 2nd output: 1-based bin index of each element (0 if out of range).
+    eval("function [a,b] = hcb(x, e)\n  [a,b] = histc(x, e);\nend");
+    eval("[n, bin] = hcb([1 2 2 3 5], [0 2 4 6]);");
+    auto *bin = getVarPtr("bin");
+    EXPECT_DOUBLE_EQ(bin->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(bin->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(bin->doubleData()[4], 3.0);
+    // Matrix: column-wise, length(edges) x ncols.
+    eval("H = histc([1 5; 2 6; 3 7], [0 4 8]);");
+    auto *H = getVarPtr("H");
+    EXPECT_EQ(H->dims().rows(), 3u);
+    EXPECT_EQ(H->dims().cols(), 2u);
+    EXPECT_DOUBLE_EQ(evalScalar("H(1,1)"), 3.0);  // col1 [1;2;3] all in [0,4)
+    EXPECT_DOUBLE_EQ(evalScalar("H(2,2)"), 3.0);  // col2 [5;6;7] all in [4,8)
+}
+
 // ── discretize ──────────────────────────────────────────────
 
 TEST_P(SetOpsTest, DiscretizeBasic)

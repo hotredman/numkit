@@ -121,6 +121,21 @@ Value histcounts(const Value &x, const Value &edges, std::pmr::memory_resource *
 /// @see histcounts
 Value discretize(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Legacy histogram bin counts (`n = histc(x, edges)`).
+///
+/// Unlike `histcounts`, `n` has `length(edges)` entries: bin `k` counts
+/// `edges(k) <= x < edges(k+1)` for `k = 1..end-1`, and `n(end)` counts
+/// values exactly equal to `edges(end)`. A row vector yields a row;
+/// a column vector or matrix is processed column-wise (`length(edges) ×
+/// cols`).
+///
+/// @param x      Data array (vector or matrix).
+/// @param edges  Ascending bin edges.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Bin counts (see shape rule above).
+/// @see histcounts, discretize
+Value histc(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
+
 // ── Number theory ────────────────────────────────────────────────────
 
 /// @brief Primes up to `n` (`p = primes(n)`).
