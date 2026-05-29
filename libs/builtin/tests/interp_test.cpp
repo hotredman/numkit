@@ -370,6 +370,40 @@ TEST_F(InterpTest, Interp2UnsupportedMethodThrows)
     EXPECT_THROW(eval("y = interp2(V, 1.5, 1.5, 'spline');"), std::exception);
 }
 
+// ── interp2 'cubic' (Keys bicubic convolution) ─────────────────
+// Values verified against MATLAB R2025b.
+TEST_F(InterpTest, Interp2CubicInterior)
+{
+    eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
+    EXPECT_NEAR(evalScalar("interp2(V, 2.5, 2.5, 'cubic')"), 10.52734375, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2CubicNearBoundary)
+{
+    // Query in the first/last cell exercises the 3*v1-3*v2+v3 edge padding.
+    eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
+    EXPECT_NEAR(evalScalar("interp2(V, 1.3, 3.7, 'cubic')"), 10.38295, 1e-6);
+}
+
+TEST_F(InterpTest, Interp2CubicOnNodeExact)
+{
+    eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
+    EXPECT_DOUBLE_EQ(evalScalar("interp2(V, 2, 3, 'cubic')"), 11.0);   // V(3,2)
+}
+
+TEST_F(InterpTest, Interp2CubicExplicitGridQuadraticExact)
+{
+    // Cubic reproduces the smooth surface exactly at the midpoint.
+    eval("[X, Y] = meshgrid(1:4, 1:4); W = X.^2 + Y;");
+    EXPECT_NEAR(evalScalar("interp2(X, Y, W, 2.5, 2.5, 'cubic')"), 8.75, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2CubicNonUniformGridThrows)
+{
+    eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
+    EXPECT_THROW(eval("interp2([1 2 4 8], 1:4, V, 2.5, 2.5, 'cubic');"), std::exception);
+}
+
 TEST_F(InterpTest, Interp2ComplexThrows)
 {
     EXPECT_THROW(eval("y = interp2([1+2i, 3; 4, 5], 1.5, 1.5);"), std::exception);

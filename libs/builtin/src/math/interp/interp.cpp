@@ -399,7 +399,7 @@ Value interp1(const Value &x, const Value &y, const Value &xq, const std::string
 // ── interp2 ───────────────────────────────────────────────────────────
 namespace {
 
-enum class Interp2Method { Linear, Nearest };
+enum class Interp2Method { Linear, Nearest, Cubic };
 
 Interp2Method parseInterp2Method(const std::string &m)
 {
@@ -407,12 +407,22 @@ Interp2Method parseInterp2Method(const std::string &m)
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s.empty() || s == "linear") return Interp2Method::Linear;
     if (s == "nearest")             return Interp2Method::Nearest;
-    if (s == "spline" || s == "cubic" || s == "pchip")
+    if (s == "cubic")               return Interp2Method::Cubic;
+    if (s == "spline" || s == "pchip" || s == "makima")
         throw Error("interp2: '" + m + "' method not yet supported "
-                     "(only 'linear' and 'nearest' for now)",
+                     "(linear / nearest / cubic available)",
                      0, 0, "interp2", "", "numkit:interp2:unsupportedMethod");
     throw Error("interp2: unknown method '" + m + "'",
                  0, 0, "interp2", "", "numkit:interp2:badMethod");
+}
+
+// Keys' cubic convolution kernel (a = -0.5).
+inline double keysCubic(double s)
+{
+    s = std::fabs(s);
+    if (s <= 1.0) return ((1.5 * s - 2.5) * s) * s + 1.0;       // 1.5s³ - 2.5s² + 1
+    if (s <  2.0) return (((-0.5 * s + 2.5) * s) - 4.0) * s + 2.0; // -0.5s³ + 2.5s² - 4s + 2
+    return 0.0;
 }
 
 // Locate the cell index i such that grid[i] <= q <= grid[i+1]; returns
@@ -439,13 +449,45 @@ void validateMonotonicAscending(const double *g, std::size_t n, const char *axis
                          0, 0, "interp2", "", "numkit:interp2:notMonotonic");
 }
 
-// Fast path: V is column-major (rows = R, cols = C). Sample one bilinear
-// or nearest-neighbour value at (xq, yq) using x grid (length C) and y
-// grid (length R).
+// Bicubic (Keys, a=-0.5) convolution sample. Vpad is the (R+2)×(C+2)
+// padded grid (column-major; original element (i,j) lives at (i+1,j+1));
+// the one-cell border is the MATLAB cubic extrapolation 3·v1-3·v2+v3.
+// Assumes a uniformly-spaced grid (caller validates). NaN out of range.
+double cubicSample(const double *Vpad, std::size_t R, std::size_t C,
+                   const double *xGrid, const double *yGrid, double xq, double yq)
+{
+    const std::size_t ix = findCell(xGrid, C, xq);
+    const std::size_t iy = findCell(yGrid, R, yq);
+    if (ix == std::size_t(-1) || iy == std::size_t(-1))
+        return std::nan("");
+    const double tx = (xq - xGrid[ix]) / (xGrid[ix + 1] - xGrid[ix]);
+    const double ty = (yq - yGrid[iy]) / (yGrid[iy + 1] - yGrid[iy]);
+    const double wx[4] = { keysCubic(1.0 + tx), keysCubic(tx),
+                           keysCubic(1.0 - tx), keysCubic(2.0 - tx) };
+    const double wy[4] = { keysCubic(1.0 + ty), keysCubic(ty),
+                           keysCubic(1.0 - ty), keysCubic(2.0 - ty) };
+    const std::size_t PR = R + 2;
+    double acc = 0.0;
+    for (int a = 0; a < 4; ++a) {            // y-neighbours: padded rows iy..iy+3
+        double rowAcc = 0.0;
+        for (int b = 0; b < 4; ++b)          // x-neighbours: padded cols ix..ix+3
+            rowAcc += wx[b] * Vpad[(ix + static_cast<std::size_t>(b)) * PR
+                                   + (iy + static_cast<std::size_t>(a))];
+        acc += wy[a] * rowAcc;
+    }
+    return acc;
+}
+
+// Fast path: V is column-major (rows = R, cols = C). Sample one bilinear,
+// nearest-neighbour, or bicubic value at (xq, yq) using x grid (length C)
+// and y grid (length R). For Cubic, Vpad (the padded grid) must be set.
 double interp2Sample(const double *V, std::size_t R, std::size_t C,
                      const double *xGrid, const double *yGrid,
-                     double xq, double yq, Interp2Method method)
+                     double xq, double yq, Interp2Method method,
+                     const double *Vpad = nullptr)
 {
+    if (method == Interp2Method::Cubic)
+        return cubicSample(Vpad, R, C, xGrid, yGrid, xq, yq);
     const std::size_t ix = findCell(xGrid, C, xq);
     const std::size_t iy = findCell(yGrid, R, yq);
     if (ix == std::size_t(-1) || iy == std::size_t(-1))
@@ -556,6 +598,46 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
     else
         for (std::size_t i = 0; i < R * C; ++i) Vd[i] = V.elemAsDouble(i);
 
+    // Bicubic convolution needs a uniformly-spaced grid and a one-cell
+    // padded copy (border = MATLAB cubic extrapolation 3·v1-3·v2+v3).
+    ScratchVec<double> Vpad(&scratch);
+    const double *VpadPtr = nullptr;
+    if (m == Interp2Method::Cubic) {
+        if (R < 3 || C < 3)
+            throw Error("interp2: 'cubic' requires at least 3 points in each dimension",
+                         0, 0, "interp2", "", "numkit:interp2:cubicSize");
+        auto isUniform = [](const double *g, std::size_t n) {
+            if (n < 2) return true;
+            const double step = g[1] - g[0];
+            for (std::size_t i = 2; i < n; ++i)
+                if (std::abs((g[i] - g[i - 1]) - step) > 1e-10 * std::max(1.0, std::abs(step)))
+                    return false;
+            return true;
+        };
+        if (!isUniform(xGrid, C) || !isUniform(yGrid, R))
+            throw Error("interp2: 'cubic' requires a uniformly-spaced grid",
+                         0, 0, "interp2", "", "numkit:interp2:cubicNonUniform");
+        const std::size_t PR = R + 2, PC = C + 2;
+        Vpad.assign(PR * PC, 0.0);
+        auto at = [&](std::size_t i, std::size_t j) -> double & { return Vpad[j * PR + i]; };
+        // Centre.
+        for (std::size_t j = 0; j < C; ++j)
+            for (std::size_t i = 0; i < R; ++i)
+                at(i + 1, j + 1) = Vd[j * R + i];
+        // Pad top/bottom rows across the original columns.
+        for (std::size_t j = 0; j < C; ++j) {
+            const double *col = &Vd[j * R];
+            at(0,     j + 1) = 3.0 * col[0]     - 3.0 * col[1]     + col[2];
+            at(R + 1, j + 1) = 3.0 * col[R - 1] - 3.0 * col[R - 2] + col[R - 3];
+        }
+        // Pad left/right columns across ALL padded rows (corners included).
+        for (std::size_t i = 0; i < PR; ++i) {
+            at(i, 0)     = 3.0 * at(i, 1)     - 3.0 * at(i, 2)     + at(i, 3);
+            at(i, C + 1) = 3.0 * at(i, C)     - 3.0 * at(i, C - 1) + at(i, C - 2);
+        }
+        VpadPtr = Vpad.data();
+    }
+
     // Implicit meshgrid: when BOTH Xq and Yq are 1-D vectors (or
     // scalars) with possibly different lengths, MATLAB constructs
     // the implicit mesh — output is `length(Yq) x length(Xq)`,
@@ -576,7 +658,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
             for (std::size_t i = 0; i < ny; ++i) {
                 const double yq = Yq.elemAsDouble(i);
                 dst[j * ny + i] = interp2Sample(Vd.data(), R, C,
-                                                xGrid, yGrid, xq, yq, m);
+                                                xGrid, yGrid, xq, yq, m, VpadPtr);
             }
         }
         return out;
@@ -597,7 +679,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
             for (std::size_t i = 0; i < ny; ++i) {
                 const double yq = Yq.elemAsDouble(i);
                 dst[j * ny + i] = interp2Sample(Vd.data(), R, C,
-                                                xGrid, yGrid, xq, yq, m);
+                                                xGrid, yGrid, xq, yq, m, VpadPtr);
             }
         }
         return out;
@@ -615,7 +697,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
         const double yq = Yq.elemAsDouble(i);
-        dst[i] = interp2Sample(Vd.data(), R, C, xGrid, yGrid, xq, yq, m);
+        dst[i] = interp2Sample(Vd.data(), R, C, xGrid, yGrid, xq, yq, m, VpadPtr);
     }
     return out;
 }
