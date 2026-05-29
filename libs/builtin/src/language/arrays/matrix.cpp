@@ -2295,6 +2295,76 @@ Value copyToDouble(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
+// One pass of an integer-typed difference along dim d, with NATIVE
+// saturation (matches MATLAB: diff(int8([-100 100]))=127 int8). Same strided
+// layout as diffOnceDouble.
+template <typename T>
+void diffOnceIntegerT(const T *src, T *dst, const Dims &srcDims, int d)
+{
+    const int nd = srcDims.ndim();
+    const size_t sliceLen = srcDims.dim(d - 1);
+    size_t innerStride = 1;
+    for (int i = 0; i < d - 1; ++i) innerStride *= srcDims.dim(i);
+    size_t outerCount = 1;
+    for (int i = d; i < nd; ++i) outerCount *= srcDims.dim(i);
+    const size_t outSliceLen = sliceLen - 1;
+    const double lo = static_cast<double>(std::numeric_limits<T>::min());
+    const double hi = static_cast<double>(std::numeric_limits<T>::max());
+    auto sub = [&](T a, T b) -> T {
+        double v = static_cast<double>(a) - static_cast<double>(b);
+        if (v < lo) v = lo;
+        else if (v > hi) v = hi;
+        return static_cast<T>(v);
+    };
+    if (innerStride == 1) {
+        for (size_t o = 0; o < outerCount; ++o) {
+            const T *s = src + o * sliceLen;
+            T *t = dst + o * outSliceLen;
+            for (size_t k = 0; k < outSliceLen; ++k) t[k] = sub(s[k + 1], s[k]);
+        }
+    } else {
+        for (size_t o = 0; o < outerCount; ++o)
+            for (size_t b = 0; b < innerStride; ++b) {
+                const size_t srcBase = o * innerStride * sliceLen + b;
+                const size_t dstBase = o * innerStride * outSliceLen + b;
+                for (size_t k = 0; k < outSliceLen; ++k)
+                    dst[dstBase + k * innerStride] =
+                        sub(src[srcBase + (k + 1) * innerStride],
+                            src[srcBase + k * innerStride]);
+            }
+    }
+}
+
+// n-th order diff of an integer-typed Value: keeps the class and saturates at
+// each pass (the saturated pass-k result feeds pass k+1). Caller guarantees
+// sliceLen > n along d.
+Value diffInteger(const Value &x, int n, int d, std::pmr::memory_resource *mr)
+{
+    const ValueType vt = x.type();
+    Value cur = copyIntegerSameClass(x, mr);
+    for (int pass = 0; pass < n; ++pass) {
+        const auto &curDims = cur.dims();
+        const int nd = curDims.ndim();
+        size_t outDims[Dims::kMaxRank];
+        for (int i = 0; i < nd; ++i) outDims[i] = curDims.dim(i);
+        outDims[d - 1] = (outDims[d - 1] >= 1) ? outDims[d - 1] - 1 : 0;
+        Value out = Value::matrixND(outDims, nd, vt, mr);
+        switch (vt) {
+        case ValueType::INT8:   diffOnceIntegerT<int8_t>  (cur.int8Data(),   out.int8DataMut(),   curDims, d); break;
+        case ValueType::INT16:  diffOnceIntegerT<int16_t> (cur.int16Data(),  out.int16DataMut(),  curDims, d); break;
+        case ValueType::INT32:  diffOnceIntegerT<int32_t> (cur.int32Data(),  out.int32DataMut(),  curDims, d); break;
+        case ValueType::INT64:  diffOnceIntegerT<int64_t> (cur.int64Data(),  out.int64DataMut(),  curDims, d); break;
+        case ValueType::UINT8:  diffOnceIntegerT<uint8_t> (cur.uint8Data(),  out.uint8DataMut(),  curDims, d); break;
+        case ValueType::UINT16: diffOnceIntegerT<uint16_t>(cur.uint16Data(), out.uint16DataMut(), curDims, d); break;
+        case ValueType::UINT32: diffOnceIntegerT<uint32_t>(cur.uint32Data(), out.uint32DataMut(), curDims, d); break;
+        case ValueType::UINT64: diffOnceIntegerT<uint64_t>(cur.uint64Data(), out.uint64DataMut(), curDims, d); break;
+        default: break;
+        }
+        cur = std::move(out);
+    }
+    return cur;
+}
+
 } // namespace
 
 Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
@@ -2303,24 +2373,41 @@ Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
         throw Error("diff: order n must be non-negative",
                      0, 0, "diff", "", "numkit:diff:badOrder");
 
+    const bool isInt = isIntegerType(x.type());
+
     if (n == 0) {
-        // Identity copy preserving DOUBLE shape.
+        // Identity copy. Integer types keep their class (MATLAB); otherwise
+        // promote to DOUBLE shape.
+        if (isInt) return copyIntegerSameClass(x, mr);
         return copyToDouble(x, mr);
     }
 
-    // Scalar: MATLAB returns 1×0 empty.
+    // Scalar: MATLAB returns 1×0 empty (class preserved for integer input).
     if (x.isScalar())
-        return Value::matrix(1, 0, ValueType::DOUBLE, mr);
+        return Value::matrix(1, 0, isInt ? x.type() : ValueType::DOUBLE, mr);
 
     const int d = detail::resolveDim(x, dim, "diff");
     const auto &dd = x.dims();
     const size_t sliceLen = (d >= 1 && d <= dd.ndim()) ? dd.dim(d - 1) : 1;
 
-    // If n collapses or exceeds the dim, return correctly-shaped empty.
-    if (sliceLen <= static_cast<size_t>(n))
+    // If n collapses or exceeds the dim, return correctly-shaped empty
+    // (preserving the integer class for integer input).
+    if (sliceLen <= static_cast<size_t>(n)) {
+        if (isInt) {
+            const int nd = dd.ndim();
+            size_t outDims[Dims::kMaxRank];
+            for (int i = 0; i < nd; ++i) outDims[i] = dd.dim(i);
+            outDims[d - 1] = 0;
+            return Value::matrixND(outDims, nd, x.type(), mr);
+        }
         return makeDiffOutput(dd, d, sliceLen, mr);
+    }
 
-    // Promote integer/logical to DOUBLE first (consistent with cumsum).
+    // Integer types: keep the class and saturate at each pass (MATLAB).
+    if (isInt)
+        return diffInteger(x, n, d, mr);
+
+    // Promote logical to DOUBLE first.
     Value cur = copyToDouble(x, mr);
 
     for (int pass = 0; pass < n; ++pass) {

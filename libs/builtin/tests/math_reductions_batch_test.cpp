@@ -220,3 +220,32 @@ TEST_F(MathReductionsBatchTest, CumsumCumprodIntegerClass)
     EXPECT_DOUBLE_EQ(evalScalar("dd(4)"), 10.0);
     EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(dd),'double'))"), 1.0);
 }
+
+// diff() on integer types keeps the class and SATURATES each pass (MATLAB
+// R2025b). numkit previously promoted to double. DEEP-PROBE 2026-05-30.
+TEST_F(MathReductionsBatchTest, DiffIntegerClassSaturates)
+{
+    eval("a = diff(int8([10 5 20]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(1))"), -5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(2))"), 15.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(a),'int8'))"), 1.0);
+    // Overflow saturates: 100 - (-100) = 200 -> 127.
+    eval("b = diff(int8([-100 100]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(1))"), 127.0);
+    // Unsigned underflow saturates at 0: 3 - 5 -> 0.
+    eval("c = diff(uint8([5 3]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(1))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(c),'uint8'))"), 1.0);
+    // n=2 order applies saturation per pass.
+    eval("e = diff(int8([1 2 4 8]), 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(e(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(e(2))"), 2.0);
+    // Per-dim on a matrix keeps the class.
+    eval("g = diff(int32([1 2 3; 5 8 13]), 1, 2);");   // [1 1;3 5]
+    EXPECT_DOUBLE_EQ(evalScalar("double(g(2,2))"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(g),'int32'))"), 1.0);
+    // double input unchanged (regress).
+    eval("dd = diff([1 4 9 16]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(dd),'double'))"), 1.0);
+}
