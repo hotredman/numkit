@@ -65,3 +65,34 @@ TEST_F(MedianExtrasTest, BasicValuesUnchanged)
     EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 6);
     EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 9);
 }
+
+// MATLAB preserves the integer class for median: the two-middle-element
+// average is rounded half-away-from-zero and the integer class is kept
+// (median(int32([1 2 3 4]))=3 int32, median(int8([-1 -2]))=-2 int8).
+// numkit previously returned a DOUBLE 2.5. DEEP-PROBE 2026-05-30.
+TEST_F(MedianExtrasTest, IntegerClassPreserved)
+{
+    eval("mi = median(int32([1 2 3 4]));");        // 2.5 -> 3
+    EXPECT_DOUBLE_EQ(evalScalar("double(mi)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(mi),'int32'))"), 1.0);
+    eval("mo = median(int32([1 2 3]));");          // odd -> exact 2
+    EXPECT_DOUBLE_EQ(evalScalar("double(mo)"), 2.0);
+    eval("mn = median(int8([-1 -2]));");           // -1.5 -> -2 (half away)
+    EXPECT_DOUBLE_EQ(evalScalar("double(mn)"), -2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(mn),'int8'))"), 1.0);
+    eval("mn2 = median(int8([-2 -3]));");          // -2.5 -> -3
+    EXPECT_DOUBLE_EQ(evalScalar("double(mn2)"), -3.0);
+    eval("mu = median(uint8([10 20 30 41]));");    // 25 exact
+    EXPECT_DOUBLE_EQ(evalScalar("double(mu)"), 25.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(mu),'uint8'))"), 1.0);
+    // Per-column for matrices keeps the class.
+    eval("mc = median(int32([1 2; 3 4; 5 6]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(mc(1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(mc(2))"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(mc),'int32'))"), 1.0);
+    // double / single inputs are unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("median([1 2 3 4])"), 2.5);
+    EXPECT_DOUBLE_EQ(
+        evalScalar("double(strcmp(class(median(single([1 2 3 4]))),'single'))"),
+        1.0);
+}
