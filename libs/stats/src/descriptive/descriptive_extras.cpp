@@ -12,6 +12,7 @@
 #include "reduction_helpers.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -2226,22 +2227,138 @@ void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 
 // ── corr / detrend adapters ──────────────────────────────────────────
 
+namespace {
+
+enum class CorrType { Pearson, Spearman, Kendall };
+
+// Parse a 'Type' Name-Value option (case-insensitive) from args[start..].
+// Other NV names (Rows/Tail/Weights) are skipped. Default Pearson.
+CorrType parseCorrType(Span<const Value> args, std::size_t start)
+{
+    for (std::size_t i = start; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string name = args[i].toString();
+        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "type") {
+            std::string v = args[i + 1].toString();
+            for (char &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (v == "pearson")  return CorrType::Pearson;
+            if (v == "spearman") return CorrType::Spearman;
+            if (v == "kendall")  return CorrType::Kendall;
+            throw Error("corr: Type must be 'Pearson', 'Spearman', or 'Kendall'",
+                        0, 0, "corr", "", "numkit:corr:BadType");
+        }
+    }
+    return CorrType::Pearson;
+}
+
+// Replace each column of X (n×p) with its tied (average) ranks. Pearson of
+// the ranks is exactly the Spearman correlation.
+Value rankColumns(const Value &X, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
+    const std::size_t p = (X.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
+    Value R = Value::matrix(n, p, ValueType::DOUBLE, mr);
+    double *rd = R.doubleDataMut();
+    ScratchArena scratch(mr);
+    for (std::size_t c = 0; c < p; ++c) {
+        ScratchVec<std::size_t> idx(n, static_cast<std::size_t>(0), &scratch);
+        for (std::size_t i = 0; i < n; ++i) idx[i] = i;
+        std::stable_sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
+            return X.elemAsDouble(a + c * n) < X.elemAsDouble(b + c * n);
+        });
+        std::size_t i = 0;
+        while (i < n) {
+            std::size_t j = i;
+            const double v = X.elemAsDouble(idx[i] + c * n);
+            while (j + 1 < n && X.elemAsDouble(idx[j + 1] + c * n) == v) ++j;
+            const double avg =
+                (static_cast<double>(i + 1) + static_cast<double>(j + 1)) / 2.0;
+            for (std::size_t k = i; k <= j; ++k) rd[idx[k] + c * n] = avg;
+            i = j + 1;
+        }
+    }
+    return R;
+}
+
+// Kendall tau-b between column ci of X and column cj of Y (length n).
+double kendallTauB(const Value &X, std::size_t ci,
+                   const Value &Y, std::size_t cj, std::size_t n)
+{
+    long nc = 0, nd = 0, n1 = 0, n2 = 0; // concordant, discordant, ties in x, ties in y
+    for (std::size_t i = 0; i < n; ++i) {
+        const double ai = X.elemAsDouble(i + ci * n);
+        const double bi = Y.elemAsDouble(i + cj * n);
+        for (std::size_t j = i + 1; j < n; ++j) {
+            const double da = X.elemAsDouble(j + ci * n) - ai;
+            const double db = Y.elemAsDouble(j + cj * n) - bi;
+            const bool tiea = (da == 0.0);
+            const bool tieb = (db == 0.0);
+            if (tiea) ++n1;
+            if (tieb) ++n2;
+            if (!tiea && !tieb) {
+                if ((da > 0.0) == (db > 0.0)) ++nc; else ++nd;
+            }
+        }
+    }
+    const double n0 = static_cast<double>(n) * (static_cast<double>(n) - 1.0) / 2.0;
+    const double denom = std::sqrt((n0 - static_cast<double>(n1)) *
+                                   (n0 - static_cast<double>(n2)));
+    if (denom <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    return (static_cast<double>(nc) - static_cast<double>(nd)) / denom;
+}
+
+// p×q matrix of Kendall tau-b for every column pair of X (n×p), Y (n×q).
+Value kendallMatrix(const Value &X, const Value &Y, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
+    const std::size_t p = (X.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
+    if (static_cast<std::size_t>(Y.dims().dim(0)) != n)
+        throw Error("corr: X and Y must have the same number of rows",
+                    0, 0, "corr", "", "numkit:corr:rows");
+    const std::size_t q = (Y.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(Y.dims().dim(1)) : 1;
+    Value out = Value::matrix(p, q, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (std::size_t j = 0; j < q; ++j)
+        for (std::size_t i = 0; i < p; ++i)
+            od[i + j * p] = kendallTauB(X, i, Y, j, n);
+    return out;
+}
+
+} // namespace
+
 void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("corr: requires at least 1 argument",
                     0, 0, "corr", "", "numkit:corr:nargin");
     auto *mr = ctx.engine->resource();
-    // Distinguish corr(X[, NV…]) from corr(X, Y[, NV…]). Y is detected
-    // as the 2nd positional non-string argument.
-    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()) {
-        outs[0] = corr_xy(args[0], args[1], mr);
-        // NV-pairs after Y (Type / Rows / Tail / Weights) currently
-        // accept-and-ignore: Pearson is the only Type implemented in
-        // corr_xy via corrcoef. Spearman/Kendall on the two-arg path
-        // are deferred (single-arg form already throws on those).
+    // Distinguish corr(X[, NV…]) from corr(X, Y[, NV…]). Y is the 2nd
+    // positional non-string argument.
+    const bool twoArg =
+        (args.size() >= 2 && !args[1].isChar() && !args[1].isString());
+    const std::size_t nvStart = twoArg ? 2 : 1;
+    const CorrType ct = parseCorrType(args, nvStart);
+
+    if (twoArg) {
+        const Value &X = args[0], &Y = args[1];
+        if (ct == CorrType::Pearson)
+            outs[0] = corr_xy(X, Y, mr);
+        else if (ct == CorrType::Spearman)
+            outs[0] = corr_xy(rankColumns(X, mr), rankColumns(Y, mr), mr);
+        else
+            outs[0] = kendallMatrix(X, Y, mr);
     } else {
-        outs[0] = corr_xx(args[0], mr);
+        const Value &X = args[0];
+        if (ct == CorrType::Pearson)
+            outs[0] = corr_xx(X, mr);
+        else if (ct == CorrType::Spearman)
+            outs[0] = corr_xx(rankColumns(X, mr), mr);
+        else
+            outs[0] = kendallMatrix(X, X, mr);
     }
 }
 

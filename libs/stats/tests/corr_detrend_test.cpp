@@ -51,6 +51,39 @@ TEST_F(CorrDetrendTest, CorrTwoArgRowMismatchRejected)
     EXPECT_NEAR(evalScalar("C"), 1.0, 1e-12);
 }
 
+// corr 'Type' Spearman/Kendall (was silently ignored -> Pearson). vs MATLAB.
+TEST_F(CorrDetrendTest, CorrSpearmanMonotonic)
+{
+    // Monotonic-but-nonlinear: Pearson<1 but Spearman/Kendall==1.
+    eval("x=[1;2;3;4]; y=[1;4;9;16];");
+    EXPECT_NEAR(evalScalar("corr(x,y)"),                    0.9843740, 1e-6);
+    EXPECT_NEAR(evalScalar("corr(x,y,'type','Spearman')"),  1.0,       1e-12);
+    EXPECT_NEAR(evalScalar("corr(x,y,'type','Kendall')"),   1.0,       1e-12);
+}
+
+TEST_F(CorrDetrendTest, CorrKendallTauBWithTies)
+{
+    // tau-b adjusts for ties; Spearman = Pearson of average ranks.
+    eval("c=[1;1;2;3;3]; d=[1;2;2;3;4];");
+    EXPECT_NEAR(evalScalar("corr(c,d,'type','Spearman')"), 0.892218, 1e-6);
+    EXPECT_NEAR(evalScalar("corr(c,d,'type','Kendall')"),  0.824958, 1e-6);
+    // Non-monotonic: Kendall differs from Spearman.
+    eval("a=[1;2;3;4;5]; b=[2;1;4;3;5];");
+    EXPECT_NEAR(evalScalar("corr(a,b,'type','Kendall')"),  0.6, 1e-12);
+    EXPECT_NEAR(evalScalar("corr(a,b,'type','Spearman')"), 0.8, 1e-12);
+}
+
+TEST_F(CorrDetrendTest, CorrSpearmanMatrixAndCaseInsensitive)
+{
+    eval("M=[1 2; 2 1; 3 4; 4 3; 5 5];");
+    EXPECT_NEAR(evalScalar("R=corr(M,'type','Spearman'); R(1,2)"), 0.8, 1e-12);
+    EXPECT_NEAR(evalScalar("Rk=corr(M,'type','Kendall'); Rk(1,1)"), 1.0, 1e-12);
+    // Case-insensitive option name + value.
+    EXPECT_NEAR(evalScalar("corr([1;2;3;4],[1;4;9;16],'Type','SPEARMAN')"), 1.0, 1e-12);
+    // Unknown type errors.
+    EXPECT_THROW(eval("corr([1;2;3],[1;2;3],'type','bogus');"), std::exception);
+}
+
 // ── detrend ───────────────────────────────────────────────
 
 TEST_F(CorrDetrendTest, DetrendLinearRemovesPerfectly)
