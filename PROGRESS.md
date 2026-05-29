@@ -2664,7 +2664,7 @@ intentionally omitted — flat solver functions only.
 | `poctave` | ❌ |  |  |  |  |  |
 | `pow2db` | ✅ | 0.004 | 65.58× | 28.73× | OK | Sig: r = pow2db(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `pwelch` | ✅ | 0.020 | 388.60× | 18.55× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
+| `pwelch` | ✅ | 0.031 | 319.67× |  | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window. pwelch(x,[],[],nfft): empty [] placeholders select defaults for window/noverlap (previously errored 'Cannot convert double to scalar'). pwelch(cos(2pi*.1*(0:127)),[],[],128) -> 65 bins, max=1.59267. Bit-identical with MATLAB R2025b. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
 | `spectralentropy` | ✅ | 0.016 | 429.77× |  | OK | Sig: e = spectralEntropy(x, fs). camelCase alias added 2026-05-09. |
 | `tfestimate` | ✅ | 0.038 | 299.52× | 17.46× | OK | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |

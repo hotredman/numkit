@@ -93,6 +93,22 @@ TEST_F(SpectralTest, PwelchSmootherThanPeriodogram)
     EXPECT_LT(cvWelch, cvPeriod);
 }
 
+// pwelch(x,[],[],nfft): empty placeholders must select defaults, not error
+// ("Cannot convert double to scalar"). Output must equal the nfft path. vs MATLAB.
+TEST_F(SpectralTest, PwelchEmptyPlaceholders)
+{
+    eval("x = cos(2*pi*0.1*(0:127));");
+    eval("[p, f] = pwelch(x, [], [], 128);");
+    EXPECT_EQ(eval("p").numel(), 65u);            // nfft/2 + 1
+    // dominant bin (14) holds the peak; value matches MATLAB R2025b.
+    EXPECT_NEAR(evalScalar("p(14)"), 1.59267, 1e-4);
+    EXPECT_NEAR(evalScalar("max(p)"), 1.59267, 1e-4);
+    // cpsd / mscohere / tfestimate accept the same empty placeholders.
+    EXPECT_NO_THROW(eval("cpsd(x, x, [], [], 128);"));
+    EXPECT_NO_THROW(eval("mscohere(x, x, [], [], 128);"));
+    EXPECT_NO_THROW(eval("tfestimate(x, x, [], [], 128);"));
+}
+
 // ============================================================
 // spectrogram
 // ============================================================
