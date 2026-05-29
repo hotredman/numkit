@@ -2921,7 +2921,7 @@ locations until physical migration lands.
 | `std` | ✅ | 0.008 | 217.52× | 70.89× | OK | Sig: S = std(A[, w | W][, dim | 'all' | vecdim][, nanflag]). Same surface as var. Closes audit/findings/stats/std.md. |
 | `summary` | ❌ |  |  |  |  |  |
 | `var` | ✅ | 0.013 | 144.87× | 66.76× | OK | Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Closes audit/findings/stats/var.md. |
-| `xcorr` | ✅ | 0.004 | 360.50× | 69.56× | OK | Sig: r = xcorr(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `xcorr` | ✅ | 0.010 | 161.89× |  | OK | Sig r=xcorr(x[,y][,maxlag][,scaleopt]). Raw xcorr([1 2 3]) = [3 8 14 8 3]. scaleopt: 'biased' (/N), 'unbiased' (/(N-|lag|)), 'coeff'/'normalized' (/sqrt(Rxx0*Ryy0), autocorr peak->1). maxlag crops to lags -maxlag..maxlag. coeff: rc=[.2143 .5714 1 .5714 .2143]; biased=[1 2.667 4.667 2.667 1]; unbiased=[3 4 4.667 4 3]; maxlag 1 -> [8 14 8]. numkit previously accepted-and-IGNORED scaleopt+maxlag -- now honored. Matches MATLAB R2025b. |
 | `xcov` | ✅ | 0.006 | 378.98× |  | OK | Sig c=xcov(x,y,scaleopt): cross-covariance of mean-removed signals with scaling. zero-lag is index 5 (length 2N-1=9). 'none' c(5)=5 raw; 'biased' divides every lag by N=5 -> c(5)=1, c(4)=-1.56, c(6)=0.6; 'unbiased' divides lag m by (N-|m|) -> c(5)=1, c(3)=1.26667, c(7)=-2.53333; 'coeff' divides by sqrt(Cxx0*Cyy0)=sqrt(22.8*10) -> c(5)=0.331133. numkit previously ignored scaleopt entirely (returned raw for all). Fixed in convolution.cpp. |
 
 ### Descriptive Statistics — extras

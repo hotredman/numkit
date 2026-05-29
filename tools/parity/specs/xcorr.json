@@ -1,13 +1,16 @@
 {
   "name": "xcorr",
   "namespace": "signal",
-  "setup": "",
-  "expr": "r = xcorr([1 2 3], [1 2 3]); r1 = r(3); r2 = double(numel(r));",
-  "iters": 5,
-  "tol": 1e-06,
+  "setup": "x = [1 2 3];",
+  "expr": "rn = xcorr(x, x); rc = xcorr(x, x, 'coeff'); rb = xcorr(x, x, 'biased'); ru = xcorr(x, x, 'unbiased'); rm = xcorr(x, x, 1);",
+  "iters": 3,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "rn(3)", "rn(2)",
+    "rc(3)", "rc(2)",
+    "rb(3)", "rb(1)",
+    "ru(3)", "ru(2)", "ru(1)",
+    "double(numel(rm))", "rm(2)"
   ],
-  "comment": "Sig: r = xcorr(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig r=xcorr(x[,y][,maxlag][,scaleopt]). Raw xcorr([1 2 3]) = [3 8 14 8 3]. scaleopt: 'biased' (/N), 'unbiased' (/(N-|lag|)), 'coeff'/'normalized' (/sqrt(Rxx0*Ryy0), autocorr peak->1). maxlag crops to lags -maxlag..maxlag. coeff: rc=[.2143 .5714 1 .5714 .2143]; biased=[1 2.667 4.667 2.667 1]; unbiased=[3 4 4.667 4 3]; maxlag 1 -> [8 14 8]. numkit previously accepted-and-IGNORED scaleopt+maxlag -- now honored. Matches MATLAB R2025b."
 }
