@@ -2,13 +2,11 @@
   "name": "setdiff",
   "namespace": "builtin",
   "setup": "",
-  "expr": "u = setdiff([1 2 3 4], [2 4]); r1 = u(1); r2 = u(2); r3 = numel(u);",
-  "iters": 5,
+  "expr": "u = setdiff([3 1 2 5 4], [2 5]); s = setdiff([3 1 2 5 4], [2 5], 'stable');",
+  "iters": 3,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "double(numel(u))", "u(1)", "u(2)", "u(3)", "s(1)", "s(2)", "s(3)"
   ],
-  "comment": "Sig: r = setdiff(...). Set op. Spec-extension batch 2026-05-09."
+  "comment": "Sig setdiff(A,B[,setOrder]): A elements not in B. Default 'sorted': setdiff([3 1 2 5 4],[2 5]) = [1 3 4]. 'stable' keeps A-order (first occurrence): [3 1 4]. numkit previously IGNORED 'stable' (always sorted) -- fixed."
 }

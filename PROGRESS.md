@@ -494,7 +494,7 @@ together.
 | `height` | ❌ |  |  |  |  |  |
 | `inner2outer` | ❌ |  |  |  |  |  |
 | `innerjoin` | ❌ |  |  |  |  |  |
-| `intersect` | ✅ | 0.005 | 333.24× | 82.01× | OK | Sig: r = intersect(...). Set op. Spec-extension batch 2026-05-09. |
+| `intersect` | ✅ | 0.003 | 380.87× |  | OK | Sig intersect(A,B[,setOrder]). Default 'sorted': intersect([1 2 3 4],[2 4 6]) = [2 4]. 'stable' keeps A-order: intersect([4 2 3 1],[1 2 4],'stable') = [4 2 1]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
 | `ismember` | ✅ | 0.005 | 121.13× | 50.29× | OK | Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09. |
 | `ismissing` | ✅ | 0.015 | 168.31× |  | OK | anymissing + ismissing — standard NaN missing + custom indicator. Covers: double/single/uint8/logical/empty inputs for anymissing, ismissing with no indicator (NaN only) and scalar/vector indicator. Per MATLAB R2025b: when indicator is provided, NaN is NOT auto-flagged — only values matching the indicator are missing (NaN in indicator does match NaN in x). |
 | `issortedrows` | ✅ | 0.012 | 0.67× |  | OK | Sig: TF = issortedrows(X). 10k×3 pre-sorted. 1000 iters. |
@@ -514,7 +514,7 @@ together.
 | `rmprop` | ❌ |  |  |  |  |  |
 | `rowfun` | ❌ |  |  |  |  |  |
 | `rows2vars` | ❌ |  |  |  |  |  |
-| `setdiff` | ✅ | 0.004 | 380.45× | 51.37× | OK | Sig: r = setdiff(...). Set op. Spec-extension batch 2026-05-09. |
+| `setdiff` | ✅ | 0.005 | 668.51× |  | OK | Sig setdiff(A,B[,setOrder]): A elements not in B. Default 'sorted': setdiff([3 1 2 5 4],[2 5]) = [1 3 4]. 'stable' keeps A-order (first occurrence): [3 1 4]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
 | `setxor` | ✅ | 0.004 | 420.21× | 79.60× | OK | Sig: r = setxor(...). Set op. Spec-extension batch 2026-05-09. |
 | `sortrows` | ✅ | 0.413 | 0.92× | 0.19× | OK | Sig: B = sortrows(A). 10k×3 sort by first col. 100 iters. |
 | `splitapply` | ✅ | 0.009 | 235.21× |  | OK | splitapply — apply scalar-returning function handle per group, return one row per group. Supports multi-input handles (x, y, ..., G). Vector-output handles error in MATLAB R2025b (must wrap in cell). Output is column vector ordered by ascending group ID. |
@@ -533,7 +533,7 @@ together.
 | `tail` | ✅ | 0.000 | 47.20× |  | OK | Sig: Y = tail(X, K). Last 100 elements. 10000 iters. |
 | `timetable2table` | ❌ |  |  |  |  |  |
 | `topkrows` | ⚠️ | 0.006 | 85.30× |  | OK | Sig: B = topkrows(A, k[, col[, direction]]); [B,I] = topkrows(...). Top k rows by column-priority sort (default: all columns, descending lex). col selects a single column or vector of columns (priority order). direction = 'ascend' | 'descend' applies to all sort columns. 2-output returns 1-indexed row indices. ComparisonMethod NV is accept-and-ignore (numkit is real-only). Bit-identical with MATLAB R2025b on probed cases. |
-| `union` | ✅ | 0.006 | 216.83× | 42.40× | OK | Sig: r = union(...). Set op. Spec-extension batch 2026-05-09. |
+| `union` | ✅ | 0.002 | 424.06× |  | OK | Sig union(A,B[,setOrder]). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A) in A-order then new-of-B in B-order: union([3 1],[2 1],'stable') = [3 1 2]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
 | `unique` | ✅ | 0.008 | 83.30× | 24.63× | OK | Sig: r = unique(...). Spec-extension batch 2026-05-09. |
 | `unstack` | ❌ |  |  |  |  |  |
 | `unstacktablevariables` | ❌ |  |  |  |  |  |
@@ -565,15 +565,15 @@ together.
 |---|:---:|---:|---:|---:|:---:|---|
 | `allunique` | ✅ | 0.004 | 46.74× |  | OK | Sig: r = allunique(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `innerjoin` | ❌ |  |  |  |  |  |
-| `intersect` | ✅ | 0.005 | 333.24× | 82.01× | OK | Sig: r = intersect(...). Set op. Spec-extension batch 2026-05-09. |
+| `intersect` | ✅ | 0.003 | 380.87× |  | OK | Sig intersect(A,B[,setOrder]). Default 'sorted': intersect([1 2 3 4],[2 4 6]) = [2 4]. 'stable' keeps A-order: intersect([4 2 3 1],[1 2 4],'stable') = [4 2 1]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
 | `ismember` | ✅ | 0.005 | 121.13× | 50.29× | OK | Sig: r = ismember(...). Set op. Spec-extension batch 2026-05-09. |
 | `ismembertol` | ✅ | 0.004 | 36.05× | 79.55× | OK | Sig: r = ismembertol(...). Spec-extension batch 2026-05-09. |
 | `join` | ✅ | 0.004 | 28.48× |  | OK | Sig: r = join(...). Spec-extension batch 2026-05-09. |
 | `numunique` | ✅ | 0.116 | 1.15× |  | OK | Sig: N = numunique(X). 10k with 137 distinct. 1000 iters. |
 | `outerjoin` | ❌ |  |  |  |  |  |
-| `setdiff` | ✅ | 0.004 | 380.45× | 51.37× | OK | Sig: r = setdiff(...). Set op. Spec-extension batch 2026-05-09. |
+| `setdiff` | ✅ | 0.005 | 668.51× |  | OK | Sig setdiff(A,B[,setOrder]): A elements not in B. Default 'sorted': setdiff([3 1 2 5 4],[2 5]) = [1 3 4]. 'stable' keeps A-order (first occurrence): [3 1 4]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
 | `setxor` | ✅ | 0.004 | 420.21× | 79.60× | OK | Sig: r = setxor(...). Set op. Spec-extension batch 2026-05-09. |
-| `union` | ✅ | 0.006 | 216.83× | 42.40× | OK | Sig: r = union(...). Set op. Spec-extension batch 2026-05-09. |
+| `union` | ✅ | 0.002 | 424.06× |  | OK | Sig union(A,B[,setOrder]). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A) in A-order then new-of-B in B-order: union([3 1],[2 1],'stable') = [3 1 2]. numkit previously IGNORED 'stable' (always sorted) -- fixed. |
 | `unique` | ✅ | 0.008 | 83.30× | 24.63× | OK | Sig: r = unique(...). Spec-extension batch 2026-05-09. |
 | `uniquetol` | ✅ | 0.223 | 0.69× | 7.76× | OK | Sig: U = uniquetol(X, TOL). 10k with rounded vals. 10 iters. Fixed global tol*max(|A|) 2026-05-09. |
 

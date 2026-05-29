@@ -471,4 +471,25 @@ TEST_P(SetOpsTest, UniqueAcceptsNoOpFlags)
     EXPECT_DOUBLE_EQ(evalScalar("c(3);"), 3.0);
 }
 
+// 'stable' setOrder for setdiff/union/intersect: keep first-occurrence
+// (A-then-B) order instead of sorting. (Was ignored -> always sorted.)
+// vs MATLAB R2025b.
+TEST_P(SetOpsTest, BinarySetopsStableOrder)
+{
+    eval("sd = setdiff([3 1 2 5 4], [2 5], 'stable');");   // -> [3 1 4]
+    EXPECT_DOUBLE_EQ(evalScalar("sd(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sd(2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sd(3);"), 4.0);
+    eval("un = union([3 1], [2 1], 'stable');");           // -> [3 1 2]
+    EXPECT_DOUBLE_EQ(evalScalar("un(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("un(3);"), 2.0);
+    eval("ii = intersect([4 2 3 1], [1 2 4], 'stable');"); // -> [4 2 1]
+    EXPECT_DOUBLE_EQ(evalScalar("ii(1);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ii(3);"), 1.0);
+    // default 'sorted' unchanged.
+    eval("ss = setdiff([3 1 2 5 4], [2 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ss(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ss(3);"), 4.0);
+}
+
 INSTANTIATE_DUAL(SetOpsTest);

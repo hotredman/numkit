@@ -2,14 +2,11 @@
   "name": "union",
   "namespace": "builtin",
   "setup": "",
-  "expr": "u = union([1 2 3], [3 4 5]); r1 = u(1); r2 = u(2); r3 = u(5); r4 = numel(u);",
-  "iters": 5,
+  "expr": "u = union([1 2 3], [3 4 5]); s = union([3 1], [2 1], 'stable');",
+  "iters": 3,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4"
+    "double(numel(u))", "u(1)", "u(5)", "double(numel(s))", "s(1)", "s(2)", "s(3)"
   ],
-  "comment": "Sig: r = union(...). Set op. Spec-extension batch 2026-05-09."
+  "comment": "Sig union(A,B[,setOrder]). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A) in A-order then new-of-B in B-order: union([3 1],[2 1],'stable') = [3 1 2]. numkit previously IGNORED 'stable' (always sorted) -- fixed."
 }
