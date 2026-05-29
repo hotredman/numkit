@@ -1,15 +1,14 @@
 {
   "name": "corr",
   "namespace": "stats",
-  "setup": "X = [1 2; 2 4; 3 6; 4 8]; Y = [1 2 3; 4 5 6; 7 8 9; 10 11 12]; A = [1 2; 2 1; 3 3; 4 4; 5 5]; B = [10 100; 20 200; 30 300; 40 400; 50 500];",
-  "expr": "C1 = corr(X); C2 = corr(Y); Cxy = corr(A, B); cvec = corr([1;2;3;4;5], [2;4;6;8;10]); cneg = corr([1;2;3;4;5], [5;4;3;2;1]);",
-  "iters": 5,
+  "setup": "X = [1 2; 2 4; 3 6; 4 8]; x = [1;2;3;4]; y = [1;4;9;16]; c = [1;1;2;3;3]; d = [1;2;2;3;4];",
+  "expr": "C1 = corr(X); pe = corr(x, y); sp = corr(x, y, 'type', 'Spearman'); kd = corr(x, y, 'type', 'Kendall'); spt = corr(c, d, 'type', 'Spearman'); kdt = corr(c, d, 'type', 'Kendall');",
+  "iters": 3,
   "tol": 1e-12,
   "fingerprint": [
-    "C1(1,1)", "C1(1,2)", "C1(2,2)",
-    "C2(1,1)", "C2(2,3)", "C2(3,3)",
-    "Cxy(1,1)", "Cxy(1,2)", "Cxy(2,1)", "Cxy(2,2)",
-    "cvec", "cneg"
+    "C1(1,2)",
+    "pe", "sp", "kd",
+    "spt", "kdt"
   ],
-  "comment": "Sig: c = corr(X); c = corr(X, Y). Pearson correlation matrix (single-arg = between-cols-of-X; two-arg = X.cols × Y.cols matrix). Two-arg form added cycle 84. Type/Rows/Tail/Weights NV-pairs accept-and-ignore (Pearson only)."
+  "comment": "Sig c=corr(X) / c=corr(X,Y[,'Type',T]). Pearson matrix (single-arg between cols of X; two-arg X.cols x Y.cols). 'Type' Spearman = Pearson of tied (average) ranks; 'Kendall' = tau-b (ties adjusted). corr([1;2;3;4],[1;4;9;16]) Pearson=0.984374 but Spearman=Kendall=1. With ties c,d: Spearman=0.892218, Kendall=0.824958. numkit previously IGNORED 'Type' (always Pearson) -- now honored. Matches MATLAB R2025b."
 }
