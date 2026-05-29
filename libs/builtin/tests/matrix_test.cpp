@@ -820,6 +820,44 @@ TEST_P(SortFindTest, SortrowsNaNGoesToBottom)
     EXPECT_TRUE(std::isnan((*S)(2, 0)));
 }
 
+// Complex sortrows: order rows lexicographically; each column compares by
+// magnitude |z| then phase angle arg(z) (negative column = descending).
+// Was silently dropping the imaginary part (returned wrong rows). 2026-05-29.
+TEST_P(SortFindTest, SortrowsComplex)
+{
+    eval("function [s, i] = srw(A)\n  [s, i] = sortrows(A);\nend");
+    eval("[S, ix] = srw([3+4i 2; 1 1; 3+4i 0; 1 5i]);");
+    auto *S  = getVarPtr("S");
+    auto *ix = getVarPtr("ix");
+    ASSERT_NE(S, nullptr); ASSERT_NE(ix, nullptr);
+    ASSERT_EQ(S->type(), ValueType::COMPLEX);
+    // rows order [2 4 3 1]: col1 [1 1 3+4i 3+4i], col2 [1 5i 0 2]
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[3], 1.0);
+    // column-major: col1 = elements [0..3]
+    EXPECT_DOUBLE_EQ(S->complexData()[0].real(), 1.0);  // (1,1)=1
+    EXPECT_DOUBLE_EQ(S->complexData()[2].real(), 3.0);  // (3,1)=3+4i
+    EXPECT_DOUBLE_EQ(S->complexData()[2].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(S->complexData()[5].imag(), 5.0);  // (2,2)=5i
+
+    // negative column -> descending on that column.
+    eval("D = sortrows([3+4i 2; 1 1; 3+4i 0; 1 5i], -1);");
+    auto *D = getVarPtr("D");
+    ASSERT_NE(D, nullptr);
+    EXPECT_DOUBLE_EQ(D->complexData()[0].real(), 3.0);  // 3+4i rows first
+    EXPECT_DOUBLE_EQ(D->complexData()[3].real(), 1.0);
+
+    // column vector by |z| then angle.
+    eval("v = sortrows([3+4i; 1; 5i]);");
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[2].imag(), 5.0);
+}
+
 TEST_P(SortFindTest, SortrowsPromotesIntegerToDouble)
 {
     eval("S = sortrows(int32([3 1; 1 5; 2 6]));");
