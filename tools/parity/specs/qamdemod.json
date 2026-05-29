@@ -2,12 +2,11 @@
   "name": "qamdemod",
   "namespace": "comm",
   "setup": "",
-  "expr": "y = qammod([0 1 2 3], 4); x = qamdemod(y, 4); r1 = x(1); r2 = x(4);",
+  "expr": "x16 = qamdemod(qammod(0:15, 16), 16); rt16 = double(isequal(x16(:).', 0:15)); x8 = qamdemod(qammod(0:7, 8), 8); rt8 = double(isequal(x8(:).', 0:7)); xb = qamdemod(qammod(0:15, 16, 'bin'), 16, 'bin'); rtb = double(isequal(xb(:).', 0:15));",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2"
+    "rt16", "rt8", "rtb"
   ],
-  "comment": "Sig: r = qamdemod(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: x = qamdemod(y, M[, order]). Nearest-point hard demod, inverse of qammod (col = round((I+KI-1)/2) gray-decoded, row = round((KQ-1-Q)/2) gray-decoded, s = col*KQ+row). Verified by exact round-trip qamdemod(qammod(0:M-1,M),M) == 0:M-1 for M=16 (square, gray), M=8 (rectangular), and M=16 'bin'. Queue-clearing 2026-05-29: realigned with the corrected qammod constellation order."
 }

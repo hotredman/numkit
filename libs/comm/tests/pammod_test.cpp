@@ -53,3 +53,55 @@ TEST_F(PammodTest, RoundTripBinary)
     EXPECT_DOUBLE_EQ(evalScalar("x(3)"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("x(4)"), 3.0);
 }
+
+// ── qammod / qamdemod square-QAM constellation (vs MATLAB R2025b) ──
+// MATLAB layout: I increases left→right, Q decreases top→bottom; the
+// symbol maps column-major (col = s/sqrt(M), row = s mod sqrt(M)).
+
+TEST_F(PammodTest, Qam4Constellation)
+{
+    // qammod(0:3,4) = [-1+1i, -1-1i, 1+1i, 1-1i].
+    eval("y = qammod(0:3, 4); yr = real(y); yi = imag(y);");
+    EXPECT_DOUBLE_EQ(evalScalar("yr(1)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yi(1)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yr(2)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yi(2)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yr(4)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yi(4)"), -1.0);
+}
+
+TEST_F(PammodTest, Qam16FirstColumn)
+{
+    // First 4 symbols share I=-3; Q = [3 1 -3 -1] (Gray, top→bottom).
+    eval("y = qammod(0:15, 16); yr = real(y); yi = imag(y);");
+    EXPECT_DOUBLE_EQ(evalScalar("yr(1)"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yi(1)"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yi(2)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yi(3)"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yi(4)"), -1.0);
+}
+
+TEST_F(PammodTest, Qam8RectangularConstellation)
+{
+    // 8-QAM (KI=4, KQ=2): real=[-3 -3 -1 -1 3 3 1 1], imag=[1 -1 ...].
+    eval("y = qammod(0:7, 8); yr = real(y); yi = imag(y);");
+    EXPECT_DOUBLE_EQ(evalScalar("yr(1)"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yr(5)"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yr(7)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yi(2)"), -1.0);
+}
+
+TEST_F(PammodTest, QamUnitAveragePower)
+{
+    // 4-QAM unit-average-power scale = 1/sqrt(2).
+    eval("y = qammod(0:3, 4, 'UnitAveragePower', true); yr = real(y);");
+    EXPECT_NEAR(evalScalar("yr(1)"), -0.70710678118654746, 1e-12);
+}
+
+TEST_F(PammodTest, QamRoundTrip)
+{
+    eval("z = qamdemod(qammod(0:15, 16), 16);");
+    for (int k = 0; k < 16; ++k)
+        EXPECT_DOUBLE_EQ(evalScalar("z(" + std::to_string(k + 1) + ")"),
+                         static_cast<double>(k));
+}
