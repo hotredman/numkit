@@ -849,6 +849,105 @@ Value repelem(const Value &x, size_t m, size_t n, std::pmr::memory_resource *mr)
     return r;
 }
 
+namespace {
+
+// Build the output→source index map for one dimension given a replication
+// count spec. `counts` is a scalar (broadcast to all `dimLen` entries) or a
+// DOUBLE vector of length `dimLen`. map[k] = source index for output slot k.
+ScratchVec<size_t> repelemMap(const Value &counts, size_t dimLen, ScratchArena &arena)
+{
+    ScratchVec<size_t> map(&arena);
+    auto checkCount = [](double c) -> size_t {
+        if (!(c >= 0.0) || std::floor(c) != c)
+            throw Error("repelem: replication counts must be nonnegative integers",
+                         0, 0, "repelem", "", "numkit:repelem:badCount");
+        return static_cast<size_t>(c);
+    };
+    if (counts.isScalar()) {
+        const size_t rep = checkCount(counts.toScalar());
+        map.reserve(dimLen * rep);
+        for (size_t i = 0; i < dimLen; ++i)
+            for (size_t k = 0; k < rep; ++k) map.push_back(i);
+        return map;
+    }
+    if (counts.type() != ValueType::DOUBLE)
+        throw Error("repelem: count vector must be DOUBLE",
+                     0, 0, "repelem", "", "numkit:repelem:type");
+    if (counts.numel() != dimLen)
+        throw Error("repelem: count vector length must equal the dimension size",
+                     0, 0, "repelem", "", "numkit:repelem:countLen");
+    const double *cd = counts.doubleData();
+    for (size_t i = 0; i < dimLen; ++i) {
+        const size_t rep = checkCount(cd[i]);
+        for (size_t k = 0; k < rep; ++k) map.push_back(i);
+    }
+    return map;
+}
+
+} // namespace
+
+// repelem(v, counts): per-element counts (scalar or vector the length of v).
+Value repelem(const Value &x, const Value &counts, std::pmr::memory_resource *mr)
+{
+    if (counts.isScalar())   // fast path / preserves scalar-form semantics
+        return repelem(x, static_cast<size_t>(counts.toScalar()), mr);
+
+    const auto &d = x.dims();
+    if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1 && !x.isScalar()))
+        throw Error("repelem: vector-count form requires a vector input",
+                     0, 0, "repelem", "", "numkit:repelem:notVector");
+    if (x.type() != ValueType::DOUBLE)
+        throw Error("repelem: only DOUBLE inputs are supported",
+                     0, 0, "repelem", "", "numkit:repelem:type");
+
+    ScratchArena arena(mr);
+    auto map = repelemMap(counts, x.numel(), arena);
+    const size_t outN = map.size();
+    const bool isCol = (d.rows() > 1 && d.cols() == 1);
+    auto r = isCol ? Value::matrix(outN, 1, ValueType::DOUBLE, mr)
+                   : Value::matrix(1, outN, ValueType::DOUBLE, mr);
+    if (outN == 0) return r;
+
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    for (size_t k = 0; k < outN; ++k) dst[k] = src[map[k]];
+    return r;
+}
+
+// repelem(A, r, c): per-row / per-column counts (each scalar or vector).
+Value repelem(const Value &x, const Value &rCounts, const Value &cCounts,
+              std::pmr::memory_resource *mr)
+{
+    if (rCounts.isScalar() && cCounts.isScalar())   // fast path
+        return repelem(x, static_cast<size_t>(rCounts.toScalar()),
+                          static_cast<size_t>(cCounts.toScalar()), mr);
+
+    const auto &d = x.dims();
+    if (d.ndim() > 2)
+        throw Error("repelem: 3-arg form is 2-D only",
+                     0, 0, "repelem", "", "numkit:repelem:rank");
+    if (x.type() != ValueType::DOUBLE)
+        throw Error("repelem: only DOUBLE inputs are supported",
+                     0, 0, "repelem", "", "numkit:repelem:type");
+
+    const size_t R = d.rows(), C = d.cols();
+    ScratchArena arena(mr);
+    auto rowMap = repelemMap(rCounts, R, arena);
+    auto colMap = repelemMap(cCounts, C, arena);
+    const size_t outR = rowMap.size(), outC = colMap.size();
+    auto r = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+    if (outR == 0 || outC == 0) return r;
+
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    for (size_t oc = 0; oc < outC; ++oc) {
+        const size_t srcCol = colMap[oc];
+        for (size_t orow = 0; orow < outR; ++orow)
+            dst[oc * outR + orow] = src[srcCol * R + rowMap[orow]];
+    }
+    return r;
+}
+
 // ────────────────────────────────────────────────────────────────────
 // Pack 32: paddata / trimdata / resize
 // ────────────────────────────────────────────────────────────────────
@@ -1061,13 +1160,13 @@ void repelem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "repelem", "", "numkit:repelem:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
-        const size_t n = static_cast<size_t>(args[1].toScalar());
-        outs[0] = repelem(args[0], n, mr);
+        // counts may be a scalar or a per-element vector — the Value
+        // overload dispatches internally.
+        outs[0] = repelem(args[0], args[1], mr);
         return;
     }
-    const size_t m = static_cast<size_t>(args[1].toScalar());
-    const size_t n = static_cast<size_t>(args[2].toScalar());
-    outs[0] = repelem(args[0], m, n, mr);
+    // r / c may each be a scalar or a per-row / per-column vector.
+    outs[0] = repelem(args[0], args[1], args[2], mr);
 }
 
 // sub2ind(siz, i1, i2, ...) → linear index. Column-major, 1-based.

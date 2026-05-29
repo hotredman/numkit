@@ -177,6 +177,35 @@ Value repelem(const Value &x, size_t n, std::pmr::memory_resource *mr = nullptr)
 Value repelem(const Value &x, size_t m, size_t n,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Per-element replication with per-element counts
+/// (`y = repelem(v, counts)`).
+///
+/// `counts` is a scalar (every element repeated that many times — same as
+/// `repelem(v, n)`) or a DOUBLE vector the same length as `v`, giving the
+/// repeat count for each element. A zero count drops that element. Result
+/// orientation matches `v` (scalar → row).
+///
+/// @param x       Input vector (or scalar).
+/// @param counts  Scalar or per-element count vector.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Expanded vector of length `sum(counts)`.
+Value repelem(const Value &x, const Value &counts,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Per-element block replication with per-row/column counts
+/// (`Y = repelem(A, r, c)`).
+///
+/// `r` and `c` are each a scalar or a DOUBLE vector (length `size(A,1)` /
+/// `size(A,2)`) giving the per-row / per-column replication count.
+///
+/// @param x        Input matrix.
+/// @param rCounts  Scalar or per-row count vector.
+/// @param cCounts  Scalar or per-column count vector.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         Expanded matrix.
+Value repelem(const Value &x, const Value &rCounts, const Value &cCounts,
+              std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Pad a vector with zeros to length `n` (`v = paddata(v, n)`).
 ///
 /// Trailing zero-pad. If `numel(v) >= n`, returns `v` unchanged.
