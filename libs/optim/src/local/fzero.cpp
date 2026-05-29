@@ -369,6 +369,32 @@ void requireFuncHandle(const Value &fn, const char *who)
         throw Error(std::string(who) + ": 1st argument must be a function handle",
                      0, 0, who, "", std::string("numkit:") + who + ":fnType");
 }
+
+// Evaluate the objective at a point (scalar or vector Value) → scalar.
+double evalHandleScalar(CallContext &ctx, const Value &handle, const Value &pt)
+{
+    Value a[1] = { pt };
+    auto r = ctx.engine->callFunctionHandleMulti(handle, Span<const Value>(a, 1), 1);
+    return r.empty() ? std::nan("") : r[0].toScalar();
+}
+
+// Emit the optional fval / exitflag outputs (and reject the not-yet-
+// supported `output` struct). `x` is the result point, `who` the fn name.
+// Reaching here means the solver converged (it throws otherwise) → the
+// MATLAB exit flag is 1.
+void emitFvalExitflag(CallContext &ctx, const Value &handle, const Value &x,
+                      Span<Value> outs, const char *who)
+{
+    auto *mr = ctx.engine->resource();
+    if (outs.size() >= 2)
+        outs[1] = Value::scalar(evalHandleScalar(ctx, handle, x), mr);
+    if (outs.size() >= 3)
+        outs[2] = Value::scalar(1.0, mr);   // converged
+    if (outs.size() >= 4)
+        throw Error(std::string(who) + ": the 4th output (output struct) is "
+                     "not yet supported (use [x, fval, exitflag])",
+                     0, 0, who, "", std::string("numkit:") + who + ":outputStruct");
+}
 } // anon
 
 void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -395,6 +421,7 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
                      "interval [a, b]",
                      0, 0, "fzero", "", "numkit:fzero:badX0");
     }
+    emitFvalExitflag(ctx, args[0], outs[0], outs, "fzero");
 }
 
 void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -414,6 +441,7 @@ void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
             ou[i] = std::move(r[i]);
     };
     outs[0] = fminbnd(cb, lo, hi, tol, ctx.engine->resource());
+    emitFvalExitflag(ctx, args[0], outs[0], outs, "fminbnd");
 }
 
 void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -451,6 +479,7 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         r = std::move(row);
     }
     outs[0] = std::move(r);
+    emitFvalExitflag(ctx, args[0], outs[0], outs, "fminsearch");
 }
 
 } // namespace detail
