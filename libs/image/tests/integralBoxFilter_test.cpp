@@ -88,3 +88,86 @@ TEST_F(IntegralBoxFilterTest, UnknownNVKeyThrows)
     EXPECT_THROW(engine.eval("integralBoxFilter(I, 3, 'Bogus', 1);"),
                  std::exception);
 }
+
+// ── integralBoxFilter3 — 3-D box filter on a summed-volume table ──────
+// Fingerprints from MATLAB R2025b on integralImage3(reshape(1:125,5,5,5)).
+class IntegralBoxFilter3Test : public ::testing::Test
+{
+public:
+    numkit::Engine engine;
+    void SetUp() override
+    {
+        engine.eval("import compat.*;");
+        engine.eval("V = reshape(1:125, 5, 5, 5);");
+        engine.eval("J = integralImage3(V);");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+// Default 3x3x3 box → 3x3x3 mean.
+TEST_F(IntegralBoxFilter3Test, DefaultThreeCubed)
+{
+    engine.eval("B = integralBoxFilter3(J);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(B,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B,2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B,3)"), 3.0);
+    EXPECT_NEAR(evalScalar("B(1,1,1)"), 32.0, 1e-12);
+    EXPECT_NEAR(evalScalar("B(3,3,1)"), 44.0, 1e-12);
+    EXPECT_NEAR(evalScalar("B(2,2,2)"), 63.0, 1e-12);
+    EXPECT_NEAR(evalScalar("B(3,3,3)"), 94.0, 1e-12);
+    EXPECT_NEAR(evalScalar("B(1,1,3)"), 82.0, 1e-12);
+}
+
+// Scalar filterSize is equivalent to the [n n n] vector.
+TEST_F(IntegralBoxFilter3Test, ScalarEqualsVector)
+{
+    engine.eval("Bs = integralBoxFilter3(J, 3);");
+    EXPECT_NEAR(evalScalar("Bs(1,1,1)"), 32.0, 1e-12);
+    EXPECT_NEAR(evalScalar("Bs(3,3,3)"), 94.0, 1e-12);
+}
+
+// Anisotropic [1 3 5] box → output [5 3 1].
+TEST_F(IntegralBoxFilter3Test, AnisotropicFilterSize)
+{
+    engine.eval("Bv = integralBoxFilter3(J, [1 3 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(Bv,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Bv,2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Bv,3)"), 1.0);
+    EXPECT_NEAR(evalScalar("Bv(1,1,1)"), 56.0, 1e-12);
+    EXPECT_NEAR(evalScalar("Bv(5,3,1)"), 70.0, 1e-12);
+}
+
+// NormalizationFactor=1 → raw box sum.
+TEST_F(IntegralBoxFilter3Test, NormalizationFactorOneRawSum)
+{
+    engine.eval("Bn1 = integralBoxFilter3(J, 3, 'NormalizationFactor', 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("Bn1(1,1,1)"), 864.0);
+    EXPECT_DOUBLE_EQ(evalScalar("Bn1(3,3,3)"), 2538.0);
+}
+
+// NormalizationFactor=0.5 multiplies the box sum by 0.5 (MATLAB semantics).
+TEST_F(IntegralBoxFilter3Test, NormalizationFactorHalfMultiplier)
+{
+    engine.eval("Bh = integralBoxFilter3(J, 3, 'NormalizationFactor', 0.5);");
+    EXPECT_DOUBLE_EQ(evalScalar("Bh(1,1,1)"), 432.0);  // 864 * 0.5
+}
+
+// Even filterSize throws.
+TEST_F(IntegralBoxFilter3Test, EvenFilterSizeThrows)
+{
+    EXPECT_THROW(engine.eval("integralBoxFilter3(J, 2);"), std::exception);
+    EXPECT_THROW(engine.eval("integralBoxFilter3(J, [3 3 2]);"), std::exception);
+}
+
+// Filter larger than the underlying volume throws.
+TEST_F(IntegralBoxFilter3Test, FilterTooLargeThrows)
+{
+    EXPECT_THROW(engine.eval("integralBoxFilter3(J, 7);"), std::exception);
+}
+
+// Unknown NV-pair throws.
+TEST_F(IntegralBoxFilter3Test, UnknownNVKeyThrows)
+{
+    EXPECT_THROW(engine.eval("integralBoxFilter3(J, 3, 'Bogus', 1);"),
+                 std::exception);
+}

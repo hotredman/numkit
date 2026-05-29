@@ -69,10 +69,99 @@ TEST_F(FilterDesignTest, SobelZDirection)
     EXPECT_DOUBLE_EQ(evalScalar("h(2, 2, 2)"),  0.0);
 }
 
-TEST_F(FilterDesignTest, EllipsoidNormalized)
+TEST_F(FilterDesignTest, EllipsoidDefaultSizeAndNormalized)
 {
     eval("h = fspecial3('ellipsoid');");
+    // semiaxes default 5 -> size 2*ceil(5)+1 = 11 per axis.
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 1)")), 11);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 2)")), 11);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 3)")), 11);
     EXPECT_NEAR(evalScalar("sum(h(:))"), 1.0, 1e-12);
+    // 515 voxels inside the unit ball -> each = 1/515.
+    EXPECT_EQ(static_cast<int>(evalScalar("nnz(h)")), 515);
+    EXPECT_NEAR(evalScalar("h(6,6,6)"), 1.0/515.0, 1e-12);
+}
+
+TEST_F(FilterDesignTest, EllipsoidAnisotropicSemiaxes)
+{
+    eval("h = fspecial3('ellipsoid', [2 3 4]);");
+    // size = 2*[2 3 4]+1 = [5 7 9]; semiaxes element 1->rows, 2->cols, 3->pages.
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 1)")), 5);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 2)")), 7);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 3)")), 9);
+    EXPECT_NEAR(evalScalar("sum(h(:))"), 1.0, 1e-12);
+    EXPECT_EQ(static_cast<int>(evalScalar("nnz(h)")), 99);
+    EXPECT_NEAR(evalScalar("h(3,4,5)"), 1.0/99.0, 1e-12);  // center
+}
+
+TEST_F(FilterDesignTest, GaussianAnisotropicAxisMapping)
+{
+    // sigma element 1->rows, 2->cols, 3->pages. [0.5 5 5]: tight in rows.
+    eval("h = fspecial3('gaussian', [3 3 3], [0.5 5 5]);");
+    EXPECT_NEAR(evalScalar("sum(h(:))"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("h(2,2,2)"), 0.0897980730345, 1e-10);  // center
+    EXPECT_NEAR(evalScalar("h(1,1,1)"), 0.0116763276760, 1e-10);  // corner
+    // A row-offset element (tight sigma) is much smaller than a col-offset one.
+    EXPECT_LT(evalScalar("h(1,2,2)"), evalScalar("h(2,1,2)"));
+}
+
+TEST_F(FilterDesignTest, LaplacianGammaTwoParameter)
+{
+    eval("h = fspecial3('laplacian', 0.2, 0.3);");
+    EXPECT_NEAR(evalScalar("sum(h(:))"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("h(2,2,2)"), -4.2, 1e-12);   // center
+    EXPECT_NEAR(evalScalar("h(2,2,1)"),  0.5, 1e-12);   // face (1-g1-g2)
+    EXPECT_NEAR(evalScalar("h(1,2,1)"),  0.05, 1e-12);  // edge (g1/4)
+    EXPECT_NEAR(evalScalar("h(1,1,1)"),  0.075, 1e-12); // corner (g2/4)
+}
+
+TEST_F(FilterDesignTest, LaplacianGammaValidation)
+{
+    bool threwSum = false, threwNeg = false;
+    try { eval("fspecial3('laplacian', 0.6, 0.6);"); } catch (...) { threwSum = true; }
+    try { eval("fspecial3('laplacian', -0.1, 0);"); } catch (...) { threwNeg = true; }
+    EXPECT_TRUE(threwSum);   // g1+g2 > 1
+    EXPECT_TRUE(threwNeg);   // g1 < 0
+}
+
+TEST_F(FilterDesignTest, LogDefaultZeroMean)
+{
+    eval("h = fspecial3('log');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 1)")), 5);
+    EXPECT_NEAR(evalScalar("sum(h(:))"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("h(3,3,3)"), -0.19398098016652943, 1e-10);  // center
+    EXPECT_NEAR(evalScalar("h(1,1,1)"),  0.0032725085013668954, 1e-12); // corner
+}
+
+TEST_F(FilterDesignTest, LogAnisotropicSigma)
+{
+    eval("h = fspecial3('log', [5 5 5], [1 1.5 2]);");
+    EXPECT_NEAR(evalScalar("sum(h(:))"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("h(1,1,1)"),  0.0064097576165746944, 1e-10);
+    EXPECT_NEAR(evalScalar("h(3,3,3)"), -0.047018462294465692,  1e-10);
+}
+
+TEST_F(FilterDesignTest, AverageSizeVector)
+{
+    eval("h = fspecial3('average', [3 5 7]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 2)")), 5);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h, 3)")), 7);
+    EXPECT_NEAR(evalScalar("h(1,1,1)"), 1.0/105.0, 1e-12);
+}
+
+TEST_F(FilterDesignTest, PrewittAllDirections)
+{
+    eval("hx = fspecial3('prewitt', 'X');");
+    EXPECT_DOUBLE_EQ(evalScalar("hx(1,1,1)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hx(1,3,1)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hx(2,2,2)"),  0.0);
+    eval("hy = fspecial3('prewitt', 'Y');");
+    EXPECT_DOUBLE_EQ(evalScalar("hy(1,1,1)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hy(3,1,1)"), -1.0);
+    eval("hz = fspecial3('prewitt', 'Z');");
+    EXPECT_DOUBLE_EQ(evalScalar("hz(1,1,1)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hz(1,1,3)"), -1.0);
 }
 
 TEST_F(FilterDesignTest, FspecialBadTypeThrows)

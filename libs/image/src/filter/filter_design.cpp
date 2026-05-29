@@ -11,15 +11,26 @@
 //
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 //
+// fspecial3 covers every documented MATLAB R2025b branch:
+//   * average    — ones(hsize)/prod(hsize), default hsize [5 5 5].
+//   * gaussian    — separable anisotropic Gaussian, normalised to sum 1;
+//                   sigma scalar or per-axis [σrow σcol σpage], default 1.
+//   * ellipsoid   — integer-grid mask {(Δr/a)²+(Δc/b)²+(Δp/c)² ≤ 1}
+//                   normalised by voxel count; size 2·ceil(semiaxes)+1.
+//   * laplacian   — two-parameter (γ1, γ2) 3×3×3 discrete Laplacian
+//                   (Lindeberg 1994 §; γ1 weights the 12 edge neighbours,
+//                   γ2 the 8 corner neighbours), sums to zero.
+//   * log         — Laplacian of (anisotropic) Gaussian ∇²G, zero-mean,
+//                   default sigma 1.
+//   * prewitt / sobel — separable 3×3×3 gradient operators along X/Y/Z.
+//
+// Reference: standard separable filter constructions; J. Lim,
+//   "Two-Dimensional Signal and Image Processing", 1990 (LoG, gradient).
+//
 // KNOWN GAPs (deferred to v2):
-//   * fsamp2 / ftrans2 / fwind1 — require 2-D FFT/IFFT + Chebyshev
-//     recurrence (ftrans2). Stubbed with explicit "not implemented"
-//     errors so MATLAB scripts that touch these get a clear message
-//     instead of "undefined function".
+//   * fsamp2 / ftrans2 / fwind1 — now implemented in fir2d.cpp.
 //   * gabor — Gabor filter object. Requires a class infrastructure
-//     beyond v1 scope.
-//   * fspecial3 with 4-arg laplacian (gamma1, gamma2) supports only
-//     gamma1=gamma2=0 (default) in v1.
+//     beyond v1 scope (MATLAB-OOP, blocked by §0).
 
 #include <numkit/image/filter/filter.hpp>
 
@@ -98,28 +109,52 @@ Sig3 parseSigma3(const Value &sig, double defv = 1.0)
 
 } // namespace
 
-// ── fspecial3 ─────────────────────────────────────────────────────────
-Value fspecial3(std::pmr::memory_resource *mr, const std::string &type,
-                const Value &hsize, const Value &param)
-{
-    Size3 s = parseHsize(hsize);
+namespace {
 
+// Parse semiaxes (ellipsoid): scalar → [a a a], 3-vec → [a b c], default 5.
+// Order matches MATLAB: element 0 → rows, 1 → cols, 2 → pages.
+Sig3 parseSemiaxes(const Value &v, double defv = 5.0)
+{
+    if (v.isEmpty() || v.isUnset()) return {defv, defv, defv};
+    if (v.isScalar()) { const double a = v.toScalar(); return {a, a, a}; }
+    if (v.numel() == 3)
+        return {v.elemAsDouble(0), v.elemAsDouble(1), v.elemAsDouble(2)};
+    throw Error("fspecial3: semiaxes must be a scalar or 3-element vector",
+                0, 0, "fspecial3", "", "numkit:fspecial3:BadSemiaxes");
+}
+
+} // namespace
+
+// ── fspecial3 ─────────────────────────────────────────────────────────
+// Two-layer typed entry. Positional args after `type` are interpreted
+// per the MATLAB R2025b signature:
+//   average:        a1 = hsize
+//   gaussian / log: a1 = hsize,    a2 = sigma
+//   ellipsoid:      a1 = semiaxes
+//   laplacian:      a1 = gamma1,   a2 = gamma2
+//   prewitt/sobel:  a1 = direction
+Value fspecial3(const std::string &type, const Value &a1, const Value &a2,
+                std::pmr::memory_resource *mr)
+{
     if (type == "average") {
+        Size3 s = parseHsize(a1);
         const double v = 1.0 / static_cast<double>(s.H * s.W * s.P);
         return makeKernel3(mr, s, [v](size_t, size_t, size_t) { return v; });
     }
 
     if (type == "gaussian") {
-        Sig3 sg = parseSigma3(param, 1.0);
+        Size3 s = parseHsize(a1);
+        // sigma element 0 → rows, 1 → cols, 2 → pages (MATLAB convention).
+        Sig3 sg = parseSigma3(a2, 1.0);
+        const double sr = sg.sx, sc = sg.sy, sp = sg.sz;
         const double cy = (static_cast<double>(s.H) - 1.0) / 2.0;
         const double cx = (static_cast<double>(s.W) - 1.0) / 2.0;
         const double cz = (static_cast<double>(s.P) - 1.0) / 2.0;
-        // Compute unnormalized kernel then divide by sum.
         Value out = makeKernel3(mr, s, [&](size_t r, size_t c, size_t p) {
-            const double dy = (static_cast<double>(r) - cy) / sg.sy;
-            const double dx = (static_cast<double>(c) - cx) / sg.sx;
-            const double dz = (static_cast<double>(p) - cz) / sg.sz;
-            return std::exp(-0.5 * (dx*dx + dy*dy + dz*dz));
+            const double dr = (static_cast<double>(r) - cy) / sr;
+            const double dc = (static_cast<double>(c) - cx) / sc;
+            const double dp = (static_cast<double>(p) - cz) / sp;
+            return std::exp(-0.5 * (dr*dr + dc*dc + dp*dp));
         });
         double sum = 0.0;
         const size_t N = s.H * s.W * s.P;
@@ -133,28 +168,24 @@ Value fspecial3(std::pmr::memory_resource *mr, const std::string &type,
     }
 
     if (type == "ellipsoid") {
-        // semiaxes default 5 (scalar) or [a b c]
-        double sa = 5.0, sb = 5.0, sc = 5.0;
-        if (!param.isEmpty() && !param.isUnset()) {
-            if (param.isScalar()) {
-                sa = sb = sc = param.toScalar();
-            } else if (param.numel() == 3) {
-                sa = param.elemAsDouble(0);
-                sb = param.elemAsDouble(1);
-                sc = param.elemAsDouble(2);
-            } else {
-                throw Error("fspecial3: ellipsoid semiaxes must be scalar or 3-vec",
-                            0, 0, "fspecial3", "", "numkit:fspecial3:BadSemiaxes");
-            }
-        }
+        // semiaxes element 0 → rows, 1 → cols, 2 → pages.
+        Sig3 ax = parseSemiaxes(a1, 5.0);
+        const double ar = ax.sx, ac = ax.sy, ap = ax.sz;
+        if (ar <= 0.0 || ac <= 0.0 || ap <= 0.0)
+            throw Error("fspecial3: ellipsoid semiaxes must be positive",
+                        0, 0, "fspecial3", "", "numkit:fspecial3:BadSemiaxes");
+        // Grid half-extent = ceil(semiaxis); size = 2·half + 1.
+        Size3 s{ static_cast<size_t>(2.0 * std::ceil(ar) + 1.0),
+                 static_cast<size_t>(2.0 * std::ceil(ac) + 1.0),
+                 static_cast<size_t>(2.0 * std::ceil(ap) + 1.0) };
         const double cy = (static_cast<double>(s.H) - 1.0) / 2.0;
         const double cx = (static_cast<double>(s.W) - 1.0) / 2.0;
         const double cz = (static_cast<double>(s.P) - 1.0) / 2.0;
         Value out = makeKernel3(mr, s, [&](size_t r, size_t c, size_t p) {
-            const double dy = (static_cast<double>(r) - cy) / sb;
-            const double dx = (static_cast<double>(c) - cx) / sa;
-            const double dz = (static_cast<double>(p) - cz) / sc;
-            return (dx*dx + dy*dy + dz*dz <= 1.0) ? 1.0 : 0.0;
+            const double dr = (static_cast<double>(r) - cy) / ar;
+            const double dc = (static_cast<double>(c) - cx) / ac;
+            const double dp = (static_cast<double>(p) - cz) / ap;
+            return (dr*dr + dc*dc + dp*dp <= 1.0) ? 1.0 : 0.0;
         });
         double sum = 0.0;
         const size_t N = s.H * s.W * s.P;
@@ -168,40 +199,75 @@ Value fspecial3(std::pmr::memory_resource *mr, const std::string &type,
     }
 
     if (type == "laplacian") {
-        // 3-D Laplacian (alpha=0 default). Standard discrete Laplacian:
-        // -6 at center, +1 at 6 face neighbours, 0 elsewhere. 3×3×3.
+        // Two-parameter 3×3×3 discrete Laplacian. gamma1 weights the 12
+        // edge (√2) neighbours, gamma2 the 8 corner (√3) neighbours; the
+        // 6 face (1) neighbours carry (1−γ1−γ2); the centre is set so the
+        // kernel sums to zero. Defaults γ1=γ2=0 → classic 6-neighbour
+        // Laplacian (face +1, centre −6).
+        const double g1 = (!a1.isEmpty() && !a1.isUnset()) ? a1.toScalar() : 0.0;
+        const double g2 = (!a2.isEmpty() && !a2.isUnset()) ? a2.toScalar() : 0.0;
+        if (g1 < 0.0)
+            throw Error("fspecial3: Expected input number 2, GAMMA1, to be nonnegative.",
+                        0, 0, "fspecial3", "", "numkit:fspecial3:BadGamma");
+        if (g2 < 0.0)
+            throw Error("fspecial3: Expected input number 3, GAMMA2, to be nonnegative.",
+                        0, 0, "fspecial3", "", "numkit:fspecial3:BadGamma");
+        if (g1 + g2 > 1.0)
+            throw Error("fspecial3: GAMMA1 + GAMMA2 should be less than or equal to 1 and greater than 0.",
+                        0, 0, "fspecial3", "", "numkit:fspecial3:BadGamma");
+        const double face   = 1.0 - g1 - g2;        // 6 neighbours, dist² 1
+        const double edge   = g1 / 4.0;             // 12 neighbours, dist² 2
+        const double corner = g2 / 4.0;             // 8 neighbours, dist² 3
+        const double center = -6.0 + 3.0 * g1 + 4.0 * g2;
         Size3 ks{3, 3, 3};
-        Value out = makeKernel3(mr, ks, [](size_t r, size_t c, size_t p) -> double {
+        return makeKernel3(mr, ks, [&](size_t r, size_t c, size_t p) -> double {
             const int dr = static_cast<int>(r) - 1;
             const int dc = static_cast<int>(c) - 1;
             const int dp = static_cast<int>(p) - 1;
             const int d2 = dr*dr + dc*dc + dp*dp;
-            if (d2 == 0) return -6.0;
-            if (d2 == 1) return  1.0;
-            return 0.0;
+            if (d2 == 0) return center;
+            if (d2 == 1) return face;
+            if (d2 == 2) return edge;
+            return corner;  // d2 == 3
         });
-        return out;
     }
 
     if (type == "log") {
-        // Laplacian-of-Gaussian: ∇²G(x,y,z) for 3-D Gaussian with sigma.
-        Sig3 sg = parseSigma3(param, 0.5);
-        const double sig2 = sg.sx * sg.sx;  // assume isotropic for v1
+        // Laplacian of an (anisotropic) Gaussian: ∇²G = G · Σ_d (Δd²−σd²)/σd⁴,
+        // with G normalised to unit sum first, then the whole kernel made
+        // zero-mean. Reduces to (r²−3σ²)/σ⁴·G in the isotropic case.
+        Size3 s = parseHsize(a1);
+        Sig3 sg = parseSigma3(a2, 1.0);
+        const double sr = sg.sx, sc = sg.sy, sp = sg.sz;
         const double cy = (static_cast<double>(s.H) - 1.0) / 2.0;
         const double cx = (static_cast<double>(s.W) - 1.0) / 2.0;
         const double cz = (static_cast<double>(s.P) - 1.0) / 2.0;
-        Value out = makeKernel3(mr, s, [&](size_t r, size_t c, size_t p) {
-            const double dy = static_cast<double>(r) - cy;
-            const double dx = static_cast<double>(c) - cx;
-            const double dz = static_cast<double>(p) - cz;
-            const double r2 = dx*dx + dy*dy + dz*dz;
-            const double g = std::exp(-r2 / (2.0 * sig2));
-            // 3-D LoG: (r²/σ⁴ - 3/σ²) * G  (kernel normalized so sum ≈ 0)
-            return (r2 / (sig2 * sig2) - 3.0 / sig2) * g;
-        });
-        // Subtract mean so kernel sum = 0 (matches MATLAB's normalization).
-        double mean = 0.0;
         const size_t N = s.H * s.W * s.P;
+        // Step 1: normalised Gaussian.
+        Value gK = makeKernel3(mr, s, [&](size_t r, size_t c, size_t p) {
+            const double dr = (static_cast<double>(r) - cy) / sr;
+            const double dc = (static_cast<double>(c) - cx) / sc;
+            const double dp = (static_cast<double>(p) - cz) / sp;
+            return std::exp(-0.5 * (dr*dr + dc*dc + dp*dp));
+        });
+        double gsum = 0.0;
+        { const double *gd = gK.doubleData(); for (size_t i = 0; i < N; ++i) gsum += gd[i]; }
+        const double inv = (gsum > 0.0) ? 1.0 / gsum : 1.0;
+        const double sr2 = sr*sr, sc2 = sc*sc, sp2 = sp*sp;
+        const double *gd = gK.doubleData();
+        // Step 2: multiply normalised G by the Laplacian factor.
+        Value out = makeKernel3(mr, s, [&](size_t r, size_t c, size_t p) {
+            const double dr = static_cast<double>(r) - cy;
+            const double dc = static_cast<double>(c) - cx;
+            const double dp = static_cast<double>(p) - cz;
+            const double Gn = gd[lin3(r, c, p, s.H, s.W)] * inv;  // normalised Gaussian
+            const double lap = (dr*dr - sr2) / (sr2*sr2)
+                             + (dc*dc - sc2) / (sc2*sc2)
+                             + (dp*dp - sp2) / (sp2*sp2);
+            return Gn * lap;
+        });
+        // Step 3: subtract mean so the kernel sums to zero.
+        double mean = 0.0;
         const double *od = out.doubleData();
         for (size_t i = 0; i < N; ++i) mean += od[i];
         mean /= static_cast<double>(N);
@@ -211,37 +277,27 @@ Value fspecial3(std::pmr::memory_resource *mr, const std::string &type,
     }
 
     if (type == "sobel" || type == "prewitt") {
-        // 3-D edge kernel along direction X / Y / Z.
-        // Default direction = "X". param holds the direction string.
+        // Separable 3×3×3 gradient. Derivative [+1, 0, −1] along the chosen
+        // axis (X→cols, Y→rows, Z→pages); smoothing [1 1 1] (prewitt) /
+        // [1 2 1] (sobel) along the other two axes.
         std::string dir = "X";
-        if (!param.isEmpty() && !param.isUnset()) {
-            if (param.isChar() || param.isString()) dir = param.toString();
-        }
+        if (!a1.isEmpty() && !a1.isUnset() && (a1.isChar() || a1.isString()))
+            dir = a1.toString();
         const bool isSobel = (type == "sobel");
-        // Smoothing kernel along non-derivative dims.
-        // Sobel:  [1, 2, 1]
-        // Prewitt:[1, 1, 1]
-        const double w0 = isSobel ? 1.0 : 1.0;
+        const double w0 = 1.0;
         const double w1 = isSobel ? 2.0 : 1.0;
-        // Outer product over the 2 smoothing dims, derivative [-1, 0, +1] on chosen dim.
         Size3 ks{3, 3, 3};
-        Value out = makeKernel3(mr, ks, [&](size_t r, size_t c, size_t p) -> double {
+        return makeKernel3(mr, ks, [&](size_t r, size_t c, size_t p) -> double {
             const int dr = static_cast<int>(r) - 1;
             const int dc = static_cast<int>(c) - 1;
             const int dp = static_cast<int>(p) - 1;
             auto sm = [&](int x) -> double { return (x == 0) ? w1 : w0; };
-            auto dv = [](int x) -> double { return -static_cast<double>(x); };  // [-1, 0, +1]
-            // dv signs flipped: we want kernel that responds to gradient in chosen dir.
-            // x_dir = position along direction, signed: dv(-1) = +1, dv(0) = 0, dv(+1) = -1.
-            // Actually MATLAB uses [+1, 0, -1] on derivative axis.
-            if (dir == "X" || dir == "x") return  static_cast<double>(-dc) * sm(dr) * sm(dp);
-            if (dir == "Y" || dir == "y") return  static_cast<double>(-dr) * sm(dc) * sm(dp);
-            if (dir == "Z" || dir == "z") return  static_cast<double>(-dp) * sm(dr) * sm(dc);
-            (void)dv;
+            if (dir == "X" || dir == "x") return static_cast<double>(-dc) * sm(dr) * sm(dp);
+            if (dir == "Y" || dir == "y") return static_cast<double>(-dr) * sm(dc) * sm(dp);
+            if (dir == "Z" || dir == "z") return static_cast<double>(-dp) * sm(dr) * sm(dc);
             throw Error("fspecial3: direction must be 'X', 'Y', or 'Z'",
                         0, 0, "fspecial3", "", "numkit:fspecial3:BadDir");
         });
-        return out;
     }
 
     throw Error("fspecial3: unsupported type '" + type + "'",
@@ -316,17 +372,15 @@ void fspecial3_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "fspecial3", "", "numkit:fspecial3:BadType");
     const std::string type = args[0].toString();
     Value empty;
-    // Sobel/prewitt: 2nd arg is direction string (no hsize — fixed 3x3x3).
-    // Other types: 2nd arg is hsize, 3rd arg is sigma/semiaxes/gamma.
-    Value hsize = empty;
-    Value param = empty;
-    if (type == "sobel" || type == "prewitt") {
-        if (args.size() >= 2) param = args[1];   // direction
-    } else {
-        if (args.size() >= 2) hsize = args[1];
-        if (args.size() >= 3) param = args[2];
-    }
-    outs[0] = fspecial3(ctx.engine->resource(), type, hsize, param);
+    // Positional layout per MATLAB R2025b:
+    //   sobel/prewitt:  a1 = direction        (no hsize — fixed 3×3×3)
+    //   ellipsoid:      a1 = semiaxes
+    //   laplacian:      a1 = gamma1, a2 = gamma2
+    //   average:        a1 = hsize
+    //   gaussian/log:   a1 = hsize, a2 = sigma
+    Value a1 = (args.size() >= 2) ? args[1] : empty;
+    Value a2 = (args.size() >= 3) ? args[2] : empty;
+    outs[0] = fspecial3(type, a1, a2, ctx.engine->resource());
 }
 
 // fsamp2_reg / ftrans2_reg / fwind1_reg / fwind2_reg now live in
