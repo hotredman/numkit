@@ -1,16 +1,16 @@
 {
   "name": "unique",
   "namespace": "builtin",
-  "setup": "",
-  "expr": "u = unique([1, 2, 1, 3, 2, 4]); r1 = u(1); r2 = u(2); r3 = u(3); r4 = u(4); r5 = numel(u);",
+  "setup": "x = [3 1 4 1 5 9 2 6 5 3];",
+  "expr": "us = unique(x); ust = unique(x, 'stable'); [u, ia, ic] = unique([3 1 4 1 5], 'stable');",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4",
-    "r5"
+    "us(1)", "us(end)", "numel(us)",
+    "ust(1)", "ust(2)", "ust(3)", "ust(end)", "numel(ust)",
+    "u(1)", "u(2)", "u(4)",
+    "ia(1)", "ia(2)", "ia(4)",
+    "ic(1)", "ic(4)", "ic(5)"
   ],
-  "comment": "Sig: r = unique(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: u = unique(x); u = unique(x,'stable'); [u,ia,ic] = unique(x,setOrder). Covers: default 'sorted' (ascending), 'stable' (first-occurrence order, no sort), and three-output 'stable' index vectors (ia into x, ic into u). Spec-extension batch 2026-05-09; 'stable' added queue-clearing 2026-05-29."
 }
