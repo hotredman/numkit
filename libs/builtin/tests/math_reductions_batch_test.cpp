@@ -181,3 +181,42 @@ TEST_F(MathReductionsBatchTest, MaxEmptyTwoOutputAndIndexRegression)
     EXPECT_DOUBLE_EQ(evalScalar("mv"), 5.0);
     EXPECT_DOUBLE_EQ(evalScalar("iv"), 3.0);
 }
+
+// cumsum / cumprod on integer types: MATLAB keeps the integer class and
+// accumulates natively with saturation at each step (the saturated running
+// value carries forward). numkit previously threw "Not a double array".
+// DEEP-PROBE 2026-05-30.
+TEST_F(MathReductionsBatchTest, CumsumCumprodIntegerClass)
+{
+    // Saturation + class preservation.
+    eval("a = cumsum(int8([100 100 100]));");        // 100, 200->127, 227->127
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(1))"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(2))"), 127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(3))"), 127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(a),'int8'))"), 1.0);
+    // Native saturation: the clamped 127 is carried forward, then -100 -> 27.
+    eval("b = cumsum(int8([100 100 -100]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(2))"), 127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(3))"), 27.0);
+    // uint8 upper saturation.
+    eval("c = cumsum(uint8([200 100]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(2))"), 255.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(c),'uint8'))"), 1.0);
+    // cumprod saturates too.
+    eval("d = cumprod(int8([5 10 10]));");           // 5, 50, 500->127
+    EXPECT_DOUBLE_EQ(evalScalar("double(d(3))"), 127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(d),'int8'))"), 1.0);
+    // Per-dim on a matrix keeps the class.
+    eval("f = cumsum(int32([1 2; 3 4]));");          // dim1 -> [1 2;4 6]
+    EXPECT_DOUBLE_EQ(evalScalar("double(f(2,1))"), 4.0);
+    eval("g = cumsum(int32([1 2; 3 4]), 2);");       // dim2 -> [1 3;3 7]
+    EXPECT_DOUBLE_EQ(evalScalar("double(g(1,2))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(g),'int32'))"), 1.0);
+    // int16 no saturation, exact.
+    eval("e = cumsum(int16([10 20 30]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(e(3))"), 60.0);
+    // double input is unchanged (regress).
+    eval("dd = cumsum([1 2 3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(4)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(dd),'double'))"), 1.0);
+}
