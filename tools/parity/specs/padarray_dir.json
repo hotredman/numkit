@@ -1,0 +1,22 @@
+{
+  "name": "padarray_dir",
+  "namespace": "image",
+  "setup": "I = double([1 2 3; 4 5 6]);",
+  "expr": "Pk=padarray(I,[1 2],7); Ppre=padarray(I,[1 0],0,'pre'); Ppost=padarray(I,[0 1],0,'post'); Pb=padarray(I,[1 1],9,'both');",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "size(Pk,1)",
+    "size(Pk,2)",
+    "Pk(1,1)",
+    "Pk(2,3)",
+    "size(Ppre,1)",
+    "Ppre(1,1)",
+    "Ppre(2,1)",
+    "size(Ppost,2)",
+    "Ppost(1,4)",
+    "Pb(1,1)",
+    "Pb(2,2)"
+  ],
+  "comment": "MATLAB padarray — scalar pad value + direction coverage: asymmetric padsize [1 2] with value 7; 'pre'/'post'/'both' directions (value 0/9). Pins sizes + boundary pixels. Bit-equal MATLAB R2025b (tol=1e-12)."
+}

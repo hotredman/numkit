@@ -1,12 +1,25 @@
 {
   "name": "imrotate",
   "namespace": "image",
-  "setup": "",
-  "expr": "B = imrotate([1 2; 3 4], 90); r1 = double(numel(B));",
+  "setup": "J = reshape(1:12, 3, 4);",
+  "expr": "R90 = imrotate(J, 90); Rb = imrotate(J, 30, 'bilinear'); Rc = imrotate(J, 30, 'bicubic'); Rbc = imrotate(J, 30, 'bilinear', 'crop'); Rm = imrotate(J, -45, 'bilinear');",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1"
+    "size(R90,1)",
+    "size(R90,2)",
+    "R90(1,1)",
+    "R90(4,3)",
+    "sum(R90(:))",
+    "size(Rb,1)",
+    "size(Rb,2)",
+    "Rb(3,3)",
+    "sum(Rb(:))",
+    "Rc(3,3)",
+    "size(Rbc,1)",
+    "size(Rbc,2)",
+    "Rbc(2,2)",
+    "size(Rm,1)"
   ],
-  "comment": "Sig: r = imrotate(...). Spec-extension batch 2026-05-09 (image namespace)."
+  "comment": "MATLAB imrotate — covers 90 deg exact (loose), 30 deg bilinear + bicubic (interior interpolated values), 30 deg bilinear 'crop' (3x4 output), and -45 deg bilinear. Pins sizes + interpolated interior values + sums. Bit-equal MATLAB R2025b (tol=1e-6 for interpolation). KNOWN GAPS (tracked in a dedicated fix task, NOT fingerprinted): (1) 'crop' bbox returns the wrong size for a 90 deg rotation of a non-square image (numkit 4x3 vs MATLAB 3x4); (2) 'nearest' rotation differs by one pixel on some angles (30 deg sum 87 vs 86). The interpolated 'loose'/'crop' bilinear/bicubic paths are bit-exact."
 }
