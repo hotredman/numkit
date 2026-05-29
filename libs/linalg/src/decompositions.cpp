@@ -11,8 +11,10 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace numkit::linalg {
@@ -20,6 +22,47 @@ namespace numkit::linalg {
 // ────────────────────────────────────────────────────────────────────────
 // Cholesky
 // ────────────────────────────────────────────────────────────────────────
+
+namespace {
+
+// Build upper-triangular R (column-major, n×n) such that R'·R = A, reading
+// the upper triangle of A. Returns the 1-based column index where the
+// factorization broke down (non-positive pivot), or 0 on success. On
+// failure the leading (return−1)×(return−1) block of r is a valid factor.
+std::size_t cholUpperFactor(const double *a, double *r, std::size_t n)
+{
+    std::fill(r, r + n * n, 0.0);
+    for (std::size_t j = 0; j < n; ++j) {
+        double s = a[j + j * n];
+        for (std::size_t k = 0; k < j; ++k)
+            s -= r[k + j * n] * r[k + j * n];
+        if (s <= 0.0)
+            return j + 1; // 1-based failure column (MATLAB chol's p)
+        r[j + j * n] = std::sqrt(s);
+        const double inv_diag = 1.0 / r[j + j * n];
+        for (std::size_t i = j + 1; i < n; ++i) {
+            double t = a[j + i * n];
+            for (std::size_t k = 0; k < j; ++k)
+                t -= r[k + j * n] * r[k + i * n];
+            r[j + i * n] = t * inv_diag;
+        }
+    }
+    return 0;
+}
+
+// Transpose a square k×k column-major matrix into a fresh Value (used to
+// turn the upper factor R into the lower factor L = R').
+Value transposeSquare(const double *src, std::size_t k, std::pmr::memory_resource *mr)
+{
+    Value out = Value::matrix(k, k, ValueType::DOUBLE, mr);
+    double *d = out.doubleDataMut();
+    for (std::size_t col = 0; col < k; ++col)
+        for (std::size_t row = 0; row < k; ++row)
+            d[row + col * k] = src[col + row * k];
+    return out;
+}
+
+} // namespace
 
 Value chol(const Value &A, std::pmr::memory_resource *mr)
 {
@@ -34,29 +77,10 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
     if (m == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
-    // Build upper-triangular R such that R' * R = A. Standard
-    // Cholesky in column-major (MATLAB chol returns R upper).
     auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *r = R.doubleDataMut();
-    std::fill(r, r + n * n, 0.0);
-    const double *a = A.doubleData();
-
-    for (std::size_t j = 0; j < n; ++j) {
-        double s = a[j + j * n];
-        for (std::size_t k = 0; k < j; ++k)
-            s -= r[k + j * n] * r[k + j * n];
-        if (s <= 0.0)
-            throw Error("chol: matrix is not positive-definite",
-                        0, 0, "chol", "", "numkit:chol:notPosDef");
-        r[j + j * n] = std::sqrt(s);
-        const double inv_diag = 1.0 / r[j + j * n];
-        for (std::size_t i = j + 1; i < n; ++i) {
-            double t = a[j + i * n];
-            for (std::size_t k = 0; k < j; ++k)
-                t -= r[k + j * n] * r[k + i * n];
-            r[j + i * n] = t * inv_diag;
-        }
-    }
+    if (cholUpperFactor(A.doubleData(), R.doubleDataMut(), n) != 0)
+        throw Error("chol: matrix is not positive-definite",
+                    0, 0, "chol", "", "numkit:chol:notPosDef");
     return R;
 }
 
@@ -801,12 +825,73 @@ Value cholupdate(const Value &R, const Value &x, int sign,
 
 namespace detail {
 
-void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void chol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 1)
-        throw Error("chol: requires exactly 1 argument",
+    if (args.empty())
+        throw Error("chol: requires at least 1 argument",
                     0, 0, "chol", "", "numkit:chol:nargin");
-    outs[0] = chol(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &A = args[0];
+
+    // Optional 'lower'/'upper' triangle selector (case-insensitive).
+    // Default is 'upper': R is upper-triangular with R'*R = A.
+    bool lower = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("chol: option must be 'lower' or 'upper'",
+                        0, 0, "chol", "", "numkit:chol:BadOpt");
+        std::string s = args[i].toString();
+        for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if      (s == "lower") lower = true;
+        else if (s == "upper") lower = false;
+        else
+            throw Error("chol: unknown option '" + args[i].toString() + "'",
+                        0, 0, "chol", "", "numkit:chol:BadOpt");
+    }
+
+    if (A.dims().ndim() != 2)
+        throw Error("chol: input must be a 2D matrix",
+                    0, 0, "chol", "", "numkit:chol:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m != n)
+        throw Error("chol: matrix must be square",
+                    0, 0, "chol", "", "numkit:chol:notSquare");
+
+    if (n == 0) {
+        outs[0] = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        if (nargout > 1) outs[1] = Value::scalar(0.0);
+        return;
+    }
+
+    auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    const std::size_t fail = cholUpperFactor(A.doubleData(), R.doubleDataMut(), n);
+
+    if (fail != 0) {
+        // Not positive-definite. With <2 outputs MATLAB errors; with the
+        // [R,p] form it returns p = failure column and R = the leading
+        // (p-1)×(p-1) factor (no error).
+        if (nargout < 2)
+            throw Error("chol: matrix is not positive-definite",
+                        0, 0, "chol", "", "numkit:chol:notPosDef");
+        const std::size_t k = fail - 1;
+        Value sub = Value::matrix(k, k, ValueType::DOUBLE, mr);
+        if (k > 0) {
+            const double *rf = R.doubleData();
+            double *rs = sub.doubleDataMut();
+            for (std::size_t col = 0; col < k; ++col)
+                for (std::size_t row = 0; row < k; ++row)
+                    rs[row + col * k] = rf[row + col * n];
+            if (lower) sub = transposeSquare(sub.doubleData(), k, mr);
+        }
+        outs[0] = std::move(sub);
+        outs[1] = Value::scalar(static_cast<double>(fail));
+        return;
+    }
+
+    if (lower) R = transposeSquare(R.doubleData(), n, mr);
+    outs[0] = std::move(R);
+    if (nargout > 1) outs[1] = Value::scalar(0.0);
 }
 
 void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
