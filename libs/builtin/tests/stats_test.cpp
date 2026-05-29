@@ -3154,15 +3154,19 @@ TEST_P(CumLogicalTest, DiffNDDim2)
         EXPECT_DOUBLE_EQ(d->doubleData()[i], 2.0);
 }
 
-TEST_P(CumLogicalTest, DiffPromotesIntegerToDouble)
+TEST_P(CumLogicalTest, DiffPreservesIntegerClass)
 {
+    // MATLAB R2025b keeps the integer class for diff (and saturates). Fixed
+    // 2026-05-30 — numkit previously promoted to double.
+    // diff(int32([10 25 60 100])) = [15 35 40] int32.
     eval("d = diff(int32([10 25 60 100]));");
     auto *d = getVarPtr("d");
-    EXPECT_EQ(d->type(), ValueType::DOUBLE);
+    EXPECT_EQ(d->type(), ValueType::INT32);
     EXPECT_EQ(d->numel(), 3u);
-    EXPECT_DOUBLE_EQ(d->doubleData()[0], 15.0);
-    EXPECT_DOUBLE_EQ(d->doubleData()[1], 35.0);
-    EXPECT_DOUBLE_EQ(d->doubleData()[2], 40.0);
+    const int32_t *p = d->int32Data();
+    EXPECT_EQ(p[0], 15);
+    EXPECT_EQ(p[1], 35);
+    EXPECT_EQ(p[2], 40);
 }
 
 TEST_P(CumLogicalTest, DiffPromotesLogicalToDouble)
