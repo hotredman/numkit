@@ -1,0 +1,12 @@
+{
+  "name": "kurtosis",
+  "namespace": "stats",
+  "setup": "x = [2 4 4 4 5 5 7 9]; M = magic(4);",
+  "expr": "k1 = kurtosis(x); k0 = kurtosis(x, 0); kM = kurtosis(M);",
+  "iters": 3,
+  "tol": 1e-10,
+  "fingerprint": [
+    "k1", "k0", "kM(1)", "kM(2)"
+  ],
+  "comment": "Sig k=kurtosis(X[,flag[,dim]]): sample kurtosis (raw, ~3 for normal, NOT excess). Default flag=1 (biased): kurtosis([2 4 4 4 5 5 7 9])=2.78125. flag=0 (bias-corrected): 3.940625. Matrix per-column: kurtosis(magic(4)) cols (1,2)=(1.880697, 1.673068)."
+}

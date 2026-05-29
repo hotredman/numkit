@@ -221,14 +221,16 @@ Value modnorm(const Value &ref, const std::string &type, double target,
 namespace detail {
 
 namespace {
-std::string parse_order(Span<const Value> args, size_t start) {
+// MATLAB R2025b defaults differ by function: pammod/pamdemod default to
+// 'bin' (binary symbol mapping); qammod/qamdemod default to 'gray'.
+std::string parse_order(Span<const Value> args, size_t start, const char *dflt) {
     for (size_t i = start; i < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             auto s = args[i].toString();
             if (s == "bin" || s == "gray") return s;
         }
     }
-    return "gray";
+    return dflt;
 }
 
 bool parse_unit_power(Span<const Value> args, size_t start) {
@@ -251,7 +253,7 @@ void pammod_reg(Span<const Value> args, size_t /*nargout*/,
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
-    auto order = parse_order(args, 2);
+    auto order = parse_order(args, 2, "bin");
     outs[0] = pammod(args[0], M, ini, order, ctx.engine->resource());
 }
 
@@ -265,7 +267,7 @@ void pamdemod_reg(Span<const Value> args, size_t /*nargout*/,
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
-    auto order = parse_order(args, 2);
+    auto order = parse_order(args, 2, "bin");
     outs[0] = pamdemod(args[0], M, ini, order, ctx.engine->resource());
 }
 
@@ -276,7 +278,7 @@ void qammod_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("qammod: requires (x, M[, symbol_order, 'UnitAveragePower', tf])",
                     0, 0, "qammod", "", "numkit:qammod:nargin");
     const int M = (int)args[1].toScalar();
-    auto order = parse_order(args, 2);
+    auto order = parse_order(args, 2, "gray");
     bool up = parse_unit_power(args, 2);
     outs[0] = qammod(args[0], M, order, up, ctx.engine->resource());
 }
@@ -288,7 +290,7 @@ void qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("qamdemod: requires (y, M[, symbol_order, 'UnitAveragePower', tf])",
                     0, 0, "qamdemod", "", "numkit:qamdemod:nargin");
     const int M = (int)args[1].toScalar();
-    auto order = parse_order(args, 2);
+    auto order = parse_order(args, 2, "gray");
     bool up = parse_unit_power(args, 2);
     outs[0] = qamdemod(args[0], M, order, up, ctx.engine->resource());
 }
