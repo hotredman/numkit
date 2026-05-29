@@ -68,10 +68,10 @@ TEST_F(PCCTest, PartialcorriEmptyZEqualsTwoArg)
 
 TEST_F(PCCTest, CanoncorrSharedFactorRecoversNearOne)
 {
-    // Loose thresholds: rng state is shared across the gtest suite so
-    // the exact r values vary by test ordering, but the planted shared
-    // factor (z) makes r(1) overwhelmingly large and r(2) small with
-    // 1000 samples.
+    // rng(0) resets the global stream deterministically, so this test is
+    // order-independent. Thresholds stay loose because the assertion is
+    // about the planted shared factor (z): r(1) overwhelmingly large and
+    // r(2) small with 1000 samples.
     eval("rng(0); n = 1000; z = randn(n, 1);"
          "X = [z + 0.05*randn(n,1), z + 0.1*randn(n,1), randn(n,1)];"
          "Y = [z + 0.07*randn(n,1), -z + 0.1*randn(n,1)];"
@@ -82,7 +82,9 @@ TEST_F(PCCTest, CanoncorrSharedFactorRecoversNearOne)
 
 TEST_F(PCCTest, CanoncorrShapes)
 {
-    eval("X = randn(100, 4); Y = randn(100, 3);"
+    // Seed so the test is deterministic regardless of suite ordering
+    // (the global RNG stream is shared across the process).
+    eval("rng(0); X = randn(100, 4); Y = randn(100, 3);"
          "[A, B, r] = canoncorr(X, Y);");
     // k = min(p, q) = 3
     EXPECT_EQ(static_cast<int>(evalScalar("size(A, 1)")), 4);
@@ -121,6 +123,6 @@ TEST_F(PCCTest, CanoncorrRIsClampedAndNonIncreasing)
 
 TEST_F(PCCTest, CanoncorrTooFewRowsThrows)
 {
-    EXPECT_THROW(eval("canoncorr(randn(3, 4), randn(3, 3));"),
+    EXPECT_THROW(eval("rng(0); canoncorr(randn(3, 4), randn(3, 3));"),
                  std::exception);
 }
