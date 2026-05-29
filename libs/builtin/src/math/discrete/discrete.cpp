@@ -1162,6 +1162,57 @@ Value nchoosek(double n, double k, std::pmr::memory_resource *mr)
     return Value::scalar(std::round(r), mr);
 }
 
+// nchoosek(v, k) where v is a vector: all k-combinations of the elements of v,
+// one per ROW, in lexicographic order of element indices (MATLAB R2025b):
+// nchoosek([1 2 3 4],2) = [1 2;1 3;1 4;2 3;2 4;3 4]. k==0 -> 1x0; k==numel ->
+// a single row of all elements. Result is DOUBLE (numeric input flattened).
+Value nchoosekCombinations(const Value &v, double kd, std::pmr::memory_resource *mr)
+{
+    const size_t n = v.numel();
+    if (!std::isfinite(kd) || kd < 0 || kd != std::floor(kd))
+        throw Error("nchoosek: K must be a non-negative integer",
+                     0, 0, "nchoosek", "", "numkit:nchoosek:badArg");
+    const size_t k = static_cast<size_t>(kd);
+    if (k > n)
+        throw Error("nchoosek: K must satisfy 0 <= K <= numel(V)",
+                     0, 0, "nchoosek", "", "numkit:nchoosek:kTooLarge");
+    if (k == 0)
+        return Value::matrix(1, 0, ValueType::DOUBLE, mr);
+
+    ScratchArena scratch(mr);
+    auto vd = ScratchVec<double>(n, &scratch);
+    for (size_t i = 0; i < n; ++i) vd[i] = v.elemAsDouble(i);
+
+    // Row count R = C(n,k) (computed with the symmetric product to limit error).
+    const size_t kk = (k > n - k) ? n - k : k;
+    double rd = 1.0;
+    for (size_t i = 0; i < kk; ++i)
+        rd = rd * static_cast<double>(n - i) / static_cast<double>(i + 1);
+    const size_t R = static_cast<size_t>(std::round(rd));
+
+    auto out = Value::matrix(R, k, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    auto idx = ScratchVec<size_t>(k, &scratch);
+    for (size_t i = 0; i < k; ++i) idx[i] = i;
+    size_t row = 0;
+    while (true) {
+        for (size_t j = 0; j < k; ++j) od[j * R + row] = vd[idx[j]];
+        ++row;
+        // Advance to the next lexicographic combination of indices.
+        size_t i = k;
+        while (i-- > 0) {
+            if (idx[i] != n - k + i) {
+                ++idx[i];
+                for (size_t j = i + 1; j < k; ++j) idx[j] = idx[j - 1] + 1;
+                break;
+            }
+            if (i == 0) { row = R; }   // exhausted (sentinel: stop outer loop)
+        }
+        if (row >= R) break;
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Pack 16: setxor / allunique / numunique / ismembertol / uniquetol
 // ════════════════════════════════════════════════════════════════════════
@@ -1553,11 +1604,12 @@ void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 2)
         throw Error("nchoosek: requires 2 arguments (n, k)",
                      0, 0, "nchoosek", "", "numkit:nchoosek:nargin");
-    if (!args[0].isScalar() || !args[1].isScalar())
-        throw Error("nchoosek: vector input form is not yet supported "
-                     "(nchoosek(v, k) for k-combinations of v)",
-                     0, 0, "nchoosek", "", "numkit:nchoosek:vectorForm");
-    outs[0] = nchoosek(args[0].toScalar(), args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    // Scalar N -> binomial coefficient; vector V -> all K-combinations (rows).
+    if (args[0].isScalar())
+        outs[0] = nchoosek(args[0].toScalar(), args[1].toScalar(), mr);
+    else
+        outs[0] = nchoosekCombinations(args[0], args[1].toScalar(), mr);
 }
 
 // ── Pack 16 adapters ─────────────────────────────────────────────────
