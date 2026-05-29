@@ -336,6 +336,51 @@ Value integral(FnHandle fn, double a, double b, double absTol,
     return Value::scalar(sign * r, mr);
 }
 
+namespace {
+
+// Trapezoidal integral of `y` along 1-based `dim`. `xData` (length = size of
+// y along dim) gives non-uniform spacing; nullptr = unit spacing. A vector
+// reduces to a scalar; a matrix reduces along `dim` (MATLAB trapz semantics:
+// trapz(M) = 1xC over columns, trapz(M,2) = Rx1 over rows).
+Value trapzImpl(const Value &y, int dim, const double *xData,
+                std::pmr::memory_resource *mr)
+{
+    const size_t R = y.dims().rows(), C = y.dims().cols();
+    const double *yd = y.doubleData();
+    if (dim != 2) {  // dim 1 (default for column reduction)
+        Value out = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        double *o = out.doubleDataMut();
+        for (size_t c = 0; c < C; ++c) {
+            double s = 0.0;
+            for (size_t r = 1; r < R; ++r)
+                s += 0.5 * (yd[c * R + r - 1] + yd[c * R + r])
+                         * (xData ? (xData[r] - xData[r - 1]) : 1.0);
+            o[c] = s;
+        }
+        return out;
+    }
+    Value out = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    for (size_t r = 0; r < R; ++r) {
+        double s = 0.0;
+        for (size_t c = 1; c < C; ++c)
+            s += 0.5 * (yd[(c - 1) * R + r] + yd[c * R + r])
+                     * (xData ? (xData[c] - xData[c - 1]) : 1.0);
+        o[r] = s;
+    }
+    return out;
+}
+
+int trapzFirstNonSingletonDim(const Value &y)
+{
+    const auto &d = y.dims();
+    for (int k = 0; k < d.ndim(); ++k)
+        if (d.dim(k) > 1) return k + 1;
+    return 1;
+}
+
+} // namespace
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -414,10 +459,27 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("trapz: requires at least 1 argument",
                      0, 0, "trapz", "", "numkit:trapz:nargin");
-    if (args.size() == 1)
-        outs[0] = trapz(args[0], ctx.engine->resource());
-    else
-        outs[0] = trapz(args[0], args[1], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 1) {
+        outs[0] = trapz(args[0], mr);
+        return;
+    }
+    if (args.size() == 2) {
+        // trapz(Y, dim) when the 2nd arg is a scalar; trapz(X, Y) otherwise.
+        if (!args[1].isChar() && !args[1].isString() && args[1].numel() == 1)
+            outs[0] = trapzImpl(args[0], static_cast<int>(args[1].toScalar()),
+                                nullptr, mr);
+        else
+            outs[0] = trapz(args[0], args[1], mr);
+        return;
+    }
+    // trapz(X, Y, dim): integrate Y along dim with X spacing.
+    const int dim = static_cast<int>(args[2].toScalar());
+    const size_t along = (dim != 2) ? args[1].dims().rows() : args[1].dims().cols();
+    if (args[0].numel() != along)
+        throw Error("trapz: numel(x) must match size(y, dim)",
+                     0, 0, "trapz", "", "numkit:trapz:lengthMismatch");
+    outs[0] = trapzImpl(args[1], dim, args[0].doubleData(), mr);
 }
 
 } // namespace detail
@@ -428,27 +490,20 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 
 Value trapz(const Value &y, std::pmr::memory_resource *mr)
 {
-    const double *yd = y.doubleData();
-    const size_t n = y.numel();
-    double s = 0.0;
-    for (size_t i = 1; i < n; ++i)
-        s += 0.5 * (yd[i - 1] + yd[i]);
-    return Value::scalar(s, mr);
+    if (y.numel() == 0) return Value::scalar(0.0, mr);
+    // Integrate along the first non-singleton dimension (MATLAB): a vector
+    // reduces to a scalar, a matrix reduces over its columns.
+    return trapzImpl(y, trapzFirstNonSingletonDim(y), nullptr, mr);
 }
 
 Value trapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
-    const size_t n = x.numel();
-    if (y.numel() != n)
+    const int dim = trapzFirstNonSingletonDim(y);
+    const size_t along = (dim != 2) ? y.dims().rows() : y.dims().cols();
+    if (x.numel() != along)
         throw Error("trapz: x and y must have same length",
                      0, 0, "trapz", "", "numkit:trapz:lengthMismatch");
-
-    const double *xd = x.doubleData();
-    const double *yd = y.doubleData();
-    double s = 0.0;
-    for (size_t i = 1; i < n; ++i)
-        s += 0.5 * (yd[i - 1] + yd[i]) * (xd[i] - xd[i - 1]);
-    return Value::scalar(s, mr);
+    return trapzImpl(y, dim, x.doubleData(), mr);
 }
 
 } // namespace numkit::builtin
