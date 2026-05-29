@@ -323,4 +323,25 @@ TEST_P(CalculusTest, IntegralNonHandleThrows)
     EXPECT_THROW(eval("r = integral('not a handle', 0, 1);"), std::exception);
 }
 
+// trapz: matrix reduces per-column (was flattened), trapz(Y,dim) (a scalar
+// 2nd arg is the dim, NOT y — was erroring), and trapz(X,Y[,dim]) spacing.
+// vs MATLAB R2025b.
+TEST_P(CalculusTest, TrapzMatrixAndDim)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("trapz([1 4 9 16])"),          21.5);
+    EXPECT_DOUBLE_EQ(evalScalar("trapz([0 1 2 3], [1 4 9 16])"), 21.5);
+    // trapz(M) integrates each column (dim 1) -> 1x3 row.
+    eval("tm = trapz([1 2 3; 4 5 6]);");
+    EXPECT_DOUBLE_EQ(evalScalar("tm(1)"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("tm(3)"), 4.5);
+    // trapz(M, 2) integrates each row -> 2x1 column.
+    eval("td = trapz([1 2 3; 4 5 6], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("td(1)"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("td(2)"), 10.0);
+    // trapz(X, M, 2): per-row with X spacing.
+    eval("tx = trapz([10 20 30], [1 2 3; 4 5 6], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("tx(1)"),  40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("tx(2)"), 100.0);
+}
+
 INSTANTIATE_DUAL(CalculusTest);
