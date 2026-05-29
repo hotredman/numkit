@@ -188,6 +188,44 @@ void tustinDiscretise(const Mat &A, const Vec &B, const Vec &C, double D,
     Dd = D + (Ts / 2.0) * cy;
 }
 
+// First-order hold (triangle approximation), SISO. Van Loan augmented
+// matrix exp [[A·Ts, B·Ts, 0]; [0, 0, I·Ts]; [0, 0, 0]] → blocks
+// Phi, G1, G2 (the top n rows of cols n, n+1). MATLAB R2025b:
+//   Ad = Phi,  Bd = G1 + Phi·G2/Ts − G2/Ts,  Cd = C,  Dd = D + C·G2/Ts.
+void fohDiscretise(const Mat &A, const Vec &B, const Vec &C, double D,
+                   size_t n, double Ts, Mat &Ad, Vec &Bd, Vec &Cd, double &Dd)
+{
+    const size_t m = n + 2;                 // augmented dim (1 input)
+    Mat M = zerosM(m, m);
+    for (size_t j = 0; j < n; ++j)
+        for (size_t i = 0; i < n; ++i)
+            M[j * m + i] = A[j * n + i] * Ts;     // A·Ts block
+    for (size_t i = 0; i < n; ++i)
+        M[n * m + i] = B[i] * Ts;                  // B·Ts column (col n)
+    M[(n + 1) * m + n] = Ts;                       // I·Ts entry (row n, col n+1)
+
+    Mat E = expm(M, m);
+    Ad.assign(n * n, 0.0);
+    for (size_t j = 0; j < n; ++j)
+        for (size_t i = 0; i < n; ++i)
+            Ad[j * n + i] = E[j * m + i];          // Phi
+    Vec G1(n, 0.0), G2(n, 0.0);
+    for (size_t i = 0; i < n; ++i) {
+        G1[i] = E[n * m + i];
+        G2[i] = E[(n + 1) * m + i];
+    }
+    Bd.assign(n, 0.0);
+    for (size_t i = 0; i < n; ++i) {
+        double phiG2 = 0.0;                         // (Phi·G2)[i]
+        for (size_t k = 0; k < n; ++k) phiG2 += Ad[k * n + i] * G2[k];
+        Bd[i] = G1[i] + phiG2 / Ts - G2[i] / Ts;
+    }
+    Cd = C;
+    double cg2 = 0.0;
+    for (size_t i = 0; i < n; ++i) cg2 += C[i] * G2[i];
+    Dd = D + cg2 / Ts;
+}
+
 // Build an output struct of the requested kind from (A, B, C, D, Ts).
 Value packResult(const Mat &Ad, const Vec &Bd, const Vec &Cd, double Dd, size_t n, double Ts, const std::string &origKind, std::pmr::memory_resource *mr)
 {
@@ -239,8 +277,10 @@ Value c2d(const Value &sys, double Ts, const std::string &method, std::pmr::memo
         Dd = s.D;
     } else if (method == "tustin" || method == "bilinear") {
         tustinDiscretise(s.A, s.B, s.C, s.D, s.n, Ts, Ad, Bd, Cd, Dd);
+    } else if (method == "foh") {
+        fohDiscretise(s.A, s.B, s.C, s.D, s.n, Ts, Ad, Bd, Cd, Dd);
     } else {
-        throw Error("c2d: method must be 'zoh' or 'tustin'",
+        throw Error("c2d: method must be 'zoh', 'foh', or 'tustin'",
                     0, 0, "c2d", "", "numkit:c2d:method");
     }
 
