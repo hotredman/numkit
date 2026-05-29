@@ -261,6 +261,18 @@ zp2tf(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr)
     auto bRaw = detail::polyExpandFromRoots(&scratch, zv.data(), zv.size());
     auto aRaw = detail::polyExpandFromRoots(&scratch, pv.data(), pv.size());
     for (auto &v : bRaw) v *= k;
+    // MATLAB returns b with the SAME length as a: when there are fewer
+    // zeros than poles, the numerator is left-padded with zeros (the
+    // surplus high-order coefficients are 0). E.g. one zero, two poles ->
+    // b = [0 b0 b1], not [b0 b1].
+    if (bRaw.size() < aRaw.size()) {
+        const size_t off = aRaw.size() - bRaw.size();
+        ScratchVec<double> bPad(aRaw.size(), &scratch);
+        for (size_t i = 0; i < aRaw.size(); ++i) bPad[i] = 0.0;
+        for (size_t i = 0; i < bRaw.size(); ++i) bPad[off + i] = bRaw[i];
+        return std::make_tuple(rowFromVec(bPad.data(), bPad.size(), mr),
+                               rowFromVec(aRaw.data(), aRaw.size(), mr));
+    }
     return std::make_tuple(rowFromVec(bRaw.data(), bRaw.size(), mr),
                            rowFromVec(aRaw.data(), aRaw.size(), mr));
 }
