@@ -1213,7 +1213,7 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `c2d` | ✅ | 0.004 | 5244.05× |  | OK | Sig: r = c2d(...). Spec-extension batch 2026-05-09. |
+| `c2d` | ✅ | 0.019 | 1378.96× |  | OK | Sig: sysd = c2d(sys, Ts[, method]). 'zoh' (default), 'foh', 'tustin'. 'foh' = first-order/triangle hold via Van Loan augmented matrix-exp [[A·Ts,B·Ts,0];[0,0,I·Ts];[0,0,0]]: Ad=Phi, Bd=G1+Phi·G2/Ts−G2/Ts, Cd=C, Dd=D+C·G2/Ts (FOH introduces a feedthrough term so the discrete tf gains a nonzero leading b). Bit-identical with MATLAB R2025b on tf(1,[1 2 1]) + an explicit ss. Queue-clearing 2026-05-29: 'foh' previously errored "method must be 'zoh' or 'tustin'". 'matched' still deferred. |
 | `c2dOptions` | ❌ |  |  |  |  |  |
 | `d2c` | ✅ | 0.007 | 4519.99× |  | OK | Sig: r = d2c(...). Spec-extension batch 2026-05-09. |
 | `d2cOptions` | ❌ |  |  |  |  |  |

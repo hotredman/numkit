@@ -1,12 +1,14 @@
 {
   "name": "c2d",
   "namespace": "control",
-  "setup": "",
-  "expr": "sys = tf(1, [1 1]); sysd = c2d(sys, 0.1); r1 = 1;",
+  "setup": "sys = tf(1, [1 2 1]); sc = ss([-2 -1; 1 0], [1; 0], [0 1], 0);",
+  "expr": "dz = c2d(sys, 0.1, 'zoh'); [bz, az] = tfdata(dz, 'v'); df = c2d(sys, 0.1, 'foh'); [bf, af] = tfdata(df, 'v'); dd = c2d(sc, 0.1, 'foh');",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "bz(2)", "bz(3)", "az(2)", "az(3)",
+    "bf(1)", "bf(2)", "bf(3)", "af(2)", "af(3)",
+    "dd.B(1)", "dd.B(2)", "dd.D"
   ],
-  "comment": "Sig: r = c2d(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: sysd = c2d(sys, Ts[, method]). 'zoh' (default), 'foh', 'tustin'. 'foh' = first-order/triangle hold via Van Loan augmented matrix-exp [[A·Ts,B·Ts,0];[0,0,I·Ts];[0,0,0]]: Ad=Phi, Bd=G1+Phi·G2/Ts−G2/Ts, Cd=C, Dd=D+C·G2/Ts (FOH introduces a feedthrough term so the discrete tf gains a nonzero leading b). Bit-identical with MATLAB R2025b on tf(1,[1 2 1]) + an explicit ss. Queue-clearing 2026-05-29: 'foh' previously errored \"method must be 'zoh' or 'tustin'\". 'matched' still deferred."
 }
