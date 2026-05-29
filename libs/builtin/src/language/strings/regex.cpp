@@ -12,6 +12,8 @@
 #include <cctype>
 #include <regex>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace numkit::builtin {
 
@@ -27,6 +29,69 @@ std::regex compileRegex(const std::string &pat, bool ignoreCase)
         throw Error(std::string("regex: invalid pattern — ") + e.what(),
                      0, 0, "regexp", "", "numkit:regexp:badPattern");
     }
+}
+
+// Named-token support. std::regex (ECMAScript) does not accept MATLAB's
+// `(?<name>...)` named groups, so rewrite each one to a plain capture
+// group `(...)` and record name → 1-based capture-group index. Lookbehind
+// `(?<=` / `(?<!`, lookahead `(?=` / `(?!`, and non-capturing `(?:` are
+// left untouched (and don't consume a capture index). Escapes and
+// character classes are honoured so `\(` and `[(]` are not miscounted.
+struct NamedGroups {
+    std::string cleaned;
+    std::vector<std::pair<std::string, std::size_t>> names;  // name → group #
+};
+
+NamedGroups extractNamedGroups(const std::string &pat)
+{
+    NamedGroups ng;
+    ng.cleaned.reserve(pat.size());
+    std::size_t group = 0;
+    bool inClass = false;
+    for (std::size_t i = 0; i < pat.size();) {
+        const char c = pat[i];
+        if (c == '\\' && i + 1 < pat.size()) {           // escaped pair
+            ng.cleaned += c;
+            ng.cleaned += pat[i + 1];
+            i += 2;
+            continue;
+        }
+        if (inClass) {
+            if (c == ']') inClass = false;
+            ng.cleaned += c;
+            ++i;
+            continue;
+        }
+        if (c == '[') { inClass = true; ng.cleaned += c; ++i; continue; }
+        if (c == '(') {
+            const bool named = i + 3 < pat.size() && pat[i + 1] == '?'
+                               && pat[i + 2] == '<'
+                               && (std::isalpha(static_cast<unsigned char>(pat[i + 3]))
+                                   || pat[i + 3] == '_');
+            if (named) {
+                std::size_t j = i + 3;
+                std::string name;
+                while (j < pat.size() && pat[j] != '>') name += pat[j++];
+                ++group;
+                ng.names.emplace_back(name, group);
+                ng.cleaned += '(';          // plain capture group
+                i = (j < pat.size()) ? j + 1 : j;   // skip past '>'
+                continue;
+            }
+            if (i + 1 < pat.size() && pat[i + 1] == '?') {   // (?: (?= (?! (?<= (?<!
+                ng.cleaned += c;             // non-capturing / lookaround
+                ++i;
+                continue;
+            }
+            ++group;                         // plain capture group
+            ng.cleaned += c;
+            ++i;
+            continue;
+        }
+        ng.cleaned += c;
+        ++i;
+    }
+    return ng;
 }
 
 Value rowFromIndices(const double *v, std::size_t n, std::pmr::memory_resource *mr)
@@ -53,13 +118,48 @@ Value regexpFind(const Value &s, const Value &pat, const std::string &option, bo
         throw Error("regexp: s and pat must be strings",
                      0, 0, "regexp", "", "numkit:regexp:badArg");
     const std::string text = s.toString();
-    const std::regex  re   = compileRegex(pat.toString(), ignoreCase);
+    // Strip MATLAB named-group syntax to a std::regex-compatible pattern,
+    // keeping the name → capture-group-index map for the 'names' option.
+    const NamedGroups ng = extractNamedGroups(pat.toString());
+    const std::regex  re = compileRegex(ng.cleaned, ignoreCase);
 
     std::string opt = option;
     for (auto &c : opt)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
     ScratchArena scratch(mr);
+
+    if (opt == "names") {
+        // Count matches first to choose scalar struct (1) vs struct array.
+        std::size_t count = 0;
+        for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
+                  end = std::sregex_iterator(); it != end; ++it)
+            ++count;
+
+        if (count == 0) {
+            // MATLAB returns a 0×0 struct that still carries the field names.
+            Value out = Value::structArray(0, 0, mr);
+            for (const auto &nm : ng.names) out.setFieldAll(nm.first, Value::Empty);
+            return out;
+        }
+        if (count == 1) {
+            auto it = std::sregex_iterator(text.begin(), text.end(), re);
+            const auto &m = *it;
+            Value out = Value::structure(mr);
+            for (const auto &nm : ng.names)
+                out.setFieldAll(nm.first, Value::fromString(m.str(nm.second), mr));
+            return out;
+        }
+        Value out = Value::structArray(1, count, mr);
+        std::size_t i = 0;
+        for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
+                  end = std::sregex_iterator(); it != end; ++it, ++i) {
+            const auto &m = *it;
+            for (const auto &nm : ng.names)
+                out.setField(i, nm.first, Value::fromString(m.str(nm.second), mr));
+        }
+        return out;
+    }
 
     if (opt == "split") {
         ScratchVec<std::string> parts(&scratch);
@@ -103,7 +203,7 @@ Value regexpFind(const Value &s, const Value &pat, const std::string &option, bo
 
     if (!opt.empty())
         throw Error("regexp: unknown option '" + option
-                     + "' (supported: 'match' / 'tokens' / 'split')",
+                     + "' (supported: 'match' / 'tokens' / 'names' / 'split')",
                      0, 0, "regexp", "", "numkit:regexp:badOption");
 
     // Default: 1-based start indices.
@@ -122,7 +222,7 @@ Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreC
         throw Error("regexprep: s, pat, rep must be strings",
                      0, 0, "regexprep", "", "numkit:regexprep:badArg");
     const std::string text    = s.toString();
-    const std::regex  re      = compileRegex(pat.toString(), ignoreCase);
+    const std::regex  re      = compileRegex(extractNamedGroups(pat.toString()).cleaned, ignoreCase);
     const std::string repText = rep.toString();
     const std::string out     = std::regex_replace(text, re, repText);
     return Value::fromString(out, mr);

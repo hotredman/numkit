@@ -72,6 +72,51 @@ TEST_P(RegexTest, RegexpTokensCaptureGroups)
     EXPECT_EQ(m2.cellAt(1).toString(), "175");
 }
 
+// ── regexp: 'names' option (named tokens → struct) ─────────────
+
+TEST_P(RegexTest, RegexpNamesSingleMatch)
+{
+    eval("n = regexp('John Smith age 42', "
+         "'(?<first>\\w+)\\s+(?<last>\\w+)\\s+age\\s+(?<age>\\d+)', 'names');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(n)")), 1);
+    EXPECT_EQ(eval("n.first").toString(), "John");
+    EXPECT_EQ(eval("n.last").toString(),  "Smith");
+    EXPECT_EQ(eval("n.age").toString(),   "42");
+}
+
+TEST_P(RegexTest, RegexpNamesStructArray)
+{
+    eval("t = regexp('a1 b2 c3', '(?<L>[a-z])(?<D>\\d)', 'names');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(t)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(t,1)")), 1);
+    EXPECT_EQ(eval("t(1).L").toString(), "a");
+    EXPECT_EQ(eval("t(2).L").toString(), "b");
+    EXPECT_EQ(eval("t(3).D").toString(), "3");
+}
+
+TEST_P(RegexTest, RegexpNamesNonParticipatingGroupEmpty)
+{
+    // Alternation: only one named group participates → other field is ''.
+    eval("np = regexp('x', '(?<a>a)|(?<b>x)', 'names');");
+    EXPECT_EQ(eval("np.a").toString(), "");
+    EXPECT_EQ(eval("np.b").toString(), "x");
+}
+
+TEST_P(RegexTest, RegexpNamesNoMatchIsEmpty)
+{
+    eval("z = regexp('zzz', '(?<L>[a-z])(?<D>\\d)', 'names');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(z)")), 0);
+}
+
+TEST_P(RegexTest, RegexpNamedGroupInTokensActsAsCapture)
+{
+    // A named group still functions as an ordinary capture group for
+    // 'tokens' (std::regex can't parse the (?<name>) syntax raw).
+    eval("tk = regexp('a1', '(?<L>[a-z])(\\d)', 'tokens');");
+    EXPECT_EQ(eval("tk{1}{1}").toString(), "a");
+    EXPECT_EQ(eval("tk{1}{2}").toString(), "1");
+}
+
 // ── regexp: 'split' option ─────────────────────────────────────
 
 TEST_P(RegexTest, RegexpSplitOnDelimiter)
