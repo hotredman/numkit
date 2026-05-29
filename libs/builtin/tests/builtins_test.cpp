@@ -595,6 +595,25 @@ TEST_P(BuiltinTest, Bin2DecHex2Dec)
     EXPECT_DOUBLE_EQ(evalScalar("hex2dec('ff');"), 255.0);  // case-insensitive
 }
 
+// dec2base / base2dec — arbitrary radix 2..36. vs MATLAB R2025b.
+TEST_P(BuiltinTest, Dec2BaseBase2Dec)
+{
+    eval("a = dec2base(100, 16);");
+    EXPECT_EQ(getVarPtr("a")->toString(), "64");
+    eval("b = dec2base(10, 2, 8);");
+    EXPECT_EQ(getVarPtr("b")->toString(), "00001010");
+    eval("z = dec2base(35, 36);");
+    EXPECT_EQ(getVarPtr("z")->toString(), "Z");      // base-36 digit
+    EXPECT_DOUBLE_EQ(evalScalar("base2dec('64', 16);"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("base2dec('1010', 2);"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("base2dec('Z', 36);"), 35.0);
+    EXPECT_DOUBLE_EQ(evalScalar("base2dec('z', 36);"), 35.0);  // case-insensitive
+    // char matrix -> column vector.
+    eval("B = base2dec(['64';'1A'], 16);");
+    EXPECT_DOUBLE_EQ(evalScalar("B(1)"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2)"), 26.0);
+}
+
 TEST_P(BuiltinTest, Rat)
 {
     // After the audit ТЗ closure (2026-05-09) numkit's `rat()` returns

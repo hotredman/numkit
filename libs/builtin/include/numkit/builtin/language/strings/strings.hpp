@@ -486,6 +486,30 @@ Value bin2dec(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @return    DOUBLE value. @see dec2hex
 Value hex2dec(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Integer → base-`base` CHAR string (`s = dec2base(d, base[, len])`).
+///
+/// `base` in 2..36 (digits 0-9 then A-Z). Output left-padded with '0' to
+/// at least `minWidth`. A vector `d` yields a CHAR matrix, one row per
+/// element padded to the widest.
+///
+/// @param d         Non-negative integer value(s).
+/// @param base      Radix, 2..36.
+/// @param minWidth  Minimum field width (0 = natural).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          CHAR row / matrix. @see base2dec, dec2bin, dec2hex
+Value dec2base(const Value &d, int base, int minWidth, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Parse base-`base` digit string (`d = base2dec(s, base)`).
+///
+/// Inverse of `dec2base`; `base` in 2..36, digits case-insensitive. A char
+/// matrix parses each row → column vector.
+///
+/// @param s     Digit string / char matrix.
+/// @param base  Radix, 2..36.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      DOUBLE value / column vector. @see dec2base
+Value base2dec(const Value &s, int base, std::pmr::memory_resource *mr = nullptr);
+
 // ── Rational approximation ───────────────────────────────────────────
 
 /// @brief Continued-fraction approximation (`s = rat(x, tol)`).
