@@ -6,6 +6,7 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <climits>
 #include <cmath>
 #include <cstdint>
@@ -674,6 +675,52 @@ void dt1D(const std::vector<double> &f, std::vector<double> &d, size_t n)
     }
 }
 
+// Two-pass chamfer distance transform for non-Euclidean grid metrics.
+// dOrth = orthogonal step cost, dDiag = diagonal step cost; allowDiag=false
+// forbids diagonal moves (cityblock). Exact for cityblock (dOrth=1, no
+// diagonal), chessboard (1,1) and quasi-euclidean (1, sqrt2).
+Value bwdistChamfer(const Value &BW, double dOrth, double dDiag,
+                    bool allowDiag, std::pmr::memory_resource *mr)
+{
+    const size_t H = BW.dims().rows();
+    const size_t W = BW.dims().cols();
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    if (H == 0 || W == 0) return out;
+    const double INF = std::numeric_limits<double>::infinity();
+
+    std::vector<double> d(H * W, INF);          // row-major working buffer
+    for (size_t r = 0; r < H; ++r)
+        for (size_t c = 0; c < W; ++c)
+            if (BW.elemAsDouble(c * H + r) != 0.0) d[r * W + c] = 0.0;
+
+    auto at = [&](size_t r, size_t c) -> double & { return d[r * W + c]; };
+
+    for (size_t r = 0; r < H; ++r)              // forward raster scan
+        for (size_t c = 0; c < W; ++c) {
+            double v = at(r, c);
+            if (r > 0)                            v = std::min(v, at(r - 1, c) + dOrth);
+            if (c > 0)                            v = std::min(v, at(r, c - 1) + dOrth);
+            if (allowDiag && r > 0 && c > 0)      v = std::min(v, at(r - 1, c - 1) + dDiag);
+            if (allowDiag && r > 0 && c + 1 < W)  v = std::min(v, at(r - 1, c + 1) + dDiag);
+            at(r, c) = v;
+        }
+    for (size_t r = H; r-- > 0; )                // backward raster scan
+        for (size_t c = W; c-- > 0; ) {
+            double v = at(r, c);
+            if (r + 1 < H)                            v = std::min(v, at(r + 1, c) + dOrth);
+            if (c + 1 < W)                            v = std::min(v, at(r, c + 1) + dOrth);
+            if (allowDiag && r + 1 < H && c + 1 < W)  v = std::min(v, at(r + 1, c + 1) + dDiag);
+            if (allowDiag && r + 1 < H && c > 0)      v = std::min(v, at(r + 1, c - 1) + dDiag);
+            at(r, c) = v;
+        }
+
+    double *od = out.doubleDataMut();
+    for (size_t r = 0; r < H; ++r)
+        for (size_t c = 0; c < W; ++c)
+            od[c * H + r] = d[r * W + c];        // back to column-major
+    return out;
+}
+
 } // anonymous
 
 Value bwdist(const Value &BW, std::pmr::memory_resource *mr)
@@ -1113,7 +1160,28 @@ void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("bwdist: requires (BW)",
                     0, 0, "bwdist", "", "numkit:bwdist:nargin");
-    outs[0] = bwdist(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+
+    // Optional distance metric (default 'euclidean'), case-insensitive.
+    std::string method = "euclidean";
+    if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
+        method = args[1].toString();
+        for (char &c : method)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    if (method == "euclidean")
+        outs[0] = bwdist(args[0], mr);
+    else if (method == "cityblock")
+        outs[0] = bwdistChamfer(args[0], 1.0, 0.0, false, mr);
+    else if (method == "chessboard")
+        outs[0] = bwdistChamfer(args[0], 1.0, 1.0, true, mr);
+    else if (method == "quasi-euclidean")
+        outs[0] = bwdistChamfer(args[0], 1.0, std::sqrt(2.0), true, mr);
+    else
+        throw Error("bwdist: method must be 'euclidean', 'cityblock', "
+                    "'chessboard', or 'quasi-euclidean'",
+                    0, 0, "bwdist", "", "numkit:bwdist:badMethod");
 }
 
 void roicolor_reg(Span<const Value> args, size_t /*nargout*/,

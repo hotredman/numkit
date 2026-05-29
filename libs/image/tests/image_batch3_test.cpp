@@ -47,6 +47,27 @@ TEST_F(ImageBatch3Test, BwAnalysis2)
     EXPECT_GT(evalScalar("size(P,2)"), 0.0);
 }
 
+// bwdist distance-metric option (was silently ignored -> always Euclidean).
+// BW = single TRUE at (2,2); corner (1,1) distinguishes the metrics. vs MATLAB.
+TEST_F(ImageBatch3Test, BwdistMetrics)
+{
+    eval("BW = logical([0 0 0; 0 1 0; 0 0 0]);");
+    // Euclidean (default): corner = sqrt(2).
+    EXPECT_NEAR(evalScalar("D=bwdist(BW); D(1,1)"),               1.41421356, 1e-7);
+    EXPECT_NEAR(evalScalar("D=bwdist(BW,'euclidean'); D(1,1)"),   1.41421356, 1e-7);
+    // Cityblock: |1|+|1| = 2.
+    EXPECT_DOUBLE_EQ(evalScalar("D=bwdist(BW,'cityblock'); D(1,1)"),  2.0);
+    // Chessboard: max(1,1) = 1.
+    EXPECT_DOUBLE_EQ(evalScalar("D=bwdist(BW,'chessboard'); D(1,1)"), 1.0);
+    // Quasi-euclidean: diagonal step = sqrt(2).
+    EXPECT_NEAR(evalScalar("D=bwdist(BW,'quasi-euclidean'); D(1,1)"), 1.41421356, 1e-7);
+    // Edge (1,2) is 1 under every metric.
+    EXPECT_DOUBLE_EQ(evalScalar("D=bwdist(BW,'cityblock'); D(1,2)"),  1.0);
+    // Case-insensitive option; unknown metric throws.
+    EXPECT_DOUBLE_EQ(evalScalar("D=bwdist(BW,'CityBlock'); D(1,1)"),  2.0);
+    EXPECT_THROW(eval("bwdist(BW,'bogus');"), std::exception);
+}
+
 TEST_F(ImageBatch3Test, Histogram)
 {
     eval("h = imhist(uint8([0 64 128 192 255]));");
