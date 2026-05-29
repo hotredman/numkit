@@ -475,7 +475,8 @@ Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
     double *od = out.doubleDataMut();
 
     const size_t inPlane = H1 * W1;
-    const double invN = 1.0 / normFactor;
+    // normFactor is a MULTIPLIER (MATLAB semantics): out = boxSum * normFactor.
+    // Default (1/(fH·fW)) → mean; pass 1 for raw sum.
 
     for (size_t c = 0; c < C; ++c) {
         for (size_t oj = 0; oj < outW; ++oj) {
@@ -494,7 +495,7 @@ Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
                 const size_t dstIdx = (C == 1)
                     ? (oj * outH + oi)
                     : (c * outH * outW + oj * outH + oi);
-                od[dstIdx] = s * invN;
+                od[dstIdx] = s * normFactor;
             }
         }
     }
@@ -2258,7 +2259,9 @@ void integralBoxFilter_reg(Span<const Value> args, size_t /*nargout*/,
         nvStart = 2;
     }
 
-    double normFactor = static_cast<double>(fH) * static_cast<double>(fW);
+    // MATLAB default NormalizationFactor = 1/(fH·fW) (mean); it is a
+    // multiplier applied to the box sum, NOT a divisor.
+    double normFactor = 1.0 / (static_cast<double>(fH) * static_cast<double>(fW));
     // NV-pair: NormalizationFactor.
     for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())

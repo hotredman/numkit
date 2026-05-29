@@ -55,6 +55,19 @@ TEST_F(IntegralBoxFilterTest, NormalizationFactorOne)
     EXPECT_DOUBLE_EQ(evalScalar("B(1,1)"), 297.0);
 }
 
+// NormalizationFactor is a MULTIPLIER (MATLAB semantics): box-sum * normFactor.
+// raw 3x3 box sum at (1,1) is 297, so 0.5 -> 148.5 and 2 -> 594.
+TEST_F(IntegralBoxFilterTest, NormalizationFactorMultiplierSemantics)
+{
+    engine.eval("Bh = integralBoxFilter(I, 3, 'NormalizationFactor', 0.5);");
+    EXPECT_DOUBLE_EQ(evalScalar("Bh(1,1)"), 148.5);   // 297 * 0.5
+    engine.eval("Bx2 = integralBoxFilter(I, 3, 'NormalizationFactor', 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("Bx2(1,1)"), 594.0);  // 297 * 2
+    // Default (no NV) equals the mean = raw / 9 = 33.
+    engine.eval("Bd = integralBoxFilter(I);");
+    EXPECT_NEAR(evalScalar("Bd(1,1)"), 33.0, 1e-12);
+}
+
 // 3-D color: per-channel processing.
 TEST_F(IntegralBoxFilterTest, ThreeDColorPerChannel)
 {
