@@ -42,10 +42,10 @@ TEST_P(StatsTest, VarVectorPopulationFlag)
 
 TEST_P(StatsTest, VarScalar)
 {
-    // var(5) — single element with N-1 normalization is NaN (matches MATLAB).
-    auto v = eval("var(5);");
-    EXPECT_TRUE(std::isnan(v.toScalar()));
-    // var(5, 1) with population normalization is 0.
+    // var(5) — variance of a single element is 0 in MATLAB R2025b for BOTH
+    // the default N-1 normalization and the N normalization (NOT NaN from the
+    // 0/0 of N-1). Verified `format long` against MATLAB 2026-05-29.
+    EXPECT_DOUBLE_EQ(evalScalar("var(5);"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("var(5, 1);"), 0.0);
 }
 
@@ -2047,11 +2047,12 @@ TEST_P(ReductionDimTest, VarOmitnanSkipsNaN)
 TEST_P(ReductionDimTest, StdOmitnanWithDim)
 {
     eval("M = [1 NaN 3; 2 5 4]; r = std(M, 0, 1, 'omitnan');");
-    // col 1: std([1, 2], 0) = sqrt(0.5)
-    // col 2: std([5], 0) = NaN (only 1 element, sample variance undefined)
-    // col 3: std([3, 4], 0) = sqrt(0.5)
+    // col 1: std([1, 2], 0)  = sqrt(0.5)
+    // col 2: std([5], 0)     = 0  (single valid value -> 0 in MATLAB, NOT NaN;
+    //        verified `format long`: std([1 NaN 3;2 5 4],0,1,'omitnan')=[.7071 0 .7071])
+    // col 3: std([3, 4], 0)  = sqrt(0.5)
     EXPECT_NEAR(evalScalar("r(1);"), std::sqrt(0.5), 1e-12);
-    EXPECT_TRUE(std::isnan(evalScalar("r(2);")));
+    EXPECT_DOUBLE_EQ(evalScalar("r(2);"), 0.0);
     EXPECT_NEAR(evalScalar("r(3);"), std::sqrt(0.5), 1e-12);
 }
 
@@ -2390,10 +2391,13 @@ TEST_P(NanReductionTest, NanvarPopulationFlag)
 
 TEST_P(NanReductionTest, NanvarSingleValidValue)
 {
-    // Only one non-NaN: var with N-1 normalisation is undefined → NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("nanvar([NaN 5 NaN]);")));
-    // Population variance of one value = 0.
+    // Only one non-NaN value: variance is 0 in MATLAB R2025b for BOTH the
+    // default N-1 normalization and the N normalization (NOT NaN from 0/0).
+    // Verified `format long`: nanvar([NaN 5 NaN]) == 0. 2026-05-29 fix.
+    EXPECT_DOUBLE_EQ(evalScalar("nanvar([NaN 5 NaN]);"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("nanvar([NaN 5 NaN], 1);"), 0.0);
+    // nanstd mirrors it.
+    EXPECT_DOUBLE_EQ(evalScalar("nanstd([NaN 5 NaN]);"), 0.0);
 }
 
 TEST_P(NanReductionTest, NanstdSkipsNaN)

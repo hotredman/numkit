@@ -2,7 +2,7 @@
   "name": "var",
   "namespace": "stats",
   "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]; v8 = [1 2 3 4 5]'; W = [1 2 1 2 1]'; v = [2 5 3 7 4 6 NaN 8 1 9]';",
-  "expr": "vA = var(A); vA1 = var(A, 1); vA2 = var(A, 0, 2); v_all = var(A, 0, 'all'); v_vec = var(A, 0, [1 2]); v_w = var(v8, W); v_om = var(v, 0, 'omitnan'); v_inc = var(v, 0, 'includenan');",
+  "expr": "vA = var(A); vA1 = var(A, 1); vA2 = var(A, 0, 2); v_all = var(A, 0, 'all'); v_vec = var(A, 0, [1 2]); v_w = var(v8, W); v_om = var(v, 0, 'omitnan'); v_inc = var(v, 0, 'includenan'); v_s1 = var(5); v_s1n = var(5, 1); v_se = var([7]);",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
@@ -10,7 +10,8 @@
     "vA1(1)", "vA1(2)",
     "vA2(1)", "vA2(3)", "vA2(5)",
     "v_all", "v_vec", "v_w",
-    "v_om", "v_inc"
+    "v_om", "v_inc",
+    "v_s1", "v_s1n", "v_se"
   ],
-  "comment": "Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Closes audit/findings/stats/var.md."
+  "comment": "Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Single-element variance = 0 for BOTH N-1 (default) and N normalizations (NOT NaN from 0/0): var(5)=0, var([7])=0, var(5,1)=0. Closes audit/findings/stats/var.md + DEEP-PROBE 2026-05-29 n==1 fix. (NOTE: var([1 2 3],0,1) should be [0 0 0] but a separate core reduce-along-singleton-dim bug returns scalar 1 — deferred, also affects sum/mean.)"
 }
