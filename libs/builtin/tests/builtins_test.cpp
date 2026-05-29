@@ -1632,6 +1632,23 @@ TEST_P(BuiltinTest, Mat2str)
     EXPECT_EQ(getVarPtr("s4")->toString(), "[]");
 }
 
+TEST_P(BuiltinTest, Mat2strComplex)
+{
+    // Complex values: re±|im|i per element (vs MATLAB R2025b).
+    eval("c1 = mat2str(1+2i);");
+    EXPECT_EQ(getVarPtr("c1")->toString(), "1+2i");
+    eval("c2 = mat2str([1+2i 3-4i]);");
+    EXPECT_EQ(getVarPtr("c2")->toString(), "[1+2i 3-4i]");
+    eval("c3 = mat2str([1+2i; 3-4i]);");
+    EXPECT_EQ(getVarPtr("c3")->toString(), "[1+2i;3-4i]");
+    // A purely-imaginary element keeps a "0" real part (no "-0").
+    eval("c4 = mat2str([1.5+2.25i -3i], 5);");
+    EXPECT_EQ(getVarPtr("c4")->toString(), "[1.5+2.25i 0-3i]");
+    // All-zero imaginary parts → printed as real.
+    eval("c5 = mat2str(complex(1, 0));");
+    EXPECT_EQ(getVarPtr("c5")->toString(), "1");
+}
+
 TEST_P(BuiltinTest, Strjoin)
 {
     eval("s = strjoin({'a', 'b', 'c'});");

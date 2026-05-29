@@ -1,0 +1,16 @@
+{
+  "name": "mat2str",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = mat2str([1 2;3 4]); b = mat2str(1+2i); c = mat2str([1+2i 3-4i]); d = mat2str([1.5+2.25i -3i], 5); e = mat2str(complex(1,0));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "double(a(1))", "double(a(end))", "numel(a)",
+    "double(b(1))", "double(b(end))", "numel(b)",
+    "double(c(2))", "numel(c)",
+    "double(d(end))", "numel(d)",
+    "double(e(1))", "numel(e)"
+  ],
+  "comment": "Sig: s = mat2str(X[, n]). Char-code fingerprints (string == comparison gives a vector → use double(s(k))). Covers real matrix + complex scalar/row/col + a purely-imaginary element ('0-3i', no '-0') + all-zero-imag complex printed as real. Queue-clearing 2026-05-29: mat2str on a COMPLEX array previously threw 'Not a double array' / 'Cannot convert complex to scalar'; now formats re±|im|i."
+}
