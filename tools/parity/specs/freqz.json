@@ -2,12 +2,13 @@
   "name": "freqz",
   "namespace": "signal",
   "setup": "",
-  "expr": "[h, w] = freqz([1 0.5], 1, 8); r1 = double(numel(h)); r2 = double(numel(w));",
+  "expr": "[h, w] = freqz([1 0.5], 1, 8); r1 = double(numel(h)); r2 = double(numel(w)); [hw, ww] = freqz([1 1], 1, 4, 'whole');",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2",
+    "ww(1)", "ww(2)", "ww(3)", "ww(4)",
+    "abs(hw(1))"
   ],
-  "comment": "Sig: r = freqz(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig [h,w]=freqz(b,a,n[,'whole']). Default grid w = pi*(0:n-1)/n on [0,pi). 'whole' -> w = 2*pi*(0:n-1)/n on the full unit circle [0,2pi): freqz([1 1],1,4,'whole') w=[0 pi/2 pi 3pi/2], |h(1)|=2. numkit previously ignored 'whole' -- now honored. Matches MATLAB R2025b."
 }

@@ -31,11 +31,16 @@ namespace numkit::signal {
 /// @endcode
 ///
 /// @see phasez, grpdelay, freqs
+///
+/// `whole` selects the full unit circle: the grid spans `[0, 2π)` with
+/// `w = 2π·(0:n-1)/n` (MATLAB `freqz(..., 'whole')`). Default is the
+/// half circle `[0, π)`, `w = π·(0:n-1)/n`.
 std::tuple<Value, Value>
 freqz(const Value &                b,
       const Value &                a,
       size_t                       npts = 512,
-      std::pmr::memory_resource *  mr   = nullptr);
+      std::pmr::memory_resource *  mr   = nullptr,
+      bool                         whole = false);
 
 /// Unwrapped phase response of a digital filter.
 ///
