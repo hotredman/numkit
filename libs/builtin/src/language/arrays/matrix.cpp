@@ -1246,14 +1246,18 @@ Value diag(const Value &x, std::pmr::memory_resource *mr)
 }
 
 // ── Sort / find ──────────────────────────────────────────────────────
-std::tuple<Value, Value> sort(const Value &x, std::pmr::memory_resource *mr)
+std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
+                              std::pmr::memory_resource *mr)
 {
     if (x.isScalar())
         return std::make_tuple(x, Value::scalar(1.0, mr));
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
     const size_t P = x.dims().is3D() ? x.dims().pages() : 1;
-    const int sortDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+    // dim<1 -> auto (first non-singleton, MATLAB convention). Explicit dim
+    // is 1-based: 1=down columns, 2=along rows, 3=along pages.
+    const int sortDim = (dim >= 1) ? std::min(dim - 1, 2)
+                                   : ((R > 1) ? 0 : (C > 1) ? 1 : 2);
     const size_t N = (sortDim == 0) ? R : (sortDim == 1) ? C : P;
 
     auto r = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
@@ -1276,8 +1280,19 @@ std::tuple<Value, Value> sort(const Value &x, std::pmr::memory_resource *mr)
                     const size_t pIdx = (sortDim == 2) ? k : pp;
                     buf[k] = {x.doubleData()[pIdx * R * C + cIdx * R + rIdx], k};
                 }
-                std::sort(buf.begin(), buf.end(),
-                          [](const auto &a, const auto &b) { return a.first < b.first; });
+                // MATLAB sort: stable; NaN sorts LAST for ascend, FIRST
+                // for descend. std::stable_sort keeps the original index
+                // order for ties (matches MATLAB's [s,i]).
+                std::stable_sort(buf.begin(), buf.end(),
+                          [descend](const auto &a, const auto &b) {
+                              const double av = a.first, bv = b.first;
+                              const bool an = std::isnan(av), bn = std::isnan(bv);
+                              if (an || bn) {
+                                  if (an && bn) return false;
+                                  return descend ? an : bn;
+                              }
+                              return descend ? (av > bv) : (av < bv);
+                          });
                 for (size_t k = 0; k < N; ++k) {
                     const size_t rIdx = (sortDim == 0) ? k : rr;
                     const size_t cIdx = (sortDim == 1) ? k : c;
@@ -2821,7 +2836,24 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (args.empty())
         throw Error("sort: requires 1 argument",
                      0, 0, "sort", "", "numkit:sort:nargin");
-    auto [sorted, idx] = sort(args[0], ctx.engine->resource());
+    // sort(X[, dim][, direction]): a numeric trailing arg is the dim, a
+    // string is the direction ('ascend' default / 'descend'). MATLAB
+    // accepts sort(X,direction) and sort(X,dim,direction).
+    int dim = -1;
+    bool descend = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i].isEmpty()) continue;
+        if (args[i].isChar() || args[i].isString()) {
+            std::string d = args[i].toString();
+            for (char &ch : d) if (ch >= 'A' && ch <= 'Z') ch = char(ch + 32);
+            if (d == "descend") descend = true;
+            else if (d == "ascend") descend = false;
+            // ignore other Name-Value tokens (e.g. ComparisonMethod)
+        } else {
+            dim = static_cast<int>(args[i].toScalar());
+        }
+    }
+    auto [sorted, idx] = sort(args[0], dim, descend, ctx.engine->resource());
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);
