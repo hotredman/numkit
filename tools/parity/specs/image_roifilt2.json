@@ -2,13 +2,14 @@
   "name": "image_roifilt2",
   "namespace": "image",
   "setup": "I = magic(6); BW = false(6,6); BW(2:4,2:4) = true; h = [0 1 0; 1 -4 1; 0 1 0]; ha = ones(3)/9; I8 = uint8(magic(6)*5);",
-  "expr": "J1 = roifilt2(h, I, BW); Ja = roifilt2(ha, I, BW); J2 = roifilt2(I8, BW, @(x) x*2); J3 = roifilt2(I8, BW, @(x) double(x)+0.5);",
+  "expr": "J1 = roifilt2(h, I, BW); Ja = roifilt2(ha, I, BW); Je = roifilt2(ones(2,2)/4, I, BW); J2 = roifilt2(I8, BW, @(x) x*2); J3 = roifilt2(I8, BW, @(x) double(x)+0.5);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
     "size(J1,1)", "size(J1,2)",
     "J1(1,1)", "J1(3,3)", "J1(2,2)", "J1(4,4)", "J1(6,6)", "sum(J1(:))",
     "Ja(1,1)", "Ja(3,3)",
+    "Je(1,1)", "Je(3,3)", "Je(2,2)",
     "J2(1,1)", "J2(3,3)", "double(sum(J2(:)))",
     "J3(1,1)", "J3(3,3)"
   ],

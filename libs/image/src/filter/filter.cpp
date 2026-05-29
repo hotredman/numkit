@@ -350,8 +350,12 @@ Value imfilter(const Value &I, const Value &h, PadMode boundary, double pad_valu
     const int W = (int)I.dims().cols();
     const int kH = (int)h.dims().rows();
     const int kW = (int)h.dims().cols();
-    const int half_r = kH / 2;
-    const int half_c = kW / 2;
+    // 'same'-mode anchor: MATLAB centres the kernel at 1-based index
+    // floor((K+1)/2), i.e. 0-based offset floor((K-1)/2). For ODD K this
+    // equals K/2 (unchanged); for EVEN K it is K/2 - 1, so the window is
+    // not shifted by a pixel relative to MATLAB.
+    const int half_r = (kH - 1) / 2;
+    const int half_c = (kW - 1) / 2;
 
     int outH, outW;
     if (full) { outH = H + kH - 1; outW = W + kW - 1; }
