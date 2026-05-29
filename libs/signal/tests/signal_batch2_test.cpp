@@ -83,3 +83,18 @@ TEST_F(SignalBatch2Test, FreqResponse)
     eval("h = stepz([1 0.5], 1, 8);");
     EXPECT_DOUBLE_EQ(evalScalar("h(1)"), 1.0);
 }
+
+// freqz 'whole': grid spans [0, 2*pi) instead of [0, pi). Was ignored. vs MATLAB.
+TEST_F(SignalBatch2Test, FreqzWhole)
+{
+    eval("[h, w] = freqz([1 1], 1, 4, 'whole');");
+    EXPECT_EQ(eval("w").numel(), 4u);
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 0.0);
+    EXPECT_NEAR(evalScalar("w(2)"), 1.5707963267948966, 1e-12);  // 2*pi*1/4 = pi/2
+    EXPECT_NEAR(evalScalar("w(3)"), 3.1415926535897931, 1e-12);  // 2*pi*2/4 = pi
+    EXPECT_NEAR(evalScalar("w(4)"), 4.7123889803846897, 1e-12);  // 2*pi*3/4
+    EXPECT_NEAR(evalScalar("abs(h(1))"), 2.0, 1e-12);
+    // default (half) grid unchanged: w(end) = pi*3/4.
+    eval("[~, wh] = freqz([1 1], 1, 4);");
+    EXPECT_NEAR(evalScalar("wh(4)"), 2.3561944901923448, 1e-12);  // pi*3/4
+}
