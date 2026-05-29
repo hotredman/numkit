@@ -492,4 +492,21 @@ TEST_P(SetOpsTest, BinarySetopsStableOrder)
     EXPECT_DOUBLE_EQ(evalScalar("ss(3);"), 4.0);
 }
 
+// ismember 2nd output loc = LOWEST 1-based index in B (0 if absent).
+// (Was missing -> [tf,loc]=ismember(...) errored.) vs MATLAB R2025b.
+TEST_P(SetOpsTest, IsmemberLocSecondOutput)
+{
+    eval("[tf, loc] = ismember([2 5 8 1], [5 2 9]);");
+    EXPECT_DOUBLE_EQ(evalScalar("tf(1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("tf(3);"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("loc(1);"), 2.0);   // 2 is at B index 2
+    EXPECT_DOUBLE_EQ(evalScalar("loc(2);"), 1.0);   // 5 is at B index 1
+    EXPECT_DOUBLE_EQ(evalScalar("loc(3);"), 0.0);   // 8 absent
+    // Tie: B has duplicate values -> loc is the LOWEST index.
+    eval("[~, l2] = ismember([3 1 2], [2 1 3 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("l2(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("l2(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("l2(3);"), 1.0);
+}
+
 INSTANTIATE_DUAL(SetOpsTest);
