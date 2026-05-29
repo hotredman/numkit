@@ -60,3 +60,24 @@ TEST_F(NormalizeParamTest, ScaleAndCenterReference)
     EXPECT_DOUBLE_EQ(evalScalar("cm(1)"), -2.0);
     EXPECT_DOUBLE_EQ(evalScalar("cm(5)"), 2.0);
 }
+
+// rescale 'InputMin'/'InputMax' Name-Value (was unsupported -> "Cannot
+// convert char to scalar"). Values clamp to the input range. vs MATLAB.
+TEST_F(NormalizeParamTest, RescaleInputRange)
+{
+    eval("y = rescale([1 2 3 4 5], 'InputMin', 2, 'InputMax', 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 0.0);   // 1 clamped to 2 -> 0
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 0.5);
+    EXPECT_DOUBLE_EQ(evalScalar("y(5)"), 1.0);   // 5 clamped to 4 -> 1
+    // positional output range + input range together.
+    eval("z = rescale([1 2 3 4 5], 0, 10, 'InputMin', 2, 'InputMax', 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("z(3)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("z(5)"), 10.0);
+    // InputMax only (InputMin defaults to data min = 1).
+    eval("w = rescale([1 2 3 4 5], 'InputMax', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("w(3)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("w(5)"), 1.0);   // clamp
+    // plain positional still works.
+    EXPECT_DOUBLE_EQ(evalScalar("p = rescale([1 2 3 4 5], -1, 1); p(1)"), -1.0);
+}

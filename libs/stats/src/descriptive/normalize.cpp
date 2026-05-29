@@ -227,25 +227,37 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
     return out;
 }
 
-Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr)
+Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr,
+              double inputMin, double inputMax)
 {
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
     Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
     if (H == 0 || W == 0) return out;
+    const bool haveImn = !std::isnan(inputMin);
+    const bool haveImx = !std::isnan(inputMax);
     forEachColumn(A, [&](size_t j, double *col, size_t n) {
+        // Input range: explicit 'InputMin'/'InputMax' override the data
+        // min/max. When given, values are clamped to [mn, mx] (MATLAB).
         double mn = col[0], mx = col[0];
         for (size_t i = 1; i < n; ++i) {
             if (col[i] < mn) mn = col[i];
             if (col[i] > mx) mx = col[i];
         }
+        if (haveImn) mn = inputMin;
+        if (haveImx) mx = inputMax;
         const double r = mx - mn;
         std::vector<double> y(n);
         if (r == 0.0) {
             std::fill(y.begin(), y.end(), lo);
         } else {
             const double scl = (hi - lo) / r;
-            for (size_t i = 0; i < n; ++i) y[i] = lo + (col[i] - mn) * scl;
+            for (size_t i = 0; i < n; ++i) {
+                double v = col[i];
+                if (v < mn) v = mn;     // clamp to input range
+                if (v > mx) v = mx;
+                y[i] = lo + (v - mn) * scl;
+            }
         }
         writeColumn(out, j, y.data(), n, H, W);
     });
@@ -324,11 +336,34 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("rescale: requires (A [, lo, hi])",
                     0, 0, "rescale", "", "numkit:rescale:nargin");
-    const double lo = (args.size() >= 2 && !args[1].isEmpty())
-                      ? args[1].toScalar() : 0.0;
-    const double hi = (args.size() >= 3 && !args[2].isEmpty())
-                      ? args[2].toScalar() : 1.0;
-    outs[0] = rescale(args[0], lo, hi, ctx.engine->resource());
+    double lo = 0.0, hi = 1.0;
+    double inputMin = std::numeric_limits<double>::quiet_NaN();
+    double inputMax = std::numeric_limits<double>::quiet_NaN();
+
+    // Positional lo/hi come first (only when arg[1] is not a NV-name).
+    size_t i = 1;
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()) {
+        if (!args[1].isEmpty()) lo = args[1].toScalar();
+        i = 2;
+        if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()) {
+            if (!args[2].isEmpty()) hi = args[2].toScalar();
+            i = 3;
+        }
+    }
+    // Name-Value: 'InputMin' / 'InputMax' (case-insensitive).
+    for (; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("rescale: expected 'InputMin'/'InputMax'",
+                        0, 0, "rescale", "", "numkit:rescale:badOpt");
+        std::string nm = args[i].toString();
+        for (char &c : nm) if (c >= 'A' && c <= 'Z') c = char(c + 32);
+        if      (nm == "inputmin") inputMin = args[i + 1].toScalar();
+        else if (nm == "inputmax") inputMax = args[i + 1].toScalar();
+        else
+            throw Error("rescale: name must be 'InputMin' or 'InputMax'",
+                        0, 0, "rescale", "", "numkit:rescale:badOpt");
+    }
+    outs[0] = rescale(args[0], lo, hi, ctx.engine->resource(), inputMin, inputMax);
 }
 
 void zscore_reg(Span<const Value> args, size_t /*nargout*/,
