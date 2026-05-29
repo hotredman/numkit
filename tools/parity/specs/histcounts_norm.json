@@ -1,0 +1,17 @@
+{
+  "name": "histcounts_norm",
+  "namespace": "builtin",
+  "setup": "x = [1 2 2 3 3 3 5 99 -7]; e = [0 2 4 6]; xu = [0.5 2 3 5]; eu = [0 1 4 6];",
+  "expr": "cnt = histcounts(x, e); pr = histcounts(x, e, 'Normalization', 'probability'); cd = histcounts(xu, eu, 'Normalization', 'countdensity'); pf = histcounts(xu, eu, 'Normalization', 'pdf'); cc = histcounts(x, e, 'Normalization', 'cumcount'); cf = histcounts(x, e, 'Normalization', 'cdf');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "cnt(2)", "sum(cnt)",
+    "pr(2)",
+    "cd(1)", "cd(2)", "cd(3)",
+    "pf(1)", "pf(2)", "pf(3)",
+    "cc(2)", "cc(3)",
+    "cf(2)", "cf(3)"
+  ],
+  "comment": "Sig: n = histcounts(x, edges, 'Normalization', mode). Covers count(def)/probability(/N)/countdensity(/binwidth)/pdf(/(N*binwidth))/cumcount/cdf, with uniform and nonuniform edges, and out-of-range data so the divisor N = numel(x) (not the in-range count) — e.g. cdf(end)=7/9 not 1. Queue-clearing 2026-05-29: numkit previously silently ignored 'Normalization' (always raw counts)."
+}
