@@ -1396,9 +1396,79 @@ Value toDoubleMatrix2D(const Value &x, const char *fn, std::pmr::memory_resource
     return r;
 }
 
+// Complex sortrows (MATLAB rule): rows are ordered lexicographically by the
+// requested columns; each column compares complex entries by magnitude |z|
+// then phase angle arg(z) ascending (a negative column index sorts that
+// column descending). A NaN component sorts last. Must NOT drop the
+// imaginary part (toDoubleMatrix2D does) — that silently returns wrong rows.
+inline bool cxRowLess(Complex a, Complex b)
+{
+    const double am = std::abs(a), bm = std::abs(b);
+    const bool an = std::isnan(am), bn = std::isnan(bm);
+    if (an || bn) { if (an && bn) return false; return bn; }   // non-NaN < NaN
+    if (am != bm) return am < bm;
+    return std::arg(a) < std::arg(b);
+}
+
+std::tuple<Value, Value>
+sortRowsComplex(const Value &x, const int *cols, std::size_t nCols,
+                std::pmr::memory_resource *mr)
+{
+    if (x.dims().is3D() || x.dims().ndim() > 2)
+        throw Error("sortrows: input must be 2D",
+                     0, 0, "sortrows", "", "numkit:sortrows:bad2D");
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    if (R == 0)
+        return std::make_tuple(x, Value::matrix(0, 1, ValueType::DOUBLE, mr));
+
+    ScratchArena scratch(mr);
+    ScratchVec<int> sortKeys(&scratch);
+    if (nCols == 0) {
+        sortKeys.reserve(C);
+        for (size_t c = 1; c <= C; ++c) sortKeys.push_back(static_cast<int>(c));
+    } else {
+        sortKeys.assign(cols, cols + nCols);
+        for (int rawCol : sortKeys) {
+            const int absC = (rawCol < 0) ? -rawCol : rawCol;
+            if (rawCol == 0 || static_cast<size_t>(absC) > C)
+                throw Error("sortrows: column index out of range",
+                             0, 0, "sortrows", "", "numkit:sortrows:badCol");
+        }
+    }
+
+    const Complex *src = x.complexData();
+    auto perm = ScratchVec<size_t>(R, &scratch);
+    for (size_t i = 0; i < R; ++i) perm[i] = i;
+    std::stable_sort(perm.begin(), perm.end(),
+        [&](size_t a, size_t b) {
+            for (int key : sortKeys) {
+                const bool desc = key < 0;
+                const size_t c = static_cast<size_t>((desc ? -key : key) - 1);
+                const Complex va = src[c * R + a], vb = src[c * R + b];
+                if (cxRowLess(va, vb)) return !desc;
+                if (cxRowLess(vb, va)) return desc;
+            }
+            return false;   // all keys equal → stable
+        });
+
+    auto out = Value::matrix(R, C, ValueType::COMPLEX, mr);
+    Complex *dst = out.complexDataMut();
+    for (size_t i = 0; i < R; ++i)
+        for (size_t c = 0; c < C; ++c)
+            dst[c * R + i] = src[c * R + perm[i]];
+    auto idx = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+    double *idxP = idx.doubleDataMut();
+    for (size_t i = 0; i < R; ++i)
+        idxP[i] = static_cast<double>(perm[i] + 1);
+    return std::make_tuple(std::move(out), std::move(idx));
+}
+
 std::tuple<Value, Value>
 sortRowsImpl(const Value &x, const int *cols, std::size_t nCols, std::pmr::memory_resource *mr)
 {
+    if (x.type() == ValueType::COMPLEX)
+        return sortRowsComplex(x, cols, nCols, mr);
     auto m = toDoubleMatrix2D(x, "sortrows", mr);
     const size_t R = m.dims().rows();
     const size_t C = m.dims().cols();

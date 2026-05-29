@@ -1,0 +1,15 @@
+{
+  "name": "sortrows_complex",
+  "namespace": "builtin",
+  "setup": "A = [3+4i 2; 1 1; 3+4i 0; 1 5i];",
+  "expr": "[S, ix] = sortrows(A); D = sortrows(A, -1); v = sortrows([3+4i; 1; 5i]);",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "real(S(1,1))", "real(S(3,1))", "imag(S(3,1))", "imag(S(2,2))", "real(S(4,2))",
+    "ix(1)", "ix(2)", "ix(3)", "ix(4)",
+    "real(D(1,1))", "real(D(4,1))",
+    "real(v(1))", "imag(v(2))", "imag(v(3))"
+  ],
+  "comment": "Sig: [B,idx] = sortrows(A). COMPLEX sortrows orders rows lexicographically; each column compares by magnitude |z| then phase angle arg(z) ascending (negative col index = descending on that column); NaN component sorts last. sortrows([3+4i 2;1 1;3+4i 0;1 5i]) -> rows [2 4 3 1]: col1=[1 1 3+4i 3+4i], col2=[1 5i 0 2]. DEEP-PROBE 2026-05-29: numkit previously routed complex through toDoubleMatrix2D, SILENTLY DROPPING the imaginary part and returning wrong rows; added sortRowsComplex()."
+}
