@@ -241,8 +241,12 @@ Value rgb2gray(const Value &x, std::pmr::memory_resource *mr)
         }
     };
 
-    // Rec. 601 coefficients (MATLAB convention).
-    constexpr double Cr = 0.2989, Cg = 0.5870, Cb = 0.1140;
+    // Rec. BT.601 YIQ-luma coefficients, full precision (MATLAB rgb2gray:
+    // the first row of the rgb2ntsc matrix). The rounded 4-digit values
+    // 0.2989/0.5870/0.1140 used previously left a ~1e-5 error vs MATLAB.
+    constexpr double Cr = 0.298936021293775,
+                     Cg = 0.587043074451121,
+                     Cb = 0.114020904255103;
     for (size_t i = 0; i < plane; ++i) {
         const double y = Cr * pix(i, 0) + Cg * pix(i, 1) + Cb * pix(i, 2);
         store(i, y);

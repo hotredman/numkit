@@ -1,12 +1,19 @@
 {
   "name": "rgb2hsv",
   "namespace": "image",
-  "setup": "",
-  "expr": "hsv = rgb2hsv(zeros(2,2,3)); r1 = double(numel(hsv));",
+  "setup": "RGB = cat(3, [0.10 0.40; 0.70 1.00], [0.20 0.50; 0.80 0.00], [0.30 0.60; 0.90 0.50]);",
+  "expr": "hsv = rgb2hsv(RGB);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "size(hsv,3)",
+    "hsv(1,1,1)",
+    "hsv(1,1,2)",
+    "hsv(1,1,3)",
+    "hsv(2,2,1)",
+    "hsv(2,2,2)",
+    "hsv(2,2,3)",
+    "sum(hsv(:))"
   ],
-  "comment": "Sig: r = rgb2hsv(...). Spec-extension batch 2026-05-09 (image namespace)."
+  "comment": "MATLAB rgb2hsv — RGB->HSV. Pins H/S/V channel values at two pixels of a 2x2x3 image. Bit-equal MATLAB R2025b (tol=1e-9)."
 }

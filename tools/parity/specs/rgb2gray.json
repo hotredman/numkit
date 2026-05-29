@@ -1,12 +1,18 @@
 {
   "name": "rgb2gray",
   "namespace": "image",
-  "setup": "",
-  "expr": "g = rgb2gray(zeros(2,2,3)); r1 = double(numel(g));",
+  "setup": "RGB = cat(3, [0.10 0.40; 0.70 1.00], [0.20 0.50; 0.80 0.00], [0.30 0.60; 0.90 0.50]);",
+  "expr": "g = rgb2gray(RGB);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "size(g,1)",
+    "size(g,2)",
+    "g(1,1)",
+    "g(1,2)",
+    "g(2,1)",
+    "g(2,2)",
+    "sum(g(:))"
   ],
-  "comment": "Sig: r = rgb2gray(...). Spec-extension batch 2026-05-09 (image namespace)."
+  "comment": "MATLAB rgb2gray — RGB->grayscale via BT.601 luma (0.2989R+0.5870G+0.1140B). Pins every output pixel value (not numel) on a 2x2x3 image with distinct channels. Bit-equal MATLAB R2025b (tol=1e-9)."
 }

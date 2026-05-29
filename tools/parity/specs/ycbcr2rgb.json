@@ -1,12 +1,19 @@
 {
   "name": "ycbcr2rgb",
   "namespace": "image",
-  "setup": "",
-  "expr": "rgb = ycbcr2rgb(zeros(2,2,3)); r1 = double(numel(rgb));",
+  "setup": "Y = cat(3, [0.30 0.50; 0.45 0.80], [0.50 0.40; 0.55 0.50], [0.50 0.60; 0.45 0.55]);",
+  "expr": "rgb = ycbcr2rgb(Y);",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1"
+    "size(rgb,3)",
+    "rgb(1,1,1)",
+    "rgb(1,1,2)",
+    "rgb(1,1,3)",
+    "rgb(2,2,1)",
+    "rgb(2,2,2)",
+    "rgb(2,2,3)",
+    "sum(rgb(:))"
   ],
-  "comment": "Sig: r = ycbcr2rgb(...). Spec-extension batch 2026-05-09 (image namespace)."
+  "comment": "MATLAB ycbcr2rgb — YCbCr->RGB (BT.601). DOUBLE-input path: YCbCr studio [0,1] -> RGB [0,1] (clipped); pins R/G/B at two pixels, matches MATLAB R2025b to ~7 sig figs (tol=1e-6 — numkit's inverse matrix uses 8-digit-rounded coefficients vs MATLAB's full-precision inverse; ~1e-7 residual). NOTE: integer-class handling + full-precision inverse coefficients tracked in a dedicated fix task."
 }
