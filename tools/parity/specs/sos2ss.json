@@ -1,10 +1,12 @@
 {
   "name": "sos2ss",
   "namespace": "signal",
-  "setup": "sos = [1 0.5 0.25 1 -0.3 0.1; 1 0.2 0.1 1 -0.1 0.05];",
-  "expr": "[A, B, C, D] = sos2ss(sos); r1 = double(numel(A));",
-  "iters": 5,
+  "setup": "sos = [1 0.5 0.25 1 -0.3 0.02];",
+  "expr": "[A, B, C, D] = sos2ss(sos); e = sort(real(eig(A)));",
+  "iters": 2,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [A,B,C,D] = sos2ss(SOS[, g]). Re-closed after tf2ss canonical-form fix 2026-05-09."
+  "fingerprint": [
+    "double(numel(A))", "e(1)", "e(2)", "D"
+  ],
+  "comment": "Sig [A,B,C,D]=sos2ss(sos): SOS cascade -> state-space realization. A is 2x2 for one biquad. The realization (A,B,C) is basis-dependent, so pin the ORDER-INVARIANT eigenvalues of A (= filter poles, roots of [1 -0.3 0.02] = 0.1, 0.2) and the feedthrough D=1 (= b0/a0)."
 }

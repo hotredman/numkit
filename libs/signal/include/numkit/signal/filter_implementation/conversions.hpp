@@ -54,11 +54,16 @@ Value zp2sos(const Value &                zeros,
 /// @return       Tuple `(sos, g)`. Apply via `g * sosfilt(sos, x)`.
 ///
 /// @see zp2sos
+/// @param surplusAtOrigin  When #zeros < #poles, place the surplus zeros
+///   at the ORIGIN (true, MATLAB's zp2sos convention — empty biquad
+///   sections become [0 0 g]) or leave them at infinity (false — empty
+///   sections stay [g 0 0], used by tf2sos to reproduce the input b).
 std::tuple<Value, double>
 zp2sosWithGain(const Value &                zeros,
                const Value &                poles,
                double                       gain,
-               std::pmr::memory_resource *  mr = nullptr);
+               std::pmr::memory_resource *  mr = nullptr,
+               bool                         surplusAtOrigin = true);
 
 /// Convert a transfer-function pair (b, a) to an SOS matrix.
 ///

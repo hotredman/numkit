@@ -120,3 +120,32 @@ TEST_F(FilterConversionsTest, SosSsRoundtrip)
     eval("sos2 = ss2sos(A, B, C, D);");
     EXPECT_EQ(eval("sos2").dims().cols(), 6u);
 }
+
+// zp2sos with #zeros < #poles: MATLAB places the surplus zeros at the
+// ORIGIN, so a zero-less biquad section is [0 0 g] and the reconstructed
+// numerator is degree-deficient with a leading z^-2 delay.
+// (Regression: numkit used to leave them at infinity -> [g 0 0].)
+TEST_F(FilterConversionsTest, Zp2sosSurplusZerosAtOrigin)
+{
+    eval("S = zp2sos([0.5; -0.3], [0.2; 0.1; -0.4; 0.6], 2);");
+    eval("[bb, aa] = sos2tf(S);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(S,1)")), 2);
+    EXPECT_NEAR(evalScalar("bb(1)"),  0.0,  1e-12);   // surplus zeros at origin
+    EXPECT_NEAR(evalScalar("bb(2)"),  0.0,  1e-12);
+    EXPECT_NEAR(evalScalar("bb(3)"),  2.0,  1e-12);
+    EXPECT_NEAR(evalScalar("bb(4)"), -0.4,  1e-12);
+    EXPECT_NEAR(evalScalar("bb(5)"), -0.3,  1e-12);
+}
+
+// tf2sos with deg(b) < deg(a) must REPRODUCE the original b polynomial:
+// surplus zeros stay LEFT-aligned (empty section [g 0 0]), the opposite
+// of zp2sos. sos2tf(tf2sos([1 0.5], a)) recovers b = [1 0.5 0 0].
+TEST_F(FilterConversionsTest, Tf2sosPreservesNumeratorLeftAligned)
+{
+    eval("s2 = tf2sos([1 0.5], [1 -0.3 0.02 0.001]);");
+    eval("[b2, a2] = sos2tf(s2);");
+    EXPECT_NEAR(evalScalar("b2(1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("b2(2)"), 0.5, 1e-12);
+    EXPECT_NEAR(evalScalar("b2(3)"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("b2(4)"), 0.0, 1e-12);
+}

@@ -100,11 +100,11 @@ TEST_P(SosTest, Zp2sosSingleRealPolePair)
     eval("z = []; p = [0.5; 0.7]; sos = zp2sos(z, p, 1);");
     EXPECT_DOUBLE_EQ(evalScalar("size(sos, 1);"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("size(sos, 2);"), 6.0);
-    // Numerator: pure passthrough (b0=1, b1=0, b2=0) since there are
-    // no zeros to pair.
-    EXPECT_NEAR(evalScalar("sos(1, 1);"), 1.0, 1e-12);
+    // Numerator: MATLAB R2025b places the (surplus) zeros at the ORIGIN,
+    // so a zero-less section is [0 0 g], i.e. b = [0 0 1], NOT [1 0 0].
+    EXPECT_NEAR(evalScalar("sos(1, 1);"), 0.0, 1e-12);
     EXPECT_NEAR(evalScalar("sos(1, 2);"), 0.0, 1e-12);
-    EXPECT_NEAR(evalScalar("sos(1, 3);"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sos(1, 3);"), 1.0, 1e-12);
     // Denominator: (z - 0.5)(z - 0.7) = z² - 1.2z + 0.35
     EXPECT_NEAR(evalScalar("sos(1, 4);"), 1.0, 1e-12);
     EXPECT_NEAR(evalScalar("sos(1, 5);"), -1.2, 1e-12);
@@ -122,16 +122,20 @@ TEST_P(SosTest, Zp2sosComplexConjugatePolePair)
 TEST_P(SosTest, Zp2sosWithGainTwoOutputForm)
 {
     eval("z = []; p = [0.5; 0.7]; [sos, g] = zp2sos(z, p, 3);");
-    // Gain factored out — sos should be unchanged from the gain-1 case.
-    EXPECT_NEAR(evalScalar("sos(1, 1);"), 1.0, 1e-12);
+    // Gain factored out — sos is the gain-1 case ([0 0 1], surplus zeros
+    // at the origin).
+    EXPECT_NEAR(evalScalar("sos(1, 3);"), 1.0, 1e-12);
     EXPECT_NEAR(evalScalar("g;"), 3.0, 1e-12);
 }
 
 TEST_P(SosTest, Zp2sosGainAppliedToFirstSection)
 {
-    // 1-output form distributes gain into the first section's b coefficients.
+    // 1-output form folds the gain into the first section. Because the
+    // zero-less section is right-aligned [0 0 g], the gain lands in b2,
+    // not b0 (MATLAB R2025b).
     eval("z = []; p = [0.5; 0.7]; sos = zp2sos(z, p, 4);");
-    EXPECT_NEAR(evalScalar("sos(1, 1);"), 4.0, 1e-12);  // b0 *= gain
+    EXPECT_NEAR(evalScalar("sos(1, 1);"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sos(1, 3);"), 4.0, 1e-12);  // gain in b2
 }
 
 TEST_P(SosTest, Zp2sosNoPolesThrows)

@@ -16,6 +16,7 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory_resource>
 #include <utility>
@@ -178,15 +179,29 @@ ScratchVec<Complex> readComplexVec(const Value &v, const char *fn, std::pmr::mem
     return out;
 }
 
-Value buildSosMatrix(const double *b1s, const double *b2s, const double *a1s, const double *a2s, std::size_t L, double leadingGain, std::pmr::memory_resource *mr)
+Value buildSosMatrix(const double *b1s, const double *b2s, const double *a1s, const double *a2s, const std::uint8_t *noZeros, bool surplusAtOrigin, std::size_t L, double leadingGain, std::pmr::memory_resource *mr)
 {
     auto sos = Value::matrix(L, 6, ValueType::DOUBLE, mr);
     double *p = sos.doubleDataMut();
     for (size_t r = 0; r < L; ++r) {
         const double scale = (r == 0) ? leadingGain : 1.0;
-        p[0 * L + r] = scale;             // b0
-        p[1 * L + r] = scale * b1s[r];    // b1
-        p[2 * L + r] = scale * b2s[r];    // b2
+        if (noZeros && noZeros[r] && surplusAtOrigin) {
+            // zp2sos: a section carrying no finite zeros gets MATLAB's
+            // surplus zeros at the ORIGIN, i.e. numerator = scale*z^-2 ->
+            // [0 0 scale]. Reconstructing the transfer function then keeps
+            // the z^-2 delay (degree-deficient numerator) MATLAB produces.
+            p[0 * L + r] = 0.0;
+            p[1 * L + r] = 0.0;
+            p[2 * L + r] = scale;
+        } else {
+            // Normal section, or tf2sos (surplusAtOrigin=false): keep the
+            // numerator left-aligned [scale  scale*b1  scale*b2] so the
+            // section product reproduces the ORIGINAL b polynomial exactly
+            // (b2s/b1s are 0 for a no-zero section -> [scale 0 0]).
+            p[0 * L + r] = scale;             // b0
+            p[1 * L + r] = scale * b1s[r];    // b1
+            p[2 * L + r] = scale * b2s[r];    // b2
+        }
         p[3 * L + r] = 1.0;               // a0
         p[4 * L + r] = a1s[r];            // a1
         p[5 * L + r] = a2s[r];            // a2
@@ -209,7 +224,7 @@ inline ScratchVec<double> coeffsAsVector(const Value &v, std::pmr::memory_resour
 } // namespace
 
 std::tuple<Value, double>
-zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::memory_resource *mr)
+zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::memory_resource *mr, bool surplusAtOrigin)
 {
     if (polesV.isEmpty())
         throw Error("zp2sos: at least one pole is required",
@@ -225,6 +240,7 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
     auto b2s = ScratchVec<double>(L, &scratch);
     auto a1s = ScratchVec<double>(L, &scratch);
     auto a2s = ScratchVec<double>(L, &scratch);
+    auto noZeros = ScratchVec<std::uint8_t>(L, &scratch);
     for (size_t s = 0; s < L; ++s) {
         RootPair polePair;
         if (!popPair(poles, polePair))
@@ -240,16 +256,18 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
             const auto zerQ = pairToQuad(zeroPair);
             b1s[s] = zerQ.b1;
             b2s[s] = zerQ.b2;
+            noZeros[s] = 0;
         } else {
             b1s[s] = 0.0;
             b2s[s] = 0.0;
+            noZeros[s] = 1;   // surplus zeros -> placed at origin ([0 0 g])
         }
     }
     if (!zeros.empty())
         throw Error("zp2sos: more zeros than poles is not supported",
                      0, 0, "zp2sos", "", "numkit:zp2sos:moreZeros");
 
-    return std::make_tuple(buildSosMatrix(b1s.data(), b2s.data(), a1s.data(), a2s.data(), L, /*leadingGain=*/1.0, mr),
+    return std::make_tuple(buildSosMatrix(b1s.data(), b2s.data(), a1s.data(), a2s.data(), noZeros.data(), surplusAtOrigin, L, /*leadingGain=*/1.0, mr),
                            gain);
 }
 
@@ -289,7 +307,9 @@ tf2sosWithGain(const Value &b, const Value &a, std::pmr::memory_resource *mr)
         for (size_t i = 0; i < v.size(); ++i) p[i] = v[i];
         return r;
     };
-    return zp2sosWithGain(toCplxVec(zeros), toCplxVec(poles), gain, mr);
+    // tf2sos must reproduce the ORIGINAL b polynomial: surplus zeros stay
+    // left-aligned at infinity ([g 0 0]), not pushed to the origin.
+    return zp2sosWithGain(toCplxVec(zeros), toCplxVec(poles), gain, mr, /*surplusAtOrigin=*/false);
 }
 
 Value tf2sos(const Value &b, const Value &a, std::pmr::memory_resource *mr)

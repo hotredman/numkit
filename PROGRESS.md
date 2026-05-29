@@ -1082,8 +1082,8 @@ MLSE entry is exposed.
 |---|:---:|---:|---:|---:|:---:|---|
 | `gaussdesign` | ✅ | 0.004 | 245.70× |  | OK | Sig: h = gaussdesign(BT, span, sps). Gaussian FIR pulse-shaping filter. Bit-identical with MATLAB R2025b on (0.3, 4, 8) probe (h(17)=0.112904, sum=1, length=33). Earlier defer was wrong. |
 | `rcosdesign` | ✅ | 0.004 | 333.15× |  | OK | Sig: r = rcosdesign(...). Spec-extension batch 2026-05-09.  |
-| `rectpulse` | ✅ | 0.004 | 81.56× |  | OK | Sig: r = rectpulse(...). Spec-extension batch 2026-05-09. |
-| `intdump` | ✅ | 0.004 | 314.01× |  | OK | Sig: r = intdump(...). Spec-extension batch 2026-05-09. |
+| `rectpulse` | ✅ | 0.002 | 91.52× |  | OK | Sig y=rectpulse(x,nsamp): rectangular pulse shaping — repeat each sample nsamp times (column-wise). [1 2 -3] with nsamp=3 -> [1;1;1;2;2;2;-3;-3;-3] (length 9). y(1)=y(3)=1, y(4)=2, y(6)=2, y(9)=-3. |
+| `intdump` | ✅ | 0.003 | 224.49× |  | OK | Sig y=intdump(x,nsamp): integrate-and-dump — average each nsamp-length block. [2 4 6 8 10 12] nsamp=2 -> [3 7 11] (mean of each pair). Round-trip: intdump(rectpulse([1 2 3],2),2) = [1 2 3] (inverse of pulse shaping). |
 | `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
 | `ofdmEqualize` | ❌ |  |  |  |  | OFDM zero-forcing / MMSE equalise |
 | `blkdiagbfweights` | ❌ |  |  |  |  | block-diagonalisation BF weights |
@@ -2457,21 +2457,21 @@ intentionally omitted — flat solver functions only.
 | `sgolayfilt` | ✅ | 0.002 | 539.68× |  | OK | Sig y=sgolayfilt(x,order,framelen): Savitzky-Golay smoothing (order-2 quadratic, frame 5). Interior points use the central SG weights; the first/last (framelen-1)/2 points use the asymmetric edge polynomials (NOT steady-state). x=[3 1 4 1 5 9 2 6 5 3] -> y(1)=2.857143 (left edge), y(5)=5.342857 (interior), y(10)=3.914286 (right edge). |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
-| `sos2ss` | ✅ | 0.006 | 320.05× | 370.01× | OK | Sig: [A,B,C,D] = sos2ss(SOS[, g]). Re-closed after tf2ss canonical-form fix 2026-05-09. |
-| `sos2tf` | ✅ | 0.005 | 202.60× | 45.86× | OK | Sig: r = sos2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `sos2ss` | ✅ | 0.004 | 90.41× |  | OK | Sig [A,B,C,D]=sos2ss(sos): SOS cascade -> state-space realization. A is 2x2 for one biquad. The realization (A,B,C) is basis-dependent, so pin the ORDER-INVARIANT eigenvalues of A (= filter poles, roots of [1 -0.3 0.02] = 0.1, 0.2) and the feedthrough D=1 (= b0/a0). |
+| `sos2tf` | ✅ | 0.001 | 618.00× |  | OK | Sig [b,a]=sos2tf(sos): cascade of second-order sections -> transfer function (convolve section polys). Two sections: b = conv([1 0.5 0.25],[1 -1 0.2]) = [1 -0.5 -0.05 -0.15 0.05]; a = conv([1 0 0],[1 0.3 0.1]) = [1 0.3 0.1 0 0]. |
 | `sos2zp` | ✅ | 0.002 | 14.36× | 100.53× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.005 | 159.63× | 32.55× | OK | Sig: r = sosfilt(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `ss` | ✅ | 0.006 | 961.48× | 72.22× | OK | Sig: r = ss(...). Spec-extension batch 2026-05-09. |
 | `ss2sos` | ✅ | 0.005 | 1610.89× |  | OK | Sig: sos = ss2sos(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
-| `ss2zp` | ✅ | 0.005 | 575.79× | 360.00× | OK | Sig: [z,p,k] = ss2zp(A,B,C,D). Re-closed after tf2ss canonical-form fix 2026-05-09. |
+| `ss2zp` | ✅ | 0.003 | 312.91× |  | OK | Sig [z,p,k]=ss2zp(A,B,C,D,iu): state-space -> zero/pole/gain for input iu. Built from the biquad [1 0.5 0.25]/[1 -0.3 0.02]: poles = roots([1 -0.3 0.02]) = {0.1, 0.2}; zeros = roots([1 0.5 0.25])... numerically {-0.25, -0.25}; gain k = 1. Pinned order-invariant (min/max of real parts). |
 | `tf` | ✅ | 0.004 | 1587.47× | 160.16× | OK | Sig: r = tf(...). Spec-extension batch 2026-05-09. |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
-| `tf2sos` | ✅ | 0.006 | 1133.25× | 373.81× | OK | Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `tf2sos` | ✅ | 0.007 | 1307.90× |  | OK | Sig sos=tf2sos(b,a): transfer function -> SOS. Equal-degree b=[1 1 1],a=[1 0.5 0.25] -> single biquad row [1 1 1 1 0.5 0.25]. Degree-deficient b=[1 0.5] (3 poles) must REPRODUCE the original numerator: sos2tf(tf2sos(...)) = b2=[1 0.5 0 0] (surplus zeros LEFT-aligned at infinity, NOT pushed to origin like zp2sos) with a2=[1 -0.3 0.02 0.001]. |
 | `tf2ss` | ✅ | 0.005 | 197.09× | 373.86× | OK | Sig: r = tf2ss(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `tf2zp` | ✅ | 0.002 | 142.10× |  | OK | Sig [z,p,k]=tf2zp(b,a): transfer function -> zero/pole/gain. b=[1 0.5 -0.06] roots {-0.6, 0.1}; a=[1 -0.3 0.02] roots {0.2, 0.1}; k=b(1)/a(1)=1. Pinned with min/max (order-invariant: the root-finder may return z/p in a different order than MATLAB but the SETs must match). |
 | `tf2zpk` | ✅ | 0.002 | 944.62× |  | OK | Sig [z,p,k]=tf2zpk(b,a): transfer function -> zero/pole/gain (b,a normalised by a(1) first). b=[2 0.5 -0.06], a=[1 -0.3 0.02]: zeros {-0.33860, 0.08860}, poles {0.1, 0.2}, gain k=b(1)/a(1)=2. Pinned with min/max (order-invariant: root order may differ between engines). |
 | `zp2ctf` | ❌ |  |  |  |  |  |
-| `zp2sos` | ✅ | 0.004 | 1186.37× | 105.34× | OK | Sig: r = zp2sos(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `zp2sos` | ✅ | 0.006 | 899.74× |  | OK | Sig sos=zp2sos(z,p,k): zero/pole/gain -> second-order sections. 2 zeros, 4 poles -> 2 sections. Validated via the canonical sos2tf round-trip (section ORDER may differ between engines, the product TF must not): bb=[0 0 2 -0.4 -0.3], aa(end)=-0.0048, sum(aa)=0.4032. The leading zeros bb(1)=0, bb(3)=2 confirm MATLAB's convention of placing SURPLUS zeros at the ORIGIN (degree-deficient numerator with z^-2 delay); numkit previously left them at infinity (bb=[2 -0.4 -0.3 0 0]) -- fixed (right-align empty biquad sections). tf2sos keeps the opposite (left-aligned) convention. |
 | `zp2ss` | ✅ | 0.005 | 575.94× | 410.85× | OK | Sig: [A,B,C,D] = zp2ss(Z,P,K). Re-closed after tf2ss canonical-form fix 2026-05-09. |
 | `zp2tf` | ✅ | 0.005 | 171.29× | 279.77× | OK | Sig: r = zp2tf(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `zpk` | ✅ | 0.004 | 1543.92× | 157.31× | OK | Sig: r = zpk(...). Spec-extension batch 2026-05-09. |
@@ -3455,7 +3455,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `dwt2` | ✅ | 0.006 | 426.67× |  | OK | Sig [cA,cH,cV,cD]=dwt2(X,'haar'): single-level 2-D Haar DWT, 4x4 ramp -> 2x2 subbands. Approximation cA=[7 11; 23 27] (col-major: cA(1,1)=7, cA(2,2)=27); horizontal cH(1,1)=-1; vertical cV(1,1)=-4; diagonal cD(1,1)=0 (separable ramp has no diagonal detail); sum(cA)=68. Pins distinct cA entries (not a constant) so the orientation/scaling of all four subbands is fixed. |
-| `idwt2` | ✅ | 0.015 | 300.81× |  | OK | Sig: r = idwt2(...). Spec-extension batch 2026-05-09. |
+| `idwt2` | ✅ | 0.006 | 573.74× |  | OK | Sig X=idwt2(cA,cH,cV,cD,wname): single-level 2-D inverse Haar DWT, 2x2 subbands -> 4x4. Distinct nonzero detail coeffs: X(1,1)=1.3, X(2,2)=-0.2, X(4,4)=1.825, X(1,3)=0.85, sum(X)=20. Pins the per-quadrant reconstruction (not just a round-trip identity). |
 | `wavedec2` | ❌ |  |  |  |  |  |
 | `waverec2` | ❌ |  |  |  |  |  |
 | `appcoef2` | ❌ |  |  |  |  |  |
