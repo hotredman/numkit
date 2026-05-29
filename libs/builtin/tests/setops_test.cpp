@@ -654,4 +654,26 @@ TEST_P(SetOpsTest, IsmemberLocSecondOutput)
     EXPECT_DOUBLE_EQ(evalScalar("l2(3);"), 1.0);
 }
 
+// Complex ismember: membership by EXACT equality (real AND imag); Locb is
+// the lowest 1-based index in B; NaN component never matches; reals vs
+// complex compare as z+0i. Was unsupported (threw "Not a double array").
+// vs MATLAB R2025b. 2026-05-29.
+TEST_P(SetOpsTest, IsmemberComplex)
+{
+    eval("[tf, loc] = ismember([1 5i 3+4i 2], [3+4i 5i 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("tf(1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("tf(4);"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("loc(1);"), 3.0);   // 1 at B(3)
+    EXPECT_DOUBLE_EQ(evalScalar("loc(2);"), 2.0);   // 5i at B(2)
+    EXPECT_DOUBLE_EQ(evalScalar("loc(3);"), 1.0);   // 3+4i at B(1)
+    EXPECT_DOUBLE_EQ(evalScalar("loc(4);"), 0.0);   // 2 absent
+    // duplicate in B -> lowest index.
+    eval("[~, l2] = ismember(5i, [5i 2 5i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("l2;"), 1.0);
+    // real query against complex set compares as z+0i.
+    EXPECT_DOUBLE_EQ(evalScalar("double(ismember(2, [2+0i 5i]));"), 1.0);
+    // NaN component never matches.
+    EXPECT_DOUBLE_EQ(evalScalar("double(ismember(complex(nan,1), [complex(nan,1) 2]));"), 0.0);
+}
+
 INSTANTIATE_DUAL(SetOpsTest);
