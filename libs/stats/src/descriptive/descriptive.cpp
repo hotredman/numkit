@@ -74,6 +74,42 @@ Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
     return r;
 }
 
+// Cast a DOUBLE result back to an integer class: round half away from zero
+// (std::round) and saturate to the type's range. Matches MATLAB R2025b, which
+// preserves the integer class for median (median(int32([1 2 3 4]))=3 int32,
+// median(int8([-1 -2]))=-2 int8) — the two-middle-element average is rounded
+// half-away-from-zero and the class is retained.
+Value narrowToInteger(const Value &d, ValueType vt, std::pmr::memory_resource *mr)
+{
+    if (d.type() != ValueType::DOUBLE) return d;
+    Value r = createForDims(d.dims(), vt, mr);
+    const double *src = d.doubleData();
+    const size_t n = d.numel();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = std::round(src[i]);   // round half away from zero
+            if (v < lo) v = lo;
+            else if (v > hi) v = hi;          // saturate to class range
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (vt) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: return d;
+    }
+    return r;
+}
+
 // Complex variance: E[|x - mean|²]. Returns real-valued DOUBLE per
 // MATLAB convention. With normFlag == 0 (default) divides by n-1;
 // normFlag == 1 divides by n. When omitNan is true, NaN-complex
@@ -295,6 +331,9 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
         }, mr);
     if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), mr);
+    else if (isIntegerType(x.type()))
+        // MATLAB preserves the integer class: round half-away + saturate.
+        r = narrowToInteger(r, x.type(), mr);
     return r;
 }
 
