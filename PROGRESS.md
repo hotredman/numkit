@@ -253,7 +253,7 @@ together.
 | `rot90` | ✅ | 0.005 | 58.08× | 50.43× | OK | Sig: r = rot90(...). Shape op. Spec-extension batch 2026-05-09. |
 | `shiftdim` | ✅ | 0.005 | 58.38× | 21.66× | OK | Sig: r = shiftdim(...). Spec-extension batch 2026-05-09. |
 | `size` | ✅ | 0.004 | 30.65× | 5.04× | OK | Sig: r = size(...). Shape op. Spec-extension batch 2026-05-09. |
-| `sort` | ✅ | 0.004 | 31.27× | 42.51× | OK | Sig: r = sort(...). Spec-extension batch 2026-05-09. |
+| `sort` | ✅ | 0.006 | 11.16× |  | OK | Sig [s,i]=sort(X[,dim][,direction]): default ASCEND with NaN LAST: sort([3 1 NaN 2])=[1 2 3 NaN], idx=[2 4 1 3]. 'descend' with NaN FIRST: [NaN 3 2 1], idx(1)=3. Matrix sort(M,1,'descend') sorts each column descending: col1 [8 3 1], col2 [5 4 2]. numkit previously IGNORED the 'descend' direction (always ascended) and left NaN unsorted in place -- fixed (direction + dim parsing in sort_reg, NaN-aware stable comparator). |
 | `sortrows` | ✅ | 0.413 | 0.92× | 0.19× | OK | Sig: B = sortrows(A). 10k×3 sort by first col. 100 iters. |
 | `squeeze` | ✅ | 0.005 | 46.42× | 36.59× | OK | Sig: r = squeeze(...). Shape op. Spec-extension batch 2026-05-09. |
 | `sub2ind` | ✅ | 0.004 | 86.33× | 31.42× | OK | Sig: r = sub2ind(...). Spec-extension batch 2026-05-09. |

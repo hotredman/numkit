@@ -528,11 +528,22 @@ Value diag(const Value &x, std::pmr::memory_resource *mr = nullptr);
 ///
 /// Indices are 1-based permutation. For 3-D input, operates per-slice.
 ///
-/// @param x   Input array.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(sorted, idx)` pair.
+/// @param x        Input array.
+/// @param dim      Sort dimension (1-based; <1 = first non-singleton).
+/// @param descend  Descending order if true (NaN sorts first); ascending
+///                 if false (NaN sorts last) — MATLAB convention.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `(sorted, idx)` pair (stable; idx is a 1-based perm).
 /// @see sortrows
-std::tuple<Value, Value> sort(const Value &x, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
+                              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Ascending sort along the first non-singleton dimension.
+inline std::tuple<Value, Value> sort(const Value &x,
+                                     std::pmr::memory_resource *mr = nullptr)
+{
+    return sort(x, -1, false, mr);
+}
 
 /// @brief Lex-sort rows ascending (`[sorted, idx] = sortrows(M)`).
 ///

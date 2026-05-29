@@ -577,6 +577,36 @@ TEST_P(SortFindTest, SortReturnsIndices)
     EXPECT_DOUBLE_EQ(i->doubleData()[2], 1.0);
 }
 
+// 'descend' direction (was ignored -> always ascending) and NaN placement
+// (was unsorted -> NaN must sort LAST for ascend, FIRST for descend), with
+// the index output. vs MATLAB R2025b.
+TEST_P(SortFindTest, SortDescendAndNaNPlacement)
+{
+    eval("[y, i] = sort([3 1 NaN 2], 'descend');");
+    auto *y = getVarPtr("y");
+    auto *ii = getVarPtr("i");
+    ASSERT_NE(y, nullptr); ASSERT_NE(ii, nullptr);
+    EXPECT_TRUE(std::isnan(y->doubleData()[0]));   // NaN first (descend)
+    EXPECT_DOUBLE_EQ(y->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[3], 1.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[0], 3.0);    // NaN was at index 3
+    EXPECT_DOUBLE_EQ(ii->doubleData()[1], 1.0);
+    // ascend: NaN sorts LAST.
+    eval("ya = sort([3 1 NaN 2]);");
+    auto *ya = getVarPtr("ya");
+    ASSERT_NE(ya, nullptr);
+    EXPECT_DOUBLE_EQ(ya->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(ya->doubleData()[2], 3.0);
+    EXPECT_TRUE(std::isnan(ya->doubleData()[3]));
+    // dim + direction: sort(X, 2, 'descend') along rows.
+    eval("yd = sort([3 1 4 1 5], 2, 'descend');");
+    auto *yd = getVarPtr("yd");
+    ASSERT_NE(yd, nullptr);
+    EXPECT_DOUBLE_EQ(yd->doubleData()[0], 5.0);
+    EXPECT_DOUBLE_EQ(yd->doubleData()[4], 1.0);
+}
+
 TEST_P(SortFindTest, FindRowVectorReturnsRow)
 {
     eval("ix = find([0 1 0 2 0]);");
