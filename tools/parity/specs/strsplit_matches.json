@@ -1,0 +1,13 @@
+{
+  "name": "strsplit_matches",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "[t, m] = strsplit('a,b:c', {',', ':'}); nt = numel(t); nm = numel(m); m1 = double(m{1}); m2 = double(m{2}); [t2, mc] = strsplit('a,,b', ','); nmc = numel(mc); mlen = numel(mc{1}); mfirst = double(mc{1}(1)); [t3, mw] = strsplit('hi  there'); nmw = numel(mw);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "nt", "nm", "m1", "m2",
+    "nmc", "mlen", "mfirst", "nmw"
+  ],
+  "comment": "strsplit second output (matched delimiters) vs MATLAB R2025b. Bug fixed 2026-05-30: strsplit returned only the tokens. [t,m]=strsplit('a,b:c',{',',':'}) -> t has nt=3, m={',',':'} (nm=2, m1=44, m2=58). A collapsed run is a single match ('a,,b' on ',' -> mc={',,'}, nmc=1, mlen=2). Default whitespace collapse: 'hi  there' -> one match (nmw=1). NOTE: ':' used instead of ';' to avoid the semicolon-in-quoted-string harness pitfall. namespace=builtin."
+}

@@ -115,6 +115,22 @@ TEST_F(StringsBatchTest, StrsplitCellMultiCollapse)
     EXPECT_DOUBLE_EQ(evalScalar("numel(c6)"), 4.0);
 }
 
+// [tokens, matches] = strsplit(...): the matched delimiters (was missing).
+TEST_F(StringsBatchTest, StrsplitMatchesOutput)
+{
+    eval("function [a,b] = wSS(s,d)\n  [a,b] = strsplit(s,d);\nend");
+    eval("[t, m] = wSS('a,b;c', {',', ';'});");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(t)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(m)"), 2.0);
+    EXPECT_EQ(evalString("m{1}"), ",");
+    EXPECT_EQ(evalString("m{2}"), ";");
+    // collapsed run -> single match of the whole run
+    eval("function [a,b] = wS2(s,d)\n  [a,b] = strsplit(s,d);\nend");
+    eval("[t2, m2] = wS2('a,,b', ',');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(m2)"), 1.0);
+    EXPECT_EQ(evalString("m2{1}"), ",,");
+}
+
 TEST_F(StringsBatchTest, Strtok)
 {
     eval("[t, rem] = strtok(\"hello world\");");
