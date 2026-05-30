@@ -2,12 +2,11 @@
   "name": "cheby1",
   "namespace": "signal",
   "setup": "",
-  "expr": "[b, a] = cheby1(4, 0.5, 0.5); r1 = double(numel(b)); r2 = double(numel(a));",
+  "expr": "[b, a] = cheby1(4, 0.5, 0.5); r1 = double(numel(b)); r2 = double(numel(a)); [z,p,k] = cheby1(4, 1, 0.3); nz = double(numel(z)); np = double(numel(p)); k1 = k; sp1 = sum(real(p));",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2", "nz", "np", "k1", "sp1"
   ],
-  "comment": "Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig: [b,a]=cheby1 / [z,p,k]=cheby1(N,Rp,Wn[,type]). DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). cheby1(4,1,0.3): nz=4 np=4 gain k1=0.00836323956, sum(real(poles))=2.37412317; poles+gain exact. Like butter, the lowpass zeros are all at z=-1 (repeated) and root-found to ~1e-2, so sum(real(z)) is not fingerprinted (exact repeated zeros deferred to a ZPK-form bilinear). namespace=signal."
 }

@@ -393,6 +393,11 @@ void cheby1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     auto t = parseTrailing(args, 3);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = cheby1(N, R, Wn, ftype, t.analog, ctx.engine->resource());
+    if (outs.size() >= 3) {   // [z, p, k] = cheby1(...): digital ZPK via tf2zp
+        auto [z, p, k] = ::numkit::builtin::tf2zp(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+        return;
+    }
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -408,6 +413,11 @@ void cheby2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     auto t = parseTrailing(args, 3);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = cheby2(N, R, Wn, ftype, t.analog, ctx.engine->resource());
+    if (outs.size() >= 3) {   // [z, p, k] = cheby2(...): digital ZPK via tf2zp
+        auto [z, p, k] = ::numkit::builtin::tf2zp(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+        return;
+    }
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -438,6 +448,11 @@ void ellip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     auto t = parseTrailing(args, 4);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = ellip(N, Rp, Rs, Wn, ftype, t.analog, ctx.engine->resource());
+    if (outs.size() >= 3) {   // [z, p, k] = ellip(...): digital ZPK via tf2zp
+        auto [z, p, k] = ::numkit::builtin::tf2zp(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+        return;
+    }
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
