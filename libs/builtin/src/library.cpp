@@ -2302,6 +2302,115 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = std::move(out);
                             });
 
+    // ── addtodate ─────────────────────────────────────────────
+    // MATLAB addtodate(D, Q, units): add Q units to serial date number D
+    // (scalar). Time units ('day','hour','minute','second','millisecond')
+    // are plain serial arithmetic. Calendar units ('month','year') add to
+    // the month/year component and clamp the day to the last valid day of
+    // the resulting month (Jan 31 + 1 month -> Feb 28/29; Feb 29 + 1 year
+    // -> Feb 28); the time-of-day fraction is preserved exactly by keeping
+    // the integer-day and fractional parts separate.
+    engine.registerFunction("addtodate",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.size() < 3)
+                                    throw std::runtime_error(
+                                        "addtodate: requires (D, quantity, units)");
+                                if (args[0].numel() != 1)
+                                    throw std::runtime_error(
+                                        "addtodate: date number must be a real "
+                                        "numeric scalar");
+                                auto *mr = ctx.engine->resource();
+                                const double serial = args[0].toScalar();
+                                const double q = args[1].toScalar();
+                                std::string u = args[2].toString();
+                                for (auto &ch : u)
+                                    ch = static_cast<char>(std::tolower(
+                                        static_cast<unsigned char>(ch)));
+
+                                double result;
+                                if (u == "day")
+                                    result = serial + q;
+                                else if (u == "hour")
+                                    result = serial + q / 24.0;
+                                else if (u == "minute")
+                                    result = serial + q / 1440.0;
+                                else if (u == "second")
+                                    result = serial + q / 86400.0;
+                                else if (u == "millisecond")
+                                    result = serial + q / 86400000.0;
+                                else if (u == "month" || u == "year") {
+                                    // Split integer day (calendar) from the
+                                    // time-of-day fraction so it survives intact.
+                                    const double dayF = std::floor(serial);
+                                    const double frac = serial - dayF;
+                                    const int64_t days =
+                                        static_cast<int64_t>(dayF) - 719529;
+                                    // civil_from_days (Howard Hinnant).
+                                    int64_t z = days + 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096) / 365;
+                                    int64_t Y = yoe + era * 400;
+                                    const int64_t doy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * doy + 2) / 153;
+                                    const int64_t D = doy - (153 * mp + 2) / 5 + 1;
+                                    int64_t M = mp < 10 ? mp + 3 : mp - 9;
+                                    Y += (M <= 2);
+
+                                    int64_t nY = Y, nM = M;
+                                    if (u == "month") {
+                                        int64_t tm = (M - 1)
+                                                   + static_cast<int64_t>(
+                                                         std::llround(q));
+                                        int64_t qd = tm / 12, rd = tm % 12;
+                                        if (rd < 0) { qd -= 1; rd += 12; }
+                                        nY = Y + qd;
+                                        nM = rd + 1;
+                                    } else {  // year
+                                        nY = Y + static_cast<int64_t>(
+                                                     std::llround(q));
+                                    }
+                                    // Clamp day to the new month's length.
+                                    auto leap = [](int64_t y) {
+                                        return (y % 4 == 0 && y % 100 != 0)
+                                            || y % 400 == 0;
+                                    };
+                                    static const int dim[] =
+                                        {31, 28, 31, 30, 31, 30,
+                                         31, 31, 30, 31, 30, 31};
+                                    int64_t maxD = dim[nM - 1];
+                                    if (nM == 2 && leap(nY)) maxD = 29;
+                                    int64_t nD = D < maxD ? D : maxD;
+                                    // civilToSerial(nY, nM, nD) -> integer day.
+                                    int64_t y2 = nY;
+                                    if (nM <= 2) y2 -= 1;
+                                    const int64_t era2 =
+                                        (y2 < 0 ? y2 - 399 : y2) / 400;
+                                    const int64_t yoe2 = y2 - era2 * 400;
+                                    const int64_t doy2 =
+                                        (153 * (nM + (nM > 2 ? -3 : 9)) + 2) / 5
+                                        + nD - 1;
+                                    const int64_t doe2 =
+                                        yoe2 * 365 + yoe2 / 4 - yoe2 / 100 + doy2;
+                                    const int64_t newDays =
+                                        era2 * 146097 + doe2 - 719468 + 719529;
+                                    result = static_cast<double>(newDays) + frac;
+                                } else {
+                                    throw std::runtime_error(
+                                        "addtodate: units must be one of "
+                                        "'year','month','day','hour','minute',"
+                                        "'second','millisecond'");
+                                }
+                                outs[0] = Value::scalar(result, mr);
+                            });
+
     // ── datenum ───────────────────────────────────────────────
     // MATLAB datenum: serial date number from date components.
     //

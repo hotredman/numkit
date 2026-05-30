@@ -277,3 +277,55 @@ TEST_F(DatevecTest, WeeknumVectorAndError)
     // WeekStart outside 1..7 is an error.
     EXPECT_THROW(eval("weeknum(datenum('2026-01-01'),9);"), std::exception);
 }
+
+// ── addtodate(D, quantity, units): add units to a serial date ─────────
+// Implemented 2026-05-30 (was an undefined function). Time units are
+// plain serial arithmetic; calendar units clamp the day and preserve the
+// time-of-day. vs MATLAB R2025b.
+TEST_F(DatevecTest, AddtodateTimeUnits)
+{
+    eval("b = datenum(2026,1,31,10,20,30);");
+    // +3 day wraps Jan 31 -> Feb 3.
+    eval("vd = datevec(addtodate(b,3,'day'));");
+    EXPECT_DOUBLE_EQ(evalScalar("vd(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vd(3)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vd(4)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vd_h = datevec(addtodate(b,3,'hour')); vd_h(4)"), 13.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vd_m = datevec(addtodate(b,3,'minute')); vd_m(5)"), 23.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vd_s = datevec(addtodate(b,3,'second')); vd_s(6)"), 33.0);
+    // Subtracting two ~7.4e5 serials leaves the small delta with ~1e-11
+    // absolute error (b's ulp at that magnitude), so use a 1e-9 tolerance.
+    EXPECT_NEAR(evalScalar("addtodate(b,3,'millisecond') - b"), 3.0/86400000.0, 1e-9);
+}
+
+TEST_F(DatevecTest, AddtodateCalendarClamp)
+{
+    eval("b = datenum(2026,1,31,10,20,30);");
+    // +3 month: Apr has 30 days, day clamps 31 -> 30; time preserved.
+    eval("vmo = datevec(addtodate(b,3,'month'));");
+    EXPECT_DOUBLE_EQ(evalScalar("vmo(2)"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vmo(3)"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vmo(4)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vyr = datevec(addtodate(b,3,'year')); vyr(1)"), 2029.0);
+    // Jan 31 + 1 month -> Feb 28 (non-leap) / Feb 29 (leap 2024).
+    EXPECT_DOUBLE_EQ(evalScalar("v = datevec(addtodate(datenum(2026,1,31),1,'month')); v(3)"), 28.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v = datevec(addtodate(datenum(2024,1,31),1,'month')); v(3)"), 29.0);
+    // Feb 29 2024 + 1 year -> Feb 28 2025.
+    eval("vy = datevec(addtodate(datenum(2024,2,29),1,'year'));");
+    EXPECT_DOUBLE_EQ(evalScalar("vy(1)"), 2025.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vy(3)"),   28.0);
+    // Negative month crosses the year boundary backwards.
+    eval("vn = datevec(addtodate(datenum(2026,3,15),-4,'month'));");
+    EXPECT_DOUBLE_EQ(evalScalar("vn(1)"), 2025.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vn(2)"),   11.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vn(3)"),   15.0);
+}
+
+TEST_F(DatevecTest, AddtodateErrors)
+{
+    // Scalar date only; a vector is an error.
+    EXPECT_THROW(eval("addtodate([datenum(2026,1,1); datenum(2026,6,1)],1,'day');"),
+                 std::exception);
+    // Unknown unit is an error.
+    EXPECT_THROW(eval("addtodate(datenum(2026,1,1),1,'fortnight');"), std::exception);
+}
