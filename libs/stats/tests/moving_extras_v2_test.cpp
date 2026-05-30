@@ -190,3 +190,24 @@ TEST_F(MovExtrasTest, AllNanWindowReturnsNaN)
     EXPECT_TRUE(std::isnan(evalScalar("y(2)")));
     EXPECT_NEAR(evalScalar("y(3)"), 4.0, 1e-12);    // omit gives [4]
 }
+
+// ── Regression 2026-05-30: single-element window std/var is 0, not NaN ──
+// MATLAB defines std/var of a single value as 0 even with N-1
+// normalization. This is hit at edge windows of length 1 and, under
+// 'omitnan', at interior windows that reduce to one valid element.
+TEST_F(MovExtrasTest, MovstdMovvarSingleElementWindowIsZero)
+{
+    // Edge of a length-2 window: y(1) sees only the first element.
+    EXPECT_NEAR(evalScalar("z = movstd([1 2 3 4 5],2); z(1)"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("z = movvar([1 2 3 4 5],2); z(1)"), 0.0, 1e-12);
+    // A [0 0] window has length 1 everywhere -> all zeros.
+    EXPECT_NEAR(evalScalar("z = movstd([1 2 3],[0 0]); z(2)"), 0.0, 1e-12);
+    // omitnan reduces a length-2 window to one valid element.
+    eval("zo = movstd([1 2 NaN 4 5],2,'omitnan');");
+    EXPECT_NEAR(evalScalar("zo(3)"), 0.0, 1e-12);   // {2,NaN}->{2}
+    EXPECT_NEAR(evalScalar("zo(4)"), 0.0, 1e-12);   // {NaN,4}->{4}
+    eval("vo = movvar([1 2 NaN 4 5],2,'omitnan');");
+    EXPECT_NEAR(evalScalar("vo(3)"), 0.0, 1e-12);
+    // An all-NaN window under omitnan still yields NaN (0 valid elements).
+    EXPECT_TRUE(std::isnan(evalScalar("w = movvar([NaN NaN NaN 4],3,'omitnan'); w(1)")));
+}

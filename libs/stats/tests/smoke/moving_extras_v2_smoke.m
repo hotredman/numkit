@@ -60,3 +60,13 @@ fprintf('  movmean([1 2 3 4],2)  = %s (expect [1 1.5 2.5 3.5])\n', mat2str(movme
 fprintf('  movmax([1 5 2 8],2)   = %s (expect [1 5 5 8])\n', mat2str(movmax([1 5 2 8],2)));
 fprintf('  movsum([1 2 3 4 5 6],4) = %s (expect [3 6 10 14 18 15])\n', mat2str(movsum([1 2 3 4 5 6],4)));
 fprintf('  movsum([1 2 3 4],3) = %s (odd unchanged, expect [3 6 9 7])\n', mat2str(movsum([1 2 3 4],3)));
+
+% ── single-element-window std/var = 0 (not NaN), MATLAB parity ──
+% Fixed 2026-05-30. A length-1 window (edge of an even window, a [0 0]
+% window, or an 'omitnan' window reduced to one valid element) has
+% std/var 0 in MATLAB. An all-NaN 'omitnan' window stays NaN.
+fprintf('\n=== single-element windows ===\n');
+fprintf('movstd([1 2 3 4 5],2)   -> %s (expect [0 .7071 .7071 .7071 .7071])\n', mat2str(movstd([1 2 3 4 5],2)));
+fprintf('movvar([1 2 3 4 5],2)   -> %s (expect [0 .5 .5 .5 .5])\n', mat2str(movvar([1 2 3 4 5],2)));
+fprintf('movstd omitnan reduce-1 -> %s (expect [0 .7071 0 0 .7071])\n', mat2str(movstd([1 2 NaN 4 5],2,'omitnan')));
+fprintf('movvar all-NaN omitnan  -> %s (expect [NaN NaN 0 0])\n', mat2str(movvar([NaN NaN NaN 4],3,'omitnan')));
