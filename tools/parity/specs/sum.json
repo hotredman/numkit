@@ -18,6 +18,6 @@
     "ner"
   ],
   "comment": "Sig: r = sum(...). Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b. DEEP-PROBE 2026-05-29: empty-input identities — sum([])=0 (scalar, numel 1, NOT 1x0); partial empties keep per-column shape: sum(zeros(0,3))=[0 0 0], numel(sum(zeros(3,0)))=0.",
-  "bench_setup": "xb = mod((1:2000000)*7919, 1000) + 0.5;",
+  "bench_setup": "xb = mod((1:N)*7919, 1000) + 0.5;",
   "bench_expr": "rb = sum(xb);"
 }

@@ -22,6 +22,6 @@
     "cim"
   ],
   "comment": "Sig cumsum(X[,dim][,direction][,nanflag]). forward (default) cumsum([1 2 3 4])(4)=10. 'reverse' = [10 9 7 4]. 'omitnan' treats NaN as 0: cumsum([1 NaN 3],'omitnan')=[1 1 4]. dim+reverse: cumsum([1 2 3;4 5 6],2,'reverse') row1=[6 5 3]. INTEGER input keeps the class and accumulates NATIVELY with saturation: cumsum(int8([100 100 -100]))=[100 127 27] int8 (the clamped 127 carries forward, then -100->27), cumsum(uint8([200 100]))=[200 255], cumsum(int32([1 2;3 4]),2)=[1 3;3 7] int32. numkit previously threw 'Not a double array' on integer input; fixed 2026-05-30. (Earlier: 'reverse'/'omitnan' flag parsing.) NOTE: ; only inside matrix-literal INPUTS.",
-  "bench_setup": "xb = mod((1:2000000)*7919, 1000) + 0.5;",
+  "bench_setup": "xb = mod((1:N)*7919, 1000) + 0.5;",
   "bench_expr": "rb = cumsum(xb);"
 }

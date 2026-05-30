@@ -39,6 +39,14 @@ NUMKIT_EXE = ROOT / "build" / "desktop-fast" / "tests" / "smoke" / "Release" / "
 MATLAB_EXE = "matlab"  # on PATH
 OCTAVE_EXE = r"C:\Program Files\GNU Octave\Octave-11.1.0\mingw64\bin\octave-cli.exe"
 PROGRESS_MD = ROOT / "PROGRESS.md"
+BENCHMARK_MD = ROOT / "BENCHMARK.md"
+
+# Two-point benchmark sizes. A spec's `bench_setup` references the
+# variable `N`; the harness defines it to each of these and times the
+# call, so BENCHMARK.md shows both small-array (overhead-sensitive) and
+# large-array (throughput) ratios vs MATLAB / Octave.
+BENCH_SMALL = 1000
+BENCH_LARGE = 1000000
 
 
 # ───────────────────────────── spec ──────────────────────────────────
@@ -208,43 +216,53 @@ def build_spec_func(spec: Spec, *, engine: str) -> str:
             SAVE_DUMP_TEMPLATE.replace("__VAR__", spec.out_var), 4)
     reimport = "    import compat.*\n" if engine == "numkit" else ""
 
-    if spec.bench_setup.strip():
-        # Decoupled bench: correctness (fingerprints / save dump) is taken
-        # from the TINY setup+expr; the timed loop runs on LARGE data so
-        # the vs_MATLAB / vs_Octave ratios reflect real throughput rather
-        # than per-call interpreter overhead.
-        bench_expr = spec.bench_expr.strip() or spec.expr
+    # Correctness body — always run on the TINY setup+expr (exact
+    # cross-engine fingerprint / save comparison).
+    correctness = (
+        f"{_indent_stmts(spec.setup, 4)}\n"
+        f"{_indent_stmts(spec.expr, 4)}\n"
+        f"{fp_print}\n"
+        f"{save_dump}\n"
+    )
+
+    if not spec.bench_setup.strip():
+        # No benchmark inputs → correctness only (no timing). Perf for
+        # this function shows as "not benched" in BENCHMARK.md until a
+        # `bench_setup` is added.
         return (
             f"function {_spec_fn(spec.name)}()\n"
             f"{reimport}"
-            f"{_indent_stmts(spec.setup, 4)}\n"
-            f"{_indent_stmts(spec.expr, 4)}\n"      # correctness eval (tiny)
-            f"{fp_print}\n"
-            f"{save_dump}\n"
-            f"{_indent_stmts(spec.bench_setup, 4)}\n"  # large inputs
-            f"{_indent_stmts(bench_expr, 4)}\n"     # warmup (large)
-            f"    t0__ = tic;\n"
-            f"    for kk__ = 1:{spec.iters}\n"
-            f"{_indent_stmts(bench_expr, 8)}\n"
-            f"    end\n"
-            f"    elapsed_ms = toc(t0__) * 1000.0 / {spec.iters};\n"
-            f"    fprintf('TIMING %.6f\\n', elapsed_ms);\n"
+            f"{correctness}"
             f"end\n"
         )
 
+    # Two-point benchmark. `bench_setup` references N; we define N to each
+    # size, rebuild the inputs, and time `bench_expr` (default `expr`).
+    bench_expr = spec.bench_expr.strip() or spec.expr
+
+    def timed(size: int, iters: int, label: str) -> str:
+        # NB: assign toc() to a variable BEFORE fprintf — numkit's toc(h)
+        # returns empty when inlined directly into fprintf's arg list.
+        return (
+            f"    N = {size};\n"
+            f"{_indent_stmts(spec.bench_setup, 4)}\n"
+            f"{_indent_stmts(bench_expr, 4)}\n"          # warmup
+            f"    t0__ = tic;\n"
+            f"    for kk__ = 1:{iters}\n"
+            f"{_indent_stmts(bench_expr, 8)}\n"
+            f"    end\n"
+            f"    elapsed_ms__ = toc(t0__) * 1000.0 / {iters};\n"
+            f"    fprintf('{label} %.6f\\n', elapsed_ms__);\n"
+        )
+
+    iters_small = max(spec.iters, 50)   # tiny array → many iters for a stable mean
+    iters_large = max(spec.iters, 5)
     return (
         f"function {_spec_fn(spec.name)}()\n"
         f"{reimport}"
-        f"{_indent_stmts(spec.setup, 4)}\n"
-        f"{_indent_stmts(spec.expr, 4)}\n"    # warmup
-        f"    t0__ = tic;\n"
-        f"    for kk__ = 1:{spec.iters}\n"
-        f"{_indent_stmts(spec.expr, 8)}\n"
-        f"    end\n"
-        f"    elapsed_ms = toc(t0__) * 1000.0 / {spec.iters};\n"
-        f"    fprintf('TIMING %.6f\\n', elapsed_ms);\n"
-        f"{fp_print}\n"
-        f"{save_dump}\n"
+        f"{correctness}"
+        f"{timed(BENCH_SMALL, iters_small, 'TIMING_SMALL')}"
+        f"{timed(BENCH_LARGE, iters_large, 'TIMING_LARGE')}"
         f"end\n"
     )
 
@@ -296,6 +314,8 @@ class SaveBlock:
 class Result:
     ok: bool
     elapsed_ms: float | None = None
+    ms_small: float | None = None     # TIMING_SMALL (N = BENCH_SMALL)
+    ms_large: float | None = None     # TIMING_LARGE (N = BENCH_LARGE)
     fingerprint: list[float] = field(default_factory=list)
     save: SaveBlock = field(default_factory=SaveBlock)
     raw_stdout: str = ""
@@ -338,11 +358,22 @@ def parse_save_block(lines: list[str]) -> SaveBlock:
     return sb
 
 
-def parse_output(out: str) -> tuple[float | None, list[float], SaveBlock]:
+def parse_output(out: str) -> tuple[float | None, float | None, float | None,
+                                    list[float], SaveBlock]:
     timing = None
+    ts = None      # TIMING_SMALL (N = BENCH_SMALL)
+    tl = None      # TIMING_LARGE (N = BENCH_LARGE)
     fps: dict[int, float] = {}
     lines = out.splitlines()
     for line in lines:
+        m = re.match(r"^TIMING_SMALL\s+(\S+)$", line.strip())
+        if m:
+            ts = float(m.group(1))
+            continue
+        m = re.match(r"^TIMING_LARGE\s+(\S+)$", line.strip())
+        if m:
+            tl = float(m.group(1))
+            continue
         m = re.match(r"^TIMING\s+(\S+)$", line.strip())
         if m:
             timing = float(m.group(1))
@@ -363,7 +394,7 @@ def parse_output(out: str) -> tuple[float | None, list[float], SaveBlock]:
             fps[int(m.group(1))] = val
     fp_list = [fps[i] for i in sorted(fps.keys())]
     sb = parse_save_block(lines)
-    return timing, fp_list, sb
+    return timing, ts, tl, fp_list, sb
 
 
 def _write_script(script: str) -> Path:
@@ -395,10 +426,13 @@ def parse_batch(text: str) -> dict[str, Result]:
             if cur is not None:
                 chunk = "\n".join(buf)
                 err = any(l.strip().startswith("__SPECERR__") for l in buf)
-                timing, fp, sb = parse_output(chunk)
+                timing, ts, tl, fp, sb = parse_output(chunk)
+                # Correctness no longer depends on a timing line — non-bench
+                # specs emit no timing, bench specs emit TIMING_SMALL/LARGE.
                 out[cur] = Result(
-                    ok=(not err and timing is not None and len(fp) > 0),
-                    elapsed_ms=timing, fingerprint=fp, save=sb,
+                    ok=(not err and (len(fp) > 0 or not sb.is_empty())),
+                    elapsed_ms=timing, ms_small=ts, ms_large=tl,
+                    fingerprint=fp, save=sb,
                     raw_stdout=chunk,
                     error=("spec raised" if err else ""),
                 )
@@ -505,13 +539,19 @@ def save_close(a: SaveBlock, b: SaveBlock, tol: float) -> tuple[bool, str]:
 # multiple sections (e.g. interpft is listed under both Interpolation
 # and Fourier); every occurrence gets the same fresh measurement.
 
-# New row format (no raw matlab_ms / octave_ms columns — only ratios):
-#   | `fn` | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-ROW_FMT = "| `{name}` | {status} | {nk_ms} | {vs_M} | {vs_O} | {correctness} | {comment} |"
+# PROGRESS.md row — IMPLEMENTATION only (status + correctness + notes).
+# Performance lives in BENCHMARK.md.
+PROGRESS_ROW_FMT = "| `{name}` | {status} | {correctness} | {comment} |"
+
+# BENCHMARK.md row — per-function perf at two array sizes (1e3 / 1e6) vs
+# MATLAB / Octave.  nk_*=numkit per-call mean (ms); ML×/OC× = ref_ms /
+# numkit_ms (>1× = numkit faster). "" = not yet benched for that engine.
+BENCH_ROW_FMT = ("| `{name}` | {nk_s} | {ml_s} | {oc_s} "
+                 "| {nk_l} | {ml_l} | {oc_l} | {notes} |")
 
 
 def fmt_ms(x: float | None) -> str:
-    return "" if x is None else f"{x:.3f}"
+    return "" if x is None else f"{x:.4g}"
 
 
 def fmt_ratio(num: float | None, den: float | None) -> str:
@@ -531,72 +571,87 @@ def make_row_finder(name: str) -> re.Pattern:
     )
 
 
-def update_row(*, name: str, nk: Result | None,
-               ml: Result | None, oc: Result | None,
-               correctness: str, comment: str,
-               implemented: bool = False) -> int:
-    """Update every row in PROGRESS.md whose function-name matches
-    `name`. Returns the number of rows touched. If the function isn't in
-    the journal yet (new entry not yet added by regenerate_progress.py),
-    we append a row to a "Misc / unclassified" section at EOF."""
+def update_progress_row(*, name: str, nk: Result | None,
+                        ml: Result | None, oc: Result | None,
+                        correctness: str, comment: str,
+                        implemented: bool = False) -> int:
+    """Update implementation rows in PROGRESS.md for `name` — status +
+    correctness + comment only (perf lives in BENCHMARK.md). Appends to a
+    Misc section if the function isn't in the TODO-driven layout."""
     if not PROGRESS_MD.exists():
-        # No file yet — leave it; the user is expected to run
-        # regenerate_progress.py first to seed it from the TODO.
         return 0
-
-    nk_ms = nk.elapsed_ms if (nk and nk.ok) else None
-    ml_ms = ml.elapsed_ms if (ml and ml.ok) else None
-    oc_ms = oc.elapsed_ms if (oc and oc.ok) else None
-
     text = PROGRESS_MD.read_text(encoding="utf-8")
     rx = make_row_finder(name)
-
     touched = 0
 
     def replace(m: re.Match) -> str:
         nonlocal touched
         touched += 1
-        # Status is TODO-seeded and otherwise preserved — but a spec
-        # that actually ran in numkit proves the function is NOT
-        # missing, so self-heal a stale ❌ up to ✅. ⚠️ and ✅ are left
-        # as-is (⚠️ partial is never auto-promoted; only a human
-        # downgrades).
+        # ❌→✅ self-heal when numkit actually ran the fn; ⚠️/✅ preserved.
         cur_status = m.group("status").strip()
         if implemented and cur_status == "❌":
             cur_status = "✅"
-        return ROW_FMT.format(
-            name=name,
-            status=cur_status,
-            nk_ms=fmt_ms(nk_ms),
-            vs_M=fmt_ratio(ml_ms, nk_ms),
-            vs_O=fmt_ratio(oc_ms, nk_ms),
-            correctness=correctness,
-            comment=comment,
-        )
+        return PROGRESS_ROW_FMT.format(name=name, status=cur_status,
+                                       correctness=correctness, comment=comment)
 
     new_text = rx.sub(replace, text)
-
     if touched == 0:
-        # Function not yet registered in the TODO-driven layout. Append
-        # to a "Misc / new" section at EOF so we don't lose the data.
-        misc_marker = "## Misc / not in TODO"
-        if misc_marker not in new_text:
-            new_text = new_text.rstrip() + "\n\n" + misc_marker + "\n\n"
-            new_text += "Functions benched by the harness that don't appear in any of the MATLAB-doc sections above. Move them into a real section if they correspond to a documented MATLAB function.\n\n"
-            new_text += "| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |\n"
-            new_text += "|---|:---:|---:|---:|---:|:---:|---|\n"
-        new_text = new_text.rstrip() + "\n" + ROW_FMT.format(
-            name=name,
-            status="—",
-            nk_ms=fmt_ms(nk_ms),
-            vs_M=fmt_ratio(ml_ms, nk_ms),
-            vs_O=fmt_ratio(oc_ms, nk_ms),
-            correctness=correctness,
-            comment=comment,
-        ) + "\n"
+        misc = "## Misc / not in TODO"
+        if misc not in new_text:
+            new_text = new_text.rstrip() + "\n\n" + misc + "\n\n"
+            new_text += ("Functions exercised by the harness that don't appear "
+                         "in any MATLAB-doc section above.\n\n")
+            new_text += "| function | status | correctness | comment |\n"
+            new_text += "|---|:---:|:---:|---|\n"
+        new_text = new_text.rstrip() + "\n" + PROGRESS_ROW_FMT.format(
+            name=name, status="—", correctness=correctness, comment=comment) + "\n"
         touched = 1
 
     PROGRESS_MD.write_text(new_text, encoding="utf-8")
+    return touched
+
+
+def update_benchmark_row(*, name: str, nk: Result | None,
+                         ml: Result | None, oc: Result | None) -> int:
+    """Update perf rows in BENCHMARK.md for `name`. Only writes when
+    numkit produced two-size timings (a `bench_setup` spec); otherwise
+    leaves the existing row untouched so it stays 'not yet benched'."""
+    if not BENCHMARK_MD.exists():
+        return 0
+    if not (nk and nk.ok and nk.ms_small is not None and nk.ms_large is not None):
+        return 0
+    nk_s, nk_l = nk.ms_small, nk.ms_large
+    ml_s = ml.ms_small if (ml and ml.ok) else None
+    ml_l = ml.ms_large if (ml and ml.ok) else None
+    oc_s = oc.ms_small if (oc and oc.ok) else None
+    oc_l = oc.ms_large if (oc and oc.ok) else None
+    row = BENCH_ROW_FMT.format(
+        name=name,
+        nk_s=fmt_ms(nk_s), ml_s=fmt_ratio(ml_s, nk_s), oc_s=fmt_ratio(oc_s, nk_s),
+        nk_l=fmt_ms(nk_l), ml_l=fmt_ratio(ml_l, nk_l), oc_l=fmt_ratio(oc_l, nk_l),
+        notes="",
+    )
+    text = BENCHMARK_MD.read_text(encoding="utf-8")
+    rx = make_row_finder(name)
+    touched = 0
+
+    def replace(m: re.Match) -> str:
+        nonlocal touched
+        touched += 1
+        return row
+
+    new_text = rx.sub(replace, text)
+    if touched == 0:
+        misc = "## Misc / not in TODO"
+        if misc not in new_text:
+            new_text = new_text.rstrip() + "\n\n" + misc + "\n\n"
+            new_text += ("| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 "
+                         "| nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |\n")
+            new_text += "|---|---:|---:|---:|---:|---:|---:|---|\n"
+        new_text = new_text.rstrip() + "\n" + row + "\n"
+        touched = 1
+
+    BENCHMARK_MD.write_text(new_text, encoding="utf-8")
     return touched
 
 
@@ -662,10 +717,11 @@ def run_chunk(specs: list[Spec], *, no_matlab: bool, no_octave: bool,
         rows = 0
         if nk is not None and nk.ok:
             for nm in (spec.covers or [spec.name]):
-                rows += update_row(
+                rows += update_progress_row(
                     name=nm, nk=nk, ml=ml, oc=oc,
                     correctness=correctness, comment=spec.comment,
                     implemented=nk.ok)
+                update_benchmark_row(name=nm, nk=nk, ml=ml, oc=oc)
         flag = "" if (status == "DONE"
                       and correctness in ("OK", "N/A")) else "  <<"
         print(f"  {spec.name:<34} {status:<5} {correctness:<9} "
