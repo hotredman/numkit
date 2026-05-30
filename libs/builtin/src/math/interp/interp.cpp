@@ -1138,17 +1138,21 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 3)
         throw Error("interp1: requires at least 3 arguments",
                      0, 0, "interp1", "", "numkit:interp1:nargin");
+    // Method may be a char ('linear') OR a string ("linear") — MATLAB
+    // accepts both. Previously only isChar() was honored, so a double-quoted
+    // method was silently ignored and fell back to linear.
     std::string method = "linear";
-    if (args.size() >= 4 && args[3].isChar())
+    if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         method = args[3].toString();
 
-    // 5th arg = extrapolation spec: the literal 'extrap' (extrapolate using
-    // the method) or a numeric extrapval (fill out-of-range with it).
+    // 5th arg = extrapolation spec: the literal 'extrap'/"extrap"
+    // (extrapolate using the method) or a numeric extrapval (fill
+    // out-of-range with it).
     Interp1Extrap mode = Interp1Extrap::Default;
     double fill = std::numeric_limits<double>::quiet_NaN();
     if (args.size() >= 5) {
         const Value &e = args[4];
-        if (e.isChar()) {
+        if (e.isChar() || e.isString()) {
             std::string es = e.toString();
             for (char &c : es) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (es == "extrap")
