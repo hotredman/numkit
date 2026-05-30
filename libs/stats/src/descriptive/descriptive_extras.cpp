@@ -86,11 +86,16 @@ Value iqr(const Value &x, int dim, std::pmr::memory_resource *mr)
     const int d = resolveDim(x, dim, "iqr");
     return applyAlongDim(x, d,
         [](size_t, const double *s, size_t n) -> double {
-            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-            std::vector<double> buf(s, s + n);
-            const double q3 = sliceQuantile(buf.data(), n, 0.75);
-            std::vector<double> buf2(s, s + n);
-            const double q1 = sliceQuantile(buf2.data(), n, 0.25);
+            // MATLAB iqr ignores NaN values.
+            std::vector<double> buf;
+            buf.reserve(n);
+            for (size_t i = 0; i < n; ++i)
+                if (!std::isnan(s[i])) buf.push_back(s[i]);
+            const size_t k = buf.size();
+            if (k == 0) return std::numeric_limits<double>::quiet_NaN();
+            std::vector<double> buf2 = buf;
+            const double q3 = sliceQuantile(buf.data(), k, 0.75);
+            const double q1 = sliceQuantile(buf2.data(), k, 0.25);
             return q3 - q1;
         }, mr);
 }
@@ -1295,27 +1300,36 @@ Value mad_of(const Value &x, int flag, int dim, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "mad");
     if (flag == 0) {
-        // Mean form.
+        // Mean form. MATLAB mad ignores NaN values.
         return applyAlongDim(x, d,
             [](size_t, const double *s, size_t n) -> double {
-                if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+                std::vector<double> v;
+                v.reserve(n);
+                for (size_t i = 0; i < n; ++i)
+                    if (!std::isnan(s[i])) v.push_back(s[i]);
+                const size_t k = v.size();
+                if (k == 0) return std::numeric_limits<double>::quiet_NaN();
                 double mean = 0.0;
-                for (size_t i = 0; i < n; ++i) mean += s[i];
-                mean /= static_cast<double>(n);
+                for (size_t i = 0; i < k; ++i) mean += v[i];
+                mean /= static_cast<double>(k);
                 double sum = 0.0;
-                for (size_t i = 0; i < n; ++i) sum += std::fabs(s[i] - mean);
-                return sum / static_cast<double>(n);
+                for (size_t i = 0; i < k; ++i) sum += std::fabs(v[i] - mean);
+                return sum / static_cast<double>(k);
             }, mr);
     }
-    // Median form.
+    // Median form. MATLAB mad ignores NaN values.
     return applyAlongDim(x, d,
         [](size_t, const double *s, size_t n) -> double {
-            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-            std::vector<double> buf(s, s + n);
-            const double med = sliceQuantile(buf.data(), n, 0.5);
-            std::vector<double> dev(n);
-            for (size_t i = 0; i < n; ++i) dev[i] = std::fabs(s[i] - med);
-            return sliceQuantile(dev.data(), n, 0.5);
+            std::vector<double> buf;
+            buf.reserve(n);
+            for (size_t i = 0; i < n; ++i)
+                if (!std::isnan(s[i])) buf.push_back(s[i]);
+            const size_t k = buf.size();
+            if (k == 0) return std::numeric_limits<double>::quiet_NaN();
+            const double med = sliceQuantile(buf.data(), k, 0.5);
+            std::vector<double> dev(k);
+            for (size_t i = 0; i < k; ++i) dev[i] = std::fabs(buf[i] - med);
+            return sliceQuantile(dev.data(), k, 0.5);
         }, mr);
 }
 
