@@ -3,7 +3,7 @@
   "namespace": "builtin",
   "setup": "x = [1, 1.5, 2, 5, 10];",
   "expr": "y = acosh(x);",
-  "iters": 5,
+  "iters": 15,
   "tol": 1e-12,
   "fingerprint": [
     "y(1)",
@@ -12,5 +12,7 @@
     "y(4)",
     "y(5)"
   ],
-  "comment": "Sig: y = acosh(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 \u2014 fingerprint covers domain edges + a few interior points. Audit \u0422\u0417: \"no major gap detected\" \u2014 verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences)."
+  "comment": "Sig: y = acosh(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 — fingerprint covers domain edges + a few interior points. Audit ТЗ: \"no major gap detected\" — verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences).",
+  "bench_setup": "xb = mod((1:N)*7919,1000)*0.01 + 1;",
+  "bench_expr": "rb=acosh(xb);"
 }

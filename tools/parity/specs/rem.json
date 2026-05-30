@@ -3,14 +3,19 @@
   "namespace": "builtin",
   "setup": "",
   "expr": "r1 = rem(10, 3); r2 = rem(-10, 3); r3 = rem(10, -3); r4 = rem(-10, -3); ri = rem(int8(-7), int8(3)); vri = double(ri); cri = double(strcmp(class(ri),'int8')); ru = rem(uint8(200), uint8(7)); vru = double(ru); cru = double(strcmp(class(ru),'uint8'));",
-  "iters": 5,
+  "iters": 15,
   "tol": 1e-12,
   "fingerprint": [
     "r1",
     "r2",
     "r3",
     "r4",
-    "vri", "cri", "vru", "cru"
+    "vri",
+    "cri",
+    "vru",
+    "cru"
   ],
-  "comment": "Sig: r = rem(...). INTEGER input keeps the class: rem(int8(-7),int8(3))=-1 int8 (rem uses truncation toward zero, so the sign follows the dividend), rem(uint8(200),uint8(7))=4 uint8. numkit previously returned double / threw on integer arrays; fixed 2026-05-30. Spec-extension batch 2026-05-09 + integer-class."
+  "comment": "Sig: r = rem(...). INTEGER input keeps the class: rem(int8(-7),int8(3))=-1 int8 (rem uses truncation toward zero, so the sign follows the dividend), rem(uint8(200),uint8(7))=4 uint8. numkit previously returned double / threw on integer arrays; fixed 2026-05-30. Spec-extension batch 2026-05-09 + integer-class.",
+  "bench_setup": "xb = mod((1:N)*7919,2000)*0.01 - 10;",
+  "bench_expr": "rb=rem(xb,3);"
 }
