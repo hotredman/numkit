@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -3433,6 +3434,41 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             const std::string s = args[0].toString();
             outs[0] = Value::logicalScalar(
                 std::find(kw.begin(), kw.end(), s) != kw.end(), mr);
+        });
+
+    // isvarname(s) — true if s is a valid MATLAB variable name: a non-empty
+    // char vector / string scalar that starts with a letter, contains only
+    // letters / digits / underscores, and is not a reserved keyword. Any
+    // non-text input (numeric, cell, multi-element string) yields false rather
+    // than erroring. R2025b imposes no length limit. vs MATLAB R2025b.
+    engine.registerFunction("isvarname",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            auto *mr = ctx.engine->resource();
+            if (args.empty())
+                throw std::runtime_error("isvarname requires 1 argument");
+            const Value &a = args[0];
+            const bool isText = a.isChar() || (a.isString() && a.numel() == 1);
+            bool ok = false;
+            if (isText) {
+                const std::string s = a.toString();
+                ok = !s.empty()
+                     && std::isalpha(static_cast<unsigned char>(s[0])) != 0;
+                for (size_t i = 1; ok && i < s.size(); ++i) {
+                    const unsigned char c = static_cast<unsigned char>(s[i]);
+                    if (!(std::isalnum(c) || c == '_')) ok = false;
+                }
+                if (ok) {
+                    static const std::vector<std::string> kw = {
+                        "break", "case", "catch", "classdef", "continue",
+                        "else", "elseif", "end", "for", "function", "global",
+                        "if", "otherwise", "parfor", "persistent", "return",
+                        "spmd", "switch", "try", "while"
+                    };
+                    if (std::find(kw.begin(), kw.end(), s) != kw.end())
+                        ok = false;
+                }
+            }
+            outs[0] = Value::logicalScalar(ok, mr);
         });
 
     // full(A) — convert sparse to dense. numkit doesn't have a sparse

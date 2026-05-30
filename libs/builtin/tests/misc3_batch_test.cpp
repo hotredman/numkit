@@ -84,6 +84,24 @@ TEST_F(Misc3BatchTest, IsKeywordLetterSpace)
     EXPECT_DOUBLE_EQ(evalScalar("double(v(2))"), 1.0);
 }
 
+// isvarname: valid MATLAB identifier? starts with a letter, only
+// letters/digits/underscore, not a keyword; non-text yields false (no error).
+// vs MATLAB R2025b. Implemented 2026-05-30 (was an undefined function).
+TEST_F(Misc3BatchTest, IsVarname)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname('abc')"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname('a_1')"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname('1abc')"), 0.0);  // leading digit
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname('_x')"),   0.0);  // leading underscore
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname('a b')"),  0.0);  // space
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname('')"),     0.0);  // empty
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname('if')"),   0.0);  // keyword
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname('end')"),  0.0);  // keyword
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname(\"abc\")"), 1.0); // string scalar
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname(5)"),      0.0);  // numeric -> false
+    EXPECT_DOUBLE_EQ(evalScalar("isvarname({'abc'})"), 0.0); // cell -> false
+}
+
 TEST_F(Misc3BatchTest, InfNan)
 {
     EXPECT_DOUBLE_EQ(evalScalar("isinf(inf)"),  1.0);
