@@ -428,7 +428,7 @@ void conv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                      0, 0, "conv", "", "numkit:conv:nargin");
 
     std::string shape = "full";
-    if (args.size() >= 3 && args[2].isChar())
+    if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         shape = args[2].toString();
 
     outs[0] = conv(args[0], args[1], shape, ctx.engine->resource());
