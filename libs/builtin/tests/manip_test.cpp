@@ -812,4 +812,130 @@ TEST_P(ManipTest, EllipsoidShifted)
     EXPECT_NEAR(evalScalar("min(Y(:));"), -4.0, 1e-12);
     EXPECT_NEAR(evalScalar("max(Z(:));"), 8.0, 1e-12);
 }
+
+// ── flip / fliplr / flipud / rot90 on CELL and STRING arrays ──────────
+// (DEEP-PROBE 2026-05-31) MATLAB's flip family is type-agnostic — it just
+// permutes elements. numkit previously errored on cell/string inputs
+// ("ND fallback does not support type cell/string" / "Not a double array").
+
+TEST_P(ManipTest, FlipCellRowVector)
+{
+    eval("c = flip({10, 20, 30});");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2}"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 10.0);
+}
+
+TEST_P(ManipTest, FliplrCellRowVector)
+{
+    eval("c = fliplr({10, 20, 30});");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 10.0);
+}
+
+TEST_P(ManipTest, FlipudCellColVector)
+{
+    eval("c = flipud({10; 20; 30});");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 10.0);
+}
+
+TEST_P(ManipTest, FlipCellMatrixDim2)
+{
+    // flip({1 2;3 4},2) = {2 1; 4 3}
+    eval("c = flip({1 2; 3 4}, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 3.0);
+}
+
+TEST_P(ManipTest, FlipCellMatrixDim1)
+{
+    // flip({1 2;3 4},1) = {3 4; 1 2}
+    eval("c = flip({1 2; 3 4}, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 2.0);
+}
+
+TEST_P(ManipTest, FlipCellstr)
+{
+    eval("c = flip({'aa', 'bb', 'cc'});");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(c->cellAt(0).toString(), "cc");
+    EXPECT_EQ(c->cellAt(2).toString(), "aa");
+}
+
+TEST_P(ManipTest, FlipStringArray)
+{
+    // flip(["x" "y" "z"]) = ["z" "y" "x"]. Read elements via the C++ API
+    // (in-script string indexing s(k) is unrelated to the flip op).
+    eval("s = flip([\"x\" \"y\" \"z\"]);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->stringElem(0), "z");
+    EXPECT_EQ(s->stringElem(1), "y");
+    EXPECT_EQ(s->stringElem(2), "x");
+}
+
+TEST_P(ManipTest, Rot90Cell)
+{
+    // rot90({1 2;3 4}) = {2 4; 1 3}
+    eval("c = rot90({1 2; 3 4});");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 3.0);
+}
+
+TEST_P(ManipTest, Rot90CellK2)
+{
+    // rot90({1 2;3 4},2) = {4 3; 2 1}
+    eval("c = rot90({1 2; 3 4}, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 1.0);
+}
+
+TEST_P(ManipTest, Rot90CellK3)
+{
+    // rot90({1 2;3 4},3) = {3 1; 4 2}
+    eval("c = rot90({1 2; 3 4}, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 2.0);
+}
+
+TEST_P(ManipTest, Rot90CellRowVectorShape)
+{
+    // rot90({1,2,3}) rotates 1x3 -> 3x1 = {3;2;1}
+    eval("c = rot90({1, 2, 3});");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(rows(*c), 3u);
+    EXPECT_EQ(cols(*c), 1u);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 1.0);
+}
+
+TEST_P(ManipTest, Rot90StringArray)
+{
+    // rot90(["a" "b";"c" "d"]) = ["b" "d";"a" "c"] (2x2 col-major: idx0="b",
+    // idx1="a", idx2="d", idx3="c"). Read elements via the C++ API.
+    eval("s = rot90([\"a\" \"b\"; \"c\" \"d\"]);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(rows(*s), 2u);
+    EXPECT_EQ(cols(*s), 2u);
+    EXPECT_EQ(s->stringElem(0), "b");
+    EXPECT_EQ(s->stringElem(1), "a");
+    EXPECT_EQ(s->stringElem(2), "d");
+    EXPECT_EQ(s->stringElem(3), "c");
+}
+
 INSTANTIATE_DUAL(ManipTest);
