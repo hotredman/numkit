@@ -29,8 +29,12 @@ namespace numkit::signal {
 /// @endcode
 ///
 /// @see sgolayfilt
+/// @param zeropad  true (MATLAB default): out-of-range samples count as 0
+///                 (window always `k` long). false: 'truncate' — clip the
+///                 window to the valid range at the signal ends.
 Value medfilt1(const Value &                x,
-               size_t                       k  = 3,
-               std::pmr::memory_resource *  mr = nullptr);
+               size_t                       k        = 3,
+               bool                         zeropad  = true,
+               std::pmr::memory_resource *  mr       = nullptr);
 
 } // namespace numkit::signal

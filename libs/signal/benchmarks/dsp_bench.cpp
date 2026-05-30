@@ -149,7 +149,7 @@ static void BM_Medfilt1_K7(benchmark::State &s)
     auto x = makeSignal(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::medfilt1(x, 7, mr);
+        auto y = signal::medfilt1(x, 7, /*zeropad=*/true, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

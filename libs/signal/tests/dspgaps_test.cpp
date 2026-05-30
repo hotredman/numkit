@@ -40,15 +40,36 @@ TEST_P(DspGapsTest, Medfilt1OddWindow)
     EXPECT_DOUBLE_EQ(y->doubleData()[4], 4.0);
 }
 
-TEST_P(DspGapsTest, Medfilt1BoundaryTruncation)
+TEST_P(DspGapsTest, Medfilt1BoundaryZeropadDefault)
 {
-    // Boundary: window truncated, output still valid
+    // MATLAB default zero-pads the ends: medfilt1([10 1 1 1 1],3) =
+    // [median(0,10,1) ...] = [1 1 1 1 1]. (numkit previously truncated the
+    // window at the boundary and gave 5.5 here — fixed 2026-05-30.)
     eval("y = medfilt1([10 1 1 1 1], 3);");
     auto *y = getVarPtr("y");
-    // y[0] window=[10,1] median=5.5? Or y[0] window=[10,1] (truncated) — even-length avg.
-    // With k=3, leftHalf=1, rightHalf=1. At i=0: window [src[0..1]] = [10, 1] (size 2).
-    // Even median = 0.5*(min+max) = 5.5.
-    EXPECT_DOUBLE_EQ(y->doubleData()[0], 5.5);
+    EXPECT_DOUBLE_EQ(y->doubleData()[0], 1.0);
+    // 'truncate' restores the clipped-window behaviour: median([10,1]) = 5.5.
+    eval("yt = medfilt1([10 1 1 1 1], 3, 'truncate');");
+    EXPECT_DOUBLE_EQ(getVarPtr("yt")->doubleData()[0], 5.5);
+}
+
+TEST_P(DspGapsTest, Medfilt1EvenWindowAndMatrix)
+{
+    // Even window leans LEFT (window = [i-k/2 .. i+k/2-1]); verified vs
+    // MATLAB R2025b. medfilt1([2 80 6 3 10 8],4) = [1 4 4.5 8 7 5.5].
+    eval("y = medfilt1([2 80 6 3 10 8], 4);");
+    auto *y = getVarPtr("y");
+    EXPECT_DOUBLE_EQ(y->doubleData()[0], 1.0);    // median(0,0,2,80)
+    EXPECT_DOUBLE_EQ(y->doubleData()[2], 4.5);    // median(2,80,6,3)
+    EXPECT_DOUBLE_EQ(y->doubleData()[5], 5.5);    // median(3,10,8,0)
+    // even-window 'truncate'
+    eval("yt = medfilt1([2 80 6 3 10 8], 4, 'truncate');");
+    EXPECT_DOUBLE_EQ(getVarPtr("yt")->doubleData()[0], 41.0);  // median(2,80)
+    // matrix: each column filtered independently (operate along dim 1).
+    eval("Ym = medfilt1([1 2;3 4;5 6;7 8], 3);");
+    auto *Ym = getVarPtr("Ym");
+    EXPECT_DOUBLE_EQ(Ym->doubleData()[0], 1.0);   // col1 i=1: median(0,1,3)
+    EXPECT_DOUBLE_EQ(Ym->doubleData()[3], 5.0);   // col1 i=4: median(5,7,0)
 }
 
 TEST_P(DspGapsTest, Medfilt1PreservesShape)
