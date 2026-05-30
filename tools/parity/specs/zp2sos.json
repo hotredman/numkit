@@ -1,12 +1,14 @@
 {
   "name": "zp2sos",
   "namespace": "signal",
-  "setup": "z = [0.5; -0.3]; p = [0.2; 0.1; -0.4; 0.6];",
-  "expr": "S = zp2sos(z, p, 2); [bb, aa] = sos2tf(S);",
+  "setup": "z = [0.5; -0.3]; p = [0.2; 0.1; -0.4; 0.6]; pc = [0.5+0.5i; 0.5-0.5i; 0.2+0.3i; 0.2-0.3i];",
+  "expr": "S = zp2sos(z, p, 2); [bb, aa] = sos2tf(S); Sc = zp2sos([], pc, 1); c15 = Sc(1,5); c16 = Sc(1,6); c25 = Sc(2,5); c26 = Sc(2,6);",
   "iters": 2,
   "tol": 1e-09,
   "fingerprint": [
-    "double(size(S,1))", "bb(1)", "bb(3)", "bb(4)", "bb(5)", "aa(end)", "double(sum(aa))"
+    "double(size(S,1))", "bb(1)", "bb(3)", "bb(4)", "bb(5)", "aa(end)", "double(sum(aa))",
+    "c15", "c16", "c25", "c26"
   ],
-  "comment": "Sig sos=zp2sos(z,p,k): zero/pole/gain -> second-order sections. 2 zeros, 4 poles -> 2 sections. Validated via the canonical sos2tf round-trip (section ORDER may differ between engines, the product TF must not): bb=[0 0 2 -0.4 -0.3], aa(end)=-0.0048, sum(aa)=0.4032. The leading zeros bb(1)=0, bb(3)=2 confirm MATLAB's convention of placing SURPLUS zeros at the ORIGIN (degree-deficient numerator with z^-2 delay); numkit previously left them at infinity (bb=[2 -0.4 -0.3 0 0]) -- fixed (right-align empty biquad sections). tf2sos keeps the opposite (left-aligned) convention."
+  "comment": "Sig sos=zp2sos(z,p,k): zero/pole/gain -> second-order sections. Real-pole case (2 zeros, 4 poles) validated via the order/pairing-invariant sos2tf round-trip: bb=[0 0 2 -0.4 -0.3], aa(end)=-0.0048, sum(aa)=0.4032 (surplus zeros at the ORIGIN -> leading bb(1)=0, bb(3)=2). DEEP-PROBE 2026-05-31: section ORDER now matches MATLAB's default 'up' (ASCENDING pole radius). Complex-conjugate poles pc -> row1 (radius 0.36) c15=-0.4 c16=0.13, row2 (radius 0.707) c25=-1 c26=0.5; numkit previously reversed this. NOTE: pairing of purely REAL poles still uses numkit's grouping (MATLAB zpkpair differs); the product TF is unaffected. Matches MATLAB R2025b for complex-pole filters.",
+  "deep_verified": true
 }

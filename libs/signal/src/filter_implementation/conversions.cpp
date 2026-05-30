@@ -267,6 +267,19 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
         throw Error("zp2sos: more zeros than poles is not supported",
                      0, 0, "zp2sos", "", "numkit:zp2sos:moreZeros");
 
+    // MATLAB's default 'up' section ordering: sections sorted by ASCENDING
+    // pole radius — poles nearest the ORIGIN first, nearest the unit circle
+    // last. popPair pairs poles largest-magnitude-first (correct pairing),
+    // so the section arrays are currently in DESCENDING radius; reverse them
+    // to match MATLAB. The overall gain is applied by the caller to row 0,
+    // which after the reversal is the origin-nearest section — exactly where
+    // MATLAB folds it in. ('down' ordering is a non-default option: deferred.)
+    std::reverse(b1s.begin(), b1s.end());
+    std::reverse(b2s.begin(), b2s.end());
+    std::reverse(a1s.begin(), a1s.end());
+    std::reverse(a2s.begin(), a2s.end());
+    std::reverse(noZeros.begin(), noZeros.end());
+
     return std::make_tuple(buildSosMatrix(b1s.data(), b2s.data(), a1s.data(), a2s.data(), noZeros.data(), surplusAtOrigin, L, /*leadingGain=*/1.0, mr),
                            gain);
 }
