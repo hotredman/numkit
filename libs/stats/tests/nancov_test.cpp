@@ -184,3 +184,27 @@ TEST_F(NancovTest, MadIqrOmitNaN)
     EXPECT_TRUE(std::isnan(evalScalar("m = mad([NaN; NaN; NaN]); m(1)")));
     EXPECT_TRUE(std::isnan(evalScalar("q = iqr([NaN; NaN; NaN]); q(1)")));
 }
+
+// ── geomean/harmmean 'omitnan' nanflag (2026-05-30) ──────────────────
+// MATLAB geomean/harmmean accept a trailing 'omitnan' nanflag that
+// removes NaN per slice; numkit previously ignored it (geomean -> NaN)
+// or errored converting the char to a dim (harmmean). vs MATLAB R2025b.
+TEST_F(NancovTest, GeomeanHarmmeanOmitNaN)
+{
+    eval("Mn = [1 5; 2 NaN; 3 7; 4 100; 5 8];");
+    // Column 2 = [5;7;100;8] after dropping the NaN.
+    EXPECT_NEAR(evalScalar("g = geomean(Mn,1,'omitnan');  g(2)"), 12.935687, 1e-5);
+    EXPECT_NEAR(evalScalar("g = geomean(Mn,'omitnan');     g(2)"), 12.935687, 1e-5);
+    EXPECT_NEAR(evalScalar("h = harmmean(Mn,'omitnan');    h(2)"),  8.3707025, 1e-6);
+    EXPECT_NEAR(evalScalar("h = harmmean(Mn,1,'omitnan');  h(2)"),  8.3707025, 1e-6);
+    // Column 1 (no NaN) unchanged.
+    EXPECT_NEAR(evalScalar("g = geomean(Mn,'omitnan');  g(1)"), 2.605171084697, 1e-9);
+    // Default (includenan) still propagates NaN.
+    EXPECT_TRUE(std::isnan(evalScalar("g = geomean(Mn); g(2)")));
+    EXPECT_TRUE(std::isnan(evalScalar("h = harmmean(Mn); h(2)")));
+    // omitnan honours the dim argument.
+    EXPECT_NEAR(evalScalar("g = geomean([1 NaN 3; 4 5 6],2,'omitnan'); g(1)"),
+                1.732050807568877, 1e-9);
+    // An unknown option is an error.
+    EXPECT_THROW(eval("geomean(Mn,'foo');"), std::exception);
+}

@@ -1334,37 +1334,43 @@ Value mad_of(const Value &x, int flag, int dim, std::pmr::memory_resource *mr)
 }
 
 // geomean(x) = (prod(x))^(1/n) = exp(mean(log(x))). x must be >= 0.
-Value geomean_of(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value geomean_of(const Value &x, int dim, bool omitnan, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "geomean");
     return applyAlongDim(x, d,
-        [](size_t, const double *s, size_t n) -> double {
-            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+        [omitnan](size_t, const double *s, size_t n) -> double {
             double sum = 0.0;
+            size_t k = 0;
             for (size_t i = 0; i < n; ++i) {
+                if (omitnan && std::isnan(s[i])) continue;  // 'omitnan'
                 if (s[i] < 0.0)
                     return std::numeric_limits<double>::quiet_NaN();
                 if (s[i] == 0.0) return 0.0;
                 sum += std::log(s[i]);
+                ++k;
             }
-            return std::exp(sum / static_cast<double>(n));
+            if (k == 0) return std::numeric_limits<double>::quiet_NaN();
+            return std::exp(sum / static_cast<double>(k));
         }, mr);
 }
 
 // harmmean(x) = n / sum(1./x). x must be > 0.
-Value harmmean_of(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value harmmean_of(const Value &x, int dim, bool omitnan, std::pmr::memory_resource *mr)
 {
     const int d = resolveDim(x, dim, "harmmean");
     return applyAlongDim(x, d,
-        [](size_t, const double *s, size_t n) -> double {
-            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+        [omitnan](size_t, const double *s, size_t n) -> double {
             double sum = 0.0;
+            size_t k = 0;
             for (size_t i = 0; i < n; ++i) {
+                if (omitnan && std::isnan(s[i])) continue;  // 'omitnan'
                 if (s[i] <= 0.0)
                     return std::numeric_limits<double>::quiet_NaN();
                 sum += 1.0 / s[i];
+                ++k;
             }
-            return static_cast<double>(n) / sum;
+            if (k == 0) return std::numeric_limits<double>::quiet_NaN();
+            return static_cast<double>(k) / sum;
         }, mr);
 }
 
@@ -2778,13 +2784,31 @@ void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     outs[0] = mad_of(args[0], flag, dim, ctx.engine->resource());
 }
 
+// Parse a trailing 'omitnan'/'includenan' nanflag from a geomean/harmmean
+// arg list. Returns the omit flag and the count of remaining numeric args.
+bool parseMeanNanFlag(Span<const Value> args, const char *fn, std::size_t &nargs)
+{
+    nargs = args.size();
+    if (nargs >= 2 && (args[nargs - 1].isChar() || args[nargs - 1].isString())) {
+        std::string f = args[nargs - 1].toString();
+        for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (f == "omitnan")     { --nargs; return true; }
+        if (f == "includenan")  { --nargs; return false; }
+        throw Error(std::string(fn) + ": unknown option '" + f + "'",
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badopt");
+    }
+    return false;
+}
+
 void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("geomean: requires at least 1 argument",
                     0, 0, "geomean", "", "numkit:geomean:nargin");
-    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
-    outs[0] = geomean_of(args[0], dim, ctx.engine->resource());
+    std::size_t nargs;
+    const bool omitnan = parseMeanNanFlag(args, "geomean", nargs);
+    const int dim = (nargs >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = geomean_of(args[0], dim, omitnan, ctx.engine->resource());
 }
 
 void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -2792,8 +2816,10 @@ void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("harmmean: requires at least 1 argument",
                     0, 0, "harmmean", "", "numkit:harmmean:nargin");
-    const int dim = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
-    outs[0] = harmmean_of(args[0], dim, ctx.engine->resource());
+    std::size_t nargs;
+    const bool omitnan = parseMeanNanFlag(args, "harmmean", nargs);
+    const int dim = (nargs >= 2) ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = harmmean_of(args[0], dim, omitnan, ctx.engine->resource());
 }
 
 void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
