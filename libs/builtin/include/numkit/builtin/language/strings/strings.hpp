@@ -64,6 +64,24 @@ Value num2str(const Value &x, const std::string &fmt,
 /// @see num2str, mat2str
 Value int2str(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Validate a string against a set of allowed values
+/// (`s = validatestring(str, validStrings)`).
+///
+/// Case-insensitive. An exact match wins; otherwise a unique case-insensitive
+/// leading-substring (prefix) match is returned. If `str` is a prefix of
+/// several candidates and the shortest of those is itself a prefix of all the
+/// others, that shortest candidate is returned; otherwise it is ambiguous and
+/// throws. No prefix match at all throws. The returned value is the canonical
+/// candidate (with its original case) as a CHAR row. Whitespace is significant
+/// (not trimmed).
+/// @param str    Char/string scalar to validate.
+/// @param valid  Cell array of char vectors or a string array of candidates.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Matching canonical candidate as a CHAR row.
+/// @see strcmp, strcmpi
+Value validatestring(const Value &str, const Value &valid,
+                     std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Parse string as number (`x = str2num(s)`).
 ///
 /// Returns empty Value on parse failure.
