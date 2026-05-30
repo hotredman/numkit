@@ -60,6 +60,8 @@ void tiedrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void corrcov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/tabulate.cpp
 void tabulate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+// descriptive/grp2idx.cpp
+void grp2idx_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/cholcov.cpp
 void cholcov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/crosstab.cpp
@@ -477,6 +479,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "tiedrank",  &stats::detail::tiedrank_reg);
     reg("descriptive", "corrcov",   &stats::detail::corrcov_reg);
     reg("descriptive", "tabulate",  &stats::detail::tabulate_reg);
+    reg("descriptive", "grp2idx",   &stats::detail::grp2idx_reg);
     reg("descriptive", "cholcov",   &stats::detail::cholcov_reg);
     reg("descriptive", "crosstab",  &stats::detail::crosstab_reg);
     reg("descriptive", "grpstats",  &stats::detail::grpstats_reg);
