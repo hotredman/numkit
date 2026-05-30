@@ -1685,6 +1685,62 @@ void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 0.01, "prctile", ctx.engine->resource());
 }
 
+// 3rd mode output C: a cell array of the modal values. Each cell holds a
+// column vector of the values that attain the modal frequency in that
+// slice, sorted ascending; MATLAB ignores NaN. Supported for a real DOUBLE
+// vector, 2-D matrix, or 'all'-flattened input.
+Value computeModeCell(const Value &x, int dim, bool flatten,
+                      std::pmr::memory_resource *mr)
+{
+    if (x.type() != ValueType::DOUBLE || x.dims().is3D() || x.dims().ndim() > 2)
+        throw Error("mode: the 3rd output C is currently supported only for a "
+                    "real double vector or 2-D matrix input",
+                    0, 0, "mode", "", "numkit:mode:cellNd");
+    auto tiedCol = [&](const double *s, size_t stride, size_t n) -> Value {
+        std::vector<double> v;
+        v.reserve(n);
+        for (size_t k = 0; k < n; ++k) {
+            const double d = s[k * stride];
+            if (!std::isnan(d)) v.push_back(d);
+        }
+        std::sort(v.begin(), v.end());
+        const size_t N = v.size();
+        size_t maxc = 0;
+        for (size_t i = 0; i < N;) {
+            size_t j = i;
+            while (j < N && v[j] == v[i]) ++j;
+            if (j - i > maxc) maxc = j - i;
+            i = j;
+        }
+        std::vector<double> tied;
+        for (size_t i = 0; i < N;) {
+            size_t j = i;
+            while (j < N && v[j] == v[i]) ++j;
+            if (j - i == maxc) tied.push_back(v[i]);
+            i = j;
+        }
+        Value col = Value::matrix(tied.size(), 1, ValueType::DOUBLE, mr);
+        for (size_t k = 0; k < tied.size(); ++k) col.doubleDataMut()[k] = tied[k];
+        return col;
+    };
+    const double *data = x.numel() ? x.doubleData() : nullptr;
+    if (flatten || x.isScalar() || x.dims().isVector()) {
+        Value cell = Value::cell(1, 1, mr);
+        cell.cellAt(0) = tiedCol(data, 1, x.numel());
+        return cell;
+    }
+    const size_t R = x.dims().rows(), Cn = x.dims().cols();
+    const int rdim = (dim == 0) ? 1 : dim;
+    if (rdim == 1) {
+        Value cell = Value::cell(1, Cn, mr);
+        for (size_t c = 0; c < Cn; ++c) cell.cellAt(c) = tiedCol(data + c * R, 1, R);
+        return cell;
+    }
+    Value cell = Value::cell(R, 1, mr);
+    for (size_t r = 0; r < R; ++r) cell.cellAt(r) = tiedCol(data + r, R, Cn);
+    return cell;
+}
+
 void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
               CallContext &ctx)
 {
@@ -1734,12 +1790,15 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         auto [v, c] = mode(flat, 2, mr);
         outs[0] = std::move(v);
         if (nargout > 1) outs[1] = std::move(c);
+        if (nargout > 2) outs[2] = computeModeCell(args[0], 0, true, mr);
         return;
     }
     auto [v, c] = mode(args[0], dim, mr);
     outs[0] = std::move(v);
     if (nargout > 1)
         outs[1] = std::move(c);
+    if (nargout > 2)
+        outs[2] = computeModeCell(args[0], dim, false, mr);
 }
 
 // skewness_reg / kurtosis_reg moved to libs/stats/src/moments/moments.cpp
