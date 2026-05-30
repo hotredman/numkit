@@ -3,8 +3,15 @@
   "namespace": "image",
   "setup": "G = [-1 2 7; -5 2 8; -7 pi 9];",
   "expr": "y = stdfilt(G);",
-  "iters": 5,
+  "iters": 8,
   "tol": 1e-09,
   "out_var": "y",
-  "comment": "Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G."
+  "comment": "Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G.",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = stdfilt(A);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }

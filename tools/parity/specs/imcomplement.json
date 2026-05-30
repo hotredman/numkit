@@ -3,12 +3,19 @@
   "namespace": "image",
   "setup": "",
   "expr": "C = imcomplement([0.0 0.5 1.0]); r1 = C(1); r2 = C(2); r3 = C(3);",
-  "iters": 5,
+  "iters": 8,
   "tol": 1e-06,
   "fingerprint": [
     "r1",
     "r2",
     "r3"
   ],
-  "comment": "Sig: r = imcomplement(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = imcomplement(...). Spec-extension batch 2026-05-09.",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = imcomplement(A);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }

@@ -1,27 +1,33 @@
 # Numkit benchmark
 
 **Performance map** for numkit — per-function wall-clock vs MATLAB R2025b
-and Octave, at two array sizes: **small = 1000** and **large = 1000000**
-elements. Implementation status and correctness live in
-[PROGRESS.md](PROGRESS.md); this file is about *speed only* and mirrors
-PROGRESS.md's sections so every function appears here too.
+and Octave, at a **small** and a **large** input. Implementation status and
+correctness live in [PROGRESS.md](PROGRESS.md); this file is about *speed
+only* and mirrors PROGRESS.md's sections so every function appears here too.
 
-Updated by `tools/parity/run_parity.py`: a spec timed on large data needs
-a `bench_setup` (a template using the variable `N`, which the harness sets
-to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
+Updated by `tools/parity/run_parity.py` (the SIMD `desktop-fast` build): a
+spec timed on large data needs a `bench_setup` template using the variable
+`N`, which the harness sets to the spec's two `bench_sizes`. Rows without
+one stay **blank = not yet benched**.
 
-**Columns:**
-- `nk 1e3 (ms)` / `nk 1e6 (ms)` — numkit mean per-call time at N=1e3 / 1e6
-- `ML× 1e3` / `ML× 1e6` — MATLAB_ms / numkit_ms (>1× = numkit faster)
-- `OC× 1e3` / `OC× 1e6` — Octave_ms / numkit_ms (>1× = numkit faster)
-- `notes` — blank = not yet benched · `n/a` = not size-parametric · status flag
+**Sizes (the `notes` column states the exact input when non-default):**
+- **vectors / elementwise** (default): small = **1000** elements, large =
+  **1 000 000** elements.
+- **images** (Image Processing): small = **100×100**, large = **1000×1000**
+  (N = side length, N×N).
+- a few transforms pick a clean size (e.g. `fft` rounds N to a power of two).
 
-> **Reading the two sizes.** At N=1000 the per-call interpreter overhead
-> still shows (MATLAB's is large, numkit's tiny → ratios flatter numkit).
-> At N=1e6 the kernel dominates → this is the honest throughput number,
-> where numkit's single-thread/scalar kernels are usually **slower** than
-> MATLAB's multithreaded + SIMD ones. The C++ micro-benchmarks under
-> `benchmarks/` and `libs/*/benchmarks/` remain the deepest perf source.
+**Columns:** `nk small/large (ms)` = numkit mean per-call time; `ML× s/l`
+and `OC× s/l` = MATLAB_ms / numkit_ms and Octave_ms / numkit_ms
+(**>1× = numkit faster**). Blank ratio = that reference engine not measured.
+
+> **Reading the two sizes.** At the small size, per-call interpreter
+> overhead still shows (MATLAB's is large, numkit's tiny → ratios flatter
+> numkit). At the large size the kernel dominates → that is the honest
+> throughput number, where numkit's single-thread Highway-SIMD kernels are
+> usually **slower** than MATLAB's multithreaded ones. The C++
+> micro-benchmarks under `benchmarks/` and `libs/*/benchmarks/` remain the
+> deepest perf source.
 ## Table of Contents
 
 - [**Builtin**](#builtin)
@@ -177,7 +183,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 5 ✅ + 0 ⚠️ / 9 = 56%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `ans` |  |  |  |  |  |  |  |
 | `clc` |  |  |  |  |  |  |  |
@@ -193,7 +199,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 53 ✅ + 1 ⚠️ / 55 = 98%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `blkdiag` |  |  |  |  |  |  |  |
 | `cat` |  |  |  |  |  |  |  |
@@ -255,7 +261,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin (keywords) — 10 ✅ + 0 ⚠️ / 11 = 91%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `break` |  |  |  |  |  |  |  |
 | `continue` |  |  |  |  |  |  |  |
@@ -273,7 +279,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 27 ✅ + 0 ⚠️ / 29 = 93%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `allfinite` |  |  |  |  |  |  |  |
 | `anynan` |  |  |  |  |  |  |  |
@@ -309,7 +315,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 54 ✅ + 0 ⚠️ / 65 = 83%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `append` |  |  |  |  |  |  |  |
 | `blanks` |  |  |  |  |  |  |  |
@@ -381,7 +387,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 12 ✅ + 0 ⚠️ / 14 = 86%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `arrayfun` |  |  |  |  |  |  |  |
 | `cell2struct` |  |  |  |  |  |  |  |
@@ -402,7 +408,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 12 ✅ + 0 ⚠️ / 17 = 71%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `cell` |  |  |  |  |  |  |  |
 | `cell2mat` |  |  |  |  |  |  |  |
@@ -426,7 +432,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 5 ✅ + 0 ⚠️ / 6 = 83%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `feval` |  |  |  |  |  |  |  |
 | `func2str` |  |  |  |  |  |  |  |
@@ -439,7 +445,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** `categorical.*` (future) — 1 ✅ + 0 ⚠️ / 17 = 5%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `addcats` |  |  |  |  |  |  | not implemented |
 | `categorical` |  |  |  |  |  |  | not implemented |
@@ -462,7 +468,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** `table.*` (future) — 6 ✅ + 0 ⚠️ / 66 = 9%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `addprop` |  |  |  |  |  |  | not implemented |
 | `addvars` |  |  |  |  |  |  | not implemented |
@@ -533,7 +539,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 7 ✅ + 0 ⚠️ / 8 = 88%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bitand` |  |  |  |  |  |  |  |
 | `bitcmp` |  |  |  |  |  |  |  |
@@ -548,7 +554,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 10 ✅ + 0 ⚠️ / 13 = 77%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `allunique` |  |  |  |  |  |  |  |
 | `innerjoin` |  |  |  |  |  |  | not implemented |
@@ -568,7 +574,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 28 ✅ + 0 ⚠️ / 34 = 82%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bsxfun` |  |  |  |  |  |  |  |
 | `ceil` |  |  |  |  |  |  |  |
@@ -609,7 +615,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 47 ✅ + 0 ⚠️ / 47 = 100%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `acos` | 0.001326 | 6.20× |  | 2.692 | 0.47× |  |  |
 | `acosd` |  |  |  |  |  |  |  |
@@ -663,7 +669,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 13 ✅ + 0 ⚠️ / 13 = 100%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `exp` | 0.000862 | 14.55× |  | 0.8328 | 0.34× |  |  |
 | `expm1` | 0.006618 | 1.46× |  | 7.983 | 0.03× |  |  |
@@ -683,7 +689,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 20 ✅ + 0 ⚠️ / 24 = 83%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `airy` |  |  |  |  |  |  |  |
 | `besselh` |  |  |  |  |  |  |  |
@@ -714,7 +720,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 10 ✅ + 0 ⚠️ / 11 = 90%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `factor` |  |  |  |  |  |  |  |
 | `factorial` | 0.02961 | 0.50× |  | 30.42 | 0.37× |  |  |
@@ -732,7 +738,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 10 ✅ + 0 ⚠️ / 12 = 83%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `poly` |  |  |  |  |  |  |  |
 | `polyder` |  |  |  |  |  |  |  |
@@ -750,7 +756,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 5 ✅ + 0 ⚠️ / 6 = 83%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `rand` |  |  |  |  |  |  |  |
 | `randi` |  |  |  |  |  |  |  |
@@ -763,7 +769,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 11 ✅ + 0 ⚠️ / 18 = 61%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `griddata` |  |  |  |  |  |  |  |
 | `griddatan` |  |  |  |  |  |  |  |
@@ -787,7 +793,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** `sparse.*` (future) — 4 ✅ + 0 ⚠️ / 53 = 7%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `amd` |  |  |  |  |  |  | not implemented |
 | `bicg` |  |  |  |  |  |  | not implemented |
@@ -847,7 +853,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 8 ✅ + 0 ⚠️ / 10 = 80%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `clear` |  |  |  |  |  |  |  |
 | `clearvars` |  |  |  |  |  |  |  |
@@ -864,7 +870,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin — 4 ✅ + 0 ⚠️ / 6 = 66%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `assert` |  |  |  |  |  |  |  |
 | `error` |  |  |  |  |  |  |  |
@@ -877,7 +883,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 **Namespace:** builtin (keyword + class) — 2 ✅ + 0 ⚠️ / 2 = 100%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `mexception` |  |  |  |  |  |  |  |
 | `try` |  |  |  |  |  |  |  |
@@ -893,7 +899,7 @@ Function-form modulators / demodulators. The `comm.PSKModulator` /
 intentionally omitted, along with `constellation` (object method) and
 `showResourceMapping` (display).
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `genqammod` |  |  |  |  |  |  | partial |
 | `genqamdemod` |  |  |  |  |  |  | not implemented |
@@ -929,7 +935,7 @@ intentionally omitted, along with `constellation` (object method) and
 
 **Namespace:** `comm.signals.*` — 0 ✅ + 0 ⚠️ / 17 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `randerr` |  |  |  |  |  |  |  |
 | `randsrc` |  |  |  |  |  |  |  |
@@ -953,7 +959,7 @@ intentionally omitted, along with `constellation` (object method) and
 
 **Namespace:** `comm.source_coding.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `arithenco` |  |  |  |  |  |  |  |
 | `arithdeco` |  |  |  |  |  |  | not implemented |
@@ -976,7 +982,7 @@ Objects (`comm.CRCGenerator`, `comm.LDPCEncoder`, etc.) and the `gf`
 class are intentionally omitted. Galois-field math is exposed through
 the flat `gf*` function family below.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `crcGenerate` |  |  |  |  |  |  | not implemented |
 | `crcDetect` |  |  |  |  |  |  | not implemented |
@@ -1009,7 +1015,7 @@ the flat `gf*` function family below.
 
 **Namespace:** `comm.gf.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `distspec` |  |  |  |  |  |  | not implemented |
 | `iscatastrophic` |  |  |  |  |  |  | not implemented |
@@ -1038,7 +1044,7 @@ the flat `gf*` function family below.
 
 **Namespace:** `comm.intrlv.*` — 0 ✅ + 0 ⚠️ / 16 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `intrlv` |  |  |  |  |  |  | not implemented |
 | `deintrlv` |  |  |  |  |  |  | not implemented |
@@ -1065,7 +1071,7 @@ System-Object equalisers (`comm.LinearEqualizer`, `comm.MLSEEqualizer`,
 `comm.DecisionFeedbackEqualizer`) are omitted; only the function-form
 MLSE entry is exposed.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `gaussdesign` |  |  |  |  |  |  |  |
 | `rcosdesign` |  |  |  |  |  |  |  |
@@ -1080,7 +1086,7 @@ MLSE entry is exposed.
 
 **Namespace:** `comm.rf.*` — 4 ✅ + 0 ⚠️ / 10 = 40%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `awgn` |  |  |  |  |  |  |  |
 | `bsc` |  |  |  |  |  |  |  |
@@ -1104,7 +1110,7 @@ OOP `propagationModel` family, ray-tracing classes (`raytrace`,
 basemap object hierarchy intentionally omitted — only flat scalar /
 vector path-loss models and coordinate transforms.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `fspl` |  |  |  |  |  |  | not implemented |
 | `cranerainpl` |  |  |  |  |  |  | not implemented |
@@ -1126,7 +1132,7 @@ vector path-loss models and coordinate transforms.
 
 **Namespace:** `comm.perf.*` — 6 ✅ + 0 ⚠️ / 11 = 55%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `berawgn` |  |  |  |  |  |  |  |
 | `bercoding` |  |  |  |  |  |  | not implemented |
@@ -1154,7 +1160,7 @@ the data-extraction `*data` functions read those structs. The full
 (`slTuner`, `addBlock`/`removeBlock`/`setBlockParam`, etc.) are
 intentionally omitted.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `tf` |  |  |  |  |  |  |  |
 | `zpk` |  |  |  |  |  |  |  |
@@ -1180,7 +1186,7 @@ intentionally omitted.
 
 **Namespace:** `control.props.*` — 11 ✅ + 0 ⚠️ / 11 = **100%**
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `isct` |  |  |  |  |  |  |  |
 | `isdt` |  |  |  |  |  |  |  |
@@ -1198,7 +1204,7 @@ intentionally omitted.
 
 **Namespace:** `control.convert.*` — 3 ✅ + 0 ⚠️ / 18 = 17%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `c2d` |  |  |  |  |  |  |  |
 | `c2dOptions` |  |  |  |  |  |  | not implemented |
@@ -1224,7 +1230,7 @@ intentionally omitted.
 
 **Namespace:** `control.connect.*` — 3 ✅ + 0 ⚠️ / 7 = 43%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `feedback` |  |  |  |  |  |  |  |
 | `series` |  |  |  |  |  |  |  |
@@ -1242,7 +1248,7 @@ intentionally omitted.
 of the numeric functions (which already return data when called with
 output args).
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `step` |  |  |  |  |  |  |  |
 | `stepinfo` |  |  |  |  |  |  |  |
@@ -1268,7 +1274,7 @@ output args).
 
 **Namespace:** `control.margin.*` — 3 ✅ + 0 ⚠️ / 6 = 50%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `margin` |  |  |  |  |  |  |  |
 | `allmargin` |  |  |  |  |  |  | not implemented |
@@ -1285,7 +1291,7 @@ OOP filters (`extendedKalmanFilter`, `unscentedKalmanFilter`,
 `particleFilter`) intentionally omitted — they're class-objects with
 methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `lqr` |  |  |  |  |  |  | not implemented |
 | `lqry` |  |  |  |  |  |  | not implemented |
@@ -1310,7 +1316,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 
 **Namespace:** `control.matrixeq.*` — 2 ✅ + 0 ⚠️ / 8 = 25%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `lyap` |  |  |  |  |  |  |  |
 | `lyapchol` |  |  |  |  |  |  | not implemented |
@@ -1328,7 +1334,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 `pidTuner`, `looptune`, `systune`, `slTuner` and friends intentionally
 omitted — interactive / Simulink / OOP.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `pidtune` |  |  |  |  |  |  | not implemented |
 | `pidtuneOptions` |  |  |  |  |  |  | not implemented |
@@ -1349,7 +1355,7 @@ GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
 omitted. Curve Fitting's value for a non-OOP runtime sits in the spline
 construction / postprocessing primitives — those are all flat functions.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bspline` |  |  |  |  |  |  | not implemented |
 | `csape` |  |  |  |  |  |  | not implemented |
@@ -1407,7 +1413,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 **Namespace:** `graphics.line.*` — 2 ✅ + 0 ⚠️ / 12 = 16%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `area` |  |  |  |  |  |  | not implemented |
 | `errorbar` |  |  |  |  |  |  |  |
@@ -1426,7 +1432,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 **Namespace:** `graphics.polar.*` — 3 ✅ + 0 ⚠️ / 19 = 15%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `compassplot` |  |  |  |  |  |  | not implemented |
 | `fpolarplot` |  |  |  |  |  |  | not implemented |
@@ -1452,7 +1458,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 **Namespace:** `graphics.contour.*` — 2 ✅ + 0 ⚠️ / 7 = 28%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `clabel` |  |  |  |  |  |  | not implemented |
 | `contour` |  |  |  |  |  |  |  |
@@ -1466,7 +1472,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 **Namespace:** `graphics.vector_fields.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `compassplot` |  |  |  |  |  |  | not implemented |
 | `feather` |  |  |  |  |  |  | not implemented |
@@ -1479,7 +1485,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 **Namespace:** `graphics.surface.*` — 3 ✅ + 0 ⚠️ / 21 = 14%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `contour3` |  |  |  |  |  |  | not implemented |
 | `cylinder` |  |  |  |  |  |  |  |
@@ -1507,7 +1513,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 **Namespace:** `graphics.volume.*` — 0 ✅ + 0 ⚠️ / 24 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `coneplot` |  |  |  |  |  |  |  |
 | `contourslice` |  |  |  |  |  |  | not implemented |
@@ -1538,7 +1544,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 **Namespace:** `graphics.geographic.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `geoaxes` |  |  |  |  |  |  | not implemented |
 | `geobasemap` |  |  |  |  |  |  | not implemented |
@@ -1557,7 +1563,7 @@ construction / postprocessing primitives — those are all flat functions.
 
 Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendored under `third_party/stb/`.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `imread` |  |  |  |  |  |  |  |
 | `imwrite` |  |  |  |  |  |  |  |
@@ -1567,7 +1573,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 **Namespace:** `image.type.*` — 13 ✅ + 0 ⚠️ / 27 = 48%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `adaptthresh` |  |  |  |  |  |  |  |
 | `cmap2gray` |  |  |  |  |  |  |  |
@@ -1583,14 +1589,14 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `im2single` |  |  |  |  |  |  |  |
 | `im2uint16` |  |  |  |  |  |  |  |
 | `im2uint8` |  |  |  |  |  |  |  |
-| `imbinarize` |  |  |  |  |  |  |  |
+| `imbinarize` | 0.08276 | 2.13× |  | 7.858 | 0.09× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imquantize` |  |  |  |  |  |  |  |
 | `imsplit` |  |  |  |  |  |  |  |
 | `ind2gray` |  |  |  |  |  |  |  |
 | `ind2rgb` |  |  |  |  |  |  |  |
 | `iptnum2ordinal` |  |  |  |  |  |  |  |
 | `label2rgb` |  |  |  |  |  |  |  |
-| `mat2gray` |  |  |  |  |  |  |  |
+| `mat2gray` | 0.04461 | 2.75× |  | 6.088 | 0.28× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `multithresh` |  |  |  |  |  |  |  |
 | `otsuthresh` |  |  |  |  |  |  |  |
 | `rgb2gray` |  |  |  |  |  |  |  |
@@ -1602,7 +1608,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 **Namespace:** `image.color.*` — 10 ✅ + 0 ⚠️ / 30 = 33%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `chromadapt` |  |  |  |  |  |  |  |
 | `colorangle` |  |  |  |  |  |  |  |
@@ -1643,7 +1649,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorithm.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `checkerboard` |  |  |  |  |  |  |  |
 | `imnoise` |  |  |  |  |  |  |  |
@@ -1660,16 +1666,16 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 
 Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionally omitted; flat function APIs only.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `findbounds` |  |  |  |  |  |  | not implemented |
 | `fitgeotrans` |  |  |  |  |  |  | not implemented |
 | `imcrop` |  |  |  |  |  |  |  |
 | `imcrop3` |  |  |  |  |  |  |  |
 | `impyramid` |  |  |  |  |  |  |  |
-| `imresize` |  |  |  |  |  |  |  |
+| `imresize` | 0.04069 | 14.69× |  | 5.497 | 0.37× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imresize3` |  |  |  |  |  |  |  |
-| `imrotate` |  |  |  |  |  |  |  |
+| `imrotate` | 0.1137 | 2.37× |  | 17.71 | 0.38× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imrotate3` |  |  |  |  |  |  |  |
 | `imtransform` |  |  |  |  |  |  | not implemented |
 | `imtranslate` |  |  |  |  |  |  |  |
@@ -1680,7 +1686,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 **Namespace:** `image.register.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `cpcorr` |  |  |  |  |  |  | not implemented |
 | `imregconfig` |  |  |  |  |  |  | not implemented |
@@ -1695,7 +1701,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 **Namespace:** `image.filter.*` — 10 ✅ + 0 ⚠️ / 36 = 28%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `convmtx2` |  |  |  |  |  |  |  |
 | `entropyfilt` |  |  |  |  |  |  |  |
@@ -1710,12 +1716,12 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fwind2` |  |  |  |  |  |  |  |
 | `gabor` |  |  |  |  |  |  | not implemented |
 | `imbilatfilt` |  |  |  |  |  |  |  |
-| `imboxfilt` |  |  |  |  |  |  |  |
+| `imboxfilt` | 0.3978 | 0.46× |  | 40.76 | 0.03× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imboxfilt3` |  |  |  |  |  |  |  |
 | `imdiffusefilt` |  |  |  |  |  |  |  |
-| `imfilter` |  |  |  |  |  |  |  |
+| `imfilter` | 0.2891 | 0.20× |  | 31.36 | 0.04× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imgaborfilt` |  |  |  |  |  |  |  |
-| `imgaussfilt` |  |  |  |  |  |  |  |
+| `imgaussfilt` | 3.464 | 0.13× |  | 344.8 | 0.02× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imgaussfilt3` |  |  |  |  |  |  |  |
 | `imguidedfilter` |  |  |  |  |  |  |  |
 | `imnlmfilt` |  |  |  |  |  |  |  |
@@ -1723,7 +1729,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter3` |  |  |  |  |  |  |  |
 | `integralImage` |  |  |  |  |  |  |  |
 | `integralImage3` |  |  |  |  |  |  |  |
-| `medfilt2` |  |  |  |  |  |  |  |
+| `medfilt2` | 0.4292 | 0.93× |  | 45.01 | 0.10× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `medfilt3` |  |  |  |  |  |  |  |
 | `modefilt` |  |  |  |  |  |  |  |
 | `nlfilter` |  |  |  |  |  |  |  |
@@ -1731,19 +1737,19 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `padarray` |  |  |  |  |  |  |  |
 | `rangefilt` |  |  |  |  |  |  |  |
 | `roifilt2` |  |  |  |  |  |  |  |
-| `stdfilt` |  |  |  |  |  |  |  |
+| `stdfilt` | 0.6241 | 0.22× |  | 64.44 | 0.10× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `wiener2` |  |  |  |  |  |  |  |
 
 ### Contrast Adjustment
 
 **Namespace:** `image.contrast.*` — 3 ✅ + 0 ⚠️ / 14 = 21%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `adapthisteq` |  |  |  |  |  |  |  |
 | `decorrstretch` |  |  |  |  |  |  | not implemented |
 | `histeq` |  |  |  |  |  |  |  |
-| `imadjust` |  |  |  |  |  |  |  |
+| `imadjust` | 0.1727 | 3.80× |  | 14.67 | 0.55× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imadjustn` |  |  |  |  |  |  |  |
 | `imflatfield` |  |  |  |  |  |  |  |
 | `imhistmatch` |  |  |  |  |  |  |  |
@@ -1762,7 +1768,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, …) intentionally omitted as OOP / interactive.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `inpaintCoherent` |  |  |  |  |  |  | not implemented |
 | `inpaintExemplar` |  |  |  |  |  |  | not implemented |
@@ -1777,7 +1783,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 **Namespace:** `image.morph.*` — 8 ✅ + 0 ⚠️ / 27 = 30%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `applylut` |  |  |  |  |  |  |  |
 | `bwhitmiss` |  |  |  |  |  |  |  |
@@ -1815,7 +1821,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 **Namespace:** `image.deblur.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `deconvblind` |  |  |  |  |  |  | not implemented |
 | `deconvlucy` |  |  |  |  |  |  | not implemented |
@@ -1829,7 +1835,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 **Namespace:** `image.block.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bestblk` |  |  |  |  |  |  |  |
 | `blockproc` |  |  |  |  |  |  | not implemented |
@@ -1842,12 +1848,12 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 **Namespace:** `image.arith.*` — 8 ✅ + 0 ⚠️ / 8 = 100%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `imabsdiff` |  |  |  |  |  |  |  |
 | `imadd` |  |  |  |  |  |  |  |
 | `imapplymatrix` |  |  |  |  |  |  |  |
-| `imcomplement` |  |  |  |  |  |  |  |
+| `imcomplement` | 0.02059 | 0.69× |  | 3.629 | 0.31× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imdivide` |  |  |  |  |  |  |  |
 | `imlincomb` |  |  |  |  |  |  |  |
 | `immultiply` |  |  |  |  |  |  |  |
@@ -1859,7 +1865,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally omitted.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `activecontour` |  |  |  |  |  |  | not implemented |
 | `bfscore` |  |  |  |  |  |  | not implemented |
@@ -1887,7 +1893,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `image.object.*` — 4 ✅ + 0 ⚠️ / 18 = 22%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bwboundaries` |  |  |  |  |  |  |  |
 | `bwtraceboundary` |  |  |  |  |  |  |  |
@@ -1900,7 +1906,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `houghlines` |  |  |  |  |  |  |  |
 | `houghpeaks` |  |  |  |  |  |  | not implemented |
 | `imfindcircles` |  |  |  |  |  |  | not implemented |
-| `imgradient` |  |  |  |  |  |  |  |
+| `imgradient` | 1.046 | 0.22× |  | 98.09 | 0.04× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imgradientxy` |  |  |  |  |  |  |  |
 | `imgradient3` |  |  |  |  |  |  |  |
 | `imgradientxyz` |  |  |  |  |  |  |  |
@@ -1916,7 +1922,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `image.region.*` — 8 ✅ + 0 ⚠️ / 28 = 29%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bwarea` |  |  |  |  |  |  |  |
 | `bwareafilt` |  |  |  |  |  |  |  |
@@ -1951,20 +1957,20 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `image.texture.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `entropy` |  |  |  |  |  |  |  |
 | `entropyfilt` |  |  |  |  |  |  |  |
 | `graycomatrix` |  |  |  |  |  |  |  |
 | `graycoprops` |  |  |  |  |  |  |  |
 | `rangefilt` |  |  |  |  |  |  |  |
-| `stdfilt` |  |  |  |  |  |  |  |
+| `stdfilt` | 0.6241 | 0.22× |  | 64.44 | 0.10× |  | grayscale double N×N (100×100 / 1000×1000) |
 
 ### Image Quality
 
 **Namespace:** `image.quality.*` — 3 ✅ + 0 ⚠️ / 8 = 38%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `brisque` |  |  |  |  |  |  | not implemented |
 | `immse` |  |  |  |  |  |  |  |
@@ -1981,7 +1987,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 `fft2` / `ifft2` / `fftshift` / `ifftshift` already covered under Signal / Transforms; cross-listed here per MATLAB TOC.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `dct2` |  |  |  |  |  |  |  |
 | `dctmtx` |  |  |  |  |  |  |  |
@@ -2001,7 +2007,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `io.file_io.*` — 13 ✅ + 0 ⚠️ / 15 = 86%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `fclose` |  |  |  |  |  |  |  |
 | `feof` |  |  |  |  |  |  |  |
@@ -2023,7 +2029,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `io.text.*`. Exception: `readtable/writetable/readtimetable/writetimetable` → `table.*` (future) — 1 ✅ + 0 ⚠️ / 16 = 6%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `fileread` |  |  |  |  |  |  |  |
 | `importdatatask` |  |  |  |  |  |  | not implemented |
@@ -2046,7 +2052,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `io.text.*`. Table-shaped readers (`readtable`/`writetable`) → `table.*` (future) — 0 ✅ + 0 ⚠️ / 13 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `importdata` |  |  |  |  |  |  | not implemented |
 | `importdatatask` |  |  |  |  |  |  | not implemented |
@@ -2066,7 +2072,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `io.workspace.*` — 0 ✅ + 0 ⚠️ / 2 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `loadobj` |  |  |  |  |  |  | not implemented |
 | `saveobj` |  |  |  |  |  |  | not implemented |
@@ -2075,7 +2081,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `io.paths.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `filemarker` |  |  |  |  |  |  | not implemented |
 | `fileparts` |  |  |  |  |  |  |  |
@@ -2100,7 +2106,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 > on first-time implementation; the per-function migration is complete
 > for everything that was previously shipped.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `balance` |  |  |  |  |  |  | partial |
 | `bandwidth` |  |  |  |  |  |  |  |
@@ -2191,7 +2197,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `ode.*` (future) — 0 ✅ + 0 ⚠️ / 21 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `decic` |  |  |  |  |  |  | not implemented |
 | `deval` |  |  |  |  |  |  | not implemented |
@@ -2221,7 +2227,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `optim.*` (top-level promoted: `fzero, fminbnd, fminsearch`) · `optimset/optimget` registered top-level from libs/builtin — 5 ✅ + 0 ⚠️ / 7 = 71%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `fminbnd` |  |  |  |  |  |  |  |
 | `fminsearch` |  |  |  |  |  |  |  |
@@ -2242,7 +2248,7 @@ the `show*` / `write*` family, `eqnproblem`, `fcn2optimexpr`) is OOP /
 expression-tree based and intentionally omitted; we expose only the
 solver-based legacy API which is flat function-form.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `fmincon` |  |  |  |  |  |  | not implemented |
 | `fminunc` |  |  |  |  |  |  | not implemented |
@@ -2274,7 +2280,7 @@ Problem-based API (`optimproblem`/`optimvar`/etc.), MultiStart class
 methods (`createOptimProblem`/`list`/`run`) and `paretoplot` (display)
 intentionally omitted — flat solver functions only.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `ga` |  |  |  |  |  |  | not implemented |
 | `gamultiobj` |  |  |  |  |  |  | not implemented |
@@ -2297,7 +2303,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.waveform_generation.*` — 5 ✅ + 0 ⚠️ / 21 = 23%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `buffer` |  |  |  |  |  |  | not implemented |
 | `chirp` |  |  |  |  |  |  |  |
@@ -2325,7 +2331,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.filter_design.*` — 11 ✅ + 0 ⚠️ / 37 = 30%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `butter` |  |  |  |  |  |  |  |
 | `buttord` |  |  |  |  |  |  |  |
@@ -2369,7 +2375,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.filter_design.*` — 14 ✅ + 0 ⚠️ / 17 = 82%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `besselap` |  |  |  |  |  |  |  |
 | `besself` |  |  |  |  |  |  |  |
@@ -2393,7 +2399,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.filter_analysis.*` — 3 ✅ + 0 ⚠️ / 19 = 15%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `filteranalyzer` |  |  |  |  |  |  | not implemented |
 | `filternorm` |  |  |  |  |  |  |  |
@@ -2419,7 +2425,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.digital_filtering.*` + `signal.filter_implementation.*` (TF/SOS/SS/ZP conversions) — 8 ✅ + 0 ⚠️ / 41 = 19%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bandpass` |  |  |  |  |  |  |  |
 | `bandstop` |  |  |  |  |  |  |  |
@@ -2469,7 +2475,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.multirate.*` — 4 ✅ + 0 ⚠️ / 8 = 50%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `decimate` |  |  |  |  |  |  |  |
 | `downsample` |  |  |  |  |  |  |  |
@@ -2484,7 +2490,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.parametric.*` — 23 ✅ + 0 ⚠️ / 25 = 92%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `ac2poly` |  |  |  |  |  |  |  |
 | `ac2rc` |  |  |  |  |  |  |  |
@@ -2516,7 +2522,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.convolution.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `alignsignals` |  |  |  |  |  |  |  |
 | `cconv` |  |  |  |  |  |  |  |
@@ -2536,7 +2542,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.transforms.*`. Promotions in core: `fft, ifft, fftshift, ifftshift`. Future wavelet split: `cwt/dwt/modwt/...` → `wavelet.*` — 6 ✅ + 0 ⚠️ / 32 = 18%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bitrevorder` |  |  |  |  |  |  |  |
 | `cceps` |  |  |  |  |  |  |  |
@@ -2588,7 +2594,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.windows.*` — 6 ✅ + 0 ⚠️ / 24 = 25%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `barthannwin` |  |  |  |  |  |  |  |
 | `bartlett` |  |  |  |  |  |  |  |
@@ -2619,7 +2625,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.spectral_analysis.*`. Magnitude utils (`db/db2mag/mag2db/pow2db`) → core (cross-cutting math) — 3 ✅ + 0 ⚠️ / 10 = 30%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `db` |  |  |  |  |  |  |  |
 | `db2mag` |  |  |  |  |  |  |  |
@@ -2636,7 +2642,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.spectral_analysis.*` — 6 ✅ + 0 ⚠️ / 17 = 35%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `cpsd` |  |  |  |  |  |  |  |
 | `db` |  |  |  |  |  |  |  |
@@ -2660,7 +2666,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.spectral_analysis.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bandpower` |  |  |  |  |  |  |  |
 | `enbw` |  |  |  |  |  |  |  |
@@ -2685,7 +2691,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.time_frequency.*`. Wavelet/EMD subset (`cwt/wsst/vmd/hht/emd/fsst/ifsst`) → `wavelet.*` (future) — 1 ✅ + 0 ⚠️ / 27 = 3%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `dlistft` |  |  |  |  |  |  | not implemented |
 | `dlstft` |  |  |  |  |  |  | not implemented |
@@ -2719,7 +2725,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.measurements.*` — 0 ✅ + 0 ⚠️ / 12 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `dutycycle` |  |  |  |  |  |  |  |
 | `falltime` |  |  |  |  |  |  |  |
@@ -2738,7 +2744,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.measurements.*` — 2 ✅ + 0 ⚠️ / 30 = 6%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `alignsignals` |  |  |  |  |  |  |  |
 | `binmask2sigroi` |  |  |  |  |  |  | not implemented |
@@ -2775,7 +2781,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.smoothing.*` + `signal.digital_filtering.*` (medfilt1, sgolayfilt). `smoothdata` itself → `stats.moving.*` — 3 ✅ + 0 ⚠️ / 4 = 75%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `hampel` |  |  |  |  |  |  |  |
 | `medfilt1` |  |  |  |  |  |  |  |
@@ -2786,7 +2792,7 @@ intentionally omitted — flat solver functions only.
 
 **Namespace:** `signal.vibration.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `envspectrum` |  |  |  |  |  |  |  |
 | `modalfit` |  |  |  |  |  |  | not implemented |
@@ -2818,7 +2824,7 @@ locations until physical migration lands.
 **Namespace:** `audio.spectral.*` (planned). Currently registered under
 `signal.spectral_analysis.*`. — 5 ✅ + 0 ⚠️ / 11 = 45%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `spectralCentroid` |  |  |  |  |  |  |  |
 | `spectralCrest` |  |  |  |  |  |  |  |
@@ -2836,7 +2842,7 @@ locations until physical migration lands.
 
 **Namespace:** `audio.features.*` (planned) — 0 ✅ + 0 ⚠️ / 7 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `audioDelta` |  |  |  |  |  |  |  |
 | `cepstralCoefficients` |  |  |  |  |  |  |  |
@@ -2850,7 +2856,7 @@ locations until physical migration lands.
 
 **Namespace:** `audio.spectrogram.*` (planned) — 0 ✅ + 0 ⚠️ / 1 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `melSpectrogram` |  |  |  |  |  |  |  |
 
@@ -2858,7 +2864,7 @@ locations until physical migration lands.
 
 **Namespace:** `audio.scale.*` (planned) — 0 ✅ + 0 ⚠️ / 8 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bark2hz` |  |  |  |  |  |  |  |
 | `erb2hz` |  |  |  |  |  |  |  |
@@ -2875,7 +2881,7 @@ locations until physical migration lands.
 
 **Namespace:** `stats.descriptive.*` / `stats.moving.*` / `stats.nan.*`. Exception: `xcorr/xcov/rms/rssq/peak2peak/peak2rms` → `signal.*` (signal-side stats) — 14 ✅ + 0 ⚠️ / 33 = 42%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bounds` |  |  |  |  |  |  |  |
 | `corrcoef` |  |  |  |  |  |  |  |
@@ -2915,7 +2921,7 @@ locations until physical migration lands.
 
 **Namespace:** `stats.descriptive.*` — additions on top of the existing section above. 0 ✅ + 0 ⚠️ / 23 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `cholcov` |  |  |  |  |  |  |  |
 | `corr` |  |  |  |  |  |  | partial |
@@ -2947,7 +2953,7 @@ locations until physical migration lands.
 
 Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `numkit::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `normpdf` |  |  |  |  |  |  |  |
 | `normcdf` |  |  |  |  |  |  |  |
@@ -3082,7 +3088,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 OOP `fitdist` / `makedist` family intentionally omitted — only flat
 function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `mle` |  |  |  |  |  |  | partial |
 | `mlecov` |  |  |  |  |  |  | not implemented |
@@ -3114,7 +3120,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 **Namespace:** `stats.mvdist.*` — 3 ✅ + 0 ⚠️ / 14 = 21%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `mvncdf` |  |  |  |  |  |  |  |
 | `mvnpdf` |  |  |  |  |  |  |  |
@@ -3137,7 +3143,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 **Namespace:** `stats.pearson.*` / `stats.johnson.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `pearspdf` |  |  |  |  |  |  | not implemented |
 | `pearscdf` |  |  |  |  |  |  | not implemented |
@@ -3150,7 +3156,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 **Namespace:** `stats.empirical.*` — 3 ✅ + 0 ⚠️ / 4 = 75%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `ecdf` |  |  |  |  |  |  |  |
 | `ecdfhist` |  |  |  |  |  |  |  |
@@ -3161,7 +3167,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 **Namespace:** `stats.test.*` — 16 ✅ + 0 ⚠️ / 25 = 64%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `adtest` |  |  |  |  |  |  |  |
 | `ansaribradley` |  |  |  |  |  |  |  |
@@ -3195,7 +3201,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 **Namespace:** `stats.resample.*` — 3 ✅ + 0 ⚠️ / 7 = 38%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `bootci` |  |  |  |  |  |  | partial |
 | `bootstrp` |  |  |  |  |  |  | partial |
@@ -3210,7 +3216,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 **Namespace:** `stats.qmc.*` — 1 ✅ + 0 ⚠️ / 8 = 13%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `haltonset` |  |  |  |  |  |  |  |
 | `lhsdesign` |  |  |  |  |  |  |  |
@@ -3227,7 +3233,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; only the legacy function-form entry points (anova1/anova2/anovan) which return F-statistic and p-value tables.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `anova1` |  |  |  |  |  |  |  |
 | `anova2` |  |  |  |  |  |  | partial |
@@ -3245,7 +3251,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 
 OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. Only the legacy command-form entry points that return numerics (coeffs, residuals, CIs).
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `regress` |  |  |  |  |  |  |  |
 | `robustfit` |  |  |  |  |  |  |  |
@@ -3265,7 +3271,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 **Namespace:** `stats.nlfit.*` — 0 ✅ + 0 ⚠️ / 5 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `nlinfit` |  |  |  |  |  |  |  |
 | `nlparci` |  |  |  |  |  |  |  |
@@ -3277,7 +3283,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 **Namespace:** `stats.cluster.*` — 4 ✅ + 0 ⚠️ / 4 = 100%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `pdist` |  |  |  |  |  |  |  |
 | `pdist2` |  |  |  |  |  |  |  |
@@ -3288,7 +3294,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 **Namespace:** `stats.cluster.*` — 5 ✅ + 0 ⚠️ / 7 = 71%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `linkage` |  |  |  |  |  |  |  |
 | `cluster` |  |  |  |  |  |  |  |
@@ -3302,7 +3308,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 **Namespace:** `stats.cluster.*` — 3 ✅ + 0 ⚠️ / 4 = 75%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `kmeans` |  |  |  |  |  |  |  |
 | `kmedoids` |  |  |  |  |  |  |  |
@@ -3313,7 +3319,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 **Namespace:** `stats.cluster_eval.*` — 0 ✅ + 0 ⚠️ / 3 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `silhouette` |  |  |  |  |  |  |  |
 | `evalclusters` |  |  |  |  |  |  | not implemented |
@@ -3325,7 +3331,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitted; flat function form only.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `knnsearch` |  |  |  |  |  |  |  |
 | `rangesearch` |  |  |  |  |  |  |  |
@@ -3335,7 +3341,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `stats.hmm.*` — 0 ✅ + 0 ⚠️ / 5 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `hmmdecode` |  |  |  |  |  |  | not implemented |
 | `hmmestimate` |  |  |  |  |  |  | not implemented |
@@ -3347,7 +3353,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `stats.dim.*` — 3 ✅ + 0 ⚠️ / 8 = 38%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `pca` |  |  |  |  |  |  |  |
 | `pcacov` |  |  |  |  |  |  |  |
@@ -3362,7 +3368,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `stats.fselect.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `fscchi2` |  |  |  |  |  |  | not implemented |
 | `fscmrmr` |  |  |  |  |  |  | not implemented |
@@ -3378,7 +3384,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `stats.lda.*` — 1 ✅ + 0 ⚠️ / 1 = **100%**
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `classify` |  |  |  |  |  |  |  |
 
@@ -3391,7 +3397,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 `cwtfilterbank` (class) and the deep-learning layer family
 (`cwtLayer`/`icwtLayer`/`dlcwt`/etc.) intentionally omitted.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `cwt` |  |  |  |  |  |  | not implemented |
 | `icwt` |  |  |  |  |  |  | not implemented |
@@ -3414,7 +3420,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `wavelet.dwt.*` — 14 ✅ + 0 ⚠️ / 18 = 78%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `dwt` |  |  |  |  |  |  |  |
 | `idwt` |  |  |  |  |  |  |  |
@@ -3439,7 +3445,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `wavelet.dwt2.*` — 2 ✅ + 0 ⚠️ / 15 = 13%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `dwt2` |  |  |  |  |  |  |  |
 | `idwt2` |  |  |  |  |  |  |  |
@@ -3461,7 +3467,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `wavelet.swt_modwt.*` — 4 ✅ + 0 ⚠️ / 17 = 24%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `swt` |  |  |  |  |  |  |  |
 | `iswt` |  |  |  |  |  |  |  |
@@ -3485,7 +3491,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `wavelet.denoise.*` — 3 ✅ + 0 ⚠️ / 16 = 19%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `wdenoise` |  |  |  |  |  |  |  |
 | `wdenoise2` |  |  |  |  |  |  | not implemented |
@@ -3508,7 +3514,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `wavelet.filt.*` — 7 ✅ + 0 ⚠️ / 22 = 32%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `wfilters` |  |  |  |  |  |  |  |
 | `orthfilt` |  |  |  |  |  |  |  |
@@ -3537,7 +3543,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 **Namespace:** `wavelet.shape.*` — 8 ✅ + 0 ⚠️ / 11 = 73%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `meyer` |  |  |  |  |  |  | not implemented |
 | `meyeraux` |  |  |  |  |  |  |  |
@@ -3558,7 +3564,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 `liftingScheme` and `liftingStep` are MATLAB classes; we treat lifting
 as a pair of flat decomposition / reconstruction functions.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `lwt` |  |  |  |  |  |  | not implemented |
 | `ilwt` |  |  |  |  |  |  | not implemented |
@@ -3571,7 +3577,7 @@ as a pair of flat decomposition / reconstruction functions.
 
 **Namespace:** `wavelet.misc.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `dualtree` |  |  |  |  |  |  | not implemented |
 | `idualtree` |  |  |  |  |  |  | not implemented |
@@ -3591,7 +3597,7 @@ as a pair of flat decomposition / reconstruction functions.
 
 Functions benched by the harness that don't appear in any of the MATLAB-doc sections above. Move them into a real section if they correspond to a documented MATLAB function.
 
-| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
+| function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `impyramid_expand` |  |  |  |  |  |  |  |
 | `axes2pix` |  |  |  |  |  |  |  |
@@ -3815,5 +3821,5 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `weeknum` |  |  |  |  |  |  |  |
 | `addtodate` |  |  |  |  |  |  |  |
 | `partialcorr_rows` |  |  |  |  |  |  |  |
-| `abs` | 0.000434 | 17.78× |  | 0.2045 | 1.38× |  |  |
+| `abs` | 0.000128 | 44.06× |  | 0.2497 | 0.42× |  |  |
 | `sign` | 0.004368 | 0.92× |  | 5.979 | 0.02× |  |  |

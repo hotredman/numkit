@@ -3,7 +3,7 @@
   "namespace": "image",
   "setup": "I = magic(5);",
   "expr": "B = imboxfilt(I); B5 = imboxfilt(I, 5);",
-  "iters": 5,
+  "iters": 8,
   "tol": 1e-09,
   "fingerprint": [
     "size(B,1)",
@@ -14,5 +14,12 @@
     "B5(3,3)",
     "B5(1,1)"
   ],
-  "comment": "MATLAB imboxfilt — local mean (replicate boundary, integral-image). Pins filtered values on magic(5) for default 3x3 and a 5x5 box. Bit-equal MATLAB R2025b (tol=1e-9)."
+  "comment": "MATLAB imboxfilt — local mean (replicate boundary, integral-image). Pins filtered values on magic(5) for default 3x3 and a 5x5 box. Bit-equal MATLAB R2025b (tol=1e-9).",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = imboxfilt(A, 3);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }
