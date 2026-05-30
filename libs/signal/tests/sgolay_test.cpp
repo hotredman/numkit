@@ -30,6 +30,29 @@ TEST_F(SgolayTest, SgolayShape)
     EXPECT_DOUBLE_EQ(evalScalar("size(B, 2);"), 5.0);
 }
 
+// [B,G] = sgolay(order,framelen): the 2nd output G is the framelen×(order+1)
+// differentiation-filter matrix G = V*(V'V)^-1. Previously unimplemented
+// ([b,g]=sgolay(...) errored 'Undefined variable g'). vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_F(SgolayTest, SgolayDiffMatrix)
+{
+    eval("[B, G] = sgolay(3, 5);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(G, 1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(G, 2);"), 4.0);   // order+1
+    // G(:,1) = smoothing filter [-3 12 17 12 -3]/35 (= central row of B).
+    EXPECT_NEAR(evalScalar("G(1,1);"), -3.0 / 35.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(3,1);"), 17.0 / 35.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(3,1) - B(3,3);"), 0.0, 1e-12);  // G(:,1)==B center
+    // G(:,2) = first-derivative filter [1 -8 0 8 -1]/12.
+    EXPECT_NEAR(evalScalar("G(1,2);"),  1.0 / 12.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(2,2);"), -8.0 / 12.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(3,2);"),  0.0,        1e-12);
+    EXPECT_NEAR(evalScalar("G(4,2);"),  8.0 / 12.0, 1e-12);
+    // G(:,3) = [2 -1 -2 -1 2]/14.
+    EXPECT_NEAR(evalScalar("G(1,3);"),  2.0 / 14.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(3,3);"), -2.0 / 14.0, 1e-12);
+}
+
 TEST_F(SgolayTest, SgolayCenterRowSums)
 {
     // For any order, the central-row coefficients sum to 1 (preserves
