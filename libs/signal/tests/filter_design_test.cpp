@@ -253,3 +253,22 @@ TEST_F(FilterDesignTest, GrpdelayShape)
     EXPECT_DOUBLE_EQ(evalScalar("numel(gd)"), 64.0);
     EXPECT_DOUBLE_EQ(evalScalar("numel(W)"),  64.0);
 }
+
+// DEEP-PROBE 2026-05-31: phasez/grpdelay(b,a,n,fs) sample-rate form — the
+// frequency vector is in Hz over [0, fs/2) (= w*fs/(2*pi)); the phase /
+// group-delay values are unchanged. numkit ignored fs and returned radians.
+TEST_F(FilterDesignTest, PhasezGrpdelaySampleRate)
+{
+    eval("[ph, f] = phasez([1 1], [1 -0.5], 4, 100);");
+    EXPECT_DOUBLE_EQ(evalScalar("f(1)"), 0.0);
+    EXPECT_NEAR(evalScalar("f(2)"), 12.5, 1e-12);
+    EXPECT_NEAR(evalScalar("f(4)"), 37.5, 1e-12);
+    EXPECT_NEAR(evalScalar("ph(2)"), -0.89317311847, 1e-9);   // phase unchanged
+    eval("[gd, fg] = grpdelay([1 1], [1 -0.5], 4, 100);");
+    EXPECT_NEAR(evalScalar("fg(2)"), 12.5, 1e-12);
+    EXPECT_NEAR(evalScalar("fg(4)"), 37.5, 1e-12);
+    EXPECT_NEAR(evalScalar("gd(2)"), 0.690743569830546, 1e-9);  // gd unchanged
+    // no fs → frequency stays in radians.
+    eval("[~, w] = grpdelay([1 1], [1 -0.5], 4);");
+    EXPECT_NEAR(evalScalar("w(2)"), 0.7853981633974483, 1e-12);  // pi/4
+}

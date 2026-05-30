@@ -86,9 +86,9 @@ void unwrapInPlace(double *p, size_t n)
 } // namespace
 
 std::tuple<Value, Value>
-phasez(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr)
+phasez(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr, double fs)
 {
-    auto [H, W] = freqz(b, a, npts, mr);
+    auto [H, W] = freqz(b, a, npts, mr, /*whole=*/false, fs);
     auto phi = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
     const Complex *hd = H.complexData();
     double *pd = phi.doubleDataMut();
@@ -109,7 +109,7 @@ phasez(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *m
 }
 
 std::tuple<Value, Value>
-grpdelay(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr)
+grpdelay(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr, double fs)
 {
     // EXACT group delay (MATLAB's method), NOT a finite-difference of the
     // phase. For H(z) = B(z)/A(z), form the combined polynomial
@@ -138,9 +138,13 @@ grpdelay(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource 
     double *wp = W.doubleDataMut();
     double *g  = gd.doubleDataMut();
     const double offset = static_cast<double>(na) - 1.0;
+    // fs > 0 (grpdelay(b,a,n,fs)): return the frequency vector in Hz over
+    // [0, fs/2). The group delay (in samples) is evaluated from the same
+    // normalised w and is unchanged.
+    const double hzSpan = 0.5 * fs;
     for (size_t k = 0; k < npts; ++k) {
         const double w = M_PI * static_cast<double>(k) / static_cast<double>(npts);
-        wp[k] = w;
+        wp[k] = (fs > 0.0) ? (hzSpan * static_cast<double>(k) / static_cast<double>(npts)) : w;
         const Complex ejw(std::cos(w), -std::sin(w));
         Complex C(0, 0), CR(0, 0), ejwk(1, 0);
         for (size_t n = 0; n < nc; ++n) {
@@ -192,8 +196,17 @@ void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     if (args.size() < 2)
         throw Error("phasez: requires at least 2 arguments",
                      0, 0, "phasez", "", "numkit:phasez:nargin");
-    const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [phi, W] = phasez(args[0], args[1], npts, ctx.engine->resource());
+    // n (1st numeric after b,a) and optional fs (2nd) — phasez(b,a,n,fs).
+    size_t npts = 512;
+    double fs = 0.0;
+    int numericSeen = 0;
+    for (size_t i = 2; i < args.size(); ++i) {
+        if (args[i].isChar() || args[i].isString() || args[i].isEmpty()) continue;
+        if (numericSeen == 0)      npts = static_cast<size_t>(args[i].toScalar());
+        else if (numericSeen == 1) fs   = args[i].toScalar();
+        ++numericSeen;
+    }
+    auto [phi, W] = phasez(args[0], args[1], npts, ctx.engine->resource(), fs);
     outs[0] = std::move(phi);
     if (nargout > 1) outs[1] = std::move(W);
 }
@@ -203,8 +216,17 @@ void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("grpdelay: requires at least 2 arguments",
                      0, 0, "grpdelay", "", "numkit:grpdelay:nargin");
-    const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [gd, W] = grpdelay(args[0], args[1], npts, ctx.engine->resource());
+    // n (1st numeric after b,a) and optional fs (2nd) — grpdelay(b,a,n,fs).
+    size_t npts = 512;
+    double fs = 0.0;
+    int numericSeen = 0;
+    for (size_t i = 2; i < args.size(); ++i) {
+        if (args[i].isChar() || args[i].isString() || args[i].isEmpty()) continue;
+        if (numericSeen == 0)      npts = static_cast<size_t>(args[i].toScalar());
+        else if (numericSeen == 1) fs   = args[i].toScalar();
+        ++numericSeen;
+    }
+    auto [gd, W] = grpdelay(args[0], args[1], npts, ctx.engine->resource(), fs);
     outs[0] = std::move(gd);
     if (nargout > 1) outs[1] = std::move(W);
 }
