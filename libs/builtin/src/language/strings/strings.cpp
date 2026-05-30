@@ -648,30 +648,59 @@ Value append(Span<const Value> parts, std::pmr::memory_resource *mr)
     return Value::fromString(out, mr);
 }
 
+namespace {
+
+// Collect the pattern strings from `pat`: a char/string scalar yields one
+// pattern; a cell array of char vectors or a multi-element string array yields
+// one per element (both store their elements as Values in cellDataVec()).
+// Shared by contains/startsWith/endsWith (match-any) and count/erase
+// (apply each listed pattern).
+void collectMatchPatterns(const Value &pat, ScratchVec<std::string> &out)
+{
+    if (pat.isCell() || (pat.isString() && pat.numel() != 1)) {
+        const auto &vec = pat.cellDataVec();
+        for (const auto &e : vec) out.push_back(e.toString());
+    } else {
+        out.push_back(pat.toString());
+    }
+}
+
+} // namespace
+
 Value count(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
+    // pat may be a single pattern or a cell/string array of patterns; MATLAB
+    // sums the non-overlapping occurrence counts across all listed patterns.
     const std::string ss = s.toString();
-    const std::string pp = pat.toString();
-    if (pp.empty()) return Value::scalar(0.0, mr);
-    size_t n = 0, pos = 0;
-    while ((pos = ss.find(pp, pos)) != std::string::npos) {
-        ++n;
-        pos += pp.size();   // non-overlapping (matches MATLAB)
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(pat, pats);
+    size_t n = 0;
+    for (const auto &pp : pats) {
+        if (pp.empty()) continue;
+        size_t pos = 0;
+        while ((pos = ss.find(pp, pos)) != std::string::npos) {
+            ++n;
+            pos += pp.size();   // non-overlapping (matches MATLAB)
+        }
     }
     return Value::scalar(static_cast<double>(n), mr);
 }
 
 Value erase(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
+    // pat may be a single pattern or a cell/string array; MATLAB removes every
+    // occurrence of each listed pattern, applied in order.
     std::string r = s.toString();
-    const std::string pp = pat.toString();
-    if (pp.empty()) {
-        if (s.isString()) return Value::stringScalar(r, mr);
-        return Value::fromString(r, mr);
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(pat, pats);
+    for (const auto &pp : pats) {
+        if (pp.empty()) continue;
+        size_t pos = 0;
+        while ((pos = r.find(pp, pos)) != std::string::npos)
+            r.erase(pos, pp.size());
     }
-    size_t pos = 0;
-    while ((pos = r.find(pp, pos)) != std::string::npos)
-        r.erase(pos, pp.size());
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
@@ -1436,25 +1465,6 @@ Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr:
         return Value::stringScalar(r, p);
     return Value::fromString(r, p);
 }
-
-namespace {
-
-// Collect the pattern strings from `pat`: a char/string scalar yields one
-// pattern; a cell array of char vectors or a multi-element string array yields
-// one per element (both store their elements as Values in cellDataVec()).
-// MATLAB's contains/startsWith/endsWith match if the string matches ANY of
-// the listed patterns.
-void collectMatchPatterns(const Value &pat, ScratchVec<std::string> &out)
-{
-    if (pat.isCell() || (pat.isString() && pat.numel() != 1)) {
-        const auto &vec = pat.cellDataVec();
-        for (const auto &e : vec) out.push_back(e.toString());
-    } else {
-        out.push_back(pat.toString());
-    }
-}
-
-} // namespace
 
 Value contains(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {

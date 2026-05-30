@@ -1217,6 +1217,24 @@ TEST_P(BuiltinTest, AppendCountErase)
     EXPECT_EQ(getVarPtr("e2")->toString(), "");
 }
 
+// count/erase accept a cell array (or string array) of patterns: count sums
+// the per-pattern non-overlapping occurrences; erase removes every occurrence
+// of each listed pattern. vs MATLAB R2025b. 2026-05-30: previously these threw
+// "Not a char array" on a cell pattern argument.
+TEST_P(BuiltinTest, CountEraseCellPatterns)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("count('abcabc', {'a','c'});"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("count('abcABC', {'a','b','c'});"), 3.0); // case-sensitive
+    eval("e = erase('a-b_c', {'-','_'});");
+    EXPECT_EQ(getVarPtr("e")->toString(), "abc");
+    eval("e2 = erase('hello world', {'ll','rl'});");  // applied in order
+    EXPECT_EQ(getVarPtr("e2")->toString(), "heo wod");
+    eval("e3 = erase('abcd', [\"b\" \"c\"]);");        // string-array list
+    EXPECT_EQ(getVarPtr("e3")->toString(), "ad");
+    // scalar pattern unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("count('aaaa', 'aa');"), 2.0);
+}
+
 TEST_P(BuiltinTest, ReverseReplaceMatches)
 {
     eval("r = reverse('hello');");
