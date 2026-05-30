@@ -438,7 +438,11 @@ double winMedianInPlace(double *w, size_t n)
 double winVar(const double *w, size_t n, int normFlag)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    if (n == 1) return (normFlag == 1) ? 0.0 : std::numeric_limits<double>::quiet_NaN();
+    // MATLAB defines std/var of a single value as 0 regardless of the
+    // normalization (the degenerate 0/0 from N-1 is taken as 0). This is
+    // hit at edge windows of length 1 and, under 'omitnan', at interior
+    // windows that reduce to a single valid element.
+    if (n == 1) return 0.0;
     double s = 0.0;
     for (size_t i = 0; i < n; ++i) s += w[i];
     const double mean = s / static_cast<double>(n);
