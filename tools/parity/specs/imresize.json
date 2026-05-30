@@ -3,11 +3,18 @@
   "namespace": "image",
   "setup": "",
   "expr": "B = imresize([1 2; 3 4], 2); r1 = double(size(B,1)); r2 = double(size(B,2));",
-  "iters": 5,
+  "iters": 8,
   "tol": 1e-06,
   "fingerprint": [
     "r1",
     "r2"
   ],
-  "comment": "Sig: r = imresize(...). Spec-extension batch 2026-05-09 (image namespace)."
+  "comment": "Sig: r = imresize(...). Spec-extension batch 2026-05-09 (image namespace).",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = imresize(A, 0.5);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }

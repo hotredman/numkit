@@ -97,6 +97,14 @@ class Spec:
     # defined by `bench_setup`. Correctness is unaffected.
     bench_setup: str = ""
     bench_expr: str = ""
+    # The two values substituted for `N` in bench_setup — [small, large].
+    # Default is element counts (1e3 / 1e6) for vector fns. Image/matrix
+    # specs override with side lengths, e.g. [100, 1000] for 100x100 /
+    # 1000x1000, and build an N×N input in bench_setup. `bench_note` is
+    # free text written into BENCHMARK.md's notes column (e.g. the actual
+    # input shape) so the size used is unambiguous per row.
+    bench_sizes: list = field(default_factory=lambda: [1000, 1000000])
+    bench_note: str = ""
 
     @classmethod
     def from_json(cls, path: Path) -> "Spec":
@@ -257,12 +265,13 @@ def build_spec_func(spec: Spec, *, engine: str) -> str:
 
     iters_small = max(spec.iters, 50)   # tiny array → many iters for a stable mean
     iters_large = max(spec.iters, 5)
+    sizes = (list(spec.bench_sizes) + [BENCH_SMALL, BENCH_LARGE])[:2]
     return (
         f"function {_spec_fn(spec.name)}()\n"
         f"{reimport}"
         f"{correctness}"
-        f"{timed(BENCH_SMALL, iters_small, 'TIMING_SMALL')}"
-        f"{timed(BENCH_LARGE, iters_large, 'TIMING_LARGE')}"
+        f"{timed(sizes[0], iters_small, 'TIMING_SMALL')}"
+        f"{timed(sizes[1], iters_large, 'TIMING_LARGE')}"
         f"end\n"
     )
 
@@ -612,10 +621,13 @@ def update_progress_row(*, name: str, nk: Result | None,
 
 
 def update_benchmark_row(*, name: str, nk: Result | None,
-                         ml: Result | None, oc: Result | None) -> int:
+                         ml: Result | None, oc: Result | None,
+                         note: str = "") -> int:
     """Update perf rows in BENCHMARK.md for `name`. Only writes when
     numkit produced two-size timings (a `bench_setup` spec); otherwise
-    leaves the existing row untouched so it stays 'not yet benched'."""
+    leaves the existing row untouched so it stays 'not yet benched'.
+    `note` (the spec's bench_note) goes into the notes column — used to
+    record a non-default input shape, e.g. an image's 100x100 / 1000x1000."""
     if not BENCHMARK_MD.exists():
         return 0
     if not (nk and nk.ok and nk.ms_small is not None and nk.ms_large is not None):
@@ -629,7 +641,7 @@ def update_benchmark_row(*, name: str, nk: Result | None,
         name=name,
         nk_s=fmt_ms(nk_s), ml_s=fmt_ratio(ml_s, nk_s), oc_s=fmt_ratio(oc_s, nk_s),
         nk_l=fmt_ms(nk_l), ml_l=fmt_ratio(ml_l, nk_l), oc_l=fmt_ratio(oc_l, nk_l),
-        notes="",
+        notes=note,
     )
     text = BENCHMARK_MD.read_text(encoding="utf-8")
     rx = make_row_finder(name)
@@ -645,8 +657,8 @@ def update_benchmark_row(*, name: str, nk: Result | None,
         misc = "## Misc / not in TODO"
         if misc not in new_text:
             new_text = new_text.rstrip() + "\n\n" + misc + "\n\n"
-            new_text += ("| function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 "
-                         "| nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |\n")
+            new_text += ("| function | nk small (ms) | ML× s | OC× s "
+                         "| nk large (ms) | ML× l | OC× l | notes |\n")
             new_text += "|---|---:|---:|---:|---:|---:|---:|---|\n"
         new_text = new_text.rstrip() + "\n" + row + "\n"
         touched = 1
@@ -721,7 +733,8 @@ def run_chunk(specs: list[Spec], *, no_matlab: bool, no_octave: bool,
                     name=nm, nk=nk, ml=ml, oc=oc,
                     correctness=correctness, comment=spec.comment,
                     implemented=nk.ok)
-                update_benchmark_row(name=nm, nk=nk, ml=ml, oc=oc)
+                update_benchmark_row(name=nm, nk=nk, ml=ml, oc=oc,
+                                     note=spec.bench_note)
         flag = "" if (status == "DONE"
                       and correctness in ("OK", "N/A")) else "  <<"
         print(f"  {spec.name:<34} {status:<5} {correctness:<9} "

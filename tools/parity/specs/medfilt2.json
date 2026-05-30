@@ -3,7 +3,7 @@
   "namespace": "image",
   "setup": "I = magic(5); I(2,3) = 99; I(4,4) = -7;",
   "expr": "B = medfilt2(I);",
-  "iters": 5,
+  "iters": 8,
   "tol": 1e-09,
   "fingerprint": [
     "size(B,1)",
@@ -15,5 +15,12 @@
     "B(5,5)",
     "sum(B(:))"
   ],
-  "comment": "MATLAB medfilt2 — 3x3 median filter (zero boundary). magic(5) with two spike pixels so the median actually rejects outliers; pins values at the spikes and corners. Bit-equal MATLAB R2025b (tol=1e-9)."
+  "comment": "MATLAB medfilt2 — 3x3 median filter (zero boundary). magic(5) with two spike pixels so the median actually rejects outliers; pins values at the spikes and corners. Bit-equal MATLAB R2025b (tol=1e-9).",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = medfilt2(A);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }
