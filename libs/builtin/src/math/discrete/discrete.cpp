@@ -1359,6 +1359,24 @@ Value uniquetol(const Value &x, double tol, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════════
 namespace detail {
 
+// Reshape a 1-D result to the requested orientation (column or row),
+// preserving element order and type. MATLAB's unique returns ia/ic always as
+// column vectors and the unique values matching the input orientation.
+static Value orientUniqueVec(const Value &v, bool column,
+                             std::pmr::memory_resource *mr)
+{
+    const size_t k = v.numel();
+    if (k == 0) return v; // leave empties untouched
+    const bool isCol = (v.dims().cols() == 1 && v.dims().rows() == k);
+    if (column == isCol) return v; // already in the desired orientation
+    Value out = Value::matrix(column ? k : 1, column ? 1 : k, v.type(), mr);
+    if (v.type() == ValueType::COMPLEX)
+        std::copy(v.complexData(), v.complexData() + k, out.complexDataMut());
+    else
+        std::copy(v.doubleData(), v.doubleData() + k, out.doubleDataMut());
+    return out;
+}
+
 void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 CallContext &ctx)
 {
@@ -1366,6 +1384,11 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         throw Error("unique: requires 1 argument",
                      0, 0, "unique", "", "numkit:unique:nargin");
     auto *mr = ctx.engine->resource();
+
+    // Unique values are a row vector only when the input is a row vector;
+    // a column vector or matrix input produces a column.
+    const bool cIsRow =
+        !args[0].dims().is3D() && args[0].dims().rows() == 1;
 
     bool useRows = false;
     bool stable  = false;
@@ -1389,23 +1412,24 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
     if (useRows) {
-        // 'rows' + 'stable' not yet combined; rows path stays sorted.
+        // 'rows' + 'stable' not yet combined; rows path stays sorted. C is a
+        // matrix of unique rows; ia/ic are column vectors.
         if (nargout <= 1) { outs[0] = uniqueRows(args[0], mr); return; }
         auto [c, ia, ic] = uniqueRowsWithIndices(args[0], mr);
         outs[0] = std::move(c);
-        if (nargout > 1) outs[1] = std::move(ia);
-        if (nargout > 2) outs[2] = std::move(ic);
+        if (nargout > 1) outs[1] = orientUniqueVec(ia, /*column=*/true, mr);
+        if (nargout > 2) outs[2] = orientUniqueVec(ic, /*column=*/true, mr);
         return;
     }
 
     if (nargout <= 1) {
-        outs[0] = unique(args[0], mr, stable);
+        outs[0] = orientUniqueVec(unique(args[0], mr, stable), !cIsRow, mr);
         return;
     }
     auto [c, ia, ic] = uniqueWithIndices(args[0], mr, stable);
-    outs[0] = std::move(c);
-    if (nargout > 1) outs[1] = std::move(ia);
-    if (nargout > 2) outs[2] = std::move(ic);
+    outs[0] = orientUniqueVec(c, !cIsRow, mr);
+    if (nargout > 1) outs[1] = orientUniqueVec(ia, /*column=*/true, mr);
+    if (nargout > 2) outs[2] = orientUniqueVec(ic, /*column=*/true, mr);
 }
 
 #define NK_BIN_SETOP_REG(name, fn)                                             \
