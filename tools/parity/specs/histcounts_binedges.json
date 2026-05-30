@@ -1,0 +1,15 @@
+{
+  "name": "histcounts_binedges",
+  "namespace": "builtin",
+  "setup": "x = [1 2 3 4 5];",
+  "expr": "[n, e] = histcounts(x, 'BinEdges', [0 2 4 6]); n1 = n(1); n2 = n(2); n3 = n(3); e1 = e(1); e4 = e(4); ne = numel(e); [m, f] = histcounts(x, [0 2 4 6]); m1 = m(1); m3 = m(3); f3 = f(3); p = histcounts(x, 'BinEdges', [0 2 4 6], 'Normalization', 'probability'); p1 = p(1); p2 = p(2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "n1", "n2", "n3",
+    "e1", "e4", "ne",
+    "m1", "m3", "f3",
+    "p1", "p2"
+  ],
+  "comment": "histcounts 'BinEdges' name-value + [n,edges] second output vs MATLAB R2025b. histcounts(x,'BinEdges',E) == histcounts(x,E): n=[1 2 2]. [n,e]=histcounts(...) returns the edges as a row vector (e=[0 2 4 6], ne=4). 'BinEdges' composes with 'Normalization' (probability -> [0.2 0.4 0.4]). Bug fixed 2026-05-30: 'BinEdges' threw 'Not a double array' (the name-value wasn't parsed), and the second output (edges) was missing. Automatic binning (nbins / BinWidth / BinLimits) remains unsupported."
+}
