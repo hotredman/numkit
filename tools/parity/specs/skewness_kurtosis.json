@@ -2,14 +2,15 @@
   "name": "skewness_kurtosis",
   "covers": ["skewness", "kurtosis"],
   "namespace": "stats",
-  "setup": "v_sym = [1 2 3 4 5]; v_skew = [1 2 4 8 16]; M = [1 2; 3 4; 5 6; 7 8];",
-  "expr": "s_sym = skewness(v_sym); s_skew = skewness(v_skew); s_unbias = skewness(v_skew, 0); s_bias = skewness(v_skew, 1); k_sym = kurtosis(v_sym); k_skew = kurtosis(v_skew); k_unbias = kurtosis(v_skew, 0); kM = kurtosis(M); sM = skewness(M);",
+  "setup": "v_sym = [1 2 3 4 5]; v_skew = [1 2 4 8 16]; M = [1 2; 3 4; 5 6; 7 8]; Mn = [1 5; 2 NaN; 3 7; 4 100];",
+  "expr": "s_sym = skewness(v_sym); s_skew = skewness(v_skew); s_unbias = skewness(v_skew, 0); s_bias = skewness(v_skew, 1); k_sym = kurtosis(v_sym); k_skew = kurtosis(v_skew); k_unbias = kurtosis(v_skew, 0); kM = kurtosis(M); sM = skewness(M); sn = skewness(Mn); kn = kurtosis(Mn); sn1 = sn(1); sn2 = sn(2); kn1 = kn(1); kn2 = kn(2);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
     "s_sym", "s_skew", "s_unbias", "s_bias",
     "k_sym", "k_skew", "k_unbias",
-    "kM(1)", "kM(2)", "sM(1)", "sM(2)"
+    "kM(1)", "kM(2)", "sM(1)", "sM(2)",
+    "sn1", "sn2", "kn1", "kn2"
   ],
-  "comment": "Sig: skewness(X [, flag [, dim]]) — sample skewness (3rd central moment / std³). kurtosis(X [, flag [, dim]]) — sample kurtosis (4th central moment / variance²). flag = 0 → bias-corrected estimator; flag = 1 (default) → biased moment ratio. Symmetric data → skewness = 0, kurtosis = 1.7 (for [1..5]). Matrix input reduces along first non-singleton dim → row of per-column moments. Bit-exact MATLAB R2025b on the documented signatures."
+  "comment": "Sig: skewness(X [, flag [, dim]]) — sample skewness (3rd central moment / std³). kurtosis(X [, flag [, dim]]) — sample kurtosis (4th central moment / variance²). flag = 0 → bias-corrected estimator; flag = 1 (default) → biased moment ratio. Symmetric data → skewness = 0, kurtosis = 1.7 (for [1..5]). Matrix input reduces along first non-singleton dim → row of per-column moments. Bit-exact MATLAB R2025b on the documented signatures. 2026-05-30: skewness/kurtosis now treat NaN as missing and remove it per column (MATLAB default), previously NaN-poisoned. Mn col2 = [5;7;100] after dropping the NaN: sn2=0.706027 (skewness), kn2=1.5 (kurtosis); col1 has no NaN so sn1/kn1 unchanged."
 }
