@@ -2,12 +2,14 @@
   "name": "tf2zp",
   "namespace": "signal",
   "setup": "",
-  "expr": "[z, p, k] = tf2zp([1 0.5 -0.06], [1 -0.3 0.02]);",
+  "expr": "[z, p, k] = tf2zp([1 0.5 -0.06], [1 -0.3 0.02]); [z2, p2, k2] = tf2zp([0 0 0 0 1], [1 2 3 4 5]); nz2 = double(numel(z2)); [z3, p3, k3] = tf2zp([0 0 3 33 90], [1 6 11 6 1]); nz3 = double(numel(z3));",
   "iters": 3,
   "tol": 1e-09,
   "fingerprint": [
     "double(numel(z))", "double(numel(p))",
-    "min(z)", "max(z)", "min(p)", "max(p)", "k"
+    "min(z)", "max(z)", "min(p)", "max(p)", "k",
+    "k2", "nz2", "k3", "nz3"
   ],
-  "comment": "Sig [z,p,k]=tf2zp(b,a): transfer function -> zero/pole/gain. b=[1 0.5 -0.06] roots {-0.6, 0.1}; a=[1 -0.3 0.02] roots {0.2, 0.1}; k=b(1)/a(1)=1. Pinned with min/max (order-invariant: the root-finder may return z/p in a different order than MATLAB but the SETs must match)."
+  "comment": "Sig [z,p,k]=tf2zp(b,a): transfer function -> zero/pole/gain. b=[1 0.5 -0.06] roots {-0.6, 0.1}; a=[1 -0.3 0.02] roots {0.2, 0.1}; k=b(1)/a(1)=1. DEEP-PROBE 2026-05-31: the ZPK gain must come from the first NONZERO numerator coefficient, matching MATLAB's leading-zero stripping (b=[0 0 0 0 1] is the polynomial '1' -> k2=1 with nz2=0 zeros, NOT k=b(1)=0; b=[0 0 3 33 90] -> k3=3 with nz3=2). Previously numkit returned k=0 for zero-padded numerators, which broke lp2lp/lp2bp via tf2zpk. Order-invariant min/max pinning for the root sets.",
+  "deep_verified": true
 }

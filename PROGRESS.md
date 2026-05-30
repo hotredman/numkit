@@ -2410,10 +2410,10 @@ intentionally omitted — flat solver functions only.
 | `ellipap` | ✅ | Sig: [z,p,k] = ellipap(N, Rp, Rs). Cauer analog prototype via Sophocleous formulas. Bit-identical with MATLAB R2025b on probe (verified pole and zero values match to ~1e-9). |
 | `freqs` | ✅ | Sig: H = freqs(b, a, w). Returns 1xM row vector of complex H(jw). Bit-identical with MATLAB R2025b after row-shape fix 2026-05-09. |
 | `impinvar` | ✅ | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |
-| `lp2bp` | ✅ ❗ | Sig: [bt,at] = lp2bp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `lp2bp` | ✅ 🔬 | Sig: [bt,at] = lp2bp(b,a,Wo,Bw) -- TF form. DEEP-PROBE 2026-05-31: numerator length now matches MATLAB (same tf2zp-gain + dispatch-padding fix as lp2lp). 4th-order Butterworth -> bandpass: numerator bt length 5, denominator at length 9, sum=14 (was 18 when the numerator was wrongly padded to 9). bt(1)=6.25e6 (=Bw^4*... scaled), at(2)=130.656296488, at(9)=1e16 (=Wo^8). namespace=signal. Matches MATLAB R2025b. |
 | `lp2bs` | ✅ | Sig: [bt,at] = lp2bs(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
 | `lp2hp` | ✅ | Sig: [bt,at] = lp2hp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
-| `lp2lp` | ✅ ❗ | Sig: [bt,at] = lp2lp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch. |
+| `lp2lp` | ✅ 🔬 | Sig: [bt,at] = lp2lp(b,a,Wo) -- TF form. DEEP-PROBE 2026-05-31: numerator length now matches MATLAB. The 4th-order Butterworth prototype has NO zeros, so MATLAB returns bt at its true degree (length 1, = Wo^4) NOT zero-padded to the denominator length 5. Root cause was twofold: tf2zp computed the ZPK gain from b(1) (=0 for a zero-padded numerator like [0 0 0 0 1]) instead of the first nonzero coeff, and the lp2* TF dispatch left zp2tf's padding in place. Now: numel(bt)+numel(at)=6 (was 10), bt(1)=1e8, at(2)=261.312592975, at(5)=1e8. namespace=signal. Matches MATLAB R2025b. |
 
 ### Digital Filter Analysis
 
@@ -2481,7 +2481,7 @@ intentionally omitted — flat solver functions only.
 | `tf2latc` | ❌ | lattice |
 | `tf2sos` | ✅ | Sig sos=tf2sos(b,a): transfer function -> SOS. Equal-degree b=[1 1 1],a=[1 0.5 0.25] -> single biquad row [1 1 1 1 0.5 0.25]. Degree-deficient b=[1 0.5] (3 poles) must REPRODUCE the original numerator: sos2tf(tf2sos(...)) = b2=[1 0.5 0 0] (surplus zeros LEFT-aligned at infinity, NOT pushed to origin like zp2sos) with a2=[1 -0.3 0.02 0.001]. |
 | `tf2ss` | ✅ | Sig: r = tf2ss(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `tf2zp` | ✅ | Sig [z,p,k]=tf2zp(b,a): transfer function -> zero/pole/gain. b=[1 0.5 -0.06] roots {-0.6, 0.1}; a=[1 -0.3 0.02] roots {0.2, 0.1}; k=b(1)/a(1)=1. Pinned with min/max (order-invariant: the root-finder may return z/p in a different order than MATLAB but the SETs must match). |
+| `tf2zp` | ✅ 🔬 | Sig [z,p,k]=tf2zp(b,a): transfer function -> zero/pole/gain. b=[1 0.5 -0.06] roots {-0.6, 0.1}; a=[1 -0.3 0.02] roots {0.2, 0.1}; k=b(1)/a(1)=1. DEEP-PROBE 2026-05-31: the ZPK gain must come from the first NONZERO numerator coefficient, matching MATLAB's leading-zero stripping (b=[0 0 0 0 1] is the polynomial '1' -> k2=1 with nz2=0 zeros, NOT k=b(1)=0; b=[0 0 3 33 90] -> k3=3 with nz3=2). Previously numkit returned k=0 for zero-padded numerators, which broke lp2lp/lp2bp via tf2zpk. Order-invariant min/max pinning for the root sets. |
 | `tf2zpk` | ✅ | Sig [z,p,k]=tf2zpk(b,a): transfer function -> zero/pole/gain (b,a normalised by a(1) first). b=[2 0.5 -0.06], a=[1 -0.3 0.02]: zeros {-0.33860, 0.08860}, poles {0.1, 0.2}, gain k=b(1)/a(1)=2. Pinned with min/max (order-invariant: root order may differ between engines). |
 | `zp2ctf` | ❌ |  |
 | `zp2sos` | ✅ | Sig sos=zp2sos(z,p,k): zero/pole/gain -> second-order sections. 2 zeros, 4 poles -> 2 sections. Validated via the canonical sos2tf round-trip (section ORDER may differ between engines, the product TF must not): bb=[0 0 2 -0.4 -0.3], aa(end)=-0.0048, sum(aa)=0.4032. The leading zeros bb(1)=0, bb(3)=2 confirm MATLAB's convention of placing SURPLUS zeros at the ORIGIN (degree-deficient numerator with z^-2 delay); numkit previously left them at infinity (bb=[2 -0.4 -0.3 0 0]) -- fixed (right-align empty biquad sections). tf2sos keeps the opposite (left-aligned) convention. |

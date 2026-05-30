@@ -2,9 +2,10 @@
   "name": "lp2bp",
   "namespace": "signal",
   "setup": "[z, p, k] = buttap(4); [bp, ap] = zp2tf(z, p, k);",
-  "expr": "[bt, at] = lp2bp(bp, ap, 100, 50); r1 = double(numel(bt) + numel(at));",
+  "expr": "[bt, at] = lp2bp(bp, ap, 100, 50); r1 = double(numel(bt) + numel(at)); b1 = bt(1); a2 = at(2); a9 = at(9);",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [bt,at] = lp2bp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch."
+  "fingerprint": ["r1", "b1", "a2", "a9"],
+  "comment": "Sig: [bt,at] = lp2bp(b,a,Wo,Bw) -- TF form. DEEP-PROBE 2026-05-31: numerator length now matches MATLAB (same tf2zp-gain + dispatch-padding fix as lp2lp). 4th-order Butterworth -> bandpass: numerator bt length 5, denominator at length 9, sum=14 (was 18 when the numerator was wrongly padded to 9). bt(1)=6.25e6 (=Bw^4*... scaled), at(2)=130.656296488, at(9)=1e16 (=Wo^8). namespace=signal. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

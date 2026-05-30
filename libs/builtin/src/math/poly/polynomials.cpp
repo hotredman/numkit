@@ -235,8 +235,16 @@ tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2zp: leading denominator coefficient must be non-zero",
                      0, 0, "tf2zp", "", "numkit:tf2zp:badDen");
-    if (bv.empty()) {
-        // Numerator = 0 → no zeros, gain 0.
+    // MATLAB strips leading zeros from the numerator before forming the
+    // ZPK gain: b = [0 0 0 0 1] is the polynomial "1", so the gain is 1,
+    // NOT b(1) = 0. The root finder (polyRootsDurandKerner) already ignores
+    // leading zeros for the zeros, so a naive k = bv[0]/av[0] gave a bogus
+    // gain of 0 whenever b was zero-padded (e.g. zp2tf output fed into
+    // lp2lp/lp2bp via tf2zpk).
+    size_t bnz = 0;
+    while (bnz < bv.size() && bv[bnz] == 0.0) ++bnz;
+    if (bv.empty() || bnz == bv.size()) {
+        // Numerator is empty or all zeros → no zeros, gain 0.
         auto z = Value::matrix(0, 1, ValueType::DOUBLE, mr);
         auto pRoots = detail::polyRootsDurandKerner(&scratch, av.data(), av.size());
         auto p = realColIfFlat(pRoots.data(), pRoots.size(), mr);
@@ -245,7 +253,7 @@ tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     }
     auto zRoots = detail::polyRootsDurandKerner(&scratch, bv.data(), bv.size());
     auto pRoots = detail::polyRootsDurandKerner(&scratch, av.data(), av.size());
-    const double k = bv[0] / av[0];
+    const double k = bv[bnz] / av[0];
 
     return std::make_tuple(realColIfFlat(zRoots.data(), zRoots.size(), mr),
                            realColIfFlat(pRoots.data(), pRoots.size(), mr),
