@@ -17,6 +17,7 @@
 #include <numkit/builtin/language/arrays/manip.hpp>     // flip()
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <complex>
 #include <cstdint>
@@ -3178,18 +3179,91 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     std::pmr::memory_resource *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto cols = ScratchVec<int>(&scratch);
+
+    // 'ascend' (false) / 'descend' (true), case-insensitive.
+    auto dirDescend = [](std::string s) -> bool {
+        for (auto &ch : s)
+            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (s == "ascend") return false;
+        if (s == "descend") return true;
+        throw Error("sortrows: direction must be 'ascend' or 'descend'",
+                     0, 0, "sortrows", "", "numkit:sortrows:badDirection");
+    };
+    // CHAR/STRING scalar → one flag; CELL or multi-element STRING → one per
+    // element (both store their elements as Values in cellDataVec()).
+    auto collectDirs = [&](const Value &v, ScratchVec<uint8_t> &out) {
+        if (v.type() == ValueType::CELL ||
+            (v.type() == ValueType::STRING && v.numel() > 1)) {
+            const auto &vec = v.cellDataVec();
+            for (const auto &e : vec)
+                out.push_back(dirDescend(e.toString()) ? 1u : 0u);
+        } else {
+            out.push_back(dirDescend(v.toString()) ? 1u : 0u);
+        }
+    };
+    auto isDirArg = [](const Value &v) {
+        return v.type() == ValueType::CHAR || v.type() == ValueType::STRING ||
+               v.type() == ValueType::CELL;
+    };
+
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const auto &c = args[1];
-        if (c.type() == ValueType::CHAR || c.type() == ValueType::STRING)
-            throw Error("sortrows: column spec must be numeric",
-                         0, 0, "sortrows", "", "numkit:sortrows:badColType");
-        cols.reserve(c.numel());
-        for (size_t i = 0; i < c.numel(); ++i) {
-            const double v = c.elemAsDouble(i);
-            if (v != std::floor(v))
-                throw Error("sortrows: column index must be an integer",
-                             0, 0, "sortrows", "", "numkit:sortrows:badCol");
-            cols.push_back(static_cast<int>(v));
+        if (isDirArg(c)) {
+            // sortrows(A, direction[s]) — direction(s) applied over ALL
+            // columns. A single direction covers every column; a cell/string
+            // array must supply exactly one direction per column.
+            const size_t C = args[0].dims().cols();
+            ScratchVec<uint8_t> dirs(&scratch);
+            collectDirs(c, dirs);
+            if (dirs.size() == 1) {
+                const bool d = dirs[0] != 0;
+                for (size_t k = 1; k <= C; ++k)
+                    cols.push_back(d ? -static_cast<int>(k) : static_cast<int>(k));
+            } else {
+                if (dirs.size() != C)
+                    throw Error("sortrows: number of directions must match the "
+                                "number of columns",
+                                 0, 0, "sortrows", "", "numkit:sortrows:dirCount");
+                for (size_t k = 0; k < C; ++k)
+                    cols.push_back(dirs[k] ? -static_cast<int>(k + 1)
+                                           : static_cast<int>(k + 1));
+            }
+        } else {
+            cols.reserve(c.numel());
+            for (size_t i = 0; i < c.numel(); ++i) {
+                const double v = c.elemAsDouble(i);
+                if (v != std::floor(v))
+                    throw Error("sortrows: column index must be an integer",
+                                 0, 0, "sortrows", "", "numkit:sortrows:badCol");
+                cols.push_back(static_cast<int>(v));
+            }
+            // Optional direction argument: sortrows(A, cols, direction[s]).
+            // Re-signs the listed columns by direction (overriding any sign in
+            // the numeric spec). A single direction covers all listed columns.
+            if (args.size() >= 3 && !args[2].isEmpty()) {
+                if (!isDirArg(args[2]))
+                    throw Error("sortrows: direction must be 'ascend' or "
+                                "'descend'",
+                                 0, 0, "sortrows", "", "numkit:sortrows:badDirection");
+                ScratchVec<uint8_t> dirs(&scratch);
+                collectDirs(args[2], dirs);
+                if (dirs.size() == 1) {
+                    const bool d = dirs[0] != 0;
+                    for (auto &cc : cols) {
+                        const int a = cc < 0 ? -cc : cc;
+                        cc = d ? -a : a;
+                    }
+                } else {
+                    if (dirs.size() != cols.size())
+                        throw Error("sortrows: number of directions must match "
+                                    "the number of sort columns",
+                                     0, 0, "sortrows", "", "numkit:sortrows:dirCount");
+                    for (size_t i = 0; i < cols.size(); ++i) {
+                        const int a = cols[i] < 0 ? -cols[i] : cols[i];
+                        cols[i] = dirs[i] ? -a : a;
+                    }
+                }
+            }
         }
     }
     auto [sorted, idx] = sortrows(args[0], Span<const int>(cols.data(), cols.size()), mr);

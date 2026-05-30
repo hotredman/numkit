@@ -758,6 +758,62 @@ TEST_P(SortFindTest, SortrowsMultiKeyMixedDirections)
     EXPECT_DOUBLE_EQ((*S)(3, 0), 2.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 1.0);
 }
 
+// Direction strings/cells (vs MATLAB R2025b). A = [3 1; 1 2; 3 0; 1 5].
+TEST_P(SortFindTest, SortrowsDirectionString)
+{
+    // 'descend' applies to ALL columns: col1 desc, ties col2 desc.
+    eval("S = sortrows([3 1; 1 2; 3 0; 1 5], 'descend');");
+    auto *S = getVarPtr("S");
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(0, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(1, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(2, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 2.0);
+}
+
+TEST_P(SortFindTest, SortrowsColumnsWithDirectionCell)
+{
+    // Explicit columns [1 2] with per-column directions {asc, desc}.
+    eval("S = sortrows([3 1; 1 2; 3 0; 1 5], [1 2], {'ascend','descend'});");
+    auto *S = getVarPtr("S");
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(0, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(1, 1), 2.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(2, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 0.0);
+}
+
+TEST_P(SortFindTest, SortrowsColumnsWithSingleDirectionAndIndex)
+{
+    // Explicit columns [1 2] + single direction 'descend' covers both;
+    // the index output must reflect the permutation.
+    eval("[B, ix] = sortrows([3 1; 1 2; 3 0; 1 5], [1 2], 'descend');");
+    auto *B = getVarPtr("B");
+    auto *ix = getVarPtr("ix");
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 3.0); EXPECT_DOUBLE_EQ((*B)(0, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 0), 3.0); EXPECT_DOUBLE_EQ((*B)(1, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 0), 1.0); EXPECT_DOUBLE_EQ((*B)(2, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*B)(3, 0), 1.0); EXPECT_DOUBLE_EQ((*B)(3, 1), 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[2], 4.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[3], 2.0);
+}
+
+TEST_P(SortFindTest, SortrowsDirectionCellStandalone)
+{
+    // {descend, ascend} over all columns (no explicit column arg).
+    eval("S = sortrows([3 1; 1 2; 3 0; 1 5], {'descend','ascend'});");
+    auto *S = getVarPtr("S");
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(0, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(1, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(2, 1), 2.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 5.0);
+}
+
+TEST_P(SortFindTest, SortrowsBadDirectionThrows)
+{
+    EXPECT_THROW(eval("S = sortrows([1 2; 3 4], 'upward');"), std::exception);
+}
+
 TEST_P(SortFindTest, SortrowsStableForTies)
 {
     // All rows equal except for col2; tie on col1 should preserve original order.
