@@ -208,3 +208,31 @@ TEST_F(NancovTest, GeomeanHarmmeanOmitNaN)
     // An unknown option is an error.
     EXPECT_THROW(eval("geomean(Mn,'foo');"), std::exception);
 }
+
+// ── mode 3rd output C (2026-05-30): cell of tied modal values ────────
+// [M,F,C]=mode(X). C is a cell array; each cell holds a sorted column
+// vector of the values tied for the modal frequency in that slice.
+// Previously numkit only returned [M,F]. vs MATLAB R2025b.
+TEST_F(NancovTest, ModeThirdOutputCell)
+{
+    // Vector: 2 and 3 both occur twice -> M=2 (smallest tie), C{1}=[2;3].
+    eval("[m,f,c] = mode([3 3 1 2 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("m"),           2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("f"),           2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c{1})"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}(1)"),     2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}(2)"),     3.0);
+    // Matrix, default (per column): col1 ties 1&2 -> C{1}=[1;2]; col2 -> [2].
+    eval("M = [1 1; 2 2; 1 3; 2 2]; [mm,fm,cm] = mode(M);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(cm{1})"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cm{1}(1)"),     1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cm{1}(2)"),     2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(cm{2})"), 1.0);
+    // dim=2 (per row): row3 = [1 3], both once -> C{3}=[1;3].
+    eval("[mr,fr,cr] = mode(M,2);");
+    EXPECT_DOUBLE_EQ(evalScalar("cr{3}(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cr{3}(2)"), 3.0);
+    // 'all' flatten.
+    eval("[ma,fa,ca] = mode(M,'all');");
+    EXPECT_DOUBLE_EQ(evalScalar("ca{1}(1)"), 2.0);
+}
