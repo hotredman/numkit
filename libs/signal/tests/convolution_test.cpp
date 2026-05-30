@@ -119,6 +119,32 @@ TEST_F(ConvolutionTest, ConvValidValues)
     EXPECT_NEAR(evalScalar("c(3)"), 12.0, 1e-10);
 }
 
+// The shape arg accepts a STRING ("same") as well as a char ('same') —
+// MATLAB R2025b accepts both. conv_reg previously checked only isChar(), so
+// a double-quoted shape was SILENTLY IGNORED and the result fell back to the
+// full convolution: conv([1 2 3 4],[1 1],"same") gave [1 3 5 7 4] (length 5)
+// instead of [3 5 7 4] (length 4). DEEP-PROBE 2026-05-31.
+TEST_F(ConvolutionTest, ConvShapeAcceptsString)
+{
+    // "same" (string) must match 'same' (char) = [3 5 7 4], length 4.
+    eval("e = conv([1 2 3 4], [1 1], \"same\");");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 4.0);
+    EXPECT_NEAR(evalScalar("e(1)"), 3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(2)"), 5.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(3)"), 7.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(4)"), 4.0, 1e-10);
+    // "valid" (string) = [6 9 12], length 3.
+    eval("v = conv([1 2 3 4 5], [1 1 1], \"valid\");");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(v)"), 3.0);
+    EXPECT_NEAR(evalScalar("v(1)"), 6.0, 1e-10);
+    EXPECT_NEAR(evalScalar("v(3)"), 12.0, 1e-10);
+    // "full" (string) explicit = same as default, length 5.
+    eval("f = conv([1 2 3 4], [1 1], \"full\");");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(f)"), 5.0);
+    EXPECT_NEAR(evalScalar("f(1)"), 1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("f(5)"), 4.0, 1e-10);
+}
+
 // ============================================================
 // conv — FFT path (large inputs)
 // ============================================================
