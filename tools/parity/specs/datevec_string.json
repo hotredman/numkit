@@ -1,0 +1,14 @@
+{
+  "name": "datevec_string",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "v = datevec('2022-12-30 12:34:56'); a1 = v(1); a2 = v(2); a3 = v(3); a4 = v(4); a5 = v(5); a6 = v(6); w = datevec('30-Dec-2022'); b2 = w(2); b3 = w(3); z = datevec('30/12/2022', 'dd/mm/yyyy'); c1 = z(1); c3 = z(3);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "a1", "a2", "a3", "a4", "a5", "a6",
+    "b2", "b3",
+    "c1", "c3"
+  ],
+  "comment": "datevec(str [, fmt]) string parsing vs MATLAB R2025b. Bug fixed 2026-05-30: datevec threw 'string parsing not yet supported' on a string. Returns [Y M D H MI S]: datevec('2022-12-30 12:34:56')=[2022 12 30 12 34 56]; auto-detects dd-mmm-yyyy (datevec('30-Dec-2022') -> mo=12, d=30); explicit format string (datevec('30/12/2022','dd/mm/yyyy') -> y=2022, d=30). Reuses the same parser as datenum string-parse. namespace=builtin. NOTE: completes the datestr/datenum/datevec string-date trio; other auto-formats / 2-digit years / cellstr / multi-row remain gaps."
+}

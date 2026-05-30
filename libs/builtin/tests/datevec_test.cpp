@@ -140,3 +140,32 @@ TEST_F(DatevecTest, DatestrDatevecInput)
                    "'2022-12-30 06:05:09')"),
         1.0);
 }
+
+// datevec(str [, fmt]): parse a date string into [Y M D H MI S]. vs MATLAB
+// R2025b. 2026-05-30: previously threw "string parsing not yet supported".
+TEST_F(DatevecTest, StringParse)
+{
+    eval("v = datevec('2022-12-30 12:34:56');");
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), 2022.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(2)"),   12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(3)"),   30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(4)"),   12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(5)"),   34.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(6)"),   56.0);
+    // ISO date-only and dd-mmm-yyyy auto-detect.
+    eval("v2 = datevec('30-Dec-2022');");
+    EXPECT_DOUBLE_EQ(evalScalar("v2(2)"), 12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v2(3)"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v2(4)"),  0.0);
+    // Explicit format string.
+    eval("v3 = datevec('30/12/2022','dd/mm/yyyy');");
+    EXPECT_DOUBLE_EQ(evalScalar("v3(1)"), 2022.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v3(3)"),   30.0);
+    // Multi-output form.
+    eval("[yy, mm, dd] = datevec('2022-12-30');");
+    EXPECT_DOUBLE_EQ(evalScalar("yy"), 2022.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mm"),   12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dd"),   30.0);
+    // Unparseable string throws.
+    EXPECT_THROW(eval("datevec('not a date')"), std::exception);
+}
