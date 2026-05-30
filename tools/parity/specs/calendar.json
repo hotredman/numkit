@@ -1,0 +1,13 @@
+{
+  "name": "calendar",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "C = calendar(2022, 12); r = size(C,1); c = size(C,2); a = C(1,5); b = C(1,7); d = C(5,7); e = C(1,4); f = C(6,1); s = sum(C(:)); F = calendar(2024, 2); f29 = F(5,5); f0 = F(5,6); sf = sum(F(:));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r", "c", "a", "b", "d", "e", "f", "s",
+    "f29", "f0", "sf"
+  ],
+  "comment": "calendar(year, month) 6x7 month matrix vs MATLAB R2025b. Implemented 2026-05-30 (was an undefined function). Columns Sunday..Saturday; each day sits in its day-of-week column, weeks run down rows, empty cells 0, always 6 rows. Dec 2022 starts on a Thursday (col 5): r=6, c=7, C(1,5)=1 (a), C(1,7)=3 (b), C(5,7)=31 (d), C(1,4)=0 (e), C(6,1)=0 (f), sum=496 (s = 1+..+31). Leap Feb 2024 ends Thursday: F(5,5)=29 (f29), F(5,6)=0 (f0), sum=435 (sf=1+..+29). namespace=builtin. NOTE: the no-arg current-month and datenum forms are not yet supported."
+}
