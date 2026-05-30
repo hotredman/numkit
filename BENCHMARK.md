@@ -577,7 +577,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 | `cumsum` | 0.00138 | 4.19× |  | 2.068 | 0.71× |  |  |
 | `diff` |  |  |  |  |  |  |  |
 | `fix` |  |  |  |  |  |  |  |
-| `floor` |  |  |  |  |  |  |  |
+| `floor` | 0.000322 | 26.84× |  | 2.32 | 0.09× |  |  |
 | `idivide` |  |  |  |  |  |  |  |
 | `ldivide` |  |  |  |  |  |  |  |
 | `minus` |  |  |  |  |  |  |  |
@@ -597,7 +597,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 | `prod` | 0.002612 | 2.19× |  | 2.193 | 0.04× |  |  |
 | `rdivide` |  |  |  |  |  |  |  |
 | `rem` |  |  |  |  |  |  |  |
-| `round` |  |  |  |  |  |  |  |
+| `round` | 0.00038 | 22.69× |  | 2.14 | 0.09× |  |  |
 | `sum` | 0.001656 | 3.81× |  | 1.36 | 0.06× |  |  |
 | `tensorprod` |  |  |  |  |  |  | not implemented |
 | `times` |  |  |  |  |  |  |  |
@@ -633,7 +633,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 | `atanh` |  |  |  |  |  |  |  |
 | `cart2pol` |  |  |  |  |  |  |  |
 | `cart2sph` |  |  |  |  |  |  |  |
-| `cos` |  |  |  |  |  |  |  |
+| `cos` | 0.000826 | 13.29× |  | 0.7703 | 0.66× |  |  |
 | `cosd` |  |  |  |  |  |  |  |
 | `cosh` |  |  |  |  |  |  |  |
 | `cospi` |  |  |  |  |  |  |  |
@@ -650,12 +650,12 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 | `sec` |  |  |  |  |  |  |  |
 | `secd` |  |  |  |  |  |  |  |
 | `sech` |  |  |  |  |  |  |  |
-| `sin` |  |  |  |  |  |  |  |
+| `sin` | 0.000786 | 20.92× |  | 0.7292 | 0.59× |  |  |
 | `sind` |  |  |  |  |  |  |  |
 | `sinh` |  |  |  |  |  |  |  |
 | `sinpi` |  |  |  |  |  |  |  |
 | `sph2cart` |  |  |  |  |  |  |  |
-| `tan` |  |  |  |  |  |  |  |
+| `tan` | 0.00175 | 5.58× |  | 3.29 | 0.16× |  |  |
 | `tand` |  |  |  |  |  |  |  |
 | `tanh` |  |  |  |  |  |  |  |
 
@@ -665,9 +665,9 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 
 | function | nk 1e3 (ms) | ML× 1e3 | OC× 1e3 | nk 1e6 (ms) | ML× 1e6 | OC× 1e6 | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
-| `exp` |  |  |  |  |  |  |  |
+| `exp` | 0.000862 | 14.55× |  | 0.8328 | 0.34× |  |  |
 | `expm1` |  |  |  |  |  |  |  |
-| `log` |  |  |  |  |  |  |  |
+| `log` | 0.000722 | 18.31× |  | 0.6909 | 2.27× |  |  |
 | `log10` |  |  |  |  |  |  |  |
 | `log1p` |  |  |  |  |  |  |  |
 | `log2` |  |  |  |  |  |  |  |
@@ -677,7 +677,7 @@ to 1000 then 1000000). Rows without one stay **blank = not yet benched**.
 | `reallog` |  |  |  |  |  |  |  |
 | `realpow` |  |  |  |  |  |  |  |
 | `realsqrt` |  |  |  |  |  |  |  |
-| `sqrt` |  |  |  |  |  |  |  |
+| `sqrt` | 0.003516 | 1.37× |  | 4.718 | 0.22× |  |  |
 
 ### Special Functions
 
@@ -2570,7 +2570,7 @@ intentionally omitted — flat solver functions only.
 | `wvd` |  |  |  |  |  |  | not implemented |
 | `xspectrogram` |  |  |  |  |  |  | not implemented |
 | `xwvd` |  |  |  |  |  |  | not implemented |
-| `fft` |  |  |  |  |  |  |  |
+| `fft` | 0.003832 | 1.09× |  | 16.78 | 0.22× |  |  |
 | `fft2` |  |  |  |  |  |  |  |
 | `fftn` |  |  |  |  |  |  |  |
 | `fftshift` |  |  |  |  |  |  |  |
@@ -2885,11 +2885,11 @@ locations until physical migration lands.
 | `iqr` |  |  |  |  |  |  |  |
 | `kde` |  |  |  |  |  |  |  |
 | `mape` |  |  |  |  |  |  |  |
-| `max` |  |  |  |  |  |  |  |
+| `max` | 0.002037 | 2.25× |  | 1.447 | 0.03× |  |  |
 | `maxk` |  |  |  |  |  |  |  |
-| `mean` |  |  |  |  |  |  |  |
+| `mean` | 0.001619 | 14.83× |  | 1.34 | 0.03× |  |  |
 | `median` |  |  |  |  |  |  |  |
-| `min` |  |  |  |  |  |  |  |
+| `min` | 0.001923 | 2.08× |  | 1.441 | 0.04× |  |  |
 | `mink` |  |  |  |  |  |  |  |
 | `mode` |  |  |  |  |  |  |  |
 | `movmad` |  |  |  |  |  |  |  |
@@ -3815,3 +3815,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `weeknum` |  |  |  |  |  |  |  |
 | `addtodate` |  |  |  |  |  |  |  |
 | `partialcorr_rows` |  |  |  |  |  |  |  |
+| `abs` | 0.000434 | 17.78× |  | 0.2045 | 1.38× |  |  |

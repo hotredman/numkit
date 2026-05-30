@@ -11,5 +11,7 @@
     "numel(y)",
     "double(isnan(me0))",
     "nme0"
-  ]
+  ],
+  "bench_setup": "xb = mod((1:N)*7919,1000)+0.5;",
+  "bench_expr": "rb = mean(xb);"
 }

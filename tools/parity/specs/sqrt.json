@@ -3,7 +3,7 @@
   "namespace": "builtin",
   "setup": "x = [0, 1, 4, 9, 100];",
   "expr": "r = sqrt(x);",
-  "iters": 5,
+  "iters": 20,
   "tol": 1e-12,
   "fingerprint": [
     "r(1)",
@@ -12,5 +12,7 @@
     "r(4)",
     "r(5)"
   ],
-  "comment": "Sig: r = sqrt(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
+  "comment": "Sig: r = sqrt(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b.",
+  "bench_setup": "xb = mod((1:N)*7919,1000)*0.001 + 0.001;",
+  "bench_expr": "rb = sqrt(xb);"
 }
