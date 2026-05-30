@@ -246,6 +246,20 @@ TEST_F(InterpTest, ConstantExtrapval)
     EXPECT_DOUBLE_EQ(evalScalar("yq(3)"), -99.0);
 }
 
+// DEEP-PROBE 2026-05-31: the method and extrapval args accept STRING
+// ("nearest") as well as char ('nearest') — MATLAB accepts both. numkit
+// previously honored only char and SILENTLY IGNORED a double-quoted method,
+// falling back to linear (interp1(...,1.4,"nearest") gave 14, not 10).
+TEST_F(InterpTest, StringMethodAndExtrapArgs)
+{
+    // Double-quoted method must be honored (nearest, not linear).
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],1.4,\"nearest\")"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],1.4,'nearest')"),  10.0);
+    // Double-quoted 'extrap' and a scalar extrapval.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,\"linear\",\"extrap\")"), 40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,\"linear\",99)"), 99.0);
+}
+
 TEST_F(InterpTest, PreviousNextExtrapHoldsEndpointOneSide)
 {
     // 'previous' holds y(end) above the range; below the range there is no
