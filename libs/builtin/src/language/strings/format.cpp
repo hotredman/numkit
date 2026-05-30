@@ -72,7 +72,9 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
             std::string spec(fmt, start, i - start + 1);
 
             if (type == 's') {
-                if (ai < args.size() && args[ai].isChar())
+                // MATLAB %s accepts both char arrays and string scalars.
+                if (ai < args.size()
+                    && (args[ai].isChar() || args[ai].isString()))
                     out << args[ai].toString();
                 ai++;
             } else if (type == 'c') {
@@ -166,6 +168,15 @@ std::string formatCyclic(const std::string &fmt, Span<const Value> args, size_t 
     stream.reserve(args.size() > argStart ? args.size() - argStart : 0);
     for (size_t i = argStart; i < args.size(); ++i) {
         const Value &a = args[i];
+        // A string array supplies one argument per element (MATLAB cycles
+        // the format over them, like a numeric array). A char array is a
+        // single atomic %s argument, so it is NOT expanded here.
+        if (a.isString()) {
+            size_t n = a.numel();
+            for (size_t j = 0; j < n; ++j)
+                stream.push_back(Value::stringScalar(a.stringElem(j), p));
+            continue;
+        }
         if (a.isChar() || a.isScalar()) {
             stream.push_back(a);
             continue;

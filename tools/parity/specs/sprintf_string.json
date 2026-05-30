@@ -1,0 +1,15 @@
+{
+  "name": "sprintf_string",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s1 = sprintf('%s', \"hello\"); n1 = numel(s1); c1 = double(s1(1)); c5 = double(s1(5)); s2 = sprintf('%s-%s', \"ab\", \"cd\"); n2 = numel(s2); c2 = double(s2(3)); s3 = sprintf('%s', [\"x\" \"yz\"]); n3 = numel(s3); c3a = double(s3(1)); c3c = double(s3(3)); s4 = sprintf('%s=%d', \"k\", 7); n4 = numel(s4); c4 = double(s4(3));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "n1", "c1", "c5",
+    "n2", "c2",
+    "n3", "c3a", "c3c",
+    "n4", "c4"
+  ],
+  "comment": "sprintf/fprintf %s with the string type vs MATLAB R2025b. Bug fixed 2026-05-30: %s only accepted char arrays, so a string scalar printed nothing (fprintf('%s',\"hi\") -> empty). Now %s prints string scalars (s1='hello', n1=5) and cycles the format over a string array's elements like MATLAB (sprintf('%s',[\"x\" \"yz\"])='xyz', n3=3). Mixed string+numeric specs also work (s4='k=7'). NOTE: double-quoted string literals require the string type; no semicolons inside quoted strings."
+}

@@ -17,6 +17,7 @@ using numkit::Span;
 namespace {
 
 Value mkStr(std::pmr::memory_resource *mr, const char *s) { return Value::fromString(s, mr); }
+Value mkStrScalar(std::pmr::memory_resource *mr, const char *s) { return Value::stringScalar(s, mr); }
 
 } // namespace
 
@@ -126,4 +127,36 @@ TEST(BuiltinFormatPublicApi, SprintfNonCharFmtReturnsEmpty)
     Value r = numkit::builtin::sprintf(Value::scalar(1.0, mr), Span<const Value>{}, mr);
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "");
+}
+
+// ── %s with the string type (regression) ───────────────────────────────
+// Bug: %s only accepted char arrays, so a string scalar printed nothing
+// (e.g. fprintf('%s', "hi") -> empty). MATLAB %s accepts string scalars
+// and cycles the format over the elements of a string array.
+TEST(BuiltinFormatPublicApi, FormatOnceStringScalar)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value args[] = {mkStrScalar(mr, "hello")};
+    std::string out = numkit::builtin::formatOnce("[%s]", Span<const Value>(args, 1));
+    EXPECT_EQ(out, "[hello]");
+}
+
+TEST(BuiltinFormatPublicApi, SprintfStringScalarArg)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value args[] = {Value::scalar(7.0, mr), mkStrScalar(mr, "foo")};
+    Value r = numkit::builtin::sprintf(mkStr(mr, "%d/%s"), Span<const Value>(args, 2), mr);
+    EXPECT_EQ(r.toString(), "7/foo");
+}
+
+TEST(BuiltinFormatPublicApi, FormatCyclicStringArrayCycles)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto arr = Value::stringArray(1, 2, mr);
+    arr.stringElemSet(0, "ab");
+    arr.stringElemSet(1, "cd");
+    Value args[] = {arr};
+    std::string out =
+        numkit::builtin::formatCyclic("%s-", Span<const Value>(args, 1), 0, mr);
+    EXPECT_EQ(out, "ab-cd-");
 }
