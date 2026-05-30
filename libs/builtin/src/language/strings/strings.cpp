@@ -75,10 +75,29 @@ Value num2str(const Value &x, int N, std::pmr::memory_resource *mr)
 Value num2str(const Value &x, const std::string &fmt,
               std::pmr::memory_resource *mr)
 {
-    const double v = x.toScalar();
-    char buf[256];
-    std::snprintf(buf, sizeof(buf), fmt.c_str(), v);
-    return Value::fromString(std::string(buf), mr);
+    // Route the value through the sprintf engine rather than a raw
+    // snprintf(fmt, double): the engine handles integer conversions
+    // (%d/%i/%u/%o/%x read an int from the va_list, so passing a double
+    // straight to snprintf printed garbage — e.g. num2str(5,'%05d') gave
+    // "00000" instead of "00005"), the non-integer->%e fallback, and the
+    // Inf/NaN spelling. MATLAB then strips leading AND trailing blanks
+    // (but keeps leading zeros and any internal spacing):
+    //   num2str(pi,'%8.4f')        -> "3.1416"   (not "  3.1416")
+    //   num2str(5,'%05d')          -> "00005"
+    //   num2str(pi,'   v=%6.2f')   -> "v=  3.14"
+    // Scalar is the only documented num2str(X,FMT) shape we support here;
+    // vector/matrix column-alignment is a separate deferred gap.
+    Value fmtVal = Value::fromString(fmt, mr);
+    Value arg    = Value::scalar(x.toScalar(), mr);
+    Span<const Value> args(&arg, 1);
+    const std::string s = sprintf(fmtVal, args, mr).toString();
+
+    const char *ws = " \t\n\r\f\v";
+    const size_t b = s.find_first_not_of(ws);
+    if (b == std::string::npos)
+        return Value::fromString("", mr);
+    const size_t e = s.find_last_not_of(ws);
+    return Value::fromString(s.substr(b, e - b + 1), mr);
 }
 
 Value str2num(const Value &s, std::pmr::memory_resource *mr)

@@ -1,0 +1,16 @@
+{
+  "name": "num2str_format",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "sa = num2str(3.14159265, '%8.4f'); na = numel(sa); a1 = double(sa(1)); sc = num2str(5, '%05d'); nc = numel(sc); c1 = double(sc(1)); c5 = double(sc(5)); sd = num2str(42, '%8d'); nd = numel(sd); d1 = double(sd(1)); sh = num2str(3.14159265, '   value=%6.2f'); nh = numel(sh); h1 = double(sh(1)); slj = num2str(5, '%-8d'); nlj = numel(slj);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "a1",
+    "nc", "c1", "c5",
+    "nd", "d1",
+    "nh", "h1",
+    "nlj"
+  ],
+  "comment": "num2str(X,FMT) format-string handling vs MATLAB R2025b. Bug fixed 2026-05-30: num2str passed the double straight to snprintf(fmt,...) so %d/%i/%x specs read an int from the va_list and printed garbage (num2str(5,'%05d')->'00000', num2str(42,'%8d')->'0'), and the width padding was never trimmed. Now routes through the sprintf engine + strtrim. Fingerprints byte-compare the produced strings: '%8.4f'->'3.1416' (na=6,a1=51='3'); '%05d'->'00005' (nc=5,c1=48='0',c5=53='5', leading zeros kept); '%8d'->'42' (nd=2,d1=52='4'); '   value=%6.2f'->'value=  3.14' (nh=12,h1=118='v', leading trimmed but internal kept); '%-8d'->'5' (nlj=1, trailing trimmed). namespace=builtin. Vector/matrix num2str column-alignment remains a separate deferred gap."
+}
