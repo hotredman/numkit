@@ -12,6 +12,7 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
+#include <numkit/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
 #include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
 #include <numkit/core/engine.hpp>
@@ -962,6 +963,45 @@ Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
     return R;
 }
 
+// Two-sided p-values for a correlation matrix R computed from n observations.
+// Diagonal is 1; off-diagonal P(i,j) = 2*tcdf(-|t|, n-2) with the test
+// statistic t = r*sqrt((n-2)/(1-r^2)). With n <= 2 (df <= 0) the off-diagonal
+// p-values are NaN (MATLAB).
+Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
+{
+    const std::size_t p = R.dims().rows();
+    auto P = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    if (p == 0) return P;
+    const double df = n - 2.0;
+    const double *rd = R.doubleData();
+    double *pd = P.doubleDataMut();
+
+    // Build the matrix of -|t| values, then evaluate the t-CDF vectorized.
+    auto T = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *td = T.doubleDataMut();
+    for (std::size_t k = 0; k < p * p; ++k) {
+        const double r = rd[k];
+        const double oneMinus = 1.0 - r * r;
+        double t = std::numeric_limits<double>::infinity(); // |r|>=1 → extreme
+        if (df > 0.0 && oneMinus > 0.0)
+            t = std::fabs(r) * std::sqrt(df / oneMinus);
+        td[k] = -t;
+    }
+    Value cdf = (df > 0.0) ? tcdf(T, df, mr) : Value{};
+    const double *cd = (df > 0.0) ? cdf.doubleData() : nullptr;
+
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < p; ++j) {
+            const std::size_t k = j * p + i;
+            if (i == j) { pd[k] = 1.0; continue; }
+            if (df <= 0.0) { pd[k] = std::nan(""); continue; }
+            double pv = 2.0 * cd[k];
+            if (pv > 1.0) pv = 1.0;
+            pd[k] = pv;
+        }
+    return P;
+}
+
 } // namespace
 
 Value corrcoef(const Value &x, std::pmr::memory_resource *mr)
@@ -1516,18 +1556,27 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = cov(args[0], args[1], w, mr);
 }
 
-void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.empty())
         throw Error("corrcoef: requires at least 1 argument",
                      0, 0, "corrcoef", "", "numkit:corrcoef:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
+    double n;
     if (args.size() == 1) {
-        outs[0] = corrcoef(args[0], mr);
-        return;
+        const Value &x = args[0];
+        n = (x.dims().isVector() || x.isScalar())
+                ? static_cast<double>(x.numel())          // single variable
+                : static_cast<double>(x.dims().rows());   // n observations × p vars
+        outs[0] = corrcoef(x, mr);
+    } else {
+        n = static_cast<double>(args[0].numel());         // corrcoef(x, y): vectors
+        outs[0] = corrcoef(args[0], args[1], mr);
     }
-    outs[0] = corrcoef(args[0], args[1], mr);
+    // [R, P] = corrcoef(...): two-sided p-values for testing rho == 0.
+    if (nargout >= 2)
+        outs[1] = corrcoefPValues(outs[0], n, mr);
 }
 
 // nan*_reg adapters all moved to libs/stats/src/nan_aware/nan_aware.cpp.
