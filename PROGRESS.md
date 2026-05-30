@@ -790,7 +790,7 @@ together.
 | `meshgrid` | ✅ | 0.005 | 78.48× | 39.56× | OK | Sig: r = meshgrid(...). Spec-extension batch 2026-05-09. |
 | `mkpp` | ✅ | 0.000 | 6.90× | 56.90× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
 | `ndgrid` | ✅ | 0.005 | 244.62× | 51.89× | OK | Sig: r = ndgrid(...). Spec-extension batch 2026-05-09. |
-| `pchip` | ✅ | 0.016 | 15.18× | 28.73× | OK | Sig: yq = pchip(x, v, xq). 50 → 1000 PCHIP. 100 iters. |
+| `pchip` | ✅ | 0.004 | 166.97× |  | OK | pchip 2-arg pp-form (2026-05-30). MATLAB pchip(x,y) (no query) returns a piecewise-polynomial struct usable with ppval, like spline(x,y); numkit's spline(x,y) already did this but pchip(x,y) errored 'requires 3 arguments'. Now builds the same pp from the shape-preserving Hermite derivatives, converting each cubic Hermite segment to MATLAB's [pieces x 4] dx-power coefs: a=(d_i+d_{i+1}-2*delta)/h^2, b=(3*delta-2*d_i-d_{i+1})/h, c=d_i, d=y_i. For [1 4 9 16]: order=4, pieces=3, coefs row1=[-0.25 1.25 2 1] (c11=-0.25, c13=2); ppval matches value-form pchip(x,y,xq): va=6.2395833333, vb=2.28125, vc=10.2186666667. Non-uniform [0 1 3 4]/[2 1 4 3]: ppval(0.5)=1.2708333333. 2 points -> line: ppval(1.5)=4. namespace=core. Matches MATLAB R2025b. |
 | `ppval` | ✅ | 0.006 | 153.53× | 114.27× | OK | Sig: r = ppval(...). Spec-extension batch 2026-05-09. |
 | `scatteredinterpolant` | ❌ |  |  |  |  |  |
 | `spline` | ✅ | 0.016 | 22.09× | 36.77× | OK | Sig: yq = spline(x, v, xq). 50 → 1000 cubic spline. 100 iters. |

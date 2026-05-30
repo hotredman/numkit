@@ -155,6 +155,35 @@ TEST_F(InterpTest, PchipFunction)
     EXPECT_NEAR(evalScalar("yq"), 2.25, 0.5);
 }
 
+// 2-arg pchip(x, y) returns a pp struct usable with ppval, mirroring
+// spline(x, y). Coefficients verified against MATLAB R2025b.
+TEST_F(InterpTest, PchipPpFormMatchesValueForm)
+{
+    eval("pp = pchip([1 2 3 4], [1 4 9 16]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.order")),  4);
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.pieces")), 3);
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.5)"),  6.2395833333, 1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 1.5)"),  2.28125,      1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 3.2)"), 10.2186666667, 1e-9);
+    // pp-form must agree with the value form pchip(x,y,xq).
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.7)"),
+                evalScalar("pchip([1 2 3 4], [1 4 9 16], 2.7)"), 1e-12);
+    // first interval coefs [a b c d] = [-0.25 1.25 2 1].
+    EXPECT_NEAR(evalScalar("pp.coefs(1,1)"), -0.25, 1e-12);
+    EXPECT_NEAR(evalScalar("pp.coefs(1,3)"),  2.0,  1e-12);
+    EXPECT_NEAR(evalScalar("pp.coefs(1,4)"),  1.0,  1e-12);
+}
+
+TEST_F(InterpTest, PchipPpFormNonUniformAndTwoPoint)
+{
+    eval("pp = pchip([0 1 3 4], [2 1 4 3]);");
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.0)"), 2.5,          1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 0.5)"), 1.2708333333, 1e-9);
+    // 2 points → a straight line.
+    eval("pl = pchip([1 2], [3 5]);");
+    EXPECT_NEAR(evalScalar("ppval(pl, 1.5)"), 4.0, 1e-12);
+}
+
 // ============================================================
 // interp1 — out-of-range / extrapolation policy vs MATLAB R2025b
 // ============================================================

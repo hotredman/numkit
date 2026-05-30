@@ -1,0 +1,11 @@
+{
+  "name": "pchip_ppform",
+  "covers": ["pchip"],
+  "namespace": "core",
+  "setup": "x = [1 2 3 4]; y = [1 4 9 16]; pp = pchip(x, y); pp2 = pchip([0 1 3 4], [2 1 4 3]); pl = pchip([1 2], [3 5]);",
+  "expr": "ord = pp.order; pcs = pp.pieces; va = ppval(pp, 2.5); vb = ppval(pp, 1.5); vc = ppval(pp, 3.2); c11 = pp.coefs(1,1); c13 = pp.coefs(1,3); nu = ppval(pp2, 0.5); two = ppval(pl, 1.5);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["ord", "pcs", "va", "vb", "vc", "c11", "c13", "nu", "two"],
+  "comment": "pchip 2-arg pp-form (2026-05-30). MATLAB pchip(x,y) (no query) returns a piecewise-polynomial struct usable with ppval, like spline(x,y); numkit's spline(x,y) already did this but pchip(x,y) errored 'requires 3 arguments'. Now builds the same pp from the shape-preserving Hermite derivatives, converting each cubic Hermite segment to MATLAB's [pieces x 4] dx-power coefs: a=(d_i+d_{i+1}-2*delta)/h^2, b=(3*delta-2*d_i-d_{i+1})/h, c=d_i, d=y_i. For [1 4 9 16]: order=4, pieces=3, coefs row1=[-0.25 1.25 2 1] (c11=-0.25, c13=2); ppval matches value-form pchip(x,y,xq): va=6.2395833333, vb=2.28125, vc=10.2186666667. Non-uniform [0 1 3 4]/[2 1 4 3]: ppval(0.5)=1.2708333333. 2 points -> line: ppval(1.5)=4. namespace=core. Matches MATLAB R2025b."
+}

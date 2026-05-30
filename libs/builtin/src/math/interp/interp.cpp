@@ -1158,6 +1158,80 @@ Value splinePp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     return mkpp(x, coefs, mr);
 }
 
+// 2-arg `pchip(x, y)` returns a pp struct (piecewise polynomial form)
+// usable with `ppval`, mirroring spline(x, y). Uses the same shape-
+// preserving derivatives as the value-form interpPchip, then converts the
+// cubic Hermite segments to MATLAB's [pieces x 4] coefficient layout in
+// powers of dx = x - breaks(i):  a*dx^3 + b*dx^2 + c*dx + d with
+//   a = (d_i + d_{i+1} - 2*delta_i) / h_i^2
+//   b = (3*delta_i - 2*d_i - d_{i+1}) / h_i
+//   c = d_i,  d = y_i        (delta_i = (y_{i+1}-y_i)/h_i)
+Value pchipPp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    const size_t n = x.numel();
+    if (n != y.numel())
+        throw Error("pchip: x and y must have same length",
+                     0, 0, "pchip", "", "numkit:pchip:lengthMismatch");
+    if (n < 2)
+        throw Error("pchip: need at least 2 data points",
+                     0, 0, "pchip", "", "numkit:pchip:tooFewPoints");
+
+    ScratchArena scratch(mr);
+    const double *xd = x.doubleData();
+    const double *yd = y.doubleData();
+    const size_t nm1 = n - 1;
+
+    ScratchVec<double> h(nm1, &scratch), delta(nm1, &scratch);
+    for (size_t i = 0; i < nm1; ++i) {
+        h[i] = xd[i + 1] - xd[i];
+        delta[i] = (yd[i + 1] - yd[i]) / h[i];
+    }
+
+    // Shape-preserving slopes d[0..n-1] (identical to interpPchip).
+    ScratchVec<double> d(n, 0.0, &scratch);
+    if (n == 2) {
+        d[0] = delta[0];
+        d[1] = delta[0];                       // 2 points → a straight line
+    } else {
+        for (size_t i = 1; i < nm1; ++i) {
+            if (delta[i - 1] * delta[i] <= 0.0) {
+                d[i] = 0.0;
+            } else {
+                const double w1 = 2.0 * h[i] + h[i - 1];
+                const double w2 = h[i] + 2.0 * h[i - 1];
+                d[i] = (w1 + w2) / (w1 / delta[i - 1] + w2 / delta[i]);
+            }
+        }
+        d[0] = ((2.0 * h[0] + h[1]) * delta[0] - h[0] * delta[1]) / (h[0] + h[1]);
+        if (d[0] * delta[0] < 0.0)
+            d[0] = 0.0;
+        else if (delta[0] * delta[1] < 0.0 && std::abs(d[0]) > std::abs(3.0 * delta[0]))
+            d[0] = 3.0 * delta[0];
+        d[nm1] = ((2.0 * h[nm1 - 1] + h[nm1 - 2]) * delta[nm1 - 1]
+                  - h[nm1 - 1] * delta[nm1 - 2]) / (h[nm1 - 1] + h[nm1 - 2]);
+        if (d[nm1] * delta[nm1 - 1] < 0.0)
+            d[nm1] = 0.0;
+        else if (delta[nm1 - 2] * delta[nm1 - 1] < 0.0
+                 && std::abs(d[nm1]) > std::abs(3.0 * delta[nm1 - 1]))
+            d[nm1] = 3.0 * delta[nm1 - 1];
+    }
+
+    auto coefs = Value::matrix(nm1, 4, ValueType::DOUBLE, mr);
+    double *cp = coefs.doubleDataMut();
+    for (size_t i = 0; i < nm1; ++i) {
+        const double hi = h[i];
+        const double a  = (d[i] + d[i + 1] - 2.0 * delta[i]) / (hi * hi);
+        const double b  = (3.0 * delta[i] - 2.0 * d[i] - d[i + 1]) / hi;
+        const double c  = d[i];
+        const double dd = yd[i];
+        cp[i + 0 * nm1] = a;
+        cp[i + 1 * nm1] = b;
+        cp[i + 2 * nm1] = c;
+        cp[i + 3 * nm1] = dd;
+    }
+    return mkpp(x, coefs, mr);
+}
+
 } // namespace
 
 void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1230,10 +1304,16 @@ void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        // pp-struct form, mirroring spline(x, y).
+        outs[0] = pchipPp(args[0], args[1], mr);
+        return;
+    }
     if (args.size() < 3)
-        throw Error("pchip: requires 3 arguments",
+        throw Error("pchip: requires (x, y) or (x, y, xq)",
                      0, 0, "pchip", "", "numkit:pchip:nargin");
-    outs[0] = pchip(args[0], args[1], args[2], ctx.engine->resource());
+    outs[0] = pchip(args[0], args[1], args[2], mr);
 }
 
 void makima_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
