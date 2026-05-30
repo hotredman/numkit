@@ -51,6 +51,19 @@ Value num2str(const Value &x, int N,
 Value num2str(const Value &x, const std::string &fmt,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Round to nearest integer → CHAR row (`s = int2str(x)`).
+///
+/// Rounds half away from zero (like MATLAB `round`) and renders the integer
+/// with no decimals or scientific notation: int2str(2.5)="3",
+/// int2str(-2.5)="-3", int2str(1e10)="10000000000". Inf/-Inf/NaN pass through
+/// as "Inf"/"-Inf"/"NaN". Scalar only; vector/matrix column-alignment is a
+/// separate deferred gap.
+/// @param x   Real scalar to round and format.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    CHAR rounded-integer string.
+/// @see num2str, mat2str
+Value int2str(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Parse string as number (`x = str2num(s)`).
 ///
 /// Returns empty Value on parse failure.

@@ -100,6 +100,23 @@ Value num2str(const Value &x, const std::string &fmt,
     return Value::fromString(s.substr(b, e - b + 1), mr);
 }
 
+Value int2str(const Value &x, std::pmr::memory_resource *mr)
+{
+    // MATLAB int2str: round half away from zero (std::round), render as a
+    // plain integer with no decimals or scientific notation. Inf/-Inf/NaN
+    // pass through. Scalar only — vector/matrix column-alignment is deferred.
+    const double v = x.toScalar();
+    if (std::isnan(v))
+        return Value::fromString("NaN", mr);
+    if (std::isinf(v))
+        return Value::fromString(v < 0 ? "-Inf" : "Inf", mr);
+    double r = std::round(v);
+    if (r == 0.0) r = 0.0;          // normalise -0 -> 0
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%.0f", r);
+    return Value::fromString(std::string(buf), mr);
+}
+
 Value str2num(const Value &s, std::pmr::memory_resource *mr)
 {
     try {
@@ -1629,6 +1646,17 @@ void num2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         outs[0] = num2str(args[0], spec.toString(), mr);
     else
         outs[0] = num2str(args[0], static_cast<int>(spec.toScalar()), mr);
+}
+
+void int2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("int2str: requires 1 argument", 0, 0, "int2str", "", "numkit:int2str:nargin");
+    if (!args[0].isScalar())
+        throw Error("int2str: only scalar inputs are supported "
+                    "(vector/matrix column-alignment is not yet implemented)",
+                     0, 0, "int2str", "", "numkit:int2str:nonScalar");
+    outs[0] = int2str(args[0], ctx.engine->resource());
 }
 
 void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
