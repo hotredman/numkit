@@ -2123,9 +2123,6 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 if (args.empty())
                                     throw std::runtime_error(
                                         "datenum requires at least one argument");
-                                if (args[0].isChar() || args[0].isString())
-                                    throw std::runtime_error(
-                                        "datenum: string parsing not yet supported");
 
                                 auto civilToSerial = [](double yd, double md,
                                                         double dd, double hd,
@@ -2155,6 +2152,98 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 };
 
                                 auto *mr = ctx.engine->resource();
+
+                                // ── String date input: datenum(str [, fmt]) ──
+                                // Parses a single date string with an explicit
+                                // format string, or auto-detects the common ISO
+                                // (yyyy-mm-dd[ HH:MM:SS]) and dd-mmm-yyyy forms.
+                                if (args[0].isChar() || args[0].isString()) {
+                                    const std::string s = args[0].toString();
+                                    static const char *MON3[] = {
+                                        "jan","feb","mar","apr","may","jun",
+                                        "jul","aug","sep","oct","nov","dec"};
+                                    auto tryFmt = [&](const std::string &fmt,
+                                                      double &Y, double &Mo,
+                                                      double &D, double &H,
+                                                      double &MI, double &S) -> bool {
+                                        Y = 0; Mo = 1; D = 1; H = 0; MI = 0; S = 0;
+                                        size_t si = 0, fi = 0;
+                                        auto readNum = [&](int maxD) -> long {
+                                            long v = 0; int n = 0;
+                                            while (si < s.size() && n < maxD
+                                                   && std::isdigit(
+                                                       static_cast<unsigned char>(s[si]))) {
+                                                v = v * 10 + (s[si] - '0'); ++si; ++n;
+                                            }
+                                            return n > 0 ? v : -1;
+                                        };
+                                        while (fi < fmt.size()) {
+                                            if (fmt.compare(fi, 4, "yyyy") == 0) {
+                                                long v = readNum(4); if (v < 0) return false;
+                                                Y = static_cast<double>(v); fi += 4;
+                                            } else if (fmt.compare(fi, 4, "mmmm") == 0
+                                                       || fmt.compare(fi, 3, "mmm") == 0) {
+                                                bool full = fmt.compare(fi, 4, "mmmm") == 0;
+                                                if (si + 3 > s.size()) return false;
+                                                std::string mon = s.substr(si, 3);
+                                                for (auto &c : mon)
+                                                    c = static_cast<char>(std::tolower(
+                                                        static_cast<unsigned char>(c)));
+                                                int mi = -1;
+                                                for (int k = 0; k < 12; ++k)
+                                                    if (mon == MON3[k]) { mi = k + 1; break; }
+                                                if (mi < 0) return false;
+                                                Mo = static_cast<double>(mi);
+                                                si += 3;
+                                                if (full) {
+                                                    while (si < s.size() && std::isalpha(
+                                                               static_cast<unsigned char>(s[si]))) ++si;
+                                                    fi += 4;
+                                                } else { fi += 3; }
+                                            } else if (fmt.compare(fi, 2, "mm") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                Mo = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "dd") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                D = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "HH") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                H = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "MM") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                MI = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "SS") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                S = static_cast<double>(v); fi += 2;
+                                            } else {
+                                                if (si < s.size() && s[si] == fmt[fi]) { ++si; ++fi; }
+                                                else return false;
+                                            }
+                                        }
+                                        return si == s.size();   // full consume
+                                    };
+
+                                    double Y, Mo, D, H, MI, S;
+                                    bool ok = false;
+                                    if (args.size() >= 2
+                                        && (args[1].isChar() || args[1].isString())) {
+                                        ok = tryFmt(args[1].toString(), Y, Mo, D, H, MI, S);
+                                    } else {
+                                        static const char *cands[] = {
+                                            "yyyy-mm-dd HH:MM:SS", "yyyy-mm-dd",
+                                            "dd-mmm-yyyy HH:MM:SS", "dd-mmm-yyyy"};
+                                        for (const char *c : cands)
+                                            if (tryFmt(c, Y, Mo, D, H, MI, S)) { ok = true; break; }
+                                    }
+                                    if (!ok)
+                                        throw std::runtime_error(
+                                            "datenum: could not parse date string "
+                                            "(supported: explicit format string, or "
+                                            "ISO yyyy-mm-dd and dd-mmm-yyyy forms)");
+                                    outs[0] = Value::scalar(
+                                        civilToSerial(Y, Mo, D, H, MI, S), mr);
+                                    return;
+                                }
 
                                 // ── Single-arg form: V is 1x3, 1x6, Nx3, Nx6 ─
                                 if (args.size() == 1) {
