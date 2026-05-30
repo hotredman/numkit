@@ -117,3 +117,32 @@ TEST_F(SignalBatch1Test, Lp2bpNumeratorTrueDegree)
     EXPECT_NEAR(evalScalar("at(2)"), 130.656296488, 1e-5);
     EXPECT_NEAR(evalScalar("at(9)"), 1e16, 1e7);               // Wo^8
 }
+
+// DEEP-PROBE 2026-05-31: the 3-output [z,p,k] (digital zero/pole/gain) form
+// of the IIR designers was added (previously errored "Undefined k"). The
+// denominator is monic so the ZPK gain = b(1); poles/gain are exact for all,
+// finite zeros (cheby2/ellip) are exact, and the all-pole filters' repeated
+// zeros at z=-1 (butter/cheby1) are recovered to root-finding precision.
+TEST_F(SignalBatch1Test, IirDesignersZpkOutput)
+{
+    eval("[z, p, k] = butter(4, 0.3);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(z)")), 4);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(p)")), 4);
+    EXPECT_NEAR(evalScalar("k"), 0.0185630106269, 1e-9);
+    EXPECT_NEAR(evalScalar("sum(real(p))"), 1.57039885123, 1e-6);
+
+    eval("[z1, p1, k1] = cheby1(4, 1, 0.3);");
+    EXPECT_NEAR(evalScalar("k1"), 0.00836323955555, 1e-9);
+    EXPECT_NEAR(evalScalar("sum(real(p1))"), 2.37412317473, 1e-6);
+
+    // cheby2 / ellip have DISTINCT finite zeros → z/p/k all exact.
+    eval("[z2, p2, k2] = cheby2(4, 30, 0.3);");
+    EXPECT_NEAR(evalScalar("k2"), 0.04704983394, 1e-8);
+    EXPECT_NEAR(evalScalar("sum(real(p2))"), 2.26899170565, 1e-6);
+    EXPECT_NEAR(evalScalar("sum(real(z2))"), 0.509710647798, 1e-6);
+
+    eval("[z3, p3, k3] = ellip(4, 1, 30, 0.3);");
+    EXPECT_NEAR(evalScalar("k3"), 0.0647314906117, 1e-8);
+    EXPECT_NEAR(evalScalar("sum(real(p3))"), 2.28002377534, 1e-6);
+    EXPECT_NEAR(evalScalar("sum(real(z3))"), 0.163902069627, 1e-6);
+}

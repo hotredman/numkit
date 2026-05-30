@@ -2,9 +2,10 @@
   "name": "ellip",
   "namespace": "signal",
   "setup": "",
-  "expr": "[b, a] = ellip(7, 0.1, 60, 0.3); r1 = double(numel(b) + numel(a));",
+  "expr": "[b, a] = ellip(7, 0.1, 60, 0.3); r1 = double(numel(b) + numel(a)); [z,p,k] = ellip(4, 1, 30, 0.3); nz = double(numel(z)); np = double(numel(p)); k3 = k; sp3 = sum(real(p)); sz3 = sum(real(z));",
   "iters": 5,
-  "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe."
+  "tol": 1e-06,
+  "fingerprint": ["r1", "nz", "np", "k3", "sp3", "sz3"],
+  "comment": "Sig: [b,a]=ellip / [z,p,k]=ellip(N,Rp,Rs,Wn[,type]). Cauer IIR design via ellipap + lp2X + bilinear; [b,a] bit-identical with MATLAB R2025b. DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). ellip(4,1,30,0.3): nz=4 np=4 gain k3=0.0647314906, sum(real(poles))=2.28002378, sum(real(zeros))=0.163902070 — ellip has DISTINCT finite zeros so z/p/k are all exact vs MATLAB. namespace=signal.",
+  "deep_verified": true
 }

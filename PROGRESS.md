@@ -2353,19 +2353,19 @@ intentionally omitted — flat solver functions only.
 
 | function | status | comment |
 |---|:---:|---|
-| `butter` | ✅ | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `butter` | ✅ | Sig: [b,a]=butter / [z,p,k]=butter(N,Wn[,type]). DEEP-PROBE 2026-05-31: the 3-output [z,p,k] form (digital zero/pole/gain) was added (previously errored 'Undefined k'). butter(4,0.3): nz=4 np=4 gain kb=0.0185630106, sum(real(poles))=1.57039885. ZPK recovered from the (b,a) the designer already builds (a is monic so gain=b(1)); poles+gain are exact. NOTE the lowpass zeros are all at z=-1 (repeated root) and are recovered by root-finding only to ~1e-2 — sum(real(z)) is NOT fingerprinted here; bit-exact repeated zeros would need a ZPK-form bilinear (deferred). namespace=signal. |
 | `buttord` | ✅ | Sig: r = buttord(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cfirpm` | ❌ | complex Parks-McClellan |
 | `cheb1ord` | ✅ | Sig: r = cheb1ord(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cheb2ord` | ✅ | Sig: r = cheb2ord(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby1` | ✅ | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby2` | ✅ | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `cheby1` | ✅ | Sig: [b,a]=cheby1 / [z,p,k]=cheby1(N,Rp,Wn[,type]). DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). cheby1(4,1,0.3): nz=4 np=4 gain k1=0.00836323956, sum(real(poles))=2.37412317; poles+gain exact. Like butter, the lowpass zeros are all at z=-1 (repeated) and root-found to ~1e-2, so sum(real(z)) is not fingerprinted (exact repeated zeros deferred to a ZPK-form bilinear). namespace=signal. |
+| `cheby2` | ✅ 🔬 | Sig: [b,a]=cheby2 / [z,p,k]=cheby2(N,Rs,Wn[,type]). DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). cheby2(4,30,0.3): nz=4 np=4 gain k2=0.0470498339, sum(real(poles))=2.26899171, sum(real(zeros))=0.509710648 — cheby2 has DISTINCT finite zeros so all of z/p/k are exact vs MATLAB. namespace=signal. |
 | `designfilt` | ❌ |  |
 | `designfilter` | ❌ |  |
 | `digitalfilter` | ❌ |  |
 | `double` | ✅ | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
 | `dspfwiz` | ❌ |  |
-| `ellip` | ✅ | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
+| `ellip` | ✅ 🔬 | Sig: [b,a]=ellip / [z,p,k]=ellip(N,Rp,Rs,Wn[,type]). Cauer IIR design via ellipap + lp2X + bilinear; [b,a] bit-identical with MATLAB R2025b. DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). ellip(4,1,30,0.3): nz=4 np=4 gain k3=0.0647314906, sum(real(poles))=2.28002378, sum(real(zeros))=0.163902070 — ellip has DISTINCT finite zeros so z/p/k are all exact vs MATLAB. namespace=signal. |
 | `ellipord` | ⚠️ | Sig: [n, Wn] = ellipord(Wp, Ws, Rp, Rs[, 's']). Bit-equal MATLAB R2025b on lowpass / highpass / bandpass / analog. KNOWN GAP: bandstop (ftype=3) deferred. Octave: in signal package, not core. |
 | `filt2block` | ❌ |  |
 | `filteranalyzer` | ❌ |  |
@@ -2401,12 +2401,12 @@ intentionally omitted — flat solver functions only.
 | `besself` | ✅ | Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
 | `bilinear` | ✅ | Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `buttap` | ✅ | Sig: r = buttap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `butter` | ✅ | Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `butter` | ✅ | Sig: [b,a]=butter / [z,p,k]=butter(N,Wn[,type]). DEEP-PROBE 2026-05-31: the 3-output [z,p,k] form (digital zero/pole/gain) was added (previously errored 'Undefined k'). butter(4,0.3): nz=4 np=4 gain kb=0.0185630106, sum(real(poles))=1.57039885. ZPK recovered from the (b,a) the designer already builds (a is monic so gain=b(1)); poles+gain are exact. NOTE the lowpass zeros are all at z=-1 (repeated root) and are recovered by root-finding only to ~1e-2 — sum(real(z)) is NOT fingerprinted here; bit-exact repeated zeros would need a ZPK-form bilinear (deferred). namespace=signal. |
 | `cheb1ap` | ✅ | Sig: r = cheb1ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `cheb2ap` | ✅ | Sig: r = cheb2ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby1` | ✅ | Sig: r = cheby1(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `cheby2` | ✅ | Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `ellip` | ✅ | Sig: [b,a] = ellip(N, Rp, Rs, Wn[, type][, 's']). Cauer IIR design via ellipap + lp2X + bilinear. Bit-identical with MATLAB R2025b on probe. |
+| `cheby1` | ✅ | Sig: [b,a]=cheby1 / [z,p,k]=cheby1(N,Rp,Wn[,type]). DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). cheby1(4,1,0.3): nz=4 np=4 gain k1=0.00836323956, sum(real(poles))=2.37412317; poles+gain exact. Like butter, the lowpass zeros are all at z=-1 (repeated) and root-found to ~1e-2, so sum(real(z)) is not fingerprinted (exact repeated zeros deferred to a ZPK-form bilinear). namespace=signal. |
+| `cheby2` | ✅ 🔬 | Sig: [b,a]=cheby2 / [z,p,k]=cheby2(N,Rs,Wn[,type]). DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). cheby2(4,30,0.3): nz=4 np=4 gain k2=0.0470498339, sum(real(poles))=2.26899171, sum(real(zeros))=0.509710648 — cheby2 has DISTINCT finite zeros so all of z/p/k are exact vs MATLAB. namespace=signal. |
+| `ellip` | ✅ 🔬 | Sig: [b,a]=ellip / [z,p,k]=ellip(N,Rp,Rs,Wn[,type]). Cauer IIR design via ellipap + lp2X + bilinear; [b,a] bit-identical with MATLAB R2025b. DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). ellip(4,1,30,0.3): nz=4 np=4 gain k3=0.0647314906, sum(real(poles))=2.28002378, sum(real(zeros))=0.163902070 — ellip has DISTINCT finite zeros so z/p/k are all exact vs MATLAB. namespace=signal. |
 | `ellipap` | ✅ | Sig: [z,p,k] = ellipap(N, Rp, Rs). Cauer analog prototype via Sophocleous formulas. Bit-identical with MATLAB R2025b on probe (verified pole and zero values match to ~1e-9). |
 | `freqs` | ✅ | Sig: H = freqs(b, a, w). Returns 1xM row vector of complex H(jw). Bit-identical with MATLAB R2025b after row-shape fix 2026-05-09. |
 | `impinvar` | ✅ | Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43). |

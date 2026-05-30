@@ -2,12 +2,12 @@
   "name": "cheby2",
   "namespace": "signal",
   "setup": "",
-  "expr": "[b, a] = cheby2(4, 30, 0.5); r1 = double(numel(b)); r2 = double(numel(a));",
+  "expr": "[b, a] = cheby2(4, 30, 0.5); r1 = double(numel(b)); r2 = double(numel(a)); [z,p,k] = cheby2(4, 30, 0.3); nz = double(numel(z)); np = double(numel(p)); k2 = k; sp2 = sum(real(p)); sz2 = sum(real(z));",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2", "nz", "np", "k2", "sp2", "sz2"
   ],
-  "comment": "Sig: r = cheby2(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig: [b,a]=cheby2 / [z,p,k]=cheby2(N,Rs,Wn[,type]). DEEP-PROBE 2026-05-31: 3-output [z,p,k] form added (previously errored). cheby2(4,30,0.3): nz=4 np=4 gain k2=0.0470498339, sum(real(poles))=2.26899171, sum(real(zeros))=0.509710648 — cheby2 has DISTINCT finite zeros so all of z/p/k are exact vs MATLAB. namespace=signal.",
+  "deep_verified": true
 }

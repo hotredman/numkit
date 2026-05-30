@@ -6,6 +6,7 @@
 
 #include <numkit/signal/filter_design/filter_design.hpp>
 #include <numkit/signal/transforms/fft.hpp>
+#include <numkit/builtin/math/poly/polynomials.hpp>  // tf2zp (ZPK 3-output)
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -360,6 +361,16 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         type = args[2].toString();
 
     auto [bv, av] = butter(N, Wn, type, ctx.engine->resource());
+    if (nargout >= 3) {
+        // [z, p, k] = butter(...): digital zero/pole/gain. The denominator
+        // is monic so the ZPK gain equals b(1); tf2zp recovers z/p as the
+        // roots of b/a (same set MATLAB returns; order may differ).
+        auto [z, p, k] = ::numkit::builtin::tf2zp(bv, av, ctx.engine->resource());
+        outs[0] = std::move(z);
+        outs[1] = std::move(p);
+        outs[2] = std::move(k);
+        return;
+    }
     outs[0] = std::move(bv);
     if (nargout > 1)
         outs[1] = std::move(av);
