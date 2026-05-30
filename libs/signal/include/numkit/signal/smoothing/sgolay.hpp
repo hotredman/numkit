@@ -56,4 +56,29 @@ Value sgolayfilt(const Value &                x,
                  int                          framelen,
                  std::pmr::memory_resource *  mr = nullptr);
 
+/// Savitzky-Golay smoothing with optional weighting and dimension.
+///
+/// Generalises @ref sgolayfilt to matrices and weighted least-squares:
+///   - If `x` is a matrix, each 1-D slice along `dim` is filtered
+///     independently (`dim = 1` → columns, `dim = 2` → rows). `dim = 0`
+///     selects the first non-singleton dimension (the MATLAB default).
+///   - `weights` is an empty Value (unweighted) or a `framelen`-length
+///     vector of positive weights for the local least-squares fit.
+///
+/// @param x         Real 1-D or 2-D signal.
+/// @param order     Polynomial order (`0 ≤ order < framelen`).
+/// @param framelen  Window length (odd, ≥ `order + 1`).
+/// @param weights   Empty, or `framelen` positive weights.
+/// @param dim       Operating dimension (1, 2, or 0 = auto).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Filtered signal, same shape as `x`.
+///
+/// @see sgolay, medfilt1
+Value sgolayfilt(const Value &                x,
+                 int                          order,
+                 int                          framelen,
+                 const Value &                weights,
+                 int                          dim,
+                 std::pmr::memory_resource *  mr = nullptr);
+
 } // namespace numkit::signal
