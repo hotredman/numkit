@@ -71,9 +71,36 @@ TEST_F(ConvolutionTest, ConvCommutative)
 
 TEST_F(ConvolutionTest, ConvSameLength)
 {
-    // 'same' returns max(na, nb)
+    // 'same' returns the central part the SAME SIZE AS THE FIRST input (na).
     auto r = eval("conv([1 2 3 4 5], [1 1 1], 'same')");
     EXPECT_EQ(r.numel(), 5u);
+}
+
+// 'same' = central part of length na, starting at floor(nb/2) of the full
+// convolution. Previously numkit used max(na,nb) + a centered offset, which
+// was off-by-one for EVEN kernels and wrong-length when na<nb. vs MATLAB
+// R2025b. DEEP-PROBE 2026-05-30.
+TEST_F(ConvolutionTest, ConvSameEvenKernelAndShortFirst)
+{
+    // Even kernel (nb=2): conv([1 2 3 4],[1 1],'same') = [3 5 7 4] (not [1 3 5 7]).
+    eval("e = conv([1 2 3 4], [1 1], 'same');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 4.0);
+    EXPECT_NEAR(evalScalar("e(1)"), 3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(4)"), 4.0, 1e-10);
+    // Odd first arg, even kernel: conv([1 2 3],[1 1],'same') = [3 5 3].
+    eval("f = conv([1 2 3], [1 1], 'same');");
+    EXPECT_NEAR(evalScalar("f(1)"), 3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("f(3)"), 3.0, 1e-10);
+    // nb=4: conv([1 2 3 4 5],[1 1 1 1],'same') = [6 10 14 12 9].
+    eval("g = conv([1 2 3 4 5], [1 1 1 1], 'same');");
+    EXPECT_NEAR(evalScalar("g(1)"), 6.0, 1e-10);
+    EXPECT_NEAR(evalScalar("g(5)"), 9.0, 1e-10);
+    // First arg SHORTER than kernel -> length na (not nb):
+    // conv([1 2],[1 1 1 1 1],'same') = [3 3] (length 2).
+    eval("h = conv([1 2], [1 1 1 1 1], 'same');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(h)"), 2.0);
+    EXPECT_NEAR(evalScalar("h(1)"), 3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("h(2)"), 3.0, 1e-10);
 }
 
 TEST_F(ConvolutionTest, ConvValidLength)

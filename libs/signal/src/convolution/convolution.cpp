@@ -31,8 +31,12 @@ Value conv(const Value &a, const Value &b, const std::string &shape, std::pmr::m
     const size_t nc = c.size();
     size_t outStart = 0, outLen = nc;
     if (shape == "same") {
-        outLen = std::max(na, nb);
-        outStart = (nc - outLen) / 2;
+        // MATLAB: 'same' is the central part the SAME SIZE AS THE FIRST input
+        // (length na), taken starting at floor(nb/2) (0-based) of the full
+        // convolution. conv([1 2 3 4],[1 1],'same')=[3 5 7 4] (not [1 3 5 7]);
+        // conv([1 2],[1 1 1 1 1],'same')=[3 3] (length 2, not 5).
+        outLen = na;
+        outStart = nb / 2;
     } else if (shape == "valid") {
         outLen = (na >= nb) ? na - nb + 1 : nb - na + 1;
         outStart = std::min(na, nb) - 1;
