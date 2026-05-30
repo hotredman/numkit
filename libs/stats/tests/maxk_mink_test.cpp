@@ -55,3 +55,50 @@ TEST_F(MaxkMinkTest, BadNVErrors)
 {
     EXPECT_THROW(eval("maxk([3 1 4], 2, 'Foo', 'bar');"), numkit::Error);
 }
+
+// ── second output: indices [M, I] = mink/maxk(...) ──────────────────────
+TEST_F(MaxkMinkTest, MinkIndexVector)
+{
+    eval("[m, ix] = mink([5 2 8 1 9], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2)"), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1)"), 4); // value 1 is at position 4
+    EXPECT_DOUBLE_EQ(evalScalar("ix(2)"), 2); // value 2 is at position 2
+}
+
+TEST_F(MaxkMinkTest, MaxkIndexVector)
+{
+    eval("[m, ix] = maxk([5 2 8 1 9], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1)"), 9);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2)"), 8);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1)"), 5); // value 9 is at position 5
+    EXPECT_DOUBLE_EQ(evalScalar("ix(2)"), 3); // value 8 is at position 3
+}
+
+TEST_F(MaxkMinkTest, MinkIndexTiesKeepLowerPosition)
+{
+    // Equal values keep the lower original index (stable).
+    eval("[m, ix] = mink([3 1 3], 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1)"), 2); // the 1
+    EXPECT_DOUBLE_EQ(evalScalar("ix(2)"), 1); // first 3
+    EXPECT_DOUBLE_EQ(evalScalar("ix(3)"), 3); // second 3
+}
+
+TEST_F(MaxkMinkTest, MinkIndexMatrixDefaultDim)
+{
+    // mink along dim 1: indices are row positions within each column.
+    eval("[m, ix] = mink([3 6; 1 4; 2 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1,1)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1,1)"), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(2,1)"), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1,2)"), 2);
+}
+
+TEST_F(MaxkMinkTest, MaxkIndexDim2)
+{
+    eval("[m, ix] = maxk([1 5 2; 8 3 9], 2, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1,1)"), 2); // row1: max 5 at col 2
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1,2)"), 3); // row1: next 2 at col 3
+    EXPECT_DOUBLE_EQ(evalScalar("ix(2,1)"), 3); // row2: max 9 at col 3
+    EXPECT_DOUBLE_EQ(evalScalar("ix(2,2)"), 1); // row2: next 8 at col 1
+}
