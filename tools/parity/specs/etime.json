@@ -1,0 +1,13 @@
+{
+  "name": "etime",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = etime([2026 5 30 12 0 30.5],[2026 5 30 12 0 30]); b = etime([2026 6 1 0 0 0],[2026 5 31 0 0 0]); c = etime([2027 1 1 0 0 0],[2026 12 31 0 0 0]); d = etime([2026 5 30 11 0 0],[2026 5 30 12 0 0]); lc = etime([2024 3 1 0 0 0],[2024 2 29 0 0 0]); r = etime([2026 5 30 0 0 10; 2026 5 30 0 0 20],[2026 5 30 0 0 0; 2026 5 30 0 0 0]); r1 = r(1); r2 = r(2); nrows = size(r,1); ncols = size(r,2); bc = etime([2026 5 30 0 0 1;2026 5 30 0 0 2;2026 5 30 0 0 3],[2026 5 30 0 0 0]); bc3 = bc(3);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "a", "b", "c", "d", "lc",
+    "r1", "r2", "nrows", "ncols", "bc3"
+  ],
+  "comment": "etime(t2, t1): elapsed seconds between 6-element date vectors [Y M D H MI S], one row each or N-by-6, returning an N-by-1 column. Implemented 2026-05-30 (was an undefined function). Calendar-aware = (datenum(t2)-datenum(t1))*86400 but the integer date-day part is differenced separately from H/MI/S so a fractional second (a=0.5) survives without cancellation in the ~7.4e5 serial. b/c/lc cross month/year/leap-day boundaries = 86400; d negative = -3600. Matrix form: each row a date vector -> column out (r1=10, r2=20, nrows=2, ncols=1); a single row broadcasts (bc3=3). namespace=builtin. NOTE: requires exactly 6 columns (MATLAB indexes column 6); fewer columns raise an error (covered in gtest)."
+}

@@ -191,3 +191,48 @@ TEST_F(DatevecTest, Calendar)
     // Bad month throws.
     EXPECT_THROW(eval("calendar(2022, 13)"), std::exception);
 }
+
+// ── etime(t2, t1): elapsed seconds between date vectors ──────────────
+// Implemented 2026-05-30 (was an undefined function). Calendar-aware,
+// integer date-day part differenced separately from H/MI/S so a
+// fractional second survives without cancellation. vs MATLAB R2025b.
+TEST_F(DatevecTest, EtimeScalarPairs)
+{
+    // Fractional second: 0.5 exactly (not ~0.4999973 from cancellation).
+    EXPECT_NEAR(evalScalar("etime([2026 5 30 12 0 30.5],[2026 5 30 12 0 30])"),
+                0.5, 1e-9);
+    // Calendar boundaries -> one day = 86400 s.
+    EXPECT_DOUBLE_EQ(evalScalar("etime([2026 6 1 0 0 0],[2026 5 31 0 0 0])"),
+                     86400.0);
+    EXPECT_DOUBLE_EQ(evalScalar("etime([2027 1 1 0 0 0],[2026 12 31 0 0 0])"),
+                     86400.0);
+    // Leap-day cross 2024-02-29 -> 2024-03-01.
+    EXPECT_DOUBLE_EQ(evalScalar("etime([2024 3 1 0 0 0],[2024 2 29 0 0 0])"),
+                     86400.0);
+    // Negative: t2 earlier than t1.
+    EXPECT_DOUBLE_EQ(evalScalar("etime([2026 5 30 11 0 0],[2026 5 30 12 0 0])"),
+                     -3600.0);
+}
+
+TEST_F(DatevecTest, EtimeMatrixAndBroadcast)
+{
+    // Each row a date vector -> N-by-1 column.
+    eval("r = etime([2026 5 30 0 0 10; 2026 5 30 0 0 20],"
+         "[2026 5 30 0 0 0; 2026 5 30 0 0 0]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(r,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(r,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("iscolumn(r)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 20.0);
+    // A single row in t1 broadcasts against N rows in t2.
+    eval("b = etime([2026 5 30 0 0 1; 2026 5 30 0 0 2; 2026 5 30 0 0 3],"
+         "[2026 5 30 0 0 0]);");
+    EXPECT_DOUBLE_EQ(evalScalar("b(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(3)"), 3.0);
+}
+
+TEST_F(DatevecTest, EtimeWrongColumnsThrows)
+{
+    // MATLAB indexes column 6; fewer than 6 columns is an error.
+    EXPECT_THROW(eval("etime([2026 5 30],[2026 5 29]);"), std::exception);
+}

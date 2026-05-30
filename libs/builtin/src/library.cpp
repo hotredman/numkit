@@ -2103,6 +2103,93 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = Value::scalar(serial, ctx.engine->resource());
                             });
 
+    // ── etime ─────────────────────────────────────────────────
+    // MATLAB etime(t2, t1): elapsed seconds between two date vectors.
+    // Each input is a 6-element date vector [Y M D H MI S] (one row) or
+    // an N-by-6 matrix of such rows; the result is an N-by-1 column of
+    // elapsed seconds. A single row in one argument broadcasts against
+    // N rows in the other. The computation is calendar-aware:
+    //   etime = (datenum(t2) - datenum(t1)) * 86400
+    // so month/year/leap-day boundaries are handled correctly. MATLAB
+    // requires exactly 6 columns (it indexes column 6); fewer columns
+    // raise an error here too.
+    engine.registerFunction("etime",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.size() < 2)
+                                    throw std::runtime_error(
+                                        "etime: requires two date vectors (t2, t1)");
+
+                                auto civilToSerial = [](double yd, double md,
+                                                        double dd, double hd,
+                                                        double mind, double sd) {
+                                    double dInt;
+                                    const double dFrac = std::modf(dd, &dInt);
+                                    int64_t y = static_cast<int64_t>(std::floor(yd));
+                                    int64_t m = static_cast<int64_t>(std::floor(md));
+                                    int64_t d = static_cast<int64_t>(dInt);
+                                    if (m <= 2) y -= 1;
+                                    const int64_t era = (y < 0 ? y - 399 : y) / 400;
+                                    const int64_t yoe = y - era * 400;
+                                    const int64_t doy =
+                                        (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+                                    const int64_t doe =
+                                        yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                                    const int64_t days = era * 146097 + doe - 719468;
+                                    const double frac =
+                                        (hd * 3600.0 + mind * 60.0 + sd) / 86400.0 + dFrac;
+                                    return static_cast<double>(days) + 719529.0 + frac;
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &t2 = args[0];
+                                const Value &t1 = args[1];
+                                const size_t r2 = t2.dims().rows(), c2 = t2.dims().cols();
+                                const size_t r1 = t1.dims().rows(), c1 = t1.dims().cols();
+                                if (c2 != 6 || c1 != 6)
+                                    throw std::runtime_error(
+                                        "etime: date vectors must have 6 columns "
+                                        "[Y M D H MI S]");
+                                if (r1 != r2 && r1 != 1 && r2 != 1)
+                                    throw std::runtime_error(
+                                        "etime: t2 and t1 must have the same number of "
+                                        "rows (or one a single row)");
+                                const size_t N = std::max(r1, r2);
+
+                                // Column-major: element (row, col) at row + col*nrows.
+                                // Separate the integer date-day part from the
+                                // H/MI/S part the way MATLAB does: the day
+                                // difference is an exact integer, and the small
+                                // time terms subtract directly, so a fractional
+                                // second does not lose precision to cancellation
+                                // inside a ~7.4e5 serial date number.
+                                auto comp = [&](const Value &v, size_t nr,
+                                                size_t row, size_t col) {
+                                    return v.elemAsDouble(row + col * nr);
+                                };
+
+                                auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t k = 0; k < N; ++k) {
+                                    const size_t k2 = (r2 == 1 ? 0 : k);
+                                    const size_t k1 = (r1 == 1 ? 0 : k);
+                                    const double dDay =
+                                        civilToSerial(comp(t2, r2, k2, 0),
+                                                      comp(t2, r2, k2, 1),
+                                                      comp(t2, r2, k2, 2), 0, 0, 0)
+                                      - civilToSerial(comp(t1, r1, k1, 0),
+                                                      comp(t1, r1, k1, 1),
+                                                      comp(t1, r1, k1, 2), 0, 0, 0);
+                                    const double dH  = comp(t2, r2, k2, 3) - comp(t1, r1, k1, 3);
+                                    const double dMI = comp(t2, r2, k2, 4) - comp(t1, r1, k1, 4);
+                                    const double dS  = comp(t2, r2, k2, 5) - comp(t1, r1, k1, 5);
+                                    o[k] = 86400.0 * dDay + 3600.0 * dH + 60.0 * dMI + dS;
+                                }
+                                outs[0] = std::move(out);
+                            });
+
     // ── datenum ───────────────────────────────────────────────
     // MATLAB datenum: serial date number from date components.
     //
