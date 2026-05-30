@@ -59,11 +59,16 @@ freqz(const Value &                b,
 /// @return      Tuple `(phi, W)` — phase in radians and frequencies.
 ///
 /// @see freqz, grpdelay
+///
+/// `fs` > 0 (the `phasez(b,a,n,fs)` form) returns the frequency vector in
+/// Hz over `[0, fs/2)` instead of rad/sample; the phase values are
+/// unchanged.
 std::tuple<Value, Value>
 phasez(const Value &                b,
        const Value &                a,
        size_t                       npts = 512,
-       std::pmr::memory_resource *  mr   = nullptr);
+       std::pmr::memory_resource *  mr   = nullptr,
+       double                       fs   = 0.0);
 
 /// Group delay of a digital filter.
 ///
@@ -80,10 +85,15 @@ phasez(const Value &                b,
 ///              and frequency grid in rad/sample.
 ///
 /// @see freqz, phasez, phasedelay
+///
+/// `fs` > 0 (the `grpdelay(b,a,n,fs)` form) returns the frequency vector in
+/// Hz over `[0, fs/2)` instead of rad/sample; the group delay (in samples)
+/// is unchanged.
 std::tuple<Value, Value>
 grpdelay(const Value &                b,
          const Value &                a,
          size_t                       npts = 512,
-         std::pmr::memory_resource *  mr   = nullptr);
+         std::pmr::memory_resource *  mr   = nullptr,
+         double                       fs   = 0.0);
 
 } // namespace numkit::signal
