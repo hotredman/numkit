@@ -3198,12 +3198,61 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         outs[1] = std::move(idx);
 }
 
-void find_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void find_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("find: requires 1 argument",
                      0, 0, "find", "", "numkit:find:nargin");
-    outs[0] = find(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &x = args[0];
+
+    if (nargout <= 1) {
+        outs[0] = find(x, mr);
+        return;
+    }
+
+    // [r, c] = find(X) / [r, c, v] = find(X): row/column subscripts (and the
+    // nonzero values). Subscripts/values inherit X's vector orientation (row
+    // vector → row results, otherwise column results), matching MATLAB.
+    // NOTE: the find(X, n) row-count limit is not applied to the multi-output
+    // forms here.
+    ScratchArena scratch(mr);
+    auto lin = ScratchVec<size_t>(&scratch);
+    forEachNonzero(x, [&](size_t i) { lin.push_back(i); });
+    const size_t k = lin.size();
+    const size_t R = x.dims().rows() == 0 ? 1 : x.dims().rows();
+    const bool rowResult = !x.dims().is3D() && x.dims().rows() == 1;
+    auto mk = [&](ValueType t) {
+        return rowResult ? Value::matrix(1, k, t, mr)
+                         : Value::matrix(k, 1, t, mr);
+    };
+
+    Value rowV = mk(ValueType::DOUBLE);
+    Value colV = mk(ValueType::DOUBLE);
+    double *rd = rowV.doubleDataMut();
+    double *cd = colV.doubleDataMut();
+    for (size_t t = 0; t < k; ++t) {
+        const size_t i = lin[t];
+        rd[t] = static_cast<double>(i % R + 1);
+        cd[t] = static_cast<double>(i / R + 1);
+    }
+    outs[0] = rowV;
+    outs[1] = colV;
+
+    if (nargout >= 3) {
+        if (x.type() == ValueType::COMPLEX) {
+            Value valV = mk(ValueType::COMPLEX);
+            const Complex *src = x.complexData();
+            Complex *vd = valV.complexDataMut();
+            for (size_t t = 0; t < k; ++t) vd[t] = src[lin[t]];
+            outs[2] = valV;
+        } else {
+            Value valV = mk(ValueType::DOUBLE);
+            double *vd = valV.doubleDataMut();
+            for (size_t t = 0; t < k; ++t) vd[t] = x.elemAsDouble(lin[t]);
+            outs[2] = valV;
+        }
+    }
 }
 
 void nnz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

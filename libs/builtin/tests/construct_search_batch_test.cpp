@@ -97,3 +97,44 @@ TEST_F(ConstructSearchBatchTest, TrueFalse)
     EXPECT_DOUBLE_EQ(evalScalar("sum(true(3)(:))"),  9.0);   // 3×3 trues
     EXPECT_DOUBLE_EQ(evalScalar("sum(false(3)(:))"), 0.0);
 }
+
+// ── find: [r, c] and [r, c, v] subscript / value outputs ────────────────
+// Bug: find only returned linear indices; [r,c]=find(X) errored.
+TEST_F(ConstructSearchBatchTest, FindRowColMatrix)
+{
+    eval("[r, c] = find([0 1; 1 0]);");
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(r,1)"), 2.0); // column vectors
+    EXPECT_DOUBLE_EQ(evalScalar("size(r,2)"), 1.0);
+}
+
+TEST_F(ConstructSearchBatchTest, FindRowColValue)
+{
+    eval("[r, c, v] = find([0 5; 7 0]);");
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), 7.0); // column-major order: 7 first
+    EXPECT_DOUBLE_EQ(evalScalar("v(2)"), 5.0);
+}
+
+TEST_F(ConstructSearchBatchTest, FindRowVectorOrientation)
+{
+    // Row-vector input → row-vector subscript outputs.
+    eval("[r, c] = find([0 1 0 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(r,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(r,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 4.0);
+}
+
+TEST_F(ConstructSearchBatchTest, FindSingleOutputUnchanged)
+{
+    eval("k = find([0; 3; 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("k(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("k(2)"), 3.0);
+}
