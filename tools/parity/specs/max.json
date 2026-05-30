@@ -10,8 +10,13 @@
     "double(y)",
     "numel(y)",
     "ne0",
-    "size(e0,1)", "size(e0,2)",
-    "size(ec,1)", "size(ec,2)",
-    "size(er,1)", "size(er,2)"
-  ]
+    "size(e0,1)",
+    "size(e0,2)",
+    "size(ec,1)",
+    "size(ec,2)",
+    "size(er,1)",
+    "size(er,2)"
+  ],
+  "bench_setup": "xb = mod((1:N)*7919,1000)+0.5;",
+  "bench_expr": "rb = max(xb);"
 }

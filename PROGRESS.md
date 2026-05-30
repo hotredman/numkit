@@ -676,7 +676,7 @@ together.
 
 | function | status | correctness | comment |
 |---|:---:|:---:|---|
-| `exp` | ✅ | N/A | Sig: r = exp(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `exp` | ✅ | OK | Sig: r = exp(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `expm1` | ✅ | N/A | Sig: r = expm1(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `log` | ✅ | OK | Sig: r = log(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `log10` | ✅ | OK | Sig: r = log10(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
@@ -2581,7 +2581,7 @@ intentionally omitted — flat solver functions only.
 | `wvd` | ❌ |  | Wigner-Ville |
 | `xspectrogram` | ❌ |  | cross-spectrogram |
 | `xwvd` | ❌ |  | cross WVD |
-| `fft` | ✅ | N/A | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
+| `fft` | ✅ | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
 | `fft2` | ✅ | N/A | Sig: r = fft2(...). Spec-extension batch 2026-05-09. |
 | `fftn` | ✅ | OK | Sig: Y = fftn(X[, sz]). N-D FFT via iterated 1-D fft along dims 1..ndim. Bit-equal MATLAB R2025b on 2-D, 3-D, and sz-override forms. Up to 3-D (Dims model cap). |
 | `fftshift` | ✅ | N/A | Sig: Y = fftshift(X[, dim]). Cyclic shift along every non-singleton dim by ceil(extent/2); inverse ifftshift uses floor(extent/2). Bug fix: numkit had fftshift/ifftshift swapped for odd N + flat-shift instead of per-dim for matrices + dim arg ignored. tol=0 (integer-stable). |
@@ -3826,3 +3826,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `weeknum` | ✅ | OK | weeknum(D [, WeekStart [, European]]): week-of-year for serial date number D, element-wise, shape preserved. Implemented 2026-05-30 (was an undefined function). US default (WeekStart=1=Sunday): partial first week is week 1, so Jan 1 2026 (Thu) = 1 (a), Jan 4 (Sun) = 2 (b), Dec 31 2026 = 53 (c); leap Feb 29 2020 = 9 (lp), Jul 4 2026 = 27 (jy). WeekStart=2 (Monday): Jan 4 2026 (Sun) = 1 (ws), Jan 5 (Mon) = 2 (ws5). European=1 applies the ISO-style >=4-day rule with the chosen WeekStart and donates a short leading partial week to the prior year: Jan 1 2026 = 53 (e1, donated), Jan 4 = 1 (e4), Dec 31 2026 = 52 (ee), Jan 1 2027 = 52 (ep). Vector input -> column preserved (v1=1, v2=53, vcol=1). namespace=builtin. WeekStart out of 1..7 throws (covered in gtest). |
 | `addtodate` | ✅ | OK | addtodate(D, Q, units): add Q units to serial date number D (scalar). Implemented 2026-05-30 (was an undefined function). Time units are plain serial arithmetic (+3 day -> D=3 wraps Jan31->Feb3 dD=3 dH=10; +3 hour -> hH=13; +3 millisecond delta sms=3/86400000~=3.47e-8). Calendar units add to the month/year component with day-clamping to the new month's length and preserve the time-of-day fraction: +3 month from Jan31 -> Apr30 (moM=4, moD=30, moH=10 preserved); +3 year -> 2029 (yrY=2029); Jan31+1mo -> Feb28 (c1M=2,c1D=28); leap Jan31 2024 +1mo -> Feb29 (c2D=29); Feb29 2024 +1yr -> Feb28 2025 (c3Y=2025,c3D=28); negative Mar15 2026 -4mo -> Nov15 2025 (nY=2025,nM=11). namespace=builtin. NOTE: scalar D only (MATLAB errors on a vector); fractional month/year quantity is rounded. |
 | `partialcorr_rows` | ✅ | OK | partialcorr 'Rows' NaN policy (2026-05-30). The fn name is a probe alias for partialcorr — kept in a separate spec from partialcorr.json so the per-chunk variable count stays under the numkit VM 255-register limit. partialcorr previously accept-and-ignored the 'Rows' NV pair, so NaN data NaN-poisoned. 'complete' = listwise deletion across all positional matrices, then partial correlation: Xn has NaN at (3,2) and (6,3), so rows 3 and 6 drop (5 rows kept), giving rc11=1, rc12=-0.227123, rc13=0.040291, rc23=-0.046205. namespace=stats. 'all' (default) NaN-poisons; 'pairwise' deferred (partial correlation from a pairwise, possibly non-PD covariance) with a clear error. Matches MATLAB R2025b. |
+| `abs` | — | OK | abs(x) elementwise magnitude. Correctness on a tiny signed vector; benched (SIMD build) at N=1e3/1e6. |

@@ -10,5 +10,7 @@
     "double(real(sum(y(:))))",
     "double(real(y(1)))",
     "double(real(y(end)))"
-  ]
+  ],
+  "bench_setup": "Np2 = 2.^round(log2(N)); xb = mod((1:Np2)*7919,1000)*0.001;",
+  "bench_expr": "rb = fft(xb);"
 }
