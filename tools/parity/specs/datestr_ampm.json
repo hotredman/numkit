@@ -1,11 +1,23 @@
 {
   "name": "datestr_ampm",
-  "covers": ["datestr"],
+  "covers": [
+    "datestr"
+  ],
   "namespace": "builtin",
   "setup": "",
   "expr": "p = datestr(0.7,'HH:MM:SS AM'); np = numel(p); p1 = double(p(1)); p2 = double(p(2)); pm = double(p(10)); q = datestr(0,'HH:MM:SS AM'); q1 = double(q(1)); qa = double(q(10)); r = datestr(0.5,'HH:MM PM'); nr = numel(r); rp = double(r(7));",
   "iters": 5,
   "tol": 0,
-  "fingerprint": ["np", "p1", "p2", "pm", "q1", "qa", "nr", "rp"],
-  "comment": "datestr AM/PM meridiem token (2026-05-30). An 'AM'/'PM' token (case-insensitive) in the format switches HH to a 12-hour, SPACE-padded clock and prints AM/PM by time of day (12 AM = midnight, 12 PM = noon; both tokens are placeholders). numkit previously ignored it (kept 24-hour HH + literal 'AM'). datestr(0.7,'HH:MM:SS AM')=' 4:48:00 PM' (np=11, p1=32 leading space, p2=52 '4', pm=80 'P' at idx10); datestr(0,'HH:MM:SS AM')='12:00:00 AM' (q1=49 '1', qa=65 'A'); datestr(0.5,'HH:MM PM')='12:00 PM' (nr=8, rp=80 'P'). Without a meridiem token HH stays 24-hour zero-padded. namespace=builtin. Matches MATLAB R2025b. (Multi-date matrix + numeric-format-code combos still deferred.)"
+  "fingerprint": [
+    "np",
+    "p1",
+    "p2",
+    "pm",
+    "q1",
+    "qa",
+    "nr",
+    "rp"
+  ],
+  "comment": "datestr AM/PM meridiem token (2026-05-30). An 'AM'/'PM' token (case-insensitive) in the format switches HH to a 12-hour, SPACE-padded clock and prints AM/PM by time of day (12 AM = midnight, 12 PM = noon; both tokens are placeholders). numkit previously ignored it (kept 24-hour HH + literal 'AM'). datestr(0.7,'HH:MM:SS AM')=' 4:48:00 PM' (np=11, p1=32 leading space, p2=52 '4', pm=80 'P' at idx10); datestr(0,'HH:MM:SS AM')='12:00:00 AM' (q1=49 '1', qa=65 'A'); datestr(0.5,'HH:MM PM')='12:00 PM' (nr=8, rp=80 'P'). Without a meridiem token HH stays 24-hour zero-padded. namespace=builtin. Matches MATLAB R2025b. (Multi-date matrix + numeric-format-code combos still deferred.)",
+  "deep_verified": true
 }

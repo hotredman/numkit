@@ -105,6 +105,11 @@ class Spec:
     # input shape) so the size used is unambiguous per row.
     bench_sizes: list = field(default_factory=lambda: [1000, 1000000])
     bench_note: str = ""
+    # Set true on a spec that DEEP-PROBED its function(s) against MATLAB
+    # across options / edge branches (not just a basic check). The harness
+    # then appends a 🔬 marker to the PROGRESS.md status cell, which it
+    # preserves across future runs.
+    deep_verified: bool = False
 
     @classmethod
     def from_json(cls, path: Path) -> "Spec":
@@ -583,10 +588,13 @@ def make_row_finder(name: str) -> re.Pattern:
 def update_progress_row(*, name: str, nk: Result | None,
                         ml: Result | None, oc: Result | None,
                         correctness: str, comment: str,
-                        implemented: bool = False) -> int:
+                        implemented: bool = False,
+                        deep_verified: bool = False) -> int:
     """Update implementation rows in PROGRESS.md for `name` — status +
     correctness + comment only (perf lives in BENCHMARK.md). Appends to a
-    Misc section if the function isn't in the TODO-driven layout."""
+    Misc section if the function isn't in the TODO-driven layout. A
+    deep_verified spec appends a 🔬 marker to the status cell (kept across
+    future runs since the status cell is otherwise preserved verbatim)."""
     if not PROGRESS_MD.exists():
         return 0
     text = PROGRESS_MD.read_text(encoding="utf-8")
@@ -598,8 +606,10 @@ def update_progress_row(*, name: str, nk: Result | None,
         touched += 1
         # ❌→✅ self-heal when numkit actually ran the fn; ⚠️/✅ preserved.
         cur_status = m.group("status").strip()
-        if implemented and cur_status == "❌":
-            cur_status = "✅"
+        if implemented and cur_status.replace("🔬", "").strip() == "❌":
+            cur_status = cur_status.replace("❌", "✅")
+        if deep_verified and "🔬" not in cur_status:
+            cur_status = cur_status + " 🔬"
         return PROGRESS_ROW_FMT.format(name=name, status=cur_status,
                                        correctness=correctness, comment=comment)
 
