@@ -25,7 +25,7 @@
 namespace numkit::signal {
 
 std::tuple<Value, Value>
-freqz(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr, bool whole)
+freqz(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr, bool whole, double fs)
 {
     const double *bd = b.doubleData();
     const double *ad = a.doubleData();
@@ -37,11 +37,15 @@ freqz(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr
     // MATLAB freqz(b, a, n): n equispaced frequencies on [0, π) — the
     // upper endpoint π is excluded. Grid is w = (0:n-1) * π / n. With
     // 'whole', the grid spans the full unit circle [0, 2π):
-    // w = (0:n-1) * 2π / n.
-    const double span = whole ? (2.0 * M_PI) : M_PI;
+    // w = (0:n-1) * 2π / n. The response H is always evaluated at these
+    // normalised radian frequencies; when fs > 0 (the freqz(b,a,n,fs)
+    // form) the RETURNED frequency vector is rescaled to Hz over [0, fs/2)
+    // (or [0, fs) with 'whole') — i.e. f = w * fs / (2π).
+    const double span   = whole ? (2.0 * M_PI) : M_PI;
+    const double hzSpan = whole ? fs : (0.5 * fs);
     for (size_t k = 0; k < npts; ++k) {
         const double w = span * k / npts;
-        W.doubleDataMut()[k] = w;
+        W.doubleDataMut()[k] = (fs > 0.0) ? (hzSpan * k / npts) : w;
 
         const Complex ejw(std::cos(w), -std::sin(w));
         Complex num(0, 0), den(0, 0);
@@ -158,20 +162,26 @@ void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 2)
         throw Error("freqz: requires at least 2 arguments",
                      0, 0, "freqz", "", "numkit:freqz:nargin");
-    const size_t npts = (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
-                         && !args[2].isEmpty())
-                            ? static_cast<size_t>(args[2].toScalar()) : 512;
-    // 'whole' may appear as the 3rd or 4th positional arg.
-    bool whole = false;
+    // Parse the trailing args: 'whole' (string, any position) and up to two
+    // numerics after b,a — the first is n (npts), the second is fs (the
+    // freqz(b,a,n,fs) / freqz(b,a,n,'whole',fs) sample-rate form).
+    size_t npts = 512;
+    double fs   = 0.0;
+    bool   whole = false;
+    int    numericSeen = 0;
     for (size_t i = 2; i < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             std::string s = args[i].toString();
             for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (s == "whole") whole = true;
+        } else if (!args[i].isEmpty()) {
+            if (numericSeen == 0)      npts = static_cast<size_t>(args[i].toScalar());
+            else if (numericSeen == 1) fs   = args[i].toScalar();
+            ++numericSeen;
         }
     }
 
-    auto [H, W] = freqz(args[0], args[1], npts, ctx.engine->resource(), whole);
+    auto [H, W] = freqz(args[0], args[1], npts, ctx.engine->resource(), whole, fs);
     outs[0] = std::move(H);
     if (nargout > 1)
         outs[1] = std::move(W);
