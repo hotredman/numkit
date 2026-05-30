@@ -1070,6 +1070,95 @@ Value covNanAware(const Value &x, int normFlag, CovNan mode,
     return out;
 }
 
+// ── corrcoef 'Rows' NaN policy ────────────────────────────────────────
+enum class CorrcoefRows { All, Complete, Pairwise };
+
+CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
+{
+    for (std::size_t i = start; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string name = args[i].toString();
+        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "rows") {
+            std::string v = args[i + 1].toString();
+            for (char &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (v == "all")      return CorrcoefRows::All;
+            if (v == "complete") return CorrcoefRows::Complete;
+            if (v == "pairwise") return CorrcoefRows::Pairwise;
+            throw Error("corrcoef: Rows must be 'all', 'complete', or 'pairwise'",
+                        0, 0, "corrcoef", "", "numkit:corrcoef:BadRows");
+        }
+    }
+    return CorrcoefRows::All;
+}
+
+std::size_t countCompleteRows(const Value &X)
+{
+    std::size_t n, p;
+    {
+        const bool vec = X.dims().isVector() || X.isScalar();
+        n = vec ? X.numel() : X.dims().rows();
+        p = vec ? 1 : X.dims().cols();
+    }
+    std::size_t m = 0;
+    for (std::size_t r = 0; r < n; ++r) {
+        bool ok = true;
+        for (std::size_t c = 0; c < p && ok; ++c)
+            if (std::isnan(X.elemAsDouble(r + c * n))) ok = false;
+        if (ok) ++m;
+    }
+    return m;
+}
+
+// Pairwise Pearson correlation: each entry (i,j) uses the rows where both
+// columns are non-NaN, with the means AND the standard deviations taken
+// over exactly those common rows. (corrcov(cov_partialrows) is NOT the
+// same — that normalizes each column by its own per-column rows.)
+Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
+{
+    ScratchArena scratch(mr);
+    ScratchVec<double> data(&scratch);
+    std::size_t n, p;
+    readMatrix(X, data, n, p);
+    auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < p; ++j) {
+            double si = 0.0, sj = 0.0;
+            std::size_t m = 0;
+            for (std::size_t r = 0; r < n; ++r) {
+                const double a = data[i * n + r], b = data[j * n + r];
+                if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
+            }
+            double rij;
+            if (m < 2) {
+                rij = std::numeric_limits<double>::quiet_NaN();
+            } else {
+                const double mi = si / static_cast<double>(m);
+                const double mj = sj / static_cast<double>(m);
+                double sxy = 0.0, sxx = 0.0, syy = 0.0;
+                for (std::size_t r = 0; r < n; ++r) {
+                    const double a = data[i * n + r], b = data[j * n + r];
+                    if (std::isnan(a) || std::isnan(b)) continue;
+                    const double da = a - mi, db = b - mj;
+                    sxy += da * db; sxx += da * da; syy += db * db;
+                }
+                const double den = std::sqrt(sxx * syy);
+                rij = (den > 0.0) ? sxy / den
+                                  : std::numeric_limits<double>::quiet_NaN();
+            }
+            o[i + j * p] = rij;
+        }
+    return out;
+}
+
+Value corrcoefScalarOne(std::pmr::memory_resource *mr)
+{
+    auto R = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+    R.doubleDataMut()[0] = 1.0;
+    return R;
+}
+
 Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 {
     if (C.dims().rows() != C.dims().cols())
@@ -1728,20 +1817,54 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         throw Error("corrcoef: requires at least 1 argument",
                      0, 0, "corrcoef", "", "numkit:corrcoef:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
-    double n;
-    if (args.size() == 1) {
-        const Value &x = args[0];
-        n = (x.dims().isVector() || x.isScalar())
-                ? static_cast<double>(x.numel())          // single variable
-                : static_cast<double>(x.dims().rows());   // n observations × p vars
-        outs[0] = corrcoef(x, mr);
-    } else {
-        n = static_cast<double>(args[0].numel());         // corrcoef(x, y): vectors
-        outs[0] = corrcoef(args[0], args[1], mr);
+
+    const bool twoArg =
+        (args.size() >= 2 && !args[1].isChar() && !args[1].isString());
+    const std::size_t nvStart = twoArg ? 2 : 1;
+    const CorrcoefRows rows = parseCorrcoefRows(args, nvStart);
+
+    if (rows == CorrcoefRows::All) {
+        double n;
+        if (!twoArg) {
+            const Value &x = args[0];
+            n = (x.dims().isVector() || x.isScalar())
+                    ? static_cast<double>(x.numel())          // single variable
+                    : static_cast<double>(x.dims().rows());   // n obs × p vars
+            outs[0] = corrcoef(x, mr);
+        } else {
+            n = static_cast<double>(args[0].numel());         // corrcoef(x, y)
+            outs[0] = corrcoef(args[0], args[1], mr);
+        }
+        if (nargout >= 2)
+            outs[1] = corrcoefPValues(outs[0], n, mr);
+        return;
     }
-    // [R, P] = corrcoef(...): two-sided p-values for testing rho == 0.
-    if (nargout >= 2)
+
+    // NaN-aware paths. Assemble the working matrix ([x(:) y(:)] for the
+    // two-vector form) and apply listwise/pairwise deletion.
+    const Value M = twoArg ? assembleXY(args[0], args[1], mr) : args[0];
+    const bool isVec = M.dims().isVector() || M.isScalar();
+
+    if (rows == CorrcoefRows::Pairwise) {
+        if (nargout >= 2)
+            throw Error("corrcoef: [R, P] with 'Rows','pairwise' is not yet "
+                        "supported (per-pair degrees of freedom)",
+                        0, 0, "corrcoef", "", "numkit:corrcoef:PairwisePValue");
+        outs[0] = isVec ? corrcoefScalarOne(mr) : corrcoefPairwise(M, mr);
+        return;
+    }
+
+    // Complete (listwise deletion).
+    if (isVec) {
+        outs[0] = corrcoefScalarOne(mr);
+        if (nargout >= 2) outs[1] = corrcoefScalarOne(mr);
+        return;
+    }
+    outs[0] = corrcoefFromCov(covNanAware(M, 0, CovNan::Omitrows, mr), mr);
+    if (nargout >= 2) {
+        const double n = static_cast<double>(countCompleteRows(M));
         outs[1] = corrcoefPValues(outs[0], n, mr);
+    }
 }
 
 // nan*_reg adapters all moved to libs/stats/src/nan_aware/nan_aware.cpp.

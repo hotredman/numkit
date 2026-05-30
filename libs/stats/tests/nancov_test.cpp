@@ -106,3 +106,36 @@ TEST_F(NancovTest, PartialrowsPairwiseDeletion)
     // 'includenan' (default) still NaN-poisons.
     EXPECT_TRUE(std::isnan(evalScalar("Ci = cov(X,'includenan'); Ci(2,2)")));
 }
+
+// ── corrcoef 'Rows' NaN policy (2026-05-30): 'complete' / 'pairwise' ──
+// corrcoef previously ERRORED on 'complete'/'pairwise' (the string fell
+// through cov's two-input path) and NaN-poisoned the two-vector form.
+// vs MATLAB R2025b.
+TEST_F(NancovTest, CorrcoefRowsComplete)
+{
+    eval("Xn = [1 5 2; 2 6 9; 3 NaN 4; 4 8 1; 5 9 NaN];");
+    eval("Cc = corrcoef(Xn,'Rows','complete');");
+    EXPECT_NEAR(evalScalar("Cc(1,2)"),  1.0,                1e-12);
+    EXPECT_NEAR(evalScalar("Cc(1,3)"), -0.300375704593055, 1e-10);
+    EXPECT_NEAR(evalScalar("Cc(3,3)"),  1.0,                1e-12);
+    // Two-vector complete.
+    EXPECT_NEAR(evalScalar("v = corrcoef([1;2;3;NaN;5],[2;4;6;8;NaN],'Rows','complete'); v(1,2)"),
+                1.0, 1e-12);
+    // [R,P] complete: P uses the complete-row count.
+    eval("[R,P] = corrcoef(Xn,'Rows','complete');");
+    EXPECT_NEAR(evalScalar("P(1,3)"), 0.805776, 1e-5);
+}
+
+TEST_F(NancovTest, CorrcoefRowsPairwise)
+{
+    eval("Xn = [1 5 2; 2 6 9; 3 NaN 4; 4 8 1; 5 9 NaN];");
+    eval("Cp = corrcoef(Xn,'Rows','pairwise');");
+    // Each (i,j) normalized over its own common rows -> entries can differ.
+    EXPECT_NEAR(evalScalar("Cp(1,3)"), -0.290190500044005, 1e-10);
+    EXPECT_NEAR(evalScalar("Cp(2,3)"), -0.300375704593055, 1e-10);
+    EXPECT_NEAR(evalScalar("Cp(1,1)"),  1.0,               1e-12);
+    // 'all' (default) still NaN-poisons.
+    EXPECT_TRUE(std::isnan(evalScalar("Ca = corrcoef(Xn); Ca(2,2)")));
+    // [R,P] with 'pairwise' is deferred (per-pair df) -> clear error.
+    EXPECT_THROW(eval("[R,P] = corrcoef(Xn,'Rows','pairwise');"), std::exception);
+}
