@@ -1232,6 +1232,72 @@ Value pchipPp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     return mkpp(x, coefs, mr);
 }
 
+// 2-arg `makima(x, y)` returns a pp struct, mirroring spline/pchip. Uses
+// the same modified-Akima derivatives as the value-form interpMakima,
+// then the identical cubic-Hermite → dx-power coefficient conversion as
+// pchipPp (makima and pchip share the Hermite basis; only the slopes d_i
+// differ).
+Value makimaPp(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    const size_t n = x.numel();
+    if (n != y.numel())
+        throw Error("makima: x and y must have same length",
+                     0, 0, "makima", "", "numkit:makima:lengthMismatch");
+    if (n < 2)
+        throw Error("makima: need at least 2 data points",
+                     0, 0, "makima", "", "numkit:makima:tooFewPoints");
+
+    ScratchArena scratch(mr);
+    const double *xd = x.doubleData();
+    const double *yd = y.doubleData();
+    const size_t nm1 = n - 1;
+
+    ScratchVec<double> h(nm1, &scratch), delta(nm1, &scratch);
+    for (size_t i = 0; i < nm1; ++i) {
+        h[i] = xd[i + 1] - xd[i];
+        delta[i] = (yd[i + 1] - yd[i]) / h[i];
+    }
+
+    ScratchVec<double> d(n, 0.0, &scratch);
+    if (n == 2) {
+        d[0] = delta[0];
+        d[1] = delta[0];                       // 2 points → a straight line
+    } else {
+        // Slopes m[-2..n] with Akima's quadratic extrapolation, offset 2.
+        ScratchVec<double> mExt(n + 3, &scratch);
+        for (size_t i = 0; i < nm1; ++i) mExt[2 + i] = delta[i];
+        mExt[1] = 2.0 * mExt[2] - mExt[3];
+        mExt[0] = 2.0 * mExt[1] - mExt[2];
+        mExt[2 + nm1]     = 2.0 * mExt[2 + nm1 - 1] - mExt[2 + nm1 - 2];
+        mExt[2 + nm1 + 1] = 2.0 * mExt[2 + nm1]     - mExt[2 + nm1 - 1];
+        for (size_t i = 0; i < n; ++i) {
+            const double ml2 = mExt[i];
+            const double ml1 = mExt[i + 1];
+            const double mr1 = mExt[i + 2];
+            const double mr2 = mExt[i + 3];
+            const double w1 = std::abs(mr2 - mr1) + std::abs(mr2 + mr1) * 0.5;
+            const double w2 = std::abs(ml1 - ml2) + std::abs(ml1 + ml2) * 0.5;
+            const double wsum = w1 + w2;
+            d[i] = (wsum == 0.0) ? 0.0 : (w1 * ml1 + w2 * mr1) / wsum;
+        }
+    }
+
+    auto coefs = Value::matrix(nm1, 4, ValueType::DOUBLE, mr);
+    double *cp = coefs.doubleDataMut();
+    for (size_t i = 0; i < nm1; ++i) {
+        const double hi = h[i];
+        const double a  = (d[i] + d[i + 1] - 2.0 * delta[i]) / (hi * hi);
+        const double b  = (3.0 * delta[i] - 2.0 * d[i] - d[i + 1]) / hi;
+        const double c  = d[i];
+        const double dd = yd[i];
+        cp[i + 0 * nm1] = a;
+        cp[i + 1 * nm1] = b;
+        cp[i + 2 * nm1] = c;
+        cp[i + 3 * nm1] = dd;
+    }
+    return mkpp(x, coefs, mr);
+}
+
 } // namespace
 
 void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1318,10 +1384,16 @@ void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 
 void makima_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        // pp-struct form, mirroring spline(x, y) and pchip(x, y).
+        outs[0] = makimaPp(args[0], args[1], mr);
+        return;
+    }
     if (args.size() < 3)
-        throw Error("makima: requires 3 arguments — pp-form (2-arg) not yet supported",
+        throw Error("makima: requires (x, y) or (x, y, xq)",
                      0, 0, "makima", "", "numkit:makima:nargin");
-    outs[0] = makima(args[0], args[1], args[2], ctx.engine->resource());
+    outs[0] = makima(args[0], args[1], args[2], mr);
 }
 
 // interpn — dispatch to interp2 / interp3 based on V's ndim. Form A
