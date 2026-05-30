@@ -1418,9 +1418,14 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
-// histcounts(x, edges[, 'Normalization', mode]): bin counts, optionally
-// normalized. mode ∈ {count, probability, countdensity, pdf, cumcount, cdf}.
-void histcounts_reg(Span<const Value> args, size_t /*nargout*/,
+// histcounts(x, edges[, name, value...]): bin counts, optionally normalized.
+// Edges may be passed positionally (histcounts(x, edges)) or via the
+// 'BinEdges' name-value pair (histcounts(x, 'BinEdges', edges)). The second
+// output returns the bin edges as a row vector: [n, e] = histcounts(...).
+// 'Normalization' mode ∈ {count, probability, countdensity, pdf, cumcount,
+// cdf}. Automatic binning (nbins / 'BinWidth' / 'BinLimits' / 'BinMethod')
+// is not supported — edges must be given explicitly.
+void histcounts_reg(Span<const Value> args, size_t nargout,
                     Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
@@ -1429,30 +1434,67 @@ void histcounts_reg(Span<const Value> args, size_t /*nargout*/,
     auto *mr = ctx.engine->resource();
 
     HistNorm norm = HistNorm::Count;
-    for (size_t i = 2; i + 1 < args.size(); ++i) {
+    Value edges = Value::Empty;
+    bool haveEdges = false;
+
+    // A non-char second argument is the positional edges vector; otherwise
+    // every trailing argument is a name-value pair (incl. 'BinEdges').
+    size_t optStart = 1;
+    if (args[1].type() != ValueType::CHAR) {
+        edges = args[1];
+        haveEdges = true;
+        optStart = 2;
+    }
+
+    for (size_t i = optStart; i + 1 < args.size(); ++i) {
         if (args[i].type() != ValueType::CHAR) continue;
         std::string key = args[i].toString();
         std::transform(key.begin(), key.end(), key.begin(),
                        [](unsigned char c) { return std::tolower(c); });
-        if (key != "normalization") continue;
-        if (args[i + 1].type() != ValueType::CHAR)
-            throw Error("histcounts: 'Normalization' value must be a string",
-                         0, 0, "histcounts", "", "numkit:histcounts:badNorm");
-        std::string m = args[i + 1].toString();
-        std::transform(m.begin(), m.end(), m.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-        if      (m == "count")        norm = HistNorm::Count;
-        else if (m == "probability")  norm = HistNorm::Probability;
-        else if (m == "countdensity") norm = HistNorm::CountDensity;
-        else if (m == "pdf")          norm = HistNorm::Pdf;
-        else if (m == "cumcount")     norm = HistNorm::CumCount;
-        else if (m == "cdf")          norm = HistNorm::Cdf;
-        else
-            throw Error("histcounts: unknown Normalization '" + m + "'",
-                         0, 0, "histcounts", "", "numkit:histcounts:badNorm");
-        ++i;   // consume the value
+        if (key == "normalization") {
+            if (args[i + 1].type() != ValueType::CHAR)
+                throw Error("histcounts: 'Normalization' value must be a string",
+                             0, 0, "histcounts", "", "numkit:histcounts:badNorm");
+            std::string m = args[i + 1].toString();
+            std::transform(m.begin(), m.end(), m.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if      (m == "count")        norm = HistNorm::Count;
+            else if (m == "probability")  norm = HistNorm::Probability;
+            else if (m == "countdensity") norm = HistNorm::CountDensity;
+            else if (m == "pdf")          norm = HistNorm::Pdf;
+            else if (m == "cumcount")     norm = HistNorm::CumCount;
+            else if (m == "cdf")          norm = HistNorm::Cdf;
+            else
+                throw Error("histcounts: unknown Normalization '" + m + "'",
+                             0, 0, "histcounts", "", "numkit:histcounts:badNorm");
+            ++i;   // consume the value
+        } else if (key == "binedges") {
+            edges = args[i + 1];
+            haveEdges = true;
+            ++i;   // consume the value
+        } else {
+            throw Error("histcounts: option '" + args[i].toString() +
+                            "' not supported (use explicit edges or 'BinEdges')",
+                         0, 0, "histcounts", "", "numkit:histcounts:badOption");
+        }
     }
-    outs[0] = histcounts(args[0], args[1], norm, mr);
+
+    if (!haveEdges)
+        throw Error("histcounts: bin edges required — automatic binning "
+                     "(nbins / 'BinWidth' / 'BinLimits') is not supported",
+                     0, 0, "histcounts", "", "numkit:histcounts:noEdges");
+
+    outs[0] = histcounts(args[0], edges, norm, mr);
+
+    // [n, edges] = histcounts(...): return the edges as a row vector.
+    if (nargout >= 2) {
+        validateEdges(edges, "histcounts");
+        const size_t ne = edges.numel();
+        auto e = Value::matrix(1, ne, ValueType::DOUBLE, mr);
+        const double *src = edges.doubleData();
+        std::copy(src, src + ne, e.doubleDataMut());
+        outs[1] = e;
+    }
 }
 
 // histc(x, edges): legacy bin counts (length(edges) bins, last = exact

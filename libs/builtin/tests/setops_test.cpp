@@ -366,6 +366,51 @@ TEST_P(SetOpsTest, HistcountsNormUnknownThrows)
                  std::runtime_error);
 }
 
+// ── histcounts 'BinEdges' name-value + [n, edges] second output ──────
+TEST_P(SetOpsTest, HistcountsBinEdgesNameValue)
+{
+    // 'BinEdges' is equivalent to passing the edges positionally. Regression:
+    // numkit used to treat 'BinEdges' as the edges vector → "Not a double".
+    eval("[n, e] = histcounts([1 2 3 4 5], 'BinEdges', [0 2 4 6]);");
+    auto *n = getVarPtr("n");
+    auto *e = getVarPtr("e");
+    ASSERT_NE(n, nullptr);
+    ASSERT_NE(e, nullptr);
+    EXPECT_DOUBLE_EQ(n->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[2], 2.0);
+    // second output = edges, returned as a row vector
+    EXPECT_EQ(e->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(e->doubleData()[3], 6.0);
+    // 'BinEdges' composes with 'Normalization'
+    eval("p = histcounts([1 2 3 4 5], 'BinEdges', [0 2 4 6], "
+         "'Normalization', 'probability');");
+    auto *p = getVarPtr("p");
+    ASSERT_NE(p, nullptr);
+    EXPECT_NEAR(p->doubleData()[0], 0.2, 1e-12);
+    EXPECT_NEAR(p->doubleData()[1], 0.4, 1e-12);
+    EXPECT_NEAR(p->doubleData()[2], 0.4, 1e-12);
+}
+
+TEST_P(SetOpsTest, HistcountsSecondOutputEdges)
+{
+    // [n, e] with positional edges also returns the edges (was previously
+    // a single-output-only function).
+    eval("[n, e] = histcounts([1 2 3 4 5], [0 2 4 6]);");
+    auto *e = getVarPtr("e");
+    ASSERT_NE(e, nullptr);
+    EXPECT_EQ(e->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e->doubleData()[2], 4.0);
+}
+
+TEST_P(SetOpsTest, HistcountsUnsupportedOptionThrows)
+{
+    // Automatic-binning options are explicitly unsupported (not silently
+    // misinterpreted as edges).
+    EXPECT_THROW(eval("histcounts([1 2 3], 'BinWidth', 1);"), std::runtime_error);
+}
+
 // ── histc (legacy) ──────────────────────────────────────────
 // n has length(edges); last bin = exact-equal to edges(end). vs MATLAB.
 TEST_P(SetOpsTest, HistcCounts)
