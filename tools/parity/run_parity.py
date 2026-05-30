@@ -553,9 +553,31 @@ def save_close(a: SaveBlock, b: SaveBlock, tol: float) -> tuple[bool, str]:
 # multiple sections (e.g. interpft is listed under both Interpolation
 # and Fourier); every occurrence gets the same fresh measurement.
 
-# PROGRESS.md row — IMPLEMENTATION only (status + correctness + notes).
-# Performance lives in BENCHMARK.md.
-PROGRESS_ROW_FMT = "| `{name}` | {status} | {correctness} | {comment} |"
+# PROGRESS.md row — IMPLEMENTATION only (status + comment). Performance
+# lives in BENCHMARK.md. The status cell carries every marker:
+#   ✅/❌/⚠️/—  base · 🔬 deep-verified · ❗ MISMATCH vs reference ·
+#   ➖ implemented but no reference engine to verify against (was "N/A").
+PROGRESS_ROW_FMT = "| `{name}` | {status} | {comment} |"
+
+
+def compose_status(cur_status: str, correctness: str,
+                   implemented: bool, deep_verified: bool) -> str:
+    """Fold the parity verdict into the status cell. Re-derives the ❗/➖
+    verdict markers each run while preserving the base glyph and 🔬."""
+    s = cur_status.replace("❗", "").replace("➖", "")
+    s = " ".join(s.split())                 # normalise whitespace
+    has_micro = "🔬" in s
+    base = s.replace("🔬", "").strip() or "—"
+    if implemented and base == "❌":
+        base = "✅"
+    parts = [base]
+    if deep_verified or has_micro:
+        parts.append("🔬")
+    if correctness == "MISMATCH":
+        parts.append("❗")
+    elif correctness == "N/A":
+        parts.append("➖")
+    return " ".join(parts)
 
 # BENCHMARK.md row — per-function perf at two array sizes (1e3 / 1e6) vs
 # MATLAB / Octave.  nk_*=numkit per-call mean (ms); ML×/OC× = ref_ms /
@@ -604,14 +626,9 @@ def update_progress_row(*, name: str, nk: Result | None,
     def replace(m: re.Match) -> str:
         nonlocal touched
         touched += 1
-        # ❌→✅ self-heal when numkit actually ran the fn; ⚠️/✅ preserved.
-        cur_status = m.group("status").strip()
-        if implemented and cur_status.replace("🔬", "").strip() == "❌":
-            cur_status = cur_status.replace("❌", "✅")
-        if deep_verified and "🔬" not in cur_status:
-            cur_status = cur_status + " 🔬"
-        return PROGRESS_ROW_FMT.format(name=name, status=cur_status,
-                                       correctness=correctness, comment=comment)
+        status = compose_status(m.group("status").strip(),
+                                correctness, implemented, deep_verified)
+        return PROGRESS_ROW_FMT.format(name=name, status=status, comment=comment)
 
     new_text = rx.sub(replace, text)
     if touched == 0:
@@ -620,10 +637,11 @@ def update_progress_row(*, name: str, nk: Result | None,
             new_text = new_text.rstrip() + "\n\n" + misc + "\n\n"
             new_text += ("Functions exercised by the harness that don't appear "
                          "in any MATLAB-doc section above.\n\n")
-            new_text += "| function | status | correctness | comment |\n"
-            new_text += "|---|:---:|:---:|---|\n"
+            new_text += "| function | status | comment |\n"
+            new_text += "|---|:---:|---|\n"
+        status = compose_status("—", correctness, implemented, deep_verified)
         new_text = new_text.rstrip() + "\n" + PROGRESS_ROW_FMT.format(
-            name=name, status="—", correctness=correctness, comment=comment) + "\n"
+            name=name, status=status, comment=comment) + "\n"
         touched = 1
 
     PROGRESS_MD.write_text(new_text, encoding="utf-8")
