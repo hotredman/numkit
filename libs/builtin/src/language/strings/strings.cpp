@@ -80,24 +80,85 @@ Value num2str(const Value &x, const std::string &fmt,
     // (%d/%i/%u/%o/%x read an int from the va_list, so passing a double
     // straight to snprintf printed garbage — e.g. num2str(5,'%05d') gave
     // "00000" instead of "00005"), the non-integer->%e fallback, and the
-    // Inf/NaN spelling. MATLAB then strips leading AND trailing blanks
-    // (but keeps leading zeros and any internal spacing):
-    //   num2str(pi,'%8.4f')        -> "3.1416"   (not "  3.1416")
-    //   num2str(5,'%05d')          -> "00005"
-    //   num2str(pi,'   v=%6.2f')   -> "v=  3.14"
-    // Scalar is the only documented num2str(X,FMT) shape we support here;
-    // vector/matrix column-alignment is a separate deferred gap.
-    Value fmtVal = Value::fromString(fmt, mr);
-    Value arg    = Value::scalar(x.toScalar(), mr);
-    Span<const Value> args(&arg, 1);
-    const std::string s = sprintf(fmtVal, args, mr).toString();
-
-    const char *ws = " \t\n\r\f\v";
-    const size_t b = s.find_first_not_of(ws);
-    if (b == std::string::npos)
+    // Inf/NaN spelling. MATLAB then strips the leading AND trailing blank
+    // COLUMNS common to all rows (keeping leading zeros and internal
+    // spacing) and returns an N-row char matrix:
+    //   num2str(pi,'%8.4f')                 -> "3.1416"
+    //   num2str(5,'%05d')                   -> "00005"
+    //   num2str([1.5 2.25 3.125],'%8.3f')   -> "1.500   2.250   3.125"  (1 row)
+    //   num2str([1.5 2.25;3.1 4],'%8.3f')   -> 2x13 char matrix
+    // The format is applied cyclically across each ROW (MATLAB sprintf
+    // semantics), matching numkit's sprintf which cycles a format over a
+    // vector. NOTE: the DEFAULT-precision and integer-N forms for vector/
+    // matrix inputs (num2str([1 2 3]) / num2str(v,4)) use MATLAB's
+    // magnitude-dependent column-width algorithm and remain a deferred gap
+    // (num2str_reg still routes those to the scalar overloads, which throw
+    // on non-scalars) — only the deterministic FMT form is handled here.
+    const std::size_t nrows = x.dims().rows();
+    const std::size_t ncols = x.dims().cols();
+    if (nrows * ncols == 0)
         return Value::fromString("", mr);
-    const size_t e = s.find_last_not_of(ws);
-    return Value::fromString(s.substr(b, e - b + 1), mr);
+
+    Value fmtVal = Value::fromString(fmt, mr);
+    ScratchArena scratch(mr);
+    auto rows = ScratchVec<std::string>(&scratch);
+    rows.reserve(nrows);
+
+    // Build one formatted string per row (format cycled across the row's
+    // columns, in column order).
+    for (std::size_t r = 0; r < nrows; ++r) {
+        Value rowv = Value::matrix(1, ncols, ValueType::DOUBLE, mr);
+        double *rd = rowv.doubleDataMut();
+        for (std::size_t c = 0; c < ncols; ++c)
+            rd[c] = x.elemAsDouble(c * nrows + r);
+        Span<const Value> args(&rowv, 1);
+        rows.emplace_back(sprintf(fmtVal, args, mr).toString());
+    }
+
+    auto leadingWS = [](const std::string &s) {
+        std::size_t k = 0;
+        while (k < s.size() && (s[k] == ' ' || s[k] == '\t')) ++k;
+        return k;
+    };
+    auto trailingWS = [](const std::string &s) {
+        std::size_t k = 0;
+        while (k < s.size() && (s[s.size() - 1 - k] == ' ' || s[s.size() - 1 - k] == '\t'))
+            ++k;
+        return k;
+    };
+
+    // Strip the leading/trailing blank columns common to ALL rows (= the
+    // minimum leading/trailing whitespace run over the rows). For a scalar
+    // this reproduces the old find_first_not_of/find_last_not_of trim.
+    std::size_t kLead = std::string::npos, kTrail = std::string::npos;
+    for (const auto &s : rows) {
+        kLead  = std::min(kLead,  leadingWS(s));
+        kTrail = std::min(kTrail, trailingWS(s));
+    }
+    if (kLead == std::string::npos) kLead = 0;
+    if (kTrail == std::string::npos) kTrail = 0;
+
+    std::size_t maxW = 0;
+    for (auto &s : rows) {
+        const std::size_t len = s.size();
+        // A row that is entirely whitespace collapses to empty.
+        if (kLead + kTrail >= len) s.clear();
+        else s = s.substr(kLead, len - kLead - kTrail);
+        maxW = std::max(maxW, s.size());
+    }
+
+    if (nrows == 1)
+        return Value::fromString(rows[0], mr);
+
+    // Right-pad each row to maxW and emit an nrows x maxW char matrix
+    // (column-major). Rows are equal length for fixed-width formats; the
+    // pad only matters for variable-width formats.
+    auto m = Value::matrix(nrows, maxW, ValueType::CHAR, mr);
+    char *dst = static_cast<char *>(m.rawDataMut());
+    for (std::size_t r = 0; r < nrows; ++r)
+        for (std::size_t c = 0; c < maxW; ++c)
+            dst[c * nrows + r] = (c < rows[r].size()) ? rows[r][c] : ' ';
+    return m;
 }
 
 Value int2str(const Value &x, std::pmr::memory_resource *mr)

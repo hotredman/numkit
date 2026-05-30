@@ -77,6 +77,54 @@ TEST(BuiltinStringsPublicApi, Num2StrFormatString)
     EXPECT_EQ(fmt(1000.0, "%e"),               "1.000000e+03");
 }
 
+// num2str(X, FMT) with VECTOR/MATRIX input. Previously threw "Cannot convert
+// double to scalar" (only scalar was handled). MATLAB applies the format
+// cyclically across each ROW, strips the leading/trailing blank COLUMNS common
+// to all rows, and returns an N-row char matrix. vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST(BuiltinStringsPublicApi, Num2StrFormatVectorMatrix)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+
+    // Row vector -> single char row, common leading 3 spaces trimmed.
+    Value row = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+    double *rd = row.doubleDataMut();
+    rd[0] = 1.5; rd[1] = 2.25; rd[2] = 3.125;
+    Value sr = numkit::builtin::num2str(row, std::string("%8.3f"), mr);
+    ASSERT_TRUE(sr.isChar());
+    EXPECT_EQ(sr.toString(), "1.500   2.250   3.125");
+    EXPECT_EQ(sr.numel(), 21u);
+
+    // 2x2 matrix -> 2x13 char matrix (col-major).
+    Value mtx = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+    double *md = mtx.doubleDataMut();
+    md[0] = 1.5; md[1] = 3.1; md[2] = 2.25; md[3] = 4.0;  // col-major
+    Value sm = numkit::builtin::num2str(mtx, std::string("%8.3f"), mr);
+    ASSERT_TRUE(sm.isChar());
+    EXPECT_EQ(sm.dims().rows(), 2u);
+    EXPECT_EQ(sm.dims().cols(), 13u);
+    const char *cm = static_cast<const char *>(sm.rawData());
+    EXPECT_EQ(cm[0], '1');   // (row0,col0)
+    EXPECT_EQ(cm[1], '3');   // (row1,col0)
+
+    // Column vector -> 2x5 char matrix, common leading space trimmed.
+    Value col = Value::matrix(2, 1, ValueType::DOUBLE, mr);
+    double *cd = col.doubleDataMut();
+    cd[0] = 1.5; cd[1] = 22.25;
+    Value sc = numkit::builtin::num2str(col, std::string("%6.2f"), mr);
+    ASSERT_TRUE(sc.isChar());
+    EXPECT_EQ(sc.dims().rows(), 2u);
+    EXPECT_EQ(sc.dims().cols(), 5u);
+    const char *cc = static_cast<const char *>(sc.rawData());
+    EXPECT_EQ(cc[0], ' ');   // (row0,col0) -> " 1.50"
+    EXPECT_EQ(cc[1], '2');   // (row1,col0) -> "22.25"
+
+    // Empty input -> empty char.
+    Value empt = numkit::builtin::num2str(Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                                          std::string("%8.3f"), mr);
+    EXPECT_EQ(empt.numel(), 0u);
+}
+
 // int2str: round half away from zero, render as a plain integer (no decimals
 // or scientific notation); Inf/-Inf/NaN pass through. vs MATLAB R2025b.
 // Implemented 2026-05-30 (was an undefined function).
