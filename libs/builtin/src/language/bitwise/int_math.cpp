@@ -227,6 +227,31 @@ Value runBitwiseBinary(const Value &a, const Value &b, const char *fnName, Fn fn
 
 } // namespace
 
+// Extended Euclidean algorithm. Returns g = gcd >= 0 and sets the Bezout
+// coefficients u,v such that a*u + b*v = g, matching MATLAB R2025b's
+// [g,u,v]=gcd(a,b) convention: standard iterative algorithm with C++
+// truncating division, then normalize g >= 0 (negate u,v with it); the
+// special case gcd(0,0) returns [0,0,0].
+inline int64_t extGcd(int64_t a, int64_t b, int64_t &u, int64_t &v)
+{
+    if (a == 0 && b == 0) { u = 0; v = 0; return 0; }
+    int64_t old_r = a, r = b;
+    int64_t old_s = 1, s = 0;
+    int64_t old_t = 0, t = 1;
+    while (r != 0) {
+        const int64_t q = old_r / r;
+        int64_t tmp;
+        tmp = old_r - q * r; old_r = r; r = tmp;
+        tmp = old_s - q * s; old_s = s; s = tmp;
+        tmp = old_t - q * t; old_t = t; t = tmp;
+    }
+    int64_t g = old_r;
+    u = old_s;
+    v = old_t;
+    if (g < 0) { g = -g; u = -u; v = -v; }
+    return g;
+}
+
 #define NK_BIN_REG_BIT(name, fn)                                                       \
     void name##_reg(Span<const Value> args, size_t /*nargout*/,                       \
                     Span<Value> outs, CallContext &ctx)                               \
@@ -248,7 +273,6 @@ Value runBitwiseBinary(const Value &a, const Value &b, const char *fnName, Fn fn
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
-NK_BIN_REG(gcd,      gcd)
 NK_BIN_REG(lcm,      lcm)
 NK_BIN_REG_BIT(bitand,   bitand_)
 NK_BIN_REG_BIT(bitor,    bitor_)
@@ -257,6 +281,29 @@ NK_BIN_REG_BIT(bitshift, bitshift)
 
 #undef NK_BIN_REG
 #undef NK_BIN_REG_BIT
+
+// gcd: 1-output is the gcd; [g,u,v]=gcd(a,b) also returns the Bezout
+// coefficients (extended Euclid), elementwise. lcm is unaffected.
+void gcd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("gcd: requires 2 arguments",
+                     0, 0, "gcd", "", "numkit:gcd:nargin");
+    auto *mr = ctx.engine->resource();
+    outs[0] = gcd(args[0], args[1], mr);
+    if (nargout >= 2)
+        outs[1] = elementwiseDouble(args[0], args[1], [](double xv, double yv) {
+            int64_t u, v;
+            extGcd(toInt64(xv), toInt64(yv), u, v);
+            return static_cast<double>(u);
+        }, mr);
+    if (nargout >= 3)
+        outs[2] = elementwiseDouble(args[0], args[1], [](double xv, double yv) {
+            int64_t u, v;
+            extGcd(toInt64(xv), toInt64(yv), u, v);
+            return static_cast<double>(v);
+        }, mr);
+}
 
 void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 CallContext &ctx)
