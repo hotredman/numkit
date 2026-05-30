@@ -76,3 +76,26 @@ TEST_F(DatenumTest, NowAndDatenumConsistent)
     EXPECT_GT(evalScalar("n"), evalScalar("yvec"));
     EXPECT_LT(evalScalar("n"), evalScalar("dvec"));
 }
+
+// datenum(str [, fmt]): parse a date string. vs MATLAB R2025b. 2026-05-30:
+// previously threw "string parsing not yet supported".
+TEST_F(DatenumTest, StringParse)
+{
+    // Auto-detected ISO and dd-mmm-yyyy forms.
+    EXPECT_DOUBLE_EQ(evalScalar("datenum('2022-12-30')"), 738885.0);
+    EXPECT_DOUBLE_EQ(evalScalar("datenum('30-Dec-2022')"), 738885.0);
+    EXPECT_NEAR(evalScalar("datenum('2022-12-30 12:34:56')"), 738885.5242592593, 1e-9);
+    EXPECT_NEAR(evalScalar("datenum('30-Dec-2022 06:05:09')"), 738885.2535763889, 1e-9);
+    // Explicit format string.
+    EXPECT_DOUBLE_EQ(evalScalar("datenum('2022-12-30','yyyy-mm-dd')"), 738885.0);
+    EXPECT_DOUBLE_EQ(evalScalar("datenum('30/12/2022','dd/mm/yyyy')"), 738885.0);
+    // Round-trips against datestr.
+    EXPECT_DOUBLE_EQ(
+        evalScalar("datenum(datestr(738885.5,'yyyy-mm-dd HH:MM:SS'),"
+                   "'yyyy-mm-dd HH:MM:SS')"),
+        738885.5);
+    // Numeric form is unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("datenum(2022,12,30)"), 738885.0);
+    // Unparseable string throws.
+    EXPECT_THROW(eval("datenum('not a date')"), std::exception);
+}

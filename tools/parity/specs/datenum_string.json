@@ -1,0 +1,10 @@
+{
+  "name": "datenum_string",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = datenum('2022-12-30'); b = datenum('30-Dec-2022'); c = datenum('2022-12-30 12:34:56'); d = datenum('30-Dec-2022 06:05:09'); e = datenum('2022-12-30', 'yyyy-mm-dd'); f = datenum('30/12/2022', 'dd/mm/yyyy'); g = datenum(2022, 12, 30);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["a", "b", "c", "d", "e", "f", "g"],
+  "comment": "datenum(str [, fmt]) string parsing vs MATLAB R2025b. Bug fixed 2026-05-30: datenum threw 'string parsing not yet supported' on a string argument. Auto-detects ISO yyyy-mm-dd[ HH:MM:SS] and dd-mmm-yyyy[ HH:MM:SS]: datenum('2022-12-30')=738885 (a), datenum('30-Dec-2022')=738885 (b), datenum('2022-12-30 12:34:56')=738885.5243 (c), datenum('30-Dec-2022 06:05:09')=738885.2536 (d). Explicit format string supported: datenum('2022-12-30','yyyy-mm-dd')=738885 (e), datenum('30/12/2022','dd/mm/yyyy')=738885 (f). Numeric form unchanged: datenum(2022,12,30)=738885 (g). namespace=builtin. NOTE: other auto-formats, 2-digit years, cellstr/multi-row inputs not yet handled."
+}
