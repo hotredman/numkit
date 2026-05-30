@@ -81,3 +81,40 @@ TEST_F(NormalizeParamTest, RescaleInputRange)
     // plain positional still works.
     EXPECT_DOUBLE_EQ(evalScalar("p = rescale([1 2 3 4 5], -1, 1); p(1)"), -1.0);
 }
+
+// ── zscore second / third outputs [Z, MU, SIGMA] ────────────────────────
+// Bug: zscore only returned Z; requesting MU/SIGMA errored. SIGMA uses the
+// N-1 sample std by default, the population std for flag==1.
+TEST_F(NormalizeParamTest, ZscoreMuSigmaVector)
+{
+    eval("[z, mu, sg] = zscore([2 4 6 8]);");
+    EXPECT_DOUBLE_EQ(evalScalar("mu"), 5.0);
+    EXPECT_NEAR(evalScalar("sg"), 2.581988897471611, 1e-12);
+    EXPECT_NEAR(evalScalar("z(1)"), -1.161895003862225, 1e-12);
+    EXPECT_NEAR(evalScalar("z(4)"),  1.161895003862225, 1e-12);
+}
+
+TEST_F(NormalizeParamTest, ZscoreMuSigmaMatrixDim1)
+{
+    // Column-wise: MU and SIGMA are 1×W row vectors.
+    eval("[z, mu, sg] = zscore([1 2; 3 6; 5 10]);");
+    EXPECT_DOUBLE_EQ(evalScalar("mu(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mu(2)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sg(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sg(2)"), 4.0);
+    EXPECT_EQ(eval("mu").numel(), 2u);
+}
+
+TEST_F(NormalizeParamTest, ZscorePopulationFlagSigma)
+{
+    eval("[z, mu, sg] = zscore([2 4 6 8], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("mu"), 5.0);
+    EXPECT_NEAR(evalScalar("sg"), 2.23606797749979, 1e-12); // sqrt(5)
+}
+
+TEST_F(NormalizeParamTest, ZscoreSingleOutputUnchanged)
+{
+    eval("z = zscore([2 4 6 8]);");
+    EXPECT_NEAR(evalScalar("z(1)"), -1.161895003862225, 1e-12);
+    EXPECT_NEAR(evalScalar("z(4)"),  1.161895003862225, 1e-12);
+}

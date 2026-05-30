@@ -267,13 +267,22 @@ Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *m
 // Flag-aware, dim-aware z-score. flag 0 (default) -> sample std (N-1),
 // flag 1 -> population std (N). dim<=0 auto-selects the first non-singleton
 // dimension (MATLAB convention); dim 1 = columns, dim 2 = rows.
+// When muOut / sigmaOut are non-null they receive the per-slice mean and
+// standard deviation, matching MATLAB's [Z, MU, SIGMA] = zscore(X). They have
+// the operating dimension collapsed to length 1 (row vector for dim 1,
+// column vector for dim 2).
 static Value zscoreCore(const Value &A, int flag, int dim,
-                        std::pmr::memory_resource *mr)
+                        std::pmr::memory_resource *mr,
+                        Value *muOut = nullptr, Value *sigmaOut = nullptr)
 {
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
     Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
-    if (H == 0 || W == 0) return out;
+    if (H == 0 || W == 0) {
+        if (muOut)    *muOut    = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        if (sigmaOut) *sigmaOut = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        return out;
+    }
     double *od = out.doubleDataMut();
     auto sdf = [&](const double *x, size_t n) {
         return (flag == 1) ? colStdPop(x, n) : colStdSample(x, n);
@@ -281,6 +290,10 @@ static Value zscoreCore(const Value &A, int flag, int dim,
     int opDim = dim;
     if (opDim <= 0) opDim = (H == 1 && W > 1) ? 2 : 1;  // first non-singleton
     if (opDim == 1) {
+        if (muOut)    *muOut    = Value::matrix(1, W, ValueType::DOUBLE, mr);
+        if (sigmaOut) *sigmaOut = Value::matrix(1, W, ValueType::DOUBLE, mr);
+        double *mud = muOut ? muOut->doubleDataMut() : nullptr;
+        double *sgd = sigmaOut ? sigmaOut->doubleDataMut() : nullptr;
         std::vector<double> col(H);
         for (size_t j = 0; j < W; ++j) {
             for (size_t i = 0; i < H; ++i) col[i] = A.elemAsDouble(j * H + i);
@@ -288,8 +301,14 @@ static Value zscoreCore(const Value &A, int flag, int dim,
             const double sd = sdf(col.data(), H);
             const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
             for (size_t i = 0; i < H; ++i) od[j * H + i] = (col[i] - mu) * inv;
+            if (mud) mud[j] = mu;
+            if (sgd) sgd[j] = sd;
         }
     } else {  // opDim == 2, row-wise
+        if (muOut)    *muOut    = Value::matrix(H, 1, ValueType::DOUBLE, mr);
+        if (sigmaOut) *sigmaOut = Value::matrix(H, 1, ValueType::DOUBLE, mr);
+        double *mud = muOut ? muOut->doubleDataMut() : nullptr;
+        double *sgd = sigmaOut ? sigmaOut->doubleDataMut() : nullptr;
         std::vector<double> row(W);
         for (size_t i = 0; i < H; ++i) {
             for (size_t j = 0; j < W; ++j) row[j] = A.elemAsDouble(j * H + i);
@@ -297,6 +316,8 @@ static Value zscoreCore(const Value &A, int flag, int dim,
             const double sd = sdf(row.data(), W);
             const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
             for (size_t j = 0; j < W; ++j) od[j * H + i] = (row[j] - mu) * inv;
+            if (mud) mud[i] = mu;
+            if (sgd) sgd[i] = sd;
         }
     }
     return out;
@@ -366,7 +387,7 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = rescale(args[0], lo, hi, ctx.engine->resource(), inputMin, inputMax);
 }
 
-void zscore_reg(Span<const Value> args, size_t /*nargout*/,
+void zscore_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
@@ -375,7 +396,14 @@ void zscore_reg(Span<const Value> args, size_t /*nargout*/,
     int flag = 0, dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty()) flag = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty()) dim  = static_cast<int>(args[2].toScalar());
-    outs[0] = zscoreCore(args[0], flag, dim, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    // [Z, MU, SIGMA] = zscore(...): expose the centring mean and scaling std.
+    Value mu, sigma;
+    outs[0] = zscoreCore(args[0], flag, dim, mr,
+                         nargout >= 2 ? &mu : nullptr,
+                         nargout >= 3 ? &sigma : nullptr);
+    if (nargout >= 2) outs[1] = mu;
+    if (nargout >= 3) outs[2] = sigma;
 }
 
 } // namespace detail
