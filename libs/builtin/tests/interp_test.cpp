@@ -156,6 +156,63 @@ TEST_F(InterpTest, PchipFunction)
 }
 
 // ============================================================
+// interp1 — out-of-range / extrapolation policy vs MATLAB R2025b
+// ============================================================
+
+TEST_F(InterpTest, LinearOutOfRangeIsNaNByDefault)
+{
+    // MATLAB: linear (and nearest) return NaN out-of-range when 'extrap'
+    // is not given. Regression: numkit used to extrapolate linearly (40).
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],4)")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0)")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],4,'nearest')")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0,'nearest')")));
+    // in-range still interpolates
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],2.5)"), 25.0);
+}
+
+TEST_F(InterpTest, ExtrapOptionExtrapolates)
+{
+    // 'extrap' restores method extrapolation.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,'linear','extrap')"), 40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],0,'linear','extrap')"), 0.0);
+    // nearest 'extrap' holds the endpoint both ways
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,'nearest','extrap')"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],0,'nearest','extrap')"), 10.0);
+}
+
+TEST_F(InterpTest, ConstantExtrapval)
+{
+    // A numeric extrapval fills out-of-range queries with the constant.
+    eval("yq = interp1([1 2 3],[10 20 30],[0 2.5 4],'linear',-99);");
+    EXPECT_DOUBLE_EQ(evalScalar("yq(1)"), -99.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yq(2)"),  25.0); // in-range unaffected
+    EXPECT_DOUBLE_EQ(evalScalar("yq(3)"), -99.0);
+}
+
+TEST_F(InterpTest, PreviousNextExtrapHoldsEndpointOneSide)
+{
+    // 'previous' holds y(end) above the range; below the range there is no
+    // previous sample, so NaN. 'next' is the mirror image.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,'previous','extrap')"), 30.0);
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0,'previous','extrap')")));
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],0,'next','extrap')"), 10.0);
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],4,'next','extrap')")));
+}
+
+TEST_F(InterpTest, SplinePchipMakimaExtrapolateByDefault)
+{
+    // spline/pchip/makima extrapolate out-of-range even without 'extrap'.
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],4,'spline')"), 40.0, 1e-9);
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],4,'pchip')"),  40.0, 1e-9);
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],4,'makima')"), 40.0, 1e-9);
+    // but a numeric extrapval still overrides them
+    eval("yq = interp1([1 2 3],[10 20 30],[0 4],'spline',-1);");
+    EXPECT_DOUBLE_EQ(evalScalar("yq(1)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yq(2)"), -1.0);
+}
+
+// ============================================================
 // polyfit
 // ============================================================
 

@@ -16,6 +16,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <memory_resource>
 #include <string>
 
@@ -343,10 +344,64 @@ Value packInterpResult(const double *yq, std::size_t nq,
     return r;
 }
 
-} // anonymous namespace
+// Out-of-range (extrapolation) policy for interp1.
+//   Default — MATLAB's default: 'spline'/'pchip'/'makima' extrapolate using
+//             the method; every other method returns NaN outside [x0, xN-1].
+//   Method  — the literal 'extrap' option: extrapolate using the method for
+//             all methods.
+//   Const   — a numeric extrapval: fill every out-of-range query with it.
+enum class Interp1Extrap { Default, Method, Const };
 
-// ── interp1 ───────────────────────────────────────────────────────────
-Value interp1(const Value &x, const Value &y, const Value &xq, const std::string &method, std::pmr::memory_resource *mr)
+// Rewrite out-of-range entries of a computed query buffer per the policy.
+// `xd` is assumed ascending; `yd` is needed to hold the endpoint value for
+// 'previous'/'next' under the Method ('extrap') option. The interpolation
+// helpers already produce method-extrapolated values out-of-range for
+// linear/nearest/spline/pchip/makima (findInterval clamps to the boundary
+// interval); previous/next emit NaN, so they get special handling.
+void applyInterp1Extrap(double *yq, const double *xqd, size_t nq,
+                        const double *xd, const double *yd, size_t n,
+                        const std::string &method, Interp1Extrap mode,
+                        double fill)
+{
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    const double lo = xd[0];
+    const double hi = xd[n - 1];
+    const bool methodExtraps =
+        (method == "spline" || method == "pchip" || method == "makima");
+    const bool isPrev = (method == "previous");
+    const bool isNext = (method == "next");
+    for (size_t k = 0; k < nq; ++k) {
+        const double q = xqd[k];
+        if (q >= lo && q <= hi)
+            continue; // interior — the helper value already stands
+        switch (mode) {
+        case Interp1Extrap::Const:
+            yq[k] = fill;
+            break;
+        case Interp1Extrap::Method:
+            // 'previous'/'next' hold the endpoint on the side that has a
+            // sample; the opposite side has no such sample → NaN (matches
+            // MATLAB: interp1(x,y,4,'previous','extrap')=y(end),
+            // interp1(x,y,0,'previous','extrap')=NaN).
+            if (isPrev)
+                yq[k] = (q > hi) ? yd[n - 1] : NaN;
+            else if (isNext)
+                yq[k] = (q < lo) ? yd[0] : NaN;
+            // else: linear/nearest/spline/pchip/makima already extrapolated.
+            break;
+        case Interp1Extrap::Default:
+            if (!methodExtraps)
+                yq[k] = NaN;
+            break;
+        }
+    }
+}
+
+// Shared interp1 core: dispatch on method, then apply the extrapolation
+// policy. Both the public interp1() and interp1_reg() funnel through here.
+Value interp1Dispatch(const Value &x, const Value &y, const Value &xq,
+                      const std::string &method, Interp1Extrap mode,
+                      double fill, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
     const size_t nq = xq.numel();
@@ -364,36 +419,38 @@ Value interp1(const Value &x, const Value &y, const Value &xq, const std::string
 
     ScratchArena scratch(mr);
 
-    if (method == "linear") {
-        auto yq = interpLinear(xd, yd, n, xqd, nq, &scratch);
+    auto finish = [&](ScratchVec<double> yq) {
+        applyInterp1Extrap(yq.data(), xqd, nq, xd, yd, n, method, mode, fill);
         return packInterpResult(yq.data(), yq.size(), xq, mr);
-    }
-    if (method == "nearest") {
-        auto yq = interpNearest(xd, yd, n, xqd, nq, &scratch);
-        return packInterpResult(yq.data(), yq.size(), xq, mr);
-    }
-    if (method == "previous") {
-        auto yq = interpPrevious(xd, yd, n, xqd, nq, &scratch);
-        return packInterpResult(yq.data(), yq.size(), xq, mr);
-    }
-    if (method == "next") {
-        auto yq = interpNext(xd, yd, n, xqd, nq, &scratch);
-        return packInterpResult(yq.data(), yq.size(), xq, mr);
-    }
-    if (method == "spline") {
-        auto yq = interpSpline(xd, yd, n, xqd, nq, &scratch);
-        return packInterpResult(yq.data(), yq.size(), xq, mr);
-    }
-    if (method == "pchip") {
-        auto yq = interpPchip(xd, yd, n, xqd, nq, &scratch);
-        return packInterpResult(yq.data(), yq.size(), xq, mr);
-    }
-    if (method == "makima") {
-        auto yq = interpMakima(xd, yd, n, xqd, nq, &scratch);
-        return packInterpResult(yq.data(), yq.size(), xq, mr);
-    }
+    };
+
+    if (method == "linear")
+        return finish(interpLinear(xd, yd, n, xqd, nq, &scratch));
+    if (method == "nearest")
+        return finish(interpNearest(xd, yd, n, xqd, nq, &scratch));
+    if (method == "previous")
+        return finish(interpPrevious(xd, yd, n, xqd, nq, &scratch));
+    if (method == "next")
+        return finish(interpNext(xd, yd, n, xqd, nq, &scratch));
+    if (method == "spline")
+        return finish(interpSpline(xd, yd, n, xqd, nq, &scratch));
+    if (method == "pchip")
+        return finish(interpPchip(xd, yd, n, xqd, nq, &scratch));
+    if (method == "makima")
+        return finish(interpMakima(xd, yd, n, xqd, nq, &scratch));
     throw Error("interp1: unknown method '" + method + "'",
                  0, 0, "interp1", "", "numkit:interp1:badMethod");
+}
+
+} // anonymous namespace
+
+// ── interp1 ───────────────────────────────────────────────────────────
+Value interp1(const Value &x, const Value &y, const Value &xq, const std::string &method, std::pmr::memory_resource *mr)
+{
+    // Public typed entry point: MATLAB's default extrapolation policy
+    // (NaN out-of-range except for spline/pchip/makima).
+    return interp1Dispatch(x, y, xq, method, Interp1Extrap::Default,
+                           std::numeric_limits<double>::quiet_NaN(), mr);
 }
 
 // ── interp2 ───────────────────────────────────────────────────────────
@@ -986,7 +1043,29 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     std::string method = "linear";
     if (args.size() >= 4 && args[3].isChar())
         method = args[3].toString();
-    outs[0] = interp1(args[0], args[1], args[2], method, ctx.engine->resource());
+
+    // 5th arg = extrapolation spec: the literal 'extrap' (extrapolate using
+    // the method) or a numeric extrapval (fill out-of-range with it).
+    Interp1Extrap mode = Interp1Extrap::Default;
+    double fill = std::numeric_limits<double>::quiet_NaN();
+    if (args.size() >= 5) {
+        const Value &e = args[4];
+        if (e.isChar()) {
+            std::string es = e.toString();
+            for (char &c : es) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (es == "extrap")
+                mode = Interp1Extrap::Method;
+            else
+                throw Error("interp1: unknown extrapolation option '" + e.toString() + "'",
+                             0, 0, "interp1", "", "numkit:interp1:badExtrap");
+        } else {
+            mode = Interp1Extrap::Const;
+            fill = e.toScalar();
+        }
+    }
+
+    outs[0] = interp1Dispatch(args[0], args[1], args[2], method, mode, fill,
+                              ctx.engine->resource());
 }
 
 // 2-arg `spline(x, y)` returns a pp struct (piecewise polynomial form)
