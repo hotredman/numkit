@@ -184,6 +184,33 @@ TEST_F(InterpTest, PchipPpFormNonUniformAndTwoPoint)
     EXPECT_NEAR(evalScalar("ppval(pl, 1.5)"), 4.0, 1e-12);
 }
 
+// 2-arg makima(x, y) returns a pp struct usable with ppval, like
+// spline/pchip. Coefficients verified against MATLAB R2025b.
+TEST_F(InterpTest, MakimaPpFormMatchesValueForm)
+{
+    eval("pp = makima([1 2 3 4 5], [1 4 9 16 25]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.order")),  4);
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.pieces")), 4);
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.5)"),  6.2395833333, 1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 3.7)"), 13.70365,      1e-9);
+    // pp-form must agree with the value form makima(x,y,xq).
+    EXPECT_NEAR(evalScalar("ppval(pp, 3.3)"),
+                evalScalar("makima([1 2 3 4 5], [1 4 9 16 25], 3.3)"), 1e-12);
+    // first interval coefs [a b c d] = [-0.8333.. 2.3333.. 1.5 1].
+    EXPECT_NEAR(evalScalar("pp.coefs(1,3)"), 1.5, 1e-12);
+    EXPECT_NEAR(evalScalar("pp.coefs(1,4)"), 1.0, 1e-12);
+}
+
+TEST_F(InterpTest, MakimaPpFormNonUniformAndThreePoint)
+{
+    eval("pp = makima([0 1 3 4 7], [2 1 4 3 8]);");
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.0)"), 2.5697463768, 1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 0.5)"), 1.2161458333, 1e-9);
+    eval("p3 = makima([1 2 3], [2 5 4]);");
+    EXPECT_NEAR(evalScalar("ppval(p3, 1.5)"), 3.9201388889, 1e-9);
+    EXPECT_NEAR(evalScalar("ppval(p3, 2.5)"), 4.875,        1e-9);
+}
+
 // ============================================================
 // interp1 — out-of-range / extrapolation policy vs MATLAB R2025b
 // ============================================================

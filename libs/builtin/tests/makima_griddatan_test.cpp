@@ -53,10 +53,17 @@ TEST_F(MakimaGriddatanTest, MakimaQuadraticInterpolationIsClose)
     EXPECT_NEAR(evalScalar("yq"), 6.25, 0.05);
 }
 
-// 2-arg pp form is a documented gap — should throw.
-TEST_F(MakimaGriddatanTest, MakimaTwoArgFormErrors)
+// 2-arg makima(x, y) now returns a pp struct usable with ppval, like
+// spline/pchip (was a documented gap). Coefs verified vs MATLAB R2025b.
+TEST_F(MakimaGriddatanTest, MakimaTwoArgFormReturnsPp)
 {
-    EXPECT_THROW(eval("makima(1:5, 1:5);"), std::exception);
+    eval("pp = makima([1 2 3 4 5], [1 4 9 16 25]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.order")),  4);
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.pieces")), 4);
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.5)"), 6.2395833333, 1e-9);
+    // Agrees with the value form makima(x, y, xq).
+    EXPECT_NEAR(evalScalar("ppval(pp, 3.3)"),
+                evalScalar("makima([1 2 3 4 5], [1 4 9 16 25], 3.3)"), 1e-12);
 }
 
 // ── griddatan ───────────────────────────────────────────────────────
