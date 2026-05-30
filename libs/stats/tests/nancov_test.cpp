@@ -139,3 +139,24 @@ TEST_F(NancovTest, CorrcoefRowsPairwise)
     // [R,P] with 'pairwise' is deferred (per-pair df) -> clear error.
     EXPECT_THROW(eval("[R,P] = corrcoef(Xn,'Rows','pairwise');"), std::exception);
 }
+
+// ── skewness/kurtosis NaN omission (2026-05-30) ──────────────────────
+// MATLAB skewness/kurtosis treat NaN as missing and remove it per
+// column; numkit previously NaN-poisoned. vs MATLAB R2025b.
+TEST_F(NancovTest, SkewnessKurtosisOmitNaN)
+{
+    eval("Mn = [1 5; 2 NaN; 3 7; 4 100];");
+    // Column 2 = [5;7;100] after dropping the NaN.
+    EXPECT_NEAR(evalScalar("s = skewness(Mn); s(2)"), 0.706027, 1e-5);
+    EXPECT_NEAR(evalScalar("k = kurtosis(Mn); k(2)"), 1.5,      1e-9);
+    // Column 1 (no NaN) is unchanged.
+    EXPECT_NEAR(evalScalar("s = skewness(Mn); s(1)"), 0.0,      1e-12);
+    EXPECT_NEAR(evalScalar("k = kurtosis(Mn); k(1)"), 1.64,     1e-9);
+    // Clean data is unaffected by the change.
+    EXPECT_NEAR(evalScalar("s = skewness([1 5; 2 6; 3 7; 4 100]); s(2)"),
+                1.153657, 1e-5);
+    // A column with < 2 non-NaN values yields NaN.
+    EXPECT_TRUE(std::isnan(evalScalar("s = skewness([NaN 5; NaN 6; 3 7]); s(1)")));
+    // flag=0 (bias-corrected) kurtosis needs >= 4 non-NaN -> NaN with 3.
+    EXPECT_TRUE(std::isnan(evalScalar("k = kurtosis(Mn,0); k(2)")));
+}

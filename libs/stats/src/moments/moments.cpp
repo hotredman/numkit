@@ -105,7 +105,13 @@ Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char 
     const int d = resolveDim(x, dim, fn);
     Value r = applyAlongDim(x, d,
         [normFlag, fromSlice](size_t, double *slice, size_t n) {
-            return fromSlice(slice, n, normFlag);
+            // MATLAB skewness/kurtosis treat NaN as missing and remove it.
+            // Compact the non-NaN values to the front of the (mutable)
+            // slice and reduce the count before the moment kernel runs.
+            size_t k = 0;
+            for (size_t i = 0; i < n; ++i)
+                if (!std::isnan(slice[i])) slice[k++] = slice[i];
+            return fromSlice(slice, k, normFlag);
         }, mr);
     if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), mr);
