@@ -707,7 +707,44 @@ Value erase(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 
 Value replace(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
 {
-    return strrep(s, oldPat, newPat, mr);
+    // oldPat/newPat may each be a single pattern OR a cell / string array.
+    // MATLAB scans the source once, left to right: at each position the FIRST
+    // old pattern (in list order) that matches there is replaced with its
+    // corresponding new text, then the scan advances past the matched source
+    // (no re-scanning, no chain-replacement). A single NEW applies to every
+    // OLD; otherwise NEW must pair 1:1 with OLD.
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> olds(&scratch), news(&scratch);
+    collectMatchPatterns(oldPat, olds);
+    collectMatchPatterns(newPat, news);
+    if (news.size() != 1 && news.size() != olds.size())
+        throw Error("replace: NEW must be a scalar text or match the number of "
+                    "OLD patterns",
+                     0, 0, "replace", "", "numkit:replace:sizeMismatch");
+
+    std::string out;
+    out.reserve(ss.size());
+    size_t i = 0;
+    while (i < ss.size()) {
+        bool matched = false;
+        for (size_t k = 0; k < olds.size(); ++k) {
+            const std::string &o = olds[k];
+            if (!o.empty() && i + o.size() <= ss.size()
+                && ss.compare(i, o.size(), o) == 0) {
+                out += (news.size() == 1) ? news[0] : news[k];
+                i += o.size();
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            out += ss[i];
+            ++i;
+        }
+    }
+    if (s.isString()) return Value::stringScalar(out, mr);
+    return Value::fromString(out, mr);
 }
 
 Value reverse(const Value &s, std::pmr::memory_resource *mr)
