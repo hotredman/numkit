@@ -423,8 +423,11 @@ TEST_F(InterpTest, Interp2NonMonotonicGridThrows)
 
 TEST_F(InterpTest, Interp2UnsupportedMethodThrows)
 {
+    // 'makima' / 'pchip' on interp2 still error (true tensor-product Hermite
+    // with cross-derivatives is deferred; 'spline' IS supported below).
     eval("V = [1 2; 3 4];");
-    EXPECT_THROW(eval("y = interp2(V, 1.5, 1.5, 'spline');"), std::exception);
+    EXPECT_THROW(eval("y = interp2(V, 1.5, 1.5, 'makima');"), std::exception);
+    EXPECT_THROW(eval("y = interp2(V, 1.5, 1.5, 'pchip');"), std::exception);
 }
 
 // ── interp2 'cubic' (Keys bicubic convolution) ─────────────────
@@ -459,6 +462,47 @@ TEST_F(InterpTest, Interp2CubicNonUniformGridThrows)
 {
     eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
     EXPECT_THROW(eval("interp2([1 2 4 8], 1:4, V, 2.5, 2.5, 'cubic');"), std::exception);
+}
+
+// ── interp2 'spline' (separable tensor-product cubic spline) ───
+// Values verified against MATLAB R2025b. The cubic spline is a linear
+// operator, so the 2-D result equals 1-D spline along x then along y.
+TEST_F(InterpTest, Interp2SplineInterior)
+{
+    eval("x = 1:4; y = 1:4;"
+         "Z = [1 2 4 8; 3 5 9 15; 6 10 16 24; 11 17 25 35];");
+    EXPECT_NEAR(evalScalar("interp2(x, y, Z, 2.4, 3.1, 'spline')"), 12.851056, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2SplineOnNodeExact)
+{
+    eval("x = 1:4; y = 1:4;"
+         "Z = [1 2 4 8; 3 5 9 15; 6 10 16 24; 11 17 25 35];");
+    // Exact at a grid node: Z(3,2) = 10.
+    EXPECT_NEAR(evalScalar("interp2(x, y, Z, 2, 3, 'spline')"), 10.0, 1e-10);
+}
+
+TEST_F(InterpTest, Interp2SplineExtrapolatesOutOfRange)
+{
+    // Unlike linear/nearest/cubic (NaN out of range), spline extrapolates.
+    eval("x = 1:4; y = 1:4;"
+         "Z = [1 2 4 8; 3 5 9 15; 6 10 16 24; 11 17 25 35];");
+    EXPECT_NEAR(evalScalar("interp2(x, y, Z, 5, 2, 'spline')"), 23.0, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2SplineNonUniformGrid)
+{
+    // spline works on non-uniform grids (cubic convolution rejects them).
+    eval("g = [1 2 4 7];"
+         "Z = [1 2 4 8; 3 5 9 15; 6 10 16 24; 11 17 25 35];");
+    EXPECT_NEAR(evalScalar("interp2(g, g, Z, 3, 3, 'spline')"), 10.3471604938, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2SplineSmallGridFallsBackToLinear)
+{
+    // <3 points along a dim → 1-D spline falls back to linear → bilinear.
+    EXPECT_NEAR(evalScalar("interp2([1 2], [1 2], [1 2; 3 4], 1.5, 1.5, 'spline')"),
+                2.5, 1e-12);
 }
 
 TEST_F(InterpTest, Interp2ComplexThrows)
