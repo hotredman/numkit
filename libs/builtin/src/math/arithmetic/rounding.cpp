@@ -15,6 +15,7 @@
 #include "../_unary_hint.hpp"  // 3-arg abs hint overload
 
 #include <cmath>
+#include <complex>
 
 namespace numkit::builtin {
 
@@ -93,6 +94,21 @@ Value sign(const Value &x, std::pmr::memory_resource *mr)
     auto signOp = [](double v) {
         return std::isnan(v) ? v : (v > 0) ? 1.0 : (v < 0 ? -1.0 : 0.0);
     };
+    // Complex: sign(z) = z/|z| for z != 0, else 0 (MATLAB R2025b);
+    // sign(3-4i) = 0.6-0.8i. The double path below can't take complex.
+    if (x.isComplex()) {
+        auto unit = [](Complex z) -> Complex {
+            const double m = std::abs(z);
+            return m == 0.0 ? Complex(0.0, 0.0) : z / m;
+        };
+        if (x.isScalar())
+            return Value::complexScalar(unit(x.toComplex()), mr);
+        Value out = createLike(x, ValueType::COMPLEX, mr);
+        const Complex *src = x.complexData();
+        Complex *dst = out.complexDataMut();
+        for (std::size_t i = 0; i < x.numel(); ++i) dst[i] = unit(src[i]);
+        return out;
+    }
     // Integer types keep their class (sign(int8(-5))=-1 int8). Promote to
     // double first (unaryDouble's array path needs doubleData), then cast the
     // -1/0/1 result back to the integer class.
