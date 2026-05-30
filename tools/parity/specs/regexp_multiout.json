@@ -1,0 +1,13 @@
+{
+  "name": "regexp_multiout",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "[s, e] = regexp('a1b2', '\\d'); s1 = s(1); s2 = s(2); e1 = e(1); e2 = e(2); [s3, e3, te, m, t, nm, sp] = regexp('a1b2', '(\\d)'); t1 = te{1}(1); t2 = te{1}(2); mc = double(m{1}); spc = double(sp{1}); nsp = numel(sp); nm_n = numel(t);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "s1", "s2", "e1", "e2",
+    "t1", "t2", "mc", "spc", "nsp", "nm_n"
+  ],
+  "comment": "regexp default positional multi-output [start, end, tokenExtents, match, tokens, names, split] vs MATLAB R2025b. Bug fixed 2026-05-30: regexp returned only the start indices. [s,e]=regexp('a1b2','\\d') -> s=[2 4], e=[2 4]. With a capture group, tokenExtents te{1}=[2 2], match m{1}='1' (mc=49), split sp={'a','b'} (spc=97, nsp=2), tokens t has nm_n=2 entries. namespace=builtin."
+}
