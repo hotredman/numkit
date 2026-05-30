@@ -794,6 +794,71 @@ void detrendColumn(const double *src, double *dst, std::size_t n, int order, std
         dst[i] = src[i] - evalPoly(coefs, xidx[i]);
 }
 
+// Solve the k×k linear system (row-major G) G·c = rhs by Gaussian
+// elimination with partial pivoting; solution overwrites rhs. k is tiny
+// (the number of detrend basis columns). Returns false if singular.
+bool solveSmallDense(double *G, double *rhs, std::size_t k)
+{
+    for (std::size_t col = 0; col < k; ++col) {
+        std::size_t piv = col;
+        double best = std::fabs(G[col * k + col]);
+        for (std::size_t r = col + 1; r < k; ++r) {
+            const double v = std::fabs(G[r * k + col]);
+            if (v > best) { best = v; piv = r; }
+        }
+        if (best == 0.0) return false;
+        if (piv != col) {
+            for (std::size_t j = 0; j < k; ++j)
+                std::swap(G[col * k + j], G[piv * k + j]);
+            std::swap(rhs[col], rhs[piv]);
+        }
+        const double d = G[col * k + col];
+        for (std::size_t r = col + 1; r < k; ++r) {
+            const double f = G[r * k + col] / d;
+            if (f == 0.0) continue;
+            for (std::size_t j = col; j < k; ++j)
+                G[r * k + j] -= f * G[col * k + j];
+            rhs[r] -= f * rhs[col];
+        }
+    }
+    for (std::size_t i = k; i-- > 0;) {
+        double s = rhs[i];
+        for (std::size_t j = i + 1; j < k; ++j) s -= G[i * k + j] * rhs[j];
+        rhs[i] = s / G[i * k + i];
+    }
+    return true;
+}
+
+// Detrend one length-N column against a prebuilt design matrix `a`
+// (column-major, N×k): subtract the least-squares fit a·(a\src).
+// Used by the piecewise-linear (breakpoint) detrend path.
+void detrendColumnBP(const double *a, std::size_t N, std::size_t k,
+                     const double *src, double *dst,
+                     std::pmr::memory_resource *mr)
+{
+    ScratchArena sc(mr);
+    ScratchVec<double> G(k * k, 0.0, &sc), rhs(k, 0.0, &sc);
+    for (std::size_t i = 0; i < k; ++i) {
+        for (std::size_t j = 0; j < k; ++j) {
+            double s = 0.0;
+            for (std::size_t r = 0; r < N; ++r) s += a[i * N + r] * a[j * N + r];
+            G[i * k + j] = s;
+        }
+        double s = 0.0;
+        for (std::size_t r = 0; r < N; ++r) s += a[i * N + r] * src[r];
+        rhs[i] = s;
+    }
+    if (!solveSmallDense(G.data(), rhs.data(), k)) {
+        for (std::size_t r = 0; r < N; ++r) dst[r] = src[r];
+        return;
+    }
+    for (std::size_t r = 0; r < N; ++r) {
+        double fit = 0.0;
+        for (std::size_t i = 0; i < k; ++i) fit += a[i * N + r] * rhs[i];
+        dst[r] = src[r] - fit;
+    }
+}
+
 } // anonymous namespace
 
 Value detrend_of(const Value &x, int order, std::pmr::memory_resource *mr)
@@ -813,6 +878,64 @@ Value detrend_of(const Value &x, int order, std::pmr::memory_resource *mr)
     }
     for (std::size_t j = 0; j < c; ++j)
         detrendColumn(xd + j * r, od + j * r, r, order, &scratch);
+    return out;
+}
+
+// Continuous piecewise-linear detrend with breakpoints — MATLAB
+// detrend(x, 1, bp). Replicates the classic detrend.m design matrix:
+// breakpoints become bp = unique([0; bp; N-1]) (0-based sample offsets);
+// the design has one ramp column per segment (rows off..N-1 hold
+// (1:M)/M, M = N-off) plus a constant column, and each data column is
+// detrended by subtracting its least-squares fit a·(a\col). Operates
+// along dim 1 (per column) like the ordinary detrend.
+Value detrendBP_of(const Value &x, const std::vector<double> &bpUser,
+                   std::pmr::memory_resource *mr)
+{
+    if (x.numel() == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    const std::size_t N = (r == 1 || c == 1) ? r * c : r;
+    if (N < 2) {                       // nothing to fit
+        auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+        const double *src0 = x.doubleData();
+        double *dst0 = out.doubleDataMut();
+        for (std::size_t i = 0; i < N; ++i) dst0[i] = src0[i];
+        return out;
+    }
+
+    // Breakpoint offsets: unique([0; round(bp); N-1]) within (0, N-1).
+    std::vector<double> bps;
+    bps.push_back(0.0);
+    for (double v : bpUser) {
+        const double off = std::floor(v + 0.5);
+        if (off > 0.0 && off < static_cast<double>(N - 1)) bps.push_back(off);
+    }
+    bps.push_back(static_cast<double>(N - 1));
+    std::sort(bps.begin(), bps.end());
+    bps.erase(std::unique(bps.begin(), bps.end()), bps.end());
+    const std::size_t lb = bps.size() - 1;
+    const std::size_t k = lb + 1;
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> a(N * k, 0.0, &scratch);     // column-major N×k
+    for (std::size_t row = 0; row < N; ++row) a[(k - 1) * N + row] = 1.0;
+    for (std::size_t kb = 0; kb < lb; ++kb) {
+        const std::size_t off = static_cast<std::size_t>(bps[kb]);
+        const std::size_t M = N - off;
+        for (std::size_t i = 0; i < M; ++i)
+            a[kb * N + (off + i)] = static_cast<double>(i + 1) / static_cast<double>(M);
+    }
+
+    auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+    const double *xd = x.doubleData();
+    double *od = out.doubleDataMut();
+    if (r == 1 || c == 1) {
+        detrendColumnBP(a.data(), N, k, xd, od, &scratch);
+    } else {
+        for (std::size_t j = 0; j < c; ++j)
+            detrendColumnBP(a.data(), N, k, xd + j * r, od + j * r, &scratch);
+    }
     return out;
 }
 
@@ -2650,6 +2773,20 @@ void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         } else {
             order = static_cast<int>(args[1].toScalar());
         }
+    }
+    // detrend(x, 1, bp): continuous piecewise-linear detrend with
+    // breakpoints. Supported for linear (order 1) only — order-0 +
+    // breakpoints is a rare, ill-defined MATLAB edge and is deferred
+    // (the bp argument is then ignored, matching the prior behaviour).
+    if (args.size() >= 3 && order == 1 && !args[2].isEmpty()
+        && !args[2].isChar() && !args[2].isString()) {
+        const Value &bpv = args[2];
+        std::vector<double> bp;
+        bp.reserve(bpv.numel());
+        for (std::size_t i = 0; i < bpv.numel(); ++i)
+            bp.push_back(bpv.elemAsDouble(i));
+        outs[0] = detrendBP_of(args[0], bp, ctx.engine->resource());
+        return;
     }
     outs[0] = detrend_of(args[0], order, ctx.engine->resource());
 }
