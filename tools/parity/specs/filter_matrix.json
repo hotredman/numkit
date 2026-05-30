@@ -1,11 +1,21 @@
 {
   "name": "filter_matrix",
-  "covers": ["filter"],
+  "covers": [
+    "filter"
+  ],
   "namespace": "signal",
   "setup": "M = [1 2; 3 4; 5 6];",
   "expr": "Y = filter([1 1], 1, M); I = filter(1, [1 -0.5], M); [Yz, zf] = filter([1 0.5], 1, M); a11 = Y(1,1); a12 = Y(1,2); a32 = Y(3,2); i31 = I(3,1); z1 = zf(1); z2 = zf(2);",
   "iters": 3,
   "tol": 1e-12,
-  "fingerprint": ["a11", "a12", "a32", "i31", "z1", "z2"],
-  "comment": "filter() per-column on a matrix (2026-05-30). MATLAB filter(b,a,X) operates along the first non-singleton dimension and RESETS the delay state between signals; numkit previously filtered the whole column-major buffer as ONE signal, leaking state across the column boundary (Y(1,2) came out 7 instead of 2). FIR [1 1] on [1 2;3 4;5 6]: col1 [1;3;5]->[1;4;8], col2 [2;4;6]->[2;6;10] so a11=1, a12=2, a32=10. IIR a=[1 -0.5]: col1 [1;3;5]->[1;3.5;6.75] so i31=6.75. [Y,zf] gives zf as (nfilt-1)xncols, one final state per column: zf=[2.5 3] (z1=2.5, z2=3). 3-D arrays filter along dim-1 too. The optional DIM 5th arg (filter(b,a,X,zi,dim)) is not yet supported -- deferred. namespace=signal. Matches MATLAB R2025b."
+  "fingerprint": [
+    "a11",
+    "a12",
+    "a32",
+    "i31",
+    "z1",
+    "z2"
+  ],
+  "comment": "filter() per-column on a matrix (2026-05-30). MATLAB filter(b,a,X) operates along the first non-singleton dimension and RESETS the delay state between signals; numkit previously filtered the whole column-major buffer as ONE signal, leaking state across the column boundary (Y(1,2) came out 7 instead of 2). FIR [1 1] on [1 2;3 4;5 6]: col1 [1;3;5]->[1;4;8], col2 [2;4;6]->[2;6;10] so a11=1, a12=2, a32=10. IIR a=[1 -0.5]: col1 [1;3;5]->[1;3.5;6.75] so i31=6.75. [Y,zf] gives zf as (nfilt-1)xncols, one final state per column: zf=[2.5 3] (z1=2.5, z2=3). 3-D arrays filter along dim-1 too. The optional DIM 5th arg (filter(b,a,X,zi,dim)) is not yet supported -- deferred. namespace=signal. Matches MATLAB R2025b.",
+  "deep_verified": true
 }
