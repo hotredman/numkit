@@ -1107,7 +1107,23 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "circshift", "", "numkit:circshift:badShift");
 
     if (nk == 1) {
-        outs[0] = circshift(args[0], static_cast<int64_t>(k.toScalar()), mr);
+        const int64_t kk = static_cast<int64_t>(k.toScalar());
+        // circshift(X, K, dim): shift by K ONLY along dimension `dim`. The
+        // previous code ignored args[2] and always shifted dim 1.
+        if (args.size() >= 3 && !args[2].isEmpty()) {
+            const int dim = static_cast<int>(args[2].toScalar());
+            if (dim < 1)
+                throw Error("circshift: dim must be a positive integer",
+                             0, 0, "circshift", "", "numkit:circshift:badDim");
+            ScratchArena scratch(mr);
+            auto shifts = ScratchVec<int64_t>(static_cast<size_t>(dim), &scratch);
+            for (int i = 0; i < dim; ++i) shifts[i] = 0;
+            shifts[dim - 1] = kk;
+            outs[0] = circshiftND(args[0],
+                                  Span<const int64_t>(shifts.data(), dim), mr);
+            return;
+        }
+        outs[0] = circshift(args[0], kk, mr);
         return;
     }
     if (nk == 2 && args[0].dims().ndim() <= 3) {
