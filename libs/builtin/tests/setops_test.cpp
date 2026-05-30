@@ -270,6 +270,48 @@ TEST_P(SetOpsTest, SetdiffEmpty)
     EXPECT_EQ(u->numel(), 0u);
 }
 
+// ── set-operation index outputs (ia/ib) — were unimplemented ────────────
+TEST_P(SetOpsTest, IntersectIndices)
+{
+    eval("function [a,b,c]=wIx(x,y)\n  [a,b,c]=intersect(x,y);\nend");
+    eval("[c, ia, ib] = wIx([3 1 2 5], [2 4 1]);");
+    // c = [1 2]; ia indexes A, ib indexes B (both 1-based, columns)
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 2.0); // 1 at A(2)
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2)"), 3.0); // 2 at A(3)
+    EXPECT_DOUBLE_EQ(evalScalar("ib(1)"), 3.0); // 1 at B(3)
+    EXPECT_DOUBLE_EQ(evalScalar("ib(2)"), 1.0); // 2 at B(1)
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0); // columns
+    EXPECT_DOUBLE_EQ(evalScalar("size(ib,2)"), 1.0);
+}
+
+TEST_P(SetOpsTest, SetdiffIndices)
+{
+    eval("function [a,b]=wSd(x,y)\n  [a,b]=setdiff(x,y);\nend");
+    eval("[d, ia] = wSd([3 1 2 5], [2 4 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 1.0); // 3 at A(1)
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2)"), 4.0); // 5 at A(4)
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0);
+}
+
+TEST_P(SetOpsTest, UnionIndices)
+{
+    eval("function [a,b,c]=wUn(x,y)\n  [a,b,c]=union(x,y);\nend");
+    eval("[u, ia, ib] = wUn([3 1 2], [2 4 1]);");
+    // u = [1 2 3 4]; ia indexes the A-sourced elements (1,2,3),
+    // ib indexes the B-only element (4 at B(2)).
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 2.0); // 1 at A(2)
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2)"), 3.0); // 2 at A(3)
+    EXPECT_DOUBLE_EQ(evalScalar("ia(3)"), 1.0); // 3 at A(1)
+    EXPECT_DOUBLE_EQ(evalScalar("ib(1)"), 2.0); // 4 at B(2)
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ia)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ib)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0);
+}
+
 // Complex intersect/union/setdiff (C output): exact-equality membership,
 // values ordered by |z| then angle ('sorted'); 'stable' keeps first-occur
 // order. Was unsupported (threw "Not a double array"). vs MATLAB R2025b.

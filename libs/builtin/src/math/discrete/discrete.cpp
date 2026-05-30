@@ -1596,27 +1596,124 @@ bool wantsStable(Span<const Value> args, size_t start)
     }
     return false;
 }
+
+// ── set-operation index outputs (ia / ib) ──────────────────────────────
+enum class SetOpKind { Intersect, Setdiff, Union };
+
+void buildFirstIndexMap(const Value &x,
+                        std::pmr::unordered_map<double, size_t, DoubleHashEq0> &m)
+{
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (!std::isnan(v)) m.try_emplace(v, i + 1); // 1-based first occurrence
+    }
+}
+
+// 1-based index of value v in x (finite via map, NaN via linear scan); 0 if absent.
+size_t setopFirstIndex(const Value &x,
+                       const std::pmr::unordered_map<double, size_t, DoubleHashEq0> &m,
+                       double v)
+{
+    if (std::isnan(v)) {
+        const size_t n = x.numel();
+        for (size_t i = 0; i < n; ++i)
+            if (std::isnan(x.elemAsDouble(i))) return i + 1;
+        return 0;
+    }
+    auto it = m.find(v);
+    return it == m.end() ? 0 : it->second;
+}
+
+// Emit ia (and ib for intersect/union) for a set operation, matching MATLAB:
+// the index vectors are always columns. intersect/setdiff: ia indexes A,
+// ib indexes B; union: ia indexes the A-sourced result elements, ib the
+// B-only ones.
+void emitSetopIndices(SetOpKind kind, const Value &A, const Value &B,
+                      const Value &result, size_t nargout, Span<Value> outs,
+                      std::pmr::memory_resource *mr, const char *fn)
+{
+    if (A.type() == ValueType::COMPLEX || B.type() == ValueType::COMPLEX)
+        throw Error(std::string(fn) + ": index outputs are not supported for "
+                    "complex inputs", 0, 0, fn, "",
+                    std::string("numkit:") + fn + ":complexIdx");
+
+    ScratchArena scratch(mr);
+    std::pmr::unordered_map<double, size_t, DoubleHashEq0> mapA(&scratch);
+    buildFirstIndexMap(A, mapA);
+
+    if (kind == SetOpKind::Union) {
+        std::pmr::unordered_map<double, size_t, DoubleHashEq0> mapB(&scratch);
+        buildFirstIndexMap(B, mapB);
+        auto iaVec = ScratchVec<double>(&scratch);
+        auto ibVec = ScratchVec<double>(&scratch);
+        const size_t k = result.numel();
+        for (size_t i = 0; i < k; ++i) {
+            const double v = result.elemAsDouble(i);
+            const size_t ai = setopFirstIndex(A, mapA, v);
+            if (ai != 0) iaVec.push_back(static_cast<double>(ai));
+            else ibVec.push_back(static_cast<double>(setopFirstIndex(B, mapB, v)));
+        }
+        auto colOf = [&](const ScratchVec<double> &v) {
+            Value c = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
+            if (!v.empty()) std::copy(v.begin(), v.end(), c.doubleDataMut());
+            return c;
+        };
+        if (nargout >= 2) outs[1] = colOf(iaVec);
+        if (nargout >= 3) outs[2] = colOf(ibVec);
+        return;
+    }
+
+    const size_t k = result.numel();
+    Value ia = Value::matrix(k, 1, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < k; ++i)
+        ia.doubleDataMut()[i] =
+            static_cast<double>(setopFirstIndex(A, mapA, result.elemAsDouble(i)));
+    if (nargout >= 2) outs[1] = ia;
+
+    if (kind == SetOpKind::Intersect && nargout >= 3) {
+        std::pmr::unordered_map<double, size_t, DoubleHashEq0> mapB(&scratch);
+        buildFirstIndexMap(B, mapB);
+        Value ib = Value::matrix(k, 1, ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < k; ++i)
+            ib.doubleDataMut()[i] =
+                static_cast<double>(setopFirstIndex(B, mapB, result.elemAsDouble(i)));
+        outs[2] = ib;
+    }
+}
 } // namespace
 
-void union_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void union_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("union: requires 2 arguments", 0, 0, "union", "", "numkit:union:nargin");
-    outs[0] = setUnion(args[0], args[1], ctx.engine->resource(), wantsStable(args, 2));
+    auto *mr = ctx.engine->resource();
+    outs[0] = setUnion(args[0], args[1], mr, wantsStable(args, 2));
+    if (nargout >= 2)
+        emitSetopIndices(SetOpKind::Union, args[0], args[1], outs[0], nargout, outs,
+                         mr, "union");
 }
 
-void intersect_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void intersect_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("intersect: requires 2 arguments", 0, 0, "intersect", "", "numkit:intersect:nargin");
-    outs[0] = setIntersect(args[0], args[1], ctx.engine->resource(), wantsStable(args, 2));
+    auto *mr = ctx.engine->resource();
+    outs[0] = setIntersect(args[0], args[1], mr, wantsStable(args, 2));
+    if (nargout >= 2)
+        emitSetopIndices(SetOpKind::Intersect, args[0], args[1], outs[0], nargout, outs,
+                         mr, "intersect");
 }
 
-void setdiff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void setdiff_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("setdiff: requires 2 arguments", 0, 0, "setdiff", "", "numkit:setdiff:nargin");
-    outs[0] = setDiff(args[0], args[1], ctx.engine->resource(), wantsStable(args, 2));
+    auto *mr = ctx.engine->resource();
+    outs[0] = setDiff(args[0], args[1], mr, wantsStable(args, 2));
+    if (nargout >= 2)
+        emitSetopIndices(SetOpKind::Setdiff, args[0], args[1], outs[0], nargout, outs,
+                         mr, "setdiff");
 }
 NK_BIN_SETOP_REG(discretize, discretize)
 
