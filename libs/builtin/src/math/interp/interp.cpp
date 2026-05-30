@@ -456,18 +456,31 @@ Value interp1(const Value &x, const Value &y, const Value &xq, const std::string
 // ── interp2 ───────────────────────────────────────────────────────────
 namespace {
 
-enum class Interp2Method { Linear, Nearest, Cubic };
+enum class Interp2Method { Linear, Nearest, Cubic, Spline };
 
-Interp2Method parseInterp2Method(const std::string &m)
+// `allowSeparable` enables the tensor-product 'spline' method (interp2
+// only). interp3 leaves it false — 'spline' stays unsupported there and
+// falls through to the "not yet supported" error as before.
+//
+// NOTE: 'makima' (and 'pchip') are intentionally NOT enabled here. The
+// cubic spline is a LINEAR interpolation operator, so the 2-D result
+// equals sequential 1-D interpolation (interpolate along x for each row,
+// then along y) — that separable form reproduces MATLAB exactly. makima
+// is NONLINEAR (its Hermite derivative weights depend on |slope diffs|),
+// so the naive separable form diverges from MATLAB's true tensor-product
+// bicubic Hermite (which needs consistent cross ∂²/∂x∂y derivatives) at
+// interior points. Implementing that correctly is deferred.
+Interp2Method parseInterp2Method(const std::string &m, bool allowSeparable = false)
 {
     std::string s = m;
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s.empty() || s == "linear") return Interp2Method::Linear;
     if (s == "nearest")             return Interp2Method::Nearest;
     if (s == "cubic")               return Interp2Method::Cubic;
+    if (allowSeparable && s == "spline") return Interp2Method::Spline;
     if (s == "spline" || s == "pchip" || s == "makima")
         throw Error("interp2: '" + m + "' method not yet supported "
-                     "(linear / nearest / cubic available)",
+                     "(linear / nearest / cubic / spline available)",
                      0, 0, "interp2", "", "numkit:interp2:unsupportedMethod");
     throw Error("interp2: unknown method '" + m + "'",
                  0, 0, "interp2", "", "numkit:interp2:badMethod");
@@ -646,7 +659,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
     validateMonotonicAscending(xGrid, C, "X");
     validateMonotonicAscending(yGrid, R, "Y");
 
-    const Interp2Method m = parseInterp2Method(method);
+    const Interp2Method m = parseInterp2Method(method, /*allowSeparable=*/true);
     ScratchArena scratch(mr);
     // V as DOUBLE (promote if needed).
     ScratchVec<double> Vd(R * C, &scratch);
@@ -695,6 +708,35 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
         VpadPtr = Vpad.data();
     }
 
+    // Separable 'spline': interpolate each grid row along x at xq, then
+    // interpolate the resulting column along y at yq. The cubic spline is a
+    // linear operator, so this sequential 1-D form equals the 2-D
+    // tensor-product spline and matches MATLAB exactly — including
+    // out-of-range extrapolation, non-uniform grids, and the <3-point
+    // linear fallback, all inherited from the verified 1-D interpSpline.
+    // A row-major copy of V makes per-row access contiguous.
+    ScratchVec<double> Vrow(&scratch);
+    if (m == Interp2Method::Spline) {
+        Vrow.resize(R * C);
+        for (std::size_t i = 0; i < R; ++i)
+            for (std::size_t j = 0; j < C; ++j)
+                Vrow[i * C + j] = Vd[j * R + i];
+    }
+
+    auto sampleAt = [&](double xq, double yq) -> double {
+        if (m != Interp2Method::Spline)
+            return interp2Sample(Vd.data(), R, C, xGrid, yGrid, xq, yq, m, VpadPtr);
+        ScratchArena local(mr);
+        ScratchVec<double> col(R, &local);
+        for (std::size_t i = 0; i < R; ++i) {
+            const double *rowData = &Vrow[i * C];
+            auto v = interpSpline(xGrid, rowData, C, &xq, 1, &local);
+            col[i] = v[0];
+        }
+        auto outv = interpSpline(yGrid, col.data(), R, &yq, 1, &local);
+        return outv[0];
+    };
+
     // Implicit meshgrid: when BOTH Xq and Yq are 1-D vectors (or
     // scalars) with possibly different lengths, MATLAB constructs
     // the implicit mesh — output is `length(Yq) x length(Xq)`,
@@ -714,8 +756,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
             const double xq = Xq.elemAsDouble(j);
             for (std::size_t i = 0; i < ny; ++i) {
                 const double yq = Yq.elemAsDouble(i);
-                dst[j * ny + i] = interp2Sample(Vd.data(), R, C,
-                                                xGrid, yGrid, xq, yq, m, VpadPtr);
+                dst[j * ny + i] = sampleAt(xq, yq);
             }
         }
         return out;
@@ -735,8 +776,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
             const double xq = Xq.elemAsDouble(j);
             for (std::size_t i = 0; i < ny; ++i) {
                 const double yq = Yq.elemAsDouble(i);
-                dst[j * ny + i] = interp2Sample(Vd.data(), R, C,
-                                                xGrid, yGrid, xq, yq, m, VpadPtr);
+                dst[j * ny + i] = sampleAt(xq, yq);
             }
         }
         return out;
@@ -754,7 +794,7 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
         const double yq = Yq.elemAsDouble(i);
-        dst[i] = interp2Sample(Vd.data(), R, C, xGrid, yGrid, xq, yq, m, VpadPtr);
+        dst[i] = sampleAt(xq, yq);
     }
     return out;
 }
