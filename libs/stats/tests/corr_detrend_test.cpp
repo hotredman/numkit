@@ -115,3 +115,31 @@ TEST_F(CorrDetrendTest, DetrendStringMode)
     EXPECT_NEAR(evalScalar("yd1(1)"), -2.0, 1e-12);
     EXPECT_NEAR(evalScalar("max(abs(yd2))"), 0.0, 1e-12);
 }
+
+// detrend(x, 1, bp) — continuous piecewise-linear detrend with
+// breakpoints. Values verified against MATLAB R2025b. Previously numkit
+// silently ignored the breakpoint argument (returned the plain linear
+// detrend).
+TEST_F(CorrDetrendTest, DetrendBreakpointSingle)
+{
+    eval("x = [1.1 1.8 3.3 3.9 5.2 5.7]; yd = detrend(x, 1, 3);");
+    EXPECT_NEAR(evalScalar("yd(1)"),  0.131578947368, 1e-9);
+    EXPECT_NEAR(evalScalar("yd(2)"), -0.263157894737, 1e-9);
+    EXPECT_NEAR(evalScalar("yd(3)"),  0.142105263158, 1e-9);
+    EXPECT_NEAR(evalScalar("yd(6)"), -0.126315789474, 1e-9);
+    // differs from the no-breakpoint linear detrend
+    eval("yp = detrend(x, 1);");
+    EXPECT_GT(evalScalar("abs(yd(1) - yp(1))"), 1e-3);
+}
+
+TEST_F(CorrDetrendTest, DetrendBreakpointMultiAndMatrix)
+{
+    eval("x = [1.1 1.8 3.3 3.9 5.2 5.7]; yd = detrend(x, 1, [2 4]);");
+    EXPECT_NEAR(evalScalar("yd(2)"), -0.131428571429, 1e-9);
+    EXPECT_NEAR(evalScalar("yd(3)"),  0.262857142857, 1e-9);
+    EXPECT_NEAR(evalScalar("yd(6)"), -0.111428571429, 1e-9);
+    // matrix: each column detrended independently (along dim 1)
+    eval("M = [x(:) x(:)+0.5]; Yd = detrend(M, 1, 3);");
+    EXPECT_NEAR(evalScalar("Yd(1,1)"),  0.131578947368, 1e-9);
+    EXPECT_NEAR(evalScalar("Yd(2,2)"), -0.263157894737, 1e-9);
+}
