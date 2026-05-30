@@ -1,13 +1,13 @@
 {
   "name": "cov",
   "namespace": "stats",
-  "setup": "",
-  "expr": "C = cov([1 2; 3 4; 5 6]); r1 = C(1,1); r2 = C(2,2);",
+  "setup": "X = [1 5; 2 6; 3 NaN; 4 8];",
+  "expr": "C = cov([1 2; 3 4; 5 6]); r1 = C(1,1); r2 = C(2,2); Co = cov(X,'omitrows'); o11 = Co(1,1); o12 = Co(1,2); Cp = cov(X,'partialrows'); p11 = Cp(1,1); p12 = Cp(1,2); p22 = Cp(2,2); Cw = cov(X,1,'omitrows'); w11 = Cw(1,1); vo = cov([1 2 NaN 4],'omitrows');",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2",
+    "o11", "o12", "p11", "p12", "p22", "w11", "vo"
   ],
-  "comment": "Sig: r = cov(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = cov(...). Spec-extension batch 2026-05-09. 2026-05-30: NaN-policy flag added — cov(X,'omitrows') drops every row with a NaN (o11=o12=2.3333 on X), cov(X,'partialrows') deletes pairwise so each entry uses rows where both columns are non-NaN (p11=1.6667 over all 4 rows of col1, p12=p22=2.3333 over the 3 rows valid for col2), cov(X,1,'omitrows') uses N normalization (w11=1.5556), and a vector input reduces to the variance over its non-NaN elements (vo=2.3333). 'includenan' (default) still NaN-poisons."
 }

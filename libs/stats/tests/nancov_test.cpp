@@ -75,3 +75,34 @@ TEST_F(NancovTest, AllNaNRowsReturnNaNMatrix)
          "allnan = all(isnan(C(:)));");
     EXPECT_TRUE(evalScalar("allnan") > 0.5);
 }
+
+// ── cov NaN-policy flag (2026-05-30): 'omitrows' / 'partialrows' ──────
+// Previously cov(X,'omitrows') fell through to the two-input matrix path
+// and errored. cov now accepts a trailing 'includenan'|'omitrows'|
+// 'partialrows' flag. vs MATLAB R2025b.
+TEST_F(NancovTest, OmitrowsDropsNaNRows)
+{
+    eval("X = [1 5; 2 6; 3 NaN; 4 8];");
+    eval("Co = cov(X,'omitrows');");
+    EXPECT_NEAR(evalScalar("Co(1,1)"), 7.0 / 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("Co(1,2)"), 7.0 / 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("Co(2,2)"), 7.0 / 3.0, 1e-12);
+    // N normalization variant.
+    EXPECT_NEAR(evalScalar("Cw = cov(X,1,'omitrows'); Cw(1,1)"), 14.0 / 9.0, 1e-12);
+    // Vector input reduces to variance over the non-NaN elements.
+    EXPECT_NEAR(evalScalar("cov([1 2 NaN 4],'omitrows')"), 7.0 / 3.0, 1e-12);
+}
+
+TEST_F(NancovTest, PartialrowsPairwiseDeletion)
+{
+    eval("X = [1 5; 2 6; 3 NaN; 4 8];");
+    eval("Cp = cov(X,'partialrows');");
+    // cov(1,1): all 4 rows of col1 -> var([1 2 3 4]) = 5/3.
+    EXPECT_NEAR(evalScalar("Cp(1,1)"), 5.0 / 3.0, 1e-12);
+    // cov(1,2) and cov(2,2): rows valid for both/col2 = {1,2,4} -> 7/3.
+    EXPECT_NEAR(evalScalar("Cp(1,2)"), 7.0 / 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("Cp(2,1)"), 7.0 / 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("Cp(2,2)"), 7.0 / 3.0, 1e-12);
+    // 'includenan' (default) still NaN-poisons.
+    EXPECT_TRUE(std::isnan(evalScalar("Ci = cov(X,'includenan'); Ci(2,2)")));
+}
