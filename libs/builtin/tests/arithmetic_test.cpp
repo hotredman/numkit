@@ -261,6 +261,29 @@ TEST_P(ArithmeticTest, SignIntegerKeepsClass)
     EXPECT_TRUE(evalBool("isnan(sign(NaN));"));
 }
 
+// sign() of a complex value: z/|z| for z != 0, else 0 (MATLAB R2025b).
+// numkit previously threw "Cannot convert complex ... to double scalar".
+// DEEP-PROBE 2026-05-30.
+TEST_P(ArithmeticTest, SignComplex)
+{
+    eval("a = sign(3-4i);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(a);"),  0.6);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(a);"), -0.8);
+    eval("b = sign(1i);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(b);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(b);"), 1.0);
+    eval("c = sign(complex(0, 0));");          // zero -> zero (no divide)
+    EXPECT_DOUBLE_EQ(evalScalar("real(c);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(c);"), 0.0);
+    eval("d = sign([3+4i, 0, -2i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(d(1));"), 0.6);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(d(1));"), 0.8);
+    EXPECT_DOUBLE_EQ(evalScalar("real(d(2));"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(d(3));"), -1.0);
+    EXPECT_NEAR(evalScalar("real(sign(2+2i));"), 0.70710678118654752, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(sign(2+2i));"), 0.70710678118654752, 1e-12);
+}
+
 INSTANTIATE_DUAL(ArithmeticTest);
 
 // ============================================================
