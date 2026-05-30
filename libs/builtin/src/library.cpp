@@ -3121,6 +3121,18 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 int dow = ((yw + yw/4 - yw/100 + yw/400
                                             + dt[(moi - 1 + 12) % 12] + di) % 7 + 7) % 7;
 
+                                // A meridiem token ('AM'/'PM', case-insensitive)
+                                // anywhere in the format switches HH to a
+                                // 12-hour, space-padded clock and prints AM/PM
+                                // by time of day (12 AM = midnight, 12 PM = noon).
+                                bool hour12 = false;
+                                for (size_t k = 0; k + 1 < fmt.size(); ++k) {
+                                    char a = (char)std::tolower((unsigned char)fmt[k]);
+                                    char b = (char)std::tolower((unsigned char)fmt[k+1]);
+                                    if ((a == 'a' || a == 'p') && b == 'm') { hour12 = true; break; }
+                                }
+                                const int h12 = (hi % 12 == 0) ? 12 : (hi % 12);
+
                                 std::string out;
                                 char buf[16];
                                 size_t i = 0;
@@ -3136,9 +3148,19 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     else if (at("dddd", 4)) { out += DOWF[dow]; i+=4; }
                                     else if (at("ddd", 3)) { out += DOW3[dow]; i+=3; }
                                     else if (at("dd", 2)) { std::snprintf(buf,sizeof buf,"%02d",di); out+=buf; i+=2; }
-                                    else if (at("HH", 2)) { std::snprintf(buf,sizeof buf,"%02d",hi); out+=buf; i+=2; }
+                                    else if (at("HH", 2)) {
+                                        if (hour12) std::snprintf(buf,sizeof buf,"%2d",h12);
+                                        else        std::snprintf(buf,sizeof buf,"%02d",hi);
+                                        out+=buf; i+=2;
+                                    }
                                     else if (at("MM", 2)) { std::snprintf(buf,sizeof buf,"%02d",mii); out+=buf; i+=2; }
                                     else if (at("SS", 2)) { std::snprintf(buf,sizeof buf,"%02d",si); out+=buf; i+=2; }
+                                    else if (hour12 && i + 1 < fmt.size()
+                                             && ((std::tolower((unsigned char)fmt[i])=='a'
+                                                  || std::tolower((unsigned char)fmt[i])=='p')
+                                                 && std::tolower((unsigned char)fmt[i+1])=='m')) {
+                                        out += (hi < 12) ? "AM" : "PM"; i += 2;
+                                    }
                                     else { out += fmt[i]; ++i; }
                                 }
                                 outs[0] = Value::fromString(out, mr);

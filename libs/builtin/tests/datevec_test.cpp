@@ -141,6 +141,23 @@ TEST_F(DatevecTest, DatestrDatevecInput)
         1.0);
 }
 
+TEST_F(DatevecTest, DatestrAmPm)
+{
+    // An AM/PM meridiem token switches HH to a 12-hour, space-padded clock
+    // and prints AM/PM by time of day (12 AM = midnight, 12 PM = noon).
+    // Verified vs MATLAB R2025b. Exact-minute times avoid sub-second SS rounding.
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(0,    'HH:MM:SS AM'), '12:00:00 AM')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(0.25, 'HH:MM:SS AM'), ' 6:00:00 AM')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(0.5,  'HH:MM:SS AM'), '12:00:00 PM')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(0.7,  'HH:MM:SS AM'), ' 4:48:00 PM')"), 1.0);
+    // The 'PM' token behaves identically to 'AM' (a placeholder).
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(0.7,  'HH:MM PM'), ' 4:48 PM')"), 1.0);
+    // Full date + meridiem.
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885.5,'mm/dd/yyyy HH:MM PM'), '12/30/2022 12:00 PM')"), 1.0);
+    // Without a meridiem token, HH stays 24-hour zero-padded.
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(0.7,'HH:MM'), '16:48')"), 1.0);
+}
+
 // datevec(str [, fmt]): parse a date string into [Y M D H MI S]. vs MATLAB
 // R2025b. 2026-05-30: previously threw "string parsing not yet supported".
 TEST_F(DatevecTest, StringParse)
