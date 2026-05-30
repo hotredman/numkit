@@ -7,6 +7,7 @@
 #include <numkit/signal/filter_analysis/frequency_response.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"   // Complex typedef
@@ -106,20 +107,46 @@ phasez(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *m
 std::tuple<Value, Value>
 grpdelay(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr)
 {
-    auto [phi, W] = phasez(b, a, npts, mr);
+    // EXACT group delay (MATLAB's method), NOT a finite-difference of the
+    // phase. For H(z) = B(z)/A(z), form the combined polynomial
+    //   c = conv(b, reverse(a)),
+    // whose argument is arg(B) - w*(na-1) - arg(A). Hence
+    //   gd(w) = -d/dw arg(H) = Re{ CR(e^jw) / C(e^jw) } - (na - 1),
+    // where CR has coefficients n*c[n]. This is exact at every frequency
+    // (the old phase finite-difference was wildly off at small npts).
+    const double *bd = b.doubleData();
+    const double *ad = a.doubleData();
+    const size_t nb = b.numel(), na = a.numel();
+
+    auto W  = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
     auto gd = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
-    const double *p = phi.doubleData();
-    const double *w = W.doubleData();
-    double *g = gd.doubleDataMut();
-    if (npts == 0) return std::make_tuple(std::move(gd), std::move(W));
-    if (npts == 1) {
-        g[0] = 0.0;
+    if (npts == 0 || nb == 0 || na == 0)
         return std::make_tuple(std::move(gd), std::move(W));
+
+    ScratchArena scratch(mr);
+    const size_t nc = nb + na - 1;
+    auto c = ScratchVec<double>(nc, &scratch);
+    for (size_t i = 0; i < nc; ++i) c[i] = 0.0;
+    for (size_t i = 0; i < nb; ++i)
+        for (size_t j = 0; j < na; ++j)
+            c[i + j] += bd[i] * ad[na - 1 - j];   // conv(b, reverse(a))
+
+    double *wp = W.doubleDataMut();
+    double *g  = gd.doubleDataMut();
+    const double offset = static_cast<double>(na) - 1.0;
+    for (size_t k = 0; k < npts; ++k) {
+        const double w = M_PI * static_cast<double>(k) / static_cast<double>(npts);
+        wp[k] = w;
+        const Complex ejw(std::cos(w), -std::sin(w));
+        Complex C(0, 0), CR(0, 0), ejwk(1, 0);
+        for (size_t n = 0; n < nc; ++n) {
+            C  += c[n] * ejwk;
+            CR += (static_cast<double>(n) * c[n]) * ejwk;
+            ejwk *= ejw;
+        }
+        const double cmag2 = C.real() * C.real() + C.imag() * C.imag();
+        g[k] = (cmag2 < 1e-300) ? 0.0 : ((CR / C).real() - offset);
     }
-    g[0]        = -(p[1] - p[0])               / (w[1] - w[0]);
-    g[npts - 1] = -(p[npts - 1] - p[npts - 2]) / (w[npts - 1] - w[npts - 2]);
-    for (size_t k = 1; k + 1 < npts; ++k)
-        g[k] = -(p[k + 1] - p[k - 1]) / (w[k + 1] - w[k - 1]);
     return std::make_tuple(std::move(gd), std::move(W));
 }
 

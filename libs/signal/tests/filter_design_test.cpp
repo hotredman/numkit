@@ -227,16 +227,24 @@ TEST_F(FilterDesignTest, GrpdelayPureDelayIsConstant)
     }
 }
 
-TEST_F(FilterDesignTest, GrpdelayMatchesNegativeDerivativeOfPhasez)
+// DEEP-PROBE 2026-05-31: grpdelay now uses the EXACT ramped-polynomial
+// method (gd = Re{CR/C} - (na-1), c = conv(b, reverse(a))), NOT a phase
+// finite-difference — which was wildly wrong at small npts (gd(0) gave
+// 1.137 instead of 1.5 for the filter below) and couldn't represent the
+// negative group delays of the second filter at all.
+TEST_F(FilterDesignTest, GrpdelayExactMatchesMatlab)
 {
-    // Sanity: numerical -dphi/dw at an interior point matches gd.
-    eval("[phi, W] = phasez([1 -0.4 0.2], [1 0.3], 128);"
-         "[gd,  W2] = grpdelay([1 -0.4 0.2], [1 0.3], 128);"
-         "i = 64;"
-         "expected = -(phi(i+1) - phi(i-1)) / (W(i+1) - W(i-1));");
-    double expected = evalScalar("expected");
-    double actual   = evalScalar("gd(64)");
-    EXPECT_NEAR(actual, expected, 1e-12);
+    // H = (1 + z^-1)/(1 - 0.5 z^-1): gd(0) = 1.5 (symmetric FIR num + pole).
+    eval("[gd, W] = grpdelay([1 1], [1 -0.5], 4);");
+    EXPECT_NEAR(evalScalar("gd(1)"), 1.5,               1e-9);
+    EXPECT_NEAR(evalScalar("gd(2)"), 0.690743569830546, 1e-9);
+    EXPECT_NEAR(evalScalar("gd(3)"), 0.3,               1e-9);
+    EXPECT_NEAR(evalScalar("gd(4)"), 0.191609371345924, 1e-9);
+    // Filter exhibiting NEGATIVE group delay at low frequencies.
+    eval("[gd2, W2] = grpdelay([1 -0.3 0.2], [1 0.4 0.1], 5);");
+    EXPECT_NEAR(evalScalar("gd2(1)"), -0.288888888889, 1e-7);
+    EXPECT_NEAR(evalScalar("gd2(3)"), -0.656839484500, 1e-7);
+    EXPECT_NEAR(evalScalar("gd2(5)"),  0.715501746200, 1e-7);
 }
 
 TEST_F(FilterDesignTest, GrpdelayShape)
