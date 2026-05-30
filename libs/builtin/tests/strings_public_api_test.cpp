@@ -77,6 +77,28 @@ TEST(BuiltinStringsPublicApi, Num2StrFormatString)
     EXPECT_EQ(fmt(1000.0, "%e"),               "1.000000e+03");
 }
 
+// int2str: round half away from zero, render as a plain integer (no decimals
+// or scientific notation); Inf/-Inf/NaN pass through. vs MATLAB R2025b.
+// Implemented 2026-05-30 (was an undefined function).
+TEST(BuiltinStringsPublicApi, Int2StrScalar)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto i2s = [&](double v) {
+        return numkit::builtin::int2str(Value::scalar(v, mr), mr).toString();
+    };
+    EXPECT_EQ(i2s(3.4),     "3");
+    EXPECT_EQ(i2s(2.5),     "3");          // round half away from zero
+    EXPECT_EQ(i2s(-2.5),    "-3");
+    EXPECT_EQ(i2s(0.5),     "1");
+    EXPECT_EQ(i2s(-0.5),    "-1");
+    EXPECT_EQ(i2s(100000.0), "100000");
+    EXPECT_EQ(i2s(1e10),    "10000000000"); // full integer, not scientific
+    EXPECT_EQ(i2s(-0.0),    "0");           // -0 normalised
+    EXPECT_EQ(i2s(std::numeric_limits<double>::infinity()),  "Inf");
+    EXPECT_EQ(i2s(-std::numeric_limits<double>::infinity()), "-Inf");
+    EXPECT_EQ(i2s(std::nan("")), "NaN");
+}
+
 TEST(BuiltinStringsPublicApi, Str2NumSuccess)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();

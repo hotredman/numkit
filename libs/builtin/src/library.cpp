@@ -262,6 +262,7 @@ void angle_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // strings.cpp
 void num2str_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void int2str_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void str2num_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void str2double_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void string_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1083,6 +1084,7 @@ void BuiltinLibrary::install(Engine &engine)
 
     // ── Phase 6c: strings.cpp public-API-backed built-ins ──────────
     engine.registerFunction("num2str",    &builtin::detail::num2str_reg);
+    engine.registerFunction("int2str",    &builtin::detail::int2str_reg);
     engine.registerFunction("str2num",    &builtin::detail::str2num_reg);
     engine.registerFunction("str2double", &builtin::detail::str2double_reg);
     engine.registerFunction("string",     &builtin::detail::string_reg);
