@@ -677,7 +677,7 @@ together.
 | function | status | correctness | comment |
 |---|:---:|:---:|---|
 | `exp` | ✅ | OK | Sig: r = exp(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `expm1` | ✅ | N/A | Sig: r = expm1(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `expm1` | ✅ | OK | Sig: r = expm1(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `log` | ✅ | OK | Sig: r = log(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `log10` | ✅ | OK | Sig: r = log10(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `log1p` | ✅ | OK | Sig: r = log1p(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
@@ -728,7 +728,7 @@ together.
 | function | status | correctness | comment |
 |---|:---:|:---:|---|
 | `factor` | ✅ | N/A | Sig: r = factor(...). Spec-extension batch 2026-05-09. |
-| `factorial` | ✅ | N/A | Sig: r = factorial(...). Spec-extension batch 2026-05-09. |
+| `factorial` | ✅ | OK | Sig: r = factorial(...). Spec-extension batch 2026-05-09. |
 | `gcd` | ✅ | OK | Sig: g = gcd(A,B); [g,u,v] = gcd(A,B) also returns the Bezout coefficients (extended Euclid) such that A.*u + B.*v = g, elementwise, matching MATLAB R2025b: gcd(12,18)->[6,-1,1], gcd(8,5)->[1,2,-3], gcd(-12,18)->[6,1,1] (g>=0, coeffs normalized with it), gcd(0,0)->[0,0,0]. numkit previously only supported the 1-output form (3-output threw 'Undefined function u'); fixed 2026-05-30. Spec-extension batch 2026-05-09 + extended-gcd. |
 | `isprime` | ✅ | OK | Sig: r = isprime(...). Spec-extension batch 2026-05-09. |
 | `lcm` | ✅ | OK | Sig: r = lcm(...). Spec-extension batch 2026-05-09. |
@@ -3827,3 +3827,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `addtodate` | ✅ | OK | addtodate(D, Q, units): add Q units to serial date number D (scalar). Implemented 2026-05-30 (was an undefined function). Time units are plain serial arithmetic (+3 day -> D=3 wraps Jan31->Feb3 dD=3 dH=10; +3 hour -> hH=13; +3 millisecond delta sms=3/86400000~=3.47e-8). Calendar units add to the month/year component with day-clamping to the new month's length and preserve the time-of-day fraction: +3 month from Jan31 -> Apr30 (moM=4, moD=30, moH=10 preserved); +3 year -> 2029 (yrY=2029); Jan31+1mo -> Feb28 (c1M=2,c1D=28); leap Jan31 2024 +1mo -> Feb29 (c2D=29); Feb29 2024 +1yr -> Feb28 2025 (c3Y=2025,c3D=28); negative Mar15 2026 -4mo -> Nov15 2025 (nY=2025,nM=11). namespace=builtin. NOTE: scalar D only (MATLAB errors on a vector); fractional month/year quantity is rounded. |
 | `partialcorr_rows` | ✅ | OK | partialcorr 'Rows' NaN policy (2026-05-30). The fn name is a probe alias for partialcorr — kept in a separate spec from partialcorr.json so the per-chunk variable count stays under the numkit VM 255-register limit. partialcorr previously accept-and-ignored the 'Rows' NV pair, so NaN data NaN-poisoned. 'complete' = listwise deletion across all positional matrices, then partial correlation: Xn has NaN at (3,2) and (6,3), so rows 3 and 6 drop (5 rows kept), giving rc11=1, rc12=-0.227123, rc13=0.040291, rc23=-0.046205. namespace=stats. 'all' (default) NaN-poisons; 'pairwise' deferred (partial correlation from a pairwise, possibly non-PD covariance) with a clear error. Matches MATLAB R2025b. |
 | `abs` | — | OK | abs(x) elementwise magnitude. Correctness on a tiny signed vector; benched (SIMD build) at N=1e3/1e6. |
+| `sign` | — | OK | sign(x): -1/0/+1 elementwise. Benched (SIMD build) N=1e3/1e6. |
