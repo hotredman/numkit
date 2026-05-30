@@ -1,0 +1,15 @@
+{
+  "name": "wrap_angle",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = wrapToPi([4 -4 7 pi -pi]); a1 = a(1); a2 = a(2); a3 = a(3); a4 = a(4); a5 = a(5); b = wrapTo2Pi([-1 7 -7 2*pi 0]); b1 = b(1); b2 = b(2); b3 = b(3); b4 = b(4); b5 = b(5); c = wrapTo180([190 -190 540 180 -180]); c1 = c(1); c2 = c(2); c3 = c(3); c4 = c(4); c5 = c(5); d = wrapTo360([-10 370 720 360 0]); d1 = d(1); d2 = d(2); d3 = d(3); d4 = d(4); d5 = d(5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "a1", "a2", "a3", "a4", "a5",
+    "b1", "b2", "b3", "b4", "b5",
+    "c1", "c2", "c3", "c4", "c5",
+    "d1", "d2", "d3", "d4", "d5"
+  ],
+  "comment": "Angle-wrapping family. wrapToPi -> [-pi,pi] (closed endpoints kept: wrapToPi(pi)=pi, wrapToPi(-pi)=-pi). wrapTo2Pi -> [0,2pi] (positive landing on 0 -> 2pi: wrapTo2Pi(2pi)=2pi, but wrapTo2Pi(0)=0). wrapTo180 -> [-180,180] (degree analogue: wrapTo180(540)=180, wrapTo180(180)=180, wrapTo180(-180)=-180). wrapTo360 -> [0,360] (wrapTo360(720)=360, wrapTo360(360)=360, wrapTo360(0)=0). Matches MATLAB R2025b Mapping-Toolbox defs exactly. New fns 2026-05-30 (gap-closure: deg2rad/rad2deg already shipped, this completes the angle family)."
+}
