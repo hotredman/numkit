@@ -285,9 +285,13 @@ size_t matchDelimAt(const std::string &s, size_t i,
 //     (',a,b,' -> {'','a','b',''}); collapse=false splits at every
 //     occurrence ('a,,b' -> {'a','','b'});
 //   - the result always has at least one element ('' -> {''}).
+// Splits `s` on `delims`. When `matchesOut` is non-null it receives the
+// matched delimiter text at each split point (the whole collapsed run when
+// collapse is on), supporting MATLAB's [tokens, matches] = strsplit(...).
 Value strsplitImpl(const std::string &s,
                    const std::pmr::vector<std::string> &delims, bool collapse,
-                   std::pmr::memory_resource *mr)
+                   std::pmr::memory_resource *mr,
+                   ScratchVec<std::string> *matchesOut = nullptr)
 {
     ScratchArena scratch(mr);
     ScratchVec<std::string> parts(&scratch);
@@ -299,12 +303,15 @@ Value strsplitImpl(const std::string &s,
         if (mlen > 0) {
             parts.push_back(current);
             current.clear();
+            const size_t matchStart = i;
             i += mlen;
             if (collapse) {
                 size_t m2;
                 while (i < n && (m2 = matchDelimAt(s, i, delims)) > 0)
                     i += m2;
             }
+            if (matchesOut)
+                matchesOut->push_back(s.substr(matchStart, i - matchStart));
         } else {
             current.push_back(s[i++]);
         }
@@ -1674,7 +1681,7 @@ void strtrim_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     outs[0] = strtrim(args[0], ctx.engine->resource());
 }
 
-void strsplit_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+void strsplit_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("strsplit: requires 1 argument", 0, 0, "strsplit", "",
@@ -1700,7 +1707,18 @@ void strsplit_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
             collapse = !args[k + 1].isEmpty() && args[k + 1].toScalar() != 0.0;
         // DelimiterType='RegularExpression' is not supported (literal only).
     }
-    outs[0] = strsplitImpl(args[0].toString(), delims, collapse, mr);
+    if (nargout >= 2) {
+        // [tokens, matches] = strsplit(...): also return the matched
+        // delimiters (1×(numel(tokens)-1) cell of strings).
+        ScratchVec<std::string> matched(&scratch);
+        outs[0] = strsplitImpl(args[0].toString(), delims, collapse, mr, &matched);
+        auto mc = Value::cell(1, matched.size());
+        for (size_t k = 0; k < matched.size(); ++k)
+            mc.cellAt(k) = Value::fromString(matched[k], mr);
+        outs[1] = mc;
+    } else {
+        outs[0] = strsplitImpl(args[0].toString(), delims, collapse, mr);
+    }
 }
 
 void strcat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
