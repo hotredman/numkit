@@ -755,6 +755,28 @@ TEST_P(StatsTest, CorrcoefMatrixDiagonalIsOne)
     EXPECT_NEAR((*R)(0, 1), 1.0, 1e-12);  // perfect collinearity
 }
 
+// [R, P] = corrcoef(...): P holds two-sided p-values (was missing). vs MATLAB.
+TEST_P(StatsTest, CorrcoefPValues)
+{
+    eval("function [a,b] = wCC(x,y)\n  [a,b] = corrcoef(x,y);\nend");
+    eval("[R, P] = wCC([1 2 3 4]', [2 4 5 9]');");
+    EXPECT_NEAR(evalScalar("R(1,2)"), 0.96476382, 1e-7);
+    EXPECT_NEAR(evalScalar("P(1,2)"), 0.035236179, 1e-7);
+    EXPECT_DOUBLE_EQ(evalScalar("P(1,1)"), 1.0); // diagonal is 1
+    EXPECT_DOUBLE_EQ(evalScalar("P(2,2)"), 1.0);
+    EXPECT_NEAR(evalScalar("P(2,1)"), 0.035236179, 1e-7); // symmetric
+}
+
+TEST_P(StatsTest, CorrcoefPValuesMatrix)
+{
+    eval("function [a,b] = wCM(x)\n  [a,b] = corrcoef(x);\nend");
+    eval("[R, P] = wCM([1 2 3; 4 5 7; 2 1 0]);");
+    EXPECT_NEAR(evalScalar("P(1,2)"), 0.366717, 1e-5);
+    EXPECT_NEAR(evalScalar("P(1,3)"), 0.49324, 1e-5);
+    EXPECT_NEAR(evalScalar("P(2,3)"), 0.126523, 1e-5);
+    EXPECT_DOUBLE_EQ(evalScalar("P(1,1)"), 1.0);
+}
+
 TEST_P(StatsTest, CorrcoefWithNoiseInRange)
 {
     eval("rng(0);"
