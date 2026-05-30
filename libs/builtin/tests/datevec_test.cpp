@@ -114,3 +114,29 @@ TEST_F(DatevecTest, MultiOutputVector)
     EXPECT_DOUBLE_EQ(evalScalar("Mo(1)"), 5.0);
     EXPECT_DOUBLE_EQ(evalScalar("Mo(2)"), 6.0);
 }
+
+// datestr: format a serial date number / date vector as text. vs MATLAB
+// R2025b. Implemented 2026-05-30 (was an undefined function). 738885.5 =
+// 30-Dec-2022 12:00:00 (a Friday).
+TEST_F(DatevecTest, DatestrDefaultAndTokens)
+{
+    // Default format: date-only when no time, date+time otherwise.
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885), '30-Dec-2022')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885.5), '30-Dec-2022 12:00:00')"), 1.0);
+    // Format-string tokens.
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885.5,'yyyy-mm-dd'), '2022-12-30')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885.523,'yyyy/mm/dd HH:MM:SS'), '2022/12/30 12:33:07')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885,'mmmm dd, yyyy'), 'December 30, 2022')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885,'ddd'), 'Fri')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885,'dddd'), 'Friday')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(datestr(738885,'yy'), '22')"), 1.0);
+}
+
+TEST_F(DatevecTest, DatestrDatevecInput)
+{
+    // A 1x6 date vector is interpreted as [Y mo D H MI S].
+    EXPECT_DOUBLE_EQ(
+        evalScalar("strcmp(datestr([2022 12 30 6 5 9],'yyyy-mm-dd HH:MM:SS'), "
+                   "'2022-12-30 06:05:09')"),
+        1.0);
+}

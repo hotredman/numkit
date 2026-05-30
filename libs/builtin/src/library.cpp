@@ -2580,6 +2580,131 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     // noise so datenum->datevec round-trips give exact integers.
     //
     // Edge: datevec(0) = [0 0 0 0 0 0] (matches MATLAB literal).
+    // datestr(D [, fmt]) — format a serial date number (or a 1x6 date vector)
+    // as text. Supports a format STRING with the common field tokens
+    // (yyyy yy mmmm mmm mm dddd ddd dd HH MM SS) and an auto-selected default
+    // format. (numeric format codes, AM/PM 12-hour, and multi-date matrix
+    // inputs are not yet handled.)
+    engine.registerFunction("datestr",
+                            [](Span<const Value> args, size_t /*nargout*/,
+                               Span<Value> outs, CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "datestr requires at least one argument");
+                                auto *mr = ctx.engine->resource();
+                                const Value &din = args[0];
+                                if (din.isChar() || din.isString())
+                                    throw std::runtime_error(
+                                        "datestr: string date input not yet "
+                                        "supported");
+
+                                auto civilFromDays = [](int64_t z, int64_t &Y,
+                                                        int &M, int &D) {
+                                    z += 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096) / 365;
+                                    const int64_t y = yoe + era * 400;
+                                    const int64_t doy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * doy + 2) / 153;
+                                    D = static_cast<int>(doy - (153 * mp + 2) / 5 + 1);
+                                    M = static_cast<int>(mp < 10 ? mp + 3 : mp - 9);
+                                    Y = y + (M <= 2 ? 1 : 0);
+                                };
+
+                                int yi, moi, di, hi, mii, si;
+                                if (din.numel() == 6) {
+                                    yi  = static_cast<int>(din.elemAsDouble(0));
+                                    moi = static_cast<int>(din.elemAsDouble(1));
+                                    di  = static_cast<int>(din.elemAsDouble(2));
+                                    hi  = static_cast<int>(din.elemAsDouble(3));
+                                    mii = static_cast<int>(din.elemAsDouble(4));
+                                    si  = static_cast<int>(std::round(
+                                              din.elemAsDouble(5)));
+                                } else if (din.numel() == 1) {
+                                    const double dval = din.elemAsDouble(0);
+                                    const double floored = std::floor(dval);
+                                    const int64_t z =
+                                        static_cast<int64_t>(floored) - 719529;
+                                    const double frac = dval - floored;
+                                    int64_t Y; int M, D;
+                                    civilFromDays(z, Y, M, D);
+                                    int64_t ms = static_cast<int64_t>(
+                                        std::round(frac * 86400.0 * 1.0e3));
+                                    int H  = static_cast<int>(ms / 3600000LL); ms %= 3600000LL;
+                                    int MI = static_cast<int>(ms / 60000LL);   ms %= 60000LL;
+                                    double S = static_cast<double>(ms) / 1.0e3;
+                                    if (S >= 60.0) { S -= 60.0; ++MI; }
+                                    if (MI >= 60)  { MI -= 60;  ++H;  }
+                                    if (H  >= 24)  { H  -= 24; civilFromDays(z + 1, Y, M, D); }
+                                    yi = static_cast<int>(Y); moi = M; di = D;
+                                    hi = H; mii = MI; si = static_cast<int>(std::round(S));
+                                } else {
+                                    throw std::runtime_error(
+                                        "datestr: multi-date matrix input not "
+                                        "yet supported");
+                                }
+
+                                std::string fmt;
+                                if (args.size() >= 2) {
+                                    const Value &f = args[1];
+                                    if (f.isChar() || f.isString())
+                                        fmt = f.toString();
+                                    else
+                                        throw std::runtime_error(
+                                            "datestr: numeric format codes not "
+                                            "yet supported; pass a format string");
+                                } else {
+                                    fmt = (hi != 0 || mii != 0 || si != 0)
+                                              ? "dd-mmm-yyyy HH:MM:SS"
+                                              : "dd-mmm-yyyy";
+                                }
+
+                                static const char *MON3[] = {
+                                    "Jan","Feb","Mar","Apr","May","Jun",
+                                    "Jul","Aug","Sep","Oct","Nov","Dec"};
+                                static const char *MONF[] = {
+                                    "January","February","March","April","May",
+                                    "June","July","August","September","October",
+                                    "November","December"};
+                                static const char *DOW3[] = {
+                                    "Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+                                static const char *DOWF[] = {
+                                    "Sunday","Monday","Tuesday","Wednesday",
+                                    "Thursday","Friday","Saturday"};
+                                // Day of week via Sakamoto's algorithm.
+                                static const int dt[] = {0,3,2,5,0,3,5,1,4,6,2,4};
+                                int yw = yi - (moi < 3 ? 1 : 0);
+                                int dow = ((yw + yw/4 - yw/100 + yw/400
+                                            + dt[(moi - 1 + 12) % 12] + di) % 7 + 7) % 7;
+
+                                std::string out;
+                                char buf[16];
+                                size_t i = 0;
+                                auto at = [&](const char *t, size_t L) {
+                                    return fmt.compare(i, L, t) == 0;
+                                };
+                                while (i < fmt.size()) {
+                                    if (at("yyyy", 4)) { std::snprintf(buf,sizeof buf,"%04d",yi); out+=buf; i+=4; }
+                                    else if (at("yy", 2)) { std::snprintf(buf,sizeof buf,"%02d",((yi%100)+100)%100); out+=buf; i+=2; }
+                                    else if (at("mmmm", 4)) { out += MONF[(moi-1+12)%12]; i+=4; }
+                                    else if (at("mmm", 3)) { out += MON3[(moi-1+12)%12]; i+=3; }
+                                    else if (at("mm", 2)) { std::snprintf(buf,sizeof buf,"%02d",moi); out+=buf; i+=2; }
+                                    else if (at("dddd", 4)) { out += DOWF[dow]; i+=4; }
+                                    else if (at("ddd", 3)) { out += DOW3[dow]; i+=3; }
+                                    else if (at("dd", 2)) { std::snprintf(buf,sizeof buf,"%02d",di); out+=buf; i+=2; }
+                                    else if (at("HH", 2)) { std::snprintf(buf,sizeof buf,"%02d",hi); out+=buf; i+=2; }
+                                    else if (at("MM", 2)) { std::snprintf(buf,sizeof buf,"%02d",mii); out+=buf; i+=2; }
+                                    else if (at("SS", 2)) { std::snprintf(buf,sizeof buf,"%02d",si); out+=buf; i+=2; }
+                                    else { out += fmt[i]; ++i; }
+                                }
+                                outs[0] = Value::fromString(out, mr);
+                            });
+
     engine.registerFunction("datevec",
                             [](Span<const Value> args,
                                size_t nargout,
