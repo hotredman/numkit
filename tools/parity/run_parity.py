@@ -79,6 +79,16 @@ class Spec:
     # here (each row gets the same measurement); `name` then only
     # labels the spec file. Empty → single-function spec keyed by `name`.
     covers: list[str] = field(default_factory=list)
+    # Large-array benchmark inputs. The plain `setup`/`expr`/`fingerprint`
+    # stay TINY for exact cross-engine correctness; but timing measured on
+    # tiny inputs is dominated by per-call interpreter overhead (MATLAB's
+    # is large, numkit's is tiny → meaningless 100×+ ratios). When
+    # `bench_setup` is non-empty the harness times the call on LARGE data
+    # instead, so vs_MATLAB / vs_Octave reflect real throughput. The
+    # timed loop runs `bench_expr` (defaults to `expr`) over the variables
+    # defined by `bench_setup`. Correctness is unaffected.
+    bench_setup: str = ""
+    bench_expr: str = ""
 
     @classmethod
     def from_json(cls, path: Path) -> "Spec":
@@ -197,6 +207,31 @@ def build_spec_func(spec: Spec, *, engine: str) -> str:
         save_dump = _indent(
             SAVE_DUMP_TEMPLATE.replace("__VAR__", spec.out_var), 4)
     reimport = "    import compat.*\n" if engine == "numkit" else ""
+
+    if spec.bench_setup.strip():
+        # Decoupled bench: correctness (fingerprints / save dump) is taken
+        # from the TINY setup+expr; the timed loop runs on LARGE data so
+        # the vs_MATLAB / vs_Octave ratios reflect real throughput rather
+        # than per-call interpreter overhead.
+        bench_expr = spec.bench_expr.strip() or spec.expr
+        return (
+            f"function {_spec_fn(spec.name)}()\n"
+            f"{reimport}"
+            f"{_indent_stmts(spec.setup, 4)}\n"
+            f"{_indent_stmts(spec.expr, 4)}\n"      # correctness eval (tiny)
+            f"{fp_print}\n"
+            f"{save_dump}\n"
+            f"{_indent_stmts(spec.bench_setup, 4)}\n"  # large inputs
+            f"{_indent_stmts(bench_expr, 4)}\n"     # warmup (large)
+            f"    t0__ = tic;\n"
+            f"    for kk__ = 1:{spec.iters}\n"
+            f"{_indent_stmts(bench_expr, 8)}\n"
+            f"    end\n"
+            f"    elapsed_ms = toc(t0__) * 1000.0 / {spec.iters};\n"
+            f"    fprintf('TIMING %.6f\\n', elapsed_ms);\n"
+            f"end\n"
+        )
+
     return (
         f"function {_spec_fn(spec.name)}()\n"
         f"{reimport}"

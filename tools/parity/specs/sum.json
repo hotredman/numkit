@@ -3,7 +3,7 @@
   "namespace": "builtin",
   "setup": "x = [1, 2, 3, 4, 5];",
   "expr": "r = [sum(x), sum([2 3]), sum([1.5 2.5]), sum([0.5 4]), sum([10])]; e0 = sum([]); ne0 = numel(sum([])); ec = sum(zeros(0,3)); ner = numel(sum(zeros(3,0)));",
-  "iters": 5,
+  "iters": 20,
   "tol": 1e-12,
   "fingerprint": [
     "r(1)",
@@ -17,5 +17,7 @@
     "ec(3)",
     "ner"
   ],
-  "comment": "Sig: r = sum(...). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b. DEEP-PROBE 2026-05-29: empty-input identities \u2014 sum([])=0 (scalar, numel 1, NOT 1x0); partial empties keep per-column shape: sum(zeros(0,3))=[0 0 0], numel(sum(zeros(3,0)))=0."
+  "comment": "Sig: r = sum(...). Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b. DEEP-PROBE 2026-05-29: empty-input identities — sum([])=0 (scalar, numel 1, NOT 1x0); partial empties keep per-column shape: sum(zeros(0,3))=[0 0 0], numel(sum(zeros(3,0)))=0.",
+  "bench_setup": "xb = mod((1:2000000)*7919, 1000) + 0.5;",
+  "bench_expr": "rb = sum(xb);"
 }

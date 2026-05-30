@@ -3,15 +3,24 @@
   "namespace": "signal",
   "setup": "",
   "expr": "r = conv([1 2 3], [1 1]); r1 = r(1); r2 = r(2); r3 = r(3); r4 = r(4); e = conv([1 2 3 4], [1 1], 'same'); ne = numel(e); e1 = e(1); e4 = e(4); f = conv([1 2 3], [1 1], 'same'); f1 = f(1); g = conv([1 2 3 4 5], [1 1 1 1], 'same'); g1 = g(1); g5 = g(5); h = conv([1 2], [1 1 1 1 1], 'same'); nh = numel(h); h1 = h(1); v = conv([1 2 3 4], [1 1], 'valid'); v1 = v(1);",
-  "iters": 5,
+  "iters": 20,
   "tol": 1e-06,
   "fingerprint": [
-    "r1", "r2", "r3", "r4",
-    "ne", "e1", "e4",
+    "r1",
+    "r2",
+    "r3",
+    "r4",
+    "ne",
+    "e1",
+    "e4",
     "f1",
-    "g1", "g5",
-    "nh", "h1",
+    "g1",
+    "g5",
+    "nh",
+    "h1",
     "v1"
   ],
-  "comment": "Sig: r = conv(A,B[,shape]). 'same' returns the central part the SAME SIZE AS A (length na), starting at floor(nb/2) of the full convolution: conv([1 2 3 4],[1 1],'same')=[3 5 7 4] (numkit previously gave [1 3 5 7] - off-by-one for EVEN kernels), conv([1 2 3],[1 1],'same')=[3 5 3], conv([1 2 3 4 5],[1 1 1 1],'same')=[6 10 14 12 9], conv([1 2],[1 1 1 1 1],'same')=[3 3] (length 2 = na, numkit previously gave length 5). Fixed 2026-05-30. Spec-extension batch 2026-05-09 (signal namespace) + same-shape. NOTE: ; only inside matrix-literal INPUTS."
+  "comment": "Sig: r = conv(A,B[,shape]). 'same' returns the central part the SAME SIZE AS A (length na), starting at floor(nb/2) of the full convolution: conv([1 2 3 4],[1 1],'same')=[3 5 7 4] (numkit previously gave [1 3 5 7] - off-by-one for EVEN kernels), conv([1 2 3],[1 1],'same')=[3 5 3], conv([1 2 3 4 5],[1 1 1 1],'same')=[6 10 14 12 9], conv([1 2],[1 1 1 1 1],'same')=[3 3] (length 2 = na, numkit previously gave length 5). Fixed 2026-05-30. Spec-extension batch 2026-05-09 (signal namespace) + same-shape. NOTE: ; only inside matrix-literal INPUTS.",
+  "bench_setup": "xb = mod((1:200000)*7919,1000)+0.5; kb = [0.25 0.5 0.25];",
+  "bench_expr": "rb = conv(xb, kb);"
 }
