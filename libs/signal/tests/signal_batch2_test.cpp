@@ -98,3 +98,21 @@ TEST_F(SignalBatch2Test, FreqzWhole)
     eval("[~, wh] = freqz([1 1], 1, 4);");
     EXPECT_NEAR(evalScalar("wh(4)"), 2.3561944901923448, 1e-12);  // pi*3/4
 }
+
+// DEEP-PROBE 2026-05-31: freqz(b,a,n,fs) — the sample-rate form. The
+// frequency vector is in Hz over [0, fs/2) (or [0, fs) with 'whole'),
+// i.e. f = w*fs/(2*pi). H is unchanged. numkit ignored fs and returned
+// radians. vs MATLAB R2025b.
+TEST_F(SignalBatch2Test, FreqzSampleRate)
+{
+    eval("[h, f] = freqz([1 1], [1 -0.5], 4, 100);");
+    EXPECT_DOUBLE_EQ(evalScalar("f(1)"), 0.0);
+    EXPECT_NEAR(evalScalar("f(2)"), 12.5, 1e-12);   // fs/2 * 1/4
+    EXPECT_NEAR(evalScalar("f(3)"), 25.0, 1e-12);
+    EXPECT_NEAR(evalScalar("f(4)"), 37.5, 1e-12);
+    EXPECT_NEAR(evalScalar("abs(h(1))"), 4.0, 1e-12);   // DC gain unchanged
+    // 'whole' + fs spans [0, fs).
+    eval("[hw, fw] = freqz([1 1], [1 -0.5], 4, 'whole', 200);");
+    EXPECT_NEAR(evalScalar("fw(2)"), 50.0, 1e-12);   // fs * 1/4
+    EXPECT_NEAR(evalScalar("fw(4)"), 150.0, 1e-12);
+}
