@@ -227,9 +227,9 @@ together.
 | `end` | ✅ | Sig: end — last index in subscript context, also closes block constructs. Spec-extension batch 2026-05-09 (cycle 41). |
 | `eye` | ✅ ➖ | Sig: r = eye(...). Spec-extension batch 2026-05-09. |
 | `false` | ✅ ➖ | Sig: r = false(...). Spec-extension batch 2026-05-09. |
-| `flip` | ✅ ➖ | Sig: r = flip(...). Shape op. Spec-extension batch 2026-05-09. |
-| `fliplr` | ✅ ➖ | Sig: r = fliplr(...). Shape op. Spec-extension batch 2026-05-09. |
-| `flipud` | ✅ ➖ | Sig: r = flipud(...). Shape op. Spec-extension batch 2026-05-09. |
+| `flip` | ✅ 🔬 | Sig: r = flip(A[,dim]). Type-agnostic element permutation. DEEP-PROBE 2026-05-31: extended to CELL and STRING arrays (previously errored 'ND fallback does not support type cell/string'). MATLAB is type-agnostic: flip([1 2 3 4])=[4 3 2 1] r1=4 r4=1; flip({10,20,30})={30,20,10} c1=30 c3=10; flip(["x" "y" "z"])=["z" "y" "x"] s1=double('z')=122 s3=double('x')=120. Cell/string share one Value-copy path (copyCellElem). namespace=builtin. Matches MATLAB R2025b. |
+| `fliplr` | ✅ 🔬 | Sig: r = fliplr(A). Reverse column order (type-agnostic). DEEP-PROBE 2026-05-31: extended to CELL and STRING arrays (previously errored 'Not a double array'). fliplr([1 2 3 4])=[4 3 2 1] r1=4 r4=1; fliplr({10,20,30})={30,20,10} c1=30 c3=10; fliplr(["x" "y" "z"])=["z" "y" "x"] s1=122 s3=120. namespace=builtin. Matches MATLAB R2025b. |
+| `flipud` | ✅ 🔬 | Sig: r = flipud(A). Reverse row order (type-agnostic). DEEP-PROBE 2026-05-31: extended to CELL and STRING arrays (previously errored 'Not a double array'). flipud([1;2;3;4])=[4;3;2;1] r1=4 r4=1; flipud({10;20;30})={30;20;10} c1=30 c3=10; flipud(["x";"y";"z"])=["z";"y";"x"] s1=122 s3=120. namespace=builtin. Matches MATLAB R2025b. |
 | `freqspace` | ✅ ➖ | Sig: f = freqspace(N). KNOWN GAP: numkit returns shorter vector than MATLAB for freqspace(8) — different size convention. Only structural numel pinned. Documented as separate ТЗ. |
 | `head` | ✅ | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
 | `horzcat` | ✅ | Sig: r = horzcat(...). Shape op. Spec-extension batch 2026-05-09. |
@@ -259,7 +259,7 @@ together.
 | `repmat` | ✅ | Sig: r = repmat(...). Spec-extension batch 2026-05-09. |
 | `reshape` | ✅ | Sig: r = reshape(...). Shape op. Spec-extension batch 2026-05-09. |
 | `resize` | ✅ | Sig: Y = resize(X, M). Resize to 1500 (pad with zeros). 1000 iters. |
-| `rot90` | ✅ | Sig: r = rot90(...). Shape op. Spec-extension batch 2026-05-09. |
+| `rot90` | ✅ 🔬 | Sig: r = rot90(A[,k]). 90-deg CCW rotation (type-agnostic). DEEP-PROBE 2026-05-31: extended to CELL and STRING arrays (previously errored 'Not a double array'). rot90([1 2;3 4])=[2 4;1 3] r1=2 r2=4 r3=1 r4=3; rot90({1 2;3 4})={2 4;1 3} c11=2 c21=1 c12=4 c22=3; rot90(["a" "b";"c" "d"])=["b" "d";"a" "c"] s11=double('b')=98 s22=double('c')=99. k!=1 forms covered in gtest. namespace=builtin. Matches MATLAB R2025b. |
 | `shiftdim` | ✅ | Sig: r = shiftdim(...). Spec-extension batch 2026-05-09. |
 | `size` | ✅ | Sig: r = size(...). Shape op. Spec-extension batch 2026-05-09. |
 | `sort` | ✅ 🔬 | Sig [s,i]=sort(X[,dim][,direction]): default ASCEND with NaN LAST. 'descend' with NaN FIRST. Matrix sort(M,1,'descend') sorts each column. COMPLEX sort orders by |z| then arg(z). INTEGER input keeps the class on the sorted VALUES (sort(int8([3 -128 5]))=[-128 3 5] int8) while the index output stays DOUBLE; per-dim works (sort(int32([3 1 2;6 5 4]),2) row1=[1 2 3] int32). numkit previously threw 'Not a double array' on integer input (fixed 2026-05-30); earlier: 'descend'/NaN (fixed) + COMPLEX sortComplex (2026-05-29). NOTE: ; only inside matrix-literal INPUTS. |

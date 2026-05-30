@@ -1,15 +1,11 @@
 {
   "name": "rot90",
   "namespace": "builtin",
-  "setup": "A = [1 2; 3 4];",
-  "expr": "B = rot90(A); r1 = B(1,1); r2 = B(1,2); r3 = B(2,1); r4 = B(2,2);",
+  "setup": "A = [1 2; 3 4]; C = {1 2; 3 4}; S = [\"a\" \"b\"; \"c\" \"d\"];",
+  "expr": "B = rot90(A); r1 = B(1,1); r2 = B(1,2); r3 = B(2,1); r4 = B(2,2); RC = rot90(C); c11 = RC{1,1}; c21 = RC{2,1}; c12 = RC{1,2}; c22 = RC{2,2}; RS = rot90(S); s11 = double(char(RS(1,1))); s22 = double(char(RS(2,2)));",
   "iters": 5,
   "tol": 0,
-  "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4"
-  ],
-  "comment": "Sig: r = rot90(...). Shape op. Spec-extension batch 2026-05-09."
+  "fingerprint": ["r1", "r2", "r3", "r4", "c11", "c21", "c12", "c22", "s11", "s22"],
+  "comment": "Sig: r = rot90(A[,k]). 90-deg CCW rotation (type-agnostic). DEEP-PROBE 2026-05-31: extended to CELL and STRING arrays (previously errored 'Not a double array'). rot90([1 2;3 4])=[2 4;1 3] r1=2 r2=4 r3=1 r4=3; rot90({1 2;3 4})={2 4;1 3} c11=2 c21=1 c12=4 c22=3; rot90([\"a\" \"b\";\"c\" \"d\"])=[\"b\" \"d\";\"a\" \"c\"] s11=double('b')=98 s22=double('c')=99. k!=1 forms covered in gtest. namespace=builtin. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

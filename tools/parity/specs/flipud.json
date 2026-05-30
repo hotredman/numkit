@@ -1,14 +1,11 @@
 {
   "name": "flipud",
   "namespace": "builtin",
-  "setup": "A = [1; 2; 3];",
-  "expr": "B = flipud(A); r1 = B(1); r2 = B(2); r3 = B(3);",
+  "setup": "A = [1; 2; 3; 4]; C = {10; 20; 30}; S = [\"x\"; \"y\"; \"z\"];",
+  "expr": "B = flipud(A); r1 = B(1); r4 = B(4); FC = flipud(C); c1 = FC{1}; c3 = FC{3}; FS = flipud(S); s1 = double(char(FS(1))); s3 = double(char(FS(3)));",
   "iters": 5,
   "tol": 0,
-  "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
-  ],
-  "comment": "Sig: r = flipud(...). Shape op. Spec-extension batch 2026-05-09."
+  "fingerprint": ["r1", "r4", "c1", "c3", "s1", "s3"],
+  "comment": "Sig: r = flipud(A). Reverse row order (type-agnostic). DEEP-PROBE 2026-05-31: extended to CELL and STRING arrays (previously errored 'Not a double array'). flipud([1;2;3;4])=[4;3;2;1] r1=4 r4=1; flipud({10;20;30})={30;20;10} c1=30 c3=10; flipud([\"x\";\"y\";\"z\"])=[\"z\";\"y\";\"x\"] s1=122 s3=120. namespace=builtin. Matches MATLAB R2025b.",
+  "deep_verified": true
 }
