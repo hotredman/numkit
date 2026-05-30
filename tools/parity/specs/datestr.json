@@ -1,0 +1,16 @@
+{
+  "name": "datestr",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = datestr(738885); na = numel(a); a1 = double(a(1)); a4 = double(a(4)); b = datestr(738885.5); nb = numel(b); b13 = double(b(13)); c = datestr(738885.5, 'yyyy-mm-dd'); nc = numel(c); c1 = double(c(1)); d = datestr(738885.523, 'yyyy/mm/dd HH:MM:SS'); d12 = double(d(12)); d18 = double(d(18)); e = datestr(738885, 'ddd'); ne = numel(e); e1 = double(e(1));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "a1", "a4",
+    "nb", "b13",
+    "nc", "c1",
+    "d12", "d18",
+    "ne", "e1"
+  ],
+  "comment": "datestr serial-date formatting vs MATLAB R2025b. Implemented 2026-05-30 (was an undefined function). 738885.5 = 30-Dec-2022 12:00:00 (Friday). default date-only datestr(738885)='30-Dec-2022' (na=11, a1=51='3', a4=68='D'); default date+time datestr(738885.5)='30-Dec-2022 12:00:00' (nb=20, b13=49='1' the H tens digit); datestr(..,'yyyy-mm-dd')='2022-12-30' (nc=10, c1=50='2'); datestr(738885.523,'yyyy/mm/dd HH:MM:SS')='2022/12/30 12:33:07' (d12=51='3' the M tens, d18=48='0' the S tens... char(d(18))); datestr(738885,'ddd')='Fri' (ne=3, e1=70='F'). Tokens yyyy/yy/mmmm/mmm/mm/dddd/ddd/dd/HH/MM/SS + default. namespace=builtin. NOTE: AM/PM 12-hour, numeric format codes, multi-date matrices, and string date INPUTS are not yet handled."
+}
