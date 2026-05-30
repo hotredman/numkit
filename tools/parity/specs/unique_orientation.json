@@ -1,0 +1,13 @@
+{
+  "name": "unique_orientation",
+  "namespace": "builtin",
+  "setup": "rv = [3 1 2 1 3]; cv = [3;1;2;1;3];",
+  "expr": "[u, ia, ic] = unique(rv); ur = double(isrow(u)); iac = double(iscolumn(ia)); icc = double(iscolumn(ic)); ia1 = ia(1); ic1 = ic(1); nia = numel(ia); nic = numel(ic); [uc, iac2, icc2] = unique(cv); ucc = double(iscolumn(uc)); iac2c = double(iscolumn(iac2)); s1 = double(iscolumn(unique(cv))); s2 = double(isrow(unique(rv)));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "ur", "iac", "icc", "ia1", "ic1", "nia", "nic",
+    "ucc", "iac2c", "s1", "s2"
+  ],
+  "comment": "unique output orientation vs MATLAB R2025b. Bug fixed 2026-05-30: ia/ic came back as row vectors and u was always a row even for a column input. MATLAB: ia and ic are ALWAYS column vectors (iac=icc=1); u matches the input orientation (row input -> row u so ur=1 and s2=1; column input -> column u so ucc=1 and s1=1). Values unchanged (ia(1)=2, ic(1)=3, nia=3, nic=5). namespace=builtin."
+}

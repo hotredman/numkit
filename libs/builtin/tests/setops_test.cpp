@@ -143,6 +143,40 @@ TEST_P(SetOpsTest, UniqueMatrixFlattens)
     EXPECT_DOUBLE_EQ(u->doubleData()[2], 3.0);
 }
 
+// ── unique output orientation (MATLAB: ia/ic always columns; u matches
+//    the input orientation). Regression: ia/ic came back as rows and u was
+//    always a row even for a column input. ───────────────────────────────
+TEST_P(SetOpsTest, UniqueRowInputColumnIndices)
+{
+    eval("function [a,b,c] = wrapO(x)\n  [a,b,c] = unique(x);\nend");
+    eval("[u, ia, ic] = wrapO([3 1 2 1 3]);");
+    // u keeps the row orientation of the input
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,2)"), 3.0);
+    // ia / ic are column vectors
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ic,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ic,2)"), 1.0);
+    // values unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(1)"), 3.0);
+}
+
+TEST_P(SetOpsTest, UniqueColumnInputColumnValues)
+{
+    eval("function [a,b,c] = wrapC(x)\n  [a,b,c] = unique(x);\nend");
+    eval("[u, ia, ic] = wrapC([3;1;2;1;3]);");
+    // column input → column u
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ic,2)"), 1.0);
+    // single-output column form too
+    EXPECT_DOUBLE_EQ(evalScalar("size(unique([3;1;2]),2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(unique([3 1 2]),1)"), 1.0); // row stays row
+}
+
 // ── ismember ────────────────────────────────────────────────
 
 TEST_P(SetOpsTest, IsmemberBasic)
