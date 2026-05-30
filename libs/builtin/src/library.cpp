@@ -2190,6 +2190,118 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = std::move(out);
                             });
 
+    // ── weeknum ───────────────────────────────────────────────
+    // MATLAB weeknum(D [, WeekStart [, European]]): week-of-year number
+    // for serial date number D (element-wise, shape preserved).
+    //   WeekStart : day the week begins, 1=Sunday .. 7=Saturday (default 1).
+    //   European  : 0 (US, default) or 1. US convention counts the partial
+    //               first week as week 1. The "European" convention applies
+    //               the ISO-style rule that the first week with at least 4
+    //               days in the year is week 1; a shorter leading partial
+    //               week is donated to the last week of the previous year.
+    // Both honour WeekStart. Algorithm is pure integer arithmetic on the
+    // day-of-year and the weekday of Jan 1 (Sakamoto).
+    engine.registerFunction("weeknum",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "weeknum: requires a date argument");
+                                auto *mr = ctx.engine->resource();
+
+                                int weekStart = 1;
+                                if (args.size() >= 2 && !args[1].isEmpty())
+                                    weekStart = static_cast<int>(args[1].toScalar());
+                                if (weekStart < 1 || weekStart > 7)
+                                    throw std::runtime_error(
+                                        "weeknum: WeekStart must be an integer in 1..7 "
+                                        "(1=Sunday)");
+                                bool european = false;
+                                if (args.size() >= 3 && !args[2].isEmpty())
+                                    european = args[2].toScalar() != 0.0;
+
+                                auto civilToSerial = [](int64_t y, int64_t m,
+                                                        int64_t d) {
+                                    if (m <= 2) y -= 1;
+                                    const int64_t era = (y < 0 ? y - 399 : y) / 400;
+                                    const int64_t yoe = y - era * 400;
+                                    const int64_t doy =
+                                        (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+                                    const int64_t doe =
+                                        yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                                    return era * 146097 + doe - 719468 + 719529;
+                                };
+                                // Calendar year of a MATLAB serial date number
+                                // (Howard Hinnant civil_from_days).
+                                auto yearOf = [](double serial) {
+                                    int64_t z = static_cast<int64_t>(std::floor(serial))
+                                              - 719529 + 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096) / 365;
+                                    int64_t y = yoe + era * 400;
+                                    const int64_t dy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * dy + 2) / 153;
+                                    const int64_t m = mp < 10 ? mp + 3 : mp - 9;
+                                    if (m <= 2) y += 1;
+                                    return static_cast<int>(y);
+                                };
+                                auto isLeap = [](int y) {
+                                    return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+                                };
+                                // Weekday of Jan 1 (Sakamoto), 1=Sunday .. 7=Saturday.
+                                auto wdJan1 = [](int y) {
+                                    static const int t[] =
+                                        {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+                                    const int yy = y - 1;  // month 1 < 3
+                                    const int dow =
+                                        ((yy + yy / 4 - yy / 100 + yy / 400 + t[0] + 1)
+                                         % 7 + 7) % 7;  // 0=Sunday
+                                    return dow + 1;
+                                };
+                                auto weekOf = [&](int y, int doy) {
+                                    const int offset = (wdJan1(y) - weekStart + 7) % 7;
+                                    if (!european)
+                                        return (doy - 1 + offset) / 7 + 1;
+                                    const int partial = (offset == 0) ? 0 : (7 - offset);
+                                    const int firstWS = (offset == 0) ? 1 : (8 - offset);
+                                    if (partial >= 4)
+                                        return (doy - 1 + offset) / 7 + 1;
+                                    if (doy >= firstWS)
+                                        return (doy - firstWS) / 7 + 1;
+                                    // Leading partial week -> last week of prior year.
+                                    const int yp = y - 1;
+                                    const int doyp = isLeap(yp) ? 366 : 365;
+                                    const int offp = (wdJan1(yp) - weekStart + 7) % 7;
+                                    const int partp = (offp == 0) ? 0 : (7 - offp);
+                                    const int fwp = (offp == 0) ? 1 : (8 - offp);
+                                    if (partp >= 4)
+                                        return (doyp - 1 + offp) / 7 + 1;
+                                    return (doyp - fwp) / 7 + 1;
+                                };
+
+                                const Value &D = args[0];
+                                const size_t nr = D.dims().rows();
+                                const size_t nc = D.dims().cols();
+                                const size_t n = D.numel();
+                                auto out = Value::matrix(nr, nc, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < n; ++i) {
+                                    const double serial = D.elemAsDouble(i);
+                                    const int y = yearOf(serial);
+                                    const int doy = static_cast<int>(
+                                        std::floor(serial) - civilToSerial(y, 1, 1)) + 1;
+                                    o[i] = static_cast<double>(weekOf(y, doy));
+                                }
+                                outs[0] = std::move(out);
+                            });
+
     // ── datenum ───────────────────────────────────────────────
     // MATLAB datenum: serial date number from date components.
     //
