@@ -40,6 +40,6 @@
     "csm"
   ],
   "comment": "Sig [s,i]=sort(X[,dim][,direction]): default ASCEND with NaN LAST. 'descend' with NaN FIRST. Matrix sort(M,1,'descend') sorts each column. COMPLEX sort orders by |z| then arg(z). INTEGER input keeps the class on the sorted VALUES (sort(int8([3 -128 5]))=[-128 3 5] int8) while the index output stays DOUBLE; per-dim works (sort(int32([3 1 2;6 5 4]),2) row1=[1 2 3] int32). numkit previously threw 'Not a double array' on integer input (fixed 2026-05-30); earlier: 'descend'/NaN (fixed) + COMPLEX sortComplex (2026-05-29). NOTE: ; only inside matrix-literal INPUTS.",
-  "bench_setup": "xb = mod((1:2000000)*7919, 1000) + 0.5;",
+  "bench_setup": "xb = mod((1:N)*7919, 1000) + 0.5;",
   "bench_expr": "rb = sort(xb);"
 }
