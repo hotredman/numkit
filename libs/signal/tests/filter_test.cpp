@@ -132,3 +132,56 @@ TEST_F(FilterTest, FilterFinalStateAndInitialConditions)
     EXPECT_NEAR(evalScalar("zf2(1)"), 3.5,  1e-12);
     EXPECT_NEAR(evalScalar("zf2(2)"), 1.25, 1e-12);
 }
+
+// ============================================================
+// filter on a matrix: each column (first non-singleton dim) is filtered
+// independently — the delay state resets between columns. Regression for
+// the old bug where the column-major buffer was filtered as one signal,
+// leaking state across the column boundary (col2(1) came out 7, not 2).
+// ============================================================
+
+TEST_F(FilterTest, FilterMatrixFirPerColumn)
+{
+    eval("M = [1 2; 3 4; 5 6];");
+    eval("Y = filter([1 1], 1, M);");
+    // col1 [1;3;5] -> [1;4;8]; col2 [2;4;6] -> [2;6;10]
+    EXPECT_NEAR(evalScalar("Y(1,1)"), 1.0,  1e-12);
+    EXPECT_NEAR(evalScalar("Y(2,1)"), 4.0,  1e-12);
+    EXPECT_NEAR(evalScalar("Y(3,1)"), 8.0,  1e-12);
+    EXPECT_NEAR(evalScalar("Y(1,2)"), 2.0,  1e-12);   // was 7 before the fix
+    EXPECT_NEAR(evalScalar("Y(2,2)"), 6.0,  1e-12);
+    EXPECT_NEAR(evalScalar("Y(3,2)"), 10.0, 1e-12);
+    // shape preserved
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Y,1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Y,2)")), 2);
+}
+
+TEST_F(FilterTest, FilterMatrixIirPerColumn)
+{
+    eval("M = [1 2; 3 4; 5 6];");
+    eval("Y = filter(1, [1 -0.5], M);");
+    // col1 [1;3;5] -> [1;3.5;6.75]; col2 [2;4;6] -> [2;5;8.5]
+    EXPECT_NEAR(evalScalar("Y(3,1)"), 6.75, 1e-12);
+    EXPECT_NEAR(evalScalar("Y(3,2)"), 8.5,  1e-12);
+}
+
+TEST_F(FilterTest, FilterMatrixZfPerColumn)
+{
+    // [y, zf] on a matrix: zf is (nfilt-1) x ncols, one final state per column.
+    eval("M = [1 2; 3 4; 5 6];");
+    eval("[Y, zf] = filter([1 0.5], 1, M);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(zf,1)")), 1);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(zf,2)")), 2);
+    EXPECT_NEAR(evalScalar("zf(1)"), 2.5, 1e-12);   // 0.5 * M(3,1) = 0.5*5
+    EXPECT_NEAR(evalScalar("zf(2)"), 3.0, 1e-12);   // 0.5 * M(3,2) = 0.5*6
+}
+
+TEST_F(FilterTest, FilterColumnVectorUnchanged)
+{
+    // A column / row vector is a single signal — unchanged by the fix.
+    eval("yc = filter([1 1], 1, [1; 3; 5]);");
+    EXPECT_NEAR(evalScalar("yc(2)"), 4.0, 1e-12);
+    EXPECT_NEAR(evalScalar("yc(3)"), 8.0, 1e-12);
+    eval("yr = filter([1 1], 1, [1 3 5]);");
+    EXPECT_NEAR(evalScalar("yr(3)"), 8.0, 1e-12);
+}
