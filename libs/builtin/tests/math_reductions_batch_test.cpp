@@ -51,6 +51,55 @@ TEST_F(MathReductionsBatchTest, Deg2RadRad2Deg)
     EXPECT_NEAR(evalScalar("rad2deg(deg2rad(73))"), 73.0, 1e-12);
 }
 
+TEST_F(MathReductionsBatchTest, WrapToPi)
+{
+    constexpr double pi = 3.14159265358979323846;
+    // strictly outside [-pi,pi] is wrapped
+    EXPECT_NEAR(evalScalar("wrapToPi(4)"),  4.0 - 2.0 * pi, 1e-12);
+    EXPECT_NEAR(evalScalar("wrapToPi(-4)"), -4.0 + 2.0 * pi, 1e-12);
+    EXPECT_NEAR(evalScalar("wrapToPi(7)"),  7.0 - 2.0 * pi, 1e-12);
+    // closed endpoints are preserved (not wrapped)
+    EXPECT_NEAR(evalScalar("wrapToPi(pi)"),  pi,  1e-12);
+    EXPECT_NEAR(evalScalar("wrapToPi(-pi)"), -pi, 1e-12);
+    // in-range value untouched
+    EXPECT_NEAR(evalScalar("wrapToPi(1)"), 1.0, 1e-12);
+}
+
+TEST_F(MathReductionsBatchTest, WrapTo2Pi)
+{
+    constexpr double pi = 3.14159265358979323846;
+    EXPECT_NEAR(evalScalar("wrapTo2Pi(-1)"), -1.0 + 2.0 * pi, 1e-12);
+    EXPECT_NEAR(evalScalar("wrapTo2Pi(7)"),  7.0 - 2.0 * pi, 1e-12);
+    EXPECT_NEAR(evalScalar("wrapTo2Pi(-7)"), -7.0 + 4.0 * pi, 1e-12);
+    // positive input landing on the open boundary maps to 2*pi
+    EXPECT_NEAR(evalScalar("wrapTo2Pi(2*pi)"), 2.0 * pi, 1e-12);
+    // but zero and a negative full turn map to 0
+    EXPECT_NEAR(evalScalar("wrapTo2Pi(0)"),     0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("wrapTo2Pi(-2*pi)"), 0.0, 1e-12);
+}
+
+TEST_F(MathReductionsBatchTest, WrapTo180)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo180(190)"),  -170.0);
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo180(-190)"),  170.0);
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo180(540)"),   180.0); // 540 -> 180 (kept)
+    // closed endpoints preserved
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo180(180)"),   180.0);
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo180(-180)"), -180.0);
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo180(45)"),     45.0);
+}
+
+TEST_F(MathReductionsBatchTest, WrapTo360)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo360(-10)"),  350.0);
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo360(370)"),   10.0);
+    // positive input landing on 0 maps to 360
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo360(720)"),  360.0);
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo360(360)"),  360.0);
+    // zero stays 0
+    EXPECT_DOUBLE_EQ(evalScalar("wrapTo360(0)"),      0.0);
+}
+
 TEST_F(MathReductionsBatchTest, Eps)
 {
     EXPECT_DOUBLE_EQ(evalScalar("eps(1)"), 2.220446049250313e-16);

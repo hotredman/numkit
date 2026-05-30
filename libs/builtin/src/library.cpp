@@ -248,6 +248,10 @@ void discretize_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void accumarray_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void deg2rad_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rad2deg_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wrapToPi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wrapTo2Pi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wrapTo180_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wrapTo360_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // complex.cpp
 void real_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -961,6 +965,10 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("accumarray", &builtin::detail::accumarray_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
+    engine.registerFunction("wrapToPi",  &builtin::detail::wrapToPi_reg);
+    engine.registerFunction("wrapTo2Pi", &builtin::detail::wrapTo2Pi_reg);
+    engine.registerFunction("wrapTo180", &builtin::detail::wrapTo180_reg);
+    engine.registerFunction("wrapTo360", &builtin::detail::wrapTo360_reg);
 
     // ── Phase 6c: matrix.cpp public-API-backed built-ins ───────────
     engine.registerFunction("zeros",     &builtin::detail::zeros_reg);

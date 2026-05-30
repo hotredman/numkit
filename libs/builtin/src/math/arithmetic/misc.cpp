@@ -27,6 +27,60 @@ Value rad2deg(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [k](double v) { return v * k; }, mr);
 }
 
+// Angle-wrapping family (wrapToPi / wrapTo2Pi / wrapTo180 / wrapTo360).
+// These match MATLAB's Mapping-Toolbox definitions exactly, including the
+// "positive input that lands on the open boundary keeps the upper bound"
+// quirk: wrapTo2Pi(2*pi)=2*pi (not 0), but wrapTo2Pi(0)=0 and
+// wrapTo2Pi(-2*pi)=0; likewise wrapTo360(360)=360 but wrapTo360(0)=0.
+namespace {
+constexpr double kPi = 3.14159265358979323846;
+constexpr double kTwoPi = 2.0 * kPi;
+
+// MATLAB-style modulo: result has the sign of the divisor (always >= 0
+// here since the period is positive).
+inline double wrapMod(double x, double period)
+{
+    return x - std::floor(x / period) * period;
+}
+
+// wrap to [0, period): positive inputs landing exactly on 0 snap to period.
+inline double wrapToUpper(double x, double period)
+{
+    const bool positiveInput = x > 0.0;
+    double m = wrapMod(x, period);
+    if (m == 0.0 && positiveInput) m = period;
+    return m;
+}
+
+// wrap to [-half, half]: only values strictly outside are wrapped, so the
+// closed endpoints (-half, +half) are preserved.
+inline double wrapToSym(double x, double half, double period)
+{
+    if (x < -half || half < x) return wrapToUpper(x + half, period) - half;
+    return x;
+}
+} // namespace
+
+Value wrapToPi(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) { return wrapToSym(v, kPi, kTwoPi); }, mr);
+}
+
+Value wrapTo2Pi(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) { return wrapToUpper(v, kTwoPi); }, mr);
+}
+
+Value wrapTo180(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) { return wrapToSym(v, 180.0, 360.0); }, mr);
+}
+
+Value wrapTo360(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) { return wrapToUpper(v, 360.0); }, mr);
+}
+
 // mod/rem share class handling: if either operand is integer-typed, MATLAB
 // keeps that integer class on the result (mod(int8(7),int8(3))=1 int8; a
 // double operand is promoted to the integer class). elementwiseDouble's array
@@ -99,6 +153,10 @@ namespace detail {
 
 NK_UNARY_ADAPTER(deg2rad, deg2rad)
 NK_UNARY_ADAPTER(rad2deg, rad2deg)
+NK_UNARY_ADAPTER(wrapToPi, wrapToPi)
+NK_UNARY_ADAPTER(wrapTo2Pi, wrapTo2Pi)
+NK_UNARY_ADAPTER(wrapTo180, wrapTo180)
+NK_UNARY_ADAPTER(wrapTo360, wrapTo360)
 
 #undef NK_UNARY_ADAPTER
 
