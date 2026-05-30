@@ -61,6 +61,39 @@ std::string specBody(const std::string &spec)
     return base;
 }
 
+// Format a non-finite value the way MATLAB does: Inf / -Inf / NaN (capital),
+// honouring the field width and the '+'/' ' sign flags (only on +Inf; NaN
+// never takes a sign). Precision is ignored. Used for both float (%f/%e/%g)
+// and integer (%d/...) conversions.
+std::string formatNonFinite(const std::string &spec, double v)
+{
+    std::string word = std::isnan(v) ? "NaN" : (v < 0 ? "-Inf" : "Inf");
+
+    bool leftAlign = false, plus = false, space = false;
+    size_t k = 1; // skip '%'
+    for (; k < spec.size(); ++k) {
+        const char c = spec[k];
+        if (c == '-') leftAlign = true;
+        else if (c == '+') plus = true;
+        else if (c == ' ') space = true;
+        else if (c == '0' || c == '#') { /* flag */ }
+        else break;
+    }
+    size_t width = 0;
+    for (; k < spec.size() && std::isdigit(static_cast<unsigned char>(spec[k])); ++k)
+        width = width * 10 + static_cast<size_t>(spec[k] - '0');
+
+    if (word == "Inf") {
+        if (plus) word = "+Inf";
+        else if (space) word = " Inf";
+    }
+    if (width > word.size()) {
+        const std::string pad(width - word.size(), ' ');
+        return leftAlign ? word + pad : pad + word;
+    }
+    return word;
+}
+
 // Format an integer conversion (%d/%i/%u/%o/%x/%X). MATLAB semantics:
 //   - a finite whole number prints as an integer;
 //   - a non-integer value falls back to %e, keeping flags/width/precision
@@ -70,10 +103,8 @@ std::string specBody(const std::string &spec)
 std::string formatIntegerConv(const std::string &spec, char type, double v)
 {
     char buf[160];
-    if (std::isnan(v))
-        return applyStringSpec(specBody(spec) + "s", "NaN");
-    if (std::isinf(v))
-        return applyStringSpec(specBody(spec) + "s", v < 0 ? "-Inf" : "Inf");
+    if (!std::isfinite(v))
+        return formatNonFinite(spec, v);
 
     const bool whole =
         (v == std::trunc(v)) && std::fabs(v) < 9.2e18; // fits in int64
@@ -186,9 +217,16 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
                 ai++;
             } else if (type == 'f' || type == 'e' || type == 'E' || type == 'g' || type == 'G') {
                 if (ai < args.size()) {
-                    char buf[128];
-                    std::snprintf(buf, sizeof(buf), spec.c_str(), args[ai].toScalar());
-                    out << buf;
+                    const double v = args[ai].toScalar();
+                    if (!std::isfinite(v)) {
+                        // MATLAB prints Inf / -Inf / NaN (capitalised) rather
+                        // than the C library's lowercase inf/nan.
+                        out << formatNonFinite(spec, v);
+                    } else {
+                        char buf[128];
+                        std::snprintf(buf, sizeof(buf), spec.c_str(), v);
+                        out << buf;
+                    }
                 }
                 ai++;
             } else {

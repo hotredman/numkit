@@ -1,0 +1,17 @@
+{
+  "name": "sprintf_inf_nan",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = sprintf('%f', Inf); na = numel(a); a1 = double(a(1)); a3 = double(a(3)); b = sprintf('%f', NaN); nb = numel(b); b1 = double(b(1)); c = sprintf('%e', -Inf); nc = numel(c); c1 = double(c(1)); c2 = double(c(2)); d = sprintf('%8.2f', Inf); nd = numel(d); d8 = double(d(8)); d1 = double(d(1)); e = sprintf('%+f', Inf); ne = numel(e); e1 = double(e(1)); g = sprintf('%g', NaN); ng = numel(g); g1 = double(g(1));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "a1", "a3",
+    "nb", "b1",
+    "nc", "c1", "c2",
+    "nd", "d8", "d1",
+    "ne", "e1",
+    "ng", "g1"
+  ],
+  "comment": "sprintf/fprintf %f/%e/%g of Inf/NaN print capitalised vs MATLAB R2025b. Bug fixed 2026-05-30: numkit printed the C library's lowercase 'inf'/'nan'. Now: sprintf('%f',Inf)='Inf' (na=3, a(1)='I'=73, a(3)='f'=102), sprintf('%f',NaN)='NaN', sprintf('%e',-Inf)='-Inf' (c(1)='-'=45, c(2)='I'=73), %8.2f Inf -> '     Inf' (nd=8, d(8)='f'=102, d(1)=32 space; precision ignored, width honoured), %+f Inf -> '+Inf' (e(1)='+'=43), %g NaN -> 'NaN'. The '+' flag adds a sign only to +Inf, not NaN. namespace=builtin."
+}
