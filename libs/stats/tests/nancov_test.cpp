@@ -160,3 +160,27 @@ TEST_F(NancovTest, SkewnessKurtosisOmitNaN)
     // flag=0 (bias-corrected) kurtosis needs >= 4 non-NaN -> NaN with 3.
     EXPECT_TRUE(std::isnan(evalScalar("k = kurtosis(Mn,0); k(2)")));
 }
+
+// ── mad/iqr NaN omission (2026-05-30) ────────────────────────────────
+// MATLAB mad and iqr treat NaN as missing and remove it per column;
+// numkit previously NaN-poisoned. vs MATLAB R2025b.
+TEST_F(NancovTest, MadIqrOmitNaN)
+{
+    eval("Mn = [1 5; 2 NaN; 3 7; 4 100];");
+    // Column 2 = [5;7;100] after dropping the NaN.
+    EXPECT_NEAR(evalScalar("m = mad(Mn);   m(2)"), 41.77777777778, 1e-9);
+    EXPECT_NEAR(evalScalar("m = mad(Mn,1); m(2)"),  2.0,           1e-12);
+    EXPECT_NEAR(evalScalar("q = iqr(Mn);   q(2)"), 71.25,          1e-12);
+    // Column 1 (no NaN) unchanged.
+    EXPECT_NEAR(evalScalar("m = mad(Mn);   m(1)"),  1.0,           1e-12);
+    EXPECT_NEAR(evalScalar("q = iqr(Mn);   q(1)"),  2.0,           1e-12);
+    // Vector with an interior NaN.
+    EXPECT_NEAR(evalScalar("mad([1 2 NaN 4 100])"), 36.625,        1e-9);
+    EXPECT_NEAR(evalScalar("iqr([1 2 NaN 4 100])"), 50.5,          1e-12);
+    // Clean data is unaffected.
+    EXPECT_NEAR(evalScalar("m = mad([1 5;2 6;3 7;4 100]); m(2)"), 35.25, 1e-12);
+    EXPECT_NEAR(evalScalar("q = iqr([1 5;2 6;3 7;4 100]); q(2)"), 48.0,  1e-12);
+    // All-NaN column -> NaN.
+    EXPECT_TRUE(std::isnan(evalScalar("m = mad([NaN; NaN; NaN]); m(1)")));
+    EXPECT_TRUE(std::isnan(evalScalar("q = iqr([NaN; NaN; NaN]); q(1)")));
+}
