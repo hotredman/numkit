@@ -238,3 +238,31 @@ TEST(BuiltinFormatPublicApi, IntegerConvInfNan)
     Value nan[] = {Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr)};
     EXPECT_EQ(numkit::builtin::formatOnce("%d", Span<const Value>(nan, 1)), "NaN");
 }
+
+// ── %f / %e / %g of Inf / NaN print capitalised (MATLAB), not lowercase ──
+TEST(BuiltinFormatPublicApi, FloatConvInfNanCapitalised)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    const double inf = std::numeric_limits<double>::infinity();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    Value vi[] = {Value::scalar(inf, mr)};
+    Value vn[] = {Value::scalar(nan, mr)};
+    Value vni[] = {Value::scalar(-inf, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%f", Span<const Value>(vi, 1)), "Inf");
+    EXPECT_EQ(numkit::builtin::formatOnce("%g", Span<const Value>(vi, 1)), "Inf");
+    EXPECT_EQ(numkit::builtin::formatOnce("%e", Span<const Value>(vni, 1)), "-Inf");
+    EXPECT_EQ(numkit::builtin::formatOnce("%f", Span<const Value>(vn, 1)), "NaN");
+    // width honoured, precision ignored
+    EXPECT_EQ(numkit::builtin::formatOnce("%8.2f", Span<const Value>(vi, 1)), "     Inf");
+    EXPECT_EQ(numkit::builtin::formatOnce("%-8f", Span<const Value>(vi, 1)), "Inf     ");
+    // '+' flag applies to +Inf but not NaN
+    EXPECT_EQ(numkit::builtin::formatOnce("%+f", Span<const Value>(vi, 1)), "+Inf");
+    EXPECT_EQ(numkit::builtin::formatOnce("%+f", Span<const Value>(vn, 1)), "NaN");
+}
+
+TEST(BuiltinFormatPublicApi, FloatConvFiniteUnchanged)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value v[] = {Value::scalar(3.14159, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%.2f", Span<const Value>(v, 1)), "3.14");
+}
