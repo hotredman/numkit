@@ -89,3 +89,31 @@ TEST_F(SignalBatch1Test, AnalogPrototypes)
     eval("[z4, p4, k4] = cheb2ap(3, 30);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(p4)"), 3.0);
 }
+
+// DEEP-PROBE 2026-05-31: lp2* TF form returns the numerator at its true
+// degree (#zeros + 1), matching MATLAB — NOT zero-padded to the denominator
+// length. The Butterworth prototype has no zeros, so lp2lp's numerator is
+// length 1 ([Wo^N]) and lp2bp's is length 5. Previously numkit returned a
+// padded numerator (length 5 / 9) with a leading 0, because tf2zp produced a
+// zero gain for the padded prototype numerator.
+TEST_F(SignalBatch1Test, Lp2lpNumeratorTrueDegree)
+{
+    eval("[z, p, k] = buttap(4); [bp, ap] = zp2tf(z, p, k);");
+    eval("[bt, at] = lp2lp(bp, ap, 100);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(bt)")), 1);   // was 5 (padded)
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(at)")), 5);
+    EXPECT_NEAR(evalScalar("bt(1)"), 1e8, 1.0);                // Wo^4
+    EXPECT_NEAR(evalScalar("at(2)"), 261.312592975, 1e-6);
+    EXPECT_NEAR(evalScalar("at(5)"), 1e8, 1.0);
+}
+
+TEST_F(SignalBatch1Test, Lp2bpNumeratorTrueDegree)
+{
+    eval("[z, p, k] = buttap(4); [bp, ap] = zp2tf(z, p, k);");
+    eval("[bt, at] = lp2bp(bp, ap, 100, 50);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(bt)")), 5);   // was 9 (padded)
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(at)")), 9);
+    EXPECT_NEAR(evalScalar("bt(1)"), 6.25e6, 1.0);
+    EXPECT_NEAR(evalScalar("at(2)"), 130.656296488, 1e-5);
+    EXPECT_NEAR(evalScalar("at(9)"), 1e16, 1e7);               // Wo^8
+}

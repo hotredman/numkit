@@ -827,6 +827,24 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
 #undef NK_PROTO0_REG
 #undef NK_PROTO1_REG
 
+// MATLAB's lp2* TF form returns the numerator at its true polynomial degree
+// (length = #zeros + 1), NOT zero-padded to the denominator length the way
+// zp2tf does. e.g. lp2lp of a Butterworth prototype (no zeros) returns
+// bt = [Wo^N] (length 1), while zp2tf would give [0 … 0 Wo^N]. Strip the
+// leading exact-zeros that zp2tf inserted so the TF form matches MATLAB.
+// (No-op for lp2hp/lp2bs, whose numerators are already full length.)
+static Value lp2StripLeadingZeros(const Value &b, std::pmr::memory_resource *mr)
+{
+    const size_t n = b.numel();
+    size_t s = 0;
+    while (s + 1 < n && b.elemAsDouble(s) == 0.0) ++s;
+    if (s == 0) return b;
+    auto r = Value::matrix(1, n - s, ValueType::DOUBLE, mr);
+    double *d = r.doubleDataMut();
+    for (size_t i = s; i < n; ++i) d[i - s] = b.elemAsDouble(i);
+    return r;
+}
+
 // MATLAB lp2lp/lp2hp accept BOTH:
 //   [zt, pt, kt] = lp2lp(z, p, k, Wo)   -- ZPK form (4 args)
 //   [bt, at]     = lp2lp(b, a, Wo)      -- TF form  (3 args)
@@ -843,6 +861,7 @@ void ellipap_reg(Span<const Value> args, size_t nargout,
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(z0, p0, k0, Wo, mr);                          \
             auto [bt, at] = builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
+            bt = lp2StripLeadingZeros(bt, mr);                                   \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
             return;                                                              \
@@ -877,6 +896,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(z0, p0, k0, Wo, Bw, mr);                      \
             auto [bt, at] = builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
+            bt = lp2StripLeadingZeros(bt, mr);                                   \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
             return;                                                              \
