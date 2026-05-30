@@ -13,6 +13,45 @@
 
 namespace numkit::builtin {
 
+namespace {
+
+// Apply a %s conversion spec (flags / width / precision) to a string value,
+// matching MATLAB/C printf semantics: precision caps the number of characters
+// emitted, width right-justifies (or left-justifies with the '-' flag) by
+// padding with spaces. Length modifiers (l/h) are ignored. Done manually
+// rather than via snprintf to avoid passing user-controlled format strings.
+std::string applyStringSpec(const std::string &spec, std::string sv)
+{
+    bool leftAlign = false;
+    size_t k = 1;                       // skip '%'
+    for (; k < spec.size(); ++k) {
+        const char c = spec[k];
+        if (c == '-') leftAlign = true;
+        else if (c == '+' || c == ' ' || c == '0' || c == '#') { /* flag */ }
+        else break;
+    }
+    size_t width = 0;
+    for (; k < spec.size() && std::isdigit(static_cast<unsigned char>(spec[k])); ++k)
+        width = width * 10 + static_cast<size_t>(spec[k] - '0');
+    long precision = -1;
+    if (k < spec.size() && spec[k] == '.') {
+        ++k;
+        precision = 0;
+        for (; k < spec.size() && std::isdigit(static_cast<unsigned char>(spec[k])); ++k)
+            precision = precision * 10 + (spec[k] - '0');
+    }
+
+    if (precision >= 0 && static_cast<size_t>(precision) < sv.size())
+        sv.resize(static_cast<size_t>(precision));
+    if (width > sv.size()) {
+        const std::string pad(width - sv.size(), ' ');
+        return leftAlign ? sv + pad : pad + sv;
+    }
+    return sv;
+}
+
+} // namespace
+
 // ════════════════════════════════════════════════════════════════════════
 // Public API
 // ════════════════════════════════════════════════════════════════════════
@@ -72,10 +111,11 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
             std::string spec(fmt, start, i - start + 1);
 
             if (type == 's') {
-                // MATLAB %s accepts both char arrays and string scalars.
+                // MATLAB %s accepts both char arrays and string scalars, and
+                // honours width / precision in the spec (e.g. %5s, %-5s, %.1s).
                 if (ai < args.size()
                     && (args[ai].isChar() || args[ai].isString()))
-                    out << args[ai].toString();
+                    out << applyStringSpec(spec, args[ai].toString());
                 ai++;
             } else if (type == 'c') {
                 if (ai < args.size()) {

@@ -1,0 +1,16 @@
+{
+  "name": "sprintf_width",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = sprintf('[%5s]', 'hi'); na = numel(a); a2 = double(a(2)); a5 = double(a(5)); b = sprintf('[%-5s]', 'hi'); b2 = double(b(2)); b4 = double(b(4)); c = sprintf('[%.1s]', 'hi'); nc = numel(c); cc = double(c(2)); d = sprintf('[%5.1s]', 'hello'); nd = numel(d); d6 = double(d(6)); e = sprintf('[%5s]', \"hi\"); ne = numel(e); e2 = double(e(2));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "a2", "a5",
+    "b2", "b4",
+    "nc", "cc",
+    "nd", "d6",
+    "ne", "e2"
+  ],
+  "comment": "sprintf/fprintf %s width + precision vs MATLAB R2025b. Bug fixed 2026-05-30: %s ignored its spec (printed raw string). Now %5s right-justifies ('[   hi]', na=6, a(2)=32 space, a(5)='h'=104), %-5s left-justifies ('[hi   ]', b(2)='h', b(4)=32), %.1s caps chars ('[h]', nc=3, c(2)='h'), %5.1s composes precision+width ('[    h]', nd=7, d(6)='h'=104), and width applies to the string type too (e=[   hi]). Manual padding (not snprintf injection). NOTE: no semicolons inside quoted strings; double-quoted \"hi\" escaped for string type."
+}

@@ -160,3 +160,36 @@ TEST(BuiltinFormatPublicApi, FormatCyclicStringArrayCycles)
         numkit::builtin::formatCyclic("%s-", Span<const Value>(args, 1), 0, mr);
     EXPECT_EQ(out, "ab-cd-");
 }
+
+// ── %s width / precision (regression) ───────────────────────────────────
+// Bug: %s ignored its width and precision spec (printed the raw string).
+// MATLAB honours them: %5s right-justifies, %-5s left-justifies, %.Ns caps
+// the character count.
+TEST(BuiltinFormatPublicApi, FormatOnceStringWidth)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value args[] = {mkStr(mr, "hi")};
+    EXPECT_EQ(numkit::builtin::formatOnce("[%5s]", Span<const Value>(args, 1)),
+              "[   hi]");
+    EXPECT_EQ(numkit::builtin::formatOnce("[%-5s]", Span<const Value>(args, 1)),
+              "[hi   ]");
+}
+
+TEST(BuiltinFormatPublicApi, FormatOnceStringPrecision)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value a[] = {mkStr(mr, "hi")};
+    EXPECT_EQ(numkit::builtin::formatOnce("[%.1s]", Span<const Value>(a, 1)),
+              "[h]");
+    Value b[] = {mkStr(mr, "hello")};
+    EXPECT_EQ(numkit::builtin::formatOnce("[%5.1s]", Span<const Value>(b, 1)),
+              "[    h]");
+}
+
+TEST(BuiltinFormatPublicApi, FormatOnceStringWidthAppliesToStringType)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value args[] = {mkStrScalar(mr, "hi")};
+    EXPECT_EQ(numkit::builtin::formatOnce("[%5s]", Span<const Value>(args, 1)),
+              "[   hi]");
+}
