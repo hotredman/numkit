@@ -99,6 +99,33 @@ TEST(BuiltinStringsPublicApi, Int2StrScalar)
     EXPECT_EQ(i2s(std::nan("")), "NaN");
 }
 
+// validatestring: case-insensitive; exact match wins, else a unique prefix,
+// else the shortest-prefix-of-all; ambiguous or no-match throws. vs MATLAB
+// R2025b. Implemented 2026-05-30 (was an undefined function).
+TEST(BuiltinStringsPublicApi, ValidateString)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto cell2 = [&](const char *a, const char *b) {
+        Value c = Value::cell(1, 2, mr);
+        c.cellAt(0) = mkStr(mr, a);
+        c.cellAt(1) = mkStr(mr, b);
+        return c;
+    };
+    auto vs = [&](const char *s, const Value &list) {
+        return numkit::builtin::validatestring(mkStr(mr, s), list, mr).toString();
+    };
+    EXPECT_EQ(vs("orange", cell2("apple", "orange")), "orange");   // exact
+    EXPECT_EQ(vs("app",    cell2("apple", "orange")), "apple");    // prefix
+    EXPECT_EQ(vs("APP",    cell2("apple", "orange")), "apple");    // case-insens
+    EXPECT_EQ(vs("in",     cell2("in", "input")),     "in");       // exact wins
+    EXPECT_EQ(vs("appl",   cell2("apple", "applesauce")), "apple"); // shortest-of-all
+
+    // Ambiguous and no-match both throw.
+    EXPECT_THROW(vs("a",   cell2("apple", "apricot")),     numkit::Error);
+    EXPECT_THROW(vs("app", cell2("apple", "application")), numkit::Error);
+    EXPECT_THROW(vs("xyz", cell2("apple", "orange")),      numkit::Error);
+}
+
 TEST(BuiltinStringsPublicApi, Str2NumSuccess)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();

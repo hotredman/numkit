@@ -117,6 +117,70 @@ Value int2str(const Value &x, std::pmr::memory_resource *mr)
     return Value::fromString(std::string(buf), mr);
 }
 
+Value validatestring(const Value &str, const Value &valid,
+                     std::pmr::memory_resource *mr)
+{
+    auto lower = [](std::string s) {
+        for (auto &c : s)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return s;
+    };
+    const std::string s  = str.toString();
+    const std::string sl = lower(s);
+
+    // Candidates (original case) from a cell array, string array, or a lone
+    // char vector.
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> cands(&scratch);
+    if (valid.isCell() || valid.isString()) {
+        const auto &vec = valid.cellDataVec();
+        for (const auto &e : vec) cands.push_back(e.toString());
+    } else if (valid.isChar()) {
+        cands.push_back(valid.toString());
+    } else {
+        throw Error("validatestring: second argument must be a cell array of "
+                    "char vectors or a string array",
+                     0, 0, "validatestring", "", "numkit:validatestring:badList");
+    }
+
+    // 1) Exact (case-insensitive) match wins.
+    for (const auto &c : cands)
+        if (lower(c) == sl)
+            return Value::fromString(c, mr);
+
+    // 2) Case-insensitive leading-substring (prefix) matches.
+    ScratchVec<const std::string *> pre(&scratch);
+    for (const auto &c : cands) {
+        const std::string cl = lower(c);
+        if (cl.size() >= sl.size() && cl.compare(0, sl.size(), sl) == 0)
+            pre.push_back(&c);
+    }
+    if (pre.empty())
+        throw Error("validatestring: '" + s + "' did not match any valid string",
+                     0, 0, "validatestring", "", "numkit:validatestring:unrecognized");
+    if (pre.size() == 1)
+        return Value::fromString(*pre[0], mr);
+
+    // 3) Multiple prefix matches: unambiguous only if the shortest is itself a
+    //    leading substring of every other match (then return the shortest).
+    const std::string *shortest = pre[0];
+    for (auto *p : pre)
+        if (p->size() < shortest->size()) shortest = p;
+    const std::string shl = lower(*shortest);
+    bool prefixOfAll = true;
+    for (auto *p : pre) {
+        const std::string pl = lower(*p);
+        if (!(pl.size() >= shl.size() && pl.compare(0, shl.size(), shl) == 0)) {
+            prefixOfAll = false;
+            break;
+        }
+    }
+    if (prefixOfAll)
+        return Value::fromString(*shortest, mr);
+    throw Error("validatestring: '" + s + "' matches multiple valid strings",
+                 0, 0, "validatestring", "", "numkit:validatestring:ambiguous");
+}
+
 Value str2num(const Value &s, std::pmr::memory_resource *mr)
 {
     try {
@@ -1657,6 +1721,17 @@ void int2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
                     "(vector/matrix column-alignment is not yet implemented)",
                      0, 0, "int2str", "", "numkit:int2str:nonScalar");
     outs[0] = int2str(args[0], ctx.engine->resource());
+}
+
+void validatestring_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    // validatestring(str, validStrings [, funcName, varName, position]).
+    // The trailing args only customise the error text; they don't change the
+    // match, so we accept and ignore them.
+    if (args.size() < 2)
+        throw Error("validatestring: requires at least 2 arguments (str, validStrings)",
+                     0, 0, "validatestring", "", "numkit:validatestring:nargin");
+    outs[0] = validatestring(args[0], args[1], ctx.engine->resource());
 }
 
 void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
