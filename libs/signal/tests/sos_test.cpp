@@ -199,4 +199,32 @@ TEST_P(SosTest, Tf2sosZeroLeadingAThrows)
     EXPECT_THROW(eval("sos = tf2sos(b, a);"), std::exception);
 }
 
+// DEEP-PROBE 2026-05-31: SOS sections are ordered by MATLAB's default 'up'
+// rule — ASCENDING pole radius (poles nearest the origin first, nearest the
+// unit circle last), with the overall gain folded into the first (origin-
+// nearest) section. numkit previously emitted them in reversed order.
+TEST_P(SosTest, Zp2sosComplexPoleSectionOrderAscending)
+{
+    // Poles 0.2±0.3i (radius 0.361) and 0.5±0.5i (radius 0.707).
+    eval("S = zp2sos([], [0.5+0.5i; 0.5-0.5i; 0.2+0.3i; 0.2-0.3i], 1);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(S,1);")), 2);
+    // Row 1 = nearer the origin (a2 = 0.13), row 2 = nearer unit circle (0.5).
+    EXPECT_NEAR(evalScalar("S(1,5);"), -0.4, 1e-12);
+    EXPECT_NEAR(evalScalar("S(1,6);"),  0.13, 1e-12);
+    EXPECT_NEAR(evalScalar("S(2,5);"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("S(2,6);"),  0.5, 1e-12);
+    EXPECT_LT(evalScalar("S(1,6);"), evalScalar("S(2,6);"));  // ascending radius
+}
+
+TEST_P(SosTest, Tf2sosComplexPoleSectionOrderAscending)
+{
+    eval("sm = tf2sos([1 2 3 4 5], [1 0.5 0.3 0.1 0.05]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(sm,1);")), 2);
+    EXPECT_NEAR(evalScalar("sm(1,2);"), -0.575630959115296, 1e-9);
+    EXPECT_NEAR(evalScalar("sm(1,6);"),  0.210916571277052, 1e-9);
+    EXPECT_NEAR(evalScalar("sm(2,2);"),  2.575630959115297, 1e-9);
+    EXPECT_NEAR(evalScalar("sm(2,6);"),  0.237060557628362, 1e-9);
+    EXPECT_LT(evalScalar("sm(1,6);"), evalScalar("sm(2,6);"));
+}
+
 INSTANTIATE_DUAL(SosTest);
