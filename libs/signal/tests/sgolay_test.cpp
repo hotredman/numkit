@@ -119,7 +119,55 @@ TEST_F(SgolayTest, SgolayfiltComplexThrows)
     EXPECT_THROW(eval("y = sgolayfilt([1+2i, 3, 5, 7, 9], 2, 5);"), std::exception);
 }
 
-TEST_F(SgolayTest, SgolayfiltMatrixThrows)
+// ── matrix (per-column / per-row) + weights + dim (DEEP-PROBE 2026-05-31) ──
+// sgolayfilt previously errored on matrices and ignored the weights/dim args.
+
+TEST_F(SgolayTest, SgolayfiltMatrixDim1Columns)
 {
-    EXPECT_THROW(eval("y = sgolayfilt(ones(5, 5), 2, 5);"), std::exception);
+    // Each column filtered independently (default dim = 1).
+    eval("C = sgolayfilt([2 5;1 8;3 9;4 7;6 2], 1, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C,1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C,2);"), 2.0);
+    EXPECT_NEAR(evalScalar("C(1,1);"), 1.5, 1e-9);
+    EXPECT_NEAR(evalScalar("C(3,1);"), 2.6666666666666667, 1e-9);
+    EXPECT_NEAR(evalScalar("C(1,2);"), 5.3333333333333333, 1e-9);
+    EXPECT_NEAR(evalScalar("C(5,2);"), 2.5, 1e-9);
+}
+
+TEST_F(SgolayTest, SgolayfiltMatrixDim2Rows)
+{
+    // dim = 2 filters each row.
+    eval("R = sgolayfilt([2 5 1 8 3;9 4 7 6 2], 1, 3, [], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(R,1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(R,2);"), 5.0);
+    EXPECT_NEAR(evalScalar("R(1,1);"), 3.1666666666666667, 1e-9);
+    EXPECT_NEAR(evalScalar("R(2,5);"), 2.5, 1e-9);
+}
+
+TEST_F(SgolayTest, SgolayfiltWeighted)
+{
+    // Weighted least-squares: result differs from the unweighted fit.
+    eval("x = [2 5 1 8 3 9 4 7 6];");
+    eval("yw = sgolayfilt(x, 2, 5, [1 2 3 2 1]);");
+    EXPECT_NEAR(evalScalar("yw(1);"), 2.5333333333333335, 1e-9);
+    EXPECT_NEAR(evalScalar("yw(5);"), 6.0, 1e-9);
+    EXPECT_NEAR(evalScalar("yw(9);"), 5.8666666666666671, 1e-9);
+    // Confirm weighting actually changed the output vs unweighted.
+    eval("yu = sgolayfilt(x, 2, 5);");
+    EXPECT_GT(std::abs(evalScalar("yw(1) - yu(1);")), 1e-6);
+}
+
+TEST_F(SgolayTest, SgolayfiltColumnVectorUnchanged)
+{
+    // A column vector is still a single-column matrix → one filtered slice.
+    eval("y = sgolayfilt((1:30)', 2, 5);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(y,1);"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(y,2);"), 1.0);
+    EXPECT_NEAR(evalScalar("y(15);"), 15.0, 1e-9);
+}
+
+TEST_F(SgolayTest, SgolayfiltWeightsWrongLengthThrows)
+{
+    EXPECT_THROW(eval("y = sgolayfilt([1 2 3 4 5], 2, 5, [1 2 3]);"),
+                 std::exception);
 }

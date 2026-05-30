@@ -1,12 +1,13 @@
 {
   "name": "sgolayfilt",
   "namespace": "signal",
-  "setup": "x = [3 1 4 1 5 9 2 6 5 3];",
-  "expr": "y = sgolayfilt(x, 2, 5);",
+  "setup": "x = [3 1 4 1 5 9 2 6 5 3]; w = [1 2 3 2 1]; M = [2 5;1 8;3 9;4 7;6 2]; Mr = [2 5 1 8 3;9 4 7 6 2];",
+  "expr": "y = sgolayfilt(x, 2, 5); yw = sgolayfilt([2 5 1 8 3 9 4 7 6], 2, 5, w); a1 = yw(1); a9 = yw(9); C = sgolayfilt(M, 1, 3); c11 = C(1,1); c52 = C(5,2); Rr = sgolayfilt(Mr, 1, 3, [], 2); r11 = Rr(1,1); r25 = Rr(2,5);",
   "iters": 3,
   "tol": 1e-09,
   "fingerprint": [
-    "double(numel(y))", "y(1)", "y(3)", "y(5)", "y(8)", "y(10)"
+    "double(numel(y))", "y(1)", "y(5)", "a1", "a9", "c11", "c52", "r11", "r25"
   ],
-  "comment": "Sig y=sgolayfilt(x,order,framelen): Savitzky-Golay smoothing (order-2 quadratic, frame 5). Interior points use the central SG weights; the first/last (framelen-1)/2 points use the asymmetric edge polynomials (NOT steady-state). x=[3 1 4 1 5 9 2 6 5 3] -> y(1)=2.857143 (left edge), y(5)=5.342857 (interior), y(10)=3.914286 (right edge)."
+  "comment": "Sig y=sgolayfilt(x,order,framelen[,weights,dim]): Savitzky-Golay smoothing. Interior points use the central SG weights; the first/last (framelen-1)/2 points use the asymmetric edge polynomials. DEEP-PROBE 2026-05-31: extended to matrices (each slice along dim filtered; dim=1 cols default, dim=2 rows) and the WEIGHTED least-squares form (B = V*(V'WV)^-1*V'W). numkit previously errored on matrices ('input must be a vector') and silently ignored the weights/dim args. x=[3 1 4 1 5 9 2 6 5 3]: y(1)=2.857143 (left edge), y(5)=5.342857 (interior). weighted [2 5 1 8 3 9 4 7 6] w=[1 2 3 2 1]: a1=2.533333, a9=5.866667 (differs from unweighted, confirming W is applied). matrix dim1 M=[2 5;1 8;3 9;4 7;6 2] order1 frame3: c11=1.5, c52=2.5. matrix dim2 Mr=[2 5 1 8 3;9 4 7 6 2]: r11=3.166667, r25=2.5. namespace=signal. Matches MATLAB R2025b.",
+  "deep_verified": true
 }
