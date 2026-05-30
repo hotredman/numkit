@@ -294,6 +294,36 @@ TEST_P(ManipTest, CircshiftMatrixBothDims)
     EXPECT_DOUBLE_EQ((*A)(1, 1), 1.0);
 }
 
+// circshift(X, K, dim) shifts by K ONLY along dimension `dim`. numkit
+// previously ignored the dim argument and always shifted dim 1. vs MATLAB
+// R2025b. DEEP-PROBE 2026-05-30.
+TEST_P(ManipTest, CircshiftAlongDim)
+{
+    // dim 2 (columns): [1 2 3;4 5 6] -> [3 1 2;6 4 5].
+    eval("A = circshift([1 2 3; 4 5 6], 1, 2);");
+    auto *A = getVarPtr("A");
+    EXPECT_DOUBLE_EQ((*A)(0, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*A)(0, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 0), 6.0);
+    // dim 1 (rows): [1 2 3;4 5 6] -> [4 5 6;1 2 3].
+    eval("B = circshift([1 2 3; 4 5 6], 1, 1);");
+    auto *B = getVarPtr("B");
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 4.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 0), 1.0);
+    // Negative shift along dim 2: [1 2 3;4 5 6] -> [2 3 1;5 6 4].
+    eval("C = circshift([1 2 3; 4 5 6], -1, 2);");
+    auto *C = getVarPtr("C");
+    EXPECT_DOUBLE_EQ((*C)(0, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*C)(0, 2), 1.0);
+    // Row vector along dim 2: circshift([10 20 30 40],2,2) -> [30 40 10 20].
+    eval("r = circshift([10 20 30 40], 2, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(3)"), 10.0);
+    // Default (2-arg) form unchanged.
+    eval("d = circshift([1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 4.0);
+}
+
 // ── tril / triu ────────────────────────────────────────────
 
 TEST_P(ManipTest, TrilMainDiagonal)

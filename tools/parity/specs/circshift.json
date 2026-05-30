@@ -2,15 +2,15 @@
   "name": "circshift",
   "namespace": "builtin",
   "setup": "A = 1:5;",
-  "expr": "B = circshift(A, 2); r1 = B(1); r2 = B(2); r3 = B(3); r4 = B(4); r5 = B(5);",
+  "expr": "B = circshift(A, 2); r1 = B(1); r2 = B(2); r3 = B(3); r4 = B(4); r5 = B(5); M = circshift([1 2 3; 4 5 6], 1, 2); m11 = M(1,1); m12 = M(1,2); m21 = M(2,1); N = circshift([1 2 3; 4 5 6], -1, 2); n11 = N(1,1); n13 = N(1,3); P = circshift([1 2 3; 4 5 6], 1, 1); p11 = P(1,1); rv = circshift([10 20 30 40], 2, 2); rv1 = rv(1); rv3 = rv(3);",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4",
-    "r5"
+    "r1", "r2", "r3", "r4", "r5",
+    "m11", "m12", "m21",
+    "n11", "n13",
+    "p11",
+    "rv1", "rv3"
   ],
-  "comment": "Sig: r = circshift(...). Shape op. Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = circshift(X, K[, dim]). The 3-arg form shifts by K ONLY along dimension `dim`: circshift([1 2 3;4 5 6],1,2)=[3 1 2;6 4 5] (columns), circshift(...,1,1)=[4 5 6;1 2 3] (rows), circshift(...,-1,2)=[2 3 1;5 6 4], circshift([10 20 30 40],2,2)=[30 40 10 20]. numkit previously IGNORED the dim arg and always shifted dim 1; fixed 2026-05-30. The 2-arg scalar form and the [k1 k2] vector form are unchanged. Spec-extension batch 2026-05-09 + dim arg. NOTE: ; only inside matrix-literal INPUTS."
 }
