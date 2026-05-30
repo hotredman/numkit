@@ -8,6 +8,7 @@
 #include <numkit/core/types.hpp>
 
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <sstream>
 
@@ -48,6 +49,57 @@ std::string applyStringSpec(const std::string &spec, std::string sv)
         return leftAlign ? sv + pad : pad + sv;
     }
     return sv;
+}
+
+// Strip the trailing conversion char (and any l/h length modifiers) from a
+// printf spec, leaving "%[flags][width][.precision]".
+std::string specBody(const std::string &spec)
+{
+    std::string base = spec.substr(0, spec.size() - 1); // drop type char
+    while (!base.empty() && (base.back() == 'l' || base.back() == 'h'))
+        base.pop_back();
+    return base;
+}
+
+// Format an integer conversion (%d/%i/%u/%o/%x/%X). MATLAB semantics:
+//   - a finite whole number prints as an integer;
+//   - a non-integer value falls back to %e, keeping flags/width/precision
+//     (e.g. sprintf('%d',3.7) -> '3.700000e+00', sprintf('%.2d',3.7) ->
+//     '3.70e+00');
+//   - Inf / -Inf / NaN print as 'Inf' / '-Inf' / 'NaN' (width honoured).
+std::string formatIntegerConv(const std::string &spec, char type, double v)
+{
+    char buf[160];
+    if (std::isnan(v))
+        return applyStringSpec(specBody(spec) + "s", "NaN");
+    if (std::isinf(v))
+        return applyStringSpec(specBody(spec) + "s", v < 0 ? "-Inf" : "Inf");
+
+    const bool whole =
+        (v == std::trunc(v)) && std::fabs(v) < 9.2e18; // fits in int64
+    if (whole) {
+        const std::string body = specBody(spec);
+        if (type == 'u') {
+            std::snprintf(buf, sizeof(buf), (body + "llu").c_str(),
+                          static_cast<unsigned long long>(static_cast<long long>(v)));
+        } else if (type == 'x' || type == 'X') {
+            std::string xs = body + "ll";
+            xs.push_back(type);
+            std::snprintf(buf, sizeof(buf), xs.c_str(),
+                          static_cast<unsigned long long>(static_cast<long long>(v)));
+        } else if (type == 'o') {
+            std::snprintf(buf, sizeof(buf), (body + "llo").c_str(),
+                          static_cast<unsigned long long>(static_cast<long long>(v)));
+        } else { // d, i
+            std::snprintf(buf, sizeof(buf), (body + "lld").c_str(),
+                          static_cast<long long>(v));
+        }
+        return buf;
+    }
+
+    // Non-integer → %e fallback (MATLAB overrides the integer conversion).
+    std::snprintf(buf, sizeof(buf), (specBody(spec) + "e").c_str(), v);
+    return buf;
 }
 
 } // namespace
@@ -127,41 +179,10 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
                     }
                 }
                 ai++;
-            } else if (type == 'd' || type == 'i') {
-                if (ai < args.size()) {
-                    char buf[64];
-                    std::string ispec = spec.substr(0, spec.size() - 1) + "lld";
-                    std::snprintf(buf, sizeof(buf), ispec.c_str(),
-                                  static_cast<long long>(args[ai].toScalar()));
-                    out << buf;
-                }
-                ai++;
-            } else if (type == 'u') {
-                if (ai < args.size()) {
-                    char buf[64];
-                    std::string uspec = spec.substr(0, spec.size() - 1) + "llu";
-                    std::snprintf(buf, sizeof(buf), uspec.c_str(),
-                                  static_cast<unsigned long long>(args[ai].toScalar()));
-                    out << buf;
-                }
-                ai++;
-            } else if (type == 'x' || type == 'X') {
-                if (ai < args.size()) {
-                    char buf[64];
-                    std::string xspec = spec.substr(0, spec.size() - 1) + "ll" + type;
-                    std::snprintf(buf, sizeof(buf), xspec.c_str(),
-                                  static_cast<unsigned long long>(args[ai].toScalar()));
-                    out << buf;
-                }
-                ai++;
-            } else if (type == 'o') {
-                if (ai < args.size()) {
-                    char buf[64];
-                    std::string ospec = spec.substr(0, spec.size() - 1) + "llo";
-                    std::snprintf(buf, sizeof(buf), ospec.c_str(),
-                                  static_cast<unsigned long long>(args[ai].toScalar()));
-                    out << buf;
-                }
+            } else if (type == 'd' || type == 'i' || type == 'u'
+                       || type == 'x' || type == 'X' || type == 'o') {
+                if (ai < args.size())
+                    out << formatIntegerConv(spec, type, args[ai].toScalar());
                 ai++;
             } else if (type == 'f' || type == 'e' || type == 'E' || type == 'g' || type == 'G') {
                 if (ai < args.size()) {
