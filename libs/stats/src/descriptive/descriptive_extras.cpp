@@ -2374,6 +2374,129 @@ Value kendallMatrix(const Value &X, const Value &Y, std::pmr::memory_resource *m
     return out;
 }
 
+// ── corr 'Rows' NaN policy ────────────────────────────────────────────
+enum class CorrRows { All, Complete, Pairwise };
+
+// Parse a 'Rows' Name-Value option (case-insensitive): 'all' (default,
+// NaN-poison), 'complete' (listwise deletion), 'pairwise'.
+CorrRows parseCorrRows(Span<const Value> args, std::size_t start)
+{
+    for (std::size_t i = start; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string name = args[i].toString();
+        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "rows") {
+            std::string v = args[i + 1].toString();
+            for (char &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (v == "all")      return CorrRows::All;
+            if (v == "complete") return CorrRows::Complete;
+            if (v == "pairwise") return CorrRows::Pairwise;
+            throw Error("corr: Rows must be 'all', 'complete', or 'pairwise'",
+                        0, 0, "corr", "", "numkit:corr:BadRows");
+        }
+    }
+    return CorrRows::All;
+}
+
+std::size_t corrRows(const Value &X) { return static_cast<std::size_t>(X.dims().dim(0)); }
+std::size_t corrCols(const Value &X)
+{
+    return (X.dims().ndim() >= 2) ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
+}
+
+// Listwise deletion: keep only the rows that contain no NaN across every
+// column of X (and Y, when two matrices share a row index). The same kept
+// rows are applied to both so the columns stay aligned.
+void dropNaNRows(const Value &X, const Value *Y, std::pmr::memory_resource *mr,
+                 Value &Xo, Value *Yo)
+{
+    const std::size_t n = corrRows(X);
+    const std::size_t pX = corrCols(X);
+    const std::size_t pY = Y ? corrCols(*Y) : 0;
+    ScratchArena scratch(mr);
+    ScratchVec<std::size_t> keep(&scratch);
+    for (std::size_t r = 0; r < n; ++r) {
+        bool ok = true;
+        for (std::size_t c = 0; c < pX && ok; ++c)
+            if (std::isnan(X.elemAsDouble(r + c * n))) ok = false;
+        if (ok && Y)
+            for (std::size_t c = 0; c < pY && ok; ++c)
+                if (std::isnan(Y->elemAsDouble(r + c * n))) ok = false;
+        if (ok) keep.push_back(r);
+    }
+    const std::size_t m = keep.size();
+    Xo = Value::matrix(m, pX, ValueType::DOUBLE, mr);
+    double *xo = Xo.doubleDataMut();
+    for (std::size_t c = 0; c < pX; ++c)
+        for (std::size_t k = 0; k < m; ++k)
+            xo[k + c * m] = X.elemAsDouble(keep[k] + c * n);
+    if (Y && Yo) {
+        *Yo = Value::matrix(m, pY, ValueType::DOUBLE, mr);
+        double *yo = Yo->doubleDataMut();
+        for (std::size_t c = 0; c < pY; ++c)
+            for (std::size_t k = 0; k < m; ++k)
+                yo[k + c * m] = Y->elemAsDouble(keep[k] + c * n);
+    }
+}
+
+// Pairwise Pearson correlation: each entry (i,j) uses the rows where both
+// column i of X and column j of Y are non-NaN, with the means taken over
+// exactly those rows.
+Value corrPairwisePearson(const Value &X, const Value &Y, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = corrRows(X);
+    if (corrRows(Y) != n)
+        throw Error("corr: X and Y must have the same number of rows",
+                    0, 0, "corr", "", "numkit:corr:rows");
+    const std::size_t p = corrCols(X), q = corrCols(Y);
+    Value out = Value::matrix(p, q, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < q; ++j) {
+            double si = 0.0, sj = 0.0;
+            std::size_t m = 0;
+            for (std::size_t r = 0; r < n; ++r) {
+                const double a = X.elemAsDouble(r + i * n);
+                const double b = Y.elemAsDouble(r + j * n);
+                if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
+            }
+            double rij;
+            if (m < 2) {
+                rij = std::numeric_limits<double>::quiet_NaN();
+            } else {
+                const double mi = si / static_cast<double>(m);
+                const double mj = sj / static_cast<double>(m);
+                double sxy = 0.0, sxx = 0.0, syy = 0.0;
+                for (std::size_t r = 0; r < n; ++r) {
+                    const double a = X.elemAsDouble(r + i * n);
+                    const double b = Y.elemAsDouble(r + j * n);
+                    if (std::isnan(a) || std::isnan(b)) continue;
+                    const double da = a - mi, db = b - mj;
+                    sxy += da * db; sxx += da * da; syy += db * db;
+                }
+                const double den = std::sqrt(sxx * syy);
+                rij = (den > 0.0) ? sxy / den
+                                  : std::numeric_limits<double>::quiet_NaN();
+            }
+            od[i + j * p] = rij;
+        }
+    return out;
+}
+
+Value corrDispatch(bool twoArg, const Value &X, const Value &Y,
+                   CorrType ct, std::pmr::memory_resource *mr)
+{
+    if (twoArg) {
+        if (ct == CorrType::Pearson)  return corr_xy(X, Y, mr);
+        if (ct == CorrType::Spearman) return corr_xy(rankColumns(X, mr),
+                                                     rankColumns(Y, mr), mr);
+        return kendallMatrix(X, Y, mr);
+    }
+    if (ct == CorrType::Pearson)  return corr_xx(X, mr);
+    if (ct == CorrType::Spearman) return corr_xx(rankColumns(X, mr), mr);
+    return kendallMatrix(X, X, mr);
+}
+
 } // namespace
 
 void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -2388,24 +2511,39 @@ void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         (args.size() >= 2 && !args[1].isChar() && !args[1].isString());
     const std::size_t nvStart = twoArg ? 2 : 1;
     const CorrType ct = parseCorrType(args, nvStart);
+    const CorrRows rows = parseCorrRows(args, nvStart);
 
-    if (twoArg) {
-        const Value &X = args[0], &Y = args[1];
-        if (ct == CorrType::Pearson)
-            outs[0] = corr_xy(X, Y, mr);
-        else if (ct == CorrType::Spearman)
-            outs[0] = corr_xy(rankColumns(X, mr), rankColumns(Y, mr), mr);
+    if (rows == CorrRows::Pairwise) {
+        // Pairwise deletion is currently supported for Pearson only.
+        if (ct != CorrType::Pearson)
+            throw Error("corr: 'pairwise' rows option is supported only for "
+                        "the 'Pearson' type",
+                        0, 0, "corr", "", "numkit:corr:PairwiseType");
+        if (twoArg)
+            outs[0] = corrPairwisePearson(args[0], args[1], mr);
         else
-            outs[0] = kendallMatrix(X, Y, mr);
-    } else {
-        const Value &X = args[0];
-        if (ct == CorrType::Pearson)
-            outs[0] = corr_xx(X, mr);
-        else if (ct == CorrType::Spearman)
-            outs[0] = corr_xx(rankColumns(X, mr), mr);
-        else
-            outs[0] = kendallMatrix(X, X, mr);
+            outs[0] = corrPairwisePearson(args[0], args[0], mr);
+        return;
     }
+
+    if (rows == CorrRows::Complete) {
+        // Listwise deletion: drop every row containing a NaN, then compute.
+        Value Xc, Yc;
+        if (twoArg) {
+            dropNaNRows(args[0], &args[1], mr, Xc, &Yc);
+            outs[0] = corrDispatch(true, Xc, Yc, ct, mr);
+        } else {
+            dropNaNRows(args[0], nullptr, mr, Xc, nullptr);
+            outs[0] = corrDispatch(false, Xc, Xc, ct, mr);
+        }
+        return;
+    }
+
+    // 'all' (default): NaN-poisoning behaviour, unchanged.
+    if (twoArg)
+        outs[0] = corrDispatch(true, args[0], args[1], ct, mr);
+    else
+        outs[0] = corrDispatch(false, args[0], args[0], ct, mr);
 }
 
 void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

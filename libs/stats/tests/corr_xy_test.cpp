@@ -81,3 +81,34 @@ TEST_F(CorrXYTest, SingleArgUnchanged)
     EXPECT_NEAR(evalScalar("C(2,1)"), 0.9, 1e-12);
     EXPECT_NEAR(evalScalar("C(2,2)"), 1.0, 1e-12);
 }
+
+// ── corr 'Rows' NaN policy (2026-05-30): 'complete' / 'pairwise' ──────
+// corr previously ignored the 'Rows' option and always NaN-poisoned.
+// vs MATLAB R2025b.
+TEST_F(CorrXYTest, RowsCompleteListwise)
+{
+    eval("Xn = [1 5 2; 2 6 9; 3 NaN 4; 4 8 1; 5 9 NaN];");
+    eval("Cc = corr(Xn,'rows','complete');");
+    // Listwise: drop rows 3 and 5 (each has a NaN), correlate the rest.
+    EXPECT_NEAR(evalScalar("Cc(1,2)"),  1.0,                1e-12);
+    EXPECT_NEAR(evalScalar("Cc(1,3)"), -0.300375704593055, 1e-10);
+    EXPECT_NEAR(evalScalar("Cc(3,3)"),  1.0,                1e-12);
+    // Two-vector form, complete.
+    EXPECT_NEAR(evalScalar("corr([1;2;3;NaN;5],[2;4;6;8;NaN],'rows','complete')"),
+                1.0, 1e-12);
+}
+
+TEST_F(CorrXYTest, RowsPairwiseDeletion)
+{
+    eval("Xn = [1 5 2; 2 6 9; 3 NaN 4; 4 8 1; 5 9 NaN];");
+    eval("Cp = corr(Xn,'rows','pairwise');");
+    // Each (i,j) uses its own common non-NaN rows, so (1,3) and (2,3) differ.
+    EXPECT_NEAR(evalScalar("Cp(1,3)"), -0.290190500044005, 1e-10);
+    EXPECT_NEAR(evalScalar("Cp(2,3)"), -0.300375704593055, 1e-10);
+    EXPECT_NEAR(evalScalar("Cp(1,1)"),  1.0,               1e-12);
+    // 'all' (default) still NaN-poisons.
+    EXPECT_TRUE(std::isnan(evalScalar("Ca = corr(Xn); Ca(2,2)")));
+    // 'pairwise' is Pearson-only for now.
+    EXPECT_THROW(eval("corr(Xn,'rows','pairwise','type','Spearman');"),
+                 std::exception);
+}
