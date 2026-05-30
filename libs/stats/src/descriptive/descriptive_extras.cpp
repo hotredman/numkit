@@ -2253,22 +2253,90 @@ void partialcorr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
     if (args.empty())
         throw Error("partialcorr: requires (X), (X, Z), or (X, Y, Z)",
                     0, 0, "partialcorr", "", "numkit:partialcorr:nargin");
-    // Skip trailing string args (NV-pair names like 'Rows'/'Type') —
-    // MATLAB's NV-pairs are accept-and-ignore here (Pearson + complete
-    // rows is the only path implemented).
+    // Positional matrices precede the trailing Name-Value pairs (which are
+    // all strings: 'Rows'/'Type' plus their values).
     std::size_t posN = args.size();
     while (posN > 0 && (args[posN - 1].isChar() || args[posN - 1].isString()))
         --posN;
-    if (posN == 1) {
-        outs[0] = partialcorr_xx(args[0], mr);
-    } else if (posN == 2) {
-        outs[0] = partialcorr_xz(args[0], args[1], mr);
-    } else if (posN == 3) {
-        outs[0] = partialcorr_of(args[0], args[1], args[2], mr);
-    } else {
-        throw Error("partialcorr: too many positional arguments",
+    if (posN < 1 || posN > 3)
+        throw Error("partialcorr: requires (X), (X, Z), or (X, Y, Z)",
                     0, 0, "partialcorr", "", "numkit:partialcorr:nargin");
+
+    // Parse the 'Rows' NaN policy from the NV region (args[posN..]):
+    //   'all' (default) NaN-poison, 'complete' listwise deletion.
+    int rowsMode = 0;  // 0=all, 1=complete, 2=pairwise
+    for (std::size_t i = posN; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string name = args[i].toString();
+        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "rows") {
+            std::string v = args[i + 1].toString();
+            for (char &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (v == "all") rowsMode = 0;
+            else if (v == "complete") rowsMode = 1;
+            else if (v == "pairwise") rowsMode = 2;
+            else throw Error("partialcorr: Rows must be 'all', 'complete', or "
+                             "'pairwise'", 0, 0, "partialcorr", "",
+                             "numkit:partialcorr:BadRows");
+        }
     }
+    if (rowsMode == 2)
+        throw Error("partialcorr: 'pairwise' rows option is not yet supported "
+                    "(use 'complete')",
+                    0, 0, "partialcorr", "", "numkit:partialcorr:Pairwise");
+
+    auto nrows = [](const Value &M) {
+        return (M.dims().isVector() || M.isScalar())
+                   ? M.numel() : static_cast<std::size_t>(M.dims().rows());
+    };
+    auto ncols = [](const Value &M) {
+        return (M.dims().isVector() || M.isScalar())
+                   ? static_cast<std::size_t>(1)
+                   : static_cast<std::size_t>(M.dims().cols());
+    };
+
+    Value c0, c1, c2;
+    const Value *p0 = &args[0], *p1 = (posN >= 2 ? &args[1] : nullptr),
+                *p2 = (posN >= 3 ? &args[2] : nullptr);
+    if (rowsMode == 1) {
+        // Listwise deletion: drop every row with a NaN in ANY of the
+        // positional matrices (they all share the same row index).
+        const std::size_t n = nrows(args[0]);
+        ScratchArena scratch(mr);
+        ScratchVec<std::size_t> keep(&scratch);
+        const Value *mats[3] = {p0, p1, p2};
+        for (std::size_t r = 0; r < n; ++r) {
+            bool ok = true;
+            for (std::size_t t = 0; t < posN && ok; ++t) {
+                const Value &M = *mats[t];
+                const std::size_t p = ncols(M);
+                for (std::size_t c = 0; c < p && ok; ++c)
+                    if (std::isnan(M.elemAsDouble(r + c * n))) ok = false;
+            }
+            if (ok) keep.push_back(r);
+        }
+        const std::size_t m = keep.size();
+        auto cleanOne = [&](const Value &M) {
+            const std::size_t p = ncols(M);
+            Value out = Value::matrix(m, p, ValueType::DOUBLE, mr);
+            double *o = out.doubleDataMut();
+            for (std::size_t c = 0; c < p; ++c)
+                for (std::size_t k = 0; k < m; ++k)
+                    o[k + c * m] = M.elemAsDouble(keep[k] + c * n);
+            return out;
+        };
+        c0 = cleanOne(args[0]);
+        p0 = &c0;
+        if (p1) { c1 = cleanOne(args[1]); p1 = &c1; }
+        if (p2) { c2 = cleanOne(args[2]); p2 = &c2; }
+    }
+
+    if (posN == 1)
+        outs[0] = partialcorr_xx(*p0, mr);
+    else if (posN == 2)
+        outs[0] = partialcorr_xz(*p0, *p1, mr);
+    else
+        outs[0] = partialcorr_of(*p0, *p1, *p2, mr);
 }
 
 // ── corr / detrend adapters ──────────────────────────────────────────

@@ -44,3 +44,14 @@ R2 = partialcorr(X, Z);
 fprintf('  partialcorr(X, Z) 3x3:\n');
 disp(R2);
 fprintf('  (e R(1,2)=-0.11772  R(1,3)= 0.06451  R(2,3)=-0.54406)\n');
+
+% ── 'Rows' NaN policy (2026-05-30): 'complete' listwise deletion ──
+% partialcorr previously ignored 'Rows' (NaN-poisoned NaN data). 'complete'
+% drops every row with a NaN before computing the partial correlation;
+% 'all' (default) still NaN-poisons; 'pairwise' deferred. vs MATLAB R2025b.
+fprintf('\n=== Rows complete (listwise) ===\n');
+Xn = [1 5 2; 2 6 9; 3 NaN 4; 4 8 1; 5 9 6; 6 3 NaN; 7 2 5];
+fprintf('partialcorr(Xn,''Rows'',''complete'') ->\n');
+disp(partialcorr(Xn,'Rows','complete'));
+fprintf('(expect [1 -0.22712 0.040291; -0.22712 1 -0.046205; 0.040291 -0.046205 1])\n');
+fprintf('partialcorr(Xn) default -> NaN-poison: %s\n', mat2str(partialcorr(Xn),4));
