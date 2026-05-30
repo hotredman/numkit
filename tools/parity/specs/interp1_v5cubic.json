@@ -1,0 +1,11 @@
+{
+  "name": "interp1_v5cubic",
+  "covers": ["interp1"],
+  "namespace": "builtin",
+  "setup": "x = 0:5; y = [0 1 8 27 64 125]; y2 = [2 1 4 1 5 9];",
+  "expr": "a = interp1(x, y, 2.3, 'v5cubic'); b = interp1(x, y, 4.7, 'v5cubic'); c = interp1(x, y, 2.3, 'cubic'); d = interp1(0:5, y2, 2.4, 'v5cubic'); e = interp1(x, y, 2, 'v5cubic'); nu = interp1([0 1 2 4 5 6], y, 2.3, 'v5cubic'); sp = interp1([0 1 2 4 5 6], y, 2.3, 'spline');",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["a", "b", "c", "d", "e", "nu", "sp"],
+  "comment": "interp1 'v5cubic' / 'cubic' (2026-05-30). MATLAB's classic Keys cubic convolution (a=-0.5) on a uniformly-spaced grid; 'cubic' and 'v5cubic' are the SAME method (both = convolution, distinct from pchip/spline). numkit previously errored 'unknown method' for both. Uniform x^3 grid: a=interp1(2.3)=12.251, b=interp1(4.7)=104.18, c='cubic'=12.251 (==v5cubic), node-exact e=interp1(2)=8. Non-polynomial data d=interp1([2 1 4 1 5 9],2.4)=2.896. Non-uniform grid falls back to spline: nu==sp (9.4411250000). Out-of-range returns NaN (NOT a method-extrapolator, unlike spline/pchip/makima) -- not fingerprinted (NaN). Implemented via 1-D one-cell-padded Keys convolution (3*v1-3*v2+v3 border), reusing the kernel interp2 'cubic' uses. namespace=builtin. Matches MATLAB R2025b."
+}

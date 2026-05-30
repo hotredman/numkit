@@ -269,6 +269,41 @@ TEST_F(InterpTest, SplinePchipMakimaExtrapolateByDefault)
 }
 
 // ============================================================
+// interp1 — 'v5cubic' / 'cubic' (Keys cubic convolution). Values
+// verified against MATLAB R2025b: on a uniform grid both are the classic
+// cubic convolution; non-uniform falls back to spline; OOR → NaN.
+// ============================================================
+
+TEST_F(InterpTest, Interp1V5CubicUniform)
+{
+    eval("x = 0:5; y = [0 1 8 27 64 125];");
+    EXPECT_NEAR(evalScalar("interp1(x, y, 2.3, 'v5cubic')"), 12.251, 1e-9);
+    EXPECT_NEAR(evalScalar("interp1(x, y, 4.7, 'v5cubic')"), 104.18, 1e-9);
+    // 'cubic' is the same method on a uniform grid.
+    EXPECT_NEAR(evalScalar("interp1(x, y, 2.3, 'cubic')"),   12.251, 1e-9);
+    // non-polynomial data distinguishes it from spline.
+    EXPECT_NEAR(evalScalar("interp1(0:5, [2 1 4 1 5 9], 2.4, 'v5cubic')"), 2.896, 1e-9);
+    // exact at a node.
+    EXPECT_NEAR(evalScalar("interp1(x, y, 2, 'v5cubic')"), 8.0, 1e-12);
+}
+
+TEST_F(InterpTest, Interp1V5CubicOutOfRangeIsNaN)
+{
+    // Unlike spline/pchip/makima, v5cubic/cubic do NOT extrapolate.
+    eval("x = 0:5; y = [0 1 8 27 64 125];");
+    EXPECT_TRUE(std::isnan(evalScalar("interp1(x, y, 5.5, 'v5cubic')")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1(x, y, -0.5, 'cubic')")));
+}
+
+TEST_F(InterpTest, Interp1V5CubicNonUniformFallsBackToSpline)
+{
+    // MATLAB warns and switches to 'spline' on a non-uniform grid.
+    eval("y = [0 1 8 27 64 125];");
+    EXPECT_NEAR(evalScalar("interp1([0 1 2 4 5 6], y, 2.3, 'v5cubic')"),
+                evalScalar("interp1([0 1 2 4 5 6], y, 2.3, 'spline')"), 1e-12);
+}
+
+// ============================================================
 // polyfit
 // ============================================================
 
