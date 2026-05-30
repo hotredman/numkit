@@ -1,0 +1,14 @@
+{
+  "name": "setops_indices",
+  "namespace": "builtin",
+  "setup": "A = [3 1 2 5]; B = [2 4 1];",
+  "expr": "[c, ia, ib] = intersect(A, B); ia1 = ia(1); ia2 = ia(2); ib1 = ib(1); ib2 = ib(2); iacol = double(iscolumn(ia)); ibcol = double(iscolumn(ib)); [d, da] = setdiff(A, B); da1 = da(1); da2 = da(2); dacol = double(iscolumn(da)); [u, ua, ub] = union([3 1 2], B); ua1 = ua(1); ua3 = ua(3); ub1 = ub(1); nua = numel(ua); nub = numel(ub);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "ia1", "ia2", "ib1", "ib2", "iacol", "ibcol",
+    "da1", "da2", "dacol",
+    "ua1", "ua3", "ub1", "nua", "nub"
+  ],
+  "comment": "intersect/union/setdiff index outputs (ia/ib) vs MATLAB R2025b. Bug fixed 2026-05-30: these were 1-output only, so [c,ia,ib]=... errored. intersect([3 1 2 5],[2 4 1]) -> ia=[2;3] (A-indices of 1,2), ib=[3;1] (B-indices); setdiff -> ia=[1;4]; union([3 1 2],[2 4 1]) -> ia=[2;3;1] (A-sourced 1,2,3; nua=3), ib=[2] (B-only 4; nub=1). All index vectors are columns (iacol=ibcol=dacol=1). namespace=builtin."
+}
