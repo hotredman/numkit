@@ -219,4 +219,45 @@ TEST_P(RegexTest, RegexptranslateBadOpThrows)
                  std::exception);
 }
 
+// ── regexp default positional multi-output [start, end, te, m, t, nm, sp] ──
+TEST_P(RegexTest, RegexpStartEnd)
+{
+    eval("function [a,b] = wRE(s,p)\n  [a,b] = regexp(s,p);\nend");
+    eval("[s, e] = wRE('a1b2', '\\d');");
+    auto *s = getVarPtr("s");
+    auto *e = getVarPtr("e");
+    ASSERT_NE(s, nullptr);
+    ASSERT_NE(e, nullptr);
+    EXPECT_EQ(s->numel(), 2u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(e->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(e->doubleData()[1], 4.0);
+}
+
+TEST_P(RegexTest, RegexpFullPositionalOrder)
+{
+    eval("function [a,b,c,d,f,g,h] = wRF(s,p)\n"
+         "  [a,b,c,d,f,g,h] = regexp(s,p);\nend");
+    eval("[s, e, te, m, t, nm, sp] = wRF('a1b2', '(\\d)');");
+    EXPECT_DOUBLE_EQ(evalScalar("s(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(2)"), 4.0);
+    // tokenExtents: 1x2 [start end] of the capture group in match 1
+    EXPECT_DOUBLE_EQ(evalScalar("te{1}(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("te{1}(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(m{1}, '1')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(t{1}{1}, '1')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(sp{1}, 'a')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(sp{2}, 'b')"), 1.0);
+}
+
+TEST_P(RegexTest, RegexpSingleOutputUnchanged)
+{
+    eval("ix = regexp('a1b2', '\\d');");
+    auto *ix = getVarPtr("ix");
+    EXPECT_EQ(ix->numel(), 2u);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 4.0);
+}
+
 INSTANTIATE_DUAL(RegexTest);

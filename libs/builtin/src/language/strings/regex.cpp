@@ -201,12 +201,47 @@ Value regexpFind(const Value &s, const Value &pat, const std::string &option, bo
         return out;
     }
 
-    if (!opt.empty())
+    if (opt == "end") {
+        // 1-based end index of each match (= position + length).
+        ScratchVec<double> idx(&scratch);
+        for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
+                  e = std::sregex_iterator(); it != e; ++it)
+            idx.push_back(static_cast<double>(it->position() + it->length()));
+        return rowFromIndices(idx.data(), idx.size(), mr);
+    }
+
+    if (opt == "tokenextents") {
+        // 1×N cell; each entry is a k×2 matrix of [startCol endCol] (1-based)
+        // for the capture groups. With no capture groups, the whole match is
+        // the single token.
+        ScratchVec<std::sregex_iterator::value_type> matches(&scratch);
+        for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
+                  e = std::sregex_iterator(); it != e; ++it)
+            matches.push_back(*it);
+        auto out = Value::cell(1, matches.size());
+        for (std::size_t i = 0; i < matches.size(); ++i) {
+            const auto &m = matches[i];
+            const std::size_t ng2 = (m.size() > 1) ? m.size() - 1 : 1;
+            auto te = Value::matrix(ng2, 2, ValueType::DOUBLE, mr);
+            double *td = te.doubleDataMut();
+            for (std::size_t g = 0; g < ng2; ++g) {
+                const auto &sub = (m.size() > 1) ? m[g + 1] : m[0];
+                const std::ptrdiff_t st = sub.first - text.begin();
+                td[0 * ng2 + g] = static_cast<double>(st + 1);
+                td[1 * ng2 + g] = static_cast<double>(st + sub.length());
+            }
+            out.cellAt(i) = te;
+        }
+        return out;
+    }
+
+    if (!opt.empty() && opt != "start")
         throw Error("regexp: unknown option '" + option
-                     + "' (supported: 'match' / 'tokens' / 'names' / 'split')",
+                     + "' (supported: 'start' / 'end' / 'tokenExtents' / "
+                       "'match' / 'tokens' / 'names' / 'split')",
                      0, 0, "regexp", "", "numkit:regexp:badOption");
 
-    // Default: 1-based start indices.
+    // Default ('start'): 1-based start indices.
     ScratchVec<double> idx(&scratch);
     for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
               end = std::sregex_iterator(); it != end; ++it)
@@ -279,34 +314,42 @@ Value regexptranslate(const std::string &op, const std::string &s, std::pmr::mem
 
 namespace detail {
 
-void regexp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+// The default positional output order of regexp/regexpi when no option
+// string is given: [start, end, tokenExtents, match, tokens, names, split].
+inline void regexpDispatch(Span<const Value> args, size_t nargout,
+                           Span<Value> outs, bool ignoreCase, const char *fn,
+                           CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("regexp: requires at least 2 arguments (s, pat)",
-                     0, 0, "regexp", "", "numkit:regexp:nargin");
+        throw Error(std::string(fn) + ": requires at least 2 arguments (s, pat)",
+                     0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
+    auto *mr = ctx.engine->resource();
     std::string opt;
     if (args.size() >= 3) {
         if (!args[2].isChar() && !args[2].isString())
-            throw Error("regexp: option must be a string",
-                         0, 0, "regexp", "", "numkit:regexp:badOption");
+            throw Error(std::string(fn) + ": option must be a string",
+                         0, 0, fn, "", std::string("numkit:") + fn + ":badOption");
         opt = args[2].toString();
     }
-    outs[0] = regexpFind(args[0], args[1], opt, false, ctx.engine->resource());
+    if (!opt.empty() || nargout <= 1) {
+        outs[0] = regexpFind(args[0], args[1], opt, ignoreCase, mr);
+        return;
+    }
+    static const char *order[] = {"start", "end", "tokenExtents",
+                                  "match", "tokens", "names", "split"};
+    const size_t k = std::min<size_t>(nargout, 7);
+    for (size_t i = 0; i < k; ++i)
+        outs[i] = regexpFind(args[0], args[1], order[i], ignoreCase, mr);
 }
 
-void regexpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+void regexp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("regexpi: requires at least 2 arguments (s, pat)",
-                     0, 0, "regexpi", "", "numkit:regexpi:nargin");
-    std::string opt;
-    if (args.size() >= 3) {
-        if (!args[2].isChar() && !args[2].isString())
-            throw Error("regexpi: option must be a string",
-                         0, 0, "regexpi", "", "numkit:regexpi:badOption");
-        opt = args[2].toString();
-    }
-    outs[0] = regexpFind(args[0], args[1], opt, true, ctx.engine->resource());
+    regexpDispatch(args, nargout, outs, /*ignoreCase=*/false, "regexp", ctx);
+}
+
+void regexpi_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    regexpDispatch(args, nargout, outs, /*ignoreCase=*/true, "regexpi", ctx);
 }
 
 void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
