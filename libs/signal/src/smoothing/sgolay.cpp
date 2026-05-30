@@ -113,9 +113,48 @@ ScratchVec<double> buildProjection(int order, int framelen,
     return B;
 }
 
-} // namespace
+// Compute G = V · (V'·V)^-1  (the framelen × (order+1) differentiation-
+// filter matrix, row-major). Column j of G is the FIR filter that estimates
+// the polynomial coefficient a_j (a_1 = value, a_2 = 1st-deriv term, …) at
+// the central point. This is the unweighted second output of MATLAB's
+// [B,G] = sgolay(order,framelen).
+ScratchVec<double> buildDiffMatrix(int order, int framelen, std::pmr::memory_resource *mr)
+{
+    const int n = framelen;
+    const int p = order + 1;
+    auto V = buildVandermonde(order, framelen, mr);      // n × p
 
-Value sgolay(int order, int framelen, std::pmr::memory_resource *mr)
+    // VtV = V'·V (p × p).
+    ScratchVec<double> VtV(static_cast<std::size_t>(p * p), mr);
+    for (int i = 0; i < p; ++i)
+        for (int j = 0; j < p; ++j) {
+            double s = 0.0;
+            for (int t = 0; t < n; ++t)
+                s += V[t * p + i] * V[t * p + j];
+            VtV[i * p + j] = s;
+        }
+
+    // Invert VtV: solve VtV · inv = I.
+    ScratchVec<double> inv(static_cast<std::size_t>(p * p), mr);
+    for (int i = 0; i < p; ++i)
+        for (int j = 0; j < p; ++j)
+            inv[i * p + j] = (i == j) ? 1.0 : 0.0;
+    gaussJordan(VtV.data(), inv.data(), p, p);           // inv := (V'V)^-1
+
+    // G = V · inv (n × p).
+    ScratchVec<double> G(static_cast<std::size_t>(n * p), mr);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < p; ++j) {
+            double s = 0.0;
+            for (int k = 0; k < p; ++k)
+                s += V[i * p + k] * inv[k * p + j];
+            G[i * p + j] = s;
+        }
+    return G;
+}
+
+// Shared validation for sgolay / sgolayDiff.
+void validateSgolayArgs(int order, int framelen)
 {
     if (framelen <= 0)
         throw Error("sgolay: framelen must be positive",
@@ -129,6 +168,13 @@ Value sgolay(int order, int framelen, std::pmr::memory_resource *mr)
     if (order >= framelen)
         throw Error("sgolay: order must be less than framelen",
                      0, 0, "sgolay", "", "numkit:sgolay:orderTooHigh");
+}
+
+} // namespace
+
+Value sgolay(int order, int framelen, std::pmr::memory_resource *mr)
+{
+    validateSgolayArgs(order, framelen);
 
     ScratchArena scratch(mr);
     auto B = buildProjection(order, framelen, &scratch);
@@ -138,6 +184,22 @@ Value sgolay(int order, int framelen, std::pmr::memory_resource *mr)
     for (int i = 0; i < framelen; ++i)
         for (int j = 0; j < framelen; ++j)
             dst[j * framelen + i] = B[i * framelen + j];
+    return out;
+}
+
+Value sgolayDiff(int order, int framelen, std::pmr::memory_resource *mr)
+{
+    validateSgolayArgs(order, framelen);
+
+    const int p = order + 1;
+    ScratchArena scratch(mr);
+    auto G = buildDiffMatrix(order, framelen, &scratch);   // row-major n × p
+    // Convert row-major G to column-major Value (R = framelen, C = order+1).
+    auto out = Value::matrix(framelen, p, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (int i = 0; i < framelen; ++i)
+        for (int j = 0; j < p; ++j)
+            dst[j * framelen + i] = G[i * p + j];
     return out;
 }
 
@@ -264,12 +326,19 @@ Value sgolayfilt(const Value &x, int order, int framelen,
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
-void sgolay_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void sgolay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("sgolay: requires 2 arguments (order, framelen)",
                      0, 0, "sgolay", "", "numkit:sgolay:nargin");
-    outs[0] = sgolay(static_cast<int>(args[0].toScalar()), static_cast<int>(args[1].toScalar()), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const int order    = static_cast<int>(args[0].toScalar());
+    const int framelen = static_cast<int>(args[1].toScalar());
+    outs[0] = sgolay(order, framelen, mr);
+    // [B,G] = sgolay(...): G is the framelen × (order+1) differentiation-
+    // filter matrix (MATLAB's second output).
+    if (nargout >= 2)
+        outs[1] = sgolayDiff(order, framelen, mr);
 }
 
 void sgolayfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

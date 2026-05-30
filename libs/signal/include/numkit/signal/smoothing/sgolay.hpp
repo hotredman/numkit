@@ -28,6 +28,27 @@ Value sgolay(int                          order,
              int                          framelen,
              std::pmr::memory_resource *  mr = nullptr);
 
+/// Savitzky-Golay differentiation-filter matrix (the second output `G` of
+/// MATLAB's `[B,G] = sgolay(order,framelen)`).
+///
+/// Returns the `framelen × (order+1)` matrix `G = V·(VᵀV)⁻¹`, where `V` is
+/// the centred Vandermonde matrix of the window offsets. Column `j`
+/// (1-based) is the FIR filter that, applied to a length-`framelen` window,
+/// estimates the polynomial coefficient `a_j` at the central point — so
+/// `G(:,1)` is the smoothing filter (equals the central row of `sgolay`)
+/// and `factorial(j-1) · G(:,j)` estimates the `(j-1)`-th derivative.
+///
+/// @param order     Polynomial order. Must satisfy `0 ≤ order < framelen`.
+/// @param framelen  Window length. Must be odd and ≥ `order + 1`.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          `framelen × (order+1)` DOUBLE differentiation matrix.
+/// @throws          numkit::Error  on invalid `order` / `framelen`.
+///
+/// @see sgolay
+Value sgolayDiff(int                          order,
+                 int                          framelen,
+                 std::pmr::memory_resource *  mr = nullptr);
+
 /// Savitzky-Golay smoothing of a 1-D signal.
 ///
 /// Fits a local polynomial of `order` to a sliding window of
