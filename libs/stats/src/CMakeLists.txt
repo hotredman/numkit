@@ -6,6 +6,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/corrcov.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tabulate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grp2idx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/cholcov.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/crosstab.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grpstats.cpp
