@@ -2,13 +2,15 @@
   "name": "false",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(false); r2 = double(false(2,2)(1)); r3 = double(false(3)(1));",
+  "expr": "r1 = double(false); t2 = false(2,2); r2 = double(t2(1)); n2 = numel(t2); t3 = false(3); r3 = double(t3(1)); n3 = numel(t3);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
     "r1",
     "r2",
-    "r3"
+    "n2",
+    "r3",
+    "n3"
   ],
-  "comment": "Sig: r = false(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = false(...). false()=0; false(2,2) is a 2x2 logical zero matrix (numel 4); false(3) is 3x3 (numel 9), every element 0. Indexing goes through a temp var (t2(1)) because MATLAB rejects chained indexing on a call result -- false(2,2)(1) is 'Invalid array indexing' in MATLAB (numkit allows it). namespace=builtin."
 }

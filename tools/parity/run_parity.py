@@ -456,9 +456,9 @@ def parse_batch(text: str) -> dict[str, Result]:
     return out
 
 
-def run_engine_batch(specs: list[Spec],
-                     engine: str) -> tuple[dict[str, Result], str]:
-    """Run a whole chunk of specs in ONE engine process.
+def _run_engine_raw(specs: list[Spec],
+                    engine: str) -> tuple[dict[str, Result], str]:
+    """Run a whole chunk of specs in ONE engine process (no recovery).
 
     Returns (results-by-spec-name, error-string). The error string is
     non-empty only on a whole-process problem (missing binary, timeout,
@@ -487,6 +487,45 @@ def run_engine_batch(specs: list[Spec],
         path.unlink(missing_ok=True)
     results = parse_batch(p.stdout)
     err = "" if p.returncode == 0 else f"{engine}: exit {p.returncode}"
+    return results, err
+
+
+def _bisect_run(specs: list[Spec], engine: str) -> dict[str, Result]:
+    """Recover results from a failing batch by binary-splitting it.
+
+    MATLAB/Octave compile the whole script file before running, so a
+    parse error (e.g. invalid `fn(args)(idx)` chained indexing) in ONE
+    spec's function aborts the entire chunk — leaving every spec in it
+    with no reference and a false N/A. We bisect to isolate the
+    offender(s); each good half re-runs cleanly and contributes its
+    results, so a single bad spec can't poison its neighbours.
+    """
+    res, err = _run_engine_raw(specs, engine)
+    if not err or len(specs) == 1:
+        return res            # clean, or the lone offender (kept as-is)
+    mid = len(specs) // 2
+    merged: dict[str, Result] = {}
+    merged.update(_bisect_run(specs[:mid], engine))
+    merged.update(_bisect_run(specs[mid:], engine))
+    return merged
+
+
+def run_engine_batch(specs: list[Spec],
+                     engine: str) -> tuple[dict[str, Result], str]:
+    """Run a chunk of specs in one engine process, with bisection recovery.
+
+    On a whole-process failure (typically a parse error in one spec's
+    function aborting the compiled script), re-run via `_bisect_run` so
+    good specs still get a verdict instead of a chunk-wide false N/A.
+    """
+    results, err = _run_engine_raw(specs, engine)
+    if err and len(specs) > 1:
+        results = _bisect_run(specs, engine)
+        missing = [s.name for s in specs if s.name not in results]
+        err = ("" if not missing
+               else f"{engine}: {len(missing)} spec(s) failed to parse/run "
+                    f"(isolated: {', '.join(missing[:5])}"
+                    f"{'…' if len(missing) > 5 else ''})")
     return results, err
 
 
