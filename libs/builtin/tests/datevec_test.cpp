@@ -169,3 +169,25 @@ TEST_F(DatevecTest, StringParse)
     // Unparseable string throws.
     EXPECT_THROW(eval("datevec('not a date')"), std::exception);
 }
+
+// calendar(year, month): 6x7 month matrix (cols Sun..Sat, zero-padded).
+// vs MATLAB R2025b. Implemented 2026-05-30 (was an undefined function).
+// Dec 2022 starts on a Thursday (column 5).
+TEST_F(DatevecTest, Calendar)
+{
+    eval("C = calendar(2022, 12);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C,1)")), 6);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C,2)")), 7);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,4)"), 0.0);   // Wed of week 1 is empty
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,5)"), 1.0);   // Thu = day 1
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,7)"), 3.0);   // Sat = day 3
+    EXPECT_DOUBLE_EQ(evalScalar("C(5,7)"), 31.0);  // last day
+    EXPECT_DOUBLE_EQ(evalScalar("C(6,1)"), 0.0);   // padded row
+    EXPECT_DOUBLE_EQ(evalScalar("sum(C(:))"), 496.0); // 1+2+...+31
+    // Leap February: 29 days, ends on a Thursday.
+    eval("F = calendar(2024, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("F(5,5)"), 29.0);
+    EXPECT_DOUBLE_EQ(evalScalar("F(5,6)"), 0.0);
+    // Bad month throws.
+    EXPECT_THROW(eval("calendar(2022, 13)"), std::exception);
+}

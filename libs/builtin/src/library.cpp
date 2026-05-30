@@ -2669,6 +2669,48 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     // noise so datenum->datevec round-trips give exact integers.
     //
     // Edge: datevec(0) = [0 0 0 0 0 0] (matches MATLAB literal).
+    // calendar(year, month) — 6x7 matrix for the given month. Columns are
+    // Sunday..Saturday; each day sits in its day-of-week column, weeks run down
+    // the rows, empty cells are 0, and the grid is always padded to 6 rows.
+    // (The no-arg "current month" and datenum forms are not yet supported.)
+    engine.registerFunction("calendar",
+                            [](Span<const Value> args, size_t /*nargout*/,
+                               Span<Value> outs, CallContext &ctx) {
+                                auto *mr = ctx.engine->resource();
+                                if (args.size() < 2)
+                                    throw std::runtime_error(
+                                        "calendar: requires (year, month); the "
+                                        "no-arg and datenum forms are not yet "
+                                        "supported");
+                                const int y = static_cast<int>(args[0].toScalar());
+                                const int m = static_cast<int>(args[1].toScalar());
+                                if (m < 1 || m > 12)
+                                    throw std::runtime_error(
+                                        "calendar: month must be in 1..12");
+                                static const int dim[] = {
+                                    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+                                int nd = dim[m - 1];
+                                if (m == 2 && ((y % 4 == 0 && y % 100 != 0)
+                                               || y % 400 == 0))
+                                    nd = 29;
+                                // Day-of-week of the 1st (Sakamoto, 0 = Sunday).
+                                static const int t[] = {
+                                    0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+                                int yy = y - (m < 3 ? 1 : 0);
+                                int dow = ((yy + yy / 4 - yy / 100 + yy / 400
+                                            + t[m - 1] + 1) % 7 + 7) % 7;
+                                auto out = Value::matrix(6, 7, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();   // column-major
+                                for (int k = 0; k < 42; ++k) o[k] = 0.0;
+                                for (int d = 1; d <= nd; ++d) {
+                                    const int pos = dow + (d - 1);
+                                    const int row = pos / 7;
+                                    const int col = pos % 7;
+                                    o[row + col * 6] = static_cast<double>(d);
+                                }
+                                outs[0] = std::move(out);
+                            });
+
     // datestr(D [, fmt]) — format a serial date number (or a 1x6 date vector)
     // as text. Supports a format STRING with the common field tokens
     // (yyyy yy mmmm mmm mm dddd ddd dd HH MM SS) and an auto-selected default
