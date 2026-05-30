@@ -1247,6 +1247,26 @@ TEST_P(BuiltinTest, ReverseReplaceMatches)
     EXPECT_FALSE(evalBool("matches('fish', {'dog', 'cat', 'bird'});"));
 }
 
+// replace accepts a cell array (or string array) of OLD patterns: a single
+// NEW applies to every OLD, otherwise NEW pairs 1:1 with OLD. A single
+// left-to-right pass (first-in-list match wins, no chain-replacement).
+// vs MATLAB R2025b. 2026-05-30: previously threw "Not a char array" on a cell.
+TEST_P(BuiltinTest, ReplaceCellPatterns)
+{
+    eval("a = replace('a-b_c', {'-','_'}, 'X');");      // single new for all
+    EXPECT_EQ(getVarPtr("a")->toString(), "aXbXc");
+    eval("b = replace('a-b_c', {'-','_'}, {'P','Q'});"); // paired
+    EXPECT_EQ(getVarPtr("b")->toString(), "aPbQc");
+    eval("c = replace('ab', {'a','b'}, {'b','c'});");    // single pass, no chain
+    EXPECT_EQ(getVarPtr("c")->toString(), "bc");
+    eval("d = replace('abc', {'a','ab'}, {'X','Y'});");  // first-in-list wins
+    EXPECT_EQ(getVarPtr("d")->toString(), "Xbc");
+    eval("e = replace('a-b_c', [\"-\" \"_\"], \"X\");"); // string-array list
+    EXPECT_EQ(getVarPtr("e")->toString(), "aXbXc");
+    eval("f = replace('abc', 'b', 'X');");               // scalar unchanged
+    EXPECT_EQ(getVarPtr("f")->toString(), "aXc");
+}
+
 TEST_P(BuiltinTest, Splitlines)
 {
     // sprintf interprets escape sequences; single-quoted strings don't.
