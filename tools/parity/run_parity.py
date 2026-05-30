@@ -742,7 +742,7 @@ def run_chunk(specs: list[Spec], *, no_matlab: bool, no_octave: bool,
                 rows += update_progress_row(
                     name=nm, nk=nk, ml=ml, oc=oc,
                     correctness=correctness, comment=spec.comment,
-                    implemented=nk.ok)
+                    implemented=nk.ok, deep_verified=spec.deep_verified)
                 update_benchmark_row(name=nm, nk=nk, ml=ml, oc=oc,
                                      note=spec.bench_note)
         flag = "" if (status == "DONE"
