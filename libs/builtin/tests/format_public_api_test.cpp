@@ -8,6 +8,9 @@
 #include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
+#include <cmath>
+#include <limits>
+
 #include <gtest/gtest.h>
 
 using numkit::ValueType;
@@ -192,4 +195,46 @@ TEST(BuiltinFormatPublicApi, FormatOnceStringWidthAppliesToStringType)
     Value args[] = {mkStrScalar(mr, "hi")};
     EXPECT_EQ(numkit::builtin::formatOnce("[%5s]", Span<const Value>(args, 1)),
               "[   hi]");
+}
+
+// ── %d on a non-integer falls back to %e (MATLAB semantics) ──────────────
+TEST(BuiltinFormatPublicApi, IntegerConvNonIntegerFallsBackToE)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value a[] = {Value::scalar(3.7, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%d", Span<const Value>(a, 1)),
+              "3.700000e+00");
+    EXPECT_EQ(numkit::builtin::formatOnce("%i", Span<const Value>(a, 1)),
+              "3.700000e+00");
+    EXPECT_EQ(numkit::builtin::formatOnce("%x", Span<const Value>(a, 1)),
+              "3.700000e+00");
+    // precision carries to the e format
+    EXPECT_EQ(numkit::builtin::formatOnce("%.2d", Span<const Value>(a, 1)),
+              "3.70e+00");
+    Value neg[] = {Value::scalar(-2.5, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%d", Span<const Value>(neg, 1)),
+              "-2.500000e+00");
+}
+
+TEST(BuiltinFormatPublicApi, IntegerConvWholeNumberStaysInteger)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value a[] = {Value::scalar(5.0, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%d", Span<const Value>(a, 1)), "5");
+    Value big[] = {Value::scalar(1e10, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%d", Span<const Value>(big, 1)),
+              "10000000000");
+    Value hex[] = {Value::scalar(255.0, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%x", Span<const Value>(hex, 1)), "ff");
+}
+
+TEST(BuiltinFormatPublicApi, IntegerConvInfNan)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value inf[] = {Value::scalar(std::numeric_limits<double>::infinity(), mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%d", Span<const Value>(inf, 1)), "Inf");
+    Value ninf[] = {Value::scalar(-std::numeric_limits<double>::infinity(), mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%d", Span<const Value>(ninf, 1)), "-Inf");
+    Value nan[] = {Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%d", Span<const Value>(nan, 1)), "NaN");
 }
