@@ -331,6 +331,60 @@ interpMakima(const double *x, const double *y, size_t n,
     return yq;
 }
 
+// ── v5cubic / cubic (1-D Keys cubic convolution) ──────────────────────
+//
+// MATLAB's interp1(...,'v5cubic') and (...,'cubic') use the classic Keys
+// (a=-0.5) cubic convolution on a UNIFORMLY-spaced grid. On a non-uniform
+// grid MATLAB warns and switches to 'spline', so we delegate there. The
+// one-cell boundary is the MATLAB cubic extrapolation 3·y1-3·y2+y3 (same
+// padding interp2 'cubic' uses). Out-of-range queries return NaN — the
+// caller's Default extrapolation policy enforces that ('cubic'/'v5cubic'
+// are NOT method-extrapolators).
+inline double keys1d(double s)
+{
+    s = std::fabs(s);
+    if (s <= 1.0) return ((1.5 * s - 2.5) * s) * s + 1.0;
+    if (s <  2.0) return (((-0.5 * s + 2.5) * s) - 4.0) * s + 2.0;
+    return 0.0;
+}
+
+ScratchVec<double>
+interpV5Cubic(const double *x, const double *y, size_t n,
+              const double *xq, size_t nq, std::pmr::memory_resource *mr)
+{
+    if (n < 3)
+        return interpLinear(x, y, n, xq, nq, mr);
+
+    // Uniform-grid check; fall back to spline (matching MATLAB) otherwise.
+    const double step = x[1] - x[0];
+    bool uniform = true;
+    for (size_t i = 2; i < n; ++i)
+        if (std::abs((x[i] - x[i - 1]) - step) > 1e-10 * std::max(1.0, std::abs(step))) {
+            uniform = false;
+            break;
+        }
+    if (!uniform)
+        return interpSpline(x, y, n, xq, nq, mr);
+
+    // One-cell padded copy: ypad[j+1] = y[j]; borders = 3·v1-3·v2+v3.
+    ScratchVec<double> ypad(n + 2, mr);
+    for (size_t j = 0; j < n; ++j) ypad[j + 1] = y[j];
+    ypad[0]     = 3.0 * y[0]     - 3.0 * y[1]     + y[2];
+    ypad[n + 1] = 3.0 * y[n - 1] - 3.0 * y[n - 2] + y[n - 3];
+
+    ScratchVec<double> yq(nq, mr);
+    for (size_t k = 0; k < nq; ++k) {
+        const size_t i = findInterval(x, n, xq[k]);   // clamped cell; OOR NaN'd by caller
+        const double t = (xq[k] - x[i]) / step;
+        const double w0 = keys1d(1.0 + t);
+        const double w1 = keys1d(t);
+        const double w2 = keys1d(1.0 - t);
+        const double w3 = keys1d(2.0 - t);
+        yq[k] = w0 * ypad[i] + w1 * ypad[i + 1] + w2 * ypad[i + 2] + w3 * ypad[i + 3];
+    }
+    return yq;
+}
+
 // Helper for interp1 / spline / pchip — pack a yq buffer into a Value
 // preserving xq's row/column orientation.
 Value packInterpResult(const double *yq, std::size_t nq,
@@ -438,6 +492,10 @@ Value interp1Dispatch(const Value &x, const Value &y, const Value &xq,
         return finish(interpPchip(xd, yd, n, xqd, nq, &scratch));
     if (method == "makima")
         return finish(interpMakima(xd, yd, n, xqd, nq, &scratch));
+    if (method == "cubic" || method == "v5cubic")
+        // Keys cubic convolution on a uniform grid (spline on non-uniform);
+        // out-of-range → NaN (NOT a method-extrapolator, see applyInterp1Extrap).
+        return finish(interpV5Cubic(xd, yd, n, xqd, nq, &scratch));
     throw Error("interp1: unknown method '" + method + "'",
                  0, 0, "interp1", "", "numkit:interp1:badMethod");
 }
