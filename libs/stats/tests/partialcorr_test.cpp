@@ -5,6 +5,8 @@
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 using namespace numkit;
 
 class PartialCorrTest : public ::testing::Test
@@ -141,4 +143,23 @@ TEST_F(PartialCorrTest, TwoArgVectorVectorScalar)
     EXPECT_EQ(static_cast<int>(evalScalar("size(R,1)")), 1);
     EXPECT_EQ(static_cast<int>(evalScalar("size(R,2)")), 1);
     EXPECT_NEAR(evalScalar("R(1,1)"), 1.0, 1e-14);
+}
+
+// ── partialcorr 'Rows' NaN policy (2026-05-30): 'complete' ───────────
+// partialcorr previously accept-and-ignored the 'Rows' NV pair, so NaN
+// data NaN-poisoned. 'complete' now applies listwise deletion across all
+// positional matrices before computing the partial correlation.
+// vs MATLAB R2025b.
+TEST_F(PartialCorrTest, RowsCompleteListwise)
+{
+    eval("Xn = [1 5 2; 2 6 9; 3 NaN 4; 4 8 1; 5 9 6; 6 3 NaN; 7 2 5];");
+    eval("Rc = partialcorr(Xn,'Rows','complete');");
+    EXPECT_NEAR(evalScalar("Rc(1,1)"),  1.0,                1e-12);
+    EXPECT_NEAR(evalScalar("Rc(1,2)"), -0.227122955741229, 1e-9);
+    EXPECT_NEAR(evalScalar("Rc(1,3)"),  0.040291148201269, 1e-9);
+    EXPECT_NEAR(evalScalar("Rc(2,3)"), -0.046205274725598, 1e-9);
+    // 'all' (default) still NaN-poisons.
+    EXPECT_TRUE(std::isnan(evalScalar("Ra = partialcorr(Xn); Ra(1,2)")));
+    // 'pairwise' is deferred -> clear error.
+    EXPECT_THROW(eval("partialcorr(Xn,'Rows','pairwise');"), std::exception);
 }
