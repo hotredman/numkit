@@ -56,6 +56,27 @@ TEST(BuiltinStringsPublicApi, Num2StrMagnitudeAware)
     EXPECT_EQ(n2s(std::nan("")), "NaN");
 }
 
+// num2str(X, FMT): routes through the sprintf engine so integer conversions
+// work, and strips leading/trailing blanks (keeping leading zeros + internal
+// spacing). vs MATLAB R2025b. Bug fixed 2026-05-30: a raw snprintf(fmt,double)
+// printed "00000"/"0" for %d specs and never trimmed the width padding.
+TEST(BuiltinStringsPublicApi, Num2StrFormatString)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto fmt = [&](double v, const char *f) {
+        return numkit::builtin::num2str(Value::scalar(v, mr), std::string(f), mr)
+            .toString();
+    };
+    EXPECT_EQ(fmt(3.14159265, "%8.4f"),        "3.1416");   // leading pad trimmed
+    EXPECT_EQ(fmt(-3.14159265, "%10.4f"),      "-3.1416");
+    EXPECT_EQ(fmt(5.0, "%05d"),                "00005");    // leading zeros kept
+    EXPECT_EQ(fmt(42.0, "%8d"),                "42");       // %d not garbage/0
+    EXPECT_EQ(fmt(3.14159265, "%.4f"),         "3.1416");
+    EXPECT_EQ(fmt(5.0, "%-8d"),                "5");        // trailing pad trimmed
+    EXPECT_EQ(fmt(3.14159265, "   value=%6.2f"), "value=  3.14"); // internal kept
+    EXPECT_EQ(fmt(1000.0, "%e"),               "1.000000e+03");
+}
+
 TEST(BuiltinStringsPublicApi, Str2NumSuccess)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
