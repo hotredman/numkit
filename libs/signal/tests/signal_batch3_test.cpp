@@ -71,6 +71,20 @@ TEST_F(SignalBatch3Test, Bilinear)
     EXPECT_DOUBLE_EQ(evalScalar("numel(az)"), 2.0);
 }
 
+// DEEP-PROBE 2026-05-31: bilinear(b,a,fs,fp) prewarp. The scale must be
+// K = 2*pi*fp/tan(pi*fp/fs); numkit double-scaled it (K = 2x too big).
+TEST_F(SignalBatch3Test, BilinearPrewarp)
+{
+    eval("[bp, ap] = bilinear([1 0], [1 2 1], 10, 2);");
+    EXPECT_NEAR(evalScalar("bp(1)"),  0.0516690611966527, 1e-12);
+    EXPECT_NEAR(evalScalar("bp(3)"), -0.0516690611966527, 1e-12);
+    EXPECT_NEAR(evalScalar("ap(2)"), -1.78137447518863,   1e-12);
+    EXPECT_NEAR(evalScalar("ap(3)"),  0.793323755213389,  1e-12);
+    // No prewarp (K = 2*fs = 20) is unchanged.
+    eval("[bn, an] = bilinear([1 0], [1 2 1], 10);");
+    EXPECT_NEAR(evalScalar("bn(1)"), 0.0453514739229025, 1e-12);
+}
+
 TEST_F(SignalBatch3Test, Multirate)
 {
     eval("y = decimate(sin(2*pi*0.01*(0:99)), 4);");

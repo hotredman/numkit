@@ -553,10 +553,14 @@ bilinear(const Value &b, const Value &a, double fs, double fp, std::pmr::memory_
 
     double fsEff = fs;
     if (fp > 0.0) {
-        // Prewarp: pick fs' such that the analog filter at 2π·fp maps
-        // to the digital filter at 2π·fp/fs after warp.
+        // Prewarp: choose the bilinear scale so the analog response at fp
+        // maps EXACTLY onto the digital response at fp. MATLAB's scale is
+        //   K = 2π·fp / tan(π·fp/fs).
+        // Since K is formed below as 2·fsEff, fsEff = π·fp / tan(π·fp/fs)
+        //   = Wp / (2·tan(Wp/(2·fs))),  Wp = 2π·fp.
+        // (The previous form omitted the /2, double-scaling K by 2×.)
         const double Wp = 2.0 * M_PI * fp;
-        fsEff = Wp / std::tan(Wp / (2.0 * fs));
+        fsEff = Wp / (2.0 * std::tan(Wp / (2.0 * fs)));
     }
     const double K = 2.0 * fsEff;
 
