@@ -73,6 +73,26 @@ TEST_F(StringsBatchTest, StartsEndsWith)
     EXPECT_DOUBLE_EQ(evalScalar("endsWith(\"hello\", \"ell\")"),   0.0);
 }
 
+// contains/startsWith/endsWith accept a cell array (or string array) of
+// patterns and match if ANY of them matches. vs MATLAB R2025b. 2026-05-30:
+// previously these threw "Not a char array" on a cell pattern argument.
+TEST_F(StringsBatchTest, MatchAnyOfCellPatterns)
+{
+    // startsWith
+    EXPECT_DOUBLE_EQ(evalScalar("startsWith('foobar', {'foo','xyz'})"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("startsWith('foobar', {'zzz','xyz'})"), 0.0);
+    // endsWith
+    EXPECT_DOUBLE_EQ(evalScalar("endsWith('test.m', {'.m','.cpp'})"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("endsWith('test.txt', {'.m','.cpp'})"), 0.0);
+    // contains
+    EXPECT_DOUBLE_EQ(evalScalar("contains('hello', {'ell','xyz'})"),    1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("contains('hello', {'zzz','xyz'})"),    0.0);
+    // string-array pattern list
+    EXPECT_DOUBLE_EQ(evalScalar("startsWith('foobar', [\"foo\" \"xyz\"])"), 1.0);
+    // scalar pattern unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("contains('hello', 'ell')"),            1.0);
+}
+
 TEST_F(StringsBatchTest, Strcat)
 {
     EXPECT_EQ(evalString("strcat(\"ab\", \"cd\")"),       "abcd");

@@ -1437,29 +1437,66 @@ Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr:
     return Value::fromString(r, p);
 }
 
+namespace {
+
+// Collect the pattern strings from `pat`: a char/string scalar yields one
+// pattern; a cell array of char vectors or a multi-element string array yields
+// one per element (both store their elements as Values in cellDataVec()).
+// MATLAB's contains/startsWith/endsWith match if the string matches ANY of
+// the listed patterns.
+void collectMatchPatterns(const Value &pat, ScratchVec<std::string> &out)
+{
+    if (pat.isCell() || (pat.isString() && pat.numel() != 1)) {
+        const auto &vec = pat.cellDataVec();
+        for (const auto &e : vec) out.push_back(e.toString());
+    } else {
+        out.push_back(pat.toString());
+    }
+}
+
+} // namespace
+
 Value contains(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    std::string pp = pat.toString();
-    return Value::logicalScalar(ss.find(pp) != std::string::npos, mr);
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(pat, pats);
+    bool any = false;
+    for (const auto &pp : pats)
+        if (ss.find(pp) != std::string::npos) { any = true; break; }
+    return Value::logicalScalar(any, mr);
 }
 
 Value startsWith(const Value &s, const Value &prefix, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    std::string pp = prefix.toString();
-    return Value::logicalScalar(
-        ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0, mr);
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(prefix, pats);
+    bool any = false;
+    for (const auto &pp : pats)
+        if (ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0) {
+            any = true;
+            break;
+        }
+    return Value::logicalScalar(any, mr);
 }
 
 Value endsWith(const Value &s, const Value &suffix, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    std::string pp = suffix.toString();
-    return Value::logicalScalar(
-        ss.size() >= pp.size()
-            && ss.compare(ss.size() - pp.size(), pp.size(), pp) == 0,
-        mr);
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(suffix, pats);
+    bool any = false;
+    for (const auto &pp : pats)
+        if (ss.size() >= pp.size()
+            && ss.compare(ss.size() - pp.size(), pp.size(), pp) == 0) {
+            any = true;
+            break;
+        }
+    return Value::logicalScalar(any, mr);
 }
 
 // ── Pack 36: compose / strjust / extract / split / join ──────────────
