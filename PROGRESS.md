@@ -2426,7 +2426,7 @@ intentionally omitted — flat solver functions only.
 | `filtord` | ✅ | Sig: n = filtord(b[, a]). FIR (single arg or trivial a) → length(b)-1; IIR → max(len_b, len_a)-1 with trailing zeros trimmed. fingerprint covers IIR + 2 FIR cases. |
 | `firtype` | ✅ | Sig: t = firtype(b). FIR linear-phase classification per MATLAB: 1 = sym/odd-len, 2 = sym/even-len, 3 = anti/odd-len, 4 = anti/even-len. Fingerprint covers all 4 types. |
 | `freqz` | ✅ 🔬 | Sig [h,w]=freqz(b,a,n[,'whole']). Default grid w = pi*(0:n-1)/n on [0,pi). 'whole' -> w = 2*pi*(0:n-1)/n on the full unit circle [0,2pi): freqz([1 1],1,4,'whole') w=[0 pi/2 pi 3pi/2], |h(1)|=2. numkit previously ignored 'whole' -- now honored. Matches MATLAB R2025b. |
-| `grpdelay` | ✅ | Sig: r = grpdelay(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `grpdelay` | ✅ 🔬 | Sig [gd,w]=grpdelay(b,a,n): group delay = -d(arg H)/dw. DEEP-PROBE 2026-05-31: numkit used a crude PHASE FINITE-DIFFERENCE that was wildly wrong at small n (gd(0) gave 1.137 vs MATLAB 1.5). Now uses the EXACT ramped-polynomial method: c=conv(b,reverse(a)), gd=Re{CR/C}-(na-1) with CR[n]=n*c[n]. H=(1+z^-1)/(1-0.5z^-1): gd=[1.5 0.690743570 0.3 0.191609371] (a1=1.5 a2=0.690743570 a4=0.191609371). Second filter has NEGATIVE group delay: g2=[-0.288888889 -0.481974434 -0.656839485 0.188404335 0.715501746] (n1=-0.288888889 n3=-0.656839485 n5=0.715501746). namespace=signal. Matches MATLAB R2025b. |
 | `impz` | ✅ | Sig: r = impz(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `impzlength` | ✅ | Sig: n = impzlength(b[, a]). MATLAB-conformant decay-to-5e-5 formula 2026-05-09. Bit-identical with MATLAB R2025b on rho = 0.5/0.7/0.9/0.99/0.1. |
 | `isallpass` | ✅ | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
