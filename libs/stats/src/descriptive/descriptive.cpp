@@ -24,6 +24,7 @@
 #include "math/arithmetic/var_reduction.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -941,6 +942,134 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
 
 namespace {
 
+enum class CovNan { Include, Omitrows, Partialrows };
+
+// Recognize a NaN-policy string ('includenan' | 'omitrows' | 'partialrows').
+bool parseCovNanFlag(const Value &v, CovNan &mode)
+{
+    if (!v.isChar() && !v.isString()) return false;
+    std::string s = v.toString();
+    for (auto &c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (s == "includenan")  { mode = CovNan::Include;     return true; }
+    if (s == "omitrows")    { mode = CovNan::Omitrows;    return true; }
+    if (s == "partialrows") { mode = CovNan::Partialrows; return true; }
+    return false;
+}
+
+// Assemble two equal-length vectors into an n×2 column-major matrix Value
+// [x(:) y(:)] for the two-vector NaN-aware path.
+Value assembleXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    validateCovInputs(x, "cov");
+    validateCovInputs(y, "cov");
+    if (!x.dims().isVector() || !y.dims().isVector())
+        throw Error("cov: two-input form requires vector arguments",
+                     0, 0, "cov", "", "numkit:cov:notVector");
+    if (x.numel() != y.numel())
+        throw Error("cov: x and y must have the same length",
+                     0, 0, "cov", "", "numkit:cov:lengthMismatch");
+    const std::size_t n = x.numel();
+    auto out = Value::matrix(n, 2, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    for (std::size_t i = 0; i < n; ++i) {
+        o[i] = x.elemAsDouble(i);
+        o[n + i] = y.elemAsDouble(i);
+    }
+    return out;
+}
+
+// cov with 'omitrows' (listwise deletion: drop any row containing a NaN) or
+// 'partialrows' (pairwise deletion: each cov(i,j) uses rows where both
+// columns are non-NaN, with the means taken over exactly those rows). The
+// default 'includenan' is the NaN-poisoning behaviour of plain cov() and is
+// routed there by the dispatcher.
+Value covNanAware(const Value &x, int normFlag, CovNan mode,
+                  std::pmr::memory_resource *mr)
+{
+    validateNormFlagCov(normFlag, "cov");
+    validateCovInputs(x, "cov");
+    ScratchArena scratch(mr);
+    ScratchVec<double> data(&scratch);
+    std::size_t n, p;
+    readMatrix(x, data, n, p);
+
+    auto divisorOf = [normFlag](std::size_t m) {
+        return (normFlag == 0) ? std::max(1.0, static_cast<double>(m) - 1.0)
+                               : static_cast<double>(m);
+    };
+
+    // Vector input → scalar variance over the non-NaN elements.
+    if (p == 1) {
+        double s = 0.0;
+        std::size_t m = 0;
+        for (std::size_t i = 0; i < n; ++i)
+            if (!std::isnan(data[i])) { s += data[i]; ++m; }
+        if (m == 0) return Value::scalar(std::nan(""), mr);
+        const double mean = s / static_cast<double>(m);
+        double sq = 0.0;
+        for (std::size_t i = 0; i < n; ++i)
+            if (!std::isnan(data[i])) { const double d = data[i] - mean; sq += d * d; }
+        return Value::scalar(sq / divisorOf(m), mr);
+    }
+
+    if (mode == CovNan::Omitrows) {
+        auto rowOk = [&](std::size_t r) {
+            for (std::size_t c = 0; c < p; ++c)
+                if (std::isnan(data[c * n + r])) return false;
+            return true;
+        };
+        std::size_t m = 0;
+        for (std::size_t r = 0; r < n; ++r) if (rowOk(r)) ++m;
+        if (m == 0) {
+            auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
+            double *o = out.doubleDataMut();
+            for (std::size_t i = 0; i < p * p; ++i) o[i] = std::nan("");
+            return out;
+        }
+        ScratchVec<double> kept(&scratch);
+        kept.assign(m * p, 0.0);
+        std::size_t rr = 0;
+        for (std::size_t r = 0; r < n; ++r) {
+            if (!rowOk(r)) continue;
+            for (std::size_t c = 0; c < p; ++c) kept[c * m + rr] = data[c * n + r];
+            ++rr;
+        }
+        centerColumns(kept.data(), m, p);
+        return covMatrixFromCentered(kept.data(), m, p, divisorOf(m), mr);
+    }
+
+    // Partialrows.
+    auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = i; j < p; ++j) {
+            double si = 0.0, sj = 0.0;
+            std::size_t m = 0;
+            for (std::size_t r = 0; r < n; ++r) {
+                const double a = data[i * n + r], b = data[j * n + r];
+                if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
+            }
+            double v;
+            if (m == 0) {
+                v = std::nan("");
+            } else {
+                const double mi = si / static_cast<double>(m);
+                const double mj = sj / static_cast<double>(m);
+                double s = 0.0;
+                for (std::size_t r = 0; r < n; ++r) {
+                    const double a = data[i * n + r], b = data[j * n + r];
+                    if (!std::isnan(a) && !std::isnan(b))
+                        s += (a - mi) * (b - mj);
+                }
+                v = s / divisorOf(m);
+            }
+            o[j * p + i] = v;
+            o[i * p + j] = v;
+        }
+    return out;
+}
+
 Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 {
     if (C.dims().rows() != C.dims().cols())
@@ -1533,14 +1662,50 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("cov: requires at least 1 argument",
                      0, 0, "cov", "", "numkit:cov:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
-    if (args.size() == 1) {
+
+    // A trailing NaN-policy string ('includenan'|'omitrows'|'partialrows')
+    // may follow any signature. Strip it; the remaining args are numeric.
+    CovNan nanMode = CovNan::Include;
+    std::size_t nargs = args.size();
+    if (nargs >= 2 && parseCovNanFlag(args[nargs - 1], nanMode))
+        --nargs;
+
+    if (nanMode != CovNan::Include) {
+        // 'omitrows' / 'partialrows' over the numeric arg(s).
+        //   1 numeric arg : cov(X, flag)
+        //   2 numeric args: cov(X, w, flag) [w scalar 0/1] | cov(x, y, flag)
+        //   3 numeric args: cov(x, y, w, flag)
+        if (nargs == 1) {
+            outs[0] = covNanAware(args[0], 0, nanMode, mr);
+            return;
+        }
+        if (nargs == 2) {
+            if (args[1].isScalar()) {
+                const double v = args[1].toScalar();
+                if (v == 0.0 || v == 1.0) {
+                    outs[0] = covNanAware(args[0], static_cast<int>(v),
+                                          nanMode, mr);
+                    return;
+                }
+            }
+            outs[0] = covNanAware(assembleXY(args[0], args[1], mr), 0,
+                                  nanMode, mr);
+            return;
+        }
+        const int w = static_cast<int>(args[2].toScalar());
+        outs[0] = covNanAware(assembleXY(args[0], args[1], mr), w, nanMode, mr);
+        return;
+    }
+
+    // 'includenan' (default) → plain cov over the numeric args.
+    if (nargs == 1) {
         outs[0] = cov(args[0], 0, mr);
         return;
     }
     // 2-arg form is ambiguous: cov(x, normFlag) vs cov(x, y).
     // Disambiguate exactly the way MATLAB does: if the second arg is a
     // scalar (0 or 1), it's normFlag; otherwise it's y.
-    if (args.size() == 2) {
+    if (nargs == 2) {
         if (args[1].isScalar()) {
             const double v = args[1].toScalar();
             if (v == 0.0 || v == 1.0) {

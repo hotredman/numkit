@@ -2892,7 +2892,7 @@ locations until physical migration lands.
 |---|:---:|---:|---:|---:|:---:|---|
 | `bounds` | ✅ | 5.932 | 0.02× |  | OK | Sig: [lo,hi] = bounds(X). 1M-pt min/max. 100 iters. |
 | `corrcoef` | ✅ | 0.003 | 218.39× |  | OK | Sig: r = corrcoef(...). Spec-extension batch 2026-05-09. |
-| `cov` | ✅ | 0.002 | 31.68× |  | OK | Sig: r = cov(...). Spec-extension batch 2026-05-09. |
+| `cov` | ✅ | 0.007 | 503.24× |  | OK | Sig: r = cov(...). Spec-extension batch 2026-05-09. 2026-05-30: NaN-policy flag added — cov(X,'omitrows') drops every row with a NaN (o11=o12=2.3333 on X), cov(X,'partialrows') deletes pairwise so each entry uses rows where both columns are non-NaN (p11=1.6667 over all 4 rows of col1, p12=p22=2.3333 over the 3 rows valid for col2), cov(X,1,'omitrows') uses N normalization (w11=1.5556), and a vector input reduces to the variance over its non-NaN elements (vo=2.3333). 'includenan' (default) still NaN-poisons. |
 | `cummax` | ✅ | 2.530 | 0.58× |  | OK | Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE. |
 | `cummin` | ✅ | 2.443 | 0.68× |  | OK | Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE. |
 | `iqr` | ✅ | 0.006 | 864.90× | 177.19× | OK | Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). Closes audit/findings/stats/iqr.md (joint with quantile + prctile). |
