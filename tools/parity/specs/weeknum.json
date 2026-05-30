@@ -1,0 +1,14 @@
+{
+  "name": "weeknum",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = weeknum(datenum('2026-01-01')); b = weeknum(datenum('2026-01-04')); c = weeknum(datenum('2026-12-31')); lp = weeknum(datenum('2020-02-29')); jy = weeknum(datenum('2026-07-04')); ws = weeknum(datenum('2026-01-04'),2); ws5 = weeknum(datenum('2026-01-05'),2); e1 = weeknum(datenum('2026-01-01'),1,1); e4 = weeknum(datenum('2026-01-04'),1,1); ee = weeknum(datenum('2026-12-31'),1,1); ep = weeknum(datenum('2027-01-01'),1,1); v = weeknum([datenum('2026-01-01'); datenum('2026-12-31')]); v1 = v(1); v2 = v(2); vcol = double(iscolumn(v));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "a", "b", "c", "lp", "jy",
+    "ws", "ws5", "e1", "e4", "ee", "ep",
+    "v1", "v2", "vcol"
+  ],
+  "comment": "weeknum(D [, WeekStart [, European]]): week-of-year for serial date number D, element-wise, shape preserved. Implemented 2026-05-30 (was an undefined function). US default (WeekStart=1=Sunday): partial first week is week 1, so Jan 1 2026 (Thu) = 1 (a), Jan 4 (Sun) = 2 (b), Dec 31 2026 = 53 (c); leap Feb 29 2020 = 9 (lp), Jul 4 2026 = 27 (jy). WeekStart=2 (Monday): Jan 4 2026 (Sun) = 1 (ws), Jan 5 (Mon) = 2 (ws5). European=1 applies the ISO-style >=4-day rule with the chosen WeekStart and donates a short leading partial week to the prior year: Jan 1 2026 = 53 (e1, donated), Jan 4 = 1 (e4), Dec 31 2026 = 52 (ee), Jan 1 2027 = 52 (ep). Vector input -> column preserved (v1=1, v2=53, vcol=1). namespace=builtin. WeekStart out of 1..7 throws (covered in gtest)."
+}

@@ -236,3 +236,44 @@ TEST_F(DatevecTest, EtimeWrongColumnsThrows)
     // MATLAB indexes column 6; fewer than 6 columns is an error.
     EXPECT_THROW(eval("etime([2026 5 30],[2026 5 29]);"), std::exception);
 }
+
+// ── weeknum(D [, WeekStart [, European]]): week-of-year number ────────
+// Implemented 2026-05-30 (was an undefined function). US default counts
+// the partial first week as week 1; European=1 applies the ISO-style
+// >=4-day rule with the chosen WeekStart. vs MATLAB R2025b.
+TEST_F(DatevecTest, WeeknumUS)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-01-01'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-01-03'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-01-04'))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-12-31'))"), 53.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2020-02-29'))"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-07-04'))"), 27.0);
+}
+
+TEST_F(DatevecTest, WeeknumWeekStartMonday)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-01-04'),2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-01-05'),2)"), 2.0);
+}
+
+TEST_F(DatevecTest, WeeknumEuropean)
+{
+    // Leading partial week donated to prior year.
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-01-01'),1,1)"), 53.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-01-04'),1,1)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2026-12-31'),1,1)"), 52.0);
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2027-01-01'),1,1)"), 52.0);
+    // 2025: leading week has 4 days, so European == US (both 53).
+    EXPECT_DOUBLE_EQ(evalScalar("weeknum(datenum('2025-12-28'),1,1)"), 53.0);
+}
+
+TEST_F(DatevecTest, WeeknumVectorAndError)
+{
+    eval("w = weeknum([datenum('2026-01-01'); datenum('2026-12-31')]);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("w(2)"), 53.0);
+    EXPECT_DOUBLE_EQ(evalScalar("iscolumn(w)"), 1.0);
+    // WeekStart outside 1..7 is an error.
+    EXPECT_THROW(eval("weeknum(datenum('2026-01-01'),9);"), std::exception);
+}
