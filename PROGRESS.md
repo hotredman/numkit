@@ -2399,7 +2399,7 @@ intentionally omitted — flat solver functions only.
 |---|:---:|---|
 | `besselap` | ✅ | Sig: r = besselap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `besself` | ✅ | Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43). |
-| `bilinear` | ✅ | Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace). |
+| `bilinear` | ✅ 🔬 | Sig: [bz,az] = bilinear(b,a,fs[,fp]). Bilinear transform s = K(z-1)/(z+1). DEEP-PROBE 2026-05-31: the PREWARP form bilinear(b,a,fs,fp) was DOUBLE-scaling K — it computed fsEff = 2pi*fp/tan(pi*fp/fs) then K = 2*fsEff (2x too big). MATLAB's scale is K = 2pi*fp/tan(pi*fp/fs) directly. bilinear([1 0],[1 2 1],10,2): b1=bp(1)=0.0516690612 a2=ap(2)=-1.78137448 a3=ap(3)=0.793323755 (K=17.2978, b1=K/(K+1)^2). Without fp (K=2*fs=20) unchanged: bn1=0.0453514739. namespace=signal. Matches MATLAB R2025b. |
 | `buttap` | ✅ | Sig: r = buttap(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `butter` | ✅ | Sig: [b,a]=butter / [z,p,k]=butter(N,Wn[,type]). DEEP-PROBE 2026-05-31: the 3-output [z,p,k] form (digital zero/pole/gain) was added (previously errored 'Undefined k'). butter(4,0.3): nz=4 np=4 gain kb=0.0185630106, sum(real(poles))=1.57039885. ZPK recovered from the (b,a) the designer already builds (a is monic so gain=b(1)); poles+gain are exact. NOTE the lowpass zeros are all at z=-1 (repeated root) and are recovered by root-finding only to ~1e-2 — sum(real(z)) is NOT fingerprinted here; bit-exact repeated zeros would need a ZPK-form bilinear (deferred). namespace=signal. |
 | `cheb1ap` | ✅ | Sig: r = cheb1ap(...). Spec-extension batch 2026-05-09 (signal namespace). |
