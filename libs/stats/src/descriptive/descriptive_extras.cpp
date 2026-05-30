@@ -100,22 +100,29 @@ namespace {
 // k-largest along a generic dim. Output keeps the input shape but with
 // the chosen dim shrunk to k. We allocate via createMatrix on the
 // 2D / 3D fast path, and fall back to matrixND otherwise.
-Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char *fn, std::pmr::memory_resource *mr)
+// When `idxOut` is non-null it receives the 1-based indices (along the
+// operating dimension) of the returned elements, like MATLAB's
+// [M, I] = mink/maxk(...). Ties keep the lower original index (stable sort).
+Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char *fn, std::pmr::memory_resource *mr, Value *idxOut = nullptr)
 {
     if (kReq < 0)
         throw Error(std::string(fn) + ": k must be non-negative",
                      0, 0, fn, "", std::string("numkit:") + fn + ":badK");
-    if (x.isEmpty())
+    if (x.isEmpty()) {
+        if (idxOut) *idxOut = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    }
 
     // Vector / scalar — single-slice fast path.
     if (x.dims().isVector() || x.isScalar()) {
         const size_t n = x.numel();
         const size_t k = std::min<size_t>(static_cast<size_t>(kReq), n);
-        std::vector<double> buf(n);
-        for (size_t i = 0; i < n; ++i) buf[i] = x.elemAsDouble(i);
-        std::sort(buf.begin(), buf.end(),
-                  [ascending](double a, double b) {
+        std::vector<double> vals(n);
+        std::vector<size_t> ord(n);
+        for (size_t i = 0; i < n; ++i) { vals[i] = x.elemAsDouble(i); ord[i] = i; }
+        std::stable_sort(ord.begin(), ord.end(),
+                  [&](size_t ia, size_t ib) {
+                      const double a = vals[ia], b = vals[ib];
                       if (std::isnan(a)) return false;
                       if (std::isnan(b)) return true;
                       return ascending ? (a < b) : (a > b);
@@ -125,7 +132,13 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
         auto out = isRow
                     ? Value::matrix(1, k, ValueType::DOUBLE, mr)
                     : Value::matrix(k, 1, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < k; ++i) out.doubleDataMut()[i] = buf[i];
+        for (size_t i = 0; i < k; ++i) out.doubleDataMut()[i] = vals[ord[i]];
+        if (idxOut) {
+            *idxOut = isRow ? Value::matrix(1, k, ValueType::DOUBLE, mr)
+                            : Value::matrix(k, 1, ValueType::DOUBLE, mr);
+            for (size_t i = 0; i < k; ++i)
+                idxOut->doubleDataMut()[i] = static_cast<double>(ord[i] + 1);
+        }
         return out;
     }
 
@@ -151,13 +164,23 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
     auto out = dd.is3D()
                 ? Value::matrix3d(Ro, Co, Po, ValueType::DOUBLE, mr)
                 : Value::matrix(Ro, Co, ValueType::DOUBLE, mr);
+    if (idxOut)
+        *idxOut = dd.is3D()
+                    ? Value::matrix3d(Ro, Co, Po, ValueType::DOUBLE, mr)
+                    : Value::matrix(Ro, Co, ValueType::DOUBLE, mr);
     const double *src = x.doubleData();
     double *dst = out.doubleDataMut();
+    double *idst = idxOut ? idxOut->doubleDataMut() : nullptr;
     std::vector<double> buf(sliceLen);
+    std::vector<size_t> ord(sliceLen);
 
-    auto sortBuf = [&]() {
-        std::sort(buf.begin(), buf.end(),
-            [ascending](double a, double b) {
+    // Sort the index permutation of the current slice (stable → ties keep the
+    // lower position), leaving the sorted order in `ord`.
+    auto sortSlice = [&]() {
+        for (size_t i = 0; i < sliceLen; ++i) ord[i] = i;
+        std::stable_sort(ord.begin(), ord.end(),
+            [&](size_t ia, size_t ib) {
+                const double a = buf[ia], b = buf[ib];
                 if (std::isnan(a)) return false;
                 if (std::isnan(b)) return true;
                 return ascending ? (a < b) : (a > b);
@@ -170,9 +193,12 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
             for (size_t c = 0; c < C; ++c) {
                 for (size_t r = 0; r < R; ++r)
                     buf[r] = src[p * pageStride + c * R + r];
-                sortBuf();
-                for (size_t i = 0; i < Ro; ++i)
-                    dst[p * outPageStride + c * Ro + i] = buf[i];
+                sortSlice();
+                for (size_t i = 0; i < Ro; ++i) {
+                    dst[p * outPageStride + c * Ro + i] = buf[ord[i]];
+                    if (idst) idst[p * outPageStride + c * Ro + i] =
+                                  static_cast<double>(ord[i] + 1);
+                }
             }
     } else if (d == 2) {
         const size_t outPageStride = Ro * Co;
@@ -180,9 +206,12 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
             for (size_t r = 0; r < R; ++r) {
                 for (size_t c = 0; c < C; ++c)
                     buf[c] = src[p * pageStride + c * R + r];
-                sortBuf();
-                for (size_t i = 0; i < Co; ++i)
-                    dst[p * outPageStride + i * Ro + r] = buf[i];
+                sortSlice();
+                for (size_t i = 0; i < Co; ++i) {
+                    dst[p * outPageStride + i * Ro + r] = buf[ord[i]];
+                    if (idst) idst[p * outPageStride + i * Ro + r] =
+                                  static_cast<double>(ord[i] + 1);
+                }
             }
     } else { // d == 3
         const size_t outPageStride = Ro * Co;
@@ -190,9 +219,12 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
             for (size_t r = 0; r < R; ++r) {
                 for (size_t p = 0; p < P; ++p)
                     buf[p] = src[p * pageStride + c * R + r];
-                sortBuf();
-                for (size_t i = 0; i < Po; ++i)
-                    dst[i * outPageStride + c * Ro + r] = buf[i];
+                sortSlice();
+                for (size_t i = 0; i < Po; ++i) {
+                    dst[i * outPageStride + c * Ro + r] = buf[ord[i]];
+                    if (idst) idst[i * outPageStride + c * Ro + r] =
+                                  static_cast<double>(ord[i] + 1);
+                }
             }
     }
     return out;
@@ -1983,7 +2015,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     }
 }
 
-void maxk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("maxk: requires at least 2 arguments (x, k)",
@@ -2023,10 +2055,17 @@ void maxk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         }
         i += 2;
     }
-    outs[0] = maxk(args[0], k, dim, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        Value idx;
+        outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/false, "maxk", mr, &idx);
+        outs[1] = idx;
+    } else {
+        outs[0] = maxk(args[0], k, dim, mr);
+    }
 }
 
-void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("mink: requires at least 2 arguments (x, k)",
@@ -2061,7 +2100,14 @@ void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         }
         i += 2;
     }
-    outs[0] = mink(args[0], k, dim, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        Value idx;
+        outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/true, "mink", mr, &idx);
+        outs[1] = idx;
+    } else {
+        outs[0] = mink(args[0], k, dim, mr);
+    }
 }
 
 // Common parser for mape/rmse trailing args: optional dim ('all', vecdim,
