@@ -3055,17 +3055,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     Y = y + (M <= 2 ? 1 : 0);
                                 };
 
-                                int yi, moi, di, hi, mii, si;
-                                if (din.numel() == 6) {
-                                    yi  = static_cast<int>(din.elemAsDouble(0));
-                                    moi = static_cast<int>(din.elemAsDouble(1));
-                                    di  = static_cast<int>(din.elemAsDouble(2));
-                                    hi  = static_cast<int>(din.elemAsDouble(3));
-                                    mii = static_cast<int>(din.elemAsDouble(4));
-                                    si  = static_cast<int>(std::round(
-                                              din.elemAsDouble(5)));
-                                } else if (din.numel() == 1) {
-                                    const double dval = din.elemAsDouble(0);
+                                struct Comp { int y, mo, d, h, mi, s; };
+                                auto serialToComp = [&](double dval) -> Comp {
                                     const double floored = std::floor(dval);
                                     const int64_t z =
                                         static_cast<int64_t>(floored) - 719529;
@@ -3080,13 +3071,41 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     if (S >= 60.0) { S -= 60.0; ++MI; }
                                     if (MI >= 60)  { MI -= 60;  ++H;  }
                                     if (H  >= 24)  { H  -= 24; civilFromDays(z + 1, Y, M, D); }
-                                    yi = static_cast<int>(Y); moi = M; di = D;
-                                    hi = H; mii = MI; si = static_cast<int>(std::round(S));
+                                    return Comp{ static_cast<int>(Y), M, D, H, MI,
+                                                 static_cast<int>(std::round(S)) };
+                                };
+
+                                // Build the list of dates. An N-by-6 matrix
+                                // (cols==6) is N DATE VECTORS (one per row);
+                                // anything else (scalar / vector / non-6-col
+                                // matrix) is serial date NUMBERS in column-major
+                                // order, each a separate date. Matches MATLAB
+                                // R2025b's datestr disambiguation: a 6x1 column
+                                // is 6 dates, a 1x6 row is one date vector.
+                                const size_t Rr = din.dims().rows();
+                                const size_t Cc = din.dims().cols();
+                                std::vector<Comp> dates;
+                                if (Cc == 6 && !din.dims().is3D()) {
+                                    dates.reserve(Rr);
+                                    for (size_t r = 0; r < Rr; ++r)
+                                        dates.push_back(Comp{
+                                            static_cast<int>(din.elemAsDouble(0 * Rr + r)),
+                                            static_cast<int>(din.elemAsDouble(1 * Rr + r)),
+                                            static_cast<int>(din.elemAsDouble(2 * Rr + r)),
+                                            static_cast<int>(din.elemAsDouble(3 * Rr + r)),
+                                            static_cast<int>(din.elemAsDouble(4 * Rr + r)),
+                                            static_cast<int>(std::round(din.elemAsDouble(5 * Rr + r)))});
                                 } else {
-                                    throw std::runtime_error(
-                                        "datestr: multi-date matrix input not "
-                                        "yet supported");
+                                    const size_t n = din.numel();
+                                    dates.reserve(n);
+                                    for (size_t k = 0; k < n; ++k)
+                                        dates.push_back(serialToComp(din.elemAsDouble(k)));
                                 }
+                                if (dates.empty())
+                                    throw std::runtime_error("datestr: empty date input");
+                                bool anyTime = false;
+                                for (const auto &c : dates)
+                                    if (c.h != 0 || c.mi != 0 || c.s != 0) { anyTime = true; break; }
 
                                 std::string fmt;
                                 if (args.size() >= 2) {
@@ -3141,9 +3160,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         fmt = DATEFORM[code];
                                     }
                                 } else {
-                                    fmt = (hi != 0 || mii != 0 || si != 0)
-                                              ? "dd-mmm-yyyy HH:MM:SS"
-                                              : "dd-mmm-yyyy";
+                                    fmt = anyTime ? "dd-mmm-yyyy HH:MM:SS"
+                                                  : "dd-mmm-yyyy";
                                 }
 
                                 static const char *MON3[] = {
@@ -3160,10 +3178,6 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     "Thursday","Friday","Saturday"};
                                 // Day of week via Sakamoto's algorithm.
                                 static const int dt[] = {0,3,2,5,0,3,5,1,4,6,2,4};
-                                int yw = yi - (moi < 3 ? 1 : 0);
-                                int dow = ((yw + yw/4 - yw/100 + yw/400
-                                            + dt[(moi - 1 + 12) % 12] + di) % 7 + 7) % 7;
-
                                 // A meridiem token ('AM'/'PM', case-insensitive)
                                 // anywhere in the format switches HH to a
                                 // 12-hour, space-padded clock and prints AM/PM
@@ -3174,8 +3188,15 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     char b = (char)std::tolower((unsigned char)fmt[k+1]);
                                     if ((a == 'a' || a == 'p') && b == 'm') { hour12 = true; break; }
                                 }
-                                const int h12 = (hi % 12 == 0) ? 12 : (hi % 12);
 
+                                // Render one date with the chosen format.
+                                auto renderOne = [&](const Comp &cc) -> std::string {
+                                const int yi = cc.y, moi = cc.mo, di = cc.d,
+                                          hi = cc.h, mii = cc.mi, si = cc.s;
+                                int yw = yi - (moi < 3 ? 1 : 0);
+                                int dow = ((yw + yw/4 - yw/100 + yw/400
+                                            + dt[(moi - 1 + 12) % 12] + di) % 7 + 7) % 7;
+                                const int h12 = (hi % 12 == 0) ? 12 : (hi % 12);
                                 std::string out;
                                 char buf[16];
                                 size_t i = 0;
@@ -3209,7 +3230,32 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     }
                                     else { out += fmt[i]; ++i; }
                                 }
-                                outs[0] = Value::fromString(out, mr);
+                                return out;
+                                };  // renderOne
+
+                                if (dates.size() == 1) {
+                                    outs[0] = Value::fromString(renderOne(dates[0]), mr);
+                                } else {
+                                    // Multi-date: one row per date, stacked into
+                                    // an N x maxWidth char matrix (right-padded
+                                    // with spaces), matching MATLAB datestr.
+                                    std::vector<std::string> rowstr;
+                                    rowstr.reserve(dates.size());
+                                    size_t maxW = 0;
+                                    for (const auto &c : dates) {
+                                        rowstr.push_back(renderOne(c));
+                                        if (rowstr.back().size() > maxW)
+                                            maxW = rowstr.back().size();
+                                    }
+                                    const size_t N = rowstr.size();
+                                    Value Mc = Value::matrix(N, maxW, ValueType::CHAR, mr);
+                                    char *dst = static_cast<char *>(Mc.rawDataMut());
+                                    for (size_t r = 0; r < N; ++r)
+                                        for (size_t c = 0; c < maxW; ++c)
+                                            dst[c * N + r] =   // column-major
+                                                (c < rowstr[r].size()) ? rowstr[r][c] : ' ';
+                                    outs[0] = Mc;
+                                }
                             });
 
     engine.registerFunction("datevec",
