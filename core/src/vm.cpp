@@ -1130,6 +1130,53 @@ enter_frame:
                 obj.setField(idx, fname, R[I.c]);  // BUG #15
                 break;
             }
+            case OpCode::STRUCT_ELEM_GET_OR_CREATE: {
+                // a=dst, b=obj (in/out), c=base, e=nargs — d(i…) as a 1×1
+                // struct, auto-growing the array (compound-lvalue container).
+                Value &obj = R[I.b];
+                if (obj.isUnset() || obj.isEmpty())
+                    obj = Value::structArray(0, 0, engine_.resource());
+                if (!obj.isStruct())
+                    throw std::runtime_error("Indexed assignment on a non-struct value");
+                const int nargs = I.e;
+                size_t coords[Dims::kMaxRank];
+                for (int k = 0; k < nargs; ++k)
+                    coords[k] = static_cast<size_t>(R[I.c + k].toScalar()) - 1;
+                size_t linear;
+                if (nargs == 1) {
+                    linear = coords[0];
+                    obj.growStructArrayTo(linear, engine_.resource());
+                } else {
+                    linear = obj.growStructArrayND(coords, nargs, engine_.resource());
+                }
+                R[I.a] = obj.elemAt(linear, engine_.mr_);  // 1×1 struct (empty if vacant)
+                break;
+            }
+            case OpCode::STRUCT_ELEM_SET: {
+                // a=obj (in/out), b=base, c=nargs, e=valReg — d(i…) = struct.
+                Value &obj = R[I.a];
+                if (obj.isUnset() || obj.isEmpty())
+                    obj = Value::structArray(0, 0, engine_.resource());
+                if (!obj.isStruct())
+                    throw std::runtime_error("Indexed assignment on a non-struct value");
+                const int nargs = I.c;
+                size_t coords[Dims::kMaxRank];
+                for (int k = 0; k < nargs; ++k)
+                    coords[k] = static_cast<size_t>(R[I.b + k].toScalar()) - 1;
+                size_t linear;
+                if (nargs == 1) {
+                    linear = coords[0];
+                    obj.growStructArrayTo(linear, engine_.resource());
+                } else {
+                    linear = obj.growStructArrayND(coords, nargs, engine_.resource());
+                }
+                const Value &val = R[I.e];
+                if (!val.isStruct())
+                    throw std::runtime_error("Cannot assign a non-struct to a struct-array element");
+                for (const auto &name : val.fieldNamesInOrder())
+                    obj.setField(linear, name, val.field(name));  // BUG #15 order
+                break;
+            }
             case OpCode::FIELD_GET_DYN: {
                 // a=dst, b=obj, c=nameReg — s.(R[nameReg])
                 std::string fname = R[I.c].toString();
@@ -1138,6 +1185,16 @@ enter_frame:
                 if (!R[I.b].hasField(fname))
                     throw std::runtime_error("Reference to non-existent field '" + fname + "'");
                 R[I.a] = R[I.b].field(fname);
+                break;
+            }
+            case OpCode::FIELD_GET_OR_CREATE_DYN: {
+                // a=dst, b=obj (in/out), c=nameReg — lvalue dynamic field
+                std::string fname = R[I.c].toString();
+                if (R[I.b].isEmpty())
+                    R[I.b] = Value::structure();
+                if (!R[I.b].isStruct())
+                    throw std::runtime_error("Dot indexing requires a struct");
+                R[I.a] = R[I.b].field(fname);  // field() auto-creates if missing
                 break;
             }
             case OpCode::FIELD_SET_DYN: {
@@ -1165,6 +1222,19 @@ enter_frame:
                     throw std::runtime_error("Cell indexing requires a cell array");
                 size_t i = (size_t) R[I.c].toScalar() - 1;
                 R[I.a] = R[I.b].cellAt(i);
+                break;
+            }
+            case OpCode::CELL_GET_OR_CREATE: {
+                // a=dst, b=cell (in/out), c=base, e=nargs — c{i…} as a
+                // compound-lvalue container: coerce to cell, auto-grow
+                // (any rank), return the content slot.
+                Value &cell = R[I.b];
+                const int nargs = I.e;
+                size_t coords[Dims::kMaxRank];
+                for (int k = 0; k < nargs; ++k)
+                    coords[k] = static_cast<size_t>(R[I.c + k].toScalar()) - 1;
+                size_t linear = cell.growCellTo(coords, nargs, engine_.resource());
+                R[I.a] = cell.cellAt(linear);
                 break;
             }
             case OpCode::CELL_GET_2D: {
@@ -1445,6 +1515,13 @@ enter_frame:
                         Span<Value> os(outBuf.data(), nout);
                         CallContext ctx{&engine_, currentCallEnv()};
                         (*fnPtr)(as, nout, os, ctx);
+                        // MATLAB: asking for more outputs than the builtin
+                        // produces is "Too many output arguments" here, not
+                        // a silently-unset target that later reads as a
+                        // phantom undefined function (bug #44).
+                        for (uint8_t i = 0; i < nout; ++i)
+                            if (outBuf[i].isUnset())
+                                throw std::runtime_error("Too many output arguments.");
                         for (size_t i = 0; i < nout; ++i)
                             R[outBase + i] = std::move(outBuf[i]);
                         break;
@@ -1754,6 +1831,7 @@ static std::string describeInstruction(const Instruction &instr,
 
     // Cell indexing
     case OpCode::CELL_GET:
+    case OpCode::CELL_GET_OR_CREATE:
     case OpCode::CELL_SET:
     case OpCode::CELL_GET_2D:
     case OpCode::CELL_SET_2D:
@@ -1772,6 +1850,7 @@ static std::string describeInstruction(const Instruction &instr,
         return "in field access";
     }
     case OpCode::FIELD_GET_DYN:
+    case OpCode::FIELD_GET_OR_CREATE_DYN:
     case OpCode::FIELD_SET_DYN:
         return "in dynamic field access";
     case OpCode::STRUCT_ELEM_FIELD_SET: {
@@ -1780,6 +1859,9 @@ static std::string describeInstruction(const Instruction &instr,
             return "in struct-array element write '." + chunk.strings[nameIdx] + "'";
         return "in struct-array element write";
     }
+    case OpCode::STRUCT_ELEM_GET_OR_CREATE:
+    case OpCode::STRUCT_ELEM_SET:
+        return "in struct-array element access";
 
     // Binary operators
     case OpCode::ADD:  return "in operator '+'";
@@ -2133,6 +2215,18 @@ void VM::popCallFrame(Value retVal)
         R_ = caller.R;
 
         if (frame.isMultiReturn) {
+            // MATLAB: a `[...] = f()` destructure that requests more
+            // outputs than the callee produces is "Too many output
+            // arguments" (bug #44 — parity with the TreeWalker and the
+            // external-builtin path above).
+            size_t produced = (returnCount_ > 0)
+                                   ? returnCount_
+                                   : (retVal.isUnset() ? 0u : 1u);
+            if (produced < frame.nout) {
+                // Restore caller register window before unwinding so the
+                // exception propagates from a consistent VM state.
+                throw std::runtime_error("Too many output arguments.");
+            }
             // Multi-return: distribute returnBuf_ into caller's registers
             if (returnCount_ > 0) {
                 for (size_t i = 0; i < frame.nout && i < returnCount_; ++i)

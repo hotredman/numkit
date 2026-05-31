@@ -2848,6 +2848,163 @@ void Value::growStructArrayTo(size_t idx, std::pmr::memory_resource *mr)
     }
     *this = std::move(grown);
 }
+size_t Value::growStructArrayND(const size_t *coords, int nd,
+                                std::pmr::memory_resource *mr)
+{
+    if (nd <= 0 || nd > Dims::kMaxRank)
+        throw std::runtime_error("struct-array subscript rank out of range");
+    if (!mr) {
+        mr = (isHeap() && heap_->mr) ? heap_->mr
+                                      : std::pmr::get_default_resource();
+    }
+    if (isEmpty() || !isHeap() || heap_->type != ValueType::STRUCT
+        || !heap_->structArray) {
+        *this = Value::structArray(0, 0, mr);
+    }
+
+    const Dims oldD = dims();
+    const int oldNd = oldD.ndim();
+    const int newNd = std::max(nd, oldNd);
+
+    size_t need[Dims::kMaxRank];
+    for (int i = 0; i < newNd; ++i)
+        need[i] = (i < oldNd) ? oldD.dim(i) : 1;
+    bool grow = (newNd != oldNd);
+    for (int i = 0; i < nd; ++i)
+        if (coords[i] + 1 > need[i]) {
+            need[i] = coords[i] + 1;
+            grow = true;
+        }
+
+    // Column-major linear index of `coords` within the (grown) shape.
+    auto linearIn = [&](const size_t *dimsArr) {
+        size_t lin = 0, stride = 1;
+        for (int i = 0; i < nd; ++i) {
+            lin += coords[i] * stride;
+            stride *= dimsArr[i];
+        }
+        return lin;
+    };
+
+    if (!grow)
+        return linearIn(need); // `need` == current dims here
+
+    // Build a fresh struct heap with the N-D shape `need` and copy the
+    // existing elements to their column-major positions in the new shape.
+    size_t newTotal = 1;
+    for (int i = 0; i < newNd; ++i)
+        newTotal *= need[i];
+
+    Value grown;
+    {
+        auto *h = new HeapObject();
+        h->type = ValueType::STRUCT;
+        h->dims = Dims(need, newNd);
+        h->mr = mr;
+        using MapT = std::pmr::map<std::string, Value>;
+        h->structArray = new std::pmr::vector<MapT>(mr);
+        h->structArray->reserve(newTotal);
+        for (size_t i = 0; i < newTotal; ++i)
+            h->structArray->emplace_back(MapT(mr));
+        h->fieldOrder = new std::pmr::vector<std::string>(mr);
+        grown.heap_ = h;
+    }
+    size_t oldStride[Dims::kMaxRank], newStride[Dims::kMaxRank];
+    size_t s = 1;
+    for (int i = 0; i < oldNd; ++i) { oldStride[i] = s; s *= oldD.dim(i); }
+    s = 1;
+    for (int i = 0; i < newNd; ++i) { newStride[i] = s; s *= need[i]; }
+    const size_t oldTotal = numel();
+    const Value &self = *this; // read via const → no spurious COW detach of the discarded array
+    for (size_t lin = 0; lin < oldTotal; ++lin) {
+        size_t rem = lin, newLin = 0;
+        for (int i = 0; i < oldNd; ++i) {
+            size_t c = (rem / oldStride[i]) % oldD.dim(i);
+            newLin += c * newStride[i];
+        }
+        auto &dst = grown.structArrayElem(newLin);
+        const auto &src = self.structArrayElem(lin);
+        for (const auto &[kn, vv] : src)
+            dst.emplace(kn, vv);
+    }
+    if (heap_ && heap_->fieldOrder && grown.heap_ && grown.heap_->fieldOrder)
+        *grown.heap_->fieldOrder = *heap_->fieldOrder;
+    *this = std::move(grown);
+    return linearIn(need);
+}
+
+size_t Value::growCellTo(const size_t *coords, int nd, std::pmr::memory_resource *mr)
+{
+    if (nd <= 0 || nd > Dims::kMaxRank)
+        throw std::runtime_error("cell subscript rank out of range");
+    if (!mr) {
+        mr = (isHeap() && heap_->mr) ? heap_->mr
+                                      : std::pmr::get_default_resource();
+    }
+    if (isUnset() || isEmpty())
+        *this = Value::cell(0, 0, mr);
+    if (!isCell())
+        throw std::runtime_error("Cell contents indexing on a non-cell value");
+
+    auto linearIn = [&](const Dims &d) {
+        size_t lin = 0, stride = 1;
+        for (int i = 0; i < nd; ++i) {
+            lin += coords[i] * stride;
+            stride *= d.dim(i);
+        }
+        return lin;
+    };
+
+    if (nd == 1) {
+        // 1-D: preserve row/column orientation, grow linearly.
+        size_t i = coords[0];
+        if (i >= numel()) {
+            const bool isCol = (dims().cols() == 1 && dims().rows() > 1);
+            Value grown = isCol ? Value::cell(i + 1, 1, mr) : Value::cell(1, i + 1, mr);
+            for (size_t k = 0; k < numel(); ++k)
+                grown.cellAt(k) = cellAt(k);
+            *this = std::move(grown);
+        }
+        return i;
+    }
+
+    const Dims oldD = dims();
+    const int oldNd = oldD.ndim();
+    const int newNd = std::max(nd, oldNd);
+    size_t need[Dims::kMaxRank];
+    for (int i = 0; i < newNd; ++i)
+        need[i] = (i < oldNd) ? oldD.dim(i) : 1;
+    bool grow = (newNd != oldNd);
+    for (int i = 0; i < nd; ++i)
+        if (coords[i] + 1 > need[i]) {
+            need[i] = coords[i] + 1;
+            grow = true;
+        }
+    if (!grow)
+        return linearIn(oldD);
+
+    // Rebuild via cellND (Value::resize delegates 2-D/3-D to the
+    // buffer-only path which would corrupt a cell, so don't route through
+    // it). Copy existing contents to their column-major positions.
+    Value grown = Value::cellND(need, newNd, mr);
+    size_t oldStride[Dims::kMaxRank], newStride[Dims::kMaxRank];
+    size_t s = 1;
+    for (int i = 0; i < oldNd; ++i) { oldStride[i] = s; s *= oldD.dim(i); }
+    s = 1;
+    for (int i = 0; i < newNd; ++i) { newStride[i] = s; s *= need[i]; }
+    const size_t oldTotal = numel();
+    const Value &self = *this; // read via const → no spurious COW detach
+    for (size_t lin = 0; lin < oldTotal; ++lin) {
+        size_t rem = lin, newLin = 0;
+        for (int i = 0; i < oldNd; ++i) {
+            size_t c = (rem / oldStride[i]) % oldD.dim(i);
+            newLin += c * newStride[i];
+        }
+        grown.cellAt(newLin) = self.cellAt(lin);
+    }
+    *this = std::move(grown);
+    return linearIn(dims());
+}
 std::pmr::map<std::string, Value> &Value::structArrayElem(size_t i)
 {
     if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)

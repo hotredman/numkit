@@ -71,6 +71,14 @@ struct ASTNode
     std::vector<std::string> paramNames;
     std::vector<std::string> returnNames;
 
+    // MULTI_ASSIGN only: one lvalue expression per output target when at
+    // least one target is a complex lvalue (`s.f`, `a(i)`, `c{i}`, ...).
+    // Empty when every target is a bare identifier or `~` (the common
+    // case stays on the fast returnNames-only path). A nullptr entry
+    // denotes an ignored `~` output. When non-empty, the size matches
+    // returnNames and this is the authoritative target list.
+    std::vector<ASTNodePtr> lhsTargets;
+
     std::vector<std::pair<ASTNodePtr, ASTNodePtr>> branches;
     ASTNodePtr elseBranch;
 
