@@ -897,4 +897,32 @@ TEST_P(SetOpsTest, IsmemberRows)
     EXPECT_THROW(eval("ismember([1 2 3], [1 2], 'rows');"), std::exception);
 }
 
+// setxor(A,B,'rows'): symmetric difference of the row sets (rows in exactly
+// one input), sorted. Was IGNORING 'rows' and flattening element-wise to a
+// 1xN vector. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(SetOpsTest, SetxorRows)
+{
+    eval("x = setxor([1 2;3 4;5 6], [3 4;9 9;1 2], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(x,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(x,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("x(1,1)"), 5.0);   // only in A
+    EXPECT_DOUBLE_EQ(evalScalar("x(1,2)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("x(2,1)"), 9.0);   // only in B
+    EXPECT_DOUBLE_EQ(evalScalar("x(2,2)"), 9.0);
+    // interleaved only-in-A / only-in-B, all sorted together.
+    eval("y = setxor([5 6;1 1], [1 1;2 2;7 8], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(y,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,1)"), 2.0);   // [2 2] (B)
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,1)"), 5.0);   // [5 6] (A)
+    EXPECT_DOUBLE_EQ(evalScalar("y(3,1)"), 7.0);   // [7 8] (B)
+    // element-wise (non-rows) path unchanged.
+    eval("e = setxor([1 2 3 4], [3 4 5 6]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(4)"), 6.0);
+    // mismatched columns throw; 'rows' index outputs deferred.
+    EXPECT_THROW(eval("setxor([1 2 3], [1 2], 'rows');"), std::exception);
+    EXPECT_THROW(eval("[c, ia] = setxor([1 2;3 4], [3 4;9 9], 'rows');"), std::exception);
+}
+
 INSTANTIATE_DUAL(SetOpsTest);

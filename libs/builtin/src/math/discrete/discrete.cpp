@@ -1823,6 +1823,65 @@ Value setOpRows(const Value &A, const Value &B, SetOpKind kind,
     if (nonNan.empty()) return emptyRowsResult(cols, mr);
     return detail::collectRowsByIndex(mr, A, nonNan.data(), nonNan.size());
 }
+
+// Row-wise setxor (MATLAB setxor(A,B,'rows')): the symmetric difference of the
+// row sets — unique rows present in exactly one of A or B, sorted. Computed on
+// the vertical concatenation [A;B] so a single collectRowsByIndex selects the
+// kept rows. A NaN-containing row is never equal to anything (NaN != NaN), so
+// every NaN row counts as "only in its side" and is kept (appended last).
+// 2-D DOUBLE only. vs MATLAB R2025b.
+Value setxorRows(const Value &A, const Value &B, const char *fn,
+                 std::pmr::memory_resource *mr)
+{
+    validateUniqueRowsInput(A, fn);
+    validateUniqueRowsInput(B, fn);
+    const size_t ar = A.dims().rows(), ac = A.dims().cols();
+    const size_t br = B.dims().rows(), bc = B.dims().cols();
+    if (ar > 0 && br > 0 && ac != bc)
+        throw Error(std::string(fn) + ": 'rows' inputs must have the same "
+                    "number of columns", 0, 0, fn, "",
+                    std::string("numkit:") + fn + ":rowsCols");
+    const size_t cols = (ar > 0) ? ac : bc;
+    const size_t nr = ar + br;
+    if (nr == 0) return emptyRowsResult(cols, mr);
+
+    auto combined = Value::matrix(nr, cols, ValueType::DOUBLE, mr);
+    double *cd = combined.doubleDataMut();
+    const double *ad = (ar > 0) ? A.doubleData() : nullptr;
+    const double *bd = (br > 0) ? B.doubleData() : nullptr;
+    for (size_t c = 0; c < cols; ++c) {
+        for (size_t r = 0; r < ar; ++r) cd[c * nr + r]      = ad[c * ar + r];
+        for (size_t r = 0; r < br; ++r) cd[c * nr + ar + r] = bd[c * br + r];
+    }
+    const double *cdp = combined.doubleData();
+
+    ScratchArena scratch(mr);
+    std::pmr::unordered_map<RowKey, char, RowKeyHash, RowKeyEq> aset(&scratch), bset(&scratch);
+    for (size_t r = 0; r < ar; ++r)
+        if (!rowHasNan(cdp, cols, nr, r))
+            aset.try_emplace(extractRow(cdp, cols, nr, r, &scratch), char{1});
+    for (size_t r = 0; r < br; ++r)
+        if (!rowHasNan(cdp, cols, nr, ar + r))
+            bset.try_emplace(extractRow(cdp, cols, nr, ar + r, &scratch), char{1});
+
+    std::pmr::unordered_map<RowKey, char, RowKeyHash, RowKeyEq> seen(&scratch);
+    auto nonNan = ScratchVec<size_t>(&scratch);
+    auto nanIdx = ScratchVec<size_t>(&scratch);
+    for (size_t ci = 0; ci < nr; ++ci) {
+        const bool fromA = (ci < ar);
+        if (rowHasNan(cdp, cols, nr, ci)) { nanIdx.push_back(ci); continue; }
+        RowKey key = extractRow(cdp, cols, nr, ci, &scratch);
+        // keep iff present only in this row's own side
+        const auto &other = fromA ? bset : aset;
+        if (other.count(key) > 0) continue;
+        if (seen.try_emplace(std::move(key), char{1}).second) nonNan.push_back(ci);
+    }
+    std::sort(nonNan.begin(), nonNan.end(),
+              [cdp, cols, nr](size_t a, size_t b) { return rowLexCmp(cdp, cols, nr, a, b) < 0; });
+    nonNan.insert(nonNan.end(), nanIdx.begin(), nanIdx.end());
+    if (nonNan.empty()) return emptyRowsResult(cols, mr);
+    return detail::collectRowsByIndex(mr, combined, nonNan.data(), nonNan.size());
+}
 } // namespace
 
 void union_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1943,13 +2002,21 @@ void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 
 // ── Pack 16 adapters ─────────────────────────────────────────────────
 
-void setxor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void setxor_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("setxor: requires 2 arguments",
                      0, 0, "setxor", "", "numkit:setxor:nargin");
-    outs[0] = setxor(args[0], args[1], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (wantsRows(args, 2)) {
+        if (nargout >= 2)
+            throw Error("setxor: 'rows' index outputs (ia, ib) are not yet supported",
+                         0, 0, "setxor", "", "numkit:setxor:rowsIdx");
+        outs[0] = setxorRows(args[0], args[1], "setxor", mr);
+        return;
+    }
+    outs[0] = setxor(args[0], args[1], mr);
 }
 
 void allunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
