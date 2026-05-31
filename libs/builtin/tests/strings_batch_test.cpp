@@ -36,6 +36,40 @@ TEST_F(StringsBatchTest, TrimDeblank)
     EXPECT_EQ(evalString("deblank(\"abc   \")"),  "abc");
 }
 
+// lower/upper/strtrim/deblank/strip applied to a CELL array: element-wise ->
+// cell of char vectors, same shape. Were all throwing "Not a char array".
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(StringsBatchTest, CaseTrimCellArrays)
+{
+    eval("lo = lower({'AbC','XyZ'}); up = upper({'aBc','xYz'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(lo))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(lo)"), 2.0);
+    EXPECT_EQ(evalString("lo{1}"), "abc");
+    EXPECT_EQ(evalString("lo{2}"), "xyz");
+    EXPECT_EQ(evalString("up{1}"), "ABC");
+    EXPECT_EQ(evalString("up{2}"), "XYZ");
+    // strtrim keeps interior whitespace; deblank trims trailing only.
+    eval("st = strtrim({'  a b ','  x  '});");
+    EXPECT_EQ(evalString("st{1}"), "a b");
+    EXPECT_EQ(evalString("st{2}"), "x");
+    eval("db = deblank({'a  ','  b '});");
+    EXPECT_EQ(evalString("db{1}"), "a");
+    EXPECT_EQ(evalString("db{2}"), "  b");
+    // strip (default both) + strip with an explicit char.
+    eval("sp = strip({'  a  ','  b'});");
+    EXPECT_EQ(evalString("sp{1}"), "a");
+    EXPECT_EQ(evalString("sp{2}"), "b");
+    eval("sx = strip({'xxaxx','xb'}, 'both', 'x');");
+    EXPECT_EQ(evalString("sx{1}"), "a");
+    EXPECT_EQ(evalString("sx{2}"), "b");
+    // shape preserved (column cell stays a column).
+    eval("col = lower({'AB';'CD'});");
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,2)"), 1.0);
+    // scalar (non-cell) path still returns a char row.
+    EXPECT_EQ(evalString("lower('HELLO')"), "hello");
+}
+
 TEST_F(StringsBatchTest, Blanks)
 {
     EXPECT_DOUBLE_EQ(evalScalar("strlength(blanks(5))"), 5.0);

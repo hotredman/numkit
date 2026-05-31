@@ -2,9 +2,11 @@
   "name": "strip",
   "namespace": "core",
   "setup": "s = '   hello world   ';",
-  "expr": "y = strip(s);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: S = strip(S). Trim both. 10000 iters.",
-  "out_var": "y"
+  "expr": "y = strip(s); ny = strlength(y); y1 = double(y(1)); c = strip({'  a  ','  b'}); nc = numel(c); n1 = strlength(c{1}); cc1 = double(c{1}(1)); cx = strip({'xxaxx','xb'}, 'both', 'x'); ncx1 = strlength(cx{1});",
+  "iters": 20,
+  "tol": 0,
+  "fingerprint": [
+    "ny", "y1", "nc", "n1", "cc1", "ncx1"
+  ],
+  "comment": "Sig: S = strip(S[,side[,char]]). Trim both. DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); applies element-wise -> cell of char vectors, same shape: strip({'  a  ','  b'})={'a','b'}; strip(...,'both','x') strips the given char. Scalar string path preserves string type. FP uses lengths + char codes."
 }
