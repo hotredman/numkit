@@ -77,7 +77,7 @@
 import { defaultPolarViewport } from './PolarPlot';
 
 /** Compute the script-default viewport for a cell.
- *    polar       → { rmax, rmin?, thetaMin?, thetaMax? }   (PolarPlot.defaultPolarViewport)
+ *    polar       → { r: [rmin, rmax], theta: [thmin, thmax] }   (PolarPlot.defaultPolarViewport)
  *    composite3d → { x, y, z }
  *    everything  → { x, y }
  *  Used as the initial XLim / YLim / ZLim / RLim seed and as the
@@ -154,13 +154,22 @@ export function initAxesFromCell(cell) {
     // surface is universal — every axis always has its own toggle;
     // applying it on a figure kind that doesn't render that axis is
     // a parity-clean no-op (state flips, no visual change).
-    XGrid:      onOff(cell.grid === 'on'),
-    YGrid:      onOff(cell.grid === 'on'),
+    // Each per-axis grid is gated by figure kind, so the schema flag
+    // never reports "on" for an axis that doesn't exist on this plot.
+    // Polar plots don't have X/Y/Z; cartesian plots don't have R/θ;
+    // only 3-D plots have Z. Without these gates, a polar figure with
+    // `grid on` showed ✓ on Cartesian X/Y rows in the grid ▾ popover
+    // even though PolarPlot never reads XGrid/YGrid.
+    // We treat any non-polar kind as cartesian-default (composite /
+    // composite3d today, plus any future cartesian-like kind) so the
+    // gate isn't an exclusive allow-list that breaks new plot types.
+    XGrid:      onOff(cell.grid === 'on' && cell.kind !== 'polar'),
+    YGrid:      onOff(cell.grid === 'on' && cell.kind !== 'polar'),
     ZGrid:      onOff(cell.grid === 'on' && cell.kind === 'composite3d'),
     RGrid:      onOff(cell.grid === 'on' && cell.kind === 'polar'),
     ThetaGrid:  onOff(cell.grid === 'on' && cell.kind === 'polar'),
-    XMinorGrid:     onOff(cell.gridMinor === 'on'),
-    YMinorGrid:     onOff(cell.gridMinor === 'on'),
+    XMinorGrid:     onOff(cell.gridMinor === 'on' && cell.kind !== 'polar'),
+    YMinorGrid:     onOff(cell.gridMinor === 'on' && cell.kind !== 'polar'),
     ZMinorGrid:     onOff(cell.gridMinor === 'on' && cell.kind === 'composite3d'),
     RMinorGrid:     onOff(cell.gridMinor === 'on' && cell.kind === 'polar'),
     ThetaMinorGrid: onOff(cell.gridMinor === 'on' && cell.kind === 'polar'),
@@ -174,15 +183,14 @@ export function initAxesFromCell(cell) {
     ZDir:   'normal',
 
     // Limits — derived from defaultViewport(cell), which handles
-    // polar / 3-D / 2-D. polar viewport carries .rmax etc.; cartesian
-    // / 3-D carry .x .y .z. Keep both shapes accessible via XLim/YLim
-    // for cartesian + RLim/ThetaLim for polar.
-    XLim: Array.isArray(vp.x) ? vp.x.slice() : null,
-    YLim: Array.isArray(vp.y) ? vp.y.slice() : null,
-    ZLim: Array.isArray(vp.z) ? vp.z.slice() : null,
-    RLim: vp.rmin != null && vp.rmax != null ? [vp.rmin, vp.rmax] : null,
-    ThetaLim: vp.thetaMin != null && vp.thetaMax != null
-              ? [vp.thetaMin, vp.thetaMax] : null,
+    // polar / 3-D / 2-D. polar viewport carries .r / .theta (array
+    // pairs); cartesian / 3-D carry .x / .y / .z. All five expose via
+    // the MATLAB property names XLim/YLim/ZLim + RLim/ThetaLim.
+    XLim: Array.isArray(vp.x)     ? vp.x.slice()     : null,
+    YLim: Array.isArray(vp.y)     ? vp.y.slice()     : null,
+    ZLim: Array.isArray(vp.z)     ? vp.z.slice()     : null,
+    RLim:     Array.isArray(vp.r)     ? vp.r.slice()     : null,
+    ThetaLim: Array.isArray(vp.theta) ? vp.theta.slice() : null,
     XLimMode: 'auto', YLimMode: 'auto', ZLimMode: 'auto',
     RLimMode: 'auto', ThetaLimMode: 'auto',
 

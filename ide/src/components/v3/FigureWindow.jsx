@@ -413,24 +413,38 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       default: return undefined;
     }
   }
-  function legacyWrite(a, key, value) {
+  function legacyWrite(a, key, value, cell) {
+    // Same kind-gates as initAxesFromCell: polar plots have no X/Y/Z,
+    // cartesian plots have no R/θ, only 3-D plots have Z. Used by the
+    // combined showMajor / showMinor fan-out so the toolbar "grid all"
+    // toggle on a polar figure doesn't silently set XGrid/YGrid (which
+    // would later confuse the aggregate ✓ when the user flips RGrid).
+    const kind = cell && cell.kind;
+    const cart  = kind !== 'polar';
+    const polar = kind === 'polar';
+    const d3    = kind === 'composite3d';
     switch (key) {
       case 'showMajor':    {
-        // Combined "grid" toggle — fan out to every per-axis major
-        // grid we model (MATLAB `grid on` does the same: lights every
-        // grid the axes type supports). Polar fields fan too so polar
-        // figures actually toggle visibly.
-        const f = onOff(!!value);
-        return { ...a, XGrid: f, YGrid: f, ZGrid: f, RGrid: f, ThetaGrid: f };
-      }
-      case 'showMinor':    {
-        // Combined "minor" toggle — fan out to every per-axis minor
-        // grid we model. Same fan rule as showMajor but for the minor
-        // family.
+        // Combined "grid" toggle — fan to only those per-axis grids
+        // that exist on this figure type. MATLAB R2025b: `grid on` on
+        // a polar axes lights RGrid+ThetaGrid only; cartesian lights
+        // XGrid+YGrid (+ZGrid for 3-D).
         const f = onOff(!!value);
         return { ...a,
-          XMinorGrid: f, YMinorGrid: f, ZMinorGrid: f,
-          RMinorGrid: f, ThetaMinorGrid: f };
+          XGrid: cart  ? f : a.XGrid,
+          YGrid: cart  ? f : a.YGrid,
+          ZGrid: d3    ? f : a.ZGrid,
+          RGrid: polar ? f : a.RGrid,
+          ThetaGrid: polar ? f : a.ThetaGrid };
+      }
+      case 'showMinor':    {
+        const f = onOff(!!value);
+        return { ...a,
+          XMinorGrid: cart  ? f : a.XMinorGrid,
+          YMinorGrid: cart  ? f : a.YMinorGrid,
+          ZMinorGrid: d3    ? f : a.ZMinorGrid,
+          RMinorGrid: polar ? f : a.RMinorGrid,
+          ThetaMinorGrid: polar ? f : a.ThetaMinorGrid };
       }
       case 'xGrid':        return { ...a, XGrid:          onOff(!!value) };
       case 'yGrid':        return { ...a, YGrid:          onOff(!!value) };
@@ -474,10 +488,17 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       default: return a;
     }
   }
+  // Polar uses the same array-pair schema as cartesian — { r: [lo, hi],
+  // theta: [lo, hi] } — so PolarPlot's vp.r / vp.theta accessors line up
+  // with what FigureWindow stores. Earlier {rmin,rmax} flat-field shape
+  // got dropped by PolarPlot's `Array.isArray(viewport.r)` guard, which
+  // made wheel-zoom / drag-zoom / inputs all no-ops.
   function viewportFromAxes(a) {
     if (!a) return null;
     if (Array.isArray(a.RLim)) {
-      return { rmin: a.RLim[0], rmax: a.RLim[1] };
+      const out = { r: a.RLim.slice() };
+      if (Array.isArray(a.ThetaLim)) out.theta = a.ThetaLim.slice();
+      return out;
     }
     const out = {};
     if (Array.isArray(a.XLim)) out.x = a.XLim.slice();
@@ -488,10 +509,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   function applyViewport(a, vp) {
     if (!vp) return a;
     const out = { ...a };
-    if (Array.isArray(vp.x)) out.XLim = vp.x.slice();
-    if (Array.isArray(vp.y)) out.YLim = vp.y.slice();
-    if (Array.isArray(vp.z)) out.ZLim = vp.z.slice();
-    if (vp.rmin != null && vp.rmax != null) out.RLim = [vp.rmin, vp.rmax];
+    if (Array.isArray(vp.x))     out.XLim     = vp.x.slice();
+    if (Array.isArray(vp.y))     out.YLim     = vp.y.slice();
+    if (Array.isArray(vp.z))     out.ZLim     = vp.z.slice();
+    if (Array.isArray(vp.r))     out.RLim     = vp.r.slice();
+    if (Array.isArray(vp.theta)) out.ThetaLim = vp.theta.slice();
     return out;
   }
 
@@ -591,7 +613,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     setAxesArr((prev) => {
       const cur = prev.length > 0 ? !!prev.every((a) => !!legacyRead(a, key)) : false;
       const next = typeof updater === 'function' ? updater(cur) : updater;
-      return prev.map((a) => legacyWrite(a, key, next));
+      // Pass cell so legacyWrite's kind-gated combined-toggle fan
+      // (showMajor / showMinor) skips axes that don't exist on this
+      // figure type.
+      return prev.map((a, i) => legacyWrite(a, key, next, cellsArr[i]));
     });
   }
   const setShowMajor    = (u) => fanAll('showMajor',    u);
@@ -647,7 +672,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       const cur = legacyRead(a, key);
       const value = typeof updater === 'function' ? updater(cur) : updater;
       const out = prev.slice();
-      out[idx] = legacyWrite(a, key, value);
+      out[idx] = legacyWrite(a, key, value, cellsArr[idx]);
       return out;
     });
   }

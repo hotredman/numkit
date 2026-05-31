@@ -309,6 +309,21 @@ export async function createWasmEngine(createModule) {
       }
     },
 
+    // Path-addressed inspection for the MATLAB-style drill-in Variable
+    // Editor. `pathStr` is a ';'-delimited list of typed steps the UI
+    // builds ('' = root): f:<field> | e:<elemIdx> | c:<cellIdx>, 0-based.
+    // Returns the struct-table / cell-grid / matrix payload for the
+    // resolved sub-value, or { error }. null when the binding is missing.
+    inspectPath(name, pathStr) {
+      if (typeof Module.repl_inspect_path !== 'function') return null;
+      try {
+        return JSON.parse(Module.repl_inspect_path(name, pathStr || ''));
+      } catch (e) {
+        console.warn('[engine] inspectPath failed for', name, pathStr, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     // Cheap dimension-only query — used to size the editor grid before
     // we know whether full or tile-mode fetching makes sense.
     //   { name, type, rows, cols, numel } | { error }
@@ -533,6 +548,9 @@ export function createFallbackEngine() {
       }
       return { name, type: typeof v, rows: 1, cols: 1, data: [[String(v)]] };
     },
+    // Fallback interpreter has no struct support — return null so the
+    // Variable Editor falls back to the flat preview cell.
+    inspectPath() { return null; },
     getVarShape(name) {
       const r = this.getVarData(name);
       if (!r || r.error) return r;
