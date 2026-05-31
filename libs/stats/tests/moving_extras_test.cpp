@@ -108,6 +108,25 @@ TEST_F(MovingTest, SmoothdataGaussian)
     EXPECT_NEAR(evalScalar("y(3)"), 3.0, 1e-9);
 }
 
+// smoothdata 'gaussian' kernel: MATLAB R2025b uses sigma = windowLength/5,
+// centred on the CURRENT sample, with 'shrink' endpoints (truncate +
+// renormalise). Was sigma=(k-1)/4 with a mis-aligned edge kernel -> wrong at
+// the boundaries and interior. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(MovingTest, SmoothdataGaussianMatchesMatlab)
+{
+    // smoothdata([1 5 2 8 3],'gaussian',3) = [1.79834 3.83535 3.49741 6.16984 3.99793]
+    eval("y = smoothdata([1 5 2 8 3], 'gaussian', 3);");
+    EXPECT_NEAR(evalScalar("y(1)"), 1.798335, 1e-5);  // left edge (truncated+renorm)
+    EXPECT_NEAR(evalScalar("y(2)"), 3.835353, 1e-5);
+    EXPECT_NEAR(evalScalar("y(3)"), 3.497406, 1e-5);
+    EXPECT_NEAR(evalScalar("y(5)"), 3.997931, 1e-5);  // right edge
+    // window 5 interior + edges.
+    eval("z = smoothdata([1 5 2 8 3 9 4], 'gaussian', 5);");
+    EXPECT_NEAR(evalScalar("z(1)"), 2.470528, 1e-5);
+    EXPECT_NEAR(evalScalar("z(4)"), 5.204815, 1e-5);
+    EXPECT_NEAR(evalScalar("z(7)"), 5.663341, 1e-5);
+}
+
 TEST_F(MovingTest, HampelReplacesOutlier)
 {
     // Insert one big outlier; hampel with default k=3 should replace it.

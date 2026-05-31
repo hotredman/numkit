@@ -579,6 +579,67 @@ Value movstd(const Value &x, Span<const size_t> k, int normFlag, int dim, std::p
 Value movmad(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
 { MovOpts o; o.dim = dim; return movmad_impl(x, k, o, mr); }
 
+// Gaussian-weighted moving average for smoothdata 'gaussian'. MATLAB R2025b
+// uses kernel exp(-d^2/(2*sigma^2)) with sigma = windowLength/5, CENTRED on
+// the current sample, with the default 'shrink' endpoints (truncate the
+// kernel at the array edges and renormalise). NaNs are omitted from the
+// weighted sum when opt.omit_nan. dim 1/2/3 + vector. The generic moving
+// driver cannot align a weighted kernel at truncated edges (its reducer only
+// sees the shrunk window, not the centre position), so this path walks slices
+// directly. Inputs are DOUBLE-backed (mirrors the rest of the moving driver).
+static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
+                               int dim, const MovOpts &opt,
+                               std::pmr::memory_resource *mr)
+{
+    if (x.isEmpty()) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
+
+    const long kb = w.kb, kf = w.kf;
+    const double inv2s2 = (sigma > 0.0) ? 1.0 / (2.0 * sigma * sigma) : 0.0;
+    auto perSlice = [&](const double *src, size_t n, ptrdiff_t step, double *dst) {
+        const long N = static_cast<long>(n);
+        for (long i = 0; i < N; ++i) {
+            const long lo = std::max(0L, i - kb), hi = std::min(N - 1, i + kf);
+            double sw = 0.0, ssum = 0.0;
+            for (long j = lo; j <= hi; ++j) {
+                const double v = src[j * step];
+                if (opt.omit_nan && std::isnan(v)) continue;
+                const double dd = static_cast<double>(j - i);
+                const double wt = std::exp(-dd * dd * inv2s2);
+                ssum += wt * v;
+                sw += wt;
+            }
+            dst[i * step] = (sw > 0.0) ? ssum / sw
+                                       : std::numeric_limits<double>::quiet_NaN();
+        }
+    };
+
+    auto out = createLike(x, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const double *src = x.doubleData();
+    const auto &d = x.dims();
+    if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
+
+    const size_t R = d.rows(), C = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1, pg = R * C;
+    if (dim == 1) {
+        for (size_t p = 0; p < P; ++p)
+            for (size_t c = 0; c < C; ++c)
+                perSlice(src + p * pg + c * R, R, 1, dst + p * pg + c * R);
+    } else if (dim == 2) {
+        for (size_t p = 0; p < P; ++p)
+            for (size_t r = 0; r < R; ++r)
+                perSlice(src + p * pg + r, C, static_cast<ptrdiff_t>(R), dst + p * pg + r);
+    } else if (dim == 3 && d.is3D()) {
+        for (size_t c = 0; c < C; ++c)
+            for (size_t r = 0; r < R; ++r)
+                perSlice(src + c * R + r, P, static_cast<ptrdiff_t>(pg), dst + c * R + r);
+    } else {
+        std::copy(src, src + x.numel(), dst);
+    }
+    return out;
+}
+
 // ── smoothdata ────────────────────────────────────────────────────────
 Value smoothdata(const Value &x, const std::string &method, int k, int dim, std::pmr::memory_resource *mr)
 {
@@ -606,21 +667,14 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
     if (m == "movmedian")
         return movmedian_impl(x, kSpan, opt, mr);
     if (m == "gaussian") {
-        // Gaussian-weighted moving mean — use sigma = (k-1)/4 (MATLAB heuristic).
+        // Gaussian-weighted moving average. MATLAB R2025b uses sigma =
+        // windowLength/5 and centres the kernel on the CURRENT sample, with
+        // 'shrink' endpoints. (Was sigma=(k-1)/4 + a mis-aligned kernel at
+        // truncated edges -> wrong at the boundaries and interior.)
         const auto w = decodeWindow(kSpan, "smoothdata");
         const int d = resolveDim(x, dim, "smoothdata");
-        const double sigma = (k > 1) ? static_cast<double>(k - 1) / 4.0 : 1.0;
-        const long kb = w.kb;
-        return movingDriverDim(x, w, d, opt, [sigma, kb](const double *win, size_t n) {
-                double sw = 0.0, ssum = 0.0;
-                for (size_t i = 0; i < n; ++i) {
-                    const double dx = static_cast<double>(static_cast<long>(i) - kb);
-                    const double wt = std::exp(-0.5 * (dx / sigma) * (dx / sigma));
-                    ssum += wt * win[i];
-                    sw   += wt;
-                }
-                return (sw > 0) ? ssum / sw : std::numeric_limits<double>::quiet_NaN();
-            }, mr);
+        const double sigma = (k > 0) ? static_cast<double>(k) / 5.0 : 0.2;
+        return smoothGaussianDim(x, w, sigma, d, opt, mr);
     }
     throw Error("smoothdata: method '" + method + "' not supported "
                  "(supported: 'movmean', 'movmedian', 'gaussian')",
