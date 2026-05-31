@@ -408,34 +408,62 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr)
     }
 }
 
-Value str2double(const Value &s, std::pmr::memory_resource *mr)
+// Parse ONE token the way MATLAB str2double does: strip ALL commas
+// (thousands separators), trim surrounding whitespace, then the ENTIRE
+// remaining token must parse as a single real number — otherwise NaN. So
+// '1,234' -> 1234, '1,2,3' -> 123, '  42  ' -> 42, 'Inf'/'-Inf'/'NaN' parse,
+// but '42abc' / '42 7' / ',' / '' -> NaN. (std::stod was lenient: it parsed a
+// numeric PREFIX, so '42abc' wrongly gave 42 and '1,234' gave 1. Complex
+// literals like '2i'/'3+4i' remain a separate unimplemented gap -> NaN.)
+static double str2doubleOne(const std::string &str)
 {
-    // MATLAB str2double: strip ALL commas (thousands separators), trim
-    // surrounding whitespace, then the ENTIRE remaining token must parse as a
-    // single real number — otherwise NaN. So '1,234' -> 1234, '1,2,3' -> 123,
-    // '  42  ' -> 42, but '42abc' / '42 7' / ',' -> NaN. (std::stod was lenient:
-    // it parsed a numeric PREFIX, so '42abc' wrongly gave 42 and '1,234' gave 1.
-    // Complex literals like '2i'/'3+4i' are a separate unimplemented gap.)
     const double nan = std::numeric_limits<double>::quiet_NaN();
     std::string t;
-    {
-        const std::string str = s.toString();
-        t.reserve(str.size());
-        for (char c : str)
-            if (c != ',') t.push_back(c);
-    }
+    t.reserve(str.size());
+    for (char c : str)
+        if (c != ',') t.push_back(c);
     const char *ws = " \t\n\r\f\v";
     const size_t b = t.find_first_not_of(ws);
-    if (b == std::string::npos) return Value::scalar(nan, mr);   // empty / all-whitespace
+    if (b == std::string::npos) return nan;   // empty / all-whitespace
     const size_t e = t.find_last_not_of(ws);
     t = t.substr(b, e - b + 1);
 
     const char *cs = t.c_str();
     char *end = nullptr;
     const double v = std::strtod(cs, &end);
-    if (end == cs || *end != '\0')                              // no parse, or trailing junk
-        return Value::scalar(nan, mr);
-    return Value::scalar(v, mr);
+    if (end == cs || *end != '\0')            // no parse, or trailing junk
+        return nan;
+    return v;
+}
+
+Value str2double(const Value &s, std::pmr::memory_resource *mr)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    // A cell array of char/string vectors OR a non-scalar string array maps
+    // element-wise to a DOUBLE matrix of the SAME shape (MATLAB str2double).
+    // NaN where an element fails to parse, is empty, or is not char/string.
+    if (s.isCell() || (s.isString() && s.numel() != 1)) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        const size_t n = s.numel();
+        for (size_t i = 0; i < n; ++i) {
+            if (s.isCell()) {
+                const Value &el = s.cellAt(i);
+                od[i] = (el.isChar() || el.isString())
+                            ? str2doubleOne(el.toString())
+                            : nan;
+            } else {
+                od[i] = str2doubleOne(s.stringElem(i));
+            }
+        }
+        return out;
+    }
+
+    // Scalar char array / string scalar → scalar double.
+    return Value::scalar(str2doubleOne(s.toString()), mr);
 }
 
 Value toString(const Value &x, std::pmr::memory_resource *mr)

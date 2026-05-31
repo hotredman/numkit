@@ -12,6 +12,8 @@
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 using namespace numkit;
 
 class StringsBatchTest : public ::testing::Test
@@ -222,4 +224,39 @@ TEST_F(StringsBatchTest, Strtok)
     eval("[t, rem] = strtok(\"hello world\");");
     EXPECT_EQ(evalString("t"),   "hello");
     EXPECT_EQ(evalString("rem"), " world");
+}
+
+// str2double on a CELL array / non-scalar string array -> DOUBLE matrix of
+// the same shape (NaN where an element doesn't parse). Was throwing "Not a
+// char array". vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(StringsBatchTest, Str2DoubleCellArray)
+{
+    eval("a = str2double({'1.5','2.5','x'});");
+    EXPECT_DOUBLE_EQ(evalScalar("a(1)"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2)"), 2.5);
+    EXPECT_TRUE(std::isnan(evalScalar("a(3)")));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 3.0);
+    // Shape is preserved: 3x1 column cell -> 3x1 double.
+    eval("b = str2double({'1';'2';'3'});");
+    EXPECT_DOUBLE_EQ(evalScalar("size(b,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(b,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(2)"), 2.0);
+    // 2x2 cell -> 2x2 double (column-major element check).
+    eval("c = str2double({'1','2';'3','4'});");
+    EXPECT_DOUBLE_EQ(evalScalar("c(2,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1,2)"), 2.0);
+    // Comma-stripping, Inf/-Inf/NaN, whitespace, empty -> NaN, per element.
+    eval("d = str2double({' 42 ','1,234','Inf','-Inf','NaN',''});");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 42.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(2)"), 1234.0);
+    EXPECT_TRUE(std::isinf(evalScalar("d(3)")) && evalScalar("d(3)") > 0);
+    EXPECT_TRUE(std::isinf(evalScalar("d(4)")) && evalScalar("d(4)") < 0);
+    EXPECT_TRUE(std::isnan(evalScalar("d(5)")));
+    EXPECT_TRUE(std::isnan(evalScalar("d(6)")));
+    // Non-scalar string array also maps element-wise.
+    eval("e = str2double([\"10\" \"20\" \"abc\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("e(1)"), 10.0);
+    EXPECT_TRUE(std::isnan(evalScalar("e(3)")));
+    // Scalar char/string form is unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("str2double('3.14')"), 3.14);
 }

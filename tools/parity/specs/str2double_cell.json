@@ -1,0 +1,18 @@
+{
+  "name": "str2double_cell",
+  "namespace": "builtin",
+  "covers": ["str2double"],
+  "setup": "",
+  "expr": "a = str2double({'1.5','2.5','x'}); b = str2double({'1';'2';'3'}); c = str2double({'1','2';'3','4'}); d = str2double({' 42 ','1,234','Inf','-Inf','NaN',''}); e = str2double([\"10\" \"20\" \"abc\"]);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "a(1)", "a(2)", "double(isnan(a(3)))",
+    "double(size(b,1))", "double(size(b,2))", "b(2)",
+    "double(size(c,1))", "c(2,1)", "c(1,2)",
+    "d(1)", "d(2)", "double(isinf(d(3)))", "double(isinf(d(4)) && d(4)<0)", "double(isnan(d(5)))", "double(isnan(d(6)))",
+    "e(1)", "double(isnan(e(3)))"
+  ],
+  "deep_verified": true,
+  "comment": "str2double on a CELL array (or non-scalar string array) vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit threw 'Not a char array' — it only handled a scalar char/string. Now it maps element-wise to a DOUBLE matrix of the SAME shape (NaN where an element fails to parse / is empty / isn't char-string). The single-token MATLAB parse (strip commas, trim, whole-token-or-NaN) was factored into str2doubleOne and reused. str2double({'1.5','2.5','x'})=[1.5 2.5 NaN]; {'1';'2';'3'}=[1;2;3] (3x1); {'1','2';'3','4'}=[1 2;3 4]; {' 42 ','1,234','Inf','-Inf','NaN',''}=[42 1234 Inf -Inf NaN NaN]; string-array [\"10\" \"20\" \"abc\"]=[10 20 NaN]; scalar form unchanged. KNOWN GAP (deferred, not pinned): complex literals like '1+2i' -> NaN (numkit) vs 1+2i (MATLAB). covers:[str2double]."
+}
