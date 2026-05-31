@@ -691,113 +691,196 @@ graythresh(const Value &I, std::pmr::memory_resource *mr) {
 
 std::tuple<Value, Value>
 multithresh(const Value &I, int N, std::pmr::memory_resource *mr) {
-    if (N <= 1) {
-        auto [t, em] = graythresh(I, mr);
-        return std::make_tuple(std::move(t), std::move(em));
-    }
+    if (N < 1) N = 1;
     if (N > 5)
         throw Error("multithresh: N > 5 not supported (exhaustive search would be too slow)",
                     0, 0, "multithresh", "", "numkit:multithresh:tooMany");
 
-    const int L = default_nbins(I);
-    auto [counts_v, _] = imhist(I, L, mr);
-    std::vector<double> counts(L);
-    for (int i = 0; i < L; ++i) counts[i] = counts_v.doubleData()[i];
+    // ── getpdf: 256-bin histogram over the data range, MATLAB-style ──
+    // Floating-point data is scaled to [0,1] by (x-minA)/(maxA-minA) then
+    // quantised to uint8 (grayto8); integer data is mapped from its type
+    // range to uint8. minA/maxA are the finite data extrema; the final
+    // thresholds are mapped back with map2OriginalScale (normFactor 255).
+    const int B = 256;
+    const ValueType ty = I.type();
+    const bool isInt = (ty == ValueType::UINT8 || ty == ValueType::UINT16
+                     || ty == ValueType::INT16 || ty == ValueType::INT8
+                     || ty == ValueType::LOGICAL);
+    const size_t M = I.numel();
 
-    double total = 0.0, sum_total = 0.0;
-    for (int i = 0; i < L; ++i) { total += counts[i]; sum_total += i * counts[i]; }
-    if (total <= 0.0) {
+    double minA = 0.0, maxA = 0.0;
+    bool anyFinite = false;
+    for (size_t i = 0; i < M; ++i) {
+        const double x = I.elemAsDouble(i);
+        if (std::isnan(x) || !std::isfinite(x)) continue;
+        if (!anyFinite) { minA = maxA = x; anyFinite = true; }
+        else { if (x < minA) minA = x; if (x > maxA) maxA = x; }
+    }
+
+    auto clampBin = [](long b) -> int {
+        if (b < 0) return 0;
+        if (b > 255) return 255;
+        return static_cast<int>(b);
+    };
+    // getpdf scales the data to [0,1] by (x-minA)/(maxA-minA) and quantises
+    // to uint8. Both float and integer data are scaled this way; the only
+    // difference is that MATLAB does the integer scaling in single precision.
+    auto toBin = [&](double x) -> int {
+        if (std::isnan(x)) return -1;
+        if (maxA == minA) return 0;
+        if (std::isinf(x)) return x > 0 ? 255 : 0;
+        if (isInt) {
+            // MATLAB scales + quantises integer data in single precision.
+            const float fs = static_cast<float>(x - minA)
+                           / static_cast<float>(maxA - minA);
+            return clampBin(std::lround(static_cast<double>(fs * 255.0f)));
+        }
+        const double s = (x - minA) / (maxA - minA);
+        return clampBin(std::lround(s * 255.0));
+    };
+
+    std::vector<double> counts(B, 0.0);
+    double total = 0.0;
+    for (size_t i = 0; i < M; ++i) {
+        const int b = toBin(I.elemAsDouble(i));
+        if (b >= 0) { counts[b] += 1.0; total += 1.0; }
+    }
+
+    // Degenerate input (no spread): MATLAB returns thresholds at the value.
+    if (total <= 0.0 || maxA == minA) {
         Value t = Value::matrix(1, N, ValueType::DOUBLE, mr);
+        double *td = t.doubleDataMut();
+        for (int k = 0; k < N; ++k) td[k] = minA;
         return std::make_tuple(std::move(t), Value::scalar(0.0, mr));
     }
 
-    // Build cumulative sums for fast w/μ computation.
-    std::vector<double> P(L + 1, 0.0), S(L + 1, 0.0);
-    for (int i = 0; i < L; ++i) {
-        P[i + 1] = P[i] + counts[i];
-        S[i + 1] = S[i] + i * counts[i];
+    // omega = cumsum(p); mu = cumsum(p .* (1:B)'); mu_t = mu(end).
+    std::vector<double> omega(B), mu(B);
+    double cum = 0.0, cumm = 0.0;
+    for (int j = 0; j < B; ++j) {
+        const double p = counts[j] / total;
+        cum += p;
+        cumm += p * (j + 1);
+        omega[j] = cum;
+        mu[j] = cumm;
     }
+    const double mu_t = mu[B - 1];
 
-    auto class_var = [&](int lo, int hi) {
-        // [lo, hi] inclusive
-        const double w = P[hi + 1] - P[lo];
-        if (w == 0.0) return 0.0;
-        const double s = S[hi + 1] - S[lo];
-        const double mu = s / w;
-        return w * mu * mu;
-    };
+    std::vector<double> threshBins(N, 0.0);   // 0-based bin thresholds
+    double bestVar = 0.0;
 
-    // Exhaustive search over N thresholds t1 < t2 < ... < tN (in 0..L-2).
-    std::vector<int> best(N, 0);
-    double best_var = -1.0;
-
-    std::vector<int> idx(N);
-    std::function<void(int, int)> recurse = [&](int depth, int start) {
-        if (depth == N) {
-            // Build sum of class variances.
-            double v = 0.0;
-            int prev = 0;
-            for (int k = 0; k < N; ++k) {
-                v += class_var(prev, idx[k]);
-                prev = idx[k] + 1;
+    if (N == 1) {
+        // sigma_b^2(t) = (mu_t*omega - mu)^2 / (omega*(1-omega)); arg-max bin.
+        double best = -std::numeric_limits<double>::infinity();
+        std::vector<int> ties;
+        for (int t = 0; t < B; ++t) {
+            const double o = omega[t];
+            if (o <= 0.0 || o >= 1.0) continue;
+            const double num = mu_t * o - mu[t];
+            const double s = num * num / (o * (1.0 - o));
+            if (!std::isfinite(s)) continue;
+            if (s > best) { best = s; ties.clear(); ties.push_back(t); }
+            else if (s == best) ties.push_back(t);
+        }
+        double m = 0.0;
+        for (int t : ties) m += t;
+        threshBins[0] = ties.empty() ? 0.0 : m / ties.size();
+        bestVar = best;
+    } else if (N == 2) {
+        double best = -std::numeric_limits<double>::infinity();
+        std::vector<std::pair<int, int>> ties;
+        for (int r = 0; r < B; ++r) {
+            const double o0 = omega[r];
+            if (o0 <= 0.0) continue;
+            const double mu0t = mu_t - mu[r] / o0;
+            for (int c = r + 1; c < B; ++c) {
+                const double o1 = omega[c] - omega[r];
+                if (o1 <= 0.0) continue;
+                const double mu1t = mu_t - (mu[c] - mu[r]) / o1;
+                const double o2 = 1.0 - (o0 + o1);
+                if (o2 <= 0.0) continue;
+                const double term1 = o0 * mu0t * mu0t;
+                const double term2 = o1 * mu1t * mu1t;
+                const double q = o0 * mu0t + o1 * mu1t;
+                const double term3 = q * q / o2;
+                const double s = term1 + term2 + term3;
+                if (!std::isfinite(s)) continue;
+                if (s > best) { best = s; ties.clear(); ties.push_back({r, c}); }
+                else if (s == best) ties.push_back({r, c});
             }
-            v += class_var(prev, L - 1);
-            if (v > best_var) { best_var = v; best = idx; }
-            return;
         }
-        for (int t = start; t < L - 1 - (N - 1 - depth); ++t) {
-            idx[depth] = t;
-            recurse(depth + 1, t + 1);
+        double sr = 0.0, sc = 0.0;
+        for (auto &pr : ties) { sr += pr.first; sc += pr.second; }
+        const double n = ties.empty() ? 1.0 : double(ties.size());
+        threshBins[0] = sr / n;
+        threshBins[1] = sc / n;
+        bestVar = best;
+    } else {
+        // N >= 3: exhaustive over 256 bins is infeasible and MATLAB uses
+        // fminsearch (a local optimiser). We instead solve the GLOBAL
+        // multilevel-Otsu optimum by dynamic programming over the 256-bin
+        // histogram (maximise sum_k s_k^2 / w_k). This is correct-scale and
+        // a valid set of thresholds, but — being global rather than
+        // fminsearch's local optimum — may differ from MATLAB for N >= 3.
+        std::vector<double> Omega(B + 1, 0.0), Mu(B + 1, 0.0);
+        for (int j = 0; j < B; ++j) {
+            Omega[j + 1] = omega[j];
+            Mu[j + 1] = mu[j];
         }
-    };
-    recurse(0, 0);
-
-    // MATLAB multithresh convention: return the MIDPOINTS of adjacent
-    // class MEANS, not the histogram-bin boundaries. This canonicalises
-    // the tied-maximum case (Otsu's between-class variance is flat over
-    // any threshold strictly between cluster centres). Then scale back
-    // to the input's native value range:
-    //   uint8/uint16 -> integer thresholds in 0..L-1
-    //   floating-point -> normalised 0..1
-    auto class_mean = [&](int lo, int hi) {
-        const double w = P[hi + 1] - P[lo];
-        if (w == 0.0) return double(lo);
-        const double s = S[hi + 1] - S[lo];
-        return s / w;
-    };
-    std::vector<double> means(N + 1);
-    int prev = 0;
-    for (int k = 0; k < N; ++k) {
-        means[k] = class_mean(prev, best[k]);
-        prev = best[k] + 1;
+        auto segScore = [&](int lo, int hi) -> double {   // bins [lo,hi] 0-based
+            const double w = Omega[hi + 1] - Omega[lo];
+            if (w <= 0.0) return 0.0;
+            const double s = Mu[hi + 1] - Mu[lo];
+            return s * s / w;
+        };
+        const int K = N + 1;                              // number of classes
+        const double NEG = -std::numeric_limits<double>::infinity();
+        // dp[k][t] = best score for first k classes, class k ending at bin t.
+        std::vector<std::vector<double>> dp(K + 1,
+            std::vector<double>(B, NEG));
+        std::vector<std::vector<int>> back(K + 1,
+            std::vector<int>(B, -1));
+        for (int t = 0; t < B; ++t) dp[1][t] = segScore(0, t);
+        for (int k = 2; k <= K; ++k) {
+            for (int t = k - 1; t < B; ++t) {
+                double bestv = NEG; int bestp = -1;
+                for (int tp = k - 2; tp < t; ++tp) {
+                    if (dp[k - 1][tp] == NEG) continue;
+                    const double v = dp[k - 1][tp] + segScore(tp + 1, t);
+                    if (v > bestv) { bestv = v; bestp = tp; }
+                }
+                dp[k][t] = bestv;
+                back[k][t] = bestp;
+            }
+        }
+        // Last class must end at bin B-1; backtrack the N boundaries.
+        std::vector<int> bounds(K, 0);
+        bounds[K - 1] = B - 1;
+        for (int k = K; k >= 2; --k)
+            bounds[k - 2] = back[k][bounds[k - 1]];
+        for (int k = 0; k < N; ++k) threshBins[k] = bounds[k];
+        bestVar = dp[K][B - 1] - mu_t * mu_t;
     }
-    means[N] = class_mean(prev, L - 1);
 
+    // map2OriginalScale: minA + thresh/255 * (maxA - minA). For integer
+    // input MATLAB casts the result back to the integer type (round).
     Value t_out = Value::matrix(1, N, ValueType::DOUBLE, mr);
     double *td = t_out.doubleDataMut();
-    const bool isInteger = (I.type() == ValueType::UINT8
-                         || I.type() == ValueType::UINT16
-                         || I.type() == ValueType::INT16
-                         || I.type() == ValueType::INT8);
     for (int k = 0; k < N; ++k) {
-        const double midpoint = 0.5 * (means[k] + means[k + 1]);
-        if (isInteger) {
-            // Integer input: MATLAB returns thresholds in the input's
-            // native integer range, truncated (uint8 floor() of the
-            // mean midpoint).
-            td[k] = std::floor(midpoint);
-        } else {
-            // Floating-point input: normalise back to [0, 1].
-            td[k] = midpoint / double(L - 1);
-        }
+        double v = minA + threshBins[k] / 255.0 * (maxA - minA);
+        if (isInt) v = std::round(v);
+        td[k] = v;
     }
 
-    // Effectiveness η = sigma_b^2 / sigma_T^2.
-    const double mu = sum_total / total;
-    double total_var = 0.0;
-    for (int i = 0; i < L; ++i) total_var += counts[i] * (i - mu) * (i - mu);
-    const double sigma_b2 = best_var - total * mu * mu;
-    const double em = (total_var > 0.0) ? (sigma_b2 / total_var) : 0.0;
+    // metric = maxval / sum(p .* ((1:B)' - mu_t)^2).
+    double denom = 0.0;
+    for (int j = 0; j < B; ++j) {
+        const double p = counts[j] / total;
+        const double d = (j + 1) - mu_t;
+        denom += p * d * d;
+    }
+    const double em = (denom > 0.0 && std::isfinite(bestVar))
+                          ? bestVar / denom : 0.0;
     return std::make_tuple(std::move(t_out), Value::scalar(em, mr));
 }
 
