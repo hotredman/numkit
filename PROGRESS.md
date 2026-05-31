@@ -441,7 +441,7 @@ together.
 | `iscell` | ✅ | Sig: r = iscell(...). Predicate. Spec-extension batch 2026-05-09. |
 | `iscellstr` | ✅ | Sig: r = iscellstr(...). Spec-extension batch 2026-05-09. |
 | `mat2cell` | ✅ | Sig: r = mat2cell(...). Spec-extension batch 2026-05-09. |
-| `num2cell` | ✅ | Sig: r = num2cell(...). Spec-extension batch 2026-05-09. |
+| `num2cell` | ✅ | Sig: C = num2cell(A[,dims]). DEEP-PROBE 2026-05-31: added the dim form (was element-wise only; num2cell(A,dim) threw 'Index exceeds array size 1'). The listed dims are COLLAPSED into each cell: num2cell(A,2)=2x1 cell of rows (c{1}=[1 2 3]); num2cell(A,1)=1x3 cell of columns (c{1}=[1;4]); num2cell(A,[1 2])=1x1 cell holding the whole matrix; a dim > ndim (num2cell(A,3) on a 2-D A) is a trivial singleton -> element-wise 2x3. 2-D only (N-D deferred). namespace=builtin. |
 | `string` | ✅ | Sig: S = string(X). Numeric → string array. 1000 iters. fp limited to numel (string-array indexing broken — BUGS #7). |
 | `struct2cell` | ✅ | Sig: r = struct2cell(...). Spec-extension batch 2026-05-09. |
 | `table` | ❌ |  |

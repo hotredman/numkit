@@ -75,6 +75,38 @@ TEST_F(Misc4BatchTest, Mat2CellNum2Cell)
     EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 3.0);
 }
 
+// num2cell(A, dims): the listed dimensions are collapsed into each cell.
+// Was element-wise only (num2cell(A,dim) threw). vs MATLAB R2025b on
+// A = [1 2 3; 4 5 6]. DEEP-PROBE 2026-05-31.
+TEST_F(Misc4BatchTest, Num2CellDim)
+{
+    eval("A = [1 2 3; 4 5 6];");
+    // dim 2: collapse columns -> 2x1 cell of rows.
+    eval("c2 = num2cell(A, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(c2,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(c2,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c2{1}(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c2{2}(3)"), 6.0);
+    // dim 1: collapse rows -> 1x3 cell of columns.
+    eval("c1 = num2cell(A, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(c1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(c1,2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c1{1}(2)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c1{3}(2)"), 6.0);
+    // dims [1 2]: whole matrix in a 1x1 cell.
+    eval("cb = num2cell(A, [1 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(cb)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cb{1}(2,3)"), 6.0);
+    // a dim past ndim (3 on a 2-D array) is a trivial singleton -> element-wise.
+    eval("c3 = num2cell(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c3)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c3{2,2}"), 5.0);
+    // complex preserved.
+    eval("cz = num2cell([1+2i 3; 4 5-1i], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(cz{1}(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(cz{1}(1))"), 2.0);
+}
+
 TEST_F(Misc4BatchTest, MeshgridNdgrid)
 {
     eval("[X, Y] = meshgrid(1:3, 1:2);");

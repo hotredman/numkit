@@ -120,6 +120,66 @@ Value num2cell(const Value &x, std::pmr::memory_resource *mr)
     return c;
 }
 
+// num2cell(x, dims): collapse the listed dimension(s) into each cell. The
+// result cell has size(x) with the collapsed dims set to 1; each cell holds
+// the corresponding sub-array. 2-D inputs only (N-D deferred); dims entries
+// > 2 are trivial singleton collapses and ignored. dims = {} or no real
+// collapse falls back to the element-wise num2cell.
+static Value num2cellDim(const Value &x, const std::vector<int> &dims,
+                         std::pmr::memory_resource *mr)
+{
+    if (x.dims().ndim() > 2)
+        throw Error("num2cell: the dimension form is supported for 2-D "
+                    "inputs only (N-D deferred)",
+                     0, 0, "num2cell", "", "numkit:num2cell:ndDim");
+    bool c1 = false, c2 = false;
+    for (int d : dims) {
+        if (d < 1)
+            throw Error("num2cell: dimension argument must be a positive integer",
+                         0, 0, "num2cell", "", "numkit:num2cell:badDim");
+        if (d == 1) c1 = true;
+        else if (d == 2) c2 = true;
+        // d > 2: a singleton dimension of a 2-D array — collapsing it is a no-op.
+    }
+    if (!c1 && !c2) return num2cell(x, mr);
+
+    const size_t r = static_cast<size_t>(x.dims().dim(0));
+    const size_t c = (x.dims().ndim() >= 2) ? static_cast<size_t>(x.dims().dim(1)) : 1;
+    const bool cplx = x.isComplex();
+
+    auto makeSlice = [&](size_t rr, size_t ccx, auto srcIndex) -> Value {
+        if (cplx) {
+            auto v = Value::matrix(rr, ccx, ValueType::COMPLEX, mr);
+            auto *vd = v.complexDataMut();
+            const auto *xd = x.complexData();
+            for (size_t k = 0; k < rr * ccx; ++k) vd[k] = xd[srcIndex(k)];
+            return v;
+        }
+        auto v = Value::matrix(rr, ccx, ValueType::DOUBLE, mr);
+        auto *vd = v.doubleDataMut();
+        for (size_t k = 0; k < rr * ccx; ++k) vd[k] = x.elemAsDouble(srcIndex(k));
+        return v;
+    };
+
+    if (c1 && c2) {
+        auto out = Value::cell(1, 1, mr);
+        out.cellAt(0) = makeSlice(r, c, [](size_t k) { return k; });
+        return out;
+    }
+    if (c1) {                                   // collapse rows -> 1 x c cell
+        auto out = Value::cell(1, c, mr);
+        for (size_t j = 0; j < c; ++j) {
+            const size_t base = j * r;
+            out.cellAt(j) = makeSlice(r, 1, [base](size_t i) { return base + i; });
+        }
+        return out;
+    }
+    auto out = Value::cell(r, 1, mr);           // collapse cols -> r x 1 cell
+    for (size_t i = 0; i < r; ++i)
+        out.cellAt(i) = makeSlice(1, c, [i, r](size_t j) { return j * r + i; });
+    return out;
+}
+
 Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
@@ -394,7 +454,20 @@ void num2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.empty())
         throw Error("num2cell requires 1 argument",
                      0, 0, "num2cell", "", "numkit:num2cell:nargin");
-    outs[0] = num2cell(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    // num2cell(A, dims): the trailing arg(s) list the dimension(s) to
+    // collapse into each cell.
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        std::vector<int> dims;
+        for (size_t i = 1; i < args.size(); ++i) {
+            const Value &dv = args[i];
+            for (size_t k = 0; k < dv.numel(); ++k)
+                dims.push_back(static_cast<int>(dv.elemAsDouble(k)));
+        }
+        outs[0] = num2cellDim(args[0], dims, mr);
+        return;
+    }
+    outs[0] = num2cell(args[0], mr);
 }
 
 void cell2mat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
