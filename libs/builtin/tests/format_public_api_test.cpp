@@ -266,3 +266,43 @@ TEST(BuiltinFormatPublicApi, FloatConvFiniteUnchanged)
     Value v[] = {Value::scalar(3.14159, mr)};
     EXPECT_EQ(numkit::builtin::formatOnce("%.2f", Span<const Value>(v, 1)), "3.14");
 }
+
+// ── '*' field width / precision from the argument list (MATLAB) ──────────
+// DEEP-PROBE 2026-05-31: numkit parsed past '*' but never consumed an arg
+// for it, so snprintf("%*d", v) read the value as the width and printed a
+// garbage pointer. Now each '*' consumes a numeric arg (width then
+// precision) before the conversion's value arg. vs MATLAB R2025b.
+TEST(BuiltinFormatPublicApi, FormatOnceStarWidthAndPrecision)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value wd[] = {Value::scalar(5.0, mr), Value::scalar(42.0, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%*d", Span<const Value>(wd, 2)), "   42");
+    Value lj[] = {Value::scalar(5.0, mr), Value::scalar(42.0, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%-*d", Span<const Value>(lj, 2)), "42   ");
+    Value pf[] = {Value::scalar(3.0, mr), Value::scalar(3.14159, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%.*f", Span<const Value>(pf, 2)), "3.142");
+    Value wp[] = {Value::scalar(8.0, mr), Value::scalar(2.0, mr), Value::scalar(3.14159, mr)};
+    EXPECT_EQ(numkit::builtin::formatOnce("%*.*f", Span<const Value>(wp, 3)), "    3.14");
+}
+
+// '*' must count as a consumed arg so cyclic chunking lines up.
+TEST(BuiltinFormatPublicApi, CountFormatSpecsStarCountsAsArg)
+{
+    EXPECT_EQ(numkit::builtin::countFormatSpecs("%*d"), 2u);
+    EXPECT_EQ(numkit::builtin::countFormatSpecs("%.*f"), 2u);
+    EXPECT_EQ(numkit::builtin::countFormatSpecs("%*.*f"), 3u);
+    EXPECT_EQ(numkit::builtin::countFormatSpecs("%5.2f"), 1u);   // no star, unchanged
+}
+
+// Cyclic recycling consumes width+value pairs per cycle (MATLAB).
+TEST(BuiltinFormatPublicApi, FormatCyclicStarWidthRecycles)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto arr = Value::matrix(1, 6, ValueType::DOUBLE, mr);
+    double *d = arr.doubleDataMut();
+    d[0] = 4; d[1] = 1; d[2] = 4; d[3] = 22; d[4] = 4; d[5] = 333;
+    Value args[] = {arr};
+    std::string out =
+        numkit::builtin::formatCyclic("[%*d]", Span<const Value>(args, 1), 0, mr);
+    EXPECT_EQ(out, "[   1][  22][ 333]");
+}

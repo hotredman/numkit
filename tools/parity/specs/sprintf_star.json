@@ -1,0 +1,14 @@
+{
+  "name": "sprintf_star",
+  "namespace": "builtin",
+  "covers": ["sprintf"],
+  "setup": "",
+  "expr": "a = sprintf('%*d', 5, 42); na = numel(a); sa = sum(double(a)); b = sprintf('%.*f', 3, 3.14159); nb = numel(b); sb = sum(double(b)); c = sprintf('%*.*f', 8, 2, 3.14159); nc = numel(c); sc = sum(double(c)); d = sprintf('%-*d', 5, 42); nd = numel(d); sd = sum(double(d)); e = sprintf('[%*d]', 4, 1, 4, 22, 4, 333); ne = numel(e); se = sum(double(e));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "sa", "nb", "sb", "nc", "sc", "nd", "sd", "ne", "se"
+  ],
+  "deep_verified": true,
+  "comment": "sprintf/fprintf C-style '*' field width / precision taken from the argument list vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit parsed past '*' but never consumed an arg for it — snprintf('%*d', value) read the double value as the int width and printed a garbage pointer (and the format recycled wrongly). Now each '*' consumes one numeric arg (width then precision) BEFORE the conversion's value arg, and countFormatSpecs counts stars so cyclic recycling lines up. sprintf('%*d',5,42)='   42'; sprintf('%.*f',3,pi)≈'3.142'; sprintf('%*.*f',8,2,pi)='    3.14'; sprintf('%-*d',5,42)='42   '; sprintf('[%*d]',4,1,4,22,4,333)='[   1][  22][ 333]' (width+value recycled per cycle). Fingerprint via numel + sum(char codes). covers:[sprintf] sibling spec (sprintf.json keeps the base cases; split for the VM 255-register limit)."
+}
