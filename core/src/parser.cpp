@@ -507,30 +507,53 @@ ASTNodePtr Parser::tryMultiAssign()
     advance();
 
     std::vector<std::string> names;
+    std::vector<ASTNodePtr> targets;
+    bool anyComplex = false;
 
-    // Первый элемент: идентификатор или ~
-    if (check(TokenType::IDENTIFIER)) {
-        names.push_back(current().value);
-        advance();
-    } else if (check(TokenType::TILDE)) {
-        names.push_back("~");
-        advance();
-    } else {
+    // Разбор одного выходного элемента: ~ , bare identifier, или
+    // сложный lvalue (s.f / a(i) / c{i} / s.(e) / s.a.b ...).
+    // Возвращает false при не-lvalue — caller откатывает pos_ и
+    // трактует `[...]` как обычный matrix literal.
+    auto parseElem = [&]() -> bool {
+        if (check(TokenType::TILDE)) {
+            advance();
+            names.push_back("~");
+            targets.push_back(nullptr);
+            return true;
+        }
+        if (!check(TokenType::IDENTIFIER))
+            return false;
+        auto expr = parsePostfix();
+        if (!expr)
+            return false;
+        switch (expr->type) {
+        case NodeType::IDENTIFIER:
+            names.push_back(expr->strValue);
+            break;
+        case NodeType::FIELD_ACCESS:
+        case NodeType::DYNAMIC_FIELD_ACCESS:
+        case NodeType::CALL:
+        case NodeType::INDEX:
+        case NodeType::CELL_INDEX:
+            anyComplex = true;
+            names.emplace_back(); // empty — authoritative target is in lhsTargets
+            break;
+        default:
+            return false; // not an assignable lvalue (e.g. a transpose / binop)
+        }
+        targets.push_back(std::move(expr));
+        return true;
+    };
+
+    // Первый элемент
+    if (!parseElem())
         return nullptr;
-    }
 
     // Остальные элементы через запятую
     while (check(TokenType::COMMA)) {
         advance();
-        if (check(TokenType::IDENTIFIER)) {
-            names.push_back(current().value);
-            advance();
-        } else if (check(TokenType::TILDE)) {
-            names.push_back("~");
-            advance();
-        } else {
+        if (!parseElem())
             return nullptr;
-        }
     }
 
     if (!check(TokenType::RBRACKET))
@@ -547,6 +570,11 @@ ASTNodePtr Parser::tryMultiAssign()
     auto rhs = parseExpression();
     auto node = makeNode(NodeType::MULTI_ASSIGN, startLine, startCol);
     node->returnNames = std::move(names);
+    // Прикрепляем полноценные lvalue-цели только когда есть хотя бы одна
+    // сложная — простой путь (все идентификаторы / ~) остаётся на
+    // returnNames без изменений (нулевой риск регрессии).
+    if (anyComplex)
+        node->lhsTargets = std::move(targets);
     node->children.push_back(std::move(rhs));
     node->suppressOutput = consumeStmtTerminator(*node);
     skipNewlines();

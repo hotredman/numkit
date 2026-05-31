@@ -1019,6 +1019,19 @@ Value TreeWalker::execAssign(const ASTNode *node, Environment *env)
         env->set(lhs->strValue, rhs);
         if (!node->suppressOutput)
             displayValue(lhs->strValue, rhs);
+        return rhs;
+    }
+
+    // Non-identifier lvalue (a(i)=, s.f=, s.(e)=, c{i}=). Behaviour
+    // unchanged: no auto-display for these targets in the TreeWalker.
+    assignLValue(lhs, rhs, env);
+    return rhs;
+}
+
+void TreeWalker::assignLValue(const ASTNode *lhs, const Value &rhs, Environment *env)
+{
+    if (lhs->type == NodeType::IDENTIFIER) {
+        env->set(lhs->strValue, rhs);
     } else if (lhs->type == NodeType::CALL) {
         execIndexedAssign(lhs, rhs, env);
     } else if (lhs->type == NodeType::FIELD_ACCESS) {
@@ -1044,21 +1057,17 @@ Value TreeWalker::execAssign(const ASTNode *node, Environment *env)
     } else {
         throw std::runtime_error("Invalid assignment target");
     }
-    return rhs;
 }
 
 void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environment *env)
 {
-    auto *target = lhs->children[0].get();
-    if (target->type != NodeType::IDENTIFIER)
-        throw std::runtime_error("Invalid indexed assignment target");
-
-    const std::string &varName = target->strValue;
-    auto *var = env->get(varName);
-    if (!var) {
-        env->set(varName, Value());
-        var = env->get(varName);
-    }
+    // The object being indexed may itself be any lvalue: a variable
+    // (`a(2)=…`), a struct field (`s.x(2)=…`), a struct-array element
+    // field (`d(i).a(2)=…`), or cell content (`c{i}(2)=…`). Resolve it
+    // to a mutable slot; the index write below targets that slot. For a
+    // bare identifier this is just the variable slot — no copy, hot path
+    // unchanged.
+    auto *var = &resolveObjectSlot(lhs->children[0].get(), env);
 
     size_t nargs = lhs->children.size() - 1;
 
@@ -1190,64 +1199,89 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
     }
 }
 
+Value &TreeWalker::resolveObjectSlot(const ASTNode *node, Environment *env)
+{
+    switch (node->type) {
+    case NodeType::IDENTIFIER: {
+        Value *var = env->get(node->strValue);
+        if (!var) {
+            env->set(node->strValue, Value());
+            var = env->get(node->strValue);
+        }
+        return *var;
+    }
+    case NodeType::FIELD_ACCESS:
+        return resolveFieldLValue(node, env);
+    case NodeType::DYNAMIC_FIELD_ACCESS: {
+        std::string fname = execNode(node->children[1].get(), env).toString();
+        Value &parent = resolveObjectSlot(node->children[0].get(), env);
+        if (!parent.isStruct())
+            parent = Value::structure();
+        return parent.field(fname);
+    }
+    case NodeType::CELL_INDEX:
+        return resolveCellSlot(node, env);
+    default:
+        throw std::runtime_error("Invalid assignment target");
+    }
+}
+
+Value &TreeWalker::resolveCellSlot(const ASTNode *node, Environment *env)
+{
+    // Resolve the cell container (itself any lvalue), coercing an
+    // unset/empty slot to a cell, then return a mutable reference to the
+    // addressed content, auto-growing to fit the subscripts (any rank).
+    Value &cellVar = resolveObjectSlot(node->children[0].get(), env);
+    if (cellVar.isUnset() || cellVar.isEmpty())
+        cellVar = Value::cell(0, 0);
+    if (!cellVar.isCell())
+        throw std::runtime_error("Cell contents indexing on a non-cell value");
+
+    Value *var = &cellVar;
+    const size_t nidx = node->children.size() - 1;
+    std::vector<size_t> coords(nidx);
+    for (size_t i = 0; i < nidx; ++i) {
+        IndexContextGuard guard(indexContextStack_,
+                                {var, static_cast<int>(i), static_cast<int>(nidx)});
+        Value v = execNode(node->children[i + 1].get(), env);
+        coords[i] = static_cast<size_t>(v.toScalar()) - 1;
+    }
+    size_t linear = var->growCellTo(coords.data(), static_cast<int>(nidx), engine_.mr_);
+    return var->cellAt(linear);
+}
+
 Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
 {
     auto *objNode = node->children[0].get();
     const std::string &fieldName = node->strValue;
 
-    if (objNode->type == NodeType::IDENTIFIER) {
-        auto *var = env->get(objNode->strValue);
-        if (!var) {
-            env->set(objNode->strValue, Value::structure());
-            var = env->get(objNode->strValue);
-        }
-        if (!var->isStruct())
-            *var = Value::structure();
-        return var->field(fieldName);
-    }
-    if (objNode->type == NodeType::FIELD_ACCESS) {
-        Value &parent = resolveFieldLValue(objNode, env);
-        if (!parent.isStruct())
-            parent = Value::structure();
-        return parent.field(fieldName);
-    }
     if (objNode->type == NodeType::CALL) {
-        // d(i).field = val — paren-indexed struct-array element write.
-        // 1-D index supports auto-grow (`s(end+1).field = val`); 2-D
-        // requires the array to already cover (r, c).
+        // d(i).field = val — paren-indexed struct-array element write,
+        // any rank, auto-growing to fit (`d(end+1).f`, `d(i,j,k).f`).
+        // The indexed object is itself any lvalue (`x.d(i).field`,
+        // `c{k}(i).field`, …), resolved to a mutable struct-array slot.
         auto *target = objNode->children[0].get();
-        if (target->type != NodeType::IDENTIFIER)
-            throw std::runtime_error("Invalid field assignment target");
-        auto *var = env->get(target->strValue);
-        if (!var || var->isUnset()) {
-            env->set(target->strValue, Value::structArray(0, 0, engine_.mr_));
-            var = env->get(target->strValue);
-        }
+        Value *var = &resolveObjectSlot(target, env);
+        if (var->isUnset() || var->isEmpty())
+            *var = Value::structArray(0, 0, engine_.mr_);
         if (!var->isStruct())
-            throw std::runtime_error(
-                "Indexed field assignment on non-struct '" + target->strValue + "'");
+            throw std::runtime_error("Indexed field assignment on a non-struct value");
 
         const size_t nargs = objNode->children.size() - 1;
-        size_t linear = 0;
+        std::vector<size_t> coords(nargs);
+        for (size_t a = 0; a < nargs; ++a) {
+            IndexContextGuard guard(indexContextStack_,
+                                    {var, static_cast<int>(a), static_cast<int>(nargs)});
+            Value v = execNode(objNode->children[a + 1].get(), env);
+            coords[a] = static_cast<size_t>(v.toScalar()) - 1;
+        }
+        size_t linear;
         if (nargs == 1) {
-            IndexContextGuard guard(indexContextStack_, {var, 0, 1});
-            Value v = execNode(objNode->children[1].get(), env);
-            linear = static_cast<size_t>(v.toScalar()) - 1;
-            var->growStructArrayTo(linear, engine_.mr_);
-        } else if (nargs == 2) {
-            IndexContextGuard g0(indexContextStack_, {var, 0, 2});
-            Value rv = execNode(objNode->children[1].get(), env);
-            IndexContextGuard g1(indexContextStack_, {var, 1, 2});
-            Value cv = execNode(objNode->children[2].get(), env);
-            size_t r = static_cast<size_t>(rv.toScalar()) - 1;
-            size_t c = static_cast<size_t>(cv.toScalar()) - 1;
-            if (r >= var->dims().rows() || c >= var->dims().cols())
-                throw std::runtime_error(
-                    "2-D struct-array auto-grow not supported yet");
-            linear = var->dims().sub2indChecked(r, c);
+            linear = coords[0];
+            var->growStructArrayTo(linear, engine_.mr_); // preserves row/col vector shape
         } else {
-            throw std::runtime_error(
-                "Indexed field assignment: only 1-D / 2-D index supported");
+            linear = var->growStructArrayND(coords.data(), static_cast<int>(nargs),
+                                            engine_.mr_);
         }
 
         auto &fieldMap = var->structArrayElem(linear);
@@ -1260,7 +1294,14 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
         }
         return fieldMap[fieldName];
     }
-    throw std::runtime_error("Invalid field assignment target");
+
+    // General case: the object is any other addressable lvalue
+    // (identifier, nested field, dynamic field, cell content). Resolve
+    // it, coerce to a scalar struct, and return the field slot.
+    Value &parent = resolveObjectSlot(objNode, env);
+    if (!parent.isStruct())
+        parent = Value::structure();
+    return parent.field(fieldName);
 }
 
 void TreeWalker::execFieldAssign(const ASTNode *lhs, const Value &rhs, Environment *env)
@@ -1283,107 +1324,35 @@ void TreeWalker::execFieldAssign(const ASTNode *lhs, const Value &rhs, Environme
 
 void TreeWalker::execCellAssign(const ASTNode *lhs, const Value &rhs, Environment *env)
 {
-    auto *target = lhs->children[0].get();
-    if (target->type != NodeType::IDENTIFIER)
-        throw std::runtime_error("Invalid cell assignment target");
-
-    auto *var = env->get(target->strValue);
-    if (!var) {
-        env->set(target->strValue, Value::cell(0, 0));
-        var = env->get(target->strValue);
-    }
-    if (!var->isCell())
-        throw std::runtime_error("Cell indexing on non-cell variable: " + target->strValue);
-
-    size_t nidx = lhs->children.size() - 1;
-
-    if (nidx == 1) {
-        IndexContextGuard guard(indexContextStack_, {var, 0, 1});
-        Value idx = execNode(lhs->children[1].get(), env);
-        size_t i = static_cast<size_t>(idx.toScalar()) - 1;
-
-        if (i >= var->numel()) {
-            size_t newSize = i + 1;
-            auto newCell = Value::cell(1, newSize);
-            for (size_t k = 0; k < var->numel(); ++k)
-                newCell.cellAt(k) = var->cellAt(k);
-            *var = newCell;
-        }
-        var->cellAt(i) = rhs;
-    } else if (nidx == 2) {
-        Value ridx, cidx;
-        {
-            IndexContextGuard guard(indexContextStack_, {var, 0, 2});
-            ridx = execNode(lhs->children[1].get(), env);
-        }
-        {
-            IndexContextGuard guard(indexContextStack_, {var, 1, 2});
-            cidx = execNode(lhs->children[2].get(), env);
-        }
-        size_t r = static_cast<size_t>(ridx.toScalar()) - 1;
-        size_t c = static_cast<size_t>(cidx.toScalar()) - 1;
-        size_t idx = var->dims().sub2indChecked(r, c);
-        var->cellAt(idx) = rhs;
-    } else if (nidx == 3) {
-        Value ridx, cidx, pidx;
-        {
-            IndexContextGuard guard(indexContextStack_, {var, 0, 3});
-            ridx = execNode(lhs->children[1].get(), env);
-        }
-        {
-            IndexContextGuard guard(indexContextStack_, {var, 1, 3});
-            cidx = execNode(lhs->children[2].get(), env);
-        }
-        {
-            IndexContextGuard guard(indexContextStack_, {var, 2, 3});
-            pidx = execNode(lhs->children[3].get(), env);
-        }
-        size_t r = static_cast<size_t>(ridx.toScalar()) - 1;
-        size_t c = static_cast<size_t>(cidx.toScalar()) - 1;
-        size_t p = static_cast<size_t>(pidx.toScalar()) - 1;
-        size_t idx = var->dims().sub2indChecked(r, c, p);
-        var->cellAt(idx) = rhs;
-    } else {
-        // ND brace-cell write (nidx ≥ 4). Auto-grows the cell array if
-        // any subscript exceeds the current dim, including new trailing
-        // axes (rank ↑) — matches MATLAB's `C{i,j,k,l} = v` semantics.
-        std::vector<size_t> coords(nidx);
-        for (size_t i = 0; i < nidx; ++i) {
-            IndexContextGuard guard(indexContextStack_, {var, static_cast<int>(i),
-                                                          static_cast<int>(nidx)});
-            Value v = execNode(lhs->children[i + 1].get(), env);
-            coords[i] = static_cast<size_t>(v.toScalar()) - 1;
-        }
-        const int curNd = var->dims().ndim();
-        const int newNd = std::max(static_cast<int>(nidx), curNd);
-        std::vector<size_t> need(newNd, 1);
-        for (int i = 0; i < newNd; ++i)
-            need[i] = (i < curNd) ? var->dims().dim(i) : 1;
-        bool grow = (static_cast<int>(nidx) > curNd);
-        for (size_t i = 0; i < nidx; ++i) {
-            if (coords[i] + 1 > need[i]) {
-                need[i] = coords[i] + 1;
-                grow = true;
-            }
-        }
-        if (grow)
-            var->resizeND(need.data(), newNd, engine_.mr_);
-
-        const auto &d = var->dims();
-        size_t idx = 0, stride = 1;
-        for (size_t i = 0; i < nidx; ++i) {
-            const size_t lim = (static_cast<int>(i) < d.ndim()) ? d.dim(static_cast<int>(i)) : 1;
-            idx += coords[i] * stride;
-            stride *= lim;
-        }
-        var->cellAt(idx) = rhs;
-    }
+    // c{i} = rhs assigns the addressed content. resolveCellSlot handles
+    // container coercion, grow and N-D subscripts for any cell lvalue
+    // (`c{i}`, `s.c{i}`, `a.b{i,j}`, …).
+    resolveObjectSlot(lhs, env) = rhs;
 }
 
 // ============================================================
 Value TreeWalker::execMultiAssign(const ASTNode *node, Environment *env)
 {
     auto results = execCallMulti(node->children[0].get(), env, node->returnNames.size());
+
+    // Complex-target path: at least one output is a general lvalue
+    // (`s.f`, `a(i)`, `c{i}`, ...). lhsTargets is authoritative; a
+    // nullptr entry is an ignored `~`.
+    if (!node->lhsTargets.empty()) {
+        for (size_t i = 0; i < node->lhsTargets.size() && i < results.size(); ++i)
+            if (node->lhsTargets[i])
+                assignLValue(node->lhsTargets[i].get(), results[i], env);
+
+        // Display only bare-identifier targets (mirrors single-assign,
+        // where `s.f = v` / `a(i) = v` do not auto-display in the TW).
+        if (!node->suppressOutput && !results.empty())
+            for (size_t i = 0; i < node->lhsTargets.size() && i < results.size(); ++i) {
+                const ASTNode *t = node->lhsTargets[i].get();
+                if (t && t->type == NodeType::IDENTIFIER)
+                    displayValue(t->strValue, results[i]);
+            }
+        return results.empty() ? Value() : results[0];
+    }
 
     for (size_t i = 0; i < node->returnNames.size() && i < results.size(); ++i)
         if (node->returnNames[i] != "~")
@@ -1655,7 +1624,8 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             return callFuncHandle(target, args, env, node);
         }
 
-        if (target.isNumeric() || target.isLogical() || target.isChar() || target.isCell())
+        if (target.isNumeric() || target.isLogical() || target.isChar()
+            || target.isCell() || target.isStruct())
             return execIndexAccess(target, node, env);
 
         throw std::runtime_error("Cannot call or index into value of type "
