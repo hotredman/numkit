@@ -1826,8 +1826,66 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::stri
             else                         fd[j] = -std::log(std::max(1.0 - F, 1e-300));
         }
     } else if (mode == "icdf") {
-        throw Error("ksdensity: 'Function'='icdf' is not yet supported",
-                    0, 0, "ksdensity", "", "numkit:ksdensity:icdf_nyi");
+        // Inverse CDF: the `grid` values are PROBABILITIES p in [0, 1].
+        // Solve F(x) = p via Newton's method on the smoothed cdf/pdf, seeded
+        // by linear inverse-interpolation of a 100-point grid cdf over the
+        // data range — matching MATLAB R2025b's ksdensity icdf algorithm
+        // (compute_initial_icdf + Newton in statkscompute.m).
+        const double infv = std::numeric_limits<double>::infinity();
+        auto cdf_at = [&](double xq) {
+            double s = 0.0;
+            for (size_t i = 0; i < N; ++i)
+                s += ws[i] * ks_cdf((xq - xs[i]) * inv_h, kernel);
+            return s * Winv;
+        };
+        auto pdf_at = [&](double xq) {
+            double s = 0.0;
+            for (size_t i = 0; i < N; ++i)
+                s += ws[i] * ks_pdf((xq - xs[i]) * inv_h, kernel);
+            return s * inv_h * Winv;
+        };
+        // 100-point grid cdf over [min(x), max(x)] for the initial guess.
+        const size_t G = 100;
+        std::vector<double> gx(G), gF(G);
+        {
+            const double gmin = xs.front();
+            const double gmax = xs.back();
+            const double step = (G > 1) ? (gmax - gmin) / double(G - 1) : 0.0;
+            for (size_t g = 0; g < G; ++g) {
+                gx[g] = (g + 1 == G) ? gmax : gmin + step * double(g);
+                gF[g] = cdf_at(gx[g]);
+            }
+        }
+        const double min_dF0 = std::sqrt(std::numeric_limits<double>::epsilon());
+        for (size_t j = 0; j < M; ++j) {
+            const double p = grid[j];
+            if (p < 0.0 || p > 1.0) { fd[j] = nan;   continue; }
+            if (p == 0.0)           { fd[j] = -infv; continue; }
+            if (p == 1.0)           { fd[j] =  infv; continue; }
+            // Initial guess via linear inverse interpolation on (gF, gx).
+            double x0;
+            if      (p <= gF.front()) x0 = gx.front();
+            else if (p >= gF.back())  x0 = gx.back();
+            else {
+                size_t lo = 0;
+                while (lo + 1 < G && gF[lo + 1] < p) ++lo;
+                const double denom = gF[lo + 1] - gF[lo];
+                const double t = (denom != 0.0) ? (p - gF[lo]) / denom : 0.0;
+                x0 = gx[lo] + t * (gx[lo + 1] - gx[lo]);
+            }
+            // Newton refinement on the smoothed CDF.
+            for (int iter = 0; iter < 100; ++iter) {
+                const double F0 = cdf_at(x0);
+                double dF0 = pdf_at(x0);
+                if (dF0 < min_dF0) dF0 = min_dF0;
+                const double dp = p - F0;
+                const double dx = dp / dF0;
+                x0 += dx;
+                if (std::fabs(dx) <= 1e-6 * std::fabs(x0) || std::fabs(dp) <= 1e-8)
+                    break;
+            }
+            fd[j] = x0;
+        }
     } else {
         throw Error("ksdensity: unknown Function '" + mode + "'",
                     0, 0, "ksdensity", "", "numkit:ksdensity:badfn");

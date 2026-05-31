@@ -2,7 +2,7 @@
   "name": "ksdensity",
   "namespace": "stats",
   "setup": "x = [1 2 2.5 3 3.5 4 5 6 7 9]'; pts = (0:0.5:10)'; w = ones(10, 1); w(1:5) = 2;",
-  "expr": "[f, xi, bw] = ksdensity(x, pts); fb = ksdensity(x, pts, 'Kernel', 'box'); ft = ksdensity(x, pts, 'Kernel', 'triangle'); fe = ksdensity(x, pts, 'Kernel', 'epanechnikov'); fc = ksdensity(x, pts, 'Function', 'cdf'); fs = ksdensity(x, pts, 'Function', 'survivor'); fw = ksdensity(x, pts, 'Weights', w);",
+  "expr": "[f, xi, bw] = ksdensity(x, pts); fb = ksdensity(x, pts, 'Kernel', 'box'); ft = ksdensity(x, pts, 'Kernel', 'triangle'); fe = ksdensity(x, pts, 'Kernel', 'epanechnikov'); fc = ksdensity(x, pts, 'Function', 'cdf'); fs = ksdensity(x, pts, 'Function', 'survivor'); fw = ksdensity(x, pts, 'Weights', w); fi = ksdensity(x, [0.1 0.25 0.5 0.75 0.9], 'Function', 'icdf'); fi1 = fi(1); fi3 = fi(3); fi5 = fi(5); rt = ksdensity(x, ksdensity(x, [4.0], 'Function', 'cdf'), 'Function', 'icdf');",
   "iters": 3,
   "tol": 1e-5,
   "fingerprint": [
@@ -12,7 +12,8 @@
     "fe(1)", "fe(5)",
     "fc(1)", "fc(5)", "fc(numel(fc))",
     "fs(1)", "fs(5)",
-    "fw(1)", "fw(5)"
+    "fw(1)", "fw(5)",
+    "fi1", "fi3", "fi5", "rt"
   ],
-  "comment": "Sig: [f, xi, bw] = ksdensity(x[, pts][, 'Bandwidth'/'Kernel'/'Function'/'NumPoints'/'Weights', val, ...]). 4 kernels (normal/box/triangle/epanechnikov) with MATLAB-style σ²=1 bandwidth normalization (h × sqrt(unit-σ²-inverse) for finite-support kernels). Function modes: pdf (default), cdf, survivor, cumhazard. Weights normalized to sum to 1. Default bandwidth via mad(x)/0.6745 fallback to iqr(x)/1.349 (matches MATLAB's bw exactly). Censoring/Support/BoundaryCorrection deferred."
+  "comment": "Sig: [f, xi, bw] = ksdensity(x[, pts][, 'Bandwidth'/'Kernel'/'Function'/'NumPoints'/'Weights', val, ...]). 4 kernels (normal/box/triangle/epanechnikov) with MATLAB-style σ²=1 bandwidth normalization (h × sqrt(unit-σ²-inverse) for finite-support kernels). Function modes: pdf (default), cdf, survivor, cumhazard, icdf. Weights normalized to sum to 1. Default bandwidth via mad(x)/0.6745 fallback to iqr(x)/1.349 (matches MATLAB's bw exactly). DEEP-PROBE c170: added 'Function','icdf' (inverse CDF) — the 2nd arg are PROBABILITIES; solved via Newton's method on the smoothed cdf/pdf, seeded by linear inverse-interpolation of a 100-point grid cdf, matching MATLAB R2025b's compute_initial_icdf + Newton (statkscompute.m) to ~1e-10. numkit previously threw 'icdf is not yet supported'. rt confirms the icdf(cdf(x))=x round-trip. Censoring/Support/BoundaryCorrection deferred."
 }
