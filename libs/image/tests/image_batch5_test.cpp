@@ -70,6 +70,32 @@ TEST_F(ImageBatch5Test, GradientXY)
     EXPECT_DOUBLE_EQ(evalScalar("numel(Gy)"), 9.0);
 }
 
+// imgradientxy / imgradient sobel+prewitt gradient SIGN and direction.
+// 2026-05-31: the 2-D sobel/prewitt kernels were sign-flipped, so Gx/Gy
+// were negated (Gx=-40 vs MATLAB +40 on a left->right-increasing ramp)
+// and imgradient's Gdir was 180 deg off (168.69 vs -11.31). vs MATLAB R2025b.
+TEST_F(ImageBatch5Test, GradientSignAndDirection)
+{
+    eval("A = reshape(1:25,5,5);");                 // increases L->R and T->B
+    // imgradientxy sobel: Gx>0 (intensity rises with column), Gy>0 (with row).
+    eval("[gx, gy] = imgradientxy(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("gx(3,3)"), 40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("gy(3,3)"),  8.0);
+    // imgradient: Gmag sign-invariant, Gdir = atan2(-Gy,Gx) = -11.3099 deg.
+    eval("[gm, gd] = imgradient(A);");
+    EXPECT_NEAR(evalScalar("gm(3,3)"), 40.792156, 1e-5);
+    EXPECT_NEAR(evalScalar("gd(3,3)"), -11.3099325, 1e-6);
+    // prewitt: same direction, Gx=30, Gy=6.
+    eval("[gxp, gyp] = imgradientxy(A,'prewitt');");
+    EXPECT_DOUBLE_EQ(evalScalar("gxp(3,3)"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("gyp(3,3)"),  6.0);
+    eval("[gmp, gdp] = imgradient(A,'prewitt');");
+    EXPECT_NEAR(evalScalar("gdp(3,3)"), -11.3099325, 1e-6);
+    // central method was already correct (unchanged).
+    eval("[gmc, gdc] = imgradient(A,'central');");
+    EXPECT_NEAR(evalScalar("gdc(3,3)"), -11.3099325, 1e-6);
+}
+
 TEST_F(ImageBatch5Test, ImKeepBorder)
 {
     eval("BW = imkeepborder(eye(4));");

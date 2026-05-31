@@ -10,7 +10,7 @@ A = [0 0 0 9 9 9;
 [Gx, Gy] = imgradientxy(A);
 fprintf('--- imgradientxy(step) Gx ---\n');
 disp(Gx);
-fprintf('  expect: large positive at left of step, large negative at right\n\n');
+fprintf('  expect: large POSITIVE Gx at the step (intensity rises left->right; MATLAB sign convention)\n\n');
 
 [Gmag, Gdir] = imgradient(A);
 fprintf('--- imgradient magnitude ---\n');
