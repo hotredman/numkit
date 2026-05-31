@@ -838,4 +838,36 @@ TEST_P(SetOpsTest, IsmemberComplex)
     EXPECT_DOUBLE_EQ(evalScalar("double(ismember(complex(nan,1), [complex(nan,1) 2]));"), 0.0);
 }
 
+// setdiff/intersect/union with the 'rows' flag: each row is one element, the
+// result is the sorted set of unique rows. Was throwing (setdiff) or ignoring
+// the flag and flattening (intersect/union). vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_P(SetOpsTest, SetOpsRows)
+{
+    eval("Ar = [1 2;3 4;5 6]; Br = [3 4;9 9;1 2];");
+    // setdiff rows: rows of A not in B -> [5 6].
+    eval("d = setdiff(Ar, Br, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(d,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(d,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(1,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(1,2)"), 6.0);
+    // intersect rows: common rows, sorted -> [1 2;3 4].
+    eval("c = intersect(Ar, Br, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(c,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2,1)"), 3.0);
+    // row-distinguishing: [1 2;3 4] vs [2 1;3 4] -> only [3 4] (1x2, not 1x4).
+    eval("dd = intersect([1 2;3 4], [2 1;3 4], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(dd,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(dd,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1,1)"), 3.0);
+    // union rows: unique rows of [A;B], sorted -> [1 2;3 4;5 6;9 9].
+    eval("u = union(Ar, Br, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(4,1)"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(4,2)"), 9.0);
+    // 'rows' index outputs are deferred (must throw).
+    EXPECT_THROW(eval("[dd2, ia] = setdiff(Ar, Br, 'rows');"), std::exception);
+}
+
 INSTANTIATE_DUAL(SetOpsTest);

@@ -1681,6 +1681,82 @@ void emitSetopIndices(SetOpKind kind, const Value &A, const Value &B,
         outs[2] = ib;
     }
 }
+
+// True if a trailing 'rows' flag is present (case-insensitive).
+bool wantsRows(Span<const Value> args, size_t start)
+{
+    for (size_t i = start; i < args.size(); ++i) {
+        if (args[i].isChar() || args[i].isString()) {
+            std::string s = args[i].toString();
+            for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (s == "rows") return true;
+        }
+    }
+    return false;
+}
+
+// Row-wise union/intersect/setdiff (MATLAB ..(A,B,'rows')). Treats each row
+// as an element; the result is the sorted set of unique rows (NaN-containing
+// rows are distinct and sort last, matching unique('rows')). 2-D DOUBLE only.
+Value setOpRows(const Value &A, const Value &B, SetOpKind kind,
+                const char *fn, std::pmr::memory_resource *mr)
+{
+    validateUniqueRowsInput(A, fn);
+    validateUniqueRowsInput(B, fn);
+    const size_t ar = A.dims().rows(), ac = A.dims().cols();
+    const size_t br = B.dims().rows(), bc = B.dims().cols();
+    if (ar > 0 && br > 0 && ac != bc)
+        throw Error(std::string(fn) + ": 'rows' inputs must have the same "
+                    "number of columns", 0, 0, fn, "",
+                    std::string("numkit:") + fn + ":rowsCols");
+    const size_t cols = (ar > 0) ? ac : bc;
+
+    // union(A,B,'rows') == unique rows of the vertical concatenation [A; B].
+    if (kind == SetOpKind::Union) {
+        const size_t nr = ar + br;
+        if (nr == 0) return emptyRowsResult(cols, mr);
+        auto combined = Value::matrix(nr, cols, ValueType::DOUBLE, mr);
+        double *cd = combined.doubleDataMut();
+        const double *ad = (ar > 0) ? A.doubleData() : nullptr;
+        const double *bd = (br > 0) ? B.doubleData() : nullptr;
+        for (size_t c = 0; c < cols; ++c) {
+            for (size_t r = 0; r < ar; ++r)      cd[c * nr + r]      = ad[c * ar + r];
+            for (size_t r = 0; r < br; ++r)      cd[c * nr + ar + r] = bd[c * br + r];
+        }
+        return uniqueRows(combined, mr);
+    }
+
+    // intersect / setdiff: unique rows of A that ARE / ARE NOT present in B.
+    const bool wantInB = (kind == SetOpKind::Intersect);
+    if (ar == 0) return emptyRowsResult(cols, mr);
+    const double *ad = A.doubleData();
+    const double *bd = (br > 0) ? B.doubleData() : nullptr;
+
+    ScratchArena scratch(mr);
+    std::pmr::unordered_map<RowKey, char, RowKeyHash, RowKeyEq> bset(&scratch);
+    for (size_t r = 0; r < br; ++r)
+        if (!rowHasNan(bd, bc, br, r))
+            bset.try_emplace(extractRow(bd, bc, br, r, &scratch), char{1});
+
+    std::pmr::unordered_map<RowKey, char, RowKeyHash, RowKeyEq> seen(&scratch);
+    auto nonNan = ScratchVec<size_t>(&scratch);
+    auto nanIdx = ScratchVec<size_t>(&scratch);
+    for (size_t r = 0; r < ar; ++r) {
+        if (rowHasNan(ad, ac, ar, r)) {
+            // NaN row: never equal to anything, so never "in B".
+            if (!wantInB) nanIdx.push_back(r);  // setdiff keeps; intersect drops
+            continue;
+        }
+        RowKey key = extractRow(ad, ac, ar, r, &scratch);
+        if ((bset.count(key) > 0) != wantInB) continue;
+        if (seen.try_emplace(std::move(key), char{1}).second) nonNan.push_back(r);
+    }
+    std::sort(nonNan.begin(), nonNan.end(),
+              [ad, ac, ar](size_t a, size_t b) { return rowLexCmp(ad, ac, ar, a, b) < 0; });
+    nonNan.insert(nonNan.end(), nanIdx.begin(), nanIdx.end());
+    if (nonNan.empty()) return emptyRowsResult(cols, mr);
+    return detail::collectRowsByIndex(mr, A, nonNan.data(), nonNan.size());
+}
 } // namespace
 
 void union_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1688,6 +1764,14 @@ void union_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 2)
         throw Error("union: requires 2 arguments", 0, 0, "union", "", "numkit:union:nargin");
     auto *mr = ctx.engine->resource();
+    if (wantsRows(args, 2)) {
+        if (nargout >= 2)
+            throw Error("union: 'rows' index outputs (ia, ib) are not yet "
+                        "supported in this revision", 0, 0, "union", "",
+                        "numkit:union:rowsIdx");
+        outs[0] = setOpRows(args[0], args[1], SetOpKind::Union, "union", mr);
+        return;
+    }
     outs[0] = setUnion(args[0], args[1], mr, wantsStable(args, 2));
     if (nargout >= 2)
         emitSetopIndices(SetOpKind::Union, args[0], args[1], outs[0], nargout, outs,
@@ -1699,6 +1783,14 @@ void intersect_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("intersect: requires 2 arguments", 0, 0, "intersect", "", "numkit:intersect:nargin");
     auto *mr = ctx.engine->resource();
+    if (wantsRows(args, 2)) {
+        if (nargout >= 2)
+            throw Error("intersect: 'rows' index outputs (ia, ib) are not yet "
+                        "supported in this revision", 0, 0, "intersect", "",
+                        "numkit:intersect:rowsIdx");
+        outs[0] = setOpRows(args[0], args[1], SetOpKind::Intersect, "intersect", mr);
+        return;
+    }
     outs[0] = setIntersect(args[0], args[1], mr, wantsStable(args, 2));
     if (nargout >= 2)
         emitSetopIndices(SetOpKind::Intersect, args[0], args[1], outs[0], nargout, outs,
@@ -1710,6 +1802,14 @@ void setdiff_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("setdiff: requires 2 arguments", 0, 0, "setdiff", "", "numkit:setdiff:nargin");
     auto *mr = ctx.engine->resource();
+    if (wantsRows(args, 2)) {
+        if (nargout >= 2)
+            throw Error("setdiff: 'rows' index output (ia) is not yet "
+                        "supported in this revision", 0, 0, "setdiff", "",
+                        "numkit:setdiff:rowsIdx");
+        outs[0] = setOpRows(args[0], args[1], SetOpKind::Setdiff, "setdiff", mr);
+        return;
+    }
     outs[0] = setDiff(args[0], args[1], mr, wantsStable(args, 2));
     if (nargout >= 2)
         emitSetopIndices(SetOpKind::Setdiff, args[0], args[1], outs[0], nargout, outs,
