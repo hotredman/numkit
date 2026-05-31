@@ -273,8 +273,16 @@ ScratchVec<double> nelderMead(FnHandle fn,
         std::copy(newSx.begin(), newSx.end(), sx.begin());
         std::copy(newFv.begin(), newFv.end(), fv.begin());
 
-        const double spread = fv[n] - fv[0];
-        if (spread <= tol * std::max(1.0, std::abs(fv[0]))) break;
+        // MATLAB convergence requires BOTH the function-value spread (TolFun)
+        // AND the simplex size relative to the best vertex (TolX) to be within
+        // tol. Previously only the f-spread was checked, so on a smooth
+        // objective the simplex stopped ~100x short of the true minimum.
+        const double fspread = fv[n] - fv[0];
+        double xspread = 0.0;
+        for (size_t i = 1; i <= n; ++i)
+            for (size_t j = 0; j < n; ++j)
+                xspread = std::max(xspread, std::abs(sx[i * n + j] - sx[j]));
+        if (fspread <= tol && xspread <= tol) break;
 
         for (size_t j = 0; j < n; ++j) centroid[j] = 0.0;
         for (size_t i = 0; i < n; ++i)

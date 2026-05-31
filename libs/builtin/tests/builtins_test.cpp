@@ -755,13 +755,36 @@ TEST_P(BuiltinTest, FminbndScalar)
 
 TEST_P(BuiltinTest, FminsearchVector)
 {
-    // 2-D quadratic: min of (x1-1)^2 + 10*(x2-2)^2 at [1, 2].
-    // Nelder-Mead with default 1e-4 tol converges to ~1e-2.
+    // 2-D quadratic: min of (x1-1)^2 + 10*(x2-2)^2 at [1, 2]. Nelder-Mead with
+    // the default 1e-4 tol now enforces BOTH TolFun and TolX, so it converges
+    // to ~1e-3 (was ~1e-2 when only the f-spread was checked).
     eval("y = fminsearch(@(v) (v(1)-1)^2 + 10*(v(2)-2)^2, [0 0]);");
     auto *y = getVarPtr("y");
     ASSERT_EQ(y->numel(), 2u);
-    EXPECT_NEAR(y->doubleData()[0], 1.0, 1e-2);
-    EXPECT_NEAR(y->doubleData()[1], 2.0, 1e-2);
+    EXPECT_NEAR(y->doubleData()[0], 1.0, 1e-3);
+    EXPECT_NEAR(y->doubleData()[1], 2.0, 1e-3);
+}
+
+// fminsearch convergence accuracy: enforcing TolX (simplex size) as well as
+// TolFun makes it reach the true minimum, matching MATLAB R2025b. 2026-05-31.
+TEST_P(BuiltinTest, FminsearchConvergenceAccuracy)
+{
+    // Rosenbrock from [-1.2 1] -> [1 1] (MATLAB gives [1.00002 1.00004]).
+    eval("r = fminsearch(@(v) 100*(v(2)-v(1)^2)^2 + (1-v(1))^2, [-1.2 1]);");
+    auto *r = getVarPtr("r");
+    ASSERT_EQ(r->numel(), 2u);
+    EXPECT_NEAR(r->doubleData()[0], 1.0, 1e-3);
+    EXPECT_NEAR(r->doubleData()[1], 1.0, 1e-3);
+    // a simple quadratic reaches ~1e-4 now (was ~1e-2)
+    eval("q = fminsearch(@(v) (v(1)-1)^2 + (v(2)-2)^2, [0 0]);");
+    auto *q = getVarPtr("q");
+    EXPECT_NEAR(q->doubleData()[0], 1.0, 1e-3);
+    EXPECT_NEAR(q->doubleData()[1], 2.0, 1e-3);
+    // a tighter explicit tol is still honoured
+    eval("t = fminsearch(@(v) (v(1)-3)^2 + (v(2)+1)^2, [0 0], 1e-8);");
+    auto *t = getVarPtr("t");
+    EXPECT_NEAR(t->doubleData()[0],  3.0, 1e-5);
+    EXPECT_NEAR(t->doubleData()[1], -1.0, 1e-5);
 }
 
 // [x, fval, exitflag] multi-output for fzero / fminbnd / fminsearch.
