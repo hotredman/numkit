@@ -55,6 +55,9 @@ TEST_F(Misc5BatchTest, PolyfitSMu)
     EXPECT_NEAR(evalScalar("p(2)"),  6.02,               1e-12);   // value at mean
     EXPECT_NEAR(evalScalar("S.normr"), 0.32710854467592304, 1e-9);
     EXPECT_DOUBLE_EQ(evalScalar("S.df"), 3.0);
+    // S.rsquared = 1 - (normr/norm(y-mean(y)))^2 (MATLAB R2025b's 4th field).
+    EXPECT_DOUBLE_EQ(evalScalar("double(numel(fieldnames(S)))"), 4.0);
+    EXPECT_NEAR(evalScalar("S.rsquared"), 0.9973053289, 1e-9);
 }
 
 // [y,delta] = polyval(p,x,S,mu) returns the prediction + error estimate.
