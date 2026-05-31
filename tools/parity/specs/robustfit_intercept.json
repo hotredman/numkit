@@ -1,0 +1,14 @@
+{
+  "name": "robustfit_intercept",
+  "namespace": "stats",
+  "covers": ["robustfit"],
+  "setup": "x = (1:10)'; y = 2*x + 1; y(5) = 100; X2 = [x, x.^2]; y2 = 3 + 2*x + 0.5*x.^2; y2(7) = 200;",
+  "expr": "b = robustfit(x, y); nb = numel(b); b1 = b(1); b2 = b(2); bb = robustfit(X2, y2); nbb = numel(bb); bb1 = bb(1); bb2 = bb(2); bb3 = bb(3); bo = robustfit(x, y, 'bisquare', [], 'off'); nbo = numel(bo);",
+  "iters": 3,
+  "tol": 1e-07,
+  "fingerprint": [
+    "nb", "b1", "b2", "nbb", "bb1", "bb2", "bb3", "nbo"
+  ],
+  "deep_verified": true,
+  "comment": "robustfit default intercept term vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/stats): robustfit treated X as the full design matrix and never prepended the constant column, so robustfit(x,y) returned a single through-origin coefficient instead of MATLAB's [intercept; slope]. MATLAB adds the constant by default (const='on'); 'off' suppresses it. Fix prepends a ones column unless const='off'. With the outlier fully downweighted by the bisquare weight the fit is exact: y=2x+1+outlier -> b=[1;2]; y=3+2x+0.5x^2+outlier -> [3;2;0.5]; const 'off' -> 1 coefficient. (Residual leverage-adjustment precision on NOISY data is a separate known gap; tested here only on exact-recovery data.) covers:[robustfit]."
+}

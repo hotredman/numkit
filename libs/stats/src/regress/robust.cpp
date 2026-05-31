@@ -363,7 +363,36 @@ void robustfit_reg(Span<const Value> args, size_t nargout,
     double tune = std::numeric_limits<double>::quiet_NaN();
     if (args.size() >= 4 && !args[3].isEmpty())
         tune = args[3].toScalar();
-    auto r = robustfit(args[0], args[1], w, tune, ctx.engine->resource());
+
+    // MATLAB robustfit adds a constant (intercept) term by default; the
+    // 5th argument 'const' = 'on' (default) | 'off' toggles it. With the
+    // intercept, b = [b0; slopes...] (b0 first). numkit previously fit the
+    // raw X with no intercept, returning the wrong number of coefficients.
+    bool addConst = true;
+    if (args.size() >= 5 && args[4].isChar()) {
+        const std::string c = args[4].toString();
+        if (c == "off" || c == "Off" || c == "OFF")       addConst = false;
+        else if (c == "on" || c == "On" || c == "ON")     addConst = true;
+        else
+            throw Error("robustfit: const must be 'on' or 'off'",
+                        0, 0, "robustfit", "", "numkit:robustfit:badConst");
+    }
+
+    Value Xin = args[0];
+    if (addConst) {
+        const std::size_t n = Xin.dims().rows();
+        const std::size_t p = Xin.dims().cols();
+        Value Xaug = Value::matrix(n, p + 1, ValueType::DOUBLE,
+                                   ctx.engine->resource());
+        double *xa = Xaug.doubleDataMut();
+        for (std::size_t i = 0; i < n; ++i) xa[i] = 1.0;        // intercept col
+        for (std::size_t j = 0; j < p; ++j)
+            for (std::size_t i = 0; i < n; ++i)
+                xa[(j + 1) * n + i] = Xin.elemAsDouble(j * n + i);
+        Xin = std::move(Xaug);
+    }
+
+    auto r = robustfit(Xin, args[1], w, tune, ctx.engine->resource());
     outs[0] = std::move(r.b);
     if (nargout > 1) outs[1] = std::move(r.s);
 }
