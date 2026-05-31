@@ -145,10 +145,22 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
     forEachColumn(A, [&](size_t j, double *col, size_t n) {
         std::vector<double> y(n);
         if (methodMatches(m, "zscore")) {
-            const double mu = colMean(col, n);
-            const double sd = colStdSample(col, n);  // MATLAB default: N-1
-            const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
-            for (size_t i = 0; i < n; ++i) y[i] = (col[i] - mu) * inv;
+            // Default 'std': centre by mean, scale by sample (N-1) std.
+            // 'robust': centre by median, scale by the (raw) median absolute
+            // deviation MAD = median(|x - median(x)|) — MATLAB R2025b.
+            if (paramIsStr && paramStr == "robust") {
+                std::vector<double> tmp(col, col + n);
+                const double med = colMedian(tmp);
+                for (double &v : tmp) v = std::fabs(v - med);
+                const double mad = colMedian(std::move(tmp));
+                const double inv = (mad != 0.0) ? 1.0 / mad : 0.0;
+                for (size_t i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
+            } else {
+                const double mu = colMean(col, n);
+                const double sd = colStdSample(col, n);  // MATLAB default: N-1
+                const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
+                for (size_t i = 0; i < n; ++i) y[i] = (col[i] - mu) * inv;
+            }
         } else if (methodMatches(m, "center")) {
             // default 'mean'; 'median' or a numeric centre also accepted.
             double c;

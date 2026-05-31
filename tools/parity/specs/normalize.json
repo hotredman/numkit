@@ -1,8 +1,8 @@
 {
   "name": "normalize",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5];",
-  "expr": "r = normalize(x,'range',[0 10]); n1 = normalize(x,'norm',1); ni = normalize(x,'norm',Inf); sf = normalize(x,'scale','first'); cm = normalize(x,'center','median');",
+  "setup": "x = [1 2 3 4 5]; xr = [1 2 3 4 100];",
+  "expr": "r = normalize(x,'range',[0 10]); n1 = normalize(x,'norm',1); ni = normalize(x,'norm',Inf); sf = normalize(x,'scale','first'); cm = normalize(x,'center','median'); zr = normalize(xr,'zscore','robust'); zs = normalize(xr,'zscore','std'); zd = normalize(xr);",
   "iters": 3,
   "tol": 1e-12,
   "fingerprint": [
@@ -10,7 +10,9 @@
     "n1(1)", "n1(5)",
     "ni(1)", "ni(5)",
     "sf(5)",
-    "cm(1)", "cm(5)"
+    "cm(1)", "cm(5)",
+    "zr(1)", "zr(3)", "zr(5)",
+    "zs(1)", "zd(1)"
   ],
-  "comment": "Sig normalize(A,method,param). The method PARAMETER was parsed-and-ignored: 'range' bounds [lo hi] (default [0 1]); 'norm' exponent p (1/2/Inf); 'scale' divisor 'std'(def)/'first'/'iqr'/'mad' or numeric; 'center' 'mean'(def)/'median' or numeric. normalize([1..5],'range',[0 10]) -> [0 2.5 5 7.5 10]; 'norm',1 -> /15; 'norm',Inf -> /5; 'scale','first' -> /x(1)=[1..5]; 'center','median' -> [-2 -1 0 1 2]. numkit previously ignored the param -- now honored. Matches MATLAB R2025b."
+  "comment": "Sig normalize(A,method,param). The method PARAMETER was parsed-and-ignored: 'range' bounds [lo hi] (default [0 1]); 'norm' exponent p (1/2/Inf); 'scale' divisor 'std'(def)/'first'/'iqr'/'mad' or numeric; 'center' 'mean'(def)/'median' or numeric. normalize([1..5],'range',[0 10]) -> [0 2.5 5 7.5 10]; 'norm',1 -> /15; 'norm',Inf -> /5; 'scale','first' -> /x(1)=[1..5]; 'center','median' -> [-2 -1 0 1 2]. DEEP-PROBE 2026-05-31: 'zscore','robust' was parsed-and-ignored -> numkit fell back to standard mean/std zscore. MATLAB robust z-score centres by the MEDIAN and scales by the (raw) median absolute deviation MAD=median(|x-median|): normalize([1 2 3 4 100],'zscore','robust')=[-2 -1 0 1 97] (median=3, MAD=1) whereas 'zscore','std' and the default give the mean/std result (zr(1)=-2 vs zs(1)=zd(1)=-0.481456). numkit previously ignored the param -- now honored. Matches MATLAB R2025b."
 }
