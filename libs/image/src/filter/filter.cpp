@@ -244,28 +244,65 @@ Value fspecial_prewitt(std::pmr::memory_resource *mr) {
     return mat_double(k, 3, 3, mr);
 }
 
-Value fspecial_disk(double radius, std::pmr::memory_resource *mr) {
-    if (radius <= 0.0) throw Error("fspecial: radius must be positive",
-                                   0, 0, "fspecial", "", "numkit:fspecial:radius");
-    const int side = 2 * int(std::ceil(radius)) + 1;
-    const double c = (side - 1) / 2.0;
-    std::vector<double> k(size_t(side) * size_t(side), 0.0);
-    double sum = 0.0;
-    for (int j = 0; j < side; ++j)
-        for (int i = 0; i < side; ++i) {
-            const double dy = i - c, dx = j - c;
-            const double r = std::hypot(dy, dx);
-            // Approximate area inside disk for each cell using simple
-            // sampling: 1.0 if r < radius - 0.5, 0.0 if r > radius + 0.5,
-            // smooth between (linear taper).
-            double w = 0.0;
-            if (r < radius - 0.5) w = 1.0;
-            else if (r < radius + 0.5) w = (radius + 0.5 - r);
-            k[size_t(j) * size_t(side) + size_t(i)] = w;
-            sum += w;
+Value fspecial_disk(double rad, std::pmr::memory_resource *mr) {
+    if (rad <= 0.0) throw Error("fspecial: radius must be positive",
+                                0, 0, "fspecial", "", "numkit:fspecial:radius");
+    // MATLAB R2025b fspecial('disk',rad): each cell's weight is the EXACT
+    // area of the unit cell that lies inside the disk of radius rad (the
+    // sub-pixel area-coverage integral), not a linear-taper approximation.
+    const int crad = int(std::ceil(rad - 0.5));
+    const int side = 2 * crad + 1;
+    const double r2 = rad * rad;
+    std::vector<double> sg(size_t(side) * size_t(side), 0.0);
+    auto clamp1 = [](double v) { return v < -1.0 ? -1.0 : (v > 1.0 ? 1.0 : v); };
+    auto sq = [](double v) { return v * v; };
+    for (int ii = 0; ii < side; ++ii)
+        for (int jj = 0; jj < side; ++jj) {
+            const double y = double(-crad + ii);   // row coordinate
+            const double x = double(-crad + jj);   // col coordinate
+            const double ax = std::abs(x), ay = std::abs(y);
+            const double maxxy = std::max(ax, ay), minxy = std::min(ax, ay);
+            const double m1 = (r2 < sq(maxxy + 0.5) + sq(minxy - 0.5))
+                ? (minxy - 0.5)
+                : std::sqrt(std::max(0.0, r2 - sq(maxxy + 0.5)));
+            const double m2 = (r2 > sq(maxxy - 0.5) + sq(minxy + 0.5))
+                ? (minxy + 0.5)
+                : std::sqrt(std::max(0.0, r2 - sq(maxxy - 0.5)));
+            const bool mask =
+                ((r2 < sq(maxxy + 0.5) + sq(minxy + 0.5)) &&
+                 (r2 > sq(maxxy - 0.5) + sq(minxy - 0.5))) ||
+                ((minxy == 0.0) && (maxxy - 0.5 < rad) && (maxxy + 0.5 >= rad));
+            double s = 0.0;
+            if (mask) {
+                const double a1 = std::asin(clamp1(m1 / rad));
+                const double a2 = std::asin(clamp1(m2 / rad));
+                s = r2 * (0.5 * (a2 - a1) +
+                          0.25 * (std::sin(2.0 * a2) - std::sin(2.0 * a1)))
+                    - (maxxy - 0.5) * (m2 - m1) + (m1 - minxy + 0.5);
+            }
+            if (sq(maxxy + 0.5) + sq(minxy + 0.5) < r2) s += 1.0;
+            sg[size_t(jj) * size_t(side) + size_t(ii)] = s;
         }
-    if (sum > 0.0) for (auto &v : k) v /= sum;
-    return mat_double(k, side, side, mr);
+    auto at = [&](int i, int j) -> double & {
+        return sg[size_t(j) * size_t(side) + size_t(i)];   // (row i, col j)
+    };
+    at(crad, crad) = std::min(M_PI * r2, M_PI / 2.0);
+    if (crad > 0 && rad > crad - 0.5 && r2 < sq(crad - 0.5) + 0.25) {
+        const double mm = std::sqrt(std::max(0.0, r2 - sq(crad - 0.5)));
+        const double mmn = mm / rad;
+        const double sg0 = 2.0 * (r2 * (0.5 * std::asin(clamp1(mmn)) +
+                          0.25 * std::sin(2.0 * std::asin(clamp1(mmn))))
+                          - mm * (crad - 0.5));
+        at(2 * crad, crad) = sg0; at(crad, 2 * crad) = sg0;
+        at(crad, 0) = sg0;        at(0, crad) = sg0;
+        at(2 * crad - 1, crad) -= sg0; at(crad, 2 * crad - 1) -= sg0;
+        at(crad, 1) -= sg0;            at(1, crad) -= sg0;
+    }
+    at(crad, crad) = std::min(at(crad, crad), 1.0);
+    double sum = 0.0;
+    for (double v : sg) sum += v;
+    if (sum > 0.0) for (auto &v : sg) v /= sum;
+    return mat_double(sg, side, side, mr);
 }
 
 } // anonymous
