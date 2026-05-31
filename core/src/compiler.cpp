@@ -1026,6 +1026,33 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
             outRegs.push_back(varRegWrite(name));
     }
 
+    // `[x] = <expr>` where the RHS is neither a CALL nor a cell CSL is a
+    // single-value bracketed assignment (MATLAB: `[X] = Y` ≡ `X = Y`). The
+    // multi-output codegen below assumes the RHS is a CALL and reads
+    // callNode->children[0], so a literal/expression RHS would index past the
+    // node's children — an out-of-bounds read (access violation). Handle it
+    // here as a plain assignment to the single target; >1 targets with a
+    // single-valued RHS is "too many outputs".
+    if (rhsNode->type != NodeType::CELL_INDEX
+        && rhsNode->type != NodeType::CALL) {
+        if (nout > 1)
+            throw std::runtime_error(
+                "Compiler: too many output arguments for single-valued "
+                "right-hand side");
+        uint8_t src = compileNode(rhsNode);
+        uint8_t dst = outRegs.empty() ? src : outRegs[0];
+        if (!outRegs.empty() && dst != src)
+            emitAB(OpCode::MOVE, dst, src);
+        if (scalarRegs_.test(src)) scalarRegs_.set(dst);
+        else scalarRegs_.reset(dst);
+        if (!node->suppressOutput && !node->returnNames.empty()
+            && node->returnNames[0] != "~") {
+            int16_t nameIdx = addStringConstant(node->returnNames[0]);
+            emitAD(OpCode::DISPLAY, dst, nameIdx);
+        }
+        return dst;
+    }
+
     // Cell CSL: [a, b] = c{idx}
     if (rhsNode->type == NodeType::CELL_INDEX) {
         uint8_t cellReg = compileNode(rhsNode->children[0].get());
