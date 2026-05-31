@@ -292,9 +292,36 @@ Value int2str(const Value &x, std::pmr::memory_resource *mr)
 {
     // MATLAB int2str: round half away from zero (std::round), render as a
     // plain integer with no decimals or scientific notation. Inf/-Inf/NaN
-    // pass through. Scalar only — vector/matrix column-alignment is deferred.
-    // For complex input MATLAB operates on the REAL part (the imaginary part
-    // is discarded): int2str(3.6+1.2i) = "4".
+    // pass through. For complex input MATLAB operates on the REAL part (the
+    // imaginary part is discarded): int2str(3.6+1.2i) = "4".
+
+    // Vector / 2-D matrix: round every element FIRST (printf %.0f rounds
+    // half-to-even, but int2str rounds half-away-from-zero), then format with
+    // a fixed integer field W = digits(max|rounded|) + 2 and route through the
+    // num2str FMT path (per-row layout + common-blank-column strip).
+    if (!x.isEmpty() && !x.isScalar() && !x.dims().is3D()) {
+        const size_t n = x.numel();
+        const bool cplx = (x.type() == ValueType::COMPLEX);
+        Value rounded = Value::matrix(x.dims().rows(), x.dims().cols(),
+                                      ValueType::DOUBLE, mr);
+        double *rd = rounded.doubleDataMut();
+        double maxabs = 0.0;
+        for (size_t i = 0; i < n; ++i) {
+            const double vi = cplx ? x.complexData()[i].real() : x.elemAsDouble(i);
+            double r = std::isfinite(vi) ? std::round(vi) : vi;
+            if (r == 0.0) r = 0.0;   // normalise -0 -> 0
+            rd[i] = r;
+            if (std::isfinite(r) && std::fabs(r) > maxabs) maxabs = std::fabs(r);
+        }
+        int ndigits = 1;
+        if (maxabs >= 1.0)
+            ndigits = static_cast<int>(std::floor(std::log10(maxabs))) + 1;
+        char fmt[16];
+        std::snprintf(fmt, sizeof(fmt), "%%%d.0f", ndigits + 2);
+        return num2str(rounded, std::string(fmt), mr);
+    }
+    if (x.isEmpty()) return Value::fromString("", mr);
+
     const double v = (x.type() == ValueType::COMPLEX) ? x.toComplex().real()
                                                       : x.toScalar();
     if (std::isnan(v))
@@ -2183,10 +2210,6 @@ void int2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("int2str: requires 1 argument", 0, 0, "int2str", "", "numkit:int2str:nargin");
-    if (!args[0].isScalar())
-        throw Error("int2str: only scalar inputs are supported "
-                    "(vector/matrix column-alignment is not yet implemented)",
-                     0, 0, "int2str", "", "numkit:int2str:nonScalar");
     outs[0] = int2str(args[0], ctx.engine->resource());
 }
 
