@@ -13,27 +13,13 @@
 
 namespace numkit::linalg {
 
-Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
+// Core cross-product along crossDim (0 = each column is a 3-vec / MATLAB
+// dim 1; 1 = each row is a 3-vec / MATLAB dim 2). Shape already validated.
+static Value crossCore(const Value &a, const Value &b, int crossDim,
+                       std::pmr::memory_resource *mr)
 {
-    // MATLAB: cross(A, B) operates along the first dimension with
-    // size 3. Common shapes: 1x3, 3x1, 3xN, Nx3. The result has the
-    // same shape as the inputs. See BUGS.md #18.
-    const auto &da = a.dims();
-    const auto &db = b.dims();
-    if (da.rows() != db.rows() || da.cols() != db.cols())
-        throw Error("cross: A and B must have the same shape",
-                     0, 0, "cross", "", "numkit:cross:shapeMismatch");
-
-    const size_t nr = da.rows();
-    const size_t nc = da.cols();
-
-    // Pick the dimension to cross along: first one of size 3.
-    int crossDim;
-    if (nr == 3)      crossDim = 0; // cross along rows (each column is a 3-vec)
-    else if (nc == 3) crossDim = 1; // cross along cols (each row is a 3-vec)
-    else
-        throw Error("cross: A and B must have at least one dimension of length 3",
-                     0, 0, "cross", "", "numkit:cross:badSize");
+    const size_t nr = a.dims().rows();
+    const size_t nc = a.dims().cols();
 
     // Complex cross-product — ordinary complex arithmetic, NO conjugation
     // (unlike dot). Either operand complex takes this path; reals -> z+0i.
@@ -97,6 +83,46 @@ Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         }
     }
     return out;
+}
+
+Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
+{
+    // MATLAB: cross(A, B) operates along the FIRST dimension of size 3.
+    // Common shapes: 1x3, 3x1, 3xN, Nx3. Result has the same shape as inputs.
+    const auto &da = a.dims();
+    const auto &db = b.dims();
+    if (da.rows() != db.rows() || da.cols() != db.cols())
+        throw Error("cross: A and B must have the same shape",
+                     0, 0, "cross", "", "numkit:cross:shapeMismatch");
+    int crossDim;
+    if (da.rows() == 3)      crossDim = 0; // each column is a 3-vec (dim 1)
+    else if (da.cols() == 3) crossDim = 1; // each row is a 3-vec (dim 2)
+    else
+        throw Error("cross: A and B must have at least one dimension of length 3",
+                     0, 0, "cross", "", "numkit:cross:badSize");
+    return crossCore(a, b, crossDim, mr);
+}
+
+Value cross(const Value &a, const Value &b, int dim, std::pmr::memory_resource *mr)
+{
+    if (dim == 0) return cross(a, b, mr);   // default: first length-3 dimension
+    const auto &da = a.dims();
+    const auto &db = b.dims();
+    if (da.rows() != db.rows() || da.cols() != db.cols())
+        throw Error("cross: A and B must have the same shape",
+                     0, 0, "cross", "", "numkit:cross:shapeMismatch");
+    if (da.is3D() || db.is3D())
+        throw Error("cross: the dim argument supports 2-D inputs only",
+                     0, 0, "cross", "", "numkit:cross:rank");
+    if (dim != 1 && dim != 2)
+        throw Error("cross: dim must be 1 or 2",
+                     0, 0, "cross", "", "numkit:cross:badDim");
+    // MATLAB: A and B must have length 3 along the operating dimension.
+    const size_t lenAlongDim = (dim == 1) ? da.rows() : da.cols();
+    if (lenAlongDim != 3)
+        throw Error("cross: A and B must have length 3 in the operating dimension",
+                     0, 0, "cross", "", "numkit:cross:badSize");
+    return crossCore(a, b, /*crossDim=*/dim - 1, mr);
 }
 
 Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -284,7 +310,11 @@ void cross_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("cross: requires 2 arguments",
                      0, 0, "cross", "", "numkit:cross:nargin");
-    outs[0] = cross(args[0], args[1], ctx.engine->resource());
+    // cross(A, B, dim): cross along the given dimension (default: first
+    // dimension of length 3).
+    const int dim = (args.size() >= 3 && !args[2].isEmpty())
+                        ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = cross(args[0], args[1], dim, ctx.engine->resource());
 }
 
 void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

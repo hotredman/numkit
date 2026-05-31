@@ -2,7 +2,7 @@
   "name": "cross",
   "namespace": "linalg",
   "setup": "",
-  "expr": "c = cross([1 2 3], [4 5 6]); M = cross([1 2 3; 4 5 6; 7 8 9], [9 8 7; 6 5 4; 3 2 1]); zc = cross([1+1i 0 0], [0 1 0]); cc = cross([1i; 2; 3], [4; 5i; 6]);",
+  "expr": "c = cross([1 2 3], [4 5 6]); M = cross([1 2 3; 4 5 6; 7 8 9], [9 8 7; 6 5 4; 3 2 1]); zc = cross([1+1i 0 0], [0 1 0]); cc = cross([1i; 2; 3], [4; 5i; 6]); D = [1 2 3; 4 5 6; 7 8 9]; E = [1 0 0; 0 1 0; 0 0 1]; m1 = cross(D, E, 1); m2 = cross(D, E, 2); rv = cross([1 2 3], [4 5 6], 2);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
@@ -14,7 +14,8 @@
     "M(3,3)",
     "sum(M(:))",
     "real(zc(3))", "imag(zc(3))",
-    "real(cc(1))", "imag(cc(1))", "real(cc(3))"
+    "real(cc(1))", "imag(cc(1))", "real(cc(3))",
+    "m1(1,2)", "m1(2,1)", "m2(1,2)", "m2(2,1)", "m2(3,2)", "rv(1)"
   ],
-  "comment": "MATLAB cross — vector cross product. Vector form [1 2 3]x[4 5 6]=[-3 6 -3]; column-wise on a 3x3 matrix (cross of corresponding columns). COMPLEX: ordinary cross product, NO conjugation: cross([1+1i 0 0],[0 1 0])=[0 0 1+1i]; cross([1i;2;3],[4;5i;6])=[12-15i;12-6i;-13]. numkit previously threw 'Not a double array' on COMPLEX (added 2026-05-29). Bit-equal MATLAB R2025b."
+  "comment": "MATLAB cross — vector cross product. Vector form [1 2 3]x[4 5 6]=[-3 6 -3]; column-wise on a 3x3 matrix (cross of corresponding columns). COMPLEX: ordinary cross product, NO conjugation: cross([1+1i 0 0],[0 1 0])=[0 0 1+1i]; cross([1i;2;3],[4;5i;6])=[12-15i;12-6i;-13]. numkit previously threw 'Not a double array' on COMPLEX (added 2026-05-29). DEEP-PROBE 2026-05-31: the dim arg cross(A,B,dim) was IGNORED (always crossed along the first length-3 dimension). For a 3x3 (ambiguous) input numkit picked dim 1 regardless of the requested dim. Now honored: cross([1 2 3;4 5 6;7 8 9],eye(3),1)=[0 -8 6;7 0 -3;-4 2 0] (m1(1,2)=-8), cross(...,2)=[0 3 -2;-6 0 4;8 -7 0] (m2(1,2)=3, m2(2,1)=-6, m2(3,2)=-7); cross([1 2 3],[4 5 6],2)=[-3 6 -3]. A and B must have length 3 along dim. Bit-equal MATLAB R2025b."
 }

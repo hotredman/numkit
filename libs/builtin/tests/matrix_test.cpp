@@ -1724,6 +1724,33 @@ TEST_P(GridKronTest, CrossComplex)
     EXPECT_DOUBLE_EQ(cc->complexData()[2].imag(), 0.0);
 }
 
+// cross(A,B,dim): the dim argument was IGNORED (always crossed along the
+// first length-3 dimension). For a 3x3 (ambiguous) input numkit picked dim 1
+// regardless of the requested dim. MATLAB crosses along the requested dim.
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(GridKronTest, CrossAlongDim)
+{
+    // dim 1 (each column a 3-vec): cross([1 2 3;4 5 6;7 8 9],eye(3),1)
+    //   = [0 -8 6; 7 0 -3; -4 2 0].
+    eval("m1 = cross([1 2 3;4 5 6;7 8 9],[1 0 0;0 1 0;0 0 1],1);");
+    EXPECT_DOUBLE_EQ(evalScalar("m1(1,2)"), -8.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m1(2,1)"),  7.0);
+    // dim 2 (each row a 3-vec): = [0 3 -2; -6 0 4; 8 -7 0] (was the dim-1 result).
+    eval("m2 = cross([1 2 3;4 5 6;7 8 9],[1 0 0;0 1 0;0 0 1],2);");
+    EXPECT_DOUBLE_EQ(evalScalar("m2(1,2)"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m2(2,1)"), -6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m2(3,2)"), -7.0);
+    // row vector with explicit dim 2.
+    eval("rv = cross([1 2 3],[4 5 6],2);");
+    EXPECT_DOUBLE_EQ(evalScalar("rv(1)"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rv(3)"), -3.0);
+    // default (no dim) unchanged on a 3x3: picks dim 1.
+    eval("md = cross([1 2 3;4 5 6;7 8 9],[1 0 0;0 1 0;0 0 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("md(1,2)"), -8.0);
+    // length-3 required along dim: cross([1 2 3],[4 5 6],1) errors (dim1 len 1).
+    EXPECT_THROW(eval("e = cross([1 2 3],[4 5 6],1);"), std::exception);
+}
+
 TEST_P(GridKronTest, Kron3DInputThrows)
 {
     eval("A = zeros(2, 2, 2);");
