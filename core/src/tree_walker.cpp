@@ -1333,7 +1333,17 @@ void TreeWalker::execCellAssign(const ASTNode *lhs, const Value &rhs, Environmen
 // ============================================================
 Value TreeWalker::execMultiAssign(const ASTNode *node, Environment *env)
 {
-    auto results = execCallMulti(node->children[0].get(), env, node->returnNames.size());
+    const size_t nout = node->returnNames.size();
+    auto results = execCallMulti(node->children[0].get(), env, nout);
+
+    // MATLAB: requesting more outputs than the RHS produces is an error
+    // at the call site ("Too many output arguments"), not a silently
+    // unassigned target that later reads as a phantom undefined function
+    // (bug #44 — `[c,sz,n2,p] = bwconncomp(A)` where bwconncomp yields
+    // one value). An unfilled output slot is the unset sentinel.
+    for (size_t i = 0; i < nout; ++i)
+        if (i >= results.size() || results[i].isUnset())
+            throw std::runtime_error("Too many output arguments.");
 
     // Complex-target path: at least one output is a general lvalue
     // (`s.f`, `a(i)`, `c{i}`, ...). lhsTargets is authoritative; a

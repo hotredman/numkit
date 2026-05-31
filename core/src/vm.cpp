@@ -1515,6 +1515,13 @@ enter_frame:
                         Span<Value> os(outBuf.data(), nout);
                         CallContext ctx{&engine_, currentCallEnv()};
                         (*fnPtr)(as, nout, os, ctx);
+                        // MATLAB: asking for more outputs than the builtin
+                        // produces is "Too many output arguments" here, not
+                        // a silently-unset target that later reads as a
+                        // phantom undefined function (bug #44).
+                        for (uint8_t i = 0; i < nout; ++i)
+                            if (outBuf[i].isUnset())
+                                throw std::runtime_error("Too many output arguments.");
                         for (size_t i = 0; i < nout; ++i)
                             R[outBase + i] = std::move(outBuf[i]);
                         break;
@@ -2208,6 +2215,18 @@ void VM::popCallFrame(Value retVal)
         R_ = caller.R;
 
         if (frame.isMultiReturn) {
+            // MATLAB: a `[...] = f()` destructure that requests more
+            // outputs than the callee produces is "Too many output
+            // arguments" (bug #44 — parity with the TreeWalker and the
+            // external-builtin path above).
+            size_t produced = (returnCount_ > 0)
+                                   ? returnCount_
+                                   : (retVal.isUnset() ? 0u : 1u);
+            if (produced < frame.nout) {
+                // Restore caller register window before unwinding so the
+                // exception propagates from a consistent VM state.
+                throw std::runtime_error("Too many output arguments.");
+            }
             // Multi-return: distribute returnBuf_ into caller's registers
             if (returnCount_ > 0) {
                 for (size_t i = 0; i < frame.nout && i < returnCount_; ++i)
