@@ -1,14 +1,13 @@
 {
   "name": "imquantize",
   "namespace": "image",
-  "setup": "",
-  "expr": "q = imquantize([0.1 0.5 0.9], [0.3 0.7]); r1 = q(1); r2 = q(2); r3 = q(3);",
+  "setup": "I = [1 5 10; 15 20 25];",
+  "expr": "q = imquantize([0.1 0.5 0.9], [0.3 0.7]); r1 = q(1); r2 = q(2); r3 = q(3); [Q, idx] = imquantize(I, [8 18]); eqi = double(isequal(Q, idx)); q11 = Q(1,1); q22 = Q(2,2); i23 = idx(2,3); [Qv, idxv] = imquantize(I, [8 18], [10 20 30]); qv11 = Qv(1,1); qv22 = Qv(2,2); eiv = double(isequal(idxv, idx));",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "r1", "r2", "r3",
+    "eqi", "q11", "q22", "i23", "qv11", "qv22", "eiv"
   ],
-  "comment": "Sig: r = imquantize(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: [quant, index] = imquantize(I, levels[, values]). index = the 1-based quantization bin (1..numel(levels)+1); quant = values(index) when 'values' is given, else quant == index. DEEP-PROBE c177: numkit returned only the quant index and ignored the 'values' arg, so the 2nd output threw 'Index exceeds array dimensions'. Now [Q,idx] returns both (eqi=1: Q==idx without values), and imquantize(I,[8 18],[10 20 30]) maps quant through values (qv11=10, qv22=30) while idx stays the bin index (eiv=1). covers:[imquantize]."
 }
