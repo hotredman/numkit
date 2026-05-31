@@ -305,33 +305,62 @@ Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
     size_t R = 0, C = 0;
     bool anchored = false;
     size_t totalPages = 0;
+    ValueType outType = ValueType::DOUBLE;
     for (size_t i = 0; i < count; ++i) {
         const auto &v = values[i];
         if (v.isEmpty() || v.numel() == 0) continue;
+        const ValueType t = v.type();
+        // STRING / STRUCT / FUNC_HANDLE along dim 3 deferred; same-type only
+        // (mixed-type promotion not implemented), matching ND cat.
+        if (t == ValueType::STRING || t == ValueType::STRUCT
+            || t == ValueType::FUNC_HANDLE)
+            throw Error(std::string("cat: dim 3 does not support type '")
+                         + mtypeName(t) + "'",
+                         0, 0, "cat", "", "numkit:cat:typeDim3");
         const auto &dd = v.dims();
         if (!anchored) {
             R = dd.rows();
             C = dd.cols();
+            outType = t;
             anchored = true;
         } else {
             if (dd.rows() != R || dd.cols() != C)
                 throw Error("cat: dim 3 inputs must agree on rows and cols",
                              0, 0, "cat", "", "numkit:cat:badDims");
+            if (t != outType)
+                throw Error("cat: dim 3 requires all inputs to share a type",
+                             0, 0, "cat", "", "numkit:cat:typeMismatchDim3");
         }
         totalPages += dd.is3D() ? dd.pages() : 1;
     }
     if (!anchored) return Value::empty();
 
-    auto r = Value::matrix3d(R, C, totalPages, ValueType::DOUBLE, mr);
-    double *dst = r.doubleDataMut();
+    // CELL permutes element-wise (Value copy); POD types copy raw bytes.
+    // cat is a pure rearrangement, so it is type-preserving.
+    const bool isCell = (outType == ValueType::CELL);
+    Value r = isCell ? Value::cell3D(R, C, totalPages, mr)
+                     : Value::matrix3d(R, C, totalPages, outType, mr);
+    if (isCell) {
+        size_t pageOff = 0;
+        for (size_t i = 0; i < count; ++i) {
+            const auto &v = values[i];
+            if (v.isEmpty() || v.numel() == 0) continue;
+            const size_t P = v.dims().is3D() ? v.dims().pages() : 1;
+            const size_t base = pageOff * R * C, n = R * C * P;
+            for (size_t e = 0; e < n; ++e) r.cellAt(base + e) = v.cellAt(e);
+            pageOff += P;
+        }
+        return r;
+    }
+    const size_t es = elementSize(outType);
+    char *dst = static_cast<char *>(r.rawDataMut());
     size_t pageOff = 0;
     for (size_t i = 0; i < count; ++i) {
         const auto &v = values[i];
         if (v.isEmpty() || v.numel() == 0) continue;
-        const auto &dd = v.dims();
-        const size_t P = dd.is3D() ? dd.pages() : 1;
-        std::memcpy(dst + pageOff * R * C, v.doubleData(),
-                    R * C * P * sizeof(double));
+        const size_t P = v.dims().is3D() ? v.dims().pages() : 1;
+        std::memcpy(dst + pageOff * R * C * es,
+                    static_cast<const char *>(v.rawData()), R * C * P * es);
         pageOff += P;
     }
     return r;

@@ -2,13 +2,12 @@
   "name": "cat",
   "namespace": "builtin",
   "setup": "",
-  "expr": "B = cat(2, [1;2], [3;4]); r1 = B(1,1); r2 = B(1,2); r3 = B(2,2);",
+  "expr": "B = cat(2, [1;2], [3;4]); r1 = B(1,1); r2 = B(1,2); r3 = B(2,2); D3 = cat(3, [1 2;3 4], [5 6;7 8]); d112 = D3(1,1,2); CM = cat(3, ['ab';'cd'], ['ef';'gh']); cm111 = double(CM(1,1,1)); cm112 = double(CM(1,1,2)); cm222 = double(CM(2,2,2)); sz3 = size(CM,3); LG = cat(3, logical([1 0]), logical([0 1])); l122 = double(LG(1,2,2)); C3 = cat(3, {1,2}, {3,4}); c112 = C3{1,1,2}; SG = cat(3, single([1 2]), single([3 4])); sg122 = SG(1,2,2);",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "r1", "r2", "r3",
+    "d112", "cm111", "cm112", "cm222", "sz3", "l122", "c112", "sg122"
   ],
-  "comment": "Sig: r = cat(...). Shape op. Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = cat(dim, A, B, ...). Shape op (type-agnostic). DEEP-PROBE 2026-05-31: cat along dim 3 extended to CHAR / LOGICAL / COMPLEX / single / CELL (the catDim3 path was DOUBLE-only and threw 'Not a double array'); cat is a pure rearrangement -> byte/cellAt page-concat. cat(3,['ab';'cd'],['ef';'gh']) = 2x2x2 char (cm111='a'=97, cm112='e'=101, cm222='h'=104); cat(3,{1,2},{3,4}) = 1x2x2 cell (c112=3); logical/single/complex preserved. dim 1/2 (vertcat/horzcat) already type-agnostic. Same-type only (mixed-type promotion deferred); STRING/struct deferred. Spec-extension batch 2026-05-09."
 }
