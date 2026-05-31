@@ -1447,22 +1447,18 @@ function StructInspector({ variable, engine }) {
     setRefreshTick((t) => t + 1);
   }, [engine, variable.name, cur.path]);
 
-  // Duplicate a field to a fresh, collision-free "<name>_copy" name.
-  // Scalar struct → plain `s.copy = s.name` (the VM compiler rejects the
-  // bracketed `[s.f] = …` deal form). Struct array → the bracket form,
-  // which distributes the per-element CSL. Names are identifiers, so the
-  // expression is injection-safe.
+  // Duplicate a field to a fresh, collision-free "<name>_copy" name. The
+  // `[lvalue.copy] = lvalue.name` bracket form works for a single struct
+  // and distributes the per-element CSL across a struct array. Names are
+  // identifiers, so the expression is injection-safe.
   const duplicateField = useCallback((fieldName) => {
     if (!engine?.execute || !isValidIdentifier(fieldName)) return;
     const lvalue = pathToMatlabLValue(variable.name, cur.path);
     const existing = new Set(payload?.fields || []);
     let copy = `${fieldName}_copy`;
     for (let i = 2; existing.has(copy); i++) copy = `${fieldName}_copy${i}`;
-    const isArray = payload && payload.numel > 1;
     try {
-      engine.execute(isArray
-        ? `[${lvalue}.${copy}] = ${lvalue}.${fieldName};`
-        : `${lvalue}.${copy} = ${lvalue}.${fieldName};`);
+      engine.execute(`[${lvalue}.${copy}] = ${lvalue}.${fieldName};`);
     } catch (e) {
       console.warn('[StructInspector] duplicate-field failed:', e);
     }
@@ -1480,29 +1476,25 @@ function StructInspector({ variable, engine }) {
 
   // Rename = copy the field's value to the new name, drop the old, then
   // re-pin the field order so the renamed field keeps its original slot.
-  // Scalar struct uses plain `s.new = s.old` (the VM compiler rejects the
-  // bracketed `[s.f] = …` deal form); a struct array needs the bracket
-  // form to distribute the per-element CSL. Without the final
-  // orderfields() the new field would land at the END (copy-append
-  // semantics); the 2-arg orderfields(s, {names...}) restores position.
-  // Guards: valid identifier, no-op on same name, refuse to clobber an
-  // existing field.
+  // The `[lvalue.new] = lvalue.old` bracket form works for a single
+  // struct and distributes the per-element CSL across a struct array.
+  // Without the final orderfields() the new field would land at the END
+  // (copy-append semantics); the 2-arg orderfields(s, {names...}) restores
+  // position. Guards: valid identifier, no-op on same name, refuse to
+  // clobber an existing field.
   const renameField = useCallback((oldName, newName) => {
     if (!engine?.execute || !isValidIdentifier(newName)) return;
     if (newName === oldName) return;
     if (payload?.fields?.includes(newName)) return;   // collision
     const lvalue = pathToMatlabLValue(variable.name, cur.path);
-    const isArray = payload && payload.numel > 1;
     // Desired order = current fields with oldName swapped to newName in
     // place. Field names are identifiers, so the {'a','b',...} cell
     // literal is injection-safe.
     const order = (payload?.fields || []).map((f) => (f === oldName ? newName : f));
     const orderCell = '{' + order.map((f) => `'${f}'`).join(',') + '}';
     try {
-      const copy = isArray
-        ? `[${lvalue}.${newName}] = ${lvalue}.${oldName};`
-        : `${lvalue}.${newName} = ${lvalue}.${oldName};`;
-      let expr = `${copy} ${lvalue} = rmfield(${lvalue}, '${oldName}');`;
+      let expr = `[${lvalue}.${newName}] = ${lvalue}.${oldName}; `
+               + `${lvalue} = rmfield(${lvalue}, '${oldName}');`;
       if (order.length) expr += ` ${lvalue} = orderfields(${lvalue}, ${orderCell});`;
       engine.execute(expr);
     } catch (e) {
