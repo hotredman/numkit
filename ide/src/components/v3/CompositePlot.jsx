@@ -503,6 +503,12 @@ export default function CompositePlot({
   // clamping at the call sites that set viewport.
   const xLogActive = xLog && xMin > 0 && xMax > 0;
   const yLogActive = yLog && yMin > 0 && yMax > 0;
+  // A ≤0 value can't be plotted on a log axis. MATLAB drops the point
+  // ("Negative data ignored") and connects across it. Single predicate
+  // shared by the line / area / polygon builders so they stay
+  // consistent — genuine NaN/Inf is handled separately (it BREAKS the
+  // path, this only skips an otherwise-finite ≤0 value).
+  const dropOnLog = (xv, yv) => (xLogActive && xv <= 0) || (yLogActive && yv <= 0);
   // Axis direction. MATLAB: set(gca, 'XDir'/'YDir', 'reverse') flips
   // the corresponding axis. xDir='reverse' means x increases right→left;
   // yDir='reverse' means y increases top→bottom (the default for image
@@ -1815,37 +1821,34 @@ export default function CompositePlot({
                 // Filled polygon under the curve. Path: (x[0],base) →
                 // (x[0],y[0]) → … → (x[N-1],y[N-1]) → (x[N-1],base) → close.
                 // NaN points break the polygon — start a new sub-path.
+                // A ≤0 value on a log axis is dropped (connected across),
+                // matching the line builder. lastPlottedX tracks the last
+                // vertex actually drawn so the baseline-drop close lands on
+                // a plottable (positive-on-log) x, never a NaN.
                 const base = Number.isFinite(ly.baseline) ? ly.baseline : 0;
                 const subpaths = [];
                 let cur = '';
-                let firstPx = null;
+                let lastPlottedX = null;
+                const closeSub = () => {
+                  if (cur && lastPlottedX != null) {
+                    cur += `L${sx(lastPlottedX).toFixed(2)},${mySy(base).toFixed(2)} Z `;
+                    subpaths.push(cur);
+                  }
+                  cur = ''; lastPlottedX = null;
+                };
                 for (let i = 0; i < ly.x.length; i++) {
                   const xv = ly.x[i], yv = ly.y[i];
-                  const finite = Number.isFinite(xv) && Number.isFinite(yv);
-                  if (!finite) {
-                    if (cur) {
-                      // Close current sub-path: drop down to baseline + close.
-                      const lastX = ly.x.slice(0, i).reverse().find((v) => Number.isFinite(v));
-                      if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${mySy(base).toFixed(2)} Z `;
-                      subpaths.push(cur);
-                      cur = ''; firstPx = null;
-                    }
-                    continue;
-                  }
+                  if (!Number.isFinite(xv) || !Number.isFinite(yv)) { closeSub(); continue; }
+                  if (dropOnLog(xv, yv)) continue;   // log ≤0 → connect across
                   const px = sx(xv), py = mySy(yv);
                   if (!cur) {
-                    firstPx = px;
                     cur = `M${px.toFixed(2)},${mySy(base).toFixed(2)} L${px.toFixed(2)},${py.toFixed(2)} `;
                   } else {
                     cur += `L${px.toFixed(2)},${py.toFixed(2)} `;
                   }
+                  lastPlottedX = xv;
                 }
-                if (cur) {
-                  // Close last sub-path.
-                  const lastX = ly.x.slice().reverse().find((v) => Number.isFinite(v));
-                  if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${mySy(base).toFixed(2)} Z`;
-                  subpaths.push(cur);
-                }
+                closeSub();
                 const d = subpaths.join(' ');
                 return (
                   <g key={`ly${idx}`} opacity={op}>
@@ -1868,6 +1871,7 @@ export default function CompositePlot({
                     if (inSub) { d += 'Z '; inSub = false; }
                     continue;
                   }
+                  if (dropOnLog(xv, yv)) continue;   // log ≤0 → skip vertex, connect across
                   const px = sx(xv), py = mySy(yv);
                   d += (inSub ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
                   inSub = true;
@@ -1968,10 +1972,8 @@ export default function CompositePlot({
                 // Genuine non-finite data → break the line (MATLAB gap
                 // semantics for plot([1 NaN 3])).
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
-                // Log axis can't plot a ≤0 value. MATLAB drops the point
-                // and CONNECTS across it ("Negative data ignored"), so
-                // skip without breaking the path (no `started = false`).
-                if ((xLogActive && xv <= 0) || (yLogActive && yv <= 0)) continue;
+                // Log axis: skip a ≤0 value WITHOUT breaking (connect across).
+                if (dropOnLog(xv, yv)) continue;
                 const px = sx(xv), py = mySy(yv);
                 if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
                 if (mode === 'stairs' && started) {

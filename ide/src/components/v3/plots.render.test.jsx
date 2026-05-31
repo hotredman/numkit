@@ -106,6 +106,27 @@ describe('CompositePlot render smoke', () => {
     expect(d).not.toContain('NaN');
     expect((d.match(/M/g) || []).length).toBe(1);   // one subpath = joined
   });
+
+  it('area fill drops a ≤0 point on a log x-axis (no NaN, one subpath)', () => {
+    // semilogx area (x log, y linear). The x = -5 vertex must be dropped
+    // and connected across — never emitted as a NaN coordinate.
+    const areaLogFig = {
+      ...compositeFig, id: 8, xscale: 'log', yscale: 'linear',
+      xRange: [1, 100], yRange: [0, 100],
+      layers: [{ kind: 'series', name: 'a', mode: 'area',
+        x: [1, -5, 100], y: [10, 50, 90], color: '#abcdef', baseline: 0 }],
+    };
+    const { container } = render(
+      <CompositePlot figure={areaLogFig} width={400} height={300}
+        viewport={{ x: [1, 100], y: [0, 100] }} setViewport={noop}
+        xLog interactive={false} />,
+    );
+    const path = container.querySelector('path[fill="#abcdef"]');
+    expect(path).toBeTruthy();
+    const d = path.getAttribute('d');
+    expect(d).not.toContain('NaN');
+    expect((d.match(/M/g) || []).length).toBe(1);   // one filled subpath
+  });
 });
 
 describe('PolarPlot render smoke', () => {
