@@ -1527,11 +1527,14 @@ TEST_F(ImshowTest, RGBPathSetsImageRgbType)
     ASSERT_EQ(ax().datasets.size(), 1u);
     const auto &ds = ax().datasets[0];
     EXPECT_EQ(ds.type, "image-rgb");
-    // 2x2x3 = 12 bytes (4 pixels × 3 channels). Pixel (0,0) → (R,G,B)=(255,0,128).
-    ASSERT_EQ(ds.rgbBytes.size(), 12u);
+    // The wire format always carries 4 bytes per pixel (RGBA); for RGB input
+    // the alpha channel is synthesized opaque (255). 2x2x4 = 16 bytes.
+    // Pixel (0,0) → (R,G,B,A)=(255,0,128,255).
+    ASSERT_EQ(ds.rgbBytes.size(), 16u);
     EXPECT_EQ(ds.rgbBytes[0], 255);
     EXPECT_EQ(ds.rgbBytes[1], 0);
     EXPECT_EQ(ds.rgbBytes[2], 128);
+    EXPECT_EQ(ds.rgbBytes[3], 255);   // synthesized opaque alpha
     EXPECT_FALSE(ds.rgbJson.empty());
     EXPECT_EQ(ax().axisMode, "image");
     EXPECT_FALSE(ax().axisVisible);

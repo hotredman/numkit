@@ -589,10 +589,13 @@ TEST_P(ClearExportTest, ClearInsideLoop)
                 total = total + tmp;
                 clear tmp;
             end
-            r = total + exist('tmp') * 1000;
+            r = total + exist('tmp', 'var') * 1000;
         end
     )");
-    // total = 10+20+30 = 60, tmp cleared so exist=0
+    // total = 10+20+30 = 60; tmp was cleared so exist(...,'var')=0. Use the
+    // 'var' form so the check concerns only the workspace variable and does
+    // not collide with a file/folder named "tmp" in the current directory
+    // (bare exist('tmp') also searches the filesystem).
     EXPECT_DOUBLE_EQ(evalScalar("test_loop_clear();"), 60.0);
 }
 
