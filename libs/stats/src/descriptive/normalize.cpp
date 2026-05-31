@@ -122,12 +122,24 @@ bool methodMatches(const std::string &m, const char *want) {
 } // anonymous
 
 Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr,
-                const Value *param)
+                const Value *param, Value *cOut, Value *sOut)
 {
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
     Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
-    if (H == 0 || W == 0) return out;
+    if (H == 0 || W == 0) {
+        if (cOut) *cOut = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        if (sOut) *sOut = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return out;
+    }
+    // Centering (C) and scaling (S) outputs for MATLAB [N,C,S]=normalize:
+    // one value per operating slice — 1×1 for a vector, 1×W for a matrix
+    // (column-wise) — such that N == (A - C) ./ S.
+    const size_t csW = (H == 1 || W == 1) ? 1 : W;
+    if (cOut) *cOut = Value::matrix(1, csW, ValueType::DOUBLE, mr);
+    if (sOut) *sOut = Value::matrix(1, csW, ValueType::DOUBLE, mr);
+    double *cOutD = cOut ? cOut->doubleDataMut() : nullptr;
+    double *sOutD = sOut ? sOut->doubleDataMut() : nullptr;
 
     const std::string m = method.empty() ? std::string("zscore") : method;
 
@@ -144,6 +156,7 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
 
     forEachColumn(A, [&](size_t j, double *col, size_t n) {
         std::vector<double> y(n);
+        double cVal = 0.0, sVal = 1.0;  // centering / scaling -> [N,C,S]
         if (methodMatches(m, "zscore")) {
             // Default 'std': centre by mean, scale by sample (N-1) std.
             // 'robust': centre by median, scale by the (raw) median absolute
@@ -154,11 +167,13 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
                 for (double &v : tmp) v = std::fabs(v - med);
                 const double mad = colMedian(std::move(tmp));
                 const double inv = (mad != 0.0) ? 1.0 / mad : 0.0;
+                cVal = med; sVal = mad;
                 for (size_t i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
             } else {
                 const double mu = colMean(col, n);
                 const double sd = colStdSample(col, n);  // MATLAB default: N-1
                 const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
+                cVal = mu; sVal = sd;
                 for (size_t i = 0; i < n; ++i) y[i] = (col[i] - mu) * inv;
             }
         } else if (methodMatches(m, "center")) {
@@ -168,6 +183,7 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
             else if (paramIsStr && paramStr == "median") {
                 std::vector<double> tmp(col, col + n); c = colMedian(tmp);
             } else                                     c = colMean(col, n);
+            cVal = c; sVal = 1.0;
             for (size_t i = 0; i < n; ++i) y[i] = col[i] - c;
         } else if (methodMatches(m, "scale")) {
             // default 'std'; 'first'/'iqr'/'mad' or a numeric divisor.
@@ -183,6 +199,7 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
                 sc = colMedian(tmp);
             } else                                      sc = colStdSample(col, n);
             const double inv = (sc != 0.0) ? 1.0 / sc : 0.0;
+            cVal = 0.0; sVal = sc;
             for (size_t i = 0; i < n; ++i) y[i] = col[i] * inv;
         } else if (methodMatches(m, "range")) {
             // default [0 1]; custom [lo hi] supported.
@@ -197,6 +214,7 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
                 if (col[i] > hi) hi = col[i];
             }
             const double r = hi - lo;
+            cVal = lo; sVal = r;  // default [0 1]: C=min, S=max-min
             if (r != 0.0) {
                 const double scl = (rhi - rlo) / r;
                 for (size_t i = 0; i < n; ++i) y[i] = rlo + (col[i] - lo) * scl;
@@ -223,17 +241,21 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
                 L = std::pow(s, 1.0 / p);
             }
             const double inv = (L != 0.0) ? 1.0 / L : 0.0;
+            cVal = 0.0; sVal = L;
             for (size_t i = 0; i < n; ++i) y[i] = col[i] * inv;
         } else if (methodMatches(m, "medianiqr")) {
             std::vector<double> tmp(col, col + n);
             const double med = colMedian(tmp);
             const double iqr = colIQR(std::move(tmp));
             const double inv = (iqr != 0.0) ? 1.0 / iqr : 0.0;
+            cVal = med; sVal = iqr;
             for (size_t i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
         } else {
             throw Error("normalize: unknown method '" + m + "'",
                         0, 0, "normalize", "", "numkit:normalize:method");
         }
+        if (cOutD) cOutD[j] = cVal;
+        if (sOutD) sOutD[j] = sVal;
         writeColumn(out, j, y.data(), n, H, W);
     });
     return out;
@@ -342,7 +364,7 @@ Value zscore(const Value &A, std::pmr::memory_resource *mr)
 
 namespace detail {
 
-void normalize_reg(Span<const Value> args, size_t /*nargout*/,
+void normalize_reg(Span<const Value> args, size_t nargout,
                    Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
@@ -360,7 +382,14 @@ void normalize_reg(Span<const Value> args, size_t /*nargout*/,
         if (args.size() >= 3 && !args[2].isEmpty())
             param = &args[2];
     }
-    outs[0] = normalize(args[0], method, ctx.engine->resource(), param);
+    // MATLAB [N, C, S] = normalize(...): C is the centering value, S the
+    // scaling value, with N == (A - C) ./ S.
+    Value cVal, sVal;
+    Value *cPtr = (nargout >= 2 && outs.size() >= 2) ? &cVal : nullptr;
+    Value *sPtr = (nargout >= 3 && outs.size() >= 3) ? &sVal : nullptr;
+    outs[0] = normalize(args[0], method, ctx.engine->resource(), param, cPtr, sPtr);
+    if (cPtr) outs[1] = std::move(cVal);
+    if (sPtr) outs[2] = std::move(sVal);
 }
 
 void rescale_reg(Span<const Value> args, size_t /*nargout*/,

@@ -138,3 +138,38 @@ TEST_F(NormalizeParamTest, ZscoreSingleOutputUnchanged)
     EXPECT_NEAR(evalScalar("z(1)"), -1.161895003862225, 1e-12);
     EXPECT_NEAR(evalScalar("z(4)"),  1.161895003862225, 1e-12);
 }
+
+// normalize [N, C, S]: the centering (C) and scaling (S) outputs, with
+// N == (A - C) ./ S, per method, vs MATLAB R2025b. 2026-05-31: previously
+// only N was returned (C and S were missing).
+TEST_F(NormalizeParamTest, NCS_CenteringScalingOutputs)
+{
+    eval("[n, c, s] = normalize([2 4 6]);");           // zscore: mean / std
+    EXPECT_DOUBLE_EQ(evalScalar("c"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s"), 2.0);
+    eval("[n2, c2, s2] = normalize([2 4 6], 'range');");
+    EXPECT_DOUBLE_EQ(evalScalar("c2"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s2"), 4.0);
+    eval("[n3, c3, s3] = normalize([3 4], 'norm');");
+    EXPECT_DOUBLE_EQ(evalScalar("c3"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s3"), 5.0);
+    eval("[n4, c4, s4] = normalize([2 4 6], 'center');");
+    EXPECT_DOUBLE_EQ(evalScalar("c4"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s4"), 1.0);
+    eval("[n5, c5, s5] = normalize([2 4 6], 'scale');");
+    EXPECT_DOUBLE_EQ(evalScalar("c5"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s5"), 2.0);
+    // matrix: column-wise C/S (1 x W)
+    eval("[nm, cm, sm] = normalize([1 2 3; 4 5 6]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(cm, 1)")), 1);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(cm, 2)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("cm(1)"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("cm(3)"), 4.5);
+    EXPECT_NEAR(evalScalar("sm(1)"), 2.1213203435596424, 1e-12);
+    // identity N == (A - C) ./ S
+    eval("A = [2 4 6]; [n6, c6, s6] = normalize(A); err = max(abs(n6 - (A - c6) ./ s6));");
+    EXPECT_LT(evalScalar("err"), 1e-12);
+    // single-output path unchanged
+    eval("only = normalize([1 2 3 4 5]);");
+    EXPECT_NEAR(evalScalar("only(1)"), -1.2649110640673518, 1e-12);
+}
