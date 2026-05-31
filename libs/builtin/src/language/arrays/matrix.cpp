@@ -376,58 +376,130 @@ ScratchVec<double> valueToScratchDoubles(const Value &v, ScratchArena &scratch)
 
 Value toeplitz(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
 {
-    ScratchArena scratch(mr);
-    auto c = valueToScratchDoubles(cV, scratch);
-    // Single-arg / Empty rV: r = c (MATLAB convention; real input).
-    // ScratchVec has deleted copy ctor — duplicate c element-wise instead
-    // of relying on a ternary that would force a copy.
-    ScratchVec<double> r(&scratch);
-    if (rV.isEmpty()) {
-        r.assign(c.begin(), c.end());
-    } else {
-        r = valueToScratchDoubles(rV, scratch);
-    }
-    const std::size_t m = c.size();
-    const std::size_t n = r.size();
+    const bool single1 = rV.isEmpty();
+    const bool anyCplx  = cV.isComplex() || (!single1 && rV.isComplex());
+    const bool anySingle = !anyCplx &&
+        (cV.type() == ValueType::SINGLE ||
+         (!single1 && rV.type() == ValueType::SINGLE));
+
+    const std::size_t m = cV.numel();
+    const std::size_t n = single1 ? m : rV.numel();
     if (m == 0 || n == 0)
         throw Error("toeplitz: inputs must be non-empty",
                     0, 0, "toeplitz", "", "numkit:toeplitz:empty");
-    auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    // T[i, j] = c[i-j]  (i >= j)
-    //        = r[j-i]  (i <  j)
-    // MATLAB silently overrides r[0] with c[0] when both are given;
-    // caller's r[0] is ignored.
-    for (size_t j = 0; j < n; ++j)
-        for (size_t i = 0; i < m; ++i)
-            M.elem(i, j) = (i >= j) ? c[i - j] : r[j - i];
+
+    // COMPLEX: gather per-element so the imaginary part is preserved.
+    // Two-arg form is a plain gather; the single-arg complex form is a
+    // Hermitian Toeplitz matrix (MATLAB conjugates the strictly-lower
+    // triangle, T(i,j) = conj(c(i-j)) for i>j, c(j-i) otherwise).
+    if (anyCplx) {
+        ScratchArena scratch(mr);
+        ScratchVec<Complex> c(m, &scratch);
+        for (size_t k = 0; k < m; ++k)
+            c[k] = cV.isComplex() ? cV.complexData()[k]
+                                  : Complex(cV.elemAsDouble(k), 0.0);
+        ScratchVec<Complex> r(n, &scratch);
+        if (!single1)
+            for (size_t k = 0; k < n; ++k)
+                r[k] = rV.isComplex() ? rV.complexData()[k]
+                                      : Complex(rV.elemAsDouble(k), 0.0);
+        auto M = Value::matrix(m, n, ValueType::COMPLEX, mr);
+        Complex *dst = M.complexDataMut();
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i) {
+                Complex v;
+                if (single1) v = (i > j) ? std::conj(c[i - j]) : c[j - i];
+                else         v = (i >= j) ? c[i - j] : r[j - i];
+                dst[j * m + i] = v;
+            }
+        return M;
+    }
+
+    // Real path (DOUBLE or SINGLE output; class preserved).
+    ScratchArena scratch(mr);
+    auto c = valueToScratchDoubles(cV, scratch);
+    ScratchVec<double> r(&scratch);
+    if (single1) r.assign(c.begin(), c.end());
+    else         r = valueToScratchDoubles(rV, scratch);
+
+    // T[i,j] = c[i-j] (i>=j) else r[j-i]. MATLAB silently overrides r[0]
+    // with c[0] when both are given (r[0] is never read here).
+    const ValueType ot = anySingle ? ValueType::SINGLE : ValueType::DOUBLE;
+    auto M = Value::matrix(m, n, ot, mr);
+    if (ot == ValueType::SINGLE) {
+        float *dst = static_cast<float *>(M.rawDataMut());
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i)
+                dst[j * m + i] = static_cast<float>((i >= j) ? c[i - j] : r[j - i]);
+    } else {
+        double *dst = M.doubleDataMut();
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i)
+                dst[j * m + i] = (i >= j) ? c[i - j] : r[j - i];
+    }
     return M;
 }
 
 Value hankel(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
 {
-    ScratchArena scratch(mr);
-    auto c = valueToScratchDoubles(cV, scratch);
-    const std::size_t m = c.size();
-    // Single-arg / Empty rV: r is all zeros, length = m
-    // (anti-triangular Hankel).
-    ScratchVec<double> r(&scratch);
-    if (rV.isEmpty()) {
-        r.assign(m, 0.0);
-    } else {
-        r = valueToScratchDoubles(rV, scratch);
-    }
-    const std::size_t n = r.size();
+    const bool single1 = rV.isEmpty();
+    const bool anyCplx  = cV.isComplex() || (!single1 && rV.isComplex());
+    const bool anySingle = !anyCplx &&
+        (cV.type() == ValueType::SINGLE ||
+         (!single1 && rV.type() == ValueType::SINGLE));
+
+    const std::size_t m = cV.numel();
+    const std::size_t n = single1 ? m : rV.numel();
     if (m == 0 || n == 0)
         throw Error("hankel: inputs must be non-empty",
                     0, 0, "hankel", "", "numkit:hankel:empty");
-    auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    // H[i, j] = c[i + j]                       if i + j <  m
-    //         = r[i + j - m + 1]               otherwise
-    for (size_t j = 0; j < n; ++j)
-        for (size_t i = 0; i < m; ++i) {
-            const size_t s = i + j;
-            M.elem(i, j) = (s < m) ? c[s] : r[s - m + 1];
-        }
+
+    // H[i,j] = c[i+j] (i+j < m) else r[i+j-m+1]. hankel never conjugates.
+    // Single-arg: r is all zeros (anti-triangular Hankel).
+    if (anyCplx) {
+        ScratchArena scratch(mr);
+        ScratchVec<Complex> c(m, &scratch);
+        for (size_t k = 0; k < m; ++k)
+            c[k] = cV.isComplex() ? cV.complexData()[k]
+                                  : Complex(cV.elemAsDouble(k), 0.0);
+        ScratchVec<Complex> r(n, &scratch);
+        for (size_t k = 0; k < n; ++k)
+            r[k] = (!single1 && rV.isComplex()) ? rV.complexData()[k]
+                 : (!single1)                   ? Complex(rV.elemAsDouble(k), 0.0)
+                                                : Complex(0.0, 0.0);
+        auto M = Value::matrix(m, n, ValueType::COMPLEX, mr);
+        Complex *dst = M.complexDataMut();
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i) {
+                const size_t s = i + j;
+                dst[j * m + i] = (s < m) ? c[s] : r[s - m + 1];
+            }
+        return M;
+    }
+
+    ScratchArena scratch(mr);
+    auto c = valueToScratchDoubles(cV, scratch);
+    ScratchVec<double> r(&scratch);
+    if (single1) r.assign(m, 0.0);
+    else         r = valueToScratchDoubles(rV, scratch);
+
+    const ValueType ot = anySingle ? ValueType::SINGLE : ValueType::DOUBLE;
+    auto M = Value::matrix(m, n, ot, mr);
+    if (ot == ValueType::SINGLE) {
+        float *dst = static_cast<float *>(M.rawDataMut());
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i) {
+                const size_t s = i + j;
+                dst[j * m + i] = static_cast<float>((s < m) ? c[s] : r[s - m + 1]);
+            }
+    } else {
+        double *dst = M.doubleDataMut();
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i) {
+                const size_t s = i + j;
+                dst[j * m + i] = (s < m) ? c[s] : r[s - m + 1];
+            }
+    }
     return M;
 }
 
