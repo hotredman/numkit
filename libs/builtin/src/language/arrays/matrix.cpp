@@ -1232,17 +1232,53 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
 
 Value diag(const Value &x, std::pmr::memory_resource *mr)
 {
+    return diag(x, 0L, mr);
+}
+
+Value diag(const Value &x, long k, std::pmr::memory_resource *mr)
+{
+    const ValueType t = x.type();
+    // MATLAB: "Inputs must be numeric, char, or logical." Cells / strings
+    // / structs / function handles are unsupported.
+    if (t == ValueType::CELL || t == ValueType::STRING ||
+        t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
+        throw Error("diag: inputs must be numeric, char, or logical",
+                     0, 0, "diag", "", "numkit:diag:badType");
+
+    const size_t es = elementSize(t);
+    const size_t ak = static_cast<size_t>(k < 0 ? -k : k);
+
     if (x.dims().isVector()) {
+        // Build a square matrix with x on the k-th diagonal. The output
+        // matrix is zero-filled (= 0 / char(0) / false / 0+0i), so only
+        // the diagonal entries need to be written.
         const size_t n = x.numel();
-        auto r = Value::matrix(n, n, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < n; ++i)
-            r.elem(i, i) = x.doubleData()[i];
+        const size_t m = n + ak;
+        auto r = Value::matrix(m, m, t, mr);
+        const char *src = static_cast<const char *>(x.rawData());
+        char *dst = static_cast<char *>(r.rawDataMut());
+        for (size_t i = 0; i < n; ++i) {
+            const size_t row = (k >= 0) ? i : i + ak;
+            const size_t col = (k >= 0) ? i + ak : i;
+            std::memcpy(dst + (col * m + row) * es, src + i * es, es);  // col-major
+        }
         return r;
     }
-    const size_t n = std::min(x.dims().rows(), x.dims().cols());
-    auto r = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < n; ++i)
-        r.doubleDataMut()[i] = x(i, i);
+
+    // Matrix input: extract the k-th diagonal as a column vector.
+    const size_t R = x.dims().rows(), C = x.dims().cols();
+    const size_t row0 = (k >= 0) ? 0 : ak;
+    const size_t col0 = (k >= 0) ? ak : 0;
+    size_t len = 0;
+    if (row0 < R && col0 < C)
+        len = std::min(R - row0, C - col0);
+    auto r = Value::matrix(len, 1, t, mr);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
+    for (size_t i = 0; i < len; ++i) {
+        const size_t row = row0 + i, col = col0 + i;
+        std::memcpy(dst + i * es, src + (col * R + row) * es, es);  // x col-major
+    }
     return r;
 }
 
@@ -3125,7 +3161,10 @@ void diag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("diag: requires 1 argument",
                      0, 0, "diag", "", "numkit:diag:nargin");
-    outs[0] = diag(args[0], ctx.engine->resource());
+    long k = 0;
+    if (args.size() >= 2)
+        k = static_cast<long>(std::llround(args[1].toScalar()));
+    outs[0] = diag(args[0], k, ctx.engine->resource());
 }
 
 void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

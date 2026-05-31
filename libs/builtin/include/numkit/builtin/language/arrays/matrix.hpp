@@ -517,12 +517,28 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
 ///
 /// Matrix input → main diagonal as a column vector.
 /// Vector input → diagonal matrix with the vector on the main diagonal.
+/// Type-preserving across DOUBLE / SINGLE / CHAR / LOGICAL / integer /
+/// COMPLEX (CELL / STRING / STRUCT rejected, matching MATLAB).
 ///
 /// @param x   Vector or matrix.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Column vector or square matrix.
 /// @see eye, trace
 Value diag(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief k-th diagonal / build-from-diagonal (`y = diag(x, k)`).
+///
+/// Matrix input → the k-th diagonal as a column vector (k>0 above the
+/// main diagonal, k<0 below). Vector input → square matrix with the
+/// vector placed on the k-th diagonal (output size `numel(x)+|k|`).
+/// Type-preserving (see one-argument overload).
+///
+/// @param x   Vector or matrix.
+/// @param k   Diagonal offset (0 = main).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector or square matrix.
+/// @see eye, trace
+Value diag(const Value &x, long k, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Sort along first non-singleton dim (`[sorted, idx] = sort(x)`).
 ///
