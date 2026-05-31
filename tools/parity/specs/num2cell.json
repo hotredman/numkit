@@ -1,14 +1,15 @@
 {
   "name": "num2cell",
   "namespace": "builtin",
-  "setup": "",
-  "expr": "c = num2cell([1 2 3]); r1 = c{1}; r2 = c{2}; r3 = c{3};",
+  "setup": "A = [1 2 3; 4 5 6];",
+  "expr": "c = num2cell([1 2 3]); r1 = c{1}; r2 = c{2}; r3 = c{3}; c2 = num2cell(A,2); nr2 = size(c2,1); nc2 = size(c2,2); a21 = c2{1}(2); a23 = c2{2}(3); c1 = num2cell(A,1); nr1 = size(c1,1); nc1 = size(c1,2); b12 = c1{1}(2); b32 = c1{3}(2); cb = num2cell(A,[1 2]); nbb = numel(cb); bb = cb{1}(2,3); c3 = num2cell(A,3); n3 = numel(c3); e3 = c3{2,2};",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "r1", "r2", "r3",
+    "nr2", "nc2", "a21", "a23",
+    "nr1", "nc1", "b12", "b32",
+    "nbb", "bb", "n3", "e3"
   ],
-  "comment": "Sig: r = num2cell(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: C = num2cell(A[,dims]). DEEP-PROBE 2026-05-31: added the dim form (was element-wise only; num2cell(A,dim) threw 'Index exceeds array size 1'). The listed dims are COLLAPSED into each cell: num2cell(A,2)=2x1 cell of rows (c{1}=[1 2 3]); num2cell(A,1)=1x3 cell of columns (c{1}=[1;4]); num2cell(A,[1 2])=1x1 cell holding the whole matrix; a dim > ndim (num2cell(A,3) on a 2-D A) is a trivial singleton -> element-wise 2x3. 2-D only (N-D deferred). namespace=builtin."
 }
