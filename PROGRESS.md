@@ -347,7 +347,7 @@ together.
 | `convertcontainedstringstochars` | ✅ | Sig: r = convertcontainedstringstochars(...). Spec-extension batch 2026-05-09. |
 | `convertstringstochars` | ✅ | Sig: r = convertstringstochars(...). Spec-extension batch 2026-05-09. |
 | `count` | ✅ 🔬 | Sig: r = count(...). Spec-extension batch 2026-05-09. |
-| `deblank` | ✅ | Sig: r = deblank(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics. |
+| `deblank` | ✅ | Sig: r = deblank(...). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); removes TRAILING whitespace element-wise -> cell of char vectors, same shape: deblank({'a  ','  b '})={'a','  b'} (leading whitespace kept). Scalar char/string path unchanged. FP uses strcmp booleans + cell lengths/codes. |
 | `double` | ✅ | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
 | `endsWith` | ✅ 🔬 | Sig: r = endsWith(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `erase` | ✅ 🔬 | Sig: r = erase(...). Spec-extension batch 2026-05-09. |
@@ -366,7 +366,7 @@ together.
 | `isstringscalar` | ✅ | Sig: TF = isStringScalar(X). Camel-case fn name. 100k iters. |
 | `isstrprop` | ✅ 🔬 | Sig: r = isstrprop(...). Spec-extension batch 2026-05-09. |
 | `join` | ✅ | Sig: r = join(...). Spec-extension batch 2026-05-09. |
-| `lower` | ✅ | Sig: r = lower(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics. |
+| `lower` | ✅ | Sig: r = lower(...). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); applies element-wise -> cell of char vectors, same shape: lower({'AbC','XyZ'})={'abc','xyz'}. Scalar char/string path unchanged. FP uses strcmp booleans + cell char codes. |
 | `matches` | ✅ | Sig: r = matches(...). Spec-extension batch 2026-05-09. |
 | `newline` | ✅ | Sig: r = newline(...). Spec-extension batch 2026-05-09. |
 | `num2str` | ✅ 🔬 | num2str of a SCALAR complex value vs MATLAB R2025b. DEEP-PROBE 2026-05-31: num2str(complex) THREW 'Cannot convert complex with nonzero imaginary part to double scalar' (all overloads called toScalar()). Now formats re±|im|i with a COMMON precision derived from max(|re|,|im|) (the same magnitude-aware rule as the real default): num2str(3-1i)='3-1i'; num2str(complex(5,0))='5' (zero imag -> bare real); num2str(0+1i)='0+1i'; num2str(1.23456789+9.87654321i)='1.2346+9.8765i' (5 sig); num2str(pi+2.5i,8)='3.1415927+2.5i'; num2str(1234.5+6.789012i)='1234.5+6.789012i' (COMMON prec 8, NOT per-part 5); num2str(1+2i,3)='1+2i'; num2str(3.14159-2.71828i,'%.3f')='3.142-2.718i' (fmt per-part). Fingerprints are numel + sum(double(s)) byte-checks (tol 0). namespace=builtin. covers num2str. Complex ARRAY num2str (column-aligned) remains a deferred gap. |
@@ -391,7 +391,7 @@ together.
 | `strfind` | ✅ | Sig: r = strfind(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
 | `string` | ✅ | Sig: S = string(X). Numeric → string array. 1000 iters. fp limited to numel (string-array indexing broken — BUGS #7). |
 | `strings` | ✅ | Sig: S = strings(M, N). 100x100 empty string array. 10000 iters. |
-| `strip` | ✅ | Sig: S = strip(S). Trim both. 10000 iters. |
+| `strip` | ✅ | Sig: S = strip(S[,side[,char]]). Trim both. DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); applies element-wise -> cell of char vectors, same shape: strip({'  a  ','  b'})={'a','b'}; strip(...,'both','x') strips the given char. Scalar string path preserves string type. FP uses lengths + char codes. |
 | `strjoin` | ✅ 🔬 | Sig: s = strjoin(C, delim). delim may be a single string OR a cell array of numel(C)-1 strings interleaved between consecutive elements: strjoin({a,b,c},{', ',' and '}) -> 'a, b and c'. Single-element C uses an empty {} delim. numkit previously threw 'Not a char array' on a cell delim; fixed 2026-05-30. Spec-extension batch 2026-05-09 + cell delimiter. |
 | `strjust` | ✅ | Sig: S2 = strjust(S, side). 3-row right-justify. 10000 iters. |
 | `strlength` | ✅ | Sig: r = strlength(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
@@ -400,8 +400,8 @@ together.
 | `strrep` | ✅ | Sig: r = strrep(str,old,new). String op; with any CELL argument returns a cell of char vectors (scalars broadcast). DEEP-PROBE 2026-05-31: added cell-array support (was THROWING 'Not a char array'): strrep({'hello','world','book'},'o','O')={'hellO','wOrld','bOOk'}; scalar-str + cell-pat broadcast strrep('aXbYc',{'X','Y'},{'-','='})={'a-bYc','aXb=c'}; all-cell element-wise strrep({'aa','bb'},{'a','b'},{'X','Y'})={'XX','YY'}. STRING-ARRAY (non-cell, numel>1) input deferred. FP uses double(c{k}(j)) char codes + numel. Spec-extension batch 2026-05-09. |
 | `strsplit` | ✅ 🔬 | Sig: c = strsplit(str, delim, Name,Value). Delim may be a string OR a cell array of strings (longest-match); multi-char delims supported. CollapseDelimiters=true (default) merges only CONSECUTIVE delimiters so leading/trailing empties remain (',a,b,'->{'','a','b',''} n=4; 'a,,b'->n=2); CollapseDelimiters=false splits at every occurrence ('a,,b'->{'a','','b'} n=3). Default delimiter is whitespace ('  a  b  '->n=4). numkit previously took only a single char delim, threw on cell delims, and always dropped empties (ignoring CollapseDelimiters); fixed 2026-05-30. (DelimiterType='RegularExpression' remains an unimplemented gap.) Spec-extension batch 2026-05-09 + cell/multi/collapse. |
 | `strtok` | ✅ | Sig: r = strtok(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `strtrim` | ✅ | Sig: r = strtrim(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics. |
-| `upper` | ✅ | Sig: r = upper(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics. |
+| `strtrim` | ✅ | Sig: r = strtrim(...). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); applies element-wise -> cell of char vectors, same shape: strtrim({'  a b ','  x  '})={'a b','x'} (interior whitespace kept). Scalar char/string path unchanged. FP uses strcmp booleans + cell lengths/codes. |
+| `upper` | ✅ | Sig: r = upper(...). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); applies element-wise -> cell of char vectors, same shape: upper({'aBc','xYz'})={'ABC','XYZ'}. Scalar char/string path unchanged. FP uses strcmp booleans + cell char codes. |
 
 ### Structures
 

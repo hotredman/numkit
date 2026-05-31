@@ -2,14 +2,15 @@
   "name": "lower",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strcmp(lower(\"Hello World\"), \"hello world\")); r2 = double(strcmp(lower(\"XYZ\"), \"xyz\")); r3 = double(strcmp(lower(\"AbCdEf\"), \"abcdef\")); r4 = double(strlength(lower(\"Hello\")));",
+  "expr": "r1 = double(strcmp(lower(\"Hello World\"), \"hello world\")); r2 = double(strcmp(lower(\"XYZ\"), \"xyz\")); r3 = double(strcmp(lower(\"AbCdEf\"), \"abcdef\")); r4 = double(strlength(lower(\"Hello\"))); c = lower({'AbC','XyZ'}); nc = numel(c); ce1 = double(c{1}(1)); ce2 = double(c{2}(3));",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
     "r1",
     "r2",
     "r3",
-    "r4"
+    "r4",
+    "nc", "ce1", "ce2"
   ],
-  "comment": "Sig: r = lower(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics."
+  "comment": "Sig: r = lower(...). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); applies element-wise -> cell of char vectors, same shape: lower({'AbC','XyZ'})={'abc','xyz'}. Scalar char/string path unchanged. FP uses strcmp booleans + cell char codes."
 }

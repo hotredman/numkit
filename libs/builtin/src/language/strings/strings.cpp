@@ -521,39 +521,65 @@ Value strncmpi(const Value &a, const Value &b, size_t n, std::pmr::memory_resour
 
 // ── Case transforms ─────────────────────────────────────────────────────
 
+// Apply a per-string transform to every element of a CELL array, returning a
+// cell of char vectors with the same shape (MATLAB's element-wise behaviour
+// for lower/upper/strtrim/deblank/strip). The scalar (non-cell) path is left
+// to each caller so the pre-existing scalar return type is preserved exactly.
+template <class Op>
+static Value mapStringCell(const Value &s, Op op, std::pmr::memory_resource *mr)
+{
+    const size_t r = static_cast<size_t>(s.dims().rows());
+    const size_t c = static_cast<size_t>(s.dims().cols());
+    auto out = Value::cell(r, c, mr);
+    const size_t n = s.numel();
+    for (size_t i = 0; i < n; ++i)
+        out.cellAt(i) = Value::fromString(op(s.cellAt(i).toString()), mr);
+    return out;
+}
+
 Value upper(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    std::transform(r.begin(), r.end(), r.begin(), ::toupper);
-    return Value::fromString(r, mr);
+    auto op = [](std::string r) {
+        std::transform(r.begin(), r.end(), r.begin(), ::toupper);
+        return r;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return Value::fromString(op(s.toString()), mr);
 }
 
 Value lower(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    std::transform(r.begin(), r.end(), r.begin(), ::tolower);
-    return Value::fromString(r, mr);
+    auto op = [](std::string r) {
+        std::transform(r.begin(), r.end(), r.begin(), ::tolower);
+        return r;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return Value::fromString(op(s.toString()), mr);
 }
 
 // ── Trim / split / concat ───────────────────────────────────────────────
 
 Value strtrim(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    size_t start = r.find_first_not_of(" \t\r\n");
-    size_t end = r.find_last_not_of(" \t\r\n");
-    if (start == std::string::npos)
-        return Value::fromString("", mr);
-    return Value::fromString(r.substr(start, end - start + 1), mr);
+    auto op = [](const std::string &r) -> std::string {
+        size_t start = r.find_first_not_of(" \t\r\n");
+        size_t end = r.find_last_not_of(" \t\r\n");
+        if (start == std::string::npos) return "";
+        return r.substr(start, end - start + 1);
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return Value::fromString(op(s.toString()), mr);
 }
 
 Value deblank(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    size_t end = r.find_last_not_of(" \t\r\n\f\v");
-    if (end == std::string::npos)
-        return Value::fromString("", mr);
-    return Value::fromString(r.substr(0, end + 1), mr);
+    auto op = [](const std::string &r) -> std::string {
+        size_t end = r.find_last_not_of(" \t\r\n\f\v");
+        if (end == std::string::npos) return "";
+        return r.substr(0, end + 1);
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return Value::fromString(op(s.toString()), mr);
 }
 
 Value blanks(size_t n, std::pmr::memory_resource *mr)
@@ -1028,27 +1054,28 @@ Value pad(const Value &s, size_t n, const Value &side, const Value &padChar, std
 
 Value strip(const Value &s, const Value &side, const Value &ch, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
     const std::string sd = readSide(side, "both");
     std::string charsToStrip = " \t\r\n\f\v";
+    bool noStrip = false;  // explicit empty strip-set => no-op
     if (!ch.isEmpty() && (ch.isChar() || ch.isString())) {
         charsToStrip = ch.toString();
-        if (charsToStrip.empty()) {
-            if (s.isString()) return Value::stringScalar(r, mr);
-            return Value::fromString(r, mr);
-        }
+        if (charsToStrip.empty()) noStrip = true;
     }
-    auto stripLeft = [&]() {
-        size_t i = 0;
-        while (i < r.size() && charsToStrip.find(r[i]) != std::string::npos) ++i;
-        if (i > 0) r.erase(0, i);
+    auto stripOne = [&](std::string r) -> std::string {
+        if (noStrip) return r;
+        if (sd == "left" || sd == "both") {
+            size_t i = 0;
+            while (i < r.size() && charsToStrip.find(r[i]) != std::string::npos) ++i;
+            if (i > 0) r.erase(0, i);
+        }
+        if (sd == "right" || sd == "both") {
+            while (!r.empty() && charsToStrip.find(r.back()) != std::string::npos)
+                r.pop_back();
+        }
+        return r;
     };
-    auto stripRight = [&]() {
-        while (!r.empty() && charsToStrip.find(r.back()) != std::string::npos)
-            r.pop_back();
-    };
-    if (sd == "left" || sd == "both") stripLeft();
-    if (sd == "right" || sd == "both") stripRight();
+    if (s.isCell()) return mapStringCell(s, stripOne, mr);
+    std::string r = stripOne(s.toString());
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
