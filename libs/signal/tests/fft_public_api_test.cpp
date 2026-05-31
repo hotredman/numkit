@@ -45,6 +45,16 @@ Value makeRealRow(std::pmr::memory_resource *mr, std::initializer_list<double> v
     return v;
 }
 
+Value makeComplexRow(std::pmr::memory_resource *mr, std::initializer_list<Complex> vals)
+{
+    auto v = Value::matrix(1, vals.size(), ValueType::COMPLEX, mr);
+    Complex *data = v.complexDataMut();
+    size_t i = 0;
+    for (Complex x : vals)
+        data[i++] = x;
+    return v;
+}
+
 } // namespace
 
 // ── Basic round-trip: x -> fft -> ifft ≈ x ──────────────────────────────
@@ -68,6 +78,57 @@ TEST(DspFftPublicApi, RoundTripRealVector)
         for (size_t i = 0; i < y.numel(); ++i)
             EXPECT_NEAR(yData[i], xData[i], 1e-10) << "at i=" << i;
     }
+}
+
+// ── ifft(...,'symmetric'): conjugate-symmetric input → exactly-real output ─
+// Previously the 'symmetric' string flag threw "Cannot convert char to
+// scalar" (parsed as the FFT length N). MATLAB keeps the lower half of the
+// spectrum authoritative and mirrors conj to the upper half, then returns
+// real. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST(DspFftPublicApi, IfftSymmetricVector)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value X = makeComplexRow(mr, {{1, 0}, {2, 1}, {3, 0}, {4, -1}});
+    Value y = numkit::signal::ifftSymmetric(X, -1, 0, mr);
+    ASSERT_FALSE(y.isComplex());          // exactly real
+    ASSERT_EQ(y.numel(), 4u);
+    const double *yd = y.doubleData();
+    // [2 -1 0 0], NOT real(ifft)=[2.5 -1 -0.5 0].
+    EXPECT_NEAR(yd[0],  2.0, 1e-12);
+    EXPECT_NEAR(yd[1], -1.0, 1e-12);
+    EXPECT_NEAR(yd[2],  0.0, 1e-12);
+    EXPECT_NEAR(yd[3],  0.0, 1e-12);
+}
+
+TEST(DspFftPublicApi, IfftSymmetricZeroPad)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value X = makeComplexRow(mr, {{1, 0}, {2, 1}, {3, 0}, {4, -1}});
+    Value y = numkit::signal::ifftSymmetric(X, /*n=*/6, /*dim=*/0, mr);
+    ASSERT_FALSE(y.isComplex());
+    ASSERT_EQ(y.numel(), 6u);
+    const double *yd = y.doubleData();
+    EXPECT_NEAR(yd[0],  2.5,            1e-9);
+    EXPECT_NEAR(yd[1], -0.9553418013,   1e-9);
+    EXPECT_NEAR(yd[5], -0.3779915321,   1e-9);
+}
+
+TEST(DspFftPublicApi, IfftSymmetricMatrixPerColumn)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    // M = [1 2+1i; 3+2i 4-1i] (2x2). ifft(M,'symmetric') over dim 1 = [2 3; -1 -1].
+    Value M = Value::matrix(2, 2, ValueType::COMPLEX, mr);
+    Complex *md = M.complexDataMut();
+    md[0] = {1, 0}; md[1] = {3, 2}; md[2] = {2, 1}; md[3] = {4, -1};  // col-major
+    Value y = numkit::signal::ifftSymmetric(M, -1, /*dim=*/1, mr);
+    ASSERT_FALSE(y.isComplex());
+    ASSERT_EQ(y.dims().rows(), 2u);
+    ASSERT_EQ(y.dims().cols(), 2u);
+    const double *yd = y.doubleData();    // col-major
+    EXPECT_NEAR(yd[0],  2.0, 1e-12);  // (1,1)
+    EXPECT_NEAR(yd[1], -1.0, 1e-12);  // (2,1)
+    EXPECT_NEAR(yd[2],  3.0, 1e-12);  // (1,2)
+    EXPECT_NEAR(yd[3], -1.0, 1e-12);  // (2,2)
 }
 
 // ── DC of a constant vector is N, everything else is ~0 ────────────────

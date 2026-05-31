@@ -62,6 +62,26 @@ Value ifft(const Value &                X,
            int                          dim = 0,
            std::pmr::memory_resource *  mr  = nullptr);
 
+/// Inverse DFT with conjugate-symmetric input (MATLAB's `ifft(X,...,
+/// 'symmetric')`). Treats `X` as conjugate-symmetric along `dim`: the lower
+/// half `X[0..floor(L/2)]` is authoritative (the DC and, for even `L`, the
+/// Nyquist bin are forced real), the upper half is reconstructed as
+/// `conj(X[k])`, and the inverse transform is returned as an exactly real
+/// (DOUBLE) result. Differs from `real(ifft(X))`, which instead averages the
+/// conjugate-symmetric part of `X`.
+///
+/// @param X    Input spectrum (real or complex), vector or matrix.
+/// @param n    Output length, `-1` keeps input length (pads/truncates first).
+/// @param dim  Transform axis (`0` = first non-singleton).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Real (DOUBLE) inverse transform.
+///
+/// @see ifft
+Value ifftSymmetric(const Value &                X,
+                    int                          n   = -1,
+                    int                          dim = 0,
+                    std::pmr::memory_resource *  mr  = nullptr);
+
 /// 2-D forward FFT.
 ///
 /// Equivalent to `fft(fft(X, m, 1), n, 2)`. `m == -1` and / or `n == -1`
