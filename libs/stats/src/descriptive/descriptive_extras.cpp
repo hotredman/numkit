@@ -1085,6 +1085,43 @@ FoDetect detect_one_column(const double *x, std::size_t n,
     return r;
 }
 
+// Percentiles detector (isoutlier/filloutliers/rmoutliers 'percentiles'
+// method): elements below the loP-th or above the hiP-th percentile are
+// outliers, using MATLAB's prctile convention (sorted positions at
+// 100*(k-0.5)/n, clamped at the ends, linear interp). center = midpoint
+// of the two percentile bounds (matches MATLAB's 'center' fill).
+FoDetect detect_percentile_column(const double *x, std::size_t n,
+                                  double loP, double hiP)
+{
+    FoDetect r;
+    r.mask.assign(n, 0);
+    r.center = std::numeric_limits<double>::quiet_NaN();
+    r.lo = -std::numeric_limits<double>::infinity();
+    r.hi =  std::numeric_limits<double>::infinity();
+    if (n == 0) return r;
+    std::vector<double> buf;
+    buf.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        if (!std::isnan(x[i])) buf.push_back(x[i]);
+    if (buf.empty()) return r;
+    std::sort(buf.begin(), buf.end());
+    auto prc = [&](double p) {
+        const double q = p / 100.0 * double(buf.size()) - 0.5;
+        if (q <= 0.0) return buf.front();
+        if (q >= double(buf.size() - 1)) return buf.back();
+        const std::size_t f = static_cast<std::size_t>(std::floor(q));
+        const double fr = q - double(f);
+        return buf[f] + fr * (buf[f + 1] - buf[f]);
+    };
+    r.lo = prc(loP);
+    r.hi = prc(hiP);
+    r.center = 0.5 * (r.lo + r.hi);
+    for (std::size_t i = 0; i < n; ++i)
+        r.mask[i] = (std::isnan(x[i]) ? 0
+                  : ((x[i] < r.lo || x[i] > r.hi) ? 1 : 0));
+    return r;
+}
+
 // Apply a per-column fill given the column data, outlier mask, and
 // detection thresholds. p is overwritten in place.
 void apply_fill(double *p, std::size_t n,
@@ -1124,6 +1161,7 @@ Value filloutliers_of(const Value &x,
                       const Value &fillArg,       // string OR numeric scalar
                       const std::string &detect,
                       double thresholdFactor,
+                      double loP, double hiP,     // used iff detect=="percentiles"
                       std::pmr::memory_resource *mr)
 {
     const std::size_t n = x.numel();
@@ -1156,7 +1194,9 @@ Value filloutliers_of(const Value &x,
     }
 
     auto run_col = [&](double *p, std::size_t len) {
-        FoDetect d = detect_one_column(p, len, detect, thresholdFactor);
+        FoDetect d = (detect == "percentiles")
+                       ? detect_percentile_column(p, len, loP, hiP)
+                       : detect_one_column(p, len, detect, thresholdFactor);
         apply_fill(p, len, d.mask, d.center, d.lo, d.hi,
                    fillMethod, constVal, fill_is_constant);
     };
@@ -3201,41 +3241,57 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("filloutliers: requires (A, fillmethod[, findmethod][, NV])",
                     0, 0, "filloutliers", "", "numkit:filloutliers:nargin");
+    auto lower = [](std::string v) {
+        for (char &ch : v)
+            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        return v;
+    };
+
     std::string detect = "median";
     double tf = 3.0;
     bool tf_set = false;
+    double loP = 0.0, hiP = 0.0;
     std::size_t i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        const std::string s = args[i].toString();
+        const std::string s = lower(args[i].toString());
         // Distinguish findmethod string vs NV name. NV names are known.
-        if (s == "ThresholdFactor" || s == "thresholdfactor" ||
-            s == "MaxNumOutliers"  || s == "maxnumoutliers"  ||
-            s == "SamplePoints"    || s == "samplepoints"    ||
-            s == "OutlierLocations") {
+        if (s == "thresholdfactor" || s == "maxnumoutliers" ||
+            s == "samplepoints"    || s == "outlierlocations") {
             // fall through — handled by NV loop below.
         } else {
             detect = s;
-            if (detect != "median" && detect != "mean" &&
-                detect != "quartiles")
+            if (detect == "median" || detect == "mean" || detect == "quartiles") {
+                ++i;
+            } else if (detect == "percentiles") {
+                ++i;
+                if (i >= args.size() || args[i].numel() != 2)
+                    throw Error("filloutliers: 'percentiles' requires a "
+                                "2-element [lower upper] vector",
+                                0, 0, "filloutliers", "",
+                                "numkit:filloutliers:percentiles");
+                loP = args[i].elemAsDouble(0);
+                hiP = args[i].elemAsDouble(1);
+                ++i;
+            } else {
                 throw Error("filloutliers: findmethod must be 'median', "
-                            "'mean', or 'quartiles' in this revision "
-                            "(MATLAB also supports 'grubbs', 'gesd', "
+                            "'mean', 'quartiles', or 'percentiles' in this "
+                            "revision (MATLAB also supports 'grubbs', 'gesd', "
                             "'movmedian', 'movmean' — deferred)",
                             0, 0, "filloutliers", "",
                             "numkit:filloutliers:findmethod");
-            ++i;
+            }
         }
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("filloutliers: expected name-value pair",
                         0, 0, "filloutliers", "", "numkit:filloutliers:nv");
-        const std::string nm = args[i].toString();
-        if (nm == "ThresholdFactor" || nm == "thresholdfactor") {
+        const std::string nm = lower(args[i].toString());
+        if (nm == "thresholdfactor") {
             tf = args[i + 1].toScalar(); tf_set = true;
         } else {
             throw Error("filloutliers: unsupported name-value parameter '"
-                        + nm + "'",
+                        + args[i].toString() + "'",
                         0, 0, "filloutliers", "", "numkit:filloutliers:nv");
         }
         i += 2;
@@ -3249,7 +3305,8 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
         // Our internal formula uses 0.5·tf·IQR, so multiply by 2.
         tf = 2.0 * tf;
     }
-    outs[0] = filloutliers_of(args[0], args[1], detect, tf, ctx.engine->resource());
+    outs[0] = filloutliers_of(args[0], args[1], detect, tf, loP, hiP,
+                              ctx.engine->resource());
 }
 
 // ── range / mad / geomean / harmmean / moment / trimmean adapters ────
