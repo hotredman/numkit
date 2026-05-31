@@ -1,0 +1,16 @@
+{
+  "name": "datestr_codes",
+  "namespace": "builtin",
+  "covers": ["datestr"],
+  "setup": "dn = datenum(2020,7,28,14,24,5);",
+  "expr": "s0 = datestr(dn,0); n0 = numel(s0); c0 = sum(double(s0)); s4 = datestr(dn,4); n4 = numel(s4); c4 = double(s4(1)); s9 = datestr(dn,9); c9 = double(s9(1)); s14 = datestr(dn,14); n14 = numel(s14); c14 = sum(double(s14)); s17 = datestr(dn,17); n17 = numel(s17); c17 = sum(double(s17)); s18 = datestr(dn,18); n18 = numel(s18); c18 = sum(double(s18)); s23 = datestr(dn,23); n23 = numel(s23); c23 = sum(double(s23)); s27 = datestr(dn,27); c27 = sum(double(s27)); s30 = datestr(dn,30); n30 = numel(s30); c30 = sum(double(s30)); s31 = datestr(dn,31); n31 = numel(s31); c31 = sum(double(s31));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "n0", "c0", "n4", "c4", "c9",
+    "n14", "c14", "n17", "c17", "n18", "c18",
+    "n23", "c23", "c27", "n30", "c30", "n31", "c31"
+  ],
+  "deep_verified": true,
+  "comment": "datestr numeric format codes 0-31 (covers datestr; separate from datestr.json to stay under the VM 255-register limit). DEEP-PROBE 2026-05-31: codes previously threw 'numeric format codes not yet supported'. Mapped to MATLAB's dateform table + added the m (single month letter), d (single weekday letter), QQ (quarter) tokens to the format parser. dn=datenum(2020,7,28,14,24,5): code 0='28-Jul-2020 14:24:05', 4='J', 9='T', 14=' 2:24:05 PM', 17='Q3-20', 18='Q3', 23='07/28/2020', 27='Q3-2020', 30='20200728T142405', 31='2020-07-28 14:24:05'. All 32 verified bit-identical vs MATLAB R2025b. Cross-engine fingerprint via numel + sum(char codes)."
+}

@@ -99,3 +99,35 @@ TEST_F(DatenumTest, StringParse)
     // Unparseable string throws.
     EXPECT_THROW(eval("datenum('not a date')"), std::exception);
 }
+
+// datestr(D, code): MATLAB numeric format codes 0-31. Previously threw
+// "numeric format codes not yet supported". vs MATLAB R2025b. DEEP-PROBE
+// 2026-05-31. dn = datenum(2020,7,28,14,24,5).
+TEST_F(DatenumTest, DatestrFormatCodes)
+{
+    eval("dn = datenum(2020,7,28,14,24,5);");
+    auto ds = [&](int code) {
+        return eval("datestr(dn, " + std::to_string(code) + ")").toString();
+    };
+    EXPECT_EQ(ds(0),  "28-Jul-2020 14:24:05");
+    EXPECT_EQ(ds(1),  "28-Jul-2020");
+    EXPECT_EQ(ds(2),  "07/28/20");
+    EXPECT_EQ(ds(3),  "Jul");
+    EXPECT_EQ(ds(4),  "J");                    // single-letter month
+    EXPECT_EQ(ds(8),  "Tue");
+    EXPECT_EQ(ds(9),  "T");                    // single-letter weekday
+    EXPECT_EQ(ds(14), " 2:24:05 PM");          // 12-hour AM/PM
+    EXPECT_EQ(ds(17), "Q3-20");                // quarter + 2-digit year
+    EXPECT_EQ(ds(18), "Q3");                   // quarter
+    EXPECT_EQ(ds(23), "07/28/2020");
+    EXPECT_EQ(ds(27), "Q3-2020");
+    EXPECT_EQ(ds(29), "2020-07-28");
+    EXPECT_EQ(ds(30), "20200728T142405");
+    EXPECT_EQ(ds(31), "2020-07-28 14:24:05");
+    // Out-of-range code throws.
+    EXPECT_THROW(eval("datestr(dn, 99)"), std::exception);
+    // The new tokens also work directly in a format string.
+    EXPECT_EQ(eval("datestr(dn, 'QQ-yyyy')").toString(), "Q3-2020");
+    EXPECT_EQ(eval("datestr(dn, 'm')").toString(), "J");
+    EXPECT_EQ(eval("datestr(dn, 'd')").toString(), "T");
+}
