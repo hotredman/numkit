@@ -1,0 +1,14 @@
+{
+  "name": "extract_insert_string_class",
+  "namespace": "builtin",
+  "covers": ["extractAfter", "extractBefore", "insertAfter", "insertBefore"],
+  "setup": "",
+  "expr": "ea = extractAfter([\"a-b\" \"c-d\"], \"-\"); cea = double(isstring(ea)); nea = numel(ea); sea = sum(double(char(ea(2)))); eb = extractBefore([\"a-b\" \"c-d\"], \"-\"); ceb = double(isstring(eb)); seb = sum(double(char(eb(1)))); ia = insertAfter([\"ab\" \"cd\"], \"a\", \"X\"); cia = double(isstring(ia)); nia = numel(ia); sia = sum(double(char(ia(1)))); ib = insertBefore([\"ab\" \"cd\"], \"b\", \"X\"); cib = double(isstring(ib)); sib = sum(double(char(ib(1))));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "cea", "nea", "sea", "ceb", "seb", "cia", "nia", "sia", "cib", "sib"
+  ],
+  "deep_verified": true,
+  "comment": "extractAfter / extractBefore / insertAfter / insertBefore class + shape preservation on a STRING array vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (cell-only-else sweep, sibling of c138/c139): all four collapsed a string ARRAY to a 1x1 string via strLikeOf(s, op(s.toString())) — op(s.toString()) processed only the first element. MATLAB preserves shape: extractAfter([\"a-b\" \"c-d\"],\"-\") -> [\"b\" \"d\"]; extractBefore -> [\"a\" \"c\"]; insertAfter([\"ab\" \"cd\"],\"a\",\"X\") -> [\"aXb\" \"cd\"]; insertBefore([\"ab\" \"cd\"],\"b\",\"X\") -> [\"aXb\" \"cd\"]. Fix: route all four through mapStringPreserveClass (cell->cell, string->string array same shape, char->char). char codes: 'd'=100,'a'=97,'aXb'=283. char + cell paths unchanged (covered in gtest). covers:[extractAfter,extractBefore,insertAfter,insertBefore]."
+}
