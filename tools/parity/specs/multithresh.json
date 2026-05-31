@@ -1,10 +1,10 @@
 {
   "name": "multithresh",
   "namespace": "image",
-  "setup": "I = uint8([repmat(20, 1, 100), repmat(120, 1, 100), repmat(220, 1, 100)]);",
-  "expr": "t = multithresh(I, 2); r1 = double(t(1) + t(2));",
+  "setup": "A = reshape(1:36,6,6); Au = uint8([10 50 90 130 170 210 250 30 70]); Is = uint8([repmat(20,1,100), repmat(120,1,100), repmat(220,1,100)]); Ad = (1:36)/36;",
+  "expr": "td1 = multithresh(A); [t2, em2] = multithresh(A,2); [t1, em1] = multithresh(A,1); tu1 = multithresh(Au,1); tu2 = multithresh(Au,2); tdd = multithresh(Ad,2); ts = multithresh(Is,2); a1 = td1(1); b1 = t2(1); b2 = t2(2); m2 = em2; m1 = em1; c1 = double(tu1(1)); c2a = double(tu2(1)); c2b = double(tu2(2)); d1 = tdd(1); d2 = tdd(2); s = double(ts(1)) + double(ts(2));",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: t = multithresh(I, N). Bit-identical with MATLAB R2025b on multimodal-cluster input 2026-05-09 -- thresholds returned as midpoints of adjacent class means (canonicalises Otsu tied maxima)."
+  "fingerprint": ["a1", "b1", "b2", "m2", "m1", "c1", "c2a", "c2b", "d1", "d2", "s"],
+  "comment": "Sig: [thresh, metric] = multithresh(I[, N]). DEEP-PROBE c181 REWRITE: numkit previously binned float data over [0,1] via imhist (so non-[0,1] data collapsed into one bin) and returned normalised/midpoint-of-means thresholds -- multithresh(reshape(1:36,6,6)) gave 0.49 vs MATLAB 18.43. Now follows MATLAB's getpdf (scale data to [0,1] by (x-minA)/(maxA-minA) -> 256-bin grayto8 histogram, integer data scaled in single precision) + Otsu objective + map2OriginalScale (minA + t/255*(maxA-minA), integer input rounded). N=1 (closed form) and N=2 (full objective matrix, mean-of-ties bin) are BIT-EXACT vs MATLAB R2025b: double A->18.431373 / [12.392157 24.470588] (metric 0.750205 / 0.889321), uint8->110 / [110 190], [0,1]->[0.344227 0.679739], separated-cluster sum 240. N>=3 uses a GLOBAL multilevel-Otsu DP (MATLAB uses fminsearch, a local optimiser) so N>=3 thresholds may differ -- not fingerprinted here. Octave-image has multithresh."
 }

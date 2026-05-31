@@ -258,3 +258,43 @@ TEST_F(ImageBatch4Test, ImbinarizeMethodStrings)
     // An unknown method errors.
     EXPECT_THROW(eval("imbinarize(J, 'bogus');"), std::exception);
 }
+
+// DEEP-PROBE c181: multithresh REWRITE. numkit binned float data over [0,1]
+// (via imhist) and returned normalised/midpoint-of-means thresholds, so
+// non-[0,1] data was wildly wrong (multithresh(reshape(1:36,6,6)) -> 0.49 vs
+// MATLAB 18.43). Now matches MATLAB's getpdf + Otsu + map2OriginalScale.
+// N=1/N=2 are bit-exact; N>=3 uses a global DP (MATLAB uses fminsearch).
+// All values pinned to MATLAB R2025b.
+TEST_F(ImageBatch4Test, MultithreshDataScale)
+{
+    // double input 1..36: thresholds in the DATA range, not normalised.
+    eval("A = reshape(1:36,6,6);");
+    EXPECT_NEAR(evalScalar("multithresh(A)"),    18.431373, 1e-6);  // N=1 default
+    eval("[t2, em2] = multithresh(A,2);");
+    EXPECT_NEAR(evalScalar("t2(1)"), 12.392157, 1e-6);
+    EXPECT_NEAR(evalScalar("t2(2)"), 24.470588, 1e-6);
+    EXPECT_NEAR(evalScalar("em2"),    0.889321, 1e-6);              // effectiveness
+    eval("[t1, em1] = multithresh(A,1);");
+    EXPECT_NEAR(evalScalar("em1"),    0.750205, 1e-6);
+    // double in [0,1].
+    eval("Ad = (1:36)/36;");
+    eval("td = multithresh(Ad,2);");
+    EXPECT_NEAR(evalScalar("td(1)"), 0.344227, 1e-6);
+    EXPECT_NEAR(evalScalar("td(2)"), 0.679739, 1e-6);
+}
+
+TEST_F(ImageBatch4Test, MultithreshUint8)
+{
+    // Integer input: scaled to [0,1] by data range, result rounded back.
+    eval("Au = uint8([10 50 90 130 170 210 250 30 70]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(multithresh(Au,1))"), 110.0);
+    eval("tu = multithresh(Au,2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(tu(1))"), 110.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(tu(2))"), 190.0);
+    // Three well-separated clusters: thresholds land between them.
+    eval("Is = uint8([repmat(20,1,100), repmat(120,1,100), repmat(220,1,100)]);");
+    eval("ts = multithresh(Is,2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(ts(1)) + double(ts(2))"), 240.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ts(1))"),  70.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ts(2))"), 170.0);
+}
