@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../theme';
 import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspectorOps';
+import ContextMenu from './ContextMenu';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
@@ -1124,12 +1125,6 @@ const TILE_MODE_THRESHOLD = 250000;
 // Double-clicking a `drill` cell pushes a path step; the breadcrumb pops
 // back. Mounted with key={variable.name} so a variable swap resets nav.
 
-// Compact "type [size]" chip — skips the ubiquitous 1x1.
-function dimLabel(cell) {
-  if (!cell || !cell.type) return '';
-  return (cell.size && cell.size !== '1x1') ? `${cell.type} ${cell.size}` : cell.type;
-}
-
 function InspectorBreadcrumb({ nav, onJump }) {
   return (
     <div className="ve-crumbs">
@@ -1147,13 +1142,21 @@ function InspectorBreadcrumb({ nav, onJump }) {
 // A field name that becomes an inline text input on double-click, for
 // renaming. Stops click/double-click propagation so it doesn't trigger
 // the row's drill. Enter commits, Esc cancels.
-function EditableFieldName({ name, onRename, className }) {
-  const [editing, setEditing] = useState(false);
+function EditableFieldName({ name, onRename, className, editing: cEditing, setEditing: cSetEditing }) {
+  // Editing is optionally controlled: when the parent passes editing /
+  // setEditing (so a context-menu "Rename" can start it), use those;
+  // otherwise self-manage on double-click (struct-array header usage).
+  const [iEditing, iSetEditing] = useState(false);
+  const editing = cEditing !== undefined ? cEditing : iEditing;
+  const setEditing = cSetEditing || iSetEditing;
   const [val, setVal] = useState(name);
+  // Reset the draft whenever edit mode opens (covers the menu-triggered
+  // path, which can't pre-seed val like the double-click handler did).
+  useEffect(() => { if (editing) setVal(name); }, [editing, name]);
   if (!editing) {
     return (
       <span className={className}
-        onDoubleClick={(e) => { e.stopPropagation(); setVal(name); setEditing(true); }}
+        onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
         title="double-click to rename">{name}</span>
     );
   }
@@ -1190,29 +1193,59 @@ function AddFieldRow({ onAdd }) {
 
 // Single struct (numel 1): vertical field list. Click a drillable field
 // to descend; × deletes a field; the add-row appends a new one.
-function StructFieldList({ payload, onDrill, onAddField, onDeleteField, onRenameField }) {
+function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
+                          onRenameField, onDuplicateField, onInsertField }) {
   const cells = payload.elems[0] || [];
+  const [menu, setMenu] = useState(null);          // { x, y, name, drill }
+  const [renaming, setRenaming] = useState(null);  // field name in rename mode
+  const open = (name) => onDrill([{ k: 'f', name, label: `.${name}` }]);
   return (
-    <div className="ve-field-list">
-      {payload.fields.map((name, f) => {
-        const cell = cells[f] || {};
-        return (
-          <div key={name}
-            className={`ve-field-row ${cell.drill ? 'is-drillable' : ''}`}
-            onClick={cell.drill
-              ? () => onDrill([{ k: 'f', name, label: `.${name}` }]) : undefined}
-            title={cell.drill ? 'click to open' : undefined}>
-            <EditableFieldName name={name} onRename={onRenameField} className="ve-field-name" />
-            <span className="ve-field-type">{dimLabel(cell)}</span>
-            <span className="ve-field-val">{cell.summary}</span>
-            <span className="ve-field-drill">{cell.drill ? '▸' : ''}</span>
-            <button className="ve-field-del" title="delete field"
-              onClick={(e) => { e.stopPropagation(); onDeleteField(name); }}>×</button>
-          </div>
-        );
-      })}
-      {payload.fields.length === 0 && <div className="ve-struct-empty">(no fields)</div>}
+    <div className="ve-fields-wrap">
+      <table className="ve-fields-table">
+        <thead>
+          <tr>
+            <th>Field</th><th>Value</th>
+            <th className="ve-fld-size">Size</th><th>Class</th>
+          </tr>
+        </thead>
+        <tbody>
+          {payload.fields.map((name, f) => {
+            const cell = cells[f] || {};
+            return (
+              <tr key={name}
+                className={cell.drill ? 'is-drillable' : ''}
+                onClick={cell.drill ? () => open(name) : undefined}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ x: e.clientX, y: e.clientY, name, drill: !!cell.drill });
+                }}>
+                <td className="ve-fld-name">
+                  <EditableFieldName name={name} onRename={onRenameField}
+                    editing={renaming === name}
+                    setEditing={(v) => setRenaming(v ? name : null)} />
+                </td>
+                <td className="ve-fld-val" title={cell.summary}>{cell.summary}</td>
+                <td className="ve-fld-size">{cell.size || ''}</td>
+                <td className="ve-fld-class">{cell.type || ''}</td>
+              </tr>
+            );
+          })}
+          {payload.fields.length === 0 && (
+            <tr><td colSpan={4} className="ve-struct-empty">(no fields)</td></tr>
+          )}
+        </tbody>
+      </table>
       <AddFieldRow onAdd={onAddField} />
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
+          { label: 'Open',         disabled: !menu.drill, onClick: () => open(menu.name) },
+          { label: 'Rename',       onClick: () => setRenaming(menu.name) },
+          { label: 'Duplicate',    onClick: () => onDuplicateField(menu.name) },
+          { label: 'Insert field', onClick: () => onInsertField() },
+          { separator: true },
+          { label: 'Delete',       onClick: () => onDeleteField(menu.name) },
+        ]} />
+      )}
     </div>
   );
 }
@@ -1396,11 +1429,43 @@ function StructInspector({ variable, engine }) {
     setRefreshTick((t) => t + 1);
   }, [engine, variable.name, cur.path]);
 
+  // Duplicate a field to a fresh, collision-free "<name>_copy" name.
+  // Scalar struct → plain `s.copy = s.name` (the VM compiler rejects the
+  // bracketed `[s.f] = …` deal form). Struct array → the bracket form,
+  // which distributes the per-element CSL. Names are identifiers, so the
+  // expression is injection-safe.
+  const duplicateField = useCallback((fieldName) => {
+    if (!engine?.execute || !isValidIdentifier(fieldName)) return;
+    const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    const existing = new Set(payload?.fields || []);
+    let copy = `${fieldName}_copy`;
+    for (let i = 2; existing.has(copy); i++) copy = `${fieldName}_copy${i}`;
+    const isArray = payload && payload.numel > 1;
+    try {
+      engine.execute(isArray
+        ? `[${lvalue}.${copy}] = ${lvalue}.${fieldName};`
+        : `${lvalue}.${copy} = ${lvalue}.${fieldName};`);
+    } catch (e) {
+      console.warn('[StructInspector] duplicate-field failed:', e);
+    }
+    setRefreshTick((t) => t + 1);
+  }, [engine, variable.name, cur.path, payload]);
+
+  // Insert a fresh empty field with a collision-free default name
+  // ("unnamed", "unnamed1", …) — mirrors MATLAB's context-menu Insert.
+  const insertField = useCallback(() => {
+    const existing = new Set(payload?.fields || []);
+    let name = 'unnamed';
+    for (let i = 1; existing.has(name); i++) name = `unnamed${i}`;
+    addField(name);
+  }, [payload, addField]);
+
   // Rename = copy the field's value to the new name, drop the old, then
   // re-pin the field order so the renamed field keeps its original slot.
-  // The `[lvalue.new] = lvalue.old` bracket form distributes across a
-  // struct array (CSL) and also works for a single struct. Without the
-  // final orderfields() the new field would land at the END (copy-append
+  // Scalar struct uses plain `s.new = s.old` (the VM compiler rejects the
+  // bracketed `[s.f] = …` deal form); a struct array needs the bracket
+  // form to distribute the per-element CSL. Without the final
+  // orderfields() the new field would land at the END (copy-append
   // semantics); the 2-arg orderfields(s, {names...}) restores position.
   // Guards: valid identifier, no-op on same name, refuse to clobber an
   // existing field.
@@ -1409,15 +1474,17 @@ function StructInspector({ variable, engine }) {
     if (newName === oldName) return;
     if (payload?.fields?.includes(newName)) return;   // collision
     const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    const isArray = payload && payload.numel > 1;
     // Desired order = current fields with oldName swapped to newName in
     // place. Field names are identifiers, so the {'a','b',...} cell
     // literal is injection-safe.
     const order = (payload?.fields || []).map((f) => (f === oldName ? newName : f));
     const orderCell = '{' + order.map((f) => `'${f}'`).join(',') + '}';
     try {
-      let expr =
-        `[${lvalue}.${newName}] = ${lvalue}.${oldName}; ` +
-        `${lvalue} = rmfield(${lvalue}, '${oldName}');`;
+      const copy = isArray
+        ? `[${lvalue}.${newName}] = ${lvalue}.${oldName};`
+        : `${lvalue}.${newName} = ${lvalue}.${oldName};`;
+      let expr = `${copy} ${lvalue} = rmfield(${lvalue}, '${oldName}');`;
       if (order.length) expr += ` ${lvalue} = orderfields(${lvalue}, ${orderCell});`;
       engine.execute(expr);
     } catch (e) {
@@ -1445,7 +1512,8 @@ function StructInspector({ variable, engine }) {
   else if (payload.kind === 'struct') {
     body = payload.numel === 1
       ? <StructFieldList payload={payload} onDrill={drill}
-          onAddField={addField} onDeleteField={deleteField} onRenameField={renameField} />
+          onAddField={addField} onDeleteField={deleteField} onRenameField={renameField}
+          onDuplicateField={duplicateField} onInsertField={insertField} />
       : <StructArrayTable payload={payload} onDrill={drill}
           onAddField={addField} onDeleteField={deleteField} onRenameField={renameField} />;
   } else if (payload.kind === 'cell') {

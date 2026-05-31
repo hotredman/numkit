@@ -11,7 +11,7 @@
 // render smoke would have caught it before it reached a build.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup, within } from '@testing-library/react';
+import { render, cleanup, within, fireEvent } from '@testing-library/react';
 import { VariableEditor as VE } from './Workspace';
 import SyntaxEditor from '../SyntaxEditor';
 
@@ -97,6 +97,34 @@ describe('VariableEditor — struct inspector render smoke', () => {
     expect(container.querySelector('.ve-window-struct')).toBeTruthy();
     expect(container.querySelector('.ve-crumbs')).toBeTruthy();
     expect(within(container).getByText('hp')).toBeTruthy();
+    // MATLAB-style Field · Value · Size · Class table.
+    const table = container.querySelector('.ve-fields-table');
+    expect(table).toBeTruthy();
+    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent);
+    expect(heads).toEqual(['Field', 'Value', 'Size', 'Class']);
+    // Size + Class cells are populated from the payload.
+    expect(within(table).getByText('1x5')).toBeTruthy();   // name's size
+    expect(within(table).getByText('char')).toBeTruthy();  // name's class
+  });
+
+  it('opens a context menu (Open · Rename · Duplicate · Insert · Delete) on right-click', () => {
+    const engine = makeEngine({
+      inspectPath: () => ({
+        kind: 'struct', rows: 1, cols: 1, numel: 1,
+        fields: ['hp'],
+        elems: [[{ type: 'double', size: '1x1', summary: '203', drill: true }]],
+      }),
+    });
+    const { container } = render(
+      <VE variable={structVar} onClose={() => {}} engine={engine} />,
+    );
+    const row = container.querySelector('.ve-fields-table tbody tr');
+    expect(row).toBeTruthy();
+    fireEvent.contextMenu(row);
+    const labels = [...document.querySelectorAll('.ctx-item')].map((b) => b.textContent);
+    for (const expected of ['Open', 'Rename', 'Duplicate', 'Insert field', 'Delete']) {
+      expect(labels).toContain(expected);
+    }
   });
 
   it('mounts a struct array (element×field table) without throwing', () => {
