@@ -134,6 +134,32 @@ TEST_F(MovingTest, HampelReplacesOutlier)
     EXPECT_LT(evalScalar("y(4)"), 50.0);   // outlier got knocked down
 }
 
+// [y,i,xmedian,xsigma] = hampel(x): the 2nd/3rd/4th outputs (outlier mask,
+// local median, local 1.4826*MAD) were unimplemented. vs MATLAB R2025b on
+// x = [1 2 100 3 4]. DEEP-PROBE 2026-05-31.
+TEST_F(MovingTest, HampelMultiOutput)
+{
+    eval("[y, i, xmed, xsig] = hampel([1 2 100 3 4]);");
+    // y filtered.
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 1.0);
+    // i = logical outlier mask.
+    EXPECT_DOUBLE_EQ(evalScalar("double(i(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(i))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(islogical(i))"), 1.0);
+    // xmedian = local window median.
+    EXPECT_DOUBLE_EQ(evalScalar("xmed(1)"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("xmed(5)"), 3.5);
+    // xsigma = MATLAB-exact 1.4826...*MAD (here MAD=1).
+    EXPECT_NEAR(evalScalar("xsig(1)"), 1.482602218505602, 1e-12);
+    // k=2 with two outliers: both flagged, scaled sigma at the second.
+    eval("[y2, i2, m2, s2] = hampel([1 2 3 100 5 6 7 200 9 10], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(i2))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y2(4)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y2(8)"), 9.0);
+    EXPECT_NEAR(evalScalar("s2(4)"), 2.965204437011204, 1e-10);
+}
+
 TEST_F(MovingTest, MovmeanMatrixDim1)
 {
     // 4×2 column-wise (dim=1) movmean, k=2 → MATLAB backward window [i-1, i].

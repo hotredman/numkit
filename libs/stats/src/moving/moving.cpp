@@ -682,28 +682,23 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
 }
 
 // ── hampel ────────────────────────────────────────────────────────────
-Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)
+
+// MATLAB-exact MAD→σ normal-consistency constant 1/norminv(0.75). MATLAB's
+// hampel reports xsigma = 1.482602218505602*MAD and uses the same factor in
+// its threshold, so we match it exactly (the looser 1.4826 misses xsigma by
+// ~1e-5 and can flip borderline detections).
+constexpr double kHampelMadToStd = 1.4826022185056018;
+
+// Core single-pass hampel filter over a length-`n` vector. Always fills
+// `dst`; when non-null, also fills `mask` (1 where the point was replaced),
+// `median` (local window median), and `sigma` (local 1.4826·MAD estimate).
+static void hampelCore(const double *src, std::size_t n, int k, double nsigmas,
+                       double *dst, std::uint8_t *mask, double *median,
+                       double *sigma, std::pmr::memory_resource *mr)
 {
-    if (k < 0)
-        throw Error("hampel: k must be >= 0",
-                     0, 0, "hampel", "", "numkit:hampel:badK");
-    if (nsigmas <= 0)
-        throw Error("hampel: nsigmas must be positive",
-                     0, 0, "hampel", "", "numkit:hampel:badSigmas");
-    if (!x.dims().isVector() && !x.isScalar())
-        throw Error("hampel: vector input only (matrix form deferred)",
-                     0, 0, "hampel", "", "numkit:hampel:notVector");
-
-    constexpr double kMadToStd = 1.4826;
-    auto out = createLike(x, ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    const double *src = x.doubleData();
-    double *dst = out.doubleDataMut();
-    if (n == 0) return out;
-
+    if (n == 0) return;
     ScratchArena scratch(mr);
     auto buf = ScratchVec<double>(static_cast<size_t>(2 * k + 1), &scratch);
-
     for (long i = 0; i < static_cast<long>(n); ++i) {
         const long lo = std::max<long>(0, i - k);
         const long hi = std::min<long>(static_cast<long>(n) - 1, i + k);
@@ -718,12 +713,36 @@ Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *m
         for (long j = 0; j < len; ++j)
             devs[static_cast<size_t>(j)] = std::abs(buf[static_cast<size_t>(j)] - med);
         const double mad = winMedianInPlace(devs.data(), static_cast<size_t>(len));
-        const double sigma = kMadToStd * mad;
-        if (std::abs(src[i] - med) > nsigmas * sigma)
-            dst[i] = med;
-        else
-            dst[i] = src[i];
+        const double sig = kHampelMadToStd * mad;
+        const bool isOut = std::abs(src[i] - med) > nsigmas * sig;
+        dst[i] = isOut ? med : src[i];
+        if (mask)   mask[static_cast<size_t>(i)]   = isOut ? 1 : 0;
+        if (median) median[static_cast<size_t>(i)] = med;
+        if (sigma)  sigma[static_cast<size_t>(i)]  = sig;
     }
+}
+
+static void hampelValidate(const Value &x, int k, double nsigmas)
+{
+    if (k < 0)
+        throw Error("hampel: k must be >= 0",
+                     0, 0, "hampel", "", "numkit:hampel:badK");
+    if (nsigmas <= 0)
+        throw Error("hampel: nsigmas must be positive",
+                     0, 0, "hampel", "", "numkit:hampel:badSigmas");
+    if (!x.dims().isVector() && !x.isScalar())
+        throw Error("hampel: vector input only (matrix form deferred)",
+                     0, 0, "hampel", "", "numkit:hampel:notVector");
+}
+
+Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)
+{
+    hampelValidate(x, k, nsigmas);
+    auto out = createLike(x, ValueType::DOUBLE, mr);
+    const size_t n = x.numel();
+    if (n == 0) return out;
+    hampelCore(x.doubleData(), n, k, nsigmas, out.doubleDataMut(),
+               nullptr, nullptr, nullptr, mr);
     return out;
 }
 
@@ -888,14 +907,39 @@ void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     outs[0] = smoothdata(args[0], method, k, 0, ctx.engine->resource());
 }
 
-void hampel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void hampel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("hampel: requires at least 1 argument",
                      0, 0, "hampel", "", "numkit:hampel:nargin");
     const int k = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 3;
     const double nsigmas = (args.size() >= 3) ? args[2].toScalar() : 3.0;
-    outs[0] = hampel(args[0], k, nsigmas, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &x = args[0];
+
+    if (nargout < 2) {
+        outs[0] = hampel(x, k, nsigmas, mr);
+        return;
+    }
+
+    // [y, i, xmedian, xsigma] = hampel(...). i is a logical mask of the
+    // replaced (outlier) points; xmedian/xsigma are the local median and
+    // 1.4826·MAD estimate at every sample. vs MATLAB R2025b.
+    hampelValidate(x, k, nsigmas);
+    const std::size_t n = x.numel();
+    auto y    = createLike(x, ValueType::DOUBLE,  mr);
+    auto imask = createLike(x, ValueType::LOGICAL, mr);
+    auto xmed = createLike(x, ValueType::DOUBLE,  mr);
+    auto xsig = createLike(x, ValueType::DOUBLE,  mr);
+    if (n > 0)
+        hampelCore(x.doubleData(), n, k, nsigmas, y.doubleDataMut(),
+                   imask.logicalDataMut(), xmed.doubleDataMut(),
+                   xsig.doubleDataMut(), mr);
+
+    outs[0] = y;
+    outs[1] = imask;
+    if (nargout >= 3) outs[2] = xmed;
+    if (nargout >= 4) outs[3] = xsig;
 }
 
 } // namespace detail
