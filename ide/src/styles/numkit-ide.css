@@ -2021,7 +2021,10 @@ input, select { font-family: inherit; color: inherit; }
   align-items: center;
   flex-wrap: wrap;
   gap: 2px;
-  padding: 6px 10px;
+  /* 14px to match .ve-toolbar / .ve-address below it so the whole
+     inspector chrome (breadcrumb · notation toolbar · cell address)
+     shares one left edge. */
+  padding: 6px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--bg-0);
   font-family: var(--font-mono);
