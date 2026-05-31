@@ -511,8 +511,9 @@ Value bwboundaries(const Value &BW, int conn, std::pmr::memory_resource *mr)
 // regionprops — basic descriptors per labelled region
 // ════════════════════════════════════════════════════════════════════
 
-Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn, std::pmr::memory_resource *mr)
+Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn, const Value &intensity, std::pmr::memory_resource *mr)
 {
+    const bool haveI = !intensity.isEmpty() && intensity.numel() > 0;
     // Detect input: integer-valued matrix → treat as label image,
     // else binary → run bwlabel internally.
     const int H = (int)BW_or_L.dims().rows();
@@ -580,7 +581,14 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
     // Per-pixel list fields (column-major linear indices / [x y] list).
     const bool wPixIdx  = wantAll || contains("PixelIdxList");
     const bool wPixList = wantAll || contains("PixelList");
-    const bool needPixels = wPixIdx || wPixList;
+    // Intensity measurements (only when a grayscale image is supplied).
+    const bool wMeanI  = haveI && (wantAll || contains("MeanIntensity"));
+    const bool wMaxI   = haveI && (wantAll || contains("MaxIntensity"));
+    const bool wMinI   = haveI && (wantAll || contains("MinIntensity"));
+    const bool wWCent  = haveI && (wantAll || contains("WeightedCentroid"));
+    const bool wPixVal = haveI && (wantAll || contains("PixelValues"));
+    const bool needIntensity = wMeanI || wMaxI || wMinI || wWCent || wPixVal;
+    const bool needPixels = wPixIdx || wPixList || needIntensity;
 
     Value sa = Value::structArray(static_cast<size_t>(K), 1, mr);
     if (K == 0) return sa;
@@ -725,6 +733,42 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
                     pl[P + i] = static_cast<double>(row0 + 1);   // y = row
                 }
                 el.emplace("PixelList", std::move(plv));
+            }
+            // ── Intensity measurements (grayscale image supplied) ──
+            if (needIntensity) {
+                double sumI = 0.0, sumIx = 0.0, sumIy = 0.0;
+                double maxI = -std::numeric_limits<double>::infinity();
+                double minI =  std::numeric_limits<double>::infinity();
+                Value pvv;
+                double *pv = nullptr;
+                if (wPixVal) {
+                    pvv = Value::matrix(P, 1, ValueType::DOUBLE, mr);
+                    pv = pvv.doubleDataMut();
+                }
+                for (size_t i = 0; i < P; ++i) {
+                    const long long z = idxList[i] - 1;     // col-major 0-based
+                    const double iv = intensity.elemAsDouble(static_cast<size_t>(z));
+                    sumI += iv;
+                    if (iv > maxI) maxI = iv;
+                    if (iv < minI) minI = iv;
+                    if (wWCent) {
+                        const long long row0 = z % H, col0 = z / H;
+                        sumIx += iv * static_cast<double>(col0 + 1);
+                        sumIy += iv * static_cast<double>(row0 + 1);
+                    }
+                    if (pv) pv[i] = iv;
+                }
+                if (wMeanI) el.emplace("MeanIntensity",
+                                       Value::scalar(P ? sumI / double(P) : 0.0, mr));
+                if (wMaxI)  el.emplace("MaxIntensity", Value::scalar(maxI, mr));
+                if (wMinI)  el.emplace("MinIntensity", Value::scalar(minI, mr));
+                if (wWCent) {
+                    Value wc = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+                    wc.doubleDataMut()[0] = (sumI != 0.0) ? sumIx / sumI : 0.0;
+                    wc.doubleDataMut()[1] = (sumI != 0.0) ? sumIy / sumI : 0.0;
+                    el.emplace("WeightedCentroid", std::move(wc));
+                }
+                if (wPixVal) el.emplace("PixelValues", std::move(pvv));
             }
         }
     }
@@ -1260,16 +1304,26 @@ void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
                      Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("regionprops: requires (BW_or_L[, props...])",
+        throw Error("regionprops: requires (BW_or_L[, I][, props...])",
                     0, 0, "regionprops", "", "numkit:regionprops:nargin");
+    // MATLAB: regionprops(BW_or_L, I, props) — a numeric 2nd argument is the
+    // grayscale intensity image for the *Intensity / WeightedCentroid /
+    // PixelValues measurements. A string/cell 2nd argument is a property.
+    Value intensity = Value();
+    size_t propStart = 1;
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString() &&
+        !args[1].isCell()) {
+        intensity = args[1];
+        propStart = 2;
+    }
     std::vector<std::string> props;
-    for (size_t i = 1; i < args.size(); ++i) {
+    for (size_t i = propStart; i < args.size(); ++i) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("regionprops: property names must be strings",
                         0, 0, "regionprops", "", "numkit:regionprops:type");
         props.push_back(args[i].toString());
     }
-    outs[0] = regionprops(args[0], props, ctx.engine->resource());
+    outs[0] = regionprops(args[0], props, intensity, ctx.engine->resource());
 }
 
 void bwdist_reg(Span<const Value> args, size_t /*nargout*/,

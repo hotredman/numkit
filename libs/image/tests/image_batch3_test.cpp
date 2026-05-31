@@ -177,6 +177,35 @@ TEST_F(ImageBatch3Test, RegionpropsPixelLists)
     EXPECT_DOUBLE_EQ(evalScalar("numel(fieldnames(sb))"), 3.0);
 }
 
+// regionprops intensity-image form: regionprops(BW, I, props) computes the
+// intensity measurements. 2026-05-31: a numeric 2nd arg threw 'property
+// names must be strings'. vs MATLAB R2025b.
+TEST_F(ImageBatch3Test, RegionpropsIntensity)
+{
+    eval("BW = false(4,4); BW(2,2)=true; BW(2,3)=true; BW(3,3)=true;");
+    eval("I = reshape(1:16,4,4);");
+    eval("s = regionprops(BW, I, 'MeanIntensity','MaxIntensity','MinIntensity',"
+         "'WeightedCentroid','PixelValues');");
+    EXPECT_DOUBLE_EQ(evalScalar("s.MeanIntensity"), 9.0);   // mean([6 10 11])
+    EXPECT_DOUBLE_EQ(evalScalar("s.MaxIntensity"), 11.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.MinIntensity"),  6.0);
+    EXPECT_NEAR(evalScalar("s.WeightedCentroid(1)"), 75.0 / 27.0, 1e-9);
+    EXPECT_NEAR(evalScalar("s.WeightedCentroid(2)"), 65.0 / 27.0, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(s.PixelValues)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s.PixelValues,2)"), 1.0);  // column
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelValues(1)"),  6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelValues(3)"), 11.0);
+    // uint8 intensity image.
+    eval("I8 = uint8(reshape(0:10:150,4,4)); s8 = regionprops(BW,I8,'MeanIntensity');");
+    EXPECT_DOUBLE_EQ(evalScalar("s8.MeanIntensity"), 80.0);
+    // A string 2nd arg is still a property name, not an intensity image.
+    eval("sa = regionprops(BW,'Area');");
+    EXPECT_DOUBLE_EQ(evalScalar("sa.Area"), 3.0);
+    // Intensity fields are not part of the basic default set.
+    eval("sd = regionprops(BW, I);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(fieldnames(sd))"), 3.0);
+}
+
 // imhist 2nd output x (bin locations) spans the input CLASS's display
 // range, not [0,1] (was always normalized). vs MATLAB R2025b.
 TEST_F(ImageBatch3Test, ImhistBinLocationsByClass)
