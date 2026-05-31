@@ -244,6 +244,44 @@ TEST(BuiltinStringsPublicApi, Int2StrScalar)
     EXPECT_EQ(i2sc(7.0, 0.0),   "7");    // pure-real complex
 }
 
+// int2str on VECTOR/MATRIX. Previously SCALAR-ONLY (threw "only scalar inputs
+// are supported"). MATLAB rounds each element half-away-from-zero, formats
+// with a fixed integer field W = digits(max|rounded|)+2, and strips common
+// leading blank columns. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST(BuiltinStringsPublicApi, Int2StrVectorMatrix)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto rowv = [&](std::initializer_list<double> vs) {
+        Value v = Value::matrix(1, vs.size(), ValueType::DOUBLE, mr);
+        double *d = v.doubleDataMut();
+        size_t i = 0;
+        for (double x : vs) d[i++] = x;
+        return numkit::builtin::int2str(v, mr).toString();
+    };
+    EXPECT_EQ(rowv({1, 2, 3}),        "1  2  3");
+    EXPECT_EQ(rowv({10, 200, 3}),     "10  200    3");
+    EXPECT_EQ(rowv({1.5, 2.5, -2.5}), "2  3 -3");   // half-away rounding
+    EXPECT_EQ(rowv({-5, 10, 3}),      "-5  10   3");
+    EXPECT_EQ(rowv({3.4, -2.6}),      "3 -3");
+
+    // 2x2 matrix -> 2x6 char matrix; rows " 1   2" / "30   4" (col-major).
+    Value mtx = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+    double *md = mtx.doubleDataMut();
+    md[0] = 1; md[1] = 30; md[2] = 2; md[3] = 4;   // col-major
+    Value sm = numkit::builtin::int2str(mtx, mr);
+    ASSERT_TRUE(sm.isChar());
+    EXPECT_EQ(sm.dims().rows(), 2u);
+    EXPECT_EQ(sm.dims().cols(), 6u);
+    const char *cm = static_cast<const char *>(sm.rawData());
+    EXPECT_EQ(cm[0], ' ');   // (r0,c0) -> " 1   2"
+    EXPECT_EQ(cm[1], '3');   // (r1,c0) -> "30   4"
+
+    // Empty -> empty char.
+    EXPECT_EQ(numkit::builtin::int2str(Value::matrix(0, 0, ValueType::DOUBLE, mr), mr)
+                  .numel(),
+              0u);
+}
+
 // validatestring: case-insensitive; exact match wins, else a unique prefix,
 // else the shortest-prefix-of-all; ambiguous or no-match throws. vs MATLAB
 // R2025b. Implemented 2026-05-30 (was an undefined function).
