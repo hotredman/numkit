@@ -32,6 +32,7 @@ set(INTEGRATION_TESTS
     integration/try_first_block_bug_test.cpp
     integration/multi_assign_lvalue_test.cpp
     integration/compound_lvalue_test.cpp
+    integration/multi_output_args_test.cpp
 )
 
 # ── The one test binary ───────────────────────────────────────────────────
