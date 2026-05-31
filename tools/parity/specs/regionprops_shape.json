@@ -1,0 +1,15 @@
+{
+  "name": "regionprops_shape",
+  "namespace": "image",
+  "covers": ["regionprops"],
+  "setup": "BW1 = false(6,6); BW1(2:4,2:3) = true; BW2 = false(7,7); BW2(2,2)=true; BW2(3,2)=true; BW2(3,3)=true; BW2(4,3)=true; BW2(4,4)=true; BW2(5,4)=true;",
+  "expr": "s1 = regionprops(BW1,'Extent','EquivDiameter','MajorAxisLength','MinorAxisLength','Eccentricity','Orientation'); s2 = regionprops(BW2,'Extent','MajorAxisLength','MinorAxisLength','Eccentricity','Orientation'); ext1 = s1.Extent; eqd1 = s1.EquivDiameter; maj1 = s1.MajorAxisLength; min1 = s1.MinorAxisLength; ecc1 = s1.Eccentricity; ori1 = s1.Orientation; ext2 = s2.Extent; maj2 = s2.MajorAxisLength; min2 = s2.MinorAxisLength; ecc2 = s2.Eccentricity; ori2 = s2.Orientation;",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "ext1", "eqd1", "maj1", "min1", "ecc1", "ori1",
+    "ext2", "maj2", "min2", "ecc2", "ori2"
+  ],
+  "deep_verified": true,
+  "comment": "regionprops scalar shape descriptors vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/image): regionprops shipped only Area/Centroid/BoundingBox; MajorAxisLength/MinorAxisLength/Eccentricity/Orientation/EquivDiameter/Extent all threw 'non-existent field'. Added the moment/area/bbox closed-form descriptors: normalized 2nd central moments (+1/12 per-pixel variance) for the ellipse fit; Orientation flips y (image rows go down) so a '\\' blob is negative, axis-aligned uxy==0 maps to +90 (vertical major) or 0; EquivDiameter=sqrt(4*Area/pi); Extent=Area/(bbox_w*bbox_h). BLOCK(3x2): Extent=1, EquivD=2.7639532, Major=3.4641016, Minor=2.3094011, Ecc=0.7453560, Orient=90. DIAG: Extent=0.5, Major=4.9852329, Minor=1.7741062, Ecc=0.9345346, Orient=-50.3098276. Basic default (no props) still returns only Area/Centroid/BoundingBox. Perimeter/Solidity/ConvexArea/EulerNumber/FilledArea deferred (need boundary trace / convex hull / hole detection). covers:[regionprops]."
+}

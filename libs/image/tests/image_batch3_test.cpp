@@ -102,6 +102,50 @@ TEST_F(ImageBatch3Test, StretchlimDoubleBinCount)
     EXPECT_NEAR(evalScalar("su(2)"), 250.0 / 255.0, 1e-12);
 }
 
+// regionprops scalar shape descriptors (MajorAxisLength, MinorAxisLength,
+// Eccentricity, Orientation, EquivDiameter, Extent) from the normalized
+// 2nd central moments (+1/12 per-pixel variance) and area/bbox. 2026-05-31:
+// regionprops previously shipped only Area/Centroid/BoundingBox so every
+// shape field threw 'non-existent field'. vs MATLAB R2025b.
+TEST_F(ImageBatch3Test, RegionpropsShapeDescriptors)
+{
+    // 3x2 block: axis-aligned, vertical major axis -> Orientation +90.
+    eval("BW1 = false(6,6); BW1(2:4,2:3) = true;");
+    eval("s1 = regionprops(BW1,'Extent','EquivDiameter','MajorAxisLength',"
+         "'MinorAxisLength','Eccentricity','Orientation');");
+    EXPECT_NEAR(evalScalar("s1.Extent"),          1.0,          1e-12);
+    EXPECT_NEAR(evalScalar("s1.EquivDiameter"),   2.7639531958, 1e-9);
+    EXPECT_NEAR(evalScalar("s1.MajorAxisLength"), 3.4641016151, 1e-9);
+    EXPECT_NEAR(evalScalar("s1.MinorAxisLength"), 2.3094010768, 1e-9);
+    EXPECT_NEAR(evalScalar("s1.Eccentricity"),    0.7453559925, 1e-9);
+    EXPECT_NEAR(evalScalar("s1.Orientation"),     90.0,         1e-9);
+
+    // Diagonal '\' blob: negative orientation (image rows increase down).
+    eval("BW2 = false(7,7); BW2(2,2)=true; BW2(3,2)=true; BW2(3,3)=true; "
+         "BW2(4,3)=true; BW2(4,4)=true; BW2(5,4)=true;");
+    eval("s2 = regionprops(BW2,'Extent','MajorAxisLength','MinorAxisLength',"
+         "'Eccentricity','Orientation');");
+    EXPECT_NEAR(evalScalar("s2.Extent"),           0.5,           1e-12);
+    EXPECT_NEAR(evalScalar("s2.MajorAxisLength"),  4.9852328997,  1e-9);
+    EXPECT_NEAR(evalScalar("s2.MinorAxisLength"),  1.7741062358,  1e-9);
+    EXPECT_NEAR(evalScalar("s2.Eccentricity"),     0.9345345981,  1e-9);
+    EXPECT_NEAR(evalScalar("s2.Orientation"),    -50.3098276381,  1e-9);
+
+    // Single pixel: degenerate (Major==Minor, Ecc=0, Orient=0).
+    eval("BW3 = false(3,3); BW3(2,2)=true;");
+    eval("s3 = regionprops(BW3,'MajorAxisLength','MinorAxisLength',"
+         "'Eccentricity','Orientation','EquivDiameter');");
+    EXPECT_NEAR(evalScalar("s3.MajorAxisLength"), 1.1547005384, 1e-9);
+    EXPECT_NEAR(evalScalar("s3.MinorAxisLength"), 1.1547005384, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("s3.Eccentricity"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s3.Orientation"),  0.0);
+    EXPECT_NEAR(evalScalar("s3.EquivDiameter"),   1.1283791671, 1e-9);
+
+    // Basic default (no props) still returns only Area/Centroid/BoundingBox.
+    eval("sb = regionprops(BW1);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(fieldnames(sb))"), 3.0);
+}
+
 // imhist 2nd output x (bin locations) spans the input CLASS's display
 // range, not [0,1] (was always normalized). vs MATLAB R2025b.
 TEST_F(ImageBatch3Test, ImhistBinLocationsByClass)

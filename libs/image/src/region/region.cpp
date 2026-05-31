@@ -560,17 +560,32 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
         }
         return false;
     };
-    bool wantAll = propsIn.empty() || contains("all") || contains("All");
-    const bool wArea = wantAll || contains("Area");
-    const bool wCent = wantAll || contains("Centroid");
-    const bool wBbox = wantAll || contains("BoundingBox");
+    // MATLAB: an empty property list returns the BASIC set
+    // {Area, Centroid, BoundingBox}; 'all' adds every shape measurement.
+    const bool basic   = propsIn.empty();
+    const bool wantAll = contains("all") || contains("All");
+    const bool wArea = basic || wantAll || contains("Area");
+    const bool wCent = basic || wantAll || contains("Centroid");
+    const bool wBbox = basic || wantAll || contains("BoundingBox");
+    // Moment / area / bbox based scalar shape descriptors (closed-form,
+    // bit-exact vs MATLAB R2025b). The four ellipse fields share one set
+    // of second central moments. NOT part of the basic default set.
+    const bool wMajor   = wantAll || contains("MajorAxisLength");
+    const bool wMinor   = wantAll || contains("MinorAxisLength");
+    const bool wEcc     = wantAll || contains("Eccentricity");
+    const bool wOrient  = wantAll || contains("Orientation");
+    const bool wEquivD  = wantAll || contains("EquivDiameter");
+    const bool wExtent  = wantAll || contains("Extent");
+    const bool wEllipse = wMajor || wMinor || wEcc || wOrient;
 
     Value sa = Value::structArray(static_cast<size_t>(K), 1, mr);
     if (K == 0) return sa;
 
     // Accumulators per label.
+    const bool needMoments = wEllipse;
     std::vector<long long> area(K + 1, 0);
     std::vector<double> sumX(K + 1, 0.0), sumY(K + 1, 0.0);
+    std::vector<double> sumXX(K + 1, 0.0), sumYY(K + 1, 0.0), sumXY(K + 1, 0.0);
     std::vector<int> minX(K + 1, INT_MAX), minY(K + 1, INT_MAX);
     std::vector<int> maxX(K + 1, INT_MIN), maxY(K + 1, INT_MIN);
     for (int r = 0; r < H; ++r)
@@ -580,6 +595,11 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
             ++area[(size_t)lab];
             sumX[(size_t)lab] += double(c);
             sumY[(size_t)lab] += double(r);
+            if (needMoments) {
+                sumXX[(size_t)lab] += double(c) * double(c);
+                sumYY[(size_t)lab] += double(r) * double(r);
+                sumXY[(size_t)lab] += double(c) * double(r);
+            }
             if (c < minX[(size_t)lab]) minX[(size_t)lab] = c;
             if (r < minY[(size_t)lab]) minY[(size_t)lab] = r;
             if (c > maxX[(size_t)lab]) maxX[(size_t)lab] = c;
@@ -610,6 +630,64 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
             bb.doubleDataMut()[3] = double(maxY[(size_t)lab] -
                                             minY[(size_t)lab] + 1);
             el.emplace("BoundingBox", bb);
+        }
+
+        // ── Moment / area / bbox based scalar shape descriptors ──
+        constexpr double kPi = 3.14159265358979323846;
+        const double N = double(area[(size_t)lab]);
+        if (wEquivD)
+            el.emplace("EquivDiameter",
+                       Value::scalar((N > 0.0) ? std::sqrt(4.0 * N / kPi) : 0.0, mr));
+        if (wExtent) {
+            const double bw = double(maxX[(size_t)lab] - minX[(size_t)lab] + 1);
+            const double bh = double(maxY[(size_t)lab] - minY[(size_t)lab] + 1);
+            const double bba = bw * bh;
+            el.emplace("Extent",
+                       Value::scalar((bba > 0.0) ? N / bba : 0.0, mr));
+        }
+        if (wEllipse) {
+            // Normalized second central moments with the +1/12 per-pixel
+            // variance correction (uniform unit-pixel), matching MATLAB
+            // regionprops. y is flipped for the orientation because image
+            // rows increase downward.
+            double major = 0.0, minor = 0.0, ecc = 0.0, orient = 0.0;
+            if (N > 0.0) {
+                const double xbar = sumX[(size_t)lab] / N;
+                const double ybar = sumY[(size_t)lab] / N;
+                const double uxx = sumXX[(size_t)lab] / N - xbar * xbar + 1.0 / 12.0;
+                const double uyy = sumYY[(size_t)lab] / N - ybar * ybar + 1.0 / 12.0;
+                const double uxy = sumXY[(size_t)lab] / N - xbar * ybar;
+                const double common =
+                    std::sqrt((uxx - uyy) * (uxx - uyy) + 4.0 * uxy * uxy);
+                major = 2.0 * std::sqrt(2.0) * std::sqrt(uxx + uyy + common);
+                minor = 2.0 * std::sqrt(2.0) * std::sqrt(uxx + uyy - common);
+                if (major > 0.0) {
+                    const double a = major / 2.0, b = minor / 2.0;
+                    const double d = a * a - b * b;
+                    ecc = 2.0 * std::sqrt(d > 0.0 ? d : 0.0) / major;
+                }
+                // Orientation in degrees, range [-90, 90].
+                if (uxy == 0.0) {
+                    orient = (uyy > uxx) ? 90.0 : 0.0;  // axis-aligned
+                } else {
+                    const double uxyM = -uxy;  // flip y (image rows go down)
+                    double num, den;
+                    if (uyy > uxx) {
+                        num = uyy - uxx +
+                              std::sqrt((uyy - uxx) * (uyy - uxx) + 4.0 * uxyM * uxyM);
+                        den = 2.0 * uxyM;
+                    } else {
+                        num = 2.0 * uxyM;
+                        den = uxx - uyy +
+                              std::sqrt((uxx - uyy) * (uxx - uyy) + 4.0 * uxyM * uxyM);
+                    }
+                    orient = (180.0 / kPi) * std::atan(num / den);
+                }
+            }
+            if (wMajor)  el.emplace("MajorAxisLength", Value::scalar(major, mr));
+            if (wMinor)  el.emplace("MinorAxisLength", Value::scalar(minor, mr));
+            if (wEcc)    el.emplace("Eccentricity",    Value::scalar(ecc, mr));
+            if (wOrient) el.emplace("Orientation",     Value::scalar(orient, mr));
         }
     }
     return sa;
