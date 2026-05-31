@@ -7,8 +7,10 @@
 #include <vector>
 #include <set>
 #include <cmath>
+#include <algorithm>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/value_stats.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/debug_session.hpp>
 #include <numkit/core/vfs.hpp>
@@ -224,6 +226,24 @@ static const numkit::Value *resolveInspectPath(const numkit::Value &root,
 // One cell descriptor for a struct-table / cell-grid: type + size +
 // preview summary + whether double-click should drill into it. Drillable
 // = struct / cell / a multi-element non-char array (worth a table).
+// Full round-trip JSON number (matches the precision the stats query uses).
+static std::string jnum(double x) {
+    std::ostringstream o; o.precision(17); o << x; return o.str();
+}
+
+// Serialize the display-stat columns as a JSON object, or "" when the
+// value isn't numeric. Shared by emitInspectCell + the workspace list.
+static std::string statsJSON(const numkit::Value &val) {
+    numkit::ValueStats st;
+    if (!numkit::computeValueStats(val, st)) return "";
+    std::ostringstream os;
+    os << "\"stats\":{\"min\":" << jnum(st.min) << ",\"max\":" << jnum(st.max)
+       << ",\"mean\":" << jnum(st.mean) << ",\"median\":" << jnum(st.median)
+       << ",\"mode\":" << jnum(st.mode) << ",\"var\":" << jnum(st.var)
+       << ",\"std\":" << jnum(st.std) << "}";
+    return os.str();
+}
+
 static void emitInspectCell(std::ostringstream &os, const std::string &label,
                             const numkit::Value &val) {
     const auto &d = val.dims();
@@ -239,7 +259,10 @@ static void emitInspectCell(std::ostringstream &os, const std::string &label,
        << ",\"size\":\"" << d.rows() << "x" << d.cols();
     if (d.is3D()) os << "x" << d.pages();
     os << "\",\"summary\":\"" << escapeJSON(valuePreview(val)) << "\""
-       << ",\"drill\":" << (drill ? "true" : "false") << "}";
+       << ",\"drill\":" << (drill ? "true" : "false");
+    std::string sj = statsJSON(val);
+    if (!sj.empty()) os << "," << sj;
+    os << "}";
 }
 
 // Build the inspect payload for a resolved value:

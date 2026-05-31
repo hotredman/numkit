@@ -159,6 +159,13 @@ export function adaptVariables(engineVars) {
     const bytes = isStruct ? (raw.bytes || 8) : 8;
     const data = previewToData(preview, type);
     const stats = statsFromData(data);
+    // Full stat set from the engine (min/max/mean/median/mode/var/std) when
+    // present; otherwise a preview-derived partial (min/max/mean only) so
+    // the ValueTable still populates those columns on older WASM builds.
+    const engineStats = (isStruct && raw.stats && typeof raw.stats === 'object')
+      ? raw.stats : null;
+    const fallbackStats = Number.isFinite(stats.min)
+      ? { min: stats.min, max: stats.max, mean: stats.mean } : null;
 
     out.push({
       name,
@@ -168,6 +175,7 @@ export function adaptVariables(engineVars) {
       data,
       preview: previewString(preview, kind, sizeNorm, type),
       min: stats.min, max: stats.max, mean: stats.mean,
+      stats: engineStats || fallbackStats,
     });
   }
   return out;

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../theme';
 import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspectorOps';
 import ContextMenu from './ContextMenu';
+import ValueTable from './ValueTable';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
@@ -83,29 +84,6 @@ function VariableCard({ v, onOpen }) {
       <div className="var-card-body">
         <span className="var-preview">{v.preview}</span>
       </div>
-    </div>
-  );
-}
-
-function VariableRow({ v, onOpen }) {
-  const { themeName } = useTheme();
-  const meta = KIND_META[v.kind] || KIND_META.matrix;
-  const tone = pickTone(TONE[meta.tone] || TONE.amber, themeName);
-  return (
-    <div
-      className="var-row"
-      onClick={onOpen}
-      role="button"
-      aria-label={`Open ${v.name}`}
-    >
-      <span className="var-row-name">{v.name}</span>
-      <span className="var-row-size">{v.size}</span>
-      <span className="var-row-type" style={{ color: tone.fg }}>{meta.glyph}  {v.type}</span>
-      <span className="var-row-preview">{v.preview}</span>
-      <span className="var-row-bytes">{v.bytes} B</span>
-      <span className="var-row-stat">μ {v.mean != null ? fmt(v.mean) : '—'}</span>
-      <span className="var-row-stat">min {v.min != null ? fmt(v.min) : '—'}</span>
-      <span className="var-row-stat">max {v.max != null ? fmt(v.max) : '—'}</span>
     </div>
   );
 }
@@ -228,21 +206,19 @@ export function WorkspacePanel({ variables, onOpen }) {
             />
           ))}
         </div>
-      ) : (
+      ) : filtered.length > 0 ? (
         <div className="ws-list">
-          <div className="var-row var-row-head">
-            <span>name</span><span>size</span><span>type</span><span>preview</span>
-            <span>bytes</span><span>mean</span><span>min</span><span>max</span>
-          </div>
-          {filtered.map((v) => (
-            <VariableRow
-              key={v.name}
-              v={v}
-              onOpen={() => onOpen(v)}
-            />
-          ))}
+          <ValueTable
+            rows={filtered.map((v) => ({
+              key: v.name, name: v.name, value: v.preview, size: v.size,
+              klass: v.type, stats: v.stats || null, drill: true,
+            }))}
+            nameHeader="Name"
+            storageKey="numkit.ide.valuecols"
+            onRowClick={(row) => { const v = filtered.find((x) => x.name === row.name); if (v) onOpen(v); }}
+          />
         </div>
-      )}
+      ) : null}
       {filtered.length === 0 && (
         <div className="ws-empty">no variables match “{query}”</div>
       )}
@@ -1199,43 +1175,31 @@ function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
   const [menu, setMenu] = useState(null);          // { x, y, name, drill }
   const [renaming, setRenaming] = useState(null);  // field name in rename mode
   const open = (name) => onDrill([{ k: 'f', name, label: `.${name}` }]);
+  const rows = payload.fields.map((name, f) => {
+    const cell = cells[f] || {};
+    return {
+      key: name, name, value: cell.summary, size: cell.size,
+      klass: cell.type, stats: cell.stats || null, drill: !!cell.drill,
+    };
+  });
+  const nameCell = (row) => (
+    <EditableFieldName name={row.name} onRename={onRenameField}
+      editing={renaming === row.name}
+      setEditing={(v) => setRenaming(v ? row.name : null)} />
+  );
   return (
-    <div className="ve-fields-wrap">
-      <table className="ve-fields-table">
-        <thead>
-          <tr>
-            <th>Field</th><th>Value</th>
-            <th className="ve-fld-size">Size</th><th>Class</th>
-          </tr>
-        </thead>
-        <tbody>
-          {payload.fields.map((name, f) => {
-            const cell = cells[f] || {};
-            return (
-              <tr key={name}
-                className={cell.drill ? 'is-drillable' : ''}
-                onClick={cell.drill ? () => open(name) : undefined}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setMenu({ x: e.clientX, y: e.clientY, name, drill: !!cell.drill });
-                }}>
-                <td className="ve-fld-name">
-                  <EditableFieldName name={name} onRename={onRenameField}
-                    editing={renaming === name}
-                    setEditing={(v) => setRenaming(v ? name : null)} />
-                </td>
-                <td className="ve-fld-val" title={cell.summary}>{cell.summary}</td>
-                <td className="ve-fld-size">{cell.size || ''}</td>
-                <td className="ve-fld-class">{cell.type || ''}</td>
-              </tr>
-            );
-          })}
-          {payload.fields.length === 0 && (
-            <tr><td colSpan={4} className="ve-struct-empty">(no fields)</td></tr>
-          )}
-        </tbody>
-      </table>
-      <AddFieldRow onAdd={onAddField} />
+    <>
+      <ValueTable
+        rows={rows}
+        nameHeader="Field"
+        nameCell={nameCell}
+        storageKey="numkit.ide.valuecols"
+        onRowClick={(row) => open(row.name)}
+        onRowContextMenu={(row, e) =>
+          setMenu({ x: e.clientX, y: e.clientY, name: row.name, drill: row.drill })}
+        footer={<AddFieldRow onAdd={onAddField} />}
+        emptyLabel="(no fields)"
+      />
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
           { label: 'Open',         disabled: !menu.drill, onClick: () => open(menu.name) },
@@ -1246,7 +1210,7 @@ function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
           { label: 'Delete',       onClick: () => onDeleteField(menu.name) },
         ]} />
       )}
-    </div>
+    </>
   );
 }
 
