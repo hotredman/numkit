@@ -77,6 +77,41 @@ TEST_F(Misc2BatchTest, ReverseEraseCountCells)
     EXPECT_DOUBLE_EQ(evalScalar("count('aXbX', 'X')"), 2.0);
 }
 
+// extractBefore/extractAfter/insertAfter/insertBefore on a CELL str: the
+// first arg is the cell -> element-wise (cell of char vectors, same shape);
+// the scalar position/substring anchor and inserted text broadcast. Were all
+// throwing "Not a char array". vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(Misc2BatchTest, ExtractInsertCells)
+{
+    // extractBefore / extractAfter — numeric position anchor.
+    eval("eb = extractBefore({'hello','world'}, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(eb))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(eb{1}, 'he')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(eb{2}, 'wo')"), 1.0);
+    eval("ea = extractAfter({'hello','world'}, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ea{1}, 'lo')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ea{2}, 'ld')"), 1.0);
+    // substring anchor.
+    eval("ebs = extractBefore({'a-b','c-d'}, '-');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ebs{1}, 'a')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ebs{2}, 'c')"), 1.0);
+    // insertAfter / insertBefore — numeric position + substring.
+    eval("ia = insertAfter({'ab','cd'}, 1, 'X');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ia{1}, 'aXb')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ia{2}, 'cXd')"), 1.0);
+    eval("ib = insertBefore({'ab','cd'}, 2, 'X');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ib{1}, 'aXb')"), 1.0);
+    eval("ias = insertAfter({'a.b','c.d'}, '.', 'X');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ias{1}, 'a.Xb')"), 1.0);
+    // shape preserved (column cell stays a column).
+    eval("cc = extractBefore({'ab';'cd'}, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,2)"), 1.0);
+    // scalar (non-cell) paths unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(extractBefore('hello', 3), 'he')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(insertAfter('ab', 1, 'X'), 'aXb')"), 1.0);
+}
+
 // ─── special functions ──────────────────────────────────────────────
 
 TEST_F(Misc2BatchTest, EllipjEllipke)

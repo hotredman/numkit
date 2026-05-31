@@ -1295,18 +1295,24 @@ inline Value strLikeOf(const Value &s, const std::string &out, std::pmr::memory_
 
 Value extractAfter(const Value &s, const Value &p, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
-    const auto r = resolvePos(ss, p);
-    if (!r.found) return strLikeOf(s, "", mr);
-    return strLikeOf(s, ss.substr(r.end), mr);
+    // A cell str is processed element-wise (cell of char vectors); the
+    // position/substring anchor p is scalar and applies to every element.
+    auto op = [&](const std::string &ss) -> std::string {
+        const auto r = resolvePos(ss, p);
+        return r.found ? ss.substr(r.end) : std::string();
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return strLikeOf(s, op(s.toString()), mr);
 }
 
 Value extractBefore(const Value &s, const Value &p, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
-    const auto r = resolvePos(ss, p);
-    if (!r.found) return strLikeOf(s, "", mr);
-    return strLikeOf(s, ss.substr(0, r.begin), mr);
+    auto op = [&](const std::string &ss) -> std::string {
+        const auto r = resolvePos(ss, p);
+        return r.found ? ss.substr(0, r.begin) : std::string();
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return strLikeOf(s, op(s.toString()), mr);
 }
 
 namespace {
@@ -1379,20 +1385,29 @@ Value extractBetween(const Value &s, const Value &start, const Value &end, std::
 
 Value insertAfter(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    const auto r = resolvePos(ss, p);
-    if (!r.found) return s;
-    ss.insert(r.end, newText.toString());
-    return strLikeOf(s, ss, mr);
+    // A cell str is processed element-wise (cell of char vectors); the anchor
+    // p and inserted text are scalar and apply to every element. An element
+    // with no match is left unchanged.
+    const std::string nt = newText.toString();
+    auto op = [&](std::string ss) -> std::string {
+        const auto r = resolvePos(ss, p);
+        if (r.found) ss.insert(r.end, nt);
+        return ss;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return strLikeOf(s, op(s.toString()), mr);
 }
 
 Value insertBefore(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    const auto r = resolvePos(ss, p);
-    if (!r.found) return s;
-    ss.insert(r.begin, newText.toString());
-    return strLikeOf(s, ss, mr);
+    const std::string nt = newText.toString();
+    auto op = [&](std::string ss) -> std::string {
+        const auto r = resolvePos(ss, p);
+        if (r.found) ss.insert(r.begin, nt);
+        return ss;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return strLikeOf(s, op(s.toString()), mr);
 }
 
 Value eraseBetween(const Value &s, const Value &start, const Value &end, std::pmr::memory_resource *mr)
