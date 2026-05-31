@@ -255,6 +255,36 @@ TEST_P(ManipTest, Rot90KNegative)
     EXPECT_DOUBLE_EQ((*A)(2, 1), 3.0);
 }
 
+// rot90 on non-DOUBLE matrices (char/logical/complex/single): the 2-D POD
+// path was DOUBLE-only and threw "Not a double array" (cell/string were
+// already handled by rot90CellStr). rot90 is a pure rearrangement ->
+// type-preserving. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(ManipTest, Rot90NonDoubleMatrix)
+{
+    // char matrix, 90° CCW: ['ab';'cd'] -> ['bd';'ac'].
+    eval("cm = rot90(['ab';'cd']);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1))"), 98.0);   // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,2))"), 100.0);  // 'd'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(2,1))"), 97.0);   // 'a'
+    // char, 180°: ['ab';'cd'] -> ['dc';'ba'].
+    eval("cm2 = rot90(['ab';'cd'], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm2(1,1))"), 100.0); // 'd'
+    // logical.
+    eval("lg = rot90(logical([1 0;0 0]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(2,1))"), 1.0);
+    // complex: rot90([1+1i 2;3 4])(1,1) = 2+0i.
+    eval("zx = rot90([1+1i 2; 3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(zx(1,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(zx(1,1))"), 0.0);
+    // single preserved.
+    eval("sg = rot90(single([1 2;3 4]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(sg(1,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(sg),'single'))"), 1.0);
+    // double path unchanged.
+    eval("dd = rot90([1 2;3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1,1)"), 2.0);
+}
+
 TEST_P(ManipTest, Rot90KMod4)
 {
     // k=4 == identity
