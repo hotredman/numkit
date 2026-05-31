@@ -29,7 +29,7 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
-import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob } from './plotUtils';
+import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange } from './plotUtils';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -327,23 +327,21 @@ export default function CompositePlot({
   // the per-cell viewport untouched. Effect makes the clamp universal:
   // any code path that sets xLog/yLog to true with an invalid viewport
   // gets a sane log range without re-implementing the math.
+  // Auto-clamp the viewport to positive bounds when an axis flips to log
+  // with a range that includes ≤0. logClampRange is the single source of
+  // truth for this math — shared with the static preview (plotUtils) so
+  // the live window and the preview card settle on the same range.
   useEffect(() => {
     if (!xLog || !setViewport || !viewport || !viewport.x) return;
     const [xMinV, xMaxV] = viewport.x;
     if (xMinV > 0 && xMaxV > 0) return;
-    const hi = Math.max(figure.xRange?.[1] || xMaxV, 1e-6);
-    const lo = Math.max(hi / 1e4, 1e-6);
-    const hiClamped = Math.max(lo * 10, hi);
-    setViewport({ ...viewport, x: [lo, hiClamped] });
+    setViewport({ ...viewport, x: logClampRange(xMinV, figure.xRange?.[1] || xMaxV) });
   }, [xLog]);  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!yLog || !setViewport || !viewport || !viewport.y) return;
     const [yMinV, yMaxV] = viewport.y;
     if (yMinV > 0 && yMaxV > 0) return;
-    const hi = Math.max(figure.yRange?.[1] || yMaxV, 1e-6);
-    const lo = Math.max(hi / 1e4, 1e-6);
-    const hiClamped = Math.max(lo * 10, hi);
-    setViewport({ ...viewport, y: [lo, hiClamped] });
+    setViewport({ ...viewport, y: logClampRange(yMinV, figure.yRange?.[1] || yMaxV) });
   }, [yLog]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Color-limit override ────────────────────────────────────────────
