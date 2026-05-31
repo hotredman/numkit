@@ -2002,16 +2002,23 @@ input, select { font-family: inherit; color: inherit; }
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* Column flex so a drilled matrix can pin its status bar to the
+     bottom (see .ve-body rule below). List/grid views (field list, cell
+     grid, struct-array table) are single children that keep content
+     height and scroll via overflow:auto — unaffected. */
+  display: flex;
+  flex-direction: column;
   font-family: var(--font-mono);
   font-size: 12px;
 }
-/* Drilled-into matrix reuses VirtualTable (.ve-table-wrap), which
-   virtualises off its own clientHeight. Without a definite height the
-   wrap collapses to 0 here (no grid 1fr row to stretch it like the
-   matrix layout has) → 0 rows → blank. Fill the inspector body so the
-   table measures a real height and the wrap itself is the scroller. */
-.ve-inspector-body > .ve-table-wrap {
-  height: 100%;
+/* Drilled matrix (MatrixPanel) stacks toolbar · address · table · status.
+   The table body grows to fill the remaining height so the status bar
+   pins to the bottom of the panel — exactly like the top-level
+   VariableEditor, where .ve-window's 1fr grid row does this. The
+   VirtualTable virtualises off the flexed height and scrolls inside. */
+.ve-inspector-body > .ve-body {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Breadcrumb path bar */
