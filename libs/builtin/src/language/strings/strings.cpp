@@ -653,6 +653,29 @@ static Value mapStringCell(const Value &s, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Apply a per-string transform preserving the MATLAB container class:
+//   cell           -> cell of char vectors (same shape)
+//   string array   -> string array (same shape; a scalar string stays a
+//                     1×1 string, NOT a char — strtrim/deblank/strip are
+//                     class-preserving in MATLAB)
+//   char / other   -> char (the whole array is treated as one token, the
+//                     pre-existing scalar behaviour)
+template <class Op>
+static Value mapStringPreserveClass(const Value &s, Op op, std::pmr::memory_resource *mr)
+{
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    if (s.isString()) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        Value out = Value::stringArray(r, c, mr);
+        const size_t n = s.numel();
+        for (size_t i = 0; i < n; ++i)
+            out.stringElemSet(i, op(s.stringElem(i)));
+        return out;
+    }
+    return Value::fromString(op(s.toString()), mr);
+}
+
 Value upper(const Value &s, std::pmr::memory_resource *mr)
 {
     auto op = [](std::string r) {
@@ -683,8 +706,7 @@ Value strtrim(const Value &s, std::pmr::memory_resource *mr)
         if (start == std::string::npos) return "";
         return r.substr(start, end - start + 1);
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    return Value::fromString(op(s.toString()), mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value deblank(const Value &s, std::pmr::memory_resource *mr)
@@ -694,8 +716,7 @@ Value deblank(const Value &s, std::pmr::memory_resource *mr)
         if (end == std::string::npos) return "";
         return r.substr(0, end + 1);
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    return Value::fromString(op(s.toString()), mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value blanks(size_t n, std::pmr::memory_resource *mr)
@@ -1261,10 +1282,7 @@ Value strip(const Value &s, const Value &side, const Value &ch, std::pmr::memory
         }
         return r;
     };
-    if (s.isCell()) return mapStringCell(s, stripOne, mr);
-    std::string r = stripOne(s.toString());
-    if (s.isString()) return Value::stringScalar(r, mr);
-    return Value::fromString(r, mr);
+    return mapStringPreserveClass(s, stripOne, mr);
 }
 
 Value matches(const Value &s, const Value &pat, std::pmr::memory_resource *mr)

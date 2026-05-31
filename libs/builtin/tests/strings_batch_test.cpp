@@ -414,3 +414,38 @@ TEST_F(StringsBatchTest, HexNumRoundTrip)
     EXPECT_DOUBLE_EQ(evalScalar("double(hex2num(num2hex(pi)) == pi)"), 1.0);
     EXPECT_THROW(eval("num2hex(int8(5));"), std::exception);
 }
+
+// deblank / strtrim / strip preserve the input container class on a STRING
+// input vs MATLAB R2025b. 2026-05-31: previously a string input returned a
+// CHAR (deblank/strtrim) or collapsed a string array to 1x1 (strip).
+TEST_F(StringsBatchTest, TrimPreservesStringClass)
+{
+    // string array -> string array, same shape + values
+    eval("d = deblank([\"ab  \" \"cd \"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(d))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(d)"), 2.0);
+    EXPECT_EQ(evalString("d(1)"), "ab");
+    EXPECT_EQ(evalString("d(2)"), "cd");
+    eval("t = strtrim([\"  ab \" \"  cd\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(t))"), 1.0);
+    EXPECT_EQ(evalString("t(2)"), "cd");
+    // strip on a string array keeps every element (was collapsing to 1x1)
+    eval("p = strip([\"xxab\" \"xcd\"], 'left', 'x');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(p))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(p)"), 2.0);
+    EXPECT_EQ(evalString("p(2)"), "cd");
+    // column string array -> shape preserved
+    eval("cs = strtrim([\"  a\"; \"b  \"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cs,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(cs,2)"), 1.0);
+    // string scalar -> string scalar (NOT char)
+    eval("d1 = deblank(\"ab  \");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(d1))"), 1.0);
+    EXPECT_EQ(evalString("d1"), "ab");
+    // char input -> char (unchanged); cell input -> cell (unchanged)
+    eval("dc = deblank('ab  ');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(ischar(dc))"), 1.0);
+    eval("ce = strtrim({'  a ', ' b  '});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(ce))"), 1.0);
+    EXPECT_EQ(evalString("ce{2}"), "b");
+}

@@ -1,0 +1,14 @@
+{
+  "name": "trim_string_class",
+  "namespace": "builtin",
+  "covers": ["deblank", "strtrim", "strip"],
+  "setup": "",
+  "expr": "d = deblank([\"ab  \" \"cd \"]); cd = double(isstring(d)); nd = numel(d); sd1 = sum(double(char(d(1)))); sd2 = sum(double(char(d(2)))); t = strtrim([\"  ab \" \"  cd\"]); ct = double(isstring(t)); nt = numel(t); st1 = sum(double(char(t(1)))); p = strip([\"xxab\" \"xcd\"], 'left', 'x'); cp = double(isstring(p)); np = numel(p); sp2 = sum(double(char(p(2)))); d1 = deblank(\"ab  \"); cd1 = double(isstring(d1)); sd1s = sum(double(char(d1))); dc = deblank('ab  '); cdc = double(ischar(dc)); sdc = sum(double(dc));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "cd", "nd", "sd1", "sd2", "ct", "nt", "st1", "cp", "np", "sp2", "cd1", "sd1s", "cdc", "sdc"
+  ],
+  "deep_verified": true,
+  "comment": "deblank / strtrim / strip class + shape preservation on a STRING input vs MATLAB R2025b. DEEP-PROBE 2026-05-31: these were class-correct only on a CELL input. For a STRING input they fell into the scalar branch: deblank/strtrim returned a CHAR (s.toString() collapsed the array), and strip returned a 1x1 string for a string ARRAY (only the first element survived). MATLAB is class-preserving: a string input -> string array of the same shape, a char input -> char, a cell -> cell. Fix: a shared mapStringPreserveClass helper (cell -> mapStringCell; string -> stringArray same shape via stringElemSet; char/other -> the old fromString(op(toString())) path, unchanged). deblank([\"ab  \" \"cd \"]) -> 1x2 string [\"ab\" \"cd\"] (isstring=1, numel=2); deblank(\"ab  \") -> string scalar \"ab\"; deblank('ab  ') -> char 'ab' (unchanged); strtrim/strip likewise; cell input unchanged. char codes: 'ab'=195, 'cd'=199. The column-string-array (2x1) and cell cases are also covered in the gtest (a ';' inside a literal can't go in a parity expr). covers:[deblank,strtrim,strip]."
+}
