@@ -151,3 +151,34 @@ TEST_F(VarStdTest, PartialVecdimRejected)
     EXPECT_THROW(eval("A3 = repmat(A, [1 1 2]); var(A3, 0, [1 2]);"),
                  numkit::Error);
 }
+
+// var/std with a weight VECTOR on a MATRIX: MATLAB applies the weights
+// along the operating dimension (one weighted variance per slice). This
+// previously threw (the weighted path only handled the flat/vector case).
+// Weighted variance is normalized by sum(w). vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_F(VarStdTest, WeightVectorOnMatrix)
+{
+    eval("Mw = [1 2; 3 4; 5 6]; wc = [1;2;3];");
+    // Default dim = 1: one weighted var per column, result 1x2.
+    eval("vMw = var(Mw, wc);");
+    EXPECT_NEAR(evalScalar("vMw(1)"), 2.222222222222222, 1e-12);
+    EXPECT_NEAR(evalScalar("vMw(2)"), 2.222222222222222, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("size(vMw,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(vMw,2)"), 2.0);
+    // Explicit dim 1 matches the default.
+    EXPECT_NEAR(evalScalar("v1 = var(Mw, wc, 1); v1(2)"), 2.222222222222222, 1e-12);
+    // dim 2: weight length must equal #cols; result 3x1.
+    eval("vMd2 = var(Mw, [1 3], 2);");
+    EXPECT_NEAR(evalScalar("vMd2(1)"), 0.1875, 1e-12);
+    EXPECT_NEAR(evalScalar("vMd2(3)"), 0.1875, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("size(vMd2,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(vMd2,2)"), 1.0);
+    // std is sqrt of var.
+    EXPECT_NEAR(evalScalar("sMw = std(Mw, wc); sMw(1)"), 1.490711984999860, 1e-12);
+    // omitnan with a weight vector skips the NaN sample (and its weight).
+    eval("Mn = [1 2; NaN 4; 5 6];");
+    EXPECT_NEAR(evalScalar("vn = var(Mn, [1;2;3], 1, 'omitnan'); vn(1)"), 3.0, 1e-12);
+    // Weight length mismatch along the operating dim throws.
+    EXPECT_THROW(eval("var([1 2; 3 4; 5 6], [1 2]);"), numkit::Error);
+}
