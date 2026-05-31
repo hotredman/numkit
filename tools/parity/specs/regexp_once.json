@@ -1,0 +1,14 @@
+{
+  "name": "regexp_once",
+  "namespace": "builtin",
+  "covers": ["regexp"],
+  "setup": "s = 'a1b2c3';",
+  "expr": "o1 = regexp(s,'\\d','once'); m = regexp(s,'\\d','match','once'); nm = numel(m); sm = sum(double(m)); t = regexp(s,'(\\w)(\\d)','tokens','once'); nt = numel(t); t1 = sum(double(t{1})); t2 = sum(double(t{2})); sp = regexp('a,b,c',',','split','once'); nsp = numel(sp); ssp2 = sum(double(sp{2})); e1 = regexp(s,'\\d','end','once'); z = double(isempty(regexp('xyz','\\d','once'))); zm = double(isempty(regexp('xyz','\\d','match','once')));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "o1", "nm", "sm", "nt", "t1", "t2", "nsp", "ssp2", "e1", "z", "zm"
+  ],
+  "deep_verified": true,
+  "comment": "regexp(...,'once') vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit threw \"unknown option 'once'\". 'once' matches only the first occurrence and returns the scalarised form: 'start'/'end' -> scalar index ([] no match); 'match' -> char row ('' no match); 'tokens' -> 1xk cell of capture chars ({} no match); 'split' -> {prefix, remainder} at the FIRST match only; 'names' -> scalar struct; 'tokenExtents' -> kx2 matrix. Implemented as a separate regexpFindOnce so the all-matches paths stay byte-identical; regexpDispatch parses 'once' as a modifier alongside the output selector. s='a1b2c3': regexp(s,'\\d','once')=2; match-once='1'; tokens-once={'a','1'}; split('a,b,c',',','once')={'a','b,c'}; end-once=2; no-match start/match -> empty. covers:[regexp] sibling spec (regexp.json keeps the all-matches cases; split for the VM 255-register limit)."
+}
