@@ -1,8 +1,8 @@
 {
   "name": "var",
   "namespace": "stats",
-  "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]; v8 = [1 2 3 4 5]'; W = [1 2 1 2 1]'; v = [2 5 3 7 4 6 NaN 8 1 9]';",
-  "expr": "vA = var(A); vA1 = var(A, 1); vA2 = var(A, 0, 2); v_all = var(A, 0, 'all'); v_vec = var(A, 0, [1 2]); v_w = var(v8, W); v_om = var(v, 0, 'omitnan'); v_inc = var(v, 0, 'includenan'); v_s1 = var(5); v_s1n = var(5, 1); v_se = var([7]); v_e0 = double(isnan(var([]))); v_ne0 = numel(var([])); v_ec = var(zeros(0,3)); v_er = numel(var(zeros(3,0)));",
+  "setup": "A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11]; v8 = [1 2 3 4 5]'; W = [1 2 1 2 1]'; v = [2 5 3 7 4 6 NaN 8 1 9]'; Mw = [1 2; 3 4; 5 6]; wc = [1;2;3];",
+  "expr": "vA = var(A); vA1 = var(A, 1); vA2 = var(A, 0, 2); v_all = var(A, 0, 'all'); v_vec = var(A, 0, [1 2]); v_w = var(v8, W); v_om = var(v, 0, 'omitnan'); v_inc = var(v, 0, 'includenan'); v_s1 = var(5); v_s1n = var(5, 1); v_se = var([7]); v_e0 = double(isnan(var([]))); v_ne0 = numel(var([])); v_ec = var(zeros(0,3)); v_er = numel(var(zeros(3,0))); vMw = var(Mw, wc); vMw1 = var(Mw, wc, 1); vMd2 = var(Mw, [1 3], 2);",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
@@ -12,7 +12,8 @@
     "v_all", "v_vec", "v_w",
     "v_om", "v_inc",
     "v_s1", "v_s1n", "v_se",
-    "v_e0", "v_ne0", "double(isnan(v_ec(1)))", "double(isnan(v_ec(3)))", "v_er"
+    "v_e0", "v_ne0", "double(isnan(v_ec(1)))", "double(isnan(v_ec(3)))", "v_er",
+    "vMw(1)", "vMw(2)", "size(vMw,1)", "size(vMw,2)", "vMw1(1)", "vMd2(1)", "vMd2(3)", "size(vMd2,1)", "size(vMd2,2)"
   ],
-  "comment": "Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Single-element variance = 0 for BOTH N-1 (default) and N normalizations (NOT NaN from 0/0): var(5)=0, var([7])=0, var(5,1)=0. EMPTY var -> NaN (not 0x0): var([])=NaN scalar; var(zeros(0,3))=[NaN NaN NaN] (1x3); var(zeros(3,0))=1x0. Closes audit/findings/stats/var.md + DEEP-PROBE 2026-05-29 n==1 + empty fixes. (NOTE: var([1 2 3],0,1) should be [0 0 0] but a separate core reduce-along-singleton-dim bug returns scalar 1 — deferred, also affects sum/mean.)"
+  "comment": "Sig: V = var(A[, w | W][, dim | 'all' | vecdim][, nanflag]). w in {0, 1} or vector W (weighted; denominator = sum(W)). 'all' / full-flatten vecdim flatten input. Default nanflag = includenan (NaN poisons; matches MATLAB R2025b for double). Single-element variance = 0 for BOTH N-1 (default) and N normalizations (NOT NaN from 0/0): var(5)=0, var([7])=0, var(5,1)=0. EMPTY var -> NaN (not 0x0): var([])=NaN scalar; var(zeros(0,3))=[NaN NaN NaN] (1x3); var(zeros(3,0))=1x0. Closes audit/findings/stats/var.md + DEEP-PROBE 2026-05-29 n==1 + empty fixes. DEEP-PROBE 2026-05-31: weight VECTOR on a MATRIX now reduces per-slice along the operating dim (was: threw 'weight vector length must match number of elements' for default dim, and 'weight vector with non-flat dim not yet supported' for explicit dim). var(Mw,wc)=[2.2222 2.2222] (1x2, dim 1 default), var(Mw,[1 3],2)=[0.1875;0.1875;0.1875] (3x1). N-D weighted reduction still deferred. (NOTE: var([1 2 3],0,1) should be [0 0 0] but a separate core reduce-along-singleton-dim bug returns scalar 1 — deferred, also affects sum/mean.)"
 }

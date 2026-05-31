@@ -1436,8 +1436,10 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
 
     // ── Weighted-vector path ──────────────────────────────────────────
     if (isWeightVec) {
-        if (flattenAll || dim == 0) {
-            // Vector input or 'all': flatten + run weightedVarFlat.
+        const bool xIsVec = x.dims().isVector() || x.isScalar();
+        if (flattenAll || (dim == 0 && xIsVec)) {
+            // Vector input or 'all': flatten + run weightedVarFlat. The
+            // weight length must match the element count.
             auto xv = flatten(x);
             auto wv = flatten(*wVec);
             if (xv.size() != wv.size())
@@ -1448,10 +1450,44 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
                                              xv.size(), sqrtIt, omitNan);
             return Value::scalar(v, mr);
         }
-        // For matrix + weight + dim: defer (out of scope this cycle).
-        throw Error(std::string(fn) + ": weight vector with non-flat dim "
-                    "not yet supported",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":wDim");
+        // Matrix (or explicit dim): MATLAB applies the weight vector along
+        // the operating dimension, computing one weighted variance per
+        // slice. Weight length must equal size(x, dim). 2-D only (N-D
+        // weighted reduction is deferred).
+        if (x.dims().ndim() > 2)
+            throw Error(std::string(fn) + ": weight vector along a dimension "
+                        "is supported for 2-D inputs only (N-D deferred)",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":wND");
+        const int d = (dim == 0) ? firstNonSingletonDim(x) : dim;
+        if (d != 1 && d != 2)
+            throw Error(std::string(fn) + ": dim out of range",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":dim");
+        const size_t r = static_cast<size_t>(x.dims().dim(0));
+        const size_t c = static_cast<size_t>(x.dims().dim(1));
+        auto wv = flatten(*wVec);
+        const size_t need = (d == 1) ? r : c;
+        if (wv.size() != need)
+            throw Error(std::string(fn) + ": weight vector length must match "
+                        "the length of the operating dimension",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":wlen");
+        if (d == 1) {
+            auto out = Value::matrix(1, c, ValueType::DOUBLE, mr);
+            double *od = out.doubleDataMut();
+            std::vector<double> col(r);
+            for (size_t j = 0; j < c; ++j) {
+                for (size_t i = 0; i < r; ++i) col[i] = x.elemAsDouble(j * r + i);
+                od[j] = weightedVarFlat(col.data(), wv.data(), r, sqrtIt, omitNan);
+            }
+            return out;
+        }
+        auto out = Value::matrix(r, 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        std::vector<double> row(c);
+        for (size_t i = 0; i < r; ++i) {
+            for (size_t j = 0; j < c; ++j) row[j] = x.elemAsDouble(j * r + i);
+            od[i] = weightedVarFlat(row.data(), wv.data(), c, sqrtIt, omitNan);
+        }
+        return out;
     }
 
     // ── Flatten 'all' / vecdim path ───────────────────────────────────
