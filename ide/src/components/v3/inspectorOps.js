@@ -36,13 +36,6 @@ export function pathToMatlabLValue(rootName, pathStr) {
   return expr;
 }
 
-// Numeric MATLAB types — edited cells parse as numbers.
-const NUMERIC_TYPES = new Set([
-  'double', 'single',
-  'int8', 'int16', 'int32', 'int64',
-  'uint8', 'uint16', 'uint32', 'uint64',
-]);
-
 /**
  * Turn a user-entered cell value into a MATLAB RHS literal + the JS
  * value to mirror locally, based on the cell's type. Returns null when
@@ -80,12 +73,11 @@ export function valueToMatlabRHS(input, type) {
 
   if (t === 'complex') return null;   // deferred
 
-  // Numeric (default for unknown types too).
-  if (NUMERIC_TYPES.has(t) || true) {
-    const n = parseFloat(input);
-    if (!Number.isFinite(n)) return null;
-    return { rhs: String(n), value: n };
-  }
+  // Numeric (double / single / int* / uint*) — also the fallback for
+  // any unrecognised type: parseFloat → reject non-finite.
+  const n = parseFloat(input);
+  if (!Number.isFinite(n)) return null;
+  return { rhs: String(n), value: n };
 }
 
 /** MATLAB identifier rule — used to validate new / renamed field names

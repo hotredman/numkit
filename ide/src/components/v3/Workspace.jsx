@@ -524,7 +524,7 @@ function MultiPickerControls({ mAxis, setMAxis, mSel, setMSel, rows, cols,
                 <input className="ve-multi-search" placeholder="search or 1-10, 12 …"
                   value={pickerQuery}
                   onChange={(e) => setPickerQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && /[\d,\-]/.test(pickerQuery)) { selectRange(pickerQuery); setPickerQuery(''); } }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && /[\d,-]/.test(pickerQuery)) { selectRange(pickerQuery); setPickerQuery(''); } }}
                 />
                 <button className="ve-multi-mini" onClick={selectAll}  title="Select all (filtered)">all</button>
                 <button className="ve-multi-mini" onClick={selectNone}>none</button>
@@ -845,7 +845,7 @@ function VirtualTable({
 //   saveDisabled       — gray out save-as (e.g. tile-mode huge matrix)
 //   fontScale
 function MatrixPanel({
-  rows, cols, name, type,            // eslint-disable-line no-unused-vars
+  rows, cols, name, type,             
   getCellValue, getSlice, stats,
   readOnly = false,
   onCommit, onEscape, onSave,
