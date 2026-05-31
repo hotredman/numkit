@@ -1626,6 +1626,41 @@ TEST_P(BuiltinTest, Strncmp)
     EXPECT_FALSE(evalBool("strncmp('HELLO', 'hello', 5);"));
 }
 
+// strcmp/strcmpi/strncmp/strncmpi over CELL arrays of strings (element-wise
+// logical array), plus the short-string predicate. Were char-only / wrong.
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(BuiltinTest, StringCompareCellArrays)
+{
+    // strcmp: cell vs char-scalar -> logical array shaped like the cell.
+    eval("y = strcmp({'apple','banana','apple'}, 'apple');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(y(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(y)"), 3.0);
+    // shape follows the cell (2x1 column cell -> 2x1).
+    eval("yc = strcmp({'x';'y'}, 'x');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(yc,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(yc,2)"), 1.0);
+    // strcmpi cell (case-insensitive).
+    eval("yi = strcmpi({'APPLE','x','Apple'}, 'apple');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(yi(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(yi(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(yi(2))"), 0.0);
+    // cell vs cell (element-wise).
+    eval("yy = strcmp({'a','b'}, {'a','c'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(yy(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(yy(2))"), 0.0);
+    // strncmp cell.
+    eval("n = strncmp({'apple','apricot','banana'}, 'app', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(n(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(n(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(n(3))"), 0.0);
+    // short-string predicate: equal & both shorter than n -> true.
+    EXPECT_TRUE(evalBool("strncmp('ab', 'ab', 5);"));
+    EXPECT_FALSE(evalBool("strncmp('ab', 'abc', 5);"));
+    EXPECT_TRUE(evalBool("strncmpi('AB', 'ab', 5);"));
+}
+
 TEST_P(BuiltinTest, Strfind)
 {
     eval("p = strfind('abcabc', 'b');");
