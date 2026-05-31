@@ -1,10 +1,12 @@
 {
   "name": "intfilt",
   "namespace": "signal",
+  "covers": ["intfilt"],
   "setup": "",
-  "expr": "b = intfilt(4, 2, 0.5); r1 = double(numel(b));",
+  "expr": "b = intfilt(4, 2, 0.5); r1 = double(numel(b)); b1 = b(1); b8 = b(8); bsum = sum(b); c = intfilt(3, 4, 0.6); cn = double(numel(c)); c1 = c(1); c12 = c(12); d = intfilt(2, 2, 1); dn = double(numel(d)); d1 = d(1); d4 = d(4);",
   "iters": 5,
-  "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "Sig: b = intfilt(R, L, alpha). LENGTH fixed to MATLAB convention (2*R*L - 1) 2026-05-09. Coefficient VALUES still differ from MATLAB (numkit uses Hamming-windowed sinc; MATLAB uses sinc(alpha*n)*sinc(n/L) product) -- separate ТЗ to align."
+  "tol": 1e-10,
+  "fingerprint": ["r1", "b1", "b8", "bsum", "cn", "c1", "c12", "dn", "d1", "d4"],
+  "deep_verified": true,
+  "comment": "Sig: b = intfilt(R, L, freqmult). Bandlimited interpolation FIR, length 2*R*L-1. DEEP-PROBE c165: was a Hamming-windowed sinc whose coefficient VALUES disagreed with MATLAB (the old spec admitted 'Coefficient VALUES still differ from MATLAB ... separate ТЗ to align'). MATLAB intfilt's bandlimited branch is exactly firls(2*R*L-2, F*2, M) over a piecewise band/amplitude spec (passband amp R around the image-free bands, 0 in the images; freqmult==1 uses the [R R 0 0] / [0 1/2R 1/2R .5] special case). numkit's firls already matches MATLAB, so intfilt now reuses it -> bit-exact: intfilt(4,2,.5) length 15, b(1)=-0.0582705792, b(8)=1.0, sum=3.9678094037; intfilt(3,4,.6) b(1)=-0.0089374149, b(12)=1.0; intfilt(2,2,1) length 7, b(1)=-0.2122065908, b(4)=1.0. covers:[intfilt]."
 }
