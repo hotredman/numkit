@@ -83,6 +83,25 @@ TEST_F(ImageBatch3Test, Histogram)
     EXPECT_DOUBLE_EQ(evalScalar("numel(lim)"), 2.0);
 }
 
+// stretchlim uses 256 bins for uint8 but 65536 for double/single/uint16,
+// matching MATLAB R2025b. 2026-05-31: previously a fixed 256 bins coarsely
+// quantized the limits on a double image.
+TEST_F(ImageBatch3Test, StretchlimDoubleBinCount)
+{
+    // double -> 65536-bin limits (6554/65535, 62258/65535)
+    eval("s = stretchlim([0.1 0.2 0.9 0.95]);");
+    EXPECT_NEAR(evalScalar("s(1)"), 0.10000762951, 1e-9);
+    EXPECT_NEAR(evalScalar("s(2)"), 0.94999618524, 1e-9);
+    // linspace(0,1,100) -> [662/65535, 64873/65535]
+    eval("s2 = stretchlim(linspace(0,1,100));");
+    EXPECT_NEAR(evalScalar("s2(1)"), 0.01010147249, 1e-9);
+    EXPECT_NEAR(evalScalar("s2(2)"), 0.98989852751, 1e-9);
+    // uint8 input is unchanged: 256-level [10/255, 250/255]
+    eval("su = stretchlim(uint8([10 50 200 250]));");
+    EXPECT_NEAR(evalScalar("su(1)"), 10.0 / 255.0,  1e-12);
+    EXPECT_NEAR(evalScalar("su(2)"), 250.0 / 255.0, 1e-12);
+}
+
 // imhist 2nd output x (bin locations) spans the input CLASS's display
 // range, not [0,1] (was always normalized). vs MATLAB R2025b.
 TEST_F(ImageBatch3Test, ImhistBinLocationsByClass)

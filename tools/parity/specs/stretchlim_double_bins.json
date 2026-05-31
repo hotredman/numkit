@@ -1,0 +1,14 @@
+{
+  "name": "stretchlim_double_bins",
+  "namespace": "image",
+  "covers": ["stretchlim"],
+  "setup": "",
+  "expr": "s1 = stretchlim([0.1 0.2 0.9 0.95]); l1 = s1(1); h1 = s1(2); s2 = stretchlim(uint8([10 50 200 250])); l2 = s2(1); h2 = s2(2); x = linspace(0,1,100); s3 = stretchlim(x); l3 = s3(1); h3 = s3(2);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "l1", "h1", "l2", "h2", "l3", "h3"
+  ],
+  "deep_verified": true,
+  "comment": "stretchlim histogram bin count by class vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/image): stretchlim hardcoded a 256-bin histogram for ALL classes, so on a DOUBLE/single image the limits were coarsely quantized to k/255 — stretchlim([0.1 0.2 0.9 0.95]) gave [26/255 242/255] = [0.1019608 0.9490196] instead of MATLAB's 65536-bin result [6554/65535 62258/65535] = [0.1000076 0.9499962]. MATLAB uses 256 bins for uint8 but 65536 for uint16/int16/single/double. Fix: NBINS = (uint8 ? 256 : 65536). uint8 input is unchanged (s2 = [10/255 250/255] = [0.0392157 0.9803922]); double linspace(0,1,100) -> [0.0101015 0.9898985]. imadjust's auto default (which calls stretchlim) tracks the corrected limits. covers:[stretchlim]."
+}
