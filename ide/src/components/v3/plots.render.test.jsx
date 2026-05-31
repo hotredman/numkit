@@ -6,9 +6,10 @@
 // mount-time ReferenceError class (a dangling reference to a moved /
 // removed identifier) that parse + build + pure-logic tests all miss.
 //
-// NOT covered: Composite3DPlot (WebGL — jsdom has no GL context) and
-// Sidebar (IndexedDB-backed fs on mount). Both need heavy environment
-// stubs; their render path is exercised manually.
+// Composite3DPlot (WebGL) and Sidebar (IndexedDB-backed fs) need heavier
+// environment stubs, so they live in their own files:
+// Composite3DPlot.render.test.jsx (mocks THREE.WebGLRenderer) and
+// Sidebar.render.test.jsx (stubs fetch / tolerates no-IDB).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
