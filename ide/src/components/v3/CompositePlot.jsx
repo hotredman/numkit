@@ -30,6 +30,7 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          makeCustomColormap } from './colormaps';
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
 import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange } from './plotUtils';
+import { niceTicks, logTicks, applyTickFormat, fmtTick } from './plotTicks';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -596,40 +597,6 @@ export default function CompositePlot({
     }
   }, [rgbLayer]);
 
-  function niceTicks(min, max, target = 6) {
-    const range = max - min;
-    if (range <= 0) return { major: [min], minor: [] };
-    const rough = range / target;
-    const pow = Math.pow(10, Math.floor(Math.log10(rough)));
-    const norm = rough / pow;
-    const step = norm < 1.5 ? pow : norm < 3 ? 2 * pow : norm < 7 ? 5 * pow : 10 * pow;
-    const start = Math.ceil(min / step) * step;
-    const majorArr = [];
-    for (let v = start; v <= max + step * 1e-6; v += step) majorArr.push(+v.toFixed(12));
-    const minorStep = step / 5;
-    const minorArr = [];
-    for (let v = Math.ceil(min / minorStep) * minorStep; v <= max + minorStep * 1e-6; v += minorStep) {
-      if (Math.abs(((v - start) / step) - Math.round((v - start) / step)) > 1e-6) minorArr.push(+v.toFixed(12));
-    }
-    return { major: majorArr, minor: minorArr };
-  }
-  // Log-axis tick generator: powers of 10 as major, intermediate 2..9
-  // multiples as minor. Used when {x,y}LogActive.
-  function logTicks(min, max) {
-    if (min <= 0 || max <= 0 || max <= min) return { major: [], minor: [] };
-    const lmin = Math.floor(Math.log10(min));
-    const lmax = Math.ceil(Math.log10(max));
-    const major = [], minor = [];
-    for (let p = lmin; p <= lmax; p++) {
-      const base = Math.pow(10, p);
-      if (base >= min && base <= max) major.push(base);
-      for (let m = 2; m <= 9; m++) {
-        const v = base * m;
-        if (v >= min && v <= max) minor.push(v);
-      }
-    }
-    return { major, minor };
-  }
   // Custom tick positions from xticks() / yticks() override the
   // auto-generated set. Filter to the visible range so off-screen
   // ticks don't bleed into the margin.
@@ -642,21 +609,6 @@ export default function CompositePlot({
     ? { major: figure.yTicks.filter((v) => v >= yMin && v <= yMax), minor: [] }
     : yTicksAuto;
 
-  // sprintf-style format applier — supports the most common subset
-  // of MATLAB's tick formats: %d, %f, %.Nf, %e, %.Ne, %g, %.Ng. No
-  // multi-arg printf semantics needed (one numeric value).
-  function applyTickFormat(fmt, v) {
-    if (!fmt) return null;
-    const m = fmt.match(/^%(?:\.(\d+))?([defg])$/);
-    if (!m) return null;
-    const prec = m[1] !== undefined ? Number(m[1]) : 6;
-    const conv = m[2];
-    if (conv === 'd') return String(Math.round(v));
-    if (conv === 'f') return v.toFixed(prec);
-    if (conv === 'e') return v.toExponential(prec);
-    if (conv === 'g') return v.toPrecision(prec);
-    return null;
-  }
   // Custom-label lookups: when xticklabels(["a","b","c"]) was called
   // and matches the xticks count, we substitute the string directly
   // for that tick's numeric format. Otherwise xtickformat fmt string
@@ -689,14 +641,6 @@ export default function CompositePlot({
     }
     return fmtTick(v);
   };
-  function fmtTick(v) {
-    const a = Math.abs(v);
-    if (a !== 0 && (a < 1e-3 || a >= 1e5)) return v.toExponential(1);
-    if (a >= 100) return v.toFixed(0);
-    if (a >= 10)  return v.toFixed(1);
-    if (a >= 1)   return v.toFixed(2);
-    return v.toFixed(3);
-  }
 
   /* ─── pan/zoom (same as InteractivePlot) ─── */
   function onMouseDown(e) {
