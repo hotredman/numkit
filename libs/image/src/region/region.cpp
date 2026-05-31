@@ -577,6 +577,10 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
     const bool wEquivD  = wantAll || contains("EquivDiameter");
     const bool wExtent  = wantAll || contains("Extent");
     const bool wEllipse = wMajor || wMinor || wEcc || wOrient;
+    // Per-pixel list fields (column-major linear indices / [x y] list).
+    const bool wPixIdx  = wantAll || contains("PixelIdxList");
+    const bool wPixList = wantAll || contains("PixelList");
+    const bool needPixels = wPixIdx || wPixList;
 
     Value sa = Value::structArray(static_cast<size_t>(K), 1, mr);
     if (K == 0) return sa;
@@ -588,6 +592,10 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
     std::vector<double> sumXX(K + 1, 0.0), sumYY(K + 1, 0.0), sumXY(K + 1, 0.0);
     std::vector<int> minX(K + 1, INT_MAX), minY(K + 1, INT_MAX);
     std::vector<int> maxX(K + 1, INT_MIN), maxY(K + 1, INT_MIN);
+    // Column-major 1-based linear indices per label (for PixelIdxList /
+    // PixelList). Collected in row-major visit order then sorted ascending
+    // to match MATLAB's column-major ordering.
+    std::vector<std::vector<long long>> pixIdx(needPixels ? (K + 1) : 0);
     for (int r = 0; r < H; ++r)
         for (int c = 0; c < W; ++c) {
             const int lab = L[(size_t)r * (size_t)W + (size_t)c];
@@ -595,6 +603,9 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
             ++area[(size_t)lab];
             sumX[(size_t)lab] += double(c);
             sumY[(size_t)lab] += double(r);
+            if (needPixels)
+                pixIdx[(size_t)lab].push_back(
+                    static_cast<long long>(c) * H + r + 1);   // col-major 1-based
             if (needMoments) {
                 sumXX[(size_t)lab] += double(c) * double(c);
                 sumYY[(size_t)lab] += double(r) * double(r);
@@ -688,6 +699,33 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
             if (wMinor)  el.emplace("MinorAxisLength", Value::scalar(minor, mr));
             if (wEcc)    el.emplace("Eccentricity",    Value::scalar(ecc, mr));
             if (wOrient) el.emplace("Orientation",     Value::scalar(orient, mr));
+        }
+
+        // ── Per-pixel list fields ──
+        if (needPixels) {
+            auto &idxList = pixIdx[(size_t)lab];
+            std::sort(idxList.begin(), idxList.end());   // MATLAB col-major order
+            const size_t P = idxList.size();
+            if (wPixIdx) {
+                Value pil = Value::matrix(P, 1, ValueType::DOUBLE, mr);
+                double *pd = pil.doubleDataMut();
+                for (size_t i = 0; i < P; ++i)
+                    pd[i] = static_cast<double>(idxList[i]);
+                el.emplace("PixelIdxList", std::move(pil));
+            }
+            if (wPixList) {
+                // [x y] = [col row], 1-based, derived from the sorted index.
+                Value plv = Value::matrix(P, 2, ValueType::DOUBLE, mr);
+                double *pl = plv.doubleDataMut();
+                for (size_t i = 0; i < P; ++i) {
+                    const long long z = idxList[i] - 1;     // 0-based col-major
+                    const long long row0 = z % H;
+                    const long long col0 = z / H;
+                    pl[i]     = static_cast<double>(col0 + 1);   // x = col
+                    pl[P + i] = static_cast<double>(row0 + 1);   // y = row
+                }
+                el.emplace("PixelList", std::move(plv));
+            }
         }
     }
     return sa;
