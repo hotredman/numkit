@@ -3,7 +3,7 @@ import { useTheme } from '../../theme';
 import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspectorOps';
 import ContextMenu from './ContextMenu';
 import ValueTable from './ValueTable';
-import StatsBar from './StatsBar';
+import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
 import { aggregateStats } from './valueColumns';
 
 /* ======================================================================== */
@@ -833,6 +833,7 @@ function MatrixPanel({
   const [precision, setPrecision] = useState(4);
   const [notation, setNotation]   = useState('fixed');
   const [heatmap, setHeatmap]     = useState(false);
+  const [statsVisible, setStatsVisible] = useStatChooser();
   const [showPlot, setShowPlot]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [plotWidth, setPlotWidth] = useState(() => {
@@ -960,6 +961,7 @@ function MatrixPanel({
           <span className="ve-precision-num">{precision}</span>
         </div>
         <div className="ve-tools-group">
+          {stats && <StatChooserButton visible={statsVisible} setVisible={setStatsVisible} />}
           <button className={`ve-btn ${heatmap ? 'is-active' : ''}`}
             onClick={() => setHeatmap((h) => !h)} title="Toggle value heatmap">
             <svg width="11" height="11" viewBox="0 0 12 12">
@@ -1019,10 +1021,10 @@ function MatrixPanel({
         <div className="ve-tools-spacer" />
       </div>
 
-      {/* Aggregate statistics over the whole matrix, as its own row with a
-          chooser (min/max/range/mean/median/mode/var/std/n). Collapses to
-          nothing for non-numeric values. */}
-      <StatsBar stats={stats} />
+      {/* Aggregate statistics over the whole matrix, on their own row. The
+          chooser (Σ ▾) lives in the toolbar above; this row collapses to
+          nothing for non-numeric values OR when no statistic is selected. */}
+      <StatsBar stats={stats} visible={statsVisible} />
 
       <div className="ve-address">
         <span className="ve-cell-ref">{name}({activeCell.r + 1}, {activeCell.c + 1})</span>
