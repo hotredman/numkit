@@ -1460,6 +1460,7 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
     HistNorm norm = HistNorm::Count;
     Value edges = Value::Empty;
     bool haveEdges = false;
+    bool binMethodIntegers = false;
 
     // A non-char second argument is the positional edges vector; otherwise
     // every trailing argument is a name-value pair (incl. 'BinEdges').
@@ -1496,11 +1497,51 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
             edges = args[i + 1];
             haveEdges = true;
             ++i;   // consume the value
+        } else if (key == "binmethod") {
+            if (args[i + 1].type() != ValueType::CHAR)
+                throw Error("histcounts: 'BinMethod' value must be a string",
+                             0, 0, "histcounts", "", "numkit:histcounts:badBinMethod");
+            std::string m = args[i + 1].toString();
+            std::transform(m.begin(), m.end(), m.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (m == "integers")
+                binMethodIntegers = true;
+            else
+                throw Error("histcounts: 'BinMethod' '" + m + "' not supported "
+                                "(only 'integers'; use explicit edges otherwise)",
+                             0, 0, "histcounts", "", "numkit:histcounts:badBinMethod");
+            ++i;   // consume the value
         } else {
             throw Error("histcounts: option '" + args[i].toString() +
                             "' not supported (use explicit edges or 'BinEdges')",
                          0, 0, "histcounts", "", "numkit:histcounts:badOption");
         }
+    }
+
+    // 'BinMethod','integers': one unit-width bin centered on each integer in
+    // [round(min), round(max)] of the finite data; bin edges are center +/-0.5.
+    // (MATLAB caps the integers method at 65536 bins and then widens; that
+    // widening is deferred — the common small-range case is exact.)
+    if (binMethodIntegers && !haveEdges) {
+        const Value &x = args[0];
+        const size_t nx = x.numel();
+        double lo = 0.0, hi = 0.0;
+        bool any = false;
+        for (size_t k = 0; k < nx; ++k) {
+            const double v = x.elemAsDouble(k);
+            if (!std::isfinite(v)) continue;
+            if (!any) { lo = hi = v; any = true; }
+            else { if (v < lo) lo = v; if (v > hi) hi = v; }
+        }
+        long first = any ? static_cast<long>(std::llround(lo)) : 0;
+        long last  = any ? static_cast<long>(std::llround(hi)) : 0;
+        if (last < first) last = first;
+        const size_t nEdges = static_cast<size_t>(last - first) + 2;
+        edges = Value::matrix(1, nEdges, ValueType::DOUBLE, mr);
+        double *ed = edges.doubleDataMut();
+        for (size_t e = 0; e < nEdges; ++e)
+            ed[e] = (static_cast<double>(first) - 0.5) + static_cast<double>(e);
+        haveEdges = true;
     }
 
     if (!haveEdges)

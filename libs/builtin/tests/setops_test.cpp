@@ -487,6 +487,60 @@ TEST_P(SetOpsTest, HistcountsUnsupportedOptionThrows)
     EXPECT_THROW(eval("histcounts([1 2 3], 'BinWidth', 1);"), std::runtime_error);
 }
 
+// DEEP-PROBE 2026-05-31: 'BinMethod','integers' (one unit-width bin centered
+// on each integer in [round(min),round(max)]); other BinMethods still throw.
+TEST_P(SetOpsTest, HistcountsBinMethodIntegers)
+{
+    eval("[n, e] = histcounts([1 1 2 3 3 3], 'BinMethod', 'integers');");
+    auto *n = getVarPtr("n");
+    auto *e = getVarPtr("e");
+    ASSERT_NE(n, nullptr);
+    ASSERT_NE(e, nullptr);
+    EXPECT_EQ(n->numel(), 3u);
+    EXPECT_DOUBLE_EQ(n->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[2], 3.0);
+    EXPECT_EQ(e->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e->doubleData()[0], 0.5);
+    EXPECT_DOUBLE_EQ(e->doubleData()[3], 3.5);
+
+    // Gaps create empty interior bins; non-integer data rounds to centers.
+    eval("[m, em] = histcounts([2 5 5 7], 'BinMethod', 'integers');");
+    auto *m = getVarPtr("m");
+    ASSERT_NE(m, nullptr);
+    EXPECT_EQ(m->numel(), 6u);            // integers 2..7
+    EXPECT_DOUBLE_EQ(m->doubleData()[0], 1.0);   // the 2
+    EXPECT_DOUBLE_EQ(m->doubleData()[3], 2.0);   // the two 5s
+    EXPECT_DOUBLE_EQ(m->doubleData()[5], 1.0);   // the 7
+
+    eval("[d, ed] = histcounts([1.2 2.8 2.9 3.1], 'BinMethod', 'integers');");
+    auto *d = getVarPtr("d");
+    auto *ed = getVarPtr("ed");
+    ASSERT_NE(d, nullptr);
+    EXPECT_EQ(d->numel(), 3u);            // round(1.2)=1 .. round(3.1)=3
+    EXPECT_DOUBLE_EQ(ed->doubleData()[0], 0.5);
+    EXPECT_DOUBLE_EQ(d->doubleData()[2], 3.0);   // 2.8,2.9,3.1 -> integer 3
+
+    // Negative range.
+    eval("[k, ek] = histcounts([-2 -1 -1 0], 'BinMethod', 'integers');");
+    auto *ek = getVarPtr("ek");
+    auto *k = getVarPtr("k");
+    ASSERT_NE(ek, nullptr);
+    EXPECT_DOUBLE_EQ(ek->doubleData()[0], -2.5);
+    EXPECT_DOUBLE_EQ(k->doubleData()[1], 2.0);   // the two -1s
+
+    // Composes with Normalization.
+    eval("p = histcounts([1 1 2 3], 'BinMethod', 'integers', "
+         "'Normalization', 'probability');");
+    auto *p = getVarPtr("p");
+    ASSERT_NE(p, nullptr);
+    EXPECT_NEAR(p->doubleData()[0], 0.5, 1e-12);
+
+    // A non-integers BinMethod still throws.
+    EXPECT_THROW(eval("histcounts([1 2 3], 'BinMethod', 'auto');"),
+                 std::runtime_error);
+}
+
 // ── histc (legacy) ──────────────────────────────────────────
 // n has length(edges); last bin = exact-equal to edges(end). vs MATLAB.
 TEST_P(SetOpsTest, HistcCounts)
