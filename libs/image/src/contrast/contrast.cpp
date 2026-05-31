@@ -1621,13 +1621,35 @@ void imbinarize_reg(Span<const Value> args, size_t /*nargout*/,
     }
 }
 
-void imquantize_reg(Span<const Value> args, size_t /*nargout*/,
+void imquantize_reg(Span<const Value> args, size_t nargout,
                     Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("imquantize: requires (I, levels)", 0, 0, "imquantize", "",
-                    "numkit:imquantize:nargin");
-    outs[0] = imquantize(args[0], args[1], ctx.engine->resource());
+        throw Error("imquantize: requires (I, levels[, values])",
+                    0, 0, "imquantize", "", "numkit:imquantize:nargin");
+    auto *mr = ctx.engine->resource();
+    // idx = the 1-based quantization index in 1..numel(levels)+1.
+    Value idx = imquantize(args[0], args[1], mr);
+
+    const bool hasValues = (args.size() >= 3 && !args[2].isEmpty());
+    if (hasValues) {
+        // quant = values(idx). values must hold numel(levels)+1 entries.
+        const std::size_t Lcount = args[1].numel();
+        if (args[2].numel() != Lcount + 1)
+            throw Error("imquantize: values must have numel(levels)+1 elements",
+                        0, 0, "imquantize", "", "numkit:imquantize:values");
+        Value quant = idx;                 // same shape, DOUBLE
+        double *qd = quant.doubleDataMut();
+        const double *id = idx.doubleData();
+        const std::size_t N = idx.numel();
+        for (std::size_t i = 0; i < N; ++i)
+            qd[i] = args[2].elemAsDouble(static_cast<std::size_t>(id[i]) - 1);
+        outs[0] = std::move(quant);
+        if (nargout >= 2) outs[1] = std::move(idx);
+    } else {
+        if (nargout >= 2) { outs[0] = idx; outs[1] = std::move(idx); }
+        else              outs[0] = std::move(idx);
+    }
 }
 
 void adaptthresh_reg(Span<const Value> args, size_t /*nargout*/,

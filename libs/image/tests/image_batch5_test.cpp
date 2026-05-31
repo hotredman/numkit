@@ -63,6 +63,27 @@ TEST_F(ImageBatch5Test, Misc)
     EXPECT_DOUBLE_EQ(evalScalar("numel(B)"), 8.0);
 }
 
+// DEEP-PROBE c177: imquantize [quant, index] 2nd output + the 'values' arg.
+// index is the 1-based bin (1..N+1); quant = values(index) when 'values' is
+// given, else quant == index. numkit previously returned only quant and
+// threw on the 2nd output / ignored 'values'. vs MATLAB R2025b.
+TEST_F(ImageBatch5Test, ImquantizeIndexAndValues)
+{
+    eval("I = [1 5 10; 15 20 25];");
+    eval("[Q, idx] = imquantize(I, [8 18]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isequal(Q, idx))"), 1.0);  // no values -> Q==idx
+    EXPECT_DOUBLE_EQ(evalScalar("Q(1,1)"), 1.0);   // I=1  < 8   -> bin 1
+    EXPECT_DOUBLE_EQ(evalScalar("Q(2,2)"), 3.0);   // I=20 >= 18 -> bin 3
+    EXPECT_DOUBLE_EQ(evalScalar("idx(2,3)"), 3.0); // I=25 >= 18 -> bin 3
+    // 'values' maps quant through the value table; index stays the bin.
+    eval("[Qv, idxv] = imquantize(I, [8 18], [10 20 30]);");
+    EXPECT_DOUBLE_EQ(evalScalar("Qv(1,1)"), 10.0);  // values(1)
+    EXPECT_DOUBLE_EQ(evalScalar("Qv(2,2)"), 30.0);  // values(3)
+    EXPECT_DOUBLE_EQ(evalScalar("double(isequal(idxv, idx))"), 1.0);
+    // A wrong-size 'values' errors.
+    EXPECT_THROW(eval("imquantize(I, [8 18], [1 2]);"), std::exception);
+}
+
 TEST_F(ImageBatch5Test, GradientXY)
 {
     eval("[Gx, Gy] = imgradientxy([1 2 3; 4 5 6; 7 8 9]);");
