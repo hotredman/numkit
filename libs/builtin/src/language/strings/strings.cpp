@@ -554,7 +554,15 @@ template <class Pred>
 Value strCmpElementwise(const Value &a, const Value &b, Pred cmp,
                         const char *fn, std::pmr::memory_resource *mr)
 {
-    const bool ac = a.isCell(), bc = b.isCell();
+    // An operand is an "array" (compared element-wise) when it is a cell OR
+    // a non-scalar string array; a char / string scalar broadcasts against it.
+    auto isArr = [](const Value &v) {
+        return v.isCell() || (v.isString() && !v.isScalar());
+    };
+    auto elemAt = [](const Value &v, std::size_t idx) -> std::string {
+        return v.isCell() ? v.cellAt(idx).toString() : v.stringElem(idx);
+    };
+    const bool ac = isArr(a), bc = isArr(b);
     if (!ac && !bc)
         return Value::logicalScalar(cmp(a.toString(), b.toString()), mr);
 
@@ -580,8 +588,8 @@ Value strCmpElementwise(const Value &a, const Value &b, Pred cmp,
     const std::string scalA = ac ? std::string() : a.toString();
     const std::string scalB = bc ? std::string() : b.toString();
     for (std::size_t i = 0; i < n; ++i) {
-        const std::string sa = ac ? a.cellAt(na == 1 ? 0 : i).toString() : scalA;
-        const std::string sb = bc ? b.cellAt(nb == 1 ? 0 : i).toString() : scalB;
+        const std::string sa = ac ? elemAt(a, na == 1 ? 0 : i) : scalA;
+        const std::string sb = bc ? elemAt(b, nb == 1 ? 0 : i) : scalB;
         od[i] = cmp(sa, sb) ? 1 : 0;
     }
     return out;

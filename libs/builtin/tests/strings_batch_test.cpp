@@ -561,3 +561,42 @@ TEST_F(StringsBatchTest, MatchesCountStringArray)
     EXPECT_DOUBLE_EQ(evalScalar("size(mcol,1)"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("size(mcol,2)"), 1.0);
 }
+
+// strcmp / strcmpi / strncmp / strncmpi compare element-wise with broadcast
+// on a string-array operand vs MATLAB R2025b. 2026-05-31: a non-scalar
+// string array previously collapsed to a logical scalar.
+TEST_F(StringsBatchTest, StrcmpStringArray)
+{
+    // string array vs scalar -> element-wise logical array
+    eval("a = strcmp([\"a\" \"b\" \"a\"], \"a\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(islogical(a))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(3))"), 1.0);
+    // two equal-size string arrays
+    eval("b = strcmp([\"ab\" \"cd\"], [\"ab\" \"xy\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(2))"), 0.0);
+    // strcmpi / strncmp / strncmpi on string arrays
+    eval("ei = strcmpi([\"A\" \"b\"], \"a\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(ei(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ei(2))"), 0.0);
+    eval("f = strncmp([\"abc\" \"abd\" \"xyz\"], \"ab\", 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(f(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(f(3))"), 0.0);
+    eval("fi = strncmpi([\"ABc\" \"xyz\"], \"ab\", 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(fi(1))"), 1.0);
+    // string array vs cell mixes
+    eval("g = strcmp([\"a\" \"b\"], {'a' 'x'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(g(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(g(2))"), 0.0);
+    // column array shape preserved
+    eval("col = strcmp([\"a\"; \"b\"], \"a\");");
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,2)"), 1.0);
+    // scalar + cell paths unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(\"ab\", \"ab\"))"), 1.0);
+    eval("c = strcmp({'a','b'}, {'a','x'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(2))"), 0.0);
+}

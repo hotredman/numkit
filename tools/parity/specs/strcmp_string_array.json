@@ -1,0 +1,14 @@
+{
+  "name": "strcmp_string_array",
+  "namespace": "builtin",
+  "covers": ["strcmp", "strcmpi", "strncmp", "strncmpi"],
+  "setup": "",
+  "expr": "a = strcmp([\"a\" \"b\" \"a\"], \"a\"); na = numel(a); la = double(islogical(a)); a1 = double(a(1)); a2 = double(a(2)); a3 = double(a(3)); b = strcmp([\"ab\" \"cd\"], [\"ab\" \"xy\"]); b1 = double(b(1)); b2 = double(b(2)); e = strcmpi([\"A\" \"b\"], \"a\"); e1 = double(e(1)); e2 = double(e(2)); f = strncmp([\"abc\" \"abd\" \"xyz\"], \"ab\", 2); nf = numel(f); f1 = double(f(1)); f3 = double(f(3)); fi = strncmpi([\"ABc\" \"xyz\"], \"ab\", 2); fi1 = double(fi(1)); g = strcmp([\"a\" \"b\"], {'a' 'x'}); g1 = double(g(1)); g2 = double(g(2)); d = double(strcmp(\"ab\", \"ab\"));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "la", "a1", "a2", "a3", "b1", "b2", "e1", "e2", "nf", "f1", "f3", "fi1", "g1", "g2", "d"
+  ],
+  "deep_verified": true,
+  "comment": "strcmp / strcmpi / strncmp / strncmpi element-wise + broadcast on a STRING-ARRAY operand vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (predicate vein, sibling of c141): strCmpElementwise treated only CELL operands as arrays (ac = a.isCell()); a non-scalar STRING ARRAY fell to the scalar branch and collapsed to a logical SCALAR comparing the whole arrays' toString(). MATLAB compares element-wise with broadcast: strcmp([\"a\" \"b\" \"a\"],\"a\") -> logical [1 0 1]; strcmp([\"ab\" \"cd\"],[\"ab\" \"xy\"]) -> [1 0]; strncmp([\"abc\" \"abd\" \"xyz\"],\"ab\",2) -> [1 1 0]; a string array vs a cell mixes fine (strcmp([\"a\" \"b\"],{'a' 'x'}) -> [1 0]); a char/string scalar broadcasts. Fix: an operand is an 'array' when it is a cell OR a non-scalar string array (isArr helper); element fetch uses cellAt(i) for cells and stringElem(i) for string arrays (elemAt helper). The cell-vs-cell, cell-vs-scalar, and scalar-vs-scalar paths are byte-identical. Column arrays covered in gtest. covers:[strcmp,strcmpi,strncmp,strncmpi]."
+}
