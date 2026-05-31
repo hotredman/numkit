@@ -102,6 +102,62 @@ TEST_P(MatrixTest, TransposeTypeAgnostic)
     EXPECT_DOUBLE_EQ(evalScalar("double(rt(3))"), 108.0);  // 'l'
 }
 
+// DEEP-PROBE 2026-05-31: diag was DOUBLE-only and silently ignored its
+// k (offset) argument. Now type-preserving + k-aware.
+TEST_P(MatrixTest, DiagTypeAgnostic)
+{
+    // CHAR vector -> char diagonal matrix (off-diagonal char(0)).
+    eval("C = diag('abc');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(C),'char'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,1))"), 97.0);  // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2,2))"), 98.0);  // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,2))"), 0.0);   // char(0)
+
+    // CHAR matrix -> extract main diagonal as char column.
+    eval("dc = diag(['abc';'def';'ghi']);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(dc),'char'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(dc,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(dc(1))"), 97.0);   // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(dc(3))"), 105.0);  // 'i'
+
+    // LOGICAL preserved.
+    eval("L = diag(logical([1 0 1]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(islogical(L))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(2,2))"), 0.0);
+
+    // SINGLE preserved.
+    eval("S = diag(single([1 2]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(S),'single'))"), 1.0);
+
+    // COMPLEX preserved (off-diagonal 0+0i).
+    eval("Z = diag([1+2i 3+4i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,2))"), 0.0);
+
+    // k offset, vector -> square matrix on k-th diagonal.
+    eval("vk = diag([1 2 3], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(vk,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vk(1,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vk(2,3)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vk(1,1)"), 0.0);
+    eval("vn = diag([1 2 3], -1);");
+    EXPECT_DOUBLE_EQ(evalScalar("vn(2,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vn(3,2)"), 2.0);
+
+    // k offset, matrix -> extract k-th diagonal.
+    eval("dk = diag(reshape(1:9,3,3), 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(dk,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dk(1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dk(2)"), 8.0);
+    eval("dn = diag(reshape(1:9,3,3), -1);");
+    EXPECT_DOUBLE_EQ(evalScalar("dn(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dn(2)"), 6.0);
+}
+
 TEST_P(MatrixTest, MatrixMultiply)
 {
     eval("A = [1 2; 3 4]; B = [5; 6]; C = A * B;");
