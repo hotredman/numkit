@@ -539,6 +539,36 @@ Value rot90(const Value &x, int k, std::pmr::memory_resource *mr)
     const size_t P = dd.is3D() ? dd.pages() : 1;
     const bool is3D = dd.is3D();
 
+    // Non-DOUBLE 2-D/3-D POD types (char/logical/complex/single/int): rot90 is
+    // a pure rearrangement, so reuse the byte-copy kernels (cell/string were
+    // handled above by rot90CellStr). Output preserves x's type.
+    if (x.type() != ValueType::DOUBLE) {
+        const ValueType t = x.type();
+        const size_t es = elementSize(t);
+        const char *src = static_cast<const char *>(x.rawData());
+        if (kMod == 0) {
+            auto r = is3D ? Value::matrix3d(R, C, P, t, mr) : Value::matrix(R, C, t, mr);
+            if (x.numel() > 0) std::memcpy(r.rawDataMut(), src, x.numel() * es);
+            return r;
+        }
+        if (kMod == 2) {
+            auto r = is3D ? Value::matrix3d(R, C, P, t, mr) : Value::matrix(R, C, t, mr);
+            if (x.numel() == 0) return r;
+            char *dst = static_cast<char *>(r.rawDataMut());
+            for (size_t pp = 0; pp < P; ++pp)
+                rot180PageBytes(src + pp * R * C * es, dst + pp * R * C * es, R, C, es);
+            return r;
+        }
+        // kMod 1 (90° CCW) / 3 (270°): output shape (C, R, P).
+        auto r = is3D ? Value::matrix3d(C, R, P, t, mr) : Value::matrix(C, R, t, mr);
+        if (x.numel() == 0) return r;
+        char *dst = static_cast<char *>(r.rawDataMut());
+        const auto kern = (kMod == 1) ? rot90OncePageBytes : rot270PageBytes;
+        for (size_t pp = 0; pp < P; ++pp)
+            kern(src + pp * R * C * es, dst + pp * C * R * es, R, C, es);
+        return r;
+    }
+
     // k mod 4 == 0 → identity (just copy). Same shape as input.
     if (kMod == 0) {
         auto r = is3D ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
