@@ -140,3 +140,22 @@ TEST_F(SignalBatch3Test, ARSpectralEstimators)
     eval("[Pxx, f] = pyulear(sin(2*pi*0.1*(0:127)), 4);");
     EXPECT_GT(evalScalar("numel(Pxx)"), 0.0);
 }
+
+// periodogram default NFFT is max(256, 2^nextpow2(N)) — not 2^nextpow2(N).
+// vs MATLAB R2025b. 2026-05-31: an 8-sample signal gave 5 freq points
+// instead of 129 (NFFT 8 instead of 256). The PSD values were already
+// correct; only the default bin count was wrong.
+TEST_F(SignalBatch3Test, PeriodogramDefaultNfft)
+{
+    eval("[p, f] = periodogram([1 2 1 2 1 2 1 2]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(f)")), 129);
+    EXPECT_NEAR(evalScalar("p(1)"),  2.86479,  1e-4);
+    EXPECT_NEAR(evalScalar("p(10)"), 4.40929,  1e-4);
+    EXPECT_NEAR(evalScalar("f(10)"), 0.22089,  1e-4);
+    // 2^nextpow2(300) = 512 > 256 -> 257 one-sided bins
+    eval("[p2, f2] = periodogram(sin(2*pi*(0:299)/10));");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(f2)")), 257);
+    // an explicit NFFT is still honoured (not forced to 256)
+    eval("[p3, f3] = periodogram([1 2 1 2 1 2 1 2], [], 8);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(f3)")), 5);
+}
