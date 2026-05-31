@@ -485,29 +485,49 @@ Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr)
     const size_t count = values.size();
     if (count == 0) return Value::empty();
 
+    // Type-preserving: anchor the output type on the first NON-EMPTY block
+    // (empties contribute neither size on the diagonal mismatch nor a type
+    // vote). CHAR / LOGICAL / SINGLE / int / COMPLEX preserved via raw-byte
+    // copy into a zero-filled output. CELL / STRING / STRUCT rejected; mixed
+    // input types deferred (MATLAB would promote — out of scope here).
     size_t totalRows = 0, totalCols = 0;
+    ValueType t = ValueType::DOUBLE;
+    bool typeSet = false;
     for (size_t i = 0; i < count; ++i) {
         if (values[i].dims().is3D())
             throw Error("blkdiag: 3D inputs are not supported",
                          0, 0, "blkdiag", "", "numkit:blkdiag:3D");
         totalRows += values[i].dims().rows();
         totalCols += values[i].dims().cols();
+        if (values[i].numel() == 0) continue;
+        const ValueType vt = values[i].type();
+        if (vt == ValueType::CELL || vt == ValueType::STRING ||
+            vt == ValueType::STRUCT || vt == ValueType::FUNC_HANDLE)
+            throw Error("blkdiag: inputs must be numeric, char, or logical",
+                         0, 0, "blkdiag", "", "numkit:blkdiag:badType");
+        if (!typeSet) { t = vt; typeSet = true; }
+        else if (vt != t)
+            throw Error("blkdiag: mixed input types are not supported",
+                         0, 0, "blkdiag", "", "numkit:blkdiag:mixedType");
     }
-    auto r = Value::matrix(totalRows, totalCols, ValueType::DOUBLE, mr);
-    double *dst = r.doubleDataMut();
-    // Zero-init: matrix() returns an uninitialised buffer in some
-    // builds; explicit clear is safe and cheap (we'll write the block
-    // regions over the top).
-    std::fill(dst, dst + totalRows * totalCols, 0.0);
+
+    auto r = Value::matrix(totalRows, totalCols, t, mr);
+    const size_t es = elementSize(t);
+    char *dst = static_cast<char *>(r.rawDataMut());
+    // Zero-init (matrix() may return an uninitialised buffer in some builds);
+    // the zero byte pattern is the canonical zero for every supported type.
+    std::memset(dst, 0, totalRows * totalCols * es);
 
     size_t rowOff = 0, colOff = 0;
     for (size_t k = 0; k < count; ++k) {
         const auto &v = values[k];
         const size_t R = v.dims().rows(), C = v.dims().cols();
-        const double *src = v.doubleData();
-        for (size_t c = 0; c < C; ++c) {
-            const size_t dstColStart = (colOff + c) * totalRows + rowOff;
-            std::memcpy(dst + dstColStart, src + c * R, R * sizeof(double));
+        if (v.numel() > 0) {
+            const char *src = static_cast<const char *>(v.rawData());
+            for (size_t c = 0; c < C; ++c) {
+                const size_t dstColStart = ((colOff + c) * totalRows + rowOff) * es;
+                std::memcpy(dst + dstColStart, src + c * R * es, R * es);
+            }
         }
         rowOff += R;
         colOff += C;

@@ -409,6 +409,40 @@ TEST_P(NDManipTest, BlkdiagThreeMatrices)
     EXPECT_DOUBLE_EQ((*A)(3, 3), 6.0);
 }
 
+// DEEP-PROBE 2026-05-31: blkdiag was DOUBLE-only and threw on char /
+// logical / single / complex blocks. Now type-preserving.
+TEST_P(NDManipTest, BlkdiagTypeAgnostic)
+{
+    // CHAR blocks -> char, off-block char(0).
+    eval("C = blkdiag('ab','cd');");
+    EXPECT_TRUE(evalBool("ischar(C);"));
+    EXPECT_EQ(cols(*getVarPtr("C")), 4u);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,1))"), 97.0);  // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,2))"), 98.0);  // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2,3))"), 99.0);  // 'c'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,3))"), 0.0);   // off-block
+
+    // LOGICAL preserved.
+    eval("L = blkdiag(logical([1 1]), logical([0 1]));");
+    EXPECT_TRUE(evalBool("islogical(L);"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(2,3))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(1,3))"), 0.0);
+
+    // SINGLE preserved.
+    eval("S = blkdiag(single([1 2]), single(3));");
+    EXPECT_TRUE(evalBool("isequal(class(S), 'single');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(S(2,3))"), 3.0);
+
+    // COMPLEX blocks keep imaginary part.
+    eval("Z = blkdiag([1+1i 2], 3+3i);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(2,3))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(2,3))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,3))"), 0.0);  // off-block 0+0i
+}
+
 // ── permute ND (Phase 3a.3) ─────────────────────────────────────
 
 TEST_P(NDManipTest, Permute4DRoundTrip)
