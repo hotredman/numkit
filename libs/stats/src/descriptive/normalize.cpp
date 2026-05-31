@@ -98,12 +98,18 @@ double colIQR(std::vector<double> v) {
     std::sort(v.begin(), v.end());
     const size_t n = v.size();
     if (n < 2) return 0.0;
-    auto q = [&](double p) {
-        const double pos = p * (n - 1);
-        const size_t lo = static_cast<size_t>(std::floor(pos));
-        const size_t hi = static_cast<size_t>(std::ceil(pos));
-        const double frac = pos - lo;
-        return v[lo] * (1.0 - frac) + v[hi] * frac;
+    // MATLAB's iqr/normalize use the prctile convention: the i-th sorted
+    // value (0-based) sits at cumulative fraction (i+0.5)/n; linear-interp
+    // between bracketing samples, clamped to the extremes. (NOT the R-type-7
+    // (n-1)*p rule, which gave a different IQR for small n — e.g. for
+    // [1 2 4 8 16 32] prctile gives Q1=2,Q3=16,IQR=14, not 2.5/14/11.5.)
+    auto q = [&](double pfrac) {
+        const double pos = pfrac * double(n) - 0.5;   // index in [-0.5, n-0.5]
+        if (pos <= 0.0)               return v[0];
+        if (pos >= double(n - 1))     return v[n - 1];
+        const size_t lo   = static_cast<size_t>(std::floor(pos));
+        const double frac = pos - double(lo);
+        return v[lo] * (1.0 - frac) + v[lo + 1] * frac;
     };
     return q(0.75) - q(0.25);
 }

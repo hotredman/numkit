@@ -2,7 +2,7 @@
   "name": "normalize",
   "namespace": "stats",
   "setup": "x = [1 2 3 4 5]; xr = [1 2 3 4 100];",
-  "expr": "r = normalize(x,'range',[0 10]); n1 = normalize(x,'norm',1); ni = normalize(x,'norm',Inf); sf = normalize(x,'scale','first'); cm = normalize(x,'center','median'); zr = normalize(xr,'zscore','robust'); zs = normalize(xr,'zscore','std'); zd = normalize(xr);",
+  "expr": "r = normalize(x,'range',[0 10]); n1 = normalize(x,'norm',1); ni = normalize(x,'norm',Inf); sf = normalize(x,'scale','first'); cm = normalize(x,'center','median'); zr = normalize(xr,'zscore','robust'); zs = normalize(xr,'zscore','std'); zd = normalize(xr); si = normalize([1 2 4 8 16 32],'scale','iqr'); si1 = si(1); mi = normalize([1 2 4 8 16 32],'medianiqr'); mi1 = mi(1); s5 = normalize(x,'scale','iqr'); s5_1 = s5(1);",
   "iters": 3,
   "tol": 1e-12,
   "fingerprint": [
@@ -12,7 +12,8 @@
     "sf(5)",
     "cm(1)", "cm(5)",
     "zr(1)", "zr(3)", "zr(5)",
-    "zs(1)", "zd(1)"
+    "zs(1)", "zd(1)",
+    "si1", "mi1", "s5_1"
   ],
-  "comment": "Sig normalize(A,method,param). The method PARAMETER was parsed-and-ignored: 'range' bounds [lo hi] (default [0 1]); 'norm' exponent p (1/2/Inf); 'scale' divisor 'std'(def)/'first'/'iqr'/'mad' or numeric; 'center' 'mean'(def)/'median' or numeric. normalize([1..5],'range',[0 10]) -> [0 2.5 5 7.5 10]; 'norm',1 -> /15; 'norm',Inf -> /5; 'scale','first' -> /x(1)=[1..5]; 'center','median' -> [-2 -1 0 1 2]. DEEP-PROBE 2026-05-31: 'zscore','robust' was parsed-and-ignored -> numkit fell back to standard mean/std zscore. MATLAB robust z-score centres by the MEDIAN and scales by the (raw) median absolute deviation MAD=median(|x-median|): normalize([1 2 3 4 100],'zscore','robust')=[-2 -1 0 1 97] (median=3, MAD=1) whereas 'zscore','std' and the default give the mean/std result (zr(1)=-2 vs zs(1)=zd(1)=-0.481456). numkit previously ignored the param -- now honored. Matches MATLAB R2025b."
+  "comment": "Sig normalize(A,method,param). The method PARAMETER was parsed-and-ignored: 'range' bounds [lo hi] (default [0 1]); 'norm' exponent p (1/2/Inf); 'scale' divisor 'std'(def)/'first'/'iqr'/'mad' or numeric; 'center' 'mean'(def)/'median' or numeric. normalize([1..5],'range',[0 10]) -> [0 2.5 5 7.5 10]; 'norm',1 -> /15; 'norm',Inf -> /5; 'scale','first' -> /x(1)=[1..5]; 'center','median' -> [-2 -1 0 1 2]. DEEP-PROBE 2026-05-31: 'zscore','robust' was parsed-and-ignored -> numkit fell back to standard mean/std zscore. MATLAB robust z-score centres by the MEDIAN and scales by the (raw) median absolute deviation MAD=median(|x-median|): normalize([1 2 3 4 100],'zscore','robust')=[-2 -1 0 1 97] (median=3, MAD=1) whereas 'zscore','std' and the default give the mean/std result (zr(1)=-2 vs zs(1)=zd(1)=-0.481456). DEEP-PROBE c172/c173: 'scale','iqr' and 'medianiqr' computed the IQR with the R-type-7 (n-1)*p quantile rule instead of MATLAB's prctile (k-0.5)/n convention, giving the wrong IQR for small n (e.g. [1 2 4 8 16 32]: prctile Q1=2,Q3=16,IQR=14, not 2.5/14/11.5). Now uses the prctile convention: si1=1/14=0.07142857, mi1=(1-6)/14=-0.35714286, s5_1=1/2.5=0.4. Standalone iqr/prctile/quantile were already correct (unchanged). Matches MATLAB R2025b."
 }
