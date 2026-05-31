@@ -529,3 +529,35 @@ TEST_F(StringsBatchTest, ExtractInsertErasePadPreserveStringClass)
     EXPECT_DOUBLE_EQ(evalScalar("double(iscell(pc))"), 1.0);
     EXPECT_EQ(evalString("pc{1}"), "a  ");
 }
+
+// matches / count return a SAME-SHAPE logical/double array for a string
+// array source vs MATLAB R2025b. 2026-05-31: both collapsed a string array
+// to a scalar; the cell branches were already element-wise.
+TEST_F(StringsBatchTest, MatchesCountStringArray)
+{
+    // matches: string array -> logical array
+    eval("m = matches([\"cat\" \"dog\" \"cat\"], \"cat\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(islogical(m))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(m)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(m(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(m(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(m(3))"), 1.0);
+    // multi-pattern: match if equal to ANY alternative
+    eval("mc = matches([\"cat\" \"dog\" \"fish\"], [\"cat\" \"fish\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(mc(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(mc(3))"), 1.0);
+    // scalar + cell unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("double(matches(\"cat\", \"cat\"))"), 1.0);
+    eval("mcl = matches({'a','b'}, 'a');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(mcl(2))"), 0.0);
+    // count: string array -> double array
+    eval("c = count([\"aa\" \"aba\"], \"a\");");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("count(\"banana\", \"a\")"), 3.0);
+    // column string array -> shape preserved
+    eval("mcol = matches([\"a\"; \"b\"], \"a\");");
+    EXPECT_DOUBLE_EQ(evalScalar("size(mcol,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(mcol,2)"), 1.0);
+}

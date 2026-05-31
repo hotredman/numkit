@@ -1,0 +1,14 @@
+{
+  "name": "matches_count_string_array",
+  "namespace": "builtin",
+  "covers": ["matches", "count"],
+  "setup": "",
+  "expr": "m = matches([\"cat\" \"dog\" \"cat\"], \"cat\"); nm = numel(m); lm = double(islogical(m)); m1 = double(m(1)); m2 = double(m(2)); m3 = double(m(3)); mc = matches([\"cat\" \"dog\" \"fish\"], [\"cat\" \"fish\"]); mc1 = double(mc(1)); mc3 = double(mc(3)); ms = double(matches(\"cat\", \"cat\")); c = count([\"aa\" \"aba\"], \"a\"); nc = numel(c); c1 = c(1); c2 = c(2); cs = count(\"banana\", \"a\"); cm = count([\"abab\" \"xax\"], \"a\"); cm1 = cm(1); cm2 = cm(2);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "nm", "lm", "m1", "m2", "m3", "mc1", "mc3", "ms", "nc", "c1", "c2", "cs", "cm1", "cm2"
+  ],
+  "deep_verified": true,
+  "comment": "matches / count same-shape output on a STRING-ARRAY source vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (predicate/measure vein): both were element-wise only on a CELL source; a STRING ARRAY collapsed to a SCALAR via s.toString() (matches -> logicalScalar, count -> scalar). MATLAB returns a same-shape array: matches([\"cat\" \"dog\" \"cat\"],\"cat\") -> logical [1 0 1]; count([\"aa\" \"aba\"],\"a\") -> [2 2]. The pattern may be a list (cell/string array): an element matches if it equals ANY alternative — matches([\"cat\" \"dog\" \"fish\"],[\"cat\" \"fish\"]) -> [1 0 1]. Fix: matches now uses collectMatchPatterns + a same-shape LOGICAL matrix for cell/string-array sources; count got a string-array branch mirroring its existing cell branch (DOUBLE matrix). Scalar char/string + cell paths unchanged. strlength was already element-wise (clean); strcmp two-array broadcast deferred. Column arrays covered in gtest. covers:[matches,count]."
+}

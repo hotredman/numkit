@@ -1098,6 +1098,16 @@ Value count(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
         for (size_t i = 0; i < nn; ++i) od[i] = countOne(s.cellAt(i).toString());
         return out;
     }
+    // A string ARRAY is processed element-wise -> DOUBLE array, same shape.
+    if (s.isString() && !s.isScalar()) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        const size_t nn = s.numel();
+        for (size_t i = 0; i < nn; ++i) od[i] = countOne(s.stringElem(i));
+        return out;
+    }
     return Value::scalar(countOne(s.toString()), mr);
 }
 
@@ -1275,16 +1285,31 @@ Value strip(const Value &s, const Value &side, const Value &ch, std::pmr::memory
 
 Value matches(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
-    if (pat.isCell()) {
-        // True iff s equals any element of pat.
-        for (size_t i = 0; i < pat.numel(); ++i) {
-            if (ss == pat.cellAt(i).toString())
-                return Value::logicalScalar(true, mr);
+    // The pattern may be a single string or a cell / string array of
+    // alternatives; an element matches if it equals ANY of them.
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(pat, pats);
+    auto matchOne = [&](const std::string &el) -> bool {
+        for (const auto &pp : pats)
+            if (el == pp) return true;
+        return false;
+    };
+    // A string ARRAY / cell source -> same-shape LOGICAL array (element-wise).
+    if (s.isCell() || (s.isString() && !s.isScalar())) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        Value out = Value::matrix(r, c, ValueType::LOGICAL, mr);
+        uint8_t *od = out.logicalDataMut();
+        const size_t nn = s.numel();
+        for (size_t i = 0; i < nn; ++i) {
+            const std::string el =
+                s.isCell() ? s.cellAt(i).toString() : s.stringElem(i);
+            od[i] = matchOne(el) ? 1 : 0;
         }
-        return Value::logicalScalar(false, mr);
+        return out;
     }
-    return Value::logicalScalar(ss == pat.toString(), mr);
+    return Value::logicalScalar(matchOne(s.toString()), mr);
 }
 
 // ── Pack 21 ──────────────────────────────────────────────────────────
