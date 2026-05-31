@@ -3093,10 +3093,53 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     const Value &f = args[1];
                                     if (f.isChar() || f.isString())
                                         fmt = f.toString();
-                                    else
-                                        throw std::runtime_error(
-                                            "datestr: numeric format codes not "
-                                            "yet supported; pass a format string");
+                                    else {
+                                        // Numeric format code -> MATLAB dateform
+                                        // string. Quarter formats use lowercase
+                                        // yy/yyyy here to match the token loop;
+                                        // the rendered output equals MATLAB's.
+                                        static const char *DATEFORM[] = {
+                                            "dd-mmm-yyyy HH:MM:SS", // 0
+                                            "dd-mmm-yyyy",          // 1
+                                            "mm/dd/yy",             // 2
+                                            "mmm",                  // 3
+                                            "m",                    // 4
+                                            "mm",                   // 5
+                                            "mm/dd",                // 6
+                                            "dd",                   // 7
+                                            "ddd",                  // 8
+                                            "d",                    // 9
+                                            "yyyy",                 // 10
+                                            "yy",                   // 11
+                                            "mmmyy",                // 12
+                                            "HH:MM:SS",             // 13
+                                            "HH:MM:SS PM",          // 14
+                                            "HH:MM",                // 15
+                                            "HH:MM PM",             // 16
+                                            "QQ-yy",                // 17
+                                            "QQ",                   // 18
+                                            "dd/mm",                // 19
+                                            "dd/mm/yy",             // 20
+                                            "mmm.dd,yyyy HH:MM:SS", // 21
+                                            "mmm.dd,yyyy",          // 22
+                                            "mm/dd/yyyy",           // 23
+                                            "dd/mm/yyyy",           // 24
+                                            "yy/mm/dd",             // 25
+                                            "yyyy/mm/dd",           // 26
+                                            "QQ-yyyy",              // 27
+                                            "mmmyyyy",              // 28
+                                            "yyyy-mm-dd",           // 29
+                                            "yyyymmddTHHMMSS",      // 30
+                                            "yyyy-mm-dd HH:MM:SS",  // 31
+                                        };
+                                        const int code = static_cast<int>(
+                                            std::round(f.elemAsDouble(0)));
+                                        if (code < 0 || code > 31)
+                                            throw std::runtime_error(
+                                                "datestr: unsupported numeric "
+                                                "format code (expected 0-31)");
+                                        fmt = DATEFORM[code];
+                                    }
                                 } else {
                                     fmt = (hi != 0 || mii != 0 || si != 0)
                                               ? "dd-mmm-yyyy HH:MM:SS"
@@ -3145,9 +3188,12 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     else if (at("mmmm", 4)) { out += MONF[(moi-1+12)%12]; i+=4; }
                                     else if (at("mmm", 3)) { out += MON3[(moi-1+12)%12]; i+=3; }
                                     else if (at("mm", 2)) { std::snprintf(buf,sizeof buf,"%02d",moi); out+=buf; i+=2; }
+                                    else if (at("m", 1)) { out += MON3[(moi-1+12)%12][0]; i+=1; }   // first letter of month
+                                    else if (at("QQ", 2)) { out += 'Q'; out += static_cast<char>('0' + ((moi - 1) / 3 + 1)); i+=2; }   // quarter
                                     else if (at("dddd", 4)) { out += DOWF[dow]; i+=4; }
                                     else if (at("ddd", 3)) { out += DOW3[dow]; i+=3; }
                                     else if (at("dd", 2)) { std::snprintf(buf,sizeof buf,"%02d",di); out+=buf; i+=2; }
+                                    else if (at("d", 1)) { out += DOW3[dow][0]; i+=1; }   // first letter of weekday
                                     else if (at("HH", 2)) {
                                         if (hour12) std::snprintf(buf,sizeof buf,"%2d",h12);
                                         else        std::snprintf(buf,sizeof buf,"%02d",hi);
