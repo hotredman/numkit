@@ -125,10 +125,16 @@ ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_re
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = clo; ci.doubleDataMut()[1] = chi;
 
+    // MATLAB returns the test statistics as a struct (tstat, df, sd).
+    Value stats = Value::structure(mr);
+    stats.field("tstat") = Value::scalar(t, mr);
+    stats.field("df")    = Value::scalar(df, mr);
+    stats.field("sd")    = Value::scalar(sd, mr);
+
     return std::make_tuple(Value::scalar(double(h), mr),
                            Value::scalar(p, mr),
                            std::move(ci),
-                           Value::scalar(t, mr));
+                           std::move(stats));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -148,17 +154,22 @@ ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::s
                     0, 0, "ttest2", "", "numkit:ttest2:nsamples");
 
     double t, df, se;
+    Value sdVal;   // MATLAB stats.sd: pooled sd (equal) | [sx sy] (unequal)
     if (vartype == "equal") {
         const double sp2 = ((nx - 1) * vx + (ny - 1) * vy) / double(nx + ny - 2);
         se = std::sqrt(sp2 * (1.0 / double(nx) + 1.0 / double(ny)));
         df = double(nx + ny - 2);
+        sdVal = Value::scalar(std::sqrt(sp2), mr);
     } else {
-        // Welch (default).
+        // Welch (unequal variances).
         se = std::sqrt(vx / double(nx) + vy / double(ny));
         const double num = (vx / nx + vy / ny) * (vx / nx + vy / ny);
         const double den = (vx / nx) * (vx / nx) / double(nx - 1)
                          + (vy / ny) * (vy / ny) / double(ny - 1);
         df = (den > 0.0) ? num / den : double(nx + ny - 2);
+        sdVal = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        sdVal.doubleDataMut()[0] = std::sqrt(vx);
+        sdVal.doubleDataMut()[1] = std::sqrt(vy);
     }
     t = (mx - my) / se;
     const double p = tpvalue(t, df, tail, mr);
@@ -170,10 +181,15 @@ ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::s
     ci.doubleDataMut()[0] = (mx - my) - tcrit * se;
     ci.doubleDataMut()[1] = (mx - my) + tcrit * se;
 
+    Value stats = Value::structure(mr);
+    stats.field("tstat") = Value::scalar(t, mr);
+    stats.field("df")    = Value::scalar(df, mr);
+    stats.field("sd")    = std::move(sdVal);
+
     return std::make_tuple(Value::scalar(double(h), mr),
                            Value::scalar(p, mr),
                            std::move(ci),
-                           Value::scalar(t, mr));
+                           std::move(stats));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -253,10 +269,14 @@ vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_
     ci.doubleDataMut()[1] = (chi_lo > 0.0) ? df * var_hat / chi_lo
                                             : std::numeric_limits<double>::infinity();
 
+    Value stats = Value::structure(mr);
+    stats.field("chisqstat") = Value::scalar(T, mr);
+    stats.field("df")        = Value::scalar(df, mr);
+
     return std::make_tuple(Value::scalar(double(h), mr),
                            Value::scalar(p, mr),
                            std::move(ci),
-                           Value::scalar(T, mr));
+                           std::move(stats));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -300,10 +320,15 @@ vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::
     ci.doubleDataMut()[1] = (f_lo > 0.0) ? F / f_lo
                                           : std::numeric_limits<double>::infinity();
 
+    Value stats = Value::structure(mr);
+    stats.field("fstat") = Value::scalar(F, mr);
+    stats.field("df1")   = Value::scalar(v1, mr);
+    stats.field("df2")   = Value::scalar(v2, mr);
+
     return std::make_tuple(Value::scalar(double(h), mr),
                            Value::scalar(p, mr),
                            std::move(ci),
-                           Value::scalar(F, mr));
+                           std::move(stats));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1665,7 +1690,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
-    if (nargout > 3) outs[3] = std::move(t);   // scalar tstat (struct form deferred)
+    if (nargout > 3) outs[3] = std::move(t);   // stats struct {tstat, df, sd}
 }
 
 void ttest2_reg(Span<const Value> args, size_t nargout,
