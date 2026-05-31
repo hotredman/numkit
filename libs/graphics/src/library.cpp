@@ -182,7 +182,7 @@ void GraphicsLibrary::install(Engine &engine)
                 int id = static_cast<int>(args[0].toScalar());
                 fm.closeFigureNotify(id);
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "clf",
@@ -196,7 +196,7 @@ void GraphicsLibrary::install(Engine &engine)
             fig.subplotCols = 0;
             fig.modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     regCore("layout", "hold",
@@ -206,13 +206,13 @@ void GraphicsLibrary::install(Engine &engine)
                 ax.holdOn = !ax.holdOn;
             else
                 ax.holdOn = (args[0].toString() == "on");
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "subplot",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             if (args.size() < 3) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -220,7 +220,7 @@ void GraphicsLibrary::install(Engine &engine)
             int n = static_cast<int>(args[1].toScalar());
             int p = static_cast<int>(args[2].toScalar());
             fm.setSubplot(m, n, p);
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // tiledlayout(m, n[, ...]) — modern alternative to subplot. We
@@ -239,7 +239,7 @@ void GraphicsLibrary::install(Engine &engine)
             auto &fm = ctx.engine->figureManager();
             // setSubplot(m, n, 1) reserves the grid + activates cell 1.
             fm.setSubplot(m, n, 1);
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     // nexttile([span]) — bumps the active subplot cell index by 1
     // (or by `span` if given a numeric arg). When the figure has no
@@ -253,7 +253,7 @@ void GraphicsLibrary::install(Engine &engine)
                 // No tiledlayout active; default to a 1x1 grid so
                 // the first nexttile creates a single cell.
                 fm.setSubplot(1, 1, 1);
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             const int total = fig.subplotRows * fig.subplotCols;
@@ -266,7 +266,7 @@ void GraphicsLibrary::install(Engine &engine)
             if (target < 1) target = 1;
             if (target > total) target = total;
             fm.setSubplot(fig.subplotRows, fig.subplotCols, target);
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ================================================================
@@ -277,7 +277,7 @@ void GraphicsLibrary::install(Engine &engine)
         [parsePlotXYStyle, parsePlotArgs](Span<const Value> args, size_t nargout,
                                           Span<Value> outs, CallContext &ctx) {
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -288,14 +288,14 @@ void GraphicsLibrary::install(Engine &engine)
             parsePlotArgs(args, nvStart, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("bar", "bar",
         [vecToJson, makeIndexJson](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, CallContext &ctx) {
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -341,7 +341,7 @@ void GraphicsLibrary::install(Engine &engine)
                 }
                 fm.pushDataset(std::move(ds));
                 fm.emitModified();
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             // Matrix path: one dataset per column. Stacked uses
@@ -426,7 +426,7 @@ void GraphicsLibrary::install(Engine &engine)
                 }
             }
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // plot3(x, y, z) / scatter3(x, y, z) — 3-D series. The renderer
@@ -441,7 +441,7 @@ void GraphicsLibrary::install(Engine &engine)
                          Span<Value> outs, CallContext &ctx) {
         (void)nargout;
         if (args.size() < 3) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         auto &fm = ctx.engine->figureManager();
@@ -461,7 +461,7 @@ void GraphicsLibrary::install(Engine &engine)
         parsePlotArgs(args, nvStart, ds);
         fm.pushDataset(std::move(ds));
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     {
         using namespace std::placeholders;
@@ -477,14 +477,14 @@ void GraphicsLibrary::install(Engine &engine)
     //   2. type='scatter3' markers at the tips.
     reg("line", "stem3",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            if (args.size() < 3) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             const auto &X = args[0];
             const auto &Y = args[1];
             const auto &Z = args[2];
             const size_t N = std::min({X.numel(), Y.numel(), Z.numel()});
-            if (N == 0) { outs[0] = Value::empty(); return; }
+            if (N == 0) { outs[0] = Value(); return; }
 
             // Stems: 2 points per stem with null between stems.
             std::ostringstream sx, sy, sz;
@@ -526,7 +526,7 @@ void GraphicsLibrary::install(Engine &engine)
             dsDot.markerSize = 4;
             fm.pushDataset(std::move(dsDot));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // quiver(x, y, u, v) — vector field as N arrows starting at
@@ -538,7 +538,7 @@ void GraphicsLibrary::install(Engine &engine)
         [vecToJson](Span<const Value> args, size_t nargout,
                     Span<Value> outs, CallContext &ctx) {
             if (args.size() < 4) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -556,7 +556,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // compass(U, V) — vector arrows from the origin on a POLAR
@@ -572,7 +572,7 @@ void GraphicsLibrary::install(Engine &engine)
     // renderer (PolarPlot.jsx) treats xJson as theta, yJson as rho.
     reg("polar", "compass",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             fm.currentAxes().polar = true;
@@ -600,7 +600,7 @@ void GraphicsLibrary::install(Engine &engine)
                     emit(A.doubleData()[i], args[1].doubleData()[i], i == 0);
                 nvStart = 2;
             } else {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             tx << ']'; ry << ']';
@@ -614,7 +614,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // feather(U, V) — arrows on the x-axis. Each arrow starts at
@@ -622,13 +622,13 @@ void GraphicsLibrary::install(Engine &engine)
     // compass.
     reg("line", "feather",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            if (args.size() < 2) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             const auto &U = args[0];
             const auto &V = args[1];
             const size_t N = std::min(U.numel(), V.numel());
-            if (N == 0) { outs[0] = Value::empty(); return; }
+            if (N == 0) { outs[0] = Value(); return; }
             std::ostringstream xs, ys, us, vs;
             xs << '['; ys << '['; us << '['; vs << '[';
             for (size_t i = 0; i < N; ++i) {
@@ -648,7 +648,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.style = "scale=1";
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ────────── Statistical chart wrappers ───────────────────────────
@@ -660,7 +660,7 @@ void GraphicsLibrary::install(Engine &engine)
     // 0 to 1. NaN inputs are dropped.
     auto cdfImpl = [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
         (void)nargout;
-        if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+        if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
         const auto &X = args[0];
         std::vector<double> xs;
         xs.reserve(X.numel());
@@ -668,7 +668,7 @@ void GraphicsLibrary::install(Engine &engine)
             const double v = X.doubleData()[i];
             if (std::isfinite(v)) xs.push_back(v);
         }
-        if (xs.empty()) { outs[0] = Value::empty(); return; }
+        if (xs.empty()) { outs[0] = Value(); return; }
         std::sort(xs.begin(), xs.end());
         const size_t N = xs.size();
 
@@ -690,7 +690,7 @@ void GraphicsLibrary::install(Engine &engine)
         ds.style = "color=#1f77b4";
         fm.pushDataset(std::move(ds));
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("bar", "cdfplot", cdfImpl);
     // `ecdf` is already provided by libs/stats as a computational
@@ -707,13 +707,13 @@ void GraphicsLibrary::install(Engine &engine)
     reg("bar", "qqplot",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
             std::vector<double> xs;
             for (size_t i = 0; i < args[0].numel(); ++i) {
                 const double v = args[0].doubleData()[i];
                 if (std::isfinite(v)) xs.push_back(v);
             }
-            if (xs.size() < 2) { outs[0] = Value::empty(); return; }
+            if (xs.size() < 2) { outs[0] = Value(); return; }
             std::sort(xs.begin(), xs.end());
             const size_t N = xs.size();
 
@@ -773,7 +773,7 @@ void GraphicsLibrary::install(Engine &engine)
             dsDot.markerSize = 3;
             fm.pushDataset(std::move(dsDot));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // pareto(Y) — bars in descending Y order + a cumulative-percent
@@ -784,13 +784,13 @@ void GraphicsLibrary::install(Engine &engine)
     reg("bar", "pareto",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
             std::vector<double> ys;
             for (size_t i = 0; i < args[0].numel(); ++i) {
                 const double v = args[0].doubleData()[i];
                 if (std::isfinite(v)) ys.push_back(v);
             }
-            if (ys.empty()) { outs[0] = Value::empty(); return; }
+            if (ys.empty()) { outs[0] = Value(); return; }
             std::sort(ys.begin(), ys.end(), std::greater<double>());
             double sum = 0;
             for (double v : ys) sum += v;
@@ -822,7 +822,7 @@ void GraphicsLibrary::install(Engine &engine)
             dsLine.style = "color=#d62728";
             fm.pushDataset(std::move(dsLine));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // histfit(x[, nbins]) — histogram of x with a Gaussian fit overlay.
@@ -832,13 +832,13 @@ void GraphicsLibrary::install(Engine &engine)
     reg("bar", "histfit",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
             std::vector<double> xs;
             for (size_t i = 0; i < args[0].numel(); ++i) {
                 const double v = args[0].doubleData()[i];
                 if (std::isfinite(v)) xs.push_back(v);
             }
-            if (xs.size() < 2) { outs[0] = Value::empty(); return; }
+            if (xs.size() < 2) { outs[0] = Value(); return; }
             int nbins = 10;
             if (args.size() >= 2 && args[1].numel() == 1)
                 nbins = std::max(1, (int)args[1].toScalar());
@@ -904,7 +904,7 @@ void GraphicsLibrary::install(Engine &engine)
             dsFit.lineWidth = 2;
             fm.pushDataset(std::move(dsFit));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // gscatter(x, y, g) — scatter coloured by group label. Each unique
@@ -913,12 +913,12 @@ void GraphicsLibrary::install(Engine &engine)
     reg("bar", "gscatter",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            if (args.size() < 3) { outs[0] = Value(); return; }
             const auto &X = args[0];
             const auto &Y = args[1];
             const auto &G = args[2];
             const size_t N = std::min({X.numel(), Y.numel(), G.numel()});
-            if (N == 0) { outs[0] = Value::empty(); return; }
+            if (N == 0) { outs[0] = Value(); return; }
 
             // Group indices: distinct values in G, preserving first-seen
             // order. G can be numeric or char (treat both via toScalar
@@ -972,7 +972,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.pushDataset(std::move(ds));
             }
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // spy(M) — sparsity pattern. Renders a marker at every (col, row)
@@ -980,7 +980,7 @@ void GraphicsLibrary::install(Engine &engine)
     // axis ij so the matrix sits like the printed form (row 1 at top).
     reg("bar", "spy",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             const auto &M = args[0];
@@ -1011,7 +1011,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.currentAxes().yDir = "reverse";
             fm.currentAxes().axisMode = "ij";
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // area — filled curve. MATLAB convention:
@@ -1026,7 +1026,7 @@ void GraphicsLibrary::install(Engine &engine)
         [vecToJson, makeIndexJson, parsePlotArgs](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, CallContext &ctx) {
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -1058,7 +1058,7 @@ void GraphicsLibrary::install(Engine &engine)
                     hasBase = true;
                 }
             }
-            if (!yData) { outs[0] = Value::empty(); return; }
+            if (!yData) { outs[0] = Value(); return; }
 
             const size_t Yr = yData->dims().rows();
             const size_t Yc = yData->dims().cols();
@@ -1092,7 +1092,7 @@ void GraphicsLibrary::install(Engine &engine)
                 }
                 fm.pushDataset(std::move(ds));
                 fm.emitModified();
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
 
@@ -1149,7 +1149,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.pushDataset(std::move(ds));
             }
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // barh — horizontal bar chart, mirror of bar(). MATLAB convention:
@@ -1162,7 +1162,7 @@ void GraphicsLibrary::install(Engine &engine)
         [vecToJson, makeIndexJson](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, CallContext &ctx) {
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -1178,13 +1178,13 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("bar", "scatter",
         [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             if (args.size() < 2) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -1195,14 +1195,14 @@ void GraphicsLibrary::install(Engine &engine)
             ds.yJson = vecToJson(args[1]);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("bar", "hist",
         [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             auto *mr = ctx.engine->resource();
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &data = args[0];
@@ -1235,7 +1235,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.yJson = vecToJson(counts);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // Shared body for any heatmap-like builtin (imagesc / pcolor).
@@ -1250,7 +1250,7 @@ void GraphicsLibrary::install(Engine &engine)
                            Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -1284,14 +1284,14 @@ void GraphicsLibrary::install(Engine &engine)
             }
 
             if (!C_arg) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
 
             size_t rows = C_arg->dims().rows();
             size_t cols = C_arg->dims().cols();
             if (rows == 0 || cols == 0) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
 
@@ -1459,7 +1459,7 @@ void GraphicsLibrary::install(Engine &engine)
             // chance to override. The imagesc wrapper now applies axis ij
             // BEFORE delegating; histogram2 leaves yDir alone.
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
     };  // heatmapImpl
 
     using namespace std::placeholders;
@@ -1497,7 +1497,7 @@ void GraphicsLibrary::install(Engine &engine)
         fm.prepareForPlot();
         auto &ax = fm.currentAxes();
 
-        if (args.empty()) { outs[0] = Value::empty(); return; }
+        if (args.empty()) { outs[0] = Value(); return; }
 
         // imshow('path/to/img.png') — decode via stb_image and feed
         // the resulting H×W or H×W×{3,4} uint8 array through the rest
@@ -1520,7 +1520,7 @@ void GraphicsLibrary::install(Engine &engine)
         const bool isRGB  = (pages == 3 || pages == 4);
         const bool hasAlpha = (pages == 4);
         if (!isRGB && (nd != 2 || R == 0 || C == 0)) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
 
@@ -1800,7 +1800,7 @@ void GraphicsLibrary::install(Engine &engine)
 
         fm.current().modified = true;
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("image", "imshow", imshowImpl);
 
@@ -1816,7 +1816,7 @@ void GraphicsLibrary::install(Engine &engine)
         [heatmapImpl](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             auto *mr = ctx.engine->resource();
             if (args.size() < 2 || args[0].numel() == 0 || args[1].numel() == 0) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             const auto &X = args[0];
@@ -1919,11 +1919,11 @@ void GraphicsLibrary::install(Engine &engine)
             X_arg = &args[0]; Y_arg = &args[1]; Z_arg = &args[2];
             levels_arg = &args[3];
         }
-        if (!Z_arg) { outs[0] = Value::empty(); return; }
+        if (!Z_arg) { outs[0] = Value(); return; }
 
         const size_t R = Z_arg->dims().rows();
         const size_t C = Z_arg->dims().cols();
-        if (R < 2 || C < 2) { outs[0] = Value::empty(); return; }
+        if (R < 2 || C < 2) { outs[0] = Value(); return; }
 
         const auto Zat = [&](size_t r, size_t c) {
             return Z_arg->doubleData()[c * R + r];   // column-major
@@ -2060,7 +2060,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.pushDataset(std::move(ds));
         }
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("contour", "contour", contourImpl);
 
@@ -2097,11 +2097,11 @@ void GraphicsLibrary::install(Engine &engine)
             X_arg = &args[0]; Y_arg = &args[1]; Z_arg = &args[2];
             levels_arg = &args[3];
         }
-        if (!Z_arg) { outs[0] = Value::empty(); return; }
+        if (!Z_arg) { outs[0] = Value(); return; }
 
         const size_t R = Z_arg->dims().rows();
         const size_t C = Z_arg->dims().cols();
-        if (R < 2 || C < 2) { outs[0] = Value::empty(); return; }
+        if (R < 2 || C < 2) { outs[0] = Value(); return; }
 
         const auto Zat = [&](size_t r, size_t c) {
             return Z_arg->doubleData()[c * R + r];
@@ -2279,7 +2279,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.pushDataset(std::move(ds));
         }
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("contour", "contourf", contourfImpl);
 
@@ -2303,11 +2303,11 @@ void GraphicsLibrary::install(Engine &engine)
         } else if (args.size() >= 3) {
             X_arg = &args[0]; Y_arg = &args[1]; Z_arg = &args[2];
         }
-        if (!Z_arg) { outs[0] = Value::empty(); return; }
+        if (!Z_arg) { outs[0] = Value(); return; }
 
         const size_t R = Z_arg->dims().rows();
         const size_t C = Z_arg->dims().cols();
-        if (R < 2 || C < 2) { outs[0] = Value::empty(); return; }
+        if (R < 2 || C < 2) { outs[0] = Value(); return; }
 
         const auto Zat = [&](size_t r, size_t c) {
             return Z_arg->doubleData()[c * R + r];
@@ -2360,7 +2360,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.zJson = zs.str();
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
 
@@ -2416,7 +2416,7 @@ void GraphicsLibrary::install(Engine &engine)
         fm.pushDataset(std::move(dsV));
 
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     {
         using namespace std::placeholders;
@@ -2459,11 +2459,11 @@ void GraphicsLibrary::install(Engine &engine)
             X = &args[0]; Y = &args[1]; Z = &args[2]; V = &args[3];
             sx = &args[4]; sy = &args[5]; sz = &args[6];
         } else {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         if (!V || V->dims().ndims() != 3) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
 
@@ -2471,7 +2471,7 @@ void GraphicsLibrary::install(Engine &engine)
         const size_t N = V->dims().cols();
         const size_t P = V->dims().pages();
         if (M < 2 || N < 2 || P < 2) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
 
@@ -2684,7 +2684,7 @@ void GraphicsLibrary::install(Engine &engine)
             pushSlice('z', P / 2, vmid);
         }
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("surface", "slice", sliceImpl);
 
@@ -3010,14 +3010,14 @@ void GraphicsLibrary::install(Engine &engine)
             V = &args[0];   // iso defaults to mean
         }
         if (!V || V->dims().ndims() != 3) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
 
         const size_t M = V->dims().rows();
         const size_t N = V->dims().cols();
         const size_t P = V->dims().pages();
-        if (M < 2 || N < 2 || P < 2) { outs[0] = Value::empty(); return; }
+        if (M < 2 || N < 2 || P < 2) { outs[0] = Value(); return; }
 
         std::vector<double> Xs(N), Ys(M), Zs(P);
         if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
@@ -3152,7 +3152,7 @@ void GraphicsLibrary::install(Engine &engine)
         ds.style = buf;
         fm.pushDataset(std::move(ds));
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("surface", "isosurface", isosurfaceImpl);
 
@@ -3195,12 +3195,12 @@ void GraphicsLibrary::install(Engine &engine)
             Cx = &args[6]; Cy = &args[7]; Cz = &args[8];
             if (args.size() >= 10) S = args[9].toScalar();
         } else {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
-        if (!U || !Vv || !W) { outs[0] = Value::empty(); return; }
+        if (!U || !Vv || !W) { outs[0] = Value(); return; }
         const auto &dims = U->dims();
-        if (dims.ndims() != 3) { outs[0] = Value::empty(); return; }
+        if (dims.ndims() != 3) { outs[0] = Value(); return; }
         const size_t M = dims.rows();
         const size_t N = dims.cols();
         const size_t P = dims.pages();
@@ -3279,7 +3279,7 @@ void GraphicsLibrary::install(Engine &engine)
                                           Vat(i, j, k),
                                           Wat(i, j, k) });
         }
-        if (cones.empty()) { outs[0] = Value::empty(); return; }
+        if (cones.empty()) { outs[0] = Value(); return; }
 
         // Auto-scale: largest vector magnitude in the field divided
         // by 0.4 × the smallest grid spacing → cones don't overlap.
@@ -3288,7 +3288,7 @@ void GraphicsLibrary::install(Engine &engine)
             const double m = std::sqrt(c.u * c.u + c.v * c.v + c.w * c.w);
             if (m > maxMag) maxMag = m;
         }
-        if (maxMag <= 0) { outs[0] = Value::empty(); return; }
+        if (maxMag <= 0) { outs[0] = Value(); return; }
         const double dx = (N > 1) ? (Xs[N - 1] - Xs[0]) / (N - 1) : 1.0;
         const double dy = (M > 1) ? (Ys[M - 1] - Ys[0]) / (M - 1) : 1.0;
         const double dz = (P > 1) ? (Zs[P - 1] - Zs[0]) / (P - 1) : 1.0;
@@ -3369,7 +3369,7 @@ void GraphicsLibrary::install(Engine &engine)
         ds.style = "color=#1f77b4;fillOpacity=0.9";
         fm.pushDataset(std::move(ds));
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("surface", "coneplot", coneplotImpl);
 
@@ -3402,11 +3402,11 @@ void GraphicsLibrary::install(Engine &engine)
             U = &args[3]; Vv = &args[4]; W = &args[5];
             sxV = &args[6]; syV = &args[7]; szV = &args[8];
         } else {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         if (!U || U->dims().ndims() != 3) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         const auto &dims = U->dims();
@@ -3578,7 +3578,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.pushDataset(std::move(ds));
         }
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("surface", "streamtube", streamtubeImpl);
 
@@ -3588,7 +3588,7 @@ void GraphicsLibrary::install(Engine &engine)
     reg("line", "quiver3",
         [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.size() < 6) { outs[0] = Value::empty(); return; }
+            if (args.size() < 6) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             DatasetInfo ds;
@@ -3610,7 +3610,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.style = sty.str();
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // contour3(Z[, n|levels]) — contour lines on the surface defined
@@ -3621,7 +3621,7 @@ void GraphicsLibrary::install(Engine &engine)
     reg("surface", "contour3",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             const Value *Z_arg = nullptr;
             const Value *levels_arg = nullptr;
             if (args.size() == 1) Z_arg = &args[0];
@@ -3629,10 +3629,10 @@ void GraphicsLibrary::install(Engine &engine)
                 Z_arg = &args[0];
                 levels_arg = &args[1];
             }
-            if (!Z_arg) { outs[0] = Value::empty(); return; }
+            if (!Z_arg) { outs[0] = Value(); return; }
             const size_t R = Z_arg->dims().rows();
             const size_t C = Z_arg->dims().cols();
-            if (R < 2 || C < 2) { outs[0] = Value::empty(); return; }
+            if (R < 2 || C < 2) { outs[0] = Value(); return; }
 
             std::ostringstream xs, ys, zs;
             xs << '[';
@@ -3680,7 +3680,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.style = sty.str();
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // surfc(Z) / meshc(Z) — surf/mesh + contour3 in a single figure.
@@ -3692,7 +3692,7 @@ void GraphicsLibrary::install(Engine &engine)
                               Span<Value> outs, CallContext &ctx) {
         (void)nargout;
         const ExternalFunc *cf = ctx.engine->findExternal(base, ctx.env);
-        if (!cf) { outs[0] = Value::empty(); return; }
+        if (!cf) { outs[0] = Value(); return; }
         std::array<Value, 1> tmp;
         (*cf)(args, 0, Span<Value>(tmp.data(), 1), ctx);
         // Hold on so contour3 doesn't clear the axes.
@@ -3700,7 +3700,7 @@ void GraphicsLibrary::install(Engine &engine)
         const ExternalFunc *cc = ctx.engine->findExternal("contour3", ctx.env);
         if (cc) (*cc)(args, 0, Span<Value>(tmp.data(), 1), ctx);
         ctx.engine->figureManager().currentAxes().holdOn = false;
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("surface", "surfc", [surfMeshContour](Span<const Value> a, size_t n, Span<Value> o, CallContext &c) {
         surfMeshContour("surf", a, n, o, c);
@@ -3722,14 +3722,14 @@ void GraphicsLibrary::install(Engine &engine)
     auto patchImpl = [](Span<const Value> args, size_t nargout,
                         Span<Value> outs, CallContext &ctx) {
         (void)nargout;
-        if (args.size() < 2) { outs[0] = Value::empty(); return; }
+        if (args.size() < 2) { outs[0] = Value(); return; }
         const auto &X = args[0];
         const auto &Y = args[1];
         const size_t R = X.dims().rows();
         const size_t C = std::max<size_t>(1, X.dims().cols());
-        if (R == 0) { outs[0] = Value::empty(); return; }
+        if (R == 0) { outs[0] = Value(); return; }
         if (Y.dims().rows() != R || std::max<size_t>(1, Y.dims().cols()) != C) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
 
@@ -3786,7 +3786,7 @@ void GraphicsLibrary::install(Engine &engine)
         ds.style = sty.str();
         fm.pushDataset(std::move(ds));
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("bar", "patch", patchImpl);
     reg("bar", "fill",  patchImpl);
@@ -3801,7 +3801,7 @@ void GraphicsLibrary::install(Engine &engine)
                       CallContext &ctx, bool tilt3d) {
         (void)nargout;
         if (args.empty() || args[0].numel() == 0) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         const auto &X = args[0];
@@ -3811,7 +3811,7 @@ void GraphicsLibrary::install(Engine &engine)
             const double v = X.doubleData()[i];
             if (std::isfinite(v) && v > 0) total += v;
         }
-        if (total <= 0) { outs[0] = Value::empty(); return; }
+        if (total <= 0) { outs[0] = Value(); return; }
 
         const Value *expl = (args.size() >= 2) ? &args[1] : nullptr;
         static const char *kPalette[] = {
@@ -3873,7 +3873,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.pushDataset(std::move(ds));
         }
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("bar", "pie",  [pieImpl](Span<const Value> a, size_t n, Span<Value> o, CallContext &c) {
         pieImpl(a, n, o, c, false);
@@ -3893,7 +3893,7 @@ void GraphicsLibrary::install(Engine &engine)
     auto boxImpl = [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
         (void)nargout;
         if (args.empty() || args[0].numel() == 0) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         const auto &M = args[0];
@@ -4016,7 +4016,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
         }
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("bar", "boxplot",  boxImpl);
     reg("bar", "boxchart", boxImpl);
@@ -4029,7 +4029,7 @@ void GraphicsLibrary::install(Engine &engine)
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             if (args.empty() || args[0].numel() == 0) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             const auto &M = args[0];
@@ -4139,7 +4139,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.pushDataset(std::move(dsM));
             }
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // bar3(Z) — 3-D bars. Emits raw 3-D coords so the WebGL renderer
@@ -4150,11 +4150,11 @@ void GraphicsLibrary::install(Engine &engine)
     reg("bar", "bar3",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             const auto &Z = args[0];
             const size_t R = Z.dims().rows();
             const size_t C = Z.dims().cols();
-            if (R == 0 || C == 0) { outs[0] = Value::empty(); return; }
+            if (R == 0 || C == 0) { outs[0] = Value(); return; }
 
             std::ostringstream xs, ys, zs;
             xs << '[';
@@ -4186,7 +4186,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.zJson = zs.str();
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // waterfall(Z) — row-by-row 3-D ribbons. Emits the same Z-matrix
@@ -4195,11 +4195,11 @@ void GraphicsLibrary::install(Engine &engine)
     reg("surface", "waterfall",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             const auto &Z = args[0];
             const size_t R = Z.dims().rows();
             const size_t C = Z.dims().cols();
-            if (R < 1 || C < 2) { outs[0] = Value::empty(); return; }
+            if (R < 1 || C < 2) { outs[0] = Value(); return; }
 
             std::ostringstream xs, ys, zs;
             xs << '[';
@@ -4231,7 +4231,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.zJson = zs.str();
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // fill3(X, Y, Z[, C]) — emits raw 3-D vertex arrays. Each column
@@ -4241,13 +4241,13 @@ void GraphicsLibrary::install(Engine &engine)
     reg("bar", "fill3",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            if (args.size() < 3) { outs[0] = Value(); return; }
             const auto &X = args[0], &Y = args[1], &Z = args[2];
             const size_t R = X.dims().rows();
             const size_t C = std::max<size_t>(1, X.dims().cols());
-            if (R == 0) { outs[0] = Value::empty(); return; }
+            if (R == 0) { outs[0] = Value(); return; }
             if (Y.dims().rows() != R || Z.dims().rows() != R) {
-                outs[0] = Value::empty(); return;
+                outs[0] = Value(); return;
             }
 
             // Wire format: x/y/z each as an array with `null`
@@ -4287,7 +4287,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.style = sty.str();
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── Function-based plots (fplot / fcontour / fsurf / fmesh) ─────
@@ -4299,7 +4299,7 @@ void GraphicsLibrary::install(Engine &engine)
                         Span<Value> outs, CallContext &ctx) {
         (void)nargout;
         if (args.empty() || !args[0].isFuncHandle()) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         const Value &fh = args[0];
@@ -4342,7 +4342,7 @@ void GraphicsLibrary::install(Engine &engine)
         ds.style = "color=#1f77b4";
         fm.pushDataset(std::move(ds));
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("line", "fplot", fplotImpl);
 
@@ -4378,7 +4378,7 @@ void GraphicsLibrary::install(Engine &engine)
                      Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             if (args.empty() || !args[0].isFuncHandle()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             double xa = -5, xb = 5, ya = -5, yb = 5;
@@ -4406,17 +4406,17 @@ void GraphicsLibrary::install(Engine &engine)
             std::array<Value, 3> proxied{ Xv, Yv, Z };
             std::array<Value, 1> outBuf;
             const ExternalFunc *cf = ctx.engine->findExternal("contour", ctx.env);
-            if (!cf) { outs[0] = Value::empty(); return; }
+            if (!cf) { outs[0] = Value(); return; }
             (*cf)(Span<const Value>(proxied.data(), 3), 0,
                   Span<Value>(outBuf.data(), 1), ctx);
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     auto fSurfMeshImpl = [sampleGrid](Span<const Value> args, size_t nargout,
                                       Span<Value> outs, CallContext &ctx) {
         (void)nargout;
         if (args.empty() || !args[0].isFuncHandle()) {
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         double xa = -5, xb = 5, ya = -5, yb = 5;
@@ -4442,10 +4442,10 @@ void GraphicsLibrary::install(Engine &engine)
         std::array<Value, 3> proxied{ Xv, Yv, Z };
         std::array<Value, 1> outBuf;
         const ExternalFunc *cf = ctx.engine->findExternal("surf", ctx.env);
-        if (!cf) { outs[0] = Value::empty(); return; }
+        if (!cf) { outs[0] = Value(); return; }
         (*cf)(Span<const Value>(proxied.data(), 3), 0,
               Span<Value>(outBuf.data(), 1), ctx);
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("line", "fsurf", fSurfMeshImpl);
     reg("line", "fmesh", fSurfMeshImpl);
@@ -4460,7 +4460,7 @@ void GraphicsLibrary::install(Engine &engine)
                 || !args[0].isFuncHandle()
                 || !args[1].isFuncHandle()
                 || !args[2].isFuncHandle()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             const Value &fx = args[0];
@@ -4506,7 +4506,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.style = "color=#1f77b4";
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── Streamlines — RK4 integration over a 2-D vector field ────────
@@ -4519,19 +4519,19 @@ void GraphicsLibrary::install(Engine &engine)
                          Span<const Value> args, size_t nargout,
                          Span<Value> outs, CallContext &ctx) {
         (void)nargout;
-        if (args.size() < 4) { outs[0] = Value::empty(); return; }
+        if (args.size() < 4) { outs[0] = Value(); return; }
         const auto &Xv = args[0];
         const auto &Yv = args[1];
         const auto &Uv = args[2];
         const auto &Vv = args[3];
         const size_t Cx = Xv.numel();
         const size_t Ry = Yv.numel();
-        if (Cx < 2 || Ry < 2) { outs[0] = Value::empty(); return; }
+        if (Cx < 2 || Ry < 2) { outs[0] = Value(); return; }
         if (Uv.dims().rows() != Ry || Uv.dims().cols() != Cx) {
-            outs[0] = Value::empty(); return;
+            outs[0] = Value(); return;
         }
         if (Vv.dims().rows() != Ry || Vv.dims().cols() != Cx) {
-            outs[0] = Value::empty(); return;
+            outs[0] = Value(); return;
         }
 
         std::vector<double> Xs(Cx), Ys(Ry);
@@ -4600,7 +4600,7 @@ void GraphicsLibrary::install(Engine &engine)
                 }
             }
         } else {
-            if (args.size() < 6) { outs[0] = Value::empty(); return; }
+            if (args.size() < 6) { outs[0] = Value(); return; }
             const auto &SX = args[4];
             const auto &SY = args[5];
             const size_t N = std::min(SX.numel(), SY.numel());
@@ -4684,7 +4684,7 @@ void GraphicsLibrary::install(Engine &engine)
         ds.style = "color=#2078b4";
         fm.pushDataset(std::move(ds));
         fm.emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("line", "streamline",
         [streamImpl](Span<const Value> args, size_t nargout,
@@ -4702,7 +4702,7 @@ void GraphicsLibrary::install(Engine &engine)
         [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, CallContext &ctx) {
             if (args.size() < 2) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -4720,7 +4720,7 @@ void GraphicsLibrary::install(Engine &engine)
             parsePlotArgs(args, nvStart, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // polarscatter(theta, rho) — markers at each (θ, ρ) on the polar
@@ -4729,7 +4729,7 @@ void GraphicsLibrary::install(Engine &engine)
     reg("polar", "polarscatter",
         [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, CallContext &ctx) {
-            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            if (args.size() < 2) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             fm.currentAxes().polar = true;
@@ -4745,7 +4745,7 @@ void GraphicsLibrary::install(Engine &engine)
             parsePlotArgs(args, nvStart, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // Shared helper for the two angular-histogram builtins. Bins
@@ -4791,7 +4791,7 @@ void GraphicsLibrary::install(Engine &engine)
         [computeAngularHistogram](Span<const Value> args, size_t nargout,
                                   Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
             int nbins = (args.size() >= 2 && args[1].numel() == 1)
                         ? std::max(1, (int)args[1].toScalar())
                         : 36;   // 10° bins by default
@@ -4806,7 +4806,7 @@ void GraphicsLibrary::install(Engine &engine)
             ds.yJson = std::move(ty);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // polarbubblechart(theta, rho, [sz], [c]) — scatter on polar
@@ -4823,7 +4823,7 @@ void GraphicsLibrary::install(Engine &engine)
     reg("polar", "polarbubblechart",
         [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, CallContext &ctx) {
-            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            if (args.size() < 2) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             fm.currentAxes().polar = true;
@@ -4865,7 +4865,7 @@ void GraphicsLibrary::install(Engine &engine)
             parsePlotArgs(args, (args.size() >= 4 && !args[3].isChar()) ? 4 : 3, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // rose(theta[, nbins]) — angular histogram, the classic MATLAB
@@ -4878,7 +4878,7 @@ void GraphicsLibrary::install(Engine &engine)
         [computeAngularHistogram](Span<const Value> args, size_t nargout,
                                   Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty() || args[0].numel() == 0) { outs[0] = Value::empty(); return; }
+            if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
             int nbins = (args.size() >= 2 && args[1].numel() == 1)
                         ? std::max(1, (int)args[1].toScalar())
                         : 20;
@@ -4893,14 +4893,14 @@ void GraphicsLibrary::install(Engine &engine)
             ds.yJson = std::move(ty);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("line", "stem",
         [parsePlotXYStyle, parsePlotArgs](Span<const Value> args, size_t nargout,
                                           Span<Value> outs, CallContext &ctx) {
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -4911,14 +4911,14 @@ void GraphicsLibrary::install(Engine &engine)
             parsePlotArgs(args, nvStart, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("line", "stairs",
         [parsePlotXYStyle, parsePlotArgs](Span<const Value> args, size_t nargout,
                                           Span<Value> outs, CallContext &ctx) {
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -4929,7 +4929,7 @@ void GraphicsLibrary::install(Engine &engine)
             parsePlotArgs(args, nvStart, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // errorbar(y, e)                — x = 1:N, symmetric e
@@ -4945,7 +4945,7 @@ void GraphicsLibrary::install(Engine &engine)
         [vecToJson, makeIndexJson, parsePlotArgs](Span<const Value> args, size_t nargout,
                                                   Span<Value> outs, CallContext &ctx) {
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -4993,7 +4993,7 @@ void GraphicsLibrary::install(Engine &engine)
             parsePlotArgs(args, nvStart, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── Log-scale plot types — graphics.line ────────────────────────
@@ -5005,7 +5005,7 @@ void GraphicsLibrary::install(Engine &engine)
                 Span<const Value> args, size_t nargout, Span<Value> outs,
                 CallContext &ctx) {
                 if (args.empty()) {
-                    outs[0] = Value::empty();
+                    outs[0] = Value();
                     return;
                 }
                 auto &fm = ctx.engine->figureManager();
@@ -5018,7 +5018,7 @@ void GraphicsLibrary::install(Engine &engine)
                 parsePlotArgs(args, nvStart, ds);
                 fm.pushDataset(std::move(ds));
                 fm.emitModified();
-                outs[0] = Value::empty();
+                outs[0] = Value();
             });
     };
     registerLogPlot("semilogx", "log", "linear");
@@ -5037,7 +5037,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     reg("layout", "subtitle",
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
@@ -5047,7 +5047,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     // sgtitle — figure-level "super title". Writes to
     // FigureState.superTitle (a dedicated slot, separate from per-axes
@@ -5062,7 +5062,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "xlabel",
@@ -5073,7 +5073,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // text(x, y, str, ...) — annotation overlay. Each call appends ONE
@@ -5085,10 +5085,10 @@ void GraphicsLibrary::install(Engine &engine)
     // labels stay on top of imagesc / scatter.
     reg("layout", "text",
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            if (args.size() < 3) { outs[0] = Value(); return; }
             const Value &xv = args[0];
             const Value &yv = args[1];
-            if (!xv.numel() || !yv.numel()) { outs[0] = Value::empty(); return; }
+            if (!xv.numel() || !yv.numel()) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             // text() does NOT call prepareForPlot — it's an annotation,
             // it should append to whatever's already there even without
@@ -5122,7 +5122,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.pushDataset(std::move(ds));
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "ylabel",
@@ -5138,7 +5138,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "xlim",
@@ -5149,7 +5149,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "ylim",
@@ -5164,7 +5164,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "grid",
@@ -5190,7 +5190,7 @@ void GraphicsLibrary::install(Engine &engine)
             ax.gridUserTouched = true;
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // Normalise a Location string ("NorthWest" → "northwest"). MATLAB
@@ -5265,7 +5265,7 @@ void GraphicsLibrary::install(Engine &engine)
                     ax.legendLocation.clear();
                     fm.current().modified = true;
                     fm.emitModified();
-                    outs[0] = Value::empty();
+                    outs[0] = Value();
                     return;
                 }
                 if (i == 0 && (sLower == "show" || sLower == "on")) {
@@ -5287,7 +5287,7 @@ void GraphicsLibrary::install(Engine &engine)
                 ax.legendLocation = newLoc;
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "colorbar",
@@ -5315,13 +5315,13 @@ void GraphicsLibrary::install(Engine &engine)
                     ax.colorbarLocation.clear();
                     fm.current().modified = true;
                     fm.emitModified();
-                    outs[0] = Value::empty();
+                    outs[0] = Value();
                     return;
                 }
             }
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "axis",
@@ -5345,7 +5345,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // xdir / ydir — direct setters. MATLAB also accepts
@@ -5362,7 +5362,7 @@ void GraphicsLibrary::install(Engine &engine)
                     fm.emitModified();
                 }
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     reg("layout", "ydir",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
@@ -5375,7 +5375,7 @@ void GraphicsLibrary::install(Engine &engine)
                     fm.emitModified();
                 }
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── Polar-specific settings — graphics.polar ─────────────────────
@@ -5387,7 +5387,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("polar", "thetalim",
@@ -5398,7 +5398,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("polar", "thetadir",
@@ -5409,7 +5409,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("polar", "thetazero",
@@ -5420,7 +5420,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // MATLAB calls the property ThetaZeroLocation; the convenience
@@ -5434,7 +5434,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // thetaticks(degrees) — set theta tick positions on the polar
@@ -5448,7 +5448,7 @@ void GraphicsLibrary::install(Engine &engine)
                 (args.empty() || args[0].numel() == 0) ? "" : vecToJson(args[0]);
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // rticks(values) — set radial tick positions in r-axis units.
@@ -5461,7 +5461,7 @@ void GraphicsLibrary::install(Engine &engine)
                 (args.empty() || args[0].numel() == 0) ? "" : vecToJson(args[0]);
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // Helper: build a JSON array of strings from a Value that's
@@ -5505,7 +5505,7 @@ void GraphicsLibrary::install(Engine &engine)
                 args.empty() ? "" : strArrToJson(args[0]);
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("polar", "rticklabels",
@@ -5515,7 +5515,7 @@ void GraphicsLibrary::install(Engine &engine)
                 args.empty() ? "" : strArrToJson(args[0]);
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── Color limits & colormap — graphics.layout ─────────────────────
@@ -5527,7 +5527,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "clim",
@@ -5538,12 +5538,12 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "colormap",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             auto &ax = fm.currentAxes();
             if (args[0].isChar()) {
@@ -5558,7 +5558,7 @@ void GraphicsLibrary::install(Engine &engine)
                 const std::size_t R = M.dims().rows();
                 const std::size_t C = M.dims().cols();
                 if (C != 3 || R == 0) {
-                    outs[0] = Value::empty();
+                    outs[0] = Value();
                     return;
                 }
                 std::ostringstream os;
@@ -5577,7 +5577,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // colorscale('log' | 'linear') — must be called BEFORE imagesc(M).
@@ -5597,7 +5597,7 @@ void GraphicsLibrary::install(Engine &engine)
                     fm.currentAxes().colorScale = mode;
                 }
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // xscale / yscale('log' | 'linear') — set the axis scale of the current
@@ -5625,7 +5625,7 @@ void GraphicsLibrary::install(Engine &engine)
                     ax.*field = mode;
                 fm.current().modified = true;
                 fm.emitModified();
-                outs[0] = Value::empty();
+                outs[0] = Value();
             });
     };
     regAxisScale("xscale", &AxesState::xscale);
@@ -5649,7 +5649,7 @@ void GraphicsLibrary::install(Engine &engine)
             ax.activeYside = side;
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ================================================================
@@ -5657,7 +5657,7 @@ void GraphicsLibrary::install(Engine &engine)
     // ================================================================
 
     auto noop = [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     auto noop_ret1 = [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
         outs[0] = Value::scalar(1.0, ctx.engine->resource());
@@ -5693,7 +5693,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().linkMode = mode;
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // rotate3d / pan3d / zoom3d (on|off) — toggle the OrbitControls
@@ -5711,7 +5711,7 @@ void GraphicsLibrary::install(Engine &engine)
         ctx.engine->figureManager().currentAxes().*field = mode;
         ctx.engine->figureManager().current().modified = true;
         ctx.engine->figureManager().emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("layout", "rotate3d",
         [interactionToggle](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
@@ -5737,7 +5737,7 @@ void GraphicsLibrary::install(Engine &engine)
             auto &fm = ctx.engine->figureManager();
             auto &ax = fm.currentAxes();
             if (args.empty()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             if (args[0].isChar()) {
@@ -5748,7 +5748,7 @@ void GraphicsLibrary::install(Engine &engine)
                     fm.current().modified = true;
                     fm.emitModified();
                 }
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             std::ostringstream os;
@@ -5762,7 +5762,7 @@ void GraphicsLibrary::install(Engine &engine)
             ax.*field = os.str();
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         };
     };
     reg("layout", "xticks", ticksReg(&AxesState::xTicksJson));
@@ -5779,7 +5779,7 @@ void GraphicsLibrary::install(Engine &engine)
             (void)nargout;
             auto &fm = ctx.engine->figureManager();
             auto &ax = fm.currentAxes();
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             if (args[0].isChar()) {
                 std::string s = args[0].toString();
                 std::string sl;
@@ -5789,7 +5789,7 @@ void GraphicsLibrary::install(Engine &engine)
                     fm.current().modified = true;
                     fm.emitModified();
                 }
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             // Build "[\"a\",\"b\",...]" from cell/string-array.
@@ -5811,7 +5811,7 @@ void GraphicsLibrary::install(Engine &engine)
             ax.*field = os.str();
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         };
     };
     reg("layout", "xticklabels", tickLabelsReg(&AxesState::xTickLabelsJson));
@@ -5827,7 +5827,7 @@ void GraphicsLibrary::install(Engine &engine)
             auto &fm = ctx.engine->figureManager();
             auto &ax = fm.currentAxes();
             if (args.empty() || !args[0].isChar()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             std::string s = args[0].toString();
@@ -5840,7 +5840,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         };
     };
     reg("layout", "xtickformat", tickFormatReg(&AxesState::xTickFormat));
@@ -5853,11 +5853,11 @@ void GraphicsLibrary::install(Engine &engine)
                        Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             auto &fm = ctx.engine->figureManager();
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             fm.currentAxes().*field = args[0].toScalar();
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         };
     };
     reg("layout", "xtickangle", tickAngleReg(&AxesState::xTickAngle));
@@ -5871,7 +5871,7 @@ void GraphicsLibrary::install(Engine &engine)
                          Span<Value> outs, CallContext &ctx) {
         (void)nargout;
         auto &fm = ctx.engine->figureManager();
-        if (args.empty()) { outs[0] = Value::empty(); return; }
+        if (args.empty()) { outs[0] = Value(); return; }
         if (args[0].isChar()) {
             std::string s = args[0].toString();
             for (auto &c : s) c = (char)std::tolower((unsigned char)c);
@@ -5880,7 +5880,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
             return;
         }
         if (args[0].numel() >= 3) {
@@ -5894,7 +5894,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.emitModified();
             }
         }
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("layout", "daspect",  aspectImpl);
     reg("layout", "pbaspect", aspectImpl);
@@ -5916,7 +5916,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     reg("layout", "axes", noop_ret1);
@@ -5954,7 +5954,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // linkprop / linkdata — handle-based property linking. We don't
@@ -6039,11 +6039,11 @@ void GraphicsLibrary::install(Engine &engine)
             auto &ax = fm.currentAxes();
             if (ax.animatedDatasetIdx < 0
                 || (size_t)ax.animatedDatasetIdx >= ax.datasets.size()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             // Skip args[0] (handle) — addpoints(h, x, y).
-            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            if (args.size() < 3) { outs[0] = Value(); return; }
             const auto &xa = args[1];
             const auto &ya = args[2];
             const size_t n = std::min(xa.numel(), ya.numel());
@@ -6057,7 +6057,7 @@ void GraphicsLibrary::install(Engine &engine)
             rebuildAnimatedJson(ds);
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     reg("layout", "clearpoints",
         [rebuildAnimatedJson](Span<const Value> args, size_t nargout,
@@ -6068,7 +6068,7 @@ void GraphicsLibrary::install(Engine &engine)
             auto &ax = fm.currentAxes();
             if (ax.animatedDatasetIdx < 0
                 || (size_t)ax.animatedDatasetIdx >= ax.datasets.size()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &ds = ax.datasets[(size_t)ax.animatedDatasetIdx];
@@ -6077,7 +6077,7 @@ void GraphicsLibrary::install(Engine &engine)
             rebuildAnimatedJson(ds);
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     reg("layout", "getpoints",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
@@ -6087,8 +6087,8 @@ void GraphicsLibrary::install(Engine &engine)
             auto &ax = fm.currentAxes();
             if (ax.animatedDatasetIdx < 0
                 || (size_t)ax.animatedDatasetIdx >= ax.datasets.size()) {
-                outs[0] = Value::empty();
-                if (nargout >= 2) outs[1] = Value::empty();
+                outs[0] = Value();
+                if (nargout >= 2) outs[1] = Value();
                 return;
             }
             const auto &ds = ax.datasets[(size_t)ax.animatedDatasetIdx];
@@ -6113,7 +6113,7 @@ void GraphicsLibrary::install(Engine &engine)
             auto &fm = ctx.engine->figureManager();
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ────────────────────────────────────────────────────────────────
@@ -6131,7 +6131,7 @@ void GraphicsLibrary::install(Engine &engine)
     // ────────────────────────────────────────────────────────────────
     auto geoForward = [](const char *target, Span<const Value> args,
                          Span<Value> outs, CallContext &ctx) {
-        if (args.size() < 2) { outs[0] = Value::empty(); return; }
+        if (args.size() < 2) { outs[0] = Value(); return; }
         // Build a new arg list with (lon, lat, ...) — i.e. swap the
         // first two so target's X = lon, Y = lat.
         std::vector<Value> proxied;
@@ -6141,7 +6141,7 @@ void GraphicsLibrary::install(Engine &engine)
         for (size_t i = 2; i < args.size(); ++i) proxied.push_back(args[i]);
         std::array<Value, 4> outBuf;
         const ExternalFunc *cf = ctx.engine->findExternal(target, ctx.env);
-        if (!cf) { outs[0] = Value::empty(); return; }
+        if (!cf) { outs[0] = Value(); return; }
         (*cf)(Span<const Value>(proxied.data(), proxied.size()), 0,
               Span<Value>(outBuf.data(), 1), ctx);
         // Add convenience axis labels so the "no basemap" output is
@@ -6151,7 +6151,7 @@ void GraphicsLibrary::install(Engine &engine)
         if (ax.ylabel.empty()) ax.ylabel = "lat";
         ctx.engine->figureManager().current().modified = true;
         ctx.engine->figureManager().emitModified();
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("line", "geoplot",
         [geoForward](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
@@ -6176,10 +6176,10 @@ void GraphicsLibrary::install(Engine &engine)
     auto delegateTo = [](const char *target, Span<const Value> args,
                          Span<Value> outs, CallContext &ctx) {
         const ExternalFunc *cf = ctx.engine->findExternal(target, ctx.env);
-        if (!cf) { outs[0] = Value::empty(); return; }
+        if (!cf) { outs[0] = Value(); return; }
         std::array<Value, 1> outBuf;
         (*cf)(args, 0, Span<Value>(outBuf.data(), 1), ctx);
-        outs[0] = Value::empty();
+        outs[0] = Value();
     };
     reg("bar", "bubblechart",
         [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
@@ -6198,7 +6198,7 @@ void GraphicsLibrary::install(Engine &engine)
         [](Span<const Value> args, size_t nargout,
            Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            if (args.size() < 2) { outs[0] = Value(); return; }
             const auto &xv = args[0];
             const auto &yv = args[1];
             const size_t n = std::min(xv.numel(), yv.numel());
@@ -6246,7 +6246,7 @@ void GraphicsLibrary::install(Engine &engine)
                 (*cf)(Span<const Value>(proxied.data(), proxied.size()), 0,
                       Span<Value>(outBuf.data(), 1), ctx);
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     reg("bar", "swarmchart3",
         [delegateTo](Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
@@ -6305,14 +6305,14 @@ void GraphicsLibrary::install(Engine &engine)
     reg("line", "triplot",
         [parsePlotArgs](Span<const Value> args, size_t /*nargout*/,
                         Span<Value> outs, CallContext &ctx) {
-            if (args.size() < 3) { outs[0] = Value::empty(); return; }
+            if (args.size() < 3) { outs[0] = Value(); return; }
             const auto &TRI = args[0];
             const auto &xv  = args[1];
             const auto &yv  = args[2];
             const std::size_t M = TRI.dims().rows();
             const std::size_t N = xv.numel();
             if (yv.numel() != N || TRI.dims().cols() != 3 || M == 0) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -6349,7 +6349,7 @@ void GraphicsLibrary::install(Engine &engine)
             parsePlotArgs(args, nvStart, ds);
             fm.pushDataset(std::move(ds));
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ────────────────────────────────────────────────────────────────
@@ -6374,11 +6374,11 @@ void GraphicsLibrary::install(Engine &engine)
         [delegateTo](Span<const Value> args, size_t nargout,
                      Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.size() < 2) { outs[0] = Value::empty(); return; }
+            if (args.size() < 2) { outs[0] = Value(); return; }
             const auto &xv = args[0];
             const auto &yv = args[1];
             const size_t n = xv.numel();
-            if (yv.numel() != n || n < 3) { outs[0] = Value::empty(); return; }
+            if (yv.numel() != n || n < 3) { outs[0] = Value(); return; }
             std::vector<double> X(n), Y(n);
             for (size_t i = 0; i < n; ++i) {
                 X[i] = xv.elemAsDouble(i);
@@ -6541,7 +6541,7 @@ void GraphicsLibrary::install(Engine &engine)
             // modified flag. Re-flag so the JSON re-emits with our xlim.
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // heatmap(C) — table-style heatmap. Same data layout as imagesc:
@@ -6661,10 +6661,10 @@ void GraphicsLibrary::install(Engine &engine)
     // labels on both axes.
     reg("bar", "confusionchart",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             // Forward to heatmap (cellLabel default on, no Colormap).
             const ExternalFunc *hf = ctx.engine->findExternal("heatmap", ctx.env);
-            if (!hf) { outs[0] = Value::empty(); return; }
+            if (!hf) { outs[0] = Value(); return; }
             std::array<Value, 1> outBuf;
             std::array<Value, 1> proxied{ args[0] };
             (*hf)(Span<const Value>(proxied.data(), 1), 0,
@@ -6705,7 +6705,7 @@ void GraphicsLibrary::install(Engine &engine)
             }
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // parallelplot — parallel-coordinates plot. v1 routes each row of
@@ -6714,18 +6714,18 @@ void GraphicsLibrary::install(Engine &engine)
     reg("line", "parallelplot",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             const auto &T = args[0];
             const size_t R = T.dims().rows();
             const size_t C = T.dims().cols();
-            if (R == 0 || C == 0) { outs[0] = Value::empty(); return; }
+            if (R == 0 || C == 0) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.prepareForPlot();
             // Hold on so all rows pile in one figure.
             const bool wasHold = fm.currentAxes().holdOn;
             fm.currentAxes().holdOn = true;
             const ExternalFunc *cf = ctx.engine->findExternal("plot", ctx.env);
-            if (!cf) { outs[0] = Value::empty(); return; }
+            if (!cf) { outs[0] = Value(); return; }
             auto *mr = ctx.engine->resource();
             auto xv = Value::matrix(1, C, ValueType::DOUBLE, mr);
             for (size_t c = 0; c < C; ++c) xv.doubleDataMut()[c] = (double)(c + 1);
@@ -6739,31 +6739,31 @@ void GraphicsLibrary::install(Engine &engine)
                       Span<Value>(outBuf.data(), 1), ctx);
             }
             fm.currentAxes().holdOn = wasHold;
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // zlabel(text) — 3-D Z-axis label.
     reg("layout", "zlabel",
         [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.currentAxes().zlabel = argStr(args[0]);
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // zlim([z0, z1]) — 3-D Z-axis limits.
     reg("layout", "zlim",
         [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty() || args[0].numel() < 2) { outs[0] = Value::empty(); return; }
+            if (args.empty() || args[0].numel() < 2) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             fm.currentAxes().zlimJson = vecToJson(args[0]);
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     // view(az, el) — set the 3-D camera azimuth/elevation in degrees.
     // Both args required for the (az, el) form; 2-element vector also
@@ -6772,7 +6772,7 @@ void GraphicsLibrary::install(Engine &engine)
     reg("layout", "view",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
-            if (args.empty()) { outs[0] = Value::empty(); return; }
+            if (args.empty()) { outs[0] = Value(); return; }
             auto &fm = ctx.engine->figureManager();
             double az = 0, el = 0;
             bool ok = false;
@@ -6791,13 +6791,13 @@ void GraphicsLibrary::install(Engine &engine)
                 el = args[0].doubleData()[1];
                 ok = true;
             }
-            if (!ok) { outs[0] = Value::empty(); return; }
+            if (!ok) { outs[0] = Value(); return; }
             std::ostringstream os;
             os << "[" << az << "," << el << "]";
             fm.currentAxes().viewJson = os.str();
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
     reg("layout", "set", noop);
     reg("layout", "get", noop_ret1);
@@ -6819,7 +6819,7 @@ void GraphicsLibrary::install(Engine &engine)
                       Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             if (args.empty() || !args[0].numel()) {
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             auto &fm = ctx.engine->figureManager();
@@ -6842,7 +6842,7 @@ void GraphicsLibrary::install(Engine &engine)
                 fm.pushDataset(std::move(ds));
             }
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         };
     };
     reg("line", "xline", refLineImpl("xline"));
@@ -6863,7 +6863,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.currentAxes().camlightPos = pos;
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // lighting('flat'|'gouraud'|'phong'|'none') — material shading
@@ -6884,7 +6884,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.currentAxes().lightingMode = m;
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // material('shiny'|'metal'|'dull') — preset specular response
@@ -6902,7 +6902,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.currentAxes().materialPreset = m;
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // surfl(Z[, X, Y]) — surf + auto camlight + lighting gouraud.
@@ -6913,7 +6913,7 @@ void GraphicsLibrary::install(Engine &engine)
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             (void)nargout;
             const ExternalFunc *cf = ctx.engine->findExternal("surf", ctx.env);
-            if (!cf) { outs[0] = Value::empty(); return; }
+            if (!cf) { outs[0] = Value(); return; }
             std::array<Value, 1> outBuf;
             (*cf)(args, 0, Span<Value>(outBuf.data(), 1), ctx);
             auto &fm = ctx.engine->figureManager();
@@ -6922,7 +6922,7 @@ void GraphicsLibrary::install(Engine &engine)
             fm.currentAxes().materialPreset = "shiny";
             fm.current().modified = true;
             fm.emitModified();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 }
 

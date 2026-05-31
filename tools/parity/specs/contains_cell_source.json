@@ -1,0 +1,16 @@
+{
+  "name": "contains_cell_source",
+  "namespace": "builtin",
+  "covers": ["contains", "startsWith", "endsWith"],
+  "setup": "",
+  "expr": "ca = double(contains({'hello','world','help'},'el')); sa = double(startsWith({'hello','world','help'},'he')); ea = double(endsWith([\"cat.txt\",\"dog.csv\",\"fish.txt\"],'.txt')); m = contains({'ab','cd';'be','xy'},'b'); m11 = double(m(1,1)); m21 = double(m(2,1)); m12 = double(m(1,2)); ic = double(startsWith({'Hello','world'},'he','IgnoreCase',true)); mp = double(contains({'foo','bar','baz'},{'oo','az'}));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "ca(1)", "ca(2)", "ca(3)", "sa(1)", "sa(2)",
+    "ea(1)", "ea(2)", "ea(3)", "m11", "m21", "m12",
+    "ic(1)", "ic(2)", "mp(1)", "mp(2)", "mp(3)"
+  ],
+  "deep_verified": true,
+  "comment": "contains/startsWith/endsWith on a CELL array or non-scalar string-array SOURCE vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit threw 'Not a char array' on a cell source and returned a SCALAR on a string-array source. MATLAB maps element-wise to a LOGICAL array of the SAME shape (any-match over the pattern set; honours 'IgnoreCase'). The three now share a strPredicate driver + strMatchAny helper. contains({'hello','world','help'},'el')=[1 0 1]; startsWith(... ,'he')=[1 0 1]; endsWith([\"cat.txt\" \"dog.csv\" \"fish.txt\"],'.txt')=[1 0 1]; 2x2 cell contains 'b' -> [1 1;0 0]; cell+IgnoreCase startsWith=[1 0]; multi-pattern contains({'foo','bar','baz'},{'oo','az'})=[1 0 1]. Scalar source still a logical scalar. covers:[contains,startsWith,endsWith]."
+}

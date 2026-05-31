@@ -198,6 +198,10 @@ inline double row_distance(const double *x, const double *y, size_t D,
             }
             return considered > 0 ? double(diff) / double(considered) : 0.0;
         }
+        case Metric::Mahalanobis:
+            // Mahalanobis needs the covariance matrix and is handled by a
+            // dedicated path (mahal_*), never via pairwise row_distance.
+            break;
     }
     return 0.0;
 }
