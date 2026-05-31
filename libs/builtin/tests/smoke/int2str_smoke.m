@@ -23,3 +23,8 @@ fprintf('int2str(NaN)  = [%s] (expect NaN)\n',  int2str(NaN));
 fprintf('\n=== integer-class input + -0 ===\n');
 fprintf('int2str(int8(5)) = [%s] (expect 5)\n', int2str(int8(5)));
 fprintf('int2str(-0)      = [%s] (expect 0)\n', int2str(-0));
+
+fprintf('\n=== complex scalar: real part only (DEEP-PROBE 2026-05-31) ===\n');
+% MATLAB int2str operates on the real part; the imaginary part is discarded.
+fprintf('int2str(3.6+1.2i)  = [%s] (expect 4)\n',  int2str(3.6+1.2i));
+fprintf('int2str(-3.2-4.8i) = [%s] (expect -3)\n', int2str(-3.2-4.8i));

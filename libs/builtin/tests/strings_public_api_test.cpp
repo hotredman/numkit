@@ -178,6 +178,17 @@ TEST(BuiltinStringsPublicApi, Int2StrScalar)
     EXPECT_EQ(i2s(std::numeric_limits<double>::infinity()),  "Inf");
     EXPECT_EQ(i2s(-std::numeric_limits<double>::infinity()), "-Inf");
     EXPECT_EQ(i2s(std::nan("")), "NaN");
+
+    // Complex scalar: MATLAB int2str operates on the REAL part (imag
+    // discarded). Previously threw "Cannot convert complex ... to scalar".
+    // vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+    auto i2sc = [&](double re, double im) {
+        return numkit::builtin::int2str(Value::complexScalar(std::complex<double>(re, im), mr), mr)
+            .toString();
+    };
+    EXPECT_EQ(i2sc(3.6, 1.2),   "4");    // round(3.6)=4, imag discarded
+    EXPECT_EQ(i2sc(-3.2, -4.8), "-3");   // round(-3.2)=-3
+    EXPECT_EQ(i2sc(7.0, 0.0),   "7");    // pure-real complex
 }
 
 // validatestring: case-insensitive; exact match wins, else a unique prefix,
