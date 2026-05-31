@@ -616,6 +616,16 @@ public:
                 os << ",\"min\":" << mn
                    << ",\"max\":" << mx
                    << ",\"mean\":" << (sum / n);
+                // Full stat set (median/mode/var/std) for the matrix
+                // StatsBar's column chooser — same helper the struct/
+                // workspace serializers use.
+                numkit::ValueStats fs;
+                if (numkit::computeValueStats(val, fs)) {
+                    os << ",\"median\":" << fs.median
+                       << ",\"mode\":" << fs.mode
+                       << ",\"var\":" << fs.var
+                       << ",\"std\":" << fs.std;
+                }
             } else {
                 os << ",\"min\":null,\"max\":null,\"mean\":null";
             }
