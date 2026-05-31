@@ -381,3 +381,36 @@ TEST_F(StringsBatchTest, ComposeMultiSpecAndClass)
     EXPECT_DOUBLE_EQ(evalScalar("double(isstring(S))"), 1.0);
     EXPECT_EQ(evalString("S(1)"), "1-2");
 }
+
+// hex2num / num2hex: IEEE-754 hex <-> float bit reinterpret vs MATLAB
+// R2025b. 2026-05-31: both were previously missing.
+TEST_F(StringsBatchTest, HexNumRoundTrip)
+{
+    // hex2num: hex bit-pattern -> double (NOT decimal digits)
+    EXPECT_DOUBLE_EQ(evalScalar("hex2num('3ff0000000000000')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hex2num('bff0000000000000')"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hex2num('4')"), 2.0);          // right-padded
+    EXPECT_DOUBLE_EQ(evalScalar("hex2num('41')"), 131072.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isinf(hex2num('7ff0000000000000')))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isnan(hex2num('fff8000000000000')))"), 1.0);
+    // char MATRIX -> N×1 double column
+    eval("D = hex2num(['3ff0000000000000'; '4000000000000000']);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(D,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(D,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(2)"), 2.0);
+    // num2hex: double -> 16 hex chars, single -> 8
+    EXPECT_EQ(evalString("num2hex(1)"),  "3ff0000000000000");
+    EXPECT_EQ(evalString("num2hex(-2)"), "c000000000000000");
+    EXPECT_EQ(evalString("num2hex(pi)"), "400921fb54442d18");
+    EXPECT_EQ(evalString("num2hex(single(1))"),  "3f800000");
+    EXPECT_EQ(evalString("num2hex(single(-2))"), "c0000000");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(num2hex(single(1)))"), 8.0);
+    // vector -> numel × 16 char matrix, row per element
+    eval("V = num2hex([1 2 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(V,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(V,2)"), 16.0);
+    EXPECT_EQ(evalString("V(2,:)"), "4000000000000000");
+    // round-trip and non-float error
+    EXPECT_DOUBLE_EQ(evalScalar("double(hex2num(num2hex(pi)) == pi)"), 1.0);
+    EXPECT_THROW(eval("num2hex(int8(5));"), std::exception);
+}
