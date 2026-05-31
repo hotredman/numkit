@@ -1,0 +1,14 @@
+{
+  "name": "regionprops_intensity",
+  "namespace": "image",
+  "covers": ["regionprops"],
+  "setup": "BW = false(4,4); BW(2,2)=true; BW(2,3)=true; BW(3,3)=true; I = reshape(1:16,4,4); I8 = uint8(reshape(0:10:150,4,4));",
+  "expr": "s = regionprops(BW, I, 'MeanIntensity','MaxIntensity','MinIntensity','WeightedCentroid','PixelValues'); mn = s.MeanIntensity; mx = s.MaxIntensity; mi = s.MinIntensity; wx = s.WeightedCentroid(1); wy = s.WeightedCentroid(2); npv = numel(s.PixelValues); pvrows = size(s.PixelValues,1); pv1 = s.PixelValues(1); pv3 = s.PixelValues(3); s8 = regionprops(BW, I8, 'MeanIntensity','MaxIntensity'); m8 = s8.MeanIntensity; mx8 = double(s8.MaxIntensity);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "mn", "mx", "mi", "wx", "wy", "npv", "pvrows", "pv1", "pv3", "m8", "mx8"
+  ],
+  "deep_verified": true,
+  "comment": "regionprops intensity-image form vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/image): regionprops(BW,I,props) was unsupported — a numeric 2nd arg threw 'property names must be strings'. Added the grayscale-image dispatch (numeric 2nd arg = intensity image) plus the intensity fields: MeanIntensity=mean(I over region) (double); MaxIntensity/MinIntensity=max/min(I); WeightedCentroid=sum(I*[x y])/sum(I); PixelValues=column vector of I values in PixelIdxList (column-major) order. Region {(2,2),(2,3),(3,3)} with I=reshape(1:16,4,4): pixel values [6;10;11] -> Mean=9, Max=11, Min=6, WeightedCentroid=[75/27 65/27]=[2.7777778 2.4074074]. uint8 image: Mean=80, Max=100. A string/cell 2nd arg is still a property; intensity fields are NOT in the basic default set. covers:[regionprops]."
+}

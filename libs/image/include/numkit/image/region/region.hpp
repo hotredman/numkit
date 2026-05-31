@@ -210,8 +210,12 @@ Value bwboundaries(const Value &BW, int conn,
 /// @param props    Property names to compute.
 /// @param mr       Memory resource (nullptr → process default).
 /// @return         Struct array (one element per region).
+/// @param intensity  Optional grayscale image for the intensity
+///   measurements (MeanIntensity / MaxIntensity / MinIntensity /
+///   WeightedCentroid / PixelValues). Pass `Value{}` (Unset) for none.
 Value regionprops(const Value &BW_or_L,
                   const std::vector<std::string> &props,
+                  const Value &intensity,
                   std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Euclidean distance transform (`D = bwdist(BW)`).
