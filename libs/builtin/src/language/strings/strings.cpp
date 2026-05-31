@@ -102,8 +102,13 @@ std::string num2strArrayFormat(const Value &x, int N)
         const double a = std::fabs(v);
         if (a > maxabs) maxabs = a;
         if (v != std::floor(v)) allInt = false;
+        // Column width is driven by the DIGIT count of |v| (sign excluded):
+        // MATLAB's integer field is max-abs-digits + 2, and a minus sign is
+        // absorbed into the field rather than widening it — num2str([-1 10
+        // -100])='-1   10 -100' (width 5), not width 6. Measuring "%.0f" of v
+        // (which includes '-') over-counted by one for negatives.
         char b[64];
-        const int len = std::snprintf(b, sizeof(b), "%.0f", v);
+        const int len = std::snprintf(b, sizeof(b), "%.0f", a);
         if (len > maxChars) maxChars = len;
     }
     if (allInt) {
@@ -408,34 +413,62 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr)
     }
 }
 
-Value str2double(const Value &s, std::pmr::memory_resource *mr)
+// Parse ONE token the way MATLAB str2double does: strip ALL commas
+// (thousands separators), trim surrounding whitespace, then the ENTIRE
+// remaining token must parse as a single real number — otherwise NaN. So
+// '1,234' -> 1234, '1,2,3' -> 123, '  42  ' -> 42, 'Inf'/'-Inf'/'NaN' parse,
+// but '42abc' / '42 7' / ',' / '' -> NaN. (std::stod was lenient: it parsed a
+// numeric PREFIX, so '42abc' wrongly gave 42 and '1,234' gave 1. Complex
+// literals like '2i'/'3+4i' remain a separate unimplemented gap -> NaN.)
+static double str2doubleOne(const std::string &str)
 {
-    // MATLAB str2double: strip ALL commas (thousands separators), trim
-    // surrounding whitespace, then the ENTIRE remaining token must parse as a
-    // single real number — otherwise NaN. So '1,234' -> 1234, '1,2,3' -> 123,
-    // '  42  ' -> 42, but '42abc' / '42 7' / ',' -> NaN. (std::stod was lenient:
-    // it parsed a numeric PREFIX, so '42abc' wrongly gave 42 and '1,234' gave 1.
-    // Complex literals like '2i'/'3+4i' are a separate unimplemented gap.)
     const double nan = std::numeric_limits<double>::quiet_NaN();
     std::string t;
-    {
-        const std::string str = s.toString();
-        t.reserve(str.size());
-        for (char c : str)
-            if (c != ',') t.push_back(c);
-    }
+    t.reserve(str.size());
+    for (char c : str)
+        if (c != ',') t.push_back(c);
     const char *ws = " \t\n\r\f\v";
     const size_t b = t.find_first_not_of(ws);
-    if (b == std::string::npos) return Value::scalar(nan, mr);   // empty / all-whitespace
+    if (b == std::string::npos) return nan;   // empty / all-whitespace
     const size_t e = t.find_last_not_of(ws);
     t = t.substr(b, e - b + 1);
 
     const char *cs = t.c_str();
     char *end = nullptr;
     const double v = std::strtod(cs, &end);
-    if (end == cs || *end != '\0')                              // no parse, or trailing junk
-        return Value::scalar(nan, mr);
-    return Value::scalar(v, mr);
+    if (end == cs || *end != '\0')            // no parse, or trailing junk
+        return nan;
+    return v;
+}
+
+Value str2double(const Value &s, std::pmr::memory_resource *mr)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    // A cell array of char/string vectors OR a non-scalar string array maps
+    // element-wise to a DOUBLE matrix of the SAME shape (MATLAB str2double).
+    // NaN where an element fails to parse, is empty, or is not char/string.
+    if (s.isCell() || (s.isString() && s.numel() != 1)) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        const size_t n = s.numel();
+        for (size_t i = 0; i < n; ++i) {
+            if (s.isCell()) {
+                const Value &el = s.cellAt(i);
+                od[i] = (el.isChar() || el.isString())
+                            ? str2doubleOne(el.toString())
+                            : nan;
+            } else {
+                od[i] = str2doubleOne(s.stringElem(i));
+            }
+        }
+        return out;
+    }
+
+    // Scalar char array / string scalar → scalar double.
+    return Value::scalar(str2doubleOne(s.toString()), mr);
 }
 
 Value toString(const Value &x, std::pmr::memory_resource *mr)
@@ -1954,56 +1987,77 @@ Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr:
     return out;
 }
 
-Value contains(const Value &s, const Value &pat, bool ignoreCase, std::pmr::memory_resource *mr)
+namespace {
+enum class StrPred { Contains, StartsWith, EndsWith };
+
+// Test one source string against the collected patterns (any-match) under the
+// chosen predicate. ignoreCase ASCII-lowercases both sides.
+bool strMatchAny(std::string src, const ScratchVec<std::string> &pats,
+                 bool ignoreCase, StrPred pred)
 {
-    std::string ss = s.toString();
+    if (ignoreCase) asciiLowerInPlace(src);
+    for (std::string pp : pats) {
+        if (ignoreCase) asciiLowerInPlace(pp);
+        bool hit = false;
+        switch (pred) {
+        case StrPred::Contains:
+            hit = src.find(pp) != std::string::npos;
+            break;
+        case StrPred::StartsWith:
+            hit = src.size() >= pp.size() && src.compare(0, pp.size(), pp) == 0;
+            break;
+        case StrPred::EndsWith:
+            hit = src.size() >= pp.size()
+                  && src.compare(src.size() - pp.size(), pp.size(), pp) == 0;
+            break;
+        }
+        if (hit) return true;
+    }
+    return false;
+}
+
+// Shared driver for contains/startsWith/endsWith: a cell array or a non-scalar
+// string-array SOURCE maps element-wise to a LOGICAL array of the same shape
+// (MATLAB); a scalar char/string source returns a logical scalar. The pattern
+// argument may itself be a scalar or a cell/string array (any-match).
+Value strPredicate(const Value &s, const Value &pat, bool ignoreCase,
+                   StrPred pred, std::pmr::memory_resource *mr)
+{
     ScratchArena scratch(mr);
     ScratchVec<std::string> pats(&scratch);
     collectMatchPatterns(pat, pats);
-    if (ignoreCase) asciiLowerInPlace(ss);
-    bool any = false;
-    for (std::string pp : pats) {
-        if (ignoreCase) asciiLowerInPlace(pp);
-        if (ss.find(pp) != std::string::npos) { any = true; break; }
+
+    if (s.isCell() || (s.isString() && s.numel() != 1)) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        Value out = Value::matrix(r, c, ValueType::LOGICAL, mr);
+        uint8_t *od = out.logicalDataMut();
+        const size_t n = s.numel();
+        for (size_t i = 0; i < n; ++i) {
+            const std::string el =
+                s.isCell() ? s.cellAt(i).toString() : s.stringElem(i);
+            od[i] = strMatchAny(el, pats, ignoreCase, pred) ? 1 : 0;
+        }
+        return out;
     }
-    return Value::logicalScalar(any, mr);
+    return Value::logicalScalar(
+        strMatchAny(s.toString(), pats, ignoreCase, pred), mr);
+}
+} // namespace
+
+Value contains(const Value &s, const Value &pat, bool ignoreCase, std::pmr::memory_resource *mr)
+{
+    return strPredicate(s, pat, ignoreCase, StrPred::Contains, mr);
 }
 
 Value startsWith(const Value &s, const Value &prefix, bool ignoreCase, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    ScratchArena scratch(mr);
-    ScratchVec<std::string> pats(&scratch);
-    collectMatchPatterns(prefix, pats);
-    if (ignoreCase) asciiLowerInPlace(ss);
-    bool any = false;
-    for (std::string pp : pats) {
-        if (ignoreCase) asciiLowerInPlace(pp);
-        if (ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0) {
-            any = true;
-            break;
-        }
-    }
-    return Value::logicalScalar(any, mr);
+    return strPredicate(s, prefix, ignoreCase, StrPred::StartsWith, mr);
 }
 
 Value endsWith(const Value &s, const Value &suffix, bool ignoreCase, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    ScratchArena scratch(mr);
-    ScratchVec<std::string> pats(&scratch);
-    collectMatchPatterns(suffix, pats);
-    if (ignoreCase) asciiLowerInPlace(ss);
-    bool any = false;
-    for (std::string pp : pats) {
-        if (ignoreCase) asciiLowerInPlace(pp);
-        if (ss.size() >= pp.size()
-            && ss.compare(ss.size() - pp.size(), pp.size(), pp) == 0) {
-            any = true;
-            break;
-        }
-    }
-    return Value::logicalScalar(any, mr);
+    return strPredicate(s, suffix, ignoreCase, StrPred::EndsWith, mr);
 }
 
 // ── Pack 36: compose / strjust / extract / split / join ──────────────
@@ -2274,11 +2328,33 @@ void validatestring_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
     outs[0] = validatestring(args[0], args[1], ctx.engine->resource());
 }
 
-void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+void str2num_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("str2num: requires 1 argument", 0, 0, "str2num", "", "numkit:str2num:nargin");
-    outs[0] = str2num(args[0], ctx.engine->resource());
+    // MATLAB str2num evaluates the (bracket-wrapped) string as an expression,
+    // so it parses matrices, ranges and arithmetic — str2num('[1 2;3 4]')=
+    // [1 2;3 4], '1:5'=1..5, '2+3'=5. Any parse/eval failure (or a non-numeric
+    // result) yields [] (0x0 double); the optional 2nd output is a logical
+    // success flag: [X, tf] = str2num(s). (The engine-free Value str2num()
+    // overload remains a scalar-only fallback for embedders without eval.)
+    bool ok = false;
+    Value result = Value::Empty;
+    if (args[0].isChar() || args[0].isString()) {
+        try {
+            Value v = ctx.engine->eval("[" + args[0].toString() + "]",
+                                       /*suppressTopLevelDisplay=*/true);
+            if (v.isNumeric() || v.isLogical()) {
+                result = std::move(v);
+                ok = true;
+            }
+        } catch (...) {
+            ok = false;
+        }
+    }
+    outs[0] = ok ? std::move(result) : Value::Empty;
+    if (nargout >= 2 && outs.size() >= 2)
+        outs[1] = Value::logicalScalar(ok, ctx.engine->resource());
 }
 
 void str2double_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

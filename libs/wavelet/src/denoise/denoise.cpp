@@ -117,8 +117,10 @@ Value wdenoise(const Value &x, int level, const std::string &wname, std::pmr::me
 
         // 4. Soft-threshold every detail band in-place inside C.
         // Layout of C: [cA_level | cD_level | cD_{level-1} | ... | cD_1].
+        const Value &Lref = L;   // plain reference: capturing a structured
+                                 // binding directly in a lambda is C++20.
         auto sliceLen = [&](size_t idx) -> size_t {
-            return static_cast<size_t>(L.elemAsDouble(idx));
+            return static_cast<size_t>(Lref.elemAsDouble(idx));
         };
         size_t off = sliceLen(0); // skip cA
         double *Cd = C.doubleDataMut();
