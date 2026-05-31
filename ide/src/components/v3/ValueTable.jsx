@@ -2,7 +2,13 @@
  * ValueTable — the shared named-value table behind both the Workspace
  * list view and the struct/cell inspector. Renders a Field/Name · Value ·
  * Size · Class (+ optional stat) table whose visible columns are chosen
- * from a right-click header menu and persisted per `storageKey`.
+ * from the shared chooser (header right-click here, plus an optional
+ * toolbar button the caller wires through the same state).
+ *
+ * Column visibility is controlled when the caller passes `visible` /
+ * `setVisible` (e.g. the Workspace, which also shows a toolbar chooser
+ * button on the same state); otherwise ValueTable self-manages it,
+ * persisting per `storageKey` (the struct inspector path).
  *
  * Callers supply the rows and (optionally) a custom name-cell renderer and
  * row click / context-menu handlers — keeping ValueTable agnostic to
@@ -11,7 +17,7 @@
 import { useState, useEffect } from 'react';
 import ContextMenu from './ContextMenu';
 import {
-  VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns, toggleColumn,
+  VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns, buildChooserItems,
   statValue, fmtStat,
 } from './valueColumns';
 
@@ -20,16 +26,24 @@ export default function ValueTable({
   nameHeader = 'Name',
   nameCell,            // optional (row) => node for the name cell
   storageKey,
+  visible: cVisible,       // optional controlled column set
+  setVisible: cSetVisible, // optional controlled setter
   onRowClick,          // optional (row) => void — fired on a drillable row
   onRowContextMenu,    // optional (row, event) => void — caller renders its menu
   footer,              // optional node rendered under the table
   emptyLabel = '(empty)',
 }) {
-  const [visible, setVisible] = useState(() => loadVisibleColumns(storageKey));
+  const controlled = cSetVisible != null;
+  // Internal state is always declared (hooks can't be conditional) but is
+  // unused / not persisted when the caller controls the column set.
+  const [iVisible, iSetVisible] = useState(() => controlled ? new Set() : loadVisibleColumns(storageKey));
+  const visible = controlled ? cVisible : iVisible;
+  const setVisible = controlled ? cSetVisible : iSetVisible;
+  useEffect(() => {
+    if (!controlled) saveVisibleColumns(storageKey, iVisible);
+  }, [controlled, storageKey, iVisible]);
+
   const [headMenu, setHeadMenu] = useState(null);   // { x, y } | null
-
-  useEffect(() => { saveVisibleColumns(storageKey, visible); }, [storageKey, visible]);
-
   const cols = VALUE_COLUMNS.filter((c) => visible.has(c.key));
 
   const renderCell = (row, c) => {
@@ -69,21 +83,10 @@ export default function ValueTable({
       </table>
       {footer}
       {headMenu && (
-        <ContextMenu x={headMenu.x} y={headMenu.y} onClose={() => setHeadMenu(null)} items={[
-          { label: 'Select all', keepOpen: true,
-            onClick: () => setVisible(new Set(VALUE_COLUMNS.map((c) => c.key))) },
-          { label: 'Clear all', keepOpen: true,
-            onClick: () => setVisible(new Set()) },
-          { separator: true },
-          // The name column is always shown (checked + disabled), mirroring
-          // MATLAB's locked Field/Name column.
-          { label: `✓ ${nameHeader}`, disabled: true },
-          ...VALUE_COLUMNS.map((c) => ({
-            label: `${visible.has(c.key) ? '✓' : ' '} ${c.label}`,
-            keepOpen: true,
-            onClick: () => setVisible((prev) => toggleColumn(prev, c.key)),
-          })),
-        ]} />
+        <ContextMenu x={headMenu.x} y={headMenu.y} onClose={() => setHeadMenu(null)}
+          items={buildChooserItems({
+            defs: VALUE_COLUMNS, visible, setVisible, lockedLabel: nameHeader,
+          })} />
       )}
     </div>
   );
