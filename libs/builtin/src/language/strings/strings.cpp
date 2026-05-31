@@ -1043,33 +1043,41 @@ inline std::string readSide(const Value &side, const char *def)
 }
 } // anon
 
+// Pad ONE string to width n on the given side with char ch. MATLAB 'both'
+// splits the extra padding floor(pad/2) left, ceil(pad/2) right.
+static std::string padOne(std::string r, size_t n, const std::string &sd, char ch)
+{
+    if (r.size() >= n) return r;
+    const size_t pad = n - r.size();
+    if (sd == "left") {
+        r.insert(r.begin(), pad, ch);
+    } else if (sd == "both") {
+        const size_t left = pad / 2;
+        r.insert(r.begin(), left, ch);
+        r.append(pad - left, ch);
+    } else {  // "right" (default)
+        r.append(pad, ch);
+    }
+    return r;
+}
+
 Value pad(const Value &s, size_t n, const Value &side, const Value &padChar, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    if (r.size() >= n) {
-        if (s.isString()) return Value::stringScalar(r, mr);
-        return Value::fromString(r, mr);
-    }
     const std::string sd = readSide(side, "right");
+    if (sd != "left" && sd != "right" && sd != "both")
+        throw Error("pad: side must be 'left', 'right', or 'both'",
+                     0, 0, "pad", "", "numkit:pad:badSide");
     char ch = ' ';
     if (!padChar.isEmpty() && (padChar.isChar() || padChar.isString())) {
         const auto p = padChar.toString();
         if (!p.empty()) ch = p[0];
     }
-    const size_t pad = n - r.size();
-    if (sd == "right") {
-        r.append(pad, ch);
-    } else if (sd == "left") {
-        r.insert(r.begin(), pad, ch);
-    } else if (sd == "both") {
-        const size_t left = pad / 2;
-        const size_t right = pad - left;
-        r.insert(r.begin(), left, ch);
-        r.append(right, ch);
-    } else {
-        throw Error("pad: side must be 'left', 'right', or 'both'",
-                     0, 0, "pad", "", "numkit:pad:badSide");
+    // A cell str pads each element to the SAME width n -> cell of char vectors.
+    if (s.isCell()) {
+        auto op = [&](std::string r) { return padOne(std::move(r), n, sd, ch); };
+        return mapStringCell(s, op, mr);
     }
+    std::string r = padOne(s.toString(), n, sd, ch);
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
@@ -2418,14 +2426,43 @@ void splitlines_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
     outs[0] = splitlines(args[0], ctx.engine->resource());
 }
 
+// Default pad width: the longest element of a cell str, or the length of a
+// char/string scalar (so pad(s) with no width is a no-op for a scalar but
+// right-pads every cell element to the longest, matching MATLAB).
+static size_t defaultPadWidth(const Value &s)
+{
+    if (s.isCell()) {
+        size_t mx = 0;
+        const size_t nn = s.numel();
+        for (size_t i = 0; i < nn; ++i)
+            mx = std::max(mx, s.cellAt(i).toString().size());
+        return mx;
+    }
+    return s.toString().size();
+}
+
 void pad_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("pad: requires (s, n[, side[, ch]])",
+    if (args.empty())
+        throw Error("pad: requires (s[, n][, side[, ch]])",
                      0, 0, "pad", "", "numkit:pad:nargin");
-    const size_t n = static_cast<size_t>(args[1].toScalar());
-    const Value &side = (args.size() >= 3 && !args[2].isEmpty()) ? args[2] : Value::Empty;
-    const Value &ch   = (args.size() >= 4 && !args[3].isEmpty()) ? args[3] : Value::Empty;
+    // The 2nd arg is the width n when numeric; a string there is the side
+    // (with the width defaulting to the longest element). pad(s) with no
+    // 2nd arg also uses the default width.
+    const bool haveN = args.size() >= 2 && !args[1].isEmpty()
+                       && !args[1].isChar() && !args[1].isString();
+    size_t n, sideIdx, chIdx;
+    if (haveN) {
+        n = static_cast<size_t>(args[1].toScalar());
+        sideIdx = 2;
+        chIdx = 3;
+    } else {
+        n = defaultPadWidth(args[0]);
+        sideIdx = 1;   // a string 2nd arg is the side
+        chIdx = 2;
+    }
+    const Value &side = (args.size() > sideIdx && !args[sideIdx].isEmpty()) ? args[sideIdx] : Value::Empty;
+    const Value &ch   = (args.size() > chIdx   && !args[chIdx].isEmpty())   ? args[chIdx]   : Value::Empty;
     outs[0] = pad(args[0], n, side, ch, ctx.engine->resource());
 }
 
