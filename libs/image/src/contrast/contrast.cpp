@@ -685,7 +685,11 @@ otsuthresh(const Value &counts_v, std::pmr::memory_resource *mr) {
 
 std::tuple<Value, Value>
 graythresh(const Value &I, std::pmr::memory_resource *mr) {
-    auto [counts, _] = imhist(I, default_nbins(I), mr);
+    // MATLAB graythresh always builds a 256-bin histogram (NPTS=256),
+    // independent of the input class. numkit's default_nbins gives 64 for
+    // floating-point and 65536 for uint16, which produced a coarser/finer
+    // Otsu level than MATLAB for those classes (uint8 already used 256).
+    auto [counts, _] = imhist(I, 256, mr);
     return otsuthresh(counts, mr);
 }
 
