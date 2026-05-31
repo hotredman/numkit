@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../theme';
+import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspectorOps';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
@@ -9,6 +10,8 @@ const KIND_META = {
   vector: { label: 'vector', glyph: '⟶', tone: 'green'  },
   matrix: { label: 'matrix', glyph: '▦', tone: 'amber'  },
   string: { label: 'string', glyph: '"', tone: 'violet' },
+  struct: { label: 'struct', glyph: '⊞', tone: 'pink'   },
+  cell:   { label: 'cell',   glyph: '{}', tone: 'pink'   },
 };
 
 const TONE = {
@@ -20,6 +23,8 @@ const TONE = {
             fgL: '#9a6700', bgL: '#fff8c5', borderL: '#d4a72c66' },
   violet: { fg: '#9d89db', bg: 'rgba(182,156,242,0.07)', border: 'rgba(182,156,242,0.20)',
             fgL: '#6639ba', bgL: '#fbefff', borderL: '#c297ff66' },
+  pink:   { fg: '#d877b8', bg: 'rgba(224,112,192,0.07)', border: 'rgba(224,112,192,0.20)',
+            fgL: '#a040a0', bgL: '#ffeffb', borderL: '#e070c066' },
 };
 
 function pickTone(t, themeName) {
@@ -163,10 +168,36 @@ function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView
 /* ======================================================================== */
 /* Workspace panel (the main exported component for the bottom-dock tab)    */
 /* ======================================================================== */
+// localStorage keys for the Workspace display preferences. Same
+// `numkit.ide.*` namespace + lazy-init / write-on-change pattern as
+// the editor-pane layout in IDE.jsx, so the user's chosen view (cards
+// vs table) and sort order survive restarts. The search `query` is
+// intentionally NOT persisted — a stale filter on restart would hide
+// variables for no visible reason.
+const WS_VIEW_KEY = 'numkit.ide.workspace.view';
+const WS_SORT_KEY = 'numkit.ide.workspace.sort';
+const WS_VIEWS = ['cards', 'list'];
+const WS_SORTS = ['name', 'size', 'type'];
+
+function loadPref(key, allowed, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    if (v && allowed.includes(v)) return v;
+  } catch { /* private mode / unavailable */ }
+  return fallback;
+}
+
 export function WorkspacePanel({ variables, onOpen }) {
   const [query, setQuery] = useState('');
-  const [sort, setSort]   = useState('name');
-  const [view, setView]   = useState('cards');
+  const [sort, setSort]   = useState(() => loadPref(WS_SORT_KEY, WS_SORTS, 'name'));
+  const [view, setView]   = useState(() => loadPref(WS_VIEW_KEY, WS_VIEWS, 'cards'));
+
+  useEffect(() => {
+    try { localStorage.setItem(WS_VIEW_KEY, view); } catch { /* ignore */ }
+  }, [view]);
+  useEffect(() => {
+    try { localStorage.setItem(WS_SORT_KEY, sort); } catch { /* ignore */ }
+  }, [sort]);
 
   const filtered = useMemo(() => {
     let list = variables.filter((v) => v.name.toLowerCase().includes(query.toLowerCase()));
@@ -792,37 +823,56 @@ function VirtualTable({
 }
 
 /* ======================================================================== */
-/* Variable Editor — modal table with notation/precision/heatmap/plot       */
+/* MatrixPanel — the polished matrix viewer/editor body                     */
 /* ======================================================================== */
-// Switch to tile-mode for matrices with more cells than this. A 500×500
-// matrix is the rough boundary where full-fetch JSON becomes expensive
-// (~250k values, several MB of JSON, sluggish parsing); above it we
-// only fetch what's visible.
-const TILE_MODE_THRESHOLD = 250000;
-
-export function VariableEditor({ variable, onClose, engine }) {
+// Presentation + display-state only. The data layer (how rows/cols/values
+// are fetched) is supplied by the caller via props, so the SAME panel
+// serves top-level matrix variables (name-addressed fetch in
+// VariableEditor) and drilled struct/cell matrix fields (inline data in
+// StructInspector). No toolbar duplication.
+//
+// Props:
+//   rows, cols, name, type
+//   getCellValue(r,c)  — raw value
+//   getSlice(axis,idx) — for the inline plot
+//   stats              — { min, max, mean, n } | null   (heatmap + status)
+//   readOnly           — disables cell editing
+//   onCommit(r,c,rhs)  — owner performs the write + refresh; rhs is a
+//                        ready-to-interpolate MATLAB literal (number now;
+//                        type-aware string in Phase B)
+//   onEscape()         — Esc when not editing (close modal / pop breadcrumb)
+//   onSave(format)     — save-as handler; null → no save-as button
+//   saveDisabled       — gray out save-as (e.g. tile-mode huge matrix)
+//   fontScale
+function MatrixPanel({
+  rows, cols, name, type,            // eslint-disable-line no-unused-vars
+  getCellValue, getSlice, stats,
+  readOnly = false,
+  onCommit, onEscape, onSave,
+  saveDisabled = false,
+}) {
   const [precision, setPrecision] = useState(4);
   const [notation, setNotation]   = useState('fixed');
   const [heatmap, setHeatmap]     = useState(false);
   const [showPlot, setShowPlot]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
-  const [maximized, setMaximized] = useState(false);
-  // Width of the right-hand plot pane (px). User-resizable via the
-  // drag handle that lives between the table and the plot. Persisted
-  // in localStorage so the choice survives across sessions / variable
-  // swaps. Default 520px matches the previous fixed grid template.
   const [plotWidth, setPlotWidth] = useState(() => {
     const stored = parseInt(localStorage.getItem('numkit.ve.plotWidth') || '', 10);
     return Number.isFinite(stored) && stored >= 200 && stored <= 1600 ? stored : 520;
   });
-  useEffect(() => {
-    localStorage.setItem('numkit.ve.plotWidth', String(plotWidth));
-  }, [plotWidth]);
+  useEffect(() => { localStorage.setItem('numkit.ve.plotWidth', String(plotWidth)); }, [plotWidth]);
+
+  const [activeCell, setActiveCell] = useState({ r: 0, c: 0 });
+  const [editing, setEditing]       = useState(null);
+  const [editVal, setEditVal]       = useState('');
   const veBodyRef = useRef(null);
-  // Drag-to-resize: on mousedown grab the pointer, follow mousemove
-  // until mouseup. We compute width from the body's right edge minus
-  // the cursor x, clamped to [200, body-200] so the table never gets
-  // squeezed below ~200 px either.
+  const tableRef  = useRef(null);
+  const inputRef  = useRef(null);
+
+  // Reset the active cell when the data source changes shape (e.g. the
+  // inspector drilled into a different field).
+  useEffect(() => { setActiveCell({ r: 0, c: 0 }); setEditing(null); }, [rows, cols, name]);
+
   function startDragDivider(e) {
     e.preventDefault();
     const body = veBodyRef.current;
@@ -844,9 +894,588 @@ export function VariableEditor({ variable, onClose, engine }) {
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }
-  const [activeCell, setActiveCell] = useState({ r: 0, c: 0 });
-  const [editing, setEditing]     = useState(null);
-  const [editVal, setEditVal]     = useState('');
+
+  function formatNum(n) {
+    if (!Number.isFinite(n)) return String(n);
+    if (notation === 'exp')   return n.toExponential(precision);
+    if (notation === 'fixed') return n.toFixed(precision);
+    return fmt(n, { fix: precision, exp: precision });
+  }
+  const COMPLEX_RE = /^\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)i\s*$/;
+  function format(v) {
+    if (v === null || v === undefined) return '—';
+    if (typeof v === 'number') return formatNum(v);
+    if (typeof v === 'string') {
+      const m = v.match(COMPLEX_RE);
+      if (m) {
+        const re = parseFloat(m[1]);
+        const im = parseFloat(m[3]) * (m[2] === '-' ? -1 : 1);
+        return `${formatNum(re)}${im >= 0 ? '+' : '-'}${formatNum(Math.abs(im))}i`;
+      }
+    }
+    return String(v);
+  }
+
+  // Collect the edit, hand a type-aware MATLAB literal + JS mirror value
+  // to the owner. valueToMatlabRHS escapes/validates per type (numeric /
+  // logical / char / string); null → invalid input, abort the edit.
+  const commitEdit = useCallback(() => {
+    if (!editing) return;
+    const out = valueToMatlabRHS(editVal, type);
+    if (!out) { setEditing(null); return; }
+    onCommit?.(editing.r, editing.c, out.rhs, out.value);
+    setEditing(null);
+  }, [editing, editVal, onCommit, type]);
+
+  useEffect(() => {
+    if (editing && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); }
+  }, [editing]);
+
+  const handleKey = useCallback((e) => {
+    if (editing) {
+      if (e.key === 'Enter')  { e.preventDefault(); commitEdit(); }
+      if (e.key === 'Escape') { e.preventDefault(); setEditing(null); }
+      return;
+    }
+    if (e.key === 'Escape') { onEscape?.(); return; }
+    if (!readOnly && (e.key === 'Enter' || e.key === 'F2')) {
+      const v = getCellValue(activeCell.r, activeCell.c);
+      if (v === null || v === undefined) return;
+      setEditing({ ...activeCell });
+      setEditVal(typeof v === 'number' ? String(v) : '');
+      e.preventDefault();
+      return;
+    }
+    let { r, c } = activeCell;
+    if (e.key === 'ArrowUp')    r = Math.max(0, r - 1);
+    if (e.key === 'ArrowDown')  r = Math.min(rows - 1, r + 1);
+    if (e.key === 'ArrowLeft')  c = Math.max(0, c - 1);
+    if (e.key === 'ArrowRight') c = Math.min(cols - 1, c + 1);
+    if (e.key === 'Home')       c = 0;
+    if (e.key === 'End')        c = cols - 1;
+    if (e.key === 'PageUp')     r = Math.max(0, r - 10);
+    if (e.key === 'PageDown')   r = Math.min(rows - 1, r + 10);
+    if (r !== activeCell.r || c !== activeCell.c) { setActiveCell({ r, c }); e.preventDefault(); }
+  }, [activeCell, rows, cols, editing, getCellValue, onEscape, readOnly, commitEdit]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [handleKey]);
+
+  return (
+    <>
+      <div className="ve-toolbar">
+        <div className="ve-tools-group">
+          <span className="ve-label">notation</span>
+          <div className="ve-segmented">
+            {['fixed', 'exp', 'auto'].map((n) => (
+              <button key={n} className={notation === n ? 'is-active' : ''} onClick={() => setNotation(n)}>{n}</button>
+            ))}
+          </div>
+        </div>
+        <div className="ve-tools-group">
+          <span className="ve-label">precision</span>
+          <input type="range" min={0} max={8} step={1}
+            value={precision} onChange={(e) => setPrecision(parseInt(e.target.value, 10))} />
+          <span className="ve-precision-num">{precision}</span>
+        </div>
+        <div className="ve-tools-group">
+          <button className={`ve-btn ${heatmap ? 'is-active' : ''}`}
+            onClick={() => setHeatmap((h) => !h)} title="Toggle value heatmap">
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <rect x="0.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 240)"/>
+              <rect x="3.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 180)"/>
+              <rect x="6.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 60)"/>
+              <rect x="9.5" y="0.5" width="2" height="11" fill="oklch(0.6 0.1 30)"/>
+            </svg>
+            heatmap
+          </button>
+          <button className="ve-btn" title="Copy as CSV" onClick={() => {
+            const lines = [];
+            for (let r = 0; r < rows; r++) {
+              const row = [];
+              for (let c = 0; c < cols; c++) {
+                const v = getCellValue(r, c);
+                row.push(typeof v === 'number' ? v : `"${v ?? ''}"`);
+              }
+              lines.push(row.join(','));
+            }
+            navigator.clipboard?.writeText(lines.join('\n'));
+          }}>
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <rect x="2" y="2" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
+              <rect x="3.5" y="0.5" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
+            </svg>
+            copy csv
+          </button>
+          <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
+            title="Toggle inline plot" onClick={() => setShowPlot((p) => !p)}>
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
+            </svg>
+            plot
+          </button>
+          {onSave && (
+            <div className="ve-saveas-wrap">
+              <button className="ve-btn ve-saveas-trigger"
+                title={saveDisabled ? 'save disabled for huge matrices' : 'Save variable to file'}
+                disabled={saveDisabled}
+                onClick={() => setSaveOpen((s) => !s)}>
+                <svg width="11" height="11" viewBox="0 0 12 12">
+                  <path d="M2 2h6l2 2v6H2z M4 2v3h4V2 M4 8h4v2H4z" stroke="currentColor" fill="none"/>
+                </svg>
+                save as
+                <svg width="8" height="8" viewBox="0 0 8 8" style={{ marginLeft: 2 }}>
+                  <path d="M1 2.5 L4 5.5 L7 2.5" stroke="currentColor" fill="none" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+              </button>
+              {saveOpen && (
+                <SaveAsMenu onClose={() => setSaveOpen(false)}
+                  onPick={(f) => { onSave(f); setSaveOpen(false); }} />
+              )}
+            </div>
+          )}
+        </div>
+        <div className="ve-tools-spacer" />
+        {stats && (
+          <div className="ve-stats">
+            <span><b>min</b> {fmt(stats.min)}</span>
+            <span><b>max</b> {fmt(stats.max)}</span>
+            <span><b>μ</b> {fmt(stats.mean)}</span>
+            <span><b>n</b> {stats.n}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="ve-address">
+        <span className="ve-cell-ref">{name}({activeCell.r + 1}, {activeCell.c + 1})</span>
+        <span className="ve-eq">=</span>
+        <span className="ve-cell-val">{format(getCellValue(activeCell.r, activeCell.c))}</span>
+      </div>
+
+      <div className={`ve-body ${showPlot ? 'has-plot' : ''}`}
+           ref={veBodyRef}
+           style={showPlot ? { gridTemplateColumns: `1fr 6px ${plotWidth}px` } : undefined}>
+        <VirtualTable
+          tableRef={tableRef}
+          rows={rows} cols={cols}
+          getCellValue={getCellValue}
+          activeCell={activeCell} setActiveCell={setActiveCell}
+          editing={editing} setEditing={setEditing}
+          editVal={editVal} setEditVal={setEditVal}
+          commitEdit={commitEdit}
+          inputRef={inputRef}
+          heatmap={heatmap} stats={stats}
+          format={format}
+          readOnly={readOnly}
+        />
+        {showPlot && (
+          <>
+            <div className="ve-divider" role="separator" aria-orientation="vertical"
+              aria-label="Resize plot pane"
+              onMouseDown={startDragDivider}
+              onDoubleClick={() => setPlotWidth(520)}
+              title="Drag to resize · double-click to reset" />
+            <InlinePlot getSlice={getSlice} rows={rows} cols={cols}
+              onClose={() => setShowPlot(false)} />
+          </>
+        )}
+      </div>
+
+      <div className="ve-status">
+        <span>cell ({activeCell.r + 1},{activeCell.c + 1})</span>
+        <span className="ve-sep" />
+        <span>↑↓←→ navigate</span>
+        <span className="ve-sep" />
+        <span>{readOnly ? 'read-only' : '↵ / F2 edit'}</span>
+        <span className="ve-sep" />
+        <span>Esc {onEscape ? 'back' : 'close'}</span>
+        <span className="ve-spacer" />
+        <span>UTF-8</span>
+        <span className="ve-sep" />
+        <span>{readOnly ? 'read-only' : 'read/write'}</span>
+      </div>
+    </>
+  );
+}
+
+/* ======================================================================== */
+/* Variable Editor — modal table with notation/precision/heatmap/plot       */
+/* ======================================================================== */
+// Switch to tile-mode for matrices with more cells than this. A 500×500
+// matrix is the rough boundary where full-fetch JSON becomes expensive
+// (~250k values, several MB of JSON, sluggish parsing); above it we
+// only fetch what's visible.
+const TILE_MODE_THRESHOLD = 250000;
+
+/* ======================================================================== */
+/* Struct / cell inspector — MATLAB-style drill-in                          */
+/* ======================================================================== */
+// Navigable inspector over engine.inspectPath(name, pathStr). The engine
+// resolves a ';'-delimited typed path ('' = root) and returns one of:
+//   { kind:'struct', rows, cols, numel, fields:[], elems:[[cell]] }
+//   { kind:'cell',   rows, cols, elems:[cell] }   (column-major)
+//   { kind:'matrix', type, rows, cols, data | truncated }
+// where cell = { type, size, summary, drill, label? }.
+//
+// A single struct (numel 1) renders as a field list; a struct array as an
+// element×field table; a cell as an R×C grid; a matrix reuses VirtualTable.
+// Double-clicking a `drill` cell pushes a path step; the breadcrumb pops
+// back. Mounted with key={variable.name} so a variable swap resets nav.
+
+// Compact "type [size]" chip — skips the ubiquitous 1x1.
+function dimLabel(cell) {
+  if (!cell || !cell.type) return '';
+  return (cell.size && cell.size !== '1x1') ? `${cell.type} ${cell.size}` : cell.type;
+}
+
+function InspectorBreadcrumb({ nav, onJump }) {
+  return (
+    <div className="ve-crumbs">
+      {nav.map((c, i) => (
+        <span key={i} className="ve-crumb-seg">
+          {i > 0 && <span className="ve-crumb-sep">›</span>}
+          <button className="ve-crumb" disabled={i === nav.length - 1}
+            onClick={() => onJump(i)}>{c.label}</button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// A field name that becomes an inline text input on double-click, for
+// renaming. Stops click/double-click propagation so it doesn't trigger
+// the row's drill. Enter commits, Esc cancels.
+function EditableFieldName({ name, onRename, className }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(name);
+  if (!editing) {
+    return (
+      <span className={className}
+        onDoubleClick={(e) => { e.stopPropagation(); setVal(name); setEditing(true); }}
+        title="double-click to rename">{name}</span>
+    );
+  }
+  const commit = () => { setEditing(false); if (val !== name) onRename(name, val); };
+  return (
+    <input className="ve-rename-input" autoFocus value={val}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { setEditing(false); }
+      }} />
+  );
+}
+
+// Inline "+ new field" control — validates the name as a MATLAB
+// identifier and only enables Add when valid. Shared by the single-
+// struct list and the struct-array table.
+function AddFieldRow({ onAdd }) {
+  const [name, setName] = useState('');
+  const valid = isValidIdentifier(name);
+  const submit = () => { if (valid) { onAdd(name); setName(''); } };
+  return (
+    <div className="ve-addfield">
+      <input className="ve-addfield-input" placeholder="+ new field"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }} />
+      <button className="ve-addfield-btn" disabled={!valid} onClick={submit}>add</button>
+    </div>
+  );
+}
+
+// Single struct (numel 1): vertical field list. Click a drillable field
+// to descend; × deletes a field; the add-row appends a new one.
+function StructFieldList({ payload, onDrill, onAddField, onDeleteField, onRenameField }) {
+  const cells = payload.elems[0] || [];
+  return (
+    <div className="ve-field-list">
+      {payload.fields.map((name, f) => {
+        const cell = cells[f] || {};
+        return (
+          <div key={name}
+            className={`ve-field-row ${cell.drill ? 'is-drillable' : ''}`}
+            onClick={cell.drill
+              ? () => onDrill([{ k: 'f', name, label: `.${name}` }]) : undefined}
+            title={cell.drill ? 'click to open' : undefined}>
+            <EditableFieldName name={name} onRename={onRenameField} className="ve-field-name" />
+            <span className="ve-field-type">{dimLabel(cell)}</span>
+            <span className="ve-field-val">{cell.summary}</span>
+            <span className="ve-field-drill">{cell.drill ? '▸' : ''}</span>
+            <button className="ve-field-del" title="delete field"
+              onClick={(e) => { e.stopPropagation(); onDeleteField(name); }}>×</button>
+          </div>
+        );
+      })}
+      {payload.fields.length === 0 && <div className="ve-struct-empty">(no fields)</div>}
+      <AddFieldRow onAdd={onAddField} />
+    </div>
+  );
+}
+
+// Struct array: rows = elements (1),(2),…; cols = fields. Click a
+// drillable cell to open s(e).field; × on a column header deletes that
+// field across all elements; the add-row appends a field column.
+function StructArrayTable({ payload, onDrill, onAddField, onDeleteField, onRenameField }) {
+  return (
+    <div className="ve-arr-wrap">
+      <table className="ve-arr-table">
+        <thead>
+          <tr>
+            <th className="ve-arr-corner">{payload.rows}×{payload.cols}</th>
+            {payload.fields.map((f) => (
+              <th key={f}>
+                <EditableFieldName name={f} onRename={onRenameField} />
+                <button className="ve-arr-delcol" title="delete field"
+                  onClick={() => onDeleteField(f)}>×</button>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {payload.elems.map((row, e) => (
+            <tr key={e}>
+              <th className="ve-arr-rowhead">({e + 1})</th>
+              {row.map((cell, f) => (
+                <td key={f}
+                  className={cell.drill ? 'is-drillable' : ''}
+                  title={cell.summary}
+                  onClick={cell.drill
+                    ? () => onDrill([
+                        { k: 'e', idx: e },
+                        { k: 'f', name: payload.fields[f], label: `(${e + 1}).${payload.fields[f]}` },
+                      ]) : undefined}>
+                  {cell.summary}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <AddFieldRow onAdd={onAddField} />
+    </div>
+  );
+}
+
+// Cell array: R×C grid of element previews (column-major linear order).
+function CellGrid({ payload, onDrill }) {
+  const { rows, cols, elems } = payload;
+  return (
+    <div className="ve-arr-wrap">
+      <table className="ve-arr-table">
+        <tbody>
+          {Array.from({ length: rows }, (_, r) => (
+            <tr key={r}>
+              <th className="ve-arr-rowhead">{r + 1}</th>
+              {Array.from({ length: cols }, (_, c) => {
+                const i = c * rows + r;             // column-major
+                const cell = elems[i] || {};
+                return (
+                  <td key={c}
+                    className={cell.drill ? 'is-drillable' : ''}
+                    title={cell.summary}
+                    onClick={cell.drill
+                      ? () => onDrill([{ k: 'c', idx: i, label: cell.label || `{${r + 1},${c + 1}}` }])
+                      : undefined}>
+                    {cell.summary}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Drilled-into matrix — render through the shared MatrixPanel so a
+// struct/cell matrix field gets the same polished toolbar (notation /
+// precision / heatmap / inline-plot / stats / copy-csv) as a top-level
+// matrix variable. Data comes inline from the inspect payload.
+//   name    — breadcrumb leaf label, shown in the address bar
+//   onBack  — Esc / back to the parent path
+//   onCommit(r,c,rhs) — write-back (Phase B); absent → read-only
+function DrilledMatrix({ payload, name, onBack, onCommit }) {
+  const data = payload.data || [];
+  const stats = useMemo(() => {
+    let min = Infinity, max = -Infinity, sum = 0, n = 0;
+    for (const row of data) for (const v of row) {
+      if (typeof v === 'number') { if (v < min) min = v; if (v > max) max = v; sum += v; n++; }
+    }
+    return n ? { min, max, mean: sum / n, n } : null;
+  }, [data]);
+  if (payload.truncated) {
+    return (
+      <div className="ve-struct-empty">
+        Field too large to display inline ({payload.rows}×{payload.cols}).
+      </div>
+    );
+  }
+  const getCellValue = (r, c) => data[r]?.[c];
+  const getSlice = (axis, idx) =>
+    axis === 'col' ? data.map((row) => row[idx]) : (data[idx] || []).slice();
+  return (
+    <MatrixPanel
+      rows={payload.rows} cols={payload.cols} name={name} type={payload.type}
+      getCellValue={getCellValue} getSlice={getSlice} stats={stats}
+      readOnly={!onCommit} onCommit={onCommit} onEscape={onBack} onSave={null}
+    />
+  );
+}
+
+function StructInspector({ variable, engine }) {
+  const [nav, setNav] = useState([{ label: variable.name, path: '' }]);
+  const [payload, setPayload] = useState(null);
+  const [error, setError] = useState(null);
+  const [refreshTick, setRefreshTick] = useState(0);  // bump → refetch after a write
+  const cur = nav[nav.length - 1];
+
+  useEffect(() => {
+    setError(null);
+    if (!engine || typeof engine.inspectPath !== 'function') {
+      setError('struct inspection needs a full WASM rebuild (binding missing)');
+      setPayload(null);
+      return;
+    }
+    const p = engine.inspectPath(variable.name, cur.path);
+    if (p === null) {
+      setError('struct inspection needs a full WASM rebuild (binding missing)');
+      setPayload(null);
+    } else if (p.error) {
+      setError(p.error);
+      setPayload(null);
+    } else {
+      setPayload(p);
+    }
+  }, [variable.name, engine, cur.path, refreshTick]);
+
+  // Write-back for an edited matrix-field cell. Builds a MATLAB lvalue
+  // from the current path (e.g. `car.engine.data(2,5)`) and runs the
+  // same engine.execute assignment as the top-level editor — no new
+  // engine API. Refetch the path afterwards to show the new value.
+  const commitFieldCell = useCallback((r, c, rhs) => {
+    if (!engine || typeof engine.execute !== 'function') return;
+    const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    try {
+      engine.execute(`${lvalue}(${r + 1},${c + 1}) = ${rhs};`);
+    } catch (e) {
+      console.warn('[StructInspector] field write-back failed:', e);
+    }
+    setRefreshTick((t) => t + 1);
+  }, [engine, variable.name, cur.path]);
+
+  // Add a field to the struct at the current path. For a struct array,
+  // assign via element 1 — MATLAB then adds the field (empty) to every
+  // element. New fields default to [] so the user can drill in and fill.
+  const addField = useCallback((fieldName) => {
+    if (!engine?.execute || !isValidIdentifier(fieldName)) return;
+    const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    const target = (payload && payload.numel > 1) ? `${lvalue}(1)` : lvalue;
+    try {
+      engine.execute(`${target}.${fieldName} = [];`);
+    } catch (e) {
+      console.warn('[StructInspector] add-field failed:', e);
+    }
+    setRefreshTick((t) => t + 1);
+  }, [engine, variable.name, cur.path, payload]);
+
+  // Remove a field via rmfield (drops it from every struct-array element).
+  const deleteField = useCallback((fieldName) => {
+    if (!engine?.execute || !isValidIdentifier(fieldName)) return;
+    const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    try {
+      engine.execute(`${lvalue} = rmfield(${lvalue}, '${fieldName}');`);
+    } catch (e) {
+      console.warn('[StructInspector] delete-field failed:', e);
+    }
+    setRefreshTick((t) => t + 1);
+  }, [engine, variable.name, cur.path]);
+
+  // Rename = copy the field's value to the new name, then drop the old.
+  // The `[lvalue.new] = lvalue.old` bracket form distributes across a
+  // struct array (CSL) and also works for a single struct. NOTE: the
+  // renamed field lands at the END of the field order (no native rename;
+  // engine.orderfields is alphabetical-only). Guards: valid identifier,
+  // no-op on same name, refuse to clobber an existing field.
+  const renameField = useCallback((oldName, newName) => {
+    if (!engine?.execute || !isValidIdentifier(newName)) return;
+    if (newName === oldName) return;
+    if (payload?.fields?.includes(newName)) return;   // collision
+    const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    try {
+      engine.execute(
+        `[${lvalue}.${newName}] = ${lvalue}.${oldName}; ` +
+        `${lvalue} = rmfield(${lvalue}, '${oldName}');`);
+    } catch (e) {
+      console.warn('[StructInspector] rename-field failed:', e);
+    }
+    setRefreshTick((t) => t + 1);
+  }, [engine, variable.name, cur.path, payload]);
+
+  // Push a path: steps is an array of { k, name?/idx?, label }. Only the
+  // last step's label becomes the breadcrumb segment (e.g. drilling into
+  // a struct-array cell is two steps `e:`+`f:` but one crumb "(2).field").
+  const drill = useCallback((steps) => {
+    const parts = steps.map((s) => (s.k === 'f' ? `f:${s.name}` : `${s.k}:${s.idx}`));
+    setNav((prev) => {
+      const base = prev[prev.length - 1].path;
+      const newPath = (base ? `${base};` : '') + parts.join(';');
+      return [...prev, { label: steps[steps.length - 1].label, path: newPath }];
+    });
+  }, []);
+  const jump = useCallback((i) => setNav((prev) => prev.slice(0, i + 1)), []);
+
+  let body;
+  if (error) body = <div className="ve-struct-empty">{error}</div>;
+  else if (!payload) body = <div className="ve-struct-empty">loading…</div>;
+  else if (payload.kind === 'struct') {
+    body = payload.numel === 1
+      ? <StructFieldList payload={payload} onDrill={drill}
+          onAddField={addField} onDeleteField={deleteField} onRenameField={renameField} />
+      : <StructArrayTable payload={payload} onDrill={drill}
+          onAddField={addField} onDeleteField={deleteField} onRenameField={renameField} />;
+  } else if (payload.kind === 'cell') {
+    body = <CellGrid payload={payload} onDrill={drill} />;
+  } else if (payload.kind === 'matrix') {
+    const leaf = (cur.label || variable.name).replace(/^\./, '');
+    body = (
+      <DrilledMatrix
+        payload={payload}
+        name={leaf}
+        onBack={nav.length > 1 ? () => jump(nav.length - 2) : undefined}
+        onCommit={commitFieldCell}
+      />
+    );
+  } else {
+    body = <div className="ve-struct-empty">unsupported value</div>;
+  }
+
+  return (
+    <div className="ve-inspector">
+      <InspectorBreadcrumb nav={nav} onJump={jump} />
+      <div className="ve-inspector-body">{body}</div>
+    </div>
+  );
+}
+
+export function VariableEditor({ variable, onClose, engine }) {
+  // Struct / cell variables get the drill-in inspector instead of the
+  // numeric table — the matrix toolbar (notation / precision / heatmap
+  // / plot / cell-address) doesn't apply to them. Gated on kind, which
+  // adapters.classify() now reports as 'struct' / 'cell'. StructInspector
+  // owns its own path state + engine fetch.
+  const isStructLike = variable.kind === 'struct' || variable.kind === 'cell';
+
+  // Display state (notation / precision / heatmap / plot / activeCell /
+  // editing) lives in MatrixPanel now. VariableEditor keeps only the
+  // window chrome + the name-addressed DATA layer below.
+  const [maximized, setMaximized] = useState(false);
+
   // dimensions: { rows, cols, tileMode } — populated from getVarShape
   const initialShape = (() => {
     const r = variable.data?.length || 1;
@@ -861,13 +1490,16 @@ export function VariableEditor({ variable, onClose, engine }) {
   const [, setTileBump] = useState(0);  // bump to re-render after tile arrives
   const [loading, setLoading]     = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const tableRef = useRef(null);
-  const inputRef = useRef(null);
+
+  // Struct / cell fetching is owned by StructInspector (it manages its
+  // own path state + engine.inspectPath calls). VariableEditor just
+  // skips the matrix fetch below when isStructLike.
 
   // On open (and on variable swap), pick a fetch strategy:
   //   - small matrix → full fetch (existing path) — responsive precision/heatmap
   //   - huge matrix  → tile mode — only the viewport is read from the engine
   useEffect(() => {
+    if (isStructLike) return;   // struct path handled by the effect above
     setData(variable.data);
     setActiveCell({ r: 0, c: 0 });
     setLoadError(null);
@@ -914,7 +1546,7 @@ export function VariableEditor({ variable, onClose, engine }) {
       }
     }, 0);
     return () => clearTimeout(handle);
-  }, [variable, engine]);
+  }, [variable, engine, isStructLike]);
 
   /* ─── slice cache (for InlinePlot in both modes) ─── */
   // Keyed by `${axis}:${idx}`. In tile-mode each miss triggers a single
@@ -1015,124 +1647,85 @@ export function VariableEditor({ variable, onClose, engine }) {
     return n ? { min, max, mean: sum / n, n } : null;
   }, [data, shape.tileMode, tileStats]);
 
-  // Format a single number with the active notation/precision settings.
-  function formatNum(n) {
-    if (!Number.isFinite(n)) return String(n);
-    if (notation === 'exp')   return n.toExponential(precision);
-    if (notation === 'fixed') return n.toFixed(precision);
-    return fmt(n, { fix: precision, exp: precision });
-  }
-
-  // Complex values arrive as "a+bi" strings from the WASM binding (it keeps
-  // doubleData precision in real/imag separately, but JS doesn't have a
-  // native complex type so we render as a string). Parse, reformat each
-  // half through formatNum, reassemble. Falls through to the original
-  // string if parsing fails so unrecognized cells aren't garbled.
-  const COMPLEX_RE = /^\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)i\s*$/;
-  function format(v) {
-    if (v === null || v === undefined) return '—';   // tile not yet loaded
-    if (typeof v === 'number') return formatNum(v);
-    if (typeof v === 'string') {
-      const m = v.match(COMPLEX_RE);
-      if (m) {
-        const re = parseFloat(m[1]);
-        const im = parseFloat(m[3]) * (m[2] === '-' ? -1 : 1);
-        const reStr = formatNum(re);
-        const imStr = formatNum(Math.abs(im));
-        return `${reStr}${im >= 0 ? '+' : '-'}${imStr}i`;
-      }
-    }
-    return String(v);
-  }
-
-  // useCallback so handleKey (which lists it in deps) gets a fresh reference
-  // whenever editVal changes — without this Enter committed with the value
-  // the input had at the moment commitEdit was first defined.
-  const commitEdit = useCallback(() => {
-    if (!editing) return;
-    const parsed = parseFloat(editVal);
-    if (Number.isNaN(parsed)) { setEditing(null); return; }
-    const { r, c } = editing;
-
-    // Write back to the engine via a MATLAB-style assignment. The engine's
-    // parser handles 1-based indexing, type coercion, and persistent
-    // workspace storage. With the workspace touched the IDE's regular
-    // post-execute refresh picks up the new value on its next sync.
+  // Write-back for a committed cell edit. MatrixPanel hands us (r, c,
+  // rhs) where rhs is a ready-to-interpolate MATLAB literal. The engine's
+  // parser handles 1-based indexing, type coercion, and persistence; we
+  // then invalidate the affected cache so the cell repaints fresh.
+  const onCommit = useCallback((r, c, rhs, value) => {
     if (engine && typeof engine.execute === 'function') {
       try {
-        engine.execute(`${variable.name}(${r + 1},${c + 1}) = ${parsed};`);
+        engine.execute(`${variable.name}(${r + 1},${c + 1}) = ${rhs};`);
       } catch (e) {
         console.warn('[VariableEditor] write-back failed:', e);
       }
     }
-
     if (shape.tileMode) {
-      // Drop the affected tile + slice caches so the next render re-fetches
-      // fresh values from the engine.
       const tR = Math.floor(r / TILE), tC = Math.floor(c / TILE);
       tileCache.current.delete(`${tR},${tC}`);
       sliceCache.current.delete(`col:${c}`);
       sliceCache.current.delete(`row:${r}`);
       setTileBump((n) => n + 1);
     } else {
-      // Full mode: update the local mirror so the cell repaints immediately.
+      // Full mode: mirror the JS value locally so the cell repaints
+      // immediately without a refetch.
       setData((d) => {
         const copy = d.map((row) => row.slice());
-        if (copy[r]) copy[r][c] = parsed;
+        if (copy[r]) copy[r][c] = value;
         return copy;
       });
     }
-    setEditing(null);
-  }, [editing, editVal, engine, variable.name, shape.tileMode]);
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editing]);
-
-  const handleKey = useCallback((e) => {
-    if (editing) {
-      if (e.key === 'Enter')  { e.preventDefault(); commitEdit(); }
-      if (e.key === 'Escape') { e.preventDefault(); setEditing(null); }
-      return;
-    }
-    if (e.key === 'Escape') { onClose(); return; }
-    if (e.key === 'Enter' || e.key === 'F2') {
-      // Don't prompt on a placeholder cell whose tile hasn't loaded yet —
-      // editing it would seed the input with "—" which the user has to
-      // erase first. Wait for the value.
-      const v = getCellValue(activeCell.r, activeCell.c);
-      if (v === null || v === undefined) return;
-      setEditing({ ...activeCell });
-      setEditVal(typeof v === 'number' ? String(v) : '');
-      e.preventDefault();
-      return;
-    }
-    let { r, c } = activeCell;
-    if (e.key === 'ArrowUp')    r = Math.max(0, r - 1);
-    if (e.key === 'ArrowDown')  r = Math.min(rows - 1, r + 1);
-    if (e.key === 'ArrowLeft')  c = Math.max(0, c - 1);
-    if (e.key === 'ArrowRight') c = Math.min(cols - 1, c + 1);
-    if (e.key === 'Home')       c = 0;
-    if (e.key === 'End')        c = cols - 1;
-    if (e.key === 'PageUp')     r = Math.max(0, r - 10);
-    if (e.key === 'PageDown')   r = Math.min(rows - 1, r + 10);
-    if (r !== activeCell.r || c !== activeCell.c) {
-      setActiveCell({ r, c });
-      e.preventDefault();
-    }
-  }, [activeCell, rows, cols, editing, getCellValue, onClose, shape.tileMode, commitEdit]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [handleKey]);
+  }, [engine, variable.name, shape.tileMode]);
 
   const { themeName: veThemeName } = useTheme();
   const meta = KIND_META[variable.kind] || KIND_META.matrix;
   const tone = pickTone(TONE[meta.tone] || TONE.amber, veThemeName);
+
+  // Shared title-right (maximise / close) — identical for the matrix
+  // and struct layouts, so it lives in one const.
+  const titleButtons = (
+    <div className="ve-title-right">
+      <button className="ve-close" onClick={() => setMaximized((m) => !m)}
+        title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
+        {maximized ? (
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+            <rect x="1.5" y="3.5" width="7" height="7"
+              stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
+            <rect x="3.5" y="1.5" width="7" height="7"
+              stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
+          </svg>
+        ) : (
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+            <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
+          </svg>
+        )}
+      </button>
+      <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
+    </div>
+  );
+
+  // ── Struct / cell layout — drill-in inspector, no matrix toolbar ──
+  if (isStructLike) {
+    return (
+      <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className={`ve-window ve-window-struct ${maximized ? 'is-max' : ''}`}
+          role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
+          <div className="ve-titlebar">
+            <div className="ve-title-left">
+              <span className="ve-tag" style={{ color: tone.fg, background: tone.bg, borderColor: tone.border }}>
+                {meta.glyph} {variable.type}
+              </span>
+              <span className="ve-name">{variable.name}</span>
+              <span className="ve-dim">{variable.size}</span>
+            </div>
+            {titleButtons}
+          </div>
+          <div className="ve-struct-body">
+            <StructInspector key={variable.name} variable={variable} engine={engine} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -1160,168 +1753,18 @@ export function VariableEditor({ variable, onClose, engine }) {
               </span>
             )}
           </div>
-          <div className="ve-title-right">
-            <button className="ve-close" onClick={() => setMaximized((m) => !m)}
-              title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
-              {maximized ? (
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  {/* back square (rendered first, partially covered) */}
-                  <rect x="1.5" y="3.5" width="7" height="7"
-                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                  {/* front square — bg-2 fill hides the back square's overlap */}
-                  <rect x="3.5" y="1.5" width="7" height="7"
-                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                </svg>
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
-                </svg>
-              )}
-            </button>
-            <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
-          </div>
+          {titleButtons}
         </div>
 
-        <div className="ve-toolbar">
-          <div className="ve-tools-group">
-            <span className="ve-label">notation</span>
-            <div className="ve-segmented">
-              {['fixed', 'exp', 'auto'].map((n) => (
-                <button key={n} className={notation === n ? 'is-active' : ''} onClick={() => setNotation(n)}>{n}</button>
-              ))}
-            </div>
-          </div>
-          <div className="ve-tools-group">
-            <span className="ve-label">precision</span>
-            <input
-              type="range" min={0} max={8} step={1}
-              value={precision}
-              onChange={(e) => setPrecision(parseInt(e.target.value, 10))}
-            />
-            <span className="ve-precision-num">{precision}</span>
-          </div>
-          <div className="ve-tools-group">
-            <button className={`ve-btn ${heatmap ? 'is-active' : ''}`}
-              onClick={() => setHeatmap((h) => !h)}
-              title="Toggle value heatmap">
-              <svg width="11" height="11" viewBox="0 0 12 12">
-                <rect x="0.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 240)"/>
-                <rect x="3.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 180)"/>
-                <rect x="6.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 60)"/>
-                <rect x="9.5" y="0.5" width="2" height="11" fill="oklch(0.6 0.1 30)"/>
-              </svg>
-              heatmap
-            </button>
-            <button className="ve-btn" title="Copy as CSV" onClick={() => {
-              const csv = data.map((row) => row.map((v) => typeof v === 'number' ? v : `"${v}"`).join(',')).join('\n');
-              navigator.clipboard?.writeText(csv);
-            }}>
-              <svg width="11" height="11" viewBox="0 0 12 12">
-                <rect x="2" y="2" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
-                <rect x="3.5" y="0.5" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
-              </svg>
-              copy csv
-            </button>
-            <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
-              title="Toggle inline plot"
-              onClick={() => setShowPlot((p) => !p)}>
-              <svg width="11" height="11" viewBox="0 0 12 12">
-                <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
-              </svg>
-              plot
-            </button>
-            <div className="ve-saveas-wrap">
-              <button className="ve-btn ve-saveas-trigger"
-                title={shape.tileMode ? 'save disabled for huge matrices' : 'Save variable to file'}
-                disabled={shape.tileMode}
-                onClick={() => setSaveOpen((s) => !s)}>
-                <svg width="11" height="11" viewBox="0 0 12 12">
-                  <path d="M2 2h6l2 2v6H2z M4 2v3h4V2 M4 8h4v2H4z" stroke="currentColor" fill="none"/>
-                </svg>
-                save as
-                <svg width="8" height="8" viewBox="0 0 8 8" style={{ marginLeft: 2 }}>
-                  <path d="M1 2.5 L4 5.5 L7 2.5" stroke="currentColor" fill="none" strokeWidth="1.2" strokeLinecap="round"/>
-                </svg>
-              </button>
-              {saveOpen && (
-                <SaveAsMenu
-                  onClose={() => setSaveOpen(false)}
-                  onPick={(f) => { exportData(variable, data, f); setSaveOpen(false); }}
-                />
-              )}
-            </div>
-          </div>
-          <div className="ve-tools-spacer" />
-          {stats && (
-            <div className="ve-stats">
-              <span><b>min</b> {fmt(stats.min)}</span>
-              <span><b>max</b> {fmt(stats.max)}</span>
-              <span><b>μ</b> {fmt(stats.mean)}</span>
-              <span><b>n</b> {stats.n}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="ve-address">
-          <span className="ve-cell-ref">{variable.name}({activeCell.r + 1}, {activeCell.c + 1})</span>
-          <span className="ve-eq">=</span>
-          <span className="ve-cell-val">{format(getCellValue(activeCell.r, activeCell.c))}</span>
-        </div>
-
-        <div className={`ve-body ${showPlot ? 'has-plot' : ''}`}
-             ref={veBodyRef}
-             style={showPlot
-               ? { gridTemplateColumns: `1fr 6px ${plotWidth}px` }
-               : undefined}>
-          <VirtualTable
-            tableRef={tableRef}
-            rows={rows} cols={cols}
-            getCellValue={getCellValue}
-            activeCell={activeCell}
-            setActiveCell={setActiveCell}
-            editing={editing} setEditing={setEditing}
-            editVal={editVal} setEditVal={setEditVal}
-            commitEdit={commitEdit}
-            inputRef={inputRef}
-            heatmap={heatmap} stats={stats}
-            format={format}
-            readOnly={false}
-          />
-          {showPlot && (
-            <>
-              {/* Drag handle between table and plot. 6 px wide gutter
-                  (matches grid track). On hover/active the visual
-                  highlights so the user finds it. */}
-              <div className="ve-divider"
-                   role="separator"
-                   aria-orientation="vertical"
-                   aria-label="Resize plot pane"
-                   onMouseDown={startDragDivider}
-                   onDoubleClick={() => setPlotWidth(520)}
-                   title="Drag to resize · double-click to reset" />
-              <InlinePlot
-                getSlice={getSlice}
-                rows={rows}
-                cols={cols}
-                onClose={() => setShowPlot(false)}
-              />
-            </>
-          )}
-        </div>
-
-        <div className="ve-status">
-          <span>cell ({activeCell.r + 1},{activeCell.c + 1})</span>
-          <span className="ve-sep" />
-          <span>↑↓←→ navigate</span>
-          <span className="ve-sep" />
-          <span>↵ / F2 edit</span>
-          <span className="ve-sep" />
-          <span>Esc close</span>
-          <span className="ve-spacer" />
-          <span>UTF-8</span>
-          <span className="ve-sep" />
-          <span>read/write</span>
-        </div>
+        <MatrixPanel
+          rows={rows} cols={cols} name={variable.name} type={variable.type}
+          getCellValue={getCellValue} getSlice={getSlice} stats={stats}
+          readOnly={false}
+          onCommit={onCommit}
+          onEscape={onClose}
+          onSave={shape.tileMode ? null : (f) => exportData(variable, data, f)}
+          saveDisabled={shape.tileMode}
+        />
       </div>
     </div>
   );

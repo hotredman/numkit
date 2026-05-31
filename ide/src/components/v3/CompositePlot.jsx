@@ -392,10 +392,23 @@ export default function CompositePlot({
     [effectiveColormap, cminOrig, cmaxOrig, cminEff, cmaxEff]
   );
 
+  // Resolve "is the colorbar actually drawn?" up front — the panel
+  // padding budget depends on it (reserve ~70 px on the right only
+  // when there's a bar there to label). cbarLocRaw + cbarWanted are
+  // re-used unchanged by the colorbar render block far below.
+  // showColorbar === true  → user toggle on
+  // showColorbar === false → user toggle off (suppresses script's bar)
+  // showColorbar === null  → follow script's figure.colorbarLocation
+  const cbarLocRaw = colorbarLocationProp || figure.colorbarLocation || '';
+  const cbarWanted = showColorbar === true
+                  || (showColorbar !== false && !!cbarLocRaw);
+
   let padL = 60 * fontScale;
-  // Right pad: extra space for colorbar OR for a yyaxis right-side axis.
-  // Both reserve roughly the same width for tick labels.
-  const padR = (hasHeatmap || figure.yyEnabled) ? 70 * fontScale : 18;
+  // Right pad: extra space for the colorbar (only when it's actually
+  // shown) OR for a yyaxis right-side axis. Both reserve roughly the
+  // same width for tick labels. When neither is present we reclaim
+  // the space so a plain imagesc / imshow uses the full panel width.
+  const padR = (cbarWanted || figure.yyEnabled) ? 70 * fontScale : 18;
   let padT = 36 * fontScale;
   const padB = 44 * fontScale;
   // Force integer dims — non-integer panel sizes from fractional fontScale
@@ -1442,12 +1455,8 @@ export default function CompositePlot({
      'south' / 'southoutside' → horizontal bar below plot
      We collapse 'inside' / 'outside' variants to the same screen
      position; 'inside' would overlap data. */
-  // colorbarLocationProp override wins — UI submenu can pin the bar
-  // to a specific edge regardless of script's choice.
-  const cbarLocRaw = colorbarLocationProp || figure.colorbarLocation || '';
-  // Resolve "want bar?" — explicit toggle wins; otherwise follow script.
-  const cbarWanted = showColorbar === true
-                  || (showColorbar !== false && !!cbarLocRaw);
+  // cbarLocRaw + cbarWanted are computed up at the panel-padding
+  // block — same definition, hoisted so padR can gate on it.
   // When wanted but script didn't set a location, fall back to 'east'.
   const cbarLoc = cbarWanted ? (cbarLocRaw || 'east') : null;
   // Strip the 'outside' suffix so the placement switch is compact.
@@ -1490,7 +1499,7 @@ export default function CompositePlot({
       <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxItems}
         onClose={() => setCtxMenu(null)} />
     )}
-    {hDownsampled && (
+    {hDownsampled && !tileOverlay && (
       <div className="hm-preview-banner" title="Engine downsampled this figure to keep the inline preview small. Zoom-in detail will arrive once tile-fetch lands.">
         preview · downsampled from {hFullRows}×{hFullCols}
       </div>

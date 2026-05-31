@@ -141,7 +141,6 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
  */
 export default function FiguresPane({
   figures, unsupportedCount = 0,
-  onOpenLegacy,
   onExpand, onCloseFigure, onCloseAll,
 }) {
   return (
@@ -167,16 +166,16 @@ export default function FiguresPane({
         </div>
       </div>
       {unsupportedCount > 0 && (
-        <button onClick={onOpenLegacy}
+        <div
           style={{
             margin: '6px 10px', padding: '6px 10px',
             background: 'var(--bg-2)', border: '1px solid var(--line)',
-            borderRadius: 6, color: 'var(--fg-2)', cursor: 'pointer',
-            fontSize: 11, textAlign: 'left',
+            borderRadius: 6, color: 'var(--fg-2)',
+            fontSize: 11,
           }}>
-          {unsupportedCount} figure{unsupportedCount === 1 ? '' : 's'} need legacy
-          renderer (heatmap / surface / etc.) — click to view
-        </button>
+          {unsupportedCount} figure{unsupportedCount === 1 ? '' : 's'} of an
+          unsupported plot type — render skipped.
+        </div>
       )}
       <div className="fp-stack">
         {figures.map((fig) => (

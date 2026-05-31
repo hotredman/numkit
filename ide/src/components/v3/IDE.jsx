@@ -1,7 +1,6 @@
 import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 
 import SyntaxEditor from '../SyntaxEditor';
-import OldFigures from '../Figures';
 import Sidebar from './Sidebar';
 import ConsolePane from './ConsolePane';
 
@@ -125,7 +124,7 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
 // can call imperative methods on the inner SyntaxEditor — chiefly
 // `setCaret(line, col)` from the AST → editor click handoff.
 const EditorBody = forwardRef(function EditorBody(
-  { activeTab, errorLine, debugLine, breakpoints, onToggleBp, onChange, onCursor },
+  { activeTab, errorLine, debugLine, breakpoints, onToggleBp, onChange, onCursor, engine },
   ref,
 ) {
   const editorRef = useRef(null);
@@ -191,6 +190,11 @@ const EditorBody = forwardRef(function EditorBody(
           onCursor={onCursor}
           errorLine={errorLine}
           debugLine={debugLine}
+          engine={engine}
+          // EditorBody owns its own line-number gutter (the one with
+          // breakpoint click handling). Hide SyntaxEditor's built-in
+          // gutter so we don't get two columns of line numbers.
+          showGutter={false}
         />
       </div>
     </div>
@@ -338,7 +342,6 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // New modals from mockup
   const [openVar, setOpenVar]         = useState(null);
   const [openFigure, setOpenFigure]   = useState(null);
-  const [showLegacyFigures, setShowLegacyFigures] = useState(false);
 
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
@@ -974,6 +977,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                             onToggleBp={toggleBreakpoint}
                             onChange={updateTabCode}
                             onCursor={(line, col) => setEditorCursor({ line, col })}
+                            engine={engine}
                           />
                         );
                       case 'graph':
@@ -1070,7 +1074,6 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
           <FiguresPane
             figures={adaptedFigures}
             unsupportedCount={droppedFigures}
-            onOpenLegacy={() => setShowLegacyFigures(true)}
             onExpand={(fig) => setOpenFigure(fig)}
             onCloseFigure={handleCloseFigure}
             onCloseAll={handleCloseAllFigures}
@@ -1098,41 +1101,6 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       {openFigure && (
         <FigureWindow figure={openFigure} engine={engine}
           onClose={() => setOpenFigure(null)} />
-      )}
-
-      {/* Legacy d3 renderer — full-screen modal for unsupported plot types */}
-      {showLegacyFigures && (
-        <div onClick={(e) => { if (e.target === e.currentTarget) setShowLegacyFigures(false); }}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 900,
-          }}>
-          <div style={{
-            background: 'var(--bg-1)', border: '1px solid var(--line)',
-            borderRadius: 10, width: '85vw', height: '80vh',
-            display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-          }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '8px 14px', borderBottom: '1px solid var(--line)',
-              fontSize: 12, color: 'var(--fg-1)',
-            }}>
-              <span>Legacy figures (heatmap / surface / 3-D)</span>
-              <button onClick={() => setShowLegacyFigures(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--fg-2)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
-            </div>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <OldFigures
-                figures={figures.filter((f) => !adaptedFigures.some((a) => a.id === f.id))}
-                onSetFigures={setFigures}
-                onCloseFigure={handleCloseFigure}
-                onCloseAll={handleCloseAllFigures}
-                onClose={() => setShowLegacyFigures(false)}
-              />
-            </div>
-          </div>
-        </div>
       )}
 
       {showSaveDialog && (
