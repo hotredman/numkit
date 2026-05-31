@@ -48,6 +48,20 @@ describe('ValueTable', () => {
     expect(within(table).getByText('6.94')).toBeTruthy();
   });
 
+  it('Select all shows every column; Clear all leaves only the name column', () => {
+    const { container } = render(<ValueTable rows={rows} nameHeader="Field" storageKey="t5" />);
+    const openChooser = () => fireEvent.contextMenu(container.querySelector('.vt-table thead tr'));
+    const clickItem = (re) => {
+      openChooser();
+      fireEvent.click([...document.querySelectorAll('.ctx-item')].find((b) => re.test(b.textContent)));
+    };
+    clickItem(/Select all/);
+    expect(heads(container)).toEqual(
+      ['Field', 'Value', 'Size', 'Class', 'Min', 'Max', 'Range', 'Mean', 'Median', 'Mode', 'Var', 'Std']);
+    clickItem(/Clear all/);
+    expect(heads(container)).toEqual(['Field']);   // name column is locked-on
+  });
+
   it('fires onRowClick only for drillable rows', () => {
     const onRowClick = vi.fn();
     const { container } = render(

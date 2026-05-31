@@ -61,4 +61,19 @@ describe('StatChooserButton (toolbar) + persistence', () => {
     const { container } = render(<Harness stats={stats} />);
     expect(isEmpty(container)).toBe(true);
   });
+
+  it('Select all shows every stat; Clear all hides the row', () => {
+    const { container } = render(<Harness stats={stats} />);
+    const clickItem = (re) => {
+      fireEvent.click(container.querySelector('.ve-btn'));
+      fireEvent.click([...document.querySelectorAll('.ctx-item')].find((b) => re.test(b.textContent)));
+    };
+    clickItem(/Select all/);
+    const bar = container.querySelector('.ve-statsbar');
+    for (const lbl of ['min', 'max', 'range', 'mean', 'median', 'mode', 'var', 'std', 'n']) {
+      expect(within(bar).getByText(lbl)).toBeTruthy();
+    }
+    clickItem(/Clear all/);
+    expect(isEmpty(container)).toBe(true);
+  });
 });
