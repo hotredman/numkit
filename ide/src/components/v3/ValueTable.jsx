@@ -57,7 +57,7 @@ export default function ValueTable({
     <div className="vt-wrap">
       <table className="vt-table">
         <thead>
-          <tr onContextMenu={(e) => { e.preventDefault(); setHeadMenu({ x: e.clientX, y: e.clientY }); }}
+          <tr onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setHeadMenu({ x: e.clientX, y: e.clientY }); }}
             title="right-click to choose columns">
             <th>{nameHeader}</th>
             {cols.map((c) => (
@@ -71,7 +71,7 @@ export default function ValueTable({
               className={row.drill ? 'is-drillable' : ''}
               onClick={onRowClick && row.drill ? () => onRowClick(row) : undefined}
               onContextMenu={onRowContextMenu
-                ? (e) => { e.preventDefault(); onRowContextMenu(row, e); } : undefined}>
+                ? (e) => { e.preventDefault(); e.stopPropagation(); onRowContextMenu(row, e); } : undefined}>
               <td className="vt-name">{nameCell ? nameCell(row) : row.name}</td>
               {cols.map((c) => renderCell(row, c))}
             </tr>

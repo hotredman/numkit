@@ -201,6 +201,25 @@ describe('VariableEditor — struct inspector render smoke', () => {
     expect(container.querySelectorAll('.var-card').length).toBe(2);
     try { localStorage.setItem('numkit.ide.struct.view', 'list'); } catch { /* none */ }  // restore
   });
+
+  it('drops the inline "+ new field" row; right-click the table area opens Insert field', () => {
+    try { localStorage.setItem('numkit.ide.struct.view', 'list'); } catch { /* none */ }
+    const engine = makeEngine({
+      inspectPath: () => ({
+        kind: 'struct', rows: 1, cols: 1, numel: 1,
+        fields: ['hp'],
+        elems: [[{ type: 'double', size: '1x1', summary: '1', drill: true }]],
+      }),
+    });
+    const { container } = render(<VE variable={structVar} onClose={() => {}} engine={engine} />);
+    // The inline add-field control is gone.
+    expect(container.querySelector('.ve-addfield')).toBeNull();
+    // Right-clicking the table area (not a row) opens the field-agnostic menu.
+    fireEvent.contextMenu(container.querySelector('.ws-list'));
+    const labels = [...document.querySelectorAll('.ctx-item')].map((b) => b.textContent);
+    expect(labels).toContain('Insert field');
+    expect(labels).not.toContain('Rename');   // no field target → row actions absent
+  });
 });
 
 describe('SyntaxEditor — render smoke', () => {

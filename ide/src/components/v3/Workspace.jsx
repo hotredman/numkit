@@ -78,7 +78,7 @@ function EntityCard({ row, nameCell, onOpen, onContextMenu }) {
     <div
       className="var-card"
       onClick={row.drill !== false ? () => onOpen?.(row) : undefined}
-      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(row, e); } : undefined}
+      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(row, e); } : undefined}
       role="button"
       aria-label={`Open ${row.name}`}
     >
@@ -120,7 +120,7 @@ const SORT_OPTS = ['name', 'size', 'type'];
 function EntityBrowser({
   rows, nameHeader = 'Name', countNoun = 'item', defaultView = 'cards',
   viewKey, sortKey, cols, setCols,
-  nameCell, onOpen, onRowContextMenu, footer,
+  nameCell, onOpen, onRowContextMenu, onAreaContextMenu, footer,
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState(() => loadPref(sortKey, SORT_OPTS, 'name'));
@@ -193,7 +193,7 @@ function EntityBrowser({
       </div>
 
       {view === 'cards' ? (
-        <div className="ws-grid">
+        <div className="ws-grid" onContextMenu={onAreaContextMenu}>
           {filtered.map((r) => (
             <EntityCard key={r.key} row={r} nameCell={nameCell}
               onOpen={onOpen} onContextMenu={onRowContextMenu} />
@@ -201,7 +201,7 @@ function EntityBrowser({
           {filtered.length === 0 && <div className="ws-empty">nothing matches “{query}”</div>}
         </div>
       ) : (
-        <div className="ws-list">
+        <div className="ws-list" onContextMenu={onAreaContextMenu}>
           <ValueTable
             rows={filtered}
             nameHeader={nameHeader}
@@ -1244,17 +1244,29 @@ function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
         onOpen={(row) => open(row.name)}
         onRowContextMenu={(row, e) =>
           setMenu({ x: e.clientX, y: e.clientY, name: row.name, drill: row.drill })}
-        footer={<AddFieldRow onAdd={onAddField} />}
+        onAreaContextMenu={(e) => {
+          // Right-click anywhere in the table area (not on a row — those
+          // stop propagation): the field-agnostic menu (Insert field).
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY, name: null, drill: false });
+        }}
       />
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
-          { label: 'Open',         disabled: !menu.drill, onClick: () => open(menu.name) },
-          { label: 'Rename',       onClick: () => setRenaming(menu.name) },
-          { label: 'Duplicate',    onClick: () => onDuplicateField(menu.name) },
-          { label: 'Insert field', onClick: () => onInsertField() },
-          { separator: true },
-          { label: 'Delete',       onClick: () => onDeleteField(menu.name) },
-        ]} />
+        <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={
+          menu.name
+            ? [
+              { label: 'Open',         disabled: !menu.drill, onClick: () => open(menu.name) },
+              { label: 'Rename',       onClick: () => setRenaming(menu.name) },
+              { label: 'Duplicate',    onClick: () => onDuplicateField(menu.name) },
+              { label: 'Insert field', onClick: () => onInsertField() },
+              { separator: true },
+              { label: 'Delete',       onClick: () => onDeleteField(menu.name) },
+            ]
+            : [
+              // Empty table area: no field target → just add a new one.
+              { label: 'Insert field', onClick: () => onInsertField() },
+            ]
+        } />
       )}
     </>
   );
