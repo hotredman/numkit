@@ -41,6 +41,27 @@ TEST_F(MultirateExtrasTest, IntfiltSymmetric)
     }
 }
 
+// intfilt's bandlimited form is firls(2*R*L-2, F*2, M) (MATLAB R2025b),
+// not a windowed sinc. Coefficient VALUES pinned to MATLAB.
+TEST_F(MultirateExtrasTest, IntfiltMatchesFirls)
+{
+    eval("b = intfilt(4, 2, 0.5);");          // length 15
+    EXPECT_EQ(eval("b").numel(), 15u);
+    EXPECT_NEAR(evalScalar("b(1)"), -0.0582705792, 1e-9);
+    EXPECT_NEAR(evalScalar("b(8)"),  1.0,          1e-9);  // centre tap
+    EXPECT_NEAR(evalScalar("sum(b)"), 3.9678094037, 1e-9);
+
+    eval("c = intfilt(3, 4, 0.6);");
+    EXPECT_NEAR(evalScalar("c(1)"),  -0.0089374149, 1e-9);
+    EXPECT_NEAR(evalScalar("c(12)"),  1.0,          1e-9);
+
+    // freqmult == 1 takes the [R R 0 0] band special case.
+    eval("d = intfilt(2, 2, 1);");            // length 7
+    EXPECT_EQ(eval("d").numel(), 7u);
+    EXPECT_NEAR(evalScalar("d(1)"), -0.2122065908, 1e-9);
+    EXPECT_NEAR(evalScalar("d(4)"),  1.0,          1e-9);
+}
+
 // ── upfirdn ───────────────────────────────────────────────────────────
 TEST_F(MultirateExtrasTest, UpfirdnIdentityWithDelta)
 {

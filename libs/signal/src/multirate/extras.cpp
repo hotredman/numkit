@@ -12,6 +12,7 @@
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/signal/digital_filtering/filter.hpp>
+#include <numkit/signal/filter_design/filter_design.hpp>   // firls
 #include <numkit/signal/multirate/multirate.hpp>
 
 #include "../dsp_helpers.hpp"   // fftRadix2, fillFftTwiddles, nextPow2, Complex
@@ -19,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -55,34 +57,40 @@ Value intfilt(size_t r, size_t n, double alpha, std::pmr::memory_resource *mr)
         throw Error("intfilt: alpha must be in (0, 1]",
                      0, 0, "intfilt", "", "numkit:intfilt:badAlpha");
 
-    // MATLAB intfilt(R, L, alpha): length = 2*R*L - 1. Numkit uses a
-    // Hamming-windowed sinc (not MATLAB's proprietary firgr/firls
-    // equiripple), so coefficient VALUES differ -- but length matches
-    // and DC gain is normalised to R so that the cascade
-    //   upfirdn(x, h, R, 1)
-    // recovers the original amplitude (the interp() upsampling
-    // convention). Aligning bit-for-bit with MATLAB requires firls.
+    // MATLAB intfilt(R, L, freqmult): a bandlimited interpolation FIR of
+    // length 2*R*L-1, designed by LEAST SQUARES (firls) over a piecewise
+    // band/amplitude spec — NOT a windowed sinc. Ported verbatim from
+    // intfilt.m's bandlimited ('b') branch: passband amplitude R around
+    // each image-free band, zero in the images, then h = firls(n-1, F*2, M).
     if (2 * n * r < 1) return Value::matrix(1, 1, ValueType::DOUBLE, mr);
-    const size_t L = 2 * n * r - 1;
-    auto out = Value::matrix(1, L, ValueType::DOUBLE, mr);
-    double *h = out.doubleDataMut();
-    const double half = (static_cast<double>(L) - 1.0) / 2.0;
-    const double wc = M_PI * alpha / static_cast<double>(r);
-    double sum = 0.0;
-    for (size_t i = 0; i < L; ++i) {
-        const double k = static_cast<double>(i) - half;
-        const double sinc = (std::abs(k) < 1e-12) ? wc / M_PI
-                                                  : std::sin(wc * k) / (M_PI * k);
-        const double win = 0.54 - 0.46 *
-            std::cos(2.0 * M_PI * static_cast<double>(i) / (L - 1));
-        h[i] = sinc * win;
-        sum += h[i];
+    const long Ntaps = static_cast<long>(2 * n * r) - 1;
+    const int  order = static_cast<int>(Ntaps - 1);   // even (2RL-2)
+    const double R   = static_cast<double>(r);
+
+    std::vector<double> F, M;
+    if (alpha == 1.0) {
+        M = {R, R, 0.0, 0.0};
+        F = {0.0, 1.0 / (2.0 * R), 1.0 / (2.0 * R), 0.5};
+    } else {
+        const double hw = alpha / (2.0 * R);          // half passband width
+        M = {R, R};
+        F = {0.0, hw};
+        for (size_t k = 1; static_cast<double>(k) / R <= 0.5 + 1e-9; ++k) {
+            const double f = static_cast<double>(k) / R;
+            F.push_back(f - hw);
+            F.push_back(f + hw);
+            M.push_back(0.0);
+            M.push_back(0.0);
+        }
+        if (F.back() > 0.5) F.back() = 0.5;
     }
-    if (sum > 0.0) {
-        const double scale = static_cast<double>(r) / sum;
-        for (size_t i = 0; i < L; ++i) h[i] *= scale;
-    }
-    return out;
+    // numkit's firls normalises frequency to Nyquist = 1 → scale F by 2.
+    Value Fv = Value::matrix(1, F.size(), ValueType::DOUBLE, mr);
+    Value Mv = Value::matrix(1, M.size(), ValueType::DOUBLE, mr);
+    double *fd = Fv.doubleDataMut();
+    double *md = Mv.doubleDataMut();
+    for (size_t i = 0; i < F.size(); ++i) { fd[i] = F[i] * 2.0; md[i] = M[i]; }
+    return firls(order, Fv, Mv, mr);
 }
 
 // ── upfirdn ───────────────────────────────────────────────────────────
