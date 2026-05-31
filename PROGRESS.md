@@ -346,11 +346,11 @@ together.
 | `convertcharstostrings` | ✅ | Sig: r = convertcharstostrings(...). Spec-extension batch 2026-05-09. |
 | `convertcontainedstringstochars` | ✅ | Sig: r = convertcontainedstringstochars(...). Spec-extension batch 2026-05-09. |
 | `convertstringstochars` | ✅ | Sig: r = convertstringstochars(...). Spec-extension batch 2026-05-09. |
-| `count` | ✅ 🔬 | Sig: r = count(...). Spec-extension batch 2026-05-09. |
+| `count` | ✅ 🔬 | Sig: r = count(s,pat). DEEP-PROBE 2026-05-31: added CELL-ARRAY str support (was throwing 'Not a char array'); returns a DOUBLE array the same shape as the cell, counting (non-overlapping) occurrences per element: count({'aXbX','XcX'},'X')=[2 2]. A cell PATTERN sums counts across all listed patterns: count('abcabc',{'a','bc'})=4. Scalar path unchanged. Spec-extension batch 2026-05-09. |
 | `deblank` | ✅ | Sig: r = deblank(...). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); removes TRAILING whitespace element-wise -> cell of char vectors, same shape: deblank({'a  ','  b '})={'a','  b'} (leading whitespace kept). Scalar char/string path unchanged. FP uses strcmp booleans + cell lengths/codes. |
 | `double` | ✅ | Sig: r = double(...). Type conversion. Spec-extension batch 2026-05-09. KNOWN GAP: numkit rejects double("string") with error; MATLAB returns NaN, Octave returns ASCII codes — both differ from numkit. String→double documented as separate gap; only int/logical/numeric paths pinned here. |
 | `endsWith` | ✅ 🔬 | Sig: r = endsWith(...). String op. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified MATLAB R2025b parity. |
-| `erase` | ✅ 🔬 | Sig: r = erase(...). Spec-extension batch 2026-05-09. |
+| `erase` | ✅ 🔬 | Sig: r = erase(s,match). DEEP-PROBE 2026-05-31: added CELL-ARRAY str support (was throwing 'Not a char array'); processes element-wise -> cell of char vectors, same shape: erase({'a1b','c2'},'1')={'ab','c2'}. A cell MATCH erases every listed substring: erase({'a1b2','c2'},{'1','2'})={'ab','c'}. Scalar path unchanged. Spec-extension batch 2026-05-09. |
 | `erasebetween` | ✅ | Sig: position-based string op (MATLAB canonical: eraseBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
 | `extract` | ✅ | Sig: r = extract(...). Spec-extension batch 2026-05-09. |
 | `extractafter` | ✅ | Sig: position-based string op (MATLAB canonical: extractAfter). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
@@ -378,7 +378,7 @@ together.
 | `regexptranslate` | ✅ | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
 | `replace` | ✅ 🔬 | Sig: r = replace(...). Spec-extension batch 2026-05-09. |
 | `replacebetween` | ✅ | Sig: position-based string op (MATLAB canonical: replaceBetween). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience. |
-| `reverse` | ✅ | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
+| `reverse` | ✅ | Sig: S2 = reverse(S). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); reverses each element -> cell of char vectors, same shape: reverse({'abc','de'})={'cba','ed'}; column cell stays a column. Scalar char/string path unchanged. |
 | `split` | ✅ | Sig: r = split(...). Spec-extension batch 2026-05-09. |
 | `splitlines` | ✅ | Sig: r = splitlines(...). Spec-extension batch 2026-05-09. |
 | `sprintf` | ✅ 🔬 | Sig: r = sprintf(fmt, ...). Spec-extension batch 2026-05-09. Note: numkit sprintf("...") with double-quoted format returns empty — only single-quoted char format works. Documented as separate gap (string vs char distinction in format arg). |

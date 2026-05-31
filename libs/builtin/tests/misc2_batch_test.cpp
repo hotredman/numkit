@@ -40,6 +40,43 @@ TEST_F(Misc2BatchTest, Erase)
     EXPECT_DOUBLE_EQ(evalScalar("strcmp(erase(\"abc\", \"b\"), \"ac\")"),   1.0);
 }
 
+// reverse / erase / count on a CELL array of char: first arg is the cell ->
+// processed element-wise. reverse/erase return a cell of char vectors (same
+// shape); count returns a DOUBLE array (same shape). Were all throwing "Not a
+// char array". vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(Misc2BatchTest, ReverseEraseCountCells)
+{
+    // reverse over a cell.
+    eval("r = reverse({'abc','de'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(r))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(r{1}, 'cba')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(r{2}, 'ed')"),  1.0);
+    // shape preserved (column cell stays a column).
+    eval("rc = reverse({'ab';'cd'});");
+    EXPECT_DOUBLE_EQ(evalScalar("size(rc,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(rc,2)"), 1.0);
+    // erase over a cell; cell match erases every listed substring.
+    eval("e = erase({'a1b','c2'}, '1');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(e{1}, 'ab')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(e{2}, 'c2')"), 1.0);
+    eval("ec = erase({'a1b2','c2'}, {'1','2'});");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ec{1}, 'ab')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(ec{2}, 'c')"),  1.0);
+    // count over a cell -> double array; cell pattern sums across patterns.
+    eval("c = count({'aXbX','XcX'}, 'X');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(c))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("count('abcabc', {'a','bc'})"), 4.0);
+    eval("cs = count({'aa';'bab'}, 'a');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cs,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cs(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cs(2)"), 1.0);
+    // scalar (non-cell) paths unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(reverse('hello'), 'olleh')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("count('aXbX', 'X')"), 2.0);
+}
+
 // ─── special functions ──────────────────────────────────────────────
 
 TEST_F(Misc2BatchTest, EllipjEllipke)
