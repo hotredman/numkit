@@ -1,0 +1,132 @@
+// @vitest-environment jsdom
+//
+// Render smoke tests for the big plot components — CompositePlot,
+// PolarPlot, SubplotGrid, FigureWindow, and the FiguresPane preview.
+// Mount with minimal valid figures and assert no throw. Catches the
+// mount-time ReferenceError class (a dangling reference to a moved /
+// removed identifier) that parse + build + pure-logic tests all miss.
+//
+// NOT covered: Composite3DPlot (WebGL — jsdom has no GL context) and
+// Sidebar (IndexedDB-backed fs on mount). Both need heavy environment
+// stubs; their render path is exercised manually.
+
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, cleanup } from '@testing-library/react';
+import CompositePlot from './CompositePlot';
+import PolarPlot from './PolarPlot';
+import SubplotGrid from './SubplotGrid';
+import FigureWindow from './FigureWindow';
+import FiguresPane from './FiguresPane';
+
+// jsdom env gaps the plot components touch.
+globalThis.ResizeObserver = globalThis.ResizeObserver
+  || class { observe() {} unobserve() {} disconnect() {} };
+const NOOP_CTX = new Proxy({}, { get: () => () => {}, set: () => true });
+HTMLCanvasElement.prototype.getContext = () => NOOP_CTX;
+
+afterEach(cleanup);
+
+const seriesLayer = { kind: 'series', name: 's1', mode: 'line',
+  x: [1, 2, 3, 4], y: [2, 4, 3, 8], color: '#7fd99a' };
+
+const compositeFig = {
+  kind: 'composite', id: 1, title: 't', xLabel: 'x', yLabel: 'y',
+  xRange: [0, 5], yRange: [0, 10],
+  grid: 'on', gridMinor: 'off', xscale: 'linear', yscale: 'linear',
+  axisMode: '', axisVisible: true, boxOn: true, legend: [],
+  layers: [seriesLayer],
+};
+
+// loglog figure whose data-padded range dips ≤0 — exercises the log
+// clamp path in both the window and the preview.
+const logFig = {
+  ...compositeFig, id: 4, xscale: 'log', yscale: 'log',
+  xRange: [-39, 1040], yRange: [-2, 100],
+  layers: [{ ...seriesLayer, x: [1, 10, 100, 1000], y: [1, 5, 50, 90] }],
+};
+
+const polarFig = {
+  kind: 'polar', id: 2,
+  thetaDir: 'counterclockwise', thetaZeroLocation: 'right',
+  series: [{ name: 'p', theta: [0, 1, 2, 3], rho: [1, 2, 1.5, 2], color: '#7fd99a' }],
+};
+
+const subplotFig = {
+  kind: 'subplot', id: 3, title: 'grid', grid: [1, 2],
+  cells: [
+    { ...compositeFig, id: 31, subplotIndex: 1 },
+    { ...compositeFig, id: 32, subplotIndex: 2 },
+  ],
+};
+
+const noop = () => {};
+const mockEngine = {
+  getVarData: () => null, getVarShape: () => null,
+  getFigureTile: () => null, getFigureDisplayTile: () => null,
+  execute: vi.fn(),
+};
+
+describe('CompositePlot render smoke', () => {
+  it('mounts a linear composite without throwing', () => {
+    const { container } = render(
+      <CompositePlot figure={compositeFig} width={400} height={300}
+        viewport={{ x: [0, 5], y: [0, 10] }} setViewport={noop} interactive={false} />,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+
+  it('mounts a loglog composite (clamped viewport) without throwing', () => {
+    const { container } = render(
+      <CompositePlot figure={logFig} width={400} height={300}
+        viewport={{ x: [0.1, 1040], y: [0.01, 100] }} setViewport={noop}
+        xLog yLog interactive={false} />,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+});
+
+describe('PolarPlot render smoke', () => {
+  it('mounts without throwing', () => {
+    const { container } = render(
+      <PolarPlot figure={polarFig} width={400} height={300}
+        viewport={{ r: [0, 2], theta: [0, 360] }} setViewport={noop} interactive={false} />,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+});
+
+describe('SubplotGrid render smoke', () => {
+  it('mounts a 1×2 grid without throwing', () => {
+    const { container } = render(
+      <SubplotGrid figure={subplotFig} width={600} height={300}
+        viewport={null} setViewport={noop} interactive={false} engine={mockEngine} />,
+    );
+    expect(container).toBeTruthy();
+  });
+});
+
+describe('FigureWindow render smoke', () => {
+  it('mounts a composite figure window without throwing', () => {
+    const { container } = render(
+      <FigureWindow figure={compositeFig} onClose={noop} engine={mockEngine} />,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+
+  it('mounts a polar figure window without throwing', () => {
+    const { container } = render(
+      <FigureWindow figure={polarFig} onClose={noop} engine={mockEngine} />,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+});
+
+describe('FiguresPane preview render smoke', () => {
+  it('renders a log-figure preview card without throwing', () => {
+    const { container } = render(
+      <FiguresPane figures={[logFig]} unsupportedCount={0}
+        onExpand={noop} onCloseFigure={noop} onCloseAll={noop} engine={mockEngine} />,
+    );
+    expect(container.querySelector('.fp-card')).toBeTruthy();
+  });
+});
