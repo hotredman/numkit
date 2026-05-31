@@ -47,6 +47,61 @@ TEST_P(MatrixTest, Transpose)
     EXPECT_DOUBLE_EQ((*w)(2, 0), 3.0);
 }
 
+// DEEP-PROBE 2026-05-31: transpose/.'/'/ctranspose preserve the input
+// class. Previously the transpose() builtin coerced everything to DOUBLE
+// and the .'/' operators threw on non-DOUBLE/non-COMPLEX.
+TEST_P(MatrixTest, TransposeTypeAgnostic)
+{
+    // CHAR via .' operator and via transpose() builtin.
+    eval("C = ['ab';'cd']; CT = C.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(CT),'char'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(CT(1,1))"), 97.0);  // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(CT(1,2))"), 99.0);  // 'c'
+    EXPECT_DOUBLE_EQ(evalScalar("double(CT(2,1))"), 98.0);  // 'b'
+    eval("CF = transpose(C);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(CF),'char'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(CF(1,2))"), 99.0);
+
+    // LOGICAL preserved, shape transposed.
+    eval("L = logical([1 0 1;0 1 0]); LT = L.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(islogical(LT))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(LT,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(LT,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(LT(3,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(LT(1,2))"), 0.0);
+
+    // INT8 preserved.
+    eval("I = int8([1 2 3;4 5 6]); IT = I.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(IT),'int8'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(IT(2,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(IT(3,2))"), 6.0);
+
+    // SINGLE preserved.
+    eval("S = single([1.5 2.5;3.5 4.5]); ST = S.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(ST),'single'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ST(1,2))"), 3.5);
+
+    // COMPLEX: .' does NOT conjugate; ' (ctranspose) does.
+    eval("Z = [1+2i 3+4i;5+6i 7+8i]; ZT = Z.'; ZC = Z';");
+    EXPECT_DOUBLE_EQ(evalScalar("real(ZT(1,2))"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(ZT(1,2))"), 6.0);   // no conjugate
+    EXPECT_DOUBLE_EQ(evalScalar("real(ZC(1,2))"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(ZC(1,2))"), -6.0);  // conjugated
+    EXPECT_DOUBLE_EQ(evalScalar("imag(ZC(2,1))"), -4.0);  // conj(3+4i)
+
+    // CELL: off-diagonal swap.
+    eval("K = {1 2;3 4}; KT = K.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(KT))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("KT{1,2}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("KT{2,1}"), 2.0);
+
+    // Row char -> column.
+    eval("rv = 'hello'; rt = rv.';");
+    EXPECT_DOUBLE_EQ(evalScalar("size(rt,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(rt,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(rt(3))"), 108.0);  // 'l'
+}
+
 TEST_P(MatrixTest, MatrixMultiply)
 {
     eval("A = [1 2; 3 4]; B = [5; 6]; C = A * B;");

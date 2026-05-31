@@ -2,14 +2,13 @@
   "name": "ctranspose",
   "namespace": "builtin",
   "setup": "",
-  "expr": "A = [1 2 3]; T = ctranspose(A); r1 = T(1); r2 = T(3); r3 = size(T,1); r4 = size(T,2);",
+  "expr": "A = [1 2 3]; T = ctranspose(A); r1 = T(1); r2 = T(3); r3 = size(T,1); r4 = size(T,2); C = ['ab';'cd']; CT = ctranspose(C); c12 = double(CT(1,2)); Z = [1+2i 3+4i;5+6i 7+8i]; Zc = ctranspose(Z); zr = real(Zc(1,2)); zi = imag(Zc(1,2)); Zo = Z'; zor = real(Zo(2,1)); zoi = imag(Zo(2,1)); L = logical([1 0;0 1]); LT = ctranspose(L); l12 = double(LT(1,2)); lcls = double(islogical(LT)); K = {1 'x';2 3}; KT = ctranspose(K); k21 = KT{2,1};",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4"
+    "r1", "r2", "r3", "r4",
+    "c12", "zr", "zi", "zor", "zoi", "l12", "lcls", "k21"
   ],
-  "comment": "Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09."
+  "deep_verified": true,
+  "comment": "Sig: r = ctranspose(A) === A'. Conjugate transpose. DEEP-PROBE 2026-05-31: ctranspose threw 'Transpose not supported for this type' on non-DOUBLE/non-COMPLEX. Now shares transpose2D with transposeNC; COMPLEX conjugates (zr=5,zi=-6 from conj(Z(2,1)=5+6i); Z'(2,1)=conj(Z(1,2)=3+4i)=3-4i so zor=3,zoi=-4), all other types are a plain transpose (no element change): char preserved (c12='c'=99), logical preserved (l12=L(2,1)=0, lcls=1), cell off-diagonal swap (k21=KT{2,1}=K{1,2}='x'). 3-D still throws. Spec-extension batch 2026-05-09."
 }

@@ -15,6 +15,7 @@
 #include <numkit/builtin/math/poly/polynomials.hpp>
 
 #include <numkit/builtin/language/arrays/manip.hpp>     // flip()
+#include <numkit/builtin/language/operators/unary_ops.hpp>  // transposeNC()
 
 #include <algorithm>
 #include <cctype>
@@ -749,15 +750,12 @@ Value reshapeND(const Value &x, Span<const size_t> dims, std::pmr::memory_resour
 
 Value transpose(const Value &x, std::pmr::memory_resource *mr)
 {
-    if (x.dims().is3D())
-        throw Error("transpose is not defined for N-D arrays",
-                     0, 0, "transpose", "", "numkit:transpose:3DInput");
-    const size_t rows = x.dims().rows(), cols = x.dims().cols();
-    auto r = Value::matrix(cols, rows, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < rows; ++i)
-        for (size_t j = 0; j < cols; ++j)
-            r.elem(j, i) = x(i, j);
-    return r;
+    // The named transpose() builtin is identical to the `.'` operator:
+    // type-preserving (CHAR / LOGICAL / SINGLE / int / COMPLEX / CELL).
+    // Delegate to transposeNC (unary_ops.cpp) so there is one
+    // implementation. The DOUBLE-only path here previously coerced every
+    // input to a DOUBLE matrix of element codes.
+    return transposeNC(x, mr);
 }
 
 // ── pagetranspose / pagectranspose ───────────────────────────────────
