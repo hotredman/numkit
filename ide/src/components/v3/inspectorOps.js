@@ -36,13 +36,6 @@ export function pathToMatlabLValue(rootName, pathStr) {
   return expr;
 }
 
-// Numeric MATLAB types — edited cells parse as numbers.
-const NUMERIC_TYPES = new Set([
-  'double', 'single',
-  'int8', 'int16', 'int32', 'int64',
-  'uint8', 'uint16', 'uint32', 'uint64',
-]);
-
 /**
  * Turn a user-entered cell value into a MATLAB RHS literal + the JS
  * value to mirror locally, based on the cell's type. Returns null when
@@ -55,9 +48,45 @@ const NUMERIC_TYPES = new Set([
  *
  * Escaping is the correctness/safety crux — the rhs is interpolated into
  * an engine.execute() string, so quotes must be doubled (MATLAB's escape)
- * to neither break the expression nor allow injection. Complex editing is
- * deferred (returns null).
+ * to neither break the expression nor allow injection. Complex values
+ * parse to a numeric {re, im} and emit `re+im*1i` (numbers only — safe).
  */
+
+const NUM = '(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?';
+
+/**
+ * Parse a complex-number string into { re, im } (or null if malformed).
+ * Accepts: pure real ("3", "-1.5e2"), pure imaginary ("2i", "-i", "i"),
+ * and full forms ("3+2i", "1-4i", "3+i", "-2-i"). Mirrors the "a+bi"
+ * rendering the engine produces for complex cells.
+ */
+export function parseComplex(input) {
+  const s = String(input).trim().replace(/\s+/g, '');
+  if (!s) return null;
+
+  // Pure real.
+  if (new RegExp(`^[+-]?${NUM}$`).test(s)) {
+    const re = parseFloat(s);
+    return Number.isFinite(re) ? { re, im: 0 } : null;
+  }
+  // Pure imaginary: [coeff]i  (coeff optional → 1; lone sign → ±1).
+  let m = s.match(new RegExp(`^([+-]?(?:${NUM})?)i$`));
+  if (m) {
+    const c = m[1];
+    const im = c === '' || c === '+' ? 1 : c === '-' ? -1 : parseFloat(c);
+    return Number.isFinite(im) ? { re: 0, im } : null;
+  }
+  // Full a±bi.
+  m = s.match(new RegExp(`^([+-]?${NUM})([+-](?:${NUM})?)i$`));
+  if (m) {
+    const re = parseFloat(m[1]);
+    const ic = m[2];
+    const im = ic === '+' ? 1 : ic === '-' ? -1 : parseFloat(ic);
+    return (Number.isFinite(re) && Number.isFinite(im)) ? { re, im } : null;
+  }
+  return null;
+}
+
 export function valueToMatlabRHS(input, type) {
   const t = String(type || 'double');
 
@@ -78,14 +107,21 @@ export function valueToMatlabRHS(input, type) {
     return { rhs: `"${s.replace(/"/g, '""')}"`, value: s };
   }
 
-  if (t === 'complex') return null;   // deferred
-
-  // Numeric (default for unknown types too).
-  if (NUMERIC_TYPES.has(t) || true) {
-    const n = parseFloat(input);
-    if (!Number.isFinite(n)) return null;
-    return { rhs: String(n), value: n };
+  if (t === 'complex') {
+    const c = parseComplex(input);
+    if (!c) return null;
+    // re/im are finite numbers, so the literal is injection-safe.
+    const rhs = `${c.re}+${c.im}*1i`;
+    // Mirror string matches the engine's "a+bi" cell rendering.
+    const value = `${c.re}${c.im >= 0 ? '+' : '-'}${Math.abs(c.im)}i`;
+    return { rhs, value };
   }
+
+  // Numeric (double / single / int* / uint*) — also the fallback for
+  // any unrecognised type: parseFloat → reject non-finite.
+  const n = parseFloat(input);
+  if (!Number.isFinite(n)) return null;
+  return { rhs: String(n), value: n };
 }
 
 /** MATLAB identifier rule — used to validate new / renamed field names

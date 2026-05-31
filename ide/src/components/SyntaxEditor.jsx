@@ -433,23 +433,24 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
     setAcItems([]);
   }, [applyResult]);
 
-  // Match count for the bar's "n / m" indicator. Cheap — runs only
-  // when search bar is open and query/value change.
+  // All matches of the open find/replace query — drives both the
+  // "n / m" counter and the highlight-all overlay (VS Code-style).
+  const searchMatches = useMemo(() => {
+    if ((searchMode !== 'find' && searchMode !== 'replace') || !searchQuery) return [];
+    return findAllMatches(value || '', searchQuery, searchOpts);
+  }, [searchMode, searchQuery, searchOpts, value]);
+
+  // Counter "n / m" — active index = the match under the caret.
   const matchInfo = useMemo(() => {
-    if (searchMode !== 'find' && searchMode !== 'replace') {
-      return { count: 0, activeIdx: -1 };
-    }
-    if (!searchQuery) return { count: 0, activeIdx: -1 };
-    const all = findAllMatches(value || '', searchQuery, searchOpts);
-    if (all.length === 0) return { count: 0, activeIdx: -1 };
+    if (searchMatches.length === 0) return { count: 0, activeIdx: -1 };
     const ta = textareaRef.current;
     const pos = ta ? ta.selectionStart : 0;
     let idx = -1;
-    for (let i = 0; i < all.length; i++) {
-      if (all[i].start <= pos && all[i].end >= pos) { idx = i; break; }
+    for (let i = 0; i < searchMatches.length; i++) {
+      if (searchMatches[i].start <= pos && searchMatches[i].end >= pos) { idx = i; break; }
     }
-    return { count: all.length, activeIdx: idx };
-  }, [searchMode, searchQuery, searchOpts, value]);
+    return { count: searchMatches.length, activeIdx: idx };
+  }, [searchMatches]);
 
   /** Master keydown dispatcher.
    *
@@ -1106,6 +1107,29 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
             }
             return cells;
           })()}
+
+          {/* Find overlay — a box on EVERY match while the find/replace
+              bar is open (the active match, under the caret, gets a
+              stronger tint). Distinct colour (warn) from the accent-tinted
+              selection-match overlay below. */}
+          {searchMatches.map((m, i) => {
+            const { line, col } = offsetToLineCol(value || '', m.start);
+            const len = m.end - m.start;
+            const active = i === matchInfo.activeIdx;
+            return (
+              <span key={`fm-${i}`} style={{
+                position: 'absolute',
+                left: `calc(8px + ${col}ch)`,
+                top: line * 20 + 8,
+                width: `${len}ch`,
+                height: 20,
+                background: active ? `${C.orange}55` : `${C.orange}22`,
+                border: `1px solid ${C.orange}${active ? 'aa' : '55'}`,
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+              }} />
+            );
+          })}
 
           {/* Selection-match overlay — every other whole-word
               occurrence of the currently-selected identifier. */}

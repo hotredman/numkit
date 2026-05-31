@@ -758,55 +758,62 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar">
-      {/* Source picker + new-file + refresh */}
+      {/* Source picker. Row 1 = combo + refresh (refresh pairs with the
+          combo since it acts on whatever source is selected). Row 2 =
+          the mutating actions (new file / new folder / open-folder),
+          shown only for writable sources. */}
       <div className="sidebar-head">
-        <select className="ws-picker"
-          value={source}
-          onChange={(e) => switchSource(e.target.value)}>
-          {/* Order: most-frequently-used (Local) first, then
-              Temporary, GitHub, Examples last. */}
-          {localAvailable && <option value="localFolder">Local Folder</option>}
-          <option value="temporary">Temporary</option>
-          <option value="github">GitHub</option>
-          <option value="examples">Examples</option>
-        </select>
+        <div className="sidebar-head-row">
+          <select className="ws-picker"
+            value={source}
+            onChange={(e) => switchSource(e.target.value)}>
+            {/* Order: most-frequently-used (Local) first, then
+                Temporary, GitHub, Examples last. */}
+            {localAvailable && <option value="localFolder">Local Folder</option>}
+            <option value="temporary">Temporary</option>
+            <option value="github">GitHub</option>
+            <option value="examples">Examples</option>
+          </select>
+          {/* Always-visible refresh — picks up changes made on disk by
+              other tools (mainly the real-disk Local Folder backend, but
+              cheap enough to keep for every source). Stays on the combo
+              row. */}
+          <button className="sidebar-icon" title="Refresh tree"
+            onClick={() => loadTree()}>
+            {Icons.refresh()}
+          </button>
+        </div>
+
+        {/* Mutating actions — new file + new folder work in both
+            Temporary and Local Folder (ops routes to the active fs);
+            open-folder is Local-only. Hidden for read-only sources
+            (Examples / GitHub). */}
         {!isExamples && !isGithub && (
-          <button className="sidebar-icon" title="New file"
-            onClick={() => setCreating({ parentPath: '', type: 'file' })}>
-            <svg width="11" height="11" viewBox="0 0 12 12">
-              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-          </button>
+          <div className="sidebar-head-row sidebar-head-actions">
+            <button className="sidebar-icon" title="New file"
+              onClick={() => setCreating({ parentPath: '', type: 'file' })}>
+              {Icons.fileNew()}
+            </button>
+            <button className="sidebar-icon" title="New folder"
+              onClick={() => setCreating({ parentPath: '', type: 'folder' })}>
+              {Icons.folderNew()}
+            </button>
+            {/* Local Folder only — open the OS folder-picker to (re)mount
+                a directory. Reuses handlePickLocal (same as first-mount),
+                so subsequent picks just switch the root. */}
+            {source === 'localFolder' && localAvailable && (
+              <button className="sidebar-icon" title="Open folder…"
+                onClick={handlePickLocal}>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                  <path d="M1.5 4.5h4l1.2 1.5h5.8v6a1 1 0 0 1-1 1H2.5a1 1 0 0 1-1-1V4.5z"
+                    stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                  <path d="M1.5 4.5V3a1 1 0 0 1 1-1h2.7a1 1 0 0 1 .7.3l1 1h5.6a1 1 0 0 1 1 1v1.2"
+                    stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
+          </div>
         )}
-        {/* Local Folder only — open the OS folder-picker dialog to
-            (re)mount a new directory. Reuses the same handlePickLocal
-            that runs on first-mount, so subsequent picks just switch
-            the root. Distinct icon (open-folder) so it doesn't get
-            confused with the new-file `+`. */}
-        {source === 'localFolder' && localAvailable && (
-          <button className="sidebar-icon" title="Open folder…"
-            onClick={handlePickLocal}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <path d="M1.5 4.5h4l1.2 1.5h5.8v6a1 1 0 0 1-1 1H2.5a1 1 0 0 1-1-1V4.5z"
-                stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-              <path d="M1.5 4.5V3a1 1 0 0 1 1-1h2.7a1 1 0 0 1 .7.3l1 1h5.6a1 1 0 0 1 1 1v1.2"
-                stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        )}
-        {/* Always-visible refresh — picks up changes made on disk by other
-            tools (only meaningful for the real-disk Local Folder backend,
-            but cheap enough to keep for every source). */}
-        <button className="sidebar-icon" title="Refresh tree"
-          onClick={() => loadTree()}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M10 6a4 4 0 1 1-1.17-2.83"
-              stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-            <path d="M10 1.5V4H7.5"
-              stroke="currentColor" strokeWidth="1.3"
-              strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
       </div>
 
       {/* GitHub source — owns its own search/tree below */}

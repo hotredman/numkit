@@ -245,6 +245,65 @@ Value orderfields(const Value &s, std::pmr::memory_resource *mr)
     return out;
 }
 
+// orderfields(S, NAMES) — reorder S's fields to the order given by the
+// cell array NAMES (MATLAB's 2-arg form). Provided names that exist are
+// placed first in the given order; any existing field not listed is
+// appended (never drop data). Used by the Variable Editor's rename to
+// keep a renamed field in its original slot.
+Value orderfieldsByNames(const Value &s, const Value &names,
+                         std::pmr::memory_resource *mr)
+{
+    using numkit::ValueType;
+    if (!s.isStruct())
+        throw Error("orderfields requires a struct", 0, 0, "orderfields", "",
+                     "numkit:orderfields:notStruct");
+    // Empty struct array: no element 0 to read field names from; nothing
+    // to reorder. Mirror the 1-arg form's "return unchanged" guard.
+    if (s.isStructArray() && s.numel() == 0)
+        return s;
+
+    std::vector<std::string> order;
+    if (names.isCell()) {
+        for (size_t i = 0; i < names.numel(); ++i)
+            order.push_back(names.cellAt(i).toString());
+    } else if (names.type() == ValueType::CHAR) {
+        order.push_back(names.toString());
+    } else {
+        throw Error("orderfields: second argument must be a cell array of names",
+                     0, 0, "orderfields", "", "numkit:orderfields:badPerm");
+    }
+
+    // Existing field names (from element 0 / the single struct).
+    std::vector<std::string> existing;
+    if (s.isStructArray()) {
+        for (const auto &[k, _] : s.structArrayElem(0)) existing.push_back(std::string(k));
+    } else {
+        for (const auto &[k, _] : s.structFields()) existing.push_back(std::string(k));
+    }
+    auto contains = [](const std::vector<std::string> &v, const std::string &x) {
+        for (const auto &e : v) if (e == x) return true;
+        return false;
+    };
+
+    // Final order: requested names that exist (deduped), then leftovers.
+    std::vector<std::string> finalOrder;
+    for (const auto &n : order)
+        if (contains(existing, n) && !contains(finalOrder, n)) finalOrder.push_back(n);
+    for (const auto &n : existing)
+        if (!contains(finalOrder, n)) finalOrder.push_back(n);
+
+    const auto rows = s.dims().rows();
+    const auto cols = s.dims().cols();
+    Value re = Value::structArray(rows, cols, mr);
+    for (const auto &name : finalOrder)
+        for (size_t i = 0; i < re.numel(); ++i) {
+            const auto &srcMap = s.structArrayElem(i);
+            auto it = srcMap.find(name);
+            if (it != srcMap.end()) re.setField(i, name, it->second);
+        }
+    return re;
+}
+
 Value struct2cell(const Value &s, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())
@@ -370,7 +429,11 @@ void orderfields_reg(Span<const Value> args, size_t, Span<Value> outs, CallConte
     if (args.empty())
         throw Error("orderfields requires 1 argument",
                      0, 0, "orderfields", "", "numkit:orderfields:nargin");
-    outs[0] = orderfields(args[0], ctx.engine->resource());
+    // 1-arg → alphabetical sort; 2-arg → reorder to the given name list.
+    if (args.size() >= 2)
+        outs[0] = orderfieldsByNames(args[0], args[1], ctx.engine->resource());
+    else
+        outs[0] = orderfields(args[0], ctx.engine->resource());
 }
 
 void struct2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

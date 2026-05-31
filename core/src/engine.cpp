@@ -1,5 +1,6 @@
 // src/engine.cpp
 #include <numkit/core/engine.hpp>
+#include <numkit/core/value_stats.hpp>
 #include <numkit/core/branding.hpp>
 #include <numkit/core/compiler.hpp>
 #include <numkit/core/lexer.hpp>
@@ -1191,6 +1192,19 @@ std::string Engine::workspaceJSON() const
             os << "]";
         } else {
             os << "null";
+        }
+        // Optional display stats (min/max/mean/median/mode/var/std) for the
+        // unified Variable / struct viewer's column chooser. Full-precision
+        // so the JS side renders exact values; omitted for non-numeric.
+        ValueStats st;
+        if (computeValueStats(*val, st)) {
+            std::ostringstream so;
+            so.precision(17);
+            so << ",\"stats\":{\"min\":" << st.min << ",\"max\":" << st.max
+               << ",\"mean\":" << st.mean << ",\"median\":" << st.median
+               << ",\"mode\":" << st.mode << ",\"var\":" << st.var
+               << ",\"std\":" << st.std << "}";
+            os << so.str();
         }
         os << "}";
     }

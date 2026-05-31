@@ -1,6 +1,12 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../theme';
 import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspectorOps';
+import ContextMenu from './ContextMenu';
+import ValueTable from './ValueTable';
+import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
+import { aggregateStats, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
+import { useChooser, ChooserButton } from './chooser';
+import { classify } from './adapters';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
@@ -61,50 +67,31 @@ function heatColor(v, min, max) {
 // keydown listener), so a click in the workspace would silently break
 // newline insertion elsewhere. Hover highlight only.
 
-function VariableCard({ v, onOpen }) {
+// One card for both contexts — a workspace variable or a struct field.
+// `row` is the normalized shape EntityBrowser uses:
+//   { key, name, value, size, klass, kind, stats, drill }
+function EntityCard({ row, nameCell, onOpen, onContextMenu }) {
   const { themeName } = useTheme();
-  const meta = KIND_META[v.kind] || KIND_META.matrix;
+  const meta = KIND_META[row.kind] || KIND_META.matrix;
   const tone = pickTone(TONE[meta.tone] || TONE.amber, themeName);
   return (
     <div
       className="var-card"
-      onClick={onOpen}
+      onClick={row.drill !== false ? () => onOpen?.(row) : undefined}
+      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(row, e); } : undefined}
       role="button"
-      aria-label={`Open ${v.name}`}
+      aria-label={`Open ${row.name}`}
     >
       <div className="var-card-head">
-        <span className="var-name">{v.name}</span>
-        <span className="var-size">{v.size}</span>
+        <span className="var-name">{nameCell ? nameCell(row) : row.name}</span>
+        <span className="var-size">{row.size}</span>
         <span className="var-type-pill" style={{ color: tone.fg, background: tone.bg, borderColor: tone.border }}>
-          <span className="var-glyph">{meta.glyph}</span>{v.type}
+          <span className="var-glyph">{meta.glyph}</span>{row.klass}
         </span>
       </div>
       <div className="var-card-body">
-        <span className="var-preview">{v.preview}</span>
+        <span className="var-preview">{row.value}</span>
       </div>
-    </div>
-  );
-}
-
-function VariableRow({ v, onOpen }) {
-  const { themeName } = useTheme();
-  const meta = KIND_META[v.kind] || KIND_META.matrix;
-  const tone = pickTone(TONE[meta.tone] || TONE.amber, themeName);
-  return (
-    <div
-      className="var-row"
-      onClick={onOpen}
-      role="button"
-      aria-label={`Open ${v.name}`}
-    >
-      <span className="var-row-name">{v.name}</span>
-      <span className="var-row-size">{v.size}</span>
-      <span className="var-row-type" style={{ color: tone.fg }}>{meta.glyph}  {v.type}</span>
-      <span className="var-row-preview">{v.preview}</span>
-      <span className="var-row-bytes">{v.bytes} B</span>
-      <span className="var-row-stat">μ {v.mean != null ? fmt(v.mean) : '—'}</span>
-      <span className="var-row-stat">min {v.min != null ? fmt(v.min) : '—'}</span>
-      <span className="var-row-stat">max {v.max != null ? fmt(v.max) : '—'}</span>
     </div>
   );
 }
@@ -112,55 +99,121 @@ function VariableRow({ v, onOpen }) {
 /* ======================================================================== */
 /* Workspace toolbar                                                        */
 /* ======================================================================== */
-function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView }) {
+// Numeric size for sorting: bytes when known (variables), else element
+// count parsed from the "R×C" string (struct fields).
+function sizeMetric(row) {
+  if (Number.isFinite(row.bytes)) return row.bytes;
+  const m = String(row.size || '').match(/(\d+)\s*[x×]\s*(\d+)/);
+  return m ? (+m[1]) * (+m[2]) : 0;
+}
+
+const VIEW_OPTS = ['cards', 'list'];
+const SORT_OPTS = ['name', 'size', 'type'];
+
+// Unified tabular browser — the one widget behind BOTH the Workspace
+// panel and the struct/cell inspector's field list. Toolbar (filter ·
+// sort · Σ▾ column chooser · cards/list toggle) over a cards grid or a
+// ValueTable. The caller supplies normalized rows + open / context-menu
+// handlers + an optional footer (e.g. the struct "+ new field" row);
+// view & sort persist per `viewKey`/`sortKey`, columns via the shared
+// `cols`/`setCols` chooser state. Filter & sort are display-only.
+function EntityBrowser({
+  rows, nameHeader = 'Name', countNoun = 'item', defaultView = 'cards',
+  viewKey, sortKey, cols, setCols,
+  nameCell, onOpen, onRowContextMenu, onAreaContextMenu, footer,
+}) {
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState(() => loadPref(sortKey, SORT_OPTS, 'name'));
+  const [view, setView] = useState(() => loadPref(viewKey, VIEW_OPTS, defaultView));
+  useEffect(() => { try { localStorage.setItem(viewKey, view); } catch { /* ignore */ } }, [viewKey, view]);
+  useEffect(() => { try { localStorage.setItem(sortKey, sort); } catch { /* ignore */ } }, [sortKey, sort]);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    const list = rows.filter((r) => r.name.toLowerCase().includes(q));
+    list.sort((a, b) => {
+      if (sort === 'size') return sizeMetric(b) - sizeMetric(a);
+      if (sort === 'type') return String(a.klass || '').localeCompare(String(b.klass || ''));
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [rows, query, sort]);
+
+  const plural = (n) => `${n} ${countNoun}${n === 1 ? '' : 's'}`;
+
   return (
-    <div className="ws-toolbar">
-      <div className="ws-toolbar-left">
-        <span className="ws-count">{count} variable{count === 1 ? '' : 's'}</span>
-        <span className="ws-sep" />
-        <div className="ws-search">
-          <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
-            <circle cx="5" cy="5" r="3.2" stroke="currentColor" strokeWidth="1.2" fill="none" />
-            <path d="M7.4 7.4L10 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="filter variables…"
-            spellCheck={false}
+    <div className="entity-browser">
+      <div className="ws-toolbar">
+        <div className="ws-toolbar-left">
+          <span className="ws-count">{plural(filtered.length)}</span>
+          <span className="ws-sep" />
+          <div className="ws-search">
+            <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+              <circle cx="5" cy="5" r="3.2" stroke="currentColor" strokeWidth="1.2" fill="none" />
+              <path d="M7.4 7.4L10 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            <input value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder={`filter ${countNoun}s…`} spellCheck={false} />
+          </div>
+        </div>
+        <div className="ws-toolbar-right">
+          {view === 'list' && cols && (
+            <ChooserButton className="ws-cols-btn" title="choose columns"
+              label={<>Σ <span className="ve-caret">▾</span></>}
+              defs={VALUE_COLUMNS} lockedLabel={nameHeader}
+              visible={cols} setVisible={setCols} />
+          )}
+          <div className="ws-segmented" role="tablist" aria-label="Sort">
+            {SORT_OPTS.map((k) => (
+              <button key={k} role="tab" aria-selected={sort === k}
+                className={sort === k ? 'is-active' : ''}
+                onClick={() => setSort(k)}>sort: {k}</button>
+            ))}
+          </div>
+          <div className="ws-segmented" role="tablist" aria-label="Layout">
+            <button aria-selected={view === 'cards'} className={view === 'cards' ? 'is-active' : ''}
+              onClick={() => setView('cards')} title="Cards view">
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <rect x="1" y="1"   width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
+                <rect x="6.5" y="1" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
+                <rect x="1" y="6.5" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
+                <rect x="6.5" y="6.5" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
+              </svg>
+            </button>
+            <button aria-selected={view === 'list'} className={view === 'list' ? 'is-active' : ''}
+              onClick={() => setView('list')} title="List view">
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <rect x="1" y="2"   width="10" height="1.4" rx="0.5" fill="currentColor"/>
+                <rect x="1" y="5.3" width="10" height="1.4" rx="0.5" fill="currentColor"/>
+                <rect x="1" y="8.6" width="10" height="1.4" rx="0.5" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {view === 'cards' ? (
+        <div className="ws-grid" onContextMenu={onAreaContextMenu}>
+          {filtered.map((r) => (
+            <EntityCard key={r.key} row={r} nameCell={nameCell}
+              onOpen={onOpen} onContextMenu={onRowContextMenu} />
+          ))}
+          {filtered.length === 0 && <div className="ws-empty">nothing matches “{query}”</div>}
+        </div>
+      ) : (
+        <div className="ws-list" onContextMenu={onAreaContextMenu}>
+          <ValueTable
+            rows={filtered}
+            nameHeader={nameHeader}
+            nameCell={nameCell}
+            visible={cols} setVisible={setCols}
+            onRowClick={onOpen}
+            onRowContextMenu={onRowContextMenu}
+            emptyLabel={`nothing matches “${query}”`}
           />
         </div>
-      </div>
-      <div className="ws-toolbar-right">
-        <div className="ws-segmented" role="tablist" aria-label="Sort">
-          {['name', 'size', 'type'].map((k) => (
-            <button
-              key={k}
-              role="tab"
-              aria-selected={sort === k}
-              className={sort === k ? 'is-active' : ''}
-              onClick={() => setSort(k)}
-            >sort: {k}</button>
-          ))}
-        </div>
-        <div className="ws-segmented" role="tablist" aria-label="Layout">
-          <button aria-selected={view === 'cards'} className={view === 'cards' ? 'is-active' : ''} onClick={() => setView('cards')} title="Cards view">
-            <svg width="12" height="12" viewBox="0 0 12 12">
-              <rect x="1" y="1"   width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
-              <rect x="6.5" y="1" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
-              <rect x="1" y="6.5" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
-              <rect x="6.5" y="6.5" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
-            </svg>
-          </button>
-          <button aria-selected={view === 'list'} className={view === 'list' ? 'is-active' : ''} onClick={() => setView('list')} title="List view">
-            <svg width="12" height="12" viewBox="0 0 12 12">
-              <rect x="1" y="2"   width="10" height="1.4" rx="0.5" fill="currentColor"/>
-              <rect x="1" y="5.3" width="10" height="1.4" rx="0.5" fill="currentColor"/>
-              <rect x="1" y="8.6" width="10" height="1.4" rx="0.5" fill="currentColor"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+      )}
+      {footer}
     </div>
   );
 }
@@ -176,8 +229,6 @@ function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView
 // variables for no visible reason.
 const WS_VIEW_KEY = 'numkit.ide.workspace.view';
 const WS_SORT_KEY = 'numkit.ide.workspace.sort';
-const WS_VIEWS = ['cards', 'list'];
-const WS_SORTS = ['name', 'size', 'type'];
 
 function loadPref(key, allowed, fallback) {
   try {
@@ -188,66 +239,33 @@ function loadPref(key, allowed, fallback) {
 }
 
 export function WorkspacePanel({ variables, onOpen }) {
-  const [query, setQuery] = useState('');
-  const [sort, setSort]   = useState(() => loadPref(WS_SORT_KEY, WS_SORTS, 'name'));
-  const [view, setView]   = useState(() => loadPref(WS_VIEW_KEY, WS_VIEWS, 'cards'));
-
-  useEffect(() => {
-    try { localStorage.setItem(WS_VIEW_KEY, view); } catch { /* ignore */ }
-  }, [view]);
-  useEffect(() => {
-    try { localStorage.setItem(WS_SORT_KEY, sort); } catch { /* ignore */ }
-  }, [sort]);
-
-  const filtered = useMemo(() => {
-    let list = variables.filter((v) => v.name.toLowerCase().includes(query.toLowerCase()));
-    list.sort((a, b) => {
-      if (sort === 'size') return (b.bytes || 0) - (a.bytes || 0);
-      if (sort === 'type') return a.kind.localeCompare(b.kind);
-      return a.name.localeCompare(b.name);
-    });
-    return list;
-  }, [variables, query, sort]);
+  // Column visibility — shared key with the struct inspector's table.
+  const [cols, setCols] = useChooser('numkit.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
+  const byName = useMemo(() => {
+    const m = new Map();
+    for (const v of variables) m.set(v.name, v);
+    return m;
+  }, [variables]);
+  const rows = useMemo(() => variables.map((v) => ({
+    key: v.name, name: v.name, value: v.preview, size: v.size,
+    klass: v.type, kind: v.kind, bytes: v.bytes, stats: v.stats || null, drill: true,
+  })), [variables]);
 
   return (
     <div className="workspace">
-      <WorkspaceToolbar
-        count={filtered.length}
-        query={query} setQuery={setQuery}
-        sort={sort} setSort={setSort}
-        view={view} setView={setView}
-      />
-      {view === 'cards' ? (
-        <div className="ws-grid">
-          {filtered.map((v) => (
-            <VariableCard
-              key={v.name}
-              v={v}
-              onOpen={() => onOpen(v)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="ws-list">
-          <div className="var-row var-row-head">
-            <span>name</span><span>size</span><span>type</span><span>preview</span>
-            <span>bytes</span><span>mean</span><span>min</span><span>max</span>
+      <EntityBrowser
+        rows={rows}
+        nameHeader="Name"
+        countNoun="variable"
+        viewKey={WS_VIEW_KEY} sortKey={WS_SORT_KEY}
+        cols={cols} setCols={setCols}
+        onOpen={(row) => { const v = byName.get(row.name); if (v) onOpen(v); }}
+        footer={(
+          <div className="ws-hint">
+            <kbd>click</kbd> open · <kbd>Esc</kbd> close editor
           </div>
-          {filtered.map((v) => (
-            <VariableRow
-              key={v.name}
-              v={v}
-              onOpen={() => onOpen(v)}
-            />
-          ))}
-        </div>
-      )}
-      {filtered.length === 0 && (
-        <div className="ws-empty">no variables match “{query}”</div>
-      )}
-      <div className="ws-hint">
-        <kbd>click</kbd> open · <kbd>Esc</kbd> close editor
-      </div>
+        )}
+      />
     </div>
   );
 }
@@ -524,7 +542,7 @@ function MultiPickerControls({ mAxis, setMAxis, mSel, setMSel, rows, cols,
                 <input className="ve-multi-search" placeholder="search or 1-10, 12 …"
                   value={pickerQuery}
                   onChange={(e) => setPickerQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && /[\d,\-]/.test(pickerQuery)) { selectRange(pickerQuery); setPickerQuery(''); } }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && /[\d,-]/.test(pickerQuery)) { selectRange(pickerQuery); setPickerQuery(''); } }}
                 />
                 <button className="ve-multi-mini" onClick={selectAll}  title="Select all (filtered)">all</button>
                 <button className="ve-multi-mini" onClick={selectNone}>none</button>
@@ -845,7 +863,7 @@ function VirtualTable({
 //   saveDisabled       — gray out save-as (e.g. tile-mode huge matrix)
 //   fontScale
 function MatrixPanel({
-  rows, cols, name, type,            // eslint-disable-line no-unused-vars
+  rows, cols, name, type,             
   getCellValue, getSlice, stats,
   readOnly = false,
   onCommit, onEscape, onSave,
@@ -854,6 +872,7 @@ function MatrixPanel({
   const [precision, setPrecision] = useState(4);
   const [notation, setNotation]   = useState('fixed');
   const [heatmap, setHeatmap]     = useState(false);
+  const [statsVisible, setStatsVisible] = useStatChooser();
   const [showPlot, setShowPlot]   = useState(false);
   const [saveOpen, setSaveOpen]   = useState(false);
   const [plotWidth, setPlotWidth] = useState(() => {
@@ -981,6 +1000,7 @@ function MatrixPanel({
           <span className="ve-precision-num">{precision}</span>
         </div>
         <div className="ve-tools-group">
+          {stats && <StatChooserButton visible={statsVisible} setVisible={setStatsVisible} />}
           <button className={`ve-btn ${heatmap ? 'is-active' : ''}`}
             onClick={() => setHeatmap((h) => !h)} title="Toggle value heatmap">
             <svg width="11" height="11" viewBox="0 0 12 12">
@@ -1038,15 +1058,12 @@ function MatrixPanel({
           )}
         </div>
         <div className="ve-tools-spacer" />
-        {stats && (
-          <div className="ve-stats">
-            <span><b>min</b> {fmt(stats.min)}</span>
-            <span><b>max</b> {fmt(stats.max)}</span>
-            <span><b>μ</b> {fmt(stats.mean)}</span>
-            <span><b>n</b> {stats.n}</span>
-          </div>
-        )}
       </div>
+
+      {/* Aggregate statistics over the whole matrix, on their own row. The
+          chooser (Σ ▾) lives in the toolbar above; this row collapses to
+          nothing for non-numeric values OR when no statistic is selected. */}
+      <StatsBar stats={stats} visible={statsVisible} />
 
       <div className="ve-address">
         <span className="ve-cell-ref">{name}({activeCell.r + 1}, {activeCell.c + 1})</span>
@@ -1124,12 +1141,6 @@ const TILE_MODE_THRESHOLD = 250000;
 // Double-clicking a `drill` cell pushes a path step; the breadcrumb pops
 // back. Mounted with key={variable.name} so a variable swap resets nav.
 
-// Compact "type [size]" chip — skips the ubiquitous 1x1.
-function dimLabel(cell) {
-  if (!cell || !cell.type) return '';
-  return (cell.size && cell.size !== '1x1') ? `${cell.type} ${cell.size}` : cell.type;
-}
-
 function InspectorBreadcrumb({ nav, onJump }) {
   return (
     <div className="ve-crumbs">
@@ -1147,13 +1158,21 @@ function InspectorBreadcrumb({ nav, onJump }) {
 // A field name that becomes an inline text input on double-click, for
 // renaming. Stops click/double-click propagation so it doesn't trigger
 // the row's drill. Enter commits, Esc cancels.
-function EditableFieldName({ name, onRename, className }) {
-  const [editing, setEditing] = useState(false);
+function EditableFieldName({ name, onRename, className, editing: cEditing, setEditing: cSetEditing }) {
+  // Editing is optionally controlled: when the parent passes editing /
+  // setEditing (so a context-menu "Rename" can start it), use those;
+  // otherwise self-manage on double-click (struct-array header usage).
+  const [iEditing, iSetEditing] = useState(false);
+  const editing = cEditing !== undefined ? cEditing : iEditing;
+  const setEditing = cSetEditing || iSetEditing;
   const [val, setVal] = useState(name);
+  // Reset the draft whenever edit mode opens (covers the menu-triggered
+  // path, which can't pre-seed val like the double-click handler did).
+  useEffect(() => { if (editing) setVal(name); }, [editing, name]);
   if (!editing) {
     return (
       <span className={className}
-        onDoubleClick={(e) => { e.stopPropagation(); setVal(name); setEditing(true); }}
+        onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
         title="double-click to rename">{name}</span>
     );
   }
@@ -1190,30 +1209,66 @@ function AddFieldRow({ onAdd }) {
 
 // Single struct (numel 1): vertical field list. Click a drillable field
 // to descend; × deletes a field; the add-row appends a new one.
-function StructFieldList({ payload, onDrill, onAddField, onDeleteField, onRenameField }) {
+function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
+                          onRenameField, onDuplicateField, onInsertField }) {
   const cells = payload.elems[0] || [];
+  const [menu, setMenu] = useState(null);          // { x, y, name, drill }
+  const [renaming, setRenaming] = useState(null);  // field name in rename mode
+  // Columns shared with the Workspace (same key); view/sort are per the
+  // struct context so it can differ from the Workspace's layout.
+  const [cols, setCols] = useChooser('numkit.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
+  const open = (name) => onDrill([{ k: 'f', name, label: `.${name}` }]);
+  const rows = payload.fields.map((name, f) => {
+    const cell = cells[f] || {};
+    return {
+      key: name, name, value: cell.summary, size: cell.size,
+      klass: cell.type, kind: classify(cell.size, cell.type),
+      stats: cell.stats || null, drill: !!cell.drill,
+    };
+  });
+  const nameCell = (row) => (
+    <EditableFieldName name={row.name} onRename={onRenameField}
+      editing={renaming === row.name}
+      setEditing={(v) => setRenaming(v ? row.name : null)} />
+  );
   return (
-    <div className="ve-field-list">
-      {payload.fields.map((name, f) => {
-        const cell = cells[f] || {};
-        return (
-          <div key={name}
-            className={`ve-field-row ${cell.drill ? 'is-drillable' : ''}`}
-            onClick={cell.drill
-              ? () => onDrill([{ k: 'f', name, label: `.${name}` }]) : undefined}
-            title={cell.drill ? 'click to open' : undefined}>
-            <EditableFieldName name={name} onRename={onRenameField} className="ve-field-name" />
-            <span className="ve-field-type">{dimLabel(cell)}</span>
-            <span className="ve-field-val">{cell.summary}</span>
-            <span className="ve-field-drill">{cell.drill ? '▸' : ''}</span>
-            <button className="ve-field-del" title="delete field"
-              onClick={(e) => { e.stopPropagation(); onDeleteField(name); }}>×</button>
-          </div>
-        );
-      })}
-      {payload.fields.length === 0 && <div className="ve-struct-empty">(no fields)</div>}
-      <AddFieldRow onAdd={onAddField} />
-    </div>
+    <>
+      <EntityBrowser
+        rows={rows}
+        nameHeader="Field"
+        countNoun="field"
+        defaultView="list"
+        viewKey="numkit.ide.struct.view" sortKey="numkit.ide.struct.sort"
+        cols={cols} setCols={setCols}
+        nameCell={nameCell}
+        onOpen={(row) => open(row.name)}
+        onRowContextMenu={(row, e) =>
+          setMenu({ x: e.clientX, y: e.clientY, name: row.name, drill: row.drill })}
+        onAreaContextMenu={(e) => {
+          // Right-click anywhere in the table area (not on a row — those
+          // stop propagation): the field-agnostic menu (Insert field).
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY, name: null, drill: false });
+        }}
+      />
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={
+          menu.name
+            ? [
+              { label: 'Open',         disabled: !menu.drill, onClick: () => open(menu.name) },
+              { label: 'Rename',       onClick: () => setRenaming(menu.name) },
+              { label: 'Duplicate',    onClick: () => onDuplicateField(menu.name) },
+              { label: 'Insert field', onClick: () => onInsertField() },
+              { separator: true },
+              { label: 'Delete',       onClick: () => onDeleteField(menu.name) },
+            ]
+            : [
+              // Empty table area: no field target → just add a new one.
+              { label: 'Insert field', onClick: () => onInsertField() },
+            ]
+        } />
+      )}
+    </>
   );
 }
 
@@ -1302,13 +1357,9 @@ function CellGrid({ payload, onDrill }) {
 //   onCommit(r,c,rhs) — write-back (Phase B); absent → read-only
 function DrilledMatrix({ payload, name, onBack, onCommit }) {
   const data = payload.data || [];
-  const stats = useMemo(() => {
-    let min = Infinity, max = -Infinity, sum = 0, n = 0;
-    for (const row of data) for (const v of row) {
-      if (typeof v === 'number') { if (v < min) min = v; if (v > max) max = v; sum += v; n++; }
-    }
-    return n ? { min, max, mean: sum / n, n } : null;
-  }, [data]);
+  // Full stat set (min/max/mean/median/mode/var/std/n) over the inline
+  // data, for the StatsBar — mirrors the engine's getVarStatsJSON.
+  const stats = useMemo(() => aggregateStats(data.flat()), [data]);
   if (payload.truncated) {
     return (
       <div className="ve-struct-empty">
@@ -1396,21 +1447,64 @@ function StructInspector({ variable, engine }) {
     setRefreshTick((t) => t + 1);
   }, [engine, variable.name, cur.path]);
 
-  // Rename = copy the field's value to the new name, then drop the old.
-  // The `[lvalue.new] = lvalue.old` bracket form distributes across a
-  // struct array (CSL) and also works for a single struct. NOTE: the
-  // renamed field lands at the END of the field order (no native rename;
-  // engine.orderfields is alphabetical-only). Guards: valid identifier,
-  // no-op on same name, refuse to clobber an existing field.
+  // Duplicate a field to a fresh, collision-free "<name>_copy" name.
+  // Scalar struct → plain `s.copy = s.name` (the VM compiler rejects the
+  // bracketed `[s.f] = …` deal form). Struct array → the bracket form,
+  // which distributes the per-element CSL. Names are identifiers, so the
+  // expression is injection-safe.
+  const duplicateField = useCallback((fieldName) => {
+    if (!engine?.execute || !isValidIdentifier(fieldName)) return;
+    const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    const existing = new Set(payload?.fields || []);
+    let copy = `${fieldName}_copy`;
+    for (let i = 2; existing.has(copy); i++) copy = `${fieldName}_copy${i}`;
+    const isArray = payload && payload.numel > 1;
+    try {
+      engine.execute(isArray
+        ? `[${lvalue}.${copy}] = ${lvalue}.${fieldName};`
+        : `${lvalue}.${copy} = ${lvalue}.${fieldName};`);
+    } catch (e) {
+      console.warn('[StructInspector] duplicate-field failed:', e);
+    }
+    setRefreshTick((t) => t + 1);
+  }, [engine, variable.name, cur.path, payload]);
+
+  // Insert a fresh empty field with a collision-free default name
+  // ("unnamed", "unnamed1", …) — mirrors MATLAB's context-menu Insert.
+  const insertField = useCallback(() => {
+    const existing = new Set(payload?.fields || []);
+    let name = 'unnamed';
+    for (let i = 1; existing.has(name); i++) name = `unnamed${i}`;
+    addField(name);
+  }, [payload, addField]);
+
+  // Rename = copy the field's value to the new name, drop the old, then
+  // re-pin the field order so the renamed field keeps its original slot.
+  // Scalar struct uses plain `s.new = s.old` (the VM compiler rejects the
+  // bracketed `[s.f] = …` deal form); a struct array needs the bracket
+  // form to distribute the per-element CSL. Without the final
+  // orderfields() the new field would land at the END (copy-append
+  // semantics); the 2-arg orderfields(s, {names...}) restores position.
+  // Guards: valid identifier, no-op on same name, refuse to clobber an
+  // existing field.
   const renameField = useCallback((oldName, newName) => {
     if (!engine?.execute || !isValidIdentifier(newName)) return;
     if (newName === oldName) return;
     if (payload?.fields?.includes(newName)) return;   // collision
     const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    const isArray = payload && payload.numel > 1;
+    // Desired order = current fields with oldName swapped to newName in
+    // place. Field names are identifiers, so the {'a','b',...} cell
+    // literal is injection-safe.
+    const order = (payload?.fields || []).map((f) => (f === oldName ? newName : f));
+    const orderCell = '{' + order.map((f) => `'${f}'`).join(',') + '}';
     try {
-      engine.execute(
-        `[${lvalue}.${newName}] = ${lvalue}.${oldName}; ` +
-        `${lvalue} = rmfield(${lvalue}, '${oldName}');`);
+      const copy = isArray
+        ? `[${lvalue}.${newName}] = ${lvalue}.${oldName};`
+        : `${lvalue}.${newName} = ${lvalue}.${oldName};`;
+      let expr = `${copy} ${lvalue} = rmfield(${lvalue}, '${oldName}');`;
+      if (order.length) expr += ` ${lvalue} = orderfields(${lvalue}, ${orderCell});`;
+      engine.execute(expr);
     } catch (e) {
       console.warn('[StructInspector] rename-field failed:', e);
     }
@@ -1436,7 +1530,8 @@ function StructInspector({ variable, engine }) {
   else if (payload.kind === 'struct') {
     body = payload.numel === 1
       ? <StructFieldList payload={payload} onDrill={drill}
-          onAddField={addField} onDeleteField={deleteField} onRenameField={renameField} />
+          onAddField={addField} onDeleteField={deleteField} onRenameField={renameField}
+          onDuplicateField={duplicateField} onInsertField={insertField} />
       : <StructArrayTable payload={payload} onDrill={drill}
           onAddField={addField} onDeleteField={deleteField} onRenameField={renameField} />;
   } else if (payload.kind === 'cell') {
@@ -1501,7 +1596,8 @@ export function VariableEditor({ variable, onClose, engine }) {
   useEffect(() => {
     if (isStructLike) return;   // struct path handled by the effect above
     setData(variable.data);
-    setActiveCell({ r: 0, c: 0 });
+    // activeCell now lives in MatrixPanel (it resets itself on a
+    // rows/cols/name change), so VariableEditor no longer touches it.
     setLoadError(null);
     tileCache.current = new Map();
     sliceCache.current = new Map();
@@ -1637,14 +1733,12 @@ export function VariableEditor({ variable, onClose, engine }) {
     return () => { cancelled = true; };
   }, [shape.tileMode, engine, variable.name]);
 
-  // Full-mode stats are computed locally over the in-memory data array.
+  // Full-mode stats: the complete set over the in-memory data (same helper
+  // as the drilled-matrix path). Tile-mode (huge matrices) uses the
+  // engine's getVarStats, which now returns the full set too.
   const stats = useMemo(() => {
     if (shape.tileMode) return tileStats;
-    let min = Infinity, max = -Infinity, sum = 0, n = 0;
-    for (const row of data) for (const v of row) {
-      if (typeof v === 'number') { if (v < min) min = v; if (v > max) max = v; sum += v; n++; }
-    }
-    return n ? { min, max, mean: sum / n, n } : null;
+    return aggregateStats(data.flat());
   }, [data, shape.tileMode, tileStats]);
 
   // Write-back for a committed cell edit. MatrixPanel hands us (r, c,

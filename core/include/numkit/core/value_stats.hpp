@@ -1,0 +1,77 @@
+#pragma once
+//
+// value_stats.hpp — display statistics over a numeric Value.
+//
+// Single source of truth for the optional Min/Max/Range/Mean/Median/Mode/
+// Var/Std columns shown in the IDE's Variable / struct viewer. Used by both
+// the core workspace serializer (Engine::workspaceJSON) and the WASM
+// inspect-cell serializer (repl_bindings emitInspectCell), so the numbers
+// match wherever a value is displayed.
+//
+// Non-finite elements are skipped (omitnan-style) so a stray NaN doesn't
+// blank the whole row. complex → magnitude, logical → 0/1. Variance is the
+// sample (N-1) form; mode is the smallest most-frequent value (MATLAB).
+
+#include <numkit/core/value.hpp>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+
+namespace numkit {
+
+struct ValueStats {
+    double min, max, mean, median, mode, var, std;
+};
+
+// Returns false for non-numeric types or when no finite element remains.
+inline bool computeValueStats(const Value &val, ValueStats &s)
+{
+    const std::size_t numel = val.numel();
+    std::vector<double> v;
+    v.reserve(numel);
+    if (val.type() == ValueType::DOUBLE) {
+        const double *p = val.doubleData();
+        for (std::size_t i = 0; i < numel; ++i)
+            if (std::isfinite(p[i])) v.push_back(p[i]);
+    } else if (val.type() == ValueType::LOGICAL) {
+        const std::uint8_t *p = val.logicalData();
+        for (std::size_t i = 0; i < numel; ++i) v.push_back(p[i] ? 1.0 : 0.0);
+    } else if (val.type() == ValueType::COMPLEX) {
+        const Complex *p = val.complexData();
+        for (std::size_t i = 0; i < numel; ++i) {
+            double m = std::hypot(p[i].real(), p[i].imag());
+            if (std::isfinite(m)) v.push_back(m);
+        }
+    } else {
+        return false;
+    }
+    const std::size_t n = v.size();
+    if (n == 0) return false;
+
+    double sum = 0.0, mn = v[0], mx = v[0];
+    for (double x : v) { sum += x; if (x < mn) mn = x; if (x > mx) mx = x; }
+    s.min = mn; s.max = mx; s.mean = sum / static_cast<double>(n);
+
+    std::vector<double> sorted = v;
+    std::sort(sorted.begin(), sorted.end());
+    s.median = (n % 2) ? sorted[n / 2]
+                       : 0.5 * (sorted[n / 2 - 1] + sorted[n / 2]);
+
+    double acc = 0.0;
+    for (double x : v) { double d = x - s.mean; acc += d * d; }
+    s.var = (n >= 2) ? acc / static_cast<double>(n - 1) : 0.0;
+    s.std = std::sqrt(s.var);
+
+    // Mode: longest run in the sorted data; ties resolve to the smaller
+    // value (ascending sort → keep the first run that reaches the max).
+    double bestVal = sorted[0];
+    std::size_t bestCnt = 1, curCnt = 1;
+    for (std::size_t i = 1; i < n; ++i) {
+        curCnt = (sorted[i] == sorted[i - 1]) ? curCnt + 1 : 1;
+        if (curCnt > bestCnt) { bestCnt = curCnt; bestVal = sorted[i]; }
+    }
+    s.mode = bestVal;
+    return true;
+}
+
+}  // namespace numkit

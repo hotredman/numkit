@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspectorOps';
+import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier, parseComplex } from './inspectorOps';
 
 describe('pathToMatlabLValue', () => {
   it('root with empty path → just the name', () => {
@@ -47,13 +47,46 @@ describe('valueToMatlabRHS', () => {
     expect(valueToMatlabRHS('hi', 'string')).toEqual({ rhs: '"hi"', value: 'hi' });
     expect(valueToMatlabRHS('a"b', 'string')).toEqual({ rhs: '"a""b"', value: 'a"b' });
   });
-  it('complex editing deferred → null', () => {
-    expect(valueToMatlabRHS('1+2i', 'complex')).toBeNull();
+  it('complex → re+im*1i literal + a+bi mirror', () => {
+    expect(valueToMatlabRHS('3+2i', 'complex')).toEqual({ rhs: '3+2*1i', value: '3+2i' });
+    expect(valueToMatlabRHS('1-4i', 'complex')).toEqual({ rhs: '1+-4*1i', value: '1-4i' });
+    expect(valueToMatlabRHS('5', 'complex')).toEqual({ rhs: '5+0*1i', value: '5+0i' });
+    expect(valueToMatlabRHS('2i', 'complex')).toEqual({ rhs: '0+2*1i', value: '0+2i' });
+  });
+  it('complex rejects garbage', () => {
+    expect(valueToMatlabRHS('abc', 'complex')).toBeNull();
+    expect(valueToMatlabRHS('3++2i', 'complex')).toBeNull();
   });
   it('escaping blocks injection in char', () => {
     // A malicious value can't terminate the literal — quotes are doubled.
     const r = valueToMatlabRHS("'); evil(", 'char');
     expect(r.rhs).toBe("'''); evil('");
+  });
+});
+
+describe('parseComplex', () => {
+  it('pure real', () => {
+    expect(parseComplex('3')).toEqual({ re: 3, im: 0 });
+    expect(parseComplex('-1.5e2')).toEqual({ re: -150, im: 0 });
+  });
+  it('pure imaginary', () => {
+    expect(parseComplex('2i')).toEqual({ re: 0, im: 2 });
+    expect(parseComplex('-i')).toEqual({ re: 0, im: -1 });
+    expect(parseComplex('i')).toEqual({ re: 0, im: 1 });
+  });
+  it('full a±bi', () => {
+    expect(parseComplex('3+2i')).toEqual({ re: 3, im: 2 });
+    expect(parseComplex('1-4i')).toEqual({ re: 1, im: -4 });
+    expect(parseComplex('3+i')).toEqual({ re: 3, im: 1 });
+    expect(parseComplex('-2-i')).toEqual({ re: -2, im: -1 });
+  });
+  it('whitespace tolerant', () => {
+    expect(parseComplex(' 3 + 2i ')).toEqual({ re: 3, im: 2 });
+  });
+  it('rejects malformed', () => {
+    expect(parseComplex('')).toBeNull();
+    expect(parseComplex('abc')).toBeNull();
+    expect(parseComplex('3++2i')).toBeNull();
   });
 });
 

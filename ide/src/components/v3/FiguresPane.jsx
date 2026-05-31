@@ -2,8 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
-import PolarPlot, { defaultPolarViewport } from './PolarPlot';
+import PolarPlot from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
+import { previewViewport } from './plotUtils';
 
 /** Pick the right renderer for a figure based on its `kind`. */
 function renderFigure(figure, props) {
@@ -35,11 +36,10 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
   // from the figure's data extent on every render — useState would freeze it
   // at mount and stale ranges from a previous run would leak in when the
   // figure is replaced by a new script execution under the same id.
-  const viewport = figure.kind === 'polar'
-    ? defaultPolarViewport(figure)
-    : (figure.xRange && figure.yRange)
-      ? { x: figure.xRange, y: figure.yRange }
-      : { x: [-1, 1], y: [-1, 1] };
+  // previewViewport applies the log-axis clamp the live window does via
+  // its setViewport effect (which the preview's no-op setViewport can't),
+  // so a log figure renders identically here and in the window.
+  const viewport = previewViewport(figure);
   const setViewport = () => {};   // no-op for non-interactive preview
   const ref = useRef(null);
   const [size, setSize] = useState({ w: 320, h: Math.round(320 / PREVIEW_ASPECT) });
@@ -123,6 +123,12 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
             // `grid off`).
             major: figure.grid === 'on',
             minor: figure.gridMinor === 'on',
+            // Mirror the script's axis scale so the preview's log/linear
+            // mapping matches the window. (CompositePlot would also fall
+            // back to figure.xscale, but passing explicitly avoids relying
+            // on that and keeps preview == window unambiguous.)
+            xLog: figure.xscale === 'log',
+            yLog: figure.yscale === 'log',
             fontScale: 0.9, interactive: false,
           })}
         </div>

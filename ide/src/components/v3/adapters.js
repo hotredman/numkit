@@ -88,7 +88,7 @@ function previewToData(preview, type) {
   return [[String(preview)]];
 }
 
-function classify(size, type) {
+export function classify(size, type) {
   // Container types are classified by type, not shape — a 1×1 struct
   // is still a struct, not a scalar. The Variable Editor gates its
   // nested tree-view on these.
@@ -159,6 +159,13 @@ export function adaptVariables(engineVars) {
     const bytes = isStruct ? (raw.bytes || 8) : 8;
     const data = previewToData(preview, type);
     const stats = statsFromData(data);
+    // Full stat set from the engine (min/max/mean/median/mode/var/std) when
+    // present; otherwise a preview-derived partial (min/max/mean only) so
+    // the ValueTable still populates those columns on older WASM builds.
+    const engineStats = (isStruct && raw.stats && typeof raw.stats === 'object')
+      ? raw.stats : null;
+    const fallbackStats = Number.isFinite(stats.min)
+      ? { min: stats.min, max: stats.max, mean: stats.mean } : null;
 
     out.push({
       name,
@@ -168,6 +175,7 @@ export function adaptVariables(engineVars) {
       data,
       preview: previewString(preview, kind, sizeNorm, type),
       min: stats.min, max: stats.max, mean: stats.mean,
+      stats: engineStats || fallbackStats,
     });
   }
   return out;
@@ -175,15 +183,26 @@ export function adaptVariables(engineVars) {
 
 /* ─────────────── figures ─────────────── */
 
-function rangeFromArr(arr, fallbackPad = 0.05) {
+function rangeFromArr(arr, { fallbackPad = 0.05, positiveOnly = false } = {}) {
   let lo = Infinity, hi = -Infinity;
   for (const v of arr) {
-    if (Number.isFinite(v)) {
+    // positiveOnly: a log axis can't represent ≤ 0, so its limits are
+    // computed over the positive data only — MATLAB drops non-positive
+    // points ("Negative data ignored") rather than stretching the range
+    // into negative territory (which would disable the log mapping).
+    if (Number.isFinite(v) && (!positiveOnly || v > 0)) {
       if (v < lo) lo = v;
       if (v > hi) hi = v;
     }
   }
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [-1, 1];
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+    // No qualifying value. For a log axis with no positive data, return
+    // an empty range so this layer contributes NOTHING to the merge
+    // (Infinity < xLo / -Infinity > xHi are both false) — the caller's
+    // final `Number.isFinite ? … : fallback` then kicks in. The generic
+    // (non-log) empty case keeps the historical [-1, 1] fallback.
+    return positiveOnly ? [Infinity, -Infinity] : [-1, 1];
+  }
   if (lo === hi) {
     const pad = Math.abs(lo) * fallbackPad || 0.5;
     return [lo - pad, hi + pad];
@@ -738,8 +757,11 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
         xs = ly.x.concat(ly.x.map((v, i) => v + (Number(ly.u[i]) || 0) * s));
         ys = ly.y.concat(ly.y.map((v, i) => v + (Number(ly.v[i]) || 0) * s));
       }
-      const [a, b] = rangeFromArr(xs);
-      const [c, d] = rangeFromArr(ys);
+      // Log axes fit their limits to positive data only (MATLAB drops
+      // non-positive points). Right-side series follow yscale2.
+      const yLogSide = (ly.yside === 'right' ? cfg.yscale2 : cfg.yscale) === 'log';
+      const [a, b] = rangeFromArr(xs, { positiveOnly: cfg.xscale === 'log' });
+      const [c, d] = rangeFromArr(ys, { positiveOnly: yLogSide });
       if (a < xLo) xLo = a;
       if (b > xHi) xHi = b;
       if (ly.yside === 'right') {
@@ -767,18 +789,28 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // `axis tight` means "no whitespace padding around data". Skip
     // the default 4%/6% pad. Auto-scale still happens.
     const tight = (cfg.axisMode === 'tight');
-    if (!cfg.xlim && !tight) {
-      const pad = (xRange[1] - xRange[0]) * 0.04 || 0.5;
-      xRange[0] -= pad; xRange[1] += pad;
-    }
-    if (!cfg.ylim && !tight) {
-      const pad = (yRange[1] - yRange[0]) * 0.06 || 0.5;
-      yRange[0] -= pad; yRange[1] += pad;
-    }
-    if (cfg.yyEnabled && !cfg.ylim2 && !tight) {
-      const pad = (yRange2[1] - yRange2[0]) * 0.06 || 0.5;
-      yRange2[0] -= pad; yRange2[1] += pad;
-    }
+    // Pad the auto-range. Linear axes get a flat margin; LOG axes must
+    // pad multiplicatively (in log space) — a flat linear margin on log
+    // data (e.g. [1, 1000] → [-39, 1040]) pushes the lower bound ≤ 0,
+    // which silently disables the log mapping downstream (the renderer's
+    // xLogActive guard needs lo > 0) so the axis renders LINEAR despite
+    // xscale === 'log'. Log-space padding keeps the bound strictly
+    // positive, matching MATLAB's loglog / semilog auto-limits.
+    const padRange = (range, frac, isLog) => {
+      if (isLog && range[0] > 0 && range[1] > 0) {
+        const lo = Math.log10(range[0]);
+        const hi = Math.log10(range[1]);
+        const p = (hi - lo) * frac || 0.05;
+        range[0] = Math.pow(10, lo - p);
+        range[1] = Math.pow(10, hi + p);
+      } else {
+        const p = (range[1] - range[0]) * frac || (isLog ? 0 : 0.5);
+        range[0] -= p; range[1] += p;
+      }
+    };
+    if (!cfg.xlim && !tight) padRange(xRange, 0.04, cfg.xscale === 'log');
+    if (!cfg.ylim && !tight) padRange(yRange, 0.06, cfg.yscale === 'log');
+    if (cfg.yyEnabled && !cfg.ylim2 && !tight) padRange(yRange2, 0.06, cfg.yscale2 === 'log');
   }
 
   // 3-D detection: any layer with raw z data → route to the WebGL
