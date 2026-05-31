@@ -14,6 +14,8 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <set>
+#include <utility>
 #include <vector>
 
 #include "bwmorph_luts.h"
@@ -63,18 +65,86 @@ Value strel_diamond(int r, std::pmr::memory_resource *mr) {
     return pack_logical(m, N, N, mr);
 }
 
-Value strel_disk(double r, std::pmr::memory_resource *mr) {
-    if (r < 1.0) r = 1.0;
+// Build a true Euclidean disk neighbourhood: {(dy,dx) : dy²+dx² ≤ r²}.
+Value strel_disk_euclidean(double r, std::pmr::memory_resource *mr) {
     const int R = (int)std::ceil(r);
     const int N = 2 * R + 1;
     std::vector<uint8_t> m((size_t)N * (size_t)N, 0);
+    const double r2 = r * r;
     for (int i = 0; i < N; ++i)
         for (int j = 0; j < N; ++j) {
             const double dy = i - R, dx = j - R;
-            if (std::sqrt(dy * dy + dx * dx) <= r)
+            if (dy * dy + dx * dx <= r2)
                 m[(size_t)i * (size_t)N + (size_t)j] = 1;
         }
     return pack_logical(m, N, N, mr);
+}
+
+// Minkowski sum (morphological dilation of point sets): P ⊕ {j·v : -rp≤j≤rp}.
+void minksum_periodic(std::set<std::pair<int,int>> &P, int vr, int vc, int rp) {
+    std::set<std::pair<int,int>> out;
+    for (const auto &p : P)
+        for (int j = -rp; j <= rp; ++j)
+            out.emplace(p.first + j * vr, p.second + j * vc);
+    P.swap(out);
+}
+
+// strel('disk', R, N): MATLAB R2025b. For R<3 or N==0 a true Euclidean
+// disk; otherwise the radial decomposition via periodic lines (Adams 1993;
+// Jones & Soille 1996) with N∈{4,6,8} basis directions (default 4), then
+// compensating horizontal/vertical line strels. The final neighbourhood is
+// the Minkowski sum (full dilation) of all decomposition strels.
+Value strel_disk(double r_in, int n, std::pmr::memory_resource *mr) {
+    if (r_in < 1.0) r_in = 1.0;
+    const int r = (int)std::lround(r_in);
+    if (r < 3 || (n != 4 && n != 6 && n != 8))
+        return strel_disk_euclidean(r_in, mr);
+
+    // Basis offset vectors (row, col) per N.
+    static const std::array<std::pair<int,int>, 4> B4 =
+        {{{1,0},{1,1},{0,1},{-1,1}}};
+    static const std::array<std::pair<int,int>, 6> B6 =
+        {{{1,0},{1,2},{2,1},{0,1},{-1,2},{-2,1}}};
+    static const std::array<std::pair<int,int>, 8> B8 =
+        {{{1,0},{2,1},{1,1},{1,2},{0,1},{-1,2},{-1,1},{-2,1}}};
+    const std::pair<int,int> *V; int nb;
+    if (n == 4)      { V = B4.data(); nb = 4; }
+    else if (n == 6) { V = B6.data(); nb = 6; }
+    else             { V = B8.data(); nb = 8; }
+
+    // Radial extent of the periodic-line strels (Adams, p.328).
+    const double theta = M_PI / (2.0 * n);
+    const double k = 2.0 * (double)r /
+                     (1.0 / std::tan(theta) + 1.0 / std::sin(theta));
+
+    std::set<std::pair<int,int>> P;
+    P.emplace(0, 0);
+    for (int q = 0; q < nb; ++q) {
+        const int vr = V[q].first, vc = V[q].second;
+        const double norm = std::hypot((double)vr, (double)vc);
+        const int rp = (int)std::floor(k / norm);
+        minksum_periodic(P, vr, vc, rp);
+    }
+
+    // The decomposition is a little small; pad with H/V line strels.
+    int maxRow = 0;
+    for (const auto &p : P) maxRow = std::max(maxRow, std::abs(p.first));
+    const int radial_difference = r - maxRow;
+    const int len = 2 * (radial_difference - 1) + 1;
+    if (len >= 3) {
+        const int half = (len - 1) / 2;
+        minksum_periodic(P, 0, 1, half);   // line(len, 0)  — horizontal
+        minksum_periodic(P, 1, 0, half);   // line(len, 90) — vertical
+    }
+
+    int R = 0, C = 0;
+    for (const auto &p : P) { R = std::max(R, std::abs(p.first));
+                             C = std::max(C, std::abs(p.second)); }
+    const int H = 2 * R + 1, W = 2 * C + 1;
+    std::vector<uint8_t> m((size_t)H * (size_t)W, 0);
+    for (const auto &p : P)
+        m[(size_t)(p.first + R) * (size_t)W + (size_t)(p.second + C)] = 1;
+    return pack_logical(m, H, W, mr);
 }
 
 Value strel_line(double len, double theta_deg, std::pmr::memory_resource *mr) {
@@ -120,7 +190,8 @@ Value strel(const std::string &shape, const std::vector<double> &params, const V
         nhood = strel_diamond(r, mr);
     } else if (shape == "disk") {
         const double r = params.empty() ? 5.0 : params[0];
-        nhood = strel_disk(r, mr);
+        const int    n = params.size() >= 2 ? (int)params[1] : 4;
+        nhood = strel_disk(r, n, mr);
     } else if (shape == "line") {
         const double len = params.size() >= 1 ? params[0] : 3.0;
         const double th  = params.size() >= 2 ? params[1] : 0.0;

@@ -1,10 +1,12 @@
 {
   "name": "strel",
   "namespace": "image",
+  "covers": ["strel"],
   "setup": "",
-  "expr": "se = strel('square', 5); r1 = double(sum(se.Neighborhood(:)));",
+  "expr": "se = strel('square', 5); r1 = double(sum(se.Neighborhood(:))); se5 = strel('disk',5); nh5 = se5.Neighborhood; d5 = double(sum(nh5(:))); h5 = size(nh5,1); w5 = size(nh5,2); d5r1 = double(sum(nh5(1,:))); d5r3 = double(sum(nh5(3,:))); se3 = strel('disk',3); d3 = double(sum(se3.Neighborhood(:))); se7 = strel('disk',7); nh7 = se7.Neighborhood; d7 = double(sum(nh7(:))); h7 = size(nh7,1); se0 = strel('disk',5,0); nh0 = se0.Neighborhood; d0 = double(sum(nh0(:))); h0 = size(nh0,1);",
   "iters": 5,
   "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "Sig: se = strel(shape, params). Returns struct (numkit) / strel-object (MATLAB) with fields {Neighborhood, Dimensionality}. Structure access matches; the 'square' shape is bit-identical (both engines: 5x5 = 25 ones). NOTE: 'disk' decomposes into smaller equivalent in MATLAB R2025b (line-strel cascade) -- numkit returns the full disk mask. Both yield identical morphology results, just different .Neighborhood matrices. Field access works in both."
+  "fingerprint": ["r1", "d5", "h5", "w5", "d5r1", "d5r3", "d3", "d7", "h7", "d0", "h0"],
+  "deep_verified": true,
+  "comment": "Sig: se = strel(shape, params). Returns a struct (numkit) / strel-object (MATLAB) with fields {Neighborhood, Dimensionality}; field access matches. 'square' is bit-identical (5x5=25 ones). DEEP-PROBE 2026-05-31 (c159): 'disk' now reproduces MATLAB R2025b's radial periodic-line decomposition (Adams 1993, Jones & Soille 1996) -- default N=4 basis, k=2r/(cot(pi/2n)+1/sin(pi/2n)), floor() repetition + compensating H/V line strels -- instead of a full Euclidean disk. Previously numkit returned the true disk (disk(5)=11x11/sum81 vs MATLAB 9x9/sum69). Now bit-exact across r=1..15 and N in {0,4,6,8}: disk(5)=9x9/69 (rowsums 5 7 9 9 9 9 9 7 5), disk(3)=5x5/25 (full square), disk(4)=7x7/37, disk(7)=13x13/157, disk(5,0)=11x11/81 (N=0 forces Euclidean). covers:[strel]."
 }

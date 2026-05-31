@@ -2,7 +2,7 @@
 //
 // Image batch 4 closure (28 functions):
 //   regional/morph: regionprops · imregionalmax · imregionalmin ·
-//                   imtophat · imbothat · strel (DEFERRED)
+//                   imtophat · imbothat · strel (disk now MATLAB-parity)
 //   conversion:     gray2ind · ind2rgb · grayslice · integralImage ·
 //                   im2bw · im2col · im2gray · getrangefromclass
 //   bw extras:      applylut · boundarymask · bwareafilt
@@ -44,6 +44,41 @@ TEST_F(ImageBatch4Test, RegionalMorph)
 
     eval("B = imbothat(eye(5), ones(3));");
     EXPECT_DOUBLE_EQ(evalScalar("numel(B)"), 25.0);
+}
+
+// strel('disk',R) now matches MATLAB R2025b's radial periodic-line
+// decomposition (default N=4), not a full Euclidean disk. Pinned to MATLAB.
+TEST_F(ImageBatch4Test, StrelDisk)
+{
+    // r=5 default (N=4): 9x9, sum 69, symmetric octagon-ish profile.
+    eval("se5 = strel('disk',5); nh5 = se5.Neighborhood;");
+    EXPECT_DOUBLE_EQ(evalScalar("size(nh5,1)"),  9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(nh5,2)"),  9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh5(:))"), 69.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh5(1,:))"), 5.0);   // top row clipped
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh5(3,:))"), 9.0);   // mid rows full width
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh5(:,1))"), 5.0);
+
+    // r=3: decomposition degrades to a full 5x5 square (sum 25).
+    eval("se3 = strel('disk',3); nh3 = se3.Neighborhood;");
+    EXPECT_DOUBLE_EQ(evalScalar("size(nh3,1)"),  5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh3(:))"), 25.0);
+
+    // r=4 -> 7x7/37, r=7 -> 13x13/157.
+    eval("se4 = strel('disk',4); nh4 = se4.Neighborhood;");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh4(:))"), 37.0);
+    eval("se7 = strel('disk',7); nh7 = se7.Neighborhood;");
+    EXPECT_DOUBLE_EQ(evalScalar("size(nh7,1)"), 13.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh7(:))"), 157.0);
+
+    // N=0 forces the true Euclidean disk: r=5 -> 11x11/81.
+    eval("se0 = strel('disk',5,0); nh0 = se0.Neighborhood;");
+    EXPECT_DOUBLE_EQ(evalScalar("size(nh0,1)"), 11.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh0(:))"), 81.0);
+
+    // r<3 always Euclidean: r=2 -> 5x5/13 (matches MATLAB).
+    eval("se2 = strel('disk',2); nh2 = se2.Neighborhood;");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(nh2(:))"), 13.0);
 }
 
 TEST_F(ImageBatch4Test, Conversion)
