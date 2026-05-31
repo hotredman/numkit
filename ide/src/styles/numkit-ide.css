@@ -210,10 +210,17 @@ input, select { font-family: inherit; color: inherit; }
   min-height: 0;
 }
 .sidebar-head {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; flex-direction: column; gap: 6px;
   padding: 8px;
   border-bottom: 1px solid var(--line-soft);
 }
+/* One row inside the head. Row 1 = combo + refresh; row 2 = action
+   buttons. The combo flexes to fill, the refresh sits beside it. */
+.sidebar-head-row {
+  display: flex; align-items: center; gap: 6px;
+}
+/* Action row: buttons left-aligned (they don't stretch). */
+.sidebar-head-actions { flex-wrap: wrap; }
 .ws-picker {
   flex: 1;
   background: var(--bg-2); color: var(--fg-1);
