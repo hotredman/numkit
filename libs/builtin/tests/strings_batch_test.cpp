@@ -298,3 +298,29 @@ TEST_F(StringsBatchTest, ContainsStartsEndsCellSource)
     EXPECT_DOUBLE_EQ(evalScalar("double(contains('hello','ell'))"), 1.0);
     EXPECT_TRUE(evalScalar("islogical(contains('hello','ell'))") != 0.0);
 }
+
+// str2num evaluates the (bracket-wrapped) string as an expression: matrices,
+// ranges, arithmetic, with [] on failure and a logical success flag for the
+// 2-output form. DEEP-PROBE 2026-05-31: was a scalar-only std::stod that
+// returned [] for matrices/ranges. vs MATLAB R2025b.
+TEST_F(StringsBatchTest, Str2NumEvaluatesExpressions)
+{
+    eval("m = str2num('[1 2; 3 4]');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(1,2)"), 2.0);
+    eval("v = str2num('1:5');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(v)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(5)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("str2num('2+3')"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("str2num('42.5')"), 42.5);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isempty(str2num('not a number')))"), 1.0);
+    // 2-output form: [X, tf] = str2num(s).
+    eval("[x, tf] = str2num('[10 20 30]');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(tf)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("x(2)"), 20.0);
+    eval("[y, tf2] = str2num('garbage');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(tf2)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isempty(y))"), 1.0);
+}
