@@ -1,0 +1,14 @@
+{
+  "name": "bwboundaries_label",
+  "namespace": "image",
+  "covers": ["bwboundaries"],
+  "setup": "BW = false(5,5); BW(2:4,2:4) = true; BW2 = false(5,5); BW2(1,1)=true; BW2(3,3)=true; BW2(3,4)=true; BW2(4,4)=true;",
+  "expr": "[B,L,N] = bwboundaries(BW); nb = numel(B); nn = N; lmax = max(L(:)); lrows = size(L,1); lcols = size(L,2); l33 = L(3,3); l11 = L(1,1); [B2,L2,N2] = bwboundaries(BW2); nb2 = numel(B2); n2 = N2; l211 = L2(1,1); l244 = L2(4,4); [B4,L4,N4] = bwboundaries(BW2,4); n4 = N4;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "nb", "nn", "lmax", "lrows", "lcols", "l33", "l11", "nb2", "n2", "l211", "l244", "n4"
+  ],
+  "deep_verified": true,
+  "comment": "bwboundaries 2nd/3rd outputs [B,L,N] vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/image): bwboundaries returned only B; the label-matrix L and object-count N (2nd/3rd outputs) were missing (the 2nd output threw 'undefined function L'). Added via out-pointers: L is the H-by-W double label matrix (objects 1..N), N is the object count. numkit traces objects only (the 'noholes' behaviour), so L/N are bit-exact vs MATLAB for inputs WITHOUT holes (hole-boundary tracing + hole labelling N+1.. remains a separate gap). Solid 3x3 block: nB=1, N=1, Lmax=1, L(3,3)=1, L(1,1)=0. Two objects: N=2, L(1,1)=1, L(4,4)=2. A string mode flag ('noholes') is accepted and ignored. covers:[bwboundaries]."
+}

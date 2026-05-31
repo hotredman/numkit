@@ -396,13 +396,28 @@ Value bwareaopen(const Value &BW, int P, int conn, std::pmr::memory_resource *mr
 // outer-only is what most scripts want and we'd need a second pass
 // to gather hole boundaries from the complement.
 
-Value bwboundaries(const Value &BW, int conn, std::pmr::memory_resource *mr)
+Value bwboundaries(const Value &BW, int conn, Value *Lout, int *Nout, std::pmr::memory_resource *mr)
 {
     if (conn != 4) conn = 8;
     const int H = (int)BW.dims().rows();
     const int W = (int)BW.dims().cols();
     auto fg = read_bw(BW);
     auto [L, K] = label_components(fg, H, W, conn);
+
+    // Optional 2nd/3rd outputs: label matrix (objects 1..K, no holes) and
+    // object count. The internal L is row-major; the Value is column-major.
+    if (Nout) *Nout = K;
+    if (Lout) {
+        Value lab = Value::matrix(static_cast<size_t>(H),
+                                  static_cast<size_t>(W), ValueType::DOUBLE, mr);
+        double *ld = lab.doubleDataMut();
+        for (int r = 0; r < H; ++r)
+            for (int c = 0; c < W; ++c)
+                ld[(size_t)c * (size_t)H + (size_t)r] =
+                    static_cast<double>(L[(size_t)r * (size_t)W + (size_t)c]);
+        *Lout = std::move(lab);
+    }
+
     Value cellCol = Value::cell(static_cast<size_t>(K), 1, mr);
     if (K == 0) return cellCol;
 
@@ -1289,15 +1304,25 @@ void bwareaopen_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = bwareaopen(args[0], P, conn, ctx.engine->resource());
 }
 
-void bwboundaries_reg(Span<const Value> args, size_t /*nargout*/,
+void bwboundaries_reg(Span<const Value> args, size_t nargout,
                       Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("bwboundaries: requires (BW[, conn])", 0, 0,
                     "bwboundaries", "", "numkit:bwboundaries:nargin");
-    const int conn = (args.size() >= 2 && !args[1].isEmpty())
-                     ? (int)args[1].toScalar() : 8;
-    outs[0] = bwboundaries(args[0], conn, ctx.engine->resource());
+    // conn is the first numeric trailing arg; a string (e.g. 'noholes') is a
+    // mode flag (numkit traces objects only either way) and is ignored.
+    int conn = 8;
+    if (args.size() >= 2 && !args[1].isEmpty() && !args[1].isChar() &&
+        !args[1].isString())
+        conn = (int)args[1].toScalar();
+    auto *mr = ctx.engine->resource();
+    Value L; int N = 0;
+    outs[0] = bwboundaries(args[0], conn,
+                           nargout > 1 ? &L : nullptr,
+                           nargout > 2 ? &N : nullptr, mr);
+    if (nargout > 1) outs[1] = std::move(L);
+    if (nargout > 2) outs[2] = Value::scalar(static_cast<double>(N), mr);
 }
 
 void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
