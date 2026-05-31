@@ -1,12 +1,15 @@
 {
   "name": "imhistmatch",
   "namespace": "image",
-  "setup": "",
-  "expr": "J = imhistmatch(uint8([0 100 200]), uint8([50 150 255])); r1 = double(numel(J));",
+  "covers": ["imhistmatch"],
+  "setup": "A = reshape(uint8([10 130 5 200 40 160 15 210 70 190 25 230 100 220 35 250]),4,4); R = reshape(uint8([0 100 200 60 0 100 200 60 50 150 255 90 50 150 255 90]),4,4);",
+  "expr": "[J,hg] = imhistmatch(A,R); j1=double(J(1)); j2=double(J(2)); j4=double(J(4)); j16=double(J(16)); hgn=numel(hg); hgsum=sum(hg); hg1=hg(1); hg13=hg(13); hg64=hg(64); [J16,hg16]=imhistmatch(A,R,16); k1=double(J16(1)); k4=double(J16(4)); k16=double(J16(16)); h16_5=hg16(5); h16_1=hg16(1);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1"
+    "j1", "j2", "j4", "j16", "hgn", "hgsum", "hg1", "hg13", "hg64",
+    "k1", "k4", "k16", "h16_5", "h16_1"
   ],
-  "comment": "Sig: r = imhistmatch(...). Spec-extension batch 2026-05-09."
+  "deep_verified": true,
+  "comment": "imhistmatch [J,hgram] vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/image): imhistmatch is exactly histeq(I, imhist(ref,nbins)) — the transform is built at the input class's FULL resolution NPTS (256 for uint8) then applied per input level via grayxform, and nbins defaults to 64 for EVERY class. numkit previously (a) defaulted nbins to max(per-class imhist default)=256 for uint8, (b) binned the INPUT into nbins (not NPTS) with a (k+0.5)/nbins LUT so J was off by 1-2 levels, and (c) was missing the 2nd output hgram (= imhist(ref,nbins), threw 'undefined function T'). Rewrote to the exact Gonzalez histogram-matching transform (cumd/cum/tol/argmin) + added hgram. Default n=64: J(1)=0,J(2)=101,J(4)=150,J(16)=255; hg is 1x64, sum=16, hg(1)=hg(13)=hg(64)=2. n=16: J16(1)=0,J16(4)=153,J16(16)=255; hg16(5)=hg16(1)=2. covers:[imhistmatch]."
 }
