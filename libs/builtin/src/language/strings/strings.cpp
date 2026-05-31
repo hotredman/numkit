@@ -2211,6 +2211,16 @@ Value split(const Value &s, const Value &delim, std::pmr::memory_resource *mr)
     std::vector<std::string> parts;
     splitKeepEmpty(sStr, dStr, parts);
 
+    // MATLAB: a STRING input yields a string-array result; a char or cellstr
+    // input yields a cell array of character vectors. The values and shape
+    // (an N×1 column) are identical either way — only the container differs.
+    if (s.isString()) {
+        Value r = Value::stringArray(parts.size(), 1, mr);
+        for (size_t i = 0; i < parts.size(); ++i)
+            r.stringElemSet(i, parts[i]);
+        return r;
+    }
+
     Value c = Value::cell(parts.size(), 1, mr);
     for (size_t i = 0; i < parts.size(); ++i)
         c.cellAt(i) = Value::fromString(parts[i], mr);

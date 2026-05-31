@@ -1,0 +1,14 @@
+{
+  "name": "split_string_class",
+  "namespace": "builtin",
+  "covers": ["split"],
+  "setup": "",
+  "expr": "p1 = split(\"a,b,c\",\",\"); c1 = double(isstring(p1)); n1 = numel(p1); f1 = double(char(p1(3))); p2 = split('a,b,c',','); c2 = double(iscell(p2)); f2 = double(p2{2}); p3 = split(\"a b c\"); n3 = numel(p3); c3 = double(isstring(p3));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "c1", "n1", "f1", "c2", "f2", "n3", "c3"
+  ],
+  "deep_verified": true,
+  "comment": "split output-class preservation vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit's split always returned a CELL, but MATLAB returns a STRING array when the input is a string and a cell array of char vectors only for char/cellstr input (doc: 'If str is a string array, then newStr is a string array. Otherwise, newStr is a cell array of character vectors.'). Values + N x 1 shape were already correct; only the container class was wrong. split(\"a,b,c\",\",\") -> 3x1 string [\"a\";\"b\";\"c\"] (isstring=1); split('a,b,c',',') -> 3x1 cell (iscell=1); split(\"a b c\") (default whitespace) -> 3x1 string. f1=double('c')=99, f2=double('b')=98. The 2-D string-ARRAY input form (split([\"a-b\";\"c-d\"],\"-\") -> 2x2) is a separate, larger feature deferred to a future cycle. covers:[split]."
+}

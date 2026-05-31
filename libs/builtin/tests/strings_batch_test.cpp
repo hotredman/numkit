@@ -324,3 +324,26 @@ TEST_F(StringsBatchTest, Str2NumEvaluatesExpressions)
     EXPECT_DOUBLE_EQ(evalScalar("double(tf2)"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("double(isempty(y))"), 1.0);
 }
+
+// split output-class preservation vs MATLAB R2025b. 2026-05-31:
+// previously split always returned a CELL. MATLAB returns a STRING array
+// for a string input, and a cell array of char vectors only for char /
+// cellstr input. Values and the N x 1 shape were already correct.
+TEST_F(StringsBatchTest, SplitPreservesInputClass)
+{
+    // string input -> string array
+    eval("p1 = split(\"a,b,c\", \",\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(p1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(p1)"), 3.0);
+    EXPECT_EQ(evalString("p1(2)"), "b");
+    EXPECT_EQ(evalString("p1(3)"), "c");
+    // char input -> cell array of char vectors
+    eval("p2 = split('a,b,c', ',');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(p2))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(p2)"), 3.0);
+    EXPECT_EQ(evalString("p2{2}"), "b");
+    // default whitespace delimiter on a string -> string array
+    eval("p3 = split(\"a b c\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(p3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(p3)"), 3.0);
+}
