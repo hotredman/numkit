@@ -88,7 +88,7 @@ function previewToData(preview, type) {
   return [[String(preview)]];
 }
 
-function classify(size, type) {
+export function classify(size, type) {
   // Container types are classified by type, not shape — a 1×1 struct
   // is still a struct, not a scalar. The Variable Editor gates its
   // nested tree-view on these.
