@@ -346,12 +346,15 @@ Value regexpFindOnce(const Value &s, const Value &pat, const std::string &option
     return Value::scalar(static_cast<double>(it->position() + 1), mr);
 }
 
-// Apply ONE pattern/replacement to a single string.
+// Apply ONE pattern/replacement to a single string. With `once`, only the
+// first match is replaced (MATLAB's 'once' option).
 static std::string regexrepOne(const std::string &text, const std::string &pat,
-                               const std::string &rep, bool ignoreCase)
+                               const std::string &rep, bool ignoreCase, bool once)
 {
     const std::regex re = compileRegex(extractNamedGroups(pat).cleaned, ignoreCase);
-    return std::regex_replace(text, re, rep);
+    const auto flags = once ? std::regex_constants::format_first_only
+                            : std::regex_constants::format_default;
+    return std::regex_replace(text, re, rep, flags);
 }
 
 // Apply a LIST of patterns to one string, in sequence (MATLAB regexprep with
@@ -361,15 +364,15 @@ static std::string regexrepOne(const std::string &text, const std::string &pat,
 static std::string regexrepSeq(const std::string &text0,
                                const ScratchVec<std::string> &pats,
                                const ScratchVec<std::string> &reps,
-                               bool ignoreCase)
+                               bool ignoreCase, bool once)
 {
     std::string text = text0;
     for (std::size_t i = 0; i < pats.size(); ++i)
-        text = regexrepOne(text, pats[i], reps.size() == 1 ? reps[0] : reps[i], ignoreCase);
+        text = regexrepOne(text, pats[i], reps.size() == 1 ? reps[0] : reps[i], ignoreCase, once);
     return text;
 }
 
-Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreCase, std::pmr::memory_resource *mr)
+Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreCase, bool once, std::pmr::memory_resource *mr)
 {
     auto isStrLike = [](const Value &v) { return v.isChar() || v.isString() || v.isCell(); };
     if (!isStrLike(s) || !isStrLike(pat) || !isStrLike(rep))
@@ -403,10 +406,10 @@ Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreC
         const std::size_t n = s.numel();
         for (std::size_t i = 0; i < n; ++i)
             out.cellAt(i) = Value::fromString(
-                regexrepSeq(s.cellAt(i).toString(), pats, reps, ignoreCase), mr);
+                regexrepSeq(s.cellAt(i).toString(), pats, reps, ignoreCase, once), mr);
         return out;
     }
-    return Value::fromString(regexrepSeq(s.toString(), pats, reps, ignoreCase), mr);
+    return Value::fromString(regexrepSeq(s.toString(), pats, reps, ignoreCase, once), mr);
 }
 
 // ── Pack 36: regexptranslate ─────────────────────────────────────────
@@ -517,18 +520,20 @@ void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.size() < 3)
         throw Error("regexprep: requires 3 arguments (s, pat, rep)",
                      0, 0, "regexprep", "", "numkit:regexprep:nargin");
-    // Trailing option strings: recognise 'ignorecase' (other documented
-    // options — 'once', 'preservecase', 'lineanchors', … — are not yet
+    // Trailing option strings: recognise 'ignorecase' and 'once' (other
+    // documented options — 'preservecase', 'lineanchors', … — are not yet
     // parsed and are left to their default behaviour).
     bool ignoreCase = false;
+    bool once = false;
     for (size_t i = 3; i < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             std::string o = args[i].toString();
             for (auto &ch : o) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-            if (o == "ignorecase") ignoreCase = true;
+            if      (o == "ignorecase") ignoreCase = true;
+            else if (o == "once")       once = true;
         }
     }
-    outs[0] = regexprep(args[0], args[1], args[2], ignoreCase, ctx.engine->resource());
+    outs[0] = regexprep(args[0], args[1], args[2], ignoreCase, once, ctx.engine->resource());
 }
 
 void regexptranslate_reg(Span<const Value> args, size_t, Span<Value> outs,

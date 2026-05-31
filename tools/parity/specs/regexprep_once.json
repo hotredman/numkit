@@ -1,0 +1,14 @@
+{
+  "name": "regexprep_once",
+  "namespace": "builtin",
+  "covers": ["regexprep"],
+  "setup": "",
+  "expr": "a = regexprep('abc','\\w','X','once'); na = numel(a); sa = sum(double(a)); b = regexprep('a1b2c3','\\d','#','once'); nb = numel(b); sb = sum(double(b)); c = regexprep('AaAa','a','Z','once','ignorecase'); nc = numel(c); sc = sum(double(c)); d = regexprep('hello world','(\\w+)','<$1>','once'); nd = numel(d); sd = sum(double(d)); e = regexprep('abc','x','Y','once'); ne = numel(e); g = regexprep('abc','\\w','X'); sg = sum(double(g));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "sa", "nb", "sb", "nc", "sc", "nd", "sd", "ne", "sg"
+  ],
+  "deep_verified": true,
+  "comment": "regexprep(...,'once') vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit parsed only 'ignorecase' and silently IGNORED 'once' — it replaced ALL matches (regexprep('abc','\\w','X','once') gave 'XXX' instead of 'Xbc'). Now regexprep threads a `once` flag into regexrepOne which passes std::regex_constants::format_first_only, replacing only the FIRST match of each pattern. regexprep('abc','\\w','X','once')='Xbc'; '\\d' on 'a1b2c3'='a#b2c3'; 'AaAa' once+ignorecase='ZaAa'; '(\\w+)' on 'hello world'='<hello> world'; no-match unchanged; default (no 'once') still replaces all ('XXX'). Works element-wise on cell-string input too. covers:[regexprep] (regexprep.json keeps the replace-all cases)."
+}
