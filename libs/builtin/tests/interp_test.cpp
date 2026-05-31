@@ -74,6 +74,67 @@ TEST_F(InterpTest, NearestAtNode)
     EXPECT_NEAR(evalScalar("yq"), 20.0, 1e-10);
 }
 
+// 'nearest' tie-break: an exactly-halfway query rounds UP to the higher
+// neighbor (matches MATLAB). Was rounding down. DEEP-PROBE 2026-05-31.
+TEST_F(InterpTest, NearestTieRoundsUp)
+{
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],2.5,'nearest')"), 30.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],1.5,'nearest')"), 20.0, 1e-12);
+    // Non-tie queries on either side are unaffected.
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],2.4,'nearest')"), 20.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],2.6,'nearest')"), 30.0, 1e-12);
+}
+
+// ============================================================
+// interp1 — matrix Y (column-wise interpolation)
+// ============================================================
+
+// interp1 with a matrix Y interpolates DOWN each column; the result is
+// length(xq) x size(Y,2), regardless of the xq orientation. Previously
+// threw "x and y must have same length". vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_F(InterpTest, MatrixYColumnwiseLinear)
+{
+    eval("Y = [10 100; 20 200; 30 300];");
+    // scalar xq -> 1 x 2.
+    eval("ml = interp1([1 2 3], Y, 2.5);");
+    EXPECT_NEAR(evalScalar("ml(1)"), 25.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ml(2)"), 250.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ml,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ml,2)"), 2.0);
+    // vector xq -> 3 x 2, default NaN extrapolation per column.
+    eval("mle = interp1([1 2 3], Y, [0 2.5 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(mle,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(mle,2)"), 2.0);
+    EXPECT_NEAR(evalScalar("mle(2,1)"), 25.0, 1e-12);
+    EXPECT_NEAR(evalScalar("mle(2,2)"), 250.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isnan(mle(1,1)))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isnan(mle(3,2)))"), 1.0);
+    // column xq still yields q x m (q rows).
+    eval("md = interp1([1 2 3], Y, [2.5;1.5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(md,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(md,2)"), 2.0);
+    EXPECT_NEAR(evalScalar("md(2,2)"), 150.0, 1e-12);
+}
+
+TEST_F(InterpTest, MatrixYNearestAndSpline)
+{
+    eval("Y = [10 100; 20 200; 30 300];");
+    // nearest with scalar extrapval, per column (2.5 ties up to row 3).
+    eval("mn = interp1([1 2 3], Y, [0 2.5 5], 'nearest', -1);");
+    EXPECT_NEAR(evalScalar("mn(1,1)"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("mn(2,1)"), 30.0, 1e-12);
+    EXPECT_NEAR(evalScalar("mn(3,2)"), -1.0, 1e-12);
+    // spline extrapolates per column.
+    eval("ms = interp1([1 2 3], Y, [0 2.5 5], 'spline');");
+    EXPECT_NEAR(evalScalar("ms(1,1)"), 0.0, 1e-10);
+    EXPECT_NEAR(evalScalar("ms(3,1)"), 50.0, 1e-10);
+    EXPECT_NEAR(evalScalar("ms(2,2)"), 250.0, 1e-10);
+    // size(Y,1) != length(x) throws.
+    EXPECT_THROW(eval("interp1([1 2 3 4], [10 100; 20 200; 30 300], 2.5);"),
+                 std::exception);
+}
+
 // ============================================================
 // interp1 — 'previous' / 'next' (step interpolation) vs MATLAB R2025b
 // ============================================================

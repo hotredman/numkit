@@ -62,7 +62,9 @@ interpNearest(const double *x, const double *y, size_t n, const double *xq, size
     ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
         const size_t i = findInterval(x, n, xq[k]);
-        if (std::abs(xq[k] - x[i]) <= std::abs(xq[k] - x[i + 1]))
+        // Tie-break: MATLAB rounds an exactly-halfway query UP to the
+        // higher-index neighbor, so use strict '<' (a tie picks y[i+1]).
+        if (std::abs(xq[k] - x[i]) < std::abs(xq[k] - x[i + 1]))
             yq[k] = y[i];
         else
             yq[k] = y[i + 1];
@@ -460,44 +462,67 @@ Value interp1Dispatch(const Value &x, const Value &y, const Value &xq,
     const size_t n = x.numel();
     const size_t nq = xq.numel();
 
-    if (n != y.numel())
-        throw Error("interp1: x and y must have same length",
-                     0, 0, "interp1", "", "numkit:interp1:lengthMismatch");
     if (n < 2)
         throw Error("interp1: need at least 2 data points",
                      0, 0, "interp1", "", "numkit:interp1:tooFewPoints");
 
     const double *xd = x.doubleData();
-    const double *yd = y.doubleData();
     const double *xqd = xq.doubleData();
 
     ScratchArena scratch(mr);
 
-    auto finish = [&](ScratchVec<double> yq) {
+    // Interpolate a single y-data column of length n, applying the
+    // out-of-range extrapolation policy. Returns the nq query values.
+    auto runColumn = [&](const double *yd) -> ScratchVec<double> {
+        ScratchVec<double> yq = [&]() -> ScratchVec<double> {
+            if (method == "linear")   return interpLinear(xd, yd, n, xqd, nq, &scratch);
+            if (method == "nearest")  return interpNearest(xd, yd, n, xqd, nq, &scratch);
+            if (method == "previous") return interpPrevious(xd, yd, n, xqd, nq, &scratch);
+            if (method == "next")     return interpNext(xd, yd, n, xqd, nq, &scratch);
+            if (method == "spline")   return interpSpline(xd, yd, n, xqd, nq, &scratch);
+            if (method == "pchip")    return interpPchip(xd, yd, n, xqd, nq, &scratch);
+            if (method == "makima")   return interpMakima(xd, yd, n, xqd, nq, &scratch);
+            if (method == "cubic" || method == "v5cubic")
+                // Keys cubic convolution on a uniform grid (spline on
+                // non-uniform); out-of-range → NaN (NOT a method-
+                // extrapolator, see applyInterp1Extrap).
+                return interpV5Cubic(xd, yd, n, xqd, nq, &scratch);
+            throw Error("interp1: unknown method '" + method + "'",
+                         0, 0, "interp1", "", "numkit:interp1:badMethod");
+        }();
         applyInterp1Extrap(yq.data(), xqd, nq, xd, yd, n, method, mode, fill);
-        return packInterpResult(yq.data(), yq.size(), xq, mr);
+        return yq;
     };
 
-    if (method == "linear")
-        return finish(interpLinear(xd, yd, n, xqd, nq, &scratch));
-    if (method == "nearest")
-        return finish(interpNearest(xd, yd, n, xqd, nq, &scratch));
-    if (method == "previous")
-        return finish(interpPrevious(xd, yd, n, xqd, nq, &scratch));
-    if (method == "next")
-        return finish(interpNext(xd, yd, n, xqd, nq, &scratch));
-    if (method == "spline")
-        return finish(interpSpline(xd, yd, n, xqd, nq, &scratch));
-    if (method == "pchip")
-        return finish(interpPchip(xd, yd, n, xqd, nq, &scratch));
-    if (method == "makima")
-        return finish(interpMakima(xd, yd, n, xqd, nq, &scratch));
-    if (method == "cubic" || method == "v5cubic")
-        // Keys cubic convolution on a uniform grid (spline on non-uniform);
-        // out-of-range → NaN (NOT a method-extrapolator, see applyInterp1Extrap).
-        return finish(interpV5Cubic(xd, yd, n, xqd, nq, &scratch));
-    throw Error("interp1: unknown method '" + method + "'",
-                 0, 0, "interp1", "", "numkit:interp1:badMethod");
+    const bool yIsVector = y.dims().isVector() || y.isScalar();
+    if (yIsVector) {
+        if (n != y.numel())
+            throw Error("interp1: x and y must have same length",
+                         0, 0, "interp1", "", "numkit:interp1:lengthMismatch");
+        auto yq = runColumn(y.doubleData());
+        return packInterpResult(yq.data(), yq.size(), xq, mr);
+    }
+
+    // Matrix Y: interp1 operates DOWN each column; size(Y,1) must equal
+    // length(X). The result is nq × size(Y,2), regardless of the xq
+    // orientation (matches MATLAB). N-D Y is deferred.
+    if (y.dims().ndim() > 2)
+        throw Error("interp1: N-D Y arrays are not supported in this "
+                    "revision (vector or 2-D matrix only)",
+                     0, 0, "interp1", "", "numkit:interp1:ndY");
+    const size_t yr = static_cast<size_t>(y.dims().dim(0));
+    const size_t yc = static_cast<size_t>(y.dims().dim(1));
+    if (yr != n)
+        throw Error("interp1: for a matrix Y, size(Y,1) must equal length(X)",
+                     0, 0, "interp1", "", "numkit:interp1:lengthMismatch");
+    const double *yd = y.doubleData();
+    auto out = Value::matrix(nq, yc, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (size_t j = 0; j < yc; ++j) {
+        auto yq = runColumn(yd + j * yr);   // column j is contiguous (col-major)
+        for (size_t i = 0; i < nq; ++i) od[j * nq + i] = yq[i];
+    }
+    return out;
 }
 
 } // anonymous namespace
