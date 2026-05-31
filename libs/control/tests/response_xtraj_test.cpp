@@ -60,3 +60,35 @@ TEST_F(ResponseXTrajTest, ImpulseStateTrajectoryShape)
     EXPECT_EQ(static_cast<int>(evalScalar("size(x,1)")), 5);
     EXPECT_EQ(static_cast<int>(evalScalar("size(x,2)")), 2);
 }
+
+// stepinfo returns MATLAB R2025b's full 9-field struct, including the
+// TransientTime field (2nd, between RiseTime and SettlingTime) that numkit
+// previously omitted. TransientTime = last time |y-yfinal| exceeds 2% of the
+// PEAK deviation max|y(t)-yfinal|; SettlingTime uses 2% of |yinit-yfinal|.
+// For a standard step the peak deviation occurs at t=0 = |yfinal|, so
+// TransientTime == SettlingTime. The absolute time is grid-resolution
+// dependent (pre-existing ~0.8% gap vs MATLAB shared with SettlingTime), so
+// we pin the field set, the field position, and the TransientTime==SettlingTime
+// invariant rather than MATLAB's absolute seconds.
+TEST_F(ResponseXTrajTest, StepinfoTransientTimeField)
+{
+    eval("info = stepinfo(tf(1, [1 1])); fn = fieldnames(info);");
+    // 9 fields, TransientTime present and positioned 2nd.
+    EXPECT_EQ(static_cast<int>(evalScalar("double(numel(fn))")), 9);
+    EXPECT_DOUBLE_EQ(evalScalar("isfield(info, 'TransientTime')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(fn{2}, 'TransientTime')"), 1.0);
+    // Invariant: for this 1st-order step TransientTime == SettlingTime > 0.
+    EXPECT_GT(evalScalar("info.TransientTime"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(info.TransientTime == info.SettlingTime)"), 1.0);
+}
+
+// A 2nd-order underdamped system overshoots; TransientTime still tracks
+// SettlingTime when the peak deviation occurs at t=0 (= |yfinal|).
+TEST_F(ResponseXTrajTest, StepinfoTransientTimeOvershoot)
+{
+    eval("info = stepinfo(tf(1, [1 0.4 1]));");
+    EXPECT_EQ(static_cast<int>(evalScalar("double(numel(fieldnames(info)))")), 9);
+    EXPECT_GT(evalScalar("info.Overshoot"), 0.0);          // underdamped → overshoot
+    EXPECT_GT(evalScalar("info.TransientTime"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(info.TransientTime == info.SettlingTime)"), 1.0);
+}
