@@ -74,6 +74,51 @@ std::string num2strComplexScalar(Complex z, int precOverride)
     s += 'i';
     return s;
 }
+
+// MATLAB's default num2str column format for a REAL, non-scalar array.
+// N >= 1 forces the precision (the num2str(X,N) form); N <= 0 selects the
+// default (auto): an all-integer array uses a fixed "%<W>.0f" field where
+// W = (max element character count incl sign) + 2; otherwise a magnitude-
+// aware "%<W>.<P>g" where P = max(floor(log10(maxabs)),0)+5 and W = P + 7.
+// The returned format is applied cyclically per row; the caller routes it
+// through the FMT overload, which performs MATLAB's common-blank-column
+// stripping and NaN/Inf spelling. Matches MATLAB R2025b across integer,
+// fractional, negative, and large/small-magnitude probes.
+std::string num2strArrayFormat(const Value &x, int N)
+{
+    const size_t n = x.numel();
+    char fmt[32];
+    if (N >= 1) {
+        int p = N; if (p > 99) p = 99;
+        std::snprintf(fmt, sizeof(fmt), "%%%d.%dg", p + 7, p);
+        return std::string(fmt);
+    }
+    double maxabs = 0.0;
+    bool allInt = true;
+    int maxChars = 1;
+    for (size_t i = 0; i < n; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (!std::isfinite(v)) { allInt = false; continue; }
+        const double a = std::fabs(v);
+        if (a > maxabs) maxabs = a;
+        if (v != std::floor(v)) allInt = false;
+        char b[64];
+        const int len = std::snprintf(b, sizeof(b), "%.0f", v);
+        if (len > maxChars) maxChars = len;
+    }
+    if (allInt) {
+        std::snprintf(fmt, sizeof(fmt), "%%%d.0f", maxChars + 2);
+        return std::string(fmt);
+    }
+    int p = 5;
+    if (maxabs != 0.0) {
+        const int e = static_cast<int>(std::floor(std::log10(maxabs)));
+        p = (e > 0 ? e : 0) + 5;
+    }
+    if (p > 99) p = 99;
+    std::snprintf(fmt, sizeof(fmt), "%%%d.%dg", p + 7, p);
+    return std::string(fmt);
+}
 } // namespace
 
 Value num2str(const Value &x, std::pmr::memory_resource *mr)
@@ -85,6 +130,12 @@ Value num2str(const Value &x, std::pmr::memory_resource *mr)
                         0, 0, "num2str", "", "numkit:num2str:complexArray");
         return Value::fromString(num2strComplexScalar(x.toComplex(), -1), mr);
     }
+    if (x.isEmpty()) return Value::fromString("", mr);
+    // Real, non-scalar: synthesise MATLAB's default column format and route
+    // through the FMT overload (which handles per-row layout, common-blank-
+    // column stripping, and NaN/Inf spelling).
+    if (!x.isScalar())
+        return num2str(x, num2strArrayFormat(x, -1), mr);
     const double v = x.toScalar();
     // MATLAB num2str default precision is MAGNITUDE-AWARE, not a fixed 5 sig
     // figs: it keeps ~4 digits after the integer part, so prec = digits-left-
@@ -113,6 +164,11 @@ Value num2str(const Value &x, int N, std::pmr::memory_resource *mr)
         int n = N; if (n < 1) n = 1;
         return Value::fromString(num2strComplexScalar(x.toComplex(), n), mr);
     }
+    if (x.isEmpty()) return Value::fromString("", mr);
+    // Real, non-scalar with explicit precision N: MATLAB uses a "%<N+7>.<N>g"
+    // column field for every element (no integer-detection in the N form).
+    if (!x.isScalar())
+        return num2str(x, num2strArrayFormat(x, N), mr);
     const double v = x.toScalar();
     int n = N;
     if (n < 1)  n = 1;
