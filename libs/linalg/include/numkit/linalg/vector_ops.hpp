@@ -35,6 +35,23 @@ Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr = null
 /// @see cross
 Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Dot product along a given dimension (`dot(A, B, dim)`).
+///
+/// Computes `sum(conj(A) .* B, dim)` — the dot product of corresponding
+/// vectors along dimension `dim`. `dim = 1` reduces down columns (result is
+/// `1 × W`), `dim = 2` reduces across rows (result is `H × 1`). `dim = 0`
+/// selects the default behavior (vector → scalar, matrix → per-column).
+/// 2-D only.
+///
+/// @param a   First operand.
+/// @param b   Second operand, same shape as `a`.
+/// @param dim Reduction dimension (0 = auto, 1 = columns, 2 = rows).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Dot product reduced along `dim`.
+/// @throws Error  Shape mismatch, 3-D input, or invalid `dim`.
+/// @see dot
+Value dot(const Value &a, const Value &b, int dim, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Kronecker product (`K = kron(A, B)`).
 ///
 /// Output is `(rA·rB) × (cA·cB)`; the `(i, j)`-th block (`rB × cB`)

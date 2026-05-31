@@ -2,7 +2,7 @@
   "name": "dot",
   "namespace": "linalg",
   "setup": "",
-  "expr": "d1 = dot([1 2 3], [4 5 6]); dm = dot([1 2; 3 4; 5 6], [7 8; 9 10; 11 12]); zc = dot([1+2i 3], [4 5i]); mc = dot([1+1i 2; 3 4i], [1 1i; 1 1]); rc = dot([1 2], [1i 2i]);",
+  "expr": "d1 = dot([1 2 3], [4 5 6]); dm = dot([1 2; 3 4; 5 6], [7 8; 9 10; 11 12]); zc = dot([1+2i 3], [4 5i]); mc = dot([1+1i 2; 3 4i], [1 1i; 1 1]); rc = dot([1 2], [1i 2i]); dd2 = dot([1 2 3;4 5 6],[1 1 1;2 2 2],2); dd1 = dot([1 2 3;4 5 6],[1 1 1;2 2 2],1); rv1 = dot([1 2 3],[4 5 6],1); dc2 = dot([1+1i 2;3 4],[1 1;1 1],2);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
@@ -12,7 +12,11 @@
     "sum(dm)",
     "real(zc)", "imag(zc)",
     "real(mc(1))", "imag(mc(1))", "imag(mc(2))",
-    "imag(rc)"
+    "imag(rc)",
+    "dd2(1)", "dd2(2)", "double(numel(dd2))",
+    "dd1(1)", "dd1(3)", "double(numel(dd1))",
+    "rv1(1)", "rv1(3)", "double(numel(rv1))",
+    "real(dc2(1))", "imag(dc2(1))", "real(dc2(2))"
   ],
-  "comment": "MATLAB dot — scalar/column-wise dot product. [1 2 3].[4 5 6]=32; 3x2 matrices -> per-column dot (1x2). COMPLEX: MATLAB conjugates the FIRST arg, dot(a,b)=sum(conj(a).*b): dot([1+2i 3],[4 5i])=4+7i; per-column dot([1+1i 2;3 4i],[1 1i;1 1])=[4-1i -2i]; real-vs-complex dot([1 2],[1i 2i])=5i. numkit previously dropped the imaginary part (returned a wrong real scalar) -- complex path added 2026-05-29. Bit-equal MATLAB R2025b."
+  "comment": "MATLAB dot — scalar/column-wise dot product. [1 2 3].[4 5 6]=32; 3x2 matrices -> per-column dot (1x2). COMPLEX: MATLAB conjugates the FIRST arg, dot(a,b)=sum(conj(a).*b): dot([1+2i 3],[4 5i])=4+7i; per-column dot([1+1i 2;3 4i],[1 1i;1 1])=[4-1i -2i]; real-vs-complex dot([1 2],[1i 2i])=5i. numkit previously dropped the imaginary part -- complex path added 2026-05-29. DEEP-PROBE 2026-05-31: the dim arg dot(A,B,dim) was IGNORED (always reduced along dim 1). Now honored: dot([1 2 3;4 5 6],[1 1 1;2 2 2],2)=[6;30] (rows, 2x1); dim 1 = [9 12 15] (1x3); a vector with explicit dim follows the general sum(conj(A).*B,dim) rule so dot([1 2 3],[4 5 6],1)=[4 10 18] (length-1 reduction = identity, NOT 32); complex dot([1+1i 2;3 4],[1 1;1 1],2)=[3-1i;7]. Bit-equal MATLAB R2025b."
 }
