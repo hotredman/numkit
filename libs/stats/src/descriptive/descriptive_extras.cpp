@@ -108,7 +108,7 @@ namespace {
 // When `idxOut` is non-null it receives the 1-based indices (along the
 // operating dimension) of the returned elements, like MATLAB's
 // [M, I] = mink/maxk(...). Ties keep the lower original index (stable sort).
-Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char *fn, std::pmr::memory_resource *mr, Value *idxOut = nullptr)
+Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char *fn, std::pmr::memory_resource *mr, Value *idxOut = nullptr, bool byAbs = false)
 {
     if (kReq < 0)
         throw Error(std::string(fn) + ": k must be non-negative",
@@ -127,7 +127,8 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
         for (size_t i = 0; i < n; ++i) { vals[i] = x.elemAsDouble(i); ord[i] = i; }
         std::stable_sort(ord.begin(), ord.end(),
                   [&](size_t ia, size_t ib) {
-                      const double a = vals[ia], b = vals[ib];
+                      const double a = byAbs ? std::fabs(vals[ia]) : vals[ia];
+                      const double b = byAbs ? std::fabs(vals[ib]) : vals[ib];
                       if (std::isnan(a)) return false;
                       if (std::isnan(b)) return true;
                       return ascending ? (a < b) : (a > b);
@@ -185,7 +186,8 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
         for (size_t i = 0; i < sliceLen; ++i) ord[i] = i;
         std::stable_sort(ord.begin(), ord.end(),
             [&](size_t ia, size_t ib) {
-                const double a = buf[ia], b = buf[ib];
+                const double a = byAbs ? std::fabs(buf[ia]) : buf[ia];
+                const double b = byAbs ? std::fabs(buf[ib]) : buf[ib];
                 if (std::isnan(a)) return false;
                 if (std::isnan(b)) return true;
                 return ascending ? (a < b) : (a > b);
@@ -2320,8 +2322,9 @@ void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         dim = static_cast<int>(args[i].toScalar()); ++i;
     }
     // Remaining args may be Name-Value pairs; only 'ComparisonMethod'
-    // is documented (real|abs|auto). All real-valued operations match
-    // 'auto' = 'real' since complex maxk on real input is identical.
+    // is documented (real|abs|auto). For real input 'auto' = 'real'; 'abs'
+    // ranks by magnitude |x| (returning the original signed values).
+    bool byAbs = false;
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("maxk: expected Name-Value pair",
@@ -2336,10 +2339,7 @@ void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
             if (m != "real" && m != "abs" && m != "auto")
                 throw Error("maxk: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "maxk", "", "numkit:maxk:cm");
-            // For real input 'auto'/'real' identical; 'abs' is a parity gap.
-            if (m == "abs")
-                throw Error("maxk: ComparisonMethod='abs' not yet supported",
-                            0, 0, "maxk", "", "numkit:maxk:cmAbs");
+            byAbs = (m == "abs");
         } else {
             throw Error("maxk: unknown Name-Value '" + name + "'",
                         0, 0, "maxk", "", "numkit:maxk:nv");
@@ -2347,13 +2347,10 @@ void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         i += 2;
     }
     auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        Value idx;
-        outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/false, "maxk", mr, &idx);
-        outs[1] = idx;
-    } else {
-        outs[0] = maxk(args[0], k, dim, mr);
-    }
+    Value idx;
+    Value *idxPtr = (nargout >= 2) ? &idx : nullptr;
+    outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/false, "maxk", mr, idxPtr, byAbs);
+    if (nargout >= 2) outs[1] = std::move(idx);
 }
 
 void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -2368,6 +2365,7 @@ void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         && !args[i].isEmpty()) {
         dim = static_cast<int>(args[i].toScalar()); ++i;
     }
+    bool byAbs = false;
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mink: expected Name-Value pair",
@@ -2382,9 +2380,7 @@ void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
             if (m != "real" && m != "abs" && m != "auto")
                 throw Error("mink: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "mink", "", "numkit:mink:cm");
-            if (m == "abs")
-                throw Error("mink: ComparisonMethod='abs' not yet supported",
-                            0, 0, "mink", "", "numkit:mink:cmAbs");
+            byAbs = (m == "abs");
         } else {
             throw Error("mink: unknown Name-Value '" + name + "'",
                         0, 0, "mink", "", "numkit:mink:nv");
@@ -2392,13 +2388,10 @@ void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         i += 2;
     }
     auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        Value idx;
-        outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/true, "mink", mr, &idx);
-        outs[1] = idx;
-    } else {
-        outs[0] = mink(args[0], k, dim, mr);
-    }
+    Value idx;
+    Value *idxPtr = (nargout >= 2) ? &idx : nullptr;
+    outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/true, "mink", mr, idxPtr, byAbs);
+    if (nargout >= 2) outs[1] = std::move(idx);
 }
 
 // Common parser for mape/rmse trailing args: optional dim ('all', vecdim,
