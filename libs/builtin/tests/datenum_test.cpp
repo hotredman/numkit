@@ -169,3 +169,20 @@ TEST_F(DatenumTest, DatestrMultiDate)
     EXPECT_EQ(eval("datestr(738885)").toString(), "30-Dec-2022");
     EXPECT_EQ(eval("datestr([2020 7 28 0 0 0])").toString(), "28-Jul-2020");
 }
+
+// datestr of a CHAR/string date: auto-parse (ISO / dd-mmm-yyyy) then
+// re-render; the 2nd arg is the OUTPUT format, not the input spec.
+// Previously threw "string date input not yet supported". c122.
+TEST_F(DatenumTest, DatestrStringInput)
+{
+    EXPECT_EQ(eval("datestr('30-Dec-2022')").toString(), "30-Dec-2022");
+    EXPECT_EQ(eval("datestr('2022-12-30')").toString(), "30-Dec-2022");
+    EXPECT_EQ(eval("datestr('2022-12-30','mm/dd/yyyy')").toString(), "12/30/2022");
+    EXPECT_EQ(eval("datestr('15-Mar-2020 13:45:30','HH:MM')").toString(), "13:45");
+    EXPECT_EQ(eval("datestr('30-Dec-2022',23)").toString(), "12/30/2022");
+    // Time auto-included in the default format when the parse has a time.
+    EXPECT_EQ(eval("datestr('2022-12-30 12:34:56')").toString(),
+              "30-Dec-2022 12:34:56");
+    // Unparseable string throws.
+    EXPECT_THROW(eval("datestr('not a date')"), std::exception);
+}
