@@ -188,6 +188,33 @@ TEST_P(RegexTest, RegexprepNoMatchReturnsOriginal)
     EXPECT_EQ(getVarPtr("s")->toString(), "abc");
 }
 
+// regexprep(...,'once'): replace only the FIRST match of each pattern.
+// DEEP-PROBE 2026-05-31 — 'once' was parsed-but-ignored (replaced all).
+// vs MATLAB R2025b.
+TEST_P(RegexTest, RegexprepOnceOption)
+{
+    eval("s = regexprep('abc', '\\w', 'X', 'once');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "Xbc");
+    eval("s = regexprep('a1b2c3', '\\d', '#', 'once');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "a#b2c3");
+    // 'once' combines with 'ignorecase' (order-independent).
+    eval("s = regexprep('AaAa', 'a', 'Z', 'once', 'ignorecase');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "ZaAa");
+    // Back-references still work with 'once'.
+    eval("s = regexprep('hello world', '(\\w+)', '<$1>', 'once');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "<hello> world");
+    // No match -> unchanged.
+    eval("s = regexprep('abc', 'x', 'Y', 'once');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "abc");
+    // Default (no 'once') still replaces ALL occurrences.
+    eval("s = regexprep('abc', '\\w', 'X');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "XXX");
+    // Cell-string input: 'once' applies element-wise.
+    eval("r = regexprep({'aa','bb'}, '\\w', '#', 'once');");
+    EXPECT_EQ(eval("r{1}").toString(), "#a");
+    EXPECT_EQ(eval("r{2}").toString(), "#b");
+}
+
 // regexprep with cell-array arguments. Was throwing "s, pat, rep must be
 // strings". A cell STR processes element-wise (cell of char vectors, same
 // shape); a cell PATTERN is a LIST applied sequentially to each string; a
@@ -292,6 +319,33 @@ TEST_P(RegexTest, RegexpSingleOutputUnchanged)
     EXPECT_EQ(ix->numel(), 2u);
     EXPECT_DOUBLE_EQ(ix->doubleData()[0], 2.0);
     EXPECT_DOUBLE_EQ(ix->doubleData()[1], 4.0);
+}
+
+// regexp(...,'once'): match the first occurrence, return the scalarised
+// form. DEEP-PROBE 2026-05-31 — previously threw "unknown option 'once'".
+// vs MATLAB R2025b on s='a1b2c3'.
+TEST_P(RegexTest, RegexpOnceOption)
+{
+    // 'start' (default selector) -> scalar index.
+    EXPECT_DOUBLE_EQ(evalScalar("regexp('a1b2c3','\\d','once')"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("regexp('a1b2c3','\\d','end','once')"), 2.0);
+    // 'match','once' -> char row (not a cell).
+    eval("m = regexp('a1b2c3','\\d','match','once');");
+    EXPECT_TRUE(evalBool("ischar(m)"));
+    EXPECT_TRUE(evalBool("strcmp(m,'1')"));
+    // 'tokens','once' -> 1xk cell of capture chars (unwrapped one level).
+    eval("t = regexp('a1b2c3','(\\w)(\\d)','tokens','once');");
+    EXPECT_TRUE(evalBool("iscell(t)"));
+    EXPECT_DOUBLE_EQ(evalScalar("numel(t)"), 2.0);
+    EXPECT_TRUE(evalBool("strcmp(t{1},'a') && strcmp(t{2},'1')"));
+    // 'split','once' -> split at the FIRST match only.
+    eval("sp = regexp('a,b,c',',','split','once');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(sp)"), 2.0);
+    EXPECT_TRUE(evalBool("strcmp(sp{1},'a') && strcmp(sp{2},'b,c')"));
+    // No match: start/end -> [], match -> ''.
+    EXPECT_TRUE(evalBool("isempty(regexp('xyz','\\d','once'))"));
+    EXPECT_TRUE(evalBool("isempty(regexp('xyz','\\d','match','once'))"));
+    EXPECT_TRUE(evalBool("ischar(regexp('xyz','\\d','match','once'))"));
 }
 
 INSTANTIATE_DUAL(RegexTest);

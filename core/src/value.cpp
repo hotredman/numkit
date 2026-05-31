@@ -195,7 +195,7 @@ Value Value::matrix3d(size_t rows, size_t cols, size_t pages, ValueType t, std::
 }
 Value Value::matrixND(const size_t *dims, int nd, ValueType t, std::pmr::memory_resource *mr)
 {
-    if (nd <= 0) return empty();
+    if (nd <= 0) return Value();
     if (nd == 1)
         return matrix(dims[0], 1, t, mr);
     if (nd == 2)
@@ -704,7 +704,7 @@ Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource
         matchDim(pages, eP, pagesSet);
     }
     if (totalCols == 0)
-        return Value::empty();
+        return Value();
     if (!rows)
         rows = 1;
 
@@ -757,7 +757,7 @@ Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource
         matchDim(pages, eP, pagesSet);
     }
     if (!cols)
-        return Value::empty();
+        return Value();
 
     // Char vertcat
     bool hasChar = false;
@@ -1119,7 +1119,7 @@ Value Value::indexGetND(const size_t *const *perDimIdx,
                           int nd,
                           std::pmr::memory_resource *mr) const
 {
-    if (nd <= 0) return empty();
+    if (nd <= 0) return Value();
     if (nd == 1) return indexGet(perDimIdx[0], perDimCount[0], mr);
     if (nd == 2)
         return indexGet2D(perDimIdx[0], perDimCount[0],

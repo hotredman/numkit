@@ -1,0 +1,12 @@
+{
+  "name": "ignorecase_strfns",
+  "namespace": "builtin",
+  "covers": ["contains", "startsWith", "endsWith"],
+  "setup": "",
+  "expr": "a = double(startsWith('Hello','he','IgnoreCase',true)); b = double(startsWith('Hello','he')); c = double(endsWith('HELLO','lo','IgnoreCase',true)); d = double(endsWith('HELLO','lo')); e = double(contains('HeLLo','ell','IgnoreCase',true)); f = double(contains('HeLLo','ell')); g = double(contains('abc',{'XYZ','BC'},'IgnoreCase',true)); h = double(startsWith('abc','ABC','IgnoreCase',true));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["a", "b", "c", "d", "e", "f", "g", "h"],
+  "deep_verified": true,
+  "comment": "contains/startsWith/endsWith 'IgnoreCase' name-value vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit parsed only (s,pat) and ignored the trailing 'IgnoreCase',<logical> pair — startsWith('Hello','he','IgnoreCase',true) returned false. Now a shared parseIgnoreCaseOption scans the trailing name-values; when set, both the source and each pattern are ASCII-lowercased before matching. startsWith('Hello','he','IgnoreCase',true)=1 (vs 0 without); endsWith('HELLO','lo',IC)=1; contains('HeLLo','ell',IC)=1; case-insensitive works with a cell-of-patterns too (contains('abc',{'XYZ','BC'},IC)=1). Logical results fingerprinted via double(). covers:[contains,startsWith,endsWith]."
+}
