@@ -33,6 +33,36 @@ TEST_F(MissingDataTest, IsoutlierUniformNoOutliers)
     EXPECT_DOUBLE_EQ(evalScalar("sum(double(m))"), 0.0);
 }
 
+// isoutlier(A, method [,'ThresholdFactor',tf]): the method arg was
+// parsed-and-ignored (always median/MAD). 'mean' flags >3 std from the
+// FULL-sample mean; 'quartiles' uses Q1-1.5IQR..Q3+1.5IQR; matrices are
+// per-column. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(MissingDataTest, IsoutlierMethods)
+{
+    // 'mean': 100 is within 3*std (~118.9) of mean(19.17) -> NO outlier.
+    eval("me = isoutlier([1 2 3 100 4 5], 'mean');");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(me))"), 0.0);
+    // 'mean' with ThresholdFactor 1 -> flags 100 only.
+    eval("me1 = isoutlier([1 2 3 100 4 5], 'mean', 'ThresholdFactor', 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(me1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(me1(4))"), 1.0);
+    // 'median' (default rule) flags 100; tf=1 also flags x(1)=1.
+    eval("md = isoutlier([1 2 3 100 4 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(md))"), 1.0);
+    eval("mt = isoutlier([1 2 3 100 4 5], 'median', 'ThresholdFactor', 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(mt(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(mt))"), 2.0);
+    // 'quartiles' flags 100.
+    eval("q = isoutlier([1 2 3 100 4 5], 'quartiles');");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(q))"), 1.0);
+    // matrix: detection is per-column; only (3,2)=100 is an outlier.
+    eval("M = isoutlier([1 2;3 4;5 100;7 8;9 10]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(M(3,2))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(M(:)))"), 1.0);
+    // unsupported method throws (deferred).
+    EXPECT_THROW(eval("g = isoutlier([1 2 3 100 4 5], 'grubbs');"), std::exception);
+}
+
 // ── rmoutliers ────────────────────────────────────────────
 
 TEST_F(MissingDataTest, RmoutliersDropsExtreme)

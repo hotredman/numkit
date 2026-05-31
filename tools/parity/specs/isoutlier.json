@@ -1,4 +1,5 @@
-{"name": "isoutlier", "namespace": "stats", "setup": "x = [1 2 3 4 5 6 7 100];",
- "expr": "m = isoutlier(x); s = sum(double(m));", "iters": 5, "tol": 0,
- "fingerprint": ["double(m(1))", "double(m(8))", "s"],
- "comment": "Sig: m = isoutlier(x). Default median + 3*MAD method. Bit-identical with MATLAB R2025b."}
+{"name": "isoutlier", "namespace": "stats", "setup": "x = [1 2 3 100 4 5];",
+ "expr": "m = isoutlier(x); sm = sum(double(m)); mt = isoutlier(x,'median','ThresholdFactor',1); smt = sum(double(mt)); mt1 = double(mt(1)); me = isoutlier(x,'mean'); sme = sum(double(me)); me1 = isoutlier(x,'mean','ThresholdFactor',1); sme1 = sum(double(me1)); me1d = double(me1(4)); q = isoutlier(x,'quartiles'); sq = sum(double(q)); M = isoutlier([1 2;3 4;5 100;7 8;9 10]); sM = sum(double(M(:))); M32 = double(M(3,2));",
+ "iters": 5, "tol": 0,
+ "fingerprint": ["double(m(4))", "sm", "smt", "mt1", "sme", "sme1", "me1d", "sq", "sM", "M32"],
+ "comment": "Sig: m = isoutlier(A[,method][,'ThresholdFactor',tf]). DEEP-PROBE 2026-05-31: the method arg was parsed-and-ignored (always default median/MAD), so isoutlier(x,'mean') wrongly used the median rule. Now honoured per-column (MATLAB operates per column for matrices) via the shared detector: 'median' (>3*1.4826*MAD from median, sm=1 flags 100), 'median','ThresholdFactor',1 (mt1=1 also flags x(1)=1, smt=2), 'mean' (>3*std from full-sample mean -> 100 within 3*std=118.9, sme=0 flags NONE), 'mean','ThresholdFactor',1 (me1d=1 flags 100, sme1=1), 'quartiles' (outside Q1-1.5IQR..Q3+1.5IQR, sq=1). Matrix [1 2;3 4;5 100;7 8;9 10] per-column -> only (3,2)=100 (sM=1, M32=1). grubbs/gesd/movmean/movmedian throw (deferred). Bit-identical MATLAB R2025b."}

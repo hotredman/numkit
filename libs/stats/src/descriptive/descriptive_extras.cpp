@@ -2793,12 +2793,77 @@ void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 // ── missing-data adapters ────────────────────────────────────────────
 
+// Method-aware isoutlier: per-column detection (MATLAB operates per column
+// for matrices) via detect_one_column. detectTf is the value detect_one_column
+// expects (median/mean: 3 == MATLAB ThresholdFactor; quartiles: 2*MATLAB-tf
+// because detect_one_column scales by tf*0.5).
+static Value isoutlierMethod(const Value &x, const std::string &method,
+                             double detectTf, std::pmr::memory_resource *mr)
+{
+    if (x.numel() == 0) return Value::matrix(0, 0, ValueType::LOGICAL, mr);
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    auto out = Value::matrix(r, c, ValueType::LOGICAL, mr);
+    uint8_t *od = out.logicalDataMut();
+    const double *xd = x.doubleData();
+    if (r == 1 || c == 1) {
+        // Vector: the whole run is one column.
+        FoDetect d = detect_one_column(xd, x.numel(), method, detectTf);
+        for (std::size_t i = 0; i < x.numel(); ++i) od[i] = d.mask[i];
+    } else {
+        for (std::size_t col = 0; col < c; ++col) {
+            FoDetect d = detect_one_column(xd + col * r, r, method, detectTf);
+            for (std::size_t i = 0; i < r; ++i) od[col * r + i] = d.mask[i];
+        }
+    }
+    return out;
+}
+
 void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("isoutlier: requires at least 1 argument",
                     0, 0, "isoutlier", "", "numkit:isoutlier:nargin");
-    outs[0] = isoutlier_of(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+
+    // isoutlier(A[, method][, 'ThresholdFactor', tf]). The method arg was
+    // parsed-and-ignored (always median/MAD); now honoured.
+    std::string method = "median";
+    std::size_t ai = 1;
+    if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
+        std::string m = args[1].toString();
+        for (char &ch : m) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (m == "median" || m == "mean" || m == "quartiles") {
+            method = m;
+            ai = 2;
+        } else if (m == "grubbs" || m == "gesd" || m == "movmedian" || m == "movmean") {
+            throw Error("isoutlier: method '" + args[1].toString() +
+                            "' is not supported in this revision "
+                            "(median, mean, quartiles only)",
+                         0, 0, "isoutlier", "", "numkit:isoutlier:method");
+        }
+        // else: not a method token — leave as a Name-Value name parsed below.
+    }
+
+    double userTf = (method == "quartiles") ? 1.5 : 3.0;
+    for (std::size_t i = ai; i + 1 < args.size(); i += 2) {
+        if (args[i].isChar() || args[i].isString()) {
+            std::string nm = args[i].toString();
+            for (char &ch : nm) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            if (nm == "thresholdfactor")
+                userTf = args[i + 1].toScalar();
+            else
+                throw Error("isoutlier: unknown option '" + args[i].toString() + "'",
+                             0, 0, "isoutlier", "", "numkit:isoutlier:option");
+        }
+    }
+    if (userTf < 0.0)
+        throw Error("isoutlier: ThresholdFactor must be nonnegative",
+                     0, 0, "isoutlier", "", "numkit:isoutlier:tf");
+
+    const double detectTf = (method == "quartiles") ? 2.0 * userTf : userTf;
+    outs[0] = isoutlierMethod(args[0], method, detectTf, mr);
 }
 
 void rmoutliers_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
