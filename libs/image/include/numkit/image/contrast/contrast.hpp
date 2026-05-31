@@ -241,19 +241,26 @@ Value imquantize(const Value &I, const Value &levels,
                  std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Histogram matching to a reference image
-/// (`J = imhistmatch(I, ref, nbins)`).
+/// (`[J, hgram] = imhistmatch(I, ref, nbins)`).
 ///
 /// Adjusts `I`'s histogram to match `ref`'s via CDF matching
-/// (single-channel). `nbins` default: 64 for double/single, 256 for
-/// uint8, 65536 for uint16. Output class matches `I`.
+/// (single-channel), following MATLAB R2025b: `nbins` defaults to 64
+/// for every class; both histograms use MATLAB's `imhist` centred
+/// binning (`round(u·(nbins−1))`); each input bin maps to the output
+/// grey level `(j−1)/(nbins−1)` where `j` is the smallest reference bin
+/// with `cdfR(j) ≥ cdfI(i)`. Output class matches `I`.
 ///
-/// @param I      Source image.
-/// @param ref    Reference image (its histogram is the target).
-/// @param nbins  Histogram bin count.
-/// @param mr     Memory resource (nullptr → process default).
-/// @return       Matched image, same class as `I`.
+/// @param I        Source image.
+/// @param ref      Reference image (its histogram is the target).
+/// @param nbins    Histogram bin count (≤ 0 → MATLAB default 64).
+/// @param hgramOut Optional out-pointer; if non-null, receives `ref`'s
+///                 histogram as a `1×nbins` double row (= `imhist(ref,
+///                 nbins)'`, MATLAB's 2nd output).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         Matched image, same class as `I`.
 /// @see histeq
 Value imhistmatch(const Value &I, const Value &ref, int nbins,
+                  Value *hgramOut = nullptr,
                   std::pmr::memory_resource *mr = nullptr);
 
 /// Flat-field correction (`J = imflatfield(I, sigma, mask)`).

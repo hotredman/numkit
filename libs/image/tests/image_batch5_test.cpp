@@ -101,3 +101,44 @@ TEST_F(ImageBatch5Test, ImKeepBorder)
     eval("BW = imkeepborder(eye(4));");
     EXPECT_DOUBLE_EQ(evalScalar("numel(BW)"), 16.0);
 }
+
+// imhistmatch == histeq(I, imhist(ref,nbins)); transform built at the
+// input class's full resolution (NPTS=256 for uint8), nbins default 64,
+// plus the 2nd output hgram (= imhist(ref,nbins)). Pinned to MATLAB R2025b.
+TEST_F(ImageBatch5Test, ImhistmatchHgramOutput)
+{
+    eval("A = uint8([10 40 70 100; 130 160 190 220; 5 15 25 35; 200 210 230 250]);");
+    eval("R = uint8([0 0 50 50; 100 100 150 150; 200 200 255 255; 60 60 90 90]);");
+
+    // Default nbins = 64 (all classes). J matches MATLAB exactly.
+    eval("[J, hg] = imhistmatch(A, R);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(J(1))"),   0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J(2))"), 101.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J(4))"), 150.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J(16))"), 255.0);
+
+    // 2nd output hgram = imhist(R,64): 1x64 double row, sum == numel(R).
+    EXPECT_DOUBLE_EQ(evalScalar("size(hg,1)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(hg,2)"), 64.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(hg)"),    16.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hg(1)"),       2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hg(13)"),      2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hg(64)"),      2.0);
+
+    // Explicit nbins = 16: finer target resolution, J + hgram both match.
+    eval("[J16, hg16] = imhistmatch(A, R, 16);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(J16(1))"),   0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J16(4))"), 153.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J16(16))"), 255.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(hg16)"), 16.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hg16(5)"),      2.0);
+
+    // double image in [0,1], nbins = 8: output levels are k/(n-1) = k/7.
+    eval("Ad = [0.1 0.4 0.7; 0.2 0.5 0.8; 0.05 0.35 0.95];");
+    eval("Rd = [0 0.5 0.5; 0.5 1 1; 0 0.25 0.75];");
+    eval("[Jd, hgd] = imhistmatch(Ad, Rd, 8);");
+    EXPECT_NEAR(evalScalar("Jd(1)"), 0.0,                1e-12);
+    EXPECT_NEAR(evalScalar("Jd(2)"), 2.0 / 7.0,          1e-12);
+    EXPECT_NEAR(evalScalar("Jd(8)"), 1.0,                1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(hgd)"), 9.0);
+}

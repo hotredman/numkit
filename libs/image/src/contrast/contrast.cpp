@@ -874,72 +874,114 @@ Value imquantize(const Value &I, const Value &levels, std::pmr::memory_resource 
 }
 
 // ════════════════════════════════════════════════════════════════════
-// imhistmatch — CDF-matching to a reference histogram
+// imhistmatch — histogram matching to a reference image
 // ════════════════════════════════════════════════════════════════════
 //
-// Recipe (single-channel, MATLAB-canonical):
-//   1. Compute nbins-bin normalised histograms of I and ref in [0, 1].
-//   2. Build CDFs: cdfI[k] = sum(histI[0..k]) / N_I, similarly cdfR.
-//   3. For each input bin b, the output normalised intensity is
-//        LUT[b] = first k such that cdfR[k] >= cdfI[b]
-//      then mapped to a representative value (k + 0.5)/nbins ∈ [0, 1].
-//   4. Apply LUT to every pixel of I; cast back to the input class.
-// Default nbins: 256 for uint8, 65536 for uint16, 64 otherwise — same
-// rule as the existing default_nbins() helper.
+// MATLAB R2025b: J = imhistmatch(I, ref, nbins) is exactly
+// histeq(I, imhist(ref, nbins)). The transform is built at the input
+// class's FULL resolution NPTS (256 for uint8/float, 65536 for
+// uint16/int16), NOT at nbins, then applied per input level via
+// grayxform. nbins (default 64, all classes) only sets the resolution of
+// the TARGET histogram. Algorithm (Gonzalez histogram matching):
+//   1. hgram = imhist(ref, nbins)            // raw counts, also 2nd output
+//   2. normalise hgram so sum == numel(I); cumd = cumsum(hgram)
+//   3. nn = imhist(I, NPTS); cum = cumsum(nn)
+//   4. tol(j) = nn(j)/2 for interior j (0 at the two ends)
+//   5. T(j) = argmin_i [ cumd(i) − cum(j) + tol(j) ], with errors below
+//      −numel(I)·sqrt(eps) clamped to +numel(I); output level (i−1)/(nbins−1)
+//   6. apply T to each pixel by its NPTS-level, cast back to input class.
 
-Value imhistmatch(const Value &I, const Value &ref, int nbins, std::pmr::memory_resource *mr)
+Value imhistmatch(const Value &I, const Value &ref, int nbins,
+                  Value *hgramOut, std::pmr::memory_resource *mr)
 {
-    if (nbins <= 0) nbins = std::max(default_nbins(I), default_nbins(ref));
+    if (nbins <= 0) nbins = 64;   // MATLAB imhistmatch default (all classes)
     if (nbins < 2) nbins = 2;
 
     const size_t Ni = I.numel();
     const size_t Nr = ref.numel();
-    if (Ni == 0 || Nr == 0)
+    if (Ni == 0 || Nr == 0) {
+        if (hgramOut)
+            *hgramOut = Value::matrix(1, nbins, ValueType::DOUBLE, mr);
         return Value::matrix(I.dims().rows(), I.dims().cols(), I.type(), mr);
+    }
 
-    auto bin_index = [&](double u) {
-        int b = (int)std::floor(u * nbins);
+    // Full-resolution level count of the input class (getrangefromclass).
+    int NPTS;
+    switch (I.type()) {
+        case ValueType::UINT16:
+        case ValueType::INT16:   NPTS = 65536; break;
+        case ValueType::LOGICAL: NPTS = 2;     break;
+        default:                 NPTS = 256;   break;  // UINT8/DOUBLE/SINGLE
+    }
+
+    // MATLAB imhist centred binning: u ∈ [0,1] → round(u·(bins−1)).
+    auto level_of = [](double u, int bins) {
+        int b = (int)std::lround(u * (bins - 1));
         if (b < 0) b = 0;
-        if (b >= nbins) b = nbins - 1;
+        if (b >= bins) b = bins - 1;
         return b;
     };
 
-    // Histograms.
-    std::vector<size_t> hI((size_t)nbins, 0), hR((size_t)nbins, 0);
-    for (size_t i = 0; i < Ni; ++i) hI[bin_index(element_to_unit(I, i))]++;
-    for (size_t i = 0; i < Nr; ++i) hR[bin_index(element_to_unit(ref, i))]++;
+    // 1. Reference histogram (raw counts) = imhist(ref, nbins); 2nd output.
+    std::vector<double> hgram((size_t)nbins, 0.0);
+    for (size_t i = 0; i < Nr; ++i)
+        hgram[(size_t)level_of(element_to_unit(ref, i), nbins)] += 1.0;
 
-    // CDFs (normalised).
-    std::vector<double> cI((size_t)nbins), cR((size_t)nbins);
+    // 2. Normalise to sum == numel(I), then cumulate (cumd, length nbins).
+    double sumH = 0.0;
+    for (int b = 0; b < nbins; ++b) sumH += hgram[(size_t)b];
+    const double scale = (sumH > 0.0) ? (double)Ni / sumH : 0.0;
+    std::vector<double> cumd((size_t)nbins, 0.0);
     {
-        size_t accI = 0, accR = 0;
-        for (int b = 0; b < nbins; ++b) {
-            accI += hI[(size_t)b];
-            accR += hR[(size_t)b];
-            cI[(size_t)b] = (double)accI / (double)Ni;
-            cR[(size_t)b] = (double)accR / (double)Nr;
+        double acc = 0.0;
+        for (int b = 0; b < nbins; ++b) { acc += hgram[(size_t)b] * scale;
+                                          cumd[(size_t)b] = acc; }
+    }
+
+    // 3. Input histogram at full resolution = imhist(I, NPTS), cumulated.
+    std::vector<double> nn((size_t)NPTS, 0.0);
+    for (size_t i = 0; i < Ni; ++i)
+        nn[(size_t)level_of(element_to_unit(I, i), NPTS)] += 1.0;
+    std::vector<double> cum((size_t)NPTS, 0.0);
+    { double acc = 0.0;
+      for (int j = 0; j < NPTS; ++j) { acc += nn[(size_t)j]; cum[(size_t)j] = acc; } }
+
+    // 5. Transform T (length NPTS), values in [0,1]. For each input level j
+    // pick the target bin i minimising the matching error (first on ties,
+    // matching MATLAB's min); large-negative errors are clamped to +Ni.
+    const double clampThr = -(double)Ni * std::sqrt(2.2204460492503131e-16);
+    const double denom = (nbins > 1) ? (double)(nbins - 1) : 1.0;
+    std::vector<double> T((size_t)NPTS, 0.0);
+    for (int j = 0; j < NPTS; ++j) {
+        const double tol = (j == 0 || j == NPTS - 1) ? 0.0
+                                                     : nn[(size_t)j] * 0.5;
+        const double base = tol - cum[(size_t)j];
+        double best = 0.0; int bi = 0; bool have = false;
+        for (int i = 0; i < nbins; ++i) {
+            double e = cumd[(size_t)i] + base;
+            if (e < clampThr) e = (double)Ni;
+            if (!have || e < best) { best = e; bi = i; have = true; }
         }
+        T[(size_t)j] = (double)bi / denom;
     }
 
-    // Build LUT[b] = smallest k with cR[k] ≥ cI[b], expressed as a
-    // unit-range double. Walk both monotone arrays in O(nbins).
-    std::vector<double> LUT((size_t)nbins, 0.0);
-    int k = 0;
-    for (int b = 0; b < nbins; ++b) {
-        while (k + 1 < nbins && cR[(size_t)k] < cI[(size_t)b]) ++k;
-        LUT[(size_t)b] = (k + 0.5) / (double)nbins;
-    }
-
-    // Apply: preserve input shape (2-D or 3-D volume).
+    // 6. Apply: map each pixel by its NPTS-level, cast back to input class.
     const auto &d = I.dims();
     Value out;
     if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(),
                                         I.type(), mr);
     else          out = Value::matrix(d.rows(), d.cols(), I.type(), mr);
     for (size_t i = 0; i < Ni; ++i) {
-        const double u = element_to_unit(I, i);
-        const double v = LUT[(size_t)bin_index(u)];
-        store_classed(out, i, v, I.type());
+        const int lvl = level_of(element_to_unit(I, i), NPTS);
+        store_classed(out, i, T[(size_t)lvl], I.type());
+    }
+
+    // 2nd output: ref's histogram as a 1×nbins double row (= MATLAB hgram).
+    if (hgramOut) {
+        Value hg = Value::matrix(1, nbins, ValueType::DOUBLE, mr);
+        double *hd = hg.doubleDataMut();
+        for (int b = 0; b < nbins; ++b) hd[b] = hgram[(size_t)b];
+        *hgramOut = std::move(hg);
     }
     return out;
 }
@@ -1319,7 +1361,7 @@ Value grayslice(const Value &I, Span<const double> levels,
 
 namespace detail {
 
-void imhistmatch_reg(Span<const Value> args, size_t /*nargout*/,
+void imhistmatch_reg(Span<const Value> args, size_t nargout,
                      Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
@@ -1327,7 +1369,11 @@ void imhistmatch_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imhistmatch", "", "numkit:imhistmatch:nargin");
     int n = (args.size() >= 3 && !args[2].isEmpty())
             ? (int)args[2].toScalar() : 0;
-    outs[0] = imhistmatch(args[0], args[1], n, ctx.engine->resource());
+    // 2nd output `hgram` (= imhist(ref, nbins)') only when requested.
+    Value hgram;
+    Value *hgp = (nargout >= 2) ? &hgram : nullptr;
+    outs[0] = imhistmatch(args[0], args[1], n, hgp, ctx.engine->resource());
+    if (nargout >= 2) outs[1] = std::move(hgram);
 }
 
 void imhist_reg(Span<const Value> args, size_t nargout,
