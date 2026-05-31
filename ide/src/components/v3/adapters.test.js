@@ -50,4 +50,18 @@ describe('adaptFigure — log-axis auto-range padding', () => {
     const f = adaptFigure(rawLineFig({ xscale: 'log', xlim: [2, 500] }));
     expect(f.xRange).toEqual([2, 500]);
   });
+
+  it('log axis fits limits to POSITIVE data only (drops ≤0, MATLAB-style)', () => {
+    // Mixed-sign data on a log axis: the ≤0 points must NOT stretch the
+    // limits into negative territory (which would disable log mapping).
+    const f = adaptFigure(rawLineFig({ xscale: 'log', yscale: 'log' },
+      [-5, 0, 1, 10, 100], [-5, 0, 1, 10, 100]));
+    expect(f.xRange[0]).toBeGreaterThan(0);
+    expect(f.yRange[0]).toBeGreaterThan(0);
+    // Limits fit {1,10,100} (log-padded ≈ [0.83, 120]) — near the data,
+    // not collapsed to the 1e-4 emergency-clamp floor.
+    expect(f.xRange[0]).toBeGreaterThan(0.1);
+    expect(f.xRange[0]).toBeLessThanOrEqual(1);
+    expect(f.xRange[1]).toBeGreaterThanOrEqual(100);
+  });
 });

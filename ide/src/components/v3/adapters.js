@@ -175,15 +175,26 @@ export function adaptVariables(engineVars) {
 
 /* ─────────────── figures ─────────────── */
 
-function rangeFromArr(arr, fallbackPad = 0.05) {
+function rangeFromArr(arr, { fallbackPad = 0.05, positiveOnly = false } = {}) {
   let lo = Infinity, hi = -Infinity;
   for (const v of arr) {
-    if (Number.isFinite(v)) {
+    // positiveOnly: a log axis can't represent ≤ 0, so its limits are
+    // computed over the positive data only — MATLAB drops non-positive
+    // points ("Negative data ignored") rather than stretching the range
+    // into negative territory (which would disable the log mapping).
+    if (Number.isFinite(v) && (!positiveOnly || v > 0)) {
       if (v < lo) lo = v;
       if (v > hi) hi = v;
     }
   }
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [-1, 1];
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+    // No qualifying value. For a log axis with no positive data, return
+    // an empty range so this layer contributes NOTHING to the merge
+    // (Infinity < xLo / -Infinity > xHi are both false) — the caller's
+    // final `Number.isFinite ? … : fallback` then kicks in. The generic
+    // (non-log) empty case keeps the historical [-1, 1] fallback.
+    return positiveOnly ? [Infinity, -Infinity] : [-1, 1];
+  }
   if (lo === hi) {
     const pad = Math.abs(lo) * fallbackPad || 0.5;
     return [lo - pad, hi + pad];
@@ -738,8 +749,11 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
         xs = ly.x.concat(ly.x.map((v, i) => v + (Number(ly.u[i]) || 0) * s));
         ys = ly.y.concat(ly.y.map((v, i) => v + (Number(ly.v[i]) || 0) * s));
       }
-      const [a, b] = rangeFromArr(xs);
-      const [c, d] = rangeFromArr(ys);
+      // Log axes fit their limits to positive data only (MATLAB drops
+      // non-positive points). Right-side series follow yscale2.
+      const yLogSide = (ly.yside === 'right' ? cfg.yscale2 : cfg.yscale) === 'log';
+      const [a, b] = rangeFromArr(xs, { positiveOnly: cfg.xscale === 'log' });
+      const [c, d] = rangeFromArr(ys, { positiveOnly: yLogSide });
       if (a < xLo) xLo = a;
       if (b > xHi) xHi = b;
       if (ly.yside === 'right') {

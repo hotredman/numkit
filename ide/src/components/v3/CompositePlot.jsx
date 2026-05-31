@@ -336,13 +336,21 @@ export default function CompositePlot({
     if (!xLog || !setViewport || !viewport || !viewport.x) return;
     const [xMinV, xMaxV] = viewport.x;
     if (xMinV > 0 && xMaxV > 0) return;
-    setViewport({ ...viewport, x: logClampRange(xMinV, figure.xRange?.[1] || xMaxV) });
+    // Heatmaps anchor the lo bound to half a cell width (matches the
+    // toolbar toggle); line/scatter fall back to logClampRange's hi/1e4.
+    const minPositive = heatmapLayer
+      ? (figure.xRange[1] - figure.xRange[0]) / (hFullCols || 1) * 0.5
+      : undefined;
+    setViewport({ ...viewport, x: logClampRange(xMinV, figure.xRange?.[1] || xMaxV, minPositive) });
   }, [xLog]);  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!yLog || !setViewport || !viewport || !viewport.y) return;
     const [yMinV, yMaxV] = viewport.y;
     if (yMinV > 0 && yMaxV > 0) return;
-    setViewport({ ...viewport, y: logClampRange(yMinV, figure.yRange?.[1] || yMaxV) });
+    const minPositive = heatmapLayer
+      ? (figure.yRange[1] - figure.yRange[0]) / (hFullRows || 1) * 0.5
+      : undefined;
+    setViewport({ ...viewport, y: logClampRange(yMinV, figure.yRange?.[1] || yMaxV, minPositive) });
   }, [yLog]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Color-limit override ────────────────────────────────────────────
@@ -1957,7 +1965,13 @@ export default function CompositePlot({
                 : totalN;
               for (let i = 0; i < animN; i++) {
                 const xv = ly.x[i], yv = ly.y[i];
+                // Genuine non-finite data → break the line (MATLAB gap
+                // semantics for plot([1 NaN 3])).
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
+                // Log axis can't plot a ≤0 value. MATLAB drops the point
+                // and CONNECTS across it ("Negative data ignored"), so
+                // skip without breaking the path (no `started = false`).
+                if ((xLogActive && xv <= 0) || (yLogActive && yv <= 0)) continue;
                 const px = sx(xv), py = mySy(yv);
                 if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
                 if (mode === 'stairs' && started) {
