@@ -821,6 +821,39 @@ Value strfind(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 
 Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
 {
+    // CHAR: render a quoted char literal (MATLAB R2025b). A char row ->
+    // 'abc'; a multi-row char matrix -> ['ab';'cd']; empty char '' -> "''".
+    // Internal single quotes are doubled ('a''b'). Checked before the empty
+    // guard so '' produces "''" rather than "[]".
+    if (x.isChar()) {
+        if (x.dims().ndim() > 2)
+            throw Error("mat2str: only 2-D inputs are supported",
+                         0, 0, "mat2str", "", "numkit:mat2str:rank");
+        const size_t R = x.dims().rows(), C = x.dims().cols();
+        const char *cd = (x.numel() > 0) ? x.charData() : nullptr;
+        auto quoteRow = [&](size_t r) {
+            std::string s;
+            s.push_back('\'');
+            for (size_t c = 0; c < C; ++c) {
+                const char ch = cd[c * R + r];   // col-major
+                if (ch == '\'') s.push_back('\'');   // double internal quote
+                s.push_back(ch);
+            }
+            s.push_back('\'');
+            return s;
+        };
+        if (R <= 1)
+            return Value::fromString(quoteRow(0), mr);
+        std::string out;
+        out.push_back('[');
+        for (size_t r = 0; r < R; ++r) {
+            if (r > 0) out.push_back(';');
+            out += quoteRow(r);
+        }
+        out.push_back(']');
+        return Value::fromString(out, mr);
+    }
+
     if (x.isEmpty())
         return Value::fromString("[]", mr);
 

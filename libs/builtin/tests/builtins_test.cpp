@@ -1705,6 +1705,23 @@ TEST_P(BuiltinTest, Mat2str)
     EXPECT_EQ(getVarPtr("s4")->toString(), "[]");
 }
 
+// mat2str on CHAR: a quoted char literal (vs MATLAB R2025b). Previously
+// numkit rendered numeric codes (mat2str('abc') -> "[97 98 99]").
+// DEEP-PROBE 2026-05-31.
+TEST_P(BuiltinTest, Mat2strChar)
+{
+    eval("h1 = mat2str('abc');");
+    EXPECT_EQ(getVarPtr("h1")->toString(), "'abc'");
+    eval("h2 = mat2str(['ab';'cd']);");
+    EXPECT_EQ(getVarPtr("h2")->toString(), "['ab';'cd']");
+    eval("h3 = mat2str('');");
+    EXPECT_EQ(getVarPtr("h3")->toString(), "''");
+    eval("h4 = mat2str('a''b');");   // internal single quote doubled
+    EXPECT_EQ(getVarPtr("h4")->toString(), "'a''b'");
+    eval("h5 = mat2str('x');");
+    EXPECT_EQ(getVarPtr("h5")->toString(), "'x'");
+}
+
 TEST_P(BuiltinTest, Mat2strComplex)
 {
     // Complex values: re±|im|i per element (vs MATLAB R2025b).
