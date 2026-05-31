@@ -767,18 +767,28 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // `axis tight` means "no whitespace padding around data". Skip
     // the default 4%/6% pad. Auto-scale still happens.
     const tight = (cfg.axisMode === 'tight');
-    if (!cfg.xlim && !tight) {
-      const pad = (xRange[1] - xRange[0]) * 0.04 || 0.5;
-      xRange[0] -= pad; xRange[1] += pad;
-    }
-    if (!cfg.ylim && !tight) {
-      const pad = (yRange[1] - yRange[0]) * 0.06 || 0.5;
-      yRange[0] -= pad; yRange[1] += pad;
-    }
-    if (cfg.yyEnabled && !cfg.ylim2 && !tight) {
-      const pad = (yRange2[1] - yRange2[0]) * 0.06 || 0.5;
-      yRange2[0] -= pad; yRange2[1] += pad;
-    }
+    // Pad the auto-range. Linear axes get a flat margin; LOG axes must
+    // pad multiplicatively (in log space) — a flat linear margin on log
+    // data (e.g. [1, 1000] → [-39, 1040]) pushes the lower bound ≤ 0,
+    // which silently disables the log mapping downstream (the renderer's
+    // xLogActive guard needs lo > 0) so the axis renders LINEAR despite
+    // xscale === 'log'. Log-space padding keeps the bound strictly
+    // positive, matching MATLAB's loglog / semilog auto-limits.
+    const padRange = (range, frac, isLog) => {
+      if (isLog && range[0] > 0 && range[1] > 0) {
+        const lo = Math.log10(range[0]);
+        const hi = Math.log10(range[1]);
+        const p = (hi - lo) * frac || 0.05;
+        range[0] = Math.pow(10, lo - p);
+        range[1] = Math.pow(10, hi + p);
+      } else {
+        const p = (range[1] - range[0]) * frac || (isLog ? 0 : 0.5);
+        range[0] -= p; range[1] += p;
+      }
+    };
+    if (!cfg.xlim && !tight) padRange(xRange, 0.04, cfg.xscale === 'log');
+    if (!cfg.ylim && !tight) padRange(yRange, 0.06, cfg.yscale === 'log');
+    if (cfg.yyEnabled && !cfg.ylim2 && !tight) padRange(yRange2, 0.06, cfg.yscale2 === 'log');
   }
 
   // 3-D detection: any layer with raw z data → route to the WebGL
