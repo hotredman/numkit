@@ -71,6 +71,32 @@ export function defaultViewport(figure) {
   return { x: [-1, 1], y: [-1, 1] };
 }
 
+/** Clamp a [lo, hi] axis range to strictly-positive bounds for a log
+ *  axis. Mirrors CompositePlot's interactive log-clamp so a static
+ *  (non-interactive) consumer — chiefly the figure-preview card, which
+ *  can't run that clamp because its setViewport is a no-op — produces
+ *  the SAME viewport the live window settles on. Without this, a log
+ *  figure whose data-padded xRange dips ≤ 0 (e.g. data 1..1000 padded
+ *  to [-39, 1040]) renders LINEAR in the preview but log in the window.
+ *  Returns [lo, hi] unchanged when both are already positive. */
+export function logClampRange(lo, hi) {
+  if (lo > 0 && hi > 0) return [lo, hi];
+  const h = Math.max(hi, 1e-6);
+  const l = Math.max(h / 1e4, 1e-6);
+  return [l, Math.max(l * 10, h)];
+}
+
+/** Static viewport for a figure with log-axis safety baked in — for the
+ *  non-interactive preview. Polar / 3-D fall back to defaultViewport. */
+export function previewViewport(figure) {
+  if (figure.kind === 'polar') return defaultPolarViewport(figure);
+  let x = Array.isArray(figure.xRange) ? figure.xRange.slice() : [-1, 1];
+  let y = Array.isArray(figure.yRange) ? figure.yRange.slice() : [-1, 1];
+  if (figure.xscale === 'log') x = logClampRange(x[0], x[1]);
+  if (figure.yscale === 'log') y = logClampRange(y[0], y[1]);
+  return { x, y };
+}
+
 /** Axis-equal/-image cells lock the cartesian axes together
  *  (DataAspectRatio = [1 1 1]) — single-axis fit on them dispatches
  *  as 'both' to preserve the contract. Takes the EFFECTIVE aspect
