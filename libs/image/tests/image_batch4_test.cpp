@@ -283,6 +283,25 @@ TEST_F(ImageBatch4Test, MultithreshDataScale)
     EXPECT_NEAR(evalScalar("td(2)"), 0.679739, 1e-6);
 }
 
+// DEEP-PROBE c182: graythresh built its histogram with default_nbins
+// (64 bins for floating-point, 65536 for uint16); MATLAB graythresh always
+// uses NPTS=256, so float/uint16 levels were off (double [0,1] -> 0.507937
+// vs MATLAB 0.513725). Now uses 256 bins. Pinned to MATLAB R2025b.
+TEST_F(ImageBatch4Test, GraythreshBinCount)
+{
+    // uint8 already used 256 bins -> unchanged, bit-exact.
+    eval("Iu = uint8([20 20 20 20 120 120 120 120 220 220 220 220]);");
+    EXPECT_NEAR(evalScalar("graythresh(Iu)"), 0.468627, 1e-6);
+    // double in [0,1]: 64 -> 256 bins fixes the level + EM.
+    eval("B = [0.1 0.2 0.3 0.8 0.9; 0.15 0.25 0.85 0.95 0.05];");
+    eval("[lb, eb] = graythresh(B);");
+    EXPECT_NEAR(evalScalar("lb"), 0.549020, 1e-6);
+    EXPECT_NEAR(evalScalar("eb"), 0.954264, 1e-6);   // effectiveness metric
+    // uint16: 65536 -> 256 bins.
+    eval("Cu = uint16([1000 2000 30000 40000 50000 60000 5000 8000]);");
+    EXPECT_NEAR(evalScalar("graythresh(Cu)"), 0.288235, 1e-6);
+}
+
 TEST_F(ImageBatch4Test, MultithreshUint8)
 {
     // Integer input: scaled to [0,1] by data range, result rounded back.
