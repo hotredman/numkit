@@ -1501,7 +1501,8 @@ export function VariableEditor({ variable, onClose, engine }) {
   useEffect(() => {
     if (isStructLike) return;   // struct path handled by the effect above
     setData(variable.data);
-    setActiveCell({ r: 0, c: 0 });
+    // activeCell now lives in MatrixPanel (it resets itself on a
+    // rows/cols/name change), so VariableEditor no longer touches it.
     setLoadError(null);
     tileCache.current = new Map();
     sliceCache.current = new Map();
