@@ -113,6 +113,18 @@ Value fft2(const Value &                X,
 Value ifft2(const Value &X, int m = -1, int n = -1,
             std::pmr::memory_resource *mr = nullptr);
 
+/// 2-D inverse FFT with conjugate-symmetric input (MATLAB's
+/// `ifft2(X,'symmetric')`). Treats `X` as conjugate-symmetric so the inverse
+/// transform is exactly real (DOUBLE). Decomposes into the 1-D
+/// @ref ifftSymmetric over each dimension of length > 1. 2-D only; the resize
+/// form `ifft2(X,m,n,'symmetric')` is a deferred gap.
+///
+/// @param X   2-D input spectrum (real or complex).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Real (DOUBLE) 2-D inverse transform.
+/// @see ifft2, ifftSymmetric
+Value ifft2Symmetric(const Value &X, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief N-D forward FFT.
 ///
 /// Call forms:

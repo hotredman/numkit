@@ -131,6 +131,43 @@ TEST(DspFftPublicApi, IfftSymmetricMatrixPerColumn)
     EXPECT_NEAR(yd[3], -1.0, 1e-12);  // (2,2)
 }
 
+// ── ifft2(X,'symmetric'): real 2-D inverse via per-dim symmetric reconstruction
+// Previously threw (the flag was parsed as a size arg). Matches MATLAB across
+// shapes (NOT real(ifft2), which differs for genuine 2-D). DEEP-PROBE 2026-05-31.
+TEST(DspFftPublicApi, Ifft2Symmetric)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    // X1 = [1+1i 2-3i 5; 4 5+2i 1-1i] (2x3). ifft2(X1,'symmetric') =
+    //   [3.16667 -0.0446582 -0.622008; -1.5 1.44338 -1.44338].
+    Value X = Value::matrix(2, 3, ValueType::COMPLEX, mr);
+    Complex *xd = X.complexDataMut();          // col-major
+    xd[0] = {1, 1};  xd[1] = {4, 0};
+    xd[2] = {2, -3}; xd[3] = {5, 2};
+    xd[4] = {5, 0};  xd[5] = {1, -1};
+    Value A = numkit::signal::ifft2Symmetric(X, mr);
+    ASSERT_FALSE(A.isComplex());               // exactly real
+    ASSERT_EQ(A.dims().rows(), 2u);
+    ASSERT_EQ(A.dims().cols(), 3u);
+    const double *ad = A.doubleData();         // col-major
+    EXPECT_NEAR(ad[0],  3.16666666666667, 1e-9);  // (1,1)
+    EXPECT_NEAR(ad[1], -1.5,              1e-9);   // (2,1)
+    EXPECT_NEAR(ad[3],  1.44337567297406, 1e-9);   // (2,2)
+    EXPECT_NEAR(ad[5], -1.44337567297406, 1e-9);   // (2,3)
+
+    // Column vector: ifft2 reduces to the 1-D symmetric over dim 1.
+    Value C = Value::matrix(4, 1, ValueType::COMPLEX, mr);
+    Complex *cd = C.complexDataMut();
+    cd[0] = {1, 2}; cd[1] = {3, -1}; cd[2] = {5, 0.5}; cd[3] = {0, 2};
+    Value B = numkit::signal::ifft2Symmetric(C, mr);
+    ASSERT_FALSE(B.isComplex());
+    ASSERT_EQ(B.numel(), 4u);
+    const double *bd = B.doubleData();
+    EXPECT_NEAR(bd[0],  3.0, 1e-9);
+    EXPECT_NEAR(bd[1], -0.5, 1e-9);
+    EXPECT_NEAR(bd[2],  0.0, 1e-9);
+    EXPECT_NEAR(bd[3], -1.5, 1e-9);
+}
+
 // ── DC of a constant vector is N, everything else is ~0 ────────────────
 TEST(DspFftPublicApi, DcBinOfConstant)
 {

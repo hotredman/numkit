@@ -778,6 +778,32 @@ Value ifftSymmetric(const Value &X, int n, int dim, std::pmr::memory_resource *m
     return re;
 }
 
+// ifft2(X, 'symmetric'): treat X as conjugate-symmetric so the 2-D inverse
+// transform is exactly real. Decomposes into the 1-D ifftSymmetric applied
+// over each dimension of length > 1 (dim 2 then dim 1), matching MATLAB to
+// round-off across square/non-square/row/column/scalar shapes. (The resize
+// form ifft2(X,m,n,'symmetric') uses a different reconstruction and is a
+// deferred gap — ifft2_reg rejects it.) 2-D only.
+Value ifft2Symmetric(const Value &X, std::pmr::memory_resource *mr)
+{
+    const auto &d = X.dims();
+    if (d.ndim() > 2)
+        throw Error("ifft2: the 'symmetric' option supports 2-D inputs only",
+                     0, 0, "ifft2", "", "numkit:ifft2:symmetricNdims");
+    const std::size_t R = d.rows(), C = d.cols();
+    Value y = X;
+    if (C > 1) y = ifftSymmetric(y, -1, 2, mr);   // each row conj-symmetric
+    if (R > 1) y = ifftSymmetric(y, -1, 1, mr);   // each column conj-symmetric
+    if (R <= 1 && C <= 1) {
+        // Scalar: real part (ifftSymmetric is never applied above).
+        const Complex z = X.isComplex() ? X.complexData()[0]
+                                        : Complex(X.elemAsDouble(0), 0.0);
+        return Value::scalar(z.real(), mr);
+    }
+    // ifftSymmetric already returns a real (DOUBLE) result.
+    return y;
+}
+
 // ── 2-D DFT and FFT-based interpolation (added 2026-05-03 batch 6) ───
 Value fft2(const Value &X, int m, int n, std::pmr::memory_resource *mr)
 {
@@ -1204,12 +1230,41 @@ void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("ifft2: requires at least 1 argument",
                      0, 0, "ifft2", "", "numkit:ifft2:nargin");
+
+    // A trailing 'symmetric'/'nonsymmetric' string flag (MATLAB) forces a
+    // real result by treating X as conjugate-symmetric. Strip it first.
+    std::size_t nargs = args.size();
+    bool symmetric = false;
+    if (nargs >= 2 && (args[nargs - 1].isChar() || args[nargs - 1].isString())) {
+        std::string flag = args[nargs - 1].toString();
+        for (char &c : flag) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (flag == "symmetric")
+            symmetric = true;
+        else if (flag == "nonsymmetric")
+            symmetric = false;
+        else
+            throw Error("ifft2: unknown option '" + args[nargs - 1].toString() +
+                            "' (expected 'symmetric' or 'nonsymmetric')",
+                         0, 0, "ifft2", "", "numkit:ifft2:badOption");
+        --nargs;
+    }
+
     int m = -1, n = -1;
-    if (args.size() >= 2 && !args[1].isEmpty())
+    if (nargs >= 2 && !args[1].isEmpty())
         m = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
+    if (nargs >= 3 && !args[2].isEmpty())
         n = static_cast<int>(args[2].toScalar());
-    outs[0] = ifft2(args[0], m, n, ctx.engine->resource());
+
+    auto *mr = ctx.engine->resource();
+    if (symmetric) {
+        if (m > 0 || n > 0)
+            throw Error("ifft2: the 'symmetric' option with explicit size args "
+                        "(m, n) is not supported in this revision",
+                         0, 0, "ifft2", "", "numkit:ifft2:symmetricResize");
+        outs[0] = ifft2Symmetric(args[0], mr);
+        return;
+    }
+    outs[0] = ifft2(args[0], m, n, mr);
 }
 
 void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
