@@ -131,3 +131,41 @@ TEST_F(DatenumTest, DatestrFormatCodes)
     EXPECT_EQ(eval("datestr(dn, 'm')").toString(), "J");
     EXPECT_EQ(eval("datestr(dn, 'd')").toString(), "T");
 }
+
+// datestr of MULTIPLE dates -> N-row char matrix. Previously threw
+// "multi-date matrix input not yet supported"; the numel==6 check also
+// mis-treated a 6x1 column as one date vector. vs MATLAB R2025b. c120.
+TEST_F(DatenumTest, DatestrMultiDate)
+{
+    // Column vector of serial numbers -> one row per element.
+    eval("M = datestr([738885;738886;738900]);");
+    EXPECT_EQ(eval("size(M,1)").toScalar(), 3.0);
+    EXPECT_EQ(eval("size(M,2)").toScalar(), 11.0);
+    EXPECT_EQ(eval("M(1,:)").toString(), "30-Dec-2022");
+    EXPECT_EQ(eval("M(3,:)").toString(), "14-Jan-2023");
+
+    // Row vector also becomes N rows.
+    eval("R = datestr([738885 738886]);");
+    EXPECT_EQ(eval("size(R,1)").toScalar(), 2.0);
+    EXPECT_EQ(eval("R(2,:)").toString(), "31-Dec-2022");
+
+    // With a format string the width follows the format.
+    eval("F = datestr([738885;738886], 'yyyy-mm-dd');");
+    EXPECT_EQ(eval("size(F,2)").toScalar(), 10.0);
+    EXPECT_EQ(eval("F(1,:)").toString(), "2022-12-30");
+
+    // An N-by-6 matrix is N DATE VECTORS (one per row).
+    eval("DV = datestr([2020 1 1 0 0 0; 2021 6 15 12 30 0]);");
+    EXPECT_EQ(eval("size(DV,1)").toScalar(), 2.0);
+    EXPECT_EQ(eval("DV(1,:)").toString(), "01-Jan-2020 00:00:00");
+    EXPECT_EQ(eval("DV(2,:)").toString(), "15-Jun-2021 12:30:00");
+
+    // A 6x1 column is 6 serial dates (NOT a single date vector).
+    eval("C6 = datestr([738885;738886;738887;738888;738889;738900]);");
+    EXPECT_EQ(eval("size(C6,1)").toScalar(), 6.0);
+    EXPECT_EQ(eval("C6(6,:)").toString(), "14-Jan-2023");
+
+    // Single date / 1x6 date vector unchanged.
+    EXPECT_EQ(eval("datestr(738885)").toString(), "30-Dec-2022");
+    EXPECT_EQ(eval("datestr([2020 7 28 0 0 0])").toString(), "28-Jul-2020");
+}
