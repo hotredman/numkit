@@ -1,0 +1,14 @@
+{
+  "name": "case_reverse_string_class",
+  "namespace": "builtin",
+  "covers": ["lower", "upper", "reverse"],
+  "setup": "",
+  "expr": "lo = lower([\"AB\" \"CD\"]); clo = double(isstring(lo)); nlo = numel(lo); slo1 = sum(double(char(lo(1)))); slo2 = sum(double(char(lo(2)))); up = upper([\"ab\" \"cd\"]); cup = double(isstring(up)); sup1 = sum(double(char(up(1)))); rv = reverse([\"abc\" \"de\"]); crv = double(isstring(rv)); nrv = numel(rv); srv1 = sum(double(char(rv(1)))); ls = lower(\"HeLLo\"); cls = double(isstring(ls)); sls = sum(double(char(ls))); lc = lower('HeLLo'); clc = double(ischar(lc)); slc = sum(double(lc)); ce = upper({'ab','cd'}); cce = double(iscell(ce)); sce = sum(double(ce{1}));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "clo", "nlo", "slo1", "slo2", "cup", "sup1", "crv", "nrv", "srv1", "cls", "sls", "clc", "slc", "cce", "sce"
+  ],
+  "deep_verified": true,
+  "comment": "lower / upper / reverse class + shape preservation on a STRING input vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (sibling of c138): these were class-correct only on a CELL input. For a STRING input they fell into the scalar branch — lower/upper returned a CHAR (s.toString() collapsed the array), reverse returned a 1x1 string for a string ARRAY. MATLAB is class-preserving: string input -> string array same shape, char -> char, cell -> cell. Fix: route all three through the shared mapStringPreserveClass helper added in c138. lower([\"AB\" \"CD\"]) -> 1x2 string [\"ab\" \"cd\"]; upper([\"ab\" \"cd\"]) -> [\"AB\" \"CD\"]; reverse([\"abc\" \"de\"]) -> [\"cba\" \"ed\"]; lower(\"HeLLo\") -> string \"hello\"; lower('HeLLo') -> char 'hello' (unchanged); upper({'ab','cd'}) -> cell (unchanged). char codes: 'ab'=195,'cd'=199,'AB'=131,'cba'=294,'hello'=532. Column string arrays + matrix forms are covered in the gtest (a ';' inside a literal can't go in a parity expr). covers:[lower,upper,reverse]."
+}
