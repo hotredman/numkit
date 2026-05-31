@@ -2126,22 +2126,54 @@ Value compose(const Value &fmt, const Value &x, std::pmr::memory_resource *mr)
         throw Error("compose: format must be a char or string",
                      0, 0, "compose", "", "numkit:compose:badFmt");
     const std::string fmtStr = fmt.toString();
+    // MATLAB: the output class mirrors the FORMAT class — a string format
+    // yields a string array, a char format yields a cell of char vectors.
+    const bool wantString = fmt.isString();
 
-    if (x.isScalar()) {
-        Value one = elemScalar(x, 0, mr);
-        Value c = Value::cell(1, 1, mr);
-        c.cellAt(0) = Value::fromString(formatOnce(fmtStr, {&one, 1}, 0), mr);
-        return c;
-    }
+    // M = number of value-consuming conversion specs in one pass of the
+    // format. MATLAB applies the format repeatedly across each ROW of x,
+    // consuming M values per output element, so an R×C input yields an
+    // R×ceil(C/M) result. A short trailing chunk leaves the unfilled specs
+    // as literal text (e.g. compose('%d-%d',[1 2 3]) -> "1-2","3-%d").
+    const size_t M = std::max<size_t>(1, countFormatSpecs(fmtStr));
 
     const auto &dims = x.dims();
-    Value c = Value::cell(dims.rows(), dims.cols(), mr);
-    const size_t n = x.numel();
-    for (size_t i = 0; i < n; ++i) {
-        Value one = elemScalar(x, i, mr);
-        c.cellAt(i) = Value::fromString(formatOnce(fmtStr, {&one, 1}, 0), mr);
+    const size_t R = dims.rows();
+    const size_t C = dims.cols();
+    const size_t outCols = (C == 0) ? 0 : (C + M - 1) / M;
+
+    auto buildResult = [&](size_t rows, size_t cols) -> Value {
+        return wantString ? Value::stringArray(rows, cols, mr)
+                          : Value::cell(rows, cols, mr);
+    };
+    auto setElem = [&](Value &v, size_t idx, const std::string &s) {
+        if (wantString) v.stringElemSet(idx, s);
+        else            v.cellAt(idx) = Value::fromString(s, mr);
+    };
+
+    if (R == 0 || C == 0)
+        return buildResult(R, outCols);
+
+    Value result = buildResult(R, outCols);
+
+    std::vector<Value> chunk;
+    chunk.reserve(M);
+    for (size_t r = 0; r < R; ++r) {
+        for (size_t j = 0; j < outCols; ++j) {
+            chunk.clear();
+            for (size_t k = 0; k < M; ++k) {
+                const size_t col = j * M + k;
+                if (col >= C) break;  // short trailing chunk
+                // Column-major linear index of x(r, col).
+                chunk.push_back(elemScalar(x, col * R + r, mr));
+            }
+            const std::string s =
+                formatOnce(fmtStr, {chunk.data(), chunk.size()}, 0,
+                           /*literalWhenShort=*/true);
+            setElem(result, j * R + r, s);  // column-major out(r, j)
+        }
     }
-    return c;
+    return result;
 }
 
 Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource *mr)

@@ -1,0 +1,14 @@
+{
+  "name": "compose_multispec",
+  "namespace": "builtin",
+  "covers": ["compose"],
+  "setup": "",
+  "expr": "A = compose('%d-%d', reshape([1 3 2 4],2,2)); na = numel(A); ra = size(A,1); a1 = sum(double(A{1})); a2 = sum(double(A{2})); B = compose('%d', reshape([1 3 2 4],2,2)); nb = numel(B); cb = size(B,2); b3 = double(B{3}); C = compose('%d-%d',[1 2 3 4]); nc = numel(C); c2 = sum(double(C{2})); G = compose('x=%.1f',[1.5 2.5 3.5]); ng = numel(G); g2 = sum(double(G{2})); H = compose('%d-%d', reshape([1 4 2 5 3 6],2,3)); nh = numel(H); h3 = sum(double(H{3})); I = compose(\"%d-%d\", reshape([1 3 2 4],2,2)); ci = double(isstring(I)); i1 = sum(double(char(I(1))));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "ra", "a1", "a2", "nb", "cb", "b3", "nc", "c2", "ng", "g2", "nh", "h3", "ci", "i1"
+  ],
+  "deep_verified": true,
+  "comment": "compose multi-spec / multi-column value consumption + fmt-class mirror vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit's compose formatted PER-ELEMENT with a single value, so a multi-spec format only ever filled the first conversion (compose('%d-%d',[1 2;3 4]) gave 4 outputs ['1-','3-','2-','4-'] instead of 2). MATLAB applies the format repeatedly across each ROW of x, consuming M = #conversion-specs values per output, so an RxC input yields RxCEIL(C/M) outputs. A short trailing chunk leaves unfilled specs as LITERAL text (compose('%d-%d',[1 2 3;4 5 6]) -> 2x2 {'1-2','4-5','3-%d','6-%d'}). Output class mirrors the FORMAT class: char fmt -> cell of char vectors, string fmt -> string array. Fix: chunk per-row by M, build the value span per chunk, formatOnce(..., literalWhenShort=true) (new additive flag on formatOnce, default false so sprintf is unchanged). Cases: A divisible 2-spec; B M=1 multi-column (2x2); C row-vector; G float row-vector; H non-divisible literal-%d edge; I string-fmt -> string array (ci=isstring=1). NOTE: matrix literals with ';' can't appear in a parity expr (harness splits statements on ';'), so 2-D inputs are built via column-major reshape; the literal-bracket 2x2 forms are covered in the gtest. covers:[compose]."
+}
