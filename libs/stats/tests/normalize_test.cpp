@@ -61,6 +61,26 @@ TEST_F(NormalizeParamTest, ScaleAndCenterReference)
     EXPECT_DOUBLE_EQ(evalScalar("cm(5)"), 2.0);
 }
 
+// normalize(x,'zscore','robust'): centre by MEDIAN, scale by the raw MAD
+// (median absolute deviation). The 'robust' param was parsed-and-ignored, so
+// numkit fell back to the standard mean/std z-score. vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_F(NormalizeParamTest, ZscoreRobust)
+{
+    // median([1 2 3 4 100])=3, MAD=median(|x-3|)=median([2 1 0 1 97])=1.
+    eval("zr = normalize([1 2 3 4 100], 'zscore', 'robust');");
+    EXPECT_DOUBLE_EQ(evalScalar("zr(1)"), -2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("zr(2)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("zr(3)"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("zr(4)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("zr(5)"), 97.0);
+    // explicit 'std' and the default both give the standard mean/std z-score.
+    eval("zs = normalize([1 2 3 4 100], 'zscore', 'std');");
+    eval("zd = normalize([1 2 3 4 100]);");
+    EXPECT_NEAR(evalScalar("zs(1)"), evalScalar("zd(1)"), 1e-12);
+    EXPECT_NEAR(evalScalar("zs(1)"), -0.4814555, 1e-6);  // NOT -2 (robust)
+}
+
 // rescale 'InputMin'/'InputMax' Name-Value (was unsupported -> "Cannot
 // convert char to scalar"). Values clamp to the input range. vs MATLAB.
 TEST_F(NormalizeParamTest, RescaleInputRange)
