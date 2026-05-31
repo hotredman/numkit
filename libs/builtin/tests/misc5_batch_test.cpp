@@ -107,6 +107,26 @@ TEST_F(Misc5BatchTest, RmfieldOrderfields)
 
     eval("s.b=2; s.a=1; t = orderfields(s); f = fieldnames(t);");
     EXPECT_DOUBLE_EQ(evalScalar("strcmp(f{1}, \"a\")"), 1.0);
+
+    // 2-arg orderfields(S, NAMES): reorder to the given name list.
+    eval("u.a=1; u.b=2; u.c=3; v = orderfields(u, {'c','a','b'}); g = fieldnames(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(g{1}, \"c\")"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(g{2}, \"a\")"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(g{3}, \"b\")"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v.c"), 3.0);  // values follow names
+
+    // Partial name list: listed names first (in order), leftovers appended.
+    eval("w.a=1; w.b=2; w.c=3; x = orderfields(w, {'c'}); h = fieldnames(x);");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(h{1}, \"c\")"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(h{2}, \"a\")"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(h{3}, \"b\")"), 1.0);
+
+    // Rename-in-place pattern used by the Variable Editor: copy → rmfield
+    // → orderfields with the new name in the old slot keeps position.
+    eval("r.a=1; r.b=2; r.c=3; [r.B] = r.b; r = rmfield(r, 'b');"
+         "r = orderfields(r, {'a','B','c'}); k = fieldnames(r);");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(k{2}, \"B\")"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r.B"), 2.0);
 }
 
 // ─── math2 + extremes ──────────────────────────────────────────────

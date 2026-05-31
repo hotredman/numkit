@@ -1396,21 +1396,30 @@ function StructInspector({ variable, engine }) {
     setRefreshTick((t) => t + 1);
   }, [engine, variable.name, cur.path]);
 
-  // Rename = copy the field's value to the new name, then drop the old.
+  // Rename = copy the field's value to the new name, drop the old, then
+  // re-pin the field order so the renamed field keeps its original slot.
   // The `[lvalue.new] = lvalue.old` bracket form distributes across a
-  // struct array (CSL) and also works for a single struct. NOTE: the
-  // renamed field lands at the END of the field order (no native rename;
-  // engine.orderfields is alphabetical-only). Guards: valid identifier,
-  // no-op on same name, refuse to clobber an existing field.
+  // struct array (CSL) and also works for a single struct. Without the
+  // final orderfields() the new field would land at the END (copy-append
+  // semantics); the 2-arg orderfields(s, {names...}) restores position.
+  // Guards: valid identifier, no-op on same name, refuse to clobber an
+  // existing field.
   const renameField = useCallback((oldName, newName) => {
     if (!engine?.execute || !isValidIdentifier(newName)) return;
     if (newName === oldName) return;
     if (payload?.fields?.includes(newName)) return;   // collision
     const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    // Desired order = current fields with oldName swapped to newName in
+    // place. Field names are identifiers, so the {'a','b',...} cell
+    // literal is injection-safe.
+    const order = (payload?.fields || []).map((f) => (f === oldName ? newName : f));
+    const orderCell = '{' + order.map((f) => `'${f}'`).join(',') + '}';
     try {
-      engine.execute(
+      let expr =
         `[${lvalue}.${newName}] = ${lvalue}.${oldName}; ` +
-        `${lvalue} = rmfield(${lvalue}, '${oldName}');`);
+        `${lvalue} = rmfield(${lvalue}, '${oldName}');`;
+      if (order.length) expr += ` ${lvalue} = orderfields(${lvalue}, ${orderCell});`;
+      engine.execute(expr);
     } catch (e) {
       console.warn('[StructInspector] rename-field failed:', e);
     }
