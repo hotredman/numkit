@@ -89,6 +89,11 @@ function previewToData(preview, type) {
 }
 
 function classify(size, type) {
+  // Container types are classified by type, not shape — a 1×1 struct
+  // is still a struct, not a scalar. The Variable Editor gates its
+  // nested tree-view on these.
+  if (type === 'struct') return 'struct';
+  if (type === 'cell')   return 'cell';
   if (type === 'char' || type === 'string') return 'string';
   if (!size || size === '1x1' || size === '1×1') return 'scalar';
   const m = String(size).match(/(\d+)\s*[x×]\s*(\d+)/);

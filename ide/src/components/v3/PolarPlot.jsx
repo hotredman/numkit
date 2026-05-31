@@ -494,7 +494,10 @@ export default function PolarPlot({
       const factor = Math.exp(e.deltaY * 0.0015);
       const lo = vp.r[0];
       const hi = vp.r[1];
-      setViewport({ r: [lo, lo + (hi - lo) * factor] });
+      // Preserve theta — wheel only re-scales R. Without `...vp` the
+      // theta sweep would silently snap back to default on every wheel
+      // tick, undoing any user-narrowed thetalim.
+      setViewport({ ...vp, r: [lo, lo + (hi - lo) * factor] });
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
