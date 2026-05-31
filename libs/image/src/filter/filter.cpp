@@ -305,6 +305,72 @@ Value fspecial_disk(double rad, std::pmr::memory_resource *mr) {
     return mat_double(sg, side, side, mr);
 }
 
+Value fspecial_motion(double len_in, double theta, std::pmr::memory_resource *mr) {
+    // MATLAB R2025b fspecial('motion',len,theta): a motion-blur PSF — a line
+    // of `len` pixels at `theta` degrees (counter-clockwise from the
+    // horizontal), anti-aliased by bilinear interpolation. Ported verbatim
+    // from fspecial.m's 'motion' case (validated isequal across angles
+    // 0/30/45/90/120/135 and lengths 5..15 before this port).
+    const double EPS = 2.2204460492503131e-16;   // eps
+    const double linewdt = 1.0;
+    const double len  = std::max(1.0, len_in);
+    const double half = (len - 1.0) / 2.0;
+    double tmod = std::fmod(theta, 180.0);
+    if (tmod < 0.0) tmod += 180.0;
+    const double phi    = tmod / 180.0 * M_PI;
+    const double cosphi = std::cos(phi), sinphi = std::sin(phi);
+    const double xsign  = (cosphi > 0.0) ? 1.0 : (cosphi < 0.0 ? -1.0 : 0.0);
+
+    const long sx = (long)std::trunc(half * cosphi + linewdt * xsign - len * EPS);
+    const long sy = (long)std::trunc(half * sinphi + linewdt - len * EPS);
+    const int ncol = (int)std::labs(sx) + 1;
+    const int nrow = (int)sy + 1;
+
+    // Half-matrix of (signed) perpendicular distances to the rotated line.
+    std::vector<double> D((size_t)nrow * (size_t)ncol, 0.0);
+    for (int r = 0; r < nrow; ++r)
+        for (int c = 0; c < ncol; ++c) {
+            const double x = (double)c * xsign;
+            const double y = (double)r;
+            double d = y * cosphi - x * sinphi;
+            const double rad = std::hypot(x, y);
+            if (rad >= half && std::abs(d) <= linewdt) {
+                // Pixel past the line's end: distance to the end-point.
+                const double x2 = (cosphi != 0.0)
+                    ? half - std::abs((x + d * sinphi) / cosphi) : 0.0;
+                d = std::sqrt(d * d + x2 * x2);
+            }
+            double w = linewdt + EPS - std::abs(d);
+            if (w < 0.0) w = 0.0;
+            D[(size_t)r * (size_t)ncol + (size_t)c] = w;
+        }
+
+    // Unfold the half-matrix to the full PSF via 180-degree symmetry.
+    const int H = 2 * nrow - 1, W = 2 * ncol - 1;
+    std::vector<double> Hm((size_t)H * (size_t)W, 0.0);
+    auto Dat = [&](int r, int c) { return D[(size_t)r * (size_t)ncol + (size_t)c]; };
+    for (int r = 0; r < nrow; ++r)                       // rot90(D,2) top-left
+        for (int c = 0; c < ncol; ++c)
+            Hm[(size_t)r * (size_t)W + (size_t)c] = Dat(nrow - 1 - r, ncol - 1 - c);
+    for (int r = 0; r < nrow; ++r)                       // D bottom-right
+        for (int c = 0; c < ncol; ++c)
+            Hm[(size_t)(nrow - 1 + r) * (size_t)W + (size_t)(ncol - 1 + c)] = Dat(r, c);
+
+    double s = 0.0;
+    for (double v : Hm) s += v;
+    s += EPS * len * len;
+    for (auto &v : Hm) v /= s;
+
+    // Column-major output; flipud when cosphi > 0 (MATLAB convention).
+    std::vector<double> out((size_t)H * (size_t)W);
+    for (int c = 0; c < W; ++c)
+        for (int r = 0; r < H; ++r) {
+            const int rr = (cosphi > 0.0) ? (H - 1 - r) : r;
+            out[(size_t)c * (size_t)H + (size_t)r] = Hm[(size_t)rr * (size_t)W + (size_t)c];
+        }
+    return mat_double(out, H, W, mr);
+}
+
 Value fspecial_unsharp(double alpha, std::pmr::memory_resource *mr) {
     // MATLAB R2025b fspecial('unsharp',alpha): the 3x3 unsharp-contrast
     // enhancement filter h = [-a a-1 -a; a-1 a+5 a-1; -a a-1 -a]/(a+1),
@@ -358,6 +424,11 @@ Value fspecial(const std::string &type, const std::vector<double> &params, std::
     if (type == "unsharp") {
         double alpha = params.size() >= 1 ? params[0] : 0.2;
         return fspecial_unsharp(alpha, mr);
+    }
+    if (type == "motion") {
+        double len   = params.size() >= 1 ? params[0] : 9.0;
+        double theta = params.size() >= 2 ? params[1] : 0.0;
+        return fspecial_motion(len, theta, mr);
     }
     throw Error("fspecial: unknown filter type '" + type + "'",
                 0, 0, "fspecial", "", "numkit:fspecial:badtype");
@@ -2178,23 +2249,34 @@ void fspecial_reg(Span<const Value> args, size_t /*nargout*/,
         type = args[0].toString();
 
     std::vector<double> params;
-    // Second positional arg can be either scalar (size) or 2-vector [rows cols].
-    if (args.size() >= 2) {
-        const Value &v = args[1];
-        if (v.numel() == 1) {
-            params.push_back(v.toScalar());
-            params.push_back(v.toScalar());
-        } else if (v.numel() == 2) {
-            params.push_back(v.elemAsDouble(0));
-            params.push_back(v.elemAsDouble(1));
-        } else if (v.numel() > 0) {
-            for (size_t i = 0; i < v.numel(); ++i)
-                params.push_back(v.elemAsDouble(i));
+    if (type == "motion") {
+        // 'motion' takes two INDEPENDENT scalars [len, theta]; do NOT
+        // size-double the 2nd arg the way the size-based filters do.
+        if (args.size() >= 2 && args[1].numel() >= 1)
+            params.push_back(args[1].elemAsDouble(0));
+        if (args.size() >= 3 && args[2].numel() >= 1)
+            params.push_back(args[2].elemAsDouble(0));
+    } else {
+        // Second positional arg can be a scalar (square size) or a 2-vector
+        // [rows cols]; a scalar size is doubled so a following scalar (sigma /
+        // alpha) lands in slot 3.
+        if (args.size() >= 2) {
+            const Value &v = args[1];
+            if (v.numel() == 1) {
+                params.push_back(v.toScalar());
+                params.push_back(v.toScalar());
+            } else if (v.numel() == 2) {
+                params.push_back(v.elemAsDouble(0));
+                params.push_back(v.elemAsDouble(1));
+            } else if (v.numel() > 0) {
+                for (size_t i = 0; i < v.numel(); ++i)
+                    params.push_back(v.elemAsDouble(i));
+            }
         }
+        // Third positional arg = sigma / alpha / radius (scalar).
+        if (args.size() >= 3 && args[2].numel() == 1)
+            params.push_back(args[2].toScalar());
     }
-    // Third positional arg = sigma / alpha / radius (scalar).
-    if (args.size() >= 3 && args[2].numel() == 1)
-        params.push_back(args[2].toScalar());
 
     outs[0] = fspecial(type, params, ctx.engine->resource());
 }
