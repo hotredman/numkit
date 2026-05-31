@@ -48,7 +48,8 @@ void disp(Engine &engine, Span<const Value> args);  // lint: engine-io
 /// @param engine  Engine context (provides fid table + text sink).
 /// @param args    `(fmt, args…)` or `(fid, fmt, args…)`.
 /// @throws Error  On invalid / non-writable fid or malformed format.
+/// @return        Number of bytes written (MATLAB's `count` output).
 /// @see disp, dispFormat
-void fprintf(Engine &engine, Span<const Value> args);  // lint: engine-io
+std::size_t fprintf(Engine &engine, Span<const Value> args);  // lint: engine-io
 
 } // namespace numkit::builtin
