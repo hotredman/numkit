@@ -1353,7 +1353,7 @@ affects test introspection + property-driven re-render logic.
 
 ---
 
-## 44. `core/`: VM destructure-then-reference shadows local with single-letter / short names — **P1**
+## 44. `core/`: VM destructure-then-reference shadows local with single-letter / short names — **P1** ✅ FIXED 2026-05-31
 
 **Smokes affected:**
 - `libs/image/tests/smoke/graycomatrix_smoke.m` — `[r, c, v] = find(G); … c(k) …`
@@ -1376,6 +1376,20 @@ message is masking the underlying type mismatch; should report
 
 **Status:** pre-existing; core/ scope.
 **First seen:** present at 2026-05-13 baseline.
+
+**Fix (2026-05-31):**
+- Part (a) — the destructure-then-index shadowing (`[r,c,v]=find(G); c(k)`)
+  — no longer reproduces; it was resolved by an intervening fix. Verified
+  via `graycomatrix_smoke.m` (runs clean on VM) and locked with dual-engine
+  regression tests in
+  [tests/gtest/integration/multi_output_args_test.cpp](tests/gtest/integration/multi_output_args_test.cpp).
+- Part (b) — the confusing diagnostic — fixed. Requesting more outputs than
+  the callee produces now throws `Too many output arguments.` at the call,
+  on both engines: TreeWalker `execMultiAssign` checks the produced count;
+  VM `CALL_MULTI` (external builtins) and `VM::popCallFrame` (user
+  functions) check `produced < nout`. `region_smoke.m` now reports
+  `Too many output arguments. (in call to 'bwconncomp')` at the destructure
+  line instead of a phantom `undefined function 'sz'` downstream.
 
 ---
 

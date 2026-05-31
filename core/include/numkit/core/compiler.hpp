@@ -210,6 +210,31 @@ private:
     uint8_t compileCellLiteral(const ASTNode *node);
     uint8_t compileCellIndex(const ASTNode *node);
     uint8_t compileCellAssign(const ASTNode *node);
+
+    // Lvalue-store cores shared by single-target ASSIGN and multi-output
+    // MULTI_ASSIGN. When `valReg >= 0` the value to store is taken from
+    // that register (multi-assign output); otherwise `rhsNode` is
+    // compiled in-place exactly as the single-assign path always did.
+    uint8_t compileFieldStore(const ASTNode *lhs, const ASTNode *rhsNode,
+                              int inValReg, bool suppress);
+    uint8_t compileCellStore(const ASTNode *lhs, const ASTNode *rhsNode,
+                             int inValReg, bool suppress);
+    uint8_t compileIndexStore(const ASTNode *lhs, const ASTNode *rhsNode,
+                              int inValReg, bool suppress);
+    // Dispatch an output register into any lvalue target (multi-assign).
+    void compileStoreLValue(const ASTNode *target, uint8_t valReg, bool suppress);
+
+    // True when an lvalue mixes accessor kinds or is rooted at a non-
+    // identifier object beyond what the single-level fast compilers
+    // handle (`s.x(2)`, `d(i).a.b`, `c{i}(2)`, `c{i}.f`, …). Such lvalues
+    // are compiled by compileLValueStore via a get/set write-back chain.
+    bool needsGeneralLValuePath(const ASTNode *lhs) const;
+    // General compound-lvalue store: flatten the accessor chain, load
+    // intermediate containers (get-or-create), apply the final write, and
+    // write each modified container back up to the root variable. Sources
+    // the value from `inValReg` when ≥ 0, else compiles `rhsNode`.
+    uint8_t compileLValueStore(const ASTNode *lhs, const ASTNode *rhsNode,
+                               int inValReg, bool suppress);
     uint8_t compileAnonFunc(const ASTNode *node);
     void collectFreeVars(const ASTNode *node,
                          const std::vector<std::string> &params,

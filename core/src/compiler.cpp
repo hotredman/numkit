@@ -184,6 +184,16 @@ void Compiler::collectAssignedNames(const ASTNode *node, std::vector<std::string
         for (auto &name : node->returnNames)
             if (name != "~" && !name.empty())
                 out.push_back(name);
+        // Complex targets ([s.f, a(i)] = ...) carry their lvalue here;
+        // the mutated variable is the chain root.
+        for (auto &t : node->lhsTargets) {
+            const ASTNode *root = t.get();
+            while (root && root->type != NodeType::IDENTIFIER
+                   && !root->children.empty())
+                root = root->children[0].get();
+            if (root && root->type == NodeType::IDENTIFIER)
+                out.push_back(root->strValue);
+        }
     }
     if (node->type == NodeType::FOR_STMT && !node->strValue.empty())
         out.push_back(node->strValue);
@@ -214,6 +224,10 @@ void Compiler::collectAllIdentifiers(const ASTNode *node, std::unordered_set<std
     // Recurse
     for (auto &child : node->children)
         collectAllIdentifiers(child.get(), out);
+    // MULTI_ASSIGN complex targets ([a(i), s.(e)] = ...) read variables
+    // (indices, dynamic field names) that live only under lhsTargets.
+    for (auto &t : node->lhsTargets)
+        collectAllIdentifiers(t.get(), out);
     for (auto &[cond, body] : node->branches) {
         collectAllIdentifiers(cond.get(), out);
         collectAllIdentifiers(body.get(), out);
@@ -978,6 +992,11 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
         return dst;
     }
 
+    // Compound / non-identifier-rooted lvalue (`s.x(2)`, `d(i).a.b`,
+    // `c{i}(2)`, `c{i}.f`, …) → general get/set write-back chain.
+    if (needsGeneralLValuePath(lhs))
+        return compileLValueStore(lhs, node->children[1].get(), -1, node->suppressOutput);
+
     if (lhs->type == NodeType::INDEX || lhs->type == NodeType::CALL) {
         return compileIndexAssign(node);
     }
@@ -1014,16 +1033,24 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
     // [a, b, c] = func(args)  OR  [a, b] = c{idx}
     // node->returnNames = ["a", "b", "c"]  (~ means ignore)
     // node->children[0] = CALL or CELL_INDEX node
+    //
+    // Complex-target form ([s.f, a(i), c{j}] = ...) carries an
+    // lhsTargets entry per output (nullptr = `~`); outputs are routed
+    // through compileStoreLValue instead of a bare var-register write.
     auto *rhsNode = node->children[0].get();
     size_t nout = node->returnNames.size();
+    const bool complex = !node->lhsTargets.empty();
 
-    // Allocate destination registers for outputs
+    // Allocate destination registers for outputs (simple path only; the
+    // complex path materialises outputs at outBase then stores them).
     std::vector<uint8_t> outRegs;
-    for (auto &name : node->returnNames) {
-        if (name == "~")
-            outRegs.push_back(tempReg()); // throwaway
-        else
-            outRegs.push_back(varRegWrite(name));
+    if (!complex) {
+        for (auto &name : node->returnNames) {
+            if (name == "~")
+                outRegs.push_back(tempReg()); // throwaway
+            else
+                outRegs.push_back(varRegWrite(name));
+        }
     }
 
     // `[x] = <expr>` where the RHS is neither a CALL nor a cell CSL is a
@@ -1031,7 +1058,7 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
     // multi-output codegen below assumes the RHS is a CALL and reads
     // callNode->children[0], so a literal/expression RHS would index past the
     // node's children — an out-of-bounds read (access violation). Handle it
-    // here as a plain assignment to the single target; >1 targets with a
+    // here as a single assignment to the lone target; >1 targets with a
     // single-valued RHS is "too many outputs".
     if (rhsNode->type != NodeType::CELL_INDEX
         && rhsNode->type != NodeType::CALL) {
@@ -1040,6 +1067,14 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
                 "Compiler: too many output arguments for single-valued "
                 "right-hand side");
         uint8_t src = compileNode(rhsNode);
+        // Complex single target (`[s.f] = 5`, `[a(i)] = x`): route the
+        // value through the general lvalue store.
+        if (complex) {
+            if (!node->lhsTargets.empty() && node->lhsTargets[0])
+                compileStoreLValue(node->lhsTargets[0].get(), src,
+                                   node->suppressOutput);
+            return src;
+        }
         uint8_t dst = outRegs.empty() ? src : outRegs[0];
         if (!outRegs.empty() && dst != src)
             emitAB(OpCode::MOVE, dst, src);
@@ -1052,6 +1087,30 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
         }
         return dst;
     }
+
+    // Distribute the nout outputs sitting at [outBase, outBase+nout) into
+    // their destinations and emit displays. Shared by both RHS shapes.
+    auto distribute = [&](uint8_t outBase) {
+        if (complex) {
+            for (size_t i = 0; i < nout; ++i) {
+                const ASTNode *t = node->lhsTargets[i].get();
+                if (t)
+                    compileStoreLValue(t, outBase + static_cast<uint8_t>(i),
+                                       node->suppressOutput);
+            }
+            return;
+        }
+        for (size_t i = 0; i < nout; ++i)
+            if (outRegs[i] != outBase + i)
+                emitAB(OpCode::MOVE, outRegs[i], outBase + static_cast<uint8_t>(i));
+        if (!node->suppressOutput) {
+            for (size_t i = 0; i < node->returnNames.size(); ++i)
+                if (node->returnNames[i] != "~") {
+                    int16_t nameIdx = addStringConstant(node->returnNames[i]);
+                    emitAD(OpCode::DISPLAY, outRegs[i], nameIdx);
+                }
+        }
+    };
 
     // Cell CSL: [a, b] = c{idx}
     if (rhsNode->type == NodeType::CELL_INDEX) {
@@ -1066,17 +1125,9 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
                                      outBase, cellReg, idxReg, 0,
                                      static_cast<uint8_t>(nout)));
 
-        for (size_t i = 0; i < nout; ++i)
-            if (outRegs[i] != outBase + i)
-                emitAB(OpCode::MOVE, outRegs[i], outBase + static_cast<uint8_t>(i));
-
-        if (!node->suppressOutput) {
-            for (size_t i = 0; i < node->returnNames.size(); ++i)
-                if (node->returnNames[i] != "~") {
-                    int16_t nameIdx = addStringConstant(node->returnNames[i]);
-                    emitAD(OpCode::DISPLAY, outRegs[i], nameIdx);
-                }
-        }
+        distribute(outBase);
+        if (complex)
+            return nout ? outBase : 0;
         return outRegs.empty() ? 0 : outRegs[0];
     }
 
@@ -1112,22 +1163,10 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
                                  static_cast<uint8_t>(nout)));
     recordCallArgNames(callNode, callMultiIdx);
 
-    // Move outputs to destination registers
-    for (size_t i = 0; i < nout; ++i) {
-        if (outRegs[i] != outBase + i)
-            emitAB(OpCode::MOVE, outRegs[i], outBase + static_cast<uint8_t>(i));
-    }
+    distribute(outBase);
 
-    // Display if no semicolon
-    if (!node->suppressOutput) {
-        for (size_t i = 0; i < node->returnNames.size(); ++i) {
-            if (node->returnNames[i] != "~") {
-                int16_t nameIdx = addStringConstant(node->returnNames[i]);
-                emitAD(OpCode::DISPLAY, outRegs[i], nameIdx);
-            }
-        }
-    }
-
+    if (complex)
+        return nout ? outBase : 0;
     return outRegs.empty() ? 0 : outRegs[0];
 }
 
@@ -2074,10 +2113,14 @@ uint8_t Compiler::compileIndexExpr(const ASTNode *node)
 
 uint8_t Compiler::compileIndexAssign(const ASTNode *node)
 {
-    // node->children[0] = lhs (CALL or INDEX node)
-    // node->children[1] = rhs
-    auto *lhs = node->children[0].get();
-    auto *rhs = node->children[1].get();
+    return compileIndexStore(node->children[0].get(), node->children[1].get(),
+                             -1, node->suppressOutput);
+}
+
+uint8_t Compiler::compileIndexStore(const ASTNode *lhs, const ASTNode *rhs,
+                                    int inValReg, bool suppress)
+{
+    // lhs = CALL or INDEX node; rhs = RHS expr (used only when valReg < 0)
 
     // For CALL: children[0] = IDENTIFIER, children[1..] = indices
     // For INDEX: strValue = name, children = indices
@@ -2096,7 +2139,7 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
     }
 
     uint8_t arr = varRegWrite(name);
-    uint8_t val = compileNode(rhs);
+    uint8_t val = (inValReg >= 0) ? static_cast<uint8_t>(inValReg) : compileNode(rhs);
 
     {
         IndexContextGuard guard(*this, arr, static_cast<uint8_t>(nargs));
@@ -2135,7 +2178,7 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
         }
     } // guard restores index context
 
-    if (!node->suppressOutput) {
+    if (!suppress) {
         int16_t nameIdx = addStringConstant(name);
         emitAD(OpCode::DISPLAY, arr, nameIdx);
     }
@@ -2162,8 +2205,14 @@ uint8_t Compiler::compileFieldAccess(const ASTNode *node)
 
 uint8_t Compiler::compileFieldAssign(const ASTNode *node)
 {
-    auto *lhs = node->children[0].get(); // FIELD_ACCESS node
-    auto *rhs = node->children[1].get();
+    return compileFieldStore(node->children[0].get(), node->children[1].get(),
+                             -1, node->suppressOutput);
+}
+
+uint8_t Compiler::compileFieldStore(const ASTNode *lhs, const ASTNode *rhs,
+                                    int inValReg, bool suppress)
+{
+    // lhs = FIELD_ACCESS node; rhs = RHS expr (used only when valReg < 0)
 
     // Collect the field chain: s.a.b → ["b", "a"] (outermost first)
     // Walk from outermost FIELD_ACCESS inward to find root IDENTIFIER
@@ -2186,11 +2235,12 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
         const std::string &rootName = cur->children[0]->strValue;
         uint8_t rootReg = varRegWrite(rootName);
         uint8_t idxReg = compileNode(cur->children[1].get());
-        uint8_t valReg = compileNode(rhs);
+        uint8_t valReg = (inValReg >= 0) ? static_cast<uint8_t>(inValReg)
+                                         : compileNode(rhs);
         int16_t nameIdx = addStringConstant(fieldChain[0]);
         emit(Instruction::make_abcde(OpCode::STRUCT_ELEM_FIELD_SET,
                                      rootReg, idxReg, valReg, nameIdx, 0));
-        if (!node->suppressOutput) {
+        if (!suppress) {
             int16_t dispIdx = addStringConstant(rootName);
             emitAD(OpCode::DISPLAY, rootReg, dispIdx);
         }
@@ -2203,7 +2253,7 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
     // fieldChain is in reverse: ["b", "a"] for s.a.b
     // Root variable
     uint8_t rootReg = varRegWrite(cur->strValue);
-    uint8_t val = compileNode(rhs);
+    uint8_t val = (inValReg >= 0) ? static_cast<uint8_t>(inValReg) : compileNode(rhs);
 
     if (fieldChain.size() == 1) {
         // Simple: s.x = val
@@ -2247,7 +2297,7 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
         }
     }
 
-    if (!node->suppressOutput) {
+    if (!suppress) {
         int16_t dispIdx = addStringConstant(cur->strValue);
         emitAD(OpCode::DISPLAY, rootReg, dispIdx);
     }
@@ -2365,15 +2415,20 @@ uint8_t Compiler::compileCellIndex(const ASTNode *node)
 
 uint8_t Compiler::compileCellAssign(const ASTNode *node)
 {
-    auto *lhs = node->children[0].get(); // CELL_INDEX node
-    auto *rhs = node->children[1].get();
+    return compileCellStore(node->children[0].get(), node->children[1].get(),
+                            -1, node->suppressOutput);
+}
 
+uint8_t Compiler::compileCellStore(const ASTNode *lhs, const ASTNode *rhs,
+                                   int inValReg, bool suppress)
+{
+    // lhs = CELL_INDEX node; rhs = RHS expr (used only when inValReg < 0)
     auto *target = lhs->children[0].get();
     if (target->type != NodeType::IDENTIFIER)
         throw std::runtime_error("Compiler: invalid cell assignment target");
 
     uint8_t cell = varRegWrite(target->strValue);
-    uint8_t val = compileNode(rhs);
+    uint8_t val = (inValReg >= 0) ? static_cast<uint8_t>(inValReg) : compileNode(rhs);
 
     size_t nidx = lhs->children.size() - 1;
     if (nidx == 1) {
@@ -2412,12 +2467,261 @@ uint8_t Compiler::compileCellAssign(const ASTNode *node)
                                      safeVal));
     }
 
-    if (!node->suppressOutput) {
+    if (!suppress) {
         int16_t nameIdx = addStringConstant(target->strValue);
         emitAD(OpCode::DISPLAY, cell, nameIdx);
     }
 
     return cell;
+}
+
+// Dispatch an already-materialised value register into any lvalue target.
+// Used by compileMultiAssign for complex outputs (`[s.f, a(i)] = ...`).
+void Compiler::compileStoreLValue(const ASTNode *target, uint8_t valReg, bool suppress)
+{
+    if (target->type != NodeType::IDENTIFIER && needsGeneralLValuePath(target)) {
+        compileLValueStore(target, nullptr, static_cast<int>(valReg), suppress);
+        return;
+    }
+    switch (target->type) {
+    case NodeType::IDENTIFIER: {
+        uint8_t dst = varRegWrite(target->strValue);
+        if (dst != valReg)
+            emitAB(OpCode::MOVE, dst, valReg);
+        if (scalarRegs_.test(valReg))
+            scalarRegs_.set(dst);
+        else
+            scalarRegs_.reset(dst);
+        if (!suppress) {
+            int16_t nameIdx = addStringConstant(target->strValue);
+            emitAD(OpCode::DISPLAY, dst, nameIdx);
+        }
+        break;
+    }
+    case NodeType::CALL:
+    case NodeType::INDEX:
+        compileIndexStore(target, nullptr, valReg, suppress);
+        break;
+    case NodeType::FIELD_ACCESS:
+        compileFieldStore(target, nullptr, valReg, suppress);
+        break;
+    case NodeType::CELL_INDEX:
+        compileCellStore(target, nullptr, valReg, suppress);
+        break;
+    case NodeType::DYNAMIC_FIELD_ACCESS: {
+        // s.(expr) = val
+        auto *objNode = target->children[0].get();
+        if (objNode->type != NodeType::IDENTIFIER)
+            throw std::runtime_error("Compiler: dynamic field assign requires identifier target");
+        uint8_t obj = varRegWrite(objNode->strValue);
+        uint8_t nameReg = compileNode(target->children[1].get());
+        emitABC(OpCode::FIELD_SET_DYN, obj, nameReg, valReg);
+        if (!suppress) {
+            int16_t dispIdx = addStringConstant(objNode->strValue);
+            emitAD(OpCode::DISPLAY, obj, dispIdx);
+        }
+        break;
+    }
+    default:
+        throw std::runtime_error("Compiler: unsupported multi-assign target");
+    }
+}
+
+bool Compiler::needsGeneralLValuePath(const ASTNode *lhs) const
+{
+    switch (lhs->type) {
+    case NodeType::CALL:
+        // index-assign: simple iff the indexed object is a bare identifier
+        return lhs->children[0]->type != NodeType::IDENTIFIER;
+    case NodeType::INDEX:
+        return false; // `name(idx)` — root-level, simple
+    case NodeType::CELL_INDEX:
+    case NodeType::DYNAMIC_FIELD_ACCESS:
+        return lhs->children[0]->type != NodeType::IDENTIFIER;
+    case NodeType::FIELD_ACCESS: {
+        const ASTNode *cur = lhs;
+        int fieldChainLen = 0;
+        while (cur->type == NodeType::FIELD_ACCESS) {
+            ++fieldChainLen;
+            cur = cur->children[0].get();
+        }
+        if (cur->type == NodeType::IDENTIFIER)
+            return false; // a.b.c — compileFieldStore handles nested fields
+        if (cur->type == NodeType::CALL && fieldChainLen == 1
+            && cur->children.size() == 2 // exactly one subscript
+            && cur->children[0]->type == NodeType::IDENTIFIER)
+            return false; // d(i).field — struct-elem fast branch (1-D only)
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
+namespace {
+// One link of a flattened lvalue accessor chain (root → outermost).
+struct LvAcc
+{
+    enum Kind { Field, DynField, Index, Cell } kind;
+    const ASTNode *node;       // the accessor AST node
+    bool structElem = false;   // Index used as an intermediate container ⇒
+                               // struct-array element (`d(i).field…`)
+};
+} // namespace
+
+uint8_t Compiler::compileLValueStore(const ASTNode *lhs, const ASTNode *rhsNode,
+                                     int inValReg, bool suppress)
+{
+    // ── Flatten the accessor chain (root → outermost) ──
+    std::vector<LvAcc> acc;
+    const ASTNode *cur = lhs;
+    for (;;) {
+        if (cur->type == NodeType::FIELD_ACCESS)
+            acc.push_back({LvAcc::Field, cur, false});
+        else if (cur->type == NodeType::DYNAMIC_FIELD_ACCESS)
+            acc.push_back({LvAcc::DynField, cur, false});
+        else if (cur->type == NodeType::CALL)
+            acc.push_back({LvAcc::Index, cur, false});
+        else if (cur->type == NodeType::CELL_INDEX)
+            acc.push_back({LvAcc::Cell, cur, false});
+        else
+            break;
+        cur = cur->children[0].get();
+    }
+    if (cur->type != NodeType::IDENTIFIER)
+        throw std::runtime_error("Compiler: unsupported lvalue root");
+    std::reverse(acc.begin(), acc.end());
+    const size_t n = acc.size();
+    // A paren-index that is NOT the final accessor indexes into a
+    // struct array to reach an element used as a container for the rest
+    // of the chain (`d(i).a.b`).
+    for (size_t k = 0; k + 1 < n; ++k)
+        if (acc[k].kind == LvAcc::Index)
+            acc[k].structElem = true;
+
+    // Value to store (multi-assign output register, or compile the RHS).
+    uint8_t val = (inValReg >= 0) ? static_cast<uint8_t>(inValReg) : compileNode(rhsNode);
+
+    uint8_t rootReg = varRegWrite(cur->strValue);
+
+    // regs[k] = container that accessor k applies to (regs[0] = root).
+    std::vector<uint8_t> regs(n + 1, 0);
+    regs[0] = rootReg;
+    // Per-accessor subscripts packed into a consecutive register block
+    // [idxBase, idxBase+idxN) (for the (base, nargs) opcodes), or a
+    // dynamic-field-name register. Computed once in the forward pass and
+    // reused for write-back so `end` / side-effecting subscripts evaluate
+    // exactly once.
+    std::vector<uint8_t> idxBase(n, 0), idxN(n, 0), nameReg(n, 0);
+
+    auto compileIdxArgs = [&](size_t k) {
+        const ASTNode *node = acc[k].node;
+        size_t nargs = node->children.size() - 1; // children[0] is the object
+        std::vector<uint8_t> tmp;
+        {
+            IndexContextGuard guard(*this, regs[k], static_cast<uint8_t>(nargs));
+            for (size_t a = 0; a < nargs; ++a) {
+                if (a > 0)
+                    guard.setDim(static_cast<uint8_t>(a));
+                tmp.push_back(compileNode(node->children[a + 1].get()));
+            }
+        }
+        idxN[k] = static_cast<uint8_t>(nargs);
+        if (nargs == 1) {
+            idxBase[k] = tmp[0]; // single subscript is trivially "consecutive"
+        } else {
+            uint8_t base = nextReg_;
+            for (size_t a = 0; a < nargs; ++a) {
+                uint8_t slot = tempReg();
+                if (tmp[a] != slot)
+                    emitAB(OpCode::MOVE, slot, tmp[a]);
+            }
+            idxBase[k] = base;
+        }
+    };
+
+    // ── Forward pass: compute subscripts and load intermediate containers ──
+    for (size_t k = 0; k < n; ++k) {
+        if (acc[k].kind == LvAcc::DynField)
+            nameReg[k] = compileNode(acc[k].node->children[1].get());
+        else if (acc[k].kind != LvAcc::Field)
+            compileIdxArgs(k);
+
+        if (k + 1 < n) {
+            uint8_t dst = tempReg();
+            switch (acc[k].kind) {
+            case LvAcc::Field: {
+                int16_t nameIdx = addStringConstant(acc[k].node->strValue);
+                emitABC(OpCode::FIELD_GET_OR_CREATE, dst, regs[k], 0);
+                chunk_.code.back().d = nameIdx;
+                break;
+            }
+            case LvAcc::DynField:
+                emitABC(OpCode::FIELD_GET_OR_CREATE_DYN, dst, regs[k], nameReg[k]);
+                break;
+            case LvAcc::Index: // intermediate ⇒ struct-array element (any rank)
+                emit(Instruction::make_abcde(OpCode::STRUCT_ELEM_GET_OR_CREATE,
+                                             dst, regs[k], idxBase[k], 0, idxN[k]));
+                break;
+            case LvAcc::Cell:
+                emit(Instruction::make_abcde(OpCode::CELL_GET_OR_CREATE,
+                                             dst, regs[k], idxBase[k], 0, idxN[k]));
+                break;
+            }
+            regs[k + 1] = dst;
+        }
+    }
+
+    // emitSet: apply accessor k as a SET on regs[k] with `value`.
+    auto emitSet = [&](size_t k, uint8_t value) {
+        const uint8_t b = idxBase[k], na = idxN[k];
+        switch (acc[k].kind) {
+        case LvAcc::Field: {
+            int16_t nameIdx = addStringConstant(acc[k].node->strValue);
+            emitABC(OpCode::FIELD_SET, regs[k], value, 0);
+            chunk_.code.back().d = nameIdx;
+            break;
+        }
+        case LvAcc::DynField:
+            emitABC(OpCode::FIELD_SET_DYN, regs[k], nameReg[k], value);
+            break;
+        case LvAcc::Cell:
+            if (na == 1)
+                emitABC(OpCode::CELL_SET, regs[k], b, value);
+            else if (na == 2)
+                emit(Instruction::make_abcde(OpCode::CELL_SET_2D, regs[k],
+                                             b, b + 1, 0, value));
+            else
+                emit(Instruction::make_abcde(OpCode::CELL_SET_ND, regs[k],
+                                             b, na, 0, value));
+            break;
+        case LvAcc::Index:
+            if (acc[k].structElem) {
+                emit(Instruction::make_abcde(OpCode::STRUCT_ELEM_SET, regs[k],
+                                             b, na, 0, value));
+            } else if (na == 1) {
+                emitABC(OpCode::INDEX_SET, regs[k], b, value);
+            } else if (na == 2) {
+                emit(Instruction::make_abcde(OpCode::INDEX_SET_2D, regs[k],
+                                             b, b + 1, 0, value));
+            } else {
+                emit(Instruction::make_abcde(OpCode::INDEX_SET_ND, regs[k],
+                                             b, na, 0, value));
+            }
+            break;
+        }
+    };
+
+    // ── Final write on the deepest container, then write-back up. ──
+    emitSet(n - 1, val);
+    for (size_t k = n - 1; k-- > 0;)
+        emitSet(k, regs[k + 1]);
+
+    if (!suppress) {
+        int16_t nameIdx = addStringConstant(cur->strValue);
+        emitAD(OpCode::DISPLAY, rootReg, nameIdx);
+    }
+    return rootReg;
 }
 
 // ============================================================
@@ -3519,16 +3823,24 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "FIELD_SET";
         case OpCode::FIELD_GET_DYN:
             return "FIELD_GET_DYN";
+        case OpCode::FIELD_GET_OR_CREATE_DYN:
+            return "FIELD_GET_OR_CREATE_DYN";
         case OpCode::FIELD_SET_DYN:
             return "FIELD_SET_DYN";
         case OpCode::STRUCT_ELEM_FIELD_SET:
             return "STRUCT_ELEM_FIELD_SET";
+        case OpCode::STRUCT_ELEM_GET_OR_CREATE:
+            return "STRUCT_ELEM_GET_OR_CREATE";
+        case OpCode::STRUCT_ELEM_SET:
+            return "STRUCT_ELEM_SET";
         case OpCode::HORZCAT_APPEND_CSL:
             return "HORZCAT_APPEND_CSL";
         case OpCode::CELL_LITERAL:
             return "CELL_LITERAL";
         case OpCode::CELL_GET:
             return "CELL_GET";
+        case OpCode::CELL_GET_OR_CREATE:
+            return "CELL_GET_OR_CREATE";
         case OpCode::CELL_GET_2D:
             return "CELL_GET_2D";
         case OpCode::CELL_SET:

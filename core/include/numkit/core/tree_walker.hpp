@@ -161,9 +161,22 @@ private:
     Value execGlobalPersistent(const ASTNode *node, Environment *env);
 
     // Assignment helpers
+    // Dispatch an already-evaluated value to any lvalue target node
+    // (identifier / a(i) / s.f / s.(e) / c{i}). Shared by single-target
+    // ASSIGN and multi-output MULTI_ASSIGN.
+    void assignLValue(const ASTNode *lhs, const Value &rhs, Environment *env);
     void execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environment *env);
     void execFieldAssign(const ASTNode *lhs, const Value &rhs, Environment *env);
     void execCellAssign(const ASTNode *lhs, const Value &rhs, Environment *env);
+    // Resolve any addressable lvalue *object* to a mutable storage slot,
+    // creating/coercing containers along the way. Handles identifiers,
+    // field chains (incl. struct-array element fields), dynamic fields
+    // and cell-content slots, composing to arbitrary depth
+    // (`a.b{2}.c(3) = ...`). Paren-indexing of a plain array is NOT a
+    // stable slot — it is applied as the final write by execIndexedAssign
+    // on the slot this returns.
+    Value &resolveObjectSlot(const ASTNode *node, Environment *env);
+    Value &resolveCellSlot(const ASTNode *node, Environment *env);
     Value &resolveFieldLValue(const ASTNode *node, Environment *env);
 
     // Indexing helpers
