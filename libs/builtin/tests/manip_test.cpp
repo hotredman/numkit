@@ -324,6 +324,44 @@ TEST_P(ManipTest, CircshiftAlongDim)
     EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 4.0);
 }
 
+// circshift is a pure rearrangement -> type-agnostic. Was throwing "Not a
+// double array" on char/cell/logical/complex. vs MATLAB R2025b. DEEP-PROBE
+// 2026-05-31.
+TEST_P(ManipTest, CircshiftTypeAgnostic)
+{
+    // char vector.
+    eval("cv = circshift('abcde', 2);");
+    EXPECT_EQ(getVarPtr("cv")->toString(), "deabc");
+    eval("cvn = circshift('abcde', -1);");
+    EXPECT_EQ(getVarPtr("cvn")->toString(), "bcdea");
+    // cell vector -> {4,1,2,3}.
+    eval("cc = circshift({1,2,3,4}, 1); a = cc{1}; b = cc{2};");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(cc))"), 1.0);
+    // cellstr vector -> {z,x,y}.
+    eval("cs = circshift({'x','y','z'}, 1); s1 = cs{1}; s3 = cs{3};");
+    EXPECT_EQ(getVarPtr("s1")->toString(), "z");
+    EXPECT_EQ(getVarPtr("s3")->toString(), "y");
+    // char matrix shifts rows.
+    eval("cm = circshift(['ab';'cd';'ef'], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1))"), 101.0);   // 'e'
+    // [r c] form on a char matrix.
+    eval("cm2 = circshift(['abc';'def'], [1 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm2(1,1))"), 102.0);  // 'f'
+    // logical preserved.
+    eval("lg = circshift([true false true false], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(2))"), 0.0);
+    // complex preserved.
+    eval("zc = circshift([1+1i 2+2i 3+3i], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(zc(1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(zc(1))"), 3.0);
+    // double path unchanged.
+    eval("dd = circshift([1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1)"), 4.0);
+}
+
 // ── tril / triu ────────────────────────────────────────────
 
 TEST_P(ManipTest, TrilMainDiagonal)

@@ -223,7 +223,7 @@ together.
 |---|:---:|---|
 | `blkdiag` | ✅ | Sig: r = blkdiag(...). Spec-extension batch 2026-05-09. |
 | `cat` | ✅ | Sig: r = cat(...). Shape op. Spec-extension batch 2026-05-09. |
-| `circshift` | ✅ 🔬 | Sig: r = circshift(X, K[, dim]). The 3-arg form shifts by K ONLY along dimension `dim`: circshift([1 2 3;4 5 6],1,2)=[3 1 2;6 4 5] (columns), circshift(...,1,1)=[4 5 6;1 2 3] (rows), circshift(...,-1,2)=[2 3 1;5 6 4], circshift([10 20 30 40],2,2)=[30 40 10 20]. numkit previously IGNORED the dim arg and always shifted dim 1; fixed 2026-05-30. The 2-arg scalar form and the [k1 k2] vector form are unchanged. Spec-extension batch 2026-05-09 + dim arg. NOTE: ; only inside matrix-literal INPUTS. |
+| `circshift` | ✅ 🔬 | Sig: r = circshift(X, K[, dim]). The 3-arg form shifts by K ONLY along dimension `dim`: circshift([1 2 3;4 5 6],1,2)=[3 1 2;6 4 5] (columns), circshift(...,1,1)=[4 5 6;1 2 3] (rows), circshift(...,-1,2)=[2 3 1;5 6 4], circshift([10 20 30 40],2,2)=[30 40 10 20]. numkit previously IGNORED the dim arg and always shifted dim 1; fixed 2026-05-30. DEEP-PROBE 2026-05-31: circshift is now TYPE-AGNOSTIC (was throwing 'Not a double array' on char/cell/logical) — a pure rearrangement: circshift('abcde',2)='deabc'; circshift({1,2,3,4},1)={4,1,2,3}; char matrices shift rows; logical/complex/single preserved. STRING + struct arrays deferred. The 2-arg scalar form and the [k1 k2] vector form are unchanged. NOTE: ; only inside matrix-literal INPUTS. |
 | `colon` | ⚠️ | works as `:` (range) operator; not callable as named fn |
 | `combinations` | ❌ | all combinations |
 | `ctranspose` | ✅ | Sig: r = ctranspose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09. |
