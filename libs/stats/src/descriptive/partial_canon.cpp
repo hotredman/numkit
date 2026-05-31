@@ -325,7 +325,7 @@ void partialcorri_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("partialcorri: requires (Y, X [, Z])",
                     0, 0, "partialcorri", "", "numkit:partialcorri:nargin");
-    const Value Z = (args.size() >= 3) ? args[2] : Value::empty();
+    const Value Z = (args.size() >= 3) ? args[2] : Value();
     outs[0] = partialcorri(args[0], args[1], Z, ctx.engine->resource());
 }
 

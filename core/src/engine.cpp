@@ -615,7 +615,7 @@ Value Engine::callFunctionHandle(const Value &handle,
                                   Environment *env)
 {
     auto results = callFunctionHandleMulti(handle, args, 1, env);
-    return results.empty() ? Value::empty() : results[0];
+    return results.empty() ? Value() : results[0];
 }
 
 std::vector<Value> Engine::callFunctionHandleMulti(const Value &handle,
@@ -942,7 +942,7 @@ Value Engine::eval(const std::string &code, bool suppressTopLevelDisplay)
                     compiler_->registerFunction(c.get());
             }
         }
-        Value result = Value::empty();
+        Value result = Value();
         for (auto &c : ast->children) {
             if (!c || c->type == NodeType::FUNCTION_DEF)
                 continue;

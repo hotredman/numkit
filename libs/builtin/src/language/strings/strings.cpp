@@ -404,7 +404,7 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr)
     try {
         return Value::scalar(std::stod(s.toString()), mr);
     } catch (...) {
-        return Value::empty();
+        return Value();
     }
 }
 

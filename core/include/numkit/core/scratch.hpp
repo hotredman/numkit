@@ -80,22 +80,32 @@ public:
     ScratchVec &operator=(ScratchVec &&) noexcept = default;
 };
 
-class ScratchArena : public std::pmr::monotonic_buffer_resource
+namespace detail {
+// Holds the inline scratch buffer. It is listed as the FIRST base of
+// ScratchArena so it is constructed BEFORE the monotonic_buffer_resource
+// base that points into it (base-from-member idiom). If the buffer were a
+// plain member, the resource base — initialised with storage_.data()/size()
+// — would run first and read a member whose lifetime has not begun, which
+// clang flags as -Wuninitialized.
+struct ScratchStorage {
+    static constexpr std::size_t kInlineBytes = 65536;
+    alignas(std::max_align_t) std::array<std::byte, kInlineBytes> bytes;
+};
+} // namespace detail
+
+class ScratchArena : private detail::ScratchStorage,
+                     public std::pmr::monotonic_buffer_resource
 {
 public:
     explicit ScratchArena(std::pmr::memory_resource *upstream)
         : std::pmr::monotonic_buffer_resource(
-              storage_.data(), storage_.size(),
+              bytes.data(), bytes.size(),
               upstream ? upstream : std::pmr::get_default_resource()) {}
 
     ScratchArena(const ScratchArena &)            = delete;
     ScratchArena &operator=(const ScratchArena &) = delete;
     ScratchArena(ScratchArena &&)                 = delete;
     ScratchArena &operator=(ScratchArena &&)      = delete;
-
-private:
-    static constexpr std::size_t kInlineBytes = 65536;
-    alignas(std::max_align_t) std::array<std::byte, kInlineBytes> storage_;
 };
 
 }  // namespace numkit

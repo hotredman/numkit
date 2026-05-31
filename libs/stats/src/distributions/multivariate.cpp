@@ -820,8 +820,8 @@ void mvncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("mvncdf: requires (X [, mu, Sigma])",
                     0, 0, "mvncdf", "", "numkit:mvncdf:nargin");
-    const Value muV    = (args.size() >= 2) ? args[1] : Value::empty();
-    const Value sigmaV = (args.size() >= 3) ? args[2] : Value::empty();
+    const Value muV    = (args.size() >= 2) ? args[1] : Value();
+    const Value sigmaV = (args.size() >= 3) ? args[2] : Value();
     outs[0] = mvncdf(args[0], muV, sigmaV, ctx.engine->resource());
 }
 
