@@ -231,14 +231,14 @@ ExecStatus VM::startExecution(const BytecodeChunk &chunk, const Value *args, uin
     tryStack_.clear();
     regStackTop_ = 0;
     returnCount_ = 0;
-    lastResult_ = Value::empty();
+    lastResult_ = Value();
 
     // Allocate registers for top-level frame
     uint8_t nregs = chunk.numRegisters;
     R_ = regStack_.data();
 
     for (uint8_t i = 0; i < nregs; ++i)
-        R_[i] = Value::empty();
+        R_[i] = Value();
 
     if (args) {
         uint8_t pc = std::min(nargs, chunk.numParams);
@@ -1478,10 +1478,10 @@ enter_frame:
                 goto enter_frame;
             }
             case OpCode::RET_EMPTY:
-                popCallFrame(Value::empty());
+                popCallFrame(Value());
                 goto enter_frame;
             case OpCode::HALT:
-                popCallFrame(Value::empty());
+                popCallFrame(Value());
                 goto enter_frame;
             case OpCode::NOP:
                 if (I.a == 1 && !forStack_.empty())
@@ -1634,7 +1634,7 @@ enter_frame:
     }
 
     // Fell off end of bytecode — implicit return empty
-    popCallFrame(Value::empty());
+    popCallFrame(Value());
     goto enter_frame;
     } // scope for frame locals
 }
@@ -1701,7 +1701,7 @@ bool VM::dispatchTryCatch(const char *msg, const char *identifier)
         // Cleanup registers
         for (uint8_t i = 0; i < f.nregs; ++i)
             if (!f.R[i].isDoubleScalar() && !f.R[i].isEmpty())
-                f.R[i] = Value::empty();
+                f.R[i] = Value();
         regStackTop_ = f.regBase;
         frames_.pop_back();
     }
@@ -1997,7 +1997,7 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_
     // Allocate registers
     Value *newR = regStack_.data() + regStackTop_;
     for (uint8_t i = 0; i < nregs; ++i)
-        newR[i] = Value::empty();
+        newR[i] = Value();
 
     for (uint8_t i = 0; i < pc; ++i)
         newR[i] = std::move(argsCopy[i]);
@@ -2118,7 +2118,7 @@ void VM::popCallFrame(Value retVal)
     // Cleanup: release heap objects in frame
     for (uint8_t i = 0; i < frame.nregs; ++i) {
         if (!frame.R[i].isDoubleScalar() && !frame.R[i].isEmpty())
-            frame.R[i] = Value::empty();
+            frame.R[i] = Value();
     }
 
     // Restore stack pointers
@@ -2138,13 +2138,13 @@ void VM::popCallFrame(Value retVal)
                 for (size_t i = 0; i < frame.nout && i < returnCount_; ++i)
                     caller.R[frame.outBase + i] = std::move(returnBuf_[i]);
                 for (uint8_t i = 0; i < returnCount_; ++i)
-                    returnBuf_[i] = Value::empty();
+                    returnBuf_[i] = Value();
                 returnCount_ = 0;
             } else {
                 // Single return via RET — store in first output slot
                 caller.R[frame.outBase] = std::move(retVal);
                 for (size_t i = 1; i < frame.nout; ++i)
-                    caller.R[frame.outBase + i] = Value::empty();
+                    caller.R[frame.outBase + i] = Value();
             }
         } else {
             caller.R[frame.destReg] = std::move(retVal);

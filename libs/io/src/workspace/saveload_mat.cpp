@@ -203,7 +203,7 @@ matvar_t *valueToMat(const std::string &name, const Value &v)
 
 Value matToValue(matvar_t *mv, std::pmr::memory_resource *mr)
 {
-    if (!mv) return Value::empty();
+    if (!mv) return Value();
 
     int rank = mv->rank;
     if (rank < 2) rank = 2;
@@ -270,7 +270,7 @@ Value matToValue(matvar_t *mv, std::pmr::memory_resource *mr)
         || mv->class_type == MAT_C_OPAQUE
         || mv->class_type == MAT_C_FUNCTION
         || mv->class_type == MAT_C_EMPTY) {
-        return Value::empty();
+        return Value();
     }
 
     // Numeric class → our ValueType. Logical flag wins over the

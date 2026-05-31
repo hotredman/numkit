@@ -455,7 +455,7 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
     // builds a Hamming window of that length. If arg 1 is a vector, it's
     // the explicit window. Adapter handles both by synthesizing a Hamming
     // vector here when it sees a scalar.
-    Value window = Value::empty();
+    Value window = Value();
     if (args.size() >= 2 && !args[1].isChar()) {
         if (args[1].numel() == 1) {
             const size_t winLen = static_cast<size_t>(args[1].toScalar());
@@ -598,7 +598,7 @@ void stft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     double fs    = 1.0;
     const size_t nvStart = parseOptionalFs(args, fsGiven, fs);
 
-    Value window           = Value::empty();
+    Value window           = Value();
     std::size_t overlap    = SIZE_MAX;
     std::size_t fftLength  = 0;
     std::string range      = "centered";  // matches MATLAB R2019b+ default
@@ -631,7 +631,7 @@ void istft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     double fs    = 1.0;
     const size_t nvStart = parseOptionalFs(args, fsGiven, fs);
 
-    Value window           = Value::empty();
+    Value window           = Value();
     std::size_t overlap    = SIZE_MAX;
     std::size_t fftLength  = 0;
     std::string range      = "centered";

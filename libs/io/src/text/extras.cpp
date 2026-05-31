@@ -285,7 +285,7 @@ void writelines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         throw Error("writelines: filename must be a string",
                      0, 0, "writelines", "", "numkit:writelines:badFilename");
     writelines(*ctx.engine, args[0], args[1].toString());
-    outs[0] = Value::empty();
+    outs[0] = Value();
 }
 
 void readmatrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -305,7 +305,7 @@ void writematrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
         throw Error("writematrix: filename must be a string",
                      0, 0, "writematrix", "", "numkit:writematrix:badFilename");
     writematrix(*ctx.engine, args[0], args[1].toString());
-    outs[0] = Value::empty();
+    outs[0] = Value();
 }
 
 void type_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -314,7 +314,7 @@ void type_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         throw Error("type: requires a filename string",
                      0, 0, "type", "", "numkit:type:nargin");
     type(*ctx.engine, args[0].toString());
-    outs[0] = Value::empty();
+    outs[0] = Value();
 }
 
 } // namespace detail
