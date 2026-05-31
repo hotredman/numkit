@@ -1,0 +1,14 @@
+{
+  "name": "periodogram_default_nfft",
+  "namespace": "signal",
+  "covers": ["periodogram"],
+  "setup": "",
+  "expr": "[p,f] = periodogram([1 2 1 2 1 2 1 2]); nf = numel(f); p1 = p(1); p10 = p(10); f10 = f(10); [p2,f2] = periodogram(sin(2*pi*(0:299)/10)); nf2 = numel(f2); [p3,f3] = periodogram([1 2 1 2 1 2 1 2], [], 8); nf3 = numel(f3);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "nf", "p1", "p10", "f10", "nf2", "nf3"
+  ],
+  "deep_verified": true,
+  "comment": "periodogram default NFFT vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot to libs/signal): periodogram(x) with no explicit NFFT used 2^nextpow2(N) only, but MATLAB uses max(256, 2^nextpow2(N)) — so an 8-sample signal returned 5 frequency points instead of 129, and a 300-sample signal must give 257 (2^nextpow2(300)=512). The PSD VALUES were already correct (explicit periodogram(x,[],256) matched MATLAB: p10=4.40929); only the default NFFT was wrong. Sibling pwelch already used the max(256,...) rule. Fix: one line — nfft = max(256, nextPow2(N)) when not specified. periodogram([1 2 1 2 1 2 1 2]) -> 129 pts (p1=2.86479, p10=4.40929, f10=0.22089); N=300 -> 257; an explicit periodogram(x,[],8) still gives 5 (default not forced). covers:[periodogram]."
+}

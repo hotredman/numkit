@@ -51,8 +51,10 @@ periodogram(const Value &x, const Value &window, size_t nfft, double fs, std::pm
         std::fill(win.begin(), win.end(), 1.0);
     }
 
+    // MATLAB default NFFT is max(256, 2^nextpow2(N)) — not just 2^nextpow2(N).
+    // (pwelch already uses this rule.)
     if (nfft == 0)
-        nfft = nextPow2(N);
+        nfft = std::max<size_t>(256, nextPow2(N));
 
     auto buf = ScratchVec<Complex>(nfft, &scratch);
     double winPower = 0.0;

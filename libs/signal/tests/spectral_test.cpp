@@ -27,9 +27,9 @@ public:
 TEST_F(SpectralTest, PeriodogramOutputLengths)
 {
     eval("[Pxx, F] = periodogram(randn(1, 64));");
-    // nfft = nextpow2(64) = 64, nOut = 64/2+1 = 33
-    EXPECT_EQ(eval("Pxx").numel(), 33u);
-    EXPECT_EQ(eval("F").numel(), 33u);
+    // MATLAB default nfft = max(256, 2^nextpow2(64)) = 256, nOut = 256/2+1 = 129
+    EXPECT_EQ(eval("Pxx").numel(), 129u);
+    EXPECT_EQ(eval("F").numel(), 129u);
 }
 
 TEST_F(SpectralTest, PeriodogramNonnegative)
@@ -43,22 +43,24 @@ TEST_F(SpectralTest, PeriodogramFrequencyRange)
 {
     eval("[Pxx, F] = periodogram(randn(1, 64));");
     EXPECT_NEAR(evalScalar("F(1)"), 0.0, 1e-10);
-    EXPECT_NEAR(evalScalar("F(33)"), M_PI, 0.1); // approximately pi
+    EXPECT_NEAR(evalScalar("F(129)"), M_PI, 1e-10); // Nyquist (nfft 256 -> 129 bins)
 }
 
 TEST_F(SpectralTest, PeriodogramPeakAtDc)
 {
-    // Constant signal → all energy at DC
+    // Constant signal → energy concentrated at the lowest frequencies. With
+    // the MATLAB default nfft=256 the 64-sample signal is zero-padded, so the
+    // Dirichlet main-lobe peak lands at bin 2 (matches MATLAB R2025b exactly).
     eval("[Pxx, F] = periodogram(5 * ones(1, 64));");
     eval("[mx, idx] = max(Pxx);");
-    EXPECT_DOUBLE_EQ(evalScalar("idx"), 1.0); // DC bin
+    EXPECT_DOUBLE_EQ(evalScalar("idx"), 2.0);
 }
 
 TEST_F(SpectralTest, PeriodogramWithWindow)
 {
     eval("w = hamming(64);");
     eval("[Pxx, F] = periodogram(randn(1, 64), w);");
-    EXPECT_EQ(eval("Pxx").numel(), 33u);
+    EXPECT_EQ(eval("Pxx").numel(), 129u);  // nfft default 256 -> 129 bins
 }
 
 // ============================================================
