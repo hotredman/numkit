@@ -193,6 +193,21 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
             char type = fmt[i];
             std::string spec(fmt, start, i - start + 1);
 
+            // Resolve C-style '*' field width / precision taken from the
+            // argument list (MATLAB supports this: sprintf('%*.*f',8,2,pi)).
+            // Each '*' consumes one numeric arg, in order (width then
+            // precision), BEFORE the conversion consumes its value arg. We
+            // splice the concrete integer into the spec so the downstream
+            // string / integer / float formatters need no '*' awareness.
+            for (size_t sp = spec.find('*'); sp != std::string::npos;
+                 sp = spec.find('*')) {
+                long w = (ai < args.size())
+                             ? static_cast<long>(args[ai].toScalar())
+                             : 0;
+                if (ai < args.size()) ++ai;
+                spec.replace(sp, 1, std::to_string(w));
+            }
+
             if (type == 's') {
                 // MATLAB %s accepts both char arrays and string scalars, and
                 // honours width / precision in the spec (e.g. %5s, %-5s, %.1s).
@@ -247,14 +262,23 @@ size_t countFormatSpecs(const std::string &fmt)
         if (fmt[i] != '%') continue;
         if (i + 1 < fmt.size() && fmt[i + 1] == '%') { ++i; continue; }
         ++i;
+        // flags
         while (i < fmt.size()
                && (fmt[i] == '-' || fmt[i] == '+' || fmt[i] == '0' || fmt[i] == ' '
-                   || fmt[i] == '#' || fmt[i] == '.'
-                   || std::isdigit(static_cast<unsigned char>(fmt[i]))))
+                   || fmt[i] == '#'))
             ++i;
+        // width: '*' consumes one arg from the list, else literal digits
+        if (i < fmt.size() && fmt[i] == '*') { ++n; ++i; }
+        else while (i < fmt.size() && std::isdigit(static_cast<unsigned char>(fmt[i]))) ++i;
+        // precision: '.' then '*' (one arg) or literal digits
+        if (i < fmt.size() && fmt[i] == '.') {
+            ++i;
+            if (i < fmt.size() && fmt[i] == '*') { ++n; ++i; }
+            else while (i < fmt.size() && std::isdigit(static_cast<unsigned char>(fmt[i]))) ++i;
+        }
         while (i < fmt.size() && (fmt[i] == 'l' || fmt[i] == 'h'))
             ++i;
-        if (i < fmt.size()) ++n;
+        if (i < fmt.size()) ++n;   // the conversion itself consumes the value arg
     }
     return n;
 }
