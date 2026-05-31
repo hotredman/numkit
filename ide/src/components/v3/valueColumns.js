@@ -54,6 +54,29 @@ export function toggleColumn(set, key) {
   return next;
 }
 
+/** Build the ContextMenu items for a chooser (Select all · Clear all ·
+ *  separator · optional locked row · per-`defs` checkbox toggles). Shared
+ *  by every chooser surface — the table header, the Workspace toolbar
+ *  button, and the matrix StatsBar button — so there's one definition.
+ *  `defs` is a list of { key, label }; `lockedLabel` (optional) renders a
+ *  disabled always-checked row (e.g. the table's Name column). */
+export function buildChooserItems({ defs, visible, setVisible, lockedLabel }) {
+  const items = [
+    { label: 'Select all', keepOpen: true, onClick: () => setVisible(new Set(defs.map((d) => d.key))) },
+    { label: 'Clear all',  keepOpen: true, onClick: () => setVisible(new Set()) },
+    { separator: true },
+  ];
+  if (lockedLabel) items.push({ label: `✓ ${lockedLabel}`, disabled: true });
+  for (const d of defs) {
+    items.push({
+      label: `${visible.has(d.key) ? '✓' : ' '} ${d.label}`,
+      keepOpen: true,
+      onClick: () => setVisible((prev) => toggleColumn(prev, d.key)),
+    });
+  }
+  return items;
+}
+
 /** Resolve a column's numeric value from a row's stats (range derived). */
 export function statValue(stats, statKey) {
   if (!stats) return null;

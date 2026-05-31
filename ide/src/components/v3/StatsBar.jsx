@@ -1,52 +1,29 @@
 /**
  * Matrix StatsBar — the third "choose which statistics" context (with the
- * Workspace list and struct inspector). Split into three pieces so the
- * chooser TRIGGER can live in the toolbar (next to heatmap/csv/plot) while
- * the values render on their own row below:
- *
- *   useStatChooser()           — persisted "which stats" set (shared state)
- *   <StatChooserButton/>       — the Σ ▾ toolbar button + chooser menu
- *   <StatsBar stats visible/>  — the values row (collapses when none shown)
+ * Workspace list and struct inspector). The chooser TRIGGER lives in the
+ * toolbar (StatChooserButton, via the shared ChooserButton) while the
+ * values render on their own row below (StatsBar). Both run off one
+ * persisted set (useStatChooser).
  */
-import { useState, useEffect } from 'react';
-import ContextMenu from './ContextMenu';
 import {
-  STAT_BAR, loadStatBar, saveStatBar, toggleColumn, statBarValue, fmtStat,
+  STAT_BAR, loadStatBar, saveStatBar, statBarValue, fmtStat,
 } from './valueColumns';
+import { useChooser, ChooserButton } from './chooser';
 
 const STORAGE_KEY = 'numkit.ide.matrixstats';
 
 /** Persisted active-stats set for the matrix viewer. */
 export function useStatChooser() {
-  const [visible, setVisible] = useState(() => loadStatBar(STORAGE_KEY));
-  useEffect(() => { saveStatBar(STORAGE_KEY, visible); }, [visible]);
-  return [visible, setVisible];
+  return useChooser(STORAGE_KEY, loadStatBar, saveStatBar);
 }
 
-/** Toolbar button (Σ ▾) opening the checkbox stat chooser. */
+/** Toolbar button (Σ ▾) opening the shared stat chooser. */
 export function StatChooserButton({ visible, setVisible }) {
-  const [menu, setMenu] = useState(null);
   return (
-    <>
-      <button className="ve-btn" title="choose statistics"
-        onClick={(e) => setMenu({ x: e.clientX, y: e.clientY })}>
-        Σ <span className="ve-caret">▾</span>
-      </button>
-      {menu && (
-        <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
-          { label: 'Select all', keepOpen: true,
-            onClick: () => setVisible(new Set(STAT_BAR.map((d) => d.key))) },
-          { label: 'Clear all', keepOpen: true,
-            onClick: () => setVisible(new Set()) },
-          { separator: true },
-          ...STAT_BAR.map((d) => ({
-            label: `${visible.has(d.key) ? '✓' : ' '} ${d.label}`,
-            keepOpen: true,
-            onClick: () => setVisible((prev) => toggleColumn(prev, d.key)),
-          })),
-        ]} />
-      )}
-    </>
+    <ChooserButton
+      label={<>Σ <span className="ve-caret">▾</span></>}
+      title="choose statistics"
+      defs={STAT_BAR} visible={visible} setVisible={setVisible} />
   );
 }
 

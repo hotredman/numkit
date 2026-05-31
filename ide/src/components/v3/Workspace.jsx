@@ -4,7 +4,8 @@ import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspe
 import ContextMenu from './ContextMenu';
 import ValueTable from './ValueTable';
 import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
-import { aggregateStats } from './valueColumns';
+import { aggregateStats, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
+import { useChooser, ChooserButton } from './chooser';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
@@ -93,7 +94,7 @@ function VariableCard({ v, onOpen }) {
 /* ======================================================================== */
 /* Workspace toolbar                                                        */
 /* ======================================================================== */
-function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView }) {
+function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView, cols, setCols }) {
   return (
     <div className="ws-toolbar">
       <div className="ws-toolbar-left">
@@ -113,6 +114,12 @@ function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView
         </div>
       </div>
       <div className="ws-toolbar-right">
+        {view === 'list' && (
+          <ChooserButton className="ws-cols-btn" title="choose columns"
+            label={<>columns <span className="ve-caret">▾</span></>}
+            defs={VALUE_COLUMNS} lockedLabel="Name"
+            visible={cols} setVisible={setCols} />
+        )}
         <div className="ws-segmented" role="tablist" aria-label="Sort">
           {['name', 'size', 'type'].map((k) => (
             <button
@@ -172,6 +179,9 @@ export function WorkspacePanel({ variables, onOpen }) {
   const [query, setQuery] = useState('');
   const [sort, setSort]   = useState(() => loadPref(WS_SORT_KEY, WS_SORTS, 'name'));
   const [view, setView]   = useState(() => loadPref(WS_VIEW_KEY, WS_VIEWS, 'cards'));
+  // Column visibility — shared (same key) with the struct inspector's
+  // table, and driven by the toolbar's "columns ▾" button below.
+  const [cols, setCols]   = useChooser('numkit.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
 
   useEffect(() => {
     try { localStorage.setItem(WS_VIEW_KEY, view); } catch { /* ignore */ }
@@ -197,6 +207,7 @@ export function WorkspacePanel({ variables, onOpen }) {
         query={query} setQuery={setQuery}
         sort={sort} setSort={setSort}
         view={view} setView={setView}
+        cols={cols} setCols={setCols}
       />
       {view === 'cards' ? (
         <div className="ws-grid">
@@ -216,7 +227,7 @@ export function WorkspacePanel({ variables, onOpen }) {
               klass: v.type, stats: v.stats || null, drill: true,
             }))}
             nameHeader="Name"
-            storageKey="numkit.ide.valuecols"
+            visible={cols} setVisible={setCols}
             onRowClick={(row) => { const v = filtered.find((x) => x.name === row.name); if (v) onOpen(v); }}
           />
         </div>

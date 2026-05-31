@@ -1808,6 +1808,15 @@ input, select { font-family: inherit; color: inherit; }
   font-family: var(--font-mono);
   display: inline-flex; align-items: center; gap: 4px;
 }
+/* "columns ▾" chooser button in the Workspace toolbar (list view). */
+.ws-cols-btn {
+  background: var(--bg-2); color: var(--fg-2);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 3px 9px; font-size: 11px; cursor: pointer;
+  font-family: var(--font-mono);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.ws-cols-btn:hover { border-color: var(--accent); color: var(--fg-0); }
 .ws-segmented button + button { border-left: 1px solid var(--line); }
 .ws-segmented button.is-active,
 .ws-segmented button[aria-selected="true"] {
