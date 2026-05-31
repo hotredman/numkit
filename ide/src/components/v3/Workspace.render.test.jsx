@@ -161,6 +161,46 @@ describe('VariableEditor — struct inspector render smoke', () => {
     );
     expect(container.querySelector('.ve-struct-empty')).toBeTruthy();
   });
+
+  it('field list has the unified browser toolbar (filter · Σ▾ · view) and filters fields', () => {
+    try { localStorage.setItem('numkit.ide.struct.view', 'list'); } catch { /* none */ }
+    const engine = makeEngine({
+      inspectPath: () => ({
+        kind: 'struct', rows: 1, cols: 1, numel: 1,
+        fields: ['alpha', 'beta', 'gamma'],
+        elems: [[
+          { type: 'double', size: '1x1', summary: '1', drill: true },
+          { type: 'double', size: '1x1', summary: '2', drill: true },
+          { type: 'char', size: '1x3', summary: "'xyz'", drill: true },
+        ]],
+      }),
+    });
+    const { container } = render(<VE variable={structVar} onClose={() => {}} engine={engine} />);
+    expect(container.querySelector('.entity-browser')).toBeTruthy();
+    expect(container.querySelector('.ws-search input')).toBeTruthy();
+    expect(container.querySelector('.ws-cols-btn')).toBeTruthy();   // Σ▾ in list view
+    const names = () => [...container.querySelectorAll('.vt-name')].map((e) => e.textContent);
+    expect(names()).toEqual(['alpha', 'beta', 'gamma']);
+    fireEvent.change(container.querySelector('.ws-search input'), { target: { value: 'bet' } });
+    expect(names()).toEqual(['beta']);
+  });
+
+  it('field list cards view renders a card per field', () => {
+    try { localStorage.setItem('numkit.ide.struct.view', 'cards'); } catch { /* none */ }
+    const engine = makeEngine({
+      inspectPath: () => ({
+        kind: 'struct', rows: 1, cols: 1, numel: 1,
+        fields: ['a', 'b'],
+        elems: [[
+          { type: 'double', size: '1x1', summary: '1', drill: true },
+          { type: 'double', size: '1x1', summary: '2', drill: true },
+        ]],
+      }),
+    });
+    const { container } = render(<VE variable={structVar} onClose={() => {}} engine={engine} />);
+    expect(container.querySelectorAll('.var-card').length).toBe(2);
+    try { localStorage.setItem('numkit.ide.struct.view', 'list'); } catch { /* none */ }  // restore
+  });
 });
 
 describe('SyntaxEditor — render smoke', () => {

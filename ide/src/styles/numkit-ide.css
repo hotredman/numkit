@@ -1766,6 +1766,13 @@ input, select { font-family: inherit; color: inherit; }
   height: 100%;
   background: var(--bg-1);
 }
+/* EntityBrowser fills its host (the Workspace panel OR the struct
+   inspector body) as a flex column: fixed toolbar, scrolling grid/list. */
+.entity-browser {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
+.entity-browser .ws-toolbar { flex: 0 0 auto; }
 .ws-toolbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 12px;

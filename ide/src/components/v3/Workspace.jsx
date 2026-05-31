@@ -6,6 +6,7 @@ import ValueTable from './ValueTable';
 import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
 import { aggregateStats, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
 import { useChooser, ChooserButton } from './chooser';
+import { classify } from './adapters';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
@@ -66,26 +67,30 @@ function heatColor(v, min, max) {
 // keydown listener), so a click in the workspace would silently break
 // newline insertion elsewhere. Hover highlight only.
 
-function VariableCard({ v, onOpen }) {
+// One card for both contexts — a workspace variable or a struct field.
+// `row` is the normalized shape EntityBrowser uses:
+//   { key, name, value, size, klass, kind, stats, drill }
+function EntityCard({ row, nameCell, onOpen, onContextMenu }) {
   const { themeName } = useTheme();
-  const meta = KIND_META[v.kind] || KIND_META.matrix;
+  const meta = KIND_META[row.kind] || KIND_META.matrix;
   const tone = pickTone(TONE[meta.tone] || TONE.amber, themeName);
   return (
     <div
       className="var-card"
-      onClick={onOpen}
+      onClick={row.drill !== false ? () => onOpen?.(row) : undefined}
+      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(row, e); } : undefined}
       role="button"
-      aria-label={`Open ${v.name}`}
+      aria-label={`Open ${row.name}`}
     >
       <div className="var-card-head">
-        <span className="var-name">{v.name}</span>
-        <span className="var-size">{v.size}</span>
+        <span className="var-name">{nameCell ? nameCell(row) : row.name}</span>
+        <span className="var-size">{row.size}</span>
         <span className="var-type-pill" style={{ color: tone.fg, background: tone.bg, borderColor: tone.border }}>
-          <span className="var-glyph">{meta.glyph}</span>{v.type}
+          <span className="var-glyph">{meta.glyph}</span>{row.klass}
         </span>
       </div>
       <div className="var-card-body">
-        <span className="var-preview">{v.preview}</span>
+        <span className="var-preview">{row.value}</span>
       </div>
     </div>
   );
@@ -94,61 +99,121 @@ function VariableCard({ v, onOpen }) {
 /* ======================================================================== */
 /* Workspace toolbar                                                        */
 /* ======================================================================== */
-function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView, cols, setCols }) {
+// Numeric size for sorting: bytes when known (variables), else element
+// count parsed from the "R×C" string (struct fields).
+function sizeMetric(row) {
+  if (Number.isFinite(row.bytes)) return row.bytes;
+  const m = String(row.size || '').match(/(\d+)\s*[x×]\s*(\d+)/);
+  return m ? (+m[1]) * (+m[2]) : 0;
+}
+
+const VIEW_OPTS = ['cards', 'list'];
+const SORT_OPTS = ['name', 'size', 'type'];
+
+// Unified tabular browser — the one widget behind BOTH the Workspace
+// panel and the struct/cell inspector's field list. Toolbar (filter ·
+// sort · Σ▾ column chooser · cards/list toggle) over a cards grid or a
+// ValueTable. The caller supplies normalized rows + open / context-menu
+// handlers + an optional footer (e.g. the struct "+ new field" row);
+// view & sort persist per `viewKey`/`sortKey`, columns via the shared
+// `cols`/`setCols` chooser state. Filter & sort are display-only.
+function EntityBrowser({
+  rows, nameHeader = 'Name', countNoun = 'item', defaultView = 'cards',
+  viewKey, sortKey, cols, setCols,
+  nameCell, onOpen, onRowContextMenu, footer,
+}) {
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState(() => loadPref(sortKey, SORT_OPTS, 'name'));
+  const [view, setView] = useState(() => loadPref(viewKey, VIEW_OPTS, defaultView));
+  useEffect(() => { try { localStorage.setItem(viewKey, view); } catch { /* ignore */ } }, [viewKey, view]);
+  useEffect(() => { try { localStorage.setItem(sortKey, sort); } catch { /* ignore */ } }, [sortKey, sort]);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    const list = rows.filter((r) => r.name.toLowerCase().includes(q));
+    list.sort((a, b) => {
+      if (sort === 'size') return sizeMetric(b) - sizeMetric(a);
+      if (sort === 'type') return String(a.klass || '').localeCompare(String(b.klass || ''));
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [rows, query, sort]);
+
+  const plural = (n) => `${n} ${countNoun}${n === 1 ? '' : 's'}`;
+
   return (
-    <div className="ws-toolbar">
-      <div className="ws-toolbar-left">
-        <span className="ws-count">{count} variable{count === 1 ? '' : 's'}</span>
-        <span className="ws-sep" />
-        <div className="ws-search">
-          <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
-            <circle cx="5" cy="5" r="3.2" stroke="currentColor" strokeWidth="1.2" fill="none" />
-            <path d="M7.4 7.4L10 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="filter variables…"
-            spellCheck={false}
+    <div className="entity-browser">
+      <div className="ws-toolbar">
+        <div className="ws-toolbar-left">
+          <span className="ws-count">{plural(filtered.length)}</span>
+          <span className="ws-sep" />
+          <div className="ws-search">
+            <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+              <circle cx="5" cy="5" r="3.2" stroke="currentColor" strokeWidth="1.2" fill="none" />
+              <path d="M7.4 7.4L10 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            <input value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder={`filter ${countNoun}s…`} spellCheck={false} />
+          </div>
+        </div>
+        <div className="ws-toolbar-right">
+          {view === 'list' && cols && (
+            <ChooserButton className="ws-cols-btn" title="choose columns"
+              label={<>Σ <span className="ve-caret">▾</span></>}
+              defs={VALUE_COLUMNS} lockedLabel={nameHeader}
+              visible={cols} setVisible={setCols} />
+          )}
+          <div className="ws-segmented" role="tablist" aria-label="Sort">
+            {SORT_OPTS.map((k) => (
+              <button key={k} role="tab" aria-selected={sort === k}
+                className={sort === k ? 'is-active' : ''}
+                onClick={() => setSort(k)}>sort: {k}</button>
+            ))}
+          </div>
+          <div className="ws-segmented" role="tablist" aria-label="Layout">
+            <button aria-selected={view === 'cards'} className={view === 'cards' ? 'is-active' : ''}
+              onClick={() => setView('cards')} title="Cards view">
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <rect x="1" y="1"   width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
+                <rect x="6.5" y="1" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
+                <rect x="1" y="6.5" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
+                <rect x="6.5" y="6.5" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
+              </svg>
+            </button>
+            <button aria-selected={view === 'list'} className={view === 'list' ? 'is-active' : ''}
+              onClick={() => setView('list')} title="List view">
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <rect x="1" y="2"   width="10" height="1.4" rx="0.5" fill="currentColor"/>
+                <rect x="1" y="5.3" width="10" height="1.4" rx="0.5" fill="currentColor"/>
+                <rect x="1" y="8.6" width="10" height="1.4" rx="0.5" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {view === 'cards' ? (
+        <div className="ws-grid">
+          {filtered.map((r) => (
+            <EntityCard key={r.key} row={r} nameCell={nameCell}
+              onOpen={onOpen} onContextMenu={onRowContextMenu} />
+          ))}
+          {filtered.length === 0 && <div className="ws-empty">nothing matches “{query}”</div>}
+        </div>
+      ) : (
+        <div className="ws-list">
+          <ValueTable
+            rows={filtered}
+            nameHeader={nameHeader}
+            nameCell={nameCell}
+            visible={cols} setVisible={setCols}
+            onRowClick={onOpen}
+            onRowContextMenu={onRowContextMenu}
+            emptyLabel={`nothing matches “${query}”`}
           />
         </div>
-      </div>
-      <div className="ws-toolbar-right">
-        {view === 'list' && (
-          <ChooserButton className="ws-cols-btn" title="choose columns"
-            label={<>columns <span className="ve-caret">▾</span></>}
-            defs={VALUE_COLUMNS} lockedLabel="Name"
-            visible={cols} setVisible={setCols} />
-        )}
-        <div className="ws-segmented" role="tablist" aria-label="Sort">
-          {['name', 'size', 'type'].map((k) => (
-            <button
-              key={k}
-              role="tab"
-              aria-selected={sort === k}
-              className={sort === k ? 'is-active' : ''}
-              onClick={() => setSort(k)}
-            >sort: {k}</button>
-          ))}
-        </div>
-        <div className="ws-segmented" role="tablist" aria-label="Layout">
-          <button aria-selected={view === 'cards'} className={view === 'cards' ? 'is-active' : ''} onClick={() => setView('cards')} title="Cards view">
-            <svg width="12" height="12" viewBox="0 0 12 12">
-              <rect x="1" y="1"   width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
-              <rect x="6.5" y="1" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
-              <rect x="1" y="6.5" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
-              <rect x="6.5" y="6.5" width="4.5" height="4.5" rx="0.5" fill="currentColor"/>
-            </svg>
-          </button>
-          <button aria-selected={view === 'list'} className={view === 'list' ? 'is-active' : ''} onClick={() => setView('list')} title="List view">
-            <svg width="12" height="12" viewBox="0 0 12 12">
-              <rect x="1" y="2"   width="10" height="1.4" rx="0.5" fill="currentColor"/>
-              <rect x="1" y="5.3" width="10" height="1.4" rx="0.5" fill="currentColor"/>
-              <rect x="1" y="8.6" width="10" height="1.4" rx="0.5" fill="currentColor"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+      )}
+      {footer}
     </div>
   );
 }
@@ -164,8 +229,6 @@ function WorkspaceToolbar({ count, query, setQuery, sort, setSort, view, setView
 // variables for no visible reason.
 const WS_VIEW_KEY = 'numkit.ide.workspace.view';
 const WS_SORT_KEY = 'numkit.ide.workspace.sort';
-const WS_VIEWS = ['cards', 'list'];
-const WS_SORTS = ['name', 'size', 'type'];
 
 function loadPref(key, allowed, fallback) {
   try {
@@ -176,68 +239,33 @@ function loadPref(key, allowed, fallback) {
 }
 
 export function WorkspacePanel({ variables, onOpen }) {
-  const [query, setQuery] = useState('');
-  const [sort, setSort]   = useState(() => loadPref(WS_SORT_KEY, WS_SORTS, 'name'));
-  const [view, setView]   = useState(() => loadPref(WS_VIEW_KEY, WS_VIEWS, 'cards'));
-  // Column visibility — shared (same key) with the struct inspector's
-  // table, and driven by the toolbar's "columns ▾" button below.
-  const [cols, setCols]   = useChooser('numkit.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
-
-  useEffect(() => {
-    try { localStorage.setItem(WS_VIEW_KEY, view); } catch { /* ignore */ }
-  }, [view]);
-  useEffect(() => {
-    try { localStorage.setItem(WS_SORT_KEY, sort); } catch { /* ignore */ }
-  }, [sort]);
-
-  const filtered = useMemo(() => {
-    let list = variables.filter((v) => v.name.toLowerCase().includes(query.toLowerCase()));
-    list.sort((a, b) => {
-      if (sort === 'size') return (b.bytes || 0) - (a.bytes || 0);
-      if (sort === 'type') return a.kind.localeCompare(b.kind);
-      return a.name.localeCompare(b.name);
-    });
-    return list;
-  }, [variables, query, sort]);
+  // Column visibility — shared key with the struct inspector's table.
+  const [cols, setCols] = useChooser('numkit.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
+  const byName = useMemo(() => {
+    const m = new Map();
+    for (const v of variables) m.set(v.name, v);
+    return m;
+  }, [variables]);
+  const rows = useMemo(() => variables.map((v) => ({
+    key: v.name, name: v.name, value: v.preview, size: v.size,
+    klass: v.type, kind: v.kind, bytes: v.bytes, stats: v.stats || null, drill: true,
+  })), [variables]);
 
   return (
     <div className="workspace">
-      <WorkspaceToolbar
-        count={filtered.length}
-        query={query} setQuery={setQuery}
-        sort={sort} setSort={setSort}
-        view={view} setView={setView}
+      <EntityBrowser
+        rows={rows}
+        nameHeader="Name"
+        countNoun="variable"
+        viewKey={WS_VIEW_KEY} sortKey={WS_SORT_KEY}
         cols={cols} setCols={setCols}
+        onOpen={(row) => { const v = byName.get(row.name); if (v) onOpen(v); }}
+        footer={(
+          <div className="ws-hint">
+            <kbd>click</kbd> open · <kbd>Esc</kbd> close editor
+          </div>
+        )}
       />
-      {view === 'cards' ? (
-        <div className="ws-grid">
-          {filtered.map((v) => (
-            <VariableCard
-              key={v.name}
-              v={v}
-              onOpen={() => onOpen(v)}
-            />
-          ))}
-        </div>
-      ) : filtered.length > 0 ? (
-        <div className="ws-list">
-          <ValueTable
-            rows={filtered.map((v) => ({
-              key: v.name, name: v.name, value: v.preview, size: v.size,
-              klass: v.type, stats: v.stats || null, drill: true,
-            }))}
-            nameHeader="Name"
-            visible={cols} setVisible={setCols}
-            onRowClick={(row) => { const v = filtered.find((x) => x.name === row.name); if (v) onOpen(v); }}
-          />
-        </div>
-      ) : null}
-      {filtered.length === 0 && (
-        <div className="ws-empty">no variables match “{query}”</div>
-      )}
-      <div className="ws-hint">
-        <kbd>click</kbd> open · <kbd>Esc</kbd> close editor
-      </div>
     </div>
   );
 }
@@ -1186,12 +1214,16 @@ function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
   const cells = payload.elems[0] || [];
   const [menu, setMenu] = useState(null);          // { x, y, name, drill }
   const [renaming, setRenaming] = useState(null);  // field name in rename mode
+  // Columns shared with the Workspace (same key); view/sort are per the
+  // struct context so it can differ from the Workspace's layout.
+  const [cols, setCols] = useChooser('numkit.ide.valuecols', loadVisibleColumns, saveVisibleColumns);
   const open = (name) => onDrill([{ k: 'f', name, label: `.${name}` }]);
   const rows = payload.fields.map((name, f) => {
     const cell = cells[f] || {};
     return {
       key: name, name, value: cell.summary, size: cell.size,
-      klass: cell.type, stats: cell.stats || null, drill: !!cell.drill,
+      klass: cell.type, kind: classify(cell.size, cell.type),
+      stats: cell.stats || null, drill: !!cell.drill,
     };
   });
   const nameCell = (row) => (
@@ -1201,16 +1233,18 @@ function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
   );
   return (
     <>
-      <ValueTable
+      <EntityBrowser
         rows={rows}
         nameHeader="Field"
+        countNoun="field"
+        defaultView="list"
+        viewKey="numkit.ide.struct.view" sortKey="numkit.ide.struct.sort"
+        cols={cols} setCols={setCols}
         nameCell={nameCell}
-        storageKey="numkit.ide.valuecols"
-        onRowClick={(row) => open(row.name)}
+        onOpen={(row) => open(row.name)}
         onRowContextMenu={(row, e) =>
           setMenu({ x: e.clientX, y: e.clientY, name: row.name, drill: row.drill })}
         footer={<AddFieldRow onAdd={onAddField} />}
-        emptyLabel="(no fields)"
       />
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
