@@ -669,6 +669,14 @@ void polyfit_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     S.setFieldAll("R", Rmat);
     S.setFieldAll("df", Value::scalar(df, mr));
     S.setFieldAll("normr", Value::scalar(normr, mr));
+    // S.rsquared = 1 - (normr / norm(y - mean(y)))^2  (MATLAB R2025b's 4th
+    // S field; the data is already to hand, it was just never exposed).
+    double yMean = 0.0;
+    for (size_t i = 0; i < m; ++i) yMean += yd[i];
+    yMean /= static_cast<double>(m);
+    double sstot = 0.0;
+    for (size_t i = 0; i < m; ++i) { const double d = yd[i] - yMean; sstot += d * d; }
+    S.setFieldAll("rsquared", Value::scalar(1.0 - (normr * normr) / sstot, mr));
     outs[1] = std::move(S);
 
     if (nargout >= 3) {
