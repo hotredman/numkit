@@ -471,10 +471,33 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
             window = args[1];
         }
     }
-    const size_t noverlap = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
-    const size_t nfft = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
+    const size_t noverlap = (args.size() >= 3 && !args[2].isEmpty())
+                                ? static_cast<size_t>(args[2].toScalar()) : 0;
+    const size_t nfft = (args.size() >= 4 && !args[3].isEmpty())
+                            ? static_cast<size_t>(args[3].toScalar()) : 0;
 
     auto [S, F, T] = spectrogram(args[0], window, noverlap, nfft, ctx.engine->resource());
+
+    // Sample-rate scaling of the frequency / time axes. MATLAB's
+    // spectrogram returns f in Hz = k*fs/nfft and t in seconds = centre/fs
+    // when fs is supplied (5th positional arg). With no fs the normalized
+    // convention uses fs = 2*pi, so f spans [0, pi] and t = centre/(2*pi).
+    // The core builds the normalized axes (f = k*2*pi/nfft, t = centre in
+    // samples); rescale both here so f and t honour fs.
+    double fs = 2.0 * M_PI;
+    if (args.size() >= 5 && !args[4].isEmpty())
+        fs = args[4].toScalar();
+    {
+        const size_t nFreqs  = F.numel();
+        const size_t nfftEff = (nFreqs > 1) ? (nFreqs - 1) * 2 : 1;
+        double *fd = F.doubleDataMut();
+        for (size_t i = 0; i < nFreqs; ++i)
+            fd[i] = static_cast<double>(i) * fs / static_cast<double>(nfftEff);
+        double *td = T.doubleDataMut();
+        for (size_t j = 0; j < T.numel(); ++j)
+            td[j] /= fs;
+    }
+
     outs[0] = std::move(S);
     if (nargout > 1)
         outs[1] = std::move(F);

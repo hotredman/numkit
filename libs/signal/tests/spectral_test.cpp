@@ -141,9 +141,15 @@ TEST_F(SpectralTest, SpectrogramFrequencyVector)
 
 TEST_F(SpectralTest, SpectrogramTimeVector)
 {
+    // With no fs, MATLAB uses the normalized convention fs = 2*pi, so the
+    // segment-centre time is centre/(2*pi). First centre = winLen/2 = 64.
     eval("[S, F, T] = spectrogram(randn(1, 512), 128, 64, 128);");
-    // Each time point is center of segment
-    EXPECT_NEAR(evalScalar("T(1)"), 64.0, 1.0); // winLen/2
+    EXPECT_NEAR(evalScalar("T(1)"), 64.0 / (2.0 * 3.14159265358979323846), 1e-9);
+    // With an explicit fs the time axis is in seconds: centre/fs.
+    eval("[S2, F2, T2] = spectrogram(randn(1, 512), 128, 64, 128, 100);");
+    EXPECT_NEAR(evalScalar("T2(1)"), 0.64, 1e-12);    // 64/100
+    EXPECT_NEAR(evalScalar("F2(end)"), 50.0, 1e-12);  // fs/2 = Nyquist
+    EXPECT_NEAR(evalScalar("F2(2)"), 100.0 / 128.0, 1e-12);
 }
 
 // ── Levinson-Durbin: valid + non-PSD recursion ───────────────────────

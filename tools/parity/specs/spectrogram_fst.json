@@ -1,0 +1,14 @@
+{
+  "name": "spectrogram_fst",
+  "namespace": "signal",
+  "covers": ["spectrogram"],
+  "setup": "x = sin(2*pi*0.1*(0:99)) + 0.5*sin(2*pi*0.25*(0:99));",
+  "expr": "[s,f,t] = spectrogram(x,16,8,16,100); fend = f(end); f2 = f(2); t1 = t(1); t2 = t(2); nt = numel(t); [s0,f0,t0] = spectrogram(x,16,8,16); f0end = f0(end); t0first = t0(1); t0sec = t0(2);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "fend", "f2", "t1", "t2", "nt", "f0end", "t0first", "t0sec"
+  ],
+  "deep_verified": true,
+  "comment": "spectrogram f/t output axes honour fs vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/signal): [s,f,t]=spectrogram(...,fs) ignored fs entirely — f was always normalized 0..pi and t was in raw samples regardless of fs. MATLAB returns f=k*fs/nfft (Hz) and t=centre/fs (sec) when fs given; with no fs the normalized convention uses fs=2*pi so f spans [0,pi] and t=centre/(2*pi). Fix scales F/T in spectrogram_reg. With fs=100,nfft=16: f(2)=6.25, f(end)=50, t(1)=0.08, t(2)=0.16. No fs: f0(end)=pi, t0(1)=8/(2*pi)=1.2732, t0(2)=16/(2*pi)=2.5465. The s matrix is unchanged. covers:[spectrogram]."
+}
