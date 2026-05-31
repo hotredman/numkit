@@ -1351,7 +1351,45 @@ void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = regionprops(args[0], props, intensity, ctx.engine->resource());
 }
 
-void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
+// bwdist 2nd output IDX (feature transform): for each pixel, the column-major
+// 1-based linear index of the NEAREST foreground pixel, ties broken to the
+// lowest linear index (matches MATLAB R2025b, class uint32). metric:
+// 0=euclidean(squared), 1=cityblock, 2=chessboard, 3=quasi-euclidean.
+static Value bwdist_idx(const Value &BW, int metric, std::pmr::memory_resource *mr)
+{
+    const size_t H = BW.dims().rows(), W = BW.dims().cols();
+    Value out = Value::matrix(H, W, ValueType::UINT32, mr);
+    if (H == 0 || W == 0) return out;
+    struct FG { int r, c; uint32_t lin; };
+    std::vector<FG> fg;
+    for (size_t c = 0; c < W; ++c)            // column-major → ascending linidx
+        for (size_t r = 0; r < H; ++r)
+            if (BW.elemAsDouble(c * H + r) != 0.0)
+                fg.push_back({(int)r, (int)c, (uint32_t)(c * H + r + 1)});
+    uint32_t *od = out.uint32DataMut();
+    const double q = std::sqrt(2.0) - 1.0;
+    for (size_t c = 0; c < W; ++c)
+        for (size_t r = 0; r < H; ++r) {
+            double best = std::numeric_limits<double>::infinity();
+            uint32_t bi = 0;
+            for (const auto &p : fg) {
+                const double dr = std::abs((double)(long)r - p.r);
+                const double dc = std::abs((double)(long)c - p.c);
+                double dd;
+                switch (metric) {
+                    case 1:  dd = dr + dc; break;
+                    case 2:  dd = std::max(dr, dc); break;
+                    case 3:  dd = std::max(dr, dc) + q * std::min(dr, dc); break;
+                    default: dd = dr * dr + dc * dc; break;   // euclidean (sq)
+                }
+                if (dd < best - 1e-12) { best = dd; bi = p.lin; }
+            }
+            od[c * H + r] = bi;
+        }
+    return out;
+}
+
+void bwdist_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
@@ -1367,18 +1405,25 @@ void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
 
-    if (method == "euclidean")
-        outs[0] = bwdist(args[0], mr);
-    else if (method == "cityblock")
-        outs[0] = bwdistChamfer(args[0], 1.0, 0.0, false, mr);
-    else if (method == "chessboard")
-        outs[0] = bwdistChamfer(args[0], 1.0, 1.0, true, mr);
-    else if (method == "quasi-euclidean")
+    int metric;
+    if (method == "euclidean") {
+        outs[0] = bwdist(args[0], mr);                          metric = 0;
+    } else if (method == "cityblock") {
+        outs[0] = bwdistChamfer(args[0], 1.0, 0.0, false, mr);  metric = 1;
+    } else if (method == "chessboard") {
+        outs[0] = bwdistChamfer(args[0], 1.0, 1.0, true, mr);   metric = 2;
+    } else if (method == "quasi-euclidean") {
         outs[0] = bwdistChamfer(args[0], 1.0, std::sqrt(2.0), true, mr);
-    else
+        metric = 3;
+    } else {
         throw Error("bwdist: method must be 'euclidean', 'cityblock', "
                     "'chessboard', or 'quasi-euclidean'",
                     0, 0, "bwdist", "", "numkit:bwdist:badMethod");
+    }
+
+    // 2nd output IDX (nearest-foreground-pixel linear index) on request.
+    if (nargout >= 2)
+        outs[1] = bwdist_idx(args[0], metric, mr);
 }
 
 void roicolor_reg(Span<const Value> args, size_t /*nargout*/,
