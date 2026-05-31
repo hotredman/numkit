@@ -78,11 +78,19 @@ export function defaultViewport(figure) {
  *  the SAME viewport the live window settles on. Without this, a log
  *  figure whose data-padded xRange dips ≤ 0 (e.g. data 1..1000 padded
  *  to [-39, 1040]) renders LINEAR in the preview but log in the window.
- *  Returns [lo, hi] unchanged when both are already positive. */
-export function logClampRange(lo, hi) {
+ *  Returns [lo, hi] unchanged when both are already positive.
+ *
+ *  THE single source of truth for this clamp — every log-axis consumer
+ *  (preview, CompositePlot's toggle effect, FigureWindow's toolbar
+ *  toggle + Fit) routes through here. `minPositive` is the smallest
+ *  meaningful positive lower bound to use when `lo` ≤ 0:
+ *    • line/scatter/etc → omit it; defaults to hi/1e4 (~4 visible decades)
+ *    • heatmap          → pass half a cell width (smallest unit that
+ *      still lands inside the data grid). */
+export function logClampRange(lo, hi, minPositive) {
   if (lo > 0 && hi > 0) return [lo, hi];
   const h = Math.max(hi, 1e-6);
-  const l = Math.max(h / 1e4, 1e-6);
+  const l = Math.max(minPositive ?? (h / 1e4), 1e-6);
   return [l, Math.max(l * 10, h)];
 }
 

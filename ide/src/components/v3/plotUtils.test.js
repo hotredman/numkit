@@ -20,6 +20,24 @@ describe('logClampRange', () => {
     expect(lo).toBeGreaterThan(0);
     expect(hi).toBeGreaterThan(lo);
   });
+
+  it('minPositive overrides the default hi/1e4 anchor (heatmap half-cell)', () => {
+    // Heatmap straddling zero: clamp the lo bound to half a cell width
+    // instead of hi/1e4. e.g. 10-col grid over [-0.5, 9.5] → cellW = 1.
+    const [lo, hi] = logClampRange(-0.5, 9.5, 0.5);
+    expect(lo).toBe(0.5);
+    expect(hi).toBeGreaterThanOrEqual(9.5);
+  });
+
+  it('minPositive is ignored when the range is already positive', () => {
+    // The early return wins: positive ranges pass through verbatim.
+    expect(logClampRange(2, 100, 0.5)).toEqual([2, 100]);
+  });
+
+  it('minPositive still floored at 1e-6', () => {
+    const [lo] = logClampRange(-1, 1, 0);
+    expect(lo).toBe(1e-6);
+  });
 });
 
 describe('previewViewport', () => {
