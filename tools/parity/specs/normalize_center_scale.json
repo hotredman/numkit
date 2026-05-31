@@ -1,0 +1,14 @@
+{
+  "name": "normalize_center_scale",
+  "namespace": "stats",
+  "covers": ["normalize"],
+  "setup": "",
+  "expr": "[n1,c1,s1] = normalize([2 4 6]); [n2,c2,s2] = normalize([2 4 6],'range'); [n3,c3,s3] = normalize([3 4],'norm'); [n4,c4,s4] = normalize([2 4 6],'center'); [n5,c5,s5] = normalize([2 4 6],'scale'); [nm,cm,sm] = normalize(reshape([1 4 2 5 3 6],2,3)); ncm = numel(cm); cm1 = cm(1); cm3 = cm(3); sm1 = sm(1); n11 = n1(1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "c1", "s1", "c2", "s2", "c3", "s3", "c4", "s4", "c5", "s5", "ncm", "cm1", "cm3", "sm1", "n11"
+  ],
+  "deep_verified": true,
+  "comment": "normalize [N,C,S] centering/scaling outputs vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (non-string pivot): normalize returned only N; the 2nd (C, centering) and 3rd (S, scaling) outputs were missing -> [N,C,S]=normalize(...) errored 'Undefined variable C'. MATLAB: N == (A-C)./S, one C/S value per operating slice (1x1 for a vector, 1xW for a matrix, column-wise). Per method: zscore C=mean S=std (C=4 S=2 for [2 4 6]); range C=min S=max-min (2,4); norm C=0 S=vecnorm (0,5); center C=mean S=1 (4,1); scale C=0 S=std (0,2); a 2x3 matrix -> C=[2.5 3.5 4.5] S=[2.1213...] (1x3). Fix: capture cVal/sVal in each method branch of normalize() and expose them via two optional out-pointers; normalize_reg wires outs[1]/outs[2] when nargout>=2/3. The 1-output path is unchanged. NOTE: for a CUSTOM 'range' [lo hi] the affine offset is not captured by (A-C)./S (C/S are the data min/span, exact for the default [0 1]) — documented MATLAB limitation. covers:[normalize]."
+}
