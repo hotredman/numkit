@@ -222,7 +222,7 @@ together.
 | function | status | comment |
 |---|:---:|---|
 | `blkdiag` | ✅ | Sig: r = blkdiag(...). Spec-extension batch 2026-05-09. |
-| `cat` | ✅ | Sig: r = cat(...). Shape op. Spec-extension batch 2026-05-09. |
+| `cat` | ✅ | Sig: r = cat(dim, A, B, ...). Shape op (type-agnostic). DEEP-PROBE 2026-05-31: cat along dim 3 extended to CHAR / LOGICAL / COMPLEX / single / CELL (the catDim3 path was DOUBLE-only and threw 'Not a double array'); cat is a pure rearrangement -> byte/cellAt page-concat. cat(3,['ab';'cd'],['ef';'gh']) = 2x2x2 char (cm111='a'=97, cm112='e'=101, cm222='h'=104); cat(3,{1,2},{3,4}) = 1x2x2 cell (c112=3); logical/single/complex preserved. dim 1/2 (vertcat/horzcat) already type-agnostic. Same-type only (mixed-type promotion deferred); STRING/struct deferred. Spec-extension batch 2026-05-09. |
 | `circshift` | ✅ 🔬 | Sig: r = circshift(X, K[, dim]). The 3-arg form shifts by K ONLY along dimension `dim`: circshift([1 2 3;4 5 6],1,2)=[3 1 2;6 4 5] (columns), circshift(...,1,1)=[4 5 6;1 2 3] (rows), circshift(...,-1,2)=[2 3 1;5 6 4], circshift([10 20 30 40],2,2)=[30 40 10 20]. numkit previously IGNORED the dim arg and always shifted dim 1; fixed 2026-05-30. DEEP-PROBE 2026-05-31: circshift is now TYPE-AGNOSTIC (was throwing 'Not a double array' on char/cell/logical) — a pure rearrangement: circshift('abcde',2)='deabc'; circshift({1,2,3,4},1)={4,1,2,3}; char matrices shift rows; logical/complex/single preserved. STRING + struct arrays deferred. The 2-arg scalar form and the [k1 k2] vector form are unchanged. NOTE: ; only inside matrix-literal INPUTS. |
 | `colon` | ⚠️ | works as `:` (range) operator; not callable as named fn |
 | `combinations` | ❌ | all combinations |

@@ -213,6 +213,40 @@ TEST_P(NDManipTest, CatDim3MismatchThrows)
                  std::runtime_error);
 }
 
+// cat along dim 3 on non-DOUBLE types: the catDim3 page-concat path was
+// DOUBLE-only ("Not a double array"). cat is a pure rearrangement ->
+// type-preserving (char/logical/complex/single via bytes, cell via cell3D).
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(NDManipTest, CatDim3NonDouble)
+{
+    // char: cat(3,['ab';'cd'],['ef';'gh']) -> 2x2x2 char.
+    eval("cm = cat(3, ['ab';'cd'], ['ef';'gh']);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cm,3)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1,1))"), 97.0);   // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1,2))"), 101.0);  // 'e'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(2,2,2))"), 104.0);  // 'h'
+    // logical.
+    eval("lg = cat(3, logical([1 0]), logical([0 1]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1,1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1,2,2))"), 1.0);
+    // cell -> cell3D.
+    eval("c3 = cat(3, {1,2}, {3,4}); a = c3{1,1,2}; b = c3{1,2,2};");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(c3))"), 1.0);
+    // single preserved.
+    eval("sg = cat(3, single([1 2]), single([3 4]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(sg(1,2,2))"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(sg),'single'))"), 1.0);
+    // complex (same type) preserved.
+    eval("zc = cat(3, [1+1i 2+2i], [3+3i 4+4i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(zc(1,1,2))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(zc(1,1,2))"), 3.0);
+    // double path unchanged.
+    eval("dd = cat(3, [1 2;3 4], [5 6;7 8]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1,1,2)"), 5.0);
+}
+
 TEST_P(NDManipTest, CatBadDimThrows)
 {
     // Non-positive dim is invalid. dim >= 4 is now valid (Phase 3a.4) — see
