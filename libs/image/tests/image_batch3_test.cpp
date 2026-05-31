@@ -146,6 +146,37 @@ TEST_F(ImageBatch3Test, RegionpropsShapeDescriptors)
     EXPECT_DOUBLE_EQ(evalScalar("numel(fieldnames(sb))"), 3.0);
 }
 
+// regionprops PixelIdxList (column-major 1-based linear indices, sorted
+// column vector) + PixelList (Px2 [col row], same order). 2026-05-31:
+// both fields threw 'non-existent field'. vs MATLAB R2025b.
+TEST_F(ImageBatch3Test, RegionpropsPixelLists)
+{
+    eval("BW = false(4,4); BW(2,2)=true; BW(2,3)=true; BW(3,3)=true;");
+    eval("s = regionprops(BW,'PixelIdxList','PixelList');");
+    // PixelIdxList: 3x1 column vector [6;10;11].
+    EXPECT_DOUBLE_EQ(evalScalar("numel(s.PixelIdxList)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s.PixelIdxList,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelIdxList(1)"),  6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelIdxList(2)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelIdxList(3)"), 11.0);
+    // PixelList: 3x2 [x y]=[col row] -> [2 2; 3 2; 3 3].
+    EXPECT_DOUBLE_EQ(evalScalar("size(s.PixelList,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s.PixelList,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelList(1,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelList(1,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelList(2,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.PixelList(3,2)"), 3.0);
+    // Second region's indices, sorted column-major.
+    eval("B2 = false(5,5); B2(1,1)=true; B2(3,3)=true; B2(3,4)=true; B2(4,4)=true;");
+    eval("s2 = regionprops(B2,'PixelIdxList');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(s2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s2(2).PixelIdxList(1)"), 13.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s2(2).PixelIdxList(3)"), 19.0);
+    // Not part of the basic default set.
+    eval("sb = regionprops(BW);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(fieldnames(sb))"), 3.0);
+}
+
 // imhist 2nd output x (bin locations) spans the input CLASS's display
 // range, not [0,1] (was always normalized). vs MATLAB R2025b.
 TEST_F(ImageBatch3Test, ImhistBinLocationsByClass)
