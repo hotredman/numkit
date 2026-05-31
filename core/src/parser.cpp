@@ -454,6 +454,27 @@ ASTNodePtr Parser::parseExpressionStatement()
     if (check(TokenType::ASSIGN)) {
         advance();
 
+        // `[lvalue] = rhs` — a single-element bracketed target is just a
+        // plain assignment to that one lvalue. tryMultiAssign() above only
+        // accepts bare identifiers, so a non-identifier target like
+        // `[r.B] = r.b`, `[a(1)] = x` or `[c{1}] = x` falls through here as
+        // an ASSIGN whose LHS is a 1x1 MATRIX_LITERAL — which neither the
+        // TreeWalker nor the VM compiler can assign to. Unwrap it to the
+        // inner lvalue so both backends see `lvalue = rhs`. MATLAB treats
+        // `[X] = Y` (single target) identically to `X = Y`.
+        if (expr && expr->type == NodeType::MATRIX_LITERAL
+            && expr->children.size() == 1
+            && expr->children[0]
+            && expr->children[0]->children.size() == 1
+            && expr->children[0]->children[0]) {
+            NodeType it = expr->children[0]->children[0]->type;
+            if (it == NodeType::IDENTIFIER || it == NodeType::FIELD_ACCESS
+                || it == NodeType::CALL || it == NodeType::CELL_INDEX
+                || it == NodeType::DYNAMIC_FIELD_ACCESS) {
+                expr = std::move(expr->children[0]->children[0]);
+            }
+        }
+
         // FIX #12: Различаем x = [] (обычное присваивание пустой матрицы)
         // и A(idx) = [] (удаление элементов)
         if (check(TokenType::LBRACKET) && peekToken(1).type == TokenType::RBRACKET) {

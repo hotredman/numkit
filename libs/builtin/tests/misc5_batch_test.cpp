@@ -132,6 +132,30 @@ TEST_F(Misc5BatchTest, RmfieldOrderfields)
     EXPECT_DOUBLE_EQ(evalScalar("r.B"), 2.0);
 }
 
+// A single-element bracketed LHS `[lvalue] = rhs` is a plain assignment to
+// that lvalue (MATLAB treats `[X] = Y` like `X = Y`). The parser only routed
+// bare-identifier brackets through multi-assign, so non-identifier targets
+// (field / index / cell) reached the backends as a 1x1 MATRIX_LITERAL LHS and
+// threw "unsupported assignment target" on the VM (and TreeWalker). Now the
+// parser unwraps them. Runs on the default (VM) backend.
+TEST_F(Misc5BatchTest, BracketedLvalueAssign)
+{
+    eval("clear s a c;");
+    eval("s.x = 1; [s.y] = 7;");                 // field target
+    EXPECT_DOUBLE_EQ(evalScalar("s.y"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.x"), 1.0);
+
+    eval("a = [0 0 0]; [a(2)] = 5;");            // index target
+    EXPECT_DOUBLE_EQ(evalScalar("a(2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1)"), 0.0);
+
+    eval("c = {1, 2}; [c{1}] = 9;");             // cell target
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 9.0);
+
+    eval("[b] = 42;");                           // bare identifier still works
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 42.0);
+}
+
 // ─── math2 + extremes ──────────────────────────────────────────────
 
 TEST_F(Misc5BatchTest, Legendre)
