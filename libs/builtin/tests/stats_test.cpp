@@ -788,6 +788,27 @@ TEST_P(StatsTest, CorrcoefWithNoiseInRange)
     EXPECT_LT(r, 0.9);
 }
 
+// [R, P, RL, RU] = corrcoef(...): RL/RU are the lower/upper Fisher
+// z-transform confidence bounds (95% default, or 'Alpha'). Were
+// unimplemented. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(StatsTest, CorrcoefConfBounds)
+{
+    eval("function [a,b,c,d] = wCB(x,y)\n  [a,b,c,d] = corrcoef(x,y);\nend");
+    eval("[R,P,RL,RU] = wCB([1 2 4 3 5 7 6 8]', [2 1 3 5 4 6 8 7]');");
+    EXPECT_NEAR(evalScalar("RL(1,2)"), 0.3116980572, 1e-9);
+    EXPECT_NEAR(evalScalar("RU(1,2)"), 0.9689892089, 1e-9);
+    // diagonal bounds are exactly 1.
+    EXPECT_DOUBLE_EQ(evalScalar("RL(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("RU(2,2)"), 1.0);
+    // symmetric.
+    EXPECT_NEAR(evalScalar("RL(2,1)"), 0.3116980572, 1e-9);
+    // 'Alpha' widens/narrows the interval (0.10 -> tighter than 0.05).
+    eval("function [a,b,c,d] = wCBA(x,y)\n  [a,b,c,d] = corrcoef(x,y,'Alpha',0.10);\nend");
+    eval("[Ra,Pa,RLa,RUa] = wCBA([1 2 4 3 5 7 6 8]', [2 1 3 5 4 6 8 7]');");
+    EXPECT_NEAR(evalScalar("RLa(1,2)"), 0.4328079594, 1e-9);
+    EXPECT_NEAR(evalScalar("RUa(1,2)"), 0.9590994664, 1e-9);
+}
+
 INSTANTIATE_DUAL(StatsTest);
 
 // ============================================================

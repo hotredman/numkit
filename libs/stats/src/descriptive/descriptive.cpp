@@ -13,6 +13,7 @@
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
+#include <numkit/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
 #include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
 #include <numkit/core/engine.hpp>
@@ -1092,6 +1093,25 @@ CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
     return CorrcoefRows::All;
 }
 
+// corrcoef(...,'Alpha',a): significance level for the RL/RU confidence
+// bounds (default 0.05). Must be in (0, 1).
+double parseCorrcoefAlpha(Span<const Value> args, std::size_t start)
+{
+    for (std::size_t i = start; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string name = args[i].toString();
+        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "alpha") {
+            const double a = args[i + 1].toScalar();
+            if (!(a > 0.0 && a < 1.0))
+                throw Error("corrcoef: Alpha must be in the interval (0,1)",
+                            0, 0, "corrcoef", "", "numkit:corrcoef:BadAlpha");
+            return a;
+        }
+    }
+    return 0.05;
+}
+
 std::size_t countCompleteRows(const Value &X)
 {
     std::size_t n, p;
@@ -1218,6 +1238,34 @@ Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
             pd[k] = pv;
         }
     return P;
+}
+
+// Fisher z-transform confidence bounds for corrcoef (the 3rd/4th outputs
+// RL/RU). For each correlation r: z = atanh(r), se = 1/sqrt(n-3),
+// zc = norminv(1-alpha/2); RL = tanh(z - zc*se), RU = tanh(z + zc*se).
+// |r| == 1 (incl. the diagonal) -> RL = RU = r. n <= 3 -> se infinite, so
+// the bounds widen to the full [-1, 1]. Matches MATLAB R2025b.
+void corrcoefConfBounds(const Value &R, double n, double alpha,
+                        Value &RL, Value &RU, std::pmr::memory_resource *mr)
+{
+    const std::size_t p = R.dims().rows();
+    RL = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    RU = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    if (p == 0) return;
+    const double *rd = R.doubleData();
+    double *rl = RL.doubleDataMut();
+    double *ru = RU.doubleDataMut();
+    const double zc =
+        norminv(Value::scalar(1.0 - alpha / 2.0, mr), 0.0, 1.0, mr).toScalar();
+    const double se = (n > 3.0) ? 1.0 / std::sqrt(n - 3.0)
+                                : std::numeric_limits<double>::infinity();
+    for (std::size_t k = 0; k < p * p; ++k) {
+        const double r = rd[k];
+        if (std::fabs(r) >= 1.0) { rl[k] = r; ru[k] = r; continue; }
+        const double z = std::atanh(r);
+        rl[k] = std::tanh(z - zc * se);
+        ru[k] = std::tanh(z + zc * se);
+    }
 }
 
 } // namespace
@@ -1917,6 +1965,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         (args.size() >= 2 && !args[1].isChar() && !args[1].isString());
     const std::size_t nvStart = twoArg ? 2 : 1;
     const CorrcoefRows rows = parseCorrcoefRows(args, nvStart);
+    const double alpha = parseCorrcoefAlpha(args, nvStart);
 
     if (rows == CorrcoefRows::All) {
         double n;
@@ -1932,6 +1981,12 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         }
         if (nargout >= 2)
             outs[1] = corrcoefPValues(outs[0], n, mr);
+        if (nargout >= 3) {
+            Value RL, RU;
+            corrcoefConfBounds(outs[0], n, alpha, RL, RU, mr);
+            outs[2] = std::move(RL);
+            if (nargout >= 4) outs[3] = std::move(RU);
+        }
         return;
     }
 
@@ -1959,6 +2014,12 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (nargout >= 2) {
         const double n = static_cast<double>(countCompleteRows(M));
         outs[1] = corrcoefPValues(outs[0], n, mr);
+        if (nargout >= 3) {
+            Value RL, RU;
+            corrcoefConfBounds(outs[0], n, alpha, RL, RU, mr);
+            outs[2] = std::move(RL);
+            if (nargout >= 4) outs[3] = std::move(RU);
+        }
     }
 }
 
