@@ -2588,7 +2588,7 @@ intentionally omitted — flat solver functions only.
 | `istftlayer` | ❌ |  |
 | `pspectrum` | ❌ | easy spectral analysis |
 | `rceps` | ✅ | Sig: r = rceps(...). Spec-extension batch 2026-05-09 (signal namespace). |
-| `spectrogram` | ✅ | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
+| `spectrogram` | ✅ 🔬 | spectrogram f/t output axes honour fs vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/signal): [s,f,t]=spectrogram(...,fs) ignored fs entirely — f was always normalized 0..pi and t was in raw samples regardless of fs. MATLAB returns f=k*fs/nfft (Hz) and t=centre/fs (sec) when fs given; with no fs the normalized convention uses fs=2*pi so f spans [0,pi] and t=centre/(2*pi). Fix scales F/T in spectrogram_reg. With fs=100,nfft=16: f(2)=6.25, f(end)=50, t(1)=0.08, t(2)=0.16. No fs: f0(end)=pi, t0(1)=8/(2*pi)=1.2732, t0(2)=16/(2*pi)=2.5465. The s matrix is unchanged. covers:[spectrogram]. |
 | `stft` | ✅ | Sig: s = stft(x[, NV-pairs]). Short-time Fourier transform; per-frame windowed FFT. Defaults match MATLAB: hann(128,periodic), 75% overlap, FFTLength 128, FrequencyRange centered. All three ranges (twosided / centered / onesided) bit-equal MATLAB R2025b. KNOWN GAPS: fs / [s,f,t] multi-output, multi-channel. |
 | `stftlayer` | ❌ |  |
 | `stftmag2sig` | ❌ |  |
@@ -2731,7 +2731,7 @@ intentionally omitted — flat solver functions only.
 | `spectralflatness` | ✅ | Sig: f = spectralFlatness(x, fs). camelCase alias added 2026-05-09. |
 | `spectralkurtosis` | ✅ | Sig: k = spectralKurtosis(x, fs). camelCase alias added 2026-05-09. |
 | `spectralskewness` | ✅ | Sig: s = spectralSkewness(x, fs). camelCase alias added 2026-05-09. |
-| `spectrogram` | ✅ | Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09. |
+| `spectrogram` | ✅ 🔬 | spectrogram f/t output axes honour fs vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/signal): [s,f,t]=spectrogram(...,fs) ignored fs entirely — f was always normalized 0..pi and t was in raw samples regardless of fs. MATLAB returns f=k*fs/nfft (Hz) and t=centre/fs (sec) when fs given; with no fs the normalized convention uses fs=2*pi so f spans [0,pi] and t=centre/(2*pi). Fix scales F/T in spectrogram_reg. With fs=100,nfft=16: f(2)=6.25, f(end)=50, t(1)=0.08, t(2)=0.16. No fs: f0(end)=pi, t0(1)=8/(2*pi)=1.2732, t0(2)=16/(2*pi)=2.5465. The s matrix is unchanged. covers:[spectrogram]. |
 | `stft` | ✅ | Sig: s = stft(x[, NV-pairs]); [s, f, t] = stft(x, fs[, NV-pairs]) (cycle 86). Short-time Fourier transform. Defaults match MATLAB: hann(128,periodic), 75% overlap, FFTLength 128, FrequencyRange='centered'. All three ranges bit-equal MATLAB R2025b. f in Hz (k*fs/NFFT) when fs given else radians/sample (k*2*pi/NFFT); t at frame centres (M/2 + k*hop)/fs_t. KNOWN GAP: multi-channel matrix input. |
 | `stftlayer` | ❌ |  |
 | `stftmag2sig` | ❌ |  |
