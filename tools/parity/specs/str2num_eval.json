@@ -1,0 +1,14 @@
+{
+  "name": "str2num_eval",
+  "namespace": "builtin",
+  "covers": ["str2num"],
+  "setup": "",
+  "expr": "a = str2num('[10 20 30]'); na = numel(a); a2 = a(2); v = str2num('1:5'); nv = numel(v); v5 = v(5); e = str2num('2+3'); s = str2num('42.5'); z = double(isempty(str2num('not a number'))); w = str2num('[1.5 -2.5 3.25]'); w3 = w(3);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "double(na)", "a2", "double(nv)", "v5", "e", "s", "z", "w3"
+  ],
+  "deep_verified": true,
+  "comment": "str2num evaluates the (bracket-wrapped) string as a MATLAB expression vs R2025b. DEEP-PROBE 2026-05-31: numkit's str2num was a scalar-only std::stod and returned [] for vectors/ranges/expressions. Now str2num_reg routes through the engine: str2num('[10 20 30]')=[10 20 30]; '1:5'=[1 2 3 4 5]; '2+3'=5; '42.5'=42.5; '[1.5 -2.5 3.25]' parsed; a parse/eval failure or non-numeric result -> [] (0x0 double). The 2x2-matrix form ('[1 2;3 4]') and the [X,tf] 2-output flag are verified in the gtest (a literal ';' inside the quoted string can't go in a parity expr — the harness splits statements on ';'). The engine-free Value str2num() overload stays a scalar fallback for embedders. covers:[str2num]."
+}

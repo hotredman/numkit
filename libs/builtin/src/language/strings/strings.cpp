@@ -2323,11 +2323,33 @@ void validatestring_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
     outs[0] = validatestring(args[0], args[1], ctx.engine->resource());
 }
 
-void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+void str2num_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("str2num: requires 1 argument", 0, 0, "str2num", "", "numkit:str2num:nargin");
-    outs[0] = str2num(args[0], ctx.engine->resource());
+    // MATLAB str2num evaluates the (bracket-wrapped) string as an expression,
+    // so it parses matrices, ranges and arithmetic — str2num('[1 2;3 4]')=
+    // [1 2;3 4], '1:5'=1..5, '2+3'=5. Any parse/eval failure (or a non-numeric
+    // result) yields [] (0x0 double); the optional 2nd output is a logical
+    // success flag: [X, tf] = str2num(s). (The engine-free Value str2num()
+    // overload remains a scalar-only fallback for embedders without eval.)
+    bool ok = false;
+    Value result = Value::Empty;
+    if (args[0].isChar() || args[0].isString()) {
+        try {
+            Value v = ctx.engine->eval("[" + args[0].toString() + "]",
+                                       /*suppressTopLevelDisplay=*/true);
+            if (v.isNumeric() || v.isLogical()) {
+                result = std::move(v);
+                ok = true;
+            }
+        } catch (...) {
+            ok = false;
+        }
+    }
+    outs[0] = ok ? std::move(result) : Value::Empty;
+    if (nargout >= 2 && outs.size() >= 2)
+        outs[1] = Value::logicalScalar(ok, ctx.engine->resource());
 }
 
 void str2double_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
