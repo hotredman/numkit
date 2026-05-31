@@ -2204,6 +2204,26 @@ inline std::string lower(const std::string &s)
     return lo;
 }
 
+// Parse a MATLAB color-spec string into an RGB triplet in [0,1], matching
+// label2rgb's parseZerocolor (single-letter ColorSpec or full color name).
+// Returns false if the string is not a recognized color.
+inline bool parseColorSpec(const std::string &name, double rgb[3])
+{
+    const std::string lo = lower(name);
+    auto set = [&](double r, double g, double b) {
+        rgb[0] = r; rgb[1] = g; rgb[2] = b; return true;
+    };
+    if (lo == "y" || lo == "yellow")  return set(1, 1, 0);
+    if (lo == "m" || lo == "magenta") return set(1, 0, 1);
+    if (lo == "c" || lo == "cyan")    return set(0, 1, 1);
+    if (lo == "r" || lo == "red")     return set(1, 0, 0);
+    if (lo == "g" || lo == "green")   return set(0, 1, 0);
+    if (lo == "b" || lo == "blue")    return set(0, 0, 1);
+    if (lo == "w" || lo == "white")   return set(1, 1, 1);
+    if (lo == "k" || lo == "black")   return set(0, 0, 0);
+    return false;
+}
+
 }  // namespace
 
 Value labeloverlay(const Value &A_in, const Value &L_in,
@@ -2470,6 +2490,77 @@ void labeloverlay_reg(Span<const Value> args, std::size_t /*nargout*/,
 
     outs[0] = labeloverlay(args[0], args[1], cmap, ca, included,
                            transparency, mr);
+}
+
+// label2rgb(L [, map [, zerocolor [, order]]]) — MATLAB R2025b parity.
+//   map       : omitted/[] → jet(numregion); colormap NAME string; or Nx3.
+//   zerocolor : omitted → white; RGB triplet; or a ColorSpec string
+//               ('y/m/c/r/g/b/w/k' or full color names).
+//   order     : 'noshuffle' (default). 'shuffle' deferred (needs the
+//               swb2712 RNG stream).
+// numregion = max(L(:)); the colormap is generated with that many rows, so
+// label k maps to row k and label 0 maps to zerocolor. Delegates the pixel
+// mapping to the existing uint8 label2rgb(L, cmap, zerocolor) core.
+void label2rgb_reg(Span<const Value> args, std::size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("label2rgb: requires (L [, map [, zerocolor [, order]]])",
+                    0, 0, "label2rgb", "", "numkit:label2rgb:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &L = args[0];
+
+    // numregion = max(L(:)); force ≥1 so the generated colormap always has
+    // 3 columns (a 1-row map is never indexed when L is all background).
+    const std::size_t plane = L.numel();
+    int maxLabel = 0;
+    for (std::size_t i = 0; i < plane; ++i) {
+        const double v = L.elemAsDouble(i);
+        if (std::isfinite(v) && v > maxLabel) maxLabel = static_cast<int>(v);
+    }
+    const int numregion = maxLabel < 1 ? 1 : maxLabel;
+
+    // ── Resolve colormap: default jet / named string / Nx3 matrix ──
+    Value cmap;
+    if (args.size() < 2 || args[1].isEmpty())
+        cmap = jet_colormap(numregion, mr);
+    else if (args[1].isChar() || args[1].isString())
+        cmap = resolve_named_colormap(args[1].toString(), numregion, mr);
+    else
+        cmap = args[1];                       // explicit Nx3 — core validates.
+
+    // ── order (4th positional): only 'noshuffle' supported ─────────
+    if (args.size() >= 4 && (args[3].isChar() || args[3].isString())) {
+        const std::string ord = lower(args[3].toString());
+        if (ord == "shuffle")
+            throw Error("label2rgb: order 'shuffle' is not yet supported "
+                        "(requires MATLAB's swb2712 random stream)",
+                        0, 0, "label2rgb", "",
+                        "numkit:label2rgb:shuffleUnsupported");
+        if (ord != "noshuffle")
+            throw Error("label2rgb: order must be 'noshuffle' or 'shuffle'",
+                        0, 0, "label2rgb", "", "numkit:label2rgb:order");
+    }
+
+    // ── Resolve zerocolor: RGB triplet or ColorSpec string ─────────
+    Value bg;                                 // empty → core defaults white.
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (args[2].isChar() || args[2].isString()) {
+            double rgb[3];
+            if (!parseColorSpec(args[2].toString(), rgb))
+                throw Error("label2rgb: invalid zerocolor string '" +
+                            args[2].toString() + "'",
+                            0, 0, "label2rgb", "",
+                            "numkit:label2rgb:zerocolor");
+            bg = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+            double *bd = bg.doubleDataMut();
+            bd[0] = rgb[0]; bd[1] = rgb[1]; bd[2] = rgb[2];
+        } else {
+            bg = args[2];                     // numeric triplet — core checks.
+        }
+    }
+
+    outs[0] = label2rgb(L, cmap, bg, mr);
 }
 
 } // namespace detail
