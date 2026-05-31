@@ -188,6 +188,33 @@ TEST_P(RegexTest, RegexprepNoMatchReturnsOriginal)
     EXPECT_EQ(getVarPtr("s")->toString(), "abc");
 }
 
+// regexprep(...,'once'): replace only the FIRST match of each pattern.
+// DEEP-PROBE 2026-05-31 — 'once' was parsed-but-ignored (replaced all).
+// vs MATLAB R2025b.
+TEST_P(RegexTest, RegexprepOnceOption)
+{
+    eval("s = regexprep('abc', '\\w', 'X', 'once');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "Xbc");
+    eval("s = regexprep('a1b2c3', '\\d', '#', 'once');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "a#b2c3");
+    // 'once' combines with 'ignorecase' (order-independent).
+    eval("s = regexprep('AaAa', 'a', 'Z', 'once', 'ignorecase');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "ZaAa");
+    // Back-references still work with 'once'.
+    eval("s = regexprep('hello world', '(\\w+)', '<$1>', 'once');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "<hello> world");
+    // No match -> unchanged.
+    eval("s = regexprep('abc', 'x', 'Y', 'once');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "abc");
+    // Default (no 'once') still replaces ALL occurrences.
+    eval("s = regexprep('abc', '\\w', 'X');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "XXX");
+    // Cell-string input: 'once' applies element-wise.
+    eval("r = regexprep({'aa','bb'}, '\\w', '#', 'once');");
+    EXPECT_EQ(eval("r{1}").toString(), "#a");
+    EXPECT_EQ(eval("r{2}").toString(), "#b");
+}
+
 // regexprep with cell-array arguments. Was throwing "s, pat, rep must be
 // strings". A cell STR processes element-wise (cell of char vectors, same
 // shape); a cell PATTERN is a LIST applied sequentially to each string; a
