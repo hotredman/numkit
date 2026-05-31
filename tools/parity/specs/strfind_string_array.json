@@ -1,0 +1,14 @@
+{
+  "name": "strfind_string_array",
+  "namespace": "builtin",
+  "covers": ["strfind"],
+  "setup": "",
+  "expr": "sf = strfind([\"hello\" \"world\" \"lll\"], \"l\"); cf = double(iscell(sf)); nf = numel(sf); n1 = numel(sf{1}); s11 = sf{1}(1); s12 = sf{1}(2); n3 = numel(sf{3}); sc = strfind({'hello','xx'}, 'l'); cc = double(iscell(sc)); n2c = numel(sc{2}); ss = strfind(\"banana\", \"an\"); cs = double(iscell(ss)); ns = numel(ss); ss1 = ss(1); ss2 = ss(2); ch = strfind('abcabc', 'bc'); ch1 = ch(1); ch2 = ch(2);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "cf", "nf", "n1", "s11", "s12", "n3", "cc", "n2c", "cs", "ns", "ss1", "ss2", "ch1", "ch2"
+  ],
+  "deep_verified": true,
+  "comment": "strfind on a cell / string-array source vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (string-array vein): strfind only handled a scalar char/string (s.toString()). A string ARRAY collapsed to its first element (returned a plain double vector), and a CELL source THREW 'Not a char array'. MATLAB returns a same-shape CELL of 1-based index vectors: strfind([\"hello\" \"world\" \"lll\"],\"l\") -> {[3 4],[4],[1 2 3]}; strfind({'hello','xx'},'l') -> {[3 4],[]}. A scalar char/string source still returns a 1xk DOUBLE row vector (strfind(\"banana\",\"an\")=[2 4]; strfind('abcabc','bc')=[2 5]). Fix: factored the core into strfindOne and added a cell/non-scalar-string-array branch that builds a same-shape cell. Column arrays covered in gtest. covers:[strfind]."
+}

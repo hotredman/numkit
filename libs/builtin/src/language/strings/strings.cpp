@@ -856,14 +856,14 @@ Value strlength(const Value &s, std::pmr::memory_resource *mr)
 
 // ── Search / replace ────────────────────────────────────────────────────
 
-Value strfind(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
+namespace {
+// All 1-based indices of `pp` in `ss` (overlapping, like MATLAB) as a 1×k
+// DOUBLE row vector; [] (0×0) if no match or `pp` is empty.
+Value strfindOne(const std::string &ss, const std::string &pp,
+                 std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
-    const std::string pp = pat.toString();
-    if (pp.empty()) {
-        // MATLAB strfind('hello', '') returns [].
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    }
+    if (pp.empty())
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);  // strfind(s,'') -> []
     ScratchArena scratch(mr);
     ScratchVec<size_t> hits(&scratch);
     size_t pos = 0;
@@ -877,6 +877,27 @@ Value strfind(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
     for (size_t i = 0; i < hits.size(); ++i)
         r.doubleDataMut()[i] = static_cast<double>(hits[i]);
     return r;
+}
+} // anonymous
+
+Value strfind(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
+{
+    const std::string pp = pat.toString();
+    // A cell / non-scalar string array source -> same-shape CELL of index
+    // vectors (MATLAB); a scalar char / string -> a 1×k DOUBLE row vector.
+    if (s.isCell() || (s.isString() && !s.isScalar())) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        Value out = Value::cell(r, c, mr);
+        const size_t n = s.numel();
+        for (size_t i = 0; i < n; ++i) {
+            const std::string el =
+                s.isCell() ? s.cellAt(i).toString() : s.stringElem(i);
+            out.cellAt(i) = strfindOne(el, pp, mr);
+        }
+        return out;
+    }
+    return strfindOne(s.toString(), pp, mr);
 }
 
 Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)

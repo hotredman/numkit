@@ -600,3 +600,35 @@ TEST_F(StringsBatchTest, StrcmpStringArray)
     eval("c = strcmp({'a','b'}, {'a','x'});");
     EXPECT_DOUBLE_EQ(evalScalar("double(c(2))"), 0.0);
 }
+
+// strfind on a cell / string-array source returns a same-shape cell of
+// index vectors vs MATLAB R2025b. 2026-05-31: a string array collapsed to
+// a double vector; a cell source threw "Not a char array".
+TEST_F(StringsBatchTest, StrfindStringArray)
+{
+    // string array -> same-shape cell of index vectors
+    eval("sf = strfind([\"hello\" \"world\" \"lll\"], \"l\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(sf))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(sf)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(sf{1})"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sf{1}(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sf{1}(2)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(sf{3})"), 3.0);
+    // cell source (previously threw)
+    eval("sc = strfind({'hello','xx'}, 'l');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(sc))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sc{1}(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isempty(sc{2}))"), 1.0);
+    // scalar char / string -> double row vector (unchanged)
+    eval("ss = strfind(\"banana\", \"an\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(ss))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ss(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ss(2)"), 4.0);
+    eval("ch = strfind('abcabc', 'bc');");
+    EXPECT_DOUBLE_EQ(evalScalar("ch(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ch(2)"), 5.0);
+    // column string array -> column cell
+    eval("col = strfind([\"ab\"; \"cb\"], \"b\");");
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,2)"), 1.0);
+}
