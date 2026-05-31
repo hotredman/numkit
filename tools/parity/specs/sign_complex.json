@@ -1,0 +1,16 @@
+{
+  "name": "sign_complex",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = sign(3-4i); ar = real(a); ai = imag(a); b = sign(1i); br = real(b); bi = imag(b); c = sign(complex(0,0)); cr = real(c); ci = imag(c); d = sign([3+4i, 0, -2i]); d1r = real(d(1)); d1i = imag(d(1)); d2r = real(d(2)); d3i = imag(d(3)); e = sign(2+2i); er = real(e); ei = imag(e);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "ar", "ai",
+    "br", "bi",
+    "cr", "ci",
+    "d1r", "d1i", "d2r", "d3i",
+    "er", "ei"
+  ],
+  "comment": "Sig: y = sign(Z) for complex Z. MATLAB: sign(z) = z/abs(z) for z != 0, else 0; result is complex. sign(3-4i)=0.6-0.8i, sign(1i)=0+1i, sign(complex(0,0))=0+0i, sign([3+4i 0 -2i])=[0.6+0.8i 0 0-1i], sign(2+2i)=0.7071+0.7071i. numkit previously threw 'Cannot convert complex with nonzero imaginary part to double scalar' (sign routed through the double-only unaryDouble); fixed 2026-05-30 (complex branch in rounding.cpp). NOTE: ; only inside matrix-literal INPUTS."
+}

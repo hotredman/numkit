@@ -483,7 +483,7 @@ FilterBank wavelet_filters(const std::string &name) {
     if (!s)
         throw Error("wfilters: unsupported wavelet name '" + name +
                     "' (try haar, db1..db10, sym2..sym10, coif1..coif5)",
-                    0, 0, "wfilters", "", "m:wfilters:name");
+                    0, 0, "wfilters", "", "numkit:wfilters:name");
     const int N = s->len;
 
     // 2026-05-08 audit ТЗ wavelet/wfilters fix: previously the stored
@@ -542,7 +542,7 @@ WFiltersResult wfilters(const std::string &name, const std::string &kind,
     } else {
         throw Error("wfilters: unknown kind '" + kind +
                     "' (expected 'd', 'r', 'l' or 'h')",
-                    0, 0, "wfilters", "", "m:wfilters:kind");
+                    0, 0, "wfilters", "", "numkit:wfilters:kind");
     }
     return r;
 }
@@ -552,7 +552,7 @@ namespace detail {
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected a string argument",
-                    0, 0, "", "", "m:wavelet:type");
+                    0, 0, "", "", "numkit:wavelet:type");
     return v.toString();
 }
 
@@ -561,7 +561,7 @@ void wfilters_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("wfilters: requires the wavelet name",
-                    0, 0, "wfilters", "", "m:wfilters:nargin");
+                    0, 0, "wfilters", "", "numkit:wfilters:nargin");
     const std::string name = argString(args[0]);
     std::string kind;
     if (args.size() >= 2) kind = argString(args[1]);

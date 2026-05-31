@@ -15,7 +15,7 @@ namespace numkit::wavelet {
 /// Decomposes the 1-D signal `x` into an approximation band `cA`
 /// (lowpass) and a detail band `cD` (highpass), each downsampled by 2.
 /// The extension mode is fixed at `'sym'` (whole-point symmetric
-/// reflection), matching MATLAB's default `dwtmode('sym')`.
+/// reflection).
 ///
 /// Output length per band:
 /// @f$ \lfloor (N + L_f - 1)/2 \rfloor @f$ where @f$ L_f @f$ is the
@@ -42,7 +42,7 @@ dwt(const Value &x, const std::string &wname,
 /// Reconstructs the original signal from an approximation / detail
 /// pair. `len` (when ≥ 0) crops the result to that length; pass -1
 /// to use the natural reconstruction length
-/// `2·length(cA) - L_f + 2` (MATLAB's behaviour for `'sym'` mode).
+/// `2·length(cA) - L_f + 2` (natural length for `'sym'` extension mode).
 ///
 /// @param cA     Approximation coefficients (from @ref dwt).
 /// @param cD     Detail coefficients.

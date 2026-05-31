@@ -158,7 +158,7 @@ void isfir_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("isfir: requires at least 1 argument (b)",
-                     0, 0, "isfir", "", "m:isfir:nargin");
+                     0, 0, "isfir", "", "numkit:isfir:nargin");
     const bool r = (args.size() >= 2) ? isfir(args[0], args[1]) : isfir(args[0]);
     outs[0] = boolVal(r, ctx.engine->resource());
 }
@@ -167,7 +167,7 @@ void isstable_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("isstable: requires at least 1 argument (b)",
-                     0, 0, "isstable", "", "m:isstable:nargin");
+                     0, 0, "isstable", "", "numkit:isstable:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     outs[0] = boolVal(isstable(b, a, ctx.engine->resource()), ctx.engine->resource());
@@ -177,7 +177,7 @@ void isminphase_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("isminphase: requires at least 1 argument (b)",
-                     0, 0, "isminphase", "", "m:isminphase:nargin");
+                     0, 0, "isminphase", "", "numkit:isminphase:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     outs[0] = boolVal(isminphase(b, a, ctx.engine->resource()), ctx.engine->resource());
@@ -187,7 +187,7 @@ void ismaxphase_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("ismaxphase: requires at least 1 argument (b)",
-                     0, 0, "ismaxphase", "", "m:ismaxphase:nargin");
+                     0, 0, "ismaxphase", "", "numkit:ismaxphase:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     outs[0] = boolVal(ismaxphase(b, a, ctx.engine->resource()), ctx.engine->resource());
@@ -197,7 +197,7 @@ void islinphase_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("islinphase: requires at least 1 argument (b)",
-                     0, 0, "islinphase", "", "m:islinphase:nargin");
+                     0, 0, "islinphase", "", "numkit:islinphase:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     outs[0] = boolVal(islinphase(b, a), ctx.engine->resource());
@@ -207,7 +207,7 @@ void isallpass_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("isallpass: requires (b, a)",
-                     0, 0, "isallpass", "", "m:isallpass:nargin");
+                     0, 0, "isallpass", "", "numkit:isallpass:nargin");
     outs[0] = boolVal(isallpass(args[0], args[1]), ctx.engine->resource());
 }
 
@@ -215,7 +215,7 @@ void filtord_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("filtord: requires at least 1 argument (b)",
-                     0, 0, "filtord", "", "m:filtord:nargin");
+                     0, 0, "filtord", "", "numkit:filtord:nargin");
     int n = (args.size() >= 2)
         ? filtord(args[0], args[1])
         : filtord(args[0]);
@@ -226,7 +226,7 @@ void firtype_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("firtype: requires 1 argument (b)",
-                     0, 0, "firtype", "", "m:firtype:nargin");
+                     0, 0, "firtype", "", "numkit:firtype:nargin");
     outs[0] = Value::scalar(static_cast<double>(firtype(args[0])), ctx.engine->resource());
 }
 
@@ -234,7 +234,7 @@ void filternorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 2)
         throw Error("filternorm: requires (b, a [, pnorm])",
-                     0, 0, "filternorm", "", "m:filternorm:nargin");
+                     0, 0, "filternorm", "", "numkit:filternorm:nargin");
     double p = 2.0;
     if (args.size() >= 3 && !args[2].isEmpty()) p = args[2].toScalar();
     outs[0] = Value::scalar(filternorm(args[0], args[1], p, ctx.engine->resource()),
@@ -267,13 +267,13 @@ int firtype(const Value &b)
     auto v = trimTrailingZeros(b);
     if (v.size() < 2)
         throw Error("firtype: filter must have at least 2 coefficients",
-                     0, 0, "firtype", "", "m:firtype:short");
+                     0, 0, "firtype", "", "numkit:firtype:short");
     const bool sym  = isSymmetric(v, +1.0);
     const bool anti = isSymmetric(v, -1.0);
     if (!sym && !anti)
         throw Error("firtype: filter is not (anti)symmetric — not a "
                     "linear-phase FIR",
-                     0, 0, "firtype", "", "m:firtype:notlinphase");
+                     0, 0, "firtype", "", "numkit:firtype:notlinphase");
     const int order = static_cast<int>(v.size()) - 1;  // L = order + 1
     const bool order_even = (order % 2 == 0);
     if (sym)  return order_even ? 1 : 2;
@@ -298,7 +298,7 @@ double filternorm(const Value &b, const Value &a, double pnorm, std::pmr::memory
     }
     if (pnorm != 2.0)
         throw Error("filternorm: only pnorm = 2 or inf supported",
-                     0, 0, "filternorm", "", "m:filternorm:p");
+                     0, 0, "filternorm", "", "numkit:filternorm:p");
     // L2: sqrt((1/π) ∫_0^π |H|² dw) via trapezoidal rule on freqz grid.
     // freqz returns npts samples on [0, π] inclusive — Δw = π/(npts-1).
     double sum = 0.0;

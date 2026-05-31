@@ -131,10 +131,10 @@ void disp(Engine &engine, Span<const Value> args)
         engine.outputText(dispFormat(a));
 }
 
-void fprintf(Engine &engine, Span<const Value> args)
+std::size_t fprintf(Engine &engine, Span<const Value> args)
 {
     if (args.empty())
-        return;
+        return 0;
     std::pmr::memory_resource *mr = engine.resource();
 
     // First-arg-is-fid disambiguation: MATLAB allows both
@@ -147,7 +147,7 @@ void fprintf(Engine &engine, Span<const Value> args)
         fmtIdx = 1;
     }
     if (!args[fmtIdx].isChar())
-        return;
+        return 0;
 
     std::string result = formatCyclic(args[fmtIdx].toString(), args, fmtIdx + 1, mr);
 
@@ -167,6 +167,7 @@ void fprintf(Engine &engine, Span<const Value> args)
     } else {
         throw Error("fprintf: invalid file identifier");
     }
+    return result.size();
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -180,9 +181,15 @@ void disp_reg(Span<const Value> args, size_t, Span<Value>, CallContext &ctx)
     disp(*ctx.engine, args);
 }
 
-void fprintf_reg(Span<const Value> args, size_t, Span<Value>, CallContext &ctx)
+void fprintf_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                 CallContext &ctx)
 {
-    fprintf(*ctx.engine, args);
+    std::size_t count = fprintf(*ctx.engine, args);
+    // MATLAB: `count = fprintf(...)` returns the number of bytes written.
+    // Only materialise the output when explicitly requested — a bare
+    // `fprintf(...)` sets no `ans`.
+    if (nargout >= 1 && !outs.empty())
+        outs[0] = Value::scalar(static_cast<double>(count), ctx.engine->resource());
 }
 
 } // namespace detail

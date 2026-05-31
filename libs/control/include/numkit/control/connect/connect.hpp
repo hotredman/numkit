@@ -56,7 +56,7 @@ Value parallel(const Value &sys1, const Value &sys2,
 /// Closed-loop transfer function under feedback (`feedback(G, H, sign)`).
 ///
 /// Computes:
-///   - sign = −1 (default, MATLAB convention): @f$ T = G / (1 + G\,H) @f$
+///   - sign = −1 (default, negative feedback): @f$ T = G / (1 + G\,H) @f$
 ///   - sign = +1 (positive feedback):          @f$ T = G / (1 - G\,H) @f$
 ///
 /// `H` defaults to unity feedback at the call site (pass `tf({1},{1})`).

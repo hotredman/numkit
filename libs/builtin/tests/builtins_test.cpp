@@ -595,6 +595,25 @@ TEST_P(BuiltinTest, Bin2DecHex2Dec)
     EXPECT_DOUBLE_EQ(evalScalar("hex2dec('ff');"), 255.0);  // case-insensitive
 }
 
+// dec2base / base2dec — arbitrary radix 2..36. vs MATLAB R2025b.
+TEST_P(BuiltinTest, Dec2BaseBase2Dec)
+{
+    eval("a = dec2base(100, 16);");
+    EXPECT_EQ(getVarPtr("a")->toString(), "64");
+    eval("b = dec2base(10, 2, 8);");
+    EXPECT_EQ(getVarPtr("b")->toString(), "00001010");
+    eval("z = dec2base(35, 36);");
+    EXPECT_EQ(getVarPtr("z")->toString(), "Z");      // base-36 digit
+    EXPECT_DOUBLE_EQ(evalScalar("base2dec('64', 16);"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("base2dec('1010', 2);"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("base2dec('Z', 36);"), 35.0);
+    EXPECT_DOUBLE_EQ(evalScalar("base2dec('z', 36);"), 35.0);  // case-insensitive
+    // char matrix -> column vector.
+    eval("B = base2dec(['64';'1A'], 16);");
+    EXPECT_DOUBLE_EQ(evalScalar("B(1)"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2)"), 26.0);
+}
+
 TEST_P(BuiltinTest, Rat)
 {
     // After the audit ТЗ closure (2026-05-09) numkit's `rat()` returns
@@ -743,6 +762,43 @@ TEST_P(BuiltinTest, FminsearchVector)
     ASSERT_EQ(y->numel(), 2u);
     EXPECT_NEAR(y->doubleData()[0], 1.0, 1e-2);
     EXPECT_NEAR(y->doubleData()[1], 2.0, 1e-2);
+}
+
+// [x, fval, exitflag] multi-output for fzero / fminbnd / fminsearch.
+TEST_P(BuiltinTest, FzeroFvalExitflag)
+{
+    eval("function [a,b,c] = fz(f, x0)\n  [a,b,c] = fzero(f, x0);\nend");
+    eval("[x, fval, ef] = fz(@(x) x.^2 - 4, [0 10]);");
+    EXPECT_NEAR(getVar("x"),    2.0, 1e-10);
+    EXPECT_NEAR(getVar("fval"), 0.0, 1e-10);
+    EXPECT_DOUBLE_EQ(getVar("ef"), 1.0);
+}
+
+TEST_P(BuiltinTest, FminbndFvalExitflag)
+{
+    eval("function [a,b,c] = fb(f, lo, hi)\n  [a,b,c] = fminbnd(f, lo, hi);\nend");
+    eval("[x, fval, ef] = fb(@(x) (x-3).^2 + 1, 0, 10);");
+    EXPECT_NEAR(getVar("x"),    3.0, 1e-6);
+    EXPECT_NEAR(getVar("fval"), 1.0, 1e-9);
+    EXPECT_DOUBLE_EQ(getVar("ef"), 1.0);
+}
+
+TEST_P(BuiltinTest, FminsearchFvalExitflag)
+{
+    eval("function [a,b,c] = fs(f, x0)\n  [a,b,c] = fminsearch(f, x0);\nend");
+    eval("[x, fval, ef] = fs(@(v) (v(1)-1)^2 + (v(2)-2)^2, [0 0]);");
+    auto *x = getVarPtr("x");
+    ASSERT_EQ(x->numel(), 2u);
+    EXPECT_NEAR(x->doubleData()[0], 1.0, 1e-2);
+    EXPECT_NEAR(x->doubleData()[1], 2.0, 1e-2);
+    EXPECT_NEAR(getVar("fval"), 0.0, 1e-3);
+    EXPECT_DOUBLE_EQ(getVar("ef"), 1.0);
+}
+
+TEST_P(BuiltinTest, FzeroOutputStructDeferredThrows)
+{
+    eval("function [a,b,c,d] = fz4(f, x0)\n  [a,b,c,d] = fzero(f, x0);\nend");
+    EXPECT_THROW(eval("[x,fv,ef,op] = fz4(@(x) x.^2 - 4, [0 10]);"), std::exception);
 }
 
 TEST_P(BuiltinTest, OptimsetGet)
@@ -1161,6 +1217,24 @@ TEST_P(BuiltinTest, AppendCountErase)
     EXPECT_EQ(getVarPtr("e2")->toString(), "");
 }
 
+// count/erase accept a cell array (or string array) of patterns: count sums
+// the per-pattern non-overlapping occurrences; erase removes every occurrence
+// of each listed pattern. vs MATLAB R2025b. 2026-05-30: previously these threw
+// "Not a char array" on a cell pattern argument.
+TEST_P(BuiltinTest, CountEraseCellPatterns)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("count('abcabc', {'a','c'});"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("count('abcABC', {'a','b','c'});"), 3.0); // case-sensitive
+    eval("e = erase('a-b_c', {'-','_'});");
+    EXPECT_EQ(getVarPtr("e")->toString(), "abc");
+    eval("e2 = erase('hello world', {'ll','rl'});");  // applied in order
+    EXPECT_EQ(getVarPtr("e2")->toString(), "heo wod");
+    eval("e3 = erase('abcd', [\"b\" \"c\"]);");        // string-array list
+    EXPECT_EQ(getVarPtr("e3")->toString(), "ad");
+    // scalar pattern unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("count('aaaa', 'aa');"), 2.0);
+}
+
 TEST_P(BuiltinTest, ReverseReplaceMatches)
 {
     eval("r = reverse('hello');");
@@ -1171,6 +1245,26 @@ TEST_P(BuiltinTest, ReverseReplaceMatches)
     EXPECT_FALSE(evalBool("matches('cat', 'dog');"));
     EXPECT_TRUE(evalBool("matches('cat', {'dog', 'cat', 'bird'});"));
     EXPECT_FALSE(evalBool("matches('fish', {'dog', 'cat', 'bird'});"));
+}
+
+// replace accepts a cell array (or string array) of OLD patterns: a single
+// NEW applies to every OLD, otherwise NEW pairs 1:1 with OLD. A single
+// left-to-right pass (first-in-list match wins, no chain-replacement).
+// vs MATLAB R2025b. 2026-05-30: previously threw "Not a char array" on a cell.
+TEST_P(BuiltinTest, ReplaceCellPatterns)
+{
+    eval("a = replace('a-b_c', {'-','_'}, 'X');");      // single new for all
+    EXPECT_EQ(getVarPtr("a")->toString(), "aXbXc");
+    eval("b = replace('a-b_c', {'-','_'}, {'P','Q'});"); // paired
+    EXPECT_EQ(getVarPtr("b")->toString(), "aPbQc");
+    eval("c = replace('ab', {'a','b'}, {'b','c'});");    // single pass, no chain
+    EXPECT_EQ(getVarPtr("c")->toString(), "bc");
+    eval("d = replace('abc', {'a','ab'}, {'X','Y'});");  // first-in-list wins
+    EXPECT_EQ(getVarPtr("d")->toString(), "Xbc");
+    eval("e = replace('a-b_c', [\"-\" \"_\"], \"X\");"); // string-array list
+    EXPECT_EQ(getVarPtr("e")->toString(), "aXbXc");
+    eval("f = replace('abc', 'b', 'X');");               // scalar unchanged
+    EXPECT_EQ(getVarPtr("f")->toString(), "aXc");
 }
 
 TEST_P(BuiltinTest, Splitlines)
@@ -1532,6 +1626,41 @@ TEST_P(BuiltinTest, Strncmp)
     EXPECT_FALSE(evalBool("strncmp('HELLO', 'hello', 5);"));
 }
 
+// strcmp/strcmpi/strncmp/strncmpi over CELL arrays of strings (element-wise
+// logical array), plus the short-string predicate. Were char-only / wrong.
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(BuiltinTest, StringCompareCellArrays)
+{
+    // strcmp: cell vs char-scalar -> logical array shaped like the cell.
+    eval("y = strcmp({'apple','banana','apple'}, 'apple');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(y(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(y)"), 3.0);
+    // shape follows the cell (2x1 column cell -> 2x1).
+    eval("yc = strcmp({'x';'y'}, 'x');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(yc,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(yc,2)"), 1.0);
+    // strcmpi cell (case-insensitive).
+    eval("yi = strcmpi({'APPLE','x','Apple'}, 'apple');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(yi(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(yi(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(yi(2))"), 0.0);
+    // cell vs cell (element-wise).
+    eval("yy = strcmp({'a','b'}, {'a','c'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(yy(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(yy(2))"), 0.0);
+    // strncmp cell.
+    eval("n = strncmp({'apple','apricot','banana'}, 'app', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(n(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(n(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(n(3))"), 0.0);
+    // short-string predicate: equal & both shorter than n -> true.
+    EXPECT_TRUE(evalBool("strncmp('ab', 'ab', 5);"));
+    EXPECT_FALSE(evalBool("strncmp('ab', 'abc', 5);"));
+    EXPECT_TRUE(evalBool("strncmpi('AB', 'ab', 5);"));
+}
+
 TEST_P(BuiltinTest, Strfind)
 {
     eval("p = strfind('abcabc', 'b');");
@@ -1576,12 +1705,95 @@ TEST_P(BuiltinTest, Mat2str)
     EXPECT_EQ(getVarPtr("s4")->toString(), "[]");
 }
 
+// mat2str on CHAR: a quoted char literal (vs MATLAB R2025b). Previously
+// numkit rendered numeric codes (mat2str('abc') -> "[97 98 99]").
+// DEEP-PROBE 2026-05-31.
+TEST_P(BuiltinTest, Mat2strChar)
+{
+    eval("h1 = mat2str('abc');");
+    EXPECT_EQ(getVarPtr("h1")->toString(), "'abc'");
+    eval("h2 = mat2str(['ab';'cd']);");
+    EXPECT_EQ(getVarPtr("h2")->toString(), "['ab';'cd']");
+    eval("h3 = mat2str('');");
+    EXPECT_EQ(getVarPtr("h3")->toString(), "''");
+    eval("h4 = mat2str('a''b');");   // internal single quote doubled
+    EXPECT_EQ(getVarPtr("h4")->toString(), "'a''b'");
+    eval("h5 = mat2str('x');");
+    EXPECT_EQ(getVarPtr("h5")->toString(), "'x'");
+}
+
+TEST_P(BuiltinTest, Mat2strComplex)
+{
+    // Complex values: re±|im|i per element (vs MATLAB R2025b).
+    eval("c1 = mat2str(1+2i);");
+    EXPECT_EQ(getVarPtr("c1")->toString(), "1+2i");
+    eval("c2 = mat2str([1+2i 3-4i]);");
+    EXPECT_EQ(getVarPtr("c2")->toString(), "[1+2i 3-4i]");
+    eval("c3 = mat2str([1+2i; 3-4i]);");
+    EXPECT_EQ(getVarPtr("c3")->toString(), "[1+2i;3-4i]");
+    // A purely-imaginary element keeps a "0" real part (no "-0").
+    eval("c4 = mat2str([1.5+2.25i -3i], 5);");
+    EXPECT_EQ(getVarPtr("c4")->toString(), "[1.5+2.25i 0-3i]");
+    // All-zero imaginary parts → printed as real.
+    eval("c5 = mat2str(complex(1, 0));");
+    EXPECT_EQ(getVarPtr("c5")->toString(), "1");
+    // Each element is formatted INDEPENDENTLY: a zero-imag element inside an
+    // otherwise-complex array prints as a bare real (no "+0i"). Previously
+    // numkit appended "+0i" to every element whenever ANY element was complex.
+    // vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+    eval("c6 = mat2str([complex(1,1) complex(5,0)]);");
+    EXPECT_EQ(getVarPtr("c6")->toString(), "[1+1i 5]");   // NOT "[1+1i 5+0i]"
+    eval("c7 = mat2str(complex([5 3],[0 4]));");
+    EXPECT_EQ(getVarPtr("c7")->toString(), "[5 3+4i]");   // NOT "[5+0i 3+4i]"
+    eval("c8 = mat2str(sort([3+4i 1+1i 5 2-2i]), 6);");
+    EXPECT_EQ(getVarPtr("c8")->toString(), "[1+1i 2-2i 5 3+4i]");
+    // Purely-imaginary element still keeps its "0" real part (imag != 0).
+    eval("c9 = mat2str([1.5+2.25i -3i], 5);");
+    EXPECT_EQ(getVarPtr("c9")->toString(), "[1.5+2.25i 0-3i]");
+}
+
+// mat2str on integer + logical types and the 'class' option. vs MATLAB
+// R2025b: integers print BARE (no class wrapper), logical prints true/false,
+// and 'class' wraps the result with the class name. 2026-05-30.
+TEST_P(BuiltinTest, Mat2strIntegerLogical)
+{
+    eval("i1 = mat2str(int8([1 2; 3 4]));");
+    EXPECT_EQ(getVarPtr("i1")->toString(), "[1 2;3 4]");
+    eval("i2 = mat2str(int8(5));");
+    EXPECT_EQ(getVarPtr("i2")->toString(), "5");
+    eval("i3 = mat2str(uint8([255 0; 1 2]));");
+    EXPECT_EQ(getVarPtr("i3")->toString(), "[255 0;1 2]");
+    eval("i4 = mat2str(int32([-5 7]));");
+    EXPECT_EQ(getVarPtr("i4")->toString(), "[-5 7]");
+    // Logical -> true / false.
+    eval("l1 = mat2str(true);");
+    EXPECT_EQ(getVarPtr("l1")->toString(), "true");
+    eval("l2 = mat2str([true false true]);");
+    EXPECT_EQ(getVarPtr("l2")->toString(), "[true false true]");
+    eval("l3 = mat2str(logical([1 0; 0 1]));");
+    EXPECT_EQ(getVarPtr("l3")->toString(), "[true false;false true]");
+    // 'class' option wraps with the class name.
+    eval("k1 = mat2str(int8([1 2; 3 4]), 'class');");
+    EXPECT_EQ(getVarPtr("k1")->toString(), "int8([1 2;3 4])");
+    eval("k2 = mat2str(true, 'class');");
+    EXPECT_EQ(getVarPtr("k2")->toString(), "logical(true)");
+    eval("k3 = mat2str([1 2], 'class');");
+    EXPECT_EQ(getVarPtr("k3")->toString(), "double([1 2])");
+}
+
 TEST_P(BuiltinTest, Strjoin)
 {
     eval("s = strjoin({'a', 'b', 'c'});");
     EXPECT_EQ(getVarPtr("s")->toString(), "a b c");
     eval("s2 = strjoin({'foo', 'bar', 'baz'}, '-');");
     EXPECT_EQ(getVarPtr("s2")->toString(), "foo-bar-baz");
+    // Cell array of N-1 delimiters, interleaved between elements (MATLAB R2025b).
+    eval("s3 = strjoin({'a', 'b', 'c'}, {', ', ' and '});");
+    EXPECT_EQ(getVarPtr("s3")->toString(), "a, b and c");
+    eval("s4 = strjoin({'x', 'y'}, {'->'});");
+    EXPECT_EQ(getVarPtr("s4")->toString(), "x->y");
+    eval("s5 = strjoin({'solo'}, {});");   // single element, no delimiters
+    EXPECT_EQ(getVarPtr("s5")->toString(), "solo");
 }
 
 TEST_P(BuiltinTest, Strtok)
@@ -1706,6 +1918,72 @@ TEST_P(BuiltinTest, RepelemMatrixBlocks)
     EXPECT_DOUBLE_EQ((*B)(3, 5), 4.0);
 }
 
+TEST_P(BuiltinTest, RepelemCountVector)
+{
+    // Per-element counts: 1->1x, 2->2x, 3->3x → [1 2 2 3 3 3].
+    eval("v = repelem([1 2 3], [1 2 3]);");
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->numel(), 6u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[4], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[5], 3.0);
+}
+
+TEST_P(BuiltinTest, RepelemCountVectorZeroDropsElement)
+{
+    // A zero count drops that element; column orientation preserved.
+    eval("c = repelem([1; 2; 3], [2 0 1]);");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(rows(*c), 3u);
+    EXPECT_EQ(cols(*c), 1u);
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[2], 3.0);
+}
+
+TEST_P(BuiltinTest, RepelemMatrixScalarRowVectorCol)
+{
+    // r scalar (2), c vector [1 2] → 4x3.
+    eval("A = [1 2; 3 4]; B = repelem(A, 2, [1 2]);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(rows(*B), 4u);
+    EXPECT_EQ(cols(*B), 3u);
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 1.0);  // col 0 once
+    EXPECT_DOUBLE_EQ((*B)(0, 1), 2.0);  // col 1 twice
+    EXPECT_DOUBLE_EQ((*B)(0, 2), 2.0);
+    EXPECT_DOUBLE_EQ((*B)(3, 2), 4.0);
+}
+
+TEST_P(BuiltinTest, RepelemMatrixRowVectorScalarCol)
+{
+    // r vector [2 1], c scalar 3 → 3x6.
+    eval("A = [1 2; 3 4]; B = repelem(A, [2 1], 3);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(rows(*B), 3u);
+    EXPECT_EQ(cols(*B), 6u);
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 1.0);  // row 0 twice
+    EXPECT_DOUBLE_EQ((*B)(1, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 0), 3.0);  // row 1 once
+    EXPECT_DOUBLE_EQ((*B)(2, 5), 4.0);
+}
+
+TEST_P(BuiltinTest, RepelemNegativeCountThrows)
+{
+    EXPECT_THROW(eval("y = repelem([1 2 3], [1 -1 2]);"), std::exception);
+}
+
+TEST_P(BuiltinTest, RepelemCountLengthMismatchThrows)
+{
+    EXPECT_THROW(eval("y = repelem([1 2 3], [1 2]);"), std::exception);
+}
+
 TEST_P(BuiltinTest, Sub2IndIndSub)
 {
     // 2-D: column-major. siz=[3 4], (2,3) → 8.
@@ -1779,10 +2057,59 @@ TEST_P(BuiltinTest, Floor)
     EXPECT_DOUBLE_EQ(evalScalar("floor(-3.2);"), -4.0);
 }
 
+// round(x, N) decimals + round(x, N, 'significant'). vs MATLAB R2025b.
+TEST_P(BuiltinTest, RoundDigits)
+{
+    EXPECT_NEAR(evalScalar("round(3.14159, 2);"), 3.14, 1e-12);
+    EXPECT_NEAR(evalScalar("round(3.14159, 4);"), 3.1416, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("round(12345, -2);"), 12300.0);
+    EXPECT_NEAR(evalScalar("round(3.14159, 3, 'significant');"), 3.14, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("round(12345, 2, 'significant');"), 12000.0);
+    EXPECT_NEAR(evalScalar("round(0.0012345, 2, 'significant');"), 0.0012, 1e-12);
+    // round(x) (0-arg) unchanged; half-away-from-zero.
+    EXPECT_DOUBLE_EQ(evalScalar("round(2.5);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("round(-2.5);"), -3.0);
+    // vector + bad type.
+    eval("v = round([3.14159 2.71828], 2);");
+    EXPECT_NEAR(evalScalar("v(2)"), 2.72, 1e-12);
+    EXPECT_THROW(eval("round(1.5, 2, 'bogus');"), std::exception);
+}
+
 TEST_P(BuiltinTest, Mod)
 {
     EXPECT_DOUBLE_EQ(evalScalar("mod(7, 3);"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("mod(10, 5);"), 0.0);
+}
+
+// mod/rem on integer types keep the integer class (a double operand is
+// promoted to the integer class). numkit previously returned double / threw
+// on integer arrays. DEEP-PROBE 2026-05-30.
+TEST_P(BuiltinTest, ModRemIntegerClass)
+{
+    eval("a = mod(int8(7), int8(3));");          // 1 int8
+    EXPECT_DOUBLE_EQ(evalScalar("double(a);"), 1.0);
+    EXPECT_TRUE(evalBool("isequal(class(a), 'int8');"));
+    eval("b = rem(int8(-7), int8(3));");         // -1 int8
+    EXPECT_DOUBLE_EQ(evalScalar("double(b);"), -1.0);
+    EXPECT_TRUE(evalBool("isequal(class(b), 'int8');"));
+    eval("c = mod(int8(-7), int8(3));");         // 2 int8 (floored)
+    EXPECT_DOUBLE_EQ(evalScalar("double(c);"), 2.0);
+    // Integer VECTOR (previously threw "Not a double array").
+    eval("d = mod(int8([7 8 9]), int8(3));");    // [1 2 0] int8
+    EXPECT_TRUE(evalBool("isequal(class(d), 'int8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(d(1));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(d(3));"), 0.0);
+    // Mixed int + double -> integer class.
+    eval("e = mod(int8(7), 3);");
+    EXPECT_TRUE(evalBool("isequal(class(e), 'int8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(e);"), 1.0);
+    eval("f = rem(uint8(200), uint8(7));");      // 4 uint8
+    EXPECT_DOUBLE_EQ(evalScalar("double(f);"), 4.0);
+    EXPECT_TRUE(evalBool("isequal(class(f), 'uint8');"));
+    // double inputs unchanged (regress).
+    EXPECT_DOUBLE_EQ(evalScalar("mod(5.5, 2);"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("rem(-7, 3);"), -1.0);
+    EXPECT_TRUE(evalBool("isequal(class(mod(7, 3)), 'double');"));
 }
 
 // ── Reshape ─────────────────────────────────────────────────
@@ -2300,6 +2627,34 @@ TEST_P(DisplayTest, ShowOutput)
     eval("42");
     EXPECT_FALSE(capturedOutput.empty());
     EXPECT_NE(capturedOutput.find("42"), std::string::npos);
+}
+
+// fprintf returns the byte count (MATLAB's `count` output). Counts pinned
+// against MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit previously returned
+// nothing, so `k = fprintf(...)` left k undefined.
+TEST_P(DisplayTest, FprintfReturnsByteCount)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("k = fprintf('hello')"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("n = fprintf('%d\\n', 42)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("p = fprintf('%d %d %d', [1 2 3])"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q = fprintf('%5.2f\\n', 3.14159)"), 6.0);
+    // Format recycled over a vector counts every emitted byte.
+    EXPECT_DOUBLE_EQ(evalScalar("r = fprintf('%d-', [10 20 30])"), 9.0);
+    // Empty format -> 0 bytes.
+    EXPECT_DOUBLE_EQ(evalScalar("z = fprintf('')"), 0.0);
+    // Writing to stderr (fid==2) still reports the count.
+    EXPECT_DOUBLE_EQ(evalScalar("e = fprintf(2, 'err')"), 3.0);
+}
+
+// A bare fprintf(...) statement must NOT materialise an `ans` (nargout==0),
+// matching MATLAB: only the formatted text is emitted, no "ans = 5".
+TEST_P(DisplayTest, FprintfBareCallSetsNoAns)
+{
+    capturedOutput.clear();
+    eval("fprintf('hi')");
+    EXPECT_NE(capturedOutput.find("hi"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("ans"), std::string::npos);
+    EXPECT_EQ(engine.getVariable("ans"), nullptr);
 }
 
 INSTANTIATE_DUAL(DisplayTest);

@@ -42,10 +42,10 @@ TEST_P(StatsTest, VarVectorPopulationFlag)
 
 TEST_P(StatsTest, VarScalar)
 {
-    // var(5) — single element with N-1 normalization is NaN (matches MATLAB).
-    auto v = eval("var(5);");
-    EXPECT_TRUE(std::isnan(v.toScalar()));
-    // var(5, 1) with population normalization is 0.
+    // var(5) — variance of a single element is 0 in MATLAB R2025b for BOTH
+    // the default N-1 normalization and the N normalization (NOT NaN from the
+    // 0/0 of N-1). Verified `format long` against MATLAB 2026-05-29.
+    EXPECT_DOUBLE_EQ(evalScalar("var(5);"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("var(5, 1);"), 0.0);
 }
 
@@ -755,6 +755,28 @@ TEST_P(StatsTest, CorrcoefMatrixDiagonalIsOne)
     EXPECT_NEAR((*R)(0, 1), 1.0, 1e-12);  // perfect collinearity
 }
 
+// [R, P] = corrcoef(...): P holds two-sided p-values (was missing). vs MATLAB.
+TEST_P(StatsTest, CorrcoefPValues)
+{
+    eval("function [a,b] = wCC(x,y)\n  [a,b] = corrcoef(x,y);\nend");
+    eval("[R, P] = wCC([1 2 3 4]', [2 4 5 9]');");
+    EXPECT_NEAR(evalScalar("R(1,2)"), 0.96476382, 1e-7);
+    EXPECT_NEAR(evalScalar("P(1,2)"), 0.035236179, 1e-7);
+    EXPECT_DOUBLE_EQ(evalScalar("P(1,1)"), 1.0); // diagonal is 1
+    EXPECT_DOUBLE_EQ(evalScalar("P(2,2)"), 1.0);
+    EXPECT_NEAR(evalScalar("P(2,1)"), 0.035236179, 1e-7); // symmetric
+}
+
+TEST_P(StatsTest, CorrcoefPValuesMatrix)
+{
+    eval("function [a,b] = wCM(x)\n  [a,b] = corrcoef(x);\nend");
+    eval("[R, P] = wCM([1 2 3; 4 5 7; 2 1 0]);");
+    EXPECT_NEAR(evalScalar("P(1,2)"), 0.366717, 1e-5);
+    EXPECT_NEAR(evalScalar("P(1,3)"), 0.49324, 1e-5);
+    EXPECT_NEAR(evalScalar("P(2,3)"), 0.126523, 1e-5);
+    EXPECT_DOUBLE_EQ(evalScalar("P(1,1)"), 1.0);
+}
+
 TEST_P(StatsTest, CorrcoefWithNoiseInRange)
 {
     eval("rng(0);"
@@ -764,6 +786,27 @@ TEST_P(StatsTest, CorrcoefWithNoiseInRange)
     const double r = evalScalar("R(1, 2);");
     EXPECT_GT(r, 0.4);
     EXPECT_LT(r, 0.9);
+}
+
+// [R, P, RL, RU] = corrcoef(...): RL/RU are the lower/upper Fisher
+// z-transform confidence bounds (95% default, or 'Alpha'). Were
+// unimplemented. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(StatsTest, CorrcoefConfBounds)
+{
+    eval("function [a,b,c,d] = wCB(x,y)\n  [a,b,c,d] = corrcoef(x,y);\nend");
+    eval("[R,P,RL,RU] = wCB([1 2 4 3 5 7 6 8]', [2 1 3 5 4 6 8 7]');");
+    EXPECT_NEAR(evalScalar("RL(1,2)"), 0.3116980572, 1e-9);
+    EXPECT_NEAR(evalScalar("RU(1,2)"), 0.9689892089, 1e-9);
+    // diagonal bounds are exactly 1.
+    EXPECT_DOUBLE_EQ(evalScalar("RL(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("RU(2,2)"), 1.0);
+    // symmetric.
+    EXPECT_NEAR(evalScalar("RL(2,1)"), 0.3116980572, 1e-9);
+    // 'Alpha' widens/narrows the interval (0.10 -> tighter than 0.05).
+    eval("function [a,b,c,d] = wCBA(x,y)\n  [a,b,c,d] = corrcoef(x,y,'Alpha',0.10);\nend");
+    eval("[Ra,Pa,RLa,RUa] = wCBA([1 2 4 3 5 7 6 8]', [2 1 3 5 4 6 8 7]');");
+    EXPECT_NEAR(evalScalar("RLa(1,2)"), 0.4328079594, 1e-9);
+    EXPECT_NEAR(evalScalar("RUa(1,2)"), 0.9590994664, 1e-9);
 }
 
 INSTANTIATE_DUAL(StatsTest);
@@ -2047,11 +2090,12 @@ TEST_P(ReductionDimTest, VarOmitnanSkipsNaN)
 TEST_P(ReductionDimTest, StdOmitnanWithDim)
 {
     eval("M = [1 NaN 3; 2 5 4]; r = std(M, 0, 1, 'omitnan');");
-    // col 1: std([1, 2], 0) = sqrt(0.5)
-    // col 2: std([5], 0) = NaN (only 1 element, sample variance undefined)
-    // col 3: std([3, 4], 0) = sqrt(0.5)
+    // col 1: std([1, 2], 0)  = sqrt(0.5)
+    // col 2: std([5], 0)     = 0  (single valid value -> 0 in MATLAB, NOT NaN;
+    //        verified `format long`: std([1 NaN 3;2 5 4],0,1,'omitnan')=[.7071 0 .7071])
+    // col 3: std([3, 4], 0)  = sqrt(0.5)
     EXPECT_NEAR(evalScalar("r(1);"), std::sqrt(0.5), 1e-12);
-    EXPECT_TRUE(std::isnan(evalScalar("r(2);")));
+    EXPECT_DOUBLE_EQ(evalScalar("r(2);"), 0.0);
     EXPECT_NEAR(evalScalar("r(3);"), std::sqrt(0.5), 1e-12);
 }
 
@@ -2390,10 +2434,13 @@ TEST_P(NanReductionTest, NanvarPopulationFlag)
 
 TEST_P(NanReductionTest, NanvarSingleValidValue)
 {
-    // Only one non-NaN: var with N-1 normalisation is undefined → NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("nanvar([NaN 5 NaN]);")));
-    // Population variance of one value = 0.
+    // Only one non-NaN value: variance is 0 in MATLAB R2025b for BOTH the
+    // default N-1 normalization and the N normalization (NOT NaN from 0/0).
+    // Verified `format long`: nanvar([NaN 5 NaN]) == 0. 2026-05-29 fix.
+    EXPECT_DOUBLE_EQ(evalScalar("nanvar([NaN 5 NaN]);"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("nanvar([NaN 5 NaN], 1);"), 0.0);
+    // nanstd mirrors it.
+    EXPECT_DOUBLE_EQ(evalScalar("nanstd([NaN 5 NaN]);"), 0.0);
 }
 
 TEST_P(NanReductionTest, NanstdSkipsNaN)
@@ -3150,15 +3197,19 @@ TEST_P(CumLogicalTest, DiffNDDim2)
         EXPECT_DOUBLE_EQ(d->doubleData()[i], 2.0);
 }
 
-TEST_P(CumLogicalTest, DiffPromotesIntegerToDouble)
+TEST_P(CumLogicalTest, DiffPreservesIntegerClass)
 {
+    // MATLAB R2025b keeps the integer class for diff (and saturates). Fixed
+    // 2026-05-30 — numkit previously promoted to double.
+    // diff(int32([10 25 60 100])) = [15 35 40] int32.
     eval("d = diff(int32([10 25 60 100]));");
     auto *d = getVarPtr("d");
-    EXPECT_EQ(d->type(), ValueType::DOUBLE);
+    EXPECT_EQ(d->type(), ValueType::INT32);
     EXPECT_EQ(d->numel(), 3u);
-    EXPECT_DOUBLE_EQ(d->doubleData()[0], 15.0);
-    EXPECT_DOUBLE_EQ(d->doubleData()[1], 35.0);
-    EXPECT_DOUBLE_EQ(d->doubleData()[2], 40.0);
+    const int32_t *p = d->int32Data();
+    EXPECT_EQ(p[0], 15);
+    EXPECT_EQ(p[1], 35);
+    EXPECT_EQ(p[2], 40);
 }
 
 TEST_P(CumLogicalTest, DiffPromotesLogicalToDouble)

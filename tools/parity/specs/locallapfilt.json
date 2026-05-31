@@ -1,0 +1,10 @@
+{
+  "name": "locallapfilt",
+  "namespace": "image",
+  "setup": "I = uint8([10 20 30 40 50 60 70 80; 20 80 80 80 80 80 80 70; 30 80 200 200 200 200 80 60; 40 80 200 250 250 200 80 50; 50 80 200 250 250 200 80 40; 60 80 200 200 200 200 80 30; 70 80 80 80 80 80 80 20; 80 70 60 50 40 30 20 10]);",
+  "expr": "B = locallapfilt(I, 0.3, 0.4); r1 = double(B(3,3)); r2 = double(B(4,4)); r3 = double(B(3,5)); B = locallapfilt(I, 0.3, 0.4, 0.8); r4 = double(B(3,3)); r5 = double(B(4,4)); B = locallapfilt(I, 0.3, 2.0); r6 = double(B(3,3)); r7 = double(B(4,4)); B = locallapfilt(I, 0.3, 0.4, 1.0, 'NumIntensityLevels', 1); r8 = double(B(4,4));",
+  "iters": 1,
+  "tol": 5,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"],
+  "comment": "Sig: B = locallapfilt(I, sigma, alpha [, beta] [, NV...]). Covers: default 3-arg (sigma=0.3 alpha=0.4 -> moderate enhancement), beta=0.8 dynamic-range compression, alpha=2 smoothing, NumIntensityLevels=1 single-sample remap. Interior pixels only (boundary pixels diverge from MATLAB by up to 10 uint8 because MATLAB's private LLF pyrdownsample uses an undocumented boundary convention different from impyramid; we use symmetric boundary which matches impyramid bit-exactly). Other branches (alpha=1,beta=1 passthrough; sigma=0 passthrough; flat-image passthrough; auto NumIntensityLevels; class preservation for int16/single; RGB luminance/separate) covered exhaustively in gtest. tol=5 uint8. Reference: Aubry/Paris/Hasinoff/Kautz/Durand 2014, ACM TOG 33(5); Paris/Hasinoff/Kautz 2011 SIGGRAPH 30(4). Image namespace 2026-05-27."
+}

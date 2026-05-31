@@ -96,16 +96,22 @@ Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char 
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim, fn);
     Value r = applyAlongDim(x, d,
         [normFlag, fromSlice](size_t, double *slice, size_t n) {
-            return fromSlice(slice, n, normFlag);
+            // MATLAB skewness/kurtosis treat NaN as missing and remove it.
+            // Compact the non-NaN values to the front of the (mutable)
+            // slice and reduce the count before the moment kernel runs.
+            size_t k = 0;
+            for (size_t i = 0; i < n; ++i)
+                if (!std::isnan(slice[i])) slice[k++] = slice[i];
+            return fromSlice(slice, k, normFlag);
         }, mr);
     if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), mr);
@@ -132,7 +138,7 @@ void skewness_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("skewness: requires at least 1 argument",
-                     0, 0, "skewness", "", "m:skewness:nargin");
+                     0, 0, "skewness", "", "numkit:skewness:nargin");
     int normFlag = 1;  // MATLAB default
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
@@ -147,7 +153,7 @@ void kurtosis_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("kurtosis: requires at least 1 argument",
-                     0, 0, "kurtosis", "", "m:kurtosis:nargin");
+                     0, 0, "kurtosis", "", "numkit:kurtosis:nargin");
     int normFlag = 1;
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())

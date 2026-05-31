@@ -14,11 +14,8 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/nd_manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/accum.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/predicates.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/linalg_extras.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/ldl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/lsq.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/balance.cpp
+    # predicates.cpp / linalg_extras.cpp / ldl.cpp / balance.cpp /
+    # lsq.cpp all migrated to libs/linalg.
     ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/strings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex.cpp
@@ -44,6 +41,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/geom/geom.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/group/group.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/permutations.cpp
     # math/optim/ moved to libs/optim/
     # programming/ — MATLAB Programming and Scripts
     ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp

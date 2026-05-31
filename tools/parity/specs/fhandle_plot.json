@@ -1,0 +1,13 @@
+{
+  "name": "fhandle_plot",
+  "covers": ["fplot", "fcontour", "fmesh", "fsurf"],
+  "namespace": "graphics",
+  "setup": "f1 = @(x) sin(x); f2 = @(x, y) x.^2 + y.^2;",
+  "expr": "fplot(f1); fplot(f1, [-pi pi]); fcontour(f2); fcontour(f2, [-1 1 -1 1]); fmesh(f2); fsurf(f2); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: function-handle plotting family. fplot(f [, xrange]) — 2-D, samples adaptively. fcontour(f [, range]) — contour from f(x,y). fmesh / fsurf — 3-D mesh / shaded surface from f(x,y). All side-effect (emit __FIGURE_DATA__). Spec verifies each runs with both default range and explicit range. Same `r1 = 1` fingerprint pattern as other graphics-primitive specs (numkit graphics handles not directly comparable to MATLAB)."
+}

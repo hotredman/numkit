@@ -171,7 +171,7 @@ void fullfile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     for (const auto &a : args) {
         if (!a.isChar() && !a.isString())
             throw Error("fullfile: all arguments must be strings",
-                         0, 0, "fullfile", "", "m:fullfile:badArg");
+                         0, 0, "fullfile", "", "numkit:fullfile:badArg");
         parts.push_back(a.toString());
     }
     outs[0] = fullfile(Span<const std::string>(parts.data(), parts.size()), ctx.engine->resource());
@@ -181,7 +181,7 @@ void fileparts_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 {
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("fileparts: requires a string path",
-                     0, 0, "fileparts", "", "m:fileparts:nargin");
+                     0, 0, "fileparts", "", "numkit:fileparts:nargin");
     auto [folder, name, ext] = fileparts(args[0].toString(), ctx.engine->resource());
     outs[0] = std::move(folder);
     if (nargout > 1) outs[1] = std::move(name);

@@ -1,0 +1,17 @@
+{
+  "name": "sprintf_int_fallback",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = sprintf('%d', 3.7); na = numel(a); a1 = double(a(1)); a3 = double(a(3)); a8 = double(a(8)); b = sprintf('%.2d', 3.7); nb = numel(b); b4 = double(b(4)); c = sprintf('%d', 5); nc = numel(c); c1 = double(c(1)); d = sprintf('%d', 1e10); nd = numel(d); e = sprintf('%d', Inf); ne = numel(e); e1 = double(e(1)); f = sprintf('%d', -2.5); nf = numel(f); f1 = double(f(1));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "a1", "a3", "a8",
+    "nb", "b4",
+    "nc", "c1",
+    "nd",
+    "ne", "e1",
+    "nf", "f1"
+  ],
+  "comment": "sprintf/fprintf integer conversion on a non-integer falls back to %e vs MATLAB R2025b. Bug fixed 2026-05-30: %d truncated to int (sprintf('%d',3.7) gave '3'). MATLAB overrides to %e: sprintf('%d',3.7)='3.700000e+00' (na=12, a(1)='3'=51, a(3)='7'=55, a(8)='e'=101); precision carries (sprintf('%.2d',3.7)='3.70e+00', nb=8, b(4)='0'); whole numbers stay integer (sprintf('%d',5)='5', sprintf('%d',1e10)='10000000000' nd=11); Inf->'Inf' (ne=3, e(1)='I'=73); negative non-int sprintf('%d',-2.5)='-2.500000e+00' (f(1)='-'=45)."
+}

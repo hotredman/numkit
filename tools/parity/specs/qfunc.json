@@ -2,12 +2,11 @@
   "name": "qfunc",
   "namespace": "comm",
   "setup": "",
-  "expr": "r1 = qfunc(0); r2 = qfunc(1);",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "r = qfunc([-1.5 0 1 2]);",
+  "iters": 3,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r(1)", "r(2)", "r(3)", "r(4)"
   ],
-  "comment": "Sig: r = qfunc(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig q=qfunc(x)=0.5*erfc(x/sqrt(2)): upper tail of the standard normal. qfunc(-1.5)=0.933193, qfunc(0)=0.5, qfunc(1)=0.158655, qfunc(2)=0.0227501. Vectorised input; pins the symmetric pair and two positive arguments."
 }

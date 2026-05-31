@@ -317,7 +317,9 @@ double nanVarianceTwoPass(const double *p, std::size_t n, int normFlag)
     if (n == 0) return std::nan("");
     const auto sc = nanSumCountScan(p, n);
     if (sc.count == 0) return std::nan("");
-    if (sc.count == 1) return (normFlag == 1) ? 0.0 : std::nan("");
+    // MATLAB: variance over a single non-NaN value is 0 for BOTH the N-1
+    // (default) and N normalizations — e.g. nanvar([NaN 5 NaN]) == 0, not NaN.
+    if (sc.count == 1) return 0.0;
     const double mean  = sc.sum / static_cast<double>(sc.count);
     const double ss    = HWY_DYNAMIC_DISPATCH(NanSumSqDevScanLoop)(p, n, mean);
     const double denom = (normFlag == 1) ? static_cast<double>(sc.count)

@@ -1,0 +1,29 @@
+{
+  "name": "cmunique",
+  "namespace": "image",
+  "setup": "X1 = magic(4); map1 = [gray(8); gray(8)]; RGB = cat(3, [0.1 0.2; 0.1 0.3], [0.5 0.6; 0.5 0.7], [0.9 0.8; 0.9 0.6]); I = [0.1 0.2; 0.1 0.3]; X4 = uint8([1 2; 3 2]); map4 = [0 0 0; 0.5 0.5 0.5; 1 1 1; 0.5 0.5 0.5];",
+  "expr": "[Y1, m1] = cmunique(X1, map1); [Y2, m2] = cmunique(RGB); [Y3, m3] = cmunique(I); [Y4, m4] = cmunique(X4, map4); Y1d = double(Y1); Y2d = double(Y2); Y3d = double(Y3); Y4d = double(Y4);",
+  "iters": 3,
+  "tol": 1e-3,
+  "fingerprint": [
+    "Y1d(1,1)", "Y1d(2,2)", "Y1d(4,4)",
+    "size(m1,1)", "size(m1,2)",
+    "m1(1,1)", "m1(8,1)",
+    "Y2d(1,1)", "Y2d(2,2)",
+    "size(m2,1)",
+    "Y3d(1,1)", "Y3d(2,2)",
+    "size(m3,1)",
+    "Y4d(1,1)", "Y4d(2,2)",
+    "size(m4,1)",
+    "m4(1,1)", "m4(2,1)"
+  ],
+  "covers": [
+    "cmunique(X, MAP)              indexed image + colormap → compressed",
+    "cmunique(RGB)                  truecolor → indexed",
+    "cmunique(I)                    intensity → indexed",
+    "uint8 X input                  + double MAP",
+    "Y is uint8 when newmap ≤ 256   else double",
+    "duplicate-row removal           + unused-row pruning"
+  ],
+  "comment": "MATLAB R2025b cmunique.m algorithm: quantise MAP to 1/1024, sort rows by [3 2 1], identify consecutive duplicates, compress map, remap X indices, then count usage and drop unused entries with a second remap. Output Y is uint8 (0-based) when newmap has ≤ 256 rows, else double (1-based). Tolerance 1e-3 because the colormap values are exactly the quantised 1/1024 grid (4 decimal places); higher precision unnecessary. Bit-equal MATLAB on (X, MAP), (RGB), (I), and uint8-X forms — verified by direct probe."
+}

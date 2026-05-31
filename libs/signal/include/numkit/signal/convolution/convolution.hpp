@@ -40,7 +40,7 @@ Value conv(const Value &                a,
 /// Polynomial long-division: `b = conv(a, q) + r`.
 ///
 /// Recovers the quotient `q` and remainder `r` such that the original
-/// polynomial relationship holds. MATLAB's `[q, r] = deconv(b, a)`.
+/// polynomial relationship holds (the `[q, r] = deconv(b, a)` form).
 ///
 /// @param b   Dividend polynomial (real row/column vector).
 /// @param a   Divisor polynomial.  `a[0]` must be non-zero.
@@ -96,19 +96,34 @@ xcorr(const Value &x, std::pmr::memory_resource *mr = nullptr)
 
 /// Cross-covariance of two real vectors.
 ///
-/// Computes `xcorr(x - mean(x), y - mean(y))`. The mean is subtracted
-/// before correlation, so the result is invariant to DC offsets.
+/// Computes `xcorr(x - mean(x), y - mean(y))` with MATLAB's scaling and
+/// lag handling. The mean is subtracted before correlation, so the
+/// result is invariant to DC offsets.
 ///
-/// @param x   First signal (real, row or column).
-/// @param y   Second signal (real, row or column).
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Tuple `(c, lags)`, both column vectors.
+/// @param x         First signal (real, row or column).
+/// @param y         Second signal (real, row or column).
+/// @param maxlag    Maximum lag; `< 0` selects the full range `N-1`
+///                  (`N = max(numel(x), numel(y))`). Result is cropped
+///                  (or zero-padded) to lags `-maxlag..maxlag`.
+/// @param scaleopt  `"none"` (default), `"biased"`, `"unbiased"`, or
+///                  `"coeff"` (a.k.a. `"normalized"`).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Tuple `(c, lags)`.
 ///
 /// @see xcorr
 std::tuple<Value, Value>
 xcov(const Value &                x,
      const Value &                y,
+     int                          maxlag,
+     const std::string &          scaleopt,
      std::pmr::memory_resource *  mr = nullptr);
+
+/// @brief Cross-covariance with full lags and `"none"` scaling.
+inline std::tuple<Value, Value>
+xcov(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr)
+{
+    return xcov(x, y, -1, std::string("none"), mr);
+}
 
 /// @brief Auto-covariance — equivalent to `xcov(x, x)`.
 ///
@@ -148,7 +163,7 @@ Value conv2(const Value &                A,
             const std::string &          shape = "full",
             std::pmr::memory_resource *  mr    = nullptr);
 
-/// 2-D filter — MATLAB's `filter2(h, X[, shape])`.
+/// 2-D filter — `filter2(h, X[, shape])`.
 ///
 /// Equivalent to `conv2(X, rot90(h, 2), shape)`: the filter kernel `h`
 /// is rotated 180° before convolution, matching the engineering

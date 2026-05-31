@@ -86,7 +86,13 @@ LevinsonResult levinsonCore(const std::vector<double> &r, int p)
         // Numerator of the i-th reflection coefficient.
         double num = r[i];
         for (int j = 1; j < i; ++j) num += a_prev[j] * r[i - j];
-        const double k = -num / e;
+        // MATLAB's levinson runs the full recursion even when the
+        // residual energy goes non-positive (a non-PSD autocorrelation,
+        // i.e. an unstable model). It does NOT early-exit: e simply
+        // climbs back up through the (1 - k^2) factor. Match that — only
+        // guard the exact-zero divide. (For valid PSD input e stays > 0,
+        // so this changes nothing for the well-posed case.)
+        const double k = (e != 0.0) ? -num / e : 0.0;
         res.k[i - 1] = k;
 
         // Update a using a_prev: a_new[j] = a_prev[j] + k * a_prev[i-j]
@@ -97,7 +103,6 @@ LevinsonResult levinsonCore(const std::vector<double> &r, int p)
         a_new[i] = k;
         a_prev = std::move(a_new);
         e *= (1.0 - k * k);
-        if (e <= 0.0) { e = 0.0; break; }
     }
     res.a = a_prev;
     res.e = e;
@@ -318,7 +323,8 @@ Value rc2ac(const Value &k, double r0, std::pmr::memory_resource *mr)
     return rowVec(R, mr);
 }
 
-Value poly2rc(const Value &a, std::pmr::memory_resource *mr)
+std::tuple<Value, Value>
+poly2rc(const Value &a, double efinal, std::pmr::memory_resource *mr)
 {
     auto av = readVec(a);
     const int p = static_cast<int>(av.size()) - 1;
@@ -334,10 +340,17 @@ Value poly2rc(const Value &a, std::pmr::memory_resource *mr)
             prev[j] = (cur[j] - ki * cur[i - j]) / denom;
         cur = prev;
     }
-    return colVec(k, mr);
+    // Zero-lag autocorrelation R0 = efinal / prod_i (1 - k_i^2). This is
+    // the second output [k, R0] = poly2rc(a, efinal): the energy of the
+    // signal whose AR model is `a` with final prediction error `efinal`.
+    double prod = 1.0;
+    for (double ki : k) prod *= (1.0 - ki * ki);
+    const double r0 = (prod != 0.0) ? efinal / prod : 0.0;
+    return std::make_tuple(colVec(k, mr), Value::scalar(r0, mr));
 }
 
-Value rc2poly(const Value &k, std::pmr::memory_resource *mr)
+std::tuple<Value, Value>
+rc2poly(const Value &k, double r0, std::pmr::memory_resource *mr)
 {
     auto kv = readVec(k);
     const int p = static_cast<int>(kv.size());
@@ -350,7 +363,12 @@ Value rc2poly(const Value &k, std::pmr::memory_resource *mr)
         a_new[i] = ki;
         a = std::move(a_new);
     }
-    return rowVec(a, mr);
+    // efinal = r0 * prod_i (1 - k_i^2): the final prediction error of the
+    // AR model, the inverse of poly2rc's R0 relation. Second output of
+    // [a, efinal] = rc2poly(k, r0).
+    double prod = 1.0;
+    for (double ki : kv) prod *= (1.0 - ki * ki);
+    return std::make_tuple(rowVec(a, mr), Value::scalar(r0 * prod, mr));
 }
 
 // is2rc / rc2is — inverse-sine parameterisation, k = sin(is).
@@ -861,7 +879,7 @@ void levinson_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("levinson: requires at least 1 argument",
-                     0, 0, "levinson", "", "m:levinson:nargin");
+                     0, 0, "levinson", "", "numkit:levinson:nargin");
     int n = -1;
     if (args.size() >= 2 && !args[1].isEmpty()) n = static_cast<int>(args[1].toScalar());
     auto [a, e, k] = levinson(args[0], n, ctx.engine->resource());
@@ -875,7 +893,7 @@ void rlevinson_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("rlevinson: requires (a, e)",
-                     0, 0, "rlevinson", "", "m:rlevinson:nargin");
+                     0, 0, "rlevinson", "", "numkit:rlevinson:nargin");
     auto [R, k] = rlevinson(args[0], args[1].toScalar(), ctx.engine->resource());
     outs[0] = std::move(R);
     if (nargout > 1) outs[1] = std::move(k);
@@ -887,7 +905,7 @@ void rlevinson_reg(Span<const Value> args, size_t nargout,
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#name ": requires (x, p)",                              \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         const int p = static_cast<int>(args[1].toScalar());                     \
         auto [a, e, k] = fn(args[0], p, ctx.engine->resource());                \
         outs[0] = std::move(a);                                                  \
@@ -905,7 +923,7 @@ void lpc_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("lpc: requires (x, p)",
-                     0, 0, "lpc", "", "m:lpc:nargin");
+                     0, 0, "lpc", "", "numkit:lpc:nargin");
     const int p = static_cast<int>(args[1].toScalar());
     auto [a, g] = lpc(args[0], p, ctx.engine->resource());
     outs[0] = std::move(a);
@@ -914,7 +932,7 @@ void lpc_reg(Span<const Value> args, size_t nargout,
 
 void ac2poly_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty()) throw Error("ac2poly: requires 1 argument", 0, 0, "ac2poly", "", "m:ac2poly:nargin");
+    if (args.empty()) throw Error("ac2poly: requires 1 argument", 0, 0, "ac2poly", "", "numkit:ac2poly:nargin");
     auto [a, e] = ac2poly(args[0], ctx.engine->resource());
     outs[0] = std::move(a);
     if (nargout > 1) outs[1] = std::move(e);
@@ -922,14 +940,14 @@ void ac2poly_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 
 void poly2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty()) throw Error("poly2ac: requires 1 argument", 0, 0, "poly2ac", "", "m:poly2ac:nargin");
+    if (args.empty()) throw Error("poly2ac: requires 1 argument", 0, 0, "poly2ac", "", "numkit:poly2ac:nargin");
     const double e = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 1.0;
     outs[0] = poly2ac(args[0], e, ctx.engine->resource());
 }
 
 void ac2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty()) throw Error("ac2rc: requires 1 argument", 0, 0, "ac2rc", "", "m:ac2rc:nargin");
+    if (args.empty()) throw Error("ac2rc: requires 1 argument", 0, 0, "ac2rc", "", "numkit:ac2rc:nargin");
     auto [k, r0] = ac2rc(args[0], ctx.engine->resource());
     outs[0] = std::move(k);
     if (nargout > 1) outs[1] = std::move(r0);
@@ -937,14 +955,42 @@ void ac2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 
 void schurrc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.empty()) throw Error("schurrc: requires 1 argument (R)", 0, 0, "schurrc", "", "m:schurrc:nargin");
+    if (args.empty()) throw Error("schurrc: requires 1 argument (R)", 0, 0, "schurrc", "", "numkit:schurrc:nargin");
     outs[0] = schurrc(args[0], ctx.engine->resource());
 }
 
 void rc2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2) throw Error("rc2ac: requires (k, r0)", 0, 0, "rc2ac", "", "m:rc2ac:nargin");
+    if (args.size() < 2) throw Error("rc2ac: requires (k, r0)", 0, 0, "rc2ac", "", "numkit:rc2ac:nargin");
     outs[0] = rc2ac(args[0], args[1].toScalar(), ctx.engine->resource());
+}
+
+void poly2rc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("poly2rc: requires at least 1 argument (a)",
+                     0, 0, "poly2rc", "", "numkit:poly2rc:nargin");
+    // [k, r0] = poly2rc(a, efinal). efinal (final prediction error) is
+    // only needed for the second output; defaults to 0.
+    const double efinal = (args.size() >= 2 && !args[1].isEmpty())
+                              ? args[1].toScalar() : 0.0;
+    auto [k, r0] = poly2rc(args[0], efinal, ctx.engine->resource());
+    outs[0] = std::move(k);
+    if (nargout > 1) outs[1] = std::move(r0);
+}
+
+void rc2poly_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rc2poly: requires at least 1 argument (k)",
+                     0, 0, "rc2poly", "", "numkit:rc2poly:nargin");
+    // [a, efinal] = rc2poly(k, r0). r0 (zero-lag autocorrelation) is only
+    // needed for the second output efinal = r0*prod(1-k.^2); defaults to 1.
+    const double r0 = (args.size() >= 2 && !args[1].isEmpty())
+                          ? args[1].toScalar() : 1.0;
+    auto [a, efinal] = rc2poly(args[0], r0, ctx.engine->resource());
+    outs[0] = std::move(a);
+    if (nargout > 1) outs[1] = std::move(efinal);
 }
 
 #define NK_UNARY_CONV_REG(name)                                                 \
@@ -953,12 +999,10 @@ void rc2ac_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         outs[0] = name(args[0], ctx.engine->resource());                         \
     }
 
-NK_UNARY_CONV_REG(poly2rc)
-NK_UNARY_CONV_REG(rc2poly)
 NK_UNARY_CONV_REG(is2rc)
 NK_UNARY_CONV_REG(rc2is)
 NK_UNARY_CONV_REG(lar2rc)
@@ -974,7 +1018,7 @@ NK_UNARY_CONV_REG(lsf2poly)
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#name ": requires (x, p)",                              \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         const int p = static_cast<int>(args[1].toScalar());                     \
         auto [a, e] = fn(args[0], p, ctx.engine->resource());                   \
         outs[0] = std::move(a);                                                  \
@@ -991,7 +1035,7 @@ void prony_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("prony: requires (h, nb, na)",
-                     0, 0, "prony", "", "m:prony:nargin");
+                     0, 0, "prony", "", "numkit:prony:nargin");
     const int nb = static_cast<int>(args[1].toScalar());
     const int na = static_cast<int>(args[2].toScalar());
     auto [b, a] = prony(args[0], nb, na, ctx.engine->resource());
@@ -1004,7 +1048,7 @@ void corrmtx_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("corrmtx: requires (x, m)",
-                     0, 0, "corrmtx", "", "m:corrmtx:nargin");
+                     0, 0, "corrmtx", "", "numkit:corrmtx:nargin");
     const int m = static_cast<int>(args[1].toScalar());
     outs[0] = corrmtx(args[0], m, ctx.engine->resource());
 }
@@ -1014,7 +1058,7 @@ void invfreqs_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("invfreqs: requires (H, w, nb, na)",
-                     0, 0, "invfreqs", "", "m:invfreqs:nargin");
+                     0, 0, "invfreqs", "", "numkit:invfreqs:nargin");
     const int nb = static_cast<int>(args[2].toScalar());
     const int na = static_cast<int>(args[3].toScalar());
     auto [b, a] = invfreqs(args[0], args[1], nb, na, ctx.engine->resource());
@@ -1027,7 +1071,7 @@ void invfreqz_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("invfreqz: requires (H, w, nb, na)",
-                     0, 0, "invfreqz", "", "m:invfreqz:nargin");
+                     0, 0, "invfreqz", "", "numkit:invfreqz:nargin");
     const int nb = static_cast<int>(args[2].toScalar());
     const int na = static_cast<int>(args[3].toScalar());
     auto [b, a] = invfreqz(args[0], args[1], nb, na, ctx.engine->resource());

@@ -1,0 +1,16 @@
+{
+  "name": "ifft_symmetric",
+  "namespace": "core",
+  "setup": "M = [1 2+1i; 3+2i 4-1i];",
+  "expr": "v = ifft([1 2+1i 3 4-1i], 'symmetric'); ir = double(isreal(v)); v1 = v(1); v2 = v(2); v3 = v(3); v4 = v(4); w = ifft([1 2+1i 3 4-1i], 6, 'symmetric'); nw = double(numel(w)); w1 = w(1); w2 = w(2); w6 = w(6); A = ifft(M, 'symmetric'); a11 = A(1,1); a21 = A(2,1); a12 = A(1,2); a22 = A(2,2); B = ifft(M, [], 2, 'symmetric'); b11 = B(1,1); b12 = B(1,2); b21 = B(2,1); b22 = B(2,2);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "ir", "v1", "v2", "v3", "v4",
+    "nw", "w1", "w2", "w6",
+    "a11", "a21", "a12", "a22",
+    "b11", "b12", "b21", "b22"
+  ],
+  "covers": ["ifft"],
+  "comment": "ifft(X,...,'symmetric') vs MATLAB R2025b. DEEP-PROBE 2026-05-31: previously THREW 'Cannot convert char to scalar' (numkit parsed 'symmetric' as the FFT length N). MATLAB treats X as conjugate-symmetric along the active dim: the lower half X[0..floor(L/2)] is authoritative (DC and, for even L, Nyquist forced real), the upper half is reconstructed as conj(X[k]), and the result is EXACTLY REAL — this differs from real(ifft(X)) which averages the symmetric part. v=ifft([1 2+1i 3 4-1i],'symmetric')=[2 -1 0 0] (real; ir=1) whereas real(ifft) would be [2.5 -1 -0.5 0]. n pads/truncates first: ifft(...,6,'symmetric')=[2.5 -0.9553418013 -0.2886751346 -0.1666666667 0.2886751346 -0.3779915321]. Matrix per active dim: ifft([1 2+1i;3+2i 4-1i],'symmetric')=[2 3;-1 -1] (dim1), ifft(...,[],2,'symmetric')=[1.5 -0.5;3.5 -0.5] (dim2). 'nonsymmetric'=default. N-D (>2) 'symmetric' throws (documented). covers ifft. namespace=core (matches ifft.json)."
+}

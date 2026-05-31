@@ -1,6 +1,6 @@
 // libs/signal/include/numkit/signal/digital_filtering/quantizers.hpp
 //
-// MATLAB Signal Toolbox uniform-quantization helpers (Phase 4.2):
+// Uniform-quantization helpers (Phase 4.2):
 //   uencode — float → integer (signed/unsigned, N bits, peak V)
 //   udecode — integer → float (saturate/wrap on overflow)
 

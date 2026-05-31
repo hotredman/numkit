@@ -2,11 +2,16 @@
   "name": "ss2tf",
   "namespace": "control",
   "setup": "",
-  "expr": "[b, a] = ss2tf([1 0; 0 1], [1; 0], [1 0], 0); r1 = double(numel(b));",
+  "expr": "[b, a] = ss2tf([-2 1; 0 -3], [1; 1], [1 0], 0);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "b(1)",
+    "b(2)",
+    "b(3)",
+    "a(1)",
+    "a(2)",
+    "a(3)"
   ],
-  "comment": "Sig: r = ss2tf(...). Spec-extension batch 2026-05-09."
+  "comment": "MATLAB ss2tf — state-space to transfer function. A=[-2 1;0 -3], B=[1;1], C=[1 0], D=0 -> b=[0 1 4], a=[1 5 6] (denominator = char poly (s+2)(s+3)). Pins numerator + denominator coefficients (was numel(b)-only). Bit-equal MATLAB R2025b."
 }

@@ -14,8 +14,7 @@ namespace numkit::comm {
 ///
 /// `y = cos(2π·fc·t + phasedev·x + ini_phase)` evaluated on
 /// `t = (0, 1/fs, 2/fs, …)`. Output preserves the input shape;
-/// row-vector input round-trips as a row vector. Bit-equal with
-/// MATLAB R2025b.
+/// row-vector input round-trips as a row vector.
 ///
 /// @param x          Real input message.
 /// @param fc         Carrier frequency in Hz.
@@ -34,7 +33,7 @@ Value pmmod(const Value &x, double fc, double fs, double phasedev,
 ///
 /// `y = (x + carr_amp) · cos(2π·fc·t + ini_phase)`. `carr_amp == 0`
 /// gives DSB-SC (suppressed carrier); `carr_amp != 0` gives DSB-TC
-/// (transmitted carrier). Bit-equal with MATLAB R2025b.
+/// (transmitted carrier).
 ///
 /// @param x          Real input message.
 /// @param fc         Carrier frequency in Hz.
@@ -52,7 +51,7 @@ Value ammod(const Value &x, double fc, double fs, double ini_phase,
 /// (`y = fmmod(x, fc, fs, freqdev, ini_phase)`).
 ///
 /// `int_x = cumsum(x)/fs`; `y = cos(2π·fc·t + 2π·freqdev·int_x +
-/// ini_phase)`. Bit-equal with MATLAB R2025b.
+/// ini_phase)`.
 ///
 /// @param x          Real input message.
 /// @param fc         Carrier frequency in Hz.
@@ -71,7 +70,7 @@ Value fmmod(const Value &x, double fc, double fs, double freqdev,
 ///
 /// `y = x·cos(2π·fc·t + ini_phase) ± imag(hilbert(x))·
 /// sin(2π·fc·t + ini_phase)` with `+` for lower sideband (default,
-/// `upper = false`) and `−` for upper. Bit-equal with MATLAB R2025b.
+/// `upper = false`) and `−` for upper.
 ///
 /// @param x          Real input message.
 /// @param fc         Carrier frequency in Hz.

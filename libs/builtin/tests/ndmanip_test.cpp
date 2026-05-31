@@ -34,6 +34,43 @@ TEST_P(NDManipTest, Permute2DTransposeEquivalent)
     EXPECT_DOUBLE_EQ((*A)(2, 1), 6.0);
 }
 
+// permute on non-DOUBLE types (char/logical/complex/single/cell): a pure
+// rearrangement -> type-preserving. Was DOUBLE-only ("Not a double array").
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(NDManipTest, PermuteNonDouble)
+{
+    // char transpose: ['ab';'cd'] -> ['ac';'bd'].
+    eval("cm = permute(['ab';'cd'], [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1))"), 97.0);   // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,2))"), 99.0);   // 'c'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(2,1))"), 98.0);   // 'b'
+    // cell: off-diagonal swap.
+    eval("cp = permute({1,2;3,4}, [2 1]); a = cp{2,1}; b = cp{1,2};");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(cp))"), 1.0);
+    // logical.
+    eval("lg = permute(logical([1 0;0 1]), [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1,2))"), 0.0);
+    // complex.
+    eval("zx = permute([1+1i 2; 3 4], [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(zx(1,2))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(zx(1,1))"), 1.0);
+    // single preserved.
+    eval("sg = permute(single([1 2;3 4]), [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(sg),'single'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(sg(1,2))"), 3.0);
+    // 3-D char permute.
+    eval("p3 = permute(reshape('abcdefgh',2,2,2), [2 1 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(p3(1,2,1))"), 98.0);  // 'b'
+    // ipermute (delegates to permute) on char round-trips.
+    eval("rt = ipermute(['ac';'bd'], [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(rt(1,2))"), 98.0);    // 'b'
+    // double path unchanged.
+    eval("dd = permute([1 2;3 4], [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1,2)"), 3.0);
+}
+
 TEST_P(NDManipTest, Permute3DSwapPagesAndCols)
 {
     // 2×3×2 → permute [1 3 2] → 2×2×3
@@ -174,6 +211,40 @@ TEST_P(NDManipTest, CatDim3MismatchThrows)
 {
     EXPECT_THROW(eval("cat(3, [1 2; 3 4], [1 2 3; 4 5 6]);"),
                  std::runtime_error);
+}
+
+// cat along dim 3 on non-DOUBLE types: the catDim3 page-concat path was
+// DOUBLE-only ("Not a double array"). cat is a pure rearrangement ->
+// type-preserving (char/logical/complex/single via bytes, cell via cell3D).
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(NDManipTest, CatDim3NonDouble)
+{
+    // char: cat(3,['ab';'cd'],['ef';'gh']) -> 2x2x2 char.
+    eval("cm = cat(3, ['ab';'cd'], ['ef';'gh']);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cm,3)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1,1))"), 97.0);   // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1,2))"), 101.0);  // 'e'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(2,2,2))"), 104.0);  // 'h'
+    // logical.
+    eval("lg = cat(3, logical([1 0]), logical([0 1]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1,1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1,2,2))"), 1.0);
+    // cell -> cell3D.
+    eval("c3 = cat(3, {1,2}, {3,4}); a = c3{1,1,2}; b = c3{1,2,2};");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(c3))"), 1.0);
+    // single preserved.
+    eval("sg = cat(3, single([1 2]), single([3 4]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(sg(1,2,2))"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(sg),'single'))"), 1.0);
+    // complex (same type) preserved.
+    eval("zc = cat(3, [1+1i 2+2i], [3+3i 4+4i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(zc(1,1,2))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(zc(1,1,2))"), 3.0);
+    // double path unchanged.
+    eval("dd = cat(3, [1 2;3 4], [5 6;7 8]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1,1,2)"), 5.0);
 }
 
 TEST_P(NDManipTest, CatBadDimThrows)
@@ -336,6 +407,40 @@ TEST_P(NDManipTest, BlkdiagThreeMatrices)
     EXPECT_DOUBLE_EQ((*A)(1, 1), 2.0);
     EXPECT_DOUBLE_EQ((*A)(2, 2), 5.0);
     EXPECT_DOUBLE_EQ((*A)(3, 3), 6.0);
+}
+
+// DEEP-PROBE 2026-05-31: blkdiag was DOUBLE-only and threw on char /
+// logical / single / complex blocks. Now type-preserving.
+TEST_P(NDManipTest, BlkdiagTypeAgnostic)
+{
+    // CHAR blocks -> char, off-block char(0).
+    eval("C = blkdiag('ab','cd');");
+    EXPECT_TRUE(evalBool("ischar(C);"));
+    EXPECT_EQ(cols(*getVarPtr("C")), 4u);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,1))"), 97.0);  // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,2))"), 98.0);  // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2,3))"), 99.0);  // 'c'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,3))"), 0.0);   // off-block
+
+    // LOGICAL preserved.
+    eval("L = blkdiag(logical([1 1]), logical([0 1]));");
+    EXPECT_TRUE(evalBool("islogical(L);"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(2,3))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(1,3))"), 0.0);
+
+    // SINGLE preserved.
+    eval("S = blkdiag(single([1 2]), single(3));");
+    EXPECT_TRUE(evalBool("isequal(class(S), 'single');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(S(2,3))"), 3.0);
+
+    // COMPLEX blocks keep imaginary part.
+    eval("Z = blkdiag([1+1i 2], 3+3i);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(2,3))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(2,3))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,3))"), 0.0);  // off-block 0+0i
 }
 
 // ── permute ND (Phase 3a.3) ─────────────────────────────────────

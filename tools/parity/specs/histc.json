@@ -1,0 +1,14 @@
+{
+  "name": "histc",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "n = histc([1 2 2 3 5],[0 2 4 6]); [~,bin] = histc([1 2 2 3 5],[0 2 4 6]); H = histc([1 5; 2 6; 3 7],[0 4 8]);",
+  "iters": 3,
+  "tol": 0,
+  "fingerprint": [
+    "double(numel(n))", "n(1)", "n(2)", "n(3)", "n(4)",
+    "bin(2)", "bin(5)",
+    "H(1,1)", "H(2,2)"
+  ],
+  "comment": "Sig [n,bin]=histc(x,edges). Legacy: n has length(edges) entries; bin k counts edges(k)<=x<edges(k+1) (k=1..end-1), n(end) counts x==edges(end). histc([1 2 2 3 5],[0 2 4 6])=[1 3 1 0], bin idx=[1 2 2 2 3]. Row in->row out; column/matrix -> column-wise length(edges) x ncols. numkit previously had no histc -- added. Matches MATLAB R2025b."
+}

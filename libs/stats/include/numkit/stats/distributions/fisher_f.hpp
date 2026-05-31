@@ -75,4 +75,94 @@ Value frnd(double v1, double v2, size_t rows = 1, size_t cols = 1, std::pmr::mem
 /// @see fpdf
 std::tuple<double, double> fstat(double v1, double v2);
 
+/// @brief Noncentral F pdf (`y = ncfpdf(x, nu1, nu2, delta)`).
+///
+/// Poisson-mixture representation:
+///   f(x; ν₁, ν₂, δ) = e^{-δ/2} Σ_{k=0}^∞ (1/k!) (δ/2)^k
+///                    · (ν₁/ν₂)^{ν₁/2 + k} · x^{ν₁/2 + k − 1}
+///                    · (1 + ν₁ x / ν₂)^{−(ν₁+ν₂)/2 − k}
+///                    / B(ν₁/2 + k, ν₂/2)
+/// for `x > 0`; series truncated at `1e-16` relative contribution.
+/// Reduces to `fpdf(x, ν₁, ν₂)` at `δ = 0`.
+///
+/// @param x      Evaluation points (any shape).
+/// @param nu1    Numerator degrees of freedom (`> 0`).
+/// @param nu2    Denominator degrees of freedom (`> 0`).
+/// @param delta  Noncentrality parameter (`>= 0`).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Array of pdf values, same shape as `x`.
+/// @see ncfcdf, ncfinv, ncfrnd, ncfstat
+Value ncfpdf(const Value &x, double nu1, double nu2, double delta,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Noncentral F cdf (`p = ncfcdf(x, nu1, nu2, delta)`).
+///
+/// Poisson-mixture in the regularised incomplete beta:
+///   F(x; ν₁, ν₂, δ) = Σ_k Poisson(k; δ/2) · I_y(ν₁/2 + k, ν₂/2)
+/// with `y = ν₁ x / (ν₁ x + ν₂)`. Series truncated at `1e-16`
+/// relative contribution. Reduces to `fcdf(x, ν₁, ν₂)` at `δ = 0`.
+/// The `'upper'` flag returns `1 - F`.
+///
+/// @param x      Evaluation points (any shape).
+/// @param nu1    Numerator degrees of freedom (`> 0`).
+/// @param nu2    Denominator degrees of freedom (`> 0`).
+/// @param delta  Noncentrality parameter (`>= 0`).
+/// @param upper  If true, return upper-tail `1 - F` (default false).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Array of cdf values in `[0, 1]`.
+/// @see ncfpdf, ncfinv
+Value ncfcdf(const Value &x, double nu1, double nu2, double delta,
+             bool upper = false, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Noncentral F inverse cdf (`x = ncfinv(p, nu1, nu2, delta)`).
+///
+/// Returns `x` such that `ncfcdf(x, ν₁, ν₂, δ) = p`. Newton iteration
+/// on `ncfcdf` using `ncfpdf` as derivative; safeguarded by bracketing
+/// bisection if Newton steps oscillate. Initial guess from `finv(p, ν₁, ν₂)`.
+///
+/// @param p      Probability levels in `[0, 1]` (any shape).
+/// @param nu1    Numerator degrees of freedom.
+/// @param nu2    Denominator degrees of freedom.
+/// @param delta  Noncentrality parameter.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Quantile array, same shape as `p`.
+/// @see ncfcdf
+Value ncfinv(const Value &p, double nu1, double nu2, double delta,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Noncentral F mean and variance
+/// (`[m, v] = ncfstat(nu1, nu2, delta)`).
+///
+/// Closed-form moments:
+///   `m = ν₂(ν₁ + δ) / (ν₁(ν₂ - 2))`                         for `ν₂ > 2`,
+///   `v = 2(ν₂/ν₁)² ((ν₁+δ)² + (ν₁+2δ)(ν₂-2)) / ((ν₂-2)²(ν₂-4))`
+///                                                            for `ν₂ > 4`.
+///
+/// @param nu1    Numerator degrees of freedom.
+/// @param nu2    Denominator degrees of freedom.
+/// @param delta  Noncentrality parameter.
+/// @return       `{mean, variance}` (NaN where undefined).
+/// @see ncfpdf
+std::tuple<double, double> ncfstat(double nu1, double nu2, double delta);
+
+/// @brief Noncentral F random samples
+/// (`R = ncfrnd(nu1, nu2, delta, rows, cols)`).
+///
+/// Sampled as `F = (X₁/ν₁) / (X₂/ν₂)` where
+/// `X₁ ~ χ²(ν₁, δ)` (noncentral chi-square via Poisson-mixture
+/// representation, `J ~ Poisson(δ/2)` then `χ²(ν₁ + 2J)`)
+/// and `X₂ ~ χ²(ν₂)`. Uses the shared MT19937 stream.
+///
+/// @param nu1    Numerator degrees of freedom.
+/// @param nu2    Denominator degrees of freedom.
+/// @param delta  Noncentrality parameter (`>= 0`).
+/// @param rows   Output rows (default 1).
+/// @param cols   Output columns (default 1).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `rows × cols` matrix of noncentral F samples.
+/// @see ncfpdf
+Value ncfrnd(double nu1, double nu2, double delta,
+             std::size_t rows = 1, std::size_t cols = 1,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

@@ -47,6 +47,27 @@ TEST_F(ImageBatch3Test, BwAnalysis2)
     EXPECT_GT(evalScalar("size(P,2)"), 0.0);
 }
 
+// bwdist distance-metric option (was silently ignored -> always Euclidean).
+// BW = single TRUE at (2,2); corner (1,1) distinguishes the metrics. vs MATLAB.
+TEST_F(ImageBatch3Test, BwdistMetrics)
+{
+    eval("BW = logical([0 0 0; 0 1 0; 0 0 0]);");
+    // Euclidean (default): corner = sqrt(2).
+    EXPECT_NEAR(evalScalar("D=bwdist(BW); D(1,1)"),               1.41421356, 1e-7);
+    EXPECT_NEAR(evalScalar("D=bwdist(BW,'euclidean'); D(1,1)"),   1.41421356, 1e-7);
+    // Cityblock: |1|+|1| = 2.
+    EXPECT_DOUBLE_EQ(evalScalar("D=bwdist(BW,'cityblock'); D(1,1)"),  2.0);
+    // Chessboard: max(1,1) = 1.
+    EXPECT_DOUBLE_EQ(evalScalar("D=bwdist(BW,'chessboard'); D(1,1)"), 1.0);
+    // Quasi-euclidean: diagonal step = sqrt(2).
+    EXPECT_NEAR(evalScalar("D=bwdist(BW,'quasi-euclidean'); D(1,1)"), 1.41421356, 1e-7);
+    // Edge (1,2) is 1 under every metric.
+    EXPECT_DOUBLE_EQ(evalScalar("D=bwdist(BW,'cityblock'); D(1,2)"),  1.0);
+    // Case-insensitive option; unknown metric throws.
+    EXPECT_DOUBLE_EQ(evalScalar("D=bwdist(BW,'CityBlock'); D(1,1)"),  2.0);
+    EXPECT_THROW(eval("bwdist(BW,'bogus');"), std::exception);
+}
+
 TEST_F(ImageBatch3Test, Histogram)
 {
     eval("h = imhist(uint8([0 64 128 192 255]));");
@@ -60,6 +81,26 @@ TEST_F(ImageBatch3Test, Histogram)
 
     eval("lim = stretchlim([0.1 0.5 0.9]);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(lim)"), 2.0);
+}
+
+// imhist 2nd output x (bin locations) spans the input CLASS's display
+// range, not [0,1] (was always normalized). vs MATLAB R2025b.
+TEST_F(ImageBatch3Test, ImhistBinLocationsByClass)
+{
+    eval("[c, x] = imhist(uint8([0 64 128 192 255]), 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("c(3)"), 2.0);          // counts unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("x(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("x(2)"), 85.0);         // uint8 -> [0,255]
+    EXPECT_DOUBLE_EQ(evalScalar("x(4)"), 255.0);
+    // double image keeps [0,1] locations.
+    eval("[~, xd] = imhist([0 0.25 0.5 0.75 1], 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("xd(4)"), 1.0);
+    EXPECT_NEAR(evalScalar("xd(2)"), 1.0 / 3.0, 1e-12);
+    // uint16 -> [0,65535].
+    eval("[~, xu] = imhist(uint16([0 32768 65535]), 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("xu(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("xu(3)"), 65535.0);
+    EXPECT_NEAR(evalScalar("xu(2)"), 32767.5, 1e-9);
 }
 
 TEST_F(ImageBatch3Test, Arithmetic)

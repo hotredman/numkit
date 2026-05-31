@@ -39,27 +39,28 @@ Value cell(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *)
     return Value::cell(rows, cols);
 }
 
-Value cellfun(const Value &fn, const Value &c, bool uniformOutput, Engine *engine, std::pmr::memory_resource *mr)
+Value cellfun(FnHandle fn, const Value &c, bool uniformOutput,
+              std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("cellfun: second argument must be a cell array",
-                     0, 0, "cellfun", "", "m:cellfun:notCell");
-    hf::BuiltinFn f = hf::BuiltinFn::Numel;  // placeholder
-    const bool isBuiltin = hf::tryParseBuiltinHandle(fn, f, "cellfun");
+                     0, 0, "cellfun", "", "numkit:cellfun:notCell");
 
     const size_t n = c.numel();
     ScratchArena scratch(mr);
     ScratchVec<Value> results(&scratch);
     results.reserve(n);
-    for (size_t i = 0; i < n; ++i)
-        results.push_back(hf::applyHandle(mr, fn, f, isBuiltin,
-                                          c.cellAt(i), engine, "cellfun"));
+    for (size_t i = 0; i < n; ++i) {
+        Value arg = c.cellAt(i);
+        Value out;
+        Span<const Value> ar(&arg, 1);
+        Span<Value>       ou(&out, 1);
+        fn(ar, ou, mr);
+        results.push_back(std::move(out));
+    }
 
     if (uniformOutput) {
-        if (isBuiltin)
-            return hf::packUniform(mr, f, results.data(), results.size(),
-                                    c.dims(), "cellfun");
-        // Anonymous: pack as DOUBLE / LOGICAL based on first result's type.
+        // Pack as DOUBLE / LOGICAL based on first result's type.
         const ValueType outT = (n > 0 && results[0].isLogical())
                            ? ValueType::LOGICAL : ValueType::DOUBLE;
         const auto &d = c.dims();
@@ -72,7 +73,7 @@ Value cellfun(const Value &fn, const Value &c, bool uniformOutput, Engine *engin
             const Value &v = results[i];
             if (!v.isScalar())
                 throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', false",
-                             0, 0, "cellfun", "", "m:cellfun:notScalar");
+                             0, 0, "cellfun", "", "numkit:cellfun:notScalar");
             if (outT == ValueType::LOGICAL)
                 out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
             else
@@ -104,7 +105,7 @@ Value num2cell(const Value &x, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 3)
         throw Error("num2cell: ND inputs (>3) not yet supported",
-                     0, 0, "num2cell", "", "m:num2cell:rank");
+                     0, 0, "num2cell", "", "numkit:num2cell:rank");
     auto c = d.is3D()
                 ? Value::cell3D(d.rows(), d.cols(), d.pages(), mr)
                 : Value::cell(d.rows(), d.cols(), mr);
@@ -119,11 +120,71 @@ Value num2cell(const Value &x, std::pmr::memory_resource *mr)
     return c;
 }
 
+// num2cell(x, dims): collapse the listed dimension(s) into each cell. The
+// result cell has size(x) with the collapsed dims set to 1; each cell holds
+// the corresponding sub-array. 2-D inputs only (N-D deferred); dims entries
+// > 2 are trivial singleton collapses and ignored. dims = {} or no real
+// collapse falls back to the element-wise num2cell.
+static Value num2cellDim(const Value &x, const std::vector<int> &dims,
+                         std::pmr::memory_resource *mr)
+{
+    if (x.dims().ndim() > 2)
+        throw Error("num2cell: the dimension form is supported for 2-D "
+                    "inputs only (N-D deferred)",
+                     0, 0, "num2cell", "", "numkit:num2cell:ndDim");
+    bool c1 = false, c2 = false;
+    for (int d : dims) {
+        if (d < 1)
+            throw Error("num2cell: dimension argument must be a positive integer",
+                         0, 0, "num2cell", "", "numkit:num2cell:badDim");
+        if (d == 1) c1 = true;
+        else if (d == 2) c2 = true;
+        // d > 2: a singleton dimension of a 2-D array — collapsing it is a no-op.
+    }
+    if (!c1 && !c2) return num2cell(x, mr);
+
+    const size_t r = static_cast<size_t>(x.dims().dim(0));
+    const size_t c = (x.dims().ndim() >= 2) ? static_cast<size_t>(x.dims().dim(1)) : 1;
+    const bool cplx = x.isComplex();
+
+    auto makeSlice = [&](size_t rr, size_t ccx, auto srcIndex) -> Value {
+        if (cplx) {
+            auto v = Value::matrix(rr, ccx, ValueType::COMPLEX, mr);
+            auto *vd = v.complexDataMut();
+            const auto *xd = x.complexData();
+            for (size_t k = 0; k < rr * ccx; ++k) vd[k] = xd[srcIndex(k)];
+            return v;
+        }
+        auto v = Value::matrix(rr, ccx, ValueType::DOUBLE, mr);
+        auto *vd = v.doubleDataMut();
+        for (size_t k = 0; k < rr * ccx; ++k) vd[k] = x.elemAsDouble(srcIndex(k));
+        return v;
+    };
+
+    if (c1 && c2) {
+        auto out = Value::cell(1, 1, mr);
+        out.cellAt(0) = makeSlice(r, c, [](size_t k) { return k; });
+        return out;
+    }
+    if (c1) {                                   // collapse rows -> 1 x c cell
+        auto out = Value::cell(1, c, mr);
+        for (size_t j = 0; j < c; ++j) {
+            const size_t base = j * r;
+            out.cellAt(j) = makeSlice(r, 1, [base](size_t i) { return base + i; });
+        }
+        return out;
+    }
+    auto out = Value::cell(r, 1, mr);           // collapse cols -> r x 1 cell
+    for (size_t i = 0; i < r; ++i)
+        out.cellAt(i) = makeSlice(1, c, [i, r](size_t j) { return j * r + i; });
+    return out;
+}
+
 Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("cell2mat: input must be a cell array",
-                     0, 0, "cell2mat", "", "m:cell2mat:notCell");
+                     0, 0, "cell2mat", "", "numkit:cell2mat:notCell");
     if (c.numel() == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -141,7 +202,7 @@ Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
         const auto &cd = c.dims();
         if (cd.ndim() > 2)
             throw Error("cell2mat: 3-D scalar cells not yet supported",
-                         0, 0, "cell2mat", "", "m:cell2mat:rank");
+                         0, 0, "cell2mat", "", "numkit:cell2mat:rank");
         auto m = Value::matrix(cd.rows(), cd.cols(), ValueType::DOUBLE, mr);
         for (size_t i = 0; i < c.numel(); ++i)
             m.doubleDataMut()[i] = c.cellAt(i).toScalar();
@@ -153,7 +214,7 @@ Value cell2mat(const Value &c, std::pmr::memory_resource *mr)
     const auto &cd = c.dims();
     if (cd.ndim() > 2)
         throw Error("cell2mat: only 2-D cell arrays of matrices are supported",
-                     0, 0, "cell2mat", "", "m:cell2mat:rank");
+                     0, 0, "cell2mat", "", "numkit:cell2mat:rank");
     const size_t R = cd.rows(), C = cd.cols();
     if (R == 1) {
         ScratchArena scratch(mr);
@@ -237,17 +298,17 @@ Value cellstr(const Value &x, std::pmr::memory_resource *mr)
         return c;
     }
     throw Error("cellstr: input must be a string array or char array",
-                 0, 0, "cellstr", "", "m:cellstr:type");
+                 0, 0, "cellstr", "", "numkit:cellstr:type");
 }
 
 Value mat2cell(const Value &x, const Value &rowSizesV, const Value &colSizesV, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() > 2)
         throw Error("mat2cell: only 2-D inputs are supported",
-                     0, 0, "mat2cell", "", "m:mat2cell:rank");
+                     0, 0, "mat2cell", "", "numkit:mat2cell:rank");
     if (x.type() != ValueType::DOUBLE)
         throw Error("mat2cell: only DOUBLE inputs are supported",
-                     0, 0, "mat2cell", "", "m:mat2cell:type");
+                     0, 0, "mat2cell", "", "numkit:mat2cell:type");
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
     const size_t nRow = rowSizesV.numel();
@@ -286,10 +347,10 @@ Value mat2cell(const Value &x, const Value &rowSizesV, const Value &colSizesV, s
     for (size_t s : colS) csum += s;
     if (rsum != R)
         throw Error("mat2cell: row sizes must sum to size(A,1)",
-                     0, 0, "mat2cell", "", "m:mat2cell:rowSum");
+                     0, 0, "mat2cell", "", "numkit:mat2cell:rowSum");
     if (csum != C)
         throw Error("mat2cell: column sizes must sum to size(A,2)",
-                     0, 0, "mat2cell", "", "m:mat2cell:colSum");
+                     0, 0, "mat2cell", "", "numkit:mat2cell:colSum");
 
     auto c = Value::cell(rowS.size(), colS.size(), mr);
     const double *src = x.doubleData();
@@ -321,16 +382,40 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("cellfun: requires at least 2 arguments (fn, C)",
-                     0, 0, "cellfun", "", "m:cellfun:nargin");
+                     0, 0, "cellfun", "", "numkit:cellfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
-    outs[0] = cellfun(args[0], args[1], uniform, ctx.engine, ctx.engine->resource());
+
+    auto *mr = ctx.engine->resource();
+    hf::BuiltinFn f = hf::BuiltinFn::Numel;
+    const bool isBuiltin = hf::tryParseBuiltinHandle(args[0], f, "cellfun");
+
+    if (uniform && isBuiltin && hf::builtinReturnsString(f))
+        throw Error("cellfun: @class output must use UniformOutput=false",
+                     0, 0, "cellfun", "", "numkit:cellfun:nonUniform");
+
+    if (isBuiltin) {
+        auto cb = [f](Span<const Value> ar, Span<Value> ou,
+                      std::pmr::memory_resource *mr_) {
+            ou[0] = hf::applyBuiltin(mr_, f, ar[0], "cellfun");
+        };
+        outs[0] = cellfun(cb, args[1], uniform, mr);
+    } else {
+        const auto &handle = args[0];
+        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                                   std::pmr::memory_resource * /*mr*/) {
+            auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+            for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+                ou[i] = std::move(r[i]);
+        };
+        outs[0] = cellfun(cb, args[1], uniform, mr);
+    }
 }
 
 void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.empty())
-        throw Error("cell: requires 1 argument", 0, 0, "cell", "", "m:cell:nargin");
+        throw Error("cell: requires 1 argument", 0, 0, "cell", "", "numkit:cell:nargin");
     ScratchArena scratch(mr);
     // Single vector arg: cell([m n p ...]).
     if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
@@ -368,15 +453,28 @@ void num2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.empty())
         throw Error("num2cell requires 1 argument",
-                     0, 0, "num2cell", "", "m:num2cell:nargin");
-    outs[0] = num2cell(args[0], ctx.engine->resource());
+                     0, 0, "num2cell", "", "numkit:num2cell:nargin");
+    auto *mr = ctx.engine->resource();
+    // num2cell(A, dims): the trailing arg(s) list the dimension(s) to
+    // collapse into each cell.
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        std::vector<int> dims;
+        for (size_t i = 1; i < args.size(); ++i) {
+            const Value &dv = args[i];
+            for (size_t k = 0; k < dv.numel(); ++k)
+                dims.push_back(static_cast<int>(dv.elemAsDouble(k)));
+        }
+        outs[0] = num2cellDim(args[0], dims, mr);
+        return;
+    }
+    outs[0] = num2cell(args[0], mr);
 }
 
 void cell2mat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("cell2mat requires 1 argument",
-                     0, 0, "cell2mat", "", "m:cell2mat:nargin");
+                     0, 0, "cell2mat", "", "numkit:cell2mat:nargin");
     outs[0] = cell2mat(args[0], ctx.engine->resource());
 }
 
@@ -384,7 +482,7 @@ void iscellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.empty())
         throw Error("iscellstr requires 1 argument",
-                     0, 0, "iscellstr", "", "m:iscellstr:nargin");
+                     0, 0, "iscellstr", "", "numkit:iscellstr:nargin");
     outs[0] = iscellstr(args[0], ctx.engine->resource());
 }
 
@@ -392,7 +490,7 @@ void cellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("cellstr requires 1 argument",
-                     0, 0, "cellstr", "", "m:cellstr:nargin");
+                     0, 0, "cellstr", "", "numkit:cellstr:nargin");
     outs[0] = cellstr(args[0], ctx.engine->resource());
 }
 
@@ -400,7 +498,7 @@ void mat2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("mat2cell: requires (A, R[, C])",
-                     0, 0, "mat2cell", "", "m:mat2cell:nargin");
+                     0, 0, "mat2cell", "", "numkit:mat2cell:nargin");
     auto *mr = ctx.engine->resource();
     const Value &rArg = args[1];
     if (args.size() == 2) {

@@ -157,7 +157,7 @@ namespace detail {
 void hygepdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
-        throw Error("hygepdf: requires (k, M, K, N)", 0, 0, "hygepdf", "", "m:hygepdf:nargin");
+        throw Error("hygepdf: requires (k, M, K, N)", 0, 0, "hygepdf", "", "numkit:hygepdf:nargin");
     outs[0] = hygepdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
@@ -166,7 +166,7 @@ void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
-        throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "m:hygecdf:nargin");
+        throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "numkit:hygecdf:nargin");
     Value v = hygecdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -175,14 +175,14 @@ void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void hygeinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
-        throw Error("hygeinv: requires (q, M, K, N)", 0, 0, "hygeinv", "", "m:hygeinv:nargin");
+        throw Error("hygeinv: requires (q, M, K, N)", 0, 0, "hygeinv", "", "numkit:hygeinv:nargin");
     outs[0] = hygeinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
 void hygernd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("hygernd: requires (M, K, N[, m, n])", 0, 0, "hygernd", "", "m:hygernd:nargin");
+        throw Error("hygernd: requires (M, K, N[, m, n])", 0, 0, "hygernd", "", "numkit:hygernd:nargin");
     const double M = args[0].toScalar();
     const double K = args[1].toScalar();
     const double N = args[2].toScalar();

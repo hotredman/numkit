@@ -2,12 +2,12 @@
   "name": "bilinear",
   "namespace": "signal",
   "setup": "",
-  "expr": "[bz, az] = bilinear([1], [1 1], 100); r1 = double(numel(bz)); r2 = double(numel(az));",
+  "expr": "[bz, az] = bilinear([1], [1 1], 100); r1 = double(numel(bz)); r2 = double(numel(az)); [bp, ap] = bilinear([1 0], [1 2 1], 10, 2); b1 = bp(1); a2 = ap(2); a3 = ap(3); [bn, an] = bilinear([1 0], [1 2 1], 10); bn1 = bn(1);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2", "b1", "a2", "a3", "bn1"
   ],
-  "comment": "Sig: r = bilinear(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig: [bz,az] = bilinear(b,a,fs[,fp]). Bilinear transform s = K(z-1)/(z+1). DEEP-PROBE 2026-05-31: the PREWARP form bilinear(b,a,fs,fp) was DOUBLE-scaling K — it computed fsEff = 2pi*fp/tan(pi*fp/fs) then K = 2*fsEff (2x too big). MATLAB's scale is K = 2pi*fp/tan(pi*fp/fs) directly. bilinear([1 0],[1 2 1],10,2): b1=bp(1)=0.0516690612 a2=ap(2)=-1.78137448 a3=ap(3)=0.793323755 (K=17.2978, b1=K/(K+1)^2). Without fp (K=2*fs=20) unchanged: bn1=0.0453514739. namespace=signal. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

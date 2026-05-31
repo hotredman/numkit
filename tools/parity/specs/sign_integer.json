@@ -1,0 +1,16 @@
+{
+  "name": "sign_integer",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = sign(int8(-5)); va = double(a); ca = double(strcmp(class(a),'int8')); b = sign(int8([-5 0 9])); b1 = double(b(1)); b2 = double(b(2)); b3 = double(b(3)); c = sign(uint8(0)); vc = double(c); cc = double(strcmp(class(c),'uint8')); d = sign(int32([-100 100])); d1 = double(d(1)); cd = double(strcmp(class(d),'int32')); f = sign(-3.5); g = sign(0); h = sign(2.1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "va", "ca",
+    "b1", "b2", "b3",
+    "vc", "cc",
+    "d1", "cd",
+    "f", "g", "h"
+  ],
+  "comment": "Sig: y = sign(X). For INTEGER input MATLAB keeps the class: sign(int8(-5))=-1 int8, sign(int8([-5 0 9]))=[-1 0 1] int8, sign(uint8(0))=0 uint8 (unsigned never yields -1), sign(int32([-100 100]))=[-1 1] int32. double inputs unchanged (sign(-3.5)=-1, sign(0)=0, sign(2.1)=1). numkit previously returned DOUBLE for integer scalars and threw on integer arrays; fixed 2026-05-30. (sign of COMPLEX = z/|z| remains a separate unimplemented gap.) NOTE: ; only inside matrix-literal INPUTS."
+}

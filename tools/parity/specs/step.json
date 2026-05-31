@@ -1,10 +1,15 @@
 {
   "name": "step",
   "namespace": "control",
-  "setup": "",
-  "expr": "[y, t] = step(tf(1, [1 1])); r1 = double(numel(y));",
+  "setup": "sys = ss([-2 -1; 1 0], [1; 0], [0 1], 0); t = (0:0.5:2)';",
+  "expr": "[y0, t0] = step(tf(1, [1 1])); r1 = double(numel(y0)); [y, tt, x] = step(sys, t);",
   "iters": 5,
-  "tol": 1e-12,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [y, t] = step(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. Bit-identical with MATLAB R2025b on probed 1st-order system."
+  "tol": 1e-9,
+  "fingerprint": [
+    "r1",
+    "y(2)", "y(5)",
+    "x(2,1)", "x(3,1)", "x(5,2)",
+    "double(size(x,1))", "double(size(x,2))"
+  ],
+  "comment": "Sig: [y, t, x] = step(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. 3rd output x = state trajectory (length(t) x nStates). State values are realization-dependent, so the spec uses an explicit ss() system (fixed realization) — matches MATLAB R2025b bit-for-bit. Queue-clearing 2026-05-29: x output added (step/impulse/lsim previously returned only [y,t])."
 }

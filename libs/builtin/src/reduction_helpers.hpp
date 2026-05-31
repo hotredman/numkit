@@ -54,7 +54,7 @@ inline int validateDim(const Value &x, int dim, const char *fn)
 {
     if (dim < 1)
         throw Error(std::string(fn) + ": dim must be a positive integer",
-                     0, 0, fn, "", std::string("m:") + fn + ":badDim");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badDim");
     const int nd = x.dims().ndim();
     if (dim > nd) {
         // Trailing-singleton semantics — caller produces an identity copy.

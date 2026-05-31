@@ -1,0 +1,20 @@
+{
+  "name": "odeget",
+  "namespace": "ode",
+  "setup": "o = odeset('RelTol', 1e-9, 'AbsTol', 1e-12, 'MaxStep', 0.05);",
+  "expr": "rt = odeget(o, 'RelTol'); at = odeget(o, 'abstol'); ms = odeget(o, 'MaxStep'); jp = odeget(o, 'Jacobian', 42);",
+  "iters": 3,
+  "tol": 1e-15,
+  "fingerprint": [
+    "rt",
+    "at",
+    "ms",
+    "jp"
+  ],
+  "covers": [
+    "odeget(opts, name)               get value (case-insensitive name)",
+    "odeget(opts, name, default)      fall back to default when field empty",
+    "all 21 option names recognised (canonical spelling)"
+  ],
+  "comment": "Sig 1+2: odeget(o, 'RelTol') and odeget(o, name, default). MATLAB normalises name to canonical capitalisation, returns the stored value if non-empty, else the default. Empty Jacobian field falls through to 42 here."
+}

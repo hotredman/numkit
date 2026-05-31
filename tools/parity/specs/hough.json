@@ -1,0 +1,10 @@
+{
+  "name": "hough",
+  "namespace": "image",
+  "setup": "BW = false(11, 11); BW(6, 1:11) = true; BW(1:11, 6) = true;",
+  "expr": "[H, T, R] = hough(BW); [H2, T2, R2] = hough(BW, 'RhoResolution', 2); [H3, T3, R3] = hough(BW, 'Theta', -45:45); P  = houghpeaks(H, 2); P2 = houghpeaks(H, 5, 'Threshold', 8); P3 = houghpeaks(H, 5, 'NHoodSize', [3 3]); P4 = houghpeaks(H, 2, 'Theta', T); r1 = double(size(H,1)); r2 = double(size(H,2)); r3 = double(max(H(:))); r4 = double(T(1)); r5 = double(T(end)); r6 = double(R(1)); r7 = double(R(end)); r8 = double(size(H2,1)); r9 = double(max(H2(:))); r10 = double(size(H3,2)); r11 = double(P(1,1)); r12 = double(P(1,2)); r13 = double(P(2,1)); r14 = double(P(2,2)); r15 = double(size(P2,1)); r16 = double(size(P3,1));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "r16"],
+  "comment": "Sig: [H,T,R] = hough(BW [, NV...]); P = houghpeaks(H, npks [, NV...]). Branches: default Hough, RhoResolution override, custom Theta vector, houghpeaks default + Threshold + NHoodSize + Theta wrap-around. Bit-exact MATLAB R2025b (tol=0). Reference: Gonzalez/Woods/Eddins, *Digital Image Processing Using MATLAB*, 2nd ed., Gatesmark, 2009. Image namespace 2026-05-27."
+}

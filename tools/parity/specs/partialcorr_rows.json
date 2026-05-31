@@ -1,0 +1,6 @@
+{"name": "partialcorr_rows", "namespace": "stats",
+ "setup": "Xn = [1 5 2; 2 6 9; 3 NaN 4; 4 8 1; 5 9 6; 6 3 NaN; 7 2 5];",
+ "expr": "Rc = partialcorr(Xn,'Rows','complete'); rc11 = Rc(1,1); rc12 = Rc(1,2); rc13 = Rc(1,3); rc23 = Rc(2,3);",
+ "iters": 5, "tol": 1e-9,
+ "fingerprint": ["rc11", "rc12", "rc13", "rc23"],
+ "comment": "partialcorr 'Rows' NaN policy (2026-05-30). The fn name is a probe alias for partialcorr — kept in a separate spec from partialcorr.json so the per-chunk variable count stays under the numkit VM 255-register limit. partialcorr previously accept-and-ignored the 'Rows' NV pair, so NaN data NaN-poisoned. 'complete' = listwise deletion across all positional matrices, then partial correlation: Xn has NaN at (3,2) and (6,3), so rows 3 and 6 drop (5 rows kept), giving rc11=1, rc12=-0.227123, rc13=0.040291, rc23=-0.046205. namespace=stats. 'all' (default) NaN-poisons; 'pairwise' deferred (partial correlation from a pairwise, possibly non-PD covariance) with a clear error. Matches MATLAB R2025b."}

@@ -71,6 +71,20 @@ TEST_F(SignalBatch3Test, Bilinear)
     EXPECT_DOUBLE_EQ(evalScalar("numel(az)"), 2.0);
 }
 
+// DEEP-PROBE 2026-05-31: bilinear(b,a,fs,fp) prewarp. The scale must be
+// K = 2*pi*fp/tan(pi*fp/fs); numkit double-scaled it (K = 2x too big).
+TEST_F(SignalBatch3Test, BilinearPrewarp)
+{
+    eval("[bp, ap] = bilinear([1 0], [1 2 1], 10, 2);");
+    EXPECT_NEAR(evalScalar("bp(1)"),  0.0516690611966527, 1e-12);
+    EXPECT_NEAR(evalScalar("bp(3)"), -0.0516690611966527, 1e-12);
+    EXPECT_NEAR(evalScalar("ap(2)"), -1.78137447518863,   1e-12);
+    EXPECT_NEAR(evalScalar("ap(3)"),  0.793323755213389,  1e-12);
+    // No prewarp (K = 2*fs = 20) is unchanged.
+    eval("[bn, an] = bilinear([1 0], [1 2 1], 10);");
+    EXPECT_NEAR(evalScalar("bn(1)"), 0.0453514739229025, 1e-12);
+}
+
 TEST_F(SignalBatch3Test, Multirate)
 {
     eval("y = decimate(sin(2*pi*0.01*(0:99)), 4);");
@@ -91,6 +105,30 @@ TEST_F(SignalBatch3Test, Multirate)
 
     eval("y = resample([1 2 3 4 5 6 7 8], 1, 2);");
     EXPECT_GT(evalScalar("numel(y)"), 0.0);
+}
+
+// downsample/upsample phase argument (was silently ignored). vs MATLAB R2025b.
+TEST_F(SignalBatch3Test, MultiratePhaseArgument)
+{
+    // downsample(x, n, phase): keep x[phase], x[phase+n], …
+    eval("y = downsample(1:10, 3, 1);");      // [2 5 8]
+    EXPECT_DOUBLE_EQ(evalScalar("numel(y)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 8.0);
+    eval("y2 = downsample(1:10, 3, 2);");     // [3 6 9]
+    EXPECT_DOUBLE_EQ(evalScalar("y2(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y2(3)"), 9.0);
+
+    // upsample(x, n, phase): place samples at offset phase.
+    eval("u = upsample(1:3, 3, 1);");         // [0 1 0 0 2 0 0 3 0]
+    EXPECT_DOUBLE_EQ(evalScalar("numel(u)"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(5)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(8)"), 3.0);
+
+    // phase >= n is rejected.
+    EXPECT_THROW(eval("downsample(1:10, 3, 3);"), std::exception);
 }
 
 TEST_F(SignalBatch3Test, ARSpectralEstimators)

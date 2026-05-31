@@ -51,7 +51,7 @@ Layout detect_layout(const Value &x, const char *fn) {
         lay.is_3d = false;
     } else {
         throw Error(std::string(fn) + ": input must be H×W×3 or N×3",
-                    0, 0, fn, "", std::string("m:") + fn + ":size");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":size");
     }
     return lay;
 }
@@ -114,6 +114,43 @@ Value pixel_transform_raw(const Value &x, const char *fn, Op op, std::pmr::memor
         od[p + 1 * lay.s_chan] = r[1];
         od[p + 2 * lay.s_chan] = r[2];
     }
+    return out;
+}
+
+// Convert a [0,1] DOUBLE result into the requested output class, matching
+// MATLAB's class-preserving colour conversions: DOUBLE passes through,
+// SINGLE is cast, and integer classes are scaled to their full studio
+// range, rounded, and saturated.
+Value finalize_class(const Value &res01, ValueType cls, std::pmr::memory_resource *mr) {
+    if (cls == ValueType::DOUBLE) return res01;
+    const auto &d = res01.dims();
+    Value out = d.is3D() ? Value::matrix3d(d.rows(), d.cols(), d.pages(), cls, mr)
+                         : Value::matrix(d.rows(), d.cols(), cls, mr);
+    const size_t N = res01.numel();
+    const double *rd = res01.doubleData();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = rd[i];
+        const double c = std::clamp(v, 0.0, 1.0);
+        switch (cls) {
+            case ValueType::SINGLE: out.singleDataMut()[i] = static_cast<float>(v); break;
+            case ValueType::UINT8:  out.uint8DataMut()[i]  = static_cast<uint8_t>(std::lround(c * 255.0)); break;
+            case ValueType::UINT16: out.uint16DataMut()[i] = static_cast<uint16_t>(std::lround(c * 65535.0)); break;
+            case ValueType::INT16:  out.int16DataMut()[i]  = static_cast<int16_t>(std::lround(c * 65535.0) - 32768); break;
+            default:                 out.doubleDataMut()[i] = v; break;
+        }
+    }
+    return out;
+}
+
+// Build a [0,1] DOUBLE copy of an image, scaling integer classes by their
+// max (used to normalise integer YCbCr input before the inverse).
+Value to_unit_double(const Value &x, std::pmr::memory_resource *mr) {
+    const auto &d = x.dims();
+    Value out = d.is3D() ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+                         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    const size_t N = x.numel();
+    double *od = out.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) od[i] = element_to_unit(x, i);
     return out;
 }
 
@@ -207,42 +244,44 @@ Value ntsc2rgb(const Value &x, std::pmr::memory_resource *mr) {
 }
 
 Value rgb2ycbcr(const Value &x, std::pmr::memory_resource *mr) {
-    return pixel_transform(x, "rgb2ycbcr", [](double r, double g, double b) {
-        // BT.601 conversion (8-bit-style numbers, normalised by 255).
+    // pixel_transform normalises integer input to [0,1] via element_to_unit,
+    // so the BT.601 op always sees R,G,B in [0,1] and yields studio-swing
+    // Y/Cb/Cr in [0,1]. finalize_class then restores the input's class
+    // (integer -> studio-range integers; double/single unchanged).
+    Value res = pixel_transform(x, "rgb2ycbcr", [](double r, double g, double b) {
         const double y  = ( 65.481 * r + 128.553 * g +  24.966 * b +  16.0) / 255.0;
         const double cb = (-37.797 * r -  74.203 * g + 112.0   * b + 128.0) / 255.0;
         const double cr = (112.0   * r -  93.786 * g -  18.214 * b + 128.0) / 255.0;
         return std::array<double, 3>{y, cb, cr};
     }, mr);
+    return finalize_class(res, x.type(), mr);
 }
 
 Value ycbcr2rgb(const Value &x, std::pmr::memory_resource *mr) {
-    return pixel_transform_raw(x, "ycbcr2rgb", [](double y, double cb, double cr) {
-        // Inverse BT.601 (matches MATLAB ycbcr2rgb on DOUBLE input).
-        const double Y  = y  * 255.0;
-        const double Cb = cb * 255.0;
-        const double Cr = cr * 255.0;
-        const double r = (   298.082 * Y +    0.0   * (Cb - 128.0) + 408.583 * (Cr - 128.0)) / 255.0 / 255.0 - 222.921 / 255.0;
-        const double g = (   298.082 * Y -  100.291 * (Cb - 128.0) - 208.120 * (Cr - 128.0)) / 255.0 / 255.0 + 135.576 / 255.0;
-        const double bo= (   298.082 * Y +  516.412 * (Cb - 128.0) +    0.0  * (Cr - 128.0)) / 255.0 / 255.0 - 276.836 / 255.0;
-        // The above factoring isn't pretty — explicit inverse matrix:
-        //   R = 1.164*(Y-16) + 1.596*(Cr-128)
-        //   G = 1.164*(Y-16) - 0.392*(Cb-128) - 0.813*(Cr-128)
-        //   B = 1.164*(Y-16) + 2.017*(Cb-128)
-        // Use that directly for clarity / accuracy:
-        const double Ys = 1.16438356 * (Y - 16.0);
-        const double Cbs = Cb - 128.0;
-        const double Crs = Cr - 128.0;
-        double R = (Ys                + 1.59602715 * Crs) / 255.0;
-        double G = (Ys - 0.39176229*Cbs - 0.81296765 * Crs) / 255.0;
-        double B = (Ys + 2.01723214 * Cbs                 ) / 255.0;
-        // Clip [0, 1].
+    // Integer YCbCr input is normalised to [0,1] before the inverse;
+    // finalize_class then restores the input class (integer -> [0,255]/
+    // [0,65535] saturated, double/single unchanged).
+    const ValueType cls = x.type();
+    const bool isInt = (cls == ValueType::UINT8 || cls == ValueType::UINT16
+                        || cls == ValueType::INT16);
+    Value src = isInt ? to_unit_double(x, mr) : x;
+    Value res = pixel_transform_raw(src, "ycbcr2rgb", [](double y, double cb, double cr) {
+        // Inverse BT.601 = inv([65.481 128.553 24.966; -37.797 -74.203 112;
+        // 112 -93.786 -18.214]) applied to [255Y-16; 255Cb-128; 255Cr-128].
+        // Full-precision coefficients (bit-exact vs MATLAB R2025b; the
+        // previous 8-digit-rounded factoring drifted ~1e-7).
+        const double Yp  = 255.0 * y  - 16.0;
+        const double Cbp = 255.0 * cb - 128.0;
+        const double Crp = 255.0 * cr - 128.0;
+        double R = 0.0045662100456621011 * Yp + 1.1808799897946412e-09 * Cbp + 0.0062589289699439363 * Crp;
+        double G = 0.0045662100456621011 * Yp - 0.0015363236860449021 * Cbp - 0.003188110949655707 * Crp;
+        double B = 0.0045662100456621011 * Yp + 0.0079107162335547414 * Cbp + 1.1977497040190077e-08 * Crp;
         R = std::clamp(R, 0.0, 1.0);
         G = std::clamp(G, 0.0, 1.0);
         B = std::clamp(B, 0.0, 1.0);
-        (void)r; (void)g; (void)bo;  // silence unused warnings
         return std::array<double, 3>{R, G, B};
     }, mr);
+    return finalize_class(res, cls, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -436,7 +475,7 @@ std::vector<double> rgb_rows(const Value &v, const char *name) {
     }
     if (W != 3)
         throw Error(std::string(name) + " must be a 3-element or N-by-3 array",
-                    0, 0, "colorangle", "", "m:colorangle:shape");
+                    0, 0, "colorangle", "", "numkit:colorangle:shape");
     std::vector<double> out(3 * H);
     for (size_t r = 0; r < H; ++r)
         for (size_t c = 0; c < 3; ++c)
@@ -470,7 +509,7 @@ LabLayout detect_lab_layout(const Value &v, const char *fn) {
         L.is_3d = false;
     } else {
         throw Error(std::string(fn) + ": LAB must be Mx3 or MxNx3",
-                    0, 0, fn, "", std::string("m:") + fn + ":size");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":size");
     }
     return L;
 }
@@ -519,7 +558,7 @@ Value lab2double(const Value &lab, std::pmr::memory_resource *mr)
                 break;
             default:
                 throw Error("lab2double: unsupported LAB class",
-                            0, 0, "lab2double", "", "m:lab2double:cls");
+                            0, 0, "lab2double", "", "numkit:lab2double:cls");
         }
         od[lab_idx(L, p, 0)] = L_;
         od[lab_idx(L, p, 1)] = a;
@@ -573,7 +612,7 @@ Value lab2uint8(const Value &lab, std::pmr::memory_resource *mr)
                     break;
                 default:
                     throw Error("lab2uint8: unsupported LAB class",
-                                0, 0, "lab2uint8", "", "m:lab2uint8:cls");
+                                0, 0, "lab2uint8", "", "numkit:lab2uint8:cls");
             }
             if (w < 0)   w = 0;
             if (w > 255) w = 255;
@@ -613,7 +652,7 @@ Value lab2uint16(const Value &lab, std::pmr::memory_resource *mr)
                     break;
                 default:
                     throw Error("lab2uint16: unsupported LAB class",
-                                0, 0, "lab2uint16", "", "m:lab2uint16:cls");
+                                0, 0, "lab2uint16", "", "numkit:lab2uint16:cls");
             }
             if (w < 0)     w = 0;
             if (w > 65535) w = 65535;
@@ -669,14 +708,14 @@ Value colorgradient(const Value &C, const Value &w, int n, std::pmr::memory_reso
 {
     if (C.dims().cols() != 3)
         throw Error("colorgradient: C must be K-by-3",
-                    0, 0, "colorgradient", "", "m:colorgradient:C");
+                    0, 0, "colorgradient", "", "numkit:colorgradient:C");
     const int K = static_cast<int>(C.dims().rows());
     if (K < 2)
         throw Error("colorgradient: C must have at least 2 rows",
-                    0, 0, "colorgradient", "", "m:colorgradient:rows");
+                    0, 0, "colorgradient", "", "numkit:colorgradient:rows");
     if (n < 2)
         throw Error("colorgradient: n must be >= 2",
-                    0, 0, "colorgradient", "", "m:colorgradient:n");
+                    0, 0, "colorgradient", "", "numkit:colorgradient:n");
 
     std::vector<double> wv;
     wv.reserve(static_cast<size_t>(K - 1));
@@ -685,7 +724,7 @@ Value colorgradient(const Value &C, const Value &w, int n, std::pmr::memory_reso
     } else {
         if (static_cast<int>(w.numel()) != K - 1)
             throw Error("colorgradient: must have one weight per interval",
-                        0, 0, "colorgradient", "", "m:colorgradient:w");
+                        0, 0, "colorgradient", "", "numkit:colorgradient:w");
         for (size_t i = 0; i < w.numel(); ++i)
             wv.push_back(w.elemAsDouble(i));
     }
@@ -733,7 +772,7 @@ Value wavelength2rgb(const Value &wavelength, const std::string &out_class, doub
 {
     if (!(gamma >= 0.0 && gamma <= 1.0))
         throw Error("wavelength2rgb: gamma must be in [0, 1]",
-                    0, 0, "wavelength2rgb", "", "m:wavelength2rgb:gamma");
+                    0, 0, "wavelength2rgb", "", "numkit:wavelength2rgb:gamma");
 
     const auto &d = wavelength.dims();
     const size_t N = wavelength.numel();
@@ -781,7 +820,7 @@ Value wavelength2rgb(const Value &wavelength, const std::string &out_class, doub
     if (lo == "uint16") return im2uint16(out, mr);
     if (lo == "int16")  return im2int16(out, mr);
     throw Error("wavelength2rgb: unsupported class",
-                0, 0, "wavelength2rgb", "", "m:wavelength2rgb:cls");
+                0, 0, "wavelength2rgb", "", "numkit:wavelength2rgb:cls");
 }
 
 Value colorangle(const Value &rgb1, const Value &rgb2, std::pmr::memory_resource *mr)
@@ -792,7 +831,7 @@ Value colorangle(const Value &rgb1, const Value &rgb2, std::pmr::memory_resource
     const size_t Nb = b.size() / 3;
     if (Na != Nb && Na != 1 && Nb != 1)
         throw Error("colorangle: RGB1 and RGB2 must broadcast (N or 1)",
-                    0, 0, "colorangle", "", "m:colorangle:size");
+                    0, 0, "colorangle", "", "numkit:colorangle:size");
     const size_t N = std::max(Na, Nb);
 
     Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
@@ -1278,11 +1317,11 @@ Value xyz2double(const Value &xyz, std::pmr::memory_resource *mr)
     const bool ok_3d = d.is3D() && d.pages() == 3;
     if (!ok_2d && !ok_3d)
         throw Error("xyz2double: input must be M-by-3 or H-by-W-by-3",
-                    0, 0, "xyz2double", "", "m:xyz2double:size");
+                    0, 0, "xyz2double", "", "numkit:xyz2double:size");
     const ValueType t = xyz.type();
     if (t != ValueType::DOUBLE && t != ValueType::UINT16)
         throw Error("xyz2double: input must be uint16 or double",
-                    0, 0, "xyz2double", "", "m:xyz2double:type");
+                    0, 0, "xyz2double", "", "numkit:xyz2double:type");
 
     Value out = ok_3d
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
@@ -1306,11 +1345,11 @@ Value contrast(const Value &x, int m, std::pmr::memory_resource *mr)
 {
     if (m < 2)
         throw Error("contrast: M must be >= 2",
-                    0, 0, "contrast", "", "m:contrast:m");
+                    0, 0, "contrast", "", "numkit:contrast:m");
     const size_t Nx = x.numel();
     if (Nx == 0)
         throw Error("contrast: input image must be non-empty",
-                    0, 0, "contrast", "", "m:contrast:empty");
+                    0, 0, "contrast", "", "numkit:contrast:empty");
 
     double xmin = x.elemAsDouble(0), xmax = xmin;
     for (size_t i = 1; i < Nx; ++i) {
@@ -1323,7 +1362,7 @@ Value contrast(const Value &x, int m, std::pmr::memory_resource *mr)
     // MATLAB yields NaN map; we throw to keep output well-defined.
     if (!(range > 0.0))
         throw Error("contrast: image must have non-zero intensity range",
-                    0, 0, "contrast", "", "m:contrast:flat");
+                    0, 0, "contrast", "", "numkit:contrast:flat");
 
     std::vector<double> sorted;
     sorted.reserve(Nx + static_cast<size_t>(m + 1));
@@ -1361,12 +1400,12 @@ Value brighten(const Value &map, double beta, std::pmr::memory_resource *mr)
 {
     if (!(beta > -1.0 && beta < 1.0))
         throw Error("brighten: BETA must be a scalar in the range (-1, 1)",
-                    0, 0, "brighten", "", "m:brighten:beta");
+                    0, 0, "brighten", "", "numkit:brighten:beta");
     const double gamma = (beta > 0.0) ? (1.0 - beta) : (1.0 / (1.0 + beta));
     const auto &d = map.dims();
     if (d.is3D() || d.cols() != 3)
         throw Error("brighten: input must be an N-by-3 colormap",
-                    0, 0, "brighten", "", "m:brighten:shape");
+                    0, 0, "brighten", "", "numkit:brighten:shape");
     const size_t N = map.numel();
     Value out = Value::matrix(d.rows(), 3, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -1384,11 +1423,11 @@ Value xyz2uint16(const Value &xyz, std::pmr::memory_resource *mr)
     const bool ok_3d = d.is3D() && d.pages() == 3;
     if (!ok_2d && !ok_3d)
         throw Error("xyz2uint16: input must be M-by-3 or H-by-W-by-3",
-                    0, 0, "xyz2uint16", "", "m:xyz2uint16:size");
+                    0, 0, "xyz2uint16", "", "numkit:xyz2uint16:size");
     const ValueType t = xyz.type();
     if (t != ValueType::DOUBLE && t != ValueType::UINT16)
         throw Error("xyz2uint16: input must be uint16 or double",
-                    0, 0, "xyz2uint16", "", "m:xyz2uint16:type");
+                    0, 0, "xyz2uint16", "", "numkit:xyz2uint16:type");
 
     Value out = ok_3d
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::UINT16, mr)
@@ -1423,7 +1462,7 @@ Value deltaE(const Value &I1, const Value &I2, bool isInputLab, std::pmr::memory
         if (d1.cols() != 3 || d2.cols() != 3 ||
             d1.rows() != d2.rows())
             throw Error("deltaE: M-by-3 inputs must agree in row count",
-                        0, 0, "deltaE", "", "m:deltaE:size");
+                        0, 0, "deltaE", "", "numkit:deltaE:size");
         shape = COLORMAP;
         out_h = d1.rows();
         out_w = 1;
@@ -1431,13 +1470,13 @@ Value deltaE(const Value &I1, const Value &I2, bool isInputLab, std::pmr::memory
         if (d1.pages() != 3 || d2.pages() != 3 ||
             d1.rows() != d2.rows() || d1.cols() != d2.cols())
             throw Error("deltaE: H-by-W-by-3 inputs must agree in size",
-                        0, 0, "deltaE", "", "m:deltaE:size");
+                        0, 0, "deltaE", "", "numkit:deltaE:size");
         shape = IMAGE;
         out_h = d1.rows();
         out_w = d1.cols();
     } else {
         throw Error("deltaE: I1 and I2 must both be M-by-3 or H-by-W-by-3",
-                    0, 0, "deltaE", "", "m:deltaE:size");
+                    0, 0, "deltaE", "", "numkit:deltaE:size");
     }
 
     // Class promotion: double if either is double, else single.
@@ -1489,7 +1528,7 @@ Value whitepoint(const std::string &illuminant, std::pmr::memory_resource *mr)
     else
         throw Error("whitepoint: unsupported illuminant '" + illuminant +
                     "' (use a, c, d50, d55, d65, e, or icc)",
-                    0, 0, "whitepoint", "", "m:whitepoint:illum");
+                    0, 0, "whitepoint", "", "numkit:whitepoint:illum");
 
     Value out = Value::matrix(1, 3, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -1545,7 +1584,7 @@ Value cmap2gray(const Value &cmap, std::pmr::memory_resource *mr)
     const auto &d = cmap.dims();
     if (d.is3D() || d.cols() != 3 || d.rows() < 1)
         throw Error("cmap2gray: CMAP must be an N-by-3 colormap",
-                    0, 0, "cmap2gray", "", "m:cmap2gray:shape");
+                    0, 0, "cmap2gray", "", "numkit:cmap2gray:shape");
     const size_t N = d.rows();
     Value out = Value::matrix(N, 3, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -1579,11 +1618,11 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
     const size_t W = dL.cols();
     if (dL.is3D() && dL.pages() != 1)
         throw Error("label2rgb: L must be a 2-D labelled image",
-                    0, 0, "label2rgb", "", "m:label2rgb:dims");
+                    0, 0, "label2rgb", "", "numkit:label2rgb:dims");
 
     if (cmap.dims().cols() != 3)
         throw Error("label2rgb: CMAP must be N-by-3",
-                    0, 0, "label2rgb", "", "m:label2rgb:cmap");
+                    0, 0, "label2rgb", "", "numkit:label2rgb:cmap");
     const size_t N = cmap.dims().rows();
 
     double bg[3] = {1.0, 1.0, 1.0};
@@ -1593,7 +1632,7 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
         bg[2] = background.elemAsDouble(2);
     } else if (background.numel() != 0)
         throw Error("label2rgb: background must be a 3-element RGB triplet",
-                    0, 0, "label2rgb", "", "m:label2rgb:bg");
+                    0, 0, "label2rgb", "", "numkit:label2rgb:bg");
 
     Value out = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
     if (H == 0 || W == 0) return out;
@@ -1613,7 +1652,7 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
         const int64_t lab = static_cast<int64_t>(lv);
         if (lv < 0 || lab != static_cast<int64_t>(lv))
             throw Error("label2rgb: L must be non-negative integer-valued",
-                        0, 0, "label2rgb", "", "m:label2rgb:value");
+                        0, 0, "label2rgb", "", "numkit:label2rgb:value");
         if (lab == 0) {
             od[0 * plane + i] = sat(bg[0]);
             od[1 * plane + i] = sat(bg[1]);
@@ -1622,7 +1661,7 @@ Value label2rgb(const Value &L, const Value &cmap, const Value &background, std:
             const size_t row = static_cast<size_t>(lab) - 1;
             if (row >= N)
                 throw Error("label2rgb: CMAP has fewer rows than max label",
-                            0, 0, "label2rgb", "", "m:label2rgb:short");
+                            0, 0, "label2rgb", "", "numkit:label2rgb:short");
             // cmap is N×3 column-major: idx[row, ch] = ch * N + row.
             od[0 * plane + i] = sat(cd[0 * N + row]);
             od[1 * plane + i] = sat(cd[1 * N + row]);
@@ -1644,7 +1683,7 @@ namespace detail {
     {                                                                               \
         if (args.empty())                                                           \
             throw Error(#name ": requires X", 0, 0, #name, "",                     \
-                        "m:" #name ":nargin");                                     \
+                        "numkit:" #name ":nargin");                                     \
         outs[0] = name(args[0], ctx.engine->resource());                           \
     }
 
@@ -1653,7 +1692,7 @@ void imsplit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("imsplit: requires (I)", 0, 0, "imsplit", "",
-                    "m:imsplit:nargin");
+                    "numkit:imsplit:nargin");
     std::vector<Value> planes;
     imsplit(args[0], planes, ctx.engine->resource());
     const size_t M = std::min((size_t)outs.size(),
@@ -1686,7 +1725,7 @@ void label2rgb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("label2rgb: requires (L, cmap [, background])",
-                    0, 0, "label2rgb", "", "m:label2rgb:nargin");
+                    0, 0, "label2rgb", "", "numkit:label2rgb:nargin");
     Value bg;
     if (args.size() >= 3 && !args[2].isEmpty()) bg = args[2];
     outs[0] = label2rgb(args[0], args[1], bg, ctx.engine->resource());
@@ -1697,7 +1736,7 @@ void colorgradient_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("colorgradient: requires (C [, w] [, n])",
-                    0, 0, "colorgradient", "", "m:colorgradient:nargin");
+                    0, 0, "colorgradient", "", "numkit:colorgradient:nargin");
     auto *mr = ctx.engine->resource();
     Value w;
     int n = 64;
@@ -1720,14 +1759,14 @@ void wavelength2rgb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("wavelength2rgb: requires (wavelength [, class [, gamma]])",
-                    0, 0, "wavelength2rgb", "", "m:wavelength2rgb:nargin");
+                    0, 0, "wavelength2rgb", "", "numkit:wavelength2rgb:nargin");
     auto *mr = ctx.engine->resource();
     std::string cls = "double";
     double gamma = 0.8;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("wavelength2rgb: class must be a string",
-                        0, 0, "wavelength2rgb", "", "m:wavelength2rgb:cls");
+                        0, 0, "wavelength2rgb", "", "numkit:wavelength2rgb:cls");
         cls = args[1].toString();
     }
     if (args.size() >= 3 && !args[2].isEmpty()) gamma = args[2].toScalar();
@@ -1739,7 +1778,7 @@ void colorangle_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("colorangle: requires (rgb1, rgb2)",
-                    0, 0, "colorangle", "", "m:colorangle:nargin");
+                    0, 0, "colorangle", "", "numkit:colorangle:nargin");
     outs[0] = colorangle(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1748,7 +1787,7 @@ void cmap2gray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("cmap2gray: requires (cmap)",
-                    0, 0, "cmap2gray", "", "m:cmap2gray:nargin");
+                    0, 0, "cmap2gray", "", "numkit:cmap2gray:nargin");
     outs[0] = cmap2gray(args[0], ctx.engine->resource());
 }
 
@@ -1760,11 +1799,11 @@ void gray_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("gray: N must be a scalar integer",
-                        0, 0, "gray", "", "m:gray:n");
+                        0, 0, "gray", "", "numkit:gray:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("gray: N must be a scalar integer",
-                        0, 0, "gray", "", "m:gray:n");
+                        0, 0, "gray", "", "numkit:gray:n");
         n = static_cast<int>(d);
     }
     outs[0] = gray_cmap(n, ctx.engine->resource());
@@ -1778,11 +1817,11 @@ void hot_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("hot: N must be a scalar integer",
-                        0, 0, "hot", "", "m:hot:n");
+                        0, 0, "hot", "", "numkit:hot:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("hot: N must be a scalar integer",
-                        0, 0, "hot", "", "m:hot:n");
+                        0, 0, "hot", "", "numkit:hot:n");
         n = static_cast<int>(d);
     }
     outs[0] = hot_cmap(n, ctx.engine->resource());
@@ -1796,11 +1835,11 @@ void cool_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("cool: N must be a scalar integer",
-                        0, 0, "cool", "", "m:cool:n");
+                        0, 0, "cool", "", "numkit:cool:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("cool: N must be a scalar integer",
-                        0, 0, "cool", "", "m:cool:n");
+                        0, 0, "cool", "", "numkit:cool:n");
         n = static_cast<int>(d);
     }
     outs[0] = cool_cmap(n, ctx.engine->resource());
@@ -1814,11 +1853,11 @@ void spring_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("spring: N must be a scalar integer",
-                        0, 0, "spring", "", "m:spring:n");
+                        0, 0, "spring", "", "numkit:spring:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("spring: N must be a scalar integer",
-                        0, 0, "spring", "", "m:spring:n");
+                        0, 0, "spring", "", "numkit:spring:n");
         n = static_cast<int>(d);
     }
     outs[0] = spring_cmap(n, ctx.engine->resource());
@@ -1832,11 +1871,11 @@ void summer_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("summer: N must be a scalar integer",
-                        0, 0, "summer", "", "m:summer:n");
+                        0, 0, "summer", "", "numkit:summer:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("summer: N must be a scalar integer",
-                        0, 0, "summer", "", "m:summer:n");
+                        0, 0, "summer", "", "numkit:summer:n");
         n = static_cast<int>(d);
     }
     outs[0] = summer_cmap(n, ctx.engine->resource());
@@ -1850,11 +1889,11 @@ void autumn_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("autumn: N must be a scalar integer",
-                        0, 0, "autumn", "", "m:autumn:n");
+                        0, 0, "autumn", "", "numkit:autumn:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("autumn: N must be a scalar integer",
-                        0, 0, "autumn", "", "m:autumn:n");
+                        0, 0, "autumn", "", "numkit:autumn:n");
         n = static_cast<int>(d);
     }
     outs[0] = autumn_cmap(n, ctx.engine->resource());
@@ -1868,11 +1907,11 @@ void winter_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("winter: N must be a scalar integer",
-                        0, 0, "winter", "", "m:winter:n");
+                        0, 0, "winter", "", "numkit:winter:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("winter: N must be a scalar integer",
-                        0, 0, "winter", "", "m:winter:n");
+                        0, 0, "winter", "", "numkit:winter:n");
         n = static_cast<int>(d);
     }
     outs[0] = winter_cmap(n, ctx.engine->resource());
@@ -1886,11 +1925,11 @@ void copper_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("copper: N must be a scalar integer",
-                        0, 0, "copper", "", "m:copper:n");
+                        0, 0, "copper", "", "numkit:copper:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("copper: N must be a scalar integer",
-                        0, 0, "copper", "", "m:copper:n");
+                        0, 0, "copper", "", "numkit:copper:n");
         n = static_cast<int>(d);
     }
     outs[0] = copper_cmap(n, ctx.engine->resource());
@@ -1904,11 +1943,11 @@ void pink_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("pink: N must be a scalar integer",
-                        0, 0, "pink", "", "m:pink:n");
+                        0, 0, "pink", "", "numkit:pink:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("pink: N must be a scalar integer",
-                        0, 0, "pink", "", "m:pink:n");
+                        0, 0, "pink", "", "numkit:pink:n");
         n = static_cast<int>(d);
     }
     outs[0] = pink_cmap(n, ctx.engine->resource());
@@ -1922,11 +1961,11 @@ void hsv_cmap_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("hsv: N must be a scalar integer",
-                        0, 0, "hsv", "", "m:hsv:n");
+                        0, 0, "hsv", "", "numkit:hsv:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("hsv: N must be a scalar integer",
-                        0, 0, "hsv", "", "m:hsv:n");
+                        0, 0, "hsv", "", "numkit:hsv:n");
         n = static_cast<int>(d);
     }
     outs[0] = hsv_cmap(n, ctx.engine->resource());
@@ -1940,11 +1979,11 @@ void flag_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("flag: N must be a scalar integer",
-                        0, 0, "flag", "", "m:flag:n");
+                        0, 0, "flag", "", "numkit:flag:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("flag: N must be a scalar integer",
-                        0, 0, "flag", "", "m:flag:n");
+                        0, 0, "flag", "", "numkit:flag:n");
         n = static_cast<int>(d);
     }
     outs[0] = flag_cmap(n, ctx.engine->resource());
@@ -1958,11 +1997,11 @@ void prism_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("prism: N must be a scalar integer",
-                        0, 0, "prism", "", "m:prism:n");
+                        0, 0, "prism", "", "numkit:prism:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("prism: N must be a scalar integer",
-                        0, 0, "prism", "", "m:prism:n");
+                        0, 0, "prism", "", "numkit:prism:n");
         n = static_cast<int>(d);
     }
     outs[0] = prism_cmap(n, ctx.engine->resource());
@@ -1976,11 +2015,11 @@ void lines_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("lines: N must be a scalar integer",
-                        0, 0, "lines", "", "m:lines:n");
+                        0, 0, "lines", "", "numkit:lines:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("lines: N must be a scalar integer",
-                        0, 0, "lines", "", "m:lines:n");
+                        0, 0, "lines", "", "numkit:lines:n");
         n = static_cast<int>(d);
     }
     outs[0] = lines_cmap(n, ctx.engine->resource());
@@ -1994,11 +2033,11 @@ void bone_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("bone: N must be a scalar integer",
-                        0, 0, "bone", "", "m:bone:n");
+                        0, 0, "bone", "", "numkit:bone:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("bone: N must be a scalar integer",
-                        0, 0, "bone", "", "m:bone:n");
+                        0, 0, "bone", "", "numkit:bone:n");
         n = static_cast<int>(d);
     }
     outs[0] = bone_cmap(n, ctx.engine->resource());
@@ -2012,11 +2051,11 @@ void white_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[0];
         if (v.numel() != 1)
             throw Error("white: N must be a scalar integer",
-                        0, 0, "white", "", "m:white:n");
+                        0, 0, "white", "", "numkit:white:n");
         const double d = v.toScalar();
         if (!std::isfinite(d) || d != std::floor(d))
             throw Error("white: N must be a scalar integer",
-                        0, 0, "white", "", "m:white:n");
+                        0, 0, "white", "", "numkit:white:n");
         n = static_cast<int>(d);
     }
     outs[0] = white_cmap(n, ctx.engine->resource());
@@ -2027,7 +2066,7 @@ void rgb2lin_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rgb2lin: requires (A)", 0, 0, "rgb2lin", "",
-                    "m:rgb2lin:nargin");
+                    "numkit:rgb2lin:nargin");
     outs[0] = rgb2lin(args[0], ctx.engine->resource());
 }
 
@@ -2036,7 +2075,7 @@ void lin2rgb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("lin2rgb: requires (A)", 0, 0, "lin2rgb", "",
-                    "m:lin2rgb:nargin");
+                    "numkit:lin2rgb:nargin");
     outs[0] = lin2rgb(args[0], ctx.engine->resource());
 }
 
@@ -2045,7 +2084,7 @@ void xyz2double_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("xyz2double: requires (xyz)", 0, 0, "xyz2double", "",
-                    "m:xyz2double:nargin");
+                    "numkit:xyz2double:nargin");
     outs[0] = xyz2double(args[0], ctx.engine->resource());
 }
 
@@ -2054,7 +2093,7 @@ void xyz2uint16_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("xyz2uint16: requires (xyz)", 0, 0, "xyz2uint16", "",
-                    "m:xyz2uint16:nargin");
+                    "numkit:xyz2uint16:nargin");
     outs[0] = xyz2uint16(args[0], ctx.engine->resource());
 }
 
@@ -2063,7 +2102,7 @@ void brighten_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("brighten: requires (map, beta)", 0, 0, "brighten", "",
-                    "m:brighten:nargin");
+                    "numkit:brighten:nargin");
     const double beta = args[1].toScalar();
     outs[0] = brighten(args[0], beta, ctx.engine->resource());
 }
@@ -2073,13 +2112,13 @@ void contrast_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("contrast: requires (X[, m])", 0, 0, "contrast", "",
-                    "m:contrast:nargin");
+                    "numkit:contrast:nargin");
     int m = 64;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double d = args[1].toScalar();
         if (!std::isfinite(d) || d < 2.0)
             throw Error("contrast: M must be a finite scalar >= 2",
-                        0, 0, "contrast", "", "m:contrast:m");
+                        0, 0, "contrast", "", "numkit:contrast:m");
         m = static_cast<int>(d);
     }
     outs[0] = contrast(args[0], m, ctx.engine->resource());
@@ -2090,13 +2129,13 @@ void deltaE_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("deltaE: requires (I1, I2[, 'isInputLab', tf])",
-                    0, 0, "deltaE", "", "m:deltaE:nargin");
+                    0, 0, "deltaE", "", "numkit:deltaE:nargin");
     bool isInputLab = false;
     // Parse name-value pair: 'isInputLab', value.
     for (size_t i = 2; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("deltaE: name-value pairs require string keys",
-                        0, 0, "deltaE", "", "m:deltaE:nv");
+                        0, 0, "deltaE", "", "numkit:deltaE:nv");
         std::string key = args[i].toString();
         std::string lo;
         for (char c : key) lo.push_back(static_cast<char>(std::tolower(c)));
@@ -2104,7 +2143,7 @@ void deltaE_reg(Span<const Value> args, size_t /*nargout*/,
             isInputLab = (args[i + 1].toScalar() != 0.0);
         else
             throw Error("deltaE: unknown name '" + key + "'",
-                        0, 0, "deltaE", "", "m:deltaE:nv");
+                        0, 0, "deltaE", "", "numkit:deltaE:nv");
     }
     outs[0] = deltaE(args[0], args[1], isInputLab, ctx.engine->resource());
 }
@@ -2116,7 +2155,7 @@ void whitepoint_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 1 && !args[0].isEmpty()) {
         if (!args[0].isChar() && !args[0].isString())
             throw Error("whitepoint: illuminant must be a string",
-                        0, 0, "whitepoint", "", "m:whitepoint:type");
+                        0, 0, "whitepoint", "", "numkit:whitepoint:type");
         illum = args[0].toString();
     }
     outs[0] = whitepoint(illum, ctx.engine->resource());

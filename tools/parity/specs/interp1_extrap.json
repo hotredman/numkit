@@ -1,0 +1,16 @@
+{
+  "name": "interp1_extrap",
+  "namespace": "builtin",
+  "setup": "x = [1 2 3]; y = [10 20 30];",
+  "expr": "a1 = double(isnan(interp1(x,y,4))); a2 = double(isnan(interp1(x,y,0))); a3 = double(isnan(interp1(x,y,4,'nearest'))); b1 = interp1(x,y,4,'linear','extrap'); b2 = interp1(x,y,0,'linear','extrap'); b3 = interp1(x,y,4,'nearest','extrap'); b4 = interp1(x,y,0,'nearest','extrap'); cc = interp1(x,y,[0 2.5 4],'linear',-99); c1 = cc(1); c2 = cc(2); c3 = cc(3); p1 = interp1(x,y,4,'previous','extrap'); p2 = double(isnan(interp1(x,y,0,'previous','extrap'))); q1 = interp1(x,y,0,'next','extrap'); q2 = double(isnan(interp1(x,y,4,'next','extrap'))); s1 = interp1(x,y,4,'spline'); s2 = interp1(x,y,4,'pchip'); s3 = interp1(x,y,4,'makima'); in = interp1(x,y,2.5);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "a1", "a2", "a3",
+    "b1", "b2", "b3", "b4",
+    "c1", "c2", "c3",
+    "p1", "p2", "q1", "q2",
+    "s1", "s2", "s3", "in"
+  ],
+  "comment": "interp1 out-of-range / extrapolation policy vs MATLAB R2025b. DEFAULT: linear/nearest/previous/next return NaN outside [x(1),x(end)] (a1=a2=a3=1); spline/pchip/makima extrapolate by default (s1=s2=s3=40). 'extrap' option: linear extrapolates (b1=40,b2=0); nearest holds endpoint both ways (b3=30,b4=10); previous holds y(end) above range (p1=30) but NaN below (p2=1); next mirror (q1=10, q2=1). Numeric extrapval fills out-of-range (c1=c3=-99) leaving in-range (c2=25). Bug fixed 2026-05-30: linear/nearest previously extrapolated by default instead of returning NaN; 'extrap' worked only by accident, constant extrapval was unsupported. NOTE: no semicolons inside quoted strings; single-quoted method names."
+}

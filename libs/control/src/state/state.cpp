@@ -43,7 +43,7 @@ ABC pullABC(const Value &sys, std::pmr::memory_resource *mr) {
         out.C = std::move(ss.C); out.D = std::move(ss.D);
     } else {
         throw Error("ctrb/obsv: expected an LTI struct (tf/zpk/ss)",
-                    0, 0, "control", "", "m:control:kind");
+                    0, 0, "control", "", "numkit:control:kind");
     }
     return out;
 }
@@ -68,11 +68,11 @@ Value ctrb_AB(const Value &Av, const Value &Bv, std::pmr::memory_resource *mr)
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
         throw Error("ctrb: A must be square",
-                    0, 0, "ctrb", "", "m:ctrb:A");
+                    0, 0, "ctrb", "", "numkit:ctrb:A");
     const size_t m = Bv.dims().cols();
     if (Bv.dims().rows() != n)
         throw Error("ctrb: B must have the same row count as A",
-                    0, 0, "ctrb", "", "m:ctrb:B");
+                    0, 0, "ctrb", "", "numkit:ctrb:B");
 
     auto A = readMat(Av, n, n);
     auto B = readMat(Bv, n, m);
@@ -111,11 +111,11 @@ Value obsv_AC(const Value &Av, const Value &Cv, std::pmr::memory_resource *mr)
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
         throw Error("obsv: A must be square",
-                    0, 0, "obsv", "", "m:obsv:A");
+                    0, 0, "obsv", "", "numkit:obsv:A");
     const size_t p = Cv.dims().rows();
     if (Cv.dims().cols() != n)
         throw Error("obsv: C must have the same column count as A",
-                    0, 0, "obsv", "", "m:obsv:C");
+                    0, 0, "obsv", "", "numkit:obsv:C");
 
     auto A = readMat(Av, n, n);
     auto C = readMat(Cv, p, n);
@@ -163,7 +163,7 @@ void ctrb_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("ctrb: requires (A, B) or (sys)",
-                    0, 0, "ctrb", "", "m:ctrb:nargin");
+                    0, 0, "ctrb", "", "numkit:ctrb:nargin");
     auto *mr = c.engine->resource();
     if (a.size() == 1) {
         // Single-arg form: must be a sys struct.
@@ -177,7 +177,7 @@ void obsv_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("obsv: requires (A, C) or (sys)",
-                    0, 0, "obsv", "", "m:obsv:nargin");
+                    0, 0, "obsv", "", "numkit:obsv:nargin");
     auto *mr = c.engine->resource();
     if (a.size() == 1) {
         o[0] = obsv_sys(a[0], mr);

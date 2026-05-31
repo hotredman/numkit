@@ -1,0 +1,16 @@
+{
+  "name": "dec2base",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s1 = dec2base(100,16); s2 = dec2base(10,2,8); s3 = dec2base(255,16); s4 = dec2base(35,36); d1 = base2dec('64',16); d2 = base2dec('1010',2); d3 = base2dec('Z',36);",
+  "iters": 3,
+  "tol": 0,
+  "fingerprint": [
+    "double(s1(1))", "double(s1(2))",
+    "double(length(s2))", "double(s2(1))",
+    "double(s3(1))", "double(s3(2))",
+    "double(s4(1))",
+    "d1", "d2", "d3"
+  ],
+  "comment": "Sig s=dec2base(d,base[,len]) / d=base2dec(s,base), base 2..36 (digits 0-9 then A-Z). dec2base(100,16)='64' (chars 54,52), dec2base(10,2,8)='00001010' (len 8, first '0'=48), dec2base(255,16)='FF' ('F'=70), dec2base(35,36)='Z'=90; base2dec('64',16)=100, base2dec('1010',2)=10, base2dec('Z',36)=35; char matrix -> column vector. numkit previously had neither -- added. Matches MATLAB R2025b."
+}

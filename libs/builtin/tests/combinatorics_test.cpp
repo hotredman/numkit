@@ -231,10 +231,30 @@ TEST_P(CombinatoricsTest, NchoosekNonIntegerThrows)
     EXPECT_THROW(eval("nchoosek(5.5, 2);"), std::exception);
 }
 
-TEST_P(CombinatoricsTest, NchoosekVectorFormThrows)
+// Vector form nchoosek(v, k): all k-combinations of v, one per row, in
+// lexicographic order of element indices. vs MATLAB R2025b. 2026-05-29.
+TEST_P(CombinatoricsTest, NchoosekVectorCombinations)
 {
-    // Vector form nchoosek(v, k) is not yet supported.
-    EXPECT_THROW(eval("nchoosek([1 2 3 4], 2);"), std::exception);
+    eval("C = nchoosek([1 2 3 4], 2);");   // 6x2: [1 2;1 3;1 4;2 3;2 4;3 4]
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_EQ(rows(*C), 6u);
+    EXPECT_EQ(cols(*C), 2u);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(3,2)"), 4.0);   // row 3 = [1 4]
+    EXPECT_DOUBLE_EQ(evalScalar("C(4,1)"), 2.0);   // row 4 = [2 3]
+    EXPECT_DOUBLE_EQ(evalScalar("C(6,1)"), 3.0);   // row 6 = [3 4]
+    EXPECT_DOUBLE_EQ(evalScalar("C(6,2)"), 4.0);
+    // values come from v, not indices.
+    eval("D = nchoosek([10 20 30], 2);");          // [10 20;10 30;20 30]
+    EXPECT_DOUBLE_EQ(evalScalar("D(2,2)"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(3,1)"), 20.0);
+    // k == numel -> single row of all; k == 0 -> 1x0.
+    EXPECT_DOUBLE_EQ(evalScalar("numel(nchoosek([5 6 7], 3))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(nchoosek([1 2 3], 0))"), 0.0);
+    // scalar form still gives the binomial coefficient.
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(5, 2)"), 10.0);
 }
 
 INSTANTIATE_DUAL(CombinatoricsTest);

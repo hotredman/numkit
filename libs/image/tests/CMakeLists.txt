@@ -17,4 +17,57 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/adapthisteq_cpp_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/graycomatrix_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bwmorph_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bwlookup_makelut_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bwmorph3_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/illum_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/illumpca_imcolordiff_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/otf2psf_rgbwide_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ycbcr2rgbwide_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ind2gray_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imcrop3_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/graydiffweight_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nlfilter_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/colfilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmunique_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/deconvwnr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/edgetaper_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgradientxyz_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/deconvreg_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gradientweight_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regionfill_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/poly2mask_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/reducepoly_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/roifilt2_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/roipoly_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imfuse_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cornermetric_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hough_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/houghlines_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bwtraceboundary_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imguidedfilter_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/integralBoxFilter_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imread_tiff_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modefilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imdiffusefilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/graydist_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bwdistgeodesic_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgaborfilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imnlmfilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tonemap_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/labeloverlay_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/locallapfilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imreducehaze_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/multissim_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/multissim3_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fibermetric_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/chromadapt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/labelmatrix_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bwpropfilt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fir2d_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rgb2lightness_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rgbwide2xyz_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imresize3_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imrotate3_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/demosaic_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/raw_planar_test.cpp
 )

@@ -5,21 +5,18 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/fn_handle.hpp>
 #include <numkit/core/value.hpp>
 
 #include <tuple>
 
-namespace numkit { class Engine; }
-
 namespace numkit::builtin {
-
-using ::numkit::Engine;
 
 /// @brief Finite-difference gradient (`g = gradient(F, h)`).
 ///
 /// Central differences in the interior, one-sided at the endpoints.
 /// - 1-D vector input → 1-D gradient.
-/// - 2-D matrix input → `∂F/∂x` (along dim-2, columns; MATLAB convention).
+/// - 2-D matrix input → `∂F/∂x` (along dim-2, columns).
 ///
 /// @param f   Input array.
 /// @param h   Uniform spacing (default 1).
@@ -31,8 +28,7 @@ Value gradient(const Value &f, double h = 1.0,
 
 /// @brief Two-direction gradient (`[Fx, Fy] = gradient2(F, hx, hy)`).
 ///
-/// `Fx = ∂F/∂x` (dim-2), `Fy = ∂F/∂y` (dim-1) — MATLAB ordering with
-/// x-direction first.
+/// `Fx = ∂F/∂x` (dim-2), `Fy = ∂F/∂y` (dim-1), x-direction first.
 ///
 /// @param f   2-D input matrix.
 /// @param hx  Spacing along columns (default 1).
@@ -48,7 +44,7 @@ gradient2(const Value &f, double hx = 1.0, double hy = 1.0,
 /// (`c = cumtrapz(y)`).
 ///
 /// Vectors preserve shape; matrices integrate down each column
-/// (first non-singleton dim, MATLAB default).
+/// (first non-singleton dim).
 ///
 /// @param y   Integrand values.
 /// @param mr  Memory resource (nullptr → process default).
@@ -77,16 +73,17 @@ Value cumtrapz(const Value &x, const Value &y,
 /// subintervals where `|G - K|` exceeds `absTol`. Up to ~16 subdivision
 /// levels per branch.
 ///
-/// @param fn      Function handle (single-argument, returns scalar).
+/// The callback receives a 1-element `args` (the scalar evaluation
+/// point) and writes its scalar result into `outs[0]`.
+///
+/// @param fn      Callback (scalar in, scalar out).
 /// @param a       Lower limit.
 /// @param b       Upper limit.
 /// @param absTol  Absolute tolerance (default 1e-10 in adapter).
-/// @param engine  Engine context for function-handle invocation.
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        Scalar integral value.
 /// @see trapz
-Value integral(const Value &fn, double a, double b, double absTol,
-               Engine *engine,
+Value integral(FnHandle fn, double a, double b, double absTol,
                std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Trapezoidal integration with unit spacing (`I = trapz(y)`).

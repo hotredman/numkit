@@ -57,8 +57,7 @@ Value eye(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr);
 ///
 /// `N × N` matrix where rows, columns, both diagonals sum to the magic
 /// constant `N · (N² + 1) / 2`. Three branches by `N`'s parity (Siamese
-/// for odd N, doubly-even, Strachey for singly-even — matches MATLAB
-/// R2025b).
+/// for odd N, doubly-even, Strachey for singly-even).
 ///
 /// Edge cases: `N == 0 → 0×0`, `N == 1 → [1]`, `N == 2 → [1 3; 4 2]`
 /// (preserved for parity; not strictly magic).
@@ -72,7 +71,7 @@ Value magic(size_t N, std::pmr::memory_resource *mr = nullptr);
 ///
 /// `T(i, j) = c(i - j)` for `i >= j`, else `r(j - i)`.
 /// Single-arg form (`r == Value::Empty`) takes `r = c` (real input).
-/// MATLAB convention: if `c(0) != r(0)`, `r(0)` is silently overridden.
+/// If `c(0) != r(0)`, `r(0)` is silently overridden.
 ///
 /// @param c   First column.
 /// @param r   First row (default `Value::Empty` → `r = c`).
@@ -96,7 +95,7 @@ Value hankel(const Value &c, const Value &r = Value::Empty,
 /// @brief Vandermonde matrix (`V = vander(v)`).
 ///
 /// `V(i, j) = v(i)^(n - 1 - j)`. Columns ordered from highest to lowest
-/// power (matches MATLAB R2025b).
+/// power.
 ///
 /// @param v   Generator vector.
 /// @param mr  Memory resource (nullptr → process default).
@@ -116,7 +115,7 @@ Value compan(const Value &p, std::pmr::memory_resource *mr = nullptr);
 /// @brief Pascal matrix (`P = pascal(n)`).
 ///
 /// Symmetric form `P(i, j) = C(i + j, i)`. Only `k = 0` (symmetric) is
-/// implemented; MATLAB's `k = 1, 2` deferred.
+/// implemented; the `k = 1, 2` forms are deferred.
 ///
 /// @param n   Order.
 /// @param mr  Memory resource (nullptr → process default).
@@ -156,7 +155,7 @@ Value wilkinson(size_t n, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Hadamard matrix via Sylvester construction (`H = hadamard(n)`).
 ///
-/// Requires `n` to be a power of 2. MATLAB's Paley constructions
+/// Requires `n` to be a power of 2. The Paley constructions
 /// (`12·2^k`, `20·2^k`) are deferred.
 ///
 /// @param n   Order (power of 2).
@@ -167,7 +166,7 @@ Value hadamard(size_t n, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Rosser's 8×8 eigenvalue test matrix (`R = rosser()`).
 ///
-/// Hardcoded constants from MATLAB R2025b's `gallery/rosser`.
+/// The 8×8 entries are fixed, hardcoded constants.
 ///
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `8 × 8` matrix.
@@ -175,22 +174,12 @@ Value rosser(std::pmr::memory_resource *mr = nullptr);
 
 // ── Solvers and inverses ─────────────────────────────────────────────
 
-/// @brief Matrix inverse via LU (`B = inv(A)`).
-///
-/// Prefer @ref linsolve / `\` for solving `A·x = b`; this function
-/// exists when the inverse itself is needed as a matrix.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `A^{-1}`.
-/// @throws Error  Non-square or singular (`m:inv:singular`).
-/// @see linsolve, pinv
-Value inv(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: inv migrated to libs/linalg (numkit/linalg/properties.hpp).
 
 /// @brief Solve `A·X = B` (`X = linsolve(A, B)`).
 ///
 /// LU for square `A`, Householder QR for tall `A` (least-squares).
-/// Backs MATLAB's `mldivide` / `\`. The optional `opts` arg is
+/// Backs `mldivide` / `\`. The optional `opts` arg is
 /// accepted for compatibility but ignored — LU/QR auto-detection
 /// handles the same cases.
 ///
@@ -212,36 +201,9 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr = n
 /// @throws Error  Non-square or singular page.
 Value pageinv(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Trace = sum of diagonal (`t = trace(A)`).
-///
-/// `sum(diag(A))`. Works for any 2-D matrix (square or rectangular).
-///
-/// @param A   2-D matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar trace.
-Value trace(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: trace / det migrated to libs/linalg (numkit/linalg/properties.hpp).
 
-/// @brief Determinant via LU with partial pivoting (`d = det(A)`).
-///
-/// `det(A) = sign(P) · prod(diag(U))` where `A = P·L·U`.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar determinant.
-/// @throws Error  Non-square (`m:det:notSquare`).
-Value det(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Cholesky factorisation (`R = chol(A)`).
-///
-/// Returns the upper-triangular `R` such that `R' · R == A`.
-/// Matches MATLAB R2025b's `chol(A)` default.
-///
-/// @param A   Symmetric positive-definite matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Upper-triangular factor `R`.
-/// @throws Error  Non-square or not positive-definite (`m:chol:notPosDef`).
-/// @see ldl
-Value chol(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: chol migrated to libs/linalg (numkit/linalg/decompositions.hpp).
 
 /// @brief Top-`k` rows sorted descending (`T = topkrows(A, k)`).
 ///
@@ -257,419 +219,44 @@ Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr = nu
 
 // ── LU / QR / SVD ────────────────────────────────────────────────────
 
-/// @brief LU with partial pivoting (`[L, U, P] = lu_decompose(A)`).
-///
-/// `P · A == L · U` where `L` is unit-lower-triangular, `U` is
-/// upper-triangular, `P` is a permutation matrix. MATLAB's single-output
-/// `LU = lu(A)` form lives in @ref lu_combined.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(L, U, P)` triple.
-/// @throws Error  Non-square (`m:lu:notSquare`).
-/// @see lu_combined, linsolve
-std::tuple<Value, Value, Value>
-lu_decompose(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: lu_decompose / lu_combined / qr_decompose / qr_R_only /
+//       svd_decompose / svd_values / rank_of / pinv migrated to
+//       libs/linalg (numkit/linalg/decompositions.hpp,
+//       numkit/linalg/properties.hpp, numkit/linalg/pseudo_subspace.hpp).
 
-/// @brief Combined L+U output (`LU = lu(A)` single-output form).
-///
-/// Strict lower triangle is `L` (unit diagonal implicit); upper
-/// triangle (including diagonal) is `U`. Rows are already permuted.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Combined L+U matrix.
-/// @see lu_decompose
-Value lu_combined(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: cond_2norm migrated to libs/linalg (numkit/linalg/properties.hpp).
 
-/// @brief QR via Householder reflections (`[Q, R] = qr_decompose(A)`).
-///
-/// Full-size form (not `"econ"`). `A == Q · R`. `Q` is `m × m`
-/// orthogonal, `R` is `m × n` upper-triangular.
-///
-/// @param A   `m × n` matrix with `m >= n`.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(Q, R)` pair.
-/// @throws Error  Wide matrix (`m:qr:wide`).
-/// @see qr_R_only
-std::tuple<Value, Value>
-qr_decompose(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: orth / null_basis migrated to libs/linalg (numkit/linalg/pseudo_subspace.hpp).
 
-/// @brief R-only QR output (`R = qr(A)` single-output form).
-///
-/// @param A   `m × n` matrix with `m >= n`.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Upper-triangular `R`.
-/// @see qr_decompose
-Value qr_R_only(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: normest migrated to libs/linalg (numkit/linalg/properties.hpp).
 
-/// @brief Singular value decomposition (`[U, S, V] = svd_decompose(A)`).
-///
-/// `A = U · S · V'`. One-sided Jacobi rotations; converges to
-/// orthogonal columns. For `m × n` `A` with `m >= n`: `U` is `m × m`
-/// orthogonal, `S` is `m × n` diagonal (sigma >= 0, descending), `V`
-/// is `n × n` orthogonal. `m < n` cases transpose internally.
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(U, S, V)` triple.
-/// @see svd_values, pinv
-std::tuple<Value, Value, Value>
-svd_decompose(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Singular values only (`s = svd(A)` single-output form).
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Column vector of singular values, length `min(m, n)`,
-///            descending order.
-/// @see svd_decompose
-Value svd_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Numerical rank (`r = rank(A, tol)`).
-///
-/// Count of singular values above `tol`. Default `tol = max(size(A))·eps(max(svd(A)))`.
-///
-/// @param A    Input matrix.
-/// @param tol  Tolerance, or `-1.0` for default.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Scalar rank.
-Value rank_of(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Moore-Penrose pseudoinverse (`P = pinv(A, tol)`).
-///
-/// Via SVD: `pinv(A) = V · S⁺ · U'` where `S⁺` inverts non-zero
-/// singular values above `tol`.
-///
-/// @param A    Input matrix.
-/// @param tol  Tolerance, or `-1.0` for default.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Pseudoinverse.
-/// @see inv, lsqminnorm
-Value pinv(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief 2-norm condition number (`c = cond(A)`).
-///
-/// `sigma_max / sigma_min` via SVD. Returns `Inf` for singular `A`.
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar condition number.
-/// @see rcond, svd_values
-Value cond_2norm(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Orthonormal basis for range(A) (`Q = orth(A, tol)`).
-///
-/// Columns of `U` from SVD whose corresponding sigma exceeds `tol`.
-///
-/// @param A    Input matrix.
-/// @param tol  Tolerance, or `-1.0` for default.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     `m × rank(A)` orthonormal basis.
-/// @see null_basis
-Value orth(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Orthonormal basis for null(A) (`N = null(A, tol)`).
-///
-/// Columns of `V` from SVD whose corresponding sigma is below `tol`.
-///
-/// @param A    Input matrix.
-/// @param tol  Tolerance, or `-1.0` for default.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     `n × (n - rank(A))` orthonormal basis.
-/// @see orth
-Value null_basis(const Value &A, double tol = -1.0, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief 2-norm estimate (`n = normest(A)`).
-///
-/// Currently equivalent to `svd(A)(1)` — no power-iteration shortcut
-/// yet (correctness over performance).
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Estimate of largest singular value.
-/// @see svd_values, norm_value
-Value normest(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-// ── Eigenvalues / eigenvectors ───────────────────────────────────────
-
-/// @brief Symmetric eigendecomposition (`[V, D] = eig(A)`).
-///
-/// Classical Jacobi rotations. Returns `(V, D)` such that `A·V == V·D`,
-/// `V` orthogonal, `D` diagonal. Throws if `A` is not symmetric within
-/// tolerance (general eig is @ref eig_general_VD / @ref eig_general_values).
-///
-/// @param A   Square symmetric matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(V, D)` pair.
-/// @throws Error  Non-symmetric input.
-/// @see eig_values, eig_general_VD
-std::tuple<Value, Value>
-eig_symmetric(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Eigenvalues only (`e = eig(A)` single-output form).
-///
-/// For symmetric `A` returns ascending real eigenvalues.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Column vector of eigenvalues.
-/// @see eig_symmetric, eig_general_values
-Value eig_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// ── Eigenvalues / eigenvectors / matrix functions ───────────────────
+//
+// NOTE: eig family (eig_symmetric, eig_values, eig_general_values,
+//       eig_general_VD), sylvester_sym, schur_sym, hess / hess_H_only,
+//       expm, logm_sym, sqrtm_sym migrated to libs/linalg
+//       (numkit/linalg/{eig,matrix_functions}.hpp).
+// NOTE: subspace migrated to libs/linalg (numkit/linalg/pseudo_subspace.hpp).
+// NOTE: norm_value / norm_inf / norm_fro migrated to libs/linalg
+//       (numkit/linalg/norms.hpp).
 
 /// @brief Characteristic polynomial of a matrix (`p = poly(A)`).
 ///
 /// Souriau-Faddeev-LeVerrier. `p(λ) = λ^n + p(2)·λ^(n-1) + … + p(n+1)`
-/// and `roots(p) == eig(A)`. Matches MATLAB's `poly(A)` for square inputs.
+/// and `roots(p) == eig(A)`. Square inputs only.
 ///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Coefficient row of length `n + 1`.
+/// Stays in builtin because the `poly()` builtin function dispatches
+/// here for matrix input; linalg has its own copy in
+/// numkit::linalg::poly_of_matrix.
 Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief General (non-symmetric) eigenvalues (`e = eig(A)` general form).
-///
-/// Via characteristic polynomial + roots. Possibly-complex column.
-/// Less numerically stable than QR iteration but works for moderate `n`.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Column vector of eigenvalues (possibly COMPLEX).
-/// @see eig_general_VD
-Value eig_general_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Subspace angle (`theta = subspace(A, B)`).
-///
-/// `theta = acos(min(svd(orth(A)' · orth(B))))`. Returns radians in
-/// `[0, π/2]`.
-///
-/// @param A   First matrix.
-/// @param B   Second matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar angle (radians).
-Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief General `[V, D]` eig for real-eigenvalue asymmetric `A`
-/// (`[V, D] = eig_general_VD(A)`).
-///
-/// For each real eigenvalue `λ_i`, eigenvector `v_i` is the last column
-/// of `V` from `svd(A - λ_i · I)` (right null vector). Throws if any
-/// eigenvalue has non-zero imaginary part (those require Francis QR
-/// iteration for proper complex-eigvec extraction — deferred).
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(V, D)` pair with `A·V == V·D` verified.
-/// @throws Error  Complex eigenvalue encountered.
-/// @see eig_general_values, eig_symmetric
-std::tuple<Value, Value>
-eig_general_VD(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Sylvester equation for symmetric A and B
-/// (`X = sylvester_sym(A, B, C)`).
-///
-/// Solves `A·X + X·B = C` via simultaneous diagonalisation:
-/// `A = V_a·D_a·V_a'`, `B = V_b·D_b·V_b'`, `Y = V_a'·C·V_b`,
-/// `Y_ij /= (d_a_i + d_b_j)`, then `X = V_a·Y·V_b'`.
-///
-/// @param A   Symmetric matrix.
-/// @param B   Symmetric matrix.
-/// @param C   RHS matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Solution `X`.
-/// @throws Error  Non-symmetric A or B; degenerate spectra
-///                (`d_a_i + d_b_j == 0` for some pair).
-Value sylvester_sym(const Value &A, const Value &B, const Value &C, std::pmr::memory_resource *mr = nullptr);
-
-// ── Norms ────────────────────────────────────────────────────────────
-
-/// @brief Vector / matrix p-norm (`n = norm(x, p)`).
-///
-/// Vector input: `norm(v, p) = (Σ |v|^p)^(1/p)`; `p = 1` → sum of abs,
-/// `p = 2` → Euclidean. Matrix input: `p = 1` → max column sum, `p = 2`
-/// → largest singular value.
-///
-/// @param x   Input array (vector or matrix).
-/// @param p   Norm order (positive real).
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar norm.
-/// @see norm_inf, norm_fro, vecnorm
-Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Inf-norm (`n = norm(x, inf)`).
-///
-/// Vector: `max(|v|)`. Matrix: max row sum.
-///
-/// @param x   Input array.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar norm.
-/// @see norm_value
-Value norm_inf(const Value &x, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Frobenius norm (`n = norm(A, 'fro')`).
-///
-/// `sqrt(sum(A.^2))`.
-///
-/// @param x   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar Frobenius norm.
-/// @see norm_value
-Value norm_fro(const Value &x, std::pmr::memory_resource *mr = nullptr);
-
-// ── Matrix functions (expm / logm / sqrtm / schur / hess) ────────────
-
-/// @brief Matrix exponential (`B = expm(A)`).
-///
-/// Padé approximation with scaling-and-squaring (Higham 2005). Works
-/// for any square matrix.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `e^A`.
-/// @see logm_sym, sqrtm_sym
-Value expm(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Matrix logarithm for symmetric positive-definite A
-/// (`B = logm_sym(A)`).
-///
-/// Via eigendecomposition: `logm(A) = V · diag(log(eig)) · V'`.
-/// General `logm` requires complex Schur (deferred).
-///
-/// @param A   Symmetric positive-definite matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `log(A)`.
-/// @see expm
-Value logm_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Matrix square root for symmetric PSD A (`B = sqrtm_sym(A)`).
-///
-/// Via eigendecomposition: `sqrtm(A) = V · diag(sqrt(eig)) · V'`.
-///
-/// @param A   Symmetric positive-semidefinite matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `sqrt(A)`.
-/// @see expm, logm_sym
-Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Schur decomposition for symmetric A (`[U, T] = schur(A)`).
-///
-/// Equivalent to eigendecomposition: `A = U·T·U'`, `T` diagonal,
-/// `U` orthogonal. General Schur (quasi-triangular `T`) is deferred.
-///
-/// @param A   Symmetric matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(U, T)` pair.
-/// @see eig_symmetric, hess
-std::tuple<Value, Value>
-schur_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Hessenberg reduction (`[P, H] = hess(A)`).
-///
-/// `A = P·H·P'`, `P` orthogonal, `H` upper-Hessenberg (zeros below the
-/// first sub-diagonal). Foundation for general eig and Schur.
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(P, H)` pair.
-/// @see hess_H_only
-std::tuple<Value, Value>
-hess(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Hessenberg-only output (`H = hess(A)` single-output form).
-///
-/// @param A   Square matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Upper-Hessenberg `H`.
-/// @see hess
-Value hess_H_only(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
 // ── Matrix predicates ────────────────────────────────────────────────
+//
+// NOTE: isbanded / isdiag / istril / istriu / issymmetric / ishermitian /
+//       bandwidth / bandwidthOpt migrated to libs/linalg
+//       (numkit/linalg/predicates.hpp).
 
-/// @brief Banded structure test (`tf = isbanded(A, lower, upper)`).
-///
-/// True iff entries outside the `[-lower, +upper]` diagonal band are
-/// exactly zero. Exact comparison (no tolerance).
-///
-/// @param A      Input matrix.
-/// @param lower  Allowed sub-diagonal width.
-/// @param upper  Allowed super-diagonal width.
-/// @param mr     Memory resource (nullptr → process default).
-/// @return       LOGICAL scalar.
-/// @see isdiag, istril, istriu, bandwidth
-Value isbanded(const Value &A, long lower, long upper, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Diagonal structure (`tf = isdiag(A)`). True iff `isbanded(A, 0, 0)`.
-/// @param A   Input matrix. @param mr  Memory resource. @return  LOGICAL scalar.
-Value isdiag(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Lower-triangular structure (`tf = istril(A)`).
-/// @param A   Input matrix. @param mr  Memory resource. @return  LOGICAL scalar.
-/// @see istriu
-Value istril(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Upper-triangular structure (`tf = istriu(A)`).
-/// @param A   Input matrix. @param mr  Memory resource. @return  LOGICAL scalar.
-/// @see istril
-Value istriu(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Symmetry test (`tf = issymmetric(A, skew)`).
-///
-/// `skew == false` (default): `A == A.'` (transpose, no conj).
-/// `skew == true`: `A == -A.'`.
-///
-/// @param A     Input matrix.
-/// @param skew  Skew-symmetric flag.
-/// @param mr    Memory resource (nullptr → process default).
-/// @return      LOGICAL scalar.
-/// @see ishermitian
-Value issymmetric(const Value &A, bool skew = false, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Hermitian test (`tf = ishermitian(A, skew)`).
-///
-/// `A == A'` (conjugate transpose); `skew == true` → `A == -A'`.
-///
-/// @param A     Input matrix.
-/// @param skew  Skew-Hermitian flag.
-/// @param mr    Memory resource (nullptr → process default).
-/// @return      LOGICAL scalar.
-/// @see issymmetric
-Value ishermitian(const Value &A, bool skew = false, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Bandwidth pair (`[lower, upper] = bandwidth(A)`).
-///
-/// Single-output form returns just the lower bandwidth (MATLAB's
-/// `x = bandwidth(A)`).
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(lower, upper)` pair.
-/// @see bandwidthOpt, isbanded
-std::pair<Value, Value>
-bandwidth(const Value &A, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Single-output bandwidth selector (`x = bandwidth(A, which)`).
-///
-/// `which` is `"lower"` or `"upper"`.
-///
-/// @param A      Input matrix.
-/// @param which  `"lower"` or `"upper"`.
-/// @param mr     Memory resource (nullptr → process default).
-/// @return       Scalar bandwidth.
-/// @throws Error  Unknown `which` value.
-Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Vector p-norm along a dim (`y = vecnorm(A, p, dim)`).
-///
-/// Defaults: `p = 2`, `dim = 0` (first non-singleton). `p = Inf` →
-/// `max(|A|)`, `p = -Inf` → `min(|A|)`.
-///
-/// @param A    Input array.
-/// @param p    Norm order (default 2).
-/// @param dim  1-based dimension (0 → first non-singleton).
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Norms reduced along `dim`.
-/// @see norm_value
-Value vecnorm(const Value &A, double p = 2.0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+// NOTE: vecnorm migrated to libs/linalg (numkit/linalg/norms.hpp).
 
 /// @brief Reduced row echelon form (`[R, jb] = rref(A, have_tol, tol)`).
 ///
@@ -684,17 +271,7 @@ Value vecnorm(const Value &A, double p = 2.0, int dim = 0, std::pmr::memory_reso
 std::pair<Value, Value>
 rref(const Value &A, bool have_tol, double tol_user, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Reciprocal 1-norm condition estimate (`c = rcond(A)`).
-///
-/// Cheap path: `1 / (norm(A, 1) · norm(inv(A), 1))`. Returns 0 for
-/// singular `A`. KNOWN GAP: matches MATLAB on well-conditioned cases;
-/// differs from LAPACK's `dgecon` on near-singular matrices.
-///
-/// @param A   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar reciprocal condition number.
-/// @see cond_2norm
-Value rcond(const Value &A, std::pmr::memory_resource *mr = nullptr);
+// NOTE: rcond migrated to libs/linalg (numkit/linalg/properties.hpp).
 
 /// @brief Givens plane rotation (`[G, y_out] = planerot([x; y])`).
 ///
@@ -721,41 +298,9 @@ planerot(const Value &xy, std::pmr::memory_resource *mr = nullptr);
 /// @see pinv, linsolve
 Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Result of @ref balance_impl.
-struct BalanceResult {
-    Value B;         ///< Balanced matrix.
-    Value d_col;     ///< Column of scaling factors.
-    Value perm_col;  ///< Column of permutation indices (1..n in v1).
-};
-
-/// @brief Diagonal-similarity balancing for eigenvalue computations
-/// (`[B, d, p] = balance(A, noperm)`).
-///
-/// Parlett-Reinsch (1969). v1 implements only the scaling phase
-/// (permutation phase deferred; behaves like `balance(A, 'noperm')`).
-/// Dispatch in `balance_reg` picks 1/2/3-output forms.
-///
-/// @param A       Square matrix.
-/// @param noperm  Skip permutation phase (currently always `true`).
-/// @param mr      Memory resource (nullptr → process default).
-/// @return        `{B, d_col, perm_col}` struct.
-BalanceResult balance_impl(const Value &A, bool noperm, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Block LDL' factorisation (`[L, D, P] = ldl(A, upper_form, p_as_vector)`).
-///
-/// v1 implements Crout LDL' without pivoting (works for PD/ND and most
-/// indefinite matrices). `P` is identity in v1. Bunch-Kaufman 2×2
-/// pivoting and the sparse `[L, D, P, C]` form are deferred.
-///
-/// @param A             Symmetric matrix.
-/// @param upper_form    When `true`, return upper-triangular `L`.
-/// @param p_as_vector   When `true`, return `P` as a `1 × n` permutation
-///                      vector instead of a matrix.
-/// @param mr            Memory resource (nullptr → process default).
-/// @return              `(L, D, P)` triple.
-/// @see chol
-std::tuple<Value, Value, Value>
-ldl(const Value &A, bool upper_form, bool p_as_vector, std::pmr::memory_resource *mr = nullptr);
+// NOTE: BalanceResult / balance_impl migrated to libs/linalg
+//       (numkit/linalg/balance.hpp).
+// NOTE: ldl migrated to libs/linalg (numkit/linalg/ldl.hpp).
 
 // ── Shape / size queries ─────────────────────────────────────────────
 
@@ -810,7 +355,7 @@ Value ndims(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @brief Reshape preserving column-major order (`y = reshape(x, rows, cols, pages)`).
 ///
 /// `numel(x)` must equal `rows · cols · (pages == 0 ? 1 : pages)`.
-/// `pages == 0` → 2-D output. MATLAB's `[]` placeholder must be
+/// `pages == 0` → 2-D output. A `[]` dimension placeholder must be
 /// resolved by the caller — this function requires concrete dims.
 ///
 /// @param x      Input array.
@@ -874,7 +419,7 @@ Value pagectranspose(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── Demo surfaces ────────────────────────────────────────────────────
 
-/// @brief MATLAB demo surface `peaks(n)`.
+/// @brief Demo surface `peaks(n)`.
 ///
 /// Sample points of the bivariate polynomial-exponential function on
 /// the `n × n` grid `(x, y) = linspace(-3, 3, n)`. Default `n = 49`.
@@ -894,7 +439,7 @@ struct Surface3 {
 
 /// @brief Unit sphere surface (`[X, Y, Z] = sphere(n)`).
 ///
-/// `(n + 1) × (n + 1)` grids. Default `n = 20`. Matches MATLAB to ULP.
+/// `(n + 1) × (n + 1)` grids. Default `n = 20`.
 ///
 /// @param n   Resolution.
 /// @param mr  Memory resource (nullptr → process default).
@@ -954,7 +499,7 @@ Value pagemtimes(const Value &x, const Value &y, std::pmr::memory_resource *mr =
 /// @brief Page-wise matmul with transpose flags
 /// (`C = pagemtimes(A, tx, B, ty)`).
 ///
-/// `tx` / `ty` map MATLAB strings: `"none"` = no op, `"transpose"` =
+/// `tx` / `ty` are option strings: `"none"` = no op, `"transpose"` =
 /// per-page transpose, `"ctranspose"` = per-page conjugate-transpose
 /// (identical to transpose for real input; complex input not yet
 /// supported).
@@ -972,6 +517,8 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
 ///
 /// Matrix input → main diagonal as a column vector.
 /// Vector input → diagonal matrix with the vector on the main diagonal.
+/// Type-preserving across DOUBLE / SINGLE / CHAR / LOGICAL / integer /
+/// COMPLEX (CELL / STRING / STRUCT rejected, matching MATLAB).
 ///
 /// @param x   Vector or matrix.
 /// @param mr  Memory resource (nullptr → process default).
@@ -979,15 +526,40 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
 /// @see eye, trace
 Value diag(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief k-th diagonal / build-from-diagonal (`y = diag(x, k)`).
+///
+/// Matrix input → the k-th diagonal as a column vector (k>0 above the
+/// main diagonal, k<0 below). Vector input → square matrix with the
+/// vector placed on the k-th diagonal (output size `numel(x)+|k|`).
+/// Type-preserving (see one-argument overload).
+///
+/// @param x   Vector or matrix.
+/// @param k   Diagonal offset (0 = main).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Column vector or square matrix.
+/// @see eye, trace
+Value diag(const Value &x, long k, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Sort along first non-singleton dim (`[sorted, idx] = sort(x)`).
 ///
 /// Indices are 1-based permutation. For 3-D input, operates per-slice.
 ///
-/// @param x   Input array.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(sorted, idx)` pair.
+/// @param x        Input array.
+/// @param dim      Sort dimension (1-based; <1 = first non-singleton).
+/// @param descend  Descending order if true (NaN sorts first); ascending
+///                 if false (NaN sorts last) — MATLAB convention.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `(sorted, idx)` pair (stable; idx is a 1-based perm).
 /// @see sortrows
-std::tuple<Value, Value> sort(const Value &x, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
+                              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Ascending sort along the first non-singleton dimension.
+inline std::tuple<Value, Value> sort(const Value &x,
+                                     std::pmr::memory_resource *mr = nullptr)
+{
+    return sort(x, -1, false, mr);
+}
 
 /// @brief Lex-sort rows ascending (`[sorted, idx] = sortrows(M)`).
 ///
@@ -1089,7 +661,7 @@ meshgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resour
 /// @brief 2-D N-D companion to meshgrid (`[X, Y] = ndgrid(x, y)`).
 ///
 /// Each output has shape `[numel(x), numel(y), …]` (first-arg axes-major)
-/// — the opposite of meshgrid's MATLAB convention.
+/// — the opposite of meshgrid's axis order.
 ///
 /// @param x   First-axis grid.
 /// @param y   Second-axis grid.
@@ -1110,20 +682,6 @@ ndgrid(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
 /// @return    `(X, Y, Z)` triple.
 std::tuple<Value, Value, Value>
 ndgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Kronecker product (`K = kron(A, B)`).
-///
-/// Output is `(rA·rB) × (cA·cB)`; the `(i, j)`-th block (`rB × cB`)
-/// equals `A(i, j) · B`. Vector inputs are treated as matrices of
-/// their natural orientation. DOUBLE only (integer / logical / single
-/// promoted; complex throws).
-///
-/// @param a   First operand.
-/// @param b   Second operand.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Kronecker product.
-/// @throws Error  COMPLEX input not supported.
-Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 // ── Cumulative ops and diff ──────────────────────────────────────────
 
@@ -1200,26 +758,8 @@ Value allOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr
 /// @see logicalAnd, logicalOr
 Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Cross product of 3-vectors (`c = cross(a, b)`).
-///
-/// Row vector output.
-///
-/// @param a   First 3-vector.
-/// @param b   Second 3-vector.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Row 3-vector cross product.
-/// @see dot
-Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Dot product (`d = dot(a, b)`).
-///
-/// Two vectors of equal length.
-///
-/// @param a   First vector.
-/// @param b   Second vector.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar dot product.
-/// @see cross
-Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+// NOTE: cross / dot / kron migrated to libs/linalg (see
+// numkit/linalg/vector_ops.hpp). Engine registration also moved
+// from BuiltinLibrary::install → LinalgLibrary::install.
 
 } // namespace numkit::builtin

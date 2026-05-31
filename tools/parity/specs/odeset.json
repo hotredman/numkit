@@ -1,0 +1,21 @@
+{
+  "name": "odeset",
+  "namespace": "ode",
+  "setup": "",
+  "expr": "o = odeset('RelTol', 1e-9, 'AbsTol', 1e-12, 'MaxStep', 0.05, 'Refine', 6, 'NormControl', 'on');",
+  "iters": 3,
+  "tol": 1e-15,
+  "fingerprint": [
+    "o.RelTol",
+    "o.AbsTol",
+    "o.MaxStep",
+    "o.Refine",
+    "ischar(o.NormControl) || isstring(o.NormControl)"
+  ],
+  "covers": [
+    "odeset(name, value, ...)         name-value pairs (5 distinct options)",
+    "RelTol / AbsTol / MaxStep / Refine / NormControl storage round-trip",
+    "case-insensitive lookup (MATLAB normalises to canonical capitalisation)"
+  ],
+  "comment": "Sig 1: odeset(name, value, ...). The returned struct stores values verbatim; case-insensitive name matching writes back the canonical MATLAB spelling. Fingerprint covers the most common subset of the 21 documented options."
+}

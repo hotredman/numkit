@@ -38,8 +38,33 @@ std::string lowerExt(const std::string &path) {
 
 } // anonymous
 
+// Sniff TIFF magic — accepts both classic TIFF (magic 42 = 0x2A) and
+// BigTIFF (magic 43 = 0x2B) in either byte order. stb_image doesn't
+// decode TIFF, so we route to our in-tree reader.
+static bool isTiffFile(const std::string &path) {
+    std::FILE *f = std::fopen(path.c_str(), "rb");
+    if (!f) return false;
+    unsigned char hdr[4] = {0};
+    const std::size_t n = std::fread(hdr, 1, 4, f);
+    std::fclose(f);
+    if (n < 4) return false;
+    // Little-endian: II + magic + 0
+    if (hdr[0] == 'I' && hdr[1] == 'I' && hdr[3] == 0x00 &&
+        (hdr[2] == 0x2A || hdr[2] == 0x2B))
+        return true;
+    // Big-endian: MM + 0 + magic
+    if (hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0x00 &&
+        (hdr[3] == 0x2A || hdr[3] == 0x2B))
+        return true;
+    return false;
+}
+
 Value imread(const std::string &path, std::pmr::memory_resource *mr)
 {
+    // TIFF route — stb_image doesn't decode TIFF, so dispatch to our
+    // minimal in-tree reader first.
+    if (isTiffFile(path)) return readTiff(path, mr);
+
     int W = 0, H = 0, channelsInFile = 0;
     // 0 = take whatever channel count the file has (1, 3, or 4).
     unsigned char *pixels = stbi_load(path.c_str(), &W, &H, &channelsInFile, 0);
@@ -47,13 +72,13 @@ Value imread(const std::string &path, std::pmr::memory_resource *mr)
         const char *err = stbi_failure_reason();
         throw Error(std::string("imread: failed to load '") + path + "'" +
                     (err ? std::string(" — ") + err : std::string()),
-                    0, 0, "imread", "", "m:imread:load");
+                    0, 0, "imread", "", "numkit:imread:load");
     }
     int C = channelsInFile;
     if (C != 1 && C != 3 && C != 4) {
         stbi_image_free(pixels);
         throw Error("imread: unsupported channel count " + std::to_string(C),
-                    0, 0, "imread", "", "m:imread:channels");
+                    0, 0, "imread", "", "numkit:imread:channels");
     }
 
     Value out;
@@ -100,6 +125,17 @@ Value imread(const std::string &path, std::pmr::memory_resource *mr)
 
 void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource * /*mr*/)
 {
+    // TIFF route — dispatch to the in-tree writer (handles uint8/uint16,
+    // all compression schemes, and multi-page via writeMode=append in
+    // the imwrite_reg adapter).
+    {
+        const std::string ext = lowerExt(path);
+        if (ext == "tif" || ext == "tiff") {
+            writeTiff(A, path, "none", /*appendMode=*/false);
+            return;
+        }
+    }
+
     // Accept H×W or H×W×{1,3,4}. Read shape via Dims.
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
@@ -112,7 +148,7 @@ void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource 
         C = 4;
     } else {
         throw Error("imwrite: input must be H×W or H×W×{1,3,4}",
-                    0, 0, "imwrite", "", "m:imwrite:shape");
+                    0, 0, "imwrite", "", "numkit:imwrite:shape");
     }
 
     // Convert numkit column-major (y, x, c) → stb row-major
@@ -163,11 +199,11 @@ void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource 
     } else {
         throw Error("imwrite: unsupported extension '" + ext +
                     "' (try .png / .bmp / .tga / .jpg)",
-                    0, 0, "imwrite", "", "m:imwrite:ext");
+                    0, 0, "imwrite", "", "numkit:imwrite:ext");
     }
     if (!rc)
         throw Error("imwrite: failed to write '" + path + "'",
-                    0, 0, "imwrite", "", "m:imwrite:write");
+                    0, 0, "imwrite", "", "numkit:imwrite:write");
 }
 
 namespace {
@@ -187,6 +223,14 @@ std::string detectFormat(const std::string &path) {
     if (n >= 8 && hdr[0] == 0x89 && hdr[1] == 'P' && hdr[2] == 'N' &&
         hdr[3] == 'G' && hdr[4] == 0x0D && hdr[5] == 0x0A)
         return "png";
+    // TIFF (classic) little-endian: II + 0x2A 0x00; BigTIFF: II + 0x2B 0x00
+    if (n >= 4 && hdr[0] == 'I' && hdr[1] == 'I' && hdr[3] == 0x00 &&
+        (hdr[2] == 0x2A || hdr[2] == 0x2B))
+        return "tif";
+    // TIFF (classic) big-endian: MM + 0x00 0x2A; BigTIFF: MM + 0x00 0x2B
+    if (n >= 4 && hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0x00 &&
+        (hdr[3] == 0x2A || hdr[3] == 0x2B))
+        return "tif";
     // JPEG: starts with FF D8 FF
     if (n >= 3 && hdr[0] == 0xFF && hdr[1] == 0xD8 && hdr[2] == 0xFF)
         return "jpg";
@@ -224,11 +268,22 @@ const char *colorTypeFromChannels(int c) {
 Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
 {
     int W = 0, H = 0, channels = 0;
-    if (!stbi_info(path.c_str(), &W, &H, &channels)) {
+    int bitsPerSample = 8;
+
+    if (isTiffFile(path)) {
+        // TIFF route — stb doesn't peek TIFFs.
+        std::uint32_t W32 = 0, H32 = 0;
+        std::uint16_t bits = 8, chs = 1;
+        peekTiff(path, W32, H32, bits, chs);
+        W = static_cast<int>(W32);
+        H = static_cast<int>(H32);
+        channels = static_cast<int>(chs);
+        bitsPerSample = static_cast<int>(bits);
+    } else if (!stbi_info(path.c_str(), &W, &H, &channels)) {
         const char *err = stbi_failure_reason();
         throw Error(std::string("imfinfo: failed to read '") + path + "'" +
                     (err ? std::string(" — ") + err : std::string()),
-                    0, 0, "imfinfo", "", "m:imfinfo:read");
+                    0, 0, "imfinfo", "", "numkit:imfinfo:read");
     }
 
     std::string fmt = detectFormat(path);
@@ -250,6 +305,7 @@ Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
     s.field("Width")             = Value::scalar(double(W), mr);
     s.field("Height")            = Value::scalar(double(H), mr);
     s.field("NumberOfChannels")  = Value::scalar(double(channels), mr);
+    s.field("BitDepth")          = Value::scalar(double(bitsPerSample * channels), mr);
     s.field("ColorType")         =
         Value::fromString(colorTypeFromChannels(channels), mr);
     s.field("FileSize")          = Value::scalar(double(fileSize), mr);
@@ -258,16 +314,44 @@ Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
 
 namespace detail {
 
-void imread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void imread_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 CallContext &ctx)
 {
     if (args.empty())
         throw Error("imread: requires a path string",
-                    0, 0, "imread", "", "m:imread:nargin");
+                    0, 0, "imread", "", "numkit:imread:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imread: path must be a string",
-                    0, 0, "imread", "", "m:imread:type");
-    outs[0] = imread(args[0].toString(), ctx.engine->resource());
+                    0, 0, "imread", "", "numkit:imread:type");
+    const std::string path = args[0].toString();
+
+    // Optional 2nd numeric arg = page index (TIFF multi-page).
+    std::uint32_t page = 1;
+    bool pageGiven = false;
+    if (args.size() >= 2 && !args[1].isEmpty()
+        && !args[1].isChar() && !args[1].isString()) {
+        page = static_cast<std::uint32_t>(args[1].toScalar());
+        pageGiven = true;
+        if (!isTiffFile(path))
+            throw Error("imread: page index only supported for TIFF files",
+                        0, 0, "imread", "", "numkit:imread:notTiff");
+    }
+
+    // Two-output form `[A, map] = imread(file)` — supported for TIFF
+    // palette files. For other formats and for one-output reads we keep
+    // the existing single-Value path.
+    if (nargout >= 2 && isTiffFile(path)) {
+        auto pair = readTiffWithMap(path, page, ctx.engine->resource());
+        outs[0] = std::move(pair.first);
+        outs[1] = std::move(pair.second);
+        return;
+    }
+
+    if (pageGiven) {
+        outs[0] = readTiff(path, page, ctx.engine->resource());
+        return;
+    }
+    outs[0] = imread(path, ctx.engine->resource());
 }
 
 void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*/,
@@ -275,11 +359,59 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
 {
     if (args.size() < 2)
         throw Error("imwrite: requires (A, path)",
-                    0, 0, "imwrite", "", "m:imwrite:nargin");
+                    0, 0, "imwrite", "", "numkit:imwrite:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("imwrite: path must be a string",
-                    0, 0, "imwrite", "", "m:imwrite:type");
-    imwrite(args[0], args[1].toString(), ctx.engine->resource());
+                    0, 0, "imwrite", "", "numkit:imwrite:type");
+
+    const std::string path = args[1].toString();
+    const std::string ext = lowerExt(path);
+
+    // TIFF route — collect optional 3rd positional 'tif' format string,
+    // then NV-pairs ('Compression', 'none'|'packbits'|'lzw'|'deflate';
+    // 'WriteMode', 'overwrite'|'append').
+    if (ext == "tif" || ext == "tiff") {
+        std::string compression = "none";
+        bool appendMode = false;
+        // Optional 3rd positional 'tif'/'tiff' format keyword (MATLAB
+        // syntax `imwrite(A, path, 'tif', ...)`). Skip it as NV-pair start
+        // and tolerate.
+        size_t nvStart = 2;
+        if (args.size() >= 3 && (args[2].isChar() || args[2].isString())) {
+            std::string s = args[2].toString();
+            std::string lo;
+            lo.reserve(s.size());
+            for (char c : s) lo.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+            if (lo == "tif" || lo == "tiff") nvStart = 3;
+        }
+        for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
+            if (!args[i].isChar() && !args[i].isString())
+                throw Error("imwrite TIFF: NV name must be a string",
+                            0, 0, "imwrite", "", "numkit:imwrite:badNVName");
+            std::string key = args[i].toString();
+            std::string lkey;
+            lkey.reserve(key.size());
+            for (char c : key) lkey.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+            const Value &v = args[i + 1];
+            if (lkey == "compression") {
+                compression = v.toString();
+                for (auto &c : compression)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            } else if (lkey == "writemode") {
+                std::string m = v.toString();
+                std::string lo;
+                for (char c : m) lo.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+                appendMode = (lo == "append");
+            } else {
+                throw Error("imwrite TIFF: unknown NV key '" + key + "'",
+                            0, 0, "imwrite", "", "numkit:imwrite:badNVKey");
+            }
+        }
+        writeTiff(args[0], path, compression, appendMode);
+        return;
+    }
+
+    imwrite(args[0], path, ctx.engine->resource());
 }
 
 void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -287,10 +419,10 @@ void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("imfinfo: requires a path string",
-                    0, 0, "imfinfo", "", "m:imfinfo:nargin");
+                    0, 0, "imfinfo", "", "numkit:imfinfo:nargin");
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imfinfo: path must be a string",
-                    0, 0, "imfinfo", "", "m:imfinfo:type");
+                    0, 0, "imfinfo", "", "numkit:imfinfo:type");
     outs[0] = imfinfo(args[0].toString(), ctx.engine->resource());
 }
 

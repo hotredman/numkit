@@ -2,9 +2,10 @@
   "name": "lp2lp",
   "namespace": "signal",
   "setup": "[z, p, k] = buttap(4); [bp, ap] = zp2tf(z, p, k);",
-  "expr": "[bt, at] = lp2lp(bp, ap, 100); r1 = double(numel(bt) + numel(at));",
+  "expr": "[bt, at] = lp2lp(bp, ap, 100); r1 = double(numel(bt) + numel(at)); b1 = bt(1); a2 = at(2); a5 = at(5);",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [bt,at] = lp2lp(b,a,Wo[,Bw]) -- TF form. Re-closed 2026-05-09 after adding TF dispatch."
+  "fingerprint": ["r1", "b1", "a2", "a5"],
+  "comment": "Sig: [bt,at] = lp2lp(b,a,Wo) -- TF form. DEEP-PROBE 2026-05-31: numerator length now matches MATLAB. The 4th-order Butterworth prototype has NO zeros, so MATLAB returns bt at its true degree (length 1, = Wo^4) NOT zero-padded to the denominator length 5. Root cause was twofold: tf2zp computed the ZPK gain from b(1) (=0 for a zero-padded numerator like [0 0 0 0 1]) instead of the first nonzero coeff, and the lp2* TF dispatch left zp2tf's padding in place. Now: numel(bt)+numel(at)=6 (was 10), bt(1)=1e8, at(2)=261.312592975, at(5)=1e8. namespace=signal. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

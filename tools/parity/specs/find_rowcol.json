@@ -1,0 +1,15 @@
+{
+  "name": "find_rowcol",
+  "namespace": "builtin",
+  "setup": "A = [0 5; 7 0]; v = [0 1 0 1];",
+  "expr": "[r, c] = find(A); r1 = r(1); r2 = r(2); c1 = c(1); c2 = c(2); nr = numel(r); [r2v, c2v, val] = find(A); val1 = val(1); val2 = val(2); [rr, cc] = find(v); rr1 = rr(1); cc2 = cc(2); isrowr = double(isrow(rr)); k = find(v); k2 = k(2); nk = numel(k);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "r1", "r2", "c1", "c2", "nr",
+    "val1", "val2",
+    "rr1", "cc2", "isrowr",
+    "k2", "nk"
+  ],
+  "comment": "find 2-output [r,c] and 3-output [r,c,v] vs MATLAB R2025b. Bug fixed 2026-05-30: find returned only linear indices. [r,c]=find([0 5;7 0]) -> r=[2;1], c=[1;2] (column vectors, nr=2); [r,c,v]=find(...) -> v=[7;5] in column-major order. Row-vector input gives row-vector subscripts (find([0 1 0 1]) -> rr=[1 1] isrow, cc=[2 4]). Single-output linear-index form unchanged (find([0 1 0 1])=[2 4], nk=2). namespace=builtin."
+}

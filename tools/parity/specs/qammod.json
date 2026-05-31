@@ -2,11 +2,14 @@
   "name": "qammod",
   "namespace": "comm",
   "setup": "",
-  "expr": "y = qammod([0 1 2 3], 4); r1 = double(numel(y));",
+  "expr": "y = qammod(0:3, 4); y16 = qammod(0:15, 16); y8 = qammod(0:7, 8); u = qammod(0:3, 4, 'UnitAveragePower', true);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "real(y(1))", "imag(y(1))", "real(y(2))", "imag(y(2))", "real(y(4))", "imag(y(4))",
+    "real(y16(1))", "imag(y16(1))", "imag(y16(3))",
+    "real(y8(1))", "real(y8(5))", "real(y8(7))",
+    "real(u(1))", "imag(u(1))"
   ],
-  "comment": "Sig: r = qammod(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: y = qammod(x, M[, order]['UnitAveragePower', tf]). Square/rectangular Gray-mapped QAM. MATLAB layout: symbol maps column-major (col = s div sqrt(M), row = s mod sqrt(M)), I increases left→right, Q DECREASES top→bottom, Gray per axis. Covers M=4/16/8 (rectangular KI=4,KQ=2) + unit-average-power (1/sqrt(2) for M=4). Queue-clearing 2026-05-29: numkit previously decomposed by KI with Q increasing — wrong order vs MATLAB; fixed."
 }

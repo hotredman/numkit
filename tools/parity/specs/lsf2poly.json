@@ -2,9 +2,11 @@
   "name": "lsf2poly",
   "namespace": "signal",
   "setup": "",
-  "expr": "a = lsf2poly([0.5 1.5 2.5]); r1 = double(numel(a));",
-  "iters": 5,
+  "expr": "a = lsf2poly([0.5 1.0 1.5 2.0 2.5]);",
+  "iters": 3,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: a = lsf2poly(lsf). Fixed parity-based factor distribution 2026-05-09."
+  "fingerprint": [
+    "double(numel(a))", "a(1)", "a(2)", "a(3)", "a(4)", "a(5)", "a(6)"
+  ],
+  "comment": "Sig a=lsf2poly(lsf): line spectral frequencies -> AR poly (inverse of poly2lsf; rebuild P and Q from the alternating even/odd LSF sets, a=(P+Q)/2 minus trailing). lsf=[0.5 1.0 1.5 2.0 2.5] (5 freqs) -> order-5 a=[1 -0.271332 0.154985 -0.095420 0.054365 -0.023021]."
 }

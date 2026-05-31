@@ -1,0 +1,15 @@
+{
+  "name": "nctpdf_nctcdf",
+  "covers": ["nctpdf", "nctcdf"],
+  "namespace": "stats",
+  "setup": "x = [-2 -0.5 0 0.5 1.5 3.0]; nu = 10; delta = 2.0;",
+  "expr": "yp = nctpdf(x, nu, delta); yc = nctcdf(x, nu, delta); yu = nctcdf(1.5, nu, delta, 'upper'); central = nctpdf(0.5, 7, 0); central_t = tpdf(0.5, 7);",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": [
+    "yp(1)", "yp(2)", "yp(3)", "yp(4)", "yp(5)", "yp(6)",
+    "yc(1)", "yc(2)", "yc(3)", "yc(4)", "yc(5)", "yc(6)",
+    "yu", "central", "central_t"
+  ],
+  "comment": "Sig: nctpdf(x, nu, delta) — noncentral t pdf via direct series f(x;ν,δ) = ν^{ν/2}·e^{-δ²/2} / (√π·Γ(ν/2)·(ν+x²)^{(ν+1)/2}) · Σ_k Γ((ν+k+1)/2)·(xδ√2)^k / (k!·(ν+x²)^{k/2}). nctcdf(x, nu, delta[, 'upper']) — Owen (1965) series F(x;ν,δ) = Φ(-δ) + ½·Σ_k P_k·I_y(k+½, ν/2) + (δ/(2√2))·e^{-δ²/2}·Σ_k I_y(k+1, ν/2)/Γ(k+3/2), y = x²/(x²+ν). Negative x via symmetry F(x;ν,δ) = 1 - F(-x;ν,-δ). Series truncated at 1e-16 relative contribution. Bit-identical with MATLAB R2025b at 1e-8 tol. KNOWN GAPs: nctinv, nctstat, nctrnd next batch."
+}

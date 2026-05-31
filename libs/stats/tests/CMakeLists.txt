@@ -1,4 +1,32 @@
 target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/normalize_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/randsample_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nancov_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/kde_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/randg_mvnrnd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/partialcorri_canoncorr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/adtest_dwtest_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nlinfit_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/robust_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/glm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvncdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lasso_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/multcompare_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dist_fits_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvt_mn_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/beta_nbin_fit_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/evfit_gpfit_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/wishrnd_iwishrnd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nctpdf_nctcdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nctinv_nctstat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nctrnd_ncfpdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ncfcdf_ncfinv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ncfstat_ncfrnd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lhsdesign_lhsnorm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvtcdf_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ansaribradley_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gevfit_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/copulas_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving_extras_v2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/quantile_test.cpp
@@ -120,4 +148,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/crosstab_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/grpstats_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nearcorr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fillmissing_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filloutliers_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/corr_xy_test.cpp
 )

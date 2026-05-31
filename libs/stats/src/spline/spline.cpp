@@ -14,7 +14,7 @@ Value aveknt(const Value &t, int k, std::pmr::memory_resource *mr)
     const size_t N = t.numel();
     if (k < 2 || static_cast<size_t>(k) > N)
         throw Error("aveknt: order k must satisfy 2 ≤ k ≤ length(t)",
-                    0, 0, "aveknt", "", "m:aveknt:k");
+                    0, 0, "aveknt", "", "numkit:aveknt:k");
     const size_t M = N - static_cast<size_t>(k);
     Value out = Value::matrix(1, M, ValueType::DOUBLE, mr);
     if (M == 0) return out;
@@ -34,7 +34,7 @@ Value augknt(const Value &knots, int k, std::pmr::memory_resource *mr)
     const size_t N = knots.numel();
     if (k < 1 || N == 0)
         throw Error("augknt: k must be ≥ 1 and knots non-empty",
-                    0, 0, "augknt", "", "m:augknt:k");
+                    0, 0, "augknt", "", "numkit:augknt:k");
     // The first knot becomes k copies; the last knot becomes k copies;
     // any interior knots stay single. So size = N + 2*(k-1).
     const size_t outN = N + 2 * (static_cast<size_t>(k) - 1);
@@ -54,13 +54,13 @@ Value brk2knt(const Value &breaks, const Value &mults, std::pmr::memory_resource
     const size_t N = breaks.numel();
     if (mults.numel() != N)
         throw Error("brk2knt: breaks and mults must have same length",
-                    0, 0, "brk2knt", "", "m:brk2knt:size");
+                    0, 0, "brk2knt", "", "numkit:brk2knt:size");
     size_t total = 0;
     for (size_t i = 0; i < N; ++i) {
         const double mi = mults.elemAsDouble(i);
         if (!(mi >= 0.0))
             throw Error("brk2knt: multiplicities must be non-negative",
-                        0, 0, "brk2knt", "", "m:brk2knt:m");
+                        0, 0, "brk2knt", "", "numkit:brk2knt:m");
         total += static_cast<size_t>(mi);
     }
     Value out = Value::matrix(1, total, ValueType::DOUBLE, mr);
@@ -116,14 +116,14 @@ Value ppmak(const Value &breaks, const Value &coefs, int d, std::pmr::memory_res
     const size_t L1 = breaks.numel();
     if (L1 < 2)
         throw Error("ppmak: breaks must have at least 2 entries",
-                    0, 0, "ppmak", "", "m:ppmak:breaks");
+                    0, 0, "ppmak", "", "numkit:ppmak:breaks");
     const size_t L  = L1 - 1;
     const size_t cR = coefs.dims().rows();
     const size_t cC = coefs.dims().cols();
     if (d < 1) d = 1;
     if (cR != static_cast<size_t>(d) * L)
         throw Error("ppmak: coefs must be d·L × K (rows = dim·pieces)",
-                    0, 0, "ppmak", "", "m:ppmak:coefs");
+                    0, 0, "ppmak", "", "numkit:ppmak:coefs");
 
     Value bv = Value::matrix(1, L1, ValueType::DOUBLE, mr);
     {
@@ -150,7 +150,7 @@ Value fnval(const Value &pp, const Value &xv, std::pmr::memory_resource *mr)
 {
     if (!pp.hasField("form") || pp.field("form").toString() != "pp")
         throw Error("fnval: only pp form supported in this release",
-                    0, 0, "fnval", "", "m:fnval:form");
+                    0, 0, "fnval", "", "numkit:fnval:form");
     const Value &breaks = pp.field("breaks");
     const Value &coefs  = pp.field("coefs");
     const size_t L  = static_cast<size_t>(pp.field("pieces").toScalar());
@@ -159,7 +159,7 @@ Value fnval(const Value &pp, const Value &xv, std::pmr::memory_resource *mr)
     const size_t cR = coefs.dims().rows();
     if (cR != d * L || coefs.dims().cols() != K || breaks.numel() != L + 1)
         throw Error("fnval: pp struct fields are inconsistent",
-                    0, 0, "fnval", "", "m:fnval:struct");
+                    0, 0, "fnval", "", "numkit:fnval:struct");
 
     const size_t Nx = xv.numel();
     Value out;
@@ -212,7 +212,7 @@ PPView readPP(const Value &pp)
 {
     if (!pp.hasField("form") || pp.field("form").toString() != "pp")
         throw Error("fnder/fnint: only pp form supported",
-                    0, 0, "fn", "", "m:fn:form");
+                    0, 0, "fn", "", "numkit:fn:form");
     PPView v;
     v.breaks = pp.field("breaks");
     v.coefs  = pp.field("coefs");
@@ -250,7 +250,7 @@ Value fnder(const Value &pp, int order, std::pmr::memory_resource *mr)
 {
     if (order < 0)
         throw Error("fnder: order must be >= 0",
-                    0, 0, "fnder", "", "m:fnder:order");
+                    0, 0, "fnder", "", "numkit:fnder:order");
     PPView v = readPP(pp);
     if (order == 0) {
         std::vector<double> coefs(v.coefs.numel());
@@ -314,7 +314,7 @@ Value csapi(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     const size_t N = x.numel();
     if (y.numel() != N || N < 2)
         throw Error("csapi: x and y must be vectors of the same length ≥ 2",
-                    0, 0, "csapi", "", "m:csapi:size");
+                    0, 0, "csapi", "", "numkit:csapi:size");
     std::vector<double> xv(N), yv(N);
     for (size_t i = 0; i < N; ++i) {
         xv[i] = x.elemAsDouble(i);
@@ -371,7 +371,7 @@ Value csapi(const Value &x, const Value &y, std::pmr::memory_resource *mr)
         }
         if (best == 0.0)
             throw Error("csapi: singular system (duplicate breaks?)",
-                        0, 0, "csapi", "", "m:csapi:singular");
+                        0, 0, "csapi", "", "numkit:csapi:singular");
         if (piv != k) {
             for (size_t j = 0; j < N; ++j)
                 std::swap(A[k + j * N], A[piv + j * N]);
@@ -431,14 +431,14 @@ Value fncmb(const Value &pp1, double c1, const Value &pp2, double c2,
     PPView v2 = readPP(pp2);
     if (v2.L != v1.L || v2.K != v1.K || v2.d != v1.d)
         throw Error("fncmb: pp1 and pp2 must share pieces / order / dim",
-                    0, 0, "fncmb", "", "m:fncmb:shape");
+                    0, 0, "fncmb", "", "numkit:fncmb:shape");
     if (v1.breaks.numel() != v2.breaks.numel())
         throw Error("fncmb: pp1 and pp2 must have same breaks",
-                    0, 0, "fncmb", "", "m:fncmb:breaks");
+                    0, 0, "fncmb", "", "numkit:fncmb:breaks");
     for (size_t i = 0; i < v1.breaks.numel(); ++i)
         if (v1.breaks.elemAsDouble(i) != v2.breaks.elemAsDouble(i))
             throw Error("fncmb: pp1 and pp2 must have same breaks",
-                        0, 0, "fncmb", "", "m:fncmb:breaks");
+                        0, 0, "fncmb", "", "numkit:fncmb:breaks");
     for (size_t i = 0; i < cR * cC; ++i)
         nc[i] = c1 * v1.coefs.elemAsDouble(i) + c2 * v2.coefs.elemAsDouble(i);
     return buildPP(v1.breaks, nc, cR, cC, v1.L, v1.d, mr);
@@ -448,7 +448,7 @@ Value fnbrk(const Value &pp, const std::string &part_in, std::pmr::memory_resour
 {
     if (!pp.hasField("form"))
         throw Error("fnbrk: input must be a spline struct",
-                    0, 0, "fnbrk", "", "m:fnbrk:struct");
+                    0, 0, "fnbrk", "", "numkit:fnbrk:struct");
     std::string part = part_in;
     for (auto &c : part) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     auto copyV = [&](const Value &v) {
@@ -472,7 +472,7 @@ Value fnbrk(const Value &pp, const std::string &part_in, std::pmr::memory_resour
     if (part == "dim"    || part == "d")
         return Value::scalar(pp.field("dim").toScalar(), mr);
     throw Error("fnbrk: unknown part '" + part_in + "'",
-                0, 0, "fnbrk", "", "m:fnbrk:part");
+                0, 0, "fnbrk", "", "numkit:fnbrk:part");
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -486,7 +486,7 @@ void aveknt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("aveknt: requires (t, k)",
-                    0, 0, "aveknt", "", "m:aveknt:nargin");
+                    0, 0, "aveknt", "", "numkit:aveknt:nargin");
     outs[0] = aveknt(args[0], static_cast<int>(args[1].toScalar()), ctx.engine->resource());
 }
 
@@ -495,7 +495,7 @@ void augknt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("augknt: requires (knots, k)",
-                    0, 0, "augknt", "", "m:augknt:nargin");
+                    0, 0, "augknt", "", "numkit:augknt:nargin");
     outs[0] = augknt(args[0], static_cast<int>(args[1].toScalar()), ctx.engine->resource());
 }
 
@@ -504,7 +504,7 @@ void brk2knt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("brk2knt: requires (breaks, mults)",
-                    0, 0, "brk2knt", "", "m:brk2knt:nargin");
+                    0, 0, "brk2knt", "", "numkit:brk2knt:nargin");
     outs[0] = brk2knt(args[0], args[1], ctx.engine->resource());
 }
 
@@ -513,7 +513,7 @@ void ppmak_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ppmak: requires (breaks, coefs[, d])",
-                    0, 0, "ppmak", "", "m:ppmak:nargin");
+                    0, 0, "ppmak", "", "numkit:ppmak:nargin");
     int d = 1;
     if (args.size() >= 3 && !args[2].isEmpty())
         d = static_cast<int>(args[2].toScalar());
@@ -525,7 +525,7 @@ void fnval_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("fnval: requires (pp, x)",
-                    0, 0, "fnval", "", "m:fnval:nargin");
+                    0, 0, "fnval", "", "numkit:fnval:nargin");
     outs[0] = fnval(args[0], args[1], ctx.engine->resource());
 }
 
@@ -534,7 +534,7 @@ void fnder_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fnder: requires (pp[, order])",
-                    0, 0, "fnder", "", "m:fnder:nargin");
+                    0, 0, "fnder", "", "numkit:fnder:nargin");
     int order = 1;
     if (args.size() >= 2 && !args[1].isEmpty())
         order = static_cast<int>(args[1].toScalar());
@@ -546,7 +546,7 @@ void fnint_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("fnint: requires (pp)",
-                    0, 0, "fnint", "", "m:fnint:nargin");
+                    0, 0, "fnint", "", "numkit:fnint:nargin");
     outs[0] = fnint(args[0], ctx.engine->resource());
 }
 
@@ -555,7 +555,7 @@ void csapi_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("csapi: requires (x, y)",
-                    0, 0, "csapi", "", "m:csapi:nargin");
+                    0, 0, "csapi", "", "numkit:csapi:nargin");
     outs[0] = csapi(args[0], args[1], ctx.engine->resource());
 }
 
@@ -572,7 +572,7 @@ void fncmb_reg(Span<const Value> args, size_t /*nargout*/,
             outs[0] = fncmb(args[1], args[0].toScalar(), Value::Empty, 0.0, mr);
         } else {
             throw Error("fncmb: 2-arg form requires (pp, scalar) or (scalar, pp)",
-                        0, 0, "fncmb", "", "m:fncmb:nargin");
+                        0, 0, "fncmb", "", "numkit:fncmb:nargin");
         }
         return;
     }
@@ -581,7 +581,7 @@ void fncmb_reg(Span<const Value> args, size_t /*nargout*/,
         return;
     }
     throw Error("fncmb: requires (pp, c) or (pp1, c1, pp2, c2)",
-                0, 0, "fncmb", "", "m:fncmb:nargin");
+                0, 0, "fncmb", "", "numkit:fncmb:nargin");
 }
 
 void fnbrk_reg(Span<const Value> args, size_t /*nargout*/,
@@ -589,10 +589,10 @@ void fnbrk_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("fnbrk: requires (pp, part)",
-                    0, 0, "fnbrk", "", "m:fnbrk:nargin");
+                    0, 0, "fnbrk", "", "numkit:fnbrk:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("fnbrk: numkit only supports the named-part form",
-                    0, 0, "fnbrk", "", "m:fnbrk:type");
+                    0, 0, "fnbrk", "", "numkit:fnbrk:type");
     outs[0] = fnbrk(args[0], args[1].toString(), ctx.engine->resource());
 }
 
@@ -601,7 +601,7 @@ void knt2brk_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("knt2brk: requires (knots)",
-                    0, 0, "knt2brk", "", "m:knt2brk:nargin");
+                    0, 0, "knt2brk", "", "numkit:knt2brk:nargin");
     auto [b, m] = knt2brk(args[0], ctx.engine->resource());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(m);

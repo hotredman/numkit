@@ -4450,6 +4450,65 @@ void GraphicsLibrary::install(Engine &engine)
     reg("line", "fsurf", fSurfMeshImpl);
     reg("line", "fmesh", fSurfMeshImpl);
 
+    // fplot3(funx, funy, funz [, [tmin tmax]]) — parametric 3-D curve.
+    // Mirror of fplot but with 3 function handles evaluated against a
+    // shared parameter t; emits a `plot3` dataset (xJson + yJson + zJson).
+    reg("line", "fplot3",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+            (void)nargout;
+            if (args.size() < 3
+                || !args[0].isFuncHandle()
+                || !args[1].isFuncHandle()
+                || !args[2].isFuncHandle()) {
+                outs[0] = Value::empty();
+                return;
+            }
+            const Value &fx = args[0];
+            const Value &fy = args[1];
+            const Value &fz = args[2];
+            double a = -5, b = 5;
+            if (args.size() >= 4 && args[3].numel() >= 2) {
+                a = args[3].doubleData()[0];
+                b = args[3].doubleData()[1];
+            }
+            const int N = 200;
+            auto *mr = ctx.engine->resource();
+
+            std::ostringstream xs, ys, zs;
+            xs << '['; ys << '['; zs << '[';
+            for (int i = 0; i < N; ++i) {
+                const double t = a + (b - a) * i / (double)(N - 1);
+                Value tv = Value::scalar(t, mr);
+                std::array<Value, 1> argv{ tv };
+                double x = std::nan(""), y = std::nan(""), z = std::nan("");
+                try {
+                    x = ctx.engine->callFunctionHandle(fx,
+                        Span<const Value>(argv.data(), 1)).toScalar();
+                    y = ctx.engine->callFunctionHandle(fy,
+                        Span<const Value>(argv.data(), 1)).toScalar();
+                    z = ctx.engine->callFunctionHandle(fz,
+                        Span<const Value>(argv.data(), 1)).toScalar();
+                } catch (...) { /* point becomes NaN — JSON null */ }
+                if (i) { xs << ','; ys << ','; zs << ','; }
+                if (std::isfinite(x)) xs << x; else xs << "null";
+                if (std::isfinite(y)) ys << y; else ys << "null";
+                if (std::isfinite(z)) zs << z; else zs << "null";
+            }
+            xs << ']'; ys << ']'; zs << ']';
+
+            auto &fm = ctx.engine->figureManager();
+            fm.prepareForPlot();
+            DatasetInfo ds;
+            ds.type = "plot3";
+            ds.xJson = xs.str();
+            ds.yJson = ys.str();
+            ds.zJson = zs.str();
+            ds.style = "color=#1f77b4";
+            fm.pushDataset(std::move(ds));
+            fm.emitModified();
+            outs[0] = Value::empty();
+        });
+
     // ── Streamlines — RK4 integration over a 2-D vector field ────────
     //   streamline(X, Y, U, V, sx, sy)    — explicit seed points
     //   streamslice(X, Y, U, V)           — auto 5×5 seed grid

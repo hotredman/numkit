@@ -2,14 +2,15 @@
   "name": "lu",
   "namespace": "builtin",
   "setup": "A = [1 2 3; 4 5 6; 7 8 10];",
-  "expr": "[L, U, P] = lu(A); err = max(max(abs(P*A - L*U)));",
+  "expr": "[L, U, P] = lu(A); err = max(max(abs(P*A - L*U))); [Lv, Uv, p] = lu(A, 'vector'); errv = max(max(abs(A(p,:) - Lv*Uv)));",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
     "L(2,1)", "L(3,1)", "L(3,2)", "L(2,2)", "L(3,3)",
     "U(1,1)", "U(2,2)", "U(3,3)",
     "P(1,3)", "P(2,1)", "P(3,2)",
-    "err"
+    "err",
+    "p(1)", "p(2)", "p(3)", "errv"
   ],
-  "comment": "Sig: [L, U, P] = lu(A). LU with partial pivoting; P*A = L*U exactly. L unit-lower, U upper. Bit-identical with MATLAB R2025b on probed 3x3."
+  "comment": "Sig: [L, U, P] = lu(A) | [L, U, p] = lu(A,'vector'). LU with partial pivoting; P*A = L*U exactly. 'vector' returns the row-permutation vector p (1-based) with A(p,:) = L*U. L unit-lower, U upper. Bit-identical with MATLAB R2025b on probed 3x3. Queue-clearing 2026-05-29: 'vector' previously errored 'requires exactly 1 argument'."
 }

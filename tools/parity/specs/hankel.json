@@ -2,13 +2,17 @@
   "name": "hankel",
   "namespace": "builtin",
   "setup": "",
-  "expr": "H1 = hankel([1 2 3 4]); H2 = hankel([1 2 3], [3 5 6 7]); H3 = hankel(1:6);",
+  "expr": "H1 = hankel([1 2 3 4]); H2 = hankel([1 2 3], [3 5 6 7]); H3 = hankel(1:6); Hc = hankel([1+1i 2+2i 3+3i]); hc11r = real(Hc(1,1)); hc11i = imag(Hc(1,1)); hc22r = real(Hc(2,2)); hc22i = imag(Hc(2,2)); Hr = hankel([1+1i 2 3],[3 4 5+5i]); hr13 = real(Hr(1,3)); hr33r = real(Hr(3,3)); hr33i = imag(Hr(3,3)); Hs = hankel(single([1 2 3])); hs_is = double(strcmp(class(Hs),'single')); hs13 = double(Hs(1,3));",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
     "H1(1,1)", "H1(2,3)", "H1(4,4)", "sum(H1(:))",
     "H2(1,1)", "H2(3,4)", "sum(H2(:))",
-    "H3(1,6)", "H3(6,1)", "sum(diag(H3))"
+    "H3(1,6)", "H3(6,1)", "sum(diag(H3))",
+    "hc11r", "hc11i", "hc22r", "hc22i",
+    "hr13", "hr33r", "hr33i",
+    "hs_is", "hs13"
   ],
-  "comment": "Sig: H = hankel(c[, r]). Hankel (anti-Toeplitz) matrix from first column c and optional last row r. H[i,j] = c[i+j] for i+j<m else r[i+j-m+1]. Single-arg form: r is all zeros (anti-triangular). Bit-identical with MATLAB R2025b."
+  "deep_verified": true,
+  "comment": "Sig: H = hankel(c[, r]). H[i,j] = c[i+j] for i+j<m else r[i+j-m+1]; single-arg form: r all zeros (anti-triangular). DEEP-PROBE 2026-05-31: was DOUBLE-only — dropped the imaginary part of COMPLEX inputs and down-converted SINGLE. Now preserves COMPLEX (per-element gather, hankel NEVER conjugates: Hc(2,2)=c(3)=3+3i) and SINGLE class; two-arg complex keeps r's imaginary part (Hr(3,3)=5+5i). char/logical rejected by MATLAB (not added here). Bit-identical with MATLAB R2025b across complex + single probes."
 }

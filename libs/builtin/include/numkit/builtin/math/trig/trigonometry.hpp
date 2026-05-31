@@ -330,7 +330,7 @@ CartTriple pol2cart(const Value &theta, const Value &rho, const Value &z, std::p
 
 /// @brief Cartesian → spherical (`[az, el, r] = cart2sph(x, y, z)`).
 ///
-/// MATLAB convention: `az = atan2(y, x)`, `el = atan2(z, hypot(x, y))`,
+/// `az = atan2(y, x)`, `el = atan2(z, hypot(x, y))`,
 /// `r = norm([x, y, z])`. Elevation, not inclination.
 ///
 /// @param x   x-coordinates.

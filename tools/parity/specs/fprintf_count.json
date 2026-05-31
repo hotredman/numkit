@@ -1,0 +1,11 @@
+{
+  "name": "fprintf",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "k = fprintf('hello'); n = fprintf('%d\\n', 42); p = fprintf('%d %d %d', [1 2 3]); q = fprintf('%5.2f\\n', 3.14159); r = fprintf('%d-', [10 20 30]); z = fprintf(''); e = fprintf(2, 'err');",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["k", "n", "p", "q", "r", "z", "e"],
+  "deep_verified": true,
+  "comment": "fprintf returns the byte count (MATLAB's `count` output). DEEP-PROBE 2026-05-31: numkit previously returned nothing, so `k = fprintf(...)` left k undefined; now `if (nargout>=1) outs[0]=bytesWritten`. Counts pinned vs MATLAB R2025b: fprintf('hello')=5; fprintf('%d\\n',42)=3; fprintf('%d %d %d',[1 2 3])=5; fprintf('%5.2f\\n',3.14159)=6; fprintf('%d-',[10 20 30])=9 (format recycled over the vector); fprintf('')=0; fprintf(2,'err')=3 (stderr fid still counted). A bare fprintf(...) sets no ans (nargout==0). Fingerprint is the counts only — the emitted text goes to stdout in both engines. Octave matches."
+}

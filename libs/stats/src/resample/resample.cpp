@@ -79,7 +79,7 @@ Value randsample(int N, int K, bool with_replacement, const Value &weights, std:
     if (weights.numel() > 0) w = read_vec(weights);
     if (!w.empty() && (int)w.size() != N)
         throw Error("randsample: weights length must equal N",
-                    0, 0, "randsample", "", "m:randsample:size");
+                    0, 0, "randsample", "", "numkit:randsample:size");
 
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -101,13 +101,13 @@ Value datasample(const Value &X, int K, int dim, bool with_replacement, const Va
     const int N = (dim == 2) ? (int)D : (int)M;
     if (N <= 0)
         throw Error("datasample: empty input", 0, 0, "datasample", "",
-                    "m:datasample:empty");
+                    "numkit:datasample:empty");
 
     std::vector<double> w;
     if (weights.numel() > 0) w = read_vec(weights);
     if (!w.empty() && (int)w.size() != N)
         throw Error("datasample: weights length must equal sample-axis size",
-                    0, 0, "datasample", "", "m:datasample:size");
+                    0, 0, "datasample", "", "numkit:datasample:size");
 
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
@@ -146,30 +146,24 @@ Value bootstrp(int nboot, const Value & /*fn*/, const Value & /*X*/, std::pmr::m
     // helper. Return empty for now and surface a runtime error.
     (void)mr;
     throw Error("bootstrp: function-handle invocation not yet supported",
-                0, 0, "bootstrp", "", "m:bootstrp:nyi");
+                0, 0, "bootstrp", "", "numkit:bootstrp:nyi");
 }
 
 Value jackknife(const Value & /*fn*/, const Value & /*X*/, std::pmr::memory_resource * /*mr*/)
 {
     throw Error("jackknife: function-handle invocation not yet supported",
-                0, 0, "jackknife", "", "m:jackknife:nyi");
+                0, 0, "jackknife", "", "numkit:jackknife:nyi");
 }
 
-Value combnk(const Value &v, int K, std::pmr::memory_resource *mr) {
-    // Coerce v to either an N-element vector (combinations of its values)
-    // or a scalar N (combinations of 1..N).
-    std::vector<double> items;
-    if (v.numel() == 1) {
-        const int N = (int)v.toScalar();
-        items.resize((size_t)N);
-        for (int i = 0; i < N; ++i) items[i] = double(i + 1);
-    } else {
-        items = read_vec(v);
-    }
-    const int N = (int)items.size();
+namespace {
+// Shared enumeration: combinations of `items` taken `K` at a time.
+Value combnkImpl(const std::vector<double> &items, int K,
+                 std::pmr::memory_resource *mr)
+{
+    const int N = static_cast<int>(items.size());
     if (K < 0 || K > N)
         throw Error("combnk: K must be in 0..N", 0, 0, "combnk", "",
-                    "m:combnk:badK");
+                    "numkit:combnk:badK");
 
     // Number of combinations.
     long long C = 1;
@@ -180,14 +174,15 @@ Value combnk(const Value &v, int K, std::pmr::memory_resource *mr) {
     double *od = out.doubleDataMut();
     if (K == 0) return out;
 
-    // Enumerate combinations in lex order by mask (or by index recursion).
+    // Enumerate combinations in lex order by index recursion.
     std::vector<int> idx((size_t)K);
     for (int i = 0; i < K; ++i) idx[(size_t)i] = i;
     long long row = 0;
     while (true) {
-        for (int j = 0; j < K; ++j) od[(size_t)j * (size_t)C + (size_t)row] = items[(size_t)idx[(size_t)j]];
+        for (int j = 0; j < K; ++j)
+            od[(size_t)j * (size_t)C + (size_t)row] =
+                items[(size_t)idx[(size_t)j]];
         ++row;
-        // Advance to next combination in lex order.
         int j = K - 1;
         while (j >= 0 && idx[(size_t)j] == N - K + j) --j;
         if (j < 0) break;
@@ -195,6 +190,23 @@ Value combnk(const Value &v, int K, std::pmr::memory_resource *mr) {
         for (int k = j + 1; k < K; ++k) idx[(size_t)k] = idx[(size_t)k - 1] + 1;
     }
     return out;
+}
+} // anon
+
+Value combnk(int N, int K, std::pmr::memory_resource *mr)
+{
+    if (N < 0)
+        throw Error("combnk: N must be non-negative", 0, 0, "combnk", "",
+                    "numkit:combnk:badN");
+    std::vector<double> items((size_t)N);
+    for (int i = 0; i < N; ++i) items[(size_t)i] = double(i + 1);
+    return combnkImpl(items, K, mr);
+}
+
+Value combnk(Span<const double> v, int K, std::pmr::memory_resource *mr)
+{
+    std::vector<double> items(v.begin(), v.end());
+    return combnkImpl(items, K, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -208,7 +220,7 @@ void randsample_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("randsample: requires (N, K[, replacement, weights])",
-                    0, 0, "randsample", "", "m:randsample:nargin");
+                    0, 0, "randsample", "", "numkit:randsample:nargin");
 
     bool with_replacement = false;
     Value weights;
@@ -221,14 +233,19 @@ void randsample_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 4 && args[3].numel() > 0) weights = args[3];
 
     // Form 1: N is a scalar count → sample integers 1..N.
-    // Form 2: N is a population vector → sample its values.
+    // Form 2: N is a population vector → sample its values. Sample along the
+    // vector's length: a row vector samples columns (dim 2), a column vector
+    // samples rows (dim 1). (Routing everything to dim 1 broke row-vector
+    // populations — N collapsed to the single row, so a length-N weights
+    // vector mismatched and any K>1 without replacement failed.)
     if (args[0].numel() == 1) {
         const int N = (int)args[0].toScalar();
         const int K = (int)args[1].toScalar();
         outs[0] = randsample(N, K, with_replacement, weights, ctx.engine->resource());
     } else {
         const int K = (int)args[1].toScalar();
-        outs[0] = datasample(args[0], K, 1, with_replacement, weights, ctx.engine->resource());
+        const int dim = (args[0].dims().rows() == 1) ? 2 : 1;
+        outs[0] = datasample(args[0], K, dim, with_replacement, weights, ctx.engine->resource());
     }
 }
 
@@ -237,7 +254,7 @@ void datasample_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("datasample: requires (X, K[, dim, ...])",
-                    0, 0, "datasample", "", "m:datasample:nargin");
+                    0, 0, "datasample", "", "numkit:datasample:nargin");
     const int K = (int)args[1].toScalar();
     // MATLAB datasample default dim:
     //   - For a row vector (1 x N), sample along columns (dim=2).
@@ -300,19 +317,19 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("bootstrp: requires (nboot, fn, X)", 0, 0, "bootstrp", "",
-                    "m:bootstrp:nargin");
+                    "numkit:bootstrp:nargin");
     if (!args[1].isFuncHandle())
         throw Error("bootstrp: 2nd argument must be a function handle",
-                    0, 0, "bootstrp", "", "m:bootstrp:notFuncHandle");
+                    0, 0, "bootstrp", "", "numkit:bootstrp:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
     if (nboot < 1)
         throw Error("bootstrp: nboot must be >= 1",
-                    0, 0, "bootstrp", "", "m:bootstrp:badN");
+                    0, 0, "bootstrp", "", "numkit:bootstrp:badN");
     auto *mr = ctx.engine->resource();
     const Value &X = args[2];
     const int N = static_cast<int>(X.dims().dim(0));
     if (N == 0)
-        throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "m:bootstrp:empty");
+        throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "numkit:bootstrp:empty");
 
     ScratchArena scratch(mr);
     ScratchVec<int> idx(static_cast<std::size_t>(N), &scratch);
@@ -326,7 +343,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t K = stat0.numel();
     if (K == 0)
         throw Error("bootstrp: bootfun returned empty", 0, 0, "bootstrp", "",
-                    "m:bootstrp:emptyStat");
+                    "numkit:bootstrp:emptyStat");
 
     // Output is nboot × K (each row = one bootstrap statistic).
     auto out = Value::matrix(static_cast<std::size_t>(nboot), K,
@@ -346,7 +363,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
             args[1], Span<const Value>(callArgs, 1), ctx.env);
         if (stat.numel() != K)
             throw Error("bootstrp: bootfun returned varying-size output",
-                        0, 0, "bootstrp", "", "m:bootstrp:varyingStat");
+                        0, 0, "bootstrp", "", "numkit:bootstrp:varyingStat");
         for (std::size_t j = 0; j < K; ++j)
             od[b + j * nboot] = stat.elemAsDouble(j);
     }
@@ -364,11 +381,11 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("crossval: requires (predfun, X, Y[, 'kfold', K])",
-                    0, 0, "crossval", "", "m:crossval:nargin");
+                    0, 0, "crossval", "", "numkit:crossval:nargin");
     if (!args[0].isFuncHandle())
         throw Error("crossval: 1st argument must be a function handle "
                     "predfun(Xtrain, Ytrain, Xtest, Ytest)",
-                    0, 0, "crossval", "", "m:crossval:notFuncHandle");
+                    0, 0, "crossval", "", "numkit:crossval:notFuncHandle");
 
     auto *mr = ctx.engine->resource();
     const Value &X = args[1];
@@ -377,23 +394,23 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     if (Y.dims().dim(0) != static_cast<int>(m))
         throw Error("crossval: X and Y must have the same number of rows",
-                    0, 0, "crossval", "", "m:crossval:dimMismatch");
+                    0, 0, "crossval", "", "numkit:crossval:dimMismatch");
     if (m < 2)
         throw Error("crossval: need at least 2 observations",
-                    0, 0, "crossval", "", "m:crossval:tooSmall");
+                    0, 0, "crossval", "", "numkit:crossval:tooSmall");
 
     int K = 10;
     for (std::size_t i = 3; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("crossval: option name must be a string",
-                        0, 0, "crossval", "", "m:crossval:badOption");
+                        0, 0, "crossval", "", "numkit:crossval:badOption");
         const auto opt = args[i].toString();
         if (opt == "kfold" || opt == "KFold")
             K = static_cast<int>(args[i + 1].toScalar());
         else
             throw Error("crossval: unknown option '" + opt + "' (only "
                         "'kfold' supported in this revision)",
-                        0, 0, "crossval", "", "m:crossval:badOption");
+                        0, 0, "crossval", "", "numkit:crossval:badOption");
     }
     if (K < 2 || K > static_cast<int>(m))
         K = static_cast<int>(std::min(m, std::size_t{10}));
@@ -439,7 +456,7 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
             args[0], Span<const Value>(callArgs, 4), ctx.env);
         if (res.numel() != 1)
             throw Error("crossval: predfun must return a scalar",
-                        0, 0, "crossval", "", "m:crossval:badPredfun");
+                        0, 0, "crossval", "", "numkit:crossval:badPredfun");
         od[k] = res.toScalar();
     }
     outs[0] = std::move(out);
@@ -452,20 +469,20 @@ void bootci_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("bootci: requires (nboot, fn, X[, alpha])",
-                    0, 0, "bootci", "", "m:bootci:nargin");
+                    0, 0, "bootci", "", "numkit:bootci:nargin");
     if (!args[1].isFuncHandle())
         throw Error("bootci: 2nd argument must be a function handle",
-                    0, 0, "bootci", "", "m:bootci:notFuncHandle");
+                    0, 0, "bootci", "", "numkit:bootci:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
     if (nboot < 10)
         throw Error("bootci: nboot must be >= 10 for meaningful CI",
-                    0, 0, "bootci", "", "m:bootci:badN");
+                    0, 0, "bootci", "", "numkit:bootci:badN");
     double alpha = 0.05;
     if (args.size() >= 4 && !args[3].isEmpty()) {
         alpha = args[3].toScalar();
         if (alpha <= 0.0 || alpha >= 1.0)
             throw Error("bootci: alpha must be in (0, 1)",
-                        0, 0, "bootci", "", "m:bootci:alpha");
+                        0, 0, "bootci", "", "numkit:bootci:alpha");
     }
     auto *mr = ctx.engine->resource();
 
@@ -510,7 +527,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("jackknife: requires (fn, X)", 0, 0, "jackknife", "",
-                    "m:jackknife:nargin");
+                    "numkit:jackknife:nargin");
     outs[0] = jackknife(args[0], args[1], ctx.engine->resource());
 }
 
@@ -519,9 +536,19 @@ void combnk_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("combnk: requires (v, K)", 0, 0, "combnk", "",
-                    "m:combnk:nargin");
+                    "numkit:combnk:nargin");
     const int K = (int)args[1].toScalar();
-    outs[0] = combnk(args[0], K, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &v = args[0];
+    if (v.numel() == 1) {
+        outs[0] = combnk(static_cast<int>(v.toScalar()), K, mr);
+    } else {
+        // Extract v's elements as doubles into a scratch buffer.
+        ScratchArena scratch(mr);
+        ScratchVec<double> buf(v.numel(), &scratch);
+        for (size_t i = 0; i < v.numel(); ++i) buf[i] = v.elemAsDouble(i);
+        outs[0] = combnk(Span<const double>(buf.data(), buf.size()), K, mr);
+    }
 }
 
 } // namespace detail

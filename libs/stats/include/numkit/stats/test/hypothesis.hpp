@@ -142,8 +142,8 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail,
 /// (`[h, p, jbstat, cv] = jbtest(x, alpha)`).
 ///
 /// Small samples (`n < 2000`) use Monte-Carlo simulation under H0
-/// for the p-value (matches MATLAB R2025b's tabulated-p behaviour);
-/// large `n` uses the asymptotic χ²(2). `p` capped at 0.5 like MATLAB.
+/// for the p-value; large `n` uses the asymptotic χ²(2). The
+/// p-value is capped at 0.5.
 ///
 /// @param x      Sample data.
 /// @param alpha  Significance level.
@@ -152,6 +152,49 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail,
 /// @see jbtest(x, alpha, mctol, mr)
 std::tuple<Value, Value, Value, Value>
 jbtest(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Anderson-Darling test for normality
+/// (`[h, p, adstat, cv] = adtest(x, alpha)`).
+///
+/// `H0`: `x` is drawn from a normal distribution with parameters
+/// estimated from the sample (`mu = mean(x)`, `sigma = std(x)`).
+///
+/// Algorithm: sort and z-standardise, compute
+/// `A² = -n - (1/n) · Σ (2i-1) · [ln Φ(z_i) + ln(1 - Φ(z_{n+1-i}))]`,
+/// then the Stephens-1986 small-sample adjustment
+/// `A²* = A² · (1 + 0.75/n + 2.25/n²)`. p-value from D'Agostino-Stephens
+/// (1986) piecewise rational fit for the parameters-estimated case.
+///
+/// @param x      Sample data (length ≥ 8 for reliable p-values).
+/// @param alpha  Significance level (default 0.05).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, adstat, cv)` — decision, p-value, A²*, 5%
+///               critical value (0.752 for estimated parameters).
+std::tuple<Value, Value, Value, Value>
+adtest(const Value &x, double alpha = 0.05,
+       std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Durbin-Watson test for first-order autocorrelation in
+/// regression residuals (`[p, dw] = dwtest(r, X)`).
+///
+/// `H0`: residuals are uncorrelated (DW = 2). Alternative: positive
+/// or negative first-order autocorrelation.
+///
+/// `DW = Σ_{i=2..n}(r_i - r_{i-1})² / Σ_{i=1..n} r_i²`.
+///
+/// p-value uses the **beta-approximation** (Durbin & Watson 1971):
+/// the second-moment matches of `DW` under H0 are computed from the
+/// design matrix `X` and fit to a `Beta(a, b)` on `[0, 4]`. This is
+/// MATLAB's `'approximate'` method. The exact Pan-1965 algorithm is
+/// a v1 KNOWN GAP — `method = 'exact'` is not supported and throws.
+///
+/// @param r       OLS residuals (length n, column).
+/// @param X       Design matrix (n × k) used to fit the residuals.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        `(p, dw)` — two-sided p-value, DW statistic.
+std::tuple<Value, Value>
+dwtest(const Value &r, const Value &X,
+       std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Jarque-Bera with explicit Monte-Carlo tolerance
 /// (`[h, p, jbstat, cv] = jbtest(x, alpha, mctol)`).
@@ -305,5 +348,34 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail,
 std::tuple<Value, Value, Value, Value>
 signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail,
          const std::string &method, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Ansari-Bradley two-sample scale (dispersion) test
+/// (`[h, p, W, Wstar] = ansaribradley(x, y, alpha, tail)`).
+///
+/// Non-parametric `H0`: `x` and `y` have the same dispersion
+/// (variances are equal). The Ansari-Bradley statistic `W` is the
+/// sum, in the pooled sorted sample, of the V-shaped ranks
+/// `1, 2, …, ⌈N/2⌉, …, 2, 1` over positions occupied by `x`.
+///
+/// Under `H0`, `W` is asymptotically normal with closed-form mean
+/// and variance (Hollander & Wolfe). The standardised statistic is
+/// `Wstar = (W − E[W]) / sqrt(V[W])`; the p-value follows from
+/// `Φ(Wstar)`.
+///
+/// KNOWN GAPs: tied-rank correction (MATLAB applies a small
+/// tie-correction to V[W] when ties are present) and exact
+/// permutation distribution for small samples are deferred —
+/// asymptotic only.
+///
+/// @param x      First sample.
+/// @param y      Second sample.
+/// @param alpha  Significance level (default 0.05).
+/// @param tail   Direction of the alternative.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, W, Wstar)`.
+/// @see vartest2, ranksum
+std::tuple<Value, Value, Value, Value>
+ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
+              std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

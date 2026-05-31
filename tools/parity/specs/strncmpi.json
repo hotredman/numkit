@@ -2,12 +2,11 @@
   "name": "strncmpi",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strncmpi(\"Hello\", \"HELP\", 3)); r2 = double(strncmpi(\"hello\", \"WORLD\", 3));",
+  "expr": "r1 = double(strncmpi(\"Hello\", \"HELP\", 3)); r2 = double(strncmpi(\"hello\", \"WORLD\", 3)); cc = strncmpi({'APPLE','xyz','Apt'}, 'app', 3); k1 = double(cc(1)); k2 = double(cc(2)); k3 = double(cc(3)); se = double(strncmpi('AB','ab',5));",
   "iters": 5,
   "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2", "k1", "k2", "k3", "se"
   ],
-  "comment": "Sig: r = strncmpi(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = strncmpi(s1,s2,n). DEEP-PROBE 2026-05-31: added CELL-array support (case-insensitive, element-wise) + short-string full-equality predicate. strncmpi({'APPLE','xyz','Apt'},'app',3)=[1 0 1]; strncmpi('AB','ab',5)=1."
 }

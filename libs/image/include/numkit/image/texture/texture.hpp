@@ -2,7 +2,7 @@
 //
 // Texture-analysis primitives. The gray-level co-occurrence matrix
 // (GLCM) and its property extractors are the work-horses of
-// MATLAB's Texture Analysis tooling.
+// texture analysis.
 
 #pragma once
 
@@ -18,10 +18,10 @@ namespace numkit::image {
 /// every pixel pair `(p, q = p + (offR, offC))` increments
 /// `G[q_level, p_level]`.
 ///
-/// Note: MATLAB's GLCM convention is that **rows** index the level of
+/// Note: the GLCM convention is that **rows** index the level of
 /// the first pixel and **columns** index the offset pixel. When
 /// `symmetric` is true, the reverse transition `G[j, i]` is also
-/// counted (matches MATLAB's `'Symmetric'` option).
+/// counted (the `'Symmetric'` option).
 ///
 /// @param I          2-D grayscale image (any numeric class).
 /// @param numLevels  Number of quantisation bins (typical 8 for uint8,
@@ -35,7 +35,7 @@ namespace numkit::image {
 /// @return           `numLevels × numLevels` double matrix of counts.
 ///
 /// **KNOWN GAPS:**
-///   - Multiple offsets in one call (MATLAB returns a 3-D GLCM); pass
+///   - Multiple offsets in one call (would need a 3-D GLCM); pass
 ///     each offset separately for now.
 ///   - `'NumLevels'` auto-default for floating-point inputs uses a
 ///     conservative 8 instead of 64.
@@ -49,7 +49,7 @@ Value graycomatrix(const Value &I, int numLevels, int offR, int offC,
 ///
 /// Given a GLCM `G` (assumed normalised internally to a probability
 /// matrix `p = G / sum(G)`), returns a struct Value with the four
-/// MATLAB-canonical fields:
+/// canonical fields:
 ///
 ///   - `Contrast`    @f$ = \sum_{i,j} (i - j)^2\,p(i, j) @f$
 ///   - `Correlation` @f$ = \sum_{i,j} \frac{(i - \mu_i)(j - \mu_j)\,p(i, j)}{\sigma_i\,\sigma_j} @f$

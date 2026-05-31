@@ -1,16 +1,20 @@
 {
   "name": "unique",
   "namespace": "builtin",
-  "setup": "",
-  "expr": "u = unique([1, 2, 1, 3, 2, 4]); r1 = u(1); r2 = u(2); r3 = u(3); r4 = u(4); r5 = numel(u);",
+  "setup": "x = [3 1 4 1 5 9 2 6 5 3]; z = [3+4i 1 3+4i 5i];",
+  "expr": "us = unique(x); ust = unique(x, 'stable'); [u, ia, ic] = unique([3 1 4 1 5], 'stable'); [cu, cia, cic] = unique(z); czs = unique(z, 'stable'); ct = unique([2+0i -2 1i -1i 2]);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4",
-    "r5"
+    "us(1)", "us(end)", "numel(us)",
+    "ust(1)", "ust(2)", "ust(3)", "ust(end)", "numel(ust)",
+    "u(1)", "u(2)", "u(4)",
+    "ia(1)", "ia(2)", "ia(4)",
+    "ic(1)", "ic(4)", "ic(5)",
+    "real(cu(1))", "real(cu(2))", "imag(cu(2))", "imag(cu(3))", "numel(cu)",
+    "cia(1)", "cia(2)", "cia(3)", "cic(1)", "cic(3)", "cic(4)",
+    "real(czs(1))", "imag(czs(1))", "real(czs(2))",
+    "imag(ct(1))", "imag(ct(2))", "real(ct(3))", "real(ct(4))"
   ],
-  "comment": "Sig: r = unique(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: u = unique(x); u = unique(x,'stable'); [u,ia,ic] = unique(x,setOrder). Covers: default 'sorted' (ascending), 'stable' (first-occurrence order, no sort), three-output 'stable' index vectors (ia into x, ic into u). COMPLEX unique orders by magnitude |z| then phase angle arg(z), dedup by exact equality: unique([3+4i 1 3+4i 5i])=[1 3+4i 5i] ia=[2;1;4] ic=[2;1;2;3]; 'stable' keeps first-occurrence; unique([2 -2 1i -1i 2])=[-1i 1i 2 -2]. Spec-extension batch 2026-05-09; 'stable' 2026-05-29; COMPLEX support added 2026-05-29 (previously threw 'Not a double array')."
 }

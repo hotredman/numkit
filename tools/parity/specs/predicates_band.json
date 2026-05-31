@@ -1,0 +1,14 @@
+{
+  "name": "predicates_band",
+  "covers": ["isbanded", "isdiag", "istril", "istriu", "bandwidth"],
+  "namespace": "linalg",
+  "setup": "A = [1 2 0; 3 4 5; 0 6 7]; U = [1 2 3; 0 4 5; 0 0 6]; L = [1 0 0; 2 3 0; 4 5 6]; D = diag([1 2 3]);",
+  "expr": "ib1 = double(isbanded(D, 0, 0)); ib2 = double(isbanded(A, 1, 1)); ib3 = double(isbanded(A, 0, 1)); id1 = double(isdiag(D)); id2 = double(isdiag(A)); itl = double(istril(L)); itu = double(istriu(U)); [bl, bu] = bandwidth(A); blU = bandwidth(U); blL = bandwidth(L); buU = bandwidth(U, 'upper');",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "ib1", "ib2", "ib3", "id1", "id2", "itl", "itu",
+    "bl", "bu", "blU", "blL", "buU"
+  ],
+  "comment": "Sig: matrix-structure predicates and bandwidth queries. isbanded(A, lo, up) ↔ outside-band entries are zero; isdiag = isbanded(A, 0, 0). istril / istriu ↔ lower / upper triangular. [lo, up] = bandwidth(A) returns sub-diagonal and super-diagonal extent; bandwidth(A) one-out form returns lo; 'lower'|'upper' string form selects one. Bit-exact MATLAB R2025b (tol=0): D diagonal (ib1=id1=1), A tri-banded (ib2=1), A not upper-banded-only (ib3=0), L lower-tri (itl=1), U upper-tri (itu=1), bandwidth(A) = [1, 1], bandwidth(U) = 0, bandwidth(L) = 2, bandwidth(U, 'upper') = 2. Split from the original combined predicates spec to stay under the 256-register chunk limit."
+}

@@ -1,7 +1,7 @@
 // libs/stats/include/numkit/stats/distributions/normal.hpp
 //
 // Normal (Gaussian) distribution functions: pdf / cdf / icdf / rnd /
-// stat — MATLAB Statistics Toolbox parity.
+// stat.
 
 #pragma once
 
@@ -44,7 +44,7 @@ Value normcdf(const Value &x, double mu = 0.0, double sigma = 1.0,
 /// @brief Normal inverse cdf / quantile (`x = norminv(p, mu, sigma)`).
 ///
 /// `p` must be in `[0, 1]`; values outside the closed interval return
-/// `NaN` (matches MATLAB).
+/// `NaN`.
 ///
 /// @param p      Probability levels in `[0, 1]` (any shape).
 /// @param mu     Mean parameter (default 0).

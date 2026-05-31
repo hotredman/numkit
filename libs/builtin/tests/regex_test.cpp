@@ -72,6 +72,51 @@ TEST_P(RegexTest, RegexpTokensCaptureGroups)
     EXPECT_EQ(m2.cellAt(1).toString(), "175");
 }
 
+// ── regexp: 'names' option (named tokens → struct) ─────────────
+
+TEST_P(RegexTest, RegexpNamesSingleMatch)
+{
+    eval("n = regexp('John Smith age 42', "
+         "'(?<first>\\w+)\\s+(?<last>\\w+)\\s+age\\s+(?<age>\\d+)', 'names');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(n)")), 1);
+    EXPECT_EQ(eval("n.first").toString(), "John");
+    EXPECT_EQ(eval("n.last").toString(),  "Smith");
+    EXPECT_EQ(eval("n.age").toString(),   "42");
+}
+
+TEST_P(RegexTest, RegexpNamesStructArray)
+{
+    eval("t = regexp('a1 b2 c3', '(?<L>[a-z])(?<D>\\d)', 'names');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(t)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(t,1)")), 1);
+    EXPECT_EQ(eval("t(1).L").toString(), "a");
+    EXPECT_EQ(eval("t(2).L").toString(), "b");
+    EXPECT_EQ(eval("t(3).D").toString(), "3");
+}
+
+TEST_P(RegexTest, RegexpNamesNonParticipatingGroupEmpty)
+{
+    // Alternation: only one named group participates → other field is ''.
+    eval("np = regexp('x', '(?<a>a)|(?<b>x)', 'names');");
+    EXPECT_EQ(eval("np.a").toString(), "");
+    EXPECT_EQ(eval("np.b").toString(), "x");
+}
+
+TEST_P(RegexTest, RegexpNamesNoMatchIsEmpty)
+{
+    eval("z = regexp('zzz', '(?<L>[a-z])(?<D>\\d)', 'names');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(z)")), 0);
+}
+
+TEST_P(RegexTest, RegexpNamedGroupInTokensActsAsCapture)
+{
+    // A named group still functions as an ordinary capture group for
+    // 'tokens' (std::regex can't parse the (?<name>) syntax raw).
+    eval("tk = regexp('a1', '(?<L>[a-z])(\\d)', 'tokens');");
+    EXPECT_EQ(eval("tk{1}{1}").toString(), "a");
+    EXPECT_EQ(eval("tk{1}{2}").toString(), "1");
+}
+
 // ── regexp: 'split' option ─────────────────────────────────────
 
 TEST_P(RegexTest, RegexpSplitOnDelimiter)
@@ -143,6 +188,40 @@ TEST_P(RegexTest, RegexprepNoMatchReturnsOriginal)
     EXPECT_EQ(getVarPtr("s")->toString(), "abc");
 }
 
+// regexprep with cell-array arguments. Was throwing "s, pat, rep must be
+// strings". A cell STR processes element-wise (cell of char vectors, same
+// shape); a cell PATTERN is a LIST applied sequentially to each string; a
+// single replacement is recycled across patterns. vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_P(RegexTest, RegexprepCell)
+{
+    // cell str, scalar pattern -> per-element replace.
+    eval("r = regexprep({'foo123','bar45'}, '\\d+', '#');");
+    EXPECT_DOUBLE_EQ(getVarPtr("r")->numel(), 2u);
+    eval("a = r{1}; b = r{2};");
+    EXPECT_EQ(getVarPtr("a")->toString(), "foo#");
+    EXPECT_EQ(getVarPtr("b")->toString(), "bar#");
+    // scalar str + cell pattern -> sequential chaining into ONE string.
+    eval("q = regexprep('a1b2', {'\\d','[ab]'}, {'#','@'});");
+    EXPECT_EQ(getVarPtr("q")->toString(), "@#@#");
+    // single replacement recycled across all patterns.
+    eval("z = regexprep('a1b2', {'\\d','[ab]'}, 'Z');");
+    EXPECT_EQ(getVarPtr("z")->toString(), "ZZZZ");
+    // cell str + cell pattern: pattern list applied to EACH string.
+    eval("c = regexprep({'a1','b2'}, {'\\d','[ab]'}, {'#','@'}); c1 = c{1}; c2 = c{2};");
+    EXPECT_EQ(getVarPtr("c1")->toString(), "@#");
+    EXPECT_EQ(getVarPtr("c2")->toString(), "@#");
+    // 'ignorecase' option still applies across a cell.
+    eval("ic = regexprep({'AbC','xyZ'}, '[a-z]', '_', 'ignorecase'); i1 = ic{1};");
+    EXPECT_EQ(getVarPtr("i1")->toString(), "___");
+    // column-cell shape preserved.
+    eval("cc = regexprep({'a1';'b2'}, '\\d', '#');");
+    EXPECT_DOUBLE_EQ(getVarPtr("cc")->dims().rows(), 2);
+    EXPECT_DOUBLE_EQ(getVarPtr("cc")->dims().cols(), 1);
+    // mismatched pattern/replacement counts throw.
+    EXPECT_THROW(eval("regexprep('abc', {'a','b','c'}, {'1','2'});"), std::exception);
+}
+
 // ── Pack 36: regexptranslate ────────────────────────────────────────
 TEST_P(RegexTest, RegexptranslateEscapesMetachars)
 {
@@ -172,6 +251,47 @@ TEST_P(RegexTest, RegexptranslateBadOpThrows)
 {
     EXPECT_THROW(eval("s = regexptranslate('bogus', 'x');"),
                  std::exception);
+}
+
+// ── regexp default positional multi-output [start, end, te, m, t, nm, sp] ──
+TEST_P(RegexTest, RegexpStartEnd)
+{
+    eval("function [a,b] = wRE(s,p)\n  [a,b] = regexp(s,p);\nend");
+    eval("[s, e] = wRE('a1b2', '\\d');");
+    auto *s = getVarPtr("s");
+    auto *e = getVarPtr("e");
+    ASSERT_NE(s, nullptr);
+    ASSERT_NE(e, nullptr);
+    EXPECT_EQ(s->numel(), 2u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(e->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(e->doubleData()[1], 4.0);
+}
+
+TEST_P(RegexTest, RegexpFullPositionalOrder)
+{
+    eval("function [a,b,c,d,f,g,h] = wRF(s,p)\n"
+         "  [a,b,c,d,f,g,h] = regexp(s,p);\nend");
+    eval("[s, e, te, m, t, nm, sp] = wRF('a1b2', '(\\d)');");
+    EXPECT_DOUBLE_EQ(evalScalar("s(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(2)"), 4.0);
+    // tokenExtents: 1x2 [start end] of the capture group in match 1
+    EXPECT_DOUBLE_EQ(evalScalar("te{1}(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("te{1}(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(m{1}, '1')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(t{1}{1}, '1')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(sp{1}, 'a')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(sp{2}, 'b')"), 1.0);
+}
+
+TEST_P(RegexTest, RegexpSingleOutputUnchanged)
+{
+    eval("ix = regexp('a1b2', '\\d');");
+    auto *ix = getVarPtr("ix");
+    EXPECT_EQ(ix->numel(), 2u);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 4.0);
 }
 
 INSTANTIATE_DUAL(RegexTest);

@@ -2,9 +2,9 @@
   "name": "smoothdata",
   "namespace": "signal",
   "setup": "x = [1 2 3 4 5 6 7 8 9 10];",
-  "expr": "y = smoothdata(x); r1 = double(numel(y));",
+  "expr": "y = smoothdata(x); r1 = double(numel(y)); g = smoothdata([1 5 2 8 3], 'gaussian', 3); g1 = g(1); g2 = g(2); g3 = g(3); g5 = g(5); h = smoothdata([1 5 2 8 3 9 4], 'gaussian', 5); h1 = h(1); h4 = h(4); h7 = h(7);",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: y = smoothdata(x). Spec-extension batch 2026-05-09 (cycle 43)."
+  "fingerprint": ["r1", "g1", "g2", "g3", "g5", "h1", "h4", "h7"],
+  "comment": "Sig: y = smoothdata(x[,method[,k]]). DEEP-PROBE 2026-05-31: the 'gaussian' method used sigma=(k-1)/4 with a kernel mis-aligned at truncated edges (the generic moving driver only saw the shrunk window, not the centre) -> wrong at boundaries AND interior. MATLAB R2025b uses sigma = windowLength/5, centred on the current sample, with 'shrink' endpoints (truncate kernel at edges + renormalise). smoothdata([1 5 2 8 3],'gaussian',3)=[1.79834 3.83535 3.49741 6.16984 3.99793]; smoothdata([1 5 2 8 3 9 4],'gaussian',5) h1=2.47053 h4=5.20481 h7=5.66334. Now matches MATLAB across vector/matrix/omitnan. Spec was numel-only (hid the value bug). namespace=signal."
 }

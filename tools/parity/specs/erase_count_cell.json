@@ -1,0 +1,14 @@
+{
+  "name": "erase_count_cell",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "c1 = count('abcabc', {'a','c'}); c2 = count('abcABC', {'a','b','c'}); c3 = count('aaaa', 'aa'); e1 = erase('a-b_c', {'-','_'}); n1 = numel(e1); a1 = double(e1(1)); a2 = double(e1(end)); e2 = erase('hello world', {'ll','rl'}); n2 = numel(e2);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "c1", "c2", "c3",
+    "n1", "a1", "a2",
+    "n2"
+  ],
+  "comment": "count/erase with a cell array (or string array) of patterns vs MATLAB R2025b. Bug fixed 2026-05-30: both threw 'Not a char array' on a cell pattern argument. count sums per-pattern non-overlapping occurrences: count('abcabc',{'a','c'})=4 (c1), count('abcABC',{'a','b','c'})=3 (c2, case-sensitive); scalar pattern unchanged count('aaaa','aa')=2 (c3). erase removes every occurrence of each listed pattern, applied in order: erase('a-b_c',{'-','_'})='abc' (n1=3, a1=97='a', a2=99='c'); erase('hello world',{'ll','rl'})='heo wod' (n2=7). namespace=builtin. (str-as-cell per-element output remains a separate gap.)"
+}

@@ -296,7 +296,7 @@ static DctArgs parseDctArgs(Span<const Value> args, const char *fn)
         if (args[pos].isChar() || args[pos].isString()) {
             if (pos + 1 >= args.size())
                 throw Error(std::string(fn) + ": missing value after name",
-                             0, 0, fn, "", "m:dct:nv");
+                             0, 0, fn, "", "numkit:dct:nv");
             const std::string key = args[pos].toString();
             if (key == "Type" || key == "type") {
                 a.hasType = true;
@@ -310,7 +310,7 @@ static DctArgs parseDctArgs(Span<const Value> args, const char *fn)
         else if (pos == 2) a.dim = static_cast<int>(args[pos].toScalar());
         else
             throw Error(std::string(fn) + ": too many positional arguments",
-                         0, 0, fn, "", "m:dct:nargin");
+                         0, 0, fn, "", "numkit:dct:nargin");
         ++pos;
     }
     return a;
@@ -321,7 +321,7 @@ void dct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("dct: requires at least 1 argument",
-                     0, 0, "dct", "", "m:dct:nargin");
+                     0, 0, "dct", "", "numkit:dct:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         const auto &x = args[0];
@@ -335,7 +335,7 @@ void dct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto a = parseDctArgs(args, "dct");
     if (a.hasType && a.typeVal != 2.0)
         throw Error("dct: 'Type' values other than 2 are not yet implemented",
-                     0, 0, "dct", "", "m:dct:type");
+                     0, 0, "dct", "", "numkit:dct:type");
     outs[0] = dct(args[0], a.n, a.dim, mr);
 }
 
@@ -344,7 +344,7 @@ void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("idct: requires at least 1 argument",
-                     0, 0, "idct", "", "m:idct:nargin");
+                     0, 0, "idct", "", "numkit:idct:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         const auto &x = args[0];
@@ -358,7 +358,7 @@ void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto a = parseDctArgs(args, "idct");
     if (a.hasType && a.typeVal != 2.0)
         throw Error("idct: 'Type' values other than 2 are not yet implemented",
-                     0, 0, "idct", "", "m:idct:type");
+                     0, 0, "idct", "", "numkit:idct:type");
     outs[0] = idct(args[0], a.n, a.dim, mr);
 }
 

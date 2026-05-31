@@ -1,0 +1,15 @@
+{
+  "name": "replace_cell",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = replace('a-b_c', {'-','_'}, 'X'); na = numel(a); a1 = double(a(2)); b = replace('a-b_c', {'-','_'}, {'P','Q'}); b1 = double(b(2)); b2 = double(b(4)); c = replace('ab', {'a','b'}, {'b','c'}); c1 = double(c(1)); c2 = double(c(2)); d = replace('abc', {'a','ab'}, {'X','Y'}); nd = numel(d); d1 = double(d(1));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "a1",
+    "b1", "b2",
+    "c1", "c2",
+    "nd", "d1"
+  ],
+  "comment": "replace with a cell array (or string array) of OLD patterns vs MATLAB R2025b. Bug fixed 2026-05-30: replace routed through strrep and threw 'Not a char array' on a cell. A single NEW applies to every OLD: replace('a-b_c',{'-','_'},'X')='aXbXc' (na=5, a1=88='X'); paired NEW: replace('a-b_c',{'-','_'},{'P','Q'})='aPbQc' (b1=80='P', b2=81='Q'); single left-to-right pass with no chain-replacement: replace('ab',{'a','b'},{'b','c'})='bc' (c1=98='b', c2=99='c', NOT 'cc'); first-in-list match wins: replace('abc',{'a','ab'},{'X','Y'})='Xbc' (nd=3, d1=88='X'). namespace=builtin. NOTE: strrep with a cell returns a CELL (broadcast) — a separate, unchanged behaviour."
+}

@@ -1,6 +1,7 @@
 {
   "name": "genqammod",
   "namespace": "comm",
+  "covers": ["genqammod", "genqamdemod"],
   "setup": "M = 8; const8 = exp(1i*2*pi*(0:M-1)/M); xrt = (0:M-1)'; constReal = [-3 -1 1 3];",
   "expr": "y8  = genqammod(xrt, const8); z8 = genqamdemod(y8, const8); yPam = genqammod((0:3)', constReal); zPam = genqamdemod(yPam, constReal); yNoisy = genqamdemod(y8 + 0.05*(1+1i), const8);",
   "iters": 5,

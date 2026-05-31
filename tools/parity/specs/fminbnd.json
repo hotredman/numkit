@@ -2,9 +2,9 @@
   "name": "fminbnd",
   "namespace": "optim",
   "setup": "",
-  "expr": "x = fminbnd(@(x) (x-3)^2, 0, 10); r1 = double(x);",
+  "expr": "x0 = fminbnd(@(x) (x-3)^2, 0, 10); r1 = double(x0); [x, fval, ef] = fminbnd(@(x) (x-3)^2 + 1, 0, 10);",
   "iters": 5,
   "tol": 1e-04,
-  "fingerprint": ["r1"],
-  "comment": "Sig: x = fminbnd(fn, lo, hi[, tol]). 1-D bounded minimization. Bit-identical with MATLAB R2025b on probed quadratic (x=3.0). NOTE: numkit only returns x; multi-output [x, fval, exitflag] form is a separate ТЗ (refactor)."
+  "fingerprint": ["r1", "x", "fval", "ef"],
+  "comment": "Sig: x = fminbnd(fn, lo, hi[, tol]); [x, fval, exitflag] = fminbnd(...). Bit-identical with MATLAB R2025b on probed quadratic (x=3, fval=1). fval = fn(x) at the minimizer; exitflag = 1 (converged). Queue-clearing 2026-05-29: [x, fval, exitflag] multi-output added (was x-only). 4th 'output' struct deferred (errors loudly)."
 }

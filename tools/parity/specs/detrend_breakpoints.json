@@ -1,0 +1,22 @@
+{
+  "name": "detrend_breakpoints",
+  "covers": [
+    "detrend"
+  ],
+  "namespace": "stats",
+  "setup": "x = [1.1 1.8 3.3 3.9 5.2 5.7]; M = [x(:) x(:)+0.5];",
+  "expr": "yd = detrend(x, 1, 3); a1 = yd(1); a2 = yd(2); a3 = yd(3); a6 = yd(6); ym = detrend(x, 1, [2 4]); m2 = ym(2); m3 = ym(3); Yd = detrend(M, 1, 3); q22 = Yd(2,2);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "a1",
+    "a2",
+    "a3",
+    "a6",
+    "m2",
+    "m3",
+    "q22"
+  ],
+  "comment": "detrend breakpoints (2026-05-30). MATLAB detrend(x,1,bp) does a CONTINUOUS piecewise-linear detrend (slope changes at each breakpoint, trend stays continuous); numkit previously IGNORED the bp arg and returned the plain single-line linear detrend. Replicates the classic detrend.m ramp-basis design matrix: bp=unique([0;bp;N-1]) (0-based offsets), one ramp column per segment ((1:M)/M over rows off..N-1, M=N-off) + a constant column, subtract least-squares fit a*(a\\col) per column. Single bp=3 on x=[1.1 1.8 3.3 3.9 5.2 5.7]: a1=0.131578947, a2=-0.263157895, a3=0.142105263, a6=-0.126315789. Two bp [2 4]: m2=-0.131428571, m3=0.262857143. Matrix detrends each column (q22=-0.263157895). order-0 + breakpoints is a rare/ill-defined MATLAB edge -> DEFERRED (bp ignored for order 0). namespace=stats. Matches MATLAB R2025b.",
+  "deep_verified": true
+}

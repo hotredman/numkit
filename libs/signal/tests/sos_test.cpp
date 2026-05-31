@@ -100,11 +100,11 @@ TEST_P(SosTest, Zp2sosSingleRealPolePair)
     eval("z = []; p = [0.5; 0.7]; sos = zp2sos(z, p, 1);");
     EXPECT_DOUBLE_EQ(evalScalar("size(sos, 1);"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("size(sos, 2);"), 6.0);
-    // Numerator: pure passthrough (b0=1, b1=0, b2=0) since there are
-    // no zeros to pair.
-    EXPECT_NEAR(evalScalar("sos(1, 1);"), 1.0, 1e-12);
+    // Numerator: MATLAB R2025b places the (surplus) zeros at the ORIGIN,
+    // so a zero-less section is [0 0 g], i.e. b = [0 0 1], NOT [1 0 0].
+    EXPECT_NEAR(evalScalar("sos(1, 1);"), 0.0, 1e-12);
     EXPECT_NEAR(evalScalar("sos(1, 2);"), 0.0, 1e-12);
-    EXPECT_NEAR(evalScalar("sos(1, 3);"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sos(1, 3);"), 1.0, 1e-12);
     // Denominator: (z - 0.5)(z - 0.7) = z² - 1.2z + 0.35
     EXPECT_NEAR(evalScalar("sos(1, 4);"), 1.0, 1e-12);
     EXPECT_NEAR(evalScalar("sos(1, 5);"), -1.2, 1e-12);
@@ -122,16 +122,20 @@ TEST_P(SosTest, Zp2sosComplexConjugatePolePair)
 TEST_P(SosTest, Zp2sosWithGainTwoOutputForm)
 {
     eval("z = []; p = [0.5; 0.7]; [sos, g] = zp2sos(z, p, 3);");
-    // Gain factored out — sos should be unchanged from the gain-1 case.
-    EXPECT_NEAR(evalScalar("sos(1, 1);"), 1.0, 1e-12);
+    // Gain factored out — sos is the gain-1 case ([0 0 1], surplus zeros
+    // at the origin).
+    EXPECT_NEAR(evalScalar("sos(1, 3);"), 1.0, 1e-12);
     EXPECT_NEAR(evalScalar("g;"), 3.0, 1e-12);
 }
 
 TEST_P(SosTest, Zp2sosGainAppliedToFirstSection)
 {
-    // 1-output form distributes gain into the first section's b coefficients.
+    // 1-output form folds the gain into the first section. Because the
+    // zero-less section is right-aligned [0 0 g], the gain lands in b2,
+    // not b0 (MATLAB R2025b).
     eval("z = []; p = [0.5; 0.7]; sos = zp2sos(z, p, 4);");
-    EXPECT_NEAR(evalScalar("sos(1, 1);"), 4.0, 1e-12);  // b0 *= gain
+    EXPECT_NEAR(evalScalar("sos(1, 1);"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sos(1, 3);"), 4.0, 1e-12);  // gain in b2
 }
 
 TEST_P(SosTest, Zp2sosNoPolesThrows)
@@ -193,6 +197,34 @@ TEST_P(SosTest, Tf2sosZeroLeadingAThrows)
 {
     eval("b = [1 2]; a = [0 1];");
     EXPECT_THROW(eval("sos = tf2sos(b, a);"), std::exception);
+}
+
+// DEEP-PROBE 2026-05-31: SOS sections are ordered by MATLAB's default 'up'
+// rule — ASCENDING pole radius (poles nearest the origin first, nearest the
+// unit circle last), with the overall gain folded into the first (origin-
+// nearest) section. numkit previously emitted them in reversed order.
+TEST_P(SosTest, Zp2sosComplexPoleSectionOrderAscending)
+{
+    // Poles 0.2±0.3i (radius 0.361) and 0.5±0.5i (radius 0.707).
+    eval("S = zp2sos([], [0.5+0.5i; 0.5-0.5i; 0.2+0.3i; 0.2-0.3i], 1);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(S,1);")), 2);
+    // Row 1 = nearer the origin (a2 = 0.13), row 2 = nearer unit circle (0.5).
+    EXPECT_NEAR(evalScalar("S(1,5);"), -0.4, 1e-12);
+    EXPECT_NEAR(evalScalar("S(1,6);"),  0.13, 1e-12);
+    EXPECT_NEAR(evalScalar("S(2,5);"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("S(2,6);"),  0.5, 1e-12);
+    EXPECT_LT(evalScalar("S(1,6);"), evalScalar("S(2,6);"));  // ascending radius
+}
+
+TEST_P(SosTest, Tf2sosComplexPoleSectionOrderAscending)
+{
+    eval("sm = tf2sos([1 2 3 4 5], [1 0.5 0.3 0.1 0.05]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(sm,1);")), 2);
+    EXPECT_NEAR(evalScalar("sm(1,2);"), -0.575630959115296, 1e-9);
+    EXPECT_NEAR(evalScalar("sm(1,6);"),  0.210916571277052, 1e-9);
+    EXPECT_NEAR(evalScalar("sm(2,2);"),  2.575630959115297, 1e-9);
+    EXPECT_NEAR(evalScalar("sm(2,6);"),  0.237060557628362, 1e-9);
+    EXPECT_LT(evalScalar("sm(1,6);"), evalScalar("sm(2,6);"));
 }
 
 INSTANTIATE_DUAL(SosTest);

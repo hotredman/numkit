@@ -36,6 +36,40 @@ TEST_F(StringsBatchTest, TrimDeblank)
     EXPECT_EQ(evalString("deblank(\"abc   \")"),  "abc");
 }
 
+// lower/upper/strtrim/deblank/strip applied to a CELL array: element-wise ->
+// cell of char vectors, same shape. Were all throwing "Not a char array".
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(StringsBatchTest, CaseTrimCellArrays)
+{
+    eval("lo = lower({'AbC','XyZ'}); up = upper({'aBc','xYz'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(lo))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(lo)"), 2.0);
+    EXPECT_EQ(evalString("lo{1}"), "abc");
+    EXPECT_EQ(evalString("lo{2}"), "xyz");
+    EXPECT_EQ(evalString("up{1}"), "ABC");
+    EXPECT_EQ(evalString("up{2}"), "XYZ");
+    // strtrim keeps interior whitespace; deblank trims trailing only.
+    eval("st = strtrim({'  a b ','  x  '});");
+    EXPECT_EQ(evalString("st{1}"), "a b");
+    EXPECT_EQ(evalString("st{2}"), "x");
+    eval("db = deblank({'a  ','  b '});");
+    EXPECT_EQ(evalString("db{1}"), "a");
+    EXPECT_EQ(evalString("db{2}"), "  b");
+    // strip (default both) + strip with an explicit char.
+    eval("sp = strip({'  a  ','  b'});");
+    EXPECT_EQ(evalString("sp{1}"), "a");
+    EXPECT_EQ(evalString("sp{2}"), "b");
+    eval("sx = strip({'xxaxx','xb'}, 'both', 'x');");
+    EXPECT_EQ(evalString("sx{1}"), "a");
+    EXPECT_EQ(evalString("sx{2}"), "b");
+    // shape preserved (column cell stays a column).
+    eval("col = lower({'AB';'CD'});");
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,2)"), 1.0);
+    // scalar (non-cell) path still returns a char row.
+    EXPECT_EQ(evalString("lower('HELLO')"), "hello");
+}
+
 TEST_F(StringsBatchTest, Blanks)
 {
     EXPECT_DOUBLE_EQ(evalScalar("strlength(blanks(5))"), 5.0);
@@ -50,6 +84,38 @@ TEST_F(StringsBatchTest, Strlength)
 TEST_F(StringsBatchTest, Strrep)
 {
     EXPECT_EQ(evalString("strrep(\"hello world\", \"world\", \"matlab\")"), "hello matlab");
+}
+
+// strrep with cell-array arguments: any cell input => a cell of char vectors
+// (scalars broadcast). Was throwing "Not a char array". vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_F(StringsBatchTest, StrrepCell)
+{
+    // cell str, scalar old/new -> per-element replace.
+    eval("c = strrep({'hello','world','book'}, 'o', 'O');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(c))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c)"), 3.0);
+    EXPECT_EQ(evalString("c{1}"), "hellO");
+    EXPECT_EQ(evalString("c{2}"), "wOrld");
+    EXPECT_EQ(evalString("c{3}"), "bOOk");
+    // scalar str + cell pattern/replacement -> broadcast separately (not chained).
+    eval("c2 = strrep('aXbYc', {'X','Y'}, {'-','='});");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c2)"), 2.0);
+    EXPECT_EQ(evalString("c2{1}"), "a-bYc");
+    EXPECT_EQ(evalString("c2{2}"), "aXb=c");
+    // all-cell element-wise.
+    eval("c3 = strrep({'aa','bb'}, {'a','b'}, {'X','Y'});");
+    EXPECT_EQ(evalString("c3{1}"), "XX");
+    EXPECT_EQ(evalString("c3{2}"), "YY");
+    // shape preserved: a column cell stays a column.
+    eval("cc = strrep({'ax';'bx'}, 'x', 'Z');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,2)"), 1.0);
+    EXPECT_EQ(evalString("cc{2}"), "bZ");
+    // scalar (no-cell) path still returns a char row, unchanged.
+    EXPECT_EQ(evalString("strrep('mississippi', 'iss', 'ISS')"), "mISSISSippi");
+    // incompatible non-scalar cell sizes throw.
+    EXPECT_THROW(eval("strrep({'a','b','c'}, {'a','b'}, 'X');"), std::exception);
 }
 
 TEST_F(StringsBatchTest, Strfind)
@@ -73,6 +139,26 @@ TEST_F(StringsBatchTest, StartsEndsWith)
     EXPECT_DOUBLE_EQ(evalScalar("endsWith(\"hello\", \"ell\")"),   0.0);
 }
 
+// contains/startsWith/endsWith accept a cell array (or string array) of
+// patterns and match if ANY of them matches. vs MATLAB R2025b. 2026-05-30:
+// previously these threw "Not a char array" on a cell pattern argument.
+TEST_F(StringsBatchTest, MatchAnyOfCellPatterns)
+{
+    // startsWith
+    EXPECT_DOUBLE_EQ(evalScalar("startsWith('foobar', {'foo','xyz'})"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("startsWith('foobar', {'zzz','xyz'})"), 0.0);
+    // endsWith
+    EXPECT_DOUBLE_EQ(evalScalar("endsWith('test.m', {'.m','.cpp'})"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("endsWith('test.txt', {'.m','.cpp'})"), 0.0);
+    // contains
+    EXPECT_DOUBLE_EQ(evalScalar("contains('hello', {'ell','xyz'})"),    1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("contains('hello', {'zzz','xyz'})"),    0.0);
+    // string-array pattern list
+    EXPECT_DOUBLE_EQ(evalScalar("startsWith('foobar', [\"foo\" \"xyz\"])"), 1.0);
+    // scalar pattern unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("contains('hello', 'ell')"),            1.0);
+}
+
 TEST_F(StringsBatchTest, Strcat)
 {
     EXPECT_EQ(evalString("strcat(\"ab\", \"cd\")"),       "abcd");
@@ -83,6 +169,52 @@ TEST_F(StringsBatchTest, Strsplit)
 {
     eval("p = strsplit(\"a b c\");");
     EXPECT_DOUBLE_EQ(evalScalar("numel(p)"), 3.0);
+}
+
+// strsplit: cell-array delimiters, multi-char delimiters, and the
+// CollapseDelimiters option. vs MATLAB R2025b. 2026-05-30.
+TEST_F(StringsBatchTest, StrsplitCellMultiCollapse)
+{
+    // Cell array of delimiters, longest-match.
+    eval("c1 = strsplit('a, b; c', {', ', '; '});");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c1)"), 3.0);
+    EXPECT_EQ(evalString("c1{1}"), "a");
+    EXPECT_EQ(evalString("c1{2}"), "b");
+    EXPECT_EQ(evalString("c1{3}"), "c");
+    // Multi-character delimiter string.
+    eval("c2 = strsplit('a==b==c', '==');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c2)"), 3.0);
+    EXPECT_EQ(evalString("c2{2}"), "b");
+    // collapse=true (default): leading/trailing empties kept, internal merged.
+    eval("c3 = strsplit(',a,b,', ',');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c3)"), 4.0);
+    EXPECT_EQ(evalString("c3{1}"), "");
+    EXPECT_EQ(evalString("c3{4}"), "");
+    eval("c4 = strsplit('a,,b', ',');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c4)"), 2.0);  // internal '' collapsed
+    // CollapseDelimiters=false: split at every occurrence.
+    eval("c5 = strsplit('a,,b', ',', 'CollapseDelimiters', false);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c5)"), 3.0);
+    EXPECT_EQ(evalString("c5{2}"), "");
+    // Default whitespace delimiter, collapse.
+    eval("c6 = strsplit('  a  b  ');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c6)"), 4.0);
+}
+
+// [tokens, matches] = strsplit(...): the matched delimiters (was missing).
+TEST_F(StringsBatchTest, StrsplitMatchesOutput)
+{
+    eval("function [a,b] = wSS(s,d)\n  [a,b] = strsplit(s,d);\nend");
+    eval("[t, m] = wSS('a,b;c', {',', ';'});");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(t)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(m)"), 2.0);
+    EXPECT_EQ(evalString("m{1}"), ",");
+    EXPECT_EQ(evalString("m{2}"), ";");
+    // collapsed run -> single match of the whole run
+    eval("function [a,b] = wS2(s,d)\n  [a,b] = strsplit(s,d);\nend");
+    eval("[t2, m2] = wS2('a,,b', ',');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(m2)"), 1.0);
+    EXPECT_EQ(evalString("m2{1}"), ",,");
 }
 
 TEST_F(StringsBatchTest, Strtok)

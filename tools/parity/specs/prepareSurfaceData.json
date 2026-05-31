@@ -3,14 +3,11 @@
   "namespace": "stats",
   "setup": "[X, Y] = meshgrid(1:3, 1:2); Z = X + Y; Z(1,2) = NaN;",
   "expr": "[xo, yo, zo] = prepareSurfaceData(X, Y, Z);",
-  "iters": 5,
+  "iters": 3,
   "tol": 1e-15,
   "fingerprint": [
-    "size(xo, 1)",
-    "size(xo, 2)",
-    "sum(xo)",
-    "sum(yo)",
-    "sum(zo)"
+    "double(numel(xo))",
+    "xo(1)", "yo(1)", "zo(1)", "xo(5)", "yo(5)", "zo(5)", "double(sum(zo))"
   ],
-  "comment": "Sig: [xo, yo, zo] = prepareSurfaceData(X, Y, Z). Linearises (column-major) and drops rows where any of x, y, z is NaN/Inf. Returns column vectors."
+  "comment": "Sig [xo,yo,zo]=prepareSurfaceData(X,Y,Z): column-major linearise, drop rows where any of x,y,z is NaN/Inf, return columns. meshgrid(1:3,1:2) -> X=[1 2 3;1 2 3], Y=[1 1 1;2 2 2], Z=X+Y with Z(1,2)=NaN. Linearised col-major then row 3 (Z=NaN) dropped: xo=[1;1;2;3;3], yo=[1;2;2;1;2], zo=[2;3;4;4;5] (5 rows). Pins first/last surviving element VALUES + sum(zo)=18."
 }

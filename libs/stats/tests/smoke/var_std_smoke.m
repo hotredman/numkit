@@ -25,3 +25,19 @@ fprintf('\n=== std mirrors var (sqrt) ===\n');
 disp(std(A));
 fprintf('  expect [1.5811 1.5811 1.5811]\n');
 fprintf('  std(A, 0, "all") = %.4f\n', std(A, 0, 'all'));
+
+fprintf('\n=== single-element variance -> 0 (not NaN) ===\n');
+fprintf('  var(5)        = %g (expect 0)\n', var(5));
+fprintf('  var([7])      = %g (expect 0)\n', var([7]));
+fprintf('  var(5, 1)     = %g (expect 0)\n', var(5, 1));
+fprintf('  std(5)        = %g (expect 0)\n', std(5));
+fprintf('  std([7])      = %g (expect 0)\n', std([7]));
+
+fprintf('\n=== empty reductions -> NaN (not 0x0), MATLAB R2025b ===\n');
+fprintf('  var([])    isnan=%d numel=%d (expect 1, 1)\n', isnan(var([])),    numel(var([])));
+fprintf('  std([])    isnan=%d numel=%d (expect 1, 1)\n', isnan(std([])),    numel(std([])));
+fprintf('  median([]) isnan=%d numel=%d (expect 1, 1)\n', isnan(median([])), numel(median([])));
+fprintf('  mode([])   isnan=%d numel=%d (expect 1, 1)\n', isnan(mode([])),   numel(mode([])));
+disp('var(zeros(0,3)):'); disp(var(zeros(0,3))); fprintf('  expect [NaN NaN NaN]\n');
+[mm, ff] = mode([]);
+fprintf('  [M,F]=mode([]): M isnan=%d, F=%g (expect 1, 0)\n', isnan(mm), ff);

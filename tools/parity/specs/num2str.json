@@ -2,12 +2,16 @@
   "name": "num2str",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strcmp(num2str(42), \"42\")); r2 = double(strlength(num2str(3.14)));",
+  "expr": "r1 = double(strcmp(num2str(42), \"42\")); r2 = double(strlength(num2str(3.14))); b1 = double(strcmp(num2str(1000000), \"1000000\")); b2 = double(strcmp(num2str(1000000.5), \"1000000.5\")); b3 = double(strcmp(num2str(123456789), \"123456789\")); b4 = double(strcmp(num2str(12345.678), \"12345.678\")); b5 = double(strcmp(num2str(pi), \"3.1416\")); b6 = double(strcmp(num2str(0.00012345), \"0.00012345\")); s1 = num2str([1 2 3]); a1n = numel(s1); a1s = sum(double(s1)); s2 = num2str([10 200 3]); a2n = numel(s2); a2s = sum(double(s2)); s3 = num2str([1.5 2.25 3]); a3n = numel(s3); a3s = sum(double(s3)); s4 = num2str([12345.6 2]); a4n = numel(s4); a4s = sum(double(s4)); s5 = num2str([-5 10]); a5n = numel(s5); a5s = sum(double(s5)); s6 = num2str([-1.5 2]); a6n = numel(s6); a6s = sum(double(s6)); s7 = num2str([1 2 3], 3); a7n = numel(s7); a7s = sum(double(s7)); M = num2str([1 2;3 4]); mr = size(M,1); mc = size(M,2); ms = sum(double(M(:)));",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2",
+    "b1", "b2", "b3", "b4", "b5", "b6",
+    "a1n", "a1s", "a2n", "a2s", "a3n", "a3s", "a4n", "a4s",
+    "a5n", "a5s", "a6n", "a6s", "a7n", "a7s",
+    "mr", "mc", "ms"
   ],
-  "comment": "Sig: r = num2str(...). I/O / matrix-ops. Spec-extension batch 2026-05-09."
+  "deep_verified": true,
+  "comment": "Sig: r = num2str(X[, N|FMT]). DEFAULT precision is MAGNITUDE-AWARE (~4 digits after the integer part): num2str(1000000)=\"1000000\", num2str(pi)=\"3.1416\". DEEP-PROBE 2026-05-31: the default and integer-N forms were SCALAR-ONLY (threw 'Cannot convert double to scalar' on vectors/matrices); only the explicit FMT form handled arrays. Now the default/N forms synthesise MATLAB's column format and route through the FMT path: all-integer array -> \"%<maxChars+2>.0f\"; fractional -> \"%<P+7>.<P>g\" with P=max(floor(log10 maxabs),0)+5; the N form -> \"%<N+7>.<N>g\"; then common-blank-column strip. num2str([1 2 3])='1  2  3'; num2str([10 200 3])='10  200    3'; num2str([1.5 2.25 3])='1.5        2.25           3'; num2str([1 2;3 4]) is a 2x4 char matrix; negatives and the N form match. Cross-engine fingerprint via numel + sum(char codes). Complex ARRAY column layout still deferred. Spec-extension batch 2026-05-09."
 }

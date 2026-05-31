@@ -2,12 +2,15 @@
   "name": "freqz",
   "namespace": "signal",
   "setup": "",
-  "expr": "[h, w] = freqz([1 0.5], 1, 8); r1 = double(numel(h)); r2 = double(numel(w));",
+  "expr": "[h, w] = freqz([1 0.5], 1, 8); r1 = double(numel(h)); r2 = double(numel(w)); [hw, ww] = freqz([1 1], 1, 4, 'whole'); [hf, ff] = freqz([1 1], [1 -0.5], 4, 100); f2 = ff(2); f4 = ff(4); hf1 = abs(hf(1)); [hwf, wwf] = freqz([1 1], [1 -0.5], 4, 'whole', 200); wf2 = wwf(2);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2",
+    "ww(1)", "ww(2)", "ww(3)", "ww(4)",
+    "abs(hw(1))",
+    "f2", "f4", "hf1", "wf2"
   ],
-  "comment": "Sig: r = freqz(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig [h,w]=freqz(b,a,n[,'whole'][,fs]). Default grid w = pi*(0:n-1)/n on [0,pi); 'whole' -> 2*pi*(0:n-1)/n on [0,2pi). DEEP-PROBE 2026-05-31: the SAMPLE-RATE form freqz(b,a,n,fs) was IGNORING fs and returning radians; the frequency vector must be in Hz over [0,fs/2) (or [0,fs) with 'whole') -> f = w*fs/(2*pi). H is unchanged (evaluated at the same normalized w). freqz([1 1],[1 -0.5],4,100): ff=[0 12.5 25 37.5] (f2=12.5 f4=37.5), |h(1)|=4 (hf1=4); whole+fs=200: wwf=[0 50 100 150] (wf2=50). 'whole' w=[0 pi/2 pi 3pi/2], |h(1)|=2. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

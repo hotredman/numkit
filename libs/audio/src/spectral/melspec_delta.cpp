@@ -184,7 +184,7 @@ Value audioDelta(const Value &x, int windowLength, std::pmr::memory_resource *mr
 {
     if (windowLength < 3 || (windowLength % 2) == 0)
         throw Error("audioDelta: windowLength must be odd integer ≥ 3",
-                    0, 0, "audioDelta", "", "m:audioDelta:BadWin");
+                    0, 0, "audioDelta", "", "numkit:audioDelta:BadWin");
 
     const int M = windowLength / 2;
     // Coefficients [M, M-1, ..., 1, 0, -1, ..., -M] / sum((1:M)^2)
@@ -225,7 +225,7 @@ void melSpectrogram_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("melSpectrogram: requires (x, fs [, NumBands])",
-                    0, 0, "melSpectrogram", "", "m:melSpectrogram:nargin");
+                    0, 0, "melSpectrogram", "", "numkit:melSpectrogram:nargin");
     int numBands = 32;
     if (args.size() >= 3) numBands = static_cast<int>(args[2].toScalar());
     auto [S, F, T] = melSpectrogram(ctx.engine->resource(), args[0],
@@ -240,7 +240,7 @@ void audioDelta_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("audioDelta: requires (x [, windowLength])",
-                    0, 0, "audioDelta", "", "m:audioDelta:nargin");
+                    0, 0, "audioDelta", "", "numkit:audioDelta:nargin");
     int wl = 9;
     if (args.size() >= 2) wl = static_cast<int>(args[1].toScalar());
     outs[0] = audioDelta(args[0], wl, ctx.engine->resource());

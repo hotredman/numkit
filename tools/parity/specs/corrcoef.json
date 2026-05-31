@@ -1,13 +1,13 @@
 {
   "name": "corrcoef",
   "namespace": "stats",
-  "setup": "",
-  "expr": "C = corrcoef([1 2 3; 1 2 3]'); r1 = C(1,1); r2 = C(1,2);",
+  "setup": "Xn = [1 5 2; 2 6 9; 3 NaN 4; 4 8 1; 5 9 NaN];",
+  "expr": "C = corrcoef([1 2 3; 1 2 3]'); r1 = C(1,1); r2 = C(1,2); Cc = corrcoef(Xn,'Rows','complete'); cc12 = Cc(1,2); cc13 = Cc(1,3); Cp = corrcoef(Xn,'Rows','pairwise'); cp13 = Cp(1,3); cp23 = Cp(2,3); xyc = corrcoef([1;2;3;NaN;5],[2;4;6;8;NaN],'Rows','complete'); xyc12 = xyc(1,2);",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2",
+    "cc12", "cc13", "cp13", "cp23", "xyc12"
   ],
-  "comment": "Sig: r = corrcoef(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = corrcoef(...[,'Rows',R]). Spec-extension batch 2026-05-09. 2026-05-30: 'Rows' NaN policy added (previously corrcoef ERRORED 'two-input form requires vector arguments' on 'complete'/'pairwise' because the string fell through cov's two-input path, and NaN-poisoned the two-vector form). 'complete' = listwise deletion: cc12=1, cc13=-0.300376. 'pairwise' = pairwise deletion, normalized over each pair's common non-NaN rows (NOT corrcov(cov_partialrows)): cp13=-0.290191 vs cp23=-0.300376. Two-vector 'complete' xyc12=1. 'pairwise' is Pearson-only; [R,P] with 'pairwise' deferred (per-pair df). Matches MATLAB R2025b."
 }

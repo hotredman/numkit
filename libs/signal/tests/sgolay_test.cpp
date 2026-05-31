@@ -30,6 +30,29 @@ TEST_F(SgolayTest, SgolayShape)
     EXPECT_DOUBLE_EQ(evalScalar("size(B, 2);"), 5.0);
 }
 
+// [B,G] = sgolay(order,framelen): the 2nd output G is the framelen×(order+1)
+// differentiation-filter matrix G = V*(V'V)^-1. Previously unimplemented
+// ([b,g]=sgolay(...) errored 'Undefined variable g'). vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_F(SgolayTest, SgolayDiffMatrix)
+{
+    eval("[B, G] = sgolay(3, 5);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(G, 1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(G, 2);"), 4.0);   // order+1
+    // G(:,1) = smoothing filter [-3 12 17 12 -3]/35 (= central row of B).
+    EXPECT_NEAR(evalScalar("G(1,1);"), -3.0 / 35.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(3,1);"), 17.0 / 35.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(3,1) - B(3,3);"), 0.0, 1e-12);  // G(:,1)==B center
+    // G(:,2) = first-derivative filter [1 -8 0 8 -1]/12.
+    EXPECT_NEAR(evalScalar("G(1,2);"),  1.0 / 12.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(2,2);"), -8.0 / 12.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(3,2);"),  0.0,        1e-12);
+    EXPECT_NEAR(evalScalar("G(4,2);"),  8.0 / 12.0, 1e-12);
+    // G(:,3) = [2 -1 -2 -1 2]/14.
+    EXPECT_NEAR(evalScalar("G(1,3);"),  2.0 / 14.0, 1e-12);
+    EXPECT_NEAR(evalScalar("G(3,3);"), -2.0 / 14.0, 1e-12);
+}
+
 TEST_F(SgolayTest, SgolayCenterRowSums)
 {
     // For any order, the central-row coefficients sum to 1 (preserves
@@ -119,7 +142,55 @@ TEST_F(SgolayTest, SgolayfiltComplexThrows)
     EXPECT_THROW(eval("y = sgolayfilt([1+2i, 3, 5, 7, 9], 2, 5);"), std::exception);
 }
 
-TEST_F(SgolayTest, SgolayfiltMatrixThrows)
+// ── matrix (per-column / per-row) + weights + dim (DEEP-PROBE 2026-05-31) ──
+// sgolayfilt previously errored on matrices and ignored the weights/dim args.
+
+TEST_F(SgolayTest, SgolayfiltMatrixDim1Columns)
 {
-    EXPECT_THROW(eval("y = sgolayfilt(ones(5, 5), 2, 5);"), std::exception);
+    // Each column filtered independently (default dim = 1).
+    eval("C = sgolayfilt([2 5;1 8;3 9;4 7;6 2], 1, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C,1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C,2);"), 2.0);
+    EXPECT_NEAR(evalScalar("C(1,1);"), 1.5, 1e-9);
+    EXPECT_NEAR(evalScalar("C(3,1);"), 2.6666666666666667, 1e-9);
+    EXPECT_NEAR(evalScalar("C(1,2);"), 5.3333333333333333, 1e-9);
+    EXPECT_NEAR(evalScalar("C(5,2);"), 2.5, 1e-9);
+}
+
+TEST_F(SgolayTest, SgolayfiltMatrixDim2Rows)
+{
+    // dim = 2 filters each row.
+    eval("R = sgolayfilt([2 5 1 8 3;9 4 7 6 2], 1, 3, [], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(R,1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(R,2);"), 5.0);
+    EXPECT_NEAR(evalScalar("R(1,1);"), 3.1666666666666667, 1e-9);
+    EXPECT_NEAR(evalScalar("R(2,5);"), 2.5, 1e-9);
+}
+
+TEST_F(SgolayTest, SgolayfiltWeighted)
+{
+    // Weighted least-squares: result differs from the unweighted fit.
+    eval("x = [2 5 1 8 3 9 4 7 6];");
+    eval("yw = sgolayfilt(x, 2, 5, [1 2 3 2 1]);");
+    EXPECT_NEAR(evalScalar("yw(1);"), 2.5333333333333335, 1e-9);
+    EXPECT_NEAR(evalScalar("yw(5);"), 6.0, 1e-9);
+    EXPECT_NEAR(evalScalar("yw(9);"), 5.8666666666666671, 1e-9);
+    // Confirm weighting actually changed the output vs unweighted.
+    eval("yu = sgolayfilt(x, 2, 5);");
+    EXPECT_GT(std::abs(evalScalar("yw(1) - yu(1);")), 1e-6);
+}
+
+TEST_F(SgolayTest, SgolayfiltColumnVectorUnchanged)
+{
+    // A column vector is still a single-column matrix → one filtered slice.
+    eval("y = sgolayfilt((1:30)', 2, 5);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(y,1);"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(y,2);"), 1.0);
+    EXPECT_NEAR(evalScalar("y(15);"), 15.0, 1e-9);
+}
+
+TEST_F(SgolayTest, SgolayfiltWeightsWrongLengthThrows)
+{
+    EXPECT_THROW(eval("y = sgolayfilt([1 2 3 4 5], 2, 5, [1 2 3]);"),
+                 std::exception);
 }

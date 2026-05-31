@@ -112,7 +112,7 @@ namespace detail {
 void raylpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("raylpdf: requires (x, b)", 0, 0, "raylpdf", "", "m:raylpdf:nargin");
+        throw Error("raylpdf: requires (x, b)", 0, 0, "raylpdf", "", "numkit:raylpdf:nargin");
     outs[0] = raylpdf(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -121,7 +121,7 @@ void raylcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
-        throw Error("raylcdf: requires (x, b[, 'upper'])", 0, 0, "raylcdf", "", "m:raylcdf:nargin");
+        throw Error("raylcdf: requires (x, b[, 'upper'])", 0, 0, "raylcdf", "", "numkit:raylcdf:nargin");
     Value v = raylcdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -130,14 +130,14 @@ void raylcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void raylinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("raylinv: requires (p, b)", 0, 0, "raylinv", "", "m:raylinv:nargin");
+        throw Error("raylinv: requires (p, b)", 0, 0, "raylinv", "", "numkit:raylinv:nargin");
     outs[0] = raylinv(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void raylrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("raylrnd: requires b[, sz...]", 0, 0, "raylrnd", "", "m:raylrnd:nargin");
+        throw Error("raylrnd: requires b[, sz...]", 0, 0, "raylrnd", "", "numkit:raylrnd:nargin");
     const double b = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);

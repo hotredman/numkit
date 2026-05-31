@@ -1,10 +1,16 @@
 {
   "name": "intlut",
   "namespace": "image",
-  "setup": "A = uint8([10 20 30; 40 50 60]); LUT = uint8(255 - (0:255));",
-  "expr": "y = intlut(A, LUT);",
-  "iters": 5,
-  "tol": 0,
-  "out_var": "y",
-  "comment": "Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT)."
+  "setup": "A8 = uint8([10 20 30; 40 50 60]); L8 = uint8(255-(0:255)); A16 = uint16([100 200; 300 400]); L16 = uint16(65535-(0:65535));",
+  "expr": "y8 = intlut(A8, L8); y16 = intlut(A16, L16);",
+  "iters": 1,
+  "tol": 1e-12,
+  "comment": "MATLAB intlut — table lookup. uint8 (256-element inversion LUT) + uint16 (65536-element) with LUTs precomputed in setup; pins mapped values + class preservation. Previously EMPTY fingerprint. Bit-equal MATLAB R2025b.",
+  "fingerprint": [
+    "double(y8(1,1))",
+    "double(y8(2,3))",
+    "double(y8(1,2))",
+    "double(y16(1,1))",
+    "double(y16(2,2))"
+  ]
 }

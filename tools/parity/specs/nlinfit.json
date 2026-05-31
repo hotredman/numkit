@@ -1,0 +1,19 @@
+{
+  "name": "nlinfit",
+  "covers": ["nlinfit", "nlparci", "nlpredci"],
+  "namespace": "stats",
+  "setup": "x = linspace(0, 5, 50)'; y_exact = 2.0 * exp(-0.5 * x); y = y_exact + 0.01 * sin((1:50)' * 3.7); fun = @(b, x) b(1) * exp(-b(2) * x);",
+  "expr": "[beta, R, J, CovB, MSE] = nlinfit(x, y, fun, [1.0; 1.0]); ci = nlparci(beta, R, J); [yp, d] = nlpredci(fun, x(1:5), beta, R, J, 0.05); err_a = abs(beta(1) - 2.0); err_b = abs(beta(2) - 0.5); ci_contains_a = double(ci(1,1) <= 2.0 && 2.0 <= ci(1,2)); ci_contains_b = double(ci(2,1) <= 0.5 && 0.5 <= ci(2,2)); pos_delta = double(all(d > 0));",
+  "iters": 3,
+  "tol": 0.05,
+  "fingerprint": [
+    "double(err_a < 0.05)",
+    "double(err_b < 0.05)",
+    "ci_contains_a", "ci_contains_b",
+    "pos_delta",
+    "size(beta, 1)", "size(J, 2)", "size(CovB, 1)",
+    "double(MSE > 0)",
+    "size(yp, 1)", "size(d, 1)"
+  ],
+  "comment": "Sig: nlinfit(X, y, fun, beta0) — Levenberg-Marquardt NLS with numerical (central-diff) Jacobian. Returns [beta, R, J, CovB, MSE]. nlparci(beta, R, J [, alpha]) — Wald-style parameter CIs via t-quantile · sqrt(diag(MSE · (J'J)^-1)). nlpredci(fun, X, beta, R, J [, alpha]) — prediction CIs via delta-method on the per-query Jacobian. KNOWN GAPs: name-value 'Weights'/'ErrorModel'/'Options' not supported. Spec uses deterministic noise (sin-based) to make parity reproducible; pins recoverability + CI containment + shape invariants."
+}

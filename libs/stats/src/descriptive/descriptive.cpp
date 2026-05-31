@@ -12,6 +12,8 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
+#include <numkit/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
+#include <numkit/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
 #include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
 #include <numkit/core/engine.hpp>
@@ -23,6 +25,7 @@
 #include "math/arithmetic/var_reduction.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -56,7 +59,7 @@ void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
@@ -71,6 +74,42 @@ Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
     float *dst = r.singleDataMut();
     for (size_t i = 0; i < d.numel(); ++i)
         dst[i] = static_cast<float>(src[i]);
+    return r;
+}
+
+// Cast a DOUBLE result back to an integer class: round half away from zero
+// (std::round) and saturate to the type's range. Matches MATLAB R2025b, which
+// preserves the integer class for median (median(int32([1 2 3 4]))=3 int32,
+// median(int8([-1 -2]))=-2 int8) — the two-middle-element average is rounded
+// half-away-from-zero and the class is retained.
+Value narrowToInteger(const Value &d, ValueType vt, std::pmr::memory_resource *mr)
+{
+    if (d.type() != ValueType::DOUBLE) return d;
+    Value r = createForDims(d.dims(), vt, mr);
+    const double *src = d.doubleData();
+    const size_t n = d.numel();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = std::round(src[i]);   // round half away from zero
+            if (v < lo) v = lo;
+            else if (v > hi) v = hi;          // saturate to class range
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (vt) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: return d;
+    }
     return r;
 }
 
@@ -117,6 +156,46 @@ inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_re
     return createMatrix(outShape, ValueType::DOUBLE, mr);
 }
 
+// MATLAB empty-input result for the NaN-returning descriptive reductions
+// (var / std / median / mode), mirroring mean's empty rule:
+//   * default (no explicit dim) of the 0x0 [] -> scalar NaN
+//   * otherwise the operating dim (explicit dim when given, else the first
+//     dim whose size != 1 — MATLAB treats a size-0 dim as non-singleton)
+//     collapses to 1 and the result is NaN-filled.
+// A size-0 sibling dim keeps the result empty, e.g. var(zeros(3,0))=1x0,
+// median([],2)=0x1. numkit previously returned a 0x0 empty for all of these.
+inline Value emptyStatReductionFill(const Value &x, int dim, double fill,
+                                    std::pmr::memory_resource *mr)
+{
+    const auto &dd = x.dims();
+    if (dim < 1 && dd.ndim() == 2 && dd.rows() == 0 && dd.cols() == 0)
+        return Value::scalar(fill, mr);
+    int opDim = dim;
+    if (opDim < 1) {
+        opDim = 1;
+        const int nd = dd.ndim();
+        for (int i = 0; i < nd; ++i)
+            if (dd.dim(i) != 1) { opDim = i + 1; break; }
+    }
+    DimsArg o{dd.rows(), dd.cols(), dd.is3D() ? dd.pages() : 0};
+    switch (opDim) {
+        case 1: o.rows  = 1; break;
+        case 2: o.cols  = 1; break;
+        case 3: o.pages = (o.pages == 0) ? 0 : 1; break;
+        default: break;
+    }
+    Value out = createMatrix(o, ValueType::DOUBLE, mr);
+    double *p = out.doubleDataMut();
+    const size_t n = out.numel();
+    for (size_t i = 0; i < n; ++i) p[i] = fill;
+    return out;
+}
+
+inline Value emptyStatReductionNaN(const Value &x, int dim, std::pmr::memory_resource *mr)
+{
+    return emptyStatReductionFill(x, dim, std::nan(""), mr);
+}
+
 // Complex variance along dim: walks slices via stride math, gathers
 // each slice into a Complex scratch buffer, computes per-slice complex
 // variance, writes DOUBLE output.
@@ -150,7 +229,7 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
                        std::pmr::memory_resource *mr, bool sqrtIt, bool omitNan = false)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return emptyStatReductionNaN(x, dim, mr);
     const Complex *src = x.complexData();
     if (x.isScalar() || x.dims().isVector()) {
         double v = complexVarianceFromSlice(src, x.numel(), normFlag, omitNan);
@@ -178,7 +257,7 @@ Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
     if (x.type() == ValueType::COMPLEX)
         return varianceComplex(x, normFlag, dim, mr, /*sqrtIt=*/false);
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return emptyStatReductionNaN(x, dim, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
         return Value::scalar(varianceTwoPass(x.doubleData(), x.numel(), normFlag), mr);
 
@@ -198,7 +277,7 @@ Value stdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr
     if (x.type() == ValueType::COMPLEX)
         return varianceComplex(x, normFlag, dim, mr, /*sqrtIt=*/true);
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return emptyStatReductionNaN(x, dim, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
         return Value::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
 
@@ -245,7 +324,9 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("median: complex inputs are not supported (no defined ordering)",
-                     0, 0, "median", "", "m:median:complex");
+                     0, 0, "median", "", "numkit:median:complex");
+    if (x.isEmpty())
+        return emptyStatReductionNaN(x, dim, mr);
     const int d = resolveDim(x, dim, "median");
     Value r = applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
@@ -253,6 +334,9 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
         }, mr);
     if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), mr);
+    else if (isIntegerType(x.type()))
+        // MATLAB preserves the integer class: round half-away + saturate.
+        r = narrowToInteger(r, x.type(), mr);
     return r;
 }
 
@@ -319,7 +403,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
 {
     if (p.numel() == 0)
         throw Error(std::string(fn) + ": p must be non-empty",
-                     0, 0, fn, "", std::string("m:") + fn + ":emptyP");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":emptyP");
 
     ScratchArena scratch(mr);
 
@@ -330,7 +414,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
             throw Error(std::string(fn) + ": probabilities out of range",
-                         0, 0, fn, "", std::string("m:") + fn + ":badProb");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":badProb");
     }
 
     const size_t k = probs.size();
@@ -700,10 +784,10 @@ dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char 
     case ValueType::CHAR:    return run(char    {}, ValueType::CHAR);
     case ValueType::COMPLEX:
         throw Error(std::string(fn) + ": not defined for complex inputs",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     default:
         throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("m:") + fn + ":type");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
     }
 }
 
@@ -712,6 +796,12 @@ dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char 
 std::tuple<Value, Value>
 mode(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
+    // MATLAB: mode of an empty array -> NaN-shaped value, 0-shaped count.
+    // [M,F]=mode([]) gives M=NaN, F=0; mode(zeros(0,3))=[NaN NaN NaN] with
+    // F=[0 0 0]; mode(zeros(3,0))=1x0 empties.
+    if (x.isEmpty())
+        return { emptyStatReductionFill(x, dim, std::nan(""), mr),
+                 emptyStatReductionFill(x, dim, 0.0, mr) };
     const int d = resolveDim(x, dim, "mode");
     return dispatchMode(x, d, mr, "mode");
 }
@@ -727,17 +817,17 @@ void validateCovInputs(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": only vector and 2D matrix inputs are supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":rank");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":rank");
 }
 
 void validateNormFlagCov(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
 // Build an n×p column-major DOUBLE buffer from x. Vector input is
@@ -831,10 +921,10 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
     validateCovInputs(y, "cov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("cov: two-input form requires vector arguments",
-                     0, 0, "cov", "", "m:cov:notVector");
+                     0, 0, "cov", "", "numkit:cov:notVector");
     if (x.numel() != y.numel())
         throw Error("cov: x and y must have the same length",
-                     0, 0, "cov", "", "m:cov:lengthMismatch");
+                     0, 0, "cov", "", "numkit:cov:lengthMismatch");
     const std::size_t n = x.numel();
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);
@@ -853,11 +943,247 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
 
 namespace {
 
+enum class CovNan { Include, Omitrows, Partialrows };
+
+// Recognize a NaN-policy string ('includenan' | 'omitrows' | 'partialrows').
+bool parseCovNanFlag(const Value &v, CovNan &mode)
+{
+    if (!v.isChar() && !v.isString()) return false;
+    std::string s = v.toString();
+    for (auto &c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (s == "includenan")  { mode = CovNan::Include;     return true; }
+    if (s == "omitrows")    { mode = CovNan::Omitrows;    return true; }
+    if (s == "partialrows") { mode = CovNan::Partialrows; return true; }
+    return false;
+}
+
+// Assemble two equal-length vectors into an n×2 column-major matrix Value
+// [x(:) y(:)] for the two-vector NaN-aware path.
+Value assembleXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    validateCovInputs(x, "cov");
+    validateCovInputs(y, "cov");
+    if (!x.dims().isVector() || !y.dims().isVector())
+        throw Error("cov: two-input form requires vector arguments",
+                     0, 0, "cov", "", "numkit:cov:notVector");
+    if (x.numel() != y.numel())
+        throw Error("cov: x and y must have the same length",
+                     0, 0, "cov", "", "numkit:cov:lengthMismatch");
+    const std::size_t n = x.numel();
+    auto out = Value::matrix(n, 2, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    for (std::size_t i = 0; i < n; ++i) {
+        o[i] = x.elemAsDouble(i);
+        o[n + i] = y.elemAsDouble(i);
+    }
+    return out;
+}
+
+// cov with 'omitrows' (listwise deletion: drop any row containing a NaN) or
+// 'partialrows' (pairwise deletion: each cov(i,j) uses rows where both
+// columns are non-NaN, with the means taken over exactly those rows). The
+// default 'includenan' is the NaN-poisoning behaviour of plain cov() and is
+// routed there by the dispatcher.
+Value covNanAware(const Value &x, int normFlag, CovNan mode,
+                  std::pmr::memory_resource *mr)
+{
+    validateNormFlagCov(normFlag, "cov");
+    validateCovInputs(x, "cov");
+    ScratchArena scratch(mr);
+    ScratchVec<double> data(&scratch);
+    std::size_t n, p;
+    readMatrix(x, data, n, p);
+
+    auto divisorOf = [normFlag](std::size_t m) {
+        return (normFlag == 0) ? std::max(1.0, static_cast<double>(m) - 1.0)
+                               : static_cast<double>(m);
+    };
+
+    // Vector input → scalar variance over the non-NaN elements.
+    if (p == 1) {
+        double s = 0.0;
+        std::size_t m = 0;
+        for (std::size_t i = 0; i < n; ++i)
+            if (!std::isnan(data[i])) { s += data[i]; ++m; }
+        if (m == 0) return Value::scalar(std::nan(""), mr);
+        const double mean = s / static_cast<double>(m);
+        double sq = 0.0;
+        for (std::size_t i = 0; i < n; ++i)
+            if (!std::isnan(data[i])) { const double d = data[i] - mean; sq += d * d; }
+        return Value::scalar(sq / divisorOf(m), mr);
+    }
+
+    if (mode == CovNan::Omitrows) {
+        auto rowOk = [&](std::size_t r) {
+            for (std::size_t c = 0; c < p; ++c)
+                if (std::isnan(data[c * n + r])) return false;
+            return true;
+        };
+        std::size_t m = 0;
+        for (std::size_t r = 0; r < n; ++r) if (rowOk(r)) ++m;
+        if (m == 0) {
+            auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
+            double *o = out.doubleDataMut();
+            for (std::size_t i = 0; i < p * p; ++i) o[i] = std::nan("");
+            return out;
+        }
+        ScratchVec<double> kept(&scratch);
+        kept.assign(m * p, 0.0);
+        std::size_t rr = 0;
+        for (std::size_t r = 0; r < n; ++r) {
+            if (!rowOk(r)) continue;
+            for (std::size_t c = 0; c < p; ++c) kept[c * m + rr] = data[c * n + r];
+            ++rr;
+        }
+        centerColumns(kept.data(), m, p);
+        return covMatrixFromCentered(kept.data(), m, p, divisorOf(m), mr);
+    }
+
+    // Partialrows.
+    auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = i; j < p; ++j) {
+            double si = 0.0, sj = 0.0;
+            std::size_t m = 0;
+            for (std::size_t r = 0; r < n; ++r) {
+                const double a = data[i * n + r], b = data[j * n + r];
+                if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
+            }
+            double v;
+            if (m == 0) {
+                v = std::nan("");
+            } else {
+                const double mi = si / static_cast<double>(m);
+                const double mj = sj / static_cast<double>(m);
+                double s = 0.0;
+                for (std::size_t r = 0; r < n; ++r) {
+                    const double a = data[i * n + r], b = data[j * n + r];
+                    if (!std::isnan(a) && !std::isnan(b))
+                        s += (a - mi) * (b - mj);
+                }
+                v = s / divisorOf(m);
+            }
+            o[j * p + i] = v;
+            o[i * p + j] = v;
+        }
+    return out;
+}
+
+// ── corrcoef 'Rows' NaN policy ────────────────────────────────────────
+enum class CorrcoefRows { All, Complete, Pairwise };
+
+CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
+{
+    for (std::size_t i = start; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string name = args[i].toString();
+        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "rows") {
+            std::string v = args[i + 1].toString();
+            for (char &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (v == "all")      return CorrcoefRows::All;
+            if (v == "complete") return CorrcoefRows::Complete;
+            if (v == "pairwise") return CorrcoefRows::Pairwise;
+            throw Error("corrcoef: Rows must be 'all', 'complete', or 'pairwise'",
+                        0, 0, "corrcoef", "", "numkit:corrcoef:BadRows");
+        }
+    }
+    return CorrcoefRows::All;
+}
+
+// corrcoef(...,'Alpha',a): significance level for the RL/RU confidence
+// bounds (default 0.05). Must be in (0, 1).
+double parseCorrcoefAlpha(Span<const Value> args, std::size_t start)
+{
+    for (std::size_t i = start; i + 1 < args.size(); i += 2) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string name = args[i].toString();
+        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "alpha") {
+            const double a = args[i + 1].toScalar();
+            if (!(a > 0.0 && a < 1.0))
+                throw Error("corrcoef: Alpha must be in the interval (0,1)",
+                            0, 0, "corrcoef", "", "numkit:corrcoef:BadAlpha");
+            return a;
+        }
+    }
+    return 0.05;
+}
+
+std::size_t countCompleteRows(const Value &X)
+{
+    std::size_t n, p;
+    {
+        const bool vec = X.dims().isVector() || X.isScalar();
+        n = vec ? X.numel() : X.dims().rows();
+        p = vec ? 1 : X.dims().cols();
+    }
+    std::size_t m = 0;
+    for (std::size_t r = 0; r < n; ++r) {
+        bool ok = true;
+        for (std::size_t c = 0; c < p && ok; ++c)
+            if (std::isnan(X.elemAsDouble(r + c * n))) ok = false;
+        if (ok) ++m;
+    }
+    return m;
+}
+
+// Pairwise Pearson correlation: each entry (i,j) uses the rows where both
+// columns are non-NaN, with the means AND the standard deviations taken
+// over exactly those common rows. (corrcov(cov_partialrows) is NOT the
+// same — that normalizes each column by its own per-column rows.)
+Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
+{
+    ScratchArena scratch(mr);
+    ScratchVec<double> data(&scratch);
+    std::size_t n, p;
+    readMatrix(X, data, n, p);
+    auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < p; ++j) {
+            double si = 0.0, sj = 0.0;
+            std::size_t m = 0;
+            for (std::size_t r = 0; r < n; ++r) {
+                const double a = data[i * n + r], b = data[j * n + r];
+                if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
+            }
+            double rij;
+            if (m < 2) {
+                rij = std::numeric_limits<double>::quiet_NaN();
+            } else {
+                const double mi = si / static_cast<double>(m);
+                const double mj = sj / static_cast<double>(m);
+                double sxy = 0.0, sxx = 0.0, syy = 0.0;
+                for (std::size_t r = 0; r < n; ++r) {
+                    const double a = data[i * n + r], b = data[j * n + r];
+                    if (std::isnan(a) || std::isnan(b)) continue;
+                    const double da = a - mi, db = b - mj;
+                    sxy += da * db; sxx += da * da; syy += db * db;
+                }
+                const double den = std::sqrt(sxx * syy);
+                rij = (den > 0.0) ? sxy / den
+                                  : std::numeric_limits<double>::quiet_NaN();
+            }
+            o[i + j * p] = rij;
+        }
+    return out;
+}
+
+Value corrcoefScalarOne(std::pmr::memory_resource *mr)
+{
+    auto R = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+    R.doubleDataMut()[0] = 1.0;
+    return R;
+}
+
 Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error("corrcoef: covariance matrix must be square",
-                     0, 0, "corrcoef", "", "m:corrcoef:internal");
+                     0, 0, "corrcoef", "", "numkit:corrcoef:internal");
     const std::size_t p = C.dims().rows();
     auto R = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return R;
@@ -873,6 +1199,73 @@ Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
             rd[j * p + i] = (denom == 0.0) ? std::nan("") : cd[j * p + i] / denom;
         }
     return R;
+}
+
+// Two-sided p-values for a correlation matrix R computed from n observations.
+// Diagonal is 1; off-diagonal P(i,j) = 2*tcdf(-|t|, n-2) with the test
+// statistic t = r*sqrt((n-2)/(1-r^2)). With n <= 2 (df <= 0) the off-diagonal
+// p-values are NaN (MATLAB).
+Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
+{
+    const std::size_t p = R.dims().rows();
+    auto P = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    if (p == 0) return P;
+    const double df = n - 2.0;
+    const double *rd = R.doubleData();
+    double *pd = P.doubleDataMut();
+
+    // Build the matrix of -|t| values, then evaluate the t-CDF vectorized.
+    auto T = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *td = T.doubleDataMut();
+    for (std::size_t k = 0; k < p * p; ++k) {
+        const double r = rd[k];
+        const double oneMinus = 1.0 - r * r;
+        double t = std::numeric_limits<double>::infinity(); // |r|>=1 → extreme
+        if (df > 0.0 && oneMinus > 0.0)
+            t = std::fabs(r) * std::sqrt(df / oneMinus);
+        td[k] = -t;
+    }
+    Value cdf = (df > 0.0) ? tcdf(T, df, mr) : Value{};
+    const double *cd = (df > 0.0) ? cdf.doubleData() : nullptr;
+
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < p; ++j) {
+            const std::size_t k = j * p + i;
+            if (i == j) { pd[k] = 1.0; continue; }
+            if (df <= 0.0) { pd[k] = std::nan(""); continue; }
+            double pv = 2.0 * cd[k];
+            if (pv > 1.0) pv = 1.0;
+            pd[k] = pv;
+        }
+    return P;
+}
+
+// Fisher z-transform confidence bounds for corrcoef (the 3rd/4th outputs
+// RL/RU). For each correlation r: z = atanh(r), se = 1/sqrt(n-3),
+// zc = norminv(1-alpha/2); RL = tanh(z - zc*se), RU = tanh(z + zc*se).
+// |r| == 1 (incl. the diagonal) -> RL = RU = r. n <= 3 -> se infinite, so
+// the bounds widen to the full [-1, 1]. Matches MATLAB R2025b.
+void corrcoefConfBounds(const Value &R, double n, double alpha,
+                        Value &RL, Value &RU, std::pmr::memory_resource *mr)
+{
+    const std::size_t p = R.dims().rows();
+    RL = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    RU = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    if (p == 0) return;
+    const double *rd = R.doubleData();
+    double *rl = RL.doubleDataMut();
+    double *ru = RU.doubleDataMut();
+    const double zc =
+        norminv(Value::scalar(1.0 - alpha / 2.0, mr), 0.0, 1.0, mr).toScalar();
+    const double se = (n > 3.0) ? 1.0 / std::sqrt(n - 3.0)
+                                : std::numeric_limits<double>::infinity();
+    for (std::size_t k = 0; k < p * p; ++k) {
+        const double r = rd[k];
+        if (std::fabs(r) >= 1.0) { rl[k] = r; ru[k] = r; continue; }
+        const double z = std::atanh(r);
+        rl[k] = std::tanh(z - zc * se);
+        ru[k] = std::tanh(z + zc * se);
+    }
 }
 
 } // namespace
@@ -945,7 +1338,7 @@ inline void rejectComplexOmitNan(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": 'omitnan' for complex input is not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":complexOmitNan");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complexOmitNan");
 }
 
 } // namespace
@@ -969,7 +1362,7 @@ double weightedVarFlat(const double *x, const double *w, size_t n,
         if (omitNan && std::isnan(xi)) continue;
         if (wi < 0.0)
             throw Error("var/std: weights must be non-negative",
-                        0, 0, "var/std", "", "m:varstd:negWeight");
+                        0, 0, "var/std", "", "numkit:varstd:negWeight");
         sw  += wi;
         sxw += wi * xi;
     }
@@ -1045,7 +1438,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (normFlag != 0 && normFlag != 1)
                 throw Error(std::string(fn) + ": w must be 0 or 1, or a "
                             "weight vector",
-                            0, 0, fn, "", std::string("m:") + fn + ":w");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":w");
         } else {
             isWeightVec = true;
             wVec = &args[1];
@@ -1062,7 +1455,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") flattenAll = true;
             else throw Error(std::string(fn) + ": unknown dim flag '" + s + "'",
-                              0, 0, fn, "", std::string("m:") + fn + ":dim");
+                              0, 0, fn, "", std::string("numkit:") + fn + ":dim");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -1076,7 +1469,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(std::string(fn) + ": vecdim entries out of range",
-                                0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
@@ -1084,29 +1477,65 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (!allCovered)
                 throw Error(std::string(fn) + ": partial vecdim reduction is "
                             "not yet supported (only full-flatten vecdim)",
-                            0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
             flattenAll = true;
         }
     }
 
     // ── Weighted-vector path ──────────────────────────────────────────
     if (isWeightVec) {
-        if (flattenAll || dim == 0) {
-            // Vector input or 'all': flatten + run weightedVarFlat.
+        const bool xIsVec = x.dims().isVector() || x.isScalar();
+        if (flattenAll || (dim == 0 && xIsVec)) {
+            // Vector input or 'all': flatten + run weightedVarFlat. The
+            // weight length must match the element count.
             auto xv = flatten(x);
             auto wv = flatten(*wVec);
             if (xv.size() != wv.size())
                 throw Error(std::string(fn) + ": weight vector length must "
                             "match number of elements",
-                            0, 0, fn, "", std::string("m:") + fn + ":wlen");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":wlen");
             const double v = weightedVarFlat(xv.data(), wv.data(),
                                              xv.size(), sqrtIt, omitNan);
             return Value::scalar(v, mr);
         }
-        // For matrix + weight + dim: defer (out of scope this cycle).
-        throw Error(std::string(fn) + ": weight vector with non-flat dim "
-                    "not yet supported",
-                    0, 0, fn, "", std::string("m:") + fn + ":wDim");
+        // Matrix (or explicit dim): MATLAB applies the weight vector along
+        // the operating dimension, computing one weighted variance per
+        // slice. Weight length must equal size(x, dim). 2-D only (N-D
+        // weighted reduction is deferred).
+        if (x.dims().ndim() > 2)
+            throw Error(std::string(fn) + ": weight vector along a dimension "
+                        "is supported for 2-D inputs only (N-D deferred)",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":wND");
+        const int d = (dim == 0) ? firstNonSingletonDim(x) : dim;
+        if (d != 1 && d != 2)
+            throw Error(std::string(fn) + ": dim out of range",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":dim");
+        const size_t r = static_cast<size_t>(x.dims().dim(0));
+        const size_t c = static_cast<size_t>(x.dims().dim(1));
+        auto wv = flatten(*wVec);
+        const size_t need = (d == 1) ? r : c;
+        if (wv.size() != need)
+            throw Error(std::string(fn) + ": weight vector length must match "
+                        "the length of the operating dimension",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":wlen");
+        if (d == 1) {
+            auto out = Value::matrix(1, c, ValueType::DOUBLE, mr);
+            double *od = out.doubleDataMut();
+            std::vector<double> col(r);
+            for (size_t j = 0; j < c; ++j) {
+                for (size_t i = 0; i < r; ++i) col[i] = x.elemAsDouble(j * r + i);
+                od[j] = weightedVarFlat(col.data(), wv.data(), r, sqrtIt, omitNan);
+            }
+            return out;
+        }
+        auto out = Value::matrix(r, 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        std::vector<double> row(c);
+        for (size_t i = 0; i < r; ++i) {
+            for (size_t j = 0; j < c; ++j) row[j] = x.elemAsDouble(j * r + i);
+            od[i] = weightedVarFlat(row.data(), wv.data(), c, sqrtIt, omitNan);
+        }
+        return out;
     }
 
     // ── Flatten 'all' / vecdim path ───────────────────────────────────
@@ -1137,7 +1566,7 @@ void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("var: requires at least 1 argument",
-                     0, 0, "var", "", "m:var:nargin");
+                     0, 0, "var", "", "numkit:var:nargin");
     outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->resource());
 }
 
@@ -1146,7 +1575,7 @@ void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("std: requires at least 1 argument",
-                     0, 0, "std", "", "m:std:nargin");
+                     0, 0, "std", "", "numkit:std:nargin");
     outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->resource());
 }
 
@@ -1155,7 +1584,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("median: requires at least 1 argument",
-                     0, 0, "median", "", "m:median:nargin");
+                     0, 0, "median", "", "numkit:median:nargin");
     bool omitNan = false;
     size_t n = stripNanFlag(args, omitNan, "median");
     int dim = 0;
@@ -1168,7 +1597,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") isAll = true;
             else throw Error("median: unknown flag '" + s + "'",
-                              0, 0, "median", "", "m:median:badFlag");
+                              0, 0, "median", "", "numkit:median:badFlag");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -1180,14 +1609,14 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 int d = static_cast<int>(a.elemAsDouble(i));
                 if (d < 1 || d > rank)
                     throw Error("median: vecdim entries out of range",
-                                0, 0, "median", "", "m:median:vecdim");
+                                0, 0, "median", "", "numkit:median:vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
             for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
             if (!allCovered)
                 throw Error("median: partial vecdim reduction not supported",
-                            0, 0, "median", "", "m:median:vecdim");
+                            0, 0, "median", "", "numkit:median:vecdim");
             isAll = true;
         }
     }
@@ -1195,7 +1624,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         // 'all' → flatten + median over all elements (skipping NaN if omitnan).
         if (args[0].type() == ValueType::COMPLEX)
             throw Error("median: complex inputs are not supported",
-                         0, 0, "median", "", "m:median:complex");
+                         0, 0, "median", "", "numkit:median:complex");
         const size_t total = args[0].numel();
         ScratchArena scratch(ctx.engine->resource());
         auto buf = ScratchVec<double>(total, &scratch);
@@ -1260,7 +1689,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(std::string(fn) + ": vecdim entries out of range",
-                                0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
@@ -1269,7 +1698,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
                 throw Error(std::string(fn) + ": partial vecdim reduction is "
                             "not yet supported in numkit (only full-flatten "
                             "vecdim like [1 2] or 'all')",
-                            0, 0, fn, "", std::string("m:") + fn + ":vecdim");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
             q.flatten = true;
         }
         ++i;
@@ -1287,28 +1716,33 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected Name-Value pair",
-                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c) { return std::tolower(c); });
         if (name == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(std::string(fn) + ": Method must be a string",
-                            0, 0, fn, "", std::string("m:") + fn + ":method");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
             std::string m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c) { return std::tolower(c); });
-            if      (m == "midpoint")    q.method = QMethod::Midpoint;
+            // MATLAB's documented values are 'exact' (default) and
+            // 'approximate'. 'exact' is the linear-interpolation order-
+            // statistic method, which is numkit's Midpoint. The
+            // midpoint/inclusive/exclusive names are kept for compatibility.
+            if      (m == "exact")       q.method = QMethod::Midpoint;
+            else if (m == "midpoint")    q.method = QMethod::Midpoint;
             else if (m == "inclusive")   q.method = QMethod::Inclusive;
             else if (m == "exclusive")   q.method = QMethod::Exclusive;
             else if (m == "approximate") q.method = QMethod::Approximate;
             else
-                throw Error(std::string(fn) + ": Method must be one of "
-                            "{midpoint, inclusive, exclusive, approximate}",
-                            0, 0, fn, "", std::string("m:") + fn + ":method");
+                throw Error(std::string(fn) + ": Method must be 'exact' or "
+                            "'approximate'",
+                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         }
         i += 2;
     }
@@ -1320,7 +1754,7 @@ void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("quantile: requires (X, p[, dim] [, Method=method])",
-                     0, 0, "quantile", "", "m:quantile:nargin");
+                     0, 0, "quantile", "", "numkit:quantile:nargin");
     auto q = parseQArgs(args, 2, args[0], "quantile");
     outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 1.0, "quantile", ctx.engine->resource());
 }
@@ -1330,9 +1764,65 @@ void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("prctile: requires (X, p[, dim] [, Method=method])",
-                     0, 0, "prctile", "", "m:prctile:nargin");
+                     0, 0, "prctile", "", "numkit:prctile:nargin");
     auto q = parseQArgs(args, 2, args[0], "prctile");
     outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 0.01, "prctile", ctx.engine->resource());
+}
+
+// 3rd mode output C: a cell array of the modal values. Each cell holds a
+// column vector of the values that attain the modal frequency in that
+// slice, sorted ascending; MATLAB ignores NaN. Supported for a real DOUBLE
+// vector, 2-D matrix, or 'all'-flattened input.
+Value computeModeCell(const Value &x, int dim, bool flatten,
+                      std::pmr::memory_resource *mr)
+{
+    if (x.type() != ValueType::DOUBLE || x.dims().is3D() || x.dims().ndim() > 2)
+        throw Error("mode: the 3rd output C is currently supported only for a "
+                    "real double vector or 2-D matrix input",
+                    0, 0, "mode", "", "numkit:mode:cellNd");
+    auto tiedCol = [&](const double *s, size_t stride, size_t n) -> Value {
+        std::vector<double> v;
+        v.reserve(n);
+        for (size_t k = 0; k < n; ++k) {
+            const double d = s[k * stride];
+            if (!std::isnan(d)) v.push_back(d);
+        }
+        std::sort(v.begin(), v.end());
+        const size_t N = v.size();
+        size_t maxc = 0;
+        for (size_t i = 0; i < N;) {
+            size_t j = i;
+            while (j < N && v[j] == v[i]) ++j;
+            if (j - i > maxc) maxc = j - i;
+            i = j;
+        }
+        std::vector<double> tied;
+        for (size_t i = 0; i < N;) {
+            size_t j = i;
+            while (j < N && v[j] == v[i]) ++j;
+            if (j - i == maxc) tied.push_back(v[i]);
+            i = j;
+        }
+        Value col = Value::matrix(tied.size(), 1, ValueType::DOUBLE, mr);
+        for (size_t k = 0; k < tied.size(); ++k) col.doubleDataMut()[k] = tied[k];
+        return col;
+    };
+    const double *data = x.numel() ? x.doubleData() : nullptr;
+    if (flatten || x.isScalar() || x.dims().isVector()) {
+        Value cell = Value::cell(1, 1, mr);
+        cell.cellAt(0) = tiedCol(data, 1, x.numel());
+        return cell;
+    }
+    const size_t R = x.dims().rows(), Cn = x.dims().cols();
+    const int rdim = (dim == 0) ? 1 : dim;
+    if (rdim == 1) {
+        Value cell = Value::cell(1, Cn, mr);
+        for (size_t c = 0; c < Cn; ++c) cell.cellAt(c) = tiedCol(data + c * R, 1, R);
+        return cell;
+    }
+    Value cell = Value::cell(R, 1, mr);
+    for (size_t r = 0; r < R; ++r) cell.cellAt(r) = tiedCol(data + r, R, Cn);
+    return cell;
 }
 
 void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
@@ -1340,7 +1830,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("mode: requires at least 1 argument",
-                     0, 0, "mode", "", "m:mode:nargin");
+                     0, 0, "mode", "", "numkit:mode:nargin");
     int dim = 0;
     bool flatten = false;
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -1351,7 +1841,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                            [](unsigned char c){ return std::tolower(c); });
             if (s == "all") flatten = true;
             else throw Error("mode: unknown flag '" + s + "'",
-                             0, 0, "mode", "", "m:mode:badFlag");
+                             0, 0, "mode", "", "numkit:mode:badFlag");
         } else if (a.numel() == 1) {
             dim = static_cast<int>(a.toScalar());
         } else {
@@ -1363,14 +1853,14 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 int d = static_cast<int>(a.elemAsDouble(i));
                 if (d < 1 || d > rank)
                     throw Error("mode: vecdim entries out of range",
-                                0, 0, "mode", "", "m:mode:vecdim");
+                                0, 0, "mode", "", "numkit:mode:vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
             for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
             if (!allCovered)
                 throw Error("mode: partial vecdim reduction not yet supported",
-                            0, 0, "mode", "", "m:mode:vecdim");
+                            0, 0, "mode", "", "numkit:mode:vecdim");
             flatten = true;
         }
     }
@@ -1384,12 +1874,15 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         auto [v, c] = mode(flat, 2, mr);
         outs[0] = std::move(v);
         if (nargout > 1) outs[1] = std::move(c);
+        if (nargout > 2) outs[2] = computeModeCell(args[0], 0, true, mr);
         return;
     }
     auto [v, c] = mode(args[0], dim, mr);
     outs[0] = std::move(v);
     if (nargout > 1)
         outs[1] = std::move(c);
+    if (nargout > 2)
+        outs[2] = computeModeCell(args[0], dim, false, mr);
 }
 
 // skewness_reg / kurtosis_reg moved to libs/stats/src/moments/moments.cpp
@@ -1399,16 +1892,52 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("cov: requires at least 1 argument",
-                     0, 0, "cov", "", "m:cov:nargin");
+                     0, 0, "cov", "", "numkit:cov:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
-    if (args.size() == 1) {
+
+    // A trailing NaN-policy string ('includenan'|'omitrows'|'partialrows')
+    // may follow any signature. Strip it; the remaining args are numeric.
+    CovNan nanMode = CovNan::Include;
+    std::size_t nargs = args.size();
+    if (nargs >= 2 && parseCovNanFlag(args[nargs - 1], nanMode))
+        --nargs;
+
+    if (nanMode != CovNan::Include) {
+        // 'omitrows' / 'partialrows' over the numeric arg(s).
+        //   1 numeric arg : cov(X, flag)
+        //   2 numeric args: cov(X, w, flag) [w scalar 0/1] | cov(x, y, flag)
+        //   3 numeric args: cov(x, y, w, flag)
+        if (nargs == 1) {
+            outs[0] = covNanAware(args[0], 0, nanMode, mr);
+            return;
+        }
+        if (nargs == 2) {
+            if (args[1].isScalar()) {
+                const double v = args[1].toScalar();
+                if (v == 0.0 || v == 1.0) {
+                    outs[0] = covNanAware(args[0], static_cast<int>(v),
+                                          nanMode, mr);
+                    return;
+                }
+            }
+            outs[0] = covNanAware(assembleXY(args[0], args[1], mr), 0,
+                                  nanMode, mr);
+            return;
+        }
+        const int w = static_cast<int>(args[2].toScalar());
+        outs[0] = covNanAware(assembleXY(args[0], args[1], mr), w, nanMode, mr);
+        return;
+    }
+
+    // 'includenan' (default) → plain cov over the numeric args.
+    if (nargs == 1) {
         outs[0] = cov(args[0], 0, mr);
         return;
     }
     // 2-arg form is ambiguous: cov(x, normFlag) vs cov(x, y).
     // Disambiguate exactly the way MATLAB does: if the second arg is a
     // scalar (0 or 1), it's normFlag; otherwise it's y.
-    if (args.size() == 2) {
+    if (nargs == 2) {
         if (args[1].isScalar()) {
             const double v = args[1].toScalar();
             if (v == 0.0 || v == 1.0) {
@@ -1424,18 +1953,74 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = cov(args[0], args[1], w, mr);
 }
 
-void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.empty())
         throw Error("corrcoef: requires at least 1 argument",
-                     0, 0, "corrcoef", "", "m:corrcoef:nargin");
+                     0, 0, "corrcoef", "", "numkit:corrcoef:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
-    if (args.size() == 1) {
-        outs[0] = corrcoef(args[0], mr);
+
+    const bool twoArg =
+        (args.size() >= 2 && !args[1].isChar() && !args[1].isString());
+    const std::size_t nvStart = twoArg ? 2 : 1;
+    const CorrcoefRows rows = parseCorrcoefRows(args, nvStart);
+    const double alpha = parseCorrcoefAlpha(args, nvStart);
+
+    if (rows == CorrcoefRows::All) {
+        double n;
+        if (!twoArg) {
+            const Value &x = args[0];
+            n = (x.dims().isVector() || x.isScalar())
+                    ? static_cast<double>(x.numel())          // single variable
+                    : static_cast<double>(x.dims().rows());   // n obs × p vars
+            outs[0] = corrcoef(x, mr);
+        } else {
+            n = static_cast<double>(args[0].numel());         // corrcoef(x, y)
+            outs[0] = corrcoef(args[0], args[1], mr);
+        }
+        if (nargout >= 2)
+            outs[1] = corrcoefPValues(outs[0], n, mr);
+        if (nargout >= 3) {
+            Value RL, RU;
+            corrcoefConfBounds(outs[0], n, alpha, RL, RU, mr);
+            outs[2] = std::move(RL);
+            if (nargout >= 4) outs[3] = std::move(RU);
+        }
         return;
     }
-    outs[0] = corrcoef(args[0], args[1], mr);
+
+    // NaN-aware paths. Assemble the working matrix ([x(:) y(:)] for the
+    // two-vector form) and apply listwise/pairwise deletion.
+    const Value M = twoArg ? assembleXY(args[0], args[1], mr) : args[0];
+    const bool isVec = M.dims().isVector() || M.isScalar();
+
+    if (rows == CorrcoefRows::Pairwise) {
+        if (nargout >= 2)
+            throw Error("corrcoef: [R, P] with 'Rows','pairwise' is not yet "
+                        "supported (per-pair degrees of freedom)",
+                        0, 0, "corrcoef", "", "numkit:corrcoef:PairwisePValue");
+        outs[0] = isVec ? corrcoefScalarOne(mr) : corrcoefPairwise(M, mr);
+        return;
+    }
+
+    // Complete (listwise deletion).
+    if (isVec) {
+        outs[0] = corrcoefScalarOne(mr);
+        if (nargout >= 2) outs[1] = corrcoefScalarOne(mr);
+        return;
+    }
+    outs[0] = corrcoefFromCov(covNanAware(M, 0, CovNan::Omitrows, mr), mr);
+    if (nargout >= 2) {
+        const double n = static_cast<double>(countCompleteRows(M));
+        outs[1] = corrcoefPValues(outs[0], n, mr);
+        if (nargout >= 3) {
+            Value RL, RU;
+            corrcoefConfBounds(outs[0], n, alpha, RL, RU, mr);
+            outs[2] = std::move(RL);
+            if (nargout >= 4) outs[3] = std::move(RU);
+        }
+    }
 }
 
 // nan*_reg adapters all moved to libs/stats/src/nan_aware/nan_aware.cpp.

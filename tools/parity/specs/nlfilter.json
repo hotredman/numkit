@@ -1,0 +1,23 @@
+{
+  "name": "nlfilter",
+  "namespace": "image",
+  "setup": "A = magic(5);",
+  "expr": "Bmean = nlfilter(A, [3 3], @(x) mean(x(:))); Bmax = nlfilter(A, [3 3], @(x) max(x(:))); Bmed = nlfilter(A, [3 3], @(x) median(x(:))); Bsum = nlfilter(A, [2 3], @(x) sum(x(:))); Bu8 = double(nlfilter(uint8(A), [3 3], @(x) uint8(mean(x(:))))); Bidx = nlfilter(A, 'indexed', [3 3], @(x) min(x(:)));",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "Bmean(1,1)", "Bmean(3,3)", "Bmean(5,5)",
+    "Bmax(1,1)", "Bmax(3,3)", "Bmax(5,5)",
+    "Bmed(1,1)", "Bmed(3,3)", "Bmed(5,5)",
+    "Bsum(1,1)", "Bsum(2,3)", "Bsum(5,5)",
+    "Bu8(1,1)", "Bu8(3,3)", "Bu8(5,5)",
+    "Bidx(1,1)", "Bidx(3,3)", "Bidx(5,5)"
+  ],
+  "covers": [
+    "nlfilter(A, [m n], fun)         default zero-padding",
+    "nlfilter(A, 'indexed', ...)     padval=1 for double/single, 0 otherwise",
+    "Class preservation              output class = first fun() return class",
+    "Even neighbourhood              [2 3] with top-left bias for the centre"
+  ],
+  "comment": "MATLAB R2025b nlfilter.m: B(i,j) = fun(window_at(i,j)) where window is m × n centred on (i,j) with top-left bias for even sizes. Pads with 0 by default, with 1 for single/double in 'indexed' form. Output class = class of the FIRST fun() return. Dispatch goes through Engine::callFunctionHandle, matching the pattern adopted in libs/ode/ode45 (function_ref couldn't carry func-handle semantics through the round-trip). Bit-equal MATLAB on the magic(5) test image across mean/max/median/sum kernels, [3 3] and [2 3] neighbourhoods, double/uint8 classes, and 'indexed' mode."
+}

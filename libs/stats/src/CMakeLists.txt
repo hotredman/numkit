@@ -6,10 +6,12 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/corrcov.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tabulate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grp2idx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/cholcov.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/crosstab.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grpstats.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/nearcorr.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/partial_canon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving.cpp
@@ -19,6 +21,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/fisher_f.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/beta.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/gamma_dist.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/multivariate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/dist_fits.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/exponential.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/extreme_value.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/gev.cpp
@@ -44,14 +48,22 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/knnsearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/hypothesis.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/resample/resample.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/anova/anova.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/anova/multcompare.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spline/spline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/qmc/qmc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/regress.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/nlinfit.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/robust.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/glm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/lasso.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lda/lda.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sampling/lhs.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/copulas/copulas.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure

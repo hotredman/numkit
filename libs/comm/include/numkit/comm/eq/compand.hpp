@@ -19,7 +19,7 @@ namespace numkit::comm {
 /// - A-law compress, `|x|/V ≤ 1/A`: `y = sign(x) · A·|x| / (1 + log A)`
 /// - A-law compress, else:          `y = sign(x) · V · (1 + log(A·|x|/V)) / (1 + log A)`
 ///
-/// Output preserves input shape; bit-equal with MATLAB R2025b.
+/// Output preserves input shape.
 ///
 /// @param x       Input signal (any shape).
 /// @param param   `μ` for μ-law (typical 255) or `A` for A-law

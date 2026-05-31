@@ -7,7 +7,7 @@
 # To add a new lib: create libs/<name>/{include,src,tests,benchmarks}/
 # with a libs/<name>/CMakeLists.txt and append <name> to the loop below.
 
-foreach(_lib builtin signal stats image comm control wavelet graphics io optim audio graph)
+foreach(_lib builtin linalg signal stats image comm control wavelet graphics io optim audio graph ode)
     add_subdirectory(${_lib})
 endforeach()
 

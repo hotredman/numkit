@@ -1,0 +1,23 @@
+{
+  "name": "colfilt",
+  "namespace": "image",
+  "setup": "A = magic(5); A6 = magic(6);",
+  "expr": "Bmean = colfilt(A, [3 3], 'sliding', @mean); Bsum = colfilt(A, [3 3], 'sliding', @sum); Bs23 = colfilt(A, [2 3], 'sliding', @sum); Bind = colfilt(A, 'indexed', [3 3], 'sliding', @min); Bd = colfilt(A6, [2 2], 'distinct', @(x) x.^2);",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "Bmean(1,1)", "Bmean(3,3)", "Bmean(5,5)",
+    "Bsum(1,1)", "Bsum(3,3)", "Bsum(5,5)",
+    "Bs23(1,1)", "Bs23(2,3)", "Bs23(5,5)",
+    "Bind(1,1)", "Bind(3,3)", "Bind(5,5)",
+    "Bd(1,1)", "Bd(2,2)", "Bd(6,6)"
+  ],
+  "covers": [
+    "colfilt(A, [m n], 'sliding', fun)       zero-padding",
+    "colfilt(A, [m n], 'distinct', fun)      shape-preserving distinct",
+    "even neighbourhood [2 3]                 in sliding mode",
+    "'indexed' padding                        padval=1 for double",
+    "nlfilter ↔ colfilt equivalence           same output for shared kernels"
+  ],
+  "comment": "MATLAB R2025b colfilt.m algorithm — two modes: 'sliding' (im2col, fun on m·n × N matrix, reshape result to size(A)) and 'distinct' (im2col distinct, fun returns same-shape matrix, col2im, crop). Zero-padded by default; 'indexed' uses padval = 1 for double/single, 0 otherwise. Output class = class of fun() return. The optional [mblock nblock] argument is purely a memory optimisation per MATLAB docs (\"does not change the result\"); the adapter accepts and ignores it. Dispatch via Engine::callFunctionHandle (same pattern as nlfilter / ode45). Bit-equal MATLAB on magic(5) for sliding sum/mean and indexed min, on magic(6) for distinct x.^2."
+}

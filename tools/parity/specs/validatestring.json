@@ -1,0 +1,15 @@
+{
+  "name": "validatestring",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "r1 = validatestring('orange', {'apple','orange'}); n1 = numel(r1); a1 = double(r1(1)); z1 = double(r1(end)); r2 = validatestring('APP', {'apple','orange'}); n2 = numel(r2); a2 = double(r2(1)); r3 = validatestring('in', {'in','input'}); n3 = numel(r3); r4 = validatestring('appl', {'apple','applesauce'}); n4 = numel(r4); z4 = double(r4(end));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "n1", "a1", "z1",
+    "n2", "a2",
+    "n3",
+    "n4", "z4"
+  ],
+  "comment": "validatestring success-match semantics vs MATLAB R2025b. Implemented 2026-05-30 (was an undefined function). Case-insensitive: exact match wins ('orange'->'orange', n1=6, a1=111='o', z1=101='e'); else a unique case-insensitive prefix ('APP'->'apple', n2=5, a2=97='a'); else exact-over-prefix ('in' in {'in','input'}->'in', n3=2); else the shortest-prefix-of-all ('appl' in {'apple','applesauce'}->'apple', n4=5, z4=101='e'). Ambiguous (e.g. 'a' in {'apple','apricot'}) and no-match both throw — covered by the gtest, not fingerprintable here. namespace=builtin. Trailing funcName/varName/position args (error-text only) accepted+ignored."
+}

@@ -1,0 +1,14 @@
+{
+  "name": "multcompare",
+  "namespace": "stats",
+  "setup": "y = [10; 10; 10; 11; 11; 12; 12; 12; 14; 14; 14]; grp = [1; 1; 1; 1; 2; 2; 2; 2; 3; 3; 3]; [~, ~, s] = anova1(y, grp);",
+  "expr": "c = multcompare(s); diffs = c(:, 4); rows = size(c, 1); cols = size(c, 2); ord1 = c(1, 1); ord2 = c(1, 2);",
+  "iters": 3,
+  "tol": 1e-9,
+  "fingerprint": [
+    "rows", "cols",
+    "ord1", "ord2",
+    "diffs(1)", "diffs(2)", "diffs(3)"
+  ],
+  "comment": "Sig: c = multcompare(stats [, alpha [, ctype]]) — pairwise post-hoc comparisons after anova1. Returns K(K-1)/2 × 6 matrix [i, j, lower_CI, mean_diff, upper_CI, p]. v1 ships 'bonferroni' (default) and 'lsd' methods. KNOWN GAP: 'tukey-kramer' HSD requires the studentized range distribution — not yet. anova1's stats struct is also extended in this cycle to populate {means, n, s, gnames, source} fields needed by multcompare. Deterministic integer y/group inputs for parity reproducibility."
+}

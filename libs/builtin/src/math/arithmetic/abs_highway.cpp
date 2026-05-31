@@ -84,6 +84,9 @@ HWY_EXPORT(AbsLoop);
 
 Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
+    // Integer types keep their class and saturate (abs(int8(-128))=127 int8).
+    if (isIntegerType(x.type()))
+        return absIntegerSaturate(x, mr);
     // Complex goes through scalar std::abs(Complex) — SIMD double-lane
     // implementations don't help here (sqrt of sum-of-squares with
     // cancellation pitfalls). Keep the reference path for correctness.

@@ -255,6 +255,149 @@ Value isfinite(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
+// ── missing-value predicates ─────────────────────────────────────────
+
+namespace {
+
+// True iff this element-type can hold "standard" missing (i.e. NaN).
+inline bool typeHasMissing(ValueType t)
+{
+    return t == ValueType::DOUBLE || t == ValueType::SINGLE;
+}
+
+// Read element i as double for the comparison path; works for any
+// numeric class (integer types convert losslessly; LOGICAL → 0/1).
+inline double elemD(const Value &x, std::size_t i) { return x.elemAsDouble(i); }
+
+} // anonymous
+
+Value ismissing(const Value &x, const Value &indicator,
+                std::pmr::memory_resource *mr)
+{
+    std::pmr::memory_resource *p = mr;
+    auto r = createLike(x, ValueType::LOGICAL, p);
+    const std::size_t n = x.numel();
+    if (n == 0) return r;
+
+    std::uint8_t *out = r.logicalDataMut();
+
+    // Build the indicator value list (empty → standard missing only).
+    const bool have_ind = (!indicator.isEmpty());
+    std::vector<double> ind_vals;
+    if (have_ind) {
+        ind_vals.reserve(indicator.numel());
+        for (std::size_t k = 0; k < indicator.numel(); ++k)
+            ind_vals.push_back(indicator.elemAsDouble(k));
+    }
+    const bool float_class = typeHasMissing(x.type());
+
+    if (!have_ind) {
+        // Standard missing only: NaN for float, never for ints/logical.
+        if (float_class) {
+            if (x.type() == ValueType::DOUBLE) {
+                ::numkit::builtin::detail::doubleIsNaNLoop(x.doubleData(), out, n);
+            } else {  // SINGLE
+                const float *src = x.singleData();
+                for (std::size_t i = 0; i < n; ++i)
+                    out[i] = std::isnan(src[i]) ? 1u : 0u;
+            }
+        } else {
+            std::fill(out, out + n, std::uint8_t{0});
+        }
+        return r;
+    }
+
+    // With indicator: ONLY values listed in `indicator` are missing
+    // (NaN is NOT auto-flagged when an indicator is given — MATLAB
+    // behaviour, probed). NaN entries in the indicator itself match
+    // NaN values in `x` (special-cased because NaN != NaN).
+    for (std::size_t i = 0; i < n; ++i) {
+        const double xi = elemD(x, i);
+        const bool xi_nan = std::isnan(xi);
+        bool tf = false;
+        for (double v : ind_vals) {
+            if (std::isnan(v)) {
+                if (xi_nan) { tf = true; break; }
+            } else if (xi == v) {
+                tf = true; break;
+            }
+        }
+        out[i] = tf ? 1u : 0u;
+    }
+    return r;
+}
+
+Value standardizeMissing(const Value &x, const Value &indicator,
+                         std::pmr::memory_resource *mr)
+{
+    std::pmr::memory_resource *p = mr;
+    const std::size_t n = x.numel();
+    const ValueType T = x.type();
+
+    // Integer / logical / char: no missing concept → return a copy.
+    if (!typeHasMissing(T))
+        return x;
+
+    // Build indicator list (skip NaN — won't match anything via ==).
+    std::vector<double> ind_vals;
+    if (!indicator.isEmpty()) {
+        ind_vals.reserve(indicator.numel());
+        for (std::size_t k = 0; k < indicator.numel(); ++k) {
+            const double v = indicator.elemAsDouble(k);
+            if (!std::isnan(v)) ind_vals.push_back(v);
+        }
+    }
+
+    Value out = createLike(x, T, p);
+    if (n == 0) return out;
+
+    if (T == ValueType::DOUBLE) {
+        const double *src = x.doubleData();
+        double *dst       = out.doubleDataMut();
+        const double nan  = std::numeric_limits<double>::quiet_NaN();
+        for (std::size_t i = 0; i < n; ++i) {
+            const double v = src[i];
+            bool hit = false;
+            for (double ind : ind_vals) {
+                if (v == ind) { hit = true; break; }
+            }
+            dst[i] = hit ? nan : v;
+        }
+    } else {  // SINGLE
+        const float *src = x.singleData();
+        float *dst       = out.singleDataMut();
+        const float nan  = std::numeric_limits<float>::quiet_NaN();
+        for (std::size_t i = 0; i < n; ++i) {
+            const float v = src[i];
+            bool hit = false;
+            for (double ind : ind_vals) {
+                if (v == static_cast<float>(ind)) { hit = true; break; }
+            }
+            dst[i] = hit ? nan : v;
+        }
+    }
+    return out;
+}
+
+Value anymissing(const Value &x, std::pmr::memory_resource *mr)
+{
+    std::pmr::memory_resource *p = mr;
+    const std::size_t n = x.numel();
+    if (n == 0) return Value::logicalScalar(false, p);
+    if (!typeHasMissing(x.type()))
+        return Value::logicalScalar(false, p);
+    if (x.type() == ValueType::DOUBLE) {
+        const double *src = x.doubleData();
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(src[i])) return Value::logicalScalar(true, p);
+    } else {
+        const float *src = x.singleData();
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(src[i])) return Value::logicalScalar(true, p);
+    }
+    return Value::logicalScalar(false, p);
+}
+
 // ── Shape predicates ─────────────────────────────────────────────────
 
 Value isvector(const Value &x, std::pmr::memory_resource *mr)
@@ -589,7 +732,7 @@ Value cast(const Value &x, const std::string &classname, std::pmr::memory_resour
     if (classname == "char")    return toChar(x, mr);
     if (classname == "string")  return toString(x, mr);
     throw Error("cast: unsupported class '" + classname + "'",
-                 0, 0, "cast", "", "m:cast:badClass");
+                 0, 0, "cast", "", "numkit:cast:badClass");
 }
 
 namespace {
@@ -684,18 +827,18 @@ Value typecast(const Value &x, const std::string &classname, std::pmr::memory_re
     TypeInfo info = typeInfoFor(classname);
     if (info.elemSize == 0)
         throw Error("typecast: unsupported class '" + classname + "'",
-                     0, 0, "typecast", "", "m:typecast:badClass");
+                     0, 0, "typecast", "", "numkit:typecast:badClass");
 
     const size_t srcElemSize = elemSizeOf(x.type());
     if (srcElemSize == 0)
         throw Error("typecast: input type does not have a contiguous byte buffer",
-                     0, 0, "typecast", "", "m:typecast:badInputType");
+                     0, 0, "typecast", "", "numkit:typecast:badInputType");
 
     const size_t totalBytes = x.numel() * srcElemSize;
     if (totalBytes % info.elemSize != 0)
         throw Error("typecast: input byte count must be a multiple of the "
                     "destination element size",
-                     0, 0, "typecast", "", "m:typecast:badSize");
+                     0, 0, "typecast", "", "numkit:typecast:badSize");
     const size_t newCount = totalBytes / info.elemSize;
 
     // Output is always a row vector (matches MATLAB).
@@ -721,7 +864,7 @@ Value swapbytes(const Value &x, std::pmr::memory_resource *mr)
     case ValueType::DOUBLE:  return swapBytesArray<double>(x, mr);
     default:
         throw Error("swapbytes: input must be a numeric or logical array",
-                     0, 0, "swapbytes", "", "m:swapbytes:badType");
+                     0, 0, "swapbytes", "", "numkit:swapbytes:badType");
     }
 }
 
@@ -774,7 +917,7 @@ void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("logical: requires 1 argument", 0, 0, "logical", "",
-                     "m:logical:nargin");
+                     "numkit:logical:nargin");
     outs[0] = logical(args[0], ctx.engine->resource());
 }
 
@@ -785,7 +928,7 @@ void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     {                                                                               \
         if (args.empty())                                                           \
             throw Error(#FN ": requires 1 argument", 0, 0, #FN, "",                \
-                         "m:" #FN ":nargin");                                  \
+                         "numkit:" #FN ":nargin");                                  \
         outs[0] = FN(args[0], ctx.engine->resource());                             \
     }
 
@@ -811,14 +954,35 @@ NK_PRED_REG(iscolumn)
 NK_PRED_REG(ismatrix)
 NK_PRED_REG(issortedrows)
 NK_PRED_REG(isuniform)
+NK_PRED_REG(anymissing)
 
 #undef NK_PRED_REG
+
+void ismissing_reg(Span<const Value> args, size_t, Span<Value> outs,
+                   CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ismissing: requires at least 1 argument",
+                    0, 0, "ismissing", "", "numkit:ismissing:nargin");
+    const Value &ind = (args.size() >= 2) ? args[1] : Value::Empty;
+    outs[0] = ismissing(args[0], ind, ctx.engine->resource());
+}
+
+void standardizeMissing_reg(Span<const Value> args, size_t, Span<Value> outs,
+                            CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("standardizeMissing: requires (A, indicator)",
+                    0, 0, "standardizeMissing", "",
+                    "numkit:standardizeMissing:nargin");
+    outs[0] = standardizeMissing(args[0], args[1], ctx.engine->resource());
+}
 
 void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("issorted: requires 1 argument", 0, 0, "issorted", "",
-                     "m:issorted:nargin");
+                     "numkit:issorted:nargin");
     const Value &mode = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = issorted(args[0], mode, ctx.engine->resource());
 }
@@ -845,7 +1009,7 @@ void allfinite_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.empty())
         throw Error("allfinite: requires 1 argument", 0, 0, "allfinite", "",
-                     "m:allfinite:nargin");
+                     "numkit:allfinite:nargin");
     outs[0] = allfinite(args[0], ctx.engine->resource());
 }
 
@@ -853,7 +1017,7 @@ void anynan_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
 {
     if (args.empty())
         throw Error("anynan: requires 1 argument", 0, 0, "anynan", "",
-                     "m:anynan:nargin");
+                     "numkit:anynan:nargin");
     outs[0] = anynan(args[0], ctx.engine->resource());
 }
 
@@ -861,7 +1025,7 @@ void isequal_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("isequal requires at least 2 arguments", 0, 0, "isequal", "",
-                     "m:isequal:nargin");
+                     "numkit:isequal:nargin");
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], false);
@@ -872,7 +1036,7 @@ void isequaln_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("isequaln requires at least 2 arguments", 0, 0, "isequaln", "",
-                     "m:isequaln:nargin");
+                     "numkit:isequaln:nargin");
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], true);
@@ -883,7 +1047,7 @@ void class_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 {
     if (args.empty())
         throw Error("class: requires 1 argument", 0, 0, "class", "",
-                     "m:class:nargin");
+                     "numkit:class:nargin");
     outs[0] = classOf(args[0], ctx.engine->resource());
 }
 
@@ -892,16 +1056,16 @@ void cast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
 {
     if (args.size() < 2)
         throw Error("cast: requires (x, classname) or (x, 'like', y)",
-                     0, 0, "cast", "", "m:cast:nargin");
+                     0, 0, "cast", "", "numkit:cast:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("cast: second arg must be a class name or 'like'",
-                     0, 0, "cast", "", "m:cast:badClass");
+                     0, 0, "cast", "", "numkit:cast:badClass");
     auto *mr = ctx.engine->resource();
     // 'like' form: cast(x, 'like', y) — pull class name from y.
     if (args[1].toString() == "like") {
         if (args.size() < 3)
             throw Error("cast: 'like' form requires (x, 'like', y)",
-                         0, 0, "cast", "", "m:cast:nargin");
+                         0, 0, "cast", "", "numkit:cast:nargin");
         // mtypeName mirrors MATLAB's class() output (double / single /
         // int*/ uint* / logical / char / string); cast() dispatches on
         // these strings.
@@ -915,7 +1079,7 @@ void swapbytes_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.empty())
         throw Error("swapbytes: requires 1 argument",
-                     0, 0, "swapbytes", "", "m:swapbytes:nargin");
+                     0, 0, "swapbytes", "", "numkit:swapbytes:nargin");
     outs[0] = swapbytes(args[0], ctx.engine->resource());
 }
 
@@ -923,10 +1087,10 @@ void typecast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("typecast: requires 2 arguments (x, classname)",
-                     0, 0, "typecast", "", "m:typecast:nargin");
+                     0, 0, "typecast", "", "numkit:typecast:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("typecast: classname must be a char or string",
-                     0, 0, "typecast", "", "m:typecast:badClass");
+                     0, 0, "typecast", "", "numkit:typecast:badClass");
     outs[0] = typecast(args[0], args[1].toString(), ctx.engine->resource());
 }
 

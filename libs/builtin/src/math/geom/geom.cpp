@@ -5,6 +5,7 @@
 //   convhull  — convex hull of a 2-D point cloud (Andrew's monotone chain)
 
 #include <numkit/builtin/library.hpp>
+#include <numkit/builtin/math/geom/geom.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/figure_manager.hpp>
@@ -15,6 +16,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <set>
 #include <sstream>
@@ -43,17 +45,17 @@ void inpolygon_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("inpolygon: requires (xq, yq, xv, yv)",
-                     0, 0, "inpolygon", "", "m:inpolygon:nargin");
+                     0, 0, "inpolygon", "", "numkit:inpolygon:nargin");
     const auto &xq = args[0];
     const auto &yq = args[1];
     const auto &xv = args[2];
     const auto &yv = args[3];
     if (xq.numel() != yq.numel())
         throw Error("inpolygon: xq and yq must have the same numel",
-                     0, 0, "inpolygon", "", "m:inpolygon:queryShape");
+                     0, 0, "inpolygon", "", "numkit:inpolygon:queryShape");
     if (xv.numel() != yv.numel())
         throw Error("inpolygon: xv and yv must have the same numel",
-                     0, 0, "inpolygon", "", "m:inpolygon:polyShape");
+                     0, 0, "inpolygon", "", "numkit:inpolygon:polyShape");
 
     auto *mr = ctx.engine->resource();
     const std::size_t nQ = xq.numel();
@@ -126,13 +128,13 @@ void boundary_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("boundary: requires (x, y)",
-                     0, 0, "boundary", "", "m:boundary:nargin");
+                     0, 0, "boundary", "", "numkit:boundary:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("boundary: x and y must have the same numel",
-                     0, 0, "boundary", "", "m:boundary:shape");
+                     0, 0, "boundary", "", "numkit:boundary:shape");
     double shrink = 0.0;
     if (args.size() >= 3) shrink = args[2].toScalar();
     if (!std::isfinite(shrink)) shrink = 0.0;
@@ -281,13 +283,13 @@ void polyarea_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("polyarea: requires (x, y)",
-                     0, 0, "polyarea", "", "m:polyarea:nargin");
+                     0, 0, "polyarea", "", "numkit:polyarea:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("polyarea: x and y must have the same numel",
-                     0, 0, "polyarea", "", "m:polyarea:shape");
+                     0, 0, "polyarea", "", "numkit:polyarea:shape");
     auto *mr = ctx.engine->resource();
     if (n < 3) {
         outs[0] = Value::scalar(0.0, mr);
@@ -318,13 +320,13 @@ void convhull_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("convhull: requires (x, y)",
-                     0, 0, "convhull", "", "m:convhull:nargin");
+                     0, 0, "convhull", "", "numkit:convhull:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("convhull: x and y must have the same numel",
-                     0, 0, "convhull", "", "m:convhull:shape");
+                     0, 0, "convhull", "", "numkit:convhull:shape");
     auto *mr = ctx.engine->resource();
     if (n < 3) {
         // Degenerate — return [1, 2, ..., n, 1] so the polygon wraps.
@@ -418,7 +420,7 @@ void histcounts2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("histcounts2: requires (x, y)",
-                     0, 0, "histcounts2", "", "m:histcounts2:nargin");
+                     0, 0, "histcounts2", "", "numkit:histcounts2:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = std::min(xv.numel(), yv.numel());
@@ -543,13 +545,13 @@ void delaunay_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("delaunay: requires (x, y)",
-                     0, 0, "delaunay", "", "m:delaunay:nargin");
+                     0, 0, "delaunay", "", "numkit:delaunay:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const std::size_t n = xv.numel();
     if (yv.numel() != n)
         throw Error("delaunay: x and y must have the same numel",
-                     0, 0, "delaunay", "", "m:delaunay:shape");
+                     0, 0, "delaunay", "", "numkit:delaunay:shape");
     auto *mr = ctx.engine->resource();
     if (n < 3) {
         outs[0] = Value::matrix(0, 3, ValueType::DOUBLE, mr);
@@ -634,7 +636,7 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 5)
         throw Error("griddata: requires (x, y, v, xq, yq)",
-                     0, 0, "griddata", "", "m:griddata:nargin");
+                     0, 0, "griddata", "", "numkit:griddata:nargin");
     const auto &xv = args[0];
     const auto &yv = args[1];
     const auto &vv = args[2];
@@ -643,10 +645,10 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t n = xv.numel();
     if (yv.numel() != n || vv.numel() != n)
         throw Error("griddata: x, y, v must have the same numel",
-                     0, 0, "griddata", "", "m:griddata:shape");
+                     0, 0, "griddata", "", "numkit:griddata:shape");
     if (xq.numel() != yq.numel())
         throw Error("griddata: xq and yq must have the same numel",
-                     0, 0, "griddata", "", "m:griddata:queryShape");
+                     0, 0, "griddata", "", "numkit:griddata:queryShape");
     auto *mr = ctx.engine->resource();
     auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
                              ValueType::DOUBLE, mr);
@@ -725,6 +727,341 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
         if (!found) dst[q] = std::nan("");
     }
     outs[0] = std::move(out);
+}
+
+} // namespace detail
+
+// ── griddatan ────────────────────────────────────────────────────────
+//
+// See header (libs/builtin/include/numkit/builtin/math/geom/geom.hpp)
+// for the public C++ API + Doxygen. This source unit hosts the
+// implementation plus its adapter.
+
+Value griddatan(const Value &Xv, const Value &vv, const Value &xi,
+                const std::string &method, std::pmr::memory_resource *mr)
+{
+    // Shape: X is m×n, xi is k×n. Use rows/cols directly so a row
+    // vector `xi = [a b]` reads as 1×n (one query point in n-D), and
+    // a column vector `xi = [a; b]` reads as 2×1 (two queries in 1-D).
+    const std::size_t m = Xv.dims().rows();
+    const std::size_t n = Xv.dims().cols();
+    if (vv.numel() != m)
+        throw Error("griddatan: length(v) must equal rows(X)",
+                     0, 0, "griddatan", "", "numkit:griddatan:shape");
+    const std::size_t k    = xi.dims().rows();
+    const std::size_t nQry = xi.dims().cols();
+    if (nQry != n)
+        throw Error("griddatan: cols(xi) must equal cols(X)",
+                     0, 0, "griddatan", "", "numkit:griddatan:queryDim");
+    auto out = Value::matrix(k, 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+
+    if (method == "nearest") {
+        // Brute-force NN. Read X column-major as m × n.
+        ScratchArena scratch(mr);
+        ScratchVec<double> Xd(m * n, &scratch);
+        for (std::size_t r = 0; r < m; ++r)
+            for (std::size_t c = 0; c < n; ++c)
+                Xd[c * m + r] = Xv.elemAsDouble(c * m + r);
+        ScratchVec<double> Vd(m, &scratch);
+        for (std::size_t i = 0; i < m; ++i) Vd[i] = vv.elemAsDouble(i);
+        for (std::size_t q = 0; q < k; ++q) {
+            double best = std::numeric_limits<double>::infinity();
+            std::size_t bestIdx = 0;
+            for (std::size_t i = 0; i < m; ++i) {
+                double d2 = 0.0;
+                for (std::size_t c = 0; c < n; ++c) {
+                    const double qc = xi.elemAsDouble(c * k + q);
+                    const double dc = qc - Xd[c * m + i];
+                    d2 += dc * dc;
+                }
+                if (d2 < best) { best = d2; bestIdx = i; }
+            }
+            dst[q] = Vd[bestIdx];
+        }
+        return out;
+    }
+
+    if (method == "linear") {
+        if (n != 2)
+            throw Error("griddatan: 'linear' method requires n == 2 (use "
+                        "'nearest' for higher dimensions; N-D Delaunay "
+                        "is a v1 KNOWN GAP)",
+                         0, 0, "griddatan", "",
+                         "numkit:griddatan:linearNDUnsupported");
+        // Delegate to griddata-style barycentric. Repack: X(:,1) = x,
+        // X(:,2) = y, then reuse the brute-force logic by constructing
+        // a temporary call.
+        // Quick inline implementation since the input shape differs.
+        ScratchArena scratch(mr);
+        ScratchVec<double> X(m, &scratch), Y(m, &scratch), V(m, &scratch);
+        for (std::size_t i = 0; i < m; ++i) {
+            X[i] = Xv.elemAsDouble(0 * m + i);
+            Y[i] = Xv.elemAsDouble(1 * m + i);
+            V[i] = vv.elemAsDouble(i);
+        }
+        if (m < 3) {
+            for (std::size_t q = 0; q < k; ++q) dst[q] = std::nan("");
+            return out;
+        }
+        auto signedArea2 = [&](std::size_t a, std::size_t b, std::size_t c) {
+            return (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]);
+        };
+        auto inCircle = [&](std::size_t a, std::size_t b, std::size_t c,
+                            std::size_t p) {
+            const double ax = X[a] - X[p], ay = Y[a] - Y[p];
+            const double bx = X[b] - X[p], by = Y[b] - Y[p];
+            const double cx = X[c] - X[p], cy = Y[c] - Y[p];
+            const double a2 = ax * ax + ay * ay;
+            const double b2 = bx * bx + by * by;
+            const double c2 = cx * cx + cy * cy;
+            return ax * (by * c2 - cy * b2)
+                 - ay * (bx * c2 - cx * b2)
+                 + a2 * (bx * cy - cx * by);
+        };
+        std::vector<std::array<std::size_t, 3>> tris;
+        tris.reserve(2 * m);
+        for (std::size_t a = 0; a < m; ++a)
+            for (std::size_t b = a + 1; b < m; ++b)
+                for (std::size_t c = b + 1; c < m; ++c) {
+                    const double sa2 = signedArea2(a, b, c);
+                    if (std::abs(sa2) < 1e-15) continue;
+                    std::size_t va = a, vb = b, vc = c;
+                    if (sa2 < 0) std::swap(vb, vc);
+                    bool ok = true;
+                    for (std::size_t p = 0; p < m; ++p) {
+                        if (p == va || p == vb || p == vc) continue;
+                        if (inCircle(va, vb, vc, p) > 1e-12) { ok = false; break; }
+                    }
+                    if (ok) tris.push_back({ va, vb, vc });
+                }
+        for (std::size_t q = 0; q < k; ++q) {
+            const double Xq = xi.elemAsDouble(0 * k + q);
+            const double Yq = xi.elemAsDouble(1 * k + q);
+            bool found = false;
+            for (const auto &t : tris) {
+                const double xa = X[t[0]], ya = Y[t[0]];
+                const double xb = X[t[1]], yb = Y[t[1]];
+                const double xc = X[t[2]], yc = Y[t[2]];
+                const double denom = (yb - yc) * (xa - xc) + (xc - xb) * (ya - yc);
+                if (std::abs(denom) < 1e-15) continue;
+                const double l1 = ((yb - yc) * (Xq - xc) + (xc - xb) * (Yq - yc)) / denom;
+                const double l2 = ((yc - ya) * (Xq - xc) + (xa - xc) * (Yq - yc)) / denom;
+                const double l3 = 1.0 - l1 - l2;
+                if (l1 >= -1e-9 && l2 >= -1e-9 && l3 >= -1e-9) {
+                    dst[q] = l1 * V[t[0]] + l2 * V[t[1]] + l3 * V[t[2]];
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) dst[q] = std::nan("");
+        }
+        return out;
+    }
+
+    throw Error("griddatan: unknown method '" + method
+                + "' (supported: 'linear', 'nearest')",
+                 0, 0, "griddatan", "", "numkit:griddatan:badMethod");
+}
+
+namespace detail {
+
+void griddatan_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("griddatan: requires (X, v, xi [, method])",
+                     0, 0, "griddatan", "", "numkit:griddatan:nargin");
+    std::string method = "linear";
+    if (args.size() >= 4 && args[3].isChar())
+        method = args[3].toString();
+    outs[0] = griddatan(args[0], args[1], args[2], method,
+                        ctx.engine->resource());
+}
+
+} // namespace detail
+
+// ── matchpairs — linear assignment / bipartite matching ─────────────
+//
+// See header (libs/builtin/include/numkit/builtin/math/geom/geom.hpp)
+// for the public C++ API + Doxygen.
+//
+// Algorithm: classical O(N²·M) Jonker-Volgenant Hungarian on the
+// augmented (rows + cols) × (rows + cols) cost matrix:
+//
+//   ┌──────────────────────┬─────────────────────┐
+//   │      Cost(rows×cols) │ diag(costUnmatched) │
+//   │                      │ + INF elsewhere     │   rows × cols  +  rows × rows
+//   ├──────────────────────┼─────────────────────┤
+//   │ diag(costUnmatched)  │   zero block        │
+//   │ + INF elsewhere      │  (dummy-dummy free) │   cols × cols  +  cols × rows
+//   └──────────────────────┴─────────────────────┘
+//
+// Each real match (i, j) costs Cost[i][j]; leaving row i unmatched
+// costs `costUnmatched` (matched to its private row-dummy col); same
+// for col j (matched to its private col-dummy row); free dummy-dummy
+// matches absorb the leftover capacity.
+//
+// 'max' mode negates both Cost AND costUnmatched (MATLAB convention —
+// costUnmatched becomes a REWARD for leaving unmatched).
+MatchpairsResult matchpairs(const Value &C, double cU,
+                            const std::string &mode,
+                            std::pmr::memory_resource *mr)
+{
+    if (C.type() == ValueType::COMPLEX)
+        throw Error("matchpairs: complex Cost not supported",
+                     0, 0, "matchpairs", "", "numkit:matchpairs:complex");
+    bool maximise = false;
+    if (mode == "max") maximise = true;
+    else if (!mode.empty() && mode != "min")
+        throw Error("matchpairs: mode must be 'min' or 'max'",
+                     0, 0, "matchpairs", "", "numkit:matchpairs:badMode");
+
+    const std::size_t rows = C.dims().rows();
+    const std::size_t cols = C.dims().cols();
+
+    if (rows == 0 || cols == 0) {
+        MatchpairsResult r;
+        r.M = Value::matrix(0, 2, ValueType::DOUBLE, mr);
+        r.uR = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < rows; ++i) r.uR.doubleDataMut()[i] = i + 1;
+        r.uC = Value::matrix(cols, 1, ValueType::DOUBLE, mr);
+        for (std::size_t j = 0; j < cols; ++j) r.uC.doubleDataMut()[j] = j + 1;
+        return r;
+    }
+
+    // Build augmented N×N matrix.
+    const std::size_t N = rows + cols;
+    constexpr double BIG = 1e15;
+    std::vector<std::vector<double>> A(N, std::vector<double>(N, BIG));
+    for (std::size_t i = 0; i < rows; ++i)
+        for (std::size_t j = 0; j < cols; ++j) {
+            double v = C.elemAsDouble(j * rows + i);
+            if (maximise) v = -v;
+            A[i][j] = v;
+        }
+    // Top-right block: diag(costUnmatched). Row i can opt-out via col cols+i.
+    // MATLAB convention: in 'max' mode the unmatched cost ALSO flips sign
+    // (it becomes a benefit/reward for leaving unmatched, so we want to
+    // maximise it → minimise -costUnmatched). Matches MATLAB R2025b's
+    // observed behaviour: max + high positive costUnmatched leaves
+    // everything unmatched, max + zero/negative costUnmatched matches.
+    const double cuSigned = maximise ? -cU : cU;
+    for (std::size_t i = 0; i < rows; ++i)
+        A[i][cols + i] = cuSigned;
+    // Bottom-left block: diag(costUnmatched). Dummy row rows+j absorbs col j.
+    for (std::size_t j = 0; j < cols; ++j)
+        A[rows + j][j] = cuSigned;
+    // Bottom-right block: zero (dummy-dummy free).
+    for (std::size_t j = 0; j < cols; ++j)
+        for (std::size_t i = 0; i < rows; ++i)
+            A[rows + j][cols + i] = 0.0;
+
+    // Jonker-Volgenant Hungarian. Indexing: 1..N internally, with row 0
+    // as a sentinel (so p[0] holds the row currently being augmented).
+    // Returns assignment[i] (0-based) giving column for row i.
+    std::vector<double> u(N + 1, 0.0), v_d(N + 1, 0.0);
+    std::vector<int> p(N + 1, 0), way(N + 1, 0);
+    for (std::size_t i = 1; i <= N; ++i) {
+        p[0] = static_cast<int>(i);
+        int j0 = 0;
+        std::vector<double> minv(N + 1, std::numeric_limits<double>::infinity());
+        std::vector<char> used(N + 1, 0);
+        do {
+            used[j0] = 1;
+            int i0 = p[j0];
+            int j1 = -1;
+            double delta = std::numeric_limits<double>::infinity();
+            for (std::size_t j = 1; j <= N; ++j) {
+                if (used[j]) continue;
+                const double cur = A[i0 - 1][j - 1] - u[i0] - v_d[j];
+                if (cur < minv[j]) {
+                    minv[j] = cur;
+                    way[j] = j0;
+                }
+                if (minv[j] < delta) {
+                    delta = minv[j];
+                    j1 = static_cast<int>(j);
+                }
+            }
+            for (std::size_t j = 0; j <= N; ++j) {
+                if (used[j]) {
+                    u[p[j]] += delta;
+                    v_d[j]  -= delta;
+                } else {
+                    minv[j] -= delta;
+                }
+            }
+            j0 = j1;
+        } while (p[j0] != 0);
+        do {
+            int j1 = way[j0];
+            p[j0] = p[j1];
+            j0 = j1;
+        } while (j0);
+    }
+
+    // Decode: for row i (1-based), assigned column = (1-based j where p[j] == i).
+    std::vector<int> rowAssign(N, -1);
+    for (std::size_t j = 1; j <= N; ++j)
+        if (p[j] > 0)
+            rowAssign[p[j] - 1] = static_cast<int>(j) - 1;
+
+    // Walk real rows, build outputs.
+    std::vector<std::pair<int, int>> matches;
+    std::vector<int> unmatchedRows;
+    matches.reserve(std::min(rows, cols));
+    unmatchedRows.reserve(rows);
+    for (std::size_t i = 0; i < rows; ++i) {
+        const int j = rowAssign[i];
+        if (j >= 0 && static_cast<std::size_t>(j) < cols)
+            matches.push_back({ static_cast<int>(i) + 1, j + 1 });
+        else
+            unmatchedRows.push_back(static_cast<int>(i) + 1);
+    }
+    // Unmatched cols: those not appearing in matches.
+    std::vector<char> colUsed(cols, 0);
+    for (const auto &pr : matches) colUsed[pr.second - 1] = 1;
+    std::vector<int> unmatchedCols;
+    for (std::size_t j = 0; j < cols; ++j)
+        if (!colUsed[j])
+            unmatchedCols.push_back(static_cast<int>(j) + 1);
+
+    // Pack outputs (column-major).
+    MatchpairsResult result;
+    result.M = Value::matrix(matches.size(), 2, ValueType::DOUBLE, mr);
+    {
+        double *Md = result.M.doubleDataMut();
+        for (std::size_t k = 0; k < matches.size(); ++k) {
+            Md[k] = matches[k].first;
+            Md[matches.size() + k] = matches[k].second;
+        }
+    }
+    result.uR = Value::matrix(unmatchedRows.size(), 1, ValueType::DOUBLE, mr);
+    for (std::size_t k = 0; k < unmatchedRows.size(); ++k)
+        result.uR.doubleDataMut()[k] = unmatchedRows[k];
+    result.uC = Value::matrix(unmatchedCols.size(), 1, ValueType::DOUBLE, mr);
+    for (std::size_t k = 0; k < unmatchedCols.size(); ++k)
+        result.uC.doubleDataMut()[k] = unmatchedCols[k];
+    return result;
+}
+
+namespace detail {
+
+void matchpairs_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("matchpairs: requires (Cost, costUnmatched [, 'min'|'max'])",
+                     0, 0, "matchpairs", "", "numkit:matchpairs:nargin");
+    const double cU = args[1].toScalar();
+    std::string mode = "min";
+    if (args.size() >= 3 && args[2].isChar())
+        mode = args[2].toString();
+    auto r = matchpairs(args[0], cU, mode, ctx.engine->resource());
+    outs[0] = std::move(r.M);
+    if (nargout > 1) outs[1] = std::move(r.uR);
+    if (nargout > 2) outs[2] = std::move(r.uC);
 }
 
 } // namespace detail

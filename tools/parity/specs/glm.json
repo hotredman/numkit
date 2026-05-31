@@ -1,0 +1,18 @@
+{
+  "name": "glm",
+  "covers": ["glmfit", "glmval"],
+  "namespace": "stats",
+  "setup": "n = 200; x = linspace(-2, 2, n)'; eta_true = 0.5 + 1.5 * x; p_true = 1 ./ (1 + exp(-eta_true)); y_bin = double(p_true > 0.5); xn = (1:n)' / n; y_norm = 2.0 + 1.5 * xn + 0.05 * sin((1:n)' * 5);",
+  "expr": "[b_l, dev_l] = glmfit(x, y_bin, 'binomial'); [b_n, ~] = glmfit(xn, y_norm, 'normal'); err_n_int = abs(b_n(1) - 2.0); err_n_slp = abs(b_n(2) - 1.5); yh = glmval(b_l, x(1:5), 'logit'); in01 = all(yh >= 0 & yh <= 1);",
+  "iters": 3,
+  "tol": 0.05,
+  "fingerprint": [
+    "double(err_n_int < 0.05)",
+    "double(err_n_slp < 0.05)",
+    "double(dev_l > 0)",
+    "size(b_l, 1)",
+    "double(in01)",
+    "size(yh, 1)"
+  ],
+  "comment": "Sig: [b, dev] = glmfit(X, y, distr [, link]) — IRLS GLM with auto-prepended intercept. Supports 'normal', 'binomial', 'poisson', 'gamma', 'inversegaussian' distributions and 'identity', 'logit', 'log', 'reciprocal', 'probit' links. Empty link → canonical for the distribution. yhat = glmval(b, X, link) — inverse-link of [1, X]·b. KNOWN GAPs: binomial 2-col y form, stats struct (SE, p-values, residuals), 'constant'/'weights' name-value args. Spec uses deterministic step-threshold binomial response + sin-noise normal to ensure parity reproducibility."
+}

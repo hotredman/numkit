@@ -12,7 +12,7 @@ namespace numkit::signal {
 
 /// Smallest integer p such that \f$ 2^p \ge n \f$ (scalar form).
 ///
-/// MATLAB's `nextpow2`. Useful for padding sequences to a length suitable
+/// Useful for padding sequences to a length suitable
 /// for radix-2 FFT.
 ///
 /// @param n   Input scalar. Negative / zero → returns 0.

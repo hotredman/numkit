@@ -12,8 +12,7 @@ namespace numkit::control {
 
 /// DC (steady-state) gain of an LTI system.
 ///
-/// Equivalent to MATLAB's `dcgain(sys)`. Evaluates the transfer
-/// function at the steady-state frequency:
+/// Evaluates the transfer function at the steady-state frequency:
 ///   - continuous (Ts == 0): @f$ H(0) @f$
 ///   - discrete (Ts > 0):    @f$ H(1) @f$ (i.e. tf evaluated at z = 1)
 ///
@@ -35,7 +34,7 @@ Value dcgain(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 /// Any margin that does not exist on the default frequency grid is
 /// returned as +Inf (no crossover detected).
 struct MarginResult {
-    Value Gm;    ///< Gain margin (linear, **not** dB — MATLAB convention).
+    Value Gm;    ///< Gain margin (linear, **not** dB).
     Value Pm;    ///< Phase margin in degrees.
     Value Wcg;   ///< Phase-crossover frequency (where phase = −180°), rad/s.
     Value Wcp;   ///< Gain-crossover frequency (where |H| = 1), rad/s.
@@ -66,7 +65,7 @@ MarginResult margin(const Value &sys,
 /// Step-response quality metrics (`S = stepinfo(sys)`).
 ///
 /// Runs the system through @ref step_response with a 2× extended
-/// horizon and returns a MATLAB-compatible struct with the fields:
+/// horizon and returns a struct with the fields:
 ///
 ///   - `RiseTime`    — 10 % → 90 % rise interval (s).
 ///   - `SettlingTime`— last time |y − yfinal| exceeds the 2 % band (s).
@@ -78,7 +77,7 @@ MarginResult margin(const Value &sys,
 ///   - `PeakTime`    — time at which the peak occurs (s).
 ///
 /// All times are in seconds. Defaults: 10–90 % rise band, 2 %
-/// settling band, both matching MATLAB R2025b.
+/// settling band.
 ///
 /// @param sys  LTI struct (tf / zpk / ss).
 /// @param mr   Memory resource (nullptr → process default).

@@ -1,12 +1,13 @@
 {
   "name": "pwelch",
   "namespace": "signal",
-  "setup": "x = sin(2*pi*0.1*(0:255));",
-  "expr": "[p, f] = pwelch(x); r1 = double(sum(p));",
+  "setup": "x = sin(2*pi*0.1*(0:255)); y = cos(2*pi*0.1*(0:127));",
+  "expr": "[p, f] = pwelch(x); r1 = double(sum(p)); [pe, fe] = pwelch(y, [], [], 128); ne = double(numel(pe));",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1"
+    "r1",
+    "ne", "max(pe)", "fe(end)"
   ],
-  "comment": "Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window for Welch-family. Bit-identical with MATLAB R2025b after fs+winLen fix 2026-05-09."
+  "comment": "Sig: spectral DSP estimator. Default fs=2*pi (MATLAB convention) and 8-segment 50%-overlap Hamming window. pwelch(x,[],[],nfft): empty [] placeholders select defaults for window/noverlap (previously errored 'Cannot convert double to scalar'). pwelch(cos(2pi*.1*(0:127)),[],[],128) -> 65 bins, max=1.59267. Bit-identical with MATLAB R2025b."
 }

@@ -236,7 +236,7 @@ void dcgain_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("dcgain: requires sys",
-                    0, 0, "dcgain", "", "m:dcgain:nargin");
+                    0, 0, "dcgain", "", "numkit:dcgain:nargin");
     o[0] = dcgain(a[0], c.engine->resource());
 }
 
@@ -244,7 +244,7 @@ void margin_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("margin: requires sys",
-                    0, 0, "margin", "", "m:margin:nargin");
+                    0, 0, "margin", "", "numkit:margin:nargin");
     auto m = margin(a[0], c.engine->resource());
     if (o.size() >= 1) o[0] = std::move(m.Gm);
     if (o.size() >= 2) o[1] = std::move(m.Pm);
@@ -256,7 +256,7 @@ void stepinfo_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.empty())
         throw Error("stepinfo: requires sys",
-                    0, 0, "stepinfo", "", "m:stepinfo:nargin");
+                    0, 0, "stepinfo", "", "numkit:stepinfo:nargin");
     o[0] = stepinfo(a[0], c.engine->resource());
 }
 

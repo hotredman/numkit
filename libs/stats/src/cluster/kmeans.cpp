@@ -170,7 +170,7 @@ kmeans_full(const Value &X, int K, int max_iter, int replicates, std::pmr::memor
     const size_t D = X.dims().cols();
     if (K < 1 || (size_t)K > N)
         throw Error("kmeans: K must be in 1..N", 0, 0, "kmeans", "",
-                    "m:kmeans:badK");
+                    "numkit:kmeans:badK");
 
     ScratchArena scratch(mr);
 
@@ -253,7 +253,7 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("kmeans: requires (X, K[, N-V pairs])",
-                    0, 0, "kmeans", "", "m:kmeans:nargin");
+                    0, 0, "kmeans", "", "numkit:kmeans:nargin");
     const int K = (int)args[1].toScalar();
     int max_iter  = 100;
     int replicates = 1;
@@ -272,14 +272,14 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
             if (dn != "sqeuclidean" && dn != "squaredeuclidean")
                 throw Error("kmeans: only Distance = 'sqeuclidean' is "
                             "implemented (got '" + dn + "')",
-                            0, 0, "kmeans", "", "m:kmeans:distance");
+                            0, 0, "kmeans", "", "numkit:kmeans:distance");
         }
         else if (key == "start") {
             const std::string sn = lower(v.toString());
             if (sn != "plus")
                 throw Error("kmeans: only Start = 'plus' is implemented "
                             "(got '" + sn + "')",
-                            0, 0, "kmeans", "", "m:kmeans:start");
+                            0, 0, "kmeans", "", "numkit:kmeans:start");
         }
         // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently
         // accepted (no-op).

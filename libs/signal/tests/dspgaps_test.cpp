@@ -40,15 +40,36 @@ TEST_P(DspGapsTest, Medfilt1OddWindow)
     EXPECT_DOUBLE_EQ(y->doubleData()[4], 4.0);
 }
 
-TEST_P(DspGapsTest, Medfilt1BoundaryTruncation)
+TEST_P(DspGapsTest, Medfilt1BoundaryZeropadDefault)
 {
-    // Boundary: window truncated, output still valid
+    // MATLAB default zero-pads the ends: medfilt1([10 1 1 1 1],3) =
+    // [median(0,10,1) ...] = [1 1 1 1 1]. (numkit previously truncated the
+    // window at the boundary and gave 5.5 here — fixed 2026-05-30.)
     eval("y = medfilt1([10 1 1 1 1], 3);");
     auto *y = getVarPtr("y");
-    // y[0] window=[10,1] median=5.5? Or y[0] window=[10,1] (truncated) — even-length avg.
-    // With k=3, leftHalf=1, rightHalf=1. At i=0: window [src[0..1]] = [10, 1] (size 2).
-    // Even median = 0.5*(min+max) = 5.5.
-    EXPECT_DOUBLE_EQ(y->doubleData()[0], 5.5);
+    EXPECT_DOUBLE_EQ(y->doubleData()[0], 1.0);
+    // 'truncate' restores the clipped-window behaviour: median([10,1]) = 5.5.
+    eval("yt = medfilt1([10 1 1 1 1], 3, 'truncate');");
+    EXPECT_DOUBLE_EQ(getVarPtr("yt")->doubleData()[0], 5.5);
+}
+
+TEST_P(DspGapsTest, Medfilt1EvenWindowAndMatrix)
+{
+    // Even window leans LEFT (window = [i-k/2 .. i+k/2-1]); verified vs
+    // MATLAB R2025b. medfilt1([2 80 6 3 10 8],4) = [1 4 4.5 8 7 5.5].
+    eval("y = medfilt1([2 80 6 3 10 8], 4);");
+    auto *y = getVarPtr("y");
+    EXPECT_DOUBLE_EQ(y->doubleData()[0], 1.0);    // median(0,0,2,80)
+    EXPECT_DOUBLE_EQ(y->doubleData()[2], 4.5);    // median(2,80,6,3)
+    EXPECT_DOUBLE_EQ(y->doubleData()[5], 5.5);    // median(3,10,8,0)
+    // even-window 'truncate'
+    eval("yt = medfilt1([2 80 6 3 10 8], 4, 'truncate');");
+    EXPECT_DOUBLE_EQ(getVarPtr("yt")->doubleData()[0], 41.0);  // median(2,80)
+    // matrix: each column filtered independently (operate along dim 1).
+    eval("Ym = medfilt1([1 2;3 4;5 6;7 8], 3);");
+    auto *Ym = getVarPtr("Ym");
+    EXPECT_DOUBLE_EQ(Ym->doubleData()[0], 1.0);   // col1 i=1: median(0,1,3)
+    EXPECT_DOUBLE_EQ(Ym->doubleData()[3], 5.0);   // col1 i=4: median(5,7,0)
 }
 
 TEST_P(DspGapsTest, Medfilt1PreservesShape)
@@ -99,6 +120,129 @@ TEST_P(DspGapsTest, FindpeaksFlatTopNotPeak)
     eval("v = findpeaks([1 3 3 3 1]);");
     auto *v = getVarPtr("v");
     EXPECT_EQ(v->numel(), 0u);
+}
+
+// findpeaks Name-Value options vs MATLAB R2025b. x peaks: 1@2,2@4,3@6,2@8,1@10.
+TEST_P(DspGapsTest, FindpeaksMinPeakHeight)
+{
+    // Strictly greater than MinPeakHeight: MPH=2 drops the 2-valued peaks.
+    eval("v = findpeaks([0 1 0 2 0 3 0 2 0 1 0], 'MinPeakHeight', 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksThreshold)
+{
+    // Threshold = min vertical drop to immediate neighbors (>=).
+    eval("v = findpeaks([0 1 0 2 0 3 0 2 0 1 0], 'Threshold', 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 3u);  // values 2,3,2
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 2.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksNPeaksAndSort)
+{
+    eval("function [a,b] = fpDesc(x)\n"
+         "  [a,b] = findpeaks(x, 'SortStr', 'descend');\n"
+         "end");
+    // SortStr descend: tallest first, ties broken by ascending location.
+    eval("[v, l] = fpDesc([0 1 0 2 0 3 0 2 0 1 0]);");
+    auto *v = getVarPtr("v");
+    auto *l = getVarPtr("l");
+    EXPECT_EQ(v->numel(), 5u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 6.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[1], 4.0);  // 2@4 before 2@8
+    // NPeaks + descend = the 2 tallest.
+    eval("function [a,b] = fpN2Desc(x)\n"
+         "  [a,b] = findpeaks(x, 'NPeaks', 2, 'SortStr', 'descend');\n"
+         "end");
+    eval("[v2, l2] = fpN2Desc([0 1 0 2 0 3 0 2 0 1 0]);");
+    auto *v2 = getVarPtr("v2");
+    auto *l2 = getVarPtr("l2");
+    EXPECT_EQ(v2->numel(), 2u);
+    EXPECT_DOUBLE_EQ(v2->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(l2->doubleData()[1], 4.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksMinPeakDistance)
+{
+    eval("function [a,b] = fpMPD(x)\n"
+         "  [a,b] = findpeaks(x, 'MinPeakDistance', 3);\n"
+         "end");
+    // Greedy tallest-first, removes peaks within distance; output by location.
+    eval("[v, l] = fpMPD([0 1 0 2 0 3 0 2 0 1 0]);");
+    auto *v = getVarPtr("v");
+    auto *l = getVarPtr("l");
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[1], 6.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[2], 10.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksLocationForm)
+{
+    eval("function [a,b] = fpX(x, X)\n"
+         "  [a,b] = findpeaks(x, X);\n"
+         "end");
+    // findpeaks(Y,X): locations reported as X values.
+    eval("X = 0:0.5:5; [v, l] = fpX([0 1 0 2 0 3 0 2 0 1 0], X);");
+    auto *l = getVarPtr("l");
+    EXPECT_EQ(l->numel(), 5u);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 0.5);
+    EXPECT_DOUBLE_EQ(l->doubleData()[2], 2.5);
+    // A genuinely unsupported option still fails loudly (no silent ignore).
+    EXPECT_THROW(eval("findpeaks([0 1 0 2 0], 'MinPeakWidth', 1);"), std::exception);
+}
+
+// ── MinPeakProminence + width / prominence outputs ─────────────
+// y = [1 3 2 5 1 6 1 4 2]: peaks at 2,4,6,8 with prominences 1,4,5,2.
+
+TEST_P(DspGapsTest, FindpeaksMinPeakProminence)
+{
+    eval("function [a,b] = fpMPP(x)\n"
+         "  [a,b] = findpeaks(x, 'MinPeakProminence', 3);\n"
+         "end");
+    eval("[v, l] = fpMPP([1 3 2 5 1 6 1 4 2]);");
+    auto *v = getVarPtr("v");
+    auto *l = getVarPtr("l");
+    ASSERT_EQ(v->numel(), 2u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 5.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 6.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 4.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[1], 6.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksProminenceOutput)
+{
+    eval("function [a,b,c,d] = fp4(x)\n"
+         "  [a,b,c,d] = findpeaks(x);\n"
+         "end");
+    eval("[pk, lc, w, p] = fp4([1 3 2 5 1 6 1 4 2]);");
+    auto *p = getVarPtr("p");
+    ASSERT_EQ(p->numel(), 4u);
+    EXPECT_DOUBLE_EQ(p->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[2], 5.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[3], 2.0);
+}
+
+TEST_P(DspGapsTest, FindpeaksWidthOutput)
+{
+    eval("function [a,b,c,d] = fp4w(x)\n"
+         "  [a,b,c,d] = findpeaks(x);\n"
+         "end");
+    eval("[pk, lc, w, p] = fp4w([1 3 2 5 1 6 1 4 2]);");
+    auto *w = getVarPtr("w");
+    ASSERT_EQ(w->numel(), 4u);
+    // Half-prominence widths, verified against MATLAB R2025b.
+    EXPECT_NEAR(w->doubleData()[0], 0.75,               1e-12);
+    EXPECT_NEAR(w->doubleData()[1], 1.1666666666666667, 1e-12);
+    EXPECT_NEAR(w->doubleData()[2], 1.0,                1e-12);
+    EXPECT_NEAR(w->doubleData()[3], 0.8333333333333333, 1e-12);
 }
 
 // ── goertzel ────────────────────────────────────────────────

@@ -90,10 +90,10 @@ DetailLevel grab_level(const Value &d, bool isCell, size_t idx,
     const Value &m = isCell ? d.cellAt(idx) : d;
     if (m.numel() == 0)
         throw Error("ihaart: detail level is empty",
-                    0, 0, "ihaart", "", "m:ihaart:detail");
+                    0, 0, "ihaart", "", "numkit:ihaart:detail");
     if (m.isComplex())
         throw Error("ihaart: expected input number 2, D, to be real",
-                    0, 0, "ihaart", "", "m:ihaart:complexD");
+                    0, 0, "ihaart", "", "numkit:ihaart:complexD");
 
     // Detail shape is read directly (no row-↔-column coercion). For a
     // vector-input haart this is rows×1; for a matrix-input haart at
@@ -104,7 +104,7 @@ DetailLevel grab_level(const Value &d, bool isCell, size_t idx,
     if (rows != expectedRows || cols != expectedCols)
         throw Error("ihaart: detail dimensions are inconsistent with the "
                     "approximation",
-                    0, 0, "ihaart", "", "m:ihaart:dimMismatch");
+                    0, 0, "ihaart", "", "numkit:ihaart:dimMismatch");
 
     const size_t mn = rows * cols;
 
@@ -128,12 +128,12 @@ void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ihaart: requires (a, d[, level[, integerflag]])",
-                    0, 0, "ihaart", "", "m:ihaart:nargin");
+                    0, 0, "ihaart", "", "numkit:ihaart:nargin");
     const Value &aV = args[0];
     const Value &dV = args[1];
     if (aV.numel() == 0)
         throw Error("ihaart: expected input number 1, A, to be nonempty",
-                    0, 0, "ihaart", "", "m:ihaart:emptyA");
+                    0, 0, "ihaart", "", "numkit:ihaart:emptyA");
 
     // Determine cell-vs-plain detail and Nlevels.
     const bool isCell = dV.isCell();
@@ -142,15 +142,15 @@ void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
         const size_t nc = dV.dims().rows() * dV.dims().cols();
         if (nc == 0)
             throw Error("ihaart: detail cell array is empty",
-                        0, 0, "ihaart", "", "m:ihaart:emptyD");
+                        0, 0, "ihaart", "", "numkit:ihaart:emptyD");
         Nlevels = nc;
     } else {
         if (dV.numel() == 0)
             throw Error("ihaart: detail array is empty",
-                        0, 0, "ihaart", "", "m:ihaart:emptyD");
+                        0, 0, "ihaart", "", "numkit:ihaart:emptyD");
         if (dV.isComplex())
             throw Error("ihaart: expected input number 2, D, to be real",
-                        0, 0, "ihaart", "", "m:ihaart:complexD");
+                        0, 0, "ihaart", "", "numkit:ihaart:complexD");
         Nlevels = 1;
     }
 
@@ -168,26 +168,26 @@ void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
             else
                 throw Error("ihaart: integerflag must be 'noninteger' or "
                             "'integer' (got '" + flag + "')",
-                            0, 0, "ihaart", "", "m:ihaart:flag");
+                            0, 0, "ihaart", "", "numkit:ihaart:flag");
         } else {
             const double lvld = arg.toScalar();
             if (!(lvld >= 0.0))
                 throw Error("ihaart: expected input number 3, LEVEL, to be a "
                             "scalar with value >= 0",
-                            0, 0, "ihaart", "", "m:ihaart:level");
+                            0, 0, "ihaart", "", "numkit:ihaart:level");
             if (lvld != std::floor(lvld))
                 throw Error("ihaart: expected LEVEL to be an integer",
-                            0, 0, "ihaart", "", "m:ihaart:level");
+                            0, 0, "ihaart", "", "numkit:ihaart:level");
             level = static_cast<int>(lvld);
             if (level >= static_cast<int>(Nlevels))
                 throw Error("ihaart: expected input number 3, LEVEL, to be a "
                             "scalar with value < " + std::to_string(Nlevels),
-                            0, 0, "ihaart", "", "m:ihaart:level");
+                            0, 0, "ihaart", "", "numkit:ihaart:level");
         }
     }
     if (integer_mode && aV.isComplex())
         throw Error("ihaart: integer mode is not supported for complex data",
-                    0, 0, "ihaart", "", "m:ihaart:flag");
+                    0, 0, "ihaart", "", "numkit:ihaart:flag");
 
     // Determine the matrix shape of `a` directly (aRows × aCols). A
     // pure row-vector 1×k input is treated as a 1-row matrix of width

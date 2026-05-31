@@ -1,0 +1,10 @@
+{
+  "name": "bwdistgeodesic",
+  "namespace": "image",
+  "setup": "BW = true(5,5); BW(3, 1:3) = false; BW2 = false(5,5); BW2(1:2,:)=true; BW2(5,:)=true;",
+  "expr": "D = bwdistgeodesic(BW, [1 1], 'chessboard'); D2 = bwdistgeodesic(BW, [1 1], 'cityblock'); D3 = bwdistgeodesic(BW, [1 1], 'quasi-euclidean'); D4 = bwdistgeodesic(BW, [1 1]); D5 = bwdistgeodesic(BW, 1, 1, 'chessboard'); D7 = bwdistgeodesic(BW2, [1 1], 'chessboard'); r1 = double(D(1,5)); r2 = double(D(3,4)); r3 = double(D(4,1)); r4 = double(D(5,5)); r5 = double(D2(5,1)); r6 = double(D2(3,4)); r7 = double(D3(2,2)); r8 = double(D3(5,1)); r9 = double(isnan(D(3,1))); r10 = double(isinf(D7(5,1))); r11 = double(isnan(D7(3,3)));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"],
+  "comment": "Sig: D = bwdistgeodesic(BW, mask|C,R|ind [, method]). Branches: 3 methods (cityblock/chessboard/quasi-euclidean), 4 input forms (mask, ind, (C,R), default method), barrier (NaN at false pixels), unreachable (Inf at disconnected reachable pixels). Output always SINGLE. Algorithm: Dijkstra over true-pixel subgraph with chamfer edge weights. Reference: Soille, *Morphological Image Analysis*, 2nd ed., §4.4. Image namespace 2026-05-27."
+}

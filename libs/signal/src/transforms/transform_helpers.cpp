@@ -175,7 +175,7 @@ void nextpow2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("nextpow2: requires 1 argument",
-                     0, 0, "nextpow2", "", "m:nextpow2:nargin");
+                     0, 0, "nextpow2", "", "numkit:nextpow2:nargin");
     outs[0] = nextpow2(args[0], ctx.engine->resource());
 }
 
@@ -183,12 +183,12 @@ void fftshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("fftshift: requires 1 argument",
-                     0, 0, "fftshift", "", "m:fftshift:nargin");
+                     0, 0, "fftshift", "", "numkit:fftshift:nargin");
     if (args.size() >= 2) {
         const int dim = static_cast<int>(args[1].toScalar());
         if (dim < 1 || dim > 3)
             throw Error("fftshift: dim must be 1, 2, or 3",
-                         0, 0, "fftshift", "", "m:fftshift:dim");
+                         0, 0, "fftshift", "", "numkit:fftshift:dim");
         outs[0] = fftshift(args[0], dim, ctx.engine->resource());
     } else {
         outs[0] = fftshift(args[0], ctx.engine->resource());
@@ -199,12 +199,12 @@ void ifftshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ifftshift: requires 1 argument",
-                     0, 0, "ifftshift", "", "m:ifftshift:nargin");
+                     0, 0, "ifftshift", "", "numkit:ifftshift:nargin");
     if (args.size() >= 2) {
         const int dim = static_cast<int>(args[1].toScalar());
         if (dim < 1 || dim > 3)
             throw Error("ifftshift: dim must be 1, 2, or 3",
-                         0, 0, "ifftshift", "", "m:ifftshift:dim");
+                         0, 0, "ifftshift", "", "numkit:ifftshift:dim");
         outs[0] = ifftshift(args[0], dim, ctx.engine->resource());
     } else {
         outs[0] = ifftshift(args[0], ctx.engine->resource());

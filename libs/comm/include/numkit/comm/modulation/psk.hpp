@@ -19,7 +19,7 @@ namespace numkit::comm {
 /// @param M             Modulation order.
 /// @param ini_phase     Phase shift in radians applied to all symbols
 ///                      (default 0).
-/// @param symbol_order  `"gray"` (default, matches MATLAB) or
+/// @param symbol_order  `"gray"` (default) or
 ///                      `"bin"`.
 /// @param mr            Memory resource (nullptr → process default).
 /// @return              Complex baseband samples, same shape as `x`.

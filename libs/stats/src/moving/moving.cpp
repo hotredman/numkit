@@ -38,8 +38,9 @@ int resolveDim(const Value &x, int dim, const char *fn)
     return validateDim(x, dim, fn);
 }
 
-// Decode the `k` argument: scalar → centred [floor((k-1)/2), floor(k/2)];
-// 2-element vector → [kb, kf].
+// Decode the `k` argument: scalar → MATLAB backward-leaning window
+// [floor(k/2), floor((k-1)/2)] (even k centred on current+previous; odd k
+// symmetric); 2-element vector → [kb, kf].
 struct Window {
     long kb;   // samples back (inclusive of centre? no — i-kb is the start)
     long kf;   // samples forward
@@ -51,12 +52,17 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
         throw Error(std::string(fn) + ": Window length must be a finite, "
                     "positive, real scalar or 2-element vector of finite, "
                     "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("m:") + fn + ":badK");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     };
     if (k.size() == 1) {
         const size_t n = k[0];
         if (n == 0) badK();
-        return {static_cast<long>((n - 1) / 2), static_cast<long>(n / 2)};
+        // MATLAB: a scalar window of even length is centred about the CURRENT
+        // and PREVIOUS elements — it leans BACKWARD: kb = floor(k/2),
+        // kf = floor((k-1)/2). e.g. movsum([1 2 3 4],2) = [1 3 5 7] (window
+        // [i-1, i]). Odd k is symmetric (kb == kf). numkit previously leaned
+        // forward (kb/kf swapped), diverging from MATLAB for even windows.
+        return {static_cast<long>(n / 2), static_cast<long>((n - 1) / 2)};
     }
     if (k.size() == 2) {
         return {static_cast<long>(k[0]), static_cast<long>(k[1])};
@@ -75,7 +81,7 @@ ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
         throw Error(std::string(fn) + ": Window length must be a finite, "
                     "positive, real scalar or 2-element vector of finite, "
                     "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("m:") + fn + ":badK");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     };
     ScratchVec<size_t> out(&scratch);
     if (k.isScalar()) {
@@ -149,7 +155,7 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected a Name-Value pair",
-                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         const std::string name = toLower(args[i].toString());
         const Value &val = args[i + 1];
         if (name == "endpoints") {
@@ -162,33 +168,33 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
                 else
                     throw Error(std::string(fn) + ": Endpoints must be "
                                 "'shrink', 'discard', 'fill' or a scalar",
-                                0, 0, fn, "", std::string("m:") + fn + ":ep");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":ep");
             } else if (val.isScalar()) {
                 o.ep = EndpointMode::Scalar;
                 o.ep_fill = val.toScalar();
             } else {
                 throw Error(std::string(fn) + ": Endpoints must be a string "
                             "or numeric scalar",
-                            0, 0, fn, "", std::string("m:") + fn + ":ep");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":ep");
             }
         } else if (name == "samplepoints") {
             throw Error(std::string(fn) + ": 'SamplePoints' is not yet "
                         "supported in numkit (parity gap; see audit findings)",
-                        0, 0, fn, "", std::string("m:") + fn + ":samplePts");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
         } else if (name == "datavariables" || name == "replacevalues") {
             throw Error(std::string(fn) + ": '" + name + "' is for table/"
                         "timetable inputs (numkit does not implement those)",
-                        0, 0, fn, "", std::string("m:") + fn + ":tableOnly");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":tableOnly");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("m:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         }
         i += 2;
     }
     if (i != args.size())
         throw Error(std::string(fn) + ": dangling argument at position " +
                     std::to_string(i + 1),
-                    0, 0, fn, "", std::string("m:") + fn + ":nargin");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
     return o;
 }
 
@@ -432,7 +438,11 @@ double winMedianInPlace(double *w, size_t n)
 double winVar(const double *w, size_t n, int normFlag)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    if (n == 1) return (normFlag == 1) ? 0.0 : std::numeric_limits<double>::quiet_NaN();
+    // MATLAB defines std/var of a single value as 0 regardless of the
+    // normalization (the degenerate 0/0 from N-1 is taken as 0). This is
+    // hit at edge windows of length 1 and, under 'omitnan', at interior
+    // windows that reduce to a single valid element.
+    if (n == 1) return 0.0;
     double s = 0.0;
     for (size_t i = 0; i < n; ++i) s += w[i];
     const double mean = s / static_cast<double>(n);
@@ -518,7 +528,7 @@ Value movvar_impl(const Value &x, Span<const size_t> k, int normFlag, const MovO
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error("movvar: normFlag must be 0 or 1",
-                     0, 0, "movvar", "", "m:movvar:badNormFlag");
+                     0, 0, "movvar", "", "numkit:movvar:badNormFlag");
     const auto w = decodeWindow(k, "movvar");
     const int d = resolveDim(x, opt.dim, "movvar");
     return movingDriverDim(x, w, d, opt, [normFlag](const double *win, size_t n) { return winVar(win, n, normFlag); }, mr);
@@ -569,6 +579,67 @@ Value movstd(const Value &x, Span<const size_t> k, int normFlag, int dim, std::p
 Value movmad(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
 { MovOpts o; o.dim = dim; return movmad_impl(x, k, o, mr); }
 
+// Gaussian-weighted moving average for smoothdata 'gaussian'. MATLAB R2025b
+// uses kernel exp(-d^2/(2*sigma^2)) with sigma = windowLength/5, CENTRED on
+// the current sample, with the default 'shrink' endpoints (truncate the
+// kernel at the array edges and renormalise). NaNs are omitted from the
+// weighted sum when opt.omit_nan. dim 1/2/3 + vector. The generic moving
+// driver cannot align a weighted kernel at truncated edges (its reducer only
+// sees the shrunk window, not the centre position), so this path walks slices
+// directly. Inputs are DOUBLE-backed (mirrors the rest of the moving driver).
+static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
+                               int dim, const MovOpts &opt,
+                               std::pmr::memory_resource *mr)
+{
+    if (x.isEmpty()) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
+
+    const long kb = w.kb, kf = w.kf;
+    const double inv2s2 = (sigma > 0.0) ? 1.0 / (2.0 * sigma * sigma) : 0.0;
+    auto perSlice = [&](const double *src, size_t n, ptrdiff_t step, double *dst) {
+        const long N = static_cast<long>(n);
+        for (long i = 0; i < N; ++i) {
+            const long lo = std::max(0L, i - kb), hi = std::min(N - 1, i + kf);
+            double sw = 0.0, ssum = 0.0;
+            for (long j = lo; j <= hi; ++j) {
+                const double v = src[j * step];
+                if (opt.omit_nan && std::isnan(v)) continue;
+                const double dd = static_cast<double>(j - i);
+                const double wt = std::exp(-dd * dd * inv2s2);
+                ssum += wt * v;
+                sw += wt;
+            }
+            dst[i * step] = (sw > 0.0) ? ssum / sw
+                                       : std::numeric_limits<double>::quiet_NaN();
+        }
+    };
+
+    auto out = createLike(x, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const double *src = x.doubleData();
+    const auto &d = x.dims();
+    if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
+
+    const size_t R = d.rows(), C = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1, pg = R * C;
+    if (dim == 1) {
+        for (size_t p = 0; p < P; ++p)
+            for (size_t c = 0; c < C; ++c)
+                perSlice(src + p * pg + c * R, R, 1, dst + p * pg + c * R);
+    } else if (dim == 2) {
+        for (size_t p = 0; p < P; ++p)
+            for (size_t r = 0; r < R; ++r)
+                perSlice(src + p * pg + r, C, static_cast<ptrdiff_t>(R), dst + p * pg + r);
+    } else if (dim == 3 && d.is3D()) {
+        for (size_t c = 0; c < C; ++c)
+            for (size_t r = 0; r < R; ++r)
+                perSlice(src + c * R + r, P, static_cast<ptrdiff_t>(pg), dst + c * R + r);
+    } else {
+        std::copy(src, src + x.numel(), dst);
+    }
+    return out;
+}
+
 // ── smoothdata ────────────────────────────────────────────────────────
 Value smoothdata(const Value &x, const std::string &method, int k, int dim, std::pmr::memory_resource *mr)
 {
@@ -596,50 +667,38 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
     if (m == "movmedian")
         return movmedian_impl(x, kSpan, opt, mr);
     if (m == "gaussian") {
-        // Gaussian-weighted moving mean — use sigma = (k-1)/4 (MATLAB heuristic).
+        // Gaussian-weighted moving average. MATLAB R2025b uses sigma =
+        // windowLength/5 and centres the kernel on the CURRENT sample, with
+        // 'shrink' endpoints. (Was sigma=(k-1)/4 + a mis-aligned kernel at
+        // truncated edges -> wrong at the boundaries and interior.)
         const auto w = decodeWindow(kSpan, "smoothdata");
         const int d = resolveDim(x, dim, "smoothdata");
-        const double sigma = (k > 1) ? static_cast<double>(k - 1) / 4.0 : 1.0;
-        const long kb = w.kb;
-        return movingDriverDim(x, w, d, opt, [sigma, kb](const double *win, size_t n) {
-                double sw = 0.0, ssum = 0.0;
-                for (size_t i = 0; i < n; ++i) {
-                    const double dx = static_cast<double>(static_cast<long>(i) - kb);
-                    const double wt = std::exp(-0.5 * (dx / sigma) * (dx / sigma));
-                    ssum += wt * win[i];
-                    sw   += wt;
-                }
-                return (sw > 0) ? ssum / sw : std::numeric_limits<double>::quiet_NaN();
-            }, mr);
+        const double sigma = (k > 0) ? static_cast<double>(k) / 5.0 : 0.2;
+        return smoothGaussianDim(x, w, sigma, d, opt, mr);
     }
     throw Error("smoothdata: method '" + method + "' not supported "
                  "(supported: 'movmean', 'movmedian', 'gaussian')",
-                 0, 0, "smoothdata", "", "m:smoothdata:unsupportedMethod");
+                 0, 0, "smoothdata", "", "numkit:smoothdata:unsupportedMethod");
 }
 
 // ── hampel ────────────────────────────────────────────────────────────
-Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)
+
+// MATLAB-exact MAD→σ normal-consistency constant 1/norminv(0.75). MATLAB's
+// hampel reports xsigma = 1.482602218505602*MAD and uses the same factor in
+// its threshold, so we match it exactly (the looser 1.4826 misses xsigma by
+// ~1e-5 and can flip borderline detections).
+constexpr double kHampelMadToStd = 1.4826022185056018;
+
+// Core single-pass hampel filter over a length-`n` vector. Always fills
+// `dst`; when non-null, also fills `mask` (1 where the point was replaced),
+// `median` (local window median), and `sigma` (local 1.4826·MAD estimate).
+static void hampelCore(const double *src, std::size_t n, int k, double nsigmas,
+                       double *dst, std::uint8_t *mask, double *median,
+                       double *sigma, std::pmr::memory_resource *mr)
 {
-    if (k < 0)
-        throw Error("hampel: k must be >= 0",
-                     0, 0, "hampel", "", "m:hampel:badK");
-    if (nsigmas <= 0)
-        throw Error("hampel: nsigmas must be positive",
-                     0, 0, "hampel", "", "m:hampel:badSigmas");
-    if (!x.dims().isVector() && !x.isScalar())
-        throw Error("hampel: vector input only (matrix form deferred)",
-                     0, 0, "hampel", "", "m:hampel:notVector");
-
-    constexpr double kMadToStd = 1.4826;
-    auto out = createLike(x, ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    const double *src = x.doubleData();
-    double *dst = out.doubleDataMut();
-    if (n == 0) return out;
-
+    if (n == 0) return;
     ScratchArena scratch(mr);
     auto buf = ScratchVec<double>(static_cast<size_t>(2 * k + 1), &scratch);
-
     for (long i = 0; i < static_cast<long>(n); ++i) {
         const long lo = std::max<long>(0, i - k);
         const long hi = std::min<long>(static_cast<long>(n) - 1, i + k);
@@ -654,12 +713,36 @@ Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *m
         for (long j = 0; j < len; ++j)
             devs[static_cast<size_t>(j)] = std::abs(buf[static_cast<size_t>(j)] - med);
         const double mad = winMedianInPlace(devs.data(), static_cast<size_t>(len));
-        const double sigma = kMadToStd * mad;
-        if (std::abs(src[i] - med) > nsigmas * sigma)
-            dst[i] = med;
-        else
-            dst[i] = src[i];
+        const double sig = kHampelMadToStd * mad;
+        const bool isOut = std::abs(src[i] - med) > nsigmas * sig;
+        dst[i] = isOut ? med : src[i];
+        if (mask)   mask[static_cast<size_t>(i)]   = isOut ? 1 : 0;
+        if (median) median[static_cast<size_t>(i)] = med;
+        if (sigma)  sigma[static_cast<size_t>(i)]  = sig;
     }
+}
+
+static void hampelValidate(const Value &x, int k, double nsigmas)
+{
+    if (k < 0)
+        throw Error("hampel: k must be >= 0",
+                     0, 0, "hampel", "", "numkit:hampel:badK");
+    if (nsigmas <= 0)
+        throw Error("hampel: nsigmas must be positive",
+                     0, 0, "hampel", "", "numkit:hampel:badSigmas");
+    if (!x.dims().isVector() && !x.isScalar())
+        throw Error("hampel: vector input only (matrix form deferred)",
+                     0, 0, "hampel", "", "numkit:hampel:notVector");
+}
+
+Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)
+{
+    hampelValidate(x, k, nsigmas);
+    auto out = createLike(x, ValueType::DOUBLE, mr);
+    const size_t n = x.numel();
+    if (n == 0) return out;
+    hampelCore(x.doubleData(), n, k, nsigmas, out.doubleDataMut(),
+               nullptr, nullptr, nullptr, mr);
     return out;
 }
 
@@ -679,7 +762,7 @@ void movmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("movmean: requires at least 2 arguments (x, k)",
-                     0, 0, "movmean", "", "m:movmean:nargin");
+                     0, 0, "movmean", "", "numkit:movmean:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmean", scratch);
@@ -691,7 +774,7 @@ void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movsum: requires at least 2 arguments (x, k)",
-                     0, 0, "movsum", "", "m:movsum:nargin");
+                     0, 0, "movsum", "", "numkit:movsum:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movsum", scratch);
@@ -703,7 +786,7 @@ void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmin: requires at least 2 arguments (x, k)",
-                     0, 0, "movmin", "", "m:movmin:nargin");
+                     0, 0, "movmin", "", "numkit:movmin:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmin", scratch);
@@ -715,7 +798,7 @@ void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmax: requires at least 2 arguments (x, k)",
-                     0, 0, "movmax", "", "m:movmax:nargin");
+                     0, 0, "movmax", "", "numkit:movmax:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmax", scratch);
@@ -727,7 +810,7 @@ void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("movprod: requires at least 2 arguments (x, k)",
-                     0, 0, "movprod", "", "m:movprod:nargin");
+                     0, 0, "movprod", "", "numkit:movprod:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movprod", scratch);
@@ -739,7 +822,7 @@ void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("movmedian: requires at least 2 arguments (x, k)",
-                     0, 0, "movmedian", "", "m:movmedian:nargin");
+                     0, 0, "movmedian", "", "numkit:movmedian:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmedian", scratch);
@@ -751,7 +834,7 @@ void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movvar: requires at least 2 arguments (x, k)",
-                     0, 0, "movvar", "", "m:movvar:nargin");
+                     0, 0, "movvar", "", "numkit:movvar:nargin");
     int normFlag = 0;
     size_t extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
@@ -774,7 +857,7 @@ void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movstd: requires at least 2 arguments (x, k)",
-                     0, 0, "movstd", "", "m:movstd:nargin");
+                     0, 0, "movstd", "", "numkit:movstd:nargin");
     int normFlag = 0;
     size_t extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
@@ -796,7 +879,7 @@ void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("movmad: requires at least 2 arguments (x, k)",
-                     0, 0, "movmad", "", "m:movmad:nargin");
+                     0, 0, "movmad", "", "numkit:movmad:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto kBuf = decodeWindowValueToScratch(args[1], "movmad", scratch);
@@ -808,7 +891,7 @@ void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("smoothdata: requires at least 1 argument",
-                     0, 0, "smoothdata", "", "m:smoothdata:nargin");
+                     0, 0, "smoothdata", "", "numkit:smoothdata:nargin");
     std::string method = "movmean";
     int k = 0;
     if (args.size() >= 2) {
@@ -824,14 +907,39 @@ void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     outs[0] = smoothdata(args[0], method, k, 0, ctx.engine->resource());
 }
 
-void hampel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void hampel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("hampel: requires at least 1 argument",
-                     0, 0, "hampel", "", "m:hampel:nargin");
+                     0, 0, "hampel", "", "numkit:hampel:nargin");
     const int k = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 3;
     const double nsigmas = (args.size() >= 3) ? args[2].toScalar() : 3.0;
-    outs[0] = hampel(args[0], k, nsigmas, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &x = args[0];
+
+    if (nargout < 2) {
+        outs[0] = hampel(x, k, nsigmas, mr);
+        return;
+    }
+
+    // [y, i, xmedian, xsigma] = hampel(...). i is a logical mask of the
+    // replaced (outlier) points; xmedian/xsigma are the local median and
+    // 1.4826·MAD estimate at every sample. vs MATLAB R2025b.
+    hampelValidate(x, k, nsigmas);
+    const std::size_t n = x.numel();
+    auto y    = createLike(x, ValueType::DOUBLE,  mr);
+    auto imask = createLike(x, ValueType::LOGICAL, mr);
+    auto xmed = createLike(x, ValueType::DOUBLE,  mr);
+    auto xsig = createLike(x, ValueType::DOUBLE,  mr);
+    if (n > 0)
+        hampelCore(x.doubleData(), n, k, nsigmas, y.doubleDataMut(),
+                   imask.logicalDataMut(), xmed.doubleDataMut(),
+                   xsig.doubleDataMut(), mr);
+
+    outs[0] = y;
+    outs[1] = imask;
+    if (nargout >= 3) outs[2] = xmed;
+    if (nargout >= 4) outs[3] = xsig;
 }
 
 } // namespace detail

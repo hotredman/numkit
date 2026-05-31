@@ -91,6 +91,24 @@ if(NUMKIT_WITH_MATIO)
         GIT_TAG        v1.5.30
     )
     FetchContent_MakeAvailable(matio)
+
+    # zlib — for Deflate decompression in TIFF reader. Tiny build,
+    # static library, no examples / tests.
+    set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(SKIP_INSTALL_ALL    ON  CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        zlib_pkg
+        GIT_REPOSITORY https://github.com/madler/zlib.git
+        GIT_TAG        v1.3.1
+    )
+    FetchContent_MakeAvailable(zlib_pkg)
+    # Expose zlib's source-dir as an include path: the generated zlib.h
+    # ends up in zlib_pkg_BINARY_DIR alongside the static lib.
+    if(TARGET zlibstatic)
+        set_target_properties(zlibstatic PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES
+            "${zlib_pkg_SOURCE_DIR};${zlib_pkg_BINARY_DIR}")
+    endif()
 endif()
 
 # ──────────────────────────────────────────────
@@ -189,6 +207,12 @@ endif()
 if(NUMKIT_WITH_MATIO)
     target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:matio>)
     target_compile_definitions(numkit PRIVATE NUMKIT_WITH_MATIO)
+    # zlib comes with matio's FetchContent block — used by the TIFF
+    # reader's Deflate path (libs/image/src/io/tiff_reader.cpp).
+    if(TARGET zlibstatic)
+        target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:zlibstatic>)
+        target_compile_definitions(numkit PRIVATE NUMKIT_WITH_ZLIB)
+    endif()
 endif()
 
 if(NUMKIT_WITH_SIMD)
@@ -245,7 +269,7 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
-    foreach(_test_lib builtin signal stats graphics io wavelet comm control image audio graph)
+    foreach(_test_lib builtin linalg signal stats graphics io wavelet comm control image audio graph ode)
         if(EXISTS ${CMAKE_SOURCE_DIR}/libs/${_test_lib}/tests/CMakeLists.txt)
             add_subdirectory(libs/${_test_lib}/tests)
         endif()
@@ -349,3 +373,18 @@ endif()
 # PATH. PDF target additionally requires pdflatex (MiKTeX / TeX Live).
 # Safe no-op if Doxygen is not installed.
 include(cmake/Doxygen.cmake)
+
+# ── API lint ─────────────────────────────────────────────────────────
+# `lint` target — checks libs/* public headers against the mechanically
+# checkable subset of docs/LIBRARY_API.md (no Engine in signatures, mr
+# by pointer, no const Value*). Not wired into the default build; run
+# explicitly or from CI. Safe no-op if Python 3 is not found.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_FOUND)
+    add_custom_target(lint
+        COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/tools/lint/check_api.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Linting libs/* public API headers (docs/LIBRARY_API.md)"
+        VERBATIM)
+endif()

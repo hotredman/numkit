@@ -1,0 +1,15 @@
+{
+  "name": "num2str_complex",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s1 = num2str(3-1i); n1 = numel(s1); h1 = sum(double(s1)); s2 = num2str(complex(5,0)); n2 = numel(s2); h2 = sum(double(s2)); s3 = num2str(0+1i); n3 = numel(s3); h3 = sum(double(s3)); s4 = num2str(1.23456789+9.87654321i); n4 = numel(s4); h4 = sum(double(s4)); s5 = num2str(pi+2.5i, 8); n5 = numel(s5); h5 = sum(double(s5)); s6 = num2str(1234.5+6.789012i); n6 = numel(s6); h6 = sum(double(s6)); s7 = num2str(1+2i, 3); n7 = numel(s7); h7 = sum(double(s7)); s8 = num2str(3.14159-2.71828i, '%.3f'); n8 = numel(s8); h8 = sum(double(s8));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "n1", "h1", "n2", "h2", "n3", "h3",
+    "n4", "h4", "n5", "h5", "n6", "h6",
+    "n7", "h7", "n8", "h8"
+  ],
+  "comment": "num2str of a SCALAR complex value vs MATLAB R2025b. DEEP-PROBE 2026-05-31: num2str(complex) THREW 'Cannot convert complex with nonzero imaginary part to double scalar' (all overloads called toScalar()). Now formats re±|im|i with a COMMON precision derived from max(|re|,|im|) (the same magnitude-aware rule as the real default): num2str(3-1i)='3-1i'; num2str(complex(5,0))='5' (zero imag -> bare real); num2str(0+1i)='0+1i'; num2str(1.23456789+9.87654321i)='1.2346+9.8765i' (5 sig); num2str(pi+2.5i,8)='3.1415927+2.5i'; num2str(1234.5+6.789012i)='1234.5+6.789012i' (COMMON prec 8, NOT per-part 5); num2str(1+2i,3)='1+2i'; num2str(3.14159-2.71828i,'%.3f')='3.142-2.718i' (fmt per-part). Fingerprints are numel + sum(double(s)) byte-checks (tol 0). namespace=builtin. covers num2str. Complex ARRAY num2str (column-aligned) remains a deferred gap.",
+  "covers": ["num2str"]
+}

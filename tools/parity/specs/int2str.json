@@ -1,0 +1,20 @@
+{
+  "name": "int2str",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "sa = int2str(3.4); na = numel(sa); a1 = double(sa(1)); sc = int2str(-2.5); nc = numel(sc); c1 = double(sc(1)); c2 = double(sc(2)); sj = int2str(1e10); nj = numel(sj); j1 = double(sj(1)); sg = int2str(Inf); ng = numel(sg); g1 = double(sg(1)); sd = int2str(0.5); d1 = double(sd(1)); sz = int2str(3.6+1.2i); nz = numel(sz); z1 = double(sz(1)); sw = int2str(-3.2-4.8i); nw = numel(sw); w1 = double(sw(1)); w2 = double(sw(2)); v1 = int2str([1 2 3]); v1n = numel(v1); v1s = sum(double(v1)); v2 = int2str([10 200 3]); v2n = numel(v2); v2s = sum(double(v2)); v3 = int2str([1.5 2.5 -2.5]); v3n = numel(v3); v3s = sum(double(v3)); v4 = int2str([-5 10 3]); v4n = numel(v4); v4s = sum(double(v4)); M = int2str([1 2;30 4]); mr = size(M,1); mc = size(M,2); ms = sum(double(M(:)));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "a1",
+    "nc", "c1", "c2",
+    "nj", "j1",
+    "ng", "g1",
+    "d1",
+    "nz", "z1", "nw", "w1", "w2",
+    "v1n", "v1s", "v2n", "v2s", "v3n", "v3s", "v4n", "v4s",
+    "mr", "mc", "ms"
+  ],
+  "deep_verified": true,
+  "comment": "int2str vs MATLAB R2025b. Rounds half away from zero (round); plain integers, no decimals/sci; Inf/-Inf/NaN pass through. Scalar: int2str(3.4)='3', int2str(-2.5)='-3', int2str(1e10)='10000000000', int2str(0.5)='1', complex uses REAL part int2str(3.6+1.2i)='4'. DEEP-PROBE 2026-05-31: VECTOR/MATRIX forms were SCALAR-ONLY (threw 'only scalar inputs are supported'); now round each element then format with field W=digits(max|rounded|)+2 routed through the num2str FMT path. int2str([1 2 3])='1  2  3'; int2str([10 200 3])='10  200    3'; int2str([1.5 2.5 -2.5])='2  3 -3' (half-away rounding, sign eats the gap); int2str([1 2;30 4]) is a 2x5 char matrix (' 1   2'/'30   4'). Cross-engine fingerprint via numel + sum(char codes). Complex ARRAY column layout still deferred. namespace=builtin."
+}

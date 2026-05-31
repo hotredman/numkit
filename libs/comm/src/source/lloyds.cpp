@@ -57,14 +57,14 @@ lloyds(const Value &training_set, const Value &ini_codebook,
     readVector(training_set, training);
     if (training.empty())
         throw Error("lloyds: training set must be non-empty",
-                    0, 0, "lloyds", "", "m:lloyds:EmptyTRAINING_SET");
+                    0, 0, "lloyds", "", "numkit:lloyds:EmptyTRAINING_SET");
     const double min_train =
         *std::min_element(training.begin(), training.end());
     const double max_train =
         *std::max_element(training.begin(), training.end());
     if (max_train <= min_train)
         throw Error("lloyds: training set must span a positive range",
-                    0, 0, "lloyds", "", "m:lloyds:InvalidTRAINING_SET");
+                    0, 0, "lloyds", "", "numkit:lloyds:InvalidTRAINING_SET");
 
     // Build initial codebook.
     std::vector<double> codebook;
@@ -74,7 +74,7 @@ lloyds(const Value &training_set, const Value &ini_codebook,
         if (K < 1)
             throw Error("lloyds: ini_codebook count must be positive",
                         0, 0, "lloyds", "",
-                        "m:lloyds:NonPositiveINI_CODEBOOK");
+                        "numkit:lloyds:NonPositiveINI_CODEBOOK");
         const double step = (max_train - min_train) / static_cast<double>(K);
         codebook.resize(static_cast<size_t>(K));
         for (long i = 0; i < K; ++i) {
@@ -88,7 +88,7 @@ lloyds(const Value &training_set, const Value &ini_codebook,
     const size_t K = codebook.size();
     if (K < 1)
         throw Error("lloyds: ini_codebook must have at least 1 entry",
-                    0, 0, "lloyds", "", "m:lloyds:InvalidINI_CODEBOOK");
+                    0, 0, "lloyds", "", "numkit:lloyds:InvalidINI_CODEBOOK");
 
     if (tol <= 0.0) tol = 1e-7;
 
@@ -199,7 +199,7 @@ void lloyds_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("lloyds: requires (training_set, ini_codebook [, tol])",
-                    0, 0, "lloyds", "", "m:lloyds:nargin");
+                    0, 0, "lloyds", "", "numkit:lloyds:nargin");
     auto *mr = ctx.engine->resource();
     double tol = 1e-7;
     if (args.size() >= 3 && !args[2].isEmpty())

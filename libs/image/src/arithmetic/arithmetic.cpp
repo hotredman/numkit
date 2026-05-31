@@ -90,7 +90,7 @@ Value binop(const Value &x, const Value &y, Op op, std::pmr::memory_resource *mr
         }
         default:
             throw Error("imarith: unsupported image class", 0, 0, "imarith", "",
-                        "m:imarith:badtype");
+                        "numkit:imarith:badtype");
     }
     return out;
 }
@@ -135,7 +135,7 @@ Value unop(const Value &x, Op op, std::pmr::memory_resource *mr) {
         }
         default:
             throw Error("imarith: unsupported image class", 0, 0, "imarith", "",
-                        "m:imarith:badtype");
+                        "numkit:imarith:badtype");
     }
     return out;
 }
@@ -192,7 +192,7 @@ Value imlincomb(const std::vector<double> &coefs, const std::vector<Value> &imag
     if (coefs.size() != images.size() && coefs.size() != images.size() + 1)
         throw Error("imlincomb: number of coefficients must equal number of images "
                     "(optional one extra for the additive constant)",
-                    0, 0, "imlincomb", "", "m:imlincomb:nargin");
+                    0, 0, "imlincomb", "", "numkit:imlincomb:nargin");
     if (images.empty()) return Value::scalar(0.0, mr);
 
     const Value &x0 = images[0];
@@ -210,7 +210,7 @@ Value imlincomb(const std::vector<double> &coefs, const std::vector<Value> &imag
         const double ck = coefs[k];
         if (xk.numel() != n)
             throw Error("imlincomb: all images must have the same size",
-                        0, 0, "imlincomb", "", "m:imlincomb:size");
+                        0, 0, "imlincomb", "", "numkit:imlincomb:size");
         for (size_t i = 0; i < n; ++i) acc[i] += ck * xk.elemAsDouble(i);
     }
     for (size_t i = 0; i < n; ++i) acc[i] += bias;
@@ -241,7 +241,7 @@ Value imlincomb(const std::vector<double> &coefs, const std::vector<Value> &imag
         }
         default:
             throw Error("imlincomb: unsupported output class",
-                        0, 0, "imlincomb", "", "m:imlincomb:badtype");
+                        0, 0, "imlincomb", "", "numkit:imlincomb:badtype");
     }
     return out;
 }
@@ -254,7 +254,7 @@ Value imapplymatrix(const Value &M, const Value &x, ValueType output_class, std:
     const size_t Mcols = M.dims().cols();
     if (Mcols != pages)
         throw Error("imapplymatrix: matrix columns must match the third dimension of X",
-                    0, 0, "imapplymatrix", "", "m:imapplymatrix:size");
+                    0, 0, "imapplymatrix", "", "numkit:imapplymatrix:size");
 
     const size_t H = dx.rows();
     const size_t W = dx.cols();
@@ -276,7 +276,7 @@ Value imapplymatrix(const Value &M, const Value &x, ValueType output_class, std:
             case ValueType::INT16:   out.int16DataMut()[outIdx]   = satCast<int16_t>(v); break;
             default:
                 throw Error("imapplymatrix: unsupported output class",
-                            0, 0, "imapplymatrix", "", "m:imapplymatrix:badtype");
+                            0, 0, "imapplymatrix", "", "numkit:imapplymatrix:badtype");
         }
     };
 
@@ -300,7 +300,7 @@ namespace {
 ValueType classFromString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("imlincomb: output_class must be a string",
-                    0, 0, "imlincomb", "", "m:imlincomb:badclass");
+                    0, 0, "imlincomb", "", "numkit:imlincomb:badclass");
     auto s = v.toString();
     if (s == "double") return ValueType::DOUBLE;
     if (s == "single") return ValueType::SINGLE;
@@ -309,7 +309,7 @@ ValueType classFromString(const Value &v) {
     if (s == "int16")  return ValueType::INT16;
     if (s == "logical")return ValueType::LOGICAL;
     throw Error("imlincomb: unrecognised output_class", 0, 0, "imlincomb", "",
-                "m:imlincomb:badclass");
+                "numkit:imlincomb:badclass");
 }
 } // anonymous
 
@@ -319,7 +319,7 @@ ValueType classFromString(const Value &v) {
     {                                                                              \
         if (args.size() < 2)                                                       \
             throw Error(#name ": requires (X, Y)",                                \
-                         0, 0, #name, "", "m:" #name ":nargin");                  \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                  \
         outs[0] = fn(args[0], args[1], ctx.engine->resource());                   \
     }
 
@@ -336,7 +336,7 @@ void imcomplement_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imcomplement: requires X", 0, 0, "imcomplement", "",
-                    "m:imcomplement:nargin");
+                    "numkit:imcomplement:nargin");
     outs[0] = imcomplement(args[0], ctx.engine->resource());
 }
 
@@ -345,7 +345,7 @@ void imlincomb_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imlincomb: requires (k1, A1, k2, A2, ..., [output_class])",
-                    0, 0, "imlincomb", "", "m:imlincomb:nargin");
+                    0, 0, "imlincomb", "", "numkit:imlincomb:nargin");
 
     // Trailing string argument (optional) is the output class.
     size_t end = args.size();
@@ -360,7 +360,7 @@ void imlincomb_reg(Span<const Value> args, size_t /*nargout*/,
     }
     if ((end & 1) == 1 && end < 3) // need at least k1, A1
         throw Error("imlincomb: arguments must come in (coef, image) pairs",
-                    0, 0, "imlincomb", "", "m:imlincomb:nargin");
+                    0, 0, "imlincomb", "", "numkit:imlincomb:nargin");
 
     std::vector<double> coefs;
     std::vector<Value>  images;
@@ -378,7 +378,7 @@ void imapplymatrix_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imapplymatrix: requires (M, X[, output_class])",
-                    0, 0, "imapplymatrix", "", "m:imapplymatrix:nargin");
+                    0, 0, "imapplymatrix", "", "numkit:imapplymatrix:nargin");
     ValueType out_class = (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         ? classFromString(args[2])
         : args[1].type();

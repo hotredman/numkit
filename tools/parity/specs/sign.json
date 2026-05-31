@@ -1,0 +1,17 @@
+{
+  "name": "sign",
+  "namespace": "builtin",
+  "setup": "x=[-3 0 2.5 -0.0 7];",
+  "expr": "y=sign(x); y1=y(1); y2=y(2); y3=y(3); y5=y(5);",
+  "iters": 15,
+  "tol": 0,
+  "fingerprint": [
+    "y1",
+    "y2",
+    "y3",
+    "y5"
+  ],
+  "bench_setup": "xb = mod((1:N)*7919,2000)*0.01 - 10;",
+  "bench_expr": "rb=sign(xb);",
+  "comment": "sign(x): -1/0/+1 elementwise. Benched (SIMD build) N=1e3/1e6."
+}

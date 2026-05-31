@@ -1,0 +1,17 @@
+{
+  "name": "sortrows_direction",
+  "namespace": "builtin",
+  "setup": "A = [3 1; 1 2; 3 0; 1 5];",
+  "expr": "Sd = sortrows(A, 'descend'); Sa = sortrows(A, 'ascend'); Sc = sortrows(A, [1 2], {'ascend','descend'}); [B, ix] = sortrows(A, [1 2], 'descend'); Sk = sortrows(A, {'descend','ascend'}); S1 = sortrows(A, 1, 'descend');",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "Sd(1,1)", "Sd(1,2)", "Sd(3,1)", "Sd(3,2)",
+    "Sa(1,1)", "Sa(4,2)",
+    "Sc(1,2)", "Sc(4,2)",
+    "B(2,2)", "ix(2)", "ix(4)",
+    "Sk(1,2)", "Sk(2,2)",
+    "S1(1,2)", "S1(3,1)"
+  ],
+  "comment": "sortrows direction strings/cells vs MATLAB R2025b. Bug fixed 2026-05-30: sortrows threw 'column spec must be numeric' on any CHAR/STRING arg. Now supports: a direction string applied over ALL columns (sortrows(A,'descend')->[3 1;3 0;1 5;1 2]); per-column direction cell standalone (sortrows(A,{'descend','ascend'})->[3 0;3 1;1 2;1 5]); explicit columns + direction cell (sortrows(A,[1 2],{'ascend','descend'})->[1 5;1 2;3 1;3 0]); explicit columns + single direction covering all listed cols ([B,ix]=sortrows(A,[1 2],'descend') ix=[1;3;4;2]); scalar column + direction (sortrows(A,1,'descend')). Directions are case-insensitive 'ascend'/'descend' and map onto the existing signed-column path. namespace=builtin. NOTE: 'ComparisonMethod' name-value remains an unimplemented gap."
+}

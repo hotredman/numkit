@@ -1,15 +1,15 @@
 {
   "name": "union",
   "namespace": "builtin",
-  "setup": "",
-  "expr": "u = union([1 2 3], [3 4 5]); r1 = u(1); r2 = u(2); r3 = u(5); r4 = numel(u);",
-  "iters": 5,
+  "setup": "Ar = [1 2;3 4;5 6]; Br = [3 4;9 9;1 2];",
+  "expr": "u = union([1 2 3], [3 4 5]); s = union([3 1], [2 1], 'stable'); c = union([1 5i], [3+4i 1]); cs = union([1 5i], [3+4i 1], 'stable'); ur = union(Ar, Br, 'rows'); nr = size(ur,1); ncr = size(ur,2); u41 = ur(4,1); u42 = ur(4,2); u11 = ur(1,1);",
+  "iters": 3,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4"
+    "double(numel(u))", "u(1)", "u(5)", "double(numel(s))", "s(1)", "s(2)", "s(3)",
+    "double(numel(c))", "real(c(1))", "real(c(2))", "imag(c(3))",
+    "imag(cs(2))", "real(cs(3))",
+    "nr", "ncr", "u41", "u42", "u11"
   ],
-  "comment": "Sig: r = union(...). Set op. Spec-extension batch 2026-05-09."
+  "comment": "Sig union(A,B[,setOrder | 'rows']). Default 'sorted': union([1 2 3],[3 4 5]) = [1 2 3 4 5]. 'stable': unique(A)-order then new-of-B. COMPLEX (C output only): exact-equality, |z|+angle order. DEEP-PROBE 2026-05-31: added the 'rows' flag (was IGNORING it and flattening to a 1xN vector); returns sorted unique rows of [A;B]: union([1 2;3 4;5 6],[3 4;9 9;1 2],'rows')=[1 2;3 4;5 6;9 9] (4x2). 'rows' ia/ib outputs deferred. numkit previously IGNORED 'stable' (fixed) and threw on COMPLEX (added 2026-05-29)."
 }

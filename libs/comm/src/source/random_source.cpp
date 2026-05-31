@@ -64,7 +64,7 @@ void parseAlphabet(const Value &a,
             if (!(pk >= 0.0 && pk <= 1.0))
                 throw Error("randsrc: probabilities must be in [0, 1]",
                             0, 0, "randsrc", "",
-                            "m:randsrc:InvalidProbabilityVal");
+                            "numkit:randsrc:InvalidProbabilityVal");
             al[k] = sym;
             sum  += pk;
             pr[k] = sum;          // cumulative
@@ -72,7 +72,7 @@ void parseAlphabet(const Value &a,
         if (std::abs(sum - 1.0) > std::sqrt(2.220446049250313e-16))
             throw Error("randsrc: probabilities must sum to 1",
                         0, 0, "randsrc", "",
-                        "m:randsrc:InvalidProbabilitySum");
+                        "numkit:randsrc:InvalidProbabilitySum");
         *alpha_out = al;
         *prob_out  = pr;
         *len_out   = K;
@@ -81,10 +81,10 @@ void parseAlphabet(const Value &a,
 
     if (R == 1 && C == 0)
         throw Error("randsrc: alphabet must be non-empty",
-                    0, 0, "randsrc", "", "m:randsrc:EmptyAlphabet");
+                    0, 0, "randsrc", "", "numkit:randsrc:EmptyAlphabet");
 
     throw Error("randsrc: alphabet must be a row vector or 2-row matrix",
-                0, 0, "randsrc", "", "m:randsrc:InvalidAlphabet");
+                0, 0, "randsrc", "", "numkit:randsrc:InvalidAlphabet");
 }
 
 } // namespace
@@ -163,11 +163,11 @@ void parseErrspec(const Value &e, std::pmr::memory_resource *mr,
             if (!(v >= 0.0) || std::floor(v) != v)
                 throw Error("randerr: error counts must be non-negative integers",
                             0, 0, "randerr", "",
-                            "m:randerr:InvalidErrorsElements");
+                            "numkit:randerr:InvalidErrorsElements");
             if (static_cast<size_t>(v) > n)
                 throw Error("randerr: error count exceeds n",
                             0, 0, "randerr", "",
-                            "m:randerr:InvalidErrorsForm");
+                            "numkit:randerr:InvalidErrorsForm");
             cs[k] = static_cast<int>(v);
             pr[k] = static_cast<double>(k + 1) / static_cast<double>(K);
         }
@@ -190,15 +190,15 @@ void parseErrspec(const Value &e, std::pmr::memory_resource *mr,
             if (!(v >= 0.0) || std::floor(v) != v)
                 throw Error("randerr: error counts must be non-negative integers",
                             0, 0, "randerr", "",
-                            "m:randerr:InvalidErrorsElements");
+                            "numkit:randerr:InvalidErrorsElements");
             if (static_cast<size_t>(v) > n)
                 throw Error("randerr: error count exceeds n",
                             0, 0, "randerr", "",
-                            "m:randerr:InvalidErrorsForm");
+                            "numkit:randerr:InvalidErrorsForm");
             if (!(p >= 0.0 && p <= 1.0))
                 throw Error("randerr: probabilities must be in [0, 1]",
                             0, 0, "randerr", "",
-                            "m:randerr:Invalid2ndRowErrorsVal");
+                            "numkit:randerr:Invalid2ndRowErrorsVal");
             cs[k] = static_cast<int>(v);
             sum += p;
             pr[k] = sum;
@@ -206,7 +206,7 @@ void parseErrspec(const Value &e, std::pmr::memory_resource *mr,
         if (std::abs(sum - 1.0) > std::sqrt(2.220446049250313e-16))
             throw Error("randerr: probabilities must sum to 1",
                         0, 0, "randerr", "",
-                        "m:randerr:InvalidProbabilitySum");
+                        "numkit:randerr:InvalidProbabilitySum");
         *counts_out = cs;
         *prob_out   = pr;
         *len_out    = K;
@@ -214,7 +214,7 @@ void parseErrspec(const Value &e, std::pmr::memory_resource *mr,
     }
 
     throw Error("randerr: errors must be a row vector or 2-row matrix",
-                0, 0, "randerr", "", "m:randerr:InvalidErrorsDims");
+                0, 0, "randerr", "", "numkit:randerr:InvalidErrorsDims");
 }
 
 template <typename Rng>
@@ -285,7 +285,7 @@ void randsrc_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("randsrc: requires (m, n [, alphabet [, state]])",
-                    0, 0, "randsrc", "", "m:randsrc:nargin");
+                    0, 0, "randsrc", "", "numkit:randsrc:nargin");
     const size_t m = static_cast<size_t>(args[0].toScalar());
     const size_t n = static_cast<size_t>(args[1].toScalar());
     auto *mr = ctx.engine->resource();
@@ -310,7 +310,7 @@ void randsrc_reg(Span<const Value> args, size_t /*nargout*/,
         const double s = args[3].toScalar();
         if (s < 0.0)
             throw Error("randsrc: state must be a non-negative integer",
-                        0, 0, "randsrc", "", "m:randsrc:InvalidState");
+                        0, 0, "randsrc", "", "numkit:randsrc:InvalidState");
         state = static_cast<uint32_t>(s);
     }
 
@@ -322,7 +322,7 @@ void randerr_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("randerr: requires (m, n [, errors [, state]])",
-                    0, 0, "randerr", "", "m:randerr:nargin");
+                    0, 0, "randerr", "", "numkit:randerr:nargin");
     const size_t m = static_cast<size_t>(args[0].toScalar());
     const size_t n = static_cast<size_t>(args[1].toScalar());
     auto *mr = ctx.engine->resource();
@@ -344,7 +344,7 @@ void randerr_reg(Span<const Value> args, size_t /*nargout*/,
         const double s = args[3].toScalar();
         if (s < 0.0)
             throw Error("randerr: state must be a non-negative integer",
-                        0, 0, "randerr", "", "m:randerr:InvalidState");
+                        0, 0, "randerr", "", "numkit:randerr:InvalidState");
         state = static_cast<uint32_t>(s);
     }
 

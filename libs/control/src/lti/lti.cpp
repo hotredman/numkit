@@ -51,20 +51,20 @@ Value tf(const Value &num, const Value &den, double Ts, std::pmr::memory_resourc
 {
     if (den.numel() == 0)
         throw Error("tf: denominator must not be empty",
-                    0, 0, "tf", "", "m:tf:den");
+                    0, 0, "tf", "", "numkit:tf:den");
     Value s = tagStruct("tf", Ts, mr);
     s.field("num") = rowVec(num, mr);
     s.field("den") = rowVec(den, mr);
     return s;
 }
 
-Value zpk(const Value &z, const Value &p, const Value &k, double Ts, std::pmr::memory_resource *mr)
+Value zpk(const Value &z, const Value &p, double k, double Ts,
+          std::pmr::memory_resource *mr)
 {
     Value s = tagStruct("zpk", Ts, mr);
     s.field("z") = rowVec(z, mr);
     s.field("p") = rowVec(p, mr);
-    // gain is a scalar
-    s.field("k") = Value::scalar(k.toScalar(), mr);
+    s.field("k") = Value::scalar(k, mr);
     return s;
 }
 
@@ -99,7 +99,7 @@ Value filt(const Value &num, const Value &den, double Ts, std::pmr::memory_resou
 {
     if (den.numel() == 0)
         throw Error("filt: denominator must not be empty",
-                    0, 0, "filt", "", "m:filt:den");
+                    0, 0, "filt", "", "numkit:filt:den");
     Value s = tagStruct("tf", Ts, mr);
     s.field("num") = rowVec(num, mr);
     s.field("den") = rowVec(den, mr);
@@ -111,7 +111,7 @@ Value frd(const Value &response, const Value &frequency, double Ts, std::pmr::me
 {
     if (response.numel() != frequency.numel())
         throw Error("frd: response and frequency must have the same length",
-                    0, 0, "frd", "", "m:frd:size");
+                    0, 0, "frd", "", "numkit:frd:size");
     Value s = tagStruct("frd", Ts, mr);
     const size_t N = frequency.numel();
     // resp may be complex; copy as column vector.
@@ -296,7 +296,7 @@ tfdata(const Value &sys, bool asVector, std::pmr::memory_resource *mr)
                                     sys.field("C"), sys.field("D"), 1, mr);
     } else {
         throw Error("tfdata: input must be tf / zpk / ss",
-                    0, 0, "tfdata", "", "m:tfdata:kind");
+                    0, 0, "tfdata", "", "numkit:tfdata:kind");
     }
     const size_t L = std::max(num.numel(), den.numel());
     Value np = padToLen(num, L, mr);
@@ -328,7 +328,7 @@ zpkdata(const Value &sys, bool asVector, std::pmr::memory_resource *mr)
         k = Value::scalar(r.k.toScalar(), mr);
     } else {
         throw Error("zpkdata: input must be tf / zpk / ss",
-                    0, 0, "zpkdata", "", "m:zpkdata:kind");
+                    0, 0, "zpkdata", "", "numkit:zpkdata:kind");
     }
     if (asVector) return {std::move(z), std::move(p), std::move(k)};
     return {wrapCell(z, mr), wrapCell(p, mr), std::move(k)};
@@ -355,7 +355,7 @@ ssdata(const Value &sys, std::pmr::memory_resource *mr)
         C = std::move(ss.C); D = std::move(ss.D);
     } else {
         throw Error("ssdata: input must be tf / zpk / ss",
-                    0, 0, "ssdata", "", "m:ssdata:kind");
+                    0, 0, "ssdata", "", "numkit:ssdata:kind");
     }
     return {std::move(A), std::move(B), std::move(C), std::move(D)};
 }
@@ -365,7 +365,7 @@ frdata(const Value &sys, std::pmr::memory_resource *mr)
 {
     if (kindOf(sys) != "frd")
         throw Error("frdata: input must be an frd model",
-                    0, 0, "frdata", "", "m:frdata:kind");
+                    0, 0, "frdata", "", "numkit:frdata:kind");
     // Shallow copy through the user resource; resp / freq are already
     // stored as column vectors by frd().
     Value resp = sys.field("resp");
@@ -392,7 +392,7 @@ Value ss2ss(const Value &sys, const Value &T, std::pmr::memory_resource *mr)
 {
     if (kindOf(sys) != "ss")
         throw Error("ss2ss: input must be an ss model",
-                    0, 0, "ss2ss", "", "m:ss2ss:kind");
+                    0, 0, "ss2ss", "", "numkit:ss2ss:kind");
     const Value &Av = sys.field("A");
     const Value &Bv = sys.field("B");
     const Value &Cv = sys.field("C");
@@ -400,14 +400,14 @@ Value ss2ss(const Value &sys, const Value &T, std::pmr::memory_resource *mr)
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n || T.dims().rows() != n || T.dims().cols() != n)
         throw Error("ss2ss: T must be n×n with n = order(sys)",
-                    0, 0, "ss2ss", "", "m:ss2ss:size");
+                    0, 0, "ss2ss", "", "numkit:ss2ss:size");
     const size_t m = Bv.dims().cols();
     const size_t p = Cv.dims().rows();
 
     std::vector<double> Tinv;
     if (!inverse_n(T, Tinv, n))
         throw Error("ss2ss: T is singular",
-                    0, 0, "ss2ss", "", "m:ss2ss:singular");
+                    0, 0, "ss2ss", "", "numkit:ss2ss:singular");
 
     std::vector<double> Tm = readMat(T);
     std::vector<double> Am = readMat(Av);
@@ -447,7 +447,7 @@ void tf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("tf: requires (num, den [, Ts])",
-                    0, 0, "tf", "", "m:tf:nargin");
+                    0, 0, "tf", "", "numkit:tf:nargin");
     outs[0] = tf(args[0], args[1], argTs(args, 2), ctx.engine->resource());
 }
 
@@ -456,8 +456,9 @@ void zpk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("zpk: requires (z, p, k [, Ts])",
-                    0, 0, "zpk", "", "m:zpk:nargin");
-    outs[0] = zpk(args[0], args[1], args[2], argTs(args, 3), ctx.engine->resource());
+                    0, 0, "zpk", "", "numkit:zpk:nargin");
+    outs[0] = zpk(args[0], args[1], args[2].toScalar(), argTs(args, 3),
+                  ctx.engine->resource());
 }
 
 void ss_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -465,7 +466,7 @@ void ss_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 4)
         throw Error("ss: requires (A, B, C, D [, Ts])",
-                    0, 0, "ss", "", "m:ss:nargin");
+                    0, 0, "ss", "", "numkit:ss:nargin");
     outs[0] = ss(args[0], args[1], args[2], args[3], argTs(args, 4), ctx.engine->resource());
 }
 
@@ -474,7 +475,7 @@ void filt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("filt: requires (num, den [, Ts])",
-                    0, 0, "filt", "", "m:filt:nargin");
+                    0, 0, "filt", "", "numkit:filt:nargin");
     // MATLAB default Ts for filt is -1 (unspecified discrete).
     const double Ts = (args.size() >= 3 && !args[2].isEmpty())
                       ? args[2].toScalar() : -1.0;
@@ -486,7 +487,7 @@ void frd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("frd: requires (response, frequency [, Ts])",
-                    0, 0, "frd", "", "m:frd:nargin");
+                    0, 0, "frd", "", "numkit:frd:nargin");
     outs[0] = frd(args[0], args[1], argTs(args, 2), ctx.engine->resource());
 }
 
@@ -503,7 +504,7 @@ void tfdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("tfdata: requires (sys [, 'v'])",
-                    0, 0, "tfdata", "", "m:tfdata:nargin");
+                    0, 0, "tfdata", "", "numkit:tfdata:nargin");
     auto [num, den] = tfdata(args[0], wantVector(args, 1), ctx.engine->resource());
     outs[0] = std::move(num);
     if (nargout > 1) outs[1] = std::move(den);
@@ -514,7 +515,7 @@ void zpkdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("zpkdata: requires (sys [, 'v'])",
-                    0, 0, "zpkdata", "", "m:zpkdata:nargin");
+                    0, 0, "zpkdata", "", "numkit:zpkdata:nargin");
     auto [z, p, k] = zpkdata(args[0], wantVector(args, 1), ctx.engine->resource());
     outs[0] = std::move(z);
     if (nargout > 1) outs[1] = std::move(p);
@@ -526,7 +527,7 @@ void ssdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ssdata: requires (sys)",
-                    0, 0, "ssdata", "", "m:ssdata:nargin");
+                    0, 0, "ssdata", "", "numkit:ssdata:nargin");
     auto [A, B, C, D] = ssdata(args[0], ctx.engine->resource());
     outs[0] = std::move(A);
     if (nargout > 1) outs[1] = std::move(B);
@@ -539,7 +540,7 @@ void ss2ss_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ss2ss: requires (sys, T)",
-                    0, 0, "ss2ss", "", "m:ss2ss:nargin");
+                    0, 0, "ss2ss", "", "numkit:ss2ss:nargin");
     outs[0] = ss2ss(args[0], args[1], ctx.engine->resource());
 }
 
@@ -548,7 +549,7 @@ void frdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("frdata: requires (sys [, 'v'])",
-                    0, 0, "frdata", "", "m:frdata:nargin");
+                    0, 0, "frdata", "", "numkit:frdata:nargin");
     // 'v' flag accepted for MATLAB compatibility; frdata always returns
     // column vectors regardless (we don't model SISO 1×1×N tensors).
     (void)wantVector(args, 1);

@@ -13,7 +13,7 @@ namespace numkit::builtin {
 /// @file
 /// @brief Scan family — `fscanf` / `sscanf` / `textscan`.
 ///
-/// MATLAB-compatible formatted reading. Like the other file-I/O
+/// Formatted reading. Like the other file-I/O
 /// builtins, the natural C++ surface is a Span-based shape because
 /// these functions are inherently variadic (optional size, optional
 /// name/value option pairs). Reshaping into typed overloads would
@@ -32,7 +32,7 @@ namespace numkit::builtin {
 /// @param nargout  Number of requested outputs (1 = `A`, 2 = `[A, count]`).
 /// @param outs     Output slot(s).
 /// @see sscanf, textscan
-void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);  // lint: engine-io
 
 /// @brief Formatted read from a string
 /// (`[A, count] = sscanf(str, format, sizeA)`).
@@ -59,6 +59,6 @@ void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs,
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot(s).
 /// @see fscanf, sscanf
-void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);  // lint: engine-io
 
 } // namespace numkit::builtin

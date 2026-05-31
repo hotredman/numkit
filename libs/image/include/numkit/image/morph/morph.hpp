@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+namespace numkit { class Engine; }
+
 namespace numkit::image {
 
 /// @file
@@ -322,6 +324,79 @@ Value bwunpack(const Value &BWP, size_t M,
 Value applylut(const Value &BW, const Value &LUT,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Nonlinear neighbourhood filter via lookup table
+/// (`A = bwlookup(BW, lut)`).
+///
+/// Performs a 2×2 (`lut` length 16) or 3×3 (`lut` length 512) nonlinear
+/// neighbourhood filtering operation on binary image `BW`. Each output
+/// pixel is `lut` indexed by the bit pattern of its neighbourhood
+/// (zero-padded at the border), with the same index convention as
+/// @ref applylut / @ref makelut. The modern replacement for `applylut`,
+/// restricted to the documented 16- and 512-element table sizes.
+///
+/// @param BW   Binary input (logical or numeric, treated as `BW != 0`).
+/// @param lut  Lookup table — exactly 16 or 512 elements.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Filtered image, same shape as `BW`, class of `lut`.
+/// @throws Error  `lut` not 16 or 512 elements.
+/// @see makelut, applylut
+Value bwlookup(const Value &BW, const Value &lut,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Build a lookup table for @ref bwlookup
+/// (`lut = makelut(fun, n)`).
+///
+/// Evaluates `fun` on every one of the `2^(n²)` binary `n × n`
+/// neighbourhoods and returns the `2^(n²)`-element column vector of
+/// results. `n` is 2 (length 16) or 3 (length 512). The neighbourhood
+/// for table index `k` (0-based) has, in column-major order, position
+/// `i` set to bit `(k >> (n²−1−i)) & 1` — the inverse of the
+/// `reshape(2^[nq−1:−1:0], n, n)` weight kernel used by `bwlookup`, so
+/// `bwlookup(BW, makelut(fun, n))` applies `fun` to each neighbourhood.
+/// `fun` receives a logical `n × n` matrix and returns a scalar; the
+/// output table is always DOUBLE.
+///
+/// @param eng  Engine used to invoke the function handle.
+/// @param fun  Function handle: `(logical n×n) → scalar`.
+/// @param n    Neighbourhood size (2 or 3).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `2^(n²) × 1` DOUBLE lookup table.
+/// @throws Error  `n` not 2 or 3, or `fun` returns a non-scalar.
+/// @see bwlookup, applylut
+Value makelut(numkit::Engine &eng, const Value &fun, int n,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Morphological operations on a binary volume
+/// (`J = bwmorph3(V, operation)`).
+///
+/// Evaluates each voxel from its `3×3×3` neighbourhood (zero-padded at
+/// the border). With `count` = number of set voxels in the
+/// 27-neighbourhood *including the centre* and `faces6` = the six
+/// 6-connected face neighbours:
+///
+/// | operation       | rule                                  |
+/// |-----------------|---------------------------------------|
+/// | `branchpoints`  | centre set **and** `count > 3`        |
+/// | `clean`         | centre set **and** `count != 1`       |
+/// | `endpoints`     | centre set **and** `count == 2`       |
+/// | `fill`          | centre set **or** `faces6 == 6`       |
+/// | `majority`      | `count > 13` (≥ 14 of 27)             |
+/// | `remove`        | centre set **and** `faces6 != 6`      |
+///
+/// Accepts a 2-D image (treated as a single-plane volume) or a 3-D
+/// volume; the output is always LOGICAL of the same size. Input is taken
+/// as `V != 0`. Clean-room port of MATLAB R2025b's `bwmorph3` rules.
+///
+/// @param V    Binary volume (numeric or logical, 2-D or 3-D).
+/// @param op   One of `branchpoints` / `clean` / `endpoints` / `fill` /
+///             `majority` / `remove`.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     LOGICAL volume, same size as `V`.
+/// @throws Error  Unknown operation, or rank > 3.
+/// @see bwmorph, bwskel, imerode, imdilate
+Value bwmorph3(const Value &V, const std::string &op,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Binary hit-or-miss transform (`J = bwhitmiss(BW, se1, se2)`).
 ///
 /// @f$ J = \text{imerode}(BW, se_1)\ \wedge\ \text{imerode}(\sim BW, se_2) @f$.
@@ -340,7 +415,7 @@ Value bwhitmiss(const Value &BW, const Value &se1, const Value &se2,
 /// @brief Composite binary morphological operations
 /// (`J = bwmorph(BW, op, n)`).
 ///
-/// Faithful port of MATLAB R2025b's `bwmorph`. Each named operation
+/// Each named operation
 /// corresponds to a 512-entry LUT (or a chain of LUTs and bitwise
 /// compositions), indexed by the 3×3 neighbourhood of every pixel.
 /// Out-of-bounds pixels are 0.
@@ -356,11 +431,50 @@ Value bwhitmiss(const Value &BW, const Value &se1, const Value &se2,
 /// @param BW  Binary input.
 /// @param op  Operation name.
 /// @param n   Iteration count. `n = -1` means "until stable"
-///            (MATLAB's `Inf`); `n = 1` is the default.
+///            (i.e. `Inf` iterations); `n = 1` is the default.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Processed binary image.
 /// @throws Error  Unknown `op` (`m:bwmorph:badOp`).
 Value bwmorph(const Value &BW, const std::string &op, int n,
               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Trace object boundary in a binary image
+/// (`B = bwtraceboundary(BW, P, fstep, conn, m, dir)`).
+///
+/// Moore-Neighbor boundary tracing starting from foreground pixel
+/// `P` and initial search direction `fstep`. The trace walks the
+/// 8-connected (default) or 4-connected boundary and emits row/col
+/// coordinates.
+///
+/// **fstep semantics.** `fstep` defines the direction of the
+/// notional "previous" pixel as the OPPOSITE of `fstep`, so the
+/// search starts one position clockwise of that previous direction.
+/// This matches MATLAB R2025b behaviour even when `fstep` points
+/// into the object interior (the search just sweeps around to the
+/// first valid boundary neighbour).
+///
+/// **Termination.** Stops when the boundary loop closes (we
+/// revisit `P` after ≥ 1 step), when `m` pixels have been emitted,
+/// or when no neighbours exist (isolated pixel → returns
+/// `[P; P]`).
+///
+/// Reference: Moore-Neighbor tracing, Pavlidis 1982,
+/// *Algorithms for Graphics and Image Processing*, §7.5.
+///
+/// @param BW       2-D binary mask (logical or numeric non-zero).
+/// @param P        `[row, col]` 1-based starting boundary pixel.
+/// @param fstep    `"N"` / `"NE"` / `"E"` / `"SE"` / `"S"` /
+///                 `"SW"` / `"W"` / `"NW"`. For `conn = 4`, only
+///                 `"N"` / `"E"` / `"S"` / `"W"`.
+/// @param conn     `8` (default) or `4`.
+/// @param m        Maximum number of pixels to extract
+///                 (`std::numeric_limits<size_t>::max()` for Inf).
+/// @param dir      `"clockwise"` (default) or `"counterclockwise"`.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `Q × 2` DOUBLE matrix of `[row, col]` pixels.
+Value bwtraceboundary(const Value &BW, const Value &P,
+                      const std::string &fstep, int conn,
+                      std::size_t m, const std::string &dir,
+                      std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image

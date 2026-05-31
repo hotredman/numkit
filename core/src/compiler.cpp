@@ -51,6 +51,8 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
     constRegCache_.clear();
     scalarRegs_.reset();
     nextReg_ = 0;
+    peakReg_ = 0;
+    maxVarReg_ = 0;
     currentLoc_ = {};
     isTopLevel_ = true;
 
@@ -70,7 +72,10 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
 
     peepholeOptimize();
 
-    chunk_.numRegisters = nextReg_;
+    // Use the peak nextReg_ over the chunk — nextReg_ shrinks at
+    // statement boundaries (compileBlock releases temps), but the
+    // runtime needs to size R[] for the highest slot ever written.
+    chunk_.numRegisters = static_cast<uint8_t>(peakReg_);
 
     // Save variable→register mapping for environment export
     for (auto &[name, reg] : varRegisters_)
@@ -106,13 +111,91 @@ void Compiler::preImportGlobals(const ASTNode *ast)
         // Import any defined value (including `[]` empty matrices, which
         // are legal MATLAB values). Only unset / deleted slots get skipped.
         if (existing && !existing->isUnset() && !existing->isDeleted()) {
-            uint8_t r = nextReg_++;
+            if (nextReg_ >= 255)
+                throw std::runtime_error(
+                    "Compiler: register exhaustion during preImportGlobals");
+            uint8_t r = static_cast<uint8_t>(nextReg_++);
+            if (nextReg_ > peakReg_) peakReg_ = nextReg_;
+            if (nextReg_ > maxVarReg_) maxVarReg_ = nextReg_;
             varRegisters_[name] = r;
             int16_t idx = static_cast<int16_t>(chunk_.constants.size());
             chunk_.constants.push_back(*existing);
             emitAD(OpCode::LOAD_CONST, r, idx);
         }
     }
+
+    // Pre-allocate slots for every variable that gets WRITTEN anywhere
+    // in the AST. Without this, a variable's slot is whatever happened
+    // to be free when its first assignment was compiled — high if the
+    // RHS used many temps. With statement-boundary temp release in
+    // compileBlock that puts variables fragmented across the slot
+    // range, wasting space below maxVarReg_ and exhausting the 256-slot
+    // chunk on workloads that don't otherwise need that many slots.
+    // Pre-allocating clusters all variables at LOW slots and leaves
+    // the high range free for transient temps. No code is emitted —
+    // values land via assignment as usual.
+    std::vector<std::string> assignedNames;
+    collectAssignedNames(ast, assignedNames);
+    for (auto &name : assignedNames) {
+        if (varRegisters_.count(name))
+            continue;
+        if (engine_.isReservedName(name))
+            continue; // reserved/pseudo-vars are looked up on demand
+        if (nextReg_ >= 255)
+            throw std::runtime_error(
+                "Compiler: register exhaustion during pre-allocation of assigned vars");
+        uint8_t r = static_cast<uint8_t>(nextReg_++);
+        if (nextReg_ > peakReg_) peakReg_ = nextReg_;
+        if (nextReg_ > maxVarReg_) maxVarReg_ = nextReg_;
+        varRegisters_[name] = r;
+    }
+}
+
+void Compiler::collectAssignedNames(const ASTNode *node, std::vector<std::string> &out)
+{
+    if (!node)
+        return;
+    // Don't descend into nested function definitions — they have their
+    // own scope and compile separately.
+    if (node->type == NodeType::FUNCTION_DEF)
+        return;
+
+    auto pushIdent = [&out](const ASTNode *target) {
+        if (target && target->type == NodeType::IDENTIFIER
+            && !target->strValue.empty())
+            out.push_back(target->strValue);
+    };
+
+    if (node->type == NodeType::ASSIGN && !node->children.empty()) {
+        // Simple `name = expr` (also covers a(idx)=... where LHS is
+        // INDEX/CALL → identifier is children[0]->children[0]).
+        const ASTNode *lhs = node->children[0].get();
+        if (lhs->type == NodeType::IDENTIFIER) {
+            pushIdent(lhs);
+        } else if ((lhs->type == NodeType::INDEX || lhs->type == NodeType::CALL
+                    || lhs->type == NodeType::FIELD_ACCESS
+                    || lhs->type == NodeType::DYNAMIC_FIELD_ACCESS
+                    || lhs->type == NodeType::CELL_INDEX)
+                   && !lhs->children.empty()) {
+            pushIdent(lhs->children[0].get());
+        }
+    }
+    if (node->type == NodeType::MULTI_ASSIGN) {
+        for (auto &name : node->returnNames)
+            if (name != "~" && !name.empty())
+                out.push_back(name);
+    }
+    if (node->type == NodeType::FOR_STMT && !node->strValue.empty())
+        out.push_back(node->strValue);
+
+    for (auto &child : node->children)
+        collectAssignedNames(child.get(), out);
+    for (auto &[cond, body] : node->branches) {
+        collectAssignedNames(cond.get(), out);
+        collectAssignedNames(body.get(), out);
+    }
+    if (node->elseBranch)
+        collectAssignedNames(node->elseBranch.get(), out);
 }
 
 void Compiler::collectAllIdentifiers(const ASTNode *node, std::unordered_set<std::string> &out)
@@ -153,7 +236,14 @@ uint8_t Compiler::varRegLookup(const std::string &name)
     auto it = varRegisters_.find(name);
     if (it != varRegisters_.end())
         return it->second;
-    uint8_t r = nextReg_++;
+    if (nextReg_ >= 255)
+        throw std::runtime_error(
+            "Compiler: register exhaustion (>255 registers needed in chunk)");
+    uint8_t r = static_cast<uint8_t>(nextReg_++);
+    if (nextReg_ > peakReg_)
+        peakReg_ = nextReg_;
+    if (nextReg_ > maxVarReg_)
+        maxVarReg_ = nextReg_;
     varRegisters_[name] = r;
 
     // Pre-load a value from the engine for any reserved name that happens
@@ -230,7 +320,16 @@ uint8_t Compiler::varRegRead(const std::string &name)
 
 uint8_t Compiler::tempReg()
 {
-    return nextReg_++;
+    // Bytecode reg fields are uint8_t — max 256 distinct slots (0..255).
+    // numRegisters is uint8_t, so its count must fit too: cap at 255.
+    // Throw early rather than wrap nextReg_ and silently corrupt slot 0+.
+    if (nextReg_ >= 255)
+        throw std::runtime_error(
+            "Compiler: register exhaustion (>255 registers needed in chunk)");
+    uint8_t r = static_cast<uint8_t>(nextReg_++);
+    if (nextReg_ > peakReg_)
+        peakReg_ = nextReg_;
+    return r;
 }
 
 // ============================================================
@@ -708,9 +807,44 @@ uint8_t Compiler::compileNode(const ASTNode *node)
 
 uint8_t Compiler::compileBlock(const ASTNode *node)
 {
+    // Release transient temps allocated during each statement so
+    // subsequent statements can reuse those slots. Without this, a
+    // long block (e.g. the heavy try-body in audio_cepstral) bumps
+    // nextReg_ past the 256-slot bytecode limit; the old code silently
+    // wrapped uint8_t and corrupted variable slot 0.
+    //
+    // Floor is max(entryNext, maxVarReg_):
+    //   * entryNext preserves temps that the *parent* compileX
+    //     allocated before invoking us (e.g. compileSwitch's
+    //     switchReg/cmpReg live across case bodies).
+    //   * maxVarReg_ preserves any *new* variable slot the statement
+    //     introduced via varRegLookup or the canEliminate adopt-temp
+    //     path in compileAssign.
+    // Cached LOAD_CONST regs above the floor are released and must be
+    // re-emitted by future statements; that's safe and cheap.
+    //
+    // CRITICAL: we must also emit runtime CLEAR_VAR for each released
+    // slot. Otherwise the runtime register file keeps the previous
+    // statement's value in that slot, and a subsequent varRegLookup
+    // for an undefined variable will allocate the same slot and see
+    // a stale value — ASSERT_DEF then passes incorrectly. (Nested
+    // try/catch with undefined variables exposed this: the inner
+    // catch's LOAD_CONST(1) at slot S survived after release, and a
+    // following `r + undef` re-allocated S for `undef`, so ASSERT_DEF
+    // saw R[S]=1 and never threw — turning the expected outer-catch
+    // into a silent computation of `r + 1`.)
+    const int entryNext = nextReg_;
     uint8_t last = 0;
     for (auto &child : node->children) {
         last = compileNode(child.get());
+        const int floor = entryNext > maxVarReg_ ? entryNext : maxVarReg_;
+        if (nextReg_ > floor) {
+            for (int r = floor; r < nextReg_; ++r)
+                emitA(OpCode::CLEAR_VAR, static_cast<uint8_t>(r));
+            nextReg_ = floor;
+            constRegCache_.clear();
+            scalarRegs_.reset();
+        }
     }
     return last;
 }
@@ -808,8 +942,13 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
 
         uint8_t dst;
         if (canEliminate && varIt == varRegisters_.end()) {
-            // First assignment: adopt temp register as the variable
+            // First assignment: adopt temp register as the variable.
+            // We MUST pin this slot in maxVarReg_ so the compileBlock
+            // statement-boundary release does not later free a slot
+            // that still holds the variable's value.
             varRegisters_[lhs->strValue] = src;
+            if (static_cast<int>(src) + 1 > maxVarReg_)
+                maxVarReg_ = static_cast<int>(src) + 1;
             dst = src;
             // No instruction emitted, no reclaim needed — src IS the variable now
         } else if (canEliminate && varIt != varRegisters_.end()) {
@@ -2501,7 +2640,7 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         }
         // guard restores here (but we can let it live until return — same scope)
 
-        uint8_t argBase = nextReg_;
+        uint8_t argBase = static_cast<uint8_t>(nextReg_);
         for (size_t i = 0; i < argRegs.size(); ++i) {
             uint8_t slot = tempReg();
             if (argRegs[i] != slot)
@@ -2958,7 +3097,9 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     auto savedLoopStack = std::move(loopStack_);
     auto savedConstCache = std::move(constRegCache_);
     auto savedScalarRegs = scalarRegs_;
-    uint8_t savedNextReg = nextReg_;
+    int savedNextReg = nextReg_;
+    int savedPeakReg = peakReg_;
+    int savedMaxVarReg = maxVarReg_;
     bool savedTopLevel = isTopLevel_;
     SourceLoc savedLoc = currentLoc_;
     isTopLevel_ = false;
@@ -2976,6 +3117,8 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     constRegCache_.clear();
     scalarRegs_.reset();
     nextReg_ = 0;
+    peakReg_ = 0;
+    maxVarReg_ = 0;
 
     // Allocate registers for parameters (they come pre-loaded by VM)
     // Parameters get their value at call entry — mark as assigned so the
@@ -3034,7 +3177,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
         }
     }
 
-    chunk_.numRegisters = nextReg_;
+    chunk_.numRegisters = static_cast<uint8_t>(peakReg_);
 
     // Save variable→register mapping (needed for global var import/export)
     for (auto &[name, reg] : varRegisters_)
@@ -3049,6 +3192,8 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     constRegCache_ = std::move(savedConstCache);
     scalarRegs_ = savedScalarRegs;
     nextReg_ = savedNextReg;
+    peakReg_ = savedPeakReg;
+    maxVarReg_ = savedMaxVarReg;
     isTopLevel_ = savedTopLevel;
     currentLoc_ = savedLoc;
 

@@ -1,0 +1,6 @@
+{"name": "mode_cell", "covers": ["mode"], "namespace": "core",
+ "setup": "M = [1 1; 2 2; 1 3; 2 2];",
+ "expr": "[mv,fv,cv] = mode([3 3 1 2 2]); v1 = cv{1}(1); v2 = cv{1}(2); nv = numel(cv{1}); [mm,fm,cm] = mode(M); c11 = cm{1}(1); c12 = cm{1}(2); n1 = numel(cm{1}); n2 = numel(cm{2}); [mr,fr,cr] = mode(M,2); r3a = cr{3}(1); r3b = cr{3}(2);",
+ "iters": 3, "tol": 0,
+ "fingerprint": ["mv", "fv", "v1", "v2", "nv", "c11", "c12", "n1", "n2", "r3a", "r3b"],
+ "comment": "mode 3rd output C (2026-05-30): [M,F,C]=mode(X). C is a cell array of the modal values -- each cell holds a sorted column vector of all values tied for the modal frequency in that slice (MATLAB ignores NaN). Previously numkit only returned [M,F] (the 3rd output errored 'Undefined function or variable'). [3 3 1 2 2]: both 2 and 3 occur twice -> mv=2 (smallest tie), fv=2, cv{1}=[2;3] (v1=2,v2=3,nv=2). Matrix M default (per column): col1 ties 1,2 -> cm{1}=[1;2] (c11=1,c12=2,n1=2); col2 mode 2 -> n2=1. dim=2 (per row): row3=[1 3] both once -> cr{3}=[1;3] (r3a=1,r3b=3). Supported for real double vector/2-D matrix/'all'; ND/non-double 3rd output deferred. namespace=core. Matches MATLAB R2025b."}

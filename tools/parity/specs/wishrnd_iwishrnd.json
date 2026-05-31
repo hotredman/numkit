@@ -1,0 +1,17 @@
+{
+  "name": "wishrnd_iwishrnd",
+  "covers": ["wishrnd", "iwishrnd"],
+  "namespace": "stats",
+  "setup": "rng(0); Sigma = [2 0.3; 0.3 1]; df = 8; Tau = [2 0.5; 0.5 1]; df2 = 7;",
+  "expr": "accW = zeros(2); for i=1:600; accW = accW + wishrnd(Sigma, df); end; Mw = accW / (600 * df); errW = max(max(abs(Mw - Sigma))); accI = zeros(2); for i=1:600; accI = accI + iwishrnd(Tau, df2); end; Mi = accI / 600 * (df2 - 3); errI = max(max(abs(Mi - Tau))); W = wishrnd(Sigma, df); sym = max(max(abs(W - W'))); detpos = double(det(W) > 0);",
+  "iters": 3,
+  "tol": 0.3,
+  "fingerprint": [
+    "double(errW < 0.4)",
+    "double(errI < 0.5)",
+    "double(sym < 1e-10)",
+    "detpos",
+    "size(W, 1)", "size(W, 2)"
+  ],
+  "comment": "Sig: W = wishrnd(Sigma, df) — Wishart RNG via Bartlett decomposition: factor Sigma = L·L', build lower-tri B with B(i,i)=sqrt(χ²(df-i)) and B(i,j)~N(0,1) for i>j, then W = (L·B)(L·B)'. W = iwishrnd(Tau, df) — sample Y ~ W(inv(Tau), df) via Bartlett, return inv(Y). Stochastic samples; fingerprint pins E[W]/df ≈ Sigma for Wishart, E[W]·(df-p-1) ≈ Tau for inverse Wishart, plus exact symmetry of a single draw and positive-definiteness. KNOWN GAPs: 3rd-argument D (pre-Cholesky), 2-output [W, D] form deferred."
+}

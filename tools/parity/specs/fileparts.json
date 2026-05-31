@@ -2,12 +2,11 @@
   "name": "fileparts",
   "namespace": "io",
   "setup": "",
-  "expr": "[p, n, e] = fileparts(\"/path/to/file.txt\"); r1 = double(strcmp(n, \"file\")); r2 = double(strcmp(e, \".txt\"));",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "[p, n, e] = fileparts('/path/to/archive.tar.gz'); [~, n2, e2] = fileparts('README'); r1 = double(strcmp(p, '/path/to')); r2 = double(strcmp(n, 'archive.tar')); r3 = double(strcmp(e, '.gz')); r4 = double(strcmp(n2, 'README')); r5 = double(isempty(e2));",
+  "iters": 3,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2", "r3", "r4", "r5"
   ],
-  "comment": "Sig: r = fileparts(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig [path,name,ext]=fileparts(f): splits a path. Multi-dot '/path/to/archive.tar.gz' -> path='/path/to', name='archive.tar' (only the LAST dot starts the extension), ext='.gz'. No-extension 'README' -> name='README', ext='' (empty). strcmp/isempty pin exact string equality (not a loose proxy)."
 }

@@ -1,0 +1,14 @@
+{
+  "name": "kde",
+  "namespace": "stats",
+  "setup": "rng(0); x = randn(200, 1); pts = linspace(-3, 3, 21);",
+  "expr": "[f, xi, bw] = kde(x); fe = kde(x, pts); n_f = numel(f); n_xi = numel(xi); n_fe = numel(fe); int_f = sum(fe) * (pts(2) - pts(1)); finite_all = all(isfinite(f));",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "n_f", "n_xi", "n_fe", "finite_all",
+    "double(int_f > 0.5)", "double(int_f < 1.05)",
+    "double(bw > 0)", "double(max(f) > 0)"
+  ],
+  "comment": "Sig: [f, xi, bw] = kde(x [, pts]) — MATLAB R2023b+ alias for ksdensity. Kernel density estimation with Gaussian kernel by default; bandwidth via Silverman's rule of thumb. v1 implementation: direct alias to ksdensity_reg (same adapter handles positional + name-value calls). Fingerprint pins output shapes (numel = 100 by default), bandwidth positivity, normalisation (integral ≈ 1 over [-3, 3] which captures most mass of N(0,1)). Engine-dependent randn → no bit-exact comparison; structural assertions only (tol 1e-9 on the deterministic shape numbers)."
+}

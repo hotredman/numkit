@@ -69,7 +69,7 @@ Value pskmod(const Value &x, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pskmod: M must be ≥ 2", 0, 0, "pskmod", "",
-                    "m:pskmod:badM");
+                    "numkit:pskmod:badM");
     Value out = alloc_complex_like(mr, x);
     const size_t N = x.numel();
     if (N == 0) return out;
@@ -90,7 +90,7 @@ Value pskdemod(const Value &y, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pskdemod: M must be ≥ 2", 0, 0, "pskdemod", "",
-                    "m:pskdemod:badM");
+                    "numkit:pskdemod:badM");
     Value out = alloc_double_like(mr, y);
     const size_t N = y.numel();
     if (N == 0) return out;
@@ -116,7 +116,7 @@ Value dpskmod(const Value &x, int M, double phase_rot,
 {
     if (M < 2)
         throw Error("dpskmod: M must be ≥ 2", 0, 0, "dpskmod", "",
-                    "m:dpskmod:badM");
+                    "numkit:dpskmod:badM");
     Value out = alloc_complex_like(mr, x);
     const size_t N = x.numel();
     if (N == 0) return out;
@@ -138,7 +138,7 @@ Value dpskdemod(const Value &y, int M, double phase_rot,
 {
     if (M < 2)
         throw Error("dpskdemod: M must be ≥ 2", 0, 0, "dpskdemod", "",
-                    "m:dpskdemod:badM");
+                    "numkit:dpskdemod:badM");
     Value out = alloc_double_like(mr, y);
     const size_t N = y.numel();
     if (N == 0) return out;
@@ -180,7 +180,7 @@ void pskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pskmod: requires (x, M[, ini_phase, symbol_order])",
-                    0, 0, "pskmod", "", "m:pskmod:nargin");
+                    0, 0, "pskmod", "", "numkit:pskmod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -194,7 +194,7 @@ void pskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pskdemod: requires (y, M[, ini_phase, symbol_order])",
-                    0, 0, "pskdemod", "", "m:pskdemod:nargin");
+                    0, 0, "pskdemod", "", "numkit:pskdemod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -208,7 +208,7 @@ void dpskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("dpskmod: requires (x, M[, phaserot, symbol_order])",
-                    0, 0, "dpskmod", "", "m:dpskmod:nargin");
+                    0, 0, "dpskmod", "", "numkit:dpskmod:nargin");
     const int M = (int)args[1].toScalar();
     const double rot = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
@@ -222,7 +222,7 @@ void dpskdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("dpskdemod: requires (y, M[, phaserot, symbol_order])",
-                    0, 0, "dpskdemod", "", "m:dpskdemod:nargin");
+                    0, 0, "dpskdemod", "", "numkit:dpskdemod:nargin");
     const int M = (int)args[1].toScalar();
     const double rot = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))

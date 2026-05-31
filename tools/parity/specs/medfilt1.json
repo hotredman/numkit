@@ -1,14 +1,11 @@
 {
   "name": "medfilt1",
   "namespace": "signal",
-  "setup": "",
-  "expr": "y = medfilt1([1 5 2 4 3], 3); r1 = y(2); r2 = y(3); r3 = y(4);",
+  "setup": "x = [2 80 6 3 10 8];",
+  "expr": "y = medfilt1(x,3); d1 = y(1); d6 = y(6); e = medfilt1(x,4); e1 = e(1); e3 = e(3); e6 = e(6); t = medfilt1(x,4,'truncate'); t1 = t(1); t6 = t(6); M = medfilt1([1 2;3 4;5 6;7 8],3); m4 = M(4,1);",
   "iters": 5,
-  "tol": 1e-06,
-  "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
-  ],
-  "comment": "Sig: r = medfilt1(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "tol": 0,
+  "fingerprint": ["d1", "d6", "e1", "e3", "e6", "t1", "t6", "m4"],
+  "comment": "medfilt1 windowing + padding vs MATLAB R2025b (DEEP-PROBE 2026-05-30). Window for sample i = [i-floor(k/2) .. i+ceil(k/2)-1] (even k leans LEFT); DEFAULT pads out-of-range with 0 ('zeropad'), 'truncate' clips the window at the ends. numkit previously (a) truncated by default (d1 gave 41 instead of 2) and (b) used a RIGHT-leaning even window. x=[2 80 6 3 10 8]: k=3 zeropad d1=median(0,2,80)=2, d6=median(10,8,0)=8; k=4 e=[1 4 4.5 8 7 5.5] e1=median(0,0,2,80)=1, e3=median(2,80,6,3)=4.5, e6=median(3,10,8,0)=5.5; k=4 'truncate' t1=median(2,80)=41, t6=median(3,10,8)=8. Matrix filtered per column (operate along dim 1): medfilt1([1 2;3 4;5 6;7 8],3) col1 row4 m4=median(5,7,0)=5. blksz/dim/nanflag args accepted-but-ignored (deferred). namespace=signal. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

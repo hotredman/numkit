@@ -47,13 +47,13 @@ Value intfilt(size_t r, size_t n, double alpha, std::pmr::memory_resource *mr)
 {
     if (r < 1)
         throw Error("intfilt: r must be >= 1",
-                     0, 0, "intfilt", "", "m:intfilt:badR");
+                     0, 0, "intfilt", "", "numkit:intfilt:badR");
     if (n < 1)
         throw Error("intfilt: n must be >= 1",
-                     0, 0, "intfilt", "", "m:intfilt:badN");
+                     0, 0, "intfilt", "", "numkit:intfilt:badN");
     if (!(alpha > 0.0) || !(alpha <= 1.0))
         throw Error("intfilt: alpha must be in (0, 1]",
-                     0, 0, "intfilt", "", "m:intfilt:badAlpha");
+                     0, 0, "intfilt", "", "numkit:intfilt:badAlpha");
 
     // MATLAB intfilt(R, L, alpha): length = 2*R*L - 1. Numkit uses a
     // Hamming-windowed sinc (not MATLAB's proprietary firgr/firls
@@ -95,7 +95,7 @@ Value upfirdn(const Value &x, const Value &h, size_t p, size_t q, std::pmr::memo
 {
     if (p < 1 || q < 1)
         throw Error("upfirdn: p and q must be >= 1",
-                     0, 0, "upfirdn", "", "m:upfirdn:badPQ");
+                     0, 0, "upfirdn", "", "numkit:upfirdn:badPQ");
     const size_t Lx = x.numel();
     const size_t Lh = h.numel();
     if (Lx == 0 || Lh == 0) return sameOrientReal(x, 0, mr);
@@ -224,7 +224,7 @@ void upfirdn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("upfirdn: requires (x, h, p[, q])",
-                     0, 0, "upfirdn", "", "m:upfirdn:nargin");
+                     0, 0, "upfirdn", "", "numkit:upfirdn:nargin");
     const size_t p = static_cast<size_t>(args[2].toScalar());
     const size_t q = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 1;
     outs[0] = upfirdn(args[0], args[1], p, q, ctx.engine->resource());
@@ -234,7 +234,7 @@ void interp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 2)
         throw Error("interp: requires (x, r[, n[, alpha]])",
-                     0, 0, "interp", "", "m:interp:nargin");
+                     0, 0, "interp", "", "numkit:interp:nargin");
     const size_t r = static_cast<size_t>(args[1].toScalar());
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 4;
     const double alpha = (args.size() >= 4) ? args[3].toScalar() : 0.5;
@@ -245,7 +245,7 @@ void intfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 1)
         throw Error("intfilt: requires (r[, n[, alpha]])",
-                     0, 0, "intfilt", "", "m:intfilt:nargin");
+                     0, 0, "intfilt", "", "numkit:intfilt:nargin");
     const size_t r = static_cast<size_t>(args[0].toScalar());
     const size_t n = (args.size() >= 2) ? static_cast<size_t>(args[1].toScalar()) : 4;
     const double alpha = (args.size() >= 3) ? args[2].toScalar() : 0.5;
@@ -256,7 +256,7 @@ void fftfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("fftfilt: requires (b, x[, nfft])",
-                     0, 0, "fftfilt", "", "m:fftfilt:nargin");
+                     0, 0, "fftfilt", "", "numkit:fftfilt:nargin");
     const size_t nfft = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
     outs[0] = fftfilt(args[0], args[1], nfft, ctx.engine->resource());
 }

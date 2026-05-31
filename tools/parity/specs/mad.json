@@ -1,4 +1,5 @@
-{"name": "mad", "namespace": "stats", "setup": "v = [1 5 3 8 2 7 4 6];",
- "expr": "m1 = mad(v); m2 = mad(v, 1);", "iters": 5, "tol": 1e-10,
- "fingerprint": ["m1", "m2"],
- "comment": "Sig: mad(x[, flag][, dim]). Mean (flag=0) or median (flag=1) absolute deviation."}
+{"name": "mad", "namespace": "stats", "setup": "M = magic(4);",
+ "expr": "m0 = mad(M); m1 = mad(M, 1); m2d = mad(M, 0, 2); mv = mad([1 5 3 8 2 7 4 6]);",
+ "iters": 3, "tol": 1e-10,
+ "fingerprint": ["m0(1)", "m0(2)", "m1(1)", "m1(2)", "m2d(1)", "mv"],
+ "comment": "Sig mad(x[,flag[,dim]]): mean (flag=0, default) or median (flag=1) absolute deviation. magic(4) per-column mean-AD = [4 4 ...]; median-AD = [2.5 3.5 ...]; dim=2 (per-row) mean-AD(1)=6. Vector mad([1 5 3 8 2 7 4 6]) = 2 (mean |x-4.5|)."}

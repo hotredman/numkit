@@ -22,7 +22,7 @@ namespace numkit::wavelet {
 ///     (level 1 = finest).
 ///   - row n+1   : approximation @f$ A_n @f$ at the coarsest level.
 ///
-/// Boundary: periodic (MATLAB default for swt).
+/// Boundary: periodic (the default for swt).
 ///
 /// @param x      Input signal, length must divide @f$ 2^n @f$.
 /// @param n      Decomposition depth (≥ 1).

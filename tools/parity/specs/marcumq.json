@@ -2,12 +2,11 @@
   "name": "marcumq",
   "namespace": "comm",
   "setup": "",
-  "expr": "r1 = marcumq(0, 0, 1); r2 = marcumq(1, 1, 1);",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "r1 = marcumq(2, 1); r2 = marcumq(1, 2); r3 = marcumq(2, 3, 2);",
+  "iters": 3,
+  "tol": 1e-05,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2", "r3"
   ],
-  "comment": "Sig: r = marcumq(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig Q=marcumq(a,b[,m]): generalized Marcum Q-function. marcumq(2,1)=0.918108 (b<a -> near 1), marcumq(1,2)=0.269012 (b>a -> small), marcumq(2,3,2)=0.352698 (order m=2). tol 1e-5: numkit's series approximation differs from MATLAB by ~5e-7."
 }

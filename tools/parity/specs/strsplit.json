@@ -2,11 +2,15 @@
   "name": "strsplit",
   "namespace": "builtin",
   "setup": "",
-  "expr": "parts = strsplit(\"a b c\"); r1 = double(numel(parts));",
+  "expr": "c1 = strsplit(',a,b,', ','); n1 = double(numel(c1)); e1a = double(strcmp(c1{1}, '')); e1b = double(strcmp(c1{4}, '')); c2 = strsplit('a,,b', ',', 'CollapseDelimiters', false); n2 = double(numel(c2)); e2 = double(strcmp(c2{2}, '')); c3 = strsplit('a==b==c', '=='); n3 = double(numel(c3)); e3 = double(strcmp(c3{2}, 'b')); c4 = strsplit('a, b,c', {', ', ','}); n4 = double(numel(c4)); e4 = double(strcmp(c4{3}, 'c')); c5 = strsplit('  a  b  '); n5 = double(numel(c5)); c6 = strsplit('a,,b', ','); n6 = double(numel(c6));",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
-    "r1"
+    "n1", "e1a", "e1b",
+    "n2", "e2",
+    "n3", "e3",
+    "n4", "e4",
+    "n5", "n6"
   ],
-  "comment": "Sig: r = strsplit(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
+  "comment": "Sig: c = strsplit(str, delim, Name,Value). Delim may be a string OR a cell array of strings (longest-match); multi-char delims supported. CollapseDelimiters=true (default) merges only CONSECUTIVE delimiters so leading/trailing empties remain (',a,b,'->{'','a','b',''} n=4; 'a,,b'->n=2); CollapseDelimiters=false splits at every occurrence ('a,,b'->{'a','','b'} n=3). Default delimiter is whitespace ('  a  b  '->n=4). numkit previously took only a single char delim, threw on cell delims, and always dropped empties (ignoring CollapseDelimiters); fixed 2026-05-30. (DelimiterType='RegularExpression' remains an unimplemented gap.) Spec-extension batch 2026-05-09 + cell/multi/collapse."
 }

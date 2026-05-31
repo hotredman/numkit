@@ -33,17 +33,17 @@ void validatePerm(const int *perm, std::size_t N, const char *fn)
 {
     if (N == 0)
         throw Error(std::string(fn) + ": perm vector must not be empty",
-                     0, 0, fn, "", std::string("m:") + fn + ":emptyPerm");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":emptyPerm");
     if (N > Dims::kMaxRank)
         throw Error(std::string(fn) + ": perm length exceeds 32",
-                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
     int sorted[Dims::kMaxRank];
     for (std::size_t i = 0; i < N; ++i) sorted[i] = perm[i];
     std::sort(sorted, sorted + N);
     for (std::size_t i = 0; i < N; ++i) {
         if (sorted[i] != static_cast<int>(i + 1))
             throw Error(std::string(fn) + ": perm must be a permutation of 1..N",
-                         0, 0, fn, "", std::string("m:") + fn + ":badPerm");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":badPerm");
     }
 }
 
@@ -104,7 +104,7 @@ Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *m
     const int inNd = std::max<int>(dd.ndim(), static_cast<int>(n));
     if (inNd > Dims::kMaxRank)
         throw Error("permute: rank exceeds 32",
-                     0, 0, "permute", "", "m:permute:tooManyDims");
+                     0, 0, "permute", "", "numkit:permute:tooManyDims");
 
     // All shape arrays on the stack — no per-call heap traffic. Avoids
     // 4 std::vector allocs that dominated cost at small sizes (post-ND
@@ -116,6 +116,42 @@ Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *m
         p[i] = (i < static_cast<int>(n)) ? perm[i] : (i + 1);
     for (int i = 0; i < inNd; ++i) inDims[i] = dd.dim(i);
     for (int k = 0; k < inNd; ++k) outDimsArr[k] = inDims[p[k] - 1];
+
+    // Non-DOUBLE (char / logical / complex / single / int / cell): permute is
+    // a pure rearrangement -> type-preserving. Strided gather, copying raw
+    // bytes (POD) or Value elements (CELL). The DOUBLE fast paths below are
+    // left untouched.
+    if (x.type() != ValueType::DOUBLE) {
+        const ValueType t = x.type();
+        const bool isCell = (t == ValueType::CELL);
+        if (t == ValueType::STRING || t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
+            throw Error(std::string("permute: does not support type '")
+                         + mtypeName(t) + "'",
+                         0, 0, "permute", "", "numkit:permute:type");
+        if (isCell && inNd > 2)
+            throw Error("permute: cell array rank > 2 not supported",
+                         0, 0, "permute", "", "numkit:permute:cellND");
+        Value r = isCell ? Value::cell(outDimsArr[0], inNd >= 2 ? outDimsArr[1] : 1, mr)
+                         : Value::matrixND(outDimsArr, inNd, t, mr);
+        if (x.numel() == 0) return r;
+        size_t inStrides[Dims::kMaxRank];
+        computeStridesColMajor(Dims(inDims, inNd), inStrides);
+        const size_t es = isCell ? 0 : elementSize(t);
+        const char *src = isCell ? nullptr : static_cast<const char *>(x.rawData());
+        char *dst = isCell ? nullptr : static_cast<char *>(r.rawDataMut());
+        size_t outCoords[Dims::kMaxRank] = {0};
+        Dims outDimsObj(outDimsArr, inNd);
+        size_t dstOff = 0;
+        do {
+            size_t srcOff = 0;
+            for (int k = 0; k < inNd; ++k)
+                srcOff += outCoords[k] * inStrides[p[k] - 1];
+            if (isCell) r.cellAt(dstOff) = x.cellAt(srcOff);
+            else        std::memcpy(dst + dstOff * es, src + srcOff * es, es);
+            ++dstOff;
+        } while (incrementCoords(outCoords, outDimsObj));
+        return r;
+    }
 
     // 2D / 3D fast path uses createMatrix / createMatrix3d via matrixND;
     // ≥ 4D goes through Value::matrixND. Trailing 1s are kept.
@@ -269,33 +305,62 @@ Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
     size_t R = 0, C = 0;
     bool anchored = false;
     size_t totalPages = 0;
+    ValueType outType = ValueType::DOUBLE;
     for (size_t i = 0; i < count; ++i) {
         const auto &v = values[i];
         if (v.isEmpty() || v.numel() == 0) continue;
+        const ValueType t = v.type();
+        // STRING / STRUCT / FUNC_HANDLE along dim 3 deferred; same-type only
+        // (mixed-type promotion not implemented), matching ND cat.
+        if (t == ValueType::STRING || t == ValueType::STRUCT
+            || t == ValueType::FUNC_HANDLE)
+            throw Error(std::string("cat: dim 3 does not support type '")
+                         + mtypeName(t) + "'",
+                         0, 0, "cat", "", "numkit:cat:typeDim3");
         const auto &dd = v.dims();
         if (!anchored) {
             R = dd.rows();
             C = dd.cols();
+            outType = t;
             anchored = true;
         } else {
             if (dd.rows() != R || dd.cols() != C)
                 throw Error("cat: dim 3 inputs must agree on rows and cols",
-                             0, 0, "cat", "", "m:cat:badDims");
+                             0, 0, "cat", "", "numkit:cat:badDims");
+            if (t != outType)
+                throw Error("cat: dim 3 requires all inputs to share a type",
+                             0, 0, "cat", "", "numkit:cat:typeMismatchDim3");
         }
         totalPages += dd.is3D() ? dd.pages() : 1;
     }
     if (!anchored) return Value::empty();
 
-    auto r = Value::matrix3d(R, C, totalPages, ValueType::DOUBLE, mr);
-    double *dst = r.doubleDataMut();
+    // CELL permutes element-wise (Value copy); POD types copy raw bytes.
+    // cat is a pure rearrangement, so it is type-preserving.
+    const bool isCell = (outType == ValueType::CELL);
+    Value r = isCell ? Value::cell3D(R, C, totalPages, mr)
+                     : Value::matrix3d(R, C, totalPages, outType, mr);
+    if (isCell) {
+        size_t pageOff = 0;
+        for (size_t i = 0; i < count; ++i) {
+            const auto &v = values[i];
+            if (v.isEmpty() || v.numel() == 0) continue;
+            const size_t P = v.dims().is3D() ? v.dims().pages() : 1;
+            const size_t base = pageOff * R * C, n = R * C * P;
+            for (size_t e = 0; e < n; ++e) r.cellAt(base + e) = v.cellAt(e);
+            pageOff += P;
+        }
+        return r;
+    }
+    const size_t es = elementSize(outType);
+    char *dst = static_cast<char *>(r.rawDataMut());
     size_t pageOff = 0;
     for (size_t i = 0; i < count; ++i) {
         const auto &v = values[i];
         if (v.isEmpty() || v.numel() == 0) continue;
-        const auto &dd = v.dims();
-        const size_t P = dd.is3D() ? dd.pages() : 1;
-        std::memcpy(dst + pageOff * R * C, v.doubleData(),
-                    R * C * P * sizeof(double));
+        const size_t P = v.dims().is3D() ? v.dims().pages() : 1;
+        std::memcpy(dst + pageOff * R * C * es,
+                    static_cast<const char *>(v.rawData()), R * C * P * es);
         pageOff += P;
     }
     return r;
@@ -321,7 +386,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
     constexpr int kMaxNd = Dims::kMaxRank;
     if (outNdim > kMaxNd)
         throw Error("cat: rank exceeds 32",
-                     0, 0, "cat", "", "m:cat:tooManyDims");
+                     0, 0, "cat", "", "numkit:cat:tooManyDims");
 
     size_t outDim[kMaxNd];
     for (int j = 0; j < outNdim; ++j) outDim[j] = 0;
@@ -336,7 +401,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
             || t == ValueType::FUNC_HANDLE)
             throw Error(std::string("cat: ND cat does not support type '")
                          + mtypeName(t) + "'",
-                         0, 0, "cat", "", "m:cat:typeND");
+                         0, 0, "cat", "", "numkit:cat:typeND");
         const auto &d = v.dims();
         if (!anchored) {
             for (int j = 0; j < outNdim; ++j)
@@ -346,7 +411,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
         } else {
             if (t != outType)
                 throw Error("cat: ND cat requires all inputs to share a type",
-                             0, 0, "cat", "", "m:cat:typeMismatchND");
+                             0, 0, "cat", "", "numkit:cat:typeMismatchND");
             for (int j = 0; j < outNdim; ++j) {
                 const size_t vd = (j < d.ndim()) ? d.dim(j) : 1;
                 if (j == k) {
@@ -355,7 +420,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
                     throw Error("cat: dim " + std::to_string(dim)
                                  + " inputs must agree on all axes except dim "
                                  + std::to_string(dim),
-                                 0, 0, "cat", "", "m:cat:badDims");
+                                 0, 0, "cat", "", "numkit:cat:badDims");
                 }
             }
         }
@@ -400,7 +465,7 @@ Value cat(int dim, Span<const Value> values, std::pmr::memory_resource *mr)
 {
     if (dim < 1)
         throw Error("cat: dim must be a positive integer",
-                     0, 0, "cat", "", "m:cat:badDim");
+                     0, 0, "cat", "", "numkit:cat:badDim");
     switch (dim) {
         case 1: return vertcat(values, mr);
         case 2: return horzcat(values, mr);
@@ -420,29 +485,49 @@ Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr)
     const size_t count = values.size();
     if (count == 0) return Value::empty();
 
+    // Type-preserving: anchor the output type on the first NON-EMPTY block
+    // (empties contribute neither size on the diagonal mismatch nor a type
+    // vote). CHAR / LOGICAL / SINGLE / int / COMPLEX preserved via raw-byte
+    // copy into a zero-filled output. CELL / STRING / STRUCT rejected; mixed
+    // input types deferred (MATLAB would promote — out of scope here).
     size_t totalRows = 0, totalCols = 0;
+    ValueType t = ValueType::DOUBLE;
+    bool typeSet = false;
     for (size_t i = 0; i < count; ++i) {
         if (values[i].dims().is3D())
             throw Error("blkdiag: 3D inputs are not supported",
-                         0, 0, "blkdiag", "", "m:blkdiag:3D");
+                         0, 0, "blkdiag", "", "numkit:blkdiag:3D");
         totalRows += values[i].dims().rows();
         totalCols += values[i].dims().cols();
+        if (values[i].numel() == 0) continue;
+        const ValueType vt = values[i].type();
+        if (vt == ValueType::CELL || vt == ValueType::STRING ||
+            vt == ValueType::STRUCT || vt == ValueType::FUNC_HANDLE)
+            throw Error("blkdiag: inputs must be numeric, char, or logical",
+                         0, 0, "blkdiag", "", "numkit:blkdiag:badType");
+        if (!typeSet) { t = vt; typeSet = true; }
+        else if (vt != t)
+            throw Error("blkdiag: mixed input types are not supported",
+                         0, 0, "blkdiag", "", "numkit:blkdiag:mixedType");
     }
-    auto r = Value::matrix(totalRows, totalCols, ValueType::DOUBLE, mr);
-    double *dst = r.doubleDataMut();
-    // Zero-init: matrix() returns an uninitialised buffer in some
-    // builds; explicit clear is safe and cheap (we'll write the block
-    // regions over the top).
-    std::fill(dst, dst + totalRows * totalCols, 0.0);
+
+    auto r = Value::matrix(totalRows, totalCols, t, mr);
+    const size_t es = elementSize(t);
+    char *dst = static_cast<char *>(r.rawDataMut());
+    // Zero-init (matrix() may return an uninitialised buffer in some builds);
+    // the zero byte pattern is the canonical zero for every supported type.
+    std::memset(dst, 0, totalRows * totalCols * es);
 
     size_t rowOff = 0, colOff = 0;
     for (size_t k = 0; k < count; ++k) {
         const auto &v = values[k];
         const size_t R = v.dims().rows(), C = v.dims().cols();
-        const double *src = v.doubleData();
-        for (size_t c = 0; c < C; ++c) {
-            const size_t dstColStart = (colOff + c) * totalRows + rowOff;
-            std::memcpy(dst + dstColStart, src + c * R, R * sizeof(double));
+        if (v.numel() > 0) {
+            const char *src = static_cast<const char *>(v.rawData());
+            for (size_t c = 0; c < C; ++c) {
+                const size_t dstColStart = ((colOff + c) * totalRows + rowOff) * es;
+                std::memcpy(dst + dstColStart, src + c * R * es, R * es);
+            }
         }
         rowOff += R;
         colOff += C;
@@ -486,7 +571,7 @@ Value shiftdim(const Value &x, int n, std::pmr::memory_resource *mr)
     constexpr int kMaxNd = Dims::kMaxRank;
     if (newN > kMaxNd)
         throw Error("shiftdim: rank exceeds 32",
-                     0, 0, "shiftdim", "", "m:shiftdim:tooManyDims");
+                     0, 0, "shiftdim", "", "numkit:shiftdim:tooManyDims");
     size_t newDims[kMaxNd];
     for (int i = 0; i < k; ++i) newDims[i] = 1;
     for (int i = 0; i < N; ++i) newDims[k + i] = d.dim(i);
@@ -546,7 +631,7 @@ void permute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("permute: requires (A, perm)",
-                     0, 0, "permute", "", "m:permute:nargin");
+                     0, 0, "permute", "", "numkit:permute:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto perm = permFromValue(args[1], &scratch);
@@ -558,7 +643,7 @@ void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ipermute: requires (A, perm)",
-                     0, 0, "ipermute", "", "m:ipermute:nargin");
+                     0, 0, "ipermute", "", "numkit:ipermute:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto perm = permFromValue(args[1], &scratch);
@@ -570,7 +655,7 @@ void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("squeeze: requires 1 argument",
-                     0, 0, "squeeze", "", "m:squeeze:nargin");
+                     0, 0, "squeeze", "", "numkit:squeeze:nargin");
     outs[0] = squeeze(args[0], ctx.engine->resource());
 }
 
@@ -579,7 +664,7 @@ void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("cat: requires (dim, A, ...)",
-                     0, 0, "cat", "", "m:cat:nargin");
+                     0, 0, "cat", "", "numkit:cat:nargin");
     const int dim = static_cast<int>(args[0].toScalar());
     // Pass &args[1] as the start of the values array.
     outs[0] = cat(dim, args.subspan(1), ctx.engine->resource());
@@ -596,7 +681,7 @@ void shiftdim_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("shiftdim: requires 1 or 2 arguments",
-                     0, 0, "shiftdim", "", "m:shiftdim:nargin");
+                     0, 0, "shiftdim", "", "numkit:shiftdim:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const int n = static_cast<int>(args[1].toScalar());

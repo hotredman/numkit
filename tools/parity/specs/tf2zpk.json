@@ -2,11 +2,12 @@
   "name": "tf2zpk",
   "namespace": "signal",
   "setup": "",
-  "expr": "[z, p, k] = tf2zpk([1 0.5], [1 0.25]); r1 = k;",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "[z, p, k] = tf2zpk([2 0.5 -0.06], [1 -0.3 0.02]);",
+  "iters": 3,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "double(numel(z))", "double(numel(p))",
+    "min(z)", "max(z)", "min(p)", "max(p)", "k"
   ],
-  "comment": "Sig: r = tf2zpk(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig [z,p,k]=tf2zpk(b,a): transfer function -> zero/pole/gain (b,a normalised by a(1) first). b=[2 0.5 -0.06], a=[1 -0.3 0.02]: zeros {-0.33860, 0.08860}, poles {0.1, 0.2}, gain k=b(1)/a(1)=2. Pinned with min/max (order-invariant: root order may differ between engines)."
 }

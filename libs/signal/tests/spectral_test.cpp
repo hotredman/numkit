@@ -93,6 +93,22 @@ TEST_F(SpectralTest, PwelchSmootherThanPeriodogram)
     EXPECT_LT(cvWelch, cvPeriod);
 }
 
+// pwelch(x,[],[],nfft): empty placeholders must select defaults, not error
+// ("Cannot convert double to scalar"). Output must equal the nfft path. vs MATLAB.
+TEST_F(SpectralTest, PwelchEmptyPlaceholders)
+{
+    eval("x = cos(2*pi*0.1*(0:127));");
+    eval("[p, f] = pwelch(x, [], [], 128);");
+    EXPECT_EQ(eval("p").numel(), 65u);            // nfft/2 + 1
+    // dominant bin (14) holds the peak; value matches MATLAB R2025b.
+    EXPECT_NEAR(evalScalar("p(14)"), 1.59267, 1e-4);
+    EXPECT_NEAR(evalScalar("max(p)"), 1.59267, 1e-4);
+    // cpsd / mscohere / tfestimate accept the same empty placeholders.
+    EXPECT_NO_THROW(eval("cpsd(x, x, [], [], 128);"));
+    EXPECT_NO_THROW(eval("mscohere(x, x, [], [], 128);"));
+    EXPECT_NO_THROW(eval("tfestimate(x, x, [], [], 128);"));
+}
+
 // ============================================================
 // spectrogram
 // ============================================================
@@ -126,4 +142,63 @@ TEST_F(SpectralTest, SpectrogramTimeVector)
     eval("[S, F, T] = spectrogram(randn(1, 512), 128, 64, 128);");
     // Each time point is center of segment
     EXPECT_NEAR(evalScalar("T(1)"), 64.0, 1.0); // winLen/2
+}
+
+// ── Levinson-Durbin: valid + non-PSD recursion ───────────────────────
+// Valid PSD autocorrelation: standard AR fit (vs MATLAB R2025b).
+TEST_F(SpectralTest, LevinsonValidPsd)
+{
+    eval("[a, e, k] = levinson([1 0.6 0.3 0.1], 3);");
+    EXPECT_NEAR(evalScalar("a(2)"), -0.650246305419, 1e-12);
+    EXPECT_NEAR(evalScalar("a(4)"),  0.064039408867, 1e-12);
+    EXPECT_NEAR(evalScalar("e"),     0.631773399015, 1e-12);
+    EXPECT_NEAR(evalScalar("k(1)"), -0.6,            1e-12);
+}
+
+// Non-PSD autocorrelation (|k(2)|>1): MATLAB runs the full recursion
+// through negative residual energy; numkit used to early-exit at e<=0,
+// zeroing the tail of a/k and returning e=0. Regression guard.
+TEST_F(SpectralTest, LevinsonNonPsdRunsFullRecursion)
+{
+    eval("[a, e, k] = levinson([4 -2 -3 1 1.5], 3);");
+    EXPECT_NEAR(evalScalar("a(2)"), -1.785714285714, 1e-10);
+    EXPECT_NEAR(evalScalar("a(3)"), -1.25,           1e-10);
+    EXPECT_NEAR(evalScalar("a(4)"), -2.214285714286, 1e-10);
+    EXPECT_NEAR(evalScalar("e"),     9.107142857143, 1e-10);
+    EXPECT_NEAR(evalScalar("k(3)"), -2.214285714286, 1e-10);
+}
+
+// poly2rc second output R0 = efinal / prod(1 - k.^2). numkit used to
+// return only k (no R0). vs MATLAB R2025b.
+TEST_F(SpectralTest, Poly2rcReturnsR0)
+{
+    eval("[k, r0] = poly2rc([1 0.6 0.2 -0.1], 4);");
+    EXPECT_NEAR(evalScalar("k(1)"),  0.496,          1e-12);
+    EXPECT_NEAR(evalScalar("k(2)"),  0.262626262626, 1e-12);
+    EXPECT_NEAR(evalScalar("k(3)"), -0.1,            1e-12);
+    EXPECT_NEAR(evalScalar("r0"),    5.755726948310, 1e-9);
+}
+
+// rc2poly second output efinal = r0 * prod(1 - k.^2) (inverse of poly2rc's
+// R0). numkit used to return only a (no efinal). vs MATLAB R2025b.
+TEST_F(SpectralTest, Rc2polyReturnsEfinal)
+{
+    eval("a = rc2poly([-0.5 0.4 0.2]);");
+    EXPECT_NEAR(evalScalar("a(2)"), -0.62, 1e-12);
+    EXPECT_NEAR(evalScalar("a(3)"),  0.26, 1e-12);
+    EXPECT_NEAR(evalScalar("a(4)"),  0.20, 1e-12);
+    eval("[a2, e2] = rc2poly([0.5 0.3], 4);");
+    EXPECT_NEAR(evalScalar("a2(2)"), 0.65, 1e-12);
+    EXPECT_NEAR(evalScalar("a2(3)"), 0.30, 1e-12);
+    EXPECT_NEAR(evalScalar("e2"),    2.73, 1e-12);   // 4*(1-0.25)*(1-0.09)
+}
+
+// ac2rc on a non-trivial autocorrelation: reflection coeffs match MATLAB
+// (an earlier spec claimed a KNOWN GAP on a degenerate input — none here).
+TEST_F(SpectralTest, Ac2rcReflectionCoeffs)
+{
+    eval("k = ac2rc([4 1 -0.5 0.3]);");
+    EXPECT_NEAR(evalScalar("k(1)"), -0.25,           1e-12);
+    EXPECT_NEAR(evalScalar("k(2)"),  0.2,            1e-12);
+    EXPECT_NEAR(evalScalar("k(3)"), -0.180555555556, 1e-10);
 }

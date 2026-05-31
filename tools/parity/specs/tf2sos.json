@@ -2,12 +2,14 @@
   "name": "tf2sos",
   "namespace": "signal",
   "setup": "",
-  "expr": "sos = tf2sos([1 1 1], [1 0.5 0.25]); r1 = double(size(sos,1)); r2 = double(size(sos,2));",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "s = tf2sos([1 1 1], [1 0.5 0.25]); s2 = tf2sos([1 0.5], [1 -0.3 0.02 0.001]); [b2, a2] = sos2tf(s2); sm = tf2sos([1 2 3 4 5], [1 0.5 0.3 0.1 0.05]); m12 = sm(1,2); m16 = sm(1,6); m22 = sm(2,2); m26 = sm(2,6);",
+  "iters": 2,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "double(size(s,1))", "s(1,1)", "s(1,5)", "s(1,6)",
+    "b2(1)", "b2(2)", "b2(3)", "a2(2)",
+    "m12", "m16", "m22", "m26"
   ],
-  "comment": "Sig: r = tf2sos(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig sos=tf2sos(b,a): transfer function -> SOS. Equal-degree b=[1 1 1],a=[1 0.5 0.25] -> single biquad [1 1 1 1 0.5 0.25]. Degree-deficient b=[1 0.5] (3 poles) reproduces the numerator: sos2tf(tf2sos(...))=b2=[1 0.5 0 0] (surplus zeros LEFT-aligned). DEEP-PROBE 2026-05-31: section ORDER now matches MATLAB's default 'up' (sections sorted by ASCENDING pole radius, gain folded into the origin-nearest first section). 4th-order [1 2 3 4 5]/[1 0.5 0.3 0.1 0.05] (complex-conjugate pole pairs): row1 (radius 0.459) m12=-0.575630959 m16=0.210916571, row2 (radius 0.487) m22=2.575630959 m26=0.237060558. numkit previously emitted sections in REVERSED (unit-circle-first) order. NOTE: pairing of purely REAL poles still follows numkit's own grouping (differs from MATLAB zpkpair); the cascade TF product is unaffected (round-trip OK). Matches MATLAB R2025b for complex-pole filters.",
+  "deep_verified": true
 }

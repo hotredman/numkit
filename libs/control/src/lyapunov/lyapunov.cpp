@@ -50,11 +50,11 @@ Value matFromVec(size_t r, size_t c, const Mat &v, std::pmr::memory_resource *mr
 void checkABQ(const Value &A, const Value &Q, const char *name) {
     if (A.dims().rows() != A.dims().cols())
         throw Error(std::string(name) + ": A must be square",
-                    0, 0, name, "", "m:lyap:A");
+                    0, 0, name, "", "numkit:lyap:A");
     if (Q.dims().rows() != A.dims().rows() ||
         Q.dims().cols() != A.dims().cols())
         throw Error(std::string(name) + ": Q must match A in shape",
-                    0, 0, name, "", "m:lyap:Q");
+                    0, 0, name, "", "numkit:lyap:Q");
 }
 
 // Solve a Kronecker-form linear system M·x = b, where M is n²×n²
@@ -68,7 +68,7 @@ Vec solveKron(Mat &M, Vec &rhs, size_t n2)
     if (!solveInPlace(M, rhsMat, n2, 1))
         throw Error("lyap/dlyap: linear system is singular "
                     "(check that A is stable / Lyapunov equation is solvable)",
-                    0, 0, "lyap", "", "m:lyap:singular");
+                    0, 0, "lyap", "", "numkit:lyap:singular");
     return rhsMat;
 }
 
@@ -172,7 +172,7 @@ void lyap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 2)
         throw Error("lyap: requires (A, Q)",
-                    0, 0, "lyap", "", "m:lyap:nargin");
+                    0, 0, "lyap", "", "numkit:lyap:nargin");
     o[0] = lyap(a[0], a[1], c.engine->resource());
 }
 
@@ -180,7 +180,7 @@ void dlyap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 2)
         throw Error("dlyap: requires (A, Q)",
-                    0, 0, "dlyap", "", "m:dlyap:nargin");
+                    0, 0, "dlyap", "", "numkit:dlyap:nargin");
     o[0] = dlyap(a[0], a[1], c.engine->resource());
 }
 

@@ -16,7 +16,7 @@ namespace numkit::signal {
 ///
 /// @param phase  Wrapped phase in radians (real vector or matrix).
 ///               For matrices: unwraps along the first non-singleton
-///               dimension, matching MATLAB convention.
+///               dimension.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Unwrapped phase, same shape as `phase`.
 ///

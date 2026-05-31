@@ -39,16 +39,16 @@ Value pmmod(const Value &x, double fc, double fs, double phasedev,
 {
     if (!(fs > 0.0))
         throw Error("pmmod: Fs must be positive",
-                    0, 0, "pmmod", "", "m:pmmod:Fs");
+                    0, 0, "pmmod", "", "numkit:pmmod:Fs");
     if (!(fc > 0.0))
         throw Error("pmmod: Fc must be positive",
-                    0, 0, "pmmod", "", "m:pmmod:Fc");
+                    0, 0, "pmmod", "", "numkit:pmmod:Fc");
     if (fs < 2.0 * fc)
         throw Error("pmmod: Fs must be >= 2*Fc",
-                    0, 0, "pmmod", "", "m:pmmod:FsLessThan2Fc");
+                    0, 0, "pmmod", "", "numkit:pmmod:FsLessThan2Fc");
     if (!(phasedev > 0.0))
         throw Error("pmmod: phasedev must be positive",
-                    0, 0, "pmmod", "", "m:pmmod:InvalidPhaseDev");
+                    0, 0, "pmmod", "", "numkit:pmmod:InvalidPhaseDev");
 
     const auto &d = x.dims();
     size_t H = d.rows();
@@ -100,13 +100,13 @@ Value ammod(const Value &x, double fc, double fs, double ini_phase,
 {
     if (!(fs > 0.0))
         throw Error("ammod: Fs must be positive",
-                    0, 0, "ammod", "", "m:ammod:Fs");
+                    0, 0, "ammod", "", "numkit:ammod:Fs");
     if (!(fc > 0.0))
         throw Error("ammod: Fc must be positive",
-                    0, 0, "ammod", "", "m:ammod:Fc");
+                    0, 0, "ammod", "", "numkit:ammod:Fc");
     if (fs < 2.0 * fc)
         throw Error("ammod: Fs must be >= 2*Fc",
-                    0, 0, "ammod", "", "m:ammod:FsLessThan2Fc");
+                    0, 0, "ammod", "", "numkit:ammod:FsLessThan2Fc");
 
     const auto &d = x.dims();
     size_t H = d.rows();
@@ -153,16 +153,16 @@ Value fmmod(const Value &x, double fc, double fs, double freqdev,
 {
     if (!(fs > 0.0))
         throw Error("fmmod: Fs must be positive",
-                    0, 0, "fmmod", "", "m:fmmod:Fs");
+                    0, 0, "fmmod", "", "numkit:fmmod:Fs");
     if (fc < 0.0)
         throw Error("fmmod: Fc must be non-negative",
-                    0, 0, "fmmod", "", "m:fmmod:Fc");
+                    0, 0, "fmmod", "", "numkit:fmmod:Fc");
     if (fs < 2.0 * fc)
         throw Error("fmmod: Fs must be >= 2*Fc",
-                    0, 0, "fmmod", "", "m:fmmod:FsLessThan2Fc");
+                    0, 0, "fmmod", "", "numkit:fmmod:FsLessThan2Fc");
     if (!(freqdev > 0.0))
         throw Error("fmmod: freqdev must be positive",
-                    0, 0, "fmmod", "", "m:fmmod:InvalidFreqdev");
+                    0, 0, "fmmod", "", "numkit:fmmod:InvalidFreqdev");
 
     const auto &d = x.dims();
     size_t H = d.rows();
@@ -225,7 +225,7 @@ Value mskmod(const Value &x, int nSamp, double ini_phase,
 {
     if (nSamp <= 0)
         throw Error("mskmod: nSamp must be a positive integer",
-                    0, 0, "mskmod", "", "m:mskmod:nSamp");
+                    0, 0, "mskmod", "", "numkit:mskmod:nSamp");
 
     const auto &d = x.dims();
     size_t H = d.rows();
@@ -249,7 +249,7 @@ Value mskmod(const Value &x, int nSamp, double ini_phase,
             // Validate {0, 1}.
             if (xi != 0.0 && xi != 1.0)
                 throw Error("mskmod: input must be binary (0 or 1)",
-                            0, 0, "mskmod", "", "m:mskmod:NotBinary");
+                            0, 0, "mskmod", "", "numkit:mskmod:NotBinary");
             xCum[r + 1] = xCum[r] + (2.0 * xi - 1.0);
         }
 
@@ -292,13 +292,13 @@ Value ssbmod(const Value &x, double fc, double fs, double ini_phase,
 {
     if (!(fs > 0.0))
         throw Error("ssbmod: Fs must be positive",
-                    0, 0, "ssbmod", "", "m:ssbmod:Fs");
+                    0, 0, "ssbmod", "", "numkit:ssbmod:Fs");
     if (!(fc > 0.0))
         throw Error("ssbmod: Fc must be positive",
-                    0, 0, "ssbmod", "", "m:ssbmod:Fc");
+                    0, 0, "ssbmod", "", "numkit:ssbmod:Fc");
     if (fs <= 2.0 * fc)
         throw Error("ssbmod: Fs must be > 2*Fc",
-                    0, 0, "ssbmod", "", "m:ssbmod:Fs2Fc");
+                    0, 0, "ssbmod", "", "numkit:ssbmod:Fs2Fc");
 
     const auto &d = x.dims();
     size_t H = d.rows();
@@ -352,7 +352,7 @@ void pmmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("pmmod: requires (x, Fc, Fs, phasedev [, ini_phase])",
-                    0, 0, "pmmod", "", "m:pmmod:nargin");
+                    0, 0, "pmmod", "", "numkit:pmmod:nargin");
     const double fc = args[1].toScalar();
     const double fs = args[2].toScalar();
     const double phasedev = args[3].toScalar();
@@ -369,7 +369,7 @@ void ammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ammod: requires (x, Fc, Fs [, ini_phase [, carr_amp]])",
-                    0, 0, "ammod", "", "m:ammod:nargin");
+                    0, 0, "ammod", "", "numkit:ammod:nargin");
     const double fc = args[1].toScalar();
     const double fs = args[2].toScalar();
     double ini_phase = 0.0;
@@ -387,7 +387,7 @@ void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("fmmod: requires (x, Fc, Fs, freqdev [, ini_phase])",
-                    0, 0, "fmmod", "", "m:fmmod:nargin");
+                    0, 0, "fmmod", "", "numkit:fmmod:nargin");
     const double fc = args[1].toScalar();
     const double fs = args[2].toScalar();
     const double freqdev = args[3].toScalar();
@@ -403,7 +403,7 @@ void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("mskmod: requires (x, nSamp [, ini_phase])",
-                    0, 0, "mskmod", "", "m:mskmod:nargin");
+                    0, 0, "mskmod", "", "numkit:mskmod:nargin");
     const int nSamp = static_cast<int>(args[1].toScalar());
     double ini_phase = 0.0;
     if (args.size() >= 3 && !args[2].isEmpty())
@@ -416,7 +416,7 @@ void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ssbmod: requires (x, Fc, Fs [, ini_phase [, 'upper']])",
-                    0, 0, "ssbmod", "", "m:ssbmod:nargin");
+                    0, 0, "ssbmod", "", "numkit:ssbmod:nargin");
     const double fc = args[1].toScalar();
     const double fs = args[2].toScalar();
     double ini_phase = 0.0;
@@ -426,14 +426,14 @@ void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 5 && !args[4].isEmpty()) {
         if (!args[4].isChar() && !args[4].isString())
             throw Error("ssbmod: method must be a string ('upper')",
-                        0, 0, "ssbmod", "", "m:ssbmod:InvStr");
+                        0, 0, "ssbmod", "", "numkit:ssbmod:InvStr");
         std::string m = args[4].toString();
         // Match MATLAB behaviour: any string containing 'up' selects USB.
         for (auto &c : m) c = static_cast<char>(std::tolower(c));
         upper = (m.find("up") != std::string::npos);
         if (!upper && !m.empty())
             throw Error("ssbmod: method must be 'upper'",
-                        0, 0, "ssbmod", "", "m:ssbmod:InvStr");
+                        0, 0, "ssbmod", "", "numkit:ssbmod:InvStr");
     }
     outs[0] = ssbmod(args[0], fc, fs, ini_phase, upper,
                      ctx.engine->resource());

@@ -1,0 +1,17 @@
+{
+  "name": "schur_convert",
+  "covers": ["cdf2rdf", "rsf2csf"],
+  "namespace": "linalg",
+  "setup": "A = [0 -1; 1 0]; V_c = [complex(1,0) complex(1,0); complex(0,-1) complex(0,1)] / sqrt(2); D_c = [complex(0,1) 0; 0 complex(0,-1)]; T_real = [0.5 -1.5; 1.5 0.5]; U_real = eye(2);",
+  "expr": "[VR, DR] = cdf2rdf(V_c, D_c); [Uc, Tc] = rsf2csf(U_real, T_real);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "DR(1,1)", "DR(1,2)", "DR(2,1)", "DR(2,2)",
+    "max(max(abs(A - VR*DR*inv(VR))))",
+    "real(Tc(1,1))", "imag(Tc(1,1))",
+    "real(Tc(2,2))", "imag(Tc(2,2))",
+    "abs(Tc(2,1))"
+  ],
+  "comment": "Sig: cdf2rdf (complex-diag Schur → real-block Schur), rsf2csf (real-block → complex-diag). cdf2rdf test: build (V, D) manually for a rotation matrix [0 -1; 1 0] (eigvals ±i); verify the real-form reconstruction. rsf2csf test: a [a -b; b a] 2x2 real Schur block (eigvals a±bi). MATLAB R2025b matches the documented convention DR_block = [a -b; b a], VR(:, k+1) = -Im(v) when sub-diagonal of D pairs positive imag part."
+}

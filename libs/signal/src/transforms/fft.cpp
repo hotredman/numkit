@@ -245,7 +245,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     if (axisLen <= 1 && outAxisLen > 1)
         throw Error("fft: extending dimension beyond ndims is not supported "
                      "when the axis length is 1",
-                     0, 0, "fft", "", "m:fft:extendDim");
+                     0, 0, "fft", "", "numkit:fft:extendDim");
 
     // fftLen IS the user-visible length: we compute a true N-point DFT.
     // The pow2 path uses Cooley-Tukey radix-2 directly; non-pow2 routes
@@ -698,7 +698,7 @@ Value fft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (dim < 0 || dim > 3)
         throw Error("fft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "fft", "", "m:fft:invalidDim");
+                     0, 0, "fft", "", "numkit:fft:invalidDim");
     if (dim == 0) dim = resolveDefaultDim(x);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
@@ -709,11 +709,99 @@ Value ifft(const Value &X, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (dim < 0 || dim > 3)
         throw Error("ifft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "ifft", "", "m:ifft:invalidDim");
+                     0, 0, "ifft", "", "numkit:ifft:invalidDim");
     if (dim == 0) dim = resolveDefaultDim(X);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
     return fftAlongDim(X, N, dim, /*dir=*/-1, mr);
+}
+
+// ifft(X, ..., 'symmetric'): treat X as conjugate-symmetric along `dim` so
+// the inverse transform is exactly real. MATLAB keeps the lower half
+// X[0..floor(L/2)] authoritative — forcing the DC bin (and, for even L, the
+// Nyquist bin) real — and mirrors conj(X[k]) onto X[L-k]; the upper half of
+// the supplied spectrum is DISCARDED (this differs from real(ifft(X)), which
+// averages the conjugate-symmetric part). Returns a real (DOUBLE) result.
+// Vectors and matrices (per active dim) are supported. dim resolves like the
+// regular ifft; n pads/truncates to length L before completion.
+Value ifftSymmetric(const Value &X, int n, int dim, std::pmr::memory_resource *mr)
+{
+    const auto &d = X.dims();
+    if (d.ndim() > 2)
+        throw Error("ifft: the 'symmetric' option supports vectors and matrices only",
+                     0, 0, "ifft", "", "numkit:ifft:symmetricNdims");
+    int useDim = (dim == 0) ? resolveDefaultDim(X) : dim;
+    if (useDim != 1 && useDim != 2)
+        throw Error("ifft: the 'symmetric' option supports dim 1 or 2",
+                     0, 0, "ifft", "", "numkit:ifft:symmetricDim");
+
+    const std::size_t R = d.rows(), C = d.cols();
+    const std::size_t origLen = (useDim == 1) ? R : C;
+    const std::size_t L       = (n > 0) ? static_cast<std::size_t>(n) : origLen;
+
+    auto getC = [&](std::size_t idx) -> Complex {
+        return X.isComplex() ? X.complexData()[idx]
+                             : Complex(X.elemAsDouble(idx), 0.0);
+    };
+
+    const std::size_t outR = (useDim == 1) ? L : R;
+    const std::size_t outC = (useDim == 1) ? C : L;
+    Value Xh = Value::matrix(outR, outC, ValueType::COMPLEX, mr);
+    if (Xh.numel() == 0) return ifft(Xh, static_cast<int>(L), useDim, mr);
+    Complex *h = Xh.complexDataMut();
+    for (std::size_t i = 0; i < Xh.numel(); ++i) h[i] = Complex(0.0, 0.0);
+
+    const std::size_t nslices = (useDim == 1) ? C : R;
+    for (std::size_t s = 0; s < nslices; ++s) {
+        auto inIdx  = [&](std::size_t j) { return (useDim == 1) ? (s * R + j) : (s + j * R); };
+        auto outIdx = [&](std::size_t j) { return (useDim == 1) ? (s * outR + j) : (s + j * outR); };
+        // Pad / truncate the slice to length L.
+        for (std::size_t j = 0; j < L; ++j)
+            h[outIdx(j)] = (j < origLen) ? getC(inIdx(j)) : Complex(0.0, 0.0);
+        // Hermitian completion (lower half authoritative).
+        h[outIdx(0)] = Complex(h[outIdx(0)].real(), 0.0);
+        for (std::size_t k = 1; k <= (L - 1) / 2; ++k)
+            h[outIdx(L - k)] = std::conj(h[outIdx(k)]);
+        if (L >= 2 && (L % 2) == 0)
+            h[outIdx(L / 2)] = Complex(h[outIdx(L / 2)].real(), 0.0);
+    }
+
+    Value Y = ifft(Xh, static_cast<int>(L), useDim, mr);
+    // The Hermitian spectrum makes Y real to round-off; ifft already
+    // auto-downgrades to DOUBLE in that case. Force real regardless so the
+    // result is exactly real (MATLAB 'symmetric' never returns complex).
+    if (!Y.isComplex()) return Y;
+    Value re = Value::matrix(Y.dims().rows(), Y.dims().cols(), ValueType::DOUBLE, mr);
+    const Complex *yc = Y.complexData();
+    double *rd = re.doubleDataMut();
+    for (std::size_t i = 0; i < Y.numel(); ++i) rd[i] = yc[i].real();
+    return re;
+}
+
+// ifft2(X, 'symmetric'): treat X as conjugate-symmetric so the 2-D inverse
+// transform is exactly real. Decomposes into the 1-D ifftSymmetric applied
+// over each dimension of length > 1 (dim 2 then dim 1), matching MATLAB to
+// round-off across square/non-square/row/column/scalar shapes. (The resize
+// form ifft2(X,m,n,'symmetric') uses a different reconstruction and is a
+// deferred gap — ifft2_reg rejects it.) 2-D only.
+Value ifft2Symmetric(const Value &X, std::pmr::memory_resource *mr)
+{
+    const auto &d = X.dims();
+    if (d.ndim() > 2)
+        throw Error("ifft2: the 'symmetric' option supports 2-D inputs only",
+                     0, 0, "ifft2", "", "numkit:ifft2:symmetricNdims");
+    const std::size_t R = d.rows(), C = d.cols();
+    Value y = X;
+    if (C > 1) y = ifftSymmetric(y, -1, 2, mr);   // each row conj-symmetric
+    if (R > 1) y = ifftSymmetric(y, -1, 1, mr);   // each column conj-symmetric
+    if (R <= 1 && C <= 1) {
+        // Scalar: real part (ifftSymmetric is never applied above).
+        const Complex z = X.isComplex() ? X.complexData()[0]
+                                        : Complex(X.elemAsDouble(0), 0.0);
+        return Value::scalar(z.real(), mr);
+    }
+    // ifftSymmetric already returns a real (DOUBLE) result.
+    return y;
 }
 
 // ── 2-D DFT and FFT-based interpolation (added 2026-05-03 batch 6) ───
@@ -760,7 +848,7 @@ Value fftnImpl(const Value &X, Span<const std::size_t> sz,
     const int ndim = effectiveNdim(X);
     if (sz.size() > static_cast<std::size_t>(ndim))
         throw Error("fftn: size vector length exceeds ndims(X)",
-                     0, 0, "fftn", "", "m:fftn:badSize");
+                     0, 0, "fftn", "", "numkit:fftn:badSize");
     Value Y = X;
     for (int d = 1; d <= ndim; ++d) {
         int n = -1;
@@ -908,7 +996,7 @@ Value czt(const Value &x, int m, Complex w, Complex a, std::pmr::memory_resource
 
     if (d.is3D())
         throw Error("czt: 3-D input not supported",
-                     0, 0, "czt", "", "m:czt:unsupportedNd");
+                     0, 0, "czt", "", "numkit:czt:unsupportedNd");
 
     // Matrix: czt each column independently.
     Value out = Value::complexMatrix(static_cast<std::size_t>(m), C, mr);
@@ -934,10 +1022,10 @@ Value interpft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("interpft: output length n must be positive",
-                     0, 0, "interpft", "", "m:interpft:badN");
+                     0, 0, "interpft", "", "numkit:interpft:badN");
     if (dim < 0 || dim > 3)
         throw Error("interpft: dim must be 0 (auto), 1, 2, or 3",
-                     0, 0, "interpft", "", "m:interpft:badDim");
+                     0, 0, "interpft", "", "numkit:interpft:badDim");
 
     // Resolve auto-dim same way `fft` does.
     int useDim = dim;
@@ -1057,7 +1145,7 @@ Value interpft(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     }
 
     throw Error("interpft: dim 3 / N-D inputs not yet supported",
-                 0, 0, "interpft", "", "m:interpft:dimUnsupported");
+                 0, 0, "interpft", "", "numkit:interpft:dimUnsupported");
 }
 
 // ── Engine adapters ────────────────────────────────────────────────────
@@ -1073,7 +1161,7 @@ void fft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("fft: requires at least 1 argument",
-                     0, 0, "fft", "", "m:fft:nargin");
+                     0, 0, "fft", "", "numkit:fft:nargin");
 
     int n = -1;
     int dim = 0;   // 0 = auto (first non-singleton) — resolved in public fft()
@@ -1089,16 +1177,37 @@ void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("ifft: requires at least 1 argument",
-                     0, 0, "ifft", "", "m:ifft:nargin");
+                     0, 0, "ifft", "", "numkit:ifft:nargin");
+
+    // A trailing 'symmetric'/'nonsymmetric' string flag (MATLAB): forces a
+    // real result by treating the input as conjugate-symmetric. Strip it
+    // before parsing the numeric n / dim args.
+    std::size_t nargs = args.size();
+    bool symmetric = false;
+    if (nargs >= 2 && (args[nargs - 1].isChar() || args[nargs - 1].isString())) {
+        std::string flag = args[nargs - 1].toString();
+        for (char &c : flag) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (flag == "symmetric")
+            symmetric = true;
+        else if (flag == "nonsymmetric")
+            symmetric = false;
+        else
+            throw Error("ifft: unknown option '" + args[nargs - 1].toString() +
+                            "' (expected 'symmetric' or 'nonsymmetric')",
+                         0, 0, "ifft", "", "numkit:ifft:badOption");
+        --nargs;   // consume the flag
+    }
 
     int n = -1;
     int dim = 0;   // 0 = auto (first non-singleton) — resolved in public fft()
-    if (args.size() >= 2 && !args[1].isEmpty())
+    if (nargs >= 2 && !args[1].isEmpty())
         n = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3)
+    if (nargs >= 3)
         dim = static_cast<int>(args[2].toScalar());
 
-    outs[0] = ifft(args[0], n, dim, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    outs[0] = symmetric ? ifftSymmetric(args[0], n, dim, mr)
+                        : ifft(args[0], n, dim, mr);
 }
 
 void fft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1106,7 +1215,7 @@ void fft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("fft2: requires at least 1 argument",
-                     0, 0, "fft2", "", "m:fft2:nargin");
+                     0, 0, "fft2", "", "numkit:fft2:nargin");
     int m = -1, n = -1;
     if (args.size() >= 2 && !args[1].isEmpty())
         m = static_cast<int>(args[1].toScalar());
@@ -1120,13 +1229,42 @@ void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ifft2: requires at least 1 argument",
-                     0, 0, "ifft2", "", "m:ifft2:nargin");
+                     0, 0, "ifft2", "", "numkit:ifft2:nargin");
+
+    // A trailing 'symmetric'/'nonsymmetric' string flag (MATLAB) forces a
+    // real result by treating X as conjugate-symmetric. Strip it first.
+    std::size_t nargs = args.size();
+    bool symmetric = false;
+    if (nargs >= 2 && (args[nargs - 1].isChar() || args[nargs - 1].isString())) {
+        std::string flag = args[nargs - 1].toString();
+        for (char &c : flag) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (flag == "symmetric")
+            symmetric = true;
+        else if (flag == "nonsymmetric")
+            symmetric = false;
+        else
+            throw Error("ifft2: unknown option '" + args[nargs - 1].toString() +
+                            "' (expected 'symmetric' or 'nonsymmetric')",
+                         0, 0, "ifft2", "", "numkit:ifft2:badOption");
+        --nargs;
+    }
+
     int m = -1, n = -1;
-    if (args.size() >= 2 && !args[1].isEmpty())
+    if (nargs >= 2 && !args[1].isEmpty())
         m = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
+    if (nargs >= 3 && !args[2].isEmpty())
         n = static_cast<int>(args[2].toScalar());
-    outs[0] = ifft2(args[0], m, n, ctx.engine->resource());
+
+    auto *mr = ctx.engine->resource();
+    if (symmetric) {
+        if (m > 0 || n > 0)
+            throw Error("ifft2: the 'symmetric' option with explicit size args "
+                        "(m, n) is not supported in this revision",
+                         0, 0, "ifft2", "", "numkit:ifft2:symmetricResize");
+        outs[0] = ifft2Symmetric(args[0], mr);
+        return;
+    }
+    outs[0] = ifft2(args[0], m, n, mr);
 }
 
 void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1134,7 +1272,7 @@ void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("interpft: requires 2 arguments (x, n)",
-                     0, 0, "interpft", "", "m:interpft:nargin");
+                     0, 0, "interpft", "", "numkit:interpft:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     int dim = 0;
     if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
@@ -1152,7 +1290,7 @@ static void extractSizeArg(const Value &v, std::vector<std::size_t> &dst)
         const double d = v.elemAsDouble(i);
         if (d <= 0 || d != std::floor(d))
             throw Error("fftn: size entries must be positive integers",
-                         0, 0, "fftn", "", "m:fftn:badSize");
+                         0, 0, "fftn", "", "numkit:fftn:badSize");
         dst[i] = static_cast<std::size_t>(d);
     }
 }
@@ -1162,7 +1300,7 @@ void fftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("fftn: requires at least 1 argument",
-                     0, 0, "fftn", "", "m:fftn:nargin");
+                     0, 0, "fftn", "", "numkit:fftn:nargin");
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
@@ -1174,7 +1312,7 @@ void ifftn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("ifftn: requires at least 1 argument",
-                     0, 0, "ifftn", "", "m:ifftn:nargin");
+                     0, 0, "ifftn", "", "numkit:ifftn:nargin");
     std::vector<std::size_t> sz;
     if (args.size() >= 2 && !args[1].isEmpty())
         extractSizeArg(args[1], sz);
@@ -1187,7 +1325,7 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     using Cd = std::complex<double>;
     if (args.empty())
         throw Error("czt: requires at least 1 argument",
-                     0, 0, "czt", "", "m:czt:nargin");
+                     0, 0, "czt", "", "numkit:czt:nargin");
     const Value &x = args[0];
 
     // MATLAB: czt([]) returns empty without complaining about defaults.
@@ -1202,7 +1340,7 @@ void czt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         m = static_cast<int>(args[1].toScalar());
     if (m <= 0)
         throw Error("czt: m must be a positive integer",
-                     0, 0, "czt", "", "m:czt:badM");
+                     0, 0, "czt", "", "numkit:czt:badM");
 
     Cd w(std::cos(-2.0 * M_PI / m), std::sin(-2.0 * M_PI / m));
     if (args.size() >= 3 && !args[2].isEmpty()) {

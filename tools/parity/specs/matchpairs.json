@@ -1,10 +1,14 @@
 {
   "name": "matchpairs",
-  "namespace": "core",
-  "setup": "C = magic(5); C = C(1:3, 1:4); C = double(C);",
-  "expr": "y = matchpairs(C, 100);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: M = matchpairs(C, COST_NON). Hungarian-style 3\u00d74. 1000 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "C1 = [4 1 3; 2 0 5; 3 2 2]; C2 = [10 15 9; 9 18 5; 6 14 3]; C3 = [10 20; 30 5; 25 8; 1 50]; Cmax = [1 5; 4 2];",
+  "expr": "[M1, uR1, uC1] = matchpairs(C1, 100); t1 = 0; for k = 1:size(M1,1); t1 = t1 + C1(M1(k,1), M1(k,2)); end; [M2, uR2, uC2] = matchpairs(C2, 20); t2 = 0; for k = 1:size(M2,1); t2 = t2 + C2(M2(k,1), M2(k,2)); end; [M3, uR3, uC3] = matchpairs(C3, 100); t3 = 0; for k = 1:size(M3,1); t3 = t3 + C3(M3(k,1), M3(k,2)); end; [Mmx, ~, ~] = matchpairs(Cmax, 0, 'max'); tmx = 0; for k = 1:size(Mmx,1); tmx = tmx + Cmax(Mmx(k,1), Mmx(k,2)); end;",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "t1", "t2", "t3", "tmx",
+    "size(M1, 1)", "size(M2, 1)", "size(M3, 1)", "size(Mmx, 1)",
+    "numel(uR1)", "numel(uR3)", "numel(uC3)"
+  ],
+  "comment": "Sig: [M, uR, uC] = matchpairs(Cost, costUnmatched [, 'min'|'max']) — linear assignment / bipartite matching on rectangular Cost. 'min' (default): minimise total cost with costUnmatched as the per-row/col unmatched penalty. 'max': maximise total benefit with costUnmatched as the per-row/col REWARD for leaving unmatched (note: a high positive costUnmatched in 'max' mode leaves everything unmatched — matches MATLAB R2025b's documented convention). Algorithm: Jonker-Volgenant Hungarian on the augmented (m+n)×(m+n) matrix; 'max' negates both Cost and costUnmatched before solving. Total cost is what we fingerprint — assignment ordering is engine-dependent, totals are unique. Bit-exact MATLAB R2025b (tol=0) on the documented test cases."
 }

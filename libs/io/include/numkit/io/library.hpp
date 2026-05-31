@@ -1,7 +1,6 @@
 // libs/io/include/numkit/io/library.hpp
 //
-// Data Import and Export builtins. Mirrors MATLAB's documentation root
-// `/help/matlab/data-import-and-export.html`. Houses:
+// Data import / export builtins. Houses:
 //   * Low-level file I/O (fopen/fclose/fread/fwrite/fprintf/...)
 //   * Text files (csvread, csvwrite, ...)
 //   * Workspace save/load

@@ -1,0 +1,10 @@
+{
+  "name": "imgradient3",
+  "namespace": "image",
+  "setup": "V = double(reshape(1:60, 3, 4, 5));",
+  "expr": "[Gmag, Gaz, Gel] = imgradient3(V); [Gx, Gy, Gz] = imgradientxyz(V); [Gmag2, Gaz2, Gel2] = imgradient3(Gx, Gy, Gz); Gmag1 = imgradient3(V); [Gmp, Gap, Gep] = imgradient3(V, 'prewitt'); r1 = Gmag(2,2,2); r2 = Gaz(2,2,2); r3 = Gel(2,2,2); r4 = Gmag1(2,2,2); r5 = Gmag2(2,2,2); r6 = Gaz2(2,2,2); r7 = Gel2(2,2,2); r8 = Gmp(2,2,2);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"],
+  "comment": "Sig: [Gmag,Gaz,Gel] = imgradient3(V,method) | imgradient3(Gx,Gy,Gz). Branches: V+method (sobel/prewitt/central/intermediate via imgradientxyz then polar) + (Gx,Gy,Gz) from-grads path + single-output Gmag. Image namespace 2026-05-27."
+}

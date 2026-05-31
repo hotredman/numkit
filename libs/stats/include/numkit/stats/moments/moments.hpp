@@ -1,6 +1,6 @@
 // libs/stats/include/numkit/stats/moments/moments.hpp
 //
-// Higher moments: skewness, kurtosis. MATLAB Statistics Toolbox semantics.
+// Higher moments: skewness, kurtosis.
 
 #pragma once
 
@@ -26,7 +26,7 @@ Value skewness(const Value &x, int normFlag = 1, int dim = 0,
 
 /// @brief Sample kurtosis along `dim` (`y = kurtosis(X, normFlag, dim)`).
 ///
-/// MATLAB convention: **non-excess** kurtosis (`= 3` for a standard normal).
+/// **Non-excess** kurtosis (`= 3` for a standard normal).
 /// - `normFlag = 1` (default): uncorrected `y = m4 / m2^2`
 /// - `normFlag = 0`: bias-corrected
 ///   `y = ((n-1)/((n-2)(n-3))) · ((n+1)·g2 - 3·(n-1)) + 3` where `g2 = m4/m2^2`.

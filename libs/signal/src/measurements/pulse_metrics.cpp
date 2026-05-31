@@ -458,7 +458,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires at least 1 argument",                 \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;         \
         outs[0] = fn(args[0], fs, ctx.engine->resource());                      \
     }
@@ -468,7 +468,7 @@ void statelevels_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("statelevels: requires 1 argument",
-                     0, 0, "statelevels", "", "m:statelevels:nargin");
+                     0, 0, "statelevels", "", "numkit:statelevels:nargin");
     outs[0] = statelevels(args[0], ctx.engine->resource());
 }
 
@@ -477,7 +477,7 @@ void settlingtime_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("settlingtime: requires at least 1 argument",
-                     0, 0, "settlingtime", "", "m:settlingtime:nargin");
+                     0, 0, "settlingtime", "", "numkit:settlingtime:nargin");
     const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     double tol = 0.02;
     if (args.size() >= 3 && !args[2].isEmpty()) tol = args[2].toScalar();

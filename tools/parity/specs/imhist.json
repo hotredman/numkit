@@ -2,11 +2,14 @@
   "name": "imhist",
   "namespace": "image",
   "setup": "",
-  "expr": "h = imhist(uint8([0 64 128 192 255])); r1 = double(numel(h));",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "[c, x] = imhist(uint8([0 64 128 192 255]), 4); [~, xd] = imhist([0 0.25 0.5 0.75 1], 4); [~, xu] = imhist(uint16([0 32768 65535]), 3);",
+  "iters": 3,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "c(1)", "c(3)",
+    "x(1)", "x(2)", "x(4)",
+    "xd(2)", "xd(4)",
+    "xu(2)", "xu(3)"
   ],
-  "comment": "Sig: r = imhist(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig [counts,x]=imhist(I,n). counts unchanged; x (bin locations) spans the input CLASS display range: double/single/logical -> [0,1]; uint8 -> [0,255]; uint16 -> [0,65535]; int16 -> [-32768,32767]. imhist(uint8([0 64 128 192 255]),4) -> counts [1 1 2 1], x [0 85 170 255]. double n=4 x = [0 .3333 .6667 1]. uint16 n=3 x = [0 32767.5 65535]. numkit previously returned [0,1] x for ALL classes -- fixed. Matches MATLAB R2025b."
 }

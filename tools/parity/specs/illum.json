@@ -1,0 +1,25 @@
+{
+  "name": "illumwhite_illumgray",
+  "namespace": "image",
+  "setup": "A = zeros(10,10,3); for i=1:10; for j=1:10; A(i,j,1)=0.01*(10*(i-1)+(j-1)); A(i,j,2)=0.01*(10*(j-1)+(i-1)); A(i,j,3)=1-A(i,j,1); end; end;",
+  "expr": "iw0 = illumwhite(A,0); iw1 = illumwhite(A); iw5 = illumwhite(A,5); ig0 = illumgray(A); ig10 = illumgray(A,[10 10]); ig2n = illumgray(A,1,'Norm',2);",
+  "iters": 3,
+  "tol": 5e-5,
+  "fingerprint": [
+    "iw0(1)", "iw0(2)", "iw0(3)",
+    "iw1(1)", "iw1(2)", "iw1(3)",
+    "iw5(1)", "iw5(2)", "iw5(3)",
+    "ig0(1)", "ig0(2)", "ig0(3)",
+    "ig10(1)", "ig10(2)", "ig10(3)",
+    "ig2n(1)", "ig2n(2)", "ig2n(3)"
+  ],
+  "covers": [
+    "illumwhite(A)              default P = 1",
+    "illumwhite(A, 0)           per-channel max",
+    "illumwhite(A, 5)           top-5%-by-channel",
+    "illumgray(A)               default p_lo = p_hi = 1, Norm = 1",
+    "illumgray(A, [pl ph])      vector percentile",
+    "illumgray(A, p, 'Norm', n) custom p-norm exponent"
+  ],
+  "comment": "Sig 1: illumwhite(A, P, 'Mask', M) — per-channel histogram thresholded at strictly more than N·P/100 pixels at-or-above. Sig 2: illumgray(A, [p_lo p_hi], 'Mask', M, 'Norm', n) — per-channel mean (or p-norm-mean) after trimming bottom p_lo% and top p_hi%. Both algorithms decompose channel-by-channel (NOT by L2 norm of RGB). Per-channel histogram-bin quantisation in MATLAB (2^16 bins for double input) adds ~1.5e-5 noise vs our direct sort, hence tol = 5e-5. The illumwhite source we inspected uses imhist quantisation; numkit sorts the raw pixel array. Both algorithms agree on which pixel is selected — they disagree only on which BIN that pixel landed in. illumgray bit-equal at machine precision because the histogram threshold is used only to pick which pixels to keep (a SET operation), not their values."
+}

@@ -113,11 +113,11 @@ Value convmtx(const Value &h, size_t n, std::pmr::memory_resource *mr)
 {
     if (n == 0)
         throw Error("convmtx: n must be positive",
-                     0, 0, "convmtx", "", "m:convmtx:badN");
+                     0, 0, "convmtx", "", "numkit:convmtx:badN");
     const size_t nh = h.numel();
     if (nh == 0)
         throw Error("convmtx: h must be non-empty",
-                     0, 0, "convmtx", "", "m:convmtx:emptyH");
+                     0, 0, "convmtx", "", "numkit:convmtx:emptyH");
 
     // Default to row-form when h is a vector with rows() == 1 OR is
     // 1-D / scalar. Column form only when h is explicitly Nx1 (rows>1).
@@ -284,7 +284,7 @@ void cconv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 2)
         throw Error("cconv: requires (x, y[, n])",
-                     0, 0, "cconv", "", "m:cconv:nargin");
+                     0, 0, "cconv", "", "numkit:cconv:nargin");
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
     outs[0] = cconv(args[0], args[1], n, ctx.engine->resource());
 }
@@ -293,7 +293,7 @@ void convmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("convmtx: requires (h, n)",
-                     0, 0, "convmtx", "", "m:convmtx:nargin");
+                     0, 0, "convmtx", "", "numkit:convmtx:nargin");
     outs[0] = convmtx(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
@@ -301,7 +301,7 @@ void xcorr2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("xcorr2: requires at least 1 argument",
-                     0, 0, "xcorr2", "", "m:xcorr2:nargin");
+                     0, 0, "xcorr2", "", "numkit:xcorr2:nargin");
     const Value &A = args[0];
     const Value &B = (args.size() >= 2) ? args[1] : args[0];
     outs[0] = xcorr2(A, B, ctx.engine->resource());
@@ -311,7 +311,7 @@ void finddelay_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("finddelay: requires (x, y[, max_lag])",
-                     0, 0, "finddelay", "", "m:finddelay:nargin");
+                     0, 0, "finddelay", "", "numkit:finddelay:nargin");
     const long max_lag = (args.size() >= 3) ? static_cast<long>(args[2].toScalar()) : 0;
     const long d = finddelay(args[0], args[1], max_lag, ctx.engine->resource());
     outs[0] = Value::scalar(static_cast<double>(d), ctx.engine->resource());
@@ -321,7 +321,7 @@ void alignsignals_reg(Span<const Value> args, size_t nargout, Span<Value> outs, 
 {
     if (args.size() < 2)
         throw Error("alignsignals: requires (x, y[, max_lag])",
-                     0, 0, "alignsignals", "", "m:alignsignals:nargin");
+                     0, 0, "alignsignals", "", "numkit:alignsignals:nargin");
     const long max_lag = (args.size() >= 3) ? static_cast<long>(args[2].toScalar()) : 0;
     auto [xa, ya] = alignsignals(args[0], args[1], max_lag, ctx.engine->resource());
     outs[0] = std::move(xa);

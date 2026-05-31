@@ -67,12 +67,12 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
 {
     if (type != "a" && type != "d")
         throw Error("wrcoef: type must be 'a' or 'd'",
-                    0, 0, "wrcoef", "", "m:wrcoef:type");
+                    0, 0, "wrcoef", "", "numkit:wrcoef:type");
 
     const size_t Lcount = l.numel();
     if (Lcount < 3)
         throw Error("wrcoef: l must have at least 3 entries",
-                    0, 0, "wrcoef", "", "m:wrcoef:l");
+                    0, 0, "wrcoef", "", "numkit:wrcoef:l");
     const int N = static_cast<int>(Lcount) - 2;
 
     if (n < 0)
@@ -81,12 +81,12 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
         if (n < 0 || n > N)
             throw Error("wrcoef: for type='a', level must satisfy 0 <= n <= "
                         + std::to_string(N),
-                        0, 0, "wrcoef", "", "m:wrcoef:level");
+                        0, 0, "wrcoef", "", "numkit:wrcoef:level");
     } else { // 'd'
         if (n < 1 || n > N)
             throw Error("wrcoef: for type='d', level must satisfy 1 <= n <= "
                         + std::to_string(N),
-                        0, 0, "wrcoef", "", "m:wrcoef:level");
+                        0, 0, "wrcoef", "", "numkit:wrcoef:level");
     }
 
     auto cv = vec_from_value(c);
@@ -99,7 +99,7 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
     for (int k = 0; k < N; ++k) expectedC += sliceLen(1 + k);
     if (cv.size() != expectedC)
         throw Error("wrcoef: c length does not match l bookkeeping",
-                    0, 0, "wrcoef", "", "m:wrcoef:cl");
+                    0, 0, "wrcoef", "", "numkit:wrcoef:cl");
 
     // Detail at MATLAB level k (1-based, k=1 finest, k=N coarsest)
     // lives in c at L-index (1 + N - k). Compute the [start, end) byte
@@ -143,11 +143,11 @@ void wrcoef_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("wrcoef: requires (type, c, l, wname[, n])",
-                    0, 0, "wrcoef", "", "m:wrcoef:nargin");
+                    0, 0, "wrcoef", "", "numkit:wrcoef:nargin");
 
     if (!args[0].isChar() && !args[0].isString())
         throw Error("wrcoef: type must be a character vector ('a' or 'd')",
-                    0, 0, "wrcoef", "", "m:wrcoef:type");
+                    0, 0, "wrcoef", "", "numkit:wrcoef:type");
     std::string type = args[0].toString();
     for (auto &ch : type)
         ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
@@ -158,7 +158,7 @@ void wrcoef_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("wrcoef: numkit only supports the wname form "
                     "wrcoef(type, c, l, wname[, n]). The (Lo_R, Hi_R) "
                     "two-filter form is not implemented.",
-                    0, 0, "wrcoef", "", "m:wrcoef:wname");
+                    0, 0, "wrcoef", "", "numkit:wrcoef:wname");
     const std::string wname = args[3].toString();
 
     int n = -1;     // sentinel meaning "default"
@@ -169,7 +169,7 @@ void wrcoef_reg(Span<const Value> args, size_t /*nargout*/,
             const double nd = args[4].toScalar();
             if (nd < 0.0 || nd != std::floor(nd))
                 throw Error("wrcoef: level n must be a non-negative integer",
-                            0, 0, "wrcoef", "", "m:wrcoef:level");
+                            0, 0, "wrcoef", "", "numkit:wrcoef:level");
             n = static_cast<int>(nd);
         }
     }

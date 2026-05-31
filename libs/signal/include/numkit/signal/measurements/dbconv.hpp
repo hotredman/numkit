@@ -46,8 +46,8 @@ Value db2mag(const Value &                d,
 
 /// Magnitude to decibels (voltage form): \f$ y = 20 \log_{10} x \f$.
 ///
-/// Unlike `db("voltage")`, does NOT take `abs(x)` first — matches MATLAB
-/// `mag2db`, which requires the input to be non-negative.
+/// Unlike `db("voltage")`, does NOT take `abs(x)` first — `mag2db`
+/// requires the input to be non-negative.
 ///
 /// @param x   Non-negative magnitudes. Negative values → `nan`.
 /// @param mr  Memory resource (nullptr → process default).

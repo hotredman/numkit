@@ -1,0 +1,17 @@
+{
+  "name": "polyeig",
+  "namespace": "linalg",
+  "setup": "A0_lin = [2 0; 0 3]; A1_lin = eye(2); A0_q = 6*eye(2); A1_q = -5*eye(2); A2_q = eye(2);",
+  "expr": "e_lin = polyeig(A0_lin, A1_lin); e_q = polyeig(A0_q, A1_q, A2_q);",
+  "iters": 5,
+  "tol": 1e-5,
+  "fingerprint": [
+    "min(real(e_lin))", "max(real(e_lin))",
+    "max(abs(imag(e_lin)))",
+    "min(real(e_q))", "max(real(e_q))",
+    "sum(abs(real(e_q) - 2) < 1e-3)",
+    "sum(abs(real(e_q) - 3) < 1e-3)",
+    "max(abs(imag(e_q)))"
+  ],
+  "comment": "Sig: e = polyeig(A0, A1, ..., Ak). Polynomial eigenvalue problem via companion linearisation + char-poly + roots(). Eigenvalues-only form. Linear test: (A0 + λI)x = 0 → e = eigvals(-A0) = [-2, -3]. Quadratic test: (λ²-5λ+6)·I → e = {2, 2, 3, 3}. Real ordering may differ — fingerprint sorts. Tol 1e-5 because the characteristic-polynomial → roots() path has lower precision than direct eig (residual imag part ~1e-7 for nominally-real eigvals)."
+}

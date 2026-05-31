@@ -21,8 +21,7 @@ namespace numkit::comm {
 ///
 /// Standard l'Hôpital limits applied at `t = 0` and `t = ±T/(4β)`.
 /// Returns a row vector of length `span·sps + 1`. Both RC and RRC
-/// outputs are unit-energy normalised (`‖h‖² = 1`), matching MATLAB
-/// R2025b.
+/// outputs are unit-energy normalised (`‖h‖² = 1`).
 ///
 /// @param beta   Roll-off factor, `0 ≤ β ≤ 1`.
 /// @param span   Filter span in symbol periods (positive integer).
@@ -39,7 +38,7 @@ Value rcosdesign(double beta, int span, int sps,
 /// @brief Design a Gaussian FIR pulse-shaping filter
 /// (`h = gaussdesign(BT, span, sps)`).
 ///
-/// Per MATLAB R2025b's `gaussdesign.m`:
+/// Formula:
 /// - `α = √(log 2 / 2) / BT`
 /// - `h(t) = (√π / α) · exp(−(πt/α)²)`, evaluated on
 ///   `t = ((1:N) − mean(1:N)) / sps` with `N = span·sps + 1`.
@@ -60,7 +59,7 @@ Value gaussdesign(double BT, int span, int sps,
 /// Repeats each sample of `x` `n` times along the leading
 /// non-singleton dimension. For an L×1 column input → (L·n)×1 output;
 /// for 1×L row → 1×(L·n); for matrices each row is repeated `n` times
-/// (column count unchanged). Matches MATLAB R2025b's `rectpulse`.
+/// (column count unchanged).
 ///
 /// @param x   Input signal (vector or matrix, DOUBLE).
 /// @param n   Repetition factor (positive integer).

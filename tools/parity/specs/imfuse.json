@@ -1,0 +1,10 @@
+{
+  "name": "imfuse",
+  "namespace": "image",
+  "setup": "A = uint8([10 20 30; 40 50 60; 70 80 90]); B = uint8([90 80 70; 60 50 40; 30 20 10]);",
+  "expr": "C1 = imfuse(A, B); C2 = imfuse(A, B, 'blend'); C3 = imfuse(A, B, 'diff'); C4 = imfuse(A, B, 'checkerboard'); C5 = imfuse(A, B, 'montage'); C6 = imfuse(A, B, 'blend', 'Scaling', 'joint'); C7 = imfuse(A, B, 'blend', 'Scaling', 'none'); C8 = imfuse(A, B, 'falsecolor', 'ColorChannels', 'red-cyan'); C9 = imfuse(A, B, 'falsecolor', 'ColorChannels', [1 2 0]); r1 = double(C1(1,1,1)); r2 = double(C1(1,1,2)); r3 = double(C1(2,2,2)); r4 = double(C1(3,3,1)); r5 = double(C2(2,2)); r6 = double(C3(1,1)); r7 = double(C3(2,2)); r8 = double(C4(1,1)); r9 = double(C4(2,2)); r10 = double(C7(2,2)); r11 = double(C8(2,2,1)); r12 = double(C9(2,2,3)); r13 = double(size(C5,2));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13"],
+  "comment": "Sig: C = imfuse(A, B [, METHOD] [, NV...]). Branches: 5 methods × 3 scalings × multiple ColorChannels. Default = falsecolor green-magenta [2 1 2]. blend = uint8(0.5*A + 0.5*B). diff = scale(|A-B|) → im2uint8. checkerboard = 8x8 [1 0; 0 1] repmat → imresize-nearest → mask. montage = [A B]. Spatial referencing (imref2d) NOT supported per §0 (MATLAB-OOP). Image namespace 2026-05-27."
+}

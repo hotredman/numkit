@@ -5,6 +5,7 @@
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
 #include <numkit/builtin/library.hpp>
+#include <numkit/linalg/library.hpp>
 #include <numkit/signal/library.hpp>
 #include <numkit/stats/library.hpp>
 #include <numkit/image/library.hpp>
@@ -15,6 +16,7 @@
 #include <numkit/io/library.hpp>
 #include <numkit/optim/library.hpp>
 #include <numkit/audio/library.hpp>
+#include <numkit/ode/library.hpp>
 #include <numkit/core/tree_walker.hpp>
 #include <numkit/core/vm.hpp>
 #include <algorithm>
@@ -71,6 +73,7 @@ Engine::Engine(std::pmr::memory_resource *mr)
     reinstallConstants();
     registerVirtualFS(std::make_unique<NativeFS>());
     BuiltinLibrary::install(*this);
+    LinalgLibrary::install(*this);
     SignalLibrary::install(*this);
     StatsLibrary::install(*this);
     ImageLibrary::install(*this);
@@ -81,6 +84,7 @@ Engine::Engine(std::pmr::memory_resource *mr)
     IoLibrary::install(*this);
     OptimLibrary::install(*this);
     AudioLibrary::install(*this);
+    OdeLibrary::install(*this);
 }
 
 Engine::~Engine()

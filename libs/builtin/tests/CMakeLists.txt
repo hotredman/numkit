@@ -63,6 +63,9 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/format_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/simd_parity_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/interp_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/makima_griddatan_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/residue_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matchpairs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/frame_introspection_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/magic_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testmatrices_test.cpp
@@ -93,4 +96,14 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/balance_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/issparse_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/zeros_ones_typed_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/missing_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/standardize_missing_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/group_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/groupsummary_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/grouptransform_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/groupfilter_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/splitapply_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/colperm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/symrcm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/topkrows_ext_test.cpp
 )

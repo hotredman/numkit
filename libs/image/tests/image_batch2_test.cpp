@@ -63,6 +63,62 @@ TEST_F(ImageBatch2Test, ColorConversions)
     EXPECT_DOUBLE_EQ(evalScalar("numel(rgb3)"), 12.0);
 }
 
+// Class-preserving YCbCr conversions (MATLAB R2025b): integer input keeps
+// its class and is scaled to the studio integer range; double stays [0,1]
+// with the full-precision inverse.
+TEST_F(ImageBatch2Test, YcbcrClassPreservation)
+{
+    eval("R8 = uint8(cat(3,[10 40;70 200],[20 50;80 0],[30 60;90 120]));");
+    eval("y8 = rgb2ycbcr(R8);");
+    EXPECT_TRUE(eval("y8").type() == ValueType::UINT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y8(1,1,1))"), 32.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y8(1,1,2))"), 134.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y8(1,1,3))"), 123.0);
+
+    eval("y16 = rgb2ycbcr(uint16(cat(3,1000,2000,3000)));");
+    EXPECT_TRUE(eval("y16").type() == ValueType::UINT16);
+    EXPECT_DOUBLE_EQ(evalScalar("double(y16(1,1,1))"), 5671.0);
+
+    eval("Y8 = uint8(cat(3,[80 130;60 200],[128 90;160 110],[128 170;60 140]));");
+    eval("r8 = ycbcr2rgb(Y8);");
+    EXPECT_TRUE(eval("r8").type() == ValueType::UINT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(r8(1,1,1))"), 75.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(r8(2,2,2))"), 212.0);
+
+    // Double path is now bit-exact (full-precision inverse matrix).
+    eval("rd = ycbcr2rgb(cat(3,0.30,0.50,0.50));");
+    EXPECT_TRUE(eval("rd").type() == ValueType::DOUBLE);
+    EXPECT_NEAR(evalScalar("rd(1,1,1)"), 0.273126242687, 1e-9);
+    EXPECT_NEAR(evalScalar("rd(1,1,2)"), 0.27861792508, 1e-9);
+}
+
+// imrotate: default method is 'nearest'; the 3-arg form takes a bbox
+// keyword; 'crop' keeps the input size for 90/270 of a non-square image;
+// nearest rounds half-to-even. (All vs MATLAB R2025b.)
+TEST_F(ImageBatch2Test, ImrotateDefaultBboxCrop)
+{
+    eval("J = reshape(1:12, 3, 4);");
+    // Default method = nearest (sum 86, not bilinear's 78.7625).
+    eval("D = imrotate(J, 30);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(D,1)")), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(D(:))"), 86.0);
+    // nearest half-to-even: the .5-tie pixel D30(3,2) is 4, not 5.
+    eval("Rn = imrotate(J, 30, 'nearest');");
+    EXPECT_DOUBLE_EQ(evalScalar("Rn(3,2)"), 4.0);
+    // 3-arg form: arg3 is a bbox keyword; 'crop' keeps input size 3x4.
+    eval("C90 = imrotate(J, 90, 'crop');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C90,1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C90,2)")), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(C90(:))"), 72.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C90(1,1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C90(1,2)"), 10.0);
+    // 270 crop also keeps 3x4 (direction-dependent centring).
+    eval("C270 = imrotate(J, 270, 'crop');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C270,1)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(C270(:))"), 72.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C270(3,4)"), 10.0);
+}
+
 TEST_F(ImageBatch2Test, ImConvert)
 {
     eval("d = im2double(uint8([0 128 255]));");

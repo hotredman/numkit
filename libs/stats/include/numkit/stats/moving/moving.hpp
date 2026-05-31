@@ -21,7 +21,7 @@ namespace numkit::stats {
 /// - 2-element span `{kb, kf}` → asymmetric window covering `[i-kb, i+kf]`
 ///
 /// **Endpoints** are NOT discarded — the window truncates at the edges
-/// ('shrink' is the MATLAB R2025b default). Windows that become empty
+/// ('shrink' is the default). Windows that become empty
 /// after truncation produce `NaN`.
 ///
 /// **Dimension argument `dim`**:
@@ -32,8 +32,8 @@ namespace numkit::stats {
 /// @brief Moving mean along `dim` (`y = movmean(x, k)`).
 ///
 /// For each output element `y[i]`, computes `mean(x[i-kb .. i+kf])`
-/// where the window is determined by `k`. Equivalent to MATLAB
-/// `movmean(x, k, dim)`.
+/// where the window is determined by `k`. This is the
+/// `movmean(x, k, dim)` operation.
 ///
 /// @param x    Input array; any numeric type promoted to DOUBLE on read.
 /// @param k    Window descriptor — see @ref moving.hpp file note.
@@ -164,9 +164,9 @@ Value movprod(const Value &x, Span<const size_t> k, int dim = 0,
 ///                - `"movmedian"` → @ref movmedian
 ///                - `"gaussian"` → Gaussian-weighted mean with
 ///                  `sigma = (k-1)/4`
-///                MATLAB's `"lowess"`, `"loess"`, `"rlowess"`, `"rloess"`,
+///                The `"lowess"`, `"loess"`, `"rlowess"`, `"rloess"`,
 ///                `"sgolay"` throw `m:smoothdata:unsupportedMethod`.
-/// @param k       Centred window length. Pass `0` to use MATLAB's
+/// @param k       Centred window length. Pass `0` for the default
 ///                heuristic `max(min(round(0.1·n), 10), 3)`.
 /// @param dim     1-based dimension; 0 → first non-singleton dim.
 /// @param mr      Memory resource (nullptr → process default).

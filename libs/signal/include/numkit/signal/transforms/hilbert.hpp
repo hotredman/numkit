@@ -54,7 +54,7 @@ std::pair<Value, Value>
 envelope_pair(const Value &                x,
               std::pmr::memory_resource *  mr = nullptr);
 
-/// Full multi-mode envelope — matches MATLAB R2025b `envelope.m`.
+/// Full multi-mode envelope computation.
 ///
 /// @param x     Real input signal.
 /// @param mode  Envelope algorithm:

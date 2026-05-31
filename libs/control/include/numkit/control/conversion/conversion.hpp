@@ -13,15 +13,15 @@
 
 namespace numkit::control {
 
-/// Result of @ref tf2zp — MATLAB `[z, p, k] = tf2zp(num, den)`.
+/// Result of @ref tf2zp — zeros, poles, and gain from tf coefficients.
 struct Tf2ZpResult {
     Value z;   ///< Zeros (column vector, complex if needed).
     Value p;   ///< Poles (column vector, complex if needed).
     Value k;   ///< Gain (scalar = num[0] / den[0] after stripping leading zeros).
 };
 
-/// State-space realisation `(A, B, C, D)`, the result of @ref tf2ss
-/// (MATLAB `[A, B, C, D] = tf2ss(...)`). For an n-th order proper
+/// State-space realisation `(A, B, C, D)`, the result of @ref tf2ss.
+/// For an n-th order proper
 /// rational input: A is n×n, B is n×1, C is 1×n, D is 1×1.
 struct StateSpace {
     Value A;
@@ -32,9 +32,8 @@ struct StateSpace {
 
 /// Convert tf coefficients to zero-pole-gain form.
 ///
-/// Equivalent to MATLAB's `[z, p, k] = tf2zp(num, den)`. Roots are
-/// computed via @ref builtin::roots so complex conjugate pairs and
-/// trailing-zero roots are handled exactly as MATLAB does.
+/// Roots are computed via @ref builtin::roots; complex conjugate pairs
+/// and trailing-zero roots are fully handled.
 ///
 /// @param num  Numerator polynomial (row, descending powers).
 /// @param den  Denominator polynomial (leading coefficient must be nonzero).
@@ -53,7 +52,7 @@ Tf2ZpResult tf2zp(const Value &num, const Value &den,
 
 /// Convert zero-pole-gain form to tf coefficients.
 ///
-/// Equivalent to MATLAB's `[num, den] = zp2tf(z, p, k)`. Expands
+/// Expands
 /// `num = k · ∏(s − z_i)` and `den = ∏(s − p_i)` via @ref builtin::poly.
 /// The result preserves complex coefficients if the inputs are complex.
 ///
@@ -70,7 +69,7 @@ zp2tf(const Value &z, const Value &p, const Value &k,
 
 /// Convert tf coefficients to controllable canonical state-space.
 ///
-/// Equivalent to MATLAB's `[A, B, C, D] = tf2ss(num, den)`. Produces
+/// Produces
 /// the controllable canonical realisation (companion-matrix form):
 /// @f[
 ///   A = \begin{pmatrix}
@@ -96,7 +95,7 @@ StateSpace tf2ss(const Value &num, const Value &den,
 
 /// Convert state-space to tf coefficients.
 ///
-/// Equivalent to MATLAB's `[num, den] = ss2tf(A, B, C, D, iu)`. Uses
+/// Uses
 /// the Faddeev–LeVerrier expansion to build
 /// @f$ H(s) = C\,(sI - A)^{-1}\,B + D @f$ without ever forming the
 /// matrix inverse. The output denominator is the characteristic
@@ -110,7 +109,7 @@ StateSpace tf2ss(const Value &num, const Value &den,
 /// @param B   n×nin input matrix.
 /// @param C   1×n output row.
 /// @param D   1×nin feedthrough.
-/// @param iu  Input column to use (1-based; default 1 in MATLAB).
+/// @param iu  Input column to use (1-based; default 1).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(num, den)`; bind via `auto [num, den] = ss2tf(...);`.
 /// @throws    Error if A is non-square, `iu` is out of range, or

@@ -111,7 +111,7 @@ Value dctmtx(double Nd, std::pmr::memory_resource *mr)
     // so D*x is the DCT-II of x.
     if (!(Nd > 0.0) || std::floor(Nd) != Nd)
         throw Error("dctmtx: N must be a positive integer",
-                    0, 0, "dctmtx", "", "m:dctmtx:arg");
+                    0, 0, "dctmtx", "", "numkit:dctmtx:arg");
     const size_t N = static_cast<size_t>(Nd);
     Value D = Value::matrix(N, N, ValueType::DOUBLE, mr);
     if (N == 0) return D;
@@ -256,11 +256,11 @@ phantom(const Value &model_or_E, size_t n, std::pmr::memory_resource *mr)
             E = make_ellipse_matrix(kModSheppLogan, 10, mr);
         else
             throw Error("phantom: unknown MODEL", 0, 0, "phantom", "",
-                        "m:phantom:model");
+                        "numkit:phantom:model");
     } else {
         if (model_or_E.dims().cols() != 6)
             throw Error("phantom: E must be N-by-6",
-                        0, 0, "phantom", "", "m:phantom:E");
+                        0, 0, "phantom", "", "numkit:phantom:E");
         E = model_or_E;
     }
 
@@ -315,10 +315,10 @@ Value bestblk(const Value &IMS, double k, std::pmr::memory_resource *mr)
 {
     if (IMS.numel() < 2)
         throw Error("bestblk: IMS must have at least 2 elements",
-                    0, 0, "bestblk", "", "m:bestblk:size");
+                    0, 0, "bestblk", "", "numkit:bestblk:size");
     if (!(k >= 1.0))
         throw Error("bestblk: K must be a positive scalar",
-                    0, 0, "bestblk", "", "m:bestblk:k");
+                    0, 0, "bestblk", "", "numkit:bestblk:k");
 
     const size_t nd = IMS.numel();
     const long long K = static_cast<long long>(std::floor(k));
@@ -330,7 +330,7 @@ Value bestblk(const Value &IMS, double k, std::pmr::memory_resource *mr)
             std::floor(IMS.elemAsDouble(d)));
         if (dim < 1)
             throw Error("bestblk: IMS entries must be positive",
-                        0, 0, "bestblk", "", "m:bestblk:vals");
+                        0, 0, "bestblk", "", "numkit:bestblk:vals");
         if (dim <= K) { od[d] = static_cast<double>(dim); continue; }
 
         // Scan p = K, K-1, ..., ceil(min(dim/10, K/2)). Pick largest p
@@ -433,7 +433,7 @@ Value fftconv2(const Value &A, const Value &B, const std::string &shape, std::pm
         outW = ca - cb + 1;
     } else {
         throw Error("fftconv2: shape must be 'full', 'same', or 'valid'",
-                    0, 0, "fftconv2", "", "m:fftconv2:shape");
+                    0, 0, "fftconv2", "", "numkit:fftconv2:shape");
     }
 
     if (outH == 0 || outW == 0)
@@ -480,7 +480,7 @@ Value psf2otf(const Value &PSF, Span<const size_t> outsize, std::pmr::memory_res
     }
     if (outH < inH || outW < inW)
         throw Error("psf2otf: OUTSIZE must be larger than PSF size",
-                    0, 0, "psf2otf", "", "m:psf2otf:outsize");
+                    0, 0, "psf2otf", "", "numkit:psf2otf:outsize");
 
     // Pad PSF with zeros (post-pad).
     Value padded;
@@ -512,25 +512,67 @@ Value otf2psf(const Value &OTF, Span<const size_t> outsize, std::pmr::memory_res
     const size_t inW = d.cols();
     const bool is1D = (inH == 1 || inW == 1);
 
+    // Resolve target output shape.
+    //   no outsize             → same as OTF (no cropping)
+    //   1-element outsize      → 1-D vector of that length (matching the
+    //                            non-singleton orientation), or L×L if
+    //                            OTF is 2-D
+    //   2-element outsize      → use directly
+    size_t outH = inH;
+    size_t outW = inW;
+    if (outsize.size() == 1) {
+        const size_t L = outsize[0];
+        if (is1D) {
+            if (inH == 1) { outH = 1; outW = L; }
+            else          { outH = L; outW = 1; }
+        } else { outH = L; outW = L; }
+    } else if (outsize.size() >= 2) {
+        outH = outsize[0];
+        outW = outsize[1];
+    }
+    if (outH > inH || outW > inW)
+        throw Error("otf2psf: OUTSIZE must not exceed the size of the OTF "
+                    "array in any dimension",
+                    0, 0, "otf2psf", "", "numkit:otf2psf:outsize");
+
     // Inverse FFT.
     Value psf = is1D ? signal::ifft(OTF, -1, 0, mr)
                      : signal::ifft2(OTF, -1, -1, mr);
 
-    // Circular shift by +floor(insize / 2) (inverse of psf2otf shift).
-    const auto &dp = psf.dims();
-    const int64_t shiftR =  static_cast<int64_t>(dp.rows() / 2);
-    const int64_t shiftC =  static_cast<int64_t>(dp.cols() / 2);
+    // Circular shift by +floor(OUTSIZE / 2), matching MATLAB's
+    // otf2psf source (NOT floor(insize/2) — the shift amount depends
+    // on the requested output size). With outsize == insize this
+    // reduces to the standard "ifftshift" behaviour.
+    const int64_t shiftR = static_cast<int64_t>(outH / 2);
+    const int64_t shiftC = static_cast<int64_t>(outW / 2);
     Value shifted;
     if (is1D) {
-        shifted = builtin::circshift(psf, (dp.rows() == 1) ? shiftC : shiftR, mr);
+        shifted = builtin::circshift(psf, (inH == 1) ? shiftC : shiftR, mr);
     } else {
         shifted = builtin::circshift(psf, shiftR, shiftC, mr);
     }
 
-    // Note: optional outsize-based cropping not yet implemented;
-    // typical use is OTF the same size as the desired PSF.
-    (void)outsize;
-    return shifted;
+    // Crop to the requested outsize (top-left sub-matrix). After the
+    // circshift the PSF support lands at the top-left corner.
+    if (outH == inH && outW == inW) return shifted;
+
+    const bool is_complex = shifted.isComplex();
+    Value cropped = Value::matrix(outH, outW,
+        is_complex ? ValueType::COMPLEX : ValueType::DOUBLE, mr);
+    if (is_complex) {
+        const Complex *src = shifted.complexData();
+        Complex *dst = cropped.complexDataMut();
+        for (size_t j = 0; j < outW; ++j)
+            for (size_t i = 0; i < outH; ++i)
+                dst[j * outH + i] = src[j * inH + i];
+    } else {
+        const double *src = shifted.doubleData();
+        double *dst = cropped.doubleDataMut();
+        for (size_t j = 0; j < outW; ++j)
+            for (size_t i = 0; i < outH; ++i)
+                dst[j * outH + i] = src[j * inH + i];
+    }
+    return cropped;
 }
 
 Value normxcorr2(const Value &templ, const Value &img, std::pmr::memory_resource *mr)
@@ -654,6 +696,798 @@ Value checkerboard(size_t side, size_t M, size_t N, std::pmr::memory_resource *m
     return out;
 }
 
+// ── deconvwnr (Wiener inverse filter) ──────────────────────────────
+//
+// J = ifft( conj(H) * S_x / (|H|^2 * S_x + S_u) * fft(I) )
+// where H = psf2otf(PSF, size(I)); S_u is noise power spectrum and
+// S_x is signal power spectrum. Scalar NSR = S_u/S_x maps to S_u =
+// NSR, S_x = 1. Scalar NCORR/ICORR maps to S_u=NCORR, S_x=ICORR.
+//
+// Algorithm transliterated verbatim from MATLAB R2025b deconvwnr.m
+// (see Gonzalez & Woods, *Digital Image Processing*, 2e § 5.8).
+namespace {
+
+// Wide cast input I to DOUBLE, recording the source class for the
+// later quantisation cast on output.
+Value to_double_pmr(const Value &I, std::pmr::memory_resource *mr)
+{
+    const auto &d = I.dims();
+    const std::size_t H = d.rows();
+    const std::size_t W = d.cols();
+    Value out = d.is3D()
+        ? Value::matrix3d(H, W, d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const std::size_t N = I.numel();
+    switch (I.type()) {
+        case ValueType::DOUBLE:
+            std::memcpy(od, I.doubleData(), N * sizeof(double)); break;
+        case ValueType::SINGLE:
+            for (std::size_t i = 0; i < N; ++i) od[i] = I.singleData()[i]; break;
+        case ValueType::UINT8:
+            for (std::size_t i = 0; i < N; ++i) od[i] = I.uint8Data()[i] / 255.0; break;
+        case ValueType::UINT16:
+            for (std::size_t i = 0; i < N; ++i) od[i] = I.uint16Data()[i] / 65535.0; break;
+        case ValueType::INT16:
+            for (std::size_t i = 0; i < N; ++i)
+                od[i] = (I.int16Data()[i] + 32768.0) / 65535.0; break;
+        default:
+            throw Error("deconvwnr: unsupported image class",
+                        0, 0, "deconvwnr", "", "numkit:deconvwnr:cls");
+    }
+    return out;
+}
+
+Value real_back_to_class(const Value &Jd, ValueType outT,
+                         std::pmr::memory_resource *mr)
+{
+    const auto &d = Jd.dims();
+    Value out = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), outT, mr)
+        : Value::matrix(d.rows(), d.cols(), outT, mr);
+    const std::size_t N = Jd.numel();
+    const double *src = Jd.doubleData();
+    auto sat_u8  = [](double v) {
+        if (v <= 0.0) return uint8_t{0};
+        if (v >= 1.0) return uint8_t{255};
+        return static_cast<uint8_t>(std::lround(v * 255.0));
+    };
+    auto sat_u16 = [](double v) {
+        if (v <= 0.0) return uint16_t{0};
+        if (v >= 1.0) return uint16_t{65535};
+        return static_cast<uint16_t>(std::lround(v * 65535.0));
+    };
+    auto sat_i16 = [](double v) {
+        if (v <= 0.0) return int16_t{-32768};
+        if (v >= 1.0) return int16_t{32767};
+        return static_cast<int16_t>(std::lround(v * 65535.0 - 32768.0));
+    };
+    switch (outT) {
+        case ValueType::DOUBLE:
+            std::memcpy(out.doubleDataMut(), src, N * sizeof(double)); break;
+        case ValueType::SINGLE:
+            for (std::size_t i = 0; i < N; ++i)
+                out.singleDataMut()[i] = static_cast<float>(src[i]); break;
+        case ValueType::UINT8:
+            for (std::size_t i = 0; i < N; ++i)
+                out.uint8DataMut()[i] = sat_u8(src[i]); break;
+        case ValueType::UINT16:
+            for (std::size_t i = 0; i < N; ++i)
+                out.uint16DataMut()[i] = sat_u16(src[i]); break;
+        case ValueType::INT16:
+            for (std::size_t i = 0; i < N; ++i)
+                out.int16DataMut()[i] = sat_i16(src[i]); break;
+        default:
+            throw Error("deconvwnr: unsupported output class",
+                        0, 0, "deconvwnr", "", "numkit:deconvwnr:cls");
+    }
+    return out;
+}
+
+// Core impl: takes I (already DOUBLE), PSF (DOUBLE), and power-
+// spectrum scalars S_u and S_x (after the array case has been
+// reduced via fftn-and-abs). Returns DOUBLE J of size(I).
+Value deconvwnr_core_scalar_uxsx(const Value &I, const Value &PSF,
+                                 double S_u, double S_x,
+                                 std::pmr::memory_resource *mr)
+{
+    const auto &dI = I.dims();
+    const std::size_t H = dI.rows();
+    const std::size_t W = dI.cols();
+    const bool is3 = dI.is3D();
+    const std::size_t P = is3 ? dI.pages() : 1;
+
+    // 2-D OTF for now (deconvwnr handles N-D in MATLAB; we cover
+    // 2-D and 3-D via per-page processing — common in HDR / volumes).
+    std::array<std::size_t, 2> outsize{H, W};
+    Value Hf = psf2otf(PSF, Span<const std::size_t>(outsize.data(), 2), mr);
+    // psf2otf may return DOUBLE for real-symmetric PSFs; normalise
+    // to a COMPLEX buffer so the rest of this function can access
+    // both real and imag uniformly.
+    const std::size_t plane = H * W;
+    std::pmr::vector<Complex> Hcplx(plane, Complex{0, 0}, mr);
+    if (Hf.isComplex()) {
+        const Complex *src = Hf.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Hcplx[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Hcplx[i] = Complex{Hf.elemAsDouble(i), 0.0};
+    }
+    const Complex *Hd = Hcplx.data();
+    // denom = |H|^2 * S_x + S_u, clamped at sqrt(eps).
+    Value denom = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *denomD = denom.doubleDataMut();
+    const double sqrt_eps = std::sqrt(std::numeric_limits<double>::epsilon());
+    for (std::size_t i = 0; i < plane; ++i) {
+        const double m2 = Hd[i].real() * Hd[i].real() + Hd[i].imag() * Hd[i].imag();
+        double d = m2 * S_x + S_u;
+        if (d < sqrt_eps) d = sqrt_eps;
+        denomD[i] = d;
+    }
+
+    // Process each page through the same OTF.
+    Value J = is3
+        ? Value::matrix3d(H, W, P, ValueType::DOUBLE, mr)
+        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+
+    for (std::size_t pg = 0; pg < P; ++pg) {
+        Value Ip = is3 ? Value::matrix(H, W, ValueType::DOUBLE, mr) : I;
+        if (is3) {
+            double *ipd = Ip.doubleDataMut();
+            for (std::size_t i = 0; i < plane; ++i)
+                ipd[i] = I.doubleData()[pg * plane + i];
+        }
+        Value FI = signal::fft2(Ip, -1, -1, mr);
+        // FFT2 may collapse to DOUBLE when input is real-symmetric.
+        std::pmr::vector<Complex> FIcplx(plane, Complex{0, 0}, mr);
+        if (FI.isComplex()) {
+            const Complex *src = FI.complexData();
+            for (std::size_t i = 0; i < plane; ++i) FIcplx[i] = src[i];
+        } else {
+            for (std::size_t i = 0; i < plane; ++i)
+                FIcplx[i] = Complex{FI.elemAsDouble(i), 0.0};
+        }
+        Value FG = Value::matrix(H, W, ValueType::COMPLEX, mr);
+        Complex *fg = FG.complexDataMut();
+        const Complex *fi = FIcplx.data();
+        for (std::size_t i = 0; i < plane; ++i) {
+            // G(k) = conj(H(k)) * S_x / denom(k); multiply by FI(k).
+            const Complex Hk = Hd[i];
+            const Complex Hc{Hk.real(), -Hk.imag()};
+            const double g_scale = S_x / denomD[i];
+            const Complex Gk{Hc.real() * g_scale, Hc.imag() * g_scale};
+            fg[i] = Complex{Gk.real() * fi[i].real() - Gk.imag() * fi[i].imag(),
+                            Gk.real() * fi[i].imag() + Gk.imag() * fi[i].real()};
+        }
+        Value Jp = signal::ifft2(FG, -1, -1, mr);
+        // IFFT2 may also collapse to DOUBLE for purely-real spectra.
+        auto jp_at = [&](std::size_t i) -> double {
+            if (Jp.isComplex()) return Jp.complexData()[i].real();
+            return Jp.elemAsDouble(i);
+        };
+        if (is3) {
+            double *jod = J.doubleDataMut();
+            for (std::size_t i = 0; i < plane; ++i)
+                jod[pg * plane + i] = jp_at(i);
+        } else {
+            double *jod = J.doubleDataMut();
+            for (std::size_t i = 0; i < plane; ++i)
+                jod[i] = jp_at(i);
+        }
+    }
+    return J;
+}
+
+} // anonymous
+
+Value deconvwnr(const Value &I, const Value &PSF, double nsr,
+                std::pmr::memory_resource *mr)
+{
+    if (PSF.dims().is3D())
+        throw Error("deconvwnr: PSF must be 2-D",
+                    0, 0, "deconvwnr", "", "numkit:deconvwnr:psf");
+    const ValueType inT = I.type();
+    Value Id = to_double_pmr(I, mr);
+    Value PSFd = to_double_pmr(PSF, mr);
+    Value J = deconvwnr_core_scalar_uxsx(Id, PSFd, nsr, 1.0, mr);
+    if (inT == ValueType::DOUBLE) return J;
+    return real_back_to_class(J, inT, mr);
+}
+
+Value deconvwnr(const Value &I, const Value &PSF,
+                const Value &ncorr, const Value &icorr,
+                std::pmr::memory_resource *mr)
+{
+    if (PSF.dims().is3D())
+        throw Error("deconvwnr: PSF must be 2-D",
+                    0, 0, "deconvwnr", "", "numkit:deconvwnr:psf");
+    const ValueType inT = I.type();
+    Value Id = to_double_pmr(I, mr);
+    Value PSFd = to_double_pmr(PSF, mr);
+
+    // Determine S_u and S_x — scalars or same-size power spectra
+    // (we take |fftn(ACF, sizeI)| per MATLAB's powerSpectrumFromACF).
+    const auto &dI = Id.dims();
+    const std::size_t H = dI.rows();
+    const std::size_t W = dI.cols();
+    const std::size_t plane = H * W;
+
+    auto build_S = [&](const Value &acf, const char *name) -> std::pair<bool, std::pmr::vector<double>> {
+        if (acf.numel() == 1) {
+            // Scalar: uniform spectrum equal to that value.
+            std::pmr::vector<double> v(mr);
+            v.push_back(acf.toScalar());
+            return {true, std::move(v)};
+        }
+        if (acf.dims().rows() == H && acf.dims().cols() == W
+            && !acf.dims().is3D()) {
+            // Same-size ACF: |fft2(acf)|
+            Value F = signal::fft2(acf, -1, -1, mr);
+            std::pmr::vector<double> S(plane, 0.0, mr);
+            const Complex *fc = F.complexData();
+            for (std::size_t i = 0; i < plane; ++i) {
+                const double m = std::sqrt(fc[i].real() * fc[i].real()
+                                         + fc[i].imag() * fc[i].imag());
+                S[i] = m;
+            }
+            return {false, std::move(S)};
+        }
+        throw Error(std::string("deconvwnr: ") + name
+                  + " must be a scalar or same size as I "
+                    "(1-D extrapolation form not supported)",
+                    0, 0, "deconvwnr", "", "numkit:deconvwnr:acf");
+    };
+
+    auto [su_scalar, S_u] = build_S(ncorr, "NCORR");
+    auto [sx_scalar, S_x] = build_S(icorr, "ICORR");
+
+    Value J;
+    if (su_scalar && sx_scalar) {
+        J = deconvwnr_core_scalar_uxsx(Id, PSFd, S_u[0], S_x[0], mr);
+    } else {
+        // Non-scalar spectra: apply per pixel inside the loop. Reuse
+        // the scalar-core's H computation, then redo the denom build.
+        const bool is3 = dI.is3D();
+        const std::size_t P = is3 ? dI.pages() : 1;
+        std::array<std::size_t, 2> outsize{H, W};
+        Value Hf = psf2otf(PSFd, Span<const std::size_t>(outsize.data(), 2), mr);
+        // Same DOUBLE-vs-COMPLEX normalisation as the scalar path.
+        std::pmr::vector<Complex> Hcplx(plane, Complex{0, 0}, mr);
+        if (Hf.isComplex()) {
+            const Complex *src = Hf.complexData();
+            for (std::size_t i = 0; i < plane; ++i) Hcplx[i] = src[i];
+        } else {
+            for (std::size_t i = 0; i < plane; ++i)
+                Hcplx[i] = Complex{Hf.elemAsDouble(i), 0.0};
+        }
+        const Complex *Hd = Hcplx.data();
+        Value denom = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        double *denomD = denom.doubleDataMut();
+        const double sqrt_eps = std::sqrt(std::numeric_limits<double>::epsilon());
+        auto get_S = [&](const std::pmr::vector<double> &S, std::size_t i, bool scalar) {
+            return scalar ? S[0] : S[i];
+        };
+        for (std::size_t i = 0; i < plane; ++i) {
+            const double m2 = Hd[i].real() * Hd[i].real()
+                            + Hd[i].imag() * Hd[i].imag();
+            double d = m2 * get_S(S_x, i, sx_scalar) + get_S(S_u, i, su_scalar);
+            if (d < sqrt_eps) d = sqrt_eps;
+            denomD[i] = d;
+        }
+
+        J = is3 ? Value::matrix3d(H, W, P, ValueType::DOUBLE, mr)
+                 : Value::matrix(H, W, ValueType::DOUBLE, mr);
+        for (std::size_t pg = 0; pg < P; ++pg) {
+            Value Ip = is3 ? Value::matrix(H, W, ValueType::DOUBLE, mr) : Id;
+            if (is3) {
+                double *ipd = Ip.doubleDataMut();
+                for (std::size_t i = 0; i < plane; ++i)
+                    ipd[i] = Id.doubleData()[pg * plane + i];
+            }
+            Value FI = signal::fft2(Ip, -1, -1, mr);
+            std::pmr::vector<Complex> FIcplx(plane, Complex{0, 0}, mr);
+            if (FI.isComplex()) {
+                const Complex *src = FI.complexData();
+                for (std::size_t i = 0; i < plane; ++i) FIcplx[i] = src[i];
+            } else {
+                for (std::size_t i = 0; i < plane; ++i)
+                    FIcplx[i] = Complex{FI.elemAsDouble(i), 0.0};
+            }
+            Value FG = Value::matrix(H, W, ValueType::COMPLEX, mr);
+            Complex *fg = FG.complexDataMut();
+            const Complex *fi = FIcplx.data();
+            for (std::size_t i = 0; i < plane; ++i) {
+                const Complex Hk = Hd[i];
+                const Complex Hc{Hk.real(), -Hk.imag()};
+                const double sx_i = get_S(S_x, i, sx_scalar);
+                const double g_scale = sx_i / denomD[i];
+                const Complex Gk{Hc.real() * g_scale, Hc.imag() * g_scale};
+                fg[i] = Complex{Gk.real() * fi[i].real() - Gk.imag() * fi[i].imag(),
+                                Gk.real() * fi[i].imag() + Gk.imag() * fi[i].real()};
+            }
+            Value Jp = signal::ifft2(FG, -1, -1, mr);
+            auto jp_at = [&](std::size_t i) -> double {
+                if (Jp.isComplex()) return Jp.complexData()[i].real();
+                return Jp.elemAsDouble(i);
+            };
+            if (is3) {
+                double *jod = J.doubleDataMut();
+                for (std::size_t i = 0; i < plane; ++i)
+                    jod[pg * plane + i] = jp_at(i);
+            } else {
+                double *jod = J.doubleDataMut();
+                for (std::size_t i = 0; i < plane; ++i) jod[i] = jp_at(i);
+            }
+        }
+    }
+    if (inT == ValueType::DOUBLE) return J;
+    return real_back_to_class(J, inT, mr);
+}
+
+// ── edgetaper (image-edge taper for FFT-based deblur) ─────────────
+//
+// MATLAB R2025b edgetaper.m algorithm:
+//
+//   For each non-singleton PSF dim n:
+//     proj   = sum(PSF over all other dims)
+//     beta_n = autocorr of proj at length sizeI(n) - 1, normalised,
+//              padded symmetrically to length sizeI(n).
+//   alpha = outer product of (1 - beta_n) across all NS dims.
+//   blurredI = real(ifftn(fftn(I) .* psf2otf(PSF, sizeI)))
+//   J = alpha .* I + (1 - alpha) .* blurredI, clipped to [min(I), max(I)]
+//   cast back to class(I).
+//
+// We restrict to 2-D inputs (the most common case); MATLAB extends
+// the same algorithm to N-D, but the 3-D-and-up form is rarely
+// used. A 3-D input throws a clear "use slice + loop" error.
+Value edgetaper(const Value &I, const Value &PSF, std::pmr::memory_resource *mr)
+{
+    const auto &dI   = I.dims();
+    const auto &dPSF = PSF.dims();
+    if (dI.is3D())
+        throw Error("edgetaper: I must be 2-D (slice 3-D inputs and call "
+                    "per page)",
+                    0, 0, "edgetaper", "", "numkit:edgetaper:rank");
+    if (dPSF.is3D())
+        throw Error("edgetaper: PSF must be 2-D",
+                    0, 0, "edgetaper", "", "numkit:edgetaper:psfRank");
+    const std::size_t H  = dI.rows();
+    const std::size_t W  = dI.cols();
+    const std::size_t PH = dPSF.rows();
+    const std::size_t PW = dPSF.cols();
+    if (H * W < 2)
+        throw Error("edgetaper: I must have at least 2 elements",
+                    0, 0, "edgetaper", "", "numkit:edgetaper:tooSmall");
+    if (PH * PW < 2)
+        throw Error("edgetaper: PSF must have at least 2 elements",
+                    0, 0, "edgetaper", "", "numkit:edgetaper:psfTooSmall");
+    if (2 * PH > H || 2 * PW > W)
+        throw Error("edgetaper: PSF size must be smaller than half of "
+                    "the image size in any nonsingleton dimension",
+                    0, 0, "edgetaper", "", "numkit:edgetaper:psfSize");
+
+    // Promote to DOUBLE for the math (we round back to class at the end).
+    const ValueType inT = I.type();
+    Value Id   = to_double_pmr(I, mr);
+    Value PSFd = to_double_pmr(PSF, mr);
+    const double *psfd = PSFd.doubleData();
+
+    // Track input range for the final clip.
+    double Imin =  std::numeric_limits<double>::infinity();
+    double Imax = -std::numeric_limits<double>::infinity();
+    {
+        const std::size_t N = Id.numel();
+        const double *id = Id.doubleData();
+        for (std::size_t k = 0; k < N; ++k) {
+            if (id[k] < Imin) Imin = id[k];
+            if (id[k] > Imax) Imax = id[k];
+        }
+    }
+
+    auto compute_beta = [&](std::size_t dim, std::size_t sizeI_n) {
+        // proj over the OTHER dim of PSF.
+        std::pmr::vector<double> proj(mr);
+        if (dim == 0) {
+            // sum along columns (per row).
+            proj.resize(PH, 0.0);
+            for (std::size_t c = 0; c < PW; ++c)
+                for (std::size_t r = 0; r < PH; ++r)
+                    proj[r] += psfd[c * PH + r];
+        } else {
+            // dim == 1: sum along rows (per col).
+            proj.resize(PW, 0.0);
+            for (std::size_t c = 0; c < PW; ++c)
+                for (std::size_t r = 0; r < PH; ++r)
+                    proj[c] += psfd[c * PH + r];
+        }
+        // fft length = sizeI(n) - 1.
+        const std::size_t L = sizeI_n - 1;
+        Value vec = Value::matrix(1, L, ValueType::DOUBLE, mr);
+        double *vd = vec.doubleDataMut();
+        for (std::size_t k = 0; k < L; ++k)
+            vd[k] = (k < proj.size()) ? proj[k] : 0.0;
+        // F = fft(proj_padded) — dim=0 → first non-singleton (cols of 1×L row).
+        Value F = signal::fft(vec, -1, 0, mr);
+        std::pmr::vector<double> Zsq(L, 0.0, mr);
+        if (F.isComplex()) {
+            const Complex *fc = F.complexData();
+            for (std::size_t k = 0; k < L; ++k)
+                Zsq[k] = fc[k].real() * fc[k].real()
+                       + fc[k].imag() * fc[k].imag();
+        } else {
+            for (std::size_t k = 0; k < L; ++k) {
+                const double v = F.elemAsDouble(k);
+                Zsq[k] = v * v;
+            }
+        }
+        // ifft(|F|^2) — real autocorrelation.
+        Value Zv = Value::matrix(1, L, ValueType::DOUBLE, mr);
+        for (std::size_t k = 0; k < L; ++k) Zv.doubleDataMut()[k] = Zsq[k];
+        Value Z = signal::ifft(Zv, -1, 0, mr);
+        std::pmr::vector<double> zr(L, 0.0, mr);
+        if (Z.isComplex()) {
+            const Complex *zc = Z.complexData();
+            for (std::size_t k = 0; k < L; ++k) zr[k] = zc[k].real();
+        } else {
+            for (std::size_t k = 0; k < L; ++k) zr[k] = Z.elemAsDouble(k);
+        }
+        // Make symmetric: append first element.
+        zr.push_back(zr.front());
+        // Normalise by max.
+        double zmax = 0.0;
+        for (double v : zr) if (v > zmax) zmax = v;
+        if (zmax > 0.0) for (auto &v : zr) v /= zmax;
+        return zr;       // length sizeI_n
+    };
+
+    std::pmr::vector<double> beta_r = compute_beta(0, H);
+    std::pmr::vector<double> beta_c = compute_beta(1, W);
+
+    // alpha = (1 - beta_r) * (1 - beta_c)'  — H × W outer product.
+    Value alpha = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *ad = alpha.doubleDataMut();
+    for (std::size_t c = 0; c < W; ++c)
+        for (std::size_t r = 0; r < H; ++r)
+            ad[c * H + r] = (1.0 - beta_r[r]) * (1.0 - beta_c[c]);
+
+    // blurredI = real(ifft2(fft2(I) .* psf2otf(PSF, sizeI))).
+    std::array<std::size_t, 2> outsize{H, W};
+    Value Hotf = psf2otf(PSFd, Span<const std::size_t>(outsize.data(), 2), mr);
+    const std::size_t plane = H * W;
+    std::pmr::vector<Complex> Hc(plane, Complex{0, 0}, mr);
+    if (Hotf.isComplex()) {
+        const Complex *src = Hotf.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Hc[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Hc[i] = Complex{Hotf.elemAsDouble(i), 0.0};
+    }
+    Value FI = signal::fft2(Id, -1, -1, mr);
+    std::pmr::vector<Complex> Fic(plane, Complex{0, 0}, mr);
+    if (FI.isComplex()) {
+        const Complex *src = FI.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Fic[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Fic[i] = Complex{FI.elemAsDouble(i), 0.0};
+    }
+    Value FG = Value::matrix(H, W, ValueType::COMPLEX, mr);
+    Complex *fg = FG.complexDataMut();
+    for (std::size_t i = 0; i < plane; ++i)
+        fg[i] = Complex{Fic[i].real() * Hc[i].real() - Fic[i].imag() * Hc[i].imag(),
+                        Fic[i].real() * Hc[i].imag() + Fic[i].imag() * Hc[i].real()};
+    Value Blur = signal::ifft2(FG, -1, -1, mr);
+    auto blur_at = [&](std::size_t i) -> double {
+        if (Blur.isComplex()) return Blur.complexData()[i].real();
+        return Blur.elemAsDouble(i);
+    };
+
+    // J = alpha .* I + (1 - alpha) .* blurredI, clipped to [Imin, Imax].
+    Value Jd = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *jd = Jd.doubleDataMut();
+    const double *id = Id.doubleData();
+    for (std::size_t i = 0; i < plane; ++i) {
+        const double a = ad[i];
+        double v = a * id[i] + (1.0 - a) * blur_at(i);
+        if (v < Imin) v = Imin;
+        if (v > Imax) v = Imax;
+        jd[i] = v;
+    }
+
+    if (inT == ValueType::DOUBLE || inT == ValueType::SINGLE) {
+        if (inT == ValueType::DOUBLE) return Jd;
+        // SINGLE: cast back.
+        Value out = Value::matrix(H, W, ValueType::SINGLE, mr);
+        for (std::size_t i = 0; i < plane; ++i)
+            out.singleDataMut()[i] = static_cast<float>(jd[i]);
+        return out;
+    }
+    return real_back_to_class(Jd, inT, mr);
+}
+
+// ── deconvreg (Tikhonov-regularized deconvolution) ──────────────
+//
+// MATLAB R2025b deconvreg.m algorithm (Gonzalez & Woods 1992;
+// Jain 1989), 2-D specialisation:
+//
+//   otf = psf2otf(PSF, sizeI)
+//   regop = default 2-D Laplacian if REGOP empty:
+//             [0  1  0;
+//              1 -4  1;
+//              0  1  0]
+//   REGOP_FT = psf2otf(regop, sizeI)
+//   fI       = fft2(I)
+//   H2 = |OTF|^2, R2 = |REGOP_FT|^2
+//
+//   If LRANGE = [lo, hi] with lo < hi:
+//     λ = fminbnd(ResOffset, lo, hi)
+//       ResOffset(λ) = | λ^2 * sum( (R2*|fI|)^2
+//                                   / (H4 + λ*2*H2*R2 + λ^2*R4 + √eps) )
+//                       - NP * numel(I) |
+//   Else λ = LRANGE(1).
+//
+//   Denom = max(H2 + λ*R2, √eps)
+//   J = real(ifft2(conj(otf) .* fI ./ Denom))
+//   cast J back to class(I) for integer types.
+//
+// fminbnd uses Brent's golden-section + parabolic-interpolation
+// method (Brent 1973, Forsythe/Malcolm/Moler 1976). MATLAB's default
+// TolX = 1e-4.
+namespace {
+
+// Brent's method (translation of MATLAB R2025b fminbnd) — find
+// minimum of unimodal f on [ax, bx] within TolX tolerance.
+template<typename F>
+double fminbnd_brent(F f, double ax, double bx,
+                     double tol = 1e-4, int maxiter = 500)
+{
+    const double seps  = std::sqrt(std::numeric_limits<double>::epsilon());
+    const double c     = 0.5 * (3.0 - std::sqrt(5.0));   // golden ratio
+    double a = ax, b = bx;
+    double v = a + c * (b - a);
+    double w = v, xf = v;
+    double d = 0.0, e = 0.0;
+    double x  = xf;
+    double fx = f(x);
+    double fv = fx, fw = fx;
+    int iter = 0;
+    double xm = 0.5 * (a + b);
+    double tol1 = seps * std::fabs(xf) + tol / 3.0;
+    double tol2 = 2.0 * tol1;
+
+    while (std::fabs(xf - xm) > tol2 - 0.5 * (b - a)) {
+        if (++iter > maxiter) break;
+        bool gold = true;
+        if (std::fabs(e) > tol1) {
+            // parabolic fit
+            double r = (xf - w) * (fx - fv);
+            double q = (xf - v) * (fx - fw);
+            double p = (xf - v) * q - (xf - w) * r;
+            q = 2.0 * (q - r);
+            if (q > 0.0) p = -p;
+            q = std::fabs(q);
+            double etemp = e;
+            e = d;
+            if (std::fabs(p) < std::fabs(0.5 * q * etemp)
+                && p > q * (a - xf) && p < q * (b - xf)) {
+                d = p / q;
+                double u = xf + d;
+                if (u - a < tol2 || b - u < tol2) {
+                    double si = (xm - xf >= 0.0) ? 1.0 : -1.0;
+                    d = tol1 * si;
+                }
+                gold = false;
+            }
+        }
+        if (gold) {
+            e = (xf >= xm) ? (a - xf) : (b - xf);
+            d = c * e;
+        }
+        double si = (d >= 0.0) ? 1.0 : -1.0;
+        double u  = xf + ((std::fabs(d) >= tol1) ? d : tol1 * si);
+        double fu = f(u);
+        if (fu <= fx) {
+            if (u >= xf) a = xf; else b = xf;
+            v = w;  fv = fw;
+            w = xf; fw = fx;
+            xf = u; fx = fu;
+        } else {
+            if (u < xf) a = u; else b = u;
+            if (fu <= fw || w == xf) {
+                v = w;  fv = fw;
+                w = u;  fw = fu;
+            } else if (fu <= fv || v == xf || v == w) {
+                v = u;  fv = fu;
+            }
+        }
+        xm = 0.5 * (a + b);
+        tol1 = seps * std::fabs(xf) + tol / 3.0;
+        tol2 = 2.0 * tol1;
+        x = xf;
+    }
+    return xf;
+}
+
+} // anonymous (Brent)
+
+DeconvregResult deconvreg(const Value &I, const Value &PSF,
+                          double np, double lo, double hi,
+                          const Value &regop,
+                          std::pmr::memory_resource *mr)
+{
+    if (PSF.dims().is3D())
+        throw Error("deconvreg: PSF must be 2-D (slice 3-D inputs and "
+                    "call per page)",
+                    0, 0, "deconvreg", "", "numkit:deconvreg:psf");
+    if (PSF.numel() < 2)
+        throw Error("deconvreg: PSF must have at least 2 elements",
+                    0, 0, "deconvreg", "", "numkit:deconvreg:psfTooSmall");
+    if (!std::isfinite(np) || np < 0.0)
+        throw Error("deconvreg: NP must be a finite non-negative scalar",
+                    0, 0, "deconvreg", "", "numkit:deconvreg:np");
+    if (!std::isfinite(lo) || !std::isfinite(hi) || lo < 0.0 || hi < lo)
+        throw Error("deconvreg: LRANGE must be finite, non-negative, "
+                    "and lo <= hi",
+                    0, 0, "deconvreg", "", "numkit:deconvreg:lrange");
+
+    const ValueType inT = I.type();
+    Value Id   = to_double_pmr(I, mr);
+    Value PSFd = to_double_pmr(PSF, mr);
+
+    const auto &dI = Id.dims();
+    const std::size_t H = dI.rows();
+    const std::size_t W = dI.cols();
+    if (H < 3 || W < 3)
+        throw Error("deconvreg: image too small (min 3x3)",
+                    0, 0, "deconvreg", "", "numkit:deconvreg:tooSmall");
+
+    // PSF must not be all zeros.
+    {
+        bool allzero = true;
+        for (std::size_t i = 0; i < PSFd.numel(); ++i)
+            if (PSFd.elemAsDouble(i) != 0.0) { allzero = false; break; }
+        if (allzero)
+            throw Error("deconvreg: PSF cannot be all zeros",
+                        0, 0, "deconvreg", "", "numkit:deconvreg:psfAllZero");
+    }
+
+    const std::size_t plane = H * W;
+    std::array<std::size_t, 2> outsize{H, W};
+
+    // OTF of PSF.
+    Value Hf = psf2otf(PSFd, Span<const std::size_t>(outsize.data(), 2), mr);
+    std::pmr::vector<Complex> Hcplx(plane, Complex{0, 0}, mr);
+    if (Hf.isComplex()) {
+        const Complex *src = Hf.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Hcplx[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Hcplx[i] = Complex{Hf.elemAsDouble(i), 0.0};
+    }
+
+    // Build REGOP (default Laplacian if none provided).
+    Value REGOP_in;
+    if (regop.isEmpty()) {
+        // 2-D Laplacian per MATLAB source:
+        //   regop = [0 1 0; 1 -4 1; 0 1 0]
+        REGOP_in = Value::matrix(3, 3, ValueType::DOUBLE, mr);
+        double *rd = REGOP_in.doubleDataMut();
+        // column-major:
+        //   col 0: [0; 1; 0]
+        //   col 1: [1; -4; 1]
+        //   col 2: [0; 1; 0]
+        rd[0] = 0;  rd[1] = 1;  rd[2] = 0;
+        rd[3] = 1;  rd[4] = -4; rd[5] = 1;
+        rd[6] = 0;  rd[7] = 1;  rd[8] = 0;
+    } else {
+        if (regop.dims().is3D())
+            throw Error("deconvreg: REGOP must be 2-D",
+                        0, 0, "deconvreg", "", "numkit:deconvreg:regop");
+        REGOP_in = to_double_pmr(regop, mr);
+    }
+    Value REGOPft = psf2otf(REGOP_in,
+                            Span<const std::size_t>(outsize.data(), 2), mr);
+    std::pmr::vector<Complex> Rcplx(plane, Complex{0, 0}, mr);
+    if (REGOPft.isComplex()) {
+        const Complex *src = REGOPft.complexData();
+        for (std::size_t i = 0; i < plane; ++i) Rcplx[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            Rcplx[i] = Complex{REGOPft.elemAsDouble(i), 0.0};
+    }
+
+    // Pre-compute spectral magnitudes.
+    std::pmr::vector<double> H2(plane, 0.0, mr);
+    std::pmr::vector<double> R2(plane, 0.0, mr);
+    for (std::size_t i = 0; i < plane; ++i) {
+        H2[i] = Hcplx[i].real() * Hcplx[i].real()
+              + Hcplx[i].imag() * Hcplx[i].imag();
+        R2[i] = Rcplx[i].real() * Rcplx[i].real()
+              + Rcplx[i].imag() * Rcplx[i].imag();
+    }
+
+    // Determine λ — fixed-or-search.
+    double lagra;
+    if (lo == hi) {
+        lagra = lo;
+    } else {
+        // FFT of image, magnitudes for ResOffset.
+        Value FI = signal::fft2(Id, -1, -1, mr);
+        std::pmr::vector<Complex> FIcplx(plane, Complex{0, 0}, mr);
+        if (FI.isComplex()) {
+            const Complex *src = FI.complexData();
+            for (std::size_t i = 0; i < plane; ++i) FIcplx[i] = src[i];
+        } else {
+            for (std::size_t i = 0; i < plane; ++i)
+                FIcplx[i] = Complex{FI.elemAsDouble(i), 0.0};
+        }
+        std::pmr::vector<double> R4G2(plane, 0.0, mr);
+        std::pmr::vector<double> H4  (plane, 0.0, mr);
+        std::pmr::vector<double> R4  (plane, 0.0, mr);
+        std::pmr::vector<double> H2R22(plane, 0.0, mr);
+        for (std::size_t i = 0; i < plane; ++i) {
+            const double absFI = std::sqrt(FIcplx[i].real() * FIcplx[i].real()
+                                         + FIcplx[i].imag() * FIcplx[i].imag());
+            const double r4g2  = R2[i] * absFI;
+            R4G2[i] = r4g2 * r4g2;
+            H4[i]   = H2[i] * H2[i];
+            R4[i]   = R2[i] * R2[i];
+            H2R22[i] = 2.0 * H2[i] * R2[i];
+        }
+        const double scaled_np = np * static_cast<double>(plane);
+        const double seps = std::sqrt(std::numeric_limits<double>::epsilon());
+
+        auto ResOffset = [&](double L) -> double {
+            double s = 0.0;
+            for (std::size_t i = 0; i < plane; ++i) {
+                const double denom = H4[i] + L * H2R22[i]
+                                   + L * L * R4[i] + seps;
+                s += R4G2[i] / denom;
+            }
+            return std::fabs(L * L * s - scaled_np);
+        };
+        lagra = fminbnd_brent(ResOffset, lo, hi);
+    }
+
+    // Reconstruct: J = real(ifft2(conj(otf) * fI / Denom)).
+    Value FI = signal::fft2(Id, -1, -1, mr);
+    std::pmr::vector<Complex> FIcplx(plane, Complex{0, 0}, mr);
+    if (FI.isComplex()) {
+        const Complex *src = FI.complexData();
+        for (std::size_t i = 0; i < plane; ++i) FIcplx[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < plane; ++i)
+            FIcplx[i] = Complex{FI.elemAsDouble(i), 0.0};
+    }
+    const double seps = std::sqrt(std::numeric_limits<double>::epsilon());
+
+    Value FG = Value::matrix(H, W, ValueType::COMPLEX, mr);
+    Complex *fg = FG.complexDataMut();
+    for (std::size_t i = 0; i < plane; ++i) {
+        double denom = H2[i] + lagra * R2[i];
+        if (denom < seps) denom = seps;
+        const Complex Hc{Hcplx[i].real(), -Hcplx[i].imag()};
+        // (conj(H) / denom) * FI
+        const double inv = 1.0 / denom;
+        const Complex G{Hc.real() * inv, Hc.imag() * inv};
+        fg[i] = Complex{G.real() * FIcplx[i].real() - G.imag() * FIcplx[i].imag(),
+                        G.real() * FIcplx[i].imag() + G.imag() * FIcplx[i].real()};
+    }
+    Value Jc = signal::ifft2(FG, -1, -1, mr);
+    Value Jd = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *jd = Jd.doubleDataMut();
+    auto jc_at = [&](std::size_t i) -> double {
+        if (Jc.isComplex()) return Jc.complexData()[i].real();
+        return Jc.elemAsDouble(i);
+    };
+    for (std::size_t i = 0; i < plane; ++i) jd[i] = jc_at(i);
+
+    Value Jout = (inT == ValueType::DOUBLE)
+                   ? Jd
+                   : real_back_to_class(Jd, inT, mr);
+    return DeconvregResult{std::move(Jout), lagra};
+}
+
 namespace detail {
 
 void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
@@ -661,7 +1495,7 @@ void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("integralImage: requires (I)",
-                    0, 0, "integralImage", "", "m:integralImage:nargin");
+                    0, 0, "integralImage", "", "numkit:integralImage:nargin");
     outs[0] = integralImage(args[0], ctx.engine->resource());
 }
 
@@ -670,7 +1504,7 @@ void integralImage3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("integralImage3: requires (V)",
-                    0, 0, "integralImage3", "", "m:integralImage3:nargin");
+                    0, 0, "integralImage3", "", "numkit:integralImage3:nargin");
     outs[0] = integralImage3(args[0], ctx.engine->resource());
 }
 
@@ -679,7 +1513,7 @@ void dct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("dct2: requires 1 argument",
-                    0, 0, "dct2", "", "m:dct2:nargin");
+                    0, 0, "dct2", "", "numkit:dct2:nargin");
     outs[0] = dct2(args[0], ctx.engine->resource());
 }
 
@@ -688,7 +1522,7 @@ void idct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("idct2: requires 1 argument",
-                    0, 0, "idct2", "", "m:idct2:nargin");
+                    0, 0, "idct2", "", "numkit:idct2:nargin");
     outs[0] = idct2(args[0], ctx.engine->resource());
 }
 
@@ -697,7 +1531,7 @@ void dctmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("dctmtx: requires 1 argument (N)",
-                    0, 0, "dctmtx", "", "m:dctmtx:nargin");
+                    0, 0, "dctmtx", "", "numkit:dctmtx:nargin");
     outs[0] = dctmtx(args[0].toScalar(), ctx.engine->resource());
 }
 
@@ -732,7 +1566,7 @@ void normxcorr2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("normxcorr2: requires (template, img)",
-                    0, 0, "normxcorr2", "", "m:normxcorr2:nargin");
+                    0, 0, "normxcorr2", "", "numkit:normxcorr2:nargin");
     outs[0] = normxcorr2(args[0], args[1], ctx.engine->resource());
 }
 
@@ -741,7 +1575,7 @@ void psf2otf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("psf2otf: requires (PSF [, outsize])",
-                    0, 0, "psf2otf", "", "m:psf2otf:nargin");
+                    0, 0, "psf2otf", "", "numkit:psf2otf:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     ScratchVec<size_t> outsizeBuf(&scratch);
@@ -759,7 +1593,7 @@ void bestblk_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("bestblk: requires (IMS [, k])",
-                    0, 0, "bestblk", "", "m:bestblk:nargin");
+                    0, 0, "bestblk", "", "numkit:bestblk:nargin");
     auto *mr = ctx.engine->resource();
     const double k = (args.size() >= 2 && !args[1].isEmpty())
                        ? args[1].toScalar() : 100.0;
@@ -778,15 +1612,83 @@ void fftconv2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("fftconv2: requires (A, B [, shape])",
-                    0, 0, "fftconv2", "", "m:fftconv2:nargin");
+                    0, 0, "fftconv2", "", "numkit:fftconv2:nargin");
     std::string shape = "full";
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (!args[2].isChar() && !args[2].isString())
             throw Error("fftconv2: shape must be a string",
-                        0, 0, "fftconv2", "", "m:fftconv2:shape");
+                        0, 0, "fftconv2", "", "numkit:fftconv2:shape");
         shape = args[2].toString();
     }
     outs[0] = fftconv2(args[0], args[1], shape, ctx.engine->resource());
+}
+
+void edgetaper_reg(Span<const Value> args, std::size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("edgetaper: requires (I, PSF)",
+                    0, 0, "edgetaper", "", "numkit:edgetaper:nargin");
+    outs[0] = edgetaper(args[0], args[1], ctx.engine->resource());
+}
+
+void deconvreg_reg(Span<const Value> args, std::size_t nargout,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || args.size() > 5)
+        throw Error("deconvreg: requires (I, PSF [, NP [, LRANGE [, REGOP]]])",
+                    0, 0, "deconvreg", "", "numkit:deconvreg:nargin");
+    auto *mr = ctx.engine->resource();
+    double np = 0.0;
+    double lo = 1e-9, hi = 1e9;
+    Value regop = Value::Empty;
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (args[2].numel() != 1)
+            throw Error("deconvreg: NP must be a scalar",
+                        0, 0, "deconvreg", "", "numkit:deconvreg:np");
+        np = args[2].toScalar();
+    }
+    if (args.size() >= 4 && !args[3].isEmpty()) {
+        const Value &lr = args[3];
+        if (lr.numel() == 1) {
+            lo = hi = lr.toScalar();
+        } else if (lr.numel() == 2) {
+            lo = lr.elemAsDouble(0);
+            hi = lr.elemAsDouble(1);
+            if (hi < lo)
+                throw Error("deconvreg: LRANGE must satisfy lo <= hi",
+                            0, 0, "deconvreg", "", "numkit:deconvreg:lrange");
+        } else {
+            throw Error("deconvreg: LRANGE must be a scalar or 2-element vector",
+                        0, 0, "deconvreg", "", "numkit:deconvreg:lrange");
+        }
+    }
+    if (args.size() >= 5 && !args[4].isEmpty())
+        regop = args[4];
+    auto r = deconvreg(args[0], args[1], np, lo, hi, regop, mr);
+    outs[0] = std::move(r.J);
+    if (nargout > 1) outs[1] = Value::scalar(r.lagra, mr);
+}
+
+void deconvwnr_reg(Span<const Value> args, std::size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("deconvwnr: requires (I, PSF [, NSR | NCORR, ICORR])",
+                    0, 0, "deconvwnr", "", "numkit:deconvwnr:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        outs[0] = deconvwnr(args[0], args[1], 0.0, mr);
+    } else if (args.size() == 3) {
+        // 3-arg form: scalar NSR (most common case).
+        if (args[2].numel() != 1)
+            throw Error("deconvwnr: 3-arg NSR must be a scalar; use the "
+                        "4-arg (NCORR, ICORR) form for array spectra",
+                        0, 0, "deconvwnr", "", "numkit:deconvwnr:nsr");
+        outs[0] = deconvwnr(args[0], args[1], args[2].toScalar(), mr);
+    } else {
+        outs[0] = deconvwnr(args[0], args[1], args[2], args[3], mr);
+    }
 }
 
 void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,
@@ -794,7 +1696,7 @@ void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("otf2psf: requires (OTF [, outsize])",
-                    0, 0, "otf2psf", "", "m:otf2psf:nargin");
+                    0, 0, "otf2psf", "", "numkit:otf2psf:nargin");
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     ScratchVec<size_t> outsizeBuf(&scratch);
@@ -815,7 +1717,7 @@ void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
         const double s = args[0].toScalar();
         if (s < 0.0 || s != std::floor(s))
             throw Error("checkerboard: SIDE must be a non-negative integer",
-                        0, 0, "checkerboard", "", "m:checkerboard:side");
+                        0, 0, "checkerboard", "", "numkit:checkerboard:side");
         side = static_cast<size_t>(s);
     }
     if (args.size() >= 2 && !args[1].isEmpty()) {

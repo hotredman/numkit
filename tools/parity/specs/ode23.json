@@ -1,0 +1,27 @@
+{
+  "name": "ode23",
+  "namespace": "ode",
+  "setup": "f = @(t,y) -y; ts = linspace(0,2,11); opts = odeset('RelTol',1e-8,'AbsTol',1e-10);",
+  "expr": "[t,y] = ode23(f, ts, 1, opts);",
+  "iters": 3,
+  "tol": 1e-6,
+  "fingerprint": [
+    "size(y,1)",
+    "size(y,2)",
+    "size(t,1)",
+    "size(t,2)",
+    "y(1)",
+    "y(end)",
+    "y(6)",
+    "t(end)",
+    "abs(y(end) - exp(-2)) < 1e-6"
+  ],
+  "covers": [
+    "ode23(f, tspan, y0)            scalar IVP, explicit tspan",
+    "ode23(f, tspan, y0, opts)      with odeset() opts",
+    "RelTol / AbsTol propagation",
+    "cubic Hermite dense-output at explicit tspan points",
+    "[t, y] output shape  (n × 1, n × d)"
+  ],
+  "comment": "Sig 1+2: ode23(@f, tspan, y0) and ode23(@f, tspan, y0, opts). MATLAB R2025b runs the Bogacki-Shampine 3(2) embedded pair with FSAL k4 and cubic Hermite dense output between accepted steps; numkit ode23 implements the same Butcher tableau (Bogacki-Shampine 1989, Appl.Math.Lett. 2:321-325) and the same interpolant (Shampine-Reichelt 1997). With explicit tspan + tight tols, numkit and MATLAB land identically on the requested sample points (verified ~1e-9). Refine default = 1 (matching MATLAB ode23, NOT 4 like ode45). MaxStep, multi-variable, reverse integration covered by gtest + smoke."
+}

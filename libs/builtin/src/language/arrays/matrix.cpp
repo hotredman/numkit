@@ -15,11 +15,15 @@
 #include <numkit/builtin/math/poly/polynomials.hpp>
 
 #include <numkit/builtin/language/arrays/manip.hpp>     // flip()
+#include <numkit/builtin/language/operators/unary_ops.hpp>  // transposeNC()
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <complex>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <type_traits>
 #include <vector>
 
@@ -159,358 +163,34 @@ void magicSinglyEven(double *p, size_t N)
 
 } // anonymous namespace
 
-// ── inv / linsolve / pageinv ─────────────────────────────────────────
+// NOTE: inv / linsolve migrated to libs/linalg (properties.cpp, solvers.cpp).
+//       pageinv migrated to libs/linalg (page_ops.cpp).
+//       The internal helpers laSolveWrap / fillIdentity went with them.
 
-namespace {
+// NOTE: SVD (one-sided Jacobi) migrated to libs/linalg/src/decompositions.cpp.
+// Block below kept disabled until removal.
 
-// Solve A_buf (m×n column-major) against B_buf (m×nrhs col-major) and
-// write the result (n×nrhs) into outX. Common helper for inv /
-// linsolve / pageinv. Returns false on singular / rank-deficient /
-// wide A.
-bool laSolveWrap(const double *A_buf, std::size_t m, std::size_t n, const double *B_buf, std::size_t nrhs, double *outX, std::pmr::memory_resource *mr)
-{
-    return detail::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
-}
-
-// Build an n×n identity into a contiguous column-major buffer.
-void fillIdentity(double *buf, std::size_t n)
-{
-    std::fill(buf, buf + n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i)
-        buf[i + i * n] = 1.0;
-}
-
-} // anonymous namespace
-
-Value inv(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("inv: input must be a 2D matrix",
-                    0, 0, "inv", "", "m:inv:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("inv: matrix must be square",
-                    0, 0, "inv", "", "m:inv:notSquare");
-    if (m == 0)
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    ScratchVec<double> I_buf(n * n, &scratch);
-    // Copy A as column-major (Value::matrix is already col-major).
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-    fillIdentity(I_buf.data(), n);
-
-    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!laSolveWrap(A_buf.data(), m, n, I_buf.data(), n, out.doubleDataMut(), &scratch))
-        throw Error("inv: matrix is singular to working precision",
-                    0, 0, "inv", "", "m:inv:singular");
-    return out;
-}
-
-Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
-        throw Error("linsolve: A and B must be 2D matrices",
-                    0, 0, "linsolve", "", "m:linsolve:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const std::size_t mb = static_cast<std::size_t>(B.dims().dim(0));
-    const std::size_t nrhs = static_cast<std::size_t>(B.dims().dim(1));
-    if (m != mb)
-        throw Error("linsolve: A and B must have the same number of rows",
-                    0, 0, "linsolve", "", "m:linsolve:badDims");
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    ScratchVec<double> B_buf(m * nrhs, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-    std::copy(B.doubleData(), B.doubleData() + m * nrhs, B_buf.begin());
-
-    auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
-    if (!laSolveWrap(A_buf.data(), m, n, B_buf.data(), nrhs, out.doubleDataMut(), &scratch))
-        throw Error("linsolve: A is singular or rank-deficient",
-                    0, 0, "linsolve", "", "m:linsolve:singular");
-    return out;
-}
-
-Value pageinv(const Value &A, std::pmr::memory_resource *mr)
-{
-    const auto &dims = A.dims();
-    const int nd = dims.ndim();
-    if (nd < 2 || nd > 3)
-        throw Error("pageinv: input must be 2D or 3D",
-                    0, 0, "pageinv", "", "m:pageinv:badDim");
-    const std::size_t m = static_cast<std::size_t>(dims.dim(0));
-    const std::size_t n = static_cast<std::size_t>(dims.dim(1));
-    if (m != n)
-        throw Error("pageinv: each page must be square",
-                    0, 0, "pageinv", "", "m:pageinv:notSquare");
-    const std::size_t pages = (nd == 2) ? 1 : static_cast<std::size_t>(dims.dim(2));
-    const std::size_t pageStride = m * n;
-
-    auto out = (nd == 2)
-        ? Value::matrix(m, n, ValueType::DOUBLE, mr)
-        : createMatrix({m, n, pages}, ValueType::DOUBLE, mr);
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(pageStride, &scratch);
-    ScratchVec<double> I_buf(n * n, &scratch);
-    const double *src = A.doubleData();
-    double *dst = out.doubleDataMut();
-
-    for (std::size_t p = 0; p < pages; ++p) {
-        std::copy(src + p * pageStride,
-                  src + (p + 1) * pageStride,
-                  A_buf.begin());
-        fillIdentity(I_buf.data(), n);
-        if (!laSolveWrap(A_buf.data(), m, n, I_buf.data(), n, dst + p * pageStride, &scratch))
-            throw Error("pageinv: page is singular",
-                        0, 0, "pageinv", "", "m:pageinv:singular");
-    }
-    return out;
-}
-
-// ── SVD (one-sided Jacobi) ───────────────────────────────────────────
-
-namespace {
-
-// One-sided Jacobi SVD: rotates columns of A_work (which contains a
-// copy of A) until off-diagonal of A_work^T * A_work is below tol.
-// On return:
-//   - A_work has orthogonal columns; ||A_work(:,k)|| = sigma_k
-//   - V_work holds the right singular vectors
-// Caller normalises columns and assembles U, S, V.
+// NOTE: eig family, hess, schur_sym, sylvester_sym, expm, logm_sym,
+//       sqrtm_sym migrated to libs/linalg/src/{eig,matrix_functions}.cpp.
 //
-// Loop convergence: standard Jacobi sweep until the largest off-
-// diagonal is < tol*sqrt(diag_i*diag_j). Bounded by max_sweeps to
-// prevent pathological non-convergence.
-void jacobiSvdInplace(double *A, std::size_t m, std::size_t n,
-                      double *V, std::size_t maxSweeps, double tol)
-{
-    // Initialise V = I.
-    std::fill(V, V + n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i) V[i + i * n] = 1.0;
-
-    auto colDot = [&](std::size_t p, std::size_t q) {
-        double s = 0.0;
-        for (std::size_t i = 0; i < m; ++i)
-            s += A[i + p * m] * A[i + q * m];
-        return s;
-    };
-    auto rotateCols = [&](double *M, std::size_t leadDim, std::size_t nrows,
-                          std::size_t p, std::size_t q, double c, double s) {
-        for (std::size_t i = 0; i < nrows; ++i) {
-            const double mip = M[i + p * leadDim];
-            const double miq = M[i + q * leadDim];
-            M[i + p * leadDim] = c * mip - s * miq;
-            M[i + q * leadDim] = s * mip + c * miq;
-        }
-    };
-
-    for (std::size_t sweep = 0; sweep < maxSweeps; ++sweep) {
-        double off = 0.0;
-        for (std::size_t p = 0; p + 1 < n; ++p) {
-            for (std::size_t q = p + 1; q < n; ++q) {
-                const double alpha = colDot(p, p);
-                const double beta  = colDot(q, q);
-                const double gamma = colDot(p, q);
-
-                const double scale = std::sqrt(alpha * beta);
-                if (std::fabs(gamma) <= tol * scale) continue;
-                off += gamma * gamma;
-
-                // Compute the Jacobi rotation (c, s) that diagonalises
-                // the 2×2 [[alpha gamma]; [gamma beta]] block.
-                double c, s;
-                if (alpha == beta) {
-                    // 45-degree rotation when diagonal is symmetric.
-                    c = 0.7071067811865476;  // cos(pi/4) = sqrt(2)/2
-                    s = (gamma >= 0.0 ? 1.0 : -1.0) * c;
-                } else {
-                    const double tau = (beta - alpha) / (2.0 * gamma);
-                    const double t = (tau >= 0.0)
-                        ? 1.0 / (tau + std::sqrt(1.0 + tau * tau))
-                        : 1.0 / (tau - std::sqrt(1.0 + tau * tau));
-                    c = 1.0 / std::sqrt(1.0 + t * t);
-                    s = t * c;
-                }
-
-                // Apply to columns p, q of A and V.
-                rotateCols(A, m, m, p, q, c, s);
-                rotateCols(V, n, n, p, q, c, s);
-            }
-        }
-        if (off < tol * tol) break;
-    }
-}
-
-} // anonymous namespace
-
-std::tuple<Value, Value, Value>
-svd_decompose(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("svd: input must be a 2D matrix",
-                    0, 0, "svd", "", "m:svd:notMatrix");
-    const std::size_t m_in = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n_in = static_cast<std::size_t>(A.dims().dim(1));
-
-    if (m_in == 0 || n_in == 0) {
-        return std::make_tuple(
-            Value::matrix(m_in, m_in, ValueType::DOUBLE, mr),
-            Value::matrix(m_in, n_in, ValueType::DOUBLE, mr),
-            Value::matrix(n_in, n_in, ValueType::DOUBLE, mr));
-    }
-
-    // For m < n we transpose: SVD(A) = (U, S, V) implies SVD(A^T) =
-    // (V, S^T, U). We run the algorithm on the tall (or square) form.
-    const bool transposed = (m_in < n_in);
-    const std::size_t m = transposed ? n_in : m_in;
-    const std::size_t n = transposed ? m_in : n_in;
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_work(m * n, &scratch);
-    ScratchVec<double> V_work(n * n, &scratch);
-
-    // Copy (and transpose if needed) into A_work.
-    const double *A_data = A.doubleData();
-    if (!transposed) {
-        std::copy(A_data, A_data + m * n, A_work.begin());
-    } else {
-        // A is m_in × n_in; we want A^T (n_in × m_in) in column-major
-        // = m × n where m = n_in, n = m_in.
-        for (std::size_t j = 0; j < n_in; ++j)
-            for (std::size_t i = 0; i < m_in; ++i)
-                A_work[j + i * n_in] = A_data[i + j * m_in];
-    }
-
-    // Run Jacobi SVD: tol ~ 1e-13 typical.
-    jacobiSvdInplace(A_work.data(), m, n, V_work.data(),
-                     /*maxSweeps=*/64,
-                     /*tol=*/1e-13);
-
-    // Read singular values + normalise U columns.
-    ScratchVec<double> sigma(n, &scratch);
-    ScratchVec<std::size_t> order(n, &scratch);
-    for (std::size_t k = 0; k < n; ++k) {
-        double s = 0.0;
-        for (std::size_t i = 0; i < m; ++i)
-            s += A_work[i + k * m] * A_work[i + k * m];
-        sigma[k] = std::sqrt(s);
-        order[k] = k;
-    }
-    // Sort indices by descending sigma.
-    std::sort(order.begin(), order.end(),
-              [&](std::size_t a, std::size_t b) { return sigma[a] > sigma[b]; });
-
-    // Assemble U (m×m), S (m×n), V (n×n) in the post-transpose frame
-    // (we'll swap U <-> V at the end if we transposed).
-    auto Uout = Value::matrix(m, m, ValueType::DOUBLE, mr);
-    auto Sout = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    auto Vout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *U = Uout.doubleDataMut();
-    double *S = Sout.doubleDataMut();
-    double *V = Vout.doubleDataMut();
-    std::fill(U, U + m * m, 0.0);
-    std::fill(S, S + m * n, 0.0);
-    std::fill(V, V + n * n, 0.0);
-
-    // Place singular values + U columns + V columns in sorted order.
-    for (std::size_t k = 0; k < n; ++k) {
-        const std::size_t src = order[k];
-        S[k + k * m] = sigma[src];
-        if (sigma[src] > 0.0) {
-            const double inv_s = 1.0 / sigma[src];
-            for (std::size_t i = 0; i < m; ++i)
-                U[i + k * m] = A_work[i + src * m] * inv_s;
-        } else {
-            // Degenerate column -- fill with zeros (will be filled by
-            // orthogonal completion below).
-            for (std::size_t i = 0; i < m; ++i) U[i + k * m] = 0.0;
-        }
-        for (std::size_t i = 0; i < n; ++i)
-            V[i + k * n] = V_work[i + src * n];
-    }
-
-    // For m > n, U has only n filled columns; complete to m via
-    // Gram-Schmidt against the standard basis (any orthogonal
-    // completion will do; this is simple and stable for small m).
-    for (std::size_t k = n; k < m; ++k) {
-        // Find a basis vector e_i not yet covered, orthogonalise, normalise.
-        for (std::size_t i = 0; i < m; ++i) {
-            // candidate = e_i
-            ScratchVec<double> v(m, 0.0, &scratch);
-            v[i] = 1.0;
-            // Subtract projections onto already-filled columns.
-            for (std::size_t kk = 0; kk < k; ++kk) {
-                double dot = 0.0;
-                for (std::size_t r = 0; r < m; ++r)
-                    dot += U[r + kk * m] * v[r];
-                for (std::size_t r = 0; r < m; ++r)
-                    v[r] -= dot * U[r + kk * m];
-            }
-            double nv = 0.0;
-            for (std::size_t r = 0; r < m; ++r) nv += v[r] * v[r];
-            if (nv > 1e-20) {
-                nv = std::sqrt(nv);
-                for (std::size_t r = 0; r < m; ++r)
-                    U[r + k * m] = v[r] / nv;
-                break;
-            }
-        }
-    }
-
-    if (!transposed) {
-        return std::make_tuple(std::move(Uout), std::move(Sout), std::move(Vout));
-    }
-    // Transposed case: caller wanted SVD of A_in (m_in × n_in) where
-    // m_in < n_in. We computed SVD of A_in^T = U_t * S_t * V_t', so
-    // A_in = (V_t * S_t' * U_t')'. The output (U, S, V) for A_in
-    // therefore has U_in = V_t (n_in × n_in -> wait, we want m_in × m_in)
-    // ... actually:
-    //   A_in    = m_in × n_in  (m_in < n_in)
-    //   A_in^T  = n_in × m_in  (m × n with m = n_in, n = m_in)
-    //   We computed A_in^T = U_t (n_in × n_in) * S_t (n_in × m_in) * V_t' (m_in × m_in)
-    //   Transpose: A_in = V_t (m_in × m_in) * S_t' (m_in × n_in) * U_t' (n_in × n_in)
-    //   So U_in = V_t (m_in × m_in), V_in = U_t (n_in × n_in)
-    //   S_in = S_t' = m_in × n_in (we need to transpose the diagonal layout)
-    auto S_out_tr = Value::matrix(m_in, n_in, ValueType::DOUBLE, mr);
-    double *St = S_out_tr.doubleDataMut();
-    std::fill(St, St + m_in * n_in, 0.0);
-    const std::size_t k_diag = std::min(m_in, n_in);
-    for (std::size_t k = 0; k < k_diag; ++k)
-        St[k + k * m_in] = S[k + k * m];
-    return std::make_tuple(std::move(Vout), std::move(S_out_tr), std::move(Uout));
-}
-
-Value svd_values(const Value &A, std::pmr::memory_resource *mr)
-{
-    auto [U, S, V] = svd_decompose(A, mr);
-    const std::size_t m = static_cast<std::size_t>(S.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(S.dims().dim(1));
-    const std::size_t k = std::min(m, n);
-    auto sv = Value::matrix(k, 1, ValueType::DOUBLE, mr);
-    const double *S_data = S.doubleData();
-    double *out = sv.doubleDataMut();
-    for (std::size_t i = 0; i < k; ++i)
-        out[i] = S_data[i + i * m];
-    return sv;
-}
-
-// ── Characteristic polynomial + general eig via roots ───────────────
-
+// poly_of_matrix below is the ONE exception that stays: builtin's
+// polynomials::poly_reg dispatches matrix-input to characteristic
+// polynomial via this helper, so it has to live in builtin. linalg::
+// eig_general_values has its own copy in linalg/src/eig.cpp — a small
+// DRY violation tolerated because it's a leaf helper (no other state),
+// and the alternative (publishing it from builtin to linalg via a
+// public header) trades one tiny duplication for inter-lib include
+// surface. TODO: consider promoting to libs/builtin/internal/ later.
 Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("poly: input must be a 2D matrix",
-                    0, 0, "poly", "", "m:poly:notMatrix");
+                    0, 0, "poly", "", "numkit:poly:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     if (m != n)
         throw Error("poly: matrix must be square (use poly(roots) for vector input)",
-                    0, 0, "poly", "", "m:poly:notSquare");
+                    0, 0, "poly", "", "numkit:poly:notSquare");
     if (n == 0) {
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = 1.0;
@@ -567,1317 +247,114 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value eig_general_values(const Value &A, std::pmr::memory_resource *mr)
-{
-    auto p = poly_of_matrix(A, mr);
-    return roots(p, mr);
-}
-
-std::tuple<Value, Value>
-eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("eig: input must be a 2D matrix",
-                    0, 0, "eig", "", "m:eig:notMatrix");
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
-    if (n != static_cast<std::size_t>(A.dims().dim(1)))
-        throw Error("eig: matrix must be square",
-                    0, 0, "eig", "", "m:eig:notSquare");
-
-    auto eig_vals = eig_general_values(A, mr);
-    const std::size_t k = eig_vals.numel();
-    if (k != n)
-        throw Error("eig: char-poly returned wrong number of eigenvalues",
-                    0, 0, "eig", "", "m:eig:internalError");
-
-    // Verify all real -- complex eigvecs need Francis QR (deferred).
-    if (eig_vals.isComplex()) {
-        const Complex *ev = eig_vals.complexData();
-        for (std::size_t i = 0; i < k; ++i) {
-            if (std::fabs(ev[i].imag()) > 1e-9 * (1.0 + std::fabs(ev[i].real())))
-                throw Error("eig: [V, D] form for matrices with complex "
-                            "eigenvalues requires Francis QR iteration "
-                            "(deferred to Phase 2c-3-future). For "
-                            "eigenvalues only, use 'e = eig(A)' (single output).",
-                            0, 0, "eig", "", "m:eig:complexEigvecs");
-        }
-    }
-
-    // Extract real eigenvalues into ScratchVec.
-    ScratchArena scratch(mr);
-    ScratchVec<double> evals(n, &scratch);
-    if (eig_vals.isComplex()) {
-        const Complex *ev = eig_vals.complexData();
-        for (std::size_t i = 0; i < n; ++i) evals[i] = ev[i].real();
-    } else {
-        const double *ev = eig_vals.doubleData();
-        for (std::size_t i = 0; i < n; ++i) evals[i] = ev[i];
-    }
-    // Sort ascending (matches symmetric eig output convention).
-    std::sort(evals.begin(), evals.end());
-
-    auto Vout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    auto Dout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *V = Vout.doubleDataMut();
-    double *D = Dout.doubleDataMut();
-    std::fill(V, V + n * n, 0.0);
-    std::fill(D, D + n * n, 0.0);
-
-    const double *Adata = A.doubleData();
-
-    for (std::size_t k2 = 0; k2 < n; ++k2) {
-        const double lam = evals[k2];
-        D[k2 + k2 * n] = lam;
-        // Build (A - lam*I).
-        auto Ali = Value::matrix(n, n, ValueType::DOUBLE, mr);
-        double *AL = Ali.doubleDataMut();
-        for (std::size_t i = 0; i < n * n; ++i) AL[i] = Adata[i];
-        for (std::size_t i = 0; i < n; ++i) AL[i + i * n] -= lam;
-        // Right null vector = last column of V from svd(Ali).
-        // Singular values are descending; smallest = last index.
-        auto [Us, Ss, Vs] = svd_decompose(Ali, mr);
-        const std::size_t nv = static_cast<std::size_t>(Vs.dims().dim(0));
-        const double *Vsdata = Vs.doubleData();
-        // Eigenvector = Vs(:, n-1) (the column corresponding to smallest sigma).
-        for (std::size_t i = 0; i < n; ++i)
-            V[i + k2 * n] = Vsdata[i + (nv - 1) * nv];
-    }
-    return std::make_tuple(std::move(Vout), std::move(Dout));
-}
-
-// ── Sylvester equation (symmetric A, B) ─────────────────────────────
-
-Value sylvester_sym(const Value &A, const Value &B, const Value &C, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2 || B.dims().ndim() != 2 || C.dims().ndim() != 2)
-        throw Error("sylvester: A, B, C must be 2D matrices",
-                    0, 0, "sylvester", "", "m:sylvester:notMatrix");
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t m = static_cast<std::size_t>(B.dims().dim(0));
-    if (A.dims().dim(0) != A.dims().dim(1))
-        throw Error("sylvester: A must be square",
-                    0, 0, "sylvester", "", "m:sylvester:badA");
-    if (B.dims().dim(0) != B.dims().dim(1))
-        throw Error("sylvester: B must be square",
-                    0, 0, "sylvester", "", "m:sylvester:badB");
-    if (C.dims().dim(0) != static_cast<int>(n) ||
-        C.dims().dim(1) != static_cast<int>(m))
-        throw Error("sylvester: C must be n × m where A is n×n, B is m×m",
-                    0, 0, "sylvester", "", "m:sylvester:badC");
-
-    auto [Va, Da] = eig_symmetric(A, mr);   // throws if non-sym
-    auto [Vb, Db] = eig_symmetric(B, mr);   // throws if non-sym
-
-    const double *Vad = Va.doubleData();
-    const double *Dad = Da.doubleData();
-    const double *Vbd = Vb.doubleData();
-    const double *Dbd = Db.doubleData();
-    const double *Cd  = C.doubleData();
-
-    // Y = Va' * C * Vb (n × m).
-    ScratchArena scratch(mr);
-    ScratchVec<double> Y(n * m, &scratch);
-    ScratchVec<double> tmp(n * m, &scratch);
-    // tmp = Va' * C: tmp[i, j] = sum_k Va[k, i] * C[k, j]
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < m; ++j) {
-            double s = 0.0;
-            for (std::size_t k = 0; k < n; ++k)
-                s += Vad[k + i * n] * Cd[k + j * n];
-            tmp[i + j * n] = s;
-        }
-    // Y = tmp * Vb: Y[i, j] = sum_k tmp[i, k] * Vb[k, j]
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < m; ++j) {
-            double s = 0.0;
-            for (std::size_t k = 0; k < m; ++k)
-                s += tmp[i + k * n] * Vbd[k + j * m];
-            Y[i + j * n] = s;
-        }
-
-    // y_ij /= (d_a_i + d_b_j)
-    for (std::size_t i = 0; i < n; ++i) {
-        const double dai = Dad[i + i * n];
-        for (std::size_t j = 0; j < m; ++j) {
-            const double dbj = Dbd[j + j * m];
-            const double denom = dai + dbj;
-            if (std::fabs(denom) < 1e-300)
-                throw Error("sylvester: A and -B share an eigenvalue (no unique solution)",
-                            0, 0, "sylvester", "", "m:sylvester:singular");
-            Y[i + j * n] /= denom;
-        }
-    }
-
-    // X = Va * Y * Vb'
-    auto out = Value::matrix(n, m, ValueType::DOUBLE, mr);
-    double *X = out.doubleDataMut();
-    // tmp = Va * Y: tmp[i, j] = sum_k Va[i, k] * Y[k, j]
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < m; ++j) {
-            double s = 0.0;
-            for (std::size_t k = 0; k < n; ++k)
-                s += Vad[i + k * n] * Y[k + j * n];
-            tmp[i + j * n] = s;
-        }
-    // X = tmp * Vb': X[i, j] = sum_k tmp[i, k] * Vb[j, k]
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < m; ++j) {
-            double s = 0.0;
-            for (std::size_t k = 0; k < m; ++k)
-                s += tmp[i + k * n] * Vbd[j + k * m];
-            X[i + j * n] = s;
-        }
-    return out;
-}
-
-// ── norm (vector + matrix forms) ─────────────────────────────────────
-
-namespace {
-
-bool isVectorShape(const Value &x)
-{
-    if (x.dims().ndim() != 2) return false;
-    return x.dims().dim(0) == 1 || x.dims().dim(1) == 1;
-}
-
-} // anonymous namespace
-
-Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
-{
-    if (x.numel() == 0) return Value::scalar(0.0, mr);
-
-    if (isVectorShape(x)) {
-        const std::size_t n = x.numel();
-        const double *d = x.doubleData();
-        if (p == 2.0) {
-            double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += d[i] * d[i];
-            return Value::scalar(std::sqrt(s), mr);
-        } else if (p == 1.0) {
-            double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += std::fabs(d[i]);
-            return Value::scalar(s, mr);
-        } else {
-            double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += std::pow(std::fabs(d[i]), p);
-            return Value::scalar(std::pow(s, 1.0 / p), mr);
-        }
-    }
-
-    // Matrix forms.
-    if (x.dims().ndim() != 2)
-        throw Error("norm: input must be vector or 2D matrix",
-                    0, 0, "norm", "", "m:norm:badShape");
-    const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
-    const double *d = x.doubleData();
-
-    if (p == 2.0) {
-        // Largest singular value.
-        auto sv = svd_values(x, mr);
-        if (sv.numel() == 0) return Value::scalar(0.0, mr);
-        return Value::scalar(sv.doubleData()[0], mr);
-    }
-    if (p == 1.0) {
-        double mx = 0.0;
-        for (std::size_t j = 0; j < n; ++j) {
-            double s = 0.0;
-            for (std::size_t i = 0; i < m; ++i) s += std::fabs(d[i + j * m]);
-            mx = std::max(mx, s);
-        }
-        return Value::scalar(mx, mr);
-    }
-    throw Error("norm: matrix p-norms only support 1, 2, inf, 'fro'",
-                0, 0, "norm", "", "m:norm:badP");
-}
-
-Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
-{
-    if (x.numel() == 0) return Value::scalar(0.0, mr);
-    if (isVectorShape(x)) {
-        const std::size_t n = x.numel();
-        const double *d = x.doubleData();
-        double mx = 0.0;
-        for (std::size_t i = 0; i < n; ++i)
-            mx = std::max(mx, std::fabs(d[i]));
-        return Value::scalar(mx, mr);
-    }
-    // Matrix inf-norm: max row sum.
-    if (x.dims().ndim() != 2)
-        throw Error("norm: input must be vector or 2D matrix",
-                    0, 0, "norm", "", "m:norm:badShape");
-    const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
-    const double *d = x.doubleData();
-    double mx = 0.0;
-    for (std::size_t i = 0; i < m; ++i) {
-        double s = 0.0;
-        for (std::size_t j = 0; j < n; ++j) s += std::fabs(d[i + j * m]);
-        mx = std::max(mx, s);
-    }
-    return Value::scalar(mx, mr);
-}
-
-Value norm_fro(const Value &x, std::pmr::memory_resource *mr)
-{
-    const std::size_t n = x.numel();
-    if (n == 0) return Value::scalar(0.0, mr);
-    const double *d = x.doubleData();
-    double s = 0.0;
-    for (std::size_t i = 0; i < n; ++i) s += d[i] * d[i];
-    return Value::scalar(std::sqrt(s), mr);
-}
-
-Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2 || B.dims().ndim() != 2)
-        throw Error("subspace: inputs must be 2D matrices",
-                    0, 0, "subspace", "", "m:subspace:notMatrix");
-    const std::size_t mA = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t mB = static_cast<std::size_t>(B.dims().dim(0));
-    if (mA != mB)
-        throw Error("subspace: inputs must have the same number of rows",
-                    0, 0, "subspace", "", "m:subspace:dimMismatch");
-
-    auto Qa = orth(A, -1.0, mr);
-    auto Qb = orth(B, -1.0, mr);
-    const std::size_t na = static_cast<std::size_t>(Qa.dims().dim(1));
-    const std::size_t nb = static_cast<std::size_t>(Qb.dims().dim(1));
-    if (na == 0 || nb == 0) return Value::scalar(0.0, mr);
-
-    // M = Qa' * Qb (na × nb).
-    ScratchArena scratch(mr);
-    auto Mout = Value::matrix(na, nb, ValueType::DOUBLE, mr);
-    double *M = Mout.doubleDataMut();
-    const double *Qad = Qa.doubleData();
-    const double *Qbd = Qb.doubleData();
-    for (std::size_t i = 0; i < na; ++i)
-        for (std::size_t j = 0; j < nb; ++j) {
-            double s = 0.0;
-            for (std::size_t k = 0; k < mA; ++k)
-                s += Qad[k + i * mA] * Qbd[k + j * mB];
-            M[i + j * na] = s;
-        }
-
-    // SVD of M -- singular values are cosines of principal angles.
-    auto s = svd_values(Mout, mr);
-    const std::size_t k = s.numel();
-    if (k == 0) return Value::scalar(0.0, mr);
-    const double *sd = s.doubleData();
-    double smin = sd[0];
-    for (std::size_t i = 1; i < k; ++i)
-        if (sd[i] < smin) smin = sd[i];
-    if (smin > 1.0) smin = 1.0;
-    if (smin < 0.0) smin = 0.0;
-    return Value::scalar(std::acos(smin), mr);
-}
-
-// ── Hessenberg reduction (Phase 2c foundation) ──────────────────────
-
-namespace {
-
-// In-place Hessenberg reduction via Householder reflectors.
-// On entry: A is n×n column-major. On exit: A's strict lower
-// (below first sub-diagonal) is zeroed; upper triangle + sub-diag
-// holds H. P (n×n) accumulates the orthogonal transformation:
-// A_orig = P * H_final * P'.
-//
-// PMR HARD RULE: scratch via the supplied memory_resource. Caller
-// is the public hess() / hess_H_only() which forwards its mr.
-void hessReduceInplace(double *A, std::size_t n, double *P,
-                       std::pmr::memory_resource *mr)
-{
-    std::fill(P, P + n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i) P[i + i * n] = 1.0;
-    if (n < 3) return;  // no work needed for n=1, 2
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> v_storage(n, &scratch);
-    double *v = v_storage.data();
-
-    for (std::size_t k = 0; k + 2 < n; ++k) {
-        // Build Householder for column k, rows k+1..n-1.
-        double norm_sq = 0.0;
-        for (std::size_t i = k + 1; i < n; ++i)
-            norm_sq += A[i + k * n] * A[i + k * n];
-        if (norm_sq == 0.0) continue;
-        const double xk = A[k + 1 + k * n];
-        const double norm = std::sqrt(norm_sq);
-        const double alpha = (xk >= 0.0) ? -norm : norm;
-        v[k + 1] = xk - alpha;
-        for (std::size_t i = k + 2; i < n; ++i) v[i] = A[i + k * n];
-        double v_norm_sq = 0.0;
-        for (std::size_t i = k + 1; i < n; ++i) v_norm_sq += v[i] * v[i];
-        if (v_norm_sq == 0.0) continue;
-        const double tau = 2.0 / v_norm_sq;
-
-        // Apply H from LEFT: A[k+1:n, k:n] = (I - tau*v*v^T) * A[k+1:n, k:n]
-        for (std::size_t j = k; j < n; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k + 1; i < n; ++i)
-                dot += v[i] * A[i + j * n];
-            const double s = tau * dot;
-            for (std::size_t i = k + 1; i < n; ++i)
-                A[i + j * n] -= s * v[i];
-        }
-        // Apply H from RIGHT: A[:, k+1:n] = A[:, k+1:n] * (I - tau*v*v^T)
-        for (std::size_t i = 0; i < n; ++i) {
-            double dot = 0.0;
-            for (std::size_t j = k + 1; j < n; ++j)
-                dot += A[i + j * n] * v[j];
-            const double s = tau * dot;
-            for (std::size_t j = k + 1; j < n; ++j)
-                A[i + j * n] -= s * v[j];
-        }
-        // Accumulate P: P[:, k+1:n] = P[:, k+1:n] * (I - tau*v*v^T)
-        for (std::size_t i = 0; i < n; ++i) {
-            double dot = 0.0;
-            for (std::size_t j = k + 1; j < n; ++j)
-                dot += P[i + j * n] * v[j];
-            const double s = tau * dot;
-            for (std::size_t j = k + 1; j < n; ++j)
-                P[i + j * n] -= s * v[j];
-        }
-        // Set sub-diagonal entry to alpha; zero entries below.
-        A[k + 1 + k * n] = alpha;
-        for (std::size_t i = k + 2; i < n; ++i)
-            A[i + k * n] = 0.0;
-    }
-}
-
-} // anonymous namespace
-
-std::tuple<Value, Value>
-hess(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("hess: input must be a 2D matrix",
-                    0, 0, "hess", "", "m:hess:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("hess: matrix must be square",
-                    0, 0, "hess", "", "m:hess:notSquare");
-    auto Hout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    auto Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (n == 0) return std::make_tuple(std::move(Pout), std::move(Hout));
-    std::copy(A.doubleData(), A.doubleData() + n * n, Hout.doubleDataMut());
-    hessReduceInplace(Hout.doubleDataMut(), n, Pout.doubleDataMut(), mr);
-    return std::make_tuple(std::move(Pout), std::move(Hout));
-}
-
-Value hess_H_only(const Value &A, std::pmr::memory_resource *mr)
-{
-    auto [P, H] = hess(A, mr);
-    return H;
-}
-
-// ── Matrix functions: expm / logm / sqrtm / schur ────────────────────
-
-namespace {
-
-// Multiply two n×n column-major matrices: C = A * B (no aliasing).
-void matMul(const double *A, const double *B, double *C, std::size_t n)
-{
-    std::fill(C, C + n * n, 0.0);
-    for (std::size_t j = 0; j < n; ++j)
-        for (std::size_t k = 0; k < n; ++k) {
-            const double bkj = B[k + j * n];
-            if (bkj == 0.0) continue;
-            for (std::size_t i = 0; i < n; ++i)
-                C[i + j * n] += A[i + k * n] * bkj;
-        }
-}
-
-// 1-norm of an n×n matrix.
-double mat1Norm(const double *A, std::size_t n)
-{
-    double mx = 0.0;
-    for (std::size_t j = 0; j < n; ++j) {
-        double s = 0.0;
-        for (std::size_t i = 0; i < n; ++i) s += std::fabs(A[i + j * n]);
-        mx = std::max(mx, s);
-    }
-    return mx;
-}
-
-} // anonymous namespace
-
-Value expm(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("expm: input must be a 2D matrix",
-                    0, 0, "expm", "", "m:expm:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("expm: matrix must be square",
-                    0, 0, "expm", "", "m:expm:notSquare");
-    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-
-    // Padé(6) scaling-and-squaring. Choose s such that ||A/2^s||_1 < 0.5.
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_s(n * n, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + n * n, A_s.begin());
-
-    const double a_norm = mat1Norm(A_s.data(), n);
-    int s = 0;
-    if (a_norm > 0.5) {
-        s = static_cast<int>(std::ceil(std::log2(a_norm / 0.5)));
-        if (s < 0) s = 0;
-        const double scale = 1.0 / std::pow(2.0, s);
-        for (std::size_t i = 0; i < n * n; ++i) A_s[i] *= scale;
-    }
-
-    // Padé(6) coefficients (Higham, table 10.3).
-    static constexpr double pade_b[7] = {
-        720.0, 360.0, 120.0, 30.0, 5.0, 1.0 / 6.0, 0.0  // unused last
-    };
-    // Compute powers A^2, A^4, A^6.
-    ScratchVec<double> A2(n * n, &scratch);
-    ScratchVec<double> A4(n * n, &scratch);
-    ScratchVec<double> A6(n * n, &scratch);
-    matMul(A_s.data(), A_s.data(), A2.data(), n);
-    matMul(A2.data(), A2.data(), A4.data(), n);
-    matMul(A2.data(), A4.data(), A6.data(), n);
-
-    // U = A * (b1*I + b3*A^2 + b5*A^4 + (1/6)*A^6) where b's from Padé(6)
-    // Simpler: use closed-form Padé(6):
-    //   U = A * (b6*A^6 + b4*A^4 + b2*A^2 + b0*I) with even Padé-6 coefs
-    //   V = b7*A^6 + b5*A^4 + b3*A^2 + b1*I
-    // Padé(6) coefficients from Higham:
-    //   c = [1, 1/2, 5/44, 1/66, 1/792, 1/15840, 1/665280]
-    static constexpr double c[7] = {
-        1.0, 1.0/2.0, 5.0/44.0, 1.0/66.0, 1.0/792.0, 1.0/15840.0, 1.0/665280.0
-    };
-    // Wait -- the simplest correct Padé(6) is Higham's table 10.4:
-    //   p_m(x) = sum_{k=0..m} (2m-k)! m! / ((2m)! k! (m-k)!) x^k
-    // For m=6 the coefficients are:
-    //   numerator   p(x) = 1 + x/2 + 5x^2/44 + x^3/66 + x^4/792 + x^5/15840 + x^6/665280
-    //   denominator q(x) = 1 - x/2 + 5x^2/44 - x^3/66 + x^4/792 - x^5/15840 + x^6/665280
-    //   exp(x) ≈ p(x) / q(x)
-
-    ScratchVec<double> P(n * n, &scratch);  // numerator
-    ScratchVec<double> Q(n * n, &scratch);  // denominator
-    std::fill(P.begin(), P.end(), 0.0);
-    std::fill(Q.begin(), Q.end(), 0.0);
-    // Initialize with identity (* c[0]).
-    for (std::size_t i = 0; i < n; ++i) {
-        P[i + i * n] = c[0];
-        Q[i + i * n] = c[0];
-    }
-    // Add c[k] * A^k for k = 1..6.
-    // A^1
-    for (std::size_t i = 0; i < n * n; ++i) {
-        P[i] += c[1] * A_s[i];
-        Q[i] -= c[1] * A_s[i];
-    }
-    // A^2
-    for (std::size_t i = 0; i < n * n; ++i) {
-        P[i] += c[2] * A2[i];
-        Q[i] += c[2] * A2[i];
-    }
-    // A^3 (= A * A^2)
-    ScratchVec<double> A3(n * n, &scratch);
-    matMul(A_s.data(), A2.data(), A3.data(), n);
-    for (std::size_t i = 0; i < n * n; ++i) {
-        P[i] += c[3] * A3[i];
-        Q[i] -= c[3] * A3[i];
-    }
-    // A^4
-    for (std::size_t i = 0; i < n * n; ++i) {
-        P[i] += c[4] * A4[i];
-        Q[i] += c[4] * A4[i];
-    }
-    // A^5 (= A * A^4)
-    ScratchVec<double> A5(n * n, &scratch);
-    matMul(A_s.data(), A4.data(), A5.data(), n);
-    for (std::size_t i = 0; i < n * n; ++i) {
-        P[i] += c[5] * A5[i];
-        Q[i] -= c[5] * A5[i];
-    }
-    // A^6
-    for (std::size_t i = 0; i < n * n; ++i) {
-        P[i] += c[6] * A6[i];
-        Q[i] += c[6] * A6[i];
-    }
-
-    // Solve Q * X = P for X (i.e. X = Q^-1 * P).
-    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!detail::la_solve(Q.data(), n, n, P.data(), n, out.doubleDataMut(), &scratch))
-        throw Error("expm: Padé denominator is singular",
-                    0, 0, "expm", "", "m:expm:singular");
-
-    // Square s times.
-    if (s > 0) {
-        ScratchVec<double> tmp(n * n, &scratch);
-        double *X = out.doubleDataMut();
-        for (int k = 0; k < s; ++k) {
-            matMul(X, X, tmp.data(), n);
-            std::copy(tmp.begin(), tmp.end(), X);
-        }
-    }
-    return out;
-}
-
-namespace {
-
-// Apply scalar function f to symmetric A's eigenvalues and reconstruct:
-//   result = V * diag(f(eig)) * V'
-Value applyScalarFnSym(const Value &A, double (*f)(double), const char *fnName, const char *errId, std::pmr::memory_resource *mr)
-{
-    auto [V, D] = eig_symmetric(A, mr);
-    const std::size_t n = static_cast<std::size_t>(D.dims().dim(0));
-    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-
-    const double *Vdata = V.doubleData();
-    const double *Ddata = D.doubleData();
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> fD(n, &scratch);
-    for (std::size_t i = 0; i < n; ++i) {
-        const double e = Ddata[i + i * n];
-        const double fe = f(e);
-        if (!std::isfinite(fe))
-            throw Error(std::string(fnName)
-                        + ": eigenvalue out of domain (got "
-                        + std::to_string(e) + ")",
-                        0, 0, fnName, "", errId);
-        fD[i] = fe;
-    }
-
-    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *R = out.doubleDataMut();
-    // R[i,j] = sum_k V[i,k] * fD[k] * V[j,k]
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < n; ++j) {
-            double s = 0.0;
-            for (std::size_t k = 0; k < n; ++k)
-                s += Vdata[i + k * n] * fD[k] * Vdata[j + k * n];
-            R[i + j * n] = s;
-        }
-    return out;
-}
-
-} // anonymous namespace
-
-Value logm_sym(const Value &A, std::pmr::memory_resource *mr)
-{
-    return applyScalarFnSym(A, [](double x) { return std::log(x); }, "logm", "m:logm:negativeEigenvalue", mr);
-}
-
-Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr)
-{
-    return applyScalarFnSym(A, [](double x) { return std::sqrt(x); }, "sqrtm", "m:sqrtm:negativeEigenvalue", mr);
-}
-
-std::tuple<Value, Value>
-schur_sym(const Value &A, std::pmr::memory_resource *mr)
-{
-    // For symmetric A, Schur decomposition is the same as eig:
-    // A = U * T * U' where T is diagonal (real eigenvalues), U orthogonal.
-    return eig_symmetric(A, mr);
-}
-
-// ── Symmetric eigenvalue problem (classical Jacobi) ─────────────────
-
-namespace {
-
-// Classical Jacobi for SYMMETRIC A. On entry A is n×n symmetric (we
-// write to upper triangle and ignore lower). On exit A's diagonal
-// holds the eigenvalues (unsorted) and V holds the eigenvectors
-// (orthogonal, A_orig * V = V * diag(eigvals)).
-void jacobiSymInplace(double *A, std::size_t n, double *V,
-                      std::size_t maxSweeps, double tol)
-{
-    std::fill(V, V + n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i) V[i + i * n] = 1.0;
-    if (n <= 1) return;
-
-    auto offSum = [&]() {
-        double s = 0.0;
-        for (std::size_t p = 0; p + 1 < n; ++p)
-            for (std::size_t q = p + 1; q < n; ++q)
-                s += A[p + q * n] * A[p + q * n];
-        return s;
-    };
-
-    for (std::size_t sweep = 0; sweep < maxSweeps; ++sweep) {
-        if (offSum() < tol * tol) break;
-        for (std::size_t p = 0; p + 1 < n; ++p) {
-            for (std::size_t q = p + 1; q < n; ++q) {
-                const double Apq = A[p + q * n];
-                if (std::fabs(Apq) < 1e-30) continue;
-                const double App = A[p + p * n];
-                const double Aqq = A[q + q * n];
-                double c, s;
-                if (App == Aqq) {
-                    c = 0.7071067811865476;  // sqrt(2)/2
-                    s = (Apq >= 0.0 ? 1.0 : -1.0) * c;
-                } else {
-                    const double tau = (Aqq - App) / (2.0 * Apq);
-                    const double t = (tau >= 0.0)
-                        ? 1.0 / (tau + std::sqrt(1.0 + tau * tau))
-                        : 1.0 / (tau - std::sqrt(1.0 + tau * tau));
-                    c = 1.0 / std::sqrt(1.0 + t * t);
-                    s = t * c;
-                }
-
-                // Apply J^T*A*J: rotates rows p,q AND cols p,q.
-                // Update diagonal entries:
-                A[p + p * n] = c * c * App - 2.0 * c * s * Apq + s * s * Aqq;
-                A[q + q * n] = s * s * App + 2.0 * c * s * Apq + c * c * Aqq;
-                A[p + q * n] = 0.0;
-                A[q + p * n] = 0.0;
-                // Update other entries in rows p, q (which by symmetry
-                // also updates columns p, q on the upper triangle).
-                for (std::size_t r = 0; r < n; ++r) {
-                    if (r == p || r == q) continue;
-                    // We track only the upper triangle: entry (min(r,X), max(r,X)).
-                    auto get = [&](std::size_t a, std::size_t b) -> double & {
-                        return (a < b) ? A[a + b * n] : A[b + a * n];
-                    };
-                    const double Arp = get(r, p);
-                    const double Arq = get(r, q);
-                    get(r, p) = c * Arp - s * Arq;
-                    get(r, q) = s * Arp + c * Arq;
-                }
-                // Apply V = V * J (rotates cols p, q of V).
-                for (std::size_t r = 0; r < n; ++r) {
-                    const double Vrp = V[r + p * n];
-                    const double Vrq = V[r + q * n];
-                    V[r + p * n] = c * Vrp - s * Vrq;
-                    V[r + q * n] = s * Vrp + c * Vrq;
-                }
-            }
-        }
-    }
-
-    // Mirror upper triangle into lower for clean output.
-    for (std::size_t p = 0; p + 1 < n; ++p)
-        for (std::size_t q = p + 1; q < n; ++q)
-            A[q + p * n] = A[p + q * n];
-}
-
-bool isSymmetric(const Value &A, double tol)
-{
-    if (A.dims().ndim() != 2) return false;
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n) return false;
-    const double *p = A.doubleData();
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = i + 1; j < n; ++j) {
-            const double d = std::fabs(p[i + j * n] - p[j + i * n]);
-            const double s = std::max(std::fabs(p[i + j * n]),
-                                       std::fabs(p[j + i * n]));
-            if (d > tol * (1.0 + s)) return false;
-        }
-    return true;
-}
-
-} // anonymous namespace
-
-std::tuple<Value, Value>
-eig_symmetric(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("eig: input must be a 2D matrix",
-                    0, 0, "eig", "", "m:eig:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("eig: matrix must be square",
-                    0, 0, "eig", "", "m:eig:notSquare");
-    if (!isSymmetric(A, 1e-10))
-        throw Error("eig: only symmetric matrices supported in this revision "
-                    "(general eig via Hessenberg + Francis QR is deferred to Phase 2b)",
-                    0, 0, "eig", "", "m:eig:notSymmetric");
-    if (n == 0) {
-        return std::make_tuple(
-            Value::matrix(0, 0, ValueType::DOUBLE, mr),
-            Value::matrix(0, 0, ValueType::DOUBLE, mr));
-    }
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_work(n * n, &scratch);
-    ScratchVec<double> V_work(n * n, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + n * n, A_work.begin());
-    jacobiSymInplace(A_work.data(), n, V_work.data(),
-                     /*maxSweeps=*/64, /*tol=*/1e-13);
-
-    // Sort eigenvalues ASCENDING (MATLAB convention for symmetric eig).
-    ScratchVec<std::size_t> order(n, &scratch);
-    for (std::size_t i = 0; i < n; ++i) order[i] = i;
-    std::sort(order.begin(), order.end(),
-              [&](std::size_t a, std::size_t b) {
-                  return A_work[a + a * n] < A_work[b + b * n];
-              });
-
-    auto Vout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    auto Dout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *V = Vout.doubleDataMut();
-    double *D = Dout.doubleDataMut();
-    std::fill(D, D + n * n, 0.0);
-    for (std::size_t k = 0; k < n; ++k) {
-        const std::size_t src = order[k];
-        D[k + k * n] = A_work[src + src * n];
-        for (std::size_t i = 0; i < n; ++i)
-            V[i + k * n] = V_work[i + src * n];
-    }
-    return std::make_tuple(std::move(Vout), std::move(Dout));
-}
-
-Value eig_values(const Value &A, std::pmr::memory_resource *mr)
-{
-    auto [V, D] = eig_symmetric(A, mr);
-    const std::size_t n = static_cast<std::size_t>(D.dims().dim(0));
-    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    const double *Ddata = D.doubleData();
-    double *o = out.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) o[i] = Ddata[i + i * n];
-    return out;
-}
-
-// ── SVD-dependent: rank / null / pinv / cond / orth / normest ────────
-
-namespace {
-
-// Compute default tolerance for rank-cutoff: max(m,n) * eps(sigma_max).
-double defaultRankTol(std::size_t m, std::size_t n, double sigma_max)
-{
-    return static_cast<double>(std::max(m, n))
-         * sigma_max
-         * std::numeric_limits<double>::epsilon();
-}
-
-} // anonymous namespace
-
-Value rank_of(const Value &A, double tol, std::pmr::memory_resource *mr)
-{
-    auto sv = svd_values(A, mr);
-    const std::size_t k = sv.numel();
-    const double *s = sv.doubleData();
-    if (k == 0) return Value::scalar(0.0, mr);
-    const double sigma_max = s[0];
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
-    int r = 0;
-    for (std::size_t i = 0; i < k; ++i)
-        if (s[i] > cutoff) ++r;
-    return Value::scalar(static_cast<double>(r), mr);
-}
-
-Value pinv(const Value &A, double tol, std::pmr::memory_resource *mr)
-{
-    auto [U, S, V] = svd_decompose(A, mr);
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const std::size_t k = std::min(m, n);
-
-    // Extract sigma diagonal.
-    const double *S_data = S.doubleData();
-    const std::size_t Srows = static_cast<std::size_t>(S.dims().dim(0));
-
-    double sigma_max = 0.0;
-    for (std::size_t i = 0; i < k; ++i)
-        sigma_max = std::max(sigma_max, S_data[i + i * Srows]);
-    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
-
-    // Build S^+ as n × m diagonal with reciprocals of sigma_i above cutoff.
-    ScratchArena scratch(mr);
-    ScratchVec<double> Splus(n * m, 0.0, &scratch);
-    for (std::size_t i = 0; i < k; ++i) {
-        const double sig = S_data[i + i * Srows];
-        if (sig > cutoff)
-            Splus[i + i * n] = 1.0 / sig;
-    }
-
-    // pinv(A) = V * S^+ * U' -- output is n × m.
-    auto out = Value::matrix(n, m, ValueType::DOUBLE, mr);
-    double *P = out.doubleDataMut();
-    std::fill(P, P + n * m, 0.0);
-
-    const double *Vdata = V.doubleData();
-    const double *Udata = U.doubleData();
-    const std::size_t Vrows = static_cast<std::size_t>(V.dims().dim(0));
-    const std::size_t Urows = static_cast<std::size_t>(U.dims().dim(0));
-
-    // out[i, j] = sum_a sum_b V[i, a] * Splus[a, b] * U[j, b]
-    // Splus is diagonal, so sum_b reduces to b == a:
-    // out[i, j] = sum_a V[i, a] * Splus[a, a] * U[j, a]
-    for (std::size_t i = 0; i < n; ++i) {
-        for (std::size_t j = 0; j < m; ++j) {
-            double s = 0.0;
-            for (std::size_t a = 0; a < k; ++a) {
-                const double sp = Splus[a + a * n];
-                if (sp == 0.0) continue;
-                s += Vdata[i + a * Vrows] * sp * Udata[j + a * Urows];
-            }
-            P[i + j * n] = s;
-        }
-    }
-    return out;
-}
-
-Value cond_2norm(const Value &A, std::pmr::memory_resource *mr)
-{
-    auto sv = svd_values(A, mr);
-    const std::size_t k = sv.numel();
-    if (k == 0) return Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
-    const double *s = sv.doubleData();
-    const double sigma_max = s[0];
-    const double sigma_min = s[k - 1];
-    if (sigma_min <= 0.0)
-        return Value::scalar(std::numeric_limits<double>::infinity(), mr);
-    return Value::scalar(sigma_max / sigma_min, mr);
-}
-
-Value orth(const Value &A, double tol, std::pmr::memory_resource *mr)
-{
-    auto [U, S, V] = svd_decompose(A, mr);
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const std::size_t k = std::min(m, n);
-
-    const double *S_data = S.doubleData();
-    const std::size_t Srows = static_cast<std::size_t>(S.dims().dim(0));
-    const double sigma_max = (k > 0) ? S_data[0] : 0.0;
-    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
-
-    int r = 0;
-    for (std::size_t i = 0; i < k; ++i)
-        if (S_data[i + i * Srows] > cutoff) ++r;
-
-    auto out = Value::matrix(m, static_cast<std::size_t>(r), ValueType::DOUBLE, mr);
-    if (r == 0) return out;
-    double *Q = out.doubleDataMut();
-    const double *Udata = U.doubleData();
-    const std::size_t Urows = static_cast<std::size_t>(U.dims().dim(0));
-    for (std::size_t j = 0; j < static_cast<std::size_t>(r); ++j)
-        for (std::size_t i = 0; i < m; ++i)
-            Q[i + j * m] = Udata[i + j * Urows];
-    return out;
-}
-
-Value null_basis(const Value &A, double tol, std::pmr::memory_resource *mr)
-{
-    auto [U, S, V] = svd_decompose(A, mr);
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const std::size_t k = std::min(m, n);
-
-    const double *S_data = S.doubleData();
-    const std::size_t Srows = static_cast<std::size_t>(S.dims().dim(0));
-    const double sigma_max = (k > 0) ? S_data[0] : 0.0;
-    const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
-
-    int r = 0;
-    for (std::size_t i = 0; i < k; ++i)
-        if (S_data[i + i * Srows] > cutoff) ++r;
-
-    const std::size_t null_dim = n - static_cast<std::size_t>(r);
-    auto out = Value::matrix(n, null_dim, ValueType::DOUBLE, mr);
-    if (null_dim == 0) return out;
-    double *N = out.doubleDataMut();
-    const double *Vdata = V.doubleData();
-    const std::size_t Vrows = static_cast<std::size_t>(V.dims().dim(0));
-    // Last (n - r) columns of V correspond to zero singular values.
-    for (std::size_t j = 0; j < null_dim; ++j) {
-        const std::size_t src = static_cast<std::size_t>(r) + j;
-        for (std::size_t i = 0; i < n; ++i)
-            N[i + j * n] = Vdata[i + src * Vrows];
-    }
-    return out;
-}
-
-Value normest(const Value &A, std::pmr::memory_resource *mr)
-{
-    auto sv = svd_values(A, mr);
-    if (sv.numel() == 0) return Value::scalar(0.0, mr);
-    return Value::scalar(sv.doubleData()[0], mr);
-}
-
-// ── lu / qr decompositions ───────────────────────────────────────────
-
-namespace {
-
-// In-place LU with partial pivoting on a column-major n×n matrix.
-// On return:
-//   - LU contains L (unit-lower-triangular, below diagonal) and U
-//     (upper, including diagonal) packed
-//   - piv[k] = row originally at position piv[k] swapped into row k
-// Returns false on singular A.
-bool luPivotInplace(double *LU, std::int32_t *piv, std::size_t n)
-{
-    for (std::size_t k = 0; k < n; ++k) {
-        std::size_t pivot = k;
-        double pmax = std::fabs(LU[k + k * n]);
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double v = std::fabs(LU[i + k * n]);
-            if (v > pmax) { pmax = v; pivot = i; }
-        }
-        if (pmax == 0.0) return false;
-        piv[k] = static_cast<std::int32_t>(pivot);
-        if (pivot != k) {
-            for (std::size_t j = 0; j < n; ++j)
-                std::swap(LU[k + j * n], LU[pivot + j * n]);
-        }
-        const double inv_pivot = 1.0 / LU[k + k * n];
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double factor = LU[i + k * n] * inv_pivot;
-            LU[i + k * n] = factor;
-            for (std::size_t j = k + 1; j < n; ++j)
-                LU[i + j * n] -= factor * LU[k + j * n];
-        }
-    }
-    return true;
-}
-
-} // anonymous namespace
-
-std::tuple<Value, Value, Value>
-lu_decompose(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("lu: input must be a 2D matrix",
-                    0, 0, "lu", "", "m:lu:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("lu: square matrix required for [L,U,P] form",
-                    0, 0, "lu", "", "m:lu:notSquare");
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> LU(m * n, &scratch);
-    ScratchVec<std::int32_t> piv(n, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, LU.begin());
-    if (!luPivotInplace(LU.data(), piv.data(), n))
-        throw Error("lu: matrix is singular",
-                    0, 0, "lu", "", "m:lu:singular");
-
-    auto Lout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    auto Uout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    auto Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *L = Lout.doubleDataMut();
-    double *U = Uout.doubleDataMut();
-    double *P = Pout.doubleDataMut();
-    std::fill(L, L + n * n, 0.0);
-    std::fill(U, U + n * n, 0.0);
-    std::fill(P, P + n * n, 0.0);
-
-    for (std::size_t i = 0; i < n; ++i) {
-        L[i + i * n] = 1.0;       // unit diagonal of L
-        for (std::size_t j = 0; j < i; ++j)
-            L[i + j * n] = LU[i + j * n];
-        for (std::size_t j = i; j < n; ++j)
-            U[i + j * n] = LU[i + j * n];
-    }
-    // Build P from piv: start with identity, apply swaps in order.
-    // P*A == L*U means P represents the row-permutation we did.
-    std::vector<std::size_t> perm(n);
-    for (std::size_t i = 0; i < n; ++i) perm[i] = i;
-    for (std::size_t k = 0; k < n; ++k)
-        std::swap(perm[k], perm[piv[k]]);
-    for (std::size_t i = 0; i < n; ++i)
-        P[i + perm[i] * n] = 1.0;
-
-    return std::make_tuple(std::move(Lout), std::move(Uout), std::move(Pout));
-}
-
-Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("lu: input must be a 2D matrix",
-                    0, 0, "lu", "", "m:lu:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("lu: square matrix required",
-                    0, 0, "lu", "", "m:lu:notSquare");
-    ScratchArena scratch(mr);
-    ScratchVec<std::int32_t> piv(n, &scratch);
-    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *LU = out.doubleDataMut();
-    std::copy(A.doubleData(), A.doubleData() + m * n, LU);
-    if (!luPivotInplace(LU, piv.data(), n))
-        throw Error("lu: matrix is singular",
-                    0, 0, "lu", "", "m:lu:singular");
-    return out;
-}
-
-namespace {
-
-// Householder QR with explicit Q construction. Decomposes m×n A
-// (m >= n) into Q (m×m orthogonal) and R (m×n upper-triangular)
-// such that A = Q*R. Q built by applying Householder reflectors
-// to identity from the back (LAPACK DORG2R style).
-void qrFullHouseholder(const double *A_in, std::size_t m, std::size_t n, double *Qout, double *Rout, std::pmr::memory_resource *mr)
-{
-    ScratchArena scratch(mr);
-    ScratchVec<double> R_work(m * n, &scratch);
-    ScratchVec<double> V(m * n, 0.0, &scratch);     // Householder vectors per column
-    ScratchVec<double> tau(n, 0.0, &scratch);
-    std::copy(A_in, A_in + m * n, R_work.begin());
-
-    for (std::size_t k = 0; k < n; ++k) {
-        // Build Householder for column k.
-        double norm_sq = 0.0;
-        for (std::size_t i = k; i < m; ++i) {
-            const double e = R_work[i + k * m];
-            norm_sq += e * e;
-        }
-        if (norm_sq == 0.0) {
-            tau[k] = 0.0;
-            continue;
-        }
-        const double xk = R_work[k + k * m];
-        const double norm = std::sqrt(norm_sq);
-        const double alpha = (xk >= 0.0) ? -norm : norm;
-        V[k + k * m] = xk - alpha;
-        for (std::size_t i = k + 1; i < m; ++i)
-            V[i + k * m] = R_work[i + k * m];
-        double v_norm_sq = 0.0;
-        for (std::size_t i = k; i < m; ++i)
-            v_norm_sq += V[i + k * m] * V[i + k * m];
-        if (v_norm_sq == 0.0) {
-            R_work[k + k * m] = alpha;
-            tau[k] = 0.0;
-            continue;
-        }
-        tau[k] = 2.0 / v_norm_sq;
-        // Apply H_k to R_work[k:m, k+1:n]
-        for (std::size_t j = k + 1; j < n; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k; i < m; ++i)
-                dot += V[i + k * m] * R_work[i + j * m];
-            const double s = tau[k] * dot;
-            for (std::size_t i = k; i < m; ++i)
-                R_work[i + j * m] -= s * V[i + k * m];
-        }
-        // Set diagonal entry of R; zero entries below diagonal in column k.
-        R_work[k + k * m] = alpha;
-        for (std::size_t i = k + 1; i < m; ++i)
-            R_work[i + k * m] = 0.0;
-    }
-
-    // Copy R (m×n, R_work upper triangle).
-    for (std::size_t j = 0; j < n; ++j)
-        for (std::size_t i = 0; i < m; ++i)
-            Rout[i + j * m] = (i <= j) ? R_work[i + j * m] : 0.0;
-
-    // Build Q = H_1 * H_2 * ... * H_n by applying Householders from the
-    // back to identity. Q is m×m. Apply H_k from the LEFT to bottom-
-    // right (m-k)×m block of Q.
-    std::fill(Qout, Qout + m * m, 0.0);
-    for (std::size_t i = 0; i < m; ++i)
-        Qout[i + i * m] = 1.0;
-    for (std::size_t kk = n; kk-- > 0;) {
-        const std::size_t k = kk;
-        if (tau[k] == 0.0) continue;
-        // For each column j in [0, m), update Q[k:m, j]:
-        //   w = sum_{i=k..m-1} V[i,k] * Q[i,j]
-        //   Q[i,j] -= tau[k] * V[i,k] * w  for i in k..m-1
-        for (std::size_t j = 0; j < m; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k; i < m; ++i)
-                dot += V[i + k * m] * Qout[i + j * m];
-            const double s = tau[k] * dot;
-            for (std::size_t i = k; i < m; ++i)
-                Qout[i + j * m] -= s * V[i + k * m];
-        }
-    }
-}
-
-} // anonymous namespace
-
-std::tuple<Value, Value>
-qr_decompose(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("qr: input must be a 2D matrix",
-                    0, 0, "qr", "", "m:qr:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m < n)
-        throw Error("qr: number of rows must be >= number of columns "
-                    "(wide matrices via row-pivoted QR are deferred)",
-                    0, 0, "qr", "", "m:qr:wide");
-    auto Q = Value::matrix(m, m, ValueType::DOUBLE, mr);
-    auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    qrFullHouseholder(A.doubleData(), m, n, Q.doubleDataMut(), R.doubleDataMut(), mr);
-    return std::make_tuple(std::move(Q), std::move(R));
-}
-
-Value qr_R_only(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("qr: input must be a 2D matrix",
-                    0, 0, "qr", "", "m:qr:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m < n)
-        throw Error("qr: number of rows must be >= number of columns",
-                    0, 0, "qr", "", "m:qr:wide");
-    ScratchArena scratch(mr);
-    ScratchVec<double> Q_unused(m * m, &scratch);
-    auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    qrFullHouseholder(A.doubleData(), m, n, Q_unused.data(), R.doubleDataMut(), mr);
-    return R;
-}
-
-// ── trace / det / chol / topkrows ────────────────────────────────────
-
-Value trace(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("trace: input must be a 2D matrix",
-                    0, 0, "trace", "", "m:trace:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    const std::size_t k = std::min(m, n);
-    double s = 0.0;
-    const double *p = A.doubleData();
-    for (std::size_t i = 0; i < k; ++i)
-        s += p[i + i * m];
-    return Value::scalar(s, mr);
-}
-
-namespace {
-
-// In-place LU with partial pivoting on a column-major n×n matrix.
-// Returns false on zero pivot (singular). On return, sign holds
-// (-1)^(number of row swaps).
-bool luPartialPivotInplace(double *A, std::size_t n, int &sign)
-{
-    sign = 1;
-    for (std::size_t k = 0; k < n; ++k) {
-        std::size_t pivot = k;
-        double pmax = std::fabs(A[k + k * n]);
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double v = std::fabs(A[i + k * n]);
-            if (v > pmax) { pmax = v; pivot = i; }
-        }
-        if (pmax == 0.0) return false;
-        if (pivot != k) {
-            for (std::size_t j = 0; j < n; ++j)
-                std::swap(A[k + j * n], A[pivot + j * n]);
-            sign = -sign;
-        }
-        const double inv_pivot = 1.0 / A[k + k * n];
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double factor = A[i + k * n] * inv_pivot;
-            A[i + k * n] = factor;
-            for (std::size_t j = k + 1; j < n; ++j)
-                A[i + j * n] -= factor * A[k + j * n];
-        }
-    }
-    return true;
-}
-
-} // anonymous namespace
-
-Value det(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("det: input must be a 2D matrix",
-                    0, 0, "det", "", "m:det:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("det: matrix must be square",
-                    0, 0, "det", "", "m:det:notSquare");
-    if (m == 0)
-        return Value::scalar(1.0, mr);
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-
-    int sign = 1;
-    if (!luPartialPivotInplace(A_buf.data(), n, sign))
-        return Value::scalar(0.0, mr);
-
-    long double prod = static_cast<long double>(sign);
-    for (std::size_t i = 0; i < n; ++i)
-        prod *= static_cast<long double>(A_buf[i + i * n]);
-    return Value::scalar(static_cast<double>(prod), mr);
-}
-
-Value chol(const Value &A, std::pmr::memory_resource *mr)
-{
-    if (A.dims().ndim() != 2)
-        throw Error("chol: input must be a 2D matrix",
-                    0, 0, "chol", "", "m:chol:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
-    if (m != n)
-        throw Error("chol: matrix must be square",
-                    0, 0, "chol", "", "m:chol:notSquare");
-    if (m == 0)
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-
-    // Build upper-triangular R such that R' * R = A. Standard
-    // Cholesky in column-major (MATLAB chol returns R upper).
-    auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *r = R.doubleDataMut();
-    std::fill(r, r + n * n, 0.0);
-    const double *a = A.doubleData();
-
-    for (std::size_t j = 0; j < n; ++j) {
-        // R(j,j) = sqrt(A(j,j) - sum(R(0..j-1, j)^2))
-        double s = a[j + j * n];
-        for (std::size_t k = 0; k < j; ++k)
-            s -= r[k + j * n] * r[k + j * n];
-        if (s <= 0.0)
-            throw Error("chol: matrix is not positive-definite",
-                        0, 0, "chol", "", "m:chol:notPosDef");
-        r[j + j * n] = std::sqrt(s);
-        const double inv_diag = 1.0 / r[j + j * n];
-        // R(j, i) for i > j: (A(j,i) - sum(R(0..j-1, j)*R(0..j-1, i))) / R(j,j)
-        for (std::size_t i = j + 1; i < n; ++i) {
-            double t = a[j + i * n];
-            for (std::size_t k = 0; k < j; ++k)
-                t -= r[k + j * n] * r[k + i * n];
-            r[j + i * n] = t * inv_diag;
-        }
-    }
-    return R;
-}
-
-Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
+// Below: dead code, kept until cleanup. All migrated to libs/linalg.
+
+// NOTE: pinv / orth / null_basis migrated to libs/linalg/src/
+// pseudo_subspace.cpp (group 4 of the libs/linalg extraction).
+// Block below kept disabled until cleanup pass.
+
+// Extended topkrows. `cols` is the 0-indexed list of columns to sort by
+// (priority order — first column is primary key, etc.). If `cols` is
+// empty, sort by every column in order. `desc[j]` selects descending
+// (true) vs ascending (false) for `cols[j]`. `out_idx` (optional, may
+// be nullptr) receives the 0-indexed selected rows for the 2-output
+// form. Stable on full ties.
+Value topkrows_full(const Value &A, std::size_t k,
+                    const std::vector<std::size_t> &colsIn,
+                    const std::vector<std::uint8_t> &descIn,
+                    std::vector<std::size_t> *out_idx,
+                    std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
         throw Error("topkrows: input must be a 2D matrix",
-                    0, 0, "topkrows", "", "m:topkrows:notMatrix");
+                    0, 0, "topkrows", "", "numkit:topkrows:notMatrix");
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t kk = std::min(k, m);
 
-    // Build a row-index vector and sort it by lexicographic-descending
-    // comparison of A's rows on every column.
+    // Resolve cols / desc defaults.
+    std::vector<std::size_t> cols;
+    std::vector<std::uint8_t> desc;
+    if (colsIn.empty()) {
+        cols.reserve(n);
+        for (std::size_t j = 0; j < n; ++j) cols.push_back(j);
+    } else {
+        cols = colsIn;
+    }
+    if (descIn.size() == 1) {
+        desc.assign(cols.size(), descIn[0]);
+    } else if (descIn.empty()) {
+        desc.assign(cols.size(), 1);  // default descend
+    } else if (descIn.size() == cols.size()) {
+        desc = descIn;
+    } else {
+        throw Error("topkrows: direction must be a scalar or match the "
+                    "length of col",
+                    0, 0, "topkrows", "", "numkit:topkrows:dirSize");
+    }
+    for (std::size_t j : cols)
+        if (j >= n)
+            throw Error("topkrows: column index out of range",
+                        0, 0, "topkrows", "", "numkit:topkrows:badCol");
+
     ScratchArena scratch(mr);
     ScratchVec<std::size_t> idx(m, &scratch);
     for (std::size_t i = 0; i < m; ++i) idx[i] = i;
-    const double *p = A.doubleData();
-    std::sort(idx.begin(), idx.end(),
-              [&](std::size_t a, std::size_t b) {
-                  for (std::size_t j = 0; j < n; ++j) {
-                      const double va = p[a + j * m];
-                      const double vb = p[b + j * m];
-                      if (va > vb) return true;
-                      if (va < vb) return false;
-                  }
-                  return false;  // tie
-              });
 
-    auto out = Value::matrix(kk, n, ValueType::DOUBLE, mr);
-    double *q = out.doubleDataMut();
-    for (std::size_t i = 0; i < kk; ++i)
-        for (std::size_t j = 0; j < n; ++j)
-            q[i + j * kk] = p[idx[i] + j * m];
+    // Use elemAsDouble for any-class input.
+    auto elem = [&](std::size_t r, std::size_t c) {
+        return A.elemAsDouble(r + c * m);
+    };
+    std::stable_sort(idx.begin(), idx.end(),
+        [&](std::size_t a, std::size_t b) {
+            for (std::size_t k2 = 0; k2 < cols.size(); ++k2) {
+                const std::size_t j = cols[k2];
+                const double va = elem(a, j);
+                const double vb = elem(b, j);
+                if (va == vb) continue;
+                const bool a_first = desc[k2] ? (va > vb) : (va < vb);
+                return a_first;
+            }
+            return false;  // total tie → stable order
+        });
+
+    // Preserve element class.
+    auto out = (n == 0) ? Value::matrix(kk, 0, A.type(), mr)
+                        : Value::matrix(kk, n, A.type(), mr);
+    for (std::size_t i = 0; i < kk; ++i) {
+        const std::size_t r = idx[i];
+        for (std::size_t j = 0; j < n; ++j) {
+            const std::size_t src_lin = r + j * m;
+            const std::size_t dst_lin = i + j * kk;
+            // Class-preserving copy.
+            switch (A.type()) {
+                case ValueType::DOUBLE: out.doubleDataMut()[dst_lin] = A.doubleData()[src_lin]; break;
+                case ValueType::SINGLE: out.singleDataMut()[dst_lin] = A.singleData()[src_lin]; break;
+                case ValueType::UINT8:  out.uint8DataMut()[dst_lin]  = A.uint8Data()[src_lin];  break;
+                case ValueType::UINT16: out.uint16DataMut()[dst_lin] = A.uint16Data()[src_lin]; break;
+                case ValueType::UINT32: out.uint32DataMut()[dst_lin] = A.uint32Data()[src_lin]; break;
+                case ValueType::UINT64: out.uint64DataMut()[dst_lin] = A.uint64Data()[src_lin]; break;
+                case ValueType::INT8:   out.int8DataMut()[dst_lin]   = A.int8Data()[src_lin];   break;
+                case ValueType::INT16:  out.int16DataMut()[dst_lin]  = A.int16Data()[src_lin];  break;
+                case ValueType::INT32:  out.int32DataMut()[dst_lin]  = A.int32Data()[src_lin];  break;
+                case ValueType::INT64:  out.int64DataMut()[dst_lin]  = A.int64Data()[src_lin];  break;
+                case ValueType::LOGICAL: out.logicalDataMut()[dst_lin] = A.logicalData()[src_lin]; break;
+                default:
+                    out.doubleDataMut()[dst_lin] = elem(r, j);
+                    break;
+            }
+        }
+    }
+    if (out_idx) {
+        out_idx->resize(kk);
+        for (std::size_t i = 0; i < kk; ++i) (*out_idx)[i] = idx[i];
+    }
     return out;
+}
+
+Value topkrows(const Value &A, std::size_t k, std::pmr::memory_resource *mr)
+{
+    return topkrows_full(A, k, {}, {}, nullptr, mr);
 }
 
 // ── Toeplitz / Hankel / Vandermonde / Companion ─────────────────────
@@ -1899,58 +376,130 @@ ScratchVec<double> valueToScratchDoubles(const Value &v, ScratchArena &scratch)
 
 Value toeplitz(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
 {
-    ScratchArena scratch(mr);
-    auto c = valueToScratchDoubles(cV, scratch);
-    // Single-arg / Empty rV: r = c (MATLAB convention; real input).
-    // ScratchVec has deleted copy ctor — duplicate c element-wise instead
-    // of relying on a ternary that would force a copy.
-    ScratchVec<double> r(&scratch);
-    if (rV.isEmpty()) {
-        r.assign(c.begin(), c.end());
-    } else {
-        r = valueToScratchDoubles(rV, scratch);
-    }
-    const std::size_t m = c.size();
-    const std::size_t n = r.size();
+    const bool single1 = rV.isEmpty();
+    const bool anyCplx  = cV.isComplex() || (!single1 && rV.isComplex());
+    const bool anySingle = !anyCplx &&
+        (cV.type() == ValueType::SINGLE ||
+         (!single1 && rV.type() == ValueType::SINGLE));
+
+    const std::size_t m = cV.numel();
+    const std::size_t n = single1 ? m : rV.numel();
     if (m == 0 || n == 0)
         throw Error("toeplitz: inputs must be non-empty",
-                    0, 0, "toeplitz", "", "m:toeplitz:empty");
-    auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    // T[i, j] = c[i-j]  (i >= j)
-    //        = r[j-i]  (i <  j)
-    // MATLAB silently overrides r[0] with c[0] when both are given;
-    // caller's r[0] is ignored.
-    for (size_t j = 0; j < n; ++j)
-        for (size_t i = 0; i < m; ++i)
-            M.elem(i, j) = (i >= j) ? c[i - j] : r[j - i];
+                    0, 0, "toeplitz", "", "numkit:toeplitz:empty");
+
+    // COMPLEX: gather per-element so the imaginary part is preserved.
+    // Two-arg form is a plain gather; the single-arg complex form is a
+    // Hermitian Toeplitz matrix (MATLAB conjugates the strictly-lower
+    // triangle, T(i,j) = conj(c(i-j)) for i>j, c(j-i) otherwise).
+    if (anyCplx) {
+        ScratchArena scratch(mr);
+        ScratchVec<Complex> c(m, &scratch);
+        for (size_t k = 0; k < m; ++k)
+            c[k] = cV.isComplex() ? cV.complexData()[k]
+                                  : Complex(cV.elemAsDouble(k), 0.0);
+        ScratchVec<Complex> r(n, &scratch);
+        if (!single1)
+            for (size_t k = 0; k < n; ++k)
+                r[k] = rV.isComplex() ? rV.complexData()[k]
+                                      : Complex(rV.elemAsDouble(k), 0.0);
+        auto M = Value::matrix(m, n, ValueType::COMPLEX, mr);
+        Complex *dst = M.complexDataMut();
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i) {
+                Complex v;
+                if (single1) v = (i > j) ? std::conj(c[i - j]) : c[j - i];
+                else         v = (i >= j) ? c[i - j] : r[j - i];
+                dst[j * m + i] = v;
+            }
+        return M;
+    }
+
+    // Real path (DOUBLE or SINGLE output; class preserved).
+    ScratchArena scratch(mr);
+    auto c = valueToScratchDoubles(cV, scratch);
+    ScratchVec<double> r(&scratch);
+    if (single1) r.assign(c.begin(), c.end());
+    else         r = valueToScratchDoubles(rV, scratch);
+
+    // T[i,j] = c[i-j] (i>=j) else r[j-i]. MATLAB silently overrides r[0]
+    // with c[0] when both are given (r[0] is never read here).
+    const ValueType ot = anySingle ? ValueType::SINGLE : ValueType::DOUBLE;
+    auto M = Value::matrix(m, n, ot, mr);
+    if (ot == ValueType::SINGLE) {
+        float *dst = static_cast<float *>(M.rawDataMut());
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i)
+                dst[j * m + i] = static_cast<float>((i >= j) ? c[i - j] : r[j - i]);
+    } else {
+        double *dst = M.doubleDataMut();
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i)
+                dst[j * m + i] = (i >= j) ? c[i - j] : r[j - i];
+    }
     return M;
 }
 
 Value hankel(const Value &cV, const Value &rV, std::pmr::memory_resource *mr)
 {
-    ScratchArena scratch(mr);
-    auto c = valueToScratchDoubles(cV, scratch);
-    const std::size_t m = c.size();
-    // Single-arg / Empty rV: r is all zeros, length = m
-    // (anti-triangular Hankel).
-    ScratchVec<double> r(&scratch);
-    if (rV.isEmpty()) {
-        r.assign(m, 0.0);
-    } else {
-        r = valueToScratchDoubles(rV, scratch);
-    }
-    const std::size_t n = r.size();
+    const bool single1 = rV.isEmpty();
+    const bool anyCplx  = cV.isComplex() || (!single1 && rV.isComplex());
+    const bool anySingle = !anyCplx &&
+        (cV.type() == ValueType::SINGLE ||
+         (!single1 && rV.type() == ValueType::SINGLE));
+
+    const std::size_t m = cV.numel();
+    const std::size_t n = single1 ? m : rV.numel();
     if (m == 0 || n == 0)
         throw Error("hankel: inputs must be non-empty",
-                    0, 0, "hankel", "", "m:hankel:empty");
-    auto M = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    // H[i, j] = c[i + j]                       if i + j <  m
-    //         = r[i + j - m + 1]               otherwise
-    for (size_t j = 0; j < n; ++j)
-        for (size_t i = 0; i < m; ++i) {
-            const size_t s = i + j;
-            M.elem(i, j) = (s < m) ? c[s] : r[s - m + 1];
-        }
+                    0, 0, "hankel", "", "numkit:hankel:empty");
+
+    // H[i,j] = c[i+j] (i+j < m) else r[i+j-m+1]. hankel never conjugates.
+    // Single-arg: r is all zeros (anti-triangular Hankel).
+    if (anyCplx) {
+        ScratchArena scratch(mr);
+        ScratchVec<Complex> c(m, &scratch);
+        for (size_t k = 0; k < m; ++k)
+            c[k] = cV.isComplex() ? cV.complexData()[k]
+                                  : Complex(cV.elemAsDouble(k), 0.0);
+        ScratchVec<Complex> r(n, &scratch);
+        for (size_t k = 0; k < n; ++k)
+            r[k] = (!single1 && rV.isComplex()) ? rV.complexData()[k]
+                 : (!single1)                   ? Complex(rV.elemAsDouble(k), 0.0)
+                                                : Complex(0.0, 0.0);
+        auto M = Value::matrix(m, n, ValueType::COMPLEX, mr);
+        Complex *dst = M.complexDataMut();
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i) {
+                const size_t s = i + j;
+                dst[j * m + i] = (s < m) ? c[s] : r[s - m + 1];
+            }
+        return M;
+    }
+
+    ScratchArena scratch(mr);
+    auto c = valueToScratchDoubles(cV, scratch);
+    ScratchVec<double> r(&scratch);
+    if (single1) r.assign(m, 0.0);
+    else         r = valueToScratchDoubles(rV, scratch);
+
+    const ValueType ot = anySingle ? ValueType::SINGLE : ValueType::DOUBLE;
+    auto M = Value::matrix(m, n, ot, mr);
+    if (ot == ValueType::SINGLE) {
+        float *dst = static_cast<float *>(M.rawDataMut());
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i) {
+                const size_t s = i + j;
+                dst[j * m + i] = static_cast<float>((s < m) ? c[s] : r[s - m + 1]);
+            }
+    } else {
+        double *dst = M.doubleDataMut();
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < m; ++i) {
+                const size_t s = i + j;
+                dst[j * m + i] = (s < m) ? c[s] : r[s - m + 1];
+            }
+    }
     return M;
 }
 
@@ -1981,7 +530,7 @@ Value compan(const Value &pV, std::pmr::memory_resource *mr)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (p[0] == 0.0)
         throw Error("compan: leading coefficient must be non-zero",
-                    0, 0, "compan", "", "m:compan:zeroLead");
+                    0, 0, "compan", "", "numkit:compan:zeroLead");
 
     const std::size_t n = pn - 1;
     auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
@@ -2088,7 +637,7 @@ Value hadamard(size_t n, std::pmr::memory_resource *mr)
     // and are deferred (see header).
     if ((n & (n - 1)) != 0)
         throw Error("hadamard: only powers of 2 are supported in this revision (12·2^k and 20·2^k via Paley are deferred)",
-                    0, 0, "hadamard", "", "m:hadamard:badN");
+                    0, 0, "hadamard", "", "numkit:hadamard:badN");
 
     auto M = Value::matrix(n, n, ValueType::DOUBLE, mr);
     // Sylvester recursion: H_1 = [1]; H_{2k} = [Hk Hk; Hk -Hk].
@@ -2216,7 +765,7 @@ Value reshape(const Value &x, size_t rows, size_t cols, size_t pages, std::pmr::
     const size_t newNumel = rows * cols * (pages == 0 ? 1 : pages);
     if (newNumel != x.numel())
         throw Error("Number of elements must not change in reshape",
-                     0, 0, "reshape", "", "m:reshape:elementCountMismatch");
+                     0, 0, "reshape", "", "numkit:reshape:elementCountMismatch");
 
     DimsArg d{rows, cols, pages};
 
@@ -2252,12 +801,12 @@ Value reshapeND(const Value &x, Span<const size_t> dims, std::pmr::memory_resour
     for (std::size_t i = 0; i < nDims; ++i) newNumel *= dims[i];
     if (newNumel != x.numel())
         throw Error("Number of elements must not change in reshape",
-                     0, 0, "reshape", "", "m:reshape:elementCountMismatch");
+                     0, 0, "reshape", "", "numkit:reshape:elementCountMismatch");
 
     if (x.type() == ValueType::CELL || x.type() == ValueType::STRING) {
         if (nDims > 3)
             throw Error("reshape: ND CELL/STRING (>3) not yet supported",
-                         0, 0, "reshape", "", "m:reshape:cellND");
+                         0, 0, "reshape", "", "numkit:reshape:cellND");
         // Fall through to legacy path for 2D / 3D cell.
         const size_t r = nDims > 0 ? dims[0] : 1;
         const size_t c = nDims > 1 ? dims[1] : 1;
@@ -2273,15 +822,12 @@ Value reshapeND(const Value &x, Span<const size_t> dims, std::pmr::memory_resour
 
 Value transpose(const Value &x, std::pmr::memory_resource *mr)
 {
-    if (x.dims().is3D())
-        throw Error("transpose is not defined for N-D arrays",
-                     0, 0, "transpose", "", "m:transpose:3DInput");
-    const size_t rows = x.dims().rows(), cols = x.dims().cols();
-    auto r = Value::matrix(cols, rows, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < rows; ++i)
-        for (size_t j = 0; j < cols; ++j)
-            r.elem(j, i) = x(i, j);
-    return r;
+    // The named transpose() builtin is identical to the `.'` operator:
+    // type-preserving (CHAR / LOGICAL / SINGLE / int / COMPLEX / CELL).
+    // Delegate to transposeNC (unary_ops.cpp) so there is one
+    // implementation. The DOUBLE-only path here previously coerced every
+    // input to a DOUBLE matrix of element codes.
+    return transposeNC(x, mr);
 }
 
 // ── pagetranspose / pagectranspose ───────────────────────────────────
@@ -2341,7 +887,7 @@ Value pageTransposeAny(const Value &x, bool conjugate, std::pmr::memory_resource
     case ValueType::LOGICAL: return pageTransposeT<uint8_t>(x, ValueType::LOGICAL, conjugate, mr);
     default:
         throw Error("pagetranspose: unsupported input type",
-                     0, 0, "pagetranspose", "", "m:pagetranspose:badType");
+                     0, 0, "pagetranspose", "", "numkit:pagetranspose:badType");
     }
 }
 
@@ -2626,7 +1172,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
     const int ynd = yd.ndim();
     if (xnd < 2 || ynd < 2)
         throw Error("pagemtimes: each input must have at least 2 dimensions",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:rank");
+                     0, 0, "pagemtimes", "", "numkit:pagemtimes:rank");
 
     const size_t xRowDim = xd.dim(0), xColDim = xd.dim(1);
     const size_t yRowDim = yd.dim(0), yColDim = yd.dim(1);
@@ -2637,7 +1183,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
     const size_t N  = (ty == TranspOp::None) ? yColDim : yRowDim;
     if (Kx != Ky)
         throw Error("pagemtimes: inner matrix dimensions must agree",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:innerdim");
+                     0, 0, "pagemtimes", "", "numkit:pagemtimes:innerdim");
     const size_t K = Kx;
 
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -2651,7 +1197,7 @@ Value pagemtimesImpl(const Value &x, TranspOp tx, const Value &y, TranspOp ty, s
         if (xBatch[i] != yBatch[i] && xBatch[i] != 1 && yBatch[i] != 1)
             throw Error("pagemtimes: batch dimensions must broadcast "
                          "(each axis must match or be 1)",
-                         0, 0, "pagemtimes", "", "m:pagemtimes:dimagree");
+                         0, 0, "pagemtimes", "", "numkit:pagemtimes:dimagree");
         outBatch[i] = std::max(xBatch[i], yBatch[i]);
     }
 
@@ -2748,7 +1294,7 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
     };
     if (!isFloatLike(x.type()) || !isFloatLike(y.type()))
         throw Error("pagemtimes: inputs must be 'single', 'double', or complex",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:type");
+                     0, 0, "pagemtimes", "", "numkit:pagemtimes:type");
     if (x.isComplex() || y.isComplex())
         return pagemtimesImpl<Complex>(x, tx, y, ty, mr);
     if (x.type() == ValueType::SINGLE || y.type() == ValueType::SINGLE)
@@ -2758,29 +1304,131 @@ Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::
 
 Value diag(const Value &x, std::pmr::memory_resource *mr)
 {
+    return diag(x, 0L, mr);
+}
+
+Value diag(const Value &x, long k, std::pmr::memory_resource *mr)
+{
+    const ValueType t = x.type();
+    // MATLAB: "Inputs must be numeric, char, or logical." Cells / strings
+    // / structs / function handles are unsupported.
+    if (t == ValueType::CELL || t == ValueType::STRING ||
+        t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
+        throw Error("diag: inputs must be numeric, char, or logical",
+                     0, 0, "diag", "", "numkit:diag:badType");
+
+    const size_t es = elementSize(t);
+    const size_t ak = static_cast<size_t>(k < 0 ? -k : k);
+
     if (x.dims().isVector()) {
+        // Build a square matrix with x on the k-th diagonal. The output
+        // matrix is zero-filled (= 0 / char(0) / false / 0+0i), so only
+        // the diagonal entries need to be written.
         const size_t n = x.numel();
-        auto r = Value::matrix(n, n, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < n; ++i)
-            r.elem(i, i) = x.doubleData()[i];
+        const size_t m = n + ak;
+        auto r = Value::matrix(m, m, t, mr);
+        const char *src = static_cast<const char *>(x.rawData());
+        char *dst = static_cast<char *>(r.rawDataMut());
+        for (size_t i = 0; i < n; ++i) {
+            const size_t row = (k >= 0) ? i : i + ak;
+            const size_t col = (k >= 0) ? i + ak : i;
+            std::memcpy(dst + (col * m + row) * es, src + i * es, es);  // col-major
+        }
         return r;
     }
-    const size_t n = std::min(x.dims().rows(), x.dims().cols());
-    auto r = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < n; ++i)
-        r.doubleDataMut()[i] = x(i, i);
+
+    // Matrix input: extract the k-th diagonal as a column vector.
+    const size_t R = x.dims().rows(), C = x.dims().cols();
+    const size_t row0 = (k >= 0) ? 0 : ak;
+    const size_t col0 = (k >= 0) ? ak : 0;
+    size_t len = 0;
+    if (row0 < R && col0 < C)
+        len = std::min(R - row0, C - col0);
+    auto r = Value::matrix(len, 1, t, mr);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
+    for (size_t i = 0; i < len; ++i) {
+        const size_t row = row0 + i, col = col0 + i;
+        std::memcpy(dst + i * es, src + (col * R + row) * es, es);  // x col-major
+    }
     return r;
 }
 
 // ── Sort / find ──────────────────────────────────────────────────────
-std::tuple<Value, Value> sort(const Value &x, std::pmr::memory_resource *mr)
+// Complex sort (MATLAB rule): order by magnitude |z| ascending; ties broken
+// by phase angle arg(z) in (-pi, pi] ascending. A NaN component (|z| = NaN)
+// sorts LAST for ascending, FIRST for descending. 'descend' fully reverses
+// both keys. Unlike min/max there is NO all-real fast path — a COMPLEX-typed
+// all-real input still sorts by |z|+angle (so sort([2 -2]+0i) = [2 -2]).
+std::tuple<Value, Value> sortComplex(const Value &x, int dim, bool descend,
+                                     std::pmr::memory_resource *mr)
+{
+    const size_t R = x.dims().rows(), C = x.dims().cols();
+    const size_t P = x.dims().is3D() ? x.dims().pages() : 1;
+    const int sortDim = (dim >= 1) ? std::min(dim - 1, 2)
+                                   : ((R > 1) ? 0 : (C > 1) ? 1 : 2);
+    const size_t N = (sortDim == 0) ? R : (sortDim == 1) ? C : P;
+
+    auto r = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::COMPLEX, mr)
+                             : Value::matrix(R, C, ValueType::COMPLEX, mr);
+    auto idx = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                               : Value::matrix(R, C, ValueType::DOUBLE, mr);
+
+    const size_t slice0 = (sortDim == 0) ? 1 : R;
+    const size_t slice1 = (sortDim == 1) ? 1 : C;
+    const size_t slice2 = (sortDim == 2) ? 1 : P;
+    const Complex *src = x.complexData();
+    ScratchArena scratch(mr);
+    ScratchVec<std::pair<Complex, size_t>> buf(N, &scratch);
+
+    for (size_t pp = 0; pp < slice2; ++pp)
+        for (size_t c = 0; c < slice1; ++c)
+            for (size_t rr = 0; rr < slice0; ++rr) {
+                for (size_t k = 0; k < N; ++k) {
+                    const size_t rIdx = (sortDim == 0) ? k : rr;
+                    const size_t cIdx = (sortDim == 1) ? k : c;
+                    const size_t pIdx = (sortDim == 2) ? k : pp;
+                    buf[k] = {src[pIdx * R * C + cIdx * R + rIdx], k};
+                }
+                std::stable_sort(buf.begin(), buf.end(),
+                          [descend](const auto &a, const auto &b) {
+                              const double am = std::abs(a.first), bm = std::abs(b.first);
+                              const bool an = std::isnan(am), bn = std::isnan(bm);
+                              if (an || bn) {
+                                  if (an && bn) return false;
+                                  return descend ? an : bn;
+                              }
+                              if (am != bm) return descend ? (am > bm) : (am < bm);
+                              const double aa = std::arg(a.first), ba = std::arg(b.first);
+                              if (aa != ba) return descend ? (aa > ba) : (aa < ba);
+                              return false;
+                          });
+                for (size_t k = 0; k < N; ++k) {
+                    const size_t rIdx = (sortDim == 0) ? k : rr;
+                    const size_t cIdx = (sortDim == 1) ? k : c;
+                    const size_t pIdx = (sortDim == 2) ? k : pp;
+                    const size_t lin = pIdx * R * C + cIdx * R + rIdx;
+                    r.complexDataMut()[lin] = buf[k].first;
+                    idx.doubleDataMut()[lin] = static_cast<double>(buf[k].second + 1);
+                }
+            }
+    return std::make_tuple(std::move(r), std::move(idx));
+}
+
+std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
+                              std::pmr::memory_resource *mr)
 {
     if (x.isScalar())
         return std::make_tuple(x, Value::scalar(1.0, mr));
+    if (x.type() == ValueType::COMPLEX)
+        return sortComplex(x, dim, descend, mr);
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
     const size_t P = x.dims().is3D() ? x.dims().pages() : 1;
-    const int sortDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+    // dim<1 -> auto (first non-singleton, MATLAB convention). Explicit dim
+    // is 1-based: 1=down columns, 2=along rows, 3=along pages.
+    const int sortDim = (dim >= 1) ? std::min(dim - 1, 2)
+                                   : ((R > 1) ? 0 : (C > 1) ? 1 : 2);
     const size_t N = (sortDim == 0) ? R : (sortDim == 1) ? C : P;
 
     auto r = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
@@ -2803,8 +1451,19 @@ std::tuple<Value, Value> sort(const Value &x, std::pmr::memory_resource *mr)
                     const size_t pIdx = (sortDim == 2) ? k : pp;
                     buf[k] = {x.doubleData()[pIdx * R * C + cIdx * R + rIdx], k};
                 }
-                std::sort(buf.begin(), buf.end(),
-                          [](const auto &a, const auto &b) { return a.first < b.first; });
+                // MATLAB sort: stable; NaN sorts LAST for ascend, FIRST
+                // for descend. std::stable_sort keeps the original index
+                // order for ties (matches MATLAB's [s,i]).
+                std::stable_sort(buf.begin(), buf.end(),
+                          [descend](const auto &a, const auto &b) {
+                              const double av = a.first, bv = b.first;
+                              const bool an = std::isnan(av), bn = std::isnan(bv);
+                              if (an || bn) {
+                                  if (an && bn) return false;
+                                  return descend ? an : bn;
+                              }
+                              return descend ? (av > bv) : (av < bv);
+                          });
                 for (size_t k = 0; k < N; ++k) {
                     const size_t rIdx = (sortDim == 0) ? k : rr;
                     const size_t cIdx = (sortDim == 1) ? k : c;
@@ -2827,7 +1486,7 @@ Value toDoubleMatrix2D(const Value &x, const char *fn, std::pmr::memory_resource
 {
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": input must be 2D",
-                     0, 0, fn, "", std::string("m:") + fn + ":bad2D");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":bad2D");
     const size_t R = x.dims().rows();
     const size_t C = x.dims().cols();
     if (x.type() == ValueType::DOUBLE) {
@@ -2846,9 +1505,79 @@ Value toDoubleMatrix2D(const Value &x, const char *fn, std::pmr::memory_resource
     return r;
 }
 
+// Complex sortrows (MATLAB rule): rows are ordered lexicographically by the
+// requested columns; each column compares complex entries by magnitude |z|
+// then phase angle arg(z) ascending (a negative column index sorts that
+// column descending). A NaN component sorts last. Must NOT drop the
+// imaginary part (toDoubleMatrix2D does) — that silently returns wrong rows.
+inline bool cxRowLess(Complex a, Complex b)
+{
+    const double am = std::abs(a), bm = std::abs(b);
+    const bool an = std::isnan(am), bn = std::isnan(bm);
+    if (an || bn) { if (an && bn) return false; return bn; }   // non-NaN < NaN
+    if (am != bm) return am < bm;
+    return std::arg(a) < std::arg(b);
+}
+
+std::tuple<Value, Value>
+sortRowsComplex(const Value &x, const int *cols, std::size_t nCols,
+                std::pmr::memory_resource *mr)
+{
+    if (x.dims().is3D() || x.dims().ndim() > 2)
+        throw Error("sortrows: input must be 2D",
+                     0, 0, "sortrows", "", "numkit:sortrows:bad2D");
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    if (R == 0)
+        return std::make_tuple(x, Value::matrix(0, 1, ValueType::DOUBLE, mr));
+
+    ScratchArena scratch(mr);
+    ScratchVec<int> sortKeys(&scratch);
+    if (nCols == 0) {
+        sortKeys.reserve(C);
+        for (size_t c = 1; c <= C; ++c) sortKeys.push_back(static_cast<int>(c));
+    } else {
+        sortKeys.assign(cols, cols + nCols);
+        for (int rawCol : sortKeys) {
+            const int absC = (rawCol < 0) ? -rawCol : rawCol;
+            if (rawCol == 0 || static_cast<size_t>(absC) > C)
+                throw Error("sortrows: column index out of range",
+                             0, 0, "sortrows", "", "numkit:sortrows:badCol");
+        }
+    }
+
+    const Complex *src = x.complexData();
+    auto perm = ScratchVec<size_t>(R, &scratch);
+    for (size_t i = 0; i < R; ++i) perm[i] = i;
+    std::stable_sort(perm.begin(), perm.end(),
+        [&](size_t a, size_t b) {
+            for (int key : sortKeys) {
+                const bool desc = key < 0;
+                const size_t c = static_cast<size_t>((desc ? -key : key) - 1);
+                const Complex va = src[c * R + a], vb = src[c * R + b];
+                if (cxRowLess(va, vb)) return !desc;
+                if (cxRowLess(vb, va)) return desc;
+            }
+            return false;   // all keys equal → stable
+        });
+
+    auto out = Value::matrix(R, C, ValueType::COMPLEX, mr);
+    Complex *dst = out.complexDataMut();
+    for (size_t i = 0; i < R; ++i)
+        for (size_t c = 0; c < C; ++c)
+            dst[c * R + i] = src[c * R + perm[i]];
+    auto idx = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+    double *idxP = idx.doubleDataMut();
+    for (size_t i = 0; i < R; ++i)
+        idxP[i] = static_cast<double>(perm[i] + 1);
+    return std::make_tuple(std::move(out), std::move(idx));
+}
+
 std::tuple<Value, Value>
 sortRowsImpl(const Value &x, const int *cols, std::size_t nCols, std::pmr::memory_resource *mr)
 {
+    if (x.type() == ValueType::COMPLEX)
+        return sortRowsComplex(x, cols, nCols, mr);
     auto m = toDoubleMatrix2D(x, "sortrows", mr);
     const size_t R = m.dims().rows();
     const size_t C = m.dims().cols();
@@ -2873,7 +1602,7 @@ sortRowsImpl(const Value &x, const int *cols, std::size_t nCols, std::pmr::memor
             const int absC = (rawCol < 0) ? -rawCol : rawCol;
             if (rawCol == 0 || static_cast<size_t>(absC) > C)
                 throw Error("sortrows: column index out of range",
-                             0, 0, "sortrows", "", "m:sortrows:badCol");
+                             0, 0, "sortrows", "", "numkit:sortrows:badCol");
         }
     }
 
@@ -3010,7 +1739,7 @@ void forEachNonzero(const Value &x, Visit visit)
     }
     default:
         throw Error("nnz/nonzeros: unsupported element type",
-                     0, 0, "nnz", "", "m:nnz:badType");
+                     0, 0, "nnz", "", "numkit:nnz:badType");
     }
 }
 
@@ -3117,7 +1846,7 @@ Value nonzeros(const Value &x, std::pmr::memory_resource *mr)
     }
     default:
         throw Error("nonzeros: unsupported element type",
-                     0, 0, "nonzeros", "", "m:nonzeros:badType");
+                     0, 0, "nonzeros", "", "numkit:nonzeros:badType");
     }
 }
 
@@ -3210,42 +1939,84 @@ ndgrid(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource
 }
 
 // ── kron ────────────────────────────────────────────────────────────
-Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
-{
-    if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
-        throw Error("kron: complex inputs are not supported",
-                     0, 0, "kron", "", "m:kron:complex");
-    if (a.dims().is3D() || a.dims().ndim() > 2
-        || b.dims().is3D() || b.dims().ndim() > 2)
-        throw Error("kron: inputs must be 2D",
-                     0, 0, "kron", "", "m:kron:rank");
-
-    const size_t rA = a.dims().rows(), cA = a.dims().cols();
-    const size_t rB = b.dims().rows(), cB = b.dims().cols();
-    const size_t rOut = rA * rB, cOut = cA * cB;
-
-    auto out = Value::matrix(rOut, cOut, ValueType::DOUBLE, mr);
-    if (rOut == 0 || cOut == 0) return out;
-
-    double *dst = out.doubleDataMut();
-    for (size_t ja = 0; ja < cA; ++ja)
-        for (size_t ia = 0; ia < rA; ++ia) {
-            const double av = a.elemAsDouble(ia + ja * rA);
-            for (size_t jb = 0; jb < cB; ++jb) {
-                const size_t jOut = ja * cB + jb;
-                for (size_t ib = 0; ib < rB; ++ib) {
-                    const size_t iOut = ia * rB + ib;
-                    const double bv = b.elemAsDouble(ib + jb * rB);
-                    dst[jOut * rOut + iOut] = av * bv;
-                }
-            }
-        }
-    return out;
-}
+// NOTE: kron / cross / dot migrated to libs/linalg/src/vector_ops.cpp.
 
 // ── Reductions and products ──────────────────────────────────────────
+
+namespace {
+
+// Integer cumsum / cumprod. MATLAB keeps the integer class and accumulates
+// NATIVELY with saturation at each step — the saturated running value is
+// carried forward, so cumsum(int8([100 100 -100]))=[100 127 27] int8 and
+// cumprod(int8([5 10 10]))=[5 50 127] int8. Generic strided scan over the
+// chosen dimension d (column-major: stride = prod(dims[0..d-2]),
+// len = dims[d-1]). Linear iteration is valid for any dim because element i
+// depends only on i-stride (< i). NOTE: int64/uint64 above 2^53 lose
+// precision (accumulated through double) — the same limitation as the rest
+// of numkit's numeric core; int8/16/32 and uint8/16/32 are exact.
+template <typename T>
+void cumIntegerScanInto(const Value &x, T *dst, size_t strideD, size_t lenD,
+                        bool isProd)
+{
+    const double lo = static_cast<double>(std::numeric_limits<T>::min());
+    const double hi = static_cast<double>(std::numeric_limits<T>::max());
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const size_t coord = (i / strideD) % lenD;
+        const double cur = x.elemAsDouble(i);
+        double v = cur;
+        if (coord != 0) {
+            const double prev = static_cast<double>(dst[i - strideD]);
+            v = isProd ? prev * cur : prev + cur;
+        }
+        if (v < lo) v = lo;
+        else if (v > hi) v = hi;        // saturate to the class range
+        dst[i] = static_cast<T>(v);
+    }
+}
+
+Value cumIntegerNative(const Value &x, int dim, bool isProd,
+                       std::pmr::memory_resource *mr)
+{
+    const auto &dd = x.dims();
+    const int nd = dd.ndim();
+    int d;
+    if (dim > 0) {
+        d = detail::resolveDim(x, dim, isProd ? "cumprod" : "cumsum");
+    } else {
+        d = 1;                          // first non-singleton dim (MATLAB default)
+        for (int k = 0; k < nd; ++k)
+            if (dd.dim(k) > 1) { d = k + 1; break; }
+    }
+    size_t strideD = 1;
+    for (int k = 0; k < d - 1; ++k) strideD *= dd.dim(k);
+    const size_t lenD = (d - 1 < nd) ? dd.dim(d - 1) : 1;
+
+    size_t outDims[Dims::kMaxRank];
+    for (int k = 0; k < nd; ++k) outDims[k] = dd.dim(k);
+    Value r = Value::matrixND(outDims, nd, x.type(), mr);
+    if (x.numel() == 0 || lenD == 0 || strideD == 0) return r;
+
+    switch (x.type()) {
+    case ValueType::INT8:   cumIntegerScanInto<int8_t>  (x, r.int8DataMut(),   strideD, lenD, isProd); break;
+    case ValueType::INT16:  cumIntegerScanInto<int16_t> (x, r.int16DataMut(),  strideD, lenD, isProd); break;
+    case ValueType::INT32:  cumIntegerScanInto<int32_t> (x, r.int32DataMut(),  strideD, lenD, isProd); break;
+    case ValueType::INT64:  cumIntegerScanInto<int64_t> (x, r.int64DataMut(),  strideD, lenD, isProd); break;
+    case ValueType::UINT8:  cumIntegerScanInto<uint8_t> (x, r.uint8DataMut(),  strideD, lenD, isProd); break;
+    case ValueType::UINT16: cumIntegerScanInto<uint16_t>(x, r.uint16DataMut(), strideD, lenD, isProd); break;
+    case ValueType::UINT32: cumIntegerScanInto<uint32_t>(x, r.uint32DataMut(), strideD, lenD, isProd); break;
+    case ValueType::UINT64: cumIntegerScanInto<uint64_t>(x, r.uint64DataMut(), strideD, lenD, isProd); break;
+    default: break;
+    }
+    return r;
+}
+
+} // namespace
+
 Value cumsum(const Value &x, std::pmr::memory_resource *mr)
 {
+    if (isIntegerType(x.type()))
+        return cumIntegerNative(x, 0, /*isProd=*/false, mr);
     if (x.isScalar()) {
         auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = x.toScalar();
@@ -3270,6 +2041,8 @@ Value cumsum(const Value &x, std::pmr::memory_resource *mr)
 // not a reduction). Vector / scalar input ignores dim and walks linearly.
 Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
+    if (isIntegerType(x.type()))
+        return cumIntegerNative(x, dim, /*isProd=*/false, mr);
     if (dim <= 0) return cumsum(x, mr);
     if (x.dims().isVector() || x.isScalar()) return cumsum(x, mr);
 
@@ -3282,7 +2055,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
         constexpr int kMaxNd = Dims::kMaxRank;
         if (dd.ndim() > kMaxNd)
             throw Error("cumsum: rank exceeds 32",
-                         0, 0, "cumsum", "", "m:cumsum:tooManyDims");
+                         0, 0, "cumsum", "", "numkit:cumsum:tooManyDims");
         size_t outDims[kMaxNd];
         for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
         auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, mr);
@@ -3474,7 +2247,7 @@ Value cumScanDispatch(const Value &x, int dim, ScanFn scan, Op scalarOp, const c
         constexpr int kMaxNd = Dims::kMaxRank;
         if (dd.ndim() > kMaxNd)
             throw Error(std::string(fn) + ": rank exceeds 32",
-                         0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
         size_t outDims[kMaxNd];
         for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
         auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, mr);
@@ -3531,6 +2304,8 @@ Value cumScanDispatch(const Value &x, int dim, ScanFn scan, Op scalarOp, const c
 
 Value cumprod(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
+    if (isIntegerType(x.type()))
+        return cumIntegerNative(x, dim, /*isProd=*/true, mr);
     return cumScanDispatch(x, dim, cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
 }
 
@@ -3601,7 +2376,7 @@ Value makeDiffOutput(const Dims &srcDims, int d, size_t step, std::pmr::memory_r
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error("diff: rank exceeds 32",
-                     0, 0, "diff", "", "m:diff:tooManyDims");
+                     0, 0, "diff", "", "numkit:diff:tooManyDims");
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = srcDims.dim(i);
     outDims[d - 1] = (outDims[d - 1] >= step) ? outDims[d - 1] - step : 0;
@@ -3627,32 +2402,119 @@ Value copyToDouble(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
+// One pass of an integer-typed difference along dim d, with NATIVE
+// saturation (matches MATLAB: diff(int8([-100 100]))=127 int8). Same strided
+// layout as diffOnceDouble.
+template <typename T>
+void diffOnceIntegerT(const T *src, T *dst, const Dims &srcDims, int d)
+{
+    const int nd = srcDims.ndim();
+    const size_t sliceLen = srcDims.dim(d - 1);
+    size_t innerStride = 1;
+    for (int i = 0; i < d - 1; ++i) innerStride *= srcDims.dim(i);
+    size_t outerCount = 1;
+    for (int i = d; i < nd; ++i) outerCount *= srcDims.dim(i);
+    const size_t outSliceLen = sliceLen - 1;
+    const double lo = static_cast<double>(std::numeric_limits<T>::min());
+    const double hi = static_cast<double>(std::numeric_limits<T>::max());
+    auto sub = [&](T a, T b) -> T {
+        double v = static_cast<double>(a) - static_cast<double>(b);
+        if (v < lo) v = lo;
+        else if (v > hi) v = hi;
+        return static_cast<T>(v);
+    };
+    if (innerStride == 1) {
+        for (size_t o = 0; o < outerCount; ++o) {
+            const T *s = src + o * sliceLen;
+            T *t = dst + o * outSliceLen;
+            for (size_t k = 0; k < outSliceLen; ++k) t[k] = sub(s[k + 1], s[k]);
+        }
+    } else {
+        for (size_t o = 0; o < outerCount; ++o)
+            for (size_t b = 0; b < innerStride; ++b) {
+                const size_t srcBase = o * innerStride * sliceLen + b;
+                const size_t dstBase = o * innerStride * outSliceLen + b;
+                for (size_t k = 0; k < outSliceLen; ++k)
+                    dst[dstBase + k * innerStride] =
+                        sub(src[srcBase + (k + 1) * innerStride],
+                            src[srcBase + k * innerStride]);
+            }
+    }
+}
+
+// n-th order diff of an integer-typed Value: keeps the class and saturates at
+// each pass (the saturated pass-k result feeds pass k+1). Caller guarantees
+// sliceLen > n along d.
+Value diffInteger(const Value &x, int n, int d, std::pmr::memory_resource *mr)
+{
+    const ValueType vt = x.type();
+    Value cur = copyIntegerSameClass(x, mr);
+    for (int pass = 0; pass < n; ++pass) {
+        const auto &curDims = cur.dims();
+        const int nd = curDims.ndim();
+        size_t outDims[Dims::kMaxRank];
+        for (int i = 0; i < nd; ++i) outDims[i] = curDims.dim(i);
+        outDims[d - 1] = (outDims[d - 1] >= 1) ? outDims[d - 1] - 1 : 0;
+        Value out = Value::matrixND(outDims, nd, vt, mr);
+        switch (vt) {
+        case ValueType::INT8:   diffOnceIntegerT<int8_t>  (cur.int8Data(),   out.int8DataMut(),   curDims, d); break;
+        case ValueType::INT16:  diffOnceIntegerT<int16_t> (cur.int16Data(),  out.int16DataMut(),  curDims, d); break;
+        case ValueType::INT32:  diffOnceIntegerT<int32_t> (cur.int32Data(),  out.int32DataMut(),  curDims, d); break;
+        case ValueType::INT64:  diffOnceIntegerT<int64_t> (cur.int64Data(),  out.int64DataMut(),  curDims, d); break;
+        case ValueType::UINT8:  diffOnceIntegerT<uint8_t> (cur.uint8Data(),  out.uint8DataMut(),  curDims, d); break;
+        case ValueType::UINT16: diffOnceIntegerT<uint16_t>(cur.uint16Data(), out.uint16DataMut(), curDims, d); break;
+        case ValueType::UINT32: diffOnceIntegerT<uint32_t>(cur.uint32Data(), out.uint32DataMut(), curDims, d); break;
+        case ValueType::UINT64: diffOnceIntegerT<uint64_t>(cur.uint64Data(), out.uint64DataMut(), curDims, d); break;
+        default: break;
+        }
+        cur = std::move(out);
+    }
+    return cur;
+}
+
 } // namespace
 
 Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
     if (n < 0)
         throw Error("diff: order n must be non-negative",
-                     0, 0, "diff", "", "m:diff:badOrder");
+                     0, 0, "diff", "", "numkit:diff:badOrder");
+
+    const bool isInt = isIntegerType(x.type());
 
     if (n == 0) {
-        // Identity copy preserving DOUBLE shape.
+        // Identity copy. Integer types keep their class (MATLAB); otherwise
+        // promote to DOUBLE shape.
+        if (isInt) return copyIntegerSameClass(x, mr);
         return copyToDouble(x, mr);
     }
 
-    // Scalar: MATLAB returns 1×0 empty.
+    // Scalar: MATLAB returns 1×0 empty (class preserved for integer input).
     if (x.isScalar())
-        return Value::matrix(1, 0, ValueType::DOUBLE, mr);
+        return Value::matrix(1, 0, isInt ? x.type() : ValueType::DOUBLE, mr);
 
     const int d = detail::resolveDim(x, dim, "diff");
     const auto &dd = x.dims();
     const size_t sliceLen = (d >= 1 && d <= dd.ndim()) ? dd.dim(d - 1) : 1;
 
-    // If n collapses or exceeds the dim, return correctly-shaped empty.
-    if (sliceLen <= static_cast<size_t>(n))
+    // If n collapses or exceeds the dim, return correctly-shaped empty
+    // (preserving the integer class for integer input).
+    if (sliceLen <= static_cast<size_t>(n)) {
+        if (isInt) {
+            const int nd = dd.ndim();
+            size_t outDims[Dims::kMaxRank];
+            for (int i = 0; i < nd; ++i) outDims[i] = dd.dim(i);
+            outDims[d - 1] = 0;
+            return Value::matrixND(outDims, nd, x.type(), mr);
+        }
         return makeDiffOutput(dd, d, sliceLen, mr);
+    }
 
-    // Promote integer/logical to DOUBLE first (consistent with cumsum).
+    // Integer types: keep the class and saturate at each pass (MATLAB).
+    if (isInt)
+        return diffInteger(x, n, d, mr);
+
+    // Promote logical to DOUBLE first.
     Value cur = copyToDouble(x, mr);
 
     for (int pass = 0; pass < n; ++pass) {
@@ -3702,68 +2564,7 @@ Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return r;
 }
 
-Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr)
-{
-    // MATLAB: cross(A, B) operates along the first dimension with
-    // size 3. Common shapes: 1x3, 3x1, 3xN, Nx3. The result has the
-    // same shape as the inputs. See BUGS.md #18.
-    const auto &da = a.dims();
-    const auto &db = b.dims();
-    if (da.rows() != db.rows() || da.cols() != db.cols())
-        throw Error("cross: A and B must have the same shape",
-                     0, 0, "cross", "", "m:cross:shapeMismatch");
-
-    const size_t nr = da.rows();
-    const size_t nc = da.cols();
-
-    // Pick the dimension to cross along: first one of size 3.
-    int crossDim;
-    if (nr == 3)      crossDim = 0; // cross along rows (each column is a 3-vec)
-    else if (nc == 3) crossDim = 1; // cross along cols (each row is a 3-vec)
-    else
-        throw Error("cross: A and B must have at least one dimension of length 3",
-                     0, 0, "cross", "", "m:cross:badSize");
-
-    auto out = Value::matrix(nr, nc, ValueType::DOUBLE, mr);
-    const double *ad = a.doubleData();
-    const double *bd = b.doubleData();
-    double *od = out.doubleDataMut();
-
-    if (crossDim == 0) {
-        // 3xN: column-major storage, so col c starts at c*3.
-        const size_t batches = nc;
-        for (size_t c = 0; c < batches; ++c) {
-            const size_t base = c * 3;
-            const double a0 = ad[base], a1 = ad[base + 1], a2 = ad[base + 2];
-            const double b0 = bd[base], b1 = bd[base + 1], b2 = bd[base + 2];
-            od[base    ] = a1 * b2 - a2 * b1;
-            od[base + 1] = a2 * b0 - a0 * b2;
-            od[base + 2] = a0 * b1 - a1 * b0;
-        }
-    } else {
-        // Nx3: column-major, so element (r, k) at r + k*nr.
-        const size_t batches = nr;
-        for (size_t r = 0; r < batches; ++r) {
-            const double a0 = ad[r], a1 = ad[r + nr], a2 = ad[r + 2 * nr];
-            const double b0 = bd[r], b1 = bd[r + nr], b2 = bd[r + 2 * nr];
-            od[r           ] = a1 * b2 - a2 * b1;
-            od[r +     nr  ] = a2 * b0 - a0 * b2;
-            od[r + 2 * nr  ] = a0 * b1 - a1 * b0;
-        }
-    }
-    return out;
-}
-
-Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
-{
-    if (a.numel() != b.numel())
-        throw Error("dot: vectors must have same length",
-                     0, 0, "dot", "", "m:dot:lengthMismatch");
-    double s = 0;
-    for (size_t i = 0; i < a.numel(); ++i)
-        s += a.doubleData()[i] * b.doubleData()[i];
-    return Value::scalar(s, mr);
-}
+// NOTE: cross / dot migrated to libs/linalg/src/vector_ops.cpp.
 
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters
@@ -3804,7 +2605,7 @@ namespace { inline void fillOnes(Value &v, ValueType t)
       case ValueType::UINT32:  { auto *p = v.uint32DataMut();  std::fill(p, p + n, uint32_t(1)); break; }
       case ValueType::UINT64:  { auto *p = v.uint64DataMut();  std::fill(p, p + n, uint64_t(1)); break; }
       default: throw Error("ones: unsupported type for fill",
-                           0, 0, "ones", "", "m:ones:badType");
+                           0, 0, "ones", "", "numkit:ones:badType");
     }
 }}
 
@@ -3837,7 +2638,7 @@ namespace { ValueType colonOutType(const Value *ops, size_t n)
         else if (t != nonDouble)
             throw Error("colon: operands must be all the same type, "
                         "or mixed with real scalar doubles",
-                        0, 0, "colon", "", "m:colon:typeMix");
+                        0, 0, "colon", "", "numkit:colon:typeMix");
     }
     return nonDouble;
 }}
@@ -3856,7 +2657,7 @@ void colon_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
                                           args[2].toScalar(), t, mr);
     } else {
         throw Error("colon: requires 2 or 3 arguments",
-                    0, 0, "colon", "", "m:colon:nargin");
+                    0, 0, "colon", "", "numkit:colon:nargin");
     }
 }
 
@@ -3886,7 +2687,7 @@ void sparse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     throw Error("sparse: numkit has no sparse storage; supports only "
                 "sparse(M, N) → dense zeros and sparse(A) → A passthrough",
-                0, 0, "sparse", "", "m:sparse:NoSparse");
+                0, 0, "sparse", "", "numkit:sparse:NoSparse");
 }
 
 // `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions (not
@@ -3916,7 +2717,7 @@ void nan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("nan: type must be 'double' or 'single' (NaN is float-only)",
-                    0, 0, "nan", "", "m:nan:badType");
+                    0, 0, "nan", "", "numkit:nan:badType");
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
@@ -3937,7 +2738,7 @@ void inf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("inf: type must be 'double' or 'single' (Inf is float-only)",
-                    0, 0, "inf", "", "m:inf:badType");
+                    0, 0, "inf", "", "numkit:inf:badType");
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(d);
@@ -4006,7 +2807,7 @@ void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
       case ValueType::UINT16: { auto *p = m.uint16DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
       case ValueType::UINT32: { auto *p = m.uint32DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
       case ValueType::UINT64: { auto *p = m.uint64DataMut();  for (size_t i = 0; i < k; ++i) p[i + i*d.rows] = 1; break; }
-      default: throw Error("eye: unsupported type", 0, 0, "eye", "", "m:eye:badType");
+      default: throw Error("eye: unsupported type", 0, 0, "eye", "", "numkit:eye:badType");
     }
     outs[0] = std::move(m);
 }
@@ -4015,11 +2816,11 @@ void magic_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() != 1)
         throw Error("magic: requires exactly 1 argument",
-                     0, 0, "magic", "", "m:magic:nargin");
+                     0, 0, "magic", "", "numkit:magic:nargin");
     const double nd = args[0].toScalar();
     if (nd < 0.0 || nd != std::floor(nd))
         throw Error("magic: N must be a non-negative integer",
-                     0, 0, "magic", "", "m:magic:badN");
+                     0, 0, "magic", "", "numkit:magic:badN");
     outs[0] = magic(static_cast<size_t>(nd), ctx.engine->resource());
 }
 
@@ -4027,7 +2828,7 @@ void toeplitz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("toeplitz: requires 1 or 2 arguments",
-                    0, 0, "toeplitz", "", "m:toeplitz:nargin");
+                    0, 0, "toeplitz", "", "numkit:toeplitz:nargin");
     const Value &r = args.size() == 2 ? args[1] : Value::Empty;
     outs[0] = toeplitz(args[0], r, ctx.engine->resource());
 }
@@ -4036,7 +2837,7 @@ void hankel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 1 || args.size() > 2)
         throw Error("hankel: requires 1 or 2 arguments",
-                    0, 0, "hankel", "", "m:hankel:nargin");
+                    0, 0, "hankel", "", "numkit:hankel:nargin");
     const Value &r = args.size() == 2 ? args[1] : Value::Empty;
     outs[0] = hankel(args[0], r, ctx.engine->resource());
 }
@@ -4045,7 +2846,7 @@ void vander_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() != 1)
         throw Error("vander: requires exactly 1 argument",
-                    0, 0, "vander", "", "m:vander:nargin");
+                    0, 0, "vander", "", "numkit:vander:nargin");
     outs[0] = vander(args[0], ctx.engine->resource());
 }
 
@@ -4053,7 +2854,7 @@ void compan_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() != 1)
         throw Error("compan: requires exactly 1 argument",
-                    0, 0, "compan", "", "m:compan:nargin");
+                    0, 0, "compan", "", "numkit:compan:nargin");
     outs[0] = compan(args[0], ctx.engine->resource());
 }
 
@@ -4065,11 +2866,11 @@ size_t requireSizeArg(Span<const Value> args, const char *fn)
 {
     if (args.size() != 1)
         throw Error(std::string(fn) + ": requires exactly 1 argument",
-                    0, 0, fn, "", std::string("m:") + fn + ":nargin");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
     const double nd = args[0].toScalar();
     if (nd < 0.0 || nd != std::floor(nd))
         throw Error(std::string(fn) + ": N must be a non-negative integer",
-                    0, 0, fn, "", std::string("m:") + fn + ":badN");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badN");
     return static_cast<size_t>(nd);
 }
 
@@ -4104,309 +2905,99 @@ void rosser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (!args.empty())
         throw Error("rosser: takes no arguments",
-                    0, 0, "rosser", "", "m:rosser:nargin");
+                    0, 0, "rosser", "", "numkit:rosser:nargin");
     outs[0] = rosser(ctx.engine->resource());
 }
 
-void inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("inv: requires exactly 1 argument",
-                    0, 0, "inv", "", "m:inv:nargin");
-    outs[0] = inv(args[0], ctx.engine->resource());
-}
+// NOTE: inv_reg migrated to libs/linalg (properties.cpp).
 
-void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2 || args.size() > 3)
-        throw Error("linsolve: requires (A, B[, opts])",
-                    0, 0, "linsolve", "", "m:linsolve:nargin");
-    // 3rd arg (opts struct) accepted for MATLAB-compat but ignored.
-    outs[0] = linsolve(args[0], args[1], ctx.engine->resource());
-}
+// NOTE: linsolve_reg migrated to libs/linalg (solvers.cpp).
+// NOTE: pageinv_reg  migrated to libs/linalg (page_ops.cpp).
 
-void pageinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("pageinv: requires exactly 1 argument",
-                    0, 0, "pageinv", "", "m:pageinv:nargin");
-    outs[0] = pageinv(args[0], ctx.engine->resource());
-}
+// NOTE: trace_reg / det_reg migrated to libs/linalg (properties.cpp).
+// NOTE: chol_reg / lu_reg / qr_reg / svd_reg migrated to
+//       libs/linalg (decompositions.cpp).
+// NOTE: rank_reg / cond_reg / normest_reg migrated to
+//       libs/linalg (properties.cpp).
+// NOTE: pinv_reg / orth_reg / null_reg migrated to
+//       libs/linalg (pseudo_subspace.cpp).
+// NOTE: eig_reg / hess_reg / schur_reg / sylvester_reg /
+//       expm_reg / logm_reg / sqrtm_reg migrated to libs/linalg
+//       (eig.cpp, matrix_functions.cpp). Block below disabled.
 
-void trace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void topkrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() != 1)
-        throw Error("trace: requires exactly 1 argument",
-                    0, 0, "trace", "", "m:trace:nargin");
-    outs[0] = trace(args[0], ctx.engine->resource());
-}
-
-void det_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("det: requires exactly 1 argument",
-                    0, 0, "det", "", "m:det:nargin");
-    outs[0] = det(args[0], ctx.engine->resource());
-}
-
-void chol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("chol: requires exactly 1 argument",
-                    0, 0, "chol", "", "m:chol:nargin");
-    outs[0] = chol(args[0], ctx.engine->resource());
-}
-
-void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("lu: requires exactly 1 argument",
-                    0, 0, "lu", "", "m:lu:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [L, U, P] = lu_decompose(args[0], mr);
-        outs[0] = std::move(L);
-        outs[1] = std::move(U);
-        if (nargout >= 3) outs[2] = std::move(P);
-    } else {
-        outs[0] = lu_combined(args[0], mr);
-    }
-}
-
-void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("qr: requires exactly 1 argument",
-                    0, 0, "qr", "", "m:qr:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [Q, R] = qr_decompose(args[0], mr);
-        outs[0] = std::move(Q);
-        outs[1] = std::move(R);
-    } else {
-        outs[0] = qr_R_only(args[0], mr);
-    }
-}
-
-void svd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("svd: requires exactly 1 argument",
-                    0, 0, "svd", "", "m:svd:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [U, S, V] = svd_decompose(args[0], mr);
-        outs[0] = std::move(U);
-        outs[1] = std::move(S);
-        if (nargout >= 3) outs[2] = std::move(V);
-    } else {
-        outs[0] = svd_values(args[0], mr);
-    }
-}
-
-void rank_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("rank: requires (A) or (A, tol)",
-                    0, 0, "rank", "", "m:rank:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = rank_of(args[0], tol, ctx.engine->resource());
-}
-
-void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("pinv: requires (A) or (A, tol)",
-                    0, 0, "pinv", "", "m:pinv:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = pinv(args[0], tol, ctx.engine->resource());
-}
-
-void cond_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("cond: requires exactly 1 argument (2-norm only in this revision)",
-                    0, 0, "cond", "", "m:cond:nargin");
-    outs[0] = cond_2norm(args[0], ctx.engine->resource());
-}
-
-void orth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("orth: requires (A) or (A, tol)",
-                    0, 0, "orth", "", "m:orth:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = orth(args[0], tol, ctx.engine->resource());
-}
-
-void null_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("null: requires (A) or (A, tol)",
-                    0, 0, "null", "", "m:null:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = null_basis(args[0], tol, ctx.engine->resource());
-}
-
-void normest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("normest: requires exactly 1 argument",
-                    0, 0, "normest", "", "m:normest:nargin");
-    outs[0] = normest(args[0], ctx.engine->resource());
-}
-
-void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("eig: requires exactly 1 argument",
-                    0, 0, "eig", "", "m:eig:nargin");
-    auto *mr = ctx.engine->resource();
-
-    // Dispatch: symmetric -> Jacobi (eigenvalues + eigenvectors).
-    // Asymmetric -> general path (eigenvalues only via char poly + roots;
-    // eigenvectors deferred to Phase 2c-3 with QR iteration).
-    if (isSymmetric(args[0], 1e-10)) {
-        if (nargout >= 2) {
-            auto [V, D] = eig_symmetric(args[0], mr);
-            outs[0] = std::move(V);
-            outs[1] = std::move(D);
-        } else {
-            outs[0] = eig_values(args[0], mr);
-        }
-    } else {
-        if (nargout >= 2) {
-            // [V, D] for asymmetric: works when all eigenvalues are
-            // real (via null-space of A - lam*I); throws if complex
-            // eigenvalues are present (Francis QR deferred).
-            auto [V, D] = eig_general_VD(args[0], mr);
-            outs[0] = std::move(V);
-            outs[1] = std::move(D);
-        } else {
-            outs[0] = eig_general_values(args[0], mr);
-        }
-    }
-}
-
-void expm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("expm: requires exactly 1 argument",
-                    0, 0, "expm", "", "m:expm:nargin");
-    outs[0] = expm(args[0], ctx.engine->resource());
-}
-
-void logm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("logm: requires exactly 1 argument",
-                    0, 0, "logm", "", "m:logm:nargin");
-    outs[0] = logm_sym(args[0], ctx.engine->resource());
-}
-
-void sqrtm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("sqrtm: requires exactly 1 argument",
-                    0, 0, "sqrtm", "", "m:sqrtm:nargin");
-    outs[0] = sqrtm_sym(args[0], ctx.engine->resource());
-}
-
-void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("schur: requires exactly 1 argument",
-                    0, 0, "schur", "", "m:schur:nargin");
-    auto *mr = ctx.engine->resource();
-    auto [U, T] = schur_sym(args[0], mr);
-    if (nargout >= 2) {
-        outs[0] = std::move(U);
-        outs[1] = std::move(T);
-    } else {
-        outs[0] = std::move(T);
-    }
-}
-
-void sylvester_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 3)
-        throw Error("sylvester: requires (A, B, C)",
-                    0, 0, "sylvester", "", "m:sylvester:nargin");
-    outs[0] = sylvester_sym(args[0], args[1], args[2], ctx.engine->resource());
-}
-
-void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty() || args.size() > 2)
-        throw Error("norm: requires (X) or (X, p)",
-                    0, 0, "norm", "", "m:norm:nargin");
-    auto *mr = ctx.engine->resource();
-    if (args.size() == 1) {
-        outs[0] = norm_value(args[0], 2.0, mr);
-        return;
-    }
-    const Value &p = args[1];
-    if (p.isChar() || p.isString()) {
-        const auto s = p.toString();
-        if (s == "fro" || s == "Fro") {
-            outs[0] = norm_fro(args[0], mr);
-            return;
-        }
-        if (s == "inf" || s == "Inf") {
-            outs[0] = norm_inf(args[0], mr);
-            return;
-        }
-        throw Error("norm: string p must be 'fro' or 'inf'",
-                    0, 0, "norm", "", "m:norm:badStringP");
-    }
-    const double pv = p.toScalar();
-    if (std::isinf(pv)) {
-        outs[0] = norm_inf(args[0], mr);
-        return;
-    }
-    outs[0] = norm_value(args[0], pv, mr);
-}
-
-void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 2)
-        throw Error("subspace: requires (A, B)",
-                    0, 0, "subspace", "", "m:subspace:nargin");
-    outs[0] = subspace(args[0], args[1], ctx.engine->resource());
-}
-
-void hess_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("hess: requires exactly 1 argument",
-                    0, 0, "hess", "", "m:hess:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [P, H] = hess(args[0], mr);
-        outs[0] = std::move(P);
-        outs[1] = std::move(H);
-    } else {
-        outs[0] = hess_H_only(args[0], mr);
-    }
-}
-
-void topkrows_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 2)
-        throw Error("topkrows: requires (A, k)",
-                    0, 0, "topkrows", "", "m:topkrows:nargin");
+    if (args.size() < 2)
+        throw Error("topkrows: requires (A, k[, col[, direction]])",
+                    0, 0, "topkrows", "", "numkit:topkrows:nargin");
     const double kd = args[1].toScalar();
     if (kd < 0.0 || kd != std::floor(kd))
         throw Error("topkrows: k must be a non-negative integer",
-                    0, 0, "topkrows", "", "m:topkrows:badK");
-    outs[0] = topkrows(args[0], static_cast<std::size_t>(kd), ctx.engine->resource());
+                    0, 0, "topkrows", "", "numkit:topkrows:badK");
+    auto *mr = ctx.engine->resource();
+
+    // Parse `col` (positive int / vector) and `direction` (string /
+    // string vector). 'ComparisonMethod' NV pair (auto/real/abs) is
+    // accept-and-ignore — numkit only supports real numeric input here.
+    std::vector<std::size_t> cols;
+    std::vector<std::uint8_t> desc;
+    size_t i = 2;
+    if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
+        // Treat as col vector.
+        const Value &c = args[i];
+        cols.reserve(c.numel());
+        for (std::size_t kk = 0; kk < c.numel(); ++kk) {
+            const double v = c.elemAsDouble(kk);
+            if (v < 1.0 || v != std::floor(v))
+                throw Error("topkrows: col must be a positive integer "
+                            "or vector of positive integers",
+                            0, 0, "topkrows", "", "numkit:topkrows:badCol");
+            cols.push_back(static_cast<std::size_t>(v) - 1);
+        }
+        ++i;
+    }
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        const std::string s = args[i].toString();
+        if (s == "ComparisonMethod") {
+            // accept-and-ignore; consume value
+            i += 2;
+        } else {
+            if (s == "descend")      desc.push_back(1);
+            else if (s == "ascend")  desc.push_back(0);
+            else
+                throw Error("topkrows: direction must be 'ascend' or "
+                            "'descend'",
+                            0, 0, "topkrows", "", "numkit:topkrows:badDir");
+            ++i;
+        }
+    }
+    // Optional trailing 'ComparisonMethod' NV (after dir).
+    while (i + 1 < args.size() && (args[i].isChar() || args[i].isString())) {
+        const std::string nm = args[i].toString();
+        if (nm == "ComparisonMethod") { i += 2; continue; }
+        throw Error("topkrows: unexpected argument '" + nm + "'",
+                    0, 0, "topkrows", "", "numkit:topkrows:badArg");
+    }
+
+    std::vector<std::size_t> idx_out;
+    auto B = topkrows_full(args[0], static_cast<std::size_t>(kd),
+                            cols, desc,
+                            (nargout >= 2) ? &idx_out : nullptr, mr);
+    outs[0] = std::move(B);
+    if (nargout >= 2) {
+        auto I = Value::matrix(idx_out.size(), 1, ValueType::DOUBLE, mr);
+        double *id = I.doubleDataMut();
+        for (std::size_t k2 = 0; k2 < idx_out.size(); ++k2)
+            id[k2] = double(idx_out[k2] + 1);  // 1-indexed
+        outs[1] = std::move(I);
+    }
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("Not enough input arguments",
-                     0, 0, "size", "", "m:size:nargin");
+                     0, 0, "size", "", "numkit:size:nargin");
     auto *mr = ctx.engine->resource();
 
     if (args.size() >= 2) {
@@ -4444,7 +3035,7 @@ void length_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("length: requires 1 argument",
-                     0, 0, "length", "", "m:length:nargin");
+                     0, 0, "length", "", "numkit:length:nargin");
     outs[0] = length(args[0], ctx.engine->resource());
 }
 
@@ -4452,7 +3043,7 @@ void numel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("numel: requires 1 argument",
-                     0, 0, "numel", "", "m:numel:nargin");
+                     0, 0, "numel", "", "numkit:numel:nargin");
     outs[0] = numel(args[0], ctx.engine->resource());
 }
 
@@ -4460,7 +3051,7 @@ void ndims_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("ndims: requires 1 argument",
-                     0, 0, "ndims", "", "m:ndims:nargin");
+                     0, 0, "ndims", "", "numkit:ndims:nargin");
     outs[0] = ndims(args[0], ctx.engine->resource());
 }
 
@@ -4468,7 +3059,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("reshape: requires at least 2 arguments",
-                     0, 0, "reshape", "", "m:reshape:nargin");
+                     0, 0, "reshape", "", "numkit:reshape:nargin");
 
     const auto &x = args[0];
     auto *mr = ctx.engine->resource();
@@ -4489,7 +3080,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
             if (args[i + 1].isEmpty()) {
                 if (inferPos >= 0)
                     throw Error("reshape: only one dimension may be inferred via []",
-                                 0, 0, "reshape", "", "m:reshape:tooManyInferred");
+                                 0, 0, "reshape", "", "numkit:reshape:tooManyInferred");
                 inferPos = static_cast<int>(i);
             } else {
                 dims[i] = static_cast<size_t>(args[i + 1].toScalar());
@@ -4499,7 +3090,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         if (inferPos >= 0) {
             if (knownProd == 0 || x.numel() % knownProd != 0)
                 throw Error("reshape: size of array must be divisible by product of known dims",
-                             0, 0, "reshape", "", "m:reshape:indivisible");
+                             0, 0, "reshape", "", "numkit:reshape:indivisible");
             dims[inferPos] = x.numel() / knownProd;
         }
     }
@@ -4513,7 +3104,7 @@ void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("transpose: requires 1 argument",
-                     0, 0, "transpose", "", "m:transpose:nargin");
+                     0, 0, "transpose", "", "numkit:transpose:nargin");
     outs[0] = transpose(args[0], ctx.engine->resource());
 }
 
@@ -4522,7 +3113,7 @@ void pagetranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("pagetranspose: requires 1 argument",
-                     0, 0, "pagetranspose", "", "m:pagetranspose:nargin");
+                     0, 0, "pagetranspose", "", "numkit:pagetranspose:nargin");
     outs[0] = pagetranspose(args[0], ctx.engine->resource());
 }
 
@@ -4531,7 +3122,7 @@ void pagectranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("pagectranspose: requires 1 argument",
-                     0, 0, "pagectranspose", "", "m:pagectranspose:nargin");
+                     0, 0, "pagectranspose", "", "numkit:pagectranspose:nargin");
     outs[0] = pagectranspose(args[0], ctx.engine->resource());
 }
 
@@ -4543,7 +3134,7 @@ void peaks_reg(Span<const Value> args, size_t, Span<Value> outs,
         const double dn = args[0].toScalar();
         if (dn < 0 || dn > 1.0e9 || std::isnan(dn))
             throw Error("peaks: n must be a non-negative integer",
-                         0, 0, "peaks", "", "m:peaks:badN");
+                         0, 0, "peaks", "", "numkit:peaks:badN");
         n = static_cast<size_t>(dn);
     }
     outs[0] = peaks(n, ctx.engine->resource());
@@ -4595,7 +3186,7 @@ void ellipsoid_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 6)
         throw Error("ellipsoid: requires (xc, yc, zc, xr, yr, zr [, n])",
-                     0, 0, "ellipsoid", "", "m:ellipsoid:nargin");
+                     0, 0, "ellipsoid", "", "numkit:ellipsoid:nargin");
     const double xc = args[0].toScalar();
     const double yc = args[1].toScalar();
     const double zc = args[2].toScalar();
@@ -4615,14 +3206,14 @@ void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     auto parseFlag = [](const Value &v) -> TranspOp {
         if (!v.isChar() && !v.isString())
             throw Error("pagemtimes: transpose flag must be a string",
-                         0, 0, "pagemtimes", "", "m:pagemtimes:flagType");
+                         0, 0, "pagemtimes", "", "numkit:pagemtimes:flagType");
         const std::string s = v.toString();
         if (s == "none")       return TranspOp::None;
         if (s == "transpose")  return TranspOp::Transpose;
         if (s == "ctranspose") return TranspOp::CTranspose;
         throw Error("pagemtimes: invalid transpose flag '" + s
                      + "' (expected 'none', 'transpose', or 'ctranspose')",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:invalidFlag");
+                     0, 0, "pagemtimes", "", "numkit:pagemtimes:invalidFlag");
     };
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
@@ -4634,23 +3225,56 @@ void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         return;
     }
     throw Error("pagemtimes: expected 2 or 4 arguments",
-                 0, 0, "pagemtimes", "", "m:pagemtimes:nargin");
+                 0, 0, "pagemtimes", "", "numkit:pagemtimes:nargin");
 }
 
 void diag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("diag: requires 1 argument",
-                     0, 0, "diag", "", "m:diag:nargin");
-    outs[0] = diag(args[0], ctx.engine->resource());
+                     0, 0, "diag", "", "numkit:diag:nargin");
+    long k = 0;
+    if (args.size() >= 2)
+        k = static_cast<long>(std::llround(args[1].toScalar()));
+    outs[0] = diag(args[0], k, ctx.engine->resource());
 }
 
 void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("sort: requires 1 argument",
-                     0, 0, "sort", "", "m:sort:nargin");
-    auto [sorted, idx] = sort(args[0], ctx.engine->resource());
+                     0, 0, "sort", "", "numkit:sort:nargin");
+    // sort(X[, dim][, direction]): a numeric trailing arg is the dim, a
+    // string is the direction ('ascend' default / 'descend'). MATLAB
+    // accepts sort(X,direction) and sort(X,dim,direction).
+    int dim = -1;
+    bool descend = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i].isEmpty()) continue;
+        if (args[i].isChar() || args[i].isString()) {
+            std::string d = args[i].toString();
+            for (char &ch : d) if (ch >= 'A' && ch <= 'Z') ch = char(ch + 32);
+            if (d == "descend") descend = true;
+            else if (d == "ascend") descend = false;
+            // ignore other Name-Value tokens (e.g. ComparisonMethod)
+        } else {
+            dim = static_cast<int>(args[i].toScalar());
+        }
+    }
+    auto *mr = ctx.engine->resource();
+    // Integer types: MATLAB keeps the class on the sorted VALUES (the index
+    // output stays double). Sort through the double path (the order is
+    // identical) then cast the sorted values back to the integer class.
+    if (isIntegerType(args[0].type())) {
+        const ValueType vt = args[0].type();
+        Value xd = copyToDouble(args[0], mr);
+        auto [sortedD, idxD] = sort(xd, dim, descend, mr);
+        outs[0] = doubleToIntegerExact(sortedD, vt, mr);
+        if (nargout > 1)
+            outs[1] = std::move(idxD);
+        return;
+    }
+    auto [sorted, idx] = sort(args[0], dim, descend, mr);
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -4660,22 +3284,95 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("sortrows: requires at least 1 argument",
-                     0, 0, "sortrows", "", "m:sortrows:nargin");
+                     0, 0, "sortrows", "", "numkit:sortrows:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
     auto cols = ScratchVec<int>(&scratch);
+
+    // 'ascend' (false) / 'descend' (true), case-insensitive.
+    auto dirDescend = [](std::string s) -> bool {
+        for (auto &ch : s)
+            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (s == "ascend") return false;
+        if (s == "descend") return true;
+        throw Error("sortrows: direction must be 'ascend' or 'descend'",
+                     0, 0, "sortrows", "", "numkit:sortrows:badDirection");
+    };
+    // CHAR/STRING scalar → one flag; CELL or multi-element STRING → one per
+    // element (both store their elements as Values in cellDataVec()).
+    auto collectDirs = [&](const Value &v, ScratchVec<uint8_t> &out) {
+        if (v.type() == ValueType::CELL ||
+            (v.type() == ValueType::STRING && v.numel() > 1)) {
+            const auto &vec = v.cellDataVec();
+            for (const auto &e : vec)
+                out.push_back(dirDescend(e.toString()) ? 1u : 0u);
+        } else {
+            out.push_back(dirDescend(v.toString()) ? 1u : 0u);
+        }
+    };
+    auto isDirArg = [](const Value &v) {
+        return v.type() == ValueType::CHAR || v.type() == ValueType::STRING ||
+               v.type() == ValueType::CELL;
+    };
+
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const auto &c = args[1];
-        if (c.type() == ValueType::CHAR || c.type() == ValueType::STRING)
-            throw Error("sortrows: column spec must be numeric",
-                         0, 0, "sortrows", "", "m:sortrows:badColType");
-        cols.reserve(c.numel());
-        for (size_t i = 0; i < c.numel(); ++i) {
-            const double v = c.elemAsDouble(i);
-            if (v != std::floor(v))
-                throw Error("sortrows: column index must be an integer",
-                             0, 0, "sortrows", "", "m:sortrows:badCol");
-            cols.push_back(static_cast<int>(v));
+        if (isDirArg(c)) {
+            // sortrows(A, direction[s]) — direction(s) applied over ALL
+            // columns. A single direction covers every column; a cell/string
+            // array must supply exactly one direction per column.
+            const size_t C = args[0].dims().cols();
+            ScratchVec<uint8_t> dirs(&scratch);
+            collectDirs(c, dirs);
+            if (dirs.size() == 1) {
+                const bool d = dirs[0] != 0;
+                for (size_t k = 1; k <= C; ++k)
+                    cols.push_back(d ? -static_cast<int>(k) : static_cast<int>(k));
+            } else {
+                if (dirs.size() != C)
+                    throw Error("sortrows: number of directions must match the "
+                                "number of columns",
+                                 0, 0, "sortrows", "", "numkit:sortrows:dirCount");
+                for (size_t k = 0; k < C; ++k)
+                    cols.push_back(dirs[k] ? -static_cast<int>(k + 1)
+                                           : static_cast<int>(k + 1));
+            }
+        } else {
+            cols.reserve(c.numel());
+            for (size_t i = 0; i < c.numel(); ++i) {
+                const double v = c.elemAsDouble(i);
+                if (v != std::floor(v))
+                    throw Error("sortrows: column index must be an integer",
+                                 0, 0, "sortrows", "", "numkit:sortrows:badCol");
+                cols.push_back(static_cast<int>(v));
+            }
+            // Optional direction argument: sortrows(A, cols, direction[s]).
+            // Re-signs the listed columns by direction (overriding any sign in
+            // the numeric spec). A single direction covers all listed columns.
+            if (args.size() >= 3 && !args[2].isEmpty()) {
+                if (!isDirArg(args[2]))
+                    throw Error("sortrows: direction must be 'ascend' or "
+                                "'descend'",
+                                 0, 0, "sortrows", "", "numkit:sortrows:badDirection");
+                ScratchVec<uint8_t> dirs(&scratch);
+                collectDirs(args[2], dirs);
+                if (dirs.size() == 1) {
+                    const bool d = dirs[0] != 0;
+                    for (auto &cc : cols) {
+                        const int a = cc < 0 ? -cc : cc;
+                        cc = d ? -a : a;
+                    }
+                } else {
+                    if (dirs.size() != cols.size())
+                        throw Error("sortrows: number of directions must match "
+                                    "the number of sort columns",
+                                     0, 0, "sortrows", "", "numkit:sortrows:dirCount");
+                    for (size_t i = 0; i < cols.size(); ++i) {
+                        const int a = cols[i] < 0 ? -cols[i] : cols[i];
+                        cols[i] = dirs[i] ? -a : a;
+                    }
+                }
+            }
         }
     }
     auto [sorted, idx] = sortrows(args[0], Span<const int>(cols.data(), cols.size()), mr);
@@ -4684,19 +3381,68 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         outs[1] = std::move(idx);
 }
 
-void find_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void find_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("find: requires 1 argument",
-                     0, 0, "find", "", "m:find:nargin");
-    outs[0] = find(args[0], ctx.engine->resource());
+                     0, 0, "find", "", "numkit:find:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &x = args[0];
+
+    if (nargout <= 1) {
+        outs[0] = find(x, mr);
+        return;
+    }
+
+    // [r, c] = find(X) / [r, c, v] = find(X): row/column subscripts (and the
+    // nonzero values). Subscripts/values inherit X's vector orientation (row
+    // vector → row results, otherwise column results), matching MATLAB.
+    // NOTE: the find(X, n) row-count limit is not applied to the multi-output
+    // forms here.
+    ScratchArena scratch(mr);
+    auto lin = ScratchVec<size_t>(&scratch);
+    forEachNonzero(x, [&](size_t i) { lin.push_back(i); });
+    const size_t k = lin.size();
+    const size_t R = x.dims().rows() == 0 ? 1 : x.dims().rows();
+    const bool rowResult = !x.dims().is3D() && x.dims().rows() == 1;
+    auto mk = [&](ValueType t) {
+        return rowResult ? Value::matrix(1, k, t, mr)
+                         : Value::matrix(k, 1, t, mr);
+    };
+
+    Value rowV = mk(ValueType::DOUBLE);
+    Value colV = mk(ValueType::DOUBLE);
+    double *rd = rowV.doubleDataMut();
+    double *cd = colV.doubleDataMut();
+    for (size_t t = 0; t < k; ++t) {
+        const size_t i = lin[t];
+        rd[t] = static_cast<double>(i % R + 1);
+        cd[t] = static_cast<double>(i / R + 1);
+    }
+    outs[0] = rowV;
+    outs[1] = colV;
+
+    if (nargout >= 3) {
+        if (x.type() == ValueType::COMPLEX) {
+            Value valV = mk(ValueType::COMPLEX);
+            const Complex *src = x.complexData();
+            Complex *vd = valV.complexDataMut();
+            for (size_t t = 0; t < k; ++t) vd[t] = src[lin[t]];
+            outs[2] = valV;
+        } else {
+            Value valV = mk(ValueType::DOUBLE);
+            double *vd = valV.doubleDataMut();
+            for (size_t t = 0; t < k; ++t) vd[t] = x.elemAsDouble(lin[t]);
+            outs[2] = valV;
+        }
+    }
 }
 
 void nnz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("nnz: requires 1 argument",
-                     0, 0, "nnz", "", "m:nnz:nargin");
+                     0, 0, "nnz", "", "numkit:nnz:nargin");
     outs[0] = nnz(args[0], ctx.engine->resource());
 }
 
@@ -4704,7 +3450,7 @@ void nonzeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("nonzeros: requires 1 argument",
-                     0, 0, "nonzeros", "", "m:nonzeros:nargin");
+                     0, 0, "nonzeros", "", "numkit:nonzeros:nargin");
     outs[0] = nonzeros(args[0], ctx.engine->resource());
 }
 
@@ -4722,7 +3468,7 @@ void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("meshgrid: requires at least 1 argument",
-                     0, 0, "meshgrid", "", "m:meshgrid:nargin");
+                     0, 0, "meshgrid", "", "numkit:meshgrid:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         // meshgrid(x) ≡ meshgrid(x, x). See BUGS.md #21.
@@ -4745,14 +3491,14 @@ void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         return;
     }
     throw Error("meshgrid: 4+ inputs are not supported",
-                 0, 0, "meshgrid", "", "m:meshgrid:tooManyInputs");
+                 0, 0, "meshgrid", "", "numkit:meshgrid:tooManyInputs");
 }
 
 void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("ndgrid: requires at least 2 arguments",
-                     0, 0, "ndgrid", "", "m:ndgrid:nargin");
+                     0, 0, "ndgrid", "", "numkit:ndgrid:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
         auto [X, Y] = ndgrid(args[0], args[1], mr);
@@ -4768,43 +3514,14 @@ void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         return;
     }
     throw Error("ndgrid: 4+ inputs are not yet supported",
-                 0, 0, "ndgrid", "", "m:ndgrid:tooManyInputs");
+                 0, 0, "ndgrid", "", "numkit:ndgrid:tooManyInputs");
 }
 
-void kron_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("kron: requires 2 arguments",
-                     0, 0, "kron", "", "m:kron:nargin");
-    outs[0] = kron(args[0], args[1], ctx.engine->resource());
-}
+// NOTE: kron_reg migrated to libs/linalg/src/vector_ops.cpp.
 
-void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("cumsum: requires at least 1 argument",
-                     0, 0, "cumsum", "", "m:cumsum:nargin");
-    int dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        dim = static_cast<int>(args[1].toScalar());
-    outs[0] = (dim > 0) ? cumsum(args[0], dim, ctx.engine->resource())
-                        : cumsum(args[0], ctx.engine->resource());
-}
-
-#define NK_CUM_REG(name)                                                       \
-    void name##_reg(Span<const Value> args, size_t /*nargout*/,               \
-                    Span<Value> outs, CallContext &ctx)                       \
-    {                                                                          \
-        if (args.empty())                                                      \
-            throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
-        int dim = 0;                                                           \
-        if (args.size() >= 2 && !args[1].isEmpty())                            \
-            dim = static_cast<int>(args[1].toScalar());                        \
-        outs[0] = name(args[0], dim, ctx.engine->resource());                 \
-    }
-
-NK_CUM_REG(cumprod)
+// cumsum_reg / cumprod_reg are defined below (after the cum-flag helpers),
+// where flip() is in scope — they parse the 'reverse'/'forward' direction
+// and 'omitnan'/'includenan' flags like MATLAB.
 
 // MATLAB cummax / cummin accept positional 'reverse' / 'omitnan' /
 // 'includenan' string flags after the optional dim. Trick: 'reverse'
@@ -4827,7 +3544,7 @@ void parseCumDirNan(Span<const Value> args, size_t start,
     while (i < args.size()) {
         if (!(args[i].isChar() || args[i].isString())) {
             throw Error("cummax/cummin: trailing positional must be a string flag",
-                        0, 0, "cummax/cummin", "", "m:cum:badArg");
+                        0, 0, "cummax/cummin", "", "numkit:cum:badArg");
         }
         std::string s = args[i].toString();
         for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -4837,7 +3554,7 @@ void parseCumDirNan(Span<const Value> args, size_t start,
         else if (s == "includenan") include_nan = true;
         else
             throw Error("cummax/cummin: unknown flag '" + s + "'",
-                        0, 0, "cummax/cummin", "", "m:cum:flag");
+                        0, 0, "cummax/cummin", "", "numkit:cum:flag");
         ++i;
     }
 }
@@ -4910,7 +3627,7 @@ void cummax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("cummax: requires at least 1 argument",
-                     0, 0, "cummax", "", "m:cummax:nargin");
+                     0, 0, "cummax", "", "numkit:cummax:nargin");
     outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
                                   return cummax(v, d, mr);
                               }, ctx.engine->resource());
@@ -4920,24 +3637,89 @@ void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("cummin: requires at least 1 argument",
-                     0, 0, "cummin", "", "m:cummin:nargin");
+                     0, 0, "cummin", "", "numkit:cummin:nargin");
     outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
                                   return cummin(v, d, mr);
                               }, ctx.engine->resource());
+}
+
+namespace {
+
+// cumsum/cumprod option handling. Unlike cummax/cummin (whose kernel skips
+// NaN), the cumsum/cumprod kernels PROPAGATE NaN — which is MATLAB's
+// 'includenan' default. So 'omitnan' is implemented by replacing NaN with
+// the additive/multiplicative identity (0 / 1) BEFORE the scan. 'reverse'
+// = flip → scan → flip along the operating dimension.
+Value cumScanFlags(const Value &x, Span<const Value> args, bool isProd,
+                   std::pmr::memory_resource *mr)
+{
+    int dim = 0; bool reverse = false; bool omitnan = false;
+    size_t i = 1;
+    if (i < args.size() && !args[i].isEmpty()
+        && !args[i].isChar() && !args[i].isString()) {
+        dim = static_cast<int>(args[i].toScalar()); ++i;
+    }
+    for (; i < args.size(); ++i) {
+        if (!(args[i].isChar() || args[i].isString())) continue;
+        std::string s = args[i].toString();
+        for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if      (s == "reverse")    reverse = true;
+        else if (s == "forward")    reverse = false;
+        else if (s == "omitnan")    omitnan = true;
+        else if (s == "includenan") omitnan = false;
+    }
+    // Effective (1-based) dim: first non-singleton when unspecified.
+    int effDim = dim;
+    if (effDim <= 0) {
+        const auto &dd = x.dims();
+        effDim = 1;
+        for (int k = 0; k < dd.ndim(); ++k)
+            if (dd.dim(k) > 1) { effDim = k + 1; break; }
+    }
+    Value src = x;
+    if (omitnan && src.type() == ValueType::DOUBLE) {
+        const double id = isProd ? 1.0 : 0.0;
+        double *d = src.doubleDataMut();
+        const size_t n = src.numel();
+        for (size_t k = 0; k < n; ++k)
+            if (std::isnan(d[k])) d[k] = id;
+    }
+    if (reverse) src = flip(src, effDim, mr);
+    Value out = isProd ? cumprod(src, effDim, mr) : cumsum(src, effDim, mr);
+    if (reverse) out = flip(out, effDim, mr);
+    return out;
+}
+
+} // anonymous
+
+void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cumsum: requires at least 1 argument",
+                     0, 0, "cumsum", "", "numkit:cumsum:nargin");
+    outs[0] = cumScanFlags(args[0], args, /*isProd=*/false, ctx.engine->resource());
+}
+
+void cumprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cumprod: requires at least 1 argument",
+                     0, 0, "cumprod", "", "numkit:cumprod:nargin");
+    outs[0] = cumScanFlags(args[0], args, /*isProd=*/true, ctx.engine->resource());
 }
 
 void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("diff: requires at least 1 argument",
-                     0, 0, "diff", "", "m:diff:nargin");
+                     0, 0, "diff", "", "numkit:diff:nargin");
     int n = 1;
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double nv = args[1].toScalar();
         if (nv != std::floor(nv) || nv < 0)
             throw Error("diff: order n must be a non-negative integer",
-                         0, 0, "diff", "", "m:diff:badOrder");
+                         0, 0, "diff", "", "numkit:diff:badOrder");
         n = static_cast<int>(nv);
     }
     if (args.size() >= 3 && !args[2].isEmpty())
@@ -4953,7 +3735,7 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         int dim = 0;                                                           \
         if (args.size() >= 2 && !args[1].isEmpty())                            \
             dim = static_cast<int>(args[1].toScalar());                        \
@@ -4969,25 +3751,11 @@ void xor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.size() < 2)
         throw Error("xor: requires 2 arguments",
-                     0, 0, "xor", "", "m:xor:nargin");
+                     0, 0, "xor", "", "numkit:xor:nargin");
     outs[0] = xorOf(args[0], args[1], ctx.engine->resource());
 }
 
-void cross_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("cross: requires 2 arguments",
-                     0, 0, "cross", "", "m:cross:nargin");
-    outs[0] = cross(args[0], args[1], ctx.engine->resource());
-}
-
-void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("dot: requires 2 arguments",
-                     0, 0, "dot", "", "m:dot:nargin");
-    outs[0] = dot(args[0], args[1], ctx.engine->resource());
-}
+// NOTE: cross_reg / dot_reg migrated to libs/linalg/src/vector_ops.cpp.
 
 } // namespace detail
 

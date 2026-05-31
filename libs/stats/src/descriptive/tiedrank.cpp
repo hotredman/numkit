@@ -126,7 +126,7 @@ void tiedrank_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("tiedrank: requires at least one argument",
-                    0, 0, "tiedrank", "", "m:tiedrank:nargin");
+                    0, 0, "tiedrank", "", "numkit:tiedrank:nargin");
     auto *mr = ctx.engine->resource();
     auto [r, ta] = tiedrank(args[0], mr);
     outs[0] = std::move(r);

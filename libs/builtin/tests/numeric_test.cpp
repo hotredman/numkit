@@ -105,6 +105,36 @@ TEST_P(NumericTest, GcdVector)
     EXPECT_DOUBLE_EQ(v->doubleData()[2], 4.0);
 }
 
+// [g,u,v]=gcd(a,b): Bezout coefficients with a*u+b*v=g (MATLAB R2025b).
+// numkit previously only supported the 1-output form. DEEP-PROBE 2026-05-30.
+TEST_P(NumericTest, GcdExtendedBezout)
+{
+    eval("[g,u,v] = gcd(12, 18);");
+    EXPECT_DOUBLE_EQ(evalScalar("g"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("12*u + 18*v"), 6.0);   // Bezout identity
+    eval("[g2,u2,v2] = gcd(8, 5);");
+    EXPECT_DOUBLE_EQ(evalScalar("u2"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v2"), -3.0);
+    // Negatives: g >= 0, coefficients normalized with it.
+    eval("[g3,u3,v3] = gcd(-12, 18);");
+    EXPECT_DOUBLE_EQ(evalScalar("g3"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u3"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v3"), 1.0);
+    // gcd(0,0) -> [0,0,0].
+    eval("[g4,u4,v4] = gcd(0, 0);");
+    EXPECT_DOUBLE_EQ(evalScalar("g4"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u4"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v4"), 0.0);
+    // Elementwise over vectors.
+    eval("[gv,uv,vv] = gcd([12 8], [18 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("uv(1)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vv(2)"), -3.0);
+    // 1-output form still works.
+    EXPECT_DOUBLE_EQ(evalScalar("gcd(12, 18)"), 6.0);
+}
+
 TEST_P(NumericTest, LcmBasic)
 {
     EXPECT_DOUBLE_EQ(evalScalar("lcm(4, 6);"), 12.0);

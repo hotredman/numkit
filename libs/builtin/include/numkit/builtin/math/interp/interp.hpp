@@ -130,7 +130,25 @@ Value spline(const Value &x, const Value &y, const Value &xq,
 Value pchip(const Value &x, const Value &y, const Value &xq,
             std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Build a MATLAB-style pp struct (`pp = mkpp(breaks, coefs)`).
+/// @brief Modified Akima cubic Hermite interpolation
+/// (`yq = makima(x, y, xq)`).
+///
+/// Equivalent to `interp1(x, y, xq, "makima")`. The modified Akima
+/// weight `|m_{i+1} - m_i| + |m_{i+1} + m_i| / 2` avoids the original
+/// Akima method's zero-weight degeneracies on flat data.
+///
+/// KNOWN GAP: the 2-arg `pp = makima(x, y)` pp-form is not supported.
+///
+/// @param x   Sample sites (strictly monotonic).
+/// @param y   Sample values.
+/// @param xq  Query points.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Interpolated values.
+/// @see interp1, pchip, spline
+Value makima(const Value &x, const Value &y, const Value &xq,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Build a piecewise-polynomial (pp) struct (`pp = mkpp(breaks, coefs)`).
 ///
 /// Fields: `{form='pp', breaks, coefs, pieces, order, dim}`.
 /// `coefs` is `pieces × order`.

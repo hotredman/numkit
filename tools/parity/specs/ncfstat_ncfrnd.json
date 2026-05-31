@@ -1,0 +1,16 @@
+{
+  "name": "ncfstat_ncfrnd",
+  "covers": ["ncfstat", "ncfrnd"],
+  "namespace": "stats",
+  "setup": "nu1 = 5; nu2 = 10; delta = 3;",
+  "expr": "[m1, v1] = ncfstat(nu1, nu2, delta); [m2, v2] = ncfstat(8, 20, 2); rng(0); S = ncfrnd(nu1, nu2, delta, 5000, 1); ms = mean(S); vs = var(S); err_m = abs(ms - m1); err_v = abs(vs - v1); all_pos = all(S > 0);",
+  "iters": 3,
+  "tol": 1e-08,
+  "fingerprint": [
+    "m1", "v1", "m2", "v2",
+    "double(err_m < 0.3)", "double(err_v < 1.5)",
+    "double(all_pos)",
+    "size(S, 1)", "size(S, 2)"
+  ],
+  "comment": "Sig: ncfstat(nu1, nu2, delta) — closed-form m = ν₂(ν₁+δ)/(ν₁(ν₂-2)) for ν₂>2; v = 2(ν₂/ν₁)²·((ν₁+δ)² + (ν₁+2δ)(ν₂-2)) / ((ν₂-2)²(ν₂-4)) for ν₂>4. ncfrnd(nu1, nu2, delta, rows, cols) — sample F = (X₁/ν₁)/(X₂/ν₂) where X₁ ~ noncentral χ²(ν₁, δ) via Poisson-mixture (J ~ Poisson(δ/2), then χ²(ν₁+2J)) and X₂ ~ χ²(ν₂). Uses shared MT19937 stream. ncfstat bit-equal to MATLAB R2025b at 1e-9; ncfrnd sample moments pinned at statistical tolerance over 5000 draws. Completes noncentral F family (ncfpdf/ncfcdf/ncfinv/ncfstat/ncfrnd)."
+}

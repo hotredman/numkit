@@ -1,12 +1,15 @@
 {
   "name": "xcov",
   "namespace": "signal",
-  "setup": "",
-  "expr": "r = xcov([1 2 3], [1 2 3]); r1 = double(numel(r));",
-  "iters": 5,
-  "tol": 1e-06,
+  "setup": "x = [1 3 -2 4 0]; y = [2 -1 0 3 1];",
+  "expr": "cn = xcov(x,y); cb = xcov(x,y,'biased'); cu = xcov(x,y,'unbiased'); cc = xcov(x,y,'coeff');",
+  "iters": 3,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "cn(5)", "cn(4)", "cn(6)",
+    "cb(5)", "cb(4)", "cb(6)",
+    "cu(5)", "cu(3)", "cu(7)",
+    "cc(5)"
   ],
-  "comment": "Sig: r = xcov(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig c=xcov(x,y,scaleopt): cross-covariance of mean-removed signals with scaling. zero-lag is index 5 (length 2N-1=9). 'none' c(5)=5 raw; 'biased' divides every lag by N=5 -> c(5)=1, c(4)=-1.56, c(6)=0.6; 'unbiased' divides lag m by (N-|m|) -> c(5)=1, c(3)=1.26667, c(7)=-2.53333; 'coeff' divides by sqrt(Cxx0*Cyy0)=sqrt(22.8*10) -> c(5)=0.331133. numkit previously ignored scaleopt entirely (returned raw for all). Fixed in convolution.cpp."
 }

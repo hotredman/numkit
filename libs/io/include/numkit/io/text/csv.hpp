@@ -15,10 +15,10 @@ namespace numkit::io {
 ///
 /// Both routes go through the engine's VirtualFS (`resolvePath` +
 /// `readFile` / `writeFile`), so `Engine &` is required. Signatures are
-/// Span-based because MATLAB's `csvread` / `csvwrite` are inherently
+/// Span-based because `csvread` / `csvwrite` are inherently
 /// variadic (range arg, offsets).
 
-/// @brief MATLAB `csvread` (`M = csvread(filename, R0, C0, range)`).
+/// @brief `csvread` (`M = csvread(filename, R0, C0, range)`).
 ///
 /// Reads a comma-delimited text file into a numeric matrix. Variadic
 /// forms supported via `args`:
@@ -34,7 +34,7 @@ namespace numkit::io {
 /// @see csvwrite, readmatrix
 Value csvread(Engine &engine, Span<const Value> args);
 
-/// @brief MATLAB `csvwrite` (`csvwrite(filename, M, R0, C0)`).
+/// @brief `csvwrite` (`csvwrite(filename, M, R0, C0)`).
 ///
 /// Writes a numeric matrix as comma-delimited text. Variadic forms:
 /// - `(filename, M)`              — whole matrix at origin.

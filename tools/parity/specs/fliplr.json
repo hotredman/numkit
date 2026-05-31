@@ -1,14 +1,11 @@
 {
   "name": "fliplr",
   "namespace": "builtin",
-  "setup": "A = [1 2 3];",
-  "expr": "B = fliplr(A); r1 = B(1); r2 = B(2); r3 = B(3);",
+  "setup": "A = [1 2 3 4]; C = {10,20,30}; S = [\"x\" \"y\" \"z\"]; CM = ['ab';'cd']; LG = logical([1 1 0]); CX = [1+1i 2+2i 3+3i];",
+  "expr": "B = fliplr(A); r1 = B(1); r4 = B(4); FC = fliplr(C); c1 = FC{1}; c3 = FC{3}; FS = fliplr(S); s1 = double(char(FS(1))); s3 = double(char(FS(3))); M = fliplr(CM); m11 = double(M(1,1)); m12 = double(M(1,2)); L = fliplr(LG); l1 = double(L(1)); l3 = double(L(3)); X = fliplr(CX); xr1 = real(X(1)); xi1 = imag(X(1));",
   "iters": 5,
   "tol": 0,
-  "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
-  ],
-  "comment": "Sig: r = fliplr(...). Shape op. Spec-extension batch 2026-05-09."
+  "fingerprint": ["r1", "r4", "c1", "c3", "s1", "s3", "m11", "m12", "l1", "l3", "xr1", "xi1"],
+  "comment": "Sig: r = fliplr(A). Reverse column order (type-agnostic). DEEP-PROBE 2026-05-31: extended to CELL/STRING (earlier) AND now CHAR matrices / LOGICAL / COMPLEX / single (the 2-D POD path was still DOUBLE-only and threw 'Not a double array'). fliplr([1 2 3 4])=[4 3 2 1]; fliplr({10,20,30})={30,20,10}; fliplr(['ab';'cd'])=['ba';'dc'] (m11='b'=98); fliplr(logical([1 1 0]))=[0 1 1]; fliplr([1+1i 2+2i 3+3i])=[3+3i 2+2i 1+1i]. namespace=builtin. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

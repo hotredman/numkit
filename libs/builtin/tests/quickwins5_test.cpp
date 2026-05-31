@@ -91,6 +91,42 @@ TEST_F(QuickWins5Test, CholNonSquareRejected)
     EXPECT_THROW(eval("chol([1 2 3; 4 5 6]);"), std::exception);
 }
 
+// chol(A,'lower') returns lower-triangular L with L*L' = A (= R'). vs MATLAB.
+TEST_F(QuickWins5Test, CholLowerOption)
+{
+    eval("A = [4 2 2; 2 5 1; 2 1 6]; L = chol(A,'lower');");
+    EXPECT_DOUBLE_EQ(evalScalar("L(1,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("L(2,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("L(3,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("L(2,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("L(1,2)"), 0.0);   // strictly lower triangular
+    EXPECT_DOUBLE_EQ(evalScalar("L(1,3)"), 0.0);
+    EXPECT_NEAR(evalScalar("max(max(abs(L*L' - A)))"), 0.0, 1e-12);
+    // case-insensitive option + explicit 'upper' == default.
+    EXPECT_DOUBLE_EQ(evalScalar("R=chol(A,'UPPER'); R(1,1)"), 2.0);
+}
+
+// [R,p] = chol(A): p=0 when PD; p=failure column (no error) when not PD,
+// with R = the leading (p-1)x(p-1) factor. vs MATLAB R2025b.
+TEST_F(QuickWins5Test, CholPivotSecondOutput)
+{
+    eval("[R,p] = chol([4 2; 2 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("p"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("R(1,1)"), 2.0);
+    // Indefinite 2x2: p=2, R is the 1x1 factor of the leading [1] block.
+    eval("[R2,p2] = chol([1 3; 3 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("p2"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(R2,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(R2,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("R2(1,1)"), 1.0);
+    // [L,p] honors 'lower' on success.
+    eval("[L,pl] = chol([4 2; 2 3],'lower');");
+    EXPECT_DOUBLE_EQ(evalScalar("pl"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("L(2,1)"), 1.0);
+    // 1-output non-PD still throws.
+    EXPECT_THROW(eval("chol([1 3; 3 1]);"), std::exception);
+}
+
 // ── topkrows ───────────────────────────────────────────────
 
 TEST_F(QuickWins5Test, TopKRowsLexDescending)

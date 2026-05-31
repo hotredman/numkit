@@ -2,9 +2,12 @@
   "name": "sos2zp",
   "namespace": "core",
   "setup": "sos = [1 0.5 0.25 1 0.1 0.05; 1 0.4 0.2 1 0.05 0.025];",
-  "expr": "[y, jj, kk] = sos2zp(sos);",
-  "iters": 1000,
+  "expr": "[z, p, k] = sos2zp(sos); az = sort(abs(z)); ap = sort(abs(p));",
+  "iters": 3,
   "tol": 1e-09,
-  "out_var": "y",
-  "comment": "Sig: [Z,P,K] = sos2zp(SOS). 1000 iters."
+  "fingerprint": [
+    "k", "double(numel(z))", "double(numel(p))",
+    "az(1)", "az(4)", "ap(1)", "ap(4)"
+  ],
+  "comment": "Sig [z,p,k]=sos2zp(sos): second-order sections -> zero/pole/gain. 2 sections -> 4 zeros, 4 poles, k = prod(b0) = 1. Roots are complex; pinned via sorted magnitudes (order-invariant): |z| = {0.4472136 (x2 from [1 .4 .2]), 0.5 (x2 from [1 .5 .25])}; |p| = {0.1581139 (x2 from [1 .05 .025]), 0.2236068 (x2 from [1 .1 .05])}. (Was an out_var dump of z only at 1000 iters -> now pins z, p AND k.)"
 }

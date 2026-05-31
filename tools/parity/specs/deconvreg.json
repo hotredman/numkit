@@ -1,0 +1,10 @@
+{
+  "name": "deconvreg",
+  "namespace": "image",
+  "setup": "I = checkerboard(8); PSF = fspecial('gaussian', 7, 10); B = imfilter(I, PSF, 'circular'); regop2 = [1 -1 0; -1 0 1; 0 1 -1];",
+  "expr": "J1 = deconvreg(B, PSF); [J4, L4] = deconvreg(B, PSF, 0.01); [J9, L9] = deconvreg(B, PSF, 0.01, 0.5); [J_b, L_b] = deconvreg(B, PSF, 0.01, [1e-9, 1e9]); [J_r2, L_r2] = deconvreg(B, PSF, 0.01, [1e-9, 1e9], regop2); r1 = J1(1,1); r2 = J1(32,32); r3 = J4(1,1); r4 = L4; r5 = J9(1,1); r6 = L9; r7 = J_b(1,1); r8 = L_b; r9 = J_r2(1,1); r10 = L_r2;",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"],
+  "comment": "Sig: [J,LAGRA] = deconvreg(I, PSF, NP, LRANGE, REGOP). Branches: 2-arg default, 3-arg NP, 4-arg scalar LRANGE (fixed λ), 4-arg [lo,hi] (Brent fminbnd search), 5-arg custom 2-D REGOP. fminbnd uses Brent's golden-section + parabolic-interpolation (Brent 1973). Algorithm: Gonzalez-Woods + Jain. Image namespace 2026-05-27."
+}

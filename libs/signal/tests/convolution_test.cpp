@@ -71,9 +71,36 @@ TEST_F(ConvolutionTest, ConvCommutative)
 
 TEST_F(ConvolutionTest, ConvSameLength)
 {
-    // 'same' returns max(na, nb)
+    // 'same' returns the central part the SAME SIZE AS THE FIRST input (na).
     auto r = eval("conv([1 2 3 4 5], [1 1 1], 'same')");
     EXPECT_EQ(r.numel(), 5u);
+}
+
+// 'same' = central part of length na, starting at floor(nb/2) of the full
+// convolution. Previously numkit used max(na,nb) + a centered offset, which
+// was off-by-one for EVEN kernels and wrong-length when na<nb. vs MATLAB
+// R2025b. DEEP-PROBE 2026-05-30.
+TEST_F(ConvolutionTest, ConvSameEvenKernelAndShortFirst)
+{
+    // Even kernel (nb=2): conv([1 2 3 4],[1 1],'same') = [3 5 7 4] (not [1 3 5 7]).
+    eval("e = conv([1 2 3 4], [1 1], 'same');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 4.0);
+    EXPECT_NEAR(evalScalar("e(1)"), 3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(4)"), 4.0, 1e-10);
+    // Odd first arg, even kernel: conv([1 2 3],[1 1],'same') = [3 5 3].
+    eval("f = conv([1 2 3], [1 1], 'same');");
+    EXPECT_NEAR(evalScalar("f(1)"), 3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("f(3)"), 3.0, 1e-10);
+    // nb=4: conv([1 2 3 4 5],[1 1 1 1],'same') = [6 10 14 12 9].
+    eval("g = conv([1 2 3 4 5], [1 1 1 1], 'same');");
+    EXPECT_NEAR(evalScalar("g(1)"), 6.0, 1e-10);
+    EXPECT_NEAR(evalScalar("g(5)"), 9.0, 1e-10);
+    // First arg SHORTER than kernel -> length na (not nb):
+    // conv([1 2],[1 1 1 1 1],'same') = [3 3] (length 2).
+    eval("h = conv([1 2], [1 1 1 1 1], 'same');");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(h)"), 2.0);
+    EXPECT_NEAR(evalScalar("h(1)"), 3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("h(2)"), 3.0, 1e-10);
 }
 
 TEST_F(ConvolutionTest, ConvValidLength)
@@ -90,6 +117,32 @@ TEST_F(ConvolutionTest, ConvValidValues)
     EXPECT_NEAR(evalScalar("c(1)"), 6.0, 1e-10);
     EXPECT_NEAR(evalScalar("c(2)"), 9.0, 1e-10);
     EXPECT_NEAR(evalScalar("c(3)"), 12.0, 1e-10);
+}
+
+// The shape arg accepts a STRING ("same") as well as a char ('same') —
+// MATLAB R2025b accepts both. conv_reg previously checked only isChar(), so
+// a double-quoted shape was SILENTLY IGNORED and the result fell back to the
+// full convolution: conv([1 2 3 4],[1 1],"same") gave [1 3 5 7 4] (length 5)
+// instead of [3 5 7 4] (length 4). DEEP-PROBE 2026-05-31.
+TEST_F(ConvolutionTest, ConvShapeAcceptsString)
+{
+    // "same" (string) must match 'same' (char) = [3 5 7 4], length 4.
+    eval("e = conv([1 2 3 4], [1 1], \"same\");");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 4.0);
+    EXPECT_NEAR(evalScalar("e(1)"), 3.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(2)"), 5.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(3)"), 7.0, 1e-10);
+    EXPECT_NEAR(evalScalar("e(4)"), 4.0, 1e-10);
+    // "valid" (string) = [6 9 12], length 3.
+    eval("v = conv([1 2 3 4 5], [1 1 1], \"valid\");");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(v)"), 3.0);
+    EXPECT_NEAR(evalScalar("v(1)"), 6.0, 1e-10);
+    EXPECT_NEAR(evalScalar("v(3)"), 12.0, 1e-10);
+    // "full" (string) explicit = same as default, length 5.
+    eval("f = conv([1 2 3 4], [1 1], \"full\");");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(f)"), 5.0);
+    EXPECT_NEAR(evalScalar("f(1)"), 1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("f(5)"), 4.0, 1e-10);
 }
 
 // ============================================================
@@ -182,6 +235,40 @@ TEST_F(ConvolutionTest, XcorrLagsRange)
     EXPECT_DOUBLE_EQ(evalScalar("lags(7)"), 3.0);
 }
 
+// xcorr scaleopt (was accepted-and-ignored -> raw correlation). vs MATLAB.
+// xcorr([1 2 3]) raw = [3 8 14 8 3]; energy at lag 0 = 14.
+TEST_F(ConvolutionTest, XcorrScaleOpts)
+{
+    eval("c = xcorr([1 2 3], [1 2 3], 'coeff');");   // peak normalized to 1
+    EXPECT_NEAR(evalScalar("c(3)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("c(2)"), 8.0 / 14.0, 1e-12);
+    eval("cb = xcorr([1 2 3], [1 2 3], 'biased');"); // divide by N=3
+    EXPECT_NEAR(evalScalar("cb(3)"), 14.0 / 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cb(1)"), 1.0, 1e-12);
+    eval("cu = xcorr([1 2 3], [1 2 3], 'unbiased');"); // divide by N-|lag|
+    EXPECT_NEAR(evalScalar("cu(3)"), 14.0 / 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cu(2)"), 8.0 / 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cu(1)"), 3.0 / 1.0, 1e-12);
+    // single-arg autocorr honors scaleopt too
+    eval("ca = xcorr([1 2 3], 'coeff');");
+    EXPECT_NEAR(evalScalar("ca(3)"), 1.0, 1e-12);
+    // unknown scaleopt throws
+    EXPECT_THROW(eval("xcorr([1 2 3], [1 2 3], 'bogus');"), std::exception);
+}
+
+// xcorr maxlag crop (+ combined with scaleopt).
+TEST_F(ConvolutionTest, XcorrMaxLag)
+{
+    eval("[c, lags] = xcorr([1 2 3], [1 2 3], 1);");
+    EXPECT_EQ(eval("c").numel(), 3u);
+    EXPECT_DOUBLE_EQ(evalScalar("lags(1)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("lags(3)"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 14.0);      // lag 0
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"),  8.0);      // lag -1
+    eval("c2 = xcorr([1 2 3], [1 2 3], 1, 'coeff');");
+    EXPECT_NEAR(evalScalar("c2(2)"), 1.0, 1e-12);
+}
+
 // ── Pack 36: conv2 / filter2 / convn ────────────────────────────────
 TEST_F(ConvolutionTest, Conv2FullKnownExample)
 {
@@ -272,4 +359,35 @@ TEST_F(ConvolutionTest, XcovTwoSignalsLength)
     eval("[c, lags] = xcov([1 2 3 4], [4 3 2 1]);");
     EXPECT_EQ(static_cast<int>(evalScalar("length(c)")), 7);
     EXPECT_EQ(static_cast<int>(evalScalar("length(lags)")), 7);
+}
+
+// scaleopt: 'biased' divides every lag by N; 'unbiased' by (N-|lag|);
+// 'coeff' by sqrt(Cxx0*Cyy0). zero-lag sits at index 5 for length-5 inputs.
+// (Regression: numkit used to ignore scaleopt entirely.) vs MATLAB R2025b.
+TEST_F(ConvolutionTest, XcovScaleopt)
+{
+    eval("x = [1 3 -2 4 0]; y = [2 -1 0 3 1];");
+    eval("cn = xcov(x,y); cb = xcov(x,y,'biased');");
+    EXPECT_NEAR(evalScalar("cn(5)"), 5.0, 1e-12);     // raw zero-lag
+    EXPECT_NEAR(evalScalar("cb(5)"), 1.0, 1e-12);     // /N=5
+    EXPECT_NEAR(evalScalar("cb(4)"), -1.56, 1e-12);
+    eval("cu = xcov(x,y,'unbiased'); cc = xcov(x,y,'coeff');");
+    EXPECT_NEAR(evalScalar("cu(3)"), 1.2666666666666666, 1e-12);
+    EXPECT_NEAR(evalScalar("cc(5)"), 0.331133089266, 1e-9);
+}
+
+// maxlag crops the result to lags -maxlag..maxlag (length 2*maxlag+1).
+// (Regression: numkit used to ignore the maxlag scalar arg, returning
+// the full length-9 vector.) vs MATLAB R2025b.
+TEST_F(ConvolutionTest, XcovMaxlag)
+{
+    eval("x = [1 3 -2 4 0]; y = [2 -1 0 3 1];");
+    eval("cm = xcov(x,y,2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(cm)")), 5);
+    EXPECT_NEAR(evalScalar("cm(3)"), 5.0, 1e-12);     // zero-lag at center
+    EXPECT_NEAR(evalScalar("cm(1)"), 3.8, 1e-12);
+    EXPECT_NEAR(evalScalar("cm(5)"), -7.6, 1e-12);
+    eval("cmb = xcov(x,y,2,'biased');");              // maxlag + scaleopt
+    EXPECT_NEAR(evalScalar("cmb(3)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cmb(1)"), 0.76, 1e-12);
 }

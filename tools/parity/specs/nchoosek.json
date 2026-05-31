@@ -2,14 +2,17 @@
   "name": "nchoosek",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = nchoosek(5, 2); r2 = nchoosek(10, 3); r3 = nchoosek(7, 0); r4 = nchoosek(7, 7);",
+  "expr": "r1 = nchoosek(5, 2); r2 = nchoosek(10, 3); r3 = nchoosek(7, 0); r4 = nchoosek(7, 7); C = nchoosek([1 2 3 4], 2); nr = size(C,1); nc = size(C,2); v11 = C(1,1); v32 = C(3,2); v41 = C(4,1); v62 = C(6,2); D = nchoosek([10 20 30], 2); d22 = D(2,2); d31 = D(3,1);",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
     "r1",
     "r2",
     "r3",
-    "r4"
+    "r4",
+    "nr", "nc",
+    "v11", "v32", "v41", "v62",
+    "d22", "d31"
   ],
-  "comment": "Sig: r = nchoosek(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = nchoosek(N,K) scalar binomial; M = nchoosek(V,K) vector form -> all K-combinations of V, one per row, in lexicographic order of element indices. nchoosek([1 2 3 4],2)=[1 2;1 3;1 4;2 3;2 4;3 4] (6x2); values come from V not indices (nchoosek([10 20 30],2)=[10 20;10 30;20 30]). k==numel->single row, k==0->1x0. numkit previously threw on vector input; implemented 2026-05-29. Spec-extension batch 2026-05-09 + vector form."
 }

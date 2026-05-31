@@ -1,8 +1,8 @@
 {
   "name": "eig",
   "namespace": "builtin",
-  "setup": "A = [4 1 2; 1 3 0; 2 0 5]; D = diag([3 7 1 9 5]); G = [0 7 -6; 1 0 0; 0 1 0];",
-  "expr": "e1 = sort(eig(A)); e2 = sort(eig(D)); ei = sort(eig(eye(4))); eg = sort(real(eig(G))); [V, M] = eig(A); err = max(max(abs(A*V - V*M)));",
+  "setup": "A = [4 1 2; 1 3 0; 2 0 5]; D = diag([3 7 1 9 5]); G = [0 7 -6; 1 0 0; 0 1 0]; As = [4 1; 1 3]; Bs = [2 0; 0 1];",
+  "expr": "e1 = sort(eig(A)); e2 = sort(eig(D)); ei = sort(eig(eye(4))); eg = sort(real(eig(G))); [V, M] = eig(A); err = max(max(abs(A*V - V*M))); ev = sort(eig(A,'vector')); dm = sort(diag(eig(A,'matrix'))); gp = sort(eig(As, Bs)); [Vg, Dg] = eig(As, Bs); errg = max(max(abs(As*Vg - Bs*Vg*Dg)));",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
@@ -10,7 +10,10 @@
     "e2(1)", "e2(3)", "e2(5)",
     "ei(1)", "ei(4)",
     "eg(1)", "eg(2)", "eg(3)",
-    "err"
+    "err",
+    "ev(1)", "ev(3)",
+    "dm(1)", "dm(3)",
+    "gp(1)", "gp(2)", "errg"
   ],
-  "comment": "Sig: e = eig(A) | [V, D] = eig(A). Symmetric: classical Jacobi (eigenvectors + ascending real eigenvalues). General (non-symmetric): characteristic polynomial via Souriau-Faddeev + roots() (eigenvalues only; possibly complex). [V, D] form for general matrices requires QR iteration -- deferred to Phase 2c-3. Sort applied for order-agnostic comparison."
+  "comment": "Sig: e = eig(A) | [V,D] = eig(A) | eig(A,'vector'|'matrix') | eig(A,B) | [V,D]=eig(A,B). Symmetric: classical Jacobi (eigenvectors + ascending real eigenvalues). General: characteristic polynomial via Souriau-Faddeev + roots(). 'vector' returns the eigenvalue column (= default 1-output); 'matrix' returns a diagonal matrix even with one output. Generalized eig(A,B) reduces to the standard problem on B\\A (eigenvalues match MATLAB; eigenvectors satisfy A*V = B*V*D). Queue-clearing 2026-05-29: 'vector'/'matrix'/eig(A,B) previously errored 'requires exactly 1 argument'. Sort applied for order-agnostic comparison."
 }

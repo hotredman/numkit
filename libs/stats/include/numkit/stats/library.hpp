@@ -1,9 +1,8 @@
 // libs/stats/include/numkit/stats/library.hpp
 //
-// Statistics Toolbox builtins. Mirrors MATLAB's documentation root
-// `/help/stats/`. Currently houses moments (skewness, kurtosis) and
+// Statistics builtins. Currently houses moments (skewness, kurtosis) and
 // nan-aware reductions (nansum, nanmean, nanvar, nanstd, nanmedian,
-// nanmax, nanmin). Descriptive statistics that base MATLAB ships
+// nanmax, nanmin). The common descriptive statistics
 // (var/std/median/mode/quantile/prctile/cov/corrcoef) live in
 // libs/builtin under data_analysis/.
 

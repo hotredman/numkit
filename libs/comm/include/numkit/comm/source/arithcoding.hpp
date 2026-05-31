@@ -28,7 +28,7 @@ Value arithenco(const Value &seq, const Value &counts,
 
 /// @brief Invert @ref arithenco (`seq = arithdeco(code, counts, len)`).
 ///
-/// MATLAB's contract requires the decoded length `len` explicitly;
+/// The contract requires the decoded length `len` explicitly;
 /// the encoder emits no stop sentinel.
 ///
 /// @param code    0/1 bit vector produced by @ref arithenco.

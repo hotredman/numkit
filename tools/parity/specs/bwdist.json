@@ -1,13 +1,15 @@
 {
   "name": "bwdist",
   "namespace": "image",
-  "setup": "",
-  "expr": "D = bwdist(eye(4)); r1 = double(numel(D)); r2 = D(2,2);",
-  "iters": 5,
+  "setup": "BW = logical([0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1]);",
+  "expr": "De = bwdist(BW); Dc = bwdist(BW,'cityblock'); Dk = bwdist(BW,'chessboard'); Dq = bwdist(BW,'quasi-euclidean');",
+  "iters": 3,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2"
+    "De(1,1)", "De(1,4)",
+    "Dc(1,1)", "Dc(1,4)",
+    "Dk(1,1)", "Dk(1,4)",
+    "Dq(1,1)", "Dq(1,4)"
   ],
-  "comment": "Sig: r = bwdist(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig D=bwdist(BW[,method]). Distance to nearest TRUE pixel. method: euclidean (default, sqrt(dx^2+dy^2)), cityblock (|dx|+|dy|), chessboard (max), quasi-euclidean (diagonal=sqrt2). Corner (1,1) to feature (2,2): euclid 1.4142, city 2, chess 1, quasi 1.4142. (1,4) to (4,4): euclid 2.2361, city 3, chess 2, quasi 2.4142. numkit previously IGNORED method (always euclidean) -- now honored via 2-pass chamfer. tol=1e-6 because MATLAB bwdist returns SINGLE (float32) so irrational distances differ ~1e-8 from numkit's double; integer metrics match exactly. Matches MATLAB R2025b."
 }

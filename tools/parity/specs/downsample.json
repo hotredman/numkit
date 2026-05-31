@@ -2,13 +2,13 @@
   "name": "downsample",
   "namespace": "signal",
   "setup": "",
-  "expr": "y = downsample([1 2 3 4 5 6], 2); r1 = y(1); r2 = y(2); r3 = double(numel(y));",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "y0 = downsample(1:10, 3); y1 = downsample(1:10, 3, 1); y2 = downsample(1:10, 3, 2);",
+  "iters": 3,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "double(numel(y0))", "y0(1)", "y0(4)",
+    "double(numel(y1))", "y1(1)", "y1(3)",
+    "y2(1)", "y2(3)"
   ],
-  "comment": "Sig: r = downsample(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig y=downsample(x,n[,phase]). Keeps x[phase], x[phase+n], … (phase 0..n-1). downsample(1:10,3) -> [1 4 7 10]; phase 1 -> [2 5 8]; phase 2 -> [3 6 9]. numkit previously IGNORED phase -- now honored. Matches MATLAB R2025b."
 }

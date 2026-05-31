@@ -78,4 +78,24 @@ Value betarnd(double a, double b, size_t rows = 1, size_t cols = 1,
 /// @see betapdf
 std::tuple<double, double> betastat(double a, double b);
 
+/// @brief Beta(a, b) MLE fit (`[ahat, bhat] = betafit(x)`).
+///
+/// Newton iteration on the digamma system
+///   `ψ(a) - ψ(a+b) = mean log(x)`
+///   `ψ(b) - ψ(a+b) = mean log(1-x)`
+/// Initial guess from method of moments. Throws on x outside [0, 1].
+///
+/// @param x   Samples in [0, 1].
+/// @param mr  Memory resource.
+/// @return    `[ahat, bhat]` as a `1 × 2` row.
+Value betafit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 95% Wald CI for betafit (`pci = betafit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
+/// the observed Fisher information (central-FD Hessian of NLL).
+/// Both parameters use a log-scale Wald CI (MATLAB convention).
+Value betafit_ci(const Value &x, double alpha = 0.05,
+                 std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

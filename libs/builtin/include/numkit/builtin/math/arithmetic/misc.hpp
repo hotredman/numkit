@@ -31,6 +31,54 @@ Value deg2rad(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @see deg2rad
 Value rad2deg(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Wrap angles in radians to [-π, π] (`y = wrapToPi(x)`).
+///
+/// Values already in the closed interval are returned unchanged (so
+/// `wrapToPi(π)=π`, `wrapToPi(-π)=-π`); values strictly outside are
+/// wrapped via `wrapTo2Pi(x+π)-π`. Elementwise.
+///
+/// @param x   Angle(s) in radians.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Wrapped angle(s), same shape as `x`.
+/// @see wrapTo2Pi, wrapTo180
+Value wrapToPi(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wrap angles in radians to [0, 2π] (`y = wrapTo2Pi(x)`).
+///
+/// Equivalent to `mod(x, 2π)`, except a strictly positive input landing
+/// exactly on 0 maps to 2π (so `wrapTo2Pi(2π)=2π`, but `wrapTo2Pi(0)=0`
+/// and `wrapTo2Pi(-2π)=0`). Elementwise.
+///
+/// @param x   Angle(s) in radians.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Wrapped angle(s), same shape as `x`.
+/// @see wrapToPi, wrapTo360
+Value wrapTo2Pi(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wrap angles in degrees to [-180, 180] (`y = wrapTo180(x)`).
+///
+/// Degree-domain analogue of @ref wrapToPi: closed endpoints preserved,
+/// values strictly outside wrapped via `wrapTo360(x+180)-180`.
+/// Elementwise.
+///
+/// @param x   Angle(s) in degrees.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Wrapped angle(s), same shape as `x`.
+/// @see wrapTo360, wrapToPi
+Value wrapTo180(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wrap angles in degrees to [0, 360] (`y = wrapTo360(x)`).
+///
+/// Degree-domain analogue of @ref wrapTo2Pi: `mod(x, 360)`, with a
+/// strictly positive input landing on 0 mapped to 360 (so
+/// `wrapTo360(360)=360`, but `wrapTo360(0)=0`). Elementwise.
+///
+/// @param x   Angle(s) in degrees.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Wrapped angle(s), same shape as `x`.
+/// @see wrapTo180, wrapTo2Pi
+Value wrapTo360(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Modulo with sign of divisor (`y = mod(a, b)`).
 ///
 /// `y = a - floor(a / b) · b`. Result has the same sign as `b` (or is

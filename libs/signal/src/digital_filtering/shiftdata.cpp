@@ -45,7 +45,7 @@ shiftdata(const Value &x, int dim, std::pmr::memory_resource *mr)
     }
     if (dim < 1)
         throw Error("shiftdata: DIM must be >= 1",
-                    0, 0, "shiftdata", "", "m:shiftdata:BadDim");
+                    0, 0, "shiftdata", "", "numkit:shiftdata:BadDim");
 
     // perm = [dim, 1..dim-1, dim+1..N]
     const size_t N = std::max<size_t>(static_cast<size_t>(dim), mtlNdims(x));
@@ -88,7 +88,7 @@ void shiftdata_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("shiftdata: requires (x [, dim])",
-                    0, 0, "shiftdata", "", "m:shiftdata:nargin");
+                    0, 0, "shiftdata", "", "numkit:shiftdata:nargin");
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         dim = static_cast<int>(args[1].toScalar());
@@ -103,7 +103,7 @@ void unshiftdata_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("unshiftdata: requires (x, perm, nshifts)",
-                    0, 0, "unshiftdata", "", "m:unshiftdata:nargin");
+                    0, 0, "unshiftdata", "", "numkit:unshiftdata:nargin");
     outs[0] = unshiftdata(args[0], args[1], args[2], ctx.engine->resource());
 }
 

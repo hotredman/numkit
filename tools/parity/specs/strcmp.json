@@ -1,13 +1,14 @@
 {
   "name": "strcmp",
   "namespace": "core",
-  "setup": "a = 'apple'; b = 'apple';",
-  "expr": "y = strcmp(a, b);",
+  "setup": "a = 'apple'; b = 'apple'; c = {'apple','banana','apple'}; cc = {'a','b'};",
+  "expr": "y = strcmp(a, b); yc = strcmp(c, 'apple'); c1 = double(yc(1)); c2 = double(yc(2)); c3 = double(yc(3)); ncc = numel(yc); ycc = strcmp(cc, {'a','c'}); d1 = double(ycc(1)); d2 = double(ycc(2));",
   "iters": 1000,
   "tol": 1e-10,
   "fingerprint": [
     "double(y)",
-    "numel(y)"
+    "numel(y)",
+    "c1", "c2", "c3", "ncc", "d1", "d2"
   ],
-  "comment": "Sig: TF = strcmp(A, B). char-vs-char only. 100k iters. Logical-scalar fp (BUGS #14)."
+  "comment": "Sig: TF = strcmp(A, B). DEEP-PROBE 2026-05-31: added CELL-array support (was char-vs-char only, threw 'Not a char array' on a cell). cell vs char-scalar -> logical array shaped like the cell (each elem vs the scalar); cell vs cell (same size, or one scalar) -> element-wise. strcmp({'apple','banana','apple'},'apple')=[1 0 1]; strcmp({'a','b'},{'a','c'})=[1 0]. Logical-scalar fp (BUGS #14)."
 }

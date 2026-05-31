@@ -2542,7 +2542,7 @@ Value TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
             if (!node->strValue.empty()) {
                 auto err = Value::structure();
                 err.field("message") = Value::fromString(mle.what(), engine_.mr_);
-                std::string id = mle.identifier().empty() ? "m:error" : mle.identifier();
+                std::string id = mle.identifier().empty() ? "numkit:error" : mle.identifier();
                 err.field("identifier") = Value::fromString(id, engine_.mr_);
                 env->set(node->strValue, err);
             }
@@ -2554,7 +2554,7 @@ Value TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
             if (!node->strValue.empty()) {
                 auto err = Value::structure();
                 err.field("message") = Value::fromString(e.what(), engine_.mr_);
-                err.field("identifier") = Value::fromString("m:error", engine_.mr_);
+                err.field("identifier") = Value::fromString("numkit:error", engine_.mr_);
                 env->set(node->strValue, err);
             }
             return execNode(node->children[1].get(), env);

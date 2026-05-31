@@ -3,8 +3,17 @@
   "namespace": "image",
   "setup": "I = uint8([20 20 20 20 120 120 120 120 220 220 220 220]);",
   "expr": "BW = imbinarize(I); r1 = double(sum(BW(:)));",
-  "iters": 5,
+  "iters": 8,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: BW = imbinarize(I). Default threshold via graythresh + binarize. Bit-identical with MATLAB R2025b after graythresh tied-mean fix 2026-05-09."
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: BW = imbinarize(I). Default threshold via graythresh + binarize. Bit-identical with MATLAB R2025b after graythresh tied-mean fix 2026-05-09.",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = imbinarize(A);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }
