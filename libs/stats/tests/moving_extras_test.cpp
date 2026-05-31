@@ -235,8 +235,9 @@ TEST_F(MovingTest, BoundsTwoOutputs)
 
 TEST_F(MovingTest, IqrUniformVector)
 {
-    // [1..9], q1=3, q3=7, iqr=4.
-    EXPECT_NEAR(evalScalar("iqr(1:9)"), 4.0, 1e-12);
+    // iqr uses MATLAB's default quantile method ((i-0.5)/n). For 1:9 that
+    // gives q1=2.75, q3=7.25, so iqr = 4.5 (not the textbook q1=3,q3=7).
+    EXPECT_NEAR(evalScalar("iqr(1:9)"), 4.5, 1e-12);
 }
 
 TEST_F(MovingTest, MaxkTopThree)

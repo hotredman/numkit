@@ -72,11 +72,19 @@ TEST_F(ArithBatchTest, ScalarPower)
     EXPECT_DOUBLE_EQ(evalScalar("mpower(3, 0)"),  1.0);
 }
 
-TEST_F(ArithBatchTest, MatrixPowerThrows)
+TEST_F(ArithBatchTest, MatrixPower)
 {
-    // mpower of matrix is documented as not-yet-implemented.
+    // Matrix raised to an integer scalar power is repeated matrix multiply:
+    // [1 2; 0 1]^3 = [1 6; 0 1] (matches MATLAB R2025b).
+    eval("P = [1 2; 0 1]^3;");
+    EXPECT_DOUBLE_EQ(evalScalar("P(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("P(1,2)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("P(2,1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("P(2,2)"), 1.0);
+
+    // matrix ^ matrix is undefined — MATLAB errors, so we must too.
     bool threw = false;
-    try { eval("[1 2; 0 1]^3;"); }
+    try { eval("[1 2; 0 1]^[1 2; 3 4];"); }
     catch (const std::exception &) { threw = true; }
     EXPECT_TRUE(threw);
 }

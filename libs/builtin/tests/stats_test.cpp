@@ -218,10 +218,13 @@ TEST_P(StatsTest, QuantileBoundaryP)
 
 TEST_P(StatsTest, QuantileLinearInterp)
 {
-    // For [1 2 3 4 5] with p=0.25: h = 0.25*4 = 1.0 → exactly index 1 → 2.0
-    EXPECT_NEAR(evalScalar("quantile([1 2 3 4 5], 0.25);"), 2.0, 1e-12);
-    // p=0.1: h = 0.4 → 1 + 0.4*(2-1) = 1.4
-    EXPECT_NEAR(evalScalar("quantile([1 2 3 4 5], 0.1);"), 1.4, 1e-12);
+    // MATLAB's default quantile method places the sorted samples at
+    // cumulative probabilities (i-0.5)/n and linearly interpolates (values
+    // outside the outermost positions clamp to the min/max). For
+    // [1 2 3 4 5] (n=5) the positions are 0.1,0.3,0.5,0.7,0.9, so
+    // p=0.25 -> 1 + (0.25-0.1)/0.2 = 1.75 and p=0.1 -> exactly 1.0.
+    EXPECT_NEAR(evalScalar("quantile([1 2 3 4 5], 0.25);"), 1.75, 1e-12);
+    EXPECT_NEAR(evalScalar("quantile([1 2 3 4 5], 0.1);"), 1.0, 1e-12);
 }
 
 TEST_P(StatsTest, QuantileVectorP)
@@ -263,11 +266,12 @@ TEST_P(StatsTest, QuantileVectorPMatrixDim2)
     auto *q = getVarPtr("q");
     EXPECT_EQ(rows(*q), 2u);
     EXPECT_EQ(cols(*q), 2u);
-    // row [1,2,3]: q(0.25) = 1.5, q(0.75) = 2.5
-    EXPECT_NEAR((*q)(0, 0), 1.5, 1e-12);
-    EXPECT_NEAR((*q)(0, 1), 2.5, 1e-12);
-    EXPECT_NEAR((*q)(1, 0), 15.0, 1e-12);
-    EXPECT_NEAR((*q)(1, 1), 25.0, 1e-12);
+    // MATLAB (i-0.5)/n method. row [1,2,3]: q(0.25)=1.25, q(0.75)=2.75;
+    // row [10,20,30] scales by 10: 12.5, 27.5.
+    EXPECT_NEAR((*q)(0, 0), 1.25, 1e-12);
+    EXPECT_NEAR((*q)(0, 1), 2.75, 1e-12);
+    EXPECT_NEAR((*q)(1, 0), 12.5, 1e-12);
+    EXPECT_NEAR((*q)(1, 1), 27.5, 1e-12);
 }
 
 TEST_P(StatsTest, QuantileBadProb)
