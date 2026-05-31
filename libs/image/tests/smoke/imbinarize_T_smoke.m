@@ -27,8 +27,8 @@ img = uint8([
     30 35 200 200 35 30;
     25 30 35 35 30 25]);
 % Image has a bright 2x2 region at center surrounded by dim background.
-% adaptthresh should recommend a threshold just below the local mean,
-% making the bright center clearly cross.
+% adaptthresh recommends a threshold scaled from the local mean
+% (1.1x the local mean at the default sensitivity 0.5, matching MATLAB).
 T = adaptthresh(img, 0.5, 3);   % 3x3 window
 BW = imbinarize(img, T);
 fprintf('--- adaptthresh + imbinarize pipeline ---\n');
