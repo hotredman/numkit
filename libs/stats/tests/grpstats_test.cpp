@@ -115,3 +115,25 @@ TEST_F(GrpstatsTest, GroupOrderIsAscending)
     EXPECT_DOUBLE_EQ(evalScalar("m(2)"), 5.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(3)"), 2.0);
 }
+
+// DEEP-PROBE c178: with no whichstats arg, the default outputs are
+// [means, sem, counts] (MATLAB nargout default). numkit only emitted means,
+// so [m, sem, counts] = grpstats(X, g) threw "Index 1 exceeds array size 0".
+TEST_F(GrpstatsTest, DefaultSemAndCountsOutputs)
+{
+    eval("x = [1 2 3 4 5 6]'; g = [1 1 2 2 3 3]';");
+    eval("[m, s, c] = grpstats(x, g);");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1)"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2)"), 3.5);
+    EXPECT_DOUBLE_EQ(evalScalar("m(3)"), 5.5);
+    // sem = std/sqrt(n); each group has [k, k+1] -> std 0.7071, n 2 -> 0.5.
+    EXPECT_NEAR(evalScalar("s(1)"), 0.5, 1e-12);
+    EXPECT_NEAR(evalScalar("s(2)"), 0.5, 1e-12);
+    EXPECT_NEAR(evalScalar("s(3)"), 0.5, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 2.0);
+    // Multi-column: sem of the 2nd column scales with the data.
+    eval("X = [1 10; 2 20; 3 30; 4 40; 5 50; 6 60]; [mm, ss] = grpstats(X, g);");
+    EXPECT_NEAR(evalScalar("mm(1,2)"), 15.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ss(1,2)"),  5.0, 1e-12);
+}
