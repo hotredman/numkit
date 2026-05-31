@@ -1271,7 +1271,7 @@ output args).
 | function | status | comment |
 |---|:---:|---|
 | `step` | ✅ | Sig: [y, t, x] = step(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. 3rd output x = state trajectory (length(t) x nStates). State values are realization-dependent, so the spec uses an explicit ss() system (fixed realization) — matches MATLAB R2025b bit-for-bit. Queue-clearing 2026-05-29: x output added (step/impulse/lsim previously returned only [y,t]). |
-| `stepinfo` | ✅ | Sig: r = stepinfo(...). Spec-extension batch 2026-05-09. |
+| `stepinfo` | ✅ | Sig: r = stepinfo(...). DEEP-PROBE c167: numkit returned an 8-field struct; MATLAB R2025b returns 9 (the 2nd field TransientTime, between RiseTime and SettlingTime, was missing). TransientTime = time |y-yfinal| last exceeds 2% of the PEAK deviation max|y(t)-yfinal| (vs SettlingTime's 2% of |yinit-yfinal|=|yfinal|). For a standard step the peak deviation occurs at t=0 = |yfinal| so TransientTime == SettlingTime (eq=1, holds in BOTH engines). Pins numel(fieldnames)=9 + TransientTime>0 + the TransientTime==SettlingTime invariant rather than the absolute time (numkit's step grid differs ~0.8% from MATLAB's, a pre-existing settling-time resolution gap shared by SettlingTime). covers:[stepinfo]. |
 | `impulse` | ✅ | Sig: [y, t] = impulse(sys[, T]). Default time grid via Tfinal = -log(0.003)/min|Re(p)|, N=127. Bit-identical with MATLAB R2025b on probed 1st-order system. |
 | `initial` | ❌ | response from initial state |
 | `lsim` | ✅ | Sig: r = lsim(...). Spec-extension batch 2026-05-09. |

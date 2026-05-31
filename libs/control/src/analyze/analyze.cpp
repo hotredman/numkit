@@ -209,6 +209,21 @@ Value stepinfo(const Value &sys, std::pmr::memory_resource *mr)
         if (std::abs(y[i] - yfinal) > band)
             settlingTime = t[i];
     }
+
+    // Transient time (MATLAB R2025b's 2nd S field): like SettlingTime but the
+    // 2% band is relative to the PEAK deviation max|y(t)-yfinal| rather than
+    // |yinit-yfinal|. For a standard step the peak deviation occurs at t=0 and
+    // equals |yfinal| (yinit=0), so TransientTime == SettlingTime; it can be
+    // smaller when |y-yfinal| overshoots past |yfinal|.
+    double peakDev = 0.0;
+    for (size_t i = 0; i < y.size(); ++i)
+        peakDev = std::max(peakDev, std::abs(y[i] - yfinal));
+    const double transBand = 0.02 * peakDev;
+    double transientTime = 0.0;
+    for (size_t i = 0; i < y.size(); ++i) {
+        if (std::abs(y[i] - yfinal) > transBand)
+            transientTime = t[i];
+    }
     // Min/max within the settling band (after settling).
     double sMin = yfinal, sMax = yfinal;
     for (size_t i = 0; i < y.size(); ++i) {
@@ -219,8 +234,9 @@ Value stepinfo(const Value &sys, std::pmr::memory_resource *mr)
     }
 
     Value s = Value::structure(mr);
-    s.field("RiseTime")     = Value::scalar(riseTime, mr);
-    s.field("SettlingTime") = Value::scalar(settlingTime, mr);
+    s.field("RiseTime")      = Value::scalar(riseTime, mr);
+    s.field("TransientTime") = Value::scalar(transientTime, mr);
+    s.field("SettlingTime")  = Value::scalar(settlingTime, mr);
     s.field("SettlingMin")  = Value::scalar(sMin, mr);
     s.field("SettlingMax")  = Value::scalar(sMax, mr);
     s.field("Overshoot")    = Value::scalar(overshoot, mr);

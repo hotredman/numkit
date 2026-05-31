@@ -2,11 +2,11 @@
   "name": "stepinfo",
   "namespace": "control",
   "setup": "",
-  "expr": "info = stepinfo(tf(1, [1 1])); r1 = double(info.SettlingTime > 0);",
+  "expr": "info = stepinfo(tf(1, [1 1])); r1 = double(info.SettlingTime > 0); nf = double(numel(fieldnames(info))); tt = double(info.TransientTime > 0); eq = double(info.TransientTime == info.SettlingTime);",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1"
+    "r1", "nf", "tt", "eq"
   ],
-  "comment": "Sig: r = stepinfo(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = stepinfo(...). DEEP-PROBE c167: numkit returned an 8-field struct; MATLAB R2025b returns 9 (the 2nd field TransientTime, between RiseTime and SettlingTime, was missing). TransientTime = time |y-yfinal| last exceeds 2% of the PEAK deviation max|y(t)-yfinal| (vs SettlingTime's 2% of |yinit-yfinal|=|yfinal|). For a standard step the peak deviation occurs at t=0 = |yfinal| so TransientTime == SettlingTime (eq=1, holds in BOTH engines). Pins numel(fieldnames)=9 + TransientTime>0 + the TransientTime==SettlingTime invariant rather than the absolute time (numkit's step grid differs ~0.8% from MATLAB's, a pre-existing settling-time resolution gap shared by SettlingTime). covers:[stepinfo]."
 }
