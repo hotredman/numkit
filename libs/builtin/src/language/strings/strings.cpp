@@ -612,17 +612,17 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
         return os.str();
     };
 
-    // Complex: format each element as re±|im|i. If every imaginary part is
-    // zero the array is printed as real (matches MATLAB mat2str).
+    // Complex: format each element INDEPENDENTLY (matches MATLAB mat2str) —
+    // an element with exactly-zero imaginary part prints as a bare real, even
+    // when other elements of the same array are complex. E.g.
+    // mat2str(complex([5 3],[0 4])) -> "[5 3+4i]" (NOT "[5+0i 3+4i]"); an
+    // all-zero-imag complex array therefore prints fully real ("[1 2]").
     if (x.type() == ValueType::COMPLEX) {
         const Complex *cd = x.complexData();
         const size_t n = x.numel();
-        bool allReal = true;
-        for (size_t i = 0; i < n; ++i)
-            if (cd[i].imag() != 0.0) { allReal = false; break; }
         auto fmtC = [&](const Complex &z) -> std::string {
-            if (allReal) return fmt(z.real());
             const double im = z.imag();
+            if (im == 0.0) return fmt(z.real());
             std::string s = fmt(z.real());
             s += (im < 0.0 ? '-' : '+');
             s += fmt(im < 0.0 ? -im : im);

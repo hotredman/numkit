@@ -1685,6 +1685,19 @@ TEST_P(BuiltinTest, Mat2strComplex)
     // All-zero imaginary parts → printed as real.
     eval("c5 = mat2str(complex(1, 0));");
     EXPECT_EQ(getVarPtr("c5")->toString(), "1");
+    // Each element is formatted INDEPENDENTLY: a zero-imag element inside an
+    // otherwise-complex array prints as a bare real (no "+0i"). Previously
+    // numkit appended "+0i" to every element whenever ANY element was complex.
+    // vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+    eval("c6 = mat2str([complex(1,1) complex(5,0)]);");
+    EXPECT_EQ(getVarPtr("c6")->toString(), "[1+1i 5]");   // NOT "[1+1i 5+0i]"
+    eval("c7 = mat2str(complex([5 3],[0 4]));");
+    EXPECT_EQ(getVarPtr("c7")->toString(), "[5 3+4i]");   // NOT "[5+0i 3+4i]"
+    eval("c8 = mat2str(sort([3+4i 1+1i 5 2-2i]), 6);");
+    EXPECT_EQ(getVarPtr("c8")->toString(), "[1+1i 2-2i 5 3+4i]");
+    // Purely-imaginary element still keeps its "0" real part (imag != 0).
+    eval("c9 = mat2str([1.5+2.25i -3i], 5);");
+    EXPECT_EQ(getVarPtr("c9")->toString(), "[1.5+2.25i 0-3i]");
 }
 
 // mat2str on integer + logical types and the 'class' option. vs MATLAB
