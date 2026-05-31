@@ -449,3 +449,39 @@ TEST_F(StringsBatchTest, TrimPreservesStringClass)
     EXPECT_DOUBLE_EQ(evalScalar("double(iscell(ce))"), 1.0);
     EXPECT_EQ(evalString("ce{2}"), "b");
 }
+
+// lower / upper / reverse preserve the input container class on a STRING
+// input vs MATLAB R2025b. 2026-05-31: previously a string input returned a
+// CHAR (lower/upper) or collapsed a string array to 1x1 (reverse).
+TEST_F(StringsBatchTest, CaseReversePreserveStringClass)
+{
+    // lower/upper on a string array -> string array, same shape + values
+    eval("lo = lower([\"AB\" \"CD\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(lo))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(lo)"), 2.0);
+    EXPECT_EQ(evalString("lo(1)"), "ab");
+    EXPECT_EQ(evalString("lo(2)"), "cd");
+    eval("up = upper([\"ab\" \"cd\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(up))"), 1.0);
+    EXPECT_EQ(evalString("up(2)"), "CD");
+    // reverse on a string array keeps every element (was collapsing to 1x1)
+    eval("rv = reverse([\"abc\" \"de\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(rv))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(rv)"), 2.0);
+    EXPECT_EQ(evalString("rv(1)"), "cba");
+    EXPECT_EQ(evalString("rv(2)"), "ed");
+    // column string array -> shape preserved
+    eval("cs = upper([\"a\"; \"b\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cs,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(cs,2)"), 1.0);
+    // string scalar -> string scalar (NOT char)
+    eval("ls = lower(\"HeLLo\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(ls))"), 1.0);
+    EXPECT_EQ(evalString("ls"), "hello");
+    // char input -> char; cell input -> cell (unchanged)
+    eval("lc = lower('HeLLo');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(ischar(lc))"), 1.0);
+    eval("ce2 = upper({'ab','cd'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(ce2))"), 1.0);
+    EXPECT_EQ(evalString("ce2{1}"), "AB");
+}

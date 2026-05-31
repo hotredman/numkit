@@ -682,8 +682,7 @@ Value upper(const Value &s, std::pmr::memory_resource *mr)
         std::transform(r.begin(), r.end(), r.begin(), ::toupper);
         return r;
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    return Value::fromString(op(s.toString()), mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value lower(const Value &s, std::pmr::memory_resource *mr)
@@ -692,8 +691,7 @@ Value lower(const Value &s, std::pmr::memory_resource *mr)
         std::transform(r.begin(), r.end(), r.begin(), ::tolower);
         return r;
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    return Value::fromString(op(s.toString()), mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 // ── Trim / split / concat ───────────────────────────────────────────────
@@ -1174,10 +1172,7 @@ Value reverse(const Value &s, std::pmr::memory_resource *mr)
         std::reverse(r.begin(), r.end());
         return r;
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    std::string r = op(s.toString());
-    if (s.isString()) return Value::stringScalar(r, mr);
-    return Value::fromString(r, mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value splitlines(const Value &s, std::pmr::memory_resource *mr)
