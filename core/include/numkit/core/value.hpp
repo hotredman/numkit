@@ -375,6 +375,12 @@ public:
     // ── Cell ─────────────────────────────────────────────────
     Value &cellAt(size_t i);
     const Value &cellAt(size_t i) const;
+    // Grow a cell so subscript `coords` (length `nd`) is in bounds,
+    // preserving existing contents and lifting the rank if needed.
+    // Coerces an empty/unset receiver to a cell. Returns the column-major
+    // linear index of `coords` in the (grown) cell.
+    size_t growCellTo(const size_t *coords, int nd,
+                      std::pmr::memory_resource *mr = nullptr);
     std::pmr::vector<Value> &cellDataVec();
     const std::pmr::vector<Value> &cellDataVec() const;
 
@@ -416,6 +422,13 @@ public:
     // shape preserved; default to row vector for empty / 1×1 starts.
     // Does not insert any field into the new slots — they're empty.
     void growStructArrayTo(size_t idx, std::pmr::memory_resource *mr = nullptr);
+    // N-D analogue: grow the struct array so subscript `coords` (length
+    // `nd`) is in bounds, preserving existing elements at their
+    // column-major positions and lifting the rank if needed. Coerces an
+    // empty/unset receiver to a struct array. Returns the column-major
+    // linear index of `coords` in the (grown) array.
+    size_t growStructArrayND(const size_t *coords, int nd,
+                             std::pmr::memory_resource *mr = nullptr);
     const std::pmr::map<std::string, Value> &structArrayElem(size_t i) const;
 
     // ── Func handle ──────────────────────────────────────────

@@ -91,14 +91,27 @@ enum class OpCode : uint8_t {
     FIELD_GET_OR_CREATE, // dst, obj, nameIdx      like FIELD_GET but auto-creates struct/field
     FIELD_SET,           // obj, nameIdx, val      R[obj].fields[nameIdx] = R[val]
     FIELD_GET_DYN,       // dst, obj, nameReg      R[dst] = R[obj].(R[nameReg])
+    FIELD_GET_OR_CREATE_DYN, // dst, obj, nameReg  like FIELD_GET_DYN but auto-creates
     FIELD_SET_DYN,       // obj, nameReg, val      R[obj].(R[nameReg]) = R[val]
     // Struct-array element field write: R[obj](R[idx]).field = R[val].
     // Auto-grows when idx exceeds current numel; creates a 1×0 struct
     // array if obj is unset / not a struct.
     STRUCT_ELEM_FIELD_SET, // a=obj, b=idxReg, c=valReg, d=nameIdx
+    // Struct-array element get/set as a whole scalar struct, used by the
+    // general compound-lvalue store chain (`d(i).a.b = …`, `d(i,j,k).…`).
+    // Subscripts live in R[base..base+nargs-1] (column-major, any rank).
+    // GET auto-grows the array and returns a 1×1 struct (empty if the
+    // slot was vacant); SET writes the scalar struct back into the
+    // element. Coerce an unset/empty receiver to a struct array.
+    STRUCT_ELEM_GET_OR_CREATE, // a=dst, b=obj, c=base, e=nargs
+    STRUCT_ELEM_SET,           // a=obj, b=base, c=nargs, e=valReg
 
     // ── Cell array access ────────────────────────────────────
     CELL_GET,      // dst, cell, idx         R[dst] = R[cell]{R[idx]}        1D
+    // Like CELL_GET but for the compound-lvalue store chain: coerces an
+    // unset/empty receiver to a cell and auto-grows to fit the subscripts
+    // in R[base..base+nargs-1] (any rank), returning the content slot.
+    CELL_GET_OR_CREATE, // a=dst, b=cell, c=base, e=nargs
     CELL_SET,      // cell, idx, val         R[cell]{R[idx]} = R[val]        1D
     CELL_GET_2D,   // dst, cell, row, col    R[dst] = R[cell]{R[row], R[col]}
     CELL_SET_2D,   // cell, row, col, val    R[cell]{R[row], R[col]} = R[val]

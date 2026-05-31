@@ -40,6 +40,9 @@ ASTNodePtr cloneNode(const ASTNode *src)
     for (auto &child : src->children)
         dst->children.push_back(cloneNode(child.get()));
 
+    for (auto &t : src->lhsTargets)
+        dst->lhsTargets.push_back(cloneNode(t.get()));
+
     for (auto &[cond, body] : src->branches)
         dst->branches.push_back({cloneNode(cond.get()), cloneNode(body.get())});
 
