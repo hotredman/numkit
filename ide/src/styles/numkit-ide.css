@@ -1919,7 +1919,8 @@ input, select { font-family: inherit; color: inherit; }
   box-shadow: 0 24px 80px oklch(0.05 0.01 220 / 0.6),
               0 0 0 1px oklch(0.78 0.16 145 / 0.08);
   display: grid;
-  grid-template-rows: 38px 40px 28px 1fr 22px;
+  /* titlebar · toolbar · statsbar (auto: 0 when empty) · address · body · status */
+  grid-template-rows: 38px 40px auto 28px 1fr 22px;
   overflow: hidden;
   position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
@@ -2604,11 +2605,36 @@ select.ve-btn.fw-cmap-select {
   appearance: auto;
   cursor: pointer;
 }
-.ve-stats {
-  display: flex; gap: 14px;
+/* Matrix StatsBar — aggregate stats as their own row, with a chooser. The
+   wrapper is ALWAYS rendered (so the .ve-window grid keeps a stable row
+   count and the rows below don't shift); the --empty modifier collapses
+   it to zero height for non-numeric values. */
+.ve-statsbar {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 24px;
+  padding: 0 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--font-mono); font-size: 11.5px;
   color: var(--fg-2);
 }
-.ve-stats b { color: var(--fg-3); font-weight: normal; margin-right: 4px; }
+.ve-statsbar--empty {
+  min-height: 0; padding: 0; background: none; border: none;
+}
+.ve-statsbar-pick {
+  flex: 0 0 auto;
+  background: var(--bg-3); color: var(--fg-2);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 1px 7px; font-size: 11px; cursor: pointer;
+  font-family: var(--font-mono);
+}
+.ve-statsbar-pick:hover { border-color: var(--accent); color: var(--fg-0); }
+.ve-statsbar-items {
+  display: flex; align-items: center; gap: 14px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.ve-stat b { color: var(--fg-3); font-weight: normal; margin-right: 4px; }
+.ve-statsbar-hint { color: var(--fg-3); font-style: italic; }
 
 /* Address bar */
 .ve-address {

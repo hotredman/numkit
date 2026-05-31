@@ -3,6 +3,8 @@ import { useTheme } from '../../theme';
 import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspectorOps';
 import ContextMenu from './ContextMenu';
 import ValueTable from './ValueTable';
+import StatsBar from './StatsBar';
+import { aggregateStats } from './valueColumns';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
@@ -1015,15 +1017,12 @@ function MatrixPanel({
           )}
         </div>
         <div className="ve-tools-spacer" />
-        {stats && (
-          <div className="ve-stats">
-            <span><b>min</b> {fmt(stats.min)}</span>
-            <span><b>max</b> {fmt(stats.max)}</span>
-            <span><b>μ</b> {fmt(stats.mean)}</span>
-            <span><b>n</b> {stats.n}</span>
-          </div>
-        )}
       </div>
+
+      {/* Aggregate statistics over the whole matrix, as its own row with a
+          chooser (min/max/range/mean/median/mode/var/std/n). Collapses to
+          nothing for non-numeric values. */}
+      <StatsBar stats={stats} />
 
       <div className="ve-address">
         <span className="ve-cell-ref">{name}({activeCell.r + 1}, {activeCell.c + 1})</span>
@@ -1299,13 +1298,9 @@ function CellGrid({ payload, onDrill }) {
 //   onCommit(r,c,rhs) — write-back (Phase B); absent → read-only
 function DrilledMatrix({ payload, name, onBack, onCommit }) {
   const data = payload.data || [];
-  const stats = useMemo(() => {
-    let min = Infinity, max = -Infinity, sum = 0, n = 0;
-    for (const row of data) for (const v of row) {
-      if (typeof v === 'number') { if (v < min) min = v; if (v > max) max = v; sum += v; n++; }
-    }
-    return n ? { min, max, mean: sum / n, n } : null;
-  }, [data]);
+  // Full stat set (min/max/mean/median/mode/var/std/n) over the inline
+  // data, for the StatsBar — mirrors the engine's getVarStatsJSON.
+  const stats = useMemo(() => aggregateStats(data.flat()), [data]);
   if (payload.truncated) {
     return (
       <div className="ve-struct-empty">
@@ -1679,14 +1674,12 @@ export function VariableEditor({ variable, onClose, engine }) {
     return () => { cancelled = true; };
   }, [shape.tileMode, engine, variable.name]);
 
-  // Full-mode stats are computed locally over the in-memory data array.
+  // Full-mode stats: the complete set over the in-memory data (same helper
+  // as the drilled-matrix path). Tile-mode (huge matrices) uses the
+  // engine's getVarStats, which now returns the full set too.
   const stats = useMemo(() => {
     if (shape.tileMode) return tileStats;
-    let min = Infinity, max = -Infinity, sum = 0, n = 0;
-    for (const row of data) for (const v of row) {
-      if (typeof v === 'number') { if (v < min) min = v; if (v > max) max = v; sum += v; n++; }
-    }
-    return n ? { min, max, mean: sum / n, n } : null;
+    return aggregateStats(data.flat());
   }, [data, shape.tileMode, tileStats]);
 
   // Write-back for a committed cell edit. MatrixPanel hands us (r, c,

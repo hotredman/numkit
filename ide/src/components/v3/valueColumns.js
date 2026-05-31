@@ -75,3 +75,71 @@ export function fmtStat(n) {
   if (Number.isInteger(n)) return String(n);
   return Number(n.toPrecision(5)).toString();
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Matrix StatsBar — the same statistics, but as an aggregate row over a
+ * whole matrix (not per-row columns). Adds the element count `n`. The
+ * chooser/persistence mirror the table column chooser so all three
+ * contexts (workspace · struct · matrix) share one stats vocabulary.
+ * ────────────────────────────────────────────────────────────────────── */
+export const STAT_BAR = [
+  { key: 'min',    label: 'min' },
+  { key: 'max',    label: 'max' },
+  { key: 'range',  label: 'range' },
+  { key: 'mean',   label: 'mean' },
+  { key: 'median', label: 'median' },
+  { key: 'mode',   label: 'mode' },
+  { key: 'var',    label: 'var' },
+  { key: 'std',    label: 'std' },
+  { key: 'n',      label: 'n' },
+];
+const STAT_BAR_KNOWN = new Set(STAT_BAR.map((d) => d.key));
+export const DEFAULT_STAT_BAR = ['min', 'max', 'mean', 'n'];
+
+export function loadStatBar(storageKey) {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return new Set(DEFAULT_STAT_BAR);
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return new Set(DEFAULT_STAT_BAR);
+    return new Set(arr.filter((k) => STAT_BAR_KNOWN.has(k)));
+  } catch {
+    return new Set(DEFAULT_STAT_BAR);
+  }
+}
+
+// Saving is shape-agnostic (a list of keys) — reuse one writer.
+export const saveStatBar = saveVisibleColumns;
+
+/** Resolve a stats-bar value: `n` reads the element count; everything
+ *  else (incl. derived `range`) goes through statValue. */
+export function statBarValue(stats, key) {
+  if (!stats) return null;
+  if (key === 'n') return typeof stats.n === 'number' ? stats.n : null;
+  return statValue(stats, key);
+}
+
+/** Compute the full stat set over a flat array of values (client-side
+ *  counterpart of the engine's computeValueStats — for drilled matrix
+ *  fields whose data arrives inline). Non-numbers are ignored; returns
+ *  null when no finite number remains. Sample (N−1) variance; mode is the
+ *  smallest most-frequent value. */
+export function aggregateStats(values) {
+  const v = [];
+  for (const x of values) if (typeof x === 'number' && Number.isFinite(x)) v.push(x);
+  const n = v.length;
+  if (n === 0) return null;
+  let sum = 0, min = v[0], max = v[0];
+  for (const x of v) { sum += x; if (x < min) min = x; if (x > max) max = x; }
+  const mean = sum / n;
+  const sorted = [...v].sort((a, b) => a - b);
+  const median = n % 2 ? sorted[(n - 1) / 2] : 0.5 * (sorted[n / 2 - 1] + sorted[n / 2]);
+  let acc = 0; for (const x of v) acc += (x - mean) ** 2;
+  const variance = n >= 2 ? acc / (n - 1) : 0;
+  let mode = sorted[0], bestCnt = 1, cur = 1;
+  for (let i = 1; i < n; i++) {
+    cur = sorted[i] === sorted[i - 1] ? cur + 1 : 1;
+    if (cur > bestCnt) { bestCnt = cur; mode = sorted[i]; }
+  }
+  return { min, max, mean, median, mode, var: variance, std: Math.sqrt(variance), n };
+}
