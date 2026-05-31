@@ -1871,21 +1871,6 @@ input, select { font-family: inherit; color: inherit; }
   font-family: var(--font-mono);
   font-size: 11.5px;
 }
-.var-row {
-  display: grid;
-  grid-template-columns: minmax(80px, 1fr) 60px 90px minmax(140px, 2fr) 60px 80px 80px 80px;
-  gap: 12px;
-  padding: 6px 14px;
-  border-bottom: 1px solid var(--line-soft);
-  cursor: pointer;
-  align-items: center;
-  color: var(--fg-1);
-}
-.var-row:hover { background: var(--bg-2); }
-.var-row.var-row-head { color: var(--fg-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; cursor: default; }
-.var-row-name { color: var(--fg-0); }
-.var-row-size, .var-row-bytes, .var-row-stat { color: var(--fg-2); }
-.var-row-preview { color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .ws-empty {
   padding: 40px;
@@ -2052,34 +2037,38 @@ input, select { font-family: inherit; color: inherit; }
 .ve-crumb:disabled { color: var(--fg-1); cursor: default; }
 
 /* Single-struct field list */
-/* Scalar struct (numel 1): MATLAB-style Field · Value · Size · Class
-   table. One row per field; right-click a row for the context menu
-   (Open · Rename · Duplicate · Insert · Delete). */
-.ve-fields-wrap { padding-bottom: 2px; }
-.ve-fields-table {
+/* ValueTable — the shared named-value table behind the struct/cell
+   inspector AND the Workspace list view. MATLAB-style Field/Name · Value ·
+   Size · Class (+ optional stat) columns; the visible set is chosen from
+   the header's right-click chooser. Right-aligned numeric columns, sticky
+   header, hover/drill affordances. */
+.vt-wrap { padding-bottom: 2px; }
+.vt-table {
   width: 100%;
   border-collapse: collapse;
   font-family: var(--font-mono);
   font-size: 12px;
 }
-.ve-fields-table th, .ve-fields-table td {
+.vt-table th, .vt-table td {
   text-align: left;
   padding: 3px 12px;
   white-space: nowrap;
   border-bottom: 1px solid var(--line-soft);
 }
-.ve-fields-table thead th {
+.vt-table th.vt-right, .vt-table td.vt-right { text-align: right; }
+.vt-table thead th {
   position: sticky; top: 0; z-index: 1;
   background: var(--bg-2); color: var(--fg-2);
   font-weight: 600; font-size: 11px;
   border-bottom: 1px solid var(--line);
+  cursor: context-menu;
 }
-.ve-fields-table tbody tr.is-drillable { cursor: pointer; }
-.ve-fields-table tbody tr:hover { background: var(--bg-2); }
-.ve-fld-name  { color: var(--fg-1); }
-.ve-fld-val   { color: var(--fg-2); max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
-.ve-fld-size  { color: var(--fg-3); text-align: right; }
-.ve-fld-class { color: var(--accent); }
+.vt-table tbody tr.is-drillable { cursor: pointer; }
+.vt-table tbody tr:hover { background: var(--bg-2); }
+.vt-name  { color: var(--fg-1); }
+.vt-value { color: var(--fg-2); max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.vt-class { color: var(--accent); }
+.vt-muted { color: var(--fg-3); }
 /* Inline field-name rename input (double-click a field name, or
    Rename from the context menu). */
 .ve-rename-input {

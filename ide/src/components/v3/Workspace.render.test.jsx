@@ -98,7 +98,7 @@ describe('VariableEditor — struct inspector render smoke', () => {
     expect(container.querySelector('.ve-crumbs')).toBeTruthy();
     expect(within(container).getByText('hp')).toBeTruthy();
     // MATLAB-style Field · Value · Size · Class table.
-    const table = container.querySelector('.ve-fields-table');
+    const table = container.querySelector('.vt-table');
     expect(table).toBeTruthy();
     const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent);
     expect(heads).toEqual(['Field', 'Value', 'Size', 'Class']);
@@ -118,7 +118,7 @@ describe('VariableEditor — struct inspector render smoke', () => {
     const { container } = render(
       <VE variable={structVar} onClose={() => {}} engine={engine} />,
     );
-    const row = container.querySelector('.ve-fields-table tbody tr');
+    const row = container.querySelector('.vt-table tbody tr');
     expect(row).toBeTruthy();
     fireEvent.contextMenu(row);
     const labels = [...document.querySelectorAll('.ctx-item')].map((b) => b.textContent);
