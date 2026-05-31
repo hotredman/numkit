@@ -72,6 +72,45 @@ TEST_F(MissingDataTest, RmoutliersDropsExtreme)
     EXPECT_DOUBLE_EQ(evalScalar("max(y)"), 7.0);
 }
 
+// rmoutliers(A, method[, percentiles vec][,'ThresholdFactor',tf]): the
+// method/percentiles/ThresholdFactor args were parsed-and-ignored (always
+// the default median detector), and matrices were flattened instead of
+// having outlier ROWS removed. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(MissingDataTest, RmoutliersMethodsAndMatrix)
+{
+    // 'mean': 100 within 3*std -> removes nothing.
+    eval("me = rmoutliers([1 2 3 100 4 5], 'mean');");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(me)")), 6);
+    EXPECT_DOUBLE_EQ(evalScalar("me(4)"), 100.0);
+    // 'percentiles' [10 90] removes the 10th-pct low (1) and 90th-pct high (100).
+    eval("pc = rmoutliers([1 2 3 100 4 5], 'percentiles', [10 90]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(pc)")), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(pc)"), 14.0);   // 2+3+4+5
+    EXPECT_DOUBLE_EQ(evalScalar("pc(1)"), 2.0);
+    // 'median' with ThresholdFactor 1 removes 1 and 100.
+    eval("mt = rmoutliers([1 2 3 100 4 5], 'median', 'ThresholdFactor', 1);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(mt)")), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(mt)"), 14.0);
+    // matrix: per-column detection removes the ROW containing 100.
+    eval("R = rmoutliers([1 2; 3 4; 5 100; 7 8; 9 10]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(R,1)")), 4);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(R,2)")), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("R(3,1)"), 7.0);     // row [7 8] survived
+    EXPECT_DOUBLE_EQ(evalScalar("sum(R(:))"), 44.0); // 1+3+7+9 + 2+4+8+10
+    // 2nd output: vector removed-mask (same orientation).
+    eval("[yv, iv] = rmoutliers([1 2 3 100 4 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iv(4))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(iv))"), 1.0);
+    // 2nd output: matrix removed-rows logical (r x 1).
+    eval("[yM, iM] = rmoutliers([1 2; 3 4; 5 100; 7 8; 9 10]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(iM,1)")), 5);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(iM,2)")), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("double(iM(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(iM))"), 1.0);
+    // unsupported method throws (deferred).
+    EXPECT_THROW(eval("rmoutliers([1 2 3 100 4 5], 'gesd');"), std::exception);
+}
+
 // ── fillmissing ───────────────────────────────────────────
 
 TEST_F(MissingDataTest, FillmissingPrevious)

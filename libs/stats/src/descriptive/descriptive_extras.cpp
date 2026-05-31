@@ -2910,12 +2910,179 @@ void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = isoutlierMethod(args[0], method, detectTf, mr);
 }
 
-void rmoutliers_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+// Per-column outlier mask for rmoutliers. Adds the rmoutliers-specific
+// 'percentiles' method (NOT in detect_one_column): elements below the
+// loP-th percentile or above the hiP-th percentile are outliers, using
+// MATLAB's prctile convention (sorted positions at 100*(k-0.5)/n, clamped
+// at the ends). median/mean/quartiles delegate to detect_one_column.
+// Returns a column-major mask of x.numel() bytes (1 == outlier).
+static std::vector<uint8_t> rmoutlierMask(const Value &x, const std::string &method,
+                                          double loP, double hiP, double detectTf)
+{
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    const std::size_t n = x.numel();
+    std::vector<uint8_t> mask(n, 0);
+    if (n == 0) return mask;
+    const double *xd = x.doubleData();
+
+    auto fill_col = [&](const double *col, std::size_t len, uint8_t *m) {
+        if (method == "percentiles") {
+            std::vector<double> buf;
+            buf.reserve(len);
+            for (std::size_t i = 0; i < len; ++i)
+                if (!std::isnan(col[i])) buf.push_back(col[i]);
+            if (buf.empty()) return;
+            std::sort(buf.begin(), buf.end());
+            auto prc = [&](double p) {
+                const double q = p / 100.0 * double(buf.size()) - 0.5;
+                if (q <= 0.0) return buf.front();
+                if (q >= double(buf.size() - 1)) return buf.back();
+                const std::size_t f = static_cast<std::size_t>(std::floor(q));
+                const double fr = q - double(f);
+                return buf[f] + fr * (buf[f + 1] - buf[f]);
+            };
+            const double lo = prc(loP);
+            const double hi = prc(hiP);
+            for (std::size_t i = 0; i < len; ++i)
+                m[i] = (std::isnan(col[i]) ? 0
+                      : ((col[i] < lo || col[i] > hi) ? 1 : 0));
+        } else {
+            FoDetect d = detect_one_column(col, len, method, detectTf);
+            for (std::size_t i = 0; i < len; ++i) m[i] = d.mask[i];
+        }
+    };
+
+    if (r == 1 || c == 1) {
+        fill_col(xd, n, mask.data());
+    } else {
+        for (std::size_t col = 0; col < c; ++col)
+            fill_col(xd + col * r, r, mask.data() + col * r);
+    }
+    return mask;
+}
+
+// rmoutliers(A[, method][, percentiles-vec][, 'ThresholdFactor', tf]).
+// Vectors: drop flagged ENTRIES (orientation preserved). Matrices:
+// detect per column, remove any ROW containing an outlier. Optional
+// 2nd output is the logical mask of removed entries (vector) / rows
+// (matrix). DEEP-PROBE 2026-05-31: previously delegated to the default
+// median detector and IGNORED method/percentiles/ThresholdFactor, and
+// flattened matrices instead of removing rows.
+void rmoutliers_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("rmoutliers: requires at least 1 argument",
                     0, 0, "rmoutliers", "", "numkit:rmoutliers:nargin");
-    outs[0] = rmoutliers_of(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &x = args[0];
+
+    auto lower = [](std::string s) {
+        for (char &ch : s)
+            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        return s;
+    };
+
+    std::string method = "median";
+    double loP = 0.0, hiP = 0.0;
+    std::size_t ai = 1;
+    if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
+        const std::string m = lower(args[1].toString());
+        if (m == "median" || m == "mean" || m == "quartiles") {
+            method = m;
+            ai = 2;
+        } else if (m == "percentiles") {
+            method = "percentiles";
+            if (args.size() < 3 || args[2].numel() != 2)
+                throw Error("rmoutliers: 'percentiles' requires a 2-element "
+                            "[lower upper] vector",
+                            0, 0, "rmoutliers", "", "numkit:rmoutliers:percentiles");
+            loP = args[2].elemAsDouble(0);
+            hiP = args[2].elemAsDouble(1);
+            ai = 3;
+        } else if (m == "grubbs" || m == "gesd" || m == "movmedian" || m == "movmean") {
+            throw Error("rmoutliers: method '" + args[1].toString() +
+                            "' is not supported in this revision "
+                            "(median, mean, quartiles, percentiles only)",
+                         0, 0, "rmoutliers", "", "numkit:rmoutliers:method");
+        }
+        // else: leave as a Name-Value name parsed below.
+    }
+
+    double userTf = (method == "quartiles") ? 1.5 : 3.0;
+    for (std::size_t i = ai; i + 1 < args.size(); i += 2) {
+        if (args[i].isChar() || args[i].isString()) {
+            const std::string nm = lower(args[i].toString());
+            if (nm == "thresholdfactor")
+                userTf = args[i + 1].toScalar();
+            else
+                throw Error("rmoutliers: unknown option '" + args[i].toString() + "'",
+                             0, 0, "rmoutliers", "", "numkit:rmoutliers:option");
+        }
+    }
+    if (userTf < 0.0)
+        throw Error("rmoutliers: ThresholdFactor must be nonnegative",
+                     0, 0, "rmoutliers", "", "numkit:rmoutliers:tf");
+    const double detectTf = (method == "quartiles") ? 2.0 * userTf : userTf;
+
+    const std::size_t n = x.numel();
+    if (n == 0) {
+        outs[0] = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        if (nargout >= 2) outs[1] = Value::matrix(0, 0, ValueType::LOGICAL, mr);
+        return;
+    }
+    const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+    const std::size_t c = (x.dims().ndim() >= 2)
+                            ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+    const double *xd = x.doubleData();
+    const std::vector<uint8_t> mask = rmoutlierMask(x, method, loP, hiP, detectTf);
+
+    if (r == 1 || c == 1) {
+        // Vector: drop flagged entries, preserve orientation.
+        ScratchArena scratch(mr);
+        ScratchVec<double> kept(&scratch);
+        kept.reserve(n);
+        for (std::size_t i = 0; i < n; ++i)
+            if (!mask[i]) kept.push_back(xd[i]);
+        const bool colOrient = (r != 1);  // column vector → column output
+        auto out = colOrient
+            ? Value::matrix(kept.size(), 1, ValueType::DOUBLE, mr)
+            : Value::matrix(1, kept.size(), ValueType::DOUBLE, mr);
+        if (!kept.empty())
+            std::copy(kept.begin(), kept.end(), out.doubleDataMut());
+        outs[0] = out;
+        if (nargout >= 2) {
+            auto rm = Value::matrix(r, c, ValueType::LOGICAL, mr);
+            uint8_t *rd = rm.logicalDataMut();
+            for (std::size_t i = 0; i < n; ++i) rd[i] = mask[i];
+            outs[1] = rm;
+        }
+    } else {
+        // Matrix: remove any ROW with an outlier in any column.
+        std::vector<uint8_t> rowRemove(r, 0);
+        for (std::size_t col = 0; col < c; ++col)
+            for (std::size_t i = 0; i < r; ++i)
+                if (mask[col * r + i]) rowRemove[i] = 1;
+        std::size_t keptRows = 0;
+        for (std::size_t i = 0; i < r; ++i) if (!rowRemove[i]) ++keptRows;
+        auto out = Value::matrix(keptRows, c, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        std::size_t orow = 0;
+        for (std::size_t i = 0; i < r; ++i) {
+            if (rowRemove[i]) continue;
+            for (std::size_t col = 0; col < c; ++col)
+                od[col * keptRows + orow] = xd[col * r + i];
+            ++orow;
+        }
+        outs[0] = out;
+        if (nargout >= 2) {
+            auto rm = Value::matrix(r, 1, ValueType::LOGICAL, mr);
+            uint8_t *rd = rm.logicalDataMut();
+            for (std::size_t i = 0; i < r; ++i) rd[i] = rowRemove[i];
+            outs[1] = rm;
+        }
+    }
 }
 
 void fillmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
