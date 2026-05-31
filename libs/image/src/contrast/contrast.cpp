@@ -125,13 +125,15 @@ Value stretchlim(const Value &I, double low_tol, double high_tol, std::pmr::memo
     Value out = Value::matrix(2, channels, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
-    // MATLAB's stretchlim uses a 256-bin histogram with strict-greater
-    // cumulative thresholds, NOT sample-percentile. For uint8 the bin
-    // index is the value directly; for uint16 / float the input is
-    // normalized to [0,1] and rebinned. The two algorithms diverge for
-    // discrete data: e.g. uint8(0:99) yields stretchlim = [1/255, 98/255]
-    // (bin-based, MATLAB) vs [0/255, 99/255] (sample percentile).
-    constexpr int NBINS = 256;
+    // MATLAB's stretchlim uses a histogram with strict-greater cumulative
+    // thresholds, NOT sample-percentile. The bin count is class-dependent:
+    // 256 bins for uint8, 65536 for uint16 / int16 / single / double. For
+    // uint8 the bin index is the value directly; for the wider classes the
+    // input is normalized to [0,1] and rebinned. (Previously a fixed 256
+    // bins gave coarsely-quantized limits on double images — e.g.
+    // stretchlim([0.1 0.2 0.9 0.95]) returned [26/255 242/255] instead of
+    // [6554/65535 62258/65535].)
+    const int NBINS = (I.type() == ValueType::UINT8) ? 256 : 65536;
     std::vector<std::size_t> hist(NBINS, 0);
     std::vector<std::size_t> cumhist(NBINS, 0);
     const double N = static_cast<double>(plane);
