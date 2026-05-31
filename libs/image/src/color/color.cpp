@@ -1720,16 +1720,8 @@ NK_COLOR_REG(lab2xyz)
 
 #undef NK_COLOR_REG
 
-void label2rgb_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("label2rgb: requires (L, cmap [, background])",
-                    0, 0, "label2rgb", "", "numkit:label2rgb:nargin");
-    Value bg;
-    if (args.size() >= 3 && !args[2].isEmpty()) bg = args[2];
-    outs[0] = label2rgb(args[0], args[1], bg, ctx.engine->resource());
-}
+// label2rgb_reg lives in color_extras.cpp (it needs the jet/named-colormap
+// helpers there); this TU keeps only the uint8 pixel-mapping core above.
 
 void colorgradient_reg(Span<const Value> args, size_t /*nargout*/,
                        Span<Value> outs, CallContext &ctx)
