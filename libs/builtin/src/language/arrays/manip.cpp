@@ -799,25 +799,6 @@ Value circshift(const Value &x, int64_t kRow, int64_t kCol, std::pmr::memory_res
 
 namespace {
 
-// Per-page lower-triangular mask: zero entries where col - row > k.
-inline void trilPage(const double *src, double *dst, size_t R, size_t C, int k)
-{
-    for (size_t c = 0; c < C; ++c)
-        for (size_t rr = 0; rr < R; ++rr) {
-            const int diff = static_cast<int>(c) - static_cast<int>(rr);
-            dst[c * R + rr] = (diff <= k) ? src[c * R + rr] : 0.0;
-        }
-}
-
-inline void triuPage(const double *src, double *dst, size_t R, size_t C, int k)
-{
-    for (size_t c = 0; c < C; ++c)
-        for (size_t rr = 0; rr < R; ++rr) {
-            const int diff = static_cast<int>(c) - static_cast<int>(rr);
-            dst[c * R + rr] = (diff >= k) ? src[c * R + rr] : 0.0;
-        }
-}
-
 // Type-agnostic per-page tril/triu via byte-copy + memset(0). All numeric
 // types (DOUBLE, SINGLE, integer, LOGICAL, COMPLEX) zero correctly via
 // memset since their zero element is all-zero bits.
@@ -893,15 +874,26 @@ Value tril(const Value &x, int k, std::pmr::memory_resource *mr)
     if (dd.ndim() >= 4)
         return trilTriuND(x, k, trilPageBytes, "tril", mr);
 
+    // Type-preserving: keep the lower triangle, zero-fill the rest. The
+    // zeroed bit pattern is the canonical zero for every supported type
+    // (DOUBLE / SINGLE / int / LOGICAL / CHAR / COMPLEX). CELL / STRING /
+    // STRUCT rejected, matching MATLAB ("must be numeric, char, or logical").
+    const ValueType t = x.type();
+    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+        || t == ValueType::FUNC_HANDLE)
+        throw Error("tril: inputs must be numeric, char, or logical",
+                     0, 0, "tril", "", "numkit:tril:badType");
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
-                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, t, mr)
+                       : Value::matrix(R, C, t, mr);
     if (x.numel() == 0) return r;
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     for (size_t pp = 0; pp < P; ++pp)
-        trilPage(src + pp * R * C, dst + pp * R * C, R, C, k);
+        trilPageBytes(src + pp * R * C * es, dst + pp * R * C * es, R, C, k, es);
     return r;
 }
 
@@ -911,15 +903,23 @@ Value triu(const Value &x, int k, std::pmr::memory_resource *mr)
     if (dd.ndim() >= 4)
         return trilTriuND(x, k, triuPageBytes, "triu", mr);
 
+    // Type-preserving (see tril).
+    const ValueType t = x.type();
+    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+        || t == ValueType::FUNC_HANDLE)
+        throw Error("triu: inputs must be numeric, char, or logical",
+                     0, 0, "triu", "", "numkit:triu:badType");
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
-                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, t, mr)
+                       : Value::matrix(R, C, t, mr);
     if (x.numel() == 0) return r;
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     for (size_t pp = 0; pp < P; ++pp)
-        triuPage(src + pp * R * C, dst + pp * R * C, R, C, k);
+        triuPageBytes(src + pp * R * C * es, dst + pp * R * C * es, R, C, k, es);
     return r;
 }
 

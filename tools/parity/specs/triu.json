@@ -2,13 +2,16 @@
   "name": "triu",
   "namespace": "linalg",
   "setup": "",
-  "expr": "U = triu([1 2 3; 4 5 6; 7 8 9]); r1 = U(2,1); r2 = U(1,2); r3 = U(1,1);",
+  "expr": "U = triu([1 2 3; 4 5 6; 7 8 9]); r1 = U(2,1); r2 = U(1,2); r3 = U(1,1); M = ['abc';'def';'ghi']; T = triu(M); t12 = double(T(1,2)); t21 = double(T(2,1)); t11 = double(T(1,1)); tcls = double(ischar(T)); Tk = triu(M,-1); tk21 = double(Tk(2,1)); tk31 = double(Tk(3,1)); Lg = logical(ones(3)); TL = triu(Lg); tl12 = double(TL(1,2)); tl21 = double(TL(2,1)); tlislog = double(islogical(TL)); Z = [1+1i 2+2i;3+3i 4+4i]; TZ = triu(Z); tzr = real(TZ(1,2)); tzi = imag(TZ(1,2)); tzo = real(TZ(2,1)); S = single([1 2;3 4]); TS = triu(S); ts_is = double(strcmp(class(TS),'single')); ts12 = double(TS(1,2)); ts21 = double(TS(2,1));",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "r1", "r2", "r3",
+    "t12", "t21", "t11", "tcls", "tk21", "tk31",
+    "tl12", "tl21", "tlislog",
+    "tzr", "tzi", "tzo",
+    "ts_is", "ts12", "ts21"
   ],
-  "comment": "Sig: r = triu(...). Spec-extension batch 2026-05-09."
+  "deep_verified": true,
+  "comment": "Sig: r = triu(A [,k]). DEEP-PROBE 2026-05-31: the 2-D/3-D path was DOUBLE-only (threw 'Not a double array' on char/logical/single/complex); routed through the existing type-agnostic byte kernel (keep upper triangle, zero-fill rest). CELL/STRING/STRUCT rejected. triu(['abc';'def';'ghi'])=upper-triangle char with char(0) below diag (t12='b'=98,t21=0,t11='a'=97); triu(M,-1) keeps one sub-diagonal (tk21='d'=100,tk31=0); logical/single/complex class preserved (complex zeroed=0+0i). Spec-extension batch 2026-05-09."
 }

@@ -771,6 +771,55 @@ TEST_P(ManipTest, Triu4DPreservesSingleType)
     EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 1, 1, 1));"), 0.0);
 }
 
+// DEEP-PROBE 2026-05-31: the 2-D tril/triu path was DOUBLE-only and threw
+// "Not a double array" on char/logical/single/complex (the byte kernel
+// existed but only the ndim>=4 fallback used it).
+TEST_P(ManipTest, TrilTriu2DTypeAgnostic)
+{
+    // CHAR: keep triangle, char(0) in the zeroed half.
+    eval("M = ['abc';'def';'ghi']; T = tril(M);");
+    EXPECT_TRUE(evalBool("ischar(T);"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(T(1,1))"), 97.0);   // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(T(2,1))"), 100.0);  // 'd'
+    EXPECT_DOUBLE_EQ(evalScalar("double(T(1,2))"), 0.0);    // zeroed
+    eval("U = triu(M);");
+    EXPECT_TRUE(evalBool("ischar(U);"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(U(1,2))"), 98.0);   // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(U(2,1))"), 0.0);
+
+    // k offset on char.
+    eval("Tk = tril(M, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(Tk(1,3))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(Tk(3,1))"), 103.0);  // 'g'
+    eval("Uk = triu(M, -1);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(Uk(2,1))"), 100.0);  // 'd'
+    EXPECT_DOUBLE_EQ(evalScalar("double(Uk(3,1))"), 0.0);
+
+    // LOGICAL preserved.
+    eval("L = tril(logical(ones(3)));");
+    EXPECT_TRUE(evalBool("islogical(L);"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(2,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(1,2))"), 0.0);
+
+    // SINGLE preserved.
+    eval("S = tril(single([1 2;3 4]));");
+    EXPECT_TRUE(evalBool("isequal(class(S), 'single');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(S(2,1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(S(1,2))"), 0.0);
+
+    // COMPLEX preserved (zeroed half = 0+0i).
+    eval("Z = tril([1+1i 2+2i;3+3i 4+4i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(2,1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(2,1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,2))"), 0.0);
+
+    // DOUBLE unchanged.
+    eval("D = tril([1 2;3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("D(2,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1,2)"), 0.0);
+}
+
 TEST_P(ManipTest, Rot904DPreservesIntegerType)
 {
     eval("A = int8(reshape(1:24, [2, 3, 2, 2])); B = rot90(A);");
