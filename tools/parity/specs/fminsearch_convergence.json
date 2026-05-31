@@ -1,0 +1,14 @@
+{
+  "name": "fminsearch_convergence",
+  "namespace": "optim",
+  "covers": ["fminsearch"],
+  "setup": "",
+  "expr": "r = fminsearch(@(v) 100*(v(2)-v(1)^2)^2+(1-v(1))^2, [-1.2 1]); r1 = r(1); r2 = r(2); q = fminsearch(@(v) (v(1)-1)^2+(v(2)-2)^2, [0 0]); q1 = q(1); q2 = q(2); o = fminsearch(@(x) x^2-2*x, 0); [xm, fvm] = fminsearch(@(v) (v(1)-3)^2+(v(2)+1)^2, [0 0]); xm1 = xm(1); xm2 = xm(2);",
+  "iters": 5,
+  "tol": 1e-3,
+  "fingerprint": [
+    "r1", "r2", "q1", "q2", "o", "xm1", "xm2", "fvm"
+  ],
+  "deep_verified": true,
+  "comment": "fminsearch (Nelder-Mead) default convergence accuracy vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/optim): the convergence test only checked the function-value spread (TolFun) — not the simplex SIZE (TolX) — so on a smooth objective the simplex stopped ~100x short of the minimum: fminsearch(@(v) (v(1)-1)^2+(v(2)-2)^2, [0 0]) gave [1.0099 1.9983] instead of ~[1 2]. MATLAB requires BOTH max f-spread <= TolFun AND max simplex edge length <= TolX (both 1e-4 by default). Fix: add the TolX (xspread vs the best vertex) criterion. numkit now follows MATLAB's Nelder-Mead path closely — the Rosenbrock minimiser from [-1.2 1] converges to [1.00002 1.00004], MATCHING MATLAB to 5 decimals; the quadratic to ~[1 2]; the 1-D case to 1; an explicit numeric tol is still honoured. tol 1e-3 absorbs the tiny path-dependent residual inherent to Nelder-Mead. covers:[fminsearch]."
+}
