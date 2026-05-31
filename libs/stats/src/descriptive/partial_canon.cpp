@@ -242,15 +242,19 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     auto [QX, RX] = ::numkit::linalg::qr_decompose(Xc, mr);
     auto [QY, RY] = ::numkit::linalg::qr_decompose(Yc, mr);
 
-    // Build QX1 (n × p) and QY1 (n × q) from the full Q factors —
-    // simply take the leading p, q columns.
+    // Take the leading `cols` columns of a matrix. The row count MUST come
+    // from the source matrix, not the observation count `n`: this helper is
+    // reused below on U (p × p) and V (q × q), where p, q < n. Hardcoding `n`
+    // rows there read past the U/V buffers — an out-of-bounds access (a
+    // non-deterministic SEH 0xc0000005 crash, or silently wrong values).
     auto sliceCols = [&](const Value &Q, std::size_t cols) {
-        auto out = Value::matrix(n, cols, ValueType::DOUBLE, mr);
+        const std::size_t rows = Q.dims().rows();
+        auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
         const double *qd = Q.doubleData();
         for (std::size_t j = 0; j < cols; ++j)
-            for (std::size_t i = 0; i < n; ++i)
-                od[j * n + i] = qd[j * n + i];
+            for (std::size_t i = 0; i < rows; ++i)
+                od[j * rows + i] = qd[j * rows + i];
         return out;
     };
     auto QX1 = sliceCols(QX, p);
