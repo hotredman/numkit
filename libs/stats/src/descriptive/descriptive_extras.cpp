@@ -1605,7 +1605,11 @@ Value moment_of(const Value &x, int order, int dim, std::pmr::memory_resource *m
 }
 
 // trimmean(x, p) = mean of x after trimming p/2% from each end (p in [0, 100]).
-Value trimmean_of(const Value &x, double pct, int dim, std::pmr::memory_resource *mr)
+// `useFloor` selects MATLAB's flag: false ('round', the default) rounds the
+// per-end count n*p/200 to the nearest integer with ties going DOWN (so
+// k = ceil(n*p/200 - 0.5)); true ('floor') takes the plain floor.
+Value trimmean_of(const Value &x, double pct, int dim, bool useFloor,
+                  std::pmr::memory_resource *mr)
 {
     if (pct < 0.0 || pct >= 100.0)
         throw Error("trimmean: percent must be in [0, 100)",
@@ -1613,11 +1617,13 @@ Value trimmean_of(const Value &x, double pct, int dim, std::pmr::memory_resource
     const int d = resolveDim(x, dim, "trimmean");
     const double p = pct;
     return applyAlongDim(x, d,
-        [p](size_t, const double *s, size_t n) -> double {
+        [p, useFloor](size_t, const double *s, size_t n) -> double {
             if (n == 0) return std::numeric_limits<double>::quiet_NaN();
             // Number of values to trim from EACH end.
-            const size_t k = static_cast<size_t>(std::floor(
-                static_cast<double>(n) * p / 200.0));
+            const double kf = static_cast<double>(n) * p / 200.0;
+            const size_t k = useFloor
+                ? static_cast<size_t>(std::floor(kf))
+                : static_cast<size_t>(std::max(0.0, std::ceil(kf - 0.5)));
             if (2 * k >= n) return std::numeric_limits<double>::quiet_NaN();
             std::vector<double> buf(s, s + n);
             std::sort(buf.begin(), buf.end());
@@ -3384,8 +3390,27 @@ void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("trimmean: requires (x, percent)",
                     0, 0, "trimmean", "", "numkit:trimmean:nargin");
     const double pct = args[1].toScalar();
-    const int dim    = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
-    outs[0] = trimmean_of(args[0], pct, dim, ctx.engine->resource());
+
+    // trimmean(x, percent [, flag] [, dim]). The 3rd arg is EITHER a string
+    // flag ('round' default, or 'floor') OR a numeric dim; if a flag is
+    // present the dim may follow it. Distinguish by type before toScalar.
+    bool useFloor = false;
+    int dim = 0;
+    std::size_t i = 2;
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        std::string f = args[i].toString();
+        for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (f == "floor")      useFloor = true;
+        else if (f == "round") useFloor = false;
+        else
+            throw Error("trimmean: flag must be 'round' or 'floor'",
+                        0, 0, "trimmean", "", "numkit:trimmean:flag");
+        ++i;
+    }
+    if (i < args.size())
+        dim = static_cast<int>(args[i].toScalar());
+
+    outs[0] = trimmean_of(args[0], pct, dim, useFloor, ctx.engine->resource());
 }
 
 } // namespace detail
