@@ -700,7 +700,7 @@ void BuiltinLibrary::install(Engine &engine)
             }
             // Fallback to user-supplied default; otherwise [].
             if (args.size() >= 3) outs[0] = args[2];
-            else outs[0] = Value::empty();
+            else outs[0] = Value();
         });
     engine.registerFunction("integral",  &builtin::detail::integral_reg);
     engine.registerFunction("roots",     &builtin::detail::roots_reg);
@@ -1550,7 +1550,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         applyTo(env);
                                         if (env != &ctx.engine->workspaceEnv())
                                             applyTo(&ctx.engine->workspaceEnv());
-                                        outs[0] = Value::empty();
+                                        outs[0] = Value();
                                         return;
                                     }
                                     if (first == "global") {
@@ -1572,7 +1572,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                                 }
                                             }
                                         }
-                                        outs[0] = Value::empty();
+                                        outs[0] = Value();
                                         return;
                                     }
                                     if (first == "import") {
@@ -1580,7 +1580,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         // Subsequent unqualified lookups fall back to core +
                                         // parent-scope imports (if any).
                                         env->clearImports();
-                                        outs[0] = Value::empty();
+                                        outs[0] = Value();
                                         return;
                                     }
 
@@ -1609,7 +1609,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         }
                                     }
                                 }
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     // ── import ────────────────────────────────────────────────
@@ -1663,7 +1663,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                 imp.alias = asString(args[2], 2);
                 if (imp.alias.empty()) fail("alias name must be non-empty");
                 ctx.env->pushImport(std::move(imp));
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
 
@@ -1673,7 +1673,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                 parseSpec(spec, imp);
                 ctx.env->pushImport(std::move(imp));
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── assignin ──────────────────────────────────────────────
@@ -1714,7 +1714,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                 throw std::runtime_error(
                     "assignin: workspace must be 'base' or 'caller', got '" + where + "'");
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── inputname ────────────────────────────────────────────
@@ -1738,7 +1738,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     engine.registerFunction("clc",
                             [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
                                 ctx.engine->outputText("__CLEAR__\n");
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     // ── who ────────────────────────────────────────────────────
@@ -1765,7 +1765,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     std::ostringstream os;
                                     os << "\nYour variables are:\n\n" << stem << "  \n\n";
                                     ctx.engine->outputText(os.str());
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                                     return;
                                 }
 
@@ -1803,7 +1803,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     os << "\n\n";
                                 }
                                 ctx.engine->outputText(os.str());
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     // ── whos ───────────────────────────────────────────────────
@@ -1833,7 +1833,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     os << "  " << std::left << std::setw(8) << stem
                                        << "  ?       " << bytes << "  double\n";
                                     ctx.engine->outputText(os.str());
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                                     return;
                                 }
 
@@ -1893,7 +1893,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     os << "\n";
                                 }
                                 ctx.engine->outputText(os.str());
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     // ── which ──────────────────────────────────────────────────
@@ -1934,7 +1934,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 }
 
                                 ctx.engine->outputText(os.str());
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     // ── exist ──────────────────────────────────────────────────
@@ -2039,7 +2039,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                             .count());
                                     outs[0] = Value::scalar(id, ctx.engine->resource());
                                 } else {
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                                 }
                             });
 
@@ -2067,7 +2067,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     std::ostringstream os;
                                     os << "Elapsed time is " << elapsed << " seconds.\n";
                                     ctx.engine->outputText(os.str());
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                                 }
                             });
 
@@ -3751,7 +3751,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 for (const auto &a : args) {
                                     if (a.isChar()) ctx.engine->addPath(a.toString());
                                 }
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     engine.registerFunction("rmpath",
@@ -3759,7 +3759,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 for (const auto &a : args) {
                                     if (a.isChar()) ctx.engine->rmPath(a.toString());
                                 }
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     engine.registerFunction("path",
@@ -3773,7 +3773,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         std::ostringstream os;
                                         for (const auto &p : paths) os << p << "\n";
                                         ctx.engine->outputText(os.str());
-                                        outs[0] = Value::empty();
+                                        outs[0] = Value();
                                     } else {
                                         // Return as a single newline-joined char vector
                                         std::ostringstream os;
@@ -3792,13 +3792,13 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 for (const auto &a : args) {
                                     if (a.isChar()) ctx.engine->addPath(a.toString());
                                 }
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     engine.registerFunction("rehash",
                             [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
                                 ctx.engine->rehashMFiles();
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     // ── run ──────────────────────────────────────────────────
@@ -3853,7 +3853,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                 throw;
             }
             ctx.engine->popScriptOrigin();
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── eval ─────────────────────────────────────────────────
@@ -3932,7 +3932,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     std::string c = ctx.engine->cwd();
                                     if (nargout == 0) {
                                         ctx.engine->outputText(c + "\n");
-                                        outs[0] = Value::empty();
+                                        outs[0] = Value();
                                     } else {
                                         outs[0] = Value::fromString(c, ctx.engine->resource());
                                     }
@@ -3953,7 +3953,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 if (nargout > 0)
                                     outs[0] = Value::fromString(prev, ctx.engine->resource());
                                 else
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                             });
 
     // ── version ───────────────────────────────────────────────
@@ -4003,7 +4003,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 else if (!ok)
                                     throw std::runtime_error("mkdir: " + msg);
                                 else
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                                 if (nargout > 1)
                                     outs[1] = Value::fromString(msg, ctx.engine->resource());
                             });
@@ -4029,7 +4029,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 else if (!ok)
                                     throw std::runtime_error("rmdir: " + msg);
                                 else
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                                 if (nargout > 1)
                                     outs[1] = Value::fromString(msg, ctx.engine->resource());
                             });
@@ -4045,7 +4045,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         throw std::runtime_error("delete: cannot resolve '" + p + "'");
                                     rp.fs->unlink(rp.path);
                                 }
-                                outs[0] = Value::empty();
+                                outs[0] = Value();
                             });
 
     // ── dir / ls ──────────────────────────────────────────────
@@ -4076,7 +4076,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         os << "\n";
                                     }
                                     ctx.engine->outputText(os.str());
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                                     return;
                                 }
 
@@ -4118,7 +4118,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     for (const auto &e : entries)
                                         os << e.name << "\n";
                                     ctx.engine->outputText(os.str());
-                                    outs[0] = Value::empty();
+                                    outs[0] = Value();
                                 } else {
                                     // Return as newline-joined char vector (MATLAB ls semantics).
                                     std::ostringstream os;
@@ -4155,7 +4155,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             auto *env = ctx.env;
             if (args.empty()) {
                 env->clearAll();
-                outs[0] = Value::empty();
+                outs[0] = Value();
                 return;
             }
             // Parse "-except".
@@ -4175,7 +4175,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             } else {
                 for (const auto &n : names) env->remove(n);
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // formatteddisplaytext(x) — return what disp(x) would print, but
@@ -4210,7 +4210,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                         "format: unrecognised format spec '" + s + "'");
             }
             // No-op: numkit's display already runs at full precision.
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // ── Pack 31: misc gap-filling ─────────────────────────────────────
@@ -4219,7 +4219,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     engine.registerFunction("home",
         [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
             ctx.engine->outputText("__CLEAR__\n");
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // pause(t) — block for t seconds. pause() with no arg is a no-op
@@ -4233,7 +4233,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                         std::chrono::milliseconds(static_cast<long long>(t * 1000.0)));
                 }
             }
-            outs[0] = Value::empty();
+            outs[0] = Value();
         });
 
     // iskeyword() / iskeyword(s) — list MATLAB reserved words / test one.

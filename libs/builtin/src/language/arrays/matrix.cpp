@@ -1854,14 +1854,14 @@ Value nonzeros(const Value &x, std::pmr::memory_resource *mr)
 Value horzcat(Span<const Value> values, std::pmr::memory_resource *mr)
 {
     if (values.empty())
-        return Value::empty();
+        return Value();
     return Value::horzcat(values.data(), values.size(), mr);
 }
 
 Value vertcat(Span<const Value> values, std::pmr::memory_resource *mr)
 {
     if (values.empty())
-        return Value::empty();
+        return Value();
     return Value::vertcat(values.data(), values.size(), mr);
 }
 

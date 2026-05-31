@@ -38,11 +38,13 @@ Value regexpFind(const Value &s, const Value &pat,
 /// @param pat         Regex pattern.
 /// @param rep         Replacement template.
 /// @param ignoreCase  When `true`, case-insensitive matching.
+/// @param once        When `true` (MATLAB 'once'), replace only the FIRST
+///                    match of each pattern instead of all of them.
 /// @param mr          Memory resource (nullptr → process default).
 /// @return            Substituted string.
 /// @see regexpFind
 Value regexprep(const Value &s, const Value &pat, const Value &rep,
-                bool ignoreCase = false,
+                bool ignoreCase = false, bool once = false,
                 std::pmr::memory_resource *mr = nullptr);
 
 /// @brief `regexptranslate` (`y = regexptranslate(op, s)`).

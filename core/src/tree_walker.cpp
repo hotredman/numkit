@@ -252,13 +252,13 @@ Value TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
         return execSwitch(node, env);
     case NodeType::BREAK_STMT:
         flowSignal_ = FlowSignal::BREAK;
-        return Value::empty();
+        return Value();
     case NodeType::CONTINUE_STMT:
         flowSignal_ = FlowSignal::CONTINUE;
-        return Value::empty();
+        return Value();
     case NodeType::RETURN_STMT:
         flowSignal_ = FlowSignal::RETURN;
-        return Value::empty();
+        return Value();
     case NodeType::FUNCTION_DEF:
         return execFunctionDef(node, env);
     case NodeType::EXPR_STMT:
@@ -333,7 +333,7 @@ static std::string describeNode(const ASTNode *node)
 Value TreeWalker::execNode(const ASTNode *node, Environment *env)
 {
     if (!node)
-        return Value::empty();
+        return Value();
 
     try {
         return execNodeInner(node, env);
@@ -813,7 +813,7 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
 
 Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
 {
-    Value last = Value::empty();
+    Value last = Value();
     for (auto &child : node->children) {
         // ── Debug hook: check for line change, breakpoints ──
         if (auto *ctl = debugCtl()) {
@@ -985,7 +985,7 @@ Value TreeWalker::execIdentifier(const ASTNode *node, Environment *env, size_t n
         Value outBuf[1];
         CallContext ctx{&engine_, env};
         (*fn)({}, nargout, Span<Value>(outBuf, 1), ctx);
-        return outBuf[0].isEmpty() ? Value::empty() : outBuf[0];
+        return outBuf[0].isEmpty() ? Value() : outBuf[0];
     }
 
     // MATLAB-exact error for the nargin/nargout pseudo-vars when they're
@@ -1056,7 +1056,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
     const std::string &varName = target->strValue;
     auto *var = env->get(varName);
     if (!var) {
-        env->set(varName, Value::empty());
+        env->set(varName, Value());
         var = env->get(varName);
     }
 
@@ -1394,7 +1394,7 @@ Value TreeWalker::execMultiAssign(const ASTNode *node, Environment *env)
             if (node->returnNames[i] != "~")
                 displayValue(node->returnNames[i], results[i]);
 
-    return results.empty() ? Value::empty() : results[0];
+    return results.empty() ? Value() : results[0];
 }
 
 std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *env, size_t nout)
@@ -1517,7 +1517,7 @@ Value TreeWalker::execDeleteAssign(const ASTNode *node, Environment *env)
         var->indexDeleteND(perDimPtrs.data(), perDimCount.data(),
                            static_cast<int>(nargs), engine_.mr_);
     }
-    return Value::empty();
+    return Value();
 }
 
 // ============================================================
@@ -1578,7 +1578,7 @@ Value TreeWalker::callFuncHandle(const Value &handle, Span<const Value> args, En
                                   const ASTNode *callNode)
 {
     auto results = callFuncHandleMulti(handle, args, env, 1, callNode);
-    return results.empty() ? Value::empty() : results[0];
+    return results.empty() ? Value() : results[0];
 }
 
 Value TreeWalker::callHandlePublic(const Value &handle,
@@ -1932,7 +1932,7 @@ Value TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)
 Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
 {
     if (node->children.empty())
-        return Value::empty();
+        return Value();
 
     // ── Fast path: [A, x] or [A, x, y, ...] row vector append ──
     // When appending scalars/vectors to a row vector, use amortized growth.
@@ -2021,7 +2021,7 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
     }
 
     if (rows.empty())
-        return Value::empty();
+        return Value();
 
     // All-char: MATLAB pads shorter strings with spaces in vertical stacking
     if (allChar && anyChar) {
@@ -2150,7 +2150,7 @@ Value TreeWalker::execColonExpr(const ASTNode *node, Environment *env)
                                        t, engine_.mr_);
     }
 
-    return Value::empty();
+    return Value();
 }
 
 // ============================================================
@@ -2168,7 +2168,7 @@ Value TreeWalker::execIf(const ASTNode *node, Environment *env)
     }
     if (node->elseBranch)
         return execNode(node->elseBranch.get(), env);
-    return Value::empty();
+    return Value();
 }
 
 Value TreeWalker::execFor(const ASTNode *node, Environment *env)
@@ -2178,7 +2178,7 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
 
     // Empty range — body never executes (MATLAB behavior)
     if (rangeVal.isEmpty())
-        return Value::empty();
+        return Value();
 
     if (rangeVal.isCell()) {
         size_t cols = rangeVal.dims().cols();
@@ -2202,9 +2202,9 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
                 continue;
             }
             if (flowSignal_ == FlowSignal::RETURN)
-                return Value::empty();
+                return Value();
         }
-        return Value::empty();
+        return Value();
     }
 
     if (rangeVal.type() == ValueType::DOUBLE) {
@@ -2229,7 +2229,7 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
                     continue;
                 }
                 if (flowSignal_ == FlowSignal::RETURN)
-                    return Value::empty();
+                    return Value();
                 // Re-fetch pointer: body may have reassigned the loop variable
                 varPtr = env->get(varName);
                 if (!varPtr || !varPtr->isScalar() || varPtr->type() != ValueType::DOUBLE) {
@@ -2239,16 +2239,16 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
                         execNode(node->children[1].get(), env);
                         if (flowSignal_ == FlowSignal::BREAK) {
                             flowSignal_ = FlowSignal::NONE;
-                            return Value::empty();
+                            return Value();
                         }
                         if (flowSignal_ == FlowSignal::CONTINUE) {
                             flowSignal_ = FlowSignal::NONE;
                             continue;
                         }
                         if (flowSignal_ == FlowSignal::RETURN)
-                            return Value::empty();
+                            return Value();
                     }
-                    return Value::empty();
+                    return Value();
                 }
                 slot = varPtr->doubleDataMut();
             }
@@ -2269,10 +2269,10 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
                     continue;
                 }
                 if (flowSignal_ == FlowSignal::RETURN)
-                    return Value::empty();
+                    return Value();
             }
         }
-        return Value::empty();
+        return Value();
     }
 
     if (rangeVal.isChar()) {
@@ -2289,9 +2289,9 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
                 continue;
             }
             if (flowSignal_ == FlowSignal::RETURN)
-                return Value::empty();
+                return Value();
         }
-        return Value::empty();
+        return Value();
     }
 
     if (rangeVal.isLogical()) {
@@ -2308,9 +2308,9 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
                 continue;
             }
             if (flowSignal_ == FlowSignal::RETURN)
-                return Value::empty();
+                return Value();
         }
-        return Value::empty();
+        return Value();
     }
 
     throw std::runtime_error("Unsupported type in for loop: "
@@ -2339,9 +2339,9 @@ Value TreeWalker::execWhile(const ASTNode *node, Environment *env)
             continue;
         }
         if (flowSignal_ == FlowSignal::RETURN)
-            return Value::empty();
+            return Value();
     }
-    return Value::empty();
+    return Value();
 }
 
 Value TreeWalker::execSwitch(const ASTNode *node, Environment *env)
@@ -2387,7 +2387,7 @@ Value TreeWalker::execSwitch(const ASTNode *node, Environment *env)
 
     if (node->elseBranch)
         return execNode(node->elseBranch.get(), env);
-    return Value::empty();
+    return Value();
 }
 
 // ============================================================
@@ -2408,7 +2408,7 @@ Value TreeWalker::execFunctionDef(const ASTNode *node, Environment *env)
         engine_.scriptLocalUserFuncs_[func.name] = std::move(func);
     else
         engine_.userFuncs_[func.name] = std::move(func);
-    return Value::empty();
+    return Value();
 }
 
 Value TreeWalker::execExprStmt(const ASTNode *node, Environment *env)
@@ -2548,7 +2548,7 @@ Value TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
             }
             return execNode(node->children[1].get(), env);
         }
-        return Value::empty();
+        return Value();
     } catch (const std::exception &e) {
         if (node->children.size() > 1) {
             if (!node->strValue.empty()) {
@@ -2559,7 +2559,7 @@ Value TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
             }
             return execNode(node->children[1].get(), env);
         }
-        return Value::empty();
+        return Value();
     }
 }
 
@@ -2569,9 +2569,9 @@ Value TreeWalker::execGlobalPersistent(const ASTNode *node, Environment *env)
     for (auto &name : node->paramNames) {
         env->declareGlobal(name);
         if (!engine_.globalsEnv_->get(name))
-            engine_.globalsEnv_->set(name, Value::empty());
+            engine_.globalsEnv_->set(name, Value());
     }
-    return Value::empty();
+    return Value();
 }
 
 static bool astUsesIdentifier(const ASTNode *node, const char *name1, const char *name2)
@@ -2667,12 +2667,12 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
         flowSignal_ = FlowSignal::NONE;
 
     if (func.returns.empty())
-        return Value::empty();
+        return Value();
 
     auto *val = localEnv.getLocal(func.returns[0]);
     if (!val)
         val = localEnv.get(func.returns[0]);
-    return val ? std::move(*val) : Value::empty();
+    return val ? std::move(*val) : Value();
 }
 
 std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
@@ -2705,7 +2705,7 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
 
     for (auto &retName : func.returns)
         if (!localEnv.getLocal(retName))
-            localEnv.setLocal(retName, Value::empty());
+            localEnv.setLocal(retName, Value());
 
     std::optional<DebugController::FrameGuard> dbgFrame;
     if (auto *ctl = debugCtl()) {
@@ -2728,7 +2728,7 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
         auto *val = localEnv.getLocal(func.returns[i]);
         if (!val)
             val = localEnv.get(func.returns[i]);
-        results.push_back(val ? std::move(*val) : Value::empty());
+        results.push_back(val ? std::move(*val) : Value());
     }
     return results;
 }

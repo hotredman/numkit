@@ -249,12 +249,112 @@ Value regexpFind(const Value &s, const Value &pat, const std::string &option, bo
     return rowFromIndices(idx.data(), idx.size(), mr);
 }
 
-// Apply ONE pattern/replacement to a single string.
+// regexp(..., 'once'): match only the FIRST occurrence and return the
+// "scalarised" form of the requested output (MATLAB R2025b):
+//   'start'/'end'      -> scalar index (or [] when no match)
+//   'match'            -> char row     (or '' when no match)
+//   'tokens'           -> 1×k cell of capture-group chars (or {} no match)
+//   'tokenExtents'     -> k×2 matrix   (or [] when no match)
+//   'names'            -> scalar struct (or 0×0 struct w/ fields, no match)
+//   'split'            -> {prefix, remainder} split at the first match only
+// Kept separate from regexpFind so the all-matches paths stay byte-for-byte
+// unchanged.
+Value regexpFindOnce(const Value &s, const Value &pat, const std::string &option,
+                     bool ignoreCase, std::pmr::memory_resource *mr)
+{
+    if ((!s.isChar() && !s.isString()) || (!pat.isChar() && !pat.isString()))
+        throw Error("regexp: s and pat must be strings",
+                     0, 0, "regexp", "", "numkit:regexp:badArg");
+    const std::string text = s.toString();
+    const NamedGroups ng = extractNamedGroups(pat.toString());
+    const std::regex  re = compileRegex(ng.cleaned, ignoreCase);
+
+    std::string opt = option;
+    for (auto &c : opt)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+    auto it  = std::sregex_iterator(text.begin(), text.end(), re);
+    auto end = std::sregex_iterator();
+    const bool has = (it != end);
+
+    if (opt == "match")
+        return Value::fromString(has ? it->str() : std::string(), mr);
+
+    if (opt == "tokens") {
+        if (!has) return Value::cell(0, 0, mr);
+        const auto &m = *it;
+        ScratchArena scratch(mr);
+        ScratchVec<std::string> grp(&scratch);
+        for (std::size_t g = 1; g < m.size(); ++g) grp.emplace_back(m.str(g));
+        return rowCellOfStrings(grp.data(), grp.size(), mr);
+    }
+
+    if (opt == "split") {
+        ScratchArena scratch(mr);
+        ScratchVec<std::string> parts(&scratch);
+        if (!has) {
+            parts.emplace_back(text);
+        } else {
+            const auto &m = *it;
+            parts.emplace_back(text.substr(0, m.position()));
+            parts.emplace_back(text.substr(m.position() + m.length()));
+        }
+        return rowCellOfStrings(parts.data(), parts.size(), mr);
+    }
+
+    if (opt == "names") {
+        if (!has) {
+            Value out = Value::structArray(0, 0, mr);
+            for (const auto &nm : ng.names) out.setFieldAll(nm.first, Value::Empty);
+            return out;
+        }
+        const auto &m = *it;
+        Value out = Value::structure(mr);
+        for (const auto &nm : ng.names)
+            out.setFieldAll(nm.first, Value::fromString(m.str(nm.second), mr));
+        return out;
+    }
+
+    if (opt == "tokenextents") {
+        if (!has) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        const auto &m = *it;
+        const std::size_t ng2 = (m.size() > 1) ? m.size() - 1 : 1;
+        auto te = Value::matrix(ng2, 2, ValueType::DOUBLE, mr);
+        double *td = te.doubleDataMut();
+        for (std::size_t g = 0; g < ng2; ++g) {
+            const auto &sub = (m.size() > 1) ? m[g + 1] : m[0];
+            const std::ptrdiff_t st = sub.first - text.begin();
+            td[0 * ng2 + g] = static_cast<double>(st + 1);
+            td[1 * ng2 + g] = static_cast<double>(st + sub.length());
+        }
+        return te;
+    }
+
+    if (opt == "end") {
+        if (!has) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return Value::scalar(static_cast<double>(it->position() + it->length()), mr);
+    }
+
+    if (!opt.empty() && opt != "start")
+        throw Error("regexp: unknown option '" + option
+                     + "' (supported: 'start' / 'end' / 'tokenExtents' / "
+                       "'match' / 'tokens' / 'names' / 'split')",
+                     0, 0, "regexp", "", "numkit:regexp:badOption");
+
+    // 'start' (default): scalar 1-based index of the first match.
+    if (!has) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    return Value::scalar(static_cast<double>(it->position() + 1), mr);
+}
+
+// Apply ONE pattern/replacement to a single string. With `once`, only the
+// first match is replaced (MATLAB's 'once' option).
 static std::string regexrepOne(const std::string &text, const std::string &pat,
-                               const std::string &rep, bool ignoreCase)
+                               const std::string &rep, bool ignoreCase, bool once)
 {
     const std::regex re = compileRegex(extractNamedGroups(pat).cleaned, ignoreCase);
-    return std::regex_replace(text, re, rep);
+    const auto flags = once ? std::regex_constants::format_first_only
+                            : std::regex_constants::format_default;
+    return std::regex_replace(text, re, rep, flags);
 }
 
 // Apply a LIST of patterns to one string, in sequence (MATLAB regexprep with
@@ -264,15 +364,15 @@ static std::string regexrepOne(const std::string &text, const std::string &pat,
 static std::string regexrepSeq(const std::string &text0,
                                const ScratchVec<std::string> &pats,
                                const ScratchVec<std::string> &reps,
-                               bool ignoreCase)
+                               bool ignoreCase, bool once)
 {
     std::string text = text0;
     for (std::size_t i = 0; i < pats.size(); ++i)
-        text = regexrepOne(text, pats[i], reps.size() == 1 ? reps[0] : reps[i], ignoreCase);
+        text = regexrepOne(text, pats[i], reps.size() == 1 ? reps[0] : reps[i], ignoreCase, once);
     return text;
 }
 
-Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreCase, std::pmr::memory_resource *mr)
+Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreCase, bool once, std::pmr::memory_resource *mr)
 {
     auto isStrLike = [](const Value &v) { return v.isChar() || v.isString() || v.isCell(); };
     if (!isStrLike(s) || !isStrLike(pat) || !isStrLike(rep))
@@ -306,10 +406,10 @@ Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreC
         const std::size_t n = s.numel();
         for (std::size_t i = 0; i < n; ++i)
             out.cellAt(i) = Value::fromString(
-                regexrepSeq(s.cellAt(i).toString(), pats, reps, ignoreCase), mr);
+                regexrepSeq(s.cellAt(i).toString(), pats, reps, ignoreCase, once), mr);
         return out;
     }
-    return Value::fromString(regexrepSeq(s.toString(), pats, reps, ignoreCase), mr);
+    return Value::fromString(regexrepSeq(s.toString(), pats, reps, ignoreCase, once), mr);
 }
 
 // ── Pack 36: regexptranslate ─────────────────────────────────────────
@@ -373,12 +473,26 @@ inline void regexpDispatch(Span<const Value> args, size_t nargout,
         throw Error(std::string(fn) + ": requires at least 2 arguments (s, pat)",
                      0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
     auto *mr = ctx.engine->resource();
+    // Trailing option strings. 'once' is a modifier (match first occurrence,
+    // return the scalarised form); the first non-'once' string selects the
+    // output (as before). Additional output selectors are ignored, matching
+    // the pre-existing single-option behaviour.
     std::string opt;
-    if (args.size() >= 3) {
-        if (!args[2].isChar() && !args[2].isString())
+    bool once = false;
+    for (size_t i = 2; i < args.size(); ++i) {
+        if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": option must be a string",
                          0, 0, fn, "", std::string("numkit:") + fn + ":badOption");
-        opt = args[2].toString();
+        std::string o = args[i].toString();
+        std::string lo = o;
+        for (auto &c : lo) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (lo == "once") { once = true; continue; }
+        if (opt.empty()) opt = o;
+    }
+    if (once) {
+        // 'once' forces a single scalarised output (opt may be "" → 'start').
+        outs[0] = regexpFindOnce(args[0], args[1], opt, ignoreCase, mr);
+        return;
     }
     if (!opt.empty() || nargout <= 1) {
         outs[0] = regexpFind(args[0], args[1], opt, ignoreCase, mr);
@@ -406,18 +520,20 @@ void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.size() < 3)
         throw Error("regexprep: requires 3 arguments (s, pat, rep)",
                      0, 0, "regexprep", "", "numkit:regexprep:nargin");
-    // Trailing option strings: recognise 'ignorecase' (other documented
-    // options — 'once', 'preservecase', 'lineanchors', … — are not yet
+    // Trailing option strings: recognise 'ignorecase' and 'once' (other
+    // documented options — 'preservecase', 'lineanchors', … — are not yet
     // parsed and are left to their default behaviour).
     bool ignoreCase = false;
+    bool once = false;
     for (size_t i = 3; i < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             std::string o = args[i].toString();
             for (auto &ch : o) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-            if (o == "ignorecase") ignoreCase = true;
+            if      (o == "ignorecase") ignoreCase = true;
+            else if (o == "once")       once = true;
         }
     }
-    outs[0] = regexprep(args[0], args[1], args[2], ignoreCase, ctx.engine->resource());
+    outs[0] = regexprep(args[0], args[1], args[2], ignoreCase, once, ctx.engine->resource());
 }
 
 void regexptranslate_reg(Span<const Value> args, size_t, Span<Value> outs,

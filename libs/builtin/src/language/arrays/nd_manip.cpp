@@ -298,7 +298,7 @@ namespace {
 
 Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
 {
-    if (count == 0) return Value::empty();
+    if (count == 0) return Value();
 
     // First non-empty input fixes (R, C); empties are tolerated and
     // skipped (matches MATLAB).
@@ -333,7 +333,7 @@ Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
         }
         totalPages += dd.is3D() ? dd.pages() : 1;
     }
-    if (!anchored) return Value::empty();
+    if (!anchored) return Value();
 
     // CELL permutes element-wise (Value copy); POD types copy raw bytes.
     // cat is a pure rearrangement, so it is type-preserving.
@@ -373,7 +373,7 @@ Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
 // promotion). CELL / STRUCT / STRING / FUNC_HANDLE rejected.
 Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resource *mr)
 {
-    if (count == 0) return Value::empty();
+    if (count == 0) return Value();
     const int k = dim - 1;
 
     // Determine output rank: at least `dim`, plus any input may force higher.
@@ -425,7 +425,7 @@ Value catND(int dim, const Value *values, size_t count, std::pmr::memory_resourc
             }
         }
     }
-    if (!anchored) return Value::empty();
+    if (!anchored) return Value();
 
     // Inner block size B = prod(outDim[0..k-1]); outer count O = prod(outDim[k+1..]).
     size_t B = 1;
@@ -483,7 +483,7 @@ Value cat(int dim, Span<const Value> values, std::pmr::memory_resource *mr)
 Value blkdiag(Span<const Value> values, std::pmr::memory_resource *mr)
 {
     const size_t count = values.size();
-    if (count == 0) return Value::empty();
+    if (count == 0) return Value();
 
     // Type-preserving: anchor the output type on the first NON-EMPTY block
     // (empties contribute neither size on the diagonal mismatch nor a type

@@ -404,7 +404,7 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr)
     try {
         return Value::scalar(std::stod(s.toString()), mr);
     } catch (...) {
-        return Value::empty();
+        return Value();
     }
 }
 
@@ -1004,6 +1004,14 @@ void collectMatchPatterns(const Value &pat, ScratchVec<std::string> &out)
     } else {
         out.push_back(pat.toString());
     }
+}
+
+// ASCII lower-case in place — used by the 'IgnoreCase' option of
+// contains/startsWith/endsWith.
+inline void asciiLowerInPlace(std::string &x)
+{
+    for (char &c : x)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 }
 
 } // namespace
@@ -1946,46 +1954,55 @@ Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr:
     return out;
 }
 
-Value contains(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
+Value contains(const Value &s, const Value &pat, bool ignoreCase, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
+    std::string ss = s.toString();
     ScratchArena scratch(mr);
     ScratchVec<std::string> pats(&scratch);
     collectMatchPatterns(pat, pats);
+    if (ignoreCase) asciiLowerInPlace(ss);
     bool any = false;
-    for (const auto &pp : pats)
+    for (std::string pp : pats) {
+        if (ignoreCase) asciiLowerInPlace(pp);
         if (ss.find(pp) != std::string::npos) { any = true; break; }
+    }
     return Value::logicalScalar(any, mr);
 }
 
-Value startsWith(const Value &s, const Value &prefix, std::pmr::memory_resource *mr)
+Value startsWith(const Value &s, const Value &prefix, bool ignoreCase, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
+    std::string ss = s.toString();
     ScratchArena scratch(mr);
     ScratchVec<std::string> pats(&scratch);
     collectMatchPatterns(prefix, pats);
+    if (ignoreCase) asciiLowerInPlace(ss);
     bool any = false;
-    for (const auto &pp : pats)
+    for (std::string pp : pats) {
+        if (ignoreCase) asciiLowerInPlace(pp);
         if (ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0) {
             any = true;
             break;
         }
+    }
     return Value::logicalScalar(any, mr);
 }
 
-Value endsWith(const Value &s, const Value &suffix, std::pmr::memory_resource *mr)
+Value endsWith(const Value &s, const Value &suffix, bool ignoreCase, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
+    std::string ss = s.toString();
     ScratchArena scratch(mr);
     ScratchVec<std::string> pats(&scratch);
     collectMatchPatterns(suffix, pats);
+    if (ignoreCase) asciiLowerInPlace(ss);
     bool any = false;
-    for (const auto &pp : pats)
+    for (std::string pp : pats) {
+        if (ignoreCase) asciiLowerInPlace(pp);
         if (ss.size() >= pp.size()
             && ss.compare(ss.size() - pp.size(), pp.size(), pp) == 0) {
             any = true;
             break;
         }
+    }
     return Value::logicalScalar(any, mr);
 }
 
@@ -2386,12 +2403,28 @@ void strrep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
     outs[0] = strrep(args[0], args[1], args[2], ctx.engine->resource());
 }
 
+// Parse a trailing 'IgnoreCase', <logical> name-value pair (MATLAB option
+// shared by contains/startsWith/endsWith). Other name-value pairs are left
+// alone. Returns the flag; absent → false.
+static bool parseIgnoreCaseOption(Span<const Value> args, size_t optStart)
+{
+    for (size_t i = optStart; i + 1 < args.size(); ++i) {
+        if (!args[i].isChar() && !args[i].isString()) continue;
+        std::string k = args[i].toString();
+        for (char &c : k) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (k == "ignorecase")
+            return args[i + 1].toBool();
+    }
+    return false;
+}
+
 void contains_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("contains requires 2 arguments", 0, 0, "contains", "",
                      "numkit:contains:nargin");
-    outs[0] = contains(args[0], args[1], ctx.engine->resource());
+    outs[0] = contains(args[0], args[1], parseIgnoreCaseOption(args, 2),
+                       ctx.engine->resource());
 }
 
 void startsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -2399,7 +2432,8 @@ void startsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
     if (args.size() < 2)
         throw Error("startsWith requires 2 arguments", 0, 0, "startsWith", "",
                      "numkit:startsWith:nargin");
-    outs[0] = startsWith(args[0], args[1], ctx.engine->resource());
+    outs[0] = startsWith(args[0], args[1], parseIgnoreCaseOption(args, 2),
+                         ctx.engine->resource());
 }
 
 void endsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -2407,7 +2441,8 @@ void endsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     if (args.size() < 2)
         throw Error("endsWith requires 2 arguments", 0, 0, "endsWith", "",
                      "numkit:endsWith:nargin");
-    outs[0] = endsWith(args[0], args[1], ctx.engine->resource());
+    outs[0] = endsWith(args[0], args[1], parseIgnoreCaseOption(args, 2),
+                       ctx.engine->resource());
 }
 
 void strncmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
