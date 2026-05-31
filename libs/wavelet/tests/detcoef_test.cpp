@@ -65,3 +65,38 @@ TEST_F(DetcoefTest, CellsFormMixedLevels)
     EXPECT_EQ(static_cast<size_t>(evalScalar("numel(D{1})")), 2u);  // level 3
     EXPECT_EQ(static_cast<size_t>(evalScalar("numel(D{2})")), 8u);  // level 1
 }
+
+// DEEP-PROBE c175: a vector of levels with a single output returns a CELL
+// array of the per-level details (no 'cells' flag needed). vs MATLAB R2025b.
+TEST_F(DetcoefTest, VectorLevelsReturnsCell)
+{
+    eval("[c, l] = wavedec(1:16, 3, 'db1'); cv = detcoef(c, l, [1 2 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(cv))"), 1.0);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(cv)")), 3u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(cv{1})")), 8u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(cv{2})")), 4u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(cv{3})")), 2u);
+    EXPECT_NEAR(evalScalar("cv{1}(1)"), -0.7071067812, 1e-9);
+    EXPECT_NEAR(evalScalar("cv{3}(1)"), -5.6568542495, 1e-9);
+}
+
+// detcoef(C, L, 'cells') returns a cell of ALL levels 1..nMax.
+TEST_F(DetcoefTest, CellsStringAllLevels)
+{
+    eval("[c, l] = wavedec(1:16, 3, 'db1'); ca = detcoef(c, l, 'cells');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(ca))"), 1.0);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(ca)")), 3u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(ca{1})")), 8u);  // level 1
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(ca{3})")), 2u);  // level 3
+}
+
+// [d1, d2, d3] = detcoef(C, L, [1 2 3]) deals one detail per output.
+TEST_F(DetcoefTest, VectorLevelsMultiOutput)
+{
+    eval("[c, l] = wavedec(1:16, 3, 'db1'); [e1, e2, e3] = detcoef(c, l, [1 2 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(e1))"), 0.0);   // each is a vector
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(e1)")), 8u);
+    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(e3)")), 2u);
+    EXPECT_NEAR(evalScalar("e1(1)"), -0.7071067812, 1e-9);
+    EXPECT_NEAR(evalScalar("e3(1)"), -5.6568542495, 1e-9);
+}
