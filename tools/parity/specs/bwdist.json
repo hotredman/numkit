@@ -1,15 +1,18 @@
 {
   "name": "bwdist",
   "namespace": "image",
+  "covers": ["bwdist"],
   "setup": "BW = logical([0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1]);",
-  "expr": "De = bwdist(BW); Dc = bwdist(BW,'cityblock'); Dk = bwdist(BW,'chessboard'); Dq = bwdist(BW,'quasi-euclidean');",
+  "expr": "[De,Ie] = bwdist(BW); [Dc,Ic] = bwdist(BW,'cityblock'); [Dk,Ik] = bwdist(BW,'chessboard'); [Dq,Iq] = bwdist(BW,'quasi-euclidean'); ie11 = double(Ie(1,1)); ie44 = double(Ie(4,4)); iesum = sum(double(Ie(:))); icsum = sum(double(Ic(:))); iksum = sum(double(Ik(:))); iqsum = sum(double(Iq(:)));",
   "iters": 3,
   "tol": 1e-06,
   "fingerprint": [
     "De(1,1)", "De(1,4)",
     "Dc(1,1)", "Dc(1,4)",
     "Dk(1,1)", "Dk(1,4)",
-    "Dq(1,1)", "Dq(1,4)"
+    "Dq(1,1)", "Dq(1,4)",
+    "ie11", "ie44", "iesum", "icsum", "iksum", "iqsum"
   ],
-  "comment": "Sig D=bwdist(BW[,method]). Distance to nearest TRUE pixel. method: euclidean (default, sqrt(dx^2+dy^2)), cityblock (|dx|+|dy|), chessboard (max), quasi-euclidean (diagonal=sqrt2). Corner (1,1) to feature (2,2): euclid 1.4142, city 2, chess 1, quasi 1.4142. (1,4) to (4,4): euclid 2.2361, city 3, chess 2, quasi 2.4142. numkit previously IGNORED method (always euclidean) -- now honored via 2-pass chamfer. tol=1e-6 because MATLAB bwdist returns SINGLE (float32) so irrational distances differ ~1e-8 from numkit's double; integer metrics match exactly. Matches MATLAB R2025b."
+  "deep_verified": true,
+  "comment": "Sig [D,IDX]=bwdist(BW[,method]). D = distance to nearest TRUE pixel. method: euclidean (default), cityblock, chessboard, quasi-euclidean. Corner (1,1)->feature (2,2): euclid 1.4142, city 2, chess 1, quasi 1.4142. (1,4)->(4,4): euclid 2.2361, city 3, chess 2, quasi 2.4142. D tol=1e-6 (MATLAB bwdist returns SINGLE; integer metrics match exactly). DEEP-PROBE c163: added the 2nd output IDX (feature transform) — the column-major 1-based linear index of the NEAREST foreground pixel, ties broken to the lowest linear index, class uint32 — was missing ([D,IDX]=bwdist(...) threw). Bit-exact vs MATLAB R2025b across all 4 metrics: for this BW (seeds at linidx 6 and 16) Ie(1,1)=6, Ie(4,4)=16, sum(IDX)=126 for every metric. covers:[bwdist]."
 }

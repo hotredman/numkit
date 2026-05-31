@@ -93,6 +93,32 @@ TEST_F(ImageBatch3Test, BwdistMetrics)
     EXPECT_THROW(eval("bwdist(BW,'bogus');"), std::exception);
 }
 
+// bwdist 2nd output IDX (feature transform): nearest-foreground linear index,
+// uint32, ties to lowest index. Was missing ('Index exceeds array dimensions').
+TEST_F(ImageBatch3Test, BwdistFeatureIndex)
+{
+    eval("BW = logical([0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1]);");  // seeds 6,16
+    eval("[D, IDX] = bwdist(BW);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(IDX),'uint32'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(IDX(1,1))"),  6.0);  // nearest seed (2,2)
+    EXPECT_DOUBLE_EQ(evalScalar("double(IDX(2,2))"),  6.0);  // self (foreground)
+    EXPECT_DOUBLE_EQ(evalScalar("double(IDX(4,4))"), 16.0);  // self seed (4,4)
+    EXPECT_DOUBLE_EQ(evalScalar("double(IDX(3,4))"), 16.0);  // nearest (4,4)
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(IDX(:)))"), 126.0);
+
+    // Same IDX shape under the integer metrics; sums match MATLAB.
+    eval("[Dc, IDXc] = bwdist(BW,'cityblock');");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(IDXc(:)))"), 126.0);
+    eval("[Dk, IDXk] = bwdist(BW,'chessboard');");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(IDXk(:)))"), 126.0);
+
+    // A tie (equidistant to two seeds) resolves to the LOWER linear index.
+    eval("BW2 = false(5,5); BW2(1,1) = true; BW2(5,5) = true;");
+    eval("[D2, IDX2] = bwdist(BW2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(IDX2(1,5))"),  1.0);  // tie -> idx 1
+    EXPECT_DOUBLE_EQ(evalScalar("double(IDX2(5,5))"), 25.0);
+}
+
 TEST_F(ImageBatch3Test, Histogram)
 {
     eval("h = imhist(uint8([0 64 128 192 255]));");
