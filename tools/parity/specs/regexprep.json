@@ -1,10 +1,12 @@
 {
   "name": "regexprep",
   "namespace": "core",
-  "setup": "s = repmat('foo 1 bar 2 baz 3 ', 1, 100);",
-  "expr": "y = regexprep(s, '\\d+', 'NUM');",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters.",
-  "out_var": "y"
+  "setup": "s = repmat('foo 1 bar 2 baz 3 ', 1, 100); cs = {'foo123','bar45'}; cs2 = {'a1';'b2'};",
+  "expr": "y = regexprep(s, '\\d+', 'NUM'); ny = strlength(y); y5 = double(y(5)); r = regexprep(cs, '\\d+', '#'); nr = numel(r); r14 = double(r{1}(4)); r24 = double(r{2}(4)); seqv = regexprep('a1b2', {'\\d','[ab]'}, {'#','@'}); q1 = double(seqv(1)); q2 = double(seqv(2)); rec = regexprep('a1b2', {'\\d','[ab]'}, 'Z'); ne = strlength(rec); rcv = regexprep(cs2, '\\d', '#'); ncr = size(rcv,1); nccr = size(rcv,2);",
+  "iters": 20,
+  "tol": 0,
+  "fingerprint": [
+    "ny", "y5", "nr", "r14", "r24", "q1", "q2", "ne", "ncr", "nccr"
+  ],
+  "comment": "Sig: S2 = regexprep(S, PAT, REP[, opts]). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was THROWING 's, pat, rep must be strings'). A cell STR processes element-wise -> cell of char vectors, same shape: regexprep({'foo123','bar45'},'\\d+','#')={'foo#','bar#'}. A cell PATTERN is a LIST applied sequentially to each string (result of one feeds the next): regexprep('a1b2',{'\\d','[ab]'},{'#','@'})='@#@#'. A single replacement is recycled across all patterns (regexprep('a1b2',{'\\d','[ab]'},'Z')='ZZZZ'); else replacement count must equal pattern count (error). 'ignorecase' option parsed. Other options (once/preservecase/lineanchors) deferred. Scalar string output type unchanged (char). FP uses char codes + sizes."
 }

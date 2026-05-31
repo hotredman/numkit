@@ -188,6 +188,40 @@ TEST_P(RegexTest, RegexprepNoMatchReturnsOriginal)
     EXPECT_EQ(getVarPtr("s")->toString(), "abc");
 }
 
+// regexprep with cell-array arguments. Was throwing "s, pat, rep must be
+// strings". A cell STR processes element-wise (cell of char vectors, same
+// shape); a cell PATTERN is a LIST applied sequentially to each string; a
+// single replacement is recycled across patterns. vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_P(RegexTest, RegexprepCell)
+{
+    // cell str, scalar pattern -> per-element replace.
+    eval("r = regexprep({'foo123','bar45'}, '\\d+', '#');");
+    EXPECT_DOUBLE_EQ(getVarPtr("r")->numel(), 2u);
+    eval("a = r{1}; b = r{2};");
+    EXPECT_EQ(getVarPtr("a")->toString(), "foo#");
+    EXPECT_EQ(getVarPtr("b")->toString(), "bar#");
+    // scalar str + cell pattern -> sequential chaining into ONE string.
+    eval("q = regexprep('a1b2', {'\\d','[ab]'}, {'#','@'});");
+    EXPECT_EQ(getVarPtr("q")->toString(), "@#@#");
+    // single replacement recycled across all patterns.
+    eval("z = regexprep('a1b2', {'\\d','[ab]'}, 'Z');");
+    EXPECT_EQ(getVarPtr("z")->toString(), "ZZZZ");
+    // cell str + cell pattern: pattern list applied to EACH string.
+    eval("c = regexprep({'a1','b2'}, {'\\d','[ab]'}, {'#','@'}); c1 = c{1}; c2 = c{2};");
+    EXPECT_EQ(getVarPtr("c1")->toString(), "@#");
+    EXPECT_EQ(getVarPtr("c2")->toString(), "@#");
+    // 'ignorecase' option still applies across a cell.
+    eval("ic = regexprep({'AbC','xyZ'}, '[a-z]', '_', 'ignorecase'); i1 = ic{1};");
+    EXPECT_EQ(getVarPtr("i1")->toString(), "___");
+    // column-cell shape preserved.
+    eval("cc = regexprep({'a1';'b2'}, '\\d', '#');");
+    EXPECT_DOUBLE_EQ(getVarPtr("cc")->dims().rows(), 2);
+    EXPECT_DOUBLE_EQ(getVarPtr("cc")->dims().cols(), 1);
+    // mismatched pattern/replacement counts throw.
+    EXPECT_THROW(eval("regexprep('abc', {'a','b','c'}, {'1','2'});"), std::exception);
+}
+
 // ── Pack 36: regexptranslate ────────────────────────────────────────
 TEST_P(RegexTest, RegexptranslateEscapesMetachars)
 {
