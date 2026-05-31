@@ -1176,10 +1176,6 @@ function Composite3DPlot({
     // Playwright specs can read camera.position / count visible grid
     // faces. The cleanup on unmount drops it; minimal leak risk.
     canvas.__numkit3dCtx = ctxRef;
-    try {
-      const gl = renderer.getContext();
-      if (gl) console.log('[numkit-3d] gl context ok', gl.getParameter(gl.VERSION));
-    } catch (e) { /* ignore */ }
 
     return () => {
       cancelAnimationFrame(raf);
