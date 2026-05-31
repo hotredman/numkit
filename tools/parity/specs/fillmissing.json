@@ -1,8 +1,8 @@
 {
   "name": "fillmissing",
   "namespace": "stats",
-  "setup": "y = [1 2 NaN 4 5 NaN 7]; ynr = [1 NaN NaN 4 NaN 6]; yends = [NaN NaN 3 NaN 5 NaN NaN]; ylt = [NaN 1 2 NaN 4 NaN]; M = [1 NaN; NaN 4; 3 NaN; 5 8];",
-  "expr": "fp = fillmissing(y, 'previous'); fn = fillmissing(y, 'next'); fc = fillmissing(y, 'constant', 99); nr = fillmissing(ynr, 'nearest'); ne = fillmissing(yends, 'nearest'); li = fillmissing(ynr, 'linear'); le = fillmissing(yends, 'linear'); lt = fillmissing(ylt, 'linear'); ML = fillmissing(M, 'linear'); MP = fillmissing(M, 'previous');",
+  "setup": "y = [1 2 NaN 4 5 NaN 7]; ynr = [1 NaN NaN 4 NaN 6]; yends = [NaN NaN 3 NaN 5 NaN NaN]; ylt = [NaN 1 2 NaN 4 NaN]; M = [1 NaN; NaN 4; 3 NaN; 5 8]; a = [NaN NaN 3 5 NaN 9 NaN]; Me = [NaN 10; 2 NaN; NaN 30];",
+  "expr": "fp = fillmissing(y, 'previous'); fn = fillmissing(y, 'next'); fc = fillmissing(y, 'constant', 99); nr = fillmissing(ynr, 'nearest'); ne = fillmissing(yends, 'nearest'); li = fillmissing(ynr, 'linear'); le = fillmissing(yends, 'linear'); lt = fillmissing(ylt, 'linear'); ML = fillmissing(M, 'linear'); MP = fillmissing(M, 'previous'); en = fillmissing(a,'linear','EndValues','none'); ec = fillmissing(a,'linear','EndValues',0); enr = fillmissing(a,'linear','EndValues','nearest'); epc = fillmissing(a,'previous','EndValues',-7); Men = fillmissing(Me,'linear','EndValues','none');",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
@@ -15,7 +15,11 @@
     "le(1)", "le(2)", "le(7)",
     "lt(1)", "lt(4)", "lt(6)",
     "ML(2,1)", "ML(1,2)", "ML(3,2)",
-    "MP(1,1)", "MP(2,1)", "double(isnan(MP(1,2)))", "MP(3,2)"
+    "MP(1,1)", "MP(2,1)", "double(isnan(MP(1,2)))", "MP(3,2)",
+    "double(isnan(en(1)))", "double(isnan(en(7)))", "en(4)", "en(5)",
+    "ec(1)", "ec(7)", "enr(1)", "enr(7)",
+    "epc(1)", "epc(5)", "epc(7)",
+    "double(isnan(Men(1,1)))", "Men(2,2)", "double(isnan(Men(3,1)))"
   ],
-  "comment": "fillmissing — replace NaN by method. Methods: 'constant', 'previous', 'next' (existing); 'nearest', 'linear' (added cycle 74). Per-column processing for matrices (fixes prior 1D-flat bug for previous/next). Tie-break in 'nearest' picks NEXT. 'linear' extrapolates leading/trailing NaNs via slope of nearest interior good-value pair (requires ≥2 good values). Deferred MATLAB methods: 'spline', 'pchip', 'makima', 'movmean', 'movmedian', 'knn'."
+  "comment": "fillmissing — replace NaN by method. Methods: 'constant', 'previous', 'next' (existing); 'nearest', 'linear' (cycle 74). Per-column for matrices. Tie-break in 'nearest' picks NEXT. 'linear' default extrapolates leading/trailing NaNs via slope of nearest interior good-value pair. DEEP-PROBE 2026-05-31: added the 'EndValues' name-value option (numkit previously threw 'Cannot convert char to scalar'). 'EndValues' governs ONLY endpoint missing entries (before first / after last original good value); interior runs always filled by the method. Supported: 'extrap' (default, current behavior), 'none' (leave endpoints NaN), 'nearest' (leading=first good, trailing=last good), numeric constant. 'EndValues' rejected for 'constant'/'mean'/'median' methods; 'previous'/'next' EndValues deferred. Verified vs MATLAB R2025b: a=[NaN NaN 3 5 NaN 9 NaN] linear+none=[NaN NaN 3 5 7 9 NaN], +0=[0 0 3 5 7 9 0], +nearest=[3 3 3 5 7 9 9], previous+(-7)=[-7 -7 3 5 5 9 -7]. Deferred MATLAB methods: 'spline', 'pchip', 'makima', 'movmean', 'movmedian', 'knn'."
 }

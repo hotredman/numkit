@@ -1302,6 +1302,50 @@ void fill_one_column(double *p, std::size_t len, const std::string &method,
     // Other methods handled by caller (mean/median use whole column).
 }
 
+// fillmissing 'EndValues' post-processing. The 'EndValues' option
+// governs ONLY the *endpoint* missing entries — those before the first
+// original non-missing value and those after the last. Interior missing
+// runs are always filled by the method itself. The default 'extrap' is a
+// no-op (the method already extrapolates / leaves the endpoints per its
+// own nature, which matches MATLAB R2025b).
+enum class FmEndMode { Extrap, None, Const, Nearest };
+
+void apply_end_values_column(const double *orig, double *out, std::size_t len,
+                             FmEndMode mode, double endVal)
+{
+    if (len == 0 || mode == FmEndMode::Extrap) return;
+    std::size_t first = 0, last = 0;
+    bool any = false;
+    for (std::size_t i = 0; i < len; ++i) {
+        if (!std::isnan(orig[i])) {
+            if (!any) { first = i; any = true; }
+            last = i;
+        }
+    }
+    auto set_end = [&](std::size_t i) {
+        switch (mode) {
+        case FmEndMode::None:
+            out[i] = std::numeric_limits<double>::quiet_NaN();
+            break;
+        case FmEndMode::Const:
+            out[i] = endVal;
+            break;
+        case FmEndMode::Nearest:
+            out[i] = any ? ((i < first) ? orig[first] : orig[last])
+                         : std::numeric_limits<double>::quiet_NaN();
+            break;
+        default:
+            break;
+        }
+    };
+    if (!any) {                                   // all-missing column
+        for (std::size_t i = 0; i < len; ++i) set_end(i);
+        return;
+    }
+    for (std::size_t i = 0; i < first; ++i) set_end(i);        // leading
+    for (std::size_t i = last + 1; i < len; ++i) set_end(i);   // trailing
+}
+
 } // anonymous
 
 Value fillmissing_of(const Value &x, const std::string &method, double constVal, std::pmr::memory_resource *mr)
@@ -2877,14 +2921,90 @@ void rmoutliers_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 void fillmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("fillmissing: requires (x, method[, constant_value])",
+        throw Error("fillmissing: requires (x, method[, constant_value][,'EndValues',ev])",
                     0, 0, "fillmissing", "", "numkit:fillmissing:nargin");
     if (!args[1].isChar() && !args[1].isString())
         throw Error("fillmissing: method must be a string",
                     0, 0, "fillmissing", "", "numkit:fillmissing:method");
-    const std::string m = args[1].toString();
-    const double cv = (args.size() >= 3) ? args[2].toScalar() : 0.0;
-    outs[0] = fillmissing_of(args[0], m, cv, ctx.engine->resource());
+
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+        return s;
+    };
+    const std::string m = lower(args[1].toString());
+    auto *mr = ctx.engine->resource();
+
+    // 'constant' takes a positional fill value (first non-string arg).
+    double cv = 0.0;
+    std::size_t ai = 2;
+    if (m == "constant" && args.size() >= 3 &&
+        !args[2].isChar() && !args[2].isString()) {
+        cv = args[2].toScalar();
+        ai = 3;
+    }
+
+    // Optional 'EndValues', ev name-value pair (extrap | none | nearest |
+    // numeric constant). 'previous'/'next' EndValues deferred.
+    FmEndMode endMode = FmEndMode::Extrap;
+    double endVal = 0.0;
+    bool haveEnd = false;
+    for (std::size_t i = ai; i < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("fillmissing: expected an option name string",
+                        0, 0, "fillmissing", "", "numkit:fillmissing:option");
+        const std::string nm = lower(args[i].toString());
+        if (i + 1 >= args.size())
+            throw Error("fillmissing: option '" + nm + "' requires a value",
+                        0, 0, "fillmissing", "", "numkit:fillmissing:option");
+        if (nm == "endvalues") {
+            haveEnd = true;
+            const Value &ev = args[i + 1];
+            if (ev.isChar() || ev.isString()) {
+                const std::string evs = lower(ev.toString());
+                if (evs == "extrap")       endMode = FmEndMode::Extrap;
+                else if (evs == "none")    endMode = FmEndMode::None;
+                else if (evs == "nearest") endMode = FmEndMode::Nearest;
+                else if (evs == "previous" || evs == "next")
+                    throw Error("fillmissing: EndValues '" + evs +
+                                "' not supported in this revision ('extrap', "
+                                "'none', 'nearest', or a numeric constant only)",
+                                0, 0, "fillmissing", "", "numkit:fillmissing:endvalues");
+                else
+                    throw Error("fillmissing: unknown EndValues '" + evs + "'",
+                                0, 0, "fillmissing", "", "numkit:fillmissing:endvalues");
+            } else {
+                endMode = FmEndMode::Const;
+                endVal = ev.toScalar();
+            }
+        } else {
+            throw Error("fillmissing: unknown option '" + nm + "'",
+                        0, 0, "fillmissing", "", "numkit:fillmissing:option");
+        }
+    }
+
+    if (haveEnd && endMode != FmEndMode::Extrap &&
+        (m == "constant" || m == "mean" || m == "median"))
+        throw Error("fillmissing: 'EndValues' is not supported with fill "
+                    "method '" + m + "'",
+                    0, 0, "fillmissing", "", "numkit:fillmissing:endvalues");
+
+    outs[0] = fillmissing_of(args[0], m, cv, mr);
+
+    if (haveEnd && endMode != FmEndMode::Extrap && args[0].numel() > 0) {
+        const Value &x = args[0];
+        const double *xd = x.doubleData();
+        double *od = outs[0].doubleDataMut();
+        const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
+        const std::size_t c = (x.dims().ndim() >= 2)
+                                ? static_cast<std::size_t>(x.dims().dim(1)) : 1;
+        if (r == 1) {
+            apply_end_values_column(xd, od, x.numel(), endMode, endVal);
+        } else {
+            for (std::size_t col = 0; col < c; ++col)
+                apply_end_values_column(xd + col * r, od + col * r, r, endMode, endVal);
+        }
+    }
 }
 
 void rmmissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

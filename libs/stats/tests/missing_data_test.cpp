@@ -101,6 +101,48 @@ TEST_F(MissingDataTest, FillmissingBadMethodThrows)
     EXPECT_THROW(eval("fillmissing([1 NaN 3], 'unknown_method');"), std::exception);
 }
 
+// fillmissing(..., 'EndValues', ev): the option governs only the endpoint
+// missing entries (before first / after last original good value); interior
+// runs are always filled by the method. numkit previously threw on the NV
+// pair. vs MATLAB R2025b on a = [NaN NaN 3 5 NaN 9 NaN]. DEEP-PROBE 2026-05-31.
+TEST_F(MissingDataTest, FillmissingEndValues)
+{
+    // linear default extrapolates endpoints (unchanged).
+    eval("ex = fillmissing([NaN NaN 3 5 NaN 9 NaN], 'linear');");
+    EXPECT_DOUBLE_EQ(evalScalar("ex(1)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ex(4)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ex(7)"), 11.0);
+    // 'none' leaves endpoints NaN, fills interior (en(5) interpolates to 7;
+    // en(4) is the unchanged good value 5).
+    eval("en = fillmissing([NaN NaN 3 5 NaN 9 NaN], 'linear', 'EndValues', 'none');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isnan(en(1)))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("en(4)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("en(5)"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isnan(en(7)))"), 1.0);
+    // numeric constant for endpoints.
+    eval("ec = fillmissing([NaN NaN 3 5 NaN 9 NaN], 'linear', 'EndValues', 0);");
+    EXPECT_DOUBLE_EQ(evalScalar("ec(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ec(7)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ec(5)"), 7.0);
+    // 'nearest' endpoints: leading=first good, trailing=last good.
+    eval("enr = fillmissing([NaN NaN 3 5 NaN 9 NaN], 'linear', 'EndValues', 'nearest');");
+    EXPECT_DOUBLE_EQ(evalScalar("enr(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("enr(7)"), 9.0);
+    // EndValues with a directional method: interior filled by method,
+    // endpoints (incl. trailing 'previous' fill) overridden by EndValues.
+    eval("ep = fillmissing([NaN NaN 3 5 NaN 9 NaN], 'previous', 'EndValues', -7);");
+    EXPECT_DOUBLE_EQ(evalScalar("ep(1)"), -7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ep(5)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ep(7)"), -7.0);
+    // matrix per-column with 'none'.
+    eval("Men = fillmissing([NaN 10; 2 NaN; NaN 30], 'linear', 'EndValues', 'none');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isnan(Men(1,1)))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("Men(2,2)"), 20.0);
+    // 'EndValues' rejected for 'constant'; 'previous'/'next' EndValues deferred.
+    EXPECT_THROW(eval("fillmissing([1 NaN 3], 'constant', 5, 'EndValues', 0);"), std::exception);
+    EXPECT_THROW(eval("fillmissing([1 NaN 3], 'linear', 'EndValues', 'previous');"), std::exception);
+}
+
 // ── rmmissing ─────────────────────────────────────────────
 
 TEST_F(MissingDataTest, RmmissingDropsNaN)
