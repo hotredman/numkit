@@ -1,6 +1,7 @@
 {
   "name": "regress",
   "namespace": "stats",
+  "covers": ["regress"],
   "setup": "y = [1.1 1.9 3.2 3.8 5.1]'; X = [ones(5,1) (1:5)'];",
   "expr": "[b, bint, r, rint, stats] = regress(y, X);",
   "iters": 5,
@@ -10,7 +11,8 @@
     "bint(1,1)", "bint(2,2)",
     "stats(1)", "stats(2)", "stats(3)", "stats(4)",
     "size(rint, 1)", "size(rint, 2)",
-    "double(rint(1,1) <= r(1))", "double(rint(1,2) >= r(1))"
+    "rint(1,1)", "rint(1,2)", "rint(3,1)", "rint(3,2)", "rint(5,1)"
   ],
-  "comment": "Sig: [b, bint, r, rint, stats] = regress(y, X[, alpha]). OLS multiple regression via Cholesky on X'X. stats = [R², F, p_F, sigma²]. 2026-05-08: 4th output rint (residual confidence intervals for outlier detection) added — was a placeholder. Uses standard formula r ± t·σ·sqrt(1-h_ii) where h_ii = diag(X·(X'X)^(-1)·X'). MATLAB's R2025b regress uses a non-standard internal formula whose exact form differs (specific h_ii values disagree with the theoretical hat-matrix diagonal); numkit returns the textbook formula. Shape (N×2) and the property `r(i) ∈ rint(i,:)` are checked instead."
+  "deep_verified": true,
+  "comment": "Sig: [b, bint, r, rint, stats] = regress(y, X[, alpha]). OLS multiple regression via Cholesky on X'X. stats = [R^2, F, p_F, sigma^2]. DEEP-PROBE c164: the 4th output rint (residual confidence intervals for outlier detection) was the TEXTBOOK formula r +/- t*sigma*sqrt(1-h_ii) with nu dof, which DISAGREED with MATLAB. MATLAB R2025b uses the Chatterjee & Hadi (1986, eq.14) / Belsley-Kuh-Welsch (1980, eq.2.26) LEAVE-ONE-OUT variance estimate: sigma_i = sqrt(max(0, nu*s2/(nu-1) - r_i^2/((nu-1)(1-h_ii)))), ser = sqrt(1-h_ii)*sigma_i, t = tinv(1-alpha/2, nu-1). Now bit-exact: rint(1,:)=[-0.5423713822 0.6623713822], rint(3,:)=[-0.5217414236 0.8817414236], rint(5,1)=-0.4510083996. b/bint/r/stats unchanged. covers:[regress]."
 }

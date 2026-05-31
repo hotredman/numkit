@@ -116,3 +116,24 @@ TEST_F(RobustTest, RobustcovTooFewObsThrows)
 {
     EXPECT_THROW(eval("robustcov(randn(2, 2));"), std::exception);
 }
+
+// regress 4th output rint (residual confidence intervals for outlier
+// diagnosis). MATLAB R2025b uses the Chatterjee & Hadi leave-one-out
+// variance estimate with (nu-1) dof, NOT the textbook r +/- t*sigma*sqrt(1-h).
+// numkit previously returned the textbook form (rint disagreed with MATLAB);
+// now bit-exact. Pinned to MATLAB.
+TEST_F(RobustTest, RegressResidualIntervals)
+{
+    eval("y = [1.1 1.9 3.2 3.8 5.1]'; X = [ones(5,1) (1:5)'];");
+    eval("[b, bint, r, rint, stats] = regress(y, X);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(rint,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(rint,2)"), 2.0);
+    // Each residual lies inside its interval.
+    EXPECT_DOUBLE_EQ(evalScalar("double(all(rint(:,1) <= r & r <= rint(:,2)))"), 1.0);
+    // Exact MATLAB values (leave-one-out studentized residual interval).
+    EXPECT_NEAR(evalScalar("rint(1,1)"), -0.5423713822, 1e-9);
+    EXPECT_NEAR(evalScalar("rint(1,2)"),  0.6623713822, 1e-9);
+    EXPECT_NEAR(evalScalar("rint(3,1)"), -0.5217414236, 1e-9);
+    EXPECT_NEAR(evalScalar("rint(3,2)"),  0.8817414236, 1e-9);
+    EXPECT_NEAR(evalScalar("rint(5,1)"), -0.4510083996, 1e-9);
+}
