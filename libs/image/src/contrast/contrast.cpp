@@ -1445,9 +1445,19 @@ void imadjust_reg(Span<const Value> args, size_t /*nargout*/,
     double high_out = 1.0;
     double gamma = 1.0;
 
-    if (args.size() >= 2 && !args[1].isEmpty()) {
+    // In-range endpoints [low_in high_in]:
+    //   - absent (1-arg imadjust(I))   -> NaN sentinel -> stretchlim auto
+    //                                      (1% saturation, the default-contrast form).
+    //   - empty [] (explicitly passed) -> MATLAB default [0 1] (identity, NOT
+    //                                      stretchlim) — distinct from the absent case.
+    //   - explicit [lo hi]             -> use as given.
+    if (args.size() >= 2) {
         const Value &v = args[1];
-        if (v.numel() >= 2) {
+        if (v.isEmpty()) {
+            low_in  = 0.0;
+            high_in = 1.0;
+        }
+        else if (v.numel() >= 2) {
             low_in  = v.elemAsDouble(0);
             high_in = v.elemAsDouble(1);
         }

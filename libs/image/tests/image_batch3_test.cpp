@@ -134,6 +134,33 @@ TEST_F(ImageBatch3Test, Histogram)
     EXPECT_DOUBLE_EQ(evalScalar("numel(lim)"), 2.0);
 }
 
+// imadjust with an explicitly-passed empty [] for the in/out range means
+// MATLAB's default [0 1] (identity, NO stretch) — distinct from the ABSENT
+// 1-arg form imadjust(I), which auto-stretches via stretchlim. numkit
+// previously treated empty [] like the absent case, contrast-stretching
+// imadjust(I,[],[]). DEEP-PROBE c169.
+TEST_F(ImageBatch3Test, ImadjustEmptyRangeIsIdentity)
+{
+    eval("I = uint8([10 50 90; 130 170 210; 30 70 110]);");
+    eval("J1 = imadjust(I, [], []);");      // both empty -> identity
+    eval("J2 = imadjust(I, [], [0 1]);");   // empty in-range
+    eval("J3 = imadjust(I, [0 1], []);");   // empty out-range
+    EXPECT_DOUBLE_EQ(evalScalar("double(isequal(J1, I))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isequal(J2, I))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isequal(J3, I))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J1(1,1))"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J1(2,2))"), 170.0);
+
+    // 1-arg form still auto-stretches (stretchlim) — MATLAB J(2,2) = 204.
+    eval("J4 = imadjust(I);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isequal(J4, I))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(J4(2,2))"), 204.0);
+
+    // explicit range + gamma still applies — MATLAB J5(2,2) = 154.
+    eval("J5 = imadjust(I, [0.2 0.8], [0 1], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(J5(2,2))"), 154.0);
+}
+
 // stretchlim uses 256 bins for uint8 but 65536 for double/single/uint16,
 // matching MATLAB R2025b. 2026-05-31: previously a fixed 256 bins coarsely
 // quantized the limits on a double image.
