@@ -63,6 +63,50 @@ TEST_F(TestMatricesTest, HankelTwoArgRectangular)
     EXPECT_DOUBLE_EQ(evalScalar("H(1,4)"), 5.0);
 }
 
+// DEEP-PROBE 2026-05-31: toeplitz/hankel were DOUBLE-only — they dropped
+// the imaginary part of COMPLEX inputs and down-converted SINGLE.
+TEST_F(TestMatricesTest, ToeplitzComplexAndSingle)
+{
+    // Single-arg COMPLEX -> Hermitian Toeplitz (lower triangle conjugated).
+    eval("T = toeplitz([1+1i 2+2i 3+3i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(T(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(T(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(T(2,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(T(2,1))"), -2.0);  // conj(2+2i)
+    EXPECT_DOUBLE_EQ(evalScalar("imag(T(1,2))"), 2.0);   // c(2), not conj
+
+    // Two-arg COMPLEX -> plain gather (no conjugation).
+    eval("T2 = toeplitz([1+1i 2 3],[1-9i 8 7]);");
+    EXPECT_DOUBLE_EQ(evalScalar("imag(T2(1,1))"), 1.0);  // column wins
+    EXPECT_DOUBLE_EQ(evalScalar("real(T2(2,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(T2(2,1))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(T2(1,2))"), 8.0);  // r(2)
+
+    // SINGLE preserved.
+    eval("Ts = toeplitz(single([1 2 3]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(Ts),'single'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(Ts(2,1))"), 2.0);
+}
+
+TEST_F(TestMatricesTest, HankelComplexAndSingle)
+{
+    // hankel NEVER conjugates.
+    eval("H = hankel([1+1i 2+2i 3+3i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(H(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(H(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(H(2,2))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(H(2,2))"), 3.0);   // c(3)=3+3i
+
+    // Two-arg complex keeps r's imaginary part.
+    eval("H2 = hankel([1+1i 2 3],[3 4 5+5i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(H2(3,3))"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(H2(3,3))"), 5.0);
+
+    // SINGLE preserved.
+    eval("Hs = hankel(single([1 2 3]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(Hs),'single'))"), 1.0);
+}
+
 // ── vander ──────────────────────────────────────────────────
 
 TEST_F(TestMatricesTest, VanderHighestPowerLeft)
