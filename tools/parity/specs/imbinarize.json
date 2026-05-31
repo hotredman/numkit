@@ -1,14 +1,14 @@
 {
   "name": "imbinarize",
   "namespace": "image",
-  "setup": "I = uint8([20 20 20 20 120 120 120 120 220 220 220 220]);",
-  "expr": "BW = imbinarize(I); r1 = double(sum(BW(:)));",
+  "setup": "I = uint8([20 20 20 20 120 120 120 120 220 220 220 220]); J = uint8(mod((1:16)' * (1:16), 256));",
+  "expr": "BW = imbinarize(I); r1 = double(sum(BW(:))); bg = imbinarize(J, 'global'); sg = double(sum(bg(:))); ba = imbinarize(J, 'adaptive'); sa = double(sum(ba(:))); ba88 = double(ba(8,8)); bs = imbinarize(J, 'adaptive', 'Sensitivity', 0.7); ss = double(sum(bs(:)));",
   "iters": 8,
   "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "r1", "sg", "sa", "ba88", "ss"
   ],
-  "comment": "Sig: BW = imbinarize(I). Default threshold via graythresh + binarize. Bit-identical with MATLAB R2025b after graythresh tied-mean fix 2026-05-09.",
+  "comment": "Sig: BW = imbinarize(I[, method|t][, NV...]). Default + scalar/per-pixel threshold via graythresh + binarize. DEEP-PROBE c176: added the method-string forms — imbinarize(I,'global') (Otsu, == default) and imbinarize(I,'adaptive'[,'Sensitivity',s][,'ForegroundPolarity','bright']) which REWIRES to adaptthresh(I, sens) then the per-pixel binarize comparison (the existing per-pixel overload). numkit previously misread 'adaptive' as a per-pixel threshold and threw. On a 16x16 mod-product image: global sum=78, adaptive sum=3 (ba(8,8)=0), Sensitivity 0.7 sum=224 — bit-identical to MATLAB R2025b (adaptthresh auto-neighborhood matches). ForegroundPolarity 'dark' deferred. Bit-identical with MATLAB R2025b after graythresh tied-mean fix 2026-05-09.",
   "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
   "bench_expr": "rb = imbinarize(A);",
   "bench_sizes": [
