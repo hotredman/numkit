@@ -820,66 +820,55 @@ Value interp2Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
         return outv[0];
     };
 
-    // Implicit meshgrid: when BOTH Xq and Yq are 1-D vectors (or
-    // scalars) with possibly different lengths, MATLAB constructs
-    // the implicit mesh — output is `length(Yq) x length(Xq)`,
-    // sampled at every (Xq[j], Yq[i]). When either is a 2-D matrix
-    // (typical meshgrid output), do pointwise sampling.
-    const bool xqIsVec = Xq.dims().isVector() || Xq.isScalar();
-    const bool yqIsVec = Yq.dims().isVector() || Yq.isScalar();
-    if (xqIsVec && yqIsVec
-        && !(Xq.dims().rows() == Yq.dims().rows()
-             && Xq.dims().cols() == Yq.dims().cols())) {
-        // Mismatched-shape vectors — definitely implicit meshgrid.
-        const std::size_t nx = Xq.numel();
-        const std::size_t ny = Yq.numel();
-        auto out = Value::matrix(ny, nx, ValueType::DOUBLE, mr);
+    // MATLAB interp2 query semantics:
+    //   • Xq and Yq the SAME size (incl. same-length vectors and meshgrid
+    //     matrices), or either a scalar → POINTWISE: Vq(k) = sample(Xq(k),
+    //     Yq(k)); the output has the shape of the non-scalar operand.
+    //   • A row vector vs a column vector → implicit expansion to a grid:
+    //     Vq is numel(Yq) × numel(Xq), Vq(i,j) = sample(Xq(j), Yq(i)).
+    //   • Otherwise (different sizes, not broadcastable) → error, matching
+    //     "Query coordinates input arrays must have the same size."
+    const auto &xd = Xq.dims();
+    const auto &yd = Yq.dims();
+    const bool sameShape = (xd.rows() == yd.rows() && xd.cols() == yd.cols());
+    const bool xqIsVec = xd.isVector() || Xq.isScalar();
+    const bool yqIsVec = yd.isVector() || Yq.isScalar();
+
+    if (sameShape || Xq.isScalar() || Yq.isScalar()) {
+        // Pointwise (scalar operands broadcast against the other's shape).
+        const Value &shapeRef = (Xq.numel() >= Yq.numel()) ? Xq : Yq;
+        const std::size_t nq = shapeRef.numel();
+        auto out = Value::matrix(shapeRef.dims().rows(), shapeRef.dims().cols(),
+                                 ValueType::DOUBLE, mr);
         double *dst = out.doubleDataMut();
-        for (std::size_t j = 0; j < nx; ++j) {
-            const double xq = Xq.elemAsDouble(j);
-            for (std::size_t i = 0; i < ny; ++i) {
-                const double yq = Yq.elemAsDouble(i);
-                dst[j * ny + i] = sampleAt(xq, yq);
-            }
-        }
-        return out;
-    }
-    if (xqIsVec && yqIsVec
-        && Xq.dims().rows() == Yq.dims().rows()
-        && Xq.dims().cols() == Yq.dims().cols()
-        && (Xq.numel() > 1)) {
-        // Same-shape vectors — MATLAB also does implicit meshgrid
-        // here (unless caller wraps via a matrix shape; that's case
-        // B above, handled by the pointwise branch below).
-        const std::size_t nx = Xq.numel();
-        const std::size_t ny = Yq.numel();
-        auto out = Value::matrix(ny, nx, ValueType::DOUBLE, mr);
-        double *dst = out.doubleDataMut();
-        for (std::size_t j = 0; j < nx; ++j) {
-            const double xq = Xq.elemAsDouble(j);
-            for (std::size_t i = 0; i < ny; ++i) {
-                const double yq = Yq.elemAsDouble(i);
-                dst[j * ny + i] = sampleAt(xq, yq);
-            }
+        for (std::size_t i = 0; i < nq; ++i) {
+            const double xq = Xq.isScalar() ? Xq.elemAsDouble(0)
+                                            : Xq.elemAsDouble(i);
+            const double yq = Yq.isScalar() ? Yq.elemAsDouble(0)
+                                            : Yq.elemAsDouble(i);
+            dst[i] = sampleAt(xq, yq);
         }
         return out;
     }
 
-    // Pointwise (matrix Xq/Yq, e.g. from meshgrid).
-    if (Xq.numel() != Yq.numel())
-        throw Error("interp2: Xq and Yq must have the same numel "
-                    "for matrix-form queries",
-                     0, 0, "interp2", "", "numkit:interp2:queryShape");
-    const auto &qd = Xq.dims();
-    const std::size_t nq = Xq.numel();
-    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    for (std::size_t i = 0; i < nq; ++i) {
-        const double xq = Xq.elemAsDouble(i);
-        const double yq = Yq.elemAsDouble(i);
-        dst[i] = sampleAt(xq, yq);
+    const bool xqRow = (xd.rows() == 1), xqCol = (xd.cols() == 1);
+    const bool yqRow = (yd.rows() == 1), yqCol = (yd.cols() == 1);
+    if (xqIsVec && yqIsVec && ((xqRow && yqCol) || (xqCol && yqRow))) {
+        // Implicit expansion: Xq supplies the columns, Yq supplies the rows.
+        const std::size_t nx = Xq.numel();
+        const std::size_t ny = Yq.numel();
+        auto out = Value::matrix(ny, nx, ValueType::DOUBLE, mr);
+        double *dst = out.doubleDataMut();
+        for (std::size_t j = 0; j < nx; ++j) {
+            const double xq = Xq.elemAsDouble(j);
+            for (std::size_t i = 0; i < ny; ++i)
+                dst[j * ny + i] = sampleAt(xq, Yq.elemAsDouble(i));
+        }
+        return out;
     }
-    return out;
+
+    throw Error("interp2: Xq and Yq must have the same size",
+                 0, 0, "interp2", "", "numkit:interp2:queryShape");
 }
 
 } // namespace
