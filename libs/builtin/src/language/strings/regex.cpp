@@ -249,18 +249,67 @@ Value regexpFind(const Value &s, const Value &pat, const std::string &option, bo
     return rowFromIndices(idx.data(), idx.size(), mr);
 }
 
+// Apply ONE pattern/replacement to a single string.
+static std::string regexrepOne(const std::string &text, const std::string &pat,
+                               const std::string &rep, bool ignoreCase)
+{
+    const std::regex re = compileRegex(extractNamedGroups(pat).cleaned, ignoreCase);
+    return std::regex_replace(text, re, rep);
+}
+
+// Apply a LIST of patterns to one string, in sequence (MATLAB regexprep with
+// a cell pattern array applies each pattern/replacement in turn, feeding the
+// result of one into the next). A single replacement is recycled for every
+// pattern; otherwise the replacement count must equal the pattern count.
+static std::string regexrepSeq(const std::string &text0,
+                               const ScratchVec<std::string> &pats,
+                               const ScratchVec<std::string> &reps,
+                               bool ignoreCase)
+{
+    std::string text = text0;
+    for (std::size_t i = 0; i < pats.size(); ++i)
+        text = regexrepOne(text, pats[i], reps.size() == 1 ? reps[0] : reps[i], ignoreCase);
+    return text;
+}
+
 Value regexprep(const Value &s, const Value &pat, const Value &rep, bool ignoreCase, std::pmr::memory_resource *mr)
 {
-    if ((!s.isChar() && !s.isString())
-        || (!pat.isChar() && !pat.isString())
-        || (!rep.isChar() && !rep.isString()))
-        throw Error("regexprep: s, pat, rep must be strings",
+    auto isStrLike = [](const Value &v) { return v.isChar() || v.isString() || v.isCell(); };
+    if (!isStrLike(s) || !isStrLike(pat) || !isStrLike(rep))
+        throw Error("regexprep: s, pat, rep must be strings or cell arrays of strings",
                      0, 0, "regexprep", "", "numkit:regexprep:badArg");
-    const std::string text    = s.toString();
-    const std::regex  re      = compileRegex(extractNamedGroups(pat.toString()).cleaned, ignoreCase);
-    const std::string repText = rep.toString();
-    const std::string out     = std::regex_replace(text, re, repText);
-    return Value::fromString(out, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch), reps(&scratch);
+    auto collect = [](const Value &v, ScratchVec<std::string> &out) {
+        if (v.isCell()) {
+            const std::size_t n = v.numel();
+            for (std::size_t i = 0; i < n; ++i) out.push_back(v.cellAt(i).toString());
+        } else {
+            out.push_back(v.toString());
+        }
+    };
+    collect(pat, pats);
+    collect(rep, reps);
+    if (reps.size() != 1 && reps.size() != pats.size())
+        throw Error("regexprep: Multiple replace strings and patterns given "
+                    "must have the same quantity.",
+                     0, 0, "regexprep", "", "numkit:regexprep:repCount");
+
+    // A cell string operand processes element-wise -> cell of char vectors,
+    // same shape; a char/string scalar processes to a single char row (the
+    // pre-existing scalar return type is preserved exactly).
+    if (s.isCell()) {
+        const std::size_t r = static_cast<std::size_t>(s.dims().rows());
+        const std::size_t c = static_cast<std::size_t>(s.dims().cols());
+        auto out = Value::cell(r, c, mr);
+        const std::size_t n = s.numel();
+        for (std::size_t i = 0; i < n; ++i)
+            out.cellAt(i) = Value::fromString(
+                regexrepSeq(s.cellAt(i).toString(), pats, reps, ignoreCase), mr);
+        return out;
+    }
+    return Value::fromString(regexrepSeq(s.toString(), pats, reps, ignoreCase), mr);
 }
 
 // ── Pack 36: regexptranslate ─────────────────────────────────────────
@@ -357,7 +406,18 @@ void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.size() < 3)
         throw Error("regexprep: requires 3 arguments (s, pat, rep)",
                      0, 0, "regexprep", "", "numkit:regexprep:nargin");
-    outs[0] = regexprep(args[0], args[1], args[2], false, ctx.engine->resource());
+    // Trailing option strings: recognise 'ignorecase' (other documented
+    // options — 'once', 'preservecase', 'lineanchors', … — are not yet
+    // parsed and are left to their default behaviour).
+    bool ignoreCase = false;
+    for (size_t i = 3; i < args.size(); ++i) {
+        if (args[i].isChar() || args[i].isString()) {
+            std::string o = args[i].toString();
+            for (auto &ch : o) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            if (o == "ignorecase") ignoreCase = true;
+        }
+    }
+    outs[0] = regexprep(args[0], args[1], args[2], ignoreCase, ctx.engine->resource());
 }
 
 void regexptranslate_reg(Span<const Value> args, size_t, Span<Value> outs,
