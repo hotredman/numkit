@@ -150,28 +150,36 @@ nlpredci(const Value &fun, const Value &X, const Value &beta,
          ::numkit::Engine *engine,
          std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Robust regression weight functions.
-enum class RobustWeight { Bisquare, Huber };
+/// @brief Robust regression weight functions (MATLAB robustfit set).
+enum class RobustWeight {
+    Andrews, Bisquare, Cauchy, Fair, Huber,
+    Logistic, Ols, Talwar, Welsch
+};
 
 /// @brief Robust linear regression via iteratively-reweighted least
 /// squares (`[b, stats] = robustfit(X, y)`).
 ///
-/// Fits `y = X · b + ε` while downweighting outliers. Algorithm:
-///   1. Initial OLS β.
-///   2. Loop: standardise residuals by `s = MAD(r) / 0.6745`, compute
-///      weights `w_i = ψ(r_i / (tune · s))` (bisquare default, tune =
-///      4.685; or Huber, tune = 1.345), refit β via weighted LS.
+/// Fits `y = X · b + ε` while downweighting outliers. Algorithm (matches
+/// MATLAB's statrobustfit.m):
+///   1. Initial OLS β; leverage adjustment `radj = r / sqrt(1 - h)` where
+///      `h` is the hat-matrix diagonal (DuMouchel & O'Brien).
+///   2. Loop: scale `s = madsigma(radj, p)` (median of the largest
+///      `n-p+1` of `|radj|`, /0.6745); weights `w_i = ψ(radj_i /
+///      (max(s, tiny_s) · tune))` for one of the 9 MATLAB weight
+///      functions; refit β via weighted LS.
 ///   3. Stop on convergence or 50 iterations.
 ///
-/// KNOWN GAPs: column-of-ones is NOT prepended automatically — pass
-/// `[ones(n, 1), X]` for an intercept. Stats output struct
-/// (degrees of freedom, p-values, etc.) is currently scalar `s` only.
+/// The intercept column is prepended by the `robustfit` builtin
+/// (`const='on'` default). KNOWN GAP: the full stats output struct
+/// (degrees of freedom, p-values, etc.) is reduced to scalar `s`.
 ///
 /// @param X       Design matrix (`n × p`).
 /// @param y       Response (`n × 1`).
-/// @param weight  Weight function (`Bisquare` default).
-/// @param tune    Tuning constant (`NaN` → 4.685 for bisquare, 1.345
-///                for Huber).
+/// @param weight  Weight function (`Bisquare` default; full MATLAB set:
+///                Andrews/Bisquare/Cauchy/Fair/Huber/Logistic/Ols/
+///                Talwar/Welsch).
+/// @param tune    Tuning constant (`NaN` → the weight-specific default,
+///                e.g. 4.685 bisquare, 1.345 Huber).
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `{b, s}` — coefficients and final robust scale.
 struct RobustfitResult { Value b; Value s; };

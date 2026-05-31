@@ -13,6 +13,7 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -80,45 +81,141 @@ std::vector<double> weightedLS(const double *X, std::size_t n, std::size_t p,
     return b;
 }
 
-// Median absolute deviation from zero (used after standardising
-// residuals); MATLAB uses median of |r - median(r)|.
-double medianAbsDev(std::vector<double> r)
-{
-    const std::size_t n = r.size();
-    if (n == 0) return 0.0;
-    // First find median of r.
-    std::vector<double> rc(r);
-    std::nth_element(rc.begin(), rc.begin() + n / 2, rc.end());
-    double med = rc[n / 2];
-    if (n % 2 == 0) {
-        double upper = rc[n / 2];
-        auto maxIt = std::max_element(rc.begin(), rc.begin() + n / 2);
-        med = 0.5 * (*maxIt + upper);
-    }
-    // Then MAD = median(|r - med|).
-    for (auto &x : r) x = std::fabs(x - med);
-    std::nth_element(r.begin(), r.begin() + n / 2, r.end());
-    double mad = r[n / 2];
-    if (n % 2 == 0) {
-        double upper = r[n / 2];
-        auto maxIt = std::max_element(r.begin(), r.begin() + n / 2);
-        mad = 0.5 * (*maxIt + upper);
-    }
-    return mad;
-}
 
-// Weight functions.
-double bisquareWeight(double u)
-{
-    if (std::fabs(u) >= 1.0) return 0.0;
-    const double t = 1.0 - u * u;
-    return t * t;
-}
+// MATLAB robustfit weight functions (statrobustwfun.m). Argument is the
+// standardised, leverage-adjusted residual u = radj / (max(s,tiny_s)*tune).
+constexpr double kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
+#ifndef M_PI
+constexpr double M_PI = 3.14159265358979323846;
+#endif
 
-double huberWeight(double u)
+double robustWeight(RobustWeight wt, double u)
 {
     const double a = std::fabs(u);
-    return (a <= 1.0) ? 1.0 : 1.0 / a;
+    switch (wt) {
+        case RobustWeight::Andrews: {
+            const double r = std::max(kSqrtEps, a);
+            return (r < M_PI) ? std::sin(r) / r : 0.0;
+        }
+        case RobustWeight::Bisquare: {
+            if (a >= 1.0) return 0.0;
+            const double t = 1.0 - u * u;
+            return t * t;
+        }
+        case RobustWeight::Cauchy:   return 1.0 / (1.0 + u * u);
+        case RobustWeight::Fair:     return 1.0 / (1.0 + a);
+        case RobustWeight::Huber:    return 1.0 / std::max(1.0, a);
+        case RobustWeight::Logistic: {
+            const double r = std::max(kSqrtEps, a);
+            return std::tanh(r) / r;
+        }
+        case RobustWeight::Ols:      return 1.0;
+        case RobustWeight::Talwar:   return (a < 1.0) ? 1.0 : 0.0;
+        case RobustWeight::Welsch:   return std::exp(-(u * u));
+    }
+    return 1.0;
+}
+
+double defaultTune(RobustWeight wt)
+{
+    switch (wt) {
+        case RobustWeight::Andrews:  return 1.339;
+        case RobustWeight::Bisquare: return 4.685;
+        case RobustWeight::Cauchy:   return 2.385;
+        case RobustWeight::Fair:     return 1.400;
+        case RobustWeight::Huber:    return 1.345;
+        case RobustWeight::Logistic: return 1.205;
+        case RobustWeight::Ols:      return 1.0;
+        case RobustWeight::Talwar:   return 2.795;
+        case RobustWeight::Welsch:   return 2.985;
+    }
+    return 1.0;
+}
+
+// MATLAB madsigma: sort |r| ascending, drop the smallest (p-1), take the
+// median of the rest, divide by 0.6745.
+double madsigma(std::vector<double> r, std::size_t p)
+{
+    const std::size_t n = r.size();
+    for (double &v : r) v = std::fabs(v);
+    std::sort(r.begin(), r.end());
+    const std::size_t start = (p >= 1) ? (p - 1) : 0;   // 0-based first kept
+    const std::size_t m = (start < n) ? (n - start) : 0;
+    if (m == 0) return 0.0;
+    double med;
+    if (m & 1) med = r[start + m / 2];
+    else       med = 0.5 * (r[start + m / 2 - 1] + r[start + m / 2]);
+    return med / 0.6745;
+}
+
+// Sample standard deviation (N-1) used for tiny_s.
+double sampleStd(const std::vector<double> &v)
+{
+    const std::size_t n = v.size();
+    if (n < 2) return 0.0;
+    double s = 0.0;
+    for (double e : v) s += e;
+    const double m = s / double(n);
+    double ss = 0.0;
+    for (double e : v) ss += (e - m) * (e - m);
+    return std::sqrt(ss / double(n - 1));
+}
+
+// Hat-matrix (leverage) diagonal of X (col-major n×p) via (X'X)^-1.
+// h_i = x_i' (X'X)^-1 x_i. Returns NaN-free leverages clamped at 0.9999.
+std::vector<double> leverage(const double *X, std::size_t n, std::size_t p)
+{
+    std::vector<double> XtX(p * p, 0.0);
+    for (std::size_t j = 0; j < p; ++j)
+        for (std::size_t k = 0; k < p; ++k) {
+            double s = 0.0;
+            for (std::size_t i = 0; i < n; ++i)
+                s += X[j * n + i] * X[k * n + i];
+            XtX[j * p + k] = s;
+        }
+    // Gauss-Jordan inverse of the p×p matrix.
+    std::vector<double> inv(p * p, 0.0);
+    for (std::size_t i = 0; i < p; ++i) inv[i * p + i] = 1.0;
+    for (std::size_t col = 0; col < p; ++col) {
+        std::size_t piv = col;
+        double best = std::fabs(XtX[col * p + col]);
+        for (std::size_t r = col + 1; r < p; ++r) {
+            const double v = std::fabs(XtX[r * p + col]);
+            if (v > best) { best = v; piv = r; }
+        }
+        if (piv != col)
+            for (std::size_t c = 0; c < p; ++c) {
+                std::swap(XtX[col * p + c], XtX[piv * p + c]);
+                std::swap(inv[col * p + c], inv[piv * p + c]);
+            }
+        const double d = XtX[col * p + col];
+        const double invd = (d != 0.0) ? 1.0 / d : 0.0;
+        for (std::size_t c = 0; c < p; ++c) {
+            XtX[col * p + c] *= invd;
+            inv[col * p + c] *= invd;
+        }
+        for (std::size_t r = 0; r < p; ++r) {
+            if (r == col) continue;
+            const double f = XtX[r * p + col];
+            if (f == 0.0) continue;
+            for (std::size_t c = 0; c < p; ++c) {
+                XtX[r * p + c] -= f * XtX[col * p + c];
+                inv[r * p + c] -= f * inv[col * p + c];
+            }
+        }
+    }
+    std::vector<double> h(n, 0.0);
+    for (std::size_t i = 0; i < n; ++i) {
+        double s = 0.0;
+        for (std::size_t j = 0; j < p; ++j) {
+            double t = 0.0;
+            for (std::size_t k = 0; k < p; ++k)
+                t += inv[j * p + k] * X[k * n + i];
+            s += X[j * n + i] * t;
+        }
+        h[i] = std::min(0.9999, s);
+    }
+    return h;
 }
 
 } // namespace
@@ -136,54 +233,58 @@ RobustfitResult robustfit(const Value &X, const Value &y,
         throw Error("robustfit: need rows(X) > cols(X)",
                     0, 0, "robustfit", "", "numkit:robustfit:noDOF");
 
-    if (std::isnan(tune)) {
-        tune = (weight == RobustWeight::Bisquare) ? 4.685 : 1.345;
-    }
+    if (std::isnan(tune)) tune = defaultTune(weight);
 
     std::vector<double> Xv(n * p);
     for (std::size_t i = 0; i < n * p; ++i) Xv[i] = X.elemAsDouble(i);
     std::vector<double> yv(n);
     for (std::size_t i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
+    // Leverage adjustment (DuMouchel & O'Brien): radj = r / sqrt(1 - h),
+    // h = hat-matrix diagonal. MATLAB statrobustfit.m.
+    const std::vector<double> h = leverage(Xv.data(), n, p);
+    std::vector<double> adj(n);
+    for (std::size_t i = 0; i < n; ++i)
+        adj[i] = 1.0 / std::sqrt(1.0 - h[i]);
+
+    // Floor on the scale estimate so a (near-)perfect fit can't drive s to 0.
+    double tiny_s = 1e-6 * sampleStd(yv);
+    if (!(tiny_s > 0.0)) tiny_s = 1.0;
+
     // Initial OLS (uniform weights).
     std::vector<double> w(n, 1.0);
     std::vector<double> beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
 
-    std::vector<double> r(n), beta_prev(p, 0.0);
+    std::vector<double> r(n), radj(n), beta_prev(p, 0.0);
     const int maxIter = 50;
-    const double tol = 1e-8;
+    const double D = 1.4901161193847656e-08;   // sqrt(eps)
     double s = 1.0;
     for (int it = 0; it < maxIter; ++it) {
-        // Compute residuals.
+        // Residuals from the current fit, then the leverage-adjusted scale.
         for (std::size_t i = 0; i < n; ++i) {
             double pred = 0.0;
             for (std::size_t j = 0; j < p; ++j)
                 pred += Xv[j * n + i] * beta[j];
             r[i] = yv[i] - pred;
+            radj[i] = r[i] * adj[i];
         }
+        s = madsigma(radj, p);
+        const double denom = std::max(s, tiny_s) * tune;
 
-        // Scale via MAD.
-        s = medianAbsDev(r) / 0.6745;
-        if (!(s > 0.0)) s = 1e-12;
-
-        // Weights.
-        for (std::size_t i = 0; i < n; ++i) {
-            const double u = r[i] / (tune * s);
-            w[i] = (weight == RobustWeight::Bisquare)
-                       ? bisquareWeight(u)
-                       : huberWeight(u);
-        }
+        // New weights from the standardised, leverage-adjusted residuals.
+        for (std::size_t i = 0; i < n; ++i)
+            w[i] = robustWeight(weight, radj[i] / denom);
 
         beta_prev = beta;
         beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
 
-        // Convergence: max |Δβ| / max(|β|, eps).
-        double maxStep = 0.0, maxBeta = 0.0;
-        for (std::size_t j = 0; j < p; ++j) {
-            maxStep = std::max(maxStep, std::fabs(beta[j] - beta_prev[j]));
-            maxBeta = std::max(maxBeta, std::fabs(beta[j]));
-        }
-        if (maxStep < tol * std::max(maxBeta, 1.0)) break;
+        // MATLAB: stop when no |b-b0| exceeds D*max(|b|,|b0|).
+        bool changed = false;
+        for (std::size_t j = 0; j < p; ++j)
+            if (std::fabs(beta[j] - beta_prev[j])
+                > D * std::max(std::fabs(beta[j]), std::fabs(beta_prev[j])))
+                changed = true;
+        if (!changed) break;
     }
 
     // Pack outputs.
@@ -353,11 +454,21 @@ void robustfit_reg(Span<const Value> args, size_t nargout,
                     0, 0, "robustfit", "", "numkit:robustfit:nargin");
     RobustWeight w = RobustWeight::Bisquare;
     if (args.size() >= 3 && args[2].isChar()) {
-        const std::string s = args[2].toString();
-        if (s == "huber")     w = RobustWeight::Huber;
+        std::string s = args[2].toString();
+        for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if      (s == "andrews")  w = RobustWeight::Andrews;
         else if (s == "bisquare") w = RobustWeight::Bisquare;
+        else if (s == "cauchy")   w = RobustWeight::Cauchy;
+        else if (s == "fair")     w = RobustWeight::Fair;
+        else if (s == "huber")    w = RobustWeight::Huber;
+        else if (s == "logistic") w = RobustWeight::Logistic;
+        else if (s == "ols")      w = RobustWeight::Ols;
+        else if (s == "talwar")   w = RobustWeight::Talwar;
+        else if (s == "welsch")   w = RobustWeight::Welsch;
         else
-            throw Error("robustfit: weight must be 'bisquare' or 'huber'",
+            throw Error("robustfit: weight must be one of 'andrews', "
+                        "'bisquare', 'cauchy', 'fair', 'huber', 'logistic', "
+                        "'ols', 'talwar', 'welsch'",
                         0, 0, "robustfit", "", "numkit:robustfit:badWeight");
     }
     double tune = std::numeric_limits<double>::quiet_NaN();

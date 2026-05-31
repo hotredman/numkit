@@ -77,6 +77,38 @@ TEST_F(RobustTest, RobustfitDefaultIntercept)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(bo)")), 1);
 }
 
+// DEEP-PROBE c174: all 9 MATLAB weight functions + the DuMouchel-O'Brien
+// leverage adjustment. Deterministic 10-point line with one outlier; values
+// pinned to MATLAB R2025b (bit-identical to 8 decimals). numkit previously
+// shipped only bisquare/huber AND omitted leverage, so values were off.
+TEST_F(RobustTest, RobustfitWeightFunctions)
+{
+    eval("xw = (1:10)'; yw = [1.1 1.9 3.2 3.9 5.1 6.0 12.0 8.1 9.0 9.9]';");
+    eval("ba = robustfit(xw, yw, 'andrews');");
+    EXPECT_NEAR(evalScalar("ba(1)"), 0.06889811, 1e-6);
+    EXPECT_NEAR(evalScalar("ba(2)"), 0.99137723, 1e-6);
+    eval("bc = robustfit(xw, yw, 'cauchy');");
+    EXPECT_NEAR(evalScalar("bc(2)"), 0.99170253, 1e-6);
+    eval("bf = robustfit(xw, yw, 'fair');");
+    EXPECT_NEAR(evalScalar("bf(2)"), 0.99884759, 1e-6);
+    eval("bh = robustfit(xw, yw, 'huber');");
+    EXPECT_NEAR(evalScalar("bh(2)"), 0.99766569, 1e-6);
+    eval("bl = robustfit(xw, yw, 'logistic');");
+    EXPECT_NEAR(evalScalar("bl(2)"), 0.99707529, 1e-6);
+    eval("bt = robustfit(xw, yw, 'talwar');");
+    EXPECT_NEAR(evalScalar("bt(2)"), 0.99166667, 1e-6);
+    eval("bwe = robustfit(xw, yw, 'welsch');");
+    EXPECT_NEAR(evalScalar("bwe(2)"), 0.99131813, 1e-6);
+    eval("bsq = robustfit(xw, yw, 'bisquare');");
+    EXPECT_NEAR(evalScalar("bsq(2)"), 0.99138205, 1e-6);
+    // 'ols' = ordinary least squares (no downweighting): slope is pulled by
+    // the outlier (MATLAB 1.08242424).
+    eval("bols = robustfit(xw, yw, 'ols');");
+    EXPECT_NEAR(evalScalar("bols(2)"), 1.08242424, 1e-6);
+    // An unknown weight function still errors.
+    EXPECT_THROW(eval("robustfit(xw, yw, 'nosuchweight');"), std::exception);
+}
+
 // ── robustcov ──────────────────────────────────────────────────────
 
 TEST_F(RobustTest, RobustcovRecoversCleanGaussianCov)

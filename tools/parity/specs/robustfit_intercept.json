@@ -2,13 +2,14 @@
   "name": "robustfit_intercept",
   "namespace": "stats",
   "covers": ["robustfit"],
-  "setup": "x = (1:10)'; y = 2*x + 1; y(5) = 100; X2 = [x, x.^2]; y2 = 3 + 2*x + 0.5*x.^2; y2(7) = 200;",
-  "expr": "b = robustfit(x, y); nb = numel(b); b1 = b(1); b2 = b(2); bb = robustfit(X2, y2); nbb = numel(bb); bb1 = bb(1); bb2 = bb(2); bb3 = bb(3); bo = robustfit(x, y, 'bisquare', [], 'off'); nbo = numel(bo);",
+  "setup": "x = (1:10)'; y = 2*x + 1; y(5) = 100; X2 = [x, x.^2]; y2 = 3 + 2*x + 0.5*x.^2; y2(7) = 200; xw = (1:10)'; yw = [1.1 1.9 3.2 3.9 5.1 6.0 12.0 8.1 9.0 9.9]';",
+  "expr": "b = robustfit(x, y); nb = numel(b); b1 = b(1); b2 = b(2); bb = robustfit(X2, y2); nbb = numel(bb); bb1 = bb(1); bb2 = bb(2); bb3 = bb(3); bo = robustfit(x, y, 'bisquare', [], 'off'); nbo = numel(bo); ba = robustfit(xw,yw,'andrews'); ba2 = ba(2); bc = robustfit(xw,yw,'cauchy'); bc2 = bc(2); bf = robustfit(xw,yw,'fair'); bf2 = bf(2); bh = robustfit(xw,yw,'huber'); bh1 = bh(1); bh2 = bh(2); bl = robustfit(xw,yw,'logistic'); bl2 = bl(2); bt = robustfit(xw,yw,'talwar'); bt2 = bt(2); bwe = robustfit(xw,yw,'welsch'); bwe2 = bwe(2); bsq = robustfit(xw,yw,'bisquare'); bsq2 = bsq(2);",
   "iters": 3,
   "tol": 1e-07,
   "fingerprint": [
-    "nb", "b1", "b2", "nbb", "bb1", "bb2", "bb3", "nbo"
+    "nb", "b1", "b2", "nbb", "bb1", "bb2", "bb3", "nbo",
+    "ba2", "bc2", "bf2", "bh1", "bh2", "bl2", "bt2", "bwe2", "bsq2"
   ],
   "deep_verified": true,
-  "comment": "robustfit default intercept term vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/stats): robustfit treated X as the full design matrix and never prepended the constant column, so robustfit(x,y) returned a single through-origin coefficient instead of MATLAB's [intercept; slope]. MATLAB adds the constant by default (const='on'); 'off' suppresses it. Fix prepends a ones column unless const='off'. With the outlier fully downweighted by the bisquare weight the fit is exact: y=2x+1+outlier -> b=[1;2]; y=3+2x+0.5x^2+outlier -> [3;2;0.5]; const 'off' -> 1 coefficient. (Residual leverage-adjustment precision on NOISY data is a separate known gap; tested here only on exact-recovery data.) covers:[robustfit]."
+  "comment": "robustfit default intercept term + the full weight-function set vs MATLAB R2025b. robustfit adds the constant column by default (const='on'); 'off' suppresses it. Exact-recovery (outlier fully downweighted): y=2x+1+outlier -> [1;2]; y=3+2x+0.5x^2+outlier -> [3;2;0.5]; const 'off' -> 1 coefficient. DEEP-PROBE c174: numkit shipped only 'bisquare'/'huber' AND omitted the DuMouchel-O'Brien leverage adjustment, so values on NOISY data were ~2e-3 off MATLAB. Now ships all 9 MATLAB weight functions (andrews 1.339 / bisquare 4.685 / cauchy 2.385 / fair 1.400 / huber 1.345 / logistic 1.205 / ols 1 / talwar 2.795 / welsch 2.985) with leverage radj=r/sqrt(1-h) and the madsigma scale (sort |radj|, drop smallest p-1, median/0.6745); bit-identical to MATLAB on the noisy 10-point line (ba2..bsq2 all ~0.991-0.999). Leverage gap closed. covers:[robustfit]."
 }
