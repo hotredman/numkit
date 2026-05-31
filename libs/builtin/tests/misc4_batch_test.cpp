@@ -145,3 +145,33 @@ TEST_F(Misc4BatchTest, Pad)
 {
     EXPECT_DOUBLE_EQ(evalScalar("strlength(pad(\"hi\", 5))"), 5.0);
 }
+
+// pad on a CELL str (was throwing "Not a char array") + the default-width
+// form (n omitted -> the longest element). vs MATLAB R2025b. DEEP-PROBE
+// 2026-05-31.
+TEST_F(Misc4BatchTest, PadCellAndDefaultWidth)
+{
+    // default width = max strlength across the cell (3 here).
+    eval("d = pad({'a','bbb'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(d))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strlength(d{1})"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strlength(d{2})"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(d{1}, 'a  ')"), 1.0);   // right-pad spaces
+    // explicit width.
+    eval("cn = pad({'a','bb'}, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(cn{1}, 'a   ')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(cn{2}, 'bb  ')"), 1.0);
+    // left + both with a custom pad char.
+    eval("lf = pad({'a','bb'}, 4, 'left');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(lf{1}, '   a')"), 1.0);
+    eval("bt = pad({'a','bb'}, 4, 'both', '*');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(bt{1}, '*a**')"), 1.0);  // floor-left, ceil-right
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(bt{2}, '*bb*')"), 1.0);
+    // shape preserved (column cell stays a column).
+    eval("cc = pad({'a';'bbb'});");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,2)"), 1.0);
+    // scalar (non-cell) paths unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("strlength(pad('a'))"), 1.0);   // default n = own length -> no-op
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(pad('hi', 5, 'right', '-'), 'hi---')"), 1.0);
+}
