@@ -2052,36 +2052,42 @@ input, select { font-family: inherit; color: inherit; }
 .ve-crumb:disabled { color: var(--fg-1); cursor: default; }
 
 /* Single-struct field list */
-.ve-field-list { display: flex; flex-direction: column; padding: 4px 0; }
-.ve-field-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto minmax(0, 2fr) 16px 18px;
-  align-items: baseline;
-  gap: 10px;
+/* Scalar struct (numel 1): MATLAB-style Field · Value · Size · Class
+   table. One row per field; right-click a row for the context menu
+   (Open · Rename · Duplicate · Insert · Delete). */
+.ve-fields-wrap { padding-bottom: 2px; }
+.ve-fields-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.ve-fields-table th, .ve-fields-table td {
+  text-align: left;
   padding: 3px 12px;
   white-space: nowrap;
+  border-bottom: 1px solid var(--line-soft);
 }
-.ve-field-row.is-drillable { cursor: pointer; }
-.ve-field-row:hover { background: var(--bg-2); }
-.ve-field-name { color: var(--fg-1); }
-/* Inline field-name rename input (double-click a field name). */
+.ve-fields-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--bg-2); color: var(--fg-2);
+  font-weight: 600; font-size: 11px;
+  border-bottom: 1px solid var(--line);
+}
+.ve-fields-table tbody tr.is-drillable { cursor: pointer; }
+.ve-fields-table tbody tr:hover { background: var(--bg-2); }
+.ve-fld-name  { color: var(--fg-1); }
+.ve-fld-val   { color: var(--fg-2); max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.ve-fld-size  { color: var(--fg-3); text-align: right; }
+.ve-fld-class { color: var(--accent); }
+/* Inline field-name rename input (double-click a field name, or
+   Rename from the context menu). */
 .ve-rename-input {
   font-family: var(--font-mono); font-size: 12px;
   background: var(--bg-1); color: var(--fg-1);
   border: 1px solid var(--accent); border-radius: 3px;
   padding: 0 4px; outline: none; min-width: 80px; max-width: 160px;
 }
-.ve-field-type { color: var(--accent); font-size: 11px; }
-.ve-field-val  { color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; }
-.ve-field-drill { color: var(--fg-3); text-align: center; }
-/* Per-row delete — appears on row hover, doesn't trigger the drill. */
-.ve-field-del {
-  background: transparent; border: none; cursor: pointer;
-  color: var(--fg-3); font-size: 14px; line-height: 1; padding: 0;
-  opacity: 0; transition: opacity 80ms;
-}
-.ve-field-row:hover .ve-field-del { opacity: 1; }
-.ve-field-del:hover { color: var(--danger); }
 
 /* Inline add-field control */
 .ve-addfield {
