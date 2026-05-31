@@ -25,6 +25,22 @@ namespace numkit::linalg {
 /// @see dot
 Value cross(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Cross product along a given dimension (`cross(A, B, dim)`).
+///
+/// Evaluates the cross product treating the length-3 vectors as running
+/// along dimension `dim` (1 = down columns, 2 = across rows). `A` and `B`
+/// must have length 3 in dimension `dim`. `dim = 0` selects the default
+/// (first dimension of length 3). 2-D only.
+///
+/// @param a   First operand.
+/// @param b   Second operand, same shape as `a`.
+/// @param dim Operating dimension (0 = auto, 1 = columns, 2 = rows).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Cross product (same shape as the inputs).
+/// @throws Error  Shape mismatch, `dim` length ≠ 3, or invalid `dim`.
+/// @see cross, dot
+Value cross(const Value &a, const Value &b, int dim, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Dot product of two equal-length vectors.
 ///
 /// @param a   First vector.
