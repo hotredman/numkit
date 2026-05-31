@@ -70,6 +70,11 @@ export default function ValueTable({
       {footer}
       {headMenu && (
         <ContextMenu x={headMenu.x} y={headMenu.y} onClose={() => setHeadMenu(null)} items={[
+          { label: 'Select all', keepOpen: true,
+            onClick: () => setVisible(new Set(VALUE_COLUMNS.map((c) => c.key))) },
+          { label: 'Clear all', keepOpen: true,
+            onClick: () => setVisible(new Set()) },
+          { separator: true },
           // The name column is always shown (checked + disabled), mirroring
           // MATLAB's locked Field/Name column.
           { label: `✓ ${nameHeader}`, disabled: true },

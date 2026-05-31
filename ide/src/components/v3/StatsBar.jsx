@@ -33,13 +33,18 @@ export function StatChooserButton({ visible, setVisible }) {
         Σ <span className="ve-caret">▾</span>
       </button>
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={
-          STAT_BAR.map((d) => ({
+        <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
+          { label: 'Select all', keepOpen: true,
+            onClick: () => setVisible(new Set(STAT_BAR.map((d) => d.key))) },
+          { label: 'Clear all', keepOpen: true,
+            onClick: () => setVisible(new Set()) },
+          { separator: true },
+          ...STAT_BAR.map((d) => ({
             label: `${visible.has(d.key) ? '✓' : ' '} ${d.label}`,
             keepOpen: true,
             onClick: () => setVisible((prev) => toggleColumn(prev, d.key)),
-          }))
-        } />
+          })),
+        ]} />
       )}
     </>
   );
