@@ -2539,6 +2539,12 @@ input, select { font-family: inherit; color: inherit; }
   display: flex; align-items: center;
   gap: 14px;
   padding: 0 14px;
+  /* Self-sufficient height. In the top-level VariableEditor the toolbar
+     sits in a fixed 40px grid row of .ve-window; in the struct/cell
+     inspector it's a flex child with no backing row, so without this it
+     collapses to content height (~23px) and looks vertically cramped.
+     min-height + align-items:center reproduces the 40px row in both. */
+  min-height: 40px;
   background: var(--bg-1);
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
@@ -2606,6 +2612,7 @@ select.ve-btn.fw-cmap-select {
 .ve-address {
   display: flex; align-items: center; gap: 8px;
   padding: 4px 14px;
+  min-height: 28px;   /* match the .ve-window grid row (see .ve-toolbar) */
   background: var(--bg-2);
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
@@ -2702,6 +2709,7 @@ select.ve-btn.fw-cmap-select {
 .ve-status {
   display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
+  min-height: 22px;   /* match the .ve-window grid row (see .ve-toolbar) */
   background: var(--bg-2);
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);
