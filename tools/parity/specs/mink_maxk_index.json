@@ -2,7 +2,7 @@
   "name": "mink_maxk_index",
   "namespace": "stats",
   "setup": "v = [5 2 8 1 9]; A = [3 6; 1 4; 2 5];",
-  "expr": "[m, ix] = mink(v, 2); m1 = m(1); m2 = m(2); ix1 = ix(1); ix2 = ix(2); [mx, jx] = maxk(v, 2); mx1 = mx(1); jx1 = jx(1); jx2 = jx(2); [mt, it] = mink([3 1 3], 3); it1 = it(1); it2 = it(2); it3 = it(3); [mm, im] = mink(A, 2); im11 = im(1,1); im21 = im(2,1); im12 = im(1,2); [md, id] = maxk([1 5 2; 8 3 9], 2, 2); id11 = id(1,1); id22 = id(2,2);",
+  "expr": "[m, ix] = mink(v, 2); m1 = m(1); m2 = m(2); ix1 = ix(1); ix2 = ix(2); [mx, jx] = maxk(v, 2); mx1 = mx(1); jx1 = jx(1); jx2 = jx(2); [mt, it] = mink([3 1 3], 3); it1 = it(1); it2 = it(2); it3 = it(3); [mm, im] = mink(A, 2); im11 = im(1,1); im21 = im(2,1); im12 = im(1,2); [md, id] = maxk([1 5 2; 8 3 9], 2, 2); id11 = id(1,1); id22 = id(2,2); [ax, ai] = maxk([3 -7 2 -5 1 -9 4], 3, 'ComparisonMethod', 'abs'); ax1 = ax(1); ax3 = ax(3); ai1 = ai(1); ai3 = ai(3); [an, ani] = mink([3 -7 2 -5 1 -9 4], 3, 'ComparisonMethod', 'abs'); an1 = an(1); an3 = an(3); ani1 = ani(1);",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
@@ -10,7 +10,8 @@
     "mx1", "jx1", "jx2",
     "it1", "it2", "it3",
     "im11", "im21", "im12",
-    "id11", "id22"
+    "id11", "id22",
+    "ax1", "ax3", "ai1", "ai3", "an1", "an3", "ani1"
   ],
-  "comment": "mink/maxk second output (indices) vs MATLAB R2025b. Bug fixed 2026-05-30: [m,i]=mink/maxk(...) did not return the index. mink([5 2 8 1 9],2)->m=[1 2], ix=[4 2]; maxk->jx=[5 3]; ties keep the lower position (mink([3 1 3],3) ix=[2 1 3]); matrix indices are positions along the operating dim (mink(A,2) im=[2 2;3 3]; maxk(...,2) id=[2 3;3 1]). Index is 1-based along the chosen dimension, matching MATLAB. namespace=stats (descriptive)."
+  "comment": "mink/maxk second output (indices) vs MATLAB R2025b. Bug fixed 2026-05-30: [m,i]=mink/maxk(...) did not return the index. mink([5 2 8 1 9],2)->m=[1 2], ix=[4 2]; maxk->jx=[5 3]; ties keep the lower position (mink([3 1 3],3) ix=[2 1 3]); matrix indices are positions along the operating dim (mink(A,2) im=[2 2;3 3]; maxk(...,2) id=[2 3;3 1]). Index is 1-based along the chosen dimension, matching MATLAB. DEEP-PROBE c171: added 'ComparisonMethod','abs' — ranks by magnitude |x| (returning the ORIGINAL signed values), ties broken by ascending index. maxk(...,'abs') of [3 -7 2 -5 1 -9 4] -> [-9 -7 -5] (idx [6 2 4]); mink(...,'abs') -> [1 2 3] (idx [5 3 1]). numkit previously threw 'ComparisonMethod=abs not yet supported'. namespace=stats (descriptive)."
 }

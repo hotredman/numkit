@@ -1,7 +1,7 @@
 // libs/stats/tests/maxk_mink_test.cpp
 //
-// Closes audit/closed/stats/{maxk,mink}.md (partial — ComparisonMethod
-// real/auto accepted; 'abs' deferred).
+// Closes audit/closed/stats/{maxk,mink}.md. ComparisonMethod real/auto/abs
+// all supported ('abs' added DEEP-PROBE c171).
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -39,10 +39,48 @@ TEST_F(MaxkMinkTest, ComparisonMethodReal)
     EXPECT_NO_THROW(eval("maxk([3 1 4], 2, 'ComparisonMethod', 'auto');"));
 }
 
-TEST_F(MaxkMinkTest, ComparisonMethodAbsRejected)
+// DEEP-PROBE c171: ComparisonMethod='abs' ranks by magnitude |x| and returns
+// the ORIGINAL signed values; ties break by ascending index. Matches MATLAB.
+TEST_F(MaxkMinkTest, MaxkComparisonMethodAbs)
 {
-    EXPECT_THROW(eval("maxk([3 1 4], 2, 'ComparisonMethod', 'abs');"),
-                 numkit::Error);
+    eval("[v, i] = maxk([3 -7 2 -5 1 -9 4], 3, 'ComparisonMethod', 'abs');");
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), -9);  // |9| largest
+    EXPECT_DOUBLE_EQ(evalScalar("v(2)"), -7);
+    EXPECT_DOUBLE_EQ(evalScalar("v(3)"), -5);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1)"), 6);
+    EXPECT_DOUBLE_EQ(evalScalar("i(2)"), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("i(3)"), 4);
+}
+
+TEST_F(MaxkMinkTest, MinkComparisonMethodAbs)
+{
+    eval("[v, i] = mink([3 -7 2 -5 1 -9 4], 3, 'ComparisonMethod', 'abs');");
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), 1);   // |1| smallest
+    EXPECT_DOUBLE_EQ(evalScalar("v(2)"), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("v(3)"), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1)"), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("i(2)"), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("i(3)"), 1);
+}
+
+TEST_F(MaxkMinkTest, AbsTiesKeepLowerIndex)
+{
+    // |−3| == |3|: the lower original index comes first.
+    eval("[v, i] = maxk([-3 3 1 -1], 2, 'ComparisonMethod', 'abs');");
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), -3);
+    EXPECT_DOUBLE_EQ(evalScalar("v(2)"), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1)"), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("i(2)"), 2);
+}
+
+TEST_F(MaxkMinkTest, AbsMatrixAlongDim1)
+{
+    // maxk by |x| down each column.
+    eval("v = maxk([1 -8; -3 2; 5 -1], 2, 1, 'ComparisonMethod', 'abs');");
+    EXPECT_DOUBLE_EQ(evalScalar("v(1,1)"), 5);
+    EXPECT_DOUBLE_EQ(evalScalar("v(2,1)"), -3);
+    EXPECT_DOUBLE_EQ(evalScalar("v(1,2)"), -8);
+    EXPECT_DOUBLE_EQ(evalScalar("v(2,2)"), 2);
 }
 
 TEST_F(MaxkMinkTest, BadComparisonMethodErrors)
