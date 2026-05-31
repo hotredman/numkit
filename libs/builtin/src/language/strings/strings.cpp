@@ -1118,10 +1118,7 @@ Value erase(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
         }
         return r;
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    std::string r = op(s.toString());
-    if (s.isString()) return Value::stringScalar(r, mr);
-    return Value::fromString(r, mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value replace(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
@@ -1245,14 +1242,10 @@ Value pad(const Value &s, size_t n, const Value &side, const Value &padChar, std
         const auto p = padChar.toString();
         if (!p.empty()) ch = p[0];
     }
-    // A cell str pads each element to the SAME width n -> cell of char vectors.
-    if (s.isCell()) {
-        auto op = [&](std::string r) { return padOne(std::move(r), n, sd, ch); };
-        return mapStringCell(s, op, mr);
-    }
-    std::string r = padOne(s.toString(), n, sd, ch);
-    if (s.isString()) return Value::stringScalar(r, mr);
-    return Value::fromString(r, mr);
+    // string array -> string array same shape; char -> char; cell -> cell
+    // of char vectors. Each element is padded to the SAME width n.
+    auto op = [&](std::string r) { return padOne(std::move(r), n, sd, ch); };
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value strip(const Value &s, const Value &side, const Value &ch, std::pmr::memory_resource *mr)
@@ -1479,8 +1472,7 @@ Value extractAfter(const Value &s, const Value &p, std::pmr::memory_resource *mr
         const auto r = resolvePos(ss, p);
         return r.found ? ss.substr(r.end) : std::string();
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    return strLikeOf(s, op(s.toString()), mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value extractBefore(const Value &s, const Value &p, std::pmr::memory_resource *mr)
@@ -1489,8 +1481,7 @@ Value extractBefore(const Value &s, const Value &p, std::pmr::memory_resource *m
         const auto r = resolvePos(ss, p);
         return r.found ? ss.substr(0, r.begin) : std::string();
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    return strLikeOf(s, op(s.toString()), mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 namespace {
@@ -1572,8 +1563,7 @@ Value insertAfter(const Value &s, const Value &p, const Value &newText, std::pmr
         if (r.found) ss.insert(r.end, nt);
         return ss;
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    return strLikeOf(s, op(s.toString()), mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value insertBefore(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr)
@@ -1584,8 +1574,7 @@ Value insertBefore(const Value &s, const Value &p, const Value &newText, std::pm
         if (r.found) ss.insert(r.begin, nt);
         return ss;
     };
-    if (s.isCell()) return mapStringCell(s, op, mr);
-    return strLikeOf(s, op(s.toString()), mr);
+    return mapStringPreserveClass(s, op, mr);
 }
 
 Value eraseBetween(const Value &s, const Value &start, const Value &end, std::pmr::memory_resource *mr)
@@ -2814,6 +2803,15 @@ static size_t defaultPadWidth(const Value &s)
         const size_t nn = s.numel();
         for (size_t i = 0; i < nn; ++i)
             mx = std::max(mx, s.cellAt(i).toString().size());
+        return mx;
+    }
+    if (s.isString()) {
+        // A string array defaults to the longest element (s.toString() would
+        // collapse the array to its first element).
+        size_t mx = 0;
+        const size_t nn = s.numel();
+        for (size_t i = 0; i < nn; ++i)
+            mx = std::max(mx, s.stringElem(i).size());
         return mx;
     }
     return s.toString().size();

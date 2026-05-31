@@ -485,3 +485,47 @@ TEST_F(StringsBatchTest, CaseReversePreserveStringClass)
     EXPECT_DOUBLE_EQ(evalScalar("double(iscell(ce2))"), 1.0);
     EXPECT_EQ(evalString("ce2{1}"), "AB");
 }
+
+// erase / pad / extractAfter / extractBefore / insertAfter / insertBefore
+// preserve the input container class + shape on a STRING array vs MATLAB
+// R2025b. 2026-05-31: previously each collapsed a string array to 1x1.
+TEST_F(StringsBatchTest, ExtractInsertErasePadPreserveStringClass)
+{
+    eval("e = erase([\"a1b\" \"c2d\"], \"1\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(e))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 2.0);
+    EXPECT_EQ(evalString("e(1)"), "ab");
+    EXPECT_EQ(evalString("e(2)"), "c2d");
+    // pad explicit width + default width (longest element)
+    eval("p = pad([\"a\" \"bb\"], 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(p))"), 1.0);
+    EXPECT_EQ(evalString("p(1)"), "a   ");
+    eval("pn = pad([\"a\" \"bbb\"]);");
+    EXPECT_EQ(evalString("pn(1)"), "a  ");
+    EXPECT_EQ(evalString("pn(2)"), "bbb");
+    // extractAfter / extractBefore
+    eval("ea = extractAfter([\"a-b\" \"c-d\"], \"-\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(ea))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ea)"), 2.0);
+    EXPECT_EQ(evalString("ea(2)"), "d");
+    eval("eb = extractBefore([\"a-b\" \"c-d\"], \"-\");");
+    EXPECT_EQ(evalString("eb(1)"), "a");
+    // insertAfter / insertBefore
+    eval("ia = insertAfter([\"ab\" \"cd\"], \"a\", \"X\");");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(ia))"), 1.0);
+    EXPECT_EQ(evalString("ia(1)"), "aXb");
+    EXPECT_EQ(evalString("ia(2)"), "cd");
+    eval("ib = insertBefore([\"ab\" \"cd\"], \"b\", \"X\");");
+    EXPECT_EQ(evalString("ib(1)"), "aXb");
+    // column string array shape preserved
+    eval("col = erase([\"x1\"; \"y1\"], \"1\");");
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(col,2)"), 1.0);
+    // char + cell paths unchanged
+    eval("ec = erase('a1b1c', '1');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(ischar(ec))"), 1.0);
+    EXPECT_EQ(evalString("ec"), "abc");
+    eval("pc = pad({'a','bb'}, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(pc))"), 1.0);
+    EXPECT_EQ(evalString("pc{1}"), "a  ");
+}

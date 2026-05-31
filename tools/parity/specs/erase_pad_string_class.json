@@ -1,0 +1,14 @@
+{
+  "name": "erase_pad_string_class",
+  "namespace": "builtin",
+  "covers": ["erase", "pad"],
+  "setup": "",
+  "expr": "e = erase([\"a1b\" \"c2d\"], \"1\"); ce = double(isstring(e)); ne = numel(e); se2 = sum(double(char(e(2)))); p = pad([\"a\" \"bb\"], 4); cp = double(isstring(p)); np = numel(p); sp1 = sum(double(char(p(1)))); pn = pad([\"a\" \"bbb\"]); npn = numel(pn); spn = sum(double(char(pn(1))));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "ce", "ne", "se2", "cp", "np", "sp1", "npn", "spn"
+  ],
+  "deep_verified": true,
+  "comment": "erase / pad class + shape preservation on a STRING array vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (cell-only-else sweep, sibling of c138/c139): both collapsed a string ARRAY to a 1x1 string (s.toString() kept only the first element). MATLAB preserves shape: erase([\"a1b\" \"c2d\"],\"1\") -> 1x2 string [\"ab\" \"c2d\"]; pad([\"a\" \"bb\"],4) -> [\"a   \" \"bb  \"]. Also fixed pad's DEFAULT width: pad([\"a\" \"bbb\"]) now pads each element to the longest (3) -> [\"a  \" \"bbb\"] (defaultPadWidth ignored string arrays and used s.toString() -> width 1). Fix: route erase/pad through mapStringPreserveClass + add a string branch to defaultPadWidth. char codes: 'c2d'=249,'a   '=193,'a  '=161. char + cell paths unchanged (covered in gtest). covers:[erase,pad]."
+}
