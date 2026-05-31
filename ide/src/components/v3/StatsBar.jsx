@@ -1,13 +1,12 @@
 /**
- * StatsBar — a one-row aggregate-statistics strip for the matrix viewer,
- * the third context (alongside the Workspace list and struct inspector)
- * with a "choose which statistics" menu. Shows the active stats over the
- * whole matrix (min/max/range/mean/median/mode/var/std/n); the active set
- * is chosen from a right-click (or ▾ button) menu and persisted.
+ * Matrix StatsBar — the third "choose which statistics" context (with the
+ * Workspace list and struct inspector). Split into three pieces so the
+ * chooser TRIGGER can live in the toolbar (next to heatmap/csv/plot) while
+ * the values render on their own row below:
  *
- * Always renders its wrapper so the parent's row count is stable; the
- * wrapper collapses to zero height when there are no stats (non-numeric
- * value), since the inner bar simply isn't rendered.
+ *   useStatChooser()           — persisted "which stats" set (shared state)
+ *   <StatChooserButton/>       — the Σ ▾ toolbar button + chooser menu
+ *   <StatsBar stats visible/>  — the values row (collapses when none shown)
  */
 import { useState, useEffect } from 'react';
 import ContextMenu from './ContextMenu';
@@ -17,30 +16,22 @@ import {
 
 const STORAGE_KEY = 'numkit.ide.matrixstats';
 
-export default function StatsBar({ stats }) {
+/** Persisted active-stats set for the matrix viewer. */
+export function useStatChooser() {
   const [visible, setVisible] = useState(() => loadStatBar(STORAGE_KEY));
-  const [menu, setMenu] = useState(null);
   useEffect(() => { saveStatBar(STORAGE_KEY, visible); }, [visible]);
+  return [visible, setVisible];
+}
 
-  // No stats (non-numeric) → collapsed wrapper: still rendered so the
-  // parent grid's row count stays stable, but zero height.
-  if (!stats) return <div className="ve-statsbar ve-statsbar--empty" />;
-
-  const items = STAT_BAR.filter((d) => visible.has(d.key));
-  const openMenu = (e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }); };
-
+/** Toolbar button (Σ ▾) opening the checkbox stat chooser. */
+export function StatChooserButton({ visible, setVisible }) {
+  const [menu, setMenu] = useState(null);
   return (
-    <div className="ve-statsbar" onContextMenu={openMenu}>
-      <button className="ve-statsbar-pick" onClick={openMenu}
-        title="choose statistics">Σ ▾</button>
-      <div className="ve-statsbar-items">
-        {items.map((d) => (
-          <span key={d.key} className="ve-stat">
-            <b>{d.label}</b> {fmtStat(statBarValue(stats, d.key))}
-          </span>
-        ))}
-        {items.length === 0 && <span className="ve-statsbar-hint">no statistics — Σ ▾ to choose</span>}
-      </div>
+    <>
+      <button className="ve-btn" title="choose statistics"
+        onClick={(e) => setMenu({ x: e.clientX, y: e.clientY })}>
+        Σ <span className="ve-caret">▾</span>
+      </button>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={
           STAT_BAR.map((d) => ({
@@ -50,6 +41,25 @@ export default function StatsBar({ stats }) {
           }))
         } />
       )}
+    </>
+  );
+}
+
+/** The aggregate-stats values row. Renders nothing visible (collapsed,
+ *  but still in the DOM so the parent grid's row count is stable) when the
+ *  value is non-numeric OR no statistic is selected. */
+export default function StatsBar({ stats, visible }) {
+  const items = stats ? STAT_BAR.filter((d) => visible.has(d.key)) : [];
+  if (items.length === 0) return <div className="ve-statsbar ve-statsbar--empty" />;
+  return (
+    <div className="ve-statsbar">
+      <div className="ve-statsbar-items">
+        {items.map((d) => (
+          <span key={d.key} className="ve-stat">
+            <b>{d.label}</b> {fmtStat(statBarValue(stats, d.key))}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

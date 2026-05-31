@@ -2621,20 +2621,13 @@ select.ve-btn.fw-cmap-select {
 .ve-statsbar--empty {
   min-height: 0; padding: 0; background: none; border: none;
 }
-.ve-statsbar-pick {
-  flex: 0 0 auto;
-  background: var(--bg-3); color: var(--fg-2);
-  border: 1px solid var(--line); border-radius: var(--r-sm);
-  padding: 1px 7px; font-size: 11px; cursor: pointer;
-  font-family: var(--font-mono);
-}
-.ve-statsbar-pick:hover { border-color: var(--accent); color: var(--fg-0); }
 .ve-statsbar-items {
   display: flex; align-items: center; gap: 14px;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .ve-stat b { color: var(--fg-3); font-weight: normal; margin-right: 4px; }
-.ve-statsbar-hint { color: var(--fg-3); font-style: italic; }
+/* Caret on the Σ ▾ toolbar chooser button. */
+.ve-caret { opacity: 0.65; margin-left: 1px; }
 
 /* Address bar */
 .ve-address {

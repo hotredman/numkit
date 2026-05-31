@@ -1,42 +1,64 @@
 // @vitest-environment jsdom
 //
-// Render smoke for the matrix StatsBar: default stats render, the chooser
-// toggles a stat on/off and persists, and a null-stats value collapses
-// the bar (empty modifier, stable grid row).
+// Render smoke for the matrix StatsBar split: the values row is purely
+// presentational (driven by a `visible` set) and collapses when empty,
+// while the toolbar Σ▾ chooser button toggles + persists the set.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, within } from '@testing-library/react';
-import StatsBar from './StatsBar';
+import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
 
 beforeEach(() => { try { localStorage.clear(); } catch { /* none */ } });
 afterEach(cleanup);
 
 const stats = { min: 2, max: 8, mean: 4.6667, median: 4, mode: 4, var: 4.2667, std: 2.0656, n: 6 };
+const isEmpty = (c) => c.querySelector('.ve-statsbar').classList.contains('ve-statsbar--empty');
 
-describe('StatsBar', () => {
-  it('renders the default stats (min/max/mean/n)', () => {
-    const { container } = render(<StatsBar stats={stats} />);
+describe('StatsBar (values row)', () => {
+  it('renders the selected stats', () => {
+    const { container } = render(<StatsBar stats={stats} visible={new Set(['min', 'max', 'n'])} />);
+    expect(isEmpty(container)).toBe(false);
     const bar = container.querySelector('.ve-statsbar');
-    expect(bar).toBeTruthy();
     expect(within(bar).getByText('min')).toBeTruthy();
-    expect(within(bar).getByText('n')).toBeTruthy();
-    expect(within(bar).queryByText('std')).toBeNull();   // off by default
+    expect(within(bar).queryByText('std')).toBeNull();
   });
+  it('collapses (empty modifier) when nothing is selected', () => {
+    const { container } = render(<StatsBar stats={stats} visible={new Set()} />);
+    expect(isEmpty(container)).toBe(true);
+  });
+  it('collapses when the value is non-numeric (no stats)', () => {
+    const { container } = render(<StatsBar stats={null} visible={new Set(['min'])} />);
+    expect(isEmpty(container)).toBe(true);
+  });
+});
 
-  it('chooser toggles a stat on and persists it', () => {
-    const { container } = render(<StatsBar stats={stats} />);
-    fireEvent.contextMenu(container.querySelector('.ve-statsbar'));
+// Harness wiring the toolbar button + row through the shared hook, as
+// MatrixPanel does.
+function Harness({ stats: s }) {
+  const [visible, setVisible] = useStatChooser();
+  return (
+    <div>
+      <StatChooserButton visible={visible} setVisible={setVisible} />
+      <StatsBar stats={s} visible={visible} />
+    </div>
+  );
+}
+
+describe('StatChooserButton (toolbar) + persistence', () => {
+  it('toggles a stat on via the chooser, shows it in the row, and persists', () => {
+    const { container } = render(<Harness stats={stats} />);
+    // Defaults (min/max/mean/n) are shown.
+    expect(within(container.querySelector('.ve-statsbar')).getByText('mean')).toBeTruthy();
+    fireEvent.click(container.querySelector('.ve-btn'));          // Σ ▾
     const stdItem = [...document.querySelectorAll('.ctx-item')].find((b) => /\bstd\b/.test(b.textContent));
     fireEvent.click(stdItem);
     expect(within(container.querySelector('.ve-statsbar')).getByText('std')).toBeTruthy();
     expect(JSON.parse(localStorage.getItem('numkit.ide.matrixstats'))).toContain('std');
   });
 
-  it('collapses (empty modifier, still in the DOM) when there are no stats', () => {
-    const { container } = render(<StatsBar stats={null} />);
-    const bar = container.querySelector('.ve-statsbar');
-    expect(bar).toBeTruthy();                      // present → grid row stable
-    expect(bar.classList.contains('ve-statsbar--empty')).toBe(true);
-    expect(bar.textContent).toBe('');
+  it('hides the row entirely when every stat is unchecked', () => {
+    localStorage.setItem('numkit.ide.matrixstats', JSON.stringify([]));
+    const { container } = render(<Harness stats={stats} />);
+    expect(isEmpty(container)).toBe(true);
   });
 });
