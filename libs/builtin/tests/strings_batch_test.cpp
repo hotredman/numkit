@@ -347,3 +347,37 @@ TEST_F(StringsBatchTest, SplitPreservesInputClass)
     EXPECT_DOUBLE_EQ(evalScalar("double(isstring(p3))"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("numel(p3)"), 3.0);
 }
+
+// compose applies the format repeatedly across each ROW of x, consuming
+// M = #conversion-specs values per output (R x ceil(C/M)); a short trailing
+// chunk leaves unfilled specs literal; output class mirrors the fmt class.
+// vs MATLAB R2025b. 2026-05-31: previously compose formatted per-ELEMENT
+// with a single value, so a multi-spec format only filled the first spec.
+TEST_F(StringsBatchTest, ComposeMultiSpecAndClass)
+{
+    // multi-spec, divisible -> 2x1 cell {"1-2";"3-4"} (was 4 wrong outputs)
+    eval("A = compose('%d-%d', [1 2; 3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(A))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A,1)"), 2.0);
+    EXPECT_EQ(evalString("A{1}"), "1-2");
+    EXPECT_EQ(evalString("A{2}"), "3-4");
+    // M=1 over a 2x2 -> 2x2 cell, column-major (B{3} == B(1,2))
+    eval("B = compose('%d', [1 2; 3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(B)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B,2)"), 2.0);
+    EXPECT_EQ(evalString("B{3}"), "2");
+    // row vector, 2 specs -> 1x2
+    eval("C = compose('%d-%d', [1 2 3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C)"), 2.0);
+    EXPECT_EQ(evalString("C{2}"), "3-4");
+    // non-divisible: short trailing chunk keeps the unfilled spec literal
+    eval("H = compose('%d-%d', [1 2 3; 4 5 6]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(H)"), 4.0);
+    EXPECT_EQ(evalString("H{3}"), "3-%d");   // H(1,2)
+    EXPECT_EQ(evalString("H{4}"), "6-%d");   // H(2,2)
+    // string format -> string array (class mirrors fmt)
+    eval("S = compose(\"%d-%d\", [1 2; 3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(isstring(S))"), 1.0);
+    EXPECT_EQ(evalString("S(1)"), "1-2");
+}

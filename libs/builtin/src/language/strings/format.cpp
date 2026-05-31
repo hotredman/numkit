@@ -139,7 +139,8 @@ std::string formatIntegerConv(const std::string &spec, char type, double v)
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t argStart)
+std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t argStart,
+                       bool literalWhenShort)
 {
     std::ostringstream out;
     size_t ai = argStart;
@@ -192,6 +193,10 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
 
             char type = fmt[i];
             std::string spec(fmt, start, i - start + 1);
+            // The verbatim spec text (before any '*' splicing), emitted as a
+            // literal when this conversion runs out of arguments and the
+            // caller asked for that behaviour (MATLAB compose short chunks).
+            const std::string literalSpec = spec;
 
             // Resolve C-style '*' field width / precision taken from the
             // argument list (MATLAB supports this: sprintf('%*.*f',8,2,pi)).
@@ -214,6 +219,8 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
                 if (ai < args.size()
                     && (args[ai].isChar() || args[ai].isString()))
                     out << applyStringSpec(spec, args[ai].toString());
+                else if (literalWhenShort && ai >= args.size())
+                    out << literalSpec;
                 ai++;
             } else if (type == 'c') {
                 if (ai < args.size()) {
@@ -223,12 +230,16 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
                     } else {
                         out << static_cast<char>(static_cast<int>(args[ai].toScalar()));
                     }
+                } else if (literalWhenShort) {
+                    out << literalSpec;
                 }
                 ai++;
             } else if (type == 'd' || type == 'i' || type == 'u'
                        || type == 'x' || type == 'X' || type == 'o') {
                 if (ai < args.size())
                     out << formatIntegerConv(spec, type, args[ai].toScalar());
+                else if (literalWhenShort)
+                    out << literalSpec;
                 ai++;
             } else if (type == 'f' || type == 'e' || type == 'E' || type == 'g' || type == 'G') {
                 if (ai < args.size()) {
@@ -242,6 +253,8 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
                         std::snprintf(buf, sizeof(buf), spec.c_str(), v);
                         out << buf;
                     }
+                } else if (literalWhenShort) {
+                    out << literalSpec;
                 }
                 ai++;
             } else {

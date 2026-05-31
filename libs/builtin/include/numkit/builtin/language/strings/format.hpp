@@ -19,9 +19,14 @@ namespace numkit::builtin {
 /// @param fmt       printf-style format string.
 /// @param args      Arguments referenced by `fmt`.
 /// @param argStart  Index of the first arg to use (default 0).
+/// @param literalWhenShort  When true, a conversion that runs out of
+///                  arguments emits its literal spec text (e.g. `%d`)
+///                  instead of nothing. MATLAB's `compose` relies on this
+///                  for a short trailing value chunk; `sprintf` does not
+///                  (default false keeps the printf-style behaviour).
 /// @return          Formatted string.
 std::string formatOnce(const std::string &fmt, Span<const Value> args,
-                       size_t argStart = 0);
+                       size_t argStart = 0, bool literalWhenShort = false);
 
 /// @brief Count `%`-format specifiers in `fmt`.
 ///
