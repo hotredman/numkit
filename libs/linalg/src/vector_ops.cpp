@@ -158,6 +158,66 @@ Value dot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return out;
 }
 
+Value dot(const Value &a, const Value &b, int dim, std::pmr::memory_resource *mr)
+{
+    if (dim == 0)
+        return dot(a, b, mr);   // default (vector → scalar, matrix → per-column)
+    if (dim != 1 && dim != 2)
+        throw Error("dot: dim must be 1 or 2",
+                     0, 0, "dot", "", "numkit:dot:badDim");
+    if (a.numel() != b.numel() || a.dims().rows() != b.dims().rows()
+        || a.dims().cols() != b.dims().cols())
+        throw Error("dot: A and B must be the same size",
+                     0, 0, "dot", "", "numkit:dot:lengthMismatch");
+    if (a.dims().is3D() || b.dims().is3D())
+        throw Error("dot: the dim argument supports 2-D inputs only",
+                     0, 0, "dot", "", "numkit:dot:rank");
+
+    const size_t H = a.dims().rows(), W = a.dims().cols();
+    // sum(conj(A).*B, dim): dim 1 → 1xW (down columns), dim 2 → Hx1 (across rows).
+    const size_t outR = (dim == 1) ? 1 : H;
+    const size_t outC = (dim == 1) ? W : 1;
+    const bool cplx = (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX);
+
+    if (cplx) {
+        const bool aCx = (a.type() == ValueType::COMPLEX);
+        const bool bCx = (b.type() == ValueType::COMPLEX);
+        auto getA = [&](size_t i) { return aCx ? a.complexData()[i] : Complex(a.elemAsDouble(i), 0.0); };
+        auto getB = [&](size_t i) { return bCx ? b.complexData()[i] : Complex(b.elemAsDouble(i), 0.0); };
+        Value out = Value::matrix(outR, outC, ValueType::COMPLEX, mr);
+        Complex *od = out.complexDataMut();
+        if (dim == 1)
+            for (size_t j = 0; j < W; ++j) {
+                Complex s(0.0, 0.0);
+                for (size_t i = 0; i < H; ++i) s += std::conj(getA(j * H + i)) * getB(j * H + i);
+                od[j] = s;
+            }
+        else
+            for (size_t i = 0; i < H; ++i) {
+                Complex s(0.0, 0.0);
+                for (size_t j = 0; j < W; ++j) s += std::conj(getA(j * H + i)) * getB(j * H + i);
+                od[i] = s;
+            }
+        return out;
+    }
+
+    Value out = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (dim == 1)
+        for (size_t j = 0; j < W; ++j) {
+            double s = 0.0;
+            for (size_t i = 0; i < H; ++i) s += a.elemAsDouble(j * H + i) * b.elemAsDouble(j * H + i);
+            od[j] = s;
+        }
+    else
+        for (size_t i = 0; i < H; ++i) {
+            double s = 0.0;
+            for (size_t j = 0; j < W; ++j) s += a.elemAsDouble(j * H + i) * b.elemAsDouble(j * H + i);
+            od[i] = s;
+        }
+    return out;
+}
+
 Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     if (a.dims().is3D() || a.dims().ndim() > 2
@@ -232,7 +292,11 @@ void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("dot: requires 2 arguments",
                      0, 0, "dot", "", "numkit:dot:nargin");
-    outs[0] = dot(args[0], args[1], ctx.engine->resource());
+    // dot(A, B, dim): reduce along the given dimension (default: vector ->
+    // scalar, matrix -> per-column).
+    const int dim = (args.size() >= 3 && !args[2].isEmpty())
+                        ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = dot(args[0], args[1], dim, ctx.engine->resource());
 }
 
 void kron_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

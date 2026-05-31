@@ -1761,5 +1761,38 @@ TEST_P(GridKronTest, DotComplexConjugatesFirstArg)
     EXPECT_DOUBLE_EQ(evalScalar("dot([1 2 3],[4 5 6]);"), 32.0);
 }
 
+// dot(A,B,dim): the dim argument was IGNORED (always reduced along dim 1).
+// MATLAB: dim 2 reduces across rows (Hx1), dim 1 down columns (1xW); a vector
+// with explicit dim follows the general sum(conj(A).*B,dim) rule. vs MATLAB
+// R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(GridKronTest, DotAlongDim)
+{
+    // dim 2 -> per-row column vector [6;30].
+    eval("d2 = dot([1 2 3;4 5 6],[1 1 1;2 2 2],2);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(d2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d2(1)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d2(2)"), 30.0);
+    // dim 1 -> per-column row vector [9 12 15].
+    eval("d1 = dot([1 2 3;4 5 6],[1 1 1;2 2 2],1);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(d1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d1(1)"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d1(3)"), 15.0);
+    // Row vector with explicit dim 1: length-1 reduction = identity (NOT 32).
+    eval("rv = dot([1 2 3],[4 5 6],1);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(rv)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rv(1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rv(3)"), 18.0);
+    // Complex per-row (conj of first arg): [3-1i; 7].
+    eval("dc = dot([1+1i 2;3 4],[1 1;1 1],2);");
+    auto *dc = getVarPtr("dc");
+    ASSERT_NE(dc, nullptr);
+    EXPECT_DOUBLE_EQ(dc->complexData()[0].real(), 3.0);
+    EXPECT_DOUBLE_EQ(dc->complexData()[0].imag(), -1.0);
+    EXPECT_DOUBLE_EQ(dc->complexData()[1].real(), 7.0);
+    // default (no dim) unchanged: per-column [9 12 15].
+    eval("dd = dot([1 2 3;4 5 6],[1 1 1;2 2 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(2)"), 12.0);
+}
+
 INSTANTIATE_DUAL(GridKronTest);
 
