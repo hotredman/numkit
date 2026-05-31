@@ -1,0 +1,14 @@
+{
+  "name": "adaptthresh_sensitivity",
+  "namespace": "image",
+  "covers": ["adaptthresh"],
+  "setup": "B = reshape(mod((0:35)*7,11)/11, 6, 6); Bg = reshape(mod((0:1023)*7,101)/101, 32, 32); A = reshape(linspace(0,1,25),5,5);",
+  "expr": "c0 = max(max(adaptthresh(0.5*ones(8,8), 0))); c5 = max(max(adaptthresh(0.5*ones(8,8), 0.5))); c1 = max(max(adaptthresh(0.5*ones(8,8), 1))); Tb = adaptthresh(B, 0.5); tb33 = Tb(3,3); tb11 = Tb(1,1); Tg = adaptthresh(Bg, 0.5); tg10 = Tg(10,10); tg16 = Tg(16,16); Ta = adaptthresh(A, 0.5); ta33 = Ta(3,3);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": [
+    "c0", "c5", "c1", "tb33", "tb11", "tg10", "tg16", "ta33"
+  ],
+  "deep_verified": true,
+  "comment": "adaptthresh sensitivity scale + default neighborhood vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/image): TWO bugs. (1) The sensitivity mapping was an approximate bias localStat+(0.5-s)*0.1; MATLAB uses T=clip(localStat*(1.6-s),0,1) — reverse-engineered exactly from constant images across s in {0,.25,.5,.75,1} (c=0.5 -> 0.8/0.55/0.3). (2) The default NeighborhoodSize clamped up to a minimum of 3; MATLAB uses 2*floor(size/16)+1 which is 1 (no smoothing, statistic=pixel itself) for any dim<16. Default Statistic='mean' (box), confirmed. After both fixes numkit is bit-exact incl. the 32x32 smoothing case (nbh=5): T(10,10)=0.5105743, T(16,16)=0.5576238; small 6x6 (nbh=1): Tb(3,3)=1 (clip), Tb(1,1)=0; 5x5 ramp Ta(3,3)=0.55. covers:[adaptthresh]."
+}

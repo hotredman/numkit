@@ -950,13 +950,12 @@ Value imhistmatch(const Value &I, const Value &ref, int nbins, std::pmr::memory_
 //
 // Computes T(x, y) ∈ [0, 1] from a local statistic (box mean or
 // Gaussian-smoothed mean) of a neighborhood centered at each pixel.
-// `sensitivity` shifts the threshold above/below the local statistic:
-//   sensitivity = 0.5 → threshold equals the local statistic
-//   higher        → threshold lowered (more foreground after binarize)
-//   lower         → threshold raised (less foreground)
-// The shift offset chosen here is (0.5 − sensitivity) · 0.1 — a
-// modest bias that empirically tracks MATLAB's behaviour on natural
-// imagery without needing the proprietary scale-factor.
+// `sensitivity` scales the threshold relative to the local statistic.
+// MATLAB R2025b maps it linearly: T = clip(localStat · (1.6 − s), 0, 1).
+// So sensitivity = 0.5 → T = 1.1 · localStat (threshold 10 % above the
+// local mean); higher sensitivity lowers the threshold (more foreground
+// after binarize), lower raises it. (Verified exactly against MATLAB on
+// constant images across s ∈ {0, .25, .5, .75, 1}.)
 
 Value adaptthresh(const Value &I, double sensitivity, int neighborhood, const std::string &statistic, std::pmr::memory_resource *mr)
 {
@@ -968,9 +967,12 @@ Value adaptthresh(const Value &I, double sensitivity, int neighborhood, const st
     const int W = static_cast<int>(I.dims().cols());
 
     if (neighborhood <= 0) {
+        // MATLAB default NeighborhoodSize = 2*floor(size(I)/16)+1, which is
+        // 1 (no smoothing — the local statistic is the pixel itself) for any
+        // dimension below 16. Do NOT clamp up to 3: that over-smooths small
+        // images and diverges from MATLAB.
         const int dim = std::min(H, W);
         neighborhood = 2 * (dim / 16) + 1;
-        if (neighborhood < 3) neighborhood = 3;
     }
     if ((neighborhood & 1) == 0) neighborhood += 1;  // force odd
 
@@ -1014,14 +1016,14 @@ Value adaptthresh(const Value &I, double sensitivity, int neighborhood, const st
                     0, 0, "adaptthresh", "", "numkit:adaptthresh:stat");
     }
 
-    // Apply sensitivity shift.
+    // Apply the MATLAB sensitivity scale: T = clip(localStat·(1.6−s), 0, 1).
     Value T = Value::matrix(static_cast<size_t>(H),
                             static_cast<size_t>(W),
                             ValueType::DOUBLE, mr);
     double *Td = T.doubleDataMut();
-    const double bias = (0.5 - sensitivity) * 0.1;
+    const double scale = 1.6 - sensitivity;
     for (int i = 0; i < H * W; ++i) {
-        double v = localStat.elemAsDouble(static_cast<size_t>(i)) + bias;
+        double v = localStat.elemAsDouble(static_cast<size_t>(i)) * scale;
         if (v < 0.0) v = 0.0;
         if (v > 1.0) v = 1.0;
         Td[i] = v;
