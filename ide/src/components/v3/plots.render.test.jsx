@@ -84,6 +84,28 @@ describe('CompositePlot render smoke', () => {
     );
     expect(container.querySelector('svg')).toBeTruthy();
   });
+
+  it('connects the line ACROSS a ≤0 point on a log axis (no break, no NaN)', () => {
+    // x = -5 can't be plotted on a log axis. MATLAB drops it and joins
+    // the neighbours; the path must be one subpath (single M), not a
+    // break (M…M…), and must never emit a NaN coordinate.
+    const mixedLogFig = {
+      ...compositeFig, id: 7, xscale: 'log', yscale: 'log',
+      xRange: [1, 100], yRange: [1, 100],
+      layers: [{ kind: 'series', name: 's', mode: 'line',
+        x: [1, -5, 100], y: [1, 5, 100], color: '#7fd99a' }],
+    };
+    const { container } = render(
+      <CompositePlot figure={mixedLogFig} width={400} height={300}
+        viewport={{ x: [1, 100], y: [1, 100] }} setViewport={noop}
+        xLog yLog interactive={false} />,
+    );
+    const path = container.querySelector('path[stroke="#7fd99a"][fill="none"]');
+    expect(path).toBeTruthy();
+    const d = path.getAttribute('d');
+    expect(d).not.toContain('NaN');
+    expect((d.match(/M/g) || []).length).toBe(1);   // one subpath = joined
+  });
 });
 
 describe('PolarPlot render smoke', () => {
