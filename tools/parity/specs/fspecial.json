@@ -3,12 +3,13 @@
   "namespace": "image",
   "covers": ["fspecial"],
   "setup": "",
-  "expr": "h = fspecial(\"average\", 3); r1 = double(numel(h)); h2 = fspecial('disk',2); d2n = numel(h2); d2c = h2(3,3); d2corner = h2(1,1); d2edge = h2(3,1); d2off = h2(2,2); d2sum = sum(h2(:)); h3 = fspecial('disk',3); d3n = numel(h3); d3c = h3(4,4); h5 = fspecial('disk',5); d5n = numel(h5); d5c = h5(6,6);",
+  "expr": "h = fspecial(\"average\", 3); r1 = double(numel(h)); h2 = fspecial('disk',2); d2n = numel(h2); d2c = h2(3,3); d2corner = h2(1,1); d2edge = h2(3,1); d2off = h2(2,2); d2sum = sum(h2(:)); h3 = fspecial('disk',3); d3n = numel(h3); d3c = h3(4,4); h5 = fspecial('disk',5); d5n = numel(h5); d5c = h5(6,6); u = fspecial('unsharp'); un = numel(u); usum = sum(u(:)); uc = u(2,2); ued = u(1,2); ucorn = u(1,1); u5 = fspecial('unsharp',0.5); u5c = u5(2,2); u5ed = u5(1,2);",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
-    "r1", "d2n", "d2c", "d2corner", "d2edge", "d2off", "d2sum", "d3n", "d3c", "d5n", "d5c"
+    "r1", "d2n", "d2c", "d2corner", "d2edge", "d2off", "d2sum", "d3n", "d3c", "d5n", "d5c",
+    "un", "usum", "uc", "ued", "ucorn", "u5c", "u5ed"
   ],
   "deep_verified": true,
-  "comment": "Sig: h = fspecial(type, params). DEEP-PROBE 2026-05-31 (c160): fspecial('disk',r) now computes MATLAB R2025b's EXACT sub-pixel area-coverage integral (the fraction of each unit cell inside the disk of radius r), not the previous linear-taper approximation (self-admitted 'Approximate area inside disk'). Bit-exact vs MATLAB across r=1..10: disk(2) is 5x5, sum=1, centre h(3,3)=0.0795774715, corner h(1,1)=0, mid-edge h(3,1)=0.0381149714, h(2,2)=0.0783813542; disk(3) centre h(4,4)=0.0353677651; disk(5) is 11x11 centre h(6,6)=0.0127323954. Also fixed the kernel SIZE for non-integer r (now 2*ceil(r-0.5)+1 per MATLAB). 'average'/'gaussian'/'laplacian'/'log'/'sobel'/'prewitt' unchanged. covers:[fspecial]."
+  "comment": "Sig: h = fspecial(type, params). DEEP-PROBE c160: fspecial('disk',r) now computes MATLAB R2025b's EXACT sub-pixel area-coverage integral, not the prior linear-taper approximation. Bit-exact across r=1..10: disk(2)=5x5 sum=1 centre 0.0795774715, corner 0, mid-edge 0.0381149714, h(2,2)=0.0783813542; disk(3) centre 0.0353677651; disk(5)=11x11 centre 0.0127323954; size now 2*ceil(r-0.5)+1. c161: added the 'unsharp' filter type (was 'unknown filter type'): the 3x3 h=[-a a-1 -a; a-1 a+5 a-1; -a a-1 -a]/(a+1), alpha in [0,1] default 0.2 -> centre 4.3333..., edge-mid -0.6667, corner -0.1667, sum=1; alpha=0.5 -> centre 3.6667, edge -0.3333. 'average'/'gaussian'/'laplacian'/'log'/'sobel'/'prewitt' unchanged; 'motion' still missing (deferred). covers:[fspecial]."
 }

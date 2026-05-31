@@ -169,6 +169,27 @@ TEST_F(ImageBatch4Test, FspecialDisk)
     EXPECT_NEAR(evalScalar("h5(6,6)"), 0.0127323954474,  1e-10);
 }
 
+// fspecial('unsharp',alpha) = [-a a-1 -a; a-1 a+5 a-1; -a a-1 -a]/(a+1)
+// (MATLAB R2025b). Previously threw 'unknown filter type'. Pinned to MATLAB.
+TEST_F(ImageBatch4Test, FspecialUnsharp)
+{
+    eval("u = fspecial('unsharp');");  // default alpha = 0.2
+    EXPECT_DOUBLE_EQ(evalScalar("numel(u)"), 9.0);
+    EXPECT_NEAR(evalScalar("sum(u(:))"), 1.0,            1e-12);
+    EXPECT_NEAR(evalScalar("u(2,2)"),  4.3333333333333,  1e-10);  // centre
+    EXPECT_NEAR(evalScalar("u(1,2)"), -0.6666666666667,  1e-10);  // edge-mid
+    EXPECT_NEAR(evalScalar("u(1,1)"), -0.1666666666667,  1e-10);  // corner
+
+    eval("u5 = fspecial('unsharp', 0.5);");
+    EXPECT_NEAR(evalScalar("sum(u5(:))"), 1.0,           1e-12);
+    EXPECT_NEAR(evalScalar("u5(2,2)"),  3.6666666666667, 1e-10);
+    EXPECT_NEAR(evalScalar("u5(1,2)"), -0.3333333333333, 1e-10);
+
+    eval("u0 = fspecial('unsharp', 0);");
+    EXPECT_NEAR(evalScalar("u0(2,2)"),  5.0,             1e-12);
+    EXPECT_NEAR(evalScalar("u0(1,1)"),  0.0,             1e-12);
+}
+
 TEST_F(ImageBatch4Test, Im2Col)
 {
     eval("C = im2col([1 2; 3 4], [2 2], 'distinct');");

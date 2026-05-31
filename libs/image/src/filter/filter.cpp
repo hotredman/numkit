@@ -305,6 +305,25 @@ Value fspecial_disk(double rad, std::pmr::memory_resource *mr) {
     return mat_double(sg, side, side, mr);
 }
 
+Value fspecial_unsharp(double alpha, std::pmr::memory_resource *mr) {
+    // MATLAB R2025b fspecial('unsharp',alpha): the 3x3 unsharp-contrast
+    // enhancement filter h = [-a a-1 -a; a-1 a+5 a-1; -a a-1 -a]/(a+1),
+    // with alpha in [0,1] (default 0.2). Sums to 1 (a sharpening Laplacian:
+    // corners -a, edge-mids a-1, centre a+5).
+    if (!(alpha >= 0.0 && alpha <= 1.0))
+        throw Error("fspecial: unsharp alpha must be in [0, 1]",
+                    0, 0, "fspecial", "", "numkit:fspecial:alpha");
+    const double a = alpha;
+    const double d = a + 1.0;
+    std::vector<double> k = {
+        -a,    a - 1, -a,       // col 0 (symmetric, so col == row order)
+        a - 1, a + 5, a - 1,    // col 1
+        -a,    a - 1, -a        // col 2
+    };
+    for (auto &v : k) v /= d;
+    return mat_double(k, 3, 3, mr);
+}
+
 } // anonymous
 
 Value fspecial(const std::string &type, const std::vector<double> &params, std::pmr::memory_resource *mr)
@@ -335,6 +354,10 @@ Value fspecial(const std::string &type, const std::vector<double> &params, std::
     if (type == "disk") {
         double radius = params.size() >= 1 ? params[0] : 5.0;
         return fspecial_disk(radius, mr);
+    }
+    if (type == "unsharp") {
+        double alpha = params.size() >= 1 ? params[0] : 0.2;
+        return fspecial_unsharp(alpha, mr);
     }
     throw Error("fspecial: unknown filter type '" + type + "'",
                 0, 0, "fspecial", "", "numkit:fspecial:badtype");
