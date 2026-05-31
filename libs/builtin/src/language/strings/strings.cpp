@@ -1982,56 +1982,77 @@ Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr:
     return out;
 }
 
-Value contains(const Value &s, const Value &pat, bool ignoreCase, std::pmr::memory_resource *mr)
+namespace {
+enum class StrPred { Contains, StartsWith, EndsWith };
+
+// Test one source string against the collected patterns (any-match) under the
+// chosen predicate. ignoreCase ASCII-lowercases both sides.
+bool strMatchAny(std::string src, const ScratchVec<std::string> &pats,
+                 bool ignoreCase, StrPred pred)
 {
-    std::string ss = s.toString();
+    if (ignoreCase) asciiLowerInPlace(src);
+    for (std::string pp : pats) {
+        if (ignoreCase) asciiLowerInPlace(pp);
+        bool hit = false;
+        switch (pred) {
+        case StrPred::Contains:
+            hit = src.find(pp) != std::string::npos;
+            break;
+        case StrPred::StartsWith:
+            hit = src.size() >= pp.size() && src.compare(0, pp.size(), pp) == 0;
+            break;
+        case StrPred::EndsWith:
+            hit = src.size() >= pp.size()
+                  && src.compare(src.size() - pp.size(), pp.size(), pp) == 0;
+            break;
+        }
+        if (hit) return true;
+    }
+    return false;
+}
+
+// Shared driver for contains/startsWith/endsWith: a cell array or a non-scalar
+// string-array SOURCE maps element-wise to a LOGICAL array of the same shape
+// (MATLAB); a scalar char/string source returns a logical scalar. The pattern
+// argument may itself be a scalar or a cell/string array (any-match).
+Value strPredicate(const Value &s, const Value &pat, bool ignoreCase,
+                   StrPred pred, std::pmr::memory_resource *mr)
+{
     ScratchArena scratch(mr);
     ScratchVec<std::string> pats(&scratch);
     collectMatchPatterns(pat, pats);
-    if (ignoreCase) asciiLowerInPlace(ss);
-    bool any = false;
-    for (std::string pp : pats) {
-        if (ignoreCase) asciiLowerInPlace(pp);
-        if (ss.find(pp) != std::string::npos) { any = true; break; }
+
+    if (s.isCell() || (s.isString() && s.numel() != 1)) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        Value out = Value::matrix(r, c, ValueType::LOGICAL, mr);
+        uint8_t *od = out.logicalDataMut();
+        const size_t n = s.numel();
+        for (size_t i = 0; i < n; ++i) {
+            const std::string el =
+                s.isCell() ? s.cellAt(i).toString() : s.stringElem(i);
+            od[i] = strMatchAny(el, pats, ignoreCase, pred) ? 1 : 0;
+        }
+        return out;
     }
-    return Value::logicalScalar(any, mr);
+    return Value::logicalScalar(
+        strMatchAny(s.toString(), pats, ignoreCase, pred), mr);
+}
+} // namespace
+
+Value contains(const Value &s, const Value &pat, bool ignoreCase, std::pmr::memory_resource *mr)
+{
+    return strPredicate(s, pat, ignoreCase, StrPred::Contains, mr);
 }
 
 Value startsWith(const Value &s, const Value &prefix, bool ignoreCase, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    ScratchArena scratch(mr);
-    ScratchVec<std::string> pats(&scratch);
-    collectMatchPatterns(prefix, pats);
-    if (ignoreCase) asciiLowerInPlace(ss);
-    bool any = false;
-    for (std::string pp : pats) {
-        if (ignoreCase) asciiLowerInPlace(pp);
-        if (ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0) {
-            any = true;
-            break;
-        }
-    }
-    return Value::logicalScalar(any, mr);
+    return strPredicate(s, prefix, ignoreCase, StrPred::StartsWith, mr);
 }
 
 Value endsWith(const Value &s, const Value &suffix, bool ignoreCase, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    ScratchArena scratch(mr);
-    ScratchVec<std::string> pats(&scratch);
-    collectMatchPatterns(suffix, pats);
-    if (ignoreCase) asciiLowerInPlace(ss);
-    bool any = false;
-    for (std::string pp : pats) {
-        if (ignoreCase) asciiLowerInPlace(pp);
-        if (ss.size() >= pp.size()
-            && ss.compare(ss.size() - pp.size(), pp.size(), pp) == 0) {
-            any = true;
-            break;
-        }
-    }
-    return Value::logicalScalar(any, mr);
+    return strPredicate(s, suffix, ignoreCase, StrPred::EndsWith, mr);
 }
 
 // ── Pack 36: compose / strjust / extract / split / join ──────────────

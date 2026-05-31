@@ -260,3 +260,41 @@ TEST_F(StringsBatchTest, Str2DoubleCellArray)
     // Scalar char/string form is unchanged.
     EXPECT_DOUBLE_EQ(evalScalar("str2double('3.14')"), 3.14);
 }
+
+// contains/startsWith/endsWith on a CELL / non-scalar string-array SOURCE ->
+// LOGICAL array of the same shape (was throwing "Not a char array" on a cell,
+// scalar on a string array). vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_F(StringsBatchTest, ContainsStartsEndsCellSource)
+{
+    eval("ca = contains({'hello','world','help'},'el');");
+    EXPECT_TRUE(evalScalar("islogical(ca)") != 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ca)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ca(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ca(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ca(3))"), 1.0);
+    eval("sa = startsWith({'hello','world','help'},'he');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(sa(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(sa(2))"), 0.0);
+    eval("ea = endsWith([\"cat.txt\",\"dog.csv\",\"fish.txt\"],'.txt');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(ea(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ea(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ea(2))"), 0.0);
+    // Shape preserved: 2x2 cell -> 2x2 logical.
+    eval("m = contains({'ab','cd';'be','xy'},'b');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(m(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(m(2,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(m(1,2))"), 0.0);
+    // 'IgnoreCase' + multi-pattern any-match over a cell source.
+    eval("ic = startsWith({'Hello','world'},'he','IgnoreCase',true);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(ic(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ic(2))"), 0.0);
+    eval("mp = contains({'foo','bar','baz'},{'oo','az'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(mp(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(mp(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(mp(3))"), 1.0);
+    // Scalar source still returns a logical scalar.
+    EXPECT_DOUBLE_EQ(evalScalar("double(contains('hello','ell'))"), 1.0);
+    EXPECT_TRUE(evalScalar("islogical(contains('hello','ell'))") != 0.0);
+}
