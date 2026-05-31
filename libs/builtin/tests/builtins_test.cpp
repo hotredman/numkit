@@ -2629,4 +2629,32 @@ TEST_P(DisplayTest, ShowOutput)
     EXPECT_NE(capturedOutput.find("42"), std::string::npos);
 }
 
+// fprintf returns the byte count (MATLAB's `count` output). Counts pinned
+// against MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit previously returned
+// nothing, so `k = fprintf(...)` left k undefined.
+TEST_P(DisplayTest, FprintfReturnsByteCount)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("k = fprintf('hello')"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("n = fprintf('%d\\n', 42)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("p = fprintf('%d %d %d', [1 2 3])"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q = fprintf('%5.2f\\n', 3.14159)"), 6.0);
+    // Format recycled over a vector counts every emitted byte.
+    EXPECT_DOUBLE_EQ(evalScalar("r = fprintf('%d-', [10 20 30])"), 9.0);
+    // Empty format -> 0 bytes.
+    EXPECT_DOUBLE_EQ(evalScalar("z = fprintf('')"), 0.0);
+    // Writing to stderr (fid==2) still reports the count.
+    EXPECT_DOUBLE_EQ(evalScalar("e = fprintf(2, 'err')"), 3.0);
+}
+
+// A bare fprintf(...) statement must NOT materialise an `ans` (nargout==0),
+// matching MATLAB: only the formatted text is emitted, no "ans = 5".
+TEST_P(DisplayTest, FprintfBareCallSetsNoAns)
+{
+    capturedOutput.clear();
+    eval("fprintf('hi')");
+    EXPECT_NE(capturedOutput.find("hi"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("ans"), std::string::npos);
+    EXPECT_EQ(engine.getVariable("ans"), nullptr);
+}
+
 INSTANTIATE_DUAL(DisplayTest);
