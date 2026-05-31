@@ -296,19 +296,25 @@ Value strlength(const Value &s, std::pmr::memory_resource *mr = nullptr);
 Value strfind(const Value &s, const Value &pat, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Substring containment (`tf = contains(s, pat)`).
-/// @param s   Source. @param pat  Pattern.
+/// @param s           Source. @param pat  Pattern (or cell/string array — any).
+/// @param ignoreCase  MATLAB 'IgnoreCase' name-value: case-insensitive match.
 /// @param mr  Memory resource. @return  LOGICAL scalar. @see strfind
-Value contains(const Value &s, const Value &pat, std::pmr::memory_resource *mr = nullptr);
+Value contains(const Value &s, const Value &pat, bool ignoreCase = false,
+               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Prefix test (`tf = startsWith(s, prefix)`).
-/// @param s    Source. @param prefix  Prefix.
+/// @param s           Source. @param prefix  Prefix (or cell/string array).
+/// @param ignoreCase  MATLAB 'IgnoreCase' name-value: case-insensitive match.
 /// @param mr   Memory resource. @return  LOGICAL scalar. @see endsWith
-Value startsWith(const Value &s, const Value &prefix, std::pmr::memory_resource *mr = nullptr);
+Value startsWith(const Value &s, const Value &prefix, bool ignoreCase = false,
+                 std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Suffix test (`tf = endsWith(s, suffix)`).
-/// @param s    Source. @param suffix  Suffix.
+/// @param s           Source. @param suffix  Suffix (or cell/string array).
+/// @param ignoreCase  MATLAB 'IgnoreCase' name-value: case-insensitive match.
 /// @param mr   Memory resource. @return  LOGICAL scalar. @see startsWith
-Value endsWith(const Value &s, const Value &suffix, std::pmr::memory_resource *mr = nullptr);
+Value endsWith(const Value &s, const Value &suffix, bool ignoreCase = false,
+               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Non-overlapping match count (`n = count(s, pat)`).
 /// @param s   Source. @param pat  Pattern.

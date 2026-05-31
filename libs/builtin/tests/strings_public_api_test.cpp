@@ -480,35 +480,48 @@ TEST(BuiltinStringsPublicApi, StrrepEmptyOldPatIsPassThrough)
 }
 
 // ── contains / startsWith / endsWith ─────────────────────────────────────
+// Signature is (s, pat, bool ignoreCase, mr) — pass ignoreCase=false here.
 TEST(BuiltinStringsPublicApi, ContainsPositive)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_TRUE(numkit::builtin::contains(mkStr(mr, "hello world"), mkStr(mr, "lo wo"), mr)
+    EXPECT_TRUE(numkit::builtin::contains(mkStr(mr, "hello world"), mkStr(mr, "lo wo"), false, mr)
                     .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, ContainsNegative)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_FALSE(numkit::builtin::contains(mkStr(mr, "hello"), mkStr(mr, "xyz"), mr)
+    EXPECT_FALSE(numkit::builtin::contains(mkStr(mr, "hello"), mkStr(mr, "xyz"), false, mr)
                      .toBool());
+}
+
+// 'IgnoreCase' makes the match case-insensitive (MATLAB). DEEP-PROBE c130.
+TEST(BuiltinStringsPublicApi, ContainsStartsEndsIgnoreCase)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    EXPECT_TRUE(numkit::builtin::contains(mkStr(mr, "HeLLo"), mkStr(mr, "ell"), true, mr).toBool());
+    EXPECT_FALSE(numkit::builtin::contains(mkStr(mr, "HeLLo"), mkStr(mr, "ell"), false, mr).toBool());
+    EXPECT_TRUE(numkit::builtin::startsWith(mkStr(mr, "Hello"), mkStr(mr, "he"), true, mr).toBool());
+    EXPECT_FALSE(numkit::builtin::startsWith(mkStr(mr, "Hello"), mkStr(mr, "he"), false, mr).toBool());
+    EXPECT_TRUE(numkit::builtin::endsWith(mkStr(mr, "HELLO"), mkStr(mr, "lo"), true, mr).toBool());
+    EXPECT_FALSE(numkit::builtin::endsWith(mkStr(mr, "HELLO"), mkStr(mr, "lo"), false, mr).toBool());
 }
 
 TEST(BuiltinStringsPublicApi, StartsWithTrueFalse)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_TRUE(numkit::builtin::startsWith(mkStr(mr, "hello"), mkStr(mr, "hel"), mr)
+    EXPECT_TRUE(numkit::builtin::startsWith(mkStr(mr, "hello"), mkStr(mr, "hel"), false, mr)
                     .toBool());
-    EXPECT_FALSE(numkit::builtin::startsWith(mkStr(mr, "hello"), mkStr(mr, "world"), mr)
+    EXPECT_FALSE(numkit::builtin::startsWith(mkStr(mr, "hello"), mkStr(mr, "world"), false, mr)
                      .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, EndsWithTrueFalse)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    EXPECT_TRUE(numkit::builtin::endsWith(mkStr(mr, "hello.txt"), mkStr(mr, ".txt"), mr)
+    EXPECT_TRUE(numkit::builtin::endsWith(mkStr(mr, "hello.txt"), mkStr(mr, ".txt"), false, mr)
                     .toBool());
-    EXPECT_FALSE(numkit::builtin::endsWith(mkStr(mr, "hello"), mkStr(mr, ".txt"), mr)
+    EXPECT_FALSE(numkit::builtin::endsWith(mkStr(mr, "hello"), mkStr(mr, ".txt"), false, mr)
                      .toBool());
 }
 
