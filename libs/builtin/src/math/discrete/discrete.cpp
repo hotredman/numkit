@@ -404,7 +404,7 @@ uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable)
 
 // ── unique with 'rows' flag ────────────────────────────────────────
 
-Value uniqueRows(const Value &x, std::pmr::memory_resource *mr)
+Value uniqueRows(const Value &x, std::pmr::memory_resource *mr, bool stable)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
@@ -413,6 +413,24 @@ Value uniqueRows(const Value &x, std::pmr::memory_resource *mr)
 
     const double *src = x.doubleData();
     ScratchArena scratch(mr);
+
+    if (stable) {
+        // 'rows','stable': keep the first occurrence of each distinct row in
+        // appearance order (NaN-containing rows are each distinct — NaN never
+        // equals itself — so they are always kept, interleaved in place).
+        std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> seen(&scratch);
+        seen.reserve(rows);
+        auto uniqRows = ScratchVec<size_t>(&scratch);
+        for (size_t r = 0; r < rows; ++r) {
+            if (rowHasNan(src, cols, rows, r)) {
+                uniqRows.push_back(r);
+            } else if (seen.try_emplace(extractRow(src, cols, rows, r, &scratch), r).second) {
+                uniqRows.push_back(r);
+            }
+        }
+        return detail::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
+    }
+
     std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(&scratch);
     firstIdx.reserve(rows);
     auto nanRows = ScratchVec<size_t>(&scratch);
@@ -437,7 +455,7 @@ Value uniqueRows(const Value &x, std::pmr::memory_resource *mr)
 }
 
 std::tuple<Value, Value, Value>
-uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr)
+uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
@@ -449,6 +467,44 @@ uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr)
 
     const double *src = x.doubleData();
     ScratchArena scratch(mr);
+
+    if (stable) {
+        // 'rows','stable': first occurrences in appearance order. ia indexes
+        // those first occurrences; ic maps every row back to its unique entry.
+        // NaN-containing rows are each distinct (kept in place).
+        std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> posByKey(&scratch);
+        std::pmr::unordered_map<size_t, size_t> posByNanRow(&scratch);
+        posByKey.reserve(rows);
+        auto uniqRows = ScratchVec<size_t>(&scratch);
+        for (size_t r = 0; r < rows; ++r) {
+            if (rowHasNan(src, cols, rows, r)) {
+                posByNanRow[r] = uniqRows.size();
+                uniqRows.push_back(r);
+            } else if (posByKey.try_emplace(extractRow(src, cols, rows, r, &scratch),
+                                            uniqRows.size()).second) {
+                uniqRows.push_back(r);
+            }
+        }
+
+        auto icRow = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+        double *ic = icRow.doubleDataMut();
+        for (size_t r = 0; r < rows; ++r) {
+            const size_t pos = rowHasNan(src, cols, rows, r)
+                ? posByNanRow[r]
+                : posByKey[extractRow(src, cols, rows, r, &scratch)];
+            ic[r] = static_cast<double>(pos + 1);
+        }
+
+        auto iaCol = Value::matrix(uniqRows.size(), 1, ValueType::DOUBLE, mr);
+        double *ia = iaCol.doubleDataMut();
+        for (size_t i = 0; i < uniqRows.size(); ++i)
+            ia[i] = static_cast<double>(uniqRows[i] + 1);
+
+        return std::make_tuple(
+            detail::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
+            std::move(iaCol), std::move(icRow));
+    }
+
     std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(&scratch);
     firstIdx.reserve(rows);
     auto nanRowOrder = ScratchVec<size_t>(&scratch);
@@ -1412,10 +1468,10 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
     if (useRows) {
-        // 'rows' + 'stable' not yet combined; rows path stays sorted. C is a
-        // matrix of unique rows; ia/ic are column vectors.
-        if (nargout <= 1) { outs[0] = uniqueRows(args[0], mr); return; }
-        auto [c, ia, ic] = uniqueRowsWithIndices(args[0], mr);
+        // C is a matrix of unique rows; ia/ic are column vectors. 'stable'
+        // keeps rows in first-occurrence order (default 'sorted').
+        if (nargout <= 1) { outs[0] = uniqueRows(args[0], mr, stable); return; }
+        auto [c, ia, ic] = uniqueRowsWithIndices(args[0], mr, stable);
         outs[0] = std::move(c);
         if (nargout > 1) outs[1] = orientUniqueVec(ia, /*column=*/true, mr);
         if (nargout > 2) outs[2] = orientUniqueVec(ic, /*column=*/true, mr);

@@ -48,20 +48,27 @@ uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr, bool 
 
 /// @brief Unique rows of a matrix (`C = unique(X, 'rows')`).
 ///
-/// @param x   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Matrix of unique rows (lexicographically sorted).
+/// @param x       Input matrix.
+/// @param mr      Memory resource (nullptr → process default).
+/// @param stable  MATLAB 'stable' setOrder: keep rows in first-occurrence
+///                order instead of lexicographic sort. Default false.
+/// @return        Matrix of unique rows.
 /// @see uniqueRowsWithIndices
-Value uniqueRows(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value uniqueRows(const Value &x, std::pmr::memory_resource *mr = nullptr,
+                 bool stable = false);
 
 /// @brief Unique rows with index outputs
 /// (`[C, ia, ic] = unique(X, 'rows')`).
 ///
-/// @param x   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(C, ia, ic)` triple.
+/// @param x       Input matrix.
+/// @param mr      Memory resource (nullptr → process default).
+/// @param stable  MATLAB 'stable' setOrder (see uniqueRows). With 'stable',
+///                `ia` indexes first occurrences in appearance order. Default
+///                false = lexicographic sort.
+/// @return        `(C, ia, ic)` triple.
 std::tuple<Value, Value, Value>
-uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr);
+uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr,
+                      bool stable = false);
 
 /// @brief Membership test (`tf = ismember(A, B)`).
 ///

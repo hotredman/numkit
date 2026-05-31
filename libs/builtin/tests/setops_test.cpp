@@ -774,6 +774,40 @@ TEST_P(SetOpsTest, UniqueRowsThreeOutputs)
     EXPECT_DOUBLE_EQ(evalScalar("ic(4);"), 3.0);
 }
 
+// unique(M,'rows','stable'): first-occurrence order instead of lex sort.
+// DEEP-PROBE 2026-05-31 — the 'rows' path previously dropped 'stable'.
+// vs MATLAB R2025b: M=[3 0;1 0;2 0;1 0;3 0] -> C=[3 0;1 0;2 0],
+// ia=[1;2;3], ic=[1;2;3;2;1].
+TEST_P(SetOpsTest, UniqueRowsStableOrder)
+{
+    eval("M = [3 0; 1 0; 2 0; 1 0; 3 0]; [C, ia, ic] = unique(M, 'rows', 'stable');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 3.0);
+    // Rows kept in first-appearance order (NOT sorted).
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(3,1);"), 2.0);
+    // ia indexes the first occurrence of each distinct row.
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(3);"), 3.0);
+    // ic maps every row back to its unique entry.
+    EXPECT_DOUBLE_EQ(evalScalar("ic(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(3);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(5);"), 1.0);
+    // Single-output form keeps the same order.
+    eval("D = unique([5 5; 1 1; 5 5; 9 9; 1 1], 'rows', 'stable');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(D,1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1,1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(2,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(3,1);"), 9.0);
+    // 'sorted' (default) is unchanged.
+    eval("S = unique(M, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("S(1,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("S(3,1);"), 3.0);
+}
+
 TEST_P(SetOpsTest, UniqueRowsNanRowsKeptDistinct)
 {
     // Each NaN-row stays as its own unique slot, appended at the end.
