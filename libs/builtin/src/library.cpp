@@ -3032,10 +3032,6 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         "datestr requires at least one argument");
                                 auto *mr = ctx.engine->resource();
                                 const Value &din = args[0];
-                                if (din.isChar() || din.isString())
-                                    throw std::runtime_error(
-                                        "datestr: string date input not yet "
-                                        "supported");
 
                                 auto civilFromDays = [](int64_t z, int64_t &Y,
                                                         int &M, int &D) {
@@ -3082,24 +3078,77 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 // order, each a separate date. Matches MATLAB
                                 // R2025b's datestr disambiguation: a 6x1 column
                                 // is 6 dates, a 1x6 row is one date vector.
-                                const size_t Rr = din.dims().rows();
-                                const size_t Cc = din.dims().cols();
                                 std::vector<Comp> dates;
-                                if (Cc == 6 && !din.dims().is3D()) {
-                                    dates.reserve(Rr);
-                                    for (size_t r = 0; r < Rr; ++r)
-                                        dates.push_back(Comp{
-                                            static_cast<int>(din.elemAsDouble(0 * Rr + r)),
-                                            static_cast<int>(din.elemAsDouble(1 * Rr + r)),
-                                            static_cast<int>(din.elemAsDouble(2 * Rr + r)),
-                                            static_cast<int>(din.elemAsDouble(3 * Rr + r)),
-                                            static_cast<int>(din.elemAsDouble(4 * Rr + r)),
-                                            static_cast<int>(std::round(din.elemAsDouble(5 * Rr + r)))});
+                                if (din.isChar() || din.isString()) {
+                                    // String date input: auto-detect the common
+                                    // ISO / dd-mmm-yyyy forms (same forms as
+                                    // datevec/datenum), one date. Any 2nd arg is
+                                    // the OUTPUT format, not the input parse spec.
+                                    static const char *MON3p[] = {
+                                        "jan","feb","mar","apr","may","jun",
+                                        "jul","aug","sep","oct","nov","dec"};
+                                    const std::string s = din.toString();
+                                    auto tryFmt = [&](const char *fmt, Comp &c) -> bool {
+                                        int Y = 0, Mo = 1, D = 1, H = 0, MI = 0, S = 0;
+                                        const std::string F = fmt;
+                                        size_t si = 0, fi = 0;
+                                        auto readNum = [&](int maxD) -> long {
+                                            long v = 0; int n = 0;
+                                            while (si < s.size() && n < maxD
+                                                   && std::isdigit((unsigned char)s[si])) {
+                                                v = v * 10 + (s[si] - '0'); ++si; ++n;
+                                            }
+                                            return n > 0 ? v : -1;
+                                        };
+                                        while (fi < F.size()) {
+                                            if (F.compare(fi,4,"yyyy")==0) { long v=readNum(4); if(v<0)return false; Y=(int)v; fi+=4; }
+                                            else if (F.compare(fi,3,"mmm")==0) {
+                                                if (si+3>s.size()) return false;
+                                                std::string m=s.substr(si,3);
+                                                for (auto &ch:m) ch=(char)std::tolower((unsigned char)ch);
+                                                int mi=-1; for(int k=0;k<12;++k) if(m==MON3p[k]){mi=k+1;break;}
+                                                if (mi<0) return false; Mo=mi; si+=3; fi+=3;
+                                            }
+                                            else if (F.compare(fi,2,"mm")==0) { long v=readNum(2); if(v<0)return false; Mo=(int)v; fi+=2; }
+                                            else if (F.compare(fi,2,"dd")==0) { long v=readNum(2); if(v<0)return false; D=(int)v; fi+=2; }
+                                            else if (F.compare(fi,2,"HH")==0) { long v=readNum(2); if(v<0)return false; H=(int)v; fi+=2; }
+                                            else if (F.compare(fi,2,"MM")==0) { long v=readNum(2); if(v<0)return false; MI=(int)v; fi+=2; }
+                                            else if (F.compare(fi,2,"SS")==0) { long v=readNum(2); if(v<0)return false; S=(int)v; fi+=2; }
+                                            else { if (si<s.size() && s[si]==F[fi]) { ++si; ++fi; } else return false; }
+                                        }
+                                        if (si != s.size()) return false;
+                                        c = Comp{Y, Mo, D, H, MI, S};
+                                        return true;
+                                    };
+                                    static const char *cands[] = {
+                                        "yyyy-mm-dd HH:MM:SS", "yyyy-mm-dd",
+                                        "dd-mmm-yyyy HH:MM:SS", "dd-mmm-yyyy"};
+                                    Comp c{}; bool ok = false;
+                                    for (const char *f : cands) if (tryFmt(f, c)) { ok = true; break; }
+                                    if (!ok)
+                                        throw std::runtime_error(
+                                            "datestr: could not parse date string "
+                                            "(supported: ISO yyyy-mm-dd and dd-mmm-yyyy forms)");
+                                    dates.push_back(c);
                                 } else {
-                                    const size_t n = din.numel();
-                                    dates.reserve(n);
-                                    for (size_t k = 0; k < n; ++k)
-                                        dates.push_back(serialToComp(din.elemAsDouble(k)));
+                                    const size_t Rr = din.dims().rows();
+                                    const size_t Cc = din.dims().cols();
+                                    if (Cc == 6 && !din.dims().is3D()) {
+                                        dates.reserve(Rr);
+                                        for (size_t r = 0; r < Rr; ++r)
+                                            dates.push_back(Comp{
+                                                static_cast<int>(din.elemAsDouble(0 * Rr + r)),
+                                                static_cast<int>(din.elemAsDouble(1 * Rr + r)),
+                                                static_cast<int>(din.elemAsDouble(2 * Rr + r)),
+                                                static_cast<int>(din.elemAsDouble(3 * Rr + r)),
+                                                static_cast<int>(din.elemAsDouble(4 * Rr + r)),
+                                                static_cast<int>(std::round(din.elemAsDouble(5 * Rr + r)))});
+                                    } else {
+                                        const size_t n = din.numel();
+                                        dates.reserve(n);
+                                        for (size_t k = 0; k < n; ++k)
+                                            dates.push_back(serialToComp(din.elemAsDouble(k)));
+                                    }
                                 }
                                 if (dates.empty())
                                     throw std::runtime_error("datestr: empty date input");
