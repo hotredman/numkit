@@ -1939,6 +1939,13 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
+/* Struct / cell layout has only two rows (titlebar + tree body) — the
+   matrix template's 5 rows (toolbar / address / status) don't apply, so
+   the tree would otherwise be crammed into the 40px "toolbar" row while
+   the 1fr body row sat empty. Override to titlebar + fill. */
+.ve-window-struct {
+  grid-template-rows: 38px 1fr;
+}
 /* Title bar: meta lives in title-left and can truncate. Buttons are
    pinned to the modal's top-right corner (anchored on .ve-window, not
    the title-bar) so they stay reachable even if the title-bar layout
@@ -1964,6 +1971,162 @@ input, select { font-family: inherit; color: inherit; }
   min-height: 0;
   overflow: hidden;
 }
+
+/* ── Struct / cell drill-in inspector ── */
+.ve-struct-body {
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-1);
+}
+.ve-struct-empty {
+  padding: 16px;
+  color: var(--fg-3);
+  font-style: italic;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.ve-inspector {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.ve-inspector-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+/* Drilled-into matrix reuses VirtualTable (.ve-table-wrap), which
+   virtualises off its own clientHeight. Without a definite height the
+   wrap collapses to 0 here (no grid 1fr row to stretch it like the
+   matrix layout has) → 0 rows → blank. Fill the inspector body so the
+   table measures a real height and the wrap itself is the scroller. */
+.ve-inspector-body > .ve-table-wrap {
+  height: 100%;
+}
+
+/* Breadcrumb path bar */
+.ve-crumbs {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-0);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.ve-crumb-seg { display: inline-flex; align-items: center; }
+.ve-crumb-sep { color: var(--fg-3); margin: 0 2px; }
+.ve-crumb {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font: inherit;
+}
+.ve-crumb:hover:not(:disabled) { background: var(--bg-2); }
+.ve-crumb:disabled { color: var(--fg-1); cursor: default; }
+
+/* Single-struct field list */
+.ve-field-list { display: flex; flex-direction: column; padding: 4px 0; }
+.ve-field-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(0, 2fr) 16px 18px;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 12px;
+  white-space: nowrap;
+}
+.ve-field-row.is-drillable { cursor: pointer; }
+.ve-field-row:hover { background: var(--bg-2); }
+.ve-field-name { color: var(--fg-1); }
+/* Inline field-name rename input (double-click a field name). */
+.ve-rename-input {
+  font-family: var(--font-mono); font-size: 12px;
+  background: var(--bg-1); color: var(--fg-1);
+  border: 1px solid var(--accent); border-radius: 3px;
+  padding: 0 4px; outline: none; min-width: 80px; max-width: 160px;
+}
+.ve-field-type { color: var(--accent); font-size: 11px; }
+.ve-field-val  { color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; }
+.ve-field-drill { color: var(--fg-3); text-align: center; }
+/* Per-row delete — appears on row hover, doesn't trigger the drill. */
+.ve-field-del {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--fg-3); font-size: 14px; line-height: 1; padding: 0;
+  opacity: 0; transition: opacity 80ms;
+}
+.ve-field-row:hover .ve-field-del { opacity: 1; }
+.ve-field-del:hover { color: var(--danger); }
+
+/* Inline add-field control */
+.ve-addfield {
+  display: flex; gap: 6px; align-items: center;
+  padding: 6px 12px; margin-top: 2px;
+  border-top: 1px solid var(--line);
+}
+.ve-addfield-input {
+  flex: 0 1 200px; padding: 2px 6px;
+  font-family: var(--font-mono); font-size: 12px;
+  background: var(--bg-1); color: var(--fg-1);
+  border: 1px solid var(--line); border-radius: 3px; outline: none;
+}
+.ve-addfield-btn {
+  padding: 2px 10px; font-size: 11px; font-family: var(--font-ui);
+  background: var(--bg-2); color: var(--fg-1);
+  border: 1px solid var(--line); border-radius: 3px; cursor: pointer;
+}
+.ve-addfield-btn:disabled { opacity: 0.4; cursor: default; }
+.ve-addfield-btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+
+/* Struct-array column delete — × in the field header, on hover. */
+.ve-arr-delcol {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--fg-3); font-size: 12px; line-height: 1;
+  margin-left: 6px; padding: 0; opacity: 0; transition: opacity 80ms;
+}
+.ve-arr-table th:hover .ve-arr-delcol { opacity: 1; }
+.ve-arr-delcol:hover { color: var(--danger); }
+
+/* Struct-array / cell grid tables */
+.ve-arr-wrap { overflow: auto; }
+.ve-arr-table {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.ve-arr-table th, .ve-arr-table td {
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  text-align: left;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ve-arr-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-2);
+  color: var(--fg-1);
+  z-index: 1;
+}
+.ve-arr-corner, .ve-arr-rowhead {
+  background: var(--bg-2);
+  color: var(--fg-3);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.ve-arr-table td.is-drillable { cursor: pointer; color: var(--accent); }
+.ve-arr-table td.is-drillable:hover { background: var(--bg-2); }
 .ve-body.has-plot {
   grid-template-columns: 1fr 6px 520px;
 }
@@ -2569,6 +2732,13 @@ select.ve-btn.fw-cmap-select {
   border: 2px solid var(--bg-1);
 }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.4 0.014 220 / 0.8); }
+
+/* Code-editor textarea — hide the native scrollbar. The minimap is the
+   scroll affordance (wheel + minimap drag both still scroll); a native
+   scrollbar sitting flush against the minimap read as a duplicate.
+   Scroll behaviour is unaffected — only the scrollbar chrome is hidden. */
+.nk-editor-textarea { scrollbar-width: none; }            /* Firefox */
+.nk-editor-textarea::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 /* ---------- Right-click context menu (plot panels, heatmap, polar) ---------- */
 .ctx-menu {

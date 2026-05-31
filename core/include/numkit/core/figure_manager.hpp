@@ -14,6 +14,19 @@ struct DatasetInfo
     std::string xJson;
     std::string yJson;
     std::string zJson;     // 2D matrix for imagesc, e.g. [[1,2],[3,4]]
+    // Per-point auxiliary columns. Decoupled from xJson/yJson/zJson
+    // because they carry semantically different data — overloading
+    // zJson for marker sizes (as the original Phase 2e polar work
+    // did) leaks coordinate semantics into a sizing channel and
+    // breaks any future 3-D polar use case.
+    //   sizeJson   — polarbubblechart / scatter point areas
+    //                (points^2, MATLAB convention).
+    //   colorJson  — per-point colour. May be a single RGB row
+    //                "[[r,g,b]]" or N rows "[[r,g,b],...]". Renderer
+    //                falls back to the dataset's `style.color` when
+    //                empty.
+    std::string sizeJson;
+    std::string colorJson;
     std::string type;      // "line", "bar", "scatter", "stem", "stairs", "imagesc", "errorbar", …
     std::string label;     // for legend
     std::string style;     // MATLAB style hint, e.g. "r--o", "b:", "g-."
@@ -247,6 +260,18 @@ struct AxesState
 
     std::string thetaDir = "counterclockwise";
     std::string thetaZeroLocation = "right";
+    // Custom polar tick positions + labels — MATLAB thetaticks(),
+    // rticks(), thetaticklabels(), rticklabels(). Empty JSON arrays
+    // = renderer falls back to its auto-generated nice ticks.
+    //   thetaticks: array of DEGREES (e.g. [0 45 90 135 180])
+    //   rticks:     array of radial values matching rlim units
+    //   *ticklabels: array of strings, one per corresponding tick;
+    //                length must match the tick array for it to take
+    //                effect (renderer drops to auto when mismatched).
+    std::string thetaticksJson;
+    std::string rticksJson;
+    std::string thetaticklabelsJson;
+    std::string rticklabelsJson;
 
     // Position in subplot grid (1-based), 0 = not a subplot
     int subplotIndex = 0;
@@ -448,6 +473,15 @@ public:
                         os << ",\"lineWidth\":" << ds.lineWidth;
                     if (ds.markerSize > 0)
                         os << ",\"markerSize\":" << ds.markerSize;
+                    // Per-point size / colour columns — used by
+                    // polarbubblechart and (future) bubblechart on
+                    // cartesian axes. Emitted as `size` / `pointColor`
+                    // to avoid colliding with the dataset-level
+                    // `color` style attribute.
+                    if (!ds.sizeJson.empty())
+                        os << ",\"size\":"       << ds.sizeJson;
+                    if (!ds.colorJson.empty())
+                        os << ",\"pointColor\":" << ds.colorJson;
                     if (!ds.eJson.empty())
                         os << ",\"e\":" << ds.eJson;
                     if (!ds.eNegJson.empty())
@@ -551,6 +585,14 @@ public:
                 if (ax.polar) {
                     os << ",\"thetaDir\":\"" << ax.thetaDir << "\"";
                     os << ",\"thetaZeroLocation\":\"" << ax.thetaZeroLocation << "\"";
+                    if (!ax.thetaticksJson.empty())
+                        os << ",\"thetaticks\":"      << ax.thetaticksJson;
+                    if (!ax.rticksJson.empty())
+                        os << ",\"rticks\":"          << ax.rticksJson;
+                    if (!ax.thetaticklabelsJson.empty())
+                        os << ",\"thetaticklabels\":" << ax.thetaticklabelsJson;
+                    if (!ax.rticklabelsJson.empty())
+                        os << ",\"rticklabels\":"     << ax.rticklabelsJson;
                 }
                 if (!ax.legendLabels.empty()) {
                     os << ",\"legend\":[";

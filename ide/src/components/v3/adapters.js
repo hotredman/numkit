@@ -89,6 +89,11 @@ function previewToData(preview, type) {
 }
 
 function classify(size, type) {
+  // Container types are classified by type, not shape — a 1×1 struct
+  // is still a struct, not a scalar. The Variable Editor gates its
+  // nested tree-view on these.
+  if (type === 'struct') return 'struct';
+  if (type === 'cell')   return 'cell';
   if (type === 'char' || type === 'string') return 'string';
   if (!size || size === '1x1' || size === '1×1') return 'scalar';
   const m = String(size).match(/(\d+)\s*[x×]\s*(\d+)/);
@@ -605,20 +610,37 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
   if (cfg.polar) {
     const series = datasets.map((d, i) => {
       const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style) : (d.style || {});
-      // Polar mode: 'line' (default), 'scatter' (markers only),
-      // 'bar' (radial wedges from origin to rho). Driven by ds.type
-      // which the C++ side stamps as 'scatter' for polarscatter and
-      // 'bar' for polarhistogram.
+      // Polar mode → PolarPlot's renderer switch:
+      //   'line'    — polarplot     (polyline)
+      //   'scatter' — polarscatter  (markers)
+      //   'bar'     — polarhistogram(radial wedges)
+      //   'rose'    — rose          (wedge-from-origin variant of bar)
+      //   'bubble'  — polarbubblechart (markers with per-point size)
+      //   'compass' — compass       (arrow from origin to each point)
       let mode = 'line';
       const t = (d.type || '').toLowerCase();
-      if (t === 'scatter') mode = 'scatter';
-      else if (t === 'bar') mode = 'bar';
+      if      (t === 'scatter') mode = 'scatter';
+      else if (t === 'bar')     mode = 'bar';
+      else if (t === 'rose')    mode = 'rose';
+      else if (t === 'bubble')  mode = 'bubble';
+      else if (t === 'compass') mode = 'compass';
       return {
         name: d.label || `series ${i + 1}`,
         mode,
         theta: Array.isArray(d.x) ? d.x.map(Number) : [],
         rho:   Array.isArray(d.y) ? d.y.map(Number) : [],
+        // Per-point size (polarbubblechart). Wire field is `size`,
+        // distinct from the dataset-level `markerSize` style attr.
+        sizes: Array.isArray(d.size) ? d.size.map(Number) : null,
+        // Per-point colour: either an array of [r,g,b] triplets
+        // (1×3 for a shared color, N×3 for per-point) OR a flat
+        // array of colormap-index scalars. Renderer handles both.
+        pointColors: Array.isArray(d.pointColor) ? d.pointColor : null,
         color: styleObj.color || d.color || KIND_PALETTE[i % KIND_PALETTE.length],
+        // LineSpec dash pattern + marker for compass (and future
+        // line-style honoring modes). 'solid' default keeps
+        // existing visuals.
+        dash:  styleObj.dash || null,
         width: d.lineWidth || styleObj.lineWidth || 1.6,
       };
     });
@@ -634,6 +656,12 @@ function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
       // 360° sweep (default).
       thetalim: Array.isArray(cfg.thetalim) && cfg.thetalim.length === 2
         ? cfg.thetalim.slice() : null,
+      // Custom theta/r ticks + labels (MATLAB thetaticks / rticks /
+      // thetaticklabels / rticklabels). Null = renderer auto-grid.
+      thetaticks:      Array.isArray(cfg.thetaticks)      ? cfg.thetaticks      : null,
+      rticks:          Array.isArray(cfg.rticks)          ? cfg.rticks          : null,
+      thetaticklabels: Array.isArray(cfg.thetaticklabels) ? cfg.thetaticklabels : null,
+      rticklabels:     Array.isArray(cfg.rticklabels)     ? cfg.rticklabels     : null,
       grid: cfg.grid !== undefined ? cfg.grid : 'on',  // polar default = on (MATLAB)
       gridMinor: cfg.gridMinor || 'off',
       series,

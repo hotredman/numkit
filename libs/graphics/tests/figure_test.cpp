@@ -647,6 +647,163 @@ TEST_F(PolarTest, RlimSetsLimits)
     EXPECT_FALSE(ax().rlimJson.empty());
 }
 
+// ── Phase: full MATLAB-parity polar additions ────────────────────
+
+TEST_F(PolarTest, CompassEmitsPolarDatasetWithAtan2HypotPairs)
+{
+    // compass(U, V) — should flip axes to polar AND store
+    // (theta=atan2(V,U), rho=hypot(U,V)) per MATLAB semantics, NOT
+    // the legacy cartesian-quiver behaviour we used to have.
+    eval("figure(1); compass([3 0 -1], [0 2 0]);");
+    EXPECT_TRUE(ax().polar);
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "compass");
+    // Quick sanity: arrays are non-empty + same length. (We don't
+    // try to parse JSON here — that lives in the renderer test.)
+    EXPECT_FALSE(ax().datasets[0].xJson.empty());
+    EXPECT_FALSE(ax().datasets[0].yJson.empty());
+    // (3,0) → theta=0,   rho=3
+    // (0,2) → theta=π/2, rho=2
+    // (-1,0)→ theta=π,   rho=1
+    EXPECT_NE(ax().datasets[0].yJson.find("3"), std::string::npos);
+    EXPECT_NE(ax().datasets[0].yJson.find("2"), std::string::npos);
+    EXPECT_NE(ax().datasets[0].yJson.find("1"), std::string::npos);
+}
+
+TEST_F(PolarTest, CompassWithComplexZ)
+{
+    // Single-arg compass(Z) for complex Z unpacks real/imag → U/V.
+    eval("figure(1); compass(3 + 2i);");
+    EXPECT_TRUE(ax().polar);
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "compass");
+}
+
+TEST_F(PolarTest, PolarbubblechartEmitsBubbleDatasetWithSizeColumn)
+{
+    eval("figure(1); polarbubblechart([0 1.5 3], [1 2 3], [10 50 100]);");
+    EXPECT_TRUE(ax().polar);
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "bubble");
+    // Size column lives in its OWN sizeJson field (no longer in zJson
+    // which is reserved for true z-coordinates / matrices).
+    const auto &sz = ax().datasets[0].sizeJson;
+    EXPECT_NE(sz.find("10"),  std::string::npos);
+    EXPECT_NE(sz.find("50"),  std::string::npos);
+    EXPECT_NE(sz.find("100"), std::string::npos);
+    EXPECT_TRUE(ax().datasets[0].zJson.empty());
+}
+
+TEST_F(PolarTest, PolarbubblechartDefaultSizeWhenSzOmitted)
+{
+    // polarbubblechart(theta, rho) without sz → default 36 (MATLAB
+    // convention for marker area in points^2).
+    eval("figure(1); polarbubblechart([0 1.5], [1 2]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].sizeJson, "[36]");
+}
+
+TEST_F(PolarTest, PolarbubblechartAcceptsRgbMatrixColor)
+{
+    // polarbubblechart(theta, rho, sz, c) with c as an N-by-3 RGB
+    // matrix → colorJson holds nested arrays, one per point.
+    eval("figure(1); polarbubblechart([0 1.5], [1 2], 50, [1 0 0; 0 1 0]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    const auto &c = ax().datasets[0].colorJson;
+    EXPECT_FALSE(c.empty());
+    // Should look like [[1,0,0],[0,1,0]].
+    EXPECT_NE(c.find("[["), std::string::npos);
+    EXPECT_NE(c.find("]]"), std::string::npos);
+}
+
+TEST_F(PolarTest, PolarbubblechartAcceptsColormapIndexColor)
+{
+    // c as an N-by-1 column → treated as colormap-index data;
+    // we emit it as a flat JSON array (renderer maps via active
+    // colormap). 1-by-3 row would instead be a single RGB triple
+    // per MATLAB convention, so the test uses a column.
+    eval("figure(1); polarbubblechart([0 1.5 3], [1 2 3], 30, [0.1; 0.5; 0.9]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_NE(ax().datasets[0].colorJson.find("0.5"), std::string::npos);
+    EXPECT_EQ(ax().datasets[0].colorJson.find("[["), std::string::npos);  // flat
+}
+
+TEST_F(PolarTest, RoseEmitsHistogramWithTypeRose)
+{
+    // rose shares bin counting with polarhistogram but tags type="rose"
+    // so a future renderer can give it the classic wedge-from-origin
+    // visual. Default 20 bins (MATLAB convention).
+    eval("samples = linspace(0, 6.28, 100); figure(1); rose(samples);");
+    EXPECT_TRUE(ax().polar);
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "rose");
+    // 20 bins → 20 bin centres in xJson.
+    int commas = 0;
+    for (char c : ax().datasets[0].xJson) if (c == ',') ++commas;
+    EXPECT_EQ(commas, 19);  // N values → N-1 commas
+}
+
+TEST_F(PolarTest, RoseUsesExplicitNbins)
+{
+    eval("figure(1); rose(linspace(0,6.28,100), 8);");
+    int commas = 0;
+    for (char c : ax().datasets[0].xJson) if (c == ',') ++commas;
+    EXPECT_EQ(commas, 7);  // 8 bins
+}
+
+TEST_F(PolarTest, ThetazerolocationAliasUpdatesField)
+{
+    // MATLAB-name alias for the existing `thetazero` convenience fn.
+    eval("figure(1); polarplot(linspace(0,6.28,63), ones(1,63));");
+    eval("thetazerolocation('top')");
+    EXPECT_EQ(ax().thetaZeroLocation, "top");
+}
+
+TEST_F(PolarTest, ThetaticksPopulatesField)
+{
+    eval("figure(1); polarplot(linspace(0,6.28,63), ones(1,63));");
+    eval("thetaticks([0 45 90 135 180])");
+    EXPECT_FALSE(ax().thetaticksJson.empty());
+    EXPECT_NE(ax().thetaticksJson.find("45"), std::string::npos);
+    EXPECT_NE(ax().thetaticksJson.find("180"), std::string::npos);
+}
+
+TEST_F(PolarTest, RticksPopulatesField)
+{
+    eval("figure(1); polarplot(linspace(0,6.28,63), ones(1,63));");
+    eval("rticks([0 0.5 1])");
+    EXPECT_FALSE(ax().rticksJson.empty());
+    EXPECT_NE(ax().rticksJson.find("0.5"), std::string::npos);
+}
+
+TEST_F(PolarTest, ThetaticklabelsTakesCellArrayOfStrings)
+{
+    eval("figure(1); polarplot(linspace(0,6.28,63), ones(1,63));");
+    eval("thetaticks([0 90 180 270])");
+    eval("thetaticklabels({'E','N','W','S'})");
+    EXPECT_FALSE(ax().thetaticklabelsJson.empty());
+    EXPECT_NE(ax().thetaticklabelsJson.find("\"E\""), std::string::npos);
+    EXPECT_NE(ax().thetaticklabelsJson.find("\"S\""), std::string::npos);
+}
+
+TEST_F(PolarTest, RticklabelsTakesCellArrayOfStrings)
+{
+    eval("figure(1); polarplot(linspace(0,6.28,63), ones(1,63));");
+    eval("rticks([0 1])");
+    eval("rticklabels({'zero','one'})");
+    EXPECT_FALSE(ax().rticklabelsJson.empty());
+    EXPECT_NE(ax().rticklabelsJson.find("\"zero\""), std::string::npos);
+}
+
+TEST_F(PolarTest, ThetaticksWithEmptyArgClearsField)
+{
+    eval("figure(1); polarplot(linspace(0,6.28,63), ones(1,63));");
+    eval("thetaticks([0 45 90])");
+    EXPECT_FALSE(ax().thetaticksJson.empty());
+    eval("thetaticks([])");
+    EXPECT_TRUE(ax().thetaticksJson.empty());
+}
+
 // ============================================================
 // Plot type/axes replacement without hold (MATLAB behavior)
 // ============================================================

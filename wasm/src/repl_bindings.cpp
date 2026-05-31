@@ -93,6 +93,222 @@ static std::string escapeJSON(const std::string &s) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// Matrix cell-data serialization — shared by getVarFullJSON and the
+// path-inspector's matrix payload (no duplicated number formatting).
+// ════════════════════════════════════════════════════════════════
+//
+// Emits the JSON value for a matrix-like Value's cells: a 2-D array
+// [[...],...] (column-major source → row-major JSON). CHAR becomes one
+// row of 1-char strings. Non-numeric / non-char fall back to a 1×1
+// array holding the preview string.
+static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val) {
+    using numkit::ValueType;
+    const auto &d = val.dims();
+    const size_t rows = d.rows();
+    const size_t cols = d.cols();
+    auto fmtNum = [](double v) -> std::string {
+        if (std::isnan(v))  return "null";
+        if (std::isinf(v))  return v > 0 ? "\"Inf\"" : "\"-Inf\"";
+        std::ostringstream s; s.precision(17); s << v; return s.str();
+    };
+    os << "[";
+    if (val.type() == ValueType::CHAR) {
+        std::string str = val.toString();
+        os << "[";
+        for (size_t i = 0; i < str.size(); ++i) {
+            if (i) os << ",";
+            os << "\"" << escapeJSON(std::string(1, str[i])) << "\"";
+        }
+        os << "]";
+    } else if (val.type() == ValueType::DOUBLE) {
+        const double *p = val.doubleData();
+        for (size_t r = 0; r < rows; ++r) {
+            if (r) os << ",";
+            os << "[";
+            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << fmtNum(p[c * rows + r]); }
+            os << "]";
+        }
+    } else if (val.type() == ValueType::LOGICAL) {
+        const uint8_t *p = val.logicalData();
+        for (size_t r = 0; r < rows; ++r) {
+            if (r) os << ",";
+            os << "[";
+            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << (p[c * rows + r] ? "true" : "false"); }
+            os << "]";
+        }
+    } else if (val.type() == ValueType::COMPLEX) {
+        const numkit::Complex *p = val.complexData();
+        for (size_t r = 0; r < rows; ++r) {
+            if (r) os << ",";
+            os << "[";
+            for (size_t c = 0; c < cols; ++c) {
+                if (c) os << ",";
+                const auto &z = p[c * rows + r];
+                std::ostringstream s; s.precision(12);
+                s << z.real(); if (z.imag() >= 0) s << "+"; s << z.imag() << "i";
+                os << "\"" << s.str() << "\"";
+            }
+            os << "]";
+        }
+    } else {
+        os << "[\"" << escapeJSON(valuePreview(val)) << "\"]";
+    }
+    os << "]";
+}
+
+// ════════════════════════════════════════════════════════════════
+// Path-addressed inspection (MATLAB-style drill-in)
+// ════════════════════════════════════════════════════════════════
+//
+// A path is a compact ';'-delimited string of typed steps the JS builds:
+//   "f:data;e:2;c:3"  →  root.data, then struct-array element 2, then cell 3
+// Step kinds: f = struct field (value = name), e = element index (struct
+// array / matrix), c = cell index. Indices are 0-based. MATLAB field
+// names are identifiers (no ';'/':'), so the delimited form is
+// unambiguous and needs no JSON parser. Empty string = the root itself.
+//
+// Above MATRIX_INSPECT_CAP elements a drilled matrix returns shape only
+// (truncated:true) — full inline data would freeze the UI. Path-addressed
+// tiling of sub-values is a deliberate follow-up.
+static constexpr size_t MATRIX_INSPECT_CAP = 250000;
+
+struct PathStep { char kind; std::string name; size_t idx; };
+
+static std::vector<PathStep> parseInspectPath(const std::string &s) {
+    std::vector<PathStep> steps;
+    size_t i = 0;
+    while (i < s.size()) {
+        size_t semi = s.find(';', i);
+        std::string tok = s.substr(i, semi == std::string::npos ? std::string::npos : semi - i);
+        i = (semi == std::string::npos) ? s.size() : semi + 1;
+        if (tok.empty()) continue;
+        size_t colon = tok.find(':');
+        if (colon == std::string::npos) continue;
+        PathStep st{};
+        st.kind = tok[0];
+        const std::string val = tok.substr(colon + 1);
+        if (st.kind == 'f') st.name = val;
+        else st.idx = static_cast<size_t>(std::strtoull(val.c_str(), nullptr, 10));
+        steps.push_back(st);
+    }
+    return steps;
+}
+
+// Walk the steps from `root`. field()/cellAt() return references into
+// the existing tree (no copy); elemAt() materialises a temporary kept
+// alive in `owned` (reserved up front so no realloc invalidates the
+// returned pointer). Returns nullptr on any out-of-range / type-mismatch.
+static const numkit::Value *resolveInspectPath(const numkit::Value &root,
+                                               const std::vector<PathStep> &steps,
+                                               std::vector<numkit::Value> &owned) {
+    owned.reserve(steps.size());
+    const numkit::Value *cur = &root;
+    for (const auto &st : steps) {
+        if (st.kind == 'f') {
+            if (!cur->isStruct() || !cur->hasField(st.name)) return nullptr;
+            cur = &cur->field(st.name);
+        } else if (st.kind == 'e') {
+            if (st.idx >= cur->numel()) return nullptr;
+            owned.push_back(cur->elemAt(st.idx));
+            cur = &owned.back();
+        } else if (st.kind == 'c') {
+            if (!cur->isCell() || st.idx >= cur->numel()) return nullptr;
+            cur = &cur->cellAt(st.idx);
+        } else {
+            return nullptr;
+        }
+    }
+    return cur;
+}
+
+// One cell descriptor for a struct-table / cell-grid: type + size +
+// preview summary + whether double-click should drill into it. Drillable
+// = struct / cell / a multi-element non-char array (worth a table).
+static void emitInspectCell(std::ostringstream &os, const std::string &label,
+                            const numkit::Value &val) {
+    const auto &d = val.dims();
+    // Every field is openable, matching MATLAB's Variable Editor: a
+    // scalar opens as a 1x1 table, a string as a 1xN char table, a
+    // matrix as its grid, struct/cell drill further. Keeping the `drill`
+    // field (rather than dropping it) leaves room to mark a future type
+    // as non-openable; today it's unconditionally true.
+    const bool drill = true;
+    os << "{";
+    if (!label.empty()) os << "\"label\":\"" << escapeJSON(label) << "\",";
+    os << "\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+       << ",\"size\":\"" << d.rows() << "x" << d.cols();
+    if (d.is3D()) os << "x" << d.pages();
+    os << "\",\"summary\":\"" << escapeJSON(valuePreview(val)) << "\""
+       << ",\"drill\":" << (drill ? "true" : "false") << "}";
+}
+
+// Build the inspect payload for a resolved value:
+//   STRUCT → { kind:"struct", rows, cols, numel, fields:[], elems:[[cell]] }
+//   CELL   → { kind:"cell",   rows, cols, elems:[cell] }   (column-major)
+//   else   → { kind:"matrix", type, rows, cols, data | truncated }
+static std::string emitInspectPayload(const numkit::Value &val) {
+    using numkit::ValueType;
+    std::ostringstream os;
+    const auto &d = val.dims();
+
+    if (val.isStruct()) {
+        const auto order = val.fieldNamesInOrder();
+        const size_t n = val.numel();
+        os << "{\"kind\":\"struct\",\"rows\":" << d.rows() << ",\"cols\":" << d.cols()
+           << ",\"numel\":" << n << ",\"fields\":[";
+        for (size_t f = 0; f < order.size(); ++f) {
+            if (f) os << ",";
+            os << "\"" << escapeJSON(order[f]) << "\"";
+        }
+        os << "],\"elems\":[";
+        // One inner array per element; cells in field order. Single
+        // struct uses structFields(); arrays use structArrayElem(i).
+        const bool isArr = val.isStructArray();
+        for (size_t e = 0; e < n; ++e) {
+            if (e) os << ",";
+            const auto &fields = isArr ? val.structArrayElem(e) : val.structFields();
+            os << "[";
+            for (size_t f = 0; f < order.size(); ++f) {
+                if (f) os << ",";
+                auto it = fields.find(order[f]);
+                if (it == fields.end()) os << "{\"type\":\"\",\"size\":\"\",\"summary\":\"\",\"drill\":false}";
+                else emitInspectCell(os, "", it->second);
+            }
+            os << "]";
+        }
+        os << "]}";
+        return os.str();
+    }
+
+    if (val.isCell()) {
+        const size_t rows = d.rows(), cols = d.cols(), n = val.numel();
+        os << "{\"kind\":\"cell\",\"rows\":" << rows << ",\"cols\":" << cols << ",\"elems\":[";
+        // Column-major linear order; label "{r,c}" 1-based.
+        for (size_t i = 0; i < n; ++i) {
+            if (i) os << ",";
+            const size_t r = (rows > 0) ? (i % rows) : 0;
+            const size_t c = (rows > 0) ? (i / rows) : 0;
+            const std::string label = "{" + std::to_string(r + 1) + "," + std::to_string(c + 1) + "}";
+            emitInspectCell(os, label, val.cellAt(i));
+        }
+        os << "]}";
+        return os.str();
+    }
+
+    // Matrix / scalar / char / etc.
+    os << "{\"kind\":\"matrix\",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
+       << ",\"rows\":" << d.rows() << ",\"cols\":" << d.cols();
+    if (val.numel() > MATRIX_INSPECT_CAP) {
+        os << ",\"truncated\":true}";
+    } else {
+        os << ",\"data\":";
+        emitMatrixDataArray(os, val);
+        os << "}";
+    }
+    return os.str();
+}
+
+// ════════════════════════════════════════════════════════════════
 // ReplSession
 // ════════════════════════════════════════════════════════════════
 class ReplSession {
@@ -525,79 +741,43 @@ public:
                << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
                << ",\"rows\":" << rows
                << ",\"cols\":" << cols
-               << ",\"data\":[";
-
-            auto fmtNum = [](double v) -> std::string {
-                if (std::isnan(v))  return "null";
-                if (std::isinf(v))  return v > 0 ? "\"Inf\"" : "\"-Inf\"";
-                std::ostringstream s;
-                s.precision(17);
-                s << v;
-                return s.str();
-            };
-
-            // CHAR: render as a single row of characters split per cell.
-            if (val.type() == ValueType::CHAR) {
-                std::string str = val.toString();
-                os << "[";
-                for (size_t i = 0; i < str.size(); ++i) {
-                    if (i) os << ",";
-                    char c = str[i];
-                    os << "\"" << escapeJSON(std::string(1, c)) << "\"";
-                }
-                os << "]";
-                os << "]}";
-                return os.str();
-            }
-
-            if (val.type() == ValueType::DOUBLE) {
-                const double *p = val.doubleData();
-                for (size_t r = 0; r < rows; ++r) {
-                    if (r) os << ",";
-                    os << "[";
-                    for (size_t c = 0; c < cols; ++c) {
-                        if (c) os << ",";
-                        // column-major storage → flat index = c*rows + r
-                        os << fmtNum(p[c * rows + r]);
-                    }
-                    os << "]";
-                }
-            } else if (val.type() == ValueType::LOGICAL) {
-                const uint8_t *p = val.logicalData();
-                for (size_t r = 0; r < rows; ++r) {
-                    if (r) os << ",";
-                    os << "[";
-                    for (size_t c = 0; c < cols; ++c) {
-                        if (c) os << ",";
-                        os << (p[c * rows + r] ? "true" : "false");
-                    }
-                    os << "]";
-                }
-            } else if (val.type() == ValueType::COMPLEX) {
-                const numkit::Complex *p = val.complexData();
-                for (size_t r = 0; r < rows; ++r) {
-                    if (r) os << ",";
-                    os << "[";
-                    for (size_t c = 0; c < cols; ++c) {
-                        if (c) os << ",";
-                        const auto &z = p[c * rows + r];
-                        // Render complex as a string "a+bi" so the table cell
-                        // reads naturally; rich complex editing isn't supported.
-                        std::ostringstream s;
-                        s.precision(12);
-                        s << z.real();
-                        if (z.imag() >= 0) s << "+";
-                        s << z.imag() << "i";
-                        os << "\"" << s.str() << "\"";
-                    }
-                    os << "]";
-                }
-            } else {
-                // CELL / STRUCT / FUNC / unknown — fall back to a preview cell.
-                os << "[\"" << escapeJSON(valuePreview(val)) << "\"]";
-            }
-            os << "]}";
+               << ",\"data\":";
+            // Cell-data array — shared with the path-inspector's matrix
+            // payload via emitMatrixDataArray (CHAR / DOUBLE / LOGICAL /
+            // COMPLEX, with the CELL/STRUCT/FUNC preview fallback).
+            emitMatrixDataArray(os, val);
+            os << "}";
             return os.str();
+        } catch (const std::exception &e) {
+            return std::string("{\"error\":\"") + escapeJSON(e.what()) + "\"}";
+        } catch (...) {
+            return "{\"error\":\"unknown error\"}";
+        }
+    }
+
+    // Path-addressed inspection for the MATLAB-style drill-in Variable
+    // Editor. Resolves `pathStr` (";"-delimited typed steps; "" = root)
+    // against the named variable, then returns the struct-table /
+    // cell-grid / matrix payload for the resolved sub-value. Honours the
+    // paused debug frame's variable when a debug session is active.
+    std::string getInspectPathJSON(const std::string &name, const std::string &pathStr) {
+        try {
+            const numkit::Value *rootPtr = nullptr;
+            if (debugSession_ && debugSession_->isActive()) {
+                auto snap = debugSession_->snapshot();
+                for (auto &v : snap.variables) {
+                    if (v.name == name && v.value) { rootPtr = v.value; break; }
+                }
+            }
+            if (!rootPtr) rootPtr = engine_->getVariable(name);
+            if (!rootPtr) {
+                return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
+            }
+            auto steps = parseInspectPath(pathStr);
+            std::vector<numkit::Value> owned;
+            const numkit::Value *cur = resolveInspectPath(*rootPtr, steps, owned);
+            if (!cur) return "{\"error\":\"invalid path\"}";
+            return emitInspectPayload(*cur);
         } catch (const std::exception &e) {
             return std::string("{\"error\":\"") + escapeJSON(e.what()) + "\"}";
         } catch (...) {
@@ -930,6 +1110,11 @@ std::string repl_get_var_data(const std::string &name) {
     return g_session->getVarFullJSON(name);
 }
 
+std::string repl_inspect_path(const std::string &name, const std::string &pathStr) {
+    if (!g_session) return "{\"error\":\"no session\"}";
+    return g_session->getInspectPathJSON(name, pathStr);
+}
+
 std::string repl_get_var_shape(const std::string &name) {
     if (!g_session) return "{\"error\":\"no session\"}";
     return g_session->getVarShapeJSON(name);
@@ -1095,6 +1280,7 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_workspace", &repl_workspace);
     emscripten::function("repl_get_vars",     &repl_get_vars);
     emscripten::function("repl_get_var_data",  &repl_get_var_data);
+    emscripten::function("repl_inspect_path", &repl_inspect_path);
     emscripten::function("repl_get_var_shape", &repl_get_var_shape);
     emscripten::function("repl_get_var_tile",  &repl_get_var_tile);
     emscripten::function("repl_get_var_stats", &repl_get_var_stats);

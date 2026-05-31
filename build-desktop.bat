@@ -11,12 +11,20 @@ set DESKTOP_DIR=%IDE_DIR%\desktop
 :: copied the May-6 stale WASM into ide/public/ on every run.
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
 
-:: Flags:
-::   --skip-wasm  reuse the existing WASM in build-browser\wasm\dist (faster
-::                iteration when only IDE / JS code changed). Default: rebuild.
+:: Flags (order-independent, up to 2):
+::   --skip-wasm   reuse the existing WASM in build\browser\wasm\dist
+::                 (faster iteration when only IDE / JS code changed).
+::                 Default: rebuild.
+::   --no-package  skip the electron-builder portable-exe packaging
+::                 (step 5). desktop.bat launches Electron directly from
+::                 desktop\dist, so the packaged .exe is NOT needed for
+::                 dev iteration — this skips the slow compression step.
 set SKIP_WASM=0
+set NO_PACKAGE=0
 if "%1"=="--skip-wasm" set SKIP_WASM=1
 if "%2"=="--skip-wasm" set SKIP_WASM=1
+if "%1"=="--no-package" set NO_PACKAGE=1
+if "%2"=="--no-package" set NO_PACKAGE=1
 
 echo === Numkit IDE — Desktop Build ===
 echo.
@@ -113,6 +121,17 @@ if "%NEED_DSK_INSTALL%"=="1" (
     echo Installing desktop dependencies ^(package.json newer than node_modules or fresh checkout^)...
     call npm install
     if errorlevel 1 exit /b 1
+)
+
+:: --no-package: desktop\dist is ready and Electron is installed, so
+:: desktop.bat can launch directly. Skip the slow portable-exe packaging.
+if "%NO_PACKAGE%"=="1" (
+    echo [5/5] Skipping portable-exe packaging ^(--no-package^)
+    echo.
+    echo === Done ^(dev build^) ===
+    echo Static files ready at %DESKTOP_DIR%\dist
+    echo Launch with: desktop.bat
+    goto :eof
 )
 
 echo [5/5] Packaging exe...

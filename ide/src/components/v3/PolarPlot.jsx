@@ -161,7 +161,17 @@ export default function PolarPlot({
 
   // Major rings on every nice step (skipping the centre at rMin) plus minor
   // rings at step/5 spacing — matches InteractivePlot's tick split.
+  // Custom `figure.rticks` overrides auto-generated majors when set.
   const { rTicksMajor, rTicksMinor } = useMemo(() => {
+    // Custom rticks (MATLAB `rticks([0 1 2 3])`) — use exactly what
+    // the user asked, dropping any outside [rMin, rMax]. Minor rings
+    // are disabled to honour the explicit choice.
+    if (Array.isArray(figure?.rticks) && figure.rticks.length > 0) {
+      const custom = figure.rticks
+        .filter((v) => Number.isFinite(v) && v >= rMin && v <= rMax)
+        .map((v) => +Number(v).toFixed(12));
+      return { rTicksMajor: custom, rTicksMinor: [] };
+    }
     const step = niceStep(span, 4);
     const majorArr = [];
     const start = Math.ceil(rMin / step) * step;
@@ -177,15 +187,36 @@ export default function PolarPlot({
       }
     }
     return { rTicksMajor: majorArr, rTicksMinor: minorArr };
-  }, [rMin, rMax, span]);
+  }, [rMin, rMax, span, figure?.rticks]);
 
-  function fmtR(v) {
+  function fmtR(v, idx) {
+    // Custom rticklabels (MATLAB `rticklabels({...})`) take precedence
+    // over numeric formatting when the labels array length matches
+    // the active rticks array.
+    if (Array.isArray(figure?.rticklabels)
+     && Array.isArray(figure?.rticks)
+     && figure.rticklabels.length === figure.rticks.length
+     && idx != null && figure.rticklabels[idx] != null) {
+      return String(figure.rticklabels[idx]);
+    }
     const a = Math.abs(v);
     if (a !== 0 && (a < 1e-3 || a >= 1e5)) return v.toExponential(1);
     if (a >= 100) return v.toFixed(0);
     if (a >= 10)  return v.toFixed(1);
     if (a >= 1)   return v.toFixed(2);
     return v.toFixed(3);
+  }
+
+  /** Normalise a (theta, rho) pair for MATLAB semantics: when rho is
+   *  negative, reflect to the opposite angle so it draws at
+   *  (theta + π, |rho|). Returns null for non-finite inputs. */
+  function normalizePolar(theta, rho) {
+    if (rho == null || !Number.isFinite(rho) || theta == null || !Number.isFinite(theta)) {
+      return null;
+    }
+    return rho < 0
+      ? { theta: theta + Math.PI, rho: -rho }
+      : { theta,                  rho };
   }
 
   function ptFor(theta, rho) {
@@ -463,7 +494,10 @@ export default function PolarPlot({
       const factor = Math.exp(e.deltaY * 0.0015);
       const lo = vp.r[0];
       const hi = vp.r[1];
-      setViewport({ r: [lo, lo + (hi - lo) * factor] });
+      // Preserve theta — wheel only re-scales R. Without `...vp` the
+      // theta sweep would silently snap back to default on every wheel
+      // tick, undoing any user-narrowed thetalim.
+      setViewport({ ...vp, r: [lo, lo + (hi - lo) * factor] });
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -545,7 +579,7 @@ export default function PolarPlot({
                 <circle cx={0} cy={0} r={r} fill="none" stroke="var(--plot-grid)" strokeDasharray="2 4" />
               )}
               <text x={3} y={-r - 2} fill="var(--plot-text)" fontSize={9 * fontScale}>
-                {fmtR(rho)}
+                {fmtR(rho, i)}
               </text>
             </g>
           );
@@ -570,33 +604,46 @@ export default function PolarPlot({
           </>
         )}
 
-        {/* Major angular spokes every 30° + degree labels.
-            When thetalim is set we drop spokes outside the sweep. */}
-        {Array.from({ length: 12 }, (_, k) => k * 30).map((deg) => {
-          if (!isFullSweep) {
-            // Quick check by wrapping `deg` into [thMinDeg, thMinDeg+360).
-            let d = deg - thMinDeg;
-            d = ((d % 360) + 360) % 360;
-            if (d > (thMaxDeg - thMinDeg) + 1e-6) return null;
-          }
-          const a = zero + dirSign * (deg * Math.PI / 180);
-          const x = Math.cos(a) * radius;
-          const y = -Math.sin(a) * radius;
-          const xt = Math.cos(a) * (radius + 14);
-          const yt = -Math.sin(a) * (radius + 14);
-          return (
-            <g key={`sp${deg}`}>
-              {/* Spoke gated on ThetaGrid. Label is always shown —
-                  belongs to ThetaAxis.Visible, independent of grid. */}
-              {thetaGridOn && (
-                <line x1={0} y1={0} x2={x} y2={y}
-                  stroke="var(--plot-grid)" strokeDasharray="2 4" />
-              )}
-              <text x={xt} y={yt + 3} fill="var(--plot-text)" fontSize={9 * fontScale}
-                textAnchor="middle">{deg}°</text>
-            </g>
-          );
-        })}
+        {/* Major angular spokes. Default = every 30°; overridden by
+            `figure.thetaticks` (MATLAB convention: degrees). Custom
+            label text comes from `figure.thetaticklabels` when its
+            length matches the active tick array, otherwise we fall
+            back to the numeric `<deg>°` label. */}
+        {(() => {
+          const customTicks  = Array.isArray(figure?.thetaticks)
+                                 && figure.thetaticks.length > 0
+                               ? figure.thetaticks : null;
+          const customLabels = customTicks
+                            && Array.isArray(figure?.thetaticklabels)
+                            && figure.thetaticklabels.length === customTicks.length
+                               ? figure.thetaticklabels : null;
+          const ticks = customTicks
+            ? customTicks
+            : Array.from({ length: 12 }, (_, k) => k * 30);
+          return ticks.map((deg, i) => {
+            if (!isFullSweep) {
+              let d = deg - thMinDeg;
+              d = ((d % 360) + 360) % 360;
+              if (d > (thMaxDeg - thMinDeg) + 1e-6) return null;
+            }
+            const a = zero + dirSign * (deg * Math.PI / 180);
+            const x = Math.cos(a) * radius;
+            const y = -Math.sin(a) * radius;
+            const xt = Math.cos(a) * (radius + 14);
+            const yt = -Math.sin(a) * (radius + 14);
+            const label = customLabels ? String(customLabels[i]) : `${deg}°`;
+            return (
+              <g key={`sp${i}-${deg}`}>
+                {thetaGridOn && (
+                  <line x1={0} y1={0} x2={x} y2={y}
+                    stroke="var(--plot-grid)" strokeDasharray="2 4" />
+                )}
+                <text x={xt} y={yt + 3} fill="var(--plot-text)" fontSize={9 * fontScale}
+                  textAnchor="middle">{label}</text>
+              </g>
+            );
+          });
+        })()}
 
         {/* Series clip path. Full sweep → disc; partial sweep → pie
             wedge so series points outside the angular range get
@@ -619,16 +666,115 @@ export default function PolarPlot({
               return (
                 <g key={s.name}>
                   {s.theta.map((th, i) => {
-                    const rho = s.rho[i];
-                    if (rho == null || !Number.isFinite(rho)) return null;
-                    const [x, y] = ptFor(th, rho);
+                    const norm = normalizePolar(th, s.rho[i]);
+                    if (!norm) return null;
+                    const [x, y] = ptFor(norm.theta, norm.rho);
                     return <circle key={i} cx={x} cy={y} r="3"
                       fill={color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
                   })}
                 </g>
               );
             }
-            if (mode === 'bar') {
+            if (mode === 'bubble') {
+              // polarbubblechart — scatter with per-point area
+              // (sizes[i]) interpreted MATLAB-style: marker area in
+              // points^2 → diameter = sqrt(area)·k. SVG radius =
+              // sqrt(sizes[i]) / 2.
+              //
+              // Per-point colour (s.pointColors) accepts two shapes:
+              //   • nested RGB rows [[r,g,b], …] (1 row = shared,
+              //     N rows = per-point), each component in [0, 1]
+              //   • flat numeric vector — colormap-index data;
+              //     for now we just normalise into the palette as a
+              //     visual hint (full colormap support is a separate
+              //     follow-up). Cell colours fall back to `s.color`
+              //     when pointColors is null.
+              const sizes = Array.isArray(s.sizes) ? s.sizes : null;
+              const sz0   = sizes && sizes.length === 1 ? sizes[0] : null;
+              const pc    = Array.isArray(s.pointColors) ? s.pointColors : null;
+              const isRgbMatrix = pc && pc.length > 0 && Array.isArray(pc[0]);
+              const colorFor = (i) => {
+                if (!pc) return color;
+                if (isRgbMatrix) {
+                  const row = pc.length === 1 ? pc[0] : pc[i];
+                  if (!row) return color;
+                  const r = Math.round(255 * (row[0] || 0));
+                  const g = Math.round(255 * (row[1] || 0));
+                  const b = Math.round(255 * (row[2] || 0));
+                  return `rgb(${r},${g},${b})`;
+                }
+                // Flat numeric → simple palette wraparound.
+                const idx = Math.abs((pc[i] | 0)) % PALETTE.length;
+                return PALETTE[idx];
+              };
+              return (
+                <g key={s.name}>
+                  {s.theta.map((th, i) => {
+                    const norm = normalizePolar(th, s.rho[i]);
+                    if (!norm) return null;
+                    const [x, y] = ptFor(norm.theta, norm.rho);
+                    const area = sz0 != null ? sz0
+                               : (sizes && Number.isFinite(sizes[i])) ? sizes[i]
+                               : 36;
+                    const r = Math.max(1.5, Math.sqrt(Math.max(0, area)) / 2);
+                    const fc = colorFor(i);
+                    return <circle key={i} cx={x} cy={y} r={r}
+                      fill={fc} fillOpacity="0.5"
+                      stroke={fc} strokeWidth="1" />;
+                  })}
+                </g>
+              );
+            }
+            if (mode === 'compass') {
+              // compass — arrow from origin to each (theta, rho).
+              // Arrowhead is a small filled triangle perpendicular to
+              // the shaft at the tip. Shaft length matches rScale(rho)
+              // so longer vectors visibly reach further out. LineSpec
+              // string `s.dash` controls dash pattern (e.g. 'r--'
+              // sets dash='dashed'); arrowhead stays solid for
+              // readability even on dashed shafts.
+              const dashMap = { dashed: '4 3', dotted: '1 3', dashdot: '4 3 1 3' };
+              const dashArr = dashMap[s.dash] || null;
+              return (
+                <g key={s.name}>
+                  {s.theta.map((th, i) => {
+                    const norm = normalizePolar(th, s.rho[i]);
+                    if (!norm) return null;
+                    const [xT, yT] = ptFor(norm.theta, norm.rho);
+                    const len = Math.hypot(xT, yT);
+                    const head = Math.max(3, Math.min(10, len * 0.18));
+                    const ux = xT / (len || 1), uy = yT / (len || 1);
+                    const px = -uy, py = ux;
+                    const bX = xT - ux * head;
+                    const bY = yT - uy * head;
+                    const w = head * 0.55;
+                    const x1 = bX + px * w, y1 = bY + py * w;
+                    const x2 = bX - px * w, y2 = bY - py * w;
+                    return (
+                      <g key={i}>
+                        <line x1={0} y1={0} x2={xT} y2={yT}
+                              stroke={color} strokeWidth={s.width || 1.6}
+                              strokeLinecap="round"
+                              {...(dashArr ? { strokeDasharray: dashArr } : {})} />
+                        <path d={`M${xT.toFixed(2)},${yT.toFixed(2)} `
+                               + `L${x1.toFixed(2)},${y1.toFixed(2)} `
+                               + `L${x2.toFixed(2)},${y2.toFixed(2)} Z`}
+                              fill={color} />
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            }
+            if (mode === 'bar' || mode === 'rose') {
+              // rose differs visually from polarhistogram: classic
+              // MATLAB rose draws translucent wedges whose vertices
+              // touch the origin (i.e. triangle-like petals) WITHOUT
+              // a strong outline, evoking the "rose diagram" look.
+              // polarhistogram = solid filled bars with a stroke.
+              const isRose = mode === 'rose';
+              const fillOpacity = isRose ? 0.35 : 0.6;
+              const strokeW     = isRose ? 0.4  : 0.8;
               // polarhistogram — radial bars: theta is the bin centre,
               // rho is the count, and the wedge spans (theta - dθ/2,
               // theta + dθ/2) where dθ is inferred from neighbour spacing.
@@ -657,20 +803,21 @@ export default function PolarPlot({
                             + `L${xr1.toFixed(2)},${yr1.toFixed(2)} `
                             + `L${xo1.toFixed(2)},${yo1.toFixed(2)} Z`;
                     return <path key={i} d={d}
-                      fill={color} fillOpacity="0.6"
-                      stroke={color} strokeWidth="0.8" />;
+                      fill={color} fillOpacity={fillOpacity}
+                      stroke={color} strokeWidth={strokeW} />;
                   })}
                 </g>
               );
             }
 
-            // Default: line / polyline.
+            // Default: line / polyline. Negative-rho samples are
+            // reflected to the opposite angle (MATLAB semantics).
             let d = '';
             let started = false;
             for (let i = 0; i < s.theta.length; i++) {
-              const rho = s.rho[i];
-              if (rho == null || !Number.isFinite(rho)) { started = false; continue; }
-              const [x, y] = ptFor(s.theta[i], rho);
+              const norm = normalizePolar(s.theta[i], s.rho[i]);
+              if (!norm) { started = false; continue; }
+              const [x, y] = ptFor(norm.theta, norm.rho);
               d += (started ? 'L' : 'M') + x.toFixed(2) + ',' + y.toFixed(2) + ' ';
               started = true;
             }

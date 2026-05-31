@@ -43,8 +43,11 @@ function sameViewport(a, b) {
     return a.x[0] === b.x[0] && a.x[1] === b.x[1]
         && a.y[0] === b.y[0] && a.y[1] === b.y[1];
   }
-  // polar viewport shape: { rmin, rmax, ... }
-  return a.rmin === b.rmin && a.rmax === b.rmax;
+  // polar viewport shape: { r: [lo, hi], theta?: [lo, hi] }
+  if (Array.isArray(a.r) && Array.isArray(b.r)) {
+    return a.r[0] === b.r[0] && a.r[1] === b.r[1];
+  }
+  return false;
 }
 
 export default function SubplotGrid({
