@@ -61,6 +61,25 @@ TEST_F(NormalizeParamTest, ScaleAndCenterReference)
     EXPECT_DOUBLE_EQ(evalScalar("cm(5)"), 2.0);
 }
 
+// 'scale','iqr' and 'medianiqr' must use MATLAB's prctile (k-0.5)/n IQR
+// convention, not the R-type-7 (n-1)*p rule (which gave a different IQR for
+// small n). For [1 2 4 8 16 32] prctile gives Q1=2, Q3=16, IQR=14.
+// DEEP-PROBE c173.
+TEST_F(NormalizeParamTest, ScaleIqrAndMedianIqr)
+{
+    // scale by IQR=14: x(1)/14 = 1/14.
+    eval("si = normalize([1 2 4 8 16 32], 'scale', 'iqr');");
+    EXPECT_NEAR(evalScalar("si(1)"), 1.0 / 14.0, 1e-12);
+    // medianiqr: (x - median) / IQR; median=6, IQR=14 -> (1-6)/14.
+    eval("mi = normalize([1 2 4 8 16 32], 'medianiqr');");
+    EXPECT_NEAR(evalScalar("mi(1)"), -5.0 / 14.0, 1e-12);
+    // odd n=5 [1..5]: prctile Q1=1.75, Q3=4.25, IQR=2.5 -> x(1)/2.5.
+    eval("s5 = normalize([1 2 3 4 5], 'scale', 'iqr');");
+    EXPECT_NEAR(evalScalar("s5(1)"), 1.0 / 2.5, 1e-12);
+    // standalone iqr is unaffected (already MATLAB-correct).
+    EXPECT_DOUBLE_EQ(evalScalar("iqr([1 2 4 8 16 32])"), 14.0);
+}
+
 // normalize(x,'zscore','robust'): centre by MEDIAN, scale by the raw MAD
 // (median absolute deviation). The 'robust' param was parsed-and-ignored, so
 // numkit fell back to the standard mean/std z-score. vs MATLAB R2025b.
