@@ -609,6 +609,18 @@ void shift2D(const double *src, double *dst, size_t R, size_t C,
 Value circshift(const Value &x, int64_t k, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
+    // Non-DOUBLE (char / logical / complex / cell / string): circshift is a
+    // pure rearrangement — route through the type-agnostic ND permute. Scalar
+    // k shifts along the first non-singleton dimension.
+    if (x.type() != ValueType::DOUBLE) {
+        if (x.isScalar() || x.numel() == 0) return x;
+        int fnsd = 0;
+        for (int i = 0; i < dd.ndim(); ++i)
+            if (dd.dim(i) > 1) { fnsd = i; break; }
+        int64_t sh[Dims::kMaxRank] = {0};
+        sh[fnsd] = k;
+        return circshiftND(x, Span<const int64_t>(sh, fnsd + 1), mr);
+    }
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
     if (dd.isVector()) {
         const size_t n = x.numel();
@@ -627,9 +639,10 @@ Value circshift(const Value &x, int64_t k, std::pmr::memory_resource *mr)
 Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_resource *mr)
 {
     const ValueType t = x.type();
-    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
-        || t == ValueType::FUNC_HANDLE)
-        throw Error(std::string("circshift: ND fallback does not support type '")
+    // STRING arrays + struct arrays + function-handle arrays are deferred.
+    if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE
+        || t == ValueType::STRING)
+        throw Error(std::string("circshift: does not support type '")
                      + mtypeName(t) + "'",
                      0, 0, "circshift", "", "numkit:circshift:typeND");
     const auto &d = x.dims();
@@ -639,9 +652,16 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
         throw Error("circshift: rank exceeds 32",
                      0, 0, "circshift", "", "numkit:circshift:tooManyDims");
 
+    const bool isCell = (t == ValueType::CELL);
+    if (isCell && nd > 2)
+        throw Error("circshift: cell array rank > 2 not supported",
+                     0, 0, "circshift", "", "numkit:circshift:cellND");
+
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = d.dim(i);
-    auto r = Value::matrixND(outDims, nd, t, mr);
+    // CELL needs proper cell storage (Value::matrixND does not allocate it).
+    Value r = isCell ? Value::cell(outDims[0], nd >= 2 ? outDims[1] : 1, mr)
+                     : Value::matrixND(outDims, nd, t, mr);
     if (x.numel() == 0) return r;
 
     const int nshifts = static_cast<int>(shifts.size());
@@ -651,16 +671,21 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
         shiftMod[i] = wrap(s, d.dim(i));
     }
 
-    const size_t es = elementSize(t);
-    const char *src = static_cast<const char *>(x.rawData());
-    char *dst = static_cast<char *>(r.rawDataMut());
+    // CELL permutes element-by-element (Value copy); POD types copy raw
+    // bytes. circshift is a pure rearrangement, so it is type-agnostic.
+    const size_t es = isCell ? 0 : elementSize(t);
+    const char *src = isCell ? nullptr : static_cast<const char *>(x.rawData());
+    char *dst = isCell ? nullptr : static_cast<char *>(r.rawDataMut());
+    auto copyElem = [&](size_t dIdx, size_t sIdx) {
+        if (isCell) r.cellAt(dIdx) = x.cellAt(sIdx);
+        else        std::memcpy(dst + dIdx * es, src + sIdx * es, es);
+    };
     const size_t R = d.dim(0);
     const size_t shift0 = shiftMod[0];
 
     if (nd == 1) {
         for (size_t i = 0; i < R; ++i)
-            std::memcpy(dst + i * es,
-                        src + ((i + R - shift0) % R) * es, es);
+            copyElem(i, (i + R - shift0) % R);
         return r;
     }
 
@@ -681,14 +706,13 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
             dstOuterOff += outerCoords[i - 1] * srcStrides[i];
         }
         if (shift0 == 0) {
-            std::memcpy(dst + dstOuterOff * es,
-                        src + srcOuterOff * es,
-                        R * es);
+            if (isCell)
+                for (size_t i = 0; i < R; ++i) copyElem(dstOuterOff + i, srcOuterOff + i);
+            else
+                std::memcpy(dst + dstOuterOff * es, src + srcOuterOff * es, R * es);
         } else {
             for (size_t i = 0; i < R; ++i)
-                std::memcpy(dst + (dstOuterOff + i) * es,
-                            src + (srcOuterOff + (i + R - shift0) % R) * es,
-                            es);
+                copyElem(dstOuterOff + i, srcOuterOff + (i + R - shift0) % R);
         }
     } while (incrementCoords(outerCoords, outerIter));
 
@@ -698,6 +722,13 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
 Value circshift(const Value &x, int64_t kRow, int64_t kCol, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
+    // Non-DOUBLE: route through the type-agnostic ND permute (shift dim1 by
+    // kRow, dim2 by kCol; higher dims unshifted).
+    if (x.type() != ValueType::DOUBLE) {
+        if (x.isScalar() || x.numel() == 0) return x;
+        const int64_t shifts[2] = {kRow, kCol};
+        return circshiftND(x, Span<const int64_t>(shifts, 2), mr);
+    }
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
     if (dd.is3D()) {
         const size_t R = dd.rows(), C = dd.cols(), P = dd.pages();
