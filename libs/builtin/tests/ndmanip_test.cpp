@@ -34,6 +34,43 @@ TEST_P(NDManipTest, Permute2DTransposeEquivalent)
     EXPECT_DOUBLE_EQ((*A)(2, 1), 6.0);
 }
 
+// permute on non-DOUBLE types (char/logical/complex/single/cell): a pure
+// rearrangement -> type-preserving. Was DOUBLE-only ("Not a double array").
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(NDManipTest, PermuteNonDouble)
+{
+    // char transpose: ['ab';'cd'] -> ['ac';'bd'].
+    eval("cm = permute(['ab';'cd'], [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1))"), 97.0);   // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,2))"), 99.0);   // 'c'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(2,1))"), 98.0);   // 'b'
+    // cell: off-diagonal swap.
+    eval("cp = permute({1,2;3,4}, [2 1]); a = cp{2,1}; b = cp{1,2};");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(cp))"), 1.0);
+    // logical.
+    eval("lg = permute(logical([1 0;0 1]), [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1,2))"), 0.0);
+    // complex.
+    eval("zx = permute([1+1i 2; 3 4], [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(zx(1,2))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(zx(1,1))"), 1.0);
+    // single preserved.
+    eval("sg = permute(single([1 2;3 4]), [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(sg),'single'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(sg(1,2))"), 3.0);
+    // 3-D char permute.
+    eval("p3 = permute(reshape('abcdefgh',2,2,2), [2 1 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(p3(1,2,1))"), 98.0);  // 'b'
+    // ipermute (delegates to permute) on char round-trips.
+    eval("rt = ipermute(['ac';'bd'], [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(rt(1,2))"), 98.0);    // 'b'
+    // double path unchanged.
+    eval("dd = permute([1 2;3 4], [2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1,2)"), 3.0);
+}
+
 TEST_P(NDManipTest, Permute3DSwapPagesAndCols)
 {
     // 2×3×2 → permute [1 3 2] → 2×2×3

@@ -117,6 +117,42 @@ Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *m
     for (int i = 0; i < inNd; ++i) inDims[i] = dd.dim(i);
     for (int k = 0; k < inNd; ++k) outDimsArr[k] = inDims[p[k] - 1];
 
+    // Non-DOUBLE (char / logical / complex / single / int / cell): permute is
+    // a pure rearrangement -> type-preserving. Strided gather, copying raw
+    // bytes (POD) or Value elements (CELL). The DOUBLE fast paths below are
+    // left untouched.
+    if (x.type() != ValueType::DOUBLE) {
+        const ValueType t = x.type();
+        const bool isCell = (t == ValueType::CELL);
+        if (t == ValueType::STRING || t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
+            throw Error(std::string("permute: does not support type '")
+                         + mtypeName(t) + "'",
+                         0, 0, "permute", "", "numkit:permute:type");
+        if (isCell && inNd > 2)
+            throw Error("permute: cell array rank > 2 not supported",
+                         0, 0, "permute", "", "numkit:permute:cellND");
+        Value r = isCell ? Value::cell(outDimsArr[0], inNd >= 2 ? outDimsArr[1] : 1, mr)
+                         : Value::matrixND(outDimsArr, inNd, t, mr);
+        if (x.numel() == 0) return r;
+        size_t inStrides[Dims::kMaxRank];
+        computeStridesColMajor(Dims(inDims, inNd), inStrides);
+        const size_t es = isCell ? 0 : elementSize(t);
+        const char *src = isCell ? nullptr : static_cast<const char *>(x.rawData());
+        char *dst = isCell ? nullptr : static_cast<char *>(r.rawDataMut());
+        size_t outCoords[Dims::kMaxRank] = {0};
+        Dims outDimsObj(outDimsArr, inNd);
+        size_t dstOff = 0;
+        do {
+            size_t srcOff = 0;
+            for (int k = 0; k < inNd; ++k)
+                srcOff += outCoords[k] * inStrides[p[k] - 1];
+            if (isCell) r.cellAt(dstOff) = x.cellAt(srcOff);
+            else        std::memcpy(dst + dstOff * es, src + srcOff * es, es);
+            ++dstOff;
+        } while (incrementCoords(outCoords, outDimsObj));
+        return r;
+    }
+
     // 2D / 3D fast path uses createMatrix / createMatrix3d via matrixND;
     // ≥ 4D goes through Value::matrixND. Trailing 1s are kept.
     auto r = Value::matrixND(outDimsArr, inNd, ValueType::DOUBLE, mr);

@@ -257,7 +257,7 @@ together.
 | `numel` | ✅ | Sig: r = numel(...). Shape op. Spec-extension batch 2026-05-09. |
 | `ones` | ✅ | Sig: r = ones(...). Spec-extension batch 2026-05-09. |
 | `paddata` | ✅ | Sig: Y = paddata(X, M). Pad to 1500. 1000 iters. |
-| `permute` | ✅ | Sig: r = permute(...). Shape op. Spec-extension batch 2026-05-09. |
+| `permute` | ✅ | Sig: r = permute(A,perm). Shape op (type-agnostic). DEEP-PROBE 2026-05-31: extended to CHAR / LOGICAL / COMPLEX / single / CELL (the DOUBLE-only path threw 'Not a double array'); pure rearrangement via strided byte/cellAt gather. permute(['ab';'cd'],[2 1])=['ac';'bd'] (m11='a'=97, m12='c'=99); permute({1 2;3 4},[2 1]) swaps off-diagonal cells (c21=2,c12=3); 3-D char permute([2 1 3]) too. STRING/struct deferred; cell rank>2 deferred. ipermute delegates to permute. Spec-extension batch 2026-05-09. |
 | `rand` | ✅ | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `repelem` | ✅ | Sig: y = repelem(v, n | counts); Y = repelem(A, r, c) with r/c scalar or vector. Covers: scalar count (fast path), per-element count vector (incl. a zero count dropping an element), column-vector orientation, and matrix per-row/per-column counts (scalar+vector mix both ways). Queue-clearing 2026-05-29: numkit previously threw 'Cannot convert double to scalar' on any count vector. |
 | `repmat` | ✅ | Sig: r = repmat(...). Spec-extension batch 2026-05-09. |
