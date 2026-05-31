@@ -1,4 +1,5 @@
-{"name": "rmoutliers", "namespace": "stats", "setup": "x = [1 2 3 4 5 6 7 100];",
- "expr": "y = rmoutliers(x); n = numel(y); s = sum(y);", "iters": 5, "tol": 0,
- "fingerprint": ["n", "s", "y(1)", "y(7)"],
- "comment": "Sig: y = rmoutliers(x). Drops outliers from x."}
+{"name": "rmoutliers", "namespace": "stats", "setup": "x = [1 2 3 100 4 5]; M = [1 2; 3 4; 5 100; 7 8; 9 10];",
+ "expr": "y = rmoutliers(x); ny = numel(y); sy = sum(y); me = rmoutliers(x,'mean'); nme = numel(me); pc = rmoutliers(x,'percentiles',[10 90]); npc = numel(pc); spc = sum(pc); mt = rmoutliers(x,'median','ThresholdFactor',1); nmt = numel(mt); smt = sum(mt); R = rmoutliers(M); nR = numel(R); sR = sum(R(:)); [~,I] = rmoutliers(x); dI = sum(double(I)); iI4 = double(I(4)); [~,IM] = rmoutliers(M); dIM = sum(double(IM)); rIM = size(IM,1);",
+ "iters": 5, "tol": 0,
+ "fingerprint": ["ny", "sy", "y(1)", "nme", "me(4)", "npc", "spc", "pc(1)", "nmt", "smt", "nR", "sR", "R(3,1)", "dI", "iI4", "dIM", "rIM"],
+ "comment": "Sig: [y,idx] = rmoutliers(A[,method][,percentiles vec][,'ThresholdFactor',tf]). DEEP-PROBE 2026-05-31: previously delegated to the default median detector and IGNORED method/percentiles/ThresholdFactor, and FLATTENED matrices instead of removing rows. Now: vectors drop flagged ENTRIES (orientation preserved); matrices detect per column and remove any ROW with an outlier (R=rmoutliers([1 2;3 4;5 100;7 8;9 10]) drops row 3). Methods median(default)/mean/quartiles via shared detector; 'percentiles',[lo hi] uses MATLAB prctile bounds (100*(k-0.5)/n). 2nd output = logical removed mask (vector: same orientation, I(4)=1; matrix: r x 1 removed-rows, sum=1). grubbs/gesd/movmean/movmedian throw (deferred). Verified vs MATLAB R2025b on x=[1 2 3 100 4 5]: default->[1 2 3 4 5], mean->unchanged, percentiles[10 90]->[2 3 4 5], median tf=1->[2 3 4 5]."}
