@@ -54,13 +54,17 @@ imgradientxy(const Value &I, const std::string &method, std::pmr::memory_resourc
     // Choose kernels (Gx for horizontal, Gy for vertical).
     std::vector<double> kx, ky;
     int rows = 3, cols = 3;
+    // Kernel sign convention matches MATLAB imgradientxy: Gx is positive
+    // where intensity increases left→right (negative on the left column,
+    // positive on the right), Gy positive where intensity increases
+    // top→bottom. (MATLAB uses hx = [-1 0 1; -2 0 2; -1 0 1] for sobel.)
     if (method == "prewitt") {
-        kx = { 1, 0, -1,
-               1, 0, -1,
-               1, 0, -1 };
-        ky = { 1, 1, 1,
+        kx = {-1, 0, 1,
+              -1, 0, 1,
+              -1, 0, 1 };
+        ky = {-1,-1,-1,
                0, 0, 0,
-              -1,-1,-1 };
+               1, 1, 1 };
     } else if (method == "central") {
         // 1×3 / 3×1 central difference.
         kx = {-0.5, 0, 0.5}; rows = 1; cols = 3;
@@ -69,12 +73,12 @@ imgradientxy(const Value &I, const std::string &method, std::pmr::memory_resourc
         kx = {-1, 1}; rows = 1; cols = 2;
         ky = {-1, 1};
     } else {  // sobel default
-        kx = { 1, 0, -1,
-               2, 0, -2,
-               1, 0, -1 };
-        ky = { 1, 2, 1,
+        kx = {-1, 0, 1,
+              -2, 0, 2,
+              -1, 0, 1 };
+        ky = {-1,-2,-1,
                0, 0, 0,
-              -1,-2,-1 };
+               1, 2, 1 };
     }
 
     Value Kx, Ky;
