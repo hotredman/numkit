@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <complex>
 
 using numkit::Error;
 using numkit::ValueType;
@@ -123,6 +124,38 @@ TEST(BuiltinStringsPublicApi, Num2StrFormatVectorMatrix)
     Value empt = numkit::builtin::num2str(Value::matrix(0, 0, ValueType::DOUBLE, mr),
                                           std::string("%8.3f"), mr);
     EXPECT_EQ(empt.numel(), 0u);
+}
+
+// num2str of a SCALAR complex value. Previously threw "Cannot convert complex
+// with nonzero imaginary part to double scalar". MATLAB formats re±|im|i with
+// a common precision from max(|re|,|im|); a zero-imag element prints as a bare
+// real. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST(BuiltinStringsPublicApi, Num2StrComplexScalar)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto z = [&](double re, double im) {
+        return Value::complexScalar(std::complex<double>(re, im), mr);
+    };
+    EXPECT_EQ(numkit::builtin::num2str(z(3, -1), mr).toString(),  "3-1i");
+    EXPECT_EQ(numkit::builtin::num2str(z(1, 2), mr).toString(),   "1+2i");
+    EXPECT_EQ(numkit::builtin::num2str(z(-2, -3), mr).toString(), "-2-3i");
+    EXPECT_EQ(numkit::builtin::num2str(z(0, 1), mr).toString(),   "0+1i");
+    EXPECT_EQ(numkit::builtin::num2str(z(5, 0), mr).toString(),   "5");  // zero imag -> bare real
+    EXPECT_EQ(numkit::builtin::num2str(z(1.23456789, 9.87654321), mr).toString(),
+              "1.2346+9.8765i");  // default 5 sig
+    // common precision from max magnitude (8 sig), NOT per-part 5.
+    EXPECT_EQ(numkit::builtin::num2str(z(1234.5, 6.789012), mr).toString(),
+              "1234.5+6.789012i");
+    EXPECT_EQ(numkit::builtin::num2str(z(3.141592653589793, 2.5), 8, mr).toString(),
+              "3.1415927+2.5i");
+    EXPECT_EQ(numkit::builtin::num2str(z(1, 2), 3, mr).toString(), "1+2i");
+    EXPECT_EQ(numkit::builtin::num2str(z(3.14159, -2.71828), std::string("%.3f"), mr).toString(),
+              "3.142-2.718i");
+    // complex ARRAY remains a deferred gap -> clear throw, not a crash.
+    Value arr = Value::matrix(1, 2, ValueType::COMPLEX, mr);
+    arr.complexDataMut()[0] = {1, 2};
+    arr.complexDataMut()[1] = {3, -4};
+    EXPECT_THROW(numkit::builtin::num2str(arr, mr), Error);
 }
 
 // int2str: round half away from zero, render as a plain integer (no decimals

@@ -39,8 +39,52 @@ namespace numkit::builtin {
 //   num2str(X, N)      → N significant digits, where N is integer
 //   num2str(X, FMT)    → printf-style format
 // See BUGS.md #26.
+
+namespace {
+// Format a SCALAR complex value as "re±|im|i" (MATLAB num2str). A common
+// precision is used for both parts, derived from max(|re|,|im|) with the same
+// magnitude-aware rule as the real default: prec = max(floor(log10 M),0)+5.
+// precOverride >= 1 forces that precision (the num2str(z,N) form). An element
+// with exactly-zero imaginary part prints as a bare real (num2str(complex(5,0))
+// = "5"). The DEFAULT-precision/N forms for complex ARRAYS use MATLAB's
+// column-aligned layout and remain a deferred gap (see num2str_reg).
+std::string num2strComplexScalar(Complex z, int precOverride)
+{
+    const double re = z.real(), im = z.imag();
+    int prec = precOverride;
+    if (prec < 1) {
+        const double M = std::max(std::fabs(re), std::fabs(im));
+        prec = 5;
+        if (M != 0.0) {
+            const int e = static_cast<int>(std::floor(std::log10(M)));
+            prec = (e > 0 ? e : 0) + 5;
+        }
+    }
+    if (prec > 99) prec = 99;
+    auto fmtP = [prec](double v) {
+        if (v == 0.0) v = 0.0;   // normalise -0 -> 0
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "%.*g", prec, v);
+        return std::string(buf);
+    };
+    if (im == 0.0) return fmtP(re);
+    std::string s = fmtP(re);
+    s += (im < 0.0 ? '-' : '+');
+    s += fmtP(std::fabs(im));
+    s += 'i';
+    return s;
+}
+} // namespace
+
 Value num2str(const Value &x, std::pmr::memory_resource *mr)
 {
+    if (x.type() == ValueType::COMPLEX) {
+        if (!x.isScalar())
+            throw Error("num2str: complex array formatting (column-aligned) is "
+                        "not supported in this revision; only scalar complex",
+                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+        return Value::fromString(num2strComplexScalar(x.toComplex(), -1), mr);
+    }
     const double v = x.toScalar();
     // MATLAB num2str default precision is MAGNITUDE-AWARE, not a fixed 5 sig
     // figs: it keeps ~4 digits after the integer part, so prec = digits-left-
@@ -61,6 +105,14 @@ Value num2str(const Value &x, std::pmr::memory_resource *mr)
 
 Value num2str(const Value &x, int N, std::pmr::memory_resource *mr)
 {
+    if (x.type() == ValueType::COMPLEX) {
+        if (!x.isScalar())
+            throw Error("num2str: complex array formatting (column-aligned) is "
+                        "not supported in this revision; only scalar complex",
+                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+        int n = N; if (n < 1) n = 1;
+        return Value::fromString(num2strComplexScalar(x.toComplex(), n), mr);
+    }
     const double v = x.toScalar();
     int n = N;
     if (n < 1)  n = 1;
@@ -94,6 +146,25 @@ Value num2str(const Value &x, const std::string &fmt,
     // magnitude-dependent column-width algorithm and remain a deferred gap
     // (num2str_reg still routes those to the scalar overloads, which throw
     // on non-scalars) — only the deterministic FMT form is handled here.
+
+    // Scalar complex: apply the format to the real and imaginary parts
+    // independently and join them re±|im|i (MATLAB num2str(3.14159-2.71828i,
+    // '%.3f') -> "3.142-2.718i"). Complex ARRAYS remain a deferred gap.
+    if (x.type() == ValueType::COMPLEX) {
+        if (!x.isScalar())
+            throw Error("num2str: complex array formatting (column-aligned) is "
+                        "not supported in this revision; only scalar complex",
+                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+        const Complex z = x.toComplex();
+        const std::string sr = num2str(Value::scalar(z.real(), mr), fmt, mr).toString();
+        if (z.imag() == 0.0) return Value::fromString(sr, mr);
+        std::string s = sr;
+        s += (z.imag() < 0.0 ? '-' : '+');
+        s += num2str(Value::scalar(std::fabs(z.imag()), mr), fmt, mr).toString();
+        s += 'i';
+        return Value::fromString(s, mr);
+    }
+
     const std::size_t nrows = x.dims().rows();
     const std::size_t ncols = x.dims().cols();
     if (nrows * ncols == 0)
