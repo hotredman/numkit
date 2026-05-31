@@ -49,14 +49,18 @@ function HeapBadge({ outputCount }) {
       if (typeof window !== 'undefined' && !window.__heapTraceCounter) window.__heapTraceCounter = 0;
       if (typeof window !== 'undefined') {
         window.__heapTraceCounter++;
-        if ((window.__heapTraceCounter % 6) === 0) {
+        // Opt-in only — set localStorage 'numkit.heapTrace' = '1' to enable.
+        // Off by default so production doesn't spam the console every 30 s.
+        let heapTraceOn = false;
+        try { heapTraceOn = localStorage.getItem('numkit.heapTrace') === '1'; } catch { /* ignore */ }
+        if (heapTraceOn && (window.__heapTraceCounter % 6) === 0) {
           // 6 ticks × 5 s = 30 s. Format chosen for grep:
           //   [heap-trace] js=NN MB wasm=NN MB total=NN MB / 3586 MB pct=NN.N
           const jsMB = Math.round(used / 1048576);
           const wasmMB = Math.round(wasmBytes / 1048576);
           const limMB = Math.round(limit / 1048576);
           const total = jsMB + wasmMB;
-          // eslint-disable-next-line no-console
+           
           console.log(`[heap-trace] js=${jsMB} MB wasm=${wasmMB} MB total=${total} MB / ${limMB} MB pct=${(total/limMB*100).toFixed(1)}`);
         }
       }
