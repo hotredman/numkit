@@ -2,12 +2,11 @@
   "name": "strncmp",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strncmp(\"hello\", \"help\", 3)); r2 = double(strncmp(\"hello\", \"help\", 4));",
+  "expr": "r1 = double(strncmp(\"hello\", \"help\", 3)); r2 = double(strncmp(\"hello\", \"help\", 4)); cc = strncmp({'apple','apricot','banana'}, 'app', 3); k1 = double(cc(1)); k2 = double(cc(2)); k3 = double(cc(3)); se = double(strncmp('ab','ab',5)); sne = double(strncmp('ab','abc',5));",
   "iters": 5,
   "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r1", "r2", "k1", "k2", "k3", "se", "sne"
   ],
-  "comment": "Sig: r = strncmp(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = strncmp(s1,s2,n). DEEP-PROBE 2026-05-31: (a) added CELL-array support (element-wise logical array): strncmp({'apple','apricot','banana'},'app',3)=[1 0 0]; (b) fixed the short-string predicate — when both strings are shorter than n it now requires FULL equality (MATLAB): strncmp('ab','ab',5)=1, strncmp('ab','abc',5)=0 (was returning 0 whenever either was < n)."
 }

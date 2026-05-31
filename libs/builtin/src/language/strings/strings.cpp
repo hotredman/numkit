@@ -426,33 +426,97 @@ Value toChar(const Value &x, std::pmr::memory_resource *mr)
 
 // ── Comparisons ─────────────────────────────────────────────────────────
 
+namespace {
+
+// Element-wise string comparison with MATLAB cell-array broadcasting:
+//   char/string vs char/string -> scalar logical (whole-string compare)
+//   cell vs char/string-scalar  -> logical array shaped like the cell
+//   cell vs cell                -> element-wise; sizes must match, or one
+//                                  is a scalar (1x1) cell that broadcasts
+// `cmp(sa, sb)` is the per-pair predicate (captures n for strncmp).
+template <class Pred>
+Value strCmpElementwise(const Value &a, const Value &b, Pred cmp,
+                        const char *fn, std::pmr::memory_resource *mr)
+{
+    const bool ac = a.isCell(), bc = b.isCell();
+    if (!ac && !bc)
+        return Value::logicalScalar(cmp(a.toString(), b.toString()), mr);
+
+    const std::size_t na = ac ? a.numel() : 1;
+    const std::size_t nb = bc ? b.numel() : 1;
+    std::size_t n = 1, rr = 1, cc = 1;
+    auto shapeOf = [](const Value &v, std::size_t &r, std::size_t &c) {
+        r = static_cast<std::size_t>(v.dims().rows());
+        c = static_cast<std::size_t>(v.dims().cols());
+    };
+    if (ac && bc) {
+        if (na == nb)      { n = na; shapeOf(a, rr, cc); }
+        else if (na == 1)  { n = nb; shapeOf(b, rr, cc); }
+        else if (nb == 1)  { n = na; shapeOf(a, rr, cc); }
+        else
+            throw Error(std::string(fn) + ": cell array sizes must match",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":cellSize");
+    } else if (ac) { n = na; shapeOf(a, rr, cc); }
+    else           { n = nb; shapeOf(b, rr, cc); }
+
+    auto out = Value::matrix(rr, cc, ValueType::LOGICAL, mr);
+    auto *od = out.logicalDataMut();
+    const std::string scalA = ac ? std::string() : a.toString();
+    const std::string scalB = bc ? std::string() : b.toString();
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::string sa = ac ? a.cellAt(na == 1 ? 0 : i).toString() : scalA;
+        const std::string sb = bc ? b.cellAt(nb == 1 ? 0 : i).toString() : scalB;
+        od[i] = cmp(sa, sb) ? 1 : 0;
+    }
+    return out;
+}
+
+// strncmp/strncmpi predicate: if BOTH strings are at least n chars, compare
+// the first n; otherwise require full equality (MATLAB: strncmp('ab','ab',5)
+// is true, strncmp('ab','abc',5) is false).
+inline bool strnEq(const std::string &sa, const std::string &sb, size_t n)
+{
+    if (sa.size() >= n && sb.size() >= n)
+        return sa.compare(0, n, sb, 0, n) == 0;
+    return sa == sb;
+}
+
+} // namespace
+
 Value strcmp(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
-    return Value::logicalScalar(a.toString() == b.toString(), mr);
+    return strCmpElementwise(a, b,
+        [](const std::string &x, const std::string &y) { return x == y; },
+        "strcmp", mr);
 }
 
 Value strcmpi(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
-    std::string sa = a.toString(), sb = b.toString();
-    std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
-    std::transform(sb.begin(), sb.end(), sb.begin(), ::tolower);
-    return Value::logicalScalar(sa == sb, mr);
+    return strCmpElementwise(a, b,
+        [](const std::string &x, const std::string &y) {
+            std::string sa = x, sb = y;
+            std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
+            std::transform(sb.begin(), sb.end(), sb.begin(), ::tolower);
+            return sa == sb;
+        }, "strcmpi", mr);
 }
 
 Value strncmp(const Value &a, const Value &b, size_t n, std::pmr::memory_resource *mr)
 {
-    std::string sa = a.toString(), sb = b.toString();
-    if (sa.size() < n || sb.size() < n) return Value::logicalScalar(false, mr);
-    return Value::logicalScalar(sa.compare(0, n, sb, 0, n) == 0, mr);
+    return strCmpElementwise(a, b,
+        [n](const std::string &x, const std::string &y) { return strnEq(x, y, n); },
+        "strncmp", mr);
 }
 
 Value strncmpi(const Value &a, const Value &b, size_t n, std::pmr::memory_resource *mr)
 {
-    std::string sa = a.toString(), sb = b.toString();
-    if (sa.size() < n || sb.size() < n) return Value::logicalScalar(false, mr);
-    std::transform(sa.begin(), sa.begin() + n, sa.begin(), ::tolower);
-    std::transform(sb.begin(), sb.begin() + n, sb.begin(), ::tolower);
-    return Value::logicalScalar(sa.compare(0, n, sb, 0, n) == 0, mr);
+    return strCmpElementwise(a, b,
+        [n](const std::string &x, const std::string &y) {
+            std::string sa = x, sb = y;
+            std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
+            std::transform(sb.begin(), sb.end(), sb.begin(), ::tolower);
+            return strnEq(sa, sb, n);
+        }, "strncmpi", mr);
 }
 
 // ── Case transforms ─────────────────────────────────────────────────────

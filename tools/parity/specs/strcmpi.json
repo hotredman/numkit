@@ -1,13 +1,14 @@
 {
   "name": "strcmpi",
   "namespace": "core",
-  "setup": "a = 'HELLO'; b = 'hello';",
-  "expr": "y = strcmpi(a, b);",
+  "setup": "a = 'HELLO'; b = 'hello'; c = {'APPLE','x','Apple'};",
+  "expr": "y = strcmpi(a, b); yc = strcmpi(c, 'apple'); c1 = double(yc(1)); c2 = double(yc(2)); c3 = double(yc(3)); ncc = numel(yc);",
   "iters": 1000,
   "tol": 1e-09,
-  "comment": "Sig: TF = strcmpi(A, B). 100k iters.",
+  "comment": "Sig: TF = strcmpi(A, B). DEEP-PROBE 2026-05-31: added CELL-array support (case-insensitive, element-wise). strcmpi({'APPLE','x','Apple'},'apple')=[1 0 1].",
   "fingerprint": [
     "double(y)",
-    "numel(y)"
+    "numel(y)",
+    "c1", "c2", "c3", "ncc"
   ]
 }
