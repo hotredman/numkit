@@ -190,6 +190,38 @@ TEST_F(ImageBatch4Test, FspecialUnsharp)
     EXPECT_NEAR(evalScalar("u0(1,1)"),  0.0,             1e-12);
 }
 
+// fspecial('motion',len,theta) = anti-aliased motion-blur PSF (MATLAB
+// R2025b). Was 'unknown filter type'; also fixes the fspecial_reg
+// size-doubling bug that fed motion's theta the len value. Pinned to MATLAB.
+TEST_F(ImageBatch4Test, FspecialMotion)
+{
+    // theta = 0: a horizontal line of len averaging weights (1 x len, all 1/len).
+    eval("m0 = fspecial('motion', 9, 0);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m0,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m0,2)"), 9.0);
+    EXPECT_NEAR(evalScalar("sum(m0(:))"), 1.0,        1e-12);
+    EXPECT_NEAR(evalScalar("m0(1,1)"), 1.0 / 9.0,     1e-12);
+
+    // theta = 90: vertical (9 x 1).
+    eval("m90 = fspecial('motion', 9, 90);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m90,1)"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m90,2)"), 1.0);
+    EXPECT_NEAR(evalScalar("sum(m90(:))"), 1.0,       1e-12);
+
+    // theta = 45: a 7x7 anti-aliased diagonal.
+    eval("m45 = fspecial('motion', 9, 45);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m45,1)"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m45,2)"), 7.0);
+    EXPECT_NEAR(evalScalar("sum(m45(:))"), 1.0,       1e-12);
+    EXPECT_NEAR(evalScalar("m45(4,4)"), 0.0997064915, 1e-9);  // centre
+    EXPECT_NEAR(evalScalar("m45(1,7)"), 0.0755136399, 1e-9);
+    EXPECT_NEAR(evalScalar("m45(1,1)"), 0.0,          1e-12); // empty corner
+
+    eval("m5 = fspecial('motion', 5, 45);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m5,1)"), 5.0);
+    EXPECT_NEAR(evalScalar("m5(3,3)"), 0.1771490832, 1e-9);
+}
+
 TEST_F(ImageBatch4Test, Im2Col)
 {
     eval("C = im2col([1 2; 3 4], [2 2], 'distinct');");
