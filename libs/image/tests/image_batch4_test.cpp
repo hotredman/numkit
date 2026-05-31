@@ -236,3 +236,25 @@ TEST_F(ImageBatch4Test, ImHmaxImHmin)
     eval("B = imhmin([1 5 1; 1 1 1; 1 1 1], 3);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(B)"), 9.0);
 }
+
+// DEEP-PROBE c176: imbinarize 'global' / 'adaptive' method-string forms.
+// 'adaptive' rewires to adaptthresh + the per-pixel binarize comparison.
+// numkit previously misread 'adaptive' as a per-pixel threshold and threw.
+// Deterministic 16x16 mod-product image; sums pinned to MATLAB R2025b.
+TEST_F(ImageBatch4Test, ImbinarizeMethodStrings)
+{
+    eval("J = uint8(mod((1:16)' * (1:16), 256));");
+    // 'global' == the default Otsu threshold.
+    eval("bg = imbinarize(J, 'global'); bd = imbinarize(J);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(bg(:))"), 78.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isequal(bg, bd))"), 1.0);
+    // 'adaptive' (default Sensitivity 0.5).
+    eval("ba = imbinarize(J, 'adaptive');");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(ba(:))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ba(8,8))"), 0.0);
+    // 'adaptive' with a higher Sensitivity flags more foreground.
+    eval("bs = imbinarize(J, 'adaptive', 'Sensitivity', 0.7);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(bs(:))"), 224.0);
+    // An unknown method errors.
+    EXPECT_THROW(eval("imbinarize(J, 'bogus');"), std::exception);
+}

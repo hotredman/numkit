@@ -1565,6 +1565,48 @@ void imbinarize_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imbinarize: requires (I[, thresh])", 0, 0, "imbinarize", "",
                     "numkit:imbinarize:nargin");
     auto *mr = ctx.engine->resource();
+
+    // Method-string form: imbinarize(I, 'global') | imbinarize(I, 'adaptive', ...).
+    if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
+        std::string m = args[1].toString();
+        for (char &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (m == "global") {
+            auto [t, em] = graythresh(args[0], mr);
+            (void)em;
+            outs[0] = imbinarize(args[0], t.toScalar(), mr);
+            return;
+        }
+        if (m == "adaptive") {
+            // imbinarize(I,'adaptive') = binarize(I, adaptthresh(I, sens, polarity)).
+            double sens = 0.5;
+            std::string polarity = "bright";
+            for (std::size_t i = 2; i + 1 < args.size(); i += 2) {
+                if (!args[i].isChar() && !args[i].isString())
+                    throw Error("imbinarize: expected a Name-Value pair",
+                                0, 0, "imbinarize", "", "numkit:imbinarize:nv");
+                std::string nm = args[i].toString();
+                for (char &c : nm) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (nm == "sensitivity")
+                    sens = args[i + 1].toScalar();
+                else if (nm == "foregroundpolarity") {
+                    polarity = args[i + 1].toString();
+                    for (char &c : polarity)
+                        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                } else
+                    throw Error("imbinarize: unknown option '" + args[i].toString() + "'",
+                                0, 0, "imbinarize", "", "numkit:imbinarize:opt");
+            }
+            if (polarity != "bright")
+                throw Error("imbinarize: ForegroundPolarity 'dark' is not yet supported",
+                            0, 0, "imbinarize", "", "numkit:imbinarize:polarity");
+            Value T = adaptthresh(args[0], sens, 0, "mean", mr);
+            outs[0] = imbinarize(args[0], T, mr);
+            return;
+        }
+        throw Error("imbinarize: method must be 'global' or 'adaptive'",
+                    0, 0, "imbinarize", "", "numkit:imbinarize:method");
+    }
+
     if (args.size() >= 2 && !args[1].isEmpty()) {
         // Dispatch on T's shape: scalar → fast path, matrix → per-pixel.
         if (args[1].numel() == 1) {
