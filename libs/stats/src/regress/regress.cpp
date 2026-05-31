@@ -176,13 +176,26 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
     double *sd = statsV.doubleDataMut();
     sd[0] = R2; sd[1] = F; sd[2] = pF; sd[3] = sigma2;
 
-    // rint: 100·(1-α)% CI for residuals. h_ii = X[i,:] · (XtX)^{-1} · X[i,:]'.
-    // rint(i,:) = r(i) ± t_crit · σ · sqrt(1 - h_ii).
-    // When h_ii ≥ 1 (perfect leverage), CI degenerates to [r(i), r(i)].
+    // rint: 100·(1-α)% CI for residuals, used to diagnose outliers
+    // (Chatterjee & Hadi 1986 eq.14; Belsley, Kuh & Welsch 1980 eq.2.26).
+    // MATLAB uses the LEAVE-ONE-OUT variance estimate σ_i and (nu-1) dof,
+    // NOT a flat σ·sqrt(1-h) with nu dof:
+    //   h_ii  = X[i,:]·(XtX)^{-1}·X[i,:]'                  (leverage)
+    //   σ_i   = sqrt(max(0, nu·s²/(nu-1) - r_i²/((nu-1)(1-h_ii))))
+    //   ser   = sqrt(1-h_ii)·σ_i,   t = tinv(1-α/2, nu-1)
+    //   rint  = r_i ± t·ser
+    // When h_ii ≥ 1 (perfect leverage) the CI degenerates to [r_i, r_i].
     Value rintV = Value::matrix(N, 2, ValueType::DOUBLE, mr);
     double *rid = rintV.doubleDataMut();
-    const double sigma = (sigma2 == sigma2 && sigma2 > 0.0)
-                         ? std::sqrt(sigma2) : 0.0;
+    const double nu   = dfErr;
+    const double s2   = sigma2;
+    const double rmse = (s2 == s2 && s2 > 0.0) ? std::sqrt(s2) : 0.0;
+    double tcritR = tcrit;                       // nu<=1 fallback: nu dof
+    if (nu > 1.0) {
+        Value pV = Value::scalar(1.0 - alpha / 2.0, mr);
+        tcritR = tinv(pV, nu - 1.0, mr).toScalar();
+    }
+    const double epsThresh = 1.4901161193847656e-08;   // sqrt(eps)
     for (size_t i = 0; i < N; ++i) {
         // h_ii = sum_{j,k} X[i,j] · invMat[j,k] · X[i,k].
         double hii = 0.0;
@@ -193,14 +206,19 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
             hii += X.elemAsDouble(i + j * N) * row;
         }
         const double oneMinusH = 1.0 - hii;
-        if (oneMinusH > 0.0 && std::isfinite(oneMinusH)) {
-            const double sei = sigma * std::sqrt(oneMinusH);
-            rid[i]       = r[i] - tcrit * sei;
-            rid[i + N]   = r[i] + tcrit * sei;
-        } else {
-            rid[i]       = r[i];
-            rid[i + N]   = r[i];
+        double ser = 0.0;
+        if (oneMinusH > epsThresh && std::isfinite(oneMinusH)) {
+            if (nu > 1.0) {
+                const double denom  = (nu - 1.0) * oneMinusH;
+                const double sigmai = std::sqrt(std::max(0.0,
+                    (nu * s2 / (nu - 1.0)) - (r[i] * r[i]) / denom));
+                ser = std::sqrt(oneMinusH) * sigmai;
+            } else {
+                ser = std::sqrt(oneMinusH) * rmse;
+            }
         }
+        rid[i]     = r[i] - tcritR * ser;
+        rid[i + N] = r[i] + tcritR * ser;
     }
 
     return {std::move(bV), std::move(bintV), std::move(rV),
