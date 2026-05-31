@@ -209,6 +209,14 @@ void grpstats_reg(Span<const Value> args, size_t nargout,
         }
     }
 
+    // With no whichstats given, MATLAB's default outputs are
+    // [means, sem, counts] — emit as many as the caller requested.
+    if (fn_names.empty()) {
+        static const char *kDefault[] = {"mean", "sem", "numel"};
+        const size_t k = std::min<size_t>(std::max<size_t>(nargout, 1), 3);
+        for (size_t i = 0; i < k; ++i) fn_names.emplace_back(kDefault[i]);
+    }
+
     auto results = grpstats(args[0], args[1], fn_names, mr);
     // Distribute results across outputs (1-output gets the first;
     // multi-fn cell-of-fn fills successive outputs).
