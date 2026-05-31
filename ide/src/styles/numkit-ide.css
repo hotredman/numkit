@@ -210,10 +210,17 @@ input, select { font-family: inherit; color: inherit; }
   min-height: 0;
 }
 .sidebar-head {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; flex-direction: column; gap: 6px;
   padding: 8px;
   border-bottom: 1px solid var(--line-soft);
 }
+/* One row inside the head. Row 1 = combo + refresh; row 2 = action
+   buttons. The combo flexes to fill, the refresh sits beside it. */
+.sidebar-head-row {
+  display: flex; align-items: center; gap: 6px;
+}
+/* Action row: buttons left-aligned (they don't stretch). */
+.sidebar-head-actions { flex-wrap: wrap; }
 .ws-picker {
   flex: 1;
   background: var(--bg-2); color: var(--fg-1);
@@ -1759,6 +1766,13 @@ input, select { font-family: inherit; color: inherit; }
   height: 100%;
   background: var(--bg-1);
 }
+/* EntityBrowser fills its host (the Workspace panel OR the struct
+   inspector body) as a flex column: fixed toolbar, scrolling grid/list. */
+.entity-browser {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
+.entity-browser .ws-toolbar { flex: 0 0 auto; }
 .ws-toolbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 12px;
@@ -1801,6 +1815,15 @@ input, select { font-family: inherit; color: inherit; }
   font-family: var(--font-mono);
   display: inline-flex; align-items: center; gap: 4px;
 }
+/* "columns ▾" chooser button in the Workspace toolbar (list view). */
+.ws-cols-btn {
+  background: var(--bg-2); color: var(--fg-2);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 3px 9px; font-size: 11px; cursor: pointer;
+  font-family: var(--font-mono);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.ws-cols-btn:hover { border-color: var(--accent); color: var(--fg-0); }
 .ws-segmented button + button { border-left: 1px solid var(--line); }
 .ws-segmented button.is-active,
 .ws-segmented button[aria-selected="true"] {
@@ -1864,21 +1887,6 @@ input, select { font-family: inherit; color: inherit; }
   font-family: var(--font-mono);
   font-size: 11.5px;
 }
-.var-row {
-  display: grid;
-  grid-template-columns: minmax(80px, 1fr) 60px 90px minmax(140px, 2fr) 60px 80px 80px 80px;
-  gap: 12px;
-  padding: 6px 14px;
-  border-bottom: 1px solid var(--line-soft);
-  cursor: pointer;
-  align-items: center;
-  color: var(--fg-1);
-}
-.var-row:hover { background: var(--bg-2); }
-.var-row.var-row-head { color: var(--fg-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; cursor: default; }
-.var-row-name { color: var(--fg-0); }
-.var-row-size, .var-row-bytes, .var-row-stat { color: var(--fg-2); }
-.var-row-preview { color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .ws-empty {
   padding: 40px;
@@ -1927,7 +1935,8 @@ input, select { font-family: inherit; color: inherit; }
   box-shadow: 0 24px 80px oklch(0.05 0.01 220 / 0.6),
               0 0 0 1px oklch(0.78 0.16 145 / 0.08);
   display: grid;
-  grid-template-rows: 38px 40px 28px 1fr 22px;
+  /* titlebar · toolbar · statsbar (auto: 0 when empty) · address · body · status */
+  grid-template-rows: 38px 40px auto 28px 1fr 22px;
   overflow: hidden;
   position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
@@ -1995,16 +2004,23 @@ input, select { font-family: inherit; color: inherit; }
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* Column flex so a drilled matrix can pin its status bar to the
+     bottom (see .ve-body rule below). List/grid views (field list, cell
+     grid, struct-array table) are single children that keep content
+     height and scroll via overflow:auto — unaffected. */
+  display: flex;
+  flex-direction: column;
   font-family: var(--font-mono);
   font-size: 12px;
 }
-/* Drilled-into matrix reuses VirtualTable (.ve-table-wrap), which
-   virtualises off its own clientHeight. Without a definite height the
-   wrap collapses to 0 here (no grid 1fr row to stretch it like the
-   matrix layout has) → 0 rows → blank. Fill the inspector body so the
-   table measures a real height and the wrap itself is the scroller. */
-.ve-inspector-body > .ve-table-wrap {
-  height: 100%;
+/* Drilled matrix (MatrixPanel) stacks toolbar · address · table · status.
+   The table body grows to fill the remaining height so the status bar
+   pins to the bottom of the panel — exactly like the top-level
+   VariableEditor, where .ve-window's 1fr grid row does this. The
+   VirtualTable virtualises off the flexed height and scrolls inside. */
+.ve-inspector-body > .ve-body {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Breadcrumb path bar */
@@ -2014,7 +2030,10 @@ input, select { font-family: inherit; color: inherit; }
   align-items: center;
   flex-wrap: wrap;
   gap: 2px;
-  padding: 6px 10px;
+  /* 14px to match .ve-toolbar / .ve-address below it so the whole
+     inspector chrome (breadcrumb · notation toolbar · cell address)
+     shares one left edge. */
+  padding: 6px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--bg-0);
   font-family: var(--font-mono);
@@ -2035,36 +2054,46 @@ input, select { font-family: inherit; color: inherit; }
 .ve-crumb:disabled { color: var(--fg-1); cursor: default; }
 
 /* Single-struct field list */
-.ve-field-list { display: flex; flex-direction: column; padding: 4px 0; }
-.ve-field-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto minmax(0, 2fr) 16px 18px;
-  align-items: baseline;
-  gap: 10px;
+/* ValueTable — the shared named-value table behind the struct/cell
+   inspector AND the Workspace list view. MATLAB-style Field/Name · Value ·
+   Size · Class (+ optional stat) columns; the visible set is chosen from
+   the header's right-click chooser. Right-aligned numeric columns, sticky
+   header, hover/drill affordances. */
+.vt-wrap { padding-bottom: 2px; }
+.vt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.vt-table th, .vt-table td {
+  text-align: left;
   padding: 3px 12px;
   white-space: nowrap;
+  border-bottom: 1px solid var(--line-soft);
 }
-.ve-field-row.is-drillable { cursor: pointer; }
-.ve-field-row:hover { background: var(--bg-2); }
-.ve-field-name { color: var(--fg-1); }
-/* Inline field-name rename input (double-click a field name). */
+.vt-table th.vt-right, .vt-table td.vt-right { text-align: right; }
+.vt-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--bg-2); color: var(--fg-2);
+  font-weight: 600; font-size: 11px;
+  border-bottom: 1px solid var(--line);
+  cursor: context-menu;
+}
+.vt-table tbody tr.is-drillable { cursor: pointer; }
+.vt-table tbody tr:hover { background: var(--bg-2); }
+.vt-name  { color: var(--fg-1); }
+.vt-value { color: var(--fg-2); max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.vt-class { color: var(--accent); }
+.vt-muted { color: var(--fg-3); }
+/* Inline field-name rename input (double-click a field name, or
+   Rename from the context menu). */
 .ve-rename-input {
   font-family: var(--font-mono); font-size: 12px;
   background: var(--bg-1); color: var(--fg-1);
   border: 1px solid var(--accent); border-radius: 3px;
   padding: 0 4px; outline: none; min-width: 80px; max-width: 160px;
 }
-.ve-field-type { color: var(--accent); font-size: 11px; }
-.ve-field-val  { color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; }
-.ve-field-drill { color: var(--fg-3); text-align: center; }
-/* Per-row delete — appears on row hover, doesn't trigger the drill. */
-.ve-field-del {
-  background: transparent; border: none; cursor: pointer;
-  color: var(--fg-3); font-size: 14px; line-height: 1; padding: 0;
-  opacity: 0; transition: opacity 80ms;
-}
-.ve-field-row:hover .ve-field-del { opacity: 1; }
-.ve-field-del:hover { color: var(--danger); }
 
 /* Inline add-field control */
 .ve-addfield {
@@ -2529,6 +2558,12 @@ input, select { font-family: inherit; color: inherit; }
   display: flex; align-items: center;
   gap: 14px;
   padding: 0 14px;
+  /* Self-sufficient height. In the top-level VariableEditor the toolbar
+     sits in a fixed 40px grid row of .ve-window; in the struct/cell
+     inspector it's a flex child with no backing row, so without this it
+     collapses to content height (~23px) and looks vertically cramped.
+     min-height + align-items:center reproduces the 40px row in both. */
+  min-height: 40px;
   background: var(--bg-1);
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
@@ -2586,16 +2621,35 @@ select.ve-btn.fw-cmap-select {
   appearance: auto;
   cursor: pointer;
 }
-.ve-stats {
-  display: flex; gap: 14px;
+/* Matrix StatsBar — aggregate stats as their own row, with a chooser. The
+   wrapper is ALWAYS rendered (so the .ve-window grid keeps a stable row
+   count and the rows below don't shift); the --empty modifier collapses
+   it to zero height for non-numeric values. */
+.ve-statsbar {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 24px;
+  padding: 0 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--font-mono); font-size: 11.5px;
   color: var(--fg-2);
 }
-.ve-stats b { color: var(--fg-3); font-weight: normal; margin-right: 4px; }
+.ve-statsbar--empty {
+  min-height: 0; padding: 0; background: none; border: none;
+}
+.ve-statsbar-items {
+  display: flex; align-items: center; gap: 14px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.ve-stat b { color: var(--fg-3); font-weight: normal; margin-right: 4px; }
+/* Caret on the Σ ▾ toolbar chooser button. */
+.ve-caret { opacity: 0.65; margin-left: 1px; }
 
 /* Address bar */
 .ve-address {
   display: flex; align-items: center; gap: 8px;
   padding: 4px 14px;
+  min-height: 28px;   /* match the .ve-window grid row (see .ve-toolbar) */
   background: var(--bg-2);
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
@@ -2692,6 +2746,7 @@ select.ve-btn.fw-cmap-select {
 .ve-status {
   display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
+  min-height: 22px;   /* match the .ve-window grid row (see .ve-toolbar) */
   background: var(--bg-2);
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);

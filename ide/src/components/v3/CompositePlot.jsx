@@ -29,7 +29,8 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
-import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob } from './plotUtils';
+import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange } from './plotUtils';
+import { niceTicks, logTicks, applyTickFormat, fmtTick } from './plotTicks';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -327,23 +328,29 @@ export default function CompositePlot({
   // the per-cell viewport untouched. Effect makes the clamp universal:
   // any code path that sets xLog/yLog to true with an invalid viewport
   // gets a sane log range without re-implementing the math.
+  // Auto-clamp the viewport to positive bounds when an axis flips to log
+  // with a range that includes ≤0. logClampRange is the single source of
+  // truth for this math — shared with the static preview (plotUtils) so
+  // the live window and the preview card settle on the same range.
   useEffect(() => {
     if (!xLog || !setViewport || !viewport || !viewport.x) return;
     const [xMinV, xMaxV] = viewport.x;
     if (xMinV > 0 && xMaxV > 0) return;
-    const hi = Math.max(figure.xRange?.[1] || xMaxV, 1e-6);
-    const lo = Math.max(hi / 1e4, 1e-6);
-    const hiClamped = Math.max(lo * 10, hi);
-    setViewport({ ...viewport, x: [lo, hiClamped] });
+    // Heatmaps anchor the lo bound to half a cell width (matches the
+    // toolbar toggle); line/scatter fall back to logClampRange's hi/1e4.
+    const minPositive = heatmapLayer
+      ? (figure.xRange[1] - figure.xRange[0]) / (hFullCols || 1) * 0.5
+      : undefined;
+    setViewport({ ...viewport, x: logClampRange(xMinV, figure.xRange?.[1] || xMaxV, minPositive) });
   }, [xLog]);  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!yLog || !setViewport || !viewport || !viewport.y) return;
     const [yMinV, yMaxV] = viewport.y;
     if (yMinV > 0 && yMaxV > 0) return;
-    const hi = Math.max(figure.yRange?.[1] || yMaxV, 1e-6);
-    const lo = Math.max(hi / 1e4, 1e-6);
-    const hiClamped = Math.max(lo * 10, hi);
-    setViewport({ ...viewport, y: [lo, hiClamped] });
+    const minPositive = heatmapLayer
+      ? (figure.yRange[1] - figure.yRange[0]) / (hFullRows || 1) * 0.5
+      : undefined;
+    setViewport({ ...viewport, y: logClampRange(yMinV, figure.yRange?.[1] || yMaxV, minPositive) });
   }, [yLog]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Color-limit override ────────────────────────────────────────────
@@ -496,6 +503,12 @@ export default function CompositePlot({
   // clamping at the call sites that set viewport.
   const xLogActive = xLog && xMin > 0 && xMax > 0;
   const yLogActive = yLog && yMin > 0 && yMax > 0;
+  // A ≤0 value can't be plotted on a log axis. MATLAB drops the point
+  // ("Negative data ignored") and connects across it. Single predicate
+  // shared by the line / area / polygon builders so they stay
+  // consistent — genuine NaN/Inf is handled separately (it BREAKS the
+  // path, this only skips an otherwise-finite ≤0 value).
+  const dropOnLog = (xv, yv) => (xLogActive && xv <= 0) || (yLogActive && yv <= 0);
   // Axis direction. MATLAB: set(gca, 'XDir'/'YDir', 'reverse') flips
   // the corresponding axis. xDir='reverse' means x increases right→left;
   // yDir='reverse' means y increases top→bottom (the default for image
@@ -598,40 +611,6 @@ export default function CompositePlot({
     }
   }, [rgbLayer]);
 
-  function niceTicks(min, max, target = 6) {
-    const range = max - min;
-    if (range <= 0) return { major: [min], minor: [] };
-    const rough = range / target;
-    const pow = Math.pow(10, Math.floor(Math.log10(rough)));
-    const norm = rough / pow;
-    const step = norm < 1.5 ? pow : norm < 3 ? 2 * pow : norm < 7 ? 5 * pow : 10 * pow;
-    const start = Math.ceil(min / step) * step;
-    const majorArr = [];
-    for (let v = start; v <= max + step * 1e-6; v += step) majorArr.push(+v.toFixed(12));
-    const minorStep = step / 5;
-    const minorArr = [];
-    for (let v = Math.ceil(min / minorStep) * minorStep; v <= max + minorStep * 1e-6; v += minorStep) {
-      if (Math.abs(((v - start) / step) - Math.round((v - start) / step)) > 1e-6) minorArr.push(+v.toFixed(12));
-    }
-    return { major: majorArr, minor: minorArr };
-  }
-  // Log-axis tick generator: powers of 10 as major, intermediate 2..9
-  // multiples as minor. Used when {x,y}LogActive.
-  function logTicks(min, max) {
-    if (min <= 0 || max <= 0 || max <= min) return { major: [], minor: [] };
-    const lmin = Math.floor(Math.log10(min));
-    const lmax = Math.ceil(Math.log10(max));
-    const major = [], minor = [];
-    for (let p = lmin; p <= lmax; p++) {
-      const base = Math.pow(10, p);
-      if (base >= min && base <= max) major.push(base);
-      for (let m = 2; m <= 9; m++) {
-        const v = base * m;
-        if (v >= min && v <= max) minor.push(v);
-      }
-    }
-    return { major, minor };
-  }
   // Custom tick positions from xticks() / yticks() override the
   // auto-generated set. Filter to the visible range so off-screen
   // ticks don't bleed into the margin.
@@ -644,21 +623,6 @@ export default function CompositePlot({
     ? { major: figure.yTicks.filter((v) => v >= yMin && v <= yMax), minor: [] }
     : yTicksAuto;
 
-  // sprintf-style format applier — supports the most common subset
-  // of MATLAB's tick formats: %d, %f, %.Nf, %e, %.Ne, %g, %.Ng. No
-  // multi-arg printf semantics needed (one numeric value).
-  function applyTickFormat(fmt, v) {
-    if (!fmt) return null;
-    const m = fmt.match(/^%(?:\.(\d+))?([defg])$/);
-    if (!m) return null;
-    const prec = m[1] !== undefined ? Number(m[1]) : 6;
-    const conv = m[2];
-    if (conv === 'd') return String(Math.round(v));
-    if (conv === 'f') return v.toFixed(prec);
-    if (conv === 'e') return v.toExponential(prec);
-    if (conv === 'g') return v.toPrecision(prec);
-    return null;
-  }
   // Custom-label lookups: when xticklabels(["a","b","c"]) was called
   // and matches the xticks count, we substitute the string directly
   // for that tick's numeric format. Otherwise xtickformat fmt string
@@ -691,14 +655,6 @@ export default function CompositePlot({
     }
     return fmtTick(v);
   };
-  function fmtTick(v) {
-    const a = Math.abs(v);
-    if (a !== 0 && (a < 1e-3 || a >= 1e5)) return v.toExponential(1);
-    if (a >= 100) return v.toFixed(0);
-    if (a >= 10)  return v.toFixed(1);
-    if (a >= 1)   return v.toFixed(2);
-    return v.toFixed(3);
-  }
 
   /* ─── pan/zoom (same as InteractivePlot) ─── */
   function onMouseDown(e) {
@@ -1865,37 +1821,34 @@ export default function CompositePlot({
                 // Filled polygon under the curve. Path: (x[0],base) →
                 // (x[0],y[0]) → … → (x[N-1],y[N-1]) → (x[N-1],base) → close.
                 // NaN points break the polygon — start a new sub-path.
+                // A ≤0 value on a log axis is dropped (connected across),
+                // matching the line builder. lastPlottedX tracks the last
+                // vertex actually drawn so the baseline-drop close lands on
+                // a plottable (positive-on-log) x, never a NaN.
                 const base = Number.isFinite(ly.baseline) ? ly.baseline : 0;
                 const subpaths = [];
                 let cur = '';
-                let firstPx = null;
+                let lastPlottedX = null;
+                const closeSub = () => {
+                  if (cur && lastPlottedX != null) {
+                    cur += `L${sx(lastPlottedX).toFixed(2)},${mySy(base).toFixed(2)} Z `;
+                    subpaths.push(cur);
+                  }
+                  cur = ''; lastPlottedX = null;
+                };
                 for (let i = 0; i < ly.x.length; i++) {
                   const xv = ly.x[i], yv = ly.y[i];
-                  const finite = Number.isFinite(xv) && Number.isFinite(yv);
-                  if (!finite) {
-                    if (cur) {
-                      // Close current sub-path: drop down to baseline + close.
-                      const lastX = ly.x.slice(0, i).reverse().find((v) => Number.isFinite(v));
-                      if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${mySy(base).toFixed(2)} Z `;
-                      subpaths.push(cur);
-                      cur = ''; firstPx = null;
-                    }
-                    continue;
-                  }
+                  if (!Number.isFinite(xv) || !Number.isFinite(yv)) { closeSub(); continue; }
+                  if (dropOnLog(xv, yv)) continue;   // log ≤0 → connect across
                   const px = sx(xv), py = mySy(yv);
                   if (!cur) {
-                    firstPx = px;
                     cur = `M${px.toFixed(2)},${mySy(base).toFixed(2)} L${px.toFixed(2)},${py.toFixed(2)} `;
                   } else {
                     cur += `L${px.toFixed(2)},${py.toFixed(2)} `;
                   }
+                  lastPlottedX = xv;
                 }
-                if (cur) {
-                  // Close last sub-path.
-                  const lastX = ly.x.slice().reverse().find((v) => Number.isFinite(v));
-                  if (lastX != null) cur += `L${sx(lastX).toFixed(2)},${mySy(base).toFixed(2)} Z`;
-                  subpaths.push(cur);
-                }
+                closeSub();
                 const d = subpaths.join(' ');
                 return (
                   <g key={`ly${idx}`} opacity={op}>
@@ -1918,6 +1871,7 @@ export default function CompositePlot({
                     if (inSub) { d += 'Z '; inSub = false; }
                     continue;
                   }
+                  if (dropOnLog(xv, yv)) continue;   // log ≤0 → skip vertex, connect across
                   const px = sx(xv), py = mySy(yv);
                   d += (inSub ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
                   inSub = true;
@@ -2015,7 +1969,11 @@ export default function CompositePlot({
                 : totalN;
               for (let i = 0; i < animN; i++) {
                 const xv = ly.x[i], yv = ly.y[i];
+                // Genuine non-finite data → break the line (MATLAB gap
+                // semantics for plot([1 NaN 3])).
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
+                // Log axis: skip a ≤0 value WITHOUT breaking (connect across).
+                if (dropOnLog(xv, yv)) continue;
                 const px = sx(xv), py = mySy(yv);
                 if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
                 if (mode === 'stairs' && started) {

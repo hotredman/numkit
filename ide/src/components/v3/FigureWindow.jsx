@@ -4,7 +4,7 @@ import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
 import PolarPlot, { defaultPolarViewport } from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
-import { computeFitViewport, fitCellViewport,
+import { computeFitViewport, fitCellViewport, logClampRange,
   composeSvgsToString, exportSvgString, exportPngString,
   downloadBlob as utilDownloadBlob } from './plotUtils';
 import { initAxesFromCell, getProp, setProp, setAllAxes, setAxesAt,
@@ -760,14 +760,13 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   }
 
   // Toggle that also auto-clamps the viewport's lo bound to a positive
-  // value when entering log mode. Two paths:
-  //   - heatmap: clamp to half a cell width (smallest meaningful unit
-  //     that still lands inside the data grid).
-  //   - line/scatter/etc: clamp to xRange[1]/1e4 (gives ~4 decades of
-  //     visible range — a sane default for plot(1:1000) where the
-  //     adapter's 4% padding pushed viewport.x[0] negative).
-  // Without the clamp, xLogActive in CompositePlot stays false (its
-  // guard is xMin > 0 && xMax > 0) and the toggle has no visual effect.
+  // value when entering log mode. The clamp math (and its heatmap vs
+  // line/scatter split) lives in logClampRange — the single source of
+  // truth shared with the preview + CompositePlot's per-cell effect.
+  // Heatmaps anchor the lo bound to half a cell width; everything else
+  // falls back to hi/1e4 (~4 visible decades). Without the clamp,
+  // xLogActive in CompositePlot stays false (its guard is
+  // xMin > 0 && xMax > 0) and the toggle has no visual effect.
   function toggleAxisLog(axis) {
     if (axis === 'x') {
       const next = !xLog;
@@ -777,36 +776,22 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       // useEffect on xLog/yLog that does the per-cell clamp.
       if (next && viewport && Array.isArray(viewport.x)
           && (viewport.x[0] <= 0 || viewport.x[1] <= 0)) {
-        let lo;
-        if (isHeatmap) {
-          const fullCols = heatmapLayer?.originalCols || 1;
-          const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-          lo = Math.max(cellW * 0.5, 1e-6);
-        } else {
-          // Use the highest-positive data extent we know about as the
-          // anchor — fall back to figure.xRange or viewport upper.
-          const hi = Math.max(figure.xRange?.[1] || viewport.x[1], 1e-6);
-          lo = Math.max(hi / 1e4, 1e-6);
-        }
-        const hiClamped = Math.max(lo * 10, figure.xRange?.[1] || viewport.x[1]);
-        setViewport({ ...viewport, x: [lo, hiClamped] });
+        const hi = figure.xRange?.[1] || viewport.x[1];
+        const minPositive = isHeatmap
+          ? (figure.xRange[1] - figure.xRange[0]) / (heatmapLayer?.originalCols || 1) * 0.5
+          : undefined;
+        setViewport({ ...viewport, x: logClampRange(viewport.x[0], hi, minPositive) });
       }
       setXLog(next);
     } else {
       const next = !yLog;
       if (next && viewport && Array.isArray(viewport.y)
           && (viewport.y[0] <= 0 || viewport.y[1] <= 0)) {
-        let lo;
-        if (isHeatmap) {
-          const fullRows = heatmapLayer?.originalRows || 1;
-          const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-          lo = Math.max(cellH * 0.5, 1e-6);
-        } else {
-          const hi = Math.max(figure.yRange?.[1] || viewport.y[1], 1e-6);
-          lo = Math.max(hi / 1e4, 1e-6);
-        }
-        const hiClamped = Math.max(lo * 10, figure.yRange?.[1] || viewport.y[1]);
-        setViewport({ ...viewport, y: [lo, hiClamped] });
+        const hi = figure.yRange?.[1] || viewport.y[1];
+        const minPositive = isHeatmap
+          ? (figure.yRange[1] - figure.yRange[0]) / (heatmapLayer?.originalRows || 1) * 0.5
+          : undefined;
+        setViewport({ ...viewport, y: logClampRange(viewport.y[0], hi, minPositive) });
       }
       setYLog(next);
     }
@@ -1258,24 +1243,26 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     // per-cell action SubplotGrid + CompositePlot ПКМ use, so the
     // outcome doesn't drift between menus.
     //
-    // Log axes get a half-cell lo-bound override (figure.xRange
-    // straddles zero for heatmap padding and would silently flip
-    // back to linear). Applied after the base fit so axis-equal
-    // upgrade is honoured first.
+    // Log axes: keep the lo bound positive via the shared logClampRange.
+    // It's a no-op when the fitted range is already positive (the common
+    // case now that the adapter pads log axes in log space), and clamps
+    // only when the range dips ≤ 0 — chiefly heatmaps, whose half-cell
+    // padding still straddles zero. Applied after the base fit so the
+    // axis-equal upgrade is honoured first.
     let next = fitCellViewport(figure, viewport, axisMode, { aspectMode: axisModeAgg });
     const xLogNow = figure.xscale === 'log';
     const yLogNow = figure.yscale === 'log';
-    if ((axisMode === 'both' || axisMode === 'x') && xLogNow) {
-      const fullCols = (isHeatmap ? heatmapLayer.originalCols : 0) || 1;
-      const cellW = (figure.xRange[1] - figure.xRange[0]) / fullCols;
-      const lo = Math.max(cellW * 0.5, 1e-6);
-      next = { ...next, x: [lo, Math.max(lo * 10, figure.xRange[1])] };
+    if ((axisMode === 'both' || axisMode === 'x') && xLogNow && Array.isArray(next.x)) {
+      const minPositive = isHeatmap
+        ? (figure.xRange[1] - figure.xRange[0]) / (heatmapLayer.originalCols || 1) * 0.5
+        : undefined;
+      next = { ...next, x: logClampRange(next.x[0], next.x[1], minPositive) };
     }
-    if ((axisMode === 'both' || axisMode === 'y') && yLogNow) {
-      const fullRows = (isHeatmap ? heatmapLayer.originalRows : 0) || 1;
-      const cellH = (figure.yRange[1] - figure.yRange[0]) / fullRows;
-      const lo = Math.max(cellH * 0.5, 1e-6);
-      next = { ...next, y: [lo, Math.max(lo * 10, figure.yRange[1])] };
+    if ((axisMode === 'both' || axisMode === 'y') && yLogNow && Array.isArray(next.y)) {
+      const minPositive = isHeatmap
+        ? (figure.yRange[1] - figure.yRange[0]) / (heatmapLayer.originalRows || 1) * 0.5
+        : undefined;
+      next = { ...next, y: logClampRange(next.y[0], next.y[1], minPositive) };
     }
     setViewport(next);
     setFitOpen(false);
