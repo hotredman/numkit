@@ -1713,6 +1713,106 @@ Value hex2dec(const Value &s, std::pmr::memory_resource *mr)
 }
 
 namespace {
+// Interpret a hex string as the raw IEEE-754 bit pattern of a double.
+// Whitespace is skipped (a char matrix pads short rows with spaces); the
+// digits are right-padded with '0' to 16 (MATLAB: hex2num('4') == 2).
+double hexBitsToDouble(const std::string &raw)
+{
+    std::string h;
+    h.reserve(16);
+    for (char c : raw) {
+        if (std::isspace(static_cast<unsigned char>(c))) continue;
+        h.push_back(c);
+    }
+    if (h.size() > 16) h.resize(16);
+    while (h.size() < 16) h.push_back('0');  // right-pad with zeros
+    uint64_t bits = 0;
+    for (char c : h) {
+        int d;
+        if      (c >= '0' && c <= '9') d = c - '0';
+        else if (c >= 'a' && c <= 'f') d = 10 + (c - 'a');
+        else if (c >= 'A' && c <= 'F') d = 10 + (c - 'A');
+        else throw Error(std::string("hex2num: invalid hex digit '") + c + "'",
+                          0, 0, "hex2num", "", "numkit:hex2num:badDigit");
+        bits = (bits << 4) | static_cast<uint64_t>(d);
+    }
+    double out;
+    std::memcpy(&out, &bits, sizeof(out));
+    return out;
+}
+} // anon
+
+Value hex2num(const Value &s, std::pmr::memory_resource *mr)
+{
+    // A char MATRIX (>1 row) parses each row as one number -> N×1 column.
+    const size_t rows = static_cast<size_t>(s.dims().rows());
+    if (s.type() == ValueType::CHAR && rows > 1) {
+        const size_t cols = s.numel() / rows;
+        const char *src = static_cast<const char *>(s.rawData());
+        Value out = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t r = 0; r < rows; ++r) {
+            std::string row;
+            row.reserve(cols);
+            for (size_t c = 0; c < cols; ++c) row.push_back(src[c * rows + r]);
+            od[r] = hexBitsToDouble(row);
+        }
+        return out;
+    }
+    // A cellstr / string array -> same-shape double array.
+    if (s.isCell() || (s.isString() && !s.isScalar())) {
+        const size_t n = s.numel();
+        Value out = Value::matrix(s.dims().rows(), s.dims().cols(),
+                                  ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t i = 0; i < n; ++i) {
+            const std::string str =
+                s.isCell() ? s.cellAt(i).toString() : s.stringElem(i);
+            od[i] = hexBitsToDouble(str);
+        }
+        return out;
+    }
+    // Scalar char row / string scalar -> scalar double.
+    return Value::scalar(hexBitsToDouble(s.toString()), mr);
+}
+
+Value num2hex(const Value &x, std::pmr::memory_resource *mr)
+{
+    const ValueType t = x.type();
+    const bool single = (t == ValueType::SINGLE);
+    const bool dbl    = (t == ValueType::DOUBLE);
+    if (!single && !dbl)
+        throw Error("num2hex: inputs must be floating point (single or double)",
+                     0, 0, "num2hex", "", "numkit:num2hex:notFloat");
+
+    const size_t n = x.numel();
+    const int W = single ? 8 : 16;
+    if (n == 0) return Value::matrix(0, static_cast<size_t>(W), ValueType::CHAR, mr);
+
+    // numel × W CHAR matrix, one row per element (column-major order).
+    Value m = Value::matrix(n, static_cast<size_t>(W), ValueType::CHAR, mr);
+    char *dst = static_cast<char *>(m.rawDataMut());
+    char buf[24];
+    for (size_t i = 0; i < n; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (single) {
+            const float f = static_cast<float>(v);
+            uint32_t bits;
+            std::memcpy(&bits, &f, sizeof(bits));
+            std::snprintf(buf, sizeof(buf), "%08x", static_cast<unsigned int>(bits));
+        } else {
+            uint64_t bits;
+            std::memcpy(&bits, &v, sizeof(bits));
+            std::snprintf(buf, sizeof(buf), "%016llx",
+                          static_cast<unsigned long long>(bits));
+        }
+        for (int c = 0; c < W; ++c)
+            dst[static_cast<size_t>(c) * n + i] = buf[c];
+    }
+    return m;
+}
+
+namespace {
 // Parse a base-`base` (2..36) digit string: 0-9 then A-Z / a-z. Whitespace
 // is skipped (MATLAB pads short rows of a char matrix with spaces).
 uint64_t parseBaseN(const std::string &s, int base)
@@ -2878,6 +2978,22 @@ void hex2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("hex2dec requires 1 argument",
                      0, 0, "hex2dec", "", "numkit:hex2dec:nargin");
     outs[0] = hex2dec(args[0], ctx.engine->resource());
+}
+
+void hex2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("hex2num requires 1 argument",
+                     0, 0, "hex2num", "", "numkit:hex2num:nargin");
+    outs[0] = hex2num(args[0], ctx.engine->resource());
+}
+
+void num2hex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("num2hex requires 1 argument",
+                     0, 0, "num2hex", "", "numkit:num2hex:nargin");
+    outs[0] = num2hex(args[0], ctx.engine->resource());
 }
 
 void dec2base_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

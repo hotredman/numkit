@@ -523,6 +523,30 @@ Value bin2dec(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @return    DOUBLE value. @see dec2hex
 Value hex2dec(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief IEEE-754 hex → double (`x = hex2num(hexStr)`).
+///
+/// Interprets the hexadecimal text as the raw IEEE-754 *bit pattern* of a
+/// double (NOT its decimal digits — use @ref hex2dec for that). A short
+/// string is right-padded with `'0'` to 16 digits, so `hex2num('4')` is
+/// `hex2num('4000000000000000')` = 2. A char MATRIX with N rows yields an
+/// N×1 double column; a cellstr / string array yields a same-shape double.
+/// Round-trips `Inf`/`-Inf`/`NaN`.
+///
+/// @param s   Hex text (char array, cellstr, or string array).
+/// @param mr  Memory resource. @return DOUBLE. @see num2hex, hex2dec
+Value hex2num(const Value &s, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Double / single → IEEE-754 hex (`hexStr = num2hex(x)`).
+///
+/// Returns the raw IEEE-754 bit pattern as lowercase hex: 16 digits for a
+/// double, 8 for a single. A vector / matrix yields a `numel × W` CHAR
+/// matrix with one row per element (column-major order). The input must be
+/// floating point — integer / logical input is an error.
+///
+/// @param x   single or double value(s).
+/// @param mr  Memory resource. @return CHAR row / matrix. @see hex2num
+Value num2hex(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Integer → base-`base` CHAR string (`s = dec2base(d, base[, len])`).
 ///
 /// `base` in 2..36 (digits 0-9 then A-Z). Output left-padded with '0' to

@@ -1,0 +1,14 @@
+{
+  "name": "hexnum",
+  "namespace": "builtin",
+  "covers": ["hex2num", "num2hex"],
+  "setup": "",
+  "expr": "a = hex2num('3ff0000000000000'); b = hex2num('bff0000000000000'); c4 = hex2num('4'); c41 = hex2num('41'); inf1 = double(isinf(hex2num('7ff0000000000000'))); ninf = double(isinf(hex2num('fff0000000000000'))); nan1 = double(isnan(hex2num('fff8000000000000'))); h1 = num2hex(1); sh1 = sum(double(h1)); lh1 = numel(h1); h2 = num2hex(-2); sh2 = sum(double(h2)); hp = num2hex(pi); shp = sum(double(hp)); hs = num2hex(single(1)); shs = sum(double(hs)); lhs = numel(hs); hsm = num2hex(single(-2)); shsm = sum(double(hsm)); rp = double(hex2num(num2hex(pi))==pi); V = num2hex([1 2 3]); rv = size(V,1); cv = size(V,2); v2 = sum(double(V(2,:)));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "a", "b", "c4", "c41", "inf1", "ninf", "nan1", "sh1", "lh1", "sh2", "shp", "shs", "lhs", "shsm", "rp", "rv", "cv", "v2"
+  ],
+  "deep_verified": true,
+  "comment": "hex2num / num2hex (IEEE-754 hex <-> float bit reinterpret) vs MATLAB R2025b. DEEP-PROBE 2026-05-31: both were MISSING ('undefined function'). hex2num reads a hex string as the raw IEEE-754 bit pattern of a DOUBLE (NOT decimal digits — that's hex2dec): hex2num('3ff0000000000000')=1, 'bff0...'=-1; a short string is right-padded with '0' to 16 digits so hex2num('4')='4000000000000000'=2, '41'=131072; '7ff0...'/'fff0...'/'fff8...' -> Inf/-Inf/NaN; an N-row char matrix -> N x 1 double column. num2hex returns the bit pattern as lowercase hex: 16 digits for double, 8 for single (num2hex(single(1))='3f800000'); a vector -> numel x W char matrix (row per element, col-major: num2hex([1 2 3]) row2='4000000000000000'); integer/logical input errors. NOTE: num2hex(NaN) is excluded from the literal-string fingerprint — numkit's NaN constant has bit pattern 0x7ff8... (clear sign bit) vs MATLAB's 0xfff8... (set), a pre-existing CORE NaN-literal difference, NOT a num2hex bug; num2hex faithfully reports the bits and the round-trip hex2num(num2hex(NaN)) is NaN. char-matrix INPUT to hex2num is covered in the gtest (a ';' inside a literal can't go in a parity expr). covers:[hex2num,num2hex]."
+}
