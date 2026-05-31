@@ -146,6 +146,29 @@ TEST_F(ImageBatch4Test, Transforms2D)
     EXPECT_DOUBLE_EQ(evalScalar("numel(h)"), 9.0);
 }
 
+// fspecial('disk',r) is the exact sub-pixel area-coverage integral (MATLAB
+// R2025b), not a linear-taper approximation. Pinned to MATLAB.
+TEST_F(ImageBatch4Test, FspecialDisk)
+{
+    eval("h2 = fspecial('disk', 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(h2,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(h2,2)"), 5.0);
+    EXPECT_NEAR(evalScalar("sum(h2(:))"), 1.0,            1e-12);
+    EXPECT_NEAR(evalScalar("h2(3,3)"), 0.0795774715459,  1e-10);  // centre
+    EXPECT_NEAR(evalScalar("h2(1,1)"), 0.0,              1e-12);  // corner
+    EXPECT_NEAR(evalScalar("h2(3,1)"), 0.0381149714291,  1e-10);  // mid edge
+    EXPECT_NEAR(evalScalar("h2(2,2)"), 0.0783813541665,  1e-10);
+
+    eval("h3 = fspecial('disk', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(h3,1)"), 7.0);
+    EXPECT_NEAR(evalScalar("h3(4,4)"), 0.0353677651315,  1e-10);
+
+    eval("h5 = fspecial('disk', 5);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(h5,1)"), 11.0);
+    EXPECT_NEAR(evalScalar("sum(h5(:))"), 1.0,           1e-12);
+    EXPECT_NEAR(evalScalar("h5(6,6)"), 0.0127323954474,  1e-10);
+}
+
 TEST_F(ImageBatch4Test, Im2Col)
 {
     eval("C = im2col([1 2; 3 4], [2 2], 'distinct');");
