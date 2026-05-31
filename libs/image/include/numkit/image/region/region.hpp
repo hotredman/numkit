@@ -187,10 +187,14 @@ Value bwareaopen(const Value &BW, int P, int conn,
 ///
 /// @param BW    Binary image.
 /// @param conn  Connectivity (4 or 8).
+/// @param Lout  Optional: receives the H×W label matrix (objects 1..N;
+///              holes are NOT labelled — this is the 'noholes' behaviour).
+/// @param Nout  Optional: receives the number of objects.
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      Cell column of P×2 coordinate arrays.
 /// @see bwperim, bwconncomp
 Value bwboundaries(const Value &BW, int conn,
+                   Value *Lout = nullptr, int *Nout = nullptr,
                    std::pmr::memory_resource *mr = nullptr);
 
 /// Per-region descriptors (`S = regionprops(BW_or_L, props)`).

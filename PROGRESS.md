@@ -1915,7 +1915,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | comment |
 |---|:---:|---|
-| `bwboundaries` | ✅ | Sig: r = bwboundaries(...). Spec-extension batch 2026-05-09. |
+| `bwboundaries` | ✅ 🔬 | bwboundaries 2nd/3rd outputs [B,L,N] vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/image): bwboundaries returned only B; the label-matrix L and object-count N (2nd/3rd outputs) were missing (the 2nd output threw 'undefined function L'). Added via out-pointers: L is the H-by-W double label matrix (objects 1..N), N is the object count. numkit traces objects only (the 'noholes' behaviour), so L/N are bit-exact vs MATLAB for inputs WITHOUT holes (hole-boundary tracing + hole labelling N+1.. remains a separate gap). Solid 3x3 block: nB=1, N=1, Lmax=1, L(3,3)=1, L(1,1)=0. Two objects: N=2, L(1,1)=1, L(4,4)=2. A string mode flag ('noholes') is accepted and ignored. covers:[bwboundaries]. |
 | `bwtraceboundary` | ✅ | Sig: B = bwtraceboundary(BW, P, fstep, conn, n, dir). Branches: default 8-conn CW from E, 4-conn, S start, L-shape (concave), single pixel (returns [P; P]), counterclockwise direction, limit N. Bit-exact MATLAB R2025b (tol=0). Algorithm: Moore-Neighbor tracing, Pavlidis 1982. Notable: fstep specifies the OPPOSITE of the notional 'previous' pixel direction — search starts one step CW of (fstep + nd/2) % nd. Image namespace 2026-05-27. |
 | `circles2mask` | ❌ |  |
 | `corner` | ❌ | Harris/Min-eig corner detector |

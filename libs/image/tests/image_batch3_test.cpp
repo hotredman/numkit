@@ -47,6 +47,31 @@ TEST_F(ImageBatch3Test, BwAnalysis2)
     EXPECT_GT(evalScalar("size(P,2)"), 0.0);
 }
 
+// bwboundaries 2nd/3rd outputs [B,L,N]: label matrix + object count.
+// 2026-05-31: only B was returned; L/N threw 'undefined function L'.
+// numkit is noholes-mode, so L/N match MATLAB for hole-free inputs. vs R2025b.
+TEST_F(ImageBatch3Test, BwboundariesLabelOutputs)
+{
+    eval("BW = false(5,5); BW(2:4,2:4) = true;");   // solid block, one object
+    eval("[B, L, N] = bwboundaries(BW);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(B)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("N"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(L(:))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(L,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(L,2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("L(3,3)"), 1.0);   // interior labelled
+    EXPECT_DOUBLE_EQ(evalScalar("L(1,1)"), 0.0);   // background
+    // Two objects: each gets its own label; N counts objects.
+    eval("BW2 = false(5,5); BW2(1,1)=true; BW2(3,3)=true; BW2(3,4)=true; BW2(4,4)=true;");
+    eval("[B2, L2, N2] = bwboundaries(BW2);");
+    EXPECT_DOUBLE_EQ(evalScalar("N2"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(B2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("L2(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("L2(4,4)"), 2.0);
+    // A string mode flag is accepted (and ignored).
+    EXPECT_NO_THROW(eval("bwboundaries(BW, 'noholes');"));
+}
+
 // bwdist distance-metric option (was silently ignored -> always Euclidean).
 // BW = single TRUE at (2,2); corner (1,1) distinguishes the metrics. vs MATLAB.
 TEST_F(ImageBatch3Test, BwdistMetrics)
