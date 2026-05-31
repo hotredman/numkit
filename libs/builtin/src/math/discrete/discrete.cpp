@@ -1547,6 +1547,56 @@ void histc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     }
 }
 
+// ismember(A,B,'rows'): row-wise membership. tf(i) is true iff row i of A
+// equals some row of B; loc(i) is the LOWEST 1-based B-row index (0 if absent).
+// Both outputs are column vectors of height size(A,1). 2-D DOUBLE only; a row
+// containing NaN never matches. vs MATLAB R2025b.
+std::pair<Value, Value>
+ismemberRows(const Value &A, const Value &B, bool wantLoc, std::pmr::memory_resource *mr)
+{
+    validateUniqueRowsInput(A, "ismember");
+    validateUniqueRowsInput(B, "ismember");
+    const size_t ar = A.dims().rows(), ac = A.dims().cols();
+    const size_t br = B.dims().rows(), bc = B.dims().cols();
+    if (ar > 0 && br > 0 && ac != bc)
+        throw Error("ismember: 'rows' inputs must have the same number of columns",
+                     0, 0, "ismember", "", "numkit:ismember:rowsCols");
+
+    Value tf = Value::matrix(ar, 1, ValueType::LOGICAL, mr);
+    uint8_t *tfd = (ar > 0) ? tf.logicalDataMut() : nullptr;
+    Value loc;
+    double *lo = nullptr;
+    if (wantLoc) {
+        loc = Value::matrix(ar, 1, ValueType::DOUBLE, mr);
+        if (ar > 0) lo = loc.doubleDataMut();
+    }
+    if (ar == 0) return {std::move(tf), std::move(loc)};
+
+    const double *ad = A.doubleData();
+    ScratchArena scratch(mr);
+    std::pmr::unordered_map<RowKey, double, RowKeyHash, RowKeyEq> bmap(&scratch);
+    if (br > 0) {
+        const double *bd = B.doubleData();
+        for (size_t r = 0; r < br; ++r)
+            if (!rowHasNan(bd, bc, br, r))
+                bmap.try_emplace(extractRow(bd, bc, br, r, &scratch),
+                                 static_cast<double>(r + 1));  // try_emplace keeps the lowest index
+    }
+    for (size_t r = 0; r < ar; ++r) {
+        if (rowHasNan(ad, ac, ar, r)) {
+            tfd[r] = 0;
+            if (lo) lo[r] = 0.0;
+            continue;
+        }
+        RowKey key = extractRow(ad, ac, ar, r, &scratch);
+        auto it = bmap.find(key);
+        const bool found = (it != bmap.end());
+        tfd[r] = found ? 1 : 0;
+        if (lo) lo[r] = found ? it->second : 0.0;
+    }
+    return {std::move(tf), std::move(loc)};
+}
+
 // ismember(a,b): tf membership mask; [tf,loc] = ismember(...) also returns
 // loc(i) = the LOWEST 1-based index of a(i) in b (0 if absent), per MATLAB.
 void ismember_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1554,6 +1604,22 @@ void ismember_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("ismember: requires 2 arguments", 0, 0, "ismember", "", "numkit:ismember:nargin");
     auto *mr = ctx.engine->resource();
+    // ismember(A,B,'rows'): each row is one element; outputs are columns.
+    {
+        bool rows = false;
+        for (size_t i = 2; i < args.size(); ++i)
+            if (args[i].isChar() || args[i].isString()) {
+                std::string s = args[i].toString();
+                for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (s == "rows") rows = true;
+            }
+        if (rows) {
+            auto [tf, loc] = ismemberRows(args[0], args[1], /*wantLoc=*/nargout > 1, mr);
+            outs[0] = std::move(tf);
+            if (nargout > 1) outs[1] = std::move(loc);
+            return;
+        }
+    }
     if (args[0].type() == ValueType::COMPLEX || args[1].type() == ValueType::COMPLEX) {
         auto [tf, loc] = ismemberComplex(args[0], args[1], /*wantLoc=*/nargout > 1, mr);
         outs[0] = std::move(tf);

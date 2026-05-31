@@ -870,4 +870,31 @@ TEST_P(SetOpsTest, SetOpsRows)
     EXPECT_THROW(eval("[dd2, ia] = setdiff(Ar, Br, 'rows');"), std::exception);
 }
 
+// ismember(A,B,'rows'): row-wise membership. Was IGNORING 'rows' and doing
+// element-wise membership (returned a MATRIX the size of A). With 'rows' each
+// row is one element; tf and loc are COLUMNS of height size(A,1). vs MATLAB
+// R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(SetOpsTest, IsmemberRows)
+{
+    eval("[tf, loc] = ismember([1 2; 5 6; 3 4], [3 4; 1 2; 7 8], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(tf,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(tf,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(tf(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(tf(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(tf(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("loc(1)"), 2.0);   // [1 2] is B row 2
+    EXPECT_DOUBLE_EQ(evalScalar("loc(2)"), 0.0);   // [5 6] absent
+    EXPECT_DOUBLE_EQ(evalScalar("loc(3)"), 1.0);   // [3 4] is B row 1
+    // duplicate row in B -> LOWEST index.
+    eval("[~, l2] = ismember([2 2; 1 1], [1 1; 3 3; 1 1; 2 2], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("l2(1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("l2(2)"), 1.0);
+    // single-output scalar form.
+    EXPECT_DOUBLE_EQ(evalScalar("double(ismember([10 20], [10 20; 1 2], 'rows'))"), 1.0);
+    // NaN-containing row never matches.
+    EXPECT_DOUBLE_EQ(evalScalar("double(ismember([nan 2], [nan 2; 1 2], 'rows'))"), 0.0);
+    // mismatched column counts throw.
+    EXPECT_THROW(eval("ismember([1 2 3], [1 2], 'rows');"), std::exception);
+}
+
 INSTANTIATE_DUAL(SetOpsTest);
