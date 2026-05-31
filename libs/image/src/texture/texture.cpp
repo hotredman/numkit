@@ -52,6 +52,24 @@ inline void default_gray_limits(const Value &I, double &lo, double &hi)
     lo = mn; hi = mx;
 }
 
+// Data-range limits = [min(I(:)) max(I(:))] over the ACTUAL pixel values,
+// regardless of class. This is what MATLAB's graycomatrix uses when the
+// caller passes 'GrayLimits', [] (an empty value) — distinct from the
+// class-range default in default_gray_limits().
+inline void data_gray_limits(const Value &I, double &lo, double &hi)
+{
+    const std::size_t N = I.numel();
+    if (N == 0) { lo = 0.0; hi = 1.0; return; }
+    double mn = elem_as_double(I, 0);
+    double mx = mn;
+    for (std::size_t i = 1; i < N; ++i) {
+        const double v = elem_as_double(I, i);
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+    }
+    lo = mn; hi = mx;
+}
+
 } // anonymous namespace
 
 Value graycomatrix(const Value &I, int numLevels, int offR, int offC, double gLow, double gHigh, bool symmetric, std::pmr::memory_resource *mr)
@@ -225,13 +243,21 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
             offC = static_cast<int>(v.elemAsDouble(1));
         }
         else if (eqIgnoreCase(key, "GrayLimits")) {
-            if (v.numel() < 2)
+            if (v.isEmpty()) {
+                // 'GrayLimits', [] -> auto [min(I(:)) max(I(:))] over the
+                // actual data (MATLAB-documented), for any class.
+                data_gray_limits(I, gLow, gHigh);
+                limitsSet = true;
+            }
+            else if (v.numel() < 2)
                 throw Error("graycomatrix: GrayLimits must be 2-element",
                              0, 0, "graycomatrix", "",
                              "numkit:graycomatrix:badLimits");
-            gLow  = v.elemAsDouble(0);
-            gHigh = v.elemAsDouble(1);
-            limitsSet = true;
+            else {
+                gLow  = v.elemAsDouble(0);
+                gHigh = v.elemAsDouble(1);
+                limitsSet = true;
+            }
         }
         else if (eqIgnoreCase(key, "Symmetric")) {
             symmetric = (v.toScalar() != 0.0);

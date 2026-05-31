@@ -60,6 +60,31 @@ TEST_F(GraycomatrixTest, GrayLimitsCustom)
     EXPECT_DOUBLE_EQ(eval_scalar("sum(G(:))"), 12.0);
 }
 
+// 'GrayLimits', [] (empty) = MATLAB-documented auto limits [min(I) max(I)]
+// over the actual data — for any class. For this uint8 image the data range
+// is [32 128], so the empty form must equal the explicit [32 128] GLCM and
+// must differ from the class-range default [0 255]. numkit previously threw
+// "GrayLimits must be 2-element" on the empty form (DEEP-PROBE c168).
+TEST_F(GraycomatrixTest, GrayLimitsEmptyAutoDataRange)
+{
+    engine.eval("Ge = graycomatrix(I, 'NumLevels', 4, 'GrayLimits', []);");
+    engine.eval("Gx = graycomatrix(I, 'NumLevels', 4, 'GrayLimits', [32 128]);");
+    engine.eval("Gd = graycomatrix(I, 'NumLevels', 4);");   // default [0 255]
+    EXPECT_DOUBLE_EQ(eval_scalar("size(Ge, 1)"), 4.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("sum(Ge(:))"), 12.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("Ge(1, 2)"), 3.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("Ge(3, 4)"), 3.0);
+    EXPECT_DOUBLE_EQ(eval_scalar("double(isequal(Ge, Gx))"), 1.0);   // = data range
+    EXPECT_DOUBLE_EQ(eval_scalar("double(isequal(Ge, Gd))"), 0.0);   // != class range
+}
+
+// A scalar (non-empty, <2-element) GrayLimits must still error.
+TEST_F(GraycomatrixTest, GrayLimitsScalarThrows)
+{
+    EXPECT_THROW(engine.eval("graycomatrix(I, 'NumLevels', 4, 'GrayLimits', 5);"),
+                 std::exception);
+}
+
 TEST_F(GraycomatrixTest, BadNumLevelsThrows)
 {
     EXPECT_THROW(engine.eval("graycomatrix(I, 'NumLevels', 1);"),
