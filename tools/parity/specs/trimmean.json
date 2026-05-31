@@ -1,12 +1,13 @@
 {
   "name": "trimmean",
   "namespace": "stats",
-  "setup": "v = [1 2 3 4 5 6 7 8 100 -50]; M = magic(5);",
-  "expr": "t0 = trimmean(v, 0); t20 = trimmean(v, 20); tM = trimmean(M, 40);",
+  "setup": "v = [1 2 3 4 5 6 7 8 100 -50]; M = magic(5); w = [1 2 4 8 16 32 64 128 256 1000];",
+  "expr": "t0 = trimmean(v, 0); t20 = trimmean(v, 20); tM = trimmean(M, 40); d35 = trimmean(w, 35); r35 = trimmean(w, 35, 'round'); f35 = trimmean(w, 35, 'floor'); d30 = trimmean(w, 30); d50 = trimmean(w, 50); fd = trimmean([1 2;3 4;5 6;7 8;9 100], 40, 'floor', 2);",
   "iters": 3,
   "tol": 1e-10,
   "fingerprint": [
-    "t0", "t20", "tM(1)", "tM(2)", "tM(3)"
+    "t0", "t20", "tM(1)", "tM(2)", "tM(3)",
+    "d35", "r35", "f35", "d30", "d50", "fd(5)"
   ],
-  "comment": "Sig m=trimmean(x,percent[,dim]): mean after trimming percent/2 from each end. v=[1..8 100 -50]: percent=0 -> plain mean 8.6; percent=20 trims 1 from each end (the 100 and -50 outliers) -> 4.5. Matrix per-column: trimmean(magic(5),40) = [12.666667 12 13 ...]."
+  "comment": "Sig m=trimmean(x,percent[,flag][,dim]): mean after trimming percent/2 from each end. v=[1..8 100 -50]: percent=0 -> plain mean 8.6; percent=20 trims 1 each end -> 4.5. Matrix per-column trimmean(magic(5),40). DEEP-PROBE 2026-05-31: the DEFAULT rounding of the per-end trim count was floor (== MATLAB 'floor') but MATLAB DEFAULT is 'round' (round n*pct/200 half-DOWN -> k=ceil(n*pct/200-0.5)); and the 'round'/'floor' flag arg was unparsed (threw 'Cannot convert char to scalar'). w=[1 2 4 8 16 32 64 128 256 1000]: p=35 default/round=42 (k=2), floor=63.75 (k=1); p=30 default=63.75 (1.5 rounds down to k=1); p=50 default=42 (2.5 rounds down to k=2). Flag+dim: trimmean(M,40,'floor',2). namespace=stats."
 }

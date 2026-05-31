@@ -453,12 +453,16 @@ Value moment_of(const Value &x, int order, int dim = 0, std::pmr::memory_resourc
 ///
 /// Mean after dropping the smallest and largest `pct/2` percent of values.
 ///
-/// @param x    Input array.
-/// @param pct  Total trim percentage in `[0, 100)`.
-/// @param dim  1-based dimension; 0 → first non-singleton dim.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Trimmed mean reduced along `dim`.
-Value trimmean_of(const Value &x, double pct, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+/// @param x         Input array.
+/// @param pct       Total trim percentage in `[0, 100)`.
+/// @param dim       1-based dimension; 0 → first non-singleton dim.
+/// @param useFloor  Rounding of the per-end trim count: `false` (default,
+///                  MATLAB `'round'`) rounds `n*pct/200` half-down; `true`
+///                  (MATLAB `'floor'`) takes the floor.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Trimmed mean reduced along `dim`.
+Value trimmean_of(const Value &x, double pct, int dim = 0, bool useFloor = false,
+                  std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Curve-data cleanup (`[xo, yo, wo] = prepareCurveData(x, y, w)`).
 ///
