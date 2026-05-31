@@ -158,6 +158,59 @@ TEST(BuiltinStringsPublicApi, Num2StrComplexScalar)
     EXPECT_THROW(numkit::builtin::num2str(arr, mr), Error);
 }
 
+// num2str(X) / num2str(X,N) with VECTOR/MATRIX input and NO explicit format.
+// Previously SCALAR-ONLY (threw "Cannot convert double to scalar"); only the
+// FMT form handled arrays. MATLAB synthesises a column format: all-integer
+// -> "%<maxChars+2>.0f"; fractional -> "%<P+7>.<P>g", P=max(floor(log10
+// maxabs),0)+5; the N form -> "%<N+7>.<N>g". vs MATLAB R2025b. DEEP-PROBE
+// 2026-05-31.
+TEST(BuiltinStringsPublicApi, Num2StrDefaultVectorMatrix)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto row3 = [&](double a, double b, double c) {
+        Value v = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+        double *d = v.doubleDataMut();
+        d[0] = a; d[1] = b; d[2] = c;
+        return v;
+    };
+    auto row2 = [&](double a, double b) {
+        Value v = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        double *d = v.doubleDataMut();
+        d[0] = a; d[1] = b;
+        return v;
+    };
+    EXPECT_EQ(numkit::builtin::num2str(row3(1, 2, 3), mr).toString(), "1  2  3");
+    EXPECT_EQ(numkit::builtin::num2str(row3(10, 200, 3), mr).toString(),
+              "10  200    3");
+    EXPECT_EQ(numkit::builtin::num2str(row3(1.5, 2.25, 3), mr).toString(),
+              "1.5        2.25           3");
+    EXPECT_EQ(numkit::builtin::num2str(row2(-5, 10), mr).toString(), "-5  10");
+    EXPECT_EQ(numkit::builtin::num2str(row2(-1.5, 2), mr).toString(),
+              "-1.5           2");
+    // num2str(X, N): "%<N+7>.<N>g" per element (no integer-detection).
+    EXPECT_EQ(numkit::builtin::num2str(row3(1, 2, 3), 3, mr).toString(),
+              "1         2         3");
+
+    // 2x2 matrix -> 2x4 char matrix; rows "1  2" / "3  4" (col-major).
+    Value mtx = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+    double *md = mtx.doubleDataMut();
+    md[0] = 1; md[1] = 3; md[2] = 2; md[3] = 4;   // col-major
+    Value sm = numkit::builtin::num2str(mtx, mr);
+    ASSERT_TRUE(sm.isChar());
+    EXPECT_EQ(sm.dims().rows(), 2u);
+    EXPECT_EQ(sm.dims().cols(), 4u);
+    const char *cm = static_cast<const char *>(sm.rawData());
+    EXPECT_EQ(cm[0], '1');   // (r0,c0)
+    EXPECT_EQ(cm[1], '3');   // (r1,c0)
+    EXPECT_EQ(cm[6], '2');   // (r0,c3)
+    EXPECT_EQ(cm[7], '4');   // (r1,c3)
+
+    // Empty -> empty char.
+    EXPECT_EQ(numkit::builtin::num2str(Value::matrix(0, 0, ValueType::DOUBLE, mr), mr)
+                  .numel(),
+              0u);
+}
+
 // int2str: round half away from zero, render as a plain integer (no decimals
 // or scientific notation); Inf/-Inf/NaN pass through. vs MATLAB R2025b.
 // Implemented 2026-05-30 (was an undefined function).
