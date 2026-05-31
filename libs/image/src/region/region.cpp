@@ -413,9 +413,11 @@ Value bwboundaries(const Value &BW, int conn, std::pmr::memory_resource *mr)
     auto inside = [&](int r, int c) {
         return r >= 0 && r < H && c >= 0 && c < W;
     };
+    const auto &Lbl = L;   // plain reference: capturing a structured binding
+                           // directly in a lambda is a C++20 extension.
     auto isFg = [&](int r, int c, int targetLabel) {
         if (!inside(r, c)) return false;
-        return L[(size_t)r * (size_t)W + (size_t)c] == targetLabel;
+        return Lbl[(size_t)r * (size_t)W + (size_t)c] == targetLabel;
     };
 
     // Start-pixel scan: first encounter of each label in row-major

@@ -148,12 +148,14 @@ private:
 
     struct VecHash {
         std::size_t operator()(const std::vector<std::uint8_t> &v) const {
-            std::size_t h = 1469598103934665603ull;
+            // 64-bit FNV-1a, computed in uint64 then narrowed to size_t so the
+            // offset-basis constant is not truncated where size_t is 32-bit.
+            std::uint64_t h = 1469598103934665603ull;
             for (auto b : v) {
                 h ^= b;
                 h *= 1099511628211ull;
             }
-            return h;
+            return static_cast<std::size_t>(h);
         }
     };
     std::unordered_map<std::vector<std::uint8_t>, std::uint32_t, VecHash> dict_;

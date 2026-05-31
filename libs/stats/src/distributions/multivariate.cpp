@@ -743,10 +743,12 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
     std::mt19937_64 mc_gen(12345ULL);
     const double NEG_INF = -std::numeric_limits<double>::infinity();
 
-    for (std::size_t row = 0; row < n; ++row) {
+    const std::size_t nRows = n;   // plain local: capturing a structured
+                                   // binding directly in a lambda is C++20.
+    for (std::size_t row = 0; row < nRows; ++row) {
         auto fetch = [&](std::size_t j) -> std::pair<double, double> {
             const double xj = X.isScalar() ? X.toScalar()
-                                           : X.elemAsDouble(j * n + row);
+                                           : X.elemAsDouble(j * nRows + row);
             return {NEG_INF, xj};
         };
         od[row] = mvtcdf_mc(L, d, df, N, mc_gen, fetch);
@@ -800,12 +802,14 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
     const int N = mvtcdf_N_from_tol(tol);
     std::mt19937_64 mc_gen(12345ULL);
 
-    for (std::size_t row = 0; row < n; ++row) {
+    const std::size_t nRows = n;   // plain local (see mvtcdf above): avoid
+                                   // capturing a structured binding in a lambda.
+    for (std::size_t row = 0; row < nRows; ++row) {
         auto fetch = [&](std::size_t j) -> std::pair<double, double> {
             const double lj = Lb.isScalar() ? Lb.toScalar()
-                                            : Lb.elemAsDouble(j * n + row);
+                                            : Lb.elemAsDouble(j * nRows + row);
             const double uj = Ub.isScalar() ? Ub.toScalar()
-                                            : Ub.elemAsDouble(j * n + row);
+                                            : Ub.elemAsDouble(j * nRows + row);
             return {lj, uj};
         };
         od[row] = mvtcdf_mc(Lc, d, df, N, mc_gen, fetch);
