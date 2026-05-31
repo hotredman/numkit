@@ -3,6 +3,7 @@
 // Descriptive stats extras (B2): bounds, iqr, maxk, mink, rmse.
 
 #include <numkit/stats/descriptive/descriptive.hpp>
+#include <numkit/stats/distributions/students_t.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -2938,6 +2939,52 @@ void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 // for matrices) via detect_one_column. detectTf is the value detect_one_column
 // expects (median/mean: 3 == MATLAB ThresholdFactor; quartiles: 2*MATLAB-tf
 // because detect_one_column scales by tf*0.5).
+// Iterative Grubbs's-test outlier mask for one column. `alpha` is the
+// significance level (MATLAB isoutlier 'grubbs' ThresholdFactor, default
+// 0.05). At each step the point with the largest studentized deviation
+// G = max|x-mean|/std (std with N-1) is compared to the Grubbs critical
+// value G_crit = ((N-1)/sqrt(N))·sqrt(t²/(N-2+t²)) with t = tinv(alpha/(2N),
+// N-2); if G > G_crit that point is flagged and removed, then repeat (down
+// to N>=3). NaNs are ignored. Matches MATLAB R2025b.
+static void grubbsColumnMask(const double *x, std::size_t n, double alpha,
+                             uint8_t *maskOut, std::pmr::memory_resource *mr)
+{
+    for (std::size_t i = 0; i < n; ++i) maskOut[i] = 0;
+    std::vector<double> v;
+    std::vector<std::size_t> pos;
+    v.reserve(n); pos.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        if (!std::isnan(x[i])) { v.push_back(x[i]); pos.push_back(i); }
+    while (v.size() >= 3) {
+        const std::size_t m = v.size();
+        double s = 0.0;
+        for (double e : v) s += e;
+        const double mean = s / double(m);
+        double ss = 0.0;
+        for (double e : v) ss += (e - mean) * (e - mean);
+        const double sd = std::sqrt(ss / double(m - 1));
+        if (!(sd > 0.0)) break;
+        std::size_t jmax = 0;
+        double gmax = -1.0;
+        for (std::size_t j = 0; j < m; ++j) {
+            const double g = std::fabs(v[j] - mean) / sd;
+            if (g > gmax) { gmax = g; jmax = j; }
+        }
+        const double dof   = double(m) - 2.0;
+        const double pp    = alpha / (2.0 * double(m));
+        const double tcrit = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
+        const double Gcrit = ((double(m) - 1.0) / std::sqrt(double(m)))
+                           * std::sqrt(tcrit * tcrit / (dof + tcrit * tcrit));
+        if (gmax > Gcrit) {
+            maskOut[pos[jmax]] = 1;
+            v.erase(v.begin() + static_cast<std::ptrdiff_t>(jmax));
+            pos.erase(pos.begin() + static_cast<std::ptrdiff_t>(jmax));
+        } else {
+            break;
+        }
+    }
+}
+
 static Value isoutlierMethod(const Value &x, const std::string &method,
                              double detectTf, std::pmr::memory_resource *mr)
 {
@@ -2948,6 +2995,17 @@ static Value isoutlierMethod(const Value &x, const std::string &method,
     auto out = Value::matrix(r, c, ValueType::LOGICAL, mr);
     uint8_t *od = out.logicalDataMut();
     const double *xd = x.doubleData();
+    if (method == "grubbs") {
+        // Iterative test (not a static lo/hi rule); per-column. detectTf is
+        // the significance level alpha.
+        if (r == 1 || c == 1) {
+            grubbsColumnMask(xd, x.numel(), detectTf, od, mr);
+        } else {
+            for (std::size_t col = 0; col < c; ++col)
+                grubbsColumnMask(xd + col * r, r, detectTf, od + col * r, mr);
+        }
+        return out;
+    }
     if (r == 1 || c == 1) {
         // Vector: the whole run is one column.
         FoDetect d = detect_one_column(xd, x.numel(), method, detectTf);
@@ -2975,19 +3033,23 @@ void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
         std::string m = args[1].toString();
         for (char &ch : m) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-        if (m == "median" || m == "mean" || m == "quartiles") {
+        if (m == "median" || m == "mean" || m == "quartiles" || m == "grubbs") {
             method = m;
             ai = 2;
-        } else if (m == "grubbs" || m == "gesd" || m == "movmedian" || m == "movmean") {
+        } else if (m == "gesd" || m == "movmedian" || m == "movmean") {
             throw Error("isoutlier: method '" + args[1].toString() +
                             "' is not supported in this revision "
-                            "(median, mean, quartiles only)",
+                            "(median, mean, quartiles, grubbs only)",
                          0, 0, "isoutlier", "", "numkit:isoutlier:method");
         }
         // else: not a method token — leave as a Name-Value name parsed below.
     }
 
-    double userTf = (method == "quartiles") ? 1.5 : 3.0;
+    // Default ThresholdFactor per method: quartiles 1.5, grubbs 0.05
+    // (significance level), median/mean 3.
+    double userTf = (method == "quartiles") ? 1.5
+                  : (method == "grubbs")    ? 0.05
+                                            : 3.0;
     for (std::size_t i = ai; i + 1 < args.size(); i += 2) {
         if (args[i].isChar() || args[i].isString()) {
             std::string nm = args[i].toString();

@@ -59,8 +59,28 @@ TEST_F(MissingDataTest, IsoutlierMethods)
     eval("M = isoutlier([1 2;3 4;5 100;7 8;9 10]);");
     EXPECT_DOUBLE_EQ(evalScalar("double(M(3,2))"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("sum(double(M(:)))"), 1.0);
-    // unsupported method throws (deferred).
-    EXPECT_THROW(eval("g = isoutlier([1 2 3 100 4 5], 'grubbs');"), std::exception);
+    // gesd still deferred (throws).
+    EXPECT_THROW(eval("isoutlier([1 2 3 100 4 5], 'gesd');"), std::exception);
+}
+
+// DEEP-PROBE c172: isoutlier 'grubbs' — iterative Grubbs's test,
+// ThresholdFactor = significance alpha (default 0.05). vs MATLAB R2025b.
+TEST_F(MissingDataTest, IsoutlierGrubbs)
+{
+    // A lone large outlier is flagged.
+    eval("g = isoutlier([1 2 3 4 5 6 7 8 9 50], 'grubbs');");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(g))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(g(10))"), 1.0);
+    // Two opposite extremes mask each other -> none flagged (Grubbs masking).
+    eval("g2 = isoutlier([10 12 11 13 12 11 50 12 11 -30 12], 'grubbs');");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(g2))"), 0.0);
+    // A stricter alpha still flags the lone 50.
+    eval("ga = isoutlier([1 2 3 4 5 6 7 8 9 50], 'grubbs', 'ThresholdFactor', 0.01);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(ga))"), 1.0);
+    // Per-column on a matrix.
+    eval("gm = isoutlier([1 2; 2 3; 3 4; 4 5; 100 6; 5 50], 'grubbs');");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(gm(:,1)))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(gm(:,2)))"), 1.0);
 }
 
 // ── rmoutliers ────────────────────────────────────────────
