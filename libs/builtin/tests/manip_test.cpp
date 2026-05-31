@@ -183,6 +183,35 @@ TEST_P(ManipTest, FlipudMatrix)
     EXPECT_DOUBLE_EQ((*A)(2, 2), 3.0);
 }
 
+// fliplr/flipud on non-DOUBLE matrices (char/logical/complex/single): the
+// 2-D POD path was DOUBLE-only and threw "Not a double array". flip is a
+// pure rearrangement -> type-preserving. vs MATLAB R2025b. DEEP-PROBE
+// 2026-05-31.
+TEST_P(ManipTest, FliplrFlipudNonDoubleMatrix)
+{
+    // char matrix.
+    eval("cm = fliplr(['ab';'cd']);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1))"), 98.0);   // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(2,2))"), 99.0);   // 'c'
+    eval("cu = flipud(['ab';'cd']);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cu(1,1))"), 99.0);   // 'c'
+    // logical.
+    eval("lg = fliplr(logical([1 1 0]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(3))"), 1.0);
+    // complex.
+    eval("cx = fliplr([1+1i 2+2i 3+3i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(cx(1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(cx(1))"), 3.0);
+    // single preserved (type + value).
+    eval("sg = flipud(single([1;2;3]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(sg(1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(sg),'single'))"), 1.0);
+    // double path unchanged.
+    eval("dd = fliplr([1 2 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1)"), 3.0);
+}
+
 // ── rot90 ───────────────────────────────────────────────────
 
 TEST_P(ManipTest, Rot90CCW)

@@ -331,19 +331,24 @@ Value fliplr(const Value &x, std::pmr::memory_resource *mr)
     if (isCellOrString(x.type())) return flipCellStr(x, 1, "fliplr", mr);
     if (dd.ndim() >= 4) return flipNDAlongAxis(x, 1, "fliplr", mr);
 
+    // POD types (DOUBLE/CHAR/LOGICAL/COMPLEX/single/int) copy raw bytes — flip
+    // is a pure rearrangement, so it is type-preserving (cell/string handled
+    // above via flipCellStr).
+    const ValueType t = x.type();
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
-                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, t, mr)
+                       : Value::matrix(R, C, t, mr);
     if (x.numel() == 0) return r;
 
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     for (size_t pp = 0; pp < P; ++pp)
         for (size_t c = 0; c < C; ++c) {
-            const double *colSrc = src + pp * R * C + (C - 1 - c) * R;
-            double *colDst = dst + pp * R * C + c * R;
-            std::memcpy(colDst, colSrc, R * sizeof(double));
+            const char *colSrc = src + (pp * R * C + (C - 1 - c) * R) * es;
+            char *colDst = dst + (pp * R * C + c * R) * es;
+            std::memcpy(colDst, colSrc, R * es);
         }
     return r;
 }
@@ -354,20 +359,23 @@ Value flipud(const Value &x, std::pmr::memory_resource *mr)
     if (isCellOrString(x.type())) return flipCellStr(x, 0, "flipud", mr);
     if (dd.ndim() >= 4) return flipNDAlongAxis(x, 0, "flipud", mr);
 
+    // POD types copy raw bytes — type-preserving (cell/string handled above).
+    const ValueType t = x.type();
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
-                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, t, mr)
+                       : Value::matrix(R, C, t, mr);
     if (x.numel() == 0) return r;
 
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     for (size_t pp = 0; pp < P; ++pp)
         for (size_t c = 0; c < C; ++c) {
-            const double *colSrc = src + pp * R * C + c * R;
-            double *colDst = dst + pp * R * C + c * R;
+            const char *colSrc = src + (pp * R * C + c * R) * es;
+            char *colDst = dst + (pp * R * C + c * R) * es;
             for (size_t rr = 0; rr < R; ++rr)
-                colDst[rr] = colSrc[R - 1 - rr];
+                std::memcpy(colDst + rr * es, colSrc + (R - 1 - rr) * es, es);
         }
     return r;
 }
