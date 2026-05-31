@@ -2,7 +2,7 @@
   "name": "detcoef",
   "namespace": "wavelet",
   "setup": "[c, l] = wavedec(1:16, 3, 'db1');",
-  "expr": "d_default = detcoef(c, l); d1 = detcoef(c, l, 1); d2 = detcoef(c, l, 2); d3 = detcoef(c, l, 3); cellD = detcoef(c, l, [1 2], 'cells'); D1 = cellD{1}; D2 = cellD{2};",
+  "expr": "d_default = detcoef(c, l); d1 = detcoef(c, l, 1); d2 = detcoef(c, l, 2); d3 = detcoef(c, l, 3); cellD = detcoef(c, l, [1 2], 'cells'); D1 = cellD{1}; D2 = cellD{2}; cv = detcoef(c, l, [1 2 3]); icv = double(iscell(cv)); ncv = numel(cv); cv1n = numel(cv{1}); cv1_1 = cv{1}(1); cv3n = numel(cv{3}); cs = detcoef(c, l, 'cells'); ncs = numel(cs); [e1, e2, e3] = detcoef(c, l, [1 2 3]); e1n = numel(e1); e3_1 = e3(1);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
@@ -11,7 +11,8 @@
     "numel(d2)", "d2(1)", "d2(4)",
     "numel(d3)", "d3(1)", "d3(2)",
     "numel(D1)", "D1(1)",
-    "numel(D2)", "D2(1)"
+    "numel(D2)", "D2(1)",
+    "icv", "ncv", "cv1n", "cv1_1", "cv3n", "ncs", "e1n", "e3_1"
   ],
-  "comment": "Sig: D = detcoef(C, L[, level[, 'cells']]). Default level = numel(L) - 2 (deepest). Bug fix 2026-05-08: was throwing on 2-arg form (and previously the auditor said default = 1, but probe shows max-level). Added 'cells' form for vector levels."
+  "comment": "Sig: D = detcoef(C, L[, level[, 'cells']]). Default level = numel(L) - 2 (deepest). DEEP-PROBE c175: added the multi-level vector forms — detcoef(C,L,[n1 n2 ...]) with a single output returns a CELL array of the per-level details (icv=1, ncv=3); detcoef(C,L,'cells') returns a cell of ALL nMax levels (ncs=3); [d1,...,dp] = detcoef(C,L,[n1 ...]) deals one detail per output (e1n=8, e3_1=detail-L3(1)). numkit previously threw 'level must be scalar'. The scalar and the [levels],'cells' forms are unchanged. covers:[detcoef]."
 }

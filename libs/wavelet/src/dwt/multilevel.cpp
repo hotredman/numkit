@@ -315,7 +315,7 @@ void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
 }
 
-void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void detcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                  CallContext &ctx)
 {
     if (args.size() < 2)
@@ -357,12 +357,45 @@ void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         return;
     }
 
+    const long long maxLev = static_cast<long long>(args[1].numel()) - 2;
+
+    // detcoef(C, L, 'cells'): cell array of ALL levels 1..nMax.
+    if (levArg.isChar() || levArg.isString()) {
+        std::string s = levArg.toString();
+        for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (s != "cells")
+            throw Error("detcoef: unknown option '" + levArg.toString() + "'",
+                        0, 0, "detcoef", "", "numkit:detcoef:opt");
+        Value cellOut = Value::cell(1, static_cast<size_t>(std::max<long long>(0, maxLev)));
+        for (int lev = 1; lev <= maxLev; ++lev)
+            cellOut.cellAt(static_cast<size_t>(lev - 1)) =
+                detcoef(args[0], args[1], lev, mr);
+        outs[0] = std::move(cellOut);
+        return;
+    }
+
     // Single-level scalar form (existing behavior).
-    if (levArg.numel() != 1)
-        throw Error("detcoef: level must be scalar (or use 'cells' form)",
-                    0, 0, "detcoef", "", "numkit:detcoef:level");
-    const int level = static_cast<int>(levArg.toScalar());
-    outs[0] = detcoef(args[0], args[1], level, mr);
+    if (levArg.numel() == 1) {
+        outs[0] = detcoef(args[0], args[1], static_cast<int>(levArg.toScalar()), mr);
+        return;
+    }
+
+    // Vector of levels: detcoef(C, L, [n1 n2 ...]). With a single (or no)
+    // output, return a cell array of the per-level details; with multiple
+    // outputs, deal one detail per output ([d1, d2, ...] = detcoef(...)).
+    const size_t k = levArg.numel();
+    if (nargout >= 2) {
+        for (size_t i = 0; i < k && i < outs.size(); ++i)
+            outs[i] = detcoef(args[0], args[1],
+                              static_cast<int>(levArg.elemAsDouble(i)), mr);
+    } else {
+        Value cellOut = Value::cell(1, k);
+        for (size_t i = 0; i < k; ++i)
+            cellOut.cellAt(i) =
+                detcoef(args[0], args[1],
+                        static_cast<int>(levArg.elemAsDouble(i)), mr);
+        outs[0] = std::move(cellOut);
+    }
 }
 
 } // namespace detail
