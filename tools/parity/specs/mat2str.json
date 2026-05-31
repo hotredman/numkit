@@ -2,7 +2,7 @@
   "name": "mat2str",
   "namespace": "builtin",
   "setup": "",
-  "expr": "a = mat2str([1 2;3 4]); b = mat2str(1+2i); c = mat2str([1+2i 3-4i]); d = mat2str([1.5+2.25i -3i], 5); e = mat2str(complex(1,0)); i1 = mat2str(int8([1 2;3 4])); ni1 = numel(i1); ci1a = double(i1(1)); ci1b = double(i1(5)); ci1c = double(i1(end)); i4 = mat2str(int32([-5 7])); ni4 = numel(i4); ci4 = double(i4(2)); l1 = mat2str(true); nl1 = numel(l1); cl1 = double(l1(1)); l2 = mat2str([true false true]); nl2 = numel(l2); k1 = mat2str(int8([1 2;3 4]), 'class'); nk1 = numel(k1); ck1 = double(k1(1)); k2 = mat2str(true, 'class'); nk2 = numel(k2);",
+  "expr": "a = mat2str([1 2;3 4]); b = mat2str(1+2i); c = mat2str([1+2i 3-4i]); d = mat2str([1.5+2.25i -3i], 5); e = mat2str(complex(1,0)); i1 = mat2str(int8([1 2;3 4])); ni1 = numel(i1); ci1a = double(i1(1)); ci1b = double(i1(5)); ci1c = double(i1(end)); i4 = mat2str(int32([-5 7])); ni4 = numel(i4); ci4 = double(i4(2)); l1 = mat2str(true); nl1 = numel(l1); cl1 = double(l1(1)); l2 = mat2str([true false true]); nl2 = numel(l2); k1 = mat2str(int8([1 2;3 4]), 'class'); nk1 = numel(k1); ck1 = double(k1(1)); k2 = mat2str(true, 'class'); nk2 = numel(k2); m6 = mat2str([complex(1,1) complex(5,0)]); nm6 = numel(m6); cm6 = double(m6(7)); m7 = mat2str(complex([5 3],[0 4])); nm7 = numel(m7); cm7 = double(m7(2)); m8 = mat2str(sort([3+4i 1+1i 5 2-2i]), 6); nm8 = numel(m8);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
@@ -14,7 +14,9 @@
     "ni1", "ci1a", "ci1b", "ci1c",
     "ni4", "ci4",
     "nl1", "cl1", "nl2",
-    "nk1", "ck1", "nk2"
+    "nk1", "ck1", "nk2",
+    "nm6", "cm6", "nm7", "cm7", "nm8"
   ],
-  "comment": "Sig: s = mat2str(X[, n][, 'class']). Char-code fingerprints (string == comparison gives a vector -> use double(s(k))). Covers real matrix + complex scalar/row/col + purely-imaginary element + all-zero-imag-as-real; PLUS integer types (mat2str(int8([1 2;3 4]))='[1 2;3 4]' BARE, no class wrapper) + logical (mat2str(true)='true', [true false true]) + 'class' flag (int8([1 2;3 4]), logical(true)). numkit threw 'Not a double array' on integer/logical input before 2026-05-30. NOTE: semicolons appear only inside matrix-literal INPUTS ([1 2;3 4]); never put a ; inside a quoted string in a spec expr (breaks the harness splitter). Queue-clearing 2026-05-29 (complex) + integer/logical/class 2026-05-30."
+  "comment": "Sig: s = mat2str(X[, n][, 'class']). Char-code fingerprints (string == comparison gives a vector -> use double(s(k))). Covers real matrix + complex scalar/row/col + purely-imaginary element + all-zero-imag-as-real; integer types (mat2str(int8([1 2;3 4]))='[1 2;3 4]' BARE, no class wrapper) + logical (mat2str(true)='true', [true false true]) + 'class' flag. DEEP-PROBE 2026-05-31: complex elements are now formatted INDEPENDENTLY -- a zero-imag element inside an otherwise-complex array prints as a bare real (no '+0i'). Previously numkit appended '+0i' to EVERY element whenever ANY element was complex. m6=mat2str([complex(1,1) complex(5,0)])='[1+1i 5]' (nm6=8, NOT '[1+1i 5+0i]'=11; cm6=double('5')=53); m7=mat2str(complex([5 3],[0 4]))='[5 3+4i]' (nm7=8, cm7=double('5')=53); m8=mat2str(sort([3+4i 1+1i 5 2-2i]),6)='[1+1i 2-2i 5 3+4i]' (nm8=18). N-D (>2) input throws on both engines (parity). NOTE: semicolons appear only inside matrix-literal INPUTS ([1 2;3 4]); never put a ; inside a quoted string in a spec expr. Queue-clearing 2026-05-29 (complex) + integer/logical/class 2026-05-30 + per-element-complex 2026-05-31.",
+  "deep_verified": true
 }
