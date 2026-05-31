@@ -52,6 +52,38 @@ TEST_F(StringsBatchTest, Strrep)
     EXPECT_EQ(evalString("strrep(\"hello world\", \"world\", \"matlab\")"), "hello matlab");
 }
 
+// strrep with cell-array arguments: any cell input => a cell of char vectors
+// (scalars broadcast). Was throwing "Not a char array". vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_F(StringsBatchTest, StrrepCell)
+{
+    // cell str, scalar old/new -> per-element replace.
+    eval("c = strrep({'hello','world','book'}, 'o', 'O');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(c))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c)"), 3.0);
+    EXPECT_EQ(evalString("c{1}"), "hellO");
+    EXPECT_EQ(evalString("c{2}"), "wOrld");
+    EXPECT_EQ(evalString("c{3}"), "bOOk");
+    // scalar str + cell pattern/replacement -> broadcast separately (not chained).
+    eval("c2 = strrep('aXbYc', {'X','Y'}, {'-','='});");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c2)"), 2.0);
+    EXPECT_EQ(evalString("c2{1}"), "a-bYc");
+    EXPECT_EQ(evalString("c2{2}"), "aXb=c");
+    // all-cell element-wise.
+    eval("c3 = strrep({'aa','bb'}, {'a','b'}, {'X','Y'});");
+    EXPECT_EQ(evalString("c3{1}"), "XX");
+    EXPECT_EQ(evalString("c3{2}"), "YY");
+    // shape preserved: a column cell stays a column.
+    eval("cc = strrep({'ax';'bx'}, 'x', 'Z');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,2)"), 1.0);
+    EXPECT_EQ(evalString("cc{2}"), "bZ");
+    // scalar (no-cell) path still returns a char row, unchanged.
+    EXPECT_EQ(evalString("strrep('mississippi', 'iss', 'ISS')"), "mISSISSippi");
+    // incompatible non-scalar cell sizes throw.
+    EXPECT_THROW(eval("strrep({'a','b','c'}, {'a','b'}, 'X');"), std::exception);
+}
+
 TEST_F(StringsBatchTest, Strfind)
 {
     eval("ix = strfind(\"hello world\", \"o\");");

@@ -1684,12 +1684,12 @@ Value rats(const Value &x, int len, std::pmr::memory_resource *mr)
     return Value::fromString(out, mr);
 }
 
-Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
+// Single-string literal replacement: replace every non-overlapping occurrence
+// of `op` in `r0` with `np`. Empty `op` is a no-op (matches MATLAB).
+static std::string strrepOne(const std::string &r0, const std::string &op,
+                             const std::string &np)
 {
-    std::pmr::memory_resource *p = mr;
-    std::string r = s.toString();
-    std::string op = oldPat.toString();
-    std::string np = newPat.toString();
+    std::string r = r0;
     if (!op.empty()) {
         size_t pos = 0;
         while ((pos = r.find(op, pos)) != std::string::npos) {
@@ -1697,9 +1697,65 @@ Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr:
             pos += np.length();
         }
     }
-    if (s.isString())
-        return Value::stringScalar(r, p);
-    return Value::fromString(r, p);
+    return r;
+}
+
+Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
+{
+    std::pmr::memory_resource *p = mr;
+    const bool sc = s.isCell(), oc = oldPat.isCell(), nc = newPat.isCell();
+
+    // Scalar path: no cell arguments — return a char (or string) scalar,
+    // preserving the original behaviour exactly.
+    if (!sc && !oc && !nc) {
+        std::string r = strrepOne(s.toString(), oldPat.toString(), newPat.toString());
+        if (s.isString())
+            return Value::stringScalar(r, p);
+        return Value::fromString(r, p);
+    }
+
+    // Cell-aware path (MATLAB: any cell-array argument => cell output). Cell
+    // operands must share a common size, or be scalar (1x1) and broadcast;
+    // non-cell char/string arguments broadcast to every element. The result
+    // is a cell of char vectors shaped like the non-scalar cell operand.
+    auto numelOf = [](const Value &v, bool isCellArg) -> size_t {
+        return isCellArg ? v.numel() : size_t{1};
+    };
+    const size_t ns = numelOf(s, sc), no = numelOf(oldPat, oc), nn = numelOf(newPat, nc);
+    size_t n = 1;
+    for (size_t v : {ns, no, nn}) {
+        if (v == 1) continue;
+        if (n == 1) n = v;
+        else if (v != n)
+            throw Error("strrep: nonscalar arguments must match in size",
+                        0, 0, "strrep", "", "numkit:strrep:cellSize");
+    }
+    size_t rr = 1, cc = 1;
+    auto setShape = [&](const Value &v) {
+        rr = static_cast<size_t>(v.dims().rows());
+        cc = static_cast<size_t>(v.dims().cols());
+    };
+    // Shape comes from the non-scalar cell operand if any, else the (1x1)
+    // cell operand that triggered the cell path.
+    if (sc && ns == n && n != 1)       setShape(s);
+    else if (oc && no == n && n != 1)  setShape(oldPat);
+    else if (nc && nn == n && n != 1)  setShape(newPat);
+    else if (sc)                       setShape(s);
+    else if (oc)                       setShape(oldPat);
+    else                               setShape(newPat);
+
+    const std::string ss0 = sc ? std::string() : s.toString();
+    const std::string os0 = oc ? std::string() : oldPat.toString();
+    const std::string ns0 = nc ? std::string() : newPat.toString();
+
+    auto out = Value::cell(rr, cc, p);
+    for (size_t i = 0; i < n; ++i) {
+        const std::string si = sc ? s.cellAt(ns == 1 ? 0 : i).toString() : ss0;
+        const std::string oi = oc ? oldPat.cellAt(no == 1 ? 0 : i).toString() : os0;
+        const std::string ni = nc ? newPat.cellAt(nn == 1 ? 0 : i).toString() : ns0;
+        out.cellAt(i) = Value::fromString(strrepOne(si, oi, ni), p);
+    }
+    return out;
 }
 
 Value contains(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
