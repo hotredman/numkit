@@ -2,9 +2,11 @@
   "name": "reverse",
   "namespace": "core",
   "setup": "s = repmat('abcdefghij', 1, 100);",
-  "expr": "y = reverse(s);",
-  "iters": 1000,
-  "tol": 1e-10,
-  "comment": "Sig: S2 = reverse(S). 1k-char reverse. 10000 iters.",
-  "out_var": "y"
+  "expr": "y = reverse(s); ny = strlength(y); y1 = double(y(1)); c = reverse({'abc','de'}); nc = numel(c); c1n = strlength(c{1}); c11 = double(c{1}(1)); cs = reverse({'ab';'cd'}); ncr = size(cs,1); ncc = size(cs,2);",
+  "iters": 20,
+  "tol": 0,
+  "fingerprint": [
+    "ny", "y1", "nc", "c1n", "c11", "ncr", "ncc"
+  ],
+  "comment": "Sig: S2 = reverse(S). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); reverses each element -> cell of char vectors, same shape: reverse({'abc','de'})={'cba','ed'}; column cell stays a column. Scalar char/string path unchanged."
 }

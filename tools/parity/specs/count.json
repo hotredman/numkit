@@ -2,13 +2,14 @@
   "name": "count",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = count(\"hello\", \"l\"); r2 = count(\"aaa\", \"a\"); r3 = count(\"xyz\", \"a\");",
+  "expr": "r1 = count(\"hello\", \"l\"); r2 = count(\"aaa\", \"a\"); r3 = count(\"xyz\", \"a\"); c = count({'aXbX','XcX'},'X'); nc = numel(c); c1 = c(1); c2 = c(2); cp = count('abcabc',{'a','bc'}); cs = count({'aa';'bab'},'a'); cs1 = cs(1); cs2 = cs(2);",
   "iters": 5,
-  "tol": 1e-09,
+  "tol": 0,
   "fingerprint": [
     "r1",
     "r2",
-    "r3"
+    "r3",
+    "nc", "c1", "c2", "cp", "cs1", "cs2"
   ],
-  "comment": "Sig: r = count(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = count(s,pat). DEEP-PROBE 2026-05-31: added CELL-ARRAY str support (was throwing 'Not a char array'); returns a DOUBLE array the same shape as the cell, counting (non-overlapping) occurrences per element: count({'aXbX','XcX'},'X')=[2 2]. A cell PATTERN sums counts across all listed patterns: count('abcabc',{'a','bc'})=4. Scalar path unchanged. Spec-extension batch 2026-05-09."
 }

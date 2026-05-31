@@ -896,36 +896,54 @@ Value count(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
     // pat may be a single pattern or a cell/string array of patterns; MATLAB
     // sums the non-overlapping occurrence counts across all listed patterns.
-    const std::string ss = s.toString();
+    // A cell str input is processed element-wise, returning a DOUBLE array the
+    // same shape as the cell (counts per element).
     ScratchArena scratch(mr);
     ScratchVec<std::string> pats(&scratch);
     collectMatchPatterns(pat, pats);
-    size_t n = 0;
-    for (const auto &pp : pats) {
-        if (pp.empty()) continue;
-        size_t pos = 0;
-        while ((pos = ss.find(pp, pos)) != std::string::npos) {
-            ++n;
-            pos += pp.size();   // non-overlapping (matches MATLAB)
+    auto countOne = [&](const std::string &ss) -> double {
+        size_t n = 0;
+        for (const auto &pp : pats) {
+            if (pp.empty()) continue;
+            size_t pos = 0;
+            while ((pos = ss.find(pp, pos)) != std::string::npos) {
+                ++n;
+                pos += pp.size();   // non-overlapping (matches MATLAB)
+            }
         }
+        return static_cast<double>(n);
+    };
+    if (s.isCell()) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        const size_t nn = s.numel();
+        for (size_t i = 0; i < nn; ++i) od[i] = countOne(s.cellAt(i).toString());
+        return out;
     }
-    return Value::scalar(static_cast<double>(n), mr);
+    return Value::scalar(countOne(s.toString()), mr);
 }
 
 Value erase(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
     // pat may be a single pattern or a cell/string array; MATLAB removes every
-    // occurrence of each listed pattern, applied in order.
-    std::string r = s.toString();
+    // occurrence of each listed pattern, applied in order. A cell str input is
+    // processed element-wise, returning a cell of char vectors (same shape).
     ScratchArena scratch(mr);
     ScratchVec<std::string> pats(&scratch);
     collectMatchPatterns(pat, pats);
-    for (const auto &pp : pats) {
-        if (pp.empty()) continue;
-        size_t pos = 0;
-        while ((pos = r.find(pp, pos)) != std::string::npos)
-            r.erase(pos, pp.size());
-    }
+    auto op = [&](std::string r) -> std::string {
+        for (const auto &pp : pats) {
+            if (pp.empty()) continue;
+            size_t pos = 0;
+            while ((pos = r.find(pp, pos)) != std::string::npos)
+                r.erase(pos, pp.size());
+        }
+        return r;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    std::string r = op(s.toString());
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
@@ -974,8 +992,12 @@ Value replace(const Value &s, const Value &oldPat, const Value &newPat, std::pmr
 
 Value reverse(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    std::reverse(r.begin(), r.end());
+    auto op = [](std::string r) {
+        std::reverse(r.begin(), r.end());
+        return r;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    std::string r = op(s.toString());
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
