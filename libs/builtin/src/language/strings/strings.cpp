@@ -237,7 +237,10 @@ Value int2str(const Value &x, std::pmr::memory_resource *mr)
     // MATLAB int2str: round half away from zero (std::round), render as a
     // plain integer with no decimals or scientific notation. Inf/-Inf/NaN
     // pass through. Scalar only — vector/matrix column-alignment is deferred.
-    const double v = x.toScalar();
+    // For complex input MATLAB operates on the REAL part (the imaginary part
+    // is discarded): int2str(3.6+1.2i) = "4".
+    const double v = (x.type() == ValueType::COMPLEX) ? x.toComplex().real()
+                                                      : x.toScalar();
     if (std::isnan(v))
         return Value::fromString("NaN", mr);
     if (std::isinf(v))
