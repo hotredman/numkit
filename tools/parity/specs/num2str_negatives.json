@@ -1,0 +1,14 @@
+{
+  "name": "num2str_negatives",
+  "namespace": "builtin",
+  "covers": ["num2str"],
+  "setup": "",
+  "expr": "a = num2str([-1 10 -100]); na = numel(a); sa = sum(double(a)); b = num2str([-100 -200]); nb = numel(b); sb = sum(double(b)); c = num2str([5 -5]); nc = numel(c); sc = sum(double(c)); d = num2str([1 22 333]); nd = numel(d); sd = sum(double(d)); e = num2str([-5 -50 -500]); ne = numel(e); se = sum(double(e));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "na", "sa", "nb", "sb", "nc", "sc", "nd", "sd", "ne", "se"
+  ],
+  "deep_verified": true,
+  "comment": "num2str column width for integer vectors that contain NEGATIVE values vs MATLAB R2025b. DEEP-PROBE 2026-05-31: numkit measured the column width with snprintf('%.0f', v), which includes the '-' sign, so a negative element widened the field by one — num2str([-1 10 -100]) gave '-1    10  -100' (14 chars) instead of MATLAB's '-1   10 -100' (12). MATLAB's integer field is max-abs-DIGITS + 2 and the sign is absorbed into the field. Fixed by measuring |v| (fabs) for the width. num2str([-1 10 -100])='-1   10 -100'; [-100 -200]='-100 -200'; [5 -5]='5 -5'; [-5 -50 -500]='-5  -50 -500'; positives ([1 22 333]='1   22  333') and floats unchanged. Fingerprint via numel + sum(char codes). covers:[num2str]."
+}

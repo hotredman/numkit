@@ -102,8 +102,13 @@ std::string num2strArrayFormat(const Value &x, int N)
         const double a = std::fabs(v);
         if (a > maxabs) maxabs = a;
         if (v != std::floor(v)) allInt = false;
+        // Column width is driven by the DIGIT count of |v| (sign excluded):
+        // MATLAB's integer field is max-abs-digits + 2, and a minus sign is
+        // absorbed into the field rather than widening it — num2str([-1 10
+        // -100])='-1   10 -100' (width 5), not width 6. Measuring "%.0f" of v
+        // (which includes '-') over-counted by one for negatives.
         char b[64];
-        const int len = std::snprintf(b, sizeof(b), "%.0f", v);
+        const int len = std::snprintf(b, sizeof(b), "%.0f", a);
         if (len > maxChars) maxChars = len;
     }
     if (allInt) {

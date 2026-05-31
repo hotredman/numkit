@@ -678,3 +678,25 @@ TEST(BuiltinStringsPublicApi, JoinDefaultDelimIsSpace)
     Value j = numkit::builtin::join(arr, Value::Empty, mr);
     EXPECT_EQ(j.stringElem(0), "x y z");
 }
+
+// num2str column width when a NEGATIVE element is the widest: MATLAB's
+// integer field is max-abs-DIGITS + 2 (the '-' is absorbed, not extra).
+// DEEP-PROBE 2026-05-31: numkit measured "%.0f" of v (incl. sign) so a
+// negative-dominant column was one space too wide. vs MATLAB R2025b.
+TEST(BuiltinStringsPublicApi, Num2StrNegativeColumnWidth)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto row = [&](std::initializer_list<double> xs) {
+        Value v = Value::matrix(1, xs.size(), ValueType::DOUBLE, mr);
+        double *d = v.doubleDataMut();
+        size_t i = 0; for (double x : xs) d[i++] = x;
+        return v;
+    };
+    EXPECT_EQ(numkit::builtin::num2str(row({-1, 10, -100}), mr).toString(), "-1   10 -100");
+    EXPECT_EQ(numkit::builtin::num2str(row({-100, -200}), mr).toString(),   "-100 -200");
+    EXPECT_EQ(numkit::builtin::num2str(row({5, -5}), mr).toString(),        "5 -5");
+    EXPECT_EQ(numkit::builtin::num2str(row({-5, -50, -500}), mr).toString(),"-5  -50 -500");
+    EXPECT_EQ(numkit::builtin::num2str(row({100, -1}), mr).toString(),      "100   -1");
+    // Positives unchanged (regression guard).
+    EXPECT_EQ(numkit::builtin::num2str(row({1, 22, 333}), mr).toString(),   "1   22  333");
+}
