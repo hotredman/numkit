@@ -106,3 +106,52 @@ TEST_F(FillOutliersTest, BadFindMethodThrows)
 {
     EXPECT_THROW(eval("filloutliers(x, 'linear', 'gibberish');"), std::exception);
 }
+
+// ── 'percentiles' detection method (DEEP-PROBE 2026-05-31) ───────
+// filloutliers(A, fillmethod, 'percentiles', [lo hi]) previously threw
+// 'findmethod must be median/mean/quartiles'. Bounds use MATLAB prctile;
+// 'center' fill = midpoint (lo+hi)/2; 'clip' clips to [lo,hi]. vs MATLAB
+// R2025b on xp = [1 2 3 100 4 5].
+TEST_F(FillOutliersTest, PercentilesClip)
+{
+    eval("cp = filloutliers([1 2 3 100 4 5], 'clip', 'percentiles', [10 90]);");
+    EXPECT_NEAR(evalScalar("cp(1)"), 1.1, 1e-12);
+    EXPECT_NEAR(evalScalar("cp(4)"), 90.5, 1e-10);
+    EXPECT_NEAR(evalScalar("cp(2)"), 2.0, 1e-12);   // non-outlier unchanged
+}
+
+TEST_F(FillOutliersTest, PercentilesCenterIsMidpoint)
+{
+    eval("ce = filloutliers([1 2 3 100 4 5], 'center', 'percentiles', [10 90]);");
+    EXPECT_NEAR(evalScalar("ce(1)"), 45.8, 1e-10);  // (1.1 + 90.5)/2
+    EXPECT_NEAR(evalScalar("ce(4)"), 45.8, 1e-10);
+}
+
+TEST_F(FillOutliersTest, PercentilesConstantFill)
+{
+    eval("c0 = filloutliers([1 2 3 100 4 5], 0, 'percentiles', [10 90]);");
+    EXPECT_DOUBLE_EQ(evalScalar("c0(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c0(4)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c0(2)"), 2.0);
+}
+
+TEST_F(FillOutliersTest, PercentilesClip2575)
+{
+    eval("c = filloutliers([1 2 3 100 4 5], 'clip', 'percentiles', [25 75]);");
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 2.0);   // 1 -> prctile 25 = 2
+    EXPECT_DOUBLE_EQ(evalScalar("c(4)"), 5.0);   // 100 -> prctile 75 = 5
+}
+
+TEST_F(FillOutliersTest, PercentilesMatrixPerColumn)
+{
+    eval("R = filloutliers([1 2; 3 4; 5 100; 7 8; 9 10], 'clip', 'percentiles', [20 80]);");
+    EXPECT_DOUBLE_EQ(evalScalar("R(1,1)"), 2.0);   // col1: 1 -> 2
+    EXPECT_DOUBLE_EQ(evalScalar("R(5,1)"), 8.0);   // col1: 9 -> 8
+    EXPECT_DOUBLE_EQ(evalScalar("R(3,2)"), 55.0);  // col2: 100 -> 55
+    EXPECT_DOUBLE_EQ(evalScalar("R(1,2)"), 3.0);   // col2: 2 -> 3
+}
+
+TEST_F(FillOutliersTest, PercentilesNeedsTwoElementVector)
+{
+    EXPECT_THROW(eval("filloutliers([1 2 3], 'clip', 'percentiles', 50);"), std::exception);
+}
