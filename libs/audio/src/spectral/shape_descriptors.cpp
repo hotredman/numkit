@@ -405,7 +405,7 @@ namespace detail {
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#FN ": requires (x, fs) or (X, F)",                      \
-                        0, 0, #FN, "", "m:" #FN ":nargin");                      \
+                        0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
         outs[0] = FN(ctx.engine->resource(), args[0], args[1]);                  \
     }
 
@@ -427,7 +427,7 @@ void spectralRolloffPoint_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("spectralRolloffPoint: requires (x, fs [, threshold])",
                     0, 0, "spectralRolloffPoint", "",
-                    "m:spectralRolloffPoint:nargin");
+                    "numkit:spectralRolloffPoint:nargin");
     double pct = 0.95;
     if (args.size() >= 3) pct = args[2].toScalar();
     outs[0] = spectralRolloffPoint(ctx.engine->resource(),
@@ -439,7 +439,7 @@ void spectralFlux_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("spectralFlux: requires (x, fs [, p])",
-                    0, 0, "spectralFlux", "", "m:spectralFlux:nargin");
+                    0, 0, "spectralFlux", "", "numkit:spectralFlux:nargin");
     double p = 2.0;
     if (args.size() >= 3) p = args[2].toScalar();
     outs[0] = spectralFlux(ctx.engine->resource(), args[0], args[1], p);

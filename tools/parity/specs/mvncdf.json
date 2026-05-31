@@ -1,0 +1,19 @@
+{
+  "name": "mvncdf",
+  "namespace": "stats",
+  "setup": "S05 = [1 0.5; 0.5 1];",
+  "expr": "p1 = mvncdf(0, [], []); p15 = mvncdf(1.5, [], []); p2_orig = mvncdf([0 0], [], eye(2)); p2_far = mvncdf([1.96 1.96], [], eye(2)); p2_rho = mvncdf([0 0], [0 0], S05); X = [0 0; 1 1; -1 -1]; Pmany = mvncdf(X, [0 0], eye(2));",
+  "iters": 3,
+  "tol": 1e-4,
+  "fingerprint": [
+    "p1", "p15",
+    "p2_orig",
+    "double(p2_far > 0.94)", "double(p2_far < 0.96)",
+    "p2_rho",
+    "size(Pmany, 1)",
+    "Pmany(1)",
+    "double(Pmany(2) > Pmany(1))",
+    "double(Pmany(3) < Pmany(1))"
+  ],
+  "comment": "Sig: p = mvncdf(X, mu, Sigma) — multivariate normal CDF. d=1 forwards to normcdf. d=2 uses Gauss-Legendre 16-point integration over the bivariate parametric formula. d≥3 uses antithetic Monte Carlo with 20000 samples. Deterministic seed (12345) for the MC path so results are reproducible. Bit-exact MATLAB R2025b at tol 1e-4 on d=1 and d=2 deterministic cases; d≥3 within statistical tolerance (KNOWN GAP: Genz separation-of-variables quasi-MC not yet shipped). Special cases: mu=[]→0, Sigma=[]→I."
+}

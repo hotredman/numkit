@@ -114,7 +114,7 @@ inline double argB(Span<const Value> args, size_t i) {
 void unifpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("unifpdf: requires (x[, a, b])", 0, 0, "unifpdf", "", "m:unifpdf:nargin");
+        throw Error("unifpdf: requires (x[, a, b])", 0, 0, "unifpdf", "", "numkit:unifpdf:nargin");
     outs[0] = unifpdf(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
@@ -123,7 +123,7 @@ void unifcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
     if (stripped.empty())
-        throw Error("unifcdf: requires (x[, a, b][, 'upper'])", 0, 0, "unifcdf", "", "m:unifcdf:nargin");
+        throw Error("unifcdf: requires (x[, a, b][, 'upper'])", 0, 0, "unifcdf", "", "numkit:unifcdf:nargin");
     Value v = unifcdf(stripped[0], argA(stripped, 1), argB(stripped, 2), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -132,14 +132,14 @@ void unifcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void unifinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("unifinv: requires (p[, a, b])", 0, 0, "unifinv", "", "m:unifinv:nargin");
+        throw Error("unifinv: requires (p[, a, b])", 0, 0, "unifinv", "", "numkit:unifinv:nargin");
     outs[0] = unifinv(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
 }
 
 void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("unifrnd: requires (a, b[, sz...])", 0, 0, "unifrnd", "", "m:unifrnd:nargin");
+        throw Error("unifrnd: requires (a, b[, sz...])", 0, 0, "unifrnd", "", "numkit:unifrnd:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     size_t rows, cols;

@@ -2,12 +2,16 @@
   "name": "mode",
   "namespace": "core",
   "setup": "x = mod(1:1000000, 7919);",
-  "expr": "y = mode(x);",
+  "expr": "y = mode(x); e0 = mode([]); ne0 = numel(e0); ie0 = double(isnan(e0)); [me, fe] = mode([]); ec = mode(zeros(0,3)); er = mode(zeros(3,0));",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp.",
+  "comment": "Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp. DEEP-PROBE 2026-05-29: mode of an EMPTY array -> NaN value + 0 count (not 0x0): mode([])=NaN; [M,F]=mode([]) gives M=NaN, F=0; mode(zeros(0,3))=[NaN NaN NaN] (1x3); mode(zeros(3,0))=1x0.",
   "fingerprint": [
     "double(y)",
-    "numel(y)"
+    "numel(y)",
+    "ne0", "ie0",
+    "fe",
+    "size(ec,1)", "size(ec,2)", "double(isnan(ec(1)))",
+    "size(er,1)", "size(er,2)"
   ]
 }

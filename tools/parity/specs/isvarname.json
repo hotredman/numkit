@@ -1,0 +1,10 @@
+{
+  "name": "isvarname",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = double(isvarname('abc')); b = double(isvarname('a_1')); c = double(isvarname('1abc')); d = double(isvarname('_x')); e = double(isvarname('a b')); f = double(isvarname('')); g = double(isvarname('if')); h = double(isvarname('end')); i = double(isvarname(\"abc\")); j = double(isvarname(5)); k = double(isvarname({'abc'}));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"],
+  "comment": "isvarname vs MATLAB R2025b. Implemented 2026-05-30 (was an undefined function). True only for a non-empty char/string-scalar that starts with a letter, contains only letters/digits/underscores, and is not a reserved keyword: 'abc'=1, 'a_1'=1, '1abc'=0, '_x'=0, 'a b'=0, ''=0, 'if'=0, 'end'=0 (keywords), \"abc\" string-scalar=1. Non-text inputs yield false rather than erroring: 5->0, {'abc'}->0. No length limit in R2025b. namespace=builtin."
+}

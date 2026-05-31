@@ -1,12 +1,26 @@
 {
   "name": "medfilt2",
   "namespace": "image",
-  "setup": "",
-  "expr": "B = medfilt2([1 5; 3 7]); r1 = double(numel(B));",
-  "iters": 5,
-  "tol": 1e-06,
+  "setup": "I = magic(5); I(2,3) = 99; I(4,4) = -7;",
+  "expr": "B = medfilt2(I);",
+  "iters": 8,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "size(B,1)",
+    "size(B,2)",
+    "B(1,1)",
+    "B(2,3)",
+    "B(3,3)",
+    "B(4,4)",
+    "B(5,5)",
+    "sum(B(:))"
   ],
-  "comment": "Sig: r = medfilt2(...). Spec-extension batch 2026-05-09 (image namespace)."
+  "comment": "MATLAB medfilt2 — 3x3 median filter (zero boundary). magic(5) with two spike pixels so the median actually rejects outliers; pins values at the spikes and corners. Bit-equal MATLAB R2025b (tol=1e-9).",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = medfilt2(A);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }

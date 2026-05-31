@@ -1,0 +1,19 @@
+{
+  "name": "mvtcdf",
+  "covers": ["mvtcdf"],
+  "namespace": "stats",
+  "setup": "C2 = [1 0.5; 0.5 1]; C3 = eye(3);",
+  "expr": "p1 = mvtcdf(0.5, 1, 5); p2 = mvtcdf([0.5 0.3], C2, 5); p3 = mvtcdf([0.5 0.3 0.7], C3, 5); P = mvtcdf([0 0; 0.5 0.5; -0.5 -0.5], C2, 5); err1 = abs(p1 - 0.6808505642); err2 = abs(p2 - 0.4909888137); err3 = abs(p3 - 0.3144752061);",
+  "iters": 3,
+  "tol": 0.02,
+  "fingerprint": [
+    "double(err1 < 1e-8)",
+    "double(err2 < 0.02)",
+    "double(err3 < 0.02)",
+    "size(P, 1)", "size(P, 2)",
+    "double(P(1) > 0.15 && P(1) < 0.35)",
+    "double(P(2) > 0.45 && P(2) < 0.65)",
+    "double(P(3) > 0.05 && P(3) < 0.18)"
+  ],
+  "comment": "Sig: p = mvtcdf(X, C, df). For d=1 exact via tcdf (bit-equal MATLAB R2025b). For d≥2 deterministic Monte Carlo on Y = Z/sqrt(W/df) with W ~ chi²(df), seed=12345, 10000 antithetic draws → ~0.005 MC error per row. Fingerprint pins d=1 to 1e-8 (exact) and d=2,3 to 0.02 MC tolerance. KNOWN GAPs: [LB, UB] box-form mvtcdf(L, U, C, df) and 'tol' option deferred."
+}

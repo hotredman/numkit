@@ -1,6 +1,6 @@
 // libs/stats/include/numkit/stats/spline/spline.hpp
 //
-// Curve Fitting Toolbox — knot-manipulation primitives and pp-form splines.
+// Knot-manipulation primitives and pp-form splines.
 
 #pragma once
 

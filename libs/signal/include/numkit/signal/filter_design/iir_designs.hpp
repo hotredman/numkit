@@ -78,7 +78,7 @@ cheby2(int                          N,
 
 /// Bessel-Thompson IIR filter design.
 ///
-/// Maximally flat group delay in the passband. MATLAB's `besself` is
+/// Maximally flat group delay in the passband. `besself` is
 /// analog-only by default; here `analog = false` enables a digital
 /// design via the bilinear transform (the resulting digital filter
 /// approximates the analog group-delay characteristic).

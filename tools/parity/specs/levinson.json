@@ -2,9 +2,12 @@
   "name": "levinson",
   "namespace": "signal",
   "setup": "",
-  "expr": "[a, e] = levinson([4 -2 -3 1 1.5], 3); r1 = double(numel(a));",
-  "iters": 5,
+  "expr": "[a1,e1,k1] = levinson([1 0.6 0.3 0.1], 3); [a2,e2,k2] = levinson([4 -2 -3 1 1.5], 3);",
+  "iters": 3,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [a, e, k] = levinson(r, p). Spec-extension batch 2026-05-09 (cycle 40)."
+  "fingerprint": [
+    "a1(2)", "a1(3)", "a1(4)", "e1", "k1(1)", "k1(3)",
+    "a2(2)", "a2(3)", "a2(4)", "e2", "k2(3)"
+  ],
+  "comment": "Sig [a,e,k]=levinson(r,p): Levinson-Durbin AR fit. Branch 1 = valid PSD autocorr r=[1 .6 .3 .1]: a(2)=-0.65025, e=0.63177, k(1)=-0.6. Branch 2 = NON-PSD r=[4 -2 -3 1 1.5] (|k(2)|>1): MATLAB runs the full recursion through negative residual energy (a=[1 -1.78571 -1.25 -2.21429], e=9.10714, k(3)=-2.21429); numkit previously early-exited at e<=0 leaving a/k zeroed and e=0 -- fixed (drop the e<=0 bail, guard only exact-zero divide)."
 }

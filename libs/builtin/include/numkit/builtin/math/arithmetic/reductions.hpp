@@ -17,7 +17,7 @@ namespace numkit::builtin {
 ///
 /// **Dim convention** (auto-dim form): vectors collapse to scalar, 2-D
 /// matrices reduce along columns (dim=1), 3-D arrays reduce along the
-/// first non-singleton dim — matching MATLAB's no-arg default. The
+/// first non-singleton dim (the no-arg default). The
 /// three-arg form takes an explicit 1-based `dim` (passing 0 is
 /// equivalent to omitting the argument).
 

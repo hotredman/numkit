@@ -24,6 +24,7 @@
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/linalg/eig.hpp>             // eig_symmetric (migrated)
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -49,7 +50,7 @@ projPSD(const std::vector<double> &M, size_t n, std::pmr::memory_resource *mr)
     Value M_v = Value::matrix(n, n, ValueType::DOUBLE, mr);
     std::copy(Msym.begin(), Msym.end(), M_v.doubleDataMut());
 
-    auto [V, D] = ::numkit::builtin::eig_symmetric(M_v, mr);
+    auto [V, D] = ::numkit::linalg::eig_symmetric(M_v, mr);
     const double *vd = V.doubleData();
     const double *dd = D.doubleData();
 
@@ -90,7 +91,7 @@ Value nearcorr(const Value &A, std::pmr::memory_resource *mr)
     const size_t C = A.dims().cols();
     if (R != C)
         throw Error("nearcorr: input must be square",
-                    0, 0, "nearcorr", "", "m:nearcorr:NotSquare");
+                    0, 0, "nearcorr", "", "numkit:nearcorr:NotSquare");
     if (R == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
@@ -142,7 +143,7 @@ void nearcorr_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("nearcorr: requires (A)",
-                    0, 0, "nearcorr", "", "m:nearcorr:nargin");
+                    0, 0, "nearcorr", "", "numkit:nearcorr:nargin");
     outs[0] = nearcorr(args[0], ctx.engine->resource());
 }
 

@@ -107,3 +107,37 @@ TEST_F(LuQrTest, QrWideRejected)
     // wide matrices (m < n) require column-pivoted QR -- deferred.
     EXPECT_THROW(eval("qr([1 2 3; 4 5 6]);"), std::exception);
 }
+
+// ── 'econ' / 'vector' options ──────────────────────────────────
+
+TEST_F(LuQrTest, QrEconTall)
+{
+    // 3x2 tall: economy → Q 3x2, R 2x2, Q*R == A, Q'*Q == I2.
+    eval("A = [1 2; 3 4; 5 6]; [Q, R] = qr(A, 'econ');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Q,1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Q,2)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(R,1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(R,2)")), 2);
+    EXPECT_NEAR(evalScalar("max(max(abs(Q*R - A)))"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("max(max(abs(Q'*Q - eye(2))))"), 0.0, 1e-12);
+}
+
+TEST_F(LuQrTest, LuVectorPermutation)
+{
+    // 'vector' → P returned as a 1-based row-index row vector; A(p,:) = L*U.
+    eval("A = [4 3; 6 3]; [L, U, p] = lu(A, 'vector');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(p,1)")), 1);   // row vector
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(p)")), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("p(1)"), 2.0);                  // largest pivot first
+    EXPECT_DOUBLE_EQ(evalScalar("p(2)"), 1.0);
+    EXPECT_NEAR(evalScalar("max(max(abs(A(p,:) - L*U)))"), 0.0, 1e-12);
+}
+
+TEST_F(LuQrTest, LuVectorMatchesMatrixForm)
+{
+    // The 'vector' p and the matrix P encode the same permutation:
+    // P*A == A(p,:).
+    eval("A = [1 2 3; 4 5 6; 7 8 10];"
+         "[~, ~, P] = lu(A); [~, ~, p] = lu(A, 'vector');");
+    EXPECT_NEAR(evalScalar("max(max(abs(P*A - A(p,:))))"), 0.0, 1e-12);
+}

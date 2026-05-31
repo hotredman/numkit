@@ -2,12 +2,11 @@
   "name": "qfuncinv",
   "namespace": "comm",
   "setup": "",
-  "expr": "r1 = qfuncinv(0.5); r2 = qfuncinv(0.1);",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "r = qfuncinv([0.5 0.1 0.9 0.025]);",
+  "iters": 3,
+  "tol": 1e-07,
   "fingerprint": [
-    "r1",
-    "r2"
+    "r(1)", "r(2)", "r(3)", "r(4)"
   ],
-  "comment": "Sig: r = qfuncinv(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig x=qfuncinv(p)=sqrt(2)*erfcinv(2p): inverse Q-function. qfuncinv(0.5)=0, qfuncinv(0.1)=1.281552, qfuncinv(0.9)=-1.281552 (odd symmetry about 0.5), qfuncinv(0.025)=1.959964. tol 1e-7: numkit erfcinv differs from MATLAB by ~1e-9."
 }

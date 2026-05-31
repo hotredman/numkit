@@ -91,7 +91,7 @@ Value swt(const Value &x, int n, const std::string &wname, std::pmr::memory_reso
 {
     if (n < 1)
         throw Error("swt: level must be ≥ 1",
-                    0, 0, "swt", "", "m:swt:level");
+                    0, 0, "swt", "", "numkit:swt:level");
     const size_t N = x.numel();
     if (N == 0)
         return Value::matrix(static_cast<size_t>(n + 1), 0,
@@ -100,7 +100,7 @@ Value swt(const Value &x, int n, const std::string &wname, std::pmr::memory_reso
     const size_t needed = static_cast<size_t>(1) << n;
     if (N % needed != 0)
         throw Error("swt: signal length must be divisible by 2^n",
-                    0, 0, "swt", "", "m:swt:size");
+                    0, 0, "swt", "", "numkit:swt:size");
 
     auto fb = wavelet_filters(wname);
     std::vector<double> a(N);
@@ -129,7 +129,7 @@ Value iswt(const Value &swc, const std::string &wname, std::pmr::memory_resource
     const size_t N = swc.dims().cols();
     if (H < 2)
         throw Error("iswt: input must have at least 2 rows",
-                    0, 0, "iswt", "", "m:iswt:size");
+                    0, 0, "iswt", "", "numkit:iswt:size");
     const int n = static_cast<int>(H) - 1;
     if (N == 0)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
@@ -173,7 +173,7 @@ Value modwt(const Value &x, int n, const std::string &wname, std::pmr::memory_re
 {
     if (n < 1)
         throw Error("modwt: level must be ≥ 1",
-                    0, 0, "modwt", "", "m:modwt:level");
+                    0, 0, "modwt", "", "numkit:modwt:level");
     const size_t N = x.numel();
     if (N == 0)
         return Value::matrix(static_cast<size_t>(n + 1), 0,
@@ -182,8 +182,15 @@ Value modwt(const Value &x, int n, const std::string &wname, std::pmr::memory_re
     auto fb = wavelet_filters(wname);
     // Pre-scale filters by 1/√2 once (so the inner correlation is a
     // straight sum without per-tap multiplications).
+    // MODWT (Percival & Walden): W_{j,t} = Σ_l h̃_l X_{(t-l) mod N} with
+    // the MODWT filters h̃ = wrev(Hi_D)/√2, g̃ = wrev(Lo_D)/√2 (the
+    // analysis filters are TIME-REVERSED relative to wfilters' Hi_D/Lo_D,
+    // then applied as a look-back circular convolution). This matches
+    // MATLAB R2025b modwt (e.g. Haar W_{1,1} wraps to 0.5·(x1−xN)).
     const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
     std::vector<double> hLo = fb.Lo_D, hHi = fb.Hi_D;
+    std::reverse(hLo.begin(), hLo.end());
+    std::reverse(hHi.begin(), hHi.end());
     for (auto &v : hLo) v *= inv_sqrt2;
     for (auto &v : hHi) v *= inv_sqrt2;
 
@@ -197,8 +204,8 @@ Value modwt(const Value &x, int n, const std::string &wname, std::pmr::memory_re
 
     for (int k = 0; k < n; ++k) {
         const size_t step = static_cast<size_t>(1) << k;
-        auto a_next = circ_corr_fwd(a, hLo, step);
-        auto d_next = circ_corr_fwd(a, hHi, step);
+        auto a_next = circ_corr_back(a, hLo, step);
+        auto d_next = circ_corr_back(a, hHi, step);
         for (size_t c = 0; c < N; ++c) od[c * H + k] = d_next[c];
         a = std::move(a_next);
     }
@@ -212,26 +219,29 @@ Value imodwt(const Value &swc, const std::string &wname, std::pmr::memory_resour
     const size_t N = swc.dims().cols();
     if (H < 2)
         throw Error("imodwt: input must have at least 2 rows",
-                    0, 0, "imodwt", "", "m:imodwt:size");
+                    0, 0, "imodwt", "", "numkit:imodwt:size");
     const int n = static_cast<int>(H) - 1;
     if (N == 0)
         return Value::matrix(1, 0, ValueType::DOUBLE, mr);
 
     auto fb = wavelet_filters(wname);
     const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+    // Use the same reversed MODWT filters as the forward; the inverse is
+    // its exact transpose, so the look-back analysis becomes a look-forward
+    // synthesis (no /2 — the /√2 in forward absorbed the redundancy).
     std::vector<double> hLo = fb.Lo_D, hHi = fb.Hi_D;
+    std::reverse(hLo.begin(), hLo.end());
+    std::reverse(hHi.begin(), hHi.end());
     for (auto &v : hLo) v *= inv_sqrt2;
     for (auto &v : hHi) v *= inv_sqrt2;
 
     auto a = rowOf(swc, static_cast<size_t>(n), N);
 
-    // Inverse: sum of two transposed correlations (no /2 — the /√2
-    // in forward already absorbed the redundancy factor).
     for (int k = n - 1; k >= 0; --k) {
         const size_t step = static_cast<size_t>(1) << k;
         auto d = rowOf(swc, static_cast<size_t>(k), N);
-        auto lo = circ_corr_back(a, hLo, step);
-        auto hi = circ_corr_back(d, hHi, step);
+        auto lo = circ_corr_fwd(a, hLo, step);
+        auto hi = circ_corr_fwd(d, hHi, step);
         for (size_t i = 0; i < N; ++i) a[i] = lo[i] + hi[i];
     }
 
@@ -245,7 +255,7 @@ namespace detail {
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected string argument",
-                    0, 0, "", "", "m:wavelet:type");
+                    0, 0, "", "", "numkit:wavelet:type");
     return v.toString();
 }
 
@@ -254,7 +264,7 @@ void swt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("swt: requires (x, n, wname)",
-                    0, 0, "swt", "", "m:swt:nargin");
+                    0, 0, "swt", "", "numkit:swt:nargin");
     outs[0] = swt(args[0], static_cast<int>(args[1].toScalar()), argString(args[2]), ctx.engine->resource());
 }
 
@@ -263,7 +273,7 @@ void iswt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("iswt: requires (swc, wname)",
-                    0, 0, "iswt", "", "m:iswt:nargin");
+                    0, 0, "iswt", "", "numkit:iswt:nargin");
     outs[0] = iswt(args[0], argString(args[1]), ctx.engine->resource());
 }
 
@@ -278,7 +288,7 @@ void modwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // Default wname = 'sym4'; default lev = floor(log2(N)).
     if (args.empty())
         throw Error("modwt: requires (x[, wname[, lev]])",
-                    0, 0, "modwt", "", "m:modwt:nargin");
+                    0, 0, "modwt", "", "numkit:modwt:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const size_t N = x.numel();
@@ -306,7 +316,7 @@ void imodwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("imodwt: requires (swc, wname)",
-                    0, 0, "imodwt", "", "m:imodwt:nargin");
+                    0, 0, "imodwt", "", "numkit:imodwt:nargin");
     outs[0] = imodwt(args[0], argString(args[1]), ctx.engine->resource());
 }
 

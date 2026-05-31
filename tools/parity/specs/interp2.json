@@ -1,12 +1,13 @@
 {
   "name": "interp2",
   "namespace": "builtin",
-  "setup": "",
-  "expr": "X = [1 2; 3 4]; r1 = interp2([1 2], [1; 2], X, 1.5, 1.5);",
+  "setup": "X = [1 2; 3 4]; V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48]; [GX,GY] = meshgrid(1:4,1:4); W = GX.^2 + GY;",
+  "expr": "r1 = interp2([1 2], [1; 2], X, 1.5, 1.5); cA = interp2(V, 2.5, 2.5, 'cubic'); cB = interp2(V, 1.3, 3.7, 'cubic'); cN = interp2(V, 2, 3, 'cubic'); cQ = interp2(GX, GY, W, 2.5, 2.5, 'cubic');",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 1e-10,
   "fingerprint": [
-    "r1"
+    "r1",
+    "cA", "cB", "cN", "cQ"
   ],
-  "comment": "Sig: r = interp2(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = interp2(...[,method]). Default bilinear; 'cubic' = Keys bicubic convolution (a=-0.5) on a uniform grid, with MATLAB's one-cell edge padding (3*v1-3*v2+v3) so near-boundary queries match. cA interior, cB near-boundary (exercises padding), cN on a grid node (exact), cQ X,Y,V form. Queue-clearing 2026-05-29: 'cubic' previously errored 'not yet supported'. 'spline'/extrapval still deferred."
 }

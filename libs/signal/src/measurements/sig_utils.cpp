@@ -161,7 +161,7 @@ void seqperiod_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("seqperiod: requires (x [, tol])",
-                    0, 0, "seqperiod", "", "m:seqperiod:nargin");
+                    0, 0, "seqperiod", "", "numkit:seqperiod:nargin");
     double tol = 1e-10;
     if (args.size() >= 2) tol = args[1].toScalar();
     auto [p, nr] = seqperiod(args[0], tol, ctx.engine->resource());
@@ -174,7 +174,7 @@ void zerocrossrate_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("zerocrossrate: requires (x [, level])",
-                    0, 0, "zerocrossrate", "", "m:zerocrossrate:nargin");
+                    0, 0, "zerocrossrate", "", "numkit:zerocrossrate:nargin");
     double level = 0.0;
     if (args.size() >= 2) level = args[1].toScalar();
     auto [r, c] = zerocrossrate(args[0], level, ctx.engine->resource());
@@ -187,7 +187,7 @@ void cusum_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("cusum: requires (x [, climit, mshift, tmean, tdev])",
-                    0, 0, "cusum", "", "m:cusum:nargin");
+                    0, 0, "cusum", "", "numkit:cusum:nargin");
     double climit = 5.0, mshift = 1.0, tmean = 0.0, tdev = 1.0;
     bool have_tmean = false, have_tdev = false;
     if (args.size() >= 2) climit = args[1].toScalar();

@@ -63,7 +63,7 @@ Value pammod(const Value &x, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pammod: M must be ≥ 2", 0, 0, "pammod", "",
-                    "m:pammod:badM");
+                    "numkit:pammod:badM");
     Value out = alloc_complex_like(mr, x);   // PAM is real-valued but
     // MATLAB still returns complex when ini_phase ≠ 0; for simplicity always
     // return complex.
@@ -86,7 +86,7 @@ Value pamdemod(const Value &y, int M, double ini_phase,
 {
     if (M < 2)
         throw Error("pamdemod: M must be ≥ 2", 0, 0, "pamdemod", "",
-                    "m:pamdemod:badM");
+                    "numkit:pamdemod:badM");
     Value out = alloc_double_like(mr, y);
     const size_t N = y.numel();
     if (N == 0) return out;
@@ -116,7 +116,7 @@ Value qammod(const Value &x, int M, const std::string &symbol_order,
 {
     if (M < 4)
         throw Error("qammod: M must be ≥ 4", 0, 0, "qammod", "",
-                    "m:qammod:badM");
+                    "numkit:qammod:badM");
     auto [KI, KQ] = qam_grid(M);
 
     // Pre-compute scaling for unit average power.
@@ -134,14 +134,15 @@ Value qammod(const Value &x, int M, const std::string &symbol_order,
     Cd *od = out.complexDataMut();
     for (size_t i = 0; i < N; ++i) {
         const int s = (int)x.elemAsDouble(i);
-        // Decompose s into (sI, sQ) with sI = s mod KI, sQ = s div KI
-        // (column-major fill); then Gray-encode each axis independently.
-        const int sI = s % KI;
-        const int sQ = s / KI;
-        const int kI = (symbol_order == "bin") ? sI : to_gray(sI);
-        const int kQ = (symbol_order == "bin") ? sQ : to_gray(sQ);
-        const double I = (2.0 * double(kI) - double(KI - 1)) * scale;
-        const double Q = (2.0 * double(kQ) - double(KQ - 1)) * scale;
+        // MATLAB layout: the symbol indexes a column-major grid where the
+        // column (I axis) = s / KQ and the row (Q axis) = s % KQ. Each axis
+        // is Gray-coded; I increases left→right, Q DECREASES top→bottom.
+        const int col = s / KQ;
+        const int row = s % KQ;
+        const int gcol = (symbol_order == "bin") ? col : to_gray(col);
+        const int grow = (symbol_order == "bin") ? row : to_gray(row);
+        const double I = (2.0 * double(gcol) - double(KI - 1)) * scale;
+        const double Q = (double(KQ - 1) - 2.0 * double(grow)) * scale;
         od[i] = Cd(I, Q);
     }
     return out;
@@ -152,7 +153,7 @@ Value qamdemod(const Value &y, int M, const std::string &symbol_order,
 {
     if (M < 4)
         throw Error("qamdemod: M must be ≥ 4", 0, 0, "qamdemod", "",
-                    "m:qamdemod:badM");
+                    "numkit:qamdemod:badM");
     auto [KI, KQ] = qam_grid(M);
 
     double scale = 1.0;
@@ -171,13 +172,13 @@ Value qamdemod(const Value &y, int M, const std::string &symbol_order,
              : Cd(y.elemAsDouble(i), 0.0);
         const double I = c.real() / scale;
         const double Q = c.imag() / scale;
-        int kI = (int)std::lround(0.5 * (I + double(KI - 1)));
-        int kQ = (int)std::lround(0.5 * (Q + double(KQ - 1)));
-        kI = std::clamp(kI, 0, KI - 1);
-        kQ = std::clamp(kQ, 0, KQ - 1);
-        const int sI = (symbol_order == "bin") ? kI : from_gray(kI);
-        const int sQ = (symbol_order == "bin") ? kQ : from_gray(kQ);
-        od[i] = double(sQ * KI + sI);
+        int gcol = (int)std::lround(0.5 * (I + double(KI - 1)));
+        int grow = (int)std::lround(0.5 * (double(KQ - 1) - Q));   // Q decreases
+        gcol = std::clamp(gcol, 0, KI - 1);
+        grow = std::clamp(grow, 0, KQ - 1);
+        const int col = (symbol_order == "bin") ? gcol : from_gray(gcol);
+        const int row = (symbol_order == "bin") ? grow : from_gray(grow);
+        od[i] = double(col * KQ + row);
     }
     return out;
 }
@@ -221,14 +222,16 @@ Value modnorm(const Value &ref, const std::string &type, double target,
 namespace detail {
 
 namespace {
-std::string parse_order(Span<const Value> args, size_t start) {
+// MATLAB R2025b defaults differ by function: pammod/pamdemod default to
+// 'bin' (binary symbol mapping); qammod/qamdemod default to 'gray'.
+std::string parse_order(Span<const Value> args, size_t start, const char *dflt) {
     for (size_t i = start; i < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             auto s = args[i].toString();
             if (s == "bin" || s == "gray") return s;
         }
     }
-    return "gray";
+    return dflt;
 }
 
 bool parse_unit_power(Span<const Value> args, size_t start) {
@@ -246,12 +249,12 @@ void pammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pammod: requires (x, M[, ini_phase, symbol_order])",
-                    0, 0, "pammod", "", "m:pammod:nargin");
+                    0, 0, "pammod", "", "numkit:pammod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
-    auto order = parse_order(args, 2);
+    auto order = parse_order(args, 2, "bin");
     outs[0] = pammod(args[0], M, ini, order, ctx.engine->resource());
 }
 
@@ -260,12 +263,12 @@ void pamdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("pamdemod: requires (y, M[, ini_phase, symbol_order])",
-                    0, 0, "pamdemod", "", "m:pamdemod:nargin");
+                    0, 0, "pamdemod", "", "numkit:pamdemod:nargin");
     const int M = (int)args[1].toScalar();
     const double ini = (args.size() >= 3 && !args[2].isEmpty()
                         && !(args[2].isChar() || args[2].isString()))
                         ? args[2].toScalar() : 0.0;
-    auto order = parse_order(args, 2);
+    auto order = parse_order(args, 2, "bin");
     outs[0] = pamdemod(args[0], M, ini, order, ctx.engine->resource());
 }
 
@@ -274,9 +277,9 @@ void qammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("qammod: requires (x, M[, symbol_order, 'UnitAveragePower', tf])",
-                    0, 0, "qammod", "", "m:qammod:nargin");
+                    0, 0, "qammod", "", "numkit:qammod:nargin");
     const int M = (int)args[1].toScalar();
-    auto order = parse_order(args, 2);
+    auto order = parse_order(args, 2, "gray");
     bool up = parse_unit_power(args, 2);
     outs[0] = qammod(args[0], M, order, up, ctx.engine->resource());
 }
@@ -286,9 +289,9 @@ void qamdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("qamdemod: requires (y, M[, symbol_order, 'UnitAveragePower', tf])",
-                    0, 0, "qamdemod", "", "m:qamdemod:nargin");
+                    0, 0, "qamdemod", "", "numkit:qamdemod:nargin");
     const int M = (int)args[1].toScalar();
-    auto order = parse_order(args, 2);
+    auto order = parse_order(args, 2, "gray");
     bool up = parse_unit_power(args, 2);
     outs[0] = qamdemod(args[0], M, order, up, ctx.engine->resource());
 }
@@ -298,7 +301,7 @@ void modnorm_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("modnorm: requires (ref, type, target)",
-                    0, 0, "modnorm", "", "m:modnorm:nargin");
+                    0, 0, "modnorm", "", "numkit:modnorm:nargin");
     std::string type = "avpow";
     if (args[1].isChar() || args[1].isString()) type = args[1].toString();
     const double target = args[2].toScalar();

@@ -2,13 +2,17 @@
   "name": "diag",
   "namespace": "builtin",
   "setup": "x = [1, 2, 3];",
-  "expr": "r = diag(x);",
+  "expr": "r = diag(x); r11 = r(1,1); r22 = r(2,2); r33 = r(3,3); C = diag('abc'); c11 = double(C(1,1)); c22 = double(C(2,2)); c12 = double(C(1,2)); csz = size(C,1); Cm = ['abc';'def';'ghi']; dc = diag(Cm); dc1 = double(dc(1)); dc3 = double(dc(3)); L = diag(logical([1 0 1])); l11 = double(L(1,1)); l22 = double(L(2,2)); S = single([1 2]); ds = diag(S); ds_is = double(strcmp(class(ds),'single')); Z = diag([1+2i 3+4i]); zr = real(Z(1,1)); zi = imag(Z(1,1)); zo = real(Z(1,2)); vk = diag([1 2 3], 1); vk12 = vk(1,2); vk23 = vk(2,3); vksz = size(vk,1); vkn = diag([1 2 3], -1); vkn21 = vkn(2,1); M = reshape(1:9,3,3); dk = diag(M,1); dk1 = dk(1); dk2 = dk(2); dkn = diag(M,-1); dkn1 = dkn(1);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "r(1,1)",
-    "r(2,2)",
-    "r(3,3)"
+    "r11", "r22", "r33",
+    "c11", "c22", "c12", "csz", "dc1", "dc3",
+    "l11", "l22", "ds_is",
+    "zr", "zi", "zo",
+    "vk12", "vk23", "vksz", "vkn21",
+    "dk1", "dk2", "dkn1"
   ],
-  "comment": "Sig: r = diag(...). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
+  "deep_verified": true,
+  "comment": "Sig: r = diag(v|M [,k]). DEEP-PROBE 2026-05-31: diag was DOUBLE-only (threw 'Not a double array' on char/logical/single/int) and SILENTLY IGNORED the k offset (2nd arg). Generalised type-agnostic (raw-byte copy preserving CHAR/LOGICAL/SINGLE/int/COMPLEX; CELL/STRING/STRUCT rejected per MATLAB 'Inputs must be numeric, char, or logical') and added the k diagonal offset. diag('abc')=3x3 char with 'a''b''c' on diag, char(0) off-diag (c12=0); diag(['abc';'def';'ghi'])=['a';'e';'i'] (dc1=97,dc3=105); logical/single/complex class preserved; complex off-diag=0+0i; diag([1 2 3],1)=4x4 superdiagonal (vk12=1,vk23=2); diag([1 2 3],-1) subdiagonal; diag(reshape(1:9,3,3),1)=[4;8] (extract superdiagonal), diag(M,-1)=[2;6]. NOTE: numkit class(complex)='complex' vs MATLAB 'double' is a pre-existing convention (values verified via real/imag). Spec-extension batch 2026-05-09 — auditor \"no major gap detected\"."
 }

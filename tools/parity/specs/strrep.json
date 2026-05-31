@@ -2,13 +2,12 @@
   "name": "strrep",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strcmp(strrep(\"hello world\", \"world\", \"matlab\"), \"hello matlab\")); r2 = double(strcmp(strrep(\"abc\", \"b\", \"X\"), \"aXc\")); r3 = double(strlength(strrep(\"aaa\", \"a\", \"bb\")));",
+  "expr": "r1 = double(strcmp(strrep(\"hello world\", \"world\", \"matlab\"), \"hello matlab\")); r2 = double(strcmp(strrep(\"abc\", \"b\", \"X\"), \"aXc\")); r3 = double(strlength(strrep(\"aaa\", \"a\", \"bb\"))); c = strrep({'hello','world','book'}, 'o', 'O'); nc1 = numel(c); e1 = double(c{1}(5)); e3 = double(c{3}(3)); c2 = strrep('aXbYc', {'X','Y'}, {'-','='}); nc2 = numel(c2); d1 = double(c2{1}(2)); d2 = double(c2{2}(4)); c3 = strrep({'aa','bb'}, {'a','b'}, {'X','Y'}); t1 = double(c3{1}(1)); t2 = double(c3{2}(2));",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "r1", "r2", "r3",
+    "nc1", "e1", "e3", "nc2", "d1", "d2", "t1", "t2"
   ],
-  "comment": "Sig: r = strrep(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics."
+  "comment": "Sig: r = strrep(str,old,new). String op; with any CELL argument returns a cell of char vectors (scalars broadcast). DEEP-PROBE 2026-05-31: added cell-array support (was THROWING 'Not a char array'): strrep({'hello','world','book'},'o','O')={'hellO','wOrld','bOOk'}; scalar-str + cell-pat broadcast strrep('aXbYc',{'X','Y'},{'-','='})={'a-bYc','aXb=c'}; all-cell element-wise strrep({'aa','bb'},{'a','b'},{'X','Y'})={'XX','YY'}. STRING-ARRAY (non-cell, numel>1) input deferred. FP uses double(c{k}(j)) char codes + numel. Spec-extension batch 2026-05-09."
 }

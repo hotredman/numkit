@@ -8,10 +8,132 @@
 #include <numkit/core/types.hpp>
 
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <sstream>
 
 namespace numkit::builtin {
+
+namespace {
+
+// Apply a %s conversion spec (flags / width / precision) to a string value,
+// matching MATLAB/C printf semantics: precision caps the number of characters
+// emitted, width right-justifies (or left-justifies with the '-' flag) by
+// padding with spaces. Length modifiers (l/h) are ignored. Done manually
+// rather than via snprintf to avoid passing user-controlled format strings.
+std::string applyStringSpec(const std::string &spec, std::string sv)
+{
+    bool leftAlign = false;
+    size_t k = 1;                       // skip '%'
+    for (; k < spec.size(); ++k) {
+        const char c = spec[k];
+        if (c == '-') leftAlign = true;
+        else if (c == '+' || c == ' ' || c == '0' || c == '#') { /* flag */ }
+        else break;
+    }
+    size_t width = 0;
+    for (; k < spec.size() && std::isdigit(static_cast<unsigned char>(spec[k])); ++k)
+        width = width * 10 + static_cast<size_t>(spec[k] - '0');
+    long precision = -1;
+    if (k < spec.size() && spec[k] == '.') {
+        ++k;
+        precision = 0;
+        for (; k < spec.size() && std::isdigit(static_cast<unsigned char>(spec[k])); ++k)
+            precision = precision * 10 + (spec[k] - '0');
+    }
+
+    if (precision >= 0 && static_cast<size_t>(precision) < sv.size())
+        sv.resize(static_cast<size_t>(precision));
+    if (width > sv.size()) {
+        const std::string pad(width - sv.size(), ' ');
+        return leftAlign ? sv + pad : pad + sv;
+    }
+    return sv;
+}
+
+// Strip the trailing conversion char (and any l/h length modifiers) from a
+// printf spec, leaving "%[flags][width][.precision]".
+std::string specBody(const std::string &spec)
+{
+    std::string base = spec.substr(0, spec.size() - 1); // drop type char
+    while (!base.empty() && (base.back() == 'l' || base.back() == 'h'))
+        base.pop_back();
+    return base;
+}
+
+// Format a non-finite value the way MATLAB does: Inf / -Inf / NaN (capital),
+// honouring the field width and the '+'/' ' sign flags (only on +Inf; NaN
+// never takes a sign). Precision is ignored. Used for both float (%f/%e/%g)
+// and integer (%d/...) conversions.
+std::string formatNonFinite(const std::string &spec, double v)
+{
+    std::string word = std::isnan(v) ? "NaN" : (v < 0 ? "-Inf" : "Inf");
+
+    bool leftAlign = false, plus = false, space = false;
+    size_t k = 1; // skip '%'
+    for (; k < spec.size(); ++k) {
+        const char c = spec[k];
+        if (c == '-') leftAlign = true;
+        else if (c == '+') plus = true;
+        else if (c == ' ') space = true;
+        else if (c == '0' || c == '#') { /* flag */ }
+        else break;
+    }
+    size_t width = 0;
+    for (; k < spec.size() && std::isdigit(static_cast<unsigned char>(spec[k])); ++k)
+        width = width * 10 + static_cast<size_t>(spec[k] - '0');
+
+    if (word == "Inf") {
+        if (plus) word = "+Inf";
+        else if (space) word = " Inf";
+    }
+    if (width > word.size()) {
+        const std::string pad(width - word.size(), ' ');
+        return leftAlign ? word + pad : pad + word;
+    }
+    return word;
+}
+
+// Format an integer conversion (%d/%i/%u/%o/%x/%X). MATLAB semantics:
+//   - a finite whole number prints as an integer;
+//   - a non-integer value falls back to %e, keeping flags/width/precision
+//     (e.g. sprintf('%d',3.7) -> '3.700000e+00', sprintf('%.2d',3.7) ->
+//     '3.70e+00');
+//   - Inf / -Inf / NaN print as 'Inf' / '-Inf' / 'NaN' (width honoured).
+std::string formatIntegerConv(const std::string &spec, char type, double v)
+{
+    char buf[160];
+    if (!std::isfinite(v))
+        return formatNonFinite(spec, v);
+
+    const bool whole =
+        (v == std::trunc(v)) && std::fabs(v) < 9.2e18; // fits in int64
+    if (whole) {
+        const std::string body = specBody(spec);
+        if (type == 'u') {
+            std::snprintf(buf, sizeof(buf), (body + "llu").c_str(),
+                          static_cast<unsigned long long>(static_cast<long long>(v)));
+        } else if (type == 'x' || type == 'X') {
+            std::string xs = body + "ll";
+            xs.push_back(type);
+            std::snprintf(buf, sizeof(buf), xs.c_str(),
+                          static_cast<unsigned long long>(static_cast<long long>(v)));
+        } else if (type == 'o') {
+            std::snprintf(buf, sizeof(buf), (body + "llo").c_str(),
+                          static_cast<unsigned long long>(static_cast<long long>(v)));
+        } else { // d, i
+            std::snprintf(buf, sizeof(buf), (body + "lld").c_str(),
+                          static_cast<long long>(v));
+        }
+        return buf;
+    }
+
+    // Non-integer → %e fallback (MATLAB overrides the integer conversion).
+    std::snprintf(buf, sizeof(buf), (specBody(spec) + "e").c_str(), v);
+    return buf;
+}
+
+} // namespace
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -71,9 +193,27 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
             char type = fmt[i];
             std::string spec(fmt, start, i - start + 1);
 
+            // Resolve C-style '*' field width / precision taken from the
+            // argument list (MATLAB supports this: sprintf('%*.*f',8,2,pi)).
+            // Each '*' consumes one numeric arg, in order (width then
+            // precision), BEFORE the conversion consumes its value arg. We
+            // splice the concrete integer into the spec so the downstream
+            // string / integer / float formatters need no '*' awareness.
+            for (size_t sp = spec.find('*'); sp != std::string::npos;
+                 sp = spec.find('*')) {
+                long w = (ai < args.size())
+                             ? static_cast<long>(args[ai].toScalar())
+                             : 0;
+                if (ai < args.size()) ++ai;
+                spec.replace(sp, 1, std::to_string(w));
+            }
+
             if (type == 's') {
-                if (ai < args.size() && args[ai].isChar())
-                    out << args[ai].toString();
+                // MATLAB %s accepts both char arrays and string scalars, and
+                // honours width / precision in the spec (e.g. %5s, %-5s, %.1s).
+                if (ai < args.size()
+                    && (args[ai].isChar() || args[ai].isString()))
+                    out << applyStringSpec(spec, args[ai].toString());
                 ai++;
             } else if (type == 'c') {
                 if (ai < args.size()) {
@@ -85,47 +225,23 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t ar
                     }
                 }
                 ai++;
-            } else if (type == 'd' || type == 'i') {
-                if (ai < args.size()) {
-                    char buf[64];
-                    std::string ispec = spec.substr(0, spec.size() - 1) + "lld";
-                    std::snprintf(buf, sizeof(buf), ispec.c_str(),
-                                  static_cast<long long>(args[ai].toScalar()));
-                    out << buf;
-                }
-                ai++;
-            } else if (type == 'u') {
-                if (ai < args.size()) {
-                    char buf[64];
-                    std::string uspec = spec.substr(0, spec.size() - 1) + "llu";
-                    std::snprintf(buf, sizeof(buf), uspec.c_str(),
-                                  static_cast<unsigned long long>(args[ai].toScalar()));
-                    out << buf;
-                }
-                ai++;
-            } else if (type == 'x' || type == 'X') {
-                if (ai < args.size()) {
-                    char buf[64];
-                    std::string xspec = spec.substr(0, spec.size() - 1) + "ll" + type;
-                    std::snprintf(buf, sizeof(buf), xspec.c_str(),
-                                  static_cast<unsigned long long>(args[ai].toScalar()));
-                    out << buf;
-                }
-                ai++;
-            } else if (type == 'o') {
-                if (ai < args.size()) {
-                    char buf[64];
-                    std::string ospec = spec.substr(0, spec.size() - 1) + "llo";
-                    std::snprintf(buf, sizeof(buf), ospec.c_str(),
-                                  static_cast<unsigned long long>(args[ai].toScalar()));
-                    out << buf;
-                }
+            } else if (type == 'd' || type == 'i' || type == 'u'
+                       || type == 'x' || type == 'X' || type == 'o') {
+                if (ai < args.size())
+                    out << formatIntegerConv(spec, type, args[ai].toScalar());
                 ai++;
             } else if (type == 'f' || type == 'e' || type == 'E' || type == 'g' || type == 'G') {
                 if (ai < args.size()) {
-                    char buf[128];
-                    std::snprintf(buf, sizeof(buf), spec.c_str(), args[ai].toScalar());
-                    out << buf;
+                    const double v = args[ai].toScalar();
+                    if (!std::isfinite(v)) {
+                        // MATLAB prints Inf / -Inf / NaN (capitalised) rather
+                        // than the C library's lowercase inf/nan.
+                        out << formatNonFinite(spec, v);
+                    } else {
+                        char buf[128];
+                        std::snprintf(buf, sizeof(buf), spec.c_str(), v);
+                        out << buf;
+                    }
                 }
                 ai++;
             } else {
@@ -146,14 +262,23 @@ size_t countFormatSpecs(const std::string &fmt)
         if (fmt[i] != '%') continue;
         if (i + 1 < fmt.size() && fmt[i + 1] == '%') { ++i; continue; }
         ++i;
+        // flags
         while (i < fmt.size()
                && (fmt[i] == '-' || fmt[i] == '+' || fmt[i] == '0' || fmt[i] == ' '
-                   || fmt[i] == '#' || fmt[i] == '.'
-                   || std::isdigit(static_cast<unsigned char>(fmt[i]))))
+                   || fmt[i] == '#'))
             ++i;
+        // width: '*' consumes one arg from the list, else literal digits
+        if (i < fmt.size() && fmt[i] == '*') { ++n; ++i; }
+        else while (i < fmt.size() && std::isdigit(static_cast<unsigned char>(fmt[i]))) ++i;
+        // precision: '.' then '*' (one arg) or literal digits
+        if (i < fmt.size() && fmt[i] == '.') {
+            ++i;
+            if (i < fmt.size() && fmt[i] == '*') { ++n; ++i; }
+            else while (i < fmt.size() && std::isdigit(static_cast<unsigned char>(fmt[i]))) ++i;
+        }
         while (i < fmt.size() && (fmt[i] == 'l' || fmt[i] == 'h'))
             ++i;
-        if (i < fmt.size()) ++n;
+        if (i < fmt.size()) ++n;   // the conversion itself consumes the value arg
     }
     return n;
 }
@@ -166,6 +291,15 @@ std::string formatCyclic(const std::string &fmt, Span<const Value> args, size_t 
     stream.reserve(args.size() > argStart ? args.size() - argStart : 0);
     for (size_t i = argStart; i < args.size(); ++i) {
         const Value &a = args[i];
+        // A string array supplies one argument per element (MATLAB cycles
+        // the format over them, like a numeric array). A char array is a
+        // single atomic %s argument, so it is NOT expanded here.
+        if (a.isString()) {
+            size_t n = a.numel();
+            for (size_t j = 0; j < n; ++j)
+                stream.push_back(Value::stringScalar(a.stringElem(j), p));
+            continue;
+        }
         if (a.isChar() || a.isScalar()) {
             stream.push_back(a);
             continue;

@@ -322,4 +322,34 @@ TEST_P(IntegerTypesTest, Int32ScalarBroadcast)
     EXPECT_EQ(d[2], 13);
 }
 
+// floor/ceil/round/fix are the IDENTITY on integer values but MUST keep the
+// integer class (MATLAB R2025b). numkit previously threw on integer vectors
+// and dropped the class for integer scalars. DEEP-PROBE 2026-05-30.
+TEST_P(IntegerTypesTest, RoundingFamilyPreservesIntegerClass)
+{
+    eval("a = floor(int8([-3 5 -128]));");
+    auto *a = getVarPtr("a");
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->type(), numkit::ValueType::INT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(1))"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(3))"), -128.0);
+    eval("b = ceil(int16([-3 5]));");
+    EXPECT_EQ(getVarPtr("b")->type(), numkit::ValueType::INT16);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(1))"), -3.0);
+    eval("c = round(uint8([3 200]));");
+    EXPECT_EQ(getVarPtr("c")->type(), numkit::ValueType::UINT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(2))"), 200.0);
+    eval("d = fix(int32([-7 7]));");
+    EXPECT_EQ(getVarPtr("d")->type(), numkit::ValueType::INT32);
+    EXPECT_DOUBLE_EQ(evalScalar("double(d(1))"), -7.0);
+    eval("e = floor(int8(-5));");      // scalar keeps the class too
+    EXPECT_EQ(getVarPtr("e")->type(), numkit::ValueType::INT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(e)"), -5.0);
+    // double inputs are unchanged (regress).
+    EXPECT_DOUBLE_EQ(evalScalar("floor(-2.7)"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ceil(-2.7)"),  -2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("round(2.5)"),   3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("fix(-2.7)"),   -2.0);
+}
+
 INSTANTIATE_DUAL(IntegerTypesTest);

@@ -157,11 +157,11 @@ raylfit(const Value &x, double alpha,
 
 /// @brief Normal negative-log-likelihood (`nLogL = normlike(mu, sigma, x, cens, freq)`).
 ///
-/// Handles MATLAB's `(censoring, freq)` optional args:
+/// Handles the `(censoring, freq)` optional args:
 /// - `censoring[i] != 0` → element `i` is right-censored; contribute
 ///   `-log(1 - F(z_i)) = -log(0.5·erfc(z_i/√2))` instead of `-log(f)`.
 /// - `freq[i]` (default 1) → multiplies the element's contribution.
-///   `freq[i] == 0` removes the element from the sum (matches MATLAB).
+///   `freq[i] == 0` removes the element from the sum.
 ///
 /// Boundary handling: `sigma <= 0` → `NaN`; any `NaN` in `x` → `NaN`;
 /// empty `x` → 0.

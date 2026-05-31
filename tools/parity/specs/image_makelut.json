@@ -1,0 +1,18 @@
+{
+  "name": "image_makelut",
+  "namespace": "image",
+  "setup": "BW = [0 1 1 0; 1 1 0 1; 0 0 1 1; 1 0 1 0];",
+  "expr": "l2 = makelut(@(x) sum(x(:)) >= 3, 2); l3c = makelut(@(x) x(5), 3); l3m = makelut(@(x) sum(x(:)) >= 5, 3); A = bwlookup(BW, l3c); Ap = bwlookup(BW, double(mod(0:511,2))); Am = bwlookup(BW, l3m); Aa = applylut(BW, l3m);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "numel(l2)", "sum(l2)", "l2(8)", "l2(7)",
+    "numel(l3c)", "sum(l3c)", "l3c(256)", "l3c(1)",
+    "sum(l3m)",
+    "A(1,1)", "A(2,2)", "A(4,4)", "sum(A(:))",
+    "sum(Ap(:))",
+    "sum(Am(:))",
+    "isequal(Am, Aa)"
+  ],
+  "comment": "MATLAB Image Toolbox makelut + bwlookup — neighbourhood lookup-table pair. makelut(fun, n) evaluates fun on every 2^(n^2) binary n-by-n neighbourhood (fun receives a logical n-by-n matrix), n in {2,3} -> 16/512-element DOUBLE column vector. Neighbourhood for index k (col-major) has position i = bit (n^2-1-i) of k, matching the reshape(2.^[nq-1:-1:0], n, n) weight kernel so bwlookup(BW, makelut(fun,n)) applies fun per neighbourhood. bwlookup(BW, lut) applies a 16- or 512-element table (modern applylut; identical index convention, output class = lut class). Verified: makelut sum>=3 n=2 (l2(8)=1, rest 0), center-passthrough lut (bwlookup==BW), sum>=5 n=3 (256 = sum_{k=5}^9 C(9,k)), and bwlookup==applylut. Bit-equal MATLAB R2025b (tol=1e-12). Octave 11.1.0 ships makelut/bwlookup in the image package only -> reports N/A there."
+}

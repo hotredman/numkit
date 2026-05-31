@@ -1,0 +1,15 @@
+{
+  "name": "corrcoef_pvalues",
+  "namespace": "stats",
+  "covers": ["corrcoef"],
+  "setup": "x = [1 2 3 4]'; y = [2 4 5 9]'; M = [1 2 3; 4 5 7; 2 1 0]; xc = [1 2 4 3 5 7 6 8]'; yc = [2 1 3 5 4 6 8 7]';",
+  "expr": "[R, P] = corrcoef(x, y); r12 = R(1,2); p12 = P(1,2); p11 = P(1,1); p21 = P(2,1); [Rm, Pm] = corrcoef(M); pm12 = Pm(1,2); pm13 = Pm(1,3); pm23 = Pm(2,3); pm11 = Pm(1,1); [Rc, Pc, RL, RU] = corrcoef(xc, yc); rl12 = RL(1,2); ru12 = RU(1,2); dd = RL(1,1); [Ra2, Pa2, RLa, RUa] = corrcoef(xc, yc, 'Alpha', 0.10); rla = RLa(1,2); rua = RUa(1,2);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "r12", "p12", "p11", "p21",
+    "pm12", "pm13", "pm23", "pm11",
+    "rl12", "ru12", "dd", "rla", "rua"
+  ],
+  "comment": "corrcoef outputs 2-4 (P, RL, RU) vs MATLAB R2025b. P(i,j)=2*tcdf(-|t|,n-2), diagonal=1. DEEP-PROBE 2026-05-31: added the 3rd/4th outputs RL/RU (lower/upper 95% confidence bounds) + the 'Alpha' name-value (default 0.05) — were unimplemented ('Index exceeds array dimensions' for [R,P,RL,RU]). Fisher z-transform: z=atanh(r), se=1/sqrt(n-3), zc=norminv(1-alpha/2); RL=tanh(z-zc*se), RU=tanh(z+zc*se); |r|==1 (incl diagonal)->RL=RU=r. corrcoef([1 2 4 3 5 7 6 8]',[2 1 3 5 4 6 8 7]') -> RL(1,2)=0.3116980572, RU(1,2)=0.9689892089; with Alpha 0.10 -> RL=0.4328079594, RU=0.9590994664; diagonal RL=1. namespace=stats (descriptive). covers corrcoef."
+}

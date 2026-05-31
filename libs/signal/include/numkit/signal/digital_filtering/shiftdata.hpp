@@ -1,6 +1,6 @@
 // libs/signal/include/numkit/signal/digital_filtering/shiftdata.hpp
 //
-// MATLAB Signal Toolbox shiftdata + unshiftdata (Phase 4.4):
+// shiftdata + unshiftdata (Phase 4.4):
 // utilities for writing dim-aware functions. shiftdata moves the
 // chosen dim to dim 1 (leading); unshiftdata reverses.
 
@@ -23,7 +23,7 @@ namespace numkit::signal {
 ///
 /// Useful when implementing a function that operates "along the first
 /// non-singleton dimension by default, or along an explicit dim if
-/// provided" — the standard MATLAB convention.
+/// provided".
 ///
 /// @param x    Input array.
 /// @param dim  Dimension to move to the front. `0` (default) = auto.

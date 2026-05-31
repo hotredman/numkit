@@ -1,0 +1,23 @@
+{
+  "name": "makima_ppform",
+  "covers": [
+    "makima"
+  ],
+  "namespace": "interp",
+  "setup": "x = [1 2 3 4 5]; y = [1 4 9 16 25]; pp = makima(x, y); pp2 = makima([0 1 3 4 7], [2 1 4 3 8]); p3 = makima([1 2 3], [2 5 4]);",
+  "expr": "ord = pp.order; pcs = pp.pieces; va = ppval(pp, 2.5); vb = ppval(pp, 3.7); c13 = pp.coefs(1,3); c11 = pp.coefs(1,1); nu = ppval(pp2, 0.5); t3 = ppval(p3, 1.5);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "ord",
+    "pcs",
+    "va",
+    "vb",
+    "c13",
+    "c11",
+    "nu",
+    "t3"
+  ],
+  "comment": "makima 2-arg pp-form (2026-05-30). MATLAB makima(x,y) (no query) returns a piecewise-polynomial struct usable with ppval, like spline(x,y)/pchip(x,y); numkit's spline/pchip 2-arg already did this but makima(x,y) errored 'pp-form (2-arg) not yet supported'. Now builds the same pp from the modified-Akima Hermite derivatives, converting each cubic Hermite segment to MATLAB's [pieces x 4] dx-power coefs (identical conversion to pchipPp; only the slopes differ): a=(d_i+d_{i+1}-2*delta)/h^2, b=(3*delta-2*d_i-d_{i+1})/h, c=d_i, d=y_i. For [1 4 9 16 25]: order=4, pieces=4, coefs row1=[-0.8333.. 2.3333.. 1.5 1] (c11=-0.8333.., c13=1.5); ppval matches value-form makima(x,y,xq): va=6.2395833333, vb=13.70365. Non-uniform [0 1 3 4 7]/[2 1 4 3 8]: ppval(0.5)=1.2161458333. 3 points [1 2 3]/[2 5 4]: ppval(1.5)=3.9201388889. namespace=interp. Matches MATLAB R2025b.",
+  "deep_verified": true
+}

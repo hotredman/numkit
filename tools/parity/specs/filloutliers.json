@@ -1,0 +1,23 @@
+{
+  "name": "filloutliers",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 100 5 6 7]; xp = [1 2 3 100 4 5]; M = [1 2; 3 4; 5 100; 7 8; 9 10];",
+  "expr": "Bl = filloutliers(x, 'linear'); Bp = filloutliers(x, 'previous'); Bn = filloutliers(x, 'next'); Bnr = filloutliers(x, 'nearest'); Bc = filloutliers(x, 'center'); Bcp = filloutliers(x, 'clip'); B0 = filloutliers(x, 0); Bm = filloutliers(x, 'linear', 'mean'); Bm1 = filloutliers(x, 'linear', 'mean', 'ThresholdFactor', 1); Bq = filloutliers(x, 'linear', 'quartiles'); cp = filloutliers(xp,'clip','percentiles',[10 90]); ce = filloutliers(xp,'center','percentiles',[10 90]); c0 = filloutliers(xp,0,'percentiles',[10 90]); c75 = filloutliers(xp,'clip','percentiles',[25 75]); R = filloutliers(M,'clip','percentiles',[20 80]);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "Bl(5)", "Bl(1)", "Bl(8)",
+    "Bp(5)",
+    "Bn(5)",
+    "Bnr(5)",
+    "Bc(5)",
+    "Bcp(5)",
+    "B0(5)",
+    "Bm(5)",
+    "Bm1(5)",
+    "Bq(5)",
+    "cp(1)", "cp(4)", "ce(1)", "c0(1)", "c0(4)", "c75(1)", "c75(4)",
+    "R(1,1)", "R(5,1)", "R(3,2)", "R(1,2)"
+  ],
+  "comment": "filloutliers — detect (median/mean/quartiles/percentiles) + replace outliers with fillmethod (constant scalar, 'center', 'clip', 'previous', 'next', 'nearest', 'linear'). Per-column for matrices. Tie-break on 'nearest' = NEXT. DEEP-PROBE 2026-05-31: added the 'percentiles',[lo hi] detection method (previously threw 'findmethod must be median/mean/quartiles'). Percentiles bounds use MATLAB prctile (100*(k-0.5)/n); 'center' fill uses the midpoint (lo+hi)/2; 'clip' clips to [lo,hi]. Verified vs MATLAB R2025b on xp=[1 2 3 100 4 5]: clip[10 90]->[1.1 2 3 90.5 4 5], center[10 90]->45.8 at outliers, clip[25 75]->[2 2 3 5 4 5]; matrix M clip[20 80] per-column. Deferred: 'spline'/'pchip'/'makima' fills, 'grubbs'/'gesd'/'movmedian'/'movmean' detection, SamplePoints/MaxNumOutliers/OutlierLocations/ReplaceValues NV-pairs."
+}

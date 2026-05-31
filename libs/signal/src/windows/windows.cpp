@@ -214,7 +214,7 @@ Value gausswin(size_t N, double alpha, std::pmr::memory_resource *mr)
 {
     if (alpha <= 0)
         throw Error("gausswin: alpha must be positive",
-                     0, 0, "gausswin", "", "m:gausswin:badAlpha");
+                     0, 0, "gausswin", "", "numkit:gausswin:badAlpha");
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         out.doubleDataMut()[0] = 1.0;
@@ -255,7 +255,7 @@ Value chebwin(size_t N, double at, std::pmr::memory_resource *mr)
 {
     if (at <= 0)
         throw Error("chebwin: at must be positive (sidelobe attenuation in dB)",
-                     0, 0, "chebwin", "", "m:chebwin:badAt");
+                     0, 0, "chebwin", "", "numkit:chebwin:badAt");
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         out.doubleDataMut()[0] = 1.0;
@@ -374,10 +374,10 @@ Value taylorwin(size_t N, int nbar, double sll, std::pmr::memory_resource *mr)
 {
     if (sll >= 0)
         throw Error("taylorwin: sll must be negative (peak sidelobe in dB)",
-                     0, 0, "taylorwin", "", "m:taylorwin:badSll");
+                     0, 0, "taylorwin", "", "numkit:taylorwin:badSll");
     if (nbar < 2)
         throw Error("taylorwin: nbar must be >= 2",
-                     0, 0, "taylorwin", "", "m:taylorwin:badNbar");
+                     0, 0, "taylorwin", "", "numkit:taylorwin:badNbar");
     auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 0) return out;
     // Note: N=1 takes the full formula path — MATLAB returns
@@ -533,7 +533,7 @@ void parseTypeNameOnly(Span<const Value> args, const char *fn)
     if (s != "double" && s != "single")
         throw Error(std::string(fn) + ": Expected TYPENAME to match one of "
                     "these values: 'double', 'single' (got '" + s + "')",
-                    0, 0, fn, "", std::string("m:") + fn + ":typeName");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":typeName");
 }
 
 } // anonymous
@@ -542,7 +542,7 @@ void hamming_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("hamming: requires (N[, sflag])",
-                     0, 0, "hamming", "", "m:hamming:nargin");
+                     0, 0, "hamming", "", "numkit:hamming:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
     outs[0] = applySflag(static_cast<size_t>(args[0].toScalar()), periodic, [&](size_t M){ return hamming(M, mr); }, mr);
@@ -552,7 +552,7 @@ void hann_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("hann: requires (N[, sflag])",
-                     0, 0, "hann", "", "m:hann:nargin");
+                     0, 0, "hann", "", "numkit:hann:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
     outs[0] = applySflag(static_cast<size_t>(args[0].toScalar()), periodic, [&](size_t M){ return hann(M, mr); }, mr);
@@ -562,7 +562,7 @@ void blackman_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("blackman: requires (N[, sflag])",
-                     0, 0, "blackman", "", "m:blackman:nargin");
+                     0, 0, "blackman", "", "numkit:blackman:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
     outs[0] = applySflag(static_cast<size_t>(args[0].toScalar()), periodic, [&](size_t M){ return blackman(M, mr); }, mr);
@@ -572,7 +572,7 @@ void kaiser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("kaiser: requires at least 1 argument",
-                     0, 0, "kaiser", "", "m:kaiser:nargin");
+                     0, 0, "kaiser", "", "numkit:kaiser:nargin");
     const size_t N = static_cast<size_t>(args[0].toScalar());
     const double beta = (args.size() >= 2) ? args[1].toScalar() : 0.5;
     outs[0] = kaiser(N, beta, ctx.engine->resource());
@@ -582,7 +582,7 @@ void rectwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("rectwin: requires (N[, typeName])",
-                     0, 0, "rectwin", "", "m:rectwin:nargin");
+                     0, 0, "rectwin", "", "numkit:rectwin:nargin");
     parseTypeNameOnly(args, "rectwin");
     outs[0] = rectwin(static_cast<size_t>(args[0].toScalar()), ctx.engine->resource());
 }
@@ -591,7 +591,7 @@ void bartlett_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("bartlett: requires (N[, typeName])",
-                     0, 0, "bartlett", "", "m:bartlett:nargin");
+                     0, 0, "bartlett", "", "numkit:bartlett:nargin");
     parseTypeNameOnly(args, "bartlett");
     outs[0] = bartlett(static_cast<size_t>(args[0].toScalar()), ctx.engine->resource());
 }
@@ -607,7 +607,7 @@ void triang_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("triang: requires (N[, typeName])",
-                     0, 0, "triang", "", "m:triang:nargin");
+                     0, 0, "triang", "", "numkit:triang:nargin");
     parseTypeNameOnly(args, "triang");
     outs[0] = triang(windowN(args[0], "triang"), ctx.engine->resource());
 }
@@ -616,7 +616,7 @@ void tukeywin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("tukeywin: requires at least 1 argument",
-                     0, 0, "tukeywin", "", "m:tukeywin:nargin");
+                     0, 0, "tukeywin", "", "numkit:tukeywin:nargin");
     const size_t N = windowN(args[0], "tukeywin");
     const double r = (args.size() >= 2) ? args[1].toScalar() : 0.5;
     outs[0] = tukeywin(N, r, ctx.engine->resource());
@@ -626,7 +626,7 @@ void flattopwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("flattopwin: requires (N[, sflag])",
-                     0, 0, "flattopwin", "", "m:flattopwin:nargin");
+                     0, 0, "flattopwin", "", "numkit:flattopwin:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
     outs[0] = applySflag(windowN(args[0], "flattopwin"), periodic, [&](size_t M){ return flattopwin(M, mr); }, mr);
@@ -636,7 +636,7 @@ void gausswin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("gausswin: requires at least 1 argument",
-                     0, 0, "gausswin", "", "m:gausswin:nargin");
+                     0, 0, "gausswin", "", "numkit:gausswin:nargin");
     const size_t N = windowN(args[0], "gausswin");
     const double alpha = (args.size() >= 2) ? args[1].toScalar() : 2.5;
     outs[0] = gausswin(N, alpha, ctx.engine->resource());
@@ -646,7 +646,7 @@ void chebwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("chebwin: requires at least 1 argument",
-                     0, 0, "chebwin", "", "m:chebwin:nargin");
+                     0, 0, "chebwin", "", "numkit:chebwin:nargin");
     const size_t N = windowN(args[0], "chebwin");
     const double at = (args.size() >= 2) ? args[1].toScalar() : 100.0;
     outs[0] = chebwin(N, at, ctx.engine->resource());
@@ -656,7 +656,7 @@ void parzenwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("parzenwin: requires (N[, typeName])",
-                     0, 0, "parzenwin", "", "m:parzenwin:nargin");
+                     0, 0, "parzenwin", "", "numkit:parzenwin:nargin");
     parseTypeNameOnly(args, "parzenwin");
     outs[0] = parzenwin(windowN(args[0], "parzenwin"), ctx.engine->resource());
 }
@@ -665,7 +665,7 @@ void nuttallwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("nuttallwin: requires (N[, sflag])",
-                     0, 0, "nuttallwin", "", "m:nuttallwin:nargin");
+                     0, 0, "nuttallwin", "", "numkit:nuttallwin:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
     outs[0] = applySflag(windowN(args[0], "nuttallwin"), periodic, [&](size_t M){ return nuttallwin(M, mr); }, mr);
@@ -675,7 +675,7 @@ void taylorwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("taylorwin: requires at least 1 argument",
-                     0, 0, "taylorwin", "", "m:taylorwin:nargin");
+                     0, 0, "taylorwin", "", "numkit:taylorwin:nargin");
     const size_t N = windowN(args[0], "taylorwin");
     const int nbar = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 4;
     const double sll = (args.size() >= 3) ? args[2].toScalar() : -30.0;
@@ -686,7 +686,7 @@ void blackmanharris_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> 
 {
     if (args.empty())
         throw Error("blackmanharris: requires (N[, sflag])",
-                     0, 0, "blackmanharris", "", "m:blackmanharris:nargin");
+                     0, 0, "blackmanharris", "", "numkit:blackmanharris:nargin");
     bool periodic = false; (void)parseSflag(args, periodic);
     auto *mr = ctx.engine->resource();
     outs[0] = applySflag(windowN(args[0], "blackmanharris"), periodic, [&](size_t M){ return blackmanharris(M, mr); }, mr);
@@ -696,7 +696,7 @@ void bohmanwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("bohmanwin: requires (N[, typeName])",
-                     0, 0, "bohmanwin", "", "m:bohmanwin:nargin");
+                     0, 0, "bohmanwin", "", "numkit:bohmanwin:nargin");
     parseTypeNameOnly(args, "bohmanwin");
     outs[0] = bohmanwin(windowN(args[0], "bohmanwin"), ctx.engine->resource());
 }
@@ -705,7 +705,7 @@ void barthannwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
 {
     if (args.empty())
         throw Error("barthannwin: requires (N[, typeName])",
-                     0, 0, "barthannwin", "", "m:barthannwin:nargin");
+                     0, 0, "barthannwin", "", "numkit:barthannwin:nargin");
     parseTypeNameOnly(args, "barthannwin");
     outs[0] = barthannwin(windowN(args[0], "barthannwin"), ctx.engine->resource());
 }

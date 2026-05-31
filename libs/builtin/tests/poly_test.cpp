@@ -346,4 +346,40 @@ TEST_P(PolyTest, PadecoefN0IsConstant)
     EXPECT_DOUBLE_EQ(evalScalar("num(1);"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("den(1);"), 1.0);
 }
+// zp2tf returns b with the SAME length as a: when there are fewer zeros
+// than poles, the numerator is LEFT-padded with zeros (MATLAB R2025b).
+// (Regression: numkit used to return the minimal-length numerator.)
+TEST_P(PolyTest, Zp2tfPadsNumeratorToDenominatorLength)
+{
+    // One zero (0.5), two complex-conjugate poles, gain 2.
+    eval("[b, a] = zp2tf([0.5], [0.3+0.4i; 0.3-0.4i], 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(b);")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(a);")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1);"),  0.0);   // leading pad
+    EXPECT_DOUBLE_EQ(evalScalar("b(2);"),  2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(3);"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1);"),  1.0);
+    EXPECT_NEAR(evalScalar("a(2);"), -0.6, 1e-12);
+    EXPECT_NEAR(evalScalar("a(3);"),  0.25, 1e-12);
+    // Equal #zeros/#poles -> no padding (unchanged).
+    eval("[b2, a2] = zp2tf([1; 2], [3; 4], 5);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(b2);")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("b2(1);"), 5.0);
+}
+
+// DEEP-PROBE 2026-05-31: tf2zp's ZPK gain must come from the FIRST NONZERO
+// numerator coefficient (MATLAB strips leading zeros), not b(1). A zero-
+// padded numerator like [0 0 0 0 1] is the polynomial "1" -> gain 1, not 0.
+// Previously k = b(1)/a(1) = 0, which silently broke lp2lp/lp2bp via tf2zpk.
+TEST_P(PolyTest, Tf2zpGainSkipsLeadingZeros)
+{
+    eval("[z2, p2, k2] = tf2zp([0 0 0 0 1], [1 2 3 4 5]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(z2);")), 0);   // no zeros
+    EXPECT_DOUBLE_EQ(evalScalar("k2;"), 1.0);                    // gain 1, not 0
+    // [0 0 3 33 90] = 3 s^2 + 33 s + 90 -> 2 zeros, gain 3.
+    eval("[z3, p3, k3] = tf2zp([0 0 3 33 90], [1 6 11 6 1]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(z3);")), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("k3;"), 3.0);
+}
+
 INSTANTIATE_DUAL(PolyTest);

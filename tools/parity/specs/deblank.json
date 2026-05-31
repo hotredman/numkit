@@ -2,13 +2,14 @@
   "name": "deblank",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strcmp(deblank(\"abc   \"), \"abc\")); r2 = double(strcmp(deblank(\"xy\"), \"xy\")); r3 = double(strlength(deblank(\"hello   \")));",
+  "expr": "r1 = double(strcmp(deblank(\"abc   \"), \"abc\")); r2 = double(strcmp(deblank(\"xy\"), \"xy\")); r3 = double(strlength(deblank(\"hello   \"))); c = deblank({'a  ','  b '}); nc = numel(c); n1 = strlength(c{1}); n2 = strlength(c{2}); ce = double(c{2}(1));",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
     "r1",
     "r2",
-    "r3"
+    "r3",
+    "nc", "n1", "n2", "ce"
   ],
-  "comment": "Sig: r = deblank(...). String op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity. FP uses double(strcmp(...)) booleans because the harness compares numerics."
+  "comment": "Sig: r = deblank(...). DEEP-PROBE 2026-05-31: added CELL-ARRAY support (was throwing 'Not a char array'); removes TRAILING whitespace element-wise -> cell of char vectors, same shape: deblank({'a  ','  b '})={'a','  b'} (leading whitespace kept). Scalar char/string path unchanged. FP uses strcmp booleans + cell lengths/codes."
 }

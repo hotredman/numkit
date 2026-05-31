@@ -110,7 +110,7 @@ void rms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("rms: requires at least 1 argument",
-                     0, 0, "rms", "", "m:rms:nargin");
+                     0, 0, "rms", "", "numkit:rms:nargin");
     outs[0] = rms(args[0], dimFromArg(args), ctx.engine->resource());
 }
 
@@ -118,7 +118,7 @@ void rssq_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("rssq: requires at least 1 argument",
-                     0, 0, "rssq", "", "m:rssq:nargin");
+                     0, 0, "rssq", "", "numkit:rssq:nargin");
     outs[0] = rssq(args[0], dimFromArg(args), ctx.engine->resource());
 }
 
@@ -126,7 +126,7 @@ void peak2peak_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("peak2peak: requires at least 1 argument",
-                     0, 0, "peak2peak", "", "m:peak2peak:nargin");
+                     0, 0, "peak2peak", "", "numkit:peak2peak:nargin");
     outs[0] = peak2peak(args[0], dimFromArg(args), ctx.engine->resource());
 }
 
@@ -134,7 +134,7 @@ void peak2rms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.empty())
         throw Error("peak2rms: requires at least 1 argument",
-                     0, 0, "peak2rms", "", "m:peak2rms:nargin");
+                     0, 0, "peak2rms", "", "numkit:peak2rms:nargin");
     outs[0] = peak2rms(args[0], dimFromArg(args), ctx.engine->resource());
 }
 

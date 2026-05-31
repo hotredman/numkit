@@ -2,14 +2,15 @@
   "name": "movvar",
   "namespace": "stats",
   "setup": "A = [1 3 2 5 4 6 NaN 8 7 10]'; A2 = (1:9)';",
-  "expr": "y_def = movvar(A, 3); y_omit = movvar(A, 3, 'omitnan'); y_norm = movvar(A2, 3, 1); y_disc = movvar(A2, 3, 'Endpoints', 'discard');",
+  "expr": "y_def = movvar(A, 3); y_omit = movvar(A, 3, 'omitnan'); y_norm = movvar(A2, 3, 1); y_disc = movvar(A2, 3, 'Endpoints', 'discard'); y_k2 = movvar(A2, 2); y_z = movvar(A2, [0 0]); y_o2 = movvar(A, 2, 'omitnan');",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
     "y_def(1)", "y_def(5)",
     "y_omit(7)", "y_omit(8)",
     "y_norm(1)", "y_norm(5)",
-    "numel(y_disc)", "y_disc(1)"
+    "numel(y_disc)", "y_disc(1)",
+    "y_k2(1)", "y_z(5)", "y_o2(7)", "y_o2(8)"
   ],
-  "comment": "Sig: movvar(A, k[, normFlag] [, dim] [, nanflag] [, Name, Value]). normFlag in {0 (default, N-1), 1 (N)}. Same nanflag/Endpoints surface as movmean. Closes audit/findings/stats/movvar.md."
+  "comment": "Sig: movvar(A, k[, normFlag] [, dim] [, nanflag] [, Name, Value]). normFlag in {0 (default, N-1), 1 (N)}. Same nanflag/Endpoints surface as movmean. Closes audit/findings/stats/movvar.md. 2026-05-30: single-element-window var is 0, not NaN (MATLAB parity) — y_k2(1)=0 (edge of a length-2 window), y_z(5)=0 (length-1 window everywhere via [0 0]), y_o2(7)=y_o2(8)=0 (omitnan reduces those windows to one valid element)."
 }

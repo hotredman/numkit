@@ -16,7 +16,7 @@ namespace numkit::wavelet {
 /// Multi-level 1-D DWT (`[C, L] = wavedec(x, n, wname)`).
 ///
 /// Runs `n` successive single-level @ref dwt passes on the running
-/// approximation band. Packs the result into the MATLAB-canonical
+/// approximation band. Packs the result into the canonical
 /// `(C, L)` layout:
 ///
 ///   `C = [cA_n, cD_n, cD_{n-1}, ..., cD_1]`           (concatenated row)
@@ -58,7 +58,7 @@ Value waverec(const Value &C, const Value &L, const std::string &wname,
 
 /// Extract approximation coefficients at a given level (`appcoef`).
 ///
-/// Equivalent to MATLAB's `appcoef(C, L, wname, level)`.
+/// The `appcoef(C, L, wname, level)` operation.
 /// - `level == nMax = length(L) - 2` (the default if `level == -1`)
 ///   returns the coarsest cA stored verbatim at the front of C.
 /// - `level < nMax` rebuilds the approximation by running idwt
@@ -82,7 +82,7 @@ Value appcoef(const Value &C, const Value &L, const std::string &wname,
 /// `level` is 1-based: level = 1 is the finest detail, level =
 /// `length(L) - 2` the coarsest. Returns a row vector slice of C.
 ///
-/// MATLAB's `detcoef(C, L, levels, 'cells')` (multi-level form) is
+/// The `detcoef(C, L, levels, 'cells')` multi-level form is
 /// reachable through the engine-level adapter; the C++ helper here
 /// keeps the simple single-level form.
 ///

@@ -1,0 +1,12 @@
+{
+  "name": "skewness",
+  "namespace": "stats",
+  "setup": "x = [2 4 4 4 5 5 7 9]; M = magic(4);",
+  "expr": "s1 = skewness(x); s0 = skewness(x, 0); sM = skewness(M);",
+  "iters": 3,
+  "tol": 1e-10,
+  "fingerprint": [
+    "s1", "s0", "sM(1)", "sM(2)", "sM(4)"
+  ],
+  "comment": "Sig s=skewness(X[,flag[,dim]]): sample skewness. Default flag=1 (biased, /N): skewness([2 4 4 4 5 5 7 9])=0.65625. flag=0 (bias-corrected): 0.818488. Matrix is per-column: skewness(magic(4)) = [0.686021 -0.263374 0.263374 -0.686021] (antisymmetric over the magic columns)."
+}

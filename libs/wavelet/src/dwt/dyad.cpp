@@ -46,7 +46,7 @@ void parseDyadArgs(Span<const Value> args, int defaultOdd, int &odd, char &type)
             const char c = static_cast<char>(std::tolower(static_cast<unsigned char>(s[0])));
             if (c != 'c' && c != 'r' && c != 'm')
                 throw Error("dyad: type must be 'c', 'r', or 'm'",
-                             0, 0, "dyad", "", "m:dyad:type");
+                             0, 0, "dyad", "", "numkit:dyad:type");
             type = c;
         } else {
             odd = (static_cast<int>(args[i].toScalar()) != 0) ? 1 : 0;
@@ -84,7 +84,7 @@ void dyaddown_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("dyaddown: requires an input vector",
-                    0, 0, "dyaddown", "", "m:dyaddown:nargin");
+                    0, 0, "dyaddown", "", "numkit:dyaddown:nargin");
     const Value &x = args[0];
     int odd; char type;
     parseDyadArgs(args, /*defaultOdd=*/0, odd, type);
@@ -161,7 +161,7 @@ void dyadup_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("dyadup: requires an input vector",
-                    0, 0, "dyadup", "", "m:dyadup:nargin");
+                    0, 0, "dyadup", "", "numkit:dyadup:nargin");
     const Value &x = args[0];
     int odd; char type;
     parseDyadArgs(args, /*defaultOdd=*/1, odd, type);
@@ -241,11 +241,11 @@ void wmaxlev_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("wmaxlev: requires (N, wname)",
-                    0, 0, "wmaxlev", "", "m:wmaxlev:nargin");
+                    0, 0, "wmaxlev", "", "numkit:wmaxlev:nargin");
     const Value &Nv = args[0];
     if (!args[1].isChar() && !args[1].isString())
         throw Error("wmaxlev: wname must be a character vector",
-                    0, 0, "wmaxlev", "", "m:wmaxlev:type");
+                    0, 0, "wmaxlev", "", "numkit:wmaxlev:type");
     const std::string wname = args[1].toString();
 
     // Accept scalar N or a 1×k vector; use min(N) as the effective length.
@@ -253,7 +253,7 @@ void wmaxlev_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t k = Nv.numel();
     if (k == 0)
         throw Error("wmaxlev: N must not be empty",
-                    0, 0, "wmaxlev", "", "m:wmaxlev:empty");
+                    0, 0, "wmaxlev", "", "numkit:wmaxlev:empty");
     Nmin = Nv.elemAsDouble(0);
     for (size_t i = 1; i < k; ++i) {
         const double v = Nv.elemAsDouble(i);
@@ -264,7 +264,7 @@ void wmaxlev_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t Lf = fb.Lo_D.size();
     if (Lf < 2)
         throw Error("wmaxlev: filter length must be ≥ 2",
-                    0, 0, "wmaxlev", "", "m:wmaxlev:filter");
+                    0, 0, "wmaxlev", "", "numkit:wmaxlev:filter");
 
     double L = 0.0;
     if (Nmin >= static_cast<double>(Lf - 1) + 1.0) {

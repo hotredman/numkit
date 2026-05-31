@@ -1,7 +1,6 @@
 // libs/image/include/numkit/image/library.hpp
 //
-// Image Processing Toolbox builtins. Mirrors MATLAB's documentation
-// root `/help/images/`. Function-form only — no OOP class hierarchy
+// Image-processing builtins. Function-form only — no OOP class hierarchy
 // (blockedImage, affinetform2d, ROI shapes, etc. intentionally absent
 // per project decision to remain a "super-calculator").
 //
@@ -15,7 +14,7 @@
 //   morph/             — strel / imerode / imdilate / bwlabel ...
 //
 // Each function is registered as `image.<sub>.<name>` AND aliased into
-// the flat `compat.<name>` namespace so MATLAB-style scripts can call
+// the flat `compat.<name>` namespace so compat scripts can call
 // it directly after `import compat.*`.
 
 #pragma once

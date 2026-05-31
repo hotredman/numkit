@@ -1,15 +1,11 @@
 {
   "name": "flip",
   "namespace": "builtin",
-  "setup": "A = [1 2 3 4];",
-  "expr": "B = flip(A); r1 = B(1); r2 = B(2); r3 = B(3); r4 = B(4);",
+  "setup": "A = [1 2 3 4]; C = {10,20,30}; S = [\"x\" \"y\" \"z\"];",
+  "expr": "B = flip(A); r1 = B(1); r4 = B(4); FC = flip(C); c1 = FC{1}; c3 = FC{3}; FS = flip(S); s1 = double(char(FS(1))); s3 = double(char(FS(3)));",
   "iters": 5,
   "tol": 0,
-  "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4"
-  ],
-  "comment": "Sig: r = flip(...). Shape op. Spec-extension batch 2026-05-09."
+  "fingerprint": ["r1", "r4", "c1", "c3", "s1", "s3"],
+  "comment": "Sig: r = flip(A[,dim]). Type-agnostic element permutation. DEEP-PROBE 2026-05-31: extended to CELL and STRING arrays (previously errored 'ND fallback does not support type cell/string'). MATLAB is type-agnostic: flip([1 2 3 4])=[4 3 2 1] r1=4 r4=1; flip({10,20,30})={30,20,10} c1=30 c3=10; flip([\"x\" \"y\" \"z\"])=[\"z\" \"y\" \"x\"] s1=double('z')=122 s3=double('x')=120. Cell/string share one Value-copy path (copyCellElem). namespace=builtin. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

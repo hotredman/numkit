@@ -2,9 +2,12 @@
   "name": "rc2poly",
   "namespace": "signal",
   "setup": "",
-  "expr": "a = rc2poly([-0.5 0.4]); r1 = double(numel(a));",
-  "iters": 5,
+  "expr": "a = rc2poly([-0.5 0.4 0.2]); [a2,e2] = rc2poly([0.5 0.3], 4);",
+  "iters": 3,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: a = rc2poly(k). Spec-extension batch 2026-05-09 (cycle 40)."
+  "fingerprint": [
+    "a(1)", "a(2)", "a(3)", "a(4)",
+    "a2(2)", "a2(3)", "e2"
+  ],
+  "comment": "Sig [a,efinal]=rc2poly(k,r0): reflection coeffs -> AR poly via step-up. k=[-0.5 0.4 0.2] -> a=[1 -0.62 0.26 0.2]. Two-output form [a,efinal]=rc2poly([0.5 0.3],4): a=[1 0.65 0.3], efinal=r0*prod(1-k.^2)=4*0.75*0.91=2.73. numkit previously returned only a (no efinal 2nd output) -- added r0 arg + efinal."
 }

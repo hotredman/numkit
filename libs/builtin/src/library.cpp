@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -117,11 +118,19 @@ void boundary_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void delaunay_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void histcounts2_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void griddata_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void griddatan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void matchpairs_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void findgroups_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void splitapply_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void groupcounts_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void groupsummary_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void grouptransform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void groupfilter_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void colperm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void symrcm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void spline_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pchip_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void makima_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void mkpp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ppval_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void unmkpp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -136,6 +145,8 @@ void polyint_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void poly_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyvalm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polydiv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void residue_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void residuez_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void padecoef_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void tf2zp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void zp2tf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -231,12 +242,17 @@ void numunique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ismembertol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void uniquetol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void histcounts_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void histc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void discretize_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // accum.cpp
 void accumarray_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void deg2rad_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rad2deg_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wrapToPi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wrapTo2Pi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wrapTo180_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void wrapTo360_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // complex.cpp
 void real_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -247,6 +263,8 @@ void angle_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // strings.cpp
 void num2str_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void int2str_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void validatestring_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void str2num_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void str2double_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void string_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -311,6 +329,8 @@ void dec2bin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void dec2hex_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bin2dec_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void hex2dec_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void dec2base_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void base2dec_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rats_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -356,26 +376,13 @@ void ismatrix_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issorted_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issortedrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isuniform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-// language/arrays/predicates.cpp
-void issymmetric_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void ishermitian_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void isbanded_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
-void isdiag_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
-void istril_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
-void istriu_reg     (Span<const Value>, size_t, Span<Value>, CallContext&);
-void bandwidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
-void vecnorm_reg    (Span<const Value>, size_t, Span<Value>, CallContext&);
-// language/arrays/linalg_extras.cpp
-void rref_reg       (Span<const Value>, size_t, Span<Value>, CallContext&);
-void rcond_reg      (Span<const Value>, size_t, Span<Value>, CallContext&);
-void planerot_reg   (Span<const Value>, size_t, Span<Value>, CallContext&);
-// language/arrays/ldl.cpp
-void ldl_reg        (Span<const Value>, size_t, Span<Value>, CallContext&);
-// language/arrays/lsq.cpp
-void lsqminnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext&);
-void lsqnonneg_reg  (Span<const Value>, size_t, Span<Value>, CallContext&);
-// language/arrays/balance.cpp
-void balance_reg    (Span<const Value>, size_t, Span<Value>, CallContext&);
+void ismissing_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void anymissing_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void standardizeMissing_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// issymmetric / ishermitian / isbanded / isdiag / istril / istriu /
+// bandwidth _reg adapters → libs/linalg (predicates.cpp)
+// vecnorm_reg, rref_reg, rcond_reg, planerot_reg, ldl_reg,
+// lsqminnorm_reg, lsqnonneg_reg, balance_reg all migrated to libs/linalg.
 void flintmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intmin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -458,31 +465,17 @@ void invhilb_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void wilkinson_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void hadamard_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rosser_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void inv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void linsolve_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void pageinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void trace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void det_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void chol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// inv_reg / linsolve_reg → libs/linalg (properties.cpp, solvers.cpp)
+// pageinv_reg → libs/linalg (page_ops.cpp)
+// trace_reg, det_reg → libs/linalg (properties.cpp)
+// chol_reg, lu_reg, qr_reg, svd_reg → libs/linalg (decompositions.cpp)
 void topkrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void lu_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void qr_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void svd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void rank_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void pinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void cond_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void orth_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void null_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void normest_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void eig_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void expm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void logm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void sqrtm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void schur_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void hess_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void subspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void norm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void sylvester_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// rank_reg, cond_reg, normest_reg → libs/linalg (properties.cpp)
+// pinv_reg, orth_reg, null_reg → libs/linalg (pseudo_subspace.cpp)
+// eig_reg, expm_reg, logm_reg, sqrtm_reg, schur_reg, hess_reg,
+// sylvester_reg → libs/linalg (eig.cpp, matrix_functions.cpp)
+// subspace_reg → libs/linalg (pseudo_subspace.cpp)
+// norm_reg → libs/linalg (norms.cpp)
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void numel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -506,7 +499,7 @@ void horzcat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void vertcat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void meshgrid_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ndgrid_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void kron_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// kron_reg → libs/linalg (vector_ops.cpp)
 void cumsum_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cumprod_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cummax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -515,8 +508,7 @@ void diff_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void any_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void all_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void xor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void cross_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void dot_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// cross_reg, dot_reg → libs/linalg (vector_ops.cpp)
 
 // Pack 11: operator-named function adapters (binary + unary).
 // Defined in language/operators/{binary,unary}_ops.cpp.
@@ -649,11 +641,19 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("delaunay",  &builtin::detail::delaunay_reg);
     engine.registerFunction("histcounts2", &builtin::detail::histcounts2_reg);
     engine.registerFunction("griddata",  &builtin::detail::griddata_reg);
+    engine.registerFunction("griddatan", &builtin::detail::griddatan_reg);
+    engine.registerFunction("matchpairs", &builtin::detail::matchpairs_reg);
     engine.registerFunction("findgroups",  &builtin::detail::findgroups_reg);
     engine.registerFunction("splitapply",  &builtin::detail::splitapply_reg);
     engine.registerFunction("groupcounts", &builtin::detail::groupcounts_reg);
+    engine.registerFunction("groupsummary", &builtin::detail::groupsummary_reg);
+    engine.registerFunction("grouptransform", &builtin::detail::grouptransform_reg);
+    engine.registerFunction("groupfilter", &builtin::detail::groupfilter_reg);
+    engine.registerFunction("colperm", &builtin::detail::colperm_reg);
+    engine.registerFunction("symrcm", &builtin::detail::symrcm_reg);
     engine.registerFunction("spline",    &builtin::detail::spline_reg);
     engine.registerFunction("pchip",     &builtin::detail::pchip_reg);
+    engine.registerFunction("makima",    &builtin::detail::makima_reg);
     engine.registerFunction("mkpp",      &builtin::detail::mkpp_reg);
     engine.registerFunction("ppval",     &builtin::detail::ppval_reg);
     engine.registerFunction("unmkpp",    &builtin::detail::unmkpp_reg);
@@ -709,6 +709,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("poly",      &builtin::detail::poly_reg);
     engine.registerFunction("polyvalm",  &builtin::detail::polyvalm_reg);
     engine.registerFunction("polydiv",   &builtin::detail::polydiv_reg);
+    engine.registerFunction("residue",   &builtin::detail::residue_reg);
+    engine.registerFunction("residuez",  &builtin::detail::residuez_reg);
     engine.registerFunction("padecoef",  &builtin::detail::padecoef_reg);
     engine.registerFunction("tf2zp",     &builtin::detail::tf2zp_reg);
     engine.registerFunction("zp2tf",     &builtin::detail::zp2tf_reg);
@@ -961,10 +963,15 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("ismembertol",&builtin::detail::ismembertol_reg);
     engine.registerFunction("uniquetol",  &builtin::detail::uniquetol_reg);
     engine.registerFunction("histcounts", &builtin::detail::histcounts_reg);
+    engine.registerFunction("histc", &builtin::detail::histc_reg);
     engine.registerFunction("discretize", &builtin::detail::discretize_reg);
     engine.registerFunction("accumarray", &builtin::detail::accumarray_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
+    engine.registerFunction("wrapToPi",  &builtin::detail::wrapToPi_reg);
+    engine.registerFunction("wrapTo2Pi", &builtin::detail::wrapTo2Pi_reg);
+    engine.registerFunction("wrapTo180", &builtin::detail::wrapTo180_reg);
+    engine.registerFunction("wrapTo360", &builtin::detail::wrapTo360_reg);
 
     // ── Phase 6c: matrix.cpp public-API-backed built-ins ───────────
     engine.registerFunction("zeros",     &builtin::detail::zeros_reg);
@@ -989,60 +996,30 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("wilkinson", &builtin::detail::wilkinson_reg);
     engine.registerFunction("hadamard",  &builtin::detail::hadamard_reg);
     engine.registerFunction("rosser",    &builtin::detail::rosser_reg);
-    engine.registerFunction("inv",       &builtin::detail::inv_reg);
-    engine.registerFunction("linsolve",  &builtin::detail::linsolve_reg);
-    engine.registerFunction("pageinv",   &builtin::detail::pageinv_reg);
-    engine.registerFunction("trace",     &builtin::detail::trace_reg);
-    engine.registerFunction("det",       &builtin::detail::det_reg);
-    engine.registerFunction("chol",      &builtin::detail::chol_reg);
+    // inv registered by LinalgLibrary::install (libs/linalg).
+    // linsolve / pageinv registered by LinalgLibrary::install (libs/linalg).
+    // trace / det registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("topkrows",  &builtin::detail::topkrows_reg);
-    engine.registerFunction("lu",        &builtin::detail::lu_reg);
-    engine.registerFunction("qr",        &builtin::detail::qr_reg);
-    engine.registerFunction("svd",       &builtin::detail::svd_reg);
-    engine.registerFunction("rank",      &builtin::detail::rank_reg);
-    engine.registerFunction("pinv",      &builtin::detail::pinv_reg);
-    engine.registerFunction("cond",      &builtin::detail::cond_reg);
-    engine.registerFunction("orth",      &builtin::detail::orth_reg);
-    engine.registerFunction("null",      &builtin::detail::null_reg);
-    engine.registerFunction("normest",   &builtin::detail::normest_reg);
-    engine.registerFunction("eig",       &builtin::detail::eig_reg);
-    engine.registerFunction("expm",      &builtin::detail::expm_reg);
-    engine.registerFunction("logm",      &builtin::detail::logm_reg);
-    engine.registerFunction("sqrtm",     &builtin::detail::sqrtm_reg);
-    engine.registerFunction("schur",     &builtin::detail::schur_reg);
-    engine.registerFunction("hess",      &builtin::detail::hess_reg);
-    engine.registerFunction("subspace",  &builtin::detail::subspace_reg);
-    engine.registerFunction("norm",      &builtin::detail::norm_reg);
-    engine.registerFunction("sylvester", &builtin::detail::sylvester_reg);
+    // chol / lu / qr / svd registered by LinalgLibrary::install (libs/linalg).
+    // rank / cond / normest registered by LinalgLibrary::install.
+    // pinv / orth / null / subspace registered by LinalgLibrary::install.
+    // eig / expm / logm / sqrtm / schur / hess registered by
+    // LinalgLibrary::install (libs/linalg).
+    // norm registered by LinalgLibrary::install (libs/linalg).
+    // sylvester registered by LinalgLibrary::install (libs/linalg).
 
     // Linalg basics also exposed under `compat.*` so user code that
     // qualifies them as compat.norm / compat.inv (e.g. when porting
     // from a project that namespaces all calls) works without
     // surprises. Functions in the global namespace are already
     // accessible bare; this just adds explicit aliases in compat.
-    engine.registerFunction("compat", "norm",      &builtin::detail::norm_reg);
-    engine.registerFunction("compat", "normest",   &builtin::detail::normest_reg);
-    engine.registerFunction("compat", "inv",       &builtin::detail::inv_reg);
-    engine.registerFunction("compat", "pinv",      &builtin::detail::pinv_reg);
-    engine.registerFunction("compat", "linsolve",  &builtin::detail::linsolve_reg);
-    engine.registerFunction("compat", "det",       &builtin::detail::det_reg);
-    engine.registerFunction("compat", "trace",     &builtin::detail::trace_reg);
-    engine.registerFunction("compat", "rank",      &builtin::detail::rank_reg);
-    engine.registerFunction("compat", "cond",      &builtin::detail::cond_reg);
-    engine.registerFunction("compat", "chol",      &builtin::detail::chol_reg);
-    engine.registerFunction("compat", "lu",        &builtin::detail::lu_reg);
-    engine.registerFunction("compat", "qr",        &builtin::detail::qr_reg);
-    engine.registerFunction("compat", "svd",       &builtin::detail::svd_reg);
-    engine.registerFunction("compat", "eig",       &builtin::detail::eig_reg);
-    engine.registerFunction("compat", "expm",      &builtin::detail::expm_reg);
-    engine.registerFunction("compat", "logm",      &builtin::detail::logm_reg);
-    engine.registerFunction("compat", "sqrtm",     &builtin::detail::sqrtm_reg);
-    engine.registerFunction("compat", "schur",     &builtin::detail::schur_reg);
-    engine.registerFunction("compat", "hess",      &builtin::detail::hess_reg);
-    engine.registerFunction("compat", "orth",      &builtin::detail::orth_reg);
-    engine.registerFunction("compat", "null",      &builtin::detail::null_reg);
-    engine.registerFunction("compat", "subspace",  &builtin::detail::subspace_reg);
-    engine.registerFunction("compat", "sylvester", &builtin::detail::sylvester_reg);
+    // compat.norm registered by LinalgLibrary::install (libs/linalg).
+    // compat.{inv,trace,det,rank,cond,normest} registered by LinalgLibrary::install.
+    // compat.{pinv,chol,lu,qr,svd,orth,null,subspace} registered by
+    // LinalgLibrary::install (libs/linalg).
+    // compat.linsolve registered by LinalgLibrary::install (libs/linalg).
+    // compat.{eig,expm,logm,sqrtm,schur,hess,sylvester} registered by
+    // LinalgLibrary::install (libs/linalg).
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);
     engine.registerFunction("numel",     &builtin::detail::numel_reg);
@@ -1090,7 +1067,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("vertcat",   &builtin::detail::vertcat_reg);
     engine.registerFunction("meshgrid",  &builtin::detail::meshgrid_reg);
     engine.registerFunction("ndgrid",    &builtin::detail::ndgrid_reg);
-    engine.registerFunction("kron",      &builtin::detail::kron_reg);
+    // kron / cross / dot registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("cumsum",    &builtin::detail::cumsum_reg);
     engine.registerFunction("cumprod",   &builtin::detail::cumprod_reg);
     engine.registerFunction("cummax",    &builtin::detail::cummax_reg);
@@ -1099,8 +1076,6 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("any",       &builtin::detail::any_reg);
     engine.registerFunction("all",       &builtin::detail::all_reg);
     engine.registerFunction("xor",       &builtin::detail::xor_reg);
-    engine.registerFunction("cross",     &builtin::detail::cross_reg);
-    engine.registerFunction("dot",       &builtin::detail::dot_reg);
 
     // ── Phase 6c: math/elementary/complex.cpp public-API-backed built-ins ──────────
     engine.registerFunction("real",    &builtin::detail::real_reg);
@@ -1111,6 +1086,8 @@ void BuiltinLibrary::install(Engine &engine)
 
     // ── Phase 6c: strings.cpp public-API-backed built-ins ──────────
     engine.registerFunction("num2str",    &builtin::detail::num2str_reg);
+    engine.registerFunction("int2str",    &builtin::detail::int2str_reg);
+    engine.registerFunction("validatestring", &builtin::detail::validatestring_reg);
     engine.registerFunction("str2num",    &builtin::detail::str2num_reg);
     engine.registerFunction("str2double", &builtin::detail::str2double_reg);
     engine.registerFunction("string",     &builtin::detail::string_reg);
@@ -1182,6 +1159,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("replaceBetween", &builtin::detail::replaceBetween_reg);
     engine.registerFunction("dec2bin",    &builtin::detail::dec2bin_reg);
     engine.registerFunction("dec2hex",    &builtin::detail::dec2hex_reg);
+    engine.registerFunction("dec2base",   &builtin::detail::dec2base_reg);
+    engine.registerFunction("base2dec",   &builtin::detail::base2dec_reg);
     engine.registerFunction("bin2dec",    &builtin::detail::bin2dec_reg);
     engine.registerFunction("hex2dec",    &builtin::detail::hex2dec_reg);
     engine.registerFunction("rat",        &builtin::detail::rat_reg);
@@ -1222,6 +1201,9 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("isnan",     &builtin::detail::isnan_reg);
     engine.registerFunction("isinf",     &builtin::detail::isinf_reg);
     engine.registerFunction("isfinite",  &builtin::detail::isfinite_reg);
+    engine.registerFunction("ismissing", &builtin::detail::ismissing_reg);
+    engine.registerFunction("anymissing",&builtin::detail::anymissing_reg);
+    engine.registerFunction("standardizeMissing", &builtin::detail::standardizeMissing_reg);
     engine.registerFunction("isvector",   &builtin::detail::isvector_reg);
     engine.registerFunction("isrow",      &builtin::detail::isrow_reg);
     engine.registerFunction("iscolumn",   &builtin::detail::iscolumn_reg);
@@ -1229,37 +1211,20 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("issorted",   &builtin::detail::issorted_reg);
     engine.registerFunction("issortedrows",&builtin::detail::issortedrows_reg);
     engine.registerFunction("isuniform",  &builtin::detail::isuniform_reg);
-    engine.registerFunction("issymmetric",&builtin::detail::issymmetric_reg);
-    engine.registerFunction("ishermitian",&builtin::detail::ishermitian_reg);
-    engine.registerFunction("isbanded",   &builtin::detail::isbanded_reg);
-    engine.registerFunction("isdiag",     &builtin::detail::isdiag_reg);
-    engine.registerFunction("istril",     &builtin::detail::istril_reg);
-    engine.registerFunction("istriu",     &builtin::detail::istriu_reg);
-    engine.registerFunction("bandwidth",  &builtin::detail::bandwidth_reg);
-    engine.registerFunction("vecnorm",    &builtin::detail::vecnorm_reg);
+    // issymmetric / ishermitian / isbanded / isdiag / istril / istriu /
+    // bandwidth registered by LinalgLibrary::install (libs/linalg).
+    // vecnorm registered by LinalgLibrary::install (libs/linalg).
     // compat aliases — same fns reachable via `import compat.*`.
-    engine.registerFunction("compat", "issymmetric", &builtin::detail::issymmetric_reg);
-    engine.registerFunction("compat", "ishermitian", &builtin::detail::ishermitian_reg);
-    engine.registerFunction("compat", "isbanded",    &builtin::detail::isbanded_reg);
-    engine.registerFunction("compat", "isdiag",      &builtin::detail::isdiag_reg);
-    engine.registerFunction("compat", "istril",      &builtin::detail::istril_reg);
-    engine.registerFunction("compat", "istriu",      &builtin::detail::istriu_reg);
-    engine.registerFunction("compat", "bandwidth",   &builtin::detail::bandwidth_reg);
-    engine.registerFunction("compat", "vecnorm",     &builtin::detail::vecnorm_reg);
-    engine.registerFunction("rref",       &builtin::detail::rref_reg);
-    engine.registerFunction("rcond",      &builtin::detail::rcond_reg);
-    engine.registerFunction("planerot",   &builtin::detail::planerot_reg);
-    engine.registerFunction("compat", "rref",        &builtin::detail::rref_reg);
-    engine.registerFunction("compat", "rcond",       &builtin::detail::rcond_reg);
-    engine.registerFunction("compat", "planerot",    &builtin::detail::planerot_reg);
-    engine.registerFunction("ldl",        &builtin::detail::ldl_reg);
-    engine.registerFunction("compat", "ldl",         &builtin::detail::ldl_reg);
-    engine.registerFunction("lsqminnorm", &builtin::detail::lsqminnorm_reg);
-    engine.registerFunction("lsqnonneg",  &builtin::detail::lsqnonneg_reg);
-    engine.registerFunction("compat", "lsqminnorm",  &builtin::detail::lsqminnorm_reg);
-    engine.registerFunction("compat", "lsqnonneg",   &builtin::detail::lsqnonneg_reg);
-    engine.registerFunction("balance",    &builtin::detail::balance_reg);
-    engine.registerFunction("compat", "balance",     &builtin::detail::balance_reg);
+    // compat.{issymmetric,ishermitian,isbanded,isdiag,istril,istriu,bandwidth}
+    // registered by LinalgLibrary::install (libs/linalg).
+    // compat.vecnorm registered by LinalgLibrary::install (libs/linalg).
+    // rref / planerot + compat aliases registered by
+    // LinalgLibrary::install (libs/linalg).
+    // ldl / compat.ldl registered by LinalgLibrary::install (libs/linalg).
+    // lsqminnorm / lsqnonneg + compat aliases registered by
+    // LinalgLibrary::install (libs/linalg).
+    // balance registered by LinalgLibrary::install (libs/linalg).
+    // compat.balance registered by LinalgLibrary::install (libs/linalg).
     engine.registerFunction("flintmax",   &builtin::detail::flintmax_reg);
     engine.registerFunction("intmax",     &builtin::detail::intmax_reg);
     engine.registerFunction("intmin",     &builtin::detail::intmin_reg);
@@ -2138,6 +2103,314 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = Value::scalar(serial, ctx.engine->resource());
                             });
 
+    // ── etime ─────────────────────────────────────────────────
+    // MATLAB etime(t2, t1): elapsed seconds between two date vectors.
+    // Each input is a 6-element date vector [Y M D H MI S] (one row) or
+    // an N-by-6 matrix of such rows; the result is an N-by-1 column of
+    // elapsed seconds. A single row in one argument broadcasts against
+    // N rows in the other. The computation is calendar-aware:
+    //   etime = (datenum(t2) - datenum(t1)) * 86400
+    // so month/year/leap-day boundaries are handled correctly. MATLAB
+    // requires exactly 6 columns (it indexes column 6); fewer columns
+    // raise an error here too.
+    engine.registerFunction("etime",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.size() < 2)
+                                    throw std::runtime_error(
+                                        "etime: requires two date vectors (t2, t1)");
+
+                                auto civilToSerial = [](double yd, double md,
+                                                        double dd, double hd,
+                                                        double mind, double sd) {
+                                    double dInt;
+                                    const double dFrac = std::modf(dd, &dInt);
+                                    int64_t y = static_cast<int64_t>(std::floor(yd));
+                                    int64_t m = static_cast<int64_t>(std::floor(md));
+                                    int64_t d = static_cast<int64_t>(dInt);
+                                    if (m <= 2) y -= 1;
+                                    const int64_t era = (y < 0 ? y - 399 : y) / 400;
+                                    const int64_t yoe = y - era * 400;
+                                    const int64_t doy =
+                                        (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+                                    const int64_t doe =
+                                        yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                                    const int64_t days = era * 146097 + doe - 719468;
+                                    const double frac =
+                                        (hd * 3600.0 + mind * 60.0 + sd) / 86400.0 + dFrac;
+                                    return static_cast<double>(days) + 719529.0 + frac;
+                                };
+
+                                auto *mr = ctx.engine->resource();
+                                const Value &t2 = args[0];
+                                const Value &t1 = args[1];
+                                const size_t r2 = t2.dims().rows(), c2 = t2.dims().cols();
+                                const size_t r1 = t1.dims().rows(), c1 = t1.dims().cols();
+                                if (c2 != 6 || c1 != 6)
+                                    throw std::runtime_error(
+                                        "etime: date vectors must have 6 columns "
+                                        "[Y M D H MI S]");
+                                if (r1 != r2 && r1 != 1 && r2 != 1)
+                                    throw std::runtime_error(
+                                        "etime: t2 and t1 must have the same number of "
+                                        "rows (or one a single row)");
+                                const size_t N = std::max(r1, r2);
+
+                                // Column-major: element (row, col) at row + col*nrows.
+                                // Separate the integer date-day part from the
+                                // H/MI/S part the way MATLAB does: the day
+                                // difference is an exact integer, and the small
+                                // time terms subtract directly, so a fractional
+                                // second does not lose precision to cancellation
+                                // inside a ~7.4e5 serial date number.
+                                auto comp = [&](const Value &v, size_t nr,
+                                                size_t row, size_t col) {
+                                    return v.elemAsDouble(row + col * nr);
+                                };
+
+                                auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t k = 0; k < N; ++k) {
+                                    const size_t k2 = (r2 == 1 ? 0 : k);
+                                    const size_t k1 = (r1 == 1 ? 0 : k);
+                                    const double dDay =
+                                        civilToSerial(comp(t2, r2, k2, 0),
+                                                      comp(t2, r2, k2, 1),
+                                                      comp(t2, r2, k2, 2), 0, 0, 0)
+                                      - civilToSerial(comp(t1, r1, k1, 0),
+                                                      comp(t1, r1, k1, 1),
+                                                      comp(t1, r1, k1, 2), 0, 0, 0);
+                                    const double dH  = comp(t2, r2, k2, 3) - comp(t1, r1, k1, 3);
+                                    const double dMI = comp(t2, r2, k2, 4) - comp(t1, r1, k1, 4);
+                                    const double dS  = comp(t2, r2, k2, 5) - comp(t1, r1, k1, 5);
+                                    o[k] = 86400.0 * dDay + 3600.0 * dH + 60.0 * dMI + dS;
+                                }
+                                outs[0] = std::move(out);
+                            });
+
+    // ── weeknum ───────────────────────────────────────────────
+    // MATLAB weeknum(D [, WeekStart [, European]]): week-of-year number
+    // for serial date number D (element-wise, shape preserved).
+    //   WeekStart : day the week begins, 1=Sunday .. 7=Saturday (default 1).
+    //   European  : 0 (US, default) or 1. US convention counts the partial
+    //               first week as week 1. The "European" convention applies
+    //               the ISO-style rule that the first week with at least 4
+    //               days in the year is week 1; a shorter leading partial
+    //               week is donated to the last week of the previous year.
+    // Both honour WeekStart. Algorithm is pure integer arithmetic on the
+    // day-of-year and the weekday of Jan 1 (Sakamoto).
+    engine.registerFunction("weeknum",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "weeknum: requires a date argument");
+                                auto *mr = ctx.engine->resource();
+
+                                int weekStart = 1;
+                                if (args.size() >= 2 && !args[1].isEmpty())
+                                    weekStart = static_cast<int>(args[1].toScalar());
+                                if (weekStart < 1 || weekStart > 7)
+                                    throw std::runtime_error(
+                                        "weeknum: WeekStart must be an integer in 1..7 "
+                                        "(1=Sunday)");
+                                bool european = false;
+                                if (args.size() >= 3 && !args[2].isEmpty())
+                                    european = args[2].toScalar() != 0.0;
+
+                                auto civilToSerial = [](int64_t y, int64_t m,
+                                                        int64_t d) {
+                                    if (m <= 2) y -= 1;
+                                    const int64_t era = (y < 0 ? y - 399 : y) / 400;
+                                    const int64_t yoe = y - era * 400;
+                                    const int64_t doy =
+                                        (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+                                    const int64_t doe =
+                                        yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                                    return era * 146097 + doe - 719468 + 719529;
+                                };
+                                // Calendar year of a MATLAB serial date number
+                                // (Howard Hinnant civil_from_days).
+                                auto yearOf = [](double serial) {
+                                    int64_t z = static_cast<int64_t>(std::floor(serial))
+                                              - 719529 + 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096) / 365;
+                                    int64_t y = yoe + era * 400;
+                                    const int64_t dy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * dy + 2) / 153;
+                                    const int64_t m = mp < 10 ? mp + 3 : mp - 9;
+                                    if (m <= 2) y += 1;
+                                    return static_cast<int>(y);
+                                };
+                                auto isLeap = [](int y) {
+                                    return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+                                };
+                                // Weekday of Jan 1 (Sakamoto), 1=Sunday .. 7=Saturday.
+                                auto wdJan1 = [](int y) {
+                                    static const int t[] =
+                                        {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+                                    const int yy = y - 1;  // month 1 < 3
+                                    const int dow =
+                                        ((yy + yy / 4 - yy / 100 + yy / 400 + t[0] + 1)
+                                         % 7 + 7) % 7;  // 0=Sunday
+                                    return dow + 1;
+                                };
+                                auto weekOf = [&](int y, int doy) {
+                                    const int offset = (wdJan1(y) - weekStart + 7) % 7;
+                                    if (!european)
+                                        return (doy - 1 + offset) / 7 + 1;
+                                    const int partial = (offset == 0) ? 0 : (7 - offset);
+                                    const int firstWS = (offset == 0) ? 1 : (8 - offset);
+                                    if (partial >= 4)
+                                        return (doy - 1 + offset) / 7 + 1;
+                                    if (doy >= firstWS)
+                                        return (doy - firstWS) / 7 + 1;
+                                    // Leading partial week -> last week of prior year.
+                                    const int yp = y - 1;
+                                    const int doyp = isLeap(yp) ? 366 : 365;
+                                    const int offp = (wdJan1(yp) - weekStart + 7) % 7;
+                                    const int partp = (offp == 0) ? 0 : (7 - offp);
+                                    const int fwp = (offp == 0) ? 1 : (8 - offp);
+                                    if (partp >= 4)
+                                        return (doyp - 1 + offp) / 7 + 1;
+                                    return (doyp - fwp) / 7 + 1;
+                                };
+
+                                const Value &D = args[0];
+                                const size_t nr = D.dims().rows();
+                                const size_t nc = D.dims().cols();
+                                const size_t n = D.numel();
+                                auto out = Value::matrix(nr, nc, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();
+                                for (size_t i = 0; i < n; ++i) {
+                                    const double serial = D.elemAsDouble(i);
+                                    const int y = yearOf(serial);
+                                    const int doy = static_cast<int>(
+                                        std::floor(serial) - civilToSerial(y, 1, 1)) + 1;
+                                    o[i] = static_cast<double>(weekOf(y, doy));
+                                }
+                                outs[0] = std::move(out);
+                            });
+
+    // ── addtodate ─────────────────────────────────────────────
+    // MATLAB addtodate(D, Q, units): add Q units to serial date number D
+    // (scalar). Time units ('day','hour','minute','second','millisecond')
+    // are plain serial arithmetic. Calendar units ('month','year') add to
+    // the month/year component and clamp the day to the last valid day of
+    // the resulting month (Jan 31 + 1 month -> Feb 28/29; Feb 29 + 1 year
+    // -> Feb 28); the time-of-day fraction is preserved exactly by keeping
+    // the integer-day and fractional parts separate.
+    engine.registerFunction("addtodate",
+                            [](Span<const Value> args,
+                               size_t /*nargout*/,
+                               Span<Value> outs,
+                               CallContext &ctx) {
+                                if (args.size() < 3)
+                                    throw std::runtime_error(
+                                        "addtodate: requires (D, quantity, units)");
+                                if (args[0].numel() != 1)
+                                    throw std::runtime_error(
+                                        "addtodate: date number must be a real "
+                                        "numeric scalar");
+                                auto *mr = ctx.engine->resource();
+                                const double serial = args[0].toScalar();
+                                const double q = args[1].toScalar();
+                                std::string u = args[2].toString();
+                                for (auto &ch : u)
+                                    ch = static_cast<char>(std::tolower(
+                                        static_cast<unsigned char>(ch)));
+
+                                double result;
+                                if (u == "day")
+                                    result = serial + q;
+                                else if (u == "hour")
+                                    result = serial + q / 24.0;
+                                else if (u == "minute")
+                                    result = serial + q / 1440.0;
+                                else if (u == "second")
+                                    result = serial + q / 86400.0;
+                                else if (u == "millisecond")
+                                    result = serial + q / 86400000.0;
+                                else if (u == "month" || u == "year") {
+                                    // Split integer day (calendar) from the
+                                    // time-of-day fraction so it survives intact.
+                                    const double dayF = std::floor(serial);
+                                    const double frac = serial - dayF;
+                                    const int64_t days =
+                                        static_cast<int64_t>(dayF) - 719529;
+                                    // civil_from_days (Howard Hinnant).
+                                    int64_t z = days + 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096) / 365;
+                                    int64_t Y = yoe + era * 400;
+                                    const int64_t doy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * doy + 2) / 153;
+                                    const int64_t D = doy - (153 * mp + 2) / 5 + 1;
+                                    int64_t M = mp < 10 ? mp + 3 : mp - 9;
+                                    Y += (M <= 2);
+
+                                    int64_t nY = Y, nM = M;
+                                    if (u == "month") {
+                                        int64_t tm = (M - 1)
+                                                   + static_cast<int64_t>(
+                                                         std::llround(q));
+                                        int64_t qd = tm / 12, rd = tm % 12;
+                                        if (rd < 0) { qd -= 1; rd += 12; }
+                                        nY = Y + qd;
+                                        nM = rd + 1;
+                                    } else {  // year
+                                        nY = Y + static_cast<int64_t>(
+                                                     std::llround(q));
+                                    }
+                                    // Clamp day to the new month's length.
+                                    auto leap = [](int64_t y) {
+                                        return (y % 4 == 0 && y % 100 != 0)
+                                            || y % 400 == 0;
+                                    };
+                                    static const int dim[] =
+                                        {31, 28, 31, 30, 31, 30,
+                                         31, 31, 30, 31, 30, 31};
+                                    int64_t maxD = dim[nM - 1];
+                                    if (nM == 2 && leap(nY)) maxD = 29;
+                                    int64_t nD = D < maxD ? D : maxD;
+                                    // civilToSerial(nY, nM, nD) -> integer day.
+                                    int64_t y2 = nY;
+                                    if (nM <= 2) y2 -= 1;
+                                    const int64_t era2 =
+                                        (y2 < 0 ? y2 - 399 : y2) / 400;
+                                    const int64_t yoe2 = y2 - era2 * 400;
+                                    const int64_t doy2 =
+                                        (153 * (nM + (nM > 2 ? -3 : 9)) + 2) / 5
+                                        + nD - 1;
+                                    const int64_t doe2 =
+                                        yoe2 * 365 + yoe2 / 4 - yoe2 / 100 + doy2;
+                                    const int64_t newDays =
+                                        era2 * 146097 + doe2 - 719468 + 719529;
+                                    result = static_cast<double>(newDays) + frac;
+                                } else {
+                                    throw std::runtime_error(
+                                        "addtodate: units must be one of "
+                                        "'year','month','day','hour','minute',"
+                                        "'second','millisecond'");
+                                }
+                                outs[0] = Value::scalar(result, mr);
+                            });
+
     // ── datenum ───────────────────────────────────────────────
     // MATLAB datenum: serial date number from date components.
     //
@@ -2158,9 +2431,6 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 if (args.empty())
                                     throw std::runtime_error(
                                         "datenum requires at least one argument");
-                                if (args[0].isChar() || args[0].isString())
-                                    throw std::runtime_error(
-                                        "datenum: string parsing not yet supported");
 
                                 auto civilToSerial = [](double yd, double md,
                                                         double dd, double hd,
@@ -2190,6 +2460,98 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 };
 
                                 auto *mr = ctx.engine->resource();
+
+                                // ── String date input: datenum(str [, fmt]) ──
+                                // Parses a single date string with an explicit
+                                // format string, or auto-detects the common ISO
+                                // (yyyy-mm-dd[ HH:MM:SS]) and dd-mmm-yyyy forms.
+                                if (args[0].isChar() || args[0].isString()) {
+                                    const std::string s = args[0].toString();
+                                    static const char *MON3[] = {
+                                        "jan","feb","mar","apr","may","jun",
+                                        "jul","aug","sep","oct","nov","dec"};
+                                    auto tryFmt = [&](const std::string &fmt,
+                                                      double &Y, double &Mo,
+                                                      double &D, double &H,
+                                                      double &MI, double &S) -> bool {
+                                        Y = 0; Mo = 1; D = 1; H = 0; MI = 0; S = 0;
+                                        size_t si = 0, fi = 0;
+                                        auto readNum = [&](int maxD) -> long {
+                                            long v = 0; int n = 0;
+                                            while (si < s.size() && n < maxD
+                                                   && std::isdigit(
+                                                       static_cast<unsigned char>(s[si]))) {
+                                                v = v * 10 + (s[si] - '0'); ++si; ++n;
+                                            }
+                                            return n > 0 ? v : -1;
+                                        };
+                                        while (fi < fmt.size()) {
+                                            if (fmt.compare(fi, 4, "yyyy") == 0) {
+                                                long v = readNum(4); if (v < 0) return false;
+                                                Y = static_cast<double>(v); fi += 4;
+                                            } else if (fmt.compare(fi, 4, "mmmm") == 0
+                                                       || fmt.compare(fi, 3, "mmm") == 0) {
+                                                bool full = fmt.compare(fi, 4, "mmmm") == 0;
+                                                if (si + 3 > s.size()) return false;
+                                                std::string mon = s.substr(si, 3);
+                                                for (auto &c : mon)
+                                                    c = static_cast<char>(std::tolower(
+                                                        static_cast<unsigned char>(c)));
+                                                int mi = -1;
+                                                for (int k = 0; k < 12; ++k)
+                                                    if (mon == MON3[k]) { mi = k + 1; break; }
+                                                if (mi < 0) return false;
+                                                Mo = static_cast<double>(mi);
+                                                si += 3;
+                                                if (full) {
+                                                    while (si < s.size() && std::isalpha(
+                                                               static_cast<unsigned char>(s[si]))) ++si;
+                                                    fi += 4;
+                                                } else { fi += 3; }
+                                            } else if (fmt.compare(fi, 2, "mm") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                Mo = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "dd") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                D = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "HH") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                H = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "MM") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                MI = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "SS") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                S = static_cast<double>(v); fi += 2;
+                                            } else {
+                                                if (si < s.size() && s[si] == fmt[fi]) { ++si; ++fi; }
+                                                else return false;
+                                            }
+                                        }
+                                        return si == s.size();   // full consume
+                                    };
+
+                                    double Y, Mo, D, H, MI, S;
+                                    bool ok = false;
+                                    if (args.size() >= 2
+                                        && (args[1].isChar() || args[1].isString())) {
+                                        ok = tryFmt(args[1].toString(), Y, Mo, D, H, MI, S);
+                                    } else {
+                                        static const char *cands[] = {
+                                            "yyyy-mm-dd HH:MM:SS", "yyyy-mm-dd",
+                                            "dd-mmm-yyyy HH:MM:SS", "dd-mmm-yyyy"};
+                                        for (const char *c : cands)
+                                            if (tryFmt(c, Y, Mo, D, H, MI, S)) { ok = true; break; }
+                                    }
+                                    if (!ok)
+                                        throw std::runtime_error(
+                                            "datenum: could not parse date string "
+                                            "(supported: explicit format string, or "
+                                            "ISO yyyy-mm-dd and dd-mmm-yyyy forms)");
+                                    outs[0] = Value::scalar(
+                                        civilToSerial(Y, Mo, D, H, MI, S), mr);
+                                    return;
+                                }
 
                                 // ── Single-arg form: V is 1x3, 1x6, Nx3, Nx6 ─
                                 if (args.size() == 1) {
@@ -2615,6 +2977,336 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     // noise so datenum->datevec round-trips give exact integers.
     //
     // Edge: datevec(0) = [0 0 0 0 0 0] (matches MATLAB literal).
+    // calendar(year, month) — 6x7 matrix for the given month. Columns are
+    // Sunday..Saturday; each day sits in its day-of-week column, weeks run down
+    // the rows, empty cells are 0, and the grid is always padded to 6 rows.
+    // (The no-arg "current month" and datenum forms are not yet supported.)
+    engine.registerFunction("calendar",
+                            [](Span<const Value> args, size_t /*nargout*/,
+                               Span<Value> outs, CallContext &ctx) {
+                                auto *mr = ctx.engine->resource();
+                                if (args.size() < 2)
+                                    throw std::runtime_error(
+                                        "calendar: requires (year, month); the "
+                                        "no-arg and datenum forms are not yet "
+                                        "supported");
+                                const int y = static_cast<int>(args[0].toScalar());
+                                const int m = static_cast<int>(args[1].toScalar());
+                                if (m < 1 || m > 12)
+                                    throw std::runtime_error(
+                                        "calendar: month must be in 1..12");
+                                static const int dim[] = {
+                                    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+                                int nd = dim[m - 1];
+                                if (m == 2 && ((y % 4 == 0 && y % 100 != 0)
+                                               || y % 400 == 0))
+                                    nd = 29;
+                                // Day-of-week of the 1st (Sakamoto, 0 = Sunday).
+                                static const int t[] = {
+                                    0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+                                int yy = y - (m < 3 ? 1 : 0);
+                                int dow = ((yy + yy / 4 - yy / 100 + yy / 400
+                                            + t[m - 1] + 1) % 7 + 7) % 7;
+                                auto out = Value::matrix(6, 7, ValueType::DOUBLE, mr);
+                                double *o = out.doubleDataMut();   // column-major
+                                for (int k = 0; k < 42; ++k) o[k] = 0.0;
+                                for (int d = 1; d <= nd; ++d) {
+                                    const int pos = dow + (d - 1);
+                                    const int row = pos / 7;
+                                    const int col = pos % 7;
+                                    o[row + col * 6] = static_cast<double>(d);
+                                }
+                                outs[0] = std::move(out);
+                            });
+
+    // datestr(D [, fmt]) — format a serial date number (or a 1x6 date vector)
+    // as text. Supports a format STRING with the common field tokens
+    // (yyyy yy mmmm mmm mm dddd ddd dd HH MM SS) and an auto-selected default
+    // format. (numeric format codes, AM/PM 12-hour, and multi-date matrix
+    // inputs are not yet handled.)
+    engine.registerFunction("datestr",
+                            [](Span<const Value> args, size_t /*nargout*/,
+                               Span<Value> outs, CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error(
+                                        "datestr requires at least one argument");
+                                auto *mr = ctx.engine->resource();
+                                const Value &din = args[0];
+
+                                auto civilFromDays = [](int64_t z, int64_t &Y,
+                                                        int &M, int &D) {
+                                    z += 719468;
+                                    const int64_t era =
+                                        (z >= 0 ? z : z - 146096) / 146097;
+                                    const int64_t doe = z - era * 146097;
+                                    const int64_t yoe =
+                                        (doe - doe / 1460 + doe / 36524
+                                         - doe / 146096) / 365;
+                                    const int64_t y = yoe + era * 400;
+                                    const int64_t doy =
+                                        doe - (365 * yoe + yoe / 4 - yoe / 100);
+                                    const int64_t mp = (5 * doy + 2) / 153;
+                                    D = static_cast<int>(doy - (153 * mp + 2) / 5 + 1);
+                                    M = static_cast<int>(mp < 10 ? mp + 3 : mp - 9);
+                                    Y = y + (M <= 2 ? 1 : 0);
+                                };
+
+                                struct Comp { int y, mo, d, h, mi, s; };
+                                auto serialToComp = [&](double dval) -> Comp {
+                                    const double floored = std::floor(dval);
+                                    const int64_t z =
+                                        static_cast<int64_t>(floored) - 719529;
+                                    const double frac = dval - floored;
+                                    int64_t Y; int M, D;
+                                    civilFromDays(z, Y, M, D);
+                                    int64_t ms = static_cast<int64_t>(
+                                        std::round(frac * 86400.0 * 1.0e3));
+                                    int H  = static_cast<int>(ms / 3600000LL); ms %= 3600000LL;
+                                    int MI = static_cast<int>(ms / 60000LL);   ms %= 60000LL;
+                                    double S = static_cast<double>(ms) / 1.0e3;
+                                    if (S >= 60.0) { S -= 60.0; ++MI; }
+                                    if (MI >= 60)  { MI -= 60;  ++H;  }
+                                    if (H  >= 24)  { H  -= 24; civilFromDays(z + 1, Y, M, D); }
+                                    return Comp{ static_cast<int>(Y), M, D, H, MI,
+                                                 static_cast<int>(std::round(S)) };
+                                };
+
+                                // Build the list of dates. An N-by-6 matrix
+                                // (cols==6) is N DATE VECTORS (one per row);
+                                // anything else (scalar / vector / non-6-col
+                                // matrix) is serial date NUMBERS in column-major
+                                // order, each a separate date. Matches MATLAB
+                                // R2025b's datestr disambiguation: a 6x1 column
+                                // is 6 dates, a 1x6 row is one date vector.
+                                std::vector<Comp> dates;
+                                if (din.isChar() || din.isString()) {
+                                    // String date input: auto-detect the common
+                                    // ISO / dd-mmm-yyyy forms (same forms as
+                                    // datevec/datenum), one date. Any 2nd arg is
+                                    // the OUTPUT format, not the input parse spec.
+                                    static const char *MON3p[] = {
+                                        "jan","feb","mar","apr","may","jun",
+                                        "jul","aug","sep","oct","nov","dec"};
+                                    const std::string s = din.toString();
+                                    auto tryFmt = [&](const char *fmt, Comp &c) -> bool {
+                                        int Y = 0, Mo = 1, D = 1, H = 0, MI = 0, S = 0;
+                                        const std::string F = fmt;
+                                        size_t si = 0, fi = 0;
+                                        auto readNum = [&](int maxD) -> long {
+                                            long v = 0; int n = 0;
+                                            while (si < s.size() && n < maxD
+                                                   && std::isdigit((unsigned char)s[si])) {
+                                                v = v * 10 + (s[si] - '0'); ++si; ++n;
+                                            }
+                                            return n > 0 ? v : -1;
+                                        };
+                                        while (fi < F.size()) {
+                                            if (F.compare(fi,4,"yyyy")==0) { long v=readNum(4); if(v<0)return false; Y=(int)v; fi+=4; }
+                                            else if (F.compare(fi,3,"mmm")==0) {
+                                                if (si+3>s.size()) return false;
+                                                std::string m=s.substr(si,3);
+                                                for (auto &ch:m) ch=(char)std::tolower((unsigned char)ch);
+                                                int mi=-1; for(int k=0;k<12;++k) if(m==MON3p[k]){mi=k+1;break;}
+                                                if (mi<0) return false; Mo=mi; si+=3; fi+=3;
+                                            }
+                                            else if (F.compare(fi,2,"mm")==0) { long v=readNum(2); if(v<0)return false; Mo=(int)v; fi+=2; }
+                                            else if (F.compare(fi,2,"dd")==0) { long v=readNum(2); if(v<0)return false; D=(int)v; fi+=2; }
+                                            else if (F.compare(fi,2,"HH")==0) { long v=readNum(2); if(v<0)return false; H=(int)v; fi+=2; }
+                                            else if (F.compare(fi,2,"MM")==0) { long v=readNum(2); if(v<0)return false; MI=(int)v; fi+=2; }
+                                            else if (F.compare(fi,2,"SS")==0) { long v=readNum(2); if(v<0)return false; S=(int)v; fi+=2; }
+                                            else { if (si<s.size() && s[si]==F[fi]) { ++si; ++fi; } else return false; }
+                                        }
+                                        if (si != s.size()) return false;
+                                        c = Comp{Y, Mo, D, H, MI, S};
+                                        return true;
+                                    };
+                                    static const char *cands[] = {
+                                        "yyyy-mm-dd HH:MM:SS", "yyyy-mm-dd",
+                                        "dd-mmm-yyyy HH:MM:SS", "dd-mmm-yyyy"};
+                                    Comp c{}; bool ok = false;
+                                    for (const char *f : cands) if (tryFmt(f, c)) { ok = true; break; }
+                                    if (!ok)
+                                        throw std::runtime_error(
+                                            "datestr: could not parse date string "
+                                            "(supported: ISO yyyy-mm-dd and dd-mmm-yyyy forms)");
+                                    dates.push_back(c);
+                                } else {
+                                    const size_t Rr = din.dims().rows();
+                                    const size_t Cc = din.dims().cols();
+                                    if (Cc == 6 && !din.dims().is3D()) {
+                                        dates.reserve(Rr);
+                                        for (size_t r = 0; r < Rr; ++r)
+                                            dates.push_back(Comp{
+                                                static_cast<int>(din.elemAsDouble(0 * Rr + r)),
+                                                static_cast<int>(din.elemAsDouble(1 * Rr + r)),
+                                                static_cast<int>(din.elemAsDouble(2 * Rr + r)),
+                                                static_cast<int>(din.elemAsDouble(3 * Rr + r)),
+                                                static_cast<int>(din.elemAsDouble(4 * Rr + r)),
+                                                static_cast<int>(std::round(din.elemAsDouble(5 * Rr + r)))});
+                                    } else {
+                                        const size_t n = din.numel();
+                                        dates.reserve(n);
+                                        for (size_t k = 0; k < n; ++k)
+                                            dates.push_back(serialToComp(din.elemAsDouble(k)));
+                                    }
+                                }
+                                if (dates.empty())
+                                    throw std::runtime_error("datestr: empty date input");
+                                bool anyTime = false;
+                                for (const auto &c : dates)
+                                    if (c.h != 0 || c.mi != 0 || c.s != 0) { anyTime = true; break; }
+
+                                std::string fmt;
+                                if (args.size() >= 2) {
+                                    const Value &f = args[1];
+                                    if (f.isChar() || f.isString())
+                                        fmt = f.toString();
+                                    else {
+                                        // Numeric format code -> MATLAB dateform
+                                        // string. Quarter formats use lowercase
+                                        // yy/yyyy here to match the token loop;
+                                        // the rendered output equals MATLAB's.
+                                        static const char *DATEFORM[] = {
+                                            "dd-mmm-yyyy HH:MM:SS", // 0
+                                            "dd-mmm-yyyy",          // 1
+                                            "mm/dd/yy",             // 2
+                                            "mmm",                  // 3
+                                            "m",                    // 4
+                                            "mm",                   // 5
+                                            "mm/dd",                // 6
+                                            "dd",                   // 7
+                                            "ddd",                  // 8
+                                            "d",                    // 9
+                                            "yyyy",                 // 10
+                                            "yy",                   // 11
+                                            "mmmyy",                // 12
+                                            "HH:MM:SS",             // 13
+                                            "HH:MM:SS PM",          // 14
+                                            "HH:MM",                // 15
+                                            "HH:MM PM",             // 16
+                                            "QQ-yy",                // 17
+                                            "QQ",                   // 18
+                                            "dd/mm",                // 19
+                                            "dd/mm/yy",             // 20
+                                            "mmm.dd,yyyy HH:MM:SS", // 21
+                                            "mmm.dd,yyyy",          // 22
+                                            "mm/dd/yyyy",           // 23
+                                            "dd/mm/yyyy",           // 24
+                                            "yy/mm/dd",             // 25
+                                            "yyyy/mm/dd",           // 26
+                                            "QQ-yyyy",              // 27
+                                            "mmmyyyy",              // 28
+                                            "yyyy-mm-dd",           // 29
+                                            "yyyymmddTHHMMSS",      // 30
+                                            "yyyy-mm-dd HH:MM:SS",  // 31
+                                        };
+                                        const int code = static_cast<int>(
+                                            std::round(f.elemAsDouble(0)));
+                                        if (code < 0 || code > 31)
+                                            throw std::runtime_error(
+                                                "datestr: unsupported numeric "
+                                                "format code (expected 0-31)");
+                                        fmt = DATEFORM[code];
+                                    }
+                                } else {
+                                    fmt = anyTime ? "dd-mmm-yyyy HH:MM:SS"
+                                                  : "dd-mmm-yyyy";
+                                }
+
+                                static const char *MON3[] = {
+                                    "Jan","Feb","Mar","Apr","May","Jun",
+                                    "Jul","Aug","Sep","Oct","Nov","Dec"};
+                                static const char *MONF[] = {
+                                    "January","February","March","April","May",
+                                    "June","July","August","September","October",
+                                    "November","December"};
+                                static const char *DOW3[] = {
+                                    "Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+                                static const char *DOWF[] = {
+                                    "Sunday","Monday","Tuesday","Wednesday",
+                                    "Thursday","Friday","Saturday"};
+                                // Day of week via Sakamoto's algorithm.
+                                static const int dt[] = {0,3,2,5,0,3,5,1,4,6,2,4};
+                                // A meridiem token ('AM'/'PM', case-insensitive)
+                                // anywhere in the format switches HH to a
+                                // 12-hour, space-padded clock and prints AM/PM
+                                // by time of day (12 AM = midnight, 12 PM = noon).
+                                bool hour12 = false;
+                                for (size_t k = 0; k + 1 < fmt.size(); ++k) {
+                                    char a = (char)std::tolower((unsigned char)fmt[k]);
+                                    char b = (char)std::tolower((unsigned char)fmt[k+1]);
+                                    if ((a == 'a' || a == 'p') && b == 'm') { hour12 = true; break; }
+                                }
+
+                                // Render one date with the chosen format.
+                                auto renderOne = [&](const Comp &cc) -> std::string {
+                                const int yi = cc.y, moi = cc.mo, di = cc.d,
+                                          hi = cc.h, mii = cc.mi, si = cc.s;
+                                int yw = yi - (moi < 3 ? 1 : 0);
+                                int dow = ((yw + yw/4 - yw/100 + yw/400
+                                            + dt[(moi - 1 + 12) % 12] + di) % 7 + 7) % 7;
+                                const int h12 = (hi % 12 == 0) ? 12 : (hi % 12);
+                                std::string out;
+                                char buf[16];
+                                size_t i = 0;
+                                auto at = [&](const char *t, size_t L) {
+                                    return fmt.compare(i, L, t) == 0;
+                                };
+                                while (i < fmt.size()) {
+                                    if (at("yyyy", 4)) { std::snprintf(buf,sizeof buf,"%04d",yi); out+=buf; i+=4; }
+                                    else if (at("yy", 2)) { std::snprintf(buf,sizeof buf,"%02d",((yi%100)+100)%100); out+=buf; i+=2; }
+                                    else if (at("mmmm", 4)) { out += MONF[(moi-1+12)%12]; i+=4; }
+                                    else if (at("mmm", 3)) { out += MON3[(moi-1+12)%12]; i+=3; }
+                                    else if (at("mm", 2)) { std::snprintf(buf,sizeof buf,"%02d",moi); out+=buf; i+=2; }
+                                    else if (at("m", 1)) { out += MON3[(moi-1+12)%12][0]; i+=1; }   // first letter of month
+                                    else if (at("QQ", 2)) { out += 'Q'; out += static_cast<char>('0' + ((moi - 1) / 3 + 1)); i+=2; }   // quarter
+                                    else if (at("dddd", 4)) { out += DOWF[dow]; i+=4; }
+                                    else if (at("ddd", 3)) { out += DOW3[dow]; i+=3; }
+                                    else if (at("dd", 2)) { std::snprintf(buf,sizeof buf,"%02d",di); out+=buf; i+=2; }
+                                    else if (at("d", 1)) { out += DOW3[dow][0]; i+=1; }   // first letter of weekday
+                                    else if (at("HH", 2)) {
+                                        if (hour12) std::snprintf(buf,sizeof buf,"%2d",h12);
+                                        else        std::snprintf(buf,sizeof buf,"%02d",hi);
+                                        out+=buf; i+=2;
+                                    }
+                                    else if (at("MM", 2)) { std::snprintf(buf,sizeof buf,"%02d",mii); out+=buf; i+=2; }
+                                    else if (at("SS", 2)) { std::snprintf(buf,sizeof buf,"%02d",si); out+=buf; i+=2; }
+                                    else if (hour12 && i + 1 < fmt.size()
+                                             && ((std::tolower((unsigned char)fmt[i])=='a'
+                                                  || std::tolower((unsigned char)fmt[i])=='p')
+                                                 && std::tolower((unsigned char)fmt[i+1])=='m')) {
+                                        out += (hi < 12) ? "AM" : "PM"; i += 2;
+                                    }
+                                    else { out += fmt[i]; ++i; }
+                                }
+                                return out;
+                                };  // renderOne
+
+                                if (dates.size() == 1) {
+                                    outs[0] = Value::fromString(renderOne(dates[0]), mr);
+                                } else {
+                                    // Multi-date: one row per date, stacked into
+                                    // an N x maxWidth char matrix (right-padded
+                                    // with spaces), matching MATLAB datestr.
+                                    std::vector<std::string> rowstr;
+                                    rowstr.reserve(dates.size());
+                                    size_t maxW = 0;
+                                    for (const auto &c : dates) {
+                                        rowstr.push_back(renderOne(c));
+                                        if (rowstr.back().size() > maxW)
+                                            maxW = rowstr.back().size();
+                                    }
+                                    const size_t N = rowstr.size();
+                                    Value Mc = Value::matrix(N, maxW, ValueType::CHAR, mr);
+                                    char *dst = static_cast<char *>(Mc.rawDataMut());
+                                    for (size_t r = 0; r < N; ++r)
+                                        for (size_t c = 0; c < maxW; ++c)
+                                            dst[c * N + r] =   // column-major
+                                                (c < rowstr[r].size()) ? rowstr[r][c] : ' ';
+                                    outs[0] = Mc;
+                                }
+                            });
+
     engine.registerFunction("datevec",
                             [](Span<const Value> args,
                                size_t nargout,
@@ -2624,10 +3316,105 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     throw std::runtime_error(
                                         "datevec requires at least one "
                                         "argument");
-                                if (args[0].isChar() || args[0].isString())
-                                    throw std::runtime_error(
-                                        "datevec: string parsing not yet "
-                                        "supported");
+                                // String date input: datevec(str [, fmt]) —
+                                // parse with an explicit format or auto-detect
+                                // the common ISO / dd-mmm-yyyy forms (same
+                                // parser as datenum), returning [Y M D H MI S].
+                                if (args[0].isChar() || args[0].isString()) {
+                                    auto *mrs = ctx.engine->resource();
+                                    const std::string s = args[0].toString();
+                                    static const char *MON3s[] = {
+                                        "jan","feb","mar","apr","may","jun",
+                                        "jul","aug","sep","oct","nov","dec"};
+                                    auto tryFmt = [&](const std::string &fmt,
+                                                      double &Y, double &Mo,
+                                                      double &D, double &H,
+                                                      double &MI, double &S) -> bool {
+                                        Y = 0; Mo = 1; D = 1; H = 0; MI = 0; S = 0;
+                                        size_t si = 0, fi = 0;
+                                        auto readNum = [&](int maxD) -> long {
+                                            long v = 0; int n = 0;
+                                            while (si < s.size() && n < maxD
+                                                   && std::isdigit(
+                                                       static_cast<unsigned char>(s[si]))) {
+                                                v = v * 10 + (s[si] - '0'); ++si; ++n;
+                                            }
+                                            return n > 0 ? v : -1;
+                                        };
+                                        while (fi < fmt.size()) {
+                                            if (fmt.compare(fi, 4, "yyyy") == 0) {
+                                                long v = readNum(4); if (v < 0) return false;
+                                                Y = static_cast<double>(v); fi += 4;
+                                            } else if (fmt.compare(fi, 4, "mmmm") == 0
+                                                       || fmt.compare(fi, 3, "mmm") == 0) {
+                                                bool full = fmt.compare(fi, 4, "mmmm") == 0;
+                                                if (si + 3 > s.size()) return false;
+                                                std::string mon = s.substr(si, 3);
+                                                for (auto &c : mon)
+                                                    c = static_cast<char>(std::tolower(
+                                                        static_cast<unsigned char>(c)));
+                                                int mi = -1;
+                                                for (int k = 0; k < 12; ++k)
+                                                    if (mon == MON3s[k]) { mi = k + 1; break; }
+                                                if (mi < 0) return false;
+                                                Mo = static_cast<double>(mi); si += 3;
+                                                if (full) {
+                                                    while (si < s.size() && std::isalpha(
+                                                               static_cast<unsigned char>(s[si]))) ++si;
+                                                    fi += 4;
+                                                } else { fi += 3; }
+                                            } else if (fmt.compare(fi, 2, "mm") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                Mo = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "dd") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                D = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "HH") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                H = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "MM") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                MI = static_cast<double>(v); fi += 2;
+                                            } else if (fmt.compare(fi, 2, "SS") == 0) {
+                                                long v = readNum(2); if (v < 0) return false;
+                                                S = static_cast<double>(v); fi += 2;
+                                            } else {
+                                                if (si < s.size() && s[si] == fmt[fi]) { ++si; ++fi; }
+                                                else return false;
+                                            }
+                                        }
+                                        return si == s.size();
+                                    };
+                                    double Y, Mo, D, H, MI, S;
+                                    bool ok = false;
+                                    if (args.size() >= 2
+                                        && (args[1].isChar() || args[1].isString())) {
+                                        ok = tryFmt(args[1].toString(), Y, Mo, D, H, MI, S);
+                                    } else {
+                                        static const char *cands[] = {
+                                            "yyyy-mm-dd HH:MM:SS", "yyyy-mm-dd",
+                                            "dd-mmm-yyyy HH:MM:SS", "dd-mmm-yyyy"};
+                                        for (const char *c : cands)
+                                            if (tryFmt(c, Y, Mo, D, H, MI, S)) { ok = true; break; }
+                                    }
+                                    if (!ok)
+                                        throw std::runtime_error(
+                                            "datevec: could not parse date string "
+                                            "(supported: explicit format string, or "
+                                            "ISO yyyy-mm-dd and dd-mmm-yyyy forms)");
+                                    const double vals[6] = {Y, Mo, D, H, MI, S};
+                                    if (nargout <= 1) {
+                                        auto out = Value::matrix(1, 6, ValueType::DOUBLE, mrs);
+                                        double *o = out.doubleDataMut();
+                                        for (int k = 0; k < 6; ++k) o[k] = vals[k];
+                                        outs[0] = std::move(out);
+                                    } else {
+                                        for (int k = 0; k < 6
+                                                        && k < static_cast<int>(nargout); ++k)
+                                            outs[k] = Value::scalar(vals[k], mrs);
+                                    }
+                                    return;
+                                }
 
                                 auto civilFromDays = [](int64_t z,
                                                         int64_t &Y, int &M,
@@ -3469,6 +4256,41 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             const std::string s = args[0].toString();
             outs[0] = Value::logicalScalar(
                 std::find(kw.begin(), kw.end(), s) != kw.end(), mr);
+        });
+
+    // isvarname(s) — true if s is a valid MATLAB variable name: a non-empty
+    // char vector / string scalar that starts with a letter, contains only
+    // letters / digits / underscores, and is not a reserved keyword. Any
+    // non-text input (numeric, cell, multi-element string) yields false rather
+    // than erroring. R2025b imposes no length limit. vs MATLAB R2025b.
+    engine.registerFunction("isvarname",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            auto *mr = ctx.engine->resource();
+            if (args.empty())
+                throw std::runtime_error("isvarname requires 1 argument");
+            const Value &a = args[0];
+            const bool isText = a.isChar() || (a.isString() && a.numel() == 1);
+            bool ok = false;
+            if (isText) {
+                const std::string s = a.toString();
+                ok = !s.empty()
+                     && std::isalpha(static_cast<unsigned char>(s[0])) != 0;
+                for (size_t i = 1; ok && i < s.size(); ++i) {
+                    const unsigned char c = static_cast<unsigned char>(s[i]);
+                    if (!(std::isalnum(c) || c == '_')) ok = false;
+                }
+                if (ok) {
+                    static const std::vector<std::string> kw = {
+                        "break", "case", "catch", "classdef", "continue",
+                        "else", "elseif", "end", "for", "function", "global",
+                        "if", "otherwise", "parfor", "persistent", "return",
+                        "spmd", "switch", "try", "while"
+                    };
+                    if (std::find(kw.begin(), kw.end(), s) != kw.end())
+                        ok = false;
+                }
+            }
+            outs[0] = Value::logicalScalar(ok, mr);
         });
 
     // full(A) — convert sparse to dense. numkit doesn't have a sparse

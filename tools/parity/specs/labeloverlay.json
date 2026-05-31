@@ -1,0 +1,10 @@
+{
+  "name": "labeloverlay",
+  "namespace": "image",
+  "setup": "A = uint8([10 20 30 40 50; 60 70 80 90 100; 110 120 130 140 150; 160 170 180 190 200; 210 220 230 240 250]); L = uint8([0 0 1 1 2; 0 1 1 2 2; 1 1 0 2 3; 1 0 0 3 3; 0 0 3 3 3]);",
+  "expr": "B = labeloverlay(A, L); r1 = double(B(1,3,1)); r2 = double(B(1,3,3)); r3 = double(B(3,5,2)); B = labeloverlay(A, L, 'Transparency', 0); r4 = double(B(1,3,1)); r5 = double(B(1,5,3)); B = labeloverlay(A, L, 'IncludedLabels', [1 3]); r6 = double(B(1,5,1)); B = labeloverlay(A, L, 'ColorAssignment', 'noshuffle', 'Transparency', 0); r7 = double(B(1,1,3)); r8 = double(B(1,3,1)); r9 = double(size(B,3));",
+  "iters": 3,
+  "tol": 0,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"],
+  "comment": "Sig: B = labeloverlay(A, L [, NV...]). Cover: default (auto/shuffle/jet), Transparency=0 (pure colour), IncludedLabels filter (skip label 2 -> A passthrough), ColorAssignment='noshuffle' on jet. Default shuffle uses MATLAB rng('default') = MT19937 seed-0 randperm; numkit implements MatlabMT19937 + sort(rand) bit-identically. Output uint8 H×W×3 always. tol=0 (exact uint8 match). Other branches (logical BW mask, custom Nx3 Colormap, RGB input, Transparency=1 passthrough) covered exhaustively in gtest. categorical input form not implemented (MATLAB OOP class — policy §0). Image namespace 2026-05-27."
+}

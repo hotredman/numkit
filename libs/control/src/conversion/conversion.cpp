@@ -64,7 +64,7 @@ Tf2ZpResult tf2zp(const Value &num, const Value &den,
     auto denV = stripLeading(coeffsReal(den));
     if (denV.empty() || denV[0] == 0.0)
         throw Error("tf2zp: denominator must have a nonzero leading coefficient",
-                    0, 0, "tf2zp", "", "m:tf2zp:den");
+                    0, 0, "tf2zp", "", "numkit:tf2zp:den");
 
     // Gain is num(1)/den(1) (after stripping leading zeros).
     const double k = numV.empty() ? 0.0 : numV[0] / denV[0];
@@ -115,7 +115,7 @@ StateSpace tf2ss(const Value &num, const Value &den,
     auto denV = stripLeading(coeffsReal(den));
     if (denV.empty() || denV[0] == 0.0)
         throw Error("tf2ss: invalid denominator",
-                    0, 0, "tf2ss", "", "m:tf2ss:den");
+                    0, 0, "tf2ss", "", "numkit:tf2ss:den");
     const double a0 = denV[0];
     // Normalise so leading coefficient of den is 1.
     std::vector<double> a(denV.size());
@@ -124,7 +124,7 @@ StateSpace tf2ss(const Value &num, const Value &den,
     auto numV = coeffsReal(num);
     if (numV.size() > a.size())
         throw Error("tf2ss: numerator longer than denominator (improper system)",
-                    0, 0, "tf2ss", "", "m:tf2ss:improper");
+                    0, 0, "tf2ss", "", "numkit:tf2ss:improper");
     // Left-pad numerator with zeros so it has the same length as `a`.
     std::vector<double> b(a.size(), 0.0);
     const size_t pad = a.size() - numV.size();
@@ -183,19 +183,19 @@ ss2tf(const Value &A, const Value &B,
     const size_t n = A.dims().rows();
     if (A.dims().cols() != n)
         throw Error("ss2tf: A must be square",
-                    0, 0, "ss2tf", "", "m:ss2tf:A");
+                    0, 0, "ss2tf", "", "numkit:ss2tf:A");
 
     // Columns of B, C and D referring to the iu-th input (1-based).
     const size_t nin = (B.dims().cols() == 0) ? 1 : B.dims().cols();
     if (iu < 1 || static_cast<size_t>(iu) > nin)
         throw Error("ss2tf: iu out of range",
-                    0, 0, "ss2tf", "", "m:ss2tf:iu");
+                    0, 0, "ss2tf", "", "numkit:ss2tf:iu");
     const size_t inIdx = static_cast<size_t>(iu - 1);
     const size_t ny = C.dims().rows();
     if (ny != 1)
         throw Error("ss2tf: only single-output systems supported "
                     "(got C with rows != 1)",
-                    0, 0, "ss2tf", "", "m:ss2tf:miso");
+                    0, 0, "ss2tf", "", "numkit:ss2tf:miso");
 
     // Read matrices into flat column-major double buffers.
     auto readMat = [&](const Value &v, size_t r, size_t c) {

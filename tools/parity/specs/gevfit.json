@@ -1,0 +1,19 @@
+{
+  "name": "gevfit",
+  "covers": ["gevfit"],
+  "namespace": "stats",
+  "setup": "n = 2000; u = ((1:n)' - 0.5) / n; x1 = gevinv(u, 0.2, 1.0, 0.5); x2 = gevinv(u, -0.2, 2.0, 1.0); x3 = gevinv(u, 0, 1.5, 0.0);",
+  "expr": "[p1, c1] = gevfit(x1); p2 = gevfit(x2); p3 = gevfit(x3); err1_k = abs(p1(1) - 0.2); err1_s = abs(p1(2) - 1.0); err1_m = abs(p1(3) - 0.5); err2_k = abs(p2(1) + 0.2); err3_k = abs(p3(1));",
+  "iters": 3,
+  "tol": 0.01,
+  "fingerprint": [
+    "double(err1_k < 0.01)",
+    "double(err1_s < 0.01)",
+    "double(err1_m < 0.01)",
+    "double(err2_k < 0.01)",
+    "double(err3_k < 0.01)",
+    "size(p1, 1)", "size(p1, 2)",
+    "size(c1, 1)", "size(c1, 2)"
+  ],
+  "comment": "Sig: [parmhat, parmci] = gevfit(x[, alpha]). 3-parameter GEV MLE with PWM initial guess (Hosking-Wallis-Wood 1985: k ≈ 7.8590c + 2.9554c², σ via Γ(1+k)·(1-2^{-k}), μ via b0 - σ(1-Γ(1+k))/k), then 3-D Newton-Raphson on log-likelihood with FD gradient/Hessian and feasibility-guarded backtracking. CI via observed Fisher information (3×3 FD-Hessian inverse), Wald with log transform on σ, linear on k and μ (MATLAB convention). Bit-equal MATLAB R2025b on Frechet (k>0), Reverse-Weibull (k<0), and Gumbel-max (k=0) deterministic samples to 3-4 sig figs. KNOWN GAPs: none — censoring + freq deferred (rare for extreme value analysis)."
+}

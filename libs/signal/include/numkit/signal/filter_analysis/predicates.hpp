@@ -2,7 +2,7 @@
 //
 // Boolean classifiers for digital filters: isfir / isallpass / isstable /
 // islinphase / isminphase / ismaxphase. All take (b) or (b, a) and
-// return a logical scalar. Tolerances follow MATLAB's defaults.
+// return a logical scalar.
 
 #pragma once
 
@@ -122,7 +122,7 @@ int filtord(const Value &b);
 /// @return    Integer filter order.
 int filtord(const Value &b, const Value &a);
 
-/// FIR filter type classification (1–4) per MATLAB convention.
+/// FIR filter type classification (1–4).
 ///
 ///   * Type 1: even order (odd length), b symmetric.
 ///   * Type 2: odd  order (even length), b symmetric.
@@ -159,7 +159,7 @@ int firtype(const Value &b);
 ///                              is neither 2 nor +inf.
 ///
 /// @note Internally evaluates `freqz` on a uniform 8192-point grid on
-///       \f$ [0, \pi] \f$, matching MATLAB's `filternorm` default `NFFT`.
+///       \f$ [0, \pi] \f$ (the default `NFFT`).
 ///
 /// @code
 /// auto [b, a] = butter(4, 0.3);

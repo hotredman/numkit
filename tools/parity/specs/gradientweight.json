@@ -1,0 +1,10 @@
+{
+  "name": "gradientweight",
+  "namespace": "image",
+  "setup": "I = double(magic(8)) / 100;",
+  "expr": "W1 = gradientweight(I); W2 = gradientweight(I, 2.0); W3 = gradientweight(I, 1.5, 'RolloffFactor', 1.0); W4 = gradientweight(I, 1.5, 'WeightCutoff', 0.5); W5 = gradientweight(I, [1.5 2.5]); r1 = W1(4,4); r2 = W1(1,1); r3 = W2(4,4); r4 = W3(4,4); r5 = W4(4,4); r6 = W5(4,4); r7 = W1(8,8); r8 = sum(W1(:));",
+  "iters": 5,
+  "tol": 1e-05,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"],
+  "comment": "Sig: W = gradientweight(I [, sigma], 'RolloffFactor', P, 'WeightCutoff', K). Branches: 1-arg defaults (sigma=1.5, P=3, K=0.25), 2-arg scalar sigma, 3+-arg NV pairs (RolloffFactor, WeightCutoff), 2-element [sigma_x sigma_y] (replicates MATLAB R2025b's filtRadius(1)-norm bug for hy on anisotropic σ — per 'MATLAB wins' rule). DoG kernel: hx(x)=-x*exp(-x²/2σ²) normalised. Algorithm: Gonzalez-Woods edge gradient + Sethian FMM weights. Image namespace 2026-05-27."
+}

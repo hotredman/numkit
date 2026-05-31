@@ -623,7 +623,7 @@ void bandpower_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("bandpower: requires at least 1 argument",
-                     0, 0, "bandpower", "", "m:bandpower:nargin");
+                     0, 0, "bandpower", "", "numkit:bandpower:nargin");
     const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     const Value &fr = (args.size() >= 3) ? args[2] : Value::Empty;
     outs[0] = bandpower(args[0], fs, fr, ctx.engine->resource());
@@ -634,7 +634,7 @@ void obw_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("obw: requires at least 1 argument",
-                     0, 0, "obw", "", "m:obw:nargin");
+                     0, 0, "obw", "", "numkit:obw:nargin");
     const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     double p = 0.99;
     if (args.size() >= 3 && !args[2].isEmpty()) p = args[2].toScalar();
@@ -647,7 +647,7 @@ void obw_reg(Span<const Value> args, size_t /*nargout*/,
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires at least 1 argument",                 \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;          \
         outs[0] = fn(args[0], fs, ctx.engine->resource());                      \
     }

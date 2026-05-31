@@ -1,0 +1,6 @@
+{"name": "mad_iqr_nan", "covers": ["mad", "iqr"], "namespace": "stats",
+ "setup": "Mn = [1 5; 2 NaN; 3 7; 4 100];",
+ "expr": "m0 = mad(Mn); m00 = m0(2); m1 = mad(Mn,1); m11 = m1(2); q = iqr(Mn); q2 = q(2); mv = mad([1 2 NaN 4 100]); qv = iqr([1 2 NaN 4 100]);",
+ "iters": 3, "tol": 1e-10,
+ "fingerprint": ["m00", "m11", "q2", "mv", "qv"],
+ "comment": "mad/iqr NaN omission (2026-05-30). MATLAB mad and iqr treat NaN as missing and remove it per column; numkit previously NaN-poisoned. Mn col2 = [5;7;100] after dropping the NaN: mad mean-AD m00=41.77778, mad median-AD m11=2, iqr q2=71.25. Vector with an interior NaN: mad mv=36.625 (over [1 2 4 100]), iqr qv=50.5. namespace=stats; kept in a separate small spec from mad.json/iqr.json. Matches MATLAB R2025b."}

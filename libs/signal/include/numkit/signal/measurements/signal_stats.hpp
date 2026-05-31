@@ -14,7 +14,7 @@ namespace numkit::signal {
 /// Computes \f$ y = \sqrt{\frac{1}{N}\sum x^2} \f$ along the chosen axis.
 ///
 /// @param x    Real input array.
-/// @param dim  Reduction axis (1-based, MATLAB convention). `0` (default) →
+/// @param dim  Reduction axis (1-based). `0` (default) →
 ///             first non-singleton dimension.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Reduced array with `dim` collapsed to length 1.

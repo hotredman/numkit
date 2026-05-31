@@ -18,7 +18,7 @@ Value real(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Imaginary part (`y = imag(x)`).
 ///
-/// For non-complex input returns scalar 0 (matches MATLAB).
+/// For non-complex input returns scalar 0.
 ///
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).

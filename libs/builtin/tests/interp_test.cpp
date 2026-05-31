@@ -74,6 +74,89 @@ TEST_F(InterpTest, NearestAtNode)
     EXPECT_NEAR(evalScalar("yq"), 20.0, 1e-10);
 }
 
+// 'nearest' tie-break: an exactly-halfway query rounds UP to the higher
+// neighbor (matches MATLAB). Was rounding down. DEEP-PROBE 2026-05-31.
+TEST_F(InterpTest, NearestTieRoundsUp)
+{
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],2.5,'nearest')"), 30.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],1.5,'nearest')"), 20.0, 1e-12);
+    // Non-tie queries on either side are unaffected.
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],2.4,'nearest')"), 20.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],2.6,'nearest')"), 30.0, 1e-12);
+}
+
+// ============================================================
+// interp1 — matrix Y (column-wise interpolation)
+// ============================================================
+
+// interp1 with a matrix Y interpolates DOWN each column; the result is
+// length(xq) x size(Y,2), regardless of the xq orientation. Previously
+// threw "x and y must have same length". vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_F(InterpTest, MatrixYColumnwiseLinear)
+{
+    eval("Y = [10 100; 20 200; 30 300];");
+    // scalar xq -> 1 x 2.
+    eval("ml = interp1([1 2 3], Y, 2.5);");
+    EXPECT_NEAR(evalScalar("ml(1)"), 25.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ml(2)"), 250.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ml,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ml,2)"), 2.0);
+    // vector xq -> 3 x 2, default NaN extrapolation per column.
+    eval("mle = interp1([1 2 3], Y, [0 2.5 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(mle,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(mle,2)"), 2.0);
+    EXPECT_NEAR(evalScalar("mle(2,1)"), 25.0, 1e-12);
+    EXPECT_NEAR(evalScalar("mle(2,2)"), 250.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isnan(mle(1,1)))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(isnan(mle(3,2)))"), 1.0);
+    // column xq still yields q x m (q rows).
+    eval("md = interp1([1 2 3], Y, [2.5;1.5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(md,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(md,2)"), 2.0);
+    EXPECT_NEAR(evalScalar("md(2,2)"), 150.0, 1e-12);
+}
+
+TEST_F(InterpTest, MatrixYNearestAndSpline)
+{
+    eval("Y = [10 100; 20 200; 30 300];");
+    // nearest with scalar extrapval, per column (2.5 ties up to row 3).
+    eval("mn = interp1([1 2 3], Y, [0 2.5 5], 'nearest', -1);");
+    EXPECT_NEAR(evalScalar("mn(1,1)"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("mn(2,1)"), 30.0, 1e-12);
+    EXPECT_NEAR(evalScalar("mn(3,2)"), -1.0, 1e-12);
+    // spline extrapolates per column.
+    eval("ms = interp1([1 2 3], Y, [0 2.5 5], 'spline');");
+    EXPECT_NEAR(evalScalar("ms(1,1)"), 0.0, 1e-10);
+    EXPECT_NEAR(evalScalar("ms(3,1)"), 50.0, 1e-10);
+    EXPECT_NEAR(evalScalar("ms(2,2)"), 250.0, 1e-10);
+    // size(Y,1) != length(x) throws.
+    EXPECT_THROW(eval("interp1([1 2 3 4], [10 100; 20 200; 30 300], 2.5);"),
+                 std::exception);
+}
+
+// ============================================================
+// interp1 — 'previous' / 'next' (step interpolation) vs MATLAB R2025b
+// ============================================================
+
+TEST_F(InterpTest, PreviousAndNext)
+{
+    // 'next' = value at the smallest knot >= xq; 'previous' = at the
+    // largest knot <= xq.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],1.5,'next')"),     20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],1.5,'previous')"), 10.0);
+    // At an exact knot both return that knot's value.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],2,'next')"),     20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],2,'previous')"), 20.0);
+    // Outside [x(1), x(end)] -> NaN (default, no extrapolation).
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],3.5,'previous')")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0.5,'next')")));
+    // Vector query.
+    eval("v = interp1([1 2 3],[10 20 30],[1.5 2.5],'previous');");
+    EXPECT_DOUBLE_EQ(evalScalar("v(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(2)"), 20.0);
+}
+
 // ============================================================
 // interp1 — spline
 // ============================================================
@@ -131,6 +214,168 @@ TEST_F(InterpTest, PchipFunction)
 {
     eval("yq = pchip([0 1 2 3], [0 1 4 9], 1.5);");
     EXPECT_NEAR(evalScalar("yq"), 2.25, 0.5);
+}
+
+// 2-arg pchip(x, y) returns a pp struct usable with ppval, mirroring
+// spline(x, y). Coefficients verified against MATLAB R2025b.
+TEST_F(InterpTest, PchipPpFormMatchesValueForm)
+{
+    eval("pp = pchip([1 2 3 4], [1 4 9 16]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.order")),  4);
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.pieces")), 3);
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.5)"),  6.2395833333, 1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 1.5)"),  2.28125,      1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 3.2)"), 10.2186666667, 1e-9);
+    // pp-form must agree with the value form pchip(x,y,xq).
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.7)"),
+                evalScalar("pchip([1 2 3 4], [1 4 9 16], 2.7)"), 1e-12);
+    // first interval coefs [a b c d] = [-0.25 1.25 2 1].
+    EXPECT_NEAR(evalScalar("pp.coefs(1,1)"), -0.25, 1e-12);
+    EXPECT_NEAR(evalScalar("pp.coefs(1,3)"),  2.0,  1e-12);
+    EXPECT_NEAR(evalScalar("pp.coefs(1,4)"),  1.0,  1e-12);
+}
+
+TEST_F(InterpTest, PchipPpFormNonUniformAndTwoPoint)
+{
+    eval("pp = pchip([0 1 3 4], [2 1 4 3]);");
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.0)"), 2.5,          1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 0.5)"), 1.2708333333, 1e-9);
+    // 2 points → a straight line.
+    eval("pl = pchip([1 2], [3 5]);");
+    EXPECT_NEAR(evalScalar("ppval(pl, 1.5)"), 4.0, 1e-12);
+}
+
+// 2-arg makima(x, y) returns a pp struct usable with ppval, like
+// spline/pchip. Coefficients verified against MATLAB R2025b.
+TEST_F(InterpTest, MakimaPpFormMatchesValueForm)
+{
+    eval("pp = makima([1 2 3 4 5], [1 4 9 16 25]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.order")),  4);
+    EXPECT_EQ(static_cast<int>(evalScalar("pp.pieces")), 4);
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.5)"),  6.2395833333, 1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 3.7)"), 13.70365,      1e-9);
+    // pp-form must agree with the value form makima(x,y,xq).
+    EXPECT_NEAR(evalScalar("ppval(pp, 3.3)"),
+                evalScalar("makima([1 2 3 4 5], [1 4 9 16 25], 3.3)"), 1e-12);
+    // first interval coefs [a b c d] = [-0.8333.. 2.3333.. 1.5 1].
+    EXPECT_NEAR(evalScalar("pp.coefs(1,3)"), 1.5, 1e-12);
+    EXPECT_NEAR(evalScalar("pp.coefs(1,4)"), 1.0, 1e-12);
+}
+
+TEST_F(InterpTest, MakimaPpFormNonUniformAndThreePoint)
+{
+    eval("pp = makima([0 1 3 4 7], [2 1 4 3 8]);");
+    EXPECT_NEAR(evalScalar("ppval(pp, 2.0)"), 2.5697463768, 1e-9);
+    EXPECT_NEAR(evalScalar("ppval(pp, 0.5)"), 1.2161458333, 1e-9);
+    eval("p3 = makima([1 2 3], [2 5 4]);");
+    EXPECT_NEAR(evalScalar("ppval(p3, 1.5)"), 3.9201388889, 1e-9);
+    EXPECT_NEAR(evalScalar("ppval(p3, 2.5)"), 4.875,        1e-9);
+}
+
+// ============================================================
+// interp1 — out-of-range / extrapolation policy vs MATLAB R2025b
+// ============================================================
+
+TEST_F(InterpTest, LinearOutOfRangeIsNaNByDefault)
+{
+    // MATLAB: linear (and nearest) return NaN out-of-range when 'extrap'
+    // is not given. Regression: numkit used to extrapolate linearly (40).
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],4)")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0)")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],4,'nearest')")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0,'nearest')")));
+    // in-range still interpolates
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],2.5)"), 25.0);
+}
+
+TEST_F(InterpTest, ExtrapOptionExtrapolates)
+{
+    // 'extrap' restores method extrapolation.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,'linear','extrap')"), 40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],0,'linear','extrap')"), 0.0);
+    // nearest 'extrap' holds the endpoint both ways
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,'nearest','extrap')"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],0,'nearest','extrap')"), 10.0);
+}
+
+TEST_F(InterpTest, ConstantExtrapval)
+{
+    // A numeric extrapval fills out-of-range queries with the constant.
+    eval("yq = interp1([1 2 3],[10 20 30],[0 2.5 4],'linear',-99);");
+    EXPECT_DOUBLE_EQ(evalScalar("yq(1)"), -99.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yq(2)"),  25.0); // in-range unaffected
+    EXPECT_DOUBLE_EQ(evalScalar("yq(3)"), -99.0);
+}
+
+// DEEP-PROBE 2026-05-31: the method and extrapval args accept STRING
+// ("nearest") as well as char ('nearest') — MATLAB accepts both. numkit
+// previously honored only char and SILENTLY IGNORED a double-quoted method,
+// falling back to linear (interp1(...,1.4,"nearest") gave 14, not 10).
+TEST_F(InterpTest, StringMethodAndExtrapArgs)
+{
+    // Double-quoted method must be honored (nearest, not linear).
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],1.4,\"nearest\")"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],1.4,'nearest')"),  10.0);
+    // Double-quoted 'extrap' and a scalar extrapval.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,\"linear\",\"extrap\")"), 40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,\"linear\",99)"), 99.0);
+}
+
+TEST_F(InterpTest, PreviousNextExtrapHoldsEndpointOneSide)
+{
+    // 'previous' holds y(end) above the range; below the range there is no
+    // previous sample, so NaN. 'next' is the mirror image.
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],4,'previous','extrap')"), 30.0);
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],0,'previous','extrap')")));
+    EXPECT_DOUBLE_EQ(evalScalar("interp1([1 2 3],[10 20 30],0,'next','extrap')"), 10.0);
+    EXPECT_TRUE(std::isnan(evalScalar("interp1([1 2 3],[10 20 30],4,'next','extrap')")));
+}
+
+TEST_F(InterpTest, SplinePchipMakimaExtrapolateByDefault)
+{
+    // spline/pchip/makima extrapolate out-of-range even without 'extrap'.
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],4,'spline')"), 40.0, 1e-9);
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],4,'pchip')"),  40.0, 1e-9);
+    EXPECT_NEAR(evalScalar("interp1([1 2 3],[10 20 30],4,'makima')"), 40.0, 1e-9);
+    // but a numeric extrapval still overrides them
+    eval("yq = interp1([1 2 3],[10 20 30],[0 4],'spline',-1);");
+    EXPECT_DOUBLE_EQ(evalScalar("yq(1)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yq(2)"), -1.0);
+}
+
+// ============================================================
+// interp1 — 'v5cubic' / 'cubic' (Keys cubic convolution). Values
+// verified against MATLAB R2025b: on a uniform grid both are the classic
+// cubic convolution; non-uniform falls back to spline; OOR → NaN.
+// ============================================================
+
+TEST_F(InterpTest, Interp1V5CubicUniform)
+{
+    eval("x = 0:5; y = [0 1 8 27 64 125];");
+    EXPECT_NEAR(evalScalar("interp1(x, y, 2.3, 'v5cubic')"), 12.251, 1e-9);
+    EXPECT_NEAR(evalScalar("interp1(x, y, 4.7, 'v5cubic')"), 104.18, 1e-9);
+    // 'cubic' is the same method on a uniform grid.
+    EXPECT_NEAR(evalScalar("interp1(x, y, 2.3, 'cubic')"),   12.251, 1e-9);
+    // non-polynomial data distinguishes it from spline.
+    EXPECT_NEAR(evalScalar("interp1(0:5, [2 1 4 1 5 9], 2.4, 'v5cubic')"), 2.896, 1e-9);
+    // exact at a node.
+    EXPECT_NEAR(evalScalar("interp1(x, y, 2, 'v5cubic')"), 8.0, 1e-12);
+}
+
+TEST_F(InterpTest, Interp1V5CubicOutOfRangeIsNaN)
+{
+    // Unlike spline/pchip/makima, v5cubic/cubic do NOT extrapolate.
+    eval("x = 0:5; y = [0 1 8 27 64 125];");
+    EXPECT_TRUE(std::isnan(evalScalar("interp1(x, y, 5.5, 'v5cubic')")));
+    EXPECT_TRUE(std::isnan(evalScalar("interp1(x, y, -0.5, 'cubic')")));
+}
+
+TEST_F(InterpTest, Interp1V5CubicNonUniformFallsBackToSpline)
+{
+    // MATLAB warns and switches to 'spline' on a non-uniform grid.
+    eval("y = [0 1 8 27 64 125];");
+    EXPECT_NEAR(evalScalar("interp1([0 1 2 4 5 6], y, 2.3, 'v5cubic')"),
+                evalScalar("interp1([0 1 2 4 5 6], y, 2.3, 'spline')"), 1e-12);
 }
 
 // ============================================================
@@ -344,8 +589,86 @@ TEST_F(InterpTest, Interp2NonMonotonicGridThrows)
 
 TEST_F(InterpTest, Interp2UnsupportedMethodThrows)
 {
+    // 'makima' / 'pchip' on interp2 still error (true tensor-product Hermite
+    // with cross-derivatives is deferred; 'spline' IS supported below).
     eval("V = [1 2; 3 4];");
-    EXPECT_THROW(eval("y = interp2(V, 1.5, 1.5, 'spline');"), std::exception);
+    EXPECT_THROW(eval("y = interp2(V, 1.5, 1.5, 'makima');"), std::exception);
+    EXPECT_THROW(eval("y = interp2(V, 1.5, 1.5, 'pchip');"), std::exception);
+}
+
+// ── interp2 'cubic' (Keys bicubic convolution) ─────────────────
+// Values verified against MATLAB R2025b.
+TEST_F(InterpTest, Interp2CubicInterior)
+{
+    eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
+    EXPECT_NEAR(evalScalar("interp2(V, 2.5, 2.5, 'cubic')"), 10.52734375, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2CubicNearBoundary)
+{
+    // Query in the first/last cell exercises the 3*v1-3*v2+v3 edge padding.
+    eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
+    EXPECT_NEAR(evalScalar("interp2(V, 1.3, 3.7, 'cubic')"), 10.38295, 1e-6);
+}
+
+TEST_F(InterpTest, Interp2CubicOnNodeExact)
+{
+    eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
+    EXPECT_DOUBLE_EQ(evalScalar("interp2(V, 2, 3, 'cubic')"), 11.0);   // V(3,2)
+}
+
+TEST_F(InterpTest, Interp2CubicExplicitGridQuadraticExact)
+{
+    // Cubic reproduces the smooth surface exactly at the midpoint.
+    eval("[X, Y] = meshgrid(1:4, 1:4); W = X.^2 + Y;");
+    EXPECT_NEAR(evalScalar("interp2(X, Y, W, 2.5, 2.5, 'cubic')"), 8.75, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2CubicNonUniformGridThrows)
+{
+    eval("V = [1 2 4 8; 3 5 9 17; 6 11 20 33; 10 18 30 48];");
+    EXPECT_THROW(eval("interp2([1 2 4 8], 1:4, V, 2.5, 2.5, 'cubic');"), std::exception);
+}
+
+// ── interp2 'spline' (separable tensor-product cubic spline) ───
+// Values verified against MATLAB R2025b. The cubic spline is a linear
+// operator, so the 2-D result equals 1-D spline along x then along y.
+TEST_F(InterpTest, Interp2SplineInterior)
+{
+    eval("x = 1:4; y = 1:4;"
+         "Z = [1 2 4 8; 3 5 9 15; 6 10 16 24; 11 17 25 35];");
+    EXPECT_NEAR(evalScalar("interp2(x, y, Z, 2.4, 3.1, 'spline')"), 12.851056, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2SplineOnNodeExact)
+{
+    eval("x = 1:4; y = 1:4;"
+         "Z = [1 2 4 8; 3 5 9 15; 6 10 16 24; 11 17 25 35];");
+    // Exact at a grid node: Z(3,2) = 10.
+    EXPECT_NEAR(evalScalar("interp2(x, y, Z, 2, 3, 'spline')"), 10.0, 1e-10);
+}
+
+TEST_F(InterpTest, Interp2SplineExtrapolatesOutOfRange)
+{
+    // Unlike linear/nearest/cubic (NaN out of range), spline extrapolates.
+    eval("x = 1:4; y = 1:4;"
+         "Z = [1 2 4 8; 3 5 9 15; 6 10 16 24; 11 17 25 35];");
+    EXPECT_NEAR(evalScalar("interp2(x, y, Z, 5, 2, 'spline')"), 23.0, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2SplineNonUniformGrid)
+{
+    // spline works on non-uniform grids (cubic convolution rejects them).
+    eval("g = [1 2 4 7];"
+         "Z = [1 2 4 8; 3 5 9 15; 6 10 16 24; 11 17 25 35];");
+    EXPECT_NEAR(evalScalar("interp2(g, g, Z, 3, 3, 'spline')"), 10.3471604938, 1e-9);
+}
+
+TEST_F(InterpTest, Interp2SplineSmallGridFallsBackToLinear)
+{
+    // <3 points along a dim → 1-D spline falls back to linear → bilinear.
+    EXPECT_NEAR(evalScalar("interp2([1 2], [1 2], [1 2; 3 4], 1.5, 1.5, 'spline')"),
+                2.5, 1e-12);
 }
 
 TEST_F(InterpTest, Interp2ComplexThrows)

@@ -1,6 +1,7 @@
 {
   "name": "mil188qammod",
   "namespace": "comm",
+  "covers": ["mil188qammod", "mil188qamdemod"],
   "setup": "x16 = (0:15)'; x32 = (0:31)'; x64 = (0:63)'; x256 = (0:255)';",
   "expr": "rt16 = isequal(x16, mil188qamdemod(mil188qammod(x16, 16), 16)); rt32 = isequal(x32, mil188qamdemod(mil188qammod(x32, 32), 32)); rt64 = isequal(x64, mil188qamdemod(mil188qammod(x64, 64), 64)); y256 = mil188qammod(x256, 256); rt256 = isequal(x256, mil188qamdemod(y256, 256)); rtN256 = isequal(x256, mil188qamdemod(y256 + 0.005*(1+1i), 256));",
   "iters": 5,

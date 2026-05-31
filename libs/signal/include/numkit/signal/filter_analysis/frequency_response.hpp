@@ -31,11 +31,22 @@ namespace numkit::signal {
 /// @endcode
 ///
 /// @see phasez, grpdelay, freqs
+///
+/// `whole` selects the full unit circle: the grid spans `[0, 2π)` with
+/// `w = 2π·(0:n-1)/n` (MATLAB `freqz(..., 'whole')`). Default is the
+/// half circle `[0, π)`, `w = π·(0:n-1)/n`.
+///
+/// `fs` > 0 selects the sample-rate form `freqz(b, a, n, fs)`: the returned
+/// frequency vector is then in Hz over `[0, fs/2)` (or `[0, fs)` with
+/// `whole`). The response `H` is unchanged — only the frequency axis is
+/// rescaled by `fs/(2π)`.
 std::tuple<Value, Value>
 freqz(const Value &                b,
       const Value &                a,
       size_t                       npts = 512,
-      std::pmr::memory_resource *  mr   = nullptr);
+      std::pmr::memory_resource *  mr   = nullptr,
+      bool                         whole = false,
+      double                       fs    = 0.0);
 
 /// Unwrapped phase response of a digital filter.
 ///
@@ -48,11 +59,16 @@ freqz(const Value &                b,
 /// @return      Tuple `(phi, W)` — phase in radians and frequencies.
 ///
 /// @see freqz, grpdelay
+///
+/// `fs` > 0 (the `phasez(b,a,n,fs)` form) returns the frequency vector in
+/// Hz over `[0, fs/2)` instead of rad/sample; the phase values are
+/// unchanged.
 std::tuple<Value, Value>
 phasez(const Value &                b,
        const Value &                a,
        size_t                       npts = 512,
-       std::pmr::memory_resource *  mr   = nullptr);
+       std::pmr::memory_resource *  mr   = nullptr,
+       double                       fs   = 0.0);
 
 /// Group delay of a digital filter.
 ///
@@ -69,10 +85,15 @@ phasez(const Value &                b,
 ///              and frequency grid in rad/sample.
 ///
 /// @see freqz, phasez, phasedelay
+///
+/// `fs` > 0 (the `grpdelay(b,a,n,fs)` form) returns the frequency vector in
+/// Hz over `[0, fs/2)` instead of rad/sample; the group delay (in samples)
+/// is unchanged.
 std::tuple<Value, Value>
 grpdelay(const Value &                b,
          const Value &                a,
          size_t                       npts = 512,
-         std::pmr::memory_resource *  mr   = nullptr);
+         std::pmr::memory_resource *  mr   = nullptr,
+         double                       fs   = 0.0);
 
 } // namespace numkit::signal

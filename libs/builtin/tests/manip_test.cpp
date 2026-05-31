@@ -183,6 +183,35 @@ TEST_P(ManipTest, FlipudMatrix)
     EXPECT_DOUBLE_EQ((*A)(2, 2), 3.0);
 }
 
+// fliplr/flipud on non-DOUBLE matrices (char/logical/complex/single): the
+// 2-D POD path was DOUBLE-only and threw "Not a double array". flip is a
+// pure rearrangement -> type-preserving. vs MATLAB R2025b. DEEP-PROBE
+// 2026-05-31.
+TEST_P(ManipTest, FliplrFlipudNonDoubleMatrix)
+{
+    // char matrix.
+    eval("cm = fliplr(['ab';'cd']);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1))"), 98.0);   // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(2,2))"), 99.0);   // 'c'
+    eval("cu = flipud(['ab';'cd']);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cu(1,1))"), 99.0);   // 'c'
+    // logical.
+    eval("lg = fliplr(logical([1 1 0]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(3))"), 1.0);
+    // complex.
+    eval("cx = fliplr([1+1i 2+2i 3+3i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(cx(1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(cx(1))"), 3.0);
+    // single preserved (type + value).
+    eval("sg = flipud(single([1;2;3]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(sg(1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(sg),'single'))"), 1.0);
+    // double path unchanged.
+    eval("dd = fliplr([1 2 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1)"), 3.0);
+}
+
 // ── rot90 ───────────────────────────────────────────────────
 
 TEST_P(ManipTest, Rot90CCW)
@@ -224,6 +253,36 @@ TEST_P(ManipTest, Rot90KNegative)
     EXPECT_DOUBLE_EQ((*A)(0, 1), 1.0);
     EXPECT_DOUBLE_EQ((*A)(2, 0), 6.0);
     EXPECT_DOUBLE_EQ((*A)(2, 1), 3.0);
+}
+
+// rot90 on non-DOUBLE matrices (char/logical/complex/single): the 2-D POD
+// path was DOUBLE-only and threw "Not a double array" (cell/string were
+// already handled by rot90CellStr). rot90 is a pure rearrangement ->
+// type-preserving. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(ManipTest, Rot90NonDoubleMatrix)
+{
+    // char matrix, 90° CCW: ['ab';'cd'] -> ['bd';'ac'].
+    eval("cm = rot90(['ab';'cd']);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1))"), 98.0);   // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,2))"), 100.0);  // 'd'
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(2,1))"), 97.0);   // 'a'
+    // char, 180°: ['ab';'cd'] -> ['dc';'ba'].
+    eval("cm2 = rot90(['ab';'cd'], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm2(1,1))"), 100.0); // 'd'
+    // logical.
+    eval("lg = rot90(logical([1 0;0 0]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(2,1))"), 1.0);
+    // complex: rot90([1+1i 2;3 4])(1,1) = 2+0i.
+    eval("zx = rot90([1+1i 2; 3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(zx(1,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(zx(1,1))"), 0.0);
+    // single preserved.
+    eval("sg = rot90(single([1 2;3 4]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(sg(1,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(sg),'single'))"), 1.0);
+    // double path unchanged.
+    eval("dd = rot90([1 2;3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1,1)"), 2.0);
 }
 
 TEST_P(ManipTest, Rot90KMod4)
@@ -292,6 +351,74 @@ TEST_P(ManipTest, CircshiftMatrixBothDims)
     EXPECT_DOUBLE_EQ((*A)(0, 1), 3.0);
     EXPECT_DOUBLE_EQ((*A)(1, 0), 2.0);
     EXPECT_DOUBLE_EQ((*A)(1, 1), 1.0);
+}
+
+// circshift(X, K, dim) shifts by K ONLY along dimension `dim`. numkit
+// previously ignored the dim argument and always shifted dim 1. vs MATLAB
+// R2025b. DEEP-PROBE 2026-05-30.
+TEST_P(ManipTest, CircshiftAlongDim)
+{
+    // dim 2 (columns): [1 2 3;4 5 6] -> [3 1 2;6 4 5].
+    eval("A = circshift([1 2 3; 4 5 6], 1, 2);");
+    auto *A = getVarPtr("A");
+    EXPECT_DOUBLE_EQ((*A)(0, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*A)(0, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 0), 6.0);
+    // dim 1 (rows): [1 2 3;4 5 6] -> [4 5 6;1 2 3].
+    eval("B = circshift([1 2 3; 4 5 6], 1, 1);");
+    auto *B = getVarPtr("B");
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 4.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 0), 1.0);
+    // Negative shift along dim 2: [1 2 3;4 5 6] -> [2 3 1;5 6 4].
+    eval("C = circshift([1 2 3; 4 5 6], -1, 2);");
+    auto *C = getVarPtr("C");
+    EXPECT_DOUBLE_EQ((*C)(0, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*C)(0, 2), 1.0);
+    // Row vector along dim 2: circshift([10 20 30 40],2,2) -> [30 40 10 20].
+    eval("r = circshift([10 20 30 40], 2, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(3)"), 10.0);
+    // Default (2-arg) form unchanged.
+    eval("d = circshift([1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 4.0);
+}
+
+// circshift is a pure rearrangement -> type-agnostic. Was throwing "Not a
+// double array" on char/cell/logical/complex. vs MATLAB R2025b. DEEP-PROBE
+// 2026-05-31.
+TEST_P(ManipTest, CircshiftTypeAgnostic)
+{
+    // char vector.
+    eval("cv = circshift('abcde', 2);");
+    EXPECT_EQ(getVarPtr("cv")->toString(), "deabc");
+    eval("cvn = circshift('abcde', -1);");
+    EXPECT_EQ(getVarPtr("cvn")->toString(), "bcdea");
+    // cell vector -> {4,1,2,3}.
+    eval("cc = circshift({1,2,3,4}, 1); a = cc{1}; b = cc{2};");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(cc))"), 1.0);
+    // cellstr vector -> {z,x,y}.
+    eval("cs = circshift({'x','y','z'}, 1); s1 = cs{1}; s3 = cs{3};");
+    EXPECT_EQ(getVarPtr("s1")->toString(), "z");
+    EXPECT_EQ(getVarPtr("s3")->toString(), "y");
+    // char matrix shifts rows.
+    eval("cm = circshift(['ab';'cd';'ef'], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm(1,1))"), 101.0);   // 'e'
+    // [r c] form on a char matrix.
+    eval("cm2 = circshift(['abc';'def'], [1 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cm2(1,1))"), 102.0);  // 'f'
+    // logical preserved.
+    eval("lg = circshift([true false true false], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(lg(2))"), 0.0);
+    // complex preserved.
+    eval("zc = circshift([1+1i 2+2i 3+3i], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(zc(1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(zc(1))"), 3.0);
+    // double path unchanged.
+    eval("dd = circshift([1 2 3 4 5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1)"), 4.0);
 }
 
 // ── tril / triu ────────────────────────────────────────────
@@ -644,6 +771,55 @@ TEST_P(ManipTest, Triu4DPreservesSingleType)
     EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 1, 1, 1));"), 0.0);
 }
 
+// DEEP-PROBE 2026-05-31: the 2-D tril/triu path was DOUBLE-only and threw
+// "Not a double array" on char/logical/single/complex (the byte kernel
+// existed but only the ndim>=4 fallback used it).
+TEST_P(ManipTest, TrilTriu2DTypeAgnostic)
+{
+    // CHAR: keep triangle, char(0) in the zeroed half.
+    eval("M = ['abc';'def';'ghi']; T = tril(M);");
+    EXPECT_TRUE(evalBool("ischar(T);"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(T(1,1))"), 97.0);   // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(T(2,1))"), 100.0);  // 'd'
+    EXPECT_DOUBLE_EQ(evalScalar("double(T(1,2))"), 0.0);    // zeroed
+    eval("U = triu(M);");
+    EXPECT_TRUE(evalBool("ischar(U);"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(U(1,2))"), 98.0);   // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(U(2,1))"), 0.0);
+
+    // k offset on char.
+    eval("Tk = tril(M, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(Tk(1,3))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(Tk(3,1))"), 103.0);  // 'g'
+    eval("Uk = triu(M, -1);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(Uk(2,1))"), 100.0);  // 'd'
+    EXPECT_DOUBLE_EQ(evalScalar("double(Uk(3,1))"), 0.0);
+
+    // LOGICAL preserved.
+    eval("L = tril(logical(ones(3)));");
+    EXPECT_TRUE(evalBool("islogical(L);"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(2,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(1,2))"), 0.0);
+
+    // SINGLE preserved.
+    eval("S = tril(single([1 2;3 4]));");
+    EXPECT_TRUE(evalBool("isequal(class(S), 'single');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(S(2,1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(S(1,2))"), 0.0);
+
+    // COMPLEX preserved (zeroed half = 0+0i).
+    eval("Z = tril([1+1i 2+2i;3+3i 4+4i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(2,1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(2,1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,2))"), 0.0);
+
+    // DOUBLE unchanged.
+    eval("D = tril([1 2;3 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("D(2,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1,2)"), 0.0);
+}
+
 TEST_P(ManipTest, Rot904DPreservesIntegerType)
 {
     eval("A = int8(reshape(1:24, [2, 3, 2, 2])); B = rot90(A);");
@@ -782,4 +958,130 @@ TEST_P(ManipTest, EllipsoidShifted)
     EXPECT_NEAR(evalScalar("min(Y(:));"), -4.0, 1e-12);
     EXPECT_NEAR(evalScalar("max(Z(:));"), 8.0, 1e-12);
 }
+
+// ── flip / fliplr / flipud / rot90 on CELL and STRING arrays ──────────
+// (DEEP-PROBE 2026-05-31) MATLAB's flip family is type-agnostic — it just
+// permutes elements. numkit previously errored on cell/string inputs
+// ("ND fallback does not support type cell/string" / "Not a double array").
+
+TEST_P(ManipTest, FlipCellRowVector)
+{
+    eval("c = flip({10, 20, 30});");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2}"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 10.0);
+}
+
+TEST_P(ManipTest, FliplrCellRowVector)
+{
+    eval("c = fliplr({10, 20, 30});");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 10.0);
+}
+
+TEST_P(ManipTest, FlipudCellColVector)
+{
+    eval("c = flipud({10; 20; 30});");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 10.0);
+}
+
+TEST_P(ManipTest, FlipCellMatrixDim2)
+{
+    // flip({1 2;3 4},2) = {2 1; 4 3}
+    eval("c = flip({1 2; 3 4}, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 3.0);
+}
+
+TEST_P(ManipTest, FlipCellMatrixDim1)
+{
+    // flip({1 2;3 4},1) = {3 4; 1 2}
+    eval("c = flip({1 2; 3 4}, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 2.0);
+}
+
+TEST_P(ManipTest, FlipCellstr)
+{
+    eval("c = flip({'aa', 'bb', 'cc'});");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(c->cellAt(0).toString(), "cc");
+    EXPECT_EQ(c->cellAt(2).toString(), "aa");
+}
+
+TEST_P(ManipTest, FlipStringArray)
+{
+    // flip(["x" "y" "z"]) = ["z" "y" "x"]. Read elements via the C++ API
+    // (in-script string indexing s(k) is unrelated to the flip op).
+    eval("s = flip([\"x\" \"y\" \"z\"]);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->stringElem(0), "z");
+    EXPECT_EQ(s->stringElem(1), "y");
+    EXPECT_EQ(s->stringElem(2), "x");
+}
+
+TEST_P(ManipTest, Rot90Cell)
+{
+    // rot90({1 2;3 4}) = {2 4; 1 3}
+    eval("c = rot90({1 2; 3 4});");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 3.0);
+}
+
+TEST_P(ManipTest, Rot90CellK2)
+{
+    // rot90({1 2;3 4},2) = {4 3; 2 1}
+    eval("c = rot90({1 2; 3 4}, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 1.0);
+}
+
+TEST_P(ManipTest, Rot90CellK3)
+{
+    // rot90({1 2;3 4},3) = {3 1; 4 2}
+    eval("c = rot90({1 2; 3 4}, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,1}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,1}"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2}"), 2.0);
+}
+
+TEST_P(ManipTest, Rot90CellRowVectorShape)
+{
+    // rot90({1,2,3}) rotates 1x3 -> 3x1 = {3;2;1}
+    eval("c = rot90({1, 2, 3});");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(rows(*c), 3u);
+    EXPECT_EQ(cols(*c), 1u);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 1.0);
+}
+
+TEST_P(ManipTest, Rot90StringArray)
+{
+    // rot90(["a" "b";"c" "d"]) = ["b" "d";"a" "c"] (2x2 col-major: idx0="b",
+    // idx1="a", idx2="d", idx3="c"). Read elements via the C++ API.
+    eval("s = rot90([\"a\" \"b\"; \"c\" \"d\"]);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(rows(*s), 2u);
+    EXPECT_EQ(cols(*s), 2u);
+    EXPECT_EQ(s->stringElem(0), "b");
+    EXPECT_EQ(s->stringElem(1), "a");
+    EXPECT_EQ(s->stringElem(2), "d");
+    EXPECT_EQ(s->stringElem(3), "c");
+}
+
 INSTANTIATE_DUAL(ManipTest);

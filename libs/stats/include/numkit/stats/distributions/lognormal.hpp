@@ -15,7 +15,7 @@ namespace numkit::stats {
 ///
 /// @f$ f(x; \mu, \sigma) = \dfrac{1}{x\,\sigma\sqrt{2\pi}}\,
 ///     e^{-(\ln x - \mu)^2 / (2\sigma^2)} @f$ for `x > 0`.
-/// MATLAB convention: `mu` / `sigma` describe the underlying normal
+/// Convention: `mu` / `sigma` describe the underlying normal
 /// distribution `log(X) ~ N(mu, sigma²)`, NOT the mean/std of `X` itself.
 ///
 /// @param x      Evaluation points (any shape).

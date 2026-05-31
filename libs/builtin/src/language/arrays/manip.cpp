@@ -88,7 +88,7 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
     if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
         throw Error(std::string("repmat: ND repmat does not support type '")
                      + mtypeName(t) + "'",
-                     0, 0, "repmat", "", "m:repmat:typeND");
+                     0, 0, "repmat", "", "numkit:repmat:typeND");
 
     const auto &inDims = x.dims();
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -96,7 +96,7 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
     int outNdim = std::max(inDims.ndim(), ntiles);
     if (outNdim > kMaxNd)
         throw Error("repmat: rank exceeds 32",
-                     0, 0, "repmat", "", "m:repmat:tooManyDims");
+                     0, 0, "repmat", "", "numkit:repmat:tooManyDims");
     if (outNdim < 1) outNdim = 1;
 
     // STRING / CELL store contents as vector<Value> in cellData, not a
@@ -122,13 +122,13 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
                 r = Value::stringArray3D(outD[0], outD[1], outD[2], mr);
             else
                 throw Error("repmat: ND > 3 not supported for string",
-                             0, 0, "repmat", "", "m:repmat:tooManyDimsStr");
+                             0, 0, "repmat", "", "numkit:repmat:tooManyDimsStr");
         } else { // CELL
             if (outNdim <= 2)
                 r = Value::cell(outD[0], outNdim >= 2 ? outD[1] : 1, mr);
             else
                 throw Error("repmat: ND > 2 not supported for cell",
-                             0, 0, "repmat", "", "m:repmat:tooManyDimsCell");
+                             0, 0, "repmat", "", "numkit:repmat:tooManyDimsCell");
         }
         if (x.numel() == 0) return r;
 
@@ -216,6 +216,62 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
 
 namespace {
 
+// CELL / STRING store their contents as a vector<Value> (cellData), not a
+// contiguous byte buffer, so the byte-copy paths below would dereference a
+// null rawData(). These helpers walk elements and copy Values directly,
+// mirroring the repmat cell/string handling above. MATLAB's flip family
+// (flip/fliplr/flipud/rot90) is type-agnostic — it just permutes elements
+// — so cell and string arrays must reorder exactly like numeric ones.
+
+inline bool isCellOrString(ValueType t)
+{
+    return t == ValueType::CELL || t == ValueType::STRING;
+}
+
+// Allocate a CELL or STRING result of shape rows×cols.
+inline Value makeCellOrString(ValueType t, size_t rows, size_t cols,
+                              std::pmr::memory_resource *mr)
+{
+    return (t == ValueType::STRING) ? Value::stringArray(rows, cols, mr)
+                                    : Value::cell(rows, cols, mr);
+}
+
+// Copy element at column-major index srcIdx of src into dstIdx of dst.
+inline void copyCellElem(Value &dst, size_t dstIdx, const Value &src, size_t srcIdx)
+{
+    if (src.type() == ValueType::STRING)
+        dst.stringElemSet(dstIdx, src.stringElem(srcIdx));
+    else
+        dst.cellAt(dstIdx) = src.cellAt(srcIdx);
+}
+
+// Reverse a CELL/STRING array along `axis` (0=rows, 1=cols). Supports up to
+// 2-D (the only ranks Value::cell can represent); higher-rank cell/string
+// flips are rare and deferred with a clear error.
+Value flipCellStr(const Value &x, int axis, const char *fn, std::pmr::memory_resource *mr)
+{
+    const auto &d = x.dims();
+    if (d.ndim() > 2)
+        throw Error(std::string(fn) + ": cell/string arrays support up to 2-D",
+                     0, 0, fn, "", std::string("numkit:") + fn + ":cellRank");
+    const size_t R = d.rows(), C = d.cols();
+    Value r = makeCellOrString(x.type(), R, C, mr);
+    if (x.numel() == 0) return r;
+    const size_t flipDim = (axis == 0) ? R : (axis == 1) ? C : 1;
+    if (axis > 1 || flipDim <= 1) {                  // identity copy
+        for (size_t i = 0; i < x.numel(); ++i) copyCellElem(r, i, x, i);
+        return r;
+    }
+    for (size_t c = 0; c < C; ++c)
+        for (size_t rr = 0; rr < R; ++rr) {
+            const size_t outIdx = c * R + rr;
+            const size_t srcIdx = (axis == 0) ? (c * R + (R - 1 - rr))
+                                              : ((C - 1 - c) * R + rr);
+            copyCellElem(r, outIdx, x, srcIdx);
+        }
+    return r;
+}
+
 // ND flip helper: reverses the order of slabs along `axis` (0-based).
 // The slab stride is B = prod(dims[0..axis-1]) elements; outer count
 // O = prod(dims[axis+1..N-1]). Used by the ND fallback for fliplr
@@ -223,17 +279,17 @@ namespace {
 Value flipNDAlongAxis(const Value &x, int axis, const char *fn, std::pmr::memory_resource *mr)
 {
     const ValueType t = x.type();
-    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
-        || t == ValueType::FUNC_HANDLE)
+    if (isCellOrString(t)) return flipCellStr(x, axis, fn, mr);
+    if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
         throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
-                     0, 0, fn, "", std::string("m:") + fn + ":typeND");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error(std::string(fn) + ": rank exceeds 32",
-                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
 
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = d.dim(i);
@@ -272,21 +328,27 @@ Value flipNDAlongAxis(const Value &x, int axis, const char *fn, std::pmr::memory
 Value fliplr(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
+    if (isCellOrString(x.type())) return flipCellStr(x, 1, "fliplr", mr);
     if (dd.ndim() >= 4) return flipNDAlongAxis(x, 1, "fliplr", mr);
 
+    // POD types (DOUBLE/CHAR/LOGICAL/COMPLEX/single/int) copy raw bytes — flip
+    // is a pure rearrangement, so it is type-preserving (cell/string handled
+    // above via flipCellStr).
+    const ValueType t = x.type();
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
-                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, t, mr)
+                       : Value::matrix(R, C, t, mr);
     if (x.numel() == 0) return r;
 
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     for (size_t pp = 0; pp < P; ++pp)
         for (size_t c = 0; c < C; ++c) {
-            const double *colSrc = src + pp * R * C + (C - 1 - c) * R;
-            double *colDst = dst + pp * R * C + c * R;
-            std::memcpy(colDst, colSrc, R * sizeof(double));
+            const char *colSrc = src + (pp * R * C + (C - 1 - c) * R) * es;
+            char *colDst = dst + (pp * R * C + c * R) * es;
+            std::memcpy(colDst, colSrc, R * es);
         }
     return r;
 }
@@ -294,22 +356,26 @@ Value fliplr(const Value &x, std::pmr::memory_resource *mr)
 Value flipud(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
+    if (isCellOrString(x.type())) return flipCellStr(x, 0, "flipud", mr);
     if (dd.ndim() >= 4) return flipNDAlongAxis(x, 0, "flipud", mr);
 
+    // POD types copy raw bytes — type-preserving (cell/string handled above).
+    const ValueType t = x.type();
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
-                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, t, mr)
+                       : Value::matrix(R, C, t, mr);
     if (x.numel() == 0) return r;
 
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     for (size_t pp = 0; pp < P; ++pp)
         for (size_t c = 0; c < C; ++c) {
-            const double *colSrc = src + pp * R * C + c * R;
-            double *colDst = dst + pp * R * C + c * R;
+            const char *colSrc = src + (pp * R * C + c * R) * es;
+            char *colDst = dst + (pp * R * C + c * R) * es;
             for (size_t rr = 0; rr < R; ++rr)
-                colDst[rr] = colSrc[R - 1 - rr];
+                std::memcpy(colDst + rr * es, colSrc + (R - 1 - rr) * es, es);
         }
     return r;
 }
@@ -382,12 +448,51 @@ inline void rot270PageBytes(const char *src, char *dst,
                         src + (c * R + rr) * es, es);
 }
 
+// rot90 for CELL / STRING arrays (element-wise Value copy). kMod selects
+// the rotation (0/1/2/3 → 0/90/180/270° CCW). Supports up to 2-D.
+Value rot90CellStr(const Value &x, int kMod, std::pmr::memory_resource *mr)
+{
+    const auto &d = x.dims();
+    if (d.ndim() > 2)
+        throw Error("rot90: cell/string arrays support up to 2-D",
+                     0, 0, "rot90", "", "numkit:rot90:cellRank");
+    const size_t R = d.rows(), C = d.cols();
+    const ValueType t = x.type();
+    if (kMod == 0 || kMod == 2) {                    // shape stays R×C
+        Value r = makeCellOrString(t, R, C, mr);
+        if (x.numel() == 0) return r;
+        for (size_t c = 0; c < C; ++c)
+            for (size_t rr = 0; rr < R; ++rr) {
+                const size_t outIdx = c * R + rr;
+                const size_t srcIdx = (kMod == 0)
+                    ? (c * R + rr)
+                    : ((C - 1 - c) * R + (R - 1 - rr));
+                copyCellElem(r, outIdx, x, srcIdx);
+            }
+        return r;
+    }
+    // kMod 1 (90°) / 3 (270°): output shape is C×R (rows/cols swap).
+    Value r = makeCellOrString(t, C, R, mr);
+    if (x.numel() == 0) return r;
+    for (size_t c = 0; c < C; ++c)
+        for (size_t rr = 0; rr < R; ++rr) {
+            const size_t srcIdx = c * R + rr;            // src(rr, c)
+            const size_t outIdx = (kMod == 1)
+                ? ((C - 1 - c) + rr * C)                 // out(C-1-c, rr)
+                : (c + (R - 1 - rr) * C);                // out(c, R-1-rr)
+            copyCellElem(r, outIdx, x, srcIdx);
+        }
+    return r;
+}
+
 } // namespace
 
 Value rot90(const Value &x, int k, std::pmr::memory_resource *mr)
 {
     int kMod = k % 4;
     if (kMod < 0) kMod += 4;
+
+    if (isCellOrString(x.type())) return rot90CellStr(x, kMod, mr);
 
     const auto &dd = x.dims();
     const int nd = dd.ndim();
@@ -402,11 +507,11 @@ Value rot90(const Value &x, int k, std::pmr::memory_resource *mr)
             || t == ValueType::FUNC_HANDLE)
             throw Error(std::string("rot90: ND fallback does not support type '")
                          + mtypeName(t) + "'",
-                         0, 0, "rot90", "", "m:rot90:typeND");
+                         0, 0, "rot90", "", "numkit:rot90:typeND");
         constexpr int kMaxNd = Dims::kMaxRank;
         if (nd > kMaxNd)
             throw Error("rot90: rank exceeds 32",
-                         0, 0, "rot90", "", "m:rot90:tooManyDims");
+                         0, 0, "rot90", "", "numkit:rot90:tooManyDims");
         size_t outDims[kMaxNd];
         outDims[0] = (kMod == 1 || kMod == 3) ? C : R;
         outDims[1] = (kMod == 1 || kMod == 3) ? R : C;
@@ -433,6 +538,36 @@ Value rot90(const Value &x, int k, std::pmr::memory_resource *mr)
 
     const size_t P = dd.is3D() ? dd.pages() : 1;
     const bool is3D = dd.is3D();
+
+    // Non-DOUBLE 2-D/3-D POD types (char/logical/complex/single/int): rot90 is
+    // a pure rearrangement, so reuse the byte-copy kernels (cell/string were
+    // handled above by rot90CellStr). Output preserves x's type.
+    if (x.type() != ValueType::DOUBLE) {
+        const ValueType t = x.type();
+        const size_t es = elementSize(t);
+        const char *src = static_cast<const char *>(x.rawData());
+        if (kMod == 0) {
+            auto r = is3D ? Value::matrix3d(R, C, P, t, mr) : Value::matrix(R, C, t, mr);
+            if (x.numel() > 0) std::memcpy(r.rawDataMut(), src, x.numel() * es);
+            return r;
+        }
+        if (kMod == 2) {
+            auto r = is3D ? Value::matrix3d(R, C, P, t, mr) : Value::matrix(R, C, t, mr);
+            if (x.numel() == 0) return r;
+            char *dst = static_cast<char *>(r.rawDataMut());
+            for (size_t pp = 0; pp < P; ++pp)
+                rot180PageBytes(src + pp * R * C * es, dst + pp * R * C * es, R, C, es);
+            return r;
+        }
+        // kMod 1 (90° CCW) / 3 (270°): output shape (C, R, P).
+        auto r = is3D ? Value::matrix3d(C, R, P, t, mr) : Value::matrix(C, R, t, mr);
+        if (x.numel() == 0) return r;
+        char *dst = static_cast<char *>(r.rawDataMut());
+        const auto kern = (kMod == 1) ? rot90OncePageBytes : rot270PageBytes;
+        for (size_t pp = 0; pp < P; ++pp)
+            kern(src + pp * R * C * es, dst + pp * C * R * es, R, C, es);
+        return r;
+    }
 
     // k mod 4 == 0 → identity (just copy). Same shape as input.
     if (kMod == 0) {
@@ -512,6 +647,18 @@ void shift2D(const double *src, double *dst, size_t R, size_t C,
 Value circshift(const Value &x, int64_t k, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
+    // Non-DOUBLE (char / logical / complex / cell / string): circshift is a
+    // pure rearrangement — route through the type-agnostic ND permute. Scalar
+    // k shifts along the first non-singleton dimension.
+    if (x.type() != ValueType::DOUBLE) {
+        if (x.isScalar() || x.numel() == 0) return x;
+        int fnsd = 0;
+        for (int i = 0; i < dd.ndim(); ++i)
+            if (dd.dim(i) > 1) { fnsd = i; break; }
+        int64_t sh[Dims::kMaxRank] = {0};
+        sh[fnsd] = k;
+        return circshiftND(x, Span<const int64_t>(sh, fnsd + 1), mr);
+    }
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
     if (dd.isVector()) {
         const size_t n = x.numel();
@@ -530,21 +677,29 @@ Value circshift(const Value &x, int64_t k, std::pmr::memory_resource *mr)
 Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_resource *mr)
 {
     const ValueType t = x.type();
-    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
-        || t == ValueType::FUNC_HANDLE)
-        throw Error(std::string("circshift: ND fallback does not support type '")
+    // STRING arrays + struct arrays + function-handle arrays are deferred.
+    if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE
+        || t == ValueType::STRING)
+        throw Error(std::string("circshift: does not support type '")
                      + mtypeName(t) + "'",
-                     0, 0, "circshift", "", "m:circshift:typeND");
+                     0, 0, "circshift", "", "numkit:circshift:typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw Error("circshift: rank exceeds 32",
-                     0, 0, "circshift", "", "m:circshift:tooManyDims");
+                     0, 0, "circshift", "", "numkit:circshift:tooManyDims");
+
+    const bool isCell = (t == ValueType::CELL);
+    if (isCell && nd > 2)
+        throw Error("circshift: cell array rank > 2 not supported",
+                     0, 0, "circshift", "", "numkit:circshift:cellND");
 
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = d.dim(i);
-    auto r = Value::matrixND(outDims, nd, t, mr);
+    // CELL needs proper cell storage (Value::matrixND does not allocate it).
+    Value r = isCell ? Value::cell(outDims[0], nd >= 2 ? outDims[1] : 1, mr)
+                     : Value::matrixND(outDims, nd, t, mr);
     if (x.numel() == 0) return r;
 
     const int nshifts = static_cast<int>(shifts.size());
@@ -554,16 +709,21 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
         shiftMod[i] = wrap(s, d.dim(i));
     }
 
-    const size_t es = elementSize(t);
-    const char *src = static_cast<const char *>(x.rawData());
-    char *dst = static_cast<char *>(r.rawDataMut());
+    // CELL permutes element-by-element (Value copy); POD types copy raw
+    // bytes. circshift is a pure rearrangement, so it is type-agnostic.
+    const size_t es = isCell ? 0 : elementSize(t);
+    const char *src = isCell ? nullptr : static_cast<const char *>(x.rawData());
+    char *dst = isCell ? nullptr : static_cast<char *>(r.rawDataMut());
+    auto copyElem = [&](size_t dIdx, size_t sIdx) {
+        if (isCell) r.cellAt(dIdx) = x.cellAt(sIdx);
+        else        std::memcpy(dst + dIdx * es, src + sIdx * es, es);
+    };
     const size_t R = d.dim(0);
     const size_t shift0 = shiftMod[0];
 
     if (nd == 1) {
         for (size_t i = 0; i < R; ++i)
-            std::memcpy(dst + i * es,
-                        src + ((i + R - shift0) % R) * es, es);
+            copyElem(i, (i + R - shift0) % R);
         return r;
     }
 
@@ -584,14 +744,13 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
             dstOuterOff += outerCoords[i - 1] * srcStrides[i];
         }
         if (shift0 == 0) {
-            std::memcpy(dst + dstOuterOff * es,
-                        src + srcOuterOff * es,
-                        R * es);
+            if (isCell)
+                for (size_t i = 0; i < R; ++i) copyElem(dstOuterOff + i, srcOuterOff + i);
+            else
+                std::memcpy(dst + dstOuterOff * es, src + srcOuterOff * es, R * es);
         } else {
             for (size_t i = 0; i < R; ++i)
-                std::memcpy(dst + (dstOuterOff + i) * es,
-                            src + (srcOuterOff + (i + R - shift0) % R) * es,
-                            es);
+                copyElem(dstOuterOff + i, srcOuterOff + (i + R - shift0) % R);
         }
     } while (incrementCoords(outerCoords, outerIter));
 
@@ -601,6 +760,13 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
 Value circshift(const Value &x, int64_t kRow, int64_t kCol, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
+    // Non-DOUBLE: route through the type-agnostic ND permute (shift dim1 by
+    // kRow, dim2 by kCol; higher dims unshifted).
+    if (x.type() != ValueType::DOUBLE) {
+        if (x.isScalar() || x.numel() == 0) return x;
+        const int64_t shifts[2] = {kRow, kCol};
+        return circshiftND(x, Span<const int64_t>(shifts, 2), mr);
+    }
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
     if (dd.is3D()) {
         const size_t R = dd.rows(), C = dd.cols(), P = dd.pages();
@@ -632,25 +798,6 @@ Value circshift(const Value &x, int64_t kRow, int64_t kCol, std::pmr::memory_res
 // tril keeps elements where col - row <= k. triu keeps col - row >= k.
 
 namespace {
-
-// Per-page lower-triangular mask: zero entries where col - row > k.
-inline void trilPage(const double *src, double *dst, size_t R, size_t C, int k)
-{
-    for (size_t c = 0; c < C; ++c)
-        for (size_t rr = 0; rr < R; ++rr) {
-            const int diff = static_cast<int>(c) - static_cast<int>(rr);
-            dst[c * R + rr] = (diff <= k) ? src[c * R + rr] : 0.0;
-        }
-}
-
-inline void triuPage(const double *src, double *dst, size_t R, size_t C, int k)
-{
-    for (size_t c = 0; c < C; ++c)
-        for (size_t rr = 0; rr < R; ++rr) {
-            const int diff = static_cast<int>(c) - static_cast<int>(rr);
-            dst[c * R + rr] = (diff >= k) ? src[c * R + rr] : 0.0;
-        }
-}
 
 // Type-agnostic per-page tril/triu via byte-copy + memset(0). All numeric
 // types (DOUBLE, SINGLE, integer, LOGICAL, COMPLEX) zero correctly via
@@ -695,13 +842,13 @@ Value trilTriuND(const Value &x, int k, PageBytesFn pageFn, const char *fn, std:
     const int nd = dd.ndim();
     if (nd > kMaxNd)
         throw Error(std::string(fn) + ": rank exceeds 32",
-                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":tooManyDims");
     const ValueType t = x.type();
     if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
         || t == ValueType::FUNC_HANDLE)
         throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
-                     0, 0, fn, "", std::string("m:") + fn + ":typeND");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":typeND");
 
     const size_t R = dd.rows(), C = dd.cols();
     size_t outDimArr[kMaxNd];
@@ -727,15 +874,26 @@ Value tril(const Value &x, int k, std::pmr::memory_resource *mr)
     if (dd.ndim() >= 4)
         return trilTriuND(x, k, trilPageBytes, "tril", mr);
 
+    // Type-preserving: keep the lower triangle, zero-fill the rest. The
+    // zeroed bit pattern is the canonical zero for every supported type
+    // (DOUBLE / SINGLE / int / LOGICAL / CHAR / COMPLEX). CELL / STRING /
+    // STRUCT rejected, matching MATLAB ("must be numeric, char, or logical").
+    const ValueType t = x.type();
+    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+        || t == ValueType::FUNC_HANDLE)
+        throw Error("tril: inputs must be numeric, char, or logical",
+                     0, 0, "tril", "", "numkit:tril:badType");
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
-                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, t, mr)
+                       : Value::matrix(R, C, t, mr);
     if (x.numel() == 0) return r;
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     for (size_t pp = 0; pp < P; ++pp)
-        trilPage(src + pp * R * C, dst + pp * R * C, R, C, k);
+        trilPageBytes(src + pp * R * C * es, dst + pp * R * C * es, R, C, k, es);
     return r;
 }
 
@@ -745,15 +903,23 @@ Value triu(const Value &x, int k, std::pmr::memory_resource *mr)
     if (dd.ndim() >= 4)
         return trilTriuND(x, k, triuPageBytes, "triu", mr);
 
+    // Type-preserving (see tril).
+    const ValueType t = x.type();
+    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+        || t == ValueType::FUNC_HANDLE)
+        throw Error("triu: inputs must be numeric, char, or logical",
+                     0, 0, "triu", "", "numkit:triu:badType");
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
-                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, t, mr)
+                       : Value::matrix(R, C, t, mr);
     if (x.numel() == 0) return r;
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     for (size_t pp = 0; pp < P; ++pp)
-        triuPage(src + pp * R * C, dst + pp * R * C, R, C, k);
+        triuPageBytes(src + pp * R * C * es, dst + pp * R * C * es, R, C, k, es);
     return r;
 }
 
@@ -797,10 +963,10 @@ Value repelem(const Value &x, size_t n, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1 && !x.isScalar()))
         throw Error("repelem: 1-arg form requires a vector input",
-                     0, 0, "repelem", "", "m:repelem:notVector");
+                     0, 0, "repelem", "", "numkit:repelem:notVector");
     if (x.type() != ValueType::DOUBLE)
         throw Error("repelem: only DOUBLE inputs are supported",
-                     0, 0, "repelem", "", "m:repelem:type");
+                     0, 0, "repelem", "", "numkit:repelem:type");
 
     const size_t inN = x.numel();
     const size_t outN = inN * n;
@@ -825,10 +991,10 @@ Value repelem(const Value &x, size_t m, size_t n, std::pmr::memory_resource *mr)
     const auto &d = x.dims();
     if (d.ndim() > 2)
         throw Error("repelem: 3-arg form is 2-D only",
-                     0, 0, "repelem", "", "m:repelem:rank");
+                     0, 0, "repelem", "", "numkit:repelem:rank");
     if (x.type() != ValueType::DOUBLE)
         throw Error("repelem: only DOUBLE inputs are supported",
-                     0, 0, "repelem", "", "m:repelem:type");
+                     0, 0, "repelem", "", "numkit:repelem:type");
 
     const size_t R = d.rows(), C = d.cols();
     const size_t outR = R * m, outC = C * n;
@@ -845,6 +1011,105 @@ Value repelem(const Value &x, size_t m, size_t n, std::pmr::memory_resource *mr)
             const size_t srcRow = orow / m;
             dst[oc * outR + orow] = src[srcCol * R + srcRow];
         }
+    }
+    return r;
+}
+
+namespace {
+
+// Build the output→source index map for one dimension given a replication
+// count spec. `counts` is a scalar (broadcast to all `dimLen` entries) or a
+// DOUBLE vector of length `dimLen`. map[k] = source index for output slot k.
+ScratchVec<size_t> repelemMap(const Value &counts, size_t dimLen, ScratchArena &arena)
+{
+    ScratchVec<size_t> map(&arena);
+    auto checkCount = [](double c) -> size_t {
+        if (!(c >= 0.0) || std::floor(c) != c)
+            throw Error("repelem: replication counts must be nonnegative integers",
+                         0, 0, "repelem", "", "numkit:repelem:badCount");
+        return static_cast<size_t>(c);
+    };
+    if (counts.isScalar()) {
+        const size_t rep = checkCount(counts.toScalar());
+        map.reserve(dimLen * rep);
+        for (size_t i = 0; i < dimLen; ++i)
+            for (size_t k = 0; k < rep; ++k) map.push_back(i);
+        return map;
+    }
+    if (counts.type() != ValueType::DOUBLE)
+        throw Error("repelem: count vector must be DOUBLE",
+                     0, 0, "repelem", "", "numkit:repelem:type");
+    if (counts.numel() != dimLen)
+        throw Error("repelem: count vector length must equal the dimension size",
+                     0, 0, "repelem", "", "numkit:repelem:countLen");
+    const double *cd = counts.doubleData();
+    for (size_t i = 0; i < dimLen; ++i) {
+        const size_t rep = checkCount(cd[i]);
+        for (size_t k = 0; k < rep; ++k) map.push_back(i);
+    }
+    return map;
+}
+
+} // namespace
+
+// repelem(v, counts): per-element counts (scalar or vector the length of v).
+Value repelem(const Value &x, const Value &counts, std::pmr::memory_resource *mr)
+{
+    if (counts.isScalar())   // fast path / preserves scalar-form semantics
+        return repelem(x, static_cast<size_t>(counts.toScalar()), mr);
+
+    const auto &d = x.dims();
+    if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1 && !x.isScalar()))
+        throw Error("repelem: vector-count form requires a vector input",
+                     0, 0, "repelem", "", "numkit:repelem:notVector");
+    if (x.type() != ValueType::DOUBLE)
+        throw Error("repelem: only DOUBLE inputs are supported",
+                     0, 0, "repelem", "", "numkit:repelem:type");
+
+    ScratchArena arena(mr);
+    auto map = repelemMap(counts, x.numel(), arena);
+    const size_t outN = map.size();
+    const bool isCol = (d.rows() > 1 && d.cols() == 1);
+    auto r = isCol ? Value::matrix(outN, 1, ValueType::DOUBLE, mr)
+                   : Value::matrix(1, outN, ValueType::DOUBLE, mr);
+    if (outN == 0) return r;
+
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    for (size_t k = 0; k < outN; ++k) dst[k] = src[map[k]];
+    return r;
+}
+
+// repelem(A, r, c): per-row / per-column counts (each scalar or vector).
+Value repelem(const Value &x, const Value &rCounts, const Value &cCounts,
+              std::pmr::memory_resource *mr)
+{
+    if (rCounts.isScalar() && cCounts.isScalar())   // fast path
+        return repelem(x, static_cast<size_t>(rCounts.toScalar()),
+                          static_cast<size_t>(cCounts.toScalar()), mr);
+
+    const auto &d = x.dims();
+    if (d.ndim() > 2)
+        throw Error("repelem: 3-arg form is 2-D only",
+                     0, 0, "repelem", "", "numkit:repelem:rank");
+    if (x.type() != ValueType::DOUBLE)
+        throw Error("repelem: only DOUBLE inputs are supported",
+                     0, 0, "repelem", "", "numkit:repelem:type");
+
+    const size_t R = d.rows(), C = d.cols();
+    ScratchArena arena(mr);
+    auto rowMap = repelemMap(rCounts, R, arena);
+    auto colMap = repelemMap(cCounts, C, arena);
+    const size_t outR = rowMap.size(), outC = colMap.size();
+    auto r = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+    if (outR == 0 || outC == 0) return r;
+
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    for (size_t oc = 0; oc < outC; ++oc) {
+        const size_t srcCol = colMap[oc];
+        for (size_t orow = 0; orow < outR; ++orow)
+            dst[oc * outR + orow] = src[srcCol * R + rowMap[orow]];
     }
     return r;
 }
@@ -871,10 +1136,10 @@ Value paddata(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
     if (!isVectorLike(v))
         throw Error("paddata: vector input required",
-                     0, 0, "paddata", "", "m:paddata:notVector");
+                     0, 0, "paddata", "", "numkit:paddata:notVector");
     if (!v.isEmpty() && v.type() != ValueType::DOUBLE)
         throw Error("paddata: only DOUBLE inputs supported",
-                     0, 0, "paddata", "", "m:paddata:type");
+                     0, 0, "paddata", "", "numkit:paddata:type");
     const size_t cur = v.numel();
     if (cur >= n) return v;
     const auto &d = v.dims();
@@ -891,10 +1156,10 @@ Value trimdata(const Value &v, size_t n, std::pmr::memory_resource *mr)
 {
     if (!isVectorLike(v))
         throw Error("trimdata: vector input required",
-                     0, 0, "trimdata", "", "m:trimdata:notVector");
+                     0, 0, "trimdata", "", "numkit:trimdata:notVector");
     if (!v.isEmpty() && v.type() != ValueType::DOUBLE)
         throw Error("trimdata: only DOUBLE inputs supported",
-                     0, 0, "trimdata", "", "m:trimdata:type");
+                     0, 0, "trimdata", "", "numkit:trimdata:type");
     const size_t cur = v.numel();
     if (cur <= n) return v;
     const auto &d = v.dims();
@@ -920,7 +1185,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("repmat: requires at least 2 arguments",
-                     0, 0, "repmat", "", "m:repmat:nargin");
+                     0, 0, "repmat", "", "numkit:repmat:nargin");
     auto *mr = ctx.engine->resource();
 
     // Forms:
@@ -936,7 +1201,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         const size_t k = v.numel();
         if (k == 0) {
             throw Error("repmat: tile vector must not be empty",
-                         0, 0, "repmat", "", "m:repmat:badTileVec");
+                         0, 0, "repmat", "", "numkit:repmat:badTileVec");
         }
         if (k == 1) {
             const size_t s = static_cast<size_t>(v.toScalar());
@@ -973,7 +1238,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires 1 argument",                        \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         outs[0] = name(args[0], ctx.engine->resource());                      \
     }
 
@@ -987,7 +1252,7 @@ void rot90_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("rot90: requires at least 1 argument",
-                     0, 0, "rot90", "", "m:rot90:nargin");
+                     0, 0, "rot90", "", "numkit:rot90:nargin");
     int k = (args.size() >= 2 && !args[1].isEmpty())
                 ? static_cast<int>(args[1].toScalar())
                 : 1;
@@ -999,16 +1264,32 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("circshift: requires (X, k) or (X, shiftVec)",
-                     0, 0, "circshift", "", "m:circshift:nargin");
+                     0, 0, "circshift", "", "numkit:circshift:nargin");
     const Value &k = args[1];
     auto *mr = ctx.engine->resource();
     const size_t nk = k.numel();
     if (nk == 0)
         throw Error("circshift: shift vector must not be empty",
-                     0, 0, "circshift", "", "m:circshift:badShift");
+                     0, 0, "circshift", "", "numkit:circshift:badShift");
 
     if (nk == 1) {
-        outs[0] = circshift(args[0], static_cast<int64_t>(k.toScalar()), mr);
+        const int64_t kk = static_cast<int64_t>(k.toScalar());
+        // circshift(X, K, dim): shift by K ONLY along dimension `dim`. The
+        // previous code ignored args[2] and always shifted dim 1.
+        if (args.size() >= 3 && !args[2].isEmpty()) {
+            const int dim = static_cast<int>(args[2].toScalar());
+            if (dim < 1)
+                throw Error("circshift: dim must be a positive integer",
+                             0, 0, "circshift", "", "numkit:circshift:badDim");
+            ScratchArena scratch(mr);
+            auto shifts = ScratchVec<int64_t>(static_cast<size_t>(dim), &scratch);
+            for (int i = 0; i < dim; ++i) shifts[i] = 0;
+            shifts[dim - 1] = kk;
+            outs[0] = circshiftND(args[0],
+                                  Span<const int64_t>(shifts.data(), dim), mr);
+            return;
+        }
+        outs[0] = circshift(args[0], kk, mr);
         return;
     }
     if (nk == 2 && args[0].dims().ndim() <= 3) {
@@ -1029,7 +1310,7 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                          \
         if (args.empty())                                                      \
             throw Error(#name ": requires at least 1 argument",               \
-                         0, 0, #name, "", "m:" #name ":nargin");               \
+                         0, 0, #name, "", "numkit:" #name ":nargin");               \
         int k = (args.size() >= 2 && !args[1].isEmpty())                       \
                     ? static_cast<int>(args[1].toScalar())                     \
                     : 0;                                                        \
@@ -1046,7 +1327,7 @@ void flip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("flip: requires at least 1 argument",
-                     0, 0, "flip", "", "m:flip:nargin");
+                     0, 0, "flip", "", "numkit:flip:nargin");
     int dim = (args.size() >= 2 && !args[1].isEmpty())
                   ? static_cast<int>(args[1].toScalar())
                   : 0;
@@ -1058,16 +1339,16 @@ void repelem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("repelem: requires at least 2 arguments",
-                     0, 0, "repelem", "", "m:repelem:nargin");
+                     0, 0, "repelem", "", "numkit:repelem:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
-        const size_t n = static_cast<size_t>(args[1].toScalar());
-        outs[0] = repelem(args[0], n, mr);
+        // counts may be a scalar or a per-element vector — the Value
+        // overload dispatches internally.
+        outs[0] = repelem(args[0], args[1], mr);
         return;
     }
-    const size_t m = static_cast<size_t>(args[1].toScalar());
-    const size_t n = static_cast<size_t>(args[2].toScalar());
-    outs[0] = repelem(args[0], m, n, mr);
+    // r / c may each be a scalar or a per-row / per-column vector.
+    outs[0] = repelem(args[0], args[1], args[2], mr);
 }
 
 // sub2ind(siz, i1, i2, ...) → linear index. Column-major, 1-based.
@@ -1076,13 +1357,13 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("sub2ind: requires siz and at least 1 subscript",
-                     0, 0, "sub2ind", "", "m:sub2ind:nargin");
+                     0, 0, "sub2ind", "", "numkit:sub2ind:nargin");
     auto *mr = ctx.engine->resource();
     const Value &siz = args[0];
     const size_t nDims = siz.numel();
     if (nDims == 0)
         throw Error("sub2ind: siz must not be empty",
-                     0, 0, "sub2ind", "", "m:sub2ind:badSiz");
+                     0, 0, "sub2ind", "", "numkit:sub2ind:badSiz");
 
     ScratchArena scratch(mr);
     auto dims = ScratchVec<size_t>(nDims, &scratch);
@@ -1093,7 +1374,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     const size_t nSubs = args.size() - 1;
     if (nSubs > nDims)
         throw Error("sub2ind: too many subscript arrays for given siz",
-                     0, 0, "sub2ind", "", "m:sub2ind:tooManySubs");
+                     0, 0, "sub2ind", "", "numkit:sub2ind:tooManySubs");
 
     // All sub arrays must agree on shape; result inherits that shape.
     const Value &shapeRef = args[1];
@@ -1101,7 +1382,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     for (size_t a = 1; a < args.size(); ++a) {
         if (args[a].numel() != outN)
             throw Error("sub2ind: subscript arrays must be the same size",
-                         0, 0, "sub2ind", "", "m:sub2ind:shape");
+                         0, 0, "sub2ind", "", "numkit:sub2ind:shape");
     }
 
     auto r = (shapeRef.isScalar())
@@ -1136,7 +1417,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     {                                                                            \
         if (args.size() < 2)                                                     \
             throw Error(#FN " requires (v, n)",                                  \
-                         0, 0, #FN, "", "m:" #FN ":nargin");                     \
+                         0, 0, #FN, "", "numkit:" #FN ":nargin");                     \
         const size_t n = static_cast<size_t>(args[1].toScalar());                \
         outs[0] = FN(args[0], n, ctx.engine->resource());                       \
     }
@@ -1155,14 +1436,14 @@ void ind2sub_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ind2sub: requires siz and ind",
-                     0, 0, "ind2sub", "", "m:ind2sub:nargin");
+                     0, 0, "ind2sub", "", "numkit:ind2sub:nargin");
     auto *mr = ctx.engine->resource();
     const Value &siz = args[0];
     const Value &ind = args[1];
     const size_t nDims = siz.numel();
     if (nDims == 0)
         throw Error("ind2sub: siz must not be empty",
-                     0, 0, "ind2sub", "", "m:ind2sub:badSiz");
+                     0, 0, "ind2sub", "", "numkit:ind2sub:badSiz");
 
     ScratchArena scratch(mr);
     auto dims = ScratchVec<size_t>(nDims, &scratch);

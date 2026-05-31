@@ -5,11 +5,15 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
+#include <cctype>
+
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <cstring>
 #include <mutex>
 #include <random>
@@ -128,7 +132,7 @@ Value padarray(const Value &x, const std::vector<int> &padsize, PadMode mode, do
             }
             default:
                 throw Error("padarray: unsupported class", 0, 0, "padarray", "",
-                            "m:padarray:badtype");
+                            "numkit:padarray:badtype");
         }
     };
 
@@ -165,7 +169,7 @@ Value fspecial_average(int rows, int cols, std::pmr::memory_resource *mr) {
 
 Value fspecial_gaussian(int rows, int cols, double sigma, std::pmr::memory_resource *mr) {
     if (sigma <= 0.0) throw Error("fspecial: sigma must be positive",
-                                  0, 0, "fspecial", "", "m:fspecial:sigma");
+                                  0, 0, "fspecial", "", "numkit:fspecial:sigma");
     const double cy = (rows - 1) / 2.0;
     const double cx = (cols - 1) / 2.0;
     const double inv2s2 = 1.0 / (2.0 * sigma * sigma);
@@ -242,7 +246,7 @@ Value fspecial_prewitt(std::pmr::memory_resource *mr) {
 
 Value fspecial_disk(double radius, std::pmr::memory_resource *mr) {
     if (radius <= 0.0) throw Error("fspecial: radius must be positive",
-                                   0, 0, "fspecial", "", "m:fspecial:radius");
+                                   0, 0, "fspecial", "", "numkit:fspecial:radius");
     const int side = 2 * int(std::ceil(radius)) + 1;
     const double c = (side - 1) / 2.0;
     std::vector<double> k(size_t(side) * size_t(side), 0.0);
@@ -296,7 +300,7 @@ Value fspecial(const std::string &type, const std::vector<double> &params, std::
         return fspecial_disk(radius, mr);
     }
     throw Error("fspecial: unknown filter type '" + type + "'",
-                0, 0, "fspecial", "", "m:fspecial:badtype");
+                0, 0, "fspecial", "", "numkit:fspecial:badtype");
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -334,7 +338,7 @@ inline void store_classed(Value &out, size_t i, double v, ValueType t) {
         }
         default:
             throw Error("imfilter: unsupported class", 0, 0, "imfilter", "",
-                        "m:imfilter:badtype");
+                        "numkit:imfilter:badtype");
     }
 }
 
@@ -346,8 +350,12 @@ Value imfilter(const Value &I, const Value &h, PadMode boundary, double pad_valu
     const int W = (int)I.dims().cols();
     const int kH = (int)h.dims().rows();
     const int kW = (int)h.dims().cols();
-    const int half_r = kH / 2;
-    const int half_c = kW / 2;
+    // 'same'-mode anchor: MATLAB centres the kernel at 1-based index
+    // floor((K+1)/2), i.e. 0-based offset floor((K-1)/2). For ODD K this
+    // equals K/2 (unchanged); for EVEN K it is K/2 - 1, so the window is
+    // not shifted by a pixel relative to MATLAB.
+    const int half_r = (kH - 1) / 2;
+    const int half_c = (kW - 1) / 2;
 
     int outH, outW;
     if (full) { outH = H + kH - 1; outW = W + kW - 1; }
@@ -425,6 +433,318 @@ Value imboxfilt(const Value &I, int filter_size, std::pmr::memory_resource *mr)
     return imfilter(I, k, PadMode::Replicate, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
 }
 
+// integralBoxFilter — 2-D box filter on a precomputed integral image.
+//
+// Given integral image I of shape (H+1) x (W+1) [optionally x C], for each
+// output pixel (oi, oj) in the underlying-image coordinates the underlying
+// box [oi..oi+fH-1, oj..oj+fW-1] has sum
+//     I[oi+fH, oj+fW] - I[oi, oj+fW] - I[oi+fH, oj] + I[oi, oj]
+// (4 lookups → O(1) per pixel regardless of filter size).
+// Output is (H - fH + 1) x (W - fW + 1) — only the no-boundary core.
+// For 3-D input the filter is applied per-channel.
+Value integralBoxFilter(const Value &I, int fH, int fW, double normFactor,
+                         std::pmr::memory_resource *mr)
+{
+    if (fH <= 0 || fW <= 0)
+        throw Error("integralBoxFilter: filterSize must be positive",
+                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:badSize");
+    if ((fH & 1) == 0 || (fW & 1) == 0)
+        throw Error("integralBoxFilter: filterSize must be odd",
+                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:notOdd");
+
+    const auto &d = I.dims();
+    if (d.ndim() > 3)
+        throw Error("integralBoxFilter: input must be 2-D or 3-D integral image",
+                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:rank");
+
+    const size_t H1 = d.rows();
+    const size_t W1 = d.cols();
+    if (H1 < 1 || W1 < 1)
+        throw Error("integralBoxFilter: integral image must be at least (1+1) × (1+1)",
+                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:tiny");
+    // Underlying image height / width.
+    const size_t H = H1 - 1;
+    const size_t W = W1 - 1;
+    if (static_cast<size_t>(fH) > H || static_cast<size_t>(fW) > W)
+        throw Error("integralBoxFilter: filter size too large for integral image",
+                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:tooLarge");
+
+    const size_t C = (d.ndim() == 3) ? d.pages() : 1;
+    const size_t outH = H - static_cast<size_t>(fH) + 1;
+    const size_t outW = W - static_cast<size_t>(fW) + 1;
+
+    Value out = (C == 1)
+        ? Value::matrix(outH, outW, ValueType::DOUBLE, mr)
+        : Value::matrix3d(outH, outW, C, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    const size_t inPlane = H1 * W1;
+    // normFactor is a MULTIPLIER (MATLAB semantics): out = boxSum * normFactor.
+    // Default (1/(fH·fW)) → mean; pass 1 for raw sum.
+
+    for (size_t c = 0; c < C; ++c) {
+        for (size_t oj = 0; oj < outW; ++oj) {
+            const size_t c0 = oj;
+            const size_t c1 = oj + static_cast<size_t>(fW);
+            for (size_t oi = 0; oi < outH; ++oi) {
+                const size_t r0 = oi;
+                const size_t r1 = oi + static_cast<size_t>(fH);
+                // Column-major indexing for I: idx = c·inPlane + col·H1 + row.
+                const size_t base = c * inPlane;
+                const double s =
+                      I.elemAsDouble(base + c1 * H1 + r1)
+                    - I.elemAsDouble(base + c1 * H1 + r0)
+                    - I.elemAsDouble(base + c0 * H1 + r1)
+                    + I.elemAsDouble(base + c0 * H1 + r0);
+                const size_t dstIdx = (C == 1)
+                    ? (oj * outH + oi)
+                    : (c * outH * outW + oj * outH + oi);
+                od[dstIdx] = s * normFactor;
+            }
+        }
+    }
+    return out;
+}
+
+// integralBoxFilter3 — 3-D box filter on a precomputed integral volume.
+//
+// Given integral volume I of shape (H+1) × (W+1) × (D+1) (output of
+// integralImage3), for each output voxel (oi, oj, ok) the underlying box
+// [oi..oi+fH-1, oj..oj+fW-1, ok..ok+fP-1] has sum given by the 8-corner
+// inclusion-exclusion query on I (constant time regardless of box size).
+// Output is (H - fH + 1) × (W - fW + 1) × (D - fP + 1) — the no-boundary
+// core, matching MATLAB. `normFactor` is a MULTIPLIER (MATLAB semantics):
+// each box sum is multiplied by it.
+Value integralBoxFilter3(const Value &I, int fH, int fW, int fP,
+                         double normFactor, std::pmr::memory_resource *mr)
+{
+    if (fH <= 0 || fW <= 0 || fP <= 0)
+        throw Error("integralBoxFilter3: filterSize must be positive",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badSize");
+    if ((fH & 1) == 0 || (fW & 1) == 0 || (fP & 1) == 0)
+        throw Error("integralBoxFilter3: Expected filterSize to be odd.",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:notOdd");
+
+    const auto &d = I.dims();
+    if (d.ndim() > 3)
+        throw Error("integralBoxFilter3: input must be a 3-D integral volume",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:rank");
+    const size_t H1 = d.rows();
+    const size_t W1 = d.cols();
+    const size_t D1 = d.is3D() ? d.pages() : 1;
+    if (H1 < 2 || W1 < 2 || D1 < 2)
+        throw Error("integralBoxFilter3: integral volume must be at least (1+1)^3",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:tiny");
+    // Underlying volume size.
+    const size_t H = H1 - 1, W = W1 - 1, D = D1 - 1;
+    if (static_cast<size_t>(fH) > H || static_cast<size_t>(fW) > W
+        || static_cast<size_t>(fP) > D)
+        throw Error("integralBoxFilter3: Filter size is too large for integral image.",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:tooLarge");
+
+    const size_t outH = H - static_cast<size_t>(fH) + 1;
+    const size_t outW = W - static_cast<size_t>(fW) + 1;
+    const size_t outD = D - static_cast<size_t>(fP) + 1;
+
+    Value out = (outD > 1)
+        ? Value::matrix3d(outH, outW, outD, ValueType::DOUBLE, mr)
+        : Value::matrix(outH, outW, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    const size_t plane = H1 * W1;  // page stride in I
+    // Column-major, page-major index into the integral volume I.
+    auto Iat = [&](size_t r, size_t c, size_t p) -> double {
+        return I.elemAsDouble(p * plane + c * H1 + r);
+    };
+
+    for (size_t ok = 0; ok < outD; ++ok) {
+        const size_t p0 = ok, p1 = ok + static_cast<size_t>(fP);
+        for (size_t oj = 0; oj < outW; ++oj) {
+            const size_t c0 = oj, c1 = oj + static_cast<size_t>(fW);
+            for (size_t oi = 0; oi < outH; ++oi) {
+                const size_t r0 = oi, r1 = oi + static_cast<size_t>(fH);
+                const double s =
+                      Iat(r1, c1, p1)
+                    - Iat(r0, c1, p1) - Iat(r1, c0, p1) - Iat(r1, c1, p0)
+                    + Iat(r0, c0, p1) + Iat(r0, c1, p0) + Iat(r1, c0, p0)
+                    - Iat(r0, c0, p0);
+                const size_t dstIdx = ok * outH * outW + oj * outH + oi;
+                od[dstIdx] = s * normFactor;
+            }
+        }
+    }
+    return out;
+}
+
+// modefilt — 2-D mode filter. For each output pixel we histogram the
+// neighbourhood and pick the most-common value (ties → smallest value).
+//
+// For UINT8 / LOGICAL we use a 256-bucket array (cache-friendly, no
+// hashing). For all other numeric types we fall back to an ordered
+// std::map<double, int> per pixel — slower but generic enough.
+//
+// Padding modes (MATLAB-compatible):
+//   "symmetric" (default) — mirror reflection without duplicating edge
+//                            (so abcde → cba|abcde|edc)
+//   "replicate"           — repeat edge pixel (aaaa|abcde|eeee)
+//   "zeros"               — zero pad
+// Internal 2-D and 3-D worker: when fD > 0 the input is treated as a
+// 3-D volume and the filter window is fH × fW × fD; otherwise pure 2-D.
+static Value modefilt_impl(const Value &A, int fH, int fW, int fD,
+                            const std::string &padopt,
+                            std::pmr::memory_resource *mr)
+{
+    const bool is3D = (fD > 0);
+    if (fH <= 0 || fW <= 0 || (is3D && fD <= 0))
+        throw Error("modefilt: filter size must be positive",
+                    0, 0, "modefilt", "", "numkit:modefilt:badSize");
+    if ((fH & 1) == 0 || (fW & 1) == 0 || (is3D && (fD & 1) == 0))
+        throw Error("modefilt: filter size must be odd",
+                    0, 0, "modefilt", "", "numkit:modefilt:notOdd");
+
+    int padMode;  // 0=symmetric, 1=replicate, 2=zeros
+    if (padopt.empty() || padopt == "symmetric") padMode = 0;
+    else if (padopt == "replicate")              padMode = 1;
+    else if (padopt == "zeros" || padopt == "zero") padMode = 2;
+    else throw Error("modefilt: padopt must be 'symmetric', 'replicate', or 'zeros'",
+                     0, 0, "modefilt", "", "numkit:modefilt:badPad");
+
+    const auto &d = A.dims();
+    if (d.ndim() > 3 || (!is3D && d.ndim() > 2))
+        throw Error("modefilt: input rank does not match filter rank",
+                    0, 0, "modefilt", "", "numkit:modefilt:rank");
+    const int H = static_cast<int>(d.rows());
+    const int W = static_cast<int>(d.cols());
+    const int D = is3D ? static_cast<int>(d.is3D() ? d.pages() : 1) : 1;
+    const int hh = fH / 2;
+    const int hw = fW / 2;
+    const int hd = is3D ? (fD / 2) : 0;
+    Value out = is3D ? Value::matrix3d(H, W, D, A.type(), mr)
+                     : Value::matrix(H, W, A.type(), mr);
+
+    // Index access with padding: returns the input index for sample
+    // location (rr, cc, pp), or -1 if the pixel should be treated as zero.
+    auto reflect = [&](int v, int N) -> int {
+        if (padMode == 1) {  // replicate
+            if (v < 0) return 0;
+            if (v >= N) return N - 1;
+            return v;
+        }
+        if (padMode == 2) {  // zeros — caller checks for -1
+            if (v < 0 || v >= N) return -1;
+            return v;
+        }
+        // symmetric (mirror without dup).
+        while (v < 0 || v >= N) {
+            if (v < 0)      v = -v - 1;
+            if (v >= N)     v = 2 * N - v - 1;
+        }
+        return v;
+    };
+    auto padIdx = [&](int rr, int cc, int pp) -> long long {
+        int r = reflect(rr, H);
+        int c = reflect(cc, W);
+        int p = is3D ? reflect(pp, D) : 0;
+        if (r < 0 || c < 0 || (is3D && p < 0)) return -1;
+        const long long plane = static_cast<long long>(H) * W;
+        return static_cast<long long>(p) * plane
+             + static_cast<long long>(c) * H + r;
+    };
+
+    auto getDouble = [&](long long idx) -> double {
+        return idx < 0 ? 0.0 : A.elemAsDouble(static_cast<size_t>(idx));
+    };
+
+    // Fast UINT8 / LOGICAL path with 256-bucket histogram.
+    const ValueType vt = A.type();
+    const bool fastByte = (vt == ValueType::UINT8 || vt == ValueType::LOGICAL);
+
+    const long long plane = static_cast<long long>(H) * W;
+    const int pMax = is3D ? D : 1;
+    for (int p = 0; p < pMax; ++p) {
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                if (fastByte) {
+                int hist[256] = {0};
+                for (int dp = -hd; dp <= hd; ++dp)
+                for (int dc = -hw; dc <= hw; ++dc)
+                    for (int dr = -hh; dr <= hh; ++dr) {
+                        const long long idx = padIdx(r + dr, c + dc, p + dp);
+                        const int v = static_cast<int>(getDouble(idx));
+                        if (v >= 0 && v < 256) ++hist[v];
+                    }
+                // Ties → smallest value wins (matches MATLAB's documented
+                // `mode` behaviour). MATLAB's modefilt internal MEX uses an
+                // undocumented order-dependent rule for ties that doesn't
+                // match base mode in all edge cases; we follow the spec.
+                int bestVal = 0, bestCnt = -1;
+                for (int v = 0; v < 256; ++v) {
+                    if (hist[v] > bestCnt) {
+                        bestCnt = hist[v];
+                        bestVal = v;
+                    }
+                }
+                const long long dstIdx = static_cast<long long>(p) * plane
+                                          + static_cast<long long>(c) * H + r;
+                if (vt == ValueType::UINT8)
+                    out.uint8DataMut()[dstIdx] =
+                        static_cast<std::uint8_t>(bestVal);
+                else
+                    out.logicalDataMut()[dstIdx] =
+                        static_cast<std::uint8_t>(bestVal != 0);
+                continue;
+            }
+            // Generic path: ordered map keyed by value → count.
+            std::map<double, int> hist;
+            for (int dp = -hd; dp <= hd; ++dp)
+            for (int dc = -hw; dc <= hw; ++dc)
+                for (int dr = -hh; dr <= hh; ++dr) {
+                    const long long idx = padIdx(r + dr, c + dc, p + dp);
+                    if (idx < 0 && padMode != 2) continue;
+                    hist[getDouble(idx)]++;
+                }
+            // Smallest-wins-on-tie (see fastByte path comment).
+            int bestCnt = -1;
+            double bestVal = 0.0;
+            for (auto &kv : hist) {
+                if (kv.second > bestCnt) {
+                    bestCnt = kv.second;
+                    bestVal = kv.first;
+                }
+            }
+            // Store into output of matching dtype.
+            const size_t dst = static_cast<size_t>(p) * static_cast<size_t>(plane)
+                              + static_cast<size_t>(c) * H + static_cast<size_t>(r);
+            switch (vt) {
+                case ValueType::DOUBLE: out.doubleDataMut()[dst] = bestVal; break;
+                case ValueType::SINGLE: out.singleDataMut()[dst] = static_cast<float>(bestVal); break;
+                case ValueType::UINT16: out.uint16DataMut()[dst] = static_cast<std::uint16_t>(bestVal); break;
+                case ValueType::UINT32: out.uint32DataMut()[dst] = static_cast<std::uint32_t>(bestVal); break;
+                case ValueType::INT8:   out.int8DataMut()[dst]   = static_cast<std::int8_t>(bestVal); break;
+                case ValueType::INT16:  out.int16DataMut()[dst]  = static_cast<std::int16_t>(bestVal); break;
+                case ValueType::INT32:  out.int32DataMut()[dst]  = static_cast<std::int32_t>(bestVal); break;
+                default:                out.doubleDataMut()[dst] = bestVal; break;
+            }
+            }
+        }
+    }
+    return out;
+}
+
+// Public 2-D entry point — pure 2-D semantics (fD = 0 means no 3rd dim).
+Value modefilt(const Value &A, int fH, int fW,
+               const std::string &padopt, std::pmr::memory_resource *mr)
+{
+    return modefilt_impl(A, fH, fW, /*fD=*/0, padopt, mr);
+}
+
+// Public 3-D entry point — fD is the depth-axis window length.
+Value modefilt3D(const Value &A, int fH, int fW, int fD,
+                 const std::string &padopt, std::pmr::memory_resource *mr)
+{
+    return modefilt_impl(A, fH, fW, fD, padopt, mr);
+}
+
 Value medfilt2(const Value &I, int rows, int cols, std::pmr::memory_resource *mr)
 {
     const int H = (int)I.dims().rows();
@@ -487,7 +807,7 @@ Value imsharpen(const Value &I, double radius, double amount, double threshold, 
     if (!(radius > 0.0)) radius = 1.0;
     if (!(threshold >= 0.0 && threshold <= 1.0))
         throw Error("imsharpen: threshold must be in [0, 1]",
-                    0, 0, "imsharpen", "", "m:imsharpen:threshold");
+                    0, 0, "imsharpen", "", "numkit:imsharpen:threshold");
 
     // Gaussian filter size: 2*ceil(2*sigma)+1 — MATLAB default.
     int fs = 2 * (int)std::ceil(2.0 * radius) + 1;
@@ -622,7 +942,7 @@ Value im2col(const Value &A, int m, int n, const std::string &block_type, std::p
 {
     if (m <= 0 || n <= 0)
         throw Error("im2col: block size must be positive",
-                    0, 0, "im2col", "", "m:im2col:size");
+                    0, 0, "im2col", "", "numkit:im2col:size");
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
     const ValueType T = A.type();
@@ -633,7 +953,7 @@ Value im2col(const Value &A, int m, int n, const std::string &block_type, std::p
     if (sliding) {
         if ((size_t)m > H || (size_t)n > W)
             throw Error("im2col(sliding): block larger than image",
-                        0, 0, "im2col", "", "m:im2col:size");
+                        0, 0, "im2col", "", "numkit:im2col:size");
         outW = (H - (size_t)m + 1) * (W - (size_t)n + 1);
     } else if (block_type == "distinct") {
         const size_t Hb = (H + (size_t)m - 1) / (size_t)m;
@@ -641,7 +961,7 @@ Value im2col(const Value &A, int m, int n, const std::string &block_type, std::p
         outW = Hb * Wb;
     } else {
         throw Error("im2col: block_type must be 'sliding' or 'distinct'",
-                    0, 0, "im2col", "", "m:im2col:type");
+                    0, 0, "im2col", "", "numkit:im2col:type");
     }
 
     Value B = Value::matrix(outH, outW, T, mr);
@@ -666,7 +986,7 @@ Value im2col(const Value &A, int m, int n, const std::string &block_type, std::p
         }
         default:
             throw Error("im2col: unsupported class",
-                        0, 0, "im2col", "", "m:im2col:badtype");
+                        0, 0, "im2col", "", "numkit:im2col:badtype");
     }
     return B;
 }
@@ -694,7 +1014,7 @@ Value imbilatfilt(const Value &I, double degreeOfSmoothing, double spatialSigma,
     if (!(spatialSigma > 0.0)) spatialSigma = 1.0;
     if (!(degreeOfSmoothing > 0.0))
         throw Error("imbilatfilt: degreeOfSmoothing must be > 0",
-                    0, 0, "imbilatfilt", "", "m:imbilatfilt:dos");
+                    0, 0, "imbilatfilt", "", "numkit:imbilatfilt:dos");
 
     const size_t H = I.dims().rows();
     const size_t W = I.dims().cols();
@@ -809,7 +1129,7 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
 {
     if (m <= 0 || n <= 0 || mm <= 0 || nn <= 0)
         throw Error("col2im: dimensions must be positive",
-                    0, 0, "col2im", "", "m:col2im:size");
+                    0, 0, "col2im", "", "numkit:col2im:size");
     const size_t MM = (size_t)mm;
     const size_t NN = (size_t)nn;
     const ValueType T = B.type();
@@ -818,12 +1138,12 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
     if (sliding) {
         if ((size_t)m > MM || (size_t)n > NN)
             throw Error("col2im(sliding): block larger than output image",
-                        0, 0, "col2im", "", "m:col2im:size");
+                        0, 0, "col2im", "", "numkit:col2im:size");
         const size_t Hp = MM - (size_t)m + 1;
         const size_t Wp = NN - (size_t)n + 1;
         if (B.numel() != Hp * Wp)
             throw Error("col2im(sliding): B size mismatch — expected 1×(mm−m+1)·(nn−n+1)",
-                        0, 0, "col2im", "", "m:col2im:nelems");
+                        0, 0, "col2im", "", "numkit:col2im:nelems");
         Value A = Value::matrix(Hp, Wp, T, mr);
         // Both A and B are column-major linearised; values flow 1:1.
         const size_t N = Hp * Wp;
@@ -846,14 +1166,14 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
                 std::memcpy(A.logicalDataMut(), B.logicalData(), N); break;
             default:
                 throw Error("col2im: unsupported class",
-                            0, 0, "col2im", "", "m:col2im:badtype");
+                            0, 0, "col2im", "", "numkit:col2im:badtype");
         }
         return A;
     }
 
     if (block_type != "distinct")
         throw Error("col2im: block_type must be 'sliding' or 'distinct'",
-                    0, 0, "col2im", "", "m:col2im:type");
+                    0, 0, "col2im", "", "numkit:col2im:type");
 
     const size_t Hb = (MM + (size_t)m - 1) / (size_t)m;
     const size_t Wb = (NN + (size_t)n - 1) / (size_t)n;
@@ -861,7 +1181,7 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
     const size_t expCols = Hb * Wb;
     if (B.dims().rows() != expRows || B.dims().cols() != expCols)
         throw Error("col2im(distinct): B shape mismatch — expected m·n × ⌈mm/m⌉·⌈nn/n⌉",
-                    0, 0, "col2im", "", "m:col2im:shape");
+                    0, 0, "col2im", "", "numkit:col2im:shape");
 
     Value A = Value::matrix(MM, NN, T, mr);
     if (MM == 0 || NN == 0) return A;
@@ -879,7 +1199,7 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
         case ValueType::LOGICAL: run(std::uint8_t{}); break;
         default:
             throw Error("col2im: unsupported class",
-                        0, 0, "col2im", "", "m:col2im:badtype");
+                        0, 0, "col2im", "", "numkit:col2im:badtype");
     }
     return A;
 }
@@ -994,7 +1314,7 @@ Value imnoise(const Value &I, const std::string &mode, const Value &p1, const Va
     else if (mode == "localvar") {
         if (p1.numel() != N)
             throw Error("imnoise('localvar', V): V must match I in size",
-                        0, 0, "imnoise", "", "m:imnoise:localvar");
+                        0, 0, "imnoise", "", "numkit:imnoise:localvar");
         for (size_t i = 0; i < N; ++i) {
             const double x = toUnit(I.elemAsDouble(i));
             const double v = std::max(p1.elemAsDouble(i), 0.0);
@@ -1004,7 +1324,7 @@ Value imnoise(const Value &I, const std::string &mode, const Value &p1, const Va
     }
     else {
         throw Error("imnoise: unknown mode '" + mode + "'",
-                    0, 0, "imnoise", "", "m:imnoise:mode");
+                    0, 0, "imnoise", "", "numkit:imnoise:mode");
     }
     return out;
 }
@@ -1111,7 +1431,7 @@ Value ordfilt2(const Value &A, int nth, const Value &domain, const Value &S, Pad
     if (M == 0) return out;
     if (nth < 1 || nth > M)
         throw Error("ordfilt2: nth-order index out of range",
-                    0, 0, "ordfilt2", "", "m:ordfilt2:nth");
+                    0, 0, "ordfilt2", "", "numkit:ordfilt2:nth");
 
     auto sample = [&](int r, int c) -> double {
         if (boundary == PadMode::Constant) {
@@ -1242,10 +1562,10 @@ Value imsmooth(const Value &I, const std::string &name, double sigma, std::pmr::
     for (char c : name) lo.push_back(static_cast<char>(std::tolower(c)));
     if (lo != "gaussian")
         throw Error("imsmooth: only 'Gaussian' mode is implemented",
-                    0, 0, "imsmooth", "", "m:imsmooth:mode");
+                    0, 0, "imsmooth", "", "numkit:imsmooth:mode");
     if (!(sigma > 0.0))
         throw Error("imsmooth: sigma must be positive",
-                    0, 0, "imsmooth", "", "m:imsmooth:sigma");
+                    0, 0, "imsmooth", "", "numkit:imsmooth:sigma");
 
     const ValueType cls = I.type();
     const int H = static_cast<int>(I.dims().rows());
@@ -1474,7 +1794,7 @@ Value medfilt3(const Value &V, int M, int N, int P, std::pmr::memory_resource *m
     if (P <= 0) P = 3;
     if (M % 2 == 0 || N % 2 == 0 || P % 2 == 0)
         throw Error("medfilt3: filter sizes must be odd",
-                    0, 0, "medfilt3", "", "m:medfilt3:size");
+                    0, 0, "medfilt3", "", "numkit:medfilt3:size");
 
     const ValueType cls = V.type();
     const int H = static_cast<int>(V.dims().rows());
@@ -1538,10 +1858,10 @@ Value convmtx2(const Value &h, int m, int n, std::pmr::memory_resource *mr)
     const auto &dh = h.dims();
     if (dh.is3D())
         throw Error("convmtx2: kernel must be 2-D",
-                    0, 0, "convmtx2", "", "m:convmtx2:dims");
+                    0, 0, "convmtx2", "", "numkit:convmtx2:dims");
     if (m <= 0 || n <= 0)
         throw Error("convmtx2: m, n must be positive integers",
-                    0, 0, "convmtx2", "", "m:convmtx2:size");
+                    0, 0, "convmtx2", "", "numkit:convmtx2:size");
     const int M = static_cast<int>(dh.rows());
     const int N = static_cast<int>(dh.cols());
     const size_t out_rows = static_cast<size_t>(m + M - 1);
@@ -1674,7 +1994,7 @@ freqz2(const Value &h, size_t M, size_t N, std::pmr::memory_resource *mr)
 {
     if (h.dims().is3D())
         throw Error("freqz2: kernel must be 2-D",
-                    0, 0, "freqz2", "", "m:freqz2:dims");
+                    0, 0, "freqz2", "", "numkit:freqz2:dims");
     const size_t P = h.dims().rows();
     const size_t Q = h.dims().cols();
     if (M == 0) M = 64;
@@ -1755,7 +2075,7 @@ void padarray_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("padarray: requires (A, padsize[, val|mode][, direction])",
-                    0, 0, "padarray", "", "m:padarray:nargin");
+                    0, 0, "padarray", "", "numkit:padarray:nargin");
 
     std::vector<int> padsize;
     {
@@ -1824,7 +2144,7 @@ void imfilter_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imfilter: requires (I, h[, options])",
-                    0, 0, "imfilter", "", "m:imfilter:nargin");
+                    0, 0, "imfilter", "", "numkit:imfilter:nargin");
     PadMode boundary = PadMode::Constant;
     double pad_value = 0.0;
     bool full = false;
@@ -1853,7 +2173,7 @@ void imgaussfilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imgaussfilt: requires (I[, sigma][, FilterSize])",
-                    0, 0, "imgaussfilt", "", "m:imgaussfilt:nargin");
+                    0, 0, "imgaussfilt", "", "numkit:imgaussfilt:nargin");
     double sigma = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 0.5;
     int fs = 0;  // auto
     // Look for 'FilterSize' name-value pair.
@@ -1872,9 +2192,141 @@ void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imboxfilt: requires (I[, FilterSize])",
-                    0, 0, "imboxfilt", "", "m:imboxfilt:nargin");
+                    0, 0, "imboxfilt", "", "numkit:imboxfilt:nargin");
     int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
     outs[0] = imboxfilt(args[0], fs, ctx.engine->resource());
+}
+
+void modefilt_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("modefilt: requires (A[, filtSize[, padopt]])",
+                    0, 0, "modefilt", "", "numkit:modefilt:nargin");
+    // Defaults adapt to input rank — MATLAB picks [3 3] for 2-D, [3 3 3] for 3-D.
+    const bool input3D = (args[0].dims().ndim() == 3);
+    int fH = 3, fW = 3, fD = input3D ? 3 : 0;
+    std::string padopt = "symmetric";
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (args[1].isChar() || args[1].isString()) {
+            padopt = args[1].toString();
+        } else {
+            if (args[1].numel() == 1) {
+                fH = fW = static_cast<int>(args[1].toScalar());
+                if (input3D) fD = fH;
+            } else if (args[1].numel() == 2) {
+                fH = static_cast<int>(args[1].elemAsDouble(0));
+                fW = static_cast<int>(args[1].elemAsDouble(1));
+                if (input3D) fD = 1;  // no 3rd dim filter specified
+            } else if (args[1].numel() >= 3) {
+                fH = static_cast<int>(args[1].elemAsDouble(0));
+                fW = static_cast<int>(args[1].elemAsDouble(1));
+                fD = static_cast<int>(args[1].elemAsDouble(2));
+            }
+        }
+    }
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (args[2].isChar() || args[2].isString())
+            padopt = args[2].toString();
+        else
+            throw Error("modefilt: padopt must be a string",
+                        0, 0, "modefilt", "", "numkit:modefilt:badPad");
+    }
+    if (input3D)
+        outs[0] = modefilt3D(args[0], fH, fW, fD, padopt, ctx.engine->resource());
+    else
+        outs[0] = modefilt(args[0], fH, fW, padopt, ctx.engine->resource());
+}
+
+void integralBoxFilter_reg(Span<const Value> args, size_t /*nargout*/,
+                            Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("integralBoxFilter: requires (I [, filterSize [, NV...]])",
+                    0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:nargin");
+
+    // Defaults match MATLAB: 3-by-3 box.
+    int fH = 3, fW = 3;
+    size_t nvStart = 1;
+    if (args.size() >= 2 && !args[1].isEmpty()
+        && !args[1].isChar() && !args[1].isString()) {
+        const Value &fsArg = args[1];
+        if (fsArg.numel() == 1) {
+            fH = fW = static_cast<int>(fsArg.toScalar());
+        } else if (fsArg.numel() == 2) {
+            fH = static_cast<int>(fsArg.elemAsDouble(0));
+            fW = static_cast<int>(fsArg.elemAsDouble(1));
+        } else {
+            throw Error("integralBoxFilter: filterSize must be a scalar or 2-element vector",
+                        0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:badSize");
+        }
+        nvStart = 2;
+    }
+
+    // MATLAB default NormalizationFactor = 1/(fH·fW) (mean); it is a
+    // multiplier applied to the box sum, NOT a divisor.
+    double normFactor = 1.0 / (static_cast<double>(fH) * static_cast<double>(fW));
+    // NV-pair: NormalizationFactor.
+    for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("integralBoxFilter: name-value name must be a string",
+                        0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:badNVName");
+        const std::string key = args[i].toString();
+        std::string lower = key;
+        for (auto &ch : lower) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (lower == "normalizationfactor") {
+            normFactor = args[i + 1].toScalar();
+        } else {
+            throw Error("integralBoxFilter: unknown name-value key '" + key + "'",
+                        0, 0, "integralBoxFilter", "", "numkit:integralBoxFilter:badNVKey");
+        }
+    }
+    outs[0] = integralBoxFilter(args[0], fH, fW, normFactor, ctx.engine->resource());
+}
+
+void integralBoxFilter3_reg(Span<const Value> args, size_t /*nargout*/,
+                            Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("integralBoxFilter3: requires (A [, filterSize [, NV...]])",
+                    0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:nargin");
+
+    // Default: 3×3×3 box.
+    int fH = 3, fW = 3, fP = 3;
+    size_t nvStart = 1;
+    if (args.size() >= 2 && !args[1].isEmpty()
+        && !args[1].isChar() && !args[1].isString()) {
+        const Value &fsArg = args[1];
+        if (fsArg.numel() == 1) {
+            fH = fW = fP = static_cast<int>(fsArg.toScalar());
+        } else if (fsArg.numel() == 3) {
+            fH = static_cast<int>(fsArg.elemAsDouble(0));
+            fW = static_cast<int>(fsArg.elemAsDouble(1));
+            fP = static_cast<int>(fsArg.elemAsDouble(2));
+        } else {
+            throw Error("integralBoxFilter3: filterSize must be a scalar or 3-element vector",
+                        0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badSize");
+        }
+        nvStart = 2;
+    }
+
+    // MATLAB default NormalizationFactor = 1/prod(filterSize) (mean).
+    double normFactor = 1.0 / (static_cast<double>(fH) * static_cast<double>(fW)
+                               * static_cast<double>(fP));
+    for (size_t i = nvStart; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("integralBoxFilter3: name-value name must be a string",
+                        0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badNVName");
+        std::string lower = args[i].toString();
+        for (auto &ch : lower) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (lower == "normalizationfactor") {
+            normFactor = args[i + 1].toScalar();
+        } else {
+            throw Error("integralBoxFilter3: unknown name-value key",
+                        0, 0, "integralBoxFilter3", "", "numkit:integralBoxFilter3:badNVKey");
+        }
+    }
+    outs[0] = integralBoxFilter3(args[0], fH, fW, fP, normFactor, ctx.engine->resource());
 }
 
 void medfilt3_reg(Span<const Value> args, size_t /*nargout*/,
@@ -1882,7 +2334,7 @@ void medfilt3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("medfilt3: requires (V[, [M N P]])",
-                    0, 0, "medfilt3", "", "m:medfilt3:nargin");
+                    0, 0, "medfilt3", "", "numkit:medfilt3:nargin");
     int M = 3, N = 3, P = 3;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &v = args[1];
@@ -1902,7 +2354,7 @@ void imgaussfilt3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imgaussfilt3: requires (V[, sigma])",
-                    0, 0, "imgaussfilt3", "", "m:imgaussfilt3:nargin");
+                    0, 0, "imgaussfilt3", "", "numkit:imgaussfilt3:nargin");
     double sigH = 0.5, sigW = 0.5, sigP = 0.5;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &v = args[1];
@@ -1922,7 +2374,7 @@ void convmtx2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("convmtx2: requires (h, m, n) or (h, [m n])",
-                    0, 0, "convmtx2", "", "m:convmtx2:nargin");
+                    0, 0, "convmtx2", "", "numkit:convmtx2:nargin");
     int m = 0, n = 0;
     if (args.size() >= 3) {
         m = static_cast<int>(args[1].toScalar());
@@ -1931,7 +2383,7 @@ void convmtx2_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &v = args[1];
         if (v.numel() != 2)
             throw Error("convmtx2: 2nd arg must be a 2-element vector or pair (m, n)",
-                        0, 0, "convmtx2", "", "m:convmtx2:size");
+                        0, 0, "convmtx2", "", "numkit:convmtx2:size");
         m = static_cast<int>(v.elemAsDouble(0));
         n = static_cast<int>(v.elemAsDouble(1));
     }
@@ -1943,7 +2395,7 @@ void imboxfilt3_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imboxfilt3: requires (V[, FilterSize])",
-                    0, 0, "imboxfilt3", "", "m:imboxfilt3:nargin");
+                    0, 0, "imboxfilt3", "", "numkit:imboxfilt3:nargin");
     int fH = 3, fW = 3, fP = 3;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &v = args[1];
@@ -1963,7 +2415,7 @@ void freqz2_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("freqz2: requires (h [, M, N])",
-                    0, 0, "freqz2", "", "m:freqz2:nargin");
+                    0, 0, "freqz2", "", "numkit:freqz2:nargin");
     size_t M = 64, N = 64;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &v = args[1];
@@ -1987,7 +2439,7 @@ void medfilt2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("medfilt2: requires (I[, [m n]])",
-                    0, 0, "medfilt2", "", "m:medfilt2:nargin");
+                    0, 0, "medfilt2", "", "numkit:medfilt2:nargin");
     int rows = 3, cols = 3;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &v = args[1];
@@ -2006,7 +2458,7 @@ void im2col_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("im2col: requires (A, [m n] [, block_type])",
-                    0, 0, "im2col", "", "m:im2col:nargin");
+                    0, 0, "im2col", "", "numkit:im2col:nargin");
     int m = 0, n = 0;
     const Value &sz = args[1];
     if (sz.numel() == 1) {
@@ -2016,7 +2468,7 @@ void im2col_reg(Span<const Value> args, size_t /*nargout*/,
         n = (int)sz.elemAsDouble(1);
     } else {
         throw Error("im2col: block size must be scalar or 2-vector",
-                    0, 0, "im2col", "", "m:im2col:size");
+                    0, 0, "im2col", "", "numkit:im2col:size");
     }
     std::string mode = "sliding";
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
@@ -2029,7 +2481,7 @@ void imbilatfilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imbilatfilt: requires (I[, degreeOfSmoothing, spatialSigma])",
-                    0, 0, "imbilatfilt", "", "m:imbilatfilt:nargin");
+                    0, 0, "imbilatfilt", "", "numkit:imbilatfilt:nargin");
 
     // Default DegreeOfSmoothing depends on input class range — MATLAB
     // uses 0.01 · diff(getrangefromclass(I)). For our purposes:
@@ -2064,13 +2516,13 @@ void col2im_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("col2im: requires (B, [m n], [mm nn] [, block_type])",
-                    0, 0, "col2im", "", "m:col2im:nargin");
+                    0, 0, "col2im", "", "numkit:col2im:nargin");
     int m, n, mm, nn;
     {
         const Value &b = args[1];
         if (b.numel() < 1)
             throw Error("col2im: empty block size",
-                        0, 0, "col2im", "", "m:col2im:size");
+                        0, 0, "col2im", "", "numkit:col2im:size");
         m = (int)b.elemAsDouble(0);
         n = (b.numel() >= 2) ? (int)b.elemAsDouble(1) : m;
     }
@@ -2078,7 +2530,7 @@ void col2im_reg(Span<const Value> args, size_t /*nargout*/,
         const Value &s = args[2];
         if (s.numel() < 1)
             throw Error("col2im: empty image size",
-                        0, 0, "col2im", "", "m:col2im:size");
+                        0, 0, "col2im", "", "numkit:col2im:size");
         mm = (int)s.elemAsDouble(0);
         nn = (s.numel() >= 2) ? (int)s.elemAsDouble(1) : mm;
     }
@@ -2093,10 +2545,10 @@ void imnoise_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("imnoise: requires (I, mode [, p1, p2])",
-                    0, 0, "imnoise", "", "m:imnoise:nargin");
+                    0, 0, "imnoise", "", "numkit:imnoise:nargin");
     if (!(args[1].isChar() || args[1].isString()))
         throw Error("imnoise: mode must be a string",
-                    0, 0, "imnoise", "", "m:imnoise:mode");
+                    0, 0, "imnoise", "", "numkit:imnoise:mode");
     const std::string mode = args[1].toString();
     Value p1, p2;
     if (args.size() >= 3) p1 = args[2];
@@ -2109,7 +2561,7 @@ void imsharpen_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imsharpen: requires (I[, radius, amount, threshold])",
-                    0, 0, "imsharpen", "", "m:imsharpen:nargin");
+                    0, 0, "imsharpen", "", "numkit:imsharpen:nargin");
     double radius = 1.0, amount = 0.8, threshold = 0.0;
     // Accept either positional (I, radius, amount, threshold) or
     // name-value pairs ('Radius', r, 'Amount', a, 'Threshold', t).
@@ -2121,18 +2573,18 @@ void imsharpen_reg(Span<const Value> args, size_t /*nargout*/,
             const std::string nm = args[i].toString();
             if (i + 1 >= args.size())
                 throw Error("imsharpen: missing value for '" + nm + "'",
-                            0, 0, "imsharpen", "", "m:imsharpen:nv");
+                            0, 0, "imsharpen", "", "numkit:imsharpen:nv");
             const double v = args[i + 1].toScalar();
             if (nm == "Radius" || nm == "radius") radius = v;
             else if (nm == "Amount" || nm == "amount") amount = v;
             else if (nm == "Threshold" || nm == "threshold") threshold = v;
             else throw Error("imsharpen: unknown option '" + nm + "'",
-                             0, 0, "imsharpen", "", "m:imsharpen:opt");
+                             0, 0, "imsharpen", "", "numkit:imsharpen:opt");
             i += 2;
         } else {
             if (sawNV)
                 throw Error("imsharpen: positional after name-value",
-                            0, 0, "imsharpen", "", "m:imsharpen:syntax");
+                            0, 0, "imsharpen", "", "numkit:imsharpen:syntax");
             const double v = args[i].toScalar();
             if      (i == 1) radius    = v;
             else if (i == 2) amount    = v;
@@ -2148,7 +2600,7 @@ void stdfilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("stdfilt: requires (I [, domain])",
-                    0, 0, "stdfilt", "", "m:stdfilt:nargin");
+                    0, 0, "stdfilt", "", "numkit:stdfilt:nargin");
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
     outs[0] = stdfilt(args[0], dom, ctx.engine->resource());
@@ -2159,7 +2611,7 @@ void rangefilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("rangefilt: requires (I [, domain])",
-                    0, 0, "rangefilt", "", "m:rangefilt:nargin");
+                    0, 0, "rangefilt", "", "numkit:rangefilt:nargin");
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
     outs[0] = rangefilt(args[0], dom, ctx.engine->resource());
@@ -2170,7 +2622,7 @@ void imsmooth_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("imsmooth: requires (I [, name [, sigma]])",
-                    0, 0, "imsmooth", "", "m:imsmooth:nargin");
+                    0, 0, "imsmooth", "", "numkit:imsmooth:nargin");
     auto *mr = ctx.engine->resource();
     std::string name = "Gaussian";
     double sigma = 0.5;
@@ -2192,7 +2644,7 @@ void entropyfilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("entropyfilt: requires (I [, domain])",
-                    0, 0, "entropyfilt", "", "m:entropyfilt:nargin");
+                    0, 0, "entropyfilt", "", "numkit:entropyfilt:nargin");
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
     outs[0] = entropyfilt(args[0], dom, ctx.engine->resource());
@@ -2203,7 +2655,7 @@ void ordfilt2_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ordfilt2: requires (A, nth, domain [, S] [, padding])",
-                    0, 0, "ordfilt2", "", "m:ordfilt2:nargin");
+                    0, 0, "ordfilt2", "", "numkit:ordfilt2:nargin");
     auto *mr = ctx.engine->resource();
     const int nth = static_cast<int>(args[1].toScalar());
     Value domain = args[2];
@@ -2226,7 +2678,7 @@ void ordfilt2_reg(Span<const Value> args, size_t /*nargout*/,
             else if (s == "symmetric") pad = PadMode::Symmetric;
             else if (s == "circular")  pad = PadMode::Circular;
             else throw Error("ordfilt2: unknown padding mode",
-                              0, 0, "ordfilt2", "", "m:ordfilt2:pad");
+                              0, 0, "ordfilt2", "", "numkit:ordfilt2:pad");
         } else if (a.numel() == 1) {
             pad = PadMode::Constant;
             pad_value = a.toScalar();
@@ -2235,7 +2687,7 @@ void ordfilt2_reg(Span<const Value> args, size_t /*nargout*/,
             S = a;
         } else {
             throw Error("ordfilt2: unrecognized argument shape",
-                        0, 0, "ordfilt2", "", "m:ordfilt2:arg");
+                        0, 0, "ordfilt2", "", "numkit:ordfilt2:arg");
         }
     }
     outs[0] = ordfilt2(args[0], nth, domain, S, pad, pad_value, mr);
@@ -2246,7 +2698,7 @@ void wiener2_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("wiener2: requires (I [, nhood [, noise]])",
-                    0, 0, "wiener2", "", "m:wiener2:nargin");
+                    0, 0, "wiener2", "", "numkit:wiener2:nargin");
     size_t nh = 3, nw = 3;
     double noise = std::nan("");
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -2264,6 +2716,1433 @@ void wiener2_reg(Span<const Value> args, size_t nargout,
         wiener2(args[0], nh, nw, noise, ctx.engine->resource());
     outs[0] = std::move(denoised);
     if (nargout > 1) outs[1] = std::move(n);
+}
+
+} // namespace detail
+
+// ── roifilt2 (filter a region of interest) ────────────────────────
+//
+// MATLAB R2025b roifilt2.m:
+//   J = roifilt2(h, I, BW)   — filter I with the 2-D linear filter h,
+//                              keep only the masked (BW) pixels.
+//   J = roifilt2(I, BW, fun) — apply fun to I, keep only masked pixels.
+//
+// In both forms the output equals I outside the mask and the filtered
+// value inside it. For the filter form MATLAB crops to the ROI bounding
+// box (padded by ceil(size(h)/2)) purely as an optimisation; since that
+// pad always covers the filter radius, the masked pixels' values equal
+// those of imfilter over the whole image, so we filter the full image
+// directly. imfilter is invoked with MATLAB's defaults (correlation,
+// zero boundary, same size). The function form's output class follows
+// the class of fun's result; the filter form's follows class(I).
+namespace {
+
+// out = cast(I, class(filtRes)); out(BW) = filtRes(BW).
+Value roifilt2_combine(const Value &I, const Value &filtRes, const Value &BW,
+                       std::pmr::memory_resource *mr)
+{
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    if (BW.dims().rows() != H || BW.dims().cols() != W)
+        throw Error("roifilt2: I and BW must be the same size",
+                    0, 0, "roifilt2", "", "numkit:roifilt2:imageMaskSizeMismatch");
+    if (filtRes.dims().rows() != H || filtRes.dims().cols() != W)
+        throw Error("roifilt2: filtered result size mismatch",
+                    0, 0, "roifilt2", "", "numkit:roifilt2:imageSizeMismatch");
+    const ValueType cls = filtRes.type();
+    Value out = Value::matrix(H, W, cls, mr);
+    const std::size_t N = H * W;
+    auto store = [&](std::size_t i, double v) {
+        switch (cls) {
+            case ValueType::SINGLE: out.singleDataMut()[i] = static_cast<float>(v); break;
+            case ValueType::UINT8:  out.uint8DataMut()[i]  = static_cast<uint8_t>(std::lround(v)); break;
+            case ValueType::UINT16: out.uint16DataMut()[i] = static_cast<uint16_t>(std::lround(v)); break;
+            case ValueType::UINT32: out.uint32DataMut()[i] = static_cast<uint32_t>(std::lround(v)); break;
+            case ValueType::INT8:   out.int8DataMut()[i]   = static_cast<int8_t>(std::lround(v)); break;
+            case ValueType::INT16:  out.int16DataMut()[i]  = static_cast<int16_t>(std::lround(v)); break;
+            case ValueType::INT32:  out.int32DataMut()[i]  = static_cast<int32_t>(std::lround(v)); break;
+            case ValueType::INT64:  out.int64DataMut()[i]  = static_cast<int64_t>(std::llround(v)); break;
+            case ValueType::LOGICAL:out.logicalDataMut()[i]= (v != 0.0) ? 1u : 0u; break;
+            default:                out.doubleDataMut()[i] = v; break;
+        }
+    };
+    for (std::size_t i = 0; i < N; ++i) {
+        const bool masked = BW.elemAsDouble(i) != 0.0;
+        store(i, (masked ? filtRes : I).elemAsDouble(i));
+    }
+    return out;
+}
+
+} // namespace
+
+// Filter form: J = roifilt2(h, I, BW).
+Value roifilt2(const Value &h, const Value &I, const Value &BW,
+               std::pmr::memory_resource *mr)
+{
+    if (I.dims().ndim() > 2)
+        throw Error("roifilt2: I must be a 2-D image",
+                    0, 0, "roifilt2", "", "numkit:roifilt2:imageMustBe2D");
+    // imfilter defaults: correlation, zero boundary, same size.
+    Value filtFull = imfilter(I, h, PadMode::Constant, 0.0, false, false, mr);
+    return roifilt2_combine(I, filtFull, BW, mr);
+}
+
+// ── nlfilter (general sliding-neighbourhood) ──────────────────────
+//
+// MATLAB R2025b nlfilter.m:
+//   B = nlfilter(A, [m n], fun)
+//   B = nlfilter(A, 'indexed', [m n], fun)
+//
+// For every pixel (i, j) ∈ A extract the m × n window
+//   x = aa(i + 0..m-1, j + 0..n-1)
+// from the padded image `aa` and call `fun(x)`. The output element
+// is `b(i, j) = fun(x)`. Output class equals the class of the FIRST
+// invocation of `fun` (matches MATLAB's `mkconstarray(class(...))`).
+// Default `padval = 0`; `'indexed'` form uses `padval = 1` for
+// `single` / `double` `A`, otherwise `padval = 0`.
+//
+// The dispatch goes through Engine::callFunctionHandle, matching the
+// pattern adopted in libs/ode/ode45 (function_ref couldn't carry
+// func-handle semantics through the round-trip).
+Value nlfilter(numkit::Engine &eng, const Value &A,
+               std::size_t m, std::size_t n, const Value &fun,
+               bool indexed,
+               std::pmr::memory_resource *mr)
+{
+    if (m < 1 || n < 1)
+        throw Error("nlfilter: neighbourhood size must be positive",
+                    0, 0, "nlfilter", "", "numkit:nlfilter:nhood");
+    if (!fun.isFuncHandle())
+        throw Error("nlfilter: 3rd argument must be a function handle",
+                    0, 0, "nlfilter", "", "numkit:nlfilter:fun");
+
+    const auto &dA = A.dims();
+    if (dA.is3D())
+        throw Error("nlfilter: A must be a 2-D image",
+                    0, 0, "nlfilter", "", "numkit:nlfilter:rank");
+    const std::size_t H = dA.rows();
+    const std::size_t W = dA.cols();
+    const ValueType inT = A.type();
+
+    // Padding: 'indexed' uses 1.0 for single/double, else 0.
+    double padval = 0.0;
+    if (indexed) {
+        padval = (inT == ValueType::DOUBLE || inT == ValueType::SINGLE)
+               ? 1.0 : 0.0;
+    }
+
+    // Pad above by floor((m-1)/2) rows, below by ceil((m-1)/2);
+    // left by floor((n-1)/2), right by ceil((n-1)/2). (MATLAB:
+    // mkconstarray(class(a), padval, size(a)+nhood-1) — then drops
+    // the original A into the offset block.)
+    const std::size_t pad_top  = (m - 1) / 2;
+    const std::size_t pad_left = (n - 1) / 2;
+    const std::size_t Hpad     = H + m - 1;
+    const std::size_t Wpad     = W + n - 1;
+
+    // Build padded array in DOUBLE (we always read out via
+    // elemAsDouble; this saves a class-specific dispatch).
+    std::pmr::vector<double> aa(Hpad * Wpad, padval, mr);
+    for (std::size_t j = 0; j < W; ++j)
+        for (std::size_t i = 0; i < H; ++i)
+            aa[(j + pad_left) * Hpad + (i + pad_top)] = A.elemAsDouble(j * H + i);
+
+    // Allocate scratch window (DOUBLE — the class for `fun` is what
+    // the kernel receives; MATLAB nlfilter forwards the same class
+    // as `A`, but we choose DOUBLE here for simplicity. Tests use
+    // class-agnostic kernels like `@(x) mean(x(:))`).
+    Value window = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    double *wd = window.doubleDataMut();
+
+    // First-call invocation determines output class.
+    auto fill_window = [&](std::size_t i, std::size_t j) {
+        for (std::size_t c = 0; c < n; ++c)
+            for (std::size_t r = 0; r < m; ++r)
+                wd[c * m + r] = aa[(j + c) * Hpad + (i + r)];
+    };
+
+    fill_window(0, 0);
+    Value first = eng.callFunctionHandle(
+        fun, Span<const Value>(&window, 1));
+    if (first.numel() != 1)
+        throw Error("nlfilter: fun must return a scalar",
+                    0, 0, "nlfilter", "", "numkit:nlfilter:funScalar");
+    const ValueType outT = first.type();
+    Value B = Value::matrix(H, W, outT, mr);
+
+    auto store = [&](std::size_t r, std::size_t c, const Value &v) {
+        const std::size_t idx = c * H + r;
+        const double d = v.toScalar();
+        switch (outT) {
+            case ValueType::DOUBLE:  B.doubleDataMut()[idx]  = d; break;
+            case ValueType::SINGLE:  B.singleDataMut()[idx]  = static_cast<float>(d); break;
+            case ValueType::UINT8:   B.uint8DataMut()[idx]   = static_cast<uint8_t>(d); break;
+            case ValueType::UINT16:  B.uint16DataMut()[idx]  = static_cast<uint16_t>(d); break;
+            case ValueType::UINT32:  B.uint32DataMut()[idx]  = static_cast<uint32_t>(d); break;
+            case ValueType::UINT64:  B.uint64DataMut()[idx]  = static_cast<uint64_t>(d); break;
+            case ValueType::INT8:    B.int8DataMut()[idx]    = static_cast<int8_t>(d); break;
+            case ValueType::INT16:   B.int16DataMut()[idx]   = static_cast<int16_t>(d); break;
+            case ValueType::INT32:   B.int32DataMut()[idx]   = static_cast<int32_t>(d); break;
+            case ValueType::INT64:   B.int64DataMut()[idx]   = static_cast<int64_t>(d); break;
+            case ValueType::LOGICAL: B.logicalDataMut()[idx] = d != 0.0 ? 1 : 0; break;
+            default:
+                throw Error("nlfilter: unsupported fun output class",
+                            0, 0, "nlfilter", "", "numkit:nlfilter:outCls");
+        }
+    };
+
+    store(0, 0, first);
+
+    for (std::size_t i = 0; i < H; ++i) {
+        for (std::size_t j = 0; j < W; ++j) {
+            if (i == 0 && j == 0) continue;  // already filled
+            fill_window(i, j);
+            Value r = eng.callFunctionHandle(
+                fun, Span<const Value>(&window, 1));
+            if (r.numel() != 1)
+                throw Error("nlfilter: fun must return a scalar at all (i,j)",
+                            0, 0, "nlfilter", "", "numkit:nlfilter:funScalar");
+            store(i, j, r);
+        }
+    }
+    return B;
+}
+
+// ── colfilt (column-wise neighbourhood) ───────────────────────────
+//
+// MATLAB R2025b colfilt.m:
+//   B = colfilt(A, [m n], block_type, fun)         (whole-matrix)
+//   B = colfilt(A, [m n], [mblock nblock], block_type, fun)
+//   B = colfilt(A, 'indexed', …)
+//
+// block_type ∈ {'sliding', 'distinct'} (case-insensitive, abbrev'd
+// by leading char). Sliding mode:
+//   1. Pad A by (m-1, n-1) with 0 (or 1 for 'indexed' double/single).
+//   2. X is the matrix whose columns are the m*n elements of every
+//      m × n window centred on (i, j); shape m*n × (H*W).
+//   3. Call fun(X) — must return a row vector 1 × (H*W).
+//   4. Reshape into H × W.
+// Distinct mode:
+//   1. Pad A to next multiple of [m, n].
+//   2. X has one column per distinct m × n block.
+//   3. fun(X) must return a same-size matrix; the columns are then
+//      unpacked back into blocks (col2im 'distinct').
+//   4. Crop the assembled image back to size(A).
+//
+// The optional [mblock nblock] arg is purely a memory optimisation
+// (MATLAB explicitly notes: "does not change the result"). The
+// engine adapter accepts and ignores it.
+//
+// Output class equals the class of fun()'s return value.
+Value colfilt(numkit::Engine &eng, const Value &A,
+              std::size_t m, std::size_t n,
+              const std::string &block_type, const Value &fun,
+              bool indexed,
+              std::pmr::memory_resource *mr)
+{
+    if (m < 1 || n < 1)
+        throw Error("colfilt: block size must be positive",
+                    0, 0, "colfilt", "", "numkit:colfilt:nhood");
+    if (!fun.isFuncHandle())
+        throw Error("colfilt: fun must be a function handle",
+                    0, 0, "colfilt", "", "numkit:colfilt:fun");
+
+    const auto &dA = A.dims();
+    if (dA.is3D())
+        throw Error("colfilt: A must be a 2-D image",
+                    0, 0, "colfilt", "", "numkit:colfilt:rank");
+    const std::size_t H = dA.rows();
+    const std::size_t W = dA.cols();
+    const ValueType inT = A.type();
+
+    std::string kind = block_type;
+    for (auto &c : kind) c = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(c)));
+    if (kind.empty())
+        throw Error("colfilt: block_type must be 'sliding' or 'distinct'",
+                    0, 0, "colfilt", "", "numkit:colfilt:blockType");
+    const char first = kind[0];
+    if (first != 's' && first != 'd')
+        throw Error("colfilt: block_type must be 'sliding' or 'distinct'",
+                    0, 0, "colfilt", "", "numkit:colfilt:blockType");
+
+    // Common padval rule.
+    double padval = 0.0;
+    if (indexed && (inT == ValueType::DOUBLE || inT == ValueType::SINGLE))
+        padval = 1.0;
+
+    if (first == 's') {
+        // ── Sliding ─────────────────────────────────────────────
+        const std::size_t pad_top  = (m - 1) / 2;
+        const std::size_t pad_left = (n - 1) / 2;
+        const std::size_t Hpad = H + m - 1;
+        const std::size_t Wpad = W + n - 1;
+        const std::size_t Ncol = H * W;
+
+        // Build X = m*n × Ncol in DOUBLE.
+        Value X = Value::matrix(m * n, Ncol, ValueType::DOUBLE, mr);
+        double *xd = X.doubleDataMut();
+
+        // Pad row-by-col into a temporary scratch.
+        std::pmr::vector<double> aa(Hpad * Wpad, padval, mr);
+        for (std::size_t j = 0; j < W; ++j)
+            for (std::size_t i = 0; i < H; ++i)
+                aa[(j + pad_left) * Hpad + (i + pad_top)] =
+                    A.elemAsDouble(j * H + i);
+
+        // For each centre (i, j), gather m*n window values into
+        // column k = j*H + i.
+        for (std::size_t j = 0; j < W; ++j) {
+            for (std::size_t i = 0; i < H; ++i) {
+                const std::size_t k = j * H + i;
+                std::size_t r = 0;
+                // im2col 'sliding' iteration order: column-major
+                // within each window, i.e. (col-major) flatten.
+                for (std::size_t wc = 0; wc < n; ++wc)
+                    for (std::size_t wr = 0; wr < m; ++wr)
+                        xd[k * (m * n) + (r++)]
+                            = aa[(j + wc) * Hpad + (i + wr)];
+            }
+        }
+
+        Value result = eng.callFunctionHandle(
+            fun, Span<const Value>(&X, 1));
+        if (result.numel() != Ncol)
+            throw Error("colfilt: sliding fun must return a 1 × N row "
+                        "vector (one value per column)",
+                        0, 0, "colfilt", "", "numkit:colfilt:funShape");
+
+        // Reshape result (regardless of [1, Ncol] or [Ncol, 1]) into H × W.
+        Value B = Value::matrix(H, W, result.type(), mr);
+        const auto outT = result.type();
+        for (std::size_t k = 0; k < Ncol; ++k) {
+            const double v = result.elemAsDouble(k);
+            const std::size_t idx = k;
+            switch (outT) {
+                case ValueType::DOUBLE: B.doubleDataMut()[idx]  = v; break;
+                case ValueType::SINGLE: B.singleDataMut()[idx]  = static_cast<float>(v); break;
+                case ValueType::UINT8:  B.uint8DataMut()[idx]   = static_cast<uint8_t>(v); break;
+                case ValueType::UINT16: B.uint16DataMut()[idx]  = static_cast<uint16_t>(v); break;
+                case ValueType::INT16:  B.int16DataMut()[idx]   = static_cast<int16_t>(v); break;
+                case ValueType::INT32:  B.int32DataMut()[idx]   = static_cast<int32_t>(v); break;
+                case ValueType::LOGICAL: B.logicalDataMut()[idx] = v != 0 ? 1 : 0; break;
+                default:
+                    throw Error("colfilt: unsupported fun output class",
+                                0, 0, "colfilt", "", "numkit:colfilt:outCls");
+            }
+        }
+        return B;
+    }
+
+    // ── Distinct ────────────────────────────────────────────────────
+    const std::size_t mpad = (H % m) ? (m - H % m) : 0;
+    const std::size_t npad = (W % n) ? (n - W % n) : 0;
+    const std::size_t Hpad = H + mpad;
+    const std::size_t Wpad = W + npad;
+    const std::size_t mblocks = Hpad / m;
+    const std::size_t nblocks = Wpad / n;
+    const std::size_t Ncol    = mblocks * nblocks;
+
+    // Pad to multiple of (m, n).
+    std::pmr::vector<double> aa(Hpad * Wpad, padval, mr);
+    for (std::size_t j = 0; j < W; ++j)
+        for (std::size_t i = 0; i < H; ++i)
+            aa[j * Hpad + i] = A.elemAsDouble(j * H + i);
+
+    // Build X = m*n × Ncol; column index k = bj * mblocks + bi.
+    Value X = Value::matrix(m * n, Ncol, ValueType::DOUBLE, mr);
+    double *xd = X.doubleDataMut();
+    for (std::size_t bj = 0; bj < nblocks; ++bj) {
+        for (std::size_t bi = 0; bi < mblocks; ++bi) {
+            const std::size_t k = bj * mblocks + bi;
+            std::size_t r = 0;
+            for (std::size_t wc = 0; wc < n; ++wc)
+                for (std::size_t wr = 0; wr < m; ++wr)
+                    xd[k * (m * n) + (r++)]
+                        = aa[(bj * n + wc) * Hpad + (bi * m + wr)];
+        }
+    }
+
+    Value result = eng.callFunctionHandle(
+        fun, Span<const Value>(&X, 1));
+    if (result.numel() != m * n * Ncol)
+        throw Error("colfilt: distinct fun must return a matrix of the "
+                    "same shape as its input (m*n × N)",
+                    0, 0, "colfilt", "", "numkit:colfilt:funShape");
+
+    // Reassemble padded image, then crop.
+    const auto outT = result.type();
+    std::pmr::vector<double> bb(Hpad * Wpad, 0.0, mr);
+    for (std::size_t bj = 0; bj < nblocks; ++bj) {
+        for (std::size_t bi = 0; bi < mblocks; ++bi) {
+            const std::size_t k = bj * mblocks + bi;
+            std::size_t r = 0;
+            for (std::size_t wc = 0; wc < n; ++wc)
+                for (std::size_t wr = 0; wr < m; ++wr) {
+                    const double v = result.elemAsDouble(k * (m * n) + (r++));
+                    bb[(bj * n + wc) * Hpad + (bi * m + wr)] = v;
+                }
+        }
+    }
+
+    Value B = Value::matrix(H, W, outT, mr);
+    for (std::size_t j = 0; j < W; ++j) {
+        for (std::size_t i = 0; i < H; ++i) {
+            const double v = bb[j * Hpad + i];
+            const std::size_t idx = j * H + i;
+            switch (outT) {
+                case ValueType::DOUBLE: B.doubleDataMut()[idx]  = v; break;
+                case ValueType::SINGLE: B.singleDataMut()[idx]  = static_cast<float>(v); break;
+                case ValueType::UINT8:  B.uint8DataMut()[idx]   = static_cast<uint8_t>(v); break;
+                case ValueType::UINT16: B.uint16DataMut()[idx]  = static_cast<uint16_t>(v); break;
+                case ValueType::INT16:  B.int16DataMut()[idx]   = static_cast<int16_t>(v); break;
+                case ValueType::INT32:  B.int32DataMut()[idx]   = static_cast<int32_t>(v); break;
+                case ValueType::LOGICAL: B.logicalDataMut()[idx] = v != 0 ? 1 : 0; break;
+                default:
+                    throw Error("colfilt: unsupported fun output class",
+                                0, 0, "colfilt", "", "numkit:colfilt:outCls");
+            }
+        }
+    }
+    return B;
+}
+
+// ── imguidedfilter (Guided Image Filter, He/Sun/Tang 2013) ────────
+//
+// Algorithm 1 from K. He, J. Sun, X. Tang,
+//   "Guided Image Filtering", IEEE TPAMI 35(6), 1397-1409, 2013.
+//
+//   meanI  = box(G)
+//   meanP  = box(A)
+//   corrI  = box(G·G)
+//   corrIP = box(G·A)
+//   varI  = corrI − meanI²
+//   covIP = corrIP − meanI·meanP
+//   a = covIP / (varI + ε)
+//   b = meanP − a·meanI
+//   meana = box(a)
+//   meanb = box(b)
+//   B = meana·G + meanb
+//
+// Grayscale guide only here. Default ε = 0.01 · range².
+Value imguidedfilter(const Value &A, const Value &G_in, int nhood,
+                     double eps_in,
+                     std::pmr::memory_resource *mr)
+{
+    if (A.dims().is3D())
+        throw Error("imguidedfilter: A must be 2-D",
+                    0, 0, "imguidedfilter", "",
+                    "numkit:imguidedfilter:dim");
+    if (nhood < 1 || (nhood % 2) == 0)
+        throw Error("imguidedfilter: NeighborhoodSize must be positive odd "
+                    "integer",
+                    0, 0, "imguidedfilter", "",
+                    "numkit:imguidedfilter:nhood");
+    const std::size_t H = A.dims().rows();
+    const std::size_t W = A.dims().cols();
+    if (H == 0 || W == 0) return A;
+
+    Value G = G_in;
+    if (G.numel() == 0) G = A;  // self-guidance
+    if (G.dims().rows() != H || G.dims().cols() != W || G.dims().is3D())
+        throw Error("imguidedfilter: G must be the same H × W as A "
+                    "(RGB guidance not yet supported)",
+                    0, 0, "imguidedfilter", "",
+                    "numkit:imguidedfilter:gshape");
+
+    // Resolve default ε per A's class.
+    double eps = eps_in;
+    if (eps < 0) {
+        double range = 1.0;
+        switch (A.type()) {
+            case ValueType::UINT8:  range = 255.0;       break;
+            case ValueType::UINT16: range = 65535.0;     break;
+            case ValueType::UINT32: range = 4294967295.0;break;
+            case ValueType::INT8:   range = 255.0;       break;  // [-128,127] diff=255
+            case ValueType::INT16:  range = 65535.0;     break;
+            case ValueType::INT32:  range = 4294967295.0;break;
+            default:                range = 1.0;         break;  // double/single/logical
+        }
+        eps = 0.01 * range * range;
+    }
+
+    // Cast A, G → DOUBLE.
+    const std::size_t N = H * W;
+    Value Ad = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value Gd = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < N; ++i) Ad.doubleDataMut()[i] = A.elemAsDouble(i);
+    for (std::size_t i = 0; i < N; ++i) Gd.doubleDataMut()[i] = G.elemAsDouble(i);
+
+    // I.*I, I.*P (element-wise products).
+    Value II = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value IP = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < N; ++i) {
+        const double gi = Gd.doubleData()[i];
+        const double ai = Ad.doubleData()[i];
+        II.doubleDataMut()[i] = gi * gi;
+        IP.doubleDataMut()[i] = gi * ai;
+    }
+
+    const Value meanI  = imboxfilt(Gd, nhood, mr);
+    const Value meanP  = imboxfilt(Ad, nhood, mr);
+    const Value corrI  = imboxfilt(II, nhood, mr);
+    const Value corrIP = imboxfilt(IP, nhood, mr);
+
+    // a, b.
+    Value a_ = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value b_ = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < N; ++i) {
+        const double mI = meanI.doubleData()[i];
+        const double mP = meanP.doubleData()[i];
+        const double varI  = corrI.doubleData()[i]  - mI * mI;
+        const double covIP = corrIP.doubleData()[i] - mI * mP;
+        const double a = covIP / (varI + eps);
+        a_.doubleDataMut()[i] = a;
+        b_.doubleDataMut()[i] = mP - a * mI;
+    }
+
+    const Value meana = imboxfilt(a_, nhood, mr);
+    const Value meanb = imboxfilt(b_, nhood, mr);
+
+    // B = meana·G + meanb.
+    Value Bd = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < N; ++i)
+        Bd.doubleDataMut()[i] = meana.doubleData()[i] * Gd.doubleData()[i]
+                              + meanb.doubleData()[i];
+
+    // Cast back to class(A).
+    const ValueType outT = A.type();
+    if (outT == ValueType::DOUBLE) return Bd;
+    Value Bout = Value::matrix(H, W, outT, mr);
+    auto saturate = [&](double v, double lo, double hi) {
+        v = std::round(v);
+        if (v < lo) v = lo;
+        if (v > hi) v = hi;
+        return v;
+    };
+    for (std::size_t i = 0; i < N; ++i) {
+        const double v = Bd.doubleData()[i];
+        switch (outT) {
+            case ValueType::SINGLE:  Bout.singleDataMut()[i] = static_cast<float>(v); break;
+            case ValueType::UINT8:   Bout.uint8DataMut()[i]  = static_cast<std::uint8_t>(saturate(v, 0.0, 255.0)); break;
+            case ValueType::UINT16:  Bout.uint16DataMut()[i] = static_cast<std::uint16_t>(saturate(v, 0.0, 65535.0)); break;
+            case ValueType::INT8:    Bout.int8DataMut()[i]   = static_cast<std::int8_t>(saturate(v, -128.0, 127.0)); break;
+            case ValueType::INT16:   Bout.int16DataMut()[i]  = static_cast<std::int16_t>(saturate(v, -32768.0, 32767.0)); break;
+            case ValueType::INT32:   Bout.int32DataMut()[i]  = static_cast<std::int32_t>(saturate(v, -2147483648.0, 2147483647.0)); break;
+            case ValueType::UINT32:  Bout.uint32DataMut()[i] = static_cast<std::uint32_t>(saturate(v, 0.0, 4294967295.0)); break;
+            case ValueType::LOGICAL: Bout.logicalDataMut()[i] = v >= 0.5 ? 1 : 0; break;
+            default: Bout.doubleDataMut()[i] = v; break;
+        }
+    }
+    return Bout;
+}
+
+// ── imdiffusefilt (Perona-Malik anisotropic diffusion) ───────────
+//
+// MATLAB R2025b imdiffusefilt.m + anisotropicDiffusion2D.m algorithm.
+// References: [1] Perona & Malik 1990; [2] Gerig et al. 1992.
+Value imdiffusefilt(const Value &I,
+                    const Value &thresh,
+                    std::size_t N_in,
+                    const std::string &connectivity,
+                    const std::string &conduction,
+                    std::pmr::memory_resource *mr)
+{
+    if (I.dims().is3D())
+        throw Error("imdiffusefilt: 3-D inputs not yet supported",
+                    0, 0, "imdiffusefilt", "",
+                    "numkit:imdiffusefilt:dim");
+    if (connectivity != "maximal" && connectivity != "minimal")
+        throw Error("imdiffusefilt: Connectivity must be 'maximal' or "
+                    "'minimal'",
+                    0, 0, "imdiffusefilt", "",
+                    "numkit:imdiffusefilt:conn");
+    if (conduction != "exponential" && conduction != "quadratic")
+        throw Error("imdiffusefilt: ConductionMethod must be "
+                    "'exponential' or 'quadratic'",
+                    0, 0, "imdiffusefilt", "",
+                    "numkit:imdiffusefilt:cond");
+
+    const std::size_t M = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    if (M == 0 || W == 0) return I;
+
+    // Default GradientThreshold based on input class.
+    const ValueType inT = I.type();
+    auto class_range_diff = [&]() {
+        switch (inT) {
+            case ValueType::UINT8:  return 255.0;
+            case ValueType::UINT16: return 65535.0;
+            case ValueType::UINT32: return 4294967295.0;
+            case ValueType::INT8:   return 255.0;
+            case ValueType::INT16:  return 65535.0;
+            case ValueType::INT32:  return 4294967295.0;
+            default:                return 1.0;
+        }
+    };
+
+    // Resolve gradientThreshold vector (length nThresh).
+    std::pmr::vector<double> threshVec(mr);
+    if (thresh.numel() == 0) {
+        threshVec.push_back(0.1 * class_range_diff());
+    } else {
+        threshVec.reserve(thresh.numel());
+        for (std::size_t i = 0; i < thresh.numel(); ++i) {
+            const double v = thresh.elemAsDouble(i);
+            if (!(v > 0) || !std::isfinite(v))
+                throw Error("imdiffusefilt: GradientThreshold must be a "
+                            "positive finite scalar or vector",
+                            0, 0, "imdiffusefilt", "",
+                            "numkit:imdiffusefilt:thresh");
+            threshVec.push_back(v);
+        }
+    }
+
+    // Default N.
+    std::size_t N = N_in;
+    if (N == 0) {
+        N = (threshVec.size() == 1) ? 5 : threshVec.size();
+    }
+    if (threshVec.size() == 1) {
+        // Replicate scalar threshold to length N.
+        threshVec.resize(N, threshVec[0]);
+    } else if (threshVec.size() != N) {
+        throw Error("imdiffusefilt: numel(GradientThreshold) must equal "
+                    "NumberOfIterations",
+                    0, 0, "imdiffusefilt", "",
+                    "numkit:imdiffusefilt:threshLen");
+    }
+
+    // Work in double precision (matches MATLAB for double; for
+    // non-double inputs MATLAB uses single — we use double which
+    // gives identical results for our integer-bit-comparison cases).
+    const std::size_t Npix = M * W;
+    std::pmr::vector<double> img(Npix, 0.0, mr);
+    for (std::size_t i = 0; i < Npix; ++i) img[i] = I.elemAsDouble(i);
+
+    // Padded image with replicate border: (M+2) x (W+2).
+    const std::size_t Mp = M + 2;
+    const std::size_t Wp = W + 2;
+    std::pmr::vector<double> pad(Mp * Wp, 0.0, mr);
+
+    auto refresh_padded = [&](const std::pmr::vector<double> &src) {
+        // Interior: pad(r+1, c+1) = src(r, c) for r=0..M-1, c=0..W-1.
+        for (std::size_t c = 0; c < W; ++c)
+            for (std::size_t r = 0; r < M; ++r)
+                pad[(c + 1) * Mp + (r + 1)] = src[c * M + r];
+        // Top/bottom rows replicate.
+        for (std::size_t c = 0; c < W; ++c) {
+            pad[(c + 1) * Mp + 0]      = src[c * M + 0];
+            pad[(c + 1) * Mp + Mp - 1] = src[c * M + M - 1];
+        }
+        // Left/right cols replicate (including corners).
+        for (std::size_t r = 0; r < Mp; ++r) {
+            pad[0 * Mp + r]            = pad[1 * Mp + r];
+            pad[(Wp - 1) * Mp + r]     = pad[(W) * Mp + r];
+        }
+    };
+
+    auto conductance = [&](double diff, double K) {
+        const double r = diff / K;
+        if (conduction == "exponential") return std::exp(-(r * r));
+        return 1.0 / (1.0 + r * r);
+    };
+
+    const bool isMax = (connectivity == "maximal");
+    const double diffusionRate = isMax ? (1.0 / 8.0) : (1.0 / 4.0);
+    const double inv_dd2 = 0.5;  // 1 / dd² = 1/2 for diagonal
+
+    for (std::size_t it = 0; it < N; ++it) {
+        const double K = threshVec[it];
+        refresh_padded(img);
+
+        // Accessor: padded(r, c) → pad[c * Mp + r].
+        auto P = [&](std::size_t r, std::size_t c) {
+            return pad[c * Mp + r];
+        };
+
+        std::pmr::vector<double> upd(Npix, 0.0, mr);
+
+        for (std::size_t c = 0; c < W; ++c) {
+            for (std::size_t r = 0; r < M; ++r) {
+                // 0-indexed in image; padded coords = (r+1, c+1).
+                const double ci = img[c * M + r];
+                // diffNorth at this pixel = above - center =
+                //   pad(r, c+1) - pad(r+1, c+1)
+                const double dN = P(r,     c + 1) - ci;
+                // diffSouth = below - center
+                const double dS = P(r + 2, c + 1) - ci;
+                // diffEast  = right - center
+                const double dE = P(r + 1, c + 2) - ci;
+                // diffWest  = left - center
+                const double dW = P(r + 1, c)     - ci;
+                const double fN = conductance(dN, K) * dN;
+                const double fS = conductance(dS, K) * dS;
+                const double fE = conductance(dE, K) * dE;
+                const double fW = conductance(dW, K) * dW;
+                double delta = fN + fS + fE + fW;
+                if (isMax) {
+                    const double dNW = P(r,     c)     - ci;
+                    const double dNE = P(r,     c + 2) - ci;
+                    const double dSW = P(r + 2, c)     - ci;
+                    const double dSE = P(r + 2, c + 2) - ci;
+                    const double fNW = conductance(dNW, K) * dNW;
+                    const double fNE = conductance(dNE, K) * dNE;
+                    const double fSW = conductance(dSW, K) * dSW;
+                    const double fSE = conductance(dSE, K) * dSE;
+                    delta += inv_dd2 * (fNW + fNE + fSW + fSE);
+                }
+                upd[c * M + r] = ci + diffusionRate * delta;
+            }
+        }
+        img.swap(upd);
+    }
+
+    // Cast back to input class.
+    Value out;
+    if (inT == ValueType::DOUBLE) {
+        out = Value::matrix(M, W, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < Npix; ++i) out.doubleDataMut()[i] = img[i];
+        return out;
+    }
+    out = Value::matrix(M, W, inT, mr);
+    auto saturate = [&](double v, double lo, double hi) {
+        v = std::round(v);
+        if (v < lo) v = lo;
+        if (v > hi) v = hi;
+        return v;
+    };
+    for (std::size_t i = 0; i < Npix; ++i) {
+        const double v = img[i];
+        switch (inT) {
+            case ValueType::SINGLE:  out.singleDataMut()[i] = static_cast<float>(v); break;
+            case ValueType::UINT8:   out.uint8DataMut()[i]  = static_cast<std::uint8_t>(saturate(v, 0.0, 255.0)); break;
+            case ValueType::UINT16:  out.uint16DataMut()[i] = static_cast<std::uint16_t>(saturate(v, 0.0, 65535.0)); break;
+            case ValueType::UINT32:  out.uint32DataMut()[i] = static_cast<std::uint32_t>(saturate(v, 0.0, 4294967295.0)); break;
+            case ValueType::INT8:    out.int8DataMut()[i]   = static_cast<std::int8_t>(saturate(v, -128.0, 127.0)); break;
+            case ValueType::INT16:   out.int16DataMut()[i]  = static_cast<std::int16_t>(saturate(v, -32768.0, 32767.0)); break;
+            case ValueType::INT32:   out.int32DataMut()[i]  = static_cast<std::int32_t>(saturate(v, -2147483648.0, 2147483647.0)); break;
+            default: out.doubleDataMut()[i] = v; break;
+        }
+    }
+    return out;
+}
+
+// ── imgaborfilt (single-filter Gabor magnitude + phase) ──────────
+//
+// MATLAB R2025b algorithm (gaborFilterFFT.m + gabor.m):
+//   SigmaX = wavelength/π · √(log2/2) · (2^B + 1)/(2^B - 1)
+//   SigmaY = SigmaX / aspect
+//   r      = max(⌈7·SigmaX⌉, ⌈7·SigmaY⌉)
+//   Pad A by [r r] replicate, FFT-2D padded image.
+//   Build H in frequency domain:
+//     u_n = normalised frequency vector length N
+//     v_n = normalised frequency vector length M
+//     U', V' = rotated (u, v) by orientation
+//     σ_u = 1/(2π·SigmaX), σ_v = 1/(2π·SigmaY), f = 1/λ
+//     A_const = 2π·SigmaX·SigmaY
+//     H = A_const · exp(-½ ((U'-f)²/σ_u² + V'²/σ_v²))
+//   out_padded = ifft2(A_fft · ifftshift(H))
+//   out = crop r border → (M, N)
+//   mag = |out|, phase = angle(out)
+//
+// References:
+//   Jain & Farrokhnia 1991; Kruizinga & Petkov 1999.
+void imgaborfilt(const Value &A_in, double wavelength, double orientation,
+                 double sfb, double aspect,
+                 Value &mag_out, Value &phase_out,
+                 std::pmr::memory_resource *mr)
+{
+    if (A_in.dims().is3D())
+        throw Error("imgaborfilt: A must be 2-D",
+                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:dim");
+    if (!(wavelength >= 2.0))
+        throw Error("imgaborfilt: wavelength must be >= 2",
+                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:wavelength");
+    if (!(sfb > 0))
+        throw Error("imgaborfilt: SpatialFrequencyBandwidth must be > 0",
+                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:sfb");
+    if (!(aspect > 0))
+        throw Error("imgaborfilt: SpatialAspectRatio must be > 0",
+                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:aspect");
+
+    const std::size_t M = A_in.dims().rows();
+    const std::size_t N = A_in.dims().cols();
+    const ValueType outT = (A_in.type() == ValueType::SINGLE)
+                            ? ValueType::SINGLE : ValueType::DOUBLE;
+
+    // Sigma parameters.
+    const double sigmaX = wavelength / M_PI * std::sqrt(std::log(2.0) / 2.0)
+                        * (std::pow(2.0, sfb) + 1.0)
+                        / (std::pow(2.0, sfb) - 1.0);
+    const double sigmaY = sigmaX / aspect;
+    const long Rx = static_cast<long>(std::ceil(7.0 * sigmaX));
+    const long Ry = static_cast<long>(std::ceil(7.0 * sigmaY));
+    const long r = std::max(Rx, Ry);
+
+    // Pad A to (M + 2r) x (N + 2r) with replicate.
+    const std::size_t Mp = M + 2 * r;
+    const std::size_t Np = N + 2 * r;
+    // Use existing padarray (filter.cpp) if available; fall back to manual.
+    Value Ad = Value::matrix(M, N, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < M * N; ++i) Ad.doubleDataMut()[i] = A_in.elemAsDouble(i);
+    std::vector<int> pad{static_cast<int>(r), static_cast<int>(r)};
+    Value Apad = padarray(Ad, pad, PadMode::Replicate, 0.0, "both", mr);
+
+    // FFT-2D of padded image.
+    Value Afft = signal::fft2(Apad, -1, -1, mr);
+    // Normalise Afft to COMPLEX storage.
+    const std::size_t Np_pix = Mp * Np;
+    std::pmr::vector<Complex> Afc(Np_pix, Complex{0, 0}, mr);
+    if (Afft.isComplex()) {
+        const Complex *src = Afft.complexData();
+        for (std::size_t i = 0; i < Np_pix; ++i) Afc[i] = src[i];
+    } else {
+        for (std::size_t i = 0; i < Np_pix; ++i)
+            Afc[i] = Complex{Afft.elemAsDouble(i), 0.0};
+    }
+
+    // Normalised frequency vectors u (length Np), v (length Mp).
+    auto freq_vec = [&](std::size_t Nlen, std::pmr::vector<double> &out) {
+        out.resize(Nlen);
+        if (Nlen == 1) { out[0] = 0.0; return; }
+        if (Nlen % 2 == 1) {
+            const double lo = -0.5 + 1.0 / (2.0 * Nlen);
+            const double hi =  0.5 - 1.0 / (2.0 * Nlen);
+            const double step = (hi - lo) / (Nlen - 1);
+            for (std::size_t i = 0; i < Nlen; ++i) out[i] = lo + step * i;
+        } else {
+            const double lo = -0.5;
+            const double hi = 0.5 - 1.0 / Nlen;
+            const double step = (hi - lo) / (Nlen - 1);
+            for (std::size_t i = 0; i < Nlen; ++i) out[i] = lo + step * i;
+        }
+    };
+    std::pmr::vector<double> u(mr), v(mr);
+    freq_vec(Np, u);
+    freq_vec(Mp, v);
+
+    const double theta_rad = orientation * M_PI / 180.0;
+    const double cosT = std::cos(theta_rad);
+    const double sinT = std::sin(theta_rad);
+    const double sigmau = 1.0 / (2.0 * M_PI * sigmaX);
+    const double sigmav = 1.0 / (2.0 * M_PI * sigmaY);
+    const double freq   = 1.0 / wavelength;
+    const double A_const = 2.0 * M_PI * sigmaX * sigmaY;
+
+    // Build H in COMPLEX domain (real values; imag = 0). Stored col-major:
+    // H(r, c) → c*Mp + r.
+    std::pmr::vector<double> H(Np_pix, 0.0, mr);
+    for (std::size_t c = 0; c < Np; ++c) {
+        const double uc = u[c];
+        for (std::size_t r2 = 0; r2 < Mp; ++r2) {
+            const double vc = v[r2];
+            const double Upr = uc * cosT - vc * sinT;
+            const double Vpr = uc * sinT + vc * cosT;
+            const double e = -0.5 * ((Upr - freq) * (Upr - freq) / (sigmau * sigmau)
+                                   + Vpr * Vpr / (sigmav * sigmav));
+            H[c * Mp + r2] = A_const * std::exp(e);
+        }
+    }
+
+    // ifftshift(H): for each dim, shift by floor(N/2) (no rounding).
+    // ifftshift is the inverse of fftshift; for even N it's identical.
+    // Easy impl: cyclic shift each dim by -floor(N/2) (which equals
+    // shift right by ceil(N/2) when going from "0 at center" to "0 at origin").
+    auto ifftshift_2d = [&](const std::pmr::vector<double> &in,
+                            std::pmr::vector<double> &out) {
+        out.resize(Np_pix);
+        const std::size_t shR = (Mp + 1) / 2;  // ifftshift uses ceil(N/2)? No, ifftshift = shift by -floor(N/2)
+        // Actually ifftshift: shift_amt = -floor(N/2). Forward circular shift by N - floor(N/2) = ceil(N/2).
+        // So output(i) = input((i + floor(N/2)) mod N). For ifftshift it's input((i + ceil(N/2)) mod N).
+        // Let me just go with: output(i + (N - floor(N/2))) % N = input(i).
+        // Equivalent: out[i] = in[(i + floor(N/2)) mod N] for fftshift, out[i] = in[(i + ceil(N/2)) mod N] for ifftshift.
+        const std::size_t shR_eff = Mp / 2;          // floor(Mp/2) for fftshift
+        const std::size_t shC_eff = Np / 2;
+        // ifftshift = inverse of fftshift. For ifftshift, the shift amount equals (N - floor(N/2)) = ceil(N/2):
+        const std::size_t aR = Mp - shR_eff;
+        const std::size_t aC = Np - shC_eff;
+        for (std::size_t c = 0; c < Np; ++c) {
+            const std::size_t cs = (c + aC) % Np;
+            for (std::size_t r2 = 0; r2 < Mp; ++r2) {
+                const std::size_t rs = (r2 + aR) % Mp;
+                out[c * Mp + r2] = in[cs * Mp + rs];
+            }
+        }
+    };
+    std::pmr::vector<double> Hshift(mr);
+    ifftshift_2d(H, Hshift);
+
+    // Multiply: prod = Afc .* Hshift (real-valued H).
+    std::pmr::vector<Complex> prod(Np_pix, Complex{0, 0}, mr);
+    for (std::size_t i = 0; i < Np_pix; ++i) {
+        prod[i] = Complex{Afc[i].real() * Hshift[i],
+                          Afc[i].imag() * Hshift[i]};
+    }
+
+    // ifft2.
+    Value Prod = Value::matrix(Mp, Np, ValueType::COMPLEX, mr);
+    Complex *pp = Prod.complexDataMut();
+    for (std::size_t i = 0; i < Np_pix; ++i) pp[i] = prod[i];
+    Value Out = signal::ifft2(Prod, -1, -1, mr);
+
+    // Output is complex; if accidentally collapsed to DOUBLE (real-symmetric),
+    // pad imag = 0.
+    auto out_at = [&](std::size_t i) -> Complex {
+        if (Out.isComplex()) return Out.complexData()[i];
+        return Complex{Out.elemAsDouble(i), 0.0};
+    };
+
+    // Unpad: take rows [r, r+M-1] cols [r, r+N-1].
+    mag_out = Value::matrix(M, N, outT, mr);
+    phase_out = Value::matrix(M, N, outT, mr);
+    for (std::size_t c = 0; c < N; ++c) {
+        for (std::size_t rr = 0; rr < M; ++rr) {
+            const std::size_t src = (c + r) * Mp + (rr + r);
+            const Complex z = out_at(src);
+            const double m = std::hypot(z.real(), z.imag());
+            const double p = std::atan2(z.imag(), z.real());
+            const std::size_t dst = c * M + rr;
+            if (outT == ValueType::DOUBLE) {
+                mag_out.doubleDataMut()[dst]   = m;
+                phase_out.doubleDataMut()[dst] = p;
+            } else {
+                mag_out.singleDataMut()[dst]   = static_cast<float>(m);
+                phase_out.singleDataMut()[dst] = static_cast<float>(p);
+            }
+        }
+    }
+}
+
+// ── imnlmfilt (Non-Local Means denoising) ────────────────────────
+//
+// MATLAB R2025b imnlmfilt: exhaustive search-window NLM with
+// box-blur patch-distance (Buades-Coll-Morel 2005).
+//
+//   for each pixel p:
+//     for each q in S×S search window:
+//       d² = (1/|N|) Σ_{x∈N} (I_pad(p+x) - I_pad(q+x))²
+//       w(p, q) = exp(-d² / h²)
+//     w(p, p) is set to max over non-self weights ("Buades trick")
+//     J(p) = Σ_q w·I(q) / Σ_q w
+//
+// Default h via Immerkaer-1996 noise estimate:
+//   h = |L*I| · √(π/2) / (6·(W-2)·(H-2))
+//   L = [1 -2 1; -2 4 -2; 1 -2 1] (Laplacian kernel)
+//
+// References:
+//   Buades-Coll-Morel "A Non-Local Algorithm for Image Denoising"
+//   CVPR 2005;
+//   Immerkaer "Fast Noise Variance Estimation" CVIU 1996.
+//
+// 2-D grayscale only.
+namespace {
+
+double immerkaer_dos(const Value &I, std::pmr::memory_resource * /*mr*/) {
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    if (H < 3 || W < 3) return 1.0;
+
+    // MATLAB always casts to single in estimateDegreeOfSmoothing.m, so
+    // we do the same to bit-match (matters at the ~1e-8 level).
+    const float K[3][3] = {{1, -2, 1}, {-2, 4, -2}, {1, -2, 1}};
+    const std::size_t Mp = H + 2;
+    const std::size_t Wp = W + 2;
+    auto Ival = [&](std::size_t r, std::size_t c) -> float {
+        return static_cast<float>(I.elemAsDouble(c * H + r));
+    };
+    float sum_abs = 0.0f;
+    for (std::size_t oc = 0; oc < Wp; ++oc) {
+        for (std::size_t orr = 0; orr < Mp; ++orr) {
+            float s = 0.0f;
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    const long ir = static_cast<long>(orr) - i;
+                    const long ic = static_cast<long>(oc) - j;
+                    if (ir < 0 || ic < 0
+                     || static_cast<std::size_t>(ir) >= H
+                     || static_cast<std::size_t>(ic) >= W) continue;
+                    s += K[i][j] * Ival(ir, ic);
+                }
+            }
+            sum_abs += std::fabs(s);
+        }
+    }
+    const float dos = sum_abs * std::sqrt(static_cast<float>(M_PI) * 0.5f)
+                    / (6.0f * (W - 2) * (H - 2));
+    return (dos == 0.0f)
+            ? static_cast<double>(std::numeric_limits<float>::epsilon())
+            : static_cast<double>(dos);
+}
+
+} // anonymous
+
+void imnlmfilt(const Value &I, double dos,
+               int swsize, int cwsize,
+               Value &J_out, double &est_out,
+               std::pmr::memory_resource *mr)
+{
+    if (I.dims().is3D())
+        throw Error("imnlmfilt: RGB / colour inputs not yet supported",
+                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:dim");
+    const std::size_t H = I.dims().rows();
+    const std::size_t W = I.dims().cols();
+    if (H < 21 || W < 21)
+        throw Error("imnlmfilt: image must be at least 21x21",
+                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:size");
+    if (swsize < 1 || (swsize % 2) == 0)
+        throw Error("imnlmfilt: SearchWindowSize must be a positive odd "
+                    "integer",
+                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:sws");
+    if (cwsize < 1 || (cwsize % 2) == 0)
+        throw Error("imnlmfilt: ComparisonWindowSize must be a positive "
+                    "odd integer",
+                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:cws");
+    if (cwsize > swsize)
+        throw Error("imnlmfilt: ComparisonWindowSize must be <= "
+                    "SearchWindowSize",
+                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:cwsTooLarge");
+    if (static_cast<std::size_t>(swsize) > std::min(H, W))
+        throw Error("imnlmfilt: SearchWindowSize must be <= min(H, W)",
+                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:swsTooLarge");
+
+    const ValueType outT = I.type();
+    const std::size_t N = H * W;
+
+    // Cast I to DOUBLE.
+    std::pmr::vector<double> Iv(N, 0.0, mr);
+    for (std::size_t i = 0; i < N; ++i) Iv[i] = I.elemAsDouble(i);
+
+    // Resolve h.
+    double h = dos;
+    if (h < 0) {
+        Value Ivv = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < N; ++i) Ivv.doubleDataMut()[i] = Iv[i];
+        h = immerkaer_dos(Ivv, mr);
+    }
+    est_out = h;
+
+    const int sh = (swsize - 1) / 2;
+    const int ch = (cwsize - 1) / 2;
+    const int pad = sh + ch;
+    const std::size_t Mp = H + 2 * pad;
+    const std::size_t Wp = W + 2 * pad;
+
+    // Build replicate-padded image.
+    std::pmr::vector<double> P(Mp * Wp, 0.0, mr);
+    for (std::size_t c = 0; c < Wp; ++c) {
+        for (std::size_t r = 0; r < Mp; ++r) {
+            const long ir = static_cast<long>(r) - pad;
+            const long ic = static_cast<long>(c) - pad;
+            const long irc = std::clamp(ir, 0L, static_cast<long>(H - 1));
+            const long icc = std::clamp(ic, 0L, static_cast<long>(W - 1));
+            P[c * Mp + r] = Iv[static_cast<std::size_t>(icc) * H
+                              + static_cast<std::size_t>(irc)];
+        }
+    }
+
+    const double inv_h2 = 1.0 / (h * h);
+    const double inv_cwsq = 1.0 / static_cast<double>(cwsize * cwsize);
+
+    // Build output.
+    std::pmr::vector<double> Out(N, 0.0, mr);
+
+    for (std::size_t c = 0; c < W; ++c) {
+        for (std::size_t r = 0; r < H; ++r) {
+            const std::size_t pr = r + pad;
+            const std::size_t pc = c + pad;
+            double sum_w = 0.0;
+            double sum_wI = 0.0;
+            double max_w = 0.0;
+
+            // Iterate search window q = p + (dr, dc).
+            for (int dc = -sh; dc <= sh; ++dc) {
+                for (int dr = -sh; dr <= sh; ++dr) {
+                    if (dr == 0 && dc == 0) continue;  // skip self
+                    const std::size_t qr = pr + dr;
+                    const std::size_t qc = pc + dc;
+                    // Compute squared patch distance.
+                    double d2 = 0.0;
+                    for (int ac = -ch; ac <= ch; ++ac) {
+                        for (int ar = -ch; ar <= ch; ++ar) {
+                            const double a = P[(pc + ac) * Mp + (pr + ar)];
+                            const double b = P[(qc + ac) * Mp + (qr + ar)];
+                            const double d = a - b;
+                            d2 += d * d;
+                        }
+                    }
+                    d2 *= inv_cwsq;
+                    const double w = std::exp(-d2 * inv_h2);
+                    sum_w  += w;
+                    sum_wI += w * P[qc * Mp + qr];
+                    if (w > max_w) max_w = w;
+                }
+            }
+            // Centre pixel uses max non-self weight.
+            sum_w  += max_w;
+            sum_wI += max_w * Iv[c * H + r];
+
+            Out[c * H + r] = sum_wI / sum_w;
+        }
+    }
+
+    // Cast back to input class.
+    J_out = Value::matrix(H, W, outT, mr);
+    if (outT == ValueType::DOUBLE) {
+        double *p = J_out.doubleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p[i] = Out[i];
+    } else if (outT == ValueType::SINGLE) {
+        float *p = J_out.singleDataMut();
+        for (std::size_t i = 0; i < N; ++i) p[i] = static_cast<float>(Out[i]);
+    } else {
+        auto saturate = [&](double v, double lo, double hi) {
+            v = std::round(v);
+            if (v < lo) v = lo;
+            if (v > hi) v = hi;
+            return v;
+        };
+        for (std::size_t i = 0; i < N; ++i) {
+            const double v = Out[i];
+            switch (outT) {
+                case ValueType::UINT8:  J_out.uint8DataMut()[i]  = static_cast<std::uint8_t>(saturate(v, 0.0, 255.0)); break;
+                case ValueType::UINT16: J_out.uint16DataMut()[i] = static_cast<std::uint16_t>(saturate(v, 0.0, 65535.0)); break;
+                case ValueType::INT8:   J_out.int8DataMut()[i]   = static_cast<std::int8_t>(saturate(v, -128.0, 127.0)); break;
+                case ValueType::INT16:  J_out.int16DataMut()[i]  = static_cast<std::int16_t>(saturate(v, -32768.0, 32767.0)); break;
+                case ValueType::INT32:  J_out.int32DataMut()[i]  = static_cast<std::int32_t>(saturate(v, -2147483648.0, 2147483647.0)); break;
+                case ValueType::UINT32: J_out.uint32DataMut()[i] = static_cast<std::uint32_t>(saturate(v, 0.0, 4294967295.0)); break;
+                default: J_out.doubleDataMut()[i] = v; break;
+            }
+        }
+    }
+}
+
+namespace detail {
+
+void roifilt2_reg(Span<const Value> args, std::size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("roifilt2: requires (h, I, BW) or (I, BW, fun)",
+                    0, 0, "roifilt2", "", "numkit:roifilt2:nargin");
+    auto *mr = ctx.engine->resource();
+    // Function-handle form: J = roifilt2(I, BW, fun).
+    if (args[2].isFuncHandle() || args[2].isChar() || args[2].isString()) {
+        const Value &I = args[0];
+        const Value &BW = args[1];
+        if (I.dims().ndim() > 2)
+            throw Error("roifilt2: I must be a 2-D image",
+                        0, 0, "roifilt2", "", "numkit:roifilt2:imageMustBe2D");
+        Value filtRes = ctx.engine->callFunctionHandle(
+            args[2], Span<const Value>(&I, 1));
+        outs[0] = roifilt2_combine(I, filtRes, BW, mr);
+        return;
+    }
+    // Filter form: J = roifilt2(h, I, BW).
+    outs[0] = roifilt2(args[0], args[1], args[2], mr);
+}
+
+void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("nlfilter: requires (A, [m n], fun) or "
+                    "(A, 'indexed', [m n], fun)",
+                    0, 0, "nlfilter", "", "numkit:nlfilter:nargin");
+    auto *mr = ctx.engine->resource();
+
+    bool indexed = false;
+    std::size_t k = 1;
+    if (args[1].isChar() || args[1].isString()) {
+        std::string s = args[1].toString();
+        for (auto &c : s) c = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(c)));
+        if (s != "indexed")
+            throw Error("nlfilter: unknown literal '" + args[1].toString()
+                      + "' (expected 'indexed')",
+                        0, 0, "nlfilter", "", "numkit:nlfilter:badLiteral");
+        indexed = true;
+        k = 2;
+    }
+    if (k + 1 >= args.size())
+        throw Error("nlfilter: requires (A, [m n], fun) "
+                    "or (A, 'indexed', [m n], fun)",
+                    0, 0, "nlfilter", "", "numkit:nlfilter:nargin");
+    const Value &nh = args[k];
+    const Value &fn = args[k + 1];
+    if (nh.numel() != 2)
+        throw Error("nlfilter: neighbourhood must be a 2-element vector",
+                    0, 0, "nlfilter", "", "numkit:nlfilter:nhood");
+    const std::size_t m = static_cast<std::size_t>(nh.elemAsDouble(0));
+    const std::size_t n = static_cast<std::size_t>(nh.elemAsDouble(1));
+    outs[0] = nlfilter(*ctx.engine, args[0], m, n, fn, indexed, mr);
+}
+
+void colfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("colfilt: requires (A, [m n], block_type, fun) "
+                    "or (A, [m n], [mblock nblock], block_type, fun)",
+                    0, 0, "colfilt", "", "numkit:colfilt:nargin");
+    auto *mr = ctx.engine->resource();
+
+    bool indexed = false;
+    std::size_t k = 1;
+    if (args[1].isChar() || args[1].isString()) {
+        std::string s = args[1].toString();
+        for (auto &c : s) c = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(c)));
+        if (s != "indexed")
+            throw Error("colfilt: unknown literal '" + args[1].toString()
+                      + "' (expected 'indexed')",
+                        0, 0, "colfilt", "", "numkit:colfilt:badLiteral");
+        indexed = true;
+        k = 2;
+    }
+    if (k + 2 >= args.size())
+        throw Error("colfilt: requires (A, [m n], block_type, fun)",
+                    0, 0, "colfilt", "", "numkit:colfilt:nargin");
+    const Value &nh = args[k];
+    if (nh.numel() != 2)
+        throw Error("colfilt: neighbourhood must be a 2-element vector",
+                    0, 0, "colfilt", "", "numkit:colfilt:nhood");
+    const std::size_t m = static_cast<std::size_t>(nh.elemAsDouble(0));
+    const std::size_t n = static_cast<std::size_t>(nh.elemAsDouble(1));
+
+    // Detect optional [mblock nblock] — present iff arg[k+1] is a
+    // 2-element numeric vector AND arg[k+2] is a string AND arg[k+3]
+    // exists (the function handle).
+    std::size_t bi = k + 1;
+    if (!args[bi].isChar() && !args[bi].isString()
+        && args[bi].numel() == 2
+        && (bi + 2) < args.size()
+        && (args[bi + 1].isChar() || args[bi + 1].isString())) {
+        // mblock / nblock is purely a memory optimisation per MATLAB
+        // docs — ignore it and proceed.
+        bi = bi + 1;
+    }
+    if (bi + 1 >= args.size())
+        throw Error("colfilt: missing block_type and/or fun argument",
+                    0, 0, "colfilt", "", "numkit:colfilt:nargin");
+    if (!args[bi].isChar() && !args[bi].isString())
+        throw Error("colfilt: block_type must be 'sliding' or 'distinct'",
+                    0, 0, "colfilt", "", "numkit:colfilt:blockType");
+    const std::string kind = args[bi].toString();
+    const Value &fn = args[bi + 1];
+    outs[0] = colfilt(*ctx.engine, args[0], m, n, kind, fn, indexed, mr);
+}
+
+void imnlmfilt_reg(Span<const Value> args, std::size_t nargout,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imnlmfilt: requires (I [, NV...])",
+                    0, 0, "imnlmfilt", "", "numkit:imnlmfilt:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    double dos = -1.0;
+    int swsize = 21;
+    int cwsize = 5;
+    std::size_t i = 1;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("imnlmfilt: expected NV-pair name",
+                        0, 0, "imnlmfilt", "", "numkit:imnlmfilt:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "degreeofsmoothing") {
+            dos = args[i + 1].toScalar();
+            if (!(dos > 0))
+                throw Error("imnlmfilt: DegreeOfSmoothing must be positive",
+                            0, 0, "imnlmfilt", "", "numkit:imnlmfilt:dos");
+        } else if (nlo == "searchwindowsize") {
+            swsize = static_cast<int>(args[i + 1].toScalar());
+        } else if (nlo == "comparisonwindowsize") {
+            cwsize = static_cast<int>(args[i + 1].toScalar());
+        } else {
+            throw Error("imnlmfilt: unknown option '" + name + "'",
+                        0, 0, "imnlmfilt", "",
+                        "numkit:imnlmfilt:unknownNv");
+        }
+        i += 2;
+    }
+    Value J;
+    double est;
+    imnlmfilt(args[0], dos, swsize, cwsize, J, est, mr);
+    outs[0] = std::move(J);
+    if (nargout >= 2) outs[1] = Value::scalar(est, mr);
+}
+
+void imgaborfilt_reg(Span<const Value> args, std::size_t nargout,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("imgaborfilt: requires (A, wavelength, orientation "
+                    "[, NV...]) — gabor() bank form not supported",
+                    0, 0, "imgaborfilt", "", "numkit:imgaborfilt:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    const Value &A = args[0];
+    const double wavelength  = args[1].toScalar();
+    const double orientation = args[2].toScalar();
+    double sfb = 1.0;
+    double aspect = 0.5;
+
+    std::size_t i = 3;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("imgaborfilt: expected NV-pair name",
+                        0, 0, "imgaborfilt", "", "numkit:imgaborfilt:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "spatialfrequencybandwidth")
+            sfb = args[i + 1].toScalar();
+        else if (nlo == "spatialaspectratio")
+            aspect = args[i + 1].toScalar();
+        else
+            throw Error("imgaborfilt: unknown option '" + name + "'",
+                        0, 0, "imgaborfilt", "",
+                        "numkit:imgaborfilt:unknownNv");
+        i += 2;
+    }
+    Value mag, phase;
+    imgaborfilt(A, wavelength, orientation, sfb, aspect, mag, phase, mr);
+    outs[0] = std::move(mag);
+    if (nargout >= 2) outs[1] = std::move(phase);
+}
+
+void imdiffusefilt_reg(Span<const Value> args, std::size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imdiffusefilt: requires (I [, NV...])",
+                    0, 0, "imdiffusefilt", "",
+                    "numkit:imdiffusefilt:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    Value thresh;
+    std::size_t N = 0;
+    std::string connectivity = "maximal";
+    std::string conduction = "exponential";
+
+    std::size_t i = 1;
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("imdiffusefilt: expected NV-pair name",
+                        0, 0, "imdiffusefilt", "",
+                        "numkit:imdiffusefilt:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "gradientthreshold") {
+            thresh = args[i + 1];
+        } else if (nlo == "numberofiterations") {
+            const double v = args[i + 1].toScalar();
+            if (!(v > 0) || v != std::floor(v))
+                throw Error("imdiffusefilt: NumberOfIterations must be a "
+                            "positive integer",
+                            0, 0, "imdiffusefilt", "",
+                            "numkit:imdiffusefilt:n");
+            N = static_cast<std::size_t>(v);
+        } else if (nlo == "connectivity") {
+            connectivity = args[i + 1].toString();
+            std::string lo;
+            for (char ch : connectivity)
+                lo += static_cast<char>(std::tolower(
+                    static_cast<unsigned char>(ch)));
+            connectivity = lo;
+        } else if (nlo == "conductionmethod") {
+            conduction = args[i + 1].toString();
+            std::string lo;
+            for (char ch : conduction)
+                lo += static_cast<char>(std::tolower(
+                    static_cast<unsigned char>(ch)));
+            conduction = lo;
+        } else {
+            throw Error("imdiffusefilt: unknown option '" + name + "'",
+                        0, 0, "imdiffusefilt", "",
+                        "numkit:imdiffusefilt:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = imdiffusefilt(args[0], thresh, N, connectivity, conduction, mr);
+}
+
+void imguidedfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
+                        Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imguidedfilter: requires (A [, G] [, NV...])",
+                    0, 0, "imguidedfilter", "",
+                    "numkit:imguidedfilter:nargin");
+    auto *mr = ctx.engine->resource();
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    Value A = args[0];
+    Value G;  // empty → self-guide
+    int nhood = 5;
+    double eps = -1.0;  // sentinel → class-based default
+
+    std::size_t i = 1;
+    if (i < args.size() && !is_string(args[i])) {
+        G = args[i];
+        ++i;
+    }
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("imguidedfilter: expected NV-pair name",
+                        0, 0, "imguidedfilter", "",
+                        "numkit:imguidedfilter:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(
+                static_cast<unsigned char>(ch)));
+        if (nlo == "neighborhoodsize") {
+            const Value &v = args[i + 1];
+            if (v.numel() == 1) {
+                nhood = static_cast<int>(v.toScalar());
+            } else if (v.numel() == 2) {
+                const int n0 = static_cast<int>(v.elemAsDouble(0));
+                const int n1 = static_cast<int>(v.elemAsDouble(1));
+                if (n0 != n1)
+                    throw Error("imguidedfilter: non-square NeighborhoodSize "
+                                "not yet supported",
+                                0, 0, "imguidedfilter", "",
+                                "numkit:imguidedfilter:nhoodNonsq");
+                nhood = n0;
+            } else {
+                throw Error("imguidedfilter: NeighborhoodSize must be a "
+                            "scalar or 2-element vector",
+                            0, 0, "imguidedfilter", "",
+                            "numkit:imguidedfilter:nhoodSize");
+            }
+        } else if (nlo == "degreeofsmoothing") {
+            eps = args[i + 1].toScalar();
+            if (!(eps > 0) || !std::isfinite(eps))
+                throw Error("imguidedfilter: DegreeOfSmoothing must be a "
+                            "positive finite scalar",
+                            0, 0, "imguidedfilter", "",
+                            "numkit:imguidedfilter:dos");
+        } else {
+            throw Error("imguidedfilter: unknown option '" + name + "'",
+                        0, 0, "imguidedfilter", "",
+                        "numkit:imguidedfilter:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = imguidedfilter(A, G, nhood, eps, mr);
 }
 
 } // namespace detail

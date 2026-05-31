@@ -14,7 +14,7 @@ namespace numkit::builtin {
 /// @file
 /// @brief Polynomial-domain builtins.
 ///
-/// **Coefficient convention** matches MATLAB: `p(1)` is the leading
+/// **Coefficient convention:** `p(1)` is the leading
 /// coefficient, `p(end)` is the constant term. So
 /// `p = [1 -3 2] ↔ x² - 3x + 2`.
 
@@ -160,6 +160,39 @@ struct PolyDiv {
 PolyDiv polydiv(const Value &b, const Value &a,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Partial fraction expansion (`[r, p, k] = residue(b, a)`).
+///
+/// `[r, p, k] = residue(b, a)` decomposes `B(s)/A(s)` as
+///
+/// ```text
+///   B(s)        r_1            r_n
+///   ----  =  --------- + ... ------- + k(s)
+///   A(s)     s - p_1        s - p_n
+/// ```
+///
+/// where `p_i` are the roots of `A` and `k` is the direct polynomial
+/// term (`b = q·a + r_rem` from `polydiv`).
+///
+/// KNOWN GAP: only **distinct poles** are supported in v1. Repeated
+/// poles need higher-derivative formulas (Heaviside cover-up extended)
+/// and currently throw `m:residue:repeatedPole`. Detection tolerance
+/// is `1e-6 · max(1, |p|)` between any two poles.
+///
+/// @return  `{ r, p, k }` — residues (column), poles (column), direct
+///          term (row vector; empty if `deg b < deg a`). Complex if
+///          any pole is complex; otherwise real.
+struct ResidueResult { Value r; Value p; Value k; };
+ResidueResult residue(const Value &b, const Value &a,
+                      std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Partial fraction expansion in z-domain
+/// (`[r, p, k] = residuez(b, a)`).
+///
+/// Computes `B(z)/A(z) = sum_i r_i / (1 - p_i · z^{-1}) + k(z^{-1})`.
+/// Same KNOWN GAP as `residue` — distinct poles only.
+ResidueResult residuez(const Value &b, const Value &a,
+                       std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Padé approximant of `e^{-T·s}`.
 struct PadeCoef {
     Value num;  ///< Numerator coefficients (descending order).
@@ -170,8 +203,7 @@ struct PadeCoef {
 /// (`[num, den] = padecoef(T, N)`).
 ///
 /// Returns `(num, den)` rows in descending order of `s`, normalised so
-/// the leading denominator coefficient is 1 (matches MATLAB's
-/// `[num,den] = padecoef(T,N)`).
+/// the leading denominator coefficient is 1.
 ///
 /// @param T   Delay.
 /// @param N   Approximation order.

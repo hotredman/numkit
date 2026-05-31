@@ -1,6 +1,6 @@
 // libs/signal/include/numkit/signal/digital_filtering/poly_utils.hpp
 //
-// MATLAB Signal Toolbox polynomial utilities.
+// Signal-processing polynomial utilities.
 
 #pragma once
 

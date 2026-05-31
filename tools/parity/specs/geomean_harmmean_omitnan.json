@@ -1,0 +1,6 @@
+{"name": "geomean_harmmean_omitnan", "covers": ["geomean", "harmmean"], "namespace": "stats",
+ "setup": "Mn = [1 5; 2 NaN; 3 7; 4 100; 5 8];",
+ "expr": "g = geomean(Mn,1,'omitnan'); g2 = g(2); g1 = g(1); g0 = geomean(Mn,'omitnan'); g02 = g0(2); h = harmmean(Mn,'omitnan'); h2 = h(2); h1 = h(1); gd = geomean(Mn); gd2 = gd(2);",
+ "iters": 3, "tol": 1e-10,
+ "fingerprint": ["g1", "g2", "g02", "h1", "h2", "gd2"],
+ "comment": "geomean/harmmean 'omitnan' nanflag (2026-05-30). MATLAB geomean/harmmean accept a trailing 'omitnan' (or 'includenan', default) nanflag that removes NaN per slice; numkit previously IGNORED the flag (geomean returned NaN) or ERRORED converting the char to a dim (harmmean). Mn col2 = [5;7;100;8] after dropping the NaN: geomean(...,'omitnan') g2=12.935687, g02=12.935687 (geomean(Mn,'omitnan') same), harmmean(...,'omitnan') h2=8.3707025. col1 (no NaN) unchanged g1=2.6051711, h1=2.1898. Default (includenan) still propagates NaN: gd2=NaN. namespace=stats; kept separate from geomean.json/harmmean.json. Matches MATLAB R2025b."}

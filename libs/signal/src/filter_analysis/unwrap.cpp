@@ -43,7 +43,7 @@ void unwrap_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("unwrap: requires 1 argument",
-                     0, 0, "unwrap", "", "m:unwrap:nargin");
+                     0, 0, "unwrap", "", "numkit:unwrap:nargin");
     outs[0] = unwrap(args[0], ctx.engine->resource());
 }
 

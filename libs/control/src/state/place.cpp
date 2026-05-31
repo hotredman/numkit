@@ -73,13 +73,13 @@ Value acker(const Value &Av, const Value &Bv, const Value &pv, std::pmr::memory_
     const size_t n = Av.dims().rows();
     if (Av.dims().cols() != n)
         throw Error("acker: A must be square",
-                    0, 0, "acker", "", "m:acker:A");
+                    0, 0, "acker", "", "numkit:acker:A");
     if (Bv.dims().rows() != n || Bv.dims().cols() != 1)
         throw Error("acker: B must be n×1 (SISO only)",
-                    0, 0, "acker", "", "m:acker:B");
+                    0, 0, "acker", "", "numkit:acker:B");
     if (pv.numel() != n)
         throw Error("acker: pole list must have length n",
-                    0, 0, "acker", "", "m:acker:p");
+                    0, 0, "acker", "", "numkit:acker:p");
 
     auto A = readMat(Av, n, n);
     auto B = readMat(Bv, n, 1);
@@ -90,7 +90,7 @@ Value acker(const Value &Av, const Value &Bv, const Value &pv, std::pmr::memory_
     for (size_t i = 0; i < coeffs.numel(); ++i) c[i] = coeffs.elemAsDouble(i);
     if (c.size() != n + 1)
         throw Error("acker: poly(p) returned unexpected length",
-                    0, 0, "acker", "", "m:acker:poly");
+                    0, 0, "acker", "", "numkit:acker:poly");
 
     // φ(A) — n×n.
     Mat phi = phiOfA(A, n, c);
@@ -115,7 +115,7 @@ Value acker(const Value &Av, const Value &Bv, const Value &pv, std::pmr::memory_
     if (!solveInPlace(CoT, eN, n, 1))
         throw Error("acker: controllability matrix is singular "
                     "(system is uncontrollable)",
-                    0, 0, "acker", "", "m:acker:singular");
+                    0, 0, "acker", "", "numkit:acker:singular");
     // eN now holds vᵀ.  v is a length-n row vector.
 
     // K[k] = sum_j v[j] · phi[j, k].   (column-major phi: phi[j,k] = phi[k*n + j])
@@ -140,7 +140,7 @@ void acker_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 3)
         throw Error("acker: requires (A, B, p)",
-                    0, 0, "acker", "", "m:acker:nargin");
+                    0, 0, "acker", "", "numkit:acker:nargin");
     o[0] = acker(a[0], a[1], a[2], c.engine->resource());
 }
 
@@ -148,7 +148,7 @@ void place_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {
     if (a.size() < 3)
         throw Error("place: requires (A, B, p)",
-                    0, 0, "place", "", "m:place:nargin");
+                    0, 0, "place", "", "numkit:place:nargin");
     o[0] = place(a[0], a[1], a[2], c.engine->resource());
 }
 

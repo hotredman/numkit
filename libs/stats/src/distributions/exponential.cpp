@@ -100,7 +100,7 @@ namespace detail {
 void exppdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("exppdf: requires (x[, mu])", 0, 0, "exppdf", "", "m:exppdf:nargin");
+        throw Error("exppdf: requires (x[, mu])", 0, 0, "exppdf", "", "numkit:exppdf:nargin");
     // MATLAB default: exppdf(x) ≡ exppdf(x, 1).
     const double mu = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     outs[0] = exppdf(args[0], mu, ctx.engine->resource());
@@ -111,7 +111,7 @@ void expcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 2)
-        throw Error("expcdf: requires (x, mu[, 'upper'])", 0, 0, "expcdf", "", "m:expcdf:nargin");
+        throw Error("expcdf: requires (x, mu[, 'upper'])", 0, 0, "expcdf", "", "numkit:expcdf:nargin");
     Value v = expcdf(args[0], args[1].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -120,7 +120,7 @@ void expcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void expinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("expinv: requires (p[, mu])", 0, 0, "expinv", "", "m:expinv:nargin");
+        throw Error("expinv: requires (p[, mu])", 0, 0, "expinv", "", "numkit:expinv:nargin");
     // MATLAB default: expinv(p) ≡ expinv(p, 1).
     const double mu = (args.size() >= 2) ? args[1].toScalar() : 1.0;
     outs[0] = expinv(args[0], mu, ctx.engine->resource());
@@ -129,7 +129,7 @@ void expinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void exprnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("exprnd: requires mu[, sz...]", 0, 0, "exprnd", "", "m:exprnd:nargin");
+        throw Error("exprnd: requires mu[, sz...]", 0, 0, "exprnd", "", "numkit:exprnd:nargin");
     const double mu = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);

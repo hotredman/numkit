@@ -76,10 +76,10 @@ size_t validateSosMatrix(const Value &sos)
 {
     if (sos.dims().ndim() != 2 || sos.dims().cols() != 6 || sos.dims().rows() == 0)
         throw Error("sosfilt: sos matrix must be L×6 with L >= 1",
-                     0, 0, "sosfilt", "", "m:sosfilt:sosShape");
+                     0, 0, "sosfilt", "", "numkit:sosfilt:sosShape");
     if (sos.type() != ValueType::DOUBLE)
         throw Error("sosfilt: sos matrix must be DOUBLE",
-                     0, 0, "sosfilt", "", "m:sosfilt:sosType");
+                     0, 0, "sosfilt", "", "numkit:sosfilt:sosType");
     return sos.dims().rows();
 }
 
@@ -92,7 +92,7 @@ void applyCascade(const Value &sos, const double *xs, double *out, size_t n,
         const double a0 = p[3 * L + r];
         if (a0 == 0.0)
             throw Error("sosfilt: section a0 is zero",
-                         0, 0, "sosfilt", "", "m:sosfilt:zeroLead");
+                         0, 0, "sosfilt", "", "numkit:sosfilt:zeroLead");
         return std::array<double, 5>{
             p[0 * L + r] / a0,  // b0
             p[1 * L + r] / a0,  // b1
@@ -122,7 +122,7 @@ Value sosfilt(const Value &sos, const Value &x, std::pmr::memory_resource *mr)
     const size_t L = validateSosMatrix(sos);
     if (x.type() != ValueType::DOUBLE)
         throw Error("sosfilt: signal x must be DOUBLE",
-                     0, 0, "sosfilt", "", "m:sosfilt:xType");
+                     0, 0, "sosfilt", "", "numkit:sosfilt:xType");
     if (x.isEmpty())
         return createLike(x, ValueType::DOUBLE, mr);
     (void) L;
@@ -179,7 +179,7 @@ void applyCascadeWithZi(const Value &sos, const double *src, double *dst,
         const double a0 = p[3 * L + r];
         if (a0 == 0.0)
             throw Error("sosfiltfilt: section a0 is zero",
-                         0, 0, "sosfiltfilt", "", "m:sosfiltfilt:zeroLead");
+                         0, 0, "sosfiltfilt", "", "numkit:sosfiltfilt:zeroLead");
         return std::array<double, 5>{
             p[0 * L + r] / a0, p[1 * L + r] / a0, p[2 * L + r] / a0,
             p[4 * L + r] / a0, p[5 * L + r] / a0,
@@ -310,7 +310,7 @@ Value sosfiltfilt(const Value &sos, const Value &x, std::pmr::memory_resource *m
     validateSosMatrix(sos);
     if (x.type() != ValueType::DOUBLE)
         throw Error("sosfiltfilt: signal x must be DOUBLE",
-                     0, 0, "sosfiltfilt", "", "m:sosfiltfilt:xType");
+                     0, 0, "sosfiltfilt", "", "numkit:sosfiltfilt:xType");
     if (x.isEmpty())
         return createLike(x, ValueType::DOUBLE, mr);
 
@@ -336,7 +336,7 @@ void sosfilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("sosfilt: requires (sos, x)",
-                     0, 0, "sosfilt", "", "m:sosfilt:nargin");
+                     0, 0, "sosfilt", "", "numkit:sosfilt:nargin");
     outs[0] = sosfilt(args[0], args[1], ctx.engine->resource());
 }
 
@@ -345,7 +345,7 @@ void sosfiltfilt_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("sosfiltfilt: requires (sos, x)",
-                     0, 0, "sosfiltfilt", "", "m:sosfiltfilt:nargin");
+                     0, 0, "sosfiltfilt", "", "numkit:sosfiltfilt:nargin");
     outs[0] = sosfiltfilt(args[0], args[1], ctx.engine->resource());
 }
 

@@ -21,3 +21,12 @@ discuss before sending code.
 
 See [CLAUDE.md](CLAUDE.md) for build presets, test runners, and
 repository conventions.
+
+## Public API conventions
+
+Every public function in `libs/<ns>/include/numkit/<ns>/**` must follow
+the signature rules in [docs/LIBRARY_API.md](docs/LIBRARY_API.md) —
+argument order, native scalar types, `const Value &` vs
+`Span<const double>`, `FnHandle` callbacks, no `Engine *` in the public
+API, multi-output return shape, and Doxygen requirements. Read it before
+adding or refactoring a public function.

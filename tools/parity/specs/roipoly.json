@@ -1,0 +1,10 @@
+{
+  "name": "roipoly",
+  "namespace": "image",
+  "setup": "A = zeros(5,5); xi = [1 4 4 1]; yi = [1 1 4 4];",
+  "expr": "BW1 = roipoly(A, xi, yi); BW2 = roipoly(5, 5, xi, yi); BW3 = roipoly([0 10], [0 10], A, [2 8 8 2], [2 2 8 8]); BW4 = roipoly([1 5], [1 5], A, xi, yi); BW5 = roipoly([0 10], [0 10], 5, 5, [2 8 8 2], [2 2 8 8]); [BWa, xi2] = roipoly(A, xi, yi); [xo, yo, BWb, xib, yib] = roipoly(A, xi, yi); r1 = sum(BW1(:)); r2 = sum(BW2(:)); r3 = sum(BW3(:)); r4 = sum(BW4(:)); r5 = sum(BW5(:)); r6 = double(length(xi2)); r7 = xi2(end); r8 = xo(1); r9 = xo(2); r10 = yo(2);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"],
+  "comment": "Sig: BW = roipoly(...). Branches: 3-arg (A, xi, yi), 4-arg (M, N, xi, yi), 5-arg world-coords (x, y, A, xi, yi), 5-arg identity extents, 6-arg (x, y, M, N, xi, yi), 2-output with auto-closed xi return, 5-output (xdata, ydata, BW, xi, yi). Implementation: auto-close polygon, axes2pix world→pixel, then poly2mask. Interactive forms (0/1/2-arg) throw. Image namespace 2026-05-27."
+}

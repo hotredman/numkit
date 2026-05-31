@@ -1,0 +1,24 @@
+{
+  "name": "imrotate_bbox",
+  "namespace": "image",
+  "setup": "J = reshape(1:12, 3, 4);",
+  "expr": "C90 = imrotate(J, 90, 'crop'); C270 = imrotate(J, 270, 'crop'); D30 = imrotate(J, 30); L30 = imrotate(J, 30, 'loose');",
+  "fingerprint": [
+    "size(C90,1)",
+    "size(C90,2)",
+    "C90(1,1)",
+    "C90(1,2)",
+    "sum(C90(:))",
+    "size(C270,1)",
+    "size(C270,2)",
+    "C270(3,4)",
+    "sum(C270(:))",
+    "size(D30,1)",
+    "sum(D30(:))",
+    "size(L30,1)",
+    "sum(L30(:))"
+  ],
+  "tol": 1e-06,
+  "comment": "MATLAB imrotate bbox + default coverage. 'crop' keeps the INPUT size for 90 deg / 270 deg of a non-square image (3x4, via exact rot90 + centred extraction with direction-dependent half-pixel placement). Default method is 'nearest' (imrotate(J,30) == nearest, sum 86), and the 3-arg form imrotate(A,angle,bbox) treats arg3 as a bbox keyword. Bit-equal MATLAB R2025b.",
+  "iters": 3
+}

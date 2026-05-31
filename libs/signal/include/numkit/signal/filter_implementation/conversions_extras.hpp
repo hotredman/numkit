@@ -53,7 +53,7 @@ sos2zp(const Value &                sos,
 
 /// Transfer function to zero / pole / gain.
 ///
-/// MATLAB-compatible alias of `tf2zp`. Roots `b` for zeros, `a` for
+/// Alias of `tf2zp`. Roots `b` for zeros, `a` for
 /// poles, and computes `gain = b[0] / a[0]`.
 ///
 /// @param b   Numerator polynomial.
@@ -120,16 +120,15 @@ tf2ss(const Value &                b,
 /// @param A   N × N state-transition matrix.
 /// @param B   N × 1 input vector.
 /// @param C   1 × N output vector.
-/// @param D   1 × 1 direct feed-through scalar.
+/// @param D   Direct feed-through scalar (default 0).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Tuple `(b, a)`.
-///
 /// @see tf2ss
 std::tuple<Value, Value>
 ss2tf(const Value &                A,
       const Value &                B,
       const Value &                C,
-      const Value &                D,
+      double                       D  = 0.0,
       std::pmr::memory_resource *  mr = nullptr);
 
 /// @brief State space → zero / pole / gain
@@ -140,12 +139,12 @@ ss2tf(const Value &                A,
 /// @param A   N × N state-transition matrix.
 /// @param B   N × 1 input vector.
 /// @param C   1 × N output vector.
-/// @param D   1 × 1 direct feed-through scalar.
+/// @param D   Direct feed-through scalar (default 0).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Tuple `(z, p, k)` — zeros, poles, gain.
 /// @see ss2tf, zp2ss
 std::tuple<Value, Value, double>
-ss2zp(const Value &A, const Value &B, const Value &C, const Value &D,
+ss2zp(const Value &A, const Value &B, const Value &C, double D = 0.0,
       std::pmr::memory_resource *mr = nullptr);
 
 /// Zero / pole / gain to state space (via `zp2tf` then `tf2ss`).
@@ -172,18 +171,19 @@ sos2ss(const Value &                sos,
        double                       g  = 1.0,
        std::pmr::memory_resource *  mr = nullptr);
 
-/// @brief State space → second-order sections (`sos = ss2sos(A, B, C, D)`).
+/// @brief State space → second-order sections
+/// (`sos = ss2sos(A, B, C, D)`).
 ///
 /// Composes @ref ss2tf with @ref tf2sos. SISO only.
 ///
 /// @param A   N × N state-transition matrix.
 /// @param B   N × 1 input vector.
 /// @param C   1 × N output vector.
-/// @param D   1 × 1 direct feed-through scalar.
+/// @param D   Direct feed-through scalar (default 0).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `L × 6` SOS matrix.
 /// @see ss2tf, sos2ss
-Value ss2sos(const Value &A, const Value &B, const Value &C, const Value &D,
+Value ss2sos(const Value &A, const Value &B, const Value &C, double D = 0.0,
              std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

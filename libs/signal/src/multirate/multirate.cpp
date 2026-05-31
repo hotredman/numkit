@@ -59,21 +59,22 @@ ScratchVec<double> applyFirDf2t(const double *h, size_t filtLen, const double *x
 } // anonymous namespace
 
 // ── downsample ────────────────────────────────────────────────────────
-Value downsample(const Value &x, size_t n, std::pmr::memory_resource *mr)
+Value downsample(const Value &x, size_t n, std::pmr::memory_resource *mr, size_t phase)
 {
     const size_t nx = x.numel();
-    const size_t outLen = (nx + n - 1) / n;
+    // y = x[phase], x[phase+n], …  (phase in 0..n-1)
+    const size_t outLen = (phase < nx) ? (nx - phase + n - 1) / n : 0;
     const bool isRow = x.dims().rows() == 1;
 
     auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, mr)
                    : Value::matrix(outLen, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < outLen; ++i)
-        r.doubleDataMut()[i] = x.doubleData()[i * n];
+        r.doubleDataMut()[i] = x.doubleData()[phase + i * n];
     return r;
 }
 
 // ── upsample ──────────────────────────────────────────────────────────
-Value upsample(const Value &x, size_t n, std::pmr::memory_resource *mr)
+Value upsample(const Value &x, size_t n, std::pmr::memory_resource *mr, size_t phase)
 {
     const size_t nx = x.numel();
     const size_t outLen = nx * n;
@@ -84,7 +85,7 @@ Value upsample(const Value &x, size_t n, std::pmr::memory_resource *mr)
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = 0.0;
     for (size_t i = 0; i < nx; ++i)
-        r.doubleDataMut()[i * n] = x.doubleData()[i];
+        r.doubleDataMut()[phase + i * n] = x.doubleData()[i];
     return r;
 }
 
@@ -156,23 +157,39 @@ void downsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.size() < 2)
         throw Error("downsample: requires 2 arguments",
-                     0, 0, "downsample", "", "m:downsample:nargin");
-    outs[0] = downsample(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
+                     0, 0, "downsample", "", "numkit:downsample:nargin");
+    const size_t n = static_cast<size_t>(args[1].toScalar());
+    size_t phase = 0;
+    if (args.size() >= 3) {
+        phase = static_cast<size_t>(args[2].toScalar());
+        if (phase >= n)
+            throw Error("downsample: phase must be an integer in [0, n-1]",
+                         0, 0, "downsample", "", "numkit:downsample:badPhase");
+    }
+    outs[0] = downsample(args[0], n, ctx.engine->resource(), phase);
 }
 
 void upsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("upsample: requires 2 arguments",
-                     0, 0, "upsample", "", "m:upsample:nargin");
-    outs[0] = upsample(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
+                     0, 0, "upsample", "", "numkit:upsample:nargin");
+    const size_t n = static_cast<size_t>(args[1].toScalar());
+    size_t phase = 0;
+    if (args.size() >= 3) {
+        phase = static_cast<size_t>(args[2].toScalar());
+        if (phase >= n)
+            throw Error("upsample: phase must be an integer in [0, n-1]",
+                         0, 0, "upsample", "", "numkit:upsample:badPhase");
+    }
+    outs[0] = upsample(args[0], n, ctx.engine->resource(), phase);
 }
 
 void decimate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("decimate: requires 2 arguments",
-                     0, 0, "decimate", "", "m:decimate:nargin");
+                     0, 0, "decimate", "", "numkit:decimate:nargin");
     outs[0] = decimate(args[0], static_cast<size_t>(args[1].toScalar()), ctx.engine->resource());
 }
 
@@ -180,7 +197,7 @@ void resample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 {
     if (args.size() < 3)
         throw Error("resample: requires 3 arguments",
-                     0, 0, "resample", "", "m:resample:nargin");
+                     0, 0, "resample", "", "numkit:resample:nargin");
     outs[0] = resample(args[0], static_cast<size_t>(args[1].toScalar()), static_cast<size_t>(args[2].toScalar()), ctx.engine->resource());
 }
 

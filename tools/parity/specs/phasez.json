@@ -2,9 +2,10 @@
   "name": "phasez",
   "namespace": "signal",
   "setup": "",
-  "expr": "[ph, w] = phasez([1 0.5 0.25], [1], 8); r1 = double(numel(ph));",
+  "expr": "[ph, w] = phasez([1 0.5 0.25], [1], 8); r1 = double(numel(ph)); [pf, ff] = phasez([1 1], [1 -0.5], 4, 100); f2 = ff(2); f4 = ff(4); p2 = pf(2);",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [phi,w] = phasez(b,a,n). Re-closed after freqz endpoint fix 2026-05-09 ([0,π) exclusive)."
+  "fingerprint": ["r1", "f2", "f4", "p2"],
+  "comment": "Sig: [phi,w] = phasez(b,a,n[,fs]). Default grid w = pi*(0:n-1)/n on [0,pi). DEEP-PROBE 2026-05-31: the sample-rate form phasez(b,a,n,fs) was IGNORING fs and returning radians; the frequency vector must be in Hz over [0,fs/2) = w*fs/(2*pi) (phase values unchanged). phasez([1 1],[1 -0.5],4,100): ff=[0 12.5 25 37.5] (f2=12.5 f4=37.5), unwrapped phase p2=ph(2)=-0.89317312. namespace=signal. Matches MATLAB R2025b.",
+  "deep_verified": true
 }

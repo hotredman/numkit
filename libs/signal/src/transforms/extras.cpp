@@ -62,7 +62,7 @@ Value dftmtx(size_t N, std::pmr::memory_resource *mr)
 {
     if (N == 0)
         throw Error("dftmtx: N must be positive",
-                     0, 0, "dftmtx", "", "m:dftmtx:badN");
+                     0, 0, "dftmtx", "", "numkit:dftmtx:badN");
     auto out = Value::complexMatrix(N, N, mr);
     Complex *dst = out.complexDataMut();
     const double base = -2.0 * M_PI / static_cast<double>(N);
@@ -80,7 +80,7 @@ Value bitrevorder(const Value &x, std::pmr::memory_resource *mr)
     const size_t n = x.numel();
     if (!isPow2(n))
         throw Error("bitrevorder: input length must be a power of two",
-                     0, 0, "bitrevorder", "", "m:bitrevorder:badLength");
+                     0, 0, "bitrevorder", "", "numkit:bitrevorder:badLength");
     size_t bits = 0;
     for (size_t v = n; v > 1; v >>= 1) ++bits;
 
@@ -220,7 +220,7 @@ void dftmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("dftmtx: requires N",
-                     0, 0, "dftmtx", "", "m:dftmtx:nargin");
+                     0, 0, "dftmtx", "", "numkit:dftmtx:nargin");
     outs[0] = dftmtx(static_cast<size_t>(args[0].toScalar()), ctx.engine->resource());
 }
 
@@ -228,7 +228,7 @@ void bitrevorder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("bitrevorder: requires x",
-                     0, 0, "bitrevorder", "", "m:bitrevorder:nargin");
+                     0, 0, "bitrevorder", "", "numkit:bitrevorder:nargin");
     auto *mr = ctx.engine->resource();
     outs[0] = bitrevorder(args[0], mr);
     // 2nd output: 1-based index vector I such that Y(k) = X(I(k)).
@@ -258,7 +258,7 @@ void dst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("dst: requires x",
-                     0, 0, "dst", "", "m:dst:nargin");
+                     0, 0, "dst", "", "numkit:dst:nargin");
     outs[0] = dst(args[0], ctx.engine->resource());
 }
 
@@ -266,7 +266,7 @@ void idst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.empty())
         throw Error("idst: requires y",
-                     0, 0, "idst", "", "m:idst:nargin");
+                     0, 0, "idst", "", "numkit:idst:nargin");
     outs[0] = idst(args[0], ctx.engine->resource());
 }
 
@@ -274,7 +274,7 @@ void rceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("rceps: requires x",
-                     0, 0, "rceps", "", "m:rceps:nargin");
+                     0, 0, "rceps", "", "numkit:rceps:nargin");
     outs[0] = rceps(args[0], ctx.engine->resource());
 }
 
@@ -282,7 +282,7 @@ void cceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("cceps: requires x",
-                     0, 0, "cceps", "", "m:cceps:nargin");
+                     0, 0, "cceps", "", "numkit:cceps:nargin");
     outs[0] = cceps(args[0], ctx.engine->resource());
 }
 
@@ -290,7 +290,7 @@ void icceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("icceps: requires c",
-                     0, 0, "icceps", "", "m:icceps:nargin");
+                     0, 0, "icceps", "", "numkit:icceps:nargin");
     outs[0] = icceps(args[0], ctx.engine->resource());
 }
 

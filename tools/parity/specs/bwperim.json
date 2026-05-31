@@ -1,12 +1,21 @@
 {
   "name": "bwperim",
   "namespace": "image",
-  "setup": "",
-  "expr": "P = bwperim(eye(4)); r1 = double(numel(P));",
+  "setup": "Sq = false(6,6); Sq(2:5,2:5) = true; D = logical([1 0 0 0; 0 1 0 0; 0 0 1 1; 0 0 1 1]);",
+  "expr": "P4 = bwperim(Sq, 4); P8 = bwperim(Sq, 8); D4 = bwperim(D, 4); D8 = bwperim(D, 8);",
   "iters": 5,
-  "tol": 1e-06,
+  "tol": 1e-12,
   "fingerprint": [
-    "r1"
+    "nnz(P4)",
+    "nnz(P8)",
+    "double(P4(2,2))",
+    "double(P4(3,3))",
+    "double(P4(2,3))",
+    "double(P8(3,3))",
+    "nnz(D4)",
+    "nnz(D8)",
+    "double(D4(1,1))",
+    "double(D4(3,3))"
   ],
-  "comment": "Sig: r = bwperim(...). Spec-extension batch 2026-05-09."
+  "comment": "MATLAB bwperim — boundary pixels of binary objects. Covers conn=4 and conn=8 on a solid 4x4 square (border on, interior off) and a diagonal+block shape. Pins perimeter counts AND specific pixel on/off states (interior P4(3,3)=0, border P4(2,2)=1). Previously fingerprinted only numel. Bit-equal MATLAB R2025b."
 }

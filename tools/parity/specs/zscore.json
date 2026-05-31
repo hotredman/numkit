@@ -1,10 +1,18 @@
 {
   "name": "zscore",
   "namespace": "stats",
-  "setup": "x = [1 2 3 4 5];",
-  "expr": "z = zscore(x); r1 = double(abs(mean(z)) < 1e-9);",
+  "setup": "x = [2 4 4 4 5 5 7 9]; M = magic(4);",
+  "expr": "z0 = zscore(x); z1 = zscore(x, 1); zr = zscore(M, 0, 2);",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: z = zscore(x). Spec-extension batch 2026-05-09 (cycle 41)."
+  "fingerprint": [
+    "z0(1)",
+    "z0(8)",
+    "sum(z0)",
+    "z1(1)",
+    "z1(8)",
+    "zr(1,1)",
+    "zr(2,3)"
+  ],
+  "comment": "MATLAB zscore — centre + scale to unit std. DEFAULT flag 0 uses the SAMPLE std (N-1): z0(1)=-1.40312152 (previously numkit wrongly used N -> -1.5). flag 1 uses population std (N). dim arg: zscore(M,0,2) operates along rows. Pins actual normalised values across flag 0/1 and dim 1/2. Bit-equal MATLAB R2025b (tol=1e-9). The old spec only checked abs(mean(z))<1e-9, which is true for BOTH normalisations and hid the bug."
 }

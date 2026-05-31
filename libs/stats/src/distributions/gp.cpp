@@ -137,7 +137,7 @@ void gppdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("gppdf: requires (x, k, sigma, theta)",
-                    0, 0, "gppdf", "", "m:gppdf:nargin");
+                    0, 0, "gppdf", "", "numkit:gppdf:nargin");
     outs[0] = gppdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
@@ -148,7 +148,7 @@ void gpcdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
         throw Error("gpcdf: requires (x, k, sigma, theta[, 'upper'])",
-                    0, 0, "gpcdf", "", "m:gpcdf:nargin");
+                    0, 0, "gpcdf", "", "numkit:gpcdf:nargin");
     Value v = gpcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -159,7 +159,7 @@ void gpinv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("gpinv: requires (p, k, sigma, theta)",
-                    0, 0, "gpinv", "", "m:gpinv:nargin");
+                    0, 0, "gpinv", "", "numkit:gpinv:nargin");
     outs[0] = gpinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
 }
 
@@ -168,7 +168,7 @@ void gprnd_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("gprnd: requires (k, sigma, theta[, m, n])",
-                    0, 0, "gprnd", "", "m:gprnd:nargin");
+                    0, 0, "gprnd", "", "numkit:gprnd:nargin");
     const double k     = args[0].toScalar();
     const double sigma = args[1].toScalar();
     const double theta = args[2].toScalar();

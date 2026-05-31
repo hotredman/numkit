@@ -1,0 +1,10 @@
+{
+  "name": "imnlmfilt",
+  "namespace": "image",
+  "setup": "I = double(reshape(1:441, 21, 21)) / 441;",
+  "expr": "[B, estDoS] = imnlmfilt(I); B2 = imnlmfilt(I, 'DegreeOfSmoothing', 0.05); B3 = imnlmfilt(I, 'ComparisonWindowSize', 3); B4 = imnlmfilt(I, 'SearchWindowSize', 11); Bu = imnlmfilt(uint8(I*255)); r1 = B(11,11); r2 = B(1,1); r3 = estDoS; r4 = B2(11,11); r5 = B3(11,11); r6 = B4(11,11); r7 = double(Bu(11,11));",
+  "iters": 5,
+  "tol": 1e-04,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7"],
+  "comment": "Sig: [J, estDoS] = imnlmfilt(I [, NV...]). Non-local means denoising via exhaustive S×S search-window x C×C comparison-window. Algorithm: Buades-Coll-Morel 2005; box-blur patch distance, Buades 'max trick' for centre weight, Immerkaer-1996 noise estimate (single-precision per MATLAB). Branches: default, custom DegreeOfSmoothing, custom ComparisonWindowSize, custom SearchWindowSize, uint8 input. Grayscale 2-D only (RGB deferred). Image namespace 2026-05-27."
+}

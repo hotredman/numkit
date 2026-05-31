@@ -2,9 +2,11 @@
   "name": "rc2ac",
   "namespace": "signal",
   "setup": "",
-  "expr": "r = rc2ac([-0.5 0.4], 1); r1 = double(numel(r));",
-  "iters": 5,
+  "expr": "R = rc2ac([0.5 0.3 0.2], 2);",
+  "iters": 3,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: r = rc2ac(k, R0). Spec-extension batch 2026-05-09 (cycle 40)."
+  "fingerprint": [
+    "R(1)", "R(2)", "R(3)", "R(4)"
+  ],
+  "comment": "Sig R=rc2ac(k,R0): reflection coeffs + zero-lag energy -> autocorrelation sequence (inverse Levinson step-up). k=[0.5 0.3 0.2], R0=2 -> R=[2 -1 0.05 -0.0055]. R(1)=R0; R(2)=-k(1)*R0; later lags from the recursion."
 }

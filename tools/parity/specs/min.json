@@ -2,12 +2,21 @@
   "name": "min",
   "namespace": "core",
   "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = min(x);",
+  "expr": "y = min(x); e0 = min([]); ne0 = numel(e0); ec = min(zeros(0,3)); er = min(zeros(3,0));",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = min(X). 1M-pt. 100 iters. Scalar fp.",
+  "comment": "Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: min of an EMPTY array returns empty and never errors — shape = input size with operating dim clamped to min(size,1): min([])=0x0, min(zeros(0,3))=0x3, min(zeros(3,0))=1x0.",
   "fingerprint": [
     "double(y)",
-    "numel(y)"
-  ]
+    "numel(y)",
+    "ne0",
+    "size(e0,1)",
+    "size(e0,2)",
+    "size(ec,1)",
+    "size(ec,2)",
+    "size(er,1)",
+    "size(er,2)"
+  ],
+  "bench_setup": "xb = mod((1:N)*7919,1000)+0.5;",
+  "bench_expr": "rb = min(xb);"
 }

@@ -1,14 +1,16 @@
 {
   "name": "polyfit",
   "namespace": "builtin",
-  "setup": "",
-  "expr": "p = polyfit([1 2 3 4], [1 4 9 16], 2); r1 = p(1); r2 = p(2); r3 = p(3);",
+  "setup": "x = [1 2 3 4 5]; y = [2.1 3.9 6.2 7.8 10.1];",
+  "expr": "p = polyfit([1 2 3 4], [1 4 9 16], 2); [pc, S, mu] = polyfit(x, y, 1); [yh, dl] = polyval(pc, 3, S, mu);",
   "iters": 5,
   "tol": 1e-09,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "p(1)", "p(2)", "p(3)",
+    "mu(1)", "mu(2)",
+    "pc(1)", "pc(2)",
+    "S.normr", "S.df",
+    "yh", "dl"
   ],
-  "comment": "Sig: r = polyfit(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: p = polyfit(x,y,n); [p,S,mu] = polyfit(...); [y,delta] = polyval(p,x,S,mu). Covers default coeffs, mu = [mean(x); std(x,0)] centering/scaling, S.normr/S.df, and the polyval error estimate delta = normr/sqrt(df)*sqrt(1+rowSum((V/R).^2)). S.R sign convention is intentionally not fingerprinted (Cholesky vs MATLAB qr-R differ in row sign; R'R identical so delta matches). Queue-clearing 2026-05-29: numkit previously returned coeffs only."
 }

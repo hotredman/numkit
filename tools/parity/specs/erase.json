@@ -2,12 +2,13 @@
   "name": "erase",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strcmp(erase(\"hello\", \"l\"), \"heo\")); r2 = double(strcmp(erase(\"abc\", \"b\"), \"ac\"));",
+  "expr": "r1 = double(strcmp(erase(\"hello\", \"l\"), \"heo\")); r2 = double(strcmp(erase(\"abc\", \"b\"), \"ac\")); e = erase({'a1b','c2'},'1'); ne = numel(e); e1n = strlength(e{1}); e2n = strlength(e{2}); e11 = double(e{1}(1)); ec = erase({'a1b2','c2'},{'1','2'}); ec1n = strlength(ec{1}); ec2n = strlength(ec{2});",
   "iters": 5,
-  "tol": 1e-09,
+  "tol": 0,
   "fingerprint": [
     "r1",
-    "r2"
+    "r2",
+    "ne", "e1n", "e2n", "e11", "ec1n", "ec2n"
   ],
-  "comment": "Sig: r = erase(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = erase(s,match). DEEP-PROBE 2026-05-31: added CELL-ARRAY str support (was throwing 'Not a char array'); processes element-wise -> cell of char vectors, same shape: erase({'a1b','c2'},'1')={'ab','c2'}. A cell MATCH erases every listed substring: erase({'a1b2','c2'},{'1','2'})={'ab','c'}. Scalar path unchanged. Spec-extension batch 2026-05-09."
 }

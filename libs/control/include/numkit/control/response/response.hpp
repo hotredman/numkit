@@ -40,7 +40,7 @@ namespace numkit::control {
 /// @see impulse_response, lsim
 std::pair<Value, Value>
 step_response(const Value &sys, const Value &tArg,
-              std::pmr::memory_resource *mr = nullptr);
+              std::pmr::memory_resource *mr = nullptr, Value *xOut = nullptr);
 
 /// Unit-impulse response (`[y, t] = impulse(sys, tFinal_or_t)`).
 ///
@@ -58,7 +58,7 @@ step_response(const Value &sys, const Value &tArg,
 /// @see step_response, lsim
 std::pair<Value, Value>
 impulse_response(const Value &sys, const Value &tArg,
-                 std::pmr::memory_resource *mr = nullptr);
+                 std::pmr::memory_resource *mr = nullptr, Value *xOut = nullptr);
 
 /// Linear simulation with arbitrary input (`y = lsim(sys, u, t, x0)`).
 ///
@@ -78,6 +78,6 @@ impulse_response(const Value &sys, const Value &tArg,
 /// @see step_response, impulse_response
 Value lsim(const Value &sys, const Value &u, const Value &t,
            const Value &x0,
-           std::pmr::memory_resource *mr = nullptr);
+           std::pmr::memory_resource *mr = nullptr, Value *xOut = nullptr);
 
 } // namespace numkit::control

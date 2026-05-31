@@ -86,6 +86,22 @@ void rgb2lin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lin2rgb_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void whitepoint_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void deltaE_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void illumwhite_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void illumgray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void illumpca_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imcolordiff_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rgbwide2ycbcr_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ycbcr2rgbwide_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void rgbwide2xyz_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void xyz2rgbwide_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cmunique_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imfuse_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tonemap_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void labeloverlay_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void chromadapt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void demosaic_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void raw2planar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void planar2raw_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2double_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2uint16_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void brighten_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -97,16 +113,29 @@ void fspecial_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imfilter_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaussfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imboxfilt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void integralBoxFilter_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void integralBoxFilter3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void modefilt_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void roifilt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imguidedfilter_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void imdiffusefilt_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void imgaborfilt_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imnlmfilt_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void locallapfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imreducehaze_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fibermetric_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fsamp2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ftrans2_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fwind1_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fwind2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imboxfilt3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convmtx2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void freqz2_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaussfilt3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 // filter/filter_design.cpp
 void fspecial3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void fwind2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fsamp2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ftrans2_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fwind1_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// fsamp2 / ftrans2 / fwind1 / fwind2 now live in filter/fir2d.cpp
+// (cycle 65). Declared above near fibermetric_reg.
 void gabor_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void medfilt3_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void medfilt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -117,6 +146,8 @@ void rangefilt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void entropyfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imsmooth_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wiener2_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nlfilter_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void colfilt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ordfilt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void im2col_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void col2im_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -149,6 +180,7 @@ void strel_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imerode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imdilate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwmorph_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwtraceboundary_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imopen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imclose_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imreconstruct_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -166,6 +198,9 @@ void imtophat_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imbothat_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwhitmiss_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void applylut_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwlookup_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void makelut_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwmorph3_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mmgradm_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwpack_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwunpack_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -173,6 +208,9 @@ void bwunpack_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // region/region.cpp
 void bwlabel_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwconncomp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void labelmatrix_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cc2bw_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwpropfilt_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwarea_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwperim_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwareaopen_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -186,9 +224,15 @@ void fchcode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void roicolor_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // object/object.cpp
-void imgradientxy_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void imgradient_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imgradientxy_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imgradient_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imgradientxyz_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void imgradient3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void edge_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cornermetric_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void hough_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void houghpeaks_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void houghlines_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // quality/quality.cpp
 void immse_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -197,6 +241,8 @@ void ssim_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mean2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void std2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void corr2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void multissim_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void multissim3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // transform/transform.cpp
 void dct2_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -209,6 +255,9 @@ void normxcorr2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void phantom_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void psf2otf_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void otf2psf_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void deconvwnr_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void deconvreg_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void edgetaper_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fftconv2_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bestblk_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -224,11 +273,22 @@ void boundarymask_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void label2idx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void grayconnected_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imoverlay_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void graydiffweight_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gradientweight_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void regionfill_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poly2mask_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void reducepoly_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void roipoly_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void graydist_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwdistgeodesic_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // geom/geom.cpp
 void imresize_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imresize3_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcrop_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imcrop3_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imrotate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imrotate3_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imtranslate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void impyramid_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void axes2pix_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -319,6 +379,22 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "lin2rgb",       &image::detail::lin2rgb_reg);
     reg("color", "whitepoint",    &image::detail::whitepoint_reg);
     reg("color", "deltaE",        &image::detail::deltaE_reg);
+    reg("color", "illumwhite",    &image::detail::illumwhite_reg);
+    reg("color", "illumgray",     &image::detail::illumgray_reg);
+    reg("color", "illumpca",      &image::detail::illumpca_reg);
+    reg("color", "imcolordiff",   &image::detail::imcolordiff_reg);
+    reg("color", "rgbwide2ycbcr", &image::detail::rgbwide2ycbcr_reg);
+    reg("color", "ycbcr2rgbwide", &image::detail::ycbcr2rgbwide_reg);
+    reg("color", "rgbwide2xyz",   &image::detail::rgbwide2xyz_reg);
+    reg("color", "xyz2rgbwide",   &image::detail::xyz2rgbwide_reg);
+    reg("color", "cmunique",      &image::detail::cmunique_reg);
+    reg("color", "imfuse",        &image::detail::imfuse_reg);
+    reg("color", "tonemap",       &image::detail::tonemap_reg);
+    reg("color", "labeloverlay",  &image::detail::labeloverlay_reg);
+    reg("color", "chromadapt",    &image::detail::chromadapt_reg);
+    reg("color", "demosaic",      &image::detail::demosaic_reg);
+    reg("color", "raw2planar",    &image::detail::raw2planar_reg);
+    reg("color", "planar2raw",    &image::detail::planar2raw_reg);
     reg("color", "xyz2double",    &image::detail::xyz2double_reg);
     reg("color", "xyz2uint16",    &image::detail::xyz2uint16_reg);
     reg("color", "brighten",      &image::detail::brighten_reg);
@@ -329,15 +405,26 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imfilter",     &image::detail::imfilter_reg);
     reg("filter", "imgaussfilt",  &image::detail::imgaussfilt_reg);
     reg("filter", "imboxfilt",    &image::detail::imboxfilt_reg);
+    reg("filter", "integralBoxFilter", &image::detail::integralBoxFilter_reg);
+    reg("filter", "integralBoxFilter3", &image::detail::integralBoxFilter3_reg);
+    reg("filter", "modefilt",     &image::detail::modefilt_reg);
+    reg("filter", "roifilt2",     &image::detail::roifilt2_reg);
+    reg("filter", "imguidedfilter", &image::detail::imguidedfilter_reg);
+    reg("filter", "imdiffusefilt",  &image::detail::imdiffusefilt_reg);
+    reg("filter", "imgaborfilt",    &image::detail::imgaborfilt_reg);
+    reg("filter", "imnlmfilt",      &image::detail::imnlmfilt_reg);
+    reg("filter", "locallapfilt",   &image::detail::locallapfilt_reg);
+    reg("filter", "imreducehaze",   &image::detail::imreducehaze_reg);
+    reg("filter", "fibermetric",    &image::detail::fibermetric_reg);
+    reg("filter", "fsamp2",         &image::detail::fsamp2_reg);
+    reg("filter", "ftrans2",        &image::detail::ftrans2_reg);
+    reg("filter", "fwind1",         &image::detail::fwind1_reg);
+    reg("filter", "fwind2",         &image::detail::fwind2_reg);
     reg("filter", "imboxfilt3",   &image::detail::imboxfilt3_reg);
     reg("filter", "convmtx2",     &image::detail::convmtx2_reg);
     reg("filter", "freqz2",       &image::detail::freqz2_reg);
     reg("filter", "imgaussfilt3", &image::detail::imgaussfilt3_reg);
     reg("filter", "fspecial3",    &image::detail::fspecial3_reg);
-    reg("filter", "fwind2",       &image::detail::fwind2_reg);
-    reg("filter", "fsamp2",       &image::detail::fsamp2_reg);
-    reg("filter", "ftrans2",      &image::detail::ftrans2_reg);
-    reg("filter", "fwind1",       &image::detail::fwind1_reg);
     reg("filter", "gabor",        &image::detail::gabor_reg);
     reg("filter", "medfilt3",     &image::detail::medfilt3_reg);
     reg("filter", "medfilt2",     &image::detail::medfilt2_reg);
@@ -348,6 +435,8 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "entropyfilt",  &image::detail::entropyfilt_reg);
     reg("filter", "imsmooth",     &image::detail::imsmooth_reg);
     reg("filter", "wiener2",      &image::detail::wiener2_reg);
+    reg("filter", "nlfilter",     &image::detail::nlfilter_reg);
+    reg("filter", "colfilt",      &image::detail::colfilt_reg);
     reg("filter", "ordfilt2",     &image::detail::ordfilt2_reg);
     reg("filter", "im2col",       &image::detail::im2col_reg);
     reg("filter", "col2im",       &image::detail::col2im_reg);
@@ -392,6 +481,7 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imerode",   &image::detail::imerode_reg);
     reg("morph", "imdilate",  &image::detail::imdilate_reg);
     reg("morph", "bwmorph",   &image::detail::bwmorph_reg);
+    reg("morph", "bwtraceboundary", &image::detail::bwtraceboundary_reg);
     reg("morph", "imopen",    &image::detail::imopen_reg);
     reg("morph", "imclose",   &image::detail::imclose_reg);
     reg("morph", "imreconstruct", &image::detail::imreconstruct_reg);
@@ -409,12 +499,18 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imbothat",      &image::detail::imbothat_reg);
     reg("morph", "bwhitmiss",     &image::detail::bwhitmiss_reg);
     reg("morph", "applylut",      &image::detail::applylut_reg);
+    reg("morph", "bwlookup",      &image::detail::bwlookup_reg);
+    reg("morph", "makelut",       &image::detail::makelut_reg);
+    reg("morph", "bwmorph3",      &image::detail::bwmorph3_reg);
     reg("morph", "mmgradm",       &image::detail::mmgradm_reg);
     reg("morph", "bwpack",        &image::detail::bwpack_reg);
     reg("morph", "bwunpack",      &image::detail::bwunpack_reg);
 
     reg("region", "bwlabel",      &image::detail::bwlabel_reg);
     reg("region", "bwconncomp",   &image::detail::bwconncomp_reg);
+    reg("region", "labelmatrix",  &image::detail::labelmatrix_reg);
+    reg("region", "cc2bw",        &image::detail::cc2bw_reg);
+    reg("region", "bwpropfilt",   &image::detail::bwpropfilt_reg);
     reg("region", "bwarea",       &image::detail::bwarea_reg);
     reg("region", "bwperim",      &image::detail::bwperim_reg);
     reg("region", "bwareaopen",   &image::detail::bwareaopen_reg);
@@ -429,7 +525,13 @@ void ImageLibrary::install(Engine &engine)
 
     reg("object", "imgradientxy", &image::detail::imgradientxy_reg);
     reg("object", "imgradient",   &image::detail::imgradient_reg);
+    reg("object", "imgradientxyz",&image::detail::imgradientxyz_reg);
+    reg("object", "imgradient3",  &image::detail::imgradient3_reg);
     reg("object", "edge",         &image::detail::edge_reg);
+    reg("object", "cornermetric", &image::detail::cornermetric_reg);
+    reg("object", "hough",        &image::detail::hough_reg);
+    reg("object", "houghpeaks",   &image::detail::houghpeaks_reg);
+    reg("object", "houghlines",   &image::detail::houghlines_reg);
 
     reg("quality", "immse", &image::detail::immse_reg);
     reg("quality", "psnr",  &image::detail::psnr_reg);
@@ -437,6 +539,8 @@ void ImageLibrary::install(Engine &engine)
     reg("quality", "mean2", &image::detail::mean2_reg);
     reg("quality", "std2",  &image::detail::std2_reg);
     reg("quality", "corr2", &image::detail::corr2_reg);
+    reg("quality", "multissim", &image::detail::multissim_reg);
+    reg("quality", "multissim3", &image::detail::multissim3_reg);
 
     reg("transform", "dct2",          &image::detail::dct2_reg);
     reg("transform", "idct2",         &image::detail::idct2_reg);
@@ -447,6 +551,9 @@ void ImageLibrary::install(Engine &engine)
     reg("transform", "normxcorr2",    &image::detail::normxcorr2_reg);
     reg("transform", "psf2otf",       &image::detail::psf2otf_reg);
     reg("transform", "otf2psf",       &image::detail::otf2psf_reg);
+    reg("transform", "deconvwnr",     &image::detail::deconvwnr_reg);
+    reg("transform", "deconvreg",     &image::detail::deconvreg_reg);
+    reg("transform", "edgetaper",     &image::detail::edgetaper_reg);
     reg("transform", "fftconv2",      &image::detail::fftconv2_reg);
     reg("transform", "bestblk",       &image::detail::bestblk_reg);
     reg("transform", "phantom",       &image::detail::phantom_reg);
@@ -456,8 +563,11 @@ void ImageLibrary::install(Engine &engine)
     reg("io", "imfinfo", &image::detail::imfinfo_reg);
 
     reg("geom", "imresize",    &image::detail::imresize_reg);
+    reg("geom", "imresize3",   &image::detail::imresize3_reg);
     reg("geom", "imcrop",      &image::detail::imcrop_reg);
+    reg("geom", "imcrop3",     &image::detail::imcrop3_reg);
     reg("geom", "imrotate",    &image::detail::imrotate_reg);
+    reg("geom", "imrotate3",   &image::detail::imrotate3_reg);
     reg("geom", "imtranslate", &image::detail::imtranslate_reg);
     reg("geom", "impyramid",   &image::detail::impyramid_reg);
     reg("geom", "axes2pix",    &image::detail::axes2pix_reg);
@@ -468,6 +578,14 @@ void ImageLibrary::install(Engine &engine)
     reg("segment", "label2idx",     &image::detail::label2idx_reg);
     reg("segment", "grayconnected", &image::detail::grayconnected_reg);
     reg("segment", "imoverlay",     &image::detail::imoverlay_reg);
+    reg("segment", "graydiffweight",&image::detail::graydiffweight_reg);
+    reg("segment", "gradientweight",&image::detail::gradientweight_reg);
+    reg("segment", "regionfill",    &image::detail::regionfill_reg);
+    reg("segment", "poly2mask",     &image::detail::poly2mask_reg);
+    reg("segment", "reducepoly",    &image::detail::reducepoly_reg);
+    reg("segment", "roipoly",       &image::detail::roipoly_reg);
+    reg("segment", "graydist",      &image::detail::graydist_reg);
+    reg("segment", "bwdistgeodesic",&image::detail::bwdistgeodesic_reg);
 }
 
 } // namespace numkit

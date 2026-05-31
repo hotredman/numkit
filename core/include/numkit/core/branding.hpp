@@ -17,7 +17,7 @@ namespace numkit {
 //
 // NOT covered here (rename these manually alongside the prefix update):
 //   • C++ namespace `numkit`, target `numkit`
-//   • Error-identifier strings such as "m:assert" (defined across
+//   • Error-identifier strings such as "numkit:assert" (defined across
 //     libs/builtin/src and libs/signal/src)
 //   • Documentation, README, CMake project name
 inline constexpr const char *kEnvPrefix = "NUMKIT";

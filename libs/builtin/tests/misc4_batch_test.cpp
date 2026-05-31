@@ -75,6 +75,38 @@ TEST_F(Misc4BatchTest, Mat2CellNum2Cell)
     EXPECT_DOUBLE_EQ(evalScalar("c{3}"), 3.0);
 }
 
+// num2cell(A, dims): the listed dimensions are collapsed into each cell.
+// Was element-wise only (num2cell(A,dim) threw). vs MATLAB R2025b on
+// A = [1 2 3; 4 5 6]. DEEP-PROBE 2026-05-31.
+TEST_F(Misc4BatchTest, Num2CellDim)
+{
+    eval("A = [1 2 3; 4 5 6];");
+    // dim 2: collapse columns -> 2x1 cell of rows.
+    eval("c2 = num2cell(A, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(c2,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(c2,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c2{1}(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c2{2}(3)"), 6.0);
+    // dim 1: collapse rows -> 1x3 cell of columns.
+    eval("c1 = num2cell(A, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(c1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(c1,2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c1{1}(2)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c1{3}(2)"), 6.0);
+    // dims [1 2]: whole matrix in a 1x1 cell.
+    eval("cb = num2cell(A, [1 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(cb)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cb{1}(2,3)"), 6.0);
+    // a dim past ndim (3 on a 2-D array) is a trivial singleton -> element-wise.
+    eval("c3 = num2cell(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c3)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c3{2,2}"), 5.0);
+    // complex preserved.
+    eval("cz = num2cell([1+2i 3; 4 5-1i], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(cz{1}(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(cz{1}(1))"), 2.0);
+}
+
 TEST_F(Misc4BatchTest, MeshgridNdgrid)
 {
     eval("[X, Y] = meshgrid(1:3, 1:2);");
@@ -112,4 +144,34 @@ TEST_F(Misc4BatchTest, Nthroot)
 TEST_F(Misc4BatchTest, Pad)
 {
     EXPECT_DOUBLE_EQ(evalScalar("strlength(pad(\"hi\", 5))"), 5.0);
+}
+
+// pad on a CELL str (was throwing "Not a char array") + the default-width
+// form (n omitted -> the longest element). vs MATLAB R2025b. DEEP-PROBE
+// 2026-05-31.
+TEST_F(Misc4BatchTest, PadCellAndDefaultWidth)
+{
+    // default width = max strlength across the cell (3 here).
+    eval("d = pad({'a','bbb'});");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(d))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strlength(d{1})"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strlength(d{2})"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(d{1}, 'a  ')"), 1.0);   // right-pad spaces
+    // explicit width.
+    eval("cn = pad({'a','bb'}, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(cn{1}, 'a   ')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(cn{2}, 'bb  ')"), 1.0);
+    // left + both with a custom pad char.
+    eval("lf = pad({'a','bb'}, 4, 'left');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(lf{1}, '   a')"), 1.0);
+    eval("bt = pad({'a','bb'}, 4, 'both', '*');");
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(bt{1}, '*a**')"), 1.0);  // floor-left, ceil-right
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(bt{2}, '*bb*')"), 1.0);
+    // shape preserved (column cell stays a column).
+    eval("cc = pad({'a';'bbb'});");
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(cc,2)"), 1.0);
+    // scalar (non-cell) paths unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("strlength(pad('a'))"), 1.0);   // default n = own length -> no-op
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(pad('hi', 5, 'right', '-'), 'hi---')"), 1.0);
 }

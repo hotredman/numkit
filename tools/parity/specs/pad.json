@@ -2,11 +2,12 @@
   "name": "pad",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strlength(pad(\"hi\", 5)));",
+  "expr": "r1 = double(strlength(pad(\"hi\", 5))); d = pad({'a','bbb'}); nd = numel(d); d1n = strlength(d{1}); d2n = strlength(d{2}); d1c = double(d{1}(2)); cn = pad({'a','bb'},4); cn1n = strlength(cn{1}); lf = pad({'a','bb'},4,'left'); lf1c = double(lf{1}(1)); bt = pad({'a','bb'},4,'both','*'); bt11 = double(bt{1}(1)); bt12 = double(bt{1}(2)); cc = pad({'a';'bbb'}); nr = size(cc,1); nco = size(cc,2);",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 0,
   "fingerprint": [
-    "r1"
+    "r1",
+    "nd", "d1n", "d2n", "d1c", "cn1n", "lf1c", "bt11", "bt12", "nr", "nco"
   ],
-  "comment": "Sig: r = pad(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: pad(s[,n][,side[,char]]). DEEP-PROBE 2026-05-31: added (a) CELL-ARRAY str support (was throwing 'Not a char array') — element-wise -> cell of char vectors, same shape, each padded to the SAME width n; (b) the default-width form (n omitted) — for a cell the longest element, for a scalar its own length: pad({'a','bbb'})={'a  ','bbb'} (both width 3). pad({'a','bb'},4,'both','*')={'*a**','*bb*'} (extra split floor-left/ceil-right). A string 2nd arg is the side with default width. Scalar char/string path unchanged. Spec-extension batch 2026-05-09."
 }

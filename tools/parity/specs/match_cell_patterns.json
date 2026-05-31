@@ -1,0 +1,12 @@
+{
+  "name": "match_cell_patterns",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "sw1 = double(startsWith('foobar', {'foo','xyz'})); sw0 = double(startsWith('foobar', {'zzz','xyz'})); ew1 = double(endsWith('test.m', {'.m','.cpp'})); ew0 = double(endsWith('test.txt', {'.m','.cpp'})); cn1 = double(contains('hello', {'ell','xyz'})); cn0 = double(contains('hello', {'zzz','xyz'})); sa1 = double(startsWith('foobar', [\"foo\" \"xyz\"])); sc1 = double(contains('hello', 'ell'));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "sw1", "sw0", "ew1", "ew0", "cn1", "cn0", "sa1", "sc1"
+  ],
+  "comment": "contains/startsWith/endsWith with a cell array (or string array) of patterns vs MATLAB R2025b. Bug fixed 2026-05-30: these threw 'Not a char array' on a cell pattern argument. Now match if ANY listed pattern matches: startsWith('foobar',{'foo','xyz'})=true (sw1=1), {'zzz','xyz'}=false (sw0=0); endsWith('test.m',{'.m','.cpp'})=true (ew1=1); contains('hello',{'ell','xyz'})=true (cn1=1); string-array list works (sa1=1); scalar pattern unchanged (sc1=1). namespace=builtin. NOTE: the FIRST argument being a cell array (per-element output) remains a separate gap."
+}

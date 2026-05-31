@@ -12,7 +12,7 @@ class Environment;
 namespace numkit::io {
 
 /// @file
-/// @brief Workspace persistence — MATLAB's `save` / `load` (ASCII).
+/// @brief Workspace persistence — `save` / `load` (ASCII).
 ///
 /// Separate from the session-state workspace builtins (`clear` /
 /// `who` / `whos` / `tic` / `toc`) registered via

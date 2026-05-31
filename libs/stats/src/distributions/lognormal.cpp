@@ -169,7 +169,7 @@ inline double argSigma(Span<const Value> args, size_t i) {
 void lognpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("lognpdf: requires (x[, mu, sigma])", 0, 0, "lognpdf", "", "m:lognpdf:nargin");
+        throw Error("lognpdf: requires (x[, mu, sigma])", 0, 0, "lognpdf", "", "numkit:lognpdf:nargin");
     outs[0] = lognpdf(args[0], argMu(args, 1), argSigma(args, 2), ctx.engine->resource());
 }
 
@@ -178,7 +178,7 @@ void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
     if (stripped.empty())
-        throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "m:logncdf:nargin");
+        throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "numkit:logncdf:nargin");
     Value v = logncdf(stripped[0], argMu(stripped, 1), argSigma(stripped, 2), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -187,7 +187,7 @@ void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void logninv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("logninv: requires (p[, mu, sigma])", 0, 0, "logninv", "", "m:logninv:nargin");
+        throw Error("logninv: requires (p[, mu, sigma])", 0, 0, "logninv", "", "numkit:logninv:nargin");
     outs[0] = logninv(args[0], argMu(args, 1), argSigma(args, 2), ctx.engine->resource());
 }
 

@@ -1,0 +1,12 @@
+{
+  "name": "vecnorm",
+  "namespace": "linalg",
+  "setup": "V = [3 4; 6 8]; r = [1 2 3 4]; M = [1 2; 3 4];",
+  "expr": "v1 = vecnorm([3 4]); v2 = vecnorm([3; 4]); v3c = vecnorm(V); v4 = vecnorm(r, 1); v5 = vecnorm(r, Inf); v6r = vecnorm(M, 2, 2); ve = vecnorm([]);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "v1", "v2", "v3c(1)", "v3c(2)", "v4", "v5", "v6r(1)", "v6r(2)", "ve"
+  ],
+  "comment": "Sig: y = vecnorm(A [, p [, dim]]). Element-wise p-norm reduction along a dimension; default p=2, default dim = first non-singleton. Row [3 4] → 5 (2-norm). Column [3;4] → 5. 2×2 matrix V columns → [hypot(3,6), hypot(4,8)] = [6.708, 8.944]. r-1-norm = sum(|r|) = 10. r-Inf = max(|r|) = 4. M row-norm (dim=2) → [hypot(1,2), hypot(3,4)] = [2.236, 5]. vecnorm([]) → 0 (MATLAB convention). Bit-exact MATLAB R2025b (tol=1e-12)."
+}

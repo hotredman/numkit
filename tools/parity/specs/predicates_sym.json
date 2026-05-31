@@ -1,0 +1,13 @@
+{
+  "name": "predicates_sym",
+  "covers": ["issymmetric", "ishermitian"],
+  "namespace": "linalg",
+  "setup": "SY = [1 2; 2 1]; H = [1 1i; -1i 1]; SK = [0 -2; 2 0]; SKH = [0 1i; 1i 0];",
+  "expr": "s1 = double(issymmetric(SY)); s2 = double(issymmetric(H)); s3 = double(issymmetric(SK, 'skew')); h1 = double(ishermitian(H)); h2 = double(ishermitian(SY)); h3 = double(ishermitian(SKH, 'skew'));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "s1", "s2", "s3", "h1", "h2", "h3"
+  ],
+  "comment": "Sig: issymmetric(A [, 'skew']) → A == A.' (transpose, no conj). ishermitian(A [, 'skew']) → A == A' (conj transpose). 'skew' flips equality to A == -A.' / A == -A'. Bit-exact MATLAB R2025b (tol=0): SY symmetric (s1=1), H not symmetric (s2=0 — complex matrix), SK skew-sym (s3=1), H Hermitian (h1=1), SY not Hermitian since complex form differs (h2=1 — but SY is real so h2=1 by real-symmetric ≡ Hermitian rule), SKH skew-Hermitian (h3=1). Split from the original combined predicates spec to stay under the 256-register chunk limit."
+}

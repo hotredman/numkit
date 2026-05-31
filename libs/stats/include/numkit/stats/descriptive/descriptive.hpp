@@ -7,6 +7,7 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <limits>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -15,12 +16,12 @@
 namespace numkit::stats {
 
 /// @file
-/// @brief Descriptive statistics. MATLAB-compatible signatures.
+/// @brief Descriptive statistics.
 ///
 /// **Conventions across this header:**
-/// - `dim` is 1-based (matches MATLAB).
-/// - `dim == 0` means "use the first non-singleton dim" (matches what
-///   MATLAB does when the user omits the argument).
+/// - `dim` is 1-based.
+/// - `dim == 0` means "use the first non-singleton dim" — the
+///   behaviour when the argument is omitted.
 /// - Vector / scalar inputs ignore `dim` — the whole input collapses
 ///   to a scalar.
 /// - For `var`/`std`: `normFlag == 0` → divide by `N-1` (unbiased,
@@ -63,7 +64,7 @@ Value median(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullpt
 
 /// @brief Empirical quantile (`q = quantile(X, p, dim)`).
 ///
-/// Linear interpolation between order statistics (MATLAB default).
+/// Linear interpolation between order statistics (the default).
 /// When `p` is a length-`k` vector, the reduced dim of the output has
 /// length `k` (one quantile per requested level).
 ///
@@ -90,7 +91,7 @@ Value prctile(const Value &x, const Value &p, int dim = 0, std::pmr::memory_reso
 /// @brief Mode and frequency (`[m, f] = mode(X, dim)`).
 ///
 /// Returns the most-frequent value (`m`) and its count (`f`). Ties
-/// are broken by returning the smallest value (MATLAB convention).
+/// are broken by returning the smallest value.
 ///
 /// @param x    Input array.
 /// @param dim  1-based dimension; 0 → first non-singleton dim.
@@ -169,7 +170,7 @@ Value iqr(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief `k` largest values along `dim` (`y = maxk(X, k, dim)`).
 ///
-/// Output is sorted descending. NaN sorts last (MATLAB convention).
+/// Output is sorted descending. NaN sorts last.
 ///
 /// @param x    Input array.
 /// @param k    Number of values to return.
@@ -206,7 +207,7 @@ Value rmse(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resourc
 /// @brief Mean absolute percentage error (`e = mape(F, A, dim)`).
 ///
 /// `e = 100 · mean(|(A - F) / A|, dim)`. Zero entries in `A` produce
-/// `Inf` in the ratio (MATLAB matches).
+/// `Inf` in the ratio.
 ///
 /// @param f    Forecast values.
 /// @param a    Actual values.
@@ -229,6 +230,83 @@ Value mape(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resourc
 /// @return    `p × q` partial-correlation matrix.
 /// @see corrcoef
 Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief One-argument partial correlation: pairwise partial correlation
+/// between columns of `X`, controlling for the remaining columns of `X`
+/// (`R = partialcorr(X)`).
+///
+/// For each pair `(i, j)` with `i ≠ j` the control set is the columns of
+/// `X` excluding both `i` and `j` (augmented with an intercept column).
+/// The diagonal is forced to 1.
+///
+/// @param X   `n × p` matrix; columns are the variables.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `p × p` symmetric partial-correlation matrix.
+/// @see partialcorr_xz, partialcorr_of
+Value partialcorr_xx(const Value &X, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Two-argument partial correlation
+/// (`R = partialcorr(X, Z)`).
+///
+/// Pairwise partial correlation between columns of `X` controlling for
+/// the columns of `Z`. Output is `p × p` symmetric with diagonal 1.
+///
+/// @param X   `n × p` matrix of variables of interest.
+/// @param Z   `n × r` controlling variables.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `p × p` symmetric partial-correlation matrix.
+/// @see partialcorr_xx, partialcorr_of
+Value partialcorr_xz(const Value &X, const Value &Z, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Partial correlation between each column of `Y` and each
+/// column of `X`, controlling for the remaining columns of `X` (and
+/// optionally `Z`).
+///
+/// (`R = partialcorri(Y, X)` / `R = partialcorri(Y, X, Z)`)
+///
+/// Unlike `partialcorr_of(X, Y, Z)`, the control set varies per `X`
+/// column: for column `j`, the controls are `X(:, ~j)` (all other X
+/// columns), unioned with `Z` if supplied. Both the `y` and `x_j`
+/// columns are residualised on the control set, then the residuals
+/// are Pearson-correlated.
+///
+/// @param Y   `n × p_Y` outcome variables.
+/// @param X   `n × p_X` predictor variables.
+/// @param Z   Optional `n × p_Z` extra controls (may be an empty
+///            matrix to skip).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `p_Y × p_X` matrix of partial correlations.
+/// @see partialcorr_of, corrcoef
+Value partialcorri(const Value &Y, const Value &X, const Value &Z = {},
+                   std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Canonical correlation analysis
+/// (`[A, B, r] = canoncorr(X, Y)`).
+struct CanoncorrResult {
+    Value A;  ///< `p × k` canonical coefficients for `X`.
+    Value B;  ///< `q × k` canonical coefficients for `Y`.
+    Value r;  ///< Length-`k` canonical correlations (in `[0, 1]`,
+              ///< non-increasing). `k = min(p, q)`.
+};
+
+/// @brief Canonical correlation analysis
+/// (`[A, B, r] = canoncorr(X, Y)`).
+///
+/// Finds linear combinations `U = X·A` and `V = Y·B` such that
+/// `corr(U(:, i), V(:, i)) = r(i)` is maximised, with the standard
+/// orthogonality / unit-variance constraints on `U` and `V`.
+///
+/// Algorithm: centre `X` and `Y`; compute `QX, QY` from thin QR; SVD
+/// `QX' · QY` for the canonical directions; back-substitute through
+/// `R_X`, `R_Y` to recover `A`, `B`. `r` is the singular-value vector
+/// (clamped to `[0, 1]` to absorb FP drift).
+///
+/// @param X   `n × p` first set of variables.
+/// @param Y   `n × q` second set of variables (`rows(Y) == rows(X)`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `{A, B, r}` struct.
+CanoncorrResult canoncorr(const Value &X, const Value &Y,
+                           std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Auto-correlation across columns of X (`R = corr(X)`).
 ///
@@ -375,12 +453,16 @@ Value moment_of(const Value &x, int order, int dim = 0, std::pmr::memory_resourc
 ///
 /// Mean after dropping the smallest and largest `pct/2` percent of values.
 ///
-/// @param x    Input array.
-/// @param pct  Total trim percentage in `[0, 100)`.
-/// @param dim  1-based dimension; 0 → first non-singleton dim.
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     Trimmed mean reduced along `dim`.
-Value trimmean_of(const Value &x, double pct, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+/// @param x         Input array.
+/// @param pct       Total trim percentage in `[0, 100)`.
+/// @param dim       1-based dimension; 0 → first non-singleton dim.
+/// @param useFloor  Rounding of the per-end trim count: `false` (default,
+///                  MATLAB `'round'`) rounds `n*pct/200` half-down; `true`
+///                  (MATLAB `'floor'`) takes the floor.
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          Trimmed mean reduced along `dim`.
+Value trimmean_of(const Value &x, double pct, int dim = 0, bool useFloor = false,
+                  std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Curve-data cleanup (`[xo, yo, wo] = prepareCurveData(x, y, w)`).
 ///
@@ -411,8 +493,8 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::mem
 
 /// @brief Dataset descriptive summary (`datastats(x)`).
 ///
-/// Returns the seven Curve-Fitting-Toolbox descriptors. `NaN` values
-/// propagate via the underlying reductions (matches MATLAB).
+/// Returns the seven curve-fitting descriptors. `NaN` values
+/// propagate via the underlying reductions.
 ///
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).
@@ -476,21 +558,33 @@ ecdfhist(const Value &f, const Value &x, int m = 10, std::pmr::memory_resource *
 /// @param A       Input matrix.
 /// @param method  Normalisation method name (see list above).
 /// @param mr      Memory resource (nullptr → process default).
+/// @param param   Optional method parameter (nullptr → default): for
+///                "range" a `[lo hi]` vector; for "norm" the exponent p
+///                (Inf allowed); for "scale" a divisor string
+///                ('std'/'first'/'iqr'/'mad') or numeric; for "center"
+///                'mean'/'median' or numeric.
 /// @return        Normalised matrix, same shape as `A`.
 /// @see rescale, zscore
-Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr = nullptr);
+Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr = nullptr,
+                const Value *param = nullptr);
 
 /// @brief Linear range remap (`Y = rescale(A, lo, hi)`).
 ///
 /// Linearly maps `A` onto `[lo, hi]`. Constant input collapses to `lo`.
 ///
-/// @param A   Input array.
-/// @param lo  Target lower bound (default 0 via overload).
-/// @param hi  Target upper bound (default 1 via overload).
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Rescaled array, same shape as `A`.
+/// @param A         Input array.
+/// @param lo        Target lower bound (default 0 via overload).
+/// @param hi        Target upper bound (default 1 via overload).
+/// @param mr        Memory resource (nullptr → process default).
+/// @param inputMin  Input lower bound (NaN → per-column data min). When
+///                  given, values are clamped to `[inputMin, inputMax]`
+///                  before mapping (MATLAB 'InputMin'/'InputMax').
+/// @param inputMax  Input upper bound (NaN → per-column data max).
+/// @return          Rescaled array, same shape as `A`.
 /// @see normalize
-Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr = nullptr);
+Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr = nullptr,
+              double inputMin = std::numeric_limits<double>::quiet_NaN(),
+              double inputMax = std::numeric_limits<double>::quiet_NaN());
 
 /// @brief Z-score normalisation (`Y = zscore(A)`).
 ///

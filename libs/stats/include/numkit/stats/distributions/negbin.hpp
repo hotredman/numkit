@@ -14,7 +14,7 @@ namespace numkit::stats {
 /// @brief Negative binomial pmf (`y = nbinpdf(k, r, p)`).
 ///
 /// @f$ f(k; r, p) = \binom{k + r - 1}{k}\,p^{r}(1-p)^{k} @f$ for `k = 0, 1, 2, …`.
-/// MATLAB convention: `k` counts failures before the `r`-th success;
+/// Convention: `k` counts failures before the `r`-th success;
 /// `r > 0` real-valued allowed; `0 < p ≤ 1`.
 ///
 /// @param k   Evaluation points (any shape).
@@ -76,5 +76,26 @@ Value nbinrnd(double r, double p, size_t rows = 1, size_t cols = 1,
 /// @return   `{mean, variance}` pair.
 /// @see nbinpdf
 std::tuple<double, double> nbinstat(double r, double p);
+
+/// @brief Negative-binomial MLE fit (`[rhat, phat] = nbinfit(x)`).
+///
+/// Newton iteration on the profile log-likelihood for the count
+/// parameter `r`, with closed-form update for `p = r/(r + mean(x))`
+/// at each step. Initial guess from moment matching.
+///
+/// `x` must be non-negative integers (treated as counts).
+///
+/// @param x   Non-negative count observations.
+/// @param mr  Memory resource.
+/// @return    `[rhat, phat]` as a `1 × 2` row.
+Value nbinfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 95% Wald CI for nbinfit (`pci = nbinfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[r, p]` from
+/// the observed Fisher information at the MLE. `r` uses a log-scale
+/// Wald CI; `p` uses a logit-scale Wald CI (MATLAB convention).
+Value nbinfit_ci(const Value &x, double alpha = 0.05,
+                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

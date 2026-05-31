@@ -3,7 +3,7 @@
   "namespace": "builtin",
   "setup": "x = [-2, -1, 0, 1, 2];",
   "expr": "y = sinh(x);",
-  "iters": 5,
+  "iters": 15,
   "tol": 1e-12,
   "fingerprint": [
     "y(1)",
@@ -12,5 +12,7 @@
     "y(4)",
     "y(5)"
   ],
-  "comment": "Sig: y = sinh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
+  "comment": "Sig: y = sinh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b.",
+  "bench_setup": "xb = mod((1:N)*7919,6283)*0.001;",
+  "bench_expr": "rb=sinh(xb);"
 }

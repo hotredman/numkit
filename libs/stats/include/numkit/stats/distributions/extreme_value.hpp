@@ -15,7 +15,7 @@ namespace numkit::stats {
 ///
 /// @f$ f(x; \mu, \sigma) = \dfrac{1}{\sigma}\,e^{t}\,e^{-e^{t}},
 ///     \ t = (x - \mu)/\sigma @f$.
-/// MATLAB parameterisation (`gumbel for minima`, NOT for maxima).
+/// Gumbel parameterisation for minima, NOT for maxima.
 ///
 /// @param x      Evaluation points (any shape).
 /// @param mu     Location parameter.
@@ -76,5 +76,56 @@ Value evrnd(double mu, double sigma, size_t rows = 1, size_t cols = 1,
 /// @return       `{mean, variance}` pair.
 /// @see evpdf
 std::tuple<double, double> evstat(double mu, double sigma);
+
+/// @brief Type-I EV (Gumbel-min) MLE fit (`[muhat, sigmahat] = evfit(x)`).
+///
+/// Concentrates the location out via `μ = σ · log(Σ exp(x_i/σ) / n)` and
+/// runs Newton iteration on the resulting 1-D equation
+/// `Σ x_i e^{x_i/σ} / Σ e^{x_i/σ} - mean(x) - σ = 0`. Initial guess from
+/// the moment relation `var(x) = σ² · π²/6`.
+///
+/// Numerical stability: exponentials shifted by `max(x)/σ` (the ratio
+/// `U/T` is invariant under that shift).
+///
+/// @param x   Observations.
+/// @param mr  Memory resource.
+/// @return    `[muhat, sigmahat]` as a `1 × 2` row.
+/// @see evpdf, evcdf
+Value evfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Type-I EV (Gumbel-min) MLE fit with right-censoring and
+/// frequency weights (`[parmhat, parmci] = evfit(x, alpha, cens, freq)`).
+///
+/// Likelihood is the product of `f(x_i)` over uncensored observations
+/// and `S(x_i)` (survival) over right-censored observations, each
+/// raised to the frequency-weight `freq_i`. When both `censoring` and
+/// `freq` are empty or trivial, dispatches to the fast closed-form
+/// path; otherwise refines via 2-D Newton on (μ, σ) with FD gradient
+/// and Hessian and a backtracking line search.
+///
+/// @param x          Observations.
+/// @param censoring  Length-`n` 0/1 indicator (1 = right-censored).
+///                   Pass `Value::Empty` to disable.
+/// @param freq       Length-`n` non-negative frequency weights.
+///                   Pass `Value::Empty` to disable (uniform weight).
+/// @param mr         Memory resource.
+/// @return           `[muhat, sigmahat]` as a `1 × 2` row.
+Value evfit(const Value &x, const Value &censoring, const Value &freq,
+            std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wald CI for evfit (`pci = evfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[mu, sigma]`
+/// from the observed Fisher information (central-FD Hessian of NLL).
+/// `mu` uses a linear Wald CI; `sigma` uses a log-scale CI (MATLAB
+/// convention).
+Value evfit_ci(const Value &x, double alpha = 0.05,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wald CI for censored/weighted evfit
+/// (`pci = evfit_ci(x, alpha, cens, freq)`).
+Value evfit_ci(const Value &x, double alpha,
+               const Value &censoring, const Value &freq,
+               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

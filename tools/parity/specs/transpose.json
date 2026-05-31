@@ -2,14 +2,14 @@
   "name": "transpose",
   "namespace": "builtin",
   "setup": "",
-  "expr": "A = [1 2 3]; T = transpose(A); r1 = T(1); r2 = T(3); r3 = size(T,1); r4 = size(T,2);",
+  "expr": "A = [1 2 3]; T = transpose(A); r1 = T(1); r2 = T(3); r3 = size(T,1); r4 = size(T,2); C = ['ab';'cd']; CT = transpose(C); c11 = double(CT(1,1)); c12 = double(CT(1,2)); c21 = double(CT(2,1)); L = logical([1 0 1;0 1 0]); LT = L.'; l12 = double(LT(1,2)); l31 = double(LT(3,1)); lsz = size(LT,1); I = int8([1 2 3;4 5 6]); IT = transpose(I); i21 = double(IT(2,1)); i32 = double(IT(3,2)); S = single([1.5 2.5;3.5 4.5]); ST = S.'; s12 = double(ST(1,2)); Z = [1+2i 3+4i;5+6i 7+8i]; ZT = transpose(Z); zr = real(ZT(1,2)); zi = imag(ZT(1,2)); K = {1 2;3 4}; KT = transpose(K); k12 = KT{1,2}; k21 = KT{2,1};",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4"
+    "r1", "r2", "r3", "r4",
+    "c11", "c12", "c21", "l12", "l31", "lsz",
+    "i21", "i32", "s12", "zr", "zi", "k12", "k21"
   ],
-  "comment": "Sig: r = transpose(...). I/O / matrix-ops. Spec-extension batch 2026-05-09."
+  "deep_verified": true,
+  "comment": "Sig: r = transpose(A) === A.'. Type-preserving 2-D transpose. DEEP-PROBE 2026-05-31: the transpose() builtin (matrix.cpp) coerced ALL inputs to a DOUBLE matrix of element codes, and the .'/' operators (transposeNC/ctranspose in unary_ops.cpp) threw 'Transpose not supported for this type' on non-DOUBLE/non-COMPLEX. Generalised to one shared transpose2D: DOUBLE/SINGLE/CHAR/LOGICAL/int via raw-byte rearrange, COMPLEX per-element (transpose() = no conjugate), CELL per-cell move; STRING/STRUCT/FUNC deferred. transpose(['ab';'cd'])=['ac';'bd'] char (c11='a'=97,c12='c'=99,c21='b'=98); logical/int8/single class preserved; transpose(complex) does NOT conjugate (zr=5,zi=6 from Z(2,1)=5+6i); cell off-diagonal swap (k12=3,k21=2). transpose() now delegates to transposeNC. 3-D still throws. Spec-extension batch 2026-05-09."
 }

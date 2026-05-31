@@ -70,6 +70,68 @@ TEST_P(SetOpsTest, UniqueWithIndices)
     EXPECT_DOUBLE_EQ(ic->doubleData()[5], 2.0);
 }
 
+// Complex unique: MATLAB orders unique values by magnitude |z| then phase
+// angle arg(z); dedup by exact equality. Was unsupported (threw "Not a
+// double array"). vs MATLAB R2025b. 2026-05-29.
+TEST_P(SetOpsTest, UniqueComplex)
+{
+    eval("function [a, b, c] = wrapc(x)\n"
+         "  [a, b, c] = unique(x);\n"
+         "end");
+    eval("[U, ia, ic] = wrapc([3+4i 1 3+4i 5i]);");
+    auto *U  = getVarPtr("U");
+    auto *ia = getVarPtr("ia");
+    auto *ic = getVarPtr("ic");
+    ASSERT_NE(U, nullptr);
+    EXPECT_EQ(U->numel(), 3u);
+    // [1, 3+4i, 5i] (by |z| then angle)
+    EXPECT_DOUBLE_EQ(U->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(U->complexData()[0].imag(), 0.0);
+    EXPECT_DOUBLE_EQ(U->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(U->complexData()[1].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(U->complexData()[2].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(ia->doubleData()[0], 2.0);   // 1 first at idx 2
+    EXPECT_DOUBLE_EQ(ia->doubleData()[1], 1.0);   // 3+4i first at idx 1
+    EXPECT_DOUBLE_EQ(ia->doubleData()[2], 4.0);   // 5i first at idx 4
+    EXPECT_DOUBLE_EQ(ic->doubleData()[0], 2.0);   // X(1)=3+4i -> U(2)
+    EXPECT_DOUBLE_EQ(ic->doubleData()[2], 2.0);   // X(3)=3+4i -> U(2)
+    EXPECT_DOUBLE_EQ(ic->doubleData()[3], 3.0);   // X(4)=5i   -> U(3)
+
+    // 'stable' keeps first-occurrence order.
+    eval("cs = unique([3+4i 1 3+4i 5i], 'stable');");
+    auto *cs = getVarPtr("cs");
+    ASSERT_NE(cs, nullptr);
+    EXPECT_EQ(cs->numel(), 3u);
+    EXPECT_DOUBLE_EQ(cs->complexData()[0].real(), 3.0);   // 3+4i first
+    EXPECT_DOUBLE_EQ(cs->complexData()[1].real(), 1.0);
+    EXPECT_DOUBLE_EQ(cs->complexData()[2].imag(), 5.0);
+}
+
+// unique(x,'stable') keeps first-occurrence order (was no-op -> sorted). vs MATLAB.
+TEST_P(SetOpsTest, UniqueStable)
+{
+    eval("u = unique([3 1 4 1 5 9 2 6 5 3], 'stable');");
+    auto *u = getVarPtr("u");
+    EXPECT_EQ(u->numel(), 7u);
+    EXPECT_DOUBLE_EQ(u->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[2], 4.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[6], 6.0);
+    // [u,ia,ic] = unique(...,'stable').
+    eval("function [a,b,c] = wrapStable(x)\n"
+         "  [a,b,c] = unique(x, 'stable');\n"
+         "end");
+    eval("[U, ia, ic] = wrapStable([3 1 4 1 5]);");
+    auto *U = getVarPtr("U"); auto *ia = getVarPtr("ia"); auto *ic = getVarPtr("ic");
+    EXPECT_DOUBLE_EQ(U->doubleData()[0], 3.0);   // first-occurrence order
+    EXPECT_DOUBLE_EQ(U->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(ia->doubleData()[3], 5.0);  // 5 first at idx 5
+    EXPECT_DOUBLE_EQ(ic->doubleData()[3], 2.0);  // X(4)=1 -> u position 2
+    // 'sorted' (default) still sorts.
+    eval("s = unique([3 1 4 1 5], 'sorted');");
+    EXPECT_DOUBLE_EQ(getVarPtr("s")->doubleData()[0], 1.0);
+}
+
 TEST_P(SetOpsTest, UniqueMatrixFlattens)
 {
     // unique flattens column-major
@@ -79,6 +141,40 @@ TEST_P(SetOpsTest, UniqueMatrixFlattens)
     EXPECT_DOUBLE_EQ(u->doubleData()[0], 1.0);
     EXPECT_DOUBLE_EQ(u->doubleData()[1], 2.0);
     EXPECT_DOUBLE_EQ(u->doubleData()[2], 3.0);
+}
+
+// ── unique output orientation (MATLAB: ia/ic always columns; u matches
+//    the input orientation). Regression: ia/ic came back as rows and u was
+//    always a row even for a column input. ───────────────────────────────
+TEST_P(SetOpsTest, UniqueRowInputColumnIndices)
+{
+    eval("function [a,b,c] = wrapO(x)\n  [a,b,c] = unique(x);\nend");
+    eval("[u, ia, ic] = wrapO([3 1 2 1 3]);");
+    // u keeps the row orientation of the input
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,2)"), 3.0);
+    // ia / ic are column vectors
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ic,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ic,2)"), 1.0);
+    // values unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(1)"), 3.0);
+}
+
+TEST_P(SetOpsTest, UniqueColumnInputColumnValues)
+{
+    eval("function [a,b,c] = wrapC(x)\n  [a,b,c] = unique(x);\nend");
+    eval("[u, ia, ic] = wrapC([3;1;2;1;3]);");
+    // column input → column u
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ic,2)"), 1.0);
+    // single-output column form too
+    EXPECT_DOUBLE_EQ(evalScalar("size(unique([3;1;2]),2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(unique([3 1 2]),1)"), 1.0); // row stays row
 }
 
 // ── ismember ────────────────────────────────────────────────
@@ -174,6 +270,89 @@ TEST_P(SetOpsTest, SetdiffEmpty)
     EXPECT_EQ(u->numel(), 0u);
 }
 
+// ── set-operation index outputs (ia/ib) — were unimplemented ────────────
+TEST_P(SetOpsTest, IntersectIndices)
+{
+    eval("function [a,b,c]=wIx(x,y)\n  [a,b,c]=intersect(x,y);\nend");
+    eval("[c, ia, ib] = wIx([3 1 2 5], [2 4 1]);");
+    // c = [1 2]; ia indexes A, ib indexes B (both 1-based, columns)
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 2.0); // 1 at A(2)
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2)"), 3.0); // 2 at A(3)
+    EXPECT_DOUBLE_EQ(evalScalar("ib(1)"), 3.0); // 1 at B(3)
+    EXPECT_DOUBLE_EQ(evalScalar("ib(2)"), 1.0); // 2 at B(1)
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0); // columns
+    EXPECT_DOUBLE_EQ(evalScalar("size(ib,2)"), 1.0);
+}
+
+TEST_P(SetOpsTest, SetdiffIndices)
+{
+    eval("function [a,b]=wSd(x,y)\n  [a,b]=setdiff(x,y);\nend");
+    eval("[d, ia] = wSd([3 1 2 5], [2 4 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 1.0); // 3 at A(1)
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2)"), 4.0); // 5 at A(4)
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0);
+}
+
+TEST_P(SetOpsTest, UnionIndices)
+{
+    eval("function [a,b,c]=wUn(x,y)\n  [a,b,c]=union(x,y);\nend");
+    eval("[u, ia, ib] = wUn([3 1 2], [2 4 1]);");
+    // u = [1 2 3 4]; ia indexes the A-sourced elements (1,2,3),
+    // ib indexes the B-only element (4 at B(2)).
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 2.0); // 1 at A(2)
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2)"), 3.0); // 2 at A(3)
+    EXPECT_DOUBLE_EQ(evalScalar("ia(3)"), 1.0); // 3 at A(1)
+    EXPECT_DOUBLE_EQ(evalScalar("ib(1)"), 2.0); // 4 at B(2)
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ia)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ib)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(ia,2)"), 1.0);
+}
+
+// Complex intersect/union/setdiff (C output): exact-equality membership,
+// values ordered by |z| then angle ('sorted'); 'stable' keeps first-occur
+// order. Was unsupported (threw "Not a double array"). vs MATLAB R2025b.
+TEST_P(SetOpsTest, SetOpsComplex)
+{
+    // intersect sorted -> [3+4i 5i]
+    eval("ci = intersect([1 5i 3+4i 2], [3+4i 5i 7]);");
+    auto *ci = getVarPtr("ci");
+    ASSERT_NE(ci, nullptr); ASSERT_EQ(ci->numel(), 2u);
+    EXPECT_DOUBLE_EQ(ci->complexData()[0].real(), 3.0);
+    EXPECT_DOUBLE_EQ(ci->complexData()[0].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(ci->complexData()[1].imag(), 5.0);
+    // intersect stable -> [5i 3+4i] (A-order)
+    eval("cis = intersect([1 5i 3+4i 2], [3+4i 5i 7], 'stable');");
+    auto *cis = getVarPtr("cis");
+    ASSERT_NE(cis, nullptr);
+    EXPECT_DOUBLE_EQ(cis->complexData()[0].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(cis->complexData()[1].real(), 3.0);
+
+    // union sorted -> [1 3+4i 5i]
+    eval("cu = union([1 5i], [3+4i 1]);");
+    auto *cu = getVarPtr("cu");
+    ASSERT_NE(cu, nullptr); ASSERT_EQ(cu->numel(), 3u);
+    EXPECT_DOUBLE_EQ(cu->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(cu->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(cu->complexData()[2].imag(), 5.0);
+    // union stable -> [1 5i 3+4i]
+    eval("cus = union([1 5i], [3+4i 1], 'stable');");
+    auto *cus = getVarPtr("cus");
+    ASSERT_NE(cus, nullptr);
+    EXPECT_DOUBLE_EQ(cus->complexData()[1].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(cus->complexData()[2].real(), 3.0);
+
+    // setdiff sorted -> [1 3+4i]
+    eval("cd = setdiff([1 5i 3+4i], [5i]);");
+    auto *cd = getVarPtr("cd");
+    ASSERT_NE(cd, nullptr); ASSERT_EQ(cd->numel(), 2u);
+    EXPECT_DOUBLE_EQ(cd->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(cd->complexData()[1].imag(), 4.0);
+}
+
 // ── histcounts ──────────────────────────────────────────────
 
 TEST_P(SetOpsTest, HistcountsBasic)
@@ -209,6 +388,188 @@ TEST_P(SetOpsTest, HistcountsBadEdgesThrows)
 {
     EXPECT_THROW(eval("histcounts([1 2 3], [3 2 1]);"), std::runtime_error);
     EXPECT_THROW(eval("histcounts([1 2 3], [1]);"), std::runtime_error);
+}
+
+// ── histcounts 'Normalization' ──────────────────────────────
+// x has 9 elements, 2 out of range → N = 9 (numel, not in-range count).
+TEST_P(SetOpsTest, HistcountsNormProbability)
+{
+    eval("h = histcounts([1 2 2 3 3 3 5 99 -7], [0 2 4 6], "
+         "'Normalization', 'probability');");
+    auto *h = getVarPtr("h");
+    ASSERT_NE(h, nullptr);
+    EXPECT_NEAR(h->doubleData()[0], 1.0 / 9.0, 1e-12);
+    EXPECT_NEAR(h->doubleData()[1], 5.0 / 9.0, 1e-12);
+    EXPECT_NEAR(h->doubleData()[2], 1.0 / 9.0, 1e-12);
+}
+
+TEST_P(SetOpsTest, HistcountsNormCumcountAndCdf)
+{
+    eval("cc = histcounts([1 2 2 3 3 3 5 99 -7], [0 2 4 6], "
+         "'Normalization', 'cumcount');");
+    auto *cc = getVarPtr("cc");
+    ASSERT_NE(cc, nullptr);
+    EXPECT_DOUBLE_EQ(cc->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(cc->doubleData()[1], 6.0);
+    EXPECT_DOUBLE_EQ(cc->doubleData()[2], 7.0);
+    eval("cf = histcounts([1 2 2 3 3 3 5 99 -7], [0 2 4 6], "
+         "'Normalization', 'cdf');");
+    auto *cf = getVarPtr("cf");
+    EXPECT_NEAR(cf->doubleData()[2], 7.0 / 9.0, 1e-12);  // not 1.0: 2 out of range
+}
+
+TEST_P(SetOpsTest, HistcountsNormCountDensityAndPdf)
+{
+    // Nonuniform edges [0 1 4 6] → binwidths [1 3 2]; data 4 pts all in range.
+    eval("cd = histcounts([0.5 2 3 5], [0 1 4 6], "
+         "'Normalization', 'countdensity');");
+    auto *cd = getVarPtr("cd");
+    ASSERT_NE(cd, nullptr);
+    EXPECT_NEAR(cd->doubleData()[0], 1.0, 1e-12);          // 1/1
+    EXPECT_NEAR(cd->doubleData()[1], 2.0 / 3.0, 1e-12);    // 2/3
+    EXPECT_NEAR(cd->doubleData()[2], 0.5, 1e-12);          // 1/2
+    eval("pf = histcounts([0.5 2 3 5], [0 1 4 6], "
+         "'Normalization', 'pdf');");
+    auto *pf = getVarPtr("pf");
+    EXPECT_NEAR(pf->doubleData()[0], 0.25, 1e-12);         // 1/(4*1)
+    EXPECT_NEAR(pf->doubleData()[1], 2.0 / 12.0, 1e-12);   // 2/(4*3)
+    EXPECT_NEAR(pf->doubleData()[2], 1.0 / 8.0, 1e-12);    // 1/(4*2)
+}
+
+TEST_P(SetOpsTest, HistcountsNormUnknownThrows)
+{
+    EXPECT_THROW(eval("histcounts([1 2 3], [0 2 4], 'Normalization', 'bogus');"),
+                 std::runtime_error);
+}
+
+// ── histcounts 'BinEdges' name-value + [n, edges] second output ──────
+TEST_P(SetOpsTest, HistcountsBinEdgesNameValue)
+{
+    // 'BinEdges' is equivalent to passing the edges positionally. Regression:
+    // numkit used to treat 'BinEdges' as the edges vector → "Not a double".
+    eval("[n, e] = histcounts([1 2 3 4 5], 'BinEdges', [0 2 4 6]);");
+    auto *n = getVarPtr("n");
+    auto *e = getVarPtr("e");
+    ASSERT_NE(n, nullptr);
+    ASSERT_NE(e, nullptr);
+    EXPECT_DOUBLE_EQ(n->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[2], 2.0);
+    // second output = edges, returned as a row vector
+    EXPECT_EQ(e->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(e->doubleData()[3], 6.0);
+    // 'BinEdges' composes with 'Normalization'
+    eval("p = histcounts([1 2 3 4 5], 'BinEdges', [0 2 4 6], "
+         "'Normalization', 'probability');");
+    auto *p = getVarPtr("p");
+    ASSERT_NE(p, nullptr);
+    EXPECT_NEAR(p->doubleData()[0], 0.2, 1e-12);
+    EXPECT_NEAR(p->doubleData()[1], 0.4, 1e-12);
+    EXPECT_NEAR(p->doubleData()[2], 0.4, 1e-12);
+}
+
+TEST_P(SetOpsTest, HistcountsSecondOutputEdges)
+{
+    // [n, e] with positional edges also returns the edges (was previously
+    // a single-output-only function).
+    eval("[n, e] = histcounts([1 2 3 4 5], [0 2 4 6]);");
+    auto *e = getVarPtr("e");
+    ASSERT_NE(e, nullptr);
+    EXPECT_EQ(e->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e->doubleData()[2], 4.0);
+}
+
+TEST_P(SetOpsTest, HistcountsUnsupportedOptionThrows)
+{
+    // Automatic-binning options are explicitly unsupported (not silently
+    // misinterpreted as edges).
+    EXPECT_THROW(eval("histcounts([1 2 3], 'BinWidth', 1);"), std::runtime_error);
+}
+
+// DEEP-PROBE 2026-05-31: 'BinMethod','integers' (one unit-width bin centered
+// on each integer in [round(min),round(max)]); other BinMethods still throw.
+TEST_P(SetOpsTest, HistcountsBinMethodIntegers)
+{
+    eval("[n, e] = histcounts([1 1 2 3 3 3], 'BinMethod', 'integers');");
+    auto *n = getVarPtr("n");
+    auto *e = getVarPtr("e");
+    ASSERT_NE(n, nullptr);
+    ASSERT_NE(e, nullptr);
+    EXPECT_EQ(n->numel(), 3u);
+    EXPECT_DOUBLE_EQ(n->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[2], 3.0);
+    EXPECT_EQ(e->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e->doubleData()[0], 0.5);
+    EXPECT_DOUBLE_EQ(e->doubleData()[3], 3.5);
+
+    // Gaps create empty interior bins; non-integer data rounds to centers.
+    eval("[m, em] = histcounts([2 5 5 7], 'BinMethod', 'integers');");
+    auto *m = getVarPtr("m");
+    ASSERT_NE(m, nullptr);
+    EXPECT_EQ(m->numel(), 6u);            // integers 2..7
+    EXPECT_DOUBLE_EQ(m->doubleData()[0], 1.0);   // the 2
+    EXPECT_DOUBLE_EQ(m->doubleData()[3], 2.0);   // the two 5s
+    EXPECT_DOUBLE_EQ(m->doubleData()[5], 1.0);   // the 7
+
+    eval("[d, ed] = histcounts([1.2 2.8 2.9 3.1], 'BinMethod', 'integers');");
+    auto *d = getVarPtr("d");
+    auto *ed = getVarPtr("ed");
+    ASSERT_NE(d, nullptr);
+    EXPECT_EQ(d->numel(), 3u);            // round(1.2)=1 .. round(3.1)=3
+    EXPECT_DOUBLE_EQ(ed->doubleData()[0], 0.5);
+    EXPECT_DOUBLE_EQ(d->doubleData()[2], 3.0);   // 2.8,2.9,3.1 -> integer 3
+
+    // Negative range.
+    eval("[k, ek] = histcounts([-2 -1 -1 0], 'BinMethod', 'integers');");
+    auto *ek = getVarPtr("ek");
+    auto *k = getVarPtr("k");
+    ASSERT_NE(ek, nullptr);
+    EXPECT_DOUBLE_EQ(ek->doubleData()[0], -2.5);
+    EXPECT_DOUBLE_EQ(k->doubleData()[1], 2.0);   // the two -1s
+
+    // Composes with Normalization.
+    eval("p = histcounts([1 1 2 3], 'BinMethod', 'integers', "
+         "'Normalization', 'probability');");
+    auto *p = getVarPtr("p");
+    ASSERT_NE(p, nullptr);
+    EXPECT_NEAR(p->doubleData()[0], 0.5, 1e-12);
+
+    // A non-integers BinMethod still throws.
+    EXPECT_THROW(eval("histcounts([1 2 3], 'BinMethod', 'auto');"),
+                 std::runtime_error);
+}
+
+// ── histc (legacy) ──────────────────────────────────────────
+// n has length(edges); last bin = exact-equal to edges(end). vs MATLAB.
+TEST_P(SetOpsTest, HistcCounts)
+{
+    eval("h = histc([1 2 2 3 5], [0 2 4 6]);");
+    auto *h = getVarPtr("h");
+    EXPECT_EQ(h->numel(), 4u);                  // length(edges), not edges-1
+    EXPECT_DOUBLE_EQ(h->doubleData()[0], 1.0);  // [0,2): {1}
+    EXPECT_DOUBLE_EQ(h->doubleData()[1], 3.0);  // [2,4): {2,2,3}
+    EXPECT_DOUBLE_EQ(h->doubleData()[2], 1.0);  // [4,6): {5}
+    EXPECT_DOUBLE_EQ(h->doubleData()[3], 0.0);  // == 6: none
+}
+
+TEST_P(SetOpsTest, HistcBinIndexAndColumnwise)
+{
+    // 2nd output: 1-based bin index of each element (0 if out of range).
+    eval("function [a,b] = hcb(x, e)\n  [a,b] = histc(x, e);\nend");
+    eval("[n, bin] = hcb([1 2 2 3 5], [0 2 4 6]);");
+    auto *bin = getVarPtr("bin");
+    EXPECT_DOUBLE_EQ(bin->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(bin->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(bin->doubleData()[4], 3.0);
+    // Matrix: column-wise, length(edges) x ncols.
+    eval("H = histc([1 5; 2 6; 3 7], [0 4 8]);");
+    auto *H = getVarPtr("H");
+    EXPECT_EQ(H->dims().rows(), 3u);
+    EXPECT_EQ(H->dims().cols(), 2u);
+    EXPECT_DOUBLE_EQ(evalScalar("H(1,1)"), 3.0);  // col1 [1;2;3] all in [0,4)
+    EXPECT_DOUBLE_EQ(evalScalar("H(2,2)"), 3.0);  // col2 [5;6;7] all in [4,8)
 }
 
 // ── discretize ──────────────────────────────────────────────
@@ -413,6 +774,40 @@ TEST_P(SetOpsTest, UniqueRowsThreeOutputs)
     EXPECT_DOUBLE_EQ(evalScalar("ic(4);"), 3.0);
 }
 
+// unique(M,'rows','stable'): first-occurrence order instead of lex sort.
+// DEEP-PROBE 2026-05-31 — the 'rows' path previously dropped 'stable'.
+// vs MATLAB R2025b: M=[3 0;1 0;2 0;1 0;3 0] -> C=[3 0;1 0;2 0],
+// ia=[1;2;3], ic=[1;2;3;2;1].
+TEST_P(SetOpsTest, UniqueRowsStableOrder)
+{
+    eval("M = [3 0; 1 0; 2 0; 1 0; 3 0]; [C, ia, ic] = unique(M, 'rows', 'stable');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 3.0);
+    // Rows kept in first-appearance order (NOT sorted).
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(3,1);"), 2.0);
+    // ia indexes the first occurrence of each distinct row.
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(3);"), 3.0);
+    // ic maps every row back to its unique entry.
+    EXPECT_DOUBLE_EQ(evalScalar("ic(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(3);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(5);"), 1.0);
+    // Single-output form keeps the same order.
+    eval("D = unique([5 5; 1 1; 5 5; 9 9; 1 1], 'rows', 'stable');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(D,1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1,1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(2,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(3,1);"), 9.0);
+    // 'sorted' (default) is unchanged.
+    eval("S = unique(M, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("S(1,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("S(3,1);"), 3.0);
+}
+
 TEST_P(SetOpsTest, UniqueRowsNanRowsKeptDistinct)
 {
     // Each NaN-row stays as its own unique slot, appended at the end.
@@ -469,6 +864,153 @@ TEST_P(SetOpsTest, UniqueAcceptsNoOpFlags)
     eval("v = [3 1 2 1]; c = unique(v, 'sorted');");
     EXPECT_DOUBLE_EQ(evalScalar("c(1);"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("c(3);"), 3.0);
+}
+
+// 'stable' setOrder for setdiff/union/intersect: keep first-occurrence
+// (A-then-B) order instead of sorting. (Was ignored -> always sorted.)
+// vs MATLAB R2025b.
+TEST_P(SetOpsTest, BinarySetopsStableOrder)
+{
+    eval("sd = setdiff([3 1 2 5 4], [2 5], 'stable');");   // -> [3 1 4]
+    EXPECT_DOUBLE_EQ(evalScalar("sd(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sd(2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sd(3);"), 4.0);
+    eval("un = union([3 1], [2 1], 'stable');");           // -> [3 1 2]
+    EXPECT_DOUBLE_EQ(evalScalar("un(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("un(3);"), 2.0);
+    eval("ii = intersect([4 2 3 1], [1 2 4], 'stable');"); // -> [4 2 1]
+    EXPECT_DOUBLE_EQ(evalScalar("ii(1);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ii(3);"), 1.0);
+    // default 'sorted' unchanged.
+    eval("ss = setdiff([3 1 2 5 4], [2 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ss(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ss(3);"), 4.0);
+}
+
+// ismember 2nd output loc = LOWEST 1-based index in B (0 if absent).
+// (Was missing -> [tf,loc]=ismember(...) errored.) vs MATLAB R2025b.
+TEST_P(SetOpsTest, IsmemberLocSecondOutput)
+{
+    eval("[tf, loc] = ismember([2 5 8 1], [5 2 9]);");
+    EXPECT_DOUBLE_EQ(evalScalar("tf(1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("tf(3);"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("loc(1);"), 2.0);   // 2 is at B index 2
+    EXPECT_DOUBLE_EQ(evalScalar("loc(2);"), 1.0);   // 5 is at B index 1
+    EXPECT_DOUBLE_EQ(evalScalar("loc(3);"), 0.0);   // 8 absent
+    // Tie: B has duplicate values -> loc is the LOWEST index.
+    eval("[~, l2] = ismember([3 1 2], [2 1 3 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("l2(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("l2(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("l2(3);"), 1.0);
+}
+
+// Complex ismember: membership by EXACT equality (real AND imag); Locb is
+// the lowest 1-based index in B; NaN component never matches; reals vs
+// complex compare as z+0i. Was unsupported (threw "Not a double array").
+// vs MATLAB R2025b. 2026-05-29.
+TEST_P(SetOpsTest, IsmemberComplex)
+{
+    eval("[tf, loc] = ismember([1 5i 3+4i 2], [3+4i 5i 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("tf(1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("tf(4);"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("loc(1);"), 3.0);   // 1 at B(3)
+    EXPECT_DOUBLE_EQ(evalScalar("loc(2);"), 2.0);   // 5i at B(2)
+    EXPECT_DOUBLE_EQ(evalScalar("loc(3);"), 1.0);   // 3+4i at B(1)
+    EXPECT_DOUBLE_EQ(evalScalar("loc(4);"), 0.0);   // 2 absent
+    // duplicate in B -> lowest index.
+    eval("[~, l2] = ismember(5i, [5i 2 5i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("l2;"), 1.0);
+    // real query against complex set compares as z+0i.
+    EXPECT_DOUBLE_EQ(evalScalar("double(ismember(2, [2+0i 5i]));"), 1.0);
+    // NaN component never matches.
+    EXPECT_DOUBLE_EQ(evalScalar("double(ismember(complex(nan,1), [complex(nan,1) 2]));"), 0.0);
+}
+
+// setdiff/intersect/union with the 'rows' flag: each row is one element, the
+// result is the sorted set of unique rows. Was throwing (setdiff) or ignoring
+// the flag and flattening (intersect/union). vs MATLAB R2025b.
+// DEEP-PROBE 2026-05-31.
+TEST_P(SetOpsTest, SetOpsRows)
+{
+    eval("Ar = [1 2;3 4;5 6]; Br = [3 4;9 9;1 2];");
+    // setdiff rows: rows of A not in B -> [5 6].
+    eval("d = setdiff(Ar, Br, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(d,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(d,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(1,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(1,2)"), 6.0);
+    // intersect rows: common rows, sorted -> [1 2;3 4].
+    eval("c = intersect(Ar, Br, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(c,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2,1)"), 3.0);
+    // row-distinguishing: [1 2;3 4] vs [2 1;3 4] -> only [3 4] (1x2, not 1x4).
+    eval("dd = intersect([1 2;3 4], [2 1;3 4], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(dd,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(dd,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1,1)"), 3.0);
+    // union rows: unique rows of [A;B], sorted -> [1 2;3 4;5 6;9 9].
+    eval("u = union(Ar, Br, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(u,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(4,1)"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u(4,2)"), 9.0);
+    // 'rows' index outputs are deferred (must throw).
+    EXPECT_THROW(eval("[dd2, ia] = setdiff(Ar, Br, 'rows');"), std::exception);
+}
+
+// ismember(A,B,'rows'): row-wise membership. Was IGNORING 'rows' and doing
+// element-wise membership (returned a MATRIX the size of A). With 'rows' each
+// row is one element; tf and loc are COLUMNS of height size(A,1). vs MATLAB
+// R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(SetOpsTest, IsmemberRows)
+{
+    eval("[tf, loc] = ismember([1 2; 5 6; 3 4], [3 4; 1 2; 7 8], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(tf,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(tf,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(tf(1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(tf(2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(tf(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("loc(1)"), 2.0);   // [1 2] is B row 2
+    EXPECT_DOUBLE_EQ(evalScalar("loc(2)"), 0.0);   // [5 6] absent
+    EXPECT_DOUBLE_EQ(evalScalar("loc(3)"), 1.0);   // [3 4] is B row 1
+    // duplicate row in B -> LOWEST index.
+    eval("[~, l2] = ismember([2 2; 1 1], [1 1; 3 3; 1 1; 2 2], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("l2(1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("l2(2)"), 1.0);
+    // single-output scalar form.
+    EXPECT_DOUBLE_EQ(evalScalar("double(ismember([10 20], [10 20; 1 2], 'rows'))"), 1.0);
+    // NaN-containing row never matches.
+    EXPECT_DOUBLE_EQ(evalScalar("double(ismember([nan 2], [nan 2; 1 2], 'rows'))"), 0.0);
+    // mismatched column counts throw.
+    EXPECT_THROW(eval("ismember([1 2 3], [1 2], 'rows');"), std::exception);
+}
+
+// setxor(A,B,'rows'): symmetric difference of the row sets (rows in exactly
+// one input), sorted. Was IGNORING 'rows' and flattening element-wise to a
+// 1xN vector. vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(SetOpsTest, SetxorRows)
+{
+    eval("x = setxor([1 2;3 4;5 6], [3 4;9 9;1 2], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(x,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(x,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("x(1,1)"), 5.0);   // only in A
+    EXPECT_DOUBLE_EQ(evalScalar("x(1,2)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("x(2,1)"), 9.0);   // only in B
+    EXPECT_DOUBLE_EQ(evalScalar("x(2,2)"), 9.0);
+    // interleaved only-in-A / only-in-B, all sorted together.
+    eval("y = setxor([5 6;1 1], [1 1;2 2;7 8], 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(y,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(1,1)"), 2.0);   // [2 2] (B)
+    EXPECT_DOUBLE_EQ(evalScalar("y(2,1)"), 5.0);   // [5 6] (A)
+    EXPECT_DOUBLE_EQ(evalScalar("y(3,1)"), 7.0);   // [7 8] (B)
+    // element-wise (non-rows) path unchanged.
+    eval("e = setxor([1 2 3 4], [3 4 5 6]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(4)"), 6.0);
+    // mismatched columns throw; 'rows' index outputs deferred.
+    EXPECT_THROW(eval("setxor([1 2 3], [1 2], 'rows');"), std::exception);
+    EXPECT_THROW(eval("[c, ia] = setxor([1 2;3 4], [3 4;9 9], 'rows');"), std::exception);
 }
 
 INSTANTIATE_DUAL(SetOpsTest);

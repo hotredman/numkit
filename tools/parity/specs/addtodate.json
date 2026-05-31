@@ -1,0 +1,13 @@
+{
+  "name": "addtodate",
+  "namespace": "builtin",
+  "setup": "b = datenum(2026,1,31,10,20,30);",
+  "expr": "vd = datevec(addtodate(b,3,'day')); dD = vd(3); dH = vd(4); vh = datevec(addtodate(b,3,'hour')); hH = vh(4); vmo = datevec(addtodate(b,3,'month')); moM = vmo(2); moD = vmo(3); moH = vmo(4); vyr = datevec(addtodate(b,3,'year')); yrY = vyr(1); vc1 = datevec(addtodate(datenum(2026,1,31),1,'month')); c1M = vc1(2); c1D = vc1(3); vc2 = datevec(addtodate(datenum(2024,1,31),1,'month')); c2D = vc2(3); vc3 = datevec(addtodate(datenum(2024,2,29),1,'year')); c3Y = vc3(1); c3D = vc3(3); vneg = datevec(addtodate(datenum(2026,3,15),-4,'month')); nY = vneg(1); nM = vneg(2); sms = addtodate(b,3,'millisecond') - b;",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "dD", "dH", "hH", "moM", "moD", "moH", "yrY",
+    "c1M", "c1D", "c2D", "c3Y", "c3D", "nY", "nM", "sms"
+  ],
+  "comment": "addtodate(D, Q, units): add Q units to serial date number D (scalar). Implemented 2026-05-30 (was an undefined function). Time units are plain serial arithmetic (+3 day -> D=3 wraps Jan31->Feb3 dD=3 dH=10; +3 hour -> hH=13; +3 millisecond delta sms=3/86400000~=3.47e-8). Calendar units add to the month/year component with day-clamping to the new month's length and preserve the time-of-day fraction: +3 month from Jan31 -> Apr30 (moM=4, moD=30, moH=10 preserved); +3 year -> 2029 (yrY=2029); Jan31+1mo -> Feb28 (c1M=2,c1D=28); leap Jan31 2024 +1mo -> Feb29 (c2D=29); Feb29 2024 +1yr -> Feb28 2025 (c3Y=2025,c3D=28); negative Mar15 2026 -4mo -> Nov15 2025 (nY=2025,nM=11). namespace=builtin. NOTE: scalar D only (MATLAB errors on a vector); fractional month/year quantity is rounded."
+}

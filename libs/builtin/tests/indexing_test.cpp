@@ -419,6 +419,95 @@ TEST_P(IndexingOpsTest, Index3DGetSlice)
     EXPECT_DOUBLE_EQ((*B)(1, 2), 12.0);
 }
 
+// ── trailing-singleton squeeze on 3D/ND slicing ─────────────────
+//
+// MATLAB rule: a slice strips trailing singleton dims (but never
+// below 2-D, and never strips interior singletons). Discovered while
+// writing the libs/linalg page_family parity spec — `inv(B3(:,:,1))`
+// threw because the slice came out [m,n,1] instead of [m,n].
+// Fixed in core/src/value.cpp { indexGet3D, indexGetND }.
+TEST_P(IndexingOpsTest, Slice3DTrailingSingletonSqueezes)
+{
+    // A(:,:,k) on a 3×4×5 → 2-D [3,4], not [3,4,1].
+    eval("A = zeros(3, 4, 5); S = A(:, :, 2);");
+    auto *S = getVarPtr("S");
+    EXPECT_EQ(S->dims().ndim(), 2);
+    EXPECT_EQ(S->dims().rows(), 3u);
+    EXPECT_EQ(S->dims().cols(), 4u);
+}
+
+TEST_P(IndexingOpsTest, Slice3DInteriorSingletonStays)
+{
+    // A(:,j,:) on a 3×4×5 → 3-D [3,1,5]; the interior singleton must
+    // not be stripped, only trailing ones.
+    eval("A = zeros(3, 4, 5); S = A(:, 2, :);");
+    auto *S = getVarPtr("S");
+    EXPECT_EQ(S->dims().ndim(), 3);
+    EXPECT_EQ(S->dims().rows(), 3u);
+    EXPECT_EQ(S->dims().cols(), 1u);
+    EXPECT_EQ(S->dims().pages(), 5u);
+}
+
+TEST_P(IndexingOpsTest, Slice3DBinaryOpOnSqueezedShape)
+{
+    // After the squeeze, two slices are 2-D matrices and the binary
+    // operator (`+`) works on them directly with no broadcast surprises.
+    eval(R"(
+        A = zeros(2, 3, 2);
+        A(:,:,1) = [1 2 3; 4 5 6];
+        A(:,:,2) = [7 8 9; 10 11 12];
+        S = A(:,:,1) + A(:,:,2);
+    )");
+    auto *S = getVarPtr("S");
+    EXPECT_EQ(S->dims().ndim(), 2);
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 8.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 2), 18.0);
+}
+
+TEST_P(IndexingOpsTest, Slice3DInvOnSquareSlice)
+{
+    // The motivating bug: inv() of a slice of a stack of square
+    // matrices. Without the squeeze, `inv()` would reject the [m,n,1]
+    // input as "not a 2-D matrix". With the fix, this just works.
+    eval(R"(
+        B3 = zeros(2, 2, 3);
+        B3(:,:,1) = [2 0; 0 4];
+        B3(:,:,2) = [1 0; 0 1];
+        B3(:,:,3) = [3 0; 0 6];
+        I1 = inv(B3(:,:,1));
+        I2 = inv(B3(:,:,2));
+    )");
+    auto *I1 = getVarPtr("I1");
+    auto *I2 = getVarPtr("I2");
+    ASSERT_EQ(I1->dims().ndim(), 2);
+    ASSERT_EQ(I2->dims().ndim(), 2);
+    EXPECT_NEAR((*I1)(0, 0), 0.5,  1e-12);
+    EXPECT_NEAR((*I1)(1, 1), 0.25, 1e-12);
+    EXPECT_NEAR((*I2)(0, 0), 1.0,  1e-12);
+}
+
+TEST_P(IndexingOpsTest, Slice4DTrailingSingletonsSqueeze)
+{
+    // 4-D: A(:,:,k,j) → 2-D [m,n] (two trailing 1s stripped).
+    eval("A = zeros(2, 3, 4, 5); S = A(:, :, 2, 3);");
+    auto *S = getVarPtr("S");
+    EXPECT_EQ(S->dims().ndim(), 2);
+    EXPECT_EQ(S->dims().rows(), 2u);
+    EXPECT_EQ(S->dims().cols(), 3u);
+}
+
+TEST_P(IndexingOpsTest, Slice4DMixedSingletonsStripOnlyTrailing)
+{
+    // 4-D: A(:,k,:,j) → [m,1,p]; trailing 1 stripped but interior
+    // singleton (dim 2) stays.
+    eval("A = zeros(2, 3, 4, 5); S = A(:, 2, :, 3);");
+    auto *S = getVarPtr("S");
+    EXPECT_EQ(S->dims().ndim(), 3);
+    EXPECT_EQ(S->dims().rows(), 2u);
+    EXPECT_EQ(S->dims().cols(), 1u);
+    EXPECT_EQ(S->dims().pages(), 4u);
+}
+
 TEST_P(IndexingOpsTest, Index3DSetAndGet)
 {
     eval(R"(

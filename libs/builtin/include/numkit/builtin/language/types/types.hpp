@@ -12,7 +12,7 @@ namespace numkit::builtin {
 /// All predicate functions return LOGICAL scalars unless noted. All
 /// numeric casts saturate at the target type's range. The C++ names
 /// `toDouble` / `classOf` rename `double` / `class` (C++ keywords);
-/// the registered MATLAB names remain `double` / `class`.
+/// the registered names remain `double` / `class`.
 
 // ── Numeric casts ────────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ Value issingle(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Stub for `issparse(x)` — numkit has no sparse storage class.
 ///
-/// Always returns `false`. Provided for parity with MATLAB scripts that
+/// Always returns `false`. Provided for scripts that
 /// probe sparseness.
 ///
 /// @param x   Input. @param mr  Memory resource. @return  LOGICAL false scalar.
@@ -159,6 +159,59 @@ Value isinf(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param x   Input. @param mr  Memory resource.
 /// @return    LOGICAL array, same shape as `x`. @see isnan, isinf, allfinite
 Value isfinite(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Elementwise missing-value test (`tf = ismissing(A[, indicator])`).
+///
+/// Without `indicator`: returns true where `A` contains the standard
+/// missing value for its class. For DOUBLE / SINGLE this is `NaN`;
+/// for integer / logical / character types nothing is treated as
+/// missing (the result is all-false).
+///
+/// With `indicator` (scalar or vector): returns true where the
+/// element matches any value in `indicator`. The element-wise
+/// comparison uses `==` semantics; `NaN` in DOUBLE / SINGLE inputs
+/// is still treated as missing (it matches if `indicator` contains
+/// `NaN`, otherwise it is treated as missing only when no indicator
+/// is provided).
+///
+/// @param x          Input array (any numeric or logical class).
+/// @param indicator  Empty (default) for standard missing only, OR
+///                   scalar / vector of values to also treat as missing.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           LOGICAL array of the same shape as `x`.
+/// @see isnan, anymissing, rmmissing
+Value ismissing(const Value &x, const Value &indicator,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Replace nonstandard missing-value indicators with NaN
+/// (`B = standardizeMissing(A, indicator)`).
+///
+/// For DOUBLE / SINGLE inputs, every element matching any value in
+/// `indicator` is replaced with NaN. For integer / logical inputs
+/// the array passes through unchanged — those classes have no
+/// standard missing value (matching MATLAB R2025b).
+///
+/// `NaN` in the indicator never matches (because `NaN != NaN` under
+/// `==`); use `ismissing` instead if NaN match is needed.
+///
+/// @param x          Input array.
+/// @param indicator  Scalar or vector of "nonstandard missing" values.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Array of the input class with replacements made.
+/// @see ismissing, anymissing
+Value standardizeMissing(const Value &x, const Value &indicator,
+                         std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Scalar "any missing in array" check (`tf = anymissing(A)`).
+///
+/// True iff `ismissing(A)` is true for at least one element. Always
+/// false for integer / logical / character / empty inputs.
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    LOGICAL scalar.
+/// @see ismissing, isnan
+Value anymissing(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── Shape predicates ─────────────────────────────────────────────────
 

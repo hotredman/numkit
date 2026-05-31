@@ -274,31 +274,39 @@ Value extractsigroi(const Value &x, const Value &roi, bool concat,
 //   bound is 2-vec   → mask where bound(1) <= x <= bound(2)
 //                      (default Relationship='inside', closed interval)
 // 'Relationship' / 'IntervalType' name-value args deferred (KNOWN GAP).
-Value sigrangebinmask(const Value &x, const Value &bound,
-                      std::pmr::memory_resource *mr)
+namespace {
+// Common shape-preserving LOGICAL output allocator.
+Value allocLogicalLike(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t L = x.numel();
-    Value out;
     if (x.dims().rows() == 1)
-        out = Value::matrix(1, L, ValueType::LOGICAL, mr);
-    else
-        out = Value::matrix(L, L == 0 ? 0 : 1, ValueType::LOGICAL, mr);
+        return Value::matrix(1, L, ValueType::LOGICAL, mr);
+    return Value::matrix(L, L == 0 ? 0 : 1, ValueType::LOGICAL, mr);
+}
+} // anon
+
+Value sigrangebinmask(const Value &x, double threshold,
+                      std::pmr::memory_resource *mr)
+{
+    Value out = allocLogicalLike(x, mr);
+    const size_t L = x.numel();
     if (L == 0) return out;
     uint8_t *od = out.logicalDataMut();
-    if (bound.numel() == 1) {
-        const double b = bound.toScalar();
-        for (size_t i = 0; i < L; ++i)
-            od[i] = (x.elemAsDouble(i) > b) ? 1 : 0;
-    } else if (bound.numel() == 2) {
-        const double vmin = bound.elemAsDouble(0);
-        const double vmax = bound.elemAsDouble(1);
-        for (size_t i = 0; i < L; ++i) {
-            const double v = x.elemAsDouble(i);
-            od[i] = (v >= vmin && v <= vmax) ? 1 : 0;
-        }
-    } else {
-        throw Error("sigrangebinmask: bound must be scalar or 2-element vector",
-                    0, 0, "sigrangebinmask", "", "m:sigrangebinmask:BadBound");
+    for (size_t i = 0; i < L; ++i)
+        od[i] = (x.elemAsDouble(i) > threshold) ? 1 : 0;
+    return out;
+}
+
+Value sigrangebinmask(const Value &x, double lo, double hi,
+                      std::pmr::memory_resource *mr)
+{
+    Value out = allocLogicalLike(x, mr);
+    const size_t L = x.numel();
+    if (L == 0) return out;
+    uint8_t *od = out.logicalDataMut();
+    for (size_t i = 0; i < L; ++i) {
+        const double v = x.elemAsDouble(i);
+        od[i] = (v >= lo && v <= hi) ? 1 : 0;
     }
     return out;
 }
@@ -310,7 +318,7 @@ void binmask2sigroi_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("binmask2sigroi: requires (mask)",
-                    0, 0, "binmask2sigroi", "", "m:binmask2sigroi:nargin");
+                    0, 0, "binmask2sigroi", "", "numkit:binmask2sigroi:nargin");
     outs[0] = binmask2sigroi(args[0], ctx.engine->resource());
 }
 
@@ -319,7 +327,7 @@ void sigroi2binmask_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("sigroi2binmask: requires (roi [, len])",
-                    0, 0, "sigroi2binmask", "", "m:sigroi2binmask:nargin");
+                    0, 0, "sigroi2binmask", "", "numkit:sigroi2binmask:nargin");
     int64_t len = -1;
     if (args.size() >= 2) len = static_cast<int64_t>(args[1].toScalar());
     outs[0] = sigroi2binmask(args[0], len, ctx.engine->resource());
@@ -330,7 +338,7 @@ void extendsigroi_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("extendsigroi: requires (roi, Lpre, Lpost)",
-                    0, 0, "extendsigroi", "", "m:extendsigroi:nargin");
+                    0, 0, "extendsigroi", "", "numkit:extendsigroi:nargin");
     outs[0] = extendsigroi(args[0],
                            static_cast<int64_t>(args[1].toScalar()),
                            static_cast<int64_t>(args[2].toScalar()),
@@ -342,7 +350,7 @@ void shortensigroi_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("shortensigroi: requires (roi, Lpre, Lpost)",
-                    0, 0, "shortensigroi", "", "m:shortensigroi:nargin");
+                    0, 0, "shortensigroi", "", "numkit:shortensigroi:nargin");
     outs[0] = shortensigroi(args[0],
                             static_cast<int64_t>(args[1].toScalar()),
                             static_cast<int64_t>(args[2].toScalar()),
@@ -354,7 +362,7 @@ void mergesigroi_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("mergesigroi: requires (roi, sep)",
-                    0, 0, "mergesigroi", "", "m:mergesigroi:nargin");
+                    0, 0, "mergesigroi", "", "numkit:mergesigroi:nargin");
     outs[0] = mergesigroi(args[0],
                           static_cast<int64_t>(args[1].toScalar()),
                           ctx.engine->resource());
@@ -365,7 +373,7 @@ void removesigroi_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("removesigroi: requires (roi, maxLen)",
-                    0, 0, "removesigroi", "", "m:removesigroi:nargin");
+                    0, 0, "removesigroi", "", "numkit:removesigroi:nargin");
     outs[0] = removesigroi(args[0],
                            static_cast<int64_t>(args[1].toScalar()),
                            ctx.engine->resource());
@@ -376,7 +384,7 @@ void extractsigroi_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("extractsigroi: requires (x, roi [, concat])",
-                    0, 0, "extractsigroi", "", "m:extractsigroi:nargin");
+                    0, 0, "extractsigroi", "", "numkit:extractsigroi:nargin");
     bool concat = false;
     if (args.size() >= 3) concat = (args[2].toScalar() != 0.0);
     outs[0] = extractsigroi(args[0], args[1], concat, ctx.engine->resource());
@@ -388,8 +396,17 @@ void sigrangebinmask_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("sigrangebinmask: requires (x, bound) where bound is "
                     "scalar (above) or 2-vec [vmin vmax] (inside)",
-                    0, 0, "sigrangebinmask", "", "m:sigrangebinmask:nargin");
-    outs[0] = sigrangebinmask(args[0], args[1], ctx.engine->resource());
+                    0, 0, "sigrangebinmask", "", "numkit:sigrangebinmask:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &bound = args[1];
+    if (bound.numel() == 1)
+        outs[0] = sigrangebinmask(args[0], bound.toScalar(), mr);
+    else if (bound.numel() == 2)
+        outs[0] = sigrangebinmask(args[0], bound.elemAsDouble(0),
+                                  bound.elemAsDouble(1), mr);
+    else
+        throw Error("sigrangebinmask: bound must be scalar or 2-element vector",
+                    0, 0, "sigrangebinmask", "", "numkit:sigrangebinmask:BadBound");
 }
 
 } // namespace detail

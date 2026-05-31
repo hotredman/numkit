@@ -89,3 +89,60 @@ TEST_F(SignalBatch1Test, AnalogPrototypes)
     eval("[z4, p4, k4] = cheb2ap(3, 30);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(p4)"), 3.0);
 }
+
+// DEEP-PROBE 2026-05-31: lp2* TF form returns the numerator at its true
+// degree (#zeros + 1), matching MATLAB — NOT zero-padded to the denominator
+// length. The Butterworth prototype has no zeros, so lp2lp's numerator is
+// length 1 ([Wo^N]) and lp2bp's is length 5. Previously numkit returned a
+// padded numerator (length 5 / 9) with a leading 0, because tf2zp produced a
+// zero gain for the padded prototype numerator.
+TEST_F(SignalBatch1Test, Lp2lpNumeratorTrueDegree)
+{
+    eval("[z, p, k] = buttap(4); [bp, ap] = zp2tf(z, p, k);");
+    eval("[bt, at] = lp2lp(bp, ap, 100);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(bt)")), 1);   // was 5 (padded)
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(at)")), 5);
+    EXPECT_NEAR(evalScalar("bt(1)"), 1e8, 1.0);                // Wo^4
+    EXPECT_NEAR(evalScalar("at(2)"), 261.312592975, 1e-6);
+    EXPECT_NEAR(evalScalar("at(5)"), 1e8, 1.0);
+}
+
+TEST_F(SignalBatch1Test, Lp2bpNumeratorTrueDegree)
+{
+    eval("[z, p, k] = buttap(4); [bp, ap] = zp2tf(z, p, k);");
+    eval("[bt, at] = lp2bp(bp, ap, 100, 50);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(bt)")), 5);   // was 9 (padded)
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(at)")), 9);
+    EXPECT_NEAR(evalScalar("bt(1)"), 6.25e6, 1.0);
+    EXPECT_NEAR(evalScalar("at(2)"), 130.656296488, 1e-5);
+    EXPECT_NEAR(evalScalar("at(9)"), 1e16, 1e7);               // Wo^8
+}
+
+// DEEP-PROBE 2026-05-31: the 3-output [z,p,k] (digital zero/pole/gain) form
+// of the IIR designers was added (previously errored "Undefined k"). The
+// denominator is monic so the ZPK gain = b(1); poles/gain are exact for all,
+// finite zeros (cheby2/ellip) are exact, and the all-pole filters' repeated
+// zeros at z=-1 (butter/cheby1) are recovered to root-finding precision.
+TEST_F(SignalBatch1Test, IirDesignersZpkOutput)
+{
+    eval("[z, p, k] = butter(4, 0.3);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(z)")), 4);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(p)")), 4);
+    EXPECT_NEAR(evalScalar("k"), 0.0185630106269, 1e-9);
+    EXPECT_NEAR(evalScalar("sum(real(p))"), 1.57039885123, 1e-6);
+
+    eval("[z1, p1, k1] = cheby1(4, 1, 0.3);");
+    EXPECT_NEAR(evalScalar("k1"), 0.00836323955555, 1e-9);
+    EXPECT_NEAR(evalScalar("sum(real(p1))"), 2.37412317473, 1e-6);
+
+    // cheby2 / ellip have DISTINCT finite zeros → z/p/k all exact.
+    eval("[z2, p2, k2] = cheby2(4, 30, 0.3);");
+    EXPECT_NEAR(evalScalar("k2"), 0.04704983394, 1e-8);
+    EXPECT_NEAR(evalScalar("sum(real(p2))"), 2.26899170565, 1e-6);
+    EXPECT_NEAR(evalScalar("sum(real(z2))"), 0.509710647798, 1e-6);
+
+    eval("[z3, p3, k3] = ellip(4, 1, 30, 0.3);");
+    EXPECT_NEAR(evalScalar("k3"), 0.0647314906117, 1e-8);
+    EXPECT_NEAR(evalScalar("sum(real(p3))"), 2.28002377534, 1e-6);
+    EXPECT_NEAR(evalScalar("sum(real(z3))"), 0.163902069627, 1e-6);
+}

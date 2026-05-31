@@ -58,18 +58,18 @@ Value graycomatrix(const Value &I, int numLevels, int offR, int offC, double gLo
 {
     if (numLevels < 2)
         throw Error("graycomatrix: NumLevels must be >= 2",
-                    0, 0, "graycomatrix", "", "m:graycomatrix:badLevels");
+                    0, 0, "graycomatrix", "", "numkit:graycomatrix:badLevels");
 
     const auto &d = I.dims();
     if (d.is3D())
         throw Error("graycomatrix: 2-D grayscale input only",
-                    0, 0, "graycomatrix", "", "m:graycomatrix:unsupportedShape");
+                    0, 0, "graycomatrix", "", "numkit:graycomatrix:unsupportedShape");
     const std::size_t R = d.rows();
     const std::size_t C = d.cols();
 
     if (gLow >= gHigh)
         throw Error("graycomatrix: GrayLimits[1] must exceed GrayLimits[0]",
-                    0, 0, "graycomatrix", "", "m:graycomatrix:badLimits");
+                    0, 0, "graycomatrix", "", "numkit:graycomatrix:badLimits");
 
     // Pre-quantise the image into level indices in [0, numLevels-1].
     // MATLAB clamps out-of-range to the closest end-bin.
@@ -121,7 +121,7 @@ Value graycoprops(const Value &G, std::pmr::memory_resource *mr)
     const auto &d = G.dims();
     if (d.rows() != d.cols() || d.rows() == 0)
         throw Error("graycoprops: GLCM must be square and non-empty",
-                    0, 0, "graycoprops", "", "m:graycoprops:badShape");
+                    0, 0, "graycoprops", "", "numkit:graycoprops:badShape");
     const std::size_t L = d.rows();
 
     // Normalise to a joint probability.
@@ -129,7 +129,7 @@ Value graycoprops(const Value &G, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < L * L; ++i) total += G.elemAsDouble(i);
     if (total <= 0.0)
         throw Error("graycoprops: GLCM has zero total mass",
-                    0, 0, "graycoprops", "", "m:graycoprops:zeroSum");
+                    0, 0, "graycoprops", "", "numkit:graycoprops:zeroSum");
 
     // p(i, j) — already accessible via G.elemAsDouble(i + j*L) / total.
     // Compute marginal means / variances (1-based "intensity values"
@@ -196,7 +196,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("graycomatrix: requires (I[, NV-pairs])",
-                     0, 0, "graycomatrix", "", "m:graycomatrix:nargin");
+                     0, 0, "graycomatrix", "", "numkit:graycomatrix:nargin");
 
     const Value &I = args[0];
 
@@ -212,7 +212,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
         if (!args[i].isChar())
             throw Error("graycomatrix: NV-pair name must be a string",
                          0, 0, "graycomatrix", "",
-                         "m:graycomatrix:badNVName");
+                         "numkit:graycomatrix:badNVName");
         const std::string key = args[i].toString();
         const Value &v        = args[i + 1];
         if (eqIgnoreCase(key, "NumLevels"))   numLevels = static_cast<int>(v.toScalar());
@@ -220,7 +220,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
             if (v.numel() < 2)
                 throw Error("graycomatrix: Offset must be 2-element",
                              0, 0, "graycomatrix", "",
-                             "m:graycomatrix:badOffset");
+                             "numkit:graycomatrix:badOffset");
             offR = static_cast<int>(v.elemAsDouble(0));
             offC = static_cast<int>(v.elemAsDouble(1));
         }
@@ -228,7 +228,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
             if (v.numel() < 2)
                 throw Error("graycomatrix: GrayLimits must be 2-element",
                              0, 0, "graycomatrix", "",
-                             "m:graycomatrix:badLimits");
+                             "numkit:graycomatrix:badLimits");
             gLow  = v.elemAsDouble(0);
             gHigh = v.elemAsDouble(1);
             limitsSet = true;
@@ -239,7 +239,7 @@ void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
         else
             throw Error("graycomatrix: unknown NV-pair key '" + key + "'",
                          0, 0, "graycomatrix", "",
-                         "m:graycomatrix:badNVKey");
+                         "numkit:graycomatrix:badNVKey");
     }
     if (!limitsSet) default_gray_limits(I, gLow, gHigh);
 
@@ -251,7 +251,7 @@ void graycoprops_reg(Span<const Value> args, std::size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("graycoprops: requires (G)",
-                     0, 0, "graycoprops", "", "m:graycoprops:nargin");
+                     0, 0, "graycoprops", "", "numkit:graycoprops:nargin");
     outs[0] = graycoprops(args[0], ctx.engine->resource());
 }
 

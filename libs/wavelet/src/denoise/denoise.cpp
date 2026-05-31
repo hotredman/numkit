@@ -49,7 +49,7 @@ Value wthresh(const Value &X, const std::string &sorh, double T, std::pmr::memor
     const bool soft = (sorh == "s" || sorh == "S");
     if (!hard && !soft)
         throw Error("wthresh: sorh must be 'h' or 's'",
-                    0, 0, "wthresh", "", "m:wthresh:sorh");
+                    0, 0, "wthresh", "", "numkit:wthresh:sorh");
 
     for (size_t i = 0; i < N; ++i) {
         const double x = X.elemAsDouble(i);
@@ -143,7 +143,7 @@ namespace detail {
 static std::string argString(const Value &v) {
     if (!v.isChar() && !v.isString())
         throw Error("wavelet: expected string argument",
-                    0, 0, "", "", "m:wavelet:type");
+                    0, 0, "", "", "numkit:wavelet:type");
     return v.toString();
 }
 
@@ -152,7 +152,7 @@ void wthresh_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("wthresh: requires (X, sorh, T)",
-                    0, 0, "wthresh", "", "m:wthresh:nargin");
+                    0, 0, "wthresh", "", "numkit:wthresh:nargin");
     outs[0] = wthresh(args[0], argString(args[1]), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -161,7 +161,7 @@ void wnoisest_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("wnoisest: requires (C, L, S)",
-                    0, 0, "wnoisest", "", "m:wnoisest:nargin");
+                    0, 0, "wnoisest", "", "numkit:wnoisest:nargin");
     outs[0] = wnoisest(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -170,7 +170,7 @@ void wdenoise_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("wdenoise: requires the signal",
-                    0, 0, "wdenoise", "", "m:wdenoise:nargin");
+                    0, 0, "wdenoise", "", "numkit:wdenoise:nargin");
     int level = -1;
     if (args.size() >= 2 && !args[1].isEmpty())
         level = static_cast<int>(args[1].toScalar());

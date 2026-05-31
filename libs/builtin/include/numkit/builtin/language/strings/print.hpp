@@ -12,10 +12,10 @@ class Engine;
 
 namespace numkit::builtin {
 
-/// @brief Format one `Value` as MATLAB's `disp()` would, including
+/// @brief Format one `Value` the way `disp()` renders it, including
 /// the trailing newline.
 ///
-/// Exposed so embedders can reuse the MATLAB-style renderer without
+/// Exposed so embedders can reuse the renderer without
 /// needing an `Engine`.
 ///
 /// @param a  Value to render.
@@ -23,7 +23,7 @@ namespace numkit::builtin {
 /// @see disp, fprintf
 std::string dispFormat(const Value &a);
 
-/// @brief MATLAB `disp(a1, a2, …)` — render each argument and write
+/// @brief `disp(a1, a2, …)` — render each argument and write
 /// it to `engine.outputText()`.
 ///
 /// Engine-stateful — output is routed through the engine's text
@@ -33,11 +33,11 @@ std::string dispFormat(const Value &a);
 /// @param engine  Engine context (provides `outputText()`).
 /// @param args    Values to render.
 /// @see dispFormat, fprintf
-void disp(Engine &engine, Span<const Value> args);
+void disp(Engine &engine, Span<const Value> args);  // lint: engine-io
 
-/// @brief MATLAB `fprintf(...)`.
+/// @brief `fprintf(...)`.
 ///
-/// Two call forms (MATLAB disambiguation rule: "scalar then char"):
+/// Two call forms (disambiguation rule: "scalar then char"):
 /// - `fprintf(fmt, args…)`       — writes to stdout via
 ///                                  `engine.outputText()`.
 /// - `fprintf(fid, fmt, args…)`  — writes to file `fid` (≥ 3), or
@@ -48,7 +48,8 @@ void disp(Engine &engine, Span<const Value> args);
 /// @param engine  Engine context (provides fid table + text sink).
 /// @param args    `(fmt, args…)` or `(fid, fmt, args…)`.
 /// @throws Error  On invalid / non-writable fid or malformed format.
+/// @return        Number of bytes written (MATLAB's `count` output).
 /// @see disp, dispFormat
-void fprintf(Engine &engine, Span<const Value> args);
+std::size_t fprintf(Engine &engine, Span<const Value> args);  // lint: engine-io
 
 } // namespace numkit::builtin

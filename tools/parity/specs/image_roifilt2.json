@@ -1,0 +1,17 @@
+{
+  "name": "image_roifilt2",
+  "namespace": "image",
+  "setup": "I = magic(6); BW = false(6,6); BW(2:4,2:4) = true; h = [0 1 0; 1 -4 1; 0 1 0]; ha = ones(3)/9; I8 = uint8(magic(6)*5);",
+  "expr": "J1 = roifilt2(h, I, BW); Ja = roifilt2(ha, I, BW); Je = roifilt2(ones(2,2)/4, I, BW); J2 = roifilt2(I8, BW, @(x) x*2); J3 = roifilt2(I8, BW, @(x) double(x)+0.5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "size(J1,1)", "size(J1,2)",
+    "J1(1,1)", "J1(3,3)", "J1(2,2)", "J1(4,4)", "J1(6,6)", "sum(J1(:))",
+    "Ja(1,1)", "Ja(3,3)",
+    "Je(1,1)", "Je(3,3)", "Je(2,2)",
+    "J2(1,1)", "J2(3,3)", "double(sum(J2(:)))",
+    "J3(1,1)", "J3(3,3)"
+  ],
+  "comment": "MATLAB Image Toolbox roifilt2 — filter a region of interest. Form 1 roifilt2(h,I,BW): imfilter(I,h) (correlation, zero boundary, same size) with only the BW pixels replaced (output equals I elsewhere); output class = class(I). Form 2 roifilt2(I,BW,fun): apply fun to the whole image, keep only BW pixels; output class follows fun's result (uint8 fun -> uint8, double fun -> double). MATLAB crops to the ROI bbox + ceil(size(h)/2) pad purely as an optimisation; the masked pixels' values equal full-image imfilter, so we filter the full image. Verified vs MATLAB R2025b on magic(6) with a 3x3 Laplacian + 3x3 averaging filter (form 1) and uint8 x*2 / double+0.5 handles (form 2). Bit-equal (tol=1e-12) for ODD filters. NOTE: even-size filters inherit numkit imfilter's even-kernel anchoring, which currently differs from MATLAB by one pixel (a pre-existing imfilter gap tracked separately) — not exercised here. Octave 11.1.0 ships roifilt2 in the image package only -> reports N/A there."
+}

@@ -66,15 +66,15 @@ std::tuple<Value, Value>
 cell2sos(const Value &                C,
          std::pmr::memory_resource *  mr = nullptr);
 
-/// Optional arguments for @ref fir2. Defaults match MATLAB R2025b.
+/// Optional arguments for @ref fir2.
 struct Fir2Options {
-    /// Number of frequency-grid points (MATLAB `npt`). `0` selects the
+    /// Number of frequency-grid points (`npt`). `0` selects the
     /// default 512 (auto-grown for very long filters). A user value is
     /// rounded up to the next power of two.
     int   npt = 0;
 
     /// Width, in grid points, of the smoothing region applied at a
-    /// duplicated break frequency (MATLAB `lap`). `0` selects the
+    /// duplicated break frequency (`lap`). `0` selects the
     /// default `floor(npt/25)`.
     int   lap = 0;
 
@@ -131,7 +131,7 @@ Value fir2(int                          n,
 /// @param mr     Memory resource (nullptr → process default).
 ///
 /// KNOWN GAPS: no `fresp` function-handle form, `lgrid` fixed at
-/// MATLAB's default (16), no 3rd `res` output struct.
+/// the default (16), no 3rd `res` output struct.
 ///
 /// @code
 /// auto [h, err] = firpm(30, {0,0.4,0.5,1}, {1,1,0,0});            // LP

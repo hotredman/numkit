@@ -127,7 +127,7 @@ Value wgn(int m, int n, double p, const std::string &type,
 Value bsc(const Value &x, double p, std::pmr::memory_resource *mr) {
     if (p < 0.0 || p > 1.0)
         throw Error("bsc: p must be in [0, 1]", 0, 0, "bsc", "",
-                    "m:bsc:badp");
+                    "numkit:bsc:badp");
     auto &gen = ::numkit::builtin::sharedEngine();
     auto &mtx = ::numkit::builtin::rngMutex();
     std::uniform_real_distribution<double> ud(0.0, 1.0);
@@ -366,13 +366,13 @@ berconfint(double numErrs, double numBits, double level,
 {
     if (!(numBits > 0.0))
         throw Error("berconfint: numBits must be positive",
-                    0, 0, "berconfint", "", "m:berconfint:nbits");
+                    0, 0, "berconfint", "", "numkit:berconfint:nbits");
     if (numErrs < 0.0 || numErrs > numBits)
         throw Error("berconfint: numErrs must satisfy 0 ≤ numErrs ≤ numBits",
-                    0, 0, "berconfint", "", "m:berconfint:nerrs");
+                    0, 0, "berconfint", "", "numkit:berconfint:nerrs");
     if (!(level > 0.0 && level < 1.0))
         throw Error("berconfint: level must lie in (0, 1)",
-                    0, 0, "berconfint", "", "m:berconfint:level");
+                    0, 0, "berconfint", "", "numkit:berconfint:level");
 
     const double k = numErrs;
     const double n = numBits;
@@ -423,7 +423,7 @@ void awgn_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("awgn: requires (signal, snr_dB[, sigpower_dB])",
-                    0, 0, "awgn", "", "m:awgn:nargin");
+                    0, 0, "awgn", "", "numkit:awgn:nargin");
     const double snr = args[1].toScalar();
     double sp = -1e10;  // sentinel = "measured"
     if (args.size() >= 3 && !args[2].isEmpty()) {
@@ -441,7 +441,7 @@ void wgn_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("wgn: requires (m, n, p[, type, complexity])",
-                    0, 0, "wgn", "", "m:wgn:nargin");
+                    0, 0, "wgn", "", "numkit:wgn:nargin");
     const int m = (int)args[0].toScalar();
     const int n = (int)args[1].toScalar();
     const double p = args[2].toScalar();
@@ -463,7 +463,7 @@ void bsc_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("bsc: requires (input, p)", 0, 0, "bsc", "",
-                    "m:bsc:nargin");
+                    "numkit:bsc:nargin");
     outs[0] = bsc(args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
@@ -471,7 +471,7 @@ void qfunc_reg(Span<const Value> args, size_t /*nargout*/,
                Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("qfunc: requires x", 0, 0, "qfunc", "", "m:qfunc:nargin");
+        throw Error("qfunc: requires x", 0, 0, "qfunc", "", "numkit:qfunc:nargin");
     outs[0] = qfunc(args[0], ctx.engine->resource());
 }
 
@@ -480,7 +480,7 @@ void qfuncinv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("qfuncinv: requires p", 0, 0, "qfuncinv", "",
-                    "m:qfuncinv:nargin");
+                    "numkit:qfuncinv:nargin");
     outs[0] = qfuncinv(args[0], ctx.engine->resource());
 }
 
@@ -489,7 +489,7 @@ void marcumq_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("marcumq: requires (a, b[, m])", 0, 0, "marcumq", "",
-                    "m:marcumq:nargin");
+                    "numkit:marcumq:nargin");
     const int m = (args.size() >= 3 && !args[2].isEmpty())
                   ? (int)args[2].toScalar() : 1;
     outs[0] = marcumq(args[0], args[1], m, ctx.engine->resource());
@@ -500,7 +500,7 @@ void berawgn_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("berawgn: requires (EbNo_dB, mod, M)", 0, 0, "berawgn", "",
-                    "m:berawgn:nargin");
+                    "numkit:berawgn:nargin");
     std::string mod = args[1].toString();
     const int M = (int)args[2].toScalar();
     outs[0] = berawgn(args[0], mod, M, ctx.engine->resource());
@@ -511,7 +511,7 @@ void noisebw_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 4)
         throw Error("noisebw: requires (num, den, Nsamp, fs)", 0, 0, "noisebw",
-                    "", "m:noisebw:nargin");
+                    "", "numkit:noisebw:nargin");
     const int    n  = (int)args[2].toScalar();
     const double fs = args[3].toScalar();
     outs[0] = noisebw(args[0], args[1], n, fs, ctx.engine->resource());
@@ -522,7 +522,7 @@ void berconfint_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("berconfint: requires (numErrs, numBits[, level])",
-                    0, 0, "berconfint", "", "m:berconfint:nargin");
+                    0, 0, "berconfint", "", "numkit:berconfint:nargin");
     const double k     = args[0].toScalar();
     const double n     = args[1].toScalar();
     const double level = (args.size() >= 3 && !args[2].isEmpty())
@@ -537,7 +537,7 @@ void convertSNR_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("convertSNR: requires snr_dB[, options]", 0, 0,
-                    "convertSNR", "", "m:convertSNR:nargin");
+                    "convertSNR", "", "numkit:convertSNR:nargin");
     std::string in_type = "ebno", out_type = "esno";
     int k = 1;
     // Parse keyword pairs.

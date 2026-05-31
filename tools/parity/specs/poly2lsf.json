@@ -2,9 +2,11 @@
   "name": "poly2lsf",
   "namespace": "signal",
   "setup": "",
-  "expr": "lsf = poly2lsf([1 0.6 0.2 0.1]); r1 = double(numel(lsf));",
-  "iters": 5,
+  "expr": "lsf = poly2lsf([1 0.6 0.2 0.1]);",
+  "iters": 3,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: lsf = poly2lsf(a). Spec-extension batch 2026-05-09 (cycle 40)."
+  "fingerprint": [
+    "double(numel(lsf))", "lsf(1)", "lsf(2)", "lsf(3)"
+  ],
+  "comment": "Sig lsf=poly2lsf(a): AR poly -> line spectral frequencies (roots of P=A+A_R and Q=A-A_R on the unit circle, angles in (0,pi), sorted ascending). a=[1 0.6 0.2 0.1] (order 3) -> 3 LSFs [1.068750 1.823477 2.552095]."
 }

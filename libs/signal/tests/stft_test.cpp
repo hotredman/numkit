@@ -101,3 +101,70 @@ TEST_F(StftTest, UnknownNVKeyThrows)
     EXPECT_THROW(engine.eval("stft(x, 'BogusKey', 5);"),
                  std::exception);
 }
+
+// ── cycle 86: [s, f, t] multi-output + optional fs positional ─────────
+
+// stft(x, fs) with [s, f, t]: f in Hz, t in seconds. twosided range.
+TEST_F(StftTest, MultiOutputFsTwosided)
+{
+    engine.eval("[s, f, t] = stft(x, 1000, 'Window', w, "
+                "'OverlapLength', 32, 'FFTLength', 64, "
+                "'FrequencyRange', 'twosided');");
+    EXPECT_DOUBLE_EQ(eval_scalar("length(f)"), 64.0);
+    EXPECT_NEAR(eval_scalar("f(1)"),       0.0,        1e-12);
+    EXPECT_NEAR(eval_scalar("f(2)"),      15.625,      1e-12);  // fs/NFFT
+    EXPECT_NEAR(eval_scalar("f(end)"),   984.375,      1e-12);
+    EXPECT_DOUBLE_EQ(eval_scalar("length(t)"), 15.0);
+    EXPECT_NEAR(eval_scalar("t(1)"),       0.032,      1e-12);  // (M/2)/fs
+    EXPECT_NEAR(eval_scalar("t(end)"),     0.480,      1e-12);
+}
+
+// Centered f axis with fs: even N=64 → [-N/2+1, ..., N/2]·fs/N.
+TEST_F(StftTest, MultiOutputFsCentered)
+{
+    engine.eval("[s, f, t] = stft(x, 1000, 'Window', w, "
+                "'OverlapLength', 32, 'FFTLength', 64, "
+                "'FrequencyRange', 'centered');");
+    EXPECT_DOUBLE_EQ(eval_scalar("length(f)"), 64.0);
+    EXPECT_NEAR(eval_scalar("f(1)"),     -484.375, 1e-12);
+    EXPECT_NEAR(eval_scalar("f(end)"),    500.0,   1e-12);  // Nyquist at end
+    // DC at index N/2 (1-based: 33) for even N=64.
+    EXPECT_NEAR(eval_scalar("f(32)"),      0.0,    1e-12);
+}
+
+// Onesided: f length = NFFT/2+1, last bin = Nyquist = fs/2.
+TEST_F(StftTest, MultiOutputFsOnesided)
+{
+    engine.eval("[s, f, t] = stft(x, 1000, 'Window', w, "
+                "'OverlapLength', 32, 'FFTLength', 64, "
+                "'FrequencyRange', 'onesided');");
+    EXPECT_DOUBLE_EQ(eval_scalar("length(f)"), 33.0);
+    EXPECT_NEAR(eval_scalar("f(1)"),     0.0,   1e-12);
+    EXPECT_NEAR(eval_scalar("f(end)"),   500.0, 1e-12);
+}
+
+// No fs → default fs=2π for f (radians/sample), fs_t=1 for t (samples).
+TEST_F(StftTest, MultiOutputDefaultFs)
+{
+    engine.eval("[s, f, t] = stft(x);");
+    // Default window = hann(128, periodic), 75% overlap, FFTLength 128.
+    EXPECT_DOUBLE_EQ(eval_scalar("length(f)"), 128.0);
+    // Centered (default range): even N=128 → bin -63 at idx 1.
+    EXPECT_NEAR(eval_scalar("f(1)"), -2.0 * 3.14159265358979323846 * 63.0 / 128.0, 1e-12);
+    // t(1) = M/2 / fs_t = 64.
+    EXPECT_NEAR(eval_scalar("t(1)"), 64.0, 1e-12);
+}
+
+// istft 2-output: [x, t] returns time axis (0:Nout-1)/fs.
+TEST_F(StftTest, IstftMultiOutputFs)
+{
+    engine.eval("s = stft(x, 'Window', w, 'OverlapLength', 32, "
+                "'FFTLength', 64, 'FrequencyRange', 'twosided');");
+    engine.eval("[xr, tr] = istft(s, 1000, 'Window', w, "
+                "'OverlapLength', 32, 'FFTLength', 64, "
+                "'FrequencyRange', 'twosided');");
+    EXPECT_DOUBLE_EQ(eval_scalar("length(tr)"), 512.0);
+    EXPECT_NEAR(eval_scalar("tr(1)"),     0.0,    1e-12);
+    EXPECT_NEAR(eval_scalar("tr(2)"),     0.001,  1e-12);  // 1/fs
+    EXPECT_NEAR(eval_scalar("tr(end)"),   0.511,  1e-12);
+}

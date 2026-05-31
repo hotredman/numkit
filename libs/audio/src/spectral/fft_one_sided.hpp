@@ -3,9 +3,9 @@
 // Shared per-frame FFT helpers for libs/audio spectral pipelines
 // (shape_descriptors, melspec_delta, cepstral). Wraps libs/signal::fft
 // to produce one-sided power / magnitude spectra of length N/2+1 — the
-// shape every audio toolbox filter-bank pipeline expects.
+// shape every audio filter-bank pipeline expects.
 //
-// Why this exists: Audio Toolbox functions all use STFT with
+// Why this exists: the audio feature functions all use STFT with
 // winLen = round(0.03*fs), giving N ∈ {240, 480, 662, 1323} for
 // fs ∈ {8k, 16k, 22.05k, 44.1k}. None are pow2, so until libs/signal
 // shipped Bluestein (chirp-z) for non-pow2 N, these pipelines used a

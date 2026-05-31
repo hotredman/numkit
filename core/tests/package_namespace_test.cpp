@@ -253,9 +253,6 @@ TEST_P(PackageNamespaceTest, AliasImportResolvesUserPackage)
 
 TEST_P(PackageNamespaceTest, LargeStructArrayAutoGrow)
 {
-    if (GetParam() == Engine::Backend::VM)
-        GTEST_SKIP() << "VM auto-grow tested elsewhere; this checks large size";
-
     engine.eval("clear g;");
     // 50 incremental writes. Each grows the array if needed.
     for (int i = 1; i <= 50; ++i)

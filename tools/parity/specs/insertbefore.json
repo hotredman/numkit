@@ -2,11 +2,12 @@
   "name": "insertbefore",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r = insertBefore(\"hello world\", \"world\", \"dear \"); r1 = double(strlength(r));",
+  "expr": "r = insertBefore(\"hello world\", \"world\", \"dear \"); r1 = double(strlength(r)); cp = insertBefore({'ab','cd'},2,'X'); ncp = numel(cp); cp1n = strlength(cp{1}); cp12 = double(cp{1}(2)); cs = insertBefore({'a.b','c.d'},'.','X'); cs1n = strlength(cs{1}); cc = insertBefore({'ab';'cd'},2,'X'); nr = size(cc,1); nco = size(cc,2);",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 0,
   "fingerprint": [
-    "r1"
+    "r1",
+    "ncp", "cp1n", "cp12", "cs1n", "nr", "nco"
   ],
-  "comment": "Sig: position-based string op (MATLAB canonical: insertBefore). Bit-identical with MATLAB R2025b. Numkit also registers a lowercase alias for convenience."
+  "comment": "Sig: insertBefore(s,pos,text). DEEP-PROBE 2026-05-31: added CELL-ARRAY str support (was throwing 'Not a char array'); processes element-wise -> cell of char vectors, same shape, scalar anchor/text broadcast: insertBefore({'ab','cd'},2,'X')={'aXb','cXd'}; insertBefore({'a.b','c.d'},'.','X')={'aX.b','cX.d'}. Element with no match left unchanged. Scalar path unchanged; cell-position anchor deferred. Bit-identical with MATLAB R2025b."
 }

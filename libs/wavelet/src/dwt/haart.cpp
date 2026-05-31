@@ -121,12 +121,12 @@ void haart_reg(Span<const Value> args, size_t nargout,
 {
     if (args.empty())
         throw Error("haart: requires (x[, level[, integerflag]])",
-                    0, 0, "haart", "", "m:haart:nargin");
+                    0, 0, "haart", "", "numkit:haart:nargin");
     const Value &x = args[0];
     const size_t numel = x.numel();
     if (numel == 0)
         throw Error("haart: expected input number 1, X, to be nonempty",
-                    0, 0, "haart", "", "m:haart:empty");
+                    0, 0, "haart", "", "numkit:haart:empty");
 
     Buf buf = load_x(x, false);
     const size_t colLen = buf.colLen;
@@ -135,7 +135,7 @@ void haart_reg(Span<const Value> args, size_t nargout,
     if (colLen < 2 || (colLen % 2) != 0)
         throw Error("haart: the data length must be even. Consider replicating "
                     "for an even length signal, or removing the last element.",
-                    0, 0, "haart", "", "m:haart:even");
+                    0, 0, "haart", "", "numkit:haart:even");
 
     const int max_lev = max_haar_level(colLen);
 
@@ -144,22 +144,22 @@ void haart_reg(Span<const Value> args, size_t nargout,
         const double lvld = args[1].toScalar();
         if (!(lvld > 0.0))
             throw Error("haart: expected LEVEL to be positive",
-                        0, 0, "haart", "", "m:haart:level");
+                        0, 0, "haart", "", "numkit:haart:level");
         if (lvld != std::floor(lvld))
             throw Error("haart: expected LEVEL to be an integer",
-                        0, 0, "haart", "", "m:haart:level");
+                        0, 0, "haart", "", "numkit:haart:level");
         level = static_cast<int>(lvld);
         if (level > max_lev)
             throw Error("haart: expected LEVEL to be a scalar with value <= " +
                         std::to_string(max_lev),
-                        0, 0, "haart", "", "m:haart:level");
+                        0, 0, "haart", "", "numkit:haart:level");
     }
 
     bool integer_mode = false;
     if (args.size() >= 3) {
         if (!args[2].isChar() && !args[2].isString())
             throw Error("haart: integerflag must be 'noninteger' or 'integer'",
-                        0, 0, "haart", "", "m:haart:flag");
+                        0, 0, "haart", "", "numkit:haart:flag");
         std::string flag = args[2].toString();
         for (auto &c : flag)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -168,11 +168,11 @@ void haart_reg(Span<const Value> args, size_t nargout,
         else
             throw Error("haart: integerflag must be 'noninteger' or 'integer' (got '" +
                         flag + "')",
-                        0, 0, "haart", "", "m:haart:flag");
+                        0, 0, "haart", "", "numkit:haart:flag");
     }
     if (integer_mode && buf.isComplex)
         throw Error("haart: integer mode is not supported for complex data",
-                    0, 0, "haart", "", "m:haart:flag");
+                    0, 0, "haart", "", "numkit:haart:flag");
 
     auto *mr = ctx.engine->resource();
     const ValueType vt = buf.isComplex ? ValueType::COMPLEX : ValueType::DOUBLE;

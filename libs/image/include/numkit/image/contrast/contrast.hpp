@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 #include <string>
@@ -43,7 +44,7 @@ Value stretchlim(const Value &I, double low_tol, double high_tol,
 
 /// Affine intensity remap with optional gamma (`J = imadjust(...)`).
 ///
-/// Implements MATLAB's `imadjust(I, [low_in high_in], [low_out high_out], gamma)`.
+/// Implements `imadjust(I, [low_in high_in], [low_out high_out], gamma)`.
 /// Pass `NaN` for `low_in` / `high_in` to trigger an automatic
 /// @ref stretchlim default; pass NaN for the output limits to map
 /// to `[0, 1]`.
@@ -66,8 +67,8 @@ Value imadjust(const Value &I,
 
 /// Locally adaptive threshold matrix (`T = adaptthresh(I, ...)`).
 ///
-/// Computes a per-pixel threshold matrix in [0, 1] (same scale that
-/// MATLAB returns). Pair with `imbinarize(I, T)` for adaptive
+/// Computes a per-pixel threshold matrix in [0, 1]. Pair with
+/// `imbinarize(I, T)` for adaptive
 /// thresholding.
 ///
 /// @param I             Input image.
@@ -97,7 +98,7 @@ Value adaptthresh(const Value &I, double sensitivity, int neighborhood,
 Value histeq(const Value &I, int n,
              std::pmr::memory_resource *mr = nullptr);
 
-/// Parameters for @ref adapthisteq. Field defaults match MATLAB R2025b.
+/// Parameters for @ref adapthisteq.
 struct AdaptHistEqOptions {
     /// NumTiles along the row axis. Image is partitioned into
     /// numTilesR × numTilesC contextual regions.
@@ -134,8 +135,8 @@ struct AdaptHistEqOptions {
 /// Divides the image into `numTilesR × numTilesC` regions, builds a
 /// clipped-redistribute histogram per tile, and applies the
 /// bilinearly-interpolated per-tile CDF as the per-pixel transfer
-/// function. Behaviour matches MATLAB's `adapthisteq` — full argument
-/// set: NumTiles, ClipLimit, NBins, Range, Distribution, Alpha.
+/// function. Full argument set: NumTiles, ClipLimit, NBins, Range,
+/// Distribution, Alpha.
 ///
 /// Clean-room implementation from public references (CLAHE — Zuiderveld
 /// 1994; contrast limiting — Pizer et al. 1990; non-uniform target
@@ -146,7 +147,7 @@ struct AdaptHistEqOptions {
 /// @param mr    Memory resource (nullptr → process default).
 ///
 /// @note 2-D greyscale input only; RGB / N-D input throws
-///       `m:adapthisteq:unsupportedShape` (as MATLAB).
+///       `m:adapthisteq:unsupportedShape`.
 ///
 /// @code
 /// Value J1 = adapthisteq(I);                   // defaults
@@ -276,8 +277,7 @@ Value imflatfield(const Value &I, double sigma, const Value &mask,
 /// (`Y = wcodemat(X, nb, opt, absol)`).
 ///
 /// Quantises and scales `X` into integer codes in `[1, nb]`.
-/// Output is DOUBLE; canonical wavelet-display helper from MATLAB's
-/// Wavelet Toolbox.
+/// Output is DOUBLE; a canonical wavelet-display helper.
 ///
 /// @param X      Input coefficient matrix.
 /// @param nb     Code range upper bound.
@@ -303,25 +303,35 @@ Value wcodemat(const Value &X, int nb, const std::string &opt, int absol,
 Value entropy(const Value &I, int nbins,
               std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Multilevel thresholding into an indexed image
-/// (`L = grayslice(I, n)`).
+/// @brief Multilevel thresholding into an indexed image, level-count
+/// form (`L = grayslice(I, N)`).
 ///
-/// - `n` scalar ≥ 1: thresholds at `(1/n, 2/n, …, (n-1)/n)` of the
-///   image's class range.
-/// - `n` a vector or `0 < n < 1`: explicit threshold values; for
-///   floating-point images the vector is clamped to
-///   `[min(I), max(I)]` (extending toward image bounds, never
-///   shrinking).
-///
-/// Output is uint8 if the number of levels < 256, else `double + 1`
-/// (1-based indexing per MATLAB).
+/// Equivalent to `grayslice(I, [(1/N) … ((N-1)/N)])` scaled to the
+/// image's class range. Output is uint8 if `N < 256`, else `double`
+/// (1-based indexing).
 ///
 /// @param I   Input image.
-/// @param n   Scalar level count or explicit threshold vector.
+/// @param N   Number of output levels (≥ 1).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Indexed image (uint8 or double).
 /// @see imquantize, multithresh
-Value grayslice(const Value &I, const Value &n,
+Value grayslice(const Value &I, int N,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Multilevel thresholding into an indexed image, explicit
+/// thresholds form (`L = grayslice(I, [t1, t2, …])`).
+///
+/// For floating-point images the threshold vector is clamped to
+/// `[min(I), max(I)]` (extending toward image bounds, never
+/// shrinking). Output is uint8 if `levels.size() < 256`, else
+/// `double` (1-based indexing).
+///
+/// @param I       Input image.
+/// @param levels  Explicit threshold values (any length).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Indexed image.
+/// @see imquantize, multithresh
+Value grayslice(const Value &I, Span<const double> levels,
                 std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::image

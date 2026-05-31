@@ -1,0 +1,18 @@
+{
+  "name": "datestr_multidate",
+  "namespace": "builtin",
+  "covers": ["datestr"],
+  "setup": "",
+  "expr": "M = datestr([738885;738886;738900]); mr = size(M,1); mc = size(M,2); ms = sum(double(M(:))); m21 = double(M(2,1)); R = datestr([738885 738886]); rr = size(R,1); rc = size(R,2); F = datestr([738885;738886],'yyyy-mm-dd'); fr = size(F,1); fc = size(F,2); fs = sum(double(F(:))); DV = datestr([2020 1 1 0 0 0; 2021 6 15 12 30 0]); dr = size(DV,1); dc = size(DV,2); ds = sum(double(DV(:))); C6 = datestr([738885;738886;738887;738888;738889;738900]); c6r = size(C6,1); c6e = sum(double(C6(6,:)));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "mr", "mc", "ms", "m21",
+    "rr", "rc",
+    "fr", "fc", "fs",
+    "dr", "dc", "ds",
+    "c6r", "c6e"
+  ],
+  "deep_verified": true,
+  "comment": "datestr multi-date input (covers datestr; separate from datestr.json for the VM 255-register limit). DEEP-PROBE 2026-05-31: numkit threw 'multi-date matrix input not yet supported' AND the numel==6 check mis-treated a 6x1 column as a single date vector. MATLAB R2025b rule: an N-by-6 matrix (cols==6) is N DATE VECTORS (one row each); anything else is serial date NUMBERS in column-major order (numel rows). datestr([738885;738886;738900]) -> 3x11 char matrix; a row vector also becomes N rows; with a format the width follows the format; a 2x6 matrix -> 2 date vectors ('01-Jan-2020 00:00:00'/'15-Jun-2021 12:30:00'); a 6x1 column -> 6 dates (c6r=6). Cross-engine fingerprint via shapes + sum(char codes)."
+}

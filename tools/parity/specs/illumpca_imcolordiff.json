@@ -1,0 +1,28 @@
+{
+  "name": "illumpca_imcolordiff",
+  "namespace": "image",
+  "setup": "A = zeros(10,10,3); for i=1:10; for j=1:10; A(i,j,1)=0.01*(10*(i-1)+(j-1)); A(i,j,2)=0.01*(10*(j-1)+(i-1)); A(i,j,3)=1-A(i,j,1); end; end; I1 = [0.5 0.5 0.5; 0.8 0.2 0.3; 0.1 0.9 0.4]; I2 = [0.5 0.5 0.5; 0.7 0.3 0.4; 0.2 0.8 0.5]; L1 = [50 0 0; 60 5 -5; 70 -10 20]; L2 = [55 1 -1; 62 4 -6; 68 -12 22];",
+  "expr": "ip = illumpca(A); ip1 = illumpca(A,1); ip10 = illumpca(A,10); ip50 = illumpca(A,50); d94 = imcolordiff(I1, I2); d00 = imcolordiff(I1, I2, 'Standard', 'CIEDE2000'); dL94 = imcolordiff(L1, L2, 'isInputLab', true); dL00 = imcolordiff(L1, L2, 'isInputLab', true, 'Standard', 'CIEDE2000');",
+  "iters": 3,
+  "tol": 1e-5,
+  "fingerprint": [
+    "ip(1)", "ip(2)", "ip(3)",
+    "ip1(1)", "ip1(2)", "ip1(3)",
+    "ip10(1)", "ip10(2)", "ip10(3)",
+    "ip50(1)", "ip50(2)", "ip50(3)",
+    "d94(1)", "d94(2)", "d94(3)",
+    "d00(1)", "d00(2)", "d00(3)",
+    "dL94(1)", "dL94(2)", "dL94(3)",
+    "dL00(1)", "dL00(2)", "dL00(3)"
+  ],
+  "covers": [
+    "illumpca(A)              default p = 3.5",
+    "illumpca(A, p)           tail-fraction p in (0, 50]",
+    "illumpca(A, 50)          use all pixels",
+    "imcolordiff(I1, I2)               CIE94 default, RGB input",
+    "imcolordiff(.., 'Standard', .)    CIEDE2000 alternate",
+    "imcolordiff(.., 'isInputLab', .)  Lab input skips rgb2lab",
+    "imcolordiff with non-default kL/kC/kH/K1/K2 (gtest only)"
+  ],
+  "comment": "illumpca: Cheng-Prasad-Brown JOSA A 31(5) 2014, ported verbatim from MATLAB R2025b colorspaces/illumpca.m source. Uses inline 3×3 symmetric Jacobi eigensolver on Aᵀ·A (selected pixels, not mean-centred) — V(:,1) of the SVD equals the eigenvector of the largest eigenvalue. Degenerate cases (single colour, identity V, equal singular values) fall back to mean(selected) as in MATLAB. imcolordiff: CIE94 (CIE Publ. 116-1995) + CIEDE2000 (ISO 11664-6:2014, Sharma-Wu-Dalal 2005) ported verbatim from MATLAB R2025b colorspaces/imcolordiff.m source. Defaults: standard='CIE94', isInputLab=false, kL=kC=kH=1, K1=0.045, K2=0.015. Pure-Lab inputs agree at ~1e-9; RGB inputs at ~1e-6 (limited by rgb2lab implementation precision). illumpca matches at 1e-15 (formula-only)."
+}

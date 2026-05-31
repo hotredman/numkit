@@ -2,13 +2,11 @@
   "name": "butter",
   "namespace": "signal",
   "setup": "",
-  "expr": "[b, a] = butter(4, 0.5); r1 = b(1); r2 = a(1); r3 = double(numel(b));",
+  "expr": "[b, a] = butter(4, 0.5); r1 = b(1); r2 = a(1); r3 = double(numel(b)); [z,p,k] = butter(4, 0.3); nz = double(numel(z)); np = double(numel(p)); kb = k; spb = sum(real(p));",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3"
+    "r1", "r2", "r3", "nz", "np", "kb", "spb"
   ],
-  "comment": "Sig: r = butter(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "comment": "Sig: [b,a]=butter / [z,p,k]=butter(N,Wn[,type]). DEEP-PROBE 2026-05-31: the 3-output [z,p,k] form (digital zero/pole/gain) was added (previously errored 'Undefined k'). butter(4,0.3): nz=4 np=4 gain kb=0.0185630106, sum(real(poles))=1.57039885. ZPK recovered from the (b,a) the designer already builds (a is monic so gain=b(1)); poles+gain are exact. NOTE the lowpass zeros are all at z=-1 (repeated root) and are recovered by root-finding only to ~1e-2 — sum(real(z)) is NOT fingerprinted here; bit-exact repeated zeros would need a ZPK-form bilinear (deferred). namespace=signal."
 }

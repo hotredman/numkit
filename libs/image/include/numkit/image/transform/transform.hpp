@@ -126,6 +126,121 @@ Value psf2otf(const Value &PSF, Span<const size_t> outsize = {},
 Value fftconv2(const Value &A, const Value &B, const std::string &shape,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Wiener deconvolution (`J = deconvwnr(I, PSF, NSR)` /
+/// `deconvwnr(I, PSF, NCORR, ICORR)`).
+///
+/// Deblurs image `I` assuming a known point-spread function `PSF`.
+/// The Wiener inverse filter
+///   `G(k) = conj(H(k)) / (|H(k)|^2 + S_u/S_x)`
+/// minimises the mean-square error between the estimated and the
+/// true images (Gonzalez & Woods, *Digital Image Processing*).
+/// `H(k)` is the OTF returned by @ref psf2otf at `size(I)`.
+///
+/// **Argument forms:**
+///   * `(I, PSF, nsr_scalar)` — scalar NSR (`S_u/S_x`); `0`
+///     produces the ideal inverse filter (subject to the small
+///     `sqrt(eps)` denominator floor).
+///   * `(I, PSF, ncorr, icorr)` — scalar noise / signal powers;
+///     equivalent to `NSR = ncorr / icorr`.
+///   * Array `NCORR` / `ICORR` (autocorrelation functions of the
+///     same size as `I`) are also supported: each is FFT'd to a
+///     power spectrum first; the 1-D extrapolation form of
+///     MATLAB's `powerSpectrumFromACF` is not implemented and
+///     throws.
+///
+/// Output class equals input class (uint8/uint16 are scaled by
+/// the class range and saturating-cast at the end). Real inputs
+/// produce a real output (the tiny imaginary part of the IFFT is
+/// discarded).
+///
+/// @param I        2-D or 3-D blurred image (any numeric class).
+/// @param PSF      Point-spread function (real, any size ≤ `I`).
+/// @param nsr      Noise-to-signal power ratio (default 0).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         Deblurred image, same class and shape as `I`.
+Value deconvwnr(const Value &I, const Value &PSF, double nsr,
+                std::pmr::memory_resource *mr = nullptr);
+Value deconvwnr(const Value &I, const Value &PSF,
+                const Value &ncorr, const Value &icorr,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Tikhonov-regularized deconvolution (`J = deconvreg(I, PSF, NP)`,
+/// `[J,LAGRA] = deconvreg(I, PSF, NP, LRANGE, REGOP)`).
+///
+/// Solves the constrained least-squares problem
+///   @f$ \min_J \lVert I - h*J \rVert^2 \; \text{s.t.} \; \lVert C*J \rVert^2 \le \text{NP} @f$
+/// where `C` is the regularization operator (default = 2-D Laplacian,
+/// `[0 1 0; 1 -4 1; 0 1 0]`). In the frequency domain
+///   @f$ J(k) = \frac{\overline{H(k)} \, I(k)}
+///                   {|H(k)|^2 + \lambda \, |C(k)|^2 + \sqrt{\epsilon}} @f$
+/// with `λ` (LAGRA) chosen so the residual power matches NP
+/// (Parseval's theorem). The Lagrange multiplier is found by
+/// fminbnd within `LRANGE = [lo hi]` (default `[1e-9, 1e9]`); a
+/// scalar `LRANGE` fixes `λ = LRANGE` and skips the search.
+///
+/// References: Gonzalez & Woods, *Digital Image Processing*,
+/// 3rd ed., §5.9; A. K. Jain, *Fundamentals of Digital Image
+/// Processing*, 1989.
+///
+/// 2-D inputs only (3-D PSF throws); per-page processing for 3-D
+/// images sharing a 2-D PSF. PSF must have ≥2 elements and not be
+/// all-zero. NP must be a finite non-negative scalar. Output class
+/// equals input class (uint8/uint16/int16/single rescaled and
+/// cast back).
+///
+/// @param I       2-D blurred image.
+/// @param PSF     Point-spread function (2-D, ≥2 elements).
+/// @param np      Noise power (default 0).
+/// @param lo,hi   LRANGE search bounds; pass `lo==hi` to fix LAGRA.
+/// @param regop   Custom regularization operator (`Value::Empty()`
+///                → default 2-D Laplacian).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        `{J, lagra}` — deblurred image and Lagrange λ.
+struct DeconvregResult {
+    Value  J;
+    double lagra;
+};
+DeconvregResult deconvreg(const Value &I, const Value &PSF,
+                          double np, double lo, double hi,
+                          const Value &regop,
+                          std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Taper image edges via blur (`J = edgetaper(I, PSF)`).
+///
+/// Reduces FFT ringing in deblurring methods that use the DFT
+/// (deconvwnr, deconvreg, deconvlucy). The output is a weighted
+/// blend of `I` and `imfilter(I, PSF, 'circular')`:
+///   `J = alpha .* I + (1 − alpha) .* blurredI`
+/// where `alpha` is built from per-dimension PSF projections'
+/// autocorrelation, equalling 1 in the interior and tapering to 0
+/// at the edges over a width controlled by `PSF`.
+///
+/// Algorithm (transliterated from MATLAB R2025b `edgetaper.m`):
+///   1. For each non-singleton dim `n`:
+///        `proj   = sum(PSF along all other dims)`
+///        `Z      = |fft(proj, sizeI(n) - 1)|^2`
+///        `beta_n = real(ifft(Z))`
+///        `beta_n = [beta_n  beta_n(1)] / max(beta_n)`   (length sizeI(n))
+///   2. `alpha = outer-product of (1 − beta_n)` across the
+///      non-singleton dims.
+///   3. `blurredI = real(ifftn(fftn(I) .* psf2otf(PSF, sizeI)))`.
+///   4. `J = alpha .* I + (1 − alpha) .* blurredI`, clipped to
+///      `[min(I), max(I)]`.
+///   5. Cast back to `class(I)` for integer types.
+///
+/// Constraints: `PSF` cannot exceed half of `I` in any dimension.
+/// PSF must contain at least one non-zero element. 2-D and 1-D
+/// inputs supported (the 3-D-and-up form is rarely used but the
+/// MATLAB source documents it via the same algorithm; we throw a
+/// clear error if `I` is 3-D so the caller knows to slice).
+///
+/// @param I    Input image.
+/// @param PSF  Point-spread function (any size ≤ size(I)/2).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Tapered image, same class and shape as `I`.
+Value edgetaper(const Value &I, const Value &PSF,
+                std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Best block size for block-wise processing
 /// (`siz = bestblk(IMS, k)`).
 ///

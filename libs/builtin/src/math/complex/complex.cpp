@@ -71,7 +71,7 @@ Value complex(const Value &re, const Value &im, std::pmr::memory_resource *mr)
     const Value &shape = re.isScalar() ? im : re;
     if (!re.isScalar() && !im.isScalar() && re.dims() != im.dims())
         throw Error("complex: real and imaginary parts must have matching dimensions",
-                     0, 0, "complex", "", "m:complex:dimagree");
+                     0, 0, "complex", "", "numkit:complex:dimagree");
     auto r = createLike(shape, ValueType::COMPLEX, p);
     Complex *dst = r.complexDataMut();
     const size_t n = shape.numel();
@@ -108,21 +108,21 @@ namespace detail {
 void real_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("real: requires 1 argument", 0, 0, "real", "", "m:real:nargin");
+        throw Error("real: requires 1 argument", 0, 0, "real", "", "numkit:real:nargin");
     outs[0] = real(args[0], ctx.engine->resource());
 }
 
 void imag_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("imag: requires 1 argument", 0, 0, "imag", "", "m:imag:nargin");
+        throw Error("imag: requires 1 argument", 0, 0, "imag", "", "numkit:imag:nargin");
     outs[0] = imag(args[0], ctx.engine->resource());
 }
 
 void conj_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("conj: requires 1 argument", 0, 0, "conj", "", "m:conj:nargin");
+        throw Error("conj: requires 1 argument", 0, 0, "conj", "", "numkit:conj:nargin");
     outs[0] = conj(args[0], ctx.engine->resource());
 }
 
@@ -130,7 +130,7 @@ void complex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("complex: requires 1 or 2 arguments", 0, 0, "complex", "",
-                     "m:complex:nargin");
+                     "numkit:complex:nargin");
     if (args.size() == 1)
         outs[0] = complex(args[0], ctx.engine->resource());
     else
@@ -140,7 +140,7 @@ void complex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 void angle_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("angle: requires 1 argument", 0, 0, "angle", "", "m:angle:nargin");
+        throw Error("angle: requires 1 argument", 0, 0, "angle", "", "numkit:angle:nargin");
     outs[0] = angle(args[0], ctx.engine->resource());
 }
 

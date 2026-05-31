@@ -47,6 +47,117 @@ TEST_P(MatrixTest, Transpose)
     EXPECT_DOUBLE_EQ((*w)(2, 0), 3.0);
 }
 
+// DEEP-PROBE 2026-05-31: transpose/.'/'/ctranspose preserve the input
+// class. Previously the transpose() builtin coerced everything to DOUBLE
+// and the .'/' operators threw on non-DOUBLE/non-COMPLEX.
+TEST_P(MatrixTest, TransposeTypeAgnostic)
+{
+    // CHAR via .' operator and via transpose() builtin.
+    eval("C = ['ab';'cd']; CT = C.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(CT),'char'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(CT(1,1))"), 97.0);  // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(CT(1,2))"), 99.0);  // 'c'
+    EXPECT_DOUBLE_EQ(evalScalar("double(CT(2,1))"), 98.0);  // 'b'
+    eval("CF = transpose(C);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(CF),'char'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(CF(1,2))"), 99.0);
+
+    // LOGICAL preserved, shape transposed.
+    eval("L = logical([1 0 1;0 1 0]); LT = L.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(islogical(LT))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(LT,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(LT,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(LT(3,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(LT(1,2))"), 0.0);
+
+    // INT8 preserved.
+    eval("I = int8([1 2 3;4 5 6]); IT = I.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(IT),'int8'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(IT(2,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(IT(3,2))"), 6.0);
+
+    // SINGLE preserved.
+    eval("S = single([1.5 2.5;3.5 4.5]); ST = S.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(ST),'single'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(ST(1,2))"), 3.5);
+
+    // COMPLEX: .' does NOT conjugate; ' (ctranspose) does.
+    eval("Z = [1+2i 3+4i;5+6i 7+8i]; ZT = Z.'; ZC = Z';");
+    EXPECT_DOUBLE_EQ(evalScalar("real(ZT(1,2))"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(ZT(1,2))"), 6.0);   // no conjugate
+    EXPECT_DOUBLE_EQ(evalScalar("real(ZC(1,2))"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(ZC(1,2))"), -6.0);  // conjugated
+    EXPECT_DOUBLE_EQ(evalScalar("imag(ZC(2,1))"), -4.0);  // conj(3+4i)
+
+    // CELL: off-diagonal swap.
+    eval("K = {1 2;3 4}; KT = K.';");
+    EXPECT_DOUBLE_EQ(evalScalar("double(iscell(KT))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("KT{1,2}"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("KT{2,1}"), 2.0);
+
+    // Row char -> column.
+    eval("rv = 'hello'; rt = rv.';");
+    EXPECT_DOUBLE_EQ(evalScalar("size(rt,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(rt,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(rt(3))"), 108.0);  // 'l'
+}
+
+// DEEP-PROBE 2026-05-31: diag was DOUBLE-only and silently ignored its
+// k (offset) argument. Now type-preserving + k-aware.
+TEST_P(MatrixTest, DiagTypeAgnostic)
+{
+    // CHAR vector -> char diagonal matrix (off-diagonal char(0)).
+    eval("C = diag('abc');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(C),'char'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,1))"), 97.0);  // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2,2))"), 98.0);  // 'b'
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1,2))"), 0.0);   // char(0)
+
+    // CHAR matrix -> extract main diagonal as char column.
+    eval("dc = diag(['abc';'def';'ghi']);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(dc),'char'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(dc,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(dc(1))"), 97.0);   // 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("double(dc(3))"), 105.0);  // 'i'
+
+    // LOGICAL preserved.
+    eval("L = diag(logical([1 0 1]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(islogical(L))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(L(2,2))"), 0.0);
+
+    // SINGLE preserved.
+    eval("S = diag(single([1 2]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(S),'single'))"), 1.0);
+
+    // COMPLEX preserved (off-diagonal 0+0i).
+    eval("Z = diag([1+2i 3+4i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,1))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,2))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,2))"), 0.0);
+
+    // k offset, vector -> square matrix on k-th diagonal.
+    eval("vk = diag([1 2 3], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(vk,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vk(1,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vk(2,3)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vk(1,1)"), 0.0);
+    eval("vn = diag([1 2 3], -1);");
+    EXPECT_DOUBLE_EQ(evalScalar("vn(2,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vn(3,2)"), 2.0);
+
+    // k offset, matrix -> extract k-th diagonal.
+    eval("dk = diag(reshape(1:9,3,3), 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(dk,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dk(1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dk(2)"), 8.0);
+    eval("dn = diag(reshape(1:9,3,3), -1);");
+    EXPECT_DOUBLE_EQ(evalScalar("dn(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dn(2)"), 6.0);
+}
+
 TEST_P(MatrixTest, MatrixMultiply)
 {
     eval("A = [1 2; 3 4]; B = [5; 6]; C = A * B;");
@@ -577,6 +688,79 @@ TEST_P(SortFindTest, SortReturnsIndices)
     EXPECT_DOUBLE_EQ(i->doubleData()[2], 1.0);
 }
 
+// 'descend' direction (was ignored -> always ascending) and NaN placement
+// (was unsorted -> NaN must sort LAST for ascend, FIRST for descend), with
+// the index output. vs MATLAB R2025b.
+TEST_P(SortFindTest, SortDescendAndNaNPlacement)
+{
+    eval("[y, i] = sort([3 1 NaN 2], 'descend');");
+    auto *y = getVarPtr("y");
+    auto *ii = getVarPtr("i");
+    ASSERT_NE(y, nullptr); ASSERT_NE(ii, nullptr);
+    EXPECT_TRUE(std::isnan(y->doubleData()[0]));   // NaN first (descend)
+    EXPECT_DOUBLE_EQ(y->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[3], 1.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[0], 3.0);    // NaN was at index 3
+    EXPECT_DOUBLE_EQ(ii->doubleData()[1], 1.0);
+    // ascend: NaN sorts LAST.
+    eval("ya = sort([3 1 NaN 2]);");
+    auto *ya = getVarPtr("ya");
+    ASSERT_NE(ya, nullptr);
+    EXPECT_DOUBLE_EQ(ya->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(ya->doubleData()[2], 3.0);
+    EXPECT_TRUE(std::isnan(ya->doubleData()[3]));
+    // dim + direction: sort(X, 2, 'descend') along rows.
+    eval("yd = sort([3 1 4 1 5], 2, 'descend');");
+    auto *yd = getVarPtr("yd");
+    ASSERT_NE(yd, nullptr);
+    EXPECT_DOUBLE_EQ(yd->doubleData()[0], 5.0);
+    EXPECT_DOUBLE_EQ(yd->doubleData()[4], 1.0);
+}
+
+// Complex sort: MATLAB orders by magnitude |z|, ties by phase angle arg(z)
+// ascending; 'descend' reverses; NaN-component sorts last/first. Was
+// unsupported (threw "Not a double array"). vs MATLAB R2025b. 2026-05-29.
+TEST_P(SortFindTest, SortComplexByMagnitudeThenAngle)
+{
+    eval("[y, i] = sort([3+4i 1 5i]);");
+    auto *y = getVarPtr("y");
+    auto *ii = getVarPtr("i");
+    ASSERT_NE(y, nullptr); ASSERT_NE(ii, nullptr);
+    ASSERT_EQ(y->numel(), 3u);
+    // [1, 3+4i, 5i]
+    EXPECT_DOUBLE_EQ(y->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[0].imag(), 0.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[1].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[2].real(), 0.0);
+    EXPECT_DOUBLE_EQ(y->complexData()[2].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[2], 3.0);
+
+    // descend reverses; ties broken by angle (|1i|=|-1i|=1 < |2|=|-2|=2).
+    eval("d = sort([3+4i 1 5i], 'descend');");
+    auto *d = getVarPtr("d");
+    ASSERT_NE(d, nullptr);
+    EXPECT_DOUBLE_EQ(d->complexData()[0].imag(), 5.0);   // 5i first
+    EXPECT_DOUBLE_EQ(d->complexData()[2].real(), 1.0);   // 1 last
+
+    eval("t = sort([2+0i, -2, 1i, -1i]);");
+    auto *t = getVarPtr("t");
+    ASSERT_NE(t, nullptr);
+    EXPECT_DOUBLE_EQ(t->complexData()[0].imag(), -1.0);  // -1i (mag 1, angle -pi/2)
+    EXPECT_DOUBLE_EQ(t->complexData()[1].imag(),  1.0);  //  1i (mag 1, angle  pi/2)
+    EXPECT_DOUBLE_EQ(t->complexData()[2].real(),  2.0);  //  2  (mag 2, angle 0)
+    EXPECT_DOUBLE_EQ(t->complexData()[3].real(), -2.0);  // -2  (mag 2, angle pi)
+
+    // NaN component sorts last for ascend.
+    eval("n = sort([1+1i, NaN, 2]);");
+    auto *n = getVarPtr("n");
+    ASSERT_NE(n, nullptr);
+    EXPECT_TRUE(std::isnan(n->complexData()[2].real()));
+}
+
 TEST_P(SortFindTest, FindRowVectorReturnsRow)
 {
     eval("ix = find([0 1 0 2 0]);");
@@ -685,6 +869,62 @@ TEST_P(SortFindTest, SortrowsMultiKeyMixedDirections)
     EXPECT_DOUBLE_EQ((*S)(3, 0), 2.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 1.0);
 }
 
+// Direction strings/cells (vs MATLAB R2025b). A = [3 1; 1 2; 3 0; 1 5].
+TEST_P(SortFindTest, SortrowsDirectionString)
+{
+    // 'descend' applies to ALL columns: col1 desc, ties col2 desc.
+    eval("S = sortrows([3 1; 1 2; 3 0; 1 5], 'descend');");
+    auto *S = getVarPtr("S");
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(0, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(1, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(2, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 2.0);
+}
+
+TEST_P(SortFindTest, SortrowsColumnsWithDirectionCell)
+{
+    // Explicit columns [1 2] with per-column directions {asc, desc}.
+    eval("S = sortrows([3 1; 1 2; 3 0; 1 5], [1 2], {'ascend','descend'});");
+    auto *S = getVarPtr("S");
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(0, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(1, 1), 2.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(2, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 0.0);
+}
+
+TEST_P(SortFindTest, SortrowsColumnsWithSingleDirectionAndIndex)
+{
+    // Explicit columns [1 2] + single direction 'descend' covers both;
+    // the index output must reflect the permutation.
+    eval("[B, ix] = sortrows([3 1; 1 2; 3 0; 1 5], [1 2], 'descend');");
+    auto *B = getVarPtr("B");
+    auto *ix = getVarPtr("ix");
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 3.0); EXPECT_DOUBLE_EQ((*B)(0, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 0), 3.0); EXPECT_DOUBLE_EQ((*B)(1, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 0), 1.0); EXPECT_DOUBLE_EQ((*B)(2, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*B)(3, 0), 1.0); EXPECT_DOUBLE_EQ((*B)(3, 1), 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[2], 4.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[3], 2.0);
+}
+
+TEST_P(SortFindTest, SortrowsDirectionCellStandalone)
+{
+    // {descend, ascend} over all columns (no explicit column arg).
+    eval("S = sortrows([3 1; 1 2; 3 0; 1 5], {'descend','ascend'});");
+    auto *S = getVarPtr("S");
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(0, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(1, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(2, 1), 2.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 5.0);
+}
+
+TEST_P(SortFindTest, SortrowsBadDirectionThrows)
+{
+    EXPECT_THROW(eval("S = sortrows([1 2; 3 4], 'upward');"), std::exception);
+}
+
 TEST_P(SortFindTest, SortrowsStableForTies)
 {
     // All rows equal except for col2; tie on col1 should preserve original order.
@@ -745,6 +985,44 @@ TEST_P(SortFindTest, SortrowsNaNGoesToBottom)
     EXPECT_DOUBLE_EQ((*S)(0, 0), 1.0);
     EXPECT_DOUBLE_EQ((*S)(1, 0), 2.0);
     EXPECT_TRUE(std::isnan((*S)(2, 0)));
+}
+
+// Complex sortrows: order rows lexicographically; each column compares by
+// magnitude |z| then phase angle arg(z) (negative column = descending).
+// Was silently dropping the imaginary part (returned wrong rows). 2026-05-29.
+TEST_P(SortFindTest, SortrowsComplex)
+{
+    eval("function [s, i] = srw(A)\n  [s, i] = sortrows(A);\nend");
+    eval("[S, ix] = srw([3+4i 2; 1 1; 3+4i 0; 1 5i]);");
+    auto *S  = getVarPtr("S");
+    auto *ix = getVarPtr("ix");
+    ASSERT_NE(S, nullptr); ASSERT_NE(ix, nullptr);
+    ASSERT_EQ(S->type(), ValueType::COMPLEX);
+    // rows order [2 4 3 1]: col1 [1 1 3+4i 3+4i], col2 [1 5i 0 2]
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[3], 1.0);
+    // column-major: col1 = elements [0..3]
+    EXPECT_DOUBLE_EQ(S->complexData()[0].real(), 1.0);  // (1,1)=1
+    EXPECT_DOUBLE_EQ(S->complexData()[2].real(), 3.0);  // (3,1)=3+4i
+    EXPECT_DOUBLE_EQ(S->complexData()[2].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(S->complexData()[5].imag(), 5.0);  // (2,2)=5i
+
+    // negative column -> descending on that column.
+    eval("D = sortrows([3+4i 2; 1 1; 3+4i 0; 1 5i], -1);");
+    auto *D = getVarPtr("D");
+    ASSERT_NE(D, nullptr);
+    EXPECT_DOUBLE_EQ(D->complexData()[0].real(), 3.0);  // 3+4i rows first
+    EXPECT_DOUBLE_EQ(D->complexData()[3].real(), 1.0);
+
+    // column vector by |z| then angle.
+    eval("v = sortrows([3+4i; 1; 5i]);");
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[2].imag(), 5.0);
 }
 
 TEST_P(SortFindTest, SortrowsPromotesIntegerToDouble)
@@ -940,6 +1218,44 @@ TEST_P(SortFindTest, Nonzeros3DColumnMajor)
     EXPECT_DOUBLE_EQ(v->doubleData()[0], 10.0);
     EXPECT_DOUBLE_EQ(v->doubleData()[1], 20.0);
     EXPECT_DOUBLE_EQ(v->doubleData()[2], 30.0);
+}
+
+// sort() on integer types keeps the class on the sorted VALUES (the index
+// output stays double), across dim and 'descend'. numkit previously threw
+// "Not a double array". DEEP-PROBE 2026-05-30.
+TEST_P(SortFindTest, SortIntegerKeepsClass)
+{
+    eval("a = sort(int8([3 -128 5]));");
+    auto *a = getVarPtr("a");
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->type(), numkit::ValueType::INT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(1))"), -128.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(2))"),    3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(a(3))"),    5.0);
+    eval("b = sort(int8([3 -128 5]), 'descend');");
+    EXPECT_EQ(getVarPtr("b")->type(), numkit::ValueType::INT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(1))"),    5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(3))"), -128.0);
+    // [s,i]: values keep class, index output is double.
+    eval("[s, ix] = sort(int8([30 10 20]));");
+    EXPECT_EQ(getVarPtr("s")->type(),  numkit::ValueType::INT8);
+    EXPECT_EQ(getVarPtr("ix")->type(), numkit::ValueType::DOUBLE);
+    EXPECT_DOUBLE_EQ(evalScalar("double(s(1))"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ix(3)"), 1.0);
+    // Per-dim matrix keeps class.
+    eval("c = sort(int32([3 1 2; 6 5 4]), 2);");
+    EXPECT_EQ(getVarPtr("c")->type(), numkit::ValueType::INT32);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(1,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(2,3))"), 6.0);
+    eval("u = sort(uint8([200 5 100]));");
+    EXPECT_EQ(getVarPtr("u")->type(), numkit::ValueType::UINT8);
+    EXPECT_DOUBLE_EQ(evalScalar("double(u(1))"), 5.0);
+    // double input unchanged (regress).
+    eval("[sd, id] = sort([3 1 2]);");
+    EXPECT_EQ(getVarPtr("sd")->type(), numkit::ValueType::DOUBLE);
+    EXPECT_DOUBLE_EQ(evalScalar("sd(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("id(1)"), 2.0);
 }
 
 INSTANTIATE_DUAL(SortFindTest);
@@ -1477,15 +1793,143 @@ TEST_P(GridKronTest, KronEmptyAGivesEmpty)
     EXPECT_EQ(K->numel(), 0u);
 }
 
-TEST_P(GridKronTest, KronComplexThrows)
+// Complex kron: ordinary Kronecker product with complex element products
+// (no conjugation). Was rejected ("complex inputs are not supported"). vs
+// MATLAB R2025b. 2026-05-29.
+TEST_P(GridKronTest, KronComplex)
 {
-    EXPECT_THROW(eval("K = kron([1 2], [3+4i, 5]);"), std::exception);
+    eval("K = kron([1 2], [3+4i, 5]);");   // [1*[3+4i 5], 2*[3+4i 5]] = [3+4i 5 6+8i 10]
+    auto *K = getVarPtr("K");
+    ASSERT_NE(K, nullptr);
+    EXPECT_EQ(K->numel(), 4u);
+    EXPECT_DOUBLE_EQ(K->complexData()[0].real(), 3.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[0].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[1].real(), 5.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[2].real(), 6.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[2].imag(), 8.0);
+    EXPECT_DOUBLE_EQ(K->complexData()[3].real(), 10.0);
+    // column-vector kron with a complex row: kron([1+1i;2],[1 1i]) = [1+1i -1+1i; 2 2i]
+    eval("K2 = kron([1+1i; 2], [1 1i]);");
+    auto *K2 = getVarPtr("K2");
+    ASSERT_NE(K2, nullptr);
+    EXPECT_DOUBLE_EQ(K2->complexData()[0].real(), 1.0);   // (1,1)=1+1i
+    EXPECT_DOUBLE_EQ(K2->complexData()[0].imag(), 1.0);
+}
+
+// Complex cross: ordinary cross product with complex arithmetic (no conj).
+TEST_P(GridKronTest, CrossComplex)
+{
+    eval("c = cross([1+1i 0 0], [0 1 0]);");   // [0 0 1+1i]
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(c->numel(), 3u);
+    EXPECT_DOUBLE_EQ(c->complexData()[2].real(), 1.0);
+    EXPECT_DOUBLE_EQ(c->complexData()[2].imag(), 1.0);
+    // column 3-vectors: cross([1i;2;3],[4;5i;6]) = [12-15i; 12-6i; -13]
+    eval("cc = cross([1i; 2; 3], [4; 5i; 6]);");
+    auto *cc = getVarPtr("cc");
+    ASSERT_NE(cc, nullptr);
+    EXPECT_DOUBLE_EQ(cc->complexData()[0].real(), 12.0);
+    EXPECT_DOUBLE_EQ(cc->complexData()[0].imag(), -15.0);
+    EXPECT_DOUBLE_EQ(cc->complexData()[2].real(), -13.0);
+    EXPECT_DOUBLE_EQ(cc->complexData()[2].imag(), 0.0);
+}
+
+// cross(A,B,dim): the dim argument was IGNORED (always crossed along the
+// first length-3 dimension). For a 3x3 (ambiguous) input numkit picked dim 1
+// regardless of the requested dim. MATLAB crosses along the requested dim.
+// vs MATLAB R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(GridKronTest, CrossAlongDim)
+{
+    // dim 1 (each column a 3-vec): cross([1 2 3;4 5 6;7 8 9],eye(3),1)
+    //   = [0 -8 6; 7 0 -3; -4 2 0].
+    eval("m1 = cross([1 2 3;4 5 6;7 8 9],[1 0 0;0 1 0;0 0 1],1);");
+    EXPECT_DOUBLE_EQ(evalScalar("m1(1,2)"), -8.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m1(2,1)"),  7.0);
+    // dim 2 (each row a 3-vec): = [0 3 -2; -6 0 4; 8 -7 0] (was the dim-1 result).
+    eval("m2 = cross([1 2 3;4 5 6;7 8 9],[1 0 0;0 1 0;0 0 1],2);");
+    EXPECT_DOUBLE_EQ(evalScalar("m2(1,2)"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m2(2,1)"), -6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m2(3,2)"), -7.0);
+    // row vector with explicit dim 2.
+    eval("rv = cross([1 2 3],[4 5 6],2);");
+    EXPECT_DOUBLE_EQ(evalScalar("rv(1)"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rv(3)"), -3.0);
+    // default (no dim) unchanged on a 3x3: picks dim 1.
+    eval("md = cross([1 2 3;4 5 6;7 8 9],[1 0 0;0 1 0;0 0 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("md(1,2)"), -8.0);
+    // length-3 required along dim: cross([1 2 3],[4 5 6],1) errors (dim1 len 1).
+    EXPECT_THROW(eval("e = cross([1 2 3],[4 5 6],1);"), std::exception);
 }
 
 TEST_P(GridKronTest, Kron3DInputThrows)
 {
     eval("A = zeros(2, 2, 2);");
     EXPECT_THROW(eval("K = kron(A, [1 2; 3 4]);"), std::exception);
+}
+
+// Complex dot: MATLAB conjugates the FIRST argument -> dot(a,b)=sum(conj(a).*b),
+// per-column for matrices. numkit previously dropped the imaginary part via
+// elemAsDouble (returned a wrong real scalar). vs MATLAB R2025b. 2026-05-29.
+TEST_P(GridKronTest, DotComplexConjugatesFirstArg)
+{
+    eval("z = dot([1+2i 3], [4 5i]);");   // conj([1+2i 3]).*[4 5i] = [4-8i,15i] -> 4+7i
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 4.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].imag(), 7.0);
+
+    // per-column on matrices: dot([1+1i 2;3 4i],[1 1i;1 1]) = [4-1i, -2i]
+    eval("m = dot([1+1i 2; 3 4i], [1 1i; 1 1]);");
+    auto *m = getVarPtr("m");
+    ASSERT_NE(m, nullptr);
+    EXPECT_EQ(m->numel(), 2u);
+    EXPECT_DOUBLE_EQ(m->complexData()[0].real(), 4.0);
+    EXPECT_DOUBLE_EQ(m->complexData()[0].imag(), -1.0);
+    EXPECT_DOUBLE_EQ(m->complexData()[1].real(), 0.0);
+    EXPECT_DOUBLE_EQ(m->complexData()[1].imag(), -2.0);
+
+    // real-vs-complex (a real): conj([1 2])=[1 2] -> [1i,4i] -> 5i
+    eval("rc = dot([1 2], [1i 2i]);");
+    auto *rc = getVarPtr("rc");
+    ASSERT_NE(rc, nullptr);
+    EXPECT_DOUBLE_EQ(rc->complexData()[0].imag(), 5.0);
+
+    // real path unchanged.
+    EXPECT_DOUBLE_EQ(evalScalar("dot([1 2 3],[4 5 6]);"), 32.0);
+}
+
+// dot(A,B,dim): the dim argument was IGNORED (always reduced along dim 1).
+// MATLAB: dim 2 reduces across rows (Hx1), dim 1 down columns (1xW); a vector
+// with explicit dim follows the general sum(conj(A).*B,dim) rule. vs MATLAB
+// R2025b. DEEP-PROBE 2026-05-31.
+TEST_P(GridKronTest, DotAlongDim)
+{
+    // dim 2 -> per-row column vector [6;30].
+    eval("d2 = dot([1 2 3;4 5 6],[1 1 1;2 2 2],2);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(d2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d2(1)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d2(2)"), 30.0);
+    // dim 1 -> per-column row vector [9 12 15].
+    eval("d1 = dot([1 2 3;4 5 6],[1 1 1;2 2 2],1);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(d1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d1(1)"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d1(3)"), 15.0);
+    // Row vector with explicit dim 1: length-1 reduction = identity (NOT 32).
+    eval("rv = dot([1 2 3],[4 5 6],1);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(rv)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rv(1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rv(3)"), 18.0);
+    // Complex per-row (conj of first arg): [3-1i; 7].
+    eval("dc = dot([1+1i 2;3 4],[1 1;1 1],2);");
+    auto *dc = getVarPtr("dc");
+    ASSERT_NE(dc, nullptr);
+    EXPECT_DOUBLE_EQ(dc->complexData()[0].real(), 3.0);
+    EXPECT_DOUBLE_EQ(dc->complexData()[0].imag(), -1.0);
+    EXPECT_DOUBLE_EQ(dc->complexData()[1].real(), 7.0);
+    // default (no dim) unchanged: per-column [9 12 15].
+    eval("dd = dot([1 2 3;4 5 6],[1 1 1;2 2 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("dd(2)"), 12.0);
 }
 
 INSTANTIATE_DUAL(GridKronTest);

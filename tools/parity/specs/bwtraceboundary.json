@@ -1,0 +1,10 @@
+{
+  "name": "bwtraceboundary",
+  "namespace": "image",
+  "setup": "BW = false(7, 7); BW(2:6, 2:6) = true; LL = false(8, 8); LL(2:5, 2:3) = true; LL(2:3, 4:6) = true; S1 = false(5, 5); S1(3, 3) = true;",
+  "expr": "B = bwtraceboundary(BW, [2 2], 'E'); B3 = bwtraceboundary(BW, [2 2], 'E', 8, 5); B4 = bwtraceboundary(BW, [2 2], 'E', 4); B5 = bwtraceboundary(BW, [2 2], 'S'); B6 = bwtraceboundary(LL, [2 2], 'E'); B7 = bwtraceboundary(S1, [3 3], 'E'); B8 = bwtraceboundary(BW, [2 2], 'E', 8, Inf, 'counterclockwise'); r1 = double(size(B,1)); r2 = B(2,1); r3 = B(2,2); r4 = B(end-1,1); r5 = B(end-1,2); r6 = double(size(B3,1)); r7 = double(size(B4,1)); r8 = double(size(B5,1)); r9 = B5(2,1); r10 = B5(2,2); r11 = double(size(B6,1)); r12 = B6(9,1); r13 = B6(9,2); r14 = double(size(B7,1)); r15 = double(size(B8,1));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"],
+  "comment": "Sig: B = bwtraceboundary(BW, P, fstep, conn, n, dir). Branches: default 8-conn CW from E, 4-conn, S start, L-shape (concave), single pixel (returns [P; P]), counterclockwise direction, limit N. Bit-exact MATLAB R2025b (tol=0). Algorithm: Moore-Neighbor tracing, Pavlidis 1982. Notable: fstep specifies the OPPOSITE of the notional 'previous' pixel direction — search starts one step CW of (fstep + nd/2) % nd. Image namespace 2026-05-27."
+}

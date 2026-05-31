@@ -1,7 +1,6 @@
 // libs/wavelet/include/numkit/wavelet/library.hpp
 //
-// Wavelet Toolbox builtins. Mirrors MATLAB's documentation root
-// `/help/wavelet/`. Function-form only.
+// Wavelet builtins — function-form only.
 
 #pragma once
 

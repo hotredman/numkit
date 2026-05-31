@@ -1,0 +1,18 @@
+{
+  "name": "mat2str_char",
+  "namespace": "builtin",
+  "covers": ["mat2str"],
+  "setup": "",
+  "expr": "ch1 = mat2str('abc'); nch1 = numel(ch1); a1 = double(ch1(1)); a2 = double(ch1(2)); ae = double(ch1(end)); ch2 = mat2str(['ab';'cd']); nch2 = numel(ch2); b1 = double(ch2(1)); b2 = double(ch2(2)); bs = sum(double(ch2)); ch3 = mat2str(''); nch3 = numel(ch3); c1 = double(ch3(1)); ch4 = mat2str('a''b'); nch4 = numel(ch4); ds = sum(double(ch4)); ch5 = mat2str('x'); nch5 = numel(ch5); e1 = double(ch5(1)); e2 = double(ch5(2));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": [
+    "nch1", "a1", "a2", "ae",
+    "nch2", "b1", "b2", "bs",
+    "nch3", "c1",
+    "nch4", "ds",
+    "nch5", "e1", "e2"
+  ],
+  "deep_verified": true,
+  "comment": "mat2str on CHAR input vs MATLAB R2025b (covers mat2str; kept separate from mat2str.json to stay under the VM 255-register limit). DEEP-PROBE 2026-05-31: char previously rendered numeric codes (mat2str('abc')='[97 98 99]'). Now a quoted char literal: row 'abc' -> \"'abc'\" (nch1=5, a1=39 quote, a2=97 'a', ae=39); char matrix ['ab';'cd'] -> \"['ab';'cd']\" (nch2=11, b1=91 '['); empty char '' -> \"''\" (nch3=2, c1=39); internal single quote doubled mat2str('a''b') -> \"'a''b'\" (nch4=6); single char 'x' -> \"'x'\" (nch5=3, e1=39, e2=120). Cross-engine char-code + numel + sum fingerprints."
+}

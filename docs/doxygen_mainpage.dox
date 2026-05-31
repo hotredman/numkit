@@ -61,6 +61,14 @@
 ///
 /// LaTeX formulas (`@f$ ... @f$`) render via MathJax in HTML and via
 /// pdflatex (MiKTeX / TeX Live) in PDF.
+///
+/// @section trademark Compatibility &amp; trademark
+///
+/// numkit-m is built for compatibility with **MATLAB R2025b**
+/// semantics. MATLAB is a registered trademark of The MathWorks, Inc.
+/// numkit-m is an independent project and is **not affiliated with,
+/// endorsed by, or sponsored by** The MathWorks, Inc.; references to
+/// MATLAB describe interoperability only.
 
 // ── Namespace stubs ──────────────────────────────────────────────────
 //

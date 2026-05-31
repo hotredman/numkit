@@ -208,6 +208,82 @@ TEST_P(ArithmeticTest, BroadcastComparison)
     EXPECT_EQ(cols(*A), 3u);
 }
 
+// abs() on integer types: MATLAB keeps the class and SATURATES, so
+// abs(intmin) -> intmax (abs(int8(-128))=127); numkit previously returned a
+// DOUBLE (and the wrong value 128). DEEP-PROBE 2026-05-30.
+TEST_P(ArithmeticTest, AbsIntegerSaturates)
+{
+    eval("a = abs(int8(-128));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(a);"), 127.0);   // saturates, not 128
+    EXPECT_TRUE(evalBool("isequal(class(a), 'int8');"));
+    eval("b = abs(int16(-32768));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(b);"), 32767.0);
+    eval("c = abs(int8([-3 -128 5]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(1));"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(2));"), 127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(3));"), 5.0);
+    EXPECT_TRUE(evalBool("isequal(class(c), 'int8');"));
+    eval("d = abs(uint8(200));");                        // unsigned unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("double(d);"), 200.0);
+    EXPECT_TRUE(evalBool("isequal(class(d), 'uint8');"));
+    eval("e = abs(int32(-7));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(e);"), 7.0);
+    EXPECT_TRUE(evalBool("isequal(class(e), 'int32');"));
+    // double / complex unchanged (regress).
+    EXPECT_DOUBLE_EQ(evalScalar("abs(-3.5);"), 3.5);
+    EXPECT_TRUE(evalBool("isequal(class(abs(-3.5)), 'double');"));
+    EXPECT_DOUBLE_EQ(evalScalar("abs(3-4i);"), 5.0);
+}
+
+// sign() on integer types keeps the class (sign(int8(-5))=-1 int8). numkit
+// previously returned double and threw on integer arrays. DEEP-PROBE 2026-05-30.
+TEST_P(ArithmeticTest, SignIntegerKeepsClass)
+{
+    eval("a = sign(int8(-5));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(a);"), -1.0);
+    EXPECT_TRUE(evalBool("isequal(class(a), 'int8');"));
+    eval("b = sign(int8([-5 0 9]));");                  // [-1 0 1] int8
+    EXPECT_TRUE(evalBool("isequal(class(b), 'int8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(1));"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(2));"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(b(3));"),  1.0);
+    eval("c = sign(uint8(0));");                        // 0 uint8 (never -1)
+    EXPECT_DOUBLE_EQ(evalScalar("double(c);"), 0.0);
+    EXPECT_TRUE(evalBool("isequal(class(c), 'uint8');"));
+    eval("d = sign(int32([-100 100]));");
+    EXPECT_TRUE(evalBool("isequal(class(d), 'int32');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(d(1));"), -1.0);
+    // double inputs unchanged (regress).
+    EXPECT_DOUBLE_EQ(evalScalar("sign(-3.5);"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sign(0);"),     0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sign(2.1);"),   1.0);
+    EXPECT_TRUE(evalBool("isequal(class(sign(-3.5)), 'double');"));
+    EXPECT_TRUE(evalBool("isnan(sign(NaN));"));
+}
+
+// sign() of a complex value: z/|z| for z != 0, else 0 (MATLAB R2025b).
+// numkit previously threw "Cannot convert complex ... to double scalar".
+// DEEP-PROBE 2026-05-30.
+TEST_P(ArithmeticTest, SignComplex)
+{
+    eval("a = sign(3-4i);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(a);"),  0.6);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(a);"), -0.8);
+    eval("b = sign(1i);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(b);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(b);"), 1.0);
+    eval("c = sign(complex(0, 0));");          // zero -> zero (no divide)
+    EXPECT_DOUBLE_EQ(evalScalar("real(c);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(c);"), 0.0);
+    eval("d = sign([3+4i, 0, -2i]);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(d(1));"), 0.6);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(d(1));"), 0.8);
+    EXPECT_DOUBLE_EQ(evalScalar("real(d(2));"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(d(3));"), -1.0);
+    EXPECT_NEAR(evalScalar("real(sign(2+2i));"), 0.70710678118654752, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(sign(2+2i));"), 0.70710678118654752, 1e-12);
+}
+
 INSTANTIATE_DUAL(ArithmeticTest);
 
 // ============================================================

@@ -2,12 +2,18 @@
   "name": "median",
   "namespace": "core",
   "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = median(x);",
+  "expr": "y = median(x); e0 = median([]); ne0 = numel(e0); ie0 = double(isnan(e0)); ec = median(zeros(0,3)); er = median(zeros(3,0)); mi = median(int32([1 2 3 4])); vmi = double(mi); cmi = double(strcmp(class(mi),'int32')); mn = median(int8([-1 -2])); vmn = double(mn); cmn = double(strcmp(class(mn),'int8')); mu = median(uint8([10 20 30 41])); vmu = double(mu); cmu = double(strcmp(class(mu),'uint8'));",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = median(X). 1M-pt full sort + middle. 50 iters. Scalar fp.",
+  "comment": "Sig: M = median(X). 1M-pt full sort + middle. Scalar fp. DEEP-PROBE 2026-05-29: median of an EMPTY array -> NaN (not 0x0). 2026-05-30: integer-typed input PRESERVES the integer class (round half-away-from-zero + saturate): median(int32([1 2 3 4]))=3 int32, median(int8([-1 -2]))=-2 int8, median(uint8([10 20 30 41]))=25 uint8 (numkit previously returned DOUBLE 2.5). NOTE: ; appears only inside matrix-literal INPUTS, never inside a quoted string.",
   "fingerprint": [
     "double(y)",
-    "numel(y)"
+    "numel(y)",
+    "ne0", "ie0",
+    "size(ec,1)", "size(ec,2)", "double(isnan(ec(1)))",
+    "size(er,1)", "size(er,2)",
+    "vmi", "cmi",
+    "vmn", "cmn",
+    "vmu", "cmu"
   ]
 }

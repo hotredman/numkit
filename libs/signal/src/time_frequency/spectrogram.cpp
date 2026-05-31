@@ -16,8 +16,10 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <limits>
 #include <memory_resource>
 #include <string>
+#include <tuple>
 
 namespace numkit::signal {
 
@@ -159,24 +161,24 @@ Value stft(const Value &x, const Value &window, std::size_t overlap, std::size_t
     const size_t M = win.size();
     if (M == 0)
         throw Error("stft: window must be non-empty",
-                     0, 0, "stft", "", "m:stft:badWindow");
+                     0, 0, "stft", "", "numkit:stft:badWindow");
     if (M > N)
         throw Error("stft: signal shorter than window length",
-                     0, 0, "stft", "", "m:stft:shortSignal");
+                     0, 0, "stft", "", "numkit:stft:shortSignal");
 
     const size_t OL  = (overlap == SIZE_MAX) ? (3 * M) / 4 : overlap;
     if (OL >= M)
         throw Error("stft: OverlapLength must be < window length",
-                     0, 0, "stft", "", "m:stft:badOverlap");
+                     0, 0, "stft", "", "numkit:stft:badOverlap");
     const size_t NFFT = (fftLength == 0) ? M : fftLength;
     if (NFFT < M)
         throw Error("stft: FFTLength must be >= window length",
-                     0, 0, "stft", "", "m:stft:badNfft");
+                     0, 0, "stft", "", "numkit:stft:badNfft");
 
     if (range != "twosided" && range != "onesided" && range != "centered")
         throw Error("stft: FrequencyRange must be 'twosided', 'centered' "
                     "or 'onesided'",
-                     0, 0, "stft", "", "m:stft:badRange");
+                     0, 0, "stft", "", "numkit:stft:badRange");
 
     const size_t hop = M - OL;
     const size_t K   = (N - M) / hop + 1;
@@ -249,17 +251,17 @@ Value istft(const Value &S, const Value &window, std::size_t overlap, std::size_
     const size_t M = win.size();
     if (M == 0)
         throw Error("istft: window must be non-empty",
-                     0, 0, "istft", "", "m:istft:badWindow");
+                     0, 0, "istft", "", "numkit:istft:badWindow");
 
     const size_t OL  = (overlap == SIZE_MAX) ? (3 * M) / 4 : overlap;
     if (OL >= M)
         throw Error("istft: OverlapLength must be < window length",
-                     0, 0, "istft", "", "m:istft:badOverlap");
+                     0, 0, "istft", "", "numkit:istft:badOverlap");
 
     if (range != "twosided" && range != "onesided" && range != "centered")
         throw Error("istft: FrequencyRange must be 'twosided', 'centered' "
                     "or 'onesided'",
-                     0, 0, "istft", "", "m:istft:badRange");
+                     0, 0, "istft", "", "numkit:istft:badRange");
 
     const bool   isOneSided = (range == "onesided");
     const bool   isCentered = (range == "centered");
@@ -274,14 +276,14 @@ Value istft(const Value &S, const Value &window, std::size_t overlap, std::size_
                                                      : ((NFFT + 1) / 2));
     if (!isOneSided && inRows != NFFT)
         throw Error("istft: STFT row count does not match FFTLength",
-                     0, 0, "istft", "", "m:istft:badShape");
+                     0, 0, "istft", "", "numkit:istft:badShape");
     if (isOneSided && inRows != NFFT / 2 + 1)
         throw Error("istft: one-sided STFT row count must equal "
                     "FFTLength/2 + 1",
-                     0, 0, "istft", "", "m:istft:badShape");
+                     0, 0, "istft", "", "numkit:istft:badShape");
     if (NFFT < M)
         throw Error("istft: FFTLength must be >= window length",
-                     0, 0, "istft", "", "m:istft:badNfft");
+                     0, 0, "istft", "", "numkit:istft:badNfft");
 
     const size_t hop = M - OL;
     const size_t Nout = (K - 1) * hop + M;
@@ -336,13 +338,118 @@ Value istft(const Value &S, const Value &window, std::size_t overlap, std::size_
     return out;
 }
 
+// ── iscola — Constant OverLap-Add compliance check ─────────────────
+//
+// MATLAB sig: [tf, m, maxDev] = iscola(window, noverlap[, method]).
+// Default method is 'wola' (sum of squared window); 'ola' uses the
+// unsquared window. The algorithm builds K = ceil(M/hop) + 2 frames
+// stacked at multiples of hop = M - noverlap, sums them up sample-by-
+// sample, then inspects the stable overlap region (where every interior
+// sample is covered by `nOverlapWindows = ceil(M/hop)` frames). The
+// region length is at least `hop` so the periodicity-1 sum can be
+// fully characterised by its median and its maximum deviation. Match
+// boundary: `maxDev < 2 * eps` (probed against MATLAB R2025b: dev = 1·eps
+// passes, dev ≥ 2·eps fails).
+
+std::tuple<Value, Value, Value>
+iscola(const Value &window, std::size_t noverlap, const std::string &method,
+       std::pmr::memory_resource *mr)
+{
+    const std::size_t M = window.numel();
+    if (M == 0)
+        throw Error("iscola: window must be non-empty",
+                     0, 0, "iscola", "", "numkit:iscola:badWindow");
+    if (noverlap >= M)
+        throw Error("iscola: noverlap must be < window length",
+                     0, 0, "iscola", "", "numkit:iscola:badOverlap");
+    if (method != "ola" && method != "wola")
+        throw Error("iscola: method must be 'ola' or 'wola'",
+                     0, 0, "iscola", "", "numkit:iscola:badMethod");
+
+    const std::size_t hop  = M - noverlap;
+    const std::size_t nOvw = (M + hop - 1) / hop;        // ceil(M/hop)
+    const std::size_t K    = nOvw + 2;
+    const std::size_t Ltot = (K - 1) * hop + M;
+    const bool isWola      = (method == "wola");
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> s(Ltot, 0.0, &scratch);
+    for (std::size_t k = 0; k < K; ++k)
+        for (std::size_t i = 0; i < M; ++i) {
+            const double wi = window.elemAsDouble(i);
+            s[k * hop + i] += isWola ? wi * wi : wi;
+        }
+
+    // Stable region: [(nOvw - 1)*hop, K*hop). Take the first `hop`-long
+    // window of it — by periodicity within the stable region every
+    // hop-sized slice has the same content (up to FP).
+    const std::size_t stableStart = (nOvw - 1) * hop;
+    ScratchVec<double> stable(s.begin() + stableStart,
+                               s.begin() + stableStart + hop, &scratch);
+
+    // Median.
+    ScratchVec<double> sorted(stable.begin(), stable.end(), &scratch);
+    std::sort(sorted.begin(), sorted.end());
+    const std::size_t H = sorted.size();
+    const double median = (H % 2 == 0)
+        ? 0.5 * (sorted[H / 2 - 1] + sorted[H / 2])
+        : sorted[H / 2];
+
+    // Max absolute deviation from the median.
+    double maxDev = 0.0;
+    for (double v : stable)
+        maxDev = std::max(maxDev, std::abs(v - median));
+
+    // MATLAB tolerance is relative to the median (probed): dev/|m| ≤ eps
+    // passes, dev/|m| > eps fails. e.g. hann@48 'ola' has dev = 2·eps and
+    // m = 2 → ratio = eps (exact boundary), tf = 1.
+    const double eps = std::numeric_limits<double>::epsilon();
+    const double tol = (std::abs(median) > 0.0) ? std::abs(median) * eps : eps;
+    const bool   tf  = (maxDev <= tol);
+
+    Value out_tf  = Value::scalar(tf ? 1.0 : 0.0, mr);
+    Value out_m   = Value::scalar(median, mr);
+    Value out_dev = Value::scalar(maxDev, mr);
+    return { std::move(out_tf), std::move(out_m), std::move(out_dev) };
+}
+
 namespace detail {
+
+void iscola_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("iscola: requires (window, noverlap [, method])",
+                     0, 0, "iscola", "", "numkit:iscola:nargin");
+    if (args[1].numel() != 1)
+        throw Error("iscola: noverlap must be a scalar",
+                     0, 0, "iscola", "", "numkit:iscola:badOverlap");
+    const double novS = args[1].toScalar();
+    if (!(novS >= 0.0))
+        throw Error("iscola: noverlap must be non-negative",
+                     0, 0, "iscola", "", "numkit:iscola:badOverlap");
+    const std::size_t noverlap = static_cast<std::size_t>(novS);
+
+    std::string method = "wola";  // MATLAB default
+    if (args.size() >= 3) {
+        if (!(args[2].isChar() || args[2].isString()))
+            throw Error("iscola: method must be a string",
+                         0, 0, "iscola", "", "numkit:iscola:badMethod");
+        method = args[2].toString();
+    }
+
+    auto [tf, m, dev] = iscola(args[0], noverlap, method,
+                                ctx.engine->resource());
+    outs[0] = std::move(tf);
+    if (nargout > 1) outs[1] = std::move(m);
+    if (nargout > 2) outs[2] = std::move(dev);
+}
 
 void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("spectrogram: requires at least 1 argument",
-                     0, 0, "spectrogram", "", "m:spectrogram:nargin");
+                     0, 0, "spectrogram", "", "numkit:spectrogram:nargin");
 
     // MATLAB's spectrogram(x, N) accepts a scalar-N (window length) and
     // builds a Hamming window of that length. If arg 1 is a vector, it's
@@ -392,7 +499,7 @@ static void parseStftNVPairs(Span<const Value> args, size_t startIdx,
     for (size_t i = startIdx; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar())
             throw Error("stft: name-value pair name must be a string",
-                         0, 0, "stft", "", "m:stft:badNVName");
+                         0, 0, "stft", "", "numkit:stft:badNVName");
         const std::string key = args[i].toString();
         const Value &val      = args[i + 1];
         if (eqIgnoreCase(key, "Window"))           window    = val;
@@ -401,36 +508,146 @@ static void parseStftNVPairs(Span<const Value> args, size_t startIdx,
         else if (eqIgnoreCase(key, "FrequencyRange")) range  = val.toString();
         else
             throw Error("stft: unknown name-value key '" + key + "'",
-                         0, 0, "stft", "", "m:stft:badNVKey");
+                         0, 0, "stft", "", "numkit:stft:badNVKey");
     }
 }
 
-void stft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+// Optional positional `fs` between `x` and any NV-pairs. Returns the
+// index where NV-pairs start (1 if no fs, 2 if fs consumed).
+static size_t parseOptionalFs(Span<const Value> args, bool &fsGiven, double &fs)
+{
+    fsGiven = false;
+    fs = 1.0;
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()
+        && args[1].numel() == 1) {
+        fs = args[1].toScalar();
+        fsGiven = true;
+        return 2;
+    }
+    return 1;
+}
+
+// Build the frequency-axis vector that MATLAB returns from
+// `[s, f, ...] = stft(...)`. The angular spacing is `f_scale / NFFT`
+// where `f_scale = fs` when given, else `2*pi` (radians/sample default).
+static Value buildFreqAxis(std::size_t NFFT, const std::string &range,
+                           bool fsGiven, double fs,
+                           std::pmr::memory_resource *mr)
+{
+    const double f_scale = fsGiven ? fs : (2.0 * M_PI);
+    const double df      = f_scale / static_cast<double>(NFFT);
+    if (range == "onesided") {
+        const std::size_t nF = NFFT / 2 + 1;
+        Value f = Value::matrix(nF, 1, ValueType::DOUBLE, mr);
+        double *fd = f.doubleDataMut();
+        for (std::size_t k = 0; k < nF; ++k)
+            fd[k] = static_cast<double>(k) * df;
+        return f;
+    }
+    if (range == "centered") {
+        Value f = Value::matrix(NFFT, 1, ValueType::DOUBLE, mr);
+        double *fd = f.doubleDataMut();
+        // Even N: bins are [-N/2+1, ..., N/2] (Nyquist at end).
+        // Odd  N: bins are [-(N-1)/2, ..., (N-1)/2].
+        const long long Nll = static_cast<long long>(NFFT);
+        const long long lo  = (Nll % 2 == 0) ? -(Nll / 2 - 1) : -((Nll - 1) / 2);
+        for (long long k = 0; k < Nll; ++k)
+            fd[k] = static_cast<double>(lo + k) * df;
+        return f;
+    }
+    // twosided: bins 0, 1, ..., N-1.
+    Value f = Value::matrix(NFFT, 1, ValueType::DOUBLE, mr);
+    double *fd = f.doubleDataMut();
+    for (std::size_t k = 0; k < NFFT; ++k)
+        fd[k] = static_cast<double>(k) * df;
+    return f;
+}
+
+// Build the time-axis vector for stft frame centres. MATLAB places
+// each frame's centre at sample `(M/2 + k*hop)` (0-based), scaled by
+// `1/fs_t` where `fs_t = fs` if given else 1 (samples).
+static Value buildTimeAxisStft(std::size_t M, std::size_t hop, std::size_t K,
+                               bool fsGiven, double fs,
+                               std::pmr::memory_resource *mr)
+{
+    const double tscale = fsGiven ? fs : 1.0;
+    const double half_M = 0.5 * static_cast<double>(M);
+    Value t = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+    double *td = t.doubleDataMut();
+    for (std::size_t k = 0; k < K; ++k)
+        td[k] = (half_M + static_cast<double>(k * hop)) / tscale;
+    return t;
+}
+
+// Resolve effective window length M given an explicit/empty Window
+// arg, matching `resolveWindow` defaults.
+static std::size_t resolveWindowLen(const Value &window)
+{
+    return (window.numel() > 0) ? window.numel() : 128;
+}
+
+void stft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
               CallContext &ctx)
 {
     if (args.empty())
         throw Error("stft: requires at least 1 argument",
-                     0, 0, "stft", "", "m:stft:nargin");
-    Value window           = Value::empty();
-    std::size_t overlap    = SIZE_MAX;   // sentinel for "use default"
-    std::size_t fftLength  = 0;
-    std::string range      = "centered";  // matches MATLAB R2019b+ default
-    parseStftNVPairs(args, 1, window, overlap, fftLength, range);
-    outs[0] = stft(args[0], window, overlap, fftLength, range, ctx.engine->resource());
-}
+                     0, 0, "stft", "", "numkit:stft:nargin");
+    auto *mr = ctx.engine->resource();
 
-void istft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
-               CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("istft: requires at least 1 argument",
-                     0, 0, "istft", "", "m:istft:nargin");
+    bool fsGiven = false;
+    double fs    = 1.0;
+    const size_t nvStart = parseOptionalFs(args, fsGiven, fs);
+
     Value window           = Value::empty();
     std::size_t overlap    = SIZE_MAX;
     std::size_t fftLength  = 0;
     std::string range      = "centered";  // matches MATLAB R2019b+ default
-    parseStftNVPairs(args, 1, window, overlap, fftLength, range);
-    outs[0] = istft(args[0], window, overlap, fftLength, range, ctx.engine->resource());
+    parseStftNVPairs(args, nvStart, window, overlap, fftLength, range);
+
+    // Resolve sizes (mirrors stft() internals) so we can build f, t.
+    const std::size_t M    = resolveWindowLen(window);
+    const std::size_t OL   = (overlap == SIZE_MAX) ? (3 * M) / 4 : overlap;
+    const std::size_t hop  = (OL < M) ? (M - OL) : 1;
+    const std::size_t NFFT = (fftLength == 0) ? M : fftLength;
+    const std::size_t N    = args[0].numel();
+    const std::size_t K    = (N >= M) ? ((N - M) / hop + 1) : 0;
+
+    outs[0] = stft(args[0], window, overlap, fftLength, range, mr);
+    if (nargout > 1)
+        outs[1] = buildFreqAxis(NFFT, range, fsGiven, fs, mr);
+    if (nargout > 2)
+        outs[2] = buildTimeAxisStft(M, hop, K, fsGiven, fs, mr);
+}
+
+void istft_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+               CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("istft: requires at least 1 argument",
+                     0, 0, "istft", "", "numkit:istft:nargin");
+    auto *mr = ctx.engine->resource();
+
+    bool fsGiven = false;
+    double fs    = 1.0;
+    const size_t nvStart = parseOptionalFs(args, fsGiven, fs);
+
+    Value window           = Value::empty();
+    std::size_t overlap    = SIZE_MAX;
+    std::size_t fftLength  = 0;
+    std::string range      = "centered";
+    parseStftNVPairs(args, nvStart, window, overlap, fftLength, range);
+
+    outs[0] = istft(args[0], window, overlap, fftLength, range, mr);
+    if (nargout > 1) {
+        // t = (0 : Nout-1) / fs_t. Reconstructed length is in outs[0]'s rows.
+        const std::size_t Nout = outs[0].dims().rows();
+        const double tscale    = fsGiven ? fs : 1.0;
+        Value t = Value::matrix(Nout, 1, ValueType::DOUBLE, mr);
+        double *td = t.doubleDataMut();
+        for (std::size_t i = 0; i < Nout; ++i)
+            td[i] = static_cast<double>(i) / tscale;
+        outs[1] = std::move(t);
+    }
 }
 
 } // namespace detail

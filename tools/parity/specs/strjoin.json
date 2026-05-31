@@ -2,11 +2,11 @@
   "name": "strjoin",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = double(strcmp(strjoin({\"a\",\"b\",\"c\"}, \",\"), \"a,b,c\"));",
+  "expr": "r1 = double(strcmp(strjoin({'a','b','c'}, ','), 'a,b,c')); r2 = double(strcmp(strjoin({'a','b','c'}, {', ', ' and '}), 'a, b and c')); r3 = double(strcmp(strjoin({'x','y'}, {'->'}), 'x->y')); r4 = double(strcmp(strjoin({'solo'}, {}), 'solo')); r5 = double(strcmp(strjoin({'a','b','c'}), 'a b c'));",
   "iters": 5,
-  "tol": 1e-09,
+  "tol": 0,
   "fingerprint": [
-    "r1"
+    "r1", "r2", "r3", "r4", "r5"
   ],
-  "comment": "Sig: r = strjoin(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: s = strjoin(C, delim). delim may be a single string OR a cell array of numel(C)-1 strings interleaved between consecutive elements: strjoin({a,b,c},{', ',' and '}) -> 'a, b and c'. Single-element C uses an empty {} delim. numkit previously threw 'Not a char array' on a cell delim; fixed 2026-05-30. Spec-extension batch 2026-05-09 + cell delimiter."
 }

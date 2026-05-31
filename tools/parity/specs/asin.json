@@ -3,7 +3,7 @@
   "namespace": "builtin",
   "setup": "x = [-1, -0.5, 0, 0.5, 1];",
   "expr": "y = asin(x);",
-  "iters": 5,
+  "iters": 15,
   "tol": 1e-12,
   "fingerprint": [
     "y(1)",
@@ -12,5 +12,7 @@
     "y(4)",
     "y(5)"
   ],
-  "comment": "Sig: y = asin(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on domain edges."
+  "comment": "Sig: y = asin(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on domain edges.",
+  "bench_setup": "xb = mod((1:N)*7919,1998)*0.001 - 0.999;",
+  "bench_expr": "rb=asin(xb);"
 }

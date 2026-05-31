@@ -647,7 +647,7 @@ Value legendre(int n, const Value &x, std::pmr::memory_resource *mr)
 {
     if (n < 0)
         throw Error("legendre: n must be >= 0", 0, 0, "legendre", "",
-                     "m:legendre:badN");
+                     "numkit:legendre:badN");
     const size_t L = x.numel();
     auto r = Value::matrix(static_cast<size_t>(n + 1), L, ValueType::DOUBLE, mr);
     double *dst = r.doubleDataMut();
@@ -719,7 +719,7 @@ Value besselh(const Value &nu, int k, const Value &x, std::pmr::memory_resource 
 {
     if (k != 1 && k != 2)
         throw Error("besselh: k must be 1 or 2",
-                     0, 0, "besselh", "", "m:besselh:badK");
+                     0, 0, "besselh", "", "numkit:besselh:badK");
     // Build a complex array of J_ν(x) + (k==1 ? +1 : −1) · i · Y_ν(x).
     // elementwiseComplex requires both operands to be complex; we build
     // the result in a real-imag pass instead.
@@ -889,7 +889,7 @@ Value airy(int k, const Value &x, std::pmr::memory_resource *mr)
 {
     if (k < 0 || k > 3)
         throw Error("airy: kind k must be 0..3 (got " + std::to_string(k) + ")",
-                     0, 0, "airy", "", "m:airy:badK");
+                     0, 0, "airy", "", "numkit:airy:badK");
     return unaryDouble(x, [k](double v) { return airyScalar(k, v); }, mr);
 }
 
@@ -1094,7 +1094,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                 \
         outs[0] = fn(args[0], ctx.engine->resource());                          \
     }
 
@@ -1115,7 +1115,7 @@ void beta_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("beta: requires (Z, W)",
-                     0, 0, "beta", "", "m:beta:nargin");
+                     0, 0, "beta", "", "numkit:beta:nargin");
     outs[0] = beta(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1124,28 +1124,28 @@ void betaln_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("betaln: requires (Z, W)",
-                     0, 0, "betaln", "", "m:betaln:nargin");
+                     0, 0, "betaln", "", "numkit:betaln:nargin");
     outs[0] = betaln(args[0], args[1], ctx.engine->resource());
 }
 
 void gammainc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("gammainc: requires (X, A)", 0, 0, "gammainc", "", "m:gammainc:nargin");
+        throw Error("gammainc: requires (X, A)", 0, 0, "gammainc", "", "numkit:gammainc:nargin");
     outs[0] = gammainc(args[0], args[1], ctx.engine->resource());
 }
 
 void betainc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("betainc: requires (X, A, B)", 0, 0, "betainc", "", "m:betainc:nargin");
+        throw Error("betainc: requires (X, A, B)", 0, 0, "betainc", "", "numkit:betainc:nargin");
     outs[0] = betainc(args[0], args[1], args[2], ctx.engine->resource());
 }
 
 void legendre_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("legendre: requires (n, x)", 0, 0, "legendre", "", "m:legendre:nargin");
+        throw Error("legendre: requires (n, x)", 0, 0, "legendre", "", "numkit:legendre:nargin");
     const int n = static_cast<int>(args[0].toScalar());
     outs[0] = legendre(n, args[1], ctx.engine->resource());
 }
@@ -1156,7 +1156,7 @@ void legendre_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     {                                                                              \
         if (args.size() < 2)                                                       \
             throw Error(#name ": requires (nu, x)",                              \
-                         0, 0, #name, "", "m:" #name ":nargin");                  \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                  \
         outs[0] = name(args[0], args[1], ctx.engine->resource());                \
     }
 
@@ -1171,7 +1171,7 @@ void besselh_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("besselh: requires (nu, x) or (nu, k, x)",
-                     0, 0, "besselh", "", "m:besselh:nargin");
+                     0, 0, "besselh", "", "numkit:besselh:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 2) {
         // 2-arg form defaults to k = 1.
@@ -1186,7 +1186,7 @@ void ellipke_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 {
     if (args.empty())
         throw Error("ellipke: requires 1 argument",
-                     0, 0, "ellipke", "", "m:ellipke:nargin");
+                     0, 0, "ellipke", "", "numkit:ellipke:nargin");
     auto res = ellipke(args[0], ctx.engine->resource());
     outs[0] = std::move(res.K);
     if (nargout > 1) outs[1] = std::move(res.E);
@@ -1197,7 +1197,7 @@ void airy_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("airy: requires at least 1 argument (x or k,x)",
-                     0, 0, "airy", "", "m:airy:nargin");
+                     0, 0, "airy", "", "numkit:airy:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         outs[0] = airy(0, args[0], mr);  // default Ai
@@ -1212,7 +1212,7 @@ void gammaincinv_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("gammaincinv: requires 2 arguments (P, a)",
-                     0, 0, "gammaincinv", "", "m:gammaincinv:nargin");
+                     0, 0, "gammaincinv", "", "numkit:gammaincinv:nargin");
     outs[0] = gammaincinv(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1221,7 +1221,7 @@ void betaincinv_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.size() < 3)
         throw Error("betaincinv: requires 3 arguments (P, a, b)",
-                     0, 0, "betaincinv", "", "m:betaincinv:nargin");
+                     0, 0, "betaincinv", "", "numkit:betaincinv:nargin");
     outs[0] = betaincinv(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -1230,7 +1230,7 @@ void ellipj_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("ellipj: requires 2 arguments (u, m)",
-                     0, 0, "ellipj", "", "m:ellipj:nargin");
+                     0, 0, "ellipj", "", "numkit:ellipj:nargin");
     auto r = ellipj(args[0], args[1], ctx.engine->resource());
     outs[0] = std::move(r.sn);
     if (nargout > 1) outs[1] = std::move(r.cn);

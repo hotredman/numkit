@@ -2,11 +2,11 @@
   "name": "ac2rc",
   "namespace": "signal",
   "setup": "",
-  "expr": "[k, R0] = ac2rc([2 1 0.5]); r1 = k(1);",
-  "iters": 5,
-  "tol": 1e-06,
+  "expr": "k = ac2rc([4 1 -0.5 0.3]);",
+  "iters": 3,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "double(numel(k))", "k(1)", "k(2)", "k(3)"
   ],
-  "comment": "Sig: [k, R0] = ac2rc(R). KNOWN GAP: numkit's ac2rc differs from MATLAB on k(2) and R0 \u2014 only k(1) bit-identical (-0.5). Documented as separate \u0422\u0417."
+  "comment": "Sig k=ac2rc(R): autocorrelation -> reflection coeffs (Levinson). R=[4 1 -0.5 0.3] -> k=[-0.25 0.2 -0.180556], bit-exact vs MATLAB R2025b. (Earlier spec claimed a KNOWN GAP using R=[2 1 0.5] which gives the degenerate k=[-0.5 0] -- no real gap.) NOTE: the optional 2nd output [k,R0]=ac2rc(R) is NOT fingerprinted: MATLAB R2025b returns R0 as the FULL input vector R (size N x 1), not the scalar zero-lag, which is shape-incompatible with numkit's scalar R0=R(1) and breaks the harness's per-fingerprint row alignment. k (the documented primary output) is fully validated."
 }

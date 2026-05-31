@@ -1613,7 +1613,7 @@ enter_frame:
     } catch (const DebugStopException &) {
         throw; // pass through — not a user error
     } catch (Error &mle) {
-        std::string id = mle.identifier().empty() ? "m:error" : mle.identifier();
+        std::string id = mle.identifier().empty() ? "numkit:error" : mle.identifier();
         if (dispatchTryCatch(mle.what(), id.c_str()))
             goto enter_frame;
         // Enrich with current instruction's source location if missing
@@ -1628,7 +1628,7 @@ enter_frame:
         }
         throw;
     } catch (const std::exception &ex) {
-        if (dispatchTryCatch(ex.what(), "m:error"))
+        if (dispatchTryCatch(ex.what(), "numkit:error"))
             goto enter_frame;
         enrichAndThrow(ex, ip, chunk);
     }

@@ -1,12 +1,24 @@
 {
   "name": "imgaussfilt",
   "namespace": "image",
-  "setup": "",
-  "expr": "B = imgaussfilt([1 2; 3 4]); r1 = double(numel(B));",
-  "iters": 5,
-  "tol": 1e-06,
+  "setup": "I = magic(5);",
+  "expr": "B = imgaussfilt(I); B2 = imgaussfilt(I, 2);",
+  "iters": 8,
+  "tol": 1e-09,
   "fingerprint": [
-    "r1"
+    "size(B,1)",
+    "B(1,1)",
+    "B(3,3)",
+    "B(5,5)",
+    "B2(3,3)",
+    "B2(1,1)"
   ],
-  "comment": "Sig: r = imgaussfilt(...). Spec-extension batch 2026-05-09."
+  "comment": "MATLAB imgaussfilt — Gaussian smoothing (replicate boundary). Pins filtered values on magic(5) for default sigma and sigma=2. Bit-equal MATLAB R2025b (tol=1e-9).",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = imgaussfilt(A, 2);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }

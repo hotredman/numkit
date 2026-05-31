@@ -1,0 +1,15 @@
+{
+  "name": "cholupdate",
+  "namespace": "linalg",
+  "setup": "A = [4 2 1; 2 5 3; 1 3 6]; R = chol(A); x = [1; 2; 3]; y = [0.1; 0.1; 0.1];",
+  "expr": "R1 = cholupdate(R, x); R2 = cholupdate(R, y, '-');",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "max(max(abs(R1'*R1 - (A + x*x'))))",
+    "max(max(abs(R2'*R2 - (A - y*y'))))",
+    "R1(1,1)", "R1(2,2)", "R1(3,3)",
+    "R2(1,1)", "R2(2,2)", "R2(3,3)"
+  ],
+  "comment": "Sig: R1 = cholupdate(R, x[, '+'|'-']). Rank-1 update / downdate of Cholesky factor; R1'*R1 = R'*R ± x*x'. Update via Golub-Van Loan 6.5.1 Givens rotations (O(n²)). Downdate via O(n³) re-chol on R'*R - x*x' (KNOWN GAP — MATLAB uses LINPACK Saunders 1972 stable O(n²) variant). Diagonal entries match MATLAB R2025b exactly on the pinned PD inputs."
+}

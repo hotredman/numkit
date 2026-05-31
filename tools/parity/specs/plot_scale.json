@@ -1,0 +1,13 @@
+{
+  "name": "plot_scale",
+  "covers": ["loglog", "semilogx", "semilogy"],
+  "namespace": "graphics",
+  "setup": "x = logspace(0, 2, 10); y = x.^2;",
+  "expr": "loglog(x, y); semilogx(x, y); semilogy(x, y); r1 = 1;",
+  "iters": 1,
+  "tol": 1e-12,
+  "fingerprint": [
+    "r1"
+  ],
+  "comment": "Sig: graphics primitives — log-scale axis variants of plot. loglog (both x and y log), semilogx (x log only), semilogy (y log only). Side-effect (emits __FIGURE_DATA__ JSON with xscale/yscale set); spec verifies the call runs without erroring. Same pattern as `plot` spec — numkit graphics handles aren't directly comparable to MATLAB."
+}

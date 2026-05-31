@@ -276,7 +276,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw Error(#FN ": requires (x)",                                    \
-                        0, 0, #FN, "", "m:" #FN ":nargin");                      \
+                        0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
         outs[0] = FN(ctx.engine->resource(), args[0]);                           \
     }
 
@@ -311,7 +311,7 @@ void phon2sone_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("phon2sone: requires (phon [, standard])",
-                    0, 0, "phon2sone", "", "m:phon2sone:nargin");
+                    0, 0, "phon2sone", "", "numkit:phon2sone:nargin");
     bool iso532_2 = (args.size() >= 2) && isStandard532_2(args[1]);
     outs[0] = phon2sone(ctx.engine->resource(), args[0], iso532_2);
 }
@@ -321,7 +321,7 @@ void sone2phon_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.empty())
         throw Error("sone2phon: requires (sone [, standard])",
-                    0, 0, "sone2phon", "", "m:sone2phon:nargin");
+                    0, 0, "sone2phon", "", "numkit:sone2phon:nargin");
     bool iso532_2 = (args.size() >= 2) && isStandard532_2(args[1]);
     outs[0] = sone2phon(ctx.engine->resource(), args[0], iso532_2);
 }

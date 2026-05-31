@@ -1,0 +1,19 @@
+{
+  "name": "robust",
+  "covers": ["robustfit", "robustcov"],
+  "namespace": "stats",
+  "setup": "n = 100; x = (1:n)'; X = [x, ones(n, 1)]; y = 2 * x + 1 + 0.5 * sin((1:n)' * 0.4); y(95:100) = y(95:100) + 50; n2 = 300; Xn = [sin((1:n2)' * 0.3), cos((1:n2)' * 0.5)] + 0.2 * randn(n2, 2);",
+  "expr": "[b_r, s_r] = robustfit(X, y); err_r = abs(b_r(1) - 2.0); [b_h, s_h] = robustfit(X, y, 'huber'); err_h = abs(b_h(1) - 2.0); [sig_r, mu_r] = robustcov(Xn); diag1 = sig_r(1, 1); diag2 = sig_r(2, 2);",
+  "iters": 3,
+  "tol": 0.2,
+  "fingerprint": [
+    "double(err_r < 0.1)",
+    "double(s_r > 0)",
+    "double(err_h < 0.1)",
+    "size(sig_r, 1)", "size(sig_r, 2)",
+    "size(mu_r, 1)", "size(mu_r, 2)",
+    "double(diag1 > 0)", "double(diag2 > 0)",
+    "double(diag1 < 5)", "double(diag2 < 5)"
+  ],
+  "comment": "Sig: [b, s] = robustfit(X, y [, wfun [, tune]]) — IRLS robust regression with bisquare (default, tune=4.685) or huber (tune=1.345). KNOWN GAP: stats struct (DOF, p-values, etc.) reduced to scalar s. [sigma, mu] = robustcov(X) — trimmed-MCD robust covariance via h = ceil(0.75 · n) concentration steps with Pison-Van Aelst-Willems consistency correction. KNOWN GAPs: full FAST-MCD multi-start, MVE method, OGK estimator not in v1. Spec uses deterministic sin/cos noise to make parity reproducible across engines; pins error bounds and shape invariants."
+}

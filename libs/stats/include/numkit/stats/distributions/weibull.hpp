@@ -1,6 +1,6 @@
 // libs/stats/include/numkit/stats/distributions/weibull.hpp
 //
-// Weibull distribution. MATLAB convention: a = scale, b = shape, so
+// Weibull distribution. Convention: a = scale, b = shape, so
 // f(x) = (b/a)·(x/a)^(b-1)·exp(-(x/a)^b). Note std::weibull_distribution
 // takes (shape, scale) — opposite order.
 
@@ -16,7 +16,7 @@ namespace numkit::stats {
 /// @brief Weibull pdf (`y = wblpdf(x, a, b)`).
 ///
 /// @f$ f(x; a, b) = (b/a)\,(x/a)^{b-1}\,e^{-(x/a)^b} @f$ for `x >= 0`.
-/// MATLAB convention: `a` = scale, `b` = shape. Note: `std::weibull_distribution`
+/// Convention: `a` = scale, `b` = shape. Note: `std::weibull_distribution`
 /// uses the opposite order `(shape, scale)`.
 ///
 /// @param x   Evaluation points (any shape).
@@ -77,5 +77,45 @@ Value wblrnd(double a, double b, size_t rows = 1, size_t cols = 1,
 /// @return   `{mean, variance}` pair.
 /// @see wblpdf
 std::tuple<double, double> wblstat(double a, double b);
+
+/// @brief Weibull MLE fit (`[ahat, bhat] = wblfit(x)`).
+///
+/// Solves the MLE system for `Weibull(a, b)` (`a` = scale, `b` =
+/// shape). The shape `b` satisfies the implicit equation
+///
+///   `1/b + mean(log x) - Σ x_i^b · log(x_i) / Σ x_i^b = 0`
+///
+/// solved via Newton iteration on `b` starting from the moment-based
+/// initial guess. Scale follows as `a = (Σ x_i^b / n)^{1/b}`.
+///
+/// @param x   Positive sample data.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `[ahat, bhat]` as a `1 × 2` row (scale, shape).
+Value wblfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Weibull MLE fit with right-censoring and frequency weights
+/// (`[parmhat, parmci] = wblfit(x, alpha, cens, freq)`).
+///
+/// Likelihood is `∏ f(x_i)^(u_i · f_i) · S(x_i)^(c_i · f_i)` where
+/// `S(x; a, b) = exp(-(x/a)^b)` is the Weibull survival. Closed-form
+/// fast path used when both `censoring` and `freq` are empty/trivial;
+/// otherwise profiles `a(b) = (Σ f_i x_i^b / Σ f_i u_i)^{1/b}` and
+/// 1-D Newtons on `b`.
+Value wblfit(const Value &x, const Value &censoring, const Value &freq,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 95% Wald CI for wblfit (`pci = wblfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
+/// the observed Fisher information (central-FD Hessian of NLL).
+/// Both parameters use a log-scale Wald CI (MATLAB convention).
+Value wblfit_ci(const Value &x, double alpha = 0.05,
+                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Wald CI for censored/weighted wblfit
+/// (`pci = wblfit_ci(x, alpha, cens, freq)`).
+Value wblfit_ci(const Value &x, double alpha,
+                const Value &censoring, const Value &freq,
+                std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

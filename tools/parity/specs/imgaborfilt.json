@@ -1,0 +1,10 @@
+{
+  "name": "imgaborfilt",
+  "namespace": "image",
+  "setup": "I = double(reshape(1:64, 8, 8)) / 64; Is = single(I);",
+  "expr": "[mag, ph] = imgaborfilt(I, 4, 0); [m2, p2] = imgaborfilt(I, 4, 90); [m3, p3] = imgaborfilt(I, 8, 45, 'SpatialFrequencyBandwidth', 0.5); [m4, p4] = imgaborfilt(I, 4, 0, 'SpatialAspectRatio', 0.25); [m5, p5] = imgaborfilt(Is, 4, 0); r1 = mag(4,4); r2 = mag(1,1); r3 = ph(4,4); r4 = m2(4,4); r5 = m3(4,4); r6 = m4(4,4); r7 = double(m5(4,4));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5", "r6", "r7"],
+  "comment": "Sig: [mag, phase] = imgaborfilt(A, wavelength, orientation [, NV...]). Single-filter form only; gabor() bank object is MATLAB OOP (blocked by §0). Branches: default (SFB=1, SAR=0.5), orientation=90, custom SpatialFrequencyBandwidth, custom SpatialAspectRatio, SINGLE input class. Algorithm: frequency-domain Gabor (Jain & Farrokhnia 1991, Kruizinga & Petkov 1999). Replicate-pad by r=max(⌈7σx⌉,⌈7σy⌉), FFT-2D, multiply by ifftshift(H), IFFT-2D, crop, mag=|out|, phase=angle(out). Image namespace 2026-05-27."
+}

@@ -10,7 +10,7 @@
 namespace numkit::builtin {
 
 /// @file
-/// @brief MATLAB-parity string and char builtins.
+/// @brief String and char builtins.
 ///
 /// **Type conventions:**
 /// - `s` / `pat` arguments accept either CHAR row or STRING.
@@ -31,19 +31,60 @@ namespace numkit::builtin {
 /// @see num2str(x, spec, mr), mat2str, str2num
 Value num2str(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Number → CHAR row with precision / format spec
-/// (`s = num2str(x, spec)`).
-/// @param x     Scalar / matrix to format.
-/// @param spec  Integer scalar `N` → N significant digits;
-///              CHAR / STRING → printf-style format.
-/// @param mr    Memory resource (nullptr → process default).
-/// @return      CHAR formatted string.
-/// @see num2str(x, mr)
-Value num2str(const Value &x, const Value &spec, std::pmr::memory_resource *mr = nullptr);
+/// @brief Number → CHAR row with N significant digits
+/// (`s = num2str(x, N)`).
+/// @param x   Scalar / matrix to format.
+/// @param N   Number of significant digits (clamped to `[1, 99]`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    CHAR formatted string.
+/// @see num2str(x, mr), num2str(x, fmt, mr)
+Value num2str(const Value &x, int N,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Number → CHAR row with printf-style format
+/// (`s = num2str(x, fmt)`).
+/// @param x    Scalar / matrix to format.
+/// @param fmt  Printf-style format string.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     CHAR formatted string.
+/// @see num2str(x, mr), num2str(x, N, mr)
+Value num2str(const Value &x, const std::string &fmt,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Round to nearest integer → CHAR row (`s = int2str(x)`).
+///
+/// Rounds half away from zero (like MATLAB `round`) and renders the integer
+/// with no decimals or scientific notation: int2str(2.5)="3",
+/// int2str(-2.5)="-3", int2str(1e10)="10000000000". Inf/-Inf/NaN pass through
+/// as "Inf"/"-Inf"/"NaN". Scalar only; vector/matrix column-alignment is a
+/// separate deferred gap.
+/// @param x   Real scalar to round and format.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    CHAR rounded-integer string.
+/// @see num2str, mat2str
+Value int2str(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Validate a string against a set of allowed values
+/// (`s = validatestring(str, validStrings)`).
+///
+/// Case-insensitive. An exact match wins; otherwise a unique case-insensitive
+/// leading-substring (prefix) match is returned. If `str` is a prefix of
+/// several candidates and the shortest of those is itself a prefix of all the
+/// others, that shortest candidate is returned; otherwise it is ambiguous and
+/// throws. No prefix match at all throws. The returned value is the canonical
+/// candidate (with its original case) as a CHAR row. Whitespace is significant
+/// (not trimmed).
+/// @param str    Char/string scalar to validate.
+/// @param valid  Cell array of char vectors or a string array of candidates.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Matching canonical candidate as a CHAR row.
+/// @see strcmp, strcmpi
+Value validatestring(const Value &str, const Value &valid,
+                     std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Parse string as number (`x = str2num(s)`).
 ///
-/// Returns empty Value on parse failure (matches MATLAB).
+/// Returns empty Value on parse failure.
 ///
 /// @param s   CHAR / STRING input.
 /// @param mr  Memory resource (nullptr → process default).
@@ -53,7 +94,7 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Parse string as scalar number (`x = str2double(s)`).
 ///
-/// Returns `NaN` on parse failure (matches MATLAB).
+/// Returns `NaN` on parse failure.
 ///
 /// @param s   CHAR / STRING input.
 /// @param mr  Memory resource (nullptr → process default).
@@ -178,7 +219,7 @@ Value strsplit(const Value &s, const Value &delim, std::pmr::memory_resource *mr
 
 /// @brief Split on every delimiter occurrence (`c = split(s, delim)`).
 ///
-/// Empty tokens KEPT (matches MATLAB; differs from `strsplit`).
+/// Empty tokens KEPT (differs from `strsplit`).
 ///
 /// @param s      Input string. @param delim  Delimiter (char or string).
 /// @param mr     Memory resource. @return  `N × 1` cell column.
@@ -197,7 +238,7 @@ Value splitlines(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @brief Concatenate strings, **dropping** trailing whitespace
 /// (`s = strcat(parts)`).
 ///
-/// MATLAB convention: `strcat` strips trailing whitespace from each
+/// `strcat` strips trailing whitespace from each
 /// CHAR-array operand before joining.
 ///
 /// @param parts  Vector of strings.
@@ -298,7 +339,7 @@ Value matches(const Value &s, const Value &pat, std::pmr::memory_resource *mr = 
 Value strrep(const Value &s, const Value &oldPat, const Value &newPat,
              std::pmr::memory_resource *mr = nullptr);
 
-/// @brief MATLAB `replace` with overlapping-match semantics
+/// @brief `replace` with overlapping-match semantics
 /// (`s = replace(s, old, new)`).
 /// @param s       Source. @param oldPat  Pattern. @param newPat  Replacement.
 /// @param mr      Memory resource. @return  Modified string. @see strrep
@@ -433,7 +474,7 @@ Value isspaceFn(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 // ── Matrix → string and base conversions ─────────────────────────────
 
-/// @brief Numeric matrix → MATLAB-syntax string (`s = mat2str(A, precision)`).
+/// @brief Numeric matrix → matrix-literal string (`s = mat2str(A, precision)`).
 ///
 /// E.g. `[1 2; 3 4]`. 2-D only. Scalars are unbracketed.
 ///
@@ -476,12 +517,36 @@ Value bin2dec(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @return    DOUBLE value. @see dec2hex
 Value hex2dec(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Integer → base-`base` CHAR string (`s = dec2base(d, base[, len])`).
+///
+/// `base` in 2..36 (digits 0-9 then A-Z). Output left-padded with '0' to
+/// at least `minWidth`. A vector `d` yields a CHAR matrix, one row per
+/// element padded to the widest.
+///
+/// @param d         Non-negative integer value(s).
+/// @param base      Radix, 2..36.
+/// @param minWidth  Minimum field width (0 = natural).
+/// @param mr        Memory resource (nullptr → process default).
+/// @return          CHAR row / matrix. @see base2dec, dec2bin, dec2hex
+Value dec2base(const Value &d, int base, int minWidth, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Parse base-`base` digit string (`d = base2dec(s, base)`).
+///
+/// Inverse of `dec2base`; `base` in 2..36, digits case-insensitive. A char
+/// matrix parses each row → column vector.
+///
+/// @param s     Digit string / char matrix.
+/// @param base  Radix, 2..36.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      DOUBLE value / column vector. @see dec2base
+Value base2dec(const Value &s, int base, std::pmr::memory_resource *mr = nullptr);
+
 // ── Rational approximation ───────────────────────────────────────────
 
 /// @brief Continued-fraction approximation (`s = rat(x, tol)`).
 ///
-/// Returns a CHAR string of the form `"n / d"` (matches MATLAB's `rat`
-/// with one output).
+/// Returns a CHAR string of the form `"n / d"` (the single-output
+/// `rat` form).
 ///
 /// @param x    Input scalar.
 /// @param tol  Tolerance (relative).
@@ -550,7 +615,7 @@ Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource
 /// @brief Extract every literal match (`c = extract(s, pat)`).
 ///
 /// Returns a `K × 1` cell column of matched substrings (empty `0 × 0`
-/// if no matches). MATLAB Pattern objects are not supported.
+/// if no matches). Pattern objects are not supported.
 ///
 /// @param s    Source string.
 /// @param pat  Pattern (CHAR / STRING).

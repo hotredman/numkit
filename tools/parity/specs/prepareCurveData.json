@@ -1,15 +1,13 @@
 {
   "name": "prepareCurveData",
   "namespace": "stats",
-  "setup": "x = [1 2 NaN 4 5]; y = [1 4 9 Inf 25];",
-  "expr": "[xo, yo] = prepareCurveData(x, y);",
-  "iters": 5,
+  "setup": "",
+  "expr": "[xo, yo] = prepareCurveData([1 2 NaN 4 5], [1 4 9 Inf 25]);",
+  "iters": 3,
   "tol": 1e-15,
   "fingerprint": [
-    "size(xo, 1)",
-    "size(xo, 2)",
-    "sum(xo)",
-    "sum(yo)"
+    "double(numel(xo))", "double(numel(yo))",
+    "xo(1)", "xo(2)", "xo(3)", "yo(1)", "yo(2)", "yo(3)"
   ],
-  "comment": "Sig: [xo, yo[, wo]] = prepareCurveData(x, y[, w]). Strips rows where any of x, y, w is NaN/Inf; returns column vectors. w == 0 rows are KEPT (only finiteness matters)."
+  "comment": "Sig [xo,yo]=prepareCurveData(x,y): drop rows where x OR y is NaN/Inf, return column vectors. x=[1 2 NaN 4 5], y=[1 4 9 Inf 25]: index 3 dropped (x NaN), index 4 dropped (y Inf) -> xo=[1;2;5], yo=[1;4;25]. Pins the surviving element VALUES (not just the row count)."
 }

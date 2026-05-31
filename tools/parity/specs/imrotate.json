@@ -1,12 +1,30 @@
 {
   "name": "imrotate",
   "namespace": "image",
-  "setup": "",
-  "expr": "B = imrotate([1 2; 3 4], 90); r1 = double(numel(B));",
-  "iters": 5,
+  "setup": "J = reshape(1:12, 3, 4);",
+  "expr": "R90 = imrotate(J, 90); Rn = imrotate(J, 30, 'nearest'); Rb = imrotate(J, 30, 'bilinear'); Rc = imrotate(J, 30, 'bicubic');",
+  "iters": 8,
   "tol": 1e-06,
   "fingerprint": [
-    "r1"
+    "size(R90,1)",
+    "size(R90,2)",
+    "R90(1,1)",
+    "R90(4,3)",
+    "sum(R90(:))",
+    "size(Rn,1)",
+    "Rn(3,2)",
+    "Rn(3,3)",
+    "sum(Rn(:))",
+    "Rb(3,3)",
+    "sum(Rb(:))",
+    "Rc(3,3)"
   ],
-  "comment": "Sig: r = imrotate(...). Spec-extension batch 2026-05-09 (image namespace)."
+  "comment": "MATLAB imrotate — angle/method coverage vs MATLAB R2025b. 90 deg exact (loose, rot90 permutation); 30 deg nearest (half-to-even source rounding — Rn(3,2) is the .5-tie pixel that was off by one), bilinear, bicubic interior values + sums. Bit-equal (tol=1e-6 for interpolation; nearest/90 exact). Octave ships imrotate in the image pkg.",
+  "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
+  "bench_expr": "rb = imrotate(A, 30);",
+  "bench_sizes": [
+    100,
+    1000
+  ],
+  "bench_note": "grayscale double N×N (100×100 / 1000×1000)"
 }

@@ -183,7 +183,7 @@ void impz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 {
     if (args.empty())
         throw Error("impz: requires at least 1 argument (b)",
-                     0, 0, "impz", "", "m:impz:nargin");
+                     0, 0, "impz", "", "numkit:impz:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
@@ -196,7 +196,7 @@ void impzlength_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 {
     if (args.empty())
         throw Error("impzlength: requires at least 1 argument (b)",
-                     0, 0, "impzlength", "", "m:impzlength:nargin");
+                     0, 0, "impzlength", "", "numkit:impzlength:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     const size_t n = impzlength(b, a, ctx.engine->resource());
@@ -207,7 +207,7 @@ void stepz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
 {
     if (args.empty())
         throw Error("stepz: requires at least 1 argument (b)",
-                     0, 0, "stepz", "", "m:stepz:nargin");
+                     0, 0, "stepz", "", "numkit:stepz:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
@@ -220,7 +220,7 @@ void phasedelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("phasedelay: requires at least 1 argument (b)",
-                     0, 0, "phasedelay", "", "m:phasedelay:nargin");
+                     0, 0, "phasedelay", "", "numkit:phasedelay:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
@@ -233,7 +233,7 @@ void zerophase_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 {
     if (args.empty())
         throw Error("zerophase: requires at least 1 argument (b)",
-                     0, 0, "zerophase", "", "m:zerophase:nargin");
+                     0, 0, "zerophase", "", "numkit:zerophase:nargin");
     const Value &b = args[0];
     Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
     size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;

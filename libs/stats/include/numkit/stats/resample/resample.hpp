@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 namespace numkit::stats {
@@ -71,16 +72,27 @@ Value bootstrp(int nboot, const Value &fn, const Value &X,
 Value jackknife(const Value &fn, const Value &X,
                 std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Enumerate all `C(n, K)` k-combinations (`C = combnk(v, K)`).
+/// @brief Enumerate `K`-combinations of `1..N`
+/// (`C = combnk(N, K)`).
 ///
-/// If `v` is a scalar `n`, generates combinations of `1..n`; if `v` is
-/// a vector, uses its elements. Output is a `C(n, K) × K` matrix.
-///
-/// @param v   Scalar `n` or input vector.
+/// @param N   Population size (combinations drawn from `1..N`).
 /// @param K   Combination size.
 /// @param mr  Memory resource (nullptr → process default).
-/// @return    `C(n, K) × K` matrix of combinations.
-Value combnk(const Value &v, int K,
+/// @return    `C(N, K) × K` DOUBLE matrix of combinations.
+/// @throws Error  `K` out of `[0, N]`.
+Value combnk(int N, int K,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Enumerate `K`-combinations of an arbitrary vector
+/// (`C = combnk(v, K)`).
+///
+/// @param v   Input vector (length n).
+/// @param K   Combination size.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `C(n, K) × K` DOUBLE matrix of combinations of `v`'s
+///            elements.
+/// @throws Error  `K` out of `[0, v.size()]`.
+Value combnk(Span<const double> v, int K,
              std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

@@ -2,13 +2,15 @@
   "name": "str2double",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = str2double(\"3.14\"); r2 = str2double(\"42\"); r3 = str2double(\"-1.5\");",
+  "expr": "r1 = str2double(\"3.14\"); r2 = str2double(\"42\"); r3 = str2double(\"-1.5\"); c1 = str2double(\"1,234\"); c2 = str2double(\"1,2,3\"); c3 = str2double(\"1,000,000\"); n1 = double(isnan(str2double(\"42abc\"))); n2 = double(isnan(str2double(\"42 7\"))); n3 = double(isnan(str2double(\",\")));",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
     "r1",
     "r2",
-    "r3"
+    "r3",
+    "c1", "c2", "c3",
+    "n1", "n2", "n3"
   ],
-  "comment": "Sig: r = str2double(...). I/O / matrix-ops. Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = str2double(...). MATLAB strips ALL commas (thousands separators) and requires the ENTIRE trimmed token to parse: str2double('1,234')=1234, '1,2,3'=123, '1,000,000'=1e6; '42abc'/'42 7'/',' -> NaN. numkit previously used std::stod (lenient prefix parse: '1,234'->1, '42abc'->42); fixed 2026-05-29. (Complex literals like '2i'/'3+4i' remain a separate unimplemented gap.) Spec-extension batch 2026-05-09."
 }

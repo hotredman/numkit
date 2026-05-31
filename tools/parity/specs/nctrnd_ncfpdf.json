@@ -1,0 +1,16 @@
+{
+  "name": "nctrnd_ncfpdf",
+  "covers": ["nctrnd", "ncfpdf"],
+  "namespace": "stats",
+  "setup": "rng(0); x = [0.5 1.0 1.5 2.0 3.0]; nu1 = 5; nu2 = 10; delta = 3;",
+  "expr": "yp = ncfpdf(x, nu1, nu2, delta); central = ncfpdf(1.5, nu1, nu2, 0); central_f = fpdf(1.5, nu1, nu2); S = nctrnd(10, 2, 5000, 1); m = mean(S); v = var(S); err_m = abs(m - 2.1674446159); err_v = abs(v - 1.5521838371);",
+  "iters": 3,
+  "tol": 1e-08,
+  "fingerprint": [
+    "yp(1)", "yp(2)", "yp(3)", "yp(4)", "yp(5)",
+    "central", "central_f",
+    "double(err_m < 0.2)", "double(err_v < 0.4)",
+    "size(S, 1)", "size(S, 2)"
+  ],
+  "comment": "Sig: nctrnd(nu, delta, rows, cols) — noncentral t RNG via T = (Z+δ)/√(V/ν), Z~N(0,1), V~χ²(ν), shared MT19937. ncfpdf(x, nu1, nu2, delta) — noncentral F pdf via Poisson-mixture series f(x) = e^{-δ/2} Σ_k (δ/2)^k/k! · (ν₁/ν₂)^(ν₁/2+k) x^(ν₁/2+k-1) (1+ν₁x/ν₂)^{-(ν₁+ν₂)/2-k} / B(ν₁/2+k, ν₂/2). Series truncated at 1e-16 rel contribution. delta=0 reduces to central fpdf exactly. ncfpdf verified bit-equal to MATLAB R2025b at tol=1e-8; nctrnd sample moments pinned at statistical tolerance. KNOWN GAPs: ncfcdf, ncfinv, ncfstat, ncfrnd next cycles."
+}

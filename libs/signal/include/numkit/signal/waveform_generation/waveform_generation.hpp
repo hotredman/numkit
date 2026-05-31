@@ -5,20 +5,18 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/core/fn_handle.hpp>
+#include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
 #include <string>
 
-namespace numkit { class Engine; }
-
 namespace numkit::signal {
-
-using ::numkit::Engine;
 
 /// Rectangular pulse of unit amplitude on the open interval `(-w/2, w/2)`.
 ///
 /// \f$ y(t) = 1 \f$ inside the support, `0` outside; the boundary
-/// `|t| == w/2` returns `0` (open-interval convention, matches MATLAB).
+/// `|t| == w/2` returns `0` (open-interval convention).
 ///
 /// @param t   Time samples.
 /// @param w   Pulse width. Default 1.
@@ -44,7 +42,7 @@ Value tripuls(const Value &                t,
 ///
 /// \f$ y(t) = \exp(-\alpha t^2) \cos(2\pi f_c t) \f$
 /// where α is set so the envelope reaches `bw` fractional bandwidth at
-/// the -6 dB level (MATLAB convention, `bwr = -6 dB` hard-coded).
+/// the -6 dB level (`bwr = -6 dB` hard-coded).
 ///
 /// @param t   Time samples.
 /// @param fc  Centre frequency in Hz.
@@ -76,24 +74,23 @@ Value pulstran(const Value &                t,
                double                       bw    = 0.5,
                std::pmr::memory_resource *  mr    = nullptr);
 
-/// Pulse train with a function-handle pulse generator.
+/// Pulse train with a callback-based pulse generator.
 ///
-/// The handle is invoked once per delay as `fn(t - d_i)` (extra trailing
-/// args from the adapter are not forwarded — keep the handle a
-/// 1-input function).
+/// The callback is invoked once per delay with a 1-element `args`
+/// holding the shifted time vector `t - d_i` (as a `1 × n` DOUBLE
+/// row Value) and writes the corresponding pulse vector into
+/// `outs[0]` (length `n`).
 ///
-/// @param t         Output time grid.
-/// @param d         Delay vector.
-/// @param fnHandle  Function-handle Value (must accept one Value arg).
-/// @param engine    Engine pointer for handle invocation (must be valid).
-/// @param mr        Memory resource (nullptr → process default).
-/// @return          Same-shape DOUBLE array.
-///
+/// @param t   Output time grid (length n).
+/// @param d   Delay vector (length k).
+/// @param fn  Callback (1 vector in, 1 vector out).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `n × 1` column-vector DOUBLE Value containing
+///            `Σ_i fn(t - d_i)`.
 /// @see pulstran
-Value pulstranHandle(const Value &                t,
-                     const Value &                d,
-                     const Value &                fnHandle,
-                     Engine *                     engine,
+Value pulstranHandle(Span<const double>           t,
+                     Span<const double>           d,
+                     FnHandle                     fn,
                      std::pmr::memory_resource *  mr = nullptr);
 
 /// Frequency-modulated cosine (chirp).
@@ -241,24 +238,32 @@ Value demod(const Value &                y,
 
 /// Voltage-controlled (frequency-modulated) oscillator.
 ///
-/// `x ∈ [-1, 1]` modulates the instantaneous frequency. Two `range`
-/// forms:
-///   * scalar `Fc`     → `-1 → 0 Hz`, `0 → Fc Hz`, `+1 → 2 Fc Hz`.
-///   * `[Fmin Fmax]`   → `-1 → Fmin`, `+1 → Fmax`.
+/// `x ∈ [-1, 1]` modulates the instantaneous frequency. Centre-form:
+/// `-1 → 0 Hz`, `0 → Fc Hz`, `+1 → 2·Fc Hz`. Frequency modulation
+/// via rectangular `cumsum` integral approximation.
 ///
-/// Frequency modulation via rectangular `cumsum` integral approximation
-/// (matches MATLAB `modulate(..., 'fm')`).
-///
-/// @param x      Control signal in `[-1, 1]`.
-/// @param range  Scalar or 2-vector defining the frequency range.
-/// @param fs     Sample rate in Hz.
-/// @param mr     Memory resource (nullptr → process default).
-/// @return       `y = cos(...)` of the same shape as `x`.
-///
+/// @param x   Control signal in `[-1, 1]`.
+/// @param fc  Centre frequency in Hz (`x = 0` maps to this).
+/// @param fs  Sample rate in Hz.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `y = cos(...)` of the same shape as `x`.
 /// @see modulate
-Value vco(const Value &                x,
-          const Value &                range,
-          double                       fs,
-          std::pmr::memory_resource *  mr = nullptr);
+Value vco(const Value &x, double fc, double fs,
+          std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Voltage-controlled oscillator, explicit `[Fmin, Fmax]`
+/// range form (`y = vco(x, [fmin fmax], fs)`).
+///
+/// `x ∈ [-1, 1]`: `-1 → fmin`, `+1 → fmax`.
+///
+/// @param x     Control signal in `[-1, 1]`.
+/// @param fmin  Frequency at `x == -1`, Hz.
+/// @param fmax  Frequency at `x == +1`, Hz.
+/// @param fs    Sample rate in Hz.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `y = cos(...)` of the same shape as `x`.
+/// @see modulate
+Value vco(const Value &x, double fmin, double fmax, double fs,
+          std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::signal

@@ -13,7 +13,7 @@ namespace numkit::signal {
 /// short outliers while preserving step-like edges (unlike linear
 /// smoothing, which blurs edges).
 ///
-/// Boundary handling uses truncation (MATLAB's default `'truncate'`
+/// Boundary handling uses truncation (the `'truncate'`
 /// mode): the window is shortened at the signal edges rather than
 /// zero-padded.
 ///
@@ -29,8 +29,12 @@ namespace numkit::signal {
 /// @endcode
 ///
 /// @see sgolayfilt
+/// @param zeropad  true (MATLAB default): out-of-range samples count as 0
+///                 (window always `k` long). false: 'truncate' — clip the
+///                 window to the valid range at the signal ends.
 Value medfilt1(const Value &                x,
-               size_t                       k  = 3,
-               std::pmr::memory_resource *  mr = nullptr);
+               size_t                       k        = 3,
+               bool                         zeropad  = true,
+               std::pmr::memory_resource *  mr       = nullptr);
 
 } // namespace numkit::signal

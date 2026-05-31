@@ -18,9 +18,13 @@ namespace numkit::signal {
 /// @return    Downsampled signal.
 ///
 /// @see decimate, upsample, resample
+///
+/// `phase` (0 ≤ phase < n) offsets the first kept sample: the output is
+/// `x[phase], x[phase+n], …`.
 Value downsample(const Value &                x,
                  size_t                       n,
-                 std::pmr::memory_resource *  mr = nullptr);
+                 std::pmr::memory_resource *  mr = nullptr,
+                 size_t                       phase = 0);
 
 /// Integer-rate upsampling — zero-stuff between samples.
 ///
@@ -34,9 +38,13 @@ Value downsample(const Value &                x,
 /// @return    Upsampled signal.
 ///
 /// @see downsample, resample, interp
+///
+/// `phase` (0 ≤ phase < n) places the samples at offset `phase`:
+/// `y[phase + i·n] = x[i]`.
 Value upsample(const Value &                x,
                size_t                       n,
-               std::pmr::memory_resource *  mr = nullptr);
+               std::pmr::memory_resource *  mr = nullptr,
+               size_t                       phase = 0);
 
 /// Integer-factor decimation with anti-alias filtering.
 ///

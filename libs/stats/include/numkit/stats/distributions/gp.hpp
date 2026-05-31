@@ -79,4 +79,36 @@ Value gprnd(double k, double sigma, double theta,
 std::tuple<double, double>
 gpstat(double k, double sigma, double theta);
 
+/// @brief Generalised Pareto MLE fit (`[khat, sigmahat] = gpfit(x)`).
+///
+/// Maximum likelihood estimation in two stages:
+///   1. **Initial guess** via the probability-weighted-moments
+///      estimator (Hosking & Wallis 1987, α-form):
+///        α_0 = mean(x), α_1 = mean((1 − F̂_i) · x_(i)),
+///        F̂_i = (i − 0.35)/n,
+///        k̂_0 = 2 − α_0/(α_0 − 2α_1),
+///        σ̂_0 = 2·α_0·α_1/(α_0 − 2α_1).
+///   2. **Newton-Raphson refinement** on the 2-D log-likelihood with
+///      analytical gradient and central-FD Hessian on the gradient.
+///      Backtracking line search rejects infeasible (support-violating
+///      or NLL-worsening) steps. Converges to MATLAB's Grimshaw MLE
+///      (1993) to ~1e-9 in typical samples.
+///
+/// Threshold `θ` is assumed 0 (MATLAB convention for `gpfit`).
+///
+/// @param x   Observations (must be ≥ 0; threshold θ = 0).
+/// @param mr  Memory resource.
+/// @return    `[khat, sigmahat]` as a `1 × 2` row.
+/// @see gppdf, gplike
+Value gpfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 95% Wald CI for gpfit (`pci = gpfit_ci(x, alpha)`).
+///
+/// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[k, sigma]`
+/// from the observed Fisher information (central-FD Hessian of NLL).
+/// `k` uses a linear Wald CI; `sigma` uses a log-scale CI (MATLAB
+/// convention).
+Value gpfit_ci(const Value &x, double alpha = 0.05,
+               std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

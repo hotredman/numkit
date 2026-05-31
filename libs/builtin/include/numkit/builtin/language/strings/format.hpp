@@ -12,7 +12,7 @@ namespace numkit::builtin {
 /// @brief Format a single printf-style invocation.
 ///
 /// Does NOT cycle the format string over extra arguments — stops when
-/// the format is exhausted. Supports MATLAB-style `%d` / `%i` / `%u` /
+/// the format is exhausted. Supports `%d` / `%i` / `%u` /
 /// `%x` / `%X` / `%o` / `%f` / `%e` / `%E` / `%g` / `%G` / `%s` / `%c` /
 /// `%%` and backslash escapes (`\n` `\t` `\\` `\'`).
 ///
@@ -32,7 +32,7 @@ std::string formatOnce(const std::string &fmt, Span<const Value> args,
 /// @return     Number of format specifiers in `fmt`.
 size_t countFormatSpecs(const std::string &fmt);
 
-/// @brief MATLAB-style cyclic format (`s = formatCyclic(fmt, args, start, mr)`).
+/// @brief Cyclic format (`s = formatCyclic(fmt, args, start, mr)`).
 ///
 /// Numeric arrays starting at `argStart` are flattened (column-major)
 /// into a scalar stream; the format is re-applied to successive chunks
@@ -49,10 +49,10 @@ std::string formatCyclic(const std::string &fmt, Span<const Value> args,
                          size_t argStart,
                          std::pmr::memory_resource *mr = nullptr);
 
-/// @brief MATLAB `sprintf` (`s = sprintf(fmt, args...)`).
+/// @brief `sprintf` (`s = sprintf(fmt, args...)`).
 ///
 /// Returns a CHAR array. Empty `fmt` or non-char `fmt` both return an
-/// empty char array (MATLAB behaviour).
+/// empty char array.
 ///
 /// @param fmt   Format string Value (CHAR / STRING).
 /// @param args  Format arguments.

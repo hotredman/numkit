@@ -19,6 +19,7 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <sstream>
@@ -38,32 +39,364 @@ namespace numkit::builtin {
 //   num2str(X, N)      → N significant digits, where N is integer
 //   num2str(X, FMT)    → printf-style format
 // See BUGS.md #26.
+
+namespace {
+// Format a SCALAR complex value as "re±|im|i" (MATLAB num2str). A common
+// precision is used for both parts, derived from max(|re|,|im|) with the same
+// magnitude-aware rule as the real default: prec = max(floor(log10 M),0)+5.
+// precOverride >= 1 forces that precision (the num2str(z,N) form). An element
+// with exactly-zero imaginary part prints as a bare real (num2str(complex(5,0))
+// = "5"). The DEFAULT-precision/N forms for complex ARRAYS use MATLAB's
+// column-aligned layout and remain a deferred gap (see num2str_reg).
+std::string num2strComplexScalar(Complex z, int precOverride)
+{
+    const double re = z.real(), im = z.imag();
+    int prec = precOverride;
+    if (prec < 1) {
+        const double M = std::max(std::fabs(re), std::fabs(im));
+        prec = 5;
+        if (M != 0.0) {
+            const int e = static_cast<int>(std::floor(std::log10(M)));
+            prec = (e > 0 ? e : 0) + 5;
+        }
+    }
+    if (prec > 99) prec = 99;
+    auto fmtP = [prec](double v) {
+        if (v == 0.0) v = 0.0;   // normalise -0 -> 0
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "%.*g", prec, v);
+        return std::string(buf);
+    };
+    if (im == 0.0) return fmtP(re);
+    std::string s = fmtP(re);
+    s += (im < 0.0 ? '-' : '+');
+    s += fmtP(std::fabs(im));
+    s += 'i';
+    return s;
+}
+
+// MATLAB's default num2str column format for a REAL, non-scalar array.
+// N >= 1 forces the precision (the num2str(X,N) form); N <= 0 selects the
+// default (auto): an all-integer array uses a fixed "%<W>.0f" field where
+// W = (max element character count incl sign) + 2; otherwise a magnitude-
+// aware "%<W>.<P>g" where P = max(floor(log10(maxabs)),0)+5 and W = P + 7.
+// The returned format is applied cyclically per row; the caller routes it
+// through the FMT overload, which performs MATLAB's common-blank-column
+// stripping and NaN/Inf spelling. Matches MATLAB R2025b across integer,
+// fractional, negative, and large/small-magnitude probes.
+std::string num2strArrayFormat(const Value &x, int N)
+{
+    const size_t n = x.numel();
+    char fmt[32];
+    if (N >= 1) {
+        int p = N; if (p > 99) p = 99;
+        std::snprintf(fmt, sizeof(fmt), "%%%d.%dg", p + 7, p);
+        return std::string(fmt);
+    }
+    double maxabs = 0.0;
+    bool allInt = true;
+    int maxChars = 1;
+    for (size_t i = 0; i < n; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (!std::isfinite(v)) { allInt = false; continue; }
+        const double a = std::fabs(v);
+        if (a > maxabs) maxabs = a;
+        if (v != std::floor(v)) allInt = false;
+        char b[64];
+        const int len = std::snprintf(b, sizeof(b), "%.0f", v);
+        if (len > maxChars) maxChars = len;
+    }
+    if (allInt) {
+        std::snprintf(fmt, sizeof(fmt), "%%%d.0f", maxChars + 2);
+        return std::string(fmt);
+    }
+    int p = 5;
+    if (maxabs != 0.0) {
+        const int e = static_cast<int>(std::floor(std::log10(maxabs)));
+        p = (e > 0 ? e : 0) + 5;
+    }
+    if (p > 99) p = 99;
+    std::snprintf(fmt, sizeof(fmt), "%%%d.%dg", p + 7, p);
+    return std::string(fmt);
+}
+} // namespace
+
 Value num2str(const Value &x, std::pmr::memory_resource *mr)
 {
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), "%.5g", x.toScalar());
+    if (x.type() == ValueType::COMPLEX) {
+        if (!x.isScalar())
+            throw Error("num2str: complex array formatting (column-aligned) is "
+                        "not supported in this revision; only scalar complex",
+                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+        return Value::fromString(num2strComplexScalar(x.toComplex(), -1), mr);
+    }
+    if (x.isEmpty()) return Value::fromString("", mr);
+    // Real, non-scalar: synthesise MATLAB's default column format and route
+    // through the FMT overload (which handles per-row layout, common-blank-
+    // column stripping, and NaN/Inf spelling).
+    if (!x.isScalar())
+        return num2str(x, num2strArrayFormat(x, -1), mr);
+    const double v = x.toScalar();
+    // MATLAB num2str default precision is MAGNITUDE-AWARE, not a fixed 5 sig
+    // figs: it keeps ~4 digits after the integer part, so prec = digits-left-
+    // of-decimal + 4 = max(floor(log10|v|),0) + 5. Hence num2str(1000000) =
+    // "1000000" and num2str(1000000.5) = "1000000.5" (a fixed "%.5g" wrongly
+    // gave "1e+06"). Non-finite values use MATLAB's capitalised spelling.
+    if (std::isnan(v)) return Value::fromString("NaN", mr);
+    if (std::isinf(v)) return Value::fromString(v < 0 ? "-Inf" : "Inf", mr);
+    int prec = 5;
+    if (v != 0.0) {
+        const int e = static_cast<int>(std::floor(std::log10(std::fabs(v))));
+        prec = (e > 0 ? e : 0) + 5;
+    }
+    char buf[512];
+    std::snprintf(buf, sizeof(buf), "%.*g", prec, v);
     return Value::fromString(std::string(buf), mr);
 }
 
-Value num2str(const Value &x, const Value &spec, std::pmr::memory_resource *mr)
+Value num2str(const Value &x, int N, std::pmr::memory_resource *mr)
 {
-    const double v = x.toScalar();
-    char buf[256];
-    if (spec.isChar() || spec.isString()) {
-        // Format-string form: pass through sprintf. Single-arg only;
-        // MATLAB allows multi-arg formats but our path is scalar.
-        const std::string fmt = spec.toString();
-        std::snprintf(buf, sizeof(buf), fmt.c_str(), v);
-        return Value::fromString(std::string(buf), mr);
+    if (x.type() == ValueType::COMPLEX) {
+        if (!x.isScalar())
+            throw Error("num2str: complex array formatting (column-aligned) is "
+                        "not supported in this revision; only scalar complex",
+                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+        int n = N; if (n < 1) n = 1;
+        return Value::fromString(num2strComplexScalar(x.toComplex(), n), mr);
     }
-    // Numeric N: N significant digits via %.<N>g.
-    int n = static_cast<int>(spec.toScalar());
+    if (x.isEmpty()) return Value::fromString("", mr);
+    // Real, non-scalar with explicit precision N: MATLAB uses a "%<N+7>.<N>g"
+    // column field for every element (no integer-detection in the N form).
+    if (!x.isScalar())
+        return num2str(x, num2strArrayFormat(x, N), mr);
+    const double v = x.toScalar();
+    int n = N;
     if (n < 1)  n = 1;
     if (n > 99) n = 99;
     char fmt[16];
     std::snprintf(fmt, sizeof(fmt), "%%.%dg", n);
+    char buf[256];
     std::snprintf(buf, sizeof(buf), fmt, v);
     return Value::fromString(std::string(buf), mr);
+}
+
+Value num2str(const Value &x, const std::string &fmt,
+              std::pmr::memory_resource *mr)
+{
+    // Route the value through the sprintf engine rather than a raw
+    // snprintf(fmt, double): the engine handles integer conversions
+    // (%d/%i/%u/%o/%x read an int from the va_list, so passing a double
+    // straight to snprintf printed garbage — e.g. num2str(5,'%05d') gave
+    // "00000" instead of "00005"), the non-integer->%e fallback, and the
+    // Inf/NaN spelling. MATLAB then strips the leading AND trailing blank
+    // COLUMNS common to all rows (keeping leading zeros and internal
+    // spacing) and returns an N-row char matrix:
+    //   num2str(pi,'%8.4f')                 -> "3.1416"
+    //   num2str(5,'%05d')                   -> "00005"
+    //   num2str([1.5 2.25 3.125],'%8.3f')   -> "1.500   2.250   3.125"  (1 row)
+    //   num2str([1.5 2.25;3.1 4],'%8.3f')   -> 2x13 char matrix
+    // The format is applied cyclically across each ROW (MATLAB sprintf
+    // semantics), matching numkit's sprintf which cycles a format over a
+    // vector. NOTE: the DEFAULT-precision and integer-N forms for vector/
+    // matrix inputs (num2str([1 2 3]) / num2str(v,4)) use MATLAB's
+    // magnitude-dependent column-width algorithm and remain a deferred gap
+    // (num2str_reg still routes those to the scalar overloads, which throw
+    // on non-scalars) — only the deterministic FMT form is handled here.
+
+    // Scalar complex: apply the format to the real and imaginary parts
+    // independently and join them re±|im|i (MATLAB num2str(3.14159-2.71828i,
+    // '%.3f') -> "3.142-2.718i"). Complex ARRAYS remain a deferred gap.
+    if (x.type() == ValueType::COMPLEX) {
+        if (!x.isScalar())
+            throw Error("num2str: complex array formatting (column-aligned) is "
+                        "not supported in this revision; only scalar complex",
+                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+        const Complex z = x.toComplex();
+        const std::string sr = num2str(Value::scalar(z.real(), mr), fmt, mr).toString();
+        if (z.imag() == 0.0) return Value::fromString(sr, mr);
+        std::string s = sr;
+        s += (z.imag() < 0.0 ? '-' : '+');
+        s += num2str(Value::scalar(std::fabs(z.imag()), mr), fmt, mr).toString();
+        s += 'i';
+        return Value::fromString(s, mr);
+    }
+
+    const std::size_t nrows = x.dims().rows();
+    const std::size_t ncols = x.dims().cols();
+    if (nrows * ncols == 0)
+        return Value::fromString("", mr);
+
+    Value fmtVal = Value::fromString(fmt, mr);
+    ScratchArena scratch(mr);
+    auto rows = ScratchVec<std::string>(&scratch);
+    rows.reserve(nrows);
+
+    // Build one formatted string per row (format cycled across the row's
+    // columns, in column order).
+    for (std::size_t r = 0; r < nrows; ++r) {
+        Value rowv = Value::matrix(1, ncols, ValueType::DOUBLE, mr);
+        double *rd = rowv.doubleDataMut();
+        for (std::size_t c = 0; c < ncols; ++c)
+            rd[c] = x.elemAsDouble(c * nrows + r);
+        Span<const Value> args(&rowv, 1);
+        rows.emplace_back(sprintf(fmtVal, args, mr).toString());
+    }
+
+    auto leadingWS = [](const std::string &s) {
+        std::size_t k = 0;
+        while (k < s.size() && (s[k] == ' ' || s[k] == '\t')) ++k;
+        return k;
+    };
+    auto trailingWS = [](const std::string &s) {
+        std::size_t k = 0;
+        while (k < s.size() && (s[s.size() - 1 - k] == ' ' || s[s.size() - 1 - k] == '\t'))
+            ++k;
+        return k;
+    };
+
+    // Strip the leading/trailing blank columns common to ALL rows (= the
+    // minimum leading/trailing whitespace run over the rows). For a scalar
+    // this reproduces the old find_first_not_of/find_last_not_of trim.
+    std::size_t kLead = std::string::npos, kTrail = std::string::npos;
+    for (const auto &s : rows) {
+        kLead  = std::min(kLead,  leadingWS(s));
+        kTrail = std::min(kTrail, trailingWS(s));
+    }
+    if (kLead == std::string::npos) kLead = 0;
+    if (kTrail == std::string::npos) kTrail = 0;
+
+    std::size_t maxW = 0;
+    for (auto &s : rows) {
+        const std::size_t len = s.size();
+        // A row that is entirely whitespace collapses to empty.
+        if (kLead + kTrail >= len) s.clear();
+        else s = s.substr(kLead, len - kLead - kTrail);
+        maxW = std::max(maxW, s.size());
+    }
+
+    if (nrows == 1)
+        return Value::fromString(rows[0], mr);
+
+    // Right-pad each row to maxW and emit an nrows x maxW char matrix
+    // (column-major). Rows are equal length for fixed-width formats; the
+    // pad only matters for variable-width formats.
+    auto m = Value::matrix(nrows, maxW, ValueType::CHAR, mr);
+    char *dst = static_cast<char *>(m.rawDataMut());
+    for (std::size_t r = 0; r < nrows; ++r)
+        for (std::size_t c = 0; c < maxW; ++c)
+            dst[c * nrows + r] = (c < rows[r].size()) ? rows[r][c] : ' ';
+    return m;
+}
+
+Value int2str(const Value &x, std::pmr::memory_resource *mr)
+{
+    // MATLAB int2str: round half away from zero (std::round), render as a
+    // plain integer with no decimals or scientific notation. Inf/-Inf/NaN
+    // pass through. For complex input MATLAB operates on the REAL part (the
+    // imaginary part is discarded): int2str(3.6+1.2i) = "4".
+
+    // Vector / 2-D matrix: round every element FIRST (printf %.0f rounds
+    // half-to-even, but int2str rounds half-away-from-zero), then format with
+    // a fixed integer field W = digits(max|rounded|) + 2 and route through the
+    // num2str FMT path (per-row layout + common-blank-column strip).
+    if (!x.isEmpty() && !x.isScalar() && !x.dims().is3D()) {
+        const size_t n = x.numel();
+        const bool cplx = (x.type() == ValueType::COMPLEX);
+        Value rounded = Value::matrix(x.dims().rows(), x.dims().cols(),
+                                      ValueType::DOUBLE, mr);
+        double *rd = rounded.doubleDataMut();
+        double maxabs = 0.0;
+        for (size_t i = 0; i < n; ++i) {
+            const double vi = cplx ? x.complexData()[i].real() : x.elemAsDouble(i);
+            double r = std::isfinite(vi) ? std::round(vi) : vi;
+            if (r == 0.0) r = 0.0;   // normalise -0 -> 0
+            rd[i] = r;
+            if (std::isfinite(r) && std::fabs(r) > maxabs) maxabs = std::fabs(r);
+        }
+        int ndigits = 1;
+        if (maxabs >= 1.0)
+            ndigits = static_cast<int>(std::floor(std::log10(maxabs))) + 1;
+        char fmt[16];
+        std::snprintf(fmt, sizeof(fmt), "%%%d.0f", ndigits + 2);
+        return num2str(rounded, std::string(fmt), mr);
+    }
+    if (x.isEmpty()) return Value::fromString("", mr);
+
+    const double v = (x.type() == ValueType::COMPLEX) ? x.toComplex().real()
+                                                      : x.toScalar();
+    if (std::isnan(v))
+        return Value::fromString("NaN", mr);
+    if (std::isinf(v))
+        return Value::fromString(v < 0 ? "-Inf" : "Inf", mr);
+    double r = std::round(v);
+    if (r == 0.0) r = 0.0;          // normalise -0 -> 0
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%.0f", r);
+    return Value::fromString(std::string(buf), mr);
+}
+
+Value validatestring(const Value &str, const Value &valid,
+                     std::pmr::memory_resource *mr)
+{
+    auto lower = [](std::string s) {
+        for (auto &c : s)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return s;
+    };
+    const std::string s  = str.toString();
+    const std::string sl = lower(s);
+
+    // Candidates (original case) from a cell array, string array, or a lone
+    // char vector.
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> cands(&scratch);
+    if (valid.isCell() || valid.isString()) {
+        const auto &vec = valid.cellDataVec();
+        for (const auto &e : vec) cands.push_back(e.toString());
+    } else if (valid.isChar()) {
+        cands.push_back(valid.toString());
+    } else {
+        throw Error("validatestring: second argument must be a cell array of "
+                    "char vectors or a string array",
+                     0, 0, "validatestring", "", "numkit:validatestring:badList");
+    }
+
+    // 1) Exact (case-insensitive) match wins.
+    for (const auto &c : cands)
+        if (lower(c) == sl)
+            return Value::fromString(c, mr);
+
+    // 2) Case-insensitive leading-substring (prefix) matches.
+    ScratchVec<const std::string *> pre(&scratch);
+    for (const auto &c : cands) {
+        const std::string cl = lower(c);
+        if (cl.size() >= sl.size() && cl.compare(0, sl.size(), sl) == 0)
+            pre.push_back(&c);
+    }
+    if (pre.empty())
+        throw Error("validatestring: '" + s + "' did not match any valid string",
+                     0, 0, "validatestring", "", "numkit:validatestring:unrecognized");
+    if (pre.size() == 1)
+        return Value::fromString(*pre[0], mr);
+
+    // 3) Multiple prefix matches: unambiguous only if the shortest is itself a
+    //    leading substring of every other match (then return the shortest).
+    const std::string *shortest = pre[0];
+    for (auto *p : pre)
+        if (p->size() < shortest->size()) shortest = p;
+    const std::string shl = lower(*shortest);
+    bool prefixOfAll = true;
+    for (auto *p : pre) {
+        const std::string pl = lower(*p);
+        if (!(pl.size() >= shl.size() && pl.compare(0, shl.size(), shl) == 0)) {
+            prefixOfAll = false;
+            break;
+        }
+    }
+    if (prefixOfAll)
+        return Value::fromString(*shortest, mr);
+    throw Error("validatestring: '" + s + "' matches multiple valid strings",
+                 0, 0, "validatestring", "", "numkit:validatestring:ambiguous");
 }
 
 Value str2num(const Value &s, std::pmr::memory_resource *mr)
@@ -77,11 +410,32 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr)
 
 Value str2double(const Value &s, std::pmr::memory_resource *mr)
 {
-    try {
-        return Value::scalar(std::stod(s.toString()), mr);
-    } catch (...) {
-        return Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
+    // MATLAB str2double: strip ALL commas (thousands separators), trim
+    // surrounding whitespace, then the ENTIRE remaining token must parse as a
+    // single real number — otherwise NaN. So '1,234' -> 1234, '1,2,3' -> 123,
+    // '  42  ' -> 42, but '42abc' / '42 7' / ',' -> NaN. (std::stod was lenient:
+    // it parsed a numeric PREFIX, so '42abc' wrongly gave 42 and '1,234' gave 1.
+    // Complex literals like '2i'/'3+4i' are a separate unimplemented gap.)
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    std::string t;
+    {
+        const std::string str = s.toString();
+        t.reserve(str.size());
+        for (char c : str)
+            if (c != ',') t.push_back(c);
     }
+    const char *ws = " \t\n\r\f\v";
+    const size_t b = t.find_first_not_of(ws);
+    if (b == std::string::npos) return Value::scalar(nan, mr);   // empty / all-whitespace
+    const size_t e = t.find_last_not_of(ws);
+    t = t.substr(b, e - b + 1);
+
+    const char *cs = t.c_str();
+    char *end = nullptr;
+    const double v = std::strtod(cs, &end);
+    if (end == cs || *end != '\0')                              // no parse, or trailing junk
+        return Value::scalar(nan, mr);
+    return Value::scalar(v, mr);
 }
 
 Value toString(const Value &x, std::pmr::memory_resource *mr)
@@ -123,13 +477,13 @@ Value toString(const Value &x, std::pmr::memory_resource *mr)
             } else {
                 throw Error(
                     "string: cell elements must be char, string, or numeric scalar",
-                    0, 0, "string", "", "m:string:cellElementType");
+                    0, 0, "string", "", "numkit:string:cellElementType");
             }
         }
         return result;
     }
     throw Error("Cannot convert input to string", 0, 0, "string", "",
-                 "m:string:unsupportedType");
+                 "numkit:string:unsupportedType");
 }
 
 Value toChar(const Value &x, std::pmr::memory_resource *mr)
@@ -150,75 +504,165 @@ Value toChar(const Value &x, std::pmr::memory_resource *mr)
         }
         return Value::fromString(s, p);
     }
-    throw Error("Cannot convert to char", 0, 0, "char", "", "m:char:unsupportedType");
+    throw Error("Cannot convert to char", 0, 0, "char", "", "numkit:char:unsupportedType");
 }
 
 // ── Comparisons ─────────────────────────────────────────────────────────
 
+namespace {
+
+// Element-wise string comparison with MATLAB cell-array broadcasting:
+//   char/string vs char/string -> scalar logical (whole-string compare)
+//   cell vs char/string-scalar  -> logical array shaped like the cell
+//   cell vs cell                -> element-wise; sizes must match, or one
+//                                  is a scalar (1x1) cell that broadcasts
+// `cmp(sa, sb)` is the per-pair predicate (captures n for strncmp).
+template <class Pred>
+Value strCmpElementwise(const Value &a, const Value &b, Pred cmp,
+                        const char *fn, std::pmr::memory_resource *mr)
+{
+    const bool ac = a.isCell(), bc = b.isCell();
+    if (!ac && !bc)
+        return Value::logicalScalar(cmp(a.toString(), b.toString()), mr);
+
+    const std::size_t na = ac ? a.numel() : 1;
+    const std::size_t nb = bc ? b.numel() : 1;
+    std::size_t n = 1, rr = 1, cc = 1;
+    auto shapeOf = [](const Value &v, std::size_t &r, std::size_t &c) {
+        r = static_cast<std::size_t>(v.dims().rows());
+        c = static_cast<std::size_t>(v.dims().cols());
+    };
+    if (ac && bc) {
+        if (na == nb)      { n = na; shapeOf(a, rr, cc); }
+        else if (na == 1)  { n = nb; shapeOf(b, rr, cc); }
+        else if (nb == 1)  { n = na; shapeOf(a, rr, cc); }
+        else
+            throw Error(std::string(fn) + ": cell array sizes must match",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":cellSize");
+    } else if (ac) { n = na; shapeOf(a, rr, cc); }
+    else           { n = nb; shapeOf(b, rr, cc); }
+
+    auto out = Value::matrix(rr, cc, ValueType::LOGICAL, mr);
+    auto *od = out.logicalDataMut();
+    const std::string scalA = ac ? std::string() : a.toString();
+    const std::string scalB = bc ? std::string() : b.toString();
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::string sa = ac ? a.cellAt(na == 1 ? 0 : i).toString() : scalA;
+        const std::string sb = bc ? b.cellAt(nb == 1 ? 0 : i).toString() : scalB;
+        od[i] = cmp(sa, sb) ? 1 : 0;
+    }
+    return out;
+}
+
+// strncmp/strncmpi predicate: if BOTH strings are at least n chars, compare
+// the first n; otherwise require full equality (MATLAB: strncmp('ab','ab',5)
+// is true, strncmp('ab','abc',5) is false).
+inline bool strnEq(const std::string &sa, const std::string &sb, size_t n)
+{
+    if (sa.size() >= n && sb.size() >= n)
+        return sa.compare(0, n, sb, 0, n) == 0;
+    return sa == sb;
+}
+
+} // namespace
+
 Value strcmp(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
-    return Value::logicalScalar(a.toString() == b.toString(), mr);
+    return strCmpElementwise(a, b,
+        [](const std::string &x, const std::string &y) { return x == y; },
+        "strcmp", mr);
 }
 
 Value strcmpi(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
-    std::string sa = a.toString(), sb = b.toString();
-    std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
-    std::transform(sb.begin(), sb.end(), sb.begin(), ::tolower);
-    return Value::logicalScalar(sa == sb, mr);
+    return strCmpElementwise(a, b,
+        [](const std::string &x, const std::string &y) {
+            std::string sa = x, sb = y;
+            std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
+            std::transform(sb.begin(), sb.end(), sb.begin(), ::tolower);
+            return sa == sb;
+        }, "strcmpi", mr);
 }
 
 Value strncmp(const Value &a, const Value &b, size_t n, std::pmr::memory_resource *mr)
 {
-    std::string sa = a.toString(), sb = b.toString();
-    if (sa.size() < n || sb.size() < n) return Value::logicalScalar(false, mr);
-    return Value::logicalScalar(sa.compare(0, n, sb, 0, n) == 0, mr);
+    return strCmpElementwise(a, b,
+        [n](const std::string &x, const std::string &y) { return strnEq(x, y, n); },
+        "strncmp", mr);
 }
 
 Value strncmpi(const Value &a, const Value &b, size_t n, std::pmr::memory_resource *mr)
 {
-    std::string sa = a.toString(), sb = b.toString();
-    if (sa.size() < n || sb.size() < n) return Value::logicalScalar(false, mr);
-    std::transform(sa.begin(), sa.begin() + n, sa.begin(), ::tolower);
-    std::transform(sb.begin(), sb.begin() + n, sb.begin(), ::tolower);
-    return Value::logicalScalar(sa.compare(0, n, sb, 0, n) == 0, mr);
+    return strCmpElementwise(a, b,
+        [n](const std::string &x, const std::string &y) {
+            std::string sa = x, sb = y;
+            std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
+            std::transform(sb.begin(), sb.end(), sb.begin(), ::tolower);
+            return strnEq(sa, sb, n);
+        }, "strncmpi", mr);
 }
 
 // ── Case transforms ─────────────────────────────────────────────────────
 
+// Apply a per-string transform to every element of a CELL array, returning a
+// cell of char vectors with the same shape (MATLAB's element-wise behaviour
+// for lower/upper/strtrim/deblank/strip). The scalar (non-cell) path is left
+// to each caller so the pre-existing scalar return type is preserved exactly.
+template <class Op>
+static Value mapStringCell(const Value &s, Op op, std::pmr::memory_resource *mr)
+{
+    const size_t r = static_cast<size_t>(s.dims().rows());
+    const size_t c = static_cast<size_t>(s.dims().cols());
+    auto out = Value::cell(r, c, mr);
+    const size_t n = s.numel();
+    for (size_t i = 0; i < n; ++i)
+        out.cellAt(i) = Value::fromString(op(s.cellAt(i).toString()), mr);
+    return out;
+}
+
 Value upper(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    std::transform(r.begin(), r.end(), r.begin(), ::toupper);
-    return Value::fromString(r, mr);
+    auto op = [](std::string r) {
+        std::transform(r.begin(), r.end(), r.begin(), ::toupper);
+        return r;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return Value::fromString(op(s.toString()), mr);
 }
 
 Value lower(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    std::transform(r.begin(), r.end(), r.begin(), ::tolower);
-    return Value::fromString(r, mr);
+    auto op = [](std::string r) {
+        std::transform(r.begin(), r.end(), r.begin(), ::tolower);
+        return r;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return Value::fromString(op(s.toString()), mr);
 }
 
 // ── Trim / split / concat ───────────────────────────────────────────────
 
 Value strtrim(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    size_t start = r.find_first_not_of(" \t\r\n");
-    size_t end = r.find_last_not_of(" \t\r\n");
-    if (start == std::string::npos)
-        return Value::fromString("", mr);
-    return Value::fromString(r.substr(start, end - start + 1), mr);
+    auto op = [](const std::string &r) -> std::string {
+        size_t start = r.find_first_not_of(" \t\r\n");
+        size_t end = r.find_last_not_of(" \t\r\n");
+        if (start == std::string::npos) return "";
+        return r.substr(start, end - start + 1);
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return Value::fromString(op(s.toString()), mr);
 }
 
 Value deblank(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    size_t end = r.find_last_not_of(" \t\r\n\f\v");
-    if (end == std::string::npos)
-        return Value::fromString("", mr);
-    return Value::fromString(r.substr(0, end + 1), mr);
+    auto op = [](const std::string &r) -> std::string {
+        size_t end = r.find_last_not_of(" \t\r\n\f\v");
+        if (end == std::string::npos) return "";
+        return r.substr(0, end + 1);
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return Value::fromString(op(s.toString()), mr);
 }
 
 Value blanks(size_t n, std::pmr::memory_resource *mr)
@@ -228,33 +672,99 @@ Value blanks(size_t n, std::pmr::memory_resource *mr)
 
 namespace {
 
-Value strsplitImpl(const std::string &s, char delim, std::pmr::memory_resource *mr)
+// Length of the LONGEST delimiter (literal) in `delims` matching `s` at
+// position `i`, or 0 if none match. Longest-match so a delimiter ", " wins
+// over "," when both are listed.
+size_t matchDelimAt(const std::string &s, size_t i,
+                    const std::pmr::vector<std::string> &delims)
+{
+    size_t best = 0;
+    for (const auto &d : delims)
+        if (!d.empty() && d.size() > best && i + d.size() <= s.size() &&
+            s.compare(i, d.size(), d) == 0)
+            best = d.size();
+    return best;
+}
+
+// Core split used by every strsplit entry point. Matches MATLAB R2025b:
+//   - any of `delims` (literal, longest-match) is a split point;
+//   - CollapseDelimiters=true (default) merges only CONSECUTIVE delimiters,
+//     so leading/trailing empty tokens are still produced
+//     (',a,b,' -> {'','a','b',''}); collapse=false splits at every
+//     occurrence ('a,,b' -> {'a','','b'});
+//   - the result always has at least one element ('' -> {''}).
+// Splits `s` on `delims`. When `matchesOut` is non-null it receives the
+// matched delimiter text at each split point (the whole collapsed run when
+// collapse is on), supporting MATLAB's [tokens, matches] = strsplit(...).
+Value strsplitImpl(const std::string &s,
+                   const std::pmr::vector<std::string> &delims, bool collapse,
+                   std::pmr::memory_resource *mr,
+                   ScratchVec<std::string> *matchesOut = nullptr)
 {
     ScratchArena scratch(mr);
     ScratchVec<std::string> parts(&scratch);
-    std::istringstream iss(s);
-    std::string token;
-    while (std::getline(iss, token, delim))
-        if (!token.empty())
-            parts.push_back(token);
+    std::string current;
+    const size_t n = s.size();
+    size_t i = 0;
+    while (i < n) {
+        size_t mlen = matchDelimAt(s, i, delims);
+        if (mlen > 0) {
+            parts.push_back(current);
+            current.clear();
+            const size_t matchStart = i;
+            i += mlen;
+            if (collapse) {
+                size_t m2;
+                while (i < n && (m2 = matchDelimAt(s, i, delims)) > 0)
+                    i += m2;
+            }
+            if (matchesOut)
+                matchesOut->push_back(s.substr(matchStart, i - matchStart));
+        } else {
+            current.push_back(s[i++]);
+        }
+    }
+    parts.push_back(current);
     auto c = Value::cell(1, parts.size());
-    for (size_t i = 0; i < parts.size(); ++i)
-        c.cellAt(i) = Value::fromString(parts[i], mr);
+    for (size_t k = 0; k < parts.size(); ++k)
+        c.cellAt(k) = Value::fromString(parts[k], mr);
     return c;
+}
+
+// Append the MATLAB default whitespace delimiter set to `delims`.
+void appendDefaultWhitespace(ScratchVec<std::string> &delims)
+{
+    const char ws[] = {' ', '\t', '\n', '\r', '\f', '\v'};
+    for (char w : ws)
+        delims.push_back(std::string(1, w));
+}
+
+// Build the delimiter list from a string OR a cell array of strings.
+void appendDelims(const Value &delim, ScratchVec<std::string> &delims)
+{
+    if (delim.isCell())
+        for (size_t i = 0; i < delim.numel(); ++i)
+            delims.push_back(delim.cellAt(i).toString());
+    else
+        delims.push_back(delim.toString());
 }
 
 } // namespace
 
 Value strsplit(const Value &s, std::pmr::memory_resource *mr)
 {
-    return strsplitImpl(s.toString(), ' ', mr);
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> delims(&scratch);
+    appendDefaultWhitespace(delims);
+    return strsplitImpl(s.toString(), delims, /*collapse=*/true, mr);
 }
 
 Value strsplit(const Value &s, const Value &delim, std::pmr::memory_resource *mr)
 {
-    std::string d = delim.toString();
-    char ch = d.empty() ? ' ' : d[0];
-    return strsplitImpl(s.toString(), ch, mr);
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> delims(&scratch);
+    appendDelims(delim, delims);
+    return strsplitImpl(s.toString(), delims, /*collapse=*/true, mr);
 }
 
 Value strcat(Span<const Value> parts, std::pmr::memory_resource *mr)
@@ -281,7 +791,7 @@ Value strlength(const Value &s, std::pmr::memory_resource *mr)
     if (s.isChar())
         return Value::scalar(static_cast<double>(s.numel()), p);
     throw Error("Input must be a string or char array", 0, 0, "strlength", "",
-                 "m:strlength:unsupportedType");
+                 "numkit:strlength:unsupportedType");
 }
 
 // ── Search / replace ────────────────────────────────────────────────────
@@ -311,24 +821,114 @@ Value strfind(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 
 Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
 {
+    // CHAR: render a quoted char literal (MATLAB R2025b). A char row ->
+    // 'abc'; a multi-row char matrix -> ['ab';'cd']; empty char '' -> "''".
+    // Internal single quotes are doubled ('a''b'). Checked before the empty
+    // guard so '' produces "''" rather than "[]".
+    if (x.isChar()) {
+        if (x.dims().ndim() > 2)
+            throw Error("mat2str: only 2-D inputs are supported",
+                         0, 0, "mat2str", "", "numkit:mat2str:rank");
+        const size_t R = x.dims().rows(), C = x.dims().cols();
+        const char *cd = (x.numel() > 0) ? x.charData() : nullptr;
+        auto quoteRow = [&](size_t r) {
+            std::string s;
+            s.push_back('\'');
+            for (size_t c = 0; c < C; ++c) {
+                const char ch = cd[c * R + r];   // col-major
+                if (ch == '\'') s.push_back('\'');   // double internal quote
+                s.push_back(ch);
+            }
+            s.push_back('\'');
+            return s;
+        };
+        if (R <= 1)
+            return Value::fromString(quoteRow(0), mr);
+        std::string out;
+        out.push_back('[');
+        for (size_t r = 0; r < R; ++r) {
+            if (r > 0) out.push_back(';');
+            out += quoteRow(r);
+        }
+        out.push_back(']');
+        return Value::fromString(out, mr);
+    }
+
     if (x.isEmpty())
         return Value::fromString("[]", mr);
 
+    const auto &d = x.dims();
+    if (d.ndim() > 2)
+        throw Error("mat2str: only 2-D inputs are supported",
+                     0, 0, "mat2str", "", "numkit:mat2str:rank");
+    const size_t R = d.rows(), C = d.cols();
+
+    // Logical: elements print as the words true / false (MATLAB R2025b),
+    // e.g. mat2str(true) -> "true", mat2str([true false]) -> "[true false]".
+    if (x.isLogical()) {
+        auto fmtL = [](double v) -> const char * {
+            return v != 0.0 ? "true" : "false";
+        };
+        if (x.isScalar())
+            return Value::fromString(fmtL(x.elemAsDouble(0)), mr);
+        std::string out;
+        out.push_back('[');
+        for (size_t r = 0; r < R; ++r) {
+            if (r > 0) out.push_back(';');
+            for (size_t c = 0; c < C; ++c) {
+                if (c > 0) out.push_back(' ');
+                out += fmtL(x.elemAsDouble(c * R + r));
+            }
+        }
+        out.push_back(']');
+        return Value::fromString(out, mr);
+    }
+
     auto fmt = [precision](double v) {
+        if (v == 0.0) v = 0.0;   // normalize -0 → 0 (MATLAB never prints "-0")
         std::ostringstream os;
         os.precision(precision);
         os << v;
         return os.str();
     };
 
-    const auto &d = x.dims();
-    if (d.ndim() > 2)
-        throw Error("mat2str: only 2-D inputs are supported",
-                     0, 0, "mat2str", "", "m:mat2str:rank");
-    const size_t R = d.rows(), C = d.cols();
+    // Complex: format each element INDEPENDENTLY (matches MATLAB mat2str) —
+    // an element with exactly-zero imaginary part prints as a bare real, even
+    // when other elements of the same array are complex. E.g.
+    // mat2str(complex([5 3],[0 4])) -> "[5 3+4i]" (NOT "[5+0i 3+4i]"); an
+    // all-zero-imag complex array therefore prints fully real ("[1 2]").
+    if (x.type() == ValueType::COMPLEX) {
+        const Complex *cd = x.complexData();
+        const size_t n = x.numel();
+        auto fmtC = [&](const Complex &z) -> std::string {
+            const double im = z.imag();
+            if (im == 0.0) return fmt(z.real());
+            std::string s = fmt(z.real());
+            s += (im < 0.0 ? '-' : '+');
+            s += fmt(im < 0.0 ? -im : im);
+            s += 'i';
+            return s;
+        };
+        if (x.isScalar()) return Value::fromString(fmtC(cd[0]), mr);
+        std::string out;
+        out.reserve(n * (precision + 8) + R + 4);
+        out.push_back('[');
+        for (size_t r = 0; r < R; ++r) {
+            if (r > 0) out.push_back(';');
+            for (size_t c = 0; c < C; ++c) {
+                if (c > 0) out.push_back(' ');
+                out += fmtC(cd[c * R + r]);
+            }
+        }
+        out.push_back(']');
+        return Value::fromString(out, mr);
+    }
 
+    // Real numeric (double / single / int8..uint64). Read via elemAsDouble so
+    // integer and single arrays format the same way MATLAB mat2str does:
+    // bare values with no class wrapper (mat2str(int8([1 2])) -> "[1 2]").
     if (x.isScalar()) {
-        return Value::fromString(fmt(x.toScalar()), mr);
+        return Value::fromString(fmt(x.elemAsDouble(0)), mr);
     }
 
     std::string out;
@@ -338,7 +938,7 @@ Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr)
         if (r > 0) out.push_back(';');
         for (size_t c = 0; c < C; ++c) {
             if (c > 0) out.push_back(' ');
-            out += fmt(x.doubleData()[c * R + r]);
+            out += fmt(x.elemAsDouble(c * R + r));
         }
     }
     out.push_back(']');
@@ -349,13 +949,29 @@ Value strjoin(const Value &c, const Value &delim, std::pmr::memory_resource *mr)
 {
     if (!c.isCell())
         throw Error("strjoin: first argument must be a cell array",
-                     0, 0, "strjoin", "", "m:strjoin:notCell");
-    const std::string sep = delim.isEmpty() ? std::string(" ") : delim.toString();
-    std::string out;
+                     0, 0, "strjoin", "", "numkit:strjoin:notCell");
     const size_t n = c.numel();
-    for (size_t i = 0; i < n; ++i) {
-        if (i > 0) out += sep;
-        out += c.cellAt(i).toString();
+    std::string out;
+    if (delim.isCell()) {
+        // MATLAB R2025b: a cell array of numel(C)-1 delimiters, interleaved
+        // between consecutive elements: strjoin({'a','b','c'},{', ',' and '})
+        // -> 'a, b and c'.
+        const size_t nd = delim.numel();
+        if (n > 0 && nd != n - 1)
+            throw Error("strjoin: delimiter cell array must have one fewer "
+                         "element than the first argument",
+                         0, 0, "strjoin", "", "numkit:strjoin:badDelimCount");
+        for (size_t i = 0; i < n; ++i) {
+            if (i > 0) out += delim.cellAt(i - 1).toString();
+            out += c.cellAt(i).toString();
+        }
+    } else {
+        const std::string sep =
+            delim.isEmpty() ? std::string(" ") : delim.toString();
+        for (size_t i = 0; i < n; ++i) {
+            if (i > 0) out += sep;
+            out += c.cellAt(i).toString();
+        }
     }
     return Value::fromString(out, mr);
 }
@@ -373,43 +989,131 @@ Value append(Span<const Value> parts, std::pmr::memory_resource *mr)
     return Value::fromString(out, mr);
 }
 
+namespace {
+
+// Collect the pattern strings from `pat`: a char/string scalar yields one
+// pattern; a cell array of char vectors or a multi-element string array yields
+// one per element (both store their elements as Values in cellDataVec()).
+// Shared by contains/startsWith/endsWith (match-any) and count/erase
+// (apply each listed pattern).
+void collectMatchPatterns(const Value &pat, ScratchVec<std::string> &out)
+{
+    if (pat.isCell() || (pat.isString() && pat.numel() != 1)) {
+        const auto &vec = pat.cellDataVec();
+        for (const auto &e : vec) out.push_back(e.toString());
+    } else {
+        out.push_back(pat.toString());
+    }
+}
+
+} // namespace
+
 Value count(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
-    const std::string pp = pat.toString();
-    if (pp.empty()) return Value::scalar(0.0, mr);
-    size_t n = 0, pos = 0;
-    while ((pos = ss.find(pp, pos)) != std::string::npos) {
-        ++n;
-        pos += pp.size();   // non-overlapping (matches MATLAB)
+    // pat may be a single pattern or a cell/string array of patterns; MATLAB
+    // sums the non-overlapping occurrence counts across all listed patterns.
+    // A cell str input is processed element-wise, returning a DOUBLE array the
+    // same shape as the cell (counts per element).
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(pat, pats);
+    auto countOne = [&](const std::string &ss) -> double {
+        size_t n = 0;
+        for (const auto &pp : pats) {
+            if (pp.empty()) continue;
+            size_t pos = 0;
+            while ((pos = ss.find(pp, pos)) != std::string::npos) {
+                ++n;
+                pos += pp.size();   // non-overlapping (matches MATLAB)
+            }
+        }
+        return static_cast<double>(n);
+    };
+    if (s.isCell()) {
+        const size_t r = static_cast<size_t>(s.dims().rows());
+        const size_t c = static_cast<size_t>(s.dims().cols());
+        auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        const size_t nn = s.numel();
+        for (size_t i = 0; i < nn; ++i) od[i] = countOne(s.cellAt(i).toString());
+        return out;
     }
-    return Value::scalar(static_cast<double>(n), mr);
+    return Value::scalar(countOne(s.toString()), mr);
 }
 
 Value erase(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    const std::string pp = pat.toString();
-    if (pp.empty()) {
-        if (s.isString()) return Value::stringScalar(r, mr);
-        return Value::fromString(r, mr);
-    }
-    size_t pos = 0;
-    while ((pos = r.find(pp, pos)) != std::string::npos)
-        r.erase(pos, pp.size());
+    // pat may be a single pattern or a cell/string array; MATLAB removes every
+    // occurrence of each listed pattern, applied in order. A cell str input is
+    // processed element-wise, returning a cell of char vectors (same shape).
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(pat, pats);
+    auto op = [&](std::string r) -> std::string {
+        for (const auto &pp : pats) {
+            if (pp.empty()) continue;
+            size_t pos = 0;
+            while ((pos = r.find(pp, pos)) != std::string::npos)
+                r.erase(pos, pp.size());
+        }
+        return r;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    std::string r = op(s.toString());
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
 
 Value replace(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
 {
-    return strrep(s, oldPat, newPat, mr);
+    // oldPat/newPat may each be a single pattern OR a cell / string array.
+    // MATLAB scans the source once, left to right: at each position the FIRST
+    // old pattern (in list order) that matches there is replaced with its
+    // corresponding new text, then the scan advances past the matched source
+    // (no re-scanning, no chain-replacement). A single NEW applies to every
+    // OLD; otherwise NEW must pair 1:1 with OLD.
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> olds(&scratch), news(&scratch);
+    collectMatchPatterns(oldPat, olds);
+    collectMatchPatterns(newPat, news);
+    if (news.size() != 1 && news.size() != olds.size())
+        throw Error("replace: NEW must be a scalar text or match the number of "
+                    "OLD patterns",
+                     0, 0, "replace", "", "numkit:replace:sizeMismatch");
+
+    std::string out;
+    out.reserve(ss.size());
+    size_t i = 0;
+    while (i < ss.size()) {
+        bool matched = false;
+        for (size_t k = 0; k < olds.size(); ++k) {
+            const std::string &o = olds[k];
+            if (!o.empty() && i + o.size() <= ss.size()
+                && ss.compare(i, o.size(), o) == 0) {
+                out += (news.size() == 1) ? news[0] : news[k];
+                i += o.size();
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            out += ss[i];
+            ++i;
+        }
+    }
+    if (s.isString()) return Value::stringScalar(out, mr);
+    return Value::fromString(out, mr);
 }
 
 Value reverse(const Value &s, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    std::reverse(r.begin(), r.end());
+    auto op = [](std::string r) {
+        std::reverse(r.begin(), r.end());
+        return r;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    std::string r = op(s.toString());
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
@@ -455,60 +1159,69 @@ inline std::string readSide(const Value &side, const char *def)
 }
 } // anon
 
+// Pad ONE string to width n on the given side with char ch. MATLAB 'both'
+// splits the extra padding floor(pad/2) left, ceil(pad/2) right.
+static std::string padOne(std::string r, size_t n, const std::string &sd, char ch)
+{
+    if (r.size() >= n) return r;
+    const size_t pad = n - r.size();
+    if (sd == "left") {
+        r.insert(r.begin(), pad, ch);
+    } else if (sd == "both") {
+        const size_t left = pad / 2;
+        r.insert(r.begin(), left, ch);
+        r.append(pad - left, ch);
+    } else {  // "right" (default)
+        r.append(pad, ch);
+    }
+    return r;
+}
+
 Value pad(const Value &s, size_t n, const Value &side, const Value &padChar, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
-    if (r.size() >= n) {
-        if (s.isString()) return Value::stringScalar(r, mr);
-        return Value::fromString(r, mr);
-    }
     const std::string sd = readSide(side, "right");
+    if (sd != "left" && sd != "right" && sd != "both")
+        throw Error("pad: side must be 'left', 'right', or 'both'",
+                     0, 0, "pad", "", "numkit:pad:badSide");
     char ch = ' ';
     if (!padChar.isEmpty() && (padChar.isChar() || padChar.isString())) {
         const auto p = padChar.toString();
         if (!p.empty()) ch = p[0];
     }
-    const size_t pad = n - r.size();
-    if (sd == "right") {
-        r.append(pad, ch);
-    } else if (sd == "left") {
-        r.insert(r.begin(), pad, ch);
-    } else if (sd == "both") {
-        const size_t left = pad / 2;
-        const size_t right = pad - left;
-        r.insert(r.begin(), left, ch);
-        r.append(right, ch);
-    } else {
-        throw Error("pad: side must be 'left', 'right', or 'both'",
-                     0, 0, "pad", "", "m:pad:badSide");
+    // A cell str pads each element to the SAME width n -> cell of char vectors.
+    if (s.isCell()) {
+        auto op = [&](std::string r) { return padOne(std::move(r), n, sd, ch); };
+        return mapStringCell(s, op, mr);
     }
+    std::string r = padOne(s.toString(), n, sd, ch);
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
 
 Value strip(const Value &s, const Value &side, const Value &ch, std::pmr::memory_resource *mr)
 {
-    std::string r = s.toString();
     const std::string sd = readSide(side, "both");
     std::string charsToStrip = " \t\r\n\f\v";
+    bool noStrip = false;  // explicit empty strip-set => no-op
     if (!ch.isEmpty() && (ch.isChar() || ch.isString())) {
         charsToStrip = ch.toString();
-        if (charsToStrip.empty()) {
-            if (s.isString()) return Value::stringScalar(r, mr);
-            return Value::fromString(r, mr);
-        }
+        if (charsToStrip.empty()) noStrip = true;
     }
-    auto stripLeft = [&]() {
-        size_t i = 0;
-        while (i < r.size() && charsToStrip.find(r[i]) != std::string::npos) ++i;
-        if (i > 0) r.erase(0, i);
+    auto stripOne = [&](std::string r) -> std::string {
+        if (noStrip) return r;
+        if (sd == "left" || sd == "both") {
+            size_t i = 0;
+            while (i < r.size() && charsToStrip.find(r[i]) != std::string::npos) ++i;
+            if (i > 0) r.erase(0, i);
+        }
+        if (sd == "right" || sd == "both") {
+            while (!r.empty() && charsToStrip.find(r.back()) != std::string::npos)
+                r.pop_back();
+        }
+        return r;
     };
-    auto stripRight = [&]() {
-        while (!r.empty() && charsToStrip.find(r.back()) != std::string::npos)
-            r.pop_back();
-    };
-    if (sd == "left" || sd == "both") stripLeft();
-    if (sd == "right" || sd == "both") stripRight();
+    if (s.isCell()) return mapStringCell(s, stripOne, mr);
+    std::string r = stripOne(s.toString());
     if (s.isString()) return Value::stringScalar(r, mr);
     return Value::fromString(r, mr);
 }
@@ -620,10 +1333,10 @@ Value applyCharPred(const Value &s, PredFn pred, std::pmr::memory_resource *mr)
             return r;
         }
         throw Error("char-predicate: string-array form not supported",
-                     0, 0, "isstrprop", "", "m:isstrprop:stringArray");
+                     0, 0, "isstrprop", "", "numkit:isstrprop:stringArray");
     }
     throw Error("char-predicate: input must be char or string",
-                 0, 0, "isstrprop", "", "m:isstrprop:type");
+                 0, 0, "isstrprop", "", "numkit:isstrprop:type");
 }
 } // anon
 
@@ -631,7 +1344,7 @@ Value isstrprop(const Value &s, const Value &category, std::pmr::memory_resource
 {
     if (!category.isChar() && !category.isString())
         throw Error("isstrprop: category must be a string",
-                     0, 0, "isstrprop", "", "m:isstrprop:cat");
+                     0, 0, "isstrprop", "", "numkit:isstrprop:cat");
     auto cat = category.toString();
     for (auto &c : cat) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (cat == "alpha")
@@ -657,7 +1370,7 @@ Value isstrprop(const Value &s, const Value &category, std::pmr::memory_resource
     if (cat == "print")
         return applyCharPred(s, [](unsigned char c) { return std::isprint(c) != 0; }, mr);
     throw Error("isstrprop: unknown category '" + cat + "'",
-                 0, 0, "isstrprop", "", "m:isstrprop:badCat");
+                 0, 0, "isstrprop", "", "numkit:isstrprop:badCat");
 }
 
 Value isletter(const Value &s, std::pmr::memory_resource *mr)
@@ -706,18 +1419,24 @@ inline Value strLikeOf(const Value &s, const std::string &out, std::pmr::memory_
 
 Value extractAfter(const Value &s, const Value &p, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
-    const auto r = resolvePos(ss, p);
-    if (!r.found) return strLikeOf(s, "", mr);
-    return strLikeOf(s, ss.substr(r.end), mr);
+    // A cell str is processed element-wise (cell of char vectors); the
+    // position/substring anchor p is scalar and applies to every element.
+    auto op = [&](const std::string &ss) -> std::string {
+        const auto r = resolvePos(ss, p);
+        return r.found ? ss.substr(r.end) : std::string();
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return strLikeOf(s, op(s.toString()), mr);
 }
 
 Value extractBefore(const Value &s, const Value &p, std::pmr::memory_resource *mr)
 {
-    const std::string ss = s.toString();
-    const auto r = resolvePos(ss, p);
-    if (!r.found) return strLikeOf(s, "", mr);
-    return strLikeOf(s, ss.substr(0, r.begin), mr);
+    auto op = [&](const std::string &ss) -> std::string {
+        const auto r = resolvePos(ss, p);
+        return r.found ? ss.substr(0, r.begin) : std::string();
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return strLikeOf(s, op(s.toString()), mr);
 }
 
 namespace {
@@ -790,20 +1509,29 @@ Value extractBetween(const Value &s, const Value &start, const Value &end, std::
 
 Value insertAfter(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    const auto r = resolvePos(ss, p);
-    if (!r.found) return s;
-    ss.insert(r.end, newText.toString());
-    return strLikeOf(s, ss, mr);
+    // A cell str is processed element-wise (cell of char vectors); the anchor
+    // p and inserted text are scalar and apply to every element. An element
+    // with no match is left unchanged.
+    const std::string nt = newText.toString();
+    auto op = [&](std::string ss) -> std::string {
+        const auto r = resolvePos(ss, p);
+        if (r.found) ss.insert(r.end, nt);
+        return ss;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return strLikeOf(s, op(s.toString()), mr);
 }
 
 Value insertBefore(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    const auto r = resolvePos(ss, p);
-    if (!r.found) return s;
-    ss.insert(r.begin, newText.toString());
-    return strLikeOf(s, ss, mr);
+    const std::string nt = newText.toString();
+    auto op = [&](std::string ss) -> std::string {
+        const auto r = resolvePos(ss, p);
+        if (r.found) ss.insert(r.begin, nt);
+        return ss;
+    };
+    if (s.isCell()) return mapStringCell(s, op, mr);
+    return strLikeOf(s, op(s.toString()), mr);
 }
 
 Value eraseBetween(const Value &s, const Value &start, const Value &end, std::pmr::memory_resource *mr)
@@ -873,11 +1601,11 @@ uint64_t parseBase(const std::string &s, int base)
         else if (c >= 'A' && c <= 'F') d = 10 + (c - 'A');
         else throw Error(std::string("invalid digit '") + c + "' for base "
                           + std::to_string(base),
-                          0, 0, "base", "", "m:base:badDigit");
+                          0, 0, "base", "", "numkit:base:badDigit");
         if (d >= base)
             throw Error(std::string("digit '") + c + "' out of range for base "
                           + std::to_string(base),
-                          0, 0, "base", "", "m:base:badDigit");
+                          0, 0, "base", "", "numkit:base:badDigit");
         v = v * static_cast<uint64_t>(base) + static_cast<uint64_t>(d);
     }
     return v;
@@ -893,7 +1621,7 @@ Value vecToBaseMatrix(const Value &d, int base, int minWidth, std::pmr::memory_r
     if (n == 1) {
         const double v = d.toScalar();
         if (v < 0) throw Error("dec2*: value must be non-negative",
-                                0, 0, "dec2", "", "m:dec2:negative");
+                                0, 0, "dec2", "", "numkit:dec2:negative");
         return Value::fromString(
             toBaseString(static_cast<uint64_t>(v), base, minWidth), mr);
     }
@@ -905,7 +1633,7 @@ Value vecToBaseMatrix(const Value &d, int base, int minWidth, std::pmr::memory_r
     for (size_t i = 0; i < n; ++i) {
         const double v = d.elemAsDouble(i);
         if (v < 0) throw Error("dec2*: value must be non-negative",
-                                0, 0, "dec2", "", "m:dec2:negative");
+                                0, 0, "dec2", "", "numkit:dec2:negative");
         rows.emplace_back(toBaseString(static_cast<uint64_t>(v), base, 0));
         maxW = std::max<int>(maxW, static_cast<int>(rows.back().size()));
     }
@@ -941,6 +1669,61 @@ Value bin2dec(const Value &s, std::pmr::memory_resource *mr)
 Value hex2dec(const Value &s, std::pmr::memory_resource *mr)
 {
     return Value::scalar(static_cast<double>(parseBase(s.toString(), 16)), mr);
+}
+
+namespace {
+// Parse a base-`base` (2..36) digit string: 0-9 then A-Z / a-z. Whitespace
+// is skipped (MATLAB pads short rows of a char matrix with spaces).
+uint64_t parseBaseN(const std::string &s, int base)
+{
+    uint64_t v = 0;
+    for (char c : s) {
+        if (std::isspace(static_cast<unsigned char>(c))) continue;
+        int d;
+        if      (c >= '0' && c <= '9') d = c - '0';
+        else if (c >= 'a' && c <= 'z') d = 10 + (c - 'a');
+        else if (c >= 'A' && c <= 'Z') d = 10 + (c - 'A');
+        else throw Error(std::string("base2dec: invalid digit '") + c + "'",
+                          0, 0, "base2dec", "", "numkit:base2dec:badDigit");
+        if (d >= base)
+            throw Error(std::string("base2dec: digit '") + c +
+                            "' out of range for base " + std::to_string(base),
+                          0, 0, "base2dec", "", "numkit:base2dec:badDigit");
+        v = v * static_cast<uint64_t>(base) + static_cast<uint64_t>(d);
+    }
+    return v;
+}
+} // anon
+
+Value dec2base(const Value &d, int base, int minWidth, std::pmr::memory_resource *mr)
+{
+    if (base < 2 || base > 36)
+        throw Error("dec2base: base must be in 2..36",
+                     0, 0, "dec2base", "", "numkit:dec2base:badBase");
+    return vecToBaseMatrix(d, base, minWidth, mr);
+}
+
+Value base2dec(const Value &s, int base, std::pmr::memory_resource *mr)
+{
+    if (base < 2 || base > 36)
+        throw Error("base2dec: base must be in 2..36",
+                     0, 0, "base2dec", "", "numkit:base2dec:badBase");
+    const size_t rows = static_cast<size_t>(s.dims().rows());
+    // A char MATRIX (multiple rows) parses each row -> column vector.
+    if (rows > 1 && s.type() == ValueType::CHAR) {
+        const size_t cols = s.numel() / rows;
+        const char *src = static_cast<const char *>(s.rawData());
+        Value out = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t r = 0; r < rows; ++r) {
+            std::string row;
+            row.reserve(cols);
+            for (size_t c = 0; c < cols; ++c) row.push_back(src[c * rows + r]);
+            od[r] = static_cast<double>(parseBaseN(row, base));
+        }
+        return out;
+    }
+    return Value::scalar(static_cast<double>(parseBaseN(s.toString(), base)), mr);
 }
 
 namespace {
@@ -1089,12 +1872,12 @@ Value rats(const Value &x, int len, std::pmr::memory_resource *mr)
     return Value::fromString(out, mr);
 }
 
-Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
+// Single-string literal replacement: replace every non-overlapping occurrence
+// of `op` in `r0` with `np`. Empty `op` is a no-op (matches MATLAB).
+static std::string strrepOne(const std::string &r0, const std::string &op,
+                             const std::string &np)
 {
-    std::pmr::memory_resource *p = mr;
-    std::string r = s.toString();
-    std::string op = oldPat.toString();
-    std::string np = newPat.toString();
+    std::string r = r0;
     if (!op.empty()) {
         size_t pos = 0;
         while ((pos = r.find(op, pos)) != std::string::npos) {
@@ -1102,34 +1885,108 @@ Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr:
             pos += np.length();
         }
     }
-    if (s.isString())
-        return Value::stringScalar(r, p);
-    return Value::fromString(r, p);
+    return r;
+}
+
+Value strrep(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr)
+{
+    std::pmr::memory_resource *p = mr;
+    const bool sc = s.isCell(), oc = oldPat.isCell(), nc = newPat.isCell();
+
+    // Scalar path: no cell arguments — return a char (or string) scalar,
+    // preserving the original behaviour exactly.
+    if (!sc && !oc && !nc) {
+        std::string r = strrepOne(s.toString(), oldPat.toString(), newPat.toString());
+        if (s.isString())
+            return Value::stringScalar(r, p);
+        return Value::fromString(r, p);
+    }
+
+    // Cell-aware path (MATLAB: any cell-array argument => cell output). Cell
+    // operands must share a common size, or be scalar (1x1) and broadcast;
+    // non-cell char/string arguments broadcast to every element. The result
+    // is a cell of char vectors shaped like the non-scalar cell operand.
+    auto numelOf = [](const Value &v, bool isCellArg) -> size_t {
+        return isCellArg ? v.numel() : size_t{1};
+    };
+    const size_t ns = numelOf(s, sc), no = numelOf(oldPat, oc), nn = numelOf(newPat, nc);
+    size_t n = 1;
+    for (size_t v : {ns, no, nn}) {
+        if (v == 1) continue;
+        if (n == 1) n = v;
+        else if (v != n)
+            throw Error("strrep: nonscalar arguments must match in size",
+                        0, 0, "strrep", "", "numkit:strrep:cellSize");
+    }
+    size_t rr = 1, cc = 1;
+    auto setShape = [&](const Value &v) {
+        rr = static_cast<size_t>(v.dims().rows());
+        cc = static_cast<size_t>(v.dims().cols());
+    };
+    // Shape comes from the non-scalar cell operand if any, else the (1x1)
+    // cell operand that triggered the cell path.
+    if (sc && ns == n && n != 1)       setShape(s);
+    else if (oc && no == n && n != 1)  setShape(oldPat);
+    else if (nc && nn == n && n != 1)  setShape(newPat);
+    else if (sc)                       setShape(s);
+    else if (oc)                       setShape(oldPat);
+    else                               setShape(newPat);
+
+    const std::string ss0 = sc ? std::string() : s.toString();
+    const std::string os0 = oc ? std::string() : oldPat.toString();
+    const std::string ns0 = nc ? std::string() : newPat.toString();
+
+    auto out = Value::cell(rr, cc, p);
+    for (size_t i = 0; i < n; ++i) {
+        const std::string si = sc ? s.cellAt(ns == 1 ? 0 : i).toString() : ss0;
+        const std::string oi = oc ? oldPat.cellAt(no == 1 ? 0 : i).toString() : os0;
+        const std::string ni = nc ? newPat.cellAt(nn == 1 ? 0 : i).toString() : ns0;
+        out.cellAt(i) = Value::fromString(strrepOne(si, oi, ni), p);
+    }
+    return out;
 }
 
 Value contains(const Value &s, const Value &pat, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    std::string pp = pat.toString();
-    return Value::logicalScalar(ss.find(pp) != std::string::npos, mr);
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(pat, pats);
+    bool any = false;
+    for (const auto &pp : pats)
+        if (ss.find(pp) != std::string::npos) { any = true; break; }
+    return Value::logicalScalar(any, mr);
 }
 
 Value startsWith(const Value &s, const Value &prefix, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    std::string pp = prefix.toString();
-    return Value::logicalScalar(
-        ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0, mr);
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(prefix, pats);
+    bool any = false;
+    for (const auto &pp : pats)
+        if (ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0) {
+            any = true;
+            break;
+        }
+    return Value::logicalScalar(any, mr);
 }
 
 Value endsWith(const Value &s, const Value &suffix, std::pmr::memory_resource *mr)
 {
-    std::string ss = s.toString();
-    std::string pp = suffix.toString();
-    return Value::logicalScalar(
-        ss.size() >= pp.size()
-            && ss.compare(ss.size() - pp.size(), pp.size(), pp) == 0,
-        mr);
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> pats(&scratch);
+    collectMatchPatterns(suffix, pats);
+    bool any = false;
+    for (const auto &pp : pats)
+        if (ss.size() >= pp.size()
+            && ss.compare(ss.size() - pp.size(), pp.size(), pp) == 0) {
+            any = true;
+            break;
+        }
+    return Value::logicalScalar(any, mr);
 }
 
 // ── Pack 36: compose / strjust / extract / split / join ──────────────
@@ -1196,7 +2053,7 @@ Value compose(const Value &fmt, const Value &x, std::pmr::memory_resource *mr)
 {
     if (!fmt.isChar() && !fmt.isString())
         throw Error("compose: format must be a char or string",
-                     0, 0, "compose", "", "m:compose:badFmt");
+                     0, 0, "compose", "", "numkit:compose:badFmt");
     const std::string fmtStr = fmt.toString();
 
     if (x.isScalar()) {
@@ -1220,7 +2077,7 @@ Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource
 {
     if (!M.isChar())
         throw Error("strjust: input must be a char matrix",
-                     0, 0, "strjust", "", "m:strjust:badInput");
+                     0, 0, "strjust", "", "numkit:strjust:badInput");
     const auto &dims = M.dims();
     const size_t rows = dims.rows();
     const size_t cols = dims.cols();
@@ -1247,7 +2104,7 @@ Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource
         else if (side == "center") target = (cols - len) / 2;
         else if (side == "right")  target = cols - len;
         else throw Error("strjust: side must be 'left', 'right', or 'center'",
-                          0, 0, "strjust", "", "m:strjust:badSide");
+                          0, 0, "strjust", "", "numkit:strjust:badSide");
 
         for (size_t c = 0; c < len; ++c)
             out[(target + c) * rows + r] = src[(firstNonSp + c) * rows + r];
@@ -1369,17 +2226,41 @@ namespace detail {
 void num2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("num2str: requires 1 argument", 0, 0, "num2str", "", "m:num2str:nargin");
-    if (args.size() >= 2)
-        outs[0] = num2str(args[0], args[1], ctx.engine->resource());
+        throw Error("num2str: requires 1 argument", 0, 0, "num2str", "", "numkit:num2str:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() < 2) {
+        outs[0] = num2str(args[0], mr);
+        return;
+    }
+    const Value &spec = args[1];
+    if (spec.isChar() || spec.isString())
+        outs[0] = num2str(args[0], spec.toString(), mr);
     else
-        outs[0] = num2str(args[0], ctx.engine->resource());
+        outs[0] = num2str(args[0], static_cast<int>(spec.toScalar()), mr);
+}
+
+void int2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("int2str: requires 1 argument", 0, 0, "int2str", "", "numkit:int2str:nargin");
+    outs[0] = int2str(args[0], ctx.engine->resource());
+}
+
+void validatestring_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    // validatestring(str, validStrings [, funcName, varName, position]).
+    // The trailing args only customise the error text; they don't change the
+    // match, so we accept and ignore them.
+    if (args.size() < 2)
+        throw Error("validatestring: requires at least 2 arguments (str, validStrings)",
+                     0, 0, "validatestring", "", "numkit:validatestring:nargin");
+    outs[0] = validatestring(args[0], args[1], ctx.engine->resource());
 }
 
 void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("str2num: requires 1 argument", 0, 0, "str2num", "", "m:str2num:nargin");
+        throw Error("str2num: requires 1 argument", 0, 0, "str2num", "", "numkit:str2num:nargin");
     outs[0] = str2num(args[0], ctx.engine->resource());
 }
 
@@ -1387,7 +2268,7 @@ void str2double_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
 {
     if (args.empty())
         throw Error("str2double: requires 1 argument", 0, 0, "str2double", "",
-                     "m:str2double:nargin");
+                     "numkit:str2double:nargin");
     outs[0] = str2double(args[0], ctx.engine->resource());
 }
 
@@ -1404,14 +2285,14 @@ void string_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
 void char_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("char requires an argument", 0, 0, "char", "", "m:char:nargin");
+        throw Error("char requires an argument", 0, 0, "char", "", "numkit:char:nargin");
     outs[0] = toChar(args[0], ctx.engine->resource());
 }
 
 void strcmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "m:strcmp:nargin");
+        throw Error("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "numkit:strcmp:nargin");
     outs[0] = strcmp(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1419,21 +2300,21 @@ void strcmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("strcmpi: requires 2 arguments", 0, 0, "strcmpi", "",
-                     "m:strcmpi:nargin");
+                     "numkit:strcmpi:nargin");
     outs[0] = strcmpi(args[0], args[1], ctx.engine->resource());
 }
 
 void upper_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("upper: requires 1 argument", 0, 0, "upper", "", "m:upper:nargin");
+        throw Error("upper: requires 1 argument", 0, 0, "upper", "", "numkit:upper:nargin");
     outs[0] = upper(args[0], ctx.engine->resource());
 }
 
 void lower_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw Error("lower: requires 1 argument", 0, 0, "lower", "", "m:lower:nargin");
+        throw Error("lower: requires 1 argument", 0, 0, "lower", "", "numkit:lower:nargin");
     outs[0] = lower(args[0], ctx.engine->resource());
 }
 
@@ -1441,19 +2322,48 @@ void strtrim_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("strtrim: requires 1 argument", 0, 0, "strtrim", "",
-                     "m:strtrim:nargin");
+                     "numkit:strtrim:nargin");
     outs[0] = strtrim(args[0], ctx.engine->resource());
 }
 
-void strsplit_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+void strsplit_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("strsplit: requires 1 argument", 0, 0, "strsplit", "",
-                     "m:strsplit:nargin");
-    if (args.size() == 1)
-        outs[0] = strsplit(args[0], ctx.engine->resource());
-    else
-        outs[0] = strsplit(args[0], args[1], ctx.engine->resource());
+                     "numkit:strsplit:nargin");
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> delims(&scratch);
+    bool collapse = true;
+    // arg 1 (optional) is the delimiter: a string or cell array of strings.
+    // Name-Value pairs (CollapseDelimiters) follow at arg 2+.
+    size_t optStart = 1;
+    if (args.size() >= 2) {
+        appendDelims(args[1], delims);
+        optStart = 2;
+    } else {
+        appendDefaultWhitespace(delims);
+    }
+    for (size_t k = optStart; k + 1 < args.size(); k += 2) {
+        std::string name = args[k].toString();
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
+        if (name == "collapsedelimiters")
+            collapse = !args[k + 1].isEmpty() && args[k + 1].toScalar() != 0.0;
+        // DelimiterType='RegularExpression' is not supported (literal only).
+    }
+    if (nargout >= 2) {
+        // [tokens, matches] = strsplit(...): also return the matched
+        // delimiters (1×(numel(tokens)-1) cell of strings).
+        ScratchVec<std::string> matched(&scratch);
+        outs[0] = strsplitImpl(args[0].toString(), delims, collapse, mr, &matched);
+        auto mc = Value::cell(1, matched.size());
+        for (size_t k = 0; k < matched.size(); ++k)
+            mc.cellAt(k) = Value::fromString(matched[k], mr);
+        outs[1] = mc;
+    } else {
+        outs[0] = strsplitImpl(args[0].toString(), delims, collapse, mr);
+    }
 }
 
 void strcat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -1465,14 +2375,14 @@ void strlength_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.empty())
         throw Error("strlength: requires 1 argument", 0, 0, "strlength", "",
-                     "m:strlength:nargin");
+                     "numkit:strlength:nargin");
     outs[0] = strlength(args[0], ctx.engine->resource());
 }
 
 void strrep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("strrep requires 3 arguments", 0, 0, "strrep", "", "m:strrep:nargin");
+        throw Error("strrep requires 3 arguments", 0, 0, "strrep", "", "numkit:strrep:nargin");
     outs[0] = strrep(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -1480,7 +2390,7 @@ void contains_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("contains requires 2 arguments", 0, 0, "contains", "",
-                     "m:contains:nargin");
+                     "numkit:contains:nargin");
     outs[0] = contains(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1488,7 +2398,7 @@ void startsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
 {
     if (args.size() < 2)
         throw Error("startsWith requires 2 arguments", 0, 0, "startsWith", "",
-                     "m:startsWith:nargin");
+                     "numkit:startsWith:nargin");
     outs[0] = startsWith(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1496,7 +2406,7 @@ void endsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 2)
         throw Error("endsWith requires 2 arguments", 0, 0, "endsWith", "",
-                     "m:endsWith:nargin");
+                     "numkit:endsWith:nargin");
     outs[0] = endsWith(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1504,7 +2414,7 @@ void strncmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 3)
         throw Error("strncmp: requires 3 arguments", 0, 0, "strncmp", "",
-                     "m:strncmp:nargin");
+                     "numkit:strncmp:nargin");
     const size_t n = static_cast<size_t>(args[2].toScalar());
     outs[0] = strncmp(args[0], args[1], n, ctx.engine->resource());
 }
@@ -1513,7 +2423,7 @@ void strncmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.size() < 3)
         throw Error("strncmpi: requires 3 arguments", 0, 0, "strncmpi", "",
-                     "m:strncmpi:nargin");
+                     "numkit:strncmpi:nargin");
     const size_t n = static_cast<size_t>(args[2].toScalar());
     outs[0] = strncmpi(args[0], args[1], n, ctx.engine->resource());
 }
@@ -1522,7 +2432,7 @@ void strfind_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("strfind: requires 2 arguments", 0, 0, "strfind", "",
-                     "m:strfind:nargin");
+                     "numkit:strfind:nargin");
     outs[0] = strfind(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1530,7 +2440,7 @@ void blanks_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
 {
     if (args.empty())
         throw Error("blanks: requires 1 argument", 0, 0, "blanks", "",
-                     "m:blanks:nargin");
+                     "numkit:blanks:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
     outs[0] = blanks(n, ctx.engine->resource());
 }
@@ -1539,7 +2449,7 @@ void deblank_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("deblank: requires 1 argument", 0, 0, "deblank", "",
-                     "m:deblank:nargin");
+                     "numkit:deblank:nargin");
     outs[0] = deblank(args[0], ctx.engine->resource());
 }
 
@@ -1547,18 +2457,38 @@ void mat2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("mat2str: requires at least 1 argument", 0, 0, "mat2str", "",
-                     "m:mat2str:nargin");
+                     "numkit:mat2str:nargin");
+    auto *mr = ctx.engine->resource();
     int prec = 15;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        prec = static_cast<int>(args[1].toScalar());
-    outs[0] = mat2str(args[0], prec, ctx.engine->resource());
+    bool withClass = false;
+    // Trailing args (in any order): a numeric precision, and/or the literal
+    // 'class' flag which wraps the output with the class name
+    // (mat2str(int8([1 2]),'class') -> "int8([1 2])").
+    for (size_t k = 1; k < args.size(); ++k) {
+        const Value &a = args[k];
+        if (a.type() == ValueType::CHAR || a.isString()) {
+            std::string s = a.toString();
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char ch) { return std::tolower(ch); });
+            if (s == "class") withClass = true;
+        } else if (!a.isEmpty()) {
+            prec = static_cast<int>(a.toScalar());
+        }
+    }
+    Value r = mat2str(args[0], prec, mr);
+    if (withClass) {
+        std::string wrapped = std::string(mtypeName(args[0].type())) + "(" +
+                              r.toString() + ")";
+        r = Value::fromString(wrapped, mr);
+    }
+    outs[0] = r;
 }
 
 void strjoin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("strjoin: requires at least 1 argument", 0, 0, "strjoin", "",
-                     "m:strjoin:nargin");
+                     "numkit:strjoin:nargin");
     const Value &delim = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = strjoin(args[0], delim, ctx.engine->resource());
 }
@@ -1572,7 +2502,7 @@ void count_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 {
     if (args.size() < 2)
         throw Error("count: requires (s, pat)",
-                     0, 0, "count", "", "m:count:nargin");
+                     0, 0, "count", "", "numkit:count:nargin");
     outs[0] = count(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1580,7 +2510,7 @@ void erase_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 {
     if (args.size() < 2)
         throw Error("erase: requires (s, pat)",
-                     0, 0, "erase", "", "m:erase:nargin");
+                     0, 0, "erase", "", "numkit:erase:nargin");
     outs[0] = erase(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1588,7 +2518,7 @@ void replace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 3)
         throw Error("replace: requires (s, old, new)",
-                     0, 0, "replace", "", "m:replace:nargin");
+                     0, 0, "replace", "", "numkit:replace:nargin");
     outs[0] = replace(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -1596,7 +2526,7 @@ void reverse_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("reverse: requires 1 argument",
-                     0, 0, "reverse", "", "m:reverse:nargin");
+                     0, 0, "reverse", "", "numkit:reverse:nargin");
     outs[0] = reverse(args[0], ctx.engine->resource());
 }
 
@@ -1604,18 +2534,47 @@ void splitlines_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
 {
     if (args.empty())
         throw Error("splitlines: requires 1 argument",
-                     0, 0, "splitlines", "", "m:splitlines:nargin");
+                     0, 0, "splitlines", "", "numkit:splitlines:nargin");
     outs[0] = splitlines(args[0], ctx.engine->resource());
+}
+
+// Default pad width: the longest element of a cell str, or the length of a
+// char/string scalar (so pad(s) with no width is a no-op for a scalar but
+// right-pads every cell element to the longest, matching MATLAB).
+static size_t defaultPadWidth(const Value &s)
+{
+    if (s.isCell()) {
+        size_t mx = 0;
+        const size_t nn = s.numel();
+        for (size_t i = 0; i < nn; ++i)
+            mx = std::max(mx, s.cellAt(i).toString().size());
+        return mx;
+    }
+    return s.toString().size();
 }
 
 void pad_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("pad: requires (s, n[, side[, ch]])",
-                     0, 0, "pad", "", "m:pad:nargin");
-    const size_t n = static_cast<size_t>(args[1].toScalar());
-    const Value &side = (args.size() >= 3 && !args[2].isEmpty()) ? args[2] : Value::Empty;
-    const Value &ch   = (args.size() >= 4 && !args[3].isEmpty()) ? args[3] : Value::Empty;
+    if (args.empty())
+        throw Error("pad: requires (s[, n][, side[, ch]])",
+                     0, 0, "pad", "", "numkit:pad:nargin");
+    // The 2nd arg is the width n when numeric; a string there is the side
+    // (with the width defaulting to the longest element). pad(s) with no
+    // 2nd arg also uses the default width.
+    const bool haveN = args.size() >= 2 && !args[1].isEmpty()
+                       && !args[1].isChar() && !args[1].isString();
+    size_t n, sideIdx, chIdx;
+    if (haveN) {
+        n = static_cast<size_t>(args[1].toScalar());
+        sideIdx = 2;
+        chIdx = 3;
+    } else {
+        n = defaultPadWidth(args[0]);
+        sideIdx = 1;   // a string 2nd arg is the side
+        chIdx = 2;
+    }
+    const Value &side = (args.size() > sideIdx && !args[sideIdx].isEmpty()) ? args[sideIdx] : Value::Empty;
+    const Value &ch   = (args.size() > chIdx   && !args[chIdx].isEmpty())   ? args[chIdx]   : Value::Empty;
     outs[0] = pad(args[0], n, side, ch, ctx.engine->resource());
 }
 
@@ -1623,7 +2582,7 @@ void strip_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 {
     if (args.empty())
         throw Error("strip: requires (s[, side[, ch]])",
-                     0, 0, "strip", "", "m:strip:nargin");
+                     0, 0, "strip", "", "numkit:strip:nargin");
     const Value &side = (args.size() >= 2 && !args[1].isEmpty()) ? args[1] : Value::Empty;
     const Value &ch   = (args.size() >= 3 && !args[2].isEmpty()) ? args[2] : Value::Empty;
     outs[0] = strip(args[0], side, ch, ctx.engine->resource());
@@ -1633,7 +2592,7 @@ void matches_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.size() < 2)
         throw Error("matches: requires (s, pat)",
-                     0, 0, "matches", "", "m:matches:nargin");
+                     0, 0, "matches", "", "numkit:matches:nargin");
     outs[0] = matches(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1641,7 +2600,7 @@ void convertCharsToStrings_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("convertCharsToStrings: requires 1 argument",
-                     0, 0, "convertCharsToStrings", "", "m:convertCharsToStrings:nargin");
+                     0, 0, "convertCharsToStrings", "", "numkit:convertCharsToStrings:nargin");
     outs[0] = convertCharsToStrings(args[0], ctx.engine->resource());
 }
 
@@ -1649,7 +2608,7 @@ void convertStringsToChars_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("convertStringsToChars: requires 1 argument",
-                     0, 0, "convertStringsToChars", "", "m:convertStringsToChars:nargin");
+                     0, 0, "convertStringsToChars", "", "numkit:convertStringsToChars:nargin");
     outs[0] = convertStringsToChars(args[0], ctx.engine->resource());
 }
 
@@ -1657,7 +2616,7 @@ void isstringscalar_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("isstringscalar: requires 1 argument",
-                     0, 0, "isstringscalar", "", "m:isstringscalar:nargin");
+                     0, 0, "isstringscalar", "", "numkit:isstringscalar:nargin");
     outs[0] = isstringscalar(args[0], ctx.engine->resource());
 }
 
@@ -1665,7 +2624,7 @@ void isstrprop_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
 {
     if (args.size() < 2)
         throw Error("isstrprop: requires (s, category)",
-                     0, 0, "isstrprop", "", "m:isstrprop:nargin");
+                     0, 0, "isstrprop", "", "numkit:isstrprop:nargin");
     outs[0] = isstrprop(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1673,7 +2632,7 @@ void isletter_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 {
     if (args.empty())
         throw Error("isletter: requires 1 argument",
-                     0, 0, "isletter", "", "m:isletter:nargin");
+                     0, 0, "isletter", "", "numkit:isletter:nargin");
     outs[0] = isletter(args[0], ctx.engine->resource());
 }
 
@@ -1681,7 +2640,7 @@ void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("isspace: requires 1 argument",
-                     0, 0, "isspace", "", "m:isspace:nargin");
+                     0, 0, "isspace", "", "numkit:isspace:nargin");
     outs[0] = isspaceFn(args[0], ctx.engine->resource());
 }
 
@@ -1691,7 +2650,7 @@ void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     {                                                                             \
         if (args.size() < 2)                                                      \
             throw Error(#FN " requires 2 arguments",                             \
-                         0, 0, #FN, "", "m:" #FN ":nargin");                      \
+                         0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
         outs[0] = FN(args[0], args[1], ctx.engine->resource());                  \
     }
 
@@ -1704,7 +2663,7 @@ void extractBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
 {
     if (args.size() < 3)
         throw Error("extractBetween requires (s, start, end)",
-                     0, 0, "extractBetween", "", "m:extractBetween:nargin");
+                     0, 0, "extractBetween", "", "numkit:extractBetween:nargin");
     outs[0] = extractBetween(args[0], args[1], args[2], ctx.engine->resource());
 }
 
@@ -1714,7 +2673,7 @@ void extractBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
     {                                                                             \
         if (args.size() < 3)                                                      \
             throw Error(#FN " requires 3 arguments",                             \
-                         0, 0, #FN, "", "m:" #FN ":nargin");                      \
+                         0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
         outs[0] = FN(args[0], args[1], args[2], ctx.engine->resource());         \
     }
 
@@ -1728,7 +2687,7 @@ void replaceBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
 {
     if (args.size() < 4)
         throw Error("replaceBetween requires (s, start, end, new)",
-                     0, 0, "replaceBetween", "", "m:replaceBetween:nargin");
+                     0, 0, "replaceBetween", "", "numkit:replaceBetween:nargin");
     outs[0] = replaceBetween(args[0], args[1], args[2], args[3], ctx.engine->resource());
 }
 
@@ -1736,7 +2695,7 @@ void dec2bin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("dec2bin requires (d[, n])",
-                     0, 0, "dec2bin", "", "m:dec2bin:nargin");
+                     0, 0, "dec2bin", "", "numkit:dec2bin:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty())
               ? static_cast<int>(args[1].toScalar()) : 0;
     outs[0] = dec2bin(args[0], n, ctx.engine->resource());
@@ -1746,7 +2705,7 @@ void dec2hex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("dec2hex requires (d[, n])",
-                     0, 0, "dec2hex", "", "m:dec2hex:nargin");
+                     0, 0, "dec2hex", "", "numkit:dec2hex:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty())
               ? static_cast<int>(args[1].toScalar()) : 0;
     outs[0] = dec2hex(args[0], n, ctx.engine->resource());
@@ -1756,7 +2715,7 @@ void bin2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("bin2dec requires 1 argument",
-                     0, 0, "bin2dec", "", "m:bin2dec:nargin");
+                     0, 0, "bin2dec", "", "numkit:bin2dec:nargin");
     outs[0] = bin2dec(args[0], ctx.engine->resource());
 }
 
@@ -1764,15 +2723,35 @@ void hex2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("hex2dec requires 1 argument",
-                     0, 0, "hex2dec", "", "m:hex2dec:nargin");
+                     0, 0, "hex2dec", "", "numkit:hex2dec:nargin");
     outs[0] = hex2dec(args[0], ctx.engine->resource());
+}
+
+void dec2base_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("dec2base requires (d, base[, len])",
+                     0, 0, "dec2base", "", "numkit:dec2base:nargin");
+    const int base = static_cast<int>(args[1].toScalar());
+    const int len  = (args.size() >= 3 && !args[2].isEmpty())
+                       ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = dec2base(args[0], base, len, ctx.engine->resource());
+}
+
+void base2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("base2dec requires (s, base)",
+                     0, 0, "base2dec", "", "numkit:base2dec:nargin");
+    const int base = static_cast<int>(args[1].toScalar());
+    outs[0] = base2dec(args[0], base, ctx.engine->resource());
 }
 
 void rat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("rat requires (x[, tol])",
-                     0, 0, "rat", "", "m:rat:nargin");
+                     0, 0, "rat", "", "numkit:rat:nargin");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const double user_tol = (args.size() >= 2 && !args[1].isEmpty())
@@ -1825,7 +2804,7 @@ void rats_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
 {
     if (args.empty())
         throw Error("rats requires (x[, len])",
-                     0, 0, "rats", "", "m:rats:nargin");
+                     0, 0, "rats", "", "numkit:rats:nargin");
     int len = (args.size() >= 2 && !args[1].isEmpty())
                   ? static_cast<int>(args[1].toScalar()) : 13;
     outs[0] = rats(args[0], len, ctx.engine->resource());
@@ -1837,7 +2816,7 @@ void strtok_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 {
     if (args.empty())
         throw Error("strtok: requires 1 argument", 0, 0, "strtok", "",
-                     "m:strtok:nargin");
+                     "numkit:strtok:nargin");
     const std::string s = args[0].toString();
     const std::string delim = (args.size() >= 2)
                                   ? args[1].toString()
@@ -1879,7 +2858,7 @@ void compose_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("compose: requires 2 arguments (fmt, x)",
-                     0, 0, "compose", "", "m:compose:nargin");
+                     0, 0, "compose", "", "numkit:compose:nargin");
     outs[0] = compose(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1888,12 +2867,12 @@ void strjust_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("strjust: requires at least 1 argument",
-                     0, 0, "strjust", "", "m:strjust:nargin");
+                     0, 0, "strjust", "", "numkit:strjust:nargin");
     std::string side = "right";
     if (args.size() >= 2) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("strjust: side must be a char or string",
-                         0, 0, "strjust", "", "m:strjust:badSide");
+                         0, 0, "strjust", "", "numkit:strjust:badSide");
         side = args[1].toString();
     }
     outs[0] = strjust(args[0], side, ctx.engine->resource());
@@ -1904,7 +2883,7 @@ void extract_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.size() < 2)
         throw Error("extract: requires 2 arguments (s, pat)",
-                     0, 0, "extract", "", "m:extract:nargin");
+                     0, 0, "extract", "", "numkit:extract:nargin");
     outs[0] = extract(args[0], args[1], ctx.engine->resource());
 }
 
@@ -1913,7 +2892,7 @@ void split_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("split: requires at least 1 argument",
-                     0, 0, "split", "", "m:split:nargin");
+                     0, 0, "split", "", "numkit:split:nargin");
     auto *mr = ctx.engine->resource();
     if (args.size() == 1) {
         // Default delimiter is whitespace per MATLAB; we use ' '.
@@ -1929,7 +2908,7 @@ void join_reg(Span<const Value> args, size_t, Span<Value> outs,
 {
     if (args.empty())
         throw Error("join: requires at least 1 argument",
-                     0, 0, "join", "", "m:join:nargin");
+                     0, 0, "join", "", "numkit:join:nargin");
     const Value &delim = (args.size() >= 2) ? args[1] : Value::Empty;
     outs[0] = join(args[0], delim, ctx.engine->resource());
 }

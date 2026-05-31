@@ -163,7 +163,7 @@ void ricepdf_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("ricepdf: requires (x, s, sigma)",
-                    0, 0, "ricepdf", "", "m:ricepdf:nargin");
+                    0, 0, "ricepdf", "", "numkit:ricepdf:nargin");
     outs[0] = ricepdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -174,7 +174,7 @@ void ricecdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("ricecdf: requires (x, s, sigma[, 'upper'])",
-                    0, 0, "ricecdf", "", "m:ricecdf:nargin");
+                    0, 0, "ricecdf", "", "numkit:ricecdf:nargin");
     Value v = ricecdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -185,7 +185,7 @@ void riceinv_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 3)
         throw Error("riceinv: requires (p, s, sigma)",
-                    0, 0, "riceinv", "", "m:riceinv:nargin");
+                    0, 0, "riceinv", "", "numkit:riceinv:nargin");
     outs[0] = riceinv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -194,7 +194,7 @@ void ricernd_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("ricernd: requires (s, sigma[, m, n])",
-                    0, 0, "ricernd", "", "m:ricernd:nargin");
+                    0, 0, "ricernd", "", "numkit:ricernd:nargin");
     const double s     = args[0].toScalar();
     const double sigma = args[1].toScalar();
     size_t rows = 1, cols = 1;

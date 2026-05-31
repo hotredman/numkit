@@ -76,8 +76,8 @@ TEST_F(DescriptiveSixTest, MomentEvenZeroForSymmetric)
 
 TEST_F(DescriptiveSixTest, TrimmeanBasic)
 {
-    // Trim 25% (12.5% from each end) of 9 values: floor(9 * 25/200) = floor(1.125) = 1.
-    // Sorted: 1 2 3 4 5 6 7 8 100. Trim 1 from each end -> 2..8.
+    // Trim 25% (12.5% from each end) of 9 values: round(9*25/200)=round(1.125)=1
+    // (== floor here). Sorted: 1 2 3 4 5 6 7 8 100. Trim 1 from each end -> 2..8.
     // mean(2..8) = 5.
     EXPECT_DOUBLE_EQ(evalScalar("trimmean([1 5 3 8 2 7 4 6 100], 25)"), 5.0);
 }
@@ -86,4 +86,27 @@ TEST_F(DescriptiveSixTest, TrimmeanZeroPctIsMean)
 {
     // 0% trim = regular mean.
     EXPECT_NEAR(evalScalar("trimmean([1 2 3 4 5], 0)"), 3.0, 1e-12);
+}
+
+// trimmean default is MATLAB 'round' (round the per-end count n*pct/200
+// half-DOWN), not 'floor'. The 'round'/'floor' flag was unparsed.
+// vs MATLAB R2025b on w = [1 2 4 8 16 32 64 128 256 1000] (n=10).
+// DEEP-PROBE 2026-05-31.
+TEST_F(DescriptiveSixTest, TrimmeanRoundFloorFlag)
+{
+    eval("w = [1 2 4 8 16 32 64 128 256 1000];");
+    // p=35: k_frac=1.75 -> round k=2 (default), floor k=1.
+    EXPECT_NEAR(evalScalar("trimmean(w, 35)"), 42.0, 1e-9);          // default = round
+    EXPECT_NEAR(evalScalar("trimmean(w, 35, 'round')"), 42.0, 1e-9);
+    EXPECT_NEAR(evalScalar("trimmean(w, 35, 'floor')"), 63.75, 1e-9);
+    // p=30: k_frac=1.5 rounds DOWN to k=1 (NOT 2).
+    EXPECT_NEAR(evalScalar("trimmean(w, 30)"), 63.75, 1e-9);
+    // p=50: k_frac=2.5 rounds DOWN to k=2.
+    EXPECT_NEAR(evalScalar("trimmean(w, 50)"), 42.0, 1e-9);
+    // flag + dim together (3rd=flag, 4th=dim).
+    eval("M = [1 2; 3 4; 5 6; 7 8; 9 100];");
+    eval("tf = trimmean(M, 40, 'floor', 2);");
+    EXPECT_NEAR(evalScalar("tf(5)"), 54.5, 1e-9);
+    // bad flag throws.
+    EXPECT_THROW(eval("trimmean(w, 35, 'bogus');"), std::exception);
 }

@@ -9,7 +9,7 @@ namespace numkit::signal {
 
 /// 1-D discrete Fourier transform along a given dimension.
 ///
-/// Mirrors MATLAB's `fft`:
+/// Call forms:
 ///   * `fft(x)`         — along the first non-singleton dimension
 ///   * `fft(x, n)`      — zero-pad or truncate to length n first
 ///   * `fft(x, -1, k)`  — along dimension k (1=rows, 2=cols, 3=pages)
@@ -62,6 +62,26 @@ Value ifft(const Value &                X,
            int                          dim = 0,
            std::pmr::memory_resource *  mr  = nullptr);
 
+/// Inverse DFT with conjugate-symmetric input (MATLAB's `ifft(X,...,
+/// 'symmetric')`). Treats `X` as conjugate-symmetric along `dim`: the lower
+/// half `X[0..floor(L/2)]` is authoritative (the DC and, for even `L`, the
+/// Nyquist bin are forced real), the upper half is reconstructed as
+/// `conj(X[k])`, and the inverse transform is returned as an exactly real
+/// (DOUBLE) result. Differs from `real(ifft(X))`, which instead averages the
+/// conjugate-symmetric part of `X`.
+///
+/// @param X    Input spectrum (real or complex), vector or matrix.
+/// @param n    Output length, `-1` keeps input length (pads/truncates first).
+/// @param dim  Transform axis (`0` = first non-singleton).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Real (DOUBLE) inverse transform.
+///
+/// @see ifft
+Value ifftSymmetric(const Value &                X,
+                    int                          n   = -1,
+                    int                          dim = 0,
+                    std::pmr::memory_resource *  mr  = nullptr);
+
 /// 2-D forward FFT.
 ///
 /// Equivalent to `fft(fft(X, m, 1), n, 2)`. `m == -1` and / or `n == -1`
@@ -93,16 +113,28 @@ Value fft2(const Value &                X,
 Value ifft2(const Value &X, int m = -1, int n = -1,
             std::pmr::memory_resource *mr = nullptr);
 
+/// 2-D inverse FFT with conjugate-symmetric input (MATLAB's
+/// `ifft2(X,'symmetric')`). Treats `X` as conjugate-symmetric so the inverse
+/// transform is exactly real (DOUBLE). Decomposes into the 1-D
+/// @ref ifftSymmetric over each dimension of length > 1. 2-D only; the resize
+/// form `ifft2(X,m,n,'symmetric')` is a deferred gap.
+///
+/// @param X   2-D input spectrum (real or complex).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Real (DOUBLE) 2-D inverse transform.
+/// @see ifft2, ifftSymmetric
+Value ifft2Symmetric(const Value &X, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief N-D forward FFT.
 ///
-/// Mirrors MATLAB's `fftn`:
+/// Call forms:
 /// - `fftn(X)`     — FFT along every dimension of X at its current
 ///   length.
 /// - `fftn(X, sz)` — same, but axis `k` is zero-padded or truncated
 ///   to `sz[k]` before its FFT. `sz.size()` must be ≤ `ndims(X)`.
 ///
-/// Implemented as `fft` along each axis in turn (commutes, like
-/// MATLAB / NumPy / SciPy).
+/// Implemented as `fft` along each axis in turn (axis order does
+/// not affect the result).
 ///
 /// @param X    N-D input.
 /// @param sz   Per-axis target sizes (empty Span → use X's current
@@ -145,7 +177,7 @@ Value ifftn(const Value &              X,
 /// converts the sum into a convolution `g ⋆ h` evaluated via an FFT of
 /// length `L = nextPow2(N + m − 1)`.
 ///
-/// For 2-D input, transforms each column independently (MATLAB semantics).
+/// For 2-D input, transforms each column independently.
 /// 3-D input is not supported.
 ///
 /// @param x   Input (real or complex), 1-D or 2-D.

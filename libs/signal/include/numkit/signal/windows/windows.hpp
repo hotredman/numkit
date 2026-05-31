@@ -9,8 +9,7 @@ namespace numkit::signal {
 // ─────────────────────────────────────────────────────────────────────
 // Window generators — every function returns an N×1 DOUBLE column.
 //
-// MATLAB compatibility: shapes and values bit-identical to R2025b for
-// the documented forms.
+// Shapes and values are bit-identical for the documented forms.
 // ─────────────────────────────────────────────────────────────────────
 
 /// Hamming window of length N.
@@ -85,7 +84,6 @@ Value bartlett(size_t N, std::pmr::memory_resource *mr = nullptr);
 /// For even N: \f$ w(n) = 1 - |2n - (N-1)| / (N-1) \f$.
 ///
 /// Differs from `bartlett` only in that endpoints are non-zero (≈ 1/N).
-/// MATLAB R2025b reference output matches exactly.
 ///
 /// @param N   Window length, ≥ 1.
 /// @param mr  Memory resource (nullptr → process default).
@@ -123,7 +121,7 @@ Value flattopwin(size_t N, std::pmr::memory_resource *mr = nullptr);
 /// α controls the width: smaller α → wider mainlobe / smaller sidelobes.
 ///
 /// @param N      Window length, ≥ 1.
-/// @param alpha  Shape parameter > 0. MATLAB default 2.5.
+/// @param alpha  Shape parameter > 0. Default 2.5.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       N×1 DOUBLE column vector.
 /// @throws       numkit::Error if α ≤ 0.
@@ -138,7 +136,7 @@ Value gausswin(size_t N, double alpha = 2.5,
 ///
 /// @param N   Window length, ≥ 1.
 /// @param at  Sidelobe attenuation in dB (positive number; 100 → -100 dB).
-///            MATLAB default 100.
+///            Default 100.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    N×1 DOUBLE column vector.
 /// @throws    numkit::Error if `at` ≤ 0.

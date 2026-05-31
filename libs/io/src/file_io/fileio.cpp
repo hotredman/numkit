@@ -361,16 +361,14 @@ void fwrite(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
     const Value &A = args[1];
     size_t numel = A.numel();
 
-    auto elemAsDouble = [&A](size_t i) -> double {
-        if (A.type() == ValueType::DOUBLE) return A.doubleData()[i];
-        if (A.isLogical())             return A.logicalData()[i] ? 1.0 : 0.0;
-        throw Error("fwrite: unsupported array element type");
-    };
-
+    // Accept any numeric element type — `Value::elemAsDouble` handles
+    // DOUBLE/SINGLE/LOGICAL/CHAR/INT*/UINT* uniformly. The on-disk
+    // precision is governed by `precStr`, not by the input dtype, so
+    // MATLAB-style `fwrite(fid, uint8([...]), 'uint8')` works.
     std::string bytes(numel * bsize, '\0');
     char *dst = bytes.data();
     for (size_t i = 0; i < numel; ++i) {
-        double v = elemAsDouble(i);
+        double v = A.elemAsDouble(i);
         if (kind == 0) {
             switch (bsize) {
             case 1: { uint8_t  x = static_cast<uint8_t >(v); std::memcpy(dst, &x, 1); break; }

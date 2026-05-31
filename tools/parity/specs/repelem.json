@@ -1,10 +1,16 @@
 {
   "name": "repelem",
-  "namespace": "core",
-  "setup": "x = 1:1000;",
-  "expr": "y = repelem(x, 1000);",
-  "iters": 100,
-  "tol": 1e-10,
-  "comment": "Sig: Y = repelem(X, K). 1k vec each elem 1000x. 50 iters.",
-  "out_var": "y"
+  "namespace": "builtin",
+  "setup": "A = [1 2; 3 4];",
+  "expr": "s = repelem([1 2 3], 2); v = repelem([1 2 3], [1 2 3]); cv = repelem([1;2;3], [2 0 1]); m1 = repelem(A, 2, [1 2]); m2 = repelem(A, [2 1], 3);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "s(3)", "numel(s)",
+    "v(2)", "v(end)", "numel(v)",
+    "cv(1)", "cv(end)", "numel(cv)",
+    "m1(1,1)", "m1(4,3)", "numel(m1)",
+    "m2(1,1)", "m2(3,6)", "numel(m2)"
+  ],
+  "comment": "Sig: y = repelem(v, n | counts); Y = repelem(A, r, c) with r/c scalar or vector. Covers: scalar count (fast path), per-element count vector (incl. a zero count dropping an element), column-vector orientation, and matrix per-row/per-column counts (scalar+vector mix both ways). Queue-clearing 2026-05-29: numkit previously threw 'Cannot convert double to scalar' on any count vector."
 }

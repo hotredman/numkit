@@ -16,8 +16,8 @@ namespace numkit::builtin {
 ///
 /// **Set ops** treat inputs as flat (column-major) value sets — no
 /// `'rows'` flag (`uniqueRows` is a separate function), no `'stable'`
-/// flag. Outputs are sorted ascending. NaN handling follows MATLAB
-/// convention: NaN compares unequal to itself, so each NaN counts as
+/// flag. Outputs are sorted ascending. NaN handling: NaN compares
+/// unequal to itself, so each NaN counts as
 /// distinct in `unique()` and is never matched in `ismember`.
 
 // ── Set operations ───────────────────────────────────────────────────
@@ -28,7 +28,10 @@ namespace numkit::builtin {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Row vector of unique values (ascending).
 /// @see uniqueWithIndices, uniqueRows
-Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr);
+///
+/// `stable` (MATLAB 'stable' setOrder) keeps values in first-occurrence
+/// order instead of sorting. Default false = 'sorted'.
+Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Unique with index outputs
 /// (`[C, ia, ic] = unique(X)`).
@@ -41,24 +44,31 @@ Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(C, ia, ic)` triple.
 std::tuple<Value, Value, Value>
-uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr);
+uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Unique rows of a matrix (`C = unique(X, 'rows')`).
 ///
-/// @param x   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Matrix of unique rows (lexicographically sorted).
+/// @param x       Input matrix.
+/// @param mr      Memory resource (nullptr → process default).
+/// @param stable  MATLAB 'stable' setOrder: keep rows in first-occurrence
+///                order instead of lexicographic sort. Default false.
+/// @return        Matrix of unique rows.
 /// @see uniqueRowsWithIndices
-Value uniqueRows(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value uniqueRows(const Value &x, std::pmr::memory_resource *mr = nullptr,
+                 bool stable = false);
 
 /// @brief Unique rows with index outputs
 /// (`[C, ia, ic] = unique(X, 'rows')`).
 ///
-/// @param x   Input matrix.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `(C, ia, ic)` triple.
+/// @param x       Input matrix.
+/// @param mr      Memory resource (nullptr → process default).
+/// @param stable  MATLAB 'stable' setOrder (see uniqueRows). With 'stable',
+///                `ia` indexes first occurrences in appearance order. Default
+///                false = lexicographic sort.
+/// @return        `(C, ia, ic)` triple.
 std::tuple<Value, Value, Value>
-uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr);
+uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr,
+                      bool stable = false);
 
 /// @brief Membership test (`tf = ismember(A, B)`).
 ///
@@ -79,7 +89,7 @@ Value ismember(const Value &a, const Value &b, std::pmr::memory_resource *mr = n
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Union as row vector.
 /// @see setIntersect, setDiff
-Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Set intersection (`y = intersect(a, b)`).
 ///
@@ -88,7 +98,7 @@ Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr = n
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Intersection as row vector.
 /// @see setUnion, setDiff
-Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Set difference (`y = setdiff(a, b)`).
 ///
@@ -99,7 +109,7 @@ Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `a \ b` as row vector.
 /// @see setUnion, setIntersect
-Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 
 /// @brief Histogram bin counts (`n = histcounts(x, edges)`).
 ///
@@ -109,6 +119,34 @@ Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr = nu
 /// @return       Row vector of per-bin counts (length `nbins`).
 /// @see discretize
 Value histcounts(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Bin-count normalization mode (`'Normalization'` of `histcounts`).
+enum class HistNorm {
+    Count,         ///< raw counts (default)
+    Probability,   ///< count / numel(x)
+    CountDensity,  ///< count / binwidth
+    Pdf,           ///< count / (numel(x) · binwidth)
+    CumCount,      ///< cumulative count
+    Cdf            ///< cumulative count / numel(x)
+};
+
+/// @brief Histogram bin counts with a normalization mode
+/// (`n = histcounts(x, edges, 'Normalization', mode)`).
+///
+/// `Count` returns the raw count row vector (identical to the 2-arg
+/// overload). The other modes scale the count vector as documented in
+/// `HistNorm`. The normalization total is `numel(x)` — out-of-range values
+/// are excluded from the bins but still counted in the total, matching
+/// MATLAB R2025b.
+///
+/// @param x      Data array.
+/// @param edges  Bin edges (length `nbins + 1`).
+/// @param norm   Normalization mode.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Row vector of normalized bin values (length `nbins`).
+/// @see histcounts, discretize
+Value histcounts(const Value &x, const Value &edges, HistNorm norm,
+                 std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Bin assignment (`bin = discretize(x, edges)`).
 ///
@@ -120,6 +158,21 @@ Value histcounts(const Value &x, const Value &edges, std::pmr::memory_resource *
 /// @return       Bin index array, same shape as `x`.
 /// @see histcounts
 Value discretize(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Legacy histogram bin counts (`n = histc(x, edges)`).
+///
+/// Unlike `histcounts`, `n` has `length(edges)` entries: bin `k` counts
+/// `edges(k) <= x < edges(k+1)` for `k = 1..end-1`, and `n(end)` counts
+/// values exactly equal to `edges(end)`. A row vector yields a row;
+/// a column vector or matrix is processed column-wise (`length(edges) ×
+/// cols`).
+///
+/// @param x      Data array (vector or matrix).
+/// @param edges  Ascending bin edges.
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Bin counts (see shape rule above).
+/// @see histcounts, discretize
+Value histc(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
 
 // ── Number theory ────────────────────────────────────────────────────
 
@@ -146,7 +199,7 @@ Value isprime(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @brief Prime factorisation (`f = factor(n)`).
 ///
 /// Returns the row of primes whose product is `n` (with multiplicity).
-/// MATLAB conventions: `factor(0) → [0]`, `factor(1) → [1]`.
+/// Edge cases: `factor(0) → [0]`, `factor(1) → [1]`.
 ///
 /// @param n   Scalar to factor.
 /// @param mr  Memory resource (nullptr → process default).

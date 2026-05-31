@@ -1,0 +1,19 @@
+{
+  "name": "lhsdesign_lhsnorm",
+  "covers": ["lhsdesign", "lhsnorm"],
+  "namespace": "stats",
+  "setup": "rng(0); n = 1000; p = 3; mu = [10 -5]; Sigma = [1 0.5; 0.5 1];",
+  "expr": "X = lhsdesign(n, p); ok_range = double(all(X(:) > 0 & X(:) < 1)); col_means = mean(X); m_err = max(abs(col_means - 0.5)); bin_err = 0; for j = 1:p; b = sort(ceil(X(:,j) * n)'); if any(b ~= 1:n); bin_err = 1; end; end; rng(0); Y = lhsnorm(mu, Sigma, n); ymean = mean(Y); ycov = cov(Y); mu_err = max(abs(ymean - mu)); sig_err = max(max(abs(ycov - Sigma)));",
+  "iters": 3,
+  "tol": 0.2,
+  "fingerprint": [
+    "ok_range",
+    "double(m_err < 0.05)",
+    "double(bin_err == 0)",
+    "double(mu_err < 0.3)",
+    "double(sig_err < 0.25)",
+    "size(X, 1)", "size(X, 2)",
+    "size(Y, 1)", "size(Y, 2)"
+  ],
+  "comment": "Sig: X = lhsdesign(n, p) — Latin Hypercube design; each column is a random permutation π of 1..n with X[i, j] = (π[i] - U)/n, U ~ Uniform(0, 1). Guarantees one sample per [(k-1)/n, k/n] bin in each column. Y = lhsnorm(mu, Sigma, n) — applies norminv to lhsdesign(n, d) then transforms via chol(Sigma) (upper). Shared MT19937. Fingerprint pins: in-range (exact), bin partition (exact), column mean ≈ 0.5, recovered mu and Sigma at statistical tolerance. KNOWN GAPs: 'smooth'/'criterion'/'iterations' options for lhsdesign deferred."
+}

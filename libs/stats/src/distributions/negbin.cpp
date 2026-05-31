@@ -137,7 +137,7 @@ namespace detail {
 void nbinpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("nbinpdf: requires (k, r, p)", 0, 0, "nbinpdf", "", "m:nbinpdf:nargin");
+        throw Error("nbinpdf: requires (k, r, p)", 0, 0, "nbinpdf", "", "numkit:nbinpdf:nargin");
     outs[0] = nbinpdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
@@ -146,7 +146,7 @@ void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
-        throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "m:nbincdf:nargin");
+        throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "numkit:nbincdf:nargin");
     Value v = nbincdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -155,14 +155,14 @@ void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void nbininv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw Error("nbininv: requires (q, r, p)", 0, 0, "nbininv", "", "m:nbininv:nargin");
+        throw Error("nbininv: requires (q, r, p)", 0, 0, "nbininv", "", "numkit:nbininv:nargin");
     outs[0] = nbininv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
 }
 
 void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw Error("nbinrnd: requires (r, p[, m, n])", 0, 0, "nbinrnd", "", "m:nbinrnd:nargin");
+        throw Error("nbinrnd: requires (r, p[, m, n])", 0, 0, "nbinrnd", "", "numkit:nbinrnd:nargin");
     const double r = args[0].toScalar();
     const double p = args[1].toScalar();
     size_t rows = 1, cols = 1;

@@ -386,13 +386,18 @@ void cheby1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("cheby1: requires (N, Rp, Wn[, ftype][, 's'])",
-                     0, 0, "cheby1", "", "m:cheby1:nargin");
+                     0, 0, "cheby1", "", "numkit:cheby1:nargin");
     const int N    = static_cast<int>(args[0].toScalar());
     const double R = args[1].toScalar();
     const Value &Wn = args[2];
     auto t = parseTrailing(args, 3);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = cheby1(N, R, Wn, ftype, t.analog, ctx.engine->resource());
+    if (outs.size() >= 3) {   // [z, p, k] = cheby1(...): digital ZPK via tf2zp
+        auto [z, p, k] = ::numkit::builtin::tf2zp(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+        return;
+    }
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -401,13 +406,18 @@ void cheby2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("cheby2: requires (N, Rs, Wn[, ftype][, 's'])",
-                     0, 0, "cheby2", "", "m:cheby2:nargin");
+                     0, 0, "cheby2", "", "numkit:cheby2:nargin");
     const int N    = static_cast<int>(args[0].toScalar());
     const double R = args[1].toScalar();
     const Value &Wn = args[2];
     auto t = parseTrailing(args, 3);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = cheby2(N, R, Wn, ftype, t.analog, ctx.engine->resource());
+    if (outs.size() >= 3) {   // [z, p, k] = cheby2(...): digital ZPK via tf2zp
+        auto [z, p, k] = ::numkit::builtin::tf2zp(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+        return;
+    }
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -416,7 +426,7 @@ void besself_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("besself: requires (N, Wn[, ftype][, 's'])",
-                     0, 0, "besself", "", "m:besself:nargin");
+                     0, 0, "besself", "", "numkit:besself:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     const Value &Wn = args[1];
     auto t = parseTrailing(args, 2);
@@ -430,7 +440,7 @@ void ellip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     if (args.size() < 4)
         throw Error("ellip: requires (N, Rp, Rs, Wn[, ftype][, 's'])",
-                     0, 0, "ellip", "", "m:ellip:nargin");
+                     0, 0, "ellip", "", "numkit:ellip:nargin");
     const int N      = static_cast<int>(args[0].toScalar());
     const double Rp  = args[1].toScalar();
     const double Rs  = args[2].toScalar();
@@ -438,6 +448,11 @@ void ellip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     auto t = parseTrailing(args, 4);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = ellip(N, Rp, Rs, Wn, ftype, t.analog, ctx.engine->resource());
+    if (outs.size() >= 3) {   // [z, p, k] = ellip(...): digital ZPK via tf2zp
+        auto [z, p, k] = ::numkit::builtin::tf2zp(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+        return;
+    }
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
@@ -457,7 +472,7 @@ inline bool parseAnalogFromOrdArgs(Span<const Value> args, size_t start) {
     {                                                                              \
         if (args.size() < 4)                                                       \
             throw Error(#name ": requires (Wp, Ws, Rp, Rs[, 's'])",               \
-                         0, 0, #name, "", "m:" #name ":nargin");                   \
+                         0, 0, #name, "", "numkit:" #name ":nargin");                   \
         const Value &Wp = args[0];                                                \
         const Value &Ws = args[1];                                                \
         const double Rp = args[2].toScalar();                                     \
@@ -534,15 +549,15 @@ ellipord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog
 {
     if (Rp <= 0.0 || Rs <= 0.0)
         throw Error("ellipord: Rp, Rs must be positive",
-                    0, 0, "ellipord", "", "m:ellipord:BadRpRs");
+                    0, 0, "ellipord", "", "numkit:ellipord:BadRpRs");
     if (Wp_v.numel() != Ws_v.numel())
         throw Error("ellipord: Wp and Ws must have same length",
-                    0, 0, "ellipord", "", "m:ellipord:DimMismatch");
+                    0, 0, "ellipord", "", "numkit:ellipord:DimMismatch");
 
     const size_t numW = Wp_v.numel();
     if (numW != 1 && numW != 2)
         throw Error("ellipord: Wp must be scalar or 2-vector",
-                    0, 0, "ellipord", "", "m:ellipord:BadWp");
+                    0, 0, "ellipord", "", "numkit:ellipord:BadWp");
 
     std::vector<double> wp(numW), ws(numW);
     for (size_t i = 0; i < numW; ++i) {
@@ -580,7 +595,7 @@ ellipord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog
         }
         case 3: { // bandstop — KNOWN GAP, deferred
             throw Error("ellipord: bandstop case not yet supported",
-                        0, 0, "ellipord", "", "m:ellipord:BandstopGap");
+                        0, 0, "ellipord", "", "numkit:ellipord:BandstopGap");
         }
         case 4: { // bandpass: WA = (WS² - WP1·WP2) / (WS·(WP1-WP2))
             for (size_t i = 0; i < numW; ++i) {
@@ -592,7 +607,7 @@ ellipord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog
         }
         default:
             throw Error("ellipord: invalid filter spec",
-                        0, 0, "ellipord", "", "m:ellipord:BadSpec");
+                        0, 0, "ellipord", "", "numkit:ellipord:BadSpec");
     }
 
     // wn = wp (digital) or WP (analog).
@@ -614,7 +629,7 @@ void ellipord_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("ellipord: requires (Wp, Ws, Rp, Rs[, 's'])",
-                    0, 0, "ellipord", "", "m:ellipord:nargin");
+                    0, 0, "ellipord", "", "numkit:ellipord:nargin");
     bool analog = false;
     if (args.size() >= 5) {
         std::string s = args[4].toString();
@@ -665,13 +680,13 @@ firpmord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr::
 
     if (nbands != ndevs)
         throw Error("firpmord: A and DEV must have same length",
-                    0, 0, "firpmord", "", "m:firpmord:MismatchedVectorLength");
+                    0, 0, "firpmord", "", "numkit:firpmord:MismatchedVectorLength");
     if (mf != 2 * (nbands - 1))
         throw Error("firpmord: numel(F) must equal 2*(numel(A)-1)",
-                    0, 0, "firpmord", "", "m:firpmord:InvalidLength");
+                    0, 0, "firpmord", "", "numkit:firpmord:InvalidLength");
     if (fs <= 0.0)
         throw Error("firpmord: Fs must be positive",
-                    0, 0, "firpmord", "", "m:firpmord:BadFs");
+                    0, 0, "firpmord", "", "numkit:firpmord:BadFs");
 
     std::vector<double> fcuts(mf), mags(nbands), devs(nbands);
     for (size_t i = 0; i < mf; ++i)     fcuts[i] = F.elemAsDouble(i) / fs;
@@ -684,7 +699,7 @@ firpmord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr::
         for (size_t i = 1; i < mf; ++i) if (fcuts[i] > mx) mx = fcuts[i];
         if (mx > 0.5)
             throw Error("firpmord: F edges must be <= Fs/2",
-                        0, 0, "firpmord", "", "m:firpmord:InvalidRange");
+                        0, 0, "firpmord", "", "numkit:firpmord:InvalidRange");
     }
 
     // Relative deviation: devs[i] /= (stop + mag) (== 1 either way).
@@ -772,7 +787,7 @@ void firpmord_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("firpmord: requires (F, A, dev [, fs])",
-                    0, 0, "firpmord", "", "m:firpmord:nargin");
+                    0, 0, "firpmord", "", "numkit:firpmord:nargin");
     double fs = 2.0;
     if (args.size() >= 4 && !args[3].isEmpty()) fs = args[3].toScalar();
     auto [N, ff, aa, wts] = firpmord(args[0], args[1], args[2], fs, ctx.engine->resource());
@@ -822,13 +837,13 @@ kaiserord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr:
 
     if (nbands != ndevs)
         throw Error("kaiserord: A and DEV must have same length",
-                    0, 0, "kaiserord", "", "m:kaiserord:InvalidDimensionsADEV");
+                    0, 0, "kaiserord", "", "numkit:kaiserord:InvalidDimensionsADEV");
     if (mf != 2 * (nbands - 1))
         throw Error("kaiserord: numel(F) must equal 2*(numel(A)-1)",
-                    0, 0, "kaiserord", "", "m:kaiserord:InvalidDimensionsLengthF");
+                    0, 0, "kaiserord", "", "numkit:kaiserord:InvalidDimensionsLengthF");
     if (fs <= 0.0)
         throw Error("kaiserord: Fs must be positive",
-                    0, 0, "kaiserord", "", "m:kaiserord:BadFs");
+                    0, 0, "kaiserord", "", "numkit:kaiserord:BadFs");
 
     std::vector<double> fcuts(mf), mags(nbands), devs(nbands);
     for (size_t i = 0; i < mf; ++i)     fcuts[i] = F.elemAsDouble(i) / fs;
@@ -841,7 +856,7 @@ kaiserord(const Value &F, const Value &A, const Value &dev, double fs, std::pmr:
         for (size_t i = 1; i < mf; ++i) if (fcuts[i] > mx) mx = fcuts[i];
         if (mx >= 0.5)
             throw Error("kaiserord: F edges must be < Fs/2",
-                        0, 0, "kaiserord", "", "m:kaiserord:InvalidRange");
+                        0, 0, "kaiserord", "", "numkit:kaiserord:InvalidRange");
     }
 
     // Convert dev → relative deviation: dev /= (stop + mag)  (== 1 either way)
@@ -909,7 +924,7 @@ void kaiserord_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 3)
         throw Error("kaiserord: requires (F, A, dev [, fs])",
-                    0, 0, "kaiserord", "", "m:kaiserord:nargin");
+                    0, 0, "kaiserord", "", "numkit:kaiserord:nargin");
     double fs = 2.0;
     if (args.size() >= 4 && !args[3].isEmpty()) fs = args[3].toScalar();
     auto [N, Wn, beta, ftype] = kaiserord(args[0], args[1], args[2], fs, ctx.engine->resource());

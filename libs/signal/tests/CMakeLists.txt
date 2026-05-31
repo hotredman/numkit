@@ -49,6 +49,8 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/fftn_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/czt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/stft_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/iscola_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fwht_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cell2sos_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ctfutils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulate_test.cpp

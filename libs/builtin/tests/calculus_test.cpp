@@ -200,6 +200,62 @@ TEST_P(CalculusTest, CumtrapzMatrixIntegratesColumns)
     EXPECT_DOUBLE_EQ((*c)(1, 1), 3.0);
 }
 
+TEST_P(CalculusTest, CumtrapzDim1MatchesColumnDefault)
+{
+    // cumtrapz(A, 1) == cumtrapz(A): integrate down columns.
+    eval("c = cumtrapz([1 2; 3 4], 1);");
+    auto *c = engine.getVariable("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 3.0);
+}
+
+TEST_P(CalculusTest, CumtrapzDim2IntegratesRows)
+{
+    // cumtrapz(A, 2): integrate along each row with unit spacing.
+    //   row 1 = [1 2] → [0, 0.5*(1+2)] = [0, 1.5]
+    //   row 2 = [3 4] → [0, 0.5*(3+4)] = [0, 3.5]
+    eval("c = cumtrapz([1 2; 3 4], 2);");
+    auto *c = engine.getVariable("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(rows(*c), 2u);
+    EXPECT_EQ(cols(*c), 2u);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 1.5);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 3.5);
+}
+
+TEST_P(CalculusTest, CumtrapzVectorDimNoOpAlongSingleton)
+{
+    // Row vector along dim 1 (singleton) → all zeros, same shape.
+    eval("c = cumtrapz([1 2 3 4], 1);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(c->numel(), 4u);
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[1], 0.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[2], 0.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[3], 0.0);
+}
+
+TEST_P(CalculusTest, CumtrapzXYDim2RowWise)
+{
+    // cumtrapz(X, Y, 2): X is a coordinate vector of length size(Y,2),
+    // broadcast across rows (MATLAB form).
+    //   X = [0 1 2], Y row 1 = [3 4 5] → [0, 3.5, 8]; row 2 = [1 1 1] → [0, 1, 2]
+    eval("c = cumtrapz([0 1 2], [3 4 5; 1 1 1], 2);");
+    auto *c = engine.getVariable("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 3.5);
+    EXPECT_DOUBLE_EQ((*c)(0, 2), 8.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 2), 2.0);
+}
+
 TEST_P(CalculusTest, CumtrapzComplexThrows)
 {
     EXPECT_THROW(eval("c = cumtrapz([1+2i, 3, 5]);"), std::exception);
@@ -321,6 +377,27 @@ TEST_P(CalculusTest, IntegralUnknownFlagThrows)
 TEST_P(CalculusTest, IntegralNonHandleThrows)
 {
     EXPECT_THROW(eval("r = integral('not a handle', 0, 1);"), std::exception);
+}
+
+// trapz: matrix reduces per-column (was flattened), trapz(Y,dim) (a scalar
+// 2nd arg is the dim, NOT y — was erroring), and trapz(X,Y[,dim]) spacing.
+// vs MATLAB R2025b.
+TEST_P(CalculusTest, TrapzMatrixAndDim)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("trapz([1 4 9 16])"),          21.5);
+    EXPECT_DOUBLE_EQ(evalScalar("trapz([0 1 2 3], [1 4 9 16])"), 21.5);
+    // trapz(M) integrates each column (dim 1) -> 1x3 row.
+    eval("tm = trapz([1 2 3; 4 5 6]);");
+    EXPECT_DOUBLE_EQ(evalScalar("tm(1)"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("tm(3)"), 4.5);
+    // trapz(M, 2) integrates each row -> 2x1 column.
+    eval("td = trapz([1 2 3; 4 5 6], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("td(1)"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("td(2)"), 10.0);
+    // trapz(X, M, 2): per-row with X spacing.
+    eval("tx = trapz([10 20 30], [1 2 3; 4 5 6], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("tx(1)"),  40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("tx(2)"), 100.0);
 }
 
 INSTANTIATE_DUAL(CalculusTest);

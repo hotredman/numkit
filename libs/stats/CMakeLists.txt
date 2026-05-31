@@ -20,6 +20,8 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/lda/lda.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/spline/spline.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/qmc/qmc.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/sampling/lhs.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/stats/copulas/copulas.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)

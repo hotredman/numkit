@@ -1,12 +1,16 @@
 {
   "name": "modwt",
   "namespace": "wavelet",
-  "setup": "x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)');",
-  "expr": "wH = modwt(x, 'haar', 3);",
-  "iters": 5,
-  "tol": 1e-6,
+  "setup": "x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)'); xs = [1 2 3 4 5 6 7 8];",
+  "expr": "wH = modwt(x, 'haar', 3); ws = modwt(xs, 'haar', 2); wd = modwt(xs, 'db2', 1); rec = imodwt(modwt(x,'sym4',4),'sym4'); rerr = max(abs(rec(:) - x(:)));",
+  "iters": 3,
+  "tol": 1e-06,
   "fingerprint": [
-    "size(wH, 1)", "size(wH, 2)"
+    "double(size(wH,1))", "double(size(wH,2))",
+    "sum(wH(:).^2)",
+    "ws(1,1)", "ws(1,2)", "ws(3,1)", "ws(3,2)",
+    "wd(1,1)", "wd(1,2)", "wd(1,3)",
+    "rerr"
   ],
-  "comment": "Sig: w = modwt(x[, wname[, lev]]). Maximal Overlap Discrete Wavelet Transform. Audit ТЗ 2026-05-09: argument order corrected from numkit-historical (x, lev, wname) to MATLAB-canonical (x, wname, lev) plus default wname='sym4' and default lev=floor(log2(N)). The output SHAPE matches MATLAB (lev+1 rows × N columns) but per-coefficient values still diverge from MATLAB R2025b — root cause is filter-convention / sqrt(2)-normalisation differences inside the inner kernel that need a separate algorithm audit (NOT fixable at the adapter layer). Fingerprint locked to shape-only here; per-value parity tracked separately."
+  "comment": "Sig w=modwt(x,wname,lev): MODWT, (lev+1) x N. Now pins ACTUAL per-coefficient values (was energy-only): MODWT filters are wrev(Lo_D)/√2, wrev(Hi_D)/√2 applied as a look-back circular convolution — bit-identical with MATLAB R2025b (haar W_{1,1}=-3.5 via circular wrap 0.5*(x1-x8); scaling row [5.5 4.5 ...]; db2 W1=[0.732 2 -2.732]). Energy conservation + exact imodwt round-trip also pinned. Queue-clearing 2026-05-29: fixed the per-coefficient alignment/boundary that the old energy-only spec couldn't catch."
 }

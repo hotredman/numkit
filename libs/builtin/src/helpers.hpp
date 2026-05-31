@@ -113,6 +113,112 @@ inline Value createLike(const Value &src, ValueType type, std::pmr::memory_resou
     return createForDims(src.dims(), type, mr);
 }
 
+// abs() for an integer-typed Value: MATLAB keeps the integer class and
+// SATURATES, so abs(intmin) -> intmax (abs(int8(-128))=127 int8); unsigned
+// types are returned unchanged. Reading via elemAsDouble + clamp to the
+// type range handles every signed/unsigned width uniformly (|intmin| would
+// overflow the type, the clamp catches it). Caller guards isIntegerType().
+inline Value absIntegerSaturate(const Value &x, std::pmr::memory_resource *mr)
+{
+    Value r = createLike(x, x.type(), mr);
+    const size_t n = x.numel();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = std::fabs(x.elemAsDouble(i));
+            if (v < lo) v = lo;
+            else if (v > hi) v = hi;
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (x.type()) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
+// Cast a numeric Value to an integer class by per-element static_cast with
+// saturation. Used to restore the integer class after computing through the
+// double path (e.g. sort of an integer array; mod/rem of integers). Values
+// that are already exact in-range integers round-trip exactly. Reads via
+// elemAsDouble so a scalar-stored result is handled too. `vt` must be an
+// integer ValueType.
+inline Value doubleToIntegerExact(const Value &d, ValueType vt,
+                                  std::pmr::memory_resource *mr)
+{
+    Value r = createForDims(d.dims(), vt, mr);
+    const size_t n = d.numel();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = d.elemAsDouble(i);
+            if (v < lo) v = lo;
+            else if (v > hi) v = hi;
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (vt) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
+// Convert any numeric Value to a DOUBLE Value (element-wise via elemAsDouble,
+// so integer arrays — which lack a doubleData() buffer — are handled). A
+// DOUBLE input is returned as-is (shares storage). Used to route integer
+// operands through double-only elementwise helpers, then cast the result back.
+inline Value toDoubleValue(const Value &x, std::pmr::memory_resource *mr)
+{
+    if (x.type() == ValueType::DOUBLE) return x;
+    Value r = createForDims(x.dims(), ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) dst[i] = x.elemAsDouble(i);
+    return r;
+}
+
+// Exact same-class copy of an integer-typed Value (raw typed copy, so int64
+// values above 2^53 are preserved). Used for operations that are the
+// IDENTITY on integers but keep the class (floor/ceil/round/fix in MATLAB).
+// Caller guards isIntegerType().
+inline Value copyIntegerSameClass(const Value &x, std::pmr::memory_resource *mr)
+{
+    Value r = createLike(x, x.type(), mr);
+    const size_t n = x.numel();
+    switch (x.type()) {
+    case ValueType::INT8:   std::copy(x.int8Data(),   x.int8Data()   + n, r.int8DataMut());   break;
+    case ValueType::INT16:  std::copy(x.int16Data(),  x.int16Data()  + n, r.int16DataMut());  break;
+    case ValueType::INT32:  std::copy(x.int32Data(),  x.int32Data()  + n, r.int32DataMut());  break;
+    case ValueType::INT64:  std::copy(x.int64Data(),  x.int64Data()  + n, r.int64DataMut());  break;
+    case ValueType::UINT8:  std::copy(x.uint8Data(),  x.uint8Data()  + n, r.uint8DataMut());  break;
+    case ValueType::UINT16: std::copy(x.uint16Data(), x.uint16Data() + n, r.uint16DataMut()); break;
+    case ValueType::UINT32: std::copy(x.uint32Data(), x.uint32Data() + n, r.uint32DataMut()); break;
+    case ValueType::UINT64: std::copy(x.uint64Data(), x.uint64Data() + n, r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
 // Shape-preserving empty result for a binary op where at least one
 // operand is empty. The non-scalar operand contributes the output
 // shape; if both are non-scalar the dims must match, otherwise throw.

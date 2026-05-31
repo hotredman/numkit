@@ -77,7 +77,7 @@ BufferResult bufferCore(const Value &x, int n, int p, const Value &opt, bool for
             const double v = opt.toScalar();
             if (v < 0.0 || v > -p)
                 throw Error("buffer: OPT (offset) for underlap must be in [0, -P]",
-                            0, 0, "buffer", "", "m:buffer:BadOpt");
+                            0, 0, "buffer", "", "numkit:buffer:BadOpt");
             offset = static_cast<size_t>(v);
         }
         const size_t startN = (offset < N) ? (N - offset) : 0;
@@ -113,7 +113,7 @@ BufferResult bufferCore(const Value &x, int n, int p, const Value &opt, bool for
     const size_t hopP = static_cast<size_t>(hop);  // = n - p, must be > 0
     if (hopP == 0)
         throw Error("buffer: P must be < N (overlap < frame length)",
-                    0, 0, "buffer", "", "m:buffer:BadOverlap");
+                    0, 0, "buffer", "", "numkit:buffer:BadOverlap");
 
     // Decide whether to apply initial-condition prepend (p > 0 only).
     bool prependZeros = (p > 0);
@@ -129,7 +129,7 @@ BufferResult bufferCore(const Value &x, int n, int p, const Value &opt, bool for
             // Numeric initial-condition vector of length p.
             if (opt.numel() != static_cast<size_t>(p))
                 throw Error("buffer: initial-condition OPT must have length P",
-                            0, 0, "buffer", "", "m:buffer:BadInitLen");
+                            0, 0, "buffer", "", "numkit:buffer:BadInitLen");
             initVec.resize(p);
             for (size_t i = 0; i < static_cast<size_t>(p); ++i)
                 initVec[i] = opt.elemAsDouble(i);
@@ -223,7 +223,7 @@ void buffer_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 2)
         throw Error("buffer: requires (x, n [, p [, opt]])",
-                    0, 0, "buffer", "", "m:buffer:nargin");
+                    0, 0, "buffer", "", "numkit:buffer:nargin");
     const int n = static_cast<int>(args[1].toScalar());
     int p = 0;
     if (args.size() >= 3 && !args[2].isEmpty()) p = static_cast<int>(args[2].toScalar());

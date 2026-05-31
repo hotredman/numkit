@@ -133,7 +133,7 @@ ac2rc(const Value &                R,
 
 /// Schur reflection coefficients from autocorrelation.
 ///
-/// Equivalent to the first output of `ac2rc`; matches MATLAB's `schurrc`.
+/// Equivalent to the first output of `ac2rc`.
 /// @param R   Autocorrelation sequence.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Column vector of length `numel(R) - 1`.
@@ -153,18 +153,28 @@ Value rc2ac(const Value &k, double r0,
             std::pmr::memory_resource *mr = nullptr);
 
 /// AR poly → reflection coefficients (step-down recursion).
-/// @param a   AR coefficient vector.
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    Reflection coefficients of length `numel(a) - 1`.
-Value poly2rc(const Value &                a,
-              std::pmr::memory_resource *  mr = nullptr);
+/// @param a       AR coefficient vector.
+/// @param efinal  Final prediction error (for the second output R0).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Tuple `(k, R0)`: reflection coefficients of length
+///                `numel(a) - 1`, and the zero-lag autocorrelation
+///                `R0 = efinal / prod(1 - k.^2)`.
+std::tuple<Value, Value>
+poly2rc(const Value &                a,
+        double                       efinal = 0.0,
+        std::pmr::memory_resource *  mr     = nullptr);
 
 /// Reflection coefficients → AR poly (step-up recursion).
 /// @param k   Reflection coefficients.
+/// @param r0  Zero-lag autocorrelation (for the second output efinal).
 /// @param mr  Memory resource (nullptr → process default).
-/// @return    AR coefficient vector of length `numel(k) + 1`.
-Value rc2poly(const Value &                k,
-              std::pmr::memory_resource *  mr = nullptr);
+/// @return    Tuple `(a, efinal)`: AR coefficient vector of length
+///            `numel(k) + 1`, and the final prediction error
+///            `efinal = r0 * prod(1 - k.^2)`.
+std::tuple<Value, Value>
+rc2poly(const Value &                k,
+        double                       r0 = 1.0,
+        std::pmr::memory_resource *  mr = nullptr);
 
 /// @brief Inverse-sine parameterisation → reflection coefficients.
 ///
@@ -258,7 +268,7 @@ prony(const Value &                h,
 ///
 /// Returns the `(n+m) × (m+1)` matrix X such that X'·X is the biased
 /// autocorrelation matrix Rxx (default `'autocorrelation'` method).
-/// Other MATLAB methods (`'covariance'`, `'prewindowed'`, etc.) deferred.
+/// Other methods (`'covariance'`, `'prewindowed'`, etc.) are deferred.
 ///
 /// @param x   Real 1-D signal.
 /// @param m   Order parameter (X has `m+1` columns).

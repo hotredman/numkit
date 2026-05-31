@@ -31,7 +31,7 @@ Value isct(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 /// @brief Discrete-time predicate (`isdt(sys)`).
 ///
 /// True when `Ts > 0` (explicit sample time) or `Ts == -1`
-/// (MATLAB's "unspecified discrete").
+/// ("unspecified discrete").
 ///
 /// @param sys  LTI struct.
 /// @param mr   Memory resource (nullptr → process default).

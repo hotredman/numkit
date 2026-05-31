@@ -33,7 +33,7 @@ Value genqammod(const Value &x, const Value &constellation,
     const size_t M = constellation.numel();
     if (M == 0)
         throw Error("genqammod: constellation must be non-empty",
-                    0, 0, "genqammod", "", "m:genqammod:EmptyConst");
+                    0, 0, "genqammod", "", "numkit:genqammod:EmptyConst");
 
     const auto &d = x.dims();
     const size_t H = d.rows();
@@ -54,7 +54,7 @@ Value genqammod(const Value &x, const Value &constellation,
             if (xi < 0.0 || xi >= static_cast<double>(M))
                 throw Error("genqammod: index out of range [0, M-1]",
                             0, 0, "genqammod", "",
-                            "m:genqammod:OutOfRange");
+                            "numkit:genqammod:OutOfRange");
             const size_t k = static_cast<size_t>(xi);
             o[i] = constellation.complexData()[k];
         }
@@ -65,7 +65,7 @@ Value genqammod(const Value &x, const Value &constellation,
             if (xi < 0.0 || xi >= static_cast<double>(M))
                 throw Error("genqammod: index out of range [0, M-1]",
                             0, 0, "genqammod", "",
-                            "m:genqammod:OutOfRange");
+                            "numkit:genqammod:OutOfRange");
             const size_t k = static_cast<size_t>(xi);
             o[i] = constellation.elemAsDouble(k);
         }
@@ -79,7 +79,7 @@ Value genqamdemod(const Value &y, const Value &constellation,
     const size_t M = constellation.numel();
     if (M == 0)
         throw Error("genqamdemod: constellation must be non-empty",
-                    0, 0, "genqamdemod", "", "m:genqamdemod:EmptyConst");
+                    0, 0, "genqamdemod", "", "numkit:genqamdemod:EmptyConst");
 
     const auto &d = y.dims();
     const size_t H = d.rows();
@@ -118,12 +118,12 @@ void genqammod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("genqammod: requires (x, constellation)",
-                    0, 0, "genqammod", "", "m:genqammod:nargin");
+                    0, 0, "genqammod", "", "numkit:genqammod:nargin");
     // Bit-input mode (name-value 'InputType','bit') -> deferred.
     if (args.size() > 2)
         throw Error("genqammod: name-value options not yet supported "
                     "(bit-input mode deferred)",
-                    0, 0, "genqammod", "", "m:genqammod:NotSupported");
+                    0, 0, "genqammod", "", "numkit:genqammod:NotSupported");
     outs[0] = genqammod(args[0], args[1], ctx.engine->resource());
 }
 
@@ -132,11 +132,11 @@ void genqamdemod_reg(Span<const Value> args, size_t /*nargout*/,
 {
     if (args.size() < 2)
         throw Error("genqamdemod: requires (y, constellation)",
-                    0, 0, "genqamdemod", "", "m:genqamdemod:nargin");
+                    0, 0, "genqamdemod", "", "numkit:genqamdemod:nargin");
     if (args.size() > 2)
         throw Error("genqamdemod: name-value options not yet supported "
                     "(bit-output mode deferred)",
-                    0, 0, "genqamdemod", "", "m:genqamdemod:NotSupported");
+                    0, 0, "genqamdemod", "", "numkit:genqamdemod:NotSupported");
     outs[0] = genqamdemod(args[0], args[1], ctx.engine->resource());
 }
 

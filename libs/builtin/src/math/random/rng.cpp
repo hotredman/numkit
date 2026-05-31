@@ -70,17 +70,17 @@ void deserializeEngine(const std::string &blob)
     is >> tag;
     if (tag != "mt19937")
         throw Error("rng: malformed state blob",
-                     0, 0, "rng", "", "m:rng:badState");
+                     0, 0, "rng", "", "numkit:rng:badState");
     uint32_t state[detail::MatlabMT19937::STATE_SIZE];
     for (std::size_t i = 0; i < detail::MatlabMT19937::STATE_SIZE; ++i) {
         if (!(is >> state[i]))
             throw Error("rng: malformed state blob",
-                         0, 0, "rng", "", "m:rng:badState");
+                         0, 0, "rng", "", "numkit:rng:badState");
     }
     int idx;
     if (!(is >> idx))
         throw Error("rng: malformed state blob",
-                     0, 0, "rng", "", "m:rng:badState");
+                     0, 0, "rng", "", "numkit:rng:badState");
     sharedEngine().setState(state, idx);
 }
 
@@ -117,14 +117,14 @@ void rngRestore(const Value &state)
 {
     if (!state.isStruct())
         throw Error("rng: state must be a struct from rng()",
-                     0, 0, "rng", "", "m:rng:notStruct");
+                     0, 0, "rng", "", "numkit:rng:notStruct");
     if (!state.hasField("State"))
         throw Error("rng: state struct missing .State field",
-                     0, 0, "rng", "", "m:rng:noStateField");
+                     0, 0, "rng", "", "numkit:rng:noStateField");
     const auto &blob = state.field("State");
     if (!blob.isChar() && !blob.isString())
         throw Error("rng: .State must be a char array",
-                     0, 0, "rng", "", "m:rng:badState");
+                     0, 0, "rng", "", "numkit:rng:badState");
     std::lock_guard<std::mutex> lock(rngMutex());
     deserializeEngine(blob.toString());
 }
@@ -186,7 +186,7 @@ void fillUniformInt(double *dst, size_t n, int64_t lo, int64_t hi)
 {
     if (lo > hi)
         throw Error("randi: low bound must be <= high bound",
-                     0, 0, "randi", "", "m:randi:badRange");
+                     0, 0, "randi", "", "numkit:randi:badRange");
     std::lock_guard<std::mutex> lock(rngMutex());
     std::uniform_int_distribution<int64_t> dist(lo, hi);
     for (size_t i = 0; i < n; ++i)
@@ -237,7 +237,7 @@ Value randperm(size_t n, size_t k, std::pmr::memory_resource *mr)
 {
     if (k > n)
         throw Error("randperm: k must not exceed n",
-                     0, 0, "randperm", "", "m:randperm:badK");
+                     0, 0, "randperm", "", "numkit:randperm:badK");
     auto r = Value::matrix(1, k, ValueType::DOUBLE, mr);
     if (k == 0) return r;
 
@@ -300,7 +300,7 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("rand: type must be 'double' or 'single'",
-                    0, 0, "rand", "", "m:rand:badType");
+                    0, 0, "rand", "", "numkit:rand:badType");
     ScratchArena scratch(mr);
     auto dims = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(dims);
@@ -327,7 +327,7 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     auto dimArgs = extractTypeArg(args, t);
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("randn: type must be 'double' or 'single'",
-                    0, 0, "randn", "", "m:randn:badType");
+                    0, 0, "randn", "", "numkit:randn:badType");
     ScratchArena scratch(mr);
     auto dims = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(dims);
@@ -379,7 +379,7 @@ namespace { Value castDoubleToType(const Value &src, ValueType t, std::pmr::memo
       case ValueType::UINT32: cast_loop(dst.uint32DataMut(),  uint32_t{}); break;
       case ValueType::UINT64: cast_loop(dst.uint64DataMut(),  uint64_t{}); break;
       default: throw Error("randi: unsupported type for cast",
-                           0, 0, "randi", "", "m:randi:badType");
+                           0, 0, "randi", "", "numkit:randi:badType");
     }
     return dst;
 }}
@@ -396,7 +396,7 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("randi: requires at least 1 argument",
-                     0, 0, "randi", "", "m:randi:nargin");
+                     0, 0, "randi", "", "numkit:randi:nargin");
 
     int64_t imin = 1, imax = 0;
     const Value &first = args[0];
@@ -447,7 +447,7 @@ void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     if (args.empty())
         throw Error("randperm: requires at least 1 argument",
-                     0, 0, "randperm", "", "m:randperm:nargin");
+                     0, 0, "randperm", "", "numkit:randperm:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
     if (args.size() == 1) {
         outs[0] = randperm(n, ctx.engine->resource());
@@ -492,17 +492,17 @@ void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         else if (s == "shuffle") rngShuffle();
         else
             throw Error("rng: string argument must be 'default' or 'shuffle'",
-                         0, 0, "rng", "", "m:rng:badStringArg");
+                         0, 0, "rng", "", "numkit:rng:badStringArg");
     } else if (a.isScalar() || a.numel() == 1) {
         const double sd = a.toScalar();
         if (sd < 0.0)
             throw Error("rng: seed must be a non-negative integer",
-                         0, 0, "rng", "", "m:rng:badSeed");
+                         0, 0, "rng", "", "numkit:rng:badSeed");
         rngSeed(static_cast<uint64_t>(sd));
     } else {
         throw Error("rng: argument must be a non-negative integer, "
                      "a struct from rng(), 'default', or 'shuffle'",
-                     0, 0, "rng", "", "m:rng:badArg");
+                     0, 0, "rng", "", "numkit:rng:badArg");
     }
 
     if (nargout > 0) outs[0] = std::move(prev);
