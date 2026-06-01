@@ -70,7 +70,11 @@ label_components(const std::vector<uint8_t> &fg, int H, int W, int conn)
 
     // Second pass: collapse + relabel into 1..K in COLUMN-MAJOR
     // scan order (so labels match MATLAB's first-pixel-encountered
-    // convention).
+    // convention). This nested loop visits every pixel, so it fully
+    // relabels L — do NOT add a follow-up pass over L: by this point L
+    // already holds remapped labels (1..K), and feeding those back through
+    // find()/remap (which are keyed on the ORIGINAL provisional labels)
+    // corrupts the result (returned count K stops matching max(L)).
     std::vector<int> remap(parent.size(), 0);
     int K = 0;
     for (int c = 0; c < W; ++c) {
@@ -81,13 +85,6 @@ label_components(const std::vector<uint8_t> &fg, int H, int W, int conn)
             if (remap[(size_t)root] == 0) remap[(size_t)root] = ++K;
             L[i] = remap[(size_t)root];
         }
-    }
-    // Apply remap to ALL pixels (in case any were missed by the
-    // column-major walk above — none should be, but defensive).
-    for (size_t i = 0; i < L.size(); ++i) {
-        if (L[i] == 0) continue;
-        const int root = find(L[i]);
-        if (remap[(size_t)root] != 0) L[i] = remap[(size_t)root];
     }
     return {L, K};
 }

@@ -483,12 +483,22 @@ Value canny_edge(const Value &Iin, double userHigh, std::pmr::memory_resource *m
         const double x = i - hw;
         dg[i] = -x * std::exp(-(x * x) / (2.0 * sigma * sigma));  // scale irrelevant (relative threshold)
     }
+    // Filter in DOUBLE. imfilter on an integer image clamps each pass to the
+    // integer range — which would zero every negative derivative response
+    // (i.e. every falling edge), losing ~half the edges. MATLAB likewise
+    // converts to floating point before the Canny gradient.
+    Value Id = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    {
+        double *dd = Id.doubleDataMut();
+        for (size_t i = 0; i < N; ++i) dd[i] = Iin.elemAsDouble(i);
+    }
+
     Value gRow  = make_kernel(g,  1, L, mr);
     Value gCol  = make_kernel(g,  L, 1, mr);
     Value dgRow = make_kernel(dg, 1, L, mr);
     Value dgCol = make_kernel(dg, L, 1, mr);
-    Value GxV = apply_kernel(apply_kernel(Iin, gCol, mr), dgRow, mr);
-    Value GyV = apply_kernel(apply_kernel(Iin, gRow, mr), dgCol, mr);
+    Value GxV = apply_kernel(apply_kernel(Id, gCol, mr), dgRow, mr);
+    Value GyV = apply_kernel(apply_kernel(Id, gRow, mr), dgCol, mr);
 
     ScratchArena arena(mr);
     ScratchVec<double> Gx(N, &arena), Gy(N, &arena), mag(N, &arena);
