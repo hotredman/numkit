@@ -359,34 +359,42 @@ Value morph_flat_u8(const Value &I, const SEInfo &se, std::pmr::memory_resource 
 }
 
 // 1-D windowed reduce (max for dilate, min for erode) along one contiguous
-// column via a monotonic deque: out[r] = reduce over in[r+lo .. r+hi] ∩ [0,n).
-// O(1) amortised per pixel regardless of window length. `lo <= 0 <= hi`
-// (marked-centre SE) guarantees the window always contains r, so it is never
-// empty; OOB indices are simply never pushed (= "skip OOB", matching
-// morph_flat_u8 / morph_op). `dq` is caller scratch of length ≥ n.
+// column: out[r] = reduce over in[r+lo .. r+hi] ∩ [0,n). Block van Herk–
+// Gil-Werman — exactly 3 reduce-ops per pixel, BRANCHLESS (vs the monotonic
+// deque's two per-pixel while-loops). The OOB ends are padded with the
+// identity (0 for max / 255 for min), which is equivalent to skipping them.
+// Scratch P/g/h must each hold ≥ n + k - 1 bytes (k = hi - lo + 1).
 template <bool IsErode>
-inline void colWindowReduce(const std::uint8_t *in, std::uint8_t *out, int n,
-                            int lo, int hi, int *dq)
+inline void blockVanHerk(const std::uint8_t *in, std::uint8_t *out, int n,
+                         int lo, int hi,
+                         std::uint8_t *P, std::uint8_t *g, std::uint8_t *h)
 {
-    auto worseEq = [](std::uint8_t cand, std::uint8_t incoming) {
-        // pop existing 'cand' when it can never beat 'incoming' again.
-        return IsErode ? (cand >= incoming) : (cand <= incoming);
+    auto MX = [](std::uint8_t a, std::uint8_t b) {
+        return IsErode ? std::min(a, b) : std::max(a, b);
     };
-    int head = 0, tail = 0;
-    auto push = [&](int j) {
-        if (j < 0 || j >= n) return;
-        const std::uint8_t v = in[j];
-        while (tail > head && worseEq(in[dq[tail - 1]], v)) --tail;
-        dq[tail++] = j;
-    };
-    // Preload the window for r = 0: indices [0, min(hi, n-1)] (lo ≤ 0).
-    for (int j = 0; j <= hi && j < n; ++j) push(j);
-    for (int r = 0; r < n; ++r) {
-        if (r > 0) push(r + hi);            // new index entering on the right
-        const int left = r + lo;
-        while (tail > head && dq[head] < left) ++head;  // drop indices left of window
-        out[r] = in[dq[head]];
+    const int k = hi - lo + 1;
+    const std::uint8_t PAD = IsErode ? std::uint8_t(255) : std::uint8_t(0);
+    const int off = -lo;          // ≥ 0 (lo ≤ 0)
+    const int m = n + k - 1;      // padded length: out[r]=reduce(P[r..r+k-1])
+
+    for (int i = 0; i < off; ++i)      P[i] = PAD;
+    for (int i = 0; i < n; ++i)        P[off + i] = in[i];
+    for (int i = off + n; i < m; ++i)  P[i] = PAD;
+
+    // Forward running-reduce within each size-k block.
+    for (int b = 0; b < m; b += k) {
+        const int e = std::min(b + k, m);
+        g[b] = P[b];
+        for (int i = b + 1; i < e; ++i) g[i] = MX(g[i - 1], P[i]);
     }
+    // Backward running-reduce within each block.
+    for (int b = 0; b < m; b += k) {
+        const int e = std::min(b + k, m);
+        h[e - 1] = P[e - 1];
+        for (int i = e - 2; i >= b; --i) h[i] = MX(h[i + 1], P[i]);
+    }
+    // out[r] = reduce(P[r .. r+k-1]) = MX(suffix at r, prefix at r+k-1).
+    for (int r = 0; r < n; ++r) out[r] = MX(h[r], g[r + k - 1]);
 }
 
 // Returns true if `se` is usable by the van Herk path: centre marked, and
@@ -424,32 +432,56 @@ Value morph_vanherk_u8(const Value &I, const SEInfo &se, std::pmr::memory_resour
     const std::uint8_t INIT = IsErode ? std::uint8_t(255) : std::uint8_t(0);
     std::fill(dst, dst + (size_t)H * (size_t)W, INIT);
 
-    ScratchArena arena(mr);
-    ScratchVec<std::uint8_t> V((size_t)H * (size_t)W, &arena);
-    ScratchVec<int> dq((size_t)H, &arena);
-
+    // Group SE columns by their vertical run (lo,hi). Symmetric SEs (disk,
+    // square, diamond, …) have many columns sharing a run, so we compute the
+    // vertical reduce V once per DISTINCT run and reuse it for every column
+    // that shares it — fewer of the (scalar) vertical passes.
+    struct Run { int lo, hi; };
+    std::vector<Run> runs;
+    std::vector<int> colRun;   // SE-column index (with marked pixels) → run id
+    std::vector<int> colDc;    // …and its horizontal shift
+    int maxK = 1;
     for (int kj = 0; kj < se.W; ++kj) {
         int kiLo = -1, kiHi = -1;
         for (int ki = 0; ki < se.H; ++ki)
             if (se.mask[(size_t)ki * (size_t)se.W + (size_t)kj]) { if (kiLo < 0) kiLo = ki; kiHi = ki; }
-        if (kiLo < 0) continue;                         // empty SE column
-        const int lo = kiLo - se.half_r, hi = kiHi - se.half_r;  // dr range
-        const int dc = kj - se.half_c;
+        if (kiLo < 0) continue;                          // empty SE column
+        const int lo = kiLo - se.half_r, hi = kiHi - se.half_r;
+        int rid = -1;
+        for (int t = 0; t < (int)runs.size(); ++t)
+            if (runs[t].lo == lo && runs[t].hi == hi) { rid = t; break; }
+        if (rid < 0) { rid = (int)runs.size(); runs.push_back({lo, hi}); }
+        colRun.push_back(rid);
+        colDc.push_back(kj - se.half_c);
+        maxK = std::max(maxK, hi - lo + 1);
+    }
 
-        // V = vertical windowed reduce of src over rows [r+lo, r+hi].
+    ScratchArena arena(mr);
+    ScratchVec<std::uint8_t> V((size_t)H * (size_t)W, &arena);
+    ScratchVec<std::uint8_t> P((size_t)(H + maxK), &arena),
+                             G((size_t)(H + maxK), &arena),
+                             Hh((size_t)(H + maxK), &arena);  // tiny, reused across columns
+
+    for (int rid = 0; rid < (int)runs.size(); ++rid) {
+        const int lo = runs[rid].lo, hi = runs[rid].hi;
+        // Vertical windowed reduce for this run, once, over every column.
         for (int c = 0; c < W; ++c)
-            colWindowReduce<IsErode>(src + (size_t)c * (size_t)H,
-                                     V.data() + (size_t)c * (size_t)H, H, lo, hi, dq.data());
-
-        // Combine into dst, shifted by dc (skip out-of-bounds columns).
-        const int oc0 = std::max(0, -dc), oc1 = std::min(W, W - dc);
-        for (int oc = oc0; oc < oc1; ++oc) {
-            std::uint8_t *dcol = dst + (size_t)oc * (size_t)H;
-            const std::uint8_t *vcol = V.data() + (size_t)(oc + dc) * (size_t)H;
-            if (IsErode)
-                for (int r = 0; r < H; ++r) dcol[r] = std::min(dcol[r], vcol[r]);
-            else
-                for (int r = 0; r < H; ++r) dcol[r] = std::max(dcol[r], vcol[r]);
+            blockVanHerk<IsErode>(src + (size_t)c * (size_t)H,
+                                  V.data() + (size_t)c * (size_t)H, H, lo, hi,
+                                  P.data(), G.data(), Hh.data());
+        // Combine into dst for every SE column that shares this run.
+        for (int ci = 0; ci < (int)colRun.size(); ++ci) {
+            if (colRun[ci] != rid) continue;
+            const int dc = colDc[ci];
+            const int oc0 = std::max(0, -dc), oc1 = std::min(W, W - dc);
+            for (int oc = oc0; oc < oc1; ++oc) {
+                std::uint8_t *dcol = dst + (size_t)oc * (size_t)H;
+                const std::uint8_t *vcol = V.data() + (size_t)(oc + dc) * (size_t)H;
+                if (IsErode)
+                    for (int r = 0; r < H; ++r) dcol[r] = std::min(dcol[r], vcol[r]);
+                else
+                    for (int r = 0; r < H; ++r) dcol[r] = std::max(dcol[r], vcol[r]);
+            }
         }
     }
     return out;
