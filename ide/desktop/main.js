@@ -394,6 +394,44 @@ ipcMain.on('fs:existsSync', (event, root, relPath) => {
   } catch { event.returnValue = false; }
 });
 
+// ── Synchronous BINARY read for the WASM engine ─────────────────
+// Mirror of fs:readFileSync but returns raw bytes (no 'utf8' encoding),
+// for imread / audioread and friends. The renderer hands the bytes to
+// the WASM CallbackFS binary read hook untouched. Same 16 MB cap.
+ipcMain.on('fs:readFileBinarySync', (event, root, relPath) => {
+  try {
+    const full = safePath(root, relPath);
+    const st = fs.statSync(full);
+    if (st.size > SYNC_READ_LIMIT_BYTES) {
+      event.returnValue = { error: `file too large for sync read: ${st.size} bytes` };
+      return;
+    }
+    const buf = fs.readFileSync(full); // Buffer (no encoding → raw bytes)
+    const bytes = new Uint8Array(buf.length);
+    bytes.set(buf);
+    event.returnValue = { bytes };
+  } catch (err) {
+    if (err.code === 'ENOENT' || err.code === 'EISDIR') {
+      event.returnValue = { bytes: null };
+      return;
+    }
+    event.returnValue = { error: err.message || String(err) };
+  }
+});
+
+// Binary write (imwrite / audiowrite). Accepts a Uint8Array; writes raw
+// bytes with no String() coercion (which would corrupt non-UTF-8 data).
+ipcMain.handle('fs:writeFileBinary', async (_e, root, relPath, bytes) => {
+  const full = safePath(root, relPath);
+  await fsp.mkdir(path.dirname(full), { recursive: true });
+  const buf = bytes == null
+    ? Buffer.alloc(0)
+    : Buffer.from(bytes.buffer ? bytes.buffer : bytes,
+                  bytes.byteOffset || 0,
+                  bytes.byteLength != null ? bytes.byteLength : undefined);
+  await fsp.writeFile(full, buf);
+});
+
 ipcMain.handle('fs:writeFile', async (_e, root, relPath, content) => {
   const full = safePath(root, relPath);
   await fsp.mkdir(path.dirname(full), { recursive: true });

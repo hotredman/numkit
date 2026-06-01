@@ -227,15 +227,35 @@ async function loadExamplesTree() {
   }
 }
 
+// Extensions that must be mirrored byte-for-byte (imread / audioread /
+// load read these through the binary VFS hook; a text round-trip would
+// corrupt any byte ≥ 0x80).
+const BINARY_EXAMPLE_EXT = /\.(png|jpe?g|gif|bmp|tga|tiff?|webp|psd|hdr|pic|pgm|ppm|pnm|wav|mp3|m4a|ogg|flac|mat)$/i;
+
+// Fetch one example file and mirror it into the adapter at `vfsPath`,
+// picking the binary or text channel by extension. Returns the text
+// content for text files, or null for binary files.
+async function mirrorExampleFile(adapter, fetchPath, vfsPath) {
+  const r = await fetch(fetchPath);
+  if (!r.ok) throw new Error('fetch failed');
+  if (BINARY_EXAMPLE_EXT.test(vfsPath) && typeof adapter.writeFileBytes === 'function') {
+    const buf = await r.arrayBuffer();
+    adapter.writeFileBytes(vfsPath, new Uint8Array(buf));
+    return null;
+  }
+  const text = await r.text();
+  adapter.writeFile(vfsPath, text);
+  return text;
+}
+
 async function openExample(node, tree, vfsAdapters) {
   if (node.type !== 'file' || !node._fetchPath) return null;
-  const res = await fetch(node._fetchPath);
-  if (!res.ok) throw new Error('fetch failed');
-  const content = await res.text();
+  const isBinary = BINARY_EXAMPLE_EXT.test(node.name || node.path);
 
   // Mirror folder into tempFS at /Examples/<Folder>/<file> so sibling
   // .m lookup works for multi-file examples.
   let vfsPath = null;
+  let content = null;
   const m = node.path.match(/^\/examples\/([^/]+)\/(.+)$/);
   if (m && vfsAdapters?.temp) {
     const [, folder, fname] = m;
@@ -245,15 +265,18 @@ async function openExample(node, tree, vfsAdapters) {
       const sibVfsPath = `/Examples/${folder}/${sib.name}`;
       if (sib.name === fname) return;
       if (vfsAdapters.temp.exists(sibVfsPath)) return;
-      try {
-        const sr = await fetch(sib._fetchPath);
-        if (sr.ok) vfsAdapters.temp.writeFile(sibVfsPath, await sr.text());
-      } catch { /* per-file fetch failure tolerated */ }
+      try { await mirrorExampleFile(vfsAdapters.temp, sib._fetchPath, sibVfsPath); }
+      catch { /* per-file fetch failure tolerated */ }
     }));
     vfsPath = `/Examples/${folder}/${fname}`;
-    vfsAdapters.temp.writeFile(vfsPath, content);
+    content = await mirrorExampleFile(vfsAdapters.temp, node._fetchPath, vfsPath);
+  } else {
+    // Not under /examples/<folder>/ — just fetch the content for display.
+    const res = await fetch(node._fetchPath);
+    if (!res.ok) throw new Error('fetch failed');
+    content = isBinary ? null : await res.text();
   }
-  return { content, vfsPath };
+  return { content, vfsPath, isBinary };
 }
 
 /* ─────────────── GitHub backend ─────────────── */
@@ -591,7 +614,9 @@ export default function Sidebar({
     if (isExamples) {
       try {
         const r = await openExample(node, tree, vfsAdapters);
-        if (r) onOpenFile?.(node.name, r.content, r.vfsPath, 'examples');
+        // Binary examples (images/audio) are mirrored into tempFS for
+        // imread/audioread but aren't text — don't load them in the editor.
+        if (r && !r.isBinary) onOpenFile?.(node.name, r.content, r.vfsPath, 'examples');
       } catch (e) { console.error('[Sidebar] openExample', e); }
       return;
     }

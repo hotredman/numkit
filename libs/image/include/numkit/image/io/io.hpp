@@ -11,10 +11,12 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace numkit::image {
 
@@ -103,6 +105,14 @@ Value readTiff(const std::string &path,
 /// `imread(file, k)` semantics.
 Value readTiff(const std::string &path, std::uint32_t page,
                std::pmr::memory_resource *mr = nullptr);
+
+/// Buffer overloads — decode TIFF from already-loaded bytes (the IDE feeds
+/// these from the VFS so reads work on the virtual + real filesystem).
+Value readTiff(std::vector<std::uint8_t> buf, std::uint32_t page,
+               std::pmr::memory_resource *mr = nullptr);
+std::pair<Value, Value>
+readTiffWithMap(std::vector<std::uint8_t> buf, std::uint32_t page,
+                std::pmr::memory_resource *mr = nullptr);
 
 /// Two-output read for palette TIFFs: returns `(indices, colormap)`.
 /// `indices` is the same as `readTiff` (uint8 / uint16). `colormap` is

@@ -41,6 +41,31 @@ const FALLBACK_SEED_EXTENSIONS = /\.(m|mlx|txt|csv|tsv|json|yaml|yml|toml|ini|cf
 const FALLBACK_FILE_LIMIT_BYTES  = 1 * 1024 * 1024;
 const FALLBACK_TOTAL_LIMIT_BYTES = 8 * 1024 * 1024;
 
+// Normalise any cached/backend value to raw bytes (Uint8Array). The WASM
+// binary read hook (CallbackFS readFileBytes) requires a Uint8Array.
+function toU8(v) {
+  if (v instanceof Uint8Array) return v;
+  if (v instanceof ArrayBuffer) return new Uint8Array(v);
+  if (ArrayBuffer.isView(v)) return new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  // string → byte array (Latin1: one byte per code unit). Lossless for text
+  // that came from our own readFile; for a backend that returned a UTF-8
+  // string for a genuinely-binary file the bytes were already lost upstream,
+  // which is exactly why binary backends must expose readFileBytesSync.
+  const s = String(v);
+  const u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i) & 0xff;
+  return u;
+}
+
+// Normalise any cached/backend value to a text string for the text read hook.
+function asText(v) {
+  if (typeof v === 'string') return v;
+  if (v instanceof Uint8Array) return new TextDecoder().decode(v);
+  if (v instanceof ArrayBuffer) return new TextDecoder().decode(new Uint8Array(v));
+  if (ArrayBuffer.isView(v)) return new TextDecoder().decode(new Uint8Array(v.buffer, v.byteOffset, v.byteLength));
+  return String(v);
+}
+
 function makeSyncAdapter({ backend, name }) {
   const cache = new Map();      // path → content (writes-before-flush)
   const dirty = new Set();      // paths pending async persist
@@ -59,8 +84,17 @@ function makeSyncAdapter({ backend, name }) {
       dirty.delete(path);
       const content = cache.get(path);
       try {
-        if (content === undefined) await backend.remove(path);
-        else                       await backend.writeFile(path, content);
+        if (content === undefined) {
+          await backend.remove(path);
+        } else if (content instanceof Uint8Array
+                   && typeof backend.writeFileBytes === 'function') {
+          // Binary content + a binary-capable backend → persist raw bytes.
+          // (tempFS direct-IDB has no writeFileBytes but stores the
+          //  Uint8Array losslessly through writeFile, so it falls through.)
+          await backend.writeFileBytes(path, content);
+        } else {
+          await backend.writeFile(path, content);
+        }
       } catch (e) {
         console.warn(`[vfs-adapter:${name}] persist failed for ${path}:`, e);
       }
@@ -143,16 +177,38 @@ function makeSyncAdapter({ backend, name }) {
     // ── Sync hooks wired into the WASM engine via CallbackFS ──
     readFile(path) {
       // Cache hit covers writes-before-flush AND fallback-seeded entries.
-      if (cache.has(path)) return cache.get(path);
+      if (cache.has(path)) return asText(cache.get(path));
       if (sync) {
         const v = backend.readFileSync(path);
         if (v == null) throw new Error(`${name}: no such file '${path}'`);
-        return v;
+        return asText(v);
       }
       throw new Error(`${name}: no such file '${path}'`);
     },
+    // Binary read — returns a Uint8Array (imread/audioread/etc.). Prefers a
+    // dedicated binary sync path on the backend; otherwise normalises
+    // whatever readFileSync returns to bytes.
+    readFileBytes(path) {
+      let v;
+      if (cache.has(path)) {
+        v = cache.get(path);
+      } else if (sync) {
+        v = typeof backend.readFileBytesSync === 'function'
+          ? backend.readFileBytesSync(path)
+          : backend.readFileSync(path);
+      }
+      if (v == null) throw new Error(`${name}: no such file '${path}'`);
+      return toU8(v);
+    },
     writeFile(path, content) {
       cache.set(path, content);
+      schedulePersist(path);
+    },
+    // Binary write — stores raw bytes (Uint8Array) so the round-trip is
+    // lossless; persistence keeps the Uint8Array as-is (IndexedDB stores it
+    // natively; the Local backend writes it as a binary file).
+    writeFileBytes(path, bytes) {
+      cache.set(path, toU8(bytes));
       schedulePersist(path);
     },
     exists(path) {

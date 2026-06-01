@@ -114,11 +114,24 @@ function makeNativeBackend() {
             if (res?.error) throw new Error(res.error);
             return res?.content ?? null;
         },
+        // Binary sync read — raw bytes (Uint8Array) for imread/audioread.
+        // Returns null for a missing file so the adapter can throw a clean
+        // "no such file"; throws on a real backend error.
+        readFileBytesSync(p) {
+            if (!rootPath || typeof api.readFileBytesSync !== 'function') {
+                throw new Error('local: not mounted or binary sync read unavailable');
+            }
+            const res = api.readFileBytesSync(rootPath, p);
+            if (res?.error) throw new Error(res.error);
+            return res?.bytes ?? null;
+        },
         existsSync(p) {
             if (!rootPath || typeof api.existsSync !== 'function') return false;
             return api.existsSync(rootPath, p);
         },
         async writeFile(p, content)      { return api.writeFile(rootPath, p, content); },
+        // Binary write — raw bytes (imwrite/audiowrite).
+        async writeFileBytes(p, bytes)   { return api.writeFileBytes(rootPath, p, bytes); },
         async mkdir(p)                   { return api.mkdir(rootPath, p); },
         async exists(p)                  { return rootPath ? api.exists(rootPath, p) : false; },
         async remove(p)                  { return api.remove(rootPath, p); },
