@@ -151,6 +151,53 @@ describe('vfs-adapter (temporary)', () => {
     expect(writeOps[writeOps.length - 1][2]).toBe('v3');
   });
 
+  it('writeFileBytes / readFileBytes round-trip raw bytes losslessly', async () => {
+    const engine = fakeEngine();
+    await installVfsAdapters(engine);
+    const handler = engine.getFs('temporary');
+
+    // Bytes that a UTF-8 text round-trip would mangle: 0x00, 0x80, 0xFF,
+    // and a lone high byte. This is exactly the imread corruption case.
+    const bytes = new Uint8Array([0x00, 0x7f, 0x80, 0xff, 0x89, 0x50, 0x4e, 0x47]);
+    handler.writeFileBytes('/img.png', bytes);
+
+    const out = handler.readFileBytes('/img.png');
+    expect(out).toBeInstanceOf(Uint8Array);
+    expect(Array.from(out)).toEqual(Array.from(bytes));
+  });
+
+  it('binary content persists to the backend as bytes (not String-coerced)', async () => {
+    const engine = fakeEngine();
+    const { temp } = await installVfsAdapters(engine);
+    const handler = engine.getFs('temporary');
+
+    const bytes = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    handler.writeFileBytes('/blob.bin', bytes);
+    await temp.flush();
+
+    const stored = tempFS._files.get('/blob.bin');
+    expect(stored).toBeInstanceOf(Uint8Array);
+    expect(Array.from(stored)).toEqual([0xde, 0xad, 0xbe, 0xef]);
+  });
+
+  it('uses backend.writeFileBytes when the backend exposes a binary write', async () => {
+    const engine = fakeEngine();
+    const { temp } = await installVfsAdapters(engine);
+    const handler = engine.getFs('temporary');
+
+    const calls = [];
+    tempFS.writeFileBytes = async (path, b) => { calls.push([path, b]); tempFS._files.set(path, b); };
+    try {
+      handler.writeFileBytes('/native.png', new Uint8Array([1, 2, 3]));
+      await temp.flush();
+      expect(calls).toHaveLength(1);
+      expect(calls[0][0]).toBe('/native.png');
+      expect(Array.from(calls[0][1])).toEqual([1, 2, 3]);
+    } finally {
+      delete tempFS.writeFileBytes;
+    }
+  });
+
   it('does not register the local adapter when Local Folder is not mounted', async () => {
     const engine = fakeEngine();
     const { local } = await installVfsAdapters(engine);

@@ -20,6 +20,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -59,18 +61,37 @@ static bool isTiffFile(const std::string &path) {
     return false;
 }
 
-Value imread(const std::string &path, std::pmr::memory_resource *mr)
+// Sniff TIFF magic directly from an in-memory buffer (no fopen).
+static bool isTiffBytes(const std::string &b)
+{
+    if (b.size() < 4) return false;
+    const auto *h = reinterpret_cast<const unsigned char *>(b.data());
+    if (h[0] == 'I' && h[1] == 'I' && h[3] == 0x00 && (h[2] == 0x2A || h[2] == 0x2B))
+        return true;
+    if (h[0] == 'M' && h[1] == 'M' && h[2] == 0x00 && (h[3] == 0x2A || h[3] == 0x2B))
+        return true;
+    return false;
+}
+
+// Decode an image from in-memory bytes. This is the single place pixels
+// are produced; both the native path entry (imread) and the engine entry
+// (imread_reg, which reads via the VFS) funnel through here so reads work
+// on the virtual AND real filesystem — never a direct fopen.
+static Value imreadFromBytes(const std::string &bytes, std::pmr::memory_resource *mr)
 {
     // TIFF route — stb_image doesn't decode TIFF, so dispatch to our
-    // minimal in-tree reader first.
-    if (isTiffFile(path)) return readTiff(path, mr);
+    // minimal in-tree reader (buffer overload).
+    if (isTiffBytes(bytes))
+        return readTiff(std::vector<std::uint8_t>(bytes.begin(), bytes.end()), 1u, mr);
 
     int W = 0, H = 0, channelsInFile = 0;
     // 0 = take whatever channel count the file has (1, 3, or 4).
-    unsigned char *pixels = stbi_load(path.c_str(), &W, &H, &channelsInFile, 0);
+    unsigned char *pixels = stbi_load_from_memory(
+        reinterpret_cast<const stbi_uc *>(bytes.data()),
+        static_cast<int>(bytes.size()), &W, &H, &channelsInFile, 0);
     if (!pixels) {
         const char *err = stbi_failure_reason();
-        throw Error(std::string("imread: failed to load '") + path + "'" +
+        throw Error(std::string("imread: failed to decode image") +
                     (err ? std::string(" — ") + err : std::string()),
                     0, 0, "imread", "", "numkit:imread:load");
     }
@@ -121,6 +142,20 @@ Value imread(const std::string &path, std::pmr::memory_resource *mr)
 
     stbi_image_free(pixels);
     return out;
+}
+
+// Public/native entry: read the whole file (real FS) then decode from the
+// bytes. The engine entry (detail::imread_reg) instead reads via the VFS
+// so it works on the IDE's virtual filesystem too.
+Value imread(const std::string &path, std::pmr::memory_resource *mr)
+{
+    std::ifstream f(path, std::ios::binary);
+    if (!f)
+        throw Error("imread: failed to load '" + path + "' — can't open",
+                    0, 0, "imread", "", "numkit:imread:load");
+    std::string bytes((std::istreambuf_iterator<char>(f)),
+                      std::istreambuf_iterator<char>());
+    return imreadFromBytes(bytes, mr);
 }
 
 void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource * /*mr*/)
@@ -325,33 +360,43 @@ void imread_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                     0, 0, "imread", "", "numkit:imread:type");
     const std::string path = args[0].toString();
 
+    // Read the file through the engine's VFS prosloyka — the WASM engine
+    // has no direct file access; the bytes come from the IDE's virtual or
+    // real filesystem (resolvePath picks the backend, incl. the script's
+    // own directory). Never fopen here.
+    auto rp = ctx.engine->resolvePath(path);
+    if (!rp.fs || !rp.fs->exists(rp.path))
+        throw Error("imread: failed to load '" + path + "' — file not found",
+                    0, 0, "imread", "", "numkit:imread:load");
+    // Binary-safe read (an image is raw bytes, not UTF-8 text).
+    const std::string bytes = rp.fs->readFileBytes(rp.path);
+    const bool tiff = isTiffBytes(bytes);
+
     // Optional 2nd numeric arg = page index (TIFF multi-page).
     std::uint32_t page = 1;
-    bool pageGiven = false;
     if (args.size() >= 2 && !args[1].isEmpty()
         && !args[1].isChar() && !args[1].isString()) {
         page = static_cast<std::uint32_t>(args[1].toScalar());
-        pageGiven = true;
-        if (!isTiffFile(path))
+        if (!tiff)
             throw Error("imread: page index only supported for TIFF files",
                         0, 0, "imread", "", "numkit:imread:notTiff");
     }
 
-    // Two-output form `[A, map] = imread(file)` — supported for TIFF
-    // palette files. For other formats and for one-output reads we keep
-    // the existing single-Value path.
-    if (nargout >= 2 && isTiffFile(path)) {
-        auto pair = readTiffWithMap(path, page, ctx.engine->resource());
-        outs[0] = std::move(pair.first);
-        outs[1] = std::move(pair.second);
+    if (tiff) {
+        std::vector<std::uint8_t> buf(bytes.begin(), bytes.end());
+        // Two-output form `[A, map] = imread(file)` — palette TIFFs.
+        if (nargout >= 2) {
+            auto pair = readTiffWithMap(std::move(buf), page, ctx.engine->resource());
+            outs[0] = std::move(pair.first);
+            outs[1] = std::move(pair.second);
+        } else {
+            outs[0] = readTiff(std::move(buf), page, ctx.engine->resource());
+        }
         return;
     }
 
-    if (pageGiven) {
-        outs[0] = readTiff(path, page, ctx.engine->resource());
-        return;
-    }
-    outs[0] = imread(path, ctx.engine->resource());
+    // stb-decodable formats (jpg/png/bmp/gif/tga/psd/hdr/pnm).
+    outs[0] = imreadFromBytes(bytes, ctx.engine->resource());
 }
 
 void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*/,

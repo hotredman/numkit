@@ -29,8 +29,12 @@ contextBridge.exposeInMainWorld('nativeFS', {
     // to avoid this round-trip (proven OOM on large folders), but
     // sync IPC is the right answer — no proactive memory cost.
     readFileSync: (root, path)         => ipcRenderer.sendSync('fs:readFileSync', root, path),
+    // Synchronous BINARY read — raw bytes (Uint8Array) for imread/audioread.
+    readFileBytesSync: (root, path)    => ipcRenderer.sendSync('fs:readFileBinarySync', root, path),
     existsSync:   (root, path)         => ipcRenderer.sendSync('fs:existsSync', root, path),
     writeFile: (root, path, content)   => ipcRenderer.invoke('fs:writeFile', root, path, content),
+    // Binary write — raw bytes (imwrite/audiowrite).
+    writeFileBytes: (root, path, bytes)=> ipcRenderer.invoke('fs:writeFileBinary', root, path, bytes),
     mkdir:     (root, path)            => ipcRenderer.invoke('fs:mkdir', root, path),
     remove:    (root, path)            => ipcRenderer.invoke('fs:remove', root, path),
     rename:    (root, oldPath, newPath)=> ipcRenderer.invoke('fs:rename', root, oldPath, newPath),

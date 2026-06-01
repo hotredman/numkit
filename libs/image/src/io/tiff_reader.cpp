@@ -864,7 +864,16 @@ Value readTiff(const std::string &path, std::pmr::memory_resource *mr)
 Value readTiff(const std::string &path, std::uint32_t page,
                std::pmr::memory_resource *mr)
 {
-    auto buf = loadBytes(path, "imread");
+    // Path entry: load the bytes (real FS), then decode from the buffer.
+    return readTiff(loadBytes(path, "imread"), page, mr);
+}
+
+// Buffer entry — decode TIFF from already-loaded bytes. The IDE feeds
+// these from the VFS (imread_reg) so reads work on the virtual + real FS;
+// the path overload above is for native callers / tests.
+Value readTiff(std::vector<std::uint8_t> buf, std::uint32_t page,
+               std::pmr::memory_resource *mr)
+{
     auto br = openTiff(buf, "imread");
     const std::uint64_t ifdOff = locateIFDForPage(br, buf.size(), page, "imread");
 
@@ -899,7 +908,13 @@ std::pair<Value, Value>
 readTiffWithMap(const std::string &path, std::uint32_t page,
                 std::pmr::memory_resource *mr)
 {
-    auto buf = loadBytes(path, "imread");
+    return readTiffWithMap(loadBytes(path, "imread"), page, mr);
+}
+
+std::pair<Value, Value>
+readTiffWithMap(std::vector<std::uint8_t> buf, std::uint32_t page,
+                std::pmr::memory_resource *mr)
+{
     auto br  = openTiff(buf, "imread");
     const std::uint64_t ifdOff = locateIFDForPage(br, buf.size(), page, "imread");
 

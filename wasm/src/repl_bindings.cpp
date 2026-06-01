@@ -980,8 +980,30 @@ private:
         auto existsFn = [handler](const std::string &p) -> bool {
             return handler.call<bool>("exists", p);
         };
-        engine_->registerVirtualFS(
-            std::make_unique<numkit::CallbackFS>(name, readFn, writeFn, existsFn));
+        // Binary-safe read: JS returns a Uint8Array; copy its bytes
+        // straight into the std::string's buffer — no std::string/UTF-8
+        // round-trip (which would mangle bytes ≥ 0x80). Falls back to the
+        // text readFile if the handler predates the binary hook.
+        auto readBytesFn = [handler](const std::string &p) -> std::string {
+            if (handler["readFileBytes"].isUndefined() || handler["readFileBytes"].isNull())
+                return handler.call<std::string>("readFile", p);
+            emscripten::val arr = handler.call<emscripten::val>("readFileBytes", p);
+            const std::size_t len = arr["length"].as<std::size_t>();
+            std::string out(len, '\0');
+            if (len) {
+                // Wrap the std::string buffer as a JS Uint8Array view over the
+                // WASM heap, then copy the source array into it. Using
+                // typed_memory_view avoids depending on Module.HEAPU8 being
+                // exported (it isn't, in this build).
+                emscripten::val view = emscripten::val(emscripten::typed_memory_view(
+                    len, reinterpret_cast<unsigned char *>(out.data())));
+                view.call<void>("set", arr);
+            }
+            return out;
+        };
+        auto cfs = std::make_unique<numkit::CallbackFS>(name, readFn, writeFn, existsFn);
+        cfs->setReadBytes(readBytesFn);
+        engine_->registerVirtualFS(std::move(cfs));
     }
 
     std::string buildDebugResult(numkit::ExecStatus status) {

@@ -64,6 +64,14 @@ public:
     virtual void writeFile(const std::string &path, const std::string &content) = 0;
     virtual bool exists(const std::string &path) = 0;
 
+    // Binary-safe read — returns the raw file bytes with no text/UTF-8
+    // reinterpretation (the std::string is just a byte container). Needed
+    // by imread/audioread/etc. The default delegates to readFile, which is
+    // byte-accurate for native (ifstream) backends; the IDE's CallbackFS
+    // overrides it with a real binary channel (the text readFile path
+    // would UTF-8-mangle bytes ≥ 0x80 crossing JS↔WASM).
+    virtual std::string readFileBytes(const std::string &path) { return readFile(path); }
+
     virtual std::string name() const = 0;
 
     // ── Phase 8 extension — directory ops + introspection ───────────
@@ -142,6 +150,7 @@ public:
     using ReadFunc = std::function<std::string(const std::string &)>;
     using WriteFunc = std::function<void(const std::string &, const std::string &)>;
     using ExistsFunc = std::function<bool(const std::string &)>;
+    using ReadBytesFunc = std::function<std::string(const std::string &)>;
 
     // Phase 8 hooks. All optional — methods fall back to the
     // VirtualFS-level defaults (throw or empty) when not supplied.
@@ -171,6 +180,15 @@ public:
     }
     bool exists(const std::string &path) override { return exists_ ? exists_(path) : false; }
     std::string name() const override { return name_; }
+
+    // Binary read hook — opt-in; falls back to the text readFile when not
+    // installed (so existing callers keep working).
+    void setReadBytes(ReadBytesFunc f) { readBytes_ = std::move(f); }
+    std::string readFileBytes(const std::string &path) override
+    {
+        if (readBytes_) return readBytes_(path);
+        return readFile(path);
+    }
 
     // Phase 8 — opt-in setters; absent hook → fall through to default behaviour.
     void setListDir(ListDirFunc f) { listDir_ = std::move(f); }
@@ -220,6 +238,7 @@ private:
     ReadFunc read_;
     WriteFunc write_;
     ExistsFunc exists_;
+    ReadBytesFunc readBytes_;
     ListDirFunc listDir_;
     StatFunc stat_;
     MkdirFunc mkdir_;
