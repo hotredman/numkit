@@ -358,15 +358,117 @@ Value morph_flat_u8(const Value &I, const SEInfo &se, std::pmr::memory_resource 
     return out;
 }
 
+// 1-D windowed reduce (max for dilate, min for erode) along one contiguous
+// column via a monotonic deque: out[r] = reduce over in[r+lo .. r+hi] ∩ [0,n).
+// O(1) amortised per pixel regardless of window length. `lo <= 0 <= hi`
+// (marked-centre SE) guarantees the window always contains r, so it is never
+// empty; OOB indices are simply never pushed (= "skip OOB", matching
+// morph_flat_u8 / morph_op). `dq` is caller scratch of length ≥ n.
+template <bool IsErode>
+inline void colWindowReduce(const std::uint8_t *in, std::uint8_t *out, int n,
+                            int lo, int hi, int *dq)
+{
+    auto worseEq = [](std::uint8_t cand, std::uint8_t incoming) {
+        // pop existing 'cand' when it can never beat 'incoming' again.
+        return IsErode ? (cand >= incoming) : (cand <= incoming);
+    };
+    int head = 0, tail = 0;
+    auto push = [&](int j) {
+        if (j < 0 || j >= n) return;
+        const std::uint8_t v = in[j];
+        while (tail > head && worseEq(in[dq[tail - 1]], v)) --tail;
+        dq[tail++] = j;
+    };
+    // Preload the window for r = 0: indices [0, min(hi, n-1)] (lo ≤ 0).
+    for (int j = 0; j <= hi && j < n; ++j) push(j);
+    for (int r = 0; r < n; ++r) {
+        if (r > 0) push(r + hi);            // new index entering on the right
+        const int left = r + lo;
+        while (tail > head && dq[head] < left) ++head;  // drop indices left of window
+        out[r] = in[dq[head]];
+    }
+}
+
+// Returns true if `se` is usable by the van Herk path: centre marked, and
+// every column's marked rows form a single contiguous run (true for disk,
+// square, rectangle, diamond, octagon, line — anything convex per column).
+inline bool vanHerkEligible(const SEInfo &se)
+{
+    if (se.half_r < 0 || se.half_c < 0) return false;
+    if (!se.mask[(size_t)se.half_r * (size_t)se.W + (size_t)se.half_c]) return false;
+    for (int kj = 0; kj < se.W; ++kj) {
+        int lo = -1, hi = -1;
+        for (int ki = 0; ki < se.H; ++ki)
+            if (se.mask[(size_t)ki * (size_t)se.W + (size_t)kj]) { if (lo < 0) lo = ki; hi = ki; }
+        for (int ki = lo; ki >= 0 && ki <= hi; ++ki)
+            if (!se.mask[(size_t)ki * (size_t)se.W + (size_t)kj]) return false;  // gap
+    }
+    return true;
+}
+
+// van Herk morphology for a flat, marked-centre, per-column-contiguous SE on
+// byte input: decompose the SE into its columns, take a vertical windowed
+// reduce per column (O(1)/px via colWindowReduce), then a horizontal combine
+// across SE columns (auto-vectorised). Cost ∝ SE width (diameter), not SE
+// area — so it pulls ahead of morph_flat_u8 as the SE grows. Byte-identical
+// to morph_flat_u8 (same marked-pixel set, same skip-OOB convention).
+template <bool IsErode>
+Value morph_vanherk_u8(const Value &I, const SEInfo &se, std::pmr::memory_resource *mr)
+{
+    const int H = (int)I.dims().rows();
+    const int W = (int)I.dims().cols();
+    Value out = Value::matrix(H, W, I.type(), mr);
+    if (H == 0 || W == 0) return out;
+    const std::uint8_t *src = I.isLogical() ? I.logicalData() : I.uint8Data();
+    std::uint8_t *dst = out.isLogical() ? out.logicalDataMut() : out.uint8DataMut();
+    const std::uint8_t INIT = IsErode ? std::uint8_t(255) : std::uint8_t(0);
+    std::fill(dst, dst + (size_t)H * (size_t)W, INIT);
+
+    ScratchArena arena(mr);
+    ScratchVec<std::uint8_t> V((size_t)H * (size_t)W, &arena);
+    ScratchVec<int> dq((size_t)H, &arena);
+
+    for (int kj = 0; kj < se.W; ++kj) {
+        int kiLo = -1, kiHi = -1;
+        for (int ki = 0; ki < se.H; ++ki)
+            if (se.mask[(size_t)ki * (size_t)se.W + (size_t)kj]) { if (kiLo < 0) kiLo = ki; kiHi = ki; }
+        if (kiLo < 0) continue;                         // empty SE column
+        const int lo = kiLo - se.half_r, hi = kiHi - se.half_r;  // dr range
+        const int dc = kj - se.half_c;
+
+        // V = vertical windowed reduce of src over rows [r+lo, r+hi].
+        for (int c = 0; c < W; ++c)
+            colWindowReduce<IsErode>(src + (size_t)c * (size_t)H,
+                                     V.data() + (size_t)c * (size_t)H, H, lo, hi, dq.data());
+
+        // Combine into dst, shifted by dc (skip out-of-bounds columns).
+        const int oc0 = std::max(0, -dc), oc1 = std::min(W, W - dc);
+        for (int oc = oc0; oc < oc1; ++oc) {
+            std::uint8_t *dcol = dst + (size_t)oc * (size_t)H;
+            const std::uint8_t *vcol = V.data() + (size_t)(oc + dc) * (size_t)H;
+            if (IsErode)
+                for (int r = 0; r < H; ++r) dcol[r] = std::min(dcol[r], vcol[r]);
+            else
+                for (int r = 0; r < H; ++r) dcol[r] = std::max(dcol[r], vcol[r]);
+        }
+    }
+    return out;
+}
+
 template <bool IsErode>
 Value morph_op(const Value &I, const Value &SE, std::pmr::memory_resource *mr)
 {
     auto se = unpack_se(SE);
-    // Byte-backed flat-SE fast path (LOGICAL / UINT8) — auto-vectorised.
-    // Other types (double/single/uint16/int16, incl. ±Inf grayscale) keep
-    // the generic reduction below.
-    if (I.type() == ValueType::LOGICAL || I.type() == ValueType::UINT8)
+    // Byte-backed flat-SE fast paths (LOGICAL / UINT8). van Herk (O(SE width))
+    // for marked-centre per-column-contiguous SEs (disk/square/rect/diamond),
+    // else the auto-vectorised O(SE area) reduction. Other types
+    // (double/single/uint16/int16, incl. ±Inf grayscale) keep the generic
+    // reduction below.
+    if (I.type() == ValueType::LOGICAL || I.type() == ValueType::UINT8) {
+        if (vanHerkEligible(se))
+            return morph_vanherk_u8<IsErode>(I, se, mr);
         return morph_flat_u8<IsErode>(I, se, mr);
+    }
     const int H = (int)I.dims().rows();
     const int W = (int)I.dims().cols();
     Value out = Value::matrix(H, W, I.type(), mr);
