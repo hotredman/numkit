@@ -10,9 +10,12 @@
 #include <numkit/image/type_convert/type_convert.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -445,12 +448,140 @@ double auto_threshold(const Value &G, double frac) {
     return frac * mx;
 }
 
+// Proper Canny edge detector: Gaussian smoothing → Sobel gradient →
+// non-maximum suppression (thins ridges to 1 px) → double-threshold
+// hysteresis. `userHigh` is the MATLAB-style HIGH threshold as a fraction
+// of the peak gradient magnitude (low = 0.4·high); NaN → an auto fraction.
+Value canny_edge(const Value &Iin, double userHigh, std::pmr::memory_resource *mr)
+{
+    const int H = static_cast<int>(Iin.dims().rows());
+    const int W = static_cast<int>(Iin.dims().cols());
+    const size_t N = static_cast<size_t>(H) * static_cast<size_t>(W);
+
+    Value out = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    uint8_t *od = out.logicalDataMut();
+    std::fill(od, od + N, uint8_t{0});
+    if (N == 0) return out;
+
+    // 1–2. Derivative-of-Gaussian gradient (MATLAB Canny approach, σ = √2):
+    // smooth along one axis with a Gaussian g and differentiate along the
+    // other with its derivative dg. Separable, so two 1-D passes per axis.
+    // This avoids the extra smoothing that a Gaussian-blur-then-Sobel chain
+    // would add (which weakens weak edges below threshold).
+    const double sigma = std::sqrt(2.0);
+    const int hw = std::max(1, static_cast<int>(std::ceil(3.0 * sigma)));
+    const int L = 2 * hw + 1;
+    std::vector<double> g(L), dg(L);
+    double gsum = 0.0;
+    for (int i = 0; i < L; ++i) {
+        const double x = i - hw;
+        g[i] = std::exp(-(x * x) / (2.0 * sigma * sigma));
+        gsum += g[i];
+    }
+    for (int i = 0; i < L; ++i) g[i] /= gsum;
+    for (int i = 0; i < L; ++i) {
+        const double x = i - hw;
+        dg[i] = -x * std::exp(-(x * x) / (2.0 * sigma * sigma));  // scale irrelevant (relative threshold)
+    }
+    Value gRow  = make_kernel(g,  1, L, mr);
+    Value gCol  = make_kernel(g,  L, 1, mr);
+    Value dgRow = make_kernel(dg, 1, L, mr);
+    Value dgCol = make_kernel(dg, L, 1, mr);
+    Value GxV = apply_kernel(apply_kernel(Iin, gCol, mr), dgRow, mr);
+    Value GyV = apply_kernel(apply_kernel(Iin, gRow, mr), dgCol, mr);
+
+    ScratchArena arena(mr);
+    ScratchVec<double> Gx(N, &arena), Gy(N, &arena), mag(N, &arena);
+    double maxMag = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double a = GxV.elemAsDouble(i), b = GyV.elemAsDouble(i);
+        Gx[i] = a; Gy[i] = b;
+        const double m = std::sqrt(a * a + b * b);
+        mag[i] = m;
+        if (m > maxMag) maxMag = m;
+    }
+    if (maxMag <= 0.0) return out;
+
+    auto at = [&](int r, int c) -> double {
+        return mag[static_cast<size_t>(c) * static_cast<size_t>(H) + static_cast<size_t>(r)];
+    };
+
+    // 3. Non-maximum suppression with sub-pixel interpolation along the
+    // gradient direction (as MATLAB does). Interpolating the magnitude
+    // between the two straddling neighbours yields better-connected 1-px
+    // ridges than 4-way quantisation, which matters for closed-contour use
+    // (imfill). Border pixels can't be interpolated → left as non-edges.
+    ScratchVec<double> nms(N, &arena);
+    std::fill(nms.begin(), nms.end(), 0.0);
+    for (int c = 1; c < W - 1; ++c)
+        for (int r = 1; r < H - 1; ++r) {
+            const size_t i = static_cast<size_t>(c) * static_cast<size_t>(H) + static_cast<size_t>(r);
+            const double m = mag[i];
+            if (m <= 0.0) continue;
+            const double gx = Gx[i], gy = Gy[i];
+            const double agx = std::fabs(gx), agy = std::fabs(gy);
+            double mf, mb, w;
+            if (agx >= agy) {                        // gradient more horizontal
+                w = (agx > 0.0) ? agy / agx : 0.0;
+                if (gx * gy >= 0.0) {                // ↘ / ↖
+                    mf = (1.0 - w) * at(r, c + 1) + w * at(r + 1, c + 1);
+                    mb = (1.0 - w) * at(r, c - 1) + w * at(r - 1, c - 1);
+                } else {                             // ↗ / ↙
+                    mf = (1.0 - w) * at(r, c + 1) + w * at(r - 1, c + 1);
+                    mb = (1.0 - w) * at(r, c - 1) + w * at(r + 1, c - 1);
+                }
+            } else {                                 // gradient more vertical
+                w = (agy > 0.0) ? agx / agy : 0.0;
+                if (gx * gy >= 0.0) {
+                    mf = (1.0 - w) * at(r + 1, c) + w * at(r + 1, c + 1);
+                    mb = (1.0 - w) * at(r - 1, c) + w * at(r - 1, c - 1);
+                } else {
+                    mf = (1.0 - w) * at(r + 1, c) + w * at(r + 1, c - 1);
+                    mb = (1.0 - w) * at(r - 1, c) + w * at(r - 1, c + 1);
+                }
+            }
+            if (m >= mf && m >= mb) nms[i] = m;
+        }
+
+    // 4. Thresholds, relative to the peak gradient magnitude.
+    const double highFrac = (std::isnan(userHigh) || userHigh <= 0.0) ? 0.2 : userHigh;
+    const double highT = highFrac * maxMag;
+    const double lowT  = 0.4 * highT;
+
+    // 5. Hysteresis: strong pixels (≥ highT) seed a flood that keeps any
+    // weak pixel (≥ lowT) reachable through 8-connectivity.
+    ScratchVec<size_t> stack(0, &arena);
+    stack.reserve(N / 8 + 1);
+    for (size_t i = 0; i < N; ++i)
+        if (nms[i] >= highT) { od[i] = 1; stack.push_back(i); }
+    static constexpr int dr8[8] = { -1, -1, -1, 0, 0, 1, 1, 1 };
+    static constexpr int dc8[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+    while (!stack.empty()) {
+        const size_t p = stack.back(); stack.pop_back();
+        const int r = static_cast<int>(p % static_cast<size_t>(H));
+        const int c = static_cast<int>(p / static_cast<size_t>(H));
+        for (int k = 0; k < 8; ++k) {
+            const int nr = r + dr8[k], nc = c + dc8[k];
+            if (nr < 0 || nr >= H || nc < 0 || nc >= W) continue;
+            const size_t q = static_cast<size_t>(nc) * static_cast<size_t>(H) + static_cast<size_t>(nr);
+            if (!od[q] && nms[q] >= lowT) { od[q] = 1; stack.push_back(q); }
+        }
+    }
+    return out;
+}
+
 } // anonymous
 
-Value edge(const Value &I, const std::string &method, double thresh_lo, double /*thresh_hi*/, std::pmr::memory_resource *mr)
+Value edge(const Value &I, const std::string &methodRaw, double thresh_lo, double /*thresh_hi*/, std::pmr::memory_resource *mr)
 {
-    // First cut: Sobel / Prewitt / Roberts produce gradient magnitude
-    // and threshold it. Canny / log / zerocross use a simplified path.
+    // Method names are case-insensitive (MATLAB-compatible).
+    std::string method = methodRaw;
+    std::transform(method.begin(), method.end(), method.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+
+    // Sobel / Prewitt / Roberts threshold the gradient magnitude; Canny does
+    // full non-max suppression + hysteresis; log / zerocross mark zero
+    // crossings.
     if (method == "roberts") {
         // 2×2 Roberts kernels.
         Value Kx = make_kernel({ 1, 0, 0, -1 }, 2, 2, mr);
@@ -495,12 +626,11 @@ Value edge(const Value &I, const std::string &method, double thresh_lo, double /
         return out;
     }
     if (method == "canny") {
-        // Simplified: gradient magnitude with two-threshold hysteresis,
-        // no non-max suppression. Adequate for many use cases; full
-        // Canny implementation deferred.
-        auto [Gmag, _] = imgradient(I, "sobel", mr);
-        if (std::isnan(thresh_lo)) thresh_lo = auto_threshold(Gmag, 0.2);
-        return threshold_to_logical(Gmag, thresh_lo, mr);
+        // Full Canny: Gaussian smooth → Sobel gradient → non-max
+        // suppression → double-threshold hysteresis. `thresh_lo` carries
+        // the user's scalar threshold, which MATLAB treats as the HIGH
+        // threshold (a fraction of the peak gradient magnitude); NaN → auto.
+        return canny_edge(I, thresh_lo, mr);
     }
     // Default sobel / prewitt path: grad-magnitude threshold.
     const std::string mth = (method == "prewitt") ? "prewitt" : "sobel";
@@ -517,8 +647,14 @@ namespace detail {
 
 namespace {
 std::string parse_method(Span<const Value> args, size_t i, const std::string &def) {
-    if (i < args.size() && (args[i].isChar() || args[i].isString()))
-        return args[i].toString();
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        // MATLAB method names ('Canny', 'Sobel', 'Roberts', …) are
+        // case-insensitive; downstream comparisons are all lowercase.
+        std::string s = args[i].toString();
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+        return s;
+    }
     return def;
 }
 }
