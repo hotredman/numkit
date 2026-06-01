@@ -43,13 +43,18 @@ public:
     bool exists(const std::string &p) override { return files.count(p) != 0; }
     std::string name() const override { return "mem"; }
 
-    // The binary surface imread actually uses.
+    // The binary surface imread/imfinfo actually use.
     std::string readFileBytes(const std::string &p) override
     {
         auto it = files.find(p);
         if (it == files.end())
             throw std::runtime_error("MemFS: no such file " + p);
         return it->second;
+    }
+    // The binary surface imwrite actually uses.
+    void writeFileBytes(const std::string &p, const std::string &bytes) override
+    {
+        files[p] = bytes;
     }
 };
 
@@ -133,4 +138,85 @@ TEST_F(ImreadVfsTest, TiffThroughBinaryHook)
 TEST_F(ImreadVfsTest, MissingFileThrows)
 {
     EXPECT_THROW(engine.eval("imread('mem:nope.png');"), std::exception);
+}
+
+// ── imwrite through the VFS (binary write hook) ──────────────────────
+//
+// imwrite must encode to bytes and write via writeFileBytes — never fopen.
+// We write into the MemFS and read back through the same FS.
+
+// PNG (lossless) RGB written and read back via the VFS round-trips exact.
+TEST_F(ImreadVfsTest, ImwritePngRoundTripThroughVfs)
+{
+    engine.eval("A = uint8(reshape(0:47, 4, 4, 3));");
+    engine.eval("imwrite(A, 'mem:out.png');");
+    ASSERT_TRUE(mem->files.count("out.png") != 0) << "imwrite did not reach the VFS";
+    engine.eval("B = imread('mem:out.png');");
+    EXPECT_DOUBLE_EQ(sc("size(B,3)"), 3.0);
+    EXPECT_DOUBLE_EQ(sc("isequal(A, B)"), 1.0);
+}
+
+// BMP RGB with high-bit bytes — write + read via VFS, byte-exact. (stb's
+// BMP writer always emits 24-bit RGB, so we use a 3-channel source to keep
+// the channel count stable across the round-trip.)
+TEST_F(ImreadVfsTest, ImwriteBmpRoundTripThroughVfs)
+{
+    engine.eval("A = uint8(reshape(mod((0:47)*5 + 130, 256), 4, 4, 3));");
+    engine.eval("imwrite(A, 'mem:out.bmp');");
+    engine.eval("B = imread('mem:out.bmp');");
+    EXPECT_DOUBLE_EQ(sc("size(B,3)"), 3.0);
+    EXPECT_DOUBLE_EQ(sc("isequal(A, B)"), 1.0);
+}
+
+// TIFF written + read back via VFS.
+TEST_F(ImreadVfsTest, ImwriteTiffRoundTripThroughVfs)
+{
+    engine.eval("A = uint8(reshape(0:47, 4, 4, 3));");
+    engine.eval("imwrite(A, 'mem:out.tif');");
+    engine.eval("B = imread('mem:out.tif');");
+    EXPECT_DOUBLE_EQ(sc("size(B,3)"), 3.0);
+    EXPECT_DOUBLE_EQ(sc("isequal(A, B)"), 1.0);
+}
+
+// Multi-page TIFF append: the second imwrite must read the existing pages
+// back THROUGH the VFS (readFileBytes), append an IFD, and write again.
+TEST_F(ImreadVfsTest, ImwriteTiffAppendMultiPageThroughVfs)
+{
+    engine.eval("A1 = uint8(reshape(1:16, 4, 4));");
+    engine.eval("A2 = uint8(reshape(100:115, 4, 4));");
+    engine.eval("imwrite(A1, 'mem:m.tif', 'Compression', 'none');");
+    engine.eval("imwrite(A2, 'mem:m.tif', 'Compression', 'none', 'WriteMode', 'append');");
+    engine.eval("B1 = imread('mem:m.tif', 1); B2 = imread('mem:m.tif', 2);");
+    EXPECT_DOUBLE_EQ(sc("B1(1,1)"),   1.0);
+    EXPECT_DOUBLE_EQ(sc("B1(4,4)"),  16.0);
+    EXPECT_DOUBLE_EQ(sc("B2(1,1)"), 100.0);
+    EXPECT_DOUBLE_EQ(sc("B2(4,4)"), 115.0);
+}
+
+// ── imfinfo through the VFS ───────────────────────────────────────────
+
+TEST_F(ImreadVfsTest, ImfinfoPngThroughVfs)
+{
+    stage("A = uint8(reshape(0:47, 4, 4, 3));", ".png", "i.png");
+    engine.eval("s = imfinfo('mem:i.png');");
+    EXPECT_DOUBLE_EQ(sc("s.Width"),  4.0);
+    EXPECT_DOUBLE_EQ(sc("s.Height"), 4.0);
+    EXPECT_DOUBLE_EQ(sc("s.NumberOfChannels"), 3.0);
+    EXPECT_EQ(engine.eval("s.Format").toString(), "png");
+    EXPECT_DOUBLE_EQ(sc("s.FileSize > 0"), 1.0);
+}
+
+TEST_F(ImreadVfsTest, ImfinfoTiffThroughVfs)
+{
+    stage("A = uint8(reshape(1:16, 4, 4));", ".tif", "i.tif");
+    engine.eval("s = imfinfo('mem:i.tif');");
+    EXPECT_DOUBLE_EQ(sc("s.Width"),  4.0);
+    EXPECT_DOUBLE_EQ(sc("s.Height"), 4.0);
+    EXPECT_DOUBLE_EQ(sc("s.NumberOfChannels"), 1.0);
+    EXPECT_EQ(engine.eval("s.Format").toString(), "tif");
+}
+
+TEST_F(ImreadVfsTest, ImfinfoMissingFileThrows)
+{
+    EXPECT_THROW(engine.eval("imfinfo('mem:nope.png');"), std::exception);
 }

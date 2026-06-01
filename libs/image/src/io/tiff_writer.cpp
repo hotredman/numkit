@@ -539,26 +539,18 @@ void writePage(std::vector<std::uint8_t> &buf, const Value &A,
 
 } // anonymous
 
-void writeTiff(const Value &A, const std::string &path,
-               const std::string &compression,
-               bool appendMode)
+std::vector<std::uint8_t>
+writeTiffToBytes(const Value &A, const std::string &compression,
+                 const std::vector<std::uint8_t> *existing)
 {
     const std::uint16_t comp = parseCompression(compression);
+    std::vector<std::uint8_t> buf;
 
-    if (appendMode && std::filesystem::exists(path)) {
-        // Multi-page append: load the existing file, walk to the LAST
-        // IFD, then write a new IFD whose offset is patched into that
+    if (existing && !existing->empty()) {
+        // Multi-page append: start from the existing bytes, walk to the
+        // LAST IFD, then write a new IFD whose offset is patched into that
         // last IFD's next-IFD slot.
-        std::ifstream in(path, std::ios::binary);
-        if (!in) throw Error("imwrite TIFF: cannot reopen file for append",
-                              0, 0, "imwrite", "", "numkit:imwrite:open");
-        in.seekg(0, std::ios::end);
-        const std::streamoff sz = in.tellg();
-        in.seekg(0, std::ios::beg);
-        std::vector<std::uint8_t> buf(static_cast<std::size_t>(sz));
-        in.read(reinterpret_cast<char *>(buf.data()), sz);
-        in.close();
-
+        buf = *existing;
         if (buf.size() < 8 || !(buf[0] == 'I' && buf[1] == 'I')
             || buf[2] != 0x2A || buf[3] != 0x00)
             throw Error("imwrite TIFF: append target is not a little-endian TIFF",
@@ -579,28 +571,44 @@ void writeTiff(const Value &A, const std::string &path,
                 | (buf[lastNextSlot + 3] << 24));
         }
         writePage(buf, A, comp, lastNextSlot);
-
-        std::ofstream out(path, std::ios::binary | std::ios::trunc);
-        if (!out) throw Error("imwrite TIFF: cannot reopen for write",
-                               0, 0, "imwrite", "", "numkit:imwrite:open");
-        out.write(reinterpret_cast<const char *>(buf.data()), buf.size());
     } else {
         // Fresh write: 8-byte header (II + 42 + 0 first-IFD offset placeholder),
         // then page (writes pixel strip + IFD), then patch header's IFD offset.
-        std::vector<std::uint8_t> buf(8, 0);
+        buf.assign(8, 0);
         buf[0] = 'I'; buf[1] = 'I';
         writeU16LE(buf, 2, 42);
         writeU32LE(buf, 4, 0);  // placeholder
-
-        // Write the page, passing offset 4 so the header's first-IFD slot
-        // gets patched.
         writePage(buf, A, comp, /*prevNextIFDOff=*/4);
-
-        std::ofstream out(path, std::ios::binary | std::ios::trunc);
-        if (!out) throw Error("imwrite TIFF: cannot open '" + path + "' for write",
-                               0, 0, "imwrite", "", "numkit:imwrite:open");
-        out.write(reinterpret_cast<const char *>(buf.data()), buf.size());
     }
+    return buf;
+}
+
+void writeTiff(const Value &A, const std::string &path,
+               const std::string &compression,
+               bool appendMode)
+{
+    // Read the existing file (append mode) so writeTiffToBytes can chain a
+    // new IFD onto it, then persist the assembled bytes to disk.
+    std::vector<std::uint8_t> existing;
+    const std::vector<std::uint8_t> *exptr = nullptr;
+    if (appendMode && std::filesystem::exists(path)) {
+        std::ifstream in(path, std::ios::binary);
+        if (!in) throw Error("imwrite TIFF: cannot reopen file for append",
+                              0, 0, "imwrite", "", "numkit:imwrite:open");
+        in.seekg(0, std::ios::end);
+        const std::streamoff sz = in.tellg();
+        in.seekg(0, std::ios::beg);
+        existing.resize(static_cast<std::size_t>(sz));
+        in.read(reinterpret_cast<char *>(existing.data()), sz);
+        exptr = &existing;
+    }
+
+    const std::vector<std::uint8_t> buf = writeTiffToBytes(A, compression, exptr);
+
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out) throw Error("imwrite TIFF: cannot open '" + path + "' for write",
+                          0, 0, "imwrite", "", "numkit:imwrite:open");
+    out.write(reinterpret_cast<const char *>(buf.data()), buf.size());
 }
 
 } // namespace numkit::image

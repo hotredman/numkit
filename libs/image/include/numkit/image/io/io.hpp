@@ -61,6 +61,16 @@ Value imread(const std::string &path,
 void imwrite(const Value &A, const std::string &path,
              std::pmr::memory_resource *mr = nullptr);
 
+/// Encode an image to in-memory bytes (companion to imwrite). Used by the
+/// engine entry so writes go through the VFS — works on the virtual AND
+/// real filesystem. `ext` is the lowercase extension WITHOUT a dot
+/// ("png" | "bmp" | "tga" | "jpg" | "jpeg"). TIFF is handled separately by
+/// writeTiffToBytes().
+///
+/// @throws Error on unsupported extension or encode failure.
+std::string imwriteToBytes(const Value &A, const std::string &ext,
+                           std::pmr::memory_resource *mr = nullptr);
+
 /// Read image header metadata without decoding pixels (`S = imfinfo(path)`).
 ///
 /// Returns a struct with the fields:
@@ -78,6 +88,14 @@ void imwrite(const Value &A, const std::string &path,
 /// @see imread
 Value imfinfo(const std::string &path,
               std::pmr::memory_resource *mr = nullptr);
+
+/// imfinfo from already-loaded bytes (the engine entry feeds these from the
+/// VFS so it works on the virtual + real filesystem). `filename` is recorded
+/// in the returned struct's Filename field but is not opened.
+///
+/// @see imfinfo
+Value imfinfoFromBytes(const std::string &bytes, const std::string &filename,
+                       std::pmr::memory_resource *mr = nullptr);
 
 /// Minimal TIFF reader for the formats stb doesn't decode.
 ///
@@ -133,6 +151,14 @@ void peekTiff(const std::string &path,
               std::uint16_t &bits,
               std::uint16_t &channels);
 
+/// Buffer overload — peek metadata from already-loaded TIFF bytes (the IDE
+/// feeds these from the VFS so imfinfo works on the virtual + real FS).
+void peekTiff(const std::vector<std::uint8_t> &buf,
+              std::uint32_t &W,
+              std::uint32_t &H,
+              std::uint16_t &bits,
+              std::uint16_t &channels);
+
 /// Count the number of IFDs (pages) in a TIFF file. Walks the IFD chain
 /// without decoding any pixel data.
 std::uint32_t tiffNumPages(const std::string &path);
@@ -152,5 +178,18 @@ std::uint32_t tiffNumPages(const std::string &path);
 void writeTiff(const Value &A, const std::string &path,
                const std::string &compression = "none",
                bool appendMode = false);
+
+/// Buffer form — encode `A` to a TIFF byte vector (the engine entry writes
+/// these through the VFS). When `existing` is non-null and non-empty, a new
+/// IFD is appended to those bytes (multi-page); otherwise a fresh
+/// single-page file is produced.
+///
+/// @param A            Image (uint8 / uint16; 1, 3, or 4 channels).
+/// @param compression  "none" | "packbits" | "lzw" | "deflate".
+/// @param existing     Optional bytes of a prior TIFF to append a page to.
+std::vector<std::uint8_t>
+writeTiffToBytes(const Value &A,
+                 const std::string &compression = "none",
+                 const std::vector<std::uint8_t> *existing = nullptr);
 
 } // namespace numkit::image

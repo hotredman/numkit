@@ -72,6 +72,17 @@ public:
     // would UTF-8-mangle bytes ≥ 0x80 crossing JS↔WASM).
     virtual std::string readFileBytes(const std::string &path) { return readFile(path); }
 
+    // Binary-safe write — the std::string is a raw byte container, written
+    // verbatim with no text/encoding translation. Needed by imwrite/
+    // audiowrite/etc. The default delegates to writeFile, which is
+    // byte-accurate for native (binary ofstream) backends; the IDE's
+    // CallbackFS overrides it with a real binary channel (the text
+    // writeFile path would UTF-8-mangle bytes ≥ 0x80 crossing JS↔WASM).
+    virtual void writeFileBytes(const std::string &path, const std::string &bytes)
+    {
+        writeFile(path, bytes);
+    }
+
     virtual std::string name() const = 0;
 
     // ── Phase 8 extension — directory ops + introspection ───────────
@@ -151,6 +162,7 @@ public:
     using WriteFunc = std::function<void(const std::string &, const std::string &)>;
     using ExistsFunc = std::function<bool(const std::string &)>;
     using ReadBytesFunc = std::function<std::string(const std::string &)>;
+    using WriteBytesFunc = std::function<void(const std::string &, const std::string &)>;
 
     // Phase 8 hooks. All optional — methods fall back to the
     // VirtualFS-level defaults (throw or empty) when not supplied.
@@ -188,6 +200,15 @@ public:
     {
         if (readBytes_) return readBytes_(path);
         return readFile(path);
+    }
+
+    // Binary write hook — opt-in; falls back to the text writeFile when not
+    // installed (so existing callers keep working).
+    void setWriteBytes(WriteBytesFunc f) { writeBytes_ = std::move(f); }
+    void writeFileBytes(const std::string &path, const std::string &bytes) override
+    {
+        if (writeBytes_) { writeBytes_(path, bytes); return; }
+        writeFile(path, bytes);
     }
 
     // Phase 8 — opt-in setters; absent hook → fall through to default behaviour.
@@ -239,6 +260,7 @@ private:
     WriteFunc write_;
     ExistsFunc exists_;
     ReadBytesFunc readBytes_;
+    WriteBytesFunc writeBytes_;
     ListDirFunc listDir_;
     StatFunc stat_;
     MkdirFunc mkdir_;

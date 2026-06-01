@@ -1001,8 +1001,27 @@ private:
             }
             return out;
         };
+        // Binary-safe write: hand the bytes to JS as a Uint8Array. We copy
+        // the std::string buffer into a FRESH JS array (not a heap view) so
+        // the handler can retain it past this call without dangling on WASM
+        // memory. Falls back to text writeFile if the handler predates it.
+        auto writeBytesFn = [handler](const std::string &p, const std::string &bytes) {
+            if (handler["writeFileBytes"].isUndefined() || handler["writeFileBytes"].isNull()) {
+                handler.call<void>("writeFile", p, bytes);
+                return;
+            }
+            const std::size_t len = bytes.size();
+            emscripten::val u8 = emscripten::val::global("Uint8Array").new_(len);
+            if (len) {
+                emscripten::val view = emscripten::val(emscripten::typed_memory_view(
+                    len, reinterpret_cast<const unsigned char *>(bytes.data())));
+                u8.call<void>("set", view);
+            }
+            handler.call<void>("writeFileBytes", p, u8);
+        };
         auto cfs = std::make_unique<numkit::CallbackFS>(name, readFn, writeFn, existsFn);
         cfs->setReadBytes(readBytesFn);
+        cfs->setWriteBytes(writeBytesFn);
         engine_->registerVirtualFS(std::move(cfs));
     }
 
