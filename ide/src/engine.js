@@ -229,7 +229,17 @@ export async function createWasmEngine(createModule) {
 
   return {
     type: 'wasm',
-    init() { return Module.repl_init(); },
+    init() {
+      const greeting = Module.repl_init();
+      // Auto-import the compat namespace once per session so the user
+      // never has to type `import compat.*`. libs/{signal,stats,…} are
+      // aliased under compat.<name>; imports live on the workspace env
+      // and persist for the whole session (MATLAB: only `clear import`
+      // clears them), so a single silent import at startup is enough.
+      try { Module.repl_execute('import compat.*;'); }
+      catch (e) { console.warn('[engine] auto-import compat.* failed', e); }
+      return greeting;
+    },
 
     execute(code) {
       const raw = Module.repl_execute(code);
