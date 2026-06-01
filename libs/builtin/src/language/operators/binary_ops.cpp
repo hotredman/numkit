@@ -718,10 +718,29 @@ ScratchVec<uint8_t> toBoolArray(const Value &v, std::pmr::memory_resource *mr)
         const double *d = v.doubleData();
         for (size_t i = 0; i < v.numel(); ++i)
             r[i] = (d[i] != 0.0) ? 1 : 0;
+    } else if (v.isComplex()) {
+        const Complex *d = v.complexData();
+        for (size_t i = 0; i < v.numel(); ++i)
+            r[i] = (d[i].real() != 0.0 || d[i].imag() != 0.0) ? 1 : 0;
     } else {
-        r[0] = v.toBool() ? 1 : 0;
+        // single / int* / char — element-wise nonzero. (Previously this
+        // called toBool(), which threw on a non-scalar integer/single array
+        // and only ever set r[0].)
+        for (size_t i = 0; i < v.numel(); ++i)
+            r[i] = (v.elemAsDouble(i) != 0.0) ? 1 : 0;
     }
     return r;
+}
+
+// Truthiness of a SCALAR operand for &/|. Works for any numeric/logical
+// type (toBool() only handles double/logical/complex scalars).
+bool scalarTruth(const Value &v)
+{
+    if (v.isComplex()) {
+        Complex c = v.toComplex();
+        return c.real() != 0.0 || c.imag() != 0.0;
+    }
+    return v.elemAsDouble(0) != 0.0;
 }
 
 template <typename Op>
@@ -729,10 +748,10 @@ Value logicalBinary(const char *opName, Op op,
                      std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     if (a.isScalar() && b.isScalar())
-        return Value::logicalScalar(op(a.toBool(), b.toBool()), mr);
+        return Value::logicalScalar(op(scalarTruth(a), scalarTruth(b)), mr);
     ScratchArena scratch(mr);
     if (a.isScalar()) {
-        bool av = a.toBool();
+        bool av = scalarTruth(a);
         auto bb = toBoolArray(b, &scratch);
         auto r = createLike(b, ValueType::LOGICAL, mr);
         uint8_t *dst = r.logicalDataMut();
@@ -741,7 +760,7 @@ Value logicalBinary(const char *opName, Op op,
         return r;
     }
     if (b.isScalar()) {
-        bool bv = b.toBool();
+        bool bv = scalarTruth(b);
         auto aa = toBoolArray(a, &scratch);
         auto r = createLike(a, ValueType::LOGICAL, mr);
         uint8_t *dst = r.logicalDataMut();

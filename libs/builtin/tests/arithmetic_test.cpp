@@ -236,6 +236,35 @@ TEST_P(ArithmeticTest, RelationalOnIntegerMatrix)
     EXPECT_DOUBLE_EQ(evalScalar("double(R(2,2));"), 1.0);
 }
 
+// Logical operators &, |, ~ on integer/single MATRICES (and scalars).
+// toBoolArray()/logicalBinary()/logicalNot() fell back to toBool() for
+// non-double, non-logical operands, which threw "Cannot convert uint8 to
+// bool" on any integer/single array (and even on integer scalars). Sibling
+// of the relational-operator bug above. DEEP-PROBE 2026-06-01.
+TEST_P(ArithmeticTest, LogicalOnIntegerMatrix)
+{
+    // & / | with a scalar, element-wise nonzero semantics.
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) & 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) | 0);"), 3.0);
+    // matrix & matrix, matrix | matrix
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) & uint8([1 1; 0 255]));"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) | uint8([1 1; 0 255]));"), 4.0);
+    // unary not on integer/int8/single matrices
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(~uint8([0 1; 200 255]));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(~int8([-5 0 5]));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(single([0 1.5; 2.5 0]) & 1);"), 2.0);
+    // integer SCALAR operands (toBool path)
+    EXPECT_DOUBLE_EQ(evalScalar("double(uint8(5) & uint8(0));"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(uint8(5) | uint8(0));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(~uint8(0));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(~uint8(7));"), 0.0);
+    // result type is logical, element values correct
+    EXPECT_TRUE(evalBool("isequal(class(uint8([1 0]) & 1), 'logical');"));
+    eval("Q = ~single([0 2; 0 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(Q(1,1));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(Q(2,2));"), 0.0);
+}
+
 // abs() on integer types: MATLAB keeps the class and SATURATES, so
 // abs(intmin) -> intmax (abs(int8(-128))=127); numkit previously returned a
 // DOUBLE (and the wrong value 128). DEEP-PROBE 2026-05-30.

@@ -78,7 +78,24 @@ Value logicalNot(const Value &x, std::pmr::memory_resource *mr)
             dst[i] = (src[i] == 0.0) ? 1 : 0;
         return r;
     }
-    return Value::logicalScalar(!x.toBool(), p);
+    if (x.isComplex()) {
+        auto r = createLike(x, ValueType::LOGICAL, p);
+        const Complex *src = x.complexData();
+        uint8_t *dst = r.logicalDataMut();
+        for (size_t i = 0; i < x.numel(); ++i)
+            dst[i] = (src[i].real() == 0.0 && src[i].imag() == 0.0) ? 1 : 0;
+        return r;
+    }
+    // single / int* / char (any other numeric): ~x is (x == 0), element-wise.
+    // (Previously this fell back to toBool(), which threw on a non-scalar
+    // integer/single array.)
+    if (x.isScalar())
+        return Value::logicalScalar(x.elemAsDouble(0) == 0.0, p);
+    auto r = createLike(x, ValueType::LOGICAL, p);
+    uint8_t *dst = r.logicalDataMut();
+    for (size_t i = 0; i < x.numel(); ++i)
+        dst[i] = (x.elemAsDouble(i) == 0.0) ? 1 : 0;
+    return r;
 }
 
 namespace {
