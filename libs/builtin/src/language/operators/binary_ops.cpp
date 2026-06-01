@@ -577,7 +577,10 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
     auto getD = [](const Value &v, size_t r, size_t col) -> double {
         size_t idx = col * v.dims().rows() + r;
         if (v.isLogical()) return static_cast<double>(v.logicalData()[idx]);
-        if (isIntegerType(v.type()) || v.type() == ValueType::SINGLE) return v.toScalar();
+        // Index element idx for ANY numeric type. (Previously this called
+        // toScalar() for integer/single, which threw on non-scalar arrays —
+        // breaking e.g. `uint8Image > 0`.)
+        if (isIntegerType(v.type()) || v.type() == ValueType::SINGLE) return v.elemAsDouble(idx);
         return v.doubleData()[idx];
     };
     auto getDScalar = [](const Value &v) -> double {
