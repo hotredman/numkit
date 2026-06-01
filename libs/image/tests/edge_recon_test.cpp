@@ -137,6 +137,38 @@ TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
 // remap pass over already-remapped labels used to violate this on
 // merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
 // regionprops / bwareaopen downstream.
+// SIMD fast path for flat-SE morphology on logical/uint8 must produce
+// EXACTLY the generic reduction's result. Values pinned from the
+// pre-optimization engine. (imdilate/imerode/imopen also match MATLAB here;
+// imclose's border differs from MATLAB — that's a separate correctness item,
+// not changed by this perf work.)
+TEST_F(EdgeReconTest, MorphologyFlatSEPreserved)
+{
+    eval("bw = false(12,15); bw(3:9,4:11)=true; bw(1,1)=true; bw(12,15)=true;");
+    eval("d = imdilate(bw, strel('disk',2));");
+    EXPECT_DOUBLE_EQ(sc("nnz(d)"), 132.0);
+    EXPECT_DOUBLE_EQ(sc("double(d(1,1))"), 1.0);   // border pixel dilated
+    EXPECT_DOUBLE_EQ(sc("double(d(6,7))"), 1.0);
+    eval("e = imerode(bw, strel('disk',2));");
+    EXPECT_DOUBLE_EQ(sc("nnz(e)"), 12.0);
+    EXPECT_DOUBLE_EQ(sc("double(e(3,4))"), 0.0);
+    eval("c = imclose(bw, strel('disk',2));");
+    EXPECT_DOUBLE_EQ(sc("nnz(c)"), 76.0);
+    eval("o = imopen(bw, strel('square',3));");
+    EXPECT_DOUBLE_EQ(sc("nnz(o)"), 56.0);
+    // uint8 grayscale dilate/erode — square and disk SEs.
+    eval("g = uint8(reshape(mod((0:179)*7,256),12,15));");
+    eval("gd = imdilate(g, strel('square',3));");
+    EXPECT_DOUBLE_EQ(sc("sum(gd(:))"), 38889.0);
+    EXPECT_DOUBLE_EQ(sc("double(gd(1,1))"), 91.0);  // border
+    eval("ge = imerode(g, strel('square',3));");
+    EXPECT_DOUBLE_EQ(sc("sum(ge(:))"), 6406.0);
+    EXPECT_DOUBLE_EQ(sc("double(ge(6,7))"), 20.0);
+    eval("gdk = imdilate(g, strel('disk',3));");
+    EXPECT_DOUBLE_EQ(sc("sum(gdk(:))"), 42232.0);
+    EXPECT_DOUBLE_EQ(sc("double(gdk(6,6))"), 213.0);
+}
+
 TEST_F(EdgeReconTest, BwlabelCountMatchesLabels)
 {
     // A "comb": three vertical stripes joined by a bottom bar (one
