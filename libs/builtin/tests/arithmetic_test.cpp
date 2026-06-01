@@ -208,6 +208,34 @@ TEST_P(ArithmeticTest, BroadcastComparison)
     EXPECT_EQ(cols(*A), 3u);
 }
 
+// Relational operators on integer/single MATRICES (not just scalars).
+// compareImpl's 2D getD() helper returned toScalar() for integer/single
+// operands, which THREW "Cannot convert uint8 to scalar" on any non-scalar
+// integer/single array compared elementwise — e.g. the very common
+// `imread(...) > 0`. DEEP-PROBE 2026-06-01.
+TEST_P(ArithmeticTest, RelationalOnIntegerMatrix)
+{
+    // uint8 matrix vs double scalar — every comparator.
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) > 0);"),    3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) >= 1);"),   3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) < 200);"),  2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) == 255);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([0 1; 200 255]) ~= 0);"),   3.0);
+    // scalar on the left
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(0 < uint8([0 1; 200 255]));"),    3.0);
+    // integer matrix vs integer matrix
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(uint8([1 2 3]) > uint8([3 2 1]));"), 1.0);
+    // single matrix vs scalar; signed int matrix
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(single([1.5 2.5 3.5]) > 2.0);"),  2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(int8([-5 0 5]) < 0);"),           1.0);
+    // result type is logical, and element values are correct (not just count)
+    EXPECT_TRUE(evalBool("isequal(class(uint8([1 2]) > 1), 'logical');"));
+    eval("R = uint8([10 20; 30 40]) >= 25;");
+    EXPECT_DOUBLE_EQ(evalScalar("double(R(1,1));"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(R(2,1));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(R(2,2));"), 1.0);
+}
+
 // abs() on integer types: MATLAB keeps the class and SATURATES, so
 // abs(intmin) -> intmax (abs(int8(-128))=127); numkit previously returned a
 // DOUBLE (and the wrong value 128). DEEP-PROBE 2026-05-30.
