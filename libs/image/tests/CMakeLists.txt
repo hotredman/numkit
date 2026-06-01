@@ -48,6 +48,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/integralBoxFilter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imread_tiff_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imread_vfs_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/edge_recon_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modefilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imdiffusefilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/graydist_test.cpp

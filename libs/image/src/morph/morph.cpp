@@ -370,19 +370,9 @@ Value imreconstruct(const Value &marker, const Value &mask, int conn, std::pmr::
         throw Error("imreconstruct: marker and mask must have the same shape",
                     0, 0, "imreconstruct", "", "numkit:imreconstruct:shape");
 
-    // Build the SE: 3×3 ones for conn=8, plus-shape for conn=4.
-    Value SE;
-    if (conn == 8) {
-        SE = strel("square", std::vector<double>{3.0}, Value::matrix(0, 0, ValueType::DOUBLE, mr), mr);
-    } else {
-        SE = strel("diamond", std::vector<double>{1.0}, Value::matrix(0, 0, ValueType::DOUBLE, mr), mr);
-    }
-
     const size_t N = marker.numel();
     const ValueType srcT = marker.type();
 
-    // Working buffer J_0 = min(marker, mask) (enforces marker ≤ mask).
-    Value J = Value::matrix(H, W, srcT, mr);
     auto writeNative = [&](Value &dst, size_t i, double v) {
         switch (srcT) {
             case ValueType::DOUBLE: dst.doubleDataMut()[i] = v; break;
@@ -401,30 +391,95 @@ Value imreconstruct(const Value &marker, const Value &mask, int conn, std::pmr::
                 dst.doubleDataMut()[i] = v; break;
         }
     };
+
+    // Vincent (1993) fast hybrid reconstruction by dilation: a raster pass
+    // and an anti-raster pass propagate most of the way, then a FIFO queue
+    // finishes only where values can still rise. O(N) (plus bounded queue
+    // traffic) instead of the naive O(N·(H+W)) iterate-dilate-until-stable.
+    // Same fixed point: J = max-propagated marker, capped by the mask.
+    ScratchArena arena(mr);
+    ScratchVec<double> I(N, &arena);   // mask
+    ScratchVec<double> J(N, &arena);   // working reconstruction
     for (size_t i = 0; i < N; ++i) {
-        const double m = marker.elemAsDouble(i);
-        const double k = mask.elemAsDouble(i);
-        writeNative(J, i, std::min(m, k));
+        I[i] = mask.elemAsDouble(i);
+        J[i] = std::min(marker.elemAsDouble(i), I[i]);
     }
 
-    // Iterate dilate-and-cap. Bound iterations by min(H,W) — a wave of
-    // dilations propagates at most that far.
-    const size_t maxIter = static_cast<size_t>(H + W);
-    for (size_t iter = 0; iter < maxIter; ++iter) {
-        Value Jd = imdilate(J, SE, mr);
-        bool changed = false;
-        Value Jnew = Value::matrix(H, W, srcT, mr);
-        for (size_t i = 0; i < N; ++i) {
-            const double cur = J.elemAsDouble(i);
-            const double v   = std::min(Jd.elemAsDouble(i),
-                                         mask.elemAsDouble(i));
-            if (v != cur) changed = true;
-            writeNative(Jnew, i, v);
+    struct Off { int dr, dc; };
+    static constexpr Off kOff8[8] = {
+        {-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1} };
+    static constexpr Off kOff4[4] = { {-1,0},{0,-1},{0,1},{1,0} };
+    const Off *nbr = (conn == 8) ? kOff8 : kOff4;
+    const int nnb  = (conn == 8) ? 8 : 4;
+
+    const int Hi = static_cast<int>(H);
+    const int Wi = static_cast<int>(W);
+    auto idxOf = [Hi](int r, int c) -> size_t {
+        return static_cast<size_t>(c) * static_cast<size_t>(Hi) + static_cast<size_t>(r);
+    };
+
+    // Raster scan (increasing linear index): pull from already-processed
+    // (causal) neighbours — those with a smaller linear index.
+    for (size_t i = 0; i < N; ++i) {
+        const int r = static_cast<int>(i % H);
+        const int c = static_cast<int>(i / H);
+        double m = J[i];
+        for (int k = 0; k < nnb; ++k) {
+            const int nr = r + nbr[k].dr, nc = c + nbr[k].dc;
+            if (nr < 0 || nr >= Hi || nc < 0 || nc >= Wi) continue;
+            const size_t q = idxOf(nr, nc);
+            if (q < i && J[q] > m) m = J[q];
         }
-        if (!changed) return J;
-        J = std::move(Jnew);
+        J[i] = std::min(m, I[i]);
     }
-    return J;
+
+    // Anti-raster scan (decreasing index): pull from anti-causal neighbours,
+    // and seed the FIFO with pixels that still have a neighbour they could
+    // raise.
+    ScratchVec<size_t> fifo(0, &arena);
+    fifo.reserve(N);
+    for (size_t ii = N; ii-- > 0; ) {
+        const size_t i = ii;
+        const int r = static_cast<int>(i % H);
+        const int c = static_cast<int>(i / H);
+        double m = J[i];
+        for (int k = 0; k < nnb; ++k) {
+            const int nr = r + nbr[k].dr, nc = c + nbr[k].dc;
+            if (nr < 0 || nr >= Hi || nc < 0 || nc >= Wi) continue;
+            const size_t q = idxOf(nr, nc);
+            if (q > i && J[q] > m) m = J[q];
+        }
+        J[i] = std::min(m, I[i]);
+        for (int k = 0; k < nnb; ++k) {
+            const int nr = r + nbr[k].dr, nc = c + nbr[k].dc;
+            if (nr < 0 || nr >= Hi || nc < 0 || nc >= Wi) continue;
+            const size_t q = idxOf(nr, nc);
+            if (q > i && J[q] < J[i] && J[q] < I[q]) { fifo.push_back(i); break; }
+        }
+    }
+
+    // Propagation: pop p, raise each neighbour q that is below J[p] and not
+    // yet at its mask cap.
+    size_t head = 0;
+    while (head < fifo.size()) {
+        const size_t p = fifo[head++];
+        const int r = static_cast<int>(p % H);
+        const int c = static_cast<int>(p / H);
+        const double Jp = J[p];
+        for (int k = 0; k < nnb; ++k) {
+            const int nr = r + nbr[k].dr, nc = c + nbr[k].dc;
+            if (nr < 0 || nr >= Hi || nc < 0 || nc >= Wi) continue;
+            const size_t q = idxOf(nr, nc);
+            if (J[q] < Jp && J[q] < I[q]) {
+                J[q] = std::min(Jp, I[q]);
+                fifo.push_back(q);
+            }
+        }
+    }
+
+    Value out = Value::matrix(H, W, srcT, mr);
+    for (size_t i = 0; i < N; ++i) writeNative(out, i, J[i]);
+    return out;
 }
 
 // ════════════════════════════════════════════════════════════════════
