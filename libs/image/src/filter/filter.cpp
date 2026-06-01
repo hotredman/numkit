@@ -525,6 +525,49 @@ Value imfilter(const Value &I, const Value &h, PadMode boundary, double pad_valu
                 store_classed(out, (size_t)oc * (size_t)outH + (size_t)orow, s, I.type());
             }
         }
+    } else if (I.type() == ValueType::DOUBLE) {
+        // SIMD-friendly fast path for DOUBLE input: the interior (where the
+        // whole kernel fits) is computed as one FMA pass per kernel tap over
+        // contiguous output columns — the inner loop auto-vectorises. Taps
+        // are accumulated in the SAME kj-major / ki-minor order as the scalar
+        // loop, so the result is bit-for-bit identical. The border keeps the
+        // scalar sample_padded reduction (exact boundary semantics).
+        const double *src = I.doubleData();
+        double *dst = out.doubleDataMut();
+        const int ir0 = std::max(0, half_r), ir1 = std::min(H, H - kH + 1 + half_r);
+        const int ic0 = std::max(0, half_c), ic1 = std::min(W, W - kW + 1 + half_c);
+
+        if (ir1 > ir0 && ic1 > ic0) {
+            for (int oc = ic0; oc < ic1; ++oc) {
+                double *dcol = dst + (size_t)oc * (size_t)H;
+                for (int r = ir0; r < ir1; ++r) dcol[r] = 0.0;
+                for (int kj = 0; kj < kW; ++kj) {
+                    const int c_in = oc + kj - half_c;
+                    for (int ki = 0; ki < kH; ++ki) {
+                        const double w = getK(ki, kj);
+                        const double *scol = src + (size_t)c_in * (size_t)H + (ki - half_r);
+                        for (int r = ir0; r < ir1; ++r) dcol[r] += w * scol[r];
+                    }
+                }
+            }
+        }
+        // Border pixels (kernel overhangs the edge) — scalar, exact.
+        for (int oc = 0; oc < W; ++oc) {
+            const bool colInterior = (oc >= ic0 && oc < ic1);
+            for (int orow = 0; orow < H; ++orow) {
+                if (colInterior && orow >= ir0 && orow < ir1) continue;
+                double s = 0.0;
+                for (int kj = 0; kj < kW; ++kj) {
+                    const int c_in = oc + kj - half_c;
+                    for (int ki = 0; ki < kH; ++ki) {
+                        const int r_in = orow + ki - half_r;
+                        s += getK(ki, kj) * sample_padded(I, r_in, c_in, H, W,
+                                                          boundary, pad_value);
+                    }
+                }
+                dst[(size_t)oc * (size_t)H + (size_t)orow] = s;
+            }
+        }
     } else {
         for (int oc = 0; oc < W; ++oc) {
             for (int orow = 0; orow < H; ++orow) {

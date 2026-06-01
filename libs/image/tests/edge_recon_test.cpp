@@ -137,6 +137,22 @@ TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
 // remap pass over already-remapped labels used to violate this on
 // merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
 // regionprops / bwareaopen downstream.
+// SIMD fast path for imfilter on DOUBLE input must be bit-for-bit identical
+// to the scalar reduction (taps accumulated in the same order). Values
+// pinned from the pre-optimization engine — interior + replicate borders.
+TEST_F(EdgeReconTest, ImfilterDoubleFastPathPreserved)
+{
+    eval("I = double(reshape(mod((0:119)*13, 17), 10, 12));");
+    eval("Fg = imfilter(I, fspecial('gaussian',[5 5],1.2));");
+    EXPECT_NEAR(sc("sum(Fg(:))"),  815.2583255, 1e-6);
+    EXPECT_NEAR(sc("Fg(5,6)"),     8.270905748, 1e-7);
+    EXPECT_NEAR(sc("Fg(1,1)"),     3.009669115, 1e-7);   // border
+    EXPECT_NEAR(sc("Fg(10,12)"),   2.655703831, 1e-7);   // border corner
+    eval("Fa = imfilter(I, fspecial('average',3));");
+    EXPECT_NEAR(sc("sum(Fa(:))"),  840.5555556, 1e-6);
+    EXPECT_NEAR(sc("Fa(5,6)"),     8.777777778, 1e-7);
+}
+
 // SIMD fast path for flat-SE morphology on logical/uint8 must produce
 // EXACTLY the generic reduction's result. Values pinned from the
 // pre-optimization engine. (imdilate/imerode/imopen also match MATLAB here;
