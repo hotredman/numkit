@@ -952,16 +952,27 @@ readTiffWithMap(std::vector<std::uint8_t> buf, std::uint32_t page,
     return { std::move(indices), std::move(cmap) };
 }
 
-void peekTiff(const std::string &path, std::uint32_t &W, std::uint32_t &H,
-              std::uint16_t &bits, std::uint16_t &channels)
+void peekTiff(const std::vector<std::uint8_t> &bufIn, std::uint32_t &W,
+              std::uint32_t &H, std::uint16_t &bits, std::uint16_t &channels)
 {
-    auto buf = loadBytes(path, "imfinfo");
+    // openTiff needs a mutable buffer (ByteReader holds buf.data()); peek is
+    // metadata-only and rare, so a local copy is fine.
+    std::vector<std::uint8_t> buf = bufIn;
+    if (buf.size() < 8)
+        throw Error("imfinfo: file too small for TIFF header",
+                    0, 0, "imfinfo", "", "numkit:imfinfo:tiffShort");
     auto br = openTiff(buf, "imfinfo");
     std::uint64_t next = 0;
     TiffImage img = parseIFD(br, static_cast<std::size_t>(firstIFDOffset(br)), &next);
     W = img.width; H = img.height;
     bits = img.bitsPerSample;
     channels = img.samplesPerPixel;
+}
+
+void peekTiff(const std::string &path, std::uint32_t &W, std::uint32_t &H,
+              std::uint16_t &bits, std::uint16_t &channels)
+{
+    peekTiff(loadBytes(path, "imfinfo"), W, H, bits, channels);
 }
 
 std::uint32_t tiffNumPages(const std::string &path)

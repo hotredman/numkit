@@ -40,27 +40,6 @@ std::string lowerExt(const std::string &path) {
 
 } // anonymous
 
-// Sniff TIFF magic — accepts both classic TIFF (magic 42 = 0x2A) and
-// BigTIFF (magic 43 = 0x2B) in either byte order. stb_image doesn't
-// decode TIFF, so we route to our in-tree reader.
-static bool isTiffFile(const std::string &path) {
-    std::FILE *f = std::fopen(path.c_str(), "rb");
-    if (!f) return false;
-    unsigned char hdr[4] = {0};
-    const std::size_t n = std::fread(hdr, 1, 4, f);
-    std::fclose(f);
-    if (n < 4) return false;
-    // Little-endian: II + magic + 0
-    if (hdr[0] == 'I' && hdr[1] == 'I' && hdr[3] == 0x00 &&
-        (hdr[2] == 0x2A || hdr[2] == 0x2B))
-        return true;
-    // Big-endian: MM + 0 + magic
-    if (hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0x00 &&
-        (hdr[3] == 0x2A || hdr[3] == 0x2B))
-        return true;
-    return false;
-}
-
 // Sniff TIFF magic directly from an in-memory buffer (no fopen).
 static bool isTiffBytes(const std::string &b)
 {
@@ -158,100 +137,115 @@ Value imread(const std::string &path, std::pmr::memory_resource *mr)
     return imreadFromBytes(bytes, mr);
 }
 
-void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource * /*mr*/)
-{
-    // TIFF route — dispatch to the in-tree writer (handles uint8/uint16,
-    // all compression schemes, and multi-page via writeMode=append in
-    // the imwrite_reg adapter).
-    {
-        const std::string ext = lowerExt(path);
-        if (ext == "tif" || ext == "tiff") {
-            writeTiff(A, path, "none", /*appendMode=*/false);
-            return;
-        }
-    }
+namespace {
 
-    // Accept H×W or H×W×{1,3,4}. Read shape via Dims.
-    const size_t H = A.dims().rows();
-    const size_t W = A.dims().cols();
-    int C = 1;
-    if (A.numel() == H * W) {
-        C = 1;
-    } else if (A.numel() == H * W * 3) {
-        C = 3;
-    } else if (A.numel() == H * W * 4) {
-        C = 4;
-    } else {
+// stb write callback — appends encoded bytes to a std::string.
+void appendToString(void *ctx, void *data, int size)
+{
+    auto *s = static_cast<std::string *>(ctx);
+    s->append(static_cast<const char *>(data), static_cast<std::size_t>(size));
+}
+
+// Pack a numkit column-major (y, x, c) image into stb's row-major
+// interleaved RGB[A] layout (y*W*C + x*C + c). Sets W, H, C; clamps to uint8.
+std::vector<unsigned char> packForStb(const Value &A, int &W, int &H, int &C)
+{
+    const size_t Hs = A.dims().rows();
+    const size_t Ws = A.dims().cols();
+    int c = 1;
+    if (A.numel() == Hs * Ws)          c = 1;
+    else if (A.numel() == Hs * Ws * 3) c = 3;
+    else if (A.numel() == Hs * Ws * 4) c = 4;
+    else
         throw Error("imwrite: input must be H×W or H×W×{1,3,4}",
                     0, 0, "imwrite", "", "numkit:imwrite:shape");
-    }
 
-    // Convert numkit column-major (y, x, c) → stb row-major
-    // interleaved RGB[A] (y * W * C + x * C + c).
-    std::vector<unsigned char> buf(static_cast<size_t>(H) *
-                                    static_cast<size_t>(W) *
-                                    static_cast<size_t>(C));
-    if (C == 1) {
-        for (size_t y = 0; y < H; ++y)
-            for (size_t x = 0; x < W; ++x) {
-                const double v = A.elemAsDouble(x * H + y);
-                int b = static_cast<int>(v);
+    std::vector<unsigned char> buf(Hs * Ws * static_cast<size_t>(c));
+    if (c == 1) {
+        for (size_t y = 0; y < Hs; ++y)
+            for (size_t x = 0; x < Ws; ++x) {
+                int b = static_cast<int>(A.elemAsDouble(x * Hs + y));
                 if (b < 0) b = 0; if (b > 255) b = 255;
-                buf[y * W + x] = static_cast<unsigned char>(b);
+                buf[y * Ws + x] = static_cast<unsigned char>(b);
             }
     } else {
-        const size_t plane = H * W;
-        for (size_t y = 0; y < H; ++y)
-            for (size_t x = 0; x < W; ++x)
-                for (int c = 0; c < C; ++c) {
-                    const size_t srcIdx = static_cast<size_t>(c) * plane +
-                                          x * H + y;
-                    const double v = A.elemAsDouble(srcIdx);
-                    int b = static_cast<int>(v);
+        const size_t plane = Hs * Ws;
+        for (size_t y = 0; y < Hs; ++y)
+            for (size_t x = 0; x < Ws; ++x)
+                for (int ch = 0; ch < c; ++ch) {
+                    int b = static_cast<int>(
+                        A.elemAsDouble(static_cast<size_t>(ch) * plane + x * Hs + y));
                     if (b < 0) b = 0; if (b > 255) b = 255;
-                    buf[(y * W + x) * static_cast<size_t>(C) +
-                        static_cast<size_t>(c)] =
+                    buf[(y * Ws + x) * static_cast<size_t>(c) + static_cast<size_t>(ch)] =
                         static_cast<unsigned char>(b);
                 }
     }
+    W = static_cast<int>(Ws);
+    H = static_cast<int>(Hs);
+    C = c;
+    return buf;
+}
 
-    const std::string ext = lowerExt(path);
+} // anonymous
+
+std::string imwriteToBytes(const Value &A, const std::string &ext,
+                           std::pmr::memory_resource * /*mr*/)
+{
+    int W = 0, H = 0, C = 0;
+    const std::vector<unsigned char> buf = packForStb(A, W, H, C);
+
+    std::string out;
     int rc = 0;
     if (ext == "png") {
-        rc = stbi_write_png(path.c_str(), static_cast<int>(W),
-                            static_cast<int>(H), C, buf.data(),
-                            static_cast<int>(W) * C);
+        rc = stbi_write_png_to_func(appendToString, &out, W, H, C, buf.data(), W * C);
     } else if (ext == "bmp") {
-        rc = stbi_write_bmp(path.c_str(), static_cast<int>(W),
-                            static_cast<int>(H), C, buf.data());
+        rc = stbi_write_bmp_to_func(appendToString, &out, W, H, C, buf.data());
     } else if (ext == "tga") {
-        rc = stbi_write_tga(path.c_str(), static_cast<int>(W),
-                            static_cast<int>(H), C, buf.data());
+        rc = stbi_write_tga_to_func(appendToString, &out, W, H, C, buf.data());
     } else if (ext == "jpg" || ext == "jpeg") {
         // Quality 90 — close to MATLAB's default writer.
-        rc = stbi_write_jpg(path.c_str(), static_cast<int>(W),
-                            static_cast<int>(H), C, buf.data(), 90);
+        rc = stbi_write_jpg_to_func(appendToString, &out, W, H, C, buf.data(), 90);
     } else {
         throw Error("imwrite: unsupported extension '" + ext +
                     "' (try .png / .bmp / .tga / .jpg)",
                     0, 0, "imwrite", "", "numkit:imwrite:ext");
     }
     if (!rc)
+        throw Error("imwrite: failed to encode '" + ext + "' image",
+                    0, 0, "imwrite", "", "numkit:imwrite:write");
+    return out;
+}
+
+// Public/native entry: encode then write the whole file (real FS). The
+// engine entry (detail::imwrite_reg) instead writes via the VFS so it works
+// on the IDE's virtual filesystem too.
+void imwrite(const Value &A, const std::string &path, std::pmr::memory_resource *mr)
+{
+    const std::string ext = lowerExt(path);
+    if (ext == "tif" || ext == "tiff") {
+        writeTiff(A, path, "none", /*appendMode=*/false);
+        return;
+    }
+    const std::string bytes = imwriteToBytes(A, ext, mr);
+    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    if (!f)
+        throw Error("imwrite: cannot open '" + path + "' for write",
+                    0, 0, "imwrite", "", "numkit:imwrite:write");
+    f.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    if (!f)
         throw Error("imwrite: failed to write '" + path + "'",
                     0, 0, "imwrite", "", "numkit:imwrite:write");
 }
 
 namespace {
 
-// Sniff file format by inspecting the first ~12 bytes (magic numbers).
-// Returns one of "png" / "jpg" / "bmp" / "gif" / "psd" / "pnm" / "hdr"
-// / "tga" / "" (unknown).
-std::string detectFormat(const std::string &path) {
-    FILE *f = std::fopen(path.c_str(), "rb");
-    if (!f) return {};
+// Sniff file format by inspecting the first ~12 bytes (magic numbers) of an
+// in-memory buffer. Returns one of "png" / "jpg" / "bmp" / "gif" / "psd" /
+// "pnm" / "hdr" / "tif" / "" (unknown).
+std::string detectFormatBytes(const std::string &bytes) {
     unsigned char hdr[16] = {0};
-    const size_t n = std::fread(hdr, 1, sizeof(hdr), f);
-    std::fclose(f);
+    const size_t n = std::min<size_t>(bytes.size(), sizeof(hdr));
+    for (size_t i = 0; i < n; ++i) hdr[i] = static_cast<unsigned char>(bytes[i]);
     if (n < 4) return {};
 
     // PNG: 89 50 4E 47 0D 0A 1A 0A
@@ -300,42 +294,40 @@ const char *colorTypeFromChannels(int c) {
 
 } // anonymous
 
-Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
+Value imfinfoFromBytes(const std::string &bytes, const std::string &filename,
+                       std::pmr::memory_resource *mr)
 {
     int W = 0, H = 0, channels = 0;
     int bitsPerSample = 8;
 
-    if (isTiffFile(path)) {
+    if (isTiffBytes(bytes)) {
         // TIFF route — stb doesn't peek TIFFs.
+        std::vector<std::uint8_t> buf(bytes.begin(), bytes.end());
         std::uint32_t W32 = 0, H32 = 0;
         std::uint16_t bits = 8, chs = 1;
-        peekTiff(path, W32, H32, bits, chs);
+        peekTiff(buf, W32, H32, bits, chs);
         W = static_cast<int>(W32);
         H = static_cast<int>(H32);
         channels = static_cast<int>(chs);
         bitsPerSample = static_cast<int>(bits);
-    } else if (!stbi_info(path.c_str(), &W, &H, &channels)) {
+    } else if (!stbi_info_from_memory(
+                   reinterpret_cast<const stbi_uc *>(bytes.data()),
+                   static_cast<int>(bytes.size()), &W, &H, &channels)) {
         const char *err = stbi_failure_reason();
-        throw Error(std::string("imfinfo: failed to read '") + path + "'" +
+        throw Error(std::string("imfinfo: failed to read '") + filename + "'" +
                     (err ? std::string(" — ") + err : std::string()),
                     0, 0, "imfinfo", "", "numkit:imfinfo:read");
     }
 
-    std::string fmt = detectFormat(path);
+    std::string fmt = detectFormatBytes(bytes);
     if (fmt.empty()) {
-        const std::string ext = lowerExt(path);
+        const std::string ext = lowerExt(filename);
         if (ext == "tga") fmt = "tga";
         else fmt = ext;   // best effort fallback
     }
 
-    // File size via std::filesystem (C++17 — already required by numkit).
-    long long fileSize = 0;
-    std::error_code ec;
-    fileSize = static_cast<long long>(std::filesystem::file_size(path, ec));
-    if (ec) fileSize = 0;
-
     Value s = Value::structure(mr);
-    s.field("Filename")          = Value::fromString(path, mr);
+    s.field("Filename")          = Value::fromString(filename, mr);
     s.field("Format")            = Value::fromString(fmt, mr);
     s.field("Width")             = Value::scalar(double(W), mr);
     s.field("Height")            = Value::scalar(double(H), mr);
@@ -343,8 +335,21 @@ Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
     s.field("BitDepth")          = Value::scalar(double(bitsPerSample * channels), mr);
     s.field("ColorType")         =
         Value::fromString(colorTypeFromChannels(channels), mr);
-    s.field("FileSize")          = Value::scalar(double(fileSize), mr);
+    s.field("FileSize")          = Value::scalar(double(bytes.size()), mr);
     return s;
+}
+
+// Public/native entry: read the whole file (real FS) then peek the bytes.
+// The engine entry (detail::imfinfo_reg) reads via the VFS instead.
+Value imfinfo(const std::string &path, std::pmr::memory_resource *mr)
+{
+    std::ifstream f(path, std::ios::binary);
+    if (!f)
+        throw Error("imfinfo: failed to read '" + path + "' — can't open",
+                    0, 0, "imfinfo", "", "numkit:imfinfo:read");
+    std::string bytes((std::istreambuf_iterator<char>(f)),
+                      std::istreambuf_iterator<char>());
+    return imfinfoFromBytes(bytes, path, mr);
 }
 
 namespace detail {
@@ -452,11 +457,33 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
                             0, 0, "imwrite", "", "numkit:imwrite:badNVKey");
             }
         }
-        writeTiff(args[0], path, compression, appendMode);
+        // Encode to bytes and write through the VFS prosloyka. For append
+        // mode, the existing pages are read back through the same VFS so
+        // multi-page TIFF works on the virtual filesystem too. Never fopen.
+        auto rp = ctx.engine->resolvePath(path);
+        if (!rp.fs)
+            throw Error("imwrite: no filesystem for '" + path + "'",
+                        0, 0, "imwrite", "", "numkit:imwrite:write");
+        std::vector<std::uint8_t> existing;
+        const std::vector<std::uint8_t> *exptr = nullptr;
+        if (appendMode && rp.fs->exists(rp.path)) {
+            const std::string eb = rp.fs->readFileBytes(rp.path);
+            existing.assign(eb.begin(), eb.end());
+            exptr = &existing;
+        }
+        const std::vector<std::uint8_t> buf =
+            writeTiffToBytes(args[0], compression, exptr);
+        rp.fs->writeFileBytes(rp.path, std::string(buf.begin(), buf.end()));
         return;
     }
 
-    imwrite(args[0], path, ctx.engine->resource());
+    // stb-encodable formats — encode to bytes, write through the VFS.
+    auto rp = ctx.engine->resolvePath(path);
+    if (!rp.fs)
+        throw Error("imwrite: no filesystem for '" + path + "'",
+                    0, 0, "imwrite", "", "numkit:imwrite:write");
+    const std::string bytes = imwriteToBytes(args[0], ext, ctx.engine->resource());
+    rp.fs->writeFileBytes(rp.path, bytes);
 }
 
 void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -468,7 +495,15 @@ void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (!args[0].isChar() && !args[0].isString())
         throw Error("imfinfo: path must be a string",
                     0, 0, "imfinfo", "", "numkit:imfinfo:type");
-    outs[0] = imfinfo(args[0].toString(), ctx.engine->resource());
+    const std::string path = args[0].toString();
+
+    // Read through the VFS prosloyka (virtual or real FS); never fopen.
+    auto rp = ctx.engine->resolvePath(path);
+    if (!rp.fs || !rp.fs->exists(rp.path))
+        throw Error("imfinfo: failed to read '" + path + "' — file not found",
+                    0, 0, "imfinfo", "", "numkit:imfinfo:read");
+    const std::string bytes = rp.fs->readFileBytes(rp.path);
+    outs[0] = imfinfoFromBytes(bytes, path, ctx.engine->resource());
 }
 
 } // namespace detail
