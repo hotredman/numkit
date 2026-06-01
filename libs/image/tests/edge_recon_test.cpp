@@ -137,6 +137,22 @@ TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
 // remap pass over already-remapped labels used to violate this on
 // merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
 // regionprops / bwareaopen downstream.
+// Typed fast path for rgb2gray (uint8/double) must be bit-for-bit identical
+// to the generic per-pixel reduction. Pinned from the pre-optimization engine.
+TEST_F(EdgeReconTest, Rgb2grayFastPathPreserved)
+{
+    eval("A = uint8(reshape(mod((0:299)*7, 256), 10, 10, 3));");
+    eval("g = rgb2gray(A);");
+    EXPECT_EQ(eval("class(g)").toString(), "uint8");
+    EXPECT_DOUBLE_EQ(sc("sum(g(:))"),        12398.0);
+    EXPECT_DOUBLE_EQ(sc("double(g(1,1))"),   124.0);
+    EXPECT_DOUBLE_EQ(sc("double(g(5,5))"),   176.0);
+    EXPECT_DOUBLE_EQ(sc("double(g(10,10))"), 126.0);
+    eval("D = double(A)/255; gd = rgb2gray(D);");
+    EXPECT_NEAR(sc("sum(gd(:))"), 48.52789399, 1e-7);
+    EXPECT_NEAR(sc("gd(5,5)"),    0.690378849, 1e-9);
+}
+
 // SIMD fast path for imfilter on DOUBLE input must be bit-for-bit identical
 // to the scalar reduction (taps accumulated in the same order). Values
 // pinned from the pre-optimization engine — interior + replicate borders.
