@@ -1332,8 +1332,12 @@ void imfill_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imfill: only 'holes' mode is implemented "
                     "(seed-list mode not yet supported)",
                     0, 0, "imfill", "", "numkit:imfill:mode");
+    // Default connectivity is 4 — MATLAB's imfill uses conndef(2,'minimal').
+    // With 8-connectivity the background flood leaks through 1-px diagonal
+    // gaps in the foreground, so enclosed regions wrongly read as
+    // border-reachable and don't fill.
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
-                     ? static_cast<int>(args[2].toScalar()) : 8;
+                     ? static_cast<int>(args[2].toScalar()) : 4;
     outs[0] = imfill_holes(args[0], conn, mr);
 }
 

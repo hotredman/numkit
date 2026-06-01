@@ -96,3 +96,57 @@ TEST_F(EdgeReconTest, CannyCaseInsensitive)
     EXPECT_DOUBLE_EQ(sc("isequal(a, b)"), 1.0);
     EXPECT_DOUBLE_EQ(sc("isequal(a, c)"), 1.0);
 }
+
+// Canny on a uint8 image must give the same edges as on the double image.
+// Previously the gradient was filtered in the input's integer type, which
+// clamped the (signed) derivative to [0,255] — wiping out every FALLING
+// edge (negative gradient). Here a bright bar has a rising edge on its left
+// and a falling edge on its right; BOTH must be detected.
+TEST_F(EdgeReconTest, CannyUint8FallingEdgeNotClamped)
+{
+    eval("I = zeros(30,30); I(:,11:20) = 200;");      // bright vertical bar
+    eval("Eu = edge(uint8(I),  'Canny', 0.2);");
+    eval("Ed = edge(double(I), 'Canny', 0.2);");
+    EXPECT_DOUBLE_EQ(sc("isequal(Eu, Ed)"), 1.0);     // type-independent
+    EXPECT_GT(sc("sum(sum(Eu(:,1:15)))"), 0.0);       // rising (left) edge
+    EXPECT_GT(sc("sum(sum(Eu(:,16:30)))"), 0.0);      // falling (right) edge — lost if clamped
+}
+
+// ── imfill default connectivity = 4 (MATLAB) ──────────────────────────
+//
+// A diamond seals its interior only through diagonally-touching pixels.
+// With 4-conn the background can't slip between them, so the interior is a
+// hole and fills; with 8-conn it leaks to the border and doesn't. The
+// DEFAULT must behave like conn=4 (it regressed to 8, which broke
+// closed-contour fills like the customer's edge→imclose→imfill pipeline).
+TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
+{
+    eval("BW = false(5,5);");
+    eval("BW(1,3)=true; BW(2,2)=true; BW(2,4)=true; BW(3,1)=true; "
+         "BW(3,5)=true; BW(4,2)=true; BW(4,4)=true; BW(5,3)=true;");  // 8-px diamond
+    EXPECT_DOUBLE_EQ(sc("nnz(BW)"), 8.0);
+    EXPECT_DOUBLE_EQ(sc("nnz(imfill(BW,'holes',4))"), 13.0);   // interior (5 px) filled
+    EXPECT_DOUBLE_EQ(sc("nnz(imfill(BW,'holes',8))"),  8.0);   // leaks → nothing filled
+    EXPECT_DOUBLE_EQ(sc("isequal(imfill(BW,'holes'), imfill(BW,'holes',4))"), 1.0);  // default == 4
+}
+
+// ── bwlabel label/count consistency ───────────────────────────────────
+//
+// Universal CCL invariant: the returned component count must equal both the
+// max label and the number of distinct nonzero labels. A redundant second
+// remap pass over already-remapped labels used to violate this on
+// merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
+// regionprops / bwareaopen downstream.
+TEST_F(EdgeReconTest, BwlabelCountMatchesLabels)
+{
+    // A "comb": three vertical stripes joined by a bottom bar (one
+    // component, many label merges) plus one separate blob.
+    eval("BW = false(6,10);");
+    eval("BW(1:5,2)=true; BW(1:5,5)=true; BW(1:5,8)=true; BW(5,2:8)=true;");  // comb
+    eval("BW(1:2,10)=true;");                                                  // separate blob
+    eval("[L,n] = bwlabel(BW);");
+    EXPECT_DOUBLE_EQ(sc("n"), 2.0);
+    EXPECT_DOUBLE_EQ(sc("max(L(:))"), 2.0);
+    EXPECT_DOUBLE_EQ(sc("n == max(L(:))"), 1.0);
+    EXPECT_DOUBLE_EQ(sc("numel(unique(L(L>0)))"), 2.0);
+}
