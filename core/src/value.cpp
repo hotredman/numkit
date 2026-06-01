@@ -2244,6 +2244,19 @@ bool Value::toBool() const
                 return false;
         return n > 0;
     }
+    // Any other numeric type (single / int* / uint* / char): scalar → nonzero,
+    // array → ALL elements nonzero, matching MATLAB's `if`/`while`
+    // scalar-context truth (same rule as the DOUBLE path above). Without
+    // this, `if uint8(...)`, `if single(...)`, even `if int8(5)` threw.
+    if (h->buffer
+        && (isIntegerType(h->type) || h->type == ValueType::SINGLE
+            || h->type == ValueType::CHAR)) {
+        size_t n = h->dims.numel();
+        for (size_t i = 0; i < n; ++i)
+            if (elemAsDouble(i) == 0.0)
+                return false;
+        return n > 0;
+    }
     throw std::runtime_error("Cannot convert " + std::string(mtypeName(type())) + " to bool");
 }
 std::string Value::toString() const

@@ -31,6 +31,26 @@ TEST_P(ControlFlowTest, IfElseif)
     EXPECT_DOUBLE_EQ(getVar("y"), 2.0);
 }
 
+// `if`/`while` conditions on integer / single / char operands. Value::toBool()
+// only handled double/logical/complex, so `if uint8(...)` (and even
+// `if int8(5)`) threw "Cannot convert uint8 to bool" — the deepest root of
+// the integer-operand family. MATLAB scalar-context truth = all nonzero.
+TEST_P(ControlFlowTest, IfConditionIntegerSingleChar)
+{
+    eval("x = 0; if uint8([1 2 3]), x = 1; end");               // all nonzero → true
+    EXPECT_DOUBLE_EQ(getVar("x"), 1.0);
+    eval("x = 9; if uint8([1 0 1]), x = 1; else, x = 0; end");  // has a zero → false
+    EXPECT_DOUBLE_EQ(getVar("x"), 0.0);
+    eval("x = 0; if int8(-5), x = 1; end");                     // scalar int, nonzero
+    EXPECT_DOUBLE_EQ(getVar("x"), 1.0);
+    eval("x = 0; if single([1.5 2.5]), x = 1; end");            // single array
+    EXPECT_DOUBLE_EQ(getVar("x"), 1.0);
+    eval("x = 0; if 'abc', x = 1; end");                        // char codes all nonzero
+    EXPECT_DOUBLE_EQ(getVar("x"), 1.0);
+    eval("s = 0; v = uint8(3); while v, s = s + 1; v = v - 1; end");  // while on uint8
+    EXPECT_DOUBLE_EQ(getVar("s"), 3.0);
+}
+
 TEST_P(ControlFlowTest, ForLoop)
 {
     eval("s = 0; for i = 1:5, s = s + i; end");
