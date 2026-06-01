@@ -247,6 +247,27 @@ Value rgb2gray(const Value &x, std::pmr::memory_resource *mr)
     constexpr double Cr = 0.298936021293775,
                      Cg = 0.587043074451121,
                      Cb = 0.114020904255103;
+
+    // Typed fast paths for the common image classes — contiguous R/G/B
+    // planes, no per-element elemAsDouble dispatch or per-pixel type switch.
+    // Same coefficients, same accumulation order, same satCast → bit-exact;
+    // the contiguous inner loop auto-vectorises.
+    if (x.type() == ValueType::UINT8) {
+        const uint8_t *R = x.uint8Data(), *G = R + plane, *B = R + 2 * plane;
+        uint8_t *o = out.uint8DataMut();
+        for (size_t i = 0; i < plane; ++i)
+            o[i] = satCast<uint8_t>(Cr * R[i] + Cg * G[i] + Cb * B[i]);
+        return out;
+    }
+    if (x.type() == ValueType::DOUBLE) {
+        const double *R = x.doubleData(), *G = R + plane, *B = R + 2 * plane;
+        double *o = out.doubleDataMut();
+        for (size_t i = 0; i < plane; ++i)
+            o[i] = Cr * R[i] + Cg * G[i] + Cb * B[i];
+        return out;
+    }
+
+    // Generic (single / uint16 / int16).
     for (size_t i = 0; i < plane; ++i) {
         const double y = Cr * pix(i, 0) + Cg * pix(i, 1) + Cb * pix(i, 2);
         store(i, y);
