@@ -183,6 +183,20 @@ void Engine::registerFunction(const std::string &name, ExternalFunc func)
     registerFunctionImpl_(name, name, std::move(func));
 }
 
+void Engine::registerClass(BuiltinClass cls)
+{
+    if (classes_.count(cls.name))
+        throw std::runtime_error("Engine::registerClass: duplicate class '" + cls.name + "'");
+    std::string key = cls.name;
+    classes_.emplace(std::move(key), std::move(cls));
+}
+
+const BuiltinClass *Engine::findClass(const std::string &name) const
+{
+    auto it = classes_.find(name);
+    return it == classes_.end() ? nullptr : &it->second;
+}
+
 void Engine::registerFunction(const std::string &ns,
                               const std::string &name,
                               ExternalFunc func)

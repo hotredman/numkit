@@ -3,6 +3,7 @@
 
 #include <numkit/core/debugger.hpp>
 #include <numkit/core/figure_manager.hpp>
+#include <numkit/core/object.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/vfs.hpp>
 #include <numkit/core/vm.hpp>
@@ -57,6 +58,14 @@ public:
     void registerFunction(const std::string &ns,
                           const std::string &name,
                           ExternalFunc func);
+
+    // ── Class registry (object model — see OBJECT_MODEL.md) ──────
+    // Register a builtin (C++-backed) class. Later, user classdef
+    // populates the same registry via an adapter. Throws on duplicate.
+    void registerClass(BuiltinClass cls);
+    // Look up a registered class by name (e.g. "containers.Map"), or
+    // nullptr. Used by constructor / method / property dispatch.
+    const BuiltinClass *findClass(const std::string &name) const;
 
     // ── Namespace introspection (used by resolver — Phase 6) ──────
 
@@ -425,6 +434,9 @@ private:
     std::unordered_map<std::string, BinaryOpFunc> binaryOps_;
     std::unordered_map<std::string, UnaryOpFunc> unaryOps_;
     std::unordered_map<std::string, ExternalFunc> externalFuncs_;
+
+    // Object-model class registry (OBJECT_MODEL.md). Keyed by class name.
+    std::unordered_map<std::string, BuiltinClass> classes_;
     std::unordered_map<std::string, UserFunction> userFuncs_;
 
     // Auxiliary indices into externalFuncs_, populated by registerFunction.
