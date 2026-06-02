@@ -2558,6 +2558,13 @@ Value VM::binarySlowPath(OpCode op, const Value &lhs, const Value &rhs)
     case OpCode::OR:    opStr = "|";  break;
     default: break;
     }
+    // OBJECT operator overloading: dispatch to the dominant object's class
+    // `ops` before the numeric builtin path (throws if no overload).
+    if (opStr && (lhs.isObject() || rhs.isObject())) {
+        Value out;
+        if (engine_.tryObjectBinaryOp(opStr, lhs, rhs, currentCallEnv(), out))
+            return out;
+    }
     if (opStr) {
         auto it = engine_.binaryOps_.find(opStr);
         if (it != engine_.binaryOps_.end())

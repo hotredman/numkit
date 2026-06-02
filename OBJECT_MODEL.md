@@ -2,9 +2,10 @@
 
 Status: **P1–P7 implemented** (type + registry + value/handle clone,
 properties, constructors, methods, subsref/subsasgn indexing,
-`dictionary` + `containers.Map`, object display) — both engines, on
-`core-dev`. Owner: CORE. Remaining: operator-overload dispatch, object
-arrays, `image.*` objects, user `classdef` authoring.
+`dictionary` + `containers.Map`, object display, multi-output methods,
+binary operator overloading) — both engines, on `core-dev`. Owner: CORE.
+Remaining: unary operator dispatch, object arrays, `image.*` objects,
+user `classdef` authoring.
 
 ## Goal
 
@@ -166,6 +167,19 @@ size the output buffer to `nargout`:
   arrays first; struct-field-func-handle multi (`[a,b] = s.fh(x)`) still
   routes through the object path and errors if the receiver isn't an
   object (was already unsupported).
+
+**Binary operator overloading** (`a + b`, `a == b`, `a .* b`, …): the
+`BuiltinClass::ops` map keys MATLAB operator-method names
+(`plus`/`minus`/`mtimes`/`times`/`rdivide`/`eq`/`lt`/`and`/…). Both
+engines funnel non-scalar binary ops through one slow path
+(`TreeWalker::execBinaryOp` / `VM::binarySlowPath`); each now calls
+`Engine::tryObjectBinaryOp` **before** the numeric/cached builtin path
+when either operand is an object. The dominant (first) object operand's
+class decides dispatch (v1 fidelity); the hook receives `self` = that
+object and `args = {lhs, rhs}` in source order. A missing overload
+raises the MATLAB `Undefined operator '<op>' for input arguments of type
+'<class>'` error rather than silently falling through. Unary operators
+(`uminus`/`uplus`/`not`/`ctranspose`/`transpose`) are not yet wired.
 
 **Decided cut (v1 dispatch fidelity):** dispatch keys on the **first
 object argument's class only**. Full MATLAB argument-dominance

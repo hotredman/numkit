@@ -210,6 +210,56 @@ std::string Engine::formatObjectDisplay(const std::string &name, const Value &ob
     return name + " =\n\n" + body + "\n";
 }
 
+// Source operator token → MATLAB operator-overload method name.
+static const char *operatorMethodName(const std::string &op)
+{
+    if (op == "+")   return "plus";
+    if (op == "-")   return "minus";
+    if (op == "*")   return "mtimes";
+    if (op == ".*")  return "times";
+    if (op == "/")   return "mrdivide";
+    if (op == "./")  return "rdivide";
+    if (op == "\\")  return "mldivide";
+    if (op == ".\\") return "ldivide";
+    if (op == "^")   return "mpower";
+    if (op == ".^")  return "power";
+    if (op == "==")  return "eq";
+    if (op == "~=")  return "ne";
+    if (op == "<")   return "lt";
+    if (op == "<=")  return "le";
+    if (op == ">")   return "gt";
+    if (op == ">=")  return "ge";
+    if (op == "&")   return "and";
+    if (op == "|")   return "or";
+    return nullptr;
+}
+
+bool Engine::tryObjectBinaryOp(const std::string &op, const Value &lhs, const Value &rhs,
+                               Environment *env, Value &out)
+{
+    if (!lhs.isObject() && !rhs.isObject())
+        return false;
+    // The dominant object decides the class (first object operand wins —
+    // v1 dispatch fidelity, see OBJECT_MODEL.md §3).
+    const Value &dom = lhs.isObject() ? lhs : rhs;
+    const std::string &clsName = dom.objectClassName();
+    const BuiltinClass *cls = findClass(clsName);
+    if (const char *mname = operatorMethodName(op); cls && mname) {
+        auto it = cls->ops.find(mname);
+        if (it != cls->ops.end()) {
+            Value self = dom;                 // class context for the hook
+            Value operands[2] = {lhs, rhs};   // args in source order
+            Value res[1];
+            CallContext ctx{this, env};
+            it->second(self, Span<const Value>(operands, 2), 1, Span<Value>(res, 1), ctx);
+            out = std::move(res[0]);
+            return true;
+        }
+    }
+    throw std::runtime_error("Undefined operator '" + op
+                             + "' for input arguments of type '" + clsName + "'.");
+}
+
 void Engine::registerFunction(const std::string &ns,
                               const std::string &name,
                               ExternalFunc func)

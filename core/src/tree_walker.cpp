@@ -1605,6 +1605,16 @@ Value TreeWalker::execBinaryOp(const ASTNode *node, Environment *env)
     auto left = execNode(node->children[0].get(), env);
     auto right = execNode(node->children[1].get(), env);
 
+    // OBJECT operator overloading: dispatch to the dominant object's class
+    // `ops` before the numeric/cached builtin path. Checked first so a
+    // cachedOp from an earlier numeric evaluation of this node can't
+    // hijack an object operand (throws if no matching overload exists).
+    if (left.isObject() || right.isObject()) {
+        Value out;
+        if (engine_.tryObjectBinaryOp(op, left, right, env, out))
+            return out;
+    }
+
     // Use cached function pointer if available
     if (node->cachedOp) {
         return (*static_cast<const BinaryOpFunc *>(node->cachedOp))(left, right);
