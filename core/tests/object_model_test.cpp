@@ -223,6 +223,16 @@ public:
             st->props.emplace("y", Value::scalar(comp(args[0], "y") + comp(args[1], "y"), mr));
             outs[0] = Value::object("Point", st, /*isHandle=*/false, mr);
         };
+        // unary minus overload: -p → Point(-x, -y). self = the operand.
+        pt.ops["uminus"] = [](Value &self, Span<const Value>, size_t, Span<Value> outs,
+                              CallContext &ctx) {
+            auto *mr = ctx.engine->resource();
+            const auto &props = self.objectStateConst()->props;
+            auto st = std::make_shared<ObjectState>(mr);
+            st->props.emplace("x", Value::scalar(-props.at("x").toScalar(), mr));
+            st->props.emplace("y", Value::scalar(-props.at("y").toScalar(), mr));
+            outs[0] = Value::object("Point", st, /*isHandle=*/false, mr);
+        };
         engine.registerClass(std::move(pt));
     }
 
@@ -357,6 +367,20 @@ TEST_P(PointObjectTest, UnsupportedOperatorThrows)
     // No `mtimes` overload → MATLAB-style "Undefined operator" error.
     engine.eval("p = Point(3, 4); q = Point(1, 2);");
     EXPECT_THROW(engine.eval("p * q"), std::exception);
+}
+
+TEST_P(PointObjectTest, OperatorUnaryMinus)
+{
+    engine.eval("p = Point(3, 4); r = -p;");
+    EXPECT_DOUBLE_EQ(evalScalar("r.x"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r.y"), -4.0);
+}
+
+TEST_P(PointObjectTest, UnsupportedUnaryOperatorThrows)
+{
+    // No `not` overload → "Undefined operator '~'".
+    engine.eval("p = Point(3, 4);");
+    EXPECT_THROW(engine.eval("~p"), std::exception);
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, PointObjectTest,

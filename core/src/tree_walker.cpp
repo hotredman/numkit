@@ -1633,6 +1633,13 @@ Value TreeWalker::execUnaryOp(const ASTNode *node, Environment *env)
 {
     auto operand = execNode(node->children[0].get(), env);
 
+    // OBJECT unary operator overloading — before the cached/builtin path.
+    if (operand.isObject()) {
+        Value out;
+        if (engine_.tryObjectUnaryOp(node->strValue, operand, env, out))
+            return out;
+    }
+
     if (node->cachedOp) {
         return (*static_cast<const UnaryOpFunc *>(node->cachedOp))(operand);
     }
