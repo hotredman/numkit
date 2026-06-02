@@ -88,9 +88,13 @@ struct BuiltinClass
     std::function<bool(Value &self, const std::string &name,
                        const Value &val, CallContext &ctx)> propSet;
 
-    // Optional overloads (empty = default / error). Wired in later phases.
-    ObjectMethod subsref;   // obj(i) / obj{i} read
-    ObjectMethod subsasgn;  // obj(i) = v write
+    // Optional overloads (empty = default / error).
+    // subsref:  obj(i…) read  — args = the subscripts; result in out[0].
+    // subsasgn: obj(i…) = v   — args = [subscripts…, value] (value last);
+    //           mutates `self` in place via objectStateMut() (so the
+    //           value/handle COW rule applies); out is unused.
+    ObjectMethod subsref;
+    ObjectMethod subsasgn;
     std::function<std::string(const Value &self)> dispText;          // disp/display
     std::unordered_map<std::string, ObjectMethod> ops;               // "plus","eq",…
 };

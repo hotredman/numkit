@@ -744,6 +744,21 @@ enter_frame:
             case OpCode::INDEX_GET: {
                 const Value &mv = R[I.b];
                 const Value &ix = R[I.c];
+                // OBJECT: obj(i) dispatches to the class subsref overload.
+                if (mv.isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(mv.objectClassName());
+                    if (cls && cls->subsref) {
+                        Value idxArgs[1] = {ix};
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->subsref(R[I.b], Span<const Value>(idxArgs, 1), 1,
+                                     Span<Value>(out, 1), ctx);
+                        R[I.a] = std::move(out[0]);
+                        break;
+                    }
+                    throw std::runtime_error("'()' indexing is not defined for class '"
+                                             + mv.objectClassName() + "'");
+                }
                 if (mv.isCell()) {
                     // Cell () indexing always returns sub-cell
                     auto indices = Value::resolveIndices(ix, mv.numel());
@@ -783,6 +798,21 @@ enter_frame:
             }
             case OpCode::INDEX_SET: {
                 const Value &ix = R[I.b];
+                // OBJECT: obj(i) = v dispatches to the class subsasgn
+                // overload (args = [index, value]); mutates R[I.a] in place.
+                if (R[I.a].isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(R[I.a].objectClassName());
+                    if (cls && cls->subsasgn) {
+                        Value args[2] = {ix, R[I.c]};
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->subsasgn(R[I.a], Span<const Value>(args, 2), 0,
+                                      Span<Value>(out, 1), ctx);
+                        break;
+                    }
+                    throw std::runtime_error("'()' assignment is not defined for class '"
+                                             + R[I.a].objectClassName() + "'");
+                }
                 if (ix.isDoubleScalar() || ix.isLogicalScalar()) {
                     // Fast path: scalar index
                     size_t i = (size_t) ix.toScalar() - 1;
@@ -2615,6 +2645,24 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
         numCaptures = R[fhReg].numel() - 1;
     } else if (R[fhReg].isFuncHandle()) {
         funcHandleVal = R[fhReg];
+    } else if (R[fhReg].isObject()) {
+        // OBJECT: obj(i…) dispatches to the class subsref overload.
+        // (A known variable `obj(i)` compiles to CALL_INDIRECT, so the
+        // object subsref hook is needed here too, not just in INDEX_GET.)
+        const BuiltinClass *cls = engine_.findClass(R[fhReg].objectClassName());
+        if (cls && cls->subsref) {
+            std::vector<Value> idx(na);
+            for (uint8_t i = 0; i < na; ++i)
+                idx[i] = R[argBase + i];
+            Value out[1];
+            CallContext ctx{&engine_, currentCallEnv()};
+            cls->subsref(R[fhReg], Span<const Value>(idx.data(), na), 1,
+                         Span<Value>(out, 1), ctx);
+            R[I.a] = std::move(out[0]);
+            return false;
+        }
+        throw std::runtime_error("'()' indexing is not defined for class '"
+                                 + R[fhReg].objectClassName() + "'");
     } else {
         // Array indexing fallback
         execIndirectIndex(I, R);

@@ -1071,6 +1071,27 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
 
     size_t nargs = lhs->children.size() - 1;
 
+    // OBJECT: obj(i…) = v dispatches to the class subsasgn overload,
+    // which mutates `var` in place (value/handle rule via objectStateMut).
+    // args = [subscripts…, value].
+    if (var->isObject()) {
+        const BuiltinClass *cls = engine_.findClass(var->objectClassName());
+        if (cls && cls->subsasgn) {
+            std::vector<Value> args;
+            args.reserve(nargs + 1);
+            for (size_t i = 0; i < nargs; ++i)
+                args.push_back(execNode(lhs->children[i + 1].get(), env));
+            args.push_back(rhs);
+            Value outBuf[1];
+            CallContext ctx{&engine_, env};
+            cls->subsasgn(*var, Span<const Value>(args.data(), args.size()), 0,
+                          Span<Value>(outBuf, 1), ctx);
+            return;
+        }
+        throw std::runtime_error("'()' assignment is not defined for class '"
+                                 + var->objectClassName() + "'");
+    }
+
     if (var->isChar() && rhs.isChar()) {
         if (nargs == 1) {
             auto indices = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
@@ -1742,6 +1763,21 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
         if (var->isFuncHandle()) {
             auto args = buildArgs();
             return callFuncHandle(*var, args, env, node);
+        }
+        // OBJECT: obj(i…) dispatches to the class subsref overload.
+        if (var->isObject()) {
+            const BuiltinClass *cls = engine_.findClass(var->objectClassName());
+            if (cls && cls->subsref) {
+                auto args = buildArgs();
+                Value self = *var;
+                Value outBuf[1];
+                CallContext ctx{&engine_, env};
+                cls->subsref(self, Span<const Value>(args.data(), args.size()), nargout,
+                             Span<Value>(outBuf, 1), ctx);
+                return outBuf[0];
+            }
+            throw std::runtime_error("'()' indexing is not defined for class '"
+                                     + var->objectClassName() + "'");
         }
         if (var->isNumeric() || var->isLogical() || var->isChar() || var->isCell()
             || var->isStruct())

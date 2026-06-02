@@ -184,6 +184,20 @@ public:
             st->props.emplace("y", Value::scalar(props.at("y").toScalar() * f, mr));
             outs[0] = Value::object("Point", st, /*isHandle=*/false, mr);
         };
+        // subsref: p(1) → x, p(2) → y
+        pt.subsref = [](Value &self, Span<const Value> args, size_t, Span<Value> outs,
+                        CallContext &ctx) {
+            int i = static_cast<int>(args[0].toScalar());
+            const auto &props = self.objectStateConst()->props;
+            outs[0] = (i == 1) ? props.at("x") : props.at("y");
+            (void) ctx;
+        };
+        // subsasgn: p(1) = v sets x; args = [index, value]; mutates self.
+        pt.subsasgn = [](Value &self, Span<const Value> args, size_t, Span<Value>,
+                         CallContext &) {
+            int i = static_cast<int>(args[0].toScalar());
+            self.objectStateMut()->props[i == 1 ? "x" : "y"] = args[1];
+        };
         engine.registerClass(std::move(pt));
     }
 
@@ -246,6 +260,26 @@ TEST_P(PointObjectTest, MethodReturningObject)
     EXPECT_DOUBLE_EQ(evalScalar("q.x"), 6.0);
     EXPECT_DOUBLE_EQ(evalScalar("q.y"), 8.0);
     EXPECT_DOUBLE_EQ(evalScalar("p.x"), 3.0); // original unchanged
+}
+
+TEST_P(PointObjectTest, SubsrefIndexing)
+{
+    engine.eval("p = Point(3, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("p(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("p(2)"), 4.0);
+}
+
+TEST_P(PointObjectTest, SubsasgnIndexing)
+{
+    engine.eval("p = Point(3, 4); p(1) = 10;");
+    EXPECT_DOUBLE_EQ(evalScalar("p.x"), 10.0);
+}
+
+TEST_P(PointObjectTest, SubsasgnValueSemantics)
+{
+    engine.eval("p = Point(3, 4); q = p; p(1) = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("q(1)"), 3.0); // value class — q independent
+    EXPECT_DOUBLE_EQ(evalScalar("p(1)"), 99.0);
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, PointObjectTest,
