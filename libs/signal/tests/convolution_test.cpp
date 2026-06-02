@@ -35,6 +35,22 @@ TEST_F(ConvolutionTest, ConvFullLength)
     EXPECT_EQ(r.numel(), 4u);
 }
 
+// A long vector convolved with a tiny kernel used to wrongly pick the FFT
+// path (na·nb > 500²), making it ~100× slower than direct. The cost-based
+// dispatch now picks direct; the result must be unchanged (== MATLAB).
+TEST_F(ConvolutionTest, ConvLongVectorTinyKernelMatchesMatlab)
+{
+    eval("x = mod((1:2049)*7919, 1000) + 0.5; k = [0.25 0.5 0.25];");
+    eval("r = conv(x, k);");
+    EXPECT_EQ(eval("r").numel(), 2051u);
+    EXPECT_NEAR(evalScalar("sum(r)"), 1023799.500000, 1e-3);
+    EXPECT_NEAR(evalScalar("r(1000)"), 81.5,  1e-7);
+    EXPECT_NEAR(evalScalar("r(end)"),  7.875, 1e-7);
+    eval("s = conv(x, k, 'same');");
+    EXPECT_EQ(eval("s").numel(), 2049u);
+    EXPECT_NEAR(evalScalar("s(1000)"), 250.5, 1e-7);
+}
+
 TEST_F(ConvolutionTest, ConvFullValues)
 {
     // [1 2 3] * [4 5] = [4 13 22 15]
