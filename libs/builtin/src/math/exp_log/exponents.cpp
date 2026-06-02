@@ -34,25 +34,13 @@ Value sqrt(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::sqrt(v); }, mr);
 }
 
-Value log2(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) { return std::log2(v); }, mr);
-}
-
 Value log10(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::log10(v); }, mr);
 }
 
-Value expm1(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) { return std::expm1(v); }, mr);
-}
-
-Value log1p(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) { return std::log1p(v); }, mr);
-}
+// log2 / expm1 / log1p are backend-split (SIMD via Highway) and now live in
+// exp_log_highway.cpp + exp_log_portable.cpp, like exp / log.
 
 // ── pow2 / realpow / reallog / realsqrt ──────────────────────────────
 
