@@ -370,6 +370,21 @@ Value Value::funcHandle(const std::string &name, std::pmr::memory_resource *mr)
     m.heap_ = h;
     return m;
 }
+Value Value::object(const std::string &className,
+                    std::shared_ptr<ObjectState> state, bool isHandle,
+                    std::pmr::memory_resource *mr)
+{
+    Value m;
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->dims = {1, 1}; // scalar object; object arrays are a later phase
+    h->mr = mr;
+    h->objClass = new std::string(className);
+    h->objState = std::move(state);
+    h->objIsHandle = isHandle;
+    m.heap_ = h;
+    return m;
+}
 // ============================================================
 // Colon range: start:step:stop → row vector
 // ============================================================
@@ -2108,6 +2123,31 @@ bool Value::isFuncHandle() const
 bool Value::isString() const
 {
     return type() == ValueType::STRING;
+}
+bool Value::isObject() const
+{
+    return type() == ValueType::OBJECT;
+}
+std::string Value::objectClassName() const
+{
+    if (isObject() && heap_->objClass)
+        return *heap_->objClass;
+    return {};
+}
+bool Value::objectIsHandle() const
+{
+    return isObject() && heap_->objIsHandle;
+}
+const ObjectState *Value::objectStateConst() const
+{
+    return isObject() ? heap_->objState.get() : nullptr;
+}
+ObjectState *Value::objectStateMut()
+{
+    if (!isObject())
+        return nullptr;
+    detach(); // COW: applies the value/handle clone rule before mutation
+    return heap_->objState.get();
 }
 
 const void *Value::rawData() const

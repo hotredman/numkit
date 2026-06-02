@@ -165,6 +165,13 @@ public:
     static Value structArray(size_t rows, size_t cols,
                               std::pmr::memory_resource *mr = nullptr);
     static Value funcHandle(const std::string &name, std::pmr::memory_resource *mr = nullptr);
+    // ── OBJECT (class instance) — see object.hpp / OBJECT_MODEL.md ──
+    // Wrap pre-built instance state as an instance of `className`.
+    // `isHandle` is the class's handle flag and drives COW (clone shares
+    // state for handle classes, deep-copies for value classes).
+    static Value object(const std::string &className,
+                        std::shared_ptr<ObjectState> state, bool isHandle,
+                        std::pmr::memory_resource *mr = nullptr);
     /// Returns a default-constructed (Unset) Value — NOT a MATLAB
     /// empty matrix despite the name. New code should use
     /// `Value::Empty` for MATLAB-style empty (0×0 DOUBLE) or
@@ -294,6 +301,19 @@ public:
     bool isStruct() const;
     bool isFuncHandle() const;
     bool isString() const;
+    bool isObject() const;
+
+    // ── OBJECT accessors (see object.hpp) ────────────────────
+    // Class name of an OBJECT ("" otherwise). objectIsHandle: the
+    // class's reference-semantics flag.
+    std::string objectClassName() const;
+    bool objectIsHandle() const;
+    // Read-only instance state (null if not an object).
+    const ObjectState *objectStateConst() const;
+    // Mutable instance state for writers. Detaches (COW) first so the
+    // value/handle clone rule applies, then returns the state to mutate
+    // (uniquely-owned for a value class; the shared one for a handle).
+    ObjectState *objectStateMut();
 
     // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;
