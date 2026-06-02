@@ -2241,6 +2241,26 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
                     }
                     continue;
                 }
+                // OBJECT array CSL: [arr.prop] expands prop over each
+                // element via propGet. A scalar object falls through to
+                // the generic path (keeps the property-or-method fallback).
+                if (base.isObject() && base.objectCount() > 1) {
+                    const BuiltinClass *cls = engine_.findClass(base.objectClassName());
+                    std::string fname = (elemNode->type == NodeType::FIELD_ACCESS)
+                        ? elemNode->strValue
+                        : execNode(elemNode->children[1].get(), env).toString();
+                    CallContext ctx{&engine_, env};
+                    for (size_t i = 0; i < base.objectCount(); ++i) {
+                        Value elem = base.objectSubArray({i}, engine_.mr_);
+                        Value out;
+                        if (!cls || !cls->propGet || !cls->propGet(elem, fname, out, ctx))
+                            throw std::runtime_error("No appropriate property '" + fname
+                                                     + "' for class '"
+                                                     + base.objectClassName() + "'");
+                        pushElem(std::move(out), rowElems);
+                    }
+                    continue;
+                }
                 // Single struct or non-struct base — fall through to the
                 // generic execNode path so existing semantics apply.
             }

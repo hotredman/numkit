@@ -5,9 +5,9 @@ properties, constructors, methods, subsref/subsasgn indexing,
 `dictionary` + `containers.Map`, object display, multi-output methods,
 binary + unary operator overloading, **object arrays** — array-backed
 storage + builtin `()` index read/write with grow + concatenation
-`[a b]`/`[a;b]`) — both engines, on `core-dev`. Owner: CORE. Remaining:
-`[objs.prop]` CSL + object-array display, `image.*` objects, user
-`classdef` authoring.
+`[a b]`/`[a;b]` + `[arr.prop]` CSL + array display) — both engines, on
+`core-dev`. Owner: CORE. Remaining: 2-D/N-D object-array grids,
+`image.*` objects, user `classdef` authoring.
 
 ## Object arrays
 
@@ -34,9 +34,21 @@ route through) via `Value::concatObjects`, which flattens each operand's
 states into a 1×N row / N×1 column applying the per-element value/handle
 rule. Mixing classes or objects-with-non-objects throws.
 
+**Comma-separated lists**: `[arr.prop]` expands a property over every
+element into a row. Both engines run it through the existing struct-CSL
+machinery (TreeWalker `execMatrixLiteral`, VM `HORZCAT_APPEND_CSL`),
+extended with an object branch that calls the class `propGet` per element
+(`Value::objectSubArray({i})` gives the scalar element). On the VM this
+also fixed bracketed scalar `[obj.prop]`, which previously demanded a
+struct and threw.
+
+**Display**: `Engine::formatObjectDisplay` (shared by both engines) shows
+a scalar via the class `dispText`, and an array as
+`<rows>×<cols> <Class> array with properties:` + the `propNames` list.
+
 v1 limits: indexed **assignment** takes a single linear subscript (read
-supports vector/`end`); object arrays are 1-D (a row or column) — 2-D/N-D
-grids and `[objs.prop]` comma-separated-list expansion are not yet wired.
+supports vector/`end`/logical); object arrays are 1-D (a row or column) —
+2-D/N-D grids are not yet wired.
 
 ## Goal
 

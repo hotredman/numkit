@@ -201,10 +201,26 @@ std::string Engine::formatObjectDisplay(const std::string &name, const Value &ob
 {
     const BuiltinClass *cls = findClass(obj.objectClassName());
     std::string body;
-    if (cls && cls->dispText)
-        body = cls->dispText(obj);
-    else
+    const size_t n = obj.objectCount();
+    if (n == 1 && cls && cls->dispText) {
+        body = cls->dispText(obj); // scalar object → class-defined body
+    } else if (n == 1) {
         body = "  " + obj.objectClassName() + "\n";
+    } else {
+        // Object array: "<rows>×<cols> <ClassName> array" + property list.
+        const Dims &d = obj.dims();
+        std::string hdr = "  " + std::to_string(d.rows()) + "\xC3\x97"
+                          + std::to_string(d.cols()) + " " + obj.objectClassName()
+                          + " array";
+        if (cls && !cls->propNames.empty()) {
+            hdr += " with properties:\n\n";
+            for (const auto &p : cls->propNames)
+                hdr += "    " + p + "\n";
+        } else {
+            hdr += "\n";
+        }
+        body = hdr;
+    }
     if (name.empty())
         return body;
     return name + " =\n\n" + body + "\n";

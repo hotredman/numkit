@@ -721,20 +721,38 @@ enter_frame:
                 const std::string &fname = chunk.strings[I.d];
                 Value &dst = R[I.a];
                 const Value &src = R[I.b];
-                if (!src.isStruct())
-                    throw std::runtime_error(
-                        "Comma-separated list expansion needs a struct");
-                size_t n = src.numel();
                 std::vector<Value> elems;
-                elems.reserve(n + 1);
                 elems.push_back(dst);
-                for (size_t i = 0; i < n; ++i) {
-                    const auto &m = src.structArrayElem(i);
-                    auto it = m.find(fname);
-                    if (it == m.end())
-                        throw std::runtime_error(
-                            "Reference to non-existent field '" + fname + "'");
-                    elems.push_back(it->second);
+                if (src.isStruct()) {
+                    size_t n = src.numel();
+                    elems.reserve(n + 1);
+                    for (size_t i = 0; i < n; ++i) {
+                        const auto &m = src.structArrayElem(i);
+                        auto it = m.find(fname);
+                        if (it == m.end())
+                            throw std::runtime_error(
+                                "Reference to non-existent field '" + fname + "'");
+                        elems.push_back(it->second);
+                    }
+                } else if (src.isObject()) {
+                    // OBJECT array CSL: [arr.prop] expands prop over each
+                    // element via the class propGet hook.
+                    const BuiltinClass *cls = engine_.findClass(src.objectClassName());
+                    size_t n = src.objectCount();
+                    elems.reserve(n + 1);
+                    CallContext ctx{&engine_, currentCallEnv()};
+                    for (size_t i = 0; i < n; ++i) {
+                        Value elem = src.objectSubArray({i}, engine_.mr_);
+                        Value out;
+                        if (!cls || !cls->propGet || !cls->propGet(elem, fname, out, ctx))
+                            throw std::runtime_error("No appropriate property '" + fname
+                                                     + "' for class '"
+                                                     + src.objectClassName() + "'");
+                        elems.push_back(std::move(out));
+                    }
+                } else {
+                    throw std::runtime_error(
+                        "Comma-separated list expansion needs a struct or object");
                 }
                 dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
                 break;
