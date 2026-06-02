@@ -197,6 +197,19 @@ const BuiltinClass *Engine::findClass(const std::string &name) const
     return it == classes_.end() ? nullptr : &it->second;
 }
 
+std::string Engine::formatObjectDisplay(const std::string &name, const Value &obj) const
+{
+    const BuiltinClass *cls = findClass(obj.objectClassName());
+    std::string body;
+    if (cls && cls->dispText)
+        body = cls->dispText(obj);
+    else
+        body = "  " + obj.objectClassName() + "\n";
+    if (name.empty())
+        return body;
+    return name + " =\n\n" + body + "\n";
+}
+
 void Engine::registerFunction(const std::string &ns,
                               const std::string &name,
                               ExternalFunc func)

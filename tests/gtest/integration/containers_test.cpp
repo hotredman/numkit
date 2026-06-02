@@ -98,4 +98,21 @@ TEST_P(ContainersTest, MapRemove)
     EXPECT_DOUBLE_EQ(evalScalar("m.Count"), 1.0);
 }
 
+// ── object display (disp / auto-display) ─────────────────────
+TEST_P(ContainersTest, DictionaryDisplay)
+{
+    capturedOutput.clear();
+    eval("clear; d = dictionary([\"a\" \"b\"], [10 20]); d");
+    EXPECT_NE(capturedOutput.find("dictionary"), std::string::npos) << capturedOutput;
+    EXPECT_NE(capturedOutput.find("\"a\" --> 10"), std::string::npos) << capturedOutput;
+}
+
+TEST_P(ContainersTest, MapDispBuiltin)
+{
+    capturedOutput.clear();
+    eval("clear; m = containers.Map(); m('a') = 1; disp(m)");
+    EXPECT_NE(capturedOutput.find("Map"), std::string::npos) << capturedOutput;
+    EXPECT_NE(capturedOutput.find("Count"), std::string::npos) << capturedOutput;
+}
+
 INSTANTIATE_DUAL(ContainersTest);

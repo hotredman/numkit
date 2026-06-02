@@ -2794,6 +2794,10 @@ void VM::execDisplay(const Instruction &I, Value *R, const BytecodeChunk &chunk)
     if (R[I.a].isUnset())
         return;
     const std::string &name = chunk.strings[I.d];
+    if (R[I.a].isObject()) {
+        engine_.outputText(engine_.formatObjectDisplay(name, R[I.a]));
+        return;
+    }
     engine_.outputText(R[I.a].formatDisplay(name));
 }
 
