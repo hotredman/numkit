@@ -74,11 +74,19 @@ Value log1p(const Value &x, std::pmr::memory_resource *mr)
 
 Value log2(const Value &x, std::pmr::memory_resource *mr)
 {
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::log(c) / std::log(2.0); }, mr);
+    if (x.isScalar() && x.toScalar() < 0.0)
+        return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)) / std::log(2.0), mr);
     return unaryDouble(x, [](double v) { return std::log2(v); }, mr);
 }
 
 Value log10(const Value &x, std::pmr::memory_resource *mr)
 {
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::log10(c); }, mr);
+    if (x.isScalar() && x.toScalar() < 0.0)
+        return Value::complexScalar(std::log10(Complex(x.toScalar(), 0.0)), mr);
     return unaryDouble(x, [](double v) { return std::log10(v); }, mr);
 }
 

@@ -693,17 +693,17 @@ together.
 |---|:---:|---|
 | `exp` | ✅ | Sig: r = exp(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `expm1` | ✅ | Sig: r = expm1(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `log` | ✅ | Sig: r = log(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `log10` | ✅ | Sig: r = log10(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `log` | ✅ | Sig: r = log(...). Element-wise libm-backed primitive (SIMD via Highway hn::Log). Negative scalar promotes to complex: log(-1)==0+pi*i (real(zn)=0, imag(zn)=pi) — regression guard for the scalar fast path that used to return real NaN. Verified vs MATLAB R2025b. |
+| `log10` | ✅ | Sig: r = log10(...). Element-wise libm-backed primitive (SIMD via Highway hn::Log10). Negative scalar promotes to complex: log10(-1)==0+1.364i (real(zn)=0, imag(zn)=pi/ln10) — regression guard. Verified vs MATLAB R2025b. |
 | `log1p` | ✅ | Sig: r = log1p(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `log2` | ✅ | Sig: r = log2(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `log2` | ✅ | Sig: r = log2(...). Element-wise libm-backed primitive (SIMD via Highway hn::Log2). Negative scalar promotes to complex: log2(-1)==0+4.532i (real(zn)=0, imag(zn)=pi/ln2) — regression guard. Verified vs MATLAB R2025b. |
 | `nextpow2` | ✅ | Sig: P = nextpow2(N). Smallest p such that 2^p >= |N|. Vectorised. Edges: |x|=0 -> 0; NaN -> NaN; ±Inf -> +Inf; complex z -> uses |z|. Bug fix 2026-05-08: complex input previously threw; NaN/Inf paths now match MATLAB. tol=0. |
 | `nthroot` | ✅ 🔬 | Sig: r = nthroot(...). Spec-extension batch 2026-05-09. |
 | `pow2` | ✅ | Sig: Y = pow2(X) = 2.^X. 1M-pt on [-50, 50]. 20 iters. Element-wise SAVE. |
 | `reallog` | ✅ | Sig: Y = reallog(X). Strict positive domain. 1M-pt on [0.001, 100]. 20 iters. Element-wise SAVE. |
 | `realpow` | ✅ | Sig: Z = realpow(X,Y). 1k×1k grid of x>0, real exp. 20 iters. Element-wise SAVE. |
 | `realsqrt` | ✅ | Sig: Y = realsqrt(X). 1M-pt on [0, 1000]. 20 iters. Element-wise SAVE. |
-| `sqrt` | ✅ | Sig: r = sqrt(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `sqrt` | ✅ | Sig: r = sqrt(...). Element-wise libm-backed primitive (SIMD via Highway hn::Sqrt). Negative scalar promotes to complex: sqrt(-4)==0+2i (real(zn)=0, imag(zn)=2) — regression guard for the scalar fast path that used to return real NaN. Verified vs MATLAB R2025b. |
 
 ### Special Functions
 
