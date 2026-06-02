@@ -56,12 +56,14 @@ struct HeapObject
     std::pmr::vector<std::string> *fieldOrder = nullptr;
     std::string *funcName = nullptr;
 
-    // ── OBJECT (class instance) — see object.hpp / OBJECT_MODEL.md ──
-    // objClass: registry key (class name). objState: shared instance
-    // state. objIsHandle: cached from the class — drives clone() (share
-    // state for handle classes, deep-copy for value classes).
+    // ── OBJECT (class instance / array) — object.hpp / OBJECT_MODEL.md ──
+    // objClass: registry key (class name). objStates: per-element instance
+    // state, length == numel() (a scalar object is a 1-element vector; the
+    // shape lives in `dims`). objIsHandle: cached from the class — drives
+    // clone() per element (share the shared_ptr for handle classes,
+    // deep-copy the ObjectState for value classes).
     std::string *objClass = nullptr;
-    std::shared_ptr<ObjectState> objState;
+    std::vector<std::shared_ptr<ObjectState>> objStates;
     bool objIsHandle = false;
 
     // Capacity for appendScalar amortization
