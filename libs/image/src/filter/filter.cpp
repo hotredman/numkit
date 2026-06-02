@@ -674,6 +674,40 @@ Value imboxfilt(const Value &I, int filter_size, std::pmr::memory_resource *mr)
     const int Hp = H + 2 * hk, Wp = W + 2 * hk;   // replicate-padded extent
     const int Hs = Hp + 1, Ws = Wp + 1;           // integral-image extent
     ScratchArena arena(mr);
+
+    // uint8 fast path: INTEGER summed-area table (uint32 — typed read, no
+    // elemAsDouble; half the bytes of the double SAT; integer mean). Used when
+    // the full-image sum can't overflow uint32 (H·W·255 < 2³², i.e. up to
+    // ~16.8 Mpx). Bit-identical to the double SAT: (2·sum + k²)/(2·k²) is
+    // round-half-up == lround(sum/k²) for the non-negative box sum.
+    if (I.type() == ValueType::UINT8 &&
+        (std::uint64_t)H * (std::uint64_t)W * 255ULL < (1ULL << 32)) {
+        const std::uint8_t *src = I.uint8Data();
+        std::uint8_t *dst = out.uint8DataMut();
+        ScratchVec<std::uint32_t> Si((std::size_t)Hs * (std::size_t)Ws, &arena);
+        auto Q = [&](int r, int c) -> std::uint32_t & { return Si[(std::size_t)c * (std::size_t)Hs + (std::size_t)r]; };
+        for (int c = 0; c < Ws; ++c) Q(0, c) = 0;
+        for (int r = 0; r < Hs; ++r) Q(r, 0) = 0;
+        for (int c = 1; c < Ws; ++c) {
+            const int sc = std::min(std::max((c - 1) - hk, 0), W - 1);
+            const std::size_t srcCol = (std::size_t)sc * (std::size_t)H;
+            for (int r = 1; r < Hs; ++r) {
+                const int sr = std::min(std::max((r - 1) - hk, 0), H - 1);
+                Q(r, c) = (std::uint32_t)src[srcCol + (std::size_t)sr]
+                          + Q(r - 1, c) + Q(r, c - 1) - Q(r - 1, c - 1);
+            }
+        }
+        const std::uint32_t k2 = (std::uint32_t)k * (std::uint32_t)k;
+        for (int c = 0; c < W; ++c)
+            for (int r = 0; r < H; ++r) {
+                const std::uint32_t sum =
+                    (Q(r + k, c + k) + Q(r, c)) - (Q(r, c + k) + Q(r + k, c));
+                dst[(std::size_t)c * (std::size_t)H + (std::size_t)r] =
+                    (std::uint8_t)((2u * sum + k2) / (2u * k2));
+            }
+        return out;
+    }
+
     ScratchVec<double> S((size_t)Hs * (size_t)Ws, &arena);
 
     // Summed-area table S (column-major): S[c*Hs + r] = Σ P[0..r-1, 0..c-1],
@@ -1775,6 +1809,10 @@ Value stdfilt(const Value &I, const Value &domain, std::pmr::memory_resource *mr
             ScratchVec<double> Sxx((size_t)Hs * (size_t)Ws, &arena);
             auto X  = [&](int r, int c) -> double & { return Sx[(size_t)c * (size_t)Hs + (size_t)r]; };
             auto XX = [&](int r, int c) -> double & { return Sxx[(size_t)c * (size_t)Hs + (size_t)r]; };
+            // Typed source read (no per-element elemAsDouble dispatch) for the
+            // common image classes; integer values are exact in a double SAT.
+            const std::uint8_t  *su8 = (I.type() == ValueType::UINT8)  ? I.uint8Data()  : nullptr;
+            const double        *sdd = (I.type() == ValueType::DOUBLE) ? I.doubleData() : nullptr;
             for (int c = 0; c < Ws; ++c) { X(0, c) = 0.0; XX(0, c) = 0.0; }
             for (int r = 0; r < Hs; ++r) { X(r, 0) = 0.0; XX(r, 0) = 0.0; }
             for (int c = 1; c < Ws; ++c) {
@@ -1782,7 +1820,8 @@ Value stdfilt(const Value &I, const Value &domain, std::pmr::memory_resource *mr
                 const std::size_t scol = (std::size_t)sc * (std::size_t)H;
                 for (int r = 1; r < Hs; ++r) {
                     const int sr = fold_index((r - 1) - rh, H, PadMode::Symmetric);
-                    const double p = I.elemAsDouble(scol + (std::size_t)sr);
+                    const std::size_t idx = scol + (std::size_t)sr;
+                    const double p = su8 ? (double)su8[idx] : sdd ? sdd[idx] : I.elemAsDouble(idx);
                     X(r, c)  = p       + X(r - 1, c)  + X(r, c - 1)  - X(r - 1, c - 1);
                     XX(r, c) = p * p   + XX(r - 1, c) + XX(r, c - 1) - XX(r - 1, c - 1);
                 }
