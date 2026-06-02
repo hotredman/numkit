@@ -137,6 +137,23 @@ TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
 // remap pass over already-remapped labels used to violate this on
 // merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
 // regionprops / bwareaopen downstream.
+// stdfilt via two integral images (Σ, Σ²) for a rectangular neighbourhood
+// must match the prior per-window result and MATLAB (both one-pass variance).
+// Pinned from MATLAB R2025b. Symmetric border; always returns double.
+TEST_F(EdgeReconTest, StdfiltIntegralPreserved)
+{
+    eval("I = reshape(mod((0:1199)*7.3, 100), 30, 40);");
+    eval("F = stdfilt(I);");                              // default ones(3)
+    EXPECT_NEAR(sc("sum(F(:))"), 30891.351644, 1e-2);
+    EXPECT_NEAR(sc("F(15,20)"),  17.62718072, 1e-5);
+    EXPECT_NEAR(sc("F(1,1)"),    10.17705753, 1e-5);      // symmetric border
+    eval("F5 = stdfilt(I, ones(5));");
+    EXPECT_NEAR(sc("F5(15,20)"), 28.82020414, 1e-5);
+    eval("A = uint8(reshape(mod((0:1199)*11,256),30,40)); G = stdfilt(A);");
+    EXPECT_EQ(eval("class(G)").toString(), "double");
+    EXPECT_NEAR(sc("G(15,20)"),  79.83576893, 1e-5);
+}
+
 // Separable imboxfilt (uniform 1/k row ⊗ col == ones(k)/k²) must match the
 // prior full-2D-kernel result and MATLAB. Pinned from MATLAB R2025b.
 TEST_F(EdgeReconTest, ImboxfiltSeparablePreserved)
