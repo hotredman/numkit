@@ -66,6 +66,9 @@ public:
     // Look up a registered class by name (e.g. "containers.Map"), or
     // nullptr. Used by constructor / method / property dispatch.
     const BuiltinClass *findClass(const std::string &name) const;
+    // MATLAB-style display text for an OBJECT value. `name` empty →
+    // bare body (disp); otherwise the `name =\n\n<body>\n` form.
+    std::string formatObjectDisplay(const std::string &name, const Value &obj) const;
 
     // ── Namespace introspection (used by resolver — Phase 6) ──────
 

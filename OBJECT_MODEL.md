@@ -1,6 +1,10 @@
 # Object model design (numkit core)
 
-Status: **design / in progress**. Owner: CORE.
+Status: **P1–P7 implemented** (type + registry + value/handle clone,
+properties, constructors, methods, subsref/subsasgn indexing,
+`dictionary` + `containers.Map`, object display) — both engines, on
+`core-dev`. Owner: CORE. Remaining: operator-overload dispatch, object
+arrays, `image.*` objects, user `classdef` authoring.
 
 ## Goal
 
