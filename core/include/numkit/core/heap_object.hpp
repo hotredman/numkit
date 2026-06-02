@@ -7,13 +7,15 @@
 
 #include <atomic>
 #include <map>
+#include <memory>
 #include <memory_resource>
 #include <string>
 #include <vector>
 
 namespace numkit {
 
-class Value; // forward decl
+class Value;        // forward decl
+struct ObjectState; // OBJECT instance state (see object.hpp); held by shared_ptr
 
 // ============================================================
 // HeapObject — ref-counted storage for non-scalar values
@@ -53,6 +55,16 @@ struct HeapObject
     // nullptr until first STRUCT allocation; ownership matches structArray.
     std::pmr::vector<std::string> *fieldOrder = nullptr;
     std::string *funcName = nullptr;
+
+    // ── OBJECT (class instance / array) — object.hpp / OBJECT_MODEL.md ──
+    // objClass: registry key (class name). objStates: per-element instance
+    // state, length == numel() (a scalar object is a 1-element vector; the
+    // shape lives in `dims`). objIsHandle: cached from the class — drives
+    // clone() per element (share the shared_ptr for handle classes,
+    // deep-copy the ObjectState for value classes).
+    std::string *objClass = nullptr;
+    std::vector<std::shared_ptr<ObjectState>> objStates;
+    bool objIsHandle = false;
 
     // Capacity for appendScalar amortization
     size_t appendCapacity = 0;

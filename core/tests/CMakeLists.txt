@@ -6,6 +6,8 @@ target_sources(numkit_gtest PRIVATE
     # TreeWalker / VM backends
     ${CMAKE_CURRENT_SOURCE_DIR}/tree_walker_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vm_test.cpp
+    # Object model (OBJECT_MODEL.md) — P1 infra: type + registry + clone
+    ${CMAKE_CURRENT_SOURCE_DIR}/object_model_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vm_benchmark.cpp
     # Thread pool — no-op file body when NUMKIT_WITH_THREADS is OFF
     ${CMAKE_CURRENT_SOURCE_DIR}/thread_pool_test.cpp

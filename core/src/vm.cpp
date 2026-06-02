@@ -721,20 +721,38 @@ enter_frame:
                 const std::string &fname = chunk.strings[I.d];
                 Value &dst = R[I.a];
                 const Value &src = R[I.b];
-                if (!src.isStruct())
-                    throw std::runtime_error(
-                        "Comma-separated list expansion needs a struct");
-                size_t n = src.numel();
                 std::vector<Value> elems;
-                elems.reserve(n + 1);
                 elems.push_back(dst);
-                for (size_t i = 0; i < n; ++i) {
-                    const auto &m = src.structArrayElem(i);
-                    auto it = m.find(fname);
-                    if (it == m.end())
-                        throw std::runtime_error(
-                            "Reference to non-existent field '" + fname + "'");
-                    elems.push_back(it->second);
+                if (src.isStruct()) {
+                    size_t n = src.numel();
+                    elems.reserve(n + 1);
+                    for (size_t i = 0; i < n; ++i) {
+                        const auto &m = src.structArrayElem(i);
+                        auto it = m.find(fname);
+                        if (it == m.end())
+                            throw std::runtime_error(
+                                "Reference to non-existent field '" + fname + "'");
+                        elems.push_back(it->second);
+                    }
+                } else if (src.isObject()) {
+                    // OBJECT array CSL: [arr.prop] expands prop over each
+                    // element via the class propGet hook.
+                    const BuiltinClass *cls = engine_.findClass(src.objectClassName());
+                    size_t n = src.objectCount();
+                    elems.reserve(n + 1);
+                    CallContext ctx{&engine_, currentCallEnv()};
+                    for (size_t i = 0; i < n; ++i) {
+                        Value elem = src.objectSubArray({i}, engine_.mr_);
+                        Value out;
+                        if (!cls || !cls->propGet || !cls->propGet(elem, fname, out, ctx))
+                            throw std::runtime_error("No appropriate property '" + fname
+                                                     + "' for class '"
+                                                     + src.objectClassName() + "'");
+                        elems.push_back(std::move(out));
+                    }
+                } else {
+                    throw std::runtime_error(
+                        "Comma-separated list expansion needs a struct or object");
                 }
                 dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
                 break;
@@ -744,6 +762,23 @@ enter_frame:
             case OpCode::INDEX_GET: {
                 const Value &mv = R[I.b];
                 const Value &ix = R[I.c];
+                // OBJECT: obj(i) dispatches to the class subsref overload.
+                if (mv.isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(mv.objectClassName());
+                    if (cls && cls->subsref) {
+                        Value idxArgs[1] = {ix};
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->subsref(R[I.b], Span<const Value>(idxArgs, 1), 1,
+                                     Span<Value>(out, 1), ctx);
+                        R[I.a] = std::move(out[0]);
+                        break;
+                    }
+                    // No custom subsref → builtin object-array indexing.
+                    auto idxs = Value::resolveIndices(ix, mv.objectCount());
+                    R[I.a] = mv.objectSubArray(idxs, engine_.mr_);
+                    break;
+                }
                 if (mv.isCell()) {
                     // Cell () indexing always returns sub-cell
                     auto indices = Value::resolveIndices(ix, mv.numel());
@@ -783,6 +818,49 @@ enter_frame:
             }
             case OpCode::INDEX_SET: {
                 const Value &ix = R[I.b];
+                // OBJECT: obj(i) = v dispatches to the class subsasgn
+                // overload (args = [index, value]); mutates R[I.a] in place.
+                if (R[I.a].isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(R[I.a].objectClassName());
+                    if (cls && cls->subsasgn) {
+                        Value args[2] = {ix, R[I.c]};
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->subsasgn(R[I.a], Span<const Value>(args, 2), 0,
+                                      Span<Value>(out, 1), ctx);
+                        break;
+                    }
+                    // else: builtin object-array element store below.
+                }
+                // Builtin object-array indexed store: arr(i) = obj. Fires
+                // when RHS is an object and the target is empty/unset (→ a
+                // fresh object array) or an object array of the same class.
+                if (R[I.c].isObject()) {
+                    Value &dst = R[I.a];
+                    const bool newable =
+                        !dst.isObject() && (dst.isUnset() || dst.isEmpty());
+                    const bool sameArr =
+                        dst.isObject()
+                        && dst.objectClassName() == R[I.c].objectClassName();
+                    if (newable || sameArr) {
+                        if (!(ix.isDoubleScalar() || ix.isLogicalScalar()))
+                            throw std::runtime_error(
+                                "object-array assignment supports a single linear index (v1)");
+                        size_t idx0 = static_cast<size_t>(ix.toScalar()) - 1;
+                        const BuiltinClass *rcls =
+                            engine_.findClass(R[I.c].objectClassName());
+                        Value fill;
+                        if (rcls && rcls->construct) {
+                            CallContext ctx{&engine_, currentCallEnv()};
+                            fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
+                        }
+                        dst.objectAssignElement(idx0, R[I.c], fill, engine_.mr_);
+                        break;
+                    }
+                }
+                if (R[I.a].isObject())
+                    throw std::runtime_error("'()' assignment is not defined for class '"
+                                             + R[I.a].objectClassName() + "'");
                 if (ix.isDoubleScalar() || ix.isLogicalScalar()) {
                     // Fast path: scalar index
                     size_t i = (size_t) ix.toScalar() - 1;
@@ -1087,6 +1165,32 @@ enter_frame:
             case OpCode::FIELD_GET: {
                 // a=dst, b=obj, d=nameIdx — strict: throws if field missing
                 const std::string &fname = chunk.strings[I.d];
+                // OBJECT: obj.Prop via class property hook (object model).
+                if (R[I.b].isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(R[I.b].objectClassName());
+                    if (cls) {
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        if (cls->propGet) {
+                            Value out;
+                            if (cls->propGet(R[I.b], fname, out, ctx)) {
+                                R[I.a] = std::move(out);
+                                break;
+                            }
+                        }
+                        // Bare obj.method (no parens) → no-arg method call.
+                        auto mit = cls->methods.find(fname);
+                        if (mit != cls->methods.end()) {
+                            Value self = R[I.b];
+                            Value out[1];
+                            mit->second(self, Span<const Value>(nullptr, 0), 1,
+                                        Span<Value>(out, 1), ctx);
+                            R[I.a] = std::move(out[0]);
+                            break;
+                        }
+                    }
+                    throw std::runtime_error("No appropriate property '" + fname
+                                             + "' for class '" + R[I.b].objectClassName() + "'");
+                }
                 if (!R[I.b].isStruct())
                     throw std::runtime_error("Dot indexing requires a struct");
                 if (!R[I.b].hasField(fname))
@@ -1107,6 +1211,17 @@ enter_frame:
             case OpCode::FIELD_SET: {
                 // a=obj, b=val, d=nameIdx
                 const std::string &fname = chunk.strings[I.d];
+                // OBJECT: obj.Prop = val via class property hook (object model).
+                if (R[I.a].isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(R[I.a].objectClassName());
+                    if (cls && cls->propSet) {
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        if (cls->propSet(R[I.a], fname, R[I.b], ctx))
+                            break;
+                    }
+                    throw std::runtime_error("Cannot set property '" + fname
+                                             + "' on class '" + R[I.a].objectClassName() + "'");
+                }
                 if (R[I.a].isEmpty()) {
                     R[I.a] = Value::structure();
                 }
@@ -1410,6 +1525,35 @@ enter_frame:
                     goto enter_frame;
                 }
 
+                // OBJECT: ClassName(args) constructs an instance when the
+                // name is a registered class (object model, OBJECT_MODEL.md).
+                {
+                    const std::string &ctorName = chunk.strings[funcIdx];
+                    if (const BuiltinClass *cls = engine_.findClass(ctorName);
+                        cls && cls->construct) {
+                        Span<const Value> as(&R[argBase], na);
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        R[I.a] = cls->construct(as, ctx);
+                        break;
+                    }
+                }
+
+                // OBJECT function-form: m(obj, ...) where obj's class has
+                // method m beats a same-named global function.
+                if (na >= 1 && R[argBase].isObject()) {
+                    const std::string &mnm = chunk.strings[funcIdx];
+                    const BuiltinClass *cls = engine_.findClass(R[argBase].objectClassName());
+                    if (cls && cls->methods.count(mnm)) {
+                        Value self = R[argBase];
+                        Span<const Value> rest((na > 1) ? &R[argBase + 1] : nullptr, na - 1);
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->methods.at(mnm)(self, rest, nargout_val, Span<Value>(out, 1), ctx);
+                        R[I.a] = std::move(out[0]);
+                        break;
+                    }
+                }
+
                 // Resolution order matches MATLAB: user-on-path beats
                 // builtins. The compiled-cache check above already
                 // handled functions adopted earlier in the session.
@@ -1487,6 +1631,28 @@ enter_frame:
                                   0, nout, true, outBase, nout);
                     goto enter_frame;
                 }
+
+                // OBJECT function-form multi-output: [a,b] = m(obj, ...).
+                // A class method on the dominant (first) object argument
+                // beats a same-named path function.
+                if (na >= 1 && R[argBase].isObject()) {
+                    const BuiltinClass *cls =
+                        engine_.findClass(R[argBase].objectClassName());
+                    if (cls && cls->methods.count(funcName)) {
+                        Value self = R[argBase];
+                        Span<const Value> rest((na > 1) ? &R[argBase + 1] : nullptr, na - 1);
+                        std::vector<Value> outBuf(nout);
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->methods.at(funcName)(self, rest, nout,
+                                                  Span<Value>(outBuf.data(), nout), ctx);
+                        for (uint8_t i = 0; i < nout; ++i)
+                            if (outBuf[i].isUnset())
+                                throw std::runtime_error("Too many output arguments.");
+                        for (size_t i = 0; i < nout; ++i)
+                            R[outBase + i] = std::move(outBuf[i]);
+                        break;
+                    }
+                }
                 // BUG #1 fix: m-file resolution must beat builtin
                 // resolution to match MATLAB. Was builtin → m-file —
                 // a user `split.m` couldn't shadow the builtin `split`,
@@ -1531,6 +1697,75 @@ enter_frame:
             }
 
             // ── Indirect function call (func handle) or array indexing ─
+            case OpCode::CALL_METHOD: {
+                // a=dst, b=objReg, c=argBase, d=nameIdx, e=nargs.
+                // obj.name(args): dispatch a class method, else fall back
+                // to field-value + CALL_INDIRECT (func handle / index).
+                const std::string &mname = chunk.strings[I.d];
+                Value &obj = R[I.b];
+                if (obj.isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
+                    if (cls && cls->methods.count(mname)) {
+                        Value self = obj; // handle: shares state; value: own copy
+                        Span<const Value> args((I.e ? &R[I.c] : nullptr), I.e);
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->methods.at(mname)(self, args, 1, Span<Value>(out, 1), ctx);
+                        R[I.a] = std::move(out[0]);
+                        break;
+                    }
+                    // Not a method → property read, then index the result.
+                    Value out;
+                    CallContext ctx{&engine_, currentCallEnv()};
+                    if (!cls || !cls->propGet || !cls->propGet(obj, mname, out, ctx))
+                        throw std::runtime_error("No appropriate property '" + mname
+                                                 + "' for class '" + obj.objectClassName() + "'");
+                    R[I.b] = std::move(out);
+                } else {
+                    // Struct field holding a func handle, or a value to index
+                    // (`s.fh(args)`, `s.arr(idx)`).
+                    if (!obj.isStruct())
+                        throw std::runtime_error("Dot indexing requires a struct");
+                    if (!obj.hasField(mname))
+                        throw std::runtime_error("Reference to non-existent field '" + mname + "'");
+                    Value fv = obj.field(mname);
+                    R[I.b] = std::move(fv);
+                }
+                // R[I.b] now holds the field/property value — reuse the
+                // indirect-call machinery (handle call or array index).
+                if (execCallIndirect(I, R, frame, ip))
+                    goto enter_frame;
+                break;
+            }
+            // ── Dotted multi-output method: [a,b] = obj.m(args) ──
+            case OpCode::CALL_METHOD_MULTI: {
+                // a=outBase, b=objReg, c=argBase, d=nameIdx,
+                // e=(nargs<<4)|nout (each nibble ≤15).
+                uint8_t outBase = I.a, objReg = I.b, argBase = I.c;
+                uint8_t na = static_cast<uint8_t>((I.e >> 4) & 0x0F);
+                uint8_t nout = static_cast<uint8_t>(I.e & 0x0F);
+                const std::string &mname = chunk.strings[I.d];
+                Value &obj = R[objReg];
+                if (!obj.isObject())
+                    throw std::runtime_error(
+                        "Dot-indexing multi-output requires an object; '" + mname
+                        + "' is not a method of a " + std::string(mtypeName(obj.type())));
+                const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
+                if (!cls || !cls->methods.count(mname))
+                    throw std::runtime_error("No appropriate method '" + mname
+                                             + "' for class '" + obj.objectClassName() + "'");
+                Value self = obj; // handle: shares state; value: own copy
+                Span<const Value> args((na ? &R[argBase] : nullptr), na);
+                std::vector<Value> outBuf(nout);
+                CallContext ctx{&engine_, currentCallEnv()};
+                cls->methods.at(mname)(self, args, nout, Span<Value>(outBuf.data(), nout), ctx);
+                for (uint8_t i = 0; i < nout; ++i)
+                    if (outBuf[i].isUnset())
+                        throw std::runtime_error("Too many output arguments.");
+                for (size_t i = 0; i < nout; ++i)
+                    R[outBase + i] = std::move(outBuf[i]);
+                break;
+            }
             case OpCode::CALL_INDIRECT:
                 if (execCallIndirect(I, R, frame, ip))
                     goto enter_frame;
@@ -1828,6 +2063,13 @@ static std::string describeInstruction(const Instruction &instr,
     }
     case OpCode::CALL_INDIRECT:
         return "in function call";
+    case OpCode::CALL_METHOD:
+    case OpCode::CALL_METHOD_MULTI: {
+        int16_t nameIdx = instr.d;
+        if (nameIdx >= 0 && nameIdx < (int16_t)chunk.strings.size())
+            return "in method call '." + chunk.strings[nameIdx] + "'";
+        return "in method call";
+    }
 
     // Cell indexing
     case OpCode::CELL_GET:
@@ -2364,6 +2606,13 @@ Value VM::binarySlowPath(OpCode op, const Value &lhs, const Value &rhs)
     case OpCode::OR:    opStr = "|";  break;
     default: break;
     }
+    // OBJECT operator overloading: dispatch to the dominant object's class
+    // `ops` before the numeric builtin path (throws if no overload).
+    if (opStr && (lhs.isObject() || rhs.isObject())) {
+        Value out;
+        if (engine_.tryObjectBinaryOp(opStr, lhs, rhs, currentCallEnv(), out))
+            return out;
+    }
     if (opStr) {
         auto it = engine_.binaryOps_.find(opStr);
         if (it != engine_.binaryOps_.end())
@@ -2381,6 +2630,12 @@ Value VM::unarySlowPath(OpCode op, const Value &operand)
     case OpCode::CTRANSPOSE: opStr = "'";  break;
     case OpCode::TRANSPOSE:  opStr = ".'"; break;
     default: break;
+    }
+    // OBJECT unary operator overloading — before the numeric builtin path.
+    if (opStr && operand.isObject()) {
+        Value out;
+        if (engine_.tryObjectUnaryOp(opStr, operand, currentCallEnv(), out))
+            return out;
     }
     if (opStr) {
         auto it = engine_.unaryOps_.find(opStr);
@@ -2503,6 +2758,30 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
         numCaptures = R[fhReg].numel() - 1;
     } else if (R[fhReg].isFuncHandle()) {
         funcHandleVal = R[fhReg];
+    } else if (R[fhReg].isObject()) {
+        // OBJECT: obj(i…) dispatches to the class subsref overload.
+        // (A known variable `obj(i)` compiles to CALL_INDIRECT, so the
+        // object subsref hook is needed here too, not just in INDEX_GET.)
+        const BuiltinClass *cls = engine_.findClass(R[fhReg].objectClassName());
+        if (cls && cls->subsref) {
+            std::vector<Value> idx(na);
+            for (uint8_t i = 0; i < na; ++i)
+                idx[i] = R[argBase + i];
+            Value out[1];
+            CallContext ctx{&engine_, currentCallEnv()};
+            cls->subsref(R[fhReg], Span<const Value>(idx.data(), na), 1,
+                         Span<Value>(out, 1), ctx);
+            R[I.a] = std::move(out[0]);
+            return false;
+        }
+        // No custom subsref → builtin object-array indexing: obj(i).
+        if (na == 1) {
+            auto idxs = Value::resolveIndices(R[argBase], R[fhReg].objectCount());
+            R[I.a] = R[fhReg].objectSubArray(idxs, engine_.mr_);
+            return false;
+        }
+        throw std::runtime_error("'()' indexing is not defined for class '"
+                                 + R[fhReg].objectClassName() + "'");
     } else {
         // Array indexing fallback
         execIndirectIndex(I, R);
@@ -2634,6 +2913,10 @@ void VM::execDisplay(const Instruction &I, Value *R, const BytecodeChunk &chunk)
     if (R[I.a].isUnset())
         return;
     const std::string &name = chunk.strings[I.d];
+    if (R[I.a].isObject()) {
+        engine_.outputText(engine_.formatObjectDisplay(name, R[I.a]));
+        return;
+    }
     engine_.outputText(R[I.a].formatDisplay(name));
 }
 

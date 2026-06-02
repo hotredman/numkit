@@ -3,6 +3,7 @@
 
 #include <numkit/core/debugger.hpp>
 #include <numkit/core/figure_manager.hpp>
+#include <numkit/core/object.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/vfs.hpp>
 #include <numkit/core/vm.hpp>
@@ -57,6 +58,34 @@ public:
     void registerFunction(const std::string &ns,
                           const std::string &name,
                           ExternalFunc func);
+
+    // ── Class registry (object model — see OBJECT_MODEL.md) ──────
+    // Register a builtin (C++-backed) class. Later, user classdef
+    // populates the same registry via an adapter. Throws on duplicate.
+    void registerClass(BuiltinClass cls);
+    // Look up a registered class by name (e.g. "containers.Map"), or
+    // nullptr. Used by constructor / method / property dispatch.
+    const BuiltinClass *findClass(const std::string &name) const;
+    // MATLAB-style display text for an OBJECT value. `name` empty →
+    // bare body (disp); otherwise the `name =\n\n<body>\n` form.
+    std::string formatObjectDisplay(const std::string &name, const Value &obj) const;
+    // Operator overloading: when `lhs` or `rhs` is an OBJECT, dispatch the
+    // binary operator `op` (the source token, e.g. "+", ".*", "==") to the
+    // dominant object's class `ops` entry (MATLAB names: plus/times/eq/…).
+    // The hook receives self = the dominant object and args = {lhs, rhs}.
+    // Returns true (out set) when handled; false when neither side is an
+    // object. Throws the MATLAB "Undefined operator … for type …" error
+    // when an object operand has no matching overload. Shared by both
+    // engines' binary-op slow paths.
+    bool tryObjectBinaryOp(const std::string &op, const Value &lhs, const Value &rhs,
+                           Environment *env, Value &out);
+    // Unary counterpart: dispatch `op` ("-", "~", "'", ".'") to the
+    // operand object's class `ops` (uminus/not/ctranspose/transpose). The
+    // hook receives self = the operand and no args. Returns true (out set)
+    // when handled; false when the operand is not an object. Throws the
+    // MATLAB "Undefined operator" error when an object has no overload.
+    bool tryObjectUnaryOp(const std::string &op, const Value &operand,
+                          Environment *env, Value &out);
 
     // ── Namespace introspection (used by resolver — Phase 6) ──────
 
@@ -425,6 +454,9 @@ private:
     std::unordered_map<std::string, BinaryOpFunc> binaryOps_;
     std::unordered_map<std::string, UnaryOpFunc> unaryOps_;
     std::unordered_map<std::string, ExternalFunc> externalFuncs_;
+
+    // Object-model class registry (OBJECT_MODEL.md). Keyed by class name.
+    std::unordered_map<std::string, BuiltinClass> classes_;
     std::unordered_map<std::string, UserFunction> userFuncs_;
 
     // Auxiliary indices into externalFuncs_, populated by registerFunction.

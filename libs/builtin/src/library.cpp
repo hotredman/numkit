@@ -554,6 +554,7 @@ void BuiltinLibrary::install(Engine &engine)
     registerCellStructFunctions(engine);
     registerStringFunctions(engine);
     registerComplexFunctions(engine);
+    registerContainers(engine); // dictionary + containers.Map (object model)
 
     registerWorkspaceBuiltins(engine);
 
@@ -2024,8 +2025,11 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
                                 if (args.empty())
                                     throw std::runtime_error("class requires an argument");
-                                outs[0] = Value::fromString(mtypeName(args[0].type()),
-                                                             ctx.engine->resource());
+                                // OBJECT instances report their registered class name.
+                                outs[0] = Value::fromString(
+                                    args[0].isObject() ? args[0].objectClassName()
+                                                       : mtypeName(args[0].type()),
+                                    ctx.engine->resource());
                             });
 
     // ── tic ────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 #include <numkit/core/shape_ops.hpp>
 #include <numkit/core/value.hpp>
+#include <numkit/core/object.hpp> // ObjectState (deepCopy) for object arrays
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -370,6 +371,21 @@ Value Value::funcHandle(const std::string &name, std::pmr::memory_resource *mr)
     m.heap_ = h;
     return m;
 }
+Value Value::object(const std::string &className,
+                    std::shared_ptr<ObjectState> state, bool isHandle,
+                    std::pmr::memory_resource *mr)
+{
+    Value m;
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->dims = {1, 1}; // scalar object = 1×1 array of one state
+    h->mr = mr;
+    h->objClass = new std::string(className);
+    h->objStates.push_back(std::move(state));
+    h->objIsHandle = isHandle;
+    m.heap_ = h;
+    return m;
+}
 // ============================================================
 // Colon range: start:step:stop → row vector
 // ============================================================
@@ -629,8 +645,59 @@ static void copyBlock(T *dst, size_t dstRows, size_t dstCols,
 // Concatenates along dimension 2 (columns).
 // Rows and pages must match across all elements.
 // ============================================================
+// Concatenate object elements (all the same class) into a 1×N row
+// (vertical=false) or N×1 column object array, applying the per-element
+// value/handle rule (value classes deep-copy, handle classes alias).
+// Throws if objects are mixed with non-objects or different classes.
+Value Value::concatObjects(const Value *elems, size_t count, bool vertical,
+                           std::pmr::memory_resource *mr)
+{
+    if (!mr)
+        mr = std::pmr::get_default_resource();
+    std::string clsName;
+    bool found = false;
+    bool handle = false;
+    for (size_t i = 0; i < count; ++i) {
+        if (elems[i].isEmpty())
+            continue;
+        if (!elems[i].isObject())
+            throw std::runtime_error(
+                "Cannot concatenate an object with a non-object value");
+        if (!found) {
+            clsName = elems[i].objectClassName();
+            handle = elems[i].objectIsHandle();
+            found = true;
+        } else if (elems[i].objectClassName() != clsName) {
+            throw std::runtime_error(
+                "Cannot concatenate objects of different classes");
+        }
+    }
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->mr = mr;
+    h->objClass = new std::string(clsName);
+    h->objIsHandle = handle;
+    for (size_t i = 0; i < count; ++i) {
+        if (!elems[i].isObject())
+            continue;
+        const auto &src = elems[i].heap_->objStates;
+        for (const auto &st : src)
+            h->objStates.push_back((handle || !st) ? st : st->deepCopy(mr));
+    }
+    size_t n = h->objStates.size();
+    h->dims = vertical ? Dims(n, size_t{1}) : Dims(size_t{1}, n);
+    Value out;
+    out.heap_ = h;
+    return out;
+}
+
 Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource *mr)
 {
+    // OBJECT concatenation: [a b] of same-class objects → a 1×N row array.
+    for (size_t i = 0; i < count; ++i)
+        if (elems[i].isObject())
+            return concatObjects(elems, count, /*vertical=*/false, mr);
+
     // String array horzcat: ["a", "b", "c"] → 1×3 string
     bool hasString = false;
     for (size_t i = 0; i < count; ++i)
@@ -741,6 +808,11 @@ Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource
 // ============================================================
 Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource *mr)
 {
+    // OBJECT concatenation: [a; b] of same-class objects → an N×1 column.
+    for (size_t i = 0; i < count; ++i)
+        if (elems[i].isObject())
+            return concatObjects(elems, count, /*vertical=*/true, mr);
+
     size_t totalRows = 0, cols = 0, pages = 1;
     bool colsSet = false, pagesSet = false;
     bool hasCell = false;
@@ -1271,6 +1343,14 @@ Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, std::pmr::memory_
         for (size_t i = 0; i < n; ++i)
             if (mask[i])
                 result.cellAt(k++) = cellAt(i);
+        return result;
+    }
+    case ValueType::STRING: {
+        auto result = Value::stringArray(rr, cc, mr);
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (mask[i])
+                result.stringElemSet(k++, stringElem(i));
         return result;
     }
     // Typed integer / single: raw memcpy per selected element.
@@ -2108,6 +2188,114 @@ bool Value::isFuncHandle() const
 bool Value::isString() const
 {
     return type() == ValueType::STRING;
+}
+bool Value::isObject() const
+{
+    return type() == ValueType::OBJECT;
+}
+std::string Value::objectClassName() const
+{
+    if (isObject() && heap_->objClass)
+        return *heap_->objClass;
+    return {};
+}
+bool Value::objectIsHandle() const
+{
+    return isObject() && heap_->objIsHandle;
+}
+size_t Value::objectCount() const
+{
+    return isObject() ? heap_->objStates.size() : 0;
+}
+const ObjectState *Value::objectStateConst() const
+{
+    return (isObject() && !heap_->objStates.empty()) ? heap_->objStates.front().get()
+                                                     : nullptr;
+}
+ObjectState *Value::objectStateMut()
+{
+    if (!isObject() || heap_->objStates.empty())
+        return nullptr;
+    detach(); // COW: applies the value/handle clone rule before mutation
+    return heap_->objStates.front().get();
+}
+const ObjectState *Value::objectStateAt(size_t i) const
+{
+    return (isObject() && i < heap_->objStates.size()) ? heap_->objStates[i].get()
+                                                       : nullptr;
+}
+ObjectState *Value::objectStateMutAt(size_t i)
+{
+    if (!isObject() || i >= heap_->objStates.size())
+        return nullptr;
+    detach(); // COW before mutation (value/handle rule applies per element)
+    return heap_->objStates[i].get();
+}
+
+Value Value::objectSubArray(const std::vector<size_t> &idxs,
+                            std::pmr::memory_resource *mr) const
+{
+    if (!isObject())
+        return Value();
+    if (!mr)
+        mr = heap_->mr ? heap_->mr : std::pmr::get_default_resource();
+    const bool handle = heap_->objIsHandle;
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->mr = mr;
+    h->objClass = new std::string(*heap_->objClass);
+    h->objIsHandle = handle;
+    h->objStates.reserve(idxs.size());
+    for (size_t i : idxs) {
+        if (i >= heap_->objStates.size())
+            throw std::runtime_error("Index exceeds the number of array elements.");
+        const auto &src = heap_->objStates[i];
+        // value class → independent copy (safe to mutate); handle → alias.
+        h->objStates.push_back((handle || !src) ? src : src->deepCopy(mr));
+    }
+    h->dims = (idxs.size() == 1) ? Dims(1, 1) : Dims(size_t{1}, idxs.size());
+    Value out;
+    out.heap_ = h;
+    return out;
+}
+
+void Value::objectAssignElement(size_t idx, const Value &elem, const Value &fill,
+                                std::pmr::memory_resource *mr)
+{
+    if (!mr)
+        mr = (heap_ && heap_->mr) ? heap_->mr
+                                  : (elem.heap_ && elem.heap_->mr
+                                         ? elem.heap_->mr
+                                         : std::pmr::get_default_resource());
+    // Coerce an empty/unset/non-object receiver into a fresh object array
+    // of elem's class (shape grows below).
+    if (!isObject()) {
+        auto *h = new HeapObject();
+        h->type = ValueType::OBJECT;
+        h->mr = mr;
+        h->objClass = new std::string(elem.objectClassName());
+        h->objIsHandle = elem.objectIsHandle();
+        h->dims = Dims(size_t{0}, size_t{0}); // 0×0; `{0,0}` picks the ptr ctor
+        Value fresh;
+        fresh.heap_ = h;
+        *this = std::move(fresh);
+    }
+    detach(); // HeapObject-level COW before in-place growth/store
+    const bool handle = heap_->objIsHandle;
+    auto sharedOf = [](const Value &v) -> std::shared_ptr<ObjectState> {
+        return (v.isObject() && !v.heap_->objStates.empty()) ? v.heap_->objStates.front()
+                                                             : nullptr;
+    };
+    auto indep = [&](const std::shared_ptr<ObjectState> &s) {
+        return s ? s->deepCopy(mr) : s; // independent default for gaps/value store
+    };
+    std::shared_ptr<ObjectState> fillState = sharedOf(fill);
+    auto &states = heap_->objStates;
+    while (states.size() <= idx)
+        states.push_back(indep(fillState)); // gaps: independent default objects
+    std::shared_ptr<ObjectState> elemState = sharedOf(elem);
+    states[idx] = handle ? elemState : indep(elemState); // alias vs deep copy
+    heap_->dims = Dims(size_t{1}, states.size());
 }
 
 const void *Value::rawData() const
