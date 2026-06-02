@@ -500,6 +500,34 @@ TEST_P(ObjectArrayTest, HandleArrayElementAliases)
     EXPECT_DOUBLE_EQ(evalScalar("h(2).v"), 77.0) << "handle-class element read aliases";
 }
 
+TEST_P(ObjectArrayTest, ConcatRow)
+{
+    engine.eval("a = [Box(1) Box(2) Box(3)];");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1).v"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(3).v"), 3.0);
+}
+
+TEST_P(ObjectArrayTest, ConcatColumn)
+{
+    engine.eval("a = [Box(1); Box(2)];");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2).v"), 2.0);
+}
+
+TEST_P(ObjectArrayTest, ConcatOfArrays)
+{
+    // Concatenating an existing array with a scalar object.
+    engine.eval("a(1)=Box(1); a(2)=Box(2); b = [a Box(3)];");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(b)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(3).v"), 3.0);
+}
+
+TEST_P(ObjectArrayTest, ConcatMixedClassThrows)
+{
+    EXPECT_THROW(engine.eval("x = [Box(1) HBox(2)];"), std::exception);
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ObjectArrayTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
