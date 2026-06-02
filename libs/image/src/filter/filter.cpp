@@ -1647,6 +1647,53 @@ Value stdfilt(const Value &I, const Value &domain, std::pmr::memory_resource *mr
         for (size_t i = 0; i < 9; ++i) dom_local.logicalDataMut()[i] = 1;
         dom = &dom_local;
     }
+
+    // INTEGRAL-IMAGE fast path for a RECTANGULAR neighbourhood (the default
+    // ones(3) and any full ones(m,n)): two summed-area tables (Σx and Σx²)
+    // over the symmetric-padded image give per-window sum & sum-of-squares in
+    // O(1)/px, then var = (Σx² − (Σx)²/n)/(n−1). This is the one-pass form
+    // MATLAB's stdfilt also uses, so values match (the per-offset loop below
+    // — two-pass — is kept for non-rectangular neighbourhoods).
+    {
+        const int kH = (int)dom->dims().rows(), kW = (int)dom->dims().cols();
+        bool rect = (kH > 0 && kW > 0);
+        for (size_t i = 0; rect && i < dom->numel(); ++i)
+            if (dom->elemAsDouble(i) == 0.0) rect = false;
+        if (rect) {
+            const int rh = kH / 2, ch = kW / 2;     // match domain_offsets centring
+            const double n = (double)kH * (double)kW;
+            const int Hp = H + kH - 1, Wp = W + kW - 1;
+            const int Hs = Hp + 1, Ws = Wp + 1;
+            ScratchArena arena(mr);
+            ScratchVec<double> Sx((size_t)Hs * (size_t)Ws, &arena);
+            ScratchVec<double> Sxx((size_t)Hs * (size_t)Ws, &arena);
+            auto X  = [&](int r, int c) -> double & { return Sx[(size_t)c * (size_t)Hs + (size_t)r]; };
+            auto XX = [&](int r, int c) -> double & { return Sxx[(size_t)c * (size_t)Hs + (size_t)r]; };
+            for (int c = 0; c < Ws; ++c) { X(0, c) = 0.0; XX(0, c) = 0.0; }
+            for (int r = 0; r < Hs; ++r) { X(r, 0) = 0.0; XX(r, 0) = 0.0; }
+            for (int c = 1; c < Ws; ++c) {
+                const int sc = fold_index((c - 1) - ch, W, PadMode::Symmetric);
+                const std::size_t scol = (std::size_t)sc * (std::size_t)H;
+                for (int r = 1; r < Hs; ++r) {
+                    const int sr = fold_index((r - 1) - rh, H, PadMode::Symmetric);
+                    const double p = I.elemAsDouble(scol + (std::size_t)sr);
+                    X(r, c)  = p       + X(r - 1, c)  + X(r, c - 1)  - X(r - 1, c - 1);
+                    XX(r, c) = p * p   + XX(r - 1, c) + XX(r, c - 1) - XX(r - 1, c - 1);
+                }
+            }
+            double *od2 = out.doubleDataMut();
+            for (int c = 0; c < W; ++c)
+                for (int r = 0; r < H; ++r) {
+                    const double s  = X(r + kH, c + kW)  - X(r, c + kW)  - X(r + kH, c)  + X(r, c);
+                    const double s2 = XX(r + kH, c + kW) - XX(r, c + kW) - XX(r + kH, c) + XX(r, c);
+                    double var = (n > 1.0) ? (s2 - s * s / n) / (n - 1.0) : 0.0;
+                    if (var < 0.0) var = 0.0;   // clamp tiny negatives from FP cancellation
+                    od2[(std::size_t)c * (std::size_t)H + (std::size_t)r] = std::sqrt(var);
+                }
+            return out;
+        }
+    }
+
     const DomainOffsets dom_offs = domain_offsets(*dom);
     const size_t M = dom_offs.offs.size();
     if (M == 0) return out;
