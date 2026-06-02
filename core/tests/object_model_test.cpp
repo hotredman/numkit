@@ -186,6 +186,15 @@ public:
             st->props.emplace("y", Value::scalar(props.at("y").toScalar() * f, mr));
             outs[0] = Value::object("Point", st, /*isHandle=*/false, mr);
         };
+        // coords() → [x, y]  (multi-output method; honours nargout)
+        pt.methods["coords"] = [](Value &self, Span<const Value>, size_t nargout,
+                                  Span<Value> outs, CallContext &ctx) {
+            const auto &props = self.objectStateConst()->props;
+            auto *mr = ctx.engine->resource();
+            outs[0] = Value::scalar(props.at("x").toScalar(), mr);
+            if (nargout > 1)
+                outs[1] = Value::scalar(props.at("y").toScalar(), mr);
+        };
         // subsref: p(1) → x, p(2) → y
         pt.subsref = [](Value &self, Span<const Value> args, size_t, Span<Value> outs,
                         CallContext &ctx) {
@@ -262,6 +271,28 @@ TEST_P(PointObjectTest, MethodReturningObject)
     EXPECT_DOUBLE_EQ(evalScalar("q.x"), 6.0);
     EXPECT_DOUBLE_EQ(evalScalar("q.y"), 8.0);
     EXPECT_DOUBLE_EQ(evalScalar("p.x"), 3.0); // original unchanged
+}
+
+TEST_P(PointObjectTest, MultiOutputMethodFunctionForm)
+{
+    // [a, b] = coords(p) — function-form dispatch to a multi-output method.
+    engine.eval("p = Point(3, 4); [a, b] = coords(p);");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 4.0);
+}
+
+TEST_P(PointObjectTest, MultiOutputMethodFunctionFormSingle)
+{
+    // Asking for one output of a multi-output method (nargout==1).
+    EXPECT_DOUBLE_EQ(evalScalar("p = Point(3, 4); a = coords(p)"), 3.0);
+}
+
+TEST_P(PointObjectTest, MultiOutputMethodDotted)
+{
+    // [a, b] = p.coords() — dotted dispatch to a multi-output method.
+    engine.eval("p = Point(3, 4); [a, b] = p.coords();");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 4.0);
 }
 
 TEST_P(PointObjectTest, SubsrefIndexing)

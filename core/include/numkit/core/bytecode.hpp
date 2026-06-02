@@ -103,6 +103,12 @@ enum class OpCode : uint8_t {
     // CALL_INDIRECT machinery (struct-field func handle / index). Object
     // model — see OBJECT_MODEL.md §3.
     CALL_METHOD,
+    // [a,b] = obj.name(args): dotted multi-output method call. a=outBase,
+    // b=objReg, c=argBase, d=nameIdx, e=(nargs<<4)|nout (each nibble ≤15 —
+    // methods with >15 args/outputs are not supported via this path).
+    // Dispatches the class method with nout result slots written to
+    // R[outBase..outBase+nout). Object model — see OBJECT_MODEL.md §3.
+    CALL_METHOD_MULTI,
     // Struct-array element get/set as a whole scalar struct, used by the
     // general compound-lvalue store chain (`d(i).a.b = …`, `d(i,j,k).…`).
     // Subscripts live in R[base..base+nargs-1] (column-major, any rank).
