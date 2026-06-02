@@ -609,6 +609,12 @@ private:
     // object array (per-element value/handle rule). Used by horzcat/vertcat.
     static Value concatObjects(const Value *elems, size_t count, bool vertical,
                                std::pmr::memory_resource *mr);
+    // Gather object states at the given source linear indices (column-major)
+    // into a new object array of shape `resultDims`, applying the per-element
+    // value/handle rule. The unifying primitive behind OBJECT indexing in
+    // elemAt / indexGet / indexGet2D / indexGet3D / indexGetND.
+    Value objectGather(const size_t *srcLinear, const Dims &resultDims,
+                       std::pmr::memory_resource *mr) const;
 
     // Static dims for scalar returns
     static const Dims sScalarDims;

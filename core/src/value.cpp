@@ -677,15 +677,48 @@ Value Value::concatObjects(const Value *elems, size_t count, bool vertical,
     h->mr = mr;
     h->objClass = new std::string(clsName);
     h->objIsHandle = handle;
-    for (size_t i = 0; i < count; ++i) {
-        if (!elems[i].isObject())
-            continue;
-        const auto &src = elems[i].heap_->objStates;
-        for (const auto &st : src)
-            h->objStates.push_back((handle || !st) ? st : st->deepCopy(mr));
+    auto pushState = [&](const std::shared_ptr<ObjectState> &st) {
+        h->objStates.push_back((handle || !st) ? st : st->deepCopy(mr));
+    };
+    // Gather the non-empty object operands (column-major storage + dims).
+    std::vector<const Value *> ops;
+    for (size_t i = 0; i < count; ++i)
+        if (elems[i].isObject())
+            ops.push_back(&elems[i]);
+
+    if (!vertical) {
+        // horzcat: operands share #rows; result is R×(Σcols). Column-major
+        // layout makes this a straight append of each operand's states.
+        size_t rows = ops.empty() ? 0 : ops[0]->heap_->dims.rows();
+        size_t cols = 0;
+        for (const Value *o : ops) {
+            if (o->heap_->dims.rows() != rows)
+                throw std::runtime_error(
+                    "Dimensions of arrays being concatenated are not consistent");
+            cols += o->heap_->dims.cols();
+            for (const auto &st : o->heap_->objStates)
+                pushState(st);
+        }
+        h->dims = Dims(rows, cols);
+    } else {
+        // vertcat: operands share #cols; result is (Σrows)×C. Column-major
+        // requires interleaving each operand's j-th column in turn.
+        size_t cols = ops.empty() ? 0 : ops[0]->heap_->dims.cols();
+        size_t rows = 0;
+        for (const Value *o : ops) {
+            if (o->heap_->dims.cols() != cols)
+                throw std::runtime_error(
+                    "Dimensions of arrays being concatenated are not consistent");
+            rows += o->heap_->dims.rows();
+        }
+        for (size_t j = 0; j < cols; ++j)
+            for (const Value *o : ops) {
+                size_t orow = o->heap_->dims.rows();
+                for (size_t r = 0; r < orow; ++r)
+                    pushState(o->heap_->objStates[j * orow + r]);
+            }
+        h->dims = Dims(rows, cols);
     }
-    size_t n = h->objStates.size();
-    h->dims = vertical ? Dims(n, size_t{1}) : Dims(size_t{1}, n);
     Value out;
     out.heap_ = h;
     return out;
@@ -968,6 +1001,11 @@ Value Value::elemAt(size_t idx, std::pmr::memory_resource *mr) const
     }
     case ValueType::CELL:
         return cellAt(idx);
+    case ValueType::OBJECT: {
+        // Object-array element → a 1×1 scalar object (value/handle rule).
+        size_t s = idx;
+        return objectGather(&s, Dims(1, 1), mr);
+    }
     case ValueType::STRING:
         // String-array element access — return a 1×1 string scalar
         // holding the string at the linear index. See BUGS.md #7.
@@ -1056,6 +1094,9 @@ Value Value::indexGet(const size_t *indices, size_t count, std::pmr::memory_reso
             result.cellAt(i) = cellAt(indices[i]);
         return result;
     }
+    case ValueType::OBJECT:
+        // Object-array slice: gather selected states into the result shape.
+        return objectGather(indices, Dims(rr, cc), mr);
     case ValueType::STRING: {
         // String-array slice: copy strings at the requested indices
         // into a fresh string array of the result shape. See BUGS.md #7.
@@ -1116,6 +1157,14 @@ Value Value::indexGet2D(const size_t *rowIdx, size_t nrows,
                                       stringElem(d.sub2ind(rowIdx[r], colIdx[c])));
         return result;
     }
+    if (t == ValueType::OBJECT) {
+        auto &d = dims();
+        std::vector<size_t> src(nrows * ncols);
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                src[c * nrows + r] = d.sub2ind(rowIdx[r], colIdx[c]);
+        return objectGather(src.data(), Dims(nrows, ncols), mr);
+    }
 
     size_t es = elementSize(t);
     if (es == 0)
@@ -1165,6 +1214,18 @@ Value Value::indexGet3D(const size_t *rowIdx, size_t nrows,
                         cellAt(d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]));
         return result;
     }
+    if (t == ValueType::OBJECT) {
+        auto &d = dims();
+        Dims rd(nrows, ncols, npages);
+        std::vector<size_t> src(nrows * ncols * npages);
+        for (size_t p = 0; p < npages; ++p)
+            for (size_t c = 0; c < ncols; ++c)
+                for (size_t r = 0; r < nrows; ++r)
+                    src[rd.sub2ind(r, c, p)] =
+                        d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]);
+        Dims resD = squeezePage ? Dims(nrows, ncols) : Dims(nrows, ncols, npages);
+        return objectGather(src.data(), resD, mr);
+    }
 
     size_t es = elementSize(t);
     if (es == 0)
@@ -1203,8 +1264,9 @@ Value Value::indexGetND(const size_t *const *perDimIdx,
 
     ValueType t = type();
     const bool isCell = (t == ValueType::CELL);
-    size_t es = isCell ? 0 : elementSize(t);
-    if (!isCell && es == 0)
+    const bool isObj = (t == ValueType::OBJECT);
+    size_t es = (isCell || isObj) ? 0 : elementSize(t);
+    if (!isCell && !isObj && es == 0)
         throw std::runtime_error(
             std::string("indexGetND not supported for type '") + mtypeName(t) + "'");
 
@@ -1217,9 +1279,12 @@ Value Value::indexGetND(const size_t *const *perDimIdx,
     for (int i = 0; i < nd; ++i) totalOut *= perDimCount[i];
     int outNd = nd;
     while (outNd > 2 && perDimCount[outNd - 1] == 1) --outNd;
-    auto result = isCell ? Value::cellND(perDimCount, outNd)
-                         : Value::matrixND(perDimCount, outNd, t, mr);
-    if (totalOut == 0) return result;
+    Value result;
+    if (!isObj)
+        result = isCell ? Value::cellND(perDimCount, outNd)
+                        : Value::matrixND(perDimCount, outNd, t, mr);
+    if (totalOut == 0)
+        return isObj ? objectGather(nullptr, Dims(perDimCount, outNd), mr) : result;
 
     // Source strides (column-major) for the existing tensor's actual rank.
     auto &srcDims = dims();
@@ -1246,6 +1311,19 @@ Value Value::indexGetND(const size_t *const *perDimIdx,
     Dims outIter(perDimCount, nd);
     size_t coords[kMaxNd] = {0};
     size_t outIdx = 0;
+    if (isObj) {
+        // Object N-D slice: collect source linear offsets, then gather with
+        // the per-element value/handle rule into the output-shaped array.
+        std::vector<size_t> src(totalOut);
+        do {
+            size_t srcOff = 0;
+            const int loopN = std::min(nd, srcNd);
+            for (int i = 0; i < loopN; ++i)
+                srcOff += perDimIdx[i][coords[i]] * srcStrides[i];
+            src[outIdx++] = srcOff;
+        } while (incrementCoords(coords, outIter));
+        return objectGather(src.data(), Dims(perDimCount, outNd), mr);
+    }
     if (isCell) {
         do {
             size_t srcOff = 0;
@@ -2232,31 +2310,43 @@ ObjectState *Value::objectStateMutAt(size_t i)
     return heap_->objStates[i].get();
 }
 
-Value Value::objectSubArray(const std::vector<size_t> &idxs,
-                            std::pmr::memory_resource *mr) const
+Value Value::objectGather(const size_t *srcLinear, const Dims &resultDims,
+                          std::pmr::memory_resource *mr) const
 {
     if (!isObject())
         return Value();
     if (!mr)
         mr = heap_->mr ? heap_->mr : std::pmr::get_default_resource();
     const bool handle = heap_->objIsHandle;
+    const size_t n = resultDims.numel();
     auto *h = new HeapObject();
     h->type = ValueType::OBJECT;
     h->mr = mr;
     h->objClass = new std::string(*heap_->objClass);
     h->objIsHandle = handle;
-    h->objStates.reserve(idxs.size());
-    for (size_t i : idxs) {
-        if (i >= heap_->objStates.size())
+    h->dims = resultDims;
+    h->objStates.reserve(n);
+    for (size_t k = 0; k < n; ++k) {
+        size_t s = srcLinear[k];
+        if (s >= heap_->objStates.size())
             throw std::runtime_error("Index exceeds the number of array elements.");
-        const auto &src = heap_->objStates[i];
+        const auto &src = heap_->objStates[s];
         // value class → independent copy (safe to mutate); handle → alias.
         h->objStates.push_back((handle || !src) ? src : src->deepCopy(mr));
     }
-    h->dims = (idxs.size() == 1) ? Dims(1, 1) : Dims(size_t{1}, idxs.size());
     Value out;
     out.heap_ = h;
     return out;
+}
+
+Value Value::objectSubArray(const std::vector<size_t> &idxs,
+                            std::pmr::memory_resource *mr) const
+{
+    if (!isObject())
+        return Value();
+    // 1-D linear selection: one index → 1×1 scalar; several → 1×N row.
+    Dims d = (idxs.size() == 1) ? Dims(1, 1) : Dims(size_t{1}, idxs.size());
+    return objectGather(idxs.data(), d, mr);
 }
 
 void Value::objectAssignElement(size_t idx, const Value &elem, const Value &fill,

@@ -1870,15 +1870,11 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
                              Span<Value>(outBuf, 1), ctx);
                 return outBuf[0];
             }
-            // No custom subsref → builtin object-array indexing: obj(i)
-            // selects element(s) (a scalar object is a 1×1 array). `end`
-            // binds to numel via resolveIndex over the object array.
-            if (node->children.size() == 2) {
-                auto idxs = resolveIndex(node->children[1].get(), *var, 0, 1, env);
-                return var->objectSubArray(idxs, engine_.mr_);
-            }
-            throw std::runtime_error("'()' indexing is not defined for class '"
-                                     + var->objectClassName() + "'");
+            // No custom subsref → builtin array indexing. execIndexAccess
+            // drives the OBJECT-aware elemAt/indexGet/indexGet2D/indexGetND
+            // path, so 1-D, 2-D and N-D object-array reads (incl. `end`,
+            // ranges, logical, vector subscripts) all work uniformly.
+            return execIndexAccess(*var, node, env);
         }
         if (var->isNumeric() || var->isLogical() || var->isChar() || var->isCell()
             || var->isStruct() || var->isString())
