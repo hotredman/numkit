@@ -645,8 +645,59 @@ static void copyBlock(T *dst, size_t dstRows, size_t dstCols,
 // Concatenates along dimension 2 (columns).
 // Rows and pages must match across all elements.
 // ============================================================
+// Concatenate object elements (all the same class) into a 1×N row
+// (vertical=false) or N×1 column object array, applying the per-element
+// value/handle rule (value classes deep-copy, handle classes alias).
+// Throws if objects are mixed with non-objects or different classes.
+Value Value::concatObjects(const Value *elems, size_t count, bool vertical,
+                           std::pmr::memory_resource *mr)
+{
+    if (!mr)
+        mr = std::pmr::get_default_resource();
+    std::string clsName;
+    bool found = false;
+    bool handle = false;
+    for (size_t i = 0; i < count; ++i) {
+        if (elems[i].isEmpty())
+            continue;
+        if (!elems[i].isObject())
+            throw std::runtime_error(
+                "Cannot concatenate an object with a non-object value");
+        if (!found) {
+            clsName = elems[i].objectClassName();
+            handle = elems[i].objectIsHandle();
+            found = true;
+        } else if (elems[i].objectClassName() != clsName) {
+            throw std::runtime_error(
+                "Cannot concatenate objects of different classes");
+        }
+    }
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->mr = mr;
+    h->objClass = new std::string(clsName);
+    h->objIsHandle = handle;
+    for (size_t i = 0; i < count; ++i) {
+        if (!elems[i].isObject())
+            continue;
+        const auto &src = elems[i].heap_->objStates;
+        for (const auto &st : src)
+            h->objStates.push_back((handle || !st) ? st : st->deepCopy(mr));
+    }
+    size_t n = h->objStates.size();
+    h->dims = vertical ? Dims(n, size_t{1}) : Dims(size_t{1}, n);
+    Value out;
+    out.heap_ = h;
+    return out;
+}
+
 Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource *mr)
 {
+    // OBJECT concatenation: [a b] of same-class objects → a 1×N row array.
+    for (size_t i = 0; i < count; ++i)
+        if (elems[i].isObject())
+            return concatObjects(elems, count, /*vertical=*/false, mr);
+
     // String array horzcat: ["a", "b", "c"] → 1×3 string
     bool hasString = false;
     for (size_t i = 0; i < count; ++i)
@@ -757,6 +808,11 @@ Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource
 // ============================================================
 Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource *mr)
 {
+    // OBJECT concatenation: [a; b] of same-class objects → an N×1 column.
+    for (size_t i = 0; i < count; ++i)
+        if (elems[i].isObject())
+            return concatObjects(elems, count, /*vertical=*/true, mr);
+
     size_t totalRows = 0, cols = 0, pages = 1;
     bool colsSet = false, pagesSet = false;
     bool hasCell = false;

@@ -4,9 +4,9 @@ Status: **P1–P7 implemented** (type + registry + value/handle clone,
 properties, constructors, methods, subsref/subsasgn indexing,
 `dictionary` + `containers.Map`, object display, multi-output methods,
 binary + unary operator overloading, **object arrays** — array-backed
-storage + builtin `()` index read/write with grow) — both engines, on
-`core-dev`. Owner: CORE. Remaining: object-array concatenation `[a b]`
-and `[objs.prop]` CSL + array display, `image.*` objects, user
+storage + builtin `()` index read/write with grow + concatenation
+`[a b]`/`[a;b]`) — both engines, on `core-dev`. Owner: CORE. Remaining:
+`[objs.prop]` CSL + object-array display, `image.*` objects, user
 `classdef` authoring.
 
 ## Object arrays
@@ -26,9 +26,17 @@ Engine integration fires the builtin path **only when the class has no
 custom `subsref`/`subsasgn`** (else the class controls indexing, MATLAB-
 faithful): TreeWalker `execCall`/`execIndexedAssign`, VM `INDEX_GET`/
 `INDEX_SET`/`execCallIndirect`. `arr(i)`, `arr([1 3])`, `arr(end)`,
-`arr(i) = obj` (grow), `numel`/`size` all work on both engines. v1 limit:
-indexed **assignment** takes a single linear subscript (read supports
-vector/`end`); 2-D/N-D object arrays and concatenation are not yet wired.
+`arr(i) = obj` (grow), `numel`/`size` all work on both engines.
+
+Concatenation `[a b]` / `[a; b]` of same-class objects is handled in
+`Value::horzcat`/`vertcat` (the single concat chokepoint both engines
+route through) via `Value::concatObjects`, which flattens each operand's
+states into a 1×N row / N×1 column applying the per-element value/handle
+rule. Mixing classes or objects-with-non-objects throws.
+
+v1 limits: indexed **assignment** takes a single linear subscript (read
+supports vector/`end`); object arrays are 1-D (a row or column) — 2-D/N-D
+grids and `[objs.prop]` comma-separated-list expansion are not yet wired.
 
 ## Goal
 

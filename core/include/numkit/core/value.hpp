@@ -605,6 +605,10 @@ private:
     void releaseHeap();
     void detach();
     HeapObject *mutableHeap();
+    // Concatenate same-class object elements into a 1×N row / N×1 column
+    // object array (per-element value/handle rule). Used by horzcat/vertcat.
+    static Value concatObjects(const Value *elems, size_t count, bool vertical,
+                               std::pmr::memory_resource *mr);
 
     // Static dims for scalar returns
     static const Dims sScalarDims;
