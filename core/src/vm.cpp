@@ -980,6 +980,36 @@ enter_frame:
                 const Value &ci = R[I.c];
                 const Value &val = R[I.e];
 
+                // OBJECT: arr(i,j) = obj — builtin 2-D element store + grow,
+                // when the target is empty/unset or a same-class object array.
+                if (val.isObject()) {
+                    Value &dst = R[I.a];
+                    const bool newable =
+                        !dst.isObject() && (dst.isUnset() || dst.isEmpty());
+                    const bool sameArr =
+                        dst.isObject()
+                        && dst.objectClassName() == val.objectClassName();
+                    if (newable || sameArr) {
+                        if (!(ri.isDoubleScalar() || ri.isLogicalScalar())
+                            || !(ci.isDoubleScalar() || ci.isLogicalScalar()))
+                            throw std::runtime_error(
+                                "object-array assignment supports a single element "
+                                "per subscript (v1)");
+                        std::vector<size_t> subs = {
+                            static_cast<size_t>(ri.toScalar()) - 1,
+                            static_cast<size_t>(ci.toScalar()) - 1};
+                        const BuiltinClass *rcls =
+                            engine_.findClass(val.objectClassName());
+                        Value fill;
+                        if (rcls && rcls->construct) {
+                            CallContext ctx{&engine_, currentCallEnv()};
+                            fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
+                        }
+                        dst.objectAssignElementND(subs, val, fill, engine_.mr_);
+                        break;
+                    }
+                }
+
                 // ── Scalar fast path: Z(i,j) = scalar ──
                 if (ri.isDoubleScalar() && ci.isDoubleScalar()
                     && val.isDoubleScalar() && R[I.a].isHeapDouble()) {
@@ -1072,6 +1102,36 @@ enter_frame:
             case OpCode::INDEX_SET_ND: {
                 // a=arr/cell, b=base, c=ndims, e=val
                 uint8_t base = I.b, ndims = I.c;
+                // OBJECT: arr(i,j,k,…) = obj — builtin N-D element store + grow.
+                if (R[I.e].isObject()) {
+                    Value &dst = R[I.a];
+                    const Value &val = R[I.e];
+                    const bool newable =
+                        !dst.isObject() && (dst.isUnset() || dst.isEmpty());
+                    const bool sameArr =
+                        dst.isObject()
+                        && dst.objectClassName() == val.objectClassName();
+                    if (newable || sameArr) {
+                        std::vector<size_t> subs(ndims);
+                        for (uint8_t i = 0; i < ndims; ++i) {
+                            const Value &s = R[base + i];
+                            if (!(s.isDoubleScalar() || s.isLogicalScalar()))
+                                throw std::runtime_error(
+                                    "object-array assignment supports a single "
+                                    "element per subscript (v1)");
+                            subs[i] = static_cast<size_t>(s.toScalar()) - 1;
+                        }
+                        const BuiltinClass *rcls =
+                            engine_.findClass(val.objectClassName());
+                        Value fill;
+                        if (rcls && rcls->construct) {
+                            CallContext ctx{&engine_, currentCallEnv()};
+                            fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
+                        }
+                        dst.objectAssignElementND(subs, val, fill, engine_.mr_);
+                        break;
+                    }
+                }
                 if (ndims == 3) {
                     auto isColon = [](const Value &v) {
                         return v.isChar() && v.numel() == 1 && v.charData()[0] == ':';
