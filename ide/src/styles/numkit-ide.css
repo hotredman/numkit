@@ -2614,6 +2614,35 @@ input, select { font-family: inherit; color: inherit; }
 }
 .ve-btn:hover { background: var(--bg-3); }
 .ve-btn.is-active { color: var(--accent); border-color: var(--accent); }
+/* 3-D / N-D slice navigator — MATLAB A(:,:,k3,…) per-dimension spinners. */
+.ve-slice-nav { font-family: var(--font-mono); font-size: 11px; }
+.ve-slice-expr { color: var(--fg-3); }
+.ve-slice-dim { display: inline-flex; align-items: center; gap: 2px; }
+.ve-slice-comma { color: var(--fg-3); margin: 0 1px; }
+.ve-slice-arrow {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--fg-1);
+  width: 18px; height: 20px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+.ve-slice-arrow:hover:not(:disabled) { background: var(--bg-3); }
+.ve-slice-arrow:disabled { opacity: 0.4; cursor: default; }
+.ve-slice-input {
+  width: 42px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--accent);
+  border-radius: var(--r-sm);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px;
+}
+.ve-slice-of { color: var(--fg-3); }
 /* Colormap <select> reuses .ve-btn styling so it sits flush with the
    neighbouring toggle buttons. Native chevron stays for affordance. */
 select.ve-btn.fw-cmap-select {

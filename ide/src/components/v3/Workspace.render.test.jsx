@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, within, fireEvent } from '@testing-library/react';
-import { VariableEditor as VE } from './Workspace';
+import { VariableEditor as VE, MatrixPanel } from './Workspace';
 import SyntaxEditor from '../SyntaxEditor';
 
 // jsdom lacks ResizeObserver and a real canvas 2-D context (the editor's
@@ -75,6 +75,54 @@ describe('VariableEditor — matrix render smoke', () => {
       <VE variable={matrixVar} onClose={() => {}} engine={null} />,
     );
     expect(container.querySelector('.ve-window')).toBeTruthy();
+  });
+});
+
+describe('MatrixPanel — 3-D / N-D slice navigator', () => {
+  const baseProps = {
+    rows: 2, cols: 2, name: 'V', type: 'double',
+    getCellValue: (r, c) => r * 2 + c, getSlice: () => [], stats: null,
+  };
+
+  it('renders no navigator for a 2-D array', () => {
+    const { container } = render(
+      <MatrixPanel {...baseProps} dims={[2, 2]} page={0} setPage={() => {}} />,
+    );
+    expect(container.querySelector('.ve-slice-nav')).toBeNull();
+  });
+
+  it('renders one spinner for a 3-D array and steps the page on ▶', () => {
+    const setPage = vi.fn();
+    const { container } = render(
+      <MatrixPanel {...baseProps} dims={[2, 2, 3]} pages={3} page={0} setPage={setPage} />,
+    );
+    const nav = container.querySelector('.ve-slice-nav');
+    expect(nav).toBeTruthy();
+    const input = nav.querySelector('.ve-slice-input');
+    expect(input.value).toBe('1');         // 1-based slice index
+    expect(nav.textContent).toContain('/3');
+    // Two arrows: [‹ prev, › next]. Next → page 1.
+    const arrows = nav.querySelectorAll('.ve-slice-arrow');
+    expect(arrows[0].disabled).toBe(true);  // prev disabled on slice 1
+    fireEvent.click(arrows[1]);
+    expect(setPage).toHaveBeenCalledWith(1);
+  });
+
+  it('renders one spinner per dimension ≥3 for an N-D array', () => {
+    const { container } = render(
+      <MatrixPanel {...baseProps} dims={[2, 2, 3, 4]} pages={12} page={0} setPage={() => {}} />,
+    );
+    expect(container.querySelectorAll('.ve-slice-input').length).toBe(2);
+  });
+
+  it('typing a slice number jumps to that page', () => {
+    const setPage = vi.fn();
+    const { container } = render(
+      <MatrixPanel {...baseProps} dims={[2, 2, 5]} pages={5} page={0} setPage={setPage} />,
+    );
+    const input = container.querySelector('.ve-slice-input');
+    fireEvent.change(input, { target: { value: '4' } });
+    expect(setPage).toHaveBeenCalledWith(3);   // 1-based 4 → 0-based page 3
   });
 });
 
