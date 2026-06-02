@@ -1716,12 +1716,12 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fwind2` |  |  |  |  |  |  |  |
 | `gabor` |  |  |  |  |  |  | not implemented |
 | `imbilatfilt` |  |  |  |  |  |  |  |
-| `imboxfilt` | 0.3978 | 0.46× |  | 40.76 | 0.03× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `imboxfilt` | 0.05437 | 3.62× |  | 8.678 | 0.17× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imboxfilt3` |  |  |  |  |  |  |  |
 | `imdiffusefilt` |  |  |  |  |  |  |  |
-| `imfilter` | 0.2891 | 0.20× |  | 31.36 | 0.04× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `imfilter` | 0.02674 | 1.68× |  | 3.856 | 0.33× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imgaborfilt` |  |  |  |  |  |  |  |
-| `imgaussfilt` | 3.464 | 0.13× |  | 344.8 | 0.02× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `imgaussfilt` | 0.165 | 2.83× |  | 8.024 | 0.75× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imgaussfilt3` |  |  |  |  |  |  |  |
 | `imguidedfilter` |  |  |  |  |  |  |  |
 | `imnlmfilt` |  |  |  |  |  |  |  |
@@ -1729,7 +1729,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter3` |  |  |  |  |  |  |  |
 | `integralImage` |  |  |  |  |  |  |  |
 | `integralImage3` |  |  |  |  |  |  |  |
-| `medfilt2` | 0.4292 | 0.93× |  | 45.01 | 0.10× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `medfilt2` | 0.258 | 1.73× |  | 28.52 | 0.15× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `medfilt3` |  |  |  |  |  |  |  |
 | `modefilt` |  |  |  |  |  |  |  |
 | `nlfilter` |  |  |  |  |  |  |  |
@@ -1737,7 +1737,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `padarray` |  |  |  |  |  |  |  |
 | `rangefilt` |  |  |  |  |  |  |  |
 | `roifilt2` |  |  |  |  |  |  |  |
-| `stdfilt` | 0.6241 | 0.22× |  | 64.44 | 0.10× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `stdfilt` | 0.1428 | 2.10× |  | 10.94 | 0.52× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `wiener2` |  |  |  |  |  |  |  |
 
 ### Contrast Adjustment
@@ -1906,7 +1906,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `houghlines` |  |  |  |  |  |  |  |
 | `houghpeaks` |  |  |  |  |  |  | not implemented |
 | `imfindcircles` |  |  |  |  |  |  | not implemented |
-| `imgradient` | 1.046 | 0.22× |  | 98.09 | 0.04× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `imgradient` | 0.2161 | 1.56× |  | 15.89 | 0.24× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imgradientxy` |  |  |  |  |  |  |  |
 | `imgradient3` |  |  |  |  |  |  |  |
 | `imgradientxyz` |  |  |  |  |  |  |  |
@@ -1964,7 +1964,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `graycomatrix` |  |  |  |  |  |  |  |
 | `graycoprops` |  |  |  |  |  |  |  |
 | `rangefilt` |  |  |  |  |  |  |  |
-| `stdfilt` | 0.6241 | 0.22× |  | 64.44 | 0.10× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `stdfilt` | 0.1428 | 2.10× |  | 10.94 | 0.52× |  | grayscale double N×N (100×100 / 1000×1000) |
 
 ### Image Quality
 
@@ -2533,7 +2533,7 @@ intentionally omitted — flat solver functions only.
 | `finddelay` |  |  |  |  |  |  |  |
 | `findsignal` |  |  |  |  |  |  | not implemented |
 | `xcorr2` |  |  |  |  |  |  |  |
-| `conv` | 0.003422 | 5.60× |  | 156.2 | 0.01× |  |  |
+| `conv` | 0.003104 | 5.25× |  | 6.509 | 0.30× |  |  |
 | `conv2` |  |  |  |  |  |  |  |
 | `convn` |  |  |  |  |  |  |  |
 | `deconv` |  |  |  |  |  |  |  |
