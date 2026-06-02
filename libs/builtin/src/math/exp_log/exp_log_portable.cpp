@@ -59,4 +59,21 @@ Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
     return unaryRealDoubleHint(x, hint, [](double v) { return std::log(v); }, [](const Complex &c) { return std::log(c); }, mr);
 }
 
+// expm1 / log1p / log2 — reference scalar path (the SIMD variants live in
+// exp_log_highway.cpp). Real-only, so no complex branch.
+Value expm1(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) { return std::expm1(v); }, mr);
+}
+
+Value log1p(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) { return std::log1p(v); }, mr);
+}
+
+Value log2(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) { return std::log2(v); }, mr);
+}
+
 } // namespace numkit::builtin
