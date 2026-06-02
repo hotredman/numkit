@@ -5,6 +5,7 @@ import ContextMenu from './ContextMenu';
 import ValueTable from './ValueTable';
 import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
 import { aggregateStats, heatmapCellBackground, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
+import { pageCount, pageToSubs, subsToPage } from './sliceNav';
 import { useChooser, ChooserButton } from './chooser';
 import { classify } from './adapters';
 
@@ -855,9 +856,10 @@ function VirtualTable({
 //   onSave(format)     — save-as handler; null → no save-as button
 //   saveDisabled       — gray out save-as (e.g. tile-mode huge matrix)
 //   fontScale
-function MatrixPanel({
-  rows, cols, name, type,             
+export function MatrixPanel({
+  rows, cols, name, type,
   getCellValue, getSlice, stats,
+  dims, page = 0, setPage,
   readOnly = false,
   onCommit, onEscape, onSave,
   saveDisabled = false,
@@ -978,6 +980,36 @@ function MatrixPanel({
   return (
     <>
       <div className="ve-toolbar">
+        {dims && pageCount(dims) > 1 && (
+          <div className="ve-tools-group ve-slice-nav">
+            <span className="ve-label">slice</span>
+            <span className="ve-slice-expr">{name}(:,:,</span>
+            {dims.slice(2).map((dlen, j) => {
+              const subs = pageToSubs(page, dims);
+              const k = subs[j] || 0;
+              const setK = (nk) => {
+                const s = pageToSubs(page, dims);
+                s[j] = Math.min(dlen - 1, Math.max(0, nk));
+                setPage?.(subsToPage(s, dims));
+              };
+              return (
+                <span key={j} className="ve-slice-dim">
+                  {j > 0 && <span className="ve-slice-comma">,</span>}
+                  <button className="ve-slice-arrow" disabled={k <= 0}
+                    onClick={() => setK(k - 1)} title="Previous slice">‹</button>
+                  <input className="ve-slice-input" type="number" min={1} max={dlen}
+                    value={k + 1}
+                    onChange={(e) => { const nv = parseInt(e.target.value, 10);
+                                       if (Number.isFinite(nv)) setK(nv - 1); }} />
+                  <span className="ve-slice-of">/{dlen}</span>
+                  <button className="ve-slice-arrow" disabled={k >= dlen - 1}
+                    onClick={() => setK(k + 1)} title="Next slice">›</button>
+                </span>
+              );
+            })}
+            <span className="ve-slice-expr">)</span>
+          </div>
+        )}
         <div className="ve-tools-group">
           <span className="ve-label">notation</span>
           <div className="ve-segmented">
@@ -1004,6 +1036,13 @@ function MatrixPanel({
             </svg>
             heatmap
           </button>
+          <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
+            title="Toggle inline plot" onClick={() => setShowPlot((p) => !p)}>
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
+            </svg>
+            plot
+          </button>
           <button className="ve-btn" title="Copy as CSV" onClick={() => {
             const lines = [];
             for (let r = 0; r < rows; r++) {
@@ -1021,13 +1060,6 @@ function MatrixPanel({
               <rect x="3.5" y="0.5" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
             </svg>
             copy csv
-          </button>
-          <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
-            title="Toggle inline plot" onClick={() => setShowPlot((p) => !p)}>
-            <svg width="11" height="11" viewBox="0 0 12 12">
-              <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
-            </svg>
-            plot
           </button>
           {onSave && (
             <div className="ve-saveas-wrap">
@@ -1059,7 +1091,7 @@ function MatrixPanel({
       <StatsBar stats={stats} visible={statsVisible} />
 
       <div className="ve-address">
-        <span className="ve-cell-ref">{name}({activeCell.r + 1}, {activeCell.c + 1})</span>
+        <span className="ve-cell-ref">{name}({activeCell.r + 1}, {activeCell.c + 1}{dims && dims.length > 2 ? pageToSubs(page, dims).map((k) => `, ${k + 1}`).join('') : ''})</span>
         <span className="ve-eq">=</span>
         <span className="ve-cell-val">{format(getCellValue(activeCell.r, activeCell.c))}</span>
       </div>
@@ -1094,7 +1126,7 @@ function MatrixPanel({
       </div>
 
       <div className="ve-status">
-        <span>cell ({activeCell.r + 1},{activeCell.c + 1})</span>
+        <span>cell ({activeCell.r + 1},{activeCell.c + 1}{dims && dims.length > 2 ? pageToSubs(page, dims).map((k) => `,${k + 1}`).join('') : ''})</span>
         <span className="ve-sep" />
         <span>↑↓←→ navigate</span>
         <span className="ve-sep" />
@@ -1563,6 +1595,12 @@ export function VariableEditor({ variable, onClose, engine }) {
     return { rows: r, cols: c, tileMode: false };
   })();
   const [shape, setShape] = useState(initialShape);
+  // Linear page index (0-based) of the displayed 2-D slice for 3-D / N-D
+  // arrays (0 for 2-D). loadedPageRef tracks which page's full-mode data is
+  // currently in `data`, so a page change refetches but mount / variable
+  // swap don't double-fetch page 0.
+  const [page, setPage] = useState(0);
+  const loadedPageRef = useRef(0);
   // Full-mode data (small matrices). For tile-mode we don't use this.
   const [data, setData]           = useState(variable.data);
   // Tile cache + pending set (tile-mode only). Map<"tR,tC", number[][] | 'pending' | 'error'>
@@ -1581,6 +1619,8 @@ export function VariableEditor({ variable, onClose, engine }) {
   useEffect(() => {
     if (isStructLike) return;   // struct path handled by the effect above
     setData(variable.data);
+    setPage(0);                 // new variable → back to slice 1
+    loadedPageRef.current = 0;
     // activeCell now lives in MatrixPanel (it resets itself on a
     // rows/cols/name change), so VariableEditor no longer touches it.
     setLoadError(null);
@@ -1601,7 +1641,8 @@ export function VariableEditor({ variable, onClose, engine }) {
           const numel = sh.rows * sh.cols;
           const tileMode = numel > TILE_MODE_THRESHOLD
                         && typeof engine.getVarTile === 'function';
-          setShape({ rows: sh.rows, cols: sh.cols, tileMode });
+          setShape({ rows: sh.rows, cols: sh.cols, tileMode,
+                     pages: sh.pages ?? 1, ndim: sh.ndim ?? 2, dims: sh.dims });
           if (tileMode) {
             // Don't full-fetch. The virtual table will request tiles on demand.
             setLoading(false);
@@ -1618,6 +1659,7 @@ export function VariableEditor({ variable, onClose, engine }) {
             rows: r.rows ?? r.data.length,
             cols: r.cols ?? (r.data[0]?.length || 0),
             tileMode: false,
+            pages: sh?.pages ?? 1, ndim: sh?.ndim ?? 2, dims: sh?.dims,
           });
         }
         setLoading(false);
@@ -1629,6 +1671,23 @@ export function VariableEditor({ variable, onClose, engine }) {
     return () => clearTimeout(handle);
   }, [variable, engine, isStructLike]);
 
+  // Page change → refetch the full-mode slice. Tile-mode pages are keyed by
+  // `page` in the tile / slice caches below, so they refetch lazily without
+  // an effect. loadedPageRef guards the mount / variable-swap double (the
+  // main effect already loaded slice 0).
+  useEffect(() => {
+    if (isStructLike || shape.tileMode) return;
+    if (page === loadedPageRef.current) return;
+    loadedPageRef.current = page;
+    if (!engine || typeof engine.getVarPage !== 'function') return;
+    try {
+      const r = engine.getVarPage(variable.name, page);
+      if (r && !r.error && Array.isArray(r.data)) setData(r.data);
+    } catch (e) {
+      setLoadError(e?.message || String(e));
+    }
+  }, [page, variable.name, engine, shape.tileMode, isStructLike]);
+
   /* ─── slice cache (for InlinePlot in both modes) ─── */
   // Keyed by `${axis}:${idx}`. In tile-mode each miss triggers a single
   // 10000×1 (or 1×10000) tile fetch — fast because numkit storage is
@@ -1638,15 +1697,15 @@ export function VariableEditor({ variable, onClose, engine }) {
     if (!shape.tileMode) {
       return axis === 'row' ? (data[idx] || []) : data.map((r) => r[idx]);
     }
-    const key = `${axis}:${idx}`;
+    const key = `${page}:${axis}:${idx}`;
     const cached = sliceCache.current.get(key);
     if (cached) return cached;
     if (!engine || typeof engine.getVarTile !== 'function') return [];
     let res;
     if (axis === 'row') {
-      res = engine.getVarTile(variable.name, idx, 0, 1, shape.cols);
+      res = engine.getVarTile(variable.name, idx, 0, 1, shape.cols, page);
     } else {
-      res = engine.getVarTile(variable.name, 0, idx, shape.rows, 1);
+      res = engine.getVarTile(variable.name, 0, idx, shape.rows, 1, page);
     }
     if (!res || res.error || !Array.isArray(res.data)) return [];
     // Flatten — tile.data is rows×cols; slice is one row or one col.
@@ -1655,7 +1714,7 @@ export function VariableEditor({ variable, onClose, engine }) {
       : res.data.map((r) => r[0]);
     sliceCache.current.set(key, out);
     return out;
-  }, [shape.tileMode, shape.rows, shape.cols, data, engine, variable.name]);
+  }, [shape.tileMode, shape.rows, shape.cols, data, engine, variable.name, page]);
 
   /* ─── tile-mode cell accessor ─── */
   // Returns the value at (r, c). For full-mode this is just data[r][c].
@@ -1666,7 +1725,7 @@ export function VariableEditor({ variable, onClose, engine }) {
     if (!shape.tileMode) return data[r]?.[c];
     const tR = Math.floor(r / TILE);
     const tC = Math.floor(c / TILE);
-    const key = `${tR},${tC}`;
+    const key = `${page},${tR},${tC}`;
     const tile = tileCache.current.get(key);
     if (tile && tile !== 'pending' && tile !== 'error') {
       return tile[r - tR * TILE]?.[c - tC * TILE];
@@ -1679,7 +1738,7 @@ export function VariableEditor({ variable, onClose, engine }) {
       // Defer to a microtask so React's render pass isn't blocked.
       Promise.resolve().then(() => {
         try {
-          const res = engine.getVarTile(variable.name, r0, c0, TILE, TILE);
+          const res = engine.getVarTile(variable.name, r0, c0, TILE, TILE, page);
           if (!res || res.error || !Array.isArray(res.data)) {
             tileCache.current.set(key, 'error');
           } else {
@@ -1693,7 +1752,7 @@ export function VariableEditor({ variable, onClose, engine }) {
       });
     }
     return null;
-  }, [shape.tileMode, data, engine, variable.name]);
+  }, [shape.tileMode, data, engine, variable.name, page]);
 
   // Dimensions come from `shape` (set on open via getVarShape) so tile-mode
   // matrices size their grid correctly even before any tile arrives.
@@ -1711,12 +1770,12 @@ export function VariableEditor({ variable, onClose, engine }) {
     }
     let cancelled = false;
     setTimeout(() => {
-      const s = engine.getVarStats(variable.name);
+      const s = engine.getVarStats(variable.name, page);   // per-slice stats
       if (cancelled) return;
       if (s && !s.error) setTileStats(s);
     }, 0);
     return () => { cancelled = true; };
-  }, [shape.tileMode, engine, variable.name]);
+  }, [shape.tileMode, engine, variable.name, page]);
 
   // Full-mode stats: the complete set over the in-memory data (same helper
   // as the drilled-matrix path). Tile-mode (huge matrices) uses the
@@ -1733,16 +1792,20 @@ export function VariableEditor({ variable, onClose, engine }) {
   const onCommit = useCallback((r, c, rhs, value) => {
     if (engine && typeof engine.execute === 'function') {
       try {
-        engine.execute(`${variable.name}(${r + 1},${c + 1}) = ${rhs};`);
+        // Page subscripts (k3,k4,…) so the edit lands in the displayed slice
+        // of a 3-D / N-D array, not slice 1.
+        const subs = pageToSubs(page, shape.dims || []);
+        const idx = [r + 1, c + 1, ...subs.map((k) => k + 1)].join(', ');
+        engine.execute(`${variable.name}(${idx}) = ${rhs};`);
       } catch (e) {
         console.warn('[VariableEditor] write-back failed:', e);
       }
     }
     if (shape.tileMode) {
       const tR = Math.floor(r / TILE), tC = Math.floor(c / TILE);
-      tileCache.current.delete(`${tR},${tC}`);
-      sliceCache.current.delete(`col:${c}`);
-      sliceCache.current.delete(`row:${r}`);
+      tileCache.current.delete(`${page},${tR},${tC}`);
+      sliceCache.current.delete(`${page}:col:${c}`);
+      sliceCache.current.delete(`${page}:row:${r}`);
       setTileBump((n) => n + 1);
     } else {
       // Full mode: mirror the JS value locally so the cell repaints
@@ -1753,7 +1816,7 @@ export function VariableEditor({ variable, onClose, engine }) {
         return copy;
       });
     }
-  }, [engine, variable.name, shape.tileMode]);
+  }, [engine, variable.name, shape.tileMode, shape.dims, page]);
 
   const { themeName: veThemeName } = useTheme();
   const meta = KIND_META[variable.kind] || KIND_META.matrix;
@@ -1838,6 +1901,7 @@ export function VariableEditor({ variable, onClose, engine }) {
         <MatrixPanel
           rows={rows} cols={cols} name={variable.name} type={variable.type}
           getCellValue={getCellValue} getSlice={getSlice} stats={stats}
+          dims={shape.dims} page={page} setPage={setPage}
           readOnly={false}
           onCommit={onCommit}
           onEscape={onClose}

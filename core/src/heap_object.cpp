@@ -1,5 +1,6 @@
 // src/heap_object.cpp
 #include <numkit/core/heap_object.hpp>
+#include <numkit/core/object.hpp>
 #include <numkit/core/value.hpp>
 
 #include <cstring>
@@ -16,6 +17,8 @@ HeapObject::~HeapObject()
     delete structArray;
     delete fieldOrder;
     delete funcName;
+    delete objClass;
+    // objStates holds shared_ptrs in a vector — released automatically.
 }
 
 HeapObject *HeapObject::clone() const
@@ -48,6 +51,20 @@ HeapObject *HeapObject::clone() const
         h->fieldOrder = new std::pmr::vector<std::string>(*fieldOrder, cmr);
     if (funcName)
         h->funcName = new std::string(*funcName);
+    // ── OBJECT: the value/handle pivot (OBJECT_MODEL.md §1), per element ──
+    if (objClass) {
+        h->objClass = new std::string(*objClass);
+        h->objIsHandle = objIsHandle;
+        h->objStates.reserve(objStates.size());
+        for (const auto &st : objStates) {
+            // handle class → share the same state across copies;
+            // value class → deep-copy so each owner is independent.
+            if (objIsHandle || !st)
+                h->objStates.push_back(st);
+            else
+                h->objStates.push_back(st->deepCopy(cmr));
+        }
+    }
     return h;
 }
 

@@ -178,6 +178,11 @@ namespace detail {
 
 void disp_reg(Span<const Value> args, size_t, Span<Value>, CallContext &ctx)
 {
+    // OBJECT: disp(obj) uses the class display hook (no name header).
+    if (!args.empty() && args[0].isObject()) {
+        ctx.engine->outputText(ctx.engine->formatObjectDisplay("", args[0]));
+        return;
+    }
     disp(*ctx.engine, args);
 }
 

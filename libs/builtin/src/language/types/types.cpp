@@ -712,6 +712,9 @@ Value isequaln(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 
 Value classOf(const Value &x, std::pmr::memory_resource *mr)
 {
+    // OBJECT instances report their registered class name, not "object".
+    if (x.isObject())
+        return Value::fromString(x.objectClassName(), mr);
     return Value::fromString(mtypeName(x.type()), mr);
 }
 

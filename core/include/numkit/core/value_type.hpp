@@ -27,7 +27,8 @@ enum class ValueType : uint8_t {
     UINT32,
     UINT64,
     SINGLE,
-    STRING
+    STRING,
+    OBJECT   // class instance (builtin now, user classdef later); see OBJECT_MODEL.md
 };
 
 const char *mtypeName(ValueType t);
