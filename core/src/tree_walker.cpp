@@ -1096,29 +1096,39 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
         // element store below (arr(i) = obj).
     }
 
-    // Builtin object-array indexed assignment: arr(i) = obj. Fires when the
-    // RHS is an object and the target is empty/unset (→ fresh object array)
-    // or an existing object array of the same class. Grows (1-D) with
-    // default-constructed gap fill. v1: a single linear index.
+    // Builtin object-array indexed assignment: arr(i)=obj / arr(i,j)=obj.
+    // Fires when the RHS is an object and the target is empty/unset (→ a
+    // fresh object array) or an existing object array of the same class.
+    // Grows (any rank) with default-constructed gap fill. v1: each
+    // subscript selects a single element.
     if (rhs.isObject()) {
         const bool newable = !var->isObject() && (var->isUnset() || var->isEmpty());
         const bool sameArr =
             var->isObject() && var->objectClassName() == rhs.objectClassName();
         if (newable || sameArr) {
-            if (nargs != 1)
-                throw std::runtime_error(
-                    "object-array assignment supports a single linear index (v1)");
-            auto idxs = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
-            if (idxs.size() != 1)
-                throw std::runtime_error(
-                    "object-array assignment supports a single element (v1)");
             const BuiltinClass *rcls = engine_.findClass(rhs.objectClassName());
             Value fill;
             if (rcls && rcls->construct) {
                 CallContext ctx{&engine_, env};
                 fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
             }
-            var->objectAssignElement(idxs[0], rhs, fill, engine_.mr_);
+            auto singleIdx = [&](size_t d) -> size_t {
+                auto ids = resolveIndex(lhs->children[d + 1].get(), *var,
+                                        static_cast<int>(d), static_cast<int>(nargs), env);
+                if (ids.size() != 1)
+                    throw std::runtime_error(
+                        "object-array assignment supports a single element per "
+                        "subscript (v1)");
+                return ids[0];
+            };
+            if (nargs == 1) {
+                var->objectAssignElement(singleIdx(0), rhs, fill, engine_.mr_);
+            } else {
+                std::vector<size_t> subs(nargs);
+                for (size_t d = 0; d < nargs; ++d)
+                    subs[d] = singleIdx(d);
+                var->objectAssignElementND(subs, rhs, fill, engine_.mr_);
+            }
             return;
         }
     }

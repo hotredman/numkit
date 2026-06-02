@@ -2379,13 +2379,96 @@ void Value::objectAssignElement(size_t idx, const Value &elem, const Value &fill
     auto indep = [&](const std::shared_ptr<ObjectState> &s) {
         return s ? s->deepCopy(mr) : s; // independent default for gaps/value store
     };
-    std::shared_ptr<ObjectState> fillState = sharedOf(fill);
     auto &states = heap_->objStates;
+    std::shared_ptr<ObjectState> elemState = sharedOf(elem);
+    if (idx < states.size()) {
+        // In-bounds linear set — preserve the existing array shape.
+        states[idx] = handle ? elemState : indep(elemState);
+        return;
+    }
+    // Out-of-bounds: linear growth is only defined for a vector (or empty);
+    // growing a proper matrix via a single linear index is ambiguous.
+    if (heap_->dims.rows() > 1 && heap_->dims.cols() > 1)
+        throw std::runtime_error(
+            "Unable to grow a 2-D object array via a single linear index");
+    const bool col = heap_->dims.cols() == 1 && heap_->dims.rows() > 1;
+    std::shared_ptr<ObjectState> fillState = sharedOf(fill);
     while (states.size() <= idx)
         states.push_back(indep(fillState)); // gaps: independent default objects
-    std::shared_ptr<ObjectState> elemState = sharedOf(elem);
     states[idx] = handle ? elemState : indep(elemState); // alias vs deep copy
-    heap_->dims = Dims(size_t{1}, states.size());
+    heap_->dims = col ? Dims(states.size(), size_t{1}) : Dims(size_t{1}, states.size());
+}
+
+void Value::objectAssignElementND(const std::vector<size_t> &subs, const Value &elem,
+                                  const Value &fill, std::pmr::memory_resource *mr)
+{
+    if (!mr)
+        mr = (heap_ && heap_->mr) ? heap_->mr
+                                  : (elem.heap_ && elem.heap_->mr
+                                         ? elem.heap_->mr
+                                         : std::pmr::get_default_resource());
+    if (!isObject()) {
+        auto *h = new HeapObject();
+        h->type = ValueType::OBJECT;
+        h->mr = mr;
+        h->objClass = new std::string(elem.objectClassName());
+        h->objIsHandle = elem.objectIsHandle();
+        h->dims = Dims(size_t{0}, size_t{0});
+        Value fresh;
+        fresh.heap_ = h;
+        *this = std::move(fresh);
+    }
+    detach();
+    const bool handle = heap_->objIsHandle;
+    auto sharedOf = [](const Value &v) -> std::shared_ptr<ObjectState> {
+        return (v.isObject() && !v.heap_->objStates.empty()) ? v.heap_->objStates.front()
+                                                             : nullptr;
+    };
+    auto indep = [&](const std::shared_ptr<ObjectState> &s) {
+        return s ? s->deepCopy(mr) : s;
+    };
+
+    const int curNd = heap_->dims.ndim();
+    const int nd = std::max(static_cast<int>(subs.size()), curNd);
+    std::vector<size_t> newSize(nd);
+    for (int d = 0; d < nd; ++d) {
+        size_t cur = (d < curNd) ? heap_->dims.dim(d) : 1;
+        size_t need = (d < static_cast<int>(subs.size())) ? subs[d] + 1 : 1;
+        newSize[d] = std::max(cur, need);
+    }
+    Dims newDims(newSize.data(), nd);
+
+    std::shared_ptr<ObjectState> fillState = sharedOf(fill);
+    if (!(newDims == heap_->dims)) {
+        // Re-layout into the grown shape: default-fill, then move each old
+        // element from its old column-major slot to its new one.
+        std::vector<std::shared_ptr<ObjectState>> neu(newDims.numel());
+        for (auto &s : neu)
+            s = indep(fillState);
+        size_t oldStr[Dims::kMaxRank];
+        size_t newStr[Dims::kMaxRank];
+        computeStridesColMajor(heap_->dims, oldStr);
+        computeStridesColMajor(newDims, newStr);
+        const size_t oldN = heap_->objStates.size();
+        for (size_t k = 0; k < oldN; ++k) {
+            size_t newLin = 0;
+            for (int d = 0; d < curNd; ++d) {
+                size_t sd = (k / oldStr[d]) % heap_->dims.dim(d);
+                newLin += sd * newStr[d];
+            }
+            neu[newLin] = std::move(heap_->objStates[k]);
+        }
+        heap_->objStates = std::move(neu);
+        heap_->dims = newDims;
+    }
+
+    size_t str[Dims::kMaxRank];
+    computeStridesColMajor(heap_->dims, str);
+    size_t lin = 0;
+    for (size_t d = 0; d < subs.size(); ++d)
+        lin += subs[d] * str[d];
+    std::shared_ptr<ObjectState> elemState = sharedOf(elem);
+    heap_->objStates[lin] = handle ? elemState : indep(elemState);
 }
 
 const void *Value::rawData() const

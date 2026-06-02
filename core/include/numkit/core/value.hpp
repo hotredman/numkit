@@ -338,6 +338,13 @@ public:
     // Detaches (COW) first. For the no-custom-subsasgn builtin path.
     void objectAssignElement(size_t idx, const Value &elem, const Value &fill,
                              std::pmr::memory_resource *mr = nullptr);
+    // N-D counterpart: assign `elem` at the per-dim subscripts `subs`
+    // (0-based, one scalar per dimension), growing the array (any rank) and
+    // re-laying-out column-major with `fill` in new slots as needed. An
+    // empty/unset receiver becomes a fresh object array of elem's class.
+    void objectAssignElementND(const std::vector<size_t> &subs, const Value &elem,
+                               const Value &fill,
+                               std::pmr::memory_resource *mr = nullptr);
 
     // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;

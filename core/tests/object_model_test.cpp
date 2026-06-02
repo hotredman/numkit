@@ -563,6 +563,55 @@ TEST_P(ObjectArrayTest, TwoDRowSlice)
     EXPECT_DOUBLE_EQ(evalScalar("r(2).v"), 4.0);
 }
 
+TEST_P(ObjectArrayTest, TwoDAssignAndGrow)
+{
+    engine.eval("a(1,1) = Box(1); a(2,2) = Box(4); a(1,2) = Box(2); a(2,1) = Box(3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,1).v"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,1).v"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,2).v"), 4.0);
+}
+
+TEST_P(ObjectArrayTest, TwoDAssignGapDefault)
+{
+    engine.eval("a(2,3) = Box(9);"); // grow to 2×3; gaps default-constructed
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,3).v"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,1).v"), 0.0);
+}
+
+TEST_P(ObjectArrayTest, TwoDOverwritePreservesShape)
+{
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)]; a(1,2) = Box(99);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 99.0);
+}
+
+TEST_P(ObjectArrayTest, ThreeDAssignGrowAndIndex)
+{
+    // True N-D (3 subscripts): grow to 2×2×2, gap default-fill, read back.
+    engine.eval("a(1,1,1) = Box(1); a(2,2,2) = Box(8);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,3)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 8.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,1,1).v"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,2,2).v"), 8.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2,1).v"), 0.0); // a gap → default
+}
+
+TEST_P(ObjectArrayTest, LinearAssignInto2DPreservesShape)
+{
+    // In-bounds linear set on a 2×2 keeps the shape (a(3)==a(1,2)).
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)]; a(3) = Box(77);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 77.0);
+}
+
 TEST_P(ObjectArrayTest, PropertyCSL)
 {
     // [arr.prop] expands the property over the whole array → a row vector.

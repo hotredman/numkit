@@ -3,11 +3,11 @@
 Status: **P1–P7 implemented** (type + registry + value/handle clone,
 properties, constructors, methods, subsref/subsasgn indexing,
 `dictionary` + `containers.Map`, object display, multi-output methods,
-binary + unary operator overloading, **object arrays** — array-backed
+binary + unary operator overloading, **N-D object arrays** — array-backed
 storage + builtin `()` index read/write with grow + concatenation
 `[a b]`/`[a;b]` + `[arr.prop]` CSL + array display) — both engines, on
-`core-dev`. Owner: CORE. Remaining: 2-D/N-D object-array grids,
-`image.*` objects, user `classdef` authoring.
+`core-dev`. Owner: CORE. Remaining: `image.*` objects, user `classdef`
+authoring.
 
 ## Object arrays
 
@@ -46,9 +46,19 @@ struct and threw.
 a scalar via the class `dispText`, and an array as
 `<rows>×<cols> <Class> array with properties:` + the `propNames` list.
 
-v1 limits: indexed **assignment** takes a single linear subscript (read
-supports vector/`end`/logical); object arrays are 1-D (a row or column) —
-2-D/N-D grids are not yet wired.
+**N-D** is fully wired (both engines). Reads go through the OBJECT-aware
+`elemAt`/`indexGet`/`indexGet2D`/`indexGet3D`/`indexGetND` (so `a(i,j)`,
+`a(:,k)`, `a(i,j,k)`, `end`, ranges, logical and vector subscripts work,
+column-major). Assignment uses `objectAssignElement` (linear: in-bounds
+preserves shape; out-of-bounds grows a vector) and `objectAssignElementND`
+(`a(i,j)=obj`, `a(i,j,k)=obj`: grows any rank, re-lays-out column-major,
+default-fills new slots; growing a proper matrix via a single linear index
+errors, as in MATLAB). Engine routing: TreeWalker `execIndexAccess` /
+`execIndexedAssign`; VM `INDEX_GET`/`INDEX_GET_2D`/`INDEX_GET_ND` +
+`INDEX_SET`/`INDEX_SET_2D`/`INDEX_SET_ND` + `execCallIndirect`.
+
+v1 limit: each assignment subscript selects a single element (slice
+assignment like `a(:,2) = arr` is not yet wired; slice *reads* work).
 
 ## Goal
 
