@@ -25,4 +25,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/folder_builtins_test.cpp
     # Package namespaces (Phase 10) — +pkg/ folder resolution
     ${CMAKE_CURRENT_SOURCE_DIR}/package_namespace_test.cpp
+    # Variable-viewer integer/single serialization (numericCellJSON + stats)
+    ${CMAKE_CURRENT_SOURCE_DIR}/value_json_test.cpp
 )

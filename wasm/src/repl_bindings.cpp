@@ -11,6 +11,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/value_stats.hpp>
+#include <numkit/core/value_json.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/debug_session.hpp>
 #include <numkit/core/vfs.hpp>
@@ -45,6 +46,16 @@ static std::string valuePreview(const numkit::Value &val) {
                 os << c.imag() << "i";
                 return os.str();
             }
+            if (numkit::isIntegerType(val.type()))
+                return numkit::numericCellJSON(val, 0);
+            if (val.type() == ValueType::SINGLE) {
+                double v = val.elemAsDouble(0);
+                if (std::isnan(v)) return "NaN";
+                if (std::isinf(v)) return v > 0 ? "Inf" : "-Inf";
+                if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
+                    return std::to_string(static_cast<int64_t>(v));
+                std::ostringstream os; os << v; return os.str();
+            }
         }
         if (val.type() == ValueType::CHAR)
             return "'" + val.toString() + "'";
@@ -53,11 +64,13 @@ static std::string valuePreview(const numkit::Value &val) {
         os << "[" << d.rows() << "x" << d.cols();
         if (d.is3D()) os << "x" << d.pages();
         os << " " << numkit::mtypeName(val.type()) << "]";
-        if (val.type() == ValueType::DOUBLE && val.numel() <= 10) {
+        const ValueType pt = val.type();
+        if ((numkit::isFloatType(pt) || numkit::isIntegerType(pt)) && val.numel() <= 10) {
             os << " [";
             for (size_t i = 0; i < val.numel(); ++i) {
                 if (i) os << " ";
-                double v = val.doubleData()[i];
+                if (numkit::isIntegerType(pt)) { os << numkit::numericCellJSON(val, i); continue; }
+                double v = val.elemAsDouble(i);
                 if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
                     os << static_cast<int64_t>(v);
                 else
@@ -103,16 +116,16 @@ static std::string escapeJSON(const std::string &s) {
 // [[...],...] (column-major source → row-major JSON). CHAR becomes one
 // row of 1-char strings. Non-numeric / non-char fall back to a 1×1
 // array holding the preview string.
-static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val) {
+static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val,
+                                size_t page = 0) {
     using numkit::ValueType;
     const auto &d = val.dims();
     const size_t rows = d.rows();
     const size_t cols = d.cols();
-    auto fmtNum = [](double v) -> std::string {
-        if (std::isnan(v))  return "null";
-        if (std::isinf(v))  return v > 0 ? "\"Inf\"" : "\"-Inf\"";
-        std::ostringstream s; s.precision(17); s << v; return s.str();
-    };
+    // Page p is the contiguous block [p*rows*cols, …) — column-major slices
+    // stack one after another regardless of rank, so a single linear offset
+    // addresses any 2-D slice of a 3-D / N-D array (0 for 2-D / page 0).
+    const size_t pageOff = page * rows * cols;
     os << "[";
     if (val.type() == ValueType::CHAR) {
         std::string str = val.toString();
@@ -122,20 +135,14 @@ static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val
             os << "\"" << escapeJSON(std::string(1, str[i])) << "\"";
         }
         os << "]";
-    } else if (val.type() == ValueType::DOUBLE) {
-        const double *p = val.doubleData();
+    } else if (numkit::isRealNumericCell(val.type())) {
+        // DOUBLE / SINGLE / LOGICAL / INT8..UINT64 — one array per matrix
+        // row; cells via the shared numericCellJSON token (integers exact,
+        // floats NaN/Inf-aware, logical true/false).
         for (size_t r = 0; r < rows; ++r) {
             if (r) os << ",";
             os << "[";
-            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << fmtNum(p[c * rows + r]); }
-            os << "]";
-        }
-    } else if (val.type() == ValueType::LOGICAL) {
-        const uint8_t *p = val.logicalData();
-        for (size_t r = 0; r < rows; ++r) {
-            if (r) os << ",";
-            os << "[";
-            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << (p[c * rows + r] ? "true" : "false"); }
+            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << numkit::numericCellJSON(val, pageOff + c * rows + r); }
             os << "]";
         }
     } else if (val.type() == ValueType::COMPLEX) {
@@ -145,7 +152,7 @@ static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val
             os << "[";
             for (size_t c = 0; c < cols; ++c) {
                 if (c) os << ",";
-                const auto &z = p[c * rows + r];
+                const auto &z = p[pageOff + c * rows + r];
                 std::ostringstream s; s.precision(12);
                 s << z.real(); if (z.imag() >= 0) s << "+"; s << z.imag() << "i";
                 os << "\"" << s.str() << "\"";
@@ -530,11 +537,22 @@ public:
             }
             const auto &val = *valPtr;
             const auto &d = val.dims();
+            // pages = number of 2-D row×col slices (1 for 2-D). dims carries
+            // the full shape so the viewer can build per-dimension (MATLAB
+            // A(:,:,k3,…)) page navigation; a slice p is the contiguous
+            // block [p*rows*cols, (p+1)*rows*cols).
+            const size_t rc = d.rows() * d.cols();
+            const size_t pages = (rc > 0) ? (val.numel() / rc) : 1;
             std::ostringstream os;
             os << "{\"name\":\"" << escapeJSON(name) << "\""
                << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
                << ",\"rows\":" << d.rows()
                << ",\"cols\":" << d.cols()
+               << ",\"ndim\":" << d.ndim()
+               << ",\"pages\":" << pages
+               << ",\"dims\":[";
+            for (int i = 0; i < d.ndim(); ++i) { if (i) os << ","; os << d.dim(i); }
+            os << "]"
                << ",\"numel\":" << val.numel() << "}";
             return os.str();
         } catch (const std::exception &e) {
@@ -550,7 +568,7 @@ public:
     //   { rows, cols, min, max, mean, n, hasNaN }
     // For LOGICAL true=1 / false=0; for COMPLEX |z|; non-numeric returns
     // {error}.
-    std::string getVarStatsJSON(const std::string &name) {
+    std::string getVarStatsJSON(const std::string &name, int page = -1) {
         try {
             using numkit::ValueType;
             const numkit::Value *valPtr = nullptr;
@@ -567,6 +585,13 @@ public:
             const size_t totalRows = d.rows();
             const size_t totalCols = d.cols();
             const size_t numel = val.numel();
+            // Optional page restriction: when page>=0, stats cover only that
+            // 2-D slice's block [page*rc, page*rc+rc) — drives per-slice
+            // heatmap colouring for 3-D / N-D arrays in tile mode.
+            const size_t rc = totalRows * totalCols;
+            const size_t pages = (rc > 0) ? (numel / rc) : 1;
+            size_t i0 = 0, i1 = numel;
+            if (page >= 0 && (size_t)page < pages) { i0 = (size_t)page * rc; i1 = i0 + rc; }
             double mn = std::numeric_limits<double>::infinity();
             double mx = -std::numeric_limits<double>::infinity();
             double sum = 0.0;
@@ -574,7 +599,7 @@ public:
             bool hasNaN = false;
             if (val.type() == ValueType::DOUBLE) {
                 const double *p = val.doubleData();
-                for (size_t i = 0; i < numel; ++i) {
+                for (size_t i = i0; i < i1; ++i) {
                     double v = p[i];
                     if (std::isnan(v)) { hasNaN = true; continue; }
                     if (!std::isfinite(v)) continue;
@@ -585,7 +610,7 @@ public:
                 }
             } else if (val.type() == ValueType::LOGICAL) {
                 const uint8_t *p = val.logicalData();
-                for (size_t i = 0; i < numel; ++i) {
+                for (size_t i = i0; i < i1; ++i) {
                     double v = p[i] ? 1.0 : 0.0;
                     if (v < mn) mn = v;
                     if (v > mx) mx = v;
@@ -594,13 +619,24 @@ public:
                 }
             } else if (val.type() == ValueType::COMPLEX) {
                 const numkit::Complex *p = val.complexData();
-                for (size_t i = 0; i < numel; ++i) {
+                for (size_t i = i0; i < i1; ++i) {
                     double mag = std::hypot(p[i].real(), p[i].imag());
                     if (std::isnan(mag)) { hasNaN = true; continue; }
                     if (!std::isfinite(mag)) continue;
                     if (mag < mn) mn = mag;
                     if (mag > mx) mx = mag;
                     sum += mag;
+                    ++n;
+                }
+            } else if (numkit::isFloatType(val.type()) || numkit::isIntegerType(val.type())) {
+                // SINGLE + INT8..UINT64 — read each element as double.
+                for (size_t i = i0; i < i1; ++i) {
+                    double v = val.elemAsDouble(i);
+                    if (std::isnan(v)) { hasNaN = true; continue; }
+                    if (!std::isfinite(v)) continue;
+                    if (v < mn) mn = v;
+                    if (v > mx) mx = v;
+                    sum += v;
                     ++n;
                 }
             } else {
@@ -620,7 +656,7 @@ public:
                 // StatsBar's column chooser — same helper the struct/
                 // workspace serializers use.
                 numkit::ValueStats fs;
-                if (numkit::computeValueStats(val, fs)) {
+                if (numkit::computeValueStatsRange(val, i0, i1 - i0, fs)) {
                     os << ",\"median\":" << fs.median
                        << ",\"mode\":" << fs.mode
                        << ",\"var\":" << fs.var
@@ -637,7 +673,7 @@ public:
     }
 
     /* ---- Tile fetch — only the requested rectangle of cells ---- */
-    std::string getVarTileJSON(const std::string &name, int r0, int c0, int rowsIn, int colsIn) {
+    std::string getVarTileJSON(const std::string &name, int r0, int c0, int rowsIn, int colsIn, int page = 0) {
         try {
             using numkit::ValueType;
             const numkit::Value *valPtr = nullptr;
@@ -653,6 +689,12 @@ public:
             const auto &d = val.dims();
             const size_t totalRows = d.rows();
             const size_t totalCols = d.cols();
+            // Page offset for 3-D / N-D: read from the selected 2-D slice.
+            const size_t rc = totalRows * totalCols;
+            const size_t pages = (rc > 0) ? (val.numel() / rc) : 1;
+            if (page < 0) page = 0;
+            if (pages > 0 && (size_t)page >= pages) page = (int)pages - 1;
+            const size_t pageOff = (size_t)page * rc;
             if (r0 < 0) r0 = 0;
             if (c0 < 0) c0 = 0;
             const size_t rEnd = std::min(totalRows, (size_t)(r0 + rowsIn));
@@ -663,42 +705,23 @@ public:
                      + ",\"c0\":" + std::to_string(c0) + "}";
             }
 
-            auto fmtNum = [](double v) -> std::string {
-                if (std::isnan(v))  return "null";
-                if (std::isinf(v))  return v > 0 ? "\"Inf\"" : "\"-Inf\"";
-                std::ostringstream s;
-                s.precision(17);
-                s << v;
-                return s.str();
-            };
-
             std::ostringstream os;
             os << "{\"r0\":" << r0
                << ",\"c0\":" << c0
                << ",\"rows\":" << (rEnd - r0)
                << ",\"cols\":" << (cEnd - c0)
+               << ",\"page\":" << page
                << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
                << ",\"data\":[";
 
-            if (val.type() == ValueType::DOUBLE) {
-                const double *p = val.doubleData();
+            if (numkit::isRealNumericCell(val.type())) {
+                // DOUBLE / SINGLE / LOGICAL / INT8..UINT64 — shared token.
                 for (size_t r = (size_t)r0; r < rEnd; ++r) {
                     if (r > (size_t)r0) os << ",";
                     os << "[";
                     for (size_t c = (size_t)c0; c < cEnd; ++c) {
                         if (c > (size_t)c0) os << ",";
-                        os << fmtNum(p[c * totalRows + r]);
-                    }
-                    os << "]";
-                }
-            } else if (val.type() == ValueType::LOGICAL) {
-                const uint8_t *p = val.logicalData();
-                for (size_t r = (size_t)r0; r < rEnd; ++r) {
-                    if (r > (size_t)r0) os << ",";
-                    os << "[";
-                    for (size_t c = (size_t)c0; c < cEnd; ++c) {
-                        if (c > (size_t)c0) os << ",";
-                        os << (p[c * totalRows + r] ? "true" : "false");
+                        os << numkit::numericCellJSON(val, pageOff + c * totalRows + r);
                     }
                     os << "]";
                 }
@@ -709,7 +732,7 @@ public:
                     os << "[";
                     for (size_t c = (size_t)c0; c < cEnd; ++c) {
                         if (c > (size_t)c0) os << ",";
-                        const auto &z = p[c * totalRows + r];
+                        const auto &z = p[pageOff + c * totalRows + r];
                         std::ostringstream s;
                         s.precision(12);
                         s << z.real();
@@ -726,7 +749,7 @@ public:
                     os << "[";
                     for (size_t c = (size_t)c0; c < cEnd; ++c) {
                         if (c > (size_t)c0) os << ",";
-                        char ch = p[c * totalRows + r];
+                        char ch = p[pageOff + c * totalRows + r];
                         os << "\"" << escapeJSON(std::string(1, ch)) << "\"";
                     }
                     os << "]";
@@ -749,7 +772,7 @@ public:
         } catch (...) { return "{\"error\":\"unknown\"}"; }
     }
 
-    std::string getVarFullJSON(const std::string &name) {
+    std::string getVarFullJSON(const std::string &name, int page = 0) {
         try {
             using numkit::ValueType;
             // During debug, prefer the paused frame's variable.
@@ -768,17 +791,24 @@ public:
             const auto &d = val.dims();
             const size_t rows = d.rows();
             const size_t cols = d.cols();
+            const size_t rc = rows * cols;
+            const size_t pages = (rc > 0) ? (val.numel() / rc) : 1;
+            if (page < 0) page = 0;
+            if (pages > 0 && (size_t)page >= pages) page = (int)pages - 1;
 
             std::ostringstream os;
             os << "{\"name\":\"" << escapeJSON(name) << "\""
                << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
                << ",\"rows\":" << rows
                << ",\"cols\":" << cols
+               << ",\"page\":" << page
+               << ",\"pages\":" << pages
                << ",\"data\":";
             // Cell-data array — shared with the path-inspector's matrix
             // payload via emitMatrixDataArray (CHAR / DOUBLE / LOGICAL /
-            // COMPLEX, with the CELL/STRUCT/FUNC preview fallback).
-            emitMatrixDataArray(os, val);
+            // COMPLEX, with the CELL/STRUCT/FUNC preview fallback). page
+            // selects the 2-D slice for 3-D / N-D arrays.
+            emitMatrixDataArray(os, val, (size_t)page);
             os << "}";
             return os.str();
         } catch (const std::exception &e) {
@@ -1194,14 +1224,21 @@ std::string repl_get_var_shape(const std::string &name) {
     return g_session->getVarShapeJSON(name);
 }
 
-std::string repl_get_var_tile(const std::string &name, int r0, int c0, int rows, int cols) {
+std::string repl_get_var_tile(const std::string &name, int r0, int c0, int rows, int cols, int page) {
     if (!g_session) return "{\"error\":\"no session\"}";
-    return g_session->getVarTileJSON(name, r0, c0, rows, cols);
+    return g_session->getVarTileJSON(name, r0, c0, rows, cols, page);
 }
 
-std::string repl_get_var_stats(const std::string &name) {
+std::string repl_get_var_stats(const std::string &name, int page) {
     if (!g_session) return "{\"error\":\"no session\"}";
-    return g_session->getVarStatsJSON(name);
+    return g_session->getVarStatsJSON(name, page);
+}
+
+// Full data for a single 2-D slice (page) of a 3-D / N-D array. page 0 is
+// the first slice, identical to repl_get_var_data for a 2-D value.
+std::string repl_get_var_page(const std::string &name, int page) {
+    if (!g_session) return "{\"error\":\"no session\"}";
+    return g_session->getVarFullJSON(name, page);
 }
 
 std::string repl_get_figure_tile(int figId, int axIdx, int dsIdx,
@@ -1354,6 +1391,7 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_workspace", &repl_workspace);
     emscripten::function("repl_get_vars",     &repl_get_vars);
     emscripten::function("repl_get_var_data",  &repl_get_var_data);
+    emscripten::function("repl_get_var_page",  &repl_get_var_page);
     emscripten::function("repl_inspect_path", &repl_inspect_path);
     emscripten::function("repl_get_var_shape", &repl_get_var_shape);
     emscripten::function("repl_get_var_tile",  &repl_get_var_tile);

@@ -4,6 +4,7 @@ import {
   VALUE_COLUMNS, DEFAULT_VISIBLE, loadVisibleColumns, saveVisibleColumns,
   toggleColumn, statValue, fmtStat,
   STAT_BAR, DEFAULT_STAT_BAR, loadStatBar, saveStatBar, statBarValue, aggregateStats,
+  toNumericCell, heatColor, heatmapCellBackground,
 } from './valueColumns';
 
 beforeEach(() => { try { localStorage.clear(); } catch { /* none */ } });
@@ -99,5 +100,76 @@ describe('aggregateStats', () => {
   });
   it('even count → median is the mean of the two middles', () => {
     expect(aggregateStats([1, 2, 3, 4]).median).toBe(2.5);
+  });
+  it('treats logical booleans as 1 / 0 (so logical matrices get stats + heatmap)', () => {
+    const s = aggregateStats([true, false, true, true]);
+    expect(s.min).toBe(0);
+    expect(s.max).toBe(1);
+    expect(s.n).toBe(4);
+    expect(s.mean).toBe(0.75);
+  });
+});
+
+describe('toNumericCell', () => {
+  it('passes finite numbers through unchanged', () => {
+    expect(toNumericCell(3.5)).toBe(3.5);
+    expect(toNumericCell(0)).toBe(0);
+    expect(toNumericCell(-2)).toBe(-2);
+  });
+  it('maps logical booleans to 1 / 0', () => {
+    expect(toNumericCell(true)).toBe(1);
+    expect(toNumericCell(false)).toBe(0);
+  });
+  it('returns NaN for char-cell strings, null, undefined', () => {
+    expect(toNumericCell('x')).toBeNaN();
+    expect(toNumericCell(null)).toBeNaN();
+    expect(toNumericCell(undefined)).toBeNaN();
+  });
+});
+
+describe('heatColor', () => {
+  it('is transparent for a degenerate range (min === max)', () => {
+    expect(heatColor(5, 5, 5)).toBe('transparent');
+  });
+  it('produces an oklch ramp colour for an in-range value', () => {
+    expect(heatColor(0.5, 0, 1)).toMatch(/^oklch\(/);
+    expect(heatColor(0, 0, 1)).not.toBe(heatColor(1, 0, 1));  // ends differ
+  });
+});
+
+describe('heatmapCellBackground', () => {
+  const stats = { min: 0, max: 1 };
+
+  it('is undefined when the heatmap is off', () => {
+    expect(heatmapCellBackground(true, stats, false)).toBeUndefined();
+    expect(heatmapCellBackground(1, stats, false)).toBeUndefined();
+  });
+
+  it('is undefined when stats are not ready yet', () => {
+    expect(heatmapCellBackground(1, null, true)).toBeUndefined();
+  });
+
+  // The bug: logical cells arrive as JS booleans and used to be skipped by
+  // the `typeof v === 'number'` guard, so a logical matrix never coloured.
+  it('colours logical booleans (true/false → 1/0) at opposite ramp ends', () => {
+    const hi = heatmapCellBackground(true, stats, true);
+    const lo = heatmapCellBackground(false, stats, true);
+    expect(hi).toBeTruthy();
+    expect(lo).toBeTruthy();
+    expect(hi).not.toBe(lo);
+  });
+
+  it('colours a boolean identically to its 0/1 number', () => {
+    expect(heatmapCellBackground(true, stats, true)).toBe(heatmapCellBackground(1, stats, true));
+    expect(heatmapCellBackground(false, stats, true)).toBe(heatmapCellBackground(0, stats, true));
+  });
+
+  it('leaves non-numeric cells (char strings / null) unpainted', () => {
+    expect(heatmapCellBackground('x', stats, true)).toBeUndefined();
+    expect(heatmapCellBackground(null, stats, true)).toBeUndefined();
+  });
+
+  it('is transparent when every cell shares one value (min === max)', () => {
+    expect(heatmapCellBackground(1, { min: 1, max: 1 }, true)).toBe('transparent');
   });
 });
