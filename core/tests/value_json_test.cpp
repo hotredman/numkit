@@ -88,6 +88,40 @@ TEST(ValueStatsIntegerTest, SingleMean) {
     EXPECT_DOUBLE_EQ(s.mean, 2.0);
 }
 
+// ─── computeValueStatsRange — per-page stats for 3-D / N-D slices ───────
+//
+// A page p of a 3-D/N-D array is the contiguous block [p*rc, (p+1)*rc); the
+// viewer asks for per-slice min/max via this range overload.
+
+TEST(ValueStatsRangeTest, SubRangePerPage) {
+    Value v = rowI32({10, 20, 30, 100, 200, 300});  // two "pages" of 3
+    numkit::ValueStats s;
+    ASSERT_TRUE(numkit::computeValueStatsRange(v, 0, 3, s));
+    EXPECT_DOUBLE_EQ(s.min, 10.0);
+    EXPECT_DOUBLE_EQ(s.max, 30.0);
+    EXPECT_DOUBLE_EQ(s.mean, 20.0);
+    ASSERT_TRUE(numkit::computeValueStatsRange(v, 3, 3, s));
+    EXPECT_DOUBLE_EQ(s.min, 100.0);
+    EXPECT_DOUBLE_EQ(s.max, 300.0);
+    EXPECT_DOUBLE_EQ(s.mean, 200.0);
+}
+
+TEST(ValueStatsRangeTest, ClampsOverrunAndRejectsEmpty) {
+    Value v = rowI32({10, 20, 30, 100, 200, 300});
+    numkit::ValueStats s;
+    // count overruns the end → clamps to [4, 6)
+    ASSERT_TRUE(numkit::computeValueStatsRange(v, 4, 100, s));
+    EXPECT_DOUBLE_EQ(s.min, 200.0);
+    EXPECT_DOUBLE_EQ(s.max, 300.0);
+    // start past the end → empty range → false
+    EXPECT_FALSE(numkit::computeValueStatsRange(v, 99, 10, s));
+    // whole-array overload equals range [0, numel)
+    numkit::ValueStats whole;
+    ASSERT_TRUE(numkit::computeValueStats(v, whole));
+    EXPECT_DOUBLE_EQ(whole.min, 10.0);
+    EXPECT_DOUBLE_EQ(whole.max, 300.0);
+}
+
 // ─── numericCellJSON — the per-cell token used to render matrix cells ──
 //
 // This is the primitive that was missing for integer / single classes:

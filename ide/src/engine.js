@@ -319,6 +319,20 @@ export async function createWasmEngine(createModule) {
       }
     },
 
+    // One 2-D slice (page) of a 3-D / N-D variable. page 0 is identical to
+    // getVarData for a 2-D value. Returns
+    //   { name, type, rows, cols, page, pages, data } | { error }.
+    // Falls back to getVarData on older WASM that lacks the binding.
+    getVarPage(name, page) {
+      if (typeof Module.repl_get_var_page !== 'function') return this.getVarData(name);
+      try {
+        return JSON.parse(Module.repl_get_var_page(name, page | 0));
+      } catch (e) {
+        console.warn('[engine] getVarPage failed for', name, e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     // Path-addressed inspection for the MATLAB-style drill-in Variable
     // Editor. `pathStr` is a ';'-delimited list of typed steps the UI
     // builds ('' = root): f:<field> | e:<elemIdx> | c:<cellIdx>, 0-based.
@@ -349,9 +363,9 @@ export async function createWasmEngine(createModule) {
     // Tile fetch — returns a rectangular submatrix
     //   [r0..r0+rows) × [c0..c0+cols)  →  { r0, c0, rows, cols, type, data }
     // Used by VariableEditor for huge matrices where a full fetch would OOM.
-    getVarTile(name, r0, c0, rows, cols) {
+    getVarTile(name, r0, c0, rows, cols, page = 0) {
       if (typeof Module.repl_get_var_tile !== 'function') return null;
-      try { return JSON.parse(Module.repl_get_var_tile(name, r0|0, c0|0, rows|0, cols|0)); }
+      try { return JSON.parse(Module.repl_get_var_tile(name, r0|0, c0|0, rows|0, cols|0, page|0)); }
       catch (e) {
         console.warn('[engine] getVarTile failed for', name, e);
         return { error: e?.message || String(e) };
@@ -361,9 +375,9 @@ export async function createWasmEngine(createModule) {
     // Aggregate stats — { rows, cols, n, min, max, mean, hasNaN }.
     // Used by the VariableEditor heatmap in tile-mode where loading every
     // cell to JS would be impractical.
-    getVarStats(name) {
+    getVarStats(name, page = -1) {
       if (typeof Module.repl_get_var_stats !== 'function') return null;
-      try { return JSON.parse(Module.repl_get_var_stats(name)); }
+      try { return JSON.parse(Module.repl_get_var_stats(name, page|0)); }
       catch (e) {
         console.warn('[engine] getVarStats failed for', name, e);
         return { error: e?.message || String(e) };
@@ -558,6 +572,8 @@ export function createFallbackEngine() {
       }
       return { name, type: typeof v, rows: 1, cols: 1, data: [[String(v)]] };
     },
+    // Fallback engine is 2-D only — every "page" is the whole value.
+    getVarPage(name) { return this.getVarData(name); },
     // Fallback interpreter has no struct support — return null so the
     // Variable Editor falls back to the flat preview cell.
     inspectPath() { return null; },
