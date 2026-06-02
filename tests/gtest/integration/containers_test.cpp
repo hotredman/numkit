@@ -98,6 +98,27 @@ TEST_P(ContainersTest, MapRemove)
     EXPECT_DOUBLE_EQ(evalScalar("m.Count"), 1.0);
 }
 
+// ── key ordering: Map sorts, dictionary preserves insertion ──
+TEST_P(ContainersTest, MapKeysSorted)
+{
+    eval("clear; m = containers.Map({'c','a','b'}, {3,1,2}); k = keys(m); v = values(m);");
+    EXPECT_EQ(evalString("k{1}"), "a"); // MATLAB containers.Map iterates sorted
+    EXPECT_EQ(evalString("k{2}"), "b");
+    EXPECT_EQ(evalString("k{3}"), "c");
+    EXPECT_DOUBLE_EQ(evalScalar("v{1}"), 1.0); // value paired with 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("v{3}"), 3.0); // value paired with 'c'
+}
+
+TEST_P(ContainersTest, DictionaryKeysInsertionOrder)
+{
+    // Numeric keys (avoids a pre-existing TW string-array `()` indexing
+    // gap unrelated to containers). dictionary keeps insertion order.
+    eval("clear; d = dictionary([30 10 20], [3 1 2]); k = keys(d);");
+    EXPECT_DOUBLE_EQ(evalScalar("k(1)"), 30.0); // not sorted → insertion order
+    EXPECT_DOUBLE_EQ(evalScalar("k(2)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("k(3)"), 20.0);
+}
+
 // ── object display (disp / auto-display) ─────────────────────
 TEST_P(ContainersTest, DictionaryDisplay)
 {
