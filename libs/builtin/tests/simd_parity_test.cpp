@@ -16,6 +16,7 @@
 #include <numkit/builtin/math/exp_log/exponents.hpp>
 #include <numkit/builtin/math/arithmetic/rounding.hpp>
 #include <numkit/builtin/math/trig/trigonometry.hpp>
+#include <numkit/builtin/math/special/special.hpp>
 
 #include <memory_resource>
 #include <numkit/core/types.hpp>
@@ -259,6 +260,51 @@ TEST(SimdParity_Log, WithinUlpBudget)
         [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log(x, a); },
         [](double x) { return std::log(x); },
         0.01, 100.0, "log");
+}
+
+TEST(SimdParity_Expm1, WithinUlpBudget)
+{
+    checkTranscendentalParity(
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::expm1(x, a); },
+        [](double x) { return std::expm1(x); },
+        -10.0, 10.0, "expm1");
+}
+
+TEST(SimdParity_Log1p, WithinUlpBudget)
+{
+    // log1p domain is x > -1; sample away from the -1 pole.
+    checkTranscendentalParity(
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log1p(x, a); },
+        [](double x) { return std::log1p(x); },
+        -0.9, 100.0, "log1p");
+}
+
+TEST(SimdParity_Log2, WithinUlpBudget)
+{
+    // Strictly positive inputs (negatives -> NaN).
+    checkTranscendentalParity(
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log2(x, a); },
+        [](double x) { return std::log2(x); },
+        0.01, 100.0, "log2");
+}
+
+TEST(SimdParity_Erf, WithinUlpBudget)
+{
+    // [-3, 3] exercises both the vectorised SLEEF dd kernel (|x| <= 2.5)
+    // and the scalar std::erf fixup (|x| > 2.5).
+    checkTranscendentalParity(
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::erf(x, a); },
+        [](double x) { return std::erf(x); },
+        -3.0, 3.0, "erf");
+}
+
+TEST(SimdParity_Erf, WideRangeAndSpecialLanes)
+{
+    // Mix in the small-x, large-x, zero and sign branches.
+    checkTranscendentalParity(
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::erf(x, a); },
+        [](double x) { return std::erf(x); },
+        -6.0, 6.0, "erf-wide");
 }
 
 TEST(SimdParity_Transcendental, NegativeLogScalarStillComplex)
