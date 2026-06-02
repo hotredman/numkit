@@ -1716,7 +1716,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fwind2` |  |  |  |  |  |  |  |
 | `gabor` |  |  |  |  |  |  | not implemented |
 | `imbilatfilt` |  |  |  |  |  |  |  |
-| `imboxfilt` | 0.05437 | 3.62× |  | 8.678 | 0.17× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `imboxfilt` | 0.07045 | 3.13× |  | 11.04 | 0.29× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imboxfilt3` |  |  |  |  |  |  |  |
 | `imdiffusefilt` |  |  |  |  |  |  |  |
 | `imfilter` | 0.02674 | 1.68× |  | 3.856 | 0.33× |  | grayscale double N×N (100×100 / 1000×1000) |
@@ -1729,7 +1729,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter3` |  |  |  |  |  |  |  |
 | `integralImage` |  |  |  |  |  |  |  |
 | `integralImage3` |  |  |  |  |  |  |  |
-| `medfilt2` | 0.2615 | 2.09× |  | 29.26 | 0.13× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `medfilt2` | 0.07725 | 6.15× |  | 10.17 | 0.44× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `medfilt3` |  |  |  |  |  |  |  |
 | `modefilt` |  |  |  |  |  |  |  |
 | `nlfilter` |  |  |  |  |  |  |  |
@@ -1737,7 +1737,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `padarray` |  |  |  |  |  |  |  |
 | `rangefilt` |  |  |  |  |  |  |  |
 | `roifilt2` |  |  |  |  |  |  |  |
-| `stdfilt` | 0.1428 | 2.10× |  | 10.94 | 0.52× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `stdfilt` | 0.1665 | 2.21× |  | 11.05 | 0.66× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `wiener2` |  |  |  |  |  |  |  |
 
 ### Contrast Adjustment
@@ -1964,7 +1964,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `graycomatrix` |  |  |  |  |  |  |  |
 | `graycoprops` |  |  |  |  |  |  |  |
 | `rangefilt` |  |  |  |  |  |  |  |
-| `stdfilt` | 0.1428 | 2.10× |  | 10.94 | 0.52× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `stdfilt` | 0.1665 | 2.21× |  | 11.05 | 0.66× |  | grayscale double N×N (100×100 / 1000×1000) |
 
 ### Image Quality
 
