@@ -17,6 +17,8 @@ private:
     static void registerCellStructFunctions(Engine &engine);
     static void registerStringFunctions(Engine &engine);
     static void registerComplexFunctions(Engine &engine);
+    // Key-value container classes: dictionary + containers.Map (object model).
+    static void registerContainers(Engine &engine);
 
     // Workspace / session builtins (clear, who, whos, tic, toc, etc.)
     static void registerWorkspaceBuiltins(Engine &engine);

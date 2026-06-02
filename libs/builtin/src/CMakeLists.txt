@@ -24,6 +24,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/scan.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/cells/cell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/structures/struct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/datatypes/containers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/bitwise/int_math.cpp
     # math/ — MATLAB Mathematics
     ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng.cpp
