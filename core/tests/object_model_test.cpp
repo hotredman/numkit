@@ -7,10 +7,12 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/object.hpp>
+#include <numkit/builtin/containers.hpp>
 #include <numkit/builtin/library.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 #include <memory>
+#include <memory_resource>
 
 using namespace numkit;
 
@@ -285,3 +287,63 @@ TEST_P(PointObjectTest, SubsasgnValueSemantics)
 INSTANTIATE_TEST_SUITE_P(Backends, PointObjectTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
+
+// ============================================================
+// Public engine-free C++ API for the container objects
+// (numkit::containers::map/dictionary/set/get/...). No Engine — just
+// Value + memory_resource, like the rest of libs/builtin.
+// ============================================================
+namespace c = numkit::containers;
+
+static Value S(const char *s) { return Value::fromString(s, std::pmr::get_default_resource()); }
+static Value N(double d) { return Value::scalar(d, std::pmr::get_default_resource()); }
+
+TEST(ContainersCxxApi, MapEngineFree)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value m = c::map(mr); // no Engine
+    c::set(m, S("a"), N(1.0));
+    c::set(m, S("b"), N(2.0));
+    EXPECT_EQ(c::count(m), 2u);
+    EXPECT_EQ(m.objectClassName(), "containers.Map");
+    EXPECT_TRUE(m.objectIsHandle());
+    EXPECT_DOUBLE_EQ(c::get(m, S("a")).toScalar(), 1.0);
+    EXPECT_TRUE(c::isKey(m, S("b")));
+    EXPECT_FALSE(c::isKey(m, S("z")));
+    c::remove(m, S("a"));
+    EXPECT_EQ(c::count(m), 1u);
+    EXPECT_FALSE(c::isKey(m, S("a")));
+}
+
+TEST(ContainersCxxApi, MapHandleAliasing)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value m = c::map(mr);
+    c::set(m, S("a"), N(1.0));
+    Value m2 = m; // handle: alias shares state
+    c::set(m2, S("a"), N(99.0));
+    EXPECT_DOUBLE_EQ(c::get(m, S("a")).toScalar(), 99.0);
+}
+
+TEST(ContainersCxxApi, DictionaryValueSemantics)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value d = c::dictionary(mr);
+    c::set(d, S("x"), N(10.0));
+    EXPECT_FALSE(d.objectIsHandle());
+    Value d2 = d; // value: copy is independent
+    c::set(d2, S("x"), N(99.0));
+    EXPECT_DOUBLE_EQ(c::get(d, S("x")).toScalar(), 10.0);
+    EXPECT_DOUBLE_EQ(c::get(d2, S("x")).toScalar(), 99.0);
+}
+
+// A C++-built object round-trips into the interpreter unchanged.
+TEST(ContainersCxxApi, RoundTripIntoEngine)
+{
+    Engine engine;
+    Value m = c::map(engine.resource());
+    c::set(m, S("k"), N(7.0));
+    engine.setVariable("m", m);
+    EXPECT_DOUBLE_EQ(engine.eval("m('k')").toScalar(), 7.0);
+    EXPECT_DOUBLE_EQ(engine.eval("m.Count").toScalar(), 1.0);
+}
