@@ -137,6 +137,23 @@ TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
 // remap pass over already-remapped labels used to violate this on
 // merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
 // regionprops / bwareaopen downstream.
+// medfilt2 typed-access fast path (double/uint8) must be bit-identical to the
+// elemAsDouble path. Pinned from MATLAB R2025b (zero-pad border).
+TEST_F(EdgeReconTest, Medfilt2TypedFastPathPreserved)
+{
+    eval("I = reshape(mod((0:1199)*7.3,100),30,40);");
+    eval("F = medfilt2(I);");
+    EXPECT_NEAR(sc("sum(F(:))"), 57228.800000, 1e-3);
+    EXPECT_NEAR(sc("F(15,20)"),  63.2, 1e-7);
+    EXPECT_DOUBLE_EQ(sc("F(1,1)"), 0.0);                 // zero-pad corner
+    eval("F5 = medfilt2(I,[5 5]);");
+    EXPECT_NEAR(sc("F5(15,20)"), 51.5, 1e-7);
+    eval("A = uint8(reshape(mod((0:1199)*11,256),30,40)); G = medfilt2(A);");
+    EXPECT_EQ(eval("class(G)").toString(), "uint8");
+    EXPECT_DOUBLE_EQ(sc("double(G(15,20))"),  98.0);
+    EXPECT_DOUBLE_EQ(sc("sum(double(G(:)))"), 143517.0);
+}
+
 // imgradient with one output (magnitude) must skip the per-pixel atan2
 // direction. Magnitude is bit-identical to the 2-output path and matches
 // MATLAB. Pinned from MATLAB R2025b.

@@ -1027,6 +1027,16 @@ Value medfilt2(const Value &I, int rows, int cols, std::pmr::memory_resource *mr
     std::vector<double> window;
     window.reserve((size_t)rows * (size_t)cols);
 
+    // Typed pointers for the common image classes — avoids the per-element
+    // elemAsDouble() type-switch in the hot window-gather loop.
+    const double  *sd = (I.type() == ValueType::DOUBLE) ? I.doubleData() : nullptr;
+    const uint8_t *su = (I.type() == ValueType::UINT8)  ? I.uint8Data()  : nullptr;
+    auto getv = [&](std::size_t idx) -> double {
+        if (sd) return sd[idx];
+        if (su) return static_cast<double>(su[idx]);
+        return I.elemAsDouble(idx);
+    };
+
     for (int oc = 0; oc < W; ++oc) {
         for (int orow = 0; orow < H; ++orow) {
             window.clear();
@@ -1038,7 +1048,7 @@ Value medfilt2(const Value &I, int rows, int cols, std::pmr::memory_resource *mr
                     if (r_in < 0 || r_in >= H || c_in < 0 || c_in >= W) {
                         window.push_back(0.0);
                     } else {
-                        window.push_back(I.elemAsDouble((size_t)c_in * (size_t)H + (size_t)r_in));
+                        window.push_back(getv((std::size_t)c_in * (std::size_t)H + (std::size_t)r_in));
                     }
                 }
             }
