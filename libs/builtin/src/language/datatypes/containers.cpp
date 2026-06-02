@@ -1,10 +1,15 @@
 // libs/builtin/src/language/datatypes/containers.cpp
 //
-// Key–value container classes built on the engine object model
+// Key–value container classes on the engine object model
 // (OBJECT_MODEL.md): the modern value-semantics `dictionary` (R2022b+)
 // and the legacy handle-semantics `containers.Map`. Both share one
-// opaque KVPayload; the value/handle difference is entirely the
-// registry `isHandle` flag + the engine's COW clone rule.
+// opaque KVPayload; the value/handle difference is entirely the registry
+// isHandle flag + the engine's COW clone rule.
+//
+// The public, ENGINE-FREE C++ API (numkit::containers::map/dictionary/
+// set/get/...) is the single source of truth; the interpreter's registry
+// hooks (construct/subsref/subsasgn/methods) are thin adapters over it.
+#include <numkit/builtin/containers.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/object.hpp>
@@ -52,7 +57,7 @@ struct KVPayload : NativePayload
         return -1;
     }
 
-    void set(const Value &key, const Value &val)
+    void put(const Value &key, const Value &val)
     {
         if (keyKind == None) {
             keyKind = key.isNumeric() ? Num : Str;
@@ -73,66 +78,37 @@ struct KVPayload : NativePayload
     }
 };
 
-KVPayload *payloadOf(const Value &self)
+const KVPayload *cst(const Value &m)
 {
-    auto *st = self.objectStateConst();
+    const auto *st = m.objectStateConst();
+    return st ? static_cast<const KVPayload *>(st->native.get()) : nullptr;
+}
+KVPayload *mut(Value &m)
+{
+    auto *st = m.objectStateMut(); // detach (COW) → value/handle clone rule
     return st ? static_cast<KVPayload *>(st->native.get()) : nullptr;
 }
-KVPayload *payloadOfMut(Value &self)
+const KVPayload *require(const Value &m)
 {
-    auto *st = self.objectStateMut(); // detach (COW) → value/handle rule
-    return st ? static_cast<KVPayload *>(st->native.get()) : nullptr;
+    const KVPayload *p = cst(m);
+    if (!p)
+        throw std::runtime_error("expected a containers.Map or dictionary");
+    return p;
 }
 
-// Build a keys Value (string array or numeric column) for keys()/disp.
-Value keysValue(const KVPayload *p, std::pmr::memory_resource *mr)
-{
-    if (p->keyKind == KVPayload::Num) {
-        Value v = Value::matrix(p->nkeys.size(), 1, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < p->nkeys.size(); ++i)
-            v.doubleDataMut()[i] = p->nkeys[i];
-        return v;
-    }
-    // string keys → string column
-    Value v = Value::stringArray(p->skeys.size(), 1, mr);
-    for (size_t i = 0; i < p->skeys.size(); ++i)
-        v.stringElemSet(i, p->skeys[i]);
-    return v;
-}
-Value valuesValue(const KVPayload *p, std::pmr::memory_resource *mr)
-{
-    // Numeric values → numeric column; otherwise a cell column.
-    bool allNum = true;
-    for (const auto &v : p->vals)
-        if (!(v.isScalar() && v.type() == ValueType::DOUBLE))
-            allNum = false;
-    if (allNum && !p->vals.empty()) {
-        Value out = Value::matrix(p->vals.size(), 1, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < p->vals.size(); ++i)
-            out.doubleDataMut()[i] = p->vals[i].toScalar();
-        return out;
-    }
-    Value out = Value::cell(p->vals.size(), 1, mr);
-    for (size_t i = 0; i < p->vals.size(); ++i)
-        out.cellAt(i) = p->vals[i];
-    return out;
-}
-
-// Extract a flat list of keys from a constructor argument.
 void extractKeys(const Value &k, std::vector<Value> &out, std::pmr::memory_resource *mr)
 {
-    if (k.isCell()) {
+    if (k.isCell())
         for (size_t i = 0; i < k.numel(); ++i)
             out.push_back(k.cellAt(i));
-    } else if (k.isString()) {
+    else if (k.isString())
         for (size_t i = 0; i < k.numel(); ++i)
             out.push_back(Value::stringScalar(k.stringElem(i), mr));
-    } else if (k.isChar()) {
-        out.push_back(k); // a single char-row key
-    } else {
+    else if (k.isChar())
+        out.push_back(k);
+    else
         for (size_t i = 0; i < k.numel(); ++i)
             out.push_back(k.elemAt(i, mr));
-    }
 }
 void extractVals(const Value &v, std::vector<Value> &out, std::pmr::memory_resource *mr)
 {
@@ -144,90 +120,181 @@ void extractVals(const Value &v, std::vector<Value> &out, std::pmr::memory_resou
             out.push_back(v.elemAt(i, mr));
 }
 
-Value makeKV(const std::string &cls, std::shared_ptr<KVPayload> p, bool isHandle,
-             std::pmr::memory_resource *mr)
+Value makeContainer(const std::string &cls, bool isHandle, std::pmr::memory_resource *mr)
 {
+    if (!mr)
+        mr = std::pmr::get_default_resource();
     auto st = std::make_shared<ObjectState>(mr);
-    st->native = std::move(p);
+    st->native = std::make_shared<KVPayload>();
     return Value::object(cls, st, isHandle, mr);
 }
 
 } // namespace
 
 // ============================================================
-// Registration — called from BuiltinLibrary::install.
+// Public, engine-free C++ API.
+// ============================================================
+namespace containers {
+
+Value map(std::pmr::memory_resource *mr)
+{
+    return makeContainer("containers.Map", /*isHandle=*/true, mr);
+}
+Value dictionary(std::pmr::memory_resource *mr)
+{
+    return makeContainer("dictionary", /*isHandle=*/false, mr);
+}
+
+void set(Value &m, const Value &key, const Value &val)
+{
+    KVPayload *p = mut(m);
+    if (!p)
+        throw std::runtime_error("set: expected a containers.Map or dictionary");
+    p->put(key, val);
+}
+
+Value get(const Value &m, const Value &key)
+{
+    const KVPayload *p = require(m);
+    int idx = p->find(key);
+    if (idx < 0)
+        throw std::runtime_error("the specified key is not present in this container");
+    return p->vals[idx];
+}
+
+bool isKey(const Value &m, const Value &key) { return require(m)->find(key) >= 0; }
+
+std::size_t count(const Value &m) { return require(m)->count(); }
+
+void remove(Value &m, const Value &key)
+{
+    KVPayload *p = mut(m);
+    if (!p)
+        throw std::runtime_error("remove: expected a containers.Map or dictionary");
+    int idx = p->find(key);
+    if (idx < 0)
+        return;
+    if (p->keyKind == KVPayload::Num)
+        p->nkeys.erase(p->nkeys.begin() + idx);
+    else
+        p->skeys.erase(p->skeys.begin() + idx);
+    p->vals.erase(p->vals.begin() + idx);
+}
+
+Value keys(const Value &m, std::pmr::memory_resource *mr)
+{
+    if (!mr)
+        mr = std::pmr::get_default_resource();
+    const KVPayload *p = require(m);
+    // containers.Map → cell row; dictionary → key-typed column.
+    if (m.objectClassName() == "containers.Map") {
+        Value c = Value::cell(1, p->count(), mr);
+        for (size_t i = 0; i < p->count(); ++i)
+            c.cellAt(i) = (p->keyKind == KVPayload::Num)
+                              ? Value::scalar(p->nkeys[i], mr)
+                              : Value::fromString(p->skeys[i], mr);
+        return c;
+    }
+    if (p->keyKind == KVPayload::Num) {
+        Value v = Value::matrix(p->count(), 1, ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < p->count(); ++i)
+            v.doubleDataMut()[i] = p->nkeys[i];
+        return v;
+    }
+    Value v = Value::stringArray(p->count(), 1, mr);
+    for (size_t i = 0; i < p->count(); ++i)
+        v.stringElemSet(i, p->skeys[i]);
+    return v;
+}
+
+Value values(const Value &m, std::pmr::memory_resource *mr)
+{
+    if (!mr)
+        mr = std::pmr::get_default_resource();
+    const KVPayload *p = require(m);
+    if (m.objectClassName() == "containers.Map") {
+        Value c = Value::cell(1, p->count(), mr);
+        for (size_t i = 0; i < p->count(); ++i)
+            c.cellAt(i) = p->vals[i];
+        return c;
+    }
+    // dictionary: numeric scalars → column vector, otherwise a cell column.
+    bool allNum = !p->vals.empty();
+    for (const auto &v : p->vals)
+        if (!(v.isScalar() && v.type() == ValueType::DOUBLE))
+            allNum = false;
+    if (allNum) {
+        Value out = Value::matrix(p->count(), 1, ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < p->count(); ++i)
+            out.doubleDataMut()[i] = p->vals[i].toScalar();
+        return out;
+    }
+    Value out = Value::cell(p->count(), 1, mr);
+    for (size_t i = 0; i < p->count(); ++i)
+        out.cellAt(i) = p->vals[i];
+    return out;
+}
+
+} // namespace containers
+
+// ============================================================
+// Registry hooks — thin adapters over the public C++ API.
 // ============================================================
 void BuiltinLibrary::registerContainers(Engine &engine)
 {
-    auto *mr = engine.resource();
-    (void) mr;
-
     // ── dictionary (value semantics) ─────────────────────────
     {
         BuiltinClass dict;
         dict.name = "dictionary";
         dict.isHandle = false;
-        dict.propNames = {};
 
         dict.construct = [](Span<const Value> args, CallContext &ctx) -> Value {
-            auto *m = ctx.engine->resource();
-            auto p = std::make_shared<KVPayload>();
+            auto *mr = ctx.engine->resource();
+            Value d = containers::dictionary(mr);
             if (args.size() >= 2) {
                 std::vector<Value> ks, vs;
-                extractKeys(args[0], ks, m);
-                extractVals(args[1], vs, m);
+                extractKeys(args[0], ks, mr);
+                extractVals(args[1], vs, mr);
                 if (ks.size() != vs.size())
                     throw std::runtime_error("dictionary: keys and values must match in number");
                 for (size_t i = 0; i < ks.size(); ++i)
-                    p->set(ks[i], vs[i]);
+                    containers::set(d, ks[i], vs[i]);
             }
-            return makeKV("dictionary", p, /*isHandle=*/false, m);
+            return d;
         };
-
         dict.subsref = [](Value &self, Span<const Value> args, size_t, Span<Value> out,
-                          CallContext &) {
-            KVPayload *p = payloadOf(self);
-            int idx = p->find(args[0]);
-            if (idx < 0)
-                throw std::runtime_error("dictionary: key not found");
-            out[0] = p->vals[idx];
-        };
+                          CallContext &) { out[0] = containers::get(self, args[0]); };
         dict.subsasgn = [](Value &self, Span<const Value> args, size_t, Span<Value>,
                            CallContext &) {
-            // value class: payloadOfMut detaches → original copy untouched
-            payloadOfMut(self)->set(args[0], args[args.size() - 1]);
+            containers::set(self, args[0], args[args.size() - 1]);
         };
-
         dict.methods["numEntries"] = [](Value &self, Span<const Value>, size_t,
                                         Span<Value> out, CallContext &ctx) {
-            out[0] = Value::scalar(static_cast<double>(payloadOf(self)->count()),
+            out[0] = Value::scalar(static_cast<double>(containers::count(self)),
                                    ctx.engine->resource());
         };
-        dict.methods["isKey"] = [](Value &self, Span<const Value> args, size_t,
-                                   Span<Value> out, CallContext &ctx) {
-            out[0] = Value::logicalScalar(payloadOf(self)->find(args[0]) >= 0,
-                                          ctx.engine->resource());
+        dict.methods["isKey"] = [](Value &self, Span<const Value> a, size_t, Span<Value> out,
+                                   CallContext &ctx) {
+            out[0] = Value::logicalScalar(containers::isKey(self, a[0]), ctx.engine->resource());
         };
         dict.methods["keys"] = [](Value &self, Span<const Value>, size_t, Span<Value> out,
                                   CallContext &ctx) {
-            out[0] = keysValue(payloadOf(self), ctx.engine->resource());
+            out[0] = containers::keys(self, ctx.engine->resource());
         };
         dict.methods["values"] = [](Value &self, Span<const Value>, size_t, Span<Value> out,
                                     CallContext &ctx) {
-            out[0] = valuesValue(payloadOf(self), ctx.engine->resource());
+            out[0] = containers::values(self, ctx.engine->resource());
         };
         dict.methods["isConfigured"] = [](Value &self, Span<const Value>, size_t,
                                           Span<Value> out, CallContext &ctx) {
-            out[0] = Value::logicalScalar(payloadOf(self)->configured,
-                                          ctx.engine->resource());
+            out[0] = Value::logicalScalar(cst(self)->configured, ctx.engine->resource());
         };
-
         dict.dispText = [](const Value &self) -> std::string {
-            const KVPayload *p = payloadOf(self);
+            const KVPayload *p = cst(self);
             std::ostringstream os;
             const char *kt = (p->keyKind == KVPayload::Num) ? "double" : "string";
-            os << "  dictionary (" << kt << " --> " << p->valType << ") with "
-               << p->count() << " entries:\n";
+            os << "  dictionary (" << kt << " --> " << p->valType << ") with " << p->count()
+               << " entries:\n";
             for (size_t i = 0; i < p->count(); ++i) {
                 os << "    ";
                 if (p->keyKind == KVPayload::Num)
@@ -244,7 +311,6 @@ void BuiltinLibrary::registerContainers(Engine &engine)
             }
             return os.str();
         };
-
         engine.registerClass(std::move(dict));
     }
 
@@ -256,19 +322,16 @@ void BuiltinLibrary::registerContainers(Engine &engine)
         cm.propNames = {"Count", "KeyType", "ValueType"};
 
         cm.construct = [](Span<const Value> args, CallContext &ctx) -> Value {
-            auto *m = ctx.engine->resource();
-            auto p = std::make_shared<KVPayload>();
-            // containers.Map(keys, values) — option-string form
-            // ('KeyType',..,'ValueType',..) just configures empty.
+            auto *mr = ctx.engine->resource();
+            Value m = containers::map(mr);
             if (args.size() >= 2 && !args[0].isChar() && !args[0].isString()) {
                 std::vector<Value> ks, vs;
-                extractKeys(args[0], ks, m);
-                extractVals(args[1], vs, m);
+                extractKeys(args[0], ks, mr);
+                extractVals(args[1], vs, mr);
                 for (size_t i = 0; i < ks.size() && i < vs.size(); ++i)
-                    p->set(ks[i], vs[i]);
-            } else if (args.size() >= 2
-                       && (args[0].isChar() || args[0].isString())) {
-                // 'KeyType'/'ValueType' name-value options.
+                    containers::set(m, ks[i], vs[i]);
+            } else if (args.size() >= 2 && (args[0].isChar() || args[0].isString())) {
+                KVPayload *p = mut(m); // configure KeyType/ValueType options
                 for (size_t i = 0; i + 1 < args.size(); i += 2) {
                     std::string opt = args[i].toString();
                     if (opt == "KeyType")
@@ -277,89 +340,56 @@ void BuiltinLibrary::registerContainers(Engine &engine)
                         p->valType = args[i + 1].toString();
                 }
             }
-            return makeKV("containers.Map", p, /*isHandle=*/true, m);
+            return m;
         };
-
         cm.subsref = [](Value &self, Span<const Value> args, size_t, Span<Value> out,
-                        CallContext &) {
-            KVPayload *p = payloadOf(self);
-            int idx = p->find(args[0]);
-            if (idx < 0)
-                throw std::runtime_error("containers.Map: the specified key is not present");
-            out[0] = p->vals[idx];
-        };
+                        CallContext &) { out[0] = containers::get(self, args[0]); };
         cm.subsasgn = [](Value &self, Span<const Value> args, size_t, Span<Value>,
                          CallContext &) {
-            payloadOfMut(self)->set(args[0], args[args.size() - 1]); // handle: shared
+            containers::set(self, args[0], args[args.size() - 1]);
         };
-
         cm.methods["keys"] = [](Value &self, Span<const Value>, size_t, Span<Value> out,
                                 CallContext &ctx) {
-            // containers.Map keys() returns a cell row.
-            const KVPayload *p = payloadOf(self);
-            auto *m = ctx.engine->resource();
-            Value c = Value::cell(1, p->count(), m);
-            for (size_t i = 0; i < p->count(); ++i)
-                c.cellAt(i) = (p->keyKind == KVPayload::Num)
-                                  ? Value::scalar(p->nkeys[i], m)
-                                  : Value::fromString(p->skeys[i], m);
-            out[0] = c;
+            out[0] = containers::keys(self, ctx.engine->resource());
         };
         cm.methods["values"] = [](Value &self, Span<const Value>, size_t, Span<Value> out,
                                   CallContext &ctx) {
-            const KVPayload *p = payloadOf(self);
-            auto *m = ctx.engine->resource();
-            Value c = Value::cell(1, p->count(), m);
-            for (size_t i = 0; i < p->count(); ++i)
-                c.cellAt(i) = p->vals[i];
-            out[0] = c;
+            out[0] = containers::values(self, ctx.engine->resource());
         };
-        cm.methods["isKey"] = [](Value &self, Span<const Value> args, size_t,
-                                 Span<Value> out, CallContext &ctx) {
-            out[0] = Value::logicalScalar(payloadOf(self)->find(args[0]) >= 0,
-                                          ctx.engine->resource());
+        cm.methods["isKey"] = [](Value &self, Span<const Value> a, size_t, Span<Value> out,
+                                 CallContext &ctx) {
+            out[0] = Value::logicalScalar(containers::isKey(self, a[0]), ctx.engine->resource());
         };
         cm.methods["length"] = [](Value &self, Span<const Value>, size_t, Span<Value> out,
                                   CallContext &ctx) {
-            out[0] = Value::scalar(static_cast<double>(payloadOf(self)->count()),
+            out[0] = Value::scalar(static_cast<double>(containers::count(self)),
                                    ctx.engine->resource());
         };
-        cm.methods["remove"] = [](Value &self, Span<const Value> args, size_t,
-                                  Span<Value> out, CallContext &ctx) {
-            KVPayload *p = payloadOfMut(self);
-            int idx = p->find(args[0]);
-            if (idx >= 0) {
-                if (p->keyKind == KVPayload::Num)
-                    p->nkeys.erase(p->nkeys.begin() + idx);
-                else
-                    p->skeys.erase(p->skeys.begin() + idx);
-                p->vals.erase(p->vals.begin() + idx);
-            }
+        cm.methods["remove"] = [](Value &self, Span<const Value> a, size_t, Span<Value> out,
+                                  CallContext &) {
+            containers::remove(self, a[0]);
             out[0] = self; // MATLAB returns the (mutated) map
-            (void) ctx;
         };
-
         cm.propGet = [](const Value &self, const std::string &name, Value &out,
                         CallContext &ctx) -> bool {
-            const KVPayload *p = payloadOf(self);
-            auto *m = ctx.engine->resource();
+            const KVPayload *p = cst(self);
+            auto *mr = ctx.engine->resource();
             if (name == "Count") {
-                out = Value::scalar(static_cast<double>(p->count()), m);
+                out = Value::scalar(static_cast<double>(p->count()), mr);
                 return true;
             }
             if (name == "KeyType") {
-                out = Value::fromString(p->keyType, m);
+                out = Value::fromString(p->keyType, mr);
                 return true;
             }
             if (name == "ValueType") {
-                out = Value::fromString(p->valType, m);
+                out = Value::fromString(p->valType, mr);
                 return true;
             }
             return false;
         };
-
         cm.dispText = [](const Value &self) -> std::string {
-            const KVPayload *p = payloadOf(self);
+            const KVPayload *p = cst(self);
             std::ostringstream os;
             os << "  Map with properties:\n\n"
                << "        Count: " << p->count() << "\n"
@@ -367,7 +397,6 @@ void BuiltinLibrary::registerContainers(Engine &engine)
                << "    ValueType: " << p->valType << "\n";
             return os.str();
         };
-
         engine.registerClass(std::move(cm));
     }
 }
