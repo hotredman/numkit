@@ -1729,7 +1729,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter3` |  |  |  |  |  |  |  |
 | `integralImage` |  |  |  |  |  |  |  |
 | `integralImage3` |  |  |  |  |  |  |  |
-| `medfilt2` | 0.258 | 1.73× |  | 28.52 | 0.15× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `medfilt2` | 0.2615 | 2.09× |  | 29.26 | 0.13× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `medfilt3` |  |  |  |  |  |  |  |
 | `modefilt` |  |  |  |  |  |  |  |
 | `nlfilter` |  |  |  |  |  |  |  |
