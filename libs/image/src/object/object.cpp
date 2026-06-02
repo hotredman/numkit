@@ -423,6 +423,22 @@ imgradient(const Value &I, const std::string &method, std::pmr::memory_resource 
     return std::make_tuple(std::move(Gmag), std::move(Gdir));
 }
 
+// Magnitude-only variant — skips the per-pixel atan2 direction, which costs
+// nothing when the caller wants only Gmag (the common `m = imgradient(I)`).
+// Gmag is bit-identical to imgradient()'s first output.
+Value imgradient_mag(const Value &I, const std::string &method, std::pmr::memory_resource *mr)
+{
+    auto [Gx, Gy] = imgradientxy(I, method, mr);
+    const size_t N = Gx.numel();
+    Value Gmag = Value::matrix(Gx.dims().rows(), Gx.dims().cols(), ValueType::DOUBLE, mr);
+    double *gm = Gmag.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const double gxv = Gx.elemAsDouble(i), gyv = Gy.elemAsDouble(i);
+        gm[i] = std::sqrt(gxv * gxv + gyv * gyv);
+    }
+    return Gmag;
+}
+
 namespace {
 
 // Threshold (binarise) gradient magnitude into LOGICAL.
@@ -688,9 +704,14 @@ void imgradient_reg(Span<const Value> args, size_t nargout,
         throw Error("imgradient: requires (I[, method])", 0, 0,
                     "imgradient", "", "numkit:imgradient:nargin");
     const auto m = parse_method(args, 1, "sobel");
-    auto [Gmag, Gdir] = imgradient(args[0], m, ctx.engine->resource());
-    outs[0] = std::move(Gmag);
-    if (nargout > 1) outs[1] = std::move(Gdir);
+    if (nargout > 1) {
+        auto [Gmag, Gdir] = imgradient(args[0], m, ctx.engine->resource());
+        outs[0] = std::move(Gmag);
+        outs[1] = std::move(Gdir);
+    } else {
+        // Magnitude only — skip the per-pixel atan2 direction.
+        outs[0] = imgradient_mag(args[0], m, ctx.engine->resource());
+    }
 }
 
 void imgradientxyz_reg(Span<const Value> args, size_t nargout,
