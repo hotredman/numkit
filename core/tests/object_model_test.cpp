@@ -528,6 +528,41 @@ TEST_P(ObjectArrayTest, ConcatMixedClassThrows)
     EXPECT_THROW(engine.eval("x = [Box(1) HBox(2)];"), std::exception);
 }
 
+TEST_P(ObjectArrayTest, TwoDConcatAndIndex)
+{
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)];");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,1).v"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,1).v"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,2).v"), 4.0);
+}
+
+TEST_P(ObjectArrayTest, LinearIndexInto2D)
+{
+    // Column-major linear index into a 2×2: a(3) == a(1,2).
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)];");
+    EXPECT_DOUBLE_EQ(evalScalar("a(3).v"), 2.0);
+}
+
+TEST_P(ObjectArrayTest, TwoDColumnSlice)
+{
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)]; c = a(:,2);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(c)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1).v"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2).v"), 4.0);
+}
+
+TEST_P(ObjectArrayTest, TwoDRowSlice)
+{
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)]; r = a(2,:);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(r)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(1).v"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(2).v"), 4.0);
+}
+
 TEST_P(ObjectArrayTest, PropertyCSL)
 {
     // [arr.prop] expands the property over the whole array → a row vector.

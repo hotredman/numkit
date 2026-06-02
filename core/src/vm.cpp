@@ -801,6 +801,20 @@ enter_frame:
             }
             case OpCode::INDEX_GET_2D: {
                 const Value &mv = R[I.b];
+                // OBJECT: a custom subsref controls indexing; otherwise the
+                // builtin 2-D path below (indexGet2D) handles object arrays.
+                if (mv.isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(mv.objectClassName());
+                    if (cls && cls->subsref) {
+                        Value idxArgs[2] = {R[I.c], R[I.e]};
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->subsref(R[I.b], Span<const Value>(idxArgs, 2), 1,
+                                     Span<Value>(out, 1), ctx);
+                        R[I.a] = std::move(out[0]);
+                        break;
+                    }
+                }
                 // ── Scalar fast path: A(i,j) with scalar double indices ──
                 if (R[I.c].isDoubleScalar() && R[I.e].isDoubleScalar()
                     && mv.isHeapDouble()) {
@@ -1014,6 +1028,22 @@ enter_frame:
                 // a=dst, b=arr/cell, c=base, e=ndims
                 uint8_t base = I.c, ndims = I.e;
                 const Value &mv = R[I.b];
+                // OBJECT: a custom subsref controls indexing; otherwise the
+                // builtin N-D path below (indexGet3D/indexGetND) handles it.
+                if (mv.isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(mv.objectClassName());
+                    if (cls && cls->subsref) {
+                        std::vector<Value> idx(ndims);
+                        for (uint8_t i = 0; i < ndims; ++i)
+                            idx[i] = R[base + i];
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->subsref(R[I.b], Span<const Value>(idx.data(), ndims), 1,
+                                     Span<Value>(out, 1), ctx);
+                        R[I.a] = std::move(out[0]);
+                        break;
+                    }
+                }
                 if (ndims == 3) {
                     auto rowIds = Value::resolveIndices(R[base], mv.dims().rows());
                     auto colIds = Value::resolveIndices(R[base + 1], mv.dims().cols());
@@ -2774,14 +2804,31 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
             R[I.a] = std::move(out[0]);
             return false;
         }
-        // No custom subsref → builtin object-array indexing: obj(i).
+        // No custom subsref → builtin object-array indexing (1-D / 2-D /
+        // N-D), routed through the OBJECT-aware Value index methods.
+        const Value &mv = R[fhReg];
         if (na == 1) {
-            auto idxs = Value::resolveIndices(R[argBase], R[fhReg].objectCount());
-            R[I.a] = R[fhReg].objectSubArray(idxs, engine_.mr_);
-            return false;
+            auto idxs = Value::resolveIndices(R[argBase], mv.objectCount());
+            R[I.a] = mv.objectSubArray(idxs, engine_.mr_);
+        } else if (na == 2) {
+            auto rids = Value::resolveIndices(R[argBase], mv.dims().rows());
+            auto cids = Value::resolveIndices(R[argBase + 1], mv.dims().cols());
+            R[I.a] = mv.indexGet2D(rids.data(), rids.size(), cids.data(), cids.size(),
+                                   engine_.mr_);
+        } else {
+            const int nd = static_cast<int>(na);
+            std::vector<std::vector<size_t>> lists(nd);
+            std::vector<const size_t *> ptrs(nd);
+            std::vector<size_t> counts(nd);
+            for (int i = 0; i < nd; ++i) {
+                const size_t lim = (i < mv.dims().ndim()) ? mv.dims().dim(i) : 1;
+                lists[i] = Value::resolveIndices(R[argBase + i], lim);
+                ptrs[i] = lists[i].data();
+                counts[i] = lists[i].size();
+            }
+            R[I.a] = mv.indexGetND(ptrs.data(), counts.data(), nd, engine_.mr_);
         }
-        throw std::runtime_error("'()' indexing is not defined for class '"
-                                 + R[fhReg].objectClassName() + "'");
+        return false;
     } else {
         // Array indexing fallback
         execIndirectIndex(I, R);
