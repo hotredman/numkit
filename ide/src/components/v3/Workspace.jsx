@@ -4,7 +4,7 @@ import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspe
 import ContextMenu from './ContextMenu';
 import ValueTable from './ValueTable';
 import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
-import { aggregateStats, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
+import { aggregateStats, heatmapCellBackground, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
 import { useChooser, ChooserButton } from './chooser';
 import { classify } from './adapters';
 
@@ -47,13 +47,6 @@ function fmt(v, opts = {}) {
   const abs = Math.abs(v);
   if (abs >= 1e5 || (abs > 0 && abs < 1e-3)) return v.toExponential(opts.exp ?? 3);
   return v.toFixed(opts.fix ?? 4);
-}
-
-function heatColor(v, min, max) {
-  if (min === max) return 'transparent';
-  const t = (v - min) / (max - min);
-  const hue = (1 - t) * 220 + t * 20;
-  return `oklch(0.55 0.05 ${hue} / ${0.18 + 0.22 * Math.abs(t - 0.5) * 2})`;
 }
 
 /* ======================================================================== */
@@ -795,8 +788,8 @@ function VirtualTable({
                 const v = getCellValue(r, c);
                 const isActive  = activeCell.r === r && activeCell.c === c;
                 const isEditing = editing && editing.r === r && editing.c === c;
-                const bg = (heatmap && stats && typeof v === 'number')
-                  ? heatColor(v, stats.min, stats.max) : undefined;
+                // Heatmap background (logical booleans coerced to 1/0 inside).
+                const bg = heatmapCellBackground(v, stats, heatmap);
                 return (
                   <td
                     key={c}
