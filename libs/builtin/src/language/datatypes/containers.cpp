@@ -14,7 +14,9 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/object.hpp>
 
+#include <algorithm>
 #include <memory>
+#include <numeric>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -120,6 +122,24 @@ void extractVals(const Value &v, std::vector<Value> &out, std::pmr::memory_resou
             out.push_back(v.elemAt(i, mr));
 }
 
+// Output order for keys()/values(). MATLAB containers.Map iterates its
+// keys SORTED; dictionary preserves insertion order. We store insertion
+// order in the payload and apply the Map sort only at output.
+std::vector<size_t> outputOrder(const Value &m, const KVPayload *p)
+{
+    std::vector<size_t> idx(p->count());
+    std::iota(idx.begin(), idx.end(), size_t{0});
+    if (m.objectClassName() == "containers.Map") {
+        if (p->keyKind == KVPayload::Num)
+            std::sort(idx.begin(), idx.end(),
+                      [&](size_t a, size_t b) { return p->nkeys[a] < p->nkeys[b]; });
+        else
+            std::sort(idx.begin(), idx.end(),
+                      [&](size_t a, size_t b) { return p->skeys[a] < p->skeys[b]; });
+    }
+    return idx;
+}
+
 Value makeContainer(const std::string &cls, bool isHandle, std::pmr::memory_resource *mr)
 {
     if (!mr)
@@ -186,24 +206,25 @@ Value keys(const Value &m, std::pmr::memory_resource *mr)
     if (!mr)
         mr = std::pmr::get_default_resource();
     const KVPayload *p = require(m);
-    // containers.Map → cell row; dictionary → key-typed column.
+    const std::vector<size_t> ord = outputOrder(m, p);
+    // containers.Map → cell row (sorted); dictionary → key-typed column.
     if (m.objectClassName() == "containers.Map") {
         Value c = Value::cell(1, p->count(), mr);
-        for (size_t i = 0; i < p->count(); ++i)
+        for (size_t i = 0; i < ord.size(); ++i)
             c.cellAt(i) = (p->keyKind == KVPayload::Num)
-                              ? Value::scalar(p->nkeys[i], mr)
-                              : Value::fromString(p->skeys[i], mr);
+                              ? Value::scalar(p->nkeys[ord[i]], mr)
+                              : Value::fromString(p->skeys[ord[i]], mr);
         return c;
     }
     if (p->keyKind == KVPayload::Num) {
         Value v = Value::matrix(p->count(), 1, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < p->count(); ++i)
-            v.doubleDataMut()[i] = p->nkeys[i];
+        for (size_t i = 0; i < ord.size(); ++i)
+            v.doubleDataMut()[i] = p->nkeys[ord[i]];
         return v;
     }
     Value v = Value::stringArray(p->count(), 1, mr);
-    for (size_t i = 0; i < p->count(); ++i)
-        v.stringElemSet(i, p->skeys[i]);
+    for (size_t i = 0; i < ord.size(); ++i)
+        v.stringElemSet(i, p->skeys[ord[i]]);
     return v;
 }
 
@@ -212,10 +233,11 @@ Value values(const Value &m, std::pmr::memory_resource *mr)
     if (!mr)
         mr = std::pmr::get_default_resource();
     const KVPayload *p = require(m);
+    const std::vector<size_t> ord = outputOrder(m, p);
     if (m.objectClassName() == "containers.Map") {
         Value c = Value::cell(1, p->count(), mr);
-        for (size_t i = 0; i < p->count(); ++i)
-            c.cellAt(i) = p->vals[i];
+        for (size_t i = 0; i < ord.size(); ++i)
+            c.cellAt(i) = p->vals[ord[i]];
         return c;
     }
     // dictionary: numeric scalars → column vector, otherwise a cell column.
@@ -225,13 +247,13 @@ Value values(const Value &m, std::pmr::memory_resource *mr)
             allNum = false;
     if (allNum) {
         Value out = Value::matrix(p->count(), 1, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < p->count(); ++i)
-            out.doubleDataMut()[i] = p->vals[i].toScalar();
+        for (size_t i = 0; i < ord.size(); ++i)
+            out.doubleDataMut()[i] = p->vals[ord[i]].toScalar();
         return out;
     }
     Value out = Value::cell(p->count(), 1, mr);
-    for (size_t i = 0; i < p->count(); ++i)
-        out.cellAt(i) = p->vals[i];
+    for (size_t i = 0; i < ord.size(); ++i)
+        out.cellAt(i) = p->vals[ord[i]];
     return out;
 }
 
