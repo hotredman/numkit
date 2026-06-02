@@ -322,6 +322,23 @@ public:
     const ObjectState *objectStateAt(size_t i) const;
     ObjectState *objectStateMutAt(size_t i);
 
+    // ── Builtin object-array indexing (no custom subsref/subsasgn) ──
+    // Select elements `idxs` (0-based linear) into a new object array of
+    // the same class. One index → a 1×1 scalar object; several → a 1×N
+    // row. Applies the value/handle rule per element (value classes get
+    // independent deep copies, handle classes alias), so a value-class
+    // element read is safe to mutate. Throws on out-of-range index.
+    Value objectSubArray(const std::vector<size_t> &idxs,
+                         std::pmr::memory_resource *mr = nullptr) const;
+    // Assign scalar object `elem` into linear slot `idx`, growing this
+    // (1-D row vector) and gap-filling new slots with independent copies
+    // of `fill` (typically a default-constructed object). An empty/unset/
+    // non-object receiver becomes a fresh object array of elem's class.
+    // Value class → store a deep copy of elem; handle class → alias elem.
+    // Detaches (COW) first. For the no-custom-subsasgn builtin path.
+    void objectAssignElement(size_t idx, const Value &elem, const Value &fill,
+                             std::pmr::memory_resource *mr = nullptr);
+
     // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;
     size_t rawBytes() const;

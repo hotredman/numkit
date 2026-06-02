@@ -3,9 +3,32 @@
 Status: **P1–P7 implemented** (type + registry + value/handle clone,
 properties, constructors, methods, subsref/subsasgn indexing,
 `dictionary` + `containers.Map`, object display, multi-output methods,
-binary + unary operator overloading) — both engines, on `core-dev`.
-Owner: CORE. Remaining: object arrays, `image.*` objects, user
+binary + unary operator overloading, **object arrays** — array-backed
+storage + builtin `()` index read/write with grow) — both engines, on
+`core-dev`. Owner: CORE. Remaining: object-array concatenation `[a b]`
+and `[objs.prop]` CSL + array display, `image.*` objects, user
 `classdef` authoring.
+
+## Object arrays
+
+`HeapObject` stores a `std::vector<std::shared_ptr<ObjectState>>` whose
+length is `numel()`; the shape is in `dims` (a scalar object is a 1×1
+array of one state). `clone()` applies the value/handle pivot per
+element. Two `Value` primitives drive the array mechanics:
+- `objectSubArray(idxs)` — element read; one index → a 1×1 scalar
+  object, several → a 1×N row. Value classes get independent deep copies
+  per element (safe to mutate), handle classes alias.
+- `objectAssignElement(idx, elem, fill)` — element store with 1-D grow,
+  gap-filling new slots with independent copies of a default-constructed
+  `fill`. An empty/unset receiver becomes a fresh object array.
+
+Engine integration fires the builtin path **only when the class has no
+custom `subsref`/`subsasgn`** (else the class controls indexing, MATLAB-
+faithful): TreeWalker `execCall`/`execIndexedAssign`, VM `INDEX_GET`/
+`INDEX_SET`/`execCallIndirect`. `arr(i)`, `arr([1 3])`, `arr(end)`,
+`arr(i) = obj` (grow), `numel`/`size` all work on both engines. v1 limit:
+indexed **assignment** takes a single linear subscript (read supports
+vector/`end`); 2-D/N-D object arrays and concatenation are not yet wired.
 
 ## Goal
 

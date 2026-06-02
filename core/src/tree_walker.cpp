@@ -1092,8 +1092,35 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
                           Span<Value>(outBuf, 1), ctx);
             return;
         }
-        throw std::runtime_error("'()' assignment is not defined for class '"
-                                 + var->objectClassName() + "'");
+        // No custom subsasgn → fall through to the builtin object-array
+        // element store below (arr(i) = obj).
+    }
+
+    // Builtin object-array indexed assignment: arr(i) = obj. Fires when the
+    // RHS is an object and the target is empty/unset (→ fresh object array)
+    // or an existing object array of the same class. Grows (1-D) with
+    // default-constructed gap fill. v1: a single linear index.
+    if (rhs.isObject()) {
+        const bool newable = !var->isObject() && (var->isUnset() || var->isEmpty());
+        const bool sameArr =
+            var->isObject() && var->objectClassName() == rhs.objectClassName();
+        if (newable || sameArr) {
+            if (nargs != 1)
+                throw std::runtime_error(
+                    "object-array assignment supports a single linear index (v1)");
+            auto idxs = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
+            if (idxs.size() != 1)
+                throw std::runtime_error(
+                    "object-array assignment supports a single element (v1)");
+            const BuiltinClass *rcls = engine_.findClass(rhs.objectClassName());
+            Value fill;
+            if (rcls && rcls->construct) {
+                CallContext ctx{&engine_, env};
+                fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
+            }
+            var->objectAssignElement(idxs[0], rhs, fill, engine_.mr_);
+            return;
+        }
     }
 
     if (var->isChar() && rhs.isChar()) {
@@ -1842,6 +1869,13 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
                 cls->subsref(self, Span<const Value>(args.data(), args.size()), nargout,
                              Span<Value>(outBuf, 1), ctx);
                 return outBuf[0];
+            }
+            // No custom subsref → builtin object-array indexing: obj(i)
+            // selects element(s) (a scalar object is a 1×1 array). `end`
+            // binds to numel via resolveIndex over the object array.
+            if (node->children.size() == 2) {
+                auto idxs = resolveIndex(node->children[1].get(), *var, 0, 1, env);
+                return var->objectSubArray(idxs, engine_.mr_);
             }
             throw std::runtime_error("'()' indexing is not defined for class '"
                                      + var->objectClassName() + "'");

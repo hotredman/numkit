@@ -756,8 +756,10 @@ enter_frame:
                         R[I.a] = std::move(out[0]);
                         break;
                     }
-                    throw std::runtime_error("'()' indexing is not defined for class '"
-                                             + mv.objectClassName() + "'");
+                    // No custom subsref → builtin object-array indexing.
+                    auto idxs = Value::resolveIndices(ix, mv.objectCount());
+                    R[I.a] = mv.objectSubArray(idxs, engine_.mr_);
+                    break;
                 }
                 if (mv.isCell()) {
                     // Cell () indexing always returns sub-cell
@@ -810,9 +812,37 @@ enter_frame:
                                       Span<Value>(out, 1), ctx);
                         break;
                     }
+                    // else: builtin object-array element store below.
+                }
+                // Builtin object-array indexed store: arr(i) = obj. Fires
+                // when RHS is an object and the target is empty/unset (→ a
+                // fresh object array) or an object array of the same class.
+                if (R[I.c].isObject()) {
+                    Value &dst = R[I.a];
+                    const bool newable =
+                        !dst.isObject() && (dst.isUnset() || dst.isEmpty());
+                    const bool sameArr =
+                        dst.isObject()
+                        && dst.objectClassName() == R[I.c].objectClassName();
+                    if (newable || sameArr) {
+                        if (!(ix.isDoubleScalar() || ix.isLogicalScalar()))
+                            throw std::runtime_error(
+                                "object-array assignment supports a single linear index (v1)");
+                        size_t idx0 = static_cast<size_t>(ix.toScalar()) - 1;
+                        const BuiltinClass *rcls =
+                            engine_.findClass(R[I.c].objectClassName());
+                        Value fill;
+                        if (rcls && rcls->construct) {
+                            CallContext ctx{&engine_, currentCallEnv()};
+                            fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
+                        }
+                        dst.objectAssignElement(idx0, R[I.c], fill, engine_.mr_);
+                        break;
+                    }
+                }
+                if (R[I.a].isObject())
                     throw std::runtime_error("'()' assignment is not defined for class '"
                                              + R[I.a].objectClassName() + "'");
-                }
                 if (ix.isDoubleScalar() || ix.isLogicalScalar()) {
                     // Fast path: scalar index
                     size_t i = (size_t) ix.toScalar() - 1;
@@ -2724,6 +2754,12 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
             cls->subsref(R[fhReg], Span<const Value>(idx.data(), na), 1,
                          Span<Value>(out, 1), ctx);
             R[I.a] = std::move(out[0]);
+            return false;
+        }
+        // No custom subsref → builtin object-array indexing: obj(i).
+        if (na == 1) {
+            auto idxs = Value::resolveIndices(R[argBase], R[fhReg].objectCount());
+            R[I.a] = R[fhReg].objectSubArray(idxs, engine_.mr_);
             return false;
         }
         throw std::runtime_error("'()' indexing is not defined for class '"
