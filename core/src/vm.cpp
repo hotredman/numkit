@@ -1090,11 +1090,23 @@ enter_frame:
                 // OBJECT: obj.Prop via class property hook (object model).
                 if (R[I.b].isObject()) {
                     const BuiltinClass *cls = engine_.findClass(R[I.b].objectClassName());
-                    if (cls && cls->propGet) {
-                        Value out;
+                    if (cls) {
                         CallContext ctx{&engine_, currentCallEnv()};
-                        if (cls->propGet(R[I.b], fname, out, ctx)) {
-                            R[I.a] = std::move(out);
+                        if (cls->propGet) {
+                            Value out;
+                            if (cls->propGet(R[I.b], fname, out, ctx)) {
+                                R[I.a] = std::move(out);
+                                break;
+                            }
+                        }
+                        // Bare obj.method (no parens) → no-arg method call.
+                        auto mit = cls->methods.find(fname);
+                        if (mit != cls->methods.end()) {
+                            Value self = R[I.b];
+                            Value out[1];
+                            mit->second(self, Span<const Value>(nullptr, 0), 1,
+                                        Span<Value>(out, 1), ctx);
+                            R[I.a] = std::move(out[0]);
                             break;
                         }
                     }
@@ -1448,6 +1460,22 @@ enter_frame:
                     }
                 }
 
+                // OBJECT function-form: m(obj, ...) where obj's class has
+                // method m beats a same-named global function.
+                if (na >= 1 && R[argBase].isObject()) {
+                    const std::string &mnm = chunk.strings[funcIdx];
+                    const BuiltinClass *cls = engine_.findClass(R[argBase].objectClassName());
+                    if (cls && cls->methods.count(mnm)) {
+                        Value self = R[argBase];
+                        Span<const Value> rest((na > 1) ? &R[argBase + 1] : nullptr, na - 1);
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->methods.at(mnm)(self, rest, nargout_val, Span<Value>(out, 1), ctx);
+                        R[I.a] = std::move(out[0]);
+                        break;
+                    }
+                }
+
                 // Resolution order matches MATLAB: user-on-path beats
                 // builtins. The compiled-cache check above already
                 // handled functions adopted earlier in the session.
@@ -1569,6 +1597,46 @@ enter_frame:
             }
 
             // ── Indirect function call (func handle) or array indexing ─
+            case OpCode::CALL_METHOD: {
+                // a=dst, b=objReg, c=argBase, d=nameIdx, e=nargs.
+                // obj.name(args): dispatch a class method, else fall back
+                // to field-value + CALL_INDIRECT (func handle / index).
+                const std::string &mname = chunk.strings[I.d];
+                Value &obj = R[I.b];
+                if (obj.isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
+                    if (cls && cls->methods.count(mname)) {
+                        Value self = obj; // handle: shares state; value: own copy
+                        Span<const Value> args((I.e ? &R[I.c] : nullptr), I.e);
+                        Value out[1];
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->methods.at(mname)(self, args, 1, Span<Value>(out, 1), ctx);
+                        R[I.a] = std::move(out[0]);
+                        break;
+                    }
+                    // Not a method → property read, then index the result.
+                    Value out;
+                    CallContext ctx{&engine_, currentCallEnv()};
+                    if (!cls || !cls->propGet || !cls->propGet(obj, mname, out, ctx))
+                        throw std::runtime_error("No appropriate property '" + mname
+                                                 + "' for class '" + obj.objectClassName() + "'");
+                    R[I.b] = std::move(out);
+                } else {
+                    // Struct field holding a func handle, or a value to index
+                    // (`s.fh(args)`, `s.arr(idx)`).
+                    if (!obj.isStruct())
+                        throw std::runtime_error("Dot indexing requires a struct");
+                    if (!obj.hasField(mname))
+                        throw std::runtime_error("Reference to non-existent field '" + mname + "'");
+                    Value fv = obj.field(mname);
+                    R[I.b] = std::move(fv);
+                }
+                // R[I.b] now holds the field/property value — reuse the
+                // indirect-call machinery (handle call or array index).
+                if (execCallIndirect(I, R, frame, ip))
+                    goto enter_frame;
+                break;
+            }
             case OpCode::CALL_INDIRECT:
                 if (execCallIndirect(I, R, frame, ip))
                     goto enter_frame;
@@ -1866,6 +1934,12 @@ static std::string describeInstruction(const Instruction &instr,
     }
     case OpCode::CALL_INDIRECT:
         return "in function call";
+    case OpCode::CALL_METHOD: {
+        int16_t nameIdx = instr.d;
+        if (nameIdx >= 0 && nameIdx < (int16_t)chunk.strings.size())
+            return "in method call '." + chunk.strings[nameIdx] + "'";
+        return "in method call";
+    }
 
     // Cell indexing
     case OpCode::CELL_GET:

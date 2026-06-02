@@ -9,6 +9,7 @@
 #include <numkit/core/object.hpp>
 #include <numkit/builtin/library.hpp>
 #include <gtest/gtest.h>
+#include <cmath>
 #include <memory>
 
 using namespace numkit;
@@ -165,6 +166,24 @@ public:
             self.objectStateMut()->props[name] = val;
             return true;
         };
+        // mag() → sqrt(x^2 + y^2)
+        pt.methods["mag"] = [](Value &self, Span<const Value>, size_t, Span<Value> outs,
+                               CallContext &ctx) {
+            const auto &props = self.objectStateConst()->props;
+            double x = props.at("x").toScalar(), y = props.at("y").toScalar();
+            outs[0] = Value::scalar(std::sqrt(x * x + y * y), ctx.engine->resource());
+        };
+        // scale(f) → a new Point (value-class style: returns a fresh object)
+        pt.methods["scale"] = [](Value &self, Span<const Value> args, size_t,
+                                 Span<Value> outs, CallContext &ctx) {
+            double f = args.size() > 0 ? args[0].toScalar() : 1.0;
+            const auto &props = self.objectStateConst()->props;
+            auto *mr = ctx.engine->resource();
+            auto st = std::make_shared<ObjectState>(mr);
+            st->props.emplace("x", Value::scalar(props.at("x").toScalar() * f, mr));
+            st->props.emplace("y", Value::scalar(props.at("y").toScalar() * f, mr));
+            outs[0] = Value::object("Point", st, /*isHandle=*/false, mr);
+        };
         engine.registerClass(std::move(pt));
     }
 
@@ -202,6 +221,31 @@ TEST_P(PointObjectTest, UnknownPropertyThrows)
 {
     engine.eval("p = Point(3, 4);");
     EXPECT_THROW(engine.eval("p.z"), std::exception);
+}
+
+TEST_P(PointObjectTest, DottedMethodCall)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("p = Point(3, 4); p.mag()"), 5.0);
+}
+
+TEST_P(PointObjectTest, DottedNoArgMethod)
+{
+    // obj.method with no parens invokes a no-arg method.
+    EXPECT_DOUBLE_EQ(evalScalar("p = Point(3, 4); p.mag"), 5.0);
+}
+
+TEST_P(PointObjectTest, FunctionFormMethod)
+{
+    // m(obj) dispatches to the class method.
+    EXPECT_DOUBLE_EQ(evalScalar("p = Point(3, 4); mag(p)"), 5.0);
+}
+
+TEST_P(PointObjectTest, MethodReturningObject)
+{
+    engine.eval("p = Point(3, 4); q = p.scale(2);");
+    EXPECT_DOUBLE_EQ(evalScalar("q.x"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q.y"), 8.0);
+    EXPECT_DOUBLE_EQ(evalScalar("p.x"), 3.0); // original unchanged
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, PointObjectTest,
