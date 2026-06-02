@@ -595,8 +595,50 @@ Value imgaussfilt(const Value &I, double sigma, int filter_size, std::pmr::memor
         if (filter_size < 3) filter_size = 3;
     }
     if (filter_size % 2 == 0) filter_size += 1;
-    Value k = fspecial_gaussian(filter_size, filter_size, sigma, mr);
-    return imfilter(I, k, PadMode::Replicate, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
+
+    // Non-2-D inputs keep the original (2-D-kernel) path unchanged.
+    if (I.dims().is3D() || sigma <= 0.0)
+        return imfilter(I, fspecial_gaussian(filter_size, filter_size, sigma, mr),
+                        PadMode::Replicate, 0.0, false, false, mr);
+
+    // SEPARABLE: a 2-D Gaussian is exactly the outer product of two 1-D
+    // Gaussians (g_row ⊗ g_col == fspecial_gaussian, since sum2d == sum1d²),
+    // so two 1-D passes cost O(2k) instead of O(k²). We filter in DOUBLE so
+    // the intermediate isn't re-quantised between passes (matches MATLAB) and
+    // so both passes hit imfilter's fast double path, then convert back to the
+    // input class.
+    const double cx = (filter_size - 1) / 2.0;
+    const double inv2s2 = 1.0 / (2.0 * sigma * sigma);
+    std::vector<double> g((size_t)filter_size);
+    double sum = 0.0;
+    for (int i = 0; i < filter_size; ++i) {
+        const double d = i - cx;
+        g[i] = std::exp(-d * d * inv2s2);
+        sum += g[i];
+    }
+    if (sum > 0.0) for (auto &v : g) v /= sum;
+    Value gRow = mat_double(g, 1, filter_size, mr);
+    Value gCol = mat_double(g, filter_size, 1, mr);
+
+    const int H = (int)I.dims().rows(), W = (int)I.dims().cols();
+    Value Id;
+    if (I.type() == ValueType::DOUBLE) {
+        Id = I;
+    } else {
+        Id = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        double *dd = Id.doubleDataMut();
+        for (size_t i = 0; i < (size_t)H * (size_t)W; ++i) dd[i] = I.elemAsDouble(i);
+    }
+    Value tmp = imfilter(Id,  gRow, PadMode::Replicate, 0.0, false, false, mr);
+    Value res = imfilter(tmp, gCol, PadMode::Replicate, 0.0, false, false, mr);
+    if (I.type() == ValueType::DOUBLE) return res;
+
+    // Convert back to the input class (round/clamp), as the old single-pass
+    // (which filtered in the input type and rounded once at the end) did.
+    Value out = Value::matrix(H, W, I.type(), mr);
+    const double *rd = res.doubleData();
+    for (size_t i = 0; i < (size_t)H * (size_t)W; ++i) store_classed(out, i, rd[i], I.type());
+    return out;
 }
 
 Value imboxfilt(const Value &I, int filter_size, std::pmr::memory_resource *mr)

@@ -137,6 +137,25 @@ TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
 // remap pass over already-remapped labels used to violate this on
 // merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
 // regionprops / bwareaopen downstream.
+// Separable imgaussfilt must match the prior full-2D-kernel result (and
+// MATLAB): the 2-D Gaussian is exactly the outer product of two 1-D
+// Gaussians, so two 1-D passes give the same values (within FP summation
+// order). Pinned from MATLAB R2025b (== prior numkit).
+TEST_F(EdgeReconTest, ImgaussfiltSeparablePreserved)
+{
+    eval("I = reshape(mod((0:1199)*7.3, 100), 30, 40);");
+    eval("F = imgaussfilt(I, 2.5);");
+    EXPECT_NEAR(sc("sum(F(:))"), 59633.496960, 1e-3);
+    EXPECT_NEAR(sc("F(15,20)"),  50.11185269, 1e-6);
+    EXPECT_NEAR(sc("F(1,1)"),    23.01812735, 1e-6);   // replicate border
+    EXPECT_NEAR(sc("F(30,40)"),  45.29753101, 1e-6);   // corner
+    eval("A = uint8(reshape(mod((0:1199)*11, 256),30,40)); G = imgaussfilt(A, 1.5);");
+    EXPECT_EQ(eval("class(G)").toString(), "uint8");
+    EXPECT_DOUBLE_EQ(sc("double(G(15,20))"),  116.0);
+    EXPECT_DOUBLE_EQ(sc("double(G(1,1))"),     47.0);
+    EXPECT_DOUBLE_EQ(sc("sum(double(G(:)))"), 152140.0);
+}
+
 // Typed fast path for rgb2gray (uint8/double) must be bit-for-bit identical
 // to the generic per-pixel reduction. Pinned from the pre-optimization engine.
 TEST_F(EdgeReconTest, Rgb2grayFastPathPreserved)
