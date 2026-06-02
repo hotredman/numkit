@@ -25,20 +25,11 @@ Value exp(const Value &x, std::pmr::memory_resource *mr) { return exp(x, nullptr
 Value log(const Value &x, std::pmr::memory_resource *mr) { return log(x, nullptr, mr); }
 
 
-Value sqrt(const Value &x, std::pmr::memory_resource *mr)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
-    if (x.isScalar() && x.toScalar() < 0)
-        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), mr);
-    return unaryDouble(x, [](double v) { return std::sqrt(v); }, mr);
-}
+// sqrt / exp / log / log2 / log10 / log1p / expm1 / reallog / realsqrt are
+// all backend-split (SIMD via Highway) — see exp_log_highway.cpp /
+// exp_log_portable.cpp. Only their declarations live in exponents.hpp.
 
-// log2 / log10 / expm1 / log1p are backend-split (SIMD via Highway) and now
-// live in exp_log_highway.cpp + exp_log_portable.cpp, like exp / log.
-// reallog (below, conceptually) is likewise backend-split.
-
-// ── pow2 / realpow / realsqrt ────────────────────────────────────────
+// ── pow2 / realpow ───────────────────────────────────────────────────
 
 Value pow2(const Value &y, std::pmr::memory_resource *mr)
 {
@@ -66,19 +57,6 @@ Value realpow(const Value &x, const Value &y, std::pmr::memory_resource *mr)
         return std::pow(xx, yy);
     };
     return elementwiseDouble(x, y, checkPair, mr);
-}
-
-// reallog is backend-split (SIMD via Highway LogLoop + a domain guard);
-// see exp_log_highway.cpp / exp_log_portable.cpp.
-
-Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) {
-        if (v < 0.0)
-            throw std::runtime_error(
-                "realsqrt produced complex result — use sqrt(...) instead");
-        return std::sqrt(v);
-    }, mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
