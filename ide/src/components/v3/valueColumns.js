@@ -153,6 +153,27 @@ export function toNumericCell(v) {
   return NaN;
 }
 
+/** Heatmap colour ramp for a single value: blue (low) → warm (high), with
+ *  alpha peaking at the two extremes. `transparent` when the range is
+ *  degenerate (min === max) so a constant matrix isn't a solid wash. */
+export function heatColor(v, min, max) {
+  if (min === max) return 'transparent';
+  const t = (v - min) / (max - min);
+  const hue = (1 - t) * 220 + t * 20;
+  return `oklch(0.55 0.05 ${hue} / ${0.18 + 0.22 * Math.abs(t - 0.5) * 2})`;
+}
+
+/** Background colour for one heatmap cell, or undefined when it should stay
+ *  unpainted — heatmap off, no stats yet, or a non-numeric cell. Logical
+ *  cells arrive from the engine as JS booleans and are coerced to 1/0 via
+ *  toNumericCell, so a logical matrix lights up like any numeric one. */
+export function heatmapCellBackground(v, stats, heatmapOn) {
+  if (!heatmapOn || !stats) return undefined;
+  const num = toNumericCell(v);
+  if (!Number.isFinite(num)) return undefined;
+  return heatColor(num, stats.min, stats.max);
+}
+
 /** Compute the full stat set over a flat array of values (client-side
  *  counterpart of the engine's computeValueStats — for drilled matrix
  *  fields whose data arrives inline). Non-numbers are ignored (logical
