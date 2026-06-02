@@ -1306,6 +1306,24 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
 
 void TreeWalker::execFieldAssign(const ASTNode *lhs, const Value &rhs, Environment *env)
 {
+    // OBJECT: obj.Prop = v sets via the class property hook. Only peek
+    // when the parent is a slot resolveObjectSlot can address (a CALL
+    // parent is `d(i).field` — a struct-array element write, handled
+    // below; object arrays are a later phase). propSet detaches the slot
+    // (COW) so the value/handle rule applies and the variable updates.
+    {
+        const ASTNode *objNode = lhs->children[0].get();
+        if (objNode->type == NodeType::IDENTIFIER
+            || objNode->type == NodeType::FIELD_ACCESS
+            || objNode->type == NodeType::DYNAMIC_FIELD_ACCESS
+            || objNode->type == NodeType::CELL_INDEX) {
+            Value &parent = resolveObjectSlot(objNode, env);
+            if (parent.isObject()) {
+                objectPropSet(parent, lhs->strValue, rhs, env);
+                return;
+            }
+        }
+    }
     // Broadcast write: `s.f = val` where s is a multi-element struct
     // array sets f on every element. MATLAB semantics. The single-
     // struct path stays the same (resolveFieldLValue throws on multi-
@@ -1701,6 +1719,16 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             return execIndexAccess(*var, node, env);
     }
 
+    // OBJECT: ClassName(args) constructs an instance when `name` is a
+    // registered class not shadowed by a variable (object model §3).
+    if (!var) {
+        if (const BuiltinClass *cls = engine_.findClass(name); cls && cls->construct) {
+            auto args = buildArgs();
+            CallContext ctx{&engine_, env};
+            return cls->construct(Span<const Value>(args.data(), args.size()), ctx);
+        }
+    }
+
     // Slow path: look up, cache, and call
     {
         auto args = buildArgs();
@@ -1900,12 +1928,42 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
 Value TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)
 {
     auto obj = execNode(node->children[0].get(), env);
+    // OBJECT: obj.Prop reads via the class property hook (object model,
+    // OBJECT_MODEL.md §3). No-arg method call form is wired in P3.
+    if (obj.isObject())
+        return objectPropGet(obj, node->strValue, env);
     if (!obj.isStruct())
         throw std::runtime_error("Dot indexing requires a struct, got "
                                  + std::string(mtypeName(obj.type())));
     if (!obj.hasField(node->strValue))
         throw std::runtime_error("Reference to non-existent field '" + node->strValue + "'");
     return obj.field(node->strValue);
+}
+
+Value TreeWalker::objectPropGet(const Value &obj, const std::string &name, Environment *env)
+{
+    const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
+    if (cls && cls->propGet) {
+        Value out;
+        CallContext ctx{&engine_, env};
+        if (cls->propGet(obj, name, out, ctx))
+            return out;
+    }
+    throw std::runtime_error("No appropriate property '" + name + "' for class '"
+                             + obj.objectClassName() + "'");
+}
+
+void TreeWalker::objectPropSet(Value &objSlot, const std::string &name,
+                               const Value &rhs, Environment *env)
+{
+    const BuiltinClass *cls = engine_.findClass(objSlot.objectClassName());
+    if (cls && cls->propSet) {
+        CallContext ctx{&engine_, env};
+        if (cls->propSet(objSlot, name, rhs, ctx))
+            return;
+    }
+    throw std::runtime_error("Cannot set property '" + name + "' on class '"
+                             + objSlot.objectClassName() + "'");
 }
 
 // ============================================================

@@ -1087,6 +1087,20 @@ enter_frame:
             case OpCode::FIELD_GET: {
                 // a=dst, b=obj, d=nameIdx — strict: throws if field missing
                 const std::string &fname = chunk.strings[I.d];
+                // OBJECT: obj.Prop via class property hook (object model).
+                if (R[I.b].isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(R[I.b].objectClassName());
+                    if (cls && cls->propGet) {
+                        Value out;
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        if (cls->propGet(R[I.b], fname, out, ctx)) {
+                            R[I.a] = std::move(out);
+                            break;
+                        }
+                    }
+                    throw std::runtime_error("No appropriate property '" + fname
+                                             + "' for class '" + R[I.b].objectClassName() + "'");
+                }
                 if (!R[I.b].isStruct())
                     throw std::runtime_error("Dot indexing requires a struct");
                 if (!R[I.b].hasField(fname))
@@ -1107,6 +1121,17 @@ enter_frame:
             case OpCode::FIELD_SET: {
                 // a=obj, b=val, d=nameIdx
                 const std::string &fname = chunk.strings[I.d];
+                // OBJECT: obj.Prop = val via class property hook (object model).
+                if (R[I.a].isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(R[I.a].objectClassName());
+                    if (cls && cls->propSet) {
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        if (cls->propSet(R[I.a], fname, R[I.b], ctx))
+                            break;
+                    }
+                    throw std::runtime_error("Cannot set property '" + fname
+                                             + "' on class '" + R[I.a].objectClassName() + "'");
+                }
                 if (R[I.a].isEmpty()) {
                     R[I.a] = Value::structure();
                 }
@@ -1408,6 +1433,19 @@ enter_frame:
                     frame.ip = ip + 1;
                     pushCallFrame(*targetChunk, &R[argBase], na, I.a, nargout_val);
                     goto enter_frame;
+                }
+
+                // OBJECT: ClassName(args) constructs an instance when the
+                // name is a registered class (object model, OBJECT_MODEL.md).
+                {
+                    const std::string &ctorName = chunk.strings[funcIdx];
+                    if (const BuiltinClass *cls = engine_.findClass(ctorName);
+                        cls && cls->construct) {
+                        Span<const Value> as(&R[argBase], na);
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        R[I.a] = cls->construct(as, ctx);
+                        break;
+                    }
                 }
 
                 // Resolution order matches MATLAB: user-on-path beats
