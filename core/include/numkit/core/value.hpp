@@ -308,12 +308,19 @@ public:
     // class's reference-semantics flag.
     std::string objectClassName() const;
     bool objectIsHandle() const;
-    // Read-only instance state (null if not an object).
+    // Number of elements in an OBJECT array (0 if not an object; 1 for a
+    // scalar object). Shape lives in dims()/size() like any other array.
+    size_t objectCount() const;
+    // Read-only instance state of the FIRST element (null if not an
+    // object / empty). For scalar objects this is the only element.
     const ObjectState *objectStateConst() const;
     // Mutable instance state for writers. Detaches (COW) first so the
     // value/handle clone rule applies, then returns the state to mutate
     // (uniquely-owned for a value class; the shared one for a handle).
     ObjectState *objectStateMut();
+    // Per-element accessors for object arrays (null if i out of range).
+    const ObjectState *objectStateAt(size_t i) const;
+    ObjectState *objectStateMutAt(size_t i);
 
     // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;

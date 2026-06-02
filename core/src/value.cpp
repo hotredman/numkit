@@ -377,10 +377,10 @@ Value Value::object(const std::string &className,
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::OBJECT;
-    h->dims = {1, 1}; // scalar object; object arrays are a later phase
+    h->dims = {1, 1}; // scalar object = 1×1 array of one state
     h->mr = mr;
     h->objClass = new std::string(className);
-    h->objState = std::move(state);
+    h->objStates.push_back(std::move(state));
     h->objIsHandle = isHandle;
     m.heap_ = h;
     return m;
@@ -2138,16 +2138,33 @@ bool Value::objectIsHandle() const
 {
     return isObject() && heap_->objIsHandle;
 }
+size_t Value::objectCount() const
+{
+    return isObject() ? heap_->objStates.size() : 0;
+}
 const ObjectState *Value::objectStateConst() const
 {
-    return isObject() ? heap_->objState.get() : nullptr;
+    return (isObject() && !heap_->objStates.empty()) ? heap_->objStates.front().get()
+                                                     : nullptr;
 }
 ObjectState *Value::objectStateMut()
 {
-    if (!isObject())
+    if (!isObject() || heap_->objStates.empty())
         return nullptr;
     detach(); // COW: applies the value/handle clone rule before mutation
-    return heap_->objState.get();
+    return heap_->objStates.front().get();
+}
+const ObjectState *Value::objectStateAt(size_t i) const
+{
+    return (isObject() && i < heap_->objStates.size()) ? heap_->objStates[i].get()
+                                                       : nullptr;
+}
+ObjectState *Value::objectStateMutAt(size_t i)
+{
+    if (!isObject() || i >= heap_->objStates.size())
+        return nullptr;
+    detach(); // COW before mutation (value/handle rule applies per element)
+    return heap_->objStates[i].get();
 }
 
 const void *Value::rawData() const
