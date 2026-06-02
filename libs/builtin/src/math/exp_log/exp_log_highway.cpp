@@ -22,6 +22,7 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <stdexcept>
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "math/exp_log/exp_log_highway.cpp"
@@ -92,6 +93,19 @@ void Log2Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size
     for (; i < n; ++i) out[i] = std::log2(in[i]);
 }
 
+// log10 had no SIMD path before — it was a scalar std::log10 in
+// exponents.cpp, ~10x slower than the vectorised log. reallog reuses
+// LogLoop (it is log with a negative-input domain guard).
+void Log10Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N)
+        hn::StoreU(hn::Log10(d, hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = std::log10(in[i]);
+}
+
 } // namespace HWY_NAMESPACE
 } // namespace numkit::builtin
 HWY_AFTER_NAMESPACE();
@@ -105,6 +119,7 @@ HWY_EXPORT(LogLoop);
 HWY_EXPORT(Expm1Loop);
 HWY_EXPORT(Log1pLoop);
 HWY_EXPORT(Log2Loop);
+HWY_EXPORT(Log10Loop);
 
 namespace {
 
@@ -229,6 +244,44 @@ Value log2(const Value &x, std::pmr::memory_resource *mr)
     return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(Log2Loop)(in, out, n);
         }, [](double v) { return std::log2(v); }, mr);
+}
+
+Value log10(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(Log10Loop)(in, out, n);
+        }, [](double v) { return std::log10(v); }, mr);
+}
+
+// reallog == log, but raises if any element is negative (MATLAB tells the
+// user to switch to log for a complex result). Complex / scalar / non-DOUBLE
+// stay on the reference path (preserves the per-element throw + type
+// handling); a real DOUBLE array does one domain pass, then the SIMD log.
+Value reallog(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto scalarOp = [](double v) {
+        if (v < 0.0)
+            throw std::runtime_error("reallog produced complex result — use log(...) instead");
+        return std::log(v);
+    };
+    if (x.isComplex() || x.isScalar() || x.type() != ValueType::DOUBLE)
+        return unaryDouble(x, scalarOp, mr);
+
+    const double     *in = x.doubleData();
+    const std::size_t n  = x.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (in[i] < 0.0)
+            throw std::runtime_error("reallog produced complex result — use log(...) instead");
+
+    Value r = createLike(x, ValueType::DOUBLE, mr);
+    if (n == 0)
+        return r;
+    double *out = r.doubleDataMut();
+    numkit::detail::parallel_for(n, numkit::detail::kTranscendentalThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(LogLoop)(in + s, out + s, e - s);
+        });
+    return r;
 }
 
 } // namespace numkit::builtin

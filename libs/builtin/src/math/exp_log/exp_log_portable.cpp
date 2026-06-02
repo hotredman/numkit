@@ -14,6 +14,7 @@
 
 #include <cmath>
 #include <complex>
+#include <stdexcept>
 
 namespace numkit::builtin {
 
@@ -74,6 +75,20 @@ Value log1p(const Value &x, std::pmr::memory_resource *mr)
 Value log2(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::log2(v); }, mr);
+}
+
+Value log10(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) { return std::log10(v); }, mr);
+}
+
+Value reallog(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) {
+        if (v < 0.0)
+            throw std::runtime_error("reallog produced complex result — use log(...) instead");
+        return std::log(v);
+    }, mr);
 }
 
 } // namespace numkit::builtin

@@ -59,6 +59,33 @@ TEST_F(TranscendentalsBatchTest, LogFamily)
     EXPECT_NEAR(evalScalar("log1p(1e-10)"), 9.999999999500000e-11, 1e-22);
 }
 
+// log10 moved to the Highway SIMD path (hn::Log10). The vector body must
+// still return exact integers at powers of 10, like MATLAB R2025b.
+TEST_F(TranscendentalsBatchTest, Log10VectorExactPowersOfTen)
+{
+    eval("p = log10([1 10 100 1000 1e4 1e5 1e6 1e7 1e8 1e9]);"); // SIMD body + tail
+    EXPECT_EQ(evalScalar("p(1)"),  0.0);
+    EXPECT_EQ(evalScalar("p(3)"),  2.0);   // SIMD lane
+    EXPECT_EQ(evalScalar("p(7)"),  6.0);   // SIMD lane
+    EXPECT_EQ(evalScalar("p(9)"),  8.0);   // tail
+    EXPECT_EQ(evalScalar("p(10)"), 9.0);   // tail
+    EXPECT_NEAR(evalScalar("log10(2)"),     0.3010299956639812, 1e-13);
+    EXPECT_NEAR(evalScalar("log10(0.001)"), -3.0,               1e-13);
+}
+
+// reallog == log with a strict-positive domain guard (now SIMD via LogLoop).
+TEST_F(TranscendentalsBatchTest, Reallog)
+{
+    EXPECT_NEAR(evalScalar("reallog(1)"),      0.0,               1e-12);
+    EXPECT_NEAR(evalScalar("reallog(exp(1))"), 1.0,               1e-12);
+    EXPECT_NEAR(evalScalar("reallog(10)"),     2.302585092994046, 1e-12);
+    eval("rv = reallog([1 exp(1) 10 100]);"); // SIMD path matches log on positives
+    EXPECT_NEAR(evalScalar("rv(4)"), 4.605170185988092, 1e-12);
+    // negative input -> error (MATLAB tells the user to switch to log)
+    EXPECT_ANY_THROW(eval("reallog(-1)"));
+    EXPECT_ANY_THROW(eval("reallog([1 2 -3])"));
+}
+
 TEST_F(TranscendentalsBatchTest, Sqrt)
 {
     EXPECT_NEAR(evalScalar("sqrt(0)"),   0.0, 1e-12);
