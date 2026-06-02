@@ -4,6 +4,7 @@ import {
   VALUE_COLUMNS, DEFAULT_VISIBLE, loadVisibleColumns, saveVisibleColumns,
   toggleColumn, statValue, fmtStat,
   STAT_BAR, DEFAULT_STAT_BAR, loadStatBar, saveStatBar, statBarValue, aggregateStats,
+  toNumericCell,
 } from './valueColumns';
 
 beforeEach(() => { try { localStorage.clear(); } catch { /* none */ } });
@@ -99,5 +100,29 @@ describe('aggregateStats', () => {
   });
   it('even count → median is the mean of the two middles', () => {
     expect(aggregateStats([1, 2, 3, 4]).median).toBe(2.5);
+  });
+  it('treats logical booleans as 1 / 0 (so logical matrices get stats + heatmap)', () => {
+    const s = aggregateStats([true, false, true, true]);
+    expect(s.min).toBe(0);
+    expect(s.max).toBe(1);
+    expect(s.n).toBe(4);
+    expect(s.mean).toBe(0.75);
+  });
+});
+
+describe('toNumericCell', () => {
+  it('passes finite numbers through unchanged', () => {
+    expect(toNumericCell(3.5)).toBe(3.5);
+    expect(toNumericCell(0)).toBe(0);
+    expect(toNumericCell(-2)).toBe(-2);
+  });
+  it('maps logical booleans to 1 / 0', () => {
+    expect(toNumericCell(true)).toBe(1);
+    expect(toNumericCell(false)).toBe(0);
+  });
+  it('returns NaN for char-cell strings, null, undefined', () => {
+    expect(toNumericCell('x')).toBeNaN();
+    expect(toNumericCell(null)).toBeNaN();
+    expect(toNumericCell(undefined)).toBeNaN();
   });
 });

@@ -4,7 +4,7 @@ import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspe
 import ContextMenu from './ContextMenu';
 import ValueTable from './ValueTable';
 import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
-import { aggregateStats, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
+import { aggregateStats, toNumericCell, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
 import { useChooser, ChooserButton } from './chooser';
 import { classify } from './adapters';
 
@@ -795,8 +795,11 @@ function VirtualTable({
                 const v = getCellValue(r, c);
                 const isActive  = activeCell.r === r && activeCell.c === c;
                 const isEditing = editing && editing.r === r && editing.c === c;
-                const bg = (heatmap && stats && typeof v === 'number')
-                  ? heatColor(v, stats.min, stats.max) : undefined;
+                // Logical cells arrive as JS booleans → coerce to 1/0 so the
+                // heatmap colours them (numbers pass through, NaN is skipped).
+                const vNum = toNumericCell(v);
+                const bg = (heatmap && stats && Number.isFinite(vNum))
+                  ? heatColor(vNum, stats.min, stats.max) : undefined;
                 return (
                   <td
                     key={c}
