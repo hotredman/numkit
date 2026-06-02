@@ -1583,6 +1583,28 @@ enter_frame:
                                   0, nout, true, outBase, nout);
                     goto enter_frame;
                 }
+
+                // OBJECT function-form multi-output: [a,b] = m(obj, ...).
+                // A class method on the dominant (first) object argument
+                // beats a same-named path function.
+                if (na >= 1 && R[argBase].isObject()) {
+                    const BuiltinClass *cls =
+                        engine_.findClass(R[argBase].objectClassName());
+                    if (cls && cls->methods.count(funcName)) {
+                        Value self = R[argBase];
+                        Span<const Value> rest((na > 1) ? &R[argBase + 1] : nullptr, na - 1);
+                        std::vector<Value> outBuf(nout);
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        cls->methods.at(funcName)(self, rest, nout,
+                                                  Span<Value>(outBuf.data(), nout), ctx);
+                        for (uint8_t i = 0; i < nout; ++i)
+                            if (outBuf[i].isUnset())
+                                throw std::runtime_error("Too many output arguments.");
+                        for (size_t i = 0; i < nout; ++i)
+                            R[outBase + i] = std::move(outBuf[i]);
+                        break;
+                    }
+                }
                 // BUG #1 fix: m-file resolution must beat builtin
                 // resolution to match MATLAB. Was builtin → m-file —
                 // a user `split.m` couldn't shadow the builtin `split`,
@@ -1665,6 +1687,35 @@ enter_frame:
                 // indirect-call machinery (handle call or array index).
                 if (execCallIndirect(I, R, frame, ip))
                     goto enter_frame;
+                break;
+            }
+            // ── Dotted multi-output method: [a,b] = obj.m(args) ──
+            case OpCode::CALL_METHOD_MULTI: {
+                // a=outBase, b=objReg, c=argBase, d=nameIdx,
+                // e=(nargs<<4)|nout (each nibble ≤15).
+                uint8_t outBase = I.a, objReg = I.b, argBase = I.c;
+                uint8_t na = static_cast<uint8_t>((I.e >> 4) & 0x0F);
+                uint8_t nout = static_cast<uint8_t>(I.e & 0x0F);
+                const std::string &mname = chunk.strings[I.d];
+                Value &obj = R[objReg];
+                if (!obj.isObject())
+                    throw std::runtime_error(
+                        "Dot-indexing multi-output requires an object; '" + mname
+                        + "' is not a method of a " + std::string(mtypeName(obj.type())));
+                const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
+                if (!cls || !cls->methods.count(mname))
+                    throw std::runtime_error("No appropriate method '" + mname
+                                             + "' for class '" + obj.objectClassName() + "'");
+                Value self = obj; // handle: shares state; value: own copy
+                Span<const Value> args((na ? &R[argBase] : nullptr), na);
+                std::vector<Value> outBuf(nout);
+                CallContext ctx{&engine_, currentCallEnv()};
+                cls->methods.at(mname)(self, args, nout, Span<Value>(outBuf.data(), nout), ctx);
+                for (uint8_t i = 0; i < nout; ++i)
+                    if (outBuf[i].isUnset())
+                        throw std::runtime_error("Too many output arguments.");
+                for (size_t i = 0; i < nout; ++i)
+                    R[outBase + i] = std::move(outBuf[i]);
                 break;
             }
             case OpCode::CALL_INDIRECT:
@@ -1964,7 +2015,8 @@ static std::string describeInstruction(const Instruction &instr,
     }
     case OpCode::CALL_INDIRECT:
         return "in function call";
-    case OpCode::CALL_METHOD: {
+    case OpCode::CALL_METHOD:
+    case OpCode::CALL_METHOD_MULTI: {
         int16_t nameIdx = instr.d;
         if (nameIdx >= 0 && nameIdx < (int16_t)chunk.strings.size())
             return "in method call '." + chunk.strings[nameIdx] + "'";

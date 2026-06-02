@@ -50,6 +50,20 @@ TEST_P(MultiAssignLValue, FieldsFromSizeBuiltin)
     EXPECT_DOUBLE_EQ(evalScalar("s.c"), 4.0);
 }
 
+TEST_P(MultiAssignLValue, QualifiedNamespaceMultiOutput)
+{
+    // [a,b] = pkg.fn(x): a qualified-namespace call feeding multiple
+    // outputs. Previously compileMultiAssign took only the leaf name
+    // ("findpeaks") and the call failed as undefined; now it routes the
+    // full dotted name. findpeaks([0 2 0 5 0 3 0]) → peaks (2,5,3) at
+    // locations (2,4,6).
+    eval("clear; [pks, locs] = compat.findpeaks([0 2 0 5 0 3 0]);");
+    EXPECT_EQ(eval("pks").numel(), 3u);
+    EXPECT_DOUBLE_EQ(evalScalar("locs(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("locs(3)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("pks(2)"), 5.0);
+}
+
 TEST_P(MultiAssignLValue, IndexedTargets)
 {
     eval("clear; a = zeros(1, 4); [a(2), a(4)] = deal(7, 9);");

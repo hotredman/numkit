@@ -149,6 +149,24 @@ argument beats a same-named global/builtin function. Constructor for a
 **package-qualified** name (`containers.Map`) resolves through the
 existing qualified-name path (`tryBuildQualifiedName`) → registry.
 
+**Multi-output methods** (`[a,b] = obj.m()` / `[a,b] = m(obj)`): the
+`ObjectMethod` signature already carries `nargout` + an `outs` span, so
+methods returning several values work on both engines. Dispatch sites
+size the output buffer to `nargout`:
+- TreeWalker — `execCallMulti` gained an object branch for both the
+  dotted (`obj.m(...)`) and function (`m(obj,...)`) forms.
+- VM — function-form rides `CALL_MULTI` (object check on the first arg);
+  the dotted form uses a dedicated `CALL_METHOD_MULTI` opcode
+  (`a=outBase, b=objReg, c=argBase, d=nameIdx, e=(nargs<<4)|nout`; each
+  nibble ≤15). The compiler's `compileMultiAssign` mirrors `compileCall`'s
+  gating — a non-variable root (`pkg.fn(x)`) routes the **qualified** name
+  through `CALL_MULTI` (this also fixed a latent bug where the leaf name
+  was used); a variable root (`obj.m(x)`) emits `CALL_METHOD_MULTI`.
+- Not yet: multi-output `subsref` (`[a,b] = obj(i)`) — needs object
+  arrays first; struct-field-func-handle multi (`[a,b] = s.fh(x)`) still
+  routes through the object path and errors if the receiver isn't an
+  object (was already unsupported).
+
 **Decided cut (v1 dispatch fidelity):** dispatch keys on the **first
 object argument's class only**. Full MATLAB argument-dominance
 (`Inferiorto`/`Superiorto`, dominant-among-several-objects, double-vs-

@@ -1133,6 +1133,71 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
 
     auto *callNode = rhsNode;
 
+    // Dotted multi-output RHS: [a,b] = X.leaf(args). Mirror compileCall's
+    // gating so the two shapes route correctly:
+    //   • pkg.fn(args), `pkg` NOT a variable → qualified function name on
+    //     CALL_MULTI (runtime resolves the namespace / +pkg m-file).
+    //   • obj.m(args), root IS a variable → CALL_METHOD_MULTI (runtime
+    //     dispatches the class method with nout outputs).
+    // (Same split-mode workspace invariant as compileCall.)
+    if (callNode->children[0]->type == NodeType::FIELD_ACCESS) {
+        const ASTNode *fa = callNode->children[0].get();
+        const ASTNode *rootIdent = nullptr;
+        std::string qualified = tryBuildQualifiedName(fa, &rootIdent);
+        bool rootIsVar = false;
+        if (rootIdent) {
+            const std::string &root = rootIdent->strValue;
+            rootIsVar = varRegisters_.find(root) != varRegisters_.end()
+                        || engine_.workspaceEnv().getLocal(root) != nullptr;
+        }
+        auto compileArgsBlock = [&](uint8_t &argBaseOut) {
+            std::vector<uint8_t> ar;
+            for (size_t i = 1; i < callNode->children.size(); ++i)
+                ar.push_back(compileNode(callNode->children[i].get()));
+            argBaseOut = nextReg_;
+            for (size_t i = 0; i < ar.size(); ++i) {
+                uint8_t slot = tempReg();
+                if (ar[i] != slot)
+                    emitAB(OpCode::MOVE, slot, ar[i]);
+            }
+            return ar.size();
+        };
+
+        if (!qualified.empty() && !rootIsVar) {
+            uint8_t argBase = 0;
+            size_t nargs = compileArgsBlock(argBase);
+            uint8_t outBase = nextReg_;
+            for (size_t i = 0; i < nout; ++i)
+                tempReg();
+            int16_t funcIdx = addStringConstant(qualified);
+            emit(Instruction::make_abcde(OpCode::CALL_MULTI, outBase, argBase,
+                                         static_cast<uint8_t>(nargs), funcIdx,
+                                         static_cast<uint8_t>(nout)));
+            distribute(outBase);
+            if (complex)
+                return nout ? outBase : 0;
+            return outRegs.empty() ? 0 : outRegs[0];
+        }
+
+        if (fa->children[0]->type == NodeType::IDENTIFIER && nout <= 15
+            && (callNode->children.size() - 1) <= 15) {
+            uint8_t objReg = compileNode(fa->children[0].get());
+            uint8_t argBase = 0;
+            size_t nargs = compileArgsBlock(argBase);
+            uint8_t outBase = nextReg_;
+            for (size_t i = 0; i < nout; ++i)
+                tempReg();
+            int16_t nameIdx = addStringConstant(fa->strValue);
+            uint8_t packed = static_cast<uint8_t>((nargs << 4) | (nout & 0x0F));
+            emit(Instruction::make_abcde(OpCode::CALL_METHOD_MULTI, outBase, objReg,
+                                         argBase, nameIdx, packed));
+            distribute(outBase);
+            if (complex)
+                return nout ? outBase : 0;
+            return outRegs.empty() ? 0 : outRegs[0];
+        }
+    }
+
     // Compile call arguments
     std::vector<uint8_t> argRegs;
     for (size_t i = 1; i < callNode->children.size(); ++i)
@@ -3927,6 +3992,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CALL_INDIRECT";
         case OpCode::CALL_METHOD:
             return "CALL_METHOD";
+        case OpCode::CALL_METHOD_MULTI:
+            return "CALL_METHOD_MULTI";
         case OpCode::CLOSURE_MAKE:
             return "CLOSURE_MAKE";
         case OpCode::CALL_MULTI:

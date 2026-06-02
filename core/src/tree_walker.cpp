@@ -1451,6 +1451,31 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     if (node->type != NodeType::CALL)
         throw std::runtime_error("Expected function call in multi-assignment");
 
+    // OBJECT dotted multi-output method: [a,b] = obj.m(args). Peek the
+    // identifier-rooted receiver (mirrors execCall's dotted dispatch); a
+    // class method returning several outputs fills nout result slots.
+    auto *headNode = node->children[0].get();
+    if (headNode->type == NodeType::FIELD_ACCESS
+        && headNode->children[0]->type == NodeType::IDENTIFIER) {
+        Value *objPtr = env->get(headNode->children[0]->strValue);
+        if (objPtr && objPtr->isObject()) {
+            const std::string &mname = headNode->strValue;
+            const BuiltinClass *cls = engine_.findClass(objPtr->objectClassName());
+            if (cls && cls->methods.count(mname)) {
+                std::vector<Value> margs;
+                margs.reserve(node->children.size() - 1);
+                for (size_t i = 1; i < node->children.size(); ++i)
+                    margs.push_back(execNode(node->children[i].get(), env));
+                Value self = *objPtr; // handle: shares state; value: own copy
+                std::vector<Value> outBuf(nout);
+                CallContext ctx{&engine_, env};
+                cls->methods.at(mname)(self, Span<const Value>(margs.data(), margs.size()),
+                                       nout, Span<Value>(outBuf), ctx);
+                return outBuf;
+            }
+        }
+    }
+
     const std::string &funcName = node->children[0]->strValue;
 
     std::vector<Value> args;
@@ -1461,6 +1486,21 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     auto *var = env->get(funcName);
     if (var && var->isFuncHandle())
         return callFuncHandleMulti(*var, args, env, nout, node);
+
+    // OBJECT function-form multi-output: [a,b] = m(obj, ...). A class
+    // method on the dominant (first) object argument beats a path function.
+    if (!args.empty() && args[0].isObject()) {
+        const BuiltinClass *cls = engine_.findClass(args[0].objectClassName());
+        if (cls && cls->methods.count(funcName)) {
+            Value self = args[0];
+            std::vector<Value> rest(args.begin() + 1, args.end());
+            std::vector<Value> outBuf(nout);
+            CallContext ctx{&engine_, env};
+            cls->methods.at(funcName)(self, Span<const Value>(rest.data(), rest.size()),
+                                      nout, Span<Value>(outBuf), ctx);
+            return outBuf;
+        }
+    }
 
     // Fast path: cached function pointer
     auto *funcNode = node->children[0].get();
