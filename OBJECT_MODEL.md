@@ -3,9 +3,9 @@
 Status: **P1–P7 implemented** (type + registry + value/handle clone,
 properties, constructors, methods, subsref/subsasgn indexing,
 `dictionary` + `containers.Map`, object display, multi-output methods,
-binary operator overloading) — both engines, on `core-dev`. Owner: CORE.
-Remaining: unary operator dispatch, object arrays, `image.*` objects,
-user `classdef` authoring.
+binary + unary operator overloading) — both engines, on `core-dev`.
+Owner: CORE. Remaining: object arrays, `image.*` objects, user
+`classdef` authoring.
 
 ## Goal
 
@@ -178,8 +178,14 @@ when either operand is an object. The dominant (first) object operand's
 class decides dispatch (v1 fidelity); the hook receives `self` = that
 object and `args = {lhs, rhs}` in source order. A missing overload
 raises the MATLAB `Undefined operator '<op>' for input arguments of type
-'<class>'` error rather than silently falling through. Unary operators
-(`uminus`/`uplus`/`not`/`ctranspose`/`transpose`) are not yet wired.
+'<class>'` error rather than silently falling through.
+
+**Unary operator overloading** (`-a`, `~a`, `a'`, `a.'`) mirrors the
+binary path: `Engine::tryObjectUnaryOp` (called from
+`TreeWalker::execUnaryOp` / `VM::unarySlowPath`) maps the token to
+`uminus`/`not`/`ctranspose`/`transpose` and dispatches to the operand's
+class `ops` with self = the operand and no args. (`+a` stays the default
+identity copy — `uplus` is not intercepted.)
 
 **Decided cut (v1 dispatch fidelity):** dispatch keys on the **first
 object argument's class only**. Full MATLAB argument-dominance

@@ -260,6 +260,39 @@ bool Engine::tryObjectBinaryOp(const std::string &op, const Value &lhs, const Va
                              + "' for input arguments of type '" + clsName + "'.");
 }
 
+// Source unary operator token → MATLAB operator-overload method name.
+static const char *unaryOperatorMethodName(const std::string &op)
+{
+    if (op == "-")  return "uminus";
+    if (op == "+")  return "uplus";
+    if (op == "~")  return "not";
+    if (op == "'")  return "ctranspose";
+    if (op == ".'") return "transpose";
+    return nullptr;
+}
+
+bool Engine::tryObjectUnaryOp(const std::string &op, const Value &operand,
+                              Environment *env, Value &out)
+{
+    if (!operand.isObject())
+        return false;
+    const std::string &clsName = operand.objectClassName();
+    const BuiltinClass *cls = findClass(clsName);
+    if (const char *mname = unaryOperatorMethodName(op); cls && mname) {
+        auto it = cls->ops.find(mname);
+        if (it != cls->ops.end()) {
+            Value self = operand;
+            Value res[1];
+            CallContext ctx{this, env};
+            it->second(self, Span<const Value>(nullptr, 0), 1, Span<Value>(res, 1), ctx);
+            out = std::move(res[0]);
+            return true;
+        }
+    }
+    throw std::runtime_error("Undefined operator '" + op
+                             + "' for input arguments of type '" + clsName + "'.");
+}
+
 void Engine::registerFunction(const std::string &ns,
                               const std::string &name,
                               ExternalFunc func)

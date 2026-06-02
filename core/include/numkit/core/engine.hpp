@@ -79,6 +79,13 @@ public:
     // engines' binary-op slow paths.
     bool tryObjectBinaryOp(const std::string &op, const Value &lhs, const Value &rhs,
                            Environment *env, Value &out);
+    // Unary counterpart: dispatch `op` ("-", "~", "'", ".'") to the
+    // operand object's class `ops` (uminus/not/ctranspose/transpose). The
+    // hook receives self = the operand and no args. Returns true (out set)
+    // when handled; false when the operand is not an object. Throws the
+    // MATLAB "Undefined operator" error when an object has no overload.
+    bool tryObjectUnaryOp(const std::string &op, const Value &operand,
+                          Environment *env, Value &out);
 
     // ── Namespace introspection (used by resolver — Phase 6) ──────
 

@@ -2583,6 +2583,12 @@ Value VM::unarySlowPath(OpCode op, const Value &operand)
     case OpCode::TRANSPOSE:  opStr = ".'"; break;
     default: break;
     }
+    // OBJECT unary operator overloading — before the numeric builtin path.
+    if (opStr && operand.isObject()) {
+        Value out;
+        if (engine_.tryObjectUnaryOp(opStr, operand, currentCallEnv(), out))
+            return out;
+    }
     if (opStr) {
         auto it = engine_.unaryOps_.find(opStr);
         if (it != engine_.unaryOps_.end())
