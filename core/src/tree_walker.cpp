@@ -1642,6 +1642,35 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             throw std::runtime_error("Undefined function or variable: " + qualified);
         }
 
+        // OBJECT: obj.method(args) (dotted method) or obj.prop(idx)
+        // (property then index). Peek the receiver via env->get so a
+        // method name isn't mis-read as a missing property. Limited to
+        // identifier-rooted receivers (the common case; no re-eval /
+        // double side effects).
+        if (funcNode->type == NodeType::FIELD_ACCESS
+            && funcNode->children[0]->type == NodeType::IDENTIFIER) {
+            Value *objPtr = env->get(funcNode->children[0]->strValue);
+            if (objPtr && objPtr->isObject()) {
+                const std::string &mname = funcNode->strValue;
+                const BuiltinClass *cls = engine_.findClass(objPtr->objectClassName());
+                if (cls && cls->methods.count(mname)) {
+                    std::vector<Value> args;
+                    args.reserve(node->children.size() - 1);
+                    for (size_t i = 1; i < node->children.size(); ++i)
+                        args.push_back(execNode(node->children[i].get(), env));
+                    Value self = *objPtr; // handle: shares state; value: own copy
+                    Value outBuf[1];
+                    CallContext ctx{&engine_, env};
+                    cls->methods.at(mname)(self, Span<const Value>(args.data(), args.size()),
+                                           nargout, Span<Value>(outBuf, 1), ctx);
+                    return outBuf[0];
+                }
+                // Not a method → property read, then index with the args.
+                Value prop = objectPropGet(*objPtr, mname, env);
+                return execIndexAccess(prop, node, env);
+            }
+        }
+
         auto target = execNode(funcNode, env);
 
         if (target.isFuncHandle()) {
@@ -1732,6 +1761,23 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
     // Slow path: look up, cache, and call
     {
         auto args = buildArgs();
+
+        // OBJECT function-form dispatch: m(obj, ...) where obj's class
+        // defines method m beats a same-named global function (MATLAB).
+        // Kept in the slow path (object-method calls don't get cached),
+        // so the common builtin path stays on its fast cache.
+        if (!args.empty() && args[0].isObject()) {
+            const BuiltinClass *cls = engine_.findClass(args[0].objectClassName());
+            if (cls && cls->methods.count(name)) {
+                Value self = args[0];
+                std::vector<Value> rest(args.begin() + 1, args.end());
+                Value outBuf[1];
+                CallContext ctx{&engine_, env};
+                cls->methods.at(name)(self, Span<const Value>(rest.data(), rest.size()),
+                                      nargout, Span<Value>(outBuf, 1), ctx);
+                return outBuf[0];
+            }
+        }
 
         if (funcNode->cachedOp) {
             Value outBuf[1];
@@ -1943,11 +1989,21 @@ Value TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)
 Value TreeWalker::objectPropGet(const Value &obj, const std::string &name, Environment *env)
 {
     const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
-    if (cls && cls->propGet) {
-        Value out;
+    if (cls) {
         CallContext ctx{&engine_, env};
-        if (cls->propGet(obj, name, out, ctx))
-            return out;
+        if (cls->propGet) {
+            Value out;
+            if (cls->propGet(obj, name, out, ctx))
+                return out;
+        }
+        // Bare `obj.method` (no parens) invokes a no-arg method (MATLAB).
+        auto mit = cls->methods.find(name);
+        if (mit != cls->methods.end()) {
+            Value self = obj;
+            Value outBuf[1];
+            mit->second(self, Span<const Value>(nullptr, 0), 1, Span<Value>(outBuf, 1), ctx);
+            return outBuf[0];
+        }
     }
     throw std::runtime_error("No appropriate property '" + name + "' for class '"
                              + obj.objectClassName() + "'");

@@ -97,6 +97,12 @@ enum class OpCode : uint8_t {
     // Auto-grows when idx exceeds current numel; creates a 1×0 struct
     // array if obj is unset / not a struct.
     STRUCT_ELEM_FIELD_SET, // a=obj, b=idxReg, c=valReg, d=nameIdx
+    // obj.name(args): dotted call. a=dst, b=objReg, c=argBase, d=nameIdx,
+    // e=nargs. If R[objReg] is an OBJECT whose class has method `name`,
+    // dispatch it (self + args); otherwise fall back to FIELD_GET + the
+    // CALL_INDIRECT machinery (struct-field func handle / index). Object
+    // model — see OBJECT_MODEL.md §3.
+    CALL_METHOD,
     // Struct-array element get/set as a whole scalar struct, used by the
     // general compound-lvalue store chain (`d(i).a.b = …`, `d(i,j,k).…`).
     // Subscripts live in R[base..base+nargs-1] (column-major, any rank).
