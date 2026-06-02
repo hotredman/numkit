@@ -662,7 +662,7 @@ together.
 | `cos` | ✅ | Sig: y = cos(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `cosd` | ✅ | Sig: y = cosd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `cosh` | ✅ | Sig: y = cosh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `cospi` | ✅ | Sig: r = cospi(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `cospi` | ✅ | Sig: r = cospi(x). Accurate cos(pi*x) via exact int64 octant reduction + single-double SLEEF cospik polynomial (third_party/sleef, BSL-1.0), replacing the naive cos(pi*x). Branches: integer -> +/-1 (r1 cospi(0)=1, r5 cospi(1)=-1, r6 cospi(2)=1); half-integer -> exact 0 (r2 x=0.5, r3 x=1.5, r12 x=-0.5); large half-integer 1e7+0.5 -> 0 (r4); accurate 1/3=0.5 (r7), 0.25=sqrt2/2 (r8), 1/6=sqrt3/2 (r9), 1/7 (r10); generic 0.1 (r11). <=2 ULP vs MATLAB R2025b (exact at the closed-form points). |
 | `cot` | ✅ | Sig: y = cot(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `cotd` | ✅ | Sig: y = cotd(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `coth` | ✅ | Sig: y = coth(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
@@ -679,7 +679,7 @@ together.
 | `sin` | ✅ | Sig: y = sin(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sind` | ✅ | Sig: y = sind(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sinh` | ✅ | Sig: y = sinh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
-| `sinpi` | ✅ | Sig: r = sinpi(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `sinpi` | ✅ | Sig: r = sinpi(x). Accurate sin(pi*x) via exact int64 octant reduction + single-double SLEEF sinpik polynomial (third_party/sleef, BSL-1.0), replacing the naive sin(pi*x) that drifted to ~1e-10 by x=1e7 and never produced an exact integer zero. Branches: integer -> exact 0 (r1 x=0, r2 x=1, r3 x=7); large integer 1e7 -> 0 (r4); half -> +/-1 (r5 x=0.5, r6 x=1.5); accurate 1/6=0.5 (r7), 1/3=sqrt3/2 (r8), 0.25=sqrt2/2 (r9); large fractional 123456.25 (r10); large half-integer 1e10+0.5 -> 1 (r11); negative (r12); generic 0.1 (r13). <=2 ULP vs MATLAB R2025b (exact at r1-r11). |
 | `sph2cart` | ✅ | Sig: r = sph2cart(...). Spec-extension batch 2026-05-09. |
 | `tan` | ✅ | Sig: y = tan(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `tand` | ✅ | Sig: y = tand(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |

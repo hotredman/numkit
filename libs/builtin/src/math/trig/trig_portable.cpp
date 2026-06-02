@@ -13,6 +13,7 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
+#include "sinpi_kernel.hpp"
 
 #include <cmath>
 #include <complex>
@@ -177,26 +178,10 @@ inline double tand_scalar_p(double x)
     if (xr == -270.0)return -std::numeric_limits<double>::infinity();
     return std::tan(xr * kDeg2Rad_p);
 }
-inline double sinpi_scalar_p(double x)
-{
-    if (std::isnan(x)) return x;
-    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
-    const double xr = std::remainder(x, 2.0);
-    if (xr == 0.0 || xr == 1.0 || xr == -1.0) return 0.0;
-    if (xr ==  0.5) return  1.0;
-    if (xr == -0.5) return -1.0;
-    return std::sin(kPi_p * xr);
-}
-inline double cospi_scalar_p(double x)
-{
-    if (std::isnan(x)) return x;
-    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
-    const double xr = std::remainder(x, 2.0);
-    if (xr ==  0.5 || xr == -0.5) return 0.0;
-    if (xr ==  0.0) return  1.0;
-    if (xr ==  1.0 || xr == -1.0) return -1.0;
-    return std::cos(kPi_p * xr);
-}
+// Accurate sin(pi*x) / cos(pi*x) via the shared kernel (exact octant
+// reduction + SLEEF sinpik/cospik polynomial; see sinpi_kernel.hpp).
+inline double sinpi_scalar_p(double x) { return detail::sinpi_kernel(x); }
+inline double cospi_scalar_p(double x) { return detail::cospi_kernel(x); }
 } // anonymous
 
 Value sind(const Value &x, std::pmr::memory_resource *mr)
