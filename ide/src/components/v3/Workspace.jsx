@@ -1036,6 +1036,13 @@ export function MatrixPanel({
             </svg>
             heatmap
           </button>
+          <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
+            title="Toggle inline plot" onClick={() => setShowPlot((p) => !p)}>
+            <svg width="11" height="11" viewBox="0 0 12 12">
+              <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
+            </svg>
+            plot
+          </button>
           <button className="ve-btn" title="Copy as CSV" onClick={() => {
             const lines = [];
             for (let r = 0; r < rows; r++) {
@@ -1053,13 +1060,6 @@ export function MatrixPanel({
               <rect x="3.5" y="0.5" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
             </svg>
             copy csv
-          </button>
-          <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
-            title="Toggle inline plot" onClick={() => setShowPlot((p) => !p)}>
-            <svg width="11" height="11" viewBox="0 0 12 12">
-              <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
-            </svg>
-            plot
           </button>
           {onSave && (
             <div className="ve-saveas-wrap">
