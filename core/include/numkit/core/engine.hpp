@@ -69,6 +69,16 @@ public:
     // MATLAB-style display text for an OBJECT value. `name` empty →
     // bare body (disp); otherwise the `name =\n\n<body>\n` form.
     std::string formatObjectDisplay(const std::string &name, const Value &obj) const;
+    // Operator overloading: when `lhs` or `rhs` is an OBJECT, dispatch the
+    // binary operator `op` (the source token, e.g. "+", ".*", "==") to the
+    // dominant object's class `ops` entry (MATLAB names: plus/times/eq/…).
+    // The hook receives self = the dominant object and args = {lhs, rhs}.
+    // Returns true (out set) when handled; false when neither side is an
+    // object. Throws the MATLAB "Undefined operator … for type …" error
+    // when an object operand has no matching overload. Shared by both
+    // engines' binary-op slow paths.
+    bool tryObjectBinaryOp(const std::string &op, const Value &lhs, const Value &rhs,
+                           Environment *env, Value &out);
 
     // ── Namespace introspection (used by resolver — Phase 6) ──────
 

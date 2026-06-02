@@ -209,6 +209,20 @@ public:
             int i = static_cast<int>(args[0].toScalar());
             self.objectStateMut()->props[i == 1 ? "x" : "y"] = args[1];
         };
+        // operator+ overload: Point + Point (or Point + scalar, scalar
+        // broadcasts to both components). args = {lhs, rhs} in source order.
+        pt.ops["plus"] = [](Value &, Span<const Value> args, size_t, Span<Value> outs,
+                            CallContext &ctx) {
+            auto *mr = ctx.engine->resource();
+            auto comp = [](const Value &v, const char *f) -> double {
+                return v.isObject() ? v.objectStateConst()->props.at(f).toScalar()
+                                    : v.toScalar();
+            };
+            auto st = std::make_shared<ObjectState>(mr);
+            st->props.emplace("x", Value::scalar(comp(args[0], "x") + comp(args[1], "x"), mr));
+            st->props.emplace("y", Value::scalar(comp(args[0], "y") + comp(args[1], "y"), mr));
+            outs[0] = Value::object("Point", st, /*isHandle=*/false, mr);
+        };
         engine.registerClass(std::move(pt));
     }
 
@@ -313,6 +327,36 @@ TEST_P(PointObjectTest, SubsasgnValueSemantics)
     engine.eval("p = Point(3, 4); q = p; p(1) = 99;");
     EXPECT_DOUBLE_EQ(evalScalar("q(1)"), 3.0); // value class — q independent
     EXPECT_DOUBLE_EQ(evalScalar("p(1)"), 99.0);
+}
+
+TEST_P(PointObjectTest, OperatorPlusObjects)
+{
+    // p + q dispatches to the class `plus` overload.
+    engine.eval("p = Point(3, 4); q = Point(1, 2); r = p + q;");
+    EXPECT_DOUBLE_EQ(evalScalar("r.x"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r.y"), 6.0);
+}
+
+TEST_P(PointObjectTest, OperatorPlusScalarRight)
+{
+    engine.eval("p = Point(3, 4); r = p + 1;");
+    EXPECT_DOUBLE_EQ(evalScalar("r.x"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r.y"), 5.0);
+}
+
+TEST_P(PointObjectTest, OperatorPlusScalarLeft)
+{
+    // Dominant-object detection: lhs is numeric, rhs is the object.
+    engine.eval("p = Point(3, 4); r = 10 + p;");
+    EXPECT_DOUBLE_EQ(evalScalar("r.x"), 13.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r.y"), 14.0);
+}
+
+TEST_P(PointObjectTest, UnsupportedOperatorThrows)
+{
+    // No `mtimes` overload → MATLAB-style "Undefined operator" error.
+    engine.eval("p = Point(3, 4); q = Point(1, 2);");
+    EXPECT_THROW(engine.eval("p * q"), std::exception);
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, PointObjectTest,
