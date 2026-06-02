@@ -19,12 +19,27 @@
 namespace numkit::signal {
 
 // ── conv ──────────────────────────────────────────────────────────────
+// Choose direct vs FFT convolution by ACTUAL cost, not na·nb alone. Direct
+// costs na·nb MACs; FFT costs ~K transforms of the zero-padded length. The
+// old `na·nb > T²` rule wrongly chose FFT for a long vector × tiny kernel
+// (e.g. 1e6 × 3 → a 1e6-point FFT for a 3-tap conv), ~100× slower than direct.
+inline bool conv_use_fft(size_t na, size_t nb)
+{
+    if (na == 0 || nb == 0) return false;
+    const double direct = static_cast<double>(na) * static_cast<double>(nb);
+    size_t need = na + nb - 1, nfft = 1;
+    while (nfft < need) nfft <<= 1;
+    const double fft = 6.0 * static_cast<double>(nfft) *
+                       std::log2(static_cast<double>(nfft < 2 ? 2 : nfft));
+    return direct > fft;
+}
+
 Value conv(const Value &a, const Value &b, const std::string &shape, std::pmr::memory_resource *mr)
 {
     const size_t na = a.numel(), nb = b.numel();
 
     ScratchArena scratch(mr);
-    auto c = (na * nb > CONV_FFT_THRESHOLD * CONV_FFT_THRESHOLD)
+    auto c = conv_use_fft(na, nb)
         ? convFFT  (&scratch, a.doubleData(), na, b.doubleData(), nb)
         : convDirect(&scratch, a.doubleData(), na, b.doubleData(), nb);
 
@@ -106,7 +121,7 @@ xcorr(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     for (size_t i = 0; i < ny; ++i)
         yRev[i] = yd[ny - 1 - i];
 
-    auto c = (nx * ny > CONV_FFT_THRESHOLD * CONV_FFT_THRESHOLD)
+    auto c = conv_use_fft(nx, ny)
         ? convFFT  (&scratch, xd, nx, yRev.data(), ny)
         : convDirect(&scratch, xd, nx, yRev.data(), ny);
 
