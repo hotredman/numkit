@@ -137,6 +137,20 @@ TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
 // remap pass over already-remapped labels used to violate this on
 // merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
 // regionprops / bwareaopen downstream.
+// imgradient with one output (magnitude) must skip the per-pixel atan2
+// direction. Magnitude is bit-identical to the 2-output path and matches
+// MATLAB. Pinned from MATLAB R2025b.
+TEST_F(EdgeReconTest, ImgradientMagnitudeFastPath)
+{
+    eval("A = reshape(mod((0:1199)*7.3,100),30,40);");
+    eval("m1 = imgradient(A);");          // nargout 1 → magnitude-only fast path
+    EXPECT_NEAR(sc("sum(m1(:))"), 206327.486892, 1e-3);
+    EXPECT_NEAR(sc("m1(15,20)"),  162.83292050, 1e-6);
+    EXPECT_NEAR(sc("m1(1,1)"),    81.41646025, 1e-6);   // replicate border
+    eval("[m2, d2] = imgradient(A);");    // nargout 2 → full path
+    EXPECT_DOUBLE_EQ(sc("isequal(m1, m2)"), 1.0);       // magnitude identical
+}
+
 // stdfilt via two integral images (Σ, Σ²) for a rectangular neighbourhood
 // must match the prior per-window result and MATLAB (both one-pass variance).
 // Pinned from MATLAB R2025b. Symmetric border; always returns double.
