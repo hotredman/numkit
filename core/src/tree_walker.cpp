@@ -1797,7 +1797,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
         }
 
         if (target.isNumeric() || target.isLogical() || target.isChar()
-            || target.isCell() || target.isStruct())
+            || target.isCell() || target.isStruct() || target.isString())
             return execIndexAccess(target, node, env);
 
         throw std::runtime_error("Cannot call or index into value of type "
@@ -1881,7 +1881,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
                                      + var->objectClassName() + "'");
         }
         if (var->isNumeric() || var->isLogical() || var->isChar() || var->isCell()
-            || var->isStruct())
+            || var->isStruct() || var->isString())
             return execIndexAccess(*var, node, env);
     }
 

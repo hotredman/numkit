@@ -1345,6 +1345,14 @@ Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, std::pmr::memory_
                 result.cellAt(k++) = cellAt(i);
         return result;
     }
+    case ValueType::STRING: {
+        auto result = Value::stringArray(rr, cc, mr);
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (mask[i])
+                result.stringElemSet(k++, stringElem(i));
+        return result;
+    }
     // Typed integer / single: raw memcpy per selected element.
     case ValueType::INT8: case ValueType::INT16: case ValueType::INT32: case ValueType::INT64:
     case ValueType::UINT8: case ValueType::UINT16: case ValueType::UINT32: case ValueType::UINT64:
