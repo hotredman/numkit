@@ -91,4 +91,22 @@ Value reallog(const Value &x, std::pmr::memory_resource *mr)
     }, mr);
 }
 
+Value sqrt(const Value &x, std::pmr::memory_resource *mr)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
+    if (x.isScalar() && x.toScalar() < 0.0)
+        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), mr);
+    return unaryDouble(x, [](double v) { return std::sqrt(v); }, mr);
+}
+
+Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(x, [](double v) {
+        if (v < 0.0)
+            throw std::runtime_error("realsqrt produced complex result — use sqrt(...) instead");
+        return std::sqrt(v);
+    }, mr);
+}
+
 } // namespace numkit::builtin

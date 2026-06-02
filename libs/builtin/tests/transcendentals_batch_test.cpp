@@ -94,6 +94,28 @@ TEST_F(TranscendentalsBatchTest, Sqrt)
     EXPECT_NEAR(evalScalar("sqrt(2)"),   1.414213562373095, 1e-12);
 }
 
+// sqrt now runs through the Highway SIMD path (hn::Sqrt = hardware vsqrtpd,
+// correctly rounded). A vector exercises the SIMD body + the scalar tail.
+TEST_F(TranscendentalsBatchTest, SqrtVectorSimd)
+{
+    eval("s = sqrt([0 1 4 9 16 25 36 49 64 81]);"); // -> 0..9, SIMD body + tail
+    EXPECT_EQ(evalScalar("s(1)"),  0.0);
+    EXPECT_EQ(evalScalar("s(5)"),  4.0);   // sqrt(16), SIMD lane
+    EXPECT_EQ(evalScalar("s(10)"), 9.0);   // sqrt(81), tail
+    EXPECT_NEAR(evalScalar("sqrt(2)"), 1.4142135623730951, 1e-15);
+}
+
+// realsqrt == sqrt with a strict-nonnegative guard (now SIMD via SqrtLoop).
+TEST_F(TranscendentalsBatchTest, Realsqrt)
+{
+    EXPECT_NEAR(evalScalar("realsqrt(4)"), 2.0, 1e-12);
+    eval("rv = realsqrt([1 4 9 16 25 36 49 64 81 100]);"); // -> 1..10
+    EXPECT_EQ(evalScalar("rv(4)"),  4.0);    // sqrt(16)
+    EXPECT_EQ(evalScalar("rv(10)"), 10.0);   // sqrt(100), tail
+    EXPECT_ANY_THROW(eval("realsqrt(-1)"));
+    EXPECT_ANY_THROW(eval("realsqrt([1 4 -9])"));
+}
+
 TEST_F(TranscendentalsBatchTest, Hypot)
 {
     // hypot(3, 4) = 5, hypot(5, 12) = 13, hypot(7, 24) = 25 — Pythagorean triples.

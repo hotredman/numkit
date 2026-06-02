@@ -106,6 +106,18 @@ void Log10Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
     for (; i < n; ++i) out[i] = std::log10(in[i]);
 }
 
+// sqrt / realsqrt were scalar std::sqrt in exponents.cpp. hn::Sqrt maps to
+// the hardware vsqrtpd, so the SIMD body is memory-bandwidth bound.
+void SqrtLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N)
+        hn::StoreU(hn::Sqrt(hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = std::sqrt(in[i]);
+}
+
 } // namespace HWY_NAMESPACE
 } // namespace numkit::builtin
 HWY_AFTER_NAMESPACE();
@@ -120,6 +132,7 @@ HWY_EXPORT(Expm1Loop);
 HWY_EXPORT(Log1pLoop);
 HWY_EXPORT(Log2Loop);
 HWY_EXPORT(Log10Loop);
+HWY_EXPORT(SqrtLoop);
 
 namespace {
 
@@ -280,6 +293,47 @@ Value reallog(const Value &x, std::pmr::memory_resource *mr)
     numkit::detail::parallel_for(n, numkit::detail::kTranscendentalThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(LogLoop)(in + s, out + s, e - s);
+        });
+    return r;
+}
+
+// sqrt: a negative *scalar* promotes to complex (MATLAB: sqrt(-1)==i), but a
+// real vector's negatives just become NaN — same as std::sqrt. Mirrors log.
+Value sqrt(const Value &x, std::pmr::memory_resource *mr)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
+    if (x.isScalar() && x.toScalar() < 0.0)
+        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), mr);
+    return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(SqrtLoop)(in, out, n);
+        }, [](double v) { return std::sqrt(v); }, mr);
+}
+
+// realsqrt: sqrt with a strict-nonnegative domain guard (now SIMD via SqrtLoop).
+Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto scalarOp = [](double v) {
+        if (v < 0.0)
+            throw std::runtime_error("realsqrt produced complex result — use sqrt(...) instead");
+        return std::sqrt(v);
+    };
+    if (x.isComplex() || x.isScalar() || x.type() != ValueType::DOUBLE)
+        return unaryDouble(x, scalarOp, mr);
+
+    const double     *in = x.doubleData();
+    const std::size_t n  = x.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (in[i] < 0.0)
+            throw std::runtime_error("realsqrt produced complex result — use sqrt(...) instead");
+
+    Value r = createLike(x, ValueType::DOUBLE, mr);
+    if (n == 0)
+        return r;
+    double *out = r.doubleDataMut();
+    numkit::detail::parallel_for(n, numkit::detail::kTranscendentalThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(SqrtLoop)(in + s, out + s, e - s);
         });
     return r;
 }
