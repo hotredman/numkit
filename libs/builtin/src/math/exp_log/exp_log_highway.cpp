@@ -59,6 +59,39 @@ void LogLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
     for (; i < n; ++i) out[i] = std::log(in[i]);
 }
 
+// Tier-2 wrappers over Highway's contrib/math primitives (SLEEF-derived,
+// ULP <= ~4). expm1 / log1p / log2 had no SIMD path before — they were
+// scalar std::* calls in exponents.cpp.
+void Expm1Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N)
+        hn::StoreU(hn::Expm1(d, hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = std::expm1(in[i]);
+}
+
+void Log1pLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N)
+        hn::StoreU(hn::Log1p(d, hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = std::log1p(in[i]);
+}
+
+void Log2Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N)
+        hn::StoreU(hn::Log2(d, hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = std::log2(in[i]);
+}
+
 } // namespace HWY_NAMESPACE
 } // namespace numkit::builtin
 HWY_AFTER_NAMESPACE();
@@ -69,6 +102,9 @@ namespace numkit::builtin {
 
 HWY_EXPORT(ExpLoop);
 HWY_EXPORT(LogLoop);
+HWY_EXPORT(Expm1Loop);
+HWY_EXPORT(Log1pLoop);
+HWY_EXPORT(Log2Loop);
 
 namespace {
 
@@ -105,6 +141,28 @@ Value unaryRealDouble(const Value &x, Value *hint, LoopDispatch loop, ScalarOp s
     double       *out = r.doubleDataMut();
     // Transcendentals are heavier per element than +/-/.* — pays off
     // earlier, hence the smaller threshold.
+    numkit::detail::parallel_for(x.numel(), numkit::detail::kTranscendentalThreshold,
+        [=](std::size_t s, std::size_t e) {
+            loop(in + s, out + s, e - s);
+        });
+    return r;
+}
+
+// expm1 / log1p / log2 are real-only. Route real DOUBLE arrays through the
+// SIMD dispatch; keep scalars / complex / other element types on the
+// reference scalar path (unaryDouble preserves type promotion + edge cases,
+// bit-for-bit with the previous std::* implementation).
+template <typename LoopDispatch, typename ScalarOp>
+Value unaryRealArray(const Value &x, LoopDispatch loop, ScalarOp scalarOp,
+                     std::pmr::memory_resource *mr)
+{
+    if (x.isComplex() || x.isScalar() || x.type() != ValueType::DOUBLE)
+        return unaryDouble(x, scalarOp, mr);
+    Value r = createLike(x, ValueType::DOUBLE, mr);
+    if (x.numel() == 0)
+        return r;
+    const double *in  = x.doubleData();
+    double       *out = r.doubleDataMut();
     numkit::detail::parallel_for(x.numel(), numkit::detail::kTranscendentalThreshold,
         [=](std::size_t s, std::size_t e) {
             loop(in + s, out + s, e - s);
@@ -150,6 +208,27 @@ Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
             HWY_DYNAMIC_DISPATCH(LogLoop)(in + s, out + s, e - s);
         });
     return r;
+}
+
+Value expm1(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(Expm1Loop)(in, out, n);
+        }, [](double v) { return std::expm1(v); }, mr);
+}
+
+Value log1p(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(Log1pLoop)(in, out, n);
+        }, [](double v) { return std::log1p(v); }, mr);
+}
+
+Value log2(const Value &x, std::pmr::memory_resource *mr)
+{
+    return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(Log2Loop)(in, out, n);
+        }, [](double v) { return std::log2(v); }, mr);
 }
 
 } // namespace numkit::builtin

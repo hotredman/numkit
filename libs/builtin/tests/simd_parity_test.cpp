@@ -261,6 +261,32 @@ TEST(SimdParity_Log, WithinUlpBudget)
         0.01, 100.0, "log");
 }
 
+TEST(SimdParity_Expm1, WithinUlpBudget)
+{
+    checkTranscendentalParity(
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::expm1(x, a); },
+        [](double x) { return std::expm1(x); },
+        -10.0, 10.0, "expm1");
+}
+
+TEST(SimdParity_Log1p, WithinUlpBudget)
+{
+    // log1p domain is x > -1; sample away from the -1 pole.
+    checkTranscendentalParity(
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log1p(x, a); },
+        [](double x) { return std::log1p(x); },
+        -0.9, 100.0, "log1p");
+}
+
+TEST(SimdParity_Log2, WithinUlpBudget)
+{
+    // Strictly positive inputs (negatives -> NaN).
+    checkTranscendentalParity(
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log2(x, a); },
+        [](double x) { return std::log2(x); },
+        0.01, 100.0, "log2");
+}
+
 TEST(SimdParity_Transcendental, NegativeLogScalarStillComplex)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
