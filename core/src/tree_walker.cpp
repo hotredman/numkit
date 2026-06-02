@@ -1651,6 +1651,12 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             args.reserve(node->children.size() - 1);
             for (size_t i = 1; i < node->children.size(); ++i)
                 args.push_back(execNode(node->children[i].get(), env));
+            // OBJECT: package-qualified constructor (`containers.Map(...)`).
+            if (const BuiltinClass *cls = engine_.findClass(qualified);
+                cls && cls->construct) {
+                CallContext ctx{&engine_, env};
+                return cls->construct(Span<const Value>(args.data(), args.size()), ctx);
+            }
             // User-defined first (MATLAB precedence).
             if (auto *uf = engine_.lookupUserFunction(qualified, env))
                 return callUserFunction(*uf, args, env, node);

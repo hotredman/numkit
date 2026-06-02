@@ -554,6 +554,7 @@ void BuiltinLibrary::install(Engine &engine)
     registerCellStructFunctions(engine);
     registerStringFunctions(engine);
     registerComplexFunctions(engine);
+    registerContainers(engine); // dictionary + containers.Map (object model)
 
     registerWorkspaceBuiltins(engine);
 
