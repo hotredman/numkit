@@ -1015,6 +1015,23 @@ Value modefilt3D(const Value &A, int fH, int fW, int fD,
     return modefilt_impl(A, fH, fW, fD, padopt, mr);
 }
 
+// Median of 9 via a branchless 19-comparator sorting network (Devillard's
+// opt_med9) — faster than nth_element for the ubiquitous 3×3 window because
+// it has no partitioning/branch overhead. Median = element at sorted index 4.
+inline double med9(double p[9])
+{
+    #define NK_PIX_SORT(a, b) do { if (p[a] > p[b]) { const double t = p[a]; p[a] = p[b]; p[b] = t; } } while (0)
+    NK_PIX_SORT(1, 2); NK_PIX_SORT(4, 5); NK_PIX_SORT(7, 8);
+    NK_PIX_SORT(0, 1); NK_PIX_SORT(3, 4); NK_PIX_SORT(6, 7);
+    NK_PIX_SORT(1, 2); NK_PIX_SORT(4, 5); NK_PIX_SORT(7, 8);
+    NK_PIX_SORT(0, 3); NK_PIX_SORT(5, 8); NK_PIX_SORT(4, 7);
+    NK_PIX_SORT(3, 6); NK_PIX_SORT(1, 4); NK_PIX_SORT(2, 5);
+    NK_PIX_SORT(4, 7); NK_PIX_SORT(4, 2); NK_PIX_SORT(6, 4);
+    NK_PIX_SORT(4, 2);
+    #undef NK_PIX_SORT
+    return p[4];
+}
+
 // Huang's sliding-histogram median for UINT8 with an ODD×ODD window: maintain
 // a 256-bin histogram of the window and the median bin `med` with `below` =
 // count of pixels < med; sliding the window one row keeps a running median
@@ -1082,6 +1099,26 @@ Value medfilt2(const Value &I, int rows, int cols, std::pmr::memory_resource *mr
     const int half_c = cols / 2;
     Value out = Value::matrix(H, W, I.type(), mr);
     if (H == 0 || W == 0) return out;
+
+    // Fast path: 3×3 double → branchless median-of-9 sorting network (the
+    // uint8 3×3 case already took the Huang path above). Zero-pad border.
+    if (rows == 3 && cols == 3 && I.type() == ValueType::DOUBLE) {
+        const double *src = I.doubleData();
+        double *dst = out.doubleDataMut();
+        for (int oc = 0; oc < W; ++oc)
+            for (int orow = 0; orow < H; ++orow) {
+                double p[9];
+                int m = 0;
+                for (int kj = 0; kj < 3; ++kj)
+                    for (int ki = 0; ki < 3; ++ki) {
+                        const int r_in = orow + ki - 1, c_in = oc + kj - 1;
+                        p[m++] = (r_in < 0 || r_in >= H || c_in < 0 || c_in >= W)
+                                     ? 0.0 : src[(std::size_t)c_in * (std::size_t)H + (std::size_t)r_in];
+                    }
+                dst[(std::size_t)oc * (std::size_t)H + (std::size_t)orow] = med9(p);
+            }
+        return out;
+    }
 
     std::vector<double> window;
     window.reserve((size_t)rows * (size_t)cols);
