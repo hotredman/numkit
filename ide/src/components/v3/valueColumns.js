@@ -142,14 +142,46 @@ export function statBarValue(stats, key) {
   return statValue(stats, key);
 }
 
+/** Coerce a displayed cell value to the number used for heatmap colouring
+ *  and client-side stats. Finite numbers pass through; logical cells arrive
+ *  from the engine as JS booleans → 1 / 0; every other non-number
+ *  (char-cell strings, null, undefined) → NaN so the finite-filter in the
+ *  callers drops it. */
+export function toNumericCell(v) {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  return NaN;
+}
+
+/** Heatmap colour ramp for a single value: blue (low) → warm (high), with
+ *  alpha peaking at the two extremes. `transparent` when the range is
+ *  degenerate (min === max) so a constant matrix isn't a solid wash. */
+export function heatColor(v, min, max) {
+  if (min === max) return 'transparent';
+  const t = (v - min) / (max - min);
+  const hue = (1 - t) * 220 + t * 20;
+  return `oklch(0.55 0.05 ${hue} / ${0.18 + 0.22 * Math.abs(t - 0.5) * 2})`;
+}
+
+/** Background colour for one heatmap cell, or undefined when it should stay
+ *  unpainted — heatmap off, no stats yet, or a non-numeric cell. Logical
+ *  cells arrive from the engine as JS booleans and are coerced to 1/0 via
+ *  toNumericCell, so a logical matrix lights up like any numeric one. */
+export function heatmapCellBackground(v, stats, heatmapOn) {
+  if (!heatmapOn || !stats) return undefined;
+  const num = toNumericCell(v);
+  if (!Number.isFinite(num)) return undefined;
+  return heatColor(num, stats.min, stats.max);
+}
+
 /** Compute the full stat set over a flat array of values (client-side
  *  counterpart of the engine's computeValueStats — for drilled matrix
- *  fields whose data arrives inline). Non-numbers are ignored; returns
- *  null when no finite number remains. Sample (N−1) variance; mode is the
- *  smallest most-frequent value. */
+ *  fields whose data arrives inline). Non-numbers are ignored (logical
+ *  booleans count as 1 / 0); returns null when no finite number remains.
+ *  Sample (N−1) variance; mode is the smallest most-frequent value. */
 export function aggregateStats(values) {
   const v = [];
-  for (const x of values) if (typeof x === 'number' && Number.isFinite(x)) v.push(x);
+  for (const x of values) { const num = toNumericCell(x); if (Number.isFinite(num)) v.push(num); }
   const n = v.length;
   if (n === 0) return null;
   let sum = 0, min = v[0], max = v[0];

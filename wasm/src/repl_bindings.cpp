@@ -11,6 +11,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/value_stats.hpp>
+#include <numkit/core/value_json.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/debug_session.hpp>
 #include <numkit/core/vfs.hpp>
@@ -45,6 +46,16 @@ static std::string valuePreview(const numkit::Value &val) {
                 os << c.imag() << "i";
                 return os.str();
             }
+            if (numkit::isIntegerType(val.type()))
+                return numkit::numericCellJSON(val, 0);
+            if (val.type() == ValueType::SINGLE) {
+                double v = val.elemAsDouble(0);
+                if (std::isnan(v)) return "NaN";
+                if (std::isinf(v)) return v > 0 ? "Inf" : "-Inf";
+                if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
+                    return std::to_string(static_cast<int64_t>(v));
+                std::ostringstream os; os << v; return os.str();
+            }
         }
         if (val.type() == ValueType::CHAR)
             return "'" + val.toString() + "'";
@@ -53,11 +64,13 @@ static std::string valuePreview(const numkit::Value &val) {
         os << "[" << d.rows() << "x" << d.cols();
         if (d.is3D()) os << "x" << d.pages();
         os << " " << numkit::mtypeName(val.type()) << "]";
-        if (val.type() == ValueType::DOUBLE && val.numel() <= 10) {
+        const ValueType pt = val.type();
+        if ((numkit::isFloatType(pt) || numkit::isIntegerType(pt)) && val.numel() <= 10) {
             os << " [";
             for (size_t i = 0; i < val.numel(); ++i) {
                 if (i) os << " ";
-                double v = val.doubleData()[i];
+                if (numkit::isIntegerType(pt)) { os << numkit::numericCellJSON(val, i); continue; }
+                double v = val.elemAsDouble(i);
                 if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
                     os << static_cast<int64_t>(v);
                 else
@@ -108,11 +121,6 @@ static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val
     const auto &d = val.dims();
     const size_t rows = d.rows();
     const size_t cols = d.cols();
-    auto fmtNum = [](double v) -> std::string {
-        if (std::isnan(v))  return "null";
-        if (std::isinf(v))  return v > 0 ? "\"Inf\"" : "\"-Inf\"";
-        std::ostringstream s; s.precision(17); s << v; return s.str();
-    };
     os << "[";
     if (val.type() == ValueType::CHAR) {
         std::string str = val.toString();
@@ -122,20 +130,14 @@ static void emitMatrixDataArray(std::ostringstream &os, const numkit::Value &val
             os << "\"" << escapeJSON(std::string(1, str[i])) << "\"";
         }
         os << "]";
-    } else if (val.type() == ValueType::DOUBLE) {
-        const double *p = val.doubleData();
+    } else if (numkit::isRealNumericCell(val.type())) {
+        // DOUBLE / SINGLE / LOGICAL / INT8..UINT64 — one array per matrix
+        // row; cells via the shared numericCellJSON token (integers exact,
+        // floats NaN/Inf-aware, logical true/false).
         for (size_t r = 0; r < rows; ++r) {
             if (r) os << ",";
             os << "[";
-            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << fmtNum(p[c * rows + r]); }
-            os << "]";
-        }
-    } else if (val.type() == ValueType::LOGICAL) {
-        const uint8_t *p = val.logicalData();
-        for (size_t r = 0; r < rows; ++r) {
-            if (r) os << ",";
-            os << "[";
-            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << (p[c * rows + r] ? "true" : "false"); }
+            for (size_t c = 0; c < cols; ++c) { if (c) os << ","; os << numkit::numericCellJSON(val, c * rows + r); }
             os << "]";
         }
     } else if (val.type() == ValueType::COMPLEX) {
@@ -603,6 +605,17 @@ public:
                     sum += mag;
                     ++n;
                 }
+            } else if (numkit::isFloatType(val.type()) || numkit::isIntegerType(val.type())) {
+                // SINGLE + INT8..UINT64 — read each element as double.
+                for (size_t i = 0; i < numel; ++i) {
+                    double v = val.elemAsDouble(i);
+                    if (std::isnan(v)) { hasNaN = true; continue; }
+                    if (!std::isfinite(v)) continue;
+                    if (v < mn) mn = v;
+                    if (v > mx) mx = v;
+                    sum += v;
+                    ++n;
+                }
             } else {
                 return "{\"error\":\"non-numeric type\"}";
             }
@@ -663,15 +676,6 @@ public:
                      + ",\"c0\":" + std::to_string(c0) + "}";
             }
 
-            auto fmtNum = [](double v) -> std::string {
-                if (std::isnan(v))  return "null";
-                if (std::isinf(v))  return v > 0 ? "\"Inf\"" : "\"-Inf\"";
-                std::ostringstream s;
-                s.precision(17);
-                s << v;
-                return s.str();
-            };
-
             std::ostringstream os;
             os << "{\"r0\":" << r0
                << ",\"c0\":" << c0
@@ -680,25 +684,14 @@ public:
                << ",\"type\":\"" << numkit::mtypeName(val.type()) << "\""
                << ",\"data\":[";
 
-            if (val.type() == ValueType::DOUBLE) {
-                const double *p = val.doubleData();
+            if (numkit::isRealNumericCell(val.type())) {
+                // DOUBLE / SINGLE / LOGICAL / INT8..UINT64 — shared token.
                 for (size_t r = (size_t)r0; r < rEnd; ++r) {
                     if (r > (size_t)r0) os << ",";
                     os << "[";
                     for (size_t c = (size_t)c0; c < cEnd; ++c) {
                         if (c > (size_t)c0) os << ",";
-                        os << fmtNum(p[c * totalRows + r]);
-                    }
-                    os << "]";
-                }
-            } else if (val.type() == ValueType::LOGICAL) {
-                const uint8_t *p = val.logicalData();
-                for (size_t r = (size_t)r0; r < rEnd; ++r) {
-                    if (r > (size_t)r0) os << ",";
-                    os << "[";
-                    for (size_t c = (size_t)c0; c < cEnd; ++c) {
-                        if (c > (size_t)c0) os << ",";
-                        os << (p[c * totalRows + r] ? "true" : "false");
+                        os << numkit::numericCellJSON(val, c * totalRows + r);
                     }
                     os << "]";
                 }

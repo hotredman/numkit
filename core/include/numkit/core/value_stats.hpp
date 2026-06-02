@@ -42,6 +42,14 @@ inline bool computeValueStats(const Value &val, ValueStats &s)
             double m = std::hypot(p[i].real(), p[i].imag());
             if (std::isfinite(m)) v.push_back(m);
         }
+    } else if (isFloatType(val.type()) || isIntegerType(val.type())) {
+        // SINGLE + INT8..UINT64 — read each element as double. (DOUBLE is
+        // handled by the fast path above; integers are always finite, so
+        // the isfinite filter only ever skips a single's NaN/Inf.)
+        for (std::size_t i = 0; i < numel; ++i) {
+            double x = val.elemAsDouble(i);
+            if (std::isfinite(x)) v.push_back(x);
+        }
     } else {
         return false;
     }
