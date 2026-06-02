@@ -348,10 +348,8 @@ Value gammaln(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::lgamma(v); }, mr);
 }
 
-Value erf(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) { return std::erf(v); }, mr);
-}
+// erf is backend-split (SLEEF-ported Highway dd kernel) and lives in
+// special_highway.cpp + special_portable.cpp, like exp / log.
 
 Value erfc(const Value &x, std::pmr::memory_resource *mr)
 {
