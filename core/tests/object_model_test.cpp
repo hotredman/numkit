@@ -528,9 +528,33 @@ TEST_P(ObjectArrayTest, ConcatMixedClassThrows)
     EXPECT_THROW(engine.eval("x = [Box(1) HBox(2)];"), std::exception);
 }
 
+TEST_P(ObjectArrayTest, PropertyCSL)
+{
+    // [arr.prop] expands the property over the whole array → a row vector.
+    engine.eval("a(1)=Box(10); a(2)=Box(20); a(3)=Box(30); vs = [a.v];");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(vs)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vs(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("vs(3)"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum([a.v])"), 60.0);
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ObjectArrayTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
+
+// Object-array display goes through Engine::formatObjectDisplay (shared by
+// both engines), so test it directly on a C++-built array.
+TEST(ObjectArrayDisplay, ArrayHeaderAndProps)
+{
+    Engine engine;
+    ObjectArrayTest::registerBox(engine, "Box", /*isHandle=*/false);
+    engine.eval("a(1) = Box(10); a(2) = Box(20); a(3) = Box(30);");
+    Value a = engine.eval("a;");
+    std::string disp = engine.formatObjectDisplay("a", a);
+    EXPECT_NE(disp.find("Box array"), std::string::npos) << disp;
+    EXPECT_NE(disp.find("1\xC3\x97" "3"), std::string::npos) << disp; // 1×3
+    EXPECT_NE(disp.find("v"), std::string::npos) << disp;             // prop list
+}
 
 // ============================================================
 // Public engine-free C++ API for the container objects
