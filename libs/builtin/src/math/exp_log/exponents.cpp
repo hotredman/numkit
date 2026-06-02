@@ -1,9 +1,9 @@
 // libs/builtin/src/math/elementary/exponents.cpp
 //
-// Scalar exponentials/logarithms: sqrt, log2, log10, expm1, log1p.
-// exp / log live in libs/builtin/src/backends/MStdTranscendental_*.cpp
-// (SIMD-backed) and only their declarations are reproduced in
-// math/elementary/exponents.hpp.
+// Scalar exponentials: sqrt, pow2, realpow, realsqrt (+ engine adapters).
+// exp / log / log2 / log10 / log1p / expm1 / reallog are backend-split
+// (SIMD via Highway) and live in exp_log_highway.cpp / exp_log_portable.cpp;
+// only their declarations are reproduced in math/exp_log/exponents.hpp.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/math/exp_log/exponents.hpp>
@@ -34,15 +34,11 @@ Value sqrt(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::sqrt(v); }, mr);
 }
 
-Value log10(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) { return std::log10(v); }, mr);
-}
+// log2 / log10 / expm1 / log1p are backend-split (SIMD via Highway) and now
+// live in exp_log_highway.cpp + exp_log_portable.cpp, like exp / log.
+// reallog (below, conceptually) is likewise backend-split.
 
-// log2 / expm1 / log1p are backend-split (SIMD via Highway) and now live in
-// exp_log_highway.cpp + exp_log_portable.cpp, like exp / log.
-
-// ── pow2 / realpow / reallog / realsqrt ──────────────────────────────
+// ── pow2 / realpow / realsqrt ────────────────────────────────────────
 
 Value pow2(const Value &y, std::pmr::memory_resource *mr)
 {
@@ -72,15 +68,8 @@ Value realpow(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     return elementwiseDouble(x, y, checkPair, mr);
 }
 
-Value reallog(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) {
-        if (v < 0.0)
-            throw std::runtime_error(
-                "reallog produced complex result — use log(...) instead");
-        return std::log(v);
-    }, mr);
-}
+// reallog is backend-split (SIMD via Highway LogLoop + a domain guard);
+// see exp_log_highway.cpp / exp_log_portable.cpp.
 
 Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
 {
