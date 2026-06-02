@@ -150,8 +150,15 @@ TEST_F(EdgeReconTest, Medfilt2TypedFastPathPreserved)
     EXPECT_NEAR(sc("F5(15,20)"), 51.5, 1e-7);
     eval("A = uint8(reshape(mod((0:1199)*11,256),30,40)); G = medfilt2(A);");
     EXPECT_EQ(eval("class(G)").toString(), "uint8");
-    EXPECT_DOUBLE_EQ(sc("double(G(15,20))"),  98.0);
+    EXPECT_DOUBLE_EQ(sc("double(G(15,20))"),  98.0);      // uint8 → Huang path
     EXPECT_DOUBLE_EQ(sc("sum(double(G(:)))"), 143517.0);
+    eval("G5 = medfilt2(A, [5 5]);");                      // larger odd window
+    EXPECT_DOUBLE_EQ(sc("double(G5(15,20))"),  132.0);
+    EXPECT_DOUBLE_EQ(sc("double(G5(1,1))"),    0.0);       // zero-pad corner
+    EXPECT_DOUBLE_EQ(sc("sum(double(G5(:)))"), 136827.0);
+    eval("H73 = medfilt2(A, [7 3]);");                     // non-square odd
+    EXPECT_DOUBLE_EQ(sc("double(H73(15,20))"),  109.0);
+    EXPECT_DOUBLE_EQ(sc("sum(double(H73(:)))"), 136284.0);
 }
 
 // imgradient with one output (magnitude) must skip the per-pixel atan2

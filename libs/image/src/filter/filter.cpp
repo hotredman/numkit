@@ -1015,8 +1015,67 @@ Value modefilt3D(const Value &A, int fH, int fW, int fD,
     return modefilt_impl(A, fH, fW, fD, padopt, mr);
 }
 
+// Huang's sliding-histogram median for UINT8 with an ODD×ODD window: maintain
+// a 256-bin histogram of the window and the median bin `med` with `below` =
+// count of pixels < med; sliding the window one row keeps a running median
+// in O(window-width) per pixel (vs O(k² log k²) for a per-pixel nth_element).
+// Zero-padded border (MATLAB medfilt2 default); n = rows·cols is odd so the
+// median is the single th-th (0-based, th = n/2) order statistic — identical
+// to nth_element's window[n/2]. Scans down columns (contiguous, column-major).
+static Value medfilt2_huang_u8(const Value &I, int rows, int cols,
+                               std::pmr::memory_resource *mr)
+{
+    const int H = (int)I.dims().rows(), W = (int)I.dims().cols();
+    const int hr = (rows - 1) / 2, hc = (cols - 1) / 2;
+    Value out = Value::matrix(H, W, ValueType::UINT8, mr);
+    if (H == 0 || W == 0) return out;
+    const std::uint8_t *src = I.uint8Data();
+    std::uint8_t *dst = out.uint8DataMut();
+
+    const int Hp = H + rows - 1, Wp = W + cols - 1;        // zero-padded extent
+    ScratchArena arena(mr);
+    ScratchVec<std::uint8_t> Pp((std::size_t)Hp * (std::size_t)Wp, &arena);
+    std::fill(Pp.begin(), Pp.end(), std::uint8_t{0});
+    for (int c = 0; c < W; ++c) {
+        const std::size_t scol = (std::size_t)c * (std::size_t)H;
+        std::uint8_t *pcol = Pp.data() + (std::size_t)(c + hc) * (std::size_t)Hp + (std::size_t)hr;
+        for (int r = 0; r < H; ++r) pcol[r] = src[scol + (std::size_t)r];
+    }
+
+    const int th = (rows * cols) / 2;     // 0-based median index (n odd)
+    int hist[256];
+    for (int oc = 0; oc < W; ++oc) {
+        std::fill(hist, hist + 256, 0);
+        for (int wc = 0; wc < cols; ++wc) {
+            const std::uint8_t *col = Pp.data() + (std::size_t)(oc + wc) * (std::size_t)Hp;
+            for (int wr = 0; wr < rows; ++wr) ++hist[col[wr]];
+        }
+        int med = 0, below = 0;
+        while (below + hist[med] <= th) { below += hist[med]; ++med; }
+        dst[(std::size_t)oc * (std::size_t)H + 0] = (std::uint8_t)med;
+
+        for (int orow = 1; orow < H; ++orow) {
+            const int rOut = orow - 1;            // window row leaving (top)
+            const int rIn  = orow + rows - 1;     // window row entering (bottom)
+            for (int wc = 0; wc < cols; ++wc) {
+                const std::uint8_t *col = Pp.data() + (std::size_t)(oc + wc) * (std::size_t)Hp;
+                const std::uint8_t vo = col[rOut]; --hist[vo]; if (vo < med) --below;
+                const std::uint8_t vi = col[rIn];  ++hist[vi]; if (vi < med) ++below;
+            }
+            while (below > th)                 { --med; below -= hist[med]; }
+            while (below + hist[med] <= th)    { below += hist[med]; ++med; }
+            dst[(std::size_t)oc * (std::size_t)H + (std::size_t)orow] = (std::uint8_t)med;
+        }
+    }
+    return out;
+}
+
 Value medfilt2(const Value &I, int rows, int cols, std::pmr::memory_resource *mr)
 {
+    // Fast path: uint8 + odd×odd window (n odd) → Huang sliding histogram.
+    if (I.type() == ValueType::UINT8 && rows > 0 && cols > 0 && (rows & 1) && (cols & 1))
+        return medfilt2_huang_u8(I, rows, cols, mr);
+
     const int H = (int)I.dims().rows();
     const int W = (int)I.dims().cols();
     const int half_r = rows / 2;
