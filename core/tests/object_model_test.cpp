@@ -388,6 +388,123 @@ INSTANTIATE_TEST_SUITE_P(Backends, PointObjectTest,
                                            Engine::Backend::VM));
 
 // ============================================================
+// Object arrays (OBJECT_MODEL.md): builtin () indexing / indexed-assign
+// with grow for a class that does NOT override subsref/subsasgn. Uses a
+// plain "Box" value class (and "HBox" handle variant for aliasing).
+// ============================================================
+class ObjectArrayTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+
+    static void registerBox(Engine &e, const std::string &name, bool isHandle)
+    {
+        BuiltinClass b;
+        b.name = name;
+        b.isHandle = isHandle;
+        b.propNames = {"v"};
+        b.construct = [name, isHandle](Span<const Value> args, CallContext &ctx) -> Value {
+            auto *mr = ctx.engine->resource();
+            auto st = std::make_shared<ObjectState>(mr);
+            st->props.emplace("v", args.size() > 0 ? args[0] : Value::scalar(0.0, mr));
+            return Value::object(name, st, isHandle, mr);
+        };
+        b.propGet = [](const Value &self, const std::string &n, Value &out,
+                       CallContext &) -> bool {
+            const auto &p = self.objectStateConst()->props;
+            auto it = p.find(n);
+            if (it == p.end())
+                return false;
+            out = it->second;
+            return true;
+        };
+        b.propSet = [](Value &self, const std::string &n, const Value &val,
+                       CallContext &) -> bool {
+            self.objectStateMut()->props[n] = val;
+            return true;
+        };
+        // No subsref/subsasgn → builtin object-array indexing applies.
+        e.registerClass(std::move(b));
+    }
+
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        registerBox(engine, "Box", /*isHandle=*/false);
+        registerBox(engine, "HBox", /*isHandle=*/true);
+    }
+
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    std::string evalStr(const std::string &c) { return engine.eval(c).toString(); }
+};
+
+TEST_P(ObjectArrayTest, BuildByIndexedAssign)
+{
+    engine.eval("a(1) = Box(10); a(2) = Box(20); a(3) = Box(30);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2).v"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(3).v"), 30.0);
+}
+
+TEST_P(ObjectArrayTest, ReadElementIsScalarObject)
+{
+    engine.eval("a(1) = Box(10); a(2) = Box(20); b = a(2);");
+    EXPECT_EQ(evalStr("class(b)"), "Box");
+    EXPECT_DOUBLE_EQ(evalScalar("b.v"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(b)"), 1.0);
+}
+
+TEST_P(ObjectArrayTest, ValueElementReadIsIndependent)
+{
+    // value class: mutating a read-out element must not touch the array.
+    engine.eval("a(1) = Box(10); a(2) = Box(20); b = a(2); b.v = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("a(2).v"), 20.0) << "value-class element read is a copy";
+    EXPECT_DOUBLE_EQ(evalScalar("b.v"), 99.0);
+}
+
+TEST_P(ObjectArrayTest, GrowWithGapDefaultFills)
+{
+    // a(3) on an empty workspace → a(1), a(2) default-constructed (v == 0).
+    engine.eval("a(3) = Box(30);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1).v"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(3).v"), 30.0);
+}
+
+TEST_P(ObjectArrayTest, OverwriteElement)
+{
+    engine.eval("a(1) = Box(10); a(2) = Box(20); a(2) = Box(99);");
+    EXPECT_DOUBLE_EQ(evalScalar("a(2).v"), 99.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 2.0);
+}
+
+TEST_P(ObjectArrayTest, MultiIndexSubArray)
+{
+    engine.eval("a(1)=Box(10); a(2)=Box(20); a(3)=Box(30); b = a([1 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(b)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1).v"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(2).v"), 30.0);
+}
+
+TEST_P(ObjectArrayTest, EndIndex)
+{
+    engine.eval("a(1)=Box(10); a(2)=Box(20); a(3)=Box(30);");
+    EXPECT_DOUBLE_EQ(evalScalar("a(end).v"), 30.0);
+}
+
+TEST_P(ObjectArrayTest, HandleArrayElementAliases)
+{
+    // handle class: element read aliases the stored object — mutation
+    // through the alias is visible in the array.
+    engine.eval("h(1) = HBox(1); h(2) = HBox(2); g = h(2); g.v = 77;");
+    EXPECT_DOUBLE_EQ(evalScalar("h(2).v"), 77.0) << "handle-class element read aliases";
+}
+
+INSTANTIATE_TEST_SUITE_P(Backends, ObjectArrayTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
+// ============================================================
 // Public engine-free C++ API for the container objects
 // (numkit::containers::map/dictionary/set/get/...). No Engine — just
 // Value + memory_resource, like the rest of libs/builtin.

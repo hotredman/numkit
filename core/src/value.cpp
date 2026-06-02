@@ -1,5 +1,6 @@
 #include <numkit/core/shape_ops.hpp>
 #include <numkit/core/value.hpp>
+#include <numkit/core/object.hpp> // ObjectState (deepCopy) for object arrays
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -2165,6 +2166,72 @@ ObjectState *Value::objectStateMutAt(size_t i)
         return nullptr;
     detach(); // COW before mutation (value/handle rule applies per element)
     return heap_->objStates[i].get();
+}
+
+Value Value::objectSubArray(const std::vector<size_t> &idxs,
+                            std::pmr::memory_resource *mr) const
+{
+    if (!isObject())
+        return Value();
+    if (!mr)
+        mr = heap_->mr ? heap_->mr : std::pmr::get_default_resource();
+    const bool handle = heap_->objIsHandle;
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->mr = mr;
+    h->objClass = new std::string(*heap_->objClass);
+    h->objIsHandle = handle;
+    h->objStates.reserve(idxs.size());
+    for (size_t i : idxs) {
+        if (i >= heap_->objStates.size())
+            throw std::runtime_error("Index exceeds the number of array elements.");
+        const auto &src = heap_->objStates[i];
+        // value class → independent copy (safe to mutate); handle → alias.
+        h->objStates.push_back((handle || !src) ? src : src->deepCopy(mr));
+    }
+    h->dims = (idxs.size() == 1) ? Dims(1, 1) : Dims(size_t{1}, idxs.size());
+    Value out;
+    out.heap_ = h;
+    return out;
+}
+
+void Value::objectAssignElement(size_t idx, const Value &elem, const Value &fill,
+                                std::pmr::memory_resource *mr)
+{
+    if (!mr)
+        mr = (heap_ && heap_->mr) ? heap_->mr
+                                  : (elem.heap_ && elem.heap_->mr
+                                         ? elem.heap_->mr
+                                         : std::pmr::get_default_resource());
+    // Coerce an empty/unset/non-object receiver into a fresh object array
+    // of elem's class (shape grows below).
+    if (!isObject()) {
+        auto *h = new HeapObject();
+        h->type = ValueType::OBJECT;
+        h->mr = mr;
+        h->objClass = new std::string(elem.objectClassName());
+        h->objIsHandle = elem.objectIsHandle();
+        h->dims = Dims(size_t{0}, size_t{0}); // 0×0; `{0,0}` picks the ptr ctor
+        Value fresh;
+        fresh.heap_ = h;
+        *this = std::move(fresh);
+    }
+    detach(); // HeapObject-level COW before in-place growth/store
+    const bool handle = heap_->objIsHandle;
+    auto sharedOf = [](const Value &v) -> std::shared_ptr<ObjectState> {
+        return (v.isObject() && !v.heap_->objStates.empty()) ? v.heap_->objStates.front()
+                                                             : nullptr;
+    };
+    auto indep = [&](const std::shared_ptr<ObjectState> &s) {
+        return s ? s->deepCopy(mr) : s; // independent default for gaps/value store
+    };
+    std::shared_ptr<ObjectState> fillState = sharedOf(fill);
+    auto &states = heap_->objStates;
+    while (states.size() <= idx)
+        states.push_back(indep(fillState)); // gaps: independent default objects
+    std::shared_ptr<ObjectState> elemState = sharedOf(elem);
+    states[idx] = handle ? elemState : indep(elemState); // alias vs deep copy
+    heap_->dims = Dims(size_t{1}, states.size());
 }
 
 const void *Value::rawData() const
