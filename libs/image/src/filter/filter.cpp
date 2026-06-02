@@ -7,6 +7,7 @@
 #include <numkit/signal/convolution/convolution.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cctype>
@@ -659,10 +660,47 @@ Value imboxfilt(const Value &I, int filter_size, std::pmr::memory_resource *mr)
     if (I.dims().is3D())
         return imfilter(I, fspecial_average(filter_size, filter_size, mr),
                         PadMode::Replicate, 0.0, false, false, mr);
-    // SEPARABLE: a box average is uniform, so ones(1,k)/k ⊗ ones(k,1)/k ==
-    // ones(k)/k² (= fspecial('average',k)). Two O(k) passes instead of O(k²).
-    std::vector<double> g((size_t)filter_size, 1.0 / filter_size);
-    return applySeparableSym(I, g, mr);
+
+    // INTEGRAL IMAGE: build a summed-area table of the replicate-padded image,
+    // then each window mean is 4 lookups — O(1) per pixel regardless of k
+    // (flat in filter size, like MATLAB), and uint8 needs no per-pass double
+    // filtering. Result equals the replicate box mean (same as the separable
+    // / 2-D-kernel path) up to FP summation order.
+    const int k = filter_size, hk = (k - 1) / 2;
+    const int H = (int)I.dims().rows(), W = (int)I.dims().cols();
+    Value out = Value::matrix(H, W, I.type(), mr);
+    if (H == 0 || W == 0) return out;
+
+    const int Hp = H + 2 * hk, Wp = W + 2 * hk;   // replicate-padded extent
+    const int Hs = Hp + 1, Ws = Wp + 1;           // integral-image extent
+    ScratchArena arena(mr);
+    ScratchVec<double> S((size_t)Hs * (size_t)Ws, &arena);
+
+    // Summed-area table S (column-major): S[c*Hs + r] = Σ P[0..r-1, 0..c-1],
+    // where P is I replicate-padded by hk. First row/col are zero; we read
+    // the padded source value on the fly (clamped indices) — no explicit pad
+    // buffer. Recurrence: S[r][c] = P[r-1][c-1] + S[r-1][c] + S[r][c-1] - S[r-1][c-1].
+    auto Sat = [&](int r, int c) -> double & { return S[(size_t)c * (size_t)Hs + (size_t)r]; };
+    for (int c = 0; c < Ws; ++c) Sat(0, c) = 0.0;
+    for (int r = 0; r < Hs; ++r) Sat(r, 0) = 0.0;
+    for (int c = 1; c < Ws; ++c) {
+        const int sc = std::min(std::max((c - 1) - hk, 0), W - 1);   // padded→source col
+        const std::size_t srcCol = (std::size_t)sc * (std::size_t)H;
+        for (int r = 1; r < Hs; ++r) {
+            const int sr = std::min(std::max((r - 1) - hk, 0), H - 1); // padded→source row
+            const double p = I.elemAsDouble(srcCol + (std::size_t)sr);
+            Sat(r, c) = p + Sat(r - 1, c) + Sat(r, c - 1) - Sat(r - 1, c - 1);
+        }
+    }
+
+    const double invk2 = 1.0 / ((double)k * (double)k);
+    for (int c = 0; c < W; ++c)
+        for (int r = 0; r < H; ++r) {
+            // Output (r,c) → padded window rows [r, r+k), cols [c, c+k).
+            const double sum = Sat(r + k, c + k) - Sat(r, c + k) - Sat(r + k, c) + Sat(r, c);
+            store_classed(out, (std::size_t)c * (std::size_t)H + (std::size_t)r, sum * invk2, I.type());
+        }
+    return out;
 }
 
 // integralBoxFilter — 2-D box filter on a precomputed integral image.
