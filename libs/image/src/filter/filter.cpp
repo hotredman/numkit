@@ -587,6 +587,37 @@ Value imfilter(const Value &I, const Value &h, PadMode boundary, double pad_valu
     return out;
 }
 
+// Apply a separable 2-D filter — the 1-D kernel `g` along rows, then along
+// columns — in DOUBLE, then convert back to I's class. For a 2-D kernel that
+// equals g⊗g (Gaussian, box) this is exactly the full 2-D convolution but
+// costs O(2k) instead of O(k²), keeps the intermediate un-quantised between
+// passes (matches MATLAB), and hits imfilter's fast double path. 2-D only.
+static Value applySeparableSym(const Value &I, const std::vector<double> &g,
+                               std::pmr::memory_resource *mr)
+{
+    const int k = (int)g.size();
+    Value gRow = mat_double(g, 1, k, mr);
+    Value gCol = mat_double(g, k, 1, mr);
+    const int H = (int)I.dims().rows(), W = (int)I.dims().cols();
+
+    Value Id;
+    if (I.type() == ValueType::DOUBLE) {
+        Id = I;
+    } else {
+        Id = Value::matrix(H, W, ValueType::DOUBLE, mr);
+        double *dd = Id.doubleDataMut();
+        for (size_t i = 0; i < (size_t)H * (size_t)W; ++i) dd[i] = I.elemAsDouble(i);
+    }
+    Value tmp = imfilter(Id,  gRow, PadMode::Replicate, 0.0, false, false, mr);
+    Value res = imfilter(tmp, gCol, PadMode::Replicate, 0.0, false, false, mr);
+    if (I.type() == ValueType::DOUBLE) return res;
+
+    Value out = Value::matrix(H, W, I.type(), mr);
+    const double *rd = res.doubleData();
+    for (size_t i = 0; i < (size_t)H * (size_t)W; ++i) store_classed(out, i, rd[i], I.type());
+    return out;
+}
+
 Value imgaussfilt(const Value &I, double sigma, int filter_size, std::pmr::memory_resource *mr)
 {
     if (filter_size <= 0) {
@@ -617,36 +648,21 @@ Value imgaussfilt(const Value &I, double sigma, int filter_size, std::pmr::memor
         sum += g[i];
     }
     if (sum > 0.0) for (auto &v : g) v /= sum;
-    Value gRow = mat_double(g, 1, filter_size, mr);
-    Value gCol = mat_double(g, filter_size, 1, mr);
-
-    const int H = (int)I.dims().rows(), W = (int)I.dims().cols();
-    Value Id;
-    if (I.type() == ValueType::DOUBLE) {
-        Id = I;
-    } else {
-        Id = Value::matrix(H, W, ValueType::DOUBLE, mr);
-        double *dd = Id.doubleDataMut();
-        for (size_t i = 0; i < (size_t)H * (size_t)W; ++i) dd[i] = I.elemAsDouble(i);
-    }
-    Value tmp = imfilter(Id,  gRow, PadMode::Replicate, 0.0, false, false, mr);
-    Value res = imfilter(tmp, gCol, PadMode::Replicate, 0.0, false, false, mr);
-    if (I.type() == ValueType::DOUBLE) return res;
-
-    // Convert back to the input class (round/clamp), as the old single-pass
-    // (which filtered in the input type and rounded once at the end) did.
-    Value out = Value::matrix(H, W, I.type(), mr);
-    const double *rd = res.doubleData();
-    for (size_t i = 0; i < (size_t)H * (size_t)W; ++i) store_classed(out, i, rd[i], I.type());
-    return out;
+    return applySeparableSym(I, g, mr);
 }
 
 Value imboxfilt(const Value &I, int filter_size, std::pmr::memory_resource *mr)
 {
     if (filter_size <= 0) filter_size = 3;
     if (filter_size % 2 == 0) filter_size += 1;
-    Value k = fspecial_average(filter_size, filter_size, mr);
-    return imfilter(I, k, PadMode::Replicate, 0.0, /*full=*/false, /*flip_kernel=*/false, mr);
+    // Non-2-D keeps the original 2-D-kernel path.
+    if (I.dims().is3D())
+        return imfilter(I, fspecial_average(filter_size, filter_size, mr),
+                        PadMode::Replicate, 0.0, false, false, mr);
+    // SEPARABLE: a box average is uniform, so ones(1,k)/k ⊗ ones(k,1)/k ==
+    // ones(k)/k² (= fspecial('average',k)). Two O(k) passes instead of O(k²).
+    std::vector<double> g((size_t)filter_size, 1.0 / filter_size);
+    return applySeparableSym(I, g, mr);
 }
 
 // integralBoxFilter — 2-D box filter on a precomputed integral image.

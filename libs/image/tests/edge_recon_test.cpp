@@ -137,6 +137,21 @@ TEST_F(EdgeReconTest, ImfillDefaultConnIsFour)
 // remap pass over already-remapped labels used to violate this on
 // merge-heavy images (e.g. n=62 while max(L)=18), which corrupted
 // regionprops / bwareaopen downstream.
+// Separable imboxfilt (uniform 1/k row ⊗ col == ones(k)/k²) must match the
+// prior full-2D-kernel result and MATLAB. Pinned from MATLAB R2025b.
+TEST_F(EdgeReconTest, ImboxfiltSeparablePreserved)
+{
+    eval("I = reshape(mod((0:1199)*7.3, 100), 30, 40);");
+    eval("F = imboxfilt(I, 7);");
+    EXPECT_NEAR(sc("sum(F(:))"), 59671.020408, 1e-3);
+    EXPECT_NEAR(sc("F(15,20)"),  46.87346939, 1e-6);
+    EXPECT_NEAR(sc("F(1,1)"),    22.54285714, 1e-6);   // replicate border
+    eval("A = uint8(reshape(mod((0:1199)*11,256),30,40)); G = imboxfilt(A, 5);");
+    EXPECT_EQ(eval("class(G)").toString(), "uint8");
+    EXPECT_DOUBLE_EQ(sc("double(G(15,20))"),  126.0);
+    EXPECT_DOUBLE_EQ(sc("sum(double(G(:)))"), 152187.0);
+}
+
 // Separable imgaussfilt must match the prior full-2D-kernel result (and
 // MATLAB): the 2-D Gaussian is exactly the outer product of two 1-D
 // Gaussians, so two 1-D passes give the same values (within FP summation
