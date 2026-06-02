@@ -2661,11 +2661,15 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
         case 2:  result = std::ceil(v); break;
         case 3:  result = std::round(v); break;
         case 4:  result = std::trunc(v); break;
-        case 5:  result = std::sqrt(v); break;
+        // sqrt / log / log2 / log10 of a negative scalar promote to a
+        // complex result in MATLAB. The scalar fast path can only hold a
+        // real double, so for v < 0 we bail (handled = false) and let the
+        // full builtin (Value wrapper) produce the complex value.
+        case 5:  if (v < 0.0) { handled = false; break; } result = std::sqrt(v);  break;
         case 6:  result = std::exp(v); break;
-        case 7:  result = std::log(v); break;
-        case 8:  result = std::log2(v); break;
-        case 9:  result = std::log10(v); break;
+        case 7:  if (v < 0.0) { handled = false; break; } result = std::log(v);   break;
+        case 8:  if (v < 0.0) { handled = false; break; } result = std::log2(v);  break;
+        case 9:  if (v < 0.0) { handled = false; break; } result = std::log10(v); break;
         case 10: result = std::sin(v); break;
         case 11: result = std::cos(v); break;
         case 12: result = std::tan(v); break;

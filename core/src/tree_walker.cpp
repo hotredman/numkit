@@ -680,7 +680,9 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
                 }
                 break;
             case 11:
-                if (nargs == 1) {
+                // log of a negative promotes to complex — defer to the full
+                // builtin (mirrors the sqrt guard above).
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log(argVals[0]);
                     ok = true;
                 }
@@ -719,13 +721,13 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
                 }
                 break;
             case 16:
-                if (nargs == 1) {
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log2(argVals[0]);
                     ok = true;
                 }
                 break;
             case 17:
-                if (nargs == 1) {
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log10(argVals[0]);
                     ok = true;
                 }
