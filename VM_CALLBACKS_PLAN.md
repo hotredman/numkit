@@ -91,8 +91,19 @@ the VM backend. This is the gap to close.
   graceful fallback to the hook when a body can't VM-compile yet; access
   enforced via `Engine::enforceMethodAccess`. **Proven**: a breakpoint inside
   `go(obj)` pauses under the VM debugger (DebugSessionTest).
-- **P1c (next)** — dotted `obj.m()` + `[a,b]=obj.m()`. Two prerequisites
-  surfaced when first attempted (reverted to keep P1b green):
+- **P1c (done, `3b8c360c`)** — dotted `obj.m()` + `[a,b]=obj.m()` run as VM
+  frames ([self,args] buffer). Multi-output super-call guard added
+  (compileMultiAssign rejects SUPERCLASS_REF → hook fallback). Proven:
+  BreakInsideClassdefMethodDotted pauses under the VM. **Phase 1 complete** —
+  every classdef method-call form (function-form, dotted, multi) is VM-native
+  and debuggable; native builtin-class methods keep the hook; bodies with
+  super-calls fall back to the TW hook until P2.
+  - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
+    `i`/`j` inside a VM function frame resolves to the imaginary unit instead
+    of the parameter. General VM identifier-resolution bug — surfaced via a
+    test method param named `i`.
+  Original two prerequisites (both resolved above — neither was a P1c dispatch
+  bug):
   1. **Multi-output super-call guard.** `[a,b]=m@Base(obj)` — the VM
      multi-assign compiler does NOT reject `SUPERCLASS_REF` (only single-output
      `compileCall` does), so it mis-compiles to a call of the base *name*
