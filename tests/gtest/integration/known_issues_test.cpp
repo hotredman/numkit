@@ -1463,3 +1463,20 @@ TEST_P(TypedIndex, IntegerSingleIndexArrays)
 }
 
 INSTANTIATE_DUAL(TypedIndex);
+
+// ── empty `[]` is a defined value, not "absent" (deep audit #3) ──────────
+// Compiler bare-var / call-vs-index detection used !isEmpty() to mean
+// "is a real variable", so `x = []` was misclassified: a bare `x` went through
+// the ans path and indexing an empty var was read as a function call. Verified
+// against MATLAB R2025b: a bare variable reference does NOT create `ans`.
+class EmptyVarDefined : public DualEngineTest {};
+
+TEST_P(EmptyVarDefined, BareEmptyVarDoesNotSetAns)
+{
+    eval("x = []; clear ans; x;");
+    EXPECT_FALSE(evalBool("exist('ans', 'var')")); // MATLAB: ans not created
+    eval("clear; y = 7; clear ans; y;");
+    EXPECT_FALSE(evalBool("exist('ans', 'var')")); // non-empty too
+}
+
+INSTANTIATE_DUAL(EmptyVarDefined);

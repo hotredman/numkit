@@ -16,10 +16,12 @@ std::vector<StackFrame::VarEntry> StackFrame::variables() const
     std::vector<VarEntry> result;
 
     if (env) {
-        // TW frame — read from Environment
+        // TW frame — read from Environment. Use the same predicate as the VM
+        // branch below (isUnset/isDeleted, NOT isEmpty) so an empty-but-defined
+        // variable (`x = []`, `s = ''`) shows in the debugger on both backends.
         for (auto &name : env->localNames()) {
             auto *val = env->getLocal(name);
-            if (val && !val->isEmpty())
+            if (val && !val->isUnset() && !val->isDeleted())
                 result.push_back({name, val});
         }
     } else if (chunk && registers) {
