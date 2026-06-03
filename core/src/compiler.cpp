@@ -3224,8 +3224,13 @@ uint8_t Compiler::compileCall(const ASTNode *node)
             emit(Instruction::make_abcde(OpCode::CALL_BUILTIN,
                                          dst, arg, 1,
                                          static_cast<int16_t>(builtinId), 0));
-            // Math builtins on scalar produce scalar
-            if (scalarRegs_.test(arg) && builtinId <= 13)
+            // Every 1-arg inline builtin (ids 0..15 in resolveBuiltinId:
+            // abs/floor/…/sign/isnan/isinf) is elementwise scalar→scalar, so a
+            // scalar argument yields a scalar result — propagate the tag.
+            // (The old bare `<= 13` magic excluded isnan/isinf at 14-15, a
+            // perf-only miss; keep this bound in sync with resolveBuiltinId.)
+            constexpr int8_t kMaxUnaryInlineBuiltinId = 15;
+            if (scalarRegs_.test(arg) && builtinId <= kMaxUnaryInlineBuiltinId)
                 scalarRegs_.set(dst);
             return dst;
         }
