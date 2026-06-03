@@ -521,17 +521,25 @@ void Engine::registerClassDef(const ASTNode *cd)
             if (!child->children.empty() && treeWalker_)
                 def = treeWalker_->evalExpressionPublic(child->children[0].get(),
                                                         &constantsEnv());
-            // Constant property: expose as `ClassName.Prop` (no instance).
+            // Record non-public get/set access (this class is the declarer).
+            BlockAccess ba = parseBlockAccess(child->classAttrs);
+            // Constant property: expose as `ClassName.Prop` (no instance). A
+            // non-public Constant enforces its GetAccess at the qualified-read
+            // site (the read is the only operation — it has no setter).
             if (hasAttr(child, "Constant")) {
                 Value cval = def;
+                Access getLvl = ba.get;
+                std::string decl = desc->name, pn = child->strValue;
                 registerFunction(desc->name, child->strValue,
-                                 [cval](Span<const Value>, size_t, Span<Value> outs,
-                                        CallContext &) { outs[0] = cval; });
+                                 [cval, getLvl, decl, pn](Span<const Value>, size_t,
+                                                          Span<Value> outs, CallContext &ctx) {
+                                     if (getLvl != Access::Public)
+                                         enforceAccess(ctx.engine, getLvl, decl, "property", pn);
+                                     outs[0] = cval;
+                                 });
             }
             desc->propNames.push_back(child->strValue);
             desc->propDefaults.push_back(def);
-            // Record non-public get/set access (this class is the declarer).
-            BlockAccess ba = parseBlockAccess(child->classAttrs);
             if (ba.any)
                 desc->propAccess[child->strValue] = {ba.get, ba.set, desc->name};
         } else if (child->type == NodeType::FUNCTION_DEF) {
@@ -548,10 +556,17 @@ void Engine::registerClassDef(const ASTNode *cd)
                 desc->setters[mn.substr(4)] = uf; // property set accessor
             } else if (hasAttr(child, "Static")) {
                 // Static method: callable as `ClassName.method(args)` (no self).
+                // A non-public Static enforces its access at the call site
+                // (`Access` governs; `immutable` is meaningless for a method).
+                BlockAccess ba = parseBlockAccess(child->classAttrs);
+                Access slvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
+                std::string decl = desc->name, mn2 = child->strValue;
                 registerFunction(
                     desc->name, child->strValue,
-                    [uf](Span<const Value> args, size_t nargout, Span<Value> outs,
-                         CallContext &ctx) {
+                    [uf, slvl, decl, mn2](Span<const Value> args, size_t nargout,
+                                          Span<Value> outs, CallContext &ctx) {
+                        if (slvl != Access::Public)
+                            enforceAccess(ctx.engine, slvl, decl, "method", mn2);
                         const size_t nout = std::max<size_t>(nargout, 1);
                         auto results = ctx.engine->invokeClassMethod(*uf, args, nout);
                         const size_t writeN = std::min(nout, results.size());
@@ -746,8 +761,11 @@ void Engine::registerClassDef(const ASTNode *cd)
         // arrives as the receiver `self` with empty `args`.
         if (isOperatorMethodName(mname)) {
             auto ufOp = uf;
-            cls.ops[mname] = [ufOp](Value &self, Span<const Value> args, size_t nargout,
-                                    Span<Value> outs, CallContext &ctx) {
+            cls.ops[mname] = [ufOp, nameCopy, mlevel, mdecl](
+                                 Value &self, Span<const Value> args, size_t nargout,
+                                 Span<Value> outs, CallContext &ctx) {
+                if (mlevel != Access::Public)
+                    enforceAccess(ctx.engine, mlevel, mdecl, "method", nameCopy);
                 std::vector<Value> callArgs;
                 if (args.empty())
                     callArgs.push_back(self); // unary: operand came as self
@@ -843,6 +861,11 @@ std::vector<Value> Engine::superMethod(const std::string &base, const std::strin
     auto mit = desc->methods.find(method);
     if (mit == desc->methods.end())
         throw std::runtime_error("superclass '" + base + "' has no method '" + method + "'");
+    // Enforce the base method's access from the calling context (the current
+    // top frame is the subclass method making the super-call): a `protected`
+    // base method is reachable from a subclass, a `private` one is not.
+    if (auto ait = desc->methodAccess.find(method); ait != desc->methodAccess.end())
+        enforceAccess(this, ait->second.level, ait->second.declClass, "method", method);
     return invokeClassMethod(*mit->second, args, nout);
 }
 
