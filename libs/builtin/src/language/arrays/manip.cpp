@@ -99,6 +99,37 @@ Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resour
                      0, 0, "repmat", "", "numkit:repmat:tooManyDims");
     if (outNdim < 1) outNdim = 1;
 
+    // OBJECT arrays store per-element state — build the tile→source index
+    // map (per-axis modulo, same as the CELL path) and gather.
+    if (x.isObject()) {
+        size_t inDP[kMaxNd], tilesP[kMaxNd], outD[kMaxNd];
+        for (int i = 0; i < outNdim; ++i) {
+            inDP[i] = (i < inDims.ndim()) ? inDims.dim(i) : 1;
+            tilesP[i] = (i < ntiles) ? tiles[i] : 1;
+            outD[i] = inDP[i] * tilesP[i];
+        }
+        Dims outDims(outD, outNdim);
+        const size_t total = outDims.numel();
+        std::vector<size_t> srcMap(total, 0);
+        if (x.numel() > 0 && total > 0) {
+            size_t outStrides[kMaxNd], srcStrides[kMaxNd];
+            computeStridesColMajor(outDims, outStrides);
+            computeStridesColMajor(inDims, srcStrides);
+            for (int i = inDims.ndim(); i < outNdim; ++i) srcStrides[i] = 0;
+            for (size_t outIdx = 0; outIdx < total; ++outIdx) {
+                size_t rem = outIdx, srcIdx = 0;
+                for (int d = outNdim - 1; d >= 0; --d) {
+                    const size_t coord = rem / outStrides[d];
+                    rem -= coord * outStrides[d];
+                    if (d < inDims.ndim())
+                        srcIdx += (coord % inDP[d]) * srcStrides[d];
+                }
+                srcMap[outIdx] = srcIdx;
+            }
+        }
+        return x.objectGather(srcMap.data(), outDims, mr);
+    }
+
     // STRING / CELL store contents as vector<Value> in cellData, not a
     // contiguous byte buffer — the memcpy paths below would dereference
     // a null rawData(). Walk by element and copy Values directly.
@@ -329,6 +360,15 @@ Value fliplr(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     if (isCellOrString(x.type())) return flipCellStr(x, 1, "fliplr", mr);
+    if (x.isObject() && dd.ndim() <= 3) {
+        const size_t R = dd.rows(), C = dd.cols(), P = dd.is3D() ? dd.pages() : 1;
+        std::vector<size_t> map(R * C * P);
+        for (size_t pp = 0; pp < P; ++pp)
+            for (size_t c = 0; c < C; ++c)
+                for (size_t r = 0; r < R; ++r)
+                    map[pp * R * C + c * R + r] = pp * R * C + (C - 1 - c) * R + r;
+        return x.objectGather(map.data(), dd, mr);
+    }
     if (dd.ndim() >= 4) return flipNDAlongAxis(x, 1, "fliplr", mr);
 
     // POD types (DOUBLE/CHAR/LOGICAL/COMPLEX/single/int) copy raw bytes — flip
@@ -357,6 +397,15 @@ Value flipud(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     if (isCellOrString(x.type())) return flipCellStr(x, 0, "flipud", mr);
+    if (x.isObject() && dd.ndim() <= 3) {
+        const size_t R = dd.rows(), C = dd.cols(), P = dd.is3D() ? dd.pages() : 1;
+        std::vector<size_t> map(R * C * P);
+        for (size_t pp = 0; pp < P; ++pp)
+            for (size_t c = 0; c < C; ++c)
+                for (size_t r = 0; r < R; ++r)
+                    map[pp * R * C + c * R + r] = pp * R * C + c * R + (R - 1 - r);
+        return x.objectGather(map.data(), dd, mr);
+    }
     if (dd.ndim() >= 4) return flipNDAlongAxis(x, 0, "flipud", mr);
 
     // POD types copy raw bytes — type-preserving (cell/string handled above).

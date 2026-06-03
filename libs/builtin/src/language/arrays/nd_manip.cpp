@@ -335,6 +335,11 @@ Value catDim3(const Value *values, size_t count, std::pmr::memory_resource *mr)
     }
     if (!anchored) return Value();
 
+    // OBJECT arrays: dim-3 cat is an ordered page-stack, i.e. appending each
+    // input's column-major states in turn → exactly objectConcatN.
+    if (outType == ValueType::OBJECT)
+        return Value::objectConcatN(values, count, Dims(R, C, totalPages), mr);
+
     // CELL permutes element-wise (Value copy); POD types copy raw bytes.
     // cat is a pure rearrangement, so it is type-preserving.
     const bool isCell = (outType == ValueType::CELL);

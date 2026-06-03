@@ -2388,6 +2388,43 @@ Value Value::objectReshape(const Dims &newDims, std::pmr::memory_resource *mr) c
     return objectGather(idx.data(), newDims, mr);
 }
 
+Value Value::objectConcatN(const Value *parts, size_t count, const Dims &outDims,
+                           std::pmr::memory_resource *mr)
+{
+    if (!mr)
+        mr = std::pmr::get_default_resource();
+    std::string clsName;
+    bool found = false, handle = false;
+    for (size_t i = 0; i < count; ++i) {
+        if (parts[i].isEmpty())
+            continue;
+        if (!parts[i].isObject())
+            throw std::runtime_error("Cannot concatenate an object with a non-object value");
+        if (!found) {
+            clsName = parts[i].objectClassName();
+            handle = parts[i].objectIsHandle();
+            found = true;
+        } else if (parts[i].objectClassName() != clsName) {
+            throw std::runtime_error("Cannot concatenate objects of different classes");
+        }
+    }
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->mr = mr;
+    h->objClass = new std::string(clsName);
+    h->objIsHandle = handle;
+    h->dims = outDims;
+    for (size_t i = 0; i < count; ++i) {
+        if (!parts[i].isObject())
+            continue;
+        for (const auto &st : parts[i].heap_->objStates)
+            h->objStates.push_back((handle || !st) ? st : st->deepCopy(mr));
+    }
+    Value out;
+    out.heap_ = h;
+    return out;
+}
+
 Value Value::objectTranspose(std::pmr::memory_resource *mr) const
 {
     if (!isObject())
