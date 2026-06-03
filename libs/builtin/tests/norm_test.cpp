@@ -37,6 +37,22 @@ TEST_F(NormTest, NormVectorInf)
     EXPECT_DOUBLE_EQ(evalScalar("norm([-7 2 5], Inf)"), 7.0);
 }
 
+TEST_F(NormTest, NormVectorNegInf)
+{
+    // p = -Inf vector norm is min(|v|). Both +Inf and -Inf used to route to
+    // max(|v|); -Inf must give the minimum.
+    EXPECT_DOUBLE_EQ(evalScalar("norm([3 4], -Inf)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("norm([3; 4], -Inf)"), 3.0);   // column
+    EXPECT_DOUBLE_EQ(evalScalar("norm([-7 2 5], -Inf)"), 2.0); // min |.|
+    EXPECT_DOUBLE_EQ(evalScalar("norm(5, -Inf)"), 5.0);        // scalar
+}
+
+TEST_F(NormTest, NormMatrixNegInfThrows)
+{
+    // MATLAB: -Inf is not a valid matrix norm.
+    EXPECT_THROW(eval("norm([1 2; 3 4], -Inf);"), std::exception);
+}
+
 TEST_F(NormTest, NormVectorPnorm)
 {
     // p=4: (3^4 + 4^4)^(1/4) = (81+256)^0.25 = 337^0.25 ≈ 4.286

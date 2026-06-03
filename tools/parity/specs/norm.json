@@ -2,12 +2,12 @@
   "name": "norm",
   "namespace": "builtin",
   "setup": "v = [3 4]; A = [1 2; 3 4];",
-  "expr": "n_v2 = norm(v); n_v1 = norm(v, 1); n_vinf = norm(v, Inf); n_a2 = norm(A); n_a1 = norm(A, 1); n_ainf = norm(A, Inf); n_afro = norm(A, 'fro');",
+  "expr": "n_v2 = norm(v); n_v1 = norm(v, 1); n_vinf = norm(v, Inf); n_vninf = norm(v, -Inf); n_vninf3 = norm([-7 2 5], -Inf); n_a2 = norm(A); n_a1 = norm(A, 1); n_ainf = norm(A, Inf); n_afro = norm(A, 'fro');",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
-    "n_v2", "n_v1", "n_vinf",
+    "n_v2", "n_v1", "n_vinf", "n_vninf", "n_vninf3",
     "n_a2", "n_a1", "n_ainf", "n_afro"
   ],
-  "comment": "Sig: n = norm(X[, p]). Vector and matrix norms. Vector: 2-norm default, p-norm via sum(|x|^p)^(1/p), Inf -> max(|x|), 1 -> sum(|x|). Matrix: 2-norm = largest singular, 1 -> max col sum, Inf -> max row sum, 'fro' -> Frobenius. Bit-identical with MATLAB R2025b."
+  "comment": "Sig: n = norm(X[, p]). Vector and matrix norms. Vector: 2-norm default, p-norm via sum(|x|^p)^(1/p), Inf -> max(|x|), -Inf -> min(|x|) (fixed 2026-06-03; was max), 1 -> sum(|x|). Matrix: 2-norm = largest singular, 1 -> max col sum, Inf -> max row sum, 'fro' -> Frobenius (-Inf invalid for matrices). Bit-identical with MATLAB R2025b."
 }
