@@ -145,6 +145,26 @@ the VM backend. This is the gap to close.
   - **Proven**: `DebugSessionTest.BreakInsideFunctionHandleCall` (breakpoint
     inside a handle-invoked function pauses on the VM); 166 handle/cellfun/
     arrayfun/feval dual-engine tests green on the VM path; full suite 10924.
+- **P4a (done)** — **`get.Prop` accessors VM-native (in-bytecode, pausable).**
+  The VM `FIELD_GET` opcode, for an object whose class defines a `get.Prop`
+  accessor, runs the accessor body as a SAME-STACK VM frame (pushCallFrame +
+  enter_frame, like P1) rather than the C++ `propGet` hook → `invokeClassMethod`
+  → TreeWalker. No save/restore (fast) and fully pausable. A getter returns
+  exactly one value, so the frame's destReg is the `FIELD_GET` destination.
+  Property `GetAccess` is enforced (`Engine::enforcePropGetAccess`) before the
+  frame is pushed; plain stored properties keep the fast `propGet` path. New
+  seams: `Engine::classGetter`/`classSetter`/`enforcePropGetAccess`/
+  `enforcePropSetAccess`. **Proven**: `DebugSessionTest.BreakInsideClassdefGetter`
+  (breakpoint inside `get.scaled` pauses; `y == 21`); full suite 10925.
+  - **Remaining P4** (follow-up commits, each in-bytecode + pausable like P4a):
+    `set.Prop` setters via `FIELD_SET` (needs the handle-setter return-arity
+    handling: a no-output handle setter must NOT clobber the object register —
+    use a scratch destReg / shared-state mutation); operator methods via the
+    arithmetic/comparison opcodes; `subsref`/`subsasgn` via `INDEX_GET`/
+    `INDEX_SET`. Plus a backend-aware `invokeClassMethod`/`invokeClassCtor`
+    (→ `callReentrant`) as the net for genuinely C++-initiated callbacks (e.g.
+    `disp(obj)` from a builtin, a `sort` comparator) — measure before routing
+    hot in-bytecode paths through its save/restore.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a

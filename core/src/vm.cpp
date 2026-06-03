@@ -1300,9 +1300,25 @@ enter_frame:
                 const std::string &fname = chunk.strings[I.d];
                 // OBJECT: obj.Prop via class property hook (object model).
                 if (R[I.b].isObject()) {
-                    const BuiltinClass *cls = engine_.findClass(R[I.b].objectClassName());
+                    const std::string &cn = R[I.b].objectClassName();
+                    const BuiltinClass *cls = engine_.findClass(cn);
                     if (cls) {
                         CallContext ctx{&engine_, currentCallEnv()};
+                        // classdef `get.Prop` accessor → run its body as a
+                        // same-stack VM frame (debuggable, no save/restore),
+                        // enforcing the property's GetAccess first. P4,
+                        // VM_CALLBACKS_PLAN.md. Getters return exactly one value
+                        // so destReg = I.a is always the right write-back.
+                        if (const UserFunction *g = engine_.classGetter(cn, fname)) {
+                            if (const BytecodeChunk *gc = engine_.ensureClassMethodChunk(*g)) {
+                                engine_.enforcePropGetAccess(cn, fname);
+                                Value selfBuf = R[I.b];
+                                frame.ip = ip + 1;
+                                pushCallFrame(*gc, &selfBuf, 1, I.a, 1, false, 0, 0, cn,
+                                              /*isCtor=*/false);
+                                goto enter_frame;
+                            }
+                        }
                         if (cls->propGet) {
                             Value out;
                             if (cls->propGet(R[I.b], fname, out, ctx)) {

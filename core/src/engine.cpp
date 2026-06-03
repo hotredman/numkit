@@ -1081,6 +1081,44 @@ void Engine::enforceMethodAccess(const std::string &className, const std::string
         enforceAccess(this, mit->second.level, mit->second.declClass, "method", method);
 }
 
+const UserFunction *Engine::classGetter(const std::string &className,
+                                        const std::string &prop) const
+{
+    auto it = classDefs_.find(className);
+    if (it == classDefs_.end())
+        return nullptr;
+    auto git = it->second->getters.find(prop);
+    return git != it->second->getters.end() ? git->second.get() : nullptr;
+}
+
+const UserFunction *Engine::classSetter(const std::string &className,
+                                        const std::string &prop) const
+{
+    auto it = classDefs_.find(className);
+    if (it == classDefs_.end())
+        return nullptr;
+    auto sit = it->second->setters.find(prop);
+    return sit != it->second->setters.end() ? sit->second.get() : nullptr;
+}
+
+void Engine::enforcePropGetAccess(const std::string &className, const std::string &prop)
+{
+    auto it = classDefs_.find(className);
+    if (it == classDefs_.end() || !it->second->anyNonPublicProp)
+        return;
+    if (const PropInfo *pi = findProp(*it->second, prop); pi && pi->getAccess != Access::Public)
+        enforceAccess(this, pi->getAccess, pi->declClass, "property", prop);
+}
+
+void Engine::enforcePropSetAccess(const std::string &className, const std::string &prop)
+{
+    auto it = classDefs_.find(className);
+    if (it == classDefs_.end() || !it->second->anyNonPublicProp)
+        return;
+    if (const PropInfo *pi = findProp(*it->second, prop); pi && pi->setAccess != Access::Public)
+        enforceAccess(this, pi->setAccess, pi->declClass, "property", prop);
+}
+
 Value Engine::superConstruct(const std::string &base, const Value &seed,
                              Span<const Value> args)
 {
