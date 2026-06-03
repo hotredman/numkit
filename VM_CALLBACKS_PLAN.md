@@ -203,10 +203,24 @@ the VM backend. This is the gap to close.
   helpers. **Proven**: `DebugSessionTest.BreakInsideClassdefOperator` (breakpoint
   inside `plus` pauses; `y == 7`); operator/object/enum dual-engine suites
   green; full suite 10927.
-  - **Remaining:** `subsref`/`subsasgn` via `INDEX_GET`/`INDEX_SET` frame-push
-    (same pattern) for pausable custom indexing. Genuinely C++-initiated
-    callbacks (e.g. `disp(obj)` from a builtin, a `sort` comparator) stay on
-    `callReentrant` — there is no in-bytecode opcode to push from.
+- **P4e (done)** — **`subsref`/`subsasgn` overloads VM-native (in-bytecode,
+  pausable).** The indexing opcodes that dispatch a classdef overload —
+  `INDEX_GET`/`INDEX_GET_2D`/`INDEX_GET_ND` and `CALL_INDIRECT` (a known
+  variable `obj(i)` compiles to `CALL_INDIRECT`) for `subsref`, and `INDEX_SET`
+  for `subsasgn` — push a SAME-STACK frame for the overload body
+  (`VM::tryObjectSubsrefFrame`/`tryObjectSubsasgnFrame` → `goto enter_frame`)
+  instead of the C++ `tryObject*` hook → `callReentrant`. Shared, non-duplicated
+  resolution: `Engine::resolveSubsrefChunk`/`resolveSubsasgnChunk` reuse
+  `methodFns` + `ensureClassMethodChunk` and marshal the MATLAB substruct args
+  (`subsref(obj,S)` / `subsasgn(obj,S,val)`) via the existing `buildSubsStruct`.
+  `subsref` returns one value into the destination; `subsasgn` always returns
+  the object (value class → written back into the object register; handle →
+  mutates shared state), so no no-output complication. Frame-push is added only
+  where the overload is already dispatched (subsasgn only at `INDEX_SET`, the
+  pre-existing surface — no new 2-D/N-D subsasgn behaviour). **Proven**:
+  `DebugSessionTest.BreakInsideClassdefSubsref` / `BreakInsideClassdefSubsasgn`
+  (breakpoints inside the overloads pause; `y == 20` / `y == 99`); subsref/Ring
+  dual-engine suites green; full suite 10929.
   - **Perf note:** `callReentrant` snapshots the live register stack per call.
     It only fires on the OBJECT slow path (numeric/scalar operators keep their
     fast inline path), so hot numeric code is unaffected; object-operator-heavy
@@ -218,11 +232,24 @@ Under the VM backend, **all** classdef user code now executes on the VM (no
 TreeWalker hop): instance methods (all call forms), constructors, super-calls,
 get/set accessors, operator overloads, `subsref`/`subsasgn`, custom
 `disp`/`display`, and function-handle callbacks (`cellfun`/`arrayfun`/`feval`).
-Methods, constructors, super-calls and get/set accessors are *pausable* under
-the debugger; the C++-initiated callbacks (operators, indexing, handle-in-
-builtin) run on the VM and fire breakpoints but cannot suspend across the C++
-boundary (documented P3 contract). The TreeWalker backend is unchanged; native
-builtin-class methods (containers.Map, …) keep their C++ hook.
+
+**Pausable under the debugger** (in-bytecode same-stack frames): instance
+methods, constructors, super-calls (P1/P2), get/set accessors (P4a/P4b),
+operator overloads (P4d), and `subsref`/`subsasgn` — both via the indexing
+opcodes and the `obj(i)`/`CALL_INDIRECT` form (P4e). i.e. essentially every
+classdef body reached from running bytecode.
+
+**On the VM but not suspendable** (genuinely C++-initiated — reached from a
+builtin, with no in-bytecode opcode to push from, so they use `callReentrant`;
+a breakpoint fires but cannot freeze-and-resume across the C++ boundary):
+`disp(obj)`/`display(obj)` invoked by the display path, a method/operator used
+as a callback inside a builtin (e.g. a `sort` comparator), function-handle
+callbacks driven by `cellfun`/`arrayfun`/`feval`, super-call *base targets*
+(`superMethod`/`superConstruct`), and C++-initiated construction (object-array
+growth). All still execute on the VM.
+
+The TreeWalker backend is unchanged; native builtin-class methods
+(containers.Map, …) keep their C++ hook.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a

@@ -287,6 +287,63 @@ TEST_F(DebugSessionTest, BreakInsideClassdefOperator)
     EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 7.0); // 3 + 4
 }
 
+// Proof that a `subsref` overload body runs on the VM as a pausable frame
+// (P4 refinement): a breakpoint inside subsref pauses when `obj(i)` is indexed.
+TEST_F(DebugSessionTest, BreakInsideClassdefSubsref)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({7}); // `idx = s.subs{1};` inside subsref
+    std::string code =
+        "classdef DbgRing\n"               // 1
+        "  properties\n"                   // 2
+        "    data = [10 20 30]\n"         // 3
+        "  end\n"                          // 4
+        "  methods\n"                      // 5
+        "    function r = subsref(obj, s)\n" // 6
+        "      idx = s.subs{1};\n"         // 7  <- breakpoint
+        "      r = obj.data(idx);\n"       // 8
+        "    end\n"                        // 9
+        "  end\n"                          // 10
+        "end\n"                            // 11
+        "g = DbgRing();\n"                // 12
+        "y = g(2);\n";                    // 13  '()' dispatches to subsref
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "subsref body did not run on the VM";
+    EXPECT_EQ(session.snapshot().line, 7);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 20.0); // data(2)
+}
+
+// Proof that a `subsasgn` overload body runs on the VM as a pausable frame
+// (P4 refinement): a breakpoint inside subsasgn pauses on `obj(i) = v`.
+TEST_F(DebugSessionTest, BreakInsideClassdefSubsasgn)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({7}); // `idx = s.subs{1};` inside subsasgn
+    std::string code =
+        "classdef DbgBox\n"                   // 1
+        "  properties\n"                      // 2
+        "    store = [0 0 0]\n"              // 3
+        "  end\n"                             // 4
+        "  methods\n"                         // 5
+        "    function obj = subsasgn(obj, s, v)\n" // 6
+        "      idx = s.subs{1};\n"            // 7  <- breakpoint
+        "      obj.store(idx) = v;\n"         // 8
+        "    end\n"                           // 9
+        "  end\n"                             // 10
+        "end\n"                               // 11
+        "b = DbgBox();\n"                    // 12
+        "b(2) = 99;\n"                       // 13  '()=' dispatches to subsasgn
+        "y = b.store(2);\n";                 // 14
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "subsasgn body did not run on the VM";
+    EXPECT_EQ(session.snapshot().line, 7);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 99.0); // store(2) set
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

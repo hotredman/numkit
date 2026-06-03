@@ -403,6 +403,58 @@ const BytecodeChunk *Engine::resolveUnaryOpChunk(const std::string &op, const Va
     return cc;
 }
 
+// Defined below; forward-declared so the subsref/subsasgn resolvers (which run
+// before its definition) can marshal the substruct argument.
+static Value buildSubsStruct(const char *type, Span<const Value> subscripts,
+                             std::pmr::memory_resource *mr);
+
+const BytecodeChunk *Engine::resolveSubsrefChunk(const Value &self, Span<const Value> idx,
+                                                 std::string &ownerClassOut,
+                                                 std::vector<Value> &argsOut)
+{
+    const BuiltinClass *cls = findClass(self.objectClassName());
+    if (!cls || !cls->subsref)
+        return nullptr;
+    auto it = cls->methodFns.find("subsref");
+    if (it == cls->methodFns.end())
+        return nullptr; // builtin/native subsref (no UserFunction) → slow path
+    const BytecodeChunk *cc = ensureClassMethodChunk(*it->second);
+    if (!cc)
+        return nullptr;
+    Value s = buildSubsStruct("()", idx, resource());
+    argsOut.clear();
+    argsOut.reserve(2);
+    argsOut.push_back(self);          // subsref(obj, S)
+    argsOut.push_back(std::move(s));
+    ownerClassOut = self.objectClassName();
+    return cc;
+}
+
+const BytecodeChunk *Engine::resolveSubsasgnChunk(const Value &self, Span<const Value> idxAndVal,
+                                                  std::string &ownerClassOut,
+                                                  std::vector<Value> &argsOut)
+{
+    const BuiltinClass *cls = findClass(self.objectClassName());
+    if (!cls || !cls->subsasgn)
+        return nullptr;
+    auto it = cls->methodFns.find("subsasgn");
+    if (it == cls->methodFns.end())
+        return nullptr;
+    const BytecodeChunk *cc = ensureClassMethodChunk(*it->second);
+    if (!cc)
+        return nullptr;
+    // Hook convention: idxAndVal = [subscripts…, value] (value last).
+    const size_t nsub = idxAndVal.empty() ? 0 : idxAndVal.size() - 1;
+    Value s = buildSubsStruct("()", Span<const Value>(idxAndVal.data(), nsub), resource());
+    argsOut.clear();
+    argsOut.reserve(3);
+    argsOut.push_back(self);          // subsasgn(obj, S, val)
+    argsOut.push_back(std::move(s));
+    argsOut.push_back(nsub < idxAndVal.size() ? idxAndVal[nsub] : Value());
+    ownerClassOut = self.objectClassName();
+    return cc;
+}
+
 bool Engine::tryObjectSubsref(Value &self, Span<const Value> args, std::size_t nargout,
                               Value &out, Environment *env)
 {
