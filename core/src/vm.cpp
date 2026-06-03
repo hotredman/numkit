@@ -3022,7 +3022,7 @@ void VM::execWhos(const Instruction &I, Value *R, const BytecodeChunk &chunk)
                                           + std::to_string(d.cols());
                     if (d.is3D())
                         sizeStr += "x" + std::to_string(d.pages());
-                    std::string bytesStr = std::to_string(val.rawBytes());
+                    std::string bytesStr = std::to_string(val.deepBytes());
                     std::string classStr = mtypeName(val.type());
                     std::string attrStr;
                     if (globalSet.count(n))

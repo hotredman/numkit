@@ -2315,6 +2315,40 @@ size_t Value::rawBytes() const
     return heap_->buffer ? heap_->buffer->bytes() : 0;
 }
 
+size_t Value::deepBytes() const
+{
+    // Structs/cells have no flat buffer (rawBytes() == 0), so their reported
+    // size must be the sum of everything they contain, recursively, plus
+    // their own schema — mirroring MATLAB's whos.
+    if (isStruct()) {
+        // Field names are the struct's own metadata, stored once for the
+        // whole array.
+        size_t total = 0;
+        const auto order = fieldNamesInOrder();
+        for (const auto &nm : order)
+            total += nm.size();
+        const size_t n = numel();
+        const bool arr = isStructArray();
+        for (size_t e = 0; e < n; ++e) {
+            const auto &fm = arr ? structArrayElem(e) : structFields();
+            for (const auto &nm : order) {
+                auto it = fm.find(nm);
+                if (it != fm.end())
+                    total += it->second.deepBytes();
+            }
+        }
+        return total;
+    }
+    if (isCell()) {
+        size_t total = 0;
+        const size_t n = numel();
+        for (size_t i = 0; i < n; ++i)
+            total += cellAt(i).deepBytes();
+        return total;
+    }
+    return rawBytes();
+}
+
 const double *Value::doubleData() const
 {
     if (heap_ == nullptr)
