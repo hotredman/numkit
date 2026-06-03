@@ -3782,7 +3782,9 @@ std::string Value::formatDisplay(const std::string &name) const
                 for (size_t r = 0; r < R; ++r) {
                     os << "   ";
                     for (size_t c = 0; c < C; ++c) {
-                        size_t pad = colWidth[c] - cells[r][c].size();
+                        size_t pad = colWidth[c] > cells[r][c].size()
+                                         ? colWidth[c] - cells[r][c].size()
+                                         : 0; // guard unsigned underflow → huge pad loop
                         for (size_t i = 0; i < pad + 1; ++i) os << ' ';
                         os << cells[r][c];
                     }
@@ -3854,7 +3856,9 @@ std::string Value::formatDisplay(const std::string &name) const
             for (size_t r = 0; r < d.rows(); ++r) {
                 os << "   ";
                 for (size_t c = 0; c < d.cols(); ++c) {
-                    size_t pad = colWidth[c] - cells[r][c].size();
+                    size_t pad = colWidth[c] > cells[r][c].size()
+                                     ? colWidth[c] - cells[r][c].size()
+                                     : 0; // guard unsigned underflow → huge pad loop
                     for (size_t i = 0; i < pad + 1; ++i) os << ' ';
                     os << cells[r][c];
                 }

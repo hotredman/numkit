@@ -1583,7 +1583,14 @@ void Engine::setVariable(const std::string &name, Value val)
 }
 Value *Engine::getVariable(const std::string &name)
 {
-    // Check globalsEnv first (for global variables set by functions)
+    // NOTE (deep audit): this consults globalsEnv_ unconditionally, which leaks
+    // a function's `global G; G=5` into the base workspace (who / IDE variable
+    // viewer). The correct gate is `workspaceEnv_->isGlobal(name)`, BUT that
+    // alone breaks the legitimate case (`global gv` then read gv) because a
+    // VM top-level `global X` does not currently propagate its global-membership
+    // back into workspaceEnv_->globals_ (only globalsEnv_ gets the value). Fix
+    // requires that membership sync first; deferred to avoid regressing real
+    // global use. See FrameIntrospectionEdgesTest.GlobalInsideEvalinBase.
     Value *gs = globalsEnv_->get(name);
     if (gs && !gs->isUnset()) {
         // Sync to workspaceEnv if different
