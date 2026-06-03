@@ -77,3 +77,13 @@ Source files, related commits, related specs/tests.
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | 🔴 OPEN | unknown property silently dropped |
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | 🔴 OPEN | sgolay/lowess/loess throw |
 | [stats/isoutlier-gesd](stats/isoutlier-gesd.md) | P2 | 🔴 OPEN | 'gesd' method throws |
+| [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | 🔴 OPEN | wrong values (negative on a chirp) |
+| [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | 🔴 OPEN | matrix (column-per-group) form throws |
+| [stats/mle-output](stats/mle-output.md) | P2 | 🔴 OPEN | missing 2nd output (pci) |
+| [stats/distribution-dispatchers](stats/distribution-dispatchers.md) | P2 | 🔴 OPEN | cdf/pdf/icdf/random missing |
+| [control/lqr-hinfnorm](control/lqr-hinfnorm.md) | P2 | 🔴 OPEN | functions missing |
+| [image/watershed](image/watershed.md) | P2 | 🔴 OPEN | function missing |
+| [image/imfindcircles](image/imfindcircles.md) | P2 | 🔴 OPEN | function missing |
+| [wavelet/wpdec](wavelet/wpdec.md) | P2 | 🔴 OPEN | wavelet packets missing (needs tree type) |
+| [wavelet/wentropy-ddencmp](wavelet/wentropy-ddencmp.md) | P2 | 🔴 OPEN | functions missing (small) |
+| [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | 🔴 OPEN | bior*/rbio* families unsupported |
