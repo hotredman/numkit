@@ -1820,27 +1820,35 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
             userFuncs_.erase(name);
         }
 
-        // Read + parse + extract FUNCTION_DEF.
+        // Read + parse + extract FUNCTION_DEF. The file EXISTS (checked above),
+        // so a read/lex/parse failure is a real error in the matched m-file —
+        // surface it (with the path) instead of silently skipping to the next
+        // search dir, which would mask a syntax error as "undefined function".
+        // MATLAB likewise reports the first path-matched file's error.
+        auto loadError = [&](const std::exception &e) -> Error {
+            return Error("error loading '" + userPath + "': " + e.what(),
+                         0, 0, "", "", "numkit:mfile:loadError");
+        };
         std::string content;
         try {
             content = rp.fs->readFile(rp.path);
-        } catch (const std::exception &) {
-            continue;
+        } catch (const std::exception &e) {
+            throw loadError(e);
         }
 
         Lexer lexer(content);
         std::vector<Token> tokens;
         try {
             tokens = lexer.tokenize();
-        } catch (const std::exception &) {
-            continue;
+        } catch (const std::exception &e) {
+            throw loadError(e);
         }
         Parser parser(tokens);
         ASTNodePtr ast;
         try {
             ast = parser.parse();
-        } catch (const std::exception &) {
-            continue;
+        } catch (const std::exception &e) {
+            throw loadError(e);
         }
         if (!ast) continue;
 
