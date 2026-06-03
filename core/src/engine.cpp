@@ -531,6 +531,7 @@ struct PropInfo
     Access setAccess = Access::Public;
     std::string declClass;
     bool isConstant = false; // `Constant` → also exposed as ClassName.Prop
+    bool isDependent = false; // `properties (Dependent)` → computed via get.Prop
 };
 // Method access recorded ONLY for non-public methods (absent == public →
 // no check, no overhead). `declClass` as above.
@@ -585,6 +586,18 @@ static Access parseAccessLevel(const std::string &v)
     if (v == "immutable")
         return Access::Immutable;
     return Access::Public; // "public" + anything we don't enforce in v1
+}
+
+// Inverse of parseAccessLevel — the MATLAB attribute string for reflection
+// (metaclass / meta.property / meta.method GetAccess/SetAccess/Access).
+static const char *accessName(Access a)
+{
+    switch (a) {
+    case Access::Private:   return "private";
+    case Access::Protected: return "protected";
+    case Access::Immutable: return "immutable";
+    default:                return "public";
+    }
 }
 
 // Resolve a properties/methods block's flattened attribute tokens
@@ -725,7 +738,8 @@ void Engine::registerClassDef(const ASTNode *cd)
             // constants resolve under a subclass too).
             BlockAccess ba = parseBlockAccess(child->classAttrs);
             desc->props.push_back(
-                {child->strValue, def, ba.get, ba.set, desc->name, hasAttr(child, "Constant")});
+                {child->strValue, def, ba.get, ba.set, desc->name,
+                 hasAttr(child, "Constant"), hasAttr(child, "Dependent")});
             desc->anyNonPublicProp = desc->anyNonPublicProp || ba.any;
             if (hasAttr(child, "Hidden"))
                 desc->hiddenMembers.push_back(child->strValue);
@@ -933,6 +947,44 @@ void Engine::registerClassDef(const ASTNode *cd)
         if (std::find(cls.hidden.begin(), cls.hidden.end(), p.name) == cls.hidden.end())
             cls.propNames.push_back(p.name); // Hidden props omitted from properties()/disp
     cls.superclasses = desc->superclasses;
+    cls.isSealed = desc->isSealed;
+    cls.isAbstract = desc->isAbstract;
+    // ── Reflection metadata (metaclass / meta.property / meta.method) ──
+    // Mirrors the merged classdef member attributes into the runtime class so
+    // introspection needn't reach back into ClassDefDesc. Hidden members are
+    // omitted, matching properties()/methods().
+    {
+        auto isHidden = [&](const std::string &n) {
+            return std::find(desc->hiddenMembers.begin(), desc->hiddenMembers.end(), n)
+                   != desc->hiddenMembers.end();
+        };
+        for (const auto &p : desc->props)
+            if (!isHidden(p.name))
+                cls.propMeta.push_back({p.name, accessName(p.getAccess),
+                                        accessName(p.setAccess), p.isConstant, p.isDependent});
+        std::map<std::string, MethodMeta> mm; // dedup + deterministic order
+        for (const auto &[name, uf] : desc->methods) {
+            MethodMeta m;
+            m.name = name;
+            if (auto it = desc->methodAccess.find(name); it != desc->methodAccess.end())
+                m.access = accessName(it->second.level);
+            mm[name] = m;
+        }
+        for (const auto &[name, si] : desc->statics) {
+            MethodMeta &m = mm[name];
+            m.name = name;
+            m.isStatic = true;
+            m.access = accessName(si.access);
+        }
+        for (const auto &name : desc->abstractMethods) {
+            MethodMeta &m = mm[name];
+            m.name = name;
+            m.isAbstract = true;
+        }
+        for (auto &[name, m] : mm)
+            if (!isHidden(name))
+                cls.methodMeta.push_back(m);
+    }
     cls.propGet = [desc](const Value &self, const std::string &name, Value &out,
                          CallContext &ctx) -> bool {
         // Enforce GetAccess for restricted properties (a class with only

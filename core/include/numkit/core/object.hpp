@@ -67,6 +67,25 @@ using ObjectMethod = std::function<void(Value &self, Span<const Value> args,
                                         size_t nargout, Span<Value> outs,
                                         CallContext &ctx)>;
 
+// Per-member reflection metadata, mirrored from the classdef into the runtime
+// class so introspection (metaclass/meta.property/meta.method) can report it
+// without reaching back into the compiler-side ClassDefDesc.
+struct PropMeta
+{
+    std::string name;
+    std::string getAccess = "public";   // public | private | protected
+    std::string setAccess = "public";   // (+ immutable on the set side)
+    bool        isConstant = false;
+    bool        isDependent = false;
+};
+struct MethodMeta
+{
+    std::string name;
+    bool        isStatic = false;
+    std::string access = "public";
+    bool        isAbstract = false;
+};
+
 // ============================================================
 // BuiltinClass — one registry entry. Instances reference it by name.
 // ============================================================
@@ -74,6 +93,8 @@ struct BuiltinClass
 {
     std::string name;                       // registry key, e.g. "containers.Map"
     bool        isHandle = false;
+    bool        isSealed = false;           // classdef (Sealed) — reflection
+    bool        isAbstract = false;         // has an unimplemented Abstract member
     std::vector<std::string> superclasses;  // for isa()
 
     // Constructor: ClassName(args) -> object Value.
@@ -103,6 +124,11 @@ struct BuiltinClass
     // Members declared `Hidden` — still usable, but omitted from
     // properties() / methods() introspection listings.
     std::vector<std::string> hidden;
+    // Reflection metadata for metaclass()/meta.property/meta.method. Populated
+    // for classdef-defined classes; left empty for native builtin classes
+    // (containers.Map, …), whose introspection falls back to propNames/methods.
+    std::vector<PropMeta>   propMeta;
+    std::vector<MethodMeta> methodMeta;
     // classdef instance methods as UserFunctions (name → uf), so the VM can
     // compile + run their bodies as native frames instead of the C++ hook.
     // Absent for native builtin-class methods (containers.Map, …), which keep

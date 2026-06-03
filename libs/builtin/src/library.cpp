@@ -7,6 +7,7 @@
 
 #include <numkit/core/build_info.hpp>
 #include <numkit/core/callback_builtin.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/object.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
@@ -689,6 +690,68 @@ static void warnNotSupported(CallContext &ctx, const std::string &feature)
 {
     ctx.engine->outputText("Warning: '" + feature + "' is not yet supported.\n");
 }
+
+// ── metaclass object builders (meta.class / meta.property / meta.method) ──────
+// metaclass(x) returns a real `meta.class` object whose SuperclassList /
+// PropertyList / MethodList are arrays of meta.class / meta.property /
+// meta.method objects (so `mc.PropertyList(1).Name` works, as in MATLAB),
+// built from the reflection metadata mirrored onto BuiltinClass. Each member
+// object stores its fields in ObjectState.props, served by the shared propGet
+// registered in install(). An empty reflection list is returned as [] (rare
+// edge — `isempty`/`numel` still hold).
+namespace {
+Value metaConcat(const std::vector<Value> &v, std::pmr::memory_resource *mr)
+{
+    if (v.empty())
+        return Value::Empty;
+    return Value::objectConcatN(v.data(), v.size(), Dims{v.size(), 1}, mr);
+}
+Value buildMetaProperty(const PropMeta &p, std::pmr::memory_resource *mr)
+{
+    auto st = std::make_shared<ObjectState>(mr);
+    st->props.emplace("Name", Value::fromString(p.name, mr));
+    st->props.emplace("GetAccess", Value::fromString(p.getAccess, mr));
+    st->props.emplace("SetAccess", Value::fromString(p.setAccess, mr));
+    st->props.emplace("Constant", Value::logicalScalar(p.isConstant, mr));
+    st->props.emplace("Dependent", Value::logicalScalar(p.isDependent, mr));
+    return Value::object("meta.property", std::move(st), /*isHandle=*/false, mr);
+}
+Value buildMetaMethod(const MethodMeta &m, std::pmr::memory_resource *mr)
+{
+    auto st = std::make_shared<ObjectState>(mr);
+    st->props.emplace("Name", Value::fromString(m.name, mr));
+    st->props.emplace("Static", Value::logicalScalar(m.isStatic, mr));
+    st->props.emplace("Access", Value::fromString(m.access, mr));
+    st->props.emplace("Abstract", Value::logicalScalar(m.isAbstract, mr));
+    return Value::object("meta.method", std::move(st), /*isHandle=*/false, mr);
+}
+Value buildMetaClass(const std::string &cn, Engine &eng, std::pmr::memory_resource *mr)
+{
+    const BuiltinClass *cls = eng.findClass(cn);
+    auto st = std::make_shared<ObjectState>(mr);
+    st->props.emplace("Name", Value::fromString(cn, mr));
+    std::vector<std::string> sup = cls ? cls->superclasses : std::vector<std::string>{};
+    if (cls && cls->isHandle && std::find(sup.begin(), sup.end(), "handle") == sup.end())
+        sup.push_back("handle");
+    std::vector<Value> supObjs;
+    for (const auto &s : sup)
+        supObjs.push_back(buildMetaClass(s, eng, mr)); // recurse over ancestors (acyclic)
+    st->props.emplace("SuperclassList", metaConcat(supObjs, mr));
+    std::vector<Value> propObjs;
+    if (cls)
+        for (const auto &p : cls->propMeta)
+            propObjs.push_back(buildMetaProperty(p, mr));
+    st->props.emplace("PropertyList", metaConcat(propObjs, mr));
+    std::vector<Value> methObjs;
+    if (cls)
+        for (const auto &m : cls->methodMeta)
+            methObjs.push_back(buildMetaMethod(m, mr));
+    st->props.emplace("MethodList", metaConcat(methObjs, mr));
+    st->props.emplace("Sealed", Value::logicalScalar(cls && cls->isSealed, mr));
+    st->props.emplace("Abstract", Value::logicalScalar(cls && cls->isAbstract, mr));
+    return Value::object("meta.class", std::move(st), /*isHandle=*/false, mr);
+}
+} // namespace
 
 void BuiltinLibrary::install(Engine &engine)
 {
@@ -2346,18 +2409,13 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             outs[0] = c;
         });
 
-    // ── meta.class + metaclass(x) (lightweight class introspection) ──
-    // metaclass(x) returns a `meta.class` object exposing Name, SuperclassList,
-    // PropertyList, MethodList (cellstr of names). v1 omits MATLAB's
-    // Sealed/Abstract/Hidden flags (kept on the internal ClassDefDesc, not the
-    // runtime BuiltinClass) and the nested meta.property/meta.method arrays —
-    // the cellstr lists cover the common `mc.Name` / `mc.PropertyList` uses.
+    // ── meta.class / meta.property / meta.method + metaclass(x) ──
+    // Real reflection objects: metaclass(x).PropertyList(i).Name etc. work as in
+    // MATLAB. All three share a propGet that serves the fields stashed in the
+    // instance's ObjectState by the buildMeta* helpers above.
     {
-        BuiltinClass metaCls;
-        metaCls.name = "meta.class";
-        metaCls.propNames = {"Name", "SuperclassList", "PropertyList", "MethodList"};
-        metaCls.propGet = [](const Value &self, const std::string &name, Value &out,
-                             CallContext &) -> bool {
+        auto metaPropGet = [](const Value &self, const std::string &name, Value &out,
+                              CallContext &) -> bool {
             const ObjectState *st = self.objectStateConst();
             auto it = st->props.find(name);
             if (it == st->props.end())
@@ -2365,7 +2423,24 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             out = it->second;
             return true;
         };
-        engine.registerClass(std::move(metaCls));
+        BuiltinClass mp;
+        mp.name = "meta.property";
+        mp.propNames = {"Name", "GetAccess", "SetAccess", "Constant", "Dependent"};
+        mp.propGet = metaPropGet;
+        engine.registerClass(std::move(mp));
+
+        BuiltinClass mm;
+        mm.name = "meta.method";
+        mm.propNames = {"Name", "Static", "Access", "Abstract"};
+        mm.propGet = metaPropGet;
+        engine.registerClass(std::move(mm));
+
+        BuiltinClass mc;
+        mc.name = "meta.class";
+        mc.propNames = {"Name", "SuperclassList", "PropertyList", "MethodList",
+                        "Sealed", "Abstract"};
+        mc.propGet = metaPropGet;
+        engine.registerClass(std::move(mc));
     }
     engine.registerFunction(
         "metaclass", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
@@ -2384,35 +2459,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             } else {
                 cn = mtypeName(args[0].type());
             }
-            const BuiltinClass *cls = ctx.engine->findClass(cn);
-            auto toCell = [&](const std::vector<std::string> &v) {
-                Value c = Value::cell(v.size(), 1, mr);
-                for (size_t i = 0; i < v.size(); ++i)
-                    c.cellAt(i) = Value::fromString(v[i], mr);
-                return c;
-            };
-            std::vector<std::string> sup, props, meth;
-            if (cls) {
-                sup = cls->superclasses;
-                if (cls->isHandle
-                    && std::find(sup.begin(), sup.end(), "handle") == sup.end())
-                    sup.push_back("handle");
-                for (const auto &p : cls->propNames)
-                    if (std::find(cls->hidden.begin(), cls->hidden.end(), p)
-                        == cls->hidden.end())
-                        props.push_back(p);
-                for (const auto &kv : cls->methods)
-                    if (std::find(cls->hidden.begin(), cls->hidden.end(), kv.first)
-                        == cls->hidden.end())
-                        meth.push_back(kv.first);
-                std::sort(meth.begin(), meth.end());
-            }
-            auto state = std::make_shared<ObjectState>(mr);
-            state->props.emplace("Name", Value::fromString(cn, mr));
-            state->props.emplace("SuperclassList", toCell(sup));
-            state->props.emplace("PropertyList", toCell(props));
-            state->props.emplace("MethodList", toCell(meth));
-            outs[0] = Value::object("meta.class", std::move(state), /*isHandle=*/false, mr);
+            outs[0] = buildMetaClass(cn, *ctx.engine, mr);
         });
 
     // ── tic ────────────────────────────────────────────────────

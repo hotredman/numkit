@@ -3684,8 +3684,9 @@ const BytecodeChunk *Compiler::ensureClassMethodCompiled(const UserFunction &uf)
             + "' needs more than the 255-register VM limit in one chunk — split it "
             "into smaller helper methods/functions");
     } catch (const std::exception &) {
-        // e.g. a super-call (SUPERCLASS_REF) the VM compiler doesn't handle
-        // until P2 — fall back to running this method body on the TreeWalker.
+        // A construct the VM compiler cannot yet lower → fall back to running
+        // this method body on the TreeWalker. (Super-calls DO compile now — P2;
+        // RegisterExhaustionError is handled loudly above, not here.)
         uncompilableClassMethods_.insert(uf.name);
         return nullptr;
     }
