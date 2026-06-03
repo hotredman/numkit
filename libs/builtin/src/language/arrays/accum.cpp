@@ -226,7 +226,10 @@ namespace detail {
 
 namespace {
 
-AccumReducer parseReducerFromHandle(const Value &h)
+// Returns true and sets `op` for a built-in reducer handle (fast streaming
+// path); returns false for any other named/anonymous handle, which routes to
+// accumarrayGeneral (group + call the handle per cell).
+bool tryParseReducer(const Value &h, AccumReducer &op)
 {
     if (!h.isFuncHandle())
         throw Error("accumarray: fn argument must be a function handle",
@@ -234,16 +237,76 @@ AccumReducer parseReducerFromHandle(const Value &h)
     std::string s = h.funcHandleName();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return std::tolower(c); });
-    if (s == "sum")  return AccumReducer::Sum;
-    if (s == "max")  return AccumReducer::Max;
-    if (s == "min")  return AccumReducer::Min;
-    if (s == "prod") return AccumReducer::Prod;
-    if (s == "mean") return AccumReducer::Mean;
-    if (s == "any")  return AccumReducer::Any;
-    if (s == "all")  return AccumReducer::All;
-    throw Error("accumarray: unsupported function handle '@" + s
-                 + "' (built-in reducers: @sum/@max/@min/@prod/@mean/@any/@all)",
-                 0, 0, "accumarray", "", "numkit:accumarray:fnUnsupported");
+    if (s == "sum")  { op = AccumReducer::Sum;  return true; }
+    if (s == "max")  { op = AccumReducer::Max;  return true; }
+    if (s == "min")  { op = AccumReducer::Min;  return true; }
+    if (s == "prod") { op = AccumReducer::Prod; return true; }
+    if (s == "mean") { op = AccumReducer::Mean; return true; }
+    if (s == "any")  { op = AccumReducer::Any;  return true; }
+    if (s == "all")  { op = AccumReducer::All;  return true; }
+    return false;
+}
+
+// General accumarray: apply an arbitrary function handle (named or anonymous)
+// to the COLUMN vector of values gathered in each output cell. Empty cells get
+// fillVal. MATLAB requires the handle to return a scalar per cell.
+Value accumarrayGeneral(const Value &subs, const Value &vals,
+                        Span<const size_t> outShape, const Value &handle,
+                        double fillVal, CallContext &ctx,
+                        std::pmr::memory_resource *mr)
+{
+    const char *fn = "accumarray";
+    if (subs.type() != ValueType::DOUBLE)
+        throw Error("accumarray: subs must be DOUBLE", 0, 0, fn, "", "numkit:accumarray:subType");
+    if (vals.type() != ValueType::DOUBLE)
+        throw Error("accumarray: vals must be DOUBLE", 0, 0, fn, "", "numkit:accumarray:valType");
+    const auto &sd = subs.dims();
+    if (sd.ndim() > 2)
+        throw Error("accumarray: subs must be a 2D matrix", 0, 0, fn, "", "numkit:accumarray:subND");
+    const size_t N = sd.rows();
+    const size_t D = (sd.ndim() <= 1 || sd.cols() == 0) ? 1 : sd.cols();
+    const bool valIsScalar = vals.isScalar();
+    if (!valIsScalar && vals.numel() != N)
+        throw Error("accumarray: vals must be a scalar or a length-N vector",
+                     0, 0, fn, "", "numkit:accumarray:valSize");
+
+    ScratchArena scratch(mr);
+    auto shape = resolveOutShape(subs, outShape.data(), outShape.size(), fn, &scratch);
+    if (shape.size() < D) shape.resize(D, 1);
+    Value out = allocOutput(shape.data(), shape.size(), mr);
+    const size_t total = out.numel();
+    double *dst = out.doubleDataMut();
+    if (total == 0) return out;
+
+    // Group the contributions per output cell, CSR-style (O(N)). Values keep
+    // their original row order within a cell.
+    auto lins = ScratchVec<size_t>(N, &scratch);
+    auto cnt  = ScratchVec<size_t>(total, 0, &scratch);
+    for (size_t r = 0; r < N; ++r) {
+        lins[r] = linearIndexFromSubs(subs, r, N, D, shape.data(), fn);
+        ++cnt[lins[r]];
+    }
+    auto off = ScratchVec<size_t>(total + 1, 0, &scratch);
+    for (size_t i = 0; i < total; ++i) off[i + 1] = off[i] + cnt[i];
+    auto ordered = ScratchVec<double>(N, &scratch);
+    auto cur = ScratchVec<size_t>(total, 0, &scratch);
+    for (size_t r = 0; r < N; ++r) {
+        const size_t c = lins[r];
+        ordered[off[c] + cur[c]++] = readVal(vals, r, valIsScalar);
+    }
+
+    for (size_t i = 0; i < total; ++i) {
+        if (cnt[i] == 0) { dst[i] = fillVal; continue; }
+        const size_t len = cnt[i];
+        Value g = Value::matrix(len, 1, ValueType::DOUBLE, mr);
+        std::copy(ordered.begin() + off[i], ordered.begin() + off[i] + len,
+                  g.doubleDataMut());
+        Value callArgs[1] = { std::move(g) };
+        Value res = ctx.engine->callFunctionHandle(handle,
+                                                   Span<const Value>(callArgs, 1));
+        dst[i] = res.toScalar();
+    }
+    return out;
 }
 
 ScratchVec<size_t> parseSizeArg(const Value &sz, std::pmr::memory_resource *mr)
@@ -285,8 +348,10 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
         shape = parseSizeArg(args[2], &scratch);
 
     AccumReducer op = AccumReducer::Sum;
-    if (args.size() >= 4 && !args[3].isEmpty())
-        op = parseReducerFromHandle(args[3]);
+    const Value *customFn = nullptr;
+    if (args.size() >= 4 && !args[3].isEmpty()) {
+        if (!tryParseReducer(args[3], op)) customFn = &args[3];
+    }
 
     double fillVal = 0.0;
     if (args.size() >= 5 && !args[4].isEmpty()) {
@@ -304,7 +369,10 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
                          0, 0, "accumarray", "", "numkit:accumarray:sparse");
     }
 
-    outs[0] = accumarray(args[0], args[1], Span<const size_t>(shape.data(), shape.size()), op, fillVal, mr);
+    Span<const size_t> shapeSpan(shape.data(), shape.size());
+    outs[0] = customFn
+        ? accumarrayGeneral(args[0], args[1], shapeSpan, *customFn, fillVal, ctx, mr)
+        : accumarray(args[0], args[1], shapeSpan, op, fillVal, mr);
 }
 
 } // namespace detail
