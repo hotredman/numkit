@@ -83,6 +83,25 @@ Value inpolygon(const Value &xq, const Value &yq, const Value &xv,
 Value convhull(const Value &x, const Value &y,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Boundary of a 2-D point set — `k = boundary(x, y, shrink)`.
+///
+/// Alpha-shape-style boundary: brute-force Delaunay, drop triangles whose
+/// longest edge exceeds the `(1 - shrink)` quantile, then trace the
+/// remaining boundary edges into a closed polygon (1-based indices, first
+/// repeated last). `shrink == 0` (or fewer than 4 points, or a degenerate
+/// triangulation) falls back to the convex hull.
+///
+/// @param x,y     Point coordinates (same numel).
+/// @param shrink  Tightness in `[0, 1]` (clamped); `0` = convex hull, `1` =
+///                tightest. Default `0.5` (MATLAB). NOTE: the script form
+///                `boundary(x, y)` currently defaults to `0` (convex hull) —
+///                a pre-existing engine-default gap, separate from this API.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Column of 1-based boundary-vertex indices (first repeated).
+/// @throws Error on x/y numel mismatch.
+Value boundary(const Value &x, const Value &y, double shrink = 0.5,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Match-pairs result.
 struct MatchpairsResult {
     Value M;   ///< `p × 2` matrix of `(row, col)` 1-based match pairs.

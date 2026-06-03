@@ -85,3 +85,20 @@ TEST(GeomPublicApiTest, Convhull)
     // shape mismatch throws
     EXPECT_ANY_THROW(builtin::convhull(x, var(e, "[0 0 1]", "yb2"), e.resource()));
 }
+
+TEST(GeomPublicApiTest, Boundary)
+{
+    Engine e;
+    Value x = var(e, "[0 1 1 0 0.5]", "x"); // square corners + interior point
+    Value y = var(e, "[0 0 1 1 0.5]", "y");
+    // shrink == 0 -> convex hull
+    Value b0 = builtin::boundary(x, y, 0.0, e.resource());
+    Value k = builtin::convhull(x, y, e.resource());
+    EXPECT_EQ(b0.numel(), k.numel());
+    // shrink > 0 -> closed polygon (first index repeated at the end)
+    Value b = builtin::boundary(x, y, 1.0, e.resource());
+    ASSERT_GE(b.numel(), 2u);
+    EXPECT_DOUBLE_EQ(b.doubleData()[0], b.doubleData()[b.numel() - 1]);
+    // shape mismatch throws
+    EXPECT_ANY_THROW(builtin::boundary(x, var(e, "[0 0 1]", "yb3"), 0.5, e.resource()));
+}
