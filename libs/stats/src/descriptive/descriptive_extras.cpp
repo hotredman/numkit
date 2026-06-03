@@ -2080,6 +2080,34 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &functio
 struct KsdensityFull;
 KsdensityFull ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::string &kernel_name, const std::string &function_mode, size_t numpoints, const Value *weights, std::pmr::memory_resource *mr);
 
+// ── filloutliers (public typed entry; see descriptive.hpp) ────────────
+// Typed front over filloutliers_of covering the median / mean / quartiles
+// find-methods. 'percentiles' (needs a [lo hi] pair) and the deferred
+// grubbs/gesd/movmedian/movmean methods stay script-only via the adapter.
+Value filloutliers(const Value &A, const Value &fillMethod,
+                   const std::string &findMethod, double thresholdFactor,
+                   std::pmr::memory_resource *mr)
+{
+    std::string detect = findMethod;
+    for (char &ch : detect)
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    if (detect != "median" && detect != "mean" && detect != "quartiles")
+        throw Error("filloutliers: findMethod must be 'median', 'mean', or "
+                    "'quartiles' for the C++ API ('percentiles' and "
+                    "grubbs/gesd/movmedian/movmean are script-only / deferred)",
+                    0, 0, "filloutliers", "", "numkit:filloutliers:findmethod");
+    // Per-method default threshold when thresholdFactor is NaN (matches the
+    // adapter): median/mean default 3; quartiles internal 3.0 (= MATLAB k=1.5).
+    // A user-supplied factor for quartiles is the IQR multiplier k; the
+    // internal formula uses 0.5·tf·IQR, so scale by 2.
+    double tf;
+    if (std::isnan(thresholdFactor))
+        tf = 3.0;
+    else
+        tf = (detect == "quartiles") ? 2.0 * thresholdFactor : thresholdFactor;
+    return filloutliers_of(A, fillMethod, detect, tf, 0.0, 0.0, mr);
+}
+
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 

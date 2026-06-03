@@ -719,4 +719,30 @@ struct Grp2idxResult {
 /// @throws Error if `s` is empty (no argument).
 Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Replace outliers (`B = filloutliers(A, fillMethod, findMethod, tf)`).
+///
+/// Detects outliers in `A` by `findMethod` and replaces them per
+/// `fillMethod`, returning the filled array. `fillMethod` is a numeric
+/// scalar (constant fill) or a string (`"center"`, `"clip"`, `"previous"`,
+/// `"next"`, `"nearest"`, `"linear"`, …, per the underlying engine). This
+/// C++ entry covers the `"median"` (default), `"mean"`, and `"quartiles"`
+/// find-methods; `"percentiles"` (needs a `[lo hi]` pair) and the
+/// `grubbs`/`gesd`/`movmedian`/`movmean` methods remain script-only.
+///
+/// @param A                Input vector / matrix (column-wise).
+/// @param fillMethod       Fill rule (numeric scalar or method string).
+/// @param findMethod       `"median"` (default), `"mean"`, or `"quartiles"`.
+/// @param thresholdFactor  Detection threshold; `NaN` (default) → the
+///                         per-method default (3 for median/mean; the
+///                         MATLAB `1.5·IQR` for quartiles). For quartiles a
+///                         finite value is the IQR multiplier `k`.
+/// @param mr               Memory resource (nullptr → process default).
+/// @return                 Array with outliers filled.
+/// @throws Error if `findMethod` is unsupported by this C++ entry.
+/// @see isoutlier
+Value filloutliers(const Value &A, const Value &fillMethod,
+                   const std::string &findMethod = "median",
+                   double thresholdFactor = std::numeric_limits<double>::quiet_NaN(),
+                   std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats
