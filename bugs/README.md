@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (57 entries):** ✅ 10 fixed · 🔴 47 open = **21 bug** + 6 stub +
+**Tally (58 entries):** ✅ 10 fixed · 🔴 48 open = **22 bug** + 6 stub +
 6 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -146,6 +146,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(x,k[,'first'/'last']) ignores count + direction → all indices |
 | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv don't broadcast ARRAY parameters (mu/sigma/n/a/b/df) |
 | [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff silently drops the imaginary part on complex input |
+| [builtin/acos-asin-complex](builtin/acos-asin-complex.md) | P2 | acos/asin return NaN for \|x\|>1 instead of a complex value |
 | [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod throw on complex input |
 | [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | conv/filter/trapz/cumtrapz/gradient/movmean/detrend/interp1/median reject complex |
 | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm of a complex array throws (vecnorm works) |
