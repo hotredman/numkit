@@ -84,6 +84,11 @@ Production coverage (all both-engine tested):
   factory — enforced at the user-facing `ClassName(args)` sites via
   `constructChecked`, while internal default-fill during object-array growth
   bypasses the check so preallocation never breaks).
+- **Custom indexing**: a class-defined `subsref` / `subsasgn` method overrides
+  `obj(...)` read / assignment. The method takes MATLAB's substruct form
+  (`subsref(obj, S)` with `S.type`/`S.subs`; `subsasgn(obj, S, val)`); the
+  paren-index hooks build `S` (type `"()"`) from the subscripts. `.`/`{}`
+  keep their default property / cell-content semantics.
 - **Custom display**: a class-defined `display` method owns the whole output
   for `obj` (no semicolon); a `disp` method owns the body (the default
   `name =` header is added around it). Both backends route implicit display
