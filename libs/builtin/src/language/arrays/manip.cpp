@@ -311,6 +311,29 @@ Value flipNDAlongAxis(const Value &x, int axis, const char *fn, std::pmr::memory
 {
     const ValueType t = x.type();
     if (isCellOrString(t)) return flipCellStr(x, axis, fn, mr);
+    if (x.isObject()) {
+        // Reverse the `axis` dimension via an index map → objectGather.
+        const auto &d = x.dims();
+        const int nd = d.ndim();
+        const size_t flipDim = (axis < nd) ? d.dim(axis) : 1;
+        const size_t total = d.numel();
+        std::vector<size_t> map(total);
+        if (flipDim <= 1) {
+            for (size_t i = 0; i < total; ++i) map[i] = i;
+        } else {
+            size_t B = 1;
+            for (int i = 0; i < axis; ++i) B *= d.dim(i);
+            size_t O = 1;
+            for (int i = axis + 1; i < nd; ++i) O *= d.dim(i);
+            for (size_t o = 0; o < O; ++o) {
+                const size_t outerBase = o * flipDim * B;
+                for (size_t i = 0; i < flipDim; ++i)
+                    for (size_t b = 0; b < B; ++b)
+                        map[outerBase + i * B + b] = outerBase + (flipDim - 1 - i) * B + b;
+            }
+        }
+        return x.objectGather(map.data(), d, mr);
+    }
     if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
         throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
@@ -360,15 +383,7 @@ Value fliplr(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     if (isCellOrString(x.type())) return flipCellStr(x, 1, "fliplr", mr);
-    if (x.isObject() && dd.ndim() <= 3) {
-        const size_t R = dd.rows(), C = dd.cols(), P = dd.is3D() ? dd.pages() : 1;
-        std::vector<size_t> map(R * C * P);
-        for (size_t pp = 0; pp < P; ++pp)
-            for (size_t c = 0; c < C; ++c)
-                for (size_t r = 0; r < R; ++r)
-                    map[pp * R * C + c * R + r] = pp * R * C + (C - 1 - c) * R + r;
-        return x.objectGather(map.data(), dd, mr);
-    }
+    if (x.isObject()) return flipNDAlongAxis(x, 1, "fliplr", mr); // flip dim 2
     if (dd.ndim() >= 4) return flipNDAlongAxis(x, 1, "fliplr", mr);
 
     // POD types (DOUBLE/CHAR/LOGICAL/COMPLEX/single/int) copy raw bytes — flip
@@ -397,15 +412,7 @@ Value flipud(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &dd = x.dims();
     if (isCellOrString(x.type())) return flipCellStr(x, 0, "flipud", mr);
-    if (x.isObject() && dd.ndim() <= 3) {
-        const size_t R = dd.rows(), C = dd.cols(), P = dd.is3D() ? dd.pages() : 1;
-        std::vector<size_t> map(R * C * P);
-        for (size_t pp = 0; pp < P; ++pp)
-            for (size_t c = 0; c < C; ++c)
-                for (size_t r = 0; r < R; ++r)
-                    map[pp * R * C + c * R + r] = pp * R * C + c * R + (R - 1 - r);
-        return x.objectGather(map.data(), dd, mr);
-    }
+    if (x.isObject()) return flipNDAlongAxis(x, 0, "flipud", mr); // flip dim 1
     if (dd.ndim() >= 4) return flipNDAlongAxis(x, 0, "flipud", mr);
 
     // POD types copy raw bytes — type-preserving (cell/string handled above).
@@ -546,6 +553,25 @@ Value rot90(const Value &x, int k, std::pmr::memory_resource *mr)
     const auto &dd = x.dims();
     const int nd = dd.ndim();
     const size_t R = dd.rows(), C = dd.cols();
+
+    // OBJECT (2-D): rotate via the same index map as rot90CellStr (each
+    // assignment is result[outIdx] = src[srcIdx]) → objectGather.
+    if (x.isObject() && nd < 4) {
+        std::vector<size_t> map(R * C);
+        Dims outD = (kMod == 1 || kMod == 3) ? Dims(C, R) : Dims(R, C);
+        for (size_t c = 0; c < C; ++c)
+            for (size_t rr = 0; rr < R; ++rr) {
+                if (kMod == 0)
+                    map[c * R + rr] = c * R + rr;
+                else if (kMod == 2)
+                    map[c * R + rr] = (C - 1 - c) * R + (R - 1 - rr);
+                else if (kMod == 1)
+                    map[(C - 1 - c) + rr * C] = c * R + rr;
+                else
+                    map[c + (R - 1 - rr) * C] = c * R + rr;
+            }
+        return x.objectGather(map.data(), outD, mr);
+    }
 
     // ND fallback (rank ≥ 4): rotate every (R×C) slice indexed by axes
     // 2..N-1. Output rank matches input; axes 0 and 1 swap for kMod 1/3.
@@ -756,6 +782,25 @@ Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_r
     for (int i = 0; i < nd; ++i) {
         const int64_t s = (i < nshifts) ? shifts[i] : 0;
         shiftMod[i] = wrap(s, d.dim(i));
+    }
+
+    // OBJECT: build the per-element shifted source map → objectGather.
+    if (x.isObject()) {
+        size_t strides[kMaxNd];
+        computeStridesColMajor(d, strides);
+        const size_t total = d.numel();
+        std::vector<size_t> map(total);
+        for (size_t dstLin = 0; dstLin < total; ++dstLin) {
+            size_t rem = dstLin, srcLin = 0;
+            for (int i = nd - 1; i >= 0; --i) {
+                const size_t coord = rem / strides[i];
+                rem -= coord * strides[i];
+                const size_t srcCoord = (coord + d.dim(i) - shiftMod[i]) % d.dim(i);
+                srcLin += srcCoord * strides[i];
+            }
+            map[dstLin] = srcLin;
+        }
+        return x.objectGather(map.data(), d, mr);
     }
 
     // CELL permutes element-by-element (Value copy); POD types copy raw

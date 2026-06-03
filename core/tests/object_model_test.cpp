@@ -673,6 +673,35 @@ TEST_P(ObjectArrayTest, Flipud)
     EXPECT_DOUBLE_EQ(evalScalar("d(1).v"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("d(3).v"), 1.0);
 }
+TEST_P(ObjectArrayTest, Rot90)
+{
+    // rot90([1 2;3 4]) → [2 4; 1 3].
+    engine.eval("a=[Box(1) Box(2); Box(3) Box(4)]; b=rot90(a);");
+    EXPECT_DOUBLE_EQ(evalScalar("b(1,1).v"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(2,1).v"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1,2).v"), 4.0);
+}
+TEST_P(ObjectArrayTest, Circshift)
+{
+    // circshift([1 2;3 4],1) shifts rows down → [3 4; 1 2].
+    engine.eval("a=[Box(1) Box(2); Box(3) Box(4)]; b=circshift(a,1);");
+    EXPECT_DOUBLE_EQ(evalScalar("b(1,1).v"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(2,1).v"), 1.0);
+}
+TEST_P(ObjectArrayTest, Permute)
+{
+    // permute([1 2;3 4],[2 1]) = transpose → [1 3; 2 4].
+    engine.eval("a=[Box(1) Box(2); Box(3) Box(4)]; b=permute(a,[2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("b(1,2).v"), 3.0); // b(1,2)=a(2,1)=3
+    EXPECT_DOUBLE_EQ(evalScalar("b(2,1).v"), 2.0); // b(2,1)=a(1,2)=2
+}
+TEST_P(ObjectArrayTest, FlipDim)
+{
+    // flip(a,2) reverses columns → [2 1; 4 3].
+    engine.eval("a=[Box(1) Box(2); Box(3) Box(4)]; b=flip(a,2);");
+    EXPECT_DOUBLE_EQ(evalScalar("b(1,1).v"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1,2).v"), 1.0);
+}
 TEST_P(ObjectArrayTest, Cat3)
 {
     engine.eval("f = cat(3, [Box(1) Box(2)], [Box(3) Box(4)]);");
