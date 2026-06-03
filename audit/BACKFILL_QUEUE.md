@@ -22,6 +22,11 @@ continues for new functions only.)_
 
 ## Closed
 
+> Verified 2026-06-03: every gtest TU + smoke `.m` listed below **exists,
+> is wired into `libs/<ns>/tests/CMakeLists.txt`, and passes** under
+> `numkit_gtest` (full suite green). The "PENDING" in the commit column is
+> a never-filled placeholder, not missing work — the artefacts are present.
+
 | Function | Closed in commit | gtest TU | smoke .m |
 |---|---|---|---|
 | `wrev` | PENDING | libs/wavelet/tests/wrev_test.cpp | libs/wavelet/tests/smoke/wrev_smoke.m |

@@ -1439,3 +1439,28 @@ access `.Neighborhood` field, not the struct itself.
   visibility but not actioned by this cycle.
 - P3 perf gaps surfaced by bulk-bench are documented here too (see #9).
   They are not regressions; they're SIMD-optimization candidates.
+
+---
+
+## Resolution sweep — 2026-06-03
+
+Re-verified the still-"open"-looking entries against the current build;
+several were fixed earlier without their headers being updated.
+
+- **#41 `interp2` array-query / shape-mismatch — FIXED.** `InterpTest.Interp2ArrayQuery`
+  and `InterpTest.Interp2QueryShapeMismatchThrows` are green.
+- **#42 `quantile` linear interpolation — FIXED.** `TW_VM/StatsTest.QuantileLinearInterp`
+  green on both engines.
+- **#42a `iqr` default — FIXED.** `MovingTest.IqrUniformVector` green (followed #42).
+- **#43 `imshow` RGB image-type tag — FIXED.** `ImshowTest.RGBPathSetsImageRgbType` green.
+- **#40 matrix `A^k` bad shape — RESOLVED (no longer silent).** `A^2` on a
+  rectangular matrix and `B^1.5` (square, non-integer) now THROW
+  ("Matrix power not implemented") instead of returning a silent wrong
+  result; `ArithBatchTest.MatrixPower` green. The remaining piece —
+  square-matrix ^ non-integer via eigendecomposition — is a deferred
+  FEATURE (matrix functions backlog), not the silent-corruption bug.
+- **#9 scalar trig/hyperbolic SIMD — largely DONE.** sin/cos/tan/sinh/cosh/
+  tanh/asin/acos/atan/atan2/sinpi/cospi/exp/log/log2/log10/log1p/sqrt all
+  run through Highway loops; `tan` got a dedicated `xtan` kernel 2026-06.
+- **#46 `morph_smoke.m` strel-as-scalar — FIXED 2026-06-03.** Smoke now uses
+  `SE.Neighborhood` instead of `double(SE)`; runs end-to-end.
