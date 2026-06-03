@@ -6,9 +6,11 @@
 #include <numkit/builtin/math/random/rng.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
 #include <numkit/signal/transforms/fft.hpp>
+#include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/vm.hpp>
 
 #include <cctype>
 
@@ -4314,6 +4316,105 @@ void roifilt2_reg(Span<const Value> args, std::size_t /*nargout*/,
     outs[0] = roifilt2(args[0], args[1], args[2], mr);
 }
 
+// State-machine nlfilter (VM_CALLBACKS_PLAN.md): apply a user-code kernel to
+// each sliding window as a pausable VM frame. Mirrors nlfilter_reg's parsing and
+// nlfilter()'s padding / windowing / column-major output. Builtin handles,
+// 'indexed'/rank/arg errors fall back to the synchronous nlfilter_reg.
+struct NlfilterCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.size() < 3 || nargout > 1)
+            return nullptr;
+        bool indexed = false;
+        std::size_t k = 1;
+        if (args[1].isChar() || args[1].isString()) {
+            std::string s = args[1].toString();
+            for (auto &c : s)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (s != "indexed")
+                return nullptr;
+            indexed = true;
+            k = 2;
+        }
+        if (k + 1 >= args.size())
+            return nullptr;
+        const Value &nh = args[k];
+        const Value &fn = args[k + 1];
+        if (!eng.isUserCodeHandle(fn))
+            return nullptr; // builtin handle → synchronous nlfilter
+        if (nh.numel() != 2)
+            return nullptr;
+        const Value &A = args[0];
+        const auto &dA = A.dims();
+        if (dA.is3D())
+            return nullptr;
+        const std::size_t m = static_cast<std::size_t>(nh.elemAsDouble(0));
+        const std::size_t n = static_cast<std::size_t>(nh.elemAsDouble(1));
+        if (m < 1 || n < 1)
+            return nullptr;
+        const std::size_t H = dA.rows(), W = dA.cols();
+        const ValueType inT = A.type();
+        double padval = 0.0;
+        if (indexed)
+            padval = (inT == ValueType::DOUBLE || inT == ValueType::SINGLE) ? 1.0 : 0.0;
+        const std::size_t pad_top = (m - 1) / 2, pad_left = (n - 1) / 2;
+        const std::size_t Hpad = H + m - 1;
+        auto aa = std::make_shared<std::vector<double>>((H + m - 1) * (W + n - 1), padval);
+        for (std::size_t j = 0; j < W; ++j)
+            for (std::size_t i = 0; i < H; ++i)
+                (*aa)[(j + pad_left) * Hpad + (i + pad_top)] = A.elemAsDouble(j * H + i);
+        auto *mr = eng.resource();
+        auto cont = std::make_shared<LoopContinuation>();
+        cont->handle = fn;
+        cont->n = H * W;
+        cont->dest = dest;
+        cont->makeArgs = [aa, H, W, m, n, Hpad, mr](std::size_t kk) -> std::vector<Value> {
+            const std::size_t i = kk / W, j = kk % W; // row-major, matching nlfilter()
+            Value window = Value::matrix(m, n, ValueType::DOUBLE, mr);
+            double *wd = window.doubleDataMut();
+            for (std::size_t c = 0; c < n; ++c)
+                for (std::size_t r = 0; r < m; ++r)
+                    wd[c * m + r] = (*aa)[(j + c) * Hpad + (i + r)];
+            return {std::move(window)};
+        };
+        cont->pack = [H, W, mr](std::vector<Value> &results) -> Value {
+            if (results.empty())
+                return Value::matrix(H, W, ValueType::DOUBLE, mr);
+            const ValueType outT = results[0].type();
+            Value B = Value::matrix(H, W, outT, mr);
+            for (std::size_t kk = 0; kk < results.size(); ++kk) {
+                const Value &v = results[kk];
+                if (v.numel() != 1)
+                    throw Error("nlfilter: fun must return a scalar", 0, 0, "nlfilter", "",
+                                "numkit:nlfilter:funScalar");
+                const std::size_t idx = (kk % W) * H + (kk / W); // column-major output
+                const double d = v.toScalar();
+                switch (outT) {
+                    case ValueType::DOUBLE:  B.doubleDataMut()[idx]  = d; break;
+                    case ValueType::SINGLE:  B.singleDataMut()[idx]  = static_cast<float>(d); break;
+                    case ValueType::UINT8:   B.uint8DataMut()[idx]   = static_cast<uint8_t>(d); break;
+                    case ValueType::UINT16:  B.uint16DataMut()[idx]  = static_cast<uint16_t>(d); break;
+                    case ValueType::UINT32:  B.uint32DataMut()[idx]  = static_cast<uint32_t>(d); break;
+                    case ValueType::UINT64:  B.uint64DataMut()[idx]  = static_cast<uint64_t>(d); break;
+                    case ValueType::INT8:    B.int8DataMut()[idx]    = static_cast<int8_t>(d); break;
+                    case ValueType::INT16:   B.int16DataMut()[idx]   = static_cast<int16_t>(d); break;
+                    case ValueType::INT32:   B.int32DataMut()[idx]   = static_cast<int32_t>(d); break;
+                    case ValueType::INT64:   B.int64DataMut()[idx]   = static_cast<int64_t>(d); break;
+                    case ValueType::LOGICAL: B.logicalDataMut()[idx] = d != 0.0 ? 1 : 0; break;
+                    default:
+                        throw Error("nlfilter: unsupported fun output class", 0, 0, "nlfilter", "",
+                                    "numkit:nlfilter:outCls");
+                }
+            }
+            return B;
+        };
+        cont->results.reserve(cont->n);
+        return cont;
+    }
+};
+
 void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
 {
@@ -4619,4 +4720,11 @@ void imguidedfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
 }
 
 } // namespace detail
+
+void registerNlfilterCallbackBuiltin(Engine &engine)
+{
+    engine.registerCallbackBuiltin("nlfilter",
+                                   std::make_shared<detail::NlfilterCallbackBuiltin>());
+}
+
 } // namespace numkit::image

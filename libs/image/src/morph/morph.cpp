@@ -4,9 +4,11 @@
 
 #include <numkit/signal/convolution/convolution.hpp>
 
+#include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/vm.hpp>
 
 #include <algorithm>
 #include <array>
@@ -1730,6 +1732,52 @@ void bwlookup_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = bwlookup(args[0], args[1], ctx.engine->resource());
 }
 
+// State-machine makelut (VM_CALLBACKS_PLAN.md): evaluate a user-code handle on
+// every n×n binary neighbourhood as a pausable VM frame (mirrors makelut()).
+// Builtin handles / bad N fall back to the synchronous makelut_reg.
+struct MakelutCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.size() < 2 || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr; // builtin handle → synchronous makelut
+        const int n = static_cast<int>(args[1].toScalar());
+        if (n != 2 && n != 3)
+            return nullptr; // sync path reports badN
+        const int nq = n * n;
+        const std::size_t N = std::size_t{1} << nq;
+        auto *mr = eng.resource();
+        auto cont = std::make_shared<LoopContinuation>();
+        cont->handle = args[0];
+        cont->n = N;
+        cont->dest = dest;
+        cont->makeArgs = [n, nq, mr](std::size_t k) -> std::vector<Value> {
+            Value nh = Value::matrix(static_cast<std::size_t>(n), static_cast<std::size_t>(n),
+                                     ValueType::LOGICAL, mr);
+            uint8_t *nd = nh.logicalDataMut();
+            for (int i = 0; i < nq; ++i)
+                nd[i] = static_cast<uint8_t>((k >> (nq - 1 - i)) & std::size_t{1});
+            return {std::move(nh)};
+        };
+        cont->pack = [N, mr](std::vector<Value> &results) -> Value {
+            Value lut = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+            double *ld = lut.doubleDataMut();
+            for (std::size_t k = 0; k < results.size(); ++k) {
+                if (results[k].numel() != 1)
+                    throw Error("makelut: fun must return a scalar", 0, 0, "makelut", "",
+                                "numkit:makelut:funScalar");
+                ld[k] = results[k].toScalar();
+            }
+            return lut;
+        };
+        cont->results.reserve(cont->n);
+        return cont;
+    }
+};
+
 void makelut_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)
 {
@@ -2525,5 +2573,11 @@ void bwtraceboundary_reg(Span<const Value> args, std::size_t /*nargout*/,
 }
 
 } // namespace detail
+
+void registerMakelutCallbackBuiltin(Engine &engine)
+{
+    engine.registerCallbackBuiltin("makelut",
+                                   std::make_shared<detail::MakelutCallbackBuiltin>());
+}
 
 } // namespace numkit::image

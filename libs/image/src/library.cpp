@@ -296,6 +296,13 @@ void axes2pix_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 namespace numkit {
 
+// Defined in filter/filter.cpp + morph/morph.cpp — register the VM-continuation
+// drivers for nlfilter / makelut (state-machine callbacks).
+namespace image {
+void registerNlfilterCallbackBuiltin(Engine &engine);
+void registerMakelutCallbackBuiltin(Engine &engine);
+}
+
 void ImageLibrary::install(Engine &engine)
 {
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
@@ -436,6 +443,7 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imsmooth",     &image::detail::imsmooth_reg);
     reg("filter", "wiener2",      &image::detail::wiener2_reg);
     reg("filter", "nlfilter",     &image::detail::nlfilter_reg);
+    image::registerNlfilterCallbackBuiltin(engine); // VM-pausable callbacks
     reg("filter", "colfilt",      &image::detail::colfilt_reg);
     reg("filter", "ordfilt2",     &image::detail::ordfilt2_reg);
     reg("filter", "im2col",       &image::detail::im2col_reg);
@@ -501,6 +509,7 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "applylut",      &image::detail::applylut_reg);
     reg("morph", "bwlookup",      &image::detail::bwlookup_reg);
     reg("morph", "makelut",       &image::detail::makelut_reg);
+    image::registerMakelutCallbackBuiltin(engine); // VM-pausable callbacks
     reg("morph", "bwmorph3",      &image::detail::bwmorph3_reg);
     reg("morph", "mmgradm",       &image::detail::mmgradm_reg);
     reg("morph", "bwpack",        &image::detail::bwpack_reg);

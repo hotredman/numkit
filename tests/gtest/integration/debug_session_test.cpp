@@ -538,6 +538,62 @@ TEST_F(DebugSessionTest, BreakInsideBootstrpCallback)
     EXPECT_DOUBLE_EQ(engine.eval("numel(y)").toScalar(), 3.0);
 }
 
+// nlfilter: the per-window kernel pauses on each sliding window and resumes.
+TEST_F(DebugSessionTest, BreakInsideNlfilterCallback)
+{
+    engine.eval(
+        "function r = dbgNl(w)\n" // 1
+        "\n"                       // 2
+        "\n"                       // 3
+        "  r = sum(w(:));\n"     // 4
+        "end\n");                  // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code =
+        "A = [1 2; 3 4];\n"                 // 1
+        "y = nlfilter(A, [1 1], @dbgNl);\n"; // 2  1×1 window → f is identity
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "nlfilter callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 20) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_EQ(pauses, 4); // one per pixel (2×2)
+    EXPECT_DOUBLE_EQ(engine.eval("y(1,1)").toScalar(), 1.0);
+    EXPECT_DOUBLE_EQ(engine.eval("y(2,2)").toScalar(), 4.0);
+}
+
+// makelut: the kernel evaluated on each binary neighbourhood pauses per entry.
+TEST_F(DebugSessionTest, BreakInsideMakelutCallback)
+{
+    engine.eval(
+        "function r = dbgLut(nh)\n" // 1
+        "\n"                        // 2
+        "\n"                        // 3
+        "  r = any(nh(:));\n"     // 4
+        "end\n");                   // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "y = makelut(@dbgLut, 2);\n"; // 1  n=2 → 16 neighbourhoods
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "makelut callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 40) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_EQ(pauses, 16); // 2^(2*2) neighbourhoods
+    EXPECT_DOUBLE_EQ(engine.eval("y(1)").toScalar(), 0.0);  // all-zero neighbourhood
+    EXPECT_DOUBLE_EQ(engine.eval("y(16)").toScalar(), 1.0); // all-ones neighbourhood
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);
