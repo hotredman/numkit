@@ -1269,6 +1269,16 @@ public:
             "    function obj = create(v)\n      obj = Singleton(v);\n    end\n"
             "  end\n"
             "end\n");
+        // Inherited private (no-arg) constructor: a subclass without its own
+        // ctor honours the base's private ctor.
+        engine.eval(
+            "classdef PrivCtorBase\n"
+            "  properties\n    tag = 0\n  end\n"
+            "  methods (Access = private)\n"
+            "    function obj = PrivCtorBase()\n      obj.tag = 1;\n    end\n"
+            "  end\n"
+            "end\n");
+        engine.eval("classdef PrivCtorDeriv < PrivCtorBase\nend\n");
     }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };
@@ -1391,6 +1401,10 @@ TEST_P(AccessClassdefTest, PrivateConstructorViaFactory)
     engine.eval("s = Singleton.create(5);"); // factory is in-class → ctor allowed
     EXPECT_DOUBLE_EQ(evalScalar("s.val"), 5.0);
 }
+TEST_P(AccessClassdefTest, InheritedPrivateConstructorThrows)
+{
+    EXPECT_THROW(engine.eval("PrivCtorDeriv();"), std::exception); // inherits base private ctor
+}
 INSTANTIATE_TEST_SUITE_P(Backends, AccessClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
@@ -1490,6 +1504,36 @@ TEST(ClassdefMFile, LoadFromFile)
         EXPECT_DOUBLE_EQ(engine.eval("v = Vec2(3, 4); v.x").toScalar(), 3.0);
         EXPECT_DOUBLE_EQ(engine.eval("v.sumsq()").toScalar(), 25.0);
         EXPECT_EQ(engine.eval("class(v)").toString(), "Vec2");
+    }
+    fs::remove_all(dir);
+}
+
+// Inheritance must not depend on which file is referenced (loaded) first:
+// referencing the subclass before the base still pulls the base in.
+TEST(ClassdefMFile, InheritanceOrderIndependent)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_classdef_inh_test";
+    fs::create_directories(dir);
+    {
+        std::ofstream(dir / "AnimalB.m")
+            << "classdef AnimalB\n"
+               "  properties\n    legs = 4\n  end\n"
+               "  methods\n    function s = legCount(obj)\n      s = obj.legs;\n    end\n  end\n"
+               "end\n";
+        std::ofstream(dir / "DogB.m")
+            << "classdef DogB < AnimalB\n  properties\n    barks = 1\n  end\nend\n";
+    }
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        // Reference DogB FIRST → DogB.m loads before AnimalB.m. The base must
+        // still be pulled in so its members merge into DogB.
+        EXPECT_DOUBLE_EQ(engine.eval("d = DogB(); d.legs").toScalar(), 4.0);  // inherited prop
+        EXPECT_DOUBLE_EQ(engine.eval("d.legCount()").toScalar(), 4.0);        // inherited method
+        EXPECT_DOUBLE_EQ(engine.eval("d.barks").toScalar(), 1.0);             // own prop
+        EXPECT_TRUE(engine.eval("isa(d, 'AnimalB')").toBool());
     }
     fs::remove_all(dir);
 }
