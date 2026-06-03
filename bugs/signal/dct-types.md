@@ -1,9 +1,16 @@
 # signal.dct / signal.idct — Type 1/3/4 not implemented
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-03, lib-dev cycle c181)
 - **Severity:** P2 (missing option)
 - **Kind:** stub
 - **Found:** 2026-06 via signal.* DEEP-PROBE sweep
+- **Fix:** added direct orthonormal cores `dctType1`/`dctType4` (both
+  self-inverse) plus a type dispatcher. DCT-III reuses the existing `idct`
+  core (forward) and `dct` core (inverse), so only two new kernels were
+  needed. Routed `dct_reg`/`idct_reg` by `'Type'` (1–4; invalid values now
+  error with the valid list). Verified all forward/inverse types + round-trip
+  + non-pow2 + matrix vs MATLAB R2025b. Guard:
+  `libs/signal/tests/dct_types_test.cpp`.
 
 ## Symptom
 `dct`/`idct` accept a `'Type'` name-value (DCT variants 1–4 in MATLAB) but

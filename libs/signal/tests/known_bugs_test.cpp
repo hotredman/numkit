@@ -31,14 +31,8 @@ TEST_F(SignalKnownBug, DISABLED_InstfreqTracksChirp)
     EXPECT_NEAR(evalScalar("ifr(end)"), 38.46, 0.5);
 }
 
-// bugs/signal/dct-types.md — DCT Type 1/3/4.
-TEST_F(SignalKnownBug, DISABLED_DctType1)
-{
-    eval("y = dct([1 2 3 4], 4, 'Type', 1);");
-    EXPECT_NEAR(evalScalar("y(1)"),  4.927993, 1e-5);
-    EXPECT_NEAR(evalScalar("y(2)"), -2.140299, 1e-5);
-    EXPECT_NEAR(evalScalar("y(4)"), -0.647395, 1e-5);
-}
+// NOTE: dct/idct Type 1/3/4 FIXED — live tests in
+// libs/signal/tests/dct_types_test.cpp.
 
 // bugs/signal/cceps-nd-phase.md — non-2^n phase + 2nd output nd.
 TEST_F(SignalKnownBug, DISABLED_CcepsPhaseAndNd)

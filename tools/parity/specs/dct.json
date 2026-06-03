@@ -12,5 +12,5 @@
     "y_n10(1)", "y_n10(5)", "y_n10(10)",
     "y_M_dim2(1,1)", "y_M_dim2(1,4)", "y_M_dim2(4,4)"
   ],
-  "comment": "Sig: Y = dct(X[, n[, dim]]). DCT-II (default Type=2). Bug fix 2026-05-08: matrix input was treated as flat numel-vector — now per-column (default) or per-row via dim=2; length override n pads/truncates; positive 'Type' values other than 2 explicitly error (was silently doing Type-II)."
+  "comment": "Sig: Y = dct(X[, n[, dim]]). DCT-II (default Type=2). Bug fix 2026-05-08: matrix input was treated as flat numel-vector — now per-column (default) or per-row via dim=2; length override n pads/truncates. Types 1/3/4 added 2026-06-03 (see dct_types.json); out-of-range Type errors."
 }
