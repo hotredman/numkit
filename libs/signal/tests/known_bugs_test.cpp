@@ -129,3 +129,12 @@ TEST_F(SignalKnownBug, DISABLED_PeriodogramPxxc)
     eval("[pxx,f,pxxc]=periodogram([1 2 3 4 5 6 7 8],[],[],1,'ConfidenceLevel',0.95);");
     EXPECT_EQ(static_cast<int>(evalScalar("size(pxxc,2)")), 2);
 }
+
+// bugs/builtin/complex-input-unsupported.md — conv/filter on complex input.
+TEST_F(SignalKnownBug, DISABLED_ConvFilterComplex)
+{
+    eval("y = conv([1 1i],[1 1]);");             // MATLAB: [1, 1+1i, 1i]
+    EXPECT_NEAR(evalScalar("imag(y(2))"), 1.0, 1e-12);
+    eval("z = filter([1 1],1,[1i 1i]);");        // MATLAB: [1i, 2i]
+    EXPECT_NEAR(evalScalar("imag(z(2))"), 2.0, 1e-12);
+}
