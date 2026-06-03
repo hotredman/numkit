@@ -242,10 +242,13 @@ void Compiler::collectAllIdentifiers(const ASTNode *node, std::unordered_set<std
 uint8_t Compiler::varRegWrite(const std::string &name)
 {
     chunk_.assignedVars.insert(name);
-    return varRegLookup(name);
+    // A write target (param / assignment) gets its value from the call or the
+    // assignment — never the reserved-constant pre-load (which would clobber a
+    // param named `i`/`j` with the imaginary unit).
+    return varRegLookup(name, /*preloadReserved=*/false);
 }
 
-uint8_t Compiler::varRegLookup(const std::string &name)
+uint8_t Compiler::varRegLookup(const std::string &name, bool preloadReserved)
 {
     auto it = varRegisters_.find(name);
     if (it != varRegisters_.end())
@@ -265,7 +268,7 @@ uint8_t Compiler::varRegLookup(const std::string &name)
     // (pi/eps/… from constantsEnv_) and pseudo-vars that higher layers
     // have injected into workspaceEnv (e.g. the debug-console eval
     // injecting `nargin` so the user can inspect it from K>>).
-    if (engine_.isReservedName(name)) {
+    if (preloadReserved && engine_.isReservedName(name)) {
         Value *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
             int16_t idx = static_cast<int16_t>(chunk_.constants.size());

@@ -171,7 +171,13 @@ private:
     // `varRegisters_[name] = src` directly).
     uint8_t varRegWrite(const std::string &name);
     uint8_t varRegRead(const std::string &name);
-    uint8_t varRegLookup(const std::string &name);
+    // preloadReserved: when first allocating a register for a reserved name
+    // (pi/eps/i/j/…), emit a LOAD_CONST of the engine's value. Correct for a
+    // *read* of the constant; must be false when allocating for a parameter
+    // or assignment target named like a constant (e.g. a param `i`), whose
+    // value comes from the call/assignment — otherwise the pre-load clobbers
+    // the argument with the imaginary unit.
+    uint8_t varRegLookup(const std::string &name, bool preloadReserved = true);
     void markAssigned(const std::string &name) { chunk_.assignedVars.insert(name); }
     // Pre-import global variables before compiling AST
     void preImportGlobals(const ASTNode *ast);
