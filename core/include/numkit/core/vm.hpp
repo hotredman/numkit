@@ -353,6 +353,18 @@ private:
                           CallFrame &frame, const Instruction *ip);
     bool tryUnaryOpFrame(uint8_t dst, OpCode op, uint8_t operandReg,
                          CallFrame &frame, const Instruction *ip);
+    // classdef subsref/subsasgn overloads as same-stack VM frames (P4
+    // refinement): if R[selfReg]/R[objReg] is an object whose class defines the
+    // overload, push a frame for its body (pausable) and return true (caller
+    // `goto enter_frame`). subsref returns one value into `dst`; subsasgn
+    // returns the modified object into `objReg` (value class) / mutates shared
+    // state (handle). `idx` is the flat subscript list; `idxAndVal` is
+    // [subscripts…, value]. Returns false → caller's existing tryObject* /
+    // builtin-indexing slow path.
+    bool tryObjectSubsrefFrame(uint8_t dst, uint8_t selfReg, Span<const Value> idx,
+                               CallFrame &frame, const Instruction *ip);
+    bool tryObjectSubsasgnFrame(uint8_t objReg, Span<const Value> idxAndVal,
+                                CallFrame &frame, const Instruction *ip);
     void execCallBuiltin(const Instruction &I, Value *R);
     bool execCallIndirect(const Instruction &I, Value *R,
                           CallFrame &frame, const Instruction *ip);

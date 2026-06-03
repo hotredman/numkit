@@ -864,6 +864,9 @@ enter_frame:
                 // OBJECT: obj(i) dispatches to the class subsref overload.
                 if (mv.isObject()) {
                     Value idxArgs[1] = {ix};
+                    // classdef subsref → same-stack VM frame (pausable, P4)
+                    if (tryObjectSubsrefFrame(I.a, I.b, Span<const Value>(idxArgs, 1), frame, ip))
+                        goto enter_frame;
                     Value out;
                     if (engine_.tryObjectSubsref(R[I.b], Span<const Value>(idxArgs, 1), 1,
                                                  out, currentCallEnv())) {
@@ -901,6 +904,9 @@ enter_frame:
                 // builtin 2-D path below (indexGet2D) handles object arrays.
                 if (mv.isObject()) {
                     Value idxArgs[2] = {R[I.c], R[I.e]};
+                    // classdef subsref → same-stack VM frame (pausable, P4)
+                    if (tryObjectSubsrefFrame(I.a, I.b, Span<const Value>(idxArgs, 2), frame, ip))
+                        goto enter_frame;
                     Value out;
                     if (engine_.tryObjectSubsref(R[I.b], Span<const Value>(idxArgs, 2), 1,
                                                  out, currentCallEnv())) {
@@ -928,6 +934,10 @@ enter_frame:
                 // OBJECT: obj(i) = v dispatches to the class subsasgn
                 // overload (args = [index, value]); mutates R[I.a] in place.
                 if (R[I.a].isObject()) {
+                    Value sargs[2] = {ix, R[I.c]}; // [index, value]
+                    // classdef subsasgn → same-stack VM frame (pausable, P4)
+                    if (tryObjectSubsasgnFrame(I.a, Span<const Value>(sargs, 2), frame, ip))
+                        goto enter_frame;
                     const BuiltinClass *cls = engine_.findClass(R[I.a].objectClassName());
                     if (cls && cls->subsasgn) {
                         Value args[2] = {ix, R[I.c]};
@@ -1137,6 +1147,10 @@ enter_frame:
                     std::vector<Value> idx(ndims);
                     for (uint8_t i = 0; i < ndims; ++i)
                         idx[i] = R[base + i];
+                    // classdef subsref → same-stack VM frame (pausable, P4)
+                    if (tryObjectSubsrefFrame(I.a, I.b, Span<const Value>(idx.data(), ndims),
+                                              frame, ip))
+                        goto enter_frame;
                     Value out;
                     if (engine_.tryObjectSubsref(R[I.b], Span<const Value>(idx.data(), ndims),
                                                  1, out, currentCallEnv())) {
@@ -3022,6 +3036,42 @@ bool VM::tryUnaryOpFrame(uint8_t dst, OpCode op, uint8_t operandReg,
     return true;
 }
 
+bool VM::tryObjectSubsrefFrame(uint8_t dst, uint8_t selfReg, Span<const Value> idx,
+                               CallFrame &frame, const Instruction *ip)
+{
+    Value *R = frame.R;
+    if (!R[selfReg].isObject())
+        return false;
+    std::string ownerClass;
+    std::vector<Value> args;
+    const BytecodeChunk *cc = engine_.resolveSubsrefChunk(R[selfReg], idx, ownerClass, args);
+    if (!cc)
+        return false;
+    frame.ip = ip + 1;
+    pushCallFrame(*cc, args.data(), static_cast<uint8_t>(args.size()), dst, 1, false, 0, 0,
+                  ownerClass, /*isCtor=*/false);
+    return true;
+}
+
+bool VM::tryObjectSubsasgnFrame(uint8_t objReg, Span<const Value> idxAndVal,
+                                CallFrame &frame, const Instruction *ip)
+{
+    Value *R = frame.R;
+    if (!R[objReg].isObject())
+        return false;
+    std::string ownerClass;
+    std::vector<Value> args;
+    const BytecodeChunk *cc = engine_.resolveSubsasgnChunk(R[objReg], idxAndVal, ownerClass, args);
+    if (!cc)
+        return false;
+    // subsasgn returns the modified object → write back into the object register
+    // (value class); a handle mutates shared state and returns itself.
+    frame.ip = ip + 1;
+    pushCallFrame(*cc, args.data(), static_cast<uint8_t>(args.size()), objReg, 1, false, 0, 0,
+                  ownerClass, /*isCtor=*/false);
+    return true;
+}
+
 void VM::execCallBuiltin(const Instruction &I, Value *R)
 {
     uint8_t argBase = I.b, na = I.c;
@@ -3143,6 +3193,10 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
             std::vector<Value> idx(na);
             for (uint8_t i = 0; i < na; ++i)
                 idx[i] = R[argBase + i];
+            // classdef subsref → same-stack VM frame (pausable, P4). Returns
+            // true on push; execCallIndirect's caller then `goto enter_frame`.
+            if (tryObjectSubsrefFrame(I.a, fhReg, Span<const Value>(idx.data(), na), frame, ip))
+                return true;
             Value out;
             if (engine_.tryObjectSubsref(R[fhReg], Span<const Value>(idx.data(), na), 1,
                                          out, currentCallEnv())) {

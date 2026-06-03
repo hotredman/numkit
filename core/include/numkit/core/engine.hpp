@@ -112,6 +112,19 @@ public:
                                               const Value &rhs, std::string &ownerClassOut);
     const BytecodeChunk *resolveUnaryOpChunk(const std::string &op, const Value &operand,
                                              std::string &ownerClassOut);
+    // Resolve a classdef `subsref`/`subsasgn` overload to its compiled method
+    // chunk for an in-bytecode VM frame-push, marshaling the call args (subsref:
+    // [self, substruct]; subsasgn: [self, substruct, value]). `idx` is the flat
+    // subscript list; for subsasgn `idxAndVal` is [subscripts…, value] (value
+    // last). Returns nullptr — caller uses the C++ slow path / builtin
+    // indexing — when the class has no such overload or the body can't compile.
+    // On success sets ownerClassOut to the object's class. P4, VM_CALLBACKS_PLAN.md.
+    const BytecodeChunk *resolveSubsrefChunk(const Value &self, Span<const Value> idx,
+                                             std::string &ownerClassOut,
+                                             std::vector<Value> &argsOut);
+    const BytecodeChunk *resolveSubsasgnChunk(const Value &self, Span<const Value> idxAndVal,
+                                              std::string &ownerClassOut,
+                                              std::vector<Value> &argsOut);
     // Superclass-qualified calls from inside a classdef body
     // (`obj@Base(args)` / `method@Base(obj, args)`). superConstruct runs
     // Base's constructor with `seed` as the partially-built object and
