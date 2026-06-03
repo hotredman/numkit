@@ -225,10 +225,12 @@ the chunk via the `Engine::resolve*`/`classGetter` helpers, `pushCallFrame` +
 - **Register exhaustion now fails LOUDLY**, not silently. The compiler throws a
   typed `RegisterExhaustionError`; `registerBuiltinMSource` re-throws it as a
   clear `numkit:compiler:registerExhaustion` Error (our wrappers MUST run on the
-  VM), and the m-file loader (`resolveMFile_`) surfaces it instead of dropping to
-  a TW-only chunk that would later look like an "undefined function" on the VM.
-  (Other compile failures — e.g. a not-yet-supported construct — still fall back
-  to the TreeWalker.) Still: **add a VM-level pause-proof test** (`DebugSession`
+  VM), the m-file loader (`resolveMFile_`) surfaces it instead of dropping to a
+  TW-only chunk that would later look like an "undefined function" on the VM, and
+  the lazy classdef-method compiler (`ensureClassMethodCompiled`) re-throws it
+  with the method name rather than silently falling back to a non-debuggable TW
+  method body. (Other compile failures — e.g. a not-yet-supported construct —
+  still fall back to the TreeWalker.) Still: **add a VM-level pause-proof test** (`DebugSession`
   break inside the callback) for every embedded `.m` wrapper, and a quick
   pre-build `numkit_smoke.exe` run compiles the `.m` at runtime and reports any
   exhaustion immediately.

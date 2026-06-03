@@ -342,3 +342,35 @@ TEST(CompilerRegisterAlloc, RegisterBuiltinMSourceTooLargeThrowsClearError)
     engine.registerBuiltinMSource("function y = tinywrap(x)\n  y = x * 3;\nend\n");
     EXPECT_DOUBLE_EQ(engine.eval("tinywrap(4)").toScalar(), 12.0);
 }
+
+TEST(CompilerRegisterAlloc, ClassdefMethodTooLargeThrowsLoudly)
+{
+    // P0 consistency: a classdef METHOD that genuinely needs >255 register
+    // slots must surface loudly when the VM lazily compiles it (the default
+    // backend is the VM), not silently fall back to a TW-only, non-debuggable
+    // method body. Pre-fix this returned a1=1 (silent TW-fallback).
+    std::string src = "classdef BigC\n  methods\n    function out = big(obj)\n";
+    for (int i = 1; i <= 300; ++i)
+        src += "      a" + std::to_string(i) + " = " + std::to_string(i) + ";\n";
+    src += "      out = a1;\n    end\n  end\nend\n";
+    Engine engine;
+    engine.eval(src);
+    engine.eval("bc = BigC;");
+    bool threw = false;
+    try {
+        engine.eval("rr = bc.big();");
+    } catch (const std::exception &e) {
+        threw = true;
+        EXPECT_NE(std::string(e.what()).find("255"), std::string::npos)
+            << "classdef method exhaustion should mention the 255-register limit; got: "
+            << e.what();
+    }
+    EXPECT_TRUE(threw)
+        << "a >255-register classdef method must throw, not silently TW-fallback";
+
+    // A normal small method still compiles + runs on the VM.
+    engine.eval("classdef SmallC\n  methods\n    function y = inc(obj, x)\n"
+                "      y = x + 1;\n    end\n  end\nend\n");
+    engine.eval("sc = SmallC;");
+    EXPECT_DOUBLE_EQ(engine.eval("sc.inc(41)").toScalar(), 42.0);
+}
