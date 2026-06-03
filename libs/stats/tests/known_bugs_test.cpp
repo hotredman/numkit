@@ -113,4 +113,15 @@ TEST_F(StatsKnownBug, DISABLED_PdistMetrics)
     EXPECT_TRUE(eval("isnan(pdist([0 0;3 4],'cosine'))").toBool());
 }
 
+// bugs/stats/distribution-array-params.md — broadcast array distribution params.
+TEST_F(StatsKnownBug, DISABLED_DistributionArrayParams)
+{
+    eval("y = normpdf(0, 0, [1 2 4]);");          // MATLAB [0.3989 0.1995 0.0997]
+    EXPECT_NEAR(evalScalar("y(2)"), 0.19947114, 1e-6);
+    eval("b = binopdf(2, [4 5 6], 0.5);");        // MATLAB [0.375 0.3125 0.234375]
+    EXPECT_NEAR(evalScalar("b(3)"), 0.234375, 1e-6);
+    eval("g = gampdf(1, [1 2 3], 1);");           // MATLAB [0.3679 0.3679 0.1839]
+    EXPECT_NEAR(evalScalar("g(3)"), 0.18393972, 1e-6);
+}
+
 // NOTE: combnk scalar-set bug FIXED — see libs/stats/tests/combnk_test.cpp.
