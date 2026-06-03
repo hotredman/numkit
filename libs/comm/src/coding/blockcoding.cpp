@@ -21,9 +21,11 @@
 #include <numkit/core/value.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace numkit::comm {
@@ -64,6 +66,84 @@ inline int matBit(const Value &v, std::size_t i, std::size_t j)
 {
     const std::size_t rows = v.dims().rows();
     return v.elemAsDouble(j * rows + i) != 0.0 ? 1 : 0;
+}
+
+// ── GF(2) polynomial arithmetic (coefficients ascending: index = power) ─
+
+// Highest set power of a, or -1 for the zero polynomial.
+inline int polyDeg(const std::vector<int> &a)
+{
+    for (int i = static_cast<int>(a.size()) - 1; i >= 0; --i)
+        if (a[i] & 1) return i;
+    return -1;
+}
+
+// Remainder of a mod b over GF(2). b must be nonzero.
+std::vector<int> polyMod(std::vector<int> a, const std::vector<int> &b)
+{
+    const int db = polyDeg(b);
+    for (auto &x : a) x &= 1;
+    for (int da = polyDeg(a); da >= db && da >= 0; da = polyDeg(a))
+        for (int j = 0; j <= db; ++j) a[j + (da - db)] ^= b[j];
+    a.resize(db > 0 ? static_cast<std::size_t>(db) : 0);  // degree < db
+    return a;
+}
+
+// Quotient + remainder of a / b over GF(2).
+struct PolyQR { std::vector<int> q, r; };
+PolyQR polyDivMod(std::vector<int> a, const std::vector<int> &b)
+{
+    const int db = polyDeg(b);
+    for (auto &x : a) x &= 1;
+    const int da0 = polyDeg(a);
+    std::vector<int> q(da0 >= db ? static_cast<std::size_t>(da0 - db + 1) : 1, 0);
+    for (int da = da0; da >= db && da >= 0; da = polyDeg(a)) {
+        q[da - db] ^= 1;
+        for (int j = 0; j <= db; ++j) a[j + (da - db)] ^= b[j];
+    }
+    a.resize(db > 0 ? static_cast<std::size_t>(db) : 1);
+    return {std::move(q), std::move(a)};
+}
+
+// Read a numeric Value (row or column vector) as a 0/1 coefficient list.
+std::vector<int> readPolyRow(const Value &v)
+{
+    const std::size_t nel = v.numel();
+    std::vector<int> p(nel);
+    for (std::size_t i = 0; i < nel; ++i) p[i] = v.elemAsDouble(i) != 0.0 ? 1 : 0;
+    return p;
+}
+
+inline std::string toLower(std::string s)
+{
+    for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+// Build a row vector Value from a 0/1 coefficient list.
+Value polyToRow(const std::vector<int> &t, std::pmr::memory_resource *mr)
+{
+    Value v = Value::matrix(1, t.size(), ValueType::DOUBLE, mr);
+    double *d = v.doubleDataMut();
+    for (std::size_t j = 0; j < t.size(); ++j) d[j] = t[j];
+    return v;
+}
+
+// Stack `rows` cyclic right-shifts of `row` into a rows×n DOUBLE matrix
+// (each successive row is the previous rotated one position right).
+Value shiftMatrix(std::vector<int> row, long long rows, long long n,
+                  std::pmr::memory_resource *mr)
+{
+    Value out = Value::matrix(static_cast<std::size_t>(rows),
+                              static_cast<std::size_t>(n), ValueType::DOUBLE, mr);
+    double *d = out.doubleDataMut();
+    for (long long r = 0; r < rows; ++r) {
+        for (long long c = 0; c < n; ++c) d[c * rows + r] = row[c];
+        const int last = row[n - 1];
+        for (long long c = n - 1; c > 0; --c) row[c] = row[c - 1];
+        row[0] = last;
+    }
+    return out;
 }
 
 // ── gen2par core (shared by gen2par + hammgen) ─────────────────────────
@@ -175,6 +255,150 @@ HammgenResult hammgen(long long m, const Value &primPoly,
     return res;
 }
 
+// ── cyclpoly ────────────────────────────────────────────────────────────
+
+Value cyclpoly(long long n, long long k, const std::string &opt,
+               std::pmr::memory_resource *mr)
+{
+    if (n < 1)
+        throw Error("cyclpoly: N must be a positive integer",
+                    0, 0, "cyclpoly", "", "numkit:cyclpoly:N");
+    if (k < 1 || k > n)
+        throw Error("cyclpoly: K must satisfy 1 <= K <= N",
+                    0, 0, "cyclpoly", "", "numkit:cyclpoly:K");
+
+    const long long m = n - k;
+    if (m == 0) return polyToRow({1}, mr);
+    if (m == 1) return polyToRow({1, 1}, mr);
+
+    // x^n + 1 over GF(2).
+    std::vector<int> pp(static_cast<std::size_t>(n) + 1, 0);
+    pp[0] = 1; pp[static_cast<std::size_t>(n)] = 1;
+    const long long nn = (1LL << (m - 1)) - 1;
+
+    // Candidate degree-m polynomial 1 + (m-1 inner bits of i) + x^m.
+    auto candidate = [&](long long i, bool msbFirst) {
+        std::vector<int> t(static_cast<std::size_t>(m) + 1, 0);
+        t[0] = 1; t[static_cast<std::size_t>(m)] = 1;
+        for (long long p = 0; p < m - 1; ++p)
+            t[static_cast<std::size_t>(1 + p)] =
+                msbFirst ? static_cast<int>((i >> (m - 2 - p)) & 1)
+                         : static_cast<int>((i >> p) & 1);
+        return t;
+    };
+    auto divides = [&](const std::vector<int> &t) {
+        return polyDeg(polyMod(pp, t)) < 0;  // remainder is zero
+    };
+    auto terms = [](const std::vector<int> &t) {
+        int s = 0; for (int x : t) s += x; return s;
+    };
+
+    const std::string o = toLower(opt);
+    if (o.empty()) {                                   // first found
+        for (long long i = 0; i <= nn; ++i) {
+            auto t = candidate(i, true);
+            if (divides(t)) return polyToRow(t, mr);
+        }
+    } else if (o.rfind("mi", 0) == 0) {                // fewest terms
+        for (long long j = 2; j <= m + 1; ++j)
+            for (long long i = 0; i <= nn; ++i) {
+                auto t = candidate(i, true);
+                if (terms(t) == j && divides(t)) return polyToRow(t, mr);
+            }
+    } else if (o.rfind("ma", 0) == 0) {                // most terms
+        for (long long j = m + 1; j >= 2; --j)
+            for (long long i = 0; i <= nn; ++i) {
+                auto t = candidate(i, false);          // LSB-first, per MATLAB
+                if (terms(t) == j && divides(t)) return polyToRow(t, mr);
+            }
+    } else {                                           // "all" / exhaustive
+        std::vector<std::vector<int>> rows;
+        for (long long i = 0; i <= nn; ++i) {
+            auto t = candidate(i, true);
+            if (divides(t)) rows.push_back(std::move(t));
+        }
+        std::stable_sort(rows.begin(), rows.end(),
+            [&](const std::vector<int> &a, const std::vector<int> &b) {
+                return terms(a) < terms(b);
+            });
+        if (rows.empty()) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        Value out = Value::matrix(rows.size(), static_cast<std::size_t>(m) + 1,
+                                  ValueType::DOUBLE, mr);
+        double *d = out.doubleDataMut();
+        const std::size_t R = rows.size();
+        for (std::size_t r = 0; r < R; ++r)
+            for (std::size_t c = 0; c < rows[r].size(); ++c)
+                d[c * R + r] = rows[r][c];
+        return out;
+    }
+    return Value::matrix(0, 0, ValueType::DOUBLE, mr);  // none found
+}
+
+// ── cyclgen ─────────────────────────────────────────────────────────────
+
+CyclgenResult cyclgen(long long n, const Value &genpoly,
+                      const std::string &opt, std::pmr::memory_resource *mr)
+{
+    std::vector<int> p = readPolyRow(genpoly);
+    const int m = polyDeg(p);
+    if (m < 1)
+        throw Error("cyclgen: generator polynomial must have degree >= 1",
+                    0, 0, "cyclgen", "", "numkit:cyclgen:P");
+    const long long k = n - m;
+    if (k < 1)
+        throw Error("cyclgen: N must exceed the generator polynomial degree",
+                    0, 0, "cyclgen", "", "numkit:cyclgen:N");
+
+    // p must divide x^n + 1.
+    std::vector<int> pp(static_cast<std::size_t>(n) + 1, 0);
+    pp[0] = 1; pp[static_cast<std::size_t>(n)] = 1;
+    if (polyDeg(polyMod(pp, p)) >= 0)
+        throw Error("cyclgen: generator polynomial must divide x^N - 1",
+                    0, 0, "cyclgen", "", "numkit:cyclgen:P2");
+
+    CyclgenResult res;
+    res.k = k;
+    const bool nonsys = toLower(opt).find("no") != std::string::npos;
+
+    if (nonsys) {
+        // Parity poly h(x) = (x^n + 1) / p(x), degree k.
+        std::vector<int> pc = polyDivMod(pp, p).q;
+        pc.resize(static_cast<std::size_t>(k) + 1, 0);
+        std::vector<int> hrow(static_cast<std::size_t>(n), 0);
+        for (long long j = 0; j <= k; ++j) hrow[j] = pc[k - j];   // fliplr(pc)
+        res.h = shiftMatrix(hrow, n - k, n, mr);
+        std::vector<int> grow(static_cast<std::size_t>(n), 0);
+        for (std::size_t j = 0; j < p.size(); ++j) grow[j] = p[j];
+        res.g = shiftMatrix(grow, k, n, mr);
+    } else {
+        // Systematic: b(i,:) = x^(m+i) mod p (k×m); h=[I_m | b'], g=[b | I_k].
+        std::vector<std::vector<int>> b(static_cast<std::size_t>(k));
+        for (long long i = 0; i < k; ++i) {
+            std::vector<int> xpow(static_cast<std::size_t>(m + i) + 1, 0);
+            xpow[static_cast<std::size_t>(m + i)] = 1;
+            auto rem = polyMod(xpow, p);
+            rem.resize(static_cast<std::size_t>(m), 0);
+            b[static_cast<std::size_t>(i)] = std::move(rem);
+        }
+        const std::size_t M = static_cast<std::size_t>(m);
+        const std::size_t K = static_cast<std::size_t>(k);
+        const std::size_t N = static_cast<std::size_t>(n);
+        res.h = Value::matrix(M, N, ValueType::DOUBLE, mr);
+        double *hd = res.h.doubleDataMut();
+        for (std::size_t r = 0; r < M; ++r) {
+            for (std::size_t c = 0; c < M; ++c) hd[c * M + r] = (r == c) ? 1 : 0;
+            for (std::size_t t = 0; t < K; ++t) hd[(M + t) * M + r] = b[t][r];
+        }
+        res.g = Value::matrix(K, N, ValueType::DOUBLE, mr);
+        double *gd = res.g.doubleDataMut();
+        for (std::size_t r = 0; r < K; ++r) {
+            for (std::size_t c = 0; c < M; ++c) gd[c * K + r] = b[r][c];
+            for (std::size_t t = 0; t < K; ++t) gd[(M + t) * K + r] = (r == t) ? 1 : 0;
+        }
+    }
+    return res;
+}
+
 // ── registry adapters ───────────────────────────────────────────────────
 
 namespace detail {
@@ -202,6 +426,37 @@ void hammgen_reg(Span<const Value> args, size_t nargout,
     if (nargout >= 3) outs[2] = Value::scalar(static_cast<double>(res.n),
                                               ctx.engine->resource());
     if (nargout >= 4) outs[3] = Value::scalar(static_cast<double>(res.k),
+                                              ctx.engine->resource());
+}
+
+void cyclpoly_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("cyclpoly: requires (N, K[, opt])",
+                    0, 0, "cyclpoly", "", "numkit:cyclpoly:nargin");
+    const long long n = static_cast<long long>(args[0].toScalar());
+    const long long k = static_cast<long long>(args[1].toScalar());
+    const std::string opt =
+        (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
+            ? args[2].toString() : std::string();
+    outs[0] = cyclpoly(n, k, opt, ctx.engine->resource());
+}
+
+void cyclgen_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("cyclgen: requires (N, genpoly[, opt])",
+                    0, 0, "cyclgen", "", "numkit:cyclgen:nargin");
+    const long long n = static_cast<long long>(args[0].toScalar());
+    const std::string opt =
+        (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
+            ? args[2].toString() : std::string("system");
+    CyclgenResult res = cyclgen(n, args[1], opt, ctx.engine->resource());
+    outs[0] = std::move(res.h);
+    if (nargout >= 2) outs[1] = std::move(res.g);
+    if (nargout >= 3) outs[2] = Value::scalar(static_cast<double>(res.k),
                                               ctx.engine->resource());
 }
 

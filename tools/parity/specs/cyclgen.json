@@ -1,0 +1,18 @@
+{
+  "name": "cyclgen",
+  "namespace": "comm",
+  "setup": "[h, g, k] = cyclgen(7, [1 0 1 1]); [hn, gn, kn] = cyclgen(7, [1 0 1 1], 'nonsystem'); orth = all(all(mod(g*h',2)==0)); orthn = all(all(mod(gn*hn',2)==0)); sysI = isequal(g(:,4:7), eye(4));",
+  "expr": "y = 0;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "k", "sum(h(:))", "sum(g(:))",
+    "isequal(h, [1 0 0 1 1 1 0; 0 1 0 0 1 1 1; 0 0 1 1 1 0 1])*1",
+    "isequal(g, [1 0 1 1 0 0 0; 1 1 1 0 1 0 0; 1 1 0 0 0 1 0; 0 1 1 0 0 0 1])*1",
+    "double(orth)", "double(sysI)",
+    "isequal(gn, [1 0 1 1 0 0 0; 0 1 0 1 1 0 0; 0 0 1 0 1 1 0; 0 0 0 1 0 1 1])*1",
+    "isequal(hn, [1 1 1 0 1 0 0; 0 1 1 1 0 1 0; 0 0 1 1 1 0 1])*1",
+    "double(orthn)"
+  ],
+  "comment": "Sig: [h,g,k] = cyclgen(n,genpoly[,opt]). Parity/generator matrices of the (n,k) cyclic code with generator poly genpoly (ascending; k=n-deg). 'system' (default): g=[I_k... actually b|I_k], h=[I_(n-k)|b'] from x^(n-k+i) mod genpoly. 'nonsystem': cyclic shifts of reversed parity poly (h) / genpoly (g). cyclgen(7,[1 0 1 1]): k=4, systematic h/g above; nonsystem g = shifts of [1 0 1 1 0 0 0]. New (Error Correction Codes / block linear codes) 2026-06. GF(2) only; genpoly must divide x^n-1."
+}

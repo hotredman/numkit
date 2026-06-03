@@ -1006,8 +1006,8 @@ the flat `gf*` function family below.
 |---|:---:|---|
 | `crcGenerate` | ❌ | append CRC parity bits |
 | `crcDetect` | ❌ |  |
-| `cyclgen` | ❌ | cyclic-code generator matrix |
-| `cyclpoly` | ❌ | cyclic-code generator polynomials |
+| `cyclgen` | ✅ | Sig: [h,g,k] = cyclgen(n,genpoly[,opt]). Parity/generator matrices of the (n,k) cyclic code with generator poly genpoly (ascending; k=n-deg). 'system' (default): g=[I_k... actually b|I_k], h=[I_(n-k)|b'] from x^(n-k+i) mod genpoly. 'nonsystem': cyclic shifts of reversed parity poly (h) / genpoly (g). cyclgen(7,[1 0 1 1]): k=4, systematic h/g above; nonsystem g = shifts of [1 0 1 1 0 0 0]. New (Error Correction Codes / block linear codes) 2026-06. GF(2) only; genpoly must divide x^n-1. |
+| `cyclpoly` | ✅ | Sig: p = cyclpoly(n,k[,opt]). Generator polynomial(s) of an (n,k) cyclic code: degree-(n-k) polys 1+...+x^(n-k) dividing x^n-1 over GF(2). Ascending powers. cyclpoly(7,4)=[1 0 1 1]; (15,11)=[1 0 0 1 1]. opt: ''=first, 'min'=fewest terms ([1 0 1 1]), 'max'=most terms ([1 1 0 1]), 'all'=every gen poly sorted by term count (7,4 -> [1 0 1 1;1 1 0 1]; 15,5 -> 3 rows). New (Error Correction Codes / block linear codes) 2026-06. GF(2) only. |
 | `encode` | ❌ | generic block encoder |
 | `decode` | ❌ | generic block decoder |
 | `gfweight` | ❌ | minimum distance |

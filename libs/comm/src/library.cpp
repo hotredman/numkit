@@ -118,6 +118,8 @@ void istrellis_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // coding/blockcoding.cpp
 void gen2par_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void hammgen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cyclpoly_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cyclgen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -214,6 +216,8 @@ void CommLibrary::install(Engine &engine)
     // ── Error Correction Codes: block linear coding ──
     reg("coding", "gen2par",      &comm::detail::gen2par_reg);
     reg("coding", "hammgen",      &comm::detail::hammgen_reg);
+    reg("coding", "cyclpoly",     &comm::detail::cyclpoly_reg);
+    reg("coding", "cyclgen",      &comm::detail::cyclgen_reg);
 }
 
 } // namespace numkit
