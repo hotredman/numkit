@@ -537,6 +537,22 @@ static const PropInfo *findProp(const ClassDefDesc &d, const std::string &name)
     return nullptr;
 }
 
+// Build the MATLAB subscript struct `S` passed to a user subsref/subsasgn
+// method: a 1×1 struct with `.type` (e.g. "()") and `.subs` (a 1×N cell of
+// the subscripts). Our object index hooks only fire for paren-indexing, so
+// the type is always "()".
+static Value buildSubsStruct(const char *type, Span<const Value> subscripts,
+                             std::pmr::memory_resource *mr)
+{
+    Value subs = Value::cell(1, subscripts.size(), mr);
+    for (size_t i = 0; i < subscripts.size(); ++i)
+        subs.cellAt(i) = subscripts[i];
+    Value s = Value::structure(mr);
+    s.setField(0, "type", Value::fromString(type, mr));
+    s.setField(0, "subs", subs);
+    return s;
+}
+
 void Engine::registerClassDef(const ASTNode *cd)
 {
     if (!cd || cd->type != NodeType::CLASSDEF_DEF || cd->strValue.empty())
@@ -836,6 +852,41 @@ void Engine::registerClassDef(const ASTNode *cd)
                     outs[i] = std::move(results[i]);
             };
         }
+    }
+    // Custom indexing: a `subsref` / `subsasgn` method overrides `obj(...)`
+    // read / assignment. The user method takes MATLAB's substruct form
+    // (subsref(obj, S) / subsasgn(obj, S, val)); our paren-index hooks pass
+    // flat subscripts, which we wrap into S here. (`.`/`{}` keep their default
+    // property / cell semantics — only `()` routes through these.)
+    if (auto it = desc->methods.find("subsref"); it != desc->methods.end()) {
+        auto uf = it->second;
+        cls.subsref = [uf](Value &self, Span<const Value> args, size_t nargout, Span<Value> outs,
+                           CallContext &ctx) {
+            Value s = buildSubsStruct("()", args, ctx.engine->resource());
+            Value callArgs[2] = {self, s};
+            const size_t nout = std::max<size_t>(nargout, 1);
+            auto results = ctx.engine->invokeClassMethod(*uf, Span<const Value>(callArgs, 2), nout);
+            const size_t writeN = std::min(nout, results.size());
+            for (size_t i = 0; i < writeN && i < outs.size(); ++i)
+                outs[i] = std::move(results[i]);
+        };
+    }
+    if (auto it = desc->methods.find("subsasgn"); it != desc->methods.end()) {
+        auto uf = it->second;
+        cls.subsasgn = [uf](Value &self, Span<const Value> args, size_t, Span<Value>,
+                            CallContext &ctx) {
+            // Hook convention: args = [subscripts…, value] (value last).
+            const size_t nsub = args.empty() ? 0 : args.size() - 1;
+            Value s = buildSubsStruct("()", Span<const Value>(args.data(), nsub),
+                                      ctx.engine->resource());
+            Value callArgs[3] = {self, s, nsub < args.size() ? args[nsub] : Value()};
+            auto results = ctx.engine->invokeClassMethod(*uf, Span<const Value>(callArgs, 3), 1);
+            // Value class: subsasgn returns the modified object → write back.
+            // Handle class: it mutates shared state in place (write-back of the
+            // returned handle is harmless).
+            if (!results.empty() && results[0].isObject())
+                self = std::move(results[0]);
+        };
     }
     cls.dispText = [desc](const Value &self) -> std::string {
         std::string body = "  " + desc->name + " with properties:\n\n";

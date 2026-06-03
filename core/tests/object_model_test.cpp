@@ -1537,6 +1537,63 @@ INSTANTIATE_TEST_SUITE_P(Backends, DisplayClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef custom indexing via subsref / subsasgn ──
+class SubsrefClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        // A ring buffer: obj(i) wraps around its data via a custom subsref,
+        // and obj(i) = v writes with the same wrap via subsasgn.
+        engine.eval(
+            "classdef Ring\n"
+            "  properties\n    data = [10 20 30]\n  end\n"
+            "  methods\n"
+            "    function obj = Ring(d)\n      obj.data = d;\n    end\n"
+            "    function r = subsref(obj, s)\n"
+            "      idx = s.subs{1};\n"
+            "      n = numel(obj.data);\n"
+            "      r = obj.data(mod(idx - 1, n) + 1);\n"
+            "    end\n"
+            "    function obj = subsasgn(obj, s, val)\n"
+            "      idx = s.subs{1};\n"
+            "      n = numel(obj.data);\n"
+            "      d = obj.data;\n"
+            "      d(mod(idx - 1, n) + 1) = val;\n"
+            "      obj.data = d;\n"
+            "    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+TEST_P(SubsrefClassdefTest, CustomSubsrefInRange)
+{
+    engine.eval("r = Ring([10 20 30]);");
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(3)"), 30.0);
+}
+TEST_P(SubsrefClassdefTest, CustomSubsrefWrapsAround)
+{
+    engine.eval("r = Ring([10 20 30]);");
+    EXPECT_DOUBLE_EQ(evalScalar("r(4)"), 10.0); // wraps to index 1
+    EXPECT_DOUBLE_EQ(evalScalar("r(6)"), 30.0); // wraps to index 3
+}
+TEST_P(SubsrefClassdefTest, CustomSubsasgnWrapsAround)
+{
+    engine.eval("r = Ring([10 20 30]);");
+    engine.eval("r(5) = 99;"); // index 5 wraps to 2
+    EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 99.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 10.0); // others unchanged
+}
+INSTANTIATE_TEST_SUITE_P(Backends, SubsrefClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {
