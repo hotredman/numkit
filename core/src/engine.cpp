@@ -309,8 +309,8 @@ bool Engine::tryObjectUnaryOp(const std::string &op, const Value &operand,
                              + "' for input arguments of type '" + clsName + "'.");
 }
 
-void Engine::objectStoreElement(Value &dst, const std::vector<size_t> &subs,
-                                const Value &val, Environment *env)
+void Engine::objectStoreSlice(Value &dst, const std::vector<std::vector<size_t>> &perDim,
+                              const Value &val, Environment *env)
 {
     const BuiltinClass *cls = findClass(val.objectClassName());
     Value fill; // default element for grown gaps (class no-arg constructor)
@@ -318,10 +318,10 @@ void Engine::objectStoreElement(Value &dst, const std::vector<size_t> &subs,
         CallContext ctx{this, env};
         fill = cls->construct(Span<const Value>(nullptr, 0), ctx);
     }
-    if (subs.size() == 1)
-        dst.objectAssignElement(subs[0], val, fill, resource());
+    if (perDim.size() == 1)
+        dst.objectAssignLinear(perDim[0], val, fill, resource());
     else
-        dst.objectAssignElementND(subs, val, fill, resource());
+        dst.objectAssignND(perDim, val, fill, resource());
 }
 
 void Engine::registerFunction(const std::string &ns,

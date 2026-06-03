@@ -49,16 +49,18 @@ a scalar via the class `dispText`, and an array as
 **N-D** is fully wired (both engines). Reads go through the OBJECT-aware
 `elemAt`/`indexGet`/`indexGet2D`/`indexGet3D`/`indexGetND` (so `a(i,j)`,
 `a(:,k)`, `a(i,j,k)`, `end`, ranges, logical and vector subscripts work,
-column-major). Assignment uses `objectAssignElement` (linear: in-bounds
-preserves shape; out-of-bounds grows a vector) and `objectAssignElementND`
-(`a(i,j)=obj`, `a(i,j,k)=obj`: grows any rank, re-lays-out column-major,
-default-fills new slots; growing a proper matrix via a single linear index
-errors, as in MATLAB). Engine routing: TreeWalker `execIndexAccess` /
-`execIndexedAssign`; VM `INDEX_GET`/`INDEX_GET_2D`/`INDEX_GET_ND` +
-`INDEX_SET`/`INDEX_SET_2D`/`INDEX_SET_ND` + `execCallIndirect`.
-
-v1 limit: each assignment subscript selects a single element (slice
-assignment like `a(:,2) = arr` is not yet wired; slice *reads* work).
+column-major). Assignment — including **slices** — uses `objectAssignLinear`
+(one subscript: scalar/range/vector/logical/`:`; in-bounds preserves shape,
+out-of-bounds grows a vector) and `objectAssignND` (`a(i,j)`, `a(:,k)`,
+`a(i,j,k)`: per-dim index lists, column-major cartesian targets, grows any
+rank + re-lays-out + default-fills). The RHS is either a scalar object
+(broadcast to every target) or an object array matching the target count;
+a count mismatch errors, as does growing a proper matrix via a single
+linear index. The store boilerplate (default-fill construction + linear-vs-
+N-D dispatch) lives once in `Engine::objectStoreSlice`. Engine routing:
+TreeWalker `execIndexAccess` / `execIndexedAssign`; VM `INDEX_GET`/`_2D`/
+`_ND` + `INDEX_SET`/`_2D`/`_ND` + `execCallIndirect` — each resolves its
+subscripts to index lists and calls the shared helper.
 
 ## Goal
 
