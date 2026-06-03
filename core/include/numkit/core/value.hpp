@@ -330,6 +330,13 @@ public:
     // element read is safe to mutate. Throws on out-of-range index.
     Value objectSubArray(const std::vector<size_t> &idxs,
                          std::pmr::memory_resource *mr = nullptr) const;
+    // Reshape an object array to `newDims` (same numel) — element order is
+    // column-major-preserving, like reshape on any array. Applies the
+    // per-element value/handle rule. Used by the reshape builtin.
+    Value objectReshape(const Dims &newDims, std::pmr::memory_resource *mr = nullptr) const;
+    // 2-D transpose of an object array (R×C → C×R). Used by the builtin
+    // transpose/ctranspose for objects with no class overload.
+    Value objectTranspose(std::pmr::memory_resource *mr = nullptr) const;
     // Assign scalar object `elem` into linear slot `idx`, growing this
     // (1-D row vector) and gap-filling new slots with independent copies
     // of `fill` (typically a default-constructed object). An empty/unset/

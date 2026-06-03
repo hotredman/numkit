@@ -305,6 +305,12 @@ bool Engine::tryObjectUnaryOp(const std::string &op, const Value &operand,
             return true;
         }
     }
+    // Transpose has a builtin array meaning for any object array (reorder
+    // elements), so with no class override fall through to the registered
+    // builtin transpose instead of erroring. Other unary operators
+    // (uminus/uplus/not) are overload-only → undefined without one.
+    if (op == "'" || op == ".'")
+        return false;
     throw std::runtime_error("Undefined operator '" + op
                              + "' for input arguments of type '" + clsName + "'.");
 }

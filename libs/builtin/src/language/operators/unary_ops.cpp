@@ -140,6 +140,10 @@ Value transpose2D(const Value &x, bool conjugate, const char *fnName,
         return r;
     }
 
+    // OBJECT arrays transpose like CELL (conjugate is a no-op for objects).
+    if (t == ValueType::OBJECT)
+        return x.objectTranspose(p);
+
     if (t == ValueType::STRING || t == ValueType::STRUCT ||
         t == ValueType::FUNC_HANDLE)
         throw Error("Transpose not supported for this type",

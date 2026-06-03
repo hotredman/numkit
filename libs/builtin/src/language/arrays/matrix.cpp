@@ -769,6 +769,13 @@ Value reshape(const Value &x, size_t rows, size_t cols, size_t pages, std::pmr::
 
     DimsArg d{rows, cols, pages};
 
+    // OBJECT arrays store per-element state, column-major — reshape just
+    // changes the shape (element order preserved), like CELL.
+    if (x.isObject()) {
+        Dims nd = (d.pages > 0) ? Dims(d.rows, d.cols, d.pages) : Dims(d.rows, d.cols);
+        return x.objectReshape(nd, mr);
+    }
+
     // CELL and STRING store element-wise, not in the raw buffer — memcpy
     // wouldn't copy Value members.
     if (x.type() == ValueType::CELL || x.type() == ValueType::STRING) {
@@ -802,6 +809,9 @@ Value reshapeND(const Value &x, Span<const size_t> dims, std::pmr::memory_resour
     if (newNumel != x.numel())
         throw Error("Number of elements must not change in reshape",
                      0, 0, "reshape", "", "numkit:reshape:elementCountMismatch");
+
+    if (x.isObject())
+        return x.objectReshape(Dims(dims.data(), static_cast<int>(nDims)), mr);
 
     if (x.type() == ValueType::CELL || x.type() == ValueType::STRING) {
         if (nDims > 3)
