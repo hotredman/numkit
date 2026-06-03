@@ -1074,6 +1074,83 @@ INSTANTIATE_TEST_SUITE_P(Backends, AccessorClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef superclass calls: obj@Base(args) + method@Base(obj,...) ──
+class SuperCallClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Shape\n"
+            "  properties\n    area = 0\n  end\n"
+            "  methods\n"
+            "    function obj = Shape(a)\n      obj.area = a;\n    end\n"
+            "    function d = describe(obj)\n      d = obj.area;\n    end\n"
+            "    function [a, n] = info(obj)\n      a = obj.area;\n      n = 100;\n    end\n"
+            "  end\n"
+            "end\n");
+        engine.eval(
+            "classdef Square < Shape\n"
+            "  properties\n    side = 1\n  end\n"
+            "  methods\n"
+            // super-constructor: initialise the Shape part (area = s*s)
+            "    function obj = Square(s)\n"
+            "      obj = obj@Shape(s*s);\n"
+            "      obj.side = s;\n"
+            "    end\n"
+            // super-method: extend the inherited describe
+            "    function d = describe(obj)\n"
+            "      base = describe@Shape(obj);\n"
+            "      d = base + obj.side;\n"
+            "    end\n"
+            // multi-output super-method
+            "    function [a, n] = info(obj)\n"
+            "      [a0, n0] = info@Shape(obj);\n"
+            "      a = a0 + obj.side;\n"
+            "      n = n0 + 1;\n"
+            "    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+TEST_P(SuperCallClassdefTest, SuperConstructorInitialisesBase)
+{
+    engine.eval("sq = Square(3);");
+    EXPECT_DOUBLE_EQ(evalScalar("sq.area"), 9.0); // obj@Shape(s*s) set area = 9
+    EXPECT_DOUBLE_EQ(evalScalar("sq.side"), 3.0); // own prop set after super-ctor
+}
+TEST_P(SuperCallClassdefTest, SuperMethodCall)
+{
+    engine.eval("sq = Square(3);");
+    // describe@Shape(obj) returns area (9), derived adds side (3) → 12.
+    EXPECT_DOUBLE_EQ(evalScalar("sq.describe()"), 12.0);
+}
+TEST_P(SuperCallClassdefTest, SuperMethodFunctionForm)
+{
+    engine.eval("sq = Square(4);");
+    EXPECT_DOUBLE_EQ(evalScalar("describe(sq)"), 20.0); // area 16 + side 4
+}
+TEST_P(SuperCallClassdefTest, MultiOutputSuperMethod)
+{
+    engine.eval("sq = Square(3);");
+    engine.eval("[aa, nn] = sq.info();");
+    EXPECT_DOUBLE_EQ(evalScalar("aa"), 12.0);  // info@Shape area 9 + side 3
+    EXPECT_DOUBLE_EQ(evalScalar("nn"), 101.0); // info@Shape n 100 + 1
+}
+TEST_P(SuperCallClassdefTest, IsaAfterSuperCtor)
+{
+    engine.eval("sq = Square(3);");
+    EXPECT_TRUE(engine.eval("isa(sq, 'Shape')").toBool());
+    EXPECT_TRUE(engine.eval("isa(sq, 'Square')").toBool());
+}
+INSTANTIATE_TEST_SUITE_P(Backends, SuperCallClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {

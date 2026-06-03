@@ -2869,6 +2869,16 @@ uint8_t Compiler::compileCall(const ASTNode *node)
 {
     auto *funcNode = node->children[0].get();
 
+    // Superclass-qualified call `lhs@Base(args)`. Only meaningful inside a
+    // classdef method/constructor body — and those bodies always run on the
+    // TreeWalker (via Engine::invokeClassMethod / invokeClassCtor), never
+    // through the VM. So reaching here means a super-call was written at
+    // script scope, which is invalid.
+    if (funcNode->type == NodeType::SUPERCLASS_REF)
+        throw std::runtime_error(
+            "superclass call 'lhs@" + funcNode->strValue
+            + "(...)' is only valid inside a classdef method or constructor");
+
     // Qualified-name call: a chain of FIELD_ACCESS over a root IDENTIFIER
     // (`pkg.foo(x)`, `pkg.sub.bar(x)`). Treat as a flat CALL on the
     // dotted name when the root identifier is NOT a known variable

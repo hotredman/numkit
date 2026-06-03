@@ -79,6 +79,17 @@ public:
                                          size_t nout);
     Value invokeClassCtor(const UserFunction &ctor, const Value &seed,
                           Span<const Value> args);
+    // Superclass-qualified calls from inside a classdef body
+    // (`obj@Base(args)` / `method@Base(obj, args)`). superConstruct runs
+    // Base's constructor with `seed` as the partially-built object and
+    // returns the base-initialised object; superMethod runs Base's named
+    // method (args already include `self` first). Both throw if Base is not
+    // a registered classdef. When Base defines no constructor, superConstruct
+    // returns `seed` unchanged (a base with only default property init).
+    Value superConstruct(const std::string &base, const Value &seed,
+                         Span<const Value> args);
+    std::vector<Value> superMethod(const std::string &base, const std::string &method,
+                                   Span<const Value> args, size_t nout);
     // MATLAB-style display text for an OBJECT value. `name` empty →
     // bare body (disp); otherwise the `name =\n\n<body>\n` form.
     std::string formatObjectDisplay(const std::string &name, const Value &obj) const;

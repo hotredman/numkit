@@ -6,9 +6,12 @@ properties, constructors, methods, subsref/subsasgn indexing,
 binary + unary operator overloading, **N-D object arrays** — array-backed
 storage + builtin `()` index read/write with grow + concatenation
 `[a b]`/`[a;b]` + `[arr.prop]` CSL + array display, **user `classdef`** —
-value classes: properties+defaults, constructor, methods) — both engines,
-on `core-dev`. Owner: CORE. Remaining: classdef handle classes /
-inheritance / attributes, `image.*` objects.
+value + handle classes, properties+defaults, constructors, methods,
+inheritance, Static methods, Constant properties, `get.`/`set.` accessors
+(`Dependent`), superclass calls `obj@Base(...)` / `method@Base(...)`,
+introspection, file-based `Name.m` loading) — both engines, on `core-dev`.
+Owner: CORE. Remaining: classdef `Access`/method-attribute enforcement;
+`image.*` objects.
 
 ## User classdef (Phase 1: value classes)
 
@@ -39,16 +42,29 @@ Production coverage (all both-engine tested):
 - **Static methods** (`methods (Static)`) and **Constant properties**
   (`properties (Constant)`) exposed as `ClassName.member` (qualified
   externals); bare `ClassName.Const` resolves via the qualified-field path.
+- **Property accessors** (`get.Prop` / `set.Prop`, i.e. `Dependent`
+  properties): dotted method names captured into `getters`/`setters`,
+  consulted by the generic `propGet`/`propSet` hooks (a value-class setter
+  returns the modified object and is written back; a handle setter mutates
+  in place).
+- **Superclass calls** inside a classdef body: `obj = obj@Base(args)`
+  (super-constructor — seeds `Base`'s ctor with the partially-built object)
+  and `result = method@Base(obj, args)` (super-method, incl. multi-output
+  `[a,b] = method@Base(obj)`). Parsed as a postfix `lhs@Base` (`SUPERCLASS_REF`)
+  wrapped in a `CALL`; the TreeWalker disambiguates ctor (lhs is a variable)
+  from method (lhs is a method-name identifier) and delegates to
+  `Engine::superConstruct` / `superMethod`. Only valid inside a classdef
+  body (method bodies always run on the TreeWalker); the VM rejects a
+  super-call at script scope with a clear error.
 - **Introspection**: `class`, `isa(x,'Name'|'Base'|category)`, `isobject`,
   `properties(x)`, `methods(x)`.
 - **File-based classes**: a `Name.m` containing a classdef is loaded on
   demand from the path (resolveMFile_), registering the class + a
   constructor external.
 
-Not yet: explicit superclass call `obj@Base(...)`, `get.Prop`/`set.Prop`
-accessor methods, `Dependent` properties, `Access`/`Static` *enforcement*
-(attributes are parsed; only Static/Constant change dispatch). Method
-bodies run on the TreeWalker under either backend (VM compilation later).
+Not yet: `Access`/method-attribute *enforcement* (attributes are parsed;
+only `Static`/`Constant` change dispatch). Method bodies run on the
+TreeWalker under either backend (VM compilation of method bodies later).
 
 ## Object arrays
 

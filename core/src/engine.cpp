@@ -584,6 +584,33 @@ Value Engine::invokeClassCtor(const UserFunction &ctor, const Value &seed,
     throw std::runtime_error("classdef constructor requires the interpreter backend");
 }
 
+Value Engine::superConstruct(const std::string &base, const Value &seed,
+                             Span<const Value> args)
+{
+    auto it = classDefs_.find(base);
+    if (it == classDefs_.end())
+        throw std::runtime_error("superclass '" + base + "' is not a classdef");
+    const auto &desc = it->second;
+    // A base with no explicit constructor contributes only its default
+    // property values, which are already present on `seed` — nothing to run.
+    if (!desc->ctor)
+        return seed;
+    return invokeClassCtor(*desc->ctor, seed, args);
+}
+
+std::vector<Value> Engine::superMethod(const std::string &base, const std::string &method,
+                                       Span<const Value> args, size_t nout)
+{
+    auto it = classDefs_.find(base);
+    if (it == classDefs_.end())
+        throw std::runtime_error("superclass '" + base + "' is not a classdef");
+    const auto &desc = it->second;
+    auto mit = desc->methods.find(method);
+    if (mit == desc->methods.end())
+        throw std::runtime_error("superclass '" + base + "' has no method '" + method + "'");
+    return invokeClassMethod(*mit->second, args, nout);
+}
+
 void Engine::registerFunction(const std::string &ns,
                               const std::string &name,
                               ExternalFunc func)

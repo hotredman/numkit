@@ -1164,6 +1164,14 @@ ASTNodePtr Parser::parsePostfix()
                 cn->children.push_back(parseExpression());
             consume(TokenType::RBRACE, "}");
             node = std::move(cn);
+        } else if (check(TokenType::AT) && peekToken(1).type == TokenType::IDENTIFIER) {
+            // Superclass-qualified reference `lhs@Base` (classdef super-call).
+            auto [ln, cl] = loc();
+            advance(); // @
+            auto sn = makeNode(NodeType::SUPERCLASS_REF, ln, cl);
+            sn->strValue = consume(TokenType::IDENTIFIER, "superclass").value;
+            sn->children.push_back(std::move(node));
+            node = std::move(sn);
         } else if (check(TokenType::DOT) && peekToken(1).type == TokenType::IDENTIFIER) {
             auto [ln, cl] = loc();
             advance();

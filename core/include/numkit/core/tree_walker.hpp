@@ -157,6 +157,13 @@ private:
     Value execBinaryOp(const ASTNode *node, Environment *env);
     Value execUnaryOp(const ASTNode *node, Environment *env);
     Value execCall(const ASTNode *node, Environment *env, size_t nargout = 1);
+    // Superclass-qualified call `lhs@Base(args)` (classdef super-call).
+    // `superRef` is the SUPERCLASS_REF node, `callNode` the enclosing CALL
+    // (its children[1..] are the arguments). Disambiguates super-constructor
+    // (`obj@Base(args)`, lhs is a variable) from super-method
+    // (`method@Base(obj,...)`, lhs is a method-name identifier).
+    std::vector<Value> execSuperCall(const ASTNode *superRef, const ASTNode *callNode,
+                                     Environment *env, size_t nargout);
     Value execCellIndex(const ASTNode *node, Environment *env);
     Value execFieldAccess(const ASTNode *node, Environment *env);
     Value execMatrixLiteral(const ASTNode *node, Environment *env);
