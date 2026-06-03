@@ -1276,6 +1276,77 @@ INSTANTIATE_TEST_SUITE_P(Backends, AccessClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef operator overloading via methods (plus/minus/.../uminus/eq) ──
+class OperatorOverloadClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Vec\n"
+            "  properties\n    x = 0\n  end\n"
+            "  methods\n"
+            "    function obj = Vec(v)\n      obj.x = v;\n    end\n"
+            "    function r = plus(a, b)\n      r = Vec(a.x + b.x);\n    end\n"
+            "    function r = minus(a, b)\n      r = Vec(a.x - b.x);\n    end\n"
+            "    function r = mtimes(a, b)\n      r = Vec(a.x * b.x);\n    end\n"
+            "    function r = uminus(a)\n      r = Vec(-a.x);\n    end\n"
+            "    function r = eq(a, b)\n      r = (a.x == b.x);\n    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    bool evalBool(const std::string &c) { return engine.eval(c).toBool(); }
+};
+
+TEST_P(OperatorOverloadClassdefTest, BinaryPlus)
+{
+    engine.eval("c = Vec(2) + Vec(3);");
+    EXPECT_DOUBLE_EQ(evalScalar("c.x"), 5.0);
+}
+TEST_P(OperatorOverloadClassdefTest, BinaryMinus)
+{
+    engine.eval("c = Vec(10) - Vec(4);");
+    EXPECT_DOUBLE_EQ(evalScalar("c.x"), 6.0);
+}
+TEST_P(OperatorOverloadClassdefTest, BinaryMtimes)
+{
+    engine.eval("c = Vec(3) * Vec(4);");
+    EXPECT_DOUBLE_EQ(evalScalar("c.x"), 12.0);
+}
+TEST_P(OperatorOverloadClassdefTest, UnaryMinus)
+{
+    engine.eval("c = -Vec(7);");
+    EXPECT_DOUBLE_EQ(evalScalar("c.x"), -7.0);
+}
+TEST_P(OperatorOverloadClassdefTest, EqualityReturnsLogical)
+{
+    EXPECT_TRUE(evalBool("Vec(5) == Vec(5)"));
+    EXPECT_FALSE(evalBool("Vec(5) == Vec(6)"));
+}
+TEST_P(OperatorOverloadClassdefTest, ChainedLeftAssociative)
+{
+    engine.eval("c = Vec(1) + Vec(2) + Vec(3);"); // plus(plus(1,2),3)
+    EXPECT_DOUBLE_EQ(evalScalar("c.x"), 6.0);
+}
+TEST_P(OperatorOverloadClassdefTest, MixedWithScalarProperty)
+{
+    // Operands keep source order: plus(a=Vec(4), b=Vec(scalar via prop)).
+    engine.eval("v = Vec(4); c = v + v;");
+    EXPECT_DOUBLE_EQ(evalScalar("c.x"), 8.0);
+}
+TEST_P(OperatorOverloadClassdefTest, OperatorMethodCallableByName)
+{
+    // An operator method is also a normal method (lives in both methods + ops).
+    engine.eval("v = Vec(2); c = v.plus(Vec(3));");
+    EXPECT_DOUBLE_EQ(evalScalar("c.x"), 5.0);
+}
+INSTANTIATE_TEST_SUITE_P(Backends, OperatorOverloadClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {

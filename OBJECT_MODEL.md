@@ -8,9 +8,10 @@ storage + builtin `()` index read/write with grow + concatenation
 `[a b]`/`[a;b]` + `[arr.prop]` CSL + array display, **user `classdef`** —
 value + handle classes, properties+defaults, constructors, methods,
 inheritance, Static methods, Constant properties, `get.`/`set.` accessors
-(`Dependent`), superclass calls `obj@Base(...)` / `method@Base(...)`,
-member-access enforcement (private/protected/SetAccess/immutable),
-introspection, file-based `Name.m` loading) — both engines, on `core-dev`.
+(`Dependent`), operator overloading via methods (`plus`/`eq`/`uminus`/…),
+superclass calls `obj@Base(...)` / `method@Base(...)`, member-access
+enforcement (private/protected/SetAccess/immutable), introspection,
+file-based `Name.m` loading) — both engines, on `core-dev`.
 Owner: CORE. Remaining: classdef access class-lists + `Hidden`/`Abstract`/
 `Sealed`; `image.*` objects.
 
@@ -48,6 +49,13 @@ Production coverage (all both-engine tested):
   consulted by the generic `propGet`/`propSet` hooks (a value-class setter
   returns the modified object and is written back; a handle setter mutates
   in place).
+- **Operator overloading via methods**: a method named after a MATLAB
+  operator (`plus`/`minus`/`mtimes`/`times`/`mrdivide`/`rdivide`/`mpower`/
+  `power`/`eq`/`ne`/`lt`/`le`/`gt`/`ge`/`and`/`or` and unary `uminus`/
+  `uplus`/`not`/`ctranspose`/`transpose`) is wired into `BuiltinClass::ops`,
+  so `a + b`, `-a`, `a == b`, … dispatch to it. Operands pass as the method's
+  positional parameters in source order (no `self` prepended); the method is
+  also callable by name (`a.plus(b)`).
 - **Superclass calls** inside a classdef body: `obj = obj@Base(args)`
   (super-constructor — seeds `Base`'s ctor with the partially-built object)
   and `result = method@Base(obj, args)` (super-method, incl. multi-output
