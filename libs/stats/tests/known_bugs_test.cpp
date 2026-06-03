@@ -102,4 +102,15 @@ TEST_F(StatsKnownBug, DISABLED_MahalSingular)
     EXPECT_NEAR(evalScalar("d(1)"), 0.9505075, 1e-5);
 }
 
+// bugs/stats/pdist-metrics.md — 'seuclidean'/'spearman' + cosine zero-vector.
+TEST_F(StatsKnownBug, DISABLED_PdistMetrics)
+{
+    eval("A = [1 2 3; 4 5 7; 1 0 2];");
+    // seuclidean currently throws "unknown metric"; MATLAB max dist 3.2433.
+    EXPECT_NEAR(evalScalar("max(pdist(A,'seuclidean'))"), 3.2433, 1e-3);
+    EXPECT_NO_THROW(eval("pdist(A,'spearman');"));
+    // cosine distance with a zero-norm row should be NaN (MATLAB), not 1.
+    EXPECT_TRUE(eval("isnan(pdist([0 0;3 4],'cosine'))").toBool());
+}
+
 // NOTE: combnk scalar-set bug FIXED — see libs/stats/tests/combnk_test.cpp.
