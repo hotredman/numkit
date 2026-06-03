@@ -168,12 +168,42 @@ the VM backend. This is the gap to close.
   save/restore because both the snapshot and the setter's arg copy hold the same
   `shared_ptr<ObjectState>`). **Proven**: `DebugSessionTest.BreakInsideClassdefSetter`
   (breakpoint inside `set.val` pauses; `y == 10`); full suite 10926.
-  - **Remaining P4** (follow-up commits): operator methods via the
-    arithmetic/comparison opcodes; `subsref`/`subsasgn` via `INDEX_GET`/
-    `INDEX_SET`. Plus a backend-aware `invokeClassMethod`/`invokeClassCtor`
-    (→ `callReentrant`) as the net for genuinely C++-initiated callbacks (e.g.
-    `disp(obj)` from a builtin, a `sort` comparator) — measure before routing
-    hot in-bytecode paths through its save/restore.
+- **P4c (done)** — **backend-aware `invokeClassMethod`/`invokeClassCtor`** — the
+  net for every remaining C++-initiated classdef callback. Under the VM backend
+  both route the body through `VM::callReentrant` (carrying the class context on
+  the frame's `ownerClass`, so no `ClassCtxGuard`), falling back to the
+  TreeWalker only if the body can't VM-compile. This single change moves onto
+  the VM: operator methods (`a+b`, `-a`, `a==b` → `binarySlowPath`/
+  `unarySlowPath` → `tryObject*Op` → `ops` lambda → `invokeClassMethod`),
+  `subsref`/`subsasgn` (`obj(...)` read/assign), custom `disp`/`display`
+  (`displayObject`), super-method/super-ctor *base targets* (`superMethod`/
+  `superConstruct` — upgrades P2's TW delegation), and any method/ctor invoked
+  from a builtin. **Proven**: operator/subsref/display/super-call dual-engine
+  suites green on the VM path; full suite 10926.
+  - **Pausability:** these are C++-initiated (reached from a builtin or an
+    arithmetic opcode's slow path), so per P3's contract a breakpoint inside an
+    operator/subsref body fires but cannot suspend across the C++ boundary. The
+    fully pausable classdef paths are methods/ctor/super (P1/P2 frame-push) and
+    get/set accessors (P4a/P4b frame-push). A future refinement could give
+    operators (`ADD`…/`NEG`…) and indexing (`INDEX_GET`/`INDEX_SET`) the same
+    in-bytecode opcode frame-push for full pause/resume + to drop the
+    `callReentrant` save/restore on those slow paths.
+  - **Perf note:** `callReentrant` snapshots the live register stack per call.
+    It only fires on the OBJECT slow path (numeric/scalar operators keep their
+    fast inline path), so hot numeric code is unaffected; object-operator-heavy
+    loops pay the snapshot — the opcode frame-push above would remove it.
+
+## P1–P4 net result
+
+Under the VM backend, **all** classdef user code now executes on the VM (no
+TreeWalker hop): instance methods (all call forms), constructors, super-calls,
+get/set accessors, operator overloads, `subsref`/`subsasgn`, custom
+`disp`/`display`, and function-handle callbacks (`cellfun`/`arrayfun`/`feval`).
+Methods, constructors, super-calls and get/set accessors are *pausable* under
+the debugger; the C++-initiated callbacks (operators, indexing, handle-in-
+builtin) run on the VM and fire breakpoints but cannot suspend across the C++
+boundary (documented P3 contract). The TreeWalker backend is unchanged; native
+builtin-class methods (containers.Map, …) keep their C++ hook.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a

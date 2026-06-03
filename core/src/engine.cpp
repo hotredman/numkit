@@ -1049,6 +1049,16 @@ struct ClassCtxGuard
 std::vector<Value> Engine::invokeClassMethod(const UserFunction &uf, Span<const Value> args,
                                              size_t nout)
 {
+    // Under the VM backend, run the body on the VM (P4) so C++-initiated
+    // classdef callbacks — operator methods, subsref/subsasgn, custom
+    // disp/display, super-method targets, and method calls made from a builtin —
+    // execute on the same engine as the rest of the program. callReentrant
+    // carries the class context on the frame (ownerClass), so no ClassCtxGuard
+    // is needed. Falls back to the TreeWalker if the body can't VM-compile.
+    if (vm_ && backend_ == Backend::VM)
+        if (const BytecodeChunk *cc = ensureClassMethodChunk(uf))
+            return vm_->callReentrant(*cc, args, std::max<size_t>(nout, 1), uf.ownerClass,
+                                      /*isCtor=*/false);
     if (treeWalker_) {
         ClassCtxGuard ctx(this, uf.ownerClass, /*isCtor=*/false);
         return treeWalker_->runClassMethod(uf, args, nout);
@@ -1059,6 +1069,16 @@ std::vector<Value> Engine::invokeClassMethod(const UserFunction &uf, Span<const 
 Value Engine::invokeClassCtor(const UserFunction &ctor, const Value &seed,
                               Span<const Value> args)
 {
+    // VM backend: run the constructor body on the VM (P4), seeding the output
+    // variable with the default instance. Reached for C++-initiated
+    // construction (object-array growth, constructChecked from a builtin) and
+    // super-constructor targets; in-bytecode `ClassName(args)` pushes its ctor
+    // frame directly (P2). Falls back to the TreeWalker if it can't VM-compile.
+    if (vm_ && backend_ == Backend::VM)
+        if (const BytecodeChunk *cc = ensureClassMethodChunk(ctor)) {
+            auto r = vm_->callReentrant(*cc, args, 1, ctor.ownerClass, /*isCtor=*/true, &seed);
+            return r.empty() ? seed : std::move(r[0]);
+        }
     if (treeWalker_) {
         ClassCtxGuard ctx(this, ctor.ownerClass, /*isCtor=*/true);
         return treeWalker_->runClassCtor(ctor, seed, args);
