@@ -18,9 +18,11 @@ void odeget_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::ode::detail
 
 namespace numkit::ode {
-// Defined in ode45.cpp — installs the `.m` ode45 wrapper (pausable RHS; the
-// C++ `Value ode45(...)` API remains the synchronous path for embedders).
+// Defined in ode45.cpp / ode23.cpp — install the `.m` solver wrappers (pausable
+// RHS; the C++ `Value ode45/ode23(...)` APIs remain the synchronous embedder
+// path).
 void registerOde45M(Engine &engine);
+void registerOde23M(Engine &engine);
 } // namespace numkit::ode
 
 namespace numkit {
@@ -38,7 +40,7 @@ void OdeLibrary::install(Engine &engine)
     // ode.solvers/compat external alias is needed — the C++ `Value ode45(...)`
     // API (ode45_reg) is retained as the synchronous embedder path.
     ode::registerOde45M(engine);
-    reg("solvers", "ode23",  &ode::detail::ode23_reg);
+    ode::registerOde23M(engine);   // embedded `.m` wrapper (pausable RHS)
     reg("options", "odeset", &ode::detail::odeset_reg);
     reg("options", "odeget", &ode::detail::odeget_reg);
 }

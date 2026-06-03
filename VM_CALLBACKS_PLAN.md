@@ -416,9 +416,18 @@ stays as the synchronous path for embedders. This is how real MATLAB ships these
   dual-engine tests green; full suite 10941 (0 regressions). The external
   `ode.solvers/compat.ode45` alias is dropped — the top-level `.m` user
   function shadows on both backends.
-- **Remaining (same pattern, follow-up):** `ode23`, `nlinfit`,
-  `fminsearch` — port each user-facing builtin to embedded `.m`. Until then they
-  stay on `callReentrant` (breakpoints fire but cannot suspend).
+- **ode23 (done)** — registered via `ode::registerOde23M` (embedded `.m`
+  Bogacki-Shampine 3(2) in `ode23.cpp`). Same shape as ode45 with the simpler
+  4-stage FSAL pair, cubic-Hermite dense output (only `k1`/`k4`), default
+  `Refine=1`, and the 1/3 step exponent. Split into `ode23` + `nk_bs23_step` +
+  `nk_bs23_hermite` (register-limit lesson applied up front). Vectorised stages
+  → SIMD, bit-identical to the retained `Value ode23(...)` API.
+  **Proven**: `DebugSessionTest.BreakInsideOde23Rhs`; all 11 Ode23Test
+  dual-engine tests green; full suite 10942 (0 regressions). External alias
+  dropped (top-level `.m` shadows).
+- **Remaining (same pattern, follow-up):** `nlinfit`, `fminsearch` — port each
+  user-facing builtin to embedded `.m`. Until then they stay on `callReentrant`
+  (breakpoints fire but cannot suspend).
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a

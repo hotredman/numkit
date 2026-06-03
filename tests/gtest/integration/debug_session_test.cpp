@@ -680,6 +680,33 @@ TEST_F(DebugSessionTest, BreakInsideOde45Rhs)
     EXPECT_NEAR(engine.eval("yy(end)").toScalar(), 0.36787944117144233, 1e-3); // exp(-1); y'=-y
 }
 
+// ode23 (embedded `.m` wrapper): same proof as ode45 — a breakpoint inside the
+// RHS pauses on each Bogacki-Shampine stage (4 f-calls per step). (VM_CALLBACKS_PLAN.md)
+TEST_F(DebugSessionTest, BreakInsideOde23Rhs)
+{
+    engine.eval(
+        "function dy = dbgRhs23(t, yv)\n" // 1
+        "\n"                              // 2
+        "\n"                              // 3
+        "  dy = -yv;\n"                 // 4
+        "end\n");                         // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "[tt, yy] = ode23(@dbgRhs23, [0 1], 1);\n"; // 1
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "ode23 RHS did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 2000) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_GE(pauses, 4);                                       // ≥ one BS23 step
+    EXPECT_NEAR(engine.eval("yy(end)").toScalar(), 0.36787944117144233, 2e-3); // exp(-1)
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);
