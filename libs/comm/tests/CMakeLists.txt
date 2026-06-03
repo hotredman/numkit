@@ -34,4 +34,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/hammgen_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cyclpoly_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cyclgen_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/encode_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/decode_test.cpp
 )

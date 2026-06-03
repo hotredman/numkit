@@ -399,6 +399,394 @@ CyclgenResult cyclgen(long long n, const Value &genpoly,
     return res;
 }
 
+// ── encode / decode shared helpers ──────────────────────────────────────
+
+namespace {
+
+// Convert a numeric Value matrix to a row-major 0/1 matrix.
+std::vector<std::vector<int>> matToRows(const Value &v)
+{
+    const std::size_t R = v.dims().rows(), C = v.dims().cols();
+    std::vector<std::vector<int>> rows(R, std::vector<int>(C));
+    for (std::size_t i = 0; i < R; ++i)
+        for (std::size_t j = 0; j < C; ++j) rows[i][j] = matBit(v, i, j);
+    return rows;
+}
+
+// Split "hamming/decimal" into base="hamming" + decimal=true.
+void parseMethod(const std::string &method, std::string &base, bool &decimal,
+                 const char *who)
+{
+    const std::string m = toLower(method);
+    decimal = m.find("decimal") != std::string::npos;
+    if (m.rfind("hamming", 0) == 0)      base = "hamming";
+    else if (m.rfind("linear", 0) == 0)  base = "linear";
+    else if (m.rfind("cyclic", 0) == 0)  base = "cyclic";
+    else throw Error(std::string(who) + ": unknown coding method '" + method + "'",
+                     0, 0, who, "", std::string("numkit:") + who + ":method");
+}
+
+// Build the k×n generator (gen) and (n-k)×n parity-check (h) matrices for
+// the requested method, as row-major 0/1 matrices.
+void buildCode(const std::string &base, long long n, long long k,
+               const Value &opt, const char *who,
+               std::vector<std::vector<int>> &gen,
+               std::vector<std::vector<int>> &h,
+               std::pmr::memory_resource *mr)
+{
+    if (base == "hamming") {
+        const long long m = n - k;
+        if (((1LL << m) - 1) != n)
+            throw Error(std::string(who) + ": N and K do not form a Hamming "
+                        "code (2^(N-K)-1 must equal N)",
+                        0, 0, who, "", std::string("numkit:") + who + ":nklen");
+        HammgenResult hr = hammgen(m, opt.isEmpty() ? Value::Empty : opt, mr);
+        h = matToRows(hr.h);
+        gen = matToRows(hr.g);
+    } else if (base == "linear") {
+        if (opt.isEmpty())
+            throw Error(std::string(who) + ": the linear method requires a "
+                        "generator matrix",
+                        0, 0, who, "", std::string("numkit:") + who + ":genmat");
+        if (static_cast<long long>(opt.dims().rows()) != k ||
+            static_cast<long long>(opt.dims().cols()) != n)
+            throw Error(std::string(who) + ": generator matrix must be K x N",
+                        0, 0, who, "", std::string("numkit:") + who + ":gendims");
+        gen = matToRows(opt);
+        h = matToRows(gen2par(opt, mr));
+    } else {  // cyclic
+        Value gp = opt;
+        if (opt.isEmpty()) {
+            gp = cyclpoly(n, k, "", mr);
+            if (gp.numel() == 0)
+                throw Error(std::string(who) + ": no valid cyclic generator "
+                            "polynomial for (N,K)",
+                            0, 0, who, "", std::string("numkit:") + who + ":genpoly");
+        }
+        CyclgenResult cr = cyclgen(n, gp, "system", mr);
+        gen = matToRows(cr.g);
+        h = matToRows(cr.h);
+    }
+}
+
+// MSB-first syndrome integer of error pattern e against parity-check h
+// (m×n): bit j (row j of h) carries weight 2^(m-1-j).
+inline long long syndromeInt(const std::vector<std::vector<int>> &h,
+                             const std::vector<int> &e, long long m, long long n)
+{
+    long long s = 0;
+    for (long long j = 0; j < m; ++j) {
+        int b = 0;
+        for (long long i = 0; i < n; ++i) b ^= (h[j][i] & e[i]);
+        s = (s << 1) | (b & 1);
+    }
+    return s;
+}
+
+// Standard-array syndrome decoding table: row (syndrome integer) -> the
+// minimum-weight coset leader (error pattern). Weight 0, then 1, 2, ...
+// until every syndrome has a leader. (Tie-breaking for weight >= 2 leaders
+// follows lexicographic position order, which suffices for the common
+// single-error-correcting codes.)
+std::vector<std::vector<int>>
+buildSyndTable(const std::vector<std::vector<int>> &h, long long n, long long m)
+{
+    const long long T = 1LL << m;
+    std::vector<std::vector<int>> table(static_cast<std::size_t>(T));
+    std::vector<char> filled(static_cast<std::size_t>(T), 0);
+    long long remaining = T;
+
+    std::vector<int> e(static_cast<std::size_t>(n), 0);
+    const long long s0 = syndromeInt(h, e, m, n);
+    table[static_cast<std::size_t>(s0)] = e;
+    filled[static_cast<std::size_t>(s0)] = 1;
+    --remaining;
+
+    for (long long w = 1; w <= n && remaining > 0; ++w) {
+        std::vector<long long> idx(static_cast<std::size_t>(w));
+        for (long long t = 0; t < w; ++t) idx[static_cast<std::size_t>(t)] = t;
+        while (true) {
+            std::vector<int> ep(static_cast<std::size_t>(n), 0);
+            for (long long t = 0; t < w; ++t) ep[static_cast<std::size_t>(idx[t])] = 1;
+            const long long s = syndromeInt(h, ep, m, n);
+            if (!filled[static_cast<std::size_t>(s)]) {
+                table[static_cast<std::size_t>(s)] = std::move(ep);
+                filled[static_cast<std::size_t>(s)] = 1;
+                if (--remaining == 0) break;
+            }
+            long long t = w - 1;
+            while (t >= 0 && idx[static_cast<std::size_t>(t)] == n - w + t) --t;
+            if (t < 0) break;
+            ++idx[static_cast<std::size_t>(t)];
+            for (long long u = t + 1; u < w; ++u)
+                idx[static_cast<std::size_t>(u)] = idx[static_cast<std::size_t>(u - 1)] + 1;
+        }
+    }
+    return table;
+}
+
+} // namespace
+
+// ── encode ──────────────────────────────────────────────────────────────
+
+EncodeResult encode(const Value &msg, long long n, long long k,
+                    const std::string &method, const Value &opt,
+                    std::pmr::memory_resource *mr)
+{
+    if (n < 1) throw Error("encode: N must be a positive integer",
+                           0, 0, "encode", "", "numkit:encode:N");
+    if (k < 1) throw Error("encode: K must be a positive integer",
+                           0, 0, "encode", "", "numkit:encode:K");
+    if (n <= k) throw Error("encode: N must exceed K",
+                            0, 0, "encode", "", "numkit:encode:nlek");
+
+    std::string base; bool decimal;
+    parseMethod(method, base, decimal, "encode");
+
+    const std::size_t R = msg.dims().rows(), C = msg.dims().cols();
+    const std::size_t nel = msg.numel();
+    const bool isVector = (R == 1 || C == 1);
+    const bool isRowVector = isVector && (R == 1);
+
+    std::vector<std::vector<int>> words;
+    long long added = 0;
+    int typeFlag = 0;
+
+    if (decimal) {
+        typeFlag = 1;
+        if (!isVector)
+            throw Error("encode: message must be a vector for the decimal format",
+                        0, 0, "encode", "", "numkit:encode:msgvec");
+        const double maxv = std::ldexp(1.0, static_cast<int>(k)) - 1.0;
+        for (std::size_t w = 0; w < nel; ++w) {
+            const double x = msg.elemAsDouble(w);
+            if (x < 0 || x > maxv || std::floor(x) != x)
+                throw Error("encode: decimal message entries must be integers "
+                            "in [0, 2^K-1]",
+                            0, 0, "encode", "", "numkit:encode:msgint");
+            std::vector<int> word(static_cast<std::size_t>(k), 0);
+            const unsigned long long xi = static_cast<unsigned long long>(x);
+            for (long long p = 0; p < k; ++p)
+                word[static_cast<std::size_t>(p)] = static_cast<int>((xi >> p) & 1ULL);
+            words.push_back(std::move(word));
+        }
+    } else {
+        for (std::size_t i = 0; i < nel; ++i) {
+            const double x = msg.elemAsDouble(i);
+            if (x != 0.0 && x != 1.0)
+                throw Error("encode: binary message must contain only 0s and 1s",
+                            0, 0, "encode", "", "numkit:encode:bin");
+        }
+        if (isVector) {
+            typeFlag = 2;
+            added = static_cast<long long>(nel % static_cast<std::size_t>(k));
+            if (added) added = k - added;
+            const std::size_t numWords = (nel + static_cast<std::size_t>(added))
+                                         / static_cast<std::size_t>(k);
+            for (std::size_t w = 0; w < numWords; ++w) {
+                std::vector<int> word(static_cast<std::size_t>(k), 0);
+                for (long long p = 0; p < k; ++p) {
+                    const std::size_t idx = w * static_cast<std::size_t>(k) + p;
+                    if (idx < nel) word[static_cast<std::size_t>(p)] =
+                        msg.elemAsDouble(idx) != 0.0 ? 1 : 0;
+                }
+                words.push_back(std::move(word));
+            }
+        } else {
+            if (static_cast<long long>(C) != k)
+                throw Error("encode: message matrix must have K columns",
+                            0, 0, "encode", "", "numkit:encode:cols");
+            typeFlag = 0;
+            for (std::size_t w = 0; w < R; ++w) {
+                std::vector<int> word(static_cast<std::size_t>(k));
+                for (long long p = 0; p < k; ++p)
+                    word[static_cast<std::size_t>(p)] = matBit(msg, w, static_cast<std::size_t>(p));
+                words.push_back(std::move(word));
+            }
+        }
+    }
+
+    std::vector<std::vector<int>> gen, h;
+    buildCode(base, n, k, opt, "encode", gen, h, mr);
+
+    const std::size_t numWords = words.size();
+    const std::size_t N = static_cast<std::size_t>(n);
+    std::vector<std::vector<int>> code(numWords, std::vector<int>(N, 0));
+    for (std::size_t w = 0; w < numWords; ++w)
+        for (long long c = 0; c < n; ++c) {
+            int b = 0;
+            for (long long p = 0; p < k; ++p)
+                b ^= (words[w][static_cast<std::size_t>(p)] & gen[static_cast<std::size_t>(p)][static_cast<std::size_t>(c)]);
+            code[w][static_cast<std::size_t>(c)] = b & 1;
+        }
+
+    EncodeResult res;
+    res.added = added;
+    if (typeFlag == 1) {
+        res.code = isRowVector ? Value::matrix(1, numWords, ValueType::DOUBLE, mr)
+                               : Value::matrix(numWords, 1, ValueType::DOUBLE, mr);
+        double *d = res.code.doubleDataMut();
+        for (std::size_t w = 0; w < numWords; ++w) {
+            double v = 0;
+            for (long long p = 0; p < n; ++p)
+                if (code[w][static_cast<std::size_t>(p)]) v += std::ldexp(1.0, static_cast<int>(p));
+            d[w] = v;
+        }
+    } else if (typeFlag == 2) {
+        const std::size_t L = numWords * N;
+        res.code = isRowVector ? Value::matrix(1, L, ValueType::DOUBLE, mr)
+                               : Value::matrix(L, 1, ValueType::DOUBLE, mr);
+        double *d = res.code.doubleDataMut();
+        for (std::size_t w = 0; w < numWords; ++w)
+            for (std::size_t p = 0; p < N; ++p) d[w * N + p] = code[w][p];
+    } else {
+        res.code = Value::matrix(numWords, N, ValueType::DOUBLE, mr);
+        double *d = res.code.doubleDataMut();
+        for (std::size_t w = 0; w < numWords; ++w)
+            for (std::size_t c = 0; c < N; ++c) d[c * numWords + w] = code[w][c];
+    }
+    return res;
+}
+
+// ── decode ──────────────────────────────────────────────────────────────
+
+DecodeResult decode(const Value &code, long long n, long long k,
+                    const std::string &method, const Value &opt,
+                    std::pmr::memory_resource *mr)
+{
+    if (n < 1) throw Error("decode: N must be a positive integer",
+                           0, 0, "decode", "", "numkit:decode:N");
+    if (k < 1) throw Error("decode: K must be a positive integer",
+                           0, 0, "decode", "", "numkit:decode:K");
+    if (n <= k) throw Error("decode: N must exceed K",
+                            0, 0, "decode", "", "numkit:decode:nlek");
+
+    std::string base; bool decimal;
+    parseMethod(method, base, decimal, "decode");
+
+    const std::size_t R = code.dims().rows(), C = code.dims().cols();
+    const std::size_t nel = code.numel();
+    const bool isVector = (R == 1 || C == 1);
+    const bool isRowVector = isVector && (R == 1);
+    const std::size_t N = static_cast<std::size_t>(n);
+
+    std::vector<std::vector<int>> wordsIn;
+    int typeFlag = 0;
+
+    if (decimal) {
+        typeFlag = 1;
+        if (!isVector)
+            throw Error("decode: code must be a vector for the decimal format",
+                        0, 0, "decode", "", "numkit:decode:codevec");
+        const double maxv = std::ldexp(1.0, static_cast<int>(n)) - 1.0;
+        for (std::size_t w = 0; w < nel; ++w) {
+            const double x = code.elemAsDouble(w);
+            if (x < 0 || x > maxv || std::floor(x) != x)
+                throw Error("decode: decimal code entries must be integers in "
+                            "[0, 2^N-1]",
+                            0, 0, "decode", "", "numkit:decode:codeint");
+            std::vector<int> word(N, 0);
+            const unsigned long long xi = static_cast<unsigned long long>(x);
+            for (std::size_t p = 0; p < N; ++p) word[p] = static_cast<int>((xi >> p) & 1ULL);
+            wordsIn.push_back(std::move(word));
+        }
+    } else {
+        for (std::size_t i = 0; i < nel; ++i) {
+            const double x = code.elemAsDouble(i);
+            if (x != 0.0 && x != 1.0)
+                throw Error("decode: binary code must contain only 0s and 1s",
+                            0, 0, "decode", "", "numkit:decode:bin");
+        }
+        if (isVector) {
+            typeFlag = 2;
+            long long pad = static_cast<long long>(nel % N);
+            if (pad) pad = static_cast<long long>(N) - pad;
+            const std::size_t numWords = (nel + static_cast<std::size_t>(pad)) / N;
+            for (std::size_t w = 0; w < numWords; ++w) {
+                std::vector<int> word(N, 0);
+                for (std::size_t p = 0; p < N; ++p) {
+                    const std::size_t idx = w * N + p;
+                    if (idx < nel) word[p] = code.elemAsDouble(idx) != 0.0 ? 1 : 0;
+                }
+                wordsIn.push_back(std::move(word));
+            }
+        } else {
+            if (static_cast<long long>(C) != n)
+                throw Error("decode: code matrix must have N columns",
+                            0, 0, "decode", "", "numkit:decode:cols");
+            typeFlag = 0;
+            for (std::size_t w = 0; w < R; ++w) {
+                std::vector<int> word(N);
+                for (std::size_t p = 0; p < N; ++p) word[p] = matBit(code, w, p);
+                wordsIn.push_back(std::move(word));
+            }
+        }
+    }
+
+    std::vector<std::vector<int>> gen, h;
+    buildCode(base, n, k, opt, "decode", gen, h, mr);
+    const long long m = n - k;
+    const std::vector<std::vector<int>> trt = buildSyndTable(h, n, m);
+
+    // Systematic message columns: gen = [I_k | ...] or [... | I_k].
+    bool firstK = true, lastK = true;
+    for (long long i = 0; i < k && (firstK || lastK); ++i)
+        for (long long j = 0; j < k; ++j) {
+            const int want = (i == j) ? 1 : 0;
+            if (gen[static_cast<std::size_t>(i)][static_cast<std::size_t>(j)] != want) firstK = false;
+            if (gen[static_cast<std::size_t>(i)][static_cast<std::size_t>(n - k + j)] != want) lastK = false;
+        }
+    if (!firstK && !lastK)
+        throw Error("decode: generator matrix is not in systematic form",
+                    0, 0, "decode", "", "numkit:decode:gensys");
+    const long long msgOff = firstK ? 0 : (n - k);
+
+    const std::size_t numWords = wordsIn.size();
+    const std::size_t K = static_cast<std::size_t>(k);
+    std::vector<std::vector<int>> msgRows(numWords, std::vector<int>(K, 0));
+    std::vector<long long> errCnt(numWords, 0);
+    for (std::size_t w = 0; w < numWords; ++w) {
+        const long long s = syndromeInt(h, wordsIn[w], m, n);
+        const std::vector<int> &leader = trt[static_cast<std::size_t>(s)];
+        long long cnt = 0;
+        for (std::size_t p = 0; p < K; ++p)
+            msgRows[w][p] = wordsIn[w][static_cast<std::size_t>(msgOff) + p] ^ leader[static_cast<std::size_t>(msgOff) + p];
+        for (std::size_t p = 0; p < N; ++p) cnt += leader[p];
+        errCnt[w] = cnt;
+    }
+
+    DecodeResult res;
+    // msg output
+    if (typeFlag == 1) {
+        res.msg = isRowVector ? Value::matrix(1, numWords, ValueType::DOUBLE, mr)
+                              : Value::matrix(numWords, 1, ValueType::DOUBLE, mr);
+        double *d = res.msg.doubleDataMut();
+        for (std::size_t w = 0; w < numWords; ++w) {
+            double v = 0;
+            for (std::size_t p = 0; p < K; ++p)
+                if (msgRows[w][p]) v += std::ldexp(1.0, static_cast<int>(p));
+            d[w] = v;
+        }
+    } else if (typeFlag == 2) {
+        const std::size_t L = numWords * K;
+        res.msg = isRowVector ? Value::matrix(1, L, ValueType::DOUBLE, mr)
+                              : Value::matrix(L, 1, ValueType::DOUBLE, mr);
+        double *d = res.msg.doubleDataMut();
+        for (std::size_t w = 0; w < numWords; ++w)
+            for (std::size_t p = 0; p < K; ++p) d[w * K + p] = msgRows[w][p];
+    } else {
+        res.msg = Value::matrix(numWords, K, ValueType::DOUBLE, mr);
+        double *d = res.msg.doubleDataMut();
+        for (std::size_t w = 0; w < numWords; ++w)
+            for (std::size_t c = 0; c < K; ++c) d[c * numWords + w] = msgRows[w][c];
+    }
+    // err output: one count per word (column).
+    res.err = Value::matrix(numWords, 1, ValueType::DOUBLE, mr);
+    double *ed = res.err.doubleDataMut();
+    for (std::size_t w = 0; w < numWords; ++w) ed[w] = static_cast<double>(errCnt[w]);
+    return res;
+}
+
 // ── registry adapters ───────────────────────────────────────────────────
 
 namespace detail {
@@ -458,6 +846,41 @@ void cyclgen_reg(Span<const Value> args, size_t nargout,
     if (nargout >= 2) outs[1] = std::move(res.g);
     if (nargout >= 3) outs[2] = Value::scalar(static_cast<double>(res.k),
                                               ctx.engine->resource());
+}
+
+void encode_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("encode: requires (msg, N, K[, method[, opt]])",
+                    0, 0, "encode", "", "numkit:encode:nargin");
+    const long long n = static_cast<long long>(args[1].toScalar());
+    const long long k = static_cast<long long>(args[2].toScalar());
+    const std::string method =
+        (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
+            ? args[3].toString() : std::string("hamming/binary");
+    const Value &opt = (args.size() >= 5) ? args[4] : Value::Empty;
+    EncodeResult res = encode(args[0], n, k, method, opt, ctx.engine->resource());
+    outs[0] = std::move(res.code);
+    if (nargout >= 2) outs[1] = Value::scalar(static_cast<double>(res.added),
+                                              ctx.engine->resource());
+}
+
+void decode_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("decode: requires (code, N, K[, method[, opt]])",
+                    0, 0, "decode", "", "numkit:decode:nargin");
+    const long long n = static_cast<long long>(args[1].toScalar());
+    const long long k = static_cast<long long>(args[2].toScalar());
+    const std::string method =
+        (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
+            ? args[3].toString() : std::string("hamming/binary");
+    const Value &opt = (args.size() >= 5) ? args[4] : Value::Empty;
+    DecodeResult res = decode(args[0], n, k, method, opt, ctx.engine->resource());
+    outs[0] = std::move(res.msg);
+    if (nargout >= 2) outs[1] = std::move(res.err);
 }
 
 } // namespace detail
