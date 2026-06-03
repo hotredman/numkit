@@ -294,10 +294,14 @@ private:
     ExecStatus dispatchLoop();
 
     // Frame management
+    // ctorSeed (when non-null) pre-binds the new frame's first return variable
+    // to *ctorSeed before the body runs — used to seed a classdef constructor's
+    // output variable with the default instance (MATLAB constructor semantics).
     void pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_t nargs,
                        uint8_t destReg, size_t nargout,
                        bool isMulti = false, uint8_t outBase = 0, uint8_t nout = 0,
-                       const std::string &ownerClass = std::string(), bool isCtor = false);
+                       const std::string &ownerClass = std::string(), bool isCtor = false,
+                       const Value *ctorSeed = nullptr);
     void popCallFrame(Value retVal);
 
     // Returns the Environment a builtin call should see for ctx.env.

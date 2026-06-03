@@ -109,6 +109,16 @@ enum class OpCode : uint8_t {
     // Dispatches the class method with nout result slots written to
     // R[outBase..outBase+nout). Object model — see OBJECT_MODEL.md §3.
     CALL_METHOD_MULTI,
+    // classdef superclass calls inside a method/ctor body (compiled into the
+    // method chunk so the body runs on the VM). Both delegate to
+    // Engine::superConstruct / superMethod.
+    //   CALL_SUPER_CTOR:   `obj = obj@Base(args)` — a=dst, b=objReg (seed),
+    //                      c=argBase, d=baseNameIdx, e=nargs.
+    //   CALL_SUPER_METHOD: `[outs] = method@Base(obj, args)` — a=outBase,
+    //                      b=argBase (args incl. obj at [0]), c=nargs,
+    //                      d=idx of "Base>method", e=nout.
+    CALL_SUPER_CTOR,
+    CALL_SUPER_METHOD,
     // Struct-array element get/set as a whole scalar struct, used by the
     // general compound-lvalue store chain (`d(i).a.b = …`, `d(i,j,k).…`).
     // Subscripts live in R[base..base+nargs-1] (column-major, any rank).

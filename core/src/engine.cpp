@@ -861,14 +861,7 @@ void Engine::registerClassDef(const ASTNode *cd)
         return true;
     };
     cls.construct = [desc](Span<const Value> args, CallContext &ctx) -> Value {
-        if (desc->isAbstract)
-            throw std::runtime_error("Cannot instantiate abstract class '" + desc->name
-                                     + "' (unimplemented abstract method)");
-        auto *mr = ctx.engine->resource();
-        auto st = std::make_shared<ObjectState>(mr);
-        for (const auto &p : desc->props)
-            st->props.emplace(p.name, p.def);
-        Value obj = Value::object(desc->name, st, desc->isHandle, mr);
+        Value obj = ctx.engine->makeDefaultInstance(desc->name);
         if (desc->ctor)
             obj = ctx.engine->invokeClassCtor(*desc->ctor, obj, args);
         return obj;
@@ -1170,17 +1163,45 @@ bool Engine::classCtxInCtorOf(const std::string &declClass) const
     return false;
 }
 
-Value Engine::constructChecked(const BuiltinClass *cls, Span<const Value> args, CallContext &ctx)
+void Engine::enforceCtorAccess(const std::string &className)
 {
-    auto it = classDefs_.find(cls->name);
+    auto it = classDefs_.find(className);
     if (it != classDefs_.end() && it->second->ctorAccess != Access::Public) {
         const Access lvl = it->second->ctorAccess;
         if (!classCtxAllows(it->second->ctorDeclClass, /*privateOnly=*/lvl == Access::Private))
             throw std::runtime_error(std::string("Cannot call the ") + accessWord(lvl)
-                                     + " constructor of '" + cls->name
+                                     + " constructor of '" + className
                                      + "' from outside the class");
     }
+}
+
+Value Engine::constructChecked(const BuiltinClass *cls, Span<const Value> args, CallContext &ctx)
+{
+    enforceCtorAccess(cls->name);
     return cls->construct(args, ctx);
+}
+
+Value Engine::makeDefaultInstance(const std::string &className)
+{
+    auto it = classDefs_.find(className);
+    if (it == classDefs_.end())
+        throw std::runtime_error("'" + className + "' is not a classdef");
+    const auto &desc = it->second;
+    if (desc->isAbstract)
+        throw std::runtime_error("Cannot instantiate abstract class '" + className
+                                 + "' (unimplemented abstract method)");
+    auto st = std::make_shared<ObjectState>(mr_);
+    for (const auto &p : desc->props)
+        st->props.emplace(p.name, p.def);
+    return Value::object(desc->name, st, desc->isHandle, mr_);
+}
+
+const UserFunction *Engine::classCtor(const std::string &className) const
+{
+    auto it = classDefs_.find(className);
+    if (it == classDefs_.end() || !it->second->ctor)
+        return nullptr;
+    return it->second->ctor.get();
 }
 
 void Engine::registerFunction(const std::string &ns,

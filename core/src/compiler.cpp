@@ -1051,16 +1051,8 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
     size_t nout = node->returnNames.size();
     const bool complex = !node->lhsTargets.empty();
 
-    // Superclass call `[a,b] = method@Base(obj)`. The VM doesn't compile
-    // SUPERCLASS_REF yet (P2), so reject it here — same as compileCall —
-    // rather than mis-compiling to a call of the base name. A classdef method
-    // body containing this then falls back to the TreeWalker hook via
-    // ensureClassMethodCompiled's catch.
-    if (rhsNode->type == NodeType::CALL && !rhsNode->children.empty()
-        && rhsNode->children[0]->type == NodeType::SUPERCLASS_REF)
-        throw std::runtime_error(
-            "superclass call 'lhs@" + rhsNode->children[0]->strValue
-            + "(...)' is only valid inside a classdef method or constructor");
+    // Superclass multi-output call `[a,b] = method@Base(obj)` is handled below
+    // (after the distribute lambda is in scope) via compileSuperCall.
 
     // Allocate destination registers for outputs (simple path only; the
     // complex path materialises outputs at outBase then stores them).
@@ -1153,6 +1145,20 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
     }
 
     auto *callNode = rhsNode;
+
+    // Superclass multi-output method call: [a,b] = method@Base(obj, …).
+    // Compiled into the method/ctor chunk so the body runs on the VM (P2).
+    if (callNode->children[0]->type == NodeType::SUPERCLASS_REF) {
+        uint8_t outBase = nextReg_;
+        for (size_t i = 0; i < nout; ++i)
+            tempReg();
+        compileSuperCall(callNode, callNode->children[0].get(),
+                         static_cast<int>(outBase), static_cast<uint8_t>(nout));
+        distribute(outBase);
+        if (complex)
+            return nout ? outBase : 0;
+        return outRegs.empty() ? 0 : outRegs[0];
+    }
 
     // Dotted multi-output RHS: [a,b] = X.leaf(args). Mirror compileCall's
     // gating so the two shapes route correctly:
@@ -2927,14 +2933,10 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     auto *funcNode = node->children[0].get();
 
     // Superclass-qualified call `lhs@Base(args)`. Only meaningful inside a
-    // classdef method/constructor body — and those bodies always run on the
-    // TreeWalker (via Engine::invokeClassMethod / invokeClassCtor), never
-    // through the VM. So reaching here means a super-call was written at
-    // script scope, which is invalid.
+    // classdef super-call `obj@Base(args)` / `method@Base(obj,…)` (single
+    // output). Compiled into the method/ctor chunk so the body runs on the VM.
     if (funcNode->type == NodeType::SUPERCLASS_REF)
-        throw std::runtime_error(
-            "superclass call 'lhs@" + funcNode->strValue
-            + "(...)' is only valid inside a classdef method or constructor");
+        return compileSuperCall(node, funcNode, /*explicitOutBase=*/-1, /*nout=*/1);
 
     // Qualified-name call: a chain of FIELD_ACCESS over a root IDENTIFIER
     // (`pkg.foo(x)`, `pkg.sub.bar(x)`). Treat as a flat CALL on the
@@ -3543,6 +3545,52 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     uint8_t dst = tempReg();
     emitABC(OpCode::CELL_LITERAL, dst, base, static_cast<uint8_t>(totalSlots));
     return dst;
+}
+
+uint8_t Compiler::compileSuperCall(const ASTNode *callNode, const ASTNode *superRef,
+                                   int explicitOutBase, uint8_t nout)
+{
+    const std::string &base = superRef->strValue;
+    const ASTNode *lhs = superRef->children[0].get();
+    // `obj@Base(args)` (lhs is a local var/param) → super-constructor;
+    // `method@Base(obj,…)` (lhs is a method-name identifier) → super-method.
+    const bool isCtor = lhs->type == NodeType::IDENTIFIER
+                        && varRegisters_.find(lhs->strValue) != varRegisters_.end();
+
+    // Constructor: the seed object comes from lhs; args are the ctor args.
+    uint8_t objReg = isCtor ? compileNode(lhs) : 0;
+
+    // Compile the call args (children[1..]) into a contiguous register block.
+    std::vector<uint8_t> ar;
+    for (size_t i = 1; i < callNode->children.size(); ++i)
+        ar.push_back(compileNode(callNode->children[i].get()));
+    uint8_t argBase = nextReg_;
+    for (size_t i = 0; i < ar.size(); ++i) {
+        uint8_t slot = tempReg();
+        if (ar[i] != slot)
+            emitAB(OpCode::MOVE, slot, ar[i]);
+    }
+    const uint8_t nargs = static_cast<uint8_t>(ar.size());
+
+    if (isCtor) {
+        uint8_t dst = (explicitOutBase >= 0) ? static_cast<uint8_t>(explicitOutBase) : tempReg();
+        int16_t baseIdx = addStringConstant(base);
+        emit(Instruction::make_abcde(OpCode::CALL_SUPER_CTOR, dst, objReg, argBase, baseIdx,
+                                     nargs));
+        return dst;
+    }
+    uint8_t outBase;
+    if (explicitOutBase >= 0) {
+        outBase = static_cast<uint8_t>(explicitOutBase);
+    } else {
+        outBase = nextReg_;
+        for (uint8_t i = 0; i < std::max<uint8_t>(nout, 1); ++i)
+            tempReg();
+    }
+    int16_t qualIdx = addStringConstant(base + ">" + lhs->strValue);
+    emit(Instruction::make_abcde(OpCode::CALL_SUPER_METHOD, outBase, argBase, nargs, qualIdx,
+                                 nout));
+    return outBase;
 }
 
 uint8_t Compiler::compileFunctionDef(const ASTNode *node)
