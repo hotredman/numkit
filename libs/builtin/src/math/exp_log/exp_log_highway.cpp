@@ -22,6 +22,8 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <stdexcept>
 
 #undef HWY_TARGET_INCLUDE
@@ -118,6 +120,52 @@ void SqrtLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size
     for (; i < n; ++i) out[i] = std::sqrt(in[i]);
 }
 
+// pow2 (2^x). Highway has no Exp2 primitive, so this ports SLEEF's xexp2:
+// q = rint(x); s = x - q in [-0.5, 0.5]; a single-double minimax polynomial
+// (coefficients from SLEEF sleefsimddp.c, BSL-1.0) gives 2^s; ldexp by the
+// integer q (two-step pow-of-two multiply, overflow-safe) gives 2^x. The
+// integer reduction makes 2^n exact, matching MATLAB pow2 / std::exp2.
+void Exp2Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const hn::RebindToSigned<decltype(d)> di;
+    const std::size_t N = hn::Lanes(d);
+    const auto bias = hn::Set(di, std::int64_t(1023));
+    // 2^q via IEEE exponent bits: bitcast((q + 1023) << 52).
+    auto pow2i = [&](decltype(hn::Zero(di)) q) {
+        return hn::BitCast(d, hn::ShiftLeft<52>(hn::Add(q, bias)));
+    };
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto x  = hn::LoadU(d, in + i);
+        auto qd = hn::Round(x);              // nearest integer (ties to even)
+        auto qi = hn::ConvertTo(di, qd);
+        auto s  = hn::Sub(x, qd);            // |s| <= 0.5
+        // 2^s, single-double Horner (degree 11): POLY10 + ln2 + 1.
+        auto p = hn::Set(d, 0.4434359082926529454e-9);
+        p = hn::MulAdd(p, s, hn::Set(d, 0.7073164598085707425e-8));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1017819260921760451e-6));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1321543872511327615e-5));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1525273353517584730e-4));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1540353045101147808e-3));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1333355814670499073e-2));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.9618129107597600536e-2));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.5550410866482046596e-1));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.2402265069591012214e+0));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.6931471805599452862e+0)); // ln2
+        p = hn::MulAdd(p, s, hn::Set(d, 1.0));
+        // ldexp2(p, q) = p * 2^(q>>1) * 2^(q - q>>1)  (overflow-safe split).
+        auto q1 = hn::ShiftRight<1>(qi);
+        auto r  = hn::Mul(hn::Mul(p, pow2i(q1)), pow2i(hn::Sub(qi, q1)));
+        // x >= 1024 -> +Inf; x < -2000 -> 0 (matches SLEEF/MATLAB edges).
+        r = hn::IfThenElse(hn::Ge(x, hn::Set(d, 1024.0)),
+                           hn::Set(d, std::numeric_limits<double>::infinity()), r);
+        r = hn::IfThenZeroElse(hn::Lt(x, hn::Set(d, -2000.0)), r);
+        hn::StoreU(r, d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::exp2(in[i]);
+}
+
 } // namespace HWY_NAMESPACE
 } // namespace numkit::builtin
 HWY_AFTER_NAMESPACE();
@@ -133,6 +181,7 @@ HWY_EXPORT(Log1pLoop);
 HWY_EXPORT(Log2Loop);
 HWY_EXPORT(Log10Loop);
 HWY_EXPORT(SqrtLoop);
+HWY_EXPORT(Exp2Loop);
 
 namespace {
 
@@ -346,6 +395,15 @@ Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
             HWY_DYNAMIC_DISPATCH(SqrtLoop)(in + s, out + s, e - s);
         });
     return r;
+}
+
+// pow2(y) == 2^y, SIMD via Exp2Loop (was scalar std::exp2). The 2-arg
+// pow2(f, e) == f*2^e stays in exponents.cpp. Real-only, like MATLAB.
+Value pow2(const Value &y, std::pmr::memory_resource *mr)
+{
+    return unaryRealArray(y, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(Exp2Loop)(in, out, n);
+        }, [](double v) { return std::exp2(v); }, mr);
 }
 
 } // namespace numkit::builtin

@@ -73,6 +73,27 @@ TEST_F(TranscendentalsBatchTest, Log10VectorExactPowersOfTen)
     EXPECT_NEAR(evalScalar("log10(0.001)"), -3.0,               1e-13);
 }
 
+// pow2(y) == 2^y moved to the Highway SIMD path (ported SLEEF xexp2). The
+// vector body must keep integer exponents exact and honour the Inf/0 edges.
+TEST_F(TranscendentalsBatchTest, Pow2VectorSimd)
+{
+    eval("p = pow2([0 1 2 3 4 5 6 7 8 30]);"); // SIMD body + tail
+    EXPECT_EQ(evalScalar("p(1)"),  1.0);
+    EXPECT_EQ(evalScalar("p(5)"),  16.0);          // 2^4, SIMD lane
+    EXPECT_EQ(evalScalar("p(9)"),  256.0);         // 2^8, SIMD lane
+    EXPECT_EQ(evalScalar("p(10)"), 1073741824.0);  // 2^30, tail
+    eval("q = pow2([0.5 -3 10.5 0.25]);");
+    EXPECT_NEAR(evalScalar("q(1)"), 1.4142135623730951, 1e-13);
+    EXPECT_EQ(evalScalar("q(2)"),  0.125);
+    EXPECT_NEAR(evalScalar("q(3)"), 1448.1546878700492, 1e-9);
+    // Inf / 0 edges through the SIMD body (4 elems = one vector).
+    eval("e = pow2([1100 -2100 1500 -3000]);");
+    EXPECT_DOUBLE_EQ(evalScalar("isinf(e(1))"), 1.0); // 2^1100 -> Inf
+    EXPECT_DOUBLE_EQ(evalScalar("e(2)"),        0.0); // 2^-2100 -> 0
+    EXPECT_DOUBLE_EQ(evalScalar("isinf(e(3))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(4)"),        0.0);
+}
+
 // reallog == log with a strict-positive domain guard (now SIMD via LogLoop).
 TEST_F(TranscendentalsBatchTest, Reallog)
 {

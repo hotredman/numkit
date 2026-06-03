@@ -31,11 +31,9 @@ Value log(const Value &x, std::pmr::memory_resource *mr) { return log(x, nullptr
 
 // ── pow2 / realpow ───────────────────────────────────────────────────
 
-Value pow2(const Value &y, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(y, [](double v) { return std::exp2(v); }, mr);
-}
-
+// pow2(y) == 2^y is backend-split (SIMD via Highway Exp2Loop) — see
+// exp_log_highway.cpp / exp_log_portable.cpp. The 2-arg pow2(f, e) below
+// stays here (it is an ldexp, already cheap).
 Value pow2(const Value &f, const Value &e, std::pmr::memory_resource *mr)
 {
     // ldexp(f, int_e) = f * 2^int_e. MATLAB's pow2(F, E) takes the
