@@ -42,4 +42,23 @@ namespace numkit::comm {
 Value poly2trellis(const Value &constraintLength, const Value &codeGenerator,
                    std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Convolutionally encode a bit stream (`code = convenc(msg, trellis)`).
+///
+/// Runs the rate-1/n encoder described by `trellis` (from @ref poly2trellis)
+/// over the input bits `msg`, starting from the all-zeros state. Each input
+/// bit emits `n = log2(numOutputSymbols)` output bits (the trellis output
+/// word, MSB first); the encoder then advances to `nextStates(state, bit)`.
+/// The output has `n * numel(msg)` bits and takes `msg`'s orientation
+/// (row → row, column → column). No tail-biting / termination flush
+/// (truncated mode) and no puncturing in v1.
+///
+/// @param msg      Input bit vector (0/1).
+/// @param trellis  Trellis struct from poly2trellis (k = 1 / rate 1/n).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         Encoded bit vector (length `n * numel(msg)`).
+/// @throws Error if `trellis` is not a valid 1×1 trellis struct.
+/// @see poly2trellis, vitdec
+Value convenc(const Value &msg, const Value &trellis,
+              std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::comm
