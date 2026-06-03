@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (47 entries):** ✅ 10 fixed · 🔴 37 open = **12 bug** + 6 stub +
+**Tally (48 entries):** ✅ 10 fixed · 🔴 38 open = **13 bug** + 6 stub +
 5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -139,11 +139,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 12
+### 🔴 OPEN — bug (defect on an implemented function) — 13
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
+| [stats/pdist-metrics](stats/pdist-metrics.md) | P2 | 'seuclidean'/'spearman' metrics missing + cosine zero-vector → 1 not NaN |
 | [builtin/cellfun-inputforms](builtin/cellfun-inputforms.md) | P2 | multi-cell + string-name forms unsupported (arrayfun has multi-array) |
 | [builtin/func2str-anonymous](builtin/func2str-anonymous.md) | P2 | anon handle returns '@__anon_N' not the source text |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
