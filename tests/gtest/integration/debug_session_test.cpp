@@ -736,6 +736,39 @@ TEST_F(DebugSessionTest, BreakInsideFminsearchObjective)
     EXPECT_NEAR(engine.eval("x(2)").toScalar(), 2.0, 1e-3);
 }
 
+// nlinfit (embedded `.m` wrapper): a breakpoint inside the MODEL fun(beta,X)
+// pauses on every residual + central-difference Jacobian evaluation — the
+// Levenberg-Marquardt loop runs in `.m`, so the user's model is debuggable.
+// (VM_CALLBACKS_PLAN.md)
+TEST_F(DebugSessionTest, BreakInsideNlinfitModel)
+{
+    engine.eval(
+        "function yh = dbgModel(b, xx)\n" // 1
+        "\n"                              // 2
+        "\n"                              // 3
+        "  yh = b(1)*xx + b(2);\n"      // 4
+        "end\n");                         // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code =
+        "xd = (1:10)';\n"                            // 1
+        "yd = 2*xd + 1;\n"                           // 2
+        "bb = nlinfit(xd, yd, @dbgModel, [0; 0]);\n"; // 3
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "nlinfit model did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 5000) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_GE(pauses, 3); // residual + Jacobian central differences
+    EXPECT_NEAR(engine.eval("bb(1)").toScalar(), 2.0, 1e-4);
+    EXPECT_NEAR(engine.eval("bb(2)").toScalar(), 1.0, 1e-4);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);
