@@ -8,6 +8,7 @@
 #include <numkit/core/value.hpp>
 
 #include <tuple>
+#include <utility>
 
 namespace numkit::signal {
 
@@ -74,6 +75,21 @@ Value idst(const Value &y, std::pmr::memory_resource *mr = nullptr);
 ///
 /// @see cceps, icceps
 Value rceps(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// Real cepstrum and its minimum-phase reconstruction
+/// (`[y, ym] = rceps(x)`).
+///
+/// `y` is the real cepstrum (as @ref rceps); `ym` is the minimum-phase
+/// signal whose real cepstrum equals `y`, obtained by folding the cepstrum
+/// with the window `[1, 2,…,2, (1 if length even), 0,…,0]` and running it
+/// back through `real(ifft(exp(fft(·))))`.
+///
+/// @param x   Real input vector.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `(y, ym)` pair, each the same length/orientation as `x`.
+/// @see rceps, cceps
+std::pair<Value, Value> rcepsMinPhase(const Value &x,
+                                      std::pmr::memory_resource *mr = nullptr);
 
 /// Complex cepstrum: `ifft(log(fft(x)))` with phase unwrapping.
 ///
