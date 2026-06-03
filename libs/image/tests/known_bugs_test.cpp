@@ -42,3 +42,12 @@ TEST_F(ImageKnownBug, DISABLED_ImfindcirclesExists)
     EXPECT_EQ(static_cast<int>(evalScalar("size(c,1)")),
               static_cast<int>(evalScalar("numel(r)")));   // one center per radius
 }
+
+// bugs/image/imresize-interp.md — bilinear/bicubic grid + boundary + antialias.
+TEST_F(ImageKnownBug, DISABLED_ImresizeBilinear)
+{
+    eval("r = imresize([1 2; 3 4], 2, 'bilinear');");
+    EXPECT_NEAR(evalScalar("r(1,1)"), 1.0,  1e-4);   // numkit 0.5625
+    EXPECT_NEAR(evalScalar("r(1,2)"), 1.25, 1e-4);   // numkit 0.9375
+    EXPECT_NEAR(evalScalar("r(4,4)"), 4.0,  1e-4);   // numkit 2.25
+}
