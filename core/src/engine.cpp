@@ -615,6 +615,15 @@ void Engine::registerClassDef(const ASTNode *cd)
     for (const auto &[mn, uf] : desc->methods)
         ownMethodNames.push_back(mn);
 
+    // Make inheritance order-independent: if a superclass is a file-based
+    // class not yet loaded, pull it in from the path now (it registers as a
+    // side effect). Without this, `Derived(...)` referenced before `Base`
+    // would register Derived with the base members missing. Inline classes
+    // that aren't on the path simply stay unregistered (recorded for isa).
+    for (const auto &superName : cd->paramNames)
+        if (superName != "handle" && !classDefs_.count(superName))
+            resolveMFile_(superName);
+
     // ── Inheritance: merge registered superclasses (base members first,
     // derived overrides). `handle` is the semantics marker, not a classdef.
     for (const auto &superName : cd->paramNames) {
@@ -657,8 +666,14 @@ void Engine::registerClassDef(const ASTNode *cd)
             if (std::find(ownMethodNames.begin(), ownMethodNames.end(), mn)
                 == ownMethodNames.end())
                 desc->methodAccess.emplace(mn, ma);
-        if (!desc->ctor)
-            desc->ctor = base->ctor; // inherit base constructor if none defined
+        if (!desc->ctor) {
+            // Inherit the base constructor — and its access, so a subclass
+            // without its own ctor honours a private/protected base ctor
+            // (the declaring class stays the base, for protected/subclass).
+            desc->ctor = base->ctor;
+            desc->ctorAccess = base->ctorAccess;
+            desc->ctorDeclClass = base->ctorDeclClass;
+        }
     }
     // Ancestry (transitive) for isa(): direct supers + their ancestors.
     for (const auto &superName : cd->paramNames) {
