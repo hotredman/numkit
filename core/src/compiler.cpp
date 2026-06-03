@@ -1048,6 +1048,17 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
     size_t nout = node->returnNames.size();
     const bool complex = !node->lhsTargets.empty();
 
+    // Superclass call `[a,b] = method@Base(obj)`. The VM doesn't compile
+    // SUPERCLASS_REF yet (P2), so reject it here — same as compileCall —
+    // rather than mis-compiling to a call of the base name. A classdef method
+    // body containing this then falls back to the TreeWalker hook via
+    // ensureClassMethodCompiled's catch.
+    if (rhsNode->type == NodeType::CALL && !rhsNode->children.empty()
+        && rhsNode->children[0]->type == NodeType::SUPERCLASS_REF)
+        throw std::runtime_error(
+            "superclass call 'lhs@" + rhsNode->children[0]->strValue
+            + "(...)' is only valid inside a classdef method or constructor");
+
     // Allocate destination registers for outputs (simple path only; the
     // complex path materialises outputs at outBase then stores them).
     std::vector<uint8_t> outRegs;

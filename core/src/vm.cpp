@@ -1802,6 +1802,27 @@ enter_frame:
                 Value &obj = R[I.b];
                 if (obj.isObject()) {
                     const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
+                    // classdef method → native VM frame (debuggable). Receiver
+                    // and args aren't contiguous, so build [self, args…].
+                    if (cls) {
+                        auto fit = cls->methodFns.find(mname);
+                        if (fit != cls->methodFns.end()) {
+                            const BytecodeChunk *mc = engine_.ensureClassMethodChunk(*fit->second);
+                            if (mc) {
+                                engine_.enforceMethodAccess(obj.objectClassName(), mname);
+                                std::vector<Value> frameArgs;
+                                frameArgs.reserve(static_cast<size_t>(I.e) + 1);
+                                frameArgs.push_back(obj);
+                                for (uint8_t k = 0; k < I.e; ++k)
+                                    frameArgs.push_back(R[I.c + k]);
+                                frame.ip = ip + 1;
+                                pushCallFrame(*mc, frameArgs.data(),
+                                              static_cast<uint8_t>(frameArgs.size()), I.a, 1, false,
+                                              0, 0, fit->second->ownerClass, false);
+                                goto enter_frame;
+                            }
+                        }
+                    }
                     if (cls && cls->methods.count(mname)) {
                         Value self = obj; // handle: shares state; value: own copy
                         Span<const Value> args((I.e ? &R[I.c] : nullptr), I.e);
@@ -1848,6 +1869,26 @@ enter_frame:
                         "Dot-indexing multi-output requires an object; '" + mname
                         + "' is not a method of a " + std::string(mtypeName(obj.type())));
                 const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
+                // classdef method → native multi-output VM frame.
+                if (cls) {
+                    auto fit = cls->methodFns.find(mname);
+                    if (fit != cls->methodFns.end()) {
+                        const BytecodeChunk *mc = engine_.ensureClassMethodChunk(*fit->second);
+                        if (mc) {
+                            engine_.enforceMethodAccess(obj.objectClassName(), mname);
+                            std::vector<Value> frameArgs;
+                            frameArgs.reserve(static_cast<size_t>(na) + 1);
+                            frameArgs.push_back(obj);
+                            for (uint8_t k = 0; k < na; ++k)
+                                frameArgs.push_back(R[argBase + k]);
+                            frame.ip = ip + 1;
+                            pushCallFrame(*mc, frameArgs.data(),
+                                          static_cast<uint8_t>(frameArgs.size()), 0, nout, true,
+                                          outBase, nout, fit->second->ownerClass, false);
+                            goto enter_frame;
+                        }
+                    }
+                }
                 if (!cls || !cls->methods.count(mname))
                     throw std::runtime_error("No appropriate method '" + mname
                                              + "' for class '" + obj.objectClassName() + "'");

@@ -1618,7 +1618,7 @@ public:
             "  properties\n    items = [1 2 3]\n  end\n"
             "  methods\n"
             "    function obj = Vault(d)\n      obj.items = d;\n    end\n"
-            "    function obj = setItem(obj, i, v)\n      obj.items(i) = v;\n    end\n"
+            "    function obj = setItem(obj, k, v)\n      obj.items(k) = v;\n    end\n"
             "  end\n"
             "end\n");
     }
@@ -1635,6 +1635,29 @@ TEST_P(PropElemAssignClassdefTest, ElementAssignAtScriptScope)
 {
     engine.eval("v = Vault([1 2 3]); v.items(2) = 88;");
     EXPECT_DOUBLE_EQ(evalScalar("v.items(2)"), 88.0);
+}
+TEST_P(PropElemAssignClassdefTest, ElementAssignLiteralInPlainFunction)
+{
+    engine.eval("v = Vault([1 2 3]);");
+    engine.eval("function r = setlit(o)\n  o.items(2) = 99;\n  r = o;\nend\n"
+                "v = setlit(v);\n");
+    EXPECT_DOUBLE_EQ(evalScalar("v.items(2)"), 99.0); // literal idx+val in a function
+}
+TEST_P(PropElemAssignClassdefTest, ReadPropElemInPlainFunction)
+{
+    engine.eval("v = Vault([10 20 30]);");
+    engine.eval("function r = getit3(o)\n  r = o.items(2);\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("getit3(v)"), 20.0); // read o.items(2) in a function
+}
+TEST_P(PropElemAssignClassdefTest, ElementAssignInsidePlainFunction)
+{
+    // `o.prop(i) = v` inside a plain (VM-framed) function with an object
+    // parameter — same compound assign as a method body, exercised on a VM
+    // call frame regardless of classdef dispatch.
+    engine.eval("v = Vault([1 2 3]);");
+    engine.eval("function r = setit3(o, k, val)\n  o.items(k) = val;\n  r = o;\nend\n"
+                "v = setit3(v, 2, 77);\n");
+    EXPECT_DOUBLE_EQ(evalScalar("v.items(2)"), 77.0);
 }
 TEST_P(PropElemAssignClassdefTest, ElementAssignValueSemantics)
 {

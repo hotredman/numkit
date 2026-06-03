@@ -71,6 +71,31 @@ TEST_F(DebugSessionTest, BreakInsideClassdefMethodFunctionForm)
     EXPECT_EQ(status, ExecStatus::Completed);
 }
 
+// Same proof for the dotted call form `obj.go()` (CALL_METHOD).
+TEST_F(DebugSessionTest, BreakInsideClassdefMethodDotted)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({7});
+    std::string code =
+        "classdef DbgD\n"          // 1
+        "  properties\n"           // 2
+        "    v = 0\n"              // 3
+        "  end\n"                  // 4
+        "  methods\n"              // 5
+        "    function r = go(o)\n" // 6
+        "      r = o.v + 2;\n"     // 7  <- breakpoint
+        "    end\n"               // 8
+        "  end\n"                  // 9
+        "end\n"                    // 10
+        "d = DbgD();\n"            // 11
+        "y = d.go();\n";           // 12  dotted call
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "dotted method body did not run on the VM";
+    EXPECT_EQ(session.snapshot().line, 7);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);
