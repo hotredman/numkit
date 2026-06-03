@@ -707,6 +707,35 @@ TEST_F(DebugSessionTest, BreakInsideOde23Rhs)
     EXPECT_NEAR(engine.eval("yy(end)").toScalar(), 0.36787944117144233, 2e-3); // exp(-1)
 }
 
+// fminsearch (embedded `.m` wrapper): a breakpoint inside the OBJECTIVE pauses
+// on every Nelder-Mead simplex evaluation and resumes — the simplex search runs
+// in `.m`, so the user's objective is debuggable. (VM_CALLBACKS_PLAN.md)
+TEST_F(DebugSessionTest, BreakInsideFminsearchObjective)
+{
+    engine.eval(
+        "function r = dbgFms(v)\n"           // 1
+        "\n"                                  // 2
+        "\n"                                  // 3
+        "  r = (v(1)-1)^2 + (v(2)-2)^2;\n"  // 4
+        "end\n");                             // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "x = fminsearch(@dbgFms, [0 0]);\n"; // 1
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "fminsearch objective did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 5000) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_GE(pauses, 5); // Nelder-Mead evaluates the objective many times
+    EXPECT_NEAR(engine.eval("x(1)").toScalar(), 1.0, 1e-3);
+    EXPECT_NEAR(engine.eval("x(2)").toScalar(), 2.0, 1e-3);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

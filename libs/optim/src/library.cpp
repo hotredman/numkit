@@ -20,9 +20,11 @@ void fminsearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 } // namespace numkit::optim::detail
 
 namespace numkit::optim {
-// Defined in local/fzero.cpp — installs the `.m` fzero wrapper (pausable
-// objective; the C++ `Value fzero(...)` API remains the synchronous path).
+// Defined in local/fzero.cpp — install the `.m` optimizer wrappers (pausable
+// objective; the C++ `Value fzero/fminsearch(...)` APIs remain the synchronous
+// embedder path).
 void registerFzeroM(Engine &engine);
+void registerFminsearchM(Engine &engine);
 } // namespace numkit::optim
 
 namespace numkit {
@@ -34,7 +36,9 @@ void OptimLibrary::install(Engine &engine)
     // is called from bytecode and is pausable under the debugger.
     optim::registerFzeroM(engine);
     engine.registerFunction("fminbnd",    &optim::detail::fminbnd_reg);
-    engine.registerFunction("fminsearch", &optim::detail::fminsearch_reg);
+    // fminsearch is an embedded `.m` wrapper (pausable objective); shadows the
+    // C++ external on both backends. The `Value fminsearch(...)` API is retained.
+    optim::registerFminsearchM(engine);
 }
 
 } // namespace numkit

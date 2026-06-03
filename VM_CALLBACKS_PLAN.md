@@ -425,9 +425,19 @@ stays as the synchronous path for embedders. This is how real MATLAB ships these
   **Proven**: `DebugSessionTest.BreakInsideOde23Rhs`; all 11 Ode23Test
   dual-engine tests green; full suite 10942 (0 regressions). External alias
   dropped (top-level `.m` shadows).
-- **Remaining (same pattern, follow-up):** `nlinfit`, `fminsearch` — port each
-  user-facing builtin to embedded `.m`. Until then they stay on `callReentrant`
-  (breakpoints fire but cannot suspend).
+- **fminsearch (done)** — registered via `optim::registerFminsearchM` (embedded
+  `.m` Nelder-Mead simplex in `local/fzero.cpp`). Faithful transcription of the
+  C++ `nelderMead`: same reflection/expansion/contraction/shrink constants, dual
+  TolFun+TolX convergence, simplex seeding (`1.05·xi` or `0.00025`),
+  kMaxIter=500; the point is always passed to `fn` as a 1×n row (like the C++
+  `evalVecToScalar`). Split into `fminsearch` + `nk_nelder_mead` + `nk_nm_eval`.
+  Output mirrors x0 shape; `[x, fval, exitflag]` with `exitflag=1`. Rosenbrock
+  from `[-1.2 1]` reaches `[1.00002 1.00004]` — exactly the C++/MATLAB value
+  (bit-identical). **Proven**: `DebugSessionTest.BreakInsideFminsearchObjective`;
+  all 6 Fminsearch dual-engine tests (TW+VM) green; full suite 10943 (0
+  regressions). External `registerFunction("fminsearch", …)` dropped.
+- **Remaining (same pattern, follow-up):** `nlinfit` — port to embedded `.m`.
+  Until then it stays on `callReentrant` (breakpoints fire but cannot suspend).
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a
