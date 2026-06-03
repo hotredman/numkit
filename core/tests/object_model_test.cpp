@@ -1481,6 +1481,62 @@ INSTANTIATE_TEST_SUITE_P(Backends, OperatorOverloadClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef custom disp / display ──
+class DisplayClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    std::string captured;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.setOutputFunc([this](const std::string &s) { captured += s; });
+        engine.eval(
+            "classdef Temp\n"
+            "  properties\n    celsius = 0\n  end\n"
+            "  methods\n"
+            "    function obj = Temp(c)\n      obj.celsius = c;\n    end\n"
+            "    function disp(obj)\n      fprintf('Temp: %g C\\n', obj.celsius);\n    end\n"
+            "  end\n"
+            "end\n");
+        engine.eval(
+            "classdef Gauge\n"
+            "  properties\n    v = 0\n  end\n"
+            "  methods\n"
+            "    function obj = Gauge(x)\n      obj.v = x;\n    end\n"
+            "    function display(obj)\n      fprintf('<<%g>>\\n', obj.v);\n    end\n"
+            "  end\n"
+            "end\n");
+    }
+};
+
+TEST_P(DisplayClassdefTest, CustomDispNoSemicolon)
+{
+    engine.eval("t = Temp(25);");
+    captured.clear();
+    engine.eval("t"); // no semicolon → implicit display routes through disp
+    EXPECT_NE(captured.find("Temp: 25 C"), std::string::npos) << captured;
+    EXPECT_NE(captured.find("="), std::string::npos) << captured; // default name header wraps disp
+}
+TEST_P(DisplayClassdefTest, CustomDisplayOwnsOutput)
+{
+    engine.eval("g = Gauge(7);");
+    captured.clear();
+    engine.eval("g"); // display() owns the whole output — no default header
+    EXPECT_NE(captured.find("<<7>>"), std::string::npos) << captured;
+    EXPECT_EQ(captured.find("="), std::string::npos) << captured;
+}
+TEST_P(DisplayClassdefTest, DispBuiltinUsesMethod)
+{
+    engine.eval("t = Temp(25);");
+    captured.clear();
+    engine.eval("disp(t);"); // disp(obj) dispatches to the class method
+    EXPECT_NE(captured.find("Temp: 25 C"), std::string::npos) << captured;
+}
+INSTANTIATE_TEST_SUITE_P(Backends, DisplayClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {

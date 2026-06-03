@@ -84,6 +84,10 @@ Production coverage (all both-engine tested):
   factory — enforced at the user-facing `ClassName(args)` sites via
   `constructChecked`, while internal default-fill during object-array growth
   bypasses the check so preallocation never breaks).
+- **Custom display**: a class-defined `display` method owns the whole output
+  for `obj` (no semicolon); a `disp` method owns the body (the default
+  `name =` header is added around it). Both backends route implicit display
+  through `Engine::displayObject`; `disp(obj)` dispatches to the method too.
 - **Introspection**: `class`, `isa(x,'Name'|'Base'|category)`, `isobject`,
   `properties(x)`, `methods(x)`.
 - **File-based classes**: a `Name.m` containing a classdef is loaded on

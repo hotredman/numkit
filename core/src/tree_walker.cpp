@@ -58,7 +58,7 @@ void TreeWalker::output(const std::string &s)
 void TreeWalker::displayValue(const std::string &name, const Value &val)
 {
     if (val.isObject()) {
-        output(engine_.formatObjectDisplay(name, val));
+        engine_.displayObject(name, val); // honours class disp/display override
         return;
     }
     output(val.formatDisplay(name));
