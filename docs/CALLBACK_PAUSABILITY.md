@@ -236,12 +236,13 @@ methods (all call forms), constructors, super-calls (calling body), `get.Prop` /
 **Pausable — state machine (`LoopContinuation`):** `cellfun`, `arrayfun`,
 `structfun`, `feval`, `splitapply`, `bsxfun`, `bootstrp`, `nlfilter`, `makelut`.
 
-**Pausable — embedded `.m` wrapper:** `fzero`, `integral`, `ode45`, `ode23`.
+**Pausable — embedded `.m` wrapper:** `fzero`, `integral`, `ode45`, `ode23`,
+`fminsearch`.
 
 **On the VM, not suspendable (`callReentrant`):**
 - single-shot C++-initiated: `disp`/`display` from the display path, super-call
   *base* targets, C++-initiated construction (object-array growth).
-- **not yet converted (follow-up):** `nlinfit`, `fminsearch`
+- **not yet converted (follow-up):** `nlinfit`
   (→ `.m` wrapper); `grouptransform`/`groupfilter`/`groupsummary`, `pulstran`,
   `fplot`/`fsurf`/`fcontour`/`fmesh` (bespoke per-function — see
   VM_CALLBACKS_PLAN.md for why each is not a clean fit).

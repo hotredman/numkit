@@ -629,4 +629,97 @@ void registerFzeroM(Engine &engine)
     engine.registerBuiltinMSource(kFzeroMSource);
 }
 
+// ── fminsearch as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ─────────────
+// The objective is always user code, so fminsearch takes the `.m` path: the
+// Nelder-Mead simplex search is the natural `.m` algorithm and every objective
+// evaluation `fn(x)` runs as bytecode → pausable under the debugger. A faithful
+// transcription of the C++ `nelderMead` above (same reflection/expansion/
+// contraction/shrink constants, same dual TolFun+TolX convergence, same simplex
+// seeding, kMaxIter=500). The point is always passed to `fn` as a 1×n row, like
+// the C++ `evalVecToScalar`. The C++ `Value fminsearch(...)` API is retained.
+// Split into fminsearch + nk_nelder_mead + nk_nm_eval so no chunk approaches the
+// 255-register VM limit (CALLBACK_PAUSABILITY.md gotcha).
+static const char *kFminsearchMSource = R"NKM(
+function [x, fval, exitflag] = fminsearch(fn, x0, tol)
+  if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
+    error('numkit:fminsearch:fnType', 'fminsearch: 1st argument must be a function handle');
+  end
+  n = numel(x0);
+  if n == 0
+    error('numkit:fminsearch:badX0', 'fminsearch: x0 must be non-empty');
+  end
+  if nargin < 3 || isempty(tol) || ~(tol > 0)
+    tol = 1e-4;
+  end
+  best = nk_nelder_mead(fn, reshape(x0, 1, n), n, tol);
+  if size(x0, 1) == 1
+    x = best;
+  else
+    x = best';
+  end
+  fval = nk_nm_eval(fn, x);
+  exitflag = 1;
+end
+
+function s = nk_nm_eval(fn, pt)
+  v = fn(pt);
+  s = v(1);
+end
+
+function best = nk_nelder_mead(fn, x0, n, tol)
+  refl = 1; expd = 2; conr = 0.5; shrk = 0.5; max_iter = 500;
+  S = zeros(n+1, n); fv = zeros(n+1, 1);
+  S(1,:) = x0; fv(1) = nk_nm_eval(fn, x0);
+  for i = 2:(n+1)
+    S(i,:) = x0;
+    xi = x0(i-1);
+    if xi ~= 0, S(i, i-1) = 1.05*xi; else, S(i, i-1) = 0.00025; end
+    fv(i) = nk_nm_eval(fn, S(i,:));
+  end
+  for it = 1:max_iter
+    [fv, ord] = sort(fv);
+    S = S(ord, :);
+    fspread = fv(n+1) - fv(1);
+    df = abs(S(2:(n+1),:) - S(1,:));
+    xspread = max(df(:));
+    if fspread <= tol && xspread <= tol, break; end
+    centroid = sum(S(1:n,:), 1) / n;
+    worst = S(n+1,:);
+    xr = centroid + refl*(centroid - worst);
+    fxr = nk_nm_eval(fn, xr);
+    if fxr < fv(1)
+      xe = centroid + expd*(xr - centroid);
+      fxe = nk_nm_eval(fn, xe);
+      if fxe < fxr
+        S(n+1,:) = xe; fv(n+1) = fxe;
+      else
+        S(n+1,:) = xr; fv(n+1) = fxr;
+      end
+    elseif fxr < fv(n)
+      S(n+1,:) = xr; fv(n+1) = fxr;
+    else
+      outside = fxr < fv(n+1);
+      if outside, base = xr; else, base = S(n+1,:); end
+      xc = centroid + conr*(base - centroid);
+      fxc = nk_nm_eval(fn, xc);
+      if outside, fcmp = fxr; else, fcmp = fv(n+1); end
+      if fxc <= fcmp
+        S(n+1,:) = xc; fv(n+1) = fxc;
+      else
+        for i = 2:(n+1)
+          S(i,:) = S(1,:) + shrk*(S(i,:) - S(1,:));
+          fv(i) = nk_nm_eval(fn, S(i,:));
+        end
+      end
+    end
+  end
+  best = S(1,:);
+end
+)NKM";
+
+void registerFminsearchM(Engine &engine)
+{
+    engine.registerBuiltinMSource(kFminsearchMSource);
+}
+
 } // namespace numkit::optim
