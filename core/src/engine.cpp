@@ -1710,7 +1710,22 @@ std::vector<Value> Engine::callFunctionHandleMulti(const Value &handle,
         }
     }
 
-    // 2) TW user-function path. Works for any named user function and
+    // 2) VM user-function path (active backend == VM). Run the handle's body
+    // as a re-entrant VM frame so it executes on the same engine as the rest
+    // of the program (debuggable; consistent with classdef methods/ctors which
+    // are VM-native — VM_CALLBACKS_PLAN.md P3). The handle's UserFunction is in
+    // userFuncs_ (named funcs, and VM/TW anon-funcs mirror-registered by
+    // Compiler::compileAnonFunc) with params == [user_params…, captures…];
+    // captures already arrive as appended args from the closure-cell unwrap
+    // above, so the arg layout matches the compiled chunk. Falls through to the
+    // TreeWalker when the name is not a free user function or cannot compile.
+    if (vm_ && backend_ == Backend::VM) {
+        if (const UserFunction *uf = lookupUserFunctionLocal(name))
+            if (const BytecodeChunk *cc = ensureClassMethodChunk(*uf))
+                return vm_->callReentrant(*cc, args, nout);
+    }
+
+    // 3) TW user-function path. Works for any named user function and
     // for anonymous handles regardless of which backend created them:
     // VM-compiled anon-funcs are mirror-registered into
     // engine.userFuncs_ by Compiler::compileAnonFunc, so TW finds them

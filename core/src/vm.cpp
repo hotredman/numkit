@@ -172,6 +172,76 @@ Value VM::execute(const BytecodeChunk &chunk, const Value *args, uint8_t nargs)
     return result;
 }
 
+std::vector<Value> VM::callReentrant(const BytecodeChunk &chunk, Span<const Value> args,
+                                     size_t nargout, const std::string &ownerClass,
+                                     bool isCtor, const Value *ctorSeed)
+{
+    // Save the outer VM state and run `chunk` as a fresh top-level frame, then
+    // restore. Mirrors execute()'s re-entrancy (which is why it is safe: the
+    // outer dispatch loop's frame/register references survive — savePausedState
+    // parks the frames_ buffer and restorePausedState move-assigns it back, so
+    // the buffer address is preserved). Unlike execute() we do NOT reset the
+    // debug controller, so the callee's frames nest on the live debug stack.
+    const bool reentrant = !frames_.empty();
+    std::unique_ptr<PausedState> outerState;
+    if (reentrant)
+        outerState = savePausedState(); // frames_ now empty; outer buffer parked
+
+    // popCallFrame's top-level (frames_.size()==1) branch repopulates
+    // lastVarMap_ from the callee's locals; snapshot+restore so the outer's
+    // pending workspace export is not clobbered by this nested run.
+    std::vector<std::pair<std::string, Value>> savedVarMap = std::move(lastVarMap_);
+
+    struct Restorer
+    {
+        VM &vm;
+        bool reentrant;
+        std::unique_ptr<PausedState> st;
+        std::vector<std::pair<std::string, Value>> vm_savedVarMap;
+        bool done = false;
+        void run()
+        {
+            if (done)
+                return;
+            done = true;
+            vm.lastVarMap_ = std::move(vm_savedVarMap);
+            if (reentrant)
+                vm.restorePausedState(std::move(st));
+        }
+        ~Restorer() { run(); }
+    } restorer{*this, reentrant, std::move(outerState), std::move(savedVarMap)};
+
+    const size_t nout = std::max<size_t>(nargout, 1);
+    const bool multi = nout > 1;
+    std::vector<Value> argbuf(args.begin(), args.end());
+
+    returnCount_ = 0;
+    lastResult_ = Value();
+    pushCallFrame(chunk, argbuf.empty() ? nullptr : argbuf.data(),
+                  static_cast<uint8_t>(argbuf.size()), /*destReg=*/0, nout,
+                  /*isMulti=*/multi, /*outBase=*/0, /*nout=*/static_cast<uint8_t>(nout),
+                  ownerClass, isCtor, ctorSeed);
+
+    ExecStatus status = dispatchLoop();
+    if (status == ExecStatus::Paused) {
+        // A debugger pause cannot suspend across the C++ re-entry boundary.
+        restorer.run(); // restore the outer before unwinding
+        throw DebugStopException();
+    }
+
+    std::vector<Value> results;
+    if (returnCount_ > 0) {
+        results.reserve(returnCount_);
+        for (uint8_t i = 0; i < returnCount_; ++i)
+            results.push_back(std::move(returnBuf_[i]));
+        returnCount_ = 0;
+    } else if (!lastResult_.isUnset()) {
+        results.push_back(std::move(lastResult_));
+    }
+    lastResult_ = Value();
+    return results; // restorer dtor restores the outer state
+}
+
 // ── Paused state save/restore (for debug eval) ────────────
 
 std::unique_ptr<VM::PausedState> VM::savePausedState()

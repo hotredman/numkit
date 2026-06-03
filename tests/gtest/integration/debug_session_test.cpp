@@ -162,6 +162,34 @@ TEST_F(DebugSessionTest, BreakInsideClassdefConstructor)
     EXPECT_DOUBLE_EQ(engine.eval("z").toScalar(), 42.0); // 41 + 1
 }
 
+// A function-handle body runs as a VM frame and is debuggable: a breakpoint
+// inside the called function pauses when it is invoked through a handle.
+// (Handle bodies are VM-native — VM_CALLBACKS_PLAN.md; C++-initiated handle
+// calls — cellfun/arrayfun — go through VM::callReentrant in P3.)
+TEST_F(DebugSessionTest, BreakInsideFunctionHandleCall)
+{
+    // dbgInc defined up front; its `r = x + 1;` body sits on line 4 of its own
+    // source, which the 2-line debugged script below never occupies — so the
+    // breakpoint can only match inside dbgInc.
+    engine.eval(
+        "function r = dbgInc(x)\n" // 1
+        "\n"                       // 2
+        "\n"                       // 3
+        "  r = x + 1;\n"          // 4
+        "end\n");                  // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code =
+        "h = @dbgInc;\n" // 1
+        "y = h(41);\n";  // 2  CALL_INDIRECT → enters dbgInc as a VM frame
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "handle body did not run on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 42.0);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

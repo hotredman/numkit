@@ -119,6 +119,32 @@ the VM backend. This is the gap to close.
     the line after a super-method call pauses) and
     `BreakInsideClassdefConstructor` (breakpoint inside a ctor body pauses; the
     seeded output var is modified and returned). Full suite 10923 green.
+- **P3 (done)** — **re-entrant VM-call-from-C++ foundation** + first consumer.
+  - `VM::callReentrant(chunk, args, nargout, ownerClass, isCtor, ctorSeed)`:
+    runs a compiled chunk as a fresh top-level frame and harvests all return
+    values, then restores the outer VM state. Built on the same save/restore
+    machinery as `execute()` — which is what makes it safe: `savePausedState`
+    parks the `frames_` buffer and `restorePausedState` move-assigns it back, so
+    the outer dispatch loop's `frame`/register references (which are NOT reloaded
+    after a re-entrant builtin) stay valid. Unlike `execute()` it does not reset
+    the debug controller, so callee frames nest on the live debug stack;
+    `lastVarMap_` is snapshot/restored so the nested top-level export doesn't
+    clobber the outer's pending workspace export.
+  - First consumer: `Engine::callFunctionHandleMulti` routes user-function
+    handles (named + anon; captures arrive as appended args) through
+    `callReentrant` when the active backend is the VM — so `cellfun`/`arrayfun`/
+    `feval` callbacks run on the VM, not the TreeWalker. Handle bodies invoked
+    through a handle *variable* (`h(x)` → `CALL_INDIRECT`) were already
+    same-stack VM frames (pausable); P3 covers the C++-initiated builtin path.
+  - **Limitation (documented contract):** a debugger *pause* cannot suspend
+    across the C++ re-entry boundary — a breakpoint reached inside a
+    C++-initiated callback fires and then surfaces as `DebugStopException`
+    (same as legacy `execute()`), it cannot freeze-and-resume the outer session.
+    The pausable callback paths are the in-bytecode ones (`CALL_INDIRECT`, and
+    P4's `FIELD_GET`/operator/`INDEX_*` opcode frame-pushes).
+  - **Proven**: `DebugSessionTest.BreakInsideFunctionHandleCall` (breakpoint
+    inside a handle-invoked function pauses on the VM); 166 handle/cellfun/
+    arrayfun/feval dual-engine tests green on the VM path; full suite 10924.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a
@@ -146,7 +172,8 @@ the VM backend. This is the gap to close.
 - **P2. constructor + super-calls VM-native.** Ctor frame with seed; compile
   `SUPERCLASS_REF`. **DONE** — see Progress above.
 - **P3. re-entrant VM-call-from-C++ foundation.** Nested run on `frames_`;
-  verify run-loop re-entrancy.
+  verify run-loop re-entrancy. **DONE** — `VM::callReentrant` + function-handle
+  consumer; see Progress above.
 - **P4. accessors / operators / subsref + function handles on VM.** Route the
   C++-initiated paths through P3; `invokeClassMethod`/`invokeClassCtor`/
   `callFunctionHandleMulti` backend-aware. Debugger through all of it.

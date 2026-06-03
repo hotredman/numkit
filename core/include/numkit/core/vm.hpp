@@ -37,6 +37,22 @@ public:
     bool isPaused() const { return !frames_.empty(); }
     Value takeResult() { return std::move(lastResult_); }
 
+    // Re-entrant call from C++ INTO a compiled chunk, returning all outputs.
+    // Used when a builtin/hook running mid-dispatch must run user code on the
+    // VM (function handles in cellfun/arrayfun, classdef methods/ctors invoked
+    // from C++) so the body runs on the VM rather than the TreeWalker. Saves
+    // the outer VM state, runs `chunk` as a fresh top-level frame to
+    // completion, harvests its return values, and restores the outer so the
+    // outer dispatch loop resumes seamlessly. ownerClass/isCtor set the new
+    // frame's class context; ctorSeed (constructor case) pre-binds the output
+    // variable. Breakpoints inside the callee fire; a debugger *pause* cannot
+    // suspend across the C++ boundary and surfaces as DebugStopException (same
+    // contract as the legacy execute()). See VM_CALLBACKS_PLAN.md (P3).
+    std::vector<Value> callReentrant(const BytecodeChunk &chunk, Span<const Value> args,
+                                     size_t nargout,
+                                     const std::string &ownerClass = std::string(),
+                                     bool isCtor = false, const Value *ctorSeed = nullptr);
+
     struct PausedState;
     std::unique_ptr<PausedState> savePausedState();
     void restorePausedState(std::unique_ptr<PausedState> state);
