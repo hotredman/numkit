@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P2 (missing functions)
+- **Kind:** missing-fn
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom

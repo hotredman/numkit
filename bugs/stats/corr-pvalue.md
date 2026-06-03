@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P2 (missing output)
+- **Kind:** missing-output
 - **Found:** 2026-06 via DEEP-PROBE (stats coverage)
 
 ## Symptom

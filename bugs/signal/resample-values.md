@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P1 (wrong result)
+- **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
 - **Note:** part of the deferred MULTIRATE gap (decimate/resample/interp
   delay compensation), recorded here with a concrete repro.

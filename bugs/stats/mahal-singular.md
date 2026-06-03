@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P2 (over-strict — errors where MATLAB returns a value)
+- **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE (stats coverage)
 
 ## Symptom

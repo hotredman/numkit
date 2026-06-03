@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P1 (wrong result for non-2ⁿ) + P2 (missing output)
+- **Kind:** bug
 - **Found:** 2026-06 via signal.* DEEP-PROBE sweep
 
 ## Symptom

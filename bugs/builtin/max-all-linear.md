@@ -2,6 +2,7 @@
 
 - **Status:** ✅ FIXED (lib-dev, 2026-06)
 - **Severity:** P1 (very common idiom threw)
+- **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom

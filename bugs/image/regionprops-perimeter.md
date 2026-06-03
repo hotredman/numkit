@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P1 (silently wrong — no error, no field)
+- **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom
