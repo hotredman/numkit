@@ -21,9 +21,9 @@ const rows = [
 const heads = (c) => [...c.querySelectorAll('.vt-table thead th')].map((th) => th.textContent.trim());
 
 describe('ValueTable', () => {
-  it('renders the default columns (name + Value/Size/Class)', () => {
+  it('renders the default columns (name + Value/Size/Bytes/Class)', () => {
     const { container } = render(<ValueTable rows={rows} nameHeader="Field" storageKey="t1" />);
-    expect(heads(container)).toEqual(['Field', 'Value', 'Size', 'Class']);
+    expect(heads(container)).toEqual(['Field', 'Value', 'Size', 'Bytes', 'Class']);
   });
 
   it('column chooser toggles a stat column on and persists it', () => {
@@ -57,7 +57,7 @@ describe('ValueTable', () => {
     };
     clickItem(/Select all/);
     expect(heads(container)).toEqual(
-      ['Field', 'Value', 'Size', 'Class', 'Min', 'Max', 'Range', 'Mean', 'Median', 'Mode', 'Var', 'Std']);
+      ['Field', 'Value', 'Size', 'Bytes', 'Class', 'Min', 'Max', 'Range', 'Mean', 'Median', 'Mode', 'Var', 'Std']);
     clickItem(/Clear all/);
     expect(heads(container)).toEqual(['Field']);   // name column is locked-on
   });

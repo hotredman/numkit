@@ -145,14 +145,37 @@ describe('VariableEditor — struct inspector render smoke', () => {
     expect(container.querySelector('.ve-window-struct')).toBeTruthy();
     expect(container.querySelector('.ve-crumbs')).toBeTruthy();
     expect(within(container).getByText('hp')).toBeTruthy();
-    // MATLAB-style Field · Value · Size · Class table.
+    // MATLAB-style Field · Value · Size · Bytes · Class table.
     const table = container.querySelector('.vt-table');
     expect(table).toBeTruthy();
     const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent);
-    expect(heads).toEqual(['Field', 'Value', 'Size', 'Class']);
+    expect(heads).toEqual(['Field', 'Value', 'Size', 'Bytes', 'Class']);
     // Size + Class cells are populated from the payload.
     expect(within(table).getByText('1x5')).toBeTruthy();   // name's size
     expect(within(table).getByText('char')).toBeTruthy();  // name's class
+  });
+
+  it('populates the Bytes column from each field cell.bytes (parity with the Workspace list)', () => {
+    // Regression: the struct inspector reused the shared ValueTable (which
+    // renders row.bytes) but dropped cell.bytes when building rows, so the
+    // Bytes column was always blank here even though the Workspace list had
+    // it. Each field must show its own rawBytes, human-formatted.
+    const engine = makeEngine({
+      inspectPath: () => ({
+        kind: 'struct', rows: 1, cols: 1, numel: 1,
+        fields: ['hp', 'name'],
+        elems: [[
+          { type: 'double', size: '1x1', summary: '203', drill: true, bytes: 8 },
+          { type: 'char', size: '1x5', summary: "'turbo'", drill: true, bytes: 10 },
+        ]],
+      }),
+    });
+    const { container } = render(
+      <VE variable={structVar} onClose={() => {}} engine={engine} />,
+    );
+    const table = container.querySelector('.vt-table');
+    expect(within(table).getByText('8 B')).toBeTruthy();    // hp
+    expect(within(table).getByText('10 B')).toBeTruthy();   // name
   });
 
   it('opens a context menu (Open · Rename · Duplicate · Insert · Delete) on right-click', () => {

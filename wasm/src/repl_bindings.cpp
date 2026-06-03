@@ -266,6 +266,7 @@ static void emitInspectCell(std::ostringstream &os, const std::string &label,
        << ",\"size\":\"" << d.rows() << "x" << d.cols();
     if (d.is3D()) os << "x" << d.pages();
     os << "\",\"summary\":\"" << escapeJSON(valuePreview(val)) << "\""
+       << ",\"bytes\":" << val.deepBytes()
        << ",\"drill\":" << (drill ? "true" : "false");
     std::string sj = statsJSON(val);
     if (!sj.empty()) os << "," << sj;
