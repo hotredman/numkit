@@ -1,10 +1,24 @@
 # builtin.unique — 'last' option ignored (returns first-occurrence indices)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-03, lib-dev cycle c180) — sorted order; one
+  rare sub-gap deferred (see Remaining).
 - **Severity:** P1 (wrong result — option ignored)
 - **Kind:** bug
 - **Severity note:** affects `ia` only; `C` and `ic` are correct.
 - **Found:** 2026-06 via DEEP-PROBE
+- **Fix:** threaded a `bool last` flag from `unique_reg` into
+  `uniqueWithIndices` / `uniqueComplexFull` / `uniqueRowsWithIndices`; the
+  sorted paths record the LAST occurrence (`map[key]=i`) instead of
+  `try_emplace`. Verified `ia`/`ic` vs MATLAB for vector, complex, `'rows'`
+  and NaN inputs. Default ('first') byte-identical. Guard:
+  `libs/builtin/tests/unique_last_test.cpp`.
+
+## Remaining (deferred sub-gap)
+`unique(A,'stable','last')`: MATLAB R2025b does NOT error (the original note
+below was wrong) — it orders the unique values by their LAST occurrence, e.g.
+`unique([3 1 2 1 3],'stable','last')` → `C=[2 1 3]`, `ia=[3 4 5]`. numkit
+currently returns the `'stable'` (first-occurrence) order here. Rare combo;
+tracked by `DISABLED_UniqueStableLast` in `builtin/known_bugs_test.cpp`.
 
 ## Symptom
 `[C, ia] = unique(A, 'last')` returns the index of the FIRST occurrence of
