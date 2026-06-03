@@ -1753,13 +1753,13 @@ void Engine::rehashMFiles()
     // by resolveMFile_. Functions registered by execFunctionDef from
     // top-level scripts are kept — only m-file-loaded ones should go.
     // The compiler stores chunks under the same key resolveMFile_ used
-    // (qualified for +pkg/foo.m, bare for plain foo.m), so erasing by
-    // mFileCache_ key alone is sufficient.
+    // (qualified for +pkg/foo.m, bare for plain foo.m), so erase that exact
+    // key — NOT clearCompiledFuncs(), which would also nuke script-defined
+    // compiled functions (contradicting the "kept" promise above).
     for (const auto &[name, _] : mFileCache_) {
         userFuncs_.erase(name);
-        if (compiler_) {
-            compiler_->clearCompiledFuncs();
-        }
+        if (compiler_)
+            compiler_->eraseCompiledFunc(name);
     }
     mFileCache_.clear();
 }

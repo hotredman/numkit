@@ -71,6 +71,9 @@ public:
         return compiledFuncs_;
     }
     void clearCompiledFuncs() { compiledFuncs_.clear(); }
+    // Drop a single compiled chunk by name (used by rehash to invalidate just
+    // the reloaded m-file, not every compiled function).
+    void eraseCompiledFunc(const std::string &name) { compiledFuncs_.erase(name); }
 
     // Script-scope compiled functions. Populated by beginScriptScope
     // via compileFunctionDef routing. NEVER cleared by
