@@ -1684,12 +1684,12 @@ TEST_P(EnumClassdefTest, MembersCompareByName)
 }
 TEST_P(EnumClassdefTest, UnderlyingValueFromConstructor)
 {
-    // Two-step (member into a variable, then read) — chained
-    // `Weekday.Monday.num` is a separate VM qualified-resolution gap.
-    engine.eval("m = Weekday.Monday;");
-    EXPECT_DOUBLE_EQ(evalScalar("m.num"), 1.0);
-    engine.eval("f = Weekday.Friday;");
-    EXPECT_DOUBLE_EQ(evalScalar("f.num"), 5.0);
+    // Chained field access on the member instance (both engines).
+    EXPECT_DOUBLE_EQ(evalScalar("Weekday.Monday.num"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("Weekday.Friday.num"), 5.0);
+    // Two-step also works.
+    engine.eval("m = Weekday.Tuesday;");
+    EXPECT_DOUBLE_EQ(evalScalar("m.num"), 2.0);
 }
 TEST_P(EnumClassdefTest, ValuedMembersCompareByName)
 {
