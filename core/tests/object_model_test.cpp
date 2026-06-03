@@ -1217,6 +1217,47 @@ public:
             "    function r = useProt(obj)\n      r = obj.prot() + obj.p;\n    end\n"
             "  end\n"
             "end\n");
+        // #1 — Static methods + Constant properties with access.
+        engine.eval(
+            "classdef Secret\n"
+            "  properties (Constant, Access = private)\n    KEY = 99\n  end\n"
+            "  properties (Constant)\n    PUB = 7\n  end\n"
+            "  methods (Static, Access = private)\n"
+            "    function r = priv()\n      r = 5;\n    end\n"
+            "  end\n"
+            "  methods (Static)\n"
+            "    function r = useKey()\n      r = Secret.KEY;\n    end\n"   // priv const, same class
+            "    function r = usePriv()\n      r = Secret.priv();\n    end\n" // priv static, same class
+            "  end\n"
+            "end\n");
+        // #2 — operator method with private access.
+        engine.eval(
+            "classdef PrivOp\n"
+            "  properties\n    x = 0\n  end\n"
+            "  methods\n"
+            "    function obj = PrivOp(v)\n      obj.x = v;\n    end\n"
+            "  end\n"
+            "  methods (Access = private)\n"
+            "    function r = plus(a, b)\n      r = PrivOp(a.x + b.x);\n    end\n"
+            "  end\n"
+            "end\n");
+        // #3 — super-call into protected (OK) vs private (denied) base methods.
+        engine.eval(
+            "classdef PBase\n"
+            "  methods (Access = protected)\n"
+            "    function r = protM(obj)\n      r = 22;\n    end\n"
+            "  end\n"
+            "  methods (Access = private)\n"
+            "    function r = secretM(obj)\n      r = 11;\n    end\n"
+            "  end\n"
+            "end\n");
+        engine.eval(
+            "classdef PDeriv < PBase\n"
+            "  methods\n"
+            "    function r = useProtSuper(obj)\n      r = protM@PBase(obj) + 1;\n    end\n"
+            "    function r = trySecretSuper(obj)\n      r = secretM@PBase(obj);\n    end\n"
+            "  end\n"
+            "end\n");
     }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };
@@ -1291,6 +1332,43 @@ TEST_P(AccessClassdefTest, ProtectedMethodFromOutsideThrows)
 {
     engine.eval("d = Deriv2();");
     EXPECT_THROW(engine.eval("d.prot();"), std::exception);
+}
+// #1 — Static method + Constant property access enforcement.
+TEST_P(AccessClassdefTest, PublicConstantReadable)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("Secret.PUB"), 7.0);
+}
+TEST_P(AccessClassdefTest, PrivateConstantFromOutsideThrows)
+{
+    EXPECT_THROW(engine.eval("Secret.KEY;"), std::exception);
+}
+TEST_P(AccessClassdefTest, PrivateConstantReadableInsideClass)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("Secret.useKey()"), 99.0); // private const via static method
+}
+TEST_P(AccessClassdefTest, PrivateStaticFromOutsideThrows)
+{
+    EXPECT_THROW(engine.eval("Secret.priv();"), std::exception);
+}
+TEST_P(AccessClassdefTest, PrivateStaticCallableInsideClass)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("Secret.usePriv()"), 5.0); // private static from same class
+}
+// #2 — operator method with private access.
+TEST_P(AccessClassdefTest, PrivateOperatorFromOutsideThrows)
+{
+    EXPECT_THROW(engine.eval("PrivOp(2) + PrivOp(3);"), std::exception);
+}
+// #3 — super-call respects base method access.
+TEST_P(AccessClassdefTest, ProtectedSuperMethodOk)
+{
+    engine.eval("d = PDeriv();");
+    EXPECT_DOUBLE_EQ(evalScalar("d.useProtSuper()"), 23.0); // protM@PBase 22 + 1
+}
+TEST_P(AccessClassdefTest, PrivateSuperMethodThrows)
+{
+    engine.eval("d = PDeriv();");
+    EXPECT_THROW(engine.eval("d.trySecretSuper();"), std::exception); // private base method
 }
 INSTANTIATE_TEST_SUITE_P(Backends, AccessClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
