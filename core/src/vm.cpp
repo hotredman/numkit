@@ -3200,12 +3200,16 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
         double result;
         bool handled = true;
         switch (bid) {
-        case 20:
-            result = std::fmod(a, b);
-            if (result != 0.0 && ((result > 0) != (b > 0)))
-                result += b;
+        case 20: // mod
+            if (b == 0.0) {
+                result = a; // MATLAB: mod(a,0) == a  (fmod would give NaN)
+            } else {
+                result = std::fmod(a, b);
+                if (result != 0.0 && ((result > 0) != (b > 0)))
+                    result += b;
+            }
             break;
-        case 21: result = std::fmod(a, b); break;
+        case 21: result = std::fmod(a, b); break; // rem: rem(a,0)==NaN is correct
         case 22: result = (a >= b) ? a : b; break;
         case 23: result = (a <= b) ? a : b; break;
         case 24: result = std::pow(a, b); break;
@@ -3388,12 +3392,13 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
         } else if (ix.isLogical()) {
             R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(), engine_.mr_);
         } else {
-            size_t n = ix.numel();
-            const double *id = ix.doubleData();
-            std::vector<size_t> indices(n);
-            for (size_t k = 0; k < n; ++k)
-                indices[k] = static_cast<size_t>(id[k]) - 1;
-            R[I.a] = mv.indexGet(indices.data(), n, engine_.mr_);
+            // General index vector — resolveIndices handles all numeric/char
+            // index types (int*, single, char codes) and validates
+            // positivity/integrality/bounds, matching the INDEX_GET opcode.
+            // (Raw doubleData() threw "Not a double array" on e.g. A(int32(2))
+            // and silently truncated fractional indices.)
+            auto indices = Value::resolveIndices(ix, mv.numel());
+            R[I.a] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
         }
     } else if (na == 2) {
         const Value &mv = R[fhReg];

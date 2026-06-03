@@ -1401,3 +1401,65 @@ TEST_P(KnownIssueEmptyString, StrcmpWithEmpty)
 }
 
 INSTANTIATE_DUAL(KnownIssueEmptyString);
+
+// ── mod(a,0) == a (deep audit #2) ──────────────────────────────────────
+// Both inline scalar fast paths (TreeWalker tryEvalFast + VM CALL_BUILTIN)
+// used raw std::fmod, which gives NaN for a zero divisor — shadowing the
+// correct builtin mod() (floor-formula with a `b==0 → a` guard) for scalar
+// operands. rem(a,0)==NaN is MATLAB-correct and must stay NaN.
+class ModByZero : public DualEngineTest {};
+
+TEST_P(ModByZero, ModByZeroReturnsDividend)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("mod(5, 0)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mod(-3, 0)"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mod(0, 0)"), 0.0);
+    // normal divisors unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("mod(5, 3)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mod(-5, 3)"), 1.0);
+    // rem(a,0) is NaN in MATLAB — must NOT be "fixed"
+    EXPECT_TRUE(std::isnan(evalScalar("rem(5, 0)")));
+}
+
+INSTANTIATE_DUAL(ModByZero);
+
+// ── NaN in a conditional is an error, not silently true (deep audit #2) ──
+// Verified against MATLAB R2025b: `if NaN` → "NaN values cannot be converted
+// to logicals." numkit previously returned true (NaN != 0).
+class NanConditional : public DualEngineTest {};
+
+TEST_P(NanConditional, NanInIfThrows)
+{
+    EXPECT_THROW(eval("if NaN; x = 1; end"), std::exception);
+    EXPECT_THROW(eval("if [1 NaN]; x = 1; end"), std::exception);
+    EXPECT_THROW(eval("if [0 NaN]; x = 1; end"), std::exception); // NaN wins over zero
+    // Inf is fine (nonzero → true); normal vectors unchanged.
+    eval("hit = 0; if Inf; hit = 1; end");
+    EXPECT_DOUBLE_EQ(evalScalar("hit"), 1.0);
+    eval("h2 = 0; if [1 2 3]; h2 = 1; end");
+    EXPECT_DOUBLE_EQ(evalScalar("h2"), 1.0);
+    eval("h3 = 1; if [1 0 3]; h3 = 2; end"); // a zero → false
+    EXPECT_DOUBLE_EQ(evalScalar("h3"), 1.0);
+}
+
+INSTANTIATE_DUAL(NanConditional);
+
+// ── integer / single / char-typed index arrays (deep audit #2) ──
+// Verified against MATLAB R2025b: A(int32(2)) == 20. numkit's resolveIndices
+// else-branch used doubleData() → "Not a double array" for non-DOUBLE indices.
+class TypedIndex : public DualEngineTest {};
+
+TEST_P(TypedIndex, IntegerSingleIndexArrays)
+{
+    eval("A = [10 20 30 40];");
+    EXPECT_DOUBLE_EQ(evalScalar("A(int32(2))"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(uint8(3))"), 30.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(single(4))"), 40.0);
+    eval("v = A(int16([1 3]));");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 2u);
+    expectElem(*v, 0, 10.0);
+    expectElem(*v, 1, 30.0);
+}
+
+INSTANTIATE_DUAL(TypedIndex);
