@@ -1106,17 +1106,14 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
         const bool sameArr =
             var->isObject() && var->objectClassName() == rhs.objectClassName();
         if (newable || sameArr) {
-            std::vector<size_t> subs(nargs);
-            for (size_t d = 0; d < nargs; ++d) {
-                auto ids = resolveIndex(lhs->children[d + 1].get(), *var,
-                                        static_cast<int>(d), static_cast<int>(nargs), env);
-                if (ids.size() != 1)
-                    throw std::runtime_error(
-                        "object-array assignment supports a single element per "
-                        "subscript (v1)");
-                subs[d] = ids[0];
-            }
-            engine_.objectStoreElement(*var, subs, rhs, env);
+            // Resolve each subscript to its full index list (scalar, range,
+            // vector, logical, `:` or `end` — resolveIndex handles all and is
+            // grow-friendly), then slice-store rhs (broadcast or matched).
+            std::vector<std::vector<size_t>> perDim(nargs);
+            for (size_t d = 0; d < nargs; ++d)
+                perDim[d] = resolveIndex(lhs->children[d + 1].get(), *var,
+                                         static_cast<int>(d), static_cast<int>(nargs), env);
+            engine_.objectStoreSlice(*var, perDim, rhs, env);
             return;
         }
     }

@@ -336,15 +336,20 @@ public:
     // non-object receiver becomes a fresh object array of elem's class.
     // Value class → store a deep copy of elem; handle class → alias elem.
     // Detaches (COW) first. For the no-custom-subsasgn builtin path.
-    void objectAssignElement(size_t idx, const Value &elem, const Value &fill,
-                             std::pmr::memory_resource *mr = nullptr);
-    // N-D counterpart: assign `elem` at the per-dim subscripts `subs`
-    // (0-based, one scalar per dimension), growing the array (any rank) and
-    // re-laying-out column-major with `fill` in new slots as needed. An
-    // empty/unset receiver becomes a fresh object array of elem's class.
-    void objectAssignElementND(const std::vector<size_t> &subs, const Value &elem,
-                               const Value &fill,
-                               std::pmr::memory_resource *mr = nullptr);
+    // Linear slice assignment: write `rhs` into the linear positions `pos`
+    // (0-based). `rhs` is either a scalar object (broadcast to every target)
+    // or an object array with numel == pos.size() (placed in order). Grows
+    // as a vector when a position is past the end (a proper matrix errors);
+    // an empty/unset receiver becomes a fresh object array of rhs's class.
+    // value class → deep copy per element, handle class → alias.
+    void objectAssignLinear(const std::vector<size_t> &pos, const Value &rhs,
+                            const Value &fill, std::pmr::memory_resource *mr = nullptr);
+    // N-D slice assignment: `perDim[d]` is the 0-based index list for
+    // dimension d; targets are the column-major cartesian product. `rhs`
+    // broadcasts (scalar) or matches the target count. Grows any rank and
+    // re-lays-out column-major, default-filling new slots with `fill`.
+    void objectAssignND(const std::vector<std::vector<size_t>> &perDim, const Value &rhs,
+                        const Value &fill, std::pmr::memory_resource *mr = nullptr);
 
     // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;
@@ -622,6 +627,9 @@ private:
     // elemAt / indexGet / indexGet2D / indexGet3D / indexGetND.
     Value objectGather(const size_t *srcLinear, const Dims &resultDims,
                        std::pmr::memory_resource *mr) const;
+    // Coerce a non-object receiver into a fresh 0×0 object array of `proto`'s
+    // class. No-op when already an object. Used by the slice-assign helpers.
+    void objectEnsureArrayLike(const Value &proto, std::pmr::memory_resource *mr);
 
     // Static dims for scalar returns
     static const Dims sScalarDims;

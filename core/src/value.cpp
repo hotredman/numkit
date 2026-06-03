@@ -2349,27 +2349,32 @@ Value Value::objectSubArray(const std::vector<size_t> &idxs,
     return objectGather(idxs.data(), d, mr);
 }
 
-void Value::objectAssignElement(size_t idx, const Value &elem, const Value &fill,
-                                std::pmr::memory_resource *mr)
+// Make *this a fresh empty (0×0) object array of `proto`'s class, if it is
+// not already an object. Shared by the slice-assign entry points.
+void Value::objectEnsureArrayLike(const Value &proto, std::pmr::memory_resource *mr)
+{
+    if (isObject())
+        return;
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->mr = mr;
+    h->objClass = new std::string(proto.objectClassName());
+    h->objIsHandle = proto.objectIsHandle();
+    h->dims = Dims(size_t{0}, size_t{0}); // 0×0; `{0,0}` would pick the ptr ctor
+    Value fresh;
+    fresh.heap_ = h;
+    *this = std::move(fresh);
+}
+
+void Value::objectAssignLinear(const std::vector<size_t> &pos, const Value &rhs,
+                               const Value &fill, std::pmr::memory_resource *mr)
 {
     if (!mr)
         mr = (heap_ && heap_->mr) ? heap_->mr
-                                  : (elem.heap_ && elem.heap_->mr
-                                         ? elem.heap_->mr
+                                  : (rhs.heap_ && rhs.heap_->mr
+                                         ? rhs.heap_->mr
                                          : std::pmr::get_default_resource());
-    // Coerce an empty/unset/non-object receiver into a fresh object array
-    // of elem's class (shape grows below).
-    if (!isObject()) {
-        auto *h = new HeapObject();
-        h->type = ValueType::OBJECT;
-        h->mr = mr;
-        h->objClass = new std::string(elem.objectClassName());
-        h->objIsHandle = elem.objectIsHandle();
-        h->dims = Dims(size_t{0}, size_t{0}); // 0×0; `{0,0}` picks the ptr ctor
-        Value fresh;
-        fresh.heap_ = h;
-        *this = std::move(fresh);
-    }
+    objectEnsureArrayLike(rhs, mr);
     detach(); // HeapObject-level COW before in-place growth/store
     const bool handle = heap_->objIsHandle;
     auto sharedOf = [](const Value &v) -> std::shared_ptr<ObjectState> {
@@ -2377,47 +2382,50 @@ void Value::objectAssignElement(size_t idx, const Value &elem, const Value &fill
                                                              : nullptr;
     };
     auto indep = [&](const std::shared_ptr<ObjectState> &s) {
-        return s ? s->deepCopy(mr) : s; // independent default for gaps/value store
+        return s ? s->deepCopy(mr) : s; // independent default for gaps
     };
-    auto &states = heap_->objStates;
-    std::shared_ptr<ObjectState> elemState = sharedOf(elem);
-    if (idx < states.size()) {
-        // In-bounds linear set — preserve the existing array shape.
-        states[idx] = handle ? elemState : indep(elemState);
-        return;
-    }
-    // Out-of-bounds: linear growth is only defined for a vector (or empty);
-    // growing a proper matrix via a single linear index is ambiguous.
-    if (heap_->dims.rows() > 1 && heap_->dims.cols() > 1)
+    // RHS feeds one element per target, or a scalar broadcast to all.
+    const size_t rn = rhs.isObject() ? rhs.objectCount() : 0;
+    const bool broadcast = (rn == 1);
+    if (!broadcast && rn != pos.size())
         throw std::runtime_error(
-            "Unable to grow a 2-D object array via a single linear index");
-    const bool col = heap_->dims.cols() == 1 && heap_->dims.rows() > 1;
-    std::shared_ptr<ObjectState> fillState = sharedOf(fill);
-    while (states.size() <= idx)
-        states.push_back(indep(fillState)); // gaps: independent default objects
-    states[idx] = handle ? elemState : indep(elemState); // alias vs deep copy
-    heap_->dims = col ? Dims(states.size(), size_t{1}) : Dims(size_t{1}, states.size());
+            "Unable to perform assignment because the left and right sides have a "
+            "different number of elements.");
+    auto rhsSlot = [&](size_t k) -> std::shared_ptr<ObjectState> {
+        const auto &sp = rhs.heap_->objStates[broadcast ? 0 : k];
+        return handle ? sp : (sp ? sp->deepCopy(mr) : sp); // alias vs deep copy
+    };
+
+    size_t maxPos = 0;
+    for (size_t p : pos)
+        maxPos = std::max(maxPos, p + 1);
+    auto &states = heap_->objStates;
+    if (maxPos > states.size()) {
+        // Out-of-bounds linear growth is only defined for a vector (or empty);
+        // growing a proper matrix via a single linear index is ambiguous.
+        if (heap_->dims.rows() > 1 && heap_->dims.cols() > 1)
+            throw std::runtime_error(
+                "Unable to grow a 2-D object array via a single linear index");
+        const bool col = heap_->dims.cols() == 1 && heap_->dims.rows() > 1;
+        std::shared_ptr<ObjectState> fillState = sharedOf(fill);
+        while (states.size() < maxPos)
+            states.push_back(indep(fillState));
+        heap_->dims = col ? Dims(states.size(), size_t{1}) : Dims(size_t{1}, states.size());
+    }
+    for (size_t k = 0; k < pos.size(); ++k)
+        states[pos[k]] = rhsSlot(k);
 }
 
-void Value::objectAssignElementND(const std::vector<size_t> &subs, const Value &elem,
-                                  const Value &fill, std::pmr::memory_resource *mr)
+void Value::objectAssignND(const std::vector<std::vector<size_t>> &perDim,
+                           const Value &rhs, const Value &fill,
+                           std::pmr::memory_resource *mr)
 {
     if (!mr)
         mr = (heap_ && heap_->mr) ? heap_->mr
-                                  : (elem.heap_ && elem.heap_->mr
-                                         ? elem.heap_->mr
+                                  : (rhs.heap_ && rhs.heap_->mr
+                                         ? rhs.heap_->mr
                                          : std::pmr::get_default_resource());
-    if (!isObject()) {
-        auto *h = new HeapObject();
-        h->type = ValueType::OBJECT;
-        h->mr = mr;
-        h->objClass = new std::string(elem.objectClassName());
-        h->objIsHandle = elem.objectIsHandle();
-        h->dims = Dims(size_t{0}, size_t{0});
-        Value fresh;
-        fresh.heap_ = h;
-        *this = std::move(fresh);
-    }
+    objectEnsureArrayLike(rhs, mr);
     detach();
     const bool handle = heap_->objIsHandle;
     auto sharedOf = [](const Value &v) -> std::shared_ptr<ObjectState> {
@@ -2429,20 +2437,37 @@ void Value::objectAssignElementND(const std::vector<size_t> &subs, const Value &
     };
 
     const int curNd = heap_->dims.ndim();
-    const int nd = std::max(static_cast<int>(subs.size()), curNd);
+    const int nd = std::max(static_cast<int>(perDim.size()), curNd);
     std::vector<size_t> newSize(nd);
     for (int d = 0; d < nd; ++d) {
         size_t cur = (d < curNd) ? heap_->dims.dim(d) : 1;
-        size_t need = (d < static_cast<int>(subs.size())) ? subs[d] + 1 : 1;
+        size_t need = 1;
+        if (d < static_cast<int>(perDim.size()))
+            for (size_t v : perDim[d])
+                need = std::max(need, v + 1);
         newSize[d] = std::max(cur, need);
     }
     Dims newDims(newSize.data(), nd);
 
-    std::shared_ptr<ObjectState> fillState = sharedOf(fill);
+    size_t ntargets = 1;
+    for (const auto &l : perDim)
+        ntargets *= l.size();
+    const size_t rn = rhs.isObject() ? rhs.objectCount() : 0;
+    const bool broadcast = (rn == 1);
+    if (!broadcast && rn != ntargets)
+        throw std::runtime_error(
+            "Unable to perform assignment because the left and right sides have a "
+            "different number of elements.");
+    auto rhsSlot = [&](size_t k) -> std::shared_ptr<ObjectState> {
+        const auto &sp = rhs.heap_->objStates[broadcast ? 0 : k];
+        return handle ? sp : (sp ? sp->deepCopy(mr) : sp);
+    };
+
     if (!(newDims == heap_->dims)) {
         // Re-layout into the grown shape: default-fill, then move each old
         // element from its old column-major slot to its new one.
         std::vector<std::shared_ptr<ObjectState>> neu(newDims.numel());
+        std::shared_ptr<ObjectState> fillState = sharedOf(fill);
         for (auto &s : neu)
             s = indep(fillState);
         size_t oldStr[Dims::kMaxRank];
@@ -2452,23 +2477,31 @@ void Value::objectAssignElementND(const std::vector<size_t> &subs, const Value &
         const size_t oldN = heap_->objStates.size();
         for (size_t k = 0; k < oldN; ++k) {
             size_t newLin = 0;
-            for (int d = 0; d < curNd; ++d) {
-                size_t sd = (k / oldStr[d]) % heap_->dims.dim(d);
-                newLin += sd * newStr[d];
-            }
+            for (int d = 0; d < curNd; ++d)
+                newLin += ((k / oldStr[d]) % heap_->dims.dim(d)) * newStr[d];
             neu[newLin] = std::move(heap_->objStates[k]);
         }
         heap_->objStates = std::move(neu);
         heap_->dims = newDims;
     }
 
+    if (ntargets == 0)
+        return;
     size_t str[Dims::kMaxRank];
     computeStridesColMajor(heap_->dims, str);
-    size_t lin = 0;
-    for (size_t d = 0; d < subs.size(); ++d)
-        lin += subs[d] * str[d];
-    std::shared_ptr<ObjectState> elemState = sharedOf(elem);
-    heap_->objStates[lin] = handle ? elemState : indep(elemState);
+    const int pnd = static_cast<int>(perDim.size());
+    std::vector<size_t> counts(pnd);
+    for (int d = 0; d < pnd; ++d)
+        counts[d] = perDim[d].size();
+    Dims iter(counts.data(), pnd);
+    std::vector<size_t> coords(pnd, 0);
+    size_t k = 0;
+    do {
+        size_t lin = 0;
+        for (int d = 0; d < pnd; ++d)
+            lin += perDim[d][coords[d]] * str[d];
+        heap_->objStates[lin] = rhsSlot(k++);
+    } while (incrementCoords(coords.data(), iter));
 }
 
 const void *Value::rawData() const

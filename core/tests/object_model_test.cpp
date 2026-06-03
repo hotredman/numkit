@@ -612,6 +612,54 @@ TEST_P(ObjectArrayTest, LinearAssignInto2DPreservesShape)
     EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 77.0);
 }
 
+TEST_P(ObjectArrayTest, SliceAssignColumn)
+{
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)];"
+                " col = [Box(20); Box(40)]; a(:,2) = col;");
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,2).v"), 40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,1).v"), 1.0); // column 1 untouched
+}
+
+TEST_P(ObjectArrayTest, RowSliceAssign)
+{
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)]; a(1,:) = [Box(11) Box(22)];");
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,1).v"), 11.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 22.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,1).v"), 3.0); // row 2 untouched
+}
+
+TEST_P(ObjectArrayTest, SliceAssignBroadcastScalar)
+{
+    engine.eval("a = [Box(1) Box(2); Box(3) Box(4)]; a(:,1) = Box(7);");
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,1).v"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,1).v"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 2.0); // column 2 untouched
+}
+
+TEST_P(ObjectArrayTest, LinearVectorSliceAssign)
+{
+    engine.eval("a(1)=Box(1); a(2)=Box(2); a(3)=Box(3); a([1 3]) = [Box(10) Box(30)];");
+    EXPECT_DOUBLE_EQ(evalScalar("a(1).v"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2).v"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(3).v"), 30.0);
+}
+
+TEST_P(ObjectArrayTest, SliceAssignValueSemantics)
+{
+    // value class: broadcast RHS is deep-copied into each slice element.
+    engine.eval("a = [Box(1) Box(2)]; b = Box(5); a(:) = b; b.v = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("a(1).v"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2).v"), 5.0);
+}
+
+TEST_P(ObjectArrayTest, SliceAssignCountMismatchThrows)
+{
+    EXPECT_THROW(
+        engine.eval("a = [Box(1) Box(2) Box(3)]; a([1 2]) = [Box(1) Box(2) Box(3)];"),
+        std::exception);
+}
+
 TEST_P(ObjectArrayTest, PropertyCSL)
 {
     // [arr.prop] expands the property over the whole array → a row vector.

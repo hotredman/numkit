@@ -857,12 +857,14 @@ enter_frame:
                         dst.isObject()
                         && dst.objectClassName() == R[I.c].objectClassName();
                     if (newable || sameArr) {
-                        if (!(ix.isDoubleScalar() || ix.isLogicalScalar()))
-                            throw std::runtime_error(
-                                "object-array assignment supports a single linear index (v1)");
-                        std::vector<size_t> subs = {
-                            static_cast<size_t>(ix.toScalar()) - 1};
-                        engine_.objectStoreElement(dst, subs, R[I.c], currentCallEnv());
+                        // Linear slice: scalar / range / vector / logical / `:`.
+                        std::vector<size_t> pos;
+                        if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':')
+                            for (size_t i = 0; i < dst.objectCount(); ++i)
+                                pos.push_back(i);
+                        else
+                            pos = Value::resolveIndicesUnchecked(ix);
+                        engine_.objectStoreSlice(dst, {pos}, R[I.c], currentCallEnv());
                         break;
                     }
                 }
@@ -984,15 +986,19 @@ enter_frame:
                         dst.isObject()
                         && dst.objectClassName() == val.objectClassName();
                     if (newable || sameArr) {
-                        if (!(ri.isDoubleScalar() || ri.isLogicalScalar())
-                            || !(ci.isDoubleScalar() || ci.isLogicalScalar()))
-                            throw std::runtime_error(
-                                "object-array assignment supports a single element "
-                                "per subscript (v1)");
-                        std::vector<size_t> subs = {
-                            static_cast<size_t>(ri.toScalar()) - 1,
-                            static_cast<size_t>(ci.toScalar()) - 1};
-                        engine_.objectStoreElement(dst, subs, val, currentCallEnv());
+                        auto resolveDim = [](const Value &s, size_t curDim) {
+                            std::vector<size_t> out;
+                            if (s.isChar() && s.numel() == 1 && s.charData()[0] == ':')
+                                for (size_t i = 0; i < curDim; ++i)
+                                    out.push_back(i);
+                            else
+                                out = Value::resolveIndicesUnchecked(s);
+                            return out;
+                        };
+                        std::vector<std::vector<size_t>> perDim = {
+                            resolveDim(ri, dst.isObject() ? dst.dims().rows() : 0),
+                            resolveDim(ci, dst.isObject() ? dst.dims().cols() : 0)};
+                        engine_.objectStoreSlice(dst, perDim, val, currentCallEnv());
                         break;
                     }
                 }
@@ -1099,16 +1105,20 @@ enter_frame:
                         dst.isObject()
                         && dst.objectClassName() == val.objectClassName();
                     if (newable || sameArr) {
-                        std::vector<size_t> subs(ndims);
+                        std::vector<std::vector<size_t>> perDim(ndims);
                         for (uint8_t i = 0; i < ndims; ++i) {
                             const Value &s = R[base + i];
-                            if (!(s.isDoubleScalar() || s.isLogicalScalar()))
-                                throw std::runtime_error(
-                                    "object-array assignment supports a single "
-                                    "element per subscript (v1)");
-                            subs[i] = static_cast<size_t>(s.toScalar()) - 1;
+                            size_t curDim =
+                                dst.isObject()
+                                    ? (i < dst.dims().ndim() ? dst.dims().dim(i) : 1)
+                                    : 0;
+                            if (s.isChar() && s.numel() == 1 && s.charData()[0] == ':')
+                                for (size_t j = 0; j < curDim; ++j)
+                                    perDim[i].push_back(j);
+                            else
+                                perDim[i] = Value::resolveIndicesUnchecked(s);
                         }
-                        engine_.objectStoreElement(dst, subs, val, currentCallEnv());
+                        engine_.objectStoreSlice(dst, perDim, val, currentCallEnv());
                         break;
                     }
                 }
