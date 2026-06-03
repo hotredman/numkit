@@ -45,3 +45,15 @@ TEST_F(LinalgKnownBug, DISABLED_NormComplex)
     EXPECT_NEAR(evalScalar("norm([3+4i 0])"), 5.0, 1e-12);        // 2-norm
     EXPECT_NEAR(evalScalar("norm([3+4i 0], 'fro')"), 5.0, 1e-12); // Frobenius
 }
+
+// bugs/linalg/complex-matrix-unsupported.md — complex matrix linear algebra.
+TEST_F(LinalgKnownBug, DISABLED_ComplexMatrixOps)
+{
+    eval("B = [1+1i 2; 3 4-1i];");
+    eval("t = trace(B);");          // MATLAB: 5+0i
+    EXPECT_NEAR(evalScalar("real(t)"), 5.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(t)"), 0.0, 1e-12);
+    eval("d = det(B);");            // MATLAB: -1+3i
+    EXPECT_NEAR(evalScalar("real(d)"), -1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("imag(d)"),  3.0, 1e-10);
+}
