@@ -1,4 +1,5 @@
 #include <numkit/builtin/library.hpp>
+#include <numkit/builtin/language/cells/cell.hpp>
 #include <numkit/builtin/language/operators/binary_ops.hpp>
 #include <numkit/builtin/language/types/types.hpp>
 #include <numkit/builtin/math/arithmetic/rounding.hpp>
@@ -1279,6 +1280,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("rmfield",    &builtin::detail::rmfield_reg);
     engine.registerFunction("cell",       &builtin::detail::cell_reg);
     engine.registerFunction("cellfun",    &builtin::detail::cellfun_reg);
+    builtin::registerCellfunCallbackBuiltin(engine); // VM-pausable callbacks
     engine.registerFunction("num2cell",   &builtin::detail::num2cell_reg);
     engine.registerFunction("cell2mat",   &builtin::detail::cell2mat_reg);
     engine.registerFunction("iscellstr",  &builtin::detail::iscellstr_reg);

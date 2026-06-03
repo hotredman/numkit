@@ -250,6 +250,44 @@ growth). All still execute on the VM.
 
 The TreeWalker backend is unchanged; native builtin-class methods
 (containers.Map, …) keep their C++ hook.
+
+## State-machine callbacks (suspendable higher-order builtins)
+
+Closes the last gap: higher-order builtins (`cellfun`/`arrayfun`/…) that loop
+over user callbacks used to drive that loop on the C++ stack and run each
+callback via `callReentrant` — so a breakpoint inside a callback could fire but
+not suspend (the pause can't unwind through the builtin's C++ for-loop). Rather
+than a fiber (rejected: per-platform machinery + WASM/Asyncify cost), the
+builtin is re-expressed as a resumable **state machine** that returns control to
+the dispatch loop between callbacks, so each callback becomes an ordinary
+(pausable) VM frame — case A. No fiber / separate stack / Asyncify; identical on
+every preset including WASM.
+
+- **Foundation (done, `60b7a64a`)** — `core/callback_builtin.hpp`:
+  `VmContinuation` (resumable native computation; `step(vm, prevResult, self)`
+  pushes the next callback frame or finalizes) and `CallbackBuiltin`
+  (`tryStart` → a continuation, or nullptr to fall back to the synchronous
+  builtin). `CallFrame::cont`; `popCallFrame` routes a callback frame's return
+  into `cont->step` (single choke point, all RET variants); `startContinuation`
+  + `pushCallbackFrame` (resolve user-code handle → chunk → frame + attach
+  cont); CALL dispatch consults `Engine::callbackBuiltin(name)` before the
+  synchronous external path. `Engine` registry + `isUserCodeHandle`. Inert
+  until a consumer registers.
+- **cellfun (done)** — `libs/builtin` `CellfunContinuation` +
+  `CellfunCallbackBuiltin`, registered via `registerCellfunCallbackBuiltin`.
+  Drives `cellfun(@userfunc, c [, 'UniformOutput', tf])` one element at a time
+  as pausable frames; `pack()` mirrors the synchronous `cellfun` helper's output
+  (uniform numeric/logical array, or cell). Builtin handles, multi-output, and
+  unsupported arg forms fall back to the synchronous `cellfun` (tryStart →
+  nullptr). TW backend unchanged (the continuation is consulted only by the VM
+  dispatch loop). **Proven**: `DebugSessionTest.BreakInsideCellfunCallback`
+  (breakpoint inside the callback pauses on each of the 3 elements and resumes;
+  `y == [10 20 30]`); 48 cellfun dual-engine tests green; full suite 10930.
+- **Remaining (follow-up):** `arrayfun`, `structfun`, and any other higher-order
+  builtin that loops over user code — same `CallbackBuiltin`/`VmContinuation`
+  pattern. Genuinely single-shot C++-initiated calls (`disp(obj)` from the
+  display path, a `sort` comparator) have no loop to suspend and stay on
+  `callReentrant`.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a

@@ -5,7 +5,20 @@
 #include <numkit/core/fn_handle.hpp>
 #include <numkit/core/value.hpp>
 
+namespace numkit {
+class Engine;
+}
+
 namespace numkit::builtin {
+
+/// @brief Register cellfun's VM-continuation driver (state-machine callbacks).
+///
+/// Installs a CallbackBuiltin so that, under the VM backend,
+/// `cellfun(@userfunc, c)` runs each callback as a pausable VM frame instead of
+/// the synchronous callReentrant path. Builtin handles / multi-output / other
+/// argument forms fall back to the synchronous `cellfun` builtin. Call once at
+/// engine setup, alongside `registerFunction("cellfun", ...)`.
+void registerCellfunCallbackBuiltin(Engine &engine);
 
 /// @brief Square cell array (`c = cell(n)`).
 ///
