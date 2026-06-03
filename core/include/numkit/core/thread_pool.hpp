@@ -54,6 +54,11 @@ private:
 
     std::vector<std::thread>         workers_;
     std::mutex                       mu_;
+    // Serializes concurrent run() submitters (e.g. two engines sharing this
+    // process-wide pool on different threads). Held across publish+wait; never
+    // contended by workers (they use mu_) nor by a nested run() (which the
+    // worker-thread guard short-circuits to an inline call before reaching it).
+    std::mutex                       submit_mu_;
     std::condition_variable          cv_start_;
     std::condition_variable          cv_done_;
 

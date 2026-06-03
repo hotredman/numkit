@@ -7,6 +7,13 @@
 
 namespace numkit::detail {
 
+// True while the current thread is executing a pool task body. A nested
+// run() (a parallel body that itself calls parallel_for) is then run inline
+// rather than re-dispatched, which would deadlock.
+namespace {
+thread_local bool t_inPool = false;
+}
+
 ThreadPool &ThreadPool::global()
 {
     // hardware_concurrency() can return 0 when the runtime has no idea
@@ -46,6 +53,14 @@ void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)
     if (n == 0)
         return;
 
+    // Nested dispatch (a worker's task body itself called parallel_for): run
+    // inline. Re-dispatching to the same pool would deadlock — this thread
+    // would block on sibling chunks that cannot make progress.
+    if (t_inPool) {
+        fn(0, n);
+        return;
+    }
+
     int k = workers();
     if (max_workers > 0 && max_workers < k)
         k = max_workers;
@@ -54,6 +69,12 @@ void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)
         fn(0, n);
         return;
     }
+
+    // Serialize concurrent submitters (the pool's task_/epoch_ slots are
+    // single-task). Held across publish+wait; workers use mu_, not this, and a
+    // nested run() already returned above, so this is never contended by a
+    // worker.
+    std::lock_guard<std::mutex> submitLock(submit_mu_);
 
     {
         std::unique_lock<std::mutex> lock(mu_);
@@ -103,8 +124,11 @@ void ThreadPool::worker_loop(int id)
                                   / static_cast<std::size_t>(k);
         const std::size_t start = static_cast<std::size_t>(id) * chunk;
         const std::size_t end   = std::min(start + chunk, n);
-        if (start < end)
+        if (start < end) {
+            t_inPool = true;     // mark so a nested run() on this thread inlines
             fn(start, end);
+            t_inPool = false;
+        }
 
         {
             std::lock_guard<std::mutex> lock(mu_);
