@@ -156,10 +156,19 @@ the VM backend. This is the gap to close.
   seams: `Engine::classGetter`/`classSetter`/`enforcePropGetAccess`/
   `enforcePropSetAccess`. **Proven**: `DebugSessionTest.BreakInsideClassdefGetter`
   (breakpoint inside `get.scaled` pauses; `y == 21`); full suite 10925.
-  - **Remaining P4** (follow-up commits, each in-bytecode + pausable like P4a):
-    `set.Prop` setters via `FIELD_SET` (needs the handle-setter return-arity
-    handling: a no-output handle setter must NOT clobber the object register —
-    use a scratch destReg / shared-state mutation); operator methods via the
+- **P4b (done)** — **`set.Prop` setters VM-native.** The VM `FIELD_SET` opcode,
+  for an object whose class defines `set.Prop`, runs the setter body on the VM,
+  enforcing `SetAccess` first. A setter that returns the object
+  (`function obj = set.Prop(obj,val)` — value class, or a handle setter with an
+  output) runs as a SAME-STACK frame (pausable, fast) with the result written
+  back into the object register (destReg = the object). A no-output handle
+  setter (`function set.Prop(obj,val)`) mutates shared state in place, so it
+  runs through `callReentrant` (no caller-register write — an empty RET would
+  otherwise clobber the object register; the handle's mutation survives
+  save/restore because both the snapshot and the setter's arg copy hold the same
+  `shared_ptr<ObjectState>`). **Proven**: `DebugSessionTest.BreakInsideClassdefSetter`
+  (breakpoint inside `set.val` pauses; `y == 10`); full suite 10926.
+  - **Remaining P4** (follow-up commits): operator methods via the
     arithmetic/comparison opcodes; `subsref`/`subsasgn` via `INDEX_GET`/
     `INDEX_SET`. Plus a backend-aware `invokeClassMethod`/`invokeClassCtor`
     (→ `callReentrant`) as the net for genuinely C++-initiated callbacks (e.g.
