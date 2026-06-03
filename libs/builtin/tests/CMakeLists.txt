@@ -114,5 +114,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/splitapply_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/colperm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/symrcm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/permutations_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/topkrows_ext_test.cpp
 )
