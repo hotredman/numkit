@@ -292,6 +292,10 @@ export default function CompositePlot({
   // visible source-rect. Rendered as an SVG <image> filling the plot area.
   // Reset on figure identity change (new dataset → stale tile is wrong).
   const [tileOverlay, setTileOverlay] = useState(null);
+  // Phase 2c — engine tiles for downsampled (huge) line series, keyed by
+  // dataset index. The line renderer prefers a loaded tile (already
+  // decimated for the viewport) over the static preview ly.x/ly.y.
+  const [seriesTiles, setSeriesTiles] = useState({});
   const figIdRef = useRef(figure._raw?.id ?? figure.id);
   useEffect(() => {
     const fid = figure._raw?.id ?? figure.id;
@@ -1408,6 +1412,31 @@ export default function CompositePlot({
       xMin, xMax, yMin, yMax, xLogActive, yLogActive,
       W, H, lut]);
 
+  // Phase 2c — refetch decimated tiles for engine-downsampled (huge) line
+  // series on viewport / width / algorithm change, debounced so wheel-zoom
+  // doesn't hammer the engine. The full x/y never leave the engine; we get
+  // back only the ~4*W points visible in [xMin, xMax], so zoom reveals
+  // detail the static preview can't.
+  useEffect(() => {
+    const downs = (figure.layers || []).filter(
+      (ly) => ly.kind === 'series' && ly.seriesDownsampled && ly.dsIdx != null);
+    if (!downs.length || !engine || typeof engine.getSeriesTile !== 'function') {
+      setSeriesTiles((prev) => (Object.keys(prev).length ? {} : prev));
+      return undefined;
+    }
+    let cancelled = false;
+    const h = setTimeout(() => {
+      const next = {};
+      for (const ly of downs) {
+        const t = engine.getSeriesTile(ly.figId, ly.axIdx, ly.dsIdx,
+                                       xMin, xMax, Math.round(W), decimAlgo);
+        if (t && !t.error && Array.isArray(t.x)) next[ly.dsIdx] = { x: t.x, y: t.y };
+      }
+      if (!cancelled) setSeriesTiles(next);
+    }, 40);
+    return () => { cancelled = true; clearTimeout(h); };
+  }, [figure.layers, engine, xMin, xMax, W, decimAlgo]);
+
   const clipId = `clip-h-${figure.id}-${Math.round(width)}`;
   // The heatmap image is stretched to fill the figure's xRange × yRange in
   // viewport coordinates — pan/zoom moves the SVG rect, the image follows.
@@ -1987,9 +2016,15 @@ export default function CompositePlot({
               // Downsample the visible x-range to ~W pixel columns for huge
               // series — render cost O(N) → O(W). Skipped for comet
               // animation (it steps through the raw points one by one).
-              const sr = (!ly.cometAnim && decimAlgo !== 'none' && Array.isArray(ly.x))
-                ? decimateSeries(ly.x, ly.y, xMin, xMax, W, decimAlgo)
-                : { x: ly.x, y: ly.y };
+              // Engine-downsampled series: prefer the viewport tile (already
+              // decimated for [xMin,xMax]) when one is loaded; otherwise the
+              // static preview, JS-decimated like any series.
+              const seriesTile = ly.seriesDownsampled ? seriesTiles[ly.dsIdx] : null;
+              const sr = seriesTile
+                ? { x: seriesTile.x, y: seriesTile.y }
+                : (!ly.cometAnim && decimAlgo !== 'none' && Array.isArray(ly.x))
+                  ? decimateSeries(ly.x, ly.y, xMin, xMax, W, decimAlgo)
+                  : { x: ly.x, y: ly.y };
               const SX = sr.x, SY = sr.y;
               // Comet animation: render only first floor(progress·N) points.
               const totalN = SX.length;
