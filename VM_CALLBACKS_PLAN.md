@@ -436,8 +436,28 @@ stays as the synchronous path for embedders. This is how real MATLAB ships these
   (bit-identical). **Proven**: `DebugSessionTest.BreakInsideFminsearchObjective`;
   all 6 Fminsearch dual-engine tests (TW+VM) green; full suite 10943 (0
   regressions). External `registerFunction("fminsearch", …)` dropped.
-- **Remaining (same pattern, follow-up):** `nlinfit` — port to embedded `.m`.
-  Until then it stays on `callReentrant` (breakpoints fire but cannot suspend).
+- **nlinfit (done)** — registered via `stats::registerNlinfitM` (embedded `.m`
+  Levenberg-Marquardt in `regress/nlinfit.cpp`). The model `fun(beta, X)` is
+  always user code → every residual + central-difference Jacobian evaluation
+  runs as bytecode (pausable). Faithful transcription of the C++ LM loop (λ
+  schedule 1e-3 ×0.1/×10, central-diff `h = 1e-7·max(|βj|,1)` with `*inv2h`,
+  tolFun/tolX = 1e-10, maxIter = 200, final-Jacobian refresh, MSE = SSE/(n-p),
+  CovB = MSE·inv(JᵀJ)). The LM linear step uses built-in `JᵀJ + λ·diag`, `\`,
+  `inv` instead of the C++'s hand-rolled Gauss elimination — converges to the
+  same least-squares minimum (tight tolerances), and `nlparci`/`nlpredci`
+  (unchanged C++) produce valid CIs from the `.m` outputs. nlinfit consumes no
+  RNG, so caller noise realisations are unchanged. Split into `nlinfit` +
+  `nk_nlinfit_jac` + `nk_nlinfit_model`. **Proven**:
+  `DebugSessionTest.BreakInsideNlinfitModel`; all 7 NlinfitTest tests green
+  (incl. the randn-seeded recovery + nlparci/nlpredci); full suite 10944 (0
+  regressions). External `stats.regress/compat.nlinfit` alias dropped.
+- **Remaining callback-bearing (follow-up, lower priority):** `nlpredci` (calls
+  the model `fun` — a clean `.m`-wrapper candidate: single-shot prediction +
+  query-Jacobian, no iteration; left on `callReentrant` for now). The bespoke
+  `grouptransform`/`groupfilter`/`groupsummary`, `pulstran`,
+  `fplot`/`fsurf`/`fcontour`/`fmesh` remain per-function specials (see above).
+  All adaptive numerical solvers from the original queue (fzero, integral,
+  ode45, ode23, fminsearch, nlinfit) are now pausable `.m` wrappers.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a

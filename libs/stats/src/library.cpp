@@ -424,6 +424,9 @@ namespace numkit {
 // driver (state-machine callbacks).
 namespace stats {
 void registerBootstrpCallbackBuiltin(Engine &engine);
+// Defined in regress/nlinfit.cpp — installs the `.m` nlinfit wrapper (pausable
+// model `fun(beta,X)`; the C++ `nlinfit(...)` API remains the synchronous path).
+void registerNlinfitM(Engine &engine);
 }
 
 void StatsLibrary::install(Engine &engine)
@@ -754,7 +757,9 @@ void StatsLibrary::install(Engine &engine)
     reg("anova", "dummyvar",      &stats::detail::dummyvar_reg);
 
     reg("regress", "regress",  &stats::detail::regress_reg);
-    reg("regress", "nlinfit",  &stats::detail::nlinfit_reg);
+    // nlinfit is an embedded `.m` wrapper (pausable model fun); shadows the C++
+    // external on both backends. The `nlinfit(...)` C++ API is retained.
+    stats::registerNlinfitM(engine);
     reg("regress", "nlparci",  &stats::detail::nlparci_reg);
     reg("regress", "nlpredci", &stats::detail::nlpredci_reg);
     reg("regress", "robustfit", &stats::detail::robustfit_reg);
