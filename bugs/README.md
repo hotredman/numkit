@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (54 entries):** ✅ 10 fixed · 🔴 44 open = **19 bug** + 6 stub +
+**Tally (55 entries):** ✅ 10 fixed · 🔴 45 open = **20 bug** + 6 stub +
 5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -139,11 +139,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 19
+### 🔴 OPEN — bug (defect on an implemented function) — 20
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(x,k[,'first'/'last']) ignores count + direction → all indices |
+| [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv don't broadcast ARRAY parameters (mu/sigma/n/a/b/df) |
 | [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff silently drops the imaginary part on complex input |
 | [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod throw on complex input |
 | [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | conv/filter/trapz/cumtrapz/gradient/movmean/detrend/interp1/median reject complex |
