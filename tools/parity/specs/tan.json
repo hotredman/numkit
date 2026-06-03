@@ -1,7 +1,7 @@
 {
   "name": "tan",
   "namespace": "builtin",
-  "setup": "x = [0, 0.5, 1, 1.4, -0.7];",
+  "setup": "x = [0, 0.5, 1, 1.4, -0.7, 10, 100, 1000, 50000];",
   "expr": "y = tan(x);",
   "iters": 20,
   "tol": 1e-12,
@@ -10,9 +10,13 @@
     "y(2)",
     "y(3)",
     "y(4)",
-    "y(5)"
+    "y(5)",
+    "y(6)",
+    "y(7)",
+    "y(8)",
+    "y(9)"
   ],
-  "comment": "Sig: y = tan(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b.",
+  "comment": "Sig: y = tan(x). SIMD via ported SLEEF xtan (Cody-Waite reduction + degree-7 half-angle polynomial + tan double-angle), replacing Div(Sin,Cos). 2-step reduction for |x|<15 (y1-y5), extended PI_A..D for |x|<1e6 (y6 x=10, y7 x=100, y8 x=1000, y9 x=50000); |x|>=1e6 falls to scalar std::tan. <=3.5 ULP, bit-identical MATLAB R2025b on probed inputs (incl. large args via extended reduction).",
   "bench_setup": "xb = mod((1:N)*7919,3000)*0.001;",
   "bench_expr": "rb = tan(xb);"
 }
