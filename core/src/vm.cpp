@@ -469,40 +469,46 @@ enter_frame:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) + asScalar(R[I.c]));
                 } else if (!tryInPlaceBinaryOp(R[I.a], OpCode::ADD, R[I.b], R[I.c])) {
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 }
                 break;
             case OpCode::SUB:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) - asScalar(R[I.c]));
                 } else if (!tryInPlaceBinaryOp(R[I.a], OpCode::SUB, R[I.b], R[I.c])) {
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 }
                 break;
             case OpCode::MUL:  // matrix multiply — output reuse skipped (different shape rules)
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) * asScalar(R[I.c]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::EMUL:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) * asScalar(R[I.c]));
                 } else if (!tryInPlaceBinaryOp(R[I.a], OpCode::EMUL, R[I.b], R[I.c])) {
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 }
                 break;
             case OpCode::RDIV:  // matrix right divide — output reuse skipped
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) / asScalar(R[I.c]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::ERDIV:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) / asScalar(R[I.c]));
                 } else if (!tryInPlaceBinaryOp(R[I.a], OpCode::ERDIV, R[I.b], R[I.c])) {
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 }
                 break;
             case OpCode::LDIV:
@@ -510,7 +516,8 @@ enter_frame:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.c]) / asScalar(R[I.b]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::POW:
             case OpCode::EPOW:
@@ -530,7 +537,8 @@ enter_frame:
                         result = std::pow(base, exp);
                     R[I.a].setScalarFast(result);
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
 
             // ── Scalar-specialized arithmetic (no type checks) ────
@@ -572,51 +580,59 @@ enter_frame:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) == asScalar(R[I.c]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::NE:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) != asScalar(R[I.c]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::LT:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) < asScalar(R[I.c]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::GT:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) > asScalar(R[I.c]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::LE:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) <= asScalar(R[I.c]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::GE:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) >= asScalar(R[I.c]));
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::AND:
                 if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
                     R[I.a].setLogicalFast(
                         R[I.b].scalarVal() != 0.0 && R[I.c].scalarVal() != 0.0);
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
             case OpCode::OR:
                 if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
                     R[I.a].setLogicalFast(
                         R[I.b].scalarVal() != 0.0 || R[I.c].scalarVal() != 0.0);
                 } else
-                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
+                          R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
                 break;
 
             // ── Unary ────────────────────────────────────────────
@@ -624,7 +640,8 @@ enter_frame:
                 if (R[I.b].isDoubleScalar()) {
                     R[I.a].setScalarFast(-R[I.b].scalarVal());
                 } else
-                    R[I.a] = unarySlowPath(I.op, R[I.b]);
+                    { if (tryUnaryOpFrame(I.a, I.op, I.b, frame, ip)) goto enter_frame;
+                          R[I.a] = unarySlowPath(I.op, R[I.b]); }
                 break;
             case OpCode::UPLUS:
                 R[I.a] = R[I.b];
@@ -633,14 +650,16 @@ enter_frame:
                 if (R[I.b].isDoubleScalar()) {
                     R[I.a].setLogicalFast(R[I.b].scalarVal() == 0.0);
                 } else
-                    R[I.a] = unarySlowPath(I.op, R[I.b]);
+                    { if (tryUnaryOpFrame(I.a, I.op, I.b, frame, ip)) goto enter_frame;
+                          R[I.a] = unarySlowPath(I.op, R[I.b]); }
                 break;
             case OpCode::CTRANSPOSE:
             case OpCode::TRANSPOSE:
                 if (R[I.b].isDoubleScalar()) {
                     R[I.a] = R[I.b];
                 } else
-                    R[I.a] = unarySlowPath(I.op, R[I.b]);
+                    { if (tryUnaryOpFrame(I.a, I.op, I.b, frame, ip)) goto enter_frame;
+                          R[I.a] = unarySlowPath(I.op, R[I.b]); }
                 break;
 
             // ── Control flow ─────────────────────────────────────
@@ -2890,30 +2909,48 @@ void VM::forSetVar(Value &varReg, const ForState &fs)
 // Extracted dispatch helpers
 // ============================================================
 
+// Opcode → MATLAB operator token (the form Engine's operator tables key on).
+// Shared by the slow paths and the object-operator frame-push helpers so the
+// mapping has a single source of truth.
+static const char *binaryOpString(OpCode op)
+{
+    switch (op) {
+    case OpCode::ADD:   return "+";
+    case OpCode::SUB:   return "-";
+    case OpCode::MUL:   return "*";
+    case OpCode::RDIV:  return "/";
+    case OpCode::LDIV:  return "\\";
+    case OpCode::POW:   return "^";
+    case OpCode::EMUL:  return ".*";
+    case OpCode::ERDIV: return "./";
+    case OpCode::ELDIV: return ".\\";
+    case OpCode::EPOW:  return ".^";
+    case OpCode::EQ:    return "==";
+    case OpCode::NE:    return "~=";
+    case OpCode::LT:    return "<";
+    case OpCode::GT:    return ">";
+    case OpCode::LE:    return "<=";
+    case OpCode::GE:    return ">=";
+    case OpCode::AND:   return "&";
+    case OpCode::OR:    return "|";
+    default:            return nullptr;
+    }
+}
+
+static const char *unaryOpString(OpCode op)
+{
+    switch (op) {
+    case OpCode::NEG:        return "-";
+    case OpCode::NOT:        return "~";
+    case OpCode::CTRANSPOSE: return "'";
+    case OpCode::TRANSPOSE:  return ".'";
+    default:                 return nullptr;
+    }
+}
+
 Value VM::binarySlowPath(OpCode op, const Value &lhs, const Value &rhs)
 {
-    const char *opStr = nullptr;
-    switch (op) {
-    case OpCode::ADD:   opStr = "+";  break;
-    case OpCode::SUB:   opStr = "-";  break;
-    case OpCode::MUL:   opStr = "*";  break;
-    case OpCode::RDIV:  opStr = "/";  break;
-    case OpCode::LDIV:  opStr = "\\"; break;
-    case OpCode::POW:   opStr = "^";  break;
-    case OpCode::EMUL:  opStr = ".*"; break;
-    case OpCode::ERDIV: opStr = "./"; break;
-    case OpCode::ELDIV: opStr = ".\\"; break;
-    case OpCode::EPOW:  opStr = ".^"; break;
-    case OpCode::EQ:    opStr = "=="; break;
-    case OpCode::NE:    opStr = "~="; break;
-    case OpCode::LT:    opStr = "<";  break;
-    case OpCode::GT:    opStr = ">";  break;
-    case OpCode::LE:    opStr = "<="; break;
-    case OpCode::GE:    opStr = ">="; break;
-    case OpCode::AND:   opStr = "&";  break;
-    case OpCode::OR:    opStr = "|";  break;
-    default: break;
-    }
+    const char *opStr = binaryOpString(op);
     // OBJECT operator overloading: dispatch to the dominant object's class
     // `ops` before the numeric builtin path (throws if no overload).
     if (opStr && (lhs.isObject() || rhs.isObject())) {
@@ -2931,14 +2968,7 @@ Value VM::binarySlowPath(OpCode op, const Value &lhs, const Value &rhs)
 
 Value VM::unarySlowPath(OpCode op, const Value &operand)
 {
-    const char *opStr = nullptr;
-    switch (op) {
-    case OpCode::NEG:        opStr = "-";  break;
-    case OpCode::NOT:        opStr = "~";  break;
-    case OpCode::CTRANSPOSE: opStr = "'";  break;
-    case OpCode::TRANSPOSE:  opStr = ".'"; break;
-    default: break;
-    }
+    const char *opStr = unaryOpString(op);
     // OBJECT unary operator overloading — before the numeric builtin path.
     if (opStr && operand.isObject()) {
         Value out;
@@ -2951,6 +2981,45 @@ Value VM::unarySlowPath(OpCode op, const Value &operand)
             return it->second(operand);
     }
     throw std::runtime_error("VM: unsupported unary op");
+}
+
+bool VM::tryBinaryOpFrame(uint8_t dst, OpCode op, uint8_t lhsReg, uint8_t rhsReg,
+                          CallFrame &frame, const Instruction *ip)
+{
+    Value *R = frame.R;
+    if (!R[lhsReg].isObject() && !R[rhsReg].isObject())
+        return false; // numeric fast path — no object operand
+    const char *opStr = binaryOpString(op);
+    if (!opStr)
+        return false;
+    std::string ownerClass;
+    const BytecodeChunk *cc =
+        engine_.resolveBinaryOpChunk(opStr, R[lhsReg], R[rhsReg], ownerClass);
+    if (!cc)
+        return false; // no user overload / uncompilable → caller's slow path
+    Value argbuf[2] = {R[lhsReg], R[rhsReg]}; // operator params ARE the operands
+    frame.ip = ip + 1;
+    pushCallFrame(*cc, argbuf, 2, dst, 1, false, 0, 0, ownerClass, /*isCtor=*/false);
+    return true;
+}
+
+bool VM::tryUnaryOpFrame(uint8_t dst, OpCode op, uint8_t operandReg,
+                         CallFrame &frame, const Instruction *ip)
+{
+    Value *R = frame.R;
+    if (!R[operandReg].isObject())
+        return false;
+    const char *opStr = unaryOpString(op);
+    if (!opStr)
+        return false;
+    std::string ownerClass;
+    const BytecodeChunk *cc = engine_.resolveUnaryOpChunk(opStr, R[operandReg], ownerClass);
+    if (!cc)
+        return false;
+    Value argbuf[1] = {R[operandReg]};
+    frame.ip = ip + 1;
+    pushCallFrame(*cc, argbuf, 1, dst, 1, false, 0, 0, ownerClass, /*isCtor=*/false);
+    return true;
 }
 
 void VM::execCallBuiltin(const Instruction &I, Value *R)

@@ -356,6 +356,53 @@ bool Engine::tryObjectUnaryOp(const std::string &op, const Value &operand,
                              + "' for input arguments of type '" + clsName + "'.");
 }
 
+const BytecodeChunk *Engine::resolveBinaryOpChunk(const std::string &op, const Value &lhs,
+                                                  const Value &rhs, std::string &ownerClassOut)
+{
+    if (!lhs.isObject() && !rhs.isObject())
+        return nullptr; // numeric fast path
+    const Value &dom = lhs.isObject() ? lhs : rhs; // first object operand wins
+    const std::string &cn = dom.objectClassName();
+    const BuiltinClass *cls = findClass(cn);
+    const char *mname = operatorMethodName(op);
+    if (!cls || !mname)
+        return nullptr;
+    // methodFns holds user-defined operator methods (real UserFunctions);
+    // synthetic enum eq/ne live only in `ops` (no UserFunction) → not found
+    // here → caller's slow path handles them. Same membership as `ops` for
+    // genuine overloads.
+    auto it = cls->methodFns.find(mname);
+    if (it == cls->methodFns.end())
+        return nullptr;
+    const BytecodeChunk *cc = ensureClassMethodChunk(*it->second);
+    if (!cc)
+        return nullptr; // uncompilable body → slow path (callReentrant / TW)
+    enforceMethodAccess(cn, mname);
+    ownerClassOut = cn;
+    return cc;
+}
+
+const BytecodeChunk *Engine::resolveUnaryOpChunk(const std::string &op, const Value &operand,
+                                                 std::string &ownerClassOut)
+{
+    if (!operand.isObject())
+        return nullptr;
+    const std::string &cn = operand.objectClassName();
+    const BuiltinClass *cls = findClass(cn);
+    const char *mname = unaryOperatorMethodName(op);
+    if (!cls || !mname)
+        return nullptr;
+    auto it = cls->methodFns.find(mname);
+    if (it == cls->methodFns.end())
+        return nullptr; // no override → slow path (transpose→builtin, else throw)
+    const BytecodeChunk *cc = ensureClassMethodChunk(*it->second);
+    if (!cc)
+        return nullptr;
+    enforceMethodAccess(cn, mname);
+    ownerClassOut = cn;
+    return cc;
+}
+
 bool Engine::tryObjectSubsref(Value &self, Span<const Value> args, std::size_t nargout,
                               Value &out, Environment *env)
 {

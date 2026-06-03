@@ -251,6 +251,42 @@ TEST_F(DebugSessionTest, BreakInsideClassdefSetter)
     EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 10.0); // 5*2 stored into backing
 }
 
+// Proof that an operator-overload method body runs on the VM as a pausable
+// frame (P4 refinement): a breakpoint inside `plus` pauses when `a + b` is
+// evaluated. The ADD opcode pushes a same-stack frame for the operator method.
+TEST_F(DebugSessionTest, BreakInsideClassdefOperator)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({12}); // `s = a.x + b.x;` inside plus
+    std::string code =
+        "classdef DbgVec\n"             // 1
+        "  properties\n"                // 2
+        "    x = 0\n"                   // 3
+        "  end\n"                       // 4
+        "  methods\n"                   // 5
+        "    function obj = DbgVec(v)\n" // 6
+        "      if nargin > 0\n"         // 7
+        "        obj.x = v;\n"          // 8
+        "      end\n"                   // 9
+        "    end\n"                     // 10
+        "    function r = plus(a, b)\n" // 11
+        "      s = a.x + b.x;\n"        // 12  <- breakpoint
+        "      r = DbgVec(s);\n"        // 13
+        "    end\n"                     // 14
+        "  end\n"                       // 15
+        "end\n"                         // 16
+        "p = DbgVec(3);\n"             // 17
+        "q = DbgVec(4);\n"             // 18
+        "z = p + q;\n"                 // 19  '+' dispatches to plus
+        "y = z.x;\n";                  // 20
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "operator body did not run on the VM";
+    EXPECT_EQ(session.snapshot().line, 12);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 7.0); // 3 + 4
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

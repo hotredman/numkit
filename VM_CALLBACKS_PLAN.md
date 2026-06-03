@@ -180,14 +180,33 @@ the VM backend. This is the gap to close.
   `superConstruct` — upgrades P2's TW delegation), and any method/ctor invoked
   from a builtin. **Proven**: operator/subsref/display/super-call dual-engine
   suites green on the VM path; full suite 10926.
-  - **Pausability:** these are C++-initiated (reached from a builtin or an
-    arithmetic opcode's slow path), so per P3's contract a breakpoint inside an
-    operator/subsref body fires but cannot suspend across the C++ boundary. The
-    fully pausable classdef paths are methods/ctor/super (P1/P2 frame-push) and
-    get/set accessors (P4a/P4b frame-push). A future refinement could give
-    operators (`ADD`…/`NEG`…) and indexing (`INDEX_GET`/`INDEX_SET`) the same
-    in-bytecode opcode frame-push for full pause/resume + to drop the
-    `callReentrant` save/restore on those slow paths.
+  - **Pausability:** at P4c these were C++-initiated (reached from a builtin or
+    an arithmetic opcode's slow path), so a breakpoint fired but could not
+    suspend. **P4d (below) lifts operator overloads onto in-bytecode frame-pushes
+    (pausable).** Indexing (`subsref`/`subsasgn`) is the remaining C++-initiated
+    path until its `INDEX_GET`/`INDEX_SET` frame-push lands.
+- **P4d (done)** — **operator overloads VM-native (in-bytecode, pausable).** The
+  arithmetic/comparison/logical opcodes (`ADD`…`OR`) and the unary opcodes
+  (`NEG`/`NOT`/`CTRANSPOSE`/`TRANSPOSE`), when an operand is an object whose
+  class defines the operator method, push a SAME-STACK frame for that method
+  body (`VM::tryBinaryOpFrame`/`tryUnaryOpFrame` → `goto enter_frame`) instead
+  of falling to `binary/unarySlowPath` → `tryObject*Op` → `callReentrant`. No
+  save/restore (fast) and fully pausable. The operator method's parameters ARE
+  the operands (binary `[lhs,rhs]`, unary `[operand]`). Resolution is shared,
+  not duplicated: `Engine::resolveBinaryOpChunk`/`resolveUnaryOpChunk` reuse the
+  existing `operatorMethodName`/`unaryOperatorMethodName` table, `methodFns`
+  registry, `ensureClassMethodChunk`, and `enforceMethodAccess`. Because they
+  key on `methodFns` (real `UserFunction`s), they NATURALLY exclude synthetic
+  enum `eq`/`ne` (lambda-only, no `UserFunction`) and any uncompilable body,
+  which fall through to the unchanged slow path. The op→token map is factored
+  into `binaryOpString`/`unaryOpString`, shared by the slow paths and the frame
+  helpers. **Proven**: `DebugSessionTest.BreakInsideClassdefOperator` (breakpoint
+  inside `plus` pauses; `y == 7`); operator/object/enum dual-engine suites
+  green; full suite 10927.
+  - **Remaining:** `subsref`/`subsasgn` via `INDEX_GET`/`INDEX_SET` frame-push
+    (same pattern) for pausable custom indexing. Genuinely C++-initiated
+    callbacks (e.g. `disp(obj)` from a builtin, a `sort` comparator) stay on
+    `callReentrant` — there is no in-bytecode opcode to push from.
   - **Perf note:** `callReentrant` snapshots the live register stack per call.
     It only fires on the OBJECT slow path (numeric/scalar operators keep their
     fast inline path), so hot numeric code is unaffected; object-operator-heavy
