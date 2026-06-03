@@ -673,6 +673,17 @@ TEST_P(ObjectArrayTest, Flipud)
     EXPECT_DOUBLE_EQ(evalScalar("d(1).v"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("d(3).v"), 1.0);
 }
+TEST_P(ObjectArrayTest, CatDim1And2)
+{
+    // cat(1,·)/cat(2,·) ride vertcat/horzcat, which handle objects.
+    engine.eval("a=[Box(1) Box(2); Box(3) Box(4)]; v=cat(1,a,a); h=cat(2,a,a);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(v,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(3,1).v"), 1.0); // second copy's (1,1)
+    EXPECT_DOUBLE_EQ(evalScalar("v(4,2).v"), 4.0); // second copy's (2,2)
+    EXPECT_DOUBLE_EQ(evalScalar("size(h,2)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("h(1,3).v"), 1.0); // second copy's (1,1)
+    EXPECT_DOUBLE_EQ(evalScalar("h(2,4).v"), 4.0); // second copy's (2,2)
+}
 TEST_P(ObjectArrayTest, Rot90)
 {
     // rot90([1 2;3 4]) → [2 4; 1 3].
