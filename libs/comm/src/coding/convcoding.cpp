@@ -11,11 +11,14 @@
 #include <numkit/comm/coding/convcoding.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -171,6 +174,104 @@ Value convenc(const Value &msg, const Value &trellis,
     return out;
 }
 
+Value vitdec(const Value &code, const Value &trellis, long long /*tblen*/,
+             const std::string &opmode, const std::string &dectype,
+             std::pmr::memory_resource *mr)
+{
+    auto lower = [](std::string s) {
+        for (char &c : s)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return s;
+    };
+    const std::string dt = lower(dectype);
+    if (dt != "hard")
+        throw Error("vitdec: only hard-decision decoding is supported in this "
+                    "revision (soft/unquant deferred)",
+                    0, 0, "vitdec", "", "numkit:vitdec:dectype");
+    const std::string mode = lower(opmode);
+    if (mode != "trunc" && mode != "term")
+        throw Error("vitdec: opmode must be 'trunc' or 'term' in this revision "
+                    "('cont' deferred)",
+                    0, 0, "vitdec", "", "numkit:vitdec:opmode");
+
+    const TrellisView tv = readTrellis(trellis, "vitdec");
+    const int n = tv.n;
+    const std::size_t total = code.numel();
+    if (n <= 0 || (total % static_cast<std::size_t>(n)) != 0)
+        throw Error("vitdec: code length must be a multiple of "
+                    "log2(numOutputSymbols)",
+                    0, 0, "vitdec", "", "numkit:vitdec:len");
+    const std::size_t L = total / static_cast<std::size_t>(n);
+    const std::size_t S = tv.numStates;
+
+    const bool col = (code.dims().cols() == 1 && code.dims().rows() > 1);
+    Value out = col ? Value::matrix(L, 1, ValueType::DOUBLE, mr)
+                    : Value::matrix(1, L, ValueType::DOUBLE, mr);
+    if (L == 0) return out;
+
+    ScratchArena scratch(mr);
+    ScratchVec<std::uint64_t> rsym(L, &scratch);
+    for (std::size_t t = 0; t < L; ++t) {
+        std::uint64_t w = 0;
+        for (int j = 0; j < n; ++j)
+            w = (w << 1) | (code.elemAsDouble(t * n + j) != 0.0 ? 1u : 0u);
+        rsym[t] = w;
+    }
+
+    const double INF = std::numeric_limits<double>::infinity();
+    ScratchVec<double> metric(S, &scratch);
+    ScratchVec<double> newMetric(S, &scratch);
+    for (std::size_t s = 0; s < S; ++s) metric[s] = INF;
+    metric[0] = 0.0;
+    ScratchVec<int>          prevState(L * S, &scratch);
+    ScratchVec<std::uint8_t> decBit(L * S, &scratch);
+
+    auto hamming = [](std::uint64_t a, std::uint64_t b) {
+        std::uint64_t x = a ^ b;
+        int c = 0;
+        while (x) { ++c; x &= (x - 1); }
+        return c;
+    };
+
+    // Add-compare-select forward recursion.
+    for (std::size_t t = 0; t < L; ++t) {
+        for (std::size_t s = 0; s < S; ++s) newMetric[s] = INF;
+        for (std::size_t s = 0; s < S; ++s) {
+            if (metric[s] == INF) continue;
+            for (std::size_t u = 0; u < 2; ++u) {
+                const std::size_t idx = u * S + s;               // (state s, input u)
+                const std::size_t ns  = static_cast<std::size_t>(tv.nextStates[idx]);
+                const std::uint64_t ow = static_cast<std::uint64_t>(tv.outputs[idx]);
+                const double cand = metric[s] + hamming(rsym[t], ow);
+                if (cand < newMetric[ns]) {
+                    newMetric[ns] = cand;
+                    prevState[t * S + ns] = static_cast<int>(s);
+                    decBit[t * S + ns]    = static_cast<std::uint8_t>(u);
+                }
+            }
+        }
+        metric.swap(newMetric);
+    }
+
+    // Pick the traceback start state: state 0 for 'term', else min metric.
+    std::size_t endState = 0;
+    if (mode != "term") {
+        double best = metric[0];
+        for (std::size_t s = 1; s < S; ++s)
+            if (metric[s] < best) { best = metric[s]; endState = s; }
+    }
+
+    // Traceback (full).
+    double *od = out.doubleDataMut();
+    std::size_t st = endState;
+    for (std::size_t ti = L; ti-- > 0;) {
+        od[ti] = static_cast<double>(decBit[ti * S + st]);
+        const int p = prevState[ti * S + st];
+        st = (p >= 0) ? static_cast<std::size_t>(p) : 0;
+    }
+    return out;
+}
+
 namespace detail {
 
 void poly2trellis_reg(Span<const Value> args, size_t /*nargout*/,
@@ -197,6 +298,23 @@ void convenc_reg(Span<const Value> args, size_t /*nargout*/,
                     "supported in this revision",
                     0, 0, "convenc", "", "numkit:convenc:opts");
     outs[0] = convenc(args[0], args[1], ctx.engine->resource());
+}
+
+void vitdec_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("vitdec: requires (code, trellis, tblen[, opmode[, dectype]])",
+                    0, 0, "vitdec", "", "numkit:vitdec:nargin");
+    const long long tblen = static_cast<long long>(args[2].toScalar());
+    const std::string opmode =
+        (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
+            ? args[3].toString() : std::string("trunc");
+    const std::string dectype =
+        (args.size() >= 5 && (args[4].isChar() || args[4].isString()))
+            ? args[4].toString() : std::string("hard");
+    outs[0] = vitdec(args[0], args[1], tblen, opmode, dectype,
+                     ctx.engine->resource());
 }
 
 } // namespace detail
