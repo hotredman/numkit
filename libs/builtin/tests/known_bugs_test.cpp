@@ -39,3 +39,20 @@ TEST_F(BuiltinKnownBug, DISABLED_HistcountsNbins)
     EXPECT_DOUBLE_EQ(evalScalar("N(2)"), 4.0);
     EXPECT_DOUBLE_EQ(evalScalar("N(3)"), 3.0);
 }
+
+// bugs/builtin/unique-last.md — 'last' returns last-occurrence indices.
+TEST_F(BuiltinKnownBug, DISABLED_UniqueLast)
+{
+    eval("[c, ia] = unique([3 1 2 1 3], 'last');");
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1)"), 4.0);   // value 1, last at idx 4
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2)"), 3.0);   // value 2, only at idx 3
+    EXPECT_DOUBLE_EQ(evalScalar("ia(3)"), 5.0);   // value 3, last at idx 5
+}
+
+// bugs/builtin/max-all-linear.md — max over all + linear index.
+TEST_F(BuiltinKnownBug, DISABLED_MaxAllLinear)
+{
+    eval("[m, i] = max([3 1; 4 1; 2 9], [], 'all', 'linear');");
+    EXPECT_DOUBLE_EQ(evalScalar("m"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i"), 6.0);
+}
