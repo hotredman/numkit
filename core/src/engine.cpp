@@ -197,6 +197,27 @@ const BuiltinClass *Engine::findClass(const std::string &name) const
     return it == classes_.end() ? nullptr : &it->second;
 }
 
+void Engine::registerCallbackBuiltin(const std::string &name, std::shared_ptr<CallbackBuiltin> cb)
+{
+    callbackBuiltins_[name] = std::move(cb);
+}
+
+CallbackBuiltin *Engine::callbackBuiltin(const std::string &name) const
+{
+    auto it = callbackBuiltins_.find(name);
+    return it == callbackBuiltins_.end() ? nullptr : it->second.get();
+}
+
+bool Engine::isUserCodeHandle(const Value &handle) const
+{
+    const Value *bare = &handle;
+    if (handle.isCell() && handle.numel() >= 1 && handle.cellAt(0).isFuncHandle())
+        bare = &handle.cellAt(0);
+    if (!bare->isFuncHandle())
+        return false;
+    return lookupUserFunctionLocal(bare->funcHandleName()) != nullptr;
+}
+
 std::string Engine::formatObjectDisplay(const std::string &name, const Value &obj) const
 {
     const BuiltinClass *cls = findClass(obj.objectClassName());

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <numkit/core/bytecode.hpp>
+#include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/debugger.hpp>
 #include <numkit/core/environment.hpp>
 #include <numkit/core/value.hpp>
@@ -52,6 +53,17 @@ public:
                                      size_t nargout,
                                      const std::string &ownerClass = std::string(),
                                      bool isCtor = false, const Value *ctorSeed = nullptr);
+
+    // Schedule a user-code function-handle callback as a pausable VM frame on
+    // behalf of a native continuation (state-machine callbacks — see
+    // callback_builtin.hpp). Resolves the handle (plain or closure cell, with
+    // captures appended) to its compiled chunk, pushes a frame, and attaches
+    // `cont` so the frame's return routes back to cont->step(). Returns false if
+    // the handle is not user code (caller should not have scheduled it). The
+    // caller (a VmContinuation::step) returns true after this so the dispatch
+    // loop runs the new frame.
+    bool pushCallbackFrame(const Value &handle, Span<const Value> args, size_t nargout,
+                           std::shared_ptr<VmContinuation> cont);
 
     struct PausedState;
     std::unique_ptr<PausedState> savePausedState();
@@ -236,6 +248,13 @@ private:
         // string for non-identifier args, empty vector for top-level
         // and non-tracked call sites.
         std::vector<std::string> callerArgNames;
+
+        // State-machine callbacks: when set, this frame is a callback driven by
+        // a native continuation (cellfun/arrayfun/…). On return, popCallFrame
+        // routes the result to cont->step(...) instead of a caller register, so
+        // the higher-order builtin advances without a C++ driver loop and each
+        // callback stays a pausable VM frame. Null for ordinary frames.
+        std::shared_ptr<VmContinuation> cont;
     };
     std::vector<CallFrame> frames_;
     Value lastResult_;
@@ -319,6 +338,11 @@ private:
                        const std::string &ownerClass = std::string(), bool isCtor = false,
                        const Value *ctorSeed = nullptr);
     void popCallFrame(Value retVal);
+    // Begin driving a native continuation: runs its first step (no prior
+    // result). Returns true if it pushed a callback frame (caller must
+    // `goto enter_frame`), false if it finished synchronously (e.g. empty input
+    // — the result is already written to its destination).
+    bool startContinuation(std::shared_ptr<VmContinuation> cont);
 
     // Returns the Environment a builtin call should see for ctx.env.
     // Top-level (frames_.size() <= 1): workspaceEnv directly.
