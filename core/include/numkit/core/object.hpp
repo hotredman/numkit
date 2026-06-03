@@ -19,7 +19,8 @@
 
 namespace numkit {
 
-struct CallContext; // defined in types.hpp; used only by-reference here
+struct CallContext;   // defined in types.hpp; used only by-reference here
+struct UserFunction;  // defined in types.hpp; held by shared_ptr in BuiltinClass
 
 // ============================================================
 // NativePayload — opaque C++ instance state for builtin classes
@@ -102,6 +103,11 @@ struct BuiltinClass
     // Members declared `Hidden` — still usable, but omitted from
     // properties() / methods() introspection listings.
     std::vector<std::string> hidden;
+    // classdef instance methods as UserFunctions (name → uf), so the VM can
+    // compile + run their bodies as native frames instead of the C++ hook.
+    // Absent for native builtin-class methods (containers.Map, …), which keep
+    // the hook. `uf->name` is the declaring-class-qualified "Class>method".
+    std::unordered_map<std::string, std::shared_ptr<const UserFunction>> methodFns;
 };
 
 } // namespace numkit

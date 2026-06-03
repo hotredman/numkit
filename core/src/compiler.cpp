@@ -3588,6 +3588,27 @@ void Compiler::registerFunctionAs(const std::string &qualifiedName,
     }
 }
 
+const BytecodeChunk *Compiler::ensureClassMethodCompiled(const UserFunction &uf)
+{
+    auto it = compiledFuncs_.find(uf.name);
+    if (it != compiledFuncs_.end())
+        return &it->second;
+    // Reconstruct a FUNCTION_DEF from the UserFunction and compile it into the
+    // GLOBAL table. compileFunction saves/restores compiler state, so this is
+    // safe even when invoked lazily from the VM run loop (the compiler is
+    // otherwise idle then).
+    ASTNode fn(NodeType::FUNCTION_DEF);
+    fn.strValue = uf.name;
+    fn.paramNames = uf.params;
+    fn.returnNames = uf.returns;
+    if (uf.body)
+        fn.children.push_back(cloneNode(uf.body.get()));
+    BytecodeChunk chunk = compileFunction(&fn);
+    chunk.name = uf.name;
+    auto ins = compiledFuncs_.emplace(uf.name, std::move(chunk));
+    return &ins.first->second;
+}
+
 const BytecodeChunk *Compiler::findCompiled(const std::string &name) const
 {
     auto it = scriptLocalCompiledFuncs_.find(name);

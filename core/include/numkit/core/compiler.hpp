@@ -13,6 +13,7 @@
 namespace numkit {
 
 class Engine;
+struct UserFunction; // defined in types.hpp; used by-reference here
 
 class Compiler
 {
@@ -42,6 +43,14 @@ public:
     // leaf don't collide in compiledFuncs_).
     void registerFunctionAs(const std::string &qualifiedName,
                              const ASTNode *funcDef);
+
+    // Compile a classdef method / constructor body (reconstructed from its
+    // UserFunction) into the GLOBAL compiled-function table under `uf.name`
+    // ("Class>member"), returning the chunk. Idempotent. Unlike
+    // registerFunctionAs this never lands in the script-local bucket —
+    // classdef bodies persist with the class across evals. Lets the VM run
+    // classdef method bodies as native frames (see VM_CALLBACKS_PLAN.md).
+    const BytecodeChunk *ensureClassMethodCompiled(const UserFunction &uf);
 
     // Workspace-scope compiled functions. Populated by `function` at
     // the REPL or by anonymous-function allocation. Cleared by

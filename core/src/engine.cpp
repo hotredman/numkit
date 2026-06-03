@@ -875,6 +875,7 @@ void Engine::registerClassDef(const ASTNode *cd)
     };
     for (const auto &[mname, uf] : desc->methods) {
         auto ufCopy = uf; // shared_ptr keeps the body alive
+        cls.methodFns[mname] = uf; // classdef method → VM can run it as a frame
         std::string nameCopy = mname;
         Access mlevel = Access::Public;
         std::string mdecl;
@@ -1070,6 +1071,11 @@ Value Engine::invokeClassCtor(const UserFunction &ctor, const Value &seed,
         return treeWalker_->runClassCtor(ctor, seed, args);
     }
     throw std::runtime_error("classdef constructor requires the interpreter backend");
+}
+
+const BytecodeChunk *Engine::ensureClassMethodChunk(const UserFunction &uf)
+{
+    return compiler_ ? compiler_->ensureClassMethodCompiled(uf) : nullptr;
 }
 
 Value Engine::superConstruct(const std::string &base, const Value &seed,
