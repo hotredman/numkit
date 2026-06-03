@@ -54,3 +54,26 @@ TEST_F(BuiltinKnownBug, DISABLED_UniqueStableLast)
 
 // bugs/builtin/max-all-linear.md — FIXED (max/min over 'all'); the live
 // test is MathReductionsBatchTest.MaxMinAll in math_reductions_batch_test.cpp.
+
+// bugs/builtin/cellfun-inputforms.md — multiple cell arrays + string name.
+TEST_F(BuiltinKnownBug, DISABLED_CellfunMultiCell)
+{
+    eval("r = cellfun(@(a,b) a+b, {1,2}, {10,20});");   // MATLAB: [11 22]
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 11.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 22.0);
+}
+
+TEST_F(BuiltinKnownBug, DISABLED_CellfunStringName)
+{
+    eval("r = cellfun('isempty', {[], [1], []});");     // MATLAB: [1 0 1]
+    EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r(3)"), 1.0);
+}
+
+// bugs/builtin/func2str-anonymous.md — anon handle should return its source.
+TEST_F(BuiltinKnownBug, DISABLED_Func2StrAnonymous)
+{
+    eval("s = func2str(@(x) x + 1);");                  // MATLAB: '@(x)x+1'
+    EXPECT_EQ(eval("s").toString(), std::string("@(x)x+1"));
+}

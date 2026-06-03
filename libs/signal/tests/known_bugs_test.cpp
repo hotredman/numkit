@@ -112,3 +112,20 @@ TEST_F(SignalKnownBug, DISABLED_ResampleValues)
     EXPECT_NEAR(evalScalar("y(1)"),   1.00061, 1e-4);   // numkit ~0.0045
     EXPECT_NEAR(evalScalar("sum(y)"), 31.6965, 1e-3);   // numkit ~10.87
 }
+
+// bugs/signal/obw-value-outputs.md — wrong value + missing [bw,flo,fhi,power].
+TEST_F(SignalKnownBug, DISABLED_ObwValueAndOutputs)
+{
+    eval("fs=1000; t=(0:fs-1)/fs; x=sin(2*pi*100*t)+0.5*sin(2*pi*200*t);");
+    EXPECT_NEAR(evalScalar("obw(x,fs)"), 100.9688, 1e-2);   // numkit ~108.77
+    eval("[bw,flo,fhi,p]=obw(x,fs);");                       // currently throws
+    EXPECT_NEAR(evalScalar("flo"), 99.5062, 1e-2);
+    EXPECT_NEAR(evalScalar("fhi"), 200.4750, 1e-2);
+}
+
+// bugs/signal/periodogram-pxxc.md — confidence-interval 3rd output.
+TEST_F(SignalKnownBug, DISABLED_PeriodogramPxxc)
+{
+    eval("[pxx,f,pxxc]=periodogram([1 2 3 4 5 6 7 8],[],[],1,'ConfidenceLevel',0.95);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pxxc,2)")), 2);
+}
