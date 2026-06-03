@@ -1622,14 +1622,32 @@ enter_frame:
                 if (na >= 1 && R[argBase].isObject()) {
                     const std::string &mnm = chunk.strings[funcIdx];
                     const BuiltinClass *cls = engine_.findClass(R[argBase].objectClassName());
-                    if (cls && cls->methods.count(mnm)) {
-                        Value self = R[argBase];
-                        Span<const Value> rest((na > 1) ? &R[argBase + 1] : nullptr, na - 1);
-                        Value out[1];
-                        CallContext ctx{&engine_, currentCallEnv()};
-                        cls->methods.at(mnm)(self, rest, nargout_val, Span<Value>(out, 1), ctx);
-                        R[I.a] = std::move(out[0]);
-                        break;
+                    if (cls) {
+                        // classdef method → run its body as a native VM frame
+                        // (debuggable). Args are already contiguous at argBase
+                        // with self == args[0]. The C++ hook (below) is kept
+                        // only for native builtin-class methods.
+                        auto fit = cls->methodFns.find(mnm);
+                        if (fit != cls->methodFns.end()) {
+                            const BytecodeChunk *mc = engine_.ensureClassMethodChunk(*fit->second);
+                            if (mc) {
+                                engine_.enforceMethodAccess(R[argBase].objectClassName(), mnm);
+                                frame.ip = ip + 1;
+                                pushCallFrame(*mc, &R[argBase], na, I.a, nargout_val, false, 0, 0,
+                                              fit->second->ownerClass, false);
+                                goto enter_frame;
+                            }
+                        }
+                        if (cls->methods.count(mnm)) {
+                            Value self = R[argBase];
+                            Span<const Value> rest((na > 1) ? &R[argBase + 1] : nullptr, na - 1);
+                            Value out[1];
+                            CallContext ctx{&engine_, currentCallEnv()};
+                            cls->methods.at(mnm)(self, rest, nargout_val, Span<Value>(out, 1),
+                                                 ctx);
+                            R[I.a] = std::move(out[0]);
+                            break;
+                        }
                     }
                 }
 
@@ -2378,7 +2396,8 @@ std::unordered_map<std::string, Value> VM::snapshotFrameVars(Environment *frameE
 
 void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_t nargs,
                        uint8_t destReg, size_t nargout,
-                       bool isMulti, uint8_t outBase, uint8_t nout)
+                       bool isMulti, uint8_t outBase, uint8_t nout,
+                       const std::string &ownerClass, bool isCtor)
 {
     if (callDepth() >= maxRecursion_)
         throw std::runtime_error("VM: maximum recursion depth exceeded");
@@ -2456,6 +2475,8 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_
     cf.isMultiReturn = isMulti;
     cf.outBase = outBase;
     cf.nout = nout;
+    cf.ownerClass = ownerClass;
+    cf.isCtor = isCtor;
     cf.callerArgNames = std::move(callerArgNames);
     frames_.push_back(std::move(cf));
 

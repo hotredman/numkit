@@ -83,6 +83,10 @@ public:
     // table (idempotent), returning its chunk — so the VM can run the body as
     // a native frame. See VM_CALLBACKS_PLAN.md.
     const BytecodeChunk *ensureClassMethodChunk(const UserFunction &uf);
+    // Enforce a classdef method's declared access from the current context
+    // (no-op for a public method). Used by the VM frame-dispatch path, which
+    // bypasses the C++ method hook that would otherwise run the check.
+    void enforceMethodAccess(const std::string &className, const std::string &method);
     // Superclass-qualified calls from inside a classdef body
     // (`obj@Base(args)` / `method@Base(obj, args)`). superConstruct runs
     // Base's constructor with `seed` as the partially-built object and
@@ -542,6 +546,9 @@ private:
         bool isCtor;
     };
     std::vector<ClassCtxFrame> classCtx_;
+    // Currently-executing class (TW callback guard, else VM top method frame;
+    // empty == script scope). Backs classCtxAllows / classCtxInCtorOf.
+    std::string currentClassCtx_() const;
 
     // Auxiliary indices into externalFuncs_, populated by registerFunction.
     // The full-name keys in externalFuncs_ are authoritative; these indices

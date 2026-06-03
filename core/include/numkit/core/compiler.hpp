@@ -133,6 +133,11 @@ private:
     // workspace-scope (cleared by `clear all`/`clear functions`).
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
 
+    // classdef method bodies that the VM compiler can't yet compile (e.g. a
+    // super-call before that lands in the VM) — cached so dispatch falls back
+    // to the TW hook without re-attempting the compile every call.
+    std::unordered_set<std::string> uncompilableClassMethods_;
+
     // Script-lexical compiled functions. Separated from workspace-
     // scope so `clear all` mid-script can't wipe them — MATLAB
     // treats local functions as part of the script's code, not its

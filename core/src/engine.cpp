@@ -1078,6 +1078,16 @@ const BytecodeChunk *Engine::ensureClassMethodChunk(const UserFunction &uf)
     return compiler_ ? compiler_->ensureClassMethodCompiled(uf) : nullptr;
 }
 
+void Engine::enforceMethodAccess(const std::string &className, const std::string &method)
+{
+    auto it = classDefs_.find(className);
+    if (it == classDefs_.end())
+        return;
+    auto mit = it->second->methodAccess.find(method);
+    if (mit != it->second->methodAccess.end())
+        enforceAccess(this, mit->second.level, mit->second.declClass, "method", method);
+}
+
 Value Engine::superConstruct(const std::string &base, const Value &seed,
                              Span<const Value> args)
 {
@@ -1121,11 +1131,24 @@ void Engine::popClassCtx()
         classCtx_.pop_back();
 }
 
+// The class whose method/constructor is currently executing. A TW callback's
+// ClassCtxGuard (classCtx_) is innermost when present; otherwise, under the VM
+// backend, the running class is the VM's top method frame. Empty == script
+// scope. (No separate VM stack — read on demand, so it stays exception-safe.)
+std::string Engine::currentClassCtx_() const
+{
+    if (!classCtx_.empty())
+        return classCtx_.back().className;
+    if (vm_ && backend_ == Backend::VM)
+        return vm_->currentMethodClass();
+    return std::string();
+}
+
 bool Engine::classCtxAllows(const std::string &declClass, bool privateOnly) const
 {
-    if (classCtx_.empty())
+    const std::string ctx = currentClassCtx_();
+    if (ctx.empty())
         return false; // script scope — only public members are reachable
-    const std::string &ctx = classCtx_.back().className;
     if (ctx == declClass)
         return true; // the declaring class itself (covers private + protected)
     if (privateOnly)
@@ -1140,8 +1163,11 @@ bool Engine::classCtxAllows(const std::string &declClass, bool privateOnly) cons
 
 bool Engine::classCtxInCtorOf(const std::string &declClass) const
 {
-    return !classCtx_.empty() && classCtx_.back().isCtor
-           && classCtx_.back().className == declClass;
+    if (!classCtx_.empty())
+        return classCtx_.back().isCtor && classCtx_.back().className == declClass;
+    if (vm_ && backend_ == Backend::VM)
+        return vm_->currentMethodIsCtor() && vm_->currentMethodClass() == declClass;
+    return false;
 }
 
 Value Engine::constructChecked(const BuiltinClass *cls, Span<const Value> args, CallContext &ctx)
