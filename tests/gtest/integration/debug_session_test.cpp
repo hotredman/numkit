@@ -220,6 +220,37 @@ TEST_F(DebugSessionTest, BreakInsideClassdefGetter)
     EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 21.0); // 10*2 + 1
 }
 
+// Proof that a `set.Prop` accessor body runs on the VM (P4): a breakpoint
+// inside the setter pauses. A value-class setter (returns the object) is a
+// same-stack VM frame whose result is written back into the object register.
+TEST_F(DebugSessionTest, BreakInsideClassdefSetter)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({8}); // `tmp = v * 2;` inside set.val
+    std::string code =
+        "classdef DbgSet\n"             // 1
+        "  properties\n"                // 2
+        "    backing = 0\n"            // 3
+        "    val = 0\n"                // 4
+        "  end\n"                       // 5
+        "  methods\n"                   // 6
+        "    function o = set.val(o, v)\n" // 7
+        "      tmp = v * 2;\n"          // 8  <- breakpoint
+        "      o.backing = tmp;\n"      // 9  store to a different prop (no recursion)
+        "    end\n"                     // 10
+        "  end\n"                       // 11
+        "end\n"                         // 12
+        "s = DbgSet();\n"              // 13
+        "s.val = 5;\n"                 // 14  assignment triggers set.val
+        "y = s.backing;\n";            // 15
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "setter body did not run on the VM";
+    EXPECT_EQ(session.snapshot().line, 8);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 10.0); // 5*2 stored into backing
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

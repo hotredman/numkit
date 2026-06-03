@@ -1378,11 +1378,37 @@ enter_frame:
                 const std::string &fname = chunk.strings[I.d];
                 // OBJECT: obj.Prop = val via class property hook (object model).
                 if (R[I.a].isObject()) {
-                    const BuiltinClass *cls = engine_.findClass(R[I.a].objectClassName());
-                    if (cls && cls->propSet) {
+                    const std::string &cn = R[I.a].objectClassName();
+                    const BuiltinClass *cls = engine_.findClass(cn);
+                    if (cls) {
                         CallContext ctx{&engine_, currentCallEnv()};
-                        if (cls->propSet(R[I.a], fname, R[I.b], ctx))
-                            break;
+                        // classdef `set.Prop` accessor → run its body on the VM
+                        // (P4). A value/handle setter that returns the object
+                        // (`function obj = set.Prop(obj,val)`) runs as a
+                        // same-stack frame (pausable, fast) with the modified
+                        // object written back into the object register. A
+                        // no-output handle setter (`function set.Prop(obj,val)`)
+                        // mutates shared state in place; run it re-entrantly so
+                        // the object register is not clobbered by an empty RET.
+                        if (const UserFunction *s = engine_.classSetter(cn, fname)) {
+                            if (const BytecodeChunk *sc = engine_.ensureClassMethodChunk(*s)) {
+                                engine_.enforcePropSetAccess(cn, fname);
+                                Value argbuf[2] = {R[I.a], R[I.b]};
+                                if (!s->returns.empty()) {
+                                    frame.ip = ip + 1;
+                                    pushCallFrame(*sc, argbuf, 2, I.a, 1, false, 0, 0, cn,
+                                                  /*isCtor=*/false);
+                                    goto enter_frame;
+                                }
+                                callReentrant(*sc, Span<const Value>(argbuf, 2), 1, cn,
+                                              /*isCtor=*/false);
+                                break; // handle mutated via shared state
+                            }
+                        }
+                        if (cls->propSet) {
+                            if (cls->propSet(R[I.a], fname, R[I.b], ctx))
+                                break;
+                        }
                     }
                     throw std::runtime_error("Cannot set property '" + fname
                                              + "' on class '" + R[I.a].objectClassName() + "'");
