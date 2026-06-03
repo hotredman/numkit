@@ -1248,7 +1248,7 @@ function StructFieldList({ payload, onDrill, onAddField, onDeleteField,
     return {
       key: name, name, value: cell.summary, size: cell.size,
       klass: cell.type, kind: classify(cell.size, cell.type),
-      stats: cell.stats || null, drill: !!cell.drill,
+      bytes: cell.bytes, stats: cell.stats || null, drill: !!cell.drill,
     };
   });
   const nameCell = (row) => (
