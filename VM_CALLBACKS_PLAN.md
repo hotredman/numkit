@@ -82,12 +82,35 @@ the VM backend. This is the gap to close.
 8. **Coexistence** — TW backend unchanged; native builtin-class methods keep
    the C++ hook.
 
+## Progress
+
+- **P1a (done, `258b014f`)** — foundation: `ensureClassMethodCompiled` (global
+  chunk), `BuiltinClass::methodFns`, `Engine::ensureClassMethodChunk`. Inert.
+- **P1b (done, `09699913`)** — **function-form** `m(obj)` runs as a VM frame;
+  frame-associated access context (`CallFrame::ownerClass`, read on demand);
+  graceful fallback to the hook when a body can't VM-compile yet; access
+  enforced via `Engine::enforceMethodAccess`. **Proven**: a breakpoint inside
+  `go(obj)` pauses under the VM debugger (DebugSessionTest).
+- **P1c (next)** — dotted `obj.m()` + `[a,b]=obj.m()`. Two prerequisites
+  surfaced when first attempted (reverted to keep P1b green):
+  1. **Multi-output super-call guard.** `[a,b]=m@Base(obj)` — the VM
+     multi-assign compiler does NOT reject `SUPERCLASS_REF` (only single-output
+     `compileCall` does), so it mis-compiles to a call of the base *name*
+     ("VM: undefined function 'Shape'"). Guard it (throw → ensureCompiled
+     catches → hook fallback) until P2 lands super-calls in the VM.
+  2. **`obj.prop(i) = v` inside a VM *function frame* throws "Not a double
+     array".** Works at script scope and via the TW hook, but a method body
+     compiled to a chunk and run as a frame mis-handles the compound
+     property-element assign. A real latent VM bug (any function with an
+     object param doing `o.p(i)=v`), independent of classdef — fix before
+     routing prop-assigning methods to frames.
+
 ## Phases (each = its own commit, full suite must stay green — 0 regressions)
 
 - **P1. classdef instance methods VM-native** (in-bytecode). Compile bodies to
-  global chunks; `methodChunk` map on `BuiltinClass`; `CALL`(function-form),
-  `CALL_METHOD`, `CALL_METHOD_MULTI` enter a frame for classdef methods.
-  Debugger test proving the body runs on the VM.
+  global chunks; `methodChunk`/`methodFns` on `BuiltinClass`; `CALL`
+  (function-form, **done**), `CALL_METHOD`, `CALL_METHOD_MULTI` enter a frame
+  for classdef methods. Debugger test proving the body runs on the VM.
 - **P2. constructor + super-calls VM-native.** Ctor frame with seed; compile
   `SUPERCLASS_REF`.
 - **P3. re-entrant VM-call-from-C++ foundation.** Nested run on `frames_`;
