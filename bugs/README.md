@@ -73,6 +73,25 @@ real bugs isn't inflated by unimplemented functions:
   `DISABLED_` gtest — timing assertions are too flaky for gtest. Always
   include the measured numbers + the bottleneck analysis.
 
+  **When to flag as `perf`** (numkit is single-threaded; MATLAB is often
+  multithreaded + MKL/FFTW, so a 1.5–3× gap on parallelisable ops is normal,
+  not a bug):
+  - **< 1.5×** — don't flag (noise / inherent).
+  - **1.5×–3×** — flag only if the cause is FIXABLE (quadratic algorithm,
+    redundant copies/allocs, a SIMD path that exists for sibling functions).
+    If the only cause is "MATLAB threads, we don't", note it as *inherent*,
+    low priority.
+  - **≥ 3×** — flag (`perf` with measured numbers).
+  - **≥ 10× OR worse big-O** (e.g. O(n²) where MATLAB is O(n log n)) —
+    high priority; flag at ANY ratio.
+  - An **algorithmic** inefficiency (worse big-O, allocs inside a loop) is a
+    perf bug at ANY ratio — it scales and is fixable.
+
+  Measure at a representative size (≥ ~10³–10⁴ elements), median of many
+  iterations; ignore tiny arrays (wrapper overhead dominates both engines).
+  Slowdown sub-scale: **S1** ≥10× or worse-big-O · **S2** 3–10× · **S3**
+  1.5–3× with a fixable cause.
+
 Add `- **Kind:** <kind>` to each file (right after Severity).
 
 ## Every bug also gets a test
