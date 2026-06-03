@@ -42,9 +42,13 @@ Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stabl
 ///
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).
+/// @param stable  MATLAB 'stable' setOrder (first-occurrence order).
+/// @param last    MATLAB 'last' — `ia` selects the LAST occurrence of each
+///                value (sorted order). Default false = first occurrence.
 /// @return    `(C, ia, ic)` triple.
 std::tuple<Value, Value, Value>
-uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false);
+uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr,
+                  bool stable = false, bool last = false);
 
 /// @brief Unique rows of a matrix (`C = unique(X, 'rows')`).
 ///
@@ -65,10 +69,12 @@ Value uniqueRows(const Value &x, std::pmr::memory_resource *mr = nullptr,
 /// @param stable  MATLAB 'stable' setOrder (see uniqueRows). With 'stable',
 ///                `ia` indexes first occurrences in appearance order. Default
 ///                false = lexicographic sort.
+/// @param last    MATLAB 'last' — `ia` selects the LAST occurrence of each
+///                row (sorted order). Default false = first occurrence.
 /// @return        `(C, ia, ic)` triple.
 std::tuple<Value, Value, Value>
 uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr,
-                      bool stable = false);
+                      bool stable = false, bool last = false);
 
 /// @brief Membership test (`tf = ismember(A, B)`).
 ///

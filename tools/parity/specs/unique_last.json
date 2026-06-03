@@ -1,0 +1,10 @@
+{
+  "name": "unique_last",
+  "namespace": "builtin",
+  "setup": "v = [3 1 2 1 3]; R = [1 2;3 4;1 2;5 6];",
+  "expr": "[c, ia, ic] = unique(v, 'last'); [cc, iac] = unique([1+1i 2 1+1i 3], 'last'); [cr, iar] = unique(R, 'rows', 'last'); ia1=double(ia(1)); ia2=double(ia(2)); ia3=double(ia(3)); icend=double(ic(end)); iac3=double(iac(3)); iar1=double(iar(1));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["ia1", "ia2", "ia3", "icend", "iac3", "iar1"],
+  "comment": "Sig: [C,ia,ic]=unique(A,'last'). ia selects the LAST occurrence (sorted setOrder): vec [3 1 2 1 3] -> ia=[4 3 5]; complex [1+1i 2 1+1i 3] -> ia(3)=4; rows -> ia(1)=3. Fixes bugs/builtin/unique-last.md (sorted order). 'stable'+'last' ordering deferred."
+}
