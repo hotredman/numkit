@@ -117,4 +117,9 @@ Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
     }, mr);
 }
 
+Value pow2(const Value &y, std::pmr::memory_resource *mr)
+{
+    return unaryDouble(y, [](double v) { return std::exp2(v); }, mr);
+}
+
 } // namespace numkit::builtin
