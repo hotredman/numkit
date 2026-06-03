@@ -1799,7 +1799,8 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             if (const BuiltinClass *cls = engine_.findClass(qualified);
                 cls && cls->construct) {
                 CallContext ctx{&engine_, env};
-                return cls->construct(Span<const Value>(args.data(), args.size()), ctx);
+                return engine_.constructChecked(cls, Span<const Value>(args.data(), args.size()),
+                                                ctx);
             }
             // User-defined first (MATLAB precedence).
             if (auto *uf = engine_.lookupUserFunction(qualified, env))
@@ -1986,7 +1987,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
         if (const BuiltinClass *cls = engine_.findClass(name); cls && cls->construct) {
             auto args = buildArgs();
             CallContext ctx{&engine_, env};
-            return cls->construct(Span<const Value>(args.data(), args.size()), ctx);
+            return engine_.constructChecked(cls, Span<const Value>(args.data(), args.size()), ctx);
         }
     }
 

@@ -101,6 +101,13 @@ public:
     void popClassCtx();
     bool classCtxAllows(const std::string &declClass, bool privateOnly) const;
     bool classCtxInCtorOf(const std::string &declClass) const;
+    // Construct an object enforcing a non-public constructor's access against
+    // the current context (private ctor → only from the declaring class;
+    // protected → also subclasses). Used at the user-facing `ClassName(args)`
+    // call sites; internal default-fill calls `cls->construct` directly so
+    // object-array growth is never blocked. A public ctor (or a non-classdef
+    // BuiltinClass) passes straight through.
+    Value constructChecked(const BuiltinClass *cls, Span<const Value> args, CallContext &ctx);
     // MATLAB-style display text for an OBJECT value. `name` empty →
     // bare body (disp); otherwise the `name =\n\n<body>\n` form.
     std::string formatObjectDisplay(const std::string &name, const Value &obj) const;

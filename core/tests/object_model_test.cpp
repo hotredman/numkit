@@ -1258,6 +1258,17 @@ public:
             "    function r = trySecretSuper(obj)\n      r = secretM@PBase(obj);\n    end\n"
             "  end\n"
             "end\n");
+        // #4 — private constructor reachable only via an in-class factory.
+        engine.eval(
+            "classdef Singleton\n"
+            "  properties\n    val = 0\n  end\n"
+            "  methods (Access = private)\n"
+            "    function obj = Singleton(v)\n      obj.val = v;\n    end\n"
+            "  end\n"
+            "  methods (Static)\n"
+            "    function obj = create(v)\n      obj = Singleton(v);\n    end\n"
+            "  end\n"
+            "end\n");
     }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };
@@ -1369,6 +1380,16 @@ TEST_P(AccessClassdefTest, PrivateSuperMethodThrows)
 {
     engine.eval("d = PDeriv();");
     EXPECT_THROW(engine.eval("d.trySecretSuper();"), std::exception); // private base method
+}
+// #4 — private constructor.
+TEST_P(AccessClassdefTest, PrivateConstructorFromOutsideThrows)
+{
+    EXPECT_THROW(engine.eval("Singleton(5);"), std::exception);
+}
+TEST_P(AccessClassdefTest, PrivateConstructorViaFactory)
+{
+    engine.eval("s = Singleton.create(5);"); // factory is in-class → ctor allowed
+    EXPECT_DOUBLE_EQ(evalScalar("s.val"), 5.0);
 }
 INSTANTIATE_TEST_SUITE_P(Backends, AccessClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
