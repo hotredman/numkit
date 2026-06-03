@@ -96,6 +96,72 @@ TEST_F(DebugSessionTest, BreakInsideClassdefMethodDotted)
     EXPECT_EQ(status, ExecStatus::Completed);
 }
 
+// Proof that a method body containing a SUPER-CALL runs on the VM (P2).
+// Before P2 such a body could not VM-compile (SUPERCLASS_REF was rejected) and
+// fell back to the TreeWalker hook — undebuggable. Now the super-method call is
+// a real opcode (CALL_SUPER_METHOD); the body is a VM frame and a breakpoint on
+// the line AFTER the super-call pauses there.
+TEST_F(DebugSessionTest, BreakInsideClassdefSuperMethod)
+{
+    // Base class registered up front, so it is NOT part of the debugged code.
+    engine.eval(
+        "classdef DbgBaseS\n"
+        "  properties\n    area = 0\n  end\n"
+        "  methods\n"
+        "    function r = descr(o)\n      r = o.area;\n    end\n"
+        "  end\n"
+        "end\n");
+    DebugSession session(engine);
+    session.setBreakpoints({5}); // `r = base + 1;` — after the super-call line
+    std::string code =
+        "classdef DbgDerivS < DbgBaseS\n"   // 1
+        "  methods\n"                       // 2
+        "    function r = descr(o)\n"       // 3
+        "      base = descr@DbgBaseS(o);\n" // 4  super-method call (on the VM)
+        "      r = base + 1;\n"             // 5  <- breakpoint
+        "    end\n"                         // 6
+        "  end\n"                           // 7
+        "end\n"                             // 8
+        "d = DbgDerivS();\n"                // 9
+        "d.area = 10;\n"                    // 10
+        "y = d.descr();\n";                 // 11  dotted call into derived descr
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused)
+        << "super-call method body did not run on the VM (no pause)";
+    EXPECT_EQ(session.snapshot().line, 5);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 11.0); // 10 (super) + 1
+}
+
+// Proof that a CONSTRUCTOR body runs on the VM (P2): a breakpoint inside the
+// constructor pauses there, and the output variable seeded with the default
+// instance is visible/modifiable in the frame.
+TEST_F(DebugSessionTest, BreakInsideClassdefConstructor)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({7}); // `o.v = x + 1;` inside the constructor
+    std::string code =
+        "classdef DbgCtor\n"            // 1
+        "  properties\n"                // 2
+        "    v = 0\n"                   // 3
+        "  end\n"                       // 4
+        "  methods\n"                   // 5
+        "    function o = DbgCtor(x)\n" // 6
+        "      o.v = x + 1;\n"          // 7  <- breakpoint
+        "    end\n"                     // 8
+        "  end\n"                       // 9
+        "end\n"                         // 10
+        "y = DbgCtor(41);\n"            // 11  construct → enters ctor frame
+        "z = y.v;\n";                   // 12
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "constructor body did not run on the VM";
+    EXPECT_EQ(session.snapshot().line, 7);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("z").toScalar(), 42.0); // 41 + 1
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

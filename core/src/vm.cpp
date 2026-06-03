@@ -1610,9 +1610,28 @@ enter_frame:
                     const std::string &ctorName = chunk.strings[funcIdx];
                     if (const BuiltinClass *cls = engine_.findClass(ctorName);
                         cls && cls->construct) {
+                        engine_.enforceCtorAccess(ctorName); // private/protected ctor
+                        // classdef with a user constructor → run the ctor body as
+                        // a VM frame (debuggable), seeding the output variable with
+                        // a default instance. The super-ctor / property assigns in
+                        // the body then run on the VM too. P2, VM_CALLBACKS_PLAN.md.
+                        if (const UserFunction *cuf = engine_.classCtor(ctorName)) {
+                            if (const BytecodeChunk *cc =
+                                    engine_.ensureClassMethodChunk(*cuf)) {
+                                Value seed = engine_.makeDefaultInstance(ctorName);
+                                frame.ip = ip + 1;
+                                pushCallFrame(*cc, &R[argBase], na, I.a, nargout_val,
+                                              false, 0, 0, ctorName, /*isCtor=*/true,
+                                              &seed);
+                                goto enter_frame;
+                            }
+                        }
+                        // No user ctor, or ctor body not VM-compilable → C++ path
+                        // (default-fill, or the ctor body on the TreeWalker hook).
+                        // Access already enforced above, so call construct directly.
                         Span<const Value> as(&R[argBase], na);
                         CallContext ctx{&engine_, currentCallEnv()};
-                        R[I.a] = engine_.constructChecked(cls, as, ctx);
+                        R[I.a] = cls->construct(as, ctx);
                         break;
                     }
                 }
@@ -1902,6 +1921,30 @@ enter_frame:
                         throw std::runtime_error("Too many output arguments.");
                 for (size_t i = 0; i < nout; ++i)
                     R[outBase + i] = std::move(outBuf[i]);
+                break;
+            }
+            // ── Superclass calls inside a classdef body ──
+            case OpCode::CALL_SUPER_CTOR: {
+                // obj = obj@Base(args): a=dst, b=objReg(seed), c=argBase,
+                // d=baseNameIdx, e=nargs.
+                const std::string &base = chunk.strings[I.d];
+                Span<const Value> args((I.e ? &R[I.c] : nullptr), I.e);
+                R[I.a] = engine_.superConstruct(base, R[I.b], args);
+                break;
+            }
+            case OpCode::CALL_SUPER_METHOD: {
+                // [outs] = method@Base(obj, args): a=outBase, b=argBase
+                // (obj at [0]), c=nargs, d=idx of "Base>method", e=nout.
+                const std::string &qual = chunk.strings[I.d];
+                size_t gt = qual.find('>');
+                std::string base = qual.substr(0, gt);
+                std::string method = qual.substr(gt + 1);
+                uint8_t outBase = I.a, argBase = I.b, na = I.c, nout = I.e;
+                Span<const Value> args((na ? &R[argBase] : nullptr), na);
+                auto results = engine_.superMethod(base, method, args,
+                                                   std::max<size_t>(nout, 1));
+                for (uint8_t i = 0; i < nout; ++i)
+                    R[outBase + i] = (i < results.size()) ? std::move(results[i]) : Value();
                 break;
             }
             case OpCode::CALL_INDIRECT:
@@ -2438,7 +2481,8 @@ std::unordered_map<std::string, Value> VM::snapshotFrameVars(Environment *frameE
 void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_t nargs,
                        uint8_t destReg, size_t nargout,
                        bool isMulti, uint8_t outBase, uint8_t nout,
-                       const std::string &ownerClass, bool isCtor)
+                       const std::string &ownerClass, bool isCtor,
+                       const Value *ctorSeed)
 {
     if (callDepth() >= maxRecursion_)
         throw std::runtime_error("VM: maximum recursion depth exceeded");
@@ -2471,6 +2515,17 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_
             newR[reg] = Value::scalar(static_cast<double>(nargs), nullptr);
         else if (vname == "nargout" && reg < nregs)
             newR[reg] = Value::scalar(static_cast<double>(nargout), nullptr);
+    }
+
+    // Constructor seed: bind the output variable to the default instance before
+    // the body runs (MATLAB seeds `obj` so the ctor only fills/overrides it).
+    if (ctorSeed && !funcChunk.returnNames.empty()) {
+        const std::string &rn = funcChunk.returnNames[0];
+        for (auto &[vname, reg] : funcChunk.varMap)
+            if (vname == rn && reg < nregs) {
+                newR[reg] = *ctorSeed;
+                break;
+            }
     }
 
     // Import global variables from globalsEnv

@@ -255,6 +255,14 @@ private:
     // the value from `inValReg` when ≥ 0, else compiles `rhsNode`.
     uint8_t compileLValueStore(const ASTNode *lhs, const ASTNode *rhsNode,
                                int inValReg, bool suppress);
+    // Superclass call inside a classdef body: `callNode` is the enclosing
+    // CALL, `superRef` its SUPERCLASS_REF head. Emits CALL_SUPER_CTOR
+    // (`obj@Base(args)`, lhs a local) or CALL_SUPER_METHOD
+    // (`method@Base(obj,…)`). explicitOutBase ≥ 0 routes outputs to that
+    // register block (multi-assign); otherwise a temp is allocated. Returns
+    // the first output register.
+    uint8_t compileSuperCall(const ASTNode *callNode, const ASTNode *superRef,
+                             int explicitOutBase, uint8_t nout);
     uint8_t compileAnonFunc(const ASTNode *node);
     void collectFreeVars(const ASTNode *node,
                          const std::vector<std::string> &params,

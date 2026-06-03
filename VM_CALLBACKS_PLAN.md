@@ -98,6 +98,27 @@ the VM backend. This is the gap to close.
   every classdef method-call form (function-form, dotted, multi) is VM-native
   and debuggable; native builtin-class methods keep the hook; bodies with
   super-calls fall back to the TW hook until P2.
+- **P2 (done)** — **constructor + super-calls VM-native** (in-bytecode).
+  - Super-calls: `SUPERCLASS_REF` now compiles (`Compiler::compileSuperCall`) to
+    two new opcodes — `CALL_SUPER_CTOR` (`obj = obj@Base(args)`, lhs is a var) and
+    `CALL_SUPER_METHOD` (`method@Base(obj,…)`, lhs is a method name), routed from
+    both `compileCall` (single-output) and `compileMultiAssign` (multi-output).
+    The throw-guard + uncompilable-fallback for super-calls is gone, so a method
+    body containing a super-call now VM-compiles and runs as a frame.
+  - Constructor: the VM `CALL` handler, when it resolves a class name, enforces
+    ctor access (`Engine::enforceCtorAccess`), then — if the class has a
+    compilable user ctor — pushes a VM frame for the ctor body, seeding the
+    output variable with the default instance (`Engine::makeDefaultInstance`,
+    `Engine::classCtor`, `pushCallFrame(..., ctorSeed)`). No user ctor / not
+    VM-compilable → the C++ path (default-fill or TW hook). Covers both
+    `ClassName(args)` and the bare-name `x = ClassName` (both compile to `CALL`).
+  - The super-call sub-target (the *base* ctor/method) still delegates to TW via
+    `superConstruct`/`superMethod` (a C++-initiated call → P3); the *calling*
+    body runs on the VM and is debuggable.
+  - **Proven**: `DebugSessionTest.BreakInsideClassdefSuperMethod` (breakpoint on
+    the line after a super-method call pauses) and
+    `BreakInsideClassdefConstructor` (breakpoint inside a ctor body pauses; the
+    seeded output var is modified and returned). Full suite 10923 green.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a
@@ -123,7 +144,7 @@ the VM backend. This is the gap to close.
   (function-form, **done**), `CALL_METHOD`, `CALL_METHOD_MULTI` enter a frame
   for classdef methods. Debugger test proving the body runs on the VM.
 - **P2. constructor + super-calls VM-native.** Ctor frame with seed; compile
-  `SUPERCLASS_REF`.
+  `SUPERCLASS_REF`. **DONE** — see Progress above.
 - **P3. re-entrant VM-call-from-C++ foundation.** Nested run on `frames_`;
   verify run-loop re-entrancy.
 - **P4. accessors / operators / subsref + function handles on VM.** Route the

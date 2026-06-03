@@ -116,6 +116,19 @@ public:
     // object-array growth is never blocked. A public ctor (or a non-classdef
     // BuiltinClass) passes straight through.
     Value constructChecked(const BuiltinClass *cls, Span<const Value> args, CallContext &ctx);
+    // Build a default-initialised instance of a classdef (abstract-class check
+    // + every property at its declared default), WITHOUT running the user
+    // constructor. This is the "seed" the constructor body receives bound to
+    // its output variable. Throws if `className` is not a classdef.
+    Value makeDefaultInstance(const std::string &className);
+    // The classdef's user-defined constructor (the method named like the
+    // class), or nullptr when the class declares none / is not a classdef.
+    const UserFunction *classCtor(const std::string &className) const;
+    // Enforce a non-public constructor's access against the current context
+    // (the access half of constructChecked, without building the object). Used
+    // by the VM ctor-frame path before pushing the constructor frame. No-op for
+    // a public ctor or a non-classdef BuiltinClass.
+    void enforceCtorAccess(const std::string &className);
     // MATLAB-style display text for an OBJECT value. `name` empty →
     // bare body (disp); otherwise the `name =\n\n<body>\n` form.
     std::string formatObjectDisplay(const std::string &name, const Value &obj) const;
