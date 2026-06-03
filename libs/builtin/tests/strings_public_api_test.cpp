@@ -700,3 +700,30 @@ TEST(BuiltinStringsPublicApi, Num2StrNegativeColumnWidth)
     // Positives unchanged (regression guard).
     EXPECT_EQ(numkit::builtin::num2str(row({1, 22, 333}), mr).toString(),   "1   22  333");
 }
+
+// strtok: first token + remainder. Lifted to public C++ API 2026-06.
+TEST(BuiltinStringsPublicApi, Strtok)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    // explicit whitespace delim
+    auto [tok, rem] =
+        numkit::builtin::strtok(mkStr(mr, "hello world"), " \t\r\n\f\v", mr);
+    EXPECT_EQ(tok.toString(), "hello");
+    EXPECT_EQ(rem.toString(), " world");
+    // leading whitespace skipped
+    auto [t2, r2] = numkit::builtin::strtok(mkStr(mr, "  lead x"), " \t\r\n\f\v", mr);
+    EXPECT_EQ(t2.toString(), "lead");
+    EXPECT_EQ(r2.toString(), " x");
+    // custom delimiter set
+    auto [t3, r3] = numkit::builtin::strtok(mkStr(mr, "a,b,c"), ",", mr);
+    EXPECT_EQ(t3.toString(), "a");
+    EXPECT_EQ(r3.toString(), ",b,c");
+    // no delimiter present -> whole string, empty remainder
+    auto [t4, r4] = numkit::builtin::strtok(mkStr(mr, "nodlim"), " ", mr);
+    EXPECT_EQ(t4.toString(), "nodlim");
+    EXPECT_EQ(r4.toString(), "");
+    // default delim + default mr (omit both trailing args)
+    auto [t5, r5] = numkit::builtin::strtok(mkStr(mr, "x y"));
+    EXPECT_EQ(t5.toString(), "x");
+    EXPECT_EQ(r5.toString(), " y");
+}

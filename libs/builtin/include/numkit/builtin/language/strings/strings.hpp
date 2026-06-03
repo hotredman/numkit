@@ -6,6 +6,7 @@
 #include <numkit/core/value.hpp>
 
 #include <string>
+#include <utility>
 
 namespace numkit::builtin {
 
@@ -653,5 +654,21 @@ Value strjust(const Value &M, const std::string &side, std::pmr::memory_resource
 /// @return     Cell column of matches.
 /// @see strfind, regexpFind
 Value extract(const Value &s, const Value &pat, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief First token + remainder (`[tok, rem] = strtok(str, delim)`).
+///
+/// Skips leading delimiter characters, then returns the first run of
+/// non-delimiter characters as `tok`; `rem` is the rest of `str` starting
+/// at the delimiter that ended the token (empty if the token reaches the
+/// end). `delim` defaults to the whitespace set `" \t\r\n\f\v"`.
+///
+/// @param str    Source string (CHAR row / STRING scalar).
+/// @param delim  Delimiter character set (default whitespace).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Pair `{ tok, rem }` (both CHAR results).
+/// @see split, extractBefore
+std::pair<Value, Value> strtok(const Value &str,
+                               const std::string &delim = " \t\r\n\f\v",
+                               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin
