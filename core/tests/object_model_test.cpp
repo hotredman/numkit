@@ -860,6 +860,55 @@ INSTANTIATE_TEST_SUITE_P(Backends, ClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef handle classes (< handle): reference semantics ──
+class HandleClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Counter < handle\n"
+            "  properties\n"
+            "    count = 0\n"
+            "  end\n"
+            "  methods\n"
+            "    function obj = Counter(start)\n"
+            "      obj.count = start;\n"
+            "    end\n"
+            "    function increment(obj)\n"
+            "      obj.count = obj.count + 1;\n"
+            "    end\n"
+            "    function r = get(obj)\n"
+            "      r = obj.count;\n"
+            "    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+TEST_P(HandleClassdefTest, MutatingMethodNoReturn)
+{
+    engine.eval("c = Counter(0); c.increment(); c.increment(); c.increment();");
+    EXPECT_DOUBLE_EQ(evalScalar("c.count"), 3.0);
+}
+TEST_P(HandleClassdefTest, ReferenceSemanticsOnCopy)
+{
+    engine.eval("c = Counter(5); d = c; c.increment();");
+    EXPECT_DOUBLE_EQ(evalScalar("c.count"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d.count"), 6.0) << "handle: d aliases c";
+}
+TEST_P(HandleClassdefTest, MethodReadsState)
+{
+    engine.eval("c = Counter(7);");
+    EXPECT_DOUBLE_EQ(evalScalar("c.get()"), 7.0);
+}
+INSTANTIATE_TEST_SUITE_P(Backends, HandleClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // Object-array display goes through Engine::formatObjectDisplay (shared by
 // both engines), so test it directly on a C++-built array.
 TEST(ObjectArrayDisplay, ArrayHeaderAndProps)
