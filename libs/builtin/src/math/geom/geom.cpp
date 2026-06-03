@@ -326,96 +326,10 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 5)
         throw Error("griddata: requires (x, y, v, xq, yq)",
                      0, 0, "griddata", "", "numkit:griddata:nargin");
-    const auto &xv = args[0];
-    const auto &yv = args[1];
-    const auto &vv = args[2];
-    const auto &xq = args[3];
-    const auto &yq = args[4];
-    const std::size_t n = xv.numel();
-    if (yv.numel() != n || vv.numel() != n)
-        throw Error("griddata: x, y, v must have the same numel",
-                     0, 0, "griddata", "", "numkit:griddata:shape");
-    if (xq.numel() != yq.numel())
-        throw Error("griddata: xq and yq must have the same numel",
-                     0, 0, "griddata", "", "numkit:griddata:queryShape");
-    auto *mr = ctx.engine->resource();
-    auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
-                             ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    const std::size_t nq = xq.numel();
-    if (n < 3) {
-        for (std::size_t i = 0; i < nq; ++i) dst[i] = std::nan("");
-        outs[0] = std::move(out);
-        return;
-    }
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> X(n, &scratch), Y(n, &scratch), V(n, &scratch);
-    for (std::size_t i = 0; i < n; ++i) {
-        X[i] = xv.elemAsDouble(i);
-        Y[i] = yv.elemAsDouble(i);
-        V[i] = vv.elemAsDouble(i);
-    }
-    // Reuse the brute-force Delaunay logic — emit triangle list as
-    // index triples.
-    auto signedArea2 = [&](std::size_t a, std::size_t b, std::size_t c) {
-        return (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]);
-    };
-    auto inCircle = [&](std::size_t a, std::size_t b, std::size_t c,
-                        std::size_t p) {
-        const double ax = X[a] - X[p], ay = Y[a] - Y[p];
-        const double bx = X[b] - X[p], by = Y[b] - Y[p];
-        const double cx = X[c] - X[p], cy = Y[c] - Y[p];
-        const double a2 = ax * ax + ay * ay;
-        const double b2 = bx * bx + by * by;
-        const double c2 = cx * cx + cy * cy;
-        return ax * (by * c2 - cy * b2)
-             - ay * (bx * c2 - cx * b2)
-             + a2 * (bx * cy - cx * by);
-    };
-    std::vector<std::array<std::size_t, 3>> tris;
-    tris.reserve(2 * n);
-    for (std::size_t a = 0; a < n; ++a) {
-        for (std::size_t b = a + 1; b < n; ++b) {
-            for (std::size_t c = b + 1; c < n; ++c) {
-                const double sa2 = signedArea2(a, b, c);
-                if (std::abs(sa2) < 1e-15) continue;
-                std::size_t va = a, vb = b, vc = c;
-                if (sa2 < 0) std::swap(vb, vc);
-                bool ok = true;
-                for (std::size_t p = 0; p < n; ++p) {
-                    if (p == va || p == vb || p == vc) continue;
-                    if (inCircle(va, vb, vc, p) > 1e-12) { ok = false; break; }
-                }
-                if (ok) tris.push_back({ va, vb, vc });
-            }
-        }
-    }
-    // Per query point: walk triangles, find one that contains the
-    // query, compute barycentric coords, interpolate v.
-    for (std::size_t q = 0; q < nq; ++q) {
-        const double Xq = xq.elemAsDouble(q);
-        const double Yq = yq.elemAsDouble(q);
-        bool found = false;
-        for (const auto &t : tris) {
-            const double xa = X[t[0]], ya = Y[t[0]];
-            const double xb = X[t[1]], yb = Y[t[1]];
-            const double xc = X[t[2]], yc = Y[t[2]];
-            const double denom = (yb - yc) * (xa - xc) + (xc - xb) * (ya - yc);
-            if (std::abs(denom) < 1e-15) continue;
-            const double l1 = ((yb - yc) * (Xq - xc) + (xc - xb) * (Yq - yc)) / denom;
-            const double l2 = ((yc - ya) * (Xq - xc) + (xa - xc) * (Yq - yc)) / denom;
-            const double l3 = 1.0 - l1 - l2;
-            // Inside or on boundary (allow a tiny epsilon for FP noise).
-            if (l1 >= -1e-9 && l2 >= -1e-9 && l3 >= -1e-9) {
-                dst[q] = l1 * V[t[0]] + l2 * V[t[1]] + l3 * V[t[2]];
-                found = true;
-                break;
-            }
-        }
-        if (!found) dst[q] = std::nan("");
-    }
-    outs[0] = std::move(out);
+    // NOTE: a trailing method arg (args[5], e.g. 'nearest') is currently
+    // ignored — only 'linear' is implemented (v1 gap, see header).
+    outs[0] = griddata(args[0], args[1], args[2], args[3], args[4],
+                       ctx.engine->resource());
 }
 
 } // namespace detail
@@ -725,6 +639,100 @@ Value delaunay(const Value &x, const Value &y, std::pmr::memory_resource *mr)
         dst[0 * M + i] = static_cast<double>(tris[i][0] + 1);
         dst[1 * M + i] = static_cast<double>(tris[i][1] + 1);
         dst[2 * M + i] = static_cast<double>(tris[i][2] + 1);
+    }
+    return out;
+}
+
+// ── griddata (2-D) ───────────────────────────────────────────────────
+//
+// See header for the public C++ API + Doxygen. Linear-only scattered
+// interpolation; this source unit hosts the implementation plus its
+// adapter.
+
+Value griddata(const Value &x, const Value &y, const Value &v,
+               const Value &xq, const Value &yq, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n || v.numel() != n)
+        throw Error("griddata: x, y, v must have the same numel",
+                     0, 0, "griddata", "", "numkit:griddata:shape");
+    if (xq.numel() != yq.numel())
+        throw Error("griddata: xq and yq must have the same numel",
+                     0, 0, "griddata", "", "numkit:griddata:queryShape");
+    auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
+                             ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const std::size_t nq = xq.numel();
+    if (n < 3) {
+        for (std::size_t i = 0; i < nq; ++i) dst[i] = std::nan("");
+        return out;
+    }
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> X(n, &scratch), Y(n, &scratch), V(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        X[i] = x.elemAsDouble(i);
+        Y[i] = y.elemAsDouble(i);
+        V[i] = v.elemAsDouble(i);
+    }
+    // Reuse the brute-force Delaunay logic — emit triangle list as
+    // index triples.
+    auto signedArea2 = [&](std::size_t a, std::size_t b, std::size_t c) {
+        return (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]);
+    };
+    auto inCircle = [&](std::size_t a, std::size_t b, std::size_t c,
+                        std::size_t p) {
+        const double ax = X[a] - X[p], ay = Y[a] - Y[p];
+        const double bx = X[b] - X[p], by = Y[b] - Y[p];
+        const double cx = X[c] - X[p], cy = Y[c] - Y[p];
+        const double a2 = ax * ax + ay * ay;
+        const double b2 = bx * bx + by * by;
+        const double c2 = cx * cx + cy * cy;
+        return ax * (by * c2 - cy * b2)
+             - ay * (bx * c2 - cx * b2)
+             + a2 * (bx * cy - cx * by);
+    };
+    std::vector<std::array<std::size_t, 3>> tris;
+    tris.reserve(2 * n);
+    for (std::size_t a = 0; a < n; ++a) {
+        for (std::size_t b = a + 1; b < n; ++b) {
+            for (std::size_t c = b + 1; c < n; ++c) {
+                const double sa2 = signedArea2(a, b, c);
+                if (std::abs(sa2) < 1e-15) continue;
+                std::size_t va = a, vb = b, vc = c;
+                if (sa2 < 0) std::swap(vb, vc);
+                bool ok = true;
+                for (std::size_t p = 0; p < n; ++p) {
+                    if (p == va || p == vb || p == vc) continue;
+                    if (inCircle(va, vb, vc, p) > 1e-12) { ok = false; break; }
+                }
+                if (ok) tris.push_back({ va, vb, vc });
+            }
+        }
+    }
+    // Per query point: walk triangles, find one that contains the
+    // query, compute barycentric coords, interpolate v.
+    for (std::size_t q = 0; q < nq; ++q) {
+        const double Xq = xq.elemAsDouble(q);
+        const double Yq = yq.elemAsDouble(q);
+        bool found = false;
+        for (const auto &t : tris) {
+            const double xa = X[t[0]], ya = Y[t[0]];
+            const double xb = X[t[1]], yb = Y[t[1]];
+            const double xc = X[t[2]], yc = Y[t[2]];
+            const double denom = (yb - yc) * (xa - xc) + (xc - xb) * (ya - yc);
+            if (std::abs(denom) < 1e-15) continue;
+            const double l1 = ((yb - yc) * (Xq - xc) + (xc - xb) * (Yq - yc)) / denom;
+            const double l2 = ((yc - ya) * (Xq - xc) + (xa - xc) * (Yq - yc)) / denom;
+            const double l3 = 1.0 - l1 - l2;
+            // Inside or on boundary (allow a tiny epsilon for FP noise).
+            if (l1 >= -1e-9 && l2 >= -1e-9 && l3 >= -1e-9) {
+                dst[q] = l1 * V[t[0]] + l2 * V[t[1]] + l3 * V[t[2]];
+                found = true;
+                break;
+            }
+        }
+        if (!found) dst[q] = std::nan("");
     }
     return out;
 }
