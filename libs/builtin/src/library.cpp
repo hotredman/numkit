@@ -2032,6 +2032,47 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     ctx.engine->resource());
                             });
 
+    // ── isa(x, classOrCategory) ────────────────────────────────
+    engine.registerFunction(
+        "isa", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 2)
+                throw std::runtime_error("isa requires two arguments");
+            const std::string target = args[1].toString();
+            const Value &x = args[0];
+            bool result = false;
+            if (x.isObject()) {
+                const std::string cn = x.objectClassName();
+                result = (cn == target);
+                const BuiltinClass *cls = ctx.engine->findClass(cn);
+                if (!result && cls)
+                    for (const auto &s : cls->superclasses)
+                        if (s == target) {
+                            result = true;
+                            break;
+                        }
+                if (!result && target == "handle" && cls && cls->isHandle)
+                    result = true;
+            } else {
+                const ValueType t = x.type();
+                const std::string tn = mtypeName(t);
+                const bool isFloat = (t == ValueType::DOUBLE || t == ValueType::SINGLE
+                                      || t == ValueType::COMPLEX);
+                const bool isInt = (t == ValueType::INT8 || t == ValueType::INT16
+                                    || t == ValueType::INT32 || t == ValueType::INT64
+                                    || t == ValueType::UINT8 || t == ValueType::UINT16
+                                    || t == ValueType::UINT32 || t == ValueType::UINT64);
+                if (tn == target)
+                    result = true;
+                else if (target == "numeric")
+                    result = isFloat || isInt;
+                else if (target == "float")
+                    result = isFloat;
+                else if (target == "integer")
+                    result = isInt;
+            }
+            outs[0] = Value::logicalScalar(result, ctx.engine->resource());
+        });
+
     // ── tic ────────────────────────────────────────────────────
     engine.registerFunction("tic",
                             [](Span<const Value>,

@@ -909,6 +909,71 @@ INSTANTIATE_TEST_SUITE_P(Backends, HandleClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef inheritance (< Base): props/methods/ctor inherited ──
+class InheritanceClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Animal\n"
+            "  properties\n    legs = 4\n    weight = 10\n  end\n"
+            "  methods\n"
+            "    function obj = Animal(w)\n      obj.weight = w;\n    end\n"
+            "    function s = baseLegs(obj)\n      s = obj.legs;\n    end\n"
+            "  end\n"
+            "end\n");
+        engine.eval(
+            "classdef Dog < Animal\n"
+            "  properties\n    barks = 1\n  end\n"
+            "  methods\n"
+            "    function s = legsPlus(obj)\n      s = obj.legs + obj.barks;\n    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    std::string evalStr(const std::string &c) { return engine.eval(c).toString(); }
+    bool evalBool(const std::string &c) { return engine.eval(c).toBool(); }
+};
+
+TEST_P(InheritanceClassdefTest, InheritedPropertyDefaults)
+{
+    engine.eval("d = Dog(25);");
+    EXPECT_DOUBLE_EQ(evalScalar("d.legs"), 4.0);   // inherited default
+    EXPECT_DOUBLE_EQ(evalScalar("d.barks"), 1.0);  // own default
+}
+TEST_P(InheritanceClassdefTest, InheritedConstructor)
+{
+    // Dog defines no constructor → inherits Animal's (weight = w).
+    engine.eval("d = Dog(25);");
+    EXPECT_DOUBLE_EQ(evalScalar("d.weight"), 25.0);
+    EXPECT_EQ(evalStr("class(d)"), "Dog");
+}
+TEST_P(InheritanceClassdefTest, InheritedMethod)
+{
+    engine.eval("d = Dog(25);");
+    EXPECT_DOUBLE_EQ(evalScalar("d.baseLegs()"), 4.0); // method from Animal
+}
+TEST_P(InheritanceClassdefTest, OwnMethodUsesInheritedProp)
+{
+    engine.eval("d = Dog(25);");
+    EXPECT_DOUBLE_EQ(evalScalar("d.legsPlus()"), 5.0); // 4 (legs) + 1 (barks)
+}
+TEST_P(InheritanceClassdefTest, IsaHierarchy)
+{
+    engine.eval("d = Dog(25);");
+    EXPECT_TRUE(evalBool("isa(d, 'Dog')"));
+    EXPECT_TRUE(evalBool("isa(d, 'Animal')")); // ancestor
+    EXPECT_FALSE(evalBool("isa(d, 'Cat')"));
+    EXPECT_TRUE(evalBool("isa(3.0, 'numeric')")); // builtin category still works
+    EXPECT_TRUE(evalBool("isa(3.0, 'double')"));
+}
+INSTANTIATE_TEST_SUITE_P(Backends, InheritanceClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // Object-array display goes through Engine::formatObjectDisplay (shared by
 // both engines), so test it directly on a C++-built array.
 TEST(ObjectArrayDisplay, ArrayHeaderAndProps)
