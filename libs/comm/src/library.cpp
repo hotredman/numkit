@@ -113,6 +113,7 @@ void vec2mat_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poly2trellis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convenc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vitdec_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void istrellis_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -204,6 +205,7 @@ void CommLibrary::install(Engine &engine)
     reg("coding", "poly2trellis", &comm::detail::poly2trellis_reg);
     reg("coding", "convenc",      &comm::detail::convenc_reg);
     reg("coding", "vitdec",       &comm::detail::vitdec_reg);
+    reg("coding", "istrellis",    &comm::detail::istrellis_reg);
 }
 
 } // namespace numkit

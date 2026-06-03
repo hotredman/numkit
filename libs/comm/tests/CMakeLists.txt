@@ -29,4 +29,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/poly2trellis_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/convenc_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vitdec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/istrellis_test.cpp
 )

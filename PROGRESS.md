@@ -1039,7 +1039,7 @@ the flat `gf*` function family below.
 |---|:---:|---|
 | `distspec` | ❌ | distance spectrum of conv code |
 | `iscatastrophic` | ❌ |  |
-| `istrellis` | ❌ |  |
+| `istrellis` | ✅ | Sig: tf = istrellis(S). Validates a trellis struct: poly2trellis output -> 1 (a); a plain struct/scalar -> 0 (b, c). New (Error Correction Codes) 2026-06. MATLAB R2025b -batch may crash on comm-toolbox shutdown; istrellis verified via gtest + smoke. |
 | `poly2trellis` | ✅ | Sig: trellis = poly2trellis(K, [g1..gn]). Rate-1/n feed-forward convolutional trellis. poly2trellis(3,[6 7]): nInput=2 nOutput=4 nStates=4, nextStates=[0 2;0 2;1 3;1 3], outputs(octal->decimal of n output bits)=[0 3;1 2;3 0;2 1]. poly2trellis(4,[13 15 17]): nStates=8 nOutput=8, outputs(1:2,:)=[0 7;7 0]. New function (Error Correction Codes section) 2026-06; rate k/n + feedback deferred. NOTE: struct field-then-index (t.nextStates(i,j)) is a separate core gap, so the spec assigns ns/ou to intermediates first. |
 | `cosets` | ❌ | cyclotomic cosets |
 | `dftmtx` | ✅ | Sig: F = dftmtx(N). N×N DFT matrix; F(j,k) = exp(-2πi(j-1)(k-1)/N). For real input dftmtx(N)*x equals fft(x). Edges: F2 4 elem, F4 16 elem, F8 64 elem, F16 256 elem; F8(2,2) = √2/2 - i√2/2 ≈ 0.7071-0.7071i; F8(5,5) = 1 + 0i (column 5 row 5 ≡ exp(-2πi·16/8) = exp(-4πi) = 1); dftmtx(1) = 1. |
