@@ -70,8 +70,16 @@ the VM backend. This is the gap to close.
 5. **Re-entrancy** (shape 2) — a safe nested VM run for C++-initiated callbacks;
    `invokeClassMethod`/`invokeClassCtor`/`callFunctionHandleMulti` become
    backend-aware.
-6. **Debugger** — stepping/breakpoints must work inside these frames.
-7. **Coexistence** — TW backend unchanged; native builtin-class methods keep
+6. **Access context must become frame-associated.** Today the member-access
+   stack (`Engine::classCtx_`) is pushed/popped by a synchronous C++
+   `ClassCtxGuard` around the TW call (`invokeClassMethod`). A VM frame enters
+   via `goto enter_frame` and unwinds later via `RET`, so a C++ RAII guard
+   can't bracket it. The frame must carry its `ownerClass`: push `classCtx_`
+   in `pushCallFrame` (for a classdef-method frame) and pop in the `RET`
+   handler. Without this, private/protected access checks inside a VM-executed
+   method body see an empty context and wrongly deny.
+7. **Debugger** — stepping/breakpoints must work inside these frames.
+8. **Coexistence** — TW backend unchanged; native builtin-class methods keep
    the C++ hook.
 
 ## Phases (each = its own commit, full suite must stay green — 0 regressions)
