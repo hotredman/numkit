@@ -128,3 +128,12 @@ TEST_F(BuiltinKnownBug, DISABLED_Gradient3D)
     EXPECT_NEAR(evalScalar("gz(1,1,1)"), 4.0, 1e-12);
     EXPECT_NEAR(evalScalar("gx(1,1,1)"), 2.0, 1e-12);
 }
+
+// bugs/builtin/acos-asin-complex.md — acos/asin go complex for |x|>1.
+TEST_F(BuiltinKnownBug, DISABLED_AcosAsinComplex)
+{
+    eval("a = acos(2);");   // MATLAB: 0 + 1.31696i
+    EXPECT_NEAR(evalScalar("imag(a)"),  1.3169579, 1e-5);
+    eval("b = asin(2);");   // MATLAB: 1.5708 - 1.31696i
+    EXPECT_NEAR(evalScalar("imag(b)"), -1.3169579, 1e-5);
+}
