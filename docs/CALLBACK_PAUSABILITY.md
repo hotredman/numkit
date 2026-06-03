@@ -208,6 +208,22 @@ the chunk via the `Engine::resolve*`/`classGetter` helpers, `pushCallFrame` +
 - **State-machine fast path:** a `CallbackBuiltin::tryStart` MUST return
   `nullptr` for builtin handles / unsupported forms so the synchronous builtin
   (and its fast paths) stays in charge.
+- **A `.m` chunk has a 255-register limit** (register VM). A big solver body
+  (e.g. DOPRI5: ~30 Butcher coefficients + `k1…k7` + per-stage temporaries)
+  overflows it and the VM compile fails. **Split the heavy arithmetic into a
+  helper `function`** — each `.m` function is its own chunk with its own
+  budget (ode45 factors the RK step into `nk_dopri5_step` and the dense
+  interpolant into `nk_ode_dense`). This is also cleaner: the Butcher step is a
+  natural unit.
+- **`registerBuiltinMSource` swallows a VM-compile failure silently** — on a
+  failed `registerFunctionAs` it keeps only the TreeWalker `userFuncs_`
+  registration (intended m-file fallback). So a too-big / malformed wrapper
+  registers on the TW but is **"undefined function" on the VM**, with no error
+  at install time. **Always add a VM-level pause-proof test** (`DebugSession`
+  break inside the callback) for every embedded `.m` wrapper — it is what
+  surfaces a silent VM-registration failure. A quick pre-build check: extract
+  the source and run it through `numkit_smoke.exe`, which compiles `.m` at
+  runtime and reports `register exhaustion` loudly.
 
 ---
 
@@ -220,12 +236,12 @@ methods (all call forms), constructors, super-calls (calling body), `get.Prop` /
 **Pausable — state machine (`LoopContinuation`):** `cellfun`, `arrayfun`,
 `structfun`, `feval`, `splitapply`, `bsxfun`, `bootstrp`, `nlfilter`, `makelut`.
 
-**Pausable — embedded `.m` wrapper:** `fzero`, `integral`.
+**Pausable — embedded `.m` wrapper:** `fzero`, `integral`, `ode45`.
 
 **On the VM, not suspendable (`callReentrant`):**
 - single-shot C++-initiated: `disp`/`display` from the display path, super-call
   *base* targets, C++-initiated construction (object-array growth).
-- **not yet converted (follow-up):** `ode23`/`ode45`, `nlinfit`, `fminsearch`
+- **not yet converted (follow-up):** `ode23`, `nlinfit`, `fminsearch`
   (→ `.m` wrapper); `grouptransform`/`groupfilter`/`groupsummary`, `pulstran`,
   `fplot`/`fsurf`/`fcontour`/`fmesh` (bespoke per-function — see
   VM_CALLBACKS_PLAN.md for why each is not a clean fit).
