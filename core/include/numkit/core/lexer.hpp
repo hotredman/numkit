@@ -66,6 +66,7 @@ enum class TokenType {
     KW_CATCH,
     KW_GLOBAL,
     KW_PERSISTENT,
+    KW_CLASSDEF,
     DQSTRING,
     // `%` line comments and `%{ ... %}` block comments — emitted by
     // the lexer so downstream consumers (tools, formatters, the

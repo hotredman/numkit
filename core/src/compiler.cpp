@@ -797,6 +797,9 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileCommandCall(node);
     case NodeType::FUNCTION_DEF:
         return compileFunctionDef(node);
+    case NodeType::CLASSDEF_DEF:
+        engine_.registerClassDef(node); // register the class; emits no code
+        return 0;
     case NodeType::RETURN_STMT:
         return compileReturn(node);
     case NodeType::END_VAL: {

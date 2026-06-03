@@ -240,6 +240,8 @@ ASTNodePtr Parser::parseStatement()
     switch (current().type) {
     case TokenType::KW_FUNCTION:
         return parseFunctionDef();
+    case TokenType::KW_CLASSDEF:
+        return parseClassDef();
     case TokenType::KW_IF:
         return parseIf();
     case TokenType::KW_FOR:
@@ -809,6 +811,82 @@ ASTNodePtr Parser::parseFunctionDef()
                                  + "' defined at line " + std::to_string(node->line));
     }
 
+    skipTerminators();
+    return node;
+}
+
+// ============================================================
+// classdef
+// ============================================================
+
+ASTNodePtr Parser::parseClassDef()
+{
+    auto [ln, cl] = loc();
+    auto node = makeNode(NodeType::CLASSDEF_DEF, ln, cl);
+    consume(TokenType::KW_CLASSDEF, "classdef");
+
+    // Skip an optional class-attribute block `(Attr=val, ...)` (v1: ignored).
+    auto skipParenBlock = [&]() {
+        if (!check(TokenType::LPAREN)) return;
+        int depth = 0;
+        do {
+            if (check(TokenType::LPAREN)) ++depth;
+            else if (check(TokenType::RPAREN)) --depth;
+            advance();
+        } while (depth > 0 && !isAtEnd());
+    };
+    skipParenBlock();
+
+    node->strValue = consume(TokenType::IDENTIFIER, "class name").value;
+
+    // Superclasses: `< Base1 & Base2 & ...` → paramNames.
+    if (check(TokenType::LT)) {
+        advance();
+        node->paramNames.push_back(consume(TokenType::IDENTIFIER, "superclass").value);
+        while (check(TokenType::AND)) {
+            advance();
+            node->paramNames.push_back(consume(TokenType::IDENTIFIER, "superclass").value);
+        }
+    }
+    skipTerminators();
+
+    // Body: a sequence of `properties ... end` / `methods ... end` blocks.
+    // `properties` / `methods` are contextual identifiers, not keywords.
+    while (!isAtEnd() && !check(TokenType::KW_END)) {
+        const bool isProps = check(TokenType::IDENTIFIER) && current().value == "properties";
+        const bool isMethods = check(TokenType::IDENTIFIER) && current().value == "methods";
+        if (!isProps && !isMethods)
+            throw std::runtime_error(
+                "classdef '" + node->strValue
+                + "': expected 'properties' or 'methods' block at line "
+                + std::to_string(current().line));
+        advance();           // consume 'properties' / 'methods'
+        skipParenBlock();    // optional attribute block
+        skipTerminators();
+
+        while (!isAtEnd() && !check(TokenType::KW_END)) {
+            if (isProps) {
+                auto [pln, pcl] = loc();
+                auto prop = makeNode(NodeType::CLASSDEF_PROPERTY, pln, pcl);
+                prop->strValue = consume(TokenType::IDENTIFIER, "property name").value;
+                if (match(TokenType::ASSIGN))
+                    prop->children.push_back(parseExpression());
+                node->children.push_back(std::move(prop));
+            } else {
+                node->children.push_back(parseFunctionDef());
+            }
+            skipTerminators();
+        }
+        consume(TokenType::KW_END, isProps ? "end (properties)" : "end (methods)");
+        skipTerminators();
+    }
+
+    if (check(TokenType::KW_END)) {
+        node->endLine = current().line;
+        advance();
+    } else if (!isAtEnd()) {
+        throw std::runtime_error("Expected 'end' for classdef '" + node->strValue + "'");
+    }
     skipTerminators();
     return node;
 }

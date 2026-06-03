@@ -33,6 +33,13 @@ enum class NodeType {
     RETURN_STMT,
     SWITCH_STMT,
     FUNCTION_DEF,
+    // classdef. CLASSDEF_DEF: strValue = class name; paramNames =
+    // superclass names (`< Base & ...`); children = a mix of
+    // CLASSDEF_PROPERTY and FUNCTION_DEF (methods incl. the constructor).
+    // CLASSDEF_PROPERTY: strValue = property name; children[0] = default
+    // expression (absent → default []). See OBJECT_MODEL.md.
+    CLASSDEF_DEF,
+    CLASSDEF_PROPERTY,
     BLOCK,
     EXPR_STMT,
     END_VAL,

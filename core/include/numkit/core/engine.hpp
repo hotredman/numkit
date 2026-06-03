@@ -66,6 +66,18 @@ public:
     // Look up a registered class by name (e.g. "containers.Map"), or
     // nullptr. Used by constructor / method / property dispatch.
     const BuiltinClass *findClass(const std::string &name) const;
+    // Register a user `classdef` (parsed CLASSDEF_DEF node) as a BuiltinClass
+    // via the adapter: generic property get/set over ObjectState.props,
+    // default-init + user constructor on construct, and method hooks that
+    // run the method bodies. Idempotent (skips if already registered).
+    void registerClassDef(const ASTNode *classdef);
+    // Run a classdef method body (args already include `self` first) /
+    // constructor body (with `obj` seeded to the default instance) on the
+    // TreeWalker, regardless of the active backend.
+    std::vector<Value> invokeClassMethod(const UserFunction &uf, Span<const Value> args,
+                                         size_t nout);
+    Value invokeClassCtor(const UserFunction &ctor, const Value &seed,
+                          Span<const Value> args);
     // MATLAB-style display text for an OBJECT value. `name` empty →
     // bare body (disp); otherwise the `name =\n\n<body>\n` form.
     std::string formatObjectDisplay(const std::string &name, const Value &obj) const;

@@ -265,6 +265,9 @@ Value TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
         return Value();
     case NodeType::FUNCTION_DEF:
         return execFunctionDef(node, env);
+    case NodeType::CLASSDEF_DEF:
+        engine_.registerClassDef(node); // register the class; statement yields nothing
+        return Value();
     case NodeType::EXPR_STMT:
         return execExprStmt(node, env);
     case NodeType::ANON_FUNC:
@@ -2973,6 +2976,52 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
         results.push_back(val ? std::move(*val) : Value());
     }
     return results;
+}
+
+// ============================================================
+// classdef method / constructor invocation
+// ============================================================
+std::vector<Value> TreeWalker::runClassMethod(const UserFunction &uf,
+                                              Span<const Value> args, size_t nout)
+{
+    return callUserFunctionMulti(uf, args, engine_.workspaceEnv_.get(), nout, nullptr);
+}
+
+Value TreeWalker::evalExpressionPublic(const ASTNode *expr, Environment *env)
+{
+    return execNode(expr, env ? env : engine_.workspaceEnv_.get());
+}
+
+Value TreeWalker::runClassCtor(const UserFunction &func, const Value &seed,
+                               Span<const Value> args)
+{
+    RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
+    if (args.size() > func.params.size())
+        throw std::runtime_error("Too many input arguments to constructor '" + func.name
+                                 + "'");
+    Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
+                                             : &engine_.constantsEnv();
+    Environment localEnv(parentEnv, engine_.globalsEnv_.get());
+    FrameGuard frameGuard(activeFrames_, &localEnv, {});
+
+    for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
+        localEnv.setLocal(func.params[i], args[i]);
+    // MATLAB seeds the constructor's output variable with a default instance.
+    if (!func.returns.empty())
+        localEnv.setLocal(func.returns[0], seed);
+    localEnv.setLocal("nargin", Value::scalar(static_cast<double>(args.size()), engine_.mr_));
+    localEnv.setLocal("nargout", Value::scalar(1.0, engine_.mr_));
+
+    execNode(func.body.get(), &localEnv);
+    if (flowSignal_ == FlowSignal::RETURN)
+        flowSignal_ = FlowSignal::NONE;
+
+    if (func.returns.empty())
+        return seed;
+    auto *val = localEnv.getLocal(func.returns[0]);
+    if (!val)
+        val = localEnv.get(func.returns[0]);
+    return val ? std::move(*val) : seed;
 }
 
 // ============================================================

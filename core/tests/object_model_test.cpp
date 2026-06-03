@@ -783,6 +783,83 @@ INSTANTIATE_TEST_SUITE_P(Backends, ObjectArrayTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ============================================================
+// User classdef (Phase 1: value class) — parse + adapter to BuiltinClass.
+// The whole object model (construct / props / methods / value-semantics)
+// rides the existing dispatch; classdef just feeds the registry.
+// ============================================================
+class ClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Pt\n"
+            "  properties\n"
+            "    x = 0\n"
+            "    y = 0\n"
+            "  end\n"
+            "  methods\n"
+            "    function obj = Pt(a, b)\n"
+            "      obj.x = a;\n"
+            "      obj.y = b;\n"
+            "    end\n"
+            "    function d = mag(obj)\n"
+            "      d = sqrt(obj.x^2 + obj.y^2);\n"
+            "    end\n"
+            "    function obj = scale(obj, f)\n"
+            "      obj.x = obj.x * f;\n"
+            "      obj.y = obj.y * f;\n"
+            "    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    std::string evalStr(const std::string &c) { return engine.eval(c).toString(); }
+};
+
+TEST_P(ClassdefTest, ConstructAndProps)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("p = Pt(3, 4); p.x"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("p.y"), 4.0);
+}
+TEST_P(ClassdefTest, ClassName)
+{
+    engine.eval("p = Pt(3, 4);");
+    EXPECT_EQ(evalStr("class(p)"), "Pt");
+}
+TEST_P(ClassdefTest, Method)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("p = Pt(3, 4); p.mag()"), 5.0);
+}
+TEST_P(ClassdefTest, FunctionFormMethod)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("p = Pt(3, 4); mag(p)"), 5.0);
+}
+TEST_P(ClassdefTest, MethodReturningObjectValueSemantics)
+{
+    engine.eval("p = Pt(3, 4); q = p.scale(2);");
+    EXPECT_DOUBLE_EQ(evalScalar("q.x"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q.y"), 8.0);
+    EXPECT_DOUBLE_EQ(evalScalar("p.x"), 3.0) << "value class — original unchanged";
+}
+TEST_P(ClassdefTest, PropertySet)
+{
+    engine.eval("p = Pt(3, 4); p.x = 10;");
+    EXPECT_DOUBLE_EQ(evalScalar("p.x"), 10.0);
+}
+TEST_P(ClassdefTest, ValueCopyIsIndependent)
+{
+    engine.eval("p = Pt(3, 4); q = p; p.x = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("q.x"), 3.0) << "value class — copy independent";
+    EXPECT_DOUBLE_EQ(evalScalar("p.x"), 99.0);
+}
+INSTANTIATE_TEST_SUITE_P(Backends, ClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // Object-array display goes through Engine::formatObjectDisplay (shared by
 // both engines), so test it directly on a C++-built array.
 TEST(ObjectArrayDisplay, ArrayHeaderAndProps)

@@ -71,6 +71,7 @@ private:
     ASTNodePtr parseWhile();
     ASTNodePtr parseSwitch();
     ASTNodePtr parseFunctionDef();
+    ASTNodePtr parseClassDef();
     ASTNodePtr parseTryCatch();
     ASTNodePtr parseGlobalPersistent();
     ASTNodePtr parseBlock(std::initializer_list<TokenType> terminators);

@@ -343,6 +343,140 @@ void Engine::objectStoreSlice(Value &dst, const std::vector<std::vector<size_t>>
         dst.objectAssignND(perDim, val, fill, resource());
 }
 
+// ── classdef → BuiltinClass adapter ──────────────────────────
+namespace {
+// Descriptor captured by the synthesised BuiltinClass hooks; kept alive by
+// the std::functions stored in the class registry.
+struct ClassDefDesc
+{
+    std::string name;
+    bool isHandle = false;
+    std::vector<std::string> propNames;
+    std::vector<Value> propDefaults;                                 // ∥ propNames
+    std::shared_ptr<UserFunction> ctor;                              // null if none
+    std::unordered_map<std::string, std::shared_ptr<UserFunction>> methods;
+};
+} // namespace
+
+void Engine::registerClassDef(const ASTNode *cd)
+{
+    if (!cd || cd->type != NodeType::CLASSDEF_DEF || cd->strValue.empty())
+        return;
+    if (findClass(cd->strValue))
+        return; // idempotent — already registered this session
+
+    auto desc = std::make_shared<ClassDefDesc>();
+    desc->name = cd->strValue;
+    for (const auto &super : cd->paramNames)
+        if (super == "handle")
+            desc->isHandle = true;
+
+    for (const auto &childPtr : cd->children) {
+        const ASTNode *child = childPtr.get();
+        if (child->type == NodeType::CLASSDEF_PROPERTY) {
+            desc->propNames.push_back(child->strValue);
+            Value def = Value::Empty;
+            if (!child->children.empty() && treeWalker_)
+                def = treeWalker_->evalExpressionPublic(child->children[0].get(),
+                                                        &constantsEnv());
+            desc->propDefaults.push_back(def);
+        } else if (child->type == NodeType::FUNCTION_DEF) {
+            auto uf = std::make_shared<UserFunction>();
+            uf->name = desc->name + ">" + child->strValue;
+            uf->params = child->paramNames;
+            uf->returns = child->returnNames;
+            uf->body = std::shared_ptr<const ASTNode>(cloneNode(child->children[0].get()));
+            uf->closureEnv = nullptr;
+            if (child->strValue == desc->name)
+                desc->ctor = uf; // constructor: method named like the class
+            else
+                desc->methods[child->strValue] = uf;
+        }
+    }
+
+    BuiltinClass cls;
+    cls.name = desc->name;
+    cls.isHandle = desc->isHandle;
+    cls.propNames = desc->propNames;
+    cls.propGet = [](const Value &self, const std::string &name, Value &out,
+                     CallContext &) -> bool {
+        const auto *st = self.objectStateConst();
+        if (!st)
+            return false;
+        auto it = st->props.find(name);
+        if (it == st->props.end())
+            return false;
+        out = it->second;
+        return true;
+    };
+    cls.propSet = [](Value &self, const std::string &name, const Value &val,
+                     CallContext &) -> bool {
+        self.objectStateMut()->props[name] = val;
+        return true;
+    };
+    cls.construct = [desc](Span<const Value> args, CallContext &ctx) -> Value {
+        auto *mr = ctx.engine->resource();
+        auto st = std::make_shared<ObjectState>(mr);
+        for (size_t i = 0; i < desc->propNames.size(); ++i)
+            st->props.emplace(desc->propNames[i], desc->propDefaults[i]);
+        Value obj = Value::object(desc->name, st, desc->isHandle, mr);
+        if (desc->ctor)
+            obj = ctx.engine->invokeClassCtor(*desc->ctor, obj, args);
+        return obj;
+    };
+    for (const auto &[mname, uf] : desc->methods) {
+        auto ufCopy = uf; // shared_ptr keeps the body alive
+        cls.methods[mname] = [ufCopy](Value &self, Span<const Value> args, size_t nargout,
+                                      Span<Value> outs, CallContext &ctx) {
+            std::vector<Value> callArgs;
+            callArgs.reserve(args.size() + 1);
+            callArgs.push_back(self); // MATLAB: obj is the first parameter
+            for (const auto &a : args)
+                callArgs.push_back(a);
+            const size_t nout = std::max<size_t>(nargout, 1);
+            auto results = ctx.engine->invokeClassMethod(
+                *ufCopy, Span<const Value>(callArgs.data(), callArgs.size()), nout);
+            // Always produce at least one output (the `ans`/expression value
+            // when called with nargout==0), bounded by the outs span.
+            const size_t writeN = std::min(nout, results.size());
+            for (size_t i = 0; i < writeN && i < outs.size(); ++i)
+                outs[i] = std::move(results[i]);
+        };
+    }
+    cls.dispText = [desc](const Value &self) -> std::string {
+        std::string body = "  " + desc->name + " with properties:\n\n";
+        const auto *st = self.objectStateConst();
+        for (const auto &pn : desc->propNames) {
+            body += "    " + pn;
+            if (st) {
+                auto it = st->props.find(pn);
+                if (it != st->props.end() && it->second.isScalar()
+                    && it->second.type() == ValueType::DOUBLE)
+                    body += ": " + std::to_string(it->second.toScalar());
+            }
+            body += "\n";
+        }
+        return body;
+    };
+    registerClass(std::move(cls));
+}
+
+std::vector<Value> Engine::invokeClassMethod(const UserFunction &uf, Span<const Value> args,
+                                             size_t nout)
+{
+    if (treeWalker_)
+        return treeWalker_->runClassMethod(uf, args, nout);
+    throw std::runtime_error("classdef methods require the interpreter backend");
+}
+
+Value Engine::invokeClassCtor(const UserFunction &ctor, const Value &seed,
+                              Span<const Value> args)
+{
+    if (treeWalker_)
+        return treeWalker_->runClassCtor(ctor, seed, args);
+    throw std::runtime_error("classdef constructor requires the interpreter backend");
+}
+
 void Engine::registerFunction(const std::string &ns,
                               const std::string &name,
                               ExternalFunc func)
