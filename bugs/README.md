@@ -120,11 +120,11 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (43 entries):** ✅ 5 fixed · 🔴 38 open = **12 bug** + 7 stub +
+**Tally (43 entries):** ✅ 7 fixed · 🔴 36 open = **10 bug** + 7 stub +
 5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (5)
+### ✅ FIXED (7)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
@@ -132,9 +132,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | bug | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | cepstrum garbage on non-2ⁿ + rceps 2nd output (9fcf6872) |
 | bug | [signal/besself-digital](signal/besself-digital.md) | P1 | ran digital path → binomial garbage |
 | bug | [builtin/max-all-linear](builtin/max-all-linear.md) | P1 | max/min(A,[],'all') was entirely broken |
+| bug | [stats/combnk-scalar](stats/combnk-scalar.md) | P3 | scalar v is the 1-element set {v}; K>N → empty 0×K (c179) |
+| bug | [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | matrix columns-as-groups input form (c179) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 12
+### 🔴 OPEN — bug (defect on an implemented function) — 10
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -142,12 +144,10 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | wrong numerator for repeated poles |
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | non-2ⁿ phase wrong (rcunwrap) + missing `nd` |
-| [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points |
+| [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | p-value/cv wrong (kstest + kstest2; stat OK) |
 | [stats/dwtest-pvalue](stats/dwtest-pvalue.md) | P2 | DW stat OK, p-value method differs |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
-| [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | matrix (column-per-group) form throws |
-| [stats/combnk-scalar](stats/combnk-scalar.md) | P3 | scalar arg expanded to 1:N |
 | [builtin/unique-last](builtin/unique-last.md) | P1 | 'last' option ignored (ia = first occurrence) |
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
 

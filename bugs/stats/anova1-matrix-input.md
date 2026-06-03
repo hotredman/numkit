@@ -1,9 +1,13 @@
 # stats.anova1 — matrix input form unsupported
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-03, lib-dev cycle c179)
 - **Severity:** P2 (missing input form)
 - **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
+- **Fix:** `anova1_reg` detects a matrix first arg (`rows>1 && cols>1`),
+  stacks the columns into `(y, group)` with `group` = 1-based column index,
+  then runs the existing one-way ANOVA (NaNs dropped by `bucket()`). Verified
+  p, SS, F vs MATLAB. Guard: `libs/stats/tests/anova1_test.cpp`.
 
 ## Symptom
 MATLAB `anova1(X)` accepts a **matrix** whose columns are the groups.

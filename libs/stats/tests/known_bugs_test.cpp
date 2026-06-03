@@ -19,12 +19,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// bugs/stats/anova1-matrix-input.md — column-per-group matrix form.
-TEST_F(StatsKnownBug, DISABLED_Anova1MatrixInput)
-{
-    eval("p = anova1([1 2 3; 2 3 4; 3 4 5]);");
-    EXPECT_NEAR(evalScalar("p"), 0.125000, 1e-5);
-}
+// NOTE: anova1 matrix-input bug FIXED — see libs/stats/tests/anova1_test.cpp.
 
 // bugs/stats/mle-output.md — 2nd output pci (confidence intervals).
 TEST_F(StatsKnownBug, DISABLED_MleConfidenceIntervals)
@@ -107,8 +102,4 @@ TEST_F(StatsKnownBug, DISABLED_MahalSingular)
     EXPECT_NEAR(evalScalar("d(1)"), 0.9505075, 1e-5);
 }
 
-// bugs/stats/combnk-scalar.md — scalar first arg is a 1-element set.
-TEST_F(StatsKnownBug, DISABLED_CombnkScalar)
-{
-    EXPECT_EQ(static_cast<int>(evalScalar("size(combnk(5,2),1)")), 0);  // numkit: 10
-}
+// NOTE: combnk scalar-set bug FIXED — see libs/stats/tests/combnk_test.cpp.

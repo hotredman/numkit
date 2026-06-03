@@ -1,9 +1,13 @@
 # stats.combnk — scalar first arg expanded to 1:N instead of a 1-element set
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-03, lib-dev cycle c179)
 - **Severity:** P3 (edge-case input)
 - **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE (stats coverage)
+- **Fix:** `combnk_reg` always routes through the set (vector) path, so a
+  scalar `v` is the 1-element set `{v}`. `combnkImpl` now returns an empty
+  `0×K` for `K > N` instead of throwing (matches MATLAB). Guard:
+  `libs/stats/tests/combnk_test.cpp`.
 
 ## Symptom
 `combnk(N, k)` with a SCALAR `N`: numkit treats it as `combnk(1:N, k)`;
