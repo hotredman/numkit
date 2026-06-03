@@ -32,6 +32,15 @@ import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
 import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange } from './plotUtils';
 import { niceTicks, logTicks, applyTickFormat, fmtTick } from './plotTicks';
 import { decimateSeries, buildPyramid, decimateLOD } from './decimate';
+import GLChart from './glplot/GLChart';
+import { isWebGL2Available } from './glplot/glcontext';
+import { makeProjection } from './glplot/projection';
+import { selectGLSeries } from './glplot/route';
+
+// Route a line/stairs layer to the WebGL overlay once it has more than this
+// many points (and the full data lives in JS — downsampled previews stay on
+// the existing path until the binary-transport layer feeds the GPU).
+const GL_MIN_POINTS = 50000;
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -1567,6 +1576,25 @@ export default function CompositePlot({
   }));
   const cbarGradId = `cbar-${figure.id}-${Math.round(width)}`;
 
+  // ── WebGL fast-path (feature-flagged, off by default) ──────────────
+  // Route large, full-data line/stairs layers to a WebGL canvas overlay so
+  // they render and pan/zoom at any point count. Flip via localStorage
+  // 'numkit.plot.gl' = '1'. Downsampled (>1M engine-preview) + comet series
+  // stay on the existing path. Packing is memoized on the data (not viewport).
+  const glEnabled = typeof localStorage !== 'undefined'
+    && localStorage.getItem('numkit.plot.gl') === '1';
+  const glState = useMemo(() => (
+    (glEnabled && isWebGL2Available())
+      ? selectGLSeries(figure.layers, GL_MIN_POINTS)
+      : { routed: new Set(), series: [] }
+  ), [figure.layers, glEnabled]);
+  const glActive = glState.series.length > 0;
+  const glProj = useMemo(() => makeProjection({
+    xMin, xMax, yMin, yMax, xLog: xLogActive, yLog: yLogActive, xRev, yRev,
+  }), [xMin, xMax, yMin, yMax, xLogActive, yLogActive, xRev, yRev]);
+  const glPlotRect = { x: padL, y: padT, w: W, h: H };
+  const glDpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+
   return (
     <>
     {ctxMenu && (
@@ -1578,6 +1606,9 @@ export default function CompositePlot({
         preview · downsampled from {hFullRows}×{hFullCols}
       </div>
     )}
+    <div style={glActive
+        ? { position: 'relative', width: '100%', height: '100%' }
+        : { display: 'contents' }}>
     <svg
       ref={svgRef}
       width="100%" height="100%"
@@ -1791,6 +1822,7 @@ export default function CompositePlot({
       {(seriesLayers.length > 0 || textLayers.length > 0) && (
         <g clipPath={`url(#${clipId})`}>
           {layers.map((ly, idx) => {
+            if (glState.routed.has(idx)) return null;          // drawn on the WebGL overlay
             if (ly.kind === 'heatmap') return null;            // image already drawn above
             if (ly.kind === 'series') {
               const mode = ly.mode || 'line';
@@ -2378,6 +2410,11 @@ export default function CompositePlot({
         </g>
       )}
     </svg>
+    {glActive && (
+      <GLChart series={glState.series} proj={glProj} plotRect={glPlotRect}
+        width={width} height={height} dpr={glDpr} />
+    )}
+    </div>
     </>
   );
 }
