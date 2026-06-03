@@ -64,6 +64,21 @@ VM::VM(Engine &engine)
     regStack_.resize(kRegStackSize);
 }
 
+// Single source of truth for inline-builtin id → name. Must track the unary
+// (0-15) and binary (20-25) ids in Compiler::resolveBuiltinId; holes (16-19)
+// are nullptr. Shared by describeInstruction (error text) and execCallBuiltin
+// (generic external fallback) so the two can never drift out of sync.
+static const char *builtinIdName(int bid)
+{
+    static const char *kNames[] = {
+        "abs",   "floor", "ceil",  "round", "fix",   "sqrt",  "exp",   "log",
+        "log2",  "log10", "sin",   "cos",   "tan",   "sign",  "isnan", "isinf",
+        nullptr, nullptr, nullptr, nullptr, "mod",   "rem",   "max",   "min",
+        "pow",   "atan2",
+    };
+    constexpr int n = static_cast<int>(sizeof(kNames) / sizeof(kNames[0]));
+    return (bid >= 0 && bid < n) ? kNames[bid] : nullptr;
+}
 
 // Fast scalar check for VM arithmetic — accepts double scalars AND logical scalar tags
 static inline bool isArithScalar(const Value &v)
@@ -2393,16 +2408,8 @@ static std::string describeInstruction(const Instruction &instr,
         return "in function call";
     }
     case OpCode::CALL_BUILTIN: {
-        static const char *bn[] = {
-            "abs",  "floor", "ceil", "round", "fix",  "sqrt", "exp",  "log",
-            "log2", "log10", "sin",  "cos",   "tan",  "sign", "isnan","isinf",
-            nullptr,nullptr, nullptr,nullptr,  "mod",  "rem",  "max",  "min",
-            "pow",  "atan2"
-        };
-        int16_t bid = instr.d;
-        if (bid >= 0 && bid < 26 && bn[bid])
-            return std::string("in call to '") + bn[bid] + "'";
-        return "in builtin call";
+        const char *nm = builtinIdName(instr.d);
+        return nm ? std::string("in call to '") + nm + "'" : "in builtin call";
     }
     case OpCode::CALL_INDIRECT:
         return "in function call";
@@ -3223,12 +3230,7 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
     }
 
     // Generic fallback via externalFuncs_
-    static const char *bn[] = {"abs",   "floor", "ceil",  "round", "fix",   "sqrt",
-                               "exp",   "log",   "log2",  "log10", "sin",   "cos",
-                               "tan",   "sign",  "isnan", "isinf", nullptr, nullptr,
-                               nullptr, nullptr, "mod",   "rem",   "max",   "min",
-                               "pow",   "atan2"};
-    const char *fname = (bid >= 0 && bid < 26) ? bn[bid] : nullptr;
+    const char *fname = builtinIdName(bid);
     if (fname) {
         const ExternalFunc *fnPtr = engine_.findExternal(
             fname, currentCallEnv());
