@@ -24,6 +24,7 @@
 // "MATLAB Lo_D" and reverses it to obtain MATLAB Lo_R, matching the
 // rest of MATLAB's documented output.
 
+#include <numkit/wavelet/filter/families.hpp>
 #include <numkit/wavelet/filter/wfilters.hpp>
 
 #include <numkit/core/engine.hpp>
@@ -71,55 +72,34 @@ std::string argName(const Value &v, const char *fn)
 
 } // anonymous
 
-namespace detail {
+// ── Public C++ API (see filter/families.hpp) ──────────────────────────
 
-void dbwavf_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
+Value dbwavf(const std::string &name, std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("dbwavf: requires the wavelet name (e.g. 'db4')",
-                    0, 0, "dbwavf", "", "numkit:dbwavf:nargin");
-    const std::string name = argName(args[0], "dbwavf");
     if (name.rfind("db", 0) != 0 && name != "haar")
         throw Error("dbwavf: name must be 'haar' or 'dbN' (got '" + name + "')",
                     0, 0, "dbwavf", "", "numkit:dbwavf:name");
-    outs[0] = family_scaling(ctx.engine->resource(), name);
+    return family_scaling(mr, name);
 }
 
-void coifwavf_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
+Value coifwavf(const std::string &name, std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("coifwavf: requires the wavelet name (e.g. 'coif1')",
-                    0, 0, "coifwavf", "", "numkit:coifwavf:nargin");
-    const std::string name = argName(args[0], "coifwavf");
     if (name.rfind("coif", 0) != 0)
         throw Error("coifwavf: name must be 'coifK' (got '" + name + "')",
                     0, 0, "coifwavf", "", "numkit:coifwavf:name");
-    outs[0] = family_scaling(ctx.engine->resource(), name);
+    return family_scaling(mr, name);
 }
 
-void symwavf_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
+Value symwavf(const std::string &name, std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("symwavf: requires the wavelet name (e.g. 'sym4')",
-                    0, 0, "symwavf", "", "numkit:symwavf:nargin");
-    const std::string name = argName(args[0], "symwavf");
     if (name.rfind("sym", 0) != 0)
         throw Error("symwavf: name must be 'symN' (got '" + name + "')",
                     0, 0, "symwavf", "", "numkit:symwavf:name");
-    outs[0] = family_scaling(ctx.engine->resource(), name);
+    return family_scaling(mr, name);
 }
 
-// [Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W)
-void orthfilt_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
+OrthfiltResult orthfilt(const Value &W, std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("orthfilt: requires a scaling filter W",
-                    0, 0, "orthfilt", "", "numkit:orthfilt:nargin");
-    const Value &W = args[0];
     const size_t N = W.numel();
     if (N == 0)
         throw Error("orthfilt: scaling filter must be non-empty",
@@ -137,11 +117,51 @@ void orthfilt_reg(Span<const Value> args, size_t /*nargout*/,
     for (size_t k = 0; k < N; ++k)
         Hi_D[k] = Hi_R[N - 1 - k];
 
-    auto *mr = ctx.engine->resource();
-    if (outs.size() >= 1) outs[0] = rowVec(mr, Lo_D);
-    if (outs.size() >= 2) outs[1] = rowVec(mr, Hi_D);
-    if (outs.size() >= 3) outs[2] = rowVec(mr, Lo_R);
-    if (outs.size() >= 4) outs[3] = rowVec(mr, Hi_R);
+    return { rowVec(mr, Lo_D), rowVec(mr, Hi_D),
+             rowVec(mr, Lo_R), rowVec(mr, Hi_R) };
+}
+
+namespace detail {
+
+void dbwavf_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("dbwavf: requires the wavelet name (e.g. 'db4')",
+                    0, 0, "dbwavf", "", "numkit:dbwavf:nargin");
+    outs[0] = dbwavf(argName(args[0], "dbwavf"), ctx.engine->resource());
+}
+
+void coifwavf_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("coifwavf: requires the wavelet name (e.g. 'coif1')",
+                    0, 0, "coifwavf", "", "numkit:coifwavf:nargin");
+    outs[0] = coifwavf(argName(args[0], "coifwavf"), ctx.engine->resource());
+}
+
+void symwavf_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("symwavf: requires the wavelet name (e.g. 'sym4')",
+                    0, 0, "symwavf", "", "numkit:symwavf:nargin");
+    outs[0] = symwavf(argName(args[0], "symwavf"), ctx.engine->resource());
+}
+
+// [Lo_D, Hi_D, Lo_R, Hi_R] = orthfilt(W)
+void orthfilt_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("orthfilt: requires a scaling filter W",
+                    0, 0, "orthfilt", "", "numkit:orthfilt:nargin");
+    OrthfiltResult r = orthfilt(args[0], ctx.engine->resource());
+    if (outs.size() >= 1) outs[0] = r.Lo_D;
+    if (outs.size() >= 2) outs[1] = r.Hi_D;
+    if (outs.size() >= 3) outs[2] = r.Lo_R;
+    if (outs.size() >= 4) outs[3] = r.Hi_R;
 }
 
 } // namespace detail
