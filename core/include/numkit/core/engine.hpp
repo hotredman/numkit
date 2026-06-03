@@ -96,6 +96,12 @@ public:
     // TreeWalker and every VM INDEX_SET* opcode.
     void objectStoreSlice(Value &dst, const std::vector<std::vector<size_t>> &perDim,
                           const Value &val, Environment *env);
+    // Read counterpart: if `self`'s class defines a custom subsref, dispatch
+    // it with `args` and return true (result in `out`); otherwise return
+    // false so the caller runs the builtin object-array indexing path.
+    // Centralises the subsref check + call shared by the VM index opcodes.
+    bool tryObjectSubsref(Value &self, Span<const Value> args, std::size_t nargout,
+                          Value &out, Environment *env);
 
     // ── Namespace introspection (used by resolver — Phase 6) ──────
 

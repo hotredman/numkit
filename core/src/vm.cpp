@@ -58,10 +58,6 @@ static bool tryInPlaceBinaryOp(Value &dst, OpCode op,
     }
 }
 
-// ============================================================
-// Shared helper: resolve an index operand to 0-based indices
-// ============================================================
-
 VM::VM(Engine &engine)
     : engine_(engine)
 {
@@ -89,6 +85,20 @@ static inline size_t checkedIndex(double idx, size_t numel)
         throw std::runtime_error("Index " + std::to_string((size_t) idx) + " exceeds array size "
                                  + std::to_string(numel));
     return i;
+}
+
+// Resolve one assignment subscript to 0-based indices for an object-array
+// slice store: ':' expands to the whole current dimension; everything else
+// (scalar / range / vector / logical) is grow-friendly (unchecked).
+static std::vector<size_t> resolveStoreSubscript(const Value &s, size_t curDim)
+{
+    if (s.isChar() && s.numel() == 1 && s.charData()[0] == ':') {
+        std::vector<size_t> out(curDim);
+        for (size_t i = 0; i < curDim; ++i)
+            out[i] = i;
+        return out;
+    }
+    return Value::resolveIndicesUnchecked(s);
 }
 
 // ============================================================
@@ -764,14 +774,11 @@ enter_frame:
                 const Value &ix = R[I.c];
                 // OBJECT: obj(i) dispatches to the class subsref overload.
                 if (mv.isObject()) {
-                    const BuiltinClass *cls = engine_.findClass(mv.objectClassName());
-                    if (cls && cls->subsref) {
-                        Value idxArgs[1] = {ix};
-                        Value out[1];
-                        CallContext ctx{&engine_, currentCallEnv()};
-                        cls->subsref(R[I.b], Span<const Value>(idxArgs, 1), 1,
-                                     Span<Value>(out, 1), ctx);
-                        R[I.a] = std::move(out[0]);
+                    Value idxArgs[1] = {ix};
+                    Value out;
+                    if (engine_.tryObjectSubsref(R[I.b], Span<const Value>(idxArgs, 1), 1,
+                                                 out, currentCallEnv())) {
+                        R[I.a] = std::move(out);
                         break;
                     }
                     // No custom subsref → builtin object-array indexing.
@@ -804,14 +811,11 @@ enter_frame:
                 // OBJECT: a custom subsref controls indexing; otherwise the
                 // builtin 2-D path below (indexGet2D) handles object arrays.
                 if (mv.isObject()) {
-                    const BuiltinClass *cls = engine_.findClass(mv.objectClassName());
-                    if (cls && cls->subsref) {
-                        Value idxArgs[2] = {R[I.c], R[I.e]};
-                        Value out[1];
-                        CallContext ctx{&engine_, currentCallEnv()};
-                        cls->subsref(R[I.b], Span<const Value>(idxArgs, 2), 1,
-                                     Span<Value>(out, 1), ctx);
-                        R[I.a] = std::move(out[0]);
+                    Value idxArgs[2] = {R[I.c], R[I.e]};
+                    Value out;
+                    if (engine_.tryObjectSubsref(R[I.b], Span<const Value>(idxArgs, 2), 1,
+                                                 out, currentCallEnv())) {
+                        R[I.a] = std::move(out);
                         break;
                     }
                 }
@@ -858,12 +862,8 @@ enter_frame:
                         && dst.objectClassName() == R[I.c].objectClassName();
                     if (newable || sameArr) {
                         // Linear slice: scalar / range / vector / logical / `:`.
-                        std::vector<size_t> pos;
-                        if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':')
-                            for (size_t i = 0; i < dst.objectCount(); ++i)
-                                pos.push_back(i);
-                        else
-                            pos = Value::resolveIndicesUnchecked(ix);
+                        std::vector<size_t> pos =
+                            resolveStoreSubscript(ix, dst.objectCount());
                         engine_.objectStoreSlice(dst, {pos}, R[I.c], currentCallEnv());
                         break;
                     }
@@ -986,18 +986,9 @@ enter_frame:
                         dst.isObject()
                         && dst.objectClassName() == val.objectClassName();
                     if (newable || sameArr) {
-                        auto resolveDim = [](const Value &s, size_t curDim) {
-                            std::vector<size_t> out;
-                            if (s.isChar() && s.numel() == 1 && s.charData()[0] == ':')
-                                for (size_t i = 0; i < curDim; ++i)
-                                    out.push_back(i);
-                            else
-                                out = Value::resolveIndicesUnchecked(s);
-                            return out;
-                        };
                         std::vector<std::vector<size_t>> perDim = {
-                            resolveDim(ri, dst.isObject() ? dst.dims().rows() : 0),
-                            resolveDim(ci, dst.isObject() ? dst.dims().cols() : 0)};
+                            resolveStoreSubscript(ri, dst.isObject() ? dst.dims().rows() : 0),
+                            resolveStoreSubscript(ci, dst.isObject() ? dst.dims().cols() : 0)};
                         engine_.objectStoreSlice(dst, perDim, val, currentCallEnv());
                         break;
                     }
@@ -1054,16 +1045,13 @@ enter_frame:
                 // OBJECT: a custom subsref controls indexing; otherwise the
                 // builtin N-D path below (indexGet3D/indexGetND) handles it.
                 if (mv.isObject()) {
-                    const BuiltinClass *cls = engine_.findClass(mv.objectClassName());
-                    if (cls && cls->subsref) {
-                        std::vector<Value> idx(ndims);
-                        for (uint8_t i = 0; i < ndims; ++i)
-                            idx[i] = R[base + i];
-                        Value out[1];
-                        CallContext ctx{&engine_, currentCallEnv()};
-                        cls->subsref(R[I.b], Span<const Value>(idx.data(), ndims), 1,
-                                     Span<Value>(out, 1), ctx);
-                        R[I.a] = std::move(out[0]);
+                    std::vector<Value> idx(ndims);
+                    for (uint8_t i = 0; i < ndims; ++i)
+                        idx[i] = R[base + i];
+                    Value out;
+                    if (engine_.tryObjectSubsref(R[I.b], Span<const Value>(idx.data(), ndims),
+                                                 1, out, currentCallEnv())) {
+                        R[I.a] = std::move(out);
                         break;
                     }
                 }
@@ -1107,16 +1095,11 @@ enter_frame:
                     if (newable || sameArr) {
                         std::vector<std::vector<size_t>> perDim(ndims);
                         for (uint8_t i = 0; i < ndims; ++i) {
-                            const Value &s = R[base + i];
                             size_t curDim =
                                 dst.isObject()
                                     ? (i < dst.dims().ndim() ? dst.dims().dim(i) : 1)
                                     : 0;
-                            if (s.isChar() && s.numel() == 1 && s.charData()[0] == ':')
-                                for (size_t j = 0; j < curDim; ++j)
-                                    perDim[i].push_back(j);
-                            else
-                                perDim[i] = Value::resolveIndicesUnchecked(s);
+                            perDim[i] = resolveStoreSubscript(R[base + i], curDim);
                         }
                         engine_.objectStoreSlice(dst, perDim, val, currentCallEnv());
                         break;
@@ -2842,17 +2825,16 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
         // OBJECT: obj(i…) dispatches to the class subsref overload.
         // (A known variable `obj(i)` compiles to CALL_INDIRECT, so the
         // object subsref hook is needed here too, not just in INDEX_GET.)
-        const BuiltinClass *cls = engine_.findClass(R[fhReg].objectClassName());
-        if (cls && cls->subsref) {
+        {
             std::vector<Value> idx(na);
             for (uint8_t i = 0; i < na; ++i)
                 idx[i] = R[argBase + i];
-            Value out[1];
-            CallContext ctx{&engine_, currentCallEnv()};
-            cls->subsref(R[fhReg], Span<const Value>(idx.data(), na), 1,
-                         Span<Value>(out, 1), ctx);
-            R[I.a] = std::move(out[0]);
-            return false;
+            Value out;
+            if (engine_.tryObjectSubsref(R[fhReg], Span<const Value>(idx.data(), na), 1,
+                                         out, currentCallEnv())) {
+                R[I.a] = std::move(out);
+                return false;
+            }
         }
         // No custom subsref → builtin object-array indexing (1-D / 2-D /
         // N-D), routed through the OBJECT-aware Value index methods.
