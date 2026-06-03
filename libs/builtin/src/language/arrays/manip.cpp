@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 namespace numkit::builtin {
 
@@ -1175,6 +1176,117 @@ Value resize(const Value &v, size_t n, std::pmr::memory_resource *mr)
     return (v.numel() < n) ? paddata(v, n, mr) : trimdata(v, n, mr);
 }
 
+// ── sub2ind / ind2sub (see manip.hpp) ─────────────────────────────────
+
+Value sub2ind(const Value &siz, Span<const Value> subs,
+              std::pmr::memory_resource *mr)
+{
+    const size_t nDims = siz.numel();
+    if (nDims == 0)
+        throw Error("sub2ind: siz must not be empty",
+                     0, 0, "sub2ind", "", "numkit:sub2ind:badSiz");
+    if (subs.empty())
+        throw Error("sub2ind: requires at least 1 subscript",
+                     0, 0, "sub2ind", "", "numkit:sub2ind:nargin");
+
+    ScratchArena scratch(mr);
+    auto dims = ScratchVec<size_t>(nDims, &scratch);
+    for (size_t i = 0; i < nDims; ++i)
+        dims[i] = static_cast<size_t>(siz.doubleData()[i]);
+
+    const size_t nSubs = subs.size();
+    if (nSubs > nDims)
+        throw Error("sub2ind: too many subscript arrays for given siz",
+                     0, 0, "sub2ind", "", "numkit:sub2ind:tooManySubs");
+
+    // All sub arrays must agree on shape; result inherits that shape.
+    const Value &shapeRef = subs[0];
+    const size_t outN = shapeRef.numel();
+    for (size_t a = 0; a < nSubs; ++a)
+        if (subs[a].numel() != outN)
+            throw Error("sub2ind: subscript arrays must be the same size",
+                         0, 0, "sub2ind", "", "numkit:sub2ind:shape");
+
+    auto r = (shapeRef.isScalar())
+                ? Value::scalar(0.0, mr)
+                : Value::matrix(shapeRef.dims().rows(), shapeRef.dims().cols(),
+                                ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    // Strides for column-major: stride[0]=1, stride[1]=dim0, stride[2]=dim0*dim1.
+    auto strideOfDim = [&](size_t d) {
+        size_t s = 1;
+        for (size_t i = 0; i < d && i < nDims; ++i) s *= dims[i];
+        return s;
+    };
+    for (size_t k = 0; k < outN; ++k) {
+        size_t lin = 0;
+        for (size_t d = 0; d < nSubs; ++d) {
+            const double sd = subs[d].isScalar() ? subs[d].toScalar()
+                                                 : subs[d].doubleData()[k];
+            const size_t idx = static_cast<size_t>(sd) - 1;  // 1-based → 0-based
+            lin += idx * strideOfDim(d);
+        }
+        dst[k] = static_cast<double>(lin + 1);  // back to 1-based
+    }
+    return r;
+}
+
+std::vector<Value> ind2sub(const Value &siz, const Value &ind, size_t nout,
+                           std::pmr::memory_resource *mr)
+{
+    const size_t nDims = siz.numel();
+    if (nDims == 0)
+        throw Error("ind2sub: siz must not be empty",
+                     0, 0, "ind2sub", "", "numkit:ind2sub:badSiz");
+
+    ScratchArena scratch(mr);
+    auto dims = ScratchVec<size_t>(nDims, &scratch);
+    for (size_t i = 0; i < nDims; ++i)
+        dims[i] = static_cast<size_t>(siz.doubleData()[i]);
+
+    const size_t outDims = (nout == 0) ? nDims : nout;
+    const size_t outN = ind.numel();
+
+    // Build effective dim list: outDims entries. The first outDims-1
+    // match siz; the last absorbs the product of remaining dims.
+    auto effDim = [&](size_t d) -> size_t {
+        if (d + 1 < outDims) return d < nDims ? dims[d] : 1;
+        size_t r = 1;
+        for (size_t i = d; i < nDims; ++i) r *= dims[i];
+        return r ? r : 1;
+    };
+    ScratchVec<size_t> stride(outDims, &scratch);
+    {
+        size_t s = 1;
+        for (size_t d = 0; d < outDims; ++d) {
+            stride[d] = s;
+            s *= effDim(d);
+        }
+    }
+
+    auto makeLike = [&]() {
+        return ind.isScalar()
+                   ? Value::scalar(0.0, mr)
+                   : Value::matrix(ind.dims().rows(), ind.dims().cols(),
+                                   ValueType::DOUBLE, mr);
+    };
+    std::vector<Value> rs;
+    rs.reserve(outDims);
+    for (size_t i = 0; i < outDims; ++i) rs.emplace_back(makeLike());
+
+    for (size_t k = 0; k < outN; ++k) {
+        const double iv = ind.isScalar() ? ind.toScalar() : ind.doubleData()[k];
+        size_t lin = static_cast<size_t>(iv) - 1;
+        for (size_t d = 0; d < outDims; ++d) {
+            const size_t v = (d + 1 < outDims)
+                                 ? (lin / stride[d]) % effDim(d)
+                                 : (lin / stride[d]);
+            rs[d].doubleDataMut()[k] = static_cast<double>(v + 1);
+        }
+    }
+    return rs;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -1358,56 +1470,7 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("sub2ind: requires siz and at least 1 subscript",
                      0, 0, "sub2ind", "", "numkit:sub2ind:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &siz = args[0];
-    const size_t nDims = siz.numel();
-    if (nDims == 0)
-        throw Error("sub2ind: siz must not be empty",
-                     0, 0, "sub2ind", "", "numkit:sub2ind:badSiz");
-
-    ScratchArena scratch(mr);
-    auto dims = ScratchVec<size_t>(nDims, &scratch);
-    for (size_t i = 0; i < nDims; ++i)
-        dims[i] = static_cast<size_t>(siz.doubleData()[i]);
-
-    // Subscript args. Pad missing higher-dim subs with 1.
-    const size_t nSubs = args.size() - 1;
-    if (nSubs > nDims)
-        throw Error("sub2ind: too many subscript arrays for given siz",
-                     0, 0, "sub2ind", "", "numkit:sub2ind:tooManySubs");
-
-    // All sub arrays must agree on shape; result inherits that shape.
-    const Value &shapeRef = args[1];
-    const size_t outN = shapeRef.numel();
-    for (size_t a = 1; a < args.size(); ++a) {
-        if (args[a].numel() != outN)
-            throw Error("sub2ind: subscript arrays must be the same size",
-                         0, 0, "sub2ind", "", "numkit:sub2ind:shape");
-    }
-
-    auto r = (shapeRef.isScalar())
-                ? Value::scalar(0.0, mr)
-                : Value::matrix(shapeRef.dims().rows(), shapeRef.dims().cols(),
-                                ValueType::DOUBLE, mr);
-    double *dst = r.doubleDataMut();
-    // Strides for column-major: stride[0]=1, stride[1]=dim0, stride[2]=dim0*dim1.
-    auto strideOfDim = [&](size_t d) {
-        size_t s = 1;
-        for (size_t i = 0; i < d && i < nDims; ++i) s *= dims[i];
-        return s;
-    };
-    for (size_t k = 0; k < outN; ++k) {
-        size_t lin = 0;
-        for (size_t d = 0; d < nSubs; ++d) {
-            const double sd = args[d + 1].isScalar()
-                                  ? args[d + 1].toScalar()
-                                  : args[d + 1].doubleData()[k];
-            const size_t idx = static_cast<size_t>(sd) - 1;  // 1-based → 0-based
-            lin += idx * strideOfDim(d);
-        }
-        dst[k] = static_cast<double>(lin + 1);  // back to 1-based
-    }
-    outs[0] = std::move(r);
+    outs[0] = sub2ind(args[0], args.subspan(1), ctx.engine->resource());
 }
 
 // paddata / trimdata / resize adapters.
@@ -1437,63 +1500,10 @@ void ind2sub_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.size() < 2)
         throw Error("ind2sub: requires siz and ind",
                      0, 0, "ind2sub", "", "numkit:ind2sub:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &siz = args[0];
-    const Value &ind = args[1];
-    const size_t nDims = siz.numel();
-    if (nDims == 0)
-        throw Error("ind2sub: siz must not be empty",
-                     0, 0, "ind2sub", "", "numkit:ind2sub:badSiz");
-
-    ScratchArena scratch(mr);
-    auto dims = ScratchVec<size_t>(nDims, &scratch);
-    for (size_t i = 0; i < nDims; ++i)
-        dims[i] = static_cast<size_t>(siz.doubleData()[i]);
-
-    const size_t outDims = std::max<size_t>(nargout, 1);
-    const size_t outN = ind.numel();
-
-    // Build effective dim list: outDims entries. The first outDims-1
-    // match siz; the last absorbs the product of remaining dims.
-    auto effDim = [&](size_t d) -> size_t {
-        if (d + 1 < outDims) return d < nDims ? dims[d] : 1;
-        // Last output: absorb everything from d..nDims-1.
-        size_t r = 1;
-        for (size_t i = d; i < nDims; ++i) r *= dims[i];
-        return r ? r : 1;
-    };
-    // Strides from outDims dim list.
-    ScratchVec<size_t> stride(outDims, &scratch);
-    {
-        size_t s = 1;
-        for (size_t d = 0; d < outDims; ++d) {
-            stride[d] = s;
-            s *= effDim(d);
-        }
-    }
-
-    auto makeLike = [&]() {
-        return ind.isScalar()
-                   ? Value::scalar(0.0, mr)
-                   : Value::matrix(ind.dims().rows(), ind.dims().cols(),
-                                   ValueType::DOUBLE, mr);
-    };
-    ScratchVec<Value> rs(&scratch);
-    rs.reserve(outDims);
-    for (size_t i = 0; i < outDims; ++i) rs.emplace_back(makeLike());
-
-    for (size_t k = 0; k < outN; ++k) {
-        const double iv = ind.isScalar() ? ind.toScalar() : ind.doubleData()[k];
-        size_t lin = static_cast<size_t>(iv) - 1;
-        for (size_t d = 0; d < outDims; ++d) {
-            const size_t v = (d + 1 < outDims)
-                                 ? (lin / stride[d]) % effDim(d)
-                                 : (lin / stride[d]);
-            rs[d].doubleDataMut()[k] = static_cast<double>(v + 1);
-        }
-    }
-
-    for (size_t i = 0; i < outDims && i < outs.size(); ++i)
+    std::vector<Value> rs = ind2sub(args[0], args[1],
+                                    std::max<size_t>(nargout, 1),
+                                    ctx.engine->resource());
+    for (size_t i = 0; i < rs.size() && i < outs.size(); ++i)
         outs[i] = std::move(rs[i]);
 }
 
