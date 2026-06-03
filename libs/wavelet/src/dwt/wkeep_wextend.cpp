@@ -2,6 +2,8 @@
 //
 // Vector-form wkeep and wextend (Wavelet Toolbox boundary helpers).
 
+#include <numkit/wavelet/dwt/wkeep_wextend.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
@@ -42,49 +44,26 @@ std::string lower(std::string s)
 
 } // anonymous
 
-namespace detail {
+// ── Public C++ API (see dwt/wkeep_wextend.hpp) ────────────────────────
 
-// y = wkeep(x, n[, OPT])             — 1-D form
-// y = wkeep(x, [R C][, [fr fc]])     — 2-D form (matrix sub-extraction)
-//   OPT == 'c' (default) → centred:   start = floor((N-n)/2) + 1   (1-based)
-//   OPT == 'l'           → first n
-//   OPT == 'r'           → last n
-//   OPT numeric (FIRST)  → x(FIRST : FIRST+n-1)   (1-based start)
-//
-// 2-D: when args[1] has numel()==2, we extract a central [R x C] sub-matrix
-// (default) or an explicit corner [fr fc] when args[2] is a 2-vector.
-//
-// Verified vs MATLAB R2025b:
-//   wkeep(1:10, 4)            → [4 5 6 7]
-//   wkeep(1:10, 4, 'l')       → [1 2 3 4]
-//   wkeep(magic(5), [3 3])    → [5 7 14; 6 13 20; 12 19 21]   (central)
-//   wkeep(magic(5), [3 3], [1 1]) → [17 24 1; 23 5 7; 4 6 13] (top-left)
-//
-// Bug fix 2026-05-08: 2-D form was throwing "Cannot convert double to scalar"
-// because adapter did args[1].toScalar() unconditionally.
-void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
+Value wkeep(const Value &x, const Value &len, const Value &opt,
+            std::pmr::memory_resource *mr)
 {
-    if (args.size() < 2)
-        throw Error("wkeep: requires (x, n[, OPT]) or (X, [R C][, [fr fc]])",
-                    0, 0, "wkeep", "", "numkit:wkeep:nargin");
-    const Value &x = args[0];
-    auto *mr = ctx.engine->resource();
     size_t rows, cols;
     readShape(x, rows, cols);
 
-    // Detect 2-D form: args[1] is a 2-element vector.
-    if (args[1].numel() == 2) {
-        const long long R = static_cast<long long>(args[1].elemAsDouble(0));
-        const long long C = static_cast<long long>(args[1].elemAsDouble(1));
+    // 2-D form: `len` is a 2-element vector → extract an R×C sub-matrix.
+    if (len.numel() == 2) {
+        const long long R = static_cast<long long>(len.elemAsDouble(0));
+        const long long C = static_cast<long long>(len.elemAsDouble(1));
         if (R < 0 || C < 0 ||
             static_cast<size_t>(R) > rows || static_cast<size_t>(C) > cols)
             throw Error("wkeep: requested [R C] out of bounds",
                         0, 0, "wkeep", "", "numkit:wkeep:range");
         long long fr1, fc1;  // 1-based corners
-        if (args.size() >= 3 && args[2].numel() == 2) {
-            fr1 = static_cast<long long>(args[2].elemAsDouble(0));
-            fc1 = static_cast<long long>(args[2].elemAsDouble(1));
+        if (!opt.isEmpty() && opt.numel() == 2) {
+            fr1 = static_cast<long long>(opt.elemAsDouble(0));
+            fc1 = static_cast<long long>(opt.elemAsDouble(1));
         } else {
             // Central — same formula as 1-D: floor((N - n) / 2) + 1.
             fr1 = static_cast<long long>((rows - static_cast<size_t>(R)) / 2) + 1;
@@ -97,9 +76,8 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "wkeep", "", "numkit:wkeep:range");
         Value y = Value::matrix(static_cast<size_t>(R),
                                 static_cast<size_t>(C), ValueType::DOUBLE, mr);
-        if (R == 0 || C == 0) { outs[0] = y; return; }
+        if (R == 0 || C == 0) return y;
         double *yd = y.doubleDataMut();
-        // Column-major copy.
         for (long long c = 0; c < C; ++c) {
             const size_t srcC = static_cast<size_t>(fc1 - 1 + c);
             for (long long r = 0; r < R; ++r) {
@@ -107,20 +85,18 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
                 yd[c * R + r] = x.elemAsDouble(srcC * rows + srcR);
             }
         }
-        outs[0] = y;
-        return;
+        return y;
     }
 
-    // 1-D form (original logic).
+    // 1-D form.
     const size_t N = rows * cols;
-    const long long n = static_cast<long long>(args[1].toScalar());
+    const long long n = static_cast<long long>(len.toScalar());
     if (n < 0 || static_cast<size_t>(n) > N)
         throw Error("wkeep: n must satisfy 0 ≤ n ≤ length(x)",
                     0, 0, "wkeep", "", "numkit:wkeep:n");
 
     long long start1 = 1;                                  // 1-based start
-    if (args.size() >= 3) {
-        const Value &opt = args[2];
+    if (!opt.isEmpty()) {
         if (opt.isChar() || opt.isString()) {
             const std::string s = lower(opt.toString());
             if (s == "c" || s == "central" || s == "centered" || s == "centred")
@@ -147,11 +123,42 @@ void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
     size_t outRows, outCols;
     outShape(col, static_cast<size_t>(n), outRows, outCols);
     Value y = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
-    if (n == 0) { outs[0] = y; return; }
+    if (n == 0) return y;
     double *yd = y.doubleDataMut();
     for (long long k = 0; k < n; ++k)
         yd[k] = x.elemAsDouble(static_cast<size_t>(start1 - 1 + k));
-    outs[0] = y;
+    return y;
+}
+
+namespace detail {
+
+// y = wkeep(x, n[, OPT])             — 1-D form
+// y = wkeep(x, [R C][, [fr fc]])     — 2-D form (matrix sub-extraction)
+//   OPT == 'c' (default) → centred:   start = floor((N-n)/2) + 1   (1-based)
+//   OPT == 'l'           → first n
+//   OPT == 'r'           → last n
+//   OPT numeric (FIRST)  → x(FIRST : FIRST+n-1)   (1-based start)
+//
+// 2-D: when args[1] has numel()==2, we extract a central [R x C] sub-matrix
+// (default) or an explicit corner [fr fc] when args[2] is a 2-vector.
+//
+// Verified vs MATLAB R2025b:
+//   wkeep(1:10, 4)            → [4 5 6 7]
+//   wkeep(1:10, 4, 'l')       → [1 2 3 4]
+//   wkeep(magic(5), [3 3])    → [5 7 14; 6 13 20; 12 19 21]   (central)
+//   wkeep(magic(5), [3 3], [1 1]) → [17 24 1; 23 5 7; 4 6 13] (top-left)
+//
+// Bug fix 2026-05-08: 2-D form was throwing "Cannot convert double to scalar"
+// because adapter did args[1].toScalar() unconditionally.
+void wkeep_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("wkeep: requires (x, n[, OPT]) or (X, [R C][, [fr fc]])",
+                    0, 0, "wkeep", "", "numkit:wkeep:nargin");
+    outs[0] = wkeep(args[0], args[1],
+                    args.size() >= 3 ? args[2] : Value::Empty,
+                    ctx.engine->resource());
 }
 
 // 1-D extension core. Takes a length-N source `xv` and produces an output
@@ -290,34 +297,47 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("wextend: requires (type, mode, x, lf[, side])",
                     0, 0, "wextend", "", "numkit:wextend:nargin");
 
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("wextend: mode must be a character vector",
+                    0, 0, "wextend", "", "numkit:wextend:mode");
+    std::string side = "b";
+    if (args.size() >= 5 && (args[4].isChar() || args[4].isString()))
+        side = args[4].toString();
+    outs[0] = wextend(args[0], args[1].toString(), args[2],
+                      static_cast<long long>(args[3].toScalar()), side,
+                      ctx.engine->resource());
+}
+
+} // namespace detail
+
+// ── Public C++ API: wextend (see dwt/wkeep_wextend.hpp) ───────────────
+// Reuses detail::extend1D (the file-internal 1-D extension core).
+Value wextend(const Value &type, const std::string &modeRaw, const Value &x,
+              long long lf, const std::string &sideRaw,
+              std::pmr::memory_resource *mr)
+{
     // type: 1, 2, 'ar', 'ac'.
-    int dim = 0;          // 0 = 2-D both axes (when type=2)
+    int dim = 0;
     bool extRows = true;
     bool extCols = true;
-    if (args[0].isChar() || args[0].isString()) {
-        const std::string s = lower(args[0].toString());
+    if (type.isChar() || type.isString()) {
+        const std::string s = lower(type.toString());
         if (s == "1") dim = 1;
         else if (s == "2") dim = 2;
-        // MATLAB convention: 'ar' = along row direction = add rows (extend
-        // each column), so cols stay fixed. 'ac' = along col direction =
-        // add cols (extend each row), so rows stay fixed. (Counter-
-        // intuitive naming but matches help wextend.)
         else if (s == "ar") { dim = 2; extRows = true;  extCols = false; }
         else if (s == "ac") { dim = 2; extRows = false; extCols = true; }
         else
             throw Error("wextend: type must be 1, 2, 'ar', or 'ac'",
                         0, 0, "wextend", "", "numkit:wextend:dim");
     } else {
-        const int t = static_cast<int>(args[0].toScalar());
+        const int t = static_cast<int>(type.toScalar());
         if (t != 1 && t != 2)
             throw Error("wextend: type must be 1, 2, 'ar', or 'ac'",
                         0, 0, "wextend", "", "numkit:wextend:dim");
         dim = t;
     }
-    if (!args[1].isChar() && !args[1].isString())
-        throw Error("wextend: mode must be a character vector",
-                    0, 0, "wextend", "", "numkit:wextend:mode");
-    const std::string mode = lower(args[1].toString());
+
+    const std::string mode = lower(modeRaw);
     static const char *kModes[] = {"sym", "symh", "symw",
                                     "asym", "asymh", "asymw",
                                     "sp0", "sp1",
@@ -329,15 +349,13 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
                     "' (supported: sym/symh/symw, asym/asymh/asymw, "
                     "sp0/sp1, per, zpd, ppd)",
                     0, 0, "wextend", "", "numkit:wextend:mode");
-    const Value &x = args[2];
-    const long long lf = static_cast<long long>(args[3].toScalar());
     if (lf < 0)
         throw Error("wextend: lf must be ≥ 0",
                     0, 0, "wextend", "", "numkit:wextend:lf");
 
     char side = 'b';
-    if (args.size() >= 5 && (args[4].isChar() || args[4].isString())) {
-        const std::string s = lower(args[4].toString());
+    {
+        const std::string s = lower(sideRaw);
         if      (s == "b" || s == "both")  side = 'b';
         else if (s == "l" || s == "left")  side = 'l';
         else if (s == "r" || s == "right") side = 'r';
@@ -347,7 +365,6 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "wextend", "", "numkit:wextend:side");
     }
 
-    auto *mr = ctx.engine->resource();
     size_t rows, cols;
     readShape(x, rows, cols);
 
@@ -357,32 +374,27 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         const bool col = isCol(rows, cols);
         std::vector<double> xv(N);
         for (size_t i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
-        std::vector<double> ext = extend1D(xv, lf, side, mode);
+        std::vector<double> ext = detail::extend1D(xv, lf, side, mode);
         size_t outRows, outCols;
         outShape(col, ext.size(), outRows, outCols);
         Value y = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
         std::copy(ext.begin(), ext.end(), y.doubleDataMut());
-        outs[0] = std::move(y);
-        return;
+        return y;
     }
 
-    // 2-D matrix path (type=2 / 'ar' / 'ac'). Extend along columns first
-    // (vary col indices = extend rows direction = adds new rows) when
-    // extRows; then extend along rows (vary row index per column = adds
-    // cols) when extCols. Either step can be skipped via 'ar'/'ac'.
+    // 2-D matrix path (type=2 / 'ar' / 'ac').
     std::vector<std::vector<double>> data(rows, std::vector<double>(cols));
     for (size_t r = 0; r < rows; ++r)
         for (size_t c = 0; c < cols; ++c)
             data[r][c] = x.elemAsDouble(c * rows + r);
 
-    // Step 1: if extRows, extend each column (add rows).
     if (extRows) {
         std::vector<std::vector<double>> ext_col;
         ext_col.reserve(cols);
         for (size_t c = 0; c < cols; ++c) {
             std::vector<double> col_v(rows);
             for (size_t r = 0; r < rows; ++r) col_v[r] = data[r][c];
-            ext_col.push_back(extend1D(col_v, lf, side, mode));
+            ext_col.push_back(detail::extend1D(col_v, lf, side, mode));
         }
         const size_t newRows = ext_col[0].size();
         data.assign(newRows, std::vector<double>(cols));
@@ -392,14 +404,13 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         rows = newRows;
     }
 
-    // Step 2: if extCols, extend each row (add cols).
     if (extCols) {
         std::vector<std::vector<double>> ext_row;
         ext_row.reserve(rows);
         for (size_t r = 0; r < rows; ++r) {
             std::vector<double> row_v(cols);
             for (size_t c = 0; c < cols; ++c) row_v[c] = data[r][c];
-            ext_row.push_back(extend1D(row_v, lf, side, mode));
+            ext_row.push_back(detail::extend1D(row_v, lf, side, mode));
         }
         const size_t newCols = ext_row[0].size();
         for (auto &row : data) row.assign(newCols, 0.0);
@@ -414,8 +425,7 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
     for (size_t c = 0; c < cols; ++c)
         for (size_t r = 0; r < rows; ++r)
             yd[c * rows + r] = data[r][c];
-    outs[0] = std::move(y);
+    return y;
 }
 
-} // namespace detail
 } // namespace numkit::wavelet

@@ -1133,6 +1133,71 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
 
     auto *callNode = rhsNode;
 
+    // Dotted multi-output RHS: [a,b] = X.leaf(args). Mirror compileCall's
+    // gating so the two shapes route correctly:
+    //   • pkg.fn(args), `pkg` NOT a variable → qualified function name on
+    //     CALL_MULTI (runtime resolves the namespace / +pkg m-file).
+    //   • obj.m(args), root IS a variable → CALL_METHOD_MULTI (runtime
+    //     dispatches the class method with nout outputs).
+    // (Same split-mode workspace invariant as compileCall.)
+    if (callNode->children[0]->type == NodeType::FIELD_ACCESS) {
+        const ASTNode *fa = callNode->children[0].get();
+        const ASTNode *rootIdent = nullptr;
+        std::string qualified = tryBuildQualifiedName(fa, &rootIdent);
+        bool rootIsVar = false;
+        if (rootIdent) {
+            const std::string &root = rootIdent->strValue;
+            rootIsVar = varRegisters_.find(root) != varRegisters_.end()
+                        || engine_.workspaceEnv().getLocal(root) != nullptr;
+        }
+        auto compileArgsBlock = [&](uint8_t &argBaseOut) {
+            std::vector<uint8_t> ar;
+            for (size_t i = 1; i < callNode->children.size(); ++i)
+                ar.push_back(compileNode(callNode->children[i].get()));
+            argBaseOut = nextReg_;
+            for (size_t i = 0; i < ar.size(); ++i) {
+                uint8_t slot = tempReg();
+                if (ar[i] != slot)
+                    emitAB(OpCode::MOVE, slot, ar[i]);
+            }
+            return ar.size();
+        };
+
+        if (!qualified.empty() && !rootIsVar) {
+            uint8_t argBase = 0;
+            size_t nargs = compileArgsBlock(argBase);
+            uint8_t outBase = nextReg_;
+            for (size_t i = 0; i < nout; ++i)
+                tempReg();
+            int16_t funcIdx = addStringConstant(qualified);
+            emit(Instruction::make_abcde(OpCode::CALL_MULTI, outBase, argBase,
+                                         static_cast<uint8_t>(nargs), funcIdx,
+                                         static_cast<uint8_t>(nout)));
+            distribute(outBase);
+            if (complex)
+                return nout ? outBase : 0;
+            return outRegs.empty() ? 0 : outRegs[0];
+        }
+
+        if (fa->children[0]->type == NodeType::IDENTIFIER && nout <= 15
+            && (callNode->children.size() - 1) <= 15) {
+            uint8_t objReg = compileNode(fa->children[0].get());
+            uint8_t argBase = 0;
+            size_t nargs = compileArgsBlock(argBase);
+            uint8_t outBase = nextReg_;
+            for (size_t i = 0; i < nout; ++i)
+                tempReg();
+            int16_t nameIdx = addStringConstant(fa->strValue);
+            uint8_t packed = static_cast<uint8_t>((nargs << 4) | (nout & 0x0F));
+            emit(Instruction::make_abcde(OpCode::CALL_METHOD_MULTI, outBase, objReg,
+                                         argBase, nameIdx, packed));
+            distribute(outBase);
+            if (complex)
+                return nout ? outBase : 0;
+            return outRegs.empty() ? 0 : outRegs[0];
+        }
+    }
+
     // Compile call arguments
     std::vector<uint8_t> argRegs;
     for (size_t i = 1; i < callNode->children.size(); ++i)
@@ -1214,10 +1279,12 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         else if (op == "-")  result = lv - rv;
         else if (op == "*")  result = lv * rv;
         else if (op == "/")  result = lv / rv;
-        else if (op == "^")  result = std::pow(lv, rv);
+        // negative base ^ non-integer exp is complex in MATLAB — don't
+        // constant-fold to a real NaN; let it run through power() at runtime.
+        else if (op == "^")  { if (lv < 0.0 && rv != std::floor(rv)) folded = false; else result = std::pow(lv, rv); }
         else if (op == ".*") result = lv * rv;
         else if (op == "./") result = lv / rv;
-        else if (op == ".^") result = std::pow(lv, rv);
+        else if (op == ".^") { if (lv < 0.0 && rv != std::floor(rv)) folded = false; else result = std::pow(lv, rv); }
         else folded = false;
         if (folded) {
             int16_t idx = addConstant(result);
@@ -2559,6 +2626,25 @@ bool Compiler::needsGeneralLValuePath(const ASTNode *lhs) const
 }
 
 namespace {
+// True if `n` references `end` at THIS index level (not inside a nested
+// indexing scope, which owns its own `end`). Used to keep `s.arr(end)`
+// on the FIELD_GET path (where the index context is set correctly)
+// rather than the runtime-deferred CALL_METHOD path.
+bool refsTopLevelEnd(const ASTNode *n)
+{
+    if (!n)
+        return false;
+    if (n->type == NodeType::END_VAL)
+        return true;
+    if (n->type == NodeType::CALL || n->type == NodeType::INDEX
+        || n->type == NodeType::CELL_INDEX)
+        return false; // nested index scope binds its own `end`
+    for (const auto &c : n->children)
+        if (refsTopLevelEnd(c.get()))
+            return true;
+    return false;
+}
+
 // One link of a flattened lvalue accessor chain (root → outermost).
 struct LvAcc
 {
@@ -2813,8 +2899,53 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         }
     }
 
+    // OBJECT dotted call `obj.name(args)`: emit CALL_METHOD so the
+    // runtime can dispatch a class method (vs property-then-index or a
+    // struct-field func handle / array index in the fallback). Object
+    // model §3. The qualified-namespace form (`pkg.fn(x)`) was handled
+    // above; this is the variable/expression-rooted dotted call.
+    //
+    // Exception: when an argument references `end` at this level
+    // (`s.arr(end)`), CALL_METHOD can't supply the field's size for the
+    // `end` context (the field is fetched only at runtime). Those fall
+    // through to the FIELD_GET + CALL_INDIRECT path below, which binds
+    // `end` to the materialised field value. `end` in a method arg is
+    // not meaningful, so objects lose nothing.
+    bool argHasEnd = false;
+    for (size_t i = 1; i < node->children.size(); ++i)
+        if (refsTopLevelEnd(node->children[i].get())) {
+            argHasEnd = true;
+            break;
+        }
+    if (funcNode->type == NodeType::FIELD_ACCESS && !argHasEnd) {
+        uint8_t objReg = compileNode(funcNode->children[0].get());
+        const size_t nargs = node->children.size() - 1;
+        std::vector<uint8_t> argRegs;
+        argRegs.reserve(nargs);
+        {
+            IndexContextGuard guard(*this, objReg, static_cast<uint8_t>(nargs));
+            for (size_t i = 1; i < node->children.size(); ++i) {
+                guard.setDim(static_cast<uint8_t>(i - 1));
+                argRegs.push_back(compileNode(node->children[i].get()));
+            }
+        }
+        uint8_t argBase = nextReg_;
+        for (size_t i = 0; i < argRegs.size(); ++i) {
+            uint8_t slot = tempReg();
+            if (argRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, argRegs[i]);
+        }
+        uint8_t dst = tempReg();
+        int16_t nameIdx = addStringConstant(funcNode->strValue);
+        size_t callIdx = chunk_.code.size();
+        emit(Instruction::make_abcde(OpCode::CALL_METHOD, dst, objReg, argBase,
+                                     nameIdx, static_cast<uint8_t>(argRegs.size())));
+        recordCallArgNames(node, callIdx);
+        return dst;
+    }
+
     // Non-identifier call target (e.g. anonymous func expression called
-    // directly, or a chained indexing form like `s.field(end)` / `f(x)(i)`).
+    // directly, or a chained indexing form like `f(x)(i)`).
     // For the indexing case, `end` inside the arg list must bind to numel /
     // dimSize of the call target — without this guard it leaks the outer
     // (possibly zero-init) indexContextArr_ and resolves to the wrong size.
@@ -3861,6 +3992,10 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "THROW";
         case OpCode::CALL_INDIRECT:
             return "CALL_INDIRECT";
+        case OpCode::CALL_METHOD:
+            return "CALL_METHOD";
+        case OpCode::CALL_METHOD_MULTI:
+            return "CALL_METHOD_MULTI";
         case OpCode::CLOSURE_MAKE:
             return "CLOSURE_MAKE";
         case OpCode::CALL_MULTI:

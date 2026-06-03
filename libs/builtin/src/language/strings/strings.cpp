@@ -2486,6 +2486,26 @@ Value stringsND(Span<const size_t> dims, std::pmr::memory_resource *mr)
     return v;
 }
 
+// strtok: first token + remainder. See language/strings/strings.hpp.
+std::pair<Value, Value> strtok(const Value &str, const std::string &delim,
+                               std::pmr::memory_resource *mr)
+{
+    const std::string s = str.toString();
+    auto isDelim = [&](char c) { return delim.find(c) != std::string::npos; };
+
+    // Skip leading delim chars.
+    size_t start = 0;
+    while (start < s.size() && isDelim(s[start])) ++start;
+    // Find end of token.
+    size_t end = start;
+    while (end < s.size() && !isDelim(s[end])) ++end;
+
+    Value tok = Value::fromString(s.substr(start, end - start), mr);
+    Value rem = Value::fromString(end < s.size() ? s.substr(end) : std::string{},
+                                  mr);
+    return {std::move(tok), std::move(rem)};
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
@@ -3151,24 +3171,13 @@ void strtok_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     if (args.empty())
         throw Error("strtok: requires 1 argument", 0, 0, "strtok", "",
                      "numkit:strtok:nargin");
-    const std::string s = args[0].toString();
     const std::string delim = (args.size() >= 2)
                                   ? args[1].toString()
                                   : std::string(" \t\r\n\f\v");
-    auto isDelim = [&](char c) { return delim.find(c) != std::string::npos; };
-
-    // Skip leading delim chars.
-    size_t start = 0;
-    while (start < s.size() && isDelim(s[start])) ++start;
-    // Find end of token.
-    size_t end = start;
-    while (end < s.size() && !isDelim(s[end])) ++end;
-
-    auto *mr = ctx.engine->resource();
-    outs[0] = Value::fromString(s.substr(start, end - start), mr);
-    if (nargout > 1) {
-        outs[1] = Value::fromString(end < s.size() ? s.substr(end) : std::string{}, mr);
-    }
+    auto [tok, rem] = numkit::builtin::strtok(args[0], delim,
+                                              ctx.engine->resource());
+    outs[0] = std::move(tok);
+    if (nargout > 1) outs[1] = std::move(rem);
 }
 
 // ── Pack 36 adapters ─────────────────────────────────────────────────

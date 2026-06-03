@@ -92,4 +92,35 @@ Value bitshift(const Value &a, const Value &k, std::pmr::memory_resource *mr = n
 /// @throws Error  Unsupported `width` (`m:bitcmp:badWidth`).
 Value bitcmp(const Value &a, int width = 64, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Get bit `n` (1-based, LSB = 1) of each element (`b = bitget(a, n)`).
+///
+/// Reinterprets each element of `a` as int64 and returns its `n`-th bit
+/// (0 or 1). Broadcasts `a` and `n` elementwise; bit positions outside
+/// `1..64` yield 0.
+///
+/// @param a   Value(s) to read.
+/// @param n   Bit position(s), 1-based (LSB = 1); broadcasts elementwise.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    The requested bits (0/1), broadcast shape.
+/// @see bitset
+Value bitget(const Value &a, const Value &n,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Set bit `n` (1-based, LSB = 1) of each element (`y = bitset(a, n, val)`).
+///
+/// Reinterprets each element of `a` as int64 and sets its `n`-th bit to
+/// `val` (0 or 1). `val` defaults to 1 when omitted (`Value::Empty`).
+/// Broadcasts `a` and `n` elementwise; bit positions outside `1..64`
+/// leave the element unchanged.
+///
+/// @param a    Value(s) to modify.
+/// @param n    Bit position(s), 1-based (LSB = 1); broadcasts elementwise.
+/// @param val  Bit value 0 or 1 (default `Value::Empty` → 1).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Modified values, broadcast shape.
+/// @throws Error if `val` is neither 0 nor 1.
+/// @see bitget
+Value bitset(const Value &a, const Value &n, const Value &val = Value::Empty,
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::builtin

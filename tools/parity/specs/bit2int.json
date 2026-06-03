@@ -1,0 +1,10 @@
+{
+  "name": "bit2int",
+  "namespace": "comm",
+  "setup": "b = [1 0 1 0 1 1 0 0]';",
+  "expr": "y = bit2int(b, 4);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y(1)", "y(2)", "numel(y)"],
+  "comment": "Sig: y = bit2int(b, n). Pack a column of bits into integers, n bits each, MSB-first by default. b=[1 0 1 0 1 1 0 0]' -> y=[10;12] (1010, 1100). Lifted to public C++ API numkit::comm::bit2int (header added; mr moved to LIBRARY_API mr-last) 2026-06."
+}

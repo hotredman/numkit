@@ -137,9 +137,9 @@ Value bitcmp(const Value &a, int width, std::pmr::memory_resource *mr)
 // bitset(A, n)        — set bit n (1-based) of each A_i to 1.
 // bitset(A, n, val)   — set bit n to `val` (0 or 1).
 // MATLAB convention: bit 1 is the LSB.
-Value bitset(const Value &a, const Value &n, const Value *val, std::pmr::memory_resource *mr)
+Value bitset(const Value &a, const Value &n, const Value &val, std::pmr::memory_resource *mr)
 {
-    const int v = val ? static_cast<int>(val->toScalar()) : 1;
+    const int v = val.isEmpty() ? 1 : static_cast<int>(val.toScalar());
     if (v != 0 && v != 1)
         throw Error("bitset: third argument must be 0 or 1",
                      0, 0, "bitset", "", "numkit:bitset:badVal");
@@ -363,9 +363,9 @@ void bitset_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("bitset: requires (A, n) or (A, n, val)",
                      0, 0, "bitset", "", "numkit:bitset:nargin");
-    const Value *val = (args.size() >= 3 && !args[2].isEmpty())
-                           ? &args[2] : nullptr;
-    outs[0] = bitset(args[0], args[1], val, ctx.engine->resource());
+    outs[0] = bitset(args[0], args[1],
+                     (args.size() >= 3) ? args[2] : Value::Empty,
+                     ctx.engine->resource());
 }
 
 void bitget_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

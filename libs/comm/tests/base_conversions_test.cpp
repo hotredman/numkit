@@ -3,6 +3,7 @@
 // Regression guard for the Communications Toolbox base-conversion
 // utilities: bit2int / int2bit / bi2de / de2bi / vec2mat.
 
+#include <numkit/comm/source/base_conversions.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 
@@ -148,4 +149,64 @@ TEST_F(BaseConversionsTest, Vec2matExactFit)
     EXPECT_DOUBLE_EQ(evalScalar("p"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(1, 3)"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(2, 3)"), 6.0);
+}
+
+// ── Public C++ API (numkit::comm::*) ──────────────────────────────────
+// Exercise the typed entry points directly (not via the engine), guarding
+// the lift from adapter-only to a public header with the LIBRARY_API
+// signature (mr last, default nullptr; native scalar option args).
+namespace {
+Value cvar(Engine &e, const char *expr, const char *name)
+{
+    e.eval(std::string(name) + " = " + expr + ";");
+    return *e.getVariable(name);
+}
+} // namespace
+
+TEST_F(BaseConversionsTest, PublicApiBit2intInt2bit)
+{
+    Value b = cvar(engine, "[1 0 1 0 1 1 0 0]'", "b");
+    // defaults: msbfirst = true, mr = nullptr (process default)
+    Value r = comm::bit2int(b, 4);
+    ASSERT_EQ(r.numel(), 2u);
+    EXPECT_DOUBLE_EQ(r.doubleData()[0], 10.0); // 1010
+    EXPECT_DOUBLE_EQ(r.doubleData()[1], 12.0); // 1100
+    // explicit LSB-first + explicit mr
+    Value rl = comm::bit2int(b, 4, false, engine.resource());
+    EXPECT_DOUBLE_EQ(rl.doubleData()[0], 5.0);
+    // int2bit inverse -> 4x2 bit matrix
+    Value bb = comm::int2bit(cvar(engine, "[10 12]", "d"), 4);
+    EXPECT_EQ(bb.dims().rows(), 4u);
+    EXPECT_EQ(bb.dims().cols(), 2u);
+    EXPECT_DOUBLE_EQ(bb.doubleData()[0], 1.0); // (1,1) = MSB of 10
+}
+
+TEST_F(BaseConversionsTest, PublicApiBi2deDe2bi)
+{
+    Value m = cvar(engine, "[1 0 1 0; 0 0 1 1]", "m");
+    // defaults: base 2, LSB-first ('right-msb')
+    Value d = comm::bi2de(m);
+    EXPECT_DOUBLE_EQ(d.doubleData()[0], 5.0);
+    EXPECT_DOUBLE_EQ(d.doubleData()[1], 12.0);
+    // left-msb via the bool flag
+    Value dl = comm::bi2de(m, 2, true, engine.resource());
+    EXPECT_DOUBLE_EQ(dl.doubleData()[0], 10.0);
+    // de2bi auto width (n = -1 default) -> 2x4
+    Value bb = comm::de2bi(cvar(engine, "[5 12]", "v"));
+    EXPECT_EQ(bb.dims().cols(), 4u);
+    EXPECT_DOUBLE_EQ(bb.doubleData()[0], 1.0); // (1,1) = LSB of 5
+}
+
+TEST_F(BaseConversionsTest, PublicApiVec2mat)
+{
+    auto [mat, pad] = comm::vec2mat(
+        cvar(engine, "[1 2 3 4 5 6 7 8 9 10]", "v"), 4);
+    EXPECT_EQ(mat.dims().rows(), 3u);
+    EXPECT_EQ(mat.dims().cols(), 4u);
+    EXPECT_EQ(pad, 2);
+    // custom pad + explicit mr; 5 elems, n=3 -> 2x3, one pad at (2,3)
+    auto [mat2, pad2] =
+        comm::vec2mat(cvar(engine, "[1 2 3 4 5]", "v2"), 3, 99.0, engine.resource());
+    EXPECT_EQ(pad2, 1);
+    EXPECT_DOUBLE_EQ(mat2.doubleData()[1 + 2 * 2], 99.0); // (2,3) col-major
 }
