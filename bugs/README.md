@@ -82,6 +82,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 | Bug | Sev | Status | Notes |
 |---|---|---|---|
+| [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | ✅ FIXED | 'MissingPlacement' option was ignored |
 | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | ✅ FIXED 9fcf6872 | cepstrum garbage on non-2ⁿ lengths + rceps 2nd output |
 | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | ✅ FIXED 1128db65 | missing 4th output (PSD) |
 | [signal/dct-types](signal/dct-types.md) | P2 | 🔴 OPEN | Type 1/3/4 stubbed |
@@ -107,3 +108,6 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | 🔴 OPEN | am/fm/pm/ssb/msk demod missing (mods exist) |
 | [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | 🔴 OPEN | lsqcurvefit/lsqnonlin missing |
 | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | 🔴 OPEN | fmincon/linprog/quadprog/fminunc missing |
+| [linalg/qr-pivoting](linalg/qr-pivoting.md) | P2 | 🔴 OPEN | column-pivoting [Q,R,P] missing |
+| [linalg/eig-left-vectors](linalg/eig-left-vectors.md) | P2 | 🔴 OPEN | 3rd output W (left eigenvectors) missing |
+| [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | 🔴 OPEN | automatic binning unsupported |
