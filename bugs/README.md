@@ -85,6 +85,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 | [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | ✅ FIXED | 'MissingPlacement' option was ignored |
 | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | ✅ FIXED 9fcf6872 | cepstrum garbage on non-2ⁿ lengths + rceps 2nd output |
 | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | ✅ FIXED 1128db65 | missing 4th output (PSD) |
+| [signal/besself-digital](signal/besself-digital.md) | P1 | ✅ FIXED | ran digital path → binomial garbage |
 | [signal/dct-types](signal/dct-types.md) | P2 | 🔴 OPEN | Type 1/3/4 stubbed |
 | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | 🔴 OPEN | non-2ⁿ phase (rcunwrap) + missing `nd` output |
 | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P2 | 🔴 OPEN | only 1 of up to 5 outputs |
@@ -99,7 +100,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 | [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | 🔴 OPEN | matrix (column-per-group) form throws |
 | [stats/mle-output](stats/mle-output.md) | P2 | 🔴 OPEN | missing 2nd output (pci) |
 | [stats/distribution-dispatchers](stats/distribution-dispatchers.md) | P2 | 🔴 OPEN | cdf/pdf/icdf/random missing |
-| [control/lqr-hinfnorm](control/lqr-hinfnorm.md) | P2 | 🔴 OPEN | functions missing |
+| [control/lqr-hinfnorm](control/lqr-hinfnorm.md) | P2 | 🔴 OPEN | lqr/hinfnorm/dlqr/gram missing |
 | [image/watershed](image/watershed.md) | P2 | 🔴 OPEN | function missing |
 | [image/imfindcircles](image/imfindcircles.md) | P2 | 🔴 OPEN | function missing |
 | [wavelet/wpdec](wavelet/wpdec.md) | P2 | 🔴 OPEN | wavelet packets missing (needs tree type) |

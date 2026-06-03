@@ -33,3 +33,17 @@ TEST_F(ControlKnownBug, DISABLED_Hinfnorm)
     eval("g = hinfnorm(ss([0 1; -1 0], [0; 1], [1 0], 0));");
     EXPECT_TRUE(std::isinf(evalScalar("g")));
 }
+
+// bugs/control/lqr-hinfnorm.md — dlqr (discrete LQR) missing.
+TEST_F(ControlKnownBug, DISABLED_Dlqr)
+{
+    eval("K = dlqr([0.9 0.1; 0 0.8], [0; 1], eye(2), 1);");
+    EXPECT_NEAR(evalScalar("sum(K)"), 0.71004388, 1e-5);
+}
+
+// bugs/control/lqr-hinfnorm.md — gram (controllability/observability gramian).
+TEST_F(ControlKnownBug, DISABLED_Gram)
+{
+    eval("W = gram(ss([-1 0; 0 -2], [1; 1], [1 1], 0), 'c');");
+    EXPECT_NEAR(evalScalar("sum(W(:))"), 1.4166667, 1e-5);
+}
