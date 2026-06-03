@@ -99,6 +99,9 @@ struct BuiltinClass
     ObjectMethod subsasgn;
     std::function<std::string(const Value &self)> dispText;          // disp/display
     std::unordered_map<std::string, ObjectMethod> ops;               // "plus","eq",…
+    // Members declared `Hidden` — still usable, but omitted from
+    // properties() / methods() introspection listings.
+    std::vector<std::string> hidden;
 };
 
 } // namespace numkit

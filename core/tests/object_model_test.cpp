@@ -1758,6 +1758,46 @@ INSTANTIATE_TEST_SUITE_P(Backends, AbstractClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef Sealed (no subclassing) + Hidden (omitted from introspection) ──
+class SealedHiddenClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval("classdef (Sealed) Locked\n  properties\n    v = 1\n  end\nend\n");
+        engine.eval(
+            "classdef Widget\n"
+            "  properties\n    name = 1\n  end\n"
+            "  properties (Hidden)\n    secret = 99\n  end\n"
+            "  methods\n    function r = pub(obj)\n      r = 1;\n    end\n  end\n"
+            "  methods (Hidden)\n    function r = internal(obj)\n      r = 2;\n    end\n  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+TEST_P(SealedHiddenClassdefTest, SealedRejectsSubclassing)
+{
+    EXPECT_THROW(engine.eval("classdef SubLocked < Locked\nend\n"), std::exception);
+}
+TEST_P(SealedHiddenClassdefTest, HiddenPropertyOmittedButUsable)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("numel(properties('Widget'))"), 1.0); // only `name`
+    engine.eval("w = Widget();");
+    EXPECT_DOUBLE_EQ(evalScalar("w.secret"), 99.0); // still readable
+}
+TEST_P(SealedHiddenClassdefTest, HiddenMethodOmittedButCallable)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("numel(methods('Widget'))"), 1.0); // only `pub`
+    engine.eval("w = Widget();");
+    EXPECT_DOUBLE_EQ(evalScalar("w.internal()"), 2.0); // still callable
+}
+INSTANTIATE_TEST_SUITE_P(Backends, SealedHiddenClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {
