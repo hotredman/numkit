@@ -1355,6 +1355,18 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
     // (identifier, nested field, dynamic field, cell content). Resolve
     // it, coerce to a scalar struct, and return the field slot.
     Value &parent = resolveObjectSlot(objNode, env);
+    // Compound assignment drilling into an OBJECT property
+    // (`obj.prop(i) = v`, `obj.prop.sub = v`, `obj.prop{i} = v`): properties
+    // live behind the class hooks with no addressable slot, so detach the
+    // state — COW for a value class, shared for a handle, exactly as
+    // objectPropSet does — and expose the stored property slot for the
+    // in-place sub-assignment. (A set.Prop accessor governs a whole-property
+    // `obj.prop = v` write, not element writes, so it is intentionally
+    // bypassed here.)
+    if (parent.isObject()) {
+        auto *st = parent.objectStateMut();
+        return st->props[fieldName];
+    }
     if (!parent.isStruct())
         parent = Value::structure();
     return parent.field(fieldName);

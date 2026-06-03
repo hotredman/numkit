@@ -1264,6 +1264,22 @@ enter_frame:
             case OpCode::FIELD_GET_OR_CREATE: {
                 // a=dst, b=obj, d=nameIdx — lvalue: auto-creates struct and field
                 const std::string &fname = chunk.strings[I.d];
+                // OBJECT: read the property (propGet) so a compound lvalue
+                // `obj.prop(i) = v` can modify the value and FIELD_SET it back
+                // (read-modify-write — objects have no addressable slot).
+                if (R[I.b].isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(R[I.b].objectClassName());
+                    if (cls && cls->propGet) {
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        Value out;
+                        if (cls->propGet(R[I.b], fname, out, ctx)) {
+                            R[I.a] = std::move(out);
+                            break;
+                        }
+                    }
+                    throw std::runtime_error("No appropriate property '" + fname
+                                             + "' for class '" + R[I.b].objectClassName() + "'");
+                }
                 if (R[I.b].isEmpty())
                     R[I.b] = Value::structure();
                 if (!R[I.b].isStruct())

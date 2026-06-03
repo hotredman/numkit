@@ -1594,6 +1594,47 @@ INSTANTIATE_TEST_SUITE_P(Backends, SubsrefClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── element assignment into an object property: obj.prop(i) = v ──
+class PropElemAssignClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Vault\n"
+            "  properties\n    items = [1 2 3]\n  end\n"
+            "  methods\n"
+            "    function obj = Vault(d)\n      obj.items = d;\n    end\n"
+            "    function obj = setItem(obj, i, v)\n      obj.items(i) = v;\n    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+TEST_P(PropElemAssignClassdefTest, ElementAssignInsideMethod)
+{
+    engine.eval("v = Vault([1 2 3]); v = v.setItem(2, 99);");
+    EXPECT_DOUBLE_EQ(evalScalar("v.items(2)"), 99.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v.items(1)"), 1.0); // neighbours intact
+}
+TEST_P(PropElemAssignClassdefTest, ElementAssignAtScriptScope)
+{
+    engine.eval("v = Vault([1 2 3]); v.items(2) = 88;");
+    EXPECT_DOUBLE_EQ(evalScalar("v.items(2)"), 88.0);
+}
+TEST_P(PropElemAssignClassdefTest, ElementAssignValueSemantics)
+{
+    engine.eval("a = Vault([1 2 3]); b = a; a.items(1) = 77;");
+    EXPECT_DOUBLE_EQ(evalScalar("a.items(1)"), 77.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b.items(1)"), 1.0); // value class — copy independent
+}
+INSTANTIATE_TEST_SUITE_P(Backends, PropElemAssignClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {
