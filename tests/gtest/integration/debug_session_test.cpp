@@ -594,6 +594,35 @@ TEST_F(DebugSessionTest, BreakInsideMakelutCallback)
     EXPECT_DOUBLE_EQ(engine.eval("y(16)").toScalar(), 1.0); // all-ones neighbourhood
 }
 
+// Proof of the embedded-`.m`-wrapper approach (VM_CALLBACKS_PLAN.md): fzero is
+// implemented in `.m`, so a breakpoint inside the OBJECTIVE pauses on each
+// evaluation and resumes — no C++ state machine, no fiber. This is the path for
+// the adaptive numerical solvers (objective/integrand/RHS always user code).
+TEST_F(DebugSessionTest, BreakInsideFzeroObjective)
+{
+    engine.eval(
+        "function r = dbgObj(x)\n" // 1
+        "\n"                       // 2
+        "\n"                       // 3
+        "  r = x*x - 4;\n"       // 4
+        "end\n");                  // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "y = fzero(@dbgObj, [0 10]);\n"; // 1
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "fzero objective did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 100) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_GE(pauses, 2); // Brent evaluates the objective several times
+    EXPECT_NEAR(engine.eval("y").toScalar(), 2.0, 1e-9);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

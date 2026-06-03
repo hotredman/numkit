@@ -15,17 +15,24 @@
 #include <numkit/core/types.hpp>
 
 namespace numkit::optim::detail {
-void fzero_reg     (Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fminbnd_reg   (Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fminsearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 } // namespace numkit::optim::detail
+
+namespace numkit::optim {
+// Defined in local/fzero.cpp — installs the `.m` fzero wrapper (pausable
+// objective; the C++ `Value fzero(...)` API remains the synchronous path).
+void registerFzeroM(Engine &engine);
+} // namespace numkit::optim
 
 namespace numkit {
 
 void OptimLibrary::install(Engine &engine)
 {
     // MATLAB-base: available top-level (no namespace, no import needed).
-    engine.registerFunction("fzero",      &optim::detail::fzero_reg);
+    // fzero is an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) so the objective
+    // is called from bytecode and is pausable under the debugger.
+    optim::registerFzeroM(engine);
     engine.registerFunction("fminbnd",    &optim::detail::fminbnd_reg);
     engine.registerFunction("fminsearch", &optim::detail::fminsearch_reg);
 }

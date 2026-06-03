@@ -81,6 +81,13 @@ public:
     // a USER function — i.e. there is a compiled body to step through — rather
     // than a builtin.
     bool isUserCodeHandle(const Value &handle) const;
+    // Register every top-level `function` in `src` as a PERSISTENT user
+    // function (userFuncs_ + VM compiled table) — the same path m-file loading
+    // uses, so they survive `clear` and work on both backends. Used to install
+    // `.m`-implemented builtins (e.g. fzero) whose callbacks must be pausable:
+    // the `.m` body's f-calls compile to ordinary VM frames, debuggable for
+    // free, no fiber / state machine. See VM_CALLBACKS_PLAN.md.
+    void registerBuiltinMSource(const std::string &src);
 
     // Register a user `classdef` (parsed CLASSDEF_DEF node) as a BuiltinClass
     // via the adapter: generic property get/set over ObjectState.props,

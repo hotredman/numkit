@@ -1642,6 +1642,38 @@ void Engine::adoptUserFunction(const std::string &name,
         userFuncs_[name] = std::move(uf);
 }
 
+void Engine::registerBuiltinMSource(const std::string &src)
+{
+    Lexer lexer(src);
+    Parser parser(lexer.tokenize());
+    auto ast = parser.parse();
+    // Persistently register one parsed `function` def (mirrors the m-file
+    // loader): VM compiled chunk via registerFunctionAs + TW via userFuncs_.
+    auto adopt = [this](const ASTNode *fd) {
+        UserFunction func;
+        func.name = fd->strValue;
+        func.params = fd->paramNames;
+        func.returns = fd->returnNames;
+        func.body = std::shared_ptr<const ASTNode>(cloneNode(fd->children[0].get()));
+        func.closureEnv = nullptr;
+        if (compiler_) {
+            try {
+                compiler_->registerFunctionAs(func.name, fd);
+            } catch (const std::exception &) {
+                // VM compile failed — TW still dispatches via userFuncs_.
+            }
+        }
+        userFuncs_[func.name] = std::move(func);
+    };
+    if (ast->type == NodeType::FUNCTION_DEF) {
+        adopt(ast.get());
+    } else {
+        for (const auto &c : ast->children)
+            if (c && c->type == NodeType::FUNCTION_DEF)
+                adopt(c.get());
+    }
+}
+
 void Engine::rehashMFiles()
 {
     // Drop cache entries AND the user-function/compiled mirrors created

@@ -351,13 +351,34 @@ trade-off, NOT the uniform pattern):**
 These were assessed and left on `callReentrant` deliberately (the clean ones are
 all done). Picking any up means accepting its specific trade-off.
 
-**Class-3 adaptive numerical (stays on `callReentrant`):** `integral`,
-`ode23`/`ode45`, `fzero`, `nlinfit`, `fminsearch`. The handle is called inside a
-stateful adaptive algorithm (RK45 / Brent / quadrature); a hand-written state
-machine would have to serialize that algorithm's state — impractical and
-error-prone. They run on the VM (breakpoints fire) but cannot suspend across the
-C++ algorithm. The clean route to full pausability is porting these to `.m`
-(as real MATLAB does), a separate project — not a state-machine conversion.
+## Embedded-`.m`-wrapper path (for adaptive numerical solvers)
+
+The clean way to make the adaptive numerical solvers' user code (objective /
+integrand / RHS — always user code, no builtin-handle fast path) pausable is NOT
+a hand-written C++ state machine (which would have to serialise RK45 / Brent /
+quadrature state, and replicate the algorithm's exact summation/eval order to
+stay bit-identical). Instead, implement the user-facing builtin in **`.m`** —
+then its f-calls compile to ordinary VM frames (CALL/CALL_INDIRECT), pausable
+**for free**, recursion/iteration natural, and the C++ `Value …(FnHandle,…)` API
+stays as the synchronous path for embedders. This is how real MATLAB ships these.
+
+- **Foundation (done)** — `Engine::registerBuiltinMSource(src)`: parses embedded
+  `.m` source and registers each top-level `function` PERSISTENTLY (userFuncs_ +
+  VM compiled table via registerFunctionAs) — the same path m-file loading uses,
+  so they survive `clear` and dispatch on both backends. Pure C++/bytecode → no
+  fiber/Asyncify, WASM-safe by construction.
+- **fzero (done)** — registered via `optim::registerFzeroM` (embedded `.m`
+  faithful port of findBracket + Brent in `local/fzero.cpp`). The objective is
+  called from `.m` → pausable. Plain + closure handles work (`fn(x)` →
+  CALL_INDIRECT unwraps closures); errors/multi-output match the C++ behaviour.
+  **Proven**: `DebugSessionTest.BreakInsideFzeroObjective` (breakpoint inside the
+  objective pauses per Brent eval, `y ≈ 2`); all 20 fzero dual-engine tests
+  green; full suite 10939. The C++ `Value fzero(...)` API is retained.
+- **Remaining (same pattern, follow-up):** `integral`, `ode23`/`ode45`,
+  `nlinfit`, `fminsearch` — port each user-facing builtin to embedded `.m`
+  (calling small C++ primitives for the heavy non-f numerics, e.g.
+  `__gk15_nodes` for integral). Until then they stay on `callReentrant`
+  (breakpoints fire but cannot suspend).
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a
