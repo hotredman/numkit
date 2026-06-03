@@ -1193,6 +1193,15 @@ void GraphicsLibrary::install(Engine &engine)
             ds.type = "scatter";
             ds.xJson = vecToJson(args[0]);
             ds.yJson = vecToJson(args[1]);
+            // scatter(x, y, ..., 'filled') → filled markers; MATLAB's default is
+            // open (the renderer draws an outline unless the style says filled).
+            for (size_t k = 2; k < args.size(); ++k) {
+                if (args[k].isChar()) {
+                    std::string s = args[k].toString();
+                    for (auto &c : s) c = static_cast<char>(std::tolower(c));
+                    if (s == "filled") { ds.style = "filled=1"; break; }
+                }
+            }
             fm.pushDataset(std::move(ds));
             fm.emitModified();
             outs[0] = Value();
