@@ -2,6 +2,11 @@
 
 Status: **planned**, on `core-dev`. Owner: CORE.
 
+> **Adding a pausable callback?** The decision rule (frame-push vs state machine
+> vs `.m` wrapper), the mechanisms, and step-by-step recipes live in the guide
+> [`docs/CALLBACK_PAUSABILITY.md`](docs/CALLBACK_PAUSABILITY.md). This file is the
+> chronological build log + rationale.
+
 ## Problem
 
 VM and TW must be two **independently complete** backends. Today they are
