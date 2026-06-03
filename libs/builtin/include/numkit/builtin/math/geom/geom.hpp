@@ -51,6 +51,22 @@ Value griddatan(const Value &X, const Value &v, const Value &xi,
 Value polyarea(const Value &x, const Value &y,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Point-in-polygon test — `in = inpolygon(xq, yq, xv, yv)`.
+///
+/// For each query point `(xq[i], yq[i])` returns logical `true` if it lies
+/// inside the closed polygon `(xv, yv)` (ray-casting / crossing-number).
+/// The polygon need not be explicitly closed. Fewer than 3 vertices → all
+/// false. The result has the shape of `xq`. (MATLAB's 2nd `on` output —
+/// points exactly on the boundary — is a v1 gap; only `in` is returned.)
+///
+/// @param xq,yq  Query point coordinates (same numel; result takes xq's shape).
+/// @param xv,yv  Polygon vertex coordinates (same numel).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Logical mask, shape of `xq`.
+/// @throws Error on xq/yq or xv/yv numel mismatch.
+Value inpolygon(const Value &xq, const Value &yq, const Value &xv,
+                const Value &yv, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Match-pairs result.
 struct MatchpairsResult {
     Value M;   ///< `p × 2` matrix of `(row, col)` 1-based match pairs.
