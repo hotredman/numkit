@@ -1513,3 +1513,71 @@ TEST_P(SwitchCrossType, MatchesByValueAcrossTypes)
 }
 
 INSTANTIATE_DUAL(SwitchCrossType);
+
+// ── c{i} brace indexing validates non-integer subscripts (deep audit) ──────
+// Verified vs MATLAB R2025b: c{1.5}, c{1.5,2} and c{1.5}=x all error with
+// "Array indices must be positive integers or logical values."
+// (MATLAB:badsubscript). numkit previously truncated 1.5 -> 1 and silently
+// returned / assigned c{1}. Every scalar cell subscript (1D / 2D / ND, GET
+// and SET, both engines) now routes through Value::checkedScalarIndex — the
+// same validator the paren-index path uses.
+class CellBraceIndexValidation : public DualEngineTest {};
+
+TEST_P(CellBraceIndexValidation, FractionalScalarReadThrows)
+{
+    eval("c = {10, 20, 30};");
+    EXPECT_THROW(eval("x = c{1.5};"), std::exception);
+}
+
+TEST_P(CellBraceIndexValidation, ValidScalarReadStillWorks)
+{
+    eval("c = {10, 20, 30};");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1}"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{2}"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{end}"), 30.0);
+}
+
+TEST_P(CellBraceIndexValidation, LogicalTrueStillSelectsFirst)
+{
+    eval("c = {10, 20, 30};");
+    EXPECT_DOUBLE_EQ(evalScalar("c{true}"), 10.0);
+}
+
+TEST_P(CellBraceIndexValidation, Fractional2DReadThrows)
+{
+    eval("C = {1 2; 3 4};");
+    EXPECT_THROW(eval("x = C{1.5, 2};"), std::exception);
+    EXPECT_THROW(eval("x = C{1, 2.5};"), std::exception);
+    EXPECT_DOUBLE_EQ(evalScalar("C{2, 1}"), 3.0); // valid 2D still works
+}
+
+TEST_P(CellBraceIndexValidation, FractionalAssignThrows)
+{
+    eval("c = {10, 20, 30};");
+    EXPECT_THROW(eval("c{2.5} = 99;"), std::exception);
+}
+
+TEST_P(CellBraceIndexValidation, ZeroAndNegativeReadThrow)
+{
+    eval("c = {10, 20, 30};");
+    EXPECT_THROW(eval("x = c{0};"), std::exception);
+    EXPECT_THROW(eval("x = c{-1};"), std::exception);
+}
+
+TEST_P(CellBraceIndexValidation, MessageMatchesMatlab)
+{
+    eval("c = {10, 20, 30};");
+    bool threw = false;
+    try {
+        eval("x = c{1.5};");
+    } catch (const std::exception &e) {
+        threw = true;
+        EXPECT_NE(std::string(e.what()).find(
+                      "Array indices must be positive integers or logical values"),
+                  std::string::npos)
+            << "actual: " << e.what();
+    }
+    EXPECT_TRUE(threw);
+}
+
+INSTANTIATE_DUAL(CellBraceIndexValidation);

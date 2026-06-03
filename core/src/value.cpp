@@ -1455,10 +1455,17 @@ Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, std::pmr::memory_
 // Index resolution — convert Value index to vector<size_t> (0-based)
 // ============================================================
 
-static void validateIndex(double v)
+size_t Value::checkedScalarIndex(double v)
 {
     if (std::isnan(v) || std::isinf(v) || v < 1.0 || v != std::floor(v))
-        throw std::runtime_error("Array indices must be positive integers or logical values");
+        throw std::runtime_error(
+            "Array indices must be positive integers or logical values.");
+    return static_cast<size_t>(v) - 1;
+}
+
+static void validateIndex(double v)
+{
+    (void) Value::checkedScalarIndex(v);
 }
 
 std::vector<size_t> Value::resolveIndices(const Value &idx, size_t dimSize)
