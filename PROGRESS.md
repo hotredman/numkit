@@ -2748,13 +2748,13 @@ intentionally omitted — flat solver functions only.
 | function | status | comment |
 |---|:---:|---|
 | `dutycycle` | ✅ | Sig: d = dutycycle(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `falltime` | ✅ | Sig: ft = falltime(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `falltime` | ✅ | Sig: [F,LT,UT,LL,UL]=falltime(x,fs). Sharp single-sample edge F=0.198; LT (10%) crosses LAST, UT (90%) FIRST. Fixes bugs/signal/risetime-falltime-outputs.md (value + outputs). vs MATLAB R2025b. |
 | `midcross` | ✅ | Sig: c = midcross(x). Spec-extension batch 2026-05-09 (cycle 40). |
 | `overshoot` | ✅ | Sig: os = overshoot(x). Spec-extension batch 2026-05-09 (cycle 40). |
 | `pulseperiod` | ✅ | Sig: p = pulseperiod(x). Spec-extension batch 2026-05-09 (cycle 40). |
 | `pulsesep` | ✅ | Sig: s = pulsesep(x). Spec-extension batch 2026-05-09 (cycle 40). |
 | `pulsewidth` | ✅ | Sig: w = pulsewidth(x). Spec-extension batch 2026-05-09 (cycle 40). |
-| `risetime` | ✅ | Sig: rt = risetime(x). Spec-extension batch 2026-05-09 (cycle 40). |
+| `risetime` | ✅ | Sig: [R,LT,UT,LL,UL]=risetime(x,fs). Sharp single-sample edge: R=0.198 (the 10% and 90% levels both cross in one interval — was 0.224 before the findTransitions fix). LT/UT = lower/upper crossing times; LL/UL = reference levels. Fixes bugs/signal/risetime-falltime-outputs.md (value + outputs). vs MATLAB R2025b. |
 | `settlingtime` | ✅ | Sig: st = settlingtime(x, d). Spec-extension batch 2026-05-09 (cycle 40). |
 | `slewrate` | ✅ | Sig: sr = slewrate(x). Spec-extension batch 2026-05-09 (cycle 40). |
 | `statelevels` | ✅ | Sig: lv = statelevels(x). Spec-extension batch 2026-05-09 (cycle 40). |

@@ -59,6 +59,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/demod_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/besself_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dct_types_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/risetime_falltime_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
 
