@@ -102,6 +102,19 @@ public:
     // Call depth: 0 at top-level, +1 per user function call
     int callDepth() const { return std::max(0, static_cast<int>(frames_.size()) - 1); }
 
+    // The class declaring the currently-executing method/constructor frame
+    // (empty if the top frame is an ordinary function or there is no frame) —
+    // drives classdef member-access enforcement for VM-run bodies.
+    const std::string &currentMethodClass() const
+    {
+        static const std::string kEmpty;
+        return frames_.empty() ? kEmpty : frames_.back().ownerClass;
+    }
+    bool currentMethodIsCtor() const
+    {
+        return !frames_.empty() && frames_.back().isCtor;
+    }
+
     void setMaxRecursionDepth(int d) { maxRecursion_ = d; }
 
     // ── Frame walking for assignin / evalin / inputname ──
@@ -186,6 +199,11 @@ private:
         uint8_t outBase = 0;            // multi-return: output base register
         uint8_t nout = 0;               // multi-return: output count
         size_t nargout = 1;
+        // classdef method/ctor frames only: the declaring class (drives
+        // member-access enforcement; read on demand, never a separate stack,
+        // so it is naturally exception-safe). Empty for ordinary functions.
+        std::string ownerClass;
+        bool isCtor = false;
 
         // Dynamic variables — fallback for variables not in static varMap.
         // Used by debug eval to inject variables created at breakpoints.
@@ -278,7 +296,8 @@ private:
     // Frame management
     void pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_t nargs,
                        uint8_t destReg, size_t nargout,
-                       bool isMulti = false, uint8_t outBase = 0, uint8_t nout = 0);
+                       bool isMulti = false, uint8_t outBase = 0, uint8_t nout = 0,
+                       const std::string &ownerClass = std::string(), bool isCtor = false);
     void popCallFrame(Value retVal);
 
     // Returns the Environment a builtin call should see for ctx.env.

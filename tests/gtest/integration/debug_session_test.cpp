@@ -45,6 +45,32 @@ TEST_F(DebugSessionTest, PauseAtBreakpoint)
     EXPECT_EQ(session.snapshot().line, 2);
 }
 
+// Proof that a classdef method body runs on the VM (a real frame), not the
+// TreeWalker hook: a breakpoint INSIDE the method pauses there. If the body
+// ran via the C++ hook (atomic, on the TW) the debugger could not stop in it.
+TEST_F(DebugSessionTest, BreakInsideClassdefMethodFunctionForm)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({7}); // the `r = o.v + 1;` line inside method go
+    std::string code =
+        "classdef DbgC\n"          // 1
+        "  properties\n"           // 2
+        "    v = 0\n"              // 3
+        "  end\n"                  // 4
+        "  methods\n"              // 5
+        "    function r = go(o)\n" // 6
+        "      r = o.v + 1;\n"     // 7  <- breakpoint
+        "    end\n"               // 8
+        "  end\n"                  // 9
+        "end\n"                    // 10
+        "y = go(DbgC());\n";       // 11  function-form call
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "method body did not run on the VM (no pause)";
+    EXPECT_EQ(session.snapshot().line, 7);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

@@ -3593,6 +3593,8 @@ const BytecodeChunk *Compiler::ensureClassMethodCompiled(const UserFunction &uf)
     auto it = compiledFuncs_.find(uf.name);
     if (it != compiledFuncs_.end())
         return &it->second;
+    if (uncompilableClassMethods_.count(uf.name))
+        return nullptr; // a construct the VM can't compile yet → use the TW hook
     // Reconstruct a FUNCTION_DEF from the UserFunction and compile it into the
     // GLOBAL table. compileFunction saves/restores compiler state, so this is
     // safe even when invoked lazily from the VM run loop (the compiler is
@@ -3603,7 +3605,15 @@ const BytecodeChunk *Compiler::ensureClassMethodCompiled(const UserFunction &uf)
     fn.returnNames = uf.returns;
     if (uf.body)
         fn.children.push_back(cloneNode(uf.body.get()));
-    BytecodeChunk chunk = compileFunction(&fn);
+    BytecodeChunk chunk;
+    try {
+        chunk = compileFunction(&fn);
+    } catch (const std::exception &) {
+        // e.g. a super-call (SUPERCLASS_REF) the VM compiler doesn't handle
+        // until P2 — fall back to running this method body on the TreeWalker.
+        uncompilableClassMethods_.insert(uf.name);
+        return nullptr;
+    }
     chunk.name = uf.name;
     auto ins = compiledFuncs_.emplace(uf.name, std::move(chunk));
     return &ins.first->second;
