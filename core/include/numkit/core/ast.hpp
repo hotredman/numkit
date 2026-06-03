@@ -40,6 +40,9 @@ enum class NodeType {
     // expression (absent → default []). See OBJECT_MODEL.md.
     CLASSDEF_DEF,
     CLASSDEF_PROPERTY,
+    // One `enumeration` member: strValue = member name; children = constructor
+    // argument expressions (empty for a plain `Red`, present for `Monday(1)`).
+    CLASSDEF_ENUM_MEMBER,
     // Superclass-qualified reference `lhs@Base`: children[0] = lhs (the
     // object var in a constructor, or a method-name identifier in a method),
     // strValue = Base class name. Wrapped in a CALL for `lhs@Base(args)`.

@@ -42,6 +42,7 @@ struct ObjectState
 {
     std::pmr::map<std::string, Value> props;     // MATLAB-visible properties
     std::shared_ptr<NativePayload>    native;     // optional opaque payload
+    std::string enumName;                         // enumeration member name ("" if not an enum)
 
     explicit ObjectState(std::pmr::memory_resource *mr) : props(mr) {}
 
@@ -53,6 +54,7 @@ struct ObjectState
         for (const auto &[k, v] : props)
             s->props.emplace(k, v);
         s->native = native ? native->clone() : nullptr;
+        s->enumName = enumName;
         return s;
     }
 };

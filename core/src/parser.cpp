@@ -870,12 +870,13 @@ ASTNodePtr Parser::parseClassDef()
     while (!isAtEnd() && !check(TokenType::KW_END)) {
         const bool isProps = check(TokenType::IDENTIFIER) && current().value == "properties";
         const bool isMethods = check(TokenType::IDENTIFIER) && current().value == "methods";
-        if (!isProps && !isMethods)
+        const bool isEnum = check(TokenType::IDENTIFIER) && current().value == "enumeration";
+        if (!isProps && !isMethods && !isEnum)
             throw std::runtime_error(
                 "classdef '" + node->strValue
-                + "': expected 'properties' or 'methods' block at line "
+                + "': expected 'properties', 'methods' or 'enumeration' block at line "
                 + std::to_string(current().line));
-        advance();                              // consume 'properties' / 'methods'
+        advance();                              // consume the block keyword
         std::vector<std::string> blockAttrs = parseAttrBlock();
         skipTerminators();
 
@@ -888,6 +889,22 @@ ASTNodePtr Parser::parseClassDef()
                     prop->children.push_back(parseExpression());
                 prop->classAttrs = blockAttrs;
                 node->children.push_back(std::move(prop));
+            } else if (isEnum) {
+                // `Name` or `Name(arg, ...)` — a member, optionally with the
+                // constructor arguments that define its underlying value.
+                auto [eln, ecl] = loc();
+                auto em = makeNode(NodeType::CLASSDEF_ENUM_MEMBER, eln, ecl);
+                em->strValue = consume(TokenType::IDENTIFIER, "enumeration member").value;
+                if (match(TokenType::LPAREN)) {
+                    if (!check(TokenType::RPAREN)) {
+                        em->children.push_back(parseExpression());
+                        while (match(TokenType::COMMA))
+                            em->children.push_back(parseExpression());
+                    }
+                    consume(TokenType::RPAREN, ")");
+                }
+                node->children.push_back(std::move(em));
+                match(TokenType::COMMA); // members may be comma-separated on a line
             } else {
                 auto fn = parseFunctionDef();
                 fn->classAttrs = blockAttrs;
@@ -895,7 +912,9 @@ ASTNodePtr Parser::parseClassDef()
             }
             skipTerminators();
         }
-        consume(TokenType::KW_END, isProps ? "end (properties)" : "end (methods)");
+        consume(TokenType::KW_END, isProps      ? "end (properties)"
+                                   : isEnum     ? "end (enumeration)"
+                                                : "end (methods)");
         skipTerminators();
     }
 
