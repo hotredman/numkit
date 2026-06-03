@@ -681,7 +681,7 @@ together.
 | `sinh` | ✅ | Sig: y = sinh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `sinpi` | ✅ | Sig: r = sinpi(x). Accurate sin(pi*x) via exact int64 octant reduction + single-double SLEEF sinpik polynomial (third_party/sleef, BSL-1.0), replacing the naive sin(pi*x) that drifted to ~1e-10 by x=1e7 and never produced an exact integer zero. Branches: integer -> exact 0 (r1 x=0, r2 x=1, r3 x=7); large integer 1e7 -> 0 (r4); half -> +/-1 (r5 x=0.5, r6 x=1.5); accurate 1/6=0.5 (r7), 1/3=sqrt3/2 (r8), 0.25=sqrt2/2 (r9); large fractional 123456.25 (r10); large half-integer 1e10+0.5 -> 1 (r11); negative (r12); generic 0.1 (r13). <=2 ULP vs MATLAB R2025b (exact at r1-r11). |
 | `sph2cart` | ✅ | Sig: r = sph2cart(...). Spec-extension batch 2026-05-09. |
-| `tan` | ✅ | Sig: y = tan(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
+| `tan` | ✅ | Sig: y = tan(x). SIMD via ported SLEEF xtan (Cody-Waite reduction + degree-7 half-angle polynomial + tan double-angle), replacing Div(Sin,Cos). 2-step reduction for |x|<15 (y1-y5), extended PI_A..D for |x|<1e6 (y6 x=10, y7 x=100, y8 x=1000, y9 x=50000); |x|>=1e6 falls to scalar std::tan. <=3.5 ULP, bit-identical MATLAB R2025b on probed inputs (incl. large args via extended reduction). |
 | `tand` | ✅ | Sig: y = tand(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 | `tanh` | ✅ | Sig: y = tanh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. |
 

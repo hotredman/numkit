@@ -17,6 +17,9 @@ SIMD library:
   - `libs/builtin/src/math/exp_log/exp_log_highway.cpp` — pow2 / 2^x
     (single-double `xexp2` polynomial; the integer ldexp split is plain
     IEEE-754 exponent construction, not SLEEF-specific)
+  - `libs/builtin/src/math/trig/trig_highway.cpp` — tan (`xtan`:
+    Cody-Waite range reduction PI_A2/B2 and PI_A..D + degree-7 half-angle
+    polynomial + tan double-angle; single-double, |x|>=1e6 falls to scalar)
 - license: Boost Software License 1.0 (see `LICENSE`)
 
 The polynomial coefficients are copied verbatim; the double-double arithmetic
