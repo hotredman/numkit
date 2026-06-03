@@ -1700,6 +1700,64 @@ INSTANTIATE_TEST_SUITE_P(Backends, EnumClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef abstract classes / methods ──
+class AbstractClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Shape2\n"
+            "  methods (Abstract)\n"
+            "    a = area(obj)\n" // signature only — no body
+            "  end\n"
+            "  methods\n"
+            "    function d = describe(obj)\n      d = area(obj) * 2;\n    end\n"
+            "  end\n"
+            "end\n");
+        engine.eval(
+            "classdef Circle2 < Shape2\n"
+            "  properties\n    r = 1\n  end\n"
+            "  methods\n"
+            "    function obj = Circle2(rr)\n      obj.r = rr;\n    end\n"
+            "    function a = area(obj)\n      a = obj.r * obj.r;\n    end\n" // implements abstract
+            "  end\n"
+            "end\n");
+        engine.eval("classdef Square2 < Shape2\nend\n"); // does NOT implement area
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    bool evalBool(const std::string &c) { return engine.eval(c).toBool(); }
+};
+
+TEST_P(AbstractClassdefTest, AbstractClassCannotInstantiate)
+{
+    EXPECT_THROW(engine.eval("Shape2();"), std::exception);
+}
+TEST_P(AbstractClassdefTest, SubclassWithoutImplStaysAbstract)
+{
+    EXPECT_THROW(engine.eval("Square2();"), std::exception);
+}
+TEST_P(AbstractClassdefTest, ConcreteSubclassInstantiates)
+{
+    engine.eval("c = Circle2(3);");
+    EXPECT_DOUBLE_EQ(evalScalar("c.area()"), 9.0); // implemented abstract method
+}
+TEST_P(AbstractClassdefTest, InheritedMethodCallsAbstractImpl)
+{
+    engine.eval("c = Circle2(3);");
+    EXPECT_DOUBLE_EQ(evalScalar("c.describe()"), 18.0); // describe = area*2 = 9*2
+}
+TEST_P(AbstractClassdefTest, IsaThroughAbstractBase)
+{
+    engine.eval("c = Circle2(3);");
+    EXPECT_TRUE(evalBool("isa(c, 'Shape2')"));
+}
+INSTANTIATE_TEST_SUITE_P(Backends, AbstractClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {

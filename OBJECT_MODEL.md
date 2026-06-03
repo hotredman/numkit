@@ -86,6 +86,11 @@ Production coverage (all both-engine tested):
   factory — enforced at the user-facing `ClassName(args)` sites via
   `constructChecked`, while internal default-fill during object-array growth
   bypasses the check so preallocation never breaks).
+- **Abstract classes/methods**: a `methods (Abstract)` block declares method
+  signatures with no body (`a = area(obj)`). A class with an unimplemented
+  abstract method is abstract and cannot be instantiated; a subclass that
+  provides a concrete method of each name becomes instantiable. Obligations
+  propagate through inheritance.
 - **Enumeration classes**: an `enumeration` block defines named members
   exposed as `ClassName.Member` constant instances (built by the constructor
   with the member's args, so `Weekday.Monday` carries its underlying value).
@@ -107,9 +112,11 @@ Production coverage (all both-engine tested):
   demand from the path (resolveMFile_), registering the class + a
   constructor external.
 
-Not yet: access **class lists** (`Access = ?Other`) and
-`Hidden` / `Abstract` / `Sealed`. Method bodies run on the TreeWalker under
-either backend (VM compilation of method bodies later).
+Not yet: access **class lists** (`Access = ?Other`), `Hidden` / `Sealed`,
+`events` / listeners, and in-session class **redefinition** (the registry is
+idempotent). Method bodies run on the TreeWalker under either backend (VM
+compilation of method bodies later). Chained field access on a qualified
+external (`Weekday.Monday.num`) works on the TreeWalker but not yet the VM.
 
 ## Object arrays
 

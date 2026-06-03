@@ -446,7 +446,9 @@ struct ClassDefDesc
     // in a `methods (Access = private|protected)` block.
     Access ctorAccess = Access::Public;
     std::string ctorDeclClass;
-    bool isEnum = false; // has an `enumeration` block
+    bool isEnum = false;                          // has an `enumeration` block
+    std::vector<std::string> abstractMethods;     // declared Abstract (own + inherited)
+    bool isAbstract = false;                      // an abstract method is unimplemented
 };
 
 // Translate an attribute keyword to an Access level. `Immutable` is only
@@ -603,6 +605,14 @@ void Engine::registerClassDef(const ASTNode *cd)
                 {child->strValue, def, ba.get, ba.set, desc->name, hasAttr(child, "Constant")});
             desc->anyNonPublicProp = desc->anyNonPublicProp || ba.any;
         } else if (child->type == NodeType::FUNCTION_DEF) {
+            // Abstract method: a signature with no body (no children[0]).
+            // Record the name; a concrete subclass implements it. The class
+            // stays abstract (uninstantiable) until every such name is
+            // implemented.
+            if (hasAttr(child, "Abstract")) {
+                desc->abstractMethods.push_back(child->strValue);
+                continue;
+            }
             auto uf = std::make_shared<UserFunction>();
             uf->name = desc->name + ">" + child->strValue;
             uf->params = child->paramNames;
@@ -702,6 +712,12 @@ void Engine::registerClassDef(const ASTNode *cd)
         for (const auto &[sn, si] : base->statics)
             if (!desc->statics.count(sn))
                 desc->statics[sn] = si;
+        // Abstract method obligations propagate to the subclass (satisfied
+        // when the subclass provides a concrete method of the same name).
+        for (const auto &am : base->abstractMethods)
+            if (std::find(desc->abstractMethods.begin(), desc->abstractMethods.end(), am)
+                == desc->abstractMethods.end())
+                desc->abstractMethods.push_back(am);
         // Method access: inherit base entries (keeping the base's declaring
         // class so `protected` still admits this subclass) unless the derived
         // class declared the method itself (its own access — or public by
@@ -731,6 +747,13 @@ void Engine::registerClassDef(const ASTNode *cd)
                     == desc->superclasses.end())
                     desc->superclasses.push_back(a);
     }
+    // A class is abstract — uninstantiable — while any declared abstract
+    // method has no concrete implementation (own or inherited).
+    for (const auto &am : desc->abstractMethods)
+        if (!desc->methods.count(am)) {
+            desc->isAbstract = true;
+            break;
+        }
     classDefs_[desc->name] = desc;
 
     // Register `ClassName.member` qualified externals for every Static method
@@ -822,6 +845,9 @@ void Engine::registerClassDef(const ASTNode *cd)
         return true;
     };
     cls.construct = [desc](Span<const Value> args, CallContext &ctx) -> Value {
+        if (desc->isAbstract)
+            throw std::runtime_error("Cannot instantiate abstract class '" + desc->name
+                                     + "' (unimplemented abstract method)");
         auto *mr = ctx.engine->resource();
         auto st = std::make_shared<ObjectState>(mr);
         for (const auto &p : desc->props)
