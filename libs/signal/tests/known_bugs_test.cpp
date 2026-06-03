@@ -138,3 +138,13 @@ TEST_F(SignalKnownBug, DISABLED_ConvFilterComplex)
     eval("z = filter([1 1],1,[1i 1i]);");        // MATLAB: [1i, 2i]
     EXPECT_NEAR(evalScalar("imag(z(2))"), 2.0, 1e-12);
 }
+
+// bugs/signal/spectrogram-fc-tc.md — 5th/6th outputs fc, tc.
+TEST_F(SignalKnownBug, DISABLED_SpectrogramFcTc)
+{
+    eval("x = sin(2*pi*0.1*(0:99));");
+    eval("[s,f,t,ps,fc,tc] = spectrogram(x,16,8,16,1);");   // MATLAB tc(1)=8
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(fc)")),
+              static_cast<int>(evalScalar("numel(t)")));
+    EXPECT_NEAR(evalScalar("tc(1)"), 8.0, 1e-6);
+}
