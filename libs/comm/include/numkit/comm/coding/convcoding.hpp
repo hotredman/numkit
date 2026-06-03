@@ -61,4 +61,36 @@ Value poly2trellis(const Value &constraintLength, const Value &codeGenerator,
 Value convenc(const Value &msg, const Value &trellis,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Viterbi-decode a convolutional code
+/// (`msg = vitdec(code, trellis, tblen, opmode, dectype)`).
+///
+/// Hard-decision maximum-likelihood (Viterbi) decoder for the rate-1/n
+/// `trellis`. Runs the add-compare-select forward recursion over the
+/// `numel(code)/n` received symbols (branch metric = Hamming distance to
+/// each trellis output word) and traces the survivor path back to recover
+/// the message bits.
+///
+/// `opmode`:
+///   - `"trunc"` (default) — start at state 0, trace back from the
+///     minimum-metric final state.
+///   - `"term"` — the encoder was terminated, so trace back from state 0.
+/// `dectype` must be `"hard"` (soft / unquantised decisions are a v1 gap).
+/// `tblen` (traceback depth) is accepted for MATLAB compatibility; this v1
+/// always performs a full traceback (`"cont"` continuous mode is deferred).
+///
+/// @param code     Received bit vector (length a multiple of n).
+/// @param trellis  Trellis struct from poly2trellis.
+/// @param tblen    Traceback depth (advisory in trunc/term).
+/// @param opmode   `"trunc"` (default) or `"term"`.
+/// @param dectype  `"hard"` (default; only hard-decision supported).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         Decoded message bits (numel(code)/n).
+/// @throws Error on an invalid trellis, `numel(code)` not a multiple of n,
+///         or an unsupported opmode/dectype.
+/// @see convenc, poly2trellis
+Value vitdec(const Value &code, const Value &trellis, long long tblen,
+             const std::string &opmode = "trunc",
+             const std::string &dectype = "hard",
+             std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::comm
