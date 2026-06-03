@@ -9,6 +9,7 @@
 #include <numkit/builtin/math/geom/geom.hpp>
 #include <numkit/core/engine.hpp>
 
+#include <cmath>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -84,6 +85,52 @@ TEST(GeomPublicApiTest, Convhull)
     EXPECT_EQ(K3.numel(), 3u);
     // shape mismatch throws
     EXPECT_ANY_THROW(builtin::convhull(x, var(e, "[0 0 1]", "yb2"), e.resource()));
+}
+
+TEST(GeomPublicApiTest, Delaunay)
+{
+    Engine e;
+    // 3 points -> exactly one triangle, vertices {1,2,3} in some rotation
+    Value T1 = builtin::delaunay(var(e, "[0 1 0]", "xt"), var(e, "[0 0 1]", "yt"),
+                                 e.resource());
+    EXPECT_EQ(T1.dims().rows(), 1u);
+    EXPECT_EQ(T1.dims().cols(), 3u);
+    EXPECT_DOUBLE_EQ(T1.doubleData()[0] + T1.doubleData()[1] + T1.doubleData()[2],
+                     6.0); // 1 + 2 + 3, any vertex rotation
+
+    // Generic 5-point set (no 4 cocircular): every index in 1..5 and the
+    // triangle areas must tile the convex hull exactly.
+    Value x = var(e, "[0.1 2.0 3.3 1.2 0.7]", "x");
+    Value y = var(e, "[0.2 0.4 2.1 3.0 1.5]", "y");
+    Value T = builtin::delaunay(x, y, e.resource());
+    EXPECT_EQ(T.dims().cols(), 3u);
+    const std::size_t M = T.dims().rows();
+    ASSERT_GE(M, 1u);
+    const double *xd = x.doubleData();
+    const double *yd = y.doubleData();
+    const double *td = T.doubleData();
+    double triArea = 0.0;
+    for (std::size_t i = 0; i < M; ++i) {
+        const int a = static_cast<int>(td[0 * M + i]) - 1;
+        const int b = static_cast<int>(td[1 * M + i]) - 1;
+        const int c = static_cast<int>(td[2 * M + i]) - 1;
+        ASSERT_GE(a, 0); ASSERT_LT(a, 5);
+        ASSERT_GE(b, 0); ASSERT_LT(b, 5);
+        ASSERT_GE(c, 0); ASSERT_LT(c, 5);
+        triArea += 0.5 * std::abs((xd[b] - xd[a]) * (yd[c] - yd[a]) -
+                                  (xd[c] - xd[a]) * (yd[b] - yd[a]));
+    }
+    e.eval("kk = convhull(x, y); ha = polyarea(x(kk), y(kk));");
+    const double hullArea = e.getVariable("ha")->toScalar();
+    EXPECT_NEAR(triArea, hullArea, 1e-9); // triangulation tiles the hull
+
+    // < 3 points -> 0x3
+    Value T0 = builtin::delaunay(var(e, "[0 1]", "x2"), var(e, "[0 1]", "y2"),
+                                 e.resource());
+    EXPECT_EQ(T0.dims().rows(), 0u);
+    EXPECT_EQ(T0.dims().cols(), 3u);
+    // shape mismatch throws
+    EXPECT_ANY_THROW(builtin::delaunay(x, var(e, "[0 0 1]", "yb4"), e.resource()));
 }
 
 TEST(GeomPublicApiTest, Boundary)
