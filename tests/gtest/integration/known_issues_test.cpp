@@ -1480,3 +1480,36 @@ TEST_P(EmptyVarDefined, BareEmptyVarDoesNotSetAns)
 }
 
 INSTANTIATE_DUAL(EmptyVarDefined);
+
+// ── complex assigned into a logical array errors (deep audit) ──────────
+// Verified vs MATLAB R2025b: L(2)=complex(0,5) → "Complex values cannot be
+// converted to logicals." numkit silently stored the real part (false).
+class ComplexToLogical : public DualEngineTest {};
+
+TEST_P(ComplexToLogical, AssignComplexToLogicalErrors)
+{
+    EXPECT_THROW(eval("L = logical([0 0 0]); L(2) = complex(0, 5);"), std::exception);
+    // a real value still assigns fine
+    eval("M = logical([0 0 0]); M(2) = 1;");
+    EXPECT_DOUBLE_EQ(evalScalar("M(2)"), 1.0);
+}
+
+INSTANTIATE_DUAL(ComplexToLogical);
+
+// ── switch matches a case by value, cross-type (deep audit) ────────────
+// Verified vs MATLAB R2025b: switch int8(1)/case 1 and switch uint8(65)/case
+// 'A' both match (65==65). The TreeWalker's old type-strict valuesEqual fell
+// through to `otherwise`, diverging from the VM (EQ-based) and from MATLAB.
+class SwitchCrossType : public DualEngineTest {};
+
+TEST_P(SwitchCrossType, MatchesByValueAcrossTypes)
+{
+    eval("r = 0;\nswitch int8(1)\n  case 1\n    r = 1;\n  otherwise\n    r = 9;\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("r"), 1.0);
+    eval("r2 = 0;\nswitch uint8(65)\n  case 'A'\n    r2 = 1;\n  otherwise\n    r2 = 9;\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("r2"), 1.0);
+    eval("r3 = 0;\nswitch 5\n  case 1\n    r3 = 1;\n  otherwise\n    r3 = 9;\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("r3"), 9.0); // genuine non-match still hits otherwise
+}
+
+INSTANTIATE_DUAL(SwitchCrossType);

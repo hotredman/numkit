@@ -2710,26 +2710,23 @@ Value TreeWalker::execSwitch(const ASTNode *node, Environment *env)
         auto cv = execNode(ce.get(), env);
         bool matched = false;
 
-        // isequal-based matching (MATLAB semantics)
+        // MATLAB `switch` matches a case by VALUE (==), cross-type — verified
+        // against R2025b: `switch int8(1); case 1` and `switch uint8(65);
+        // case 'A'` both match (65 == 65). char-vs-char compares as strings;
+        // anything else numeric/char/logical compares element-wise on the
+        // numeric/code-point value (this is what the VM's EQ-based switch does,
+        // so both backends agree). The old type-strict gate diverged from both.
         auto valuesEqual = [](const Value &a, const Value &b) -> bool {
-            if (a.type() != b.type()) return false;
             if (a.isChar() && b.isChar()) return a.toString() == b.toString();
+            const bool an = a.isNumeric() || a.isLogical() || a.isChar();
+            const bool bn = b.isNumeric() || b.isLogical() || b.isChar();
+            if (!an || !bn) return false; // non-numeric (cell/struct/object) → no match
             if (a.numel() != b.numel()) return false;
+            if (a.isScalar() && b.isScalar()) return a.elemAsDouble(0) == b.elemAsDouble(0);
             if (a.dims() != b.dims()) return false;
-            if (a.isScalar() && b.isScalar()) return a.toScalar() == b.toScalar();
-            if (a.type() == ValueType::DOUBLE) {
-                const double *da = a.doubleData(), *db = b.doubleData();
-                for (size_t i = 0; i < a.numel(); ++i)
-                    if (da[i] != db[i]) return false;
-                return true;
-            }
-            if (a.type() == ValueType::LOGICAL) {
-                const uint8_t *la = a.logicalData(), *lb = b.logicalData();
-                for (size_t i = 0; i < a.numel(); ++i)
-                    if (la[i] != lb[i]) return false;
-                return true;
-            }
-            return false;
+            for (size_t i = 0; i < a.numel(); ++i)
+                if (a.elemAsDouble(i) != b.elemAsDouble(i)) return false;
+            return true;
         };
 
         if (cv.isCell()) {

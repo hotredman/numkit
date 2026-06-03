@@ -1546,6 +1546,8 @@ static void writeElem(Value &dst, size_t idx, const Value &val, size_t valIdx)
         dst.complexDataMut()[idx] = readElemAsComplex(val, valIdx);
         break;
     case ValueType::LOGICAL: {
+        if (val.type() == ValueType::COMPLEX) // MATLAB errors; don't drop imag silently
+            throw std::runtime_error("Complex values cannot be converted to logicals.");
         double dv = val.elemAsDouble(valIdx);
         dst.logicalDataMut()[idx] = static_cast<uint8_t>(dv != 0.0);
         break;
@@ -1594,6 +1596,8 @@ static void writeScalar(Value &dst, size_t idx, const Value &val)
         dst.complexDataMut()[idx] = val.toComplex();
         break;
     case ValueType::LOGICAL:
+        if (val.type() == ValueType::COMPLEX) // MATLAB errors; don't drop imag silently
+            throw std::runtime_error("Complex values cannot be converted to logicals.");
         dst.logicalDataMut()[idx] = static_cast<uint8_t>(val.toScalar() != 0.0);
         break;
     case ValueType::CHAR:
