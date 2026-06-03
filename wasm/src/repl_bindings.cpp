@@ -990,6 +990,26 @@ public:
         }
     }
 
+    // Decimated viewport tile for a downsampled line series (Phase 2c). The
+    // full x/y live in the engine's figure manager; this returns only the
+    // ~4*width points visible in [x0, x1] so zoom reveals detail without
+    // ever shipping the full array. algo: 0=M4, 1=LTTB, 2=none.
+    //   { x:[...], y:[...] } | { error }
+    std::string getSeriesTileJSON(int figId, int axIdx, int dsIdx,
+                                  double x0, double x1, int width, int algo) {
+        try {
+            const auto &fm = engine_->figureManager();
+            numkit::DecimatedSeries s =
+                fm.getSeriesDisplayTile(figId, axIdx, dsIdx, x0, x1, width, algo);
+            std::ostringstream os;
+            os << "{\"x\":" << numkit::figdetail::serializeFlatDoubles(s.x)
+               << ",\"y\":" << numkit::figdetail::serializeFlatDoubles(s.y) << "}";
+            return os.str();
+        } catch (const std::exception &e) {
+            return std::string("{\"error\":\"") + escapeJSON(e.what()) + "\"}";
+        } catch (...) { return "{\"error\":\"unknown\"}"; }
+    }
+
 private:
     std::unique_ptr<numkit::Engine> engine_;
     std::string outputBuf_;
@@ -1247,6 +1267,12 @@ std::string repl_get_figure_tile(int figId, int axIdx, int dsIdx,
     return g_session->getFigureTileJSON(figId, axIdx, dsIdx, r0, c0, h, w, lod);
 }
 
+std::string repl_get_series_tile(int figId, int axIdx, int dsIdx,
+                                 double x0, double x1, int width, int algo) {
+    if (!g_session) return "{\"error\":\"no session\"}";
+    return g_session->getSeriesTileJSON(figId, axIdx, dsIdx, x0, x1, width, algo);
+}
+
 emscripten::val repl_get_figure_display_tile(int figId, int axIdx, int dsIdx,
                                              double srcR0, double srcC0,
                                              double srcH, double srcW,
@@ -1397,6 +1423,7 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_get_var_tile",  &repl_get_var_tile);
     emscripten::function("repl_get_var_stats", &repl_get_var_stats);
     emscripten::function("repl_get_figure_tile", &repl_get_figure_tile);
+    emscripten::function("repl_get_series_tile", &repl_get_series_tile);
     emscripten::function("repl_get_figure_display_tile", &repl_get_figure_display_tile);
     emscripten::function("repl_version",   &repl_version);
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
