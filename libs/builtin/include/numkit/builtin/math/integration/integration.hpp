@@ -40,6 +40,27 @@ std::tuple<Value, Value>
 gradient2(const Value &f, double hx = 1.0, double hy = 1.0,
           std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Discrete Laplacian (`L = del2(U, h)`).
+///
+/// Approximates `∇²U / (2·ndims)` — MATLAB's `del2`. For each dimension a
+/// centered second difference is taken on the interior (divided by `2h²`)
+/// and linearly extrapolated to the boundary; the per-dimension terms are
+/// summed and divided by the number of dimensions (always 2 here, since a
+/// vector's `ndims` is 2). So a 1-D vector gives `½·(second difference)/h²`
+/// and a 2-D matrix gives `¼·(Uxx + Uyy)/h²`.
+///
+/// v1 scope: 1-D vector and 2-D matrix inputs with a single scalar spacing
+/// `h`. Per-axis spacing (`hx, hy`) and coordinate-vector spacing are a
+/// documented gap.
+///
+/// @param u   1-D vector or 2-D matrix.
+/// @param h   Uniform grid spacing (default 1, must be positive).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    DOUBLE Laplacian, same shape as `U`.
+/// @see gradient
+Value del2(const Value &u, double h = 1.0,
+           std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Cumulative trapezoidal integration with unit spacing
 /// (`c = cumtrapz(y)`).
 ///
