@@ -2303,42 +2303,14 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
     if (node->children.empty())
         return Value();
 
-    // ── Fast path: [A, x] or [A, x, y, ...] row vector append ──
-    // When appending scalars/vectors to a row vector, use amortized growth.
-    // CAUTION: this mutates the variable named by rowChildren[0]. Skip if
-    // that name is a reserved constant (NaN/Inf/pi/eps/true/false/i/j/...)
-    // — otherwise [NaN, 1, 2] would mutate the global NaN constant.
-    if (node->children.size() == 1) {
-        auto &rowChildren = node->children[0]->children;
-        if (rowChildren.size() >= 2 && rowChildren[0]->type == NodeType::IDENTIFIER
-            && !engine_.isReservedName(rowChildren[0]->strValue)) {
-            Value *varPtr = env->get(rowChildren[0]->strValue);
-            if (varPtr && varPtr->type() == ValueType::DOUBLE && varPtr->dims().rows() == 1
-                && varPtr->dims().cols() > 0) {
-                // Evaluate all appended elements
-                std::vector<double> appended;
-                bool allDoubles = true;
-                for (size_t i = 1; i < rowChildren.size(); ++i) {
-                    auto val = execNode(rowChildren[i].get(), env);
-                    if (val.isScalar() && val.type() == ValueType::DOUBLE) {
-                        appended.push_back(val.toScalar());
-                    } else if (val.type() == ValueType::DOUBLE && val.dims().rows() == 1) {
-                        const double *dd = val.doubleData();
-                        for (size_t j = 0; j < val.numel(); ++j)
-                            appended.push_back(dd[j]);
-                    } else {
-                        allDoubles = false;
-                        break;
-                    }
-                }
-                if (allDoubles && !appended.empty()) {
-                    for (double v : appended)
-                        varPtr->appendScalar(v, engine_.mr_);
-                    return *varPtr;
-                }
-            }
-        }
-    }
+    // NOTE: there is deliberately NO in-place row-append fast path here.
+    // execMatrixLiteral is target-agnostic — it does not know the assignment
+    // LHS — so appending into the first element's variable would corrupt the
+    // SOURCE: `b = [a, x]` (or a bare `[a, x]`) would mutate `a`. The VM keeps
+    // this optimization safely because its compiler emits HORZCAT_APPEND only
+    // when the LHS identifier == the RHS's first element (`a = [a, x]`); the
+    // TreeWalker is the fallback backend (not the perf path) and takes the
+    // correct allocating general path below.
 
     // Evaluate all elements per row, with comma-separated-list expansion
     // for struct-array dot access (`[d.field]` / `[s.fname]`).

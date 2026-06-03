@@ -781,6 +781,29 @@ TEST_P(HorzcatGrowRewrite, NotPatternMatched_DifferentIdentifier)
     expectElem(*C, 4, 5.0);
 }
 
+TEST_P(HorzcatGrowRewrite, DifferentIdentifierDoesNotMutateSource)
+{
+    // `b = [a, x]` must NOT mutate the SOURCE `a`. The TreeWalker's old
+    // target-agnostic in-place row-append fast path corrupted `a` here (it
+    // appended into a's own slot and returned it); the VM never had the bug
+    // (its compiler emits HORZCAT_APPEND only when LHS == RHS-first element).
+    eval(R"(
+        a = [1, 2, 3];
+        b = [a, 4];
+        c = [a, a];
+    )");
+    auto *a = getVarPtr("a");
+    ASSERT_EQ(a->numel(), 3u) << "source 'a' must be unchanged by b = [a, 4]";
+    expectElem(*a, 0, 1.0);
+    expectElem(*a, 1, 2.0);
+    expectElem(*a, 2, 3.0);
+    auto *b = getVarPtr("b");
+    ASSERT_EQ(b->numel(), 4u);
+    expectElem(*b, 3, 4.0);
+    auto *c = getVarPtr("c"); // [a, a] with a still length 3 → 6, not 8
+    ASSERT_EQ(c->numel(), 6u);
+}
+
 TEST_P(HorzcatGrowRewrite, NotPatternMatched_ThreeElements)
 {
     // RHS has three elements rather than two. Pattern requires
