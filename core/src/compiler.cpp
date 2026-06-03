@@ -1182,8 +1182,11 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
             return outRegs.empty() ? 0 : outRegs[0];
         }
 
-        if (fa->children[0]->type == NodeType::IDENTIFIER && nout <= 15
-            && (callNode->children.size() - 1) <= 15) {
+        // Receiver compiles into a register whether it is a bare variable or
+        // an rvalue expression (`f().m()`, `a.b.m()`), so no IDENTIFIER gate:
+        // CALL_METHOD_MULTI dispatches on the value in objReg either way (a
+        // handle's shared state still propagates through the register copy).
+        if (nout <= 15 && (callNode->children.size() - 1) <= 15) {
             uint8_t objReg = compileNode(fa->children[0].get());
             uint8_t argBase = 0;
             size_t nargs = compileArgsBlock(argBase);

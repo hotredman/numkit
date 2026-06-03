@@ -1486,13 +1486,21 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     if (node->children[0]->type == NodeType::SUPERCLASS_REF)
         return execSuperCall(node->children[0].get(), node, env, nout);
 
-    // OBJECT dotted multi-output method: [a,b] = obj.m(args). Peek the
-    // identifier-rooted receiver (mirrors execCall's dotted dispatch); a
+    // OBJECT dotted multi-output method: [a,b] = recv.m(args). An identifier
+    // receiver is peeked (no eval, lets a handle method mutate in place); an
+    // rvalue receiver (`f().m()`, `a.b.m()`) is evaluated exactly once. A
     // class method returning several outputs fills nout result slots.
     auto *headNode = node->children[0].get();
-    if (headNode->type == NodeType::FIELD_ACCESS
-        && headNode->children[0]->type == NodeType::IDENTIFIER) {
-        Value *objPtr = env->get(headNode->children[0]->strValue);
+    if (headNode->type == NodeType::FIELD_ACCESS) {
+        const ASTNode *recvNode = headNode->children[0].get();
+        Value recvTmp;
+        Value *objPtr = nullptr;
+        if (recvNode->type == NodeType::IDENTIFIER) {
+            objPtr = env->get(recvNode->strValue);
+        } else {
+            recvTmp = execNode(recvNode, env);
+            objPtr = &recvTmp;
+        }
         if (objPtr && objPtr->isObject()) {
             const std::string &mname = headNode->strValue;
             const BuiltinClass *cls = engine_.findClass(objPtr->objectClassName());
@@ -1834,7 +1842,50 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             }
         }
 
-        auto target = execNode(funcNode, env);
+        // OBJECT method/property on an rvalue receiver: `expr.m(args)` where
+        // the receiver is NOT a bare variable (`Vec(2).plus(x)`, `f().g()`,
+        // `a.b.method()`). The receiver is evaluated exactly ONCE here; an
+        // object dispatches its method (with the call args — unlike the bare
+        // `obj.method` no-arg form objectPropGet would otherwise pick) or a
+        // property read + index. A non-object value (struct field, etc.) is
+        // completed below from the same single evaluation (no re-eval, so a
+        // side-effecting receiver runs once).
+        Value target;
+        bool haveTarget = false;
+        if (funcNode->type == NodeType::FIELD_ACCESS
+            && funcNode->children[0]->type != NodeType::IDENTIFIER) {
+            Value recv = execNode(funcNode->children[0].get(), env);
+            const std::string &mname = funcNode->strValue;
+            if (recv.isObject()) {
+                const BuiltinClass *cls = engine_.findClass(recv.objectClassName());
+                if (cls && cls->methods.count(mname)) {
+                    std::vector<Value> margs;
+                    margs.reserve(node->children.size() - 1);
+                    for (size_t i = 1; i < node->children.size(); ++i)
+                        margs.push_back(execNode(node->children[i].get(), env));
+                    Value self = recv;
+                    Value outBuf[1];
+                    CallContext ctx{&engine_, env};
+                    cls->methods.at(mname)(self, Span<const Value>(margs.data(), margs.size()),
+                                           nargout, Span<Value>(outBuf, 1), ctx);
+                    return outBuf[0];
+                }
+                Value prop = objectPropGet(recv, mname, env);
+                return execIndexAccess(prop, node, env);
+            }
+            // Non-object receiver: finish the field access on the evaluated
+            // value (mirrors execFieldAccess) and feed the shared tail below.
+            if (!recv.isStruct())
+                throw std::runtime_error("Dot indexing requires a struct, got "
+                                         + std::string(mtypeName(recv.type())));
+            if (!recv.hasField(mname))
+                throw std::runtime_error("Reference to non-existent field '" + mname + "'");
+            target = recv.field(mname);
+            haveTarget = true;
+        }
+
+        if (!haveTarget)
+            target = execNode(funcNode, env);
 
         if (target.isFuncHandle()) {
             std::vector<Value> args;

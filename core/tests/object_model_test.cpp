@@ -815,6 +815,10 @@ public:
             "      obj.x = obj.x * f;\n"
             "      obj.y = obj.y * f;\n"
             "    end\n"
+            "    function [a, b] = coords(obj)\n"
+            "      a = obj.x;\n"
+            "      b = obj.y;\n"
+            "    end\n"
             "  end\n"
             "end\n");
     }
@@ -839,6 +843,22 @@ TEST_P(ClassdefTest, Method)
 TEST_P(ClassdefTest, FunctionFormMethod)
 {
     EXPECT_DOUBLE_EQ(evalScalar("p = Pt(3, 4); mag(p)"), 5.0);
+}
+TEST_P(ClassdefTest, RvalueReceiverMethodCall)
+{
+    // Method called directly on a constructor result (rvalue receiver).
+    EXPECT_DOUBLE_EQ(evalScalar("Pt(3, 4).mag()"), 5.0);
+}
+TEST_P(ClassdefTest, MethodChaining)
+{
+    // scale(2) returns a Pt; .mag() then dispatches on that rvalue.
+    EXPECT_DOUBLE_EQ(evalScalar("Pt(3, 4).scale(2).mag()"), 10.0);
+}
+TEST_P(ClassdefTest, RvalueReceiverMultiOutput)
+{
+    engine.eval("[xx, yy] = Pt(3, 4).coords();"); // multi-output on rvalue receiver
+    EXPECT_DOUBLE_EQ(evalScalar("xx"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("yy"), 4.0);
 }
 TEST_P(ClassdefTest, MethodReturningObjectValueSemantics)
 {
@@ -865,7 +885,7 @@ TEST_P(ClassdefTest, Introspection)
     EXPECT_DOUBLE_EQ(evalScalar("isobject(5)"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("numel(properties(p))"), 2.0);   // x, y
     EXPECT_DOUBLE_EQ(evalScalar("numel(properties('Pt'))"), 2.0);
-    EXPECT_DOUBLE_EQ(evalScalar("numel(methods(p))"), 2.0);      // mag, scale
+    EXPECT_DOUBLE_EQ(evalScalar("numel(methods(p))"), 3.0);      // mag, scale, coords
 }
 TEST_P(ClassdefTest, ErrorOnUnknownProperty)
 {
@@ -1339,8 +1359,9 @@ TEST_P(OperatorOverloadClassdefTest, MixedWithScalarProperty)
 }
 TEST_P(OperatorOverloadClassdefTest, OperatorMethodCallableByName)
 {
-    // An operator method is also a normal method (lives in both methods + ops).
-    engine.eval("v = Vec(2); c = v.plus(Vec(3));");
+    // An operator method is also a normal method (lives in both methods + ops),
+    // callable by name — here on an rvalue receiver.
+    engine.eval("c = Vec(2).plus(Vec(3));");
     EXPECT_DOUBLE_EQ(evalScalar("c.x"), 5.0);
 }
 INSTANTIATE_TEST_SUITE_P(Backends, OperatorOverloadClassdefTest,
