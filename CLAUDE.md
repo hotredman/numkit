@@ -188,7 +188,9 @@ feature-gaps: `bug` (implemented fn, wrong/divergent result or ignored
 option), `stub` (documented option/branch throws "not supported"),
 `missing-output` (documented Nth output not emitted), `missing-fn` (function
 not implemented at all — a **parity gap, also tracked in PROGRESS.md, NOT a
-defect**). Don't conflate them — a missing function is not a bug.
+defect**), `perf` (correct but slower than MATLAB — use a `Slowdown:` line +
+a benchmark, not a `DISABLED_` gtest). Don't conflate them — a missing
+function is not a bug.
 
 See [bugs/README.md](bugs/README.md) for the template + Kind legend + index.
 When you fix a bug, remove the test's `DISABLED_` prefix, flip the md status

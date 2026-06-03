@@ -67,6 +67,11 @@ real bugs isn't inflated by unimplemented functions:
   missing ("Too many output arguments").
 - **missing-fn** — the function is not implemented at all. This is a
   **parity feature-gap, not a defect** — also tracked in `PROGRESS.md`.
+- **perf** — the function is CORRECT but significantly slower than MATLAB.
+  Use a `**Slowdown:**` line (e.g. "1.2×–4.3× vs MATLAB") instead of a P0–P3
+  severity, and reference a **benchmark** (`benchmarks/*.cpp`) rather than a
+  `DISABLED_` gtest — timing assertions are too flaky for gtest. Always
+  include the measured numbers + the bottleneck analysis.
 
 Add `- **Kind:** <kind>` to each file (right after Severity).
 
@@ -96,9 +101,9 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (42 entries):** ✅ 5 fixed · 🔴 37 open = **12 bug** + 7 stub +
-5 missing-output + **13 missing-fn** (the 13 missing-fns are parity
-feature-gaps, not defects — also in PROGRESS.md).
+**Tally (43 entries):** ✅ 5 fixed · 🔴 38 open = **12 bug** + 7 stub +
+5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
+feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 ### ✅ FIXED (5)
 
@@ -166,3 +171,9 @@ feature-gaps, not defects — also in PROGRESS.md).
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
 | [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | lsqcurvefit/lsqnonlin |
 | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon/linprog/quadprog/fminunc |
+
+### 🔴 OPEN — perf (correct but slower than MATLAB) — 1
+
+| Entry | Slowdown | Notes |
+|---|---|---|
+| [signal/fft-speed](signal/fft-speed.md) | 1.2×–4.3× | single-threaded vs FFTW; Highway already present, gap is threading + MSVC codegen + wrapper |
