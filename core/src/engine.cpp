@@ -405,6 +405,10 @@ struct ClassDefDesc
     // Non-public members only (public == absent).
     std::unordered_map<std::string, PropAccess> propAccess;
     std::unordered_map<std::string, MethodAccess> methodAccess;
+    // Constructor access (this class's OWN ctor). Public unless the ctor sits
+    // in a `methods (Access = private|protected)` block.
+    Access ctorAccess = Access::Public;
+    std::string ctorDeclClass;
 };
 
 // Translate an attribute keyword to an Access level. `Immutable` is only
@@ -575,6 +579,12 @@ void Engine::registerClassDef(const ASTNode *cd)
                     });
             } else if (child->strValue == desc->name) {
                 desc->ctor = uf; // constructor: method named like the class
+                BlockAccess ba = parseBlockAccess(child->classAttrs);
+                Access clvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
+                if (clvl != Access::Public) {
+                    desc->ctorAccess = clvl;
+                    desc->ctorDeclClass = desc->name;
+                }
             } else {
                 desc->methods[child->strValue] = uf;
                 // Record non-public method access (Access sets the level;
@@ -901,6 +911,19 @@ bool Engine::classCtxInCtorOf(const std::string &declClass) const
 {
     return !classCtx_.empty() && classCtx_.back().isCtor
            && classCtx_.back().className == declClass;
+}
+
+Value Engine::constructChecked(const BuiltinClass *cls, Span<const Value> args, CallContext &ctx)
+{
+    auto it = classDefs_.find(cls->name);
+    if (it != classDefs_.end() && it->second->ctorAccess != Access::Public) {
+        const Access lvl = it->second->ctorAccess;
+        if (!classCtxAllows(it->second->ctorDeclClass, /*privateOnly=*/lvl == Access::Private))
+            throw std::runtime_error(std::string("Cannot call the ") + accessWord(lvl)
+                                     + " constructor of '" + cls->name
+                                     + "' from outside the class");
+    }
+    return cls->construct(args, ctx);
 }
 
 void Engine::registerFunction(const std::string &ns,
@@ -1305,7 +1328,7 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
                     if (!c || !c->construct)
                         throw std::runtime_error("classdef '" + cn
                                                  + "' has no constructor");
-                    outs[0] = c->construct(args, ctx);
+                    outs[0] = ctx.engine->constructChecked(c, args, ctx);
                 });
                 MFileCacheEntry ce;
                 ce.fullPath = userPath;

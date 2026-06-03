@@ -77,17 +77,20 @@ Production coverage (all both-engine tested):
   nothing and behave exactly as before. Enforcement covers every reach:
   instance property get/set, instance methods (dotted + function form),
   **operator methods** (`a + b` as well as `a.plus(b)`), **Static methods**
-  and **Constant properties** (at their `ClassName.member` call site), and
+  and **Constant properties** (at their `ClassName.member` call site),
   **superclass calls** (`m@Base(obj)` — a subclass may reach a `protected`
-  base method but not a `private` one).
+  base method but not a `private` one), and **constructors** (a `private`/
+  `protected` ctor is callable only from in-class code, e.g. a Static
+  factory — enforced at the user-facing `ClassName(args)` sites via
+  `constructChecked`, while internal default-fill during object-array growth
+  bypasses the check so preallocation never breaks).
 - **Introspection**: `class`, `isa(x,'Name'|'Base'|category)`, `isobject`,
   `properties(x)`, `methods(x)`.
 - **File-based classes**: a `Name.m` containing a classdef is loaded on
   demand from the path (resolveMFile_), registering the class + a
   constructor external.
 
-Not yet: access **class lists** (`Access = ?Other`), private **constructor**
-enforcement (a private ctor is currently callable), and
+Not yet: access **class lists** (`Access = ?Other`) and
 `Hidden` / `Abstract` / `Sealed`. Method bodies run on the TreeWalker under
 either backend (VM compilation of method bodies later).
 

@@ -1596,7 +1596,7 @@ enter_frame:
                         cls && cls->construct) {
                         Span<const Value> as(&R[argBase], na);
                         CallContext ctx{&engine_, currentCallEnv()};
-                        R[I.a] = cls->construct(as, ctx);
+                        R[I.a] = engine_.constructChecked(cls, as, ctx);
                         break;
                     }
                 }
