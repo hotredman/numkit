@@ -37,6 +37,20 @@ Value griddatan(const Value &X, const Value &v, const Value &xi,
                 const std::string &method = "linear",
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Area of the polygon with vertices `(x, y)` — `a = polyarea(x, y)`.
+///
+/// Shoelace formula over the closed polygon (the last vertex wraps to the
+/// first; the polygon need not be explicitly closed). Fewer than 3 vertices
+/// give 0.
+///
+/// @param x   Polygon vertex x-coordinates.
+/// @param y   Polygon vertex y-coordinates (same numel as `x`).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Scalar polygon area.
+/// @throws Error if `x` and `y` differ in numel.
+Value polyarea(const Value &x, const Value &y,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Match-pairs result.
 struct MatchpairsResult {
     Value M;   ///< `p × 2` matrix of `(row, col)` 1-based match pairs.

@@ -11,6 +11,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mod_simd_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/minmax_nan_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/power_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/geom_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/special_fn_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math_reductions_batch_test.cpp
