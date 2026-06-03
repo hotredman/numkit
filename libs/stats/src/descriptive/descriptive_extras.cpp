@@ -1088,6 +1088,60 @@ FoDetect detect_one_column(const double *x, std::size_t n,
     return r;
 }
 
+// Moving-window detector for isoutlier 'movmedian' / 'movmean'. For each
+// element a local window [i-hb, i+hf] (truncated at the column ends, NaNs
+// excluded) yields a local center and scale:
+//   * movmedian — center = local median, scale = 1.4826·(local MAD);
+//   * movmean   — center = local mean,   scale = local sample std (n-1).
+// The element is an outlier when |x_i - center| > tf * scale. NaNs are
+// never flagged. Returns the per-column mask (1 == outlier).
+std::vector<uint8_t> detect_moving_column(const double *x, std::size_t n,
+                                          bool isMedian, long hb, long hf,
+                                          double tf)
+{
+    std::vector<uint8_t> mask(n, 0);
+    if (n == 0) return mask;
+    auto medOf = [](std::vector<double> &v) {
+        const std::size_t k = v.size();
+        return (k % 2 == 1) ? v[k / 2] : 0.5 * (v[k / 2 - 1] + v[k / 2]);
+    };
+    std::vector<double> win;
+    win.reserve(static_cast<std::size_t>(hb + hf + 1));
+    for (std::size_t i = 0; i < n; ++i) {
+        if (std::isnan(x[i])) continue;
+        long lo = static_cast<long>(i) - hb; if (lo < 0) lo = 0;
+        long hi = static_cast<long>(i) + hf;
+        if (hi > static_cast<long>(n) - 1) hi = static_cast<long>(n) - 1;
+        win.clear();
+        for (long j = lo; j <= hi; ++j)
+            if (!std::isnan(x[static_cast<std::size_t>(j)]))
+                win.push_back(x[static_cast<std::size_t>(j)]);
+        if (win.empty()) continue;
+        double center, scale;
+        if (isMedian) {
+            std::vector<double> w = win;
+            std::sort(w.begin(), w.end());
+            center = medOf(w);
+            std::vector<double> dev;
+            dev.reserve(win.size());
+            for (double v : win) dev.push_back(std::fabs(v - center));
+            std::sort(dev.begin(), dev.end());
+            scale = 1.4826022185056 * medOf(dev);
+        } else {
+            double s = 0.0;
+            for (double v : win) s += v;
+            const double m = s / double(win.size());
+            double ss = 0.0;
+            for (double v : win) ss += (v - m) * (v - m);
+            center = m;
+            scale = (win.size() >= 2)
+                        ? std::sqrt(ss / double(win.size() - 1)) : 0.0;
+        }
+        mask[i] = (std::fabs(x[i] - center) > tf * scale) ? 1 : 0;
+    }
+    return mask;
+}
+
 // Percentiles detector (isoutlier/filloutliers/rmoutliers 'percentiles'
 // method): elements below the loP-th or above the hiP-th percentile are
 // outliers, using MATLAB's prctile convention (sorted positions at
@@ -3014,7 +3068,8 @@ static void grubbsColumnMask(const double *x, std::size_t n, double alpha,
 }
 
 static Value isoutlierMethod(const Value &x, const std::string &method,
-                             double detectTf, std::pmr::memory_resource *mr)
+                             double detectTf, std::pmr::memory_resource *mr,
+                             long hb = 0, long hf = 0)
 {
     if (x.numel() == 0) return Value::matrix(0, 0, ValueType::LOGICAL, mr);
     const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
@@ -3023,6 +3078,19 @@ static Value isoutlierMethod(const Value &x, const std::string &method,
     auto out = Value::matrix(r, c, ValueType::LOGICAL, mr);
     uint8_t *od = out.logicalDataMut();
     const double *xd = x.doubleData();
+    if (method == "movmedian" || method == "movmean") {
+        const bool isMed = (method == "movmedian");
+        if (r == 1 || c == 1) {
+            auto m = detect_moving_column(xd, x.numel(), isMed, hb, hf, detectTf);
+            for (std::size_t i = 0; i < x.numel(); ++i) od[i] = m[i];
+        } else {
+            for (std::size_t col = 0; col < c; ++col) {
+                auto m = detect_moving_column(xd + col * r, r, isMed, hb, hf, detectTf);
+                for (std::size_t i = 0; i < r; ++i) od[col * r + i] = m[i];
+            }
+        }
+        return out;
+    }
     if (method == "grubbs") {
         // Iterative test (not a static lo/hi rule); per-column. detectTf is
         // the significance level alpha.
@@ -3058,23 +3126,51 @@ void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // parsed-and-ignored (always median/MAD); now honoured.
     std::string method = "median";
     std::size_t ai = 1;
+    long hb = 0, hf = 0;   // moving-window half-spans (movmedian / movmean)
     if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
         std::string m = args[1].toString();
         for (char &ch : m) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
         if (m == "median" || m == "mean" || m == "quartiles" || m == "grubbs") {
             method = m;
             ai = 2;
-        } else if (m == "gesd" || m == "movmedian" || m == "movmean") {
-            throw Error("isoutlier: method '" + args[1].toString() +
-                            "' is not supported in this revision "
-                            "(median, mean, quartiles, grubbs only)",
+        } else if (m == "movmedian" || m == "movmean") {
+            method = m;
+            // Moving methods require a window as the next positional arg.
+            if (args.size() < 3 || args[2].isChar() || args[2].isString())
+                throw Error("isoutlier: the '" + m + "' method requires a "
+                            "window length (scalar k or [back forward])",
+                            0, 0, "isoutlier", "", "numkit:isoutlier:window");
+            const Value &win = args[2];
+            if (win.numel() == 1) {
+                const long k = static_cast<long>(win.toScalar());
+                if (k < 1)
+                    throw Error("isoutlier: window length must be a positive integer",
+                                0, 0, "isoutlier", "", "numkit:isoutlier:window");
+                if (k % 2 == 1) { hb = hf = (k - 1) / 2; }
+                else { hb = k / 2; hf = k / 2 - 1; }
+            } else if (win.numel() == 2) {
+                hb = static_cast<long>(win.elemAsDouble(0));
+                hf = static_cast<long>(win.elemAsDouble(1));
+                if (hb < 0 || hf < 0)
+                    throw Error("isoutlier: window [back forward] must be nonnegative",
+                                0, 0, "isoutlier", "", "numkit:isoutlier:window");
+            } else {
+                throw Error("isoutlier: window must be a scalar or a 2-element "
+                            "[back forward] vector",
+                            0, 0, "isoutlier", "", "numkit:isoutlier:window");
+            }
+            ai = 3;
+        } else if (m == "gesd") {
+            throw Error("isoutlier: method 'gesd' is not supported in this "
+                        "revision (median, mean, quartiles, grubbs, movmedian, "
+                        "movmean only)",
                          0, 0, "isoutlier", "", "numkit:isoutlier:method");
         }
         // else: not a method token — leave as a Name-Value name parsed below.
     }
 
     // Default ThresholdFactor per method: quartiles 1.5, grubbs 0.05
-    // (significance level), median/mean 3.
+    // (significance level), median/mean/movmedian/movmean 3.
     double userTf = (method == "quartiles") ? 1.5
                   : (method == "grubbs")    ? 0.05
                                             : 3.0;
@@ -3094,7 +3190,7 @@ void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "isoutlier", "", "numkit:isoutlier:tf");
 
     const double detectTf = (method == "quartiles") ? 2.0 * userTf : userTf;
-    outs[0] = isoutlierMethod(args[0], method, detectTf, mr);
+    outs[0] = isoutlierMethod(args[0], method, detectTf, mr, hb, hf);
 }
 
 // Per-column outlier mask for rmoutliers. Adds the rmoutliers-specific

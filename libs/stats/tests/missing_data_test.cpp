@@ -83,6 +83,41 @@ TEST_F(MissingDataTest, IsoutlierGrubbs)
     EXPECT_DOUBLE_EQ(evalScalar("sum(double(gm(:,2)))"), 1.0);
 }
 
+// isoutlier 'movmedian' / 'movmean' — moving-window detection. Local
+// center (median/mean) +/- ThresholdFactor * local scale (1.4826*MAD for
+// movmedian, sample std for movmean) over a window. vs MATLAB R2025b.
+TEST_F(MissingDataTest, IsoutlierMoving)
+{
+    // movmedian k=3 flags the lone 100; movmean k=3 (default tf=3) flags none.
+    eval("mm = isoutlier([1 2 3 100 5 6 7 8], 'movmedian', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(mm))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(mm(4))"), 1.0);
+    eval("ma = isoutlier([1 2 3 100 5 6 7 8], 'movmean', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(ma))"), 0.0);
+    // movmean with ThresholdFactor 1 surfaces the 100.
+    eval("ma1 = isoutlier([1 2 3 100 5 6 7 8], 'movmean', 3, 'ThresholdFactor', 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(ma1(4))"), 1.0);
+    // [back forward] window equals the centered scalar window.
+    eval("mb = isoutlier([1 2 3 100 5 6 7 8], 'movmedian', [1 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(mm, mb)"), 1.0);
+    // Even window length k=4.
+    eval("m4 = isoutlier([1 2 3 100 5 6 7 8], 'movmedian', 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(m4(4))"), 1.0);
+    // Two local anomalies caught by a sliding median window.
+    eval("y = [10 11 12 13 30 14 15 40 16 17];"
+         " my = isoutlier(y, 'movmedian', 5);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(my))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(my(5))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(my(8))"), 1.0);
+    // Per-column on a matrix.
+    eval("Mm = isoutlier([1 1; 2 2; 3 50; 100 4; 5 5], 'movmedian', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(Mm(4,1))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(Mm(3,2))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(Mm(:)))"), 2.0);
+    // Missing window -> error.
+    EXPECT_THROW(eval("isoutlier([1 2 3 100 5], 'movmedian');"), std::exception);
+}
+
 // ── rmoutliers ────────────────────────────────────────────
 
 TEST_F(MissingDataTest, RmoutliersDropsExtreme)
