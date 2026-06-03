@@ -226,42 +226,48 @@ std::string Engine::formatObjectDisplay(const std::string &name, const Value &ob
     return name + " =\n\n" + body + "\n";
 }
 
-// Source operator token → MATLAB operator-overload method name.
+// MATLAB operator-overload methods — the single source for the source-token
+// ⇆ method-name mapping. The same token can be both binary and unary
+// (`-` → minus / uminus), so each row is arity-tagged and lookups
+// disambiguate. operatorMethodName / unaryOperatorMethodName /
+// isOperatorMethodName are thin views over this table.
+struct OpMethod
+{
+    const char *token;
+    const char *method;
+    bool unary;
+};
+static constexpr OpMethod kOpMethods[] = {
+    {"+", "plus", false},      {"-", "minus", false},     {"*", "mtimes", false},
+    {".*", "times", false},    {"/", "mrdivide", false},  {"./", "rdivide", false},
+    {"\\", "mldivide", false}, {".\\", "ldivide", false}, {"^", "mpower", false},
+    {".^", "power", false},    {"==", "eq", false},       {"~=", "ne", false},
+    {"<", "lt", false},        {"<=", "le", false},       {">", "gt", false},
+    {">=", "ge", false},       {"&", "and", false},       {"|", "or", false},
+    {"-", "uminus", true},     {"+", "uplus", true},      {"~", "not", true},
+    {"'", "ctranspose", true}, {".'", "transpose", true},
+};
+
 static const char *operatorMethodName(const std::string &op)
 {
-    if (op == "+")   return "plus";
-    if (op == "-")   return "minus";
-    if (op == "*")   return "mtimes";
-    if (op == ".*")  return "times";
-    if (op == "/")   return "mrdivide";
-    if (op == "./")  return "rdivide";
-    if (op == "\\")  return "mldivide";
-    if (op == ".\\") return "ldivide";
-    if (op == "^")   return "mpower";
-    if (op == ".^")  return "power";
-    if (op == "==")  return "eq";
-    if (op == "~=")  return "ne";
-    if (op == "<")   return "lt";
-    if (op == "<=")  return "le";
-    if (op == ">")   return "gt";
-    if (op == ">=")  return "ge";
-    if (op == "&")   return "and";
-    if (op == "|")   return "or";
+    for (const auto &e : kOpMethods)
+        if (!e.unary && op == e.token)
+            return e.method;
     return nullptr;
 }
-
-// True when a classdef method name is one of MATLAB's operator-overload
-// methods (binary or unary) — such a method is wired into BuiltinClass::ops
-// so `a + b`, `-a`, `a == b`, … dispatch to it.
+static const char *unaryOperatorMethodName(const std::string &op)
+{
+    for (const auto &e : kOpMethods)
+        if (e.unary && op == e.token)
+            return e.method;
+    return nullptr;
+}
+// True when a classdef method name is an operator-overload method (wired into
+// BuiltinClass::ops so `a + b`, `-a`, `a == b`, … dispatch to it).
 static bool isOperatorMethodName(const std::string &n)
 {
-    static const char *kOps[] = {
-        "plus",  "minus", "mtimes",  "times",      "mrdivide",  "rdivide",
-        "mldivide", "ldivide", "mpower", "power",   "eq",        "ne",
-        "lt",    "le",    "gt",      "ge",         "and",       "or",
-        "uminus", "uplus", "not",    "ctranspose", "transpose"};
-    for (const char *o : kOps)
-        if (n == o)
+    for (const auto &e : kOpMethods)
+        if (n == e.method)
             return true;
     return false;
 }
@@ -290,17 +296,6 @@ bool Engine::tryObjectBinaryOp(const std::string &op, const Value &lhs, const Va
     }
     throw std::runtime_error("Undefined operator '" + op
                              + "' for input arguments of type '" + clsName + "'.");
-}
-
-// Source unary operator token → MATLAB operator-overload method name.
-static const char *unaryOperatorMethodName(const std::string &op)
-{
-    if (op == "-")  return "uminus";
-    if (op == "+")  return "uplus";
-    if (op == "~")  return "not";
-    if (op == "'")  return "ctranspose";
-    if (op == ".'") return "transpose";
-    return nullptr;
 }
 
 bool Engine::tryObjectUnaryOp(const std::string &op, const Value &operand,
@@ -553,6 +548,7 @@ void Engine::registerClassDef(const ASTNode *cd)
             uf->returns = child->returnNames;
             uf->body = std::shared_ptr<const ASTNode>(cloneNode(child->children[0].get()));
             uf->closureEnv = nullptr;
+            uf->ownerClass = desc->name; // member-access execution context
             const std::string &mn = child->strValue;
             if (mn.rfind("get.", 0) == 0) {
                 desc->getters[mn.substr(4)] = uf; // property get accessor
@@ -811,15 +807,14 @@ void Engine::registerClassDef(const ASTNode *cd)
 namespace {
 // Push the running class onto the access-context stack for the duration of a
 // method/constructor body; pops on scope exit (incl. exceptions). The class
-// name is the prefix of `uf.name` ("Class>member"); a name without '>'
-// (defensive) yields the whole string.
+// is `uf.ownerClass`, set when the classdef body was registered.
 struct ClassCtxGuard
 {
     Engine *engine;
-    ClassCtxGuard(Engine *e, const std::string &ufName, bool isCtor)
+    ClassCtxGuard(Engine *e, const std::string &className, bool isCtor)
         : engine(e)
     {
-        engine->pushClassCtx(ufName.substr(0, ufName.find('>')), isCtor);
+        engine->pushClassCtx(className, isCtor);
     }
     ~ClassCtxGuard() { engine->popClassCtx(); }
     ClassCtxGuard(const ClassCtxGuard &) = delete;
@@ -831,7 +826,7 @@ std::vector<Value> Engine::invokeClassMethod(const UserFunction &uf, Span<const 
                                              size_t nout)
 {
     if (treeWalker_) {
-        ClassCtxGuard ctx(this, uf.name, /*isCtor=*/false);
+        ClassCtxGuard ctx(this, uf.ownerClass, /*isCtor=*/false);
         return treeWalker_->runClassMethod(uf, args, nout);
     }
     throw std::runtime_error("classdef methods require the interpreter backend");
@@ -841,7 +836,7 @@ Value Engine::invokeClassCtor(const UserFunction &ctor, const Value &seed,
                               Span<const Value> args)
 {
     if (treeWalker_) {
-        ClassCtxGuard ctx(this, ctor.name, /*isCtor=*/true);
+        ClassCtxGuard ctx(this, ctor.ownerClass, /*isCtor=*/true);
         return treeWalker_->runClassCtor(ctor, seed, args);
     }
     throw std::runtime_error("classdef constructor requires the interpreter backend");
