@@ -111,6 +111,12 @@ public:
     // MATLAB-style display text for an OBJECT value. `name` empty →
     // bare body (disp); otherwise the `name =\n\n<body>\n` form.
     std::string formatObjectDisplay(const std::string &name, const Value &obj) const;
+    // Emit an OBJECT value to the engine output, honouring a class-defined
+    // `display` (owns the whole output) or `disp` (owns the body; the default
+    // `name =` header is added when `name` is non-empty) method on a scalar
+    // object. Falls back to formatObjectDisplay otherwise. Shared by both
+    // backends' display paths.
+    void displayObject(const std::string &name, const Value &obj);
     // Operator overloading: when `lhs` or `rhs` is an OBJECT, dispatch the
     // binary operator `op` (the source token, e.g. "+", ".*", "==") to the
     // dominant object's class `ops` entry (MATLAB names: plus/times/eq/…).

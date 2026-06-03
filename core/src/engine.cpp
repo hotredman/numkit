@@ -226,6 +226,36 @@ std::string Engine::formatObjectDisplay(const std::string &name, const Value &ob
     return name + " =\n\n" + body + "\n";
 }
 
+void Engine::displayObject(const std::string &name, const Value &obj)
+{
+    const BuiltinClass *cls = findClass(obj.objectClassName());
+    // Custom disp/display only for a scalar object; arrays use the default.
+    if (cls && obj.objectCount() == 1) {
+        auto call = [&](const ObjectMethod &m) {
+            Value self = obj;
+            Value outBuf[1];
+            CallContext ctx{this, workspaceEnv_.get()};
+            m(self, Span<const Value>(nullptr, 0), /*nargout=*/0, Span<Value>(outBuf, 1), ctx);
+        };
+        // `display` owns the entire output (including any variable-name line).
+        if (auto it = cls->methods.find("display"); it != cls->methods.end()) {
+            call(it->second);
+            return;
+        }
+        // `disp` owns the body; the default `display` prints the `name =`
+        // header around it (only when shown as a named variable).
+        if (auto it = cls->methods.find("disp"); it != cls->methods.end()) {
+            if (!name.empty())
+                outputText(name + " =\n\n");
+            call(it->second);
+            if (!name.empty())
+                outputText("\n");
+            return;
+        }
+    }
+    outputText(formatObjectDisplay(name, obj));
+}
+
 // MATLAB operator-overload methods — the single source for the source-token
 // ⇆ method-name mapping. The same token can be both binary and unary
 // (`-` → minus / uminus), so each row is arity-tagged and lookups
