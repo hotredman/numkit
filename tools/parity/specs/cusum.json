@@ -1,0 +1,10 @@
+{
+  "name": "cusum",
+  "namespace": "signal",
+  "setup": "x = [0 0 0 5 5 5 5 5];",
+  "expr": "[iu, il, us, ls] = cusum(x, 2, 1, 0, 1);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["iu", "us(4)", "us(8)", "numel(us)", "numel(il)"],
+  "comment": "Sig: [iupper,ilower,uppersum,lowersum] = cusum(x, climit, mshift, tmean, tdev). Standard one-sided CUSUM with mshift/2 slack on standardized z=(x-tmean)/tdev. Step input [0 0 0 5 5 5 5 5] with climit=2, mshift=1, tmean=0, tdev=1: upper sum first exceeds 2 at sample iu=4 (us(4)=4.5, us(8)=24.5), no lower detection (numel(il)=0). Lifted to public C++ API numkit::signal::cusum (was adapter-only; CusumResult struct, tmean/tdev as Value::Empty=auto) 2026-06."
+}

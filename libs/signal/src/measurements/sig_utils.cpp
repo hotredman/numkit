@@ -27,6 +27,8 @@
 //   * seqperiod: matrix/N-D operates column-wise — only vector
 //     supported in v1.
 
+#include <numkit/signal/measurements/sig_utils.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
@@ -91,20 +93,18 @@ zerocrossrate(const Value &x, double level, std::pmr::memory_resource *mr)
 }
 
 // ── cusum ─────────────────────────────────────────────────────────────
-// Standard CUSUM detector. Returns first indices where cumulative sum
-// exceeds the climit threshold (in standard-deviation units).
-struct CusumResult {
-    Value iupper;     // scalar (first index) or empty if no detection
-    Value ilower;
-    Value uppersum;   // length-N vector
-    Value lowersum;
-};
+// Standard CUSUM detector (see measurements/sig_utils.hpp for the public
+// API + CusumResult). Returns first indices where each one-sided cumulative
+// sum exceeds the climit threshold (in standard-deviation units).
 
-CusumResult cusum_impl(std::pmr::memory_resource *mr, const Value &x,
-                       double climit, double mshift,
-                       bool have_tmean, double tmean_user,
-                       bool have_tdev,  double tdev_user)
+CusumResult cusum(const Value &x, double climit, double mshift,
+                  const Value &tmean, const Value &tdev,
+                  std::pmr::memory_resource *mr)
 {
+    const bool have_tmean   = !tmean.isEmpty();
+    const bool have_tdev    = !tdev.isEmpty();
+    const double tmean_user = have_tmean ? tmean.toScalar() : 0.0;
+    const double tdev_user  = have_tdev  ? tdev.toScalar()  : 0.0;
     const size_t N = x.numel();
     CusumResult R;
     R.uppersum = Value::matrix(N, N == 0 ? 0 : 1, ValueType::DOUBLE, mr);
@@ -115,12 +115,12 @@ CusumResult cusum_impl(std::pmr::memory_resource *mr, const Value &x,
 
     // Defaults: tmean = mean(x(1:25)), tdev = std(x(1:25)).
     const size_t baseN = std::min<size_t>(25, N);
-    double tmean = tmean_user;
-    double tdev  = tdev_user;
+    double tmeanEff = tmean_user;
+    double tdevEff  = tdev_user;
     if (!have_tmean) {
         double sum = 0.0;
         for (size_t i = 0; i < baseN; ++i) sum += x.elemAsDouble(i);
-        tmean = sum / static_cast<double>(baseN);
+        tmeanEff = sum / static_cast<double>(baseN);
     }
     if (!have_tdev) {
         double sum = 0.0, sumsq = 0.0;
@@ -131,9 +131,9 @@ CusumResult cusum_impl(std::pmr::memory_resource *mr, const Value &x,
         const double m = sum / static_cast<double>(baseN);
         const double var = (sumsq - static_cast<double>(baseN) * m * m)
                           / static_cast<double>(baseN > 1 ? baseN - 1 : 1);
-        tdev = std::sqrt(std::max(0.0, var));
+        tdevEff = std::sqrt(std::max(0.0, var));
     }
-    if (tdev <= 0.0) tdev = 1.0;  // guard
+    if (tdevEff <= 0.0) tdevEff = 1.0;  // guard
 
     double *us = R.uppersum.doubleDataMut();
     double *ls = R.lowersum.doubleDataMut();
@@ -141,7 +141,7 @@ CusumResult cusum_impl(std::pmr::memory_resource *mr, const Value &x,
     long long iup_first = -1, ilo_first = -1;
     const double half_shift = 0.5 * mshift;
     for (size_t i = 0; i < N; ++i) {
-        const double z = (x.elemAsDouble(i) - tmean) / tdev;
+        const double z = (x.elemAsDouble(i) - tmeanEff) / tdevEff;
         up = std::max(0.0, up + z - half_shift);
         lo = std::max(0.0, lo - z - half_shift);
         us[i] = up;
@@ -188,14 +188,12 @@ void cusum_reg(Span<const Value> args, size_t nargout,
     if (args.empty())
         throw Error("cusum: requires (x [, climit, mshift, tmean, tdev])",
                     0, 0, "cusum", "", "numkit:cusum:nargin");
-    double climit = 5.0, mshift = 1.0, tmean = 0.0, tdev = 1.0;
-    bool have_tmean = false, have_tdev = false;
-    if (args.size() >= 2) climit = args[1].toScalar();
-    if (args.size() >= 3) mshift = args[2].toScalar();
-    if (args.size() >= 4) { tmean = args[3].toScalar(); have_tmean = true; }
-    if (args.size() >= 5) { tdev  = args[4].toScalar(); have_tdev  = true; }
-    auto R = cusum_impl(ctx.engine->resource(), args[0],
-                        climit, mshift, have_tmean, tmean, have_tdev, tdev);
+    const double climit = (args.size() >= 2) ? args[1].toScalar() : 5.0;
+    const double mshift = (args.size() >= 3) ? args[2].toScalar() : 1.0;
+    CusumResult R = cusum(args[0], climit, mshift,
+                          (args.size() >= 4) ? args[3] : Value::Empty,
+                          (args.size() >= 5) ? args[4] : Value::Empty,
+                          ctx.engine->resource());
     outs[0] = R.iupper;
     if (nargout >= 2 && outs.size() >= 2) outs[1] = R.ilower;
     if (nargout >= 3 && outs.size() >= 3) outs[2] = R.uppersum;

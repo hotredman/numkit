@@ -46,4 +46,32 @@ zerocrossrate(const Value &                x,
               double                       level = 0.0,
               std::pmr::memory_resource *  mr    = nullptr);
 
+/// @brief Result of `cusum` — `[iupper, ilower, uppersum, lowersum]`.
+struct CusumResult {
+    Value iupper;    ///< First index where the upper sum exceeds climit (empty = none).
+    Value ilower;    ///< First index where the lower sum exceeds climit (empty = none).
+    Value uppersum;  ///< Length-N upper cumulative sum.
+    Value lowersum;  ///< Length-N lower cumulative sum.
+};
+
+/// @brief CUSUM change detector
+/// (`[iu, il, us, ls] = cusum(x, climit, mshift, tmean, tdev)`).
+///
+/// Standardises `x` to `(x - tmean) / tdev`, accumulates the one-sided CUSUM
+/// statistics with an `mshift/2` slack, and reports the first sample index at
+/// which each one-sided sum first exceeds `climit`. The target mean / std
+/// default to the mean / std of the first 25 samples.
+///
+/// @param x       Input signal.
+/// @param climit  Control limit in standard-deviation units (default `5`).
+/// @param mshift  Mean shift to detect, in standard-deviation units (default `1`).
+/// @param tmean   Target mean (`Value::Empty` → `mean(x(1:25))`).
+/// @param tdev    Target std-dev (`Value::Empty` → `std(x(1:25))`).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        @ref CusumResult `{ iupper, ilower, uppersum, lowersum }`.
+CusumResult cusum(const Value &x, double climit = 5.0, double mshift = 1.0,
+                  const Value &tmean = Value::Empty,
+                  const Value &tdev = Value::Empty,
+                  std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::signal

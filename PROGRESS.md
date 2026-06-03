@@ -2769,7 +2769,7 @@ intentionally omitted — flat solver functions only.
 | `alignsignals` | ✅ | Sig: r = alignsignals(...). Spec-extension batch 2026-05-09 (signal namespace). |
 | `binmask2sigroi` | ❌ |  |
 | `countlabels` | ❌ |  |
-| `cusum` | ❌ | CUSUM change detection |
+| `cusum` | ✅ | Sig: [iupper,ilower,uppersum,lowersum] = cusum(x, climit, mshift, tmean, tdev). Standard one-sided CUSUM with mshift/2 slack on standardized z=(x-tmean)/tdev. Step input [0 0 0 5 5 5 5 5] with climit=2, mshift=1, tmean=0, tdev=1: upper sum first exceeds 2 at sample iu=4 (us(4)=4.5, us(8)=24.5), no lower detection (numel(il)=0). Lifted to public C++ API numkit::signal::cusum (was adapter-only; CusumResult struct, tmean/tdev as Value::Empty=auto) 2026-06. |
 | `dtw` | ❌ | dynamic time warp |
 | `edr` | ❌ | edit distance on real |
 | `envelope` | ✅ | Sig: [yupper, ylower] = envelope(x[, n[, method]]). Four modes match MATLAB R2025b envelope.m exactly: default (no n) FFT |hilbert(x-mean)| with mean restored; 'analytic' n-tap Kaiser(8)-tapered Hilbert FIR; 'rms' sliding-window RMS; 'peak' spline (parabola for 3 knots, not-a-knot for 4+) through local maxima/minima with MinPeakDistance n. DC-removal applied for analytic/rms/default; not for peak. |
