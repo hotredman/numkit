@@ -86,6 +86,12 @@ Production coverage (all both-engine tested):
   factory — enforced at the user-facing `ClassName(args)` sites via
   `constructChecked`, while internal default-fill during object-array growth
   bypasses the check so preallocation never breaks).
+- **Enumeration classes**: an `enumeration` block defines named members
+  exposed as `ClassName.Member` constant instances (built by the constructor
+  with the member's args, so `Weekday.Monday` carries its underlying value).
+  Members carry their name (`ObjectState::enumName`); a default `eq`/`ne`
+  compares by class + member name (so `Color.Red == Color.Red`) and the
+  default display shows the member name — both overridable.
 - **Custom indexing**: a class-defined `subsref` / `subsasgn` method overrides
   `obj(...)` read / assignment. The method takes MATLAB's substruct form
   (`subsref(obj, S)` with `S.type`/`S.subs`; `subsasgn(obj, S, val)`); the

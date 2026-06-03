@@ -446,6 +446,7 @@ struct ClassDefDesc
     // in a `methods (Access = private|protected)` block.
     Access ctorAccess = Access::Public;
     std::string ctorDeclClass;
+    bool isEnum = false; // has an `enumeration` block
 };
 
 // Translate an attribute keyword to an Access level. `Immutable` is only
@@ -584,6 +585,10 @@ void Engine::registerClassDef(const ASTNode *cd)
     };
     for (const auto &childPtr : cd->children) {
         const ASTNode *child = childPtr.get();
+        if (child->type == NodeType::CLASSDEF_ENUM_MEMBER) {
+            desc->isEnum = true; // members are instantiated after the class is built
+            continue;
+        }
         if (child->type == NodeType::CLASSDEF_PROPERTY) {
             Value def = Value::Empty;
             if (!child->children.empty() && treeWalker_)
@@ -930,7 +935,61 @@ void Engine::registerClassDef(const ASTNode *cd)
         }
         return body;
     };
+    // Enumeration defaults: members compare by their member name (so
+    // `Color.Red == Color.Red`), and display as that name — unless the class
+    // defines its own eq / disp.
+    if (desc->isEnum) {
+        auto enumEq = [](Value &, Span<const Value> args, size_t, Span<Value> outs,
+                         CallContext &ctx) {
+            bool eq = false;
+            if (args.size() == 2 && args[0].isObject() && args[1].isObject()
+                && args[0].objectClassName() == args[1].objectClassName()) {
+                const auto *a = args[0].objectStateConst();
+                const auto *b = args[1].objectStateConst();
+                eq = a && b && !a->enumName.empty() && a->enumName == b->enumName;
+            }
+            outs[0] = Value::logicalScalar(eq, ctx.engine->resource());
+        };
+        if (!cls.ops.count("eq"))
+            cls.ops["eq"] = enumEq;
+        if (!cls.ops.count("ne"))
+            cls.ops["ne"] = [enumEq](Value &self, Span<const Value> args, size_t no,
+                                     Span<Value> outs, CallContext &ctx) {
+                enumEq(self, args, no, outs, ctx);
+                if (!outs.empty())
+                    outs[0] = Value::logicalScalar(!outs[0].toBool(), ctx.engine->resource());
+            };
+        if (!desc->methods.count("disp") && !desc->methods.count("display"))
+            cls.dispText = [](const Value &self) -> std::string {
+                const auto *st = self.objectStateConst();
+                return (st && !st->enumName.empty()) ? ("    " + st->enumName + "\n") : "";
+            };
+    }
     registerClass(std::move(cls));
+
+    // Instantiate enumeration members: each is a constant instance exposed as
+    // `ClassName.Member`, built by the constructor with the member's args (so
+    // an underlying value is set) and tagged with its member name.
+    if (desc->isEnum) {
+        const BuiltinClass *ecls = findClass(desc->name);
+        for (const auto &childPtr : cd->children) {
+            const ASTNode *child = childPtr.get();
+            if (child->type != NodeType::CLASSDEF_ENUM_MEMBER)
+                continue;
+            std::vector<Value> args;
+            if (treeWalker_)
+                for (const auto &a : child->children)
+                    args.push_back(
+                        treeWalker_->evalExpressionPublic(a.get(), &constantsEnv()));
+            CallContext ctx{this, workspaceEnv_.get()};
+            Value inst = ecls->construct(Span<const Value>(args.data(), args.size()), ctx);
+            if (inst.isObject())
+                inst.objectStateMut()->enumName = child->strValue;
+            registerFunction(desc->name, child->strValue,
+                             [inst](Span<const Value>, size_t, Span<Value> outs,
+                                    CallContext &) { outs[0] = inst; });
+        }
+    }
 }
 
 namespace {

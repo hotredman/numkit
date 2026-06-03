@@ -1646,6 +1646,60 @@ INSTANTIATE_TEST_SUITE_P(Backends, PropElemAssignClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef enumeration classes ──
+class EnumClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Color\n"
+            "  enumeration\n    Red, Green, Blue\n  end\n"
+            "end\n");
+        // Enumeration with an underlying value via the constructor.
+        engine.eval(
+            "classdef Weekday\n"
+            "  properties\n    num = 0\n  end\n"
+            "  methods\n    function obj = Weekday(n)\n      obj.num = n;\n    end\n  end\n"
+            "  enumeration\n    Monday(1), Tuesday(2), Friday(5)\n  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    std::string evalStr(const std::string &c) { return engine.eval(c).toString(); }
+    bool evalBool(const std::string &c) { return engine.eval(c).toBool(); }
+};
+
+TEST_P(EnumClassdefTest, MemberIsInstanceOfClass)
+{
+    EXPECT_EQ(evalStr("class(Color.Red)"), "Color");
+    EXPECT_TRUE(evalBool("isobject(Color.Red)"));
+}
+TEST_P(EnumClassdefTest, MembersCompareByName)
+{
+    EXPECT_TRUE(evalBool("Color.Red == Color.Red"));
+    EXPECT_FALSE(evalBool("Color.Red == Color.Green"));
+    EXPECT_TRUE(evalBool("Color.Blue ~= Color.Red"));
+}
+TEST_P(EnumClassdefTest, UnderlyingValueFromConstructor)
+{
+    // Two-step (member into a variable, then read) — chained
+    // `Weekday.Monday.num` is a separate VM qualified-resolution gap.
+    engine.eval("m = Weekday.Monday;");
+    EXPECT_DOUBLE_EQ(evalScalar("m.num"), 1.0);
+    engine.eval("f = Weekday.Friday;");
+    EXPECT_DOUBLE_EQ(evalScalar("f.num"), 5.0);
+}
+TEST_P(EnumClassdefTest, ValuedMembersCompareByName)
+{
+    EXPECT_TRUE(evalBool("Weekday.Tuesday == Weekday.Tuesday"));
+    EXPECT_FALSE(evalBool("Weekday.Monday == Weekday.Friday"));
+}
+INSTANTIATE_TEST_SUITE_P(Backends, EnumClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {
