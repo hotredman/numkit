@@ -305,9 +305,14 @@ every preset including WASM.
 
 - **LoopContinuation + feval (done, `ba88b2d3`)** — generic core helper for the
   "apply handle to N items, collect, pack" shape (handle, n, makeArgs, pack,
-  dest); new consumers are two lambdas, not a struct. feval(@userfunc, args…)
+  dest); a consumer is two lambdas, not a struct. feval(@userfunc, args…)
   single-output → `n == 1` (one frame). Name/string handle, multi-output → sync.
   Proof: `DebugSessionTest.BreakInsideFevalCallback` (`y == 43`).
+  - **cellfun/arrayfun/structfun refactored onto LoopContinuation** — the three
+    original bespoke continuation structs were removed and rebuilt as
+    `makeArgs`/`pack` lambdas, so EVERY consumer now drives off the single
+    `LoopContinuation::step` (one loop-driver, no per-builtin duplication).
+    Their suites + debugger pause-proofs stay green.
 - **splitapply + bsxfun (done, `2c956815`)** — `libs/builtin`. splitapply per
   group (bucket → makeArgs slices → pack column); bsxfun single-shot (forwards
   whole arrays). accumarray takes no user handle (untouched). Proof:

@@ -543,55 +543,11 @@ void ctranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // ── State-machine arrayfun (VM_CALLBACKS_PLAN.md) ────────────────────────────
 // Drives arrayfun(@userfunc, A [,B…] [,'UniformOutput',tf]) one element at a
-// time, running each callback as a pausable VM frame. Mirrors the synchronous
-// arrayfun lambda's semantics (per-element scalar args via elemAsDouble; uniform
-// → DOUBLE matrix, else cell, shaped like the first input). Builtin handles,
-// multi-output, and shape/arg errors fall back to the synchronous arrayfun.
-struct ArrayfunContinuation : VmContinuation
-{
-    Value handle;
-    std::vector<Value> inputs; // copies of the input arrays
-    bool uniform = true;
-    std::size_t n = 0;
-    std::size_t i = 0;
-    std::size_t rows = 0;
-    std::size_t cols = 0;
-    Value *dest = nullptr;
-    std::pmr::memory_resource *mr = nullptr;
-    std::vector<Value> results;
-
-    bool step(VM &vm, Value *prev, const std::shared_ptr<VmContinuation> &self) override
-    {
-        if (prev) {
-            results.push_back(std::move(*prev));
-            ++i;
-        }
-        if (i >= n) {
-            *dest = pack();
-            return false;
-        }
-        std::vector<Value> callArgs(inputs.size());
-        for (std::size_t k = 0; k < inputs.size(); ++k)
-            callArgs[k] = Value::scalar(inputs[k].elemAsDouble(i), mr);
-        return vm.pushCallbackFrame(handle, Span<const Value>(callArgs.data(), callArgs.size()), 1,
-                                    self);
-    }
-
-    Value pack() const
-    {
-        if (uniform) {
-            Value out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-            for (std::size_t k = 0; k < n; ++k)
-                out.doubleDataMut()[k] = results[k].toScalar();
-            return out;
-        }
-        Value out = Value::cell(rows, cols, mr);
-        for (std::size_t k = 0; k < n; ++k)
-            out.cellAt(k) = results[k];
-        return out;
-    }
-};
-
+// time via the shared LoopContinuation, running each callback as a pausable VM
+// frame. Mirrors the synchronous arrayfun lambda's semantics (per-element scalar
+// args via elemAsDouble; uniform → DOUBLE matrix, else cell, shaped like the
+// first input). Builtin handles, multi-output, and shape/arg errors fall back to
+// the synchronous arrayfun.
 struct ArrayfunCallbackBuiltin : CallbackBuiltin
 {
     std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
@@ -605,7 +561,7 @@ struct ArrayfunCallbackBuiltin : CallbackBuiltin
         // exactly as the synchronous arrayfun (ErrorHandler is skipped, not
         // modelled). Any malformed form → nullptr so the sync path reports it.
         bool uniform = true;
-        std::vector<Value> inputs;
+        auto inputs = std::make_shared<std::vector<Value>>();
         for (std::size_t k = 1; k < args.size(); ++k) {
             if (args[k].isChar() && k + 1 < args.size()) {
                 std::string key = args[k].toString();
@@ -621,23 +577,40 @@ struct ArrayfunCallbackBuiltin : CallbackBuiltin
                     continue;
                 }
             }
-            inputs.push_back(args[k]);
+            inputs->push_back(args[k]);
         }
-        if (inputs.empty())
+        if (inputs->empty())
             return nullptr;
-        const std::size_t n = inputs[0].numel();
-        for (const auto &p : inputs)
+        const std::size_t n = (*inputs)[0].numel();
+        for (const auto &p : *inputs)
             if (p.numel() != n)
                 return nullptr; // size mismatch → sync path throws the error
-        auto cont = std::make_shared<ArrayfunContinuation>();
+        auto *mr = eng.resource();
+        const std::size_t rows = (*inputs)[0].dims().rows();
+        const std::size_t cols = (*inputs)[0].dims().cols();
+        auto cont = std::make_shared<LoopContinuation>();
         cont->handle = args[0];
-        cont->inputs = std::move(inputs);
-        cont->uniform = uniform;
         cont->n = n;
-        cont->rows = cont->inputs[0].dims().rows();
-        cont->cols = cont->inputs[0].dims().cols();
         cont->dest = dest;
-        cont->mr = eng.resource();
+        cont->makeArgs = [inputs, mr](std::size_t i) -> std::vector<Value> {
+            std::vector<Value> callArgs(inputs->size());
+            for (std::size_t k = 0; k < inputs->size(); ++k)
+                callArgs[k] = Value::scalar((*inputs)[k].elemAsDouble(i), mr);
+            return callArgs;
+        };
+        cont->pack = [uniform, rows, cols, mr](std::vector<Value> &results) -> Value {
+            const std::size_t n = results.size();
+            if (uniform) {
+                Value out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+                for (std::size_t k = 0; k < n; ++k)
+                    out.doubleDataMut()[k] = results[k].toScalar();
+                return out;
+            }
+            Value out = Value::cell(rows, cols, mr);
+            for (std::size_t k = 0; k < n; ++k)
+                out.cellAt(k) = results[k];
+            return out;
+        };
         cont->results.reserve(n);
         return cont;
     }

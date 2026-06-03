@@ -381,91 +381,62 @@ Value mat2cell(const Value &x, const Value &rowSizesV, const Value &colSizesV, s
 namespace detail {
 
 // ── State-machine cellfun (VM_CALLBACKS_PLAN.md) ─────────────────────────────
-// Drives cellfun(@userfunc, c [, 'UniformOutput', tf]) one element at a time,
-// running each callback as a pausable VM frame instead of the synchronous,
-// non-suspendable callReentrant path. Only the user-code-handle single-cell
-// form is taken here; everything else (builtin handle, multi-output, bad
-// options) falls back to the synchronous cellfun_reg via tryStart → nullptr.
-struct CellfunContinuation : VmContinuation
-{
-    Value handle;                          // args[0] (handle or closure cell)
-    Value cellArg;                         // args[1]
-    bool uniform = true;
-    std::size_t n = 0;
-    std::size_t i = 0;
-    Value *dest = nullptr;                  // stable destination in the VM regs
-    std::pmr::memory_resource *mr = nullptr;
-    std::vector<Value> results;
-
-    bool step(VM &vm, Value *prev, const std::shared_ptr<VmContinuation> &self) override
-    {
-        if (prev) {
-            results.push_back(std::move(*prev));
-            ++i;
-        }
-        if (i >= n) {
-            *dest = pack();
-            return false; // finished
-        }
-        Value arg = cellArg.cellAt(i);
-        Value a1[1] = {std::move(arg)};
-        return vm.pushCallbackFrame(handle, Span<const Value>(a1, 1), 1, self);
-    }
-
-    // Mirror the synchronous cellfun() helper's output construction.
-    Value pack() const
-    {
-        const auto &d = cellArg.dims();
-        const std::size_t r = d.rows();
-        const std::size_t cc = d.cols();
-        const std::size_t p = d.is3D() ? d.pages() : 0;
-        if (uniform) {
-            const ValueType outT = (n > 0 && results[0].isLogical()) ? ValueType::LOGICAL
-                                                                     : ValueType::DOUBLE;
-            Value out = (p > 0) ? Value::matrix3d(r, cc, p, outT, mr)
-                                : Value::matrix(r, cc, outT, mr);
-            for (std::size_t k = 0; k < n; ++k) {
-                const Value &v = results[k];
-                if (!v.isScalar())
-                    throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', false",
-                                 0, 0, "cellfun", "", "numkit:cellfun:notScalar");
-                if (outT == ValueType::LOGICAL)
-                    out.logicalDataMut()[k] = v.toBool() ? 1 : 0;
-                else
-                    out.doubleDataMut()[k] = v.toScalar();
-            }
-            return out;
-        }
-        Value out = (p > 0) ? Value::cell3D(r, cc, p) : Value::cell(r, cc);
-        for (std::size_t k = 0; k < n; ++k)
-            out.cellAt(k) = results[k];
-        return out;
-    }
-};
-
+// Drives cellfun(@userfunc, c [, 'UniformOutput', tf]) one element at a time via
+// the shared LoopContinuation, running each callback as a pausable VM frame
+// instead of the synchronous callReentrant path. Only the user-code-handle
+// single-cell form is taken here; everything else (builtin handle, multi-output,
+// bad options) falls back to the synchronous cellfun_reg via tryStart → nullptr.
 struct CellfunCallbackBuiltin : CallbackBuiltin
 {
     std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
                                              Value *dest, Engine &eng) override
     {
-        if (args.size() < 2)
-            return nullptr; // synchronous path reports the nargin error
-        if (nargout > 1)
-            return nullptr; // multi-output cellfun → synchronous path
+        if (args.size() < 2 || nargout > 1)
+            return nullptr; // nargin / multi-output → synchronous path
         if (!eng.isUserCodeHandle(args[0]))
-            return nullptr; // builtin handle → fast synchronous path (nothing to debug)
+            return nullptr; // builtin handle → fast synchronous path
         if (!args[1].isCell())
             return nullptr; // synchronous path reports notCell
         // Parse 'UniformOutput' exactly as the synchronous path (throws on
         // unsupported options — same error the user would otherwise get).
         const bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
-        auto cont = std::make_shared<CellfunContinuation>();
+        auto *mr = eng.resource();
+        Value cellArg = args[1];
+        const auto &d = cellArg.dims();
+        const std::size_t rows = d.rows(), cols = d.cols(), pages = d.is3D() ? d.pages() : 0;
+        auto cont = std::make_shared<LoopContinuation>();
         cont->handle = args[0];
-        cont->cellArg = args[1];
-        cont->uniform = uniform;
-        cont->n = args[1].numel();
+        cont->n = cellArg.numel();
         cont->dest = dest;
-        cont->mr = eng.resource();
+        cont->makeArgs = [cellArg](std::size_t i) -> std::vector<Value> {
+            return {cellArg.cellAt(i)};
+        };
+        // Mirror the synchronous cellfun() helper's output construction.
+        cont->pack = [uniform, rows, cols, pages, mr](std::vector<Value> &results) -> Value {
+            const std::size_t n = results.size();
+            if (uniform) {
+                const ValueType outT = (n > 0 && results[0].isLogical()) ? ValueType::LOGICAL
+                                                                         : ValueType::DOUBLE;
+                Value out = (pages > 0) ? Value::matrix3d(rows, cols, pages, outT, mr)
+                                        : Value::matrix(rows, cols, outT, mr);
+                for (std::size_t k = 0; k < n; ++k) {
+                    const Value &v = results[k];
+                    if (!v.isScalar())
+                        throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', "
+                                    "false",
+                                    0, 0, "cellfun", "", "numkit:cellfun:notScalar");
+                    if (outT == ValueType::LOGICAL)
+                        out.logicalDataMut()[k] = v.toBool() ? 1 : 0;
+                    else
+                        out.doubleDataMut()[k] = v.toScalar();
+                }
+                return out;
+            }
+            Value out = (pages > 0) ? Value::cell3D(rows, cols, pages) : Value::cell(rows, cols);
+            for (std::size_t k = 0; k < n; ++k)
+                out.cellAt(k) = results[k];
+            return out;
+        };
         cont->results.reserve(cont->n);
         return cont;
     }
