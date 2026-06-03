@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <string>
 #include <numkit/core/value.hpp>
 
 namespace numkit::wavelet {
@@ -34,5 +35,30 @@ namespace numkit::wavelet {
 Value wkeep(const Value &x, const Value &len,
             const Value &opt = Value::Empty,
             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Extend a signal at its boundaries (`y = wextend(type, mode, x, lf, side)`).
+///
+/// 1-D (`type` 1) extends a vector; 2-D (`type` 2 / `'ar'` / `'ac'`) extends
+/// a matrix (both axes, columns-only for `'ar'`, rows-only for `'ac'`) by
+/// `lf` samples per active end. `mode` is the boundary rule: `sym`/`symh`
+/// (half-point symmetric), `symw` (whole-point), `asym`/`asymh`/`asymw`
+/// (antisymmetric), `sp0`/`sp1` (order-0/1 spline), `per` (periodic, edge-
+/// padded on odd length), `zpd` (zero), `ppd` (pure periodic). `side`
+/// selects which end(s): `'b'` (both, default), `'l'`, or `'r'`.
+///
+/// `type` stays a `Value` because MATLAB accepts `1`/`2`/`'1'`/`'ar'`/`'ac'`.
+///
+/// @param type  Extension type: `1`, `2`, `'ar'`, or `'ac'`.
+/// @param mode  Boundary mode string (see list above).
+/// @param x     Input vector or matrix.
+/// @param lf    Extension length per active end (`>= 0`).
+/// @param side  `"b"` (default), `"l"`, or `"r"`.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      The extended signal.
+/// @throws Error on an unknown `type`/`mode`/`side` or negative `lf`.
+/// @see wkeep
+Value wextend(const Value &type, const std::string &mode, const Value &x,
+              long long lf, const std::string &side = "b",
+              std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::wavelet

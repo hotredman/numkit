@@ -297,34 +297,47 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("wextend: requires (type, mode, x, lf[, side])",
                     0, 0, "wextend", "", "numkit:wextend:nargin");
 
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("wextend: mode must be a character vector",
+                    0, 0, "wextend", "", "numkit:wextend:mode");
+    std::string side = "b";
+    if (args.size() >= 5 && (args[4].isChar() || args[4].isString()))
+        side = args[4].toString();
+    outs[0] = wextend(args[0], args[1].toString(), args[2],
+                      static_cast<long long>(args[3].toScalar()), side,
+                      ctx.engine->resource());
+}
+
+} // namespace detail
+
+// ── Public C++ API: wextend (see dwt/wkeep_wextend.hpp) ───────────────
+// Reuses detail::extend1D (the file-internal 1-D extension core).
+Value wextend(const Value &type, const std::string &modeRaw, const Value &x,
+              long long lf, const std::string &sideRaw,
+              std::pmr::memory_resource *mr)
+{
     // type: 1, 2, 'ar', 'ac'.
-    int dim = 0;          // 0 = 2-D both axes (when type=2)
+    int dim = 0;
     bool extRows = true;
     bool extCols = true;
-    if (args[0].isChar() || args[0].isString()) {
-        const std::string s = lower(args[0].toString());
+    if (type.isChar() || type.isString()) {
+        const std::string s = lower(type.toString());
         if (s == "1") dim = 1;
         else if (s == "2") dim = 2;
-        // MATLAB convention: 'ar' = along row direction = add rows (extend
-        // each column), so cols stay fixed. 'ac' = along col direction =
-        // add cols (extend each row), so rows stay fixed. (Counter-
-        // intuitive naming but matches help wextend.)
         else if (s == "ar") { dim = 2; extRows = true;  extCols = false; }
         else if (s == "ac") { dim = 2; extRows = false; extCols = true; }
         else
             throw Error("wextend: type must be 1, 2, 'ar', or 'ac'",
                         0, 0, "wextend", "", "numkit:wextend:dim");
     } else {
-        const int t = static_cast<int>(args[0].toScalar());
+        const int t = static_cast<int>(type.toScalar());
         if (t != 1 && t != 2)
             throw Error("wextend: type must be 1, 2, 'ar', or 'ac'",
                         0, 0, "wextend", "", "numkit:wextend:dim");
         dim = t;
     }
-    if (!args[1].isChar() && !args[1].isString())
-        throw Error("wextend: mode must be a character vector",
-                    0, 0, "wextend", "", "numkit:wextend:mode");
-    const std::string mode = lower(args[1].toString());
+
+    const std::string mode = lower(modeRaw);
     static const char *kModes[] = {"sym", "symh", "symw",
                                     "asym", "asymh", "asymw",
                                     "sp0", "sp1",
@@ -336,15 +349,13 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
                     "' (supported: sym/symh/symw, asym/asymh/asymw, "
                     "sp0/sp1, per, zpd, ppd)",
                     0, 0, "wextend", "", "numkit:wextend:mode");
-    const Value &x = args[2];
-    const long long lf = static_cast<long long>(args[3].toScalar());
     if (lf < 0)
         throw Error("wextend: lf must be ≥ 0",
                     0, 0, "wextend", "", "numkit:wextend:lf");
 
     char side = 'b';
-    if (args.size() >= 5 && (args[4].isChar() || args[4].isString())) {
-        const std::string s = lower(args[4].toString());
+    {
+        const std::string s = lower(sideRaw);
         if      (s == "b" || s == "both")  side = 'b';
         else if (s == "l" || s == "left")  side = 'l';
         else if (s == "r" || s == "right") side = 'r';
@@ -354,7 +365,6 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
                         0, 0, "wextend", "", "numkit:wextend:side");
     }
 
-    auto *mr = ctx.engine->resource();
     size_t rows, cols;
     readShape(x, rows, cols);
 
@@ -364,32 +374,27 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         const bool col = isCol(rows, cols);
         std::vector<double> xv(N);
         for (size_t i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
-        std::vector<double> ext = extend1D(xv, lf, side, mode);
+        std::vector<double> ext = detail::extend1D(xv, lf, side, mode);
         size_t outRows, outCols;
         outShape(col, ext.size(), outRows, outCols);
         Value y = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
         std::copy(ext.begin(), ext.end(), y.doubleDataMut());
-        outs[0] = std::move(y);
-        return;
+        return y;
     }
 
-    // 2-D matrix path (type=2 / 'ar' / 'ac'). Extend along columns first
-    // (vary col indices = extend rows direction = adds new rows) when
-    // extRows; then extend along rows (vary row index per column = adds
-    // cols) when extCols. Either step can be skipped via 'ar'/'ac'.
+    // 2-D matrix path (type=2 / 'ar' / 'ac').
     std::vector<std::vector<double>> data(rows, std::vector<double>(cols));
     for (size_t r = 0; r < rows; ++r)
         for (size_t c = 0; c < cols; ++c)
             data[r][c] = x.elemAsDouble(c * rows + r);
 
-    // Step 1: if extRows, extend each column (add rows).
     if (extRows) {
         std::vector<std::vector<double>> ext_col;
         ext_col.reserve(cols);
         for (size_t c = 0; c < cols; ++c) {
             std::vector<double> col_v(rows);
             for (size_t r = 0; r < rows; ++r) col_v[r] = data[r][c];
-            ext_col.push_back(extend1D(col_v, lf, side, mode));
+            ext_col.push_back(detail::extend1D(col_v, lf, side, mode));
         }
         const size_t newRows = ext_col[0].size();
         data.assign(newRows, std::vector<double>(cols));
@@ -399,14 +404,13 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
         rows = newRows;
     }
 
-    // Step 2: if extCols, extend each row (add cols).
     if (extCols) {
         std::vector<std::vector<double>> ext_row;
         ext_row.reserve(rows);
         for (size_t r = 0; r < rows; ++r) {
             std::vector<double> row_v(cols);
             for (size_t c = 0; c < cols; ++c) row_v[c] = data[r][c];
-            ext_row.push_back(extend1D(row_v, lf, side, mode));
+            ext_row.push_back(detail::extend1D(row_v, lf, side, mode));
         }
         const size_t newCols = ext_row[0].size();
         for (auto &row : data) row.assign(newCols, 0.0);
@@ -421,8 +425,7 @@ void wextend_reg(Span<const Value> args, size_t /*nargout*/,
     for (size_t c = 0; c < cols; ++c)
         for (size_t r = 0; r < rows; ++r)
             yd[c * rows + r] = data[r][c];
-    outs[0] = std::move(y);
+    return y;
 }
 
-} // namespace detail
 } // namespace numkit::wavelet
