@@ -337,6 +337,19 @@ public:
     // 2-D transpose of an object array (R×C → C×R). Used by the builtin
     // transpose/ctranspose for objects with no class overload.
     Value objectTranspose(std::pmr::memory_resource *mr = nullptr) const;
+    // General element-rearrange primitive: build an object array of shape
+    // `resultDims` by gathering source states at the column-major linear
+    // indices `srcLinear` (length == resultDims.numel()), applying the
+    // per-element value/handle rule. Underlies object indexing, reshape and
+    // transpose; exposed for builtin rearrangers (repmat / flip / cat).
+    Value objectGather(const size_t *srcLinear, const Dims &resultDims,
+                       std::pmr::memory_resource *mr = nullptr) const;
+    // Concatenate object `parts` (same class) by appending their states in
+    // column-major order into an array of shape `outDims` (numel must equal
+    // the total element count). value/handle rule per element. Used by
+    // cat(dim≥3, ...) for objects; empties are skipped.
+    static Value objectConcatN(const Value *parts, size_t count, const Dims &outDims,
+                               std::pmr::memory_resource *mr = nullptr);
     // Assign scalar object `elem` into linear slot `idx`, growing this
     // (1-D row vector) and gap-filling new slots with independent copies
     // of `fill` (typically a default-constructed object). An empty/unset/
@@ -628,12 +641,6 @@ private:
     // object array (per-element value/handle rule). Used by horzcat/vertcat.
     static Value concatObjects(const Value *elems, size_t count, bool vertical,
                                std::pmr::memory_resource *mr);
-    // Gather object states at the given source linear indices (column-major)
-    // into a new object array of shape `resultDims`, applying the per-element
-    // value/handle rule. The unifying primitive behind OBJECT indexing in
-    // elemAt / indexGet / indexGet2D / indexGet3D / indexGetND.
-    Value objectGather(const size_t *srcLinear, const Dims &resultDims,
-                       std::pmr::memory_resource *mr) const;
     // Coerce a non-object receiver into a fresh 0×0 object array of `proto`'s
     // class. No-op when already an object. Used by the slice-assign helpers.
     void objectEnsureArrayLike(const Value &proto, std::pmr::memory_resource *mr);

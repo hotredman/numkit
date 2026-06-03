@@ -653,6 +653,33 @@ TEST_P(ObjectArrayTest, TransposeMatrix)
     EXPECT_DOUBLE_EQ(evalScalar("t(1,2).v"), 3.0); // t(1,2) = m(2,1) = 3
     EXPECT_DOUBLE_EQ(evalScalar("t(2,1).v"), 2.0); // t(2,1) = m(1,2) = 2
 }
+TEST_P(ObjectArrayTest, Repmat)
+{
+    engine.eval("e = repmat(Box(5), 2, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(e,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(e,2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(2,3).v"), 5.0);
+}
+TEST_P(ObjectArrayTest, Fliplr)
+{
+    engine.eval("c = fliplr([Box(1) Box(2) Box(3)]);");
+    EXPECT_DOUBLE_EQ(evalScalar("c(1).v"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(3).v"), 1.0);
+}
+TEST_P(ObjectArrayTest, Flipud)
+{
+    engine.eval("d = flipud([Box(1); Box(2); Box(3)]);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1).v"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(3).v"), 1.0);
+}
+TEST_P(ObjectArrayTest, Cat3)
+{
+    engine.eval("f = cat(3, [Box(1) Box(2)], [Box(3) Box(4)]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(f,3)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("f(1,2,1).v"), 2.0); // page 1, (1,2)
+    EXPECT_DOUBLE_EQ(evalScalar("f(1,1,2).v"), 3.0); // page 2, (1,1)
+}
 
 TEST_P(ObjectArrayTest, SliceAssignColumn)
 {
