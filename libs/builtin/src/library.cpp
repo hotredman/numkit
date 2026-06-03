@@ -7,6 +7,7 @@
 
 #include <numkit/core/build_info.hpp>
 #include <numkit/core/callback_builtin.hpp>
+#include <numkit/core/object.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value_type.hpp>
@@ -2343,6 +2344,75 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             for (size_t i = 0; i < names.size(); ++i)
                 c.cellAt(i) = Value::fromString(names[i], ctx.engine->resource());
             outs[0] = c;
+        });
+
+    // ── meta.class + metaclass(x) (lightweight class introspection) ──
+    // metaclass(x) returns a `meta.class` object exposing Name, SuperclassList,
+    // PropertyList, MethodList (cellstr of names). v1 omits MATLAB's
+    // Sealed/Abstract/Hidden flags (kept on the internal ClassDefDesc, not the
+    // runtime BuiltinClass) and the nested meta.property/meta.method arrays —
+    // the cellstr lists cover the common `mc.Name` / `mc.PropertyList` uses.
+    {
+        BuiltinClass metaCls;
+        metaCls.name = "meta.class";
+        metaCls.propNames = {"Name", "SuperclassList", "PropertyList", "MethodList"};
+        metaCls.propGet = [](const Value &self, const std::string &name, Value &out,
+                             CallContext &) -> bool {
+            const ObjectState *st = self.objectStateConst();
+            auto it = st->props.find(name);
+            if (it == st->props.end())
+                return false;
+            out = it->second;
+            return true;
+        };
+        engine.registerClass(std::move(metaCls));
+    }
+    engine.registerFunction(
+        "metaclass", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty())
+                throw Error("metaclass: requires 1 argument", 0, 0, "metaclass", "",
+                            "numkit:metaclass:nargin");
+            auto *mr = ctx.engine->resource();
+            std::string cn;
+            if (args[0].isObject()) {
+                cn = args[0].objectClassName();
+            } else if (args[0].type() == ValueType::CHAR
+                       && ctx.engine->findClass(args[0].toString())) {
+                // A char row naming a registered class → meta of that class
+                // (the programmatic equivalent of MATLAB's `?ClassName`).
+                cn = args[0].toString();
+            } else {
+                cn = mtypeName(args[0].type());
+            }
+            const BuiltinClass *cls = ctx.engine->findClass(cn);
+            auto toCell = [&](const std::vector<std::string> &v) {
+                Value c = Value::cell(v.size(), 1, mr);
+                for (size_t i = 0; i < v.size(); ++i)
+                    c.cellAt(i) = Value::fromString(v[i], mr);
+                return c;
+            };
+            std::vector<std::string> sup, props, meth;
+            if (cls) {
+                sup = cls->superclasses;
+                if (cls->isHandle
+                    && std::find(sup.begin(), sup.end(), "handle") == sup.end())
+                    sup.push_back("handle");
+                for (const auto &p : cls->propNames)
+                    if (std::find(cls->hidden.begin(), cls->hidden.end(), p)
+                        == cls->hidden.end())
+                        props.push_back(p);
+                for (const auto &kv : cls->methods)
+                    if (std::find(cls->hidden.begin(), cls->hidden.end(), kv.first)
+                        == cls->hidden.end())
+                        meth.push_back(kv.first);
+                std::sort(meth.begin(), meth.end());
+            }
+            auto state = std::make_shared<ObjectState>(mr);
+            state->props.emplace("Name", Value::fromString(cn, mr));
+            state->props.emplace("SuperclassList", toCell(sup));
+            state->props.emplace("PropertyList", toCell(props));
+            state->props.emplace("MethodList", toCell(meth));
+            outs[0] = Value::object("meta.class", std::move(state), /*isHandle=*/false, mr);
         });
 
     // ── tic ────────────────────────────────────────────────────

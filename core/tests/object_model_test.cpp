@@ -1170,6 +1170,23 @@ TEST_P(IntrospectClassdefTest, IspropAndIsmethodAcceptCellstr)
     EXPECT_EQ(m.logicalData()[2], 0); // nope
 }
 
+TEST_P(IntrospectClassdefTest, MetaclassObjectFields)
+{
+    eval("d = Dog;");
+    eval("mc = metaclass(d);");
+    EXPECT_EQ(eval("class(mc)").toString(), "meta.class");
+    EXPECT_TRUE(evalBool("isa(mc, 'meta.class')"));
+    EXPECT_EQ(eval("mc.Name").toString(), "Dog");
+    Value sl = eval("mc.SuperclassList");
+    ASSERT_EQ(sl.numel(), 1u);
+    EXPECT_EQ(sl.cellAt(0).toString(), "Animal");
+    EXPECT_DOUBLE_EQ(eval("numel(mc.PropertyList)").toScalar(), 2.0); // name + breed
+    EXPECT_GE(eval("numel(mc.MethodList)").toScalar(), 2.0);          // fetch + speak
+    EXPECT_EQ(eval("mc.PropertyList{1}").toString(), "name"); // base prop first
+    // char class-name form (programmatic ?ClassName equivalent)
+    EXPECT_EQ(eval("metaclass('Dog').Name").toString(), "Dog");
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, IntrospectClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
