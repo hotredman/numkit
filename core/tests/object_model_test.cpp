@@ -1636,6 +1636,21 @@ TEST_P(PropElemAssignClassdefTest, ElementAssignAtScriptScope)
     engine.eval("v = Vault([1 2 3]); v.items(2) = 88;");
     EXPECT_DOUBLE_EQ(evalScalar("v.items(2)"), 88.0);
 }
+TEST_P(PropElemAssignClassdefTest, ParamNamedIShadowsImaginaryUnit)
+{
+    // A parameter named `i`/`j` must shadow the imaginary unit inside a VM
+    // function frame (regression: the prologue pre-loaded the imaginary
+    // constant over the argument, so the param read as complex).
+    engine.eval("function r = useI(i)\n  r = i + 1;\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("useI(5)"), 6.0);
+    engine.eval("function r = useJ(j)\n  r = j * 2;\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("useJ(4)"), 8.0);
+    // Original repro: element-assign indexed by a param named `i`.
+    engine.eval("v = Vault([1 2 3]);");
+    engine.eval("function r = seti(o, i, val)\n  o.items(i) = val;\n  r = o;\nend\n"
+                "v = seti(v, 3, 88);\n");
+    EXPECT_DOUBLE_EQ(evalScalar("v.items(3)"), 88.0);
+}
 TEST_P(PropElemAssignClassdefTest, ElementAssignLiteralInPlainFunction)
 {
     engine.eval("v = Vault([1 2 3]);");
