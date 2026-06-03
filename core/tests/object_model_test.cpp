@@ -1794,6 +1794,11 @@ TEST_P(SealedHiddenClassdefTest, HiddenMethodOmittedButCallable)
     engine.eval("w = Widget();");
     EXPECT_DOUBLE_EQ(evalScalar("w.internal()"), 2.0); // still callable
 }
+TEST_P(SealedHiddenClassdefTest, BareClassNameConstructs)
+{
+    engine.eval("w = Widget;"); // no parens — constructs a default instance
+    EXPECT_DOUBLE_EQ(evalScalar("w.name"), 1.0);
+}
 INSTANTIATE_TEST_SUITE_P(Backends, SealedHiddenClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
