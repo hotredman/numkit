@@ -158,17 +158,30 @@ findTransitions(const double *x, size_t n, double low, double high)
             }
         }
 
-        // Detect entry into Mid from Below (start of rise) or from Above
-        // (start of fall).
+        // Detect entry into a transition from Below (start of rise) or from
+        // Above (start of fall).
         if (curState == State::Below && s != State::Below && !inRise) {
             // Crossed trailing boundary going up.
             inRise = true;
             pendingStart = crossingIdx(x, i - 1, trail);
+            // Sharp edge: a single-sample jump Below->Above crosses BOTH the
+            // trailing and leading boundaries within this same interval
+            // [i-1, i]. Commit now — the flat region after has no leading
+            // crossing, so the delayed-commit path would otherwise pin the
+            // leading crossing to the wrong (flat) interval.
+            if (s == State::Above) {
+                out.push_back({+1, pendingStart, crossingIdx(x, i - 1, lead)});
+                inRise = false;
+            }
         }
         if (curState == State::Above && s != State::Above && !inFall) {
             // Crossed leading boundary going down.
             inFall = true;
             pendingStart = crossingIdx(x, i - 1, lead);
+            if (s == State::Below) {  // sharp falling edge — same interval
+                out.push_back({-1, pendingStart, crossingIdx(x, i - 1, trail)});
+                inFall = false;
+            }
         }
         curState = s;
     }
@@ -484,9 +497,55 @@ void settlingtime_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = settlingtime(args[0], fs, tol, ctx.engine->resource());
 }
 
+// risetime / falltime expose up to 5 outputs (MATLAB):
+//   [R, LT, UT, LL, UL] — duration, lower(10%) crossing time, upper(90%)
+//   crossing time, and the lower/upper reference LEVELS (scalars). For a
+//   fall the lower crossing happens last, the upper first (UT < LT).
+void pulseRiseFall(Span<const Value> args, size_t nargout, Span<Value> outs,
+                   CallContext &ctx, bool rising, const char *fnname)
+{
+    if (args.empty())
+        throw Error(std::string(fnname) + ": requires at least 1 argument",
+                     0, 0, fnname, "", std::string("numkit:") + fnname + ":nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &fsv = (args.size() >= 2) ? args[1] : Value::Empty;
+    auto v = readVec(args[0]);
+    auto lh = stateLevelsCalc(v.data(), v.size());
+    auto trs = findTransitions(v.data(), v.size(), lh.low, lh.high);
+    const double f = scalarOrDefault(fsv, 1.0);
+    const double range = lh.high - lh.low;
+    const double LL = lh.low + kLowPct  * range;   // lower (10%) reference level
+    const double UL = lh.low + kHighPct * range;   // upper (90%) reference level
+
+    std::vector<double> dur, ltv, utv;
+    for (const auto &t : trs) {
+        if (rising && t.sign <= 0) continue;
+        if (!rising && t.sign >= 0) continue;
+        // Transition struct stores startIdx = first crossing in time,
+        // endIdx = second. For a rise that is (lower, upper); for a fall it
+        // is (upper, lower). Map to MATLAB's lower/upper crossing times.
+        const double lowerCrossIdx = rising ? t.startIdx : t.endIdx;
+        const double upperCrossIdx = rising ? t.endIdx   : t.startIdx;
+        dur.push_back((t.endIdx - t.startIdx) / std::max(f, 1.0));
+        ltv.push_back(idxToTime(lowerCrossIdx, f));
+        utv.push_back(idxToTime(upperCrossIdx, f));
+    }
+    outs[0] = colVec(dur, mr);
+    if (nargout > 1) outs[1] = colVec(ltv, mr);
+    if (nargout > 2) outs[2] = colVec(utv, mr);
+    if (nargout > 3) outs[3] = Value::scalar(LL, mr);
+    if (nargout > 4) outs[4] = Value::scalar(UL, mr);
+}
+
+void risetime_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                  CallContext &ctx)
+{ pulseRiseFall(args, nargout, outs, ctx, /*rising=*/true, "risetime"); }
+
+void falltime_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                  CallContext &ctx)
+{ pulseRiseFall(args, nargout, outs, ctx, /*rising=*/false, "falltime"); }
+
 NK_PULSE_REG(midcross,    midcross)
-NK_PULSE_REG(risetime,    risetime)
-NK_PULSE_REG(falltime,    falltime)
 NK_PULSE_REG(slewrate,    slewrate)
 NK_PULSE_REG(overshoot,   overshoot)
 NK_PULSE_REG(undershoot,  undershoot)

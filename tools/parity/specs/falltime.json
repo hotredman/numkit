@@ -1,10 +1,10 @@
 {
   "name": "falltime",
   "namespace": "signal",
-  "setup": "x = [ones(1,10) linspace(1,0,10) zeros(1,10)];",
-  "expr": "ft = falltime(x); r1 = double(numel(ft) > 0);",
+  "setup": "x = [1 1 1 0 0 0 0];",
+  "expr": "[F,LT,UT,LL,UL] = falltime(x,4); r1=double(F); r2=double(LT); r3=double(UT); r4=double(LL); r5=double(UL);",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: ft = falltime(x). Spec-extension batch 2026-05-09 (cycle 40)."
+  "fingerprint": ["r1", "r2", "r3", "r4", "r5"],
+  "comment": "Sig: [F,LT,UT,LL,UL]=falltime(x,fs). Sharp single-sample edge F=0.198; LT (10%) crosses LAST, UT (90%) FIRST. Fixes bugs/signal/risetime-falltime-outputs.md (value + outputs). vs MATLAB R2025b."
 }

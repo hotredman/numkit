@@ -120,11 +120,11 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (43 entries):** ✅ 9 fixed · 🔴 34 open = **9 bug** + 6 stub +
-5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
+**Tally (43 entries):** ✅ 10 fixed · 🔴 33 open = **9 bug** + 6 stub +
+4 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (9)
+### ✅ FIXED (10)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
@@ -136,6 +136,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | bug | [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | matrix columns-as-groups input form (c179) |
 | bug | [builtin/unique-last](builtin/unique-last.md) | P1 | 'last' selects last occurrence (sorted; stable+last sub-gap deferred) (c180) |
 | stub | [signal/dct-types](signal/dct-types.md) | P2 | dct/idct Type 1/3/4 implemented (c181) |
+| missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
 ### 🔴 OPEN — bug (defect on an implemented function) — 9
@@ -163,7 +164,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | automatic binning throws |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 
-### 🔴 OPEN — missing-output (Nth output not emitted) — 5
+### 🔴 OPEN — missing-output (Nth output not emitted) — 4
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -171,7 +172,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [linalg/eig-left-vectors](linalg/eig-left-vectors.md) | P2 | 3rd output W (left eigenvectors) |
 | [stats/mle-output](stats/mle-output.md) | P2 | 2nd output pci |
 | [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | [r,p]=corr p-value |
-| [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P2 | only 1 of up to 5 outputs |
 
 ### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 13
 

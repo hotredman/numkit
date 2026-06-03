@@ -1,9 +1,23 @@
 # signal.risetime / signal.falltime — only the first of up to 5 outputs
 
-- **Status:** 🔴 OPEN
-- **Severity:** P2 (missing outputs)
-- **Kind:** missing-output
+- **Status:** ✅ FIXED (2026-06-03, lib-dev cycle c182)
+- **Severity:** P2 (missing outputs) + **P1 value bug discovered while fixing**
+- **Kind:** missing-output (+ bug)
 - **Found:** 2026-06 via signal.* DEEP-PROBE sweep
+- **Fix:** two parts.
+  1. **VALUE bug** (the md's "R is correct" claim was WRONG): on a sharp
+     single-sample edge the 10% and 90% reference levels both cross within
+     one interval. `findTransitions` committed the transition one sample late
+     and pinned the leading crossing to the following (flat) interval →
+     `risetime([0 0 0 1 1 1 1],4)` gave **0.224** instead of MATLAB's
+     **0.198**. Fixed by committing the transition immediately when a
+     Below→Above (or Above→Below) jump crosses both boundaries in the same
+     interval. Multi-sample ramps were already correct and are unchanged.
+  2. **Outputs**: new `pulseRiseFall` helper + custom `risetime_reg`/
+     `falltime_reg` emit `[R, LT, UT, LL, UL]` by `nargout` (LT/UT crossing
+     times — for falls LT is last, UT first; LL/UL reference levels).
+  Verified all 5 outputs (single + multi-transition, rise + fall) vs MATLAB
+  R2025b. Guard: `libs/signal/tests/risetime_falltime_test.cpp`.
 
 ## Symptom
 MATLAB `risetime` returns `[R, LT, UT, LL, UL]` (rise durations, lower/upper
