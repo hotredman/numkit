@@ -62,6 +62,17 @@ TreeWalker `execIndexAccess` / `execIndexedAssign`; VM `INDEX_GET`/`_2D`/
 `_ND` + `INDEX_SET`/`_2D`/`_ND` + `execCallIndirect` — each resolves its
 subscripts to index lists and calls the shared helper.
 
+**Builtin array ops** on object arrays go through one public primitive,
+`Value::objectGather(srcLinear, resultDims)` (map column-major source
+indices → result shape, per-element value/handle rule), plus its
+N-source sibling `objectConcatN`. Each rearranger computes its index map
+and gathers: element deletion (`a(i)=[]` / `a(:,j)=[]` / `a(i,:)=[]`),
+`reshape`, `transpose`/`'`, `repmat`, `fliplr`/`flipud`/`flip(·,dim)`,
+`rot90`, `circshift`, `permute`, `cat(3,·)` (`cat(1)`/`cat(2)` ride
+horzcat/vertcat). These previously manipulated dims without the
+per-element `objStates` and crashed on read; now they round-trip on both
+engines.
+
 ## Goal
 
 A first-class **object model in the engine** so that C++-implemented

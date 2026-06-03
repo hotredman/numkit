@@ -117,6 +117,25 @@ Value permute(const Value &x, Span<const int> perm, std::pmr::memory_resource *m
     for (int i = 0; i < inNd; ++i) inDims[i] = dd.dim(i);
     for (int k = 0; k < inNd; ++k) outDimsArr[k] = inDims[p[k] - 1];
 
+    // OBJECT: permute dimensions via the strided gather map → objectGather.
+    if (x.isObject()) {
+        Dims outDimsObj(outDimsArr, inNd);
+        if (x.numel() == 0)
+            return x.objectGather(nullptr, outDimsObj, mr);
+        size_t inStrides[Dims::kMaxRank];
+        computeStridesColMajor(Dims(inDims, inNd), inStrides);
+        std::vector<size_t> map(x.numel());
+        size_t outCoords[Dims::kMaxRank] = {0};
+        size_t dstOff = 0;
+        do {
+            size_t srcOff = 0;
+            for (int k = 0; k < inNd; ++k)
+                srcOff += outCoords[k] * inStrides[p[k] - 1];
+            map[dstOff++] = srcOff;
+        } while (incrementCoords(outCoords, outDimsObj));
+        return x.objectGather(map.data(), outDimsObj, mr);
+    }
+
     // Non-DOUBLE (char / logical / complex / single / int / cell): permute is
     // a pure rearrangement -> type-preserving. Strided gather, copying raw
     // bytes (POD) or Value elements (CELL). The DOUBLE fast paths below are
