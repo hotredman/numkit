@@ -58,3 +58,20 @@ TEST_F(StatsKnownBug, DISABLED_SmoothdataSgolay)
     eval("y = smoothdata([1 5 2 8 3 9 4 7 2 8 3], 'sgolay');");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 11);
 }
+
+// bugs/stats/kstest-pvalue.md — statistic OK, p-value/critical value wrong
+// (numkit asymptotic vs MATLAB exact small-n Kolmogorov distribution).
+TEST_F(StatsKnownBug, DISABLED_KstestPValue)
+{
+    eval("[h, p, ks, cv] = kstest([-1 0 1 2 -0.5 0.5]);");
+    EXPECT_NEAR(evalScalar("ks"), 0.19146246, 1e-6);   // statistic already OK
+    EXPECT_NEAR(evalScalar("p"),  0.94998410, 1e-5);   // numkit currently 0.9804
+    EXPECT_NEAR(evalScalar("cv"), 0.51926000, 1e-4);   // numkit currently 0.5544
+}
+
+// bugs/stats/friedman.md — Friedman's nonparametric two-way ANOVA missing.
+TEST_F(StatsKnownBug, DISABLED_Friedman)
+{
+    eval("p = friedman([1 2 3; 2 3 4; 3 4 5; 1 3 5], 1);");
+    EXPECT_NEAR(evalScalar("p"), 0.018315639, 1e-6);
+}
