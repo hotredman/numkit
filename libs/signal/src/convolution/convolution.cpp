@@ -71,9 +71,16 @@ std::tuple<Value, Value>
 deconv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
 {
     const size_t nb = b.numel(), na = a.numel();
-    if (na > nb)
-        throw Error("deconv: denominator longer than numerator",
-                     0, 0, "deconv", "", "numkit:deconv:denomTooLong");
+    if (na > nb) {
+        // MATLAB: a divisor longer than the dividend can't be divided once —
+        // quotient is the scalar 0, remainder is the numerator unchanged.
+        auto qv = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        qv.doubleDataMut()[0] = 0.0;
+        auto rv = Value::matrix(1, nb, ValueType::DOUBLE, mr);
+        const double *bd = b.doubleData();
+        for (size_t i = 0; i < nb; ++i) rv.doubleDataMut()[i] = bd[i];
+        return std::make_tuple(std::move(qv), std::move(rv));
+    }
 
     ScratchArena scratch(mr);
     ScratchVec<double> rem(b.doubleData(), b.doubleData() + nb, &scratch);
