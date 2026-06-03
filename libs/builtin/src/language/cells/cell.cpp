@@ -8,9 +8,11 @@
 #include <numkit/builtin/language/arrays/matrix.hpp>  // horzcat / vertcat
 #include <numkit/builtin/library.hpp>
 
+#include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/vm.hpp>
 
 #include "language/handles/_handlefn_helpers.hpp"
 
@@ -378,6 +380,97 @@ Value mat2cell(const Value &x, const Value &rowSizesV, const Value &colSizesV, s
 
 namespace detail {
 
+// ── State-machine cellfun (VM_CALLBACKS_PLAN.md) ─────────────────────────────
+// Drives cellfun(@userfunc, c [, 'UniformOutput', tf]) one element at a time,
+// running each callback as a pausable VM frame instead of the synchronous,
+// non-suspendable callReentrant path. Only the user-code-handle single-cell
+// form is taken here; everything else (builtin handle, multi-output, bad
+// options) falls back to the synchronous cellfun_reg via tryStart → nullptr.
+struct CellfunContinuation : VmContinuation
+{
+    Value handle;                          // args[0] (handle or closure cell)
+    Value cellArg;                         // args[1]
+    bool uniform = true;
+    std::size_t n = 0;
+    std::size_t i = 0;
+    Value *dest = nullptr;                  // stable destination in the VM regs
+    std::pmr::memory_resource *mr = nullptr;
+    std::vector<Value> results;
+
+    bool step(VM &vm, Value *prev, const std::shared_ptr<VmContinuation> &self) override
+    {
+        if (prev) {
+            results.push_back(std::move(*prev));
+            ++i;
+        }
+        if (i >= n) {
+            *dest = pack();
+            return false; // finished
+        }
+        Value arg = cellArg.cellAt(i);
+        Value a1[1] = {std::move(arg)};
+        return vm.pushCallbackFrame(handle, Span<const Value>(a1, 1), 1, self);
+    }
+
+    // Mirror the synchronous cellfun() helper's output construction.
+    Value pack() const
+    {
+        const auto &d = cellArg.dims();
+        const std::size_t r = d.rows();
+        const std::size_t cc = d.cols();
+        const std::size_t p = d.is3D() ? d.pages() : 0;
+        if (uniform) {
+            const ValueType outT = (n > 0 && results[0].isLogical()) ? ValueType::LOGICAL
+                                                                     : ValueType::DOUBLE;
+            Value out = (p > 0) ? Value::matrix3d(r, cc, p, outT, mr)
+                                : Value::matrix(r, cc, outT, mr);
+            for (std::size_t k = 0; k < n; ++k) {
+                const Value &v = results[k];
+                if (!v.isScalar())
+                    throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', false",
+                                 0, 0, "cellfun", "", "numkit:cellfun:notScalar");
+                if (outT == ValueType::LOGICAL)
+                    out.logicalDataMut()[k] = v.toBool() ? 1 : 0;
+                else
+                    out.doubleDataMut()[k] = v.toScalar();
+            }
+            return out;
+        }
+        Value out = (p > 0) ? Value::cell3D(r, cc, p) : Value::cell(r, cc);
+        for (std::size_t k = 0; k < n; ++k)
+            out.cellAt(k) = results[k];
+        return out;
+    }
+};
+
+struct CellfunCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.size() < 2)
+            return nullptr; // synchronous path reports the nargin error
+        if (nargout > 1)
+            return nullptr; // multi-output cellfun → synchronous path
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr; // builtin handle → fast synchronous path (nothing to debug)
+        if (!args[1].isCell())
+            return nullptr; // synchronous path reports notCell
+        // Parse 'UniformOutput' exactly as the synchronous path (throws on
+        // unsupported options — same error the user would otherwise get).
+        const bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
+        auto cont = std::make_shared<CellfunContinuation>();
+        cont->handle = args[0];
+        cont->cellArg = args[1];
+        cont->uniform = uniform;
+        cont->n = args[1].numel();
+        cont->dest = dest;
+        cont->mr = eng.resource();
+        cont->results.reserve(cont->n);
+        return cont;
+    }
+};
+
 void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
@@ -509,6 +602,11 @@ void mat2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
 }
 
 } // namespace detail
+
+void registerCellfunCallbackBuiltin(Engine &engine)
+{
+    engine.registerCallbackBuiltin("cellfun", std::make_shared<detail::CellfunCallbackBuiltin>());
+}
 
 } // namespace numkit::builtin
 

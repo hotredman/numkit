@@ -344,6 +344,41 @@ TEST_F(DebugSessionTest, BreakInsideClassdefSubsasgn)
     EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 99.0); // store(2) set
 }
 
+// Proof of the state-machine callbacks (VM continuations): a breakpoint inside
+// a cellfun CALLBACK pauses AND resumes — impossible with the old callReentrant
+// path, where a pause could only abort across the C++ boundary. The callback
+// runs as an ordinary VM frame, so the breakpoint fires once per element and
+// the session steps through all of them.
+TEST_F(DebugSessionTest, BreakInsideCellfunCallback)
+{
+    // dbgCellCb body on line 4 of its own source; the 2-line script never
+    // occupies line 4, so the breakpoint can only match inside the callback.
+    engine.eval(
+        "function r = dbgCellCb(x)\n" // 1
+        "\n"                          // 2
+        "\n"                          // 3
+        "  r = x * 10;\n"            // 4
+        "end\n");                     // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code =
+        "c = {1, 2, 3};\n"               // 1
+        "y = cellfun(@dbgCellCb, c);\n"; // 2  callbacks run as pausable VM frames
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "cellfun callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 10) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_EQ(pauses, 3); // one breakpoint hit per cell element
+    EXPECT_DOUBLE_EQ(engine.eval("y(1)").toScalar(), 10.0);
+    EXPECT_DOUBLE_EQ(engine.eval("y(3)").toScalar(), 30.0);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);
