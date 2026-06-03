@@ -292,6 +292,10 @@ export default function CompositePlot({
   // most once per animation frame.
   const moveRafRef = useRef(0);
   const pendingMoveRef = useRef(null);
+  // While actively dragging we render the lighter M2 decimation (½ the
+  // points of M4, visually identical since both keep min/max) so panning
+  // stays smooth; M4's full fidelity returns the moment the drag ends.
+  const [isDragging, setIsDragging] = useState(false);
 
   // ── display-tile state ──────────────────────────────────────────────
   // tileOverlay holds the most recent display-pixel-grid sample of the
@@ -682,6 +686,7 @@ export default function CompositePlot({
     if (!interactive || e.button !== 0) return;
     const rect = svgRef.current.getBoundingClientRect();
     dragRef.current = { sx: e.clientX, sy: e.clientY, x0: viewport.x.slice(), y0: viewport.y.slice(), W, H, rect };
+    setIsDragging(true);
     e.currentTarget.style.cursor = 'grabbing';
   }
   // Applies the latest pointer position (hover crosshair + drag-pan). Runs
@@ -733,7 +738,7 @@ export default function CompositePlot({
     pendingMoveRef.current = { clientX: e.clientX, clientY: e.clientY };
     if (!moveRafRef.current) moveRafRef.current = requestAnimationFrame(applyMove);
   }
-  function onMouseUp(e)    { dragRef.current = null; if (e.currentTarget) e.currentTarget.style.cursor = 'grab'; }
+  function onMouseUp(e)    { dragRef.current = null; setIsDragging(false); if (e.currentTarget) e.currentTarget.style.cursor = 'grab'; }
   function onMouseLeave(e) { setHover(null); onMouseUp(e); }
   function onDblClick()    { if (interactive) setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }); }
   function onContextMenu(e) {
@@ -1449,17 +1454,18 @@ export default function CompositePlot({
       return undefined;
     }
     let cancelled = false;
+    const algo = (isDragging && decimAlgo === 'm4') ? 'm2' : decimAlgo;
     const h = setTimeout(() => {
       const next = {};
       for (const ly of downs) {
         const t = engine.getSeriesTile(ly.figId, ly.axIdx, ly.dsIdx,
-                                       xMin, xMax, Math.round(W), decimAlgo);
+                                       xMin, xMax, Math.round(W), algo);
         if (t && !t.error && Array.isArray(t.x)) next[ly.dsIdx] = { x: t.x, y: t.y };
       }
       if (!cancelled) setSeriesTiles(next);
     }, 40);
     return () => { cancelled = true; clearTimeout(h); };
-  }, [figure.layers, engine, xMin, xMax, W, decimAlgo]);
+  }, [figure.layers, engine, xMin, xMax, W, decimAlgo, isDragging]);
 
   // Per-line-layer decimated points (keyed by layer index), recomputed only
   // when the viewport / pixel width / algorithm / engine tiles / layer set
@@ -1469,24 +1475,26 @@ export default function CompositePlot({
   // 'none' fall through to the renderer's raw fallback.
   const decimatedSeries = useMemo(() => {
     const out = {};
+    // Lighter M2 while dragging (½ M4's points, same envelope) → smooth pan.
+    const algo = (isDragging && decimAlgo === 'm4') ? 'm2' : decimAlgo;
     const layers = figure.layers || [];
     for (let i = 0; i < layers.length; i++) {
       const ly = layers[i];
       if (ly.kind !== 'series') continue;
       if (ly.mode !== 'line' && ly.mode !== 'stairs') continue;
-      if (ly.cometAnim || decimAlgo === 'none' || !Array.isArray(ly.x)) continue;
+      if (ly.cometAnim || algo === 'none' || !Array.isArray(ly.x)) continue;
       if (ly.seriesDownsampled) {
         const t = seriesTiles[ly.dsIdx];
         out[i] = t ? { x: t.x, y: t.y }
-                   : decimateSeries(ly.x, ly.y, xMin, xMax, W, decimAlgo);
+                   : decimateSeries(ly.x, ly.y, xMin, xMax, W, algo);
         continue;
       }
       let pyr = seriesPyramids.current.get(ly.x);
       if (!pyr) { pyr = buildPyramid(ly.x, ly.y); seriesPyramids.current.set(ly.x, pyr); }
-      out[i] = decimateLOD(pyr, xMin, xMax, W, decimAlgo);
+      out[i] = decimateLOD(pyr, xMin, xMax, W, algo);
     }
     return out;
-  }, [figure.layers, xMin, xMax, W, decimAlgo, seriesTiles]);
+  }, [figure.layers, xMin, xMax, W, decimAlgo, seriesTiles, isDragging]);
 
   // Cancel any pending pointer-move frame on unmount.
   useEffect(() => () => {
