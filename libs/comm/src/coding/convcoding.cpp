@@ -14,6 +14,7 @@
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -45,6 +46,40 @@ inline int bitParity(std::uint64_t x)
     int p = 0;
     while (x) { p ^= 1; x &= (x - 1); }
     return p;
+}
+
+// Read the (rate-1/n) parameters out of a trellis struct. The returned
+// pointers alias the struct's matrix fields, which stay valid for the
+// duration of the caller (the trellis Value outlives the call).
+struct TrellisView {
+    std::size_t numStates        = 0;
+    std::size_t numOutputSymbols = 0;
+    int         n                = 0;   // output bits per step
+    const double *nextStates     = nullptr;  // numStates × 2, column-major
+    const double *outputs        = nullptr;
+};
+
+TrellisView readTrellis(const Value &t, const char *who)
+{
+    if (!t.isStruct() || t.numel() != 1)
+        throw Error(std::string(who) + ": trellis must be a 1x1 struct",
+                    0, 0, who, "", std::string("numkit:") + who + ":trellis");
+    const auto &el = t.structArrayElem(0);
+    auto field = [&](const char *f) -> const Value & {
+        auto it = el.find(f);
+        if (it == el.end())
+            throw Error(std::string(who) + ": trellis is missing field '" + f + "'",
+                        0, 0, who, "", std::string("numkit:") + who + ":trellis");
+        return it->second;
+    };
+    TrellisView tv;
+    tv.numStates        = static_cast<std::size_t>(field("numStates").toScalar());
+    tv.numOutputSymbols = static_cast<std::size_t>(field("numOutputSymbols").toScalar());
+    tv.n = static_cast<int>(std::lround(std::log2(
+        static_cast<double>(tv.numOutputSymbols))));
+    tv.nextStates = field("nextStates").doubleData();
+    tv.outputs    = field("outputs").doubleData();
+    return tv;
 }
 
 } // namespace
@@ -109,6 +144,33 @@ Value poly2trellis(const Value &constraintLength, const Value &codeGenerator,
     return t;
 }
 
+Value convenc(const Value &msg, const Value &trellis,
+              std::pmr::memory_resource *mr)
+{
+    const TrellisView tv = readTrellis(trellis, "convenc");
+    const std::size_t L = msg.numel();
+    const int n = tv.n;
+    const std::size_t outLen = L * static_cast<std::size_t>(n);
+    // Output takes msg's orientation (column input -> column output).
+    const bool col = (msg.dims().cols() == 1 && msg.dims().rows() > 1);
+    Value out = col ? Value::matrix(outLen, 1, ValueType::DOUBLE, mr)
+                    : Value::matrix(1, outLen, ValueType::DOUBLE, mr);
+    if (outLen == 0) return out;
+
+    double *od = out.doubleDataMut();
+    std::size_t state = 0, oi = 0;
+    for (std::size_t i = 0; i < L; ++i) {
+        const int bit = (msg.elemAsDouble(i) != 0.0) ? 1 : 0;
+        // Column-major (numStates × 2): element (state, bit).
+        const std::size_t idx = static_cast<std::size_t>(bit) * tv.numStates + state;
+        const std::uint64_t outWord = static_cast<std::uint64_t>(tv.outputs[idx]);
+        for (int j = n - 1; j >= 0; --j)                 // MSB (g1) first
+            od[oi++] = static_cast<double>((outWord >> j) & 1u);
+        state = static_cast<std::size_t>(tv.nextStates[idx]);
+    }
+    return out;
+}
+
 namespace detail {
 
 void poly2trellis_reg(Span<const Value> args, size_t /*nargout*/,
@@ -122,6 +184,19 @@ void poly2trellis_reg(Span<const Value> args, size_t /*nargout*/,
                     "supported in this revision",
                     0, 0, "poly2trellis", "", "numkit:poly2trellis:feedback");
     outs[0] = poly2trellis(args[0], args[1], ctx.engine->resource());
+}
+
+void convenc_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("convenc: requires (msg, trellis)",
+                    0, 0, "convenc", "", "numkit:convenc:nargin");
+    if (args.size() >= 3 && !args[2].isEmpty())
+        throw Error("convenc: puncture pattern / initial state are not "
+                    "supported in this revision",
+                    0, 0, "convenc", "", "numkit:convenc:opts");
+    outs[0] = convenc(args[0], args[1], ctx.engine->resource());
 }
 
 } // namespace detail
