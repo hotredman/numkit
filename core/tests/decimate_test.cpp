@@ -15,6 +15,8 @@ using numkit::decimateM4;
 using numkit::decimateLTTB;
 using numkit::decimateSeries;
 using numkit::decimVisibleRange;
+using numkit::buildPyramid;
+using numkit::decimateLOD;
 using numkit::DecimAlgo;
 
 namespace {
@@ -105,4 +107,53 @@ TEST(DecimateSeries, NoneReturnsRaw) {
     auto x = ramp(N), y = ramp(N);
     auto out = decimateSeries(x.data(), y.data(), N, 0.0, N - 1.0, 100, DecimAlgo::None);
     EXPECT_EQ(out.x.size(), N);
+}
+
+TEST(DecimatePyramid, CoarserLevelsHalveAndPreserveExtrema) {
+    const std::size_t N = 200000;
+    auto x = ramp(N);
+    std::vector<double> y(N);
+    for (std::size_t i = 0; i < N; ++i) y[i] = std::sin(i / 100.0);
+    y[12345] = 50.0;     // spikes must survive every pooling step
+    y[60000] = -40.0;
+    auto levels = buildPyramid(x.data(), y.data(), N, 4000);
+    ASSERT_FALSE(levels.empty());
+    // Each coarser level is no bigger than half the previous.
+    std::size_t prev = N;
+    for (const auto &lv : levels) {
+        EXPECT_LE(lv.x.size(), prev / 2 + 4);
+        prev = lv.x.size();
+    }
+    EXPECT_LE(levels.back().x.size(), 4000u);
+    // Coarsest level still holds the global extrema.
+    double mn = levels.back().y[0], mx = levels.back().y[0];
+    for (double v : levels.back().y) { mn = std::min(mn, v); mx = std::max(mx, v); }
+    EXPECT_DOUBLE_EQ(mx, 50.0);
+    EXPECT_DOUBLE_EQ(mn, -40.0);
+}
+
+TEST(DecimateLOD, BoundsPointsAndKeepsSpikeAtZoomOut) {
+    const std::size_t N = 1000000;
+    const int W = 1000;
+    auto x = ramp(N);
+    std::vector<double> y(N, 0.0);
+    y[500000] = 99.0;
+    auto levels = buildPyramid(x.data(), y.data(), N);
+    auto out = decimateLOD(x.data(), y.data(), N, levels, 0.0, N - 1.0, W, DecimAlgo::M4);
+    EXPECT_LE(out.x.size(), static_cast<std::size_t>(4 * W));
+    EXPECT_GT(out.x.size(), 0u);
+    double mx = out.y[0];
+    for (double v : out.y) mx = std::max(mx, v);
+    EXPECT_DOUBLE_EQ(mx, 99.0);   // spike survives full zoom-out
+}
+
+TEST(DecimateLOD, RestrictsToVisibleRangeWhenZoomedIn) {
+    const std::size_t N = 1000000;
+    const int W = 1000;
+    auto x = ramp(N), y = ramp(N);
+    auto levels = buildPyramid(x.data(), y.data(), N);
+    auto out = decimateLOD(x.data(), y.data(), N, levels, 400000.0, 401000.0, W, DecimAlgo::M4);
+    EXPECT_GE(out.x.front(), 399000.0);
+    EXPECT_LE(out.x.back(), 402000.0);
+    EXPECT_LE(out.x.size(), static_cast<std::size_t>(4 * W));
 }

@@ -158,6 +158,10 @@ struct DatasetInfo
     bool   seriesDownsampled = false;
     size_t seriesN = 0;
     double sxLo = 0, sxHi = 0, syLo = 0, syHi = 0;   // x/y data ranges
+    // Lazy LOD pyramid (coarser levels only — xRaw/yRaw is the finest level)
+    // built on the first getSeriesDisplayTile so every viewport tile is
+    // O(width), not O(visible), even when fully zoomed out.
+    mutable std::vector<DecimatedSeries> seriesPyramid;
 
     // ── Lazy LOD pyramid ───────────────────────────────────────────────
     // L0 is zQuantized itself (originalRows × originalCols, column-major).
@@ -854,10 +858,14 @@ public:
         if (dsIdx < 0 || dsIdx >= static_cast<int>(ax.datasets.size())) return out;
         const auto &ds = ax.datasets[dsIdx];
         if (ds.xRaw.empty() || ds.xRaw.size() != ds.yRaw.size()) return out;
+        // Build the coarse LOD levels once, then pick the cheapest level for
+        // this viewport so the decimation is O(width) even fully zoomed out.
+        if (ds.seriesPyramid.empty() && ds.xRaw.size() > 8000)
+            ds.seriesPyramid = buildPyramid(ds.xRaw.data(), ds.yRaw.data(), ds.xRaw.size());
         DecimAlgo a = (algo == 1) ? DecimAlgo::LTTB
                     : (algo == 2) ? DecimAlgo::None : DecimAlgo::M4;
-        return decimateSeries(ds.xRaw.data(), ds.yRaw.data(), ds.xRaw.size(),
-                              x0, x1, width, a);
+        return decimateLOD(ds.xRaw.data(), ds.yRaw.data(), ds.xRaw.size(),
+                           ds.seriesPyramid, x0, x1, width, a);
     }
 
     bool getFigureDisplayTile(int figId, int axIdx, int dsIdx,

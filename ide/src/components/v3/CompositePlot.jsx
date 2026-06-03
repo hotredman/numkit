@@ -31,7 +31,7 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
 import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange } from './plotUtils';
 import { niceTicks, logTicks, applyTickFormat, fmtTick } from './plotTicks';
-import { decimateSeries } from './decimate';
+import { decimateSeries, buildPyramid, decimateLOD } from './decimate';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -296,6 +296,11 @@ export default function CompositePlot({
   // dataset index. The line renderer prefers a loaded tile (already
   // decimated for the viewport) over the static preview ly.x/ly.y.
   const [seriesTiles, setSeriesTiles] = useState({});
+  // LOD-pyramid cache for Phase-1 series, keyed by the raw x-array identity
+  // (stable across this plot's re-renders). Built once per series; lets the
+  // per-frame decimation stay O(W) at any zoom. WeakMap → GC'd with the data.
+  const seriesPyramids = useRef(null);
+  if (seriesPyramids.current === null) seriesPyramids.current = new WeakMap();
   const figIdRef = useRef(figure._raw?.id ?? figure.id);
   useEffect(() => {
     const fid = figure._raw?.id ?? figure.id;
@@ -1437,6 +1442,33 @@ export default function CompositePlot({
     return () => { cancelled = true; clearTimeout(h); };
   }, [figure.layers, engine, xMin, xMax, W, decimAlgo]);
 
+  // Per-line-layer decimated points (keyed by layer index), recomputed only
+  // when the viewport / pixel width / algorithm / engine tiles / layer set
+  // change — NOT on hover or unrelated state. Engine-downsampled series use
+  // the loaded tile (preview until it arrives); other series decimate from a
+  // cached LOD pyramid so per-frame work stays O(W) at any zoom. comet and
+  // 'none' fall through to the renderer's raw fallback.
+  const decimatedSeries = useMemo(() => {
+    const out = {};
+    const layers = figure.layers || [];
+    for (let i = 0; i < layers.length; i++) {
+      const ly = layers[i];
+      if (ly.kind !== 'series') continue;
+      if (ly.mode !== 'line' && ly.mode !== 'stairs') continue;
+      if (ly.cometAnim || decimAlgo === 'none' || !Array.isArray(ly.x)) continue;
+      if (ly.seriesDownsampled) {
+        const t = seriesTiles[ly.dsIdx];
+        out[i] = t ? { x: t.x, y: t.y }
+                   : decimateSeries(ly.x, ly.y, xMin, xMax, W, decimAlgo);
+        continue;
+      }
+      let pyr = seriesPyramids.current.get(ly.x);
+      if (!pyr) { pyr = buildPyramid(ly.x, ly.y); seriesPyramids.current.set(ly.x, pyr); }
+      out[i] = decimateLOD(pyr, xMin, xMax, W, decimAlgo);
+    }
+    return out;
+  }, [figure.layers, xMin, xMax, W, decimAlgo, seriesTiles]);
+
   const clipId = `clip-h-${figure.id}-${Math.round(width)}`;
   // The heatmap image is stretched to fill the figure's xRange × yRange in
   // viewport coordinates — pan/zoom moves the SVG rect, the image follows.
@@ -2016,15 +2048,11 @@ export default function CompositePlot({
               // Downsample the visible x-range to ~W pixel columns for huge
               // series — render cost O(N) → O(W). Skipped for comet
               // animation (it steps through the raw points one by one).
-              // Engine-downsampled series: prefer the viewport tile (already
-              // decimated for [xMin,xMax]) when one is loaded; otherwise the
-              // static preview, JS-decimated like any series.
-              const seriesTile = ly.seriesDownsampled ? seriesTiles[ly.dsIdx] : null;
-              const sr = seriesTile
-                ? { x: seriesTile.x, y: seriesTile.y }
-                : (!ly.cometAnim && decimAlgo !== 'none' && Array.isArray(ly.x))
-                  ? decimateSeries(ly.x, ly.y, xMin, xMax, W, decimAlgo)
-                  : { x: ly.x, y: ly.y };
+              // Decimated points precomputed once per (viewport, width,
+              // algorithm) in the decimatedSeries memo above — O(W) per frame
+              // at any zoom (engine tile / LOD pyramid / preview). comet and
+              // 'none' fall through to raw.
+              const sr = decimatedSeries[idx] || { x: ly.x, y: ly.y };
               const SX = sr.x, SY = sr.y;
               // Comet animation: render only first floor(progress·N) points.
               const totalN = SX.length;

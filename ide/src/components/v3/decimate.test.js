@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { visibleRange, decimateM4, decimateLTTB, decimateSeries } from './decimate';
+import {
+  visibleRange, decimateM4, decimateLTTB, decimateSeries,
+  buildPyramid, decimateLOD,
+} from './decimate';
 
 const ramp = (n) => Array.from({ length: n }, (_, i) => i);
 
@@ -102,5 +105,65 @@ describe('decimateSeries', () => {
     const out = decimateSeries(x, y, 0, N - 1, W, 'lttb');
     expect(out.decimated).toBe(true);
     expect(out.x.length).toBeLessThanOrEqual(W + 2);
+  });
+});
+
+describe('buildPyramid', () => {
+  it('level 0 is the raw series; each level is no larger than half the prior', () => {
+    const N = 200000;
+    const x = ramp(N);
+    const y = x.map((i) => Math.sin(i / 100));
+    const levels = buildPyramid(x, y, 8000);
+    expect(levels[0].x).toBe(x);              // raw, same reference
+    expect(levels.length).toBeGreaterThan(1);
+    for (let i = 1; i < levels.length; i++) {
+      expect(levels[i].x.length).toBeLessThanOrEqual(levels[i - 1].x.length / 2 + 4);
+    }
+    expect(levels[levels.length - 1].x.length).toBeLessThanOrEqual(8000);
+  });
+
+  it('preserves global extrema all the way to the coarsest level', () => {
+    const N = 200000;
+    const x = ramp(N);
+    const y = x.map((i) => Math.sin(i / 100));
+    y[12345] = 50;     // spike must survive every pooling step
+    y[60000] = -40;
+    const levels = buildPyramid(x, y, 4000);
+    const coarse = levels[levels.length - 1];
+    expect(Math.max(...coarse.y)).toBe(50);
+    expect(Math.min(...coarse.y)).toBe(-40);
+  });
+});
+
+describe('decimateLOD', () => {
+  it('bounds output points and stays in range at full zoom-out', () => {
+    const N = 1000000, W = 1000;
+    const x = ramp(N);
+    const y = x.map((i) => Math.sin(i / 500));
+    const levels = buildPyramid(x, y);
+    const out = decimateLOD(levels, 0, N - 1, W, 'm4');
+    expect(out.x.length).toBeLessThanOrEqual(4 * W);
+    expect(out.x.length).toBeGreaterThan(0);
+  });
+
+  it('keeps a spike visible when fully zoomed out (coarse level)', () => {
+    const N = 1000000, W = 1000;
+    const x = ramp(N);
+    const y = x.map(() => 0);
+    y[500000] = 99;
+    const levels = buildPyramid(x, y);
+    const out = decimateLOD(levels, 0, N - 1, W, 'm4');
+    expect(Math.max(...out.y)).toBe(99);
+  });
+
+  it('restricts to the visible range when zoomed in', () => {
+    const N = 1000000, W = 1000;
+    const x = ramp(N);
+    const y = x.map((i) => i);
+    const levels = buildPyramid(x, y);
+    const out = decimateLOD(levels, 400000, 401000, W, 'm4');
+    expect(out.x[0]).toBeGreaterThanOrEqual(399000);
+    expect(out.x[out.x.length - 1]).toBeLessThanOrEqual(402000);
+    expect(out.x.length).toBeLessThanOrEqual(4 * W);
   });
 });

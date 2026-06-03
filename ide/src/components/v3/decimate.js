@@ -128,6 +128,41 @@ export function decimateLTTB(x, y, x0, x1, threshold) {
   return { x: outX, y: outY };
 }
 
+// ── LOD pyramid — keep per-frame decimation O(W) at ANY zoom ────────────
+//
+// Decimating the raw series every frame is O(visible): cheap zoomed-in,
+// but O(N) zoomed-out (the whole series falls in view). An extrema-
+// preserving pyramid fixes that: level 0 is the raw series, each next level
+// is ≤ half the points (M4, so spikes survive). At render we decimate from
+// the coarsest level that still has enough points in view → O(W) always.
+
+// Build the pyramid. O(N) total (geometric). Stops at ~baseTarget points.
+export function buildPyramid(x, y, baseTarget = 8000) {
+  const levels = [{ x, y }];                 // level 0 = raw
+  let cx = x, cy = y;
+  while (cx.length > baseTarget) {
+    const cols = Math.max(1, Math.ceil(cx.length / 8));   // M4 → ≤ half
+    const d = decimateM4(cx, cy, cx[0], cx[cx.length - 1], cols);
+    if (d.x.length >= cx.length) break;       // safety: no progress
+    levels.push(d);
+    cx = d.x; cy = d.y;
+  }
+  return levels;
+}
+
+// Decimate from the coarsest level with ≥ 2·width points in [x0,x1] (finer
+// as you zoom in). Per-frame cost is O(width) regardless of series size.
+export function decimateLOD(levels, x0, x1, width, algo = 'm4') {
+  if (!levels || !levels.length) return { x: [], y: [], decimated: false, n: 0 };
+  const w = Math.max(1, width | 0);
+  let chosen = levels[0];                     // finest (raw) fallback
+  for (let i = levels.length - 1; i >= 0; i--) {
+    const [a, b] = visibleRange(levels[i].x, x0, x1);
+    if (b - a >= 2 * w || i === 0) { chosen = levels[i]; break; }
+  }
+  return decimateSeries(chosen.x, chosen.y, x0, x1, w, algo);
+}
+
 // Dispatcher. Returns the raw visible slice when there's nothing to gain
 // (visible count already ≤ 2·width) or algo === 'none'. `decimated` tells
 // the caller whether downsampling actually happened. width is the plot's

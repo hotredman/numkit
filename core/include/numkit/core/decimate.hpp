@@ -168,4 +168,47 @@ inline DecimatedSeries decimateSeries(const double *x, const double *y, std::siz
                                    : decimateM4(x, y, n, x0, x1, w);
 }
 
+// ── LOD pyramid (engine twin of decimate.js buildPyramid/decimateLOD) ───
+//
+// Returns the COARSER levels only (raw stays the implicit finest level, so
+// we never copy the full series). level[0] ≈ raw/8, each next ≤ half, all
+// extrema-preserving (M4). Stops at ~baseTarget points. O(N) total.
+inline std::vector<DecimatedSeries> buildPyramid(const double *x, const double *y,
+                                                 std::size_t n, std::size_t baseTarget = 8000) {
+    std::vector<DecimatedSeries> levels;
+    const double *cx = x;
+    const double *cy = y;
+    std::size_t s = n;
+    while (s > baseTarget) {
+        const int cols = static_cast<int>(std::max<std::size_t>(1, (s + 7) / 8));
+        DecimatedSeries d = decimateM4(cx, cy, s, cx[0], cx[s - 1], cols);
+        if (d.x.size() >= s) break;            // no progress
+        levels.push_back(std::move(d));
+        cx = levels.back().x.data();
+        cy = levels.back().y.data();
+        s = levels.back().x.size();
+    }
+    return levels;
+}
+
+// Decimate from the coarsest of {raw, pyramid...} that still has ≥ 2*width
+// points in [x0,x1] (finer as you zoom in) → O(width) per call at any zoom.
+inline DecimatedSeries decimateLOD(const double *rawX, const double *rawY, std::size_t rawN,
+                                   const std::vector<DecimatedSeries> &pyramid,
+                                   double x0, double x1, int width, DecimAlgo algo) {
+    const int w = width < 1 ? 1 : width;
+    const double *bx = rawX;
+    const double *by = rawY;
+    std::size_t bn = rawN;
+    for (int i = static_cast<int>(pyramid.size()) - 1; i >= -1; --i) {
+        const double *lx; const double *ly; std::size_t ln;
+        if (i >= 0) { lx = pyramid[i].x.data(); ly = pyramid[i].y.data(); ln = pyramid[i].x.size(); }
+        else        { lx = rawX; ly = rawY; ln = rawN; }
+        std::size_t a, b;
+        decimVisibleRange(lx, ln, x0, x1, a, b);
+        if (b - a >= static_cast<std::size_t>(w) * 2 || i == -1) { bx = lx; by = ly; bn = ln; break; }
+    }
+    return decimateSeries(bx, by, bn, x0, x1, w, algo);
+}
+
 }  // namespace numkit
