@@ -286,6 +286,12 @@ export default function CompositePlot({
   const [hover, setHover] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null);
   const dragRef = useRef(null);
+  // rAF-throttle pointer moves: a high-rate mouse during a drag/hover would
+  // otherwise fire one re-render (re-decimate + SVG path rebuild) per raw
+  // event (100–1000/s). We keep only the latest position and apply it at
+  // most once per animation frame.
+  const moveRafRef = useRef(0);
+  const pendingMoveRef = useRef(null);
 
   // ── display-tile state ──────────────────────────────────────────────
   // tileOverlay holds the most recent display-pixel-grid sample of the
@@ -678,8 +684,13 @@ export default function CompositePlot({
     dragRef.current = { sx: e.clientX, sy: e.clientY, x0: viewport.x.slice(), y0: viewport.y.slice(), W, H, rect };
     e.currentTarget.style.cursor = 'grabbing';
   }
-  function onMouseMove(e) {
-    if (!svgRef.current || !interactive) return;
+  // Applies the latest pointer position (hover crosshair + drag-pan). Runs
+  // at most once per animation frame via onMouseMove's rAF throttle, so a
+  // fast mouse during a drag triggers ≤ 60 re-renders/s, not 100–1000.
+  function applyMove() {
+    moveRafRef.current = 0;
+    const e = pendingMoveRef.current;
+    if (!e || !svgRef.current || !interactive) return;
     const rect = svgRef.current.getBoundingClientRect();
     const px = (e.clientX - rect.left) * (width / rect.width);
     const py = (e.clientY - rect.top)  * (height / rect.height);
@@ -715,6 +726,12 @@ export default function CompositePlot({
       ny = [d.y0[0] + dy, d.y0[1] + dy];
     }
     setViewport({ x: nx, y: ny });
+  }
+  function onMouseMove(e) {
+    if (!interactive) return;
+    // Keep only the latest event; flush once per frame.
+    pendingMoveRef.current = { clientX: e.clientX, clientY: e.clientY };
+    if (!moveRafRef.current) moveRafRef.current = requestAnimationFrame(applyMove);
   }
   function onMouseUp(e)    { dragRef.current = null; if (e.currentTarget) e.currentTarget.style.cursor = 'grab'; }
   function onMouseLeave(e) { setHover(null); onMouseUp(e); }
@@ -1468,6 +1485,13 @@ export default function CompositePlot({
     }
     return out;
   }, [figure.layers, xMin, xMax, W, decimAlgo, seriesTiles]);
+
+  // Cancel any pending pointer-move frame on unmount.
+  useEffect(() => () => {
+    if (moveRafRef.current && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(moveRafRef.current);
+    }
+  }, []);
 
   const clipId = `clip-h-${figure.id}-${Math.round(width)}`;
   // The heatmap image is stretched to fill the figure's xRange × yRange in
