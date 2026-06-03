@@ -21,6 +21,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/dyaddown_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dyadup_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wmaxlev_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dyad_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wkeep_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wextend_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/detcoef_test.cpp
