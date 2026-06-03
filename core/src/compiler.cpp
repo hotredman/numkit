@@ -2260,6 +2260,26 @@ uint8_t Compiler::compileIndexStore(const ASTNode *lhs, const ASTNode *rhs,
 
 uint8_t Compiler::compileFieldAccess(const ASTNode *node)
 {
+    // Bare qualified access `Pkg.member` / `ClassName.Const`: when the root
+    // identifier is not a known variable, resolve as a 0-arg qualified call
+    // (mirrors compileCall's qualified path) so namespace constants and
+    // classdef Constant properties read without parentheses.
+    {
+        const ASTNode *root = nullptr;
+        std::string qualified = tryBuildQualifiedName(node, &root);
+        if (!qualified.empty() && root) {
+            const std::string &rootName = root->strValue;
+            const bool isLocalVar = varRegisters_.find(rootName) != varRegisters_.end();
+            const bool isWsVar = engine_.workspaceEnv().getLocal(rootName) != nullptr;
+            if (!isLocalVar && !isWsVar) {
+                uint8_t dst = tempReg();
+                uint8_t argBase = nextReg_;
+                int16_t funcIdx = addStringConstant(qualified);
+                emit(Instruction::make_abcde(OpCode::CALL, dst, argBase, 0, funcIdx, 0));
+                return dst;
+            }
+        }
+    }
     // node->children[0] = object expression
     // node->strValue = field name
     uint8_t obj = compileNode(node->children[0].get());

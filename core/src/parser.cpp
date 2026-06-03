@@ -825,17 +825,27 @@ ASTNodePtr Parser::parseClassDef()
     auto node = makeNode(NodeType::CLASSDEF_DEF, ln, cl);
     consume(TokenType::KW_CLASSDEF, "classdef");
 
-    // Skip an optional class-attribute block `(Attr=val, ...)` (v1: ignored).
-    auto skipParenBlock = [&]() {
-        if (!check(TokenType::LPAREN)) return;
-        int depth = 0;
-        do {
-            if (check(TokenType::LPAREN)) ++depth;
-            else if (check(TokenType::RPAREN)) --depth;
+    // Parse an optional attribute block `(Attr, Attr=val, ...)`, returning
+    // the identifier tokens flattened (e.g. (Access=private) → {"Access",
+    // "private"}; (Static) → {"Static"}). Non-identifier values are skipped.
+    auto parseAttrBlock = [&]() -> std::vector<std::string> {
+        std::vector<std::string> attrs;
+        if (!check(TokenType::LPAREN))
+            return attrs;
+        advance(); // (
+        int depth = 1;
+        while (depth > 0 && !isAtEnd()) {
+            if (check(TokenType::LPAREN))
+                ++depth;
+            else if (check(TokenType::RPAREN))
+                --depth;
+            else if (check(TokenType::IDENTIFIER))
+                attrs.push_back(current().value);
             advance();
-        } while (depth > 0 && !isAtEnd());
+        }
+        return attrs;
     };
-    skipParenBlock();
+    parseAttrBlock(); // class-level attributes (v1: ignored)
 
     node->strValue = consume(TokenType::IDENTIFIER, "class name").value;
 
@@ -860,8 +870,8 @@ ASTNodePtr Parser::parseClassDef()
                 "classdef '" + node->strValue
                 + "': expected 'properties' or 'methods' block at line "
                 + std::to_string(current().line));
-        advance();           // consume 'properties' / 'methods'
-        skipParenBlock();    // optional attribute block
+        advance();                              // consume 'properties' / 'methods'
+        std::vector<std::string> blockAttrs = parseAttrBlock();
         skipTerminators();
 
         while (!isAtEnd() && !check(TokenType::KW_END)) {
@@ -871,9 +881,12 @@ ASTNodePtr Parser::parseClassDef()
                 prop->strValue = consume(TokenType::IDENTIFIER, "property name").value;
                 if (match(TokenType::ASSIGN))
                     prop->children.push_back(parseExpression());
+                prop->classAttrs = blockAttrs;
                 node->children.push_back(std::move(prop));
             } else {
-                node->children.push_back(parseFunctionDef());
+                auto fn = parseFunctionDef();
+                fn->classAttrs = blockAttrs;
+                node->children.push_back(std::move(fn));
             }
             skipTerminators();
         }

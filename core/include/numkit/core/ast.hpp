@@ -77,6 +77,10 @@ struct ASTNode
     std::vector<ASTNodePtr> children;
     std::vector<std::string> paramNames;
     std::vector<std::string> returnNames;
+    // classdef only: attributes of the enclosing properties/methods block,
+    // stored as flat tokens (e.g. {"Static"}, {"Constant"},
+    // {"Access","private"}) on each CLASSDEF_PROPERTY / method FUNCTION_DEF.
+    std::vector<std::string> classAttrs;
 
     // MULTI_ASSIGN only: one lvalue expression per output target when at
     // least one target is a complex lvalue (`s.f`, `a(i)`, `c{i}`, ...).
