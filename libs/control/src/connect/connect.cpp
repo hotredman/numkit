@@ -35,6 +35,9 @@ bool hasKind(const Value &sys, const char *want) {
 double sampleTime(const Value &sys) {
     if (sys.isStruct() && sys.hasField("Ts"))
         return sys.field("Ts").toScalar();
+    // A plain numeric is a static gain with UNSPECIFIED sample time (-1):
+    // it inherits the other operand's Ts via Ts_combine.
+    if (!sys.isStruct()) return -1.0;
     return 0.0;
 }
 
@@ -56,6 +59,15 @@ Value rowOf(const std::vector<double> &v, std::pmr::memory_resource *mr) {
 struct NumDen { std::vector<double> num, den; };
 
 NumDen toNumDen(const Value &sys, std::pmr::memory_resource *mr) {
+    // A plain numeric scalar is a STATIC gain system K = K/1, i.e.
+    // num = [K], den = [1]. MATLAB accepts this in every interconnection
+    // (e.g. feedback(sys, 1) for unity feedback, series(sys, 2), ...).
+    if (!sys.isStruct()) {
+        if (sys.numel() == 1)
+            return {{sys.toScalar()}, {1.0}};
+        throw Error("control connect: a numeric system must be a scalar gain",
+                    0, 0, "control", "", "numkit:control:kind");
+    }
     if (hasKind(sys, "tf")) {
         return {coeffsReal(sys.field("num")), coeffsReal(sys.field("den"))};
     }

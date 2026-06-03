@@ -1252,9 +1252,9 @@ intentionally omitted.
 
 | function | status | comment |
 |---|:---:|---|
-| `feedback` | ✅ | Sig: sys = feedback(sys1, sys2[, sign]). Closed-loop feedback connection. Denominator bit-identical with MATLAB R2025b (1 + s + s^2 -> [1 1 1]). Numerator semantically identical (numkit doesn't pad with leading zeros, MATLAB does -- same H(s)). |
-| `series` | ✅ | Sig: r = series(...). Spec-extension batch 2026-05-09. |
-| `parallel` | ✅ | Sig: r = parallel(...). Spec-extension batch 2026-05-09. |
+| `feedback` | ✅ | Sig: sys = feedback(sys1, sys2[, sign]). Closed-loop feedback. Denominator bit-identical with MATLAB R2025b (1+s+s^2 -> [1 1 1]). 2026-06-03: a NUMERIC arg is a static gain K/1 -- feedback(sys,1) unity feedback (dcgain 0.5), feedback(2,sys) (dcgain 2/3). |
+| `series` | ✅ | Sig: sys = series(sys1, sys2). Cascade. dcgain multiplies (0.5*1=0.5). 2026-06-03: a NUMERIC arg is a static gain -- series(2/(s+1),3) dcgain 6. vs MATLAB R2025b. |
+| `parallel` | ✅ | Sig: sys = parallel(sys1, sys2). Sum. dcgain adds (1+0.5=1.5). 2026-06-03: a NUMERIC arg is a static gain -- parallel(2/(s+1),3) dcgain 5. vs MATLAB R2025b. |
 | `connect` | ❌ | name-based interconnect |
 | `append` | ✅ | Sig: r = append(...). Spec-extension batch 2026-05-09. |
 | `lft` | ❌ | linear fractional transform |

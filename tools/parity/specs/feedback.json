@@ -2,9 +2,9 @@
   "name": "feedback",
   "namespace": "control",
   "setup": "sys = feedback(tf(1, [1 1]), tf(1, [1 0]));",
-  "expr": "[num, den] = tfdata(sys, 'v'); r1 = double(sum(den));",
+  "expr": "[num, den] = tfdata(sys, 'v'); r1 = double(sum(den)); r2 = dcgain(feedback(tf(1,[1 1]),1)); r3 = dcgain(feedback(2,tf(1,[1 1])));",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: sys = feedback(sys1, sys2[, sign]). Closed-loop feedback connection. Denominator bit-identical with MATLAB R2025b (1 + s + s^2 -> [1 1 1]). Numerator semantically identical (numkit doesn't pad with leading zeros, MATLAB does -- same H(s))."
+  "fingerprint": ["r1", "r2", "r3"],
+  "comment": "Sig: sys = feedback(sys1, sys2[, sign]). Closed-loop feedback. Denominator bit-identical with MATLAB R2025b (1+s+s^2 -> [1 1 1]). 2026-06-03: a NUMERIC arg is a static gain K/1 -- feedback(sys,1) unity feedback (dcgain 0.5), feedback(2,sys) (dcgain 2/3)."
 }

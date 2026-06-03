@@ -59,3 +59,14 @@ fprintf('  num = '); disp(T3.num);
 fprintf('  den = '); disp(T3.den);
 fprintf('  poles = '); disp(pole(T3)');
 fprintf('  expect den = [1 2 2], poles ~ -1+/-i\n');
+
+% --- NUMERIC static gain (a scalar is the system K/1) ---
+fprintf('\n--- numeric static gain ---\n');
+fprintf('  feedback(1/(s+1), 1) dcgain = %.4f  (expect 0.5)\n', ...
+        dcgain(feedback(tf(1, [1 1]), 1)));
+fprintf('  feedback(2, 1/(s+1)) dcgain = %.4f  (expect 0.6667)\n', ...
+        dcgain(feedback(2, tf(1, [1 1]))));
+fprintf('  series(2/(s+1), 3)   dcgain = %.4f  (expect 6)\n', ...
+        dcgain(series(tf(2, [1 1]), 3)));
+fprintf('  parallel(2/(s+1), 3) dcgain = %.4f  (expect 5)\n', ...
+        dcgain(parallel(tf(2, [1 1]), 3)));
