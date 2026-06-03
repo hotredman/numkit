@@ -25,6 +25,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/wkeep_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wkeep_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wextend_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/wextend_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/detcoef_test.cpp
     # ── shapes ──────────────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/gauswavf_test.cpp
