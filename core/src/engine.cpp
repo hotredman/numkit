@@ -309,6 +309,19 @@ bool Engine::tryObjectUnaryOp(const std::string &op, const Value &operand,
                              + "' for input arguments of type '" + clsName + "'.");
 }
 
+bool Engine::tryObjectSubsref(Value &self, Span<const Value> args, std::size_t nargout,
+                              Value &out, Environment *env)
+{
+    const BuiltinClass *cls = findClass(self.objectClassName());
+    if (!cls || !cls->subsref)
+        return false;
+    Value res[1];
+    CallContext ctx{this, env};
+    cls->subsref(self, args, nargout, Span<Value>(res, 1), ctx);
+    out = std::move(res[0]);
+    return true;
+}
+
 void Engine::objectStoreSlice(Value &dst, const std::vector<std::vector<size_t>> &perDim,
                               const Value &val, Environment *env)
 {
