@@ -347,4 +347,54 @@ TEST_P(GlobalTest, GlobalVariable)
     EXPECT_DOUBLE_EQ(getVar("g"), 42.0);
 }
 
+// A `global G` declared inside a FUNCTION must not surface in the base
+// workspace when the base itself never declared it. Verified vs MATLAB
+// R2025b: after calling a function that does `global G; G=42`, the base's
+// exist('G','var') is 0. (Regression guard for the deep-audit global leak:
+// the VM used to mirror a function's global into workspaceEnv_.)
+TEST_P(GlobalTest, GlobalInFunctionDoesNotLeakToBase)
+{
+    eval(R"(
+        function setit()
+            global G;
+            G = 42;
+        end
+    )");
+    eval("setit();");
+    EXPECT_DOUBLE_EQ(evalScalar("exist('G','var')"), 0.0);
+}
+
+// Two functions sharing a global see each other's writes, yet the base — which
+// never declared it — still does not (matches MATLAB).
+TEST_P(GlobalTest, FunctionsShareGlobalWithoutBaseLeak)
+{
+    eval(R"(
+        function setG(v)
+            global SHARED;
+            SHARED = v;
+        end
+        function r = getG()
+            global SHARED;
+            r = SHARED;
+        end
+    )");
+    eval("setG(77);");
+    EXPECT_DOUBLE_EQ(evalScalar("getG()"), 77.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('SHARED','var')"), 0.0);
+}
+
+// When the base DOES declare the global, it sees a function's modification
+// (the legitimate shared-state path must not regress).
+TEST_P(GlobalTest, BaseSeesGlobalModifiedByFunction)
+{
+    eval(R"(
+        function bumpit()
+            global gg;
+            gg = gg + 1;
+        end
+    )");
+    eval("global gg; gg = 10; bumpit();");
+    EXPECT_DOUBLE_EQ(getVar("gg"), 11.0);
+}
+
 INSTANTIATE_DUAL(GlobalTest);
