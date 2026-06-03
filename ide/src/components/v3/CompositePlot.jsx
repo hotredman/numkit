@@ -31,6 +31,7 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
 import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange } from './plotUtils';
 import { niceTicks, logTicks, applyTickFormat, fmtTick } from './plotTicks';
+import { decimateSeries } from './decimate';
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -311,6 +312,11 @@ export default function CompositePlot({
   // figure.xscale/yscale.
   const [xLogLocal, setXLogLocal] = useState(figure.xscale === 'log');
   const [yLogLocal, setYLogLocal] = useState(figure.yscale === 'log');
+  // Line-series downsampling: 'm4' (pixel-faithful, default), 'lttb'
+  // (smoother trends), or 'none' (raw). Big series are decimated to ~plot-
+  // width points in the VISIBLE x-range before the SVG path is built, so
+  // render cost is O(W) not O(N) and zoom reveals more detail.
+  const [decimAlgo, setDecimAlgo] = useState('m4');
   const xLog = (xLogProp !== undefined) ? xLogProp : xLogLocal;
   const yLog = (yLogProp !== undefined) ? yLogProp : yLogLocal;
   const setXLog = setXLogProp || setXLogLocal;
@@ -1019,6 +1025,23 @@ export default function CompositePlot({
         })) },
       ];
     })() : []),
+    // Line-series downsampling algorithm — pixel-faithful M4 by default,
+    // LTTB for smoother trends, off for raw points.
+    { head: decimAlgo === 'none' ? 'downsample' : `downsample: ${decimAlgo}` },
+    { pillRow: true, options: [
+      { key: 'm4', label: 'M4' },
+      { key: 'lttb', label: 'LTTB' },
+      { key: 'none', label: 'off' },
+    ].map((o) => ({
+      label: o.label,
+      active: decimAlgo === o.key,
+      title: ({
+        m4:   'pixel-faithful — keeps spikes & true extent (default)',
+        lttb: 'smoother for trends; can hide narrow spikes',
+        none: 'raw points — slow for very large series',
+      })[o.key] || '',
+      onClick: () => setDecimAlgo(o.key),
+    })) },
   ] : null;
 
   // Grid ▶ — mirrors the toolbar grid ▾ button, specialised for
@@ -1961,14 +1984,20 @@ export default function CompositePlot({
               let d = '';
               let started = false;
               const markerPts = [];   // collect finite pts for overlay
-              // Comet animation: render only first floor(progress·N)
-              // points. When cometAnim flag is false, use full length.
-              const totalN = ly.x.length;
+              // Downsample the visible x-range to ~W pixel columns for huge
+              // series — render cost O(N) → O(W). Skipped for comet
+              // animation (it steps through the raw points one by one).
+              const sr = (!ly.cometAnim && decimAlgo !== 'none' && Array.isArray(ly.x))
+                ? decimateSeries(ly.x, ly.y, xMin, xMax, W, decimAlgo)
+                : { x: ly.x, y: ly.y };
+              const SX = sr.x, SY = sr.y;
+              // Comet animation: render only first floor(progress·N) points.
+              const totalN = SX.length;
               const animN = ly.cometAnim
                 ? Math.max(1, Math.floor(cometProgress * totalN))
                 : totalN;
               for (let i = 0; i < animN; i++) {
-                const xv = ly.x[i], yv = ly.y[i];
+                const xv = SX[i], yv = SY[i];
                 // Genuine non-finite data → break the line (MATLAB gap
                 // semantics for plot([1 NaN 3])).
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
@@ -1977,7 +2006,7 @@ export default function CompositePlot({
                 const px = sx(xv), py = mySy(yv);
                 if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
                 if (mode === 'stairs' && started) {
-                  d += `L${px.toFixed(2)},${(mySy(ly.y[i - 1])).toFixed(2)} `;
+                  d += `L${px.toFixed(2)},${(mySy(SY[i - 1])).toFixed(2)} `;
                 }
                 d += (started ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
                 started = true;
