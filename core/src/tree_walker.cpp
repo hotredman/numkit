@@ -1106,29 +1106,17 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
         const bool sameArr =
             var->isObject() && var->objectClassName() == rhs.objectClassName();
         if (newable || sameArr) {
-            const BuiltinClass *rcls = engine_.findClass(rhs.objectClassName());
-            Value fill;
-            if (rcls && rcls->construct) {
-                CallContext ctx{&engine_, env};
-                fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
-            }
-            auto singleIdx = [&](size_t d) -> size_t {
+            std::vector<size_t> subs(nargs);
+            for (size_t d = 0; d < nargs; ++d) {
                 auto ids = resolveIndex(lhs->children[d + 1].get(), *var,
                                         static_cast<int>(d), static_cast<int>(nargs), env);
                 if (ids.size() != 1)
                     throw std::runtime_error(
                         "object-array assignment supports a single element per "
                         "subscript (v1)");
-                return ids[0];
-            };
-            if (nargs == 1) {
-                var->objectAssignElement(singleIdx(0), rhs, fill, engine_.mr_);
-            } else {
-                std::vector<size_t> subs(nargs);
-                for (size_t d = 0; d < nargs; ++d)
-                    subs[d] = singleIdx(d);
-                var->objectAssignElementND(subs, rhs, fill, engine_.mr_);
+                subs[d] = ids[0];
             }
+            engine_.objectStoreElement(*var, subs, rhs, env);
             return;
         }
     }

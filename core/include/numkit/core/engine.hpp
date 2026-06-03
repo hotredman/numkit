@@ -86,6 +86,14 @@ public:
     // MATLAB "Undefined operator" error when an object has no overload.
     bool tryObjectUnaryOp(const std::string &op, const Value &operand,
                           Environment *env, Value &out);
+    // Builtin object-array element store: dst(subs) = val, default-filling
+    // grown slots via the class's no-arg constructor. `subs` are 0-based;
+    // one subscript → linear store (shape-preserving / vector grow), several
+    // → N-D store (grid grow). Callers first verify dst is a valid target
+    // (empty/unset, or a same-class object array). Centralises the store
+    // boilerplate shared by TreeWalker and every VM INDEX_SET* opcode.
+    void objectStoreElement(Value &dst, const std::vector<size_t> &subs,
+                            const Value &val, Environment *env);
 
     // ── Namespace introspection (used by resolver — Phase 6) ──────
 

@@ -309,6 +309,21 @@ bool Engine::tryObjectUnaryOp(const std::string &op, const Value &operand,
                              + "' for input arguments of type '" + clsName + "'.");
 }
 
+void Engine::objectStoreElement(Value &dst, const std::vector<size_t> &subs,
+                                const Value &val, Environment *env)
+{
+    const BuiltinClass *cls = findClass(val.objectClassName());
+    Value fill; // default element for grown gaps (class no-arg constructor)
+    if (cls && cls->construct) {
+        CallContext ctx{this, env};
+        fill = cls->construct(Span<const Value>(nullptr, 0), ctx);
+    }
+    if (subs.size() == 1)
+        dst.objectAssignElement(subs[0], val, fill, resource());
+    else
+        dst.objectAssignElementND(subs, val, fill, resource());
+}
+
 void Engine::registerFunction(const std::string &ns,
                               const std::string &name,
                               ExternalFunc func)

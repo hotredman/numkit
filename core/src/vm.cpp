@@ -860,15 +860,9 @@ enter_frame:
                         if (!(ix.isDoubleScalar() || ix.isLogicalScalar()))
                             throw std::runtime_error(
                                 "object-array assignment supports a single linear index (v1)");
-                        size_t idx0 = static_cast<size_t>(ix.toScalar()) - 1;
-                        const BuiltinClass *rcls =
-                            engine_.findClass(R[I.c].objectClassName());
-                        Value fill;
-                        if (rcls && rcls->construct) {
-                            CallContext ctx{&engine_, currentCallEnv()};
-                            fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
-                        }
-                        dst.objectAssignElement(idx0, R[I.c], fill, engine_.mr_);
+                        std::vector<size_t> subs = {
+                            static_cast<size_t>(ix.toScalar()) - 1};
+                        engine_.objectStoreElement(dst, subs, R[I.c], currentCallEnv());
                         break;
                     }
                 }
@@ -998,14 +992,7 @@ enter_frame:
                         std::vector<size_t> subs = {
                             static_cast<size_t>(ri.toScalar()) - 1,
                             static_cast<size_t>(ci.toScalar()) - 1};
-                        const BuiltinClass *rcls =
-                            engine_.findClass(val.objectClassName());
-                        Value fill;
-                        if (rcls && rcls->construct) {
-                            CallContext ctx{&engine_, currentCallEnv()};
-                            fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
-                        }
-                        dst.objectAssignElementND(subs, val, fill, engine_.mr_);
+                        engine_.objectStoreElement(dst, subs, val, currentCallEnv());
                         break;
                     }
                 }
@@ -1121,14 +1108,7 @@ enter_frame:
                                     "element per subscript (v1)");
                             subs[i] = static_cast<size_t>(s.toScalar()) - 1;
                         }
-                        const BuiltinClass *rcls =
-                            engine_.findClass(val.objectClassName());
-                        Value fill;
-                        if (rcls && rcls->construct) {
-                            CallContext ctx{&engine_, currentCallEnv()};
-                            fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
-                        }
-                        dst.objectAssignElementND(subs, val, fill, engine_.mr_);
+                        engine_.objectStoreElement(dst, subs, val, currentCallEnv());
                         break;
                     }
                 }
