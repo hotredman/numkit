@@ -6,6 +6,7 @@
 #include <bitset>
 #include <unordered_set>
 
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -14,6 +15,16 @@ namespace numkit {
 
 class Engine;
 struct UserFunction; // defined in types.hpp; used by-reference here
+
+// Thrown when a single chunk needs more than the 255 register slots the
+// bytecode operand byte can address. Distinct type (not a bare runtime_error)
+// so callers can tell "function too large for the VM" apart from other compile
+// failures and surface it instead of silently dropping VM compilation. Derives
+// from runtime_error so existing broad `catch (std::exception&)` TW-fallbacks
+// (class methods) keep working.
+struct RegisterExhaustionError : std::runtime_error {
+    using std::runtime_error::runtime_error;
+};
 
 class Compiler
 {
@@ -186,6 +197,15 @@ private:
     // pre-allocates a low slot for each so vars cluster at the bottom
     // and don't fragment the slot range under temp pressure.
     void collectAssignedNames(const ASTNode *node, std::vector<std::string> &out);
+    // Cluster every variable assigned in `body` at a low, contiguous register
+    // slot BEFORE compiling the body. Without this, a local's slot is whatever
+    // temp happened to be free at its first assignment (high when the RHS is a
+    // deep expression) — fragmenting the slot range, creeping maxVarReg_ (the
+    // statement-boundary temp-release floor) upward, and exhausting the 256-slot
+    // chunk on functions that don't need that many slots. Run for BOTH the
+    // top-level script (via preImportGlobals) and every user function
+    // (compileFunction) so they allocate identically.
+    void preallocateAssignedVars(const ASTNode *body);
     // Allocate a temporary register
     uint8_t tempReg();
 

@@ -249,3 +249,96 @@ TEST(CompilerAssignedVars, BuiltinShadowInScript)
             << "x = pi must NOT mark pi as assigned";
     }
 }
+
+// ============================================================
+// Register pre-allocation for FUNCTIONS (not only the top-level script).
+//
+// Bug: compileFunction skipped the assigned-var clustering pass that the
+// top-level script gets via preImportGlobals. So inside a user function each
+// local adopted whatever (high) temp slot its first assignment landed in;
+// maxVarReg_ (the statement-boundary temp-release floor) crept upward and a
+// function with only ~80 real locals false-positived on the 255-register limit
+// (e.g. an inlined DOPRI5 ode45 — 73 named vars but maxVarReg crept to 253).
+// preallocateAssignedVars now runs for functions too. See compiler.cpp.
+// ============================================================
+
+static BytecodeChunk compileFnSource(Engine &engine, const std::string &src)
+{
+    Lexer lexer(src);
+    Parser parser(lexer.tokenize());
+    auto ast = parser.parse();
+    const ASTNode *fd = nullptr;
+    for (auto &c : ast->children)
+        if (c && c->type == NodeType::FUNCTION_DEF) fd = c.get();
+    EXPECT_NE(fd, nullptr);
+    auto s = std::make_shared<const std::string>(src);
+    return engine.compilerPtr()->compileFunction(fd, s);
+}
+
+TEST(CompilerRegisterAlloc, FunctionLocalsClusterLikeScript)
+{
+    // 120 distinct locals, each from a multi-term expression so its first
+    // assignment lands in a high temp slot. Without per-function
+    // pre-allocation the slots fragment, maxVarReg_ creeps past 255, and this
+    // throws a (false) register exhaustion. With it, locals cluster low and the
+    // chunk needs only ~(#locals + a little temp headroom).
+    std::string src = "function out = deepfn(a)\n";
+    for (int i = 1; i <= 120; ++i)
+        src += "  v" + std::to_string(i) + " = a + a*2 + a*3 + a*4 + a*5 + a*6;\n";
+    src += "  out = v1 + v120;\nend\n";
+    Engine engine;
+    BytecodeChunk chunk;
+    ASSERT_NO_THROW({ chunk = compileFnSource(engine, src); })
+        << "120-local function must compile (pre-fix this threw register exhaustion)";
+    EXPECT_LT(static_cast<int>(chunk.numRegisters), 170)
+        << "locals must cluster low — numRegisters ~#locals, not a creeping floor";
+}
+
+TEST(CompilerRegisterAlloc, FunctionLocalsRunCorrectly)
+{
+    // End-to-end: the clustered chunk executes on the VM with correct values.
+    std::string src = "function out = deepfn2(a)\n";
+    for (int i = 1; i <= 90; ++i)
+        src += "  v" + std::to_string(i) + " = a + " + std::to_string(i) + ";\n";
+    src += "  out = v90;\nend\n";
+    Engine engine;
+    engine.eval(src);
+    EXPECT_DOUBLE_EQ(engine.eval("deepfn2(10)").toScalar(), 100.0); // 10 + 90
+}
+
+TEST(CompilerRegisterAlloc, TooManyLocalsThrowsLoudly)
+{
+    // P0: a function that genuinely needs >255 register slots must throw a
+    // typed RegisterExhaustionError — not silently produce a degenerate chunk.
+    std::string src = "function out = hugefn()\n";
+    for (int i = 1; i <= 300; ++i)
+        src += "  a" + std::to_string(i) + " = " + std::to_string(i) + ";\n";
+    src += "  out = a1;\nend\n";
+    Engine engine;
+    EXPECT_THROW(compileFnSource(engine, src), RegisterExhaustionError);
+}
+
+TEST(CompilerRegisterAlloc, RegisterBuiltinMSourceTooLargeThrowsClearError)
+{
+    // P0 at the embedded-wrapper boundary: registerBuiltinMSource must fail
+    // loudly (not silently TW-only — which would later surface as a misleading
+    // "undefined function" on the VM backend) when a wrapper exceeds the limit.
+    std::string src = "function out = hugewrap()\n";
+    for (int i = 1; i <= 300; ++i)
+        src += "  a" + std::to_string(i) + " = " + std::to_string(i) + ";\n";
+    src += "  out = a1;\nend\n";
+    Engine engine;
+    bool threw = false;
+    try {
+        engine.registerBuiltinMSource(src);
+    } catch (const std::exception &e) {
+        threw = true;
+        EXPECT_NE(std::string(e.what()).find("255"), std::string::npos)
+            << "error should mention the 255-register limit; got: " << e.what();
+    }
+    EXPECT_TRUE(threw) << "registerBuiltinMSource must throw on a too-large wrapper";
+
+    // A normal small wrapper still registers and runs on the VM.
+    engine.registerBuiltinMSource("function y = tinywrap(x)\n  y = x * 3;\nend\n");
+    EXPECT_DOUBLE_EQ(engine.eval("tinywrap(4)").toScalar(), 12.0);
+}

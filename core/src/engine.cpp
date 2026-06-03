@@ -1659,8 +1659,19 @@ void Engine::registerBuiltinMSource(const std::string &src)
         if (compiler_) {
             try {
                 compiler_->registerFunctionAs(func.name, fd);
+            } catch (const RegisterExhaustionError &) {
+                // Our own embedded wrappers MUST run on the VM (that is the
+                // whole point — pausability). A too-large chunk would silently
+                // drop to TW-only and surface later as a misleading "undefined
+                // function" on the VM. Fail loudly at registration instead.
+                throw Error("registerBuiltinMSource: embedded function '" + func.name
+                    + "' needs more than the 255-register VM limit in one chunk — "
+                    "split it into helper functions (see docs/CALLBACK_PAUSABILITY.md)",
+                    0, 0, "registerBuiltinMSource", "",
+                    "numkit:compiler:registerExhaustion");
             } catch (const std::exception &) {
-                // VM compile failed — TW still dispatches via userFuncs_.
+                // Other VM-compile failures stay non-fatal — TW dispatches via
+                // userFuncs_.
             }
         }
         userFuncs_[func.name] = std::move(func);
@@ -1850,8 +1861,17 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
         if (compiler_) {
             try {
                 compiler_->registerFunctionAs(name, funcDef);
+            } catch (const RegisterExhaustionError &) {
+                // Too large for the bytecode VM. Surface it instead of silently
+                // dropping VM compilation — otherwise a VM-mode call would fall
+                // through to the external path and throw a misleading "undefined
+                // function" for a function that is plainly defined.
+                throw Error("function '" + name + "' needs more than the 255-register "
+                    "VM limit in one function — split it into smaller functions so it "
+                    "can run on the bytecode VM (and be debuggable)",
+                    0, 0, name, "", "numkit:compiler:registerExhaustion");
             } catch (const std::exception &) {
-                // Compiler errors are non-fatal here — TW will still
+                // Other compiler errors are non-fatal here — TW will still
                 // dispatch through userFuncs_; only VM-mode invocations
                 // will fall through to the generic CALL → external
                 // path, which fails cleanly.
