@@ -492,4 +492,141 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 
 } // namespace detail
 
+// ── fzero as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ──────────────────
+// The registered, user-facing fzero is implemented in `.m` so the objective `f`
+// is called from bytecode (CALL_INDIRECT) — pausable under the debugger for
+// free, no C++ state machine. A faithful port of findBracket + brent above; the
+// C++ `Value fzero(...)` API stays as the synchronous path for embedders.
+static const char *kFzeroMSource = R"NKM(
+function [x, fval, exitflag] = fzero(fn, x0)
+  if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
+    error('numkit:fzero:notHandle', 'fzero: first argument must be a function handle');
+  end
+  if numel(x0) == 1
+    [a, b] = nk_fzero_bracket(fn, x0);
+    if a == b
+      x = a;
+    else
+      if a > b
+        t = a; a = b; b = t;
+      end
+      x = nk_fzero_brent(fn, a, b);
+    end
+  elseif numel(x0) == 2
+    a = x0(1); b = x0(2);
+    if ~(isfinite(a) && isfinite(b)) || a >= b
+      error('numkit:fzero:badInterval', 'fzero: interval [a, b] must satisfy a < b and be finite');
+    end
+    x = nk_fzero_brent(fn, a, b);
+  else
+    error('numkit:fzero:badX0', 'fzero: 2nd argument must be a scalar x0 or a 2-element interval [a, b]');
+  end
+  fval = fn(x);
+  exitflag = 1;
+end
+
+function [a, b] = nk_fzero_bracket(fn, x0)
+  if ~isfinite(x0)
+    error('numkit:fzero:badX0', 'fzero: x0 must be finite');
+  end
+  if x0 == 0
+    step = 0.02;
+  else
+    step = abs(x0) * 0.02;
+  end
+  if step == 0
+    step = 0.02;
+  end
+  a = x0; b = x0;
+  fa = fn(a);
+  if fa == 0
+    b = a; return;
+  end
+  for i = 0:59
+    s = step * 2^i;
+    aprev = a; faprev = fa;
+    a = x0 - s;
+    b = x0 + s;
+    fa = fn(a);
+    if fa == 0
+      b = a; return;
+    end
+    fb = fn(b);
+    if fb == 0
+      a = b; return;
+    end
+    if (fa < 0) ~= (fb < 0)
+      return;
+    end
+    if (faprev < 0) ~= (fa < 0)
+      b = aprev; return;
+    end
+  end
+  error('numkit:fzero:noBracket', 'fzero: failed to find a bracket containing a sign change near x0');
+end
+
+function r = nk_fzero_brent(fn, a, b)
+  ep = 1e-15;
+  fa = fn(a); fb = fn(b);
+  if fa == 0, r = a; return; end
+  if fb == 0, r = b; return; end
+  if (fa < 0) == (fb < 0)
+    error('numkit:fzero:noSignChange', 'fzero: f(a) and f(b) must have opposite signs (no sign change in the supplied interval)');
+  end
+  c = a; fc = fa; d = b - a; e = d;
+  for it = 1:200
+    if (fb < 0) == (fc < 0)
+      c = a; fc = fa; d = b - a; e = d;
+    end
+    if abs(fc) < abs(fb)
+      a = b; b = c; c = a;
+      fa = fb; fb = fc; fc = fa;
+    end
+    tol1 = 2*ep*abs(b) + 0.5e-15;
+    xm = 0.5*(c - b);
+    if abs(xm) <= tol1 || fb == 0
+      r = b; return;
+    end
+    if abs(e) >= tol1 && abs(fa) > abs(fb)
+      s = fb/fa;
+      if a == c
+        p = 2*xm*s; q = 1 - s;
+      else
+        rr = fb/fc; sa = fa/fc;
+        p = s*(2*xm*sa*(sa - rr) - (b - a)*(rr - 1));
+        q = (sa - 1)*(rr - 1)*(s - 1);
+      end
+      if p > 0, q = -q; end
+      p = abs(p);
+      mm1 = 3*xm*q - abs(tol1*q);
+      mm2 = abs(e*q);
+      if 2*p < min(mm1, mm2)
+        e = d; d = p/q;
+      else
+        d = xm; e = d;
+      end
+    else
+      d = xm; e = d;
+    end
+    a = b; fa = fb;
+    if abs(d) > tol1
+      b = b + d;
+    else
+      if xm > 0
+        b = b + abs(tol1);
+      else
+        b = b - abs(tol1);
+      end
+    end
+    fb = fn(b);
+  end
+  error('numkit:fzero:noConverge', 'fzero: failed to converge within iteration limit');
+end
+)NKM";
+
+void registerFzeroM(Engine &engine)
+{
+    engine.registerBuiltinMSource(kFzeroMSource);
+}
+
 } // namespace numkit::optim
