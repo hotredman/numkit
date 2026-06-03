@@ -250,6 +250,22 @@ static const char *operatorMethodName(const std::string &op)
     return nullptr;
 }
 
+// True when a classdef method name is one of MATLAB's operator-overload
+// methods (binary or unary) — such a method is wired into BuiltinClass::ops
+// so `a + b`, `-a`, `a == b`, … dispatch to it.
+static bool isOperatorMethodName(const std::string &n)
+{
+    static const char *kOps[] = {
+        "plus",  "minus", "mtimes",  "times",      "mrdivide",  "rdivide",
+        "mldivide", "ldivide", "mpower", "power",   "eq",        "ne",
+        "lt",    "le",    "gt",      "ge",         "and",       "or",
+        "uminus", "uplus", "not",    "ctranspose", "transpose"};
+    for (const char *o : kOps)
+        if (n == o)
+            return true;
+    return false;
+}
+
 bool Engine::tryObjectBinaryOp(const std::string &op, const Value &lhs, const Value &rhs,
                                Environment *env, Value &out)
 {
@@ -723,6 +739,28 @@ void Engine::registerClassDef(const ASTNode *cd)
             for (size_t i = 0; i < writeN && i < outs.size(); ++i)
                 outs[i] = std::move(results[i]);
         };
+        // Operator-overload method (plus/minus/eq/uminus/…): also wire it into
+        // `ops` so `a + b`, `-a`, `a == b`, … dispatch here. Unlike a regular
+        // method, an operator method's parameters ARE its operands (no `self`
+        // is prepended): binary ops arrive as `args` = [lhs, rhs]; a unary op
+        // arrives as the receiver `self` with empty `args`.
+        if (isOperatorMethodName(mname)) {
+            auto ufOp = uf;
+            cls.ops[mname] = [ufOp](Value &self, Span<const Value> args, size_t nargout,
+                                    Span<Value> outs, CallContext &ctx) {
+                std::vector<Value> callArgs;
+                if (args.empty())
+                    callArgs.push_back(self); // unary: operand came as self
+                else
+                    callArgs.assign(args.begin(), args.end()); // binary: [lhs, rhs]
+                const size_t nout = std::max<size_t>(nargout, 1);
+                auto results = ctx.engine->invokeClassMethod(
+                    *ufOp, Span<const Value>(callArgs.data(), callArgs.size()), nout);
+                const size_t writeN = std::min(nout, results.size());
+                for (size_t i = 0; i < writeN && i < outs.size(); ++i)
+                    outs[i] = std::move(results[i]);
+            };
+        }
     }
     cls.dispText = [desc](const Value &self) -> std::string {
         std::string body = "  " + desc->name + " with properties:\n\n";
