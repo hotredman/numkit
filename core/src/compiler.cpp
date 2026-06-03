@@ -1474,8 +1474,8 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
         const std::string &name = child->strValue;
         if (isTopLevel_) {
             Value *local = engine_.workspaceEnv().getLocal(name);
-            if (local && !local->isEmpty() && !local->isUnset())
-                bareUserVar = true;
+            if (local && !local->isUnset() && !local->isDeleted())
+                bareUserVar = true; // empty `[]` is a defined value: `x=[]; x` shows x, not ans
         } else {
             if (varRegisters_.count(name) > 0 && engine_.isReservedName(name) == 0)
                 bareUserVar = true;
@@ -1500,7 +1500,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
         // Also check workspaceEnv for variables from previous eval() calls
         if (!isKnownVar && isTopLevel_ && !engine_.isReservedName(name)) {
             Value *existing = engine_.getVariable(name);
-            if (existing && !existing->isEmpty())
+            if (existing && !existing->isUnset() && !existing->isDeleted())
                 isKnownVar = true;
         }
 
@@ -3173,7 +3173,7 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     // Also check workspaceEnv for variables from previous eval() calls
     if (!isKnownVar && isTopLevel_ && !engine_.isReservedName(name)) {
         Value *existing = engine_.getVariable(name);
-        if (existing && !existing->isEmpty()) {
+        if (existing && !existing->isUnset() && !existing->isDeleted()) {
             // Variable exists — check if it's a callable (funcHandle or closure cell)
             // Callable variables take priority over same-name external functions
             bool isCallable = existing->isFuncHandle()
