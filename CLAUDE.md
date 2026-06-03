@@ -190,7 +190,9 @@ option), `stub` (documented option/branch throws "not supported"),
 not implemented at all — a **parity gap, also tracked in PROGRESS.md, NOT a
 defect**), `perf` (correct but slower than MATLAB — use a `Slowdown:` line +
 a benchmark, not a `DISABLED_` gtest). Don't conflate them — a missing
-function is not a bug.
+function is not a bug. **`perf` threshold:** numkit is single-threaded vs
+MATLAB's multithreaded MKL/FFTW, so flag only ≥3× (or 1.5–3× with a FIXABLE
+cause, or ANY ratio if worse big-O); <1.5× is noise. See bugs/README.md.
 
 See [bugs/README.md](bugs/README.md) for the template + Kind legend + index.
 When you fix a bug, remove the test's `DISABLED_` prefix, flip the md status

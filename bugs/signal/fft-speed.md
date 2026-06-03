@@ -2,7 +2,9 @@
 
 - **Status:** 🔴 OPEN
 - **Kind:** perf
-- **Slowdown:** 1.2×–4.3× vs MATLAB R2025b (worst: complex N=262144)
+- **Slowdown:** 1.2×–4.3× vs MATLAB R2025b (worst: complex N=262144) — **S2**
+  (3–10×). Largely *inherent* (single-threaded vs FFTW's threads), so lower
+  priority than a fixable-cause perf bug.
 - **Found:** 2026-06 via DEEP-PROBE (FFT speed review)
 - **Note:** results are CORRECT (FFT family is bit-identical to MATLAB — see
   the FFT correctness review). This is a pure performance gap.
