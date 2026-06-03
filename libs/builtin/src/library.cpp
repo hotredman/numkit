@@ -2073,6 +2073,43 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             outs[0] = Value::logicalScalar(result, ctx.engine->resource());
         });
 
+    // ── isobject / properties / methods (class introspection) ──
+    engine.registerFunction(
+        "isobject", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            outs[0] = Value::logicalScalar(!args.empty() && args[0].isObject(),
+                                           ctx.engine->resource());
+        });
+    engine.registerFunction(
+        "properties", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error("properties requires an argument");
+            std::string cn = args[0].isObject() ? args[0].objectClassName()
+                                                : args[0].toString();
+            const BuiltinClass *cls = ctx.engine->findClass(cn);
+            const size_t n = cls ? cls->propNames.size() : 0;
+            Value c = Value::cell(n, 1, ctx.engine->resource());
+            for (size_t i = 0; i < n; ++i)
+                c.cellAt(i) = Value::fromString(cls->propNames[i], ctx.engine->resource());
+            outs[0] = c;
+        });
+    engine.registerFunction(
+        "methods", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error("methods requires an argument");
+            std::string cn = args[0].isObject() ? args[0].objectClassName()
+                                                : args[0].toString();
+            const BuiltinClass *cls = ctx.engine->findClass(cn);
+            std::vector<std::string> names;
+            if (cls)
+                for (const auto &[mn, fn] : cls->methods)
+                    names.push_back(mn);
+            std::sort(names.begin(), names.end());
+            Value c = Value::cell(names.size(), 1, ctx.engine->resource());
+            for (size_t i = 0; i < names.size(); ++i)
+                c.cellAt(i) = Value::fromString(names[i], ctx.engine->resource());
+            outs[0] = c;
+        });
+
     // ── tic ────────────────────────────────────────────────────
     engine.registerFunction("tic",
                             [](Span<const Value>,
