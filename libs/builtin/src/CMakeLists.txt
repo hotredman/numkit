@@ -24,6 +24,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/scan.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/cells/cell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/structures/struct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/datatypes/containers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/bitwise/int_math.cpp
     # math/ — MATLAB Mathematics
     ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng.cpp
@@ -61,6 +62,7 @@ if(NUMKIT_WITH_SIMD)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/var_reduction_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/isfinite_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding_highway.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/mod_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_recip_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exp_log_highway.cpp)
@@ -75,6 +77,7 @@ else()
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/var_reduction_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/isfinite_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/mod_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_recip_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exp_log_portable.cpp)

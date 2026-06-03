@@ -2,6 +2,7 @@
 //
 // Dyadic upsample/downsample helpers and wmaxlev.
 
+#include <numkit/wavelet/dwt/dyad.hpp>
 #include <numkit/wavelet/filter/wfilters.hpp>
 
 #include <numkit/core/engine.hpp>
@@ -70,26 +71,11 @@ inline bool isMatrix(size_t rows, size_t cols)
 
 } // anonymous
 
-namespace detail {
+// ── Public C++ API (see dwt/dyad.hpp) ─────────────────────────────────
 
-// y = dyaddown(x[, ODD][, type])
-//   ODD = 0 (default): keep EVEN-indexed (1-based)  → x(2:2:end)
-//   ODD = 1:           keep ODD-indexed             → x(1:2:end)
-//   type 'c' (matrix default): downsample columns
-//   type 'r':                  downsample rows
-//   type 'm':                  downsample both
-// Vector input: type is ignored.
-void dyaddown_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
+Value dyaddown(const Value &x, int odd, char type,
+               std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("dyaddown: requires an input vector",
-                    0, 0, "dyaddown", "", "numkit:dyaddown:nargin");
-    const Value &x = args[0];
-    int odd; char type;
-    parseDyadArgs(args, /*defaultOdd=*/0, odd, type);
-    auto *mr = ctx.engine->resource();
-
     size_t rows, cols;
     readShape(x, rows, cols);
 
@@ -99,13 +85,12 @@ void dyaddown_reg(Span<const Value> args, size_t /*nargout*/,
         size_t outRows, outCols;
         outShape(rows, cols, outN, outRows, outCols);
         Value y = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
-        if (outN == 0) { outs[0] = y; return; }
+        if (outN == 0) return y;
         double *yd = y.doubleDataMut();
         const size_t start = (odd == 0) ? 1 : 0;
         for (size_t k = 0; k < outN; ++k)
             yd[k] = x.elemAsDouble(start + 2 * k);
-        outs[0] = y;
-        return;
+        return y;
     }
 
     // 2-D matrix: column-major data layout.
@@ -120,7 +105,7 @@ void dyaddown_reg(Span<const Value> args, size_t /*nargout*/,
     else { resR = outR; resC = outC; }
 
     Value y = Value::matrix(resR, resC, ValueType::DOUBLE, mr);
-    if (resR == 0 || resC == 0) { outs[0] = y; return; }
+    if (resR == 0 || resC == 0) return y;
     double *yd = y.doubleDataMut();
 
     if (type == 'c') {
@@ -145,28 +130,12 @@ void dyaddown_reg(Span<const Value> args, size_t /*nargout*/,
             }
         }
     }
-    outs[0] = y;
+    return y;
 }
 
-// y = dyadup(x[, ODD][, type])
-//   Vector default ODD = 1 (leading-zero pattern):
-//     ODD = 0:           y = [x(1) 0 x(2) 0 … x(N)]      length 2N-1
-//     ODD = 1 (default): y = [0 x(1) 0 x(2) 0 … x(N) 0]  length 2N+1
-//   Matrix default ODD = 1, type = 'c'.
-//
-// Verified vs MATLAB R2025b: dyadup([1 2 3], 0) → [1 0 2 0 3];
-//   dyadup([1 2 3], 1) → [0 1 0 2 0 3 0]; dyadup([1 2 3]) → same as ODD=1.
-void dyadup_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
+Value dyadup(const Value &x, int odd, char type,
+             std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("dyadup: requires an input vector",
-                    0, 0, "dyadup", "", "numkit:dyadup:nargin");
-    const Value &x = args[0];
-    int odd; char type;
-    parseDyadArgs(args, /*defaultOdd=*/1, odd, type);
-    auto *mr = ctx.engine->resource();
-
     size_t rows, cols;
     readShape(x, rows, cols);
 
@@ -176,14 +145,13 @@ void dyadup_reg(Span<const Value> args, size_t /*nargout*/,
         size_t outRows, outCols;
         outShape(rows, cols, outN, outRows, outCols);
         Value y = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
-        if (outN == 0) { outs[0] = y; return; }
+        if (outN == 0) return y;
         double *yd = y.doubleDataMut();
         const size_t start = (odd == 0) ? 0 : 1;
         for (size_t k = 0; k < outN; ++k) yd[k] = 0.0;
         for (size_t i = 0; i < N; ++i)
             yd[start + 2 * i] = x.elemAsDouble(i);
-        outs[0] = y;
-        return;
+        return y;
     }
 
     // 2-D matrix: insert zeros along the chosen axis.
@@ -197,7 +165,7 @@ void dyadup_reg(Span<const Value> args, size_t /*nargout*/,
     else if (type == 'r') { resR = outR; resC = cols; }
     else { resR = outR; resC = outC; }
     Value y = Value::matrix(resR, resC, ValueType::DOUBLE, mr);
-    if (resR == 0 || resC == 0) { outs[0] = y; return; }
+    if (resR == 0 || resC == 0) return y;
     double *yd = y.doubleDataMut();
     for (size_t i = 0; i < resR * resC; ++i) yd[i] = 0.0;
 
@@ -223,7 +191,75 @@ void dyadup_reg(Span<const Value> args, size_t /*nargout*/,
             }
         }
     }
-    outs[0] = y;
+    return y;
+}
+
+Value wmaxlev(const Value &N, const std::string &wname,
+              std::pmr::memory_resource *mr)
+{
+    // Accept scalar N or a 1×k vector; use min(N) as the effective length.
+    const size_t k = N.numel();
+    if (k == 0)
+        throw Error("wmaxlev: N must not be empty",
+                    0, 0, "wmaxlev", "", "numkit:wmaxlev:empty");
+    double Nmin = N.elemAsDouble(0);
+    for (size_t i = 1; i < k; ++i) {
+        const double v = N.elemAsDouble(i);
+        if (v < Nmin) Nmin = v;
+    }
+
+    auto fb = wavelet_filters(wname);
+    const size_t Lf = fb.Lo_D.size();
+    if (Lf < 2)
+        throw Error("wmaxlev: filter length must be ≥ 2",
+                    0, 0, "wmaxlev", "", "numkit:wmaxlev:filter");
+
+    double L = 0.0;
+    if (Nmin >= static_cast<double>(Lf - 1) + 1.0) {
+        const double r = Nmin / static_cast<double>(Lf - 1);
+        L = std::floor(std::log2(r));
+        if (L < 0.0) L = 0.0;
+    }
+    return Value::scalar(L, mr);
+}
+
+namespace detail {
+
+// y = dyaddown(x[, ODD][, type])
+//   ODD = 0 (default): keep EVEN-indexed (1-based)  → x(2:2:end)
+//   ODD = 1:           keep ODD-indexed             → x(1:2:end)
+//   type 'c' (matrix default): downsample columns
+//   type 'r':                  downsample rows
+//   type 'm':                  downsample both
+// Vector input: type is ignored.
+void dyaddown_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("dyaddown: requires an input vector",
+                    0, 0, "dyaddown", "", "numkit:dyaddown:nargin");
+    int odd; char type;
+    parseDyadArgs(args, /*defaultOdd=*/0, odd, type);
+    outs[0] = dyaddown(args[0], odd, type, ctx.engine->resource());
+}
+
+// y = dyadup(x[, ODD][, type])
+//   Vector default ODD = 1 (leading-zero pattern):
+//     ODD = 0:           y = [x(1) 0 x(2) 0 … x(N)]      length 2N-1
+//     ODD = 1 (default): y = [0 x(1) 0 x(2) 0 … x(N) 0]  length 2N+1
+//   Matrix default ODD = 1, type = 'c'.
+//
+// Verified vs MATLAB R2025b: dyadup([1 2 3], 0) → [1 0 2 0 3];
+//   dyadup([1 2 3], 1) → [0 1 0 2 0 3 0]; dyadup([1 2 3]) → same as ODD=1.
+void dyadup_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("dyadup: requires an input vector",
+                    0, 0, "dyadup", "", "numkit:dyadup:nargin");
+    int odd; char type;
+    parseDyadArgs(args, /*defaultOdd=*/1, odd, type);
+    outs[0] = dyadup(args[0], odd, type, ctx.engine->resource());
 }
 
 // L = wmaxlev(N, wname)
@@ -242,37 +278,10 @@ void wmaxlev_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("wmaxlev: requires (N, wname)",
                     0, 0, "wmaxlev", "", "numkit:wmaxlev:nargin");
-    const Value &Nv = args[0];
     if (!args[1].isChar() && !args[1].isString())
         throw Error("wmaxlev: wname must be a character vector",
                     0, 0, "wmaxlev", "", "numkit:wmaxlev:type");
-    const std::string wname = args[1].toString();
-
-    // Accept scalar N or a 1×k vector; use min(N) as the effective length.
-    double Nmin = 0.0;
-    const size_t k = Nv.numel();
-    if (k == 0)
-        throw Error("wmaxlev: N must not be empty",
-                    0, 0, "wmaxlev", "", "numkit:wmaxlev:empty");
-    Nmin = Nv.elemAsDouble(0);
-    for (size_t i = 1; i < k; ++i) {
-        const double v = Nv.elemAsDouble(i);
-        if (v < Nmin) Nmin = v;
-    }
-
-    auto fb = wavelet_filters(wname);
-    const size_t Lf = fb.Lo_D.size();
-    if (Lf < 2)
-        throw Error("wmaxlev: filter length must be ≥ 2",
-                    0, 0, "wmaxlev", "", "numkit:wmaxlev:filter");
-
-    double L = 0.0;
-    if (Nmin >= static_cast<double>(Lf - 1) + 1.0) {
-        const double r = Nmin / static_cast<double>(Lf - 1);
-        L = std::floor(std::log2(r));
-        if (L < 0.0) L = 0.0;
-    }
-    outs[0] = Value::scalar(L, ctx.engine->resource());
+    outs[0] = wmaxlev(args[0], args[1].toString(), ctx.engine->resource());
 }
 
 } // namespace detail

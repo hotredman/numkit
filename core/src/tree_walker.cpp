@@ -57,6 +57,10 @@ void TreeWalker::output(const std::string &s)
 
 void TreeWalker::displayValue(const std::string &name, const Value &val)
 {
+    if (val.isObject()) {
+        output(engine_.formatObjectDisplay(name, val));
+        return;
+    }
     output(val.formatDisplay(name));
 }
 
@@ -476,6 +480,9 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
             out.setScalarFast(lv / rv);
             return true;
         } else if (opStr == ".^") {
+            // negative base ^ non-integer exp -> complex; let the full path handle it.
+            if (lv < 0.0 && rv != std::floor(rv))
+                return false;
             out.setScalarFast(std::pow(lv, rv));
             return true;
         } else if (opStr == "<=") {
@@ -615,9 +622,14 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
             switch (bid) {
             case 1:
                 if (nargs == 2) {
-                    r = std::fmod(argVals[0], argVals[1]);
-                    if (r != 0 && ((r < 0) != (argVals[1] < 0)))
-                        r += argVals[1];
+                    // MATLAB: mod(a, 0) == a (std::fmod(a, 0) would be NaN).
+                    if (argVals[1] == 0.0) {
+                        r = argVals[0];
+                    } else {
+                        r = std::fmod(argVals[0], argVals[1]);
+                        if (r != 0 && ((r < 0) != (argVals[1] < 0)))
+                            r += argVals[1];
+                    }
                     ok = true;
                 }
                 break;
@@ -676,7 +688,9 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
                 }
                 break;
             case 11:
-                if (nargs == 1) {
+                // log of a negative promotes to complex — defer to the full
+                // builtin (mirrors the sqrt guard above).
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log(argVals[0]);
                     ok = true;
                 }
@@ -715,13 +729,13 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
                 }
                 break;
             case 16:
-                if (nargs == 1) {
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log2(argVals[0]);
                     ok = true;
                 }
                 break;
             case 17:
-                if (nargs == 1) {
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log10(argVals[0]);
                     ok = true;
                 }
@@ -1071,6 +1085,54 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
 
     size_t nargs = lhs->children.size() - 1;
 
+    // OBJECT: obj(i…) = v dispatches to the class subsasgn overload,
+    // which mutates `var` in place (value/handle rule via objectStateMut).
+    // args = [subscripts…, value].
+    if (var->isObject()) {
+        const BuiltinClass *cls = engine_.findClass(var->objectClassName());
+        if (cls && cls->subsasgn) {
+            std::vector<Value> args;
+            args.reserve(nargs + 1);
+            for (size_t i = 0; i < nargs; ++i)
+                args.push_back(execNode(lhs->children[i + 1].get(), env));
+            args.push_back(rhs);
+            Value outBuf[1];
+            CallContext ctx{&engine_, env};
+            cls->subsasgn(*var, Span<const Value>(args.data(), args.size()), 0,
+                          Span<Value>(outBuf, 1), ctx);
+            return;
+        }
+        // No custom subsasgn → fall through to the builtin object-array
+        // element store below (arr(i) = obj).
+    }
+
+    // Builtin object-array indexed assignment: arr(i) = obj. Fires when the
+    // RHS is an object and the target is empty/unset (→ fresh object array)
+    // or an existing object array of the same class. Grows (1-D) with
+    // default-constructed gap fill. v1: a single linear index.
+    if (rhs.isObject()) {
+        const bool newable = !var->isObject() && (var->isUnset() || var->isEmpty());
+        const bool sameArr =
+            var->isObject() && var->objectClassName() == rhs.objectClassName();
+        if (newable || sameArr) {
+            if (nargs != 1)
+                throw std::runtime_error(
+                    "object-array assignment supports a single linear index (v1)");
+            auto idxs = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
+            if (idxs.size() != 1)
+                throw std::runtime_error(
+                    "object-array assignment supports a single element (v1)");
+            const BuiltinClass *rcls = engine_.findClass(rhs.objectClassName());
+            Value fill;
+            if (rcls && rcls->construct) {
+                CallContext ctx{&engine_, env};
+                fill = rcls->construct(Span<const Value>(nullptr, 0), ctx);
+            }
+            var->objectAssignElement(idxs[0], rhs, fill, engine_.mr_);
+            return;
+        }
+    }
+
     if (var->isChar() && rhs.isChar()) {
         if (nargs == 1) {
             auto indices = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
@@ -1306,6 +1368,24 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
 
 void TreeWalker::execFieldAssign(const ASTNode *lhs, const Value &rhs, Environment *env)
 {
+    // OBJECT: obj.Prop = v sets via the class property hook. Only peek
+    // when the parent is a slot resolveObjectSlot can address (a CALL
+    // parent is `d(i).field` — a struct-array element write, handled
+    // below; object arrays are a later phase). propSet detaches the slot
+    // (COW) so the value/handle rule applies and the variable updates.
+    {
+        const ASTNode *objNode = lhs->children[0].get();
+        if (objNode->type == NodeType::IDENTIFIER
+            || objNode->type == NodeType::FIELD_ACCESS
+            || objNode->type == NodeType::DYNAMIC_FIELD_ACCESS
+            || objNode->type == NodeType::CELL_INDEX) {
+            Value &parent = resolveObjectSlot(objNode, env);
+            if (parent.isObject()) {
+                objectPropSet(parent, lhs->strValue, rhs, env);
+                return;
+            }
+        }
+    }
     // Broadcast write: `s.f = val` where s is a multi-element struct
     // array sets f on every element. MATLAB semantics. The single-
     // struct path stays the same (resolveFieldLValue throws on multi-
@@ -1408,6 +1488,31 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     if (node->type != NodeType::CALL)
         throw std::runtime_error("Expected function call in multi-assignment");
 
+    // OBJECT dotted multi-output method: [a,b] = obj.m(args). Peek the
+    // identifier-rooted receiver (mirrors execCall's dotted dispatch); a
+    // class method returning several outputs fills nout result slots.
+    auto *headNode = node->children[0].get();
+    if (headNode->type == NodeType::FIELD_ACCESS
+        && headNode->children[0]->type == NodeType::IDENTIFIER) {
+        Value *objPtr = env->get(headNode->children[0]->strValue);
+        if (objPtr && objPtr->isObject()) {
+            const std::string &mname = headNode->strValue;
+            const BuiltinClass *cls = engine_.findClass(objPtr->objectClassName());
+            if (cls && cls->methods.count(mname)) {
+                std::vector<Value> margs;
+                margs.reserve(node->children.size() - 1);
+                for (size_t i = 1; i < node->children.size(); ++i)
+                    margs.push_back(execNode(node->children[i].get(), env));
+                Value self = *objPtr; // handle: shares state; value: own copy
+                std::vector<Value> outBuf(nout);
+                CallContext ctx{&engine_, env};
+                cls->methods.at(mname)(self, Span<const Value>(margs.data(), margs.size()),
+                                       nout, Span<Value>(outBuf), ctx);
+                return outBuf;
+            }
+        }
+    }
+
     const std::string &funcName = node->children[0]->strValue;
 
     std::vector<Value> args;
@@ -1418,6 +1523,21 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     auto *var = env->get(funcName);
     if (var && var->isFuncHandle())
         return callFuncHandleMulti(*var, args, env, nout, node);
+
+    // OBJECT function-form multi-output: [a,b] = m(obj, ...). A class
+    // method on the dominant (first) object argument beats a path function.
+    if (!args.empty() && args[0].isObject()) {
+        const BuiltinClass *cls = engine_.findClass(args[0].objectClassName());
+        if (cls && cls->methods.count(funcName)) {
+            Value self = args[0];
+            std::vector<Value> rest(args.begin() + 1, args.end());
+            std::vector<Value> outBuf(nout);
+            CallContext ctx{&engine_, env};
+            cls->methods.at(funcName)(self, Span<const Value>(rest.data(), rest.size()),
+                                      nout, Span<Value>(outBuf), ctx);
+            return outBuf;
+        }
+    }
 
     // Fast path: cached function pointer
     auto *funcNode = node->children[0].get();
@@ -1522,6 +1642,16 @@ Value TreeWalker::execBinaryOp(const ASTNode *node, Environment *env)
     auto left = execNode(node->children[0].get(), env);
     auto right = execNode(node->children[1].get(), env);
 
+    // OBJECT operator overloading: dispatch to the dominant object's class
+    // `ops` before the numeric/cached builtin path. Checked first so a
+    // cachedOp from an earlier numeric evaluation of this node can't
+    // hijack an object operand (throws if no matching overload exists).
+    if (left.isObject() || right.isObject()) {
+        Value out;
+        if (engine_.tryObjectBinaryOp(op, left, right, env, out))
+            return out;
+    }
+
     // Use cached function pointer if available
     if (node->cachedOp) {
         return (*static_cast<const BinaryOpFunc *>(node->cachedOp))(left, right);
@@ -1539,6 +1669,13 @@ Value TreeWalker::execBinaryOp(const ASTNode *node, Environment *env)
 Value TreeWalker::execUnaryOp(const ASTNode *node, Environment *env)
 {
     auto operand = execNode(node->children[0].get(), env);
+
+    // OBJECT unary operator overloading — before the cached/builtin path.
+    if (operand.isObject()) {
+        Value out;
+        if (engine_.tryObjectUnaryOp(node->strValue, operand, env, out))
+            return out;
+    }
 
     if (node->cachedOp) {
         return (*static_cast<const UnaryOpFunc *>(node->cachedOp))(operand);
@@ -1612,6 +1749,12 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             args.reserve(node->children.size() - 1);
             for (size_t i = 1; i < node->children.size(); ++i)
                 args.push_back(execNode(node->children[i].get(), env));
+            // OBJECT: package-qualified constructor (`containers.Map(...)`).
+            if (const BuiltinClass *cls = engine_.findClass(qualified);
+                cls && cls->construct) {
+                CallContext ctx{&engine_, env};
+                return cls->construct(Span<const Value>(args.data(), args.size()), ctx);
+            }
             // User-defined first (MATLAB precedence).
             if (auto *uf = engine_.lookupUserFunction(qualified, env))
                 return callUserFunction(*uf, args, env, node);
@@ -1622,6 +1765,35 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
                 return outBuf[0];
             }
             throw std::runtime_error("Undefined function or variable: " + qualified);
+        }
+
+        // OBJECT: obj.method(args) (dotted method) or obj.prop(idx)
+        // (property then index). Peek the receiver via env->get so a
+        // method name isn't mis-read as a missing property. Limited to
+        // identifier-rooted receivers (the common case; no re-eval /
+        // double side effects).
+        if (funcNode->type == NodeType::FIELD_ACCESS
+            && funcNode->children[0]->type == NodeType::IDENTIFIER) {
+            Value *objPtr = env->get(funcNode->children[0]->strValue);
+            if (objPtr && objPtr->isObject()) {
+                const std::string &mname = funcNode->strValue;
+                const BuiltinClass *cls = engine_.findClass(objPtr->objectClassName());
+                if (cls && cls->methods.count(mname)) {
+                    std::vector<Value> args;
+                    args.reserve(node->children.size() - 1);
+                    for (size_t i = 1; i < node->children.size(); ++i)
+                        args.push_back(execNode(node->children[i].get(), env));
+                    Value self = *objPtr; // handle: shares state; value: own copy
+                    Value outBuf[1];
+                    CallContext ctx{&engine_, env};
+                    cls->methods.at(mname)(self, Span<const Value>(args.data(), args.size()),
+                                           nargout, Span<Value>(outBuf, 1), ctx);
+                    return outBuf[0];
+                }
+                // Not a method → property read, then index with the args.
+                Value prop = objectPropGet(*objPtr, mname, env);
+                return execIndexAccess(prop, node, env);
+            }
         }
 
         auto target = execNode(funcNode, env);
@@ -1635,7 +1807,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
         }
 
         if (target.isNumeric() || target.isLogical() || target.isChar()
-            || target.isCell() || target.isStruct())
+            || target.isCell() || target.isStruct() || target.isString())
             return execIndexAccess(target, node, env);
 
         throw std::runtime_error("Cannot call or index into value of type "
@@ -1696,14 +1868,63 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             auto args = buildArgs();
             return callFuncHandle(*var, args, env, node);
         }
+        // OBJECT: obj(i…) dispatches to the class subsref overload.
+        if (var->isObject()) {
+            const BuiltinClass *cls = engine_.findClass(var->objectClassName());
+            if (cls && cls->subsref) {
+                auto args = buildArgs();
+                Value self = *var;
+                Value outBuf[1];
+                CallContext ctx{&engine_, env};
+                cls->subsref(self, Span<const Value>(args.data(), args.size()), nargout,
+                             Span<Value>(outBuf, 1), ctx);
+                return outBuf[0];
+            }
+            // No custom subsref → builtin object-array indexing: obj(i)
+            // selects element(s) (a scalar object is a 1×1 array). `end`
+            // binds to numel via resolveIndex over the object array.
+            if (node->children.size() == 2) {
+                auto idxs = resolveIndex(node->children[1].get(), *var, 0, 1, env);
+                return var->objectSubArray(idxs, engine_.mr_);
+            }
+            throw std::runtime_error("'()' indexing is not defined for class '"
+                                     + var->objectClassName() + "'");
+        }
         if (var->isNumeric() || var->isLogical() || var->isChar() || var->isCell()
-            || var->isStruct())
+            || var->isStruct() || var->isString())
             return execIndexAccess(*var, node, env);
+    }
+
+    // OBJECT: ClassName(args) constructs an instance when `name` is a
+    // registered class not shadowed by a variable (object model §3).
+    if (!var) {
+        if (const BuiltinClass *cls = engine_.findClass(name); cls && cls->construct) {
+            auto args = buildArgs();
+            CallContext ctx{&engine_, env};
+            return cls->construct(Span<const Value>(args.data(), args.size()), ctx);
+        }
     }
 
     // Slow path: look up, cache, and call
     {
         auto args = buildArgs();
+
+        // OBJECT function-form dispatch: m(obj, ...) where obj's class
+        // defines method m beats a same-named global function (MATLAB).
+        // Kept in the slow path (object-method calls don't get cached),
+        // so the common builtin path stays on its fast cache.
+        if (!args.empty() && args[0].isObject()) {
+            const BuiltinClass *cls = engine_.findClass(args[0].objectClassName());
+            if (cls && cls->methods.count(name)) {
+                Value self = args[0];
+                std::vector<Value> rest(args.begin() + 1, args.end());
+                Value outBuf[1];
+                CallContext ctx{&engine_, env};
+                cls->methods.at(name)(self, Span<const Value>(rest.data(), rest.size()),
+                                      nargout, Span<Value>(outBuf, 1), ctx);
+                return outBuf[0];
+            }
+        }
 
         if (funcNode->cachedOp) {
             Value outBuf[1];
@@ -1900,12 +2121,52 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
 Value TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)
 {
     auto obj = execNode(node->children[0].get(), env);
+    // OBJECT: obj.Prop reads via the class property hook (object model,
+    // OBJECT_MODEL.md §3). No-arg method call form is wired in P3.
+    if (obj.isObject())
+        return objectPropGet(obj, node->strValue, env);
     if (!obj.isStruct())
         throw std::runtime_error("Dot indexing requires a struct, got "
                                  + std::string(mtypeName(obj.type())));
     if (!obj.hasField(node->strValue))
         throw std::runtime_error("Reference to non-existent field '" + node->strValue + "'");
     return obj.field(node->strValue);
+}
+
+Value TreeWalker::objectPropGet(const Value &obj, const std::string &name, Environment *env)
+{
+    const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
+    if (cls) {
+        CallContext ctx{&engine_, env};
+        if (cls->propGet) {
+            Value out;
+            if (cls->propGet(obj, name, out, ctx))
+                return out;
+        }
+        // Bare `obj.method` (no parens) invokes a no-arg method (MATLAB).
+        auto mit = cls->methods.find(name);
+        if (mit != cls->methods.end()) {
+            Value self = obj;
+            Value outBuf[1];
+            mit->second(self, Span<const Value>(nullptr, 0), 1, Span<Value>(outBuf, 1), ctx);
+            return outBuf[0];
+        }
+    }
+    throw std::runtime_error("No appropriate property '" + name + "' for class '"
+                             + obj.objectClassName() + "'");
+}
+
+void TreeWalker::objectPropSet(Value &objSlot, const std::string &name,
+                               const Value &rhs, Environment *env)
+{
+    const BuiltinClass *cls = engine_.findClass(objSlot.objectClassName());
+    if (cls && cls->propSet) {
+        CallContext ctx{&engine_, env};
+        if (cls->propSet(objSlot, name, rhs, ctx))
+            return;
+    }
+    throw std::runtime_error("Cannot set property '" + name + "' on class '"
+                             + objSlot.objectClassName() + "'");
 }
 
 // ============================================================
@@ -1987,6 +2248,26 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
                             throw std::runtime_error(
                                 "Reference to non-existent field '" + fname + "'");
                         pushElem(Value(it->second), rowElems);
+                    }
+                    continue;
+                }
+                // OBJECT array CSL: [arr.prop] expands prop over each
+                // element via propGet. A scalar object falls through to
+                // the generic path (keeps the property-or-method fallback).
+                if (base.isObject() && base.objectCount() > 1) {
+                    const BuiltinClass *cls = engine_.findClass(base.objectClassName());
+                    std::string fname = (elemNode->type == NodeType::FIELD_ACCESS)
+                        ? elemNode->strValue
+                        : execNode(elemNode->children[1].get(), env).toString();
+                    CallContext ctx{&engine_, env};
+                    for (size_t i = 0; i < base.objectCount(); ++i) {
+                        Value elem = base.objectSubArray({i}, engine_.mr_);
+                        Value out;
+                        if (!cls || !cls->propGet || !cls->propGet(elem, fname, out, ctx))
+                            throw std::runtime_error("No appropriate property '" + fname
+                                                     + "' for class '"
+                                                     + base.objectClassName() + "'");
+                        pushElem(std::move(out), rowElems);
                     }
                     continue;
                 }

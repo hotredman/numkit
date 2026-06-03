@@ -2,20 +2,23 @@ clear
 
 import compat.*
 
-% Build a 3x3 square SE
+% Build a 3x3 square SE. strel(...) returns a structuring-element struct;
+% its mask is the .Neighborhood field (double(SE) is not defined on a struct).
 SE = strel('square', 3);
 fprintf('--- strel(''square'', 3) ---\n');
-disp(double(SE));
+disp(SE.Neighborhood);
 fprintf('  expect: 3×3 of 1s\n\n');
 
 % Diamond r=2
 fprintf('--- strel(''diamond'', 2) ---\n');
-disp(double(strel('diamond', 2)));
+SEd = strel('diamond', 2);
+disp(SEd.Neighborhood);
 fprintf('  expect: diamond pattern\n\n');
 
 % Disk r=2
 fprintf('--- strel(''disk'', 2) ---\n');
-disp(double(strel('disk', 2)));
+SEk = strel('disk', 2);
+disp(SEk.Neighborhood);
 fprintf('  expect: 5×5 disk-like pattern\n\n');
 
 % Erosion of a binary image with single-pixel hole

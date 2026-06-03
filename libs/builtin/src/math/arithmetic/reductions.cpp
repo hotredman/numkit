@@ -926,7 +926,9 @@ Value max(const Value &a, const Value &b, std::pmr::memory_resource *mr)
             [](auto x, auto y) { return x > y ? x : y; }, p);
         if (!r.isUnset()) return r;
     }
-    return elementwiseDouble(a, b, [](double aa, double bb) { return std::max(aa, bb); }, p);
+    // fmax (not std::max) ignores NaN like MATLAB: max([NaN 6],[5 7]) = [5 7]
+    // not [NaN 7]. std::max is order-dependent for NaN and returned NaN here.
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmax(aa, bb); }, p);
 }
 
 Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -937,7 +939,7 @@ Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr)
             [](auto x, auto y) { return x < y ? x : y; }, p);
         if (!r.isUnset()) return r;
     }
-    return elementwiseDouble(a, b, [](double aa, double bb) { return std::min(aa, bb); }, p);
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmin(aa, bb); }, p);
 }
 
 // Binary nan-aware variants. For floating types, NaN propagates as

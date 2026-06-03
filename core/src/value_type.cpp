@@ -24,6 +24,7 @@ const char *mtypeName(ValueType t)
     case ValueType::UINT64:       return "uint64";
     case ValueType::SINGLE:       return "single";
     case ValueType::STRING:       return "string";
+    case ValueType::OBJECT:       return "object"; // generic; class(obj) reads the real class name
     }
     return "unknown";
 }

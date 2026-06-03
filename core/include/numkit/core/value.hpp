@@ -165,6 +165,13 @@ public:
     static Value structArray(size_t rows, size_t cols,
                               std::pmr::memory_resource *mr = nullptr);
     static Value funcHandle(const std::string &name, std::pmr::memory_resource *mr = nullptr);
+    // ── OBJECT (class instance) — see object.hpp / OBJECT_MODEL.md ──
+    // Wrap pre-built instance state as an instance of `className`.
+    // `isHandle` is the class's handle flag and drives COW (clone shares
+    // state for handle classes, deep-copies for value classes).
+    static Value object(const std::string &className,
+                        std::shared_ptr<ObjectState> state, bool isHandle,
+                        std::pmr::memory_resource *mr = nullptr);
     /// Returns a default-constructed (Unset) Value — NOT a MATLAB
     /// empty matrix despite the name. New code should use
     /// `Value::Empty` for MATLAB-style empty (0×0 DOUBLE) or
@@ -294,6 +301,43 @@ public:
     bool isStruct() const;
     bool isFuncHandle() const;
     bool isString() const;
+    bool isObject() const;
+
+    // ── OBJECT accessors (see object.hpp) ────────────────────
+    // Class name of an OBJECT ("" otherwise). objectIsHandle: the
+    // class's reference-semantics flag.
+    std::string objectClassName() const;
+    bool objectIsHandle() const;
+    // Number of elements in an OBJECT array (0 if not an object; 1 for a
+    // scalar object). Shape lives in dims()/size() like any other array.
+    size_t objectCount() const;
+    // Read-only instance state of the FIRST element (null if not an
+    // object / empty). For scalar objects this is the only element.
+    const ObjectState *objectStateConst() const;
+    // Mutable instance state for writers. Detaches (COW) first so the
+    // value/handle clone rule applies, then returns the state to mutate
+    // (uniquely-owned for a value class; the shared one for a handle).
+    ObjectState *objectStateMut();
+    // Per-element accessors for object arrays (null if i out of range).
+    const ObjectState *objectStateAt(size_t i) const;
+    ObjectState *objectStateMutAt(size_t i);
+
+    // ── Builtin object-array indexing (no custom subsref/subsasgn) ──
+    // Select elements `idxs` (0-based linear) into a new object array of
+    // the same class. One index → a 1×1 scalar object; several → a 1×N
+    // row. Applies the value/handle rule per element (value classes get
+    // independent deep copies, handle classes alias), so a value-class
+    // element read is safe to mutate. Throws on out-of-range index.
+    Value objectSubArray(const std::vector<size_t> &idxs,
+                         std::pmr::memory_resource *mr = nullptr) const;
+    // Assign scalar object `elem` into linear slot `idx`, growing this
+    // (1-D row vector) and gap-filling new slots with independent copies
+    // of `fill` (typically a default-constructed object). An empty/unset/
+    // non-object receiver becomes a fresh object array of elem's class.
+    // Value class → store a deep copy of elem; handle class → alias elem.
+    // Detaches (COW) first. For the no-custom-subsasgn builtin path.
+    void objectAssignElement(size_t idx, const Value &elem, const Value &fill,
+                             std::pmr::memory_resource *mr = nullptr);
 
     // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;
@@ -561,6 +605,10 @@ private:
     void releaseHeap();
     void detach();
     HeapObject *mutableHeap();
+    // Concatenate same-class object elements into a 1×N row / N×1 column
+    // object array (per-element value/handle rule). Used by horzcat/vertcat.
+    static Value concatObjects(const Value *elems, size_t count, bool vertical,
+                               std::pmr::memory_resource *mr);
 
     // Static dims for scalar returns
     static const Dims sScalarDims;

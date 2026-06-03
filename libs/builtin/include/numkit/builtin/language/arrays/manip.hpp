@@ -10,6 +10,7 @@
 #include <numkit/core/value.hpp>
 
 #include <cstdint>
+#include <vector>
 
 namespace numkit::builtin {
 
@@ -237,5 +238,40 @@ Value trimdata(const Value &v, size_t n, std::pmr::memory_resource *mr = nullptr
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Vector of length exactly `n`.
 Value resize(const Value &v, size_t n, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Subscripts → linear index (`ind = sub2ind(siz, sub1, sub2, …)`).
+///
+/// Converts the (column-major) subscript arrays `subs` into linear indices
+/// for an array of size `siz`. The subscript arrays must all have the same
+/// shape (or be scalars); the result inherits that shape. Fewer subscripts
+/// than `numel(siz)` dimensions is allowed (missing higher dims default to
+/// subscript 1).
+///
+/// @param siz   Size vector (per-dimension extents).
+/// @param subs  One subscript array per dimension (variadic; same shape).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      1-based linear indices, shaped like the subscript arrays.
+/// @throws Error if `siz` is empty, `subs` is empty, there are more
+///         subscript arrays than dimensions, or the subscript shapes differ.
+/// @see ind2sub
+Value sub2ind(const Value &siz, Span<const Value> subs,
+              std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Linear index → subscripts (`[s1, s2, …] = ind2sub(siz, ind)`).
+///
+/// Inverse of @ref sub2ind: decomposes the 1-based linear indices `ind`
+/// into `nout` subscript arrays for an array of size `siz`. When `nout` is
+/// fewer than `numel(siz)`, the last output absorbs the remaining
+/// dimensions (column-major). `nout == 0` (default) uses `numel(siz)`.
+///
+/// @param siz   Size vector (per-dimension extents).
+/// @param ind   1-based linear indices.
+/// @param nout  Number of subscript outputs (`0` → `numel(siz)`).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `nout` subscript arrays, each shaped like `ind`.
+/// @throws Error if `siz` is empty.
+/// @see sub2ind
+std::vector<Value> ind2sub(const Value &siz, const Value &ind, size_t nout = 0,
+                           std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

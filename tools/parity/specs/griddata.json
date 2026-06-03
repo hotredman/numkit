@@ -1,14 +1,14 @@
 {
   "name": "griddata",
-  "namespace": "interp",
-  "setup": "x = [1 2 3 4 5]; y = [1 2 3 4 5]; v = [1 4 9 16 25]; xq = 2.5; yq = 2.5;",
-  "expr": "vq = griddata(x, y, v, xq, yq); [Xq, Yq] = meshgrid(2:0.5:4, 2:0.5:4); Vq = griddata(x, y, v, Xq, Yq);",
+  "namespace": "builtin",
+  "setup": "x=[0 1 0 1]; y=[0 0 1 1]; v=2*x+3*y+1; xq=[0.5 0.25 0.75 0.1]; yq=[0.5 0.25 0.6 0.8]; [Xg,Yg]=meshgrid(0.2:0.2:0.8, 0.2:0.2:0.8);",
+  "expr": "vq = griddata(x, y, v, xq, yq); Vg = griddata(x, y, v, Xg, Yg);",
   "iters": 5,
-  "tol": 1e-9,
+  "tol": 1e-12,
   "fingerprint": [
-    "vq",
-    "Vq(1,1)", "Vq(3,3)", "Vq(end,end)",
-    "size(Vq, 1)", "size(Vq, 2)"
+    "vq(1)", "vq(2)", "vq(3)", "vq(4)",
+    "Vg(1,1)", "Vg(2,3)", "Vg(end,end)",
+    "size(Vg,1)", "size(Vg,2)"
   ],
-  "comment": "Sig: vq = griddata(x, y, v, xq, yq) — scattered-data interpolation onto a 2-D grid (default linear, via Delaunay triangulation). Scalar query + meshgrid query. Bit-comparable (1e-9 tol) with MATLAB R2025b on collinear input — points lie on y=x line, vq is interp on the line. Method argument ('linear'/'cubic'/'nearest'/'natural'/'v4') and 3-D form deferred."
+  "comment": "Sig: vq = griddata(x, y, v, xq, yq). 2-D scattered LINEAR interpolation (Delaunay + barycentric). Sample the plane v = 2x+3y+1 at the unit-square corners; barycentric interp of a plane is exact in every triangle, so recovered values are triangulation-independent and match MATLAB's default 'linear' exactly. Vector query vq=[3.5 2.25 4.3 3.6]; 4x4 meshgrid query Vg(1,1)=2.0, Vg(2,3)=3.4, Vg(end,end)=5.0, size 4x4 (all strictly inside the hull -> finite). Lifted to public C++ API numkit::builtin::griddata (was adapter-only) 2026-06. Only 'linear' is implemented; 'nearest'/'natural'/'cubic'/'v4' + 3-D form are a v1 gap (a trailing method arg is ignored). PREVIOUS spec used collinear points (all on y=x) which MATLAB R2025b rejects with a Delaunay error -> the run was N/A, not a real validation; replaced with this non-collinear plane test. Out-of-hull -> NaN (covered in gtest, not fingerprinted here to avoid NaN-compare ambiguity)."
 }

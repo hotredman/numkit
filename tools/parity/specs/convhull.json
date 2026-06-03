@@ -1,0 +1,18 @@
+{
+  "name": "convhull",
+  "namespace": "builtin",
+  "setup": "x=[0 1 1 0 0.5]; y=[0 0 1 1 0.5];",
+  "expr": "K = convhull(x, y); nK = numel(K); a = polyarea(x(K), y(K));",
+  "iters": 10,
+  "tol": 1e-12,
+  "fingerprint": [
+    "nK",
+    "K(1)",
+    "K(2)",
+    "K(3)",
+    "K(4)",
+    "K(5)",
+    "a"
+  ],
+  "comment": "Sig: K = convhull(x, y). Convex-hull vertex indices (1-based, CCW, first repeated last) of 4 square corners + 1 interior point. nK=5 (interior pt 5 excluded), K=[1 2 3 4 1] (matches MATLAB R2025b monotone-chain order), hull area a=1 (order-invariant guard). Lifted to public C++ API numkit::builtin::convhull (was adapter-only) 2026-06; MATLAB's 2nd 'v' (area) output is a v1 gap."
+}
