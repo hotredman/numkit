@@ -37,6 +37,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/stats_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rng_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/manip_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/manip_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ndmanip_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/numeric_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/setops_test.cpp
