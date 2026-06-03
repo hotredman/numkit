@@ -42,3 +42,24 @@ TEST(GeomPublicApiTest, Polyarea)
     Value yb = var(e, "[0 0 1]", "yb");
     EXPECT_ANY_THROW(builtin::polyarea(x, yb, e.resource()));
 }
+
+TEST(GeomPublicApiTest, Inpolygon)
+{
+    Engine e;
+    Value xv = var(e, "[0 1 1 0]", "xv"); // unit square
+    Value yv = var(e, "[0 0 1 1]", "yv");
+    Value xq = var(e, "[0.5 2 0.5]", "xq");
+    Value yq = var(e, "[0.5 0.5 -1]", "yq");
+    Value in = builtin::inpolygon(xq, yq, xv, yv, e.resource());
+    ASSERT_EQ(in.numel(), 3u);
+    const uint8_t *m = in.logicalData();
+    EXPECT_EQ(m[0], 1); // (0.5,0.5) inside
+    EXPECT_EQ(m[1], 0); // (2,0.5) outside
+    EXPECT_EQ(m[2], 0); // (0.5,-1) outside
+    // < 3 polygon vertices -> all false
+    Value deg = builtin::inpolygon(xq, yq, var(e, "[0 1]", "xv2"),
+                                   var(e, "[0 1]", "yv2"), e.resource());
+    EXPECT_EQ(deg.logicalData()[0], 0);
+    // query shape mismatch throws
+    EXPECT_ANY_THROW(builtin::inpolygon(xq, var(e, "[0 0]", "yqb"), xv, yv, e.resource()));
+}

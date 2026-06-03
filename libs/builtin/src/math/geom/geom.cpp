@@ -46,57 +46,7 @@ void inpolygon_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 4)
         throw Error("inpolygon: requires (xq, yq, xv, yv)",
                      0, 0, "inpolygon", "", "numkit:inpolygon:nargin");
-    const auto &xq = args[0];
-    const auto &yq = args[1];
-    const auto &xv = args[2];
-    const auto &yv = args[3];
-    if (xq.numel() != yq.numel())
-        throw Error("inpolygon: xq and yq must have the same numel",
-                     0, 0, "inpolygon", "", "numkit:inpolygon:queryShape");
-    if (xv.numel() != yv.numel())
-        throw Error("inpolygon: xv and yv must have the same numel",
-                     0, 0, "inpolygon", "", "numkit:inpolygon:polyShape");
-
-    auto *mr = ctx.engine->resource();
-    const std::size_t nQ = xq.numel();
-    const std::size_t nV = xv.numel();
-    auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
-                             ValueType::LOGICAL, mr);
-    uint8_t *dst = out.logicalDataMut();
-    if (nV < 3) {
-        std::memset(dst, 0, nQ);
-        outs[0] = std::move(out);
-        return;
-    }
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> px(nV, &scratch);
-    ScratchVec<double> py(nV, &scratch);
-    for (std::size_t i = 0; i < nV; ++i) {
-        px[i] = xv.elemAsDouble(i);
-        py[i] = yv.elemAsDouble(i);
-    }
-
-    for (std::size_t q = 0; q < nQ; ++q) {
-        const double X = xq.elemAsDouble(q);
-        const double Y = yq.elemAsDouble(q);
-        bool inside = false;
-        std::size_t j = nV - 1;
-        for (std::size_t i = 0; i < nV; ++i) {
-            const double xi = px[i], yi = py[i];
-            const double xj = px[j], yj = py[j];
-            // Edge straddles the horizontal line at y=Y?
-            const bool straddles = (yi > Y) != (yj > Y);
-            if (straddles) {
-                // X-coordinate of the edge's intersection with that line
-                const double xCross = xi + (Y - yi) * (xj - xi) / (yj - yi);
-                if (X < xCross) inside = !inside;
-            }
-            j = i;
-        }
-        dst[q] = inside ? 1 : 0;
-    }
-    outs[0] = std::move(out);
+    outs[0] = inpolygon(args[0], args[1], args[2], args[3], ctx.engine->resource());
 }
 
 // Forward decl — convhull_reg defined later in this file, used by
@@ -731,6 +681,52 @@ Value polyarea(const Value &x, const Value &y, std::pmr::memory_resource *mr)
            - x.elemAsDouble(j) * y.elemAsDouble(i);
     }
     return Value::scalar(0.5 * std::abs(s), mr);
+}
+
+// ── inpolygon (public C++ API) ───────────────────────────────────────
+
+Value inpolygon(const Value &xq, const Value &yq, const Value &xv,
+                const Value &yv, std::pmr::memory_resource *mr)
+{
+    if (xq.numel() != yq.numel())
+        throw Error("inpolygon: xq and yq must have the same numel",
+                     0, 0, "inpolygon", "", "numkit:inpolygon:queryShape");
+    if (xv.numel() != yv.numel())
+        throw Error("inpolygon: xv and yv must have the same numel",
+                     0, 0, "inpolygon", "", "numkit:inpolygon:polyShape");
+    const std::size_t nQ = xq.numel();
+    const std::size_t nV = xv.numel();
+    auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
+                             ValueType::LOGICAL, mr);
+    uint8_t *dst = out.logicalDataMut();
+    if (nV < 3) {
+        std::memset(dst, 0, nQ);
+        return out;
+    }
+    ScratchArena scratch(mr);
+    ScratchVec<double> px(nV, &scratch);
+    ScratchVec<double> py(nV, &scratch);
+    for (std::size_t i = 0; i < nV; ++i) {
+        px[i] = xv.elemAsDouble(i);
+        py[i] = yv.elemAsDouble(i);
+    }
+    for (std::size_t q = 0; q < nQ; ++q) {
+        const double X = xq.elemAsDouble(q);
+        const double Y = yq.elemAsDouble(q);
+        bool inside = false;
+        std::size_t j = nV - 1;
+        for (std::size_t i = 0; i < nV; ++i) {
+            const double xi = px[i], yi = py[i];
+            const double xj = px[j], yj = py[j];
+            if ((yi > Y) != (yj > Y)) {
+                const double xCross = xi + (Y - yi) * (xj - xi) / (yj - yi);
+                if (X < xCross) inside = !inside;
+            }
+            j = i;
+        }
+        dst[q] = inside ? 1 : 0;
+    }
+    return out;
 }
 
 // ── griddatan ────────────────────────────────────────────────────────
