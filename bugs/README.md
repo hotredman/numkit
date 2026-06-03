@@ -54,12 +54,29 @@ Source files, related commits, related specs/tests.
 - **P2** missing feature / option / output relative to MATLAB
 - **P3** test-only / style
 
+## Every bug also gets a test
+
+**Found a bug → add a test.** Each OPEN bug has a matching `DISABLED_`
+gtest in `libs/<lib>/tests/known_bugs_test.cpp` that asserts the
+MATLAB-correct behaviour. Disabled means it does NOT run in the normal
+suite (the green baseline stays green), but it is visible
+(`YOU HAVE N DISABLED TESTS`) and **fails when force-run**
+(`--gtest_also_run_disabled_tests`), proving it captures the bug. When the
+bug is fixed, just remove the `DISABLED_` prefix — the test becomes a live
+regression guard with zero extra work.
+
+Run all known-bug tests (to watch them fail until fixed):
+```
+numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
+```
+
 ## Lifecycle
 
-1. Find a bug → create `bugs/<ns>/<fn>.md` (status OPEN) with full repro.
-2. Fix it (4 artefacts) → flip status to ✅ FIXED, add the commit hash +
-   one-line note. Keep the file (the repro stays useful as a regression
-   record); update the row below.
+1. Find a bug → create `bugs/<ns>/<fn>.md` (status OPEN) with full repro,
+   AND add a `DISABLED_` test in `libs/<ns>/tests/known_bugs_test.cpp`.
+2. Fix it (4 artefacts) → remove `DISABLED_` (or promote the assertion into
+   the function's own test file), flip the md status to ✅ FIXED with the
+   commit hash, and update the index row. Keep the md (repro stays useful).
 
 ## Index
 

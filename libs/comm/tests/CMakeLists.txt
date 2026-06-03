@@ -36,4 +36,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/cyclgen_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/encode_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/decode_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

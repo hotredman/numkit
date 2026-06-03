@@ -72,4 +72,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/imrotate3_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/demosaic_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/raw_planar_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

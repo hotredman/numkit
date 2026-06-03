@@ -1,0 +1,90 @@
+// libs/signal/tests/known_bugs_test.cpp
+//
+// One DISABLED_ test per OPEN bug catalogued in bugs/signal/*.md. These do
+// NOT run in the normal suite (so they never break the green baseline), but
+// they are visible ("YOU HAVE N DISABLED TESTS") and become live regression
+// guards the moment the bug is fixed — just remove the `DISABLED_` prefix.
+// Each test asserts the MATLAB R2025b-correct behaviour.
+//
+// Run: numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='SignalKnownBug*'
+
+#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
+#include <gtest/gtest.h>
+
+using namespace numkit;
+
+class SignalKnownBug : public ::testing::Test
+{
+public:
+    Engine engine;
+    void SetUp() override { engine.eval("import compat.*;"); }
+    Value eval(const std::string &c) { return engine.eval(c); }
+    double evalScalar(const std::string &c) { return eval(c).toScalar(); }
+};
+
+// bugs/signal/instfreq-instbw.md — instfreq must track a 10->40 Hz chirp.
+TEST_F(SignalKnownBug, DISABLED_InstfreqTracksChirp)
+{
+    eval("fs=1000; t=(0:1/fs:1-1/fs)'; x=chirp(t,10,1,40); ifr=instfreq(x,fs);");
+    EXPECT_NEAR(evalScalar("ifr(1)"),   13.96, 0.5);
+    EXPECT_NEAR(evalScalar("ifr(end)"), 38.46, 0.5);
+}
+
+// bugs/signal/dct-types.md — DCT Type 1/3/4.
+TEST_F(SignalKnownBug, DISABLED_DctType1)
+{
+    eval("y = dct([1 2 3 4], 4, 'Type', 1);");
+    EXPECT_NEAR(evalScalar("y(1)"),  4.927993, 1e-5);
+    EXPECT_NEAR(evalScalar("y(2)"), -2.140299, 1e-5);
+    EXPECT_NEAR(evalScalar("y(4)"), -0.647395, 1e-5);
+}
+
+// bugs/signal/cceps-nd-phase.md — non-2^n phase + 2nd output nd.
+TEST_F(SignalKnownBug, DISABLED_CcepsPhaseAndNd)
+{
+    eval("[xh, nd] = cceps([1 2 3 4 3 2 1]);");
+    EXPECT_NEAR(evalScalar("xh(2)"), 0.523560, 1e-5);   // numkit currently 3.6689
+    EXPECT_NEAR(evalScalar("xh(7)"), 1.222516, 1e-5);
+}
+
+// bugs/signal/risetime-falltime-outputs.md — [R,LT,UT] multi-output.
+TEST_F(SignalKnownBug, DISABLED_RisetimeMultiOutput)
+{
+    eval("[R, LT, UT] = risetime([0 0 0 1 1 1 1], 4);");
+    EXPECT_NEAR(evalScalar("R"),     0.1980, 1e-3);
+    EXPECT_NEAR(evalScalar("LT(1)"), 0.5260, 1e-3);
+    EXPECT_NEAR(evalScalar("UT(1)"), 0.7240, 1e-3);
+}
+
+// bugs/signal/findpeaks-widthreference.md — 'halfheight' on a pedestal.
+TEST_F(SignalKnownBug, DISABLED_FindpeaksHalfHeightWidth)
+{
+    eval("[p,l,w] = findpeaks([5 5 5 6 9 6 5 5 5], 'WidthReference', 'halfheight');");
+    EXPECT_NEAR(evalScalar("w(1)"), 6.0, 1e-6);
+}
+
+// bugs/signal/fillgaps.md — AR interpolation of a NaN gap.
+TEST_F(SignalKnownBug, DISABLED_Fillgaps)
+{
+    eval("y = fillgaps([1 2 NaN 4 5]);");
+    EXPECT_NEAR(evalScalar("y(3)"), 3.0, 1e-6);
+}
+
+// bugs/signal/pmusic-peig.md — pseudospectrum estimators exist + return a
+// positive-power column. (Verify exact values vs MATLAB when enabling.)
+TEST_F(SignalKnownBug, DISABLED_PmusicExists)
+{
+    eval("[p,f] = pmusic([1 2 1 3 2 4 1 2 1 3], 4);");
+    EXPECT_GT(evalScalar("numel(p)"), 0.0);
+    EXPECT_GE(evalScalar("min(p)"), 0.0);
+}
+
+// bugs/signal/ellipord-bandstop.md — bandstop order estimate.
+// (Verify exact n/Wn vs MATLAB when enabling.)
+TEST_F(SignalKnownBug, DISABLED_EllipordBandstop)
+{
+    eval("[n, Wn] = ellipord([0.1 0.6], [0.2 0.5], 3, 40);");
+    EXPECT_GT(evalScalar("n"), 0.0);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(Wn)")), 2);
+}
