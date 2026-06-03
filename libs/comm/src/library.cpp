@@ -108,6 +108,9 @@ void int2bit_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bi2de_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void de2bi_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vec2mat_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// coding/convcoding.cpp
+void poly2trellis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -194,6 +197,9 @@ void CommLibrary::install(Engine &engine)
     reg("rf", "bi2de",       &comm::detail::bi2de_reg);
     reg("rf", "de2bi",       &comm::detail::de2bi_reg);
     reg("rf", "vec2mat",     &comm::detail::vec2mat_reg);
+
+    // ── Error Correction Codes: convolutional coding ──
+    reg("coding", "poly2trellis", &comm::detail::poly2trellis_reg);
 }
 
 } // namespace numkit
