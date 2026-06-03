@@ -14,6 +14,9 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
+
 using namespace numkit;
 
 namespace {
@@ -373,4 +376,36 @@ TEST(CompilerRegisterAlloc, ClassdefMethodTooLargeThrowsLoudly)
                 "      y = x + 1;\n    end\n  end\nend\n");
     engine.eval("sc = SmallC;");
     EXPECT_DOUBLE_EQ(engine.eval("sc.inc(41)").toScalar(), 42.0);
+}
+
+TEST(CompilerRegisterAlloc, MFileLoaderTooLargeThrowsLoudly)
+{
+    // P0 path #2: a too-large function loaded from an .m file on disk
+    // (resolveMFile_) must surface register exhaustion, not silently register
+    // TW-only and then look like an "undefined function" on the VM backend.
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_regtest_mfile";
+    fs::create_directories(dir);
+    fs::path mf = dir / "hugemfile.m"; // file name == function name (MATLAB rule)
+    {
+        std::ofstream os(mf);
+        os << "function out = hugemfile()\n";
+        for (int i = 1; i <= 300; ++i)
+            os << "  a" << i << " = " << i << ";\n";
+        os << "  out = a1;\nend\n";
+    }
+    Engine engine;
+    engine.addPath(dir.string());
+    bool threw = false;
+    try {
+        engine.eval("rr = hugemfile();"); // first reference → resolveMFile_ loads + VM-compiles
+    } catch (const std::exception &e) {
+        threw = true;
+        EXPECT_NE(std::string(e.what()).find("255"), std::string::npos)
+            << "m-file exhaustion should mention the 255-register limit; got: " << e.what();
+    }
+    EXPECT_TRUE(threw)
+        << "a >255-register .m-file function must throw, not silently TW-fallback";
+    std::error_code ec;
+    fs::remove_all(dir, ec); // best-effort cleanup
 }
