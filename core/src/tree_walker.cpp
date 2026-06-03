@@ -619,9 +619,14 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
             switch (bid) {
             case 1:
                 if (nargs == 2) {
-                    r = std::fmod(argVals[0], argVals[1]);
-                    if (r != 0 && ((r < 0) != (argVals[1] < 0)))
-                        r += argVals[1];
+                    // MATLAB: mod(a, 0) == a (std::fmod(a, 0) would be NaN).
+                    if (argVals[1] == 0.0) {
+                        r = argVals[0];
+                    } else {
+                        r = std::fmod(argVals[0], argVals[1]);
+                        if (r != 0 && ((r < 0) != (argVals[1] < 0)))
+                            r += argVals[1];
+                    }
                     ok = true;
                 }
                 break;

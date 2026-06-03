@@ -2696,6 +2696,8 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
         bool handled = true;
         switch (bid) {
         case 20:
+            // MATLAB: mod(a, 0) == a (std::fmod(a, 0) would be NaN).
+            if (b == 0.0) { result = a; break; }
             result = std::fmod(a, b);
             if (result != 0.0 && ((result > 0) != (b > 0)))
                 result += b;
