@@ -303,12 +303,46 @@ every preset including WASM.
   `DebugSessionTest.BreakInsideStructfunCallback` (pauses per field, resumes;
   `y == [10; 12]`); full suite 10932.
 
-The three common higher-order builtins (cellfun / arrayfun / structfun) now run
-their user-code callbacks as pausable VM frames. Genuinely single-shot
-C++-initiated calls (`disp(obj)` from the display path, a `sort` comparator)
-have no loop to suspend and stay on `callReentrant` (on the VM, breakpoints fire
-but cannot suspend). Any future higher-order builtin follows the same
-`CallbackBuiltin` / `VmContinuation` pattern.
+- **LoopContinuation + feval (done, `ba88b2d3`)** — generic core helper for the
+  "apply handle to N items, collect, pack" shape (handle, n, makeArgs, pack,
+  dest); new consumers are two lambdas, not a struct. feval(@userfunc, args…)
+  single-output → `n == 1` (one frame). Name/string handle, multi-output → sync.
+  Proof: `DebugSessionTest.BreakInsideFevalCallback` (`y == 43`).
+- **splitapply + bsxfun (done, `2c956815`)** — `libs/builtin`. splitapply per
+  group (bucket → makeArgs slices → pack column); bsxfun single-shot (forwards
+  whole arrays). accumarray takes no user handle (untouched). Proof:
+  `BreakInsideSplitapplyCallback` (`y == [3;7]`), `BreakInsideBsxfunCallback`.
+- **bootstrp (done, `5e6b46e6`)** — `libs/stats`. Each replicate's statistic as
+  a pausable frame; sample drawn lazily in makeArgs so RNG order matches the sync
+  path. Proof: `BreakInsideBootstrpCallback`.
+
+**WASM validated** — the `browser` preset builds clean (292/292, links
+`numkit_ide.js`) with the continuation mechanism. The state machine uses no
+fiber / separate stack / Asyncify, so it compiles + runs on every preset
+including WebAssembly — the property that made it the right choice over a fiber.
+
+Pausable higher-order builtins so far: cellfun, arrayfun, structfun, feval,
+splitapply, bsxfun, bootstrp (across core / builtin / stats). Genuinely
+single-shot C++-initiated calls (`disp(obj)` from the display path, a `sort`
+comparator) have no loop to suspend and stay on `callReentrant` (on the VM,
+breakpoints fire but cannot suspend).
+
+**Remaining class-1 (same `CallbackBuiltin`/`LoopContinuation` pattern, lower-
+frequency debug targets — follow-up):** `nlfilter`/`morph` (image, per-window),
+`waveform` (signal), `fplot`/`fsurf`/`fcontour`/`fmesh` (graphics, mostly
+single-shot sampling), and the group variants `groupsummary`/`grouptransform`/
+`groupfilter` (builtin, per-group like splitapply). Each: add a `CallbackBuiltin`
+whose `tryStart` builds a `LoopContinuation` mirroring the existing synchronous
+loop, register alongside the sync builtin; builtin handles / unsupported forms
+fall back to sync.
+
+**Class-3 adaptive numerical (stays on `callReentrant`):** `integral`,
+`ode23`/`ode45`, `fzero`, `nlinfit`, `fminsearch`. The handle is called inside a
+stateful adaptive algorithm (RK45 / Brent / quadrature); a hand-written state
+machine would have to serialize that algorithm's state — impractical and
+error-prone. They run on the VM (breakpoints fire) but cannot suspend across the
+C++ algorithm. The clean route to full pausability is porting these to `.m`
+(as real MATLAB does), a separate project — not a state-machine conversion.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a
