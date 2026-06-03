@@ -6,8 +6,72 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cmath>
+#include <cstdlib>
+#include <algorithm>
+
+#include <numkit/core/decimate.hpp>
 
 namespace numkit {
+
+// ── Flat JSON number-array helpers (line-series downsampling) ────────────
+namespace figdetail {
+
+// Count top-level elements in a flat JSON number array "[a,b,c]" cheaply
+// (commas + 1) — gates the expensive parse on series size.
+inline std::size_t countFlatElements(const std::string &j) {
+    std::size_t commas = 0;
+    bool any = false;
+    for (char c : j) {
+        if (c == ',') commas++;
+        else if (c != '[' && c != ']' && c != ' ' && c != '\t' && c != '\n') any = true;
+    }
+    return any ? commas + 1 : 0;
+}
+
+// Parse a flat JSON number array → doubles. "null" → NaN; bare/quoted
+// Inf/NaN handled by strtod. The figure xJson is engine-built (well-formed).
+inline std::vector<double> parseFlatDoubles(const std::string &j) {
+    std::vector<double> out;
+    const char *p = j.c_str();
+    const char *end = p + j.size();
+    while (p < end && *p != '[') ++p;
+    if (p < end) ++p;  // skip '['
+    while (p < end) {
+        while (p < end && (*p == ' ' || *p == ',' || *p == '"' || *p == '\t' || *p == '\n')) ++p;
+        if (p >= end || *p == ']') break;
+        if ((p[0] == 'n' || p[0] == 'N') && (p + 4 <= end) &&
+            (p[1] == 'u') && (p[2] == 'l') && (p[3] == 'l')) {
+            out.push_back(std::nan(""));
+            p += 4;
+            continue;
+        }
+        char *q = nullptr;
+        double v = std::strtod(p, &q);
+        if (q == p) { ++p; continue; }   // skip an unparseable token
+        out.push_back(v);
+        p = q;
+    }
+    return out;
+}
+
+// Serialize doubles → flat JSON array. NaN → null, ±Inf → "Inf"/"-Inf".
+inline std::string serializeFlatDoubles(const std::vector<double> &v) {
+    std::ostringstream os;
+    os << "[";
+    os.precision(17);
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        if (i) os << ",";
+        double x = v[i];
+        if (std::isnan(x)) os << "null";
+        else if (std::isinf(x)) os << (x > 0 ? "\"Inf\"" : "\"-Inf\"");
+        else os << x;
+    }
+    os << "]";
+    return os.str();
+}
+
+}  // namespace figdetail
 
 struct DatasetInfo
 {
@@ -82,6 +146,18 @@ struct DatasetInfo
     bool   downsampled  = false;
     size_t originalRows = 0;
     size_t originalCols = 0;
+
+    // ── Phase 2 large line-series downsampling ──────────────────────────
+    // For a huge line/stairs series (> kSeriesPreviewThreshold points) the
+    // full x/y are parsed out of xJson/yJson into xRaw/yRaw, xJson/yJson are
+    // replaced by a small M4 preview, and seriesDownsampled is set, so the
+    // frontend receives O(previewCols) points instead of O(N).
+    // getSeriesDisplayTile decimates xRaw/yRaw over a viewport for zoom
+    // detail. Empty for small series (which keep their full inline JSON).
+    std::vector<double> xRaw, yRaw;
+    bool   seriesDownsampled = false;
+    size_t seriesN = 0;
+    double sxLo = 0, sxHi = 0, syLo = 0, syHi = 0;   // x/y data ranges
 
     // ── Lazy LOD pyramid ───────────────────────────────────────────────
     // L0 is zQuantized itself (originalRows × originalCols, column-major).
@@ -358,12 +434,52 @@ public:
      * route through this helper instead of `currentAxes().datasets.push_back`
      * directly so dual-Y routing stays consistent (no plot family forgotten).
      */
+    // Large line-series → downsampled-preview thresholds. Below the
+    // threshold the full array is shipped and the JS-side viewport
+    // decimation (Phase 1) keeps full zoom detail; at/above it the engine
+    // ships a small preview + retains raw x/y for getSeriesDisplayTile.
+    static constexpr std::size_t kSeriesPreviewThreshold = 1000000; // points
+    static constexpr int         kSeriesPreviewCols      = 2000;    // preview cols
+
     void pushDataset(DatasetInfo ds)
     {
         auto &ax = currentAxes();
         if (ax.yyEnabled && ds.yside.empty())
             ds.yside = ax.activeYside;
+        maybeDownsampleSeries(ds);
         ax.datasets.push_back(std::move(ds));
+    }
+
+    // For a huge line/stairs series with ascending x, retain raw x/y for
+    // viewport tiles and replace the inline JSON with a small M4 preview —
+    // the frontend then receives O(previewCols) points, not O(N). Mirrors
+    // imagesc's downsampled-preview path. No-op for small or non-monotonic
+    // series (they keep their full inline JSON + the JS-side decimation).
+    static void maybeDownsampleSeries(DatasetInfo &ds)
+    {
+        if (ds.type != "line" && ds.type != "stairs") return;
+        if (ds.xJson.empty() || ds.yJson.empty()) return;
+        if (figdetail::countFlatElements(ds.xJson) <= kSeriesPreviewThreshold) return;
+        auto xr = figdetail::parseFlatDoubles(ds.xJson);
+        auto yr = figdetail::parseFlatDoubles(ds.yJson);
+        const std::size_t n = xr.size();
+        if (n != yr.size() || n <= kSeriesPreviewThreshold) return;
+        // Decimation buckets by x — valid only for ascending x. Bail on a
+        // non-monotonic series (rare for huge data; keeps the full JSON).
+        for (std::size_t i = 1; i < n; ++i) if (xr[i] < xr[i - 1]) return;
+        double xlo = xr.front(), xhi = xr.back();
+        if (xhi < xlo) std::swap(xlo, xhi);
+        double ylo = INFINITY, yhi = -INFINITY;
+        for (double v : yr) if (std::isfinite(v)) { ylo = std::min(ylo, v); yhi = std::max(yhi, v); }
+        if (!std::isfinite(ylo)) { ylo = 0; yhi = 0; }
+        auto prev = decimateM4(xr.data(), yr.data(), n, xlo, xhi, kSeriesPreviewCols);
+        ds.xJson = figdetail::serializeFlatDoubles(prev.x);
+        ds.yJson = figdetail::serializeFlatDoubles(prev.y);
+        ds.xRaw = std::move(xr);
+        ds.yRaw = std::move(yr);
+        ds.seriesDownsampled = true;
+        ds.seriesN = n;
+        ds.sxLo = xlo; ds.sxHi = xhi; ds.syLo = ylo; ds.syHi = yhi;
     }
 
     int newFigure()
@@ -465,6 +581,10 @@ public:
                     auto &ds = ax.datasets[i];
                     os << "{\"x\":" << ds.xJson << ",\"y\":" << ds.yJson << ",\"type\":\""
                        << ds.type << "\"";
+                    if (ds.seriesDownsampled)
+                        os << ",\"seriesDownsampled\":true,\"n\":" << ds.seriesN
+                           << ",\"xRange\":[" << ds.sxLo << "," << ds.sxHi << "]"
+                           << ",\"yRange\":[" << ds.syLo << "," << ds.syHi << "]";
                     if (!ds.label.empty())
                         os << ",\"label\":\"" << jsonEscapeFig(ds.label) << "\"";
                     if (!ds.style.empty())
@@ -718,6 +838,28 @@ public:
      * Returns false if request is out of range / not imagesc / no zQuantized
      * / log requested with non-positive source coords.
      */
+    // Decimate a downsampled line series' raw x/y over the viewport [x0,x1]
+    // to `width` columns. algo: 0=M4 (default), 1=LTTB, 2=none. Empty when
+    // the dataset isn't a downsampled series or indices are out of range —
+    // the frontend refines zoom detail without ever shipping the full array.
+    DecimatedSeries getSeriesDisplayTile(int figId, int axIdx, int dsIdx,
+                                         double x0, double x1, int width, int algo) const
+    {
+        DecimatedSeries out;
+        auto it = figures_.find(figId);
+        if (it == figures_.end()) return out;
+        const auto &fig = it->second;
+        if (axIdx < 0 || axIdx >= static_cast<int>(fig.axes.size())) return out;
+        const auto &ax = fig.axes[axIdx];
+        if (dsIdx < 0 || dsIdx >= static_cast<int>(ax.datasets.size())) return out;
+        const auto &ds = ax.datasets[dsIdx];
+        if (ds.xRaw.empty() || ds.xRaw.size() != ds.yRaw.size()) return out;
+        DecimAlgo a = (algo == 1) ? DecimAlgo::LTTB
+                    : (algo == 2) ? DecimAlgo::None : DecimAlgo::M4;
+        return decimateSeries(ds.xRaw.data(), ds.yRaw.data(), ds.xRaw.size(),
+                              x0, x1, width, a);
+    }
+
     bool getFigureDisplayTile(int figId, int axIdx, int dsIdx,
                               double srcR0, double srcC0,
                               double srcH, double srcW,
