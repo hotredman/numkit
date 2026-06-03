@@ -256,33 +256,12 @@ void histcounts2_reg(Span<const Value> args, size_t /*nargout*/,
         return;
     }
 
-    auto out = Value::matrix((std::size_t)nx, (std::size_t)ny,
-                             ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    std::memset(dst, 0, sizeof(double) * nx * ny);
-
-    auto findBin = [](const std::vector<double> &edges, double v) -> int {
-        const int e = (int)edges.size();
-        if (v < edges[0] || v > edges[e - 1]) return -1;
-        // Inclusive on the right edge for the last bin (MATLAB).
-        for (int i = 0; i < e - 1; ++i) {
-            if (v >= edges[i] && (v < edges[i + 1]
-                                  || (i == e - 2 && v == edges[i + 1])))
-                return i;
-        }
-        return -1;
-    };
-    for (std::size_t i = 0; i < n; ++i) {
-        const double X = xv.elemAsDouble(i);
-        const double Y = yv.elemAsDouble(i);
-        if (!std::isfinite(X) || !std::isfinite(Y)) continue;
-        const int bx = findBin(xedges, X);
-        const int by = findBin(yedges, Y);
-        if (bx < 0 || by < 0) continue;
-        // Column-major: dst[col * nx + row], with row=bx, col=by.
-        dst[(std::size_t)by * (std::size_t)nx + (std::size_t)bx] += 1.0;
-    }
-    outs[0] = std::move(out);
+    // Wrap the resolved edges as Values and delegate to the public core.
+    Value xeV = Value::matrix(1, xedges.size(), ValueType::DOUBLE, mr);
+    Value yeV = Value::matrix(1, yedges.size(), ValueType::DOUBLE, mr);
+    std::copy(xedges.begin(), xedges.end(), xeV.doubleDataMut());
+    std::copy(yedges.begin(), yedges.end(), yeV.doubleDataMut());
+    outs[0] = histcounts2(xv, yv, xeV, yeV, mr);
 }
 
 // ── delaunay ─────────────────────────────────────────────────────────
@@ -733,6 +712,57 @@ Value griddata(const Value &x, const Value &y, const Value &v,
             }
         }
         if (!found) dst[q] = std::nan("");
+    }
+    return out;
+}
+
+// ── histcounts2 (over explicit edges) ─────────────────────────────────
+//
+// See header for the public C++ API + Doxygen. This typed core bins the
+// (x, y) pairs into the bins defined by explicit edge vectors; the nbins /
+// auto-edge convenience forms are resolved in the adapter below.
+
+Value histcounts2(const Value &x, const Value &y, const Value &xedgesV,
+                  const Value &yedgesV, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = std::min(x.numel(), y.numel());
+    std::vector<double> xedges(xedgesV.numel()), yedges(yedgesV.numel());
+    for (std::size_t i = 0; i < xedges.size(); ++i)
+        xedges[i] = xedgesV.elemAsDouble(i);
+    for (std::size_t i = 0; i < yedges.size(); ++i)
+        yedges[i] = yedgesV.elemAsDouble(i);
+
+    const int nx = static_cast<int>(xedges.size()) - 1;
+    const int ny = static_cast<int>(yedges.size()) - 1;
+    if (nx < 1 || ny < 1 || n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    auto out = Value::matrix(static_cast<std::size_t>(nx),
+                             static_cast<std::size_t>(ny), ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    std::memset(dst, 0, sizeof(double) * static_cast<std::size_t>(nx) * ny);
+
+    auto findBin = [](const std::vector<double> &edges, double v) -> int {
+        const int e = static_cast<int>(edges.size());
+        if (v < edges[0] || v > edges[e - 1]) return -1;
+        // Inclusive on the right edge for the last bin (MATLAB).
+        for (int i = 0; i < e - 1; ++i) {
+            if (v >= edges[i] && (v < edges[i + 1]
+                                  || (i == e - 2 && v == edges[i + 1])))
+                return i;
+        }
+        return -1;
+    };
+    for (std::size_t i = 0; i < n; ++i) {
+        const double X = x.elemAsDouble(i);
+        const double Y = y.elemAsDouble(i);
+        if (!std::isfinite(X) || !std::isfinite(Y)) continue;
+        const int bx = findBin(xedges, X);
+        const int by = findBin(yedges, Y);
+        if (bx < 0 || by < 0) continue;
+        // Column-major: dst[col * nx + row], row = bx, col = by.
+        dst[static_cast<std::size_t>(by) * static_cast<std::size_t>(nx) +
+            static_cast<std::size_t>(bx)] += 1.0;
     }
     return out;
 }

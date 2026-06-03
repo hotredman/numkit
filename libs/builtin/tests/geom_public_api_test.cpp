@@ -179,3 +179,28 @@ TEST(GeomPublicApiTest, Boundary)
     // shape mismatch throws
     EXPECT_ANY_THROW(builtin::boundary(x, var(e, "[0 0 1]", "yb3"), 0.5, e.resource()));
 }
+
+TEST(GeomPublicApiTest, Histcounts2)
+{
+    Engine e;
+    // 4 points into a 3x2 grid (explicit edges); mr defaulted
+    Value x = var(e, "[0.5 1.5 2.5 0.5]", "x");
+    Value y = var(e, "[0.5 0.5 1.5 0.5]", "y");
+    Value xe = var(e, "[0 1 2 3]", "xe");
+    Value ye = var(e, "[0 1 2]", "ye");
+    Value N = builtin::histcounts2(x, y, xe, ye);
+    EXPECT_EQ(N.dims().rows(), 3u);
+    EXPECT_EQ(N.dims().cols(), 2u);
+    EXPECT_DOUBLE_EQ(N.doubleData()[0], 2.0); // (1,1): two (0.5,0.5)
+    EXPECT_DOUBLE_EQ(N.doubleData()[1], 1.0); // (2,1)
+    EXPECT_DOUBLE_EQ(N.doubleData()[5], 1.0); // (3,2)
+    double tot = 0.0;
+    for (std::size_t i = 0; i < N.numel(); ++i) tot += N.doubleData()[i];
+    EXPECT_DOUBLE_EQ(tot, 4.0);
+    // out-of-range points are dropped
+    Value N2 = builtin::histcounts2(var(e, "[5 0.5]", "x2"),
+                                    var(e, "[5 0.5]", "y2"), xe, ye, e.resource());
+    double tot2 = 0.0;
+    for (std::size_t i = 0; i < N2.numel(); ++i) tot2 += N2.doubleData()[i];
+    EXPECT_DOUBLE_EQ(tot2, 1.0); // (5,5) out of range, (0.5,0.5) counted
+}

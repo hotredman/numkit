@@ -142,6 +142,24 @@ Value griddata(const Value &x, const Value &y, const Value &v,
                const Value &xq, const Value &yq,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief 2-D histogram bin counts over explicit edges
+/// (`N = histcounts2(x, y, xedges, yedges)`).
+///
+/// Counts the `(x, y)` point pairs (paired by index over `min(numel)`) into
+/// the rectangular bins defined by the monotonically increasing `xedges`
+/// (length `nx+1`) and `yedges` (length `ny+1`), returning the `nx × ny`
+/// count matrix. The last bin is right-edge-inclusive (MATLAB); points
+/// outside the edge range or with non-finite coordinates are dropped. The
+/// nbins / `[nx ny]` / auto-edge convenience forms are resolved by the
+/// script adapter — this typed entry takes the resolved edge vectors.
+///
+/// @param x,y          Point coordinates (paired by index).
+/// @param xedges,yedges Monotone bin edge vectors.
+/// @param mr           Memory resource (nullptr → process default).
+/// @return             `nx × ny` count matrix (`0 × 0` if fewer than 1 bin).
+Value histcounts2(const Value &x, const Value &y, const Value &xedges,
+                  const Value &yedges, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Match-pairs result.
 struct MatchpairsResult {
     Value M;   ///< `p × 2` matrix of `(row, col)` 1-based match pairs.
