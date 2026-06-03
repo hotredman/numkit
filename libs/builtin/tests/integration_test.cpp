@@ -2113,4 +2113,30 @@ TEST_P(EngineAdvancedTest, TypeCoercionBroadcast)
     expectElem(r, 2, 13);
 }
 
+// del2 — discrete Laplacian. vs MATLAB R2025b.
+TEST_P(EngineAdvancedTest, Del2VectorAndMatrix)
+{
+    // Vector x^2-like: uniform Laplacian 0.5 per element (sum 2.5).
+    eval("v = del2([1 4 9 16 25]);");
+    EXPECT_NEAR(eval("v(1)").toScalar(), 0.5, 1e-12);
+    EXPECT_NEAR(eval("v(3)").toScalar(), 0.5, 1e-12);
+    EXPECT_NEAR(eval("sum(v)").toScalar(), 2.5, 1e-12);
+    // Scalar spacing scales by 1/h^2: h=2 -> 0.5/4 = 0.125.
+    eval("v2 = del2([1 4 9 16 25], 2);");
+    EXPECT_NEAR(eval("v2(1)").toScalar(), 0.125, 1e-12);
+    // 2-D matrix: corners and centre 0; total 1.5.
+    eval("U = [1 2 3; 4 5 6; 7 8 10]; L = del2(U);");
+    EXPECT_NEAR(eval("L(1,1)").toScalar(), 0.0, 1e-12);
+    EXPECT_NEAR(eval("L(2,2)").toScalar(), 0.0, 1e-12);
+    EXPECT_NEAR(eval("sum(L(:))").toScalar(), 1.5, 1e-12);
+    // magic(4): linear surface -> zero Laplacian sum; L(2,3) = -3.
+    eval("M = magic(4); LM = del2(M);");
+    EXPECT_NEAR(eval("sum(LM(:))").toScalar(), 0.0, 1e-12);
+    EXPECT_NEAR(eval("LM(2,3)").toScalar(), -3.0, 1e-12);
+    // Output keeps the input shape.
+    eval("rv = del2([1 4 9 16 25]);");
+    EXPECT_EQ(static_cast<int>(eval("size(rv,1)").toScalar()), 1);
+    EXPECT_EQ(static_cast<int>(eval("size(rv,2)").toScalar()), 5);
+}
+
 INSTANTIATE_DUAL(EngineAdvancedTest);

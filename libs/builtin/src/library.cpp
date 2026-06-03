@@ -104,6 +104,7 @@ void perms_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void factorial_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void nchoosek_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void gradient_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void del2_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cumtrapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // interpolation/interp.cpp + math/elementary/polynomials.cpp
 //   + math/integration/integration.cpp (trapz)
@@ -632,6 +633,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("factorial", &builtin::detail::factorial_reg);
     engine.registerFunction("nchoosek",  &builtin::detail::nchoosek_reg);
     engine.registerFunction("gradient",  &builtin::detail::gradient_reg);
+    engine.registerFunction("del2",      &builtin::detail::del2_reg);
     engine.registerFunction("cumtrapz",  &builtin::detail::cumtrapz_reg);
     engine.registerFunction("interp1",   &builtin::detail::interp1_reg);
     engine.registerFunction("interp2",   &builtin::detail::interp2_reg);

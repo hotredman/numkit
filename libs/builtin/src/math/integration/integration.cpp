@@ -9,6 +9,7 @@
 #include <numkit/builtin/math/integration/integration.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -74,6 +75,27 @@ void gradientAlongRows(const double *src, double *dst, size_t R, size_t C, doubl
     (void)invH;
 }
 
+// One dimension's discrete-Laplacian term (g) along a strided line of
+// length n (element stride s, uniform spacing h). Centered second
+// difference on the interior, divided by 2h^2; the boundary values are a
+// linear extrapolation of the interior g (n>3), or copied from the single
+// interior point (n==3), or zero (n<3). Matches MATLAB del2's per-pass g.
+void del2Line(const double *src, double *dst, size_t n, size_t s, double h)
+{
+    for (size_t i = 0; i < n; ++i) dst[i * s] = 0.0;
+    if (n < 3) return;
+    const double inv = 1.0 / (2.0 * h * h);
+    for (size_t i = 1; i + 1 < n; ++i)
+        dst[i * s] = (src[(i + 1) * s] - 2.0 * src[i * s] + src[(i - 1) * s]) * inv;
+    if (n == 3) {
+        dst[0]           = dst[1 * s];
+        dst[2 * s]       = dst[1 * s];
+    } else {
+        dst[0]           = 2.0 * dst[1 * s]       - dst[2 * s];
+        dst[(n - 1) * s] = 2.0 * dst[(n - 2) * s] - dst[(n - 3) * s];
+    }
+}
+
 Value toDoubleCopy(const Value &x, std::pmr::memory_resource *mr)
 {
     auto r = createLike(x, ValueType::DOUBLE, mr);
@@ -112,6 +134,48 @@ Value gradient(const Value &f, double h, std::pmr::memory_resource *mr)
                      0, 0, "gradient", "", "numkit:gradient:rank");
     gradientAlongCols(src.doubleData(), out.doubleDataMut(),
                       d.rows(), d.cols(), h);
+    return out;
+}
+
+Value del2(const Value &u, double h, std::pmr::memory_resource *mr)
+{
+    if (h <= 0)
+        throw Error("del2: spacing h must be positive",
+                     0, 0, "del2", "", "numkit:del2:badSpacing");
+    if (u.type() == ValueType::COMPLEX)
+        throw Error("del2: complex inputs are not supported",
+                     0, 0, "del2", "", "numkit:del2:complex");
+    const auto &d = u.dims();
+    if (d.is3D() || d.ndim() > 2)
+        throw Error("del2: only 1D vector and 2D matrix inputs are supported",
+                     0, 0, "del2", "", "numkit:del2:rank");
+
+    auto src = toDoubleCopy(u, mr);
+    auto out = createLike(u, ValueType::DOUBLE, mr);
+    const double *sd = src.doubleData();
+    double *od = out.doubleDataMut();
+    const size_t N = u.numel();
+    for (size_t i = 0; i < N; ++i) od[i] = 0.0;
+    if (N == 0) return out;
+
+    // MATLAB divides the summed per-dimension Laplacian by ndims(U); a
+    // vector still has ndims == 2, so the divisor is 2 for both shapes.
+    if (u.dims().isVector() || u.isScalar()) {
+        ScratchArena arena(mr);
+        auto g = ScratchVec<double>(&arena); g.assign(N, 0.0);
+        del2Line(sd, g.data(), N, 1, h);
+        for (size_t i = 0; i < N; ++i) od[i] = g[i] * 0.5;
+        return out;
+    }
+    const size_t R = d.rows(), C = d.cols();
+    ScratchArena arena(mr);
+    auto g1 = ScratchVec<double>(&arena); g1.assign(N, 0.0);
+    auto g2 = ScratchVec<double>(&arena); g2.assign(N, 0.0);
+    // dim-1: down each column (stride 1, length R).
+    for (size_t c = 0; c < C; ++c) del2Line(sd + c * R, g1.data() + c * R, R, 1, h);
+    // dim-2: across each row (stride R, length C).
+    for (size_t r = 0; r < R; ++r) del2Line(sd + r, g2.data() + r, C, R, h);
+    for (size_t i = 0; i < N; ++i) od[i] = (g1[i] + g2[i]) * 0.5;
     return out;
 }
 
@@ -437,6 +501,27 @@ void gradient_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     auto [fx, fy] = gradient2(args[0], hx, hy, mr);
     outs[0] = std::move(fx);
     outs[1] = std::move(fy);
+}
+
+void del2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("del2: requires at least 1 argument",
+                     0, 0, "del2", "", "numkit:del2:nargin");
+    std::pmr::memory_resource *mr = ctx.engine->resource();
+    double h = 1.0;
+    if (args.size() >= 2) {
+        if (!args[1].isScalar())
+            throw Error("del2: coordinate-vector spacing is not supported in "
+                        "this revision (use a scalar spacing h)",
+                        0, 0, "del2", "", "numkit:del2:spacing");
+        h = args[1].toScalar();
+    }
+    if (args.size() >= 3)
+        throw Error("del2: per-axis spacing (hx, hy) is not supported in this "
+                    "revision (use a single scalar h)",
+                    0, 0, "del2", "", "numkit:del2:spacing");
+    outs[0] = del2(args[0], h, mr);
 }
 
 void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
