@@ -120,11 +120,11 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (43 entries):** ✅ 8 fixed · 🔴 35 open = **9 bug** + 7 stub +
+**Tally (43 entries):** ✅ 9 fixed · 🔴 34 open = **9 bug** + 6 stub +
 5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (8)
+### ✅ FIXED (9)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
@@ -135,6 +135,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | bug | [stats/combnk-scalar](stats/combnk-scalar.md) | P3 | scalar v is the 1-element set {v}; K>N → empty 0×K (c179) |
 | bug | [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | matrix columns-as-groups input form (c179) |
 | bug | [builtin/unique-last](builtin/unique-last.md) | P1 | 'last' selects last occurrence (sorted; stable+last sub-gap deferred) (c180) |
+| stub | [signal/dct-types](signal/dct-types.md) | P2 | dct/idct Type 1/3/4 implemented (c181) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
 ### 🔴 OPEN — bug (defect on an implemented function) — 9
@@ -151,11 +152,10 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 7
+### 🔴 OPEN — stub (option/branch throws "not supported") — 6
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [signal/dct-types](signal/dct-types.md) | P2 | Type 1/3/4 throw |
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
 | [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | bandstop case throws |
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
