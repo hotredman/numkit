@@ -75,3 +75,40 @@ TEST_F(StatsKnownBug, DISABLED_Friedman)
     eval("p = friedman([1 2 3; 2 3 4; 3 4 5; 1 3 5], 1);");
     EXPECT_NEAR(evalScalar("p"), 0.018315639, 1e-6);
 }
+
+// bugs/stats/corr-pvalue.md — [r,p]=corr missing the p-value 2nd output.
+TEST_F(StatsKnownBug, DISABLED_CorrPValue)
+{
+    eval("x=[1 2 3 4 5]'; y=[2 1 4 3 6]'; [r,p]=corr(x,y,'type','Kendall');");
+    EXPECT_NEAR(evalScalar("r"), 0.6,      1e-6);
+    EXPECT_NEAR(evalScalar("p"), 0.233333, 1e-5);
+}
+
+// bugs/stats/kstest-pvalue.md — kstest2 p-value wrong (statistic correct).
+TEST_F(StatsKnownBug, DISABLED_Kstest2PValue)
+{
+    eval("[h,p,k]=kstest2([1 2 3 4 5],[2 3 4 5 6 7]);");
+    EXPECT_NEAR(evalScalar("k"), 0.3333333, 1e-6);   // statistic already OK
+    EXPECT_NEAR(evalScalar("p"), 0.8470543, 1e-5);   // numkit currently 0.9223
+}
+
+// bugs/stats/dwtest-pvalue.md — DW statistic correct, p-value method differs.
+TEST_F(StatsKnownBug, DISABLED_DwtestPValue)
+{
+    eval("[p,dw]=dwtest([1 2 1 3 2 4]', [ones(6,1) (1:6)']);");
+    EXPECT_NEAR(evalScalar("dw"), 0.3142857, 1e-6);  // statistic already OK
+    EXPECT_LT(evalScalar("p"), 1e-4);                // MATLAB ~0; numkit ~0.017
+}
+
+// bugs/stats/mahal-singular.md — mahal must handle a rank-deficient reference.
+TEST_F(StatsKnownBug, DISABLED_MahalSingular)
+{
+    eval("d = mahal([1 1; 2 2], [0 0; 1 1; 2 2; 3 3]);");   // collinear X
+    EXPECT_NEAR(evalScalar("d(1)"), 0.9505075, 1e-5);
+}
+
+// bugs/stats/combnk-scalar.md — scalar first arg is a 1-element set.
+TEST_F(StatsKnownBug, DISABLED_CombnkScalar)
+{
+    EXPECT_EQ(static_cast<int>(evalScalar("size(combnk(5,2),1)")), 0);  // numkit: 10
+}
