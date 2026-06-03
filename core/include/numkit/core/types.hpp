@@ -163,6 +163,10 @@ struct UserFunction
     std::shared_ptr<const ASTNode> body;
     std::shared_ptr<Environment> closureEnv;
     mutable int8_t usesNarginNargout = -1;
+    // classdef methods/constructors only: the class that declares this body.
+    // Drives the member-access execution context (pushed while the body runs).
+    // Empty for ordinary functions.
+    std::string ownerClass;
 };
 
 } // namespace numkit
