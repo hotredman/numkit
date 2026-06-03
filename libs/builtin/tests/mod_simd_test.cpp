@@ -62,4 +62,21 @@ TEST_P(ModSimdTest, ZeroDivisorReturnsDividend)
     EXPECT_DOUBLE_EQ(evalScalar("z(4)"), 0.0);
 }
 
+// Scalar mod(a, 0) == a (MATLAB). The VM/TW scalar fast paths used
+// std::fmod and returned NaN for a zero divisor; this guards the fix.
+TEST_P(ModSimdTest, ScalarModByZeroReturnsDividend)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("mod(5, 0)"),   5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mod(-5, 0)"), -5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mod(0, 0)"),   0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mod(5.5, 0)"), 5.5);
+    eval("t = 0;"); // runtime variable scalar (not a literal)
+    EXPECT_DOUBLE_EQ(evalScalar("mod(7, t)"), 7.0);
+    // normal divisors unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("mod(5, 3)"),  2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mod(-5, 3)"), 1.0);
+    // rem(a, 0) stays NaN, matching MATLAB
+    EXPECT_TRUE(evalBool("isnan(rem(5, 0))"));
+}
+
 INSTANTIATE_DUAL(ModSimdTest);

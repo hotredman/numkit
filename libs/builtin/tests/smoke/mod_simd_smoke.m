@@ -28,3 +28,8 @@ fprintf('  (expect 2.5 0.5 1.25)\n');
 fprintf('\n--- zero divisor in an array -> dividend ---\n');
 fprintf('mod([5 6 7 8],[0 3 0 4]):'); fprintf(' %g', mod([5 6 7 8],[0 3 0 4])); fprintf('\n');
 fprintf('  (expect 5 0 7 0)\n');
+
+fprintf('\n--- scalar mod(a,0) == a (MATLAB; was NaN via fmod fast path) ---\n');
+fprintf('mod(5,0)=%g mod(-5,0)=%g mod(0,0)=%g mod(5.5,0)=%g (expect 5 -5 0 5.5)\n', ...
+        mod(5,0), mod(-5,0), mod(0,0), mod(5.5,0));
+fprintf('rem(5,0)=%g (expect NaN, unchanged)\n', rem(5,0));
