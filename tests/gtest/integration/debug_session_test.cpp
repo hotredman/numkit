@@ -651,6 +651,35 @@ TEST_F(DebugSessionTest, BreakInsideIntegralIntegrand)
     EXPECT_NEAR(engine.eval("y").toScalar(), 1.0 / 3.0, 1e-9); // ∫ x^2 dx [0,1]
 }
 
+// ode45 (embedded `.m` wrapper): a breakpoint inside the RHS `f(t,y)` pauses on
+// every stage evaluation (DOPRI5 calls f 6–7× per step) and resumes — the
+// adaptive RK45 step loop + dense output run in `.m`, so the user's ODE
+// right-hand side is debuggable. (VM_CALLBACKS_PLAN.md)
+TEST_F(DebugSessionTest, BreakInsideOde45Rhs)
+{
+    engine.eval(
+        "function dy = dbgRhs(t, yv)\n" // 1
+        "\n"                            // 2
+        "\n"                            // 3
+        "  dy = -yv;\n"               // 4
+        "end\n");                       // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "[tt, yy] = ode45(@dbgRhs, [0 1], 1);\n"; // 1
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "ode45 RHS did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 2000) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_GE(pauses, 6);                                       // ≥ one DOPRI5 step
+    EXPECT_NEAR(engine.eval("yy(end)").toScalar(), 0.36787944117144233, 1e-3); // exp(-1); y'=-y
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

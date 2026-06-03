@@ -392,7 +392,31 @@ stays as the synchronous path for embedders. This is how real MATLAB ships these
   - **Note:** numkit does not bind `varargin` when no extra args are passed, so
     embedded `.m` builtins use fixed optional params (`function r = integral(fn,
     a, b, opt, optval)` + `nargin` guards) rather than `varargin`.
-- **Remaining (same pattern, follow-up):** `ode23`/`ode45`, `nlinfit`,
+- **ode45 (done)** — registered via `ode::registerOde45M` (embedded `.m`
+  Dormand-Prince 5(4) in `ode45.cpp`). The RHS `f(t,y)` is called from
+  bytecode → pausable; the adaptive RK45 step controller + Shampine dense
+  output are the natural `.m` algorithm. Stages are **vectorised**
+  (`yc + dir*h*(a51*k1 + … + a54*k4)`, `sum((er./sc).^2)`) so they dispatch to
+  the SIMD-backed kernels and are bit-identical to the retained `Value
+  ode45(...)` API. Options (RelTol/AbsTol/MaxStep/InitialStep/Refine), the
+  HNW initial-step heuristic, FSAL, tspan-vs-Refine emit, and all error
+  ids/edge checks mirror the C++.
+  - **Register-limit lesson (new gotcha, documented):** the all-inline body
+    (~30 Butcher coeffs + `k1…k7` + temporaries) overflowed the **255-register
+    VM chunk limit**. `registerBuiltinMSource` *silently* swallows the
+    `registerFunctionAs` failure (TW-only fallback) → `ode45` was
+    "undefined function" **on the VM** with no install-time error, while the
+    older C++ external kept the Ode45Test suite green and masked it. Fix: split
+    the heavy arithmetic into `nk_dopri5_step` (the RK step) + `nk_ode_dense`
+    (the interpolant) — each `.m` `function` is its own chunk/budget. Caught by
+    running the source through `numkit_smoke.exe` (compiles `.m` at runtime,
+    reports `register exhaustion`) and by the pause-proof gtest.
+  **Proven**: `DebugSessionTest.BreakInsideOde45Rhs` (breakpoint inside the RHS
+  pauses on every DOPRI5 stage, `y(end) ≈ exp(-1)`); all 10 Ode45Test
+  dual-engine tests green; full suite 10941 (0 regressions). The external
+  `ode.solvers/compat.ode45` alias is dropped — the top-level `.m` user
+  function shadows on both backends.
+- **Remaining (same pattern, follow-up):** `ode23`, `nlinfit`,
   `fminsearch` — port each user-facing builtin to embedded `.m`. Until then they
   stay on `callReentrant` (breakpoints fire but cannot suspend).
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
