@@ -968,7 +968,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `bit2int` | ✅ | Sig: y = bit2int(b, n). Pack a column of bits into integers, n bits each, MSB-first by default. b=[1 0 1 0 1 1 0 0]' -> y=[10;12] (1010, 1100). Lifted to public C++ API numkit::comm::bit2int (header added; mr moved to LIBRARY_API mr-last) 2026-06. |
 | `int2bit` | ✅ | Sig: b = int2bit(d, n). Inverse of bit2int: each int -> one column of n MSB-first bits. d=[10 12] -> 4x2 with col1=[1;0;1;0] (10), col2=[1;1;0;0] (12). Lifted to public C++ API numkit::comm::int2bit 2026-06. |
 | `bi2de` | ✅ | Sig: d = bi2de(b). Legacy binary->decimal per row, default base 2 right-msb (LSB-first). Rows [1 0 1 0]->5, [0 0 1 1]->12. MATLAB-deprecated synonym of bit2int but still ships R2025b. Lifted to public C++ API numkit::comm::bi2de 2026-06. |
-| `de2bi` | ✅ | Sig: b = de2bi(d). Legacy decimal->binary, each int -> one row, default base 2 right-msb, auto width from max. d=[5 12] -> 2x4, row1 (5)=[1 0 1 0]. MATLAB-deprecated synonym of int2bit but still ships R2025b. Lifted to public C++ API numkit::comm::de2bi 2026-06. |
+| `de2bi` | ✅ | Sig: b = de2bi(d[, n[, base[, flag]]]). Legacy decimal->binary, each int -> one row, default base 2 right-msb, auto width from max. d=[5 12] -> 2x4, row1 (5)=[1 0 1 0]. 2026-06-03: de2bi(d, [], base) with EMPTY width + custom base now works (was throwing on the [] arg): de2bi(10,[],3)=[1 0 1] (3 digits), de2bi(10,4,3)=[1 0 1 0]. Lifted to public C++ API numkit::comm::de2bi 2026-06. |
 | `hex2poly` | ❌ | hex string → polynomial coeffs |
 | `oct2poly` | ❌ |  |
 | `oct2dec` | ❌ | octal → decimal |

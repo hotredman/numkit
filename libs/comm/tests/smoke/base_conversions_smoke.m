@@ -33,6 +33,11 @@ b2 = de2bi([5 12], 5);
 fprintf('  de2bi([5 12], 5) =\n'); disp(b2);
 b3 = de2bi([5 12], 5, 'left-msb');
 fprintf('  de2bi([5 12], 5, left-msb) =\n'); disp(b3);
+% Empty width [] + custom base (used to throw on the [] arg).
+fprintf('  de2bi(10, [], 3) = '); disp(de2bi(10, [], 3));
+fprintf('  expect: [1 0 1]  (base-3, auto width)\n');
+fprintf('  de2bi(10, 4, 3)  = '); disp(de2bi(10, 4, 3));
+fprintf('  expect: [1 0 1 0]  (base-3, 4 digits)\n');
 
 fprintf('\n[vec2mat]\n');
 [m, p] = vec2mat([1 2 3 4 5 6 7 8 9 10], 4);

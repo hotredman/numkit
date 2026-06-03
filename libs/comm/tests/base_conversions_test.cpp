@@ -119,6 +119,42 @@ TEST_F(BaseConversionsTest, De2biLeftMsb)
     EXPECT_DOUBLE_EQ(evalScalar("b(1, 3)"), 1.0);
 }
 
+TEST_F(BaseConversionsTest, De2biEmptyWidthWithBase)
+{
+    // de2bi(d, [], base): empty width = auto, with a custom base. MATLAB:
+    // de2bi(10,[],3) -> [1 0 1] (base-3, LSB-first, min width). Used to throw
+    // "Cannot convert double to scalar" on the empty [] width arg.
+    eval("b = de2bi(10, [], 3);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(b, 2)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1, 1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1, 2)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1, 3)"), 1.0);
+}
+
+TEST_F(BaseConversionsTest, De2biExplicitWidthWithBase)
+{
+    // de2bi(10, 4, 3) -> [1 0 1 0] (base-3 padded to 4 digits).
+    eval("b = de2bi(10, 4, 3);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(b, 2)")), 4);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1, 4)"), 0.0);
+}
+
+TEST_F(BaseConversionsTest, De2biEmptyWidthBaseLeftMsb)
+{
+    // Empty width + base + flag together.  6 base-2 left-msb = [1 1 0].
+    eval("b = de2bi(6, [], 2, 'left-msb');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(b, 2)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1, 1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(1, 3)"), 0.0);
+}
+
+TEST_F(BaseConversionsTest, Bi2deEmptyBaseDefaults)
+{
+    // bi2de(b, []) keeps the default base 2 (empty arg must not throw).
+    eval("d = bi2de([0 1 1], []);");
+    EXPECT_DOUBLE_EQ(evalScalar("d"), 6.0);
+}
+
 // ── vec2mat ───────────────────────────────────────────────────────────
 TEST_F(BaseConversionsTest, Vec2matRowMajorFillWithPadCount)
 {
