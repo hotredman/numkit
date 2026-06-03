@@ -86,6 +86,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | ✅ FIXED 9fcf6872 | cepstrum garbage on non-2ⁿ lengths + rceps 2nd output |
 | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | ✅ FIXED 1128db65 | missing 4th output (PSD) |
 | [signal/besself-digital](signal/besself-digital.md) | P1 | ✅ FIXED | ran digital path → binomial garbage |
+| [builtin/max-all-linear](builtin/max-all-linear.md) | P1 | ✅ FIXED | max/min(A,[],'all') was entirely broken |
+| [signal/resample-values](signal/resample-values.md) | P1 | 🔴 OPEN | wrong output values (multirate) |
 | [signal/dct-types](signal/dct-types.md) | P2 | 🔴 OPEN | Type 1/3/4 stubbed |
 | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | 🔴 OPEN | non-2ⁿ phase (rcunwrap) + missing `nd` output |
 | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P2 | 🔴 OPEN | only 1 of up to 5 outputs |
@@ -115,7 +117,6 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 | [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | 🔴 OPEN | p-value/cv wrong (statistic OK) |
 | [stats/friedman](stats/friedman.md) | P2 | 🔴 OPEN | function missing |
 | [builtin/unique-last](builtin/unique-last.md) | P1 | 🔴 OPEN | 'last' option ignored (ia = first occurrence) |
-| [builtin/max-all-linear](builtin/max-all-linear.md) | P2 | 🔴 OPEN | max(A,[],'all','linear') errors |
 | [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | 🔴 OPEN | wrong numerator for repeated poles |
 | [signal/stmcb](signal/stmcb.md) | P2 | 🔴 OPEN | function missing |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | 🔴 OPEN | scalar w should be N points |

@@ -110,3 +110,11 @@ TEST_F(SignalKnownBug, DISABLED_FreqsScalarIsNPoints)
     eval("h = freqs([1 0], [1 1 1], 2);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(h)")), 2);  // numkit currently 1
 }
+
+// bugs/signal/resample-values.md — resample output values wrong (multirate).
+TEST_F(SignalKnownBug, DISABLED_ResampleValues)
+{
+    eval("y = resample([1 2 3 4 5 6], 3, 2);");
+    EXPECT_NEAR(evalScalar("y(1)"),   1.00061, 1e-4);   // numkit ~0.0045
+    EXPECT_NEAR(evalScalar("sum(y)"), 31.6965, 1e-3);   // numkit ~10.87
+}
