@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (48 entries):** ✅ 10 fixed · 🔴 38 open = **13 bug** + 6 stub +
+**Tally (49 entries):** ✅ 10 fixed · 🔴 39 open = **14 bug** + 6 stub +
 5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -139,10 +139,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 13
+### 🔴 OPEN — bug (defect on an implemented function) — 14
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(x,k[,'first'/'last']) ignores count + direction → all indices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [stats/pdist-metrics](stats/pdist-metrics.md) | P2 | 'seuclidean'/'spearman' metrics missing + cosine zero-vector → 1 not NaN |
 | [builtin/cellfun-inputforms](builtin/cellfun-inputforms.md) | P2 | multi-cell + string-name forms unsupported (arrayfun has multi-array) |
