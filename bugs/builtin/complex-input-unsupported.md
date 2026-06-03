@@ -1,0 +1,45 @@
+# (cross-cutting) complex inputs unsupported across several functions
+
+- **Status:** 🔴 OPEN
+- **Severity:** P2 (errors where MATLAB returns a value)
+- **Kind:** bug
+- **Found:** 2026-06-04 via DEEP-PROBE (complex-input sweep)
+
+## Symptom
+A group of element-wise / filtering / interpolation functions reject complex
+input — either "Not a double array" (they read `doubleData()` with no complex
+branch) or an explicit "complex inputs are not supported" stub. MATLAB
+accepts complex for all of them.
+
+| Function | numkit | MATLAB |
+|---|---|---|
+| `conv([1 1i],[1 1])` | Not a double array | `[1  1+1i  1i]` |
+| `filter([1 1],1,[1i 1i])` | Not a double array | `[1i  2i]` |
+| `trapz([1+1i 2+2i 3+3i])` | Not a double array | `4+4i` |
+| `cumtrapz(...)` | "complex not supported" | `[…  4+4i]` |
+| `gradient([1+1i 3+3i 5+5i])` | "complex not supported" | `[2+2i …]` |
+| `movmean([1+1i 2+2i 3+3i],2)` | Not a double array | `[…]` |
+| `detrend([1+1i 2+2i 3+3i])` | Not a double array | `~0` |
+| `interp1([1 2 3],[1+1i 2+2i 3+3i],2.5)` | Not a double array | `2.5+2.5i` |
+| `median([1+1i 2+2i 3+3i])` | "no defined ordering" stub | `2+2i` (sort by abs, then angle) |
+
+`diff` is worse (silently wrong, not an error) — tracked separately in
+bugs/builtin/diff-complex.md. `cumsum`/`cumprod` and `norm` are the same
+pattern — see bugs/builtin/cumsum-complex.md, bugs/linalg/norm-complex.md.
+(`sum`/`prod`/`mean`/`var`/`sort`/`max`/`dot`/`conv2`? handle complex fine.)
+
+## Root cause
+Each function's kernel reads `x.doubleData()` (or asserts real) with no
+`ValueType::COMPLEX` path; the `median` one bails out deliberately.
+
+## Suggested fix
+Add complex branches per function (each moderate; the pattern is identical to
+the cumsum/norm fixes). For `median`, MATLAB's complex ordering is "sort by
+`abs`, ties by `angle`" — same comparator `sort`/`max` already use. These can
+be closed incrementally; this entry is the tracking umbrella.
+
+## References
+- conv/filter: `libs/signal/src/convolution/`, `.../digital_filtering/`
+- trapz/cumtrapz/gradient/movmean/detrend/interp1/median: `libs/builtin/src/`,
+  `libs/stats/src/` (movmean/detrend)
+- MATLAB docs for each

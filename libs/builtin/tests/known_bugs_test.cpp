@@ -102,3 +102,21 @@ TEST_F(BuiltinKnownBug, DISABLED_CumsumComplex)
     EXPECT_NEAR(evalScalar("real(p(2))"), 2.0, 1e-12);
     EXPECT_NEAR(evalScalar("imag(p(2))"), 0.0, 1e-12);
 }
+
+// bugs/builtin/diff-complex.md — diff drops the imaginary part (silent).
+TEST_F(BuiltinKnownBug, DISABLED_DiffComplex)
+{
+    eval("d = diff([1+2i 4+6i 9+12i]);");        // MATLAB: [3+4i, 5+6i]
+    EXPECT_NEAR(evalScalar("imag(d(1))"), 4.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(d(2))"), 6.0, 1e-12);
+}
+
+// bugs/builtin/complex-input-unsupported.md — complex rejected (builtin fns).
+TEST_F(BuiltinKnownBug, DISABLED_ComplexInputUnsupported)
+{
+    eval("t = trapz([1+1i 2+2i 3+3i]);");        // MATLAB: 4+4i
+    EXPECT_NEAR(evalScalar("real(t)"), 4.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(t)"), 4.0, 1e-12);
+    eval("y = interp1([1 2 3],[1+1i 2+2i 3+3i],2.5);");  // MATLAB: 2.5+2.5i
+    EXPECT_NEAR(evalScalar("imag(y)"), 2.5, 1e-12);
+}
