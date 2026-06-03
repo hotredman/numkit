@@ -172,28 +172,21 @@ std::vector<size_t> TreeWalker::resolveIndex(
         return indices;
     }
 
-    if (val.type() == ValueType::DOUBLE) {
-        const double *dd = val.doubleData();
+    if (val.isNumeric() || val.isChar()) {
+        // Any numeric (double / single / int*) or char (code-point) index,
+        // scalar OR array — read generically via elemAsDouble so A(int32(2))
+        // and A(int16([1 3])) work. (doubleData() threw "Not a double array" on
+        // non-DOUBLE indices; integer ARRAYS were previously "not yet
+        // supported".) Validate positivity/integrality.
         indices.reserve(val.numel());
         for (size_t i = 0; i < val.numel(); ++i) {
-            double idx = dd[i];
-            if (idx < 1.0 || idx != std::floor(idx))
-                throw std::runtime_error("Array indices must be positive integers, got "
-                                         + std::to_string(idx));
+            double idx = val.elemAsDouble(i);
+            if (std::isnan(idx) || std::isinf(idx) || idx < 1.0 || idx != std::floor(idx))
+                throw std::runtime_error(
+                    "Array indices must be positive integers or logical values");
             indices.push_back(static_cast<size_t>(idx) - 1);
         }
         return indices;
-    }
-
-    if (val.isNumeric()) {
-        if (val.isScalar()) {
-            double idx = val.toScalar();
-            if (idx < 1.0)
-                throw std::runtime_error("Array index must be positive integer");
-            indices.push_back(static_cast<size_t>(idx) - 1);
-            return indices;
-        }
-        throw std::runtime_error("Indexing with non-double numeric arrays not yet supported");
     }
 
     throw std::runtime_error("Invalid index type: " + std::string(mtypeName(val.type())));
@@ -626,11 +619,15 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
             double r;
             bool ok = false;
             switch (bid) {
-            case 1:
+            case 1: // mod
                 if (nargs == 2) {
-                    r = std::fmod(argVals[0], argVals[1]);
-                    if (r != 0 && ((r < 0) != (argVals[1] < 0)))
-                        r += argVals[1];
+                    if (argVals[1] == 0.0) {
+                        r = argVals[0]; // MATLAB: mod(a,0) == a (fmod → NaN)
+                    } else {
+                        r = std::fmod(argVals[0], argVals[1]);
+                        if (r != 0 && ((r < 0) != (argVals[1] < 0)))
+                            r += argVals[1];
+                    }
                     ok = true;
                 }
                 break;

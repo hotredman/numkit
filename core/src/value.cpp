@@ -1485,10 +1485,14 @@ std::vector<size_t> Value::resolveIndices(const Value &idx, size_t dimSize)
             throw std::runtime_error("Index exceeds array dimensions");
         out.push_back(ii);
     } else {
-        const double *d = idx.doubleData();
+        // Any non-logical numeric index: double, single, integer types, or a
+        // char vector (code points) — MATLAB accepts them all. elemAsDouble
+        // reads each generically (doubleData() throws "Not a double array" for
+        // non-DOUBLE index arrays, e.g. A(int32([1 3]))).
         for (size_t i = 0; i < idx.numel(); ++i) {
-            validateIndex(d[i]);
-            size_t ii = static_cast<size_t>(d[i]) - 1;
+            double v = idx.elemAsDouble(i);
+            validateIndex(v);
+            size_t ii = static_cast<size_t>(v) - 1;
             if (ii >= dimSize)
                 throw std::runtime_error("Index exceeds array dimensions");
             out.push_back(ii);
@@ -1514,10 +1518,12 @@ std::vector<size_t> Value::resolveIndicesUnchecked(const Value &idx)
         validateIndex(v);
         out.push_back(static_cast<size_t>(v) - 1);
     } else {
-        const double *d = idx.doubleData();
+        // See resolveIndices: integer/single/char index arrays read via the
+        // generic elemAsDouble, not the DOUBLE-only doubleData().
         for (size_t i = 0; i < idx.numel(); ++i) {
-            validateIndex(d[i]);
-            out.push_back(static_cast<size_t>(d[i]) - 1);
+            double v = idx.elemAsDouble(i);
+            validateIndex(v);
+            out.push_back(static_cast<size_t>(v) - 1);
         }
     }
     return out;
@@ -2686,8 +2692,16 @@ double Value::toScalar() const
 }
 bool Value::toBool() const
 {
-    if (heap_ == nullptr)
+    // MATLAB: a NaN in a conditional ("if"/"while"/logical()) is an error,
+    // "NaN values cannot be converted to logicals." — NOT silently true/false.
+    auto nanErr = [] {
+        throw std::runtime_error("NaN values cannot be converted to logicals.");
+    };
+    if (heap_ == nullptr) {
+        if (std::isnan(scalar_))
+            nanErr();
         return scalar_ != 0.0;
+    }
     if (heap_ == logicalTrueTag())
         return true;
     if (heap_ == logicalFalseTag())
@@ -2697,19 +2711,29 @@ bool Value::toBool() const
     auto *h = heap_;
     if (h->type == ValueType::LOGICAL && h->dims.isScalar() && h->buffer)
         return *static_cast<const uint8_t *>(h->buffer->data()) != 0;
-    if (h->type == ValueType::DOUBLE && h->dims.isScalar() && h->buffer)
-        return *static_cast<const double *>(h->buffer->data()) != 0.0;
+    if (h->type == ValueType::DOUBLE && h->dims.isScalar() && h->buffer) {
+        double v = *static_cast<const double *>(h->buffer->data());
+        if (std::isnan(v))
+            nanErr();
+        return v != 0.0;
+    }
     if (h->type == ValueType::COMPLEX && h->dims.isScalar() && h->buffer) {
         auto c = *static_cast<const Complex *>(h->buffer->data());
+        if (std::isnan(c.real()) || std::isnan(c.imag()))
+            nanErr();
         return c.real() != 0.0 || c.imag() != 0.0;
     }
     if (h->type == ValueType::DOUBLE && h->buffer) {
         const double *dd = static_cast<const double *>(h->buffer->data());
         size_t n = h->dims.numel();
-        for (size_t i = 0; i < n; ++i)
+        bool hasZero = false;
+        for (size_t i = 0; i < n; ++i) {
+            if (std::isnan(dd[i])) // scan all — `if [0 NaN]` errors in MATLAB
+                nanErr();
             if (dd[i] == 0.0)
-                return false;
-        return n > 0;
+                hasZero = true;
+        }
+        return n > 0 && !hasZero;
     }
     if (h->type == ValueType::LOGICAL && h->buffer) {
         const uint8_t *ld = static_cast<const uint8_t *>(h->buffer->data());
@@ -2722,10 +2746,14 @@ bool Value::toBool() const
     if (h->type == ValueType::COMPLEX && h->buffer) {
         const Complex *cd = static_cast<const Complex *>(h->buffer->data());
         size_t n = h->dims.numel();
-        for (size_t i = 0; i < n; ++i)
+        bool hasZero = false;
+        for (size_t i = 0; i < n; ++i) {
+            if (std::isnan(cd[i].real()) || std::isnan(cd[i].imag()))
+                nanErr();
             if (cd[i].real() == 0.0 && cd[i].imag() == 0.0)
-                return false;
-        return n > 0;
+                hasZero = true;
+        }
+        return n > 0 && !hasZero;
     }
     // Any other numeric type (single / int* / uint* / char): scalar → nonzero,
     // array → ALL elements nonzero, matching MATLAB's `if`/`while`
