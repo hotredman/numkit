@@ -1,5 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { logClampRange, previewViewport } from './plotUtils';
+import { logClampRange, previewViewport, previewStride } from './plotUtils';
+
+describe('previewStride', () => {
+  it('never subsamples in interactive windows', () => {
+    expect(previewStride(1000000, true)).toBe(1);
+  });
+  it('keeps small series whole in previews', () => {
+    expect(previewStride(2000, false)).toBe(1);
+    expect(previewStride(500, false)).toBe(1);
+  });
+  it('strides big series down to ~max for previews', () => {
+    expect(previewStride(200000, false)).toBe(100);   // 200k / 2000
+    expect(previewStride(50000, false)).toBe(25);
+    expect(previewStride(2001, false)).toBe(2);
+  });
+  it('honours a custom max and tolerates bad n', () => {
+    expect(previewStride(10000, false, 1000)).toBe(10);
+    expect(previewStride(NaN, false)).toBe(1);
+  });
+});
 
 describe('logClampRange', () => {
   it('leaves already-positive ranges untouched', () => {
