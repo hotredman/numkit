@@ -459,7 +459,7 @@ together.
 | `function_handle` | ❌ | OOP class |
 | `functions` | ✅ | Sig: info = functions(fnHandle). Returns struct with {function, type, file} fields. Bit-identical with MATLAB R2025b on probed handle (3 fields). |
 | `localfunctions` | ✅ ❗ | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
-| `str2func` | ✅ | Sig: F = str2func(NAME). 10k iters. fp checks created handle works. |
+| `str2func` | ✅ | Sig: F = str2func(STR). 2026-06-04: accepts '@name' (strip the '@') and '@(...)' anonymous source, not just a bare name (was storing the leading '@' -> unfindable '@@..'). 'sin'(0)=0, '@cos'(0)=1, '@(x)x+1'(5)=6, '@(x,y)x*y'(3,4)=12. |
 
 ### Categorical Arrays
 

@@ -1525,6 +1525,21 @@ TEST_P(BuiltinTest, FevalByHandle)
     EXPECT_NEAR(getVar("w"), 1.0, 1e-12);
 }
 
+TEST_P(BuiltinTest, Str2FuncAtForms)
+{
+    // str2func accepts '@name' (strip the '@') and '@(...)' anonymous source,
+    // not just a bare name. Previously these stored the leading '@' in the
+    // handle name and became unfindable '@@..'.
+    eval("g = str2func('@sin'); a = feval(g, pi/2);");
+    EXPECT_NEAR(getVar("a"), 1.0, 1e-12);
+    eval("h = str2func('@(x) x + 1'); b = h(5);");
+    EXPECT_NEAR(getVar("b"), 6.0, 1e-12);
+    eval("k = str2func('@(x,y) x*y'); c = k(3, 4);");
+    EXPECT_NEAR(getVar("c"), 12.0, 1e-12);
+    eval("s = func2str(str2func('@cos'));");   // '@cos' -> named 'cos'
+    EXPECT_EQ(getVarPtr("s")->toString(), "cos");
+}
+
 TEST_P(BuiltinTest, Func2Str)
 {
     // MATLAB returns the bare name for named handles (no `@` prefix).
