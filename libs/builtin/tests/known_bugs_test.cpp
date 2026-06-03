@@ -120,3 +120,11 @@ TEST_F(BuiltinKnownBug, DISABLED_ComplexInputUnsupported)
     eval("y = interp1([1 2 3],[1+1i 2+2i 3+3i],2.5);");  // MATLAB: 2.5+2.5i
     EXPECT_NEAR(evalScalar("imag(y)"), 2.5, 1e-12);
 }
+
+// bugs/builtin/gradient-3d.md — gradient of an N-D (3-D) array.
+TEST_F(BuiltinKnownBug, DISABLED_Gradient3D)
+{
+    eval("A = reshape(1:8,2,2,2); [gx,gy,gz] = gradient(A);");  // MATLAB gz(1,1,1)=4
+    EXPECT_NEAR(evalScalar("gz(1,1,1)"), 4.0, 1e-12);
+    EXPECT_NEAR(evalScalar("gx(1,1,1)"), 2.0, 1e-12);
+}

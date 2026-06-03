@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (55 entries):** ✅ 10 fixed · 🔴 45 open = **20 bug** + 6 stub +
+**Tally (56 entries):** ✅ 10 fixed · 🔴 46 open = **21 bug** + 6 stub +
 5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
