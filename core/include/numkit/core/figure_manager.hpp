@@ -863,7 +863,8 @@ public:
         if (ds.seriesPyramid.empty() && ds.xRaw.size() > 8000)
             ds.seriesPyramid = buildPyramid(ds.xRaw.data(), ds.yRaw.data(), ds.xRaw.size());
         DecimAlgo a = (algo == 1) ? DecimAlgo::LTTB
-                    : (algo == 2) ? DecimAlgo::None : DecimAlgo::M4;
+                    : (algo == 2) ? DecimAlgo::None
+                    : (algo == 3) ? DecimAlgo::M2 : DecimAlgo::M4;
         return decimateLOD(ds.xRaw.data(), ds.yRaw.data(), ds.xRaw.size(),
                            ds.seriesPyramid, x0, x1, width, a);
     }

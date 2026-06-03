@@ -90,6 +90,47 @@ export function decimateM4(x, y, x0, x1, width) {
   return { x: outX, y: outY };
 }
 
+// M2: {min, max} per pixel column (2 points, vs M4's 4) — a pixel can only
+// show a column's vertical extent [min..max] anyway, so first/last are
+// invisible. Halves M4's point count while keeping spikes / true extent;
+// a lighter mode for smoother panning of dense data.
+export function decimateM2(x, y, x0, x1, width) {
+  const [i0, i1] = visibleRange(x, x0, x1);
+  const outX = [], outY = [];
+  if (i1 <= i0) return { x: outX, y: outY };
+  const cols = Math.max(1, width | 0);
+  const span = (x1 - x0) || 1;
+  const bucketOf = (xv) => {
+    let b = Math.floor(((xv - x0) / span) * cols);
+    if (b < 0) b = 0; else if (b >= cols) b = cols - 1;
+    return b;
+  };
+
+  let curBucket = -1, bMinI = i0, bMaxI = i0, bMinY = Infinity, bMaxY = -Infinity;
+  const flush = () => {
+    if (curBucket < 0) return;
+    const a = Math.min(bMinI, bMaxI), b = Math.max(bMinI, bMaxI);   // x order
+    outX.push(x[a]); outY.push(y[a]);
+    if (b !== a) { outX.push(x[b]); outY.push(y[b]); }
+  };
+
+  for (let i = i0; i < i1; i++) {
+    const xv = x[i], yv = y[i];
+    const bk = bucketOf(xv);
+    if (bk !== curBucket) {
+      flush();
+      curBucket = bk; bMinI = i; bMaxI = i;
+      bMinY = Number.isFinite(yv) ? yv : Infinity;
+      bMaxY = Number.isFinite(yv) ? yv : -Infinity;
+    } else if (Number.isFinite(yv)) {
+      if (yv < bMinY) { bMinY = yv; bMinI = i; }
+      if (yv > bMaxY) { bMaxY = yv; bMaxI = i; }
+    }
+  }
+  flush();
+  return { x: outX, y: outY };
+}
+
 // LTTB: ~`threshold` points preserving visual shape (smooth trends).
 export function decimateLTTB(x, y, x0, x1, threshold) {
   const [i0, i1] = visibleRange(x, x0, x1);
@@ -176,8 +217,8 @@ export function decimateSeries(x, y, x0, x1, width, algo = 'm4') {
     for (let i = i0; i < i1; i++) { ox.push(x[i]); oy.push(y[i]); }
     return { x: ox, y: oy, decimated: false, n };
   }
-  const out = algo === 'lttb'
-    ? decimateLTTB(x, y, x0, x1, w)
-    : decimateM4(x, y, x0, x1, w);
+  const out = algo === 'lttb' ? decimateLTTB(x, y, x0, x1, w)
+            : algo === 'm2'   ? decimateM2(x, y, x0, x1, w)
+            :                   decimateM4(x, y, x0, x1, w);
   return { x: out.x, y: out.y, decimated: true, n };
 }

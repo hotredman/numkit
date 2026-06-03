@@ -1056,6 +1056,7 @@ export default function CompositePlot({
     { head: decimAlgo === 'none' ? 'downsample' : `downsample: ${decimAlgo}` },
     { pillRow: true, options: [
       { key: 'm4', label: 'M4' },
+      { key: 'm2', label: 'M2' },
       { key: 'lttb', label: 'LTTB' },
       { key: 'none', label: 'off' },
     ].map((o) => ({
@@ -1063,6 +1064,7 @@ export default function CompositePlot({
       active: decimAlgo === o.key,
       title: ({
         m4:   'pixel-faithful — keeps spikes & true extent (default)',
+        m2:   'min/max per column — lighter than M4, still keeps spikes',
         lttb: 'smoother for trends; can hide narrow spikes',
         none: 'raw points — slow for very large series',
       })[o.key] || '',
@@ -2093,9 +2095,9 @@ export default function CompositePlot({
                 const px = sx(xv), py = mySy(yv);
                 if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
                 if (mode === 'stairs' && started) {
-                  d += `L${px.toFixed(2)},${(mySy(SY[i - 1])).toFixed(2)} `;
+                  d += `L${Math.round(px)},${Math.round(mySy(SY[i - 1]))} `;
                 }
-                d += (started ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
+                d += (started ? 'L' : 'M') + Math.round(px) + ',' + Math.round(py) + ' ';
                 started = true;
                 if (ly.marker) markerPts.push({ px, py });
               }

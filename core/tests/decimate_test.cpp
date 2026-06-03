@@ -12,6 +12,7 @@
 #include <cmath>
 
 using numkit::decimateM4;
+using numkit::decimateM2;
 using numkit::decimateLTTB;
 using numkit::decimateSeries;
 using numkit::decimVisibleRange;
@@ -71,6 +72,24 @@ TEST(DecimateM4, RestrictsToVisibleRange) {
     auto out = decimateM4(x.data(), y.data(), N, 100.0, 200.0, 50);
     EXPECT_GE(out.x.front(), 99.0);
     EXPECT_LE(out.x.back(), 201.0);
+}
+
+TEST(DecimateM2, PreservesExtremaAndLighterThanM4) {
+    const std::size_t N = 100000;
+    const int W = 800;
+    auto x = ramp(N);
+    std::vector<double> y(N);
+    for (std::size_t i = 0; i < N; ++i) y[i] = std::sin(i / 3.0) + (i % 7);
+    y[40000] = 77.0;
+    y[90000] = -55.0;
+    auto m2 = decimateM2(x.data(), y.data(), N, 0.0, N - 1.0, W);
+    auto m4 = decimateM4(x.data(), y.data(), N, 0.0, N - 1.0, W);
+    EXPECT_LE(m2.x.size(), static_cast<std::size_t>(2 * W));
+    EXPECT_LE(m2.x.size(), m4.x.size());      // lighter
+    double mn = m2.y[0], mx = m2.y[0];
+    for (double v : m2.y) { mn = std::min(mn, v); mx = std::max(mx, v); }
+    EXPECT_DOUBLE_EQ(mx, 77.0);
+    EXPECT_DOUBLE_EQ(mn, -55.0);
 }
 
 TEST(DecimateLTTB, KeepsEndpointsAndThresholdCount) {
