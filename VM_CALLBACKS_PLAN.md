@@ -321,20 +321,30 @@ every preset including WASM.
 fiber / separate stack / Asyncify, so it compiles + runs on every preset
 including WebAssembly — the property that made it the right choice over a fiber.
 
-Pausable higher-order builtins so far: cellfun, arrayfun, structfun, feval,
-splitapply, bsxfun, bootstrp (across core / builtin / stats). Genuinely
-single-shot C++-initiated calls (`disp(obj)` from the display path, a `sort`
-comparator) have no loop to suspend and stay on `callReentrant` (on the VM,
-breakpoints fire but cannot suspend).
+Pausable higher-order builtins (clean `LoopContinuation` fit, **done**): cellfun,
+arrayfun, structfun, feval, splitapply, bsxfun (core / builtin), bootstrp
+(stats), nlfilter, makelut (image). Genuinely single-shot C++-initiated calls
+(`disp(obj)` from the display path, a `sort` comparator) have no loop to suspend
+and stay on `callReentrant` (on the VM, breakpoints fire but cannot suspend).
 
-**Remaining class-1 (same `CallbackBuiltin`/`LoopContinuation` pattern, lower-
-frequency debug targets — follow-up):** `nlfilter`/`morph` (image, per-window),
-`waveform` (signal), `fplot`/`fsurf`/`fcontour`/`fmesh` (graphics, mostly
-single-shot sampling), and the group variants `groupsummary`/`grouptransform`/
-`groupfilter` (builtin, per-group like splitapply). Each: add a `CallbackBuiltin`
-whose `tryStart` builds a `LoopContinuation` mirroring the existing synchronous
-loop, register alongside the sync builtin; builtin handles / unsupported forms
-fall back to sync.
+**Remaining class-1 — NOT a clean `LoopContinuation` fit (each has a
+per-function complication; deferred, would need bespoke work or a behaviour
+trade-off, NOT the uniform pattern):**
+- `grouptransform` / `groupfilter` / `groupsummary` (builtin) — per-group like
+  splitapply, but the output is not a simple per-group column: transform splices
+  each group's result back into the original row positions, filter selects a row
+  subset, summary aggregates. The continuation would need a bespoke `pack` per
+  variant (more than the shared helper gives).
+- `pulstran` (signal waveform) — the per-pulse loop lives inside the `pulstran`
+  *library function* (called with a cb), not the `_reg`; converting it means
+  restructuring that library function, not just adding a `CallbackBuiltin`.
+- `fplot` / `fsurf` / `fcontour` / `fmesh` (graphics) — sample the handle per
+  grid point inside a `try/catch` that SKIPS points where `f(x)` throws. A
+  continuation frame's exception propagates up and aborts the whole call, so the
+  skip-on-error semantics can't be preserved without extra machinery; also a
+  niche debug target (plotting).
+These were assessed and left on `callReentrant` deliberately (the clean ones are
+all done). Picking any up means accepting its specific trade-off.
 
 **Class-3 adaptive numerical (stays on `callReentrant`):** `integral`,
 `ode23`/`ode45`, `fzero`, `nlinfit`, `fminsearch`. The handle is called inside a
