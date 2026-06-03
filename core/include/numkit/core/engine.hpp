@@ -21,6 +21,7 @@ namespace numkit {
 class TreeWalker;
 class VM;
 class Compiler;
+struct ClassDefDesc; // user-classdef descriptor; full type in engine.cpp
 
 class Engine
 {
@@ -485,6 +486,9 @@ private:
 
     // Object-model class registry (OBJECT_MODEL.md). Keyed by class name.
     std::unordered_map<std::string, BuiltinClass> classes_;
+    // Parsed user classdef descriptors (property defaults, ctor + method
+    // UserFunctions), kept for inheritance merges. Full type in engine.cpp.
+    std::unordered_map<std::string, std::shared_ptr<ClassDefDesc>> classDefs_;
     std::unordered_map<std::string, UserFunction> userFuncs_;
 
     // Auxiliary indices into externalFuncs_, populated by registerFunction.

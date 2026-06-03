@@ -344,9 +344,10 @@ void Engine::objectStoreSlice(Value &dst, const std::vector<std::vector<size_t>>
 }
 
 // ── classdef → BuiltinClass adapter ──────────────────────────
-namespace {
 // Descriptor captured by the synthesised BuiltinClass hooks; kept alive by
-// the std::functions stored in the class registry.
+// the std::functions in the class registry, and stored in classDefs_ so a
+// subclass can merge its bases. (Namespace-scope to match the engine.hpp
+// forward declaration used by Engine::classDefs_.)
 struct ClassDefDesc
 {
     std::string name;
@@ -355,8 +356,8 @@ struct ClassDefDesc
     std::vector<Value> propDefaults;                                 // ∥ propNames
     std::shared_ptr<UserFunction> ctor;                              // null if none
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> methods;
+    std::vector<std::string> superclasses;                           // transitive, for isa
 };
-} // namespace
 
 void Engine::registerClassDef(const ASTNode *cd)
 {
@@ -394,10 +395,57 @@ void Engine::registerClassDef(const ASTNode *cd)
         }
     }
 
+    // ── Inheritance: merge registered superclasses (base members first,
+    // derived overrides). `handle` is the semantics marker, not a classdef.
+    for (const auto &superName : cd->paramNames) {
+        if (superName == "handle")
+            continue;
+        auto bit = classDefs_.find(superName);
+        if (bit == classDefs_.end())
+            continue; // unknown / non-classdef base — skip (still recorded below)
+        const auto &base = bit->second;
+        desc->isHandle = desc->isHandle || base->isHandle;
+        // Properties: base first; a derived property of the same name keeps
+        // the derived default (override), others append.
+        std::vector<std::string> names = base->propNames;
+        std::vector<Value> defs = base->propDefaults;
+        for (size_t i = 0; i < desc->propNames.size(); ++i) {
+            auto it = std::find(names.begin(), names.end(), desc->propNames[i]);
+            if (it != names.end())
+                defs[static_cast<size_t>(it - names.begin())] = desc->propDefaults[i];
+            else {
+                names.push_back(desc->propNames[i]);
+                defs.push_back(desc->propDefaults[i]);
+            }
+        }
+        desc->propNames = std::move(names);
+        desc->propDefaults = std::move(defs);
+        // Methods: inherit those the derived class doesn't override.
+        for (const auto &[mn, uf] : base->methods)
+            if (!desc->methods.count(mn))
+                desc->methods[mn] = uf;
+        if (!desc->ctor)
+            desc->ctor = base->ctor; // inherit base constructor if none defined
+    }
+    // Ancestry (transitive) for isa(): direct supers + their ancestors.
+    for (const auto &superName : cd->paramNames) {
+        if (superName == "handle")
+            continue;
+        desc->superclasses.push_back(superName);
+        auto bit = classDefs_.find(superName);
+        if (bit != classDefs_.end())
+            for (const auto &a : bit->second->superclasses)
+                if (std::find(desc->superclasses.begin(), desc->superclasses.end(), a)
+                    == desc->superclasses.end())
+                    desc->superclasses.push_back(a);
+    }
+    classDefs_[desc->name] = desc;
+
     BuiltinClass cls;
     cls.name = desc->name;
     cls.isHandle = desc->isHandle;
     cls.propNames = desc->propNames;
+    cls.superclasses = desc->superclasses;
     cls.propGet = [](const Value &self, const std::string &name, Value &out,
                      CallContext &) -> bool {
         const auto *st = self.objectStateConst();
