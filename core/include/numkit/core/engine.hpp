@@ -21,7 +21,8 @@ namespace numkit {
 class TreeWalker;
 class VM;
 class Compiler;
-struct ClassDefDesc; // user-classdef descriptor; full type in engine.cpp
+struct ClassDefDesc;     // user-classdef descriptor; full type in engine.cpp
+struct CallbackBuiltin;  // higher-order builtin driver; callback_builtin.hpp
 
 class Engine
 {
@@ -67,6 +68,20 @@ public:
     // Look up a registered class by name (e.g. "containers.Map"), or
     // nullptr. Used by constructor / method / property dispatch.
     const BuiltinClass *findClass(const std::string &name) const;
+
+    // ── State-machine callbacks (callback_builtin.hpp, VM_CALLBACKS_PLAN.md) ──
+    // Register a higher-order builtin (cellfun/arrayfun/…) that can drive its
+    // user-code callbacks as pausable VM frames. Registered alongside the
+    // ordinary synchronous external registration; the VM consults this first and
+    // falls back to the synchronous builtin when the driver declines (builtin
+    // handle / unsupported arg form). Returns the registered driver or nullptr.
+    void registerCallbackBuiltin(const std::string &name, std::shared_ptr<CallbackBuiltin> cb);
+    CallbackBuiltin *callbackBuiltin(const std::string &name) const;
+    // True if `handle` (plain handle or {handle, captures…} closure cell) names
+    // a USER function — i.e. there is a compiled body to step through — rather
+    // than a builtin.
+    bool isUserCodeHandle(const Value &handle) const;
+
     // Register a user `classdef` (parsed CLASSDEF_DEF node) as a BuiltinClass
     // via the adapter: generic property get/set over ObjectState.props,
     // default-init + user constructor on construct, and method hooks that
@@ -583,6 +598,10 @@ private:
     // Parsed user classdef descriptors (property defaults, ctor + method
     // UserFunctions), kept for inheritance merges. Full type in engine.cpp.
     std::unordered_map<std::string, std::shared_ptr<ClassDefDesc>> classDefs_;
+    // Higher-order builtins that can run callbacks as pausable VM frames
+    // (state-machine callbacks). Keyed by builtin name; consulted by the VM
+    // before the synchronous external path. Full type in callback_builtin.hpp.
+    std::unordered_map<std::string, std::shared_ptr<CallbackBuiltin>> callbackBuiltins_;
     std::unordered_map<std::string, UserFunction> userFuncs_;
 
     // Class-execution context stack for classdef member-access enforcement

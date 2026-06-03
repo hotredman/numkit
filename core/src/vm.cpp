@@ -1842,6 +1842,23 @@ enter_frame:
                         }
                     }
 
+                    // Higher-order builtin (cellfun/arrayfun/…) whose function
+                    // handle is user code: drive its callbacks as pausable VM
+                    // frames via a continuation, instead of the synchronous
+                    // builtin (whose callbacks would run on the non-pausable
+                    // callReentrant path). tryStart returns nullptr — fall
+                    // through to the synchronous builtin below — for a builtin
+                    // handle or an arg form the state machine doesn't cover.
+                    if (CallbackBuiltin *cb = engine_.callbackBuiltin(funcName)) {
+                        Span<const Value> as(&R[argBase], na);
+                        if (auto cont = cb->tryStart(as, nargout_val, &R[I.a], engine_)) {
+                            frame.ip = ip + 1;
+                            if (startContinuation(std::move(cont)))
+                                goto enter_frame; // suspended on first callback frame
+                            break;                // finished synchronously (empty input)
+                        }
+                    }
+
                     // External (builtin) function — call directly (no frame push).
                     const ExternalFunc *fnPtr = engine_.findExternal(
                         funcName, currentCallEnv());
@@ -2738,6 +2755,11 @@ void VM::popCallFrame(Value retVal)
 {
     CallFrame &frame = frames_.back();
 
+    // State-machine callback: detach the continuation so we can route this
+    // frame's result into it (instead of a caller register) after the frame's
+    // bookkeeping is unwound below.
+    std::shared_ptr<VmContinuation> cont = std::move(frame.cont);
+
     // Update parent frame's registers BEFORE popFrame —
     // so onFunctionExit sees correct parent variables.
     if (auto *ctl = debugCtl()) {
@@ -2793,6 +2815,16 @@ void VM::popCallFrame(Value retVal)
 
     frames_.pop_back();
 
+    // State-machine callback return: feed the result into the continuation,
+    // which either pushes the next callback frame (re-attaching itself) or
+    // writes the final result to its captured destination. No caller-register
+    // write — the "caller" of a callback frame is the C++ state machine.
+    if (cont) {
+        R_ = frames_.empty() ? nullptr : frames_.back().R;
+        cont->step(*this, &retVal, cont);
+        return;
+    }
+
     if (!frames_.empty()) {
         CallFrame &caller = frames_.back();
         R_ = caller.R;
@@ -2830,6 +2862,41 @@ void VM::popCallFrame(Value retVal)
         R_ = nullptr;
         lastResult_ = std::move(retVal);
     }
+}
+
+bool VM::startContinuation(std::shared_ptr<VmContinuation> cont)
+{
+    // First step: no prior callback result yet.
+    return cont->step(*this, nullptr, cont);
+}
+
+bool VM::pushCallbackFrame(const Value &handle, Span<const Value> args, size_t nargout,
+                           std::shared_ptr<VmContinuation> cont)
+{
+    // Unwrap a closure cell {handle, captures…}: captures append to the args,
+    // matching the [user_params…, captures…] chunk parameter layout (same as
+    // callFunctionHandleMulti).
+    const Value *bare = &handle;
+    std::vector<Value> withCaptures;
+    if (handle.isCell() && handle.numel() >= 1 && handle.cellAt(0).isFuncHandle()) {
+        bare = &handle.cellAt(0);
+        withCaptures.assign(args.begin(), args.end());
+        for (size_t i = 1; i < handle.numel(); ++i)
+            withCaptures.push_back(handle.cellAt(i));
+        args = Span<const Value>(withCaptures.data(), withCaptures.size());
+    }
+    if (!bare->isFuncHandle())
+        return false;
+    const UserFunction *uf = engine_.lookupUserFunctionLocal(bare->funcHandleName());
+    if (!uf)
+        return false; // not user code — caller must use the synchronous path
+    const BytecodeChunk *cc = engine_.ensureClassMethodChunk(*uf);
+    if (!cc)
+        return false;
+    pushCallFrame(*cc, args.data(), static_cast<uint8_t>(args.size()), /*destReg=*/0, nargout,
+                  /*isMulti=*/false, 0, 0, std::string(), /*isCtor=*/false, /*ctorSeed=*/nullptr);
+    frames_.back().cont = std::move(cont);
+    return true;
 }
 
 void VM::setFrameDynVars(std::unordered_map<std::string, Value> *dv)
