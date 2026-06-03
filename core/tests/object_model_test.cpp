@@ -1170,21 +1170,56 @@ TEST_P(IntrospectClassdefTest, IspropAndIsmethodAcceptCellstr)
     EXPECT_EQ(m.logicalData()[2], 0); // nope
 }
 
-TEST_P(IntrospectClassdefTest, MetaclassObjectFields)
+TEST_P(IntrospectClassdefTest, MetaclassNestedObjects)
 {
     eval("d = Dog;");
     eval("mc = metaclass(d);");
     EXPECT_EQ(eval("class(mc)").toString(), "meta.class");
     EXPECT_TRUE(evalBool("isa(mc, 'meta.class')"));
     EXPECT_EQ(eval("mc.Name").toString(), "Dog");
-    Value sl = eval("mc.SuperclassList");
-    ASSERT_EQ(sl.numel(), 1u);
-    EXPECT_EQ(sl.cellAt(0).toString(), "Animal");
-    EXPECT_DOUBLE_EQ(eval("numel(mc.PropertyList)").toScalar(), 2.0); // name + breed
-    EXPECT_GE(eval("numel(mc.MethodList)").toScalar(), 2.0);          // fetch + speak
-    EXPECT_EQ(eval("mc.PropertyList{1}").toString(), "name"); // base prop first
-    // char class-name form (programmatic ?ClassName equivalent)
+    EXPECT_FALSE(evalBool("mc.Sealed"));
+    EXPECT_FALSE(evalBool("mc.Abstract"));
+
+    // SuperclassList is a meta.class array → nested .Name works.
+    EXPECT_EQ(eval("class(mc.SuperclassList)").toString(), "meta.class");
+    ASSERT_DOUBLE_EQ(eval("numel(mc.SuperclassList)").toScalar(), 1.0);
+    EXPECT_EQ(eval("mc.SuperclassList(1).Name").toString(), "Animal");
+
+    // PropertyList is a meta.property array (not cellstr) — the de-crutched form.
+    EXPECT_EQ(eval("class(mc.PropertyList)").toString(), "meta.property");
+    ASSERT_DOUBLE_EQ(eval("numel(mc.PropertyList)").toScalar(), 2.0); // name + breed
+    EXPECT_EQ(eval("mc.PropertyList(1).Name").toString(), "name");    // base prop first
+    EXPECT_EQ(eval("mc.PropertyList(1).GetAccess").toString(), "public");
+    EXPECT_EQ(eval("mc.PropertyList(1).SetAccess").toString(), "public");
+    EXPECT_FALSE(evalBool("mc.PropertyList(1).Constant"));
+    EXPECT_FALSE(evalBool("mc.PropertyList(1).Dependent"));
+
+    // MethodList is a meta.method array; methodMeta is sorted (fetch, speak).
+    EXPECT_EQ(eval("class(mc.MethodList)").toString(), "meta.method");
+    ASSERT_DOUBLE_EQ(eval("numel(mc.MethodList)").toScalar(), 2.0);
+    EXPECT_EQ(eval("mc.MethodList(1).Name").toString(), "fetch");
+    EXPECT_FALSE(evalBool("mc.MethodList(1).Static"));
+    EXPECT_EQ(eval("mc.MethodList(1).Access").toString(), "public");
+
+    // char class-name form (programmatic ?ClassName equivalent).
     EXPECT_EQ(eval("metaclass('Dog').Name").toString(), "Dog");
+    // a root class has an empty SuperclassList.
+    EXPECT_TRUE(evalBool("isempty(metaclass('Animal').SuperclassList)"));
+}
+
+TEST_P(IntrospectClassdefTest, MetaPropertyDependentFlag)
+{
+    engine.eval(
+        "classdef HasDep\n"
+        "  properties\n    r = 1\n  end\n"
+        "  properties (Dependent)\n    d\n  end\n"
+        "  methods\n    function v = get.d(o)\n      v = o.r * 2;\n    end\n  end\n"
+        "end\n");
+    Value mc = eval("metaclass('HasDep')");
+    ASSERT_DOUBLE_EQ(eval("numel(metaclass('HasDep').PropertyList)").toScalar(), 2.0);
+    EXPECT_FALSE(evalBool("metaclass('HasDep').PropertyList(1).Dependent")); // r
+    EXPECT_EQ(eval("metaclass('HasDep').PropertyList(2).Name").toString(), "d");
+    EXPECT_TRUE(evalBool("metaclass('HasDep').PropertyList(2).Dependent"));  // d
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, IntrospectClassdefTest,
