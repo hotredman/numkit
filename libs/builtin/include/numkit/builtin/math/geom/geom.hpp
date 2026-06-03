@@ -102,6 +102,22 @@ Value convhull(const Value &x, const Value &y,
 Value boundary(const Value &x, const Value &y, double shrink = 0.5,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Delaunay triangulation of a 2-D point set — `T = delaunay(x, y)`.
+///
+/// Brute-force O(N⁴) empty-circumcircle test (fine for the small point
+/// counts typical of script use). Returns an `M × 3` matrix of 1-based,
+/// CCW-oriented vertex-index triples. Fewer than 3 points → `0 × 3`.
+/// NOTE: the row order and per-row vertex rotation are algorithm-specific
+/// and need not match MATLAB's (the triangulation is unique only for
+/// points in general position).
+///
+/// @param x,y  Point coordinates (same numel).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `M × 3` matrix of 1-based triangle vertex indices.
+/// @throws Error on x/y numel mismatch.
+Value delaunay(const Value &x, const Value &y,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Match-pairs result.
 struct MatchpairsResult {
     Value M;   ///< `p × 2` matrix of `(row, col)` 1-based match pairs.

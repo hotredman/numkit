@@ -305,77 +305,7 @@ void delaunay_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("delaunay: requires (x, y)",
                      0, 0, "delaunay", "", "numkit:delaunay:nargin");
-    const auto &xv = args[0];
-    const auto &yv = args[1];
-    const std::size_t n = xv.numel();
-    if (yv.numel() != n)
-        throw Error("delaunay: x and y must have the same numel",
-                     0, 0, "delaunay", "", "numkit:delaunay:shape");
-    auto *mr = ctx.engine->resource();
-    if (n < 3) {
-        outs[0] = Value::matrix(0, 3, ValueType::DOUBLE, mr);
-        return;
-    }
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> X(n, &scratch);
-    ScratchVec<double> Y(n, &scratch);
-    for (std::size_t i = 0; i < n; ++i) {
-        X[i] = xv.elemAsDouble(i);
-        Y[i] = yv.elemAsDouble(i);
-    }
-
-    // Robert Lewis-style in-circle test via 3×3 determinant. Returns
-    // > 0 when P lies strictly inside the CCW-oriented circumcircle
-    // of (A, B, C), < 0 if outside, 0 on the boundary.
-    auto inCircle = [&](std::size_t a, std::size_t b, std::size_t c,
-                        std::size_t p) {
-        const double ax = X[a] - X[p], ay = Y[a] - Y[p];
-        const double bx = X[b] - X[p], by = Y[b] - Y[p];
-        const double cx = X[c] - X[p], cy = Y[c] - Y[p];
-        const double a2 = ax * ax + ay * ay;
-        const double b2 = bx * bx + by * by;
-        const double c2 = cx * cx + cy * cy;
-        return ax * (by * c2 - cy * b2)
-             - ay * (bx * c2 - cx * b2)
-             + a2 * (bx * cy - cx * by);
-    };
-    auto signedArea2 = [&](std::size_t a, std::size_t b, std::size_t c) {
-        return (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]);
-    };
-
-    std::vector<std::array<std::size_t, 3>> tris;
-    tris.reserve(2 * n);
-    for (std::size_t a = 0; a < n; ++a) {
-        for (std::size_t b = a + 1; b < n; ++b) {
-            for (std::size_t c = b + 1; c < n; ++c) {
-                const double sa2 = signedArea2(a, b, c);
-                if (std::abs(sa2) < 1e-15) continue;   // collinear
-                std::size_t va = a, vb = b, vc = c;
-                if (sa2 < 0) std::swap(vb, vc);   // make CCW
-                bool ok = true;
-                for (std::size_t p = 0; p < n; ++p) {
-                    if (p == va || p == vb || p == vc) continue;
-                    if (inCircle(va, vb, vc, p) > 1e-12) {
-                        ok = false;
-                        break;
-                    }
-                }
-                if (ok) tris.push_back({ va, vb, vc });
-            }
-        }
-    }
-
-    auto out = Value::matrix(tris.size(), 3, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    // Column-major: dst[col * M + row].
-    const std::size_t M = tris.size();
-    for (std::size_t i = 0; i < M; ++i) {
-        dst[0 * M + i] = static_cast<double>(tris[i][0] + 1);
-        dst[1 * M + i] = static_cast<double>(tris[i][1] + 1);
-        dst[2 * M + i] = static_cast<double>(tris[i][2] + 1);
-    }
-    outs[0] = std::move(out);
+    outs[0] = delaunay(args[0], args[1], ctx.engine->resource());
 }
 
 // ── griddata ─────────────────────────────────────────────────────────
@@ -721,6 +651,81 @@ Value boundary(const Value &x, const Value &y, double shrink,
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < poly.size(); ++i)
         dst[i] = static_cast<double>(poly[i] + 1);
+    return out;
+}
+
+// ── delaunay ─────────────────────────────────────────────────────────
+//
+// See header for the public C++ API + Doxygen. This source unit hosts
+// the implementation plus its adapter.
+
+Value delaunay(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n)
+        throw Error("delaunay: x and y must have the same numel",
+                     0, 0, "delaunay", "", "numkit:delaunay:shape");
+    if (n < 3)
+        return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<double> X(n, &scratch);
+    ScratchVec<double> Y(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        X[i] = x.elemAsDouble(i);
+        Y[i] = y.elemAsDouble(i);
+    }
+
+    // Robert Lewis-style in-circle test via 3×3 determinant. Returns
+    // > 0 when P lies strictly inside the CCW-oriented circumcircle
+    // of (A, B, C), < 0 if outside, 0 on the boundary.
+    auto inCircle = [&](std::size_t a, std::size_t b, std::size_t c,
+                        std::size_t p) {
+        const double ax = X[a] - X[p], ay = Y[a] - Y[p];
+        const double bx = X[b] - X[p], by = Y[b] - Y[p];
+        const double cx = X[c] - X[p], cy = Y[c] - Y[p];
+        const double a2 = ax * ax + ay * ay;
+        const double b2 = bx * bx + by * by;
+        const double c2 = cx * cx + cy * cy;
+        return ax * (by * c2 - cy * b2)
+             - ay * (bx * c2 - cx * b2)
+             + a2 * (bx * cy - cx * by);
+    };
+    auto signedArea2 = [&](std::size_t a, std::size_t b, std::size_t c) {
+        return (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]);
+    };
+
+    std::vector<std::array<std::size_t, 3>> tris;
+    tris.reserve(2 * n);
+    for (std::size_t a = 0; a < n; ++a) {
+        for (std::size_t b = a + 1; b < n; ++b) {
+            for (std::size_t c = b + 1; c < n; ++c) {
+                const double sa2 = signedArea2(a, b, c);
+                if (std::abs(sa2) < 1e-15) continue;   // collinear
+                std::size_t va = a, vb = b, vc = c;
+                if (sa2 < 0) std::swap(vb, vc);   // make CCW
+                bool ok = true;
+                for (std::size_t p = 0; p < n; ++p) {
+                    if (p == va || p == vb || p == vc) continue;
+                    if (inCircle(va, vb, vc, p) > 1e-12) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok) tris.push_back({ va, vb, vc });
+            }
+        }
+    }
+
+    auto out = Value::matrix(tris.size(), 3, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    // Column-major: dst[col * M + row].
+    const std::size_t M = tris.size();
+    for (std::size_t i = 0; i < M; ++i) {
+        dst[0 * M + i] = static_cast<double>(tris[i][0] + 1);
+        dst[1 * M + i] = static_cast<double>(tris[i][1] + 1);
+        dst[2 * M + i] = static_cast<double>(tris[i][2] + 1);
+    }
     return out;
 }
 
