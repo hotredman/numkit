@@ -93,9 +93,7 @@ static inline double asScalar(const Value &v)
 
 static inline size_t checkedIndex(double idx, size_t numel)
 {
-    if (idx < 1.0 || idx != std::floor(idx))
-        throw std::runtime_error("Index must be a positive integer, got " + std::to_string(idx));
-    size_t i = static_cast<size_t>(idx) - 1;
+    size_t i = Value::checkedScalarIndex(idx);
     if (i >= numel)
         throw std::runtime_error("Index " + std::to_string((size_t) idx) + " exceeds array size "
                                  + std::to_string(numel));
@@ -1574,7 +1572,7 @@ enter_frame:
             case OpCode::CELL_GET: {
                 if (!R[I.b].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
-                size_t i = (size_t) R[I.c].toScalar() - 1;
+                size_t i = Value::checkedScalarIndex(R[I.c].toScalar());
                 R[I.a] = R[I.b].cellAt(i);
                 break;
             }
@@ -1586,7 +1584,7 @@ enter_frame:
                 const int nargs = I.e;
                 size_t coords[Dims::kMaxRank];
                 for (int k = 0; k < nargs; ++k)
-                    coords[k] = static_cast<size_t>(R[I.c + k].toScalar()) - 1;
+                    coords[k] = Value::checkedScalarIndex(R[I.c + k].toScalar());
                 size_t linear = cell.growCellTo(coords, nargs, engine_.resource());
                 R[I.a] = cell.cellAt(linear);
                 break;
@@ -1594,7 +1592,7 @@ enter_frame:
             case OpCode::CELL_GET_2D: {
                 if (!R[I.b].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
-                size_t r = (size_t) R[I.c].toScalar() - 1, c = (size_t) R[I.e].toScalar() - 1;
+                size_t r = Value::checkedScalarIndex(R[I.c].toScalar()), c = Value::checkedScalarIndex(R[I.e].toScalar());
                 R[I.a] = R[I.b].cellAt(R[I.b].dims().sub2ind(r, c));
                 break;
             }
@@ -1613,7 +1611,7 @@ enter_frame:
                     R[I.a] = Value::cell(0, 0);
                 if (!R[I.a].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
-                size_t i = (size_t) R[I.b].toScalar() - 1;
+                size_t i = Value::checkedScalarIndex(R[I.b].toScalar());
                 if (i >= R[I.a].numel()) {
                     size_t ns = i + 1;
                     auto nc = Value::cell(1, ns);
@@ -1629,7 +1627,7 @@ enter_frame:
                     R[I.a] = Value::cell(0, 0);
                 if (!R[I.a].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
-                size_t r = (size_t) R[I.b].toScalar() - 1, c = (size_t) R[I.c].toScalar() - 1;
+                size_t r = Value::checkedScalarIndex(R[I.b].toScalar()), c = Value::checkedScalarIndex(R[I.c].toScalar());
                 // Auto-grow if needed
                 size_t nr = R[I.a].dims().rows(), nc = R[I.a].dims().cols();
                 if (r + 1 > nr || c + 1 > nc) {
@@ -1649,9 +1647,9 @@ enter_frame:
                     throw std::runtime_error("Cell indexing requires a cell array");
                 uint8_t base = I.c, ndims = I.e;
                 if (ndims == 3) {
-                    size_t r = (size_t) R[base].toScalar() - 1;
-                    size_t c = (size_t) R[base + 1].toScalar() - 1;
-                    size_t p = (size_t) R[base + 2].toScalar() - 1;
+                    size_t r = Value::checkedScalarIndex(R[base].toScalar());
+                    size_t c = Value::checkedScalarIndex(R[base + 1].toScalar());
+                    size_t p = Value::checkedScalarIndex(R[base + 2].toScalar());
                     size_t idx = R[I.b].dims().sub2ind(r, c, p);
                     R[I.a] = R[I.b].cellAt(idx);
                 } else {
@@ -1660,7 +1658,7 @@ enter_frame:
                     const auto &d = R[I.b].dims();
                     size_t idx = 0, stride = 1;
                     for (uint8_t i = 0; i < ndims; ++i) {
-                        size_t si = (size_t) R[base + i].toScalar() - 1;
+                        size_t si = Value::checkedScalarIndex(R[base + i].toScalar());
                         idx += si * stride;
                         stride *= d.dim(i);
                     }
@@ -1676,9 +1674,9 @@ enter_frame:
                     throw std::runtime_error("Cell indexing requires a cell array");
                 uint8_t base = I.b, ndims = I.c;
                 if (ndims == 3) {
-                    size_t r = (size_t) R[base].toScalar() - 1;
-                    size_t c = (size_t) R[base + 1].toScalar() - 1;
-                    size_t p = (size_t) R[base + 2].toScalar() - 1;
+                    size_t r = Value::checkedScalarIndex(R[base].toScalar());
+                    size_t c = Value::checkedScalarIndex(R[base + 1].toScalar());
+                    size_t p = Value::checkedScalarIndex(R[base + 2].toScalar());
                     // Auto-grow if needed
                     size_t nr = R[I.a].dims().rows(), nc = R[I.a].dims().cols(), np = R[I.a].dims().pages();
                     if (r + 1 > nr || c + 1 > nc || p + 1 > np) {
@@ -1704,7 +1702,7 @@ enter_frame:
                     // then column-major linear-index assign.
                     std::vector<size_t> coords(ndims);
                     for (uint8_t i = 0; i < ndims; ++i)
-                        coords[i] = (size_t) R[base + i].toScalar() - 1;
+                        coords[i] = Value::checkedScalarIndex(R[base + i].toScalar());
                     const int curNd = R[I.a].dims().ndim();
                     const int newNd = std::max(static_cast<int>(ndims), curNd);
                     std::vector<size_t> need(newNd, 1);

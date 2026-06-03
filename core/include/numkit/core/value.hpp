@@ -230,6 +230,14 @@ public:
     static std::vector<size_t> resolveIndices(const Value &idx, size_t dimSize);
     static std::vector<size_t> resolveIndicesUnchecked(const Value &idx);
 
+    // Validate a single 1-based scalar subscript (paren OR brace) and return
+    // it 0-based. Throws the MATLAB-exact "Array indices must be positive
+    // integers or logical values." on fractional, non-positive, NaN or Inf
+    // input. Does NOT bounds-check — callers that auto-grow accept any
+    // in-range positive integer. Single source of truth for scalar-subscript
+    // validation across both engines.
+    static size_t checkedScalarIndex(double oneBased);
+
     // ── Type-preserving indexed assignment ──────────────────
     // All methods dispatch on the array's element type.
     // val must be a scalar (broadcast) or have matching numel.

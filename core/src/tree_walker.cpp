@@ -179,13 +179,8 @@ std::vector<size_t> TreeWalker::resolveIndex(
         // non-DOUBLE indices; integer ARRAYS were previously "not yet
         // supported".) Validate positivity/integrality.
         indices.reserve(val.numel());
-        for (size_t i = 0; i < val.numel(); ++i) {
-            double idx = val.elemAsDouble(i);
-            if (std::isnan(idx) || std::isinf(idx) || idx < 1.0 || idx != std::floor(idx))
-                throw std::runtime_error(
-                    "Array indices must be positive integers or logical values");
-            indices.push_back(static_cast<size_t>(idx) - 1);
-        }
+        for (size_t i = 0; i < val.numel(); ++i)
+            indices.push_back(Value::checkedScalarIndex(val.elemAsDouble(i)));
         return indices;
     }
 
@@ -1303,7 +1298,7 @@ Value &TreeWalker::resolveCellSlot(const ASTNode *node, Environment *env)
         IndexContextGuard guard(indexContextStack_,
                                 {var, static_cast<int>(i), static_cast<int>(nidx)});
         Value v = execNode(node->children[i + 1].get(), env);
-        coords[i] = static_cast<size_t>(v.toScalar()) - 1;
+        coords[i] = Value::checkedScalarIndex(v.toScalar());
     }
     size_t linear = var->growCellTo(coords.data(), static_cast<int>(nidx), engine_.mr_);
     return var->cellAt(linear);
@@ -2161,7 +2156,7 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
     if (nidx == 1) {
         IndexContextGuard guard(indexContextStack_, {&obj, 0, 1});
         Value idx = execNode(node->children[1].get(), env);
-        return obj.cellAt(static_cast<size_t>(idx.toScalar()) - 1);
+        return obj.cellAt(Value::checkedScalarIndex(idx.toScalar()));
     }
     if (nidx == 2) {
         Value ridx, cidx;
@@ -2173,8 +2168,8 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
             IndexContextGuard guard(indexContextStack_, {&obj, 1, 2});
             cidx = execNode(node->children[2].get(), env);
         }
-        size_t r = static_cast<size_t>(ridx.toScalar()) - 1;
-        size_t c = static_cast<size_t>(cidx.toScalar()) - 1;
+        size_t r = Value::checkedScalarIndex(ridx.toScalar());
+        size_t c = Value::checkedScalarIndex(cidx.toScalar());
         return obj.cellAt(obj.dims().sub2indChecked(r, c));
     }
     if (nidx == 3) {
@@ -2191,9 +2186,9 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
             IndexContextGuard guard(indexContextStack_, {&obj, 2, 3});
             pidx = execNode(node->children[3].get(), env);
         }
-        size_t r = static_cast<size_t>(ridx.toScalar()) - 1;
-        size_t c = static_cast<size_t>(cidx.toScalar()) - 1;
-        size_t p = static_cast<size_t>(pidx.toScalar()) - 1;
+        size_t r = Value::checkedScalarIndex(ridx.toScalar());
+        size_t c = Value::checkedScalarIndex(cidx.toScalar());
+        size_t p = Value::checkedScalarIndex(pidx.toScalar());
         return obj.cellAt(obj.dims().sub2indChecked(r, c, p));
     }
     // ND brace-cell read (nidx ≥ 4): column-major linear index, bounds-checked.
@@ -2202,7 +2197,7 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
         IndexContextGuard guard(indexContextStack_, {&obj, static_cast<int>(i),
                                                      static_cast<int>(nidx)});
         Value v = execNode(node->children[i + 1].get(), env);
-        coords[i] = static_cast<size_t>(v.toScalar()) - 1;
+        coords[i] = Value::checkedScalarIndex(v.toScalar());
     }
     const auto &d = obj.dims();
     size_t idx = 0, stride = 1;
