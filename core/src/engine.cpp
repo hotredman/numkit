@@ -356,6 +356,8 @@ struct ClassDefDesc
     std::vector<Value> propDefaults;                                 // ∥ propNames
     std::shared_ptr<UserFunction> ctor;                              // null if none
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> methods;
+    std::unordered_map<std::string, std::shared_ptr<UserFunction>> getters; // get.Prop
+    std::unordered_map<std::string, std::shared_ptr<UserFunction>> setters; // set.Prop
     std::vector<std::string> superclasses;                           // transitive, for isa
 };
 
@@ -401,7 +403,12 @@ void Engine::registerClassDef(const ASTNode *cd)
             uf->returns = child->returnNames;
             uf->body = std::shared_ptr<const ASTNode>(cloneNode(child->children[0].get()));
             uf->closureEnv = nullptr;
-            if (hasAttr(child, "Static")) {
+            const std::string &mn = child->strValue;
+            if (mn.rfind("get.", 0) == 0) {
+                desc->getters[mn.substr(4)] = uf; // property get accessor
+            } else if (mn.rfind("set.", 0) == 0) {
+                desc->setters[mn.substr(4)] = uf; // property set accessor
+            } else if (hasAttr(child, "Static")) {
                 // Static method: callable as `ClassName.method(args)` (no self).
                 registerFunction(
                     desc->name, child->strValue,
@@ -446,10 +453,16 @@ void Engine::registerClassDef(const ASTNode *cd)
         }
         desc->propNames = std::move(names);
         desc->propDefaults = std::move(defs);
-        // Methods: inherit those the derived class doesn't override.
+        // Methods + accessors: inherit those the derived class doesn't override.
         for (const auto &[mn, uf] : base->methods)
             if (!desc->methods.count(mn))
                 desc->methods[mn] = uf;
+        for (const auto &[pn, uf] : base->getters)
+            if (!desc->getters.count(pn))
+                desc->getters[pn] = uf;
+        for (const auto &[pn, uf] : base->setters)
+            if (!desc->setters.count(pn))
+                desc->setters[pn] = uf;
         if (!desc->ctor)
             desc->ctor = base->ctor; // inherit base constructor if none defined
     }
@@ -472,8 +485,16 @@ void Engine::registerClassDef(const ASTNode *cd)
     cls.isHandle = desc->isHandle;
     cls.propNames = desc->propNames;
     cls.superclasses = desc->superclasses;
-    cls.propGet = [](const Value &self, const std::string &name, Value &out,
-                     CallContext &) -> bool {
+    cls.propGet = [desc](const Value &self, const std::string &name, Value &out,
+                         CallContext &ctx) -> bool {
+        // A `get.Prop` accessor overrides the stored value.
+        auto git = desc->getters.find(name);
+        if (git != desc->getters.end()) {
+            auto r = ctx.engine->invokeClassMethod(*git->second,
+                                                   Span<const Value>(&self, 1), 1);
+            out = r.empty() ? Value() : std::move(r[0]);
+            return true;
+        }
         const auto *st = self.objectStateConst();
         if (!st)
             return false;
@@ -483,8 +504,20 @@ void Engine::registerClassDef(const ASTNode *cd)
         out = it->second;
         return true;
     };
-    cls.propSet = [](Value &self, const std::string &name, const Value &val,
-                     CallContext &) -> bool {
+    cls.propSet = [desc](Value &self, const std::string &name, const Value &val,
+                         CallContext &ctx) -> bool {
+        // A `set.Prop` accessor overrides the store. A value-class accessor
+        // returns the modified object (`function obj = set.Prop(obj, v)`),
+        // which we write back; a handle accessor mutates in place.
+        auto sit = desc->setters.find(name);
+        if (sit != desc->setters.end()) {
+            Value callArgs[2] = {self, val};
+            auto r = ctx.engine->invokeClassMethod(*sit->second,
+                                                   Span<const Value>(callArgs, 2), 1);
+            if (!r.empty() && r[0].isObject())
+                self = std::move(r[0]);
+            return true;
+        }
         self.objectStateMut()->props[name] = val;
         return true;
     };

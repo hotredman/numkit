@@ -1036,6 +1036,44 @@ INSTANTIATE_TEST_SUITE_P(Backends, AttrClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef get/set property accessors (Dependent) ──
+class AccessorClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Circle\n"
+            "  properties\n    radius = 1\n  end\n"
+            "  properties (Dependent)\n    area\n  end\n"
+            "  methods\n"
+            "    function obj = Circle(r)\n      obj.radius = r;\n    end\n"
+            "    function a = get.area(obj)\n      a = 4 * obj.radius * obj.radius;\n    end\n"
+            "    function obj = set.area(obj, v)\n      obj.radius = sqrt(v / 4);\n    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+TEST_P(AccessorClassdefTest, GetAccessorComputes)
+{
+    engine.eval("c = Circle(3);");
+    EXPECT_DOUBLE_EQ(evalScalar("c.area"), 36.0); // 4 * 3 * 3 (getter)
+    EXPECT_DOUBLE_EQ(evalScalar("c.radius"), 3.0);
+}
+TEST_P(AccessorClassdefTest, SetAccessorUpdatesUnderlying)
+{
+    engine.eval("c = Circle(1); c.area = 64;");
+    EXPECT_DOUBLE_EQ(evalScalar("c.radius"), 4.0);  // sqrt(64/4) = 4 (setter)
+    EXPECT_DOUBLE_EQ(evalScalar("c.area"), 64.0);   // getter reflects it
+}
+INSTANTIATE_TEST_SUITE_P(Backends, AccessorClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {

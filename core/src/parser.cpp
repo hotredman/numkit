@@ -790,6 +790,11 @@ ASTNodePtr Parser::parseFunctionDef()
     }
 
     node->strValue = consume(TokenType::IDENTIFIER, "function name").value;
+    // classdef property accessors carry a dotted name: `get.Prop` / `set.Prop`.
+    if (check(TokenType::DOT)) {
+        advance();
+        node->strValue += "." + consume(TokenType::IDENTIFIER, "accessor property").value;
+    }
 
     if (match(TokenType::LPAREN)) {
         if (!check(TokenType::RPAREN)) {
