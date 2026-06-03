@@ -623,6 +623,34 @@ TEST_F(DebugSessionTest, BreakInsideFzeroObjective)
     EXPECT_NEAR(engine.eval("y").toScalar(), 2.0, 1e-9);
 }
 
+// integral (embedded `.m` wrapper): a breakpoint inside the INTEGRAND pauses on
+// each Gauss-Kronrod node evaluation and resumes — the adaptive recursion runs
+// in `.m`, so the user's integrand is debuggable. (VM_CALLBACKS_PLAN.md)
+TEST_F(DebugSessionTest, BreakInsideIntegralIntegrand)
+{
+    engine.eval(
+        "function r = dbgIntg(x)\n" // 1
+        "\n"                        // 2
+        "\n"                        // 3
+        "  r = x*x;\n"            // 4
+        "end\n");                   // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "y = integral(@dbgIntg, 0, 1);\n"; // 1
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "integrand did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 500) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_GE(pauses, 15);                                // ≥ one GK15 node set
+    EXPECT_NEAR(engine.eval("y").toScalar(), 1.0 / 3.0, 1e-9); // ∫ x^2 dx [0,1]
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);
