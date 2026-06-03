@@ -283,11 +283,20 @@ every preset including WASM.
   dispatch loop). **Proven**: `DebugSessionTest.BreakInsideCellfunCallback`
   (breakpoint inside the callback pauses on each of the 3 elements and resumes;
   `y == [10 20 30]`); 48 cellfun dual-engine tests green; full suite 10930.
-- **Remaining (follow-up):** `arrayfun`, `structfun`, and any other higher-order
-  builtin that loops over user code — same `CallbackBuiltin`/`VmContinuation`
-  pattern. Genuinely single-shot C++-initiated calls (`disp(obj)` from the
-  display path, a `sort` comparator) have no loop to suspend and stay on
-  `callReentrant`.
+- **arrayfun (done)** — `libs/builtin` `ArrayfunContinuation` +
+  `ArrayfunCallbackBuiltin` (in library.cpp, where arrayfun is defined),
+  registered alongside the synchronous `arrayfun`. Drives
+  `arrayfun(@userfunc, A[, B…][, 'UniformOutput', tf])` element-by-element as
+  pausable frames (per-element scalar args via `elemAsDouble`, multiple input
+  arrays supported); `pack()` mirrors the synchronous lambda (uniform → DOUBLE
+  matrix, else cell, shaped like the first input). Builtin handles / multi-output
+  / size-mismatch fall back to the synchronous arrayfun. **Proven**:
+  `DebugSessionTest.BreakInsideArrayfunCallback` (pauses per element, resumes;
+  `y == [101 102 103]`); full suite 10931.
+- **Remaining (follow-up):** `structfun` and any other higher-order builtin that
+  loops over user code — same `CallbackBuiltin`/`VmContinuation` pattern.
+  Genuinely single-shot C++-initiated calls (`disp(obj)` from the display path,
+  a `sort` comparator) have no loop to suspend and stay on `callReentrant`.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a

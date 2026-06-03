@@ -5,9 +5,11 @@
 #include <numkit/builtin/math/arithmetic/rounding.hpp>
 
 #include <numkit/core/build_info.hpp>
+#include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value_type.hpp>
+#include <numkit/core/vm.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -537,6 +539,108 @@ void uminus_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void uplus_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void not_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ctranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+
+// ── State-machine arrayfun (VM_CALLBACKS_PLAN.md) ────────────────────────────
+// Drives arrayfun(@userfunc, A [,B…] [,'UniformOutput',tf]) one element at a
+// time, running each callback as a pausable VM frame. Mirrors the synchronous
+// arrayfun lambda's semantics (per-element scalar args via elemAsDouble; uniform
+// → DOUBLE matrix, else cell, shaped like the first input). Builtin handles,
+// multi-output, and shape/arg errors fall back to the synchronous arrayfun.
+struct ArrayfunContinuation : VmContinuation
+{
+    Value handle;
+    std::vector<Value> inputs; // copies of the input arrays
+    bool uniform = true;
+    std::size_t n = 0;
+    std::size_t i = 0;
+    std::size_t rows = 0;
+    std::size_t cols = 0;
+    Value *dest = nullptr;
+    std::pmr::memory_resource *mr = nullptr;
+    std::vector<Value> results;
+
+    bool step(VM &vm, Value *prev, const std::shared_ptr<VmContinuation> &self) override
+    {
+        if (prev) {
+            results.push_back(std::move(*prev));
+            ++i;
+        }
+        if (i >= n) {
+            *dest = pack();
+            return false;
+        }
+        std::vector<Value> callArgs(inputs.size());
+        for (std::size_t k = 0; k < inputs.size(); ++k)
+            callArgs[k] = Value::scalar(inputs[k].elemAsDouble(i), mr);
+        return vm.pushCallbackFrame(handle, Span<const Value>(callArgs.data(), callArgs.size()), 1,
+                                    self);
+    }
+
+    Value pack() const
+    {
+        if (uniform) {
+            Value out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+            for (std::size_t k = 0; k < n; ++k)
+                out.doubleDataMut()[k] = results[k].toScalar();
+            return out;
+        }
+        Value out = Value::cell(rows, cols, mr);
+        for (std::size_t k = 0; k < n; ++k)
+            out.cellAt(k) = results[k];
+        return out;
+    }
+};
+
+struct ArrayfunCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.size() < 2 || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr; // builtin handle → fast synchronous path
+        // Collect input arrays + parse trailing 'UniformOutput'/'ErrorHandler'
+        // exactly as the synchronous arrayfun (ErrorHandler is skipped, not
+        // modelled). Any malformed form → nullptr so the sync path reports it.
+        bool uniform = true;
+        std::vector<Value> inputs;
+        for (std::size_t k = 1; k < args.size(); ++k) {
+            if (args[k].isChar() && k + 1 < args.size()) {
+                std::string key = args[k].toString();
+                for (auto &ch : key)
+                    ch = static_cast<char>(std::tolower((unsigned char)ch));
+                if (key == "uniformoutput") {
+                    uniform = args[k + 1].toScalar() != 0.0;
+                    ++k;
+                    continue;
+                }
+                if (key == "errorhandler") {
+                    ++k;
+                    continue;
+                }
+            }
+            inputs.push_back(args[k]);
+        }
+        if (inputs.empty())
+            return nullptr;
+        const std::size_t n = inputs[0].numel();
+        for (const auto &p : inputs)
+            if (p.numel() != n)
+                return nullptr; // size mismatch → sync path throws the error
+        auto cont = std::make_shared<ArrayfunContinuation>();
+        cont->handle = args[0];
+        cont->inputs = std::move(inputs);
+        cont->uniform = uniform;
+        cont->n = n;
+        cont->rows = cont->inputs[0].dims().rows();
+        cont->cols = cont->inputs[0].dims().cols();
+        cont->dest = dest;
+        cont->mr = eng.resource();
+        cont->results.reserve(n);
+        return cont;
+    }
+};
 } // namespace numkit::builtin::detail
 
 namespace numkit {
@@ -1425,6 +1529,11 @@ void BuiltinLibrary::install(Engine &engine)
                                     outs[0] = std::move(cell);
                                 }
                             });
+    // arrayfun callbacks as pausable VM frames (state-machine callbacks); a
+    // user-code handle runs each callback on the VM, builtin handles / other
+    // forms fall back to the synchronous arrayfun above.
+    engine.registerCallbackBuiltin(
+        "arrayfun", std::make_shared<builtin::detail::ArrayfunCallbackBuiltin>());
 
     // ── Pack 13: function handles ─────────────────────────────────────
     // feval(handle_or_name, args...) — invoke through the engine's
