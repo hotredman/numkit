@@ -36,6 +36,7 @@ ASTNodePtr cloneNode(const ASTNode *src)
     dst->suppressOutput = src->suppressOutput;
     dst->paramNames = src->paramNames;
     dst->returnNames = src->returnNames;
+    dst->classAttrs = src->classAttrs;
 
     for (auto &child : src->children)
         dst->children.push_back(cloneNode(child.get()));

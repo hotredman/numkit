@@ -372,14 +372,27 @@ void Engine::registerClassDef(const ASTNode *cd)
         if (super == "handle")
             desc->isHandle = true;
 
+    auto hasAttr = [](const ASTNode *n, const char *a) {
+        for (const auto &s : n->classAttrs)
+            if (s == a)
+                return true;
+        return false;
+    };
     for (const auto &childPtr : cd->children) {
         const ASTNode *child = childPtr.get();
         if (child->type == NodeType::CLASSDEF_PROPERTY) {
-            desc->propNames.push_back(child->strValue);
             Value def = Value::Empty;
             if (!child->children.empty() && treeWalker_)
                 def = treeWalker_->evalExpressionPublic(child->children[0].get(),
                                                         &constantsEnv());
+            // Constant property: expose as `ClassName.Prop` (no instance).
+            if (hasAttr(child, "Constant")) {
+                Value cval = def;
+                registerFunction(desc->name, child->strValue,
+                                 [cval](Span<const Value>, size_t, Span<Value> outs,
+                                        CallContext &) { outs[0] = cval; });
+            }
+            desc->propNames.push_back(child->strValue);
             desc->propDefaults.push_back(def);
         } else if (child->type == NodeType::FUNCTION_DEF) {
             auto uf = std::make_shared<UserFunction>();
@@ -388,10 +401,23 @@ void Engine::registerClassDef(const ASTNode *cd)
             uf->returns = child->returnNames;
             uf->body = std::shared_ptr<const ASTNode>(cloneNode(child->children[0].get()));
             uf->closureEnv = nullptr;
-            if (child->strValue == desc->name)
+            if (hasAttr(child, "Static")) {
+                // Static method: callable as `ClassName.method(args)` (no self).
+                registerFunction(
+                    desc->name, child->strValue,
+                    [uf](Span<const Value> args, size_t nargout, Span<Value> outs,
+                         CallContext &ctx) {
+                        const size_t nout = std::max<size_t>(nargout, 1);
+                        auto results = ctx.engine->invokeClassMethod(*uf, args, nout);
+                        const size_t writeN = std::min(nout, results.size());
+                        for (size_t i = 0; i < writeN && i < outs.size(); ++i)
+                            outs[i] = std::move(results[i]);
+                    });
+            } else if (child->strValue == desc->name) {
                 desc->ctor = uf; // constructor: method named like the class
-            else
+            } else {
                 desc->methods[child->strValue] = uf;
+            }
         }
     }
 

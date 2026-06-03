@@ -974,6 +974,47 @@ INSTANTIATE_TEST_SUITE_P(Backends, InheritanceClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef attributes: Static methods + Constant properties ──
+class AttrClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef MathUtil\n"
+            "  properties (Constant)\n"
+            "    Answer = 42\n"
+            "    Two = 2\n"
+            "  end\n"
+            "  methods (Static)\n"
+            "    function r = square(x)\n      r = x * x;\n    end\n"
+            "    function r = add(a, b)\n      r = a + b;\n    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+TEST_P(AttrClassdefTest, ConstantProperty)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtil.Answer"), 42.0);
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtil.Two"), 2.0);
+}
+TEST_P(AttrClassdefTest, StaticMethod)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtil.square(5)"), 25.0);
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtil.add(3, 4)"), 7.0);
+}
+TEST_P(AttrClassdefTest, StaticMethodComposed)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtil.add(MathUtil.square(2), MathUtil.Two)"), 6.0);
+}
+INSTANTIATE_TEST_SUITE_P(Backends, AttrClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // Object-array display goes through Engine::formatObjectDisplay (shared by
 // both engines), so test it directly on a C++-built array.
 TEST(ObjectArrayDisplay, ArrayHeaderAndProps)

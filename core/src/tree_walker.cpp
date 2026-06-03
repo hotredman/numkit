@@ -2104,7 +2104,31 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
 
 Value TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)
 {
-    auto obj = execNode(node->children[0].get(), env);
+    // Resolve the root once. When it is a bare identifier that is NOT a
+    // workspace variable, `Pkg.member` / `ClassName.Const` may be a 0-arg
+    // qualified function/constant — resolve that before erroring. (Single
+    // env lookup keeps the common `var.field` hot path cheap.)
+    Value obj;
+    const ASTNode *rootNode = node->children[0].get();
+    if (rootNode->type == NodeType::IDENTIFIER) {
+        if (Value *v = env->get(rootNode->strValue)) {
+            obj = *v;
+        } else {
+            const ASTNode *root = nullptr;
+            std::string qualified = tryBuildQualifiedName(node, &root);
+            if (!qualified.empty()) {
+                if (const ExternalFunc *fn = engine_.findExternal(qualified, env)) {
+                    Value outBuf[1];
+                    CallContext ctx{&engine_, env};
+                    (*fn)({}, 1, Span<Value>(outBuf, 1), ctx);
+                    return outBuf[0];
+                }
+            }
+            obj = execNode(rootNode, env); // produces the proper undefined error
+        }
+    } else {
+        obj = execNode(rootNode, env);
+    }
     // OBJECT: obj.Prop reads via the class property hook (object model,
     // OBJECT_MODEL.md §3). No-arg method call form is wired in P3.
     if (obj.isObject())
