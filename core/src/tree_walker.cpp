@@ -227,6 +227,12 @@ Value TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
         return execUnaryOp(node, env);
     case NodeType::CALL:
         return execCall(node, env);
+    case NodeType::SUPERCLASS_REF:
+        // Bare `lhs@Base` with no call — invalid: a super-call must be
+        // invoked (`obj@Base(args)` / `method@Base(obj,...)`).
+        throw std::runtime_error(
+            "superclass reference '" + node->strValue
+            + "' must be called: use lhs@" + node->strValue + "(...)");
     case NodeType::CELL_INDEX:
         return execCellIndex(node, env);
     case NodeType::FIELD_ACCESS:
@@ -1476,6 +1482,10 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     if (node->type != NodeType::CALL)
         throw std::runtime_error("Expected function call in multi-assignment");
 
+    // Superclass-qualified multi-output call `[a,b] = method@Base(obj,...)`.
+    if (node->children[0]->type == NodeType::SUPERCLASS_REF)
+        return execSuperCall(node->children[0].get(), node, env, nout);
+
     // OBJECT dotted multi-output method: [a,b] = obj.m(args). Peek the
     // identifier-rooted receiver (mirrors execCall's dotted dispatch); a
     // class method returning several outputs fills nout result slots.
@@ -1719,9 +1729,49 @@ std::vector<Value> TreeWalker::callFuncHandleMulti(const Value &handle,
     throw std::runtime_error("Undefined function in handle: @" + name);
 }
 
+std::vector<Value> TreeWalker::execSuperCall(const ASTNode *superRef, const ASTNode *callNode,
+                                             Environment *env, size_t nargout)
+{
+    const std::string &base = superRef->strValue;
+    const ASTNode *lhs = superRef->children[0].get();
+
+    // Evaluate the call arguments (children[1..] of the enclosing CALL).
+    std::vector<Value> args;
+    args.reserve(callNode->children.size() - 1);
+    for (size_t i = 1; i < callNode->children.size(); ++i)
+        args.push_back(execNode(callNode->children[i].get(), env));
+    Span<const Value> argSpan(args.data(), args.size());
+
+    // Disambiguate the two MATLAB super-call forms:
+    //   obj@Base(args)       — lhs is a variable holding the object being
+    //                          constructed → run Base's constructor with that
+    //                          object as the seed.
+    //   method@Base(obj,...) — lhs is a method-name identifier that is *not* a
+    //                          variable → run Base's method (obj is args[0]).
+    if (lhs->type == NodeType::IDENTIFIER) {
+        if (Value *var = env->get(lhs->strValue)) {
+            Value out = engine_.superConstruct(base, *var, argSpan);
+            return {std::move(out)};
+        }
+        return engine_.superMethod(base, lhs->strValue, argSpan, nargout);
+    }
+
+    // Non-identifier lhs (uncommon): evaluate it as the object and run the
+    // superclass constructor with it as the seed.
+    Value seed = execNode(lhs, env);
+    Value out = engine_.superConstruct(base, seed, argSpan);
+    return {std::move(out)};
+}
+
 Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout)
 {
     auto *funcNode = node->children[0].get();
+
+    // Superclass-qualified call `lhs@Base(args)` (classdef super-call).
+    if (funcNode->type == NodeType::SUPERCLASS_REF) {
+        auto results = execSuperCall(funcNode, node, env, std::max<size_t>(nargout, 1));
+        return results.empty() ? Value() : std::move(results[0]);
+    }
 
     if (funcNode->type != NodeType::IDENTIFIER) {
         // Qualified-name call: a chain of FIELD_ACCESS over a root
