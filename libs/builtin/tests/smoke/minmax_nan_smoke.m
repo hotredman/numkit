@@ -16,6 +16,17 @@ fprintf('\n--- array 2-arg (Value-level), NaN in either position ---\n');
 fprintf('max([NaN 6 8],[5 7 NaN]): '); fprintf('%g ', max([NaN 6 8],[5 7 NaN])); fprintf('(expect 5 7 8)\n');
 fprintf('min([NaN 6 8],[5 7 NaN]): '); fprintf('%g ', min([NaN 6 8],[5 7 NaN])); fprintf('(expect 5 6 8)\n');
 
+fprintf('\n--- reduction over an array defaults to omitnan (MATLAB) ---\n');
+[v, i] = max([NaN 3 1]);
+fprintf('max([NaN 3 1])=%g idx=%g (expect 3, idx 2 - omit, was NaN/idx1)\n', v, i);
+[w, j] = min([NaN 3 1]);
+fprintf('min([NaN 3 1])=%g idx=%g (expect 1, idx 3)\n', w, j);
+fprintf('max([NaN NaN])=%g (expect NaN - all-NaN)\n', max([NaN NaN]));
+fprintf('max([NaN 2;3 NaN]) per-col: '); fprintf('%g ', max([NaN 2;3 NaN]));
+fprintf('(expect 3 2)\n');
+fprintf('max([NaN 3 1],[],''includenan'')=%g (expect NaN)\n', ...
+        max([NaN 3 1],[],'includenan'));
+
 fprintf('\n--- normal cases unchanged ---\n');
 fprintf('max(3,7)=%g min(3,7)=%g max(-Inf,5)=%g min(Inf,5)=%g (expect 7 3 5 5)\n', ...
         max(3,7), min(3,7), max(-Inf,5), min(Inf,5));
