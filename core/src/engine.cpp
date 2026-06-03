@@ -370,16 +370,19 @@ enum class Access
     Immutable
 };
 
-// Access metadata recorded ONLY for non-public members (a member absent from
-// these maps is public → no check, no overhead). `declClass` is the class
-// that declared the member — needed because protected access admits
-// subclasses, and inherited members keep their original declaring class.
-struct PropAccess
+// A property: name, default value, and per-side access. `declClass` is the
+// class that declared it (needed because protected access admits subclasses,
+// and inherited properties keep their original declaring class).
+struct PropInfo
 {
-    Access get = Access::Public;
-    Access set = Access::Public;
+    std::string name;
+    Value def;
+    Access getAccess = Access::Public;
+    Access setAccess = Access::Public;
     std::string declClass;
 };
+// Method access recorded ONLY for non-public methods (absent == public →
+// no check, no overhead). `declClass` as above.
 struct MethodAccess
 {
     Access level = Access::Public;
@@ -390,15 +393,14 @@ struct ClassDefDesc
 {
     std::string name;
     bool isHandle = false;
-    std::vector<std::string> propNames;
-    std::vector<Value> propDefaults;                                 // ∥ propNames
+    std::vector<PropInfo> props;                                     // name+default+access
+    bool anyNonPublicProp = false;                                   // fast-path gate
     std::shared_ptr<UserFunction> ctor;                              // null if none
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> methods;
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> getters; // get.Prop
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> setters; // set.Prop
     std::vector<std::string> superclasses;                           // transitive, for isa
-    // Non-public members only (public == absent).
-    std::unordered_map<std::string, PropAccess> propAccess;
+    // Non-public methods only (public == absent).
     std::unordered_map<std::string, MethodAccess> methodAccess;
     // Constructor access (this class's OWN ctor). Public unless the ctor sits
     // in a `methods (Access = private|protected)` block.
@@ -494,6 +496,17 @@ static void enforceAccess(Engine *engine, Access level, const std::string &declC
                              + " access");
 }
 
+// Find a property by name in a class descriptor (linear; property counts are
+// small, and access checks only reach here when the class has a non-public
+// property). Returns nullptr if absent.
+static const PropInfo *findProp(const ClassDefDesc &d, const std::string &name)
+{
+    for (const auto &p : d.props)
+        if (p.name == name)
+            return &p;
+    return nullptr;
+}
+
 void Engine::registerClassDef(const ASTNode *cd)
 {
     if (!cd || cd->type != NodeType::CLASSDEF_DEF || cd->strValue.empty())
@@ -537,10 +550,8 @@ void Engine::registerClassDef(const ASTNode *cd)
                                      outs[0] = cval;
                                  });
             }
-            desc->propNames.push_back(child->strValue);
-            desc->propDefaults.push_back(def);
-            if (ba.any)
-                desc->propAccess[child->strValue] = {ba.get, ba.set, desc->name};
+            desc->props.push_back({child->strValue, def, ba.get, ba.set, desc->name});
+            desc->anyNonPublicProp = desc->anyNonPublicProp || ba.any;
         } else if (child->type == NodeType::FUNCTION_DEF) {
             auto uf = std::make_shared<UserFunction>();
             uf->name = desc->name + ">" + child->strValue;
@@ -593,11 +604,12 @@ void Engine::registerClassDef(const ASTNode *cd)
         }
     }
 
-    // Member names declared by THIS class, captured before the merge mutates
-    // the descriptor — so an inherited access entry never overrides a member
-    // the derived class declares itself (a public override of a protected
-    // base member stays public).
-    const std::vector<std::string> ownPropNames = desc->propNames;
+    // Method names declared by THIS class, captured before the merge mutates
+    // the descriptor — so an inherited method-access entry never overrides a
+    // method the derived class declares itself (a public override of a
+    // protected base method stays public). Properties need no such capture:
+    // their access travels inside PropInfo, and a derived property fully
+    // replaces the inherited entry in the merge below.
     std::vector<std::string> ownMethodNames;
     ownMethodNames.reserve(desc->methods.size());
     for (const auto &[mn, uf] : desc->methods)
@@ -613,21 +625,20 @@ void Engine::registerClassDef(const ASTNode *cd)
             continue; // unknown / non-classdef base — skip (still recorded below)
         const auto &base = bit->second;
         desc->isHandle = desc->isHandle || base->isHandle;
-        // Properties: base first; a derived property of the same name keeps
-        // the derived default (override), others append.
-        std::vector<std::string> names = base->propNames;
-        std::vector<Value> defs = base->propDefaults;
-        for (size_t i = 0; i < desc->propNames.size(); ++i) {
-            auto it = std::find(names.begin(), names.end(), desc->propNames[i]);
-            if (it != names.end())
-                defs[static_cast<size_t>(it - names.begin())] = desc->propDefaults[i];
-            else {
-                names.push_back(desc->propNames[i]);
-                defs.push_back(desc->propDefaults[i]);
-            }
+        // Properties: base first; a derived property of the same name fully
+        // replaces the inherited entry (default + access + declaring class),
+        // so a public override of a protected base property stays public.
+        std::vector<PropInfo> merged = base->props;
+        for (const auto &dp : desc->props) {
+            auto it = std::find_if(merged.begin(), merged.end(),
+                                   [&](const PropInfo &m) { return m.name == dp.name; });
+            if (it != merged.end())
+                *it = dp;
+            else
+                merged.push_back(dp);
         }
-        desc->propNames = std::move(names);
-        desc->propDefaults = std::move(defs);
+        desc->props = std::move(merged);
+        desc->anyNonPublicProp = desc->anyNonPublicProp || base->anyNonPublicProp;
         // Methods + accessors: inherit those the derived class doesn't override.
         for (const auto &[mn, uf] : base->methods)
             if (!desc->methods.count(mn))
@@ -638,13 +649,10 @@ void Engine::registerClassDef(const ASTNode *cd)
         for (const auto &[pn, uf] : base->setters)
             if (!desc->setters.count(pn))
                 desc->setters[pn] = uf;
-        // Access metadata: inherit base entries (keeping the base's declaring
+        // Method access: inherit base entries (keeping the base's declaring
         // class so `protected` still admits this subclass) unless the derived
-        // class declared the member itself (its own access — or public by
+        // class declared the method itself (its own access — or public by
         // omission — then wins).
-        for (const auto &[pn, pa] : base->propAccess)
-            if (std::find(ownPropNames.begin(), ownPropNames.end(), pn) == ownPropNames.end())
-                desc->propAccess.emplace(pn, pa);
         for (const auto &[mn, ma] : base->methodAccess)
             if (std::find(ownMethodNames.begin(), ownMethodNames.end(), mn)
                 == ownMethodNames.end())
@@ -669,18 +677,18 @@ void Engine::registerClassDef(const ASTNode *cd)
     BuiltinClass cls;
     cls.name = desc->name;
     cls.isHandle = desc->isHandle;
-    cls.propNames = desc->propNames;
+    cls.propNames.reserve(desc->props.size());
+    for (const auto &p : desc->props)
+        cls.propNames.push_back(p.name);
     cls.superclasses = desc->superclasses;
     cls.propGet = [desc](const Value &self, const std::string &name, Value &out,
                          CallContext &ctx) -> bool {
-        // Enforce GetAccess for restricted properties (public props absent
-        // from the map → no check).
-        if (!desc->propAccess.empty()) {
-            auto ait = desc->propAccess.find(name);
-            if (ait != desc->propAccess.end())
-                enforceAccess(ctx.engine, ait->second.get, ait->second.declClass, "property",
-                              name);
-        }
+        // Enforce GetAccess for restricted properties (a class with only
+        // public properties skips the lookup entirely).
+        if (desc->anyNonPublicProp)
+            if (const PropInfo *pi = findProp(*desc, name);
+                pi && pi->getAccess != Access::Public)
+                enforceAccess(ctx.engine, pi->getAccess, pi->declClass, "property", name);
         // A `get.Prop` accessor overrides the stored value.
         auto git = desc->getters.find(name);
         if (git != desc->getters.end()) {
@@ -701,12 +709,10 @@ void Engine::registerClassDef(const ASTNode *cd)
     cls.propSet = [desc](Value &self, const std::string &name, const Value &val,
                          CallContext &ctx) -> bool {
         // Enforce SetAccess (incl. immutable) for restricted properties.
-        if (!desc->propAccess.empty()) {
-            auto ait = desc->propAccess.find(name);
-            if (ait != desc->propAccess.end())
-                enforceAccess(ctx.engine, ait->second.set, ait->second.declClass, "property",
-                              name);
-        }
+        if (desc->anyNonPublicProp)
+            if (const PropInfo *pi = findProp(*desc, name);
+                pi && pi->setAccess != Access::Public)
+                enforceAccess(ctx.engine, pi->setAccess, pi->declClass, "property", name);
         // A `set.Prop` accessor overrides the store. A value-class accessor
         // returns the modified object (`function obj = set.Prop(obj, v)`),
         // which we write back; a handle accessor mutates in place.
@@ -725,8 +731,8 @@ void Engine::registerClassDef(const ASTNode *cd)
     cls.construct = [desc](Span<const Value> args, CallContext &ctx) -> Value {
         auto *mr = ctx.engine->resource();
         auto st = std::make_shared<ObjectState>(mr);
-        for (size_t i = 0; i < desc->propNames.size(); ++i)
-            st->props.emplace(desc->propNames[i], desc->propDefaults[i]);
+        for (const auto &p : desc->props)
+            st->props.emplace(p.name, p.def);
         Value obj = Value::object(desc->name, st, desc->isHandle, mr);
         if (desc->ctor)
             obj = ctx.engine->invokeClassCtor(*desc->ctor, obj, args);
@@ -789,10 +795,10 @@ void Engine::registerClassDef(const ASTNode *cd)
     cls.dispText = [desc](const Value &self) -> std::string {
         std::string body = "  " + desc->name + " with properties:\n\n";
         const auto *st = self.objectStateConst();
-        for (const auto &pn : desc->propNames) {
-            body += "    " + pn;
+        for (const auto &p : desc->props) {
+            body += "    " + p.name;
             if (st) {
-                auto it = st->props.find(pn);
+                auto it = st->props.find(p.name);
                 if (it != st->props.end() && it->second.isScalar()
                     && it->second.type() == ValueType::DOUBLE)
                     body += ": " + std::to_string(it->second.toScalar());
