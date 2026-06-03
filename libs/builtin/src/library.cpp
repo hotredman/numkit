@@ -2272,6 +2272,79 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             outs[0] = c;
         });
 
+    // ── isprop / ismethod / superclasses (class introspection) ──
+    // isprop(obj, name): true if obj is an object whose class declares
+    // property `name`. Non-objects (and unknown classes) → false (MATLAB does
+    // not error). `name` may be a cellstr → element-wise logical array.
+    engine.registerFunction(
+        "isprop", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 2)
+                throw Error("isprop: requires (obj, name)", 0, 0, "isprop", "",
+                            "numkit:isprop:nargin");
+            const BuiltinClass *cls =
+                args[0].isObject() ? ctx.engine->findClass(args[0].objectClassName()) : nullptr;
+            auto has = [&](const std::string &n) {
+                return cls && std::find(cls->propNames.begin(), cls->propNames.end(), n)
+                                  != cls->propNames.end();
+            };
+            if (args[1].isCell()) {
+                const size_t n = args[1].numel();
+                Value r = Value::matrix(args[1].dims().rows(), args[1].dims().cols(),
+                                        ValueType::LOGICAL, ctx.engine->resource());
+                for (size_t i = 0; i < n; ++i)
+                    r.logicalDataMut()[i] = has(args[1].cellAt(i).toString()) ? 1 : 0;
+                outs[0] = r;
+            } else {
+                outs[0] = Value::logicalScalar(has(args[1].toString()), ctx.engine->resource());
+            }
+        });
+    // ismethod(obj, name): true if obj's class defines method `name`.
+    engine.registerFunction(
+        "ismethod", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 2)
+                throw Error("ismethod: requires (obj, name)", 0, 0, "ismethod", "",
+                            "numkit:ismethod:nargin");
+            std::string cn = args[0].isObject() ? args[0].objectClassName()
+                                                : args[0].toString();
+            const BuiltinClass *cls = ctx.engine->findClass(cn);
+            auto has = [&](const std::string &n) {
+                return cls && cls->methods.count(n) > 0;
+            };
+            if (args[1].isCell()) {
+                const size_t n = args[1].numel();
+                Value r = Value::matrix(args[1].dims().rows(), args[1].dims().cols(),
+                                        ValueType::LOGICAL, ctx.engine->resource());
+                for (size_t i = 0; i < n; ++i)
+                    r.logicalDataMut()[i] = has(args[1].cellAt(i).toString()) ? 1 : 0;
+                outs[0] = r;
+            } else {
+                outs[0] = Value::logicalScalar(has(args[1].toString()), ctx.engine->resource());
+            }
+        });
+    // superclasses(obj | 'ClassName'): cell column of ancestor class names.
+    engine.registerFunction(
+        "superclasses", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty())
+                throw Error("superclasses: requires (obj or 'ClassName')", 0, 0,
+                            "superclasses", "", "numkit:superclasses:nargin");
+            std::string cn = args[0].isObject() ? args[0].objectClassName()
+                                                : args[0].toString();
+            const BuiltinClass *cls = ctx.engine->findClass(cn);
+            std::vector<std::string> names;
+            if (cls) {
+                names = cls->superclasses; // transitive ancestor list
+                // A handle subclass lists `handle` as an ancestor in MATLAB,
+                // but it's the semantics marker, not a registered classdef.
+                if (cls->isHandle
+                    && std::find(names.begin(), names.end(), "handle") == names.end())
+                    names.push_back("handle");
+            }
+            Value c = Value::cell(names.size(), 1, ctx.engine->resource());
+            for (size_t i = 0; i < names.size(); ++i)
+                c.cellAt(i) = Value::fromString(names[i], ctx.engine->resource());
+            outs[0] = c;
+        });
+
     // ── tic ────────────────────────────────────────────────────
     engine.registerFunction("tic",
                             [](Span<const Value>,
