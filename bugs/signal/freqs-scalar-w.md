@@ -26,9 +26,19 @@ frequencies" path; MATLAB routes a scalar to the "n auto-points" path
 
 ## Suggested fix
 When the third arg is a scalar, treat it as `n` (number of points) and build
-the auto frequency range the way MATLAB does (logspace over the dynamic
-range of the response), matching `freqs(b,a,n)`. Low priority — passing a
-scalar to `freqs` is unusual; the vector form (the common case) is correct.
+the auto frequency range the way MATLAB does, matching `freqs(b,a,n)`. Low
+priority — passing a scalar to `freqs` is unusual; the vector form (the
+common case) is correct.
+
+**NOT plain logspace** (probed 2026-06-03, c179): MATLAB's auto-range
+(`freqint` in `freqs.m`) is non-uniform. For `freqs([1 0],[1 1 1],n)`:
+- `n=2` → w = `[0.01, 10]` (endpoints span the pole magnitude ±2 decades).
+- `n=5` → w = `[0.01, 0.04624086761, 0.2138217838, 0.9887304796, 10]` —
+  geometric ratio ≈4.624 for the first four, then a different jump to 10.
+So the algorithm places points by the response's dynamic range, not by a
+uniform `logspace(lo,hi,n)`. Porting `freqint` exactly (to 1e-10) is the
+real work here — deferred until someone reads `freqint`'s point-placement
+loop. Endpoints alone (`logspace(lo,hi,n)`) would NOT match the interior.
 
 ## References
 - `libs/signal/src/.../freqs*`

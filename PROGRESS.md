@@ -3225,7 +3225,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 |---|:---:|---|
 | `bootci` | ⚠️ | Sig: ci = bootci(nboot, fn, X[, alpha]). Percentile bootstrap CI. NOT bit-identical with MATLAB (std::uniform_int_distribution implementation-defined; randn also not bit-identical). Statistical correctness verified: 95% CI contains true mean. |
 | `bootstrp` | ⚠️ | Sig: B = bootstrp(nboot, fn, X). Bootstrap resampling. Output shape verified; values not bit-identical with MATLAB (uniform_int_distribution + randn divergence). |
-| `combnk` | ✅ | Sig: r = combnk(...). Spec-extension batch 2026-05-09. |
+| `combnk` | ✅ | Sig: C = combnk(v,K). Vector form C(4,2)=6x2. A SCALAR v is the 1-element set {v} (NOT 1:v): combnk(5,2)->0 rows, combnk(5,1)->[5]. K>N->empty 0xK (cols preserved). Fixes bugs/stats/combnk-scalar.md. Spec-extension 2026-06. |
 | `crossval` | ⚠️ | Sig: vals = crossval(predfun, X, Y[, 'kfold', K]). K-fold cross-validation. Default K=10. NOT bit-identical with MATLAB (fold splitting differs -- numkit uses contiguous blocks, MATLAB defaults to random). Shape verified. |
 | `cvpartition` | ❌ | partition object (function-form constructor) |
 | `datasample` | ✅ | Sig: y = datasample(X, K[, dim, ...]). Default dim auto-selected: row vector samples columns (dim=2), otherwise dim=1. Output SHAPE bit-identical with MATLAB R2025b; values may differ due to RNG cascade -- shape probe used here. |
@@ -3255,7 +3255,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 
 | function | status | comment |
 |---|:---:|---|
-| `anova1` | ✅ | Sig: p = anova1(y, group['off']). One-way ANOVA p-value. Bit-identical with MATLAB R2025b on probed input (p=0.0251). |
+| `anova1` | ✅ | Sig: p = anova1(y,group['off']) OR anova1(X) matrix form (each column is a group). (y,g) p=0.0251; matrix [1 2 3;2 3 4;3 4 5] p=0.125. Matrix form fixes bugs/stats/anova1-matrix-input.md. Bit-identical with MATLAB R2025b. |
 | `anova2` | ⚠️ | Sig: p = anova2(Y[, reps]). Two-way ANOVA without replication (reps=1 only in this revision; reps>1 with interaction deferred). p = [p_cols, p_rows, p_interaction]. Bit-identical with MATLAB R2025b on probed cases. |
 | `anovan` | ❌ | n-way |
 | `manova1` | ❌ | one-way MANOVA |
