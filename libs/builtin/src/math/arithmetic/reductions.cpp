@@ -1850,7 +1850,10 @@ namespace {
 // and the omit flag.
 size_t stripTrailingNanFlag(Span<const Value> args, bool &omitNan)
 {
-    omitNan = false;
+    // MATLAB's DEFAULT for max/min is 'omitnan' (NaN is ignored unless every
+    // element is NaN). Only an explicit 'includenan' turns omission off.
+    // (sum/mean/etc. default to 'includenan'; max/min are the exception.)
+    omitNan = true;
     size_t n = args.size();
     if (n == 0) return 0;
     const Value &last = args[n - 1];
@@ -1858,8 +1861,8 @@ size_t stripTrailingNanFlag(Span<const Value> args, bool &omitNan)
     std::string s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return std::tolower(c); });
-    if (s == "omitnan") { omitNan = true; return n - 1; }
-    if (s == "includenan")               return n - 1;
+    if (s == "omitnan")    { omitNan = true;  return n - 1; }
+    if (s == "includenan") { omitNan = false; return n - 1; }
     return n;
 }
 
