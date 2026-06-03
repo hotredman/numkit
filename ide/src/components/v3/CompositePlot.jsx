@@ -35,7 +35,10 @@ import { decimateSeries, buildPyramid, decimateLOD } from './decimate';
 import GLChart from './glplot/GLChart';
 import { isWebGL2Available } from './glplot/glcontext';
 import { makeProjection } from './glplot/projection';
-import { selectGLSeries } from './glplot/route';
+import {
+  selectGLSeries, glOverlayEnabled, glFlagFromStorage, selectGLBigSeries,
+} from './glplot/route';
+import { packXY } from './glplot/pack';
 
 // Route a line/stairs layer to the WebGL overlay once it has more than this
 // many points (and the full data lives in JS — downsampled previews stay on
@@ -340,11 +343,13 @@ export default function CompositePlot({
   // figure.xscale/yscale.
   const [xLogLocal, setXLogLocal] = useState(figure.xscale === 'log');
   const [yLogLocal, setYLogLocal] = useState(figure.yscale === 'log');
-  // Line-series downsampling: 'm4' (pixel-faithful, default), 'lttb'
-  // (smoother trends), or 'none' (raw). Big series are decimated to ~plot-
-  // width points in the VISIBLE x-range before the SVG path is built, so
-  // render cost is O(W) not O(N) and zoom reveals more detail.
-  const [decimAlgo, setDecimAlgo] = useState('m4');
+  // Line-series downsampling is always pixel-faithful M4 now (the GL overlay
+  // makes the speed/quality knob moot, M4 keeps spikes + true extent). Big
+  // series are decimated to ~plot-width points in the VISIBLE x-range, so
+  // render cost is O(W) not O(N) and zoom reveals more detail. Pan on the SVG
+  // fallback uses lighter M2 (DECIM_DRAG) for smoothness.
+  const DECIM_ALGO = 'm4';
+  const DECIM_DRAG = 'm2';
   const xLog = (xLogProp !== undefined) ? xLogProp : xLogLocal;
   const yLog = (yLogProp !== undefined) ? yLogProp : yLogLocal;
   const setXLog = setXLogProp || setXLogLocal;
@@ -1065,25 +1070,6 @@ export default function CompositePlot({
         })) },
       ];
     })() : []),
-    // Line-series downsampling algorithm — pixel-faithful M4 by default,
-    // LTTB for smoother trends, off for raw points.
-    { head: decimAlgo === 'none' ? 'downsample' : `downsample: ${decimAlgo}` },
-    { pillRow: true, options: [
-      { key: 'm4', label: 'M4' },
-      { key: 'm2', label: 'M2' },
-      { key: 'lttb', label: 'LTTB' },
-      { key: 'none', label: 'off' },
-    ].map((o) => ({
-      label: o.label,
-      active: decimAlgo === o.key,
-      title: ({
-        m4:   'pixel-faithful — keeps spikes & true extent (default)',
-        m2:   'min/max per column — lighter than M4, still keeps spikes',
-        lttb: 'smoother for trends; can hide narrow spikes',
-        none: 'raw points — slow for very large series',
-      })[o.key] || '',
-      onClick: () => setDecimAlgo(o.key),
-    })) },
   ] : null;
 
   // Grid ▶ — mirrors the toolbar grid ▾ button, specialised for
@@ -1450,20 +1436,112 @@ export default function CompositePlot({
       xMin, xMax, yMin, yMax, xLogActive, yLogActive,
       W, H, lut]);
 
+  // ── WebGL fast-path routing (on by default; opt out 'numkit.plot.gl'='0') ──
+  // Decide which line/stairs layers the WebGL overlay takes over BEFORE the
+  // tile/decimation hooks below, so those skip GL-routed layers entirely:
+  //   • full-data layers (<1M, already in JS) → selectGLSeries (synchronous)
+  //   • engine-downsampled layers (>1M)       → selectGLBigSeries + a GPU-LOD
+  //     decimated tile (see the glBig effect): bounded ~4*W points at any zoom,
+  //     so no overdraw at full zoom-out and pan within the padded tile is O(1).
+  // GL is interactive-window only — preview cards (interactive=false) keep the
+  // SVG decimation path (scarce WebGL contexts; dense raw reads as a fill at
+  // thumbnail size). See glOverlayEnabled().
+  const glFlag = glFlagFromStorage(
+    typeof localStorage !== 'undefined' ? localStorage : null,
+  );
+  const glEnabled = glOverlayEnabled({
+    interactive, flag: glFlag, webgl2: isWebGL2Available(),
+  });
+  const glState = useMemo(() => (
+    glEnabled
+      ? selectGLSeries(figure.layers, GL_MIN_POINTS)
+      : { routed: new Set(), series: [] }
+  ), [figure.layers, glEnabled]);
+  // >1M series: GPU LOD. Draw an engine-decimated tile (~4*W points) via GL
+  // rather than all N raw points — at full zoom-out that's a min/max envelope,
+  // not 50M overlapping segments, so there's no overdraw and the VBO stays
+  // tiny. The tile covers GL_BIG_PAD_K× the viewport, so panning within it is a
+  // pure projection-uniform update (O(1), no refetch); we refetch (debounced)
+  // only when the viewport leaves the covered range or the zoom changes ≥2×
+  // (resolution stale). Reuses the existing getSeriesTile binding — the small
+  // tile makes JSON transit cheap, so no raw/binary transport is needed here.
+  const GL_BIG_PAD_K = 3;
+  const glBigCovRef = useRef({});     // { [idx]: {lo,hi,vspan} } — current tile coverage
+  const glBigSigRef = useRef('');     // dataset signature → drop coverage on figure change
+  const [glBig, setGlBig] = useState({ routed: new Set(), series: [] });
+  useEffect(() => {
+    const clear = () => {
+      glBigCovRef.current = {};
+      setGlBig((prev) => (prev.series.length ? { routed: new Set(), series: [] } : prev));
+    };
+    if (!glEnabled || !engine || typeof engine.getSeriesTile !== 'function') { clear(); return undefined; }
+    const descs = selectGLBigSeries(figure.layers);
+    if (!descs.length) { clear(); return undefined; }
+    const vspan = xMax - xMin;
+    if (!(vspan > 0)) return undefined;
+    // New figure / dataset set → drop stale coverage so the first frame refetches.
+    const sig = descs.map((d) => `${d.figId}:${d.axIdx}:${d.dsIdx}`).join('|');
+    if (glBigSigRef.current !== sig) { glBigCovRef.current = {}; glBigSigRef.current = sig; }
+    // Covered (panned within pad, zoom within 2×) → no work; pan stays O(1).
+    const cov = glBigCovRef.current;
+    const stale = (d) => {
+      const c = cov[d.idx];
+      return !c || xMin < c.lo || xMax > c.hi || vspan < c.vspan / 2 || vspan > c.vspan * 2;
+    };
+    if (!descs.some(stale)) return undefined;
+    let cancelled = false;
+    const h = setTimeout(() => {
+      const half = (vspan * GL_BIG_PAD_K) / 2;
+      const mid = (xMin + xMax) / 2;
+      const lo = mid - half;
+      const hi = mid + half;
+      const wbins = Math.max(1, Math.round(W * GL_BIG_PAD_K));
+      const routed = new Set();
+      const series = [];
+      const nextCov = {};
+      for (const d of descs) {
+        // Always bounded M4 — raw would ship the whole signal (millions of pts).
+        const t = engine.getSeriesTile(d.figId, d.axIdx, d.dsIdx, lo, hi, wbins, DECIM_ALGO);
+        if (!t || t.error || !Array.isArray(t.x) || !t.x.length) continue;
+        const packed = packXY(t.x, t.y);
+        series.push({ data: packed.data, segments: packed.segments, color: d.color });
+        routed.add(d.idx);
+        nextCov[d.idx] = { lo, hi, vspan };
+      }
+      if (cancelled) return;
+      glBigCovRef.current = nextCov;
+      setGlBig({ routed, series });
+    }, 50);
+    return () => { cancelled = true; clearTimeout(h); };
+  }, [figure.layers, glEnabled, engine, xMin, xMax, W]);
+  // Union of both GL paths: hooks below skip these layer indices; the renderer
+  // draws them on the canvas overlay.
+  const glRouted = useMemo(
+    () => new Set([...glState.routed, ...glBig.routed]),
+    [glState, glBig],
+  );
+  const glSeries = useMemo(
+    () => [...glState.series, ...glBig.series],
+    [glState, glBig],
+  );
+  const glActive = glSeries.length > 0;
+
   // Phase 2c — refetch decimated tiles for engine-downsampled (huge) line
   // series on viewport / width / algorithm change, debounced so wheel-zoom
   // doesn't hammer the engine. The full x/y never leave the engine; we get
   // back only the ~4*W points visible in [xMin, xMax], so zoom reveals
-  // detail the static preview can't.
+  // detail the static preview can't. GL-routed layers are skipped — the
+  // overlay already holds their full raw data.
   useEffect(() => {
     const downs = (figure.layers || []).filter(
-      (ly) => ly.kind === 'series' && ly.seriesDownsampled && ly.dsIdx != null);
+      (ly, i) => ly.kind === 'series' && ly.seriesDownsampled && ly.dsIdx != null
+        && !glRouted.has(i));
     if (!downs.length || !engine || typeof engine.getSeriesTile !== 'function') {
       setSeriesTiles((prev) => (Object.keys(prev).length ? {} : prev));
       return undefined;
     }
     let cancelled = false;
-    const algo = (isDragging && decimAlgo === 'm4') ? 'm2' : decimAlgo;
+    const algo = isDragging ? DECIM_DRAG : DECIM_ALGO;
     const h = setTimeout(() => {
       const next = {};
       for (const ly of downs) {
@@ -1474,24 +1552,25 @@ export default function CompositePlot({
       if (!cancelled) setSeriesTiles(next);
     }, 40);
     return () => { cancelled = true; clearTimeout(h); };
-  }, [figure.layers, engine, xMin, xMax, W, decimAlgo, isDragging]);
+  }, [figure.layers, engine, xMin, xMax, W, isDragging, glRouted]);
 
   // Per-line-layer decimated points (keyed by layer index), recomputed only
   // when the viewport / pixel width / algorithm / engine tiles / layer set
   // change — NOT on hover or unrelated state. Engine-downsampled series use
   // the loaded tile (preview until it arrives); other series decimate from a
-  // cached LOD pyramid so per-frame work stays O(W) at any zoom. comet and
-  // 'none' fall through to the renderer's raw fallback.
+  // cached LOD pyramid so per-frame work stays O(W) at any zoom. comet falls
+  // through to the renderer's raw fallback.
   const decimatedSeries = useMemo(() => {
     const out = {};
     // Lighter M2 while dragging (½ M4's points, same envelope) → smooth pan.
-    const algo = (isDragging && decimAlgo === 'm4') ? 'm2' : decimAlgo;
+    const algo = isDragging ? DECIM_DRAG : DECIM_ALGO;
     const layers = figure.layers || [];
     for (let i = 0; i < layers.length; i++) {
       const ly = layers[i];
       if (ly.kind !== 'series') continue;
+      if (glRouted.has(i)) continue;          // drawn on the WebGL overlay
       if (ly.mode !== 'line' && ly.mode !== 'stairs') continue;
-      if (ly.cometAnim || algo === 'none' || !Array.isArray(ly.x)) continue;
+      if (ly.cometAnim || !Array.isArray(ly.x)) continue;
       if (ly.seriesDownsampled) {
         const t = seriesTiles[ly.dsIdx];
         out[i] = t ? { x: t.x, y: t.y }
@@ -1503,7 +1582,7 @@ export default function CompositePlot({
       out[i] = decimateLOD(pyr, xMin, xMax, W, algo);
     }
     return out;
-  }, [figure.layers, xMin, xMax, W, decimAlgo, seriesTiles, isDragging]);
+  }, [figure.layers, xMin, xMax, W, seriesTiles, isDragging, glRouted]);
 
   // Cancel any pending pointer-move frame on unmount.
   useEffect(() => () => {
@@ -1576,19 +1655,9 @@ export default function CompositePlot({
   }));
   const cbarGradId = `cbar-${figure.id}-${Math.round(width)}`;
 
-  // ── WebGL fast-path (feature-flagged, off by default) ──────────────
-  // Route large, full-data line/stairs layers to a WebGL canvas overlay so
-  // they render and pan/zoom at any point count. Flip via localStorage
-  // 'numkit.plot.gl' = '1'. Downsampled (>1M engine-preview) + comet series
-  // stay on the existing path. Packing is memoized on the data (not viewport).
-  const glEnabled = typeof localStorage !== 'undefined'
-    && localStorage.getItem('numkit.plot.gl') === '1';
-  const glState = useMemo(() => (
-    (glEnabled && isWebGL2Available())
-      ? selectGLSeries(figure.layers, GL_MIN_POINTS)
-      : { routed: new Set(), series: [] }
-  ), [figure.layers, glEnabled]);
-  const glActive = glState.series.length > 0;
+  // WebGL overlay projection + geometry (routing computed earlier, above the
+  // tile/decimation hooks). Projection is viewport-driven, so pan/zoom updates
+  // only this uniform — the VBOs never re-upload.
   const glProj = useMemo(() => makeProjection({
     xMin, xMax, yMin, yMax, xLog: xLogActive, yLog: yLogActive, xRev, yRev,
   }), [xMin, xMax, yMin, yMax, xLogActive, yLogActive, xRev, yRev]);
@@ -1822,7 +1891,7 @@ export default function CompositePlot({
       {(seriesLayers.length > 0 || textLayers.length > 0) && (
         <g clipPath={`url(#${clipId})`}>
           {layers.map((ly, idx) => {
-            if (glState.routed.has(idx)) return null;          // drawn on the WebGL overlay
+            if (glRouted.has(idx)) return null;                // drawn on the WebGL overlay
             if (ly.kind === 'heatmap') return null;            // image already drawn above
             if (ly.kind === 'series') {
               const mode = ly.mode || 'line';
@@ -2116,8 +2185,8 @@ export default function CompositePlot({
               // animation (it steps through the raw points one by one).
               // Decimated points precomputed once per (viewport, width,
               // algorithm) in the decimatedSeries memo above — O(W) per frame
-              // at any zoom (engine tile / LOD pyramid / preview). comet and
-              // 'none' fall through to raw.
+              // at any zoom (engine tile / LOD pyramid / preview). comet falls
+              // through to raw.
               const sr = decimatedSeries[idx] || { x: ly.x, y: ly.y };
               const SX = sr.x, SY = sr.y;
               // Comet animation: render only first floor(progress·N) points.
@@ -2411,7 +2480,7 @@ export default function CompositePlot({
       )}
     </svg>
     {glActive && (
-      <GLChart series={glState.series} proj={glProj} plotRect={glPlotRect}
+      <GLChart series={glSeries} proj={glProj} plotRect={glPlotRect}
         width={width} height={height} dpr={glDpr} />
     )}
     </div>
