@@ -9,9 +9,10 @@ storage + builtin `()` index read/write with grow + concatenation
 value + handle classes, properties+defaults, constructors, methods,
 inheritance, Static methods, Constant properties, `get.`/`set.` accessors
 (`Dependent`), superclass calls `obj@Base(...)` / `method@Base(...)`,
+member-access enforcement (private/protected/SetAccess/immutable),
 introspection, file-based `Name.m` loading) — both engines, on `core-dev`.
-Owner: CORE. Remaining: classdef `Access`/method-attribute enforcement;
-`image.*` objects.
+Owner: CORE. Remaining: classdef access class-lists + `Hidden`/`Abstract`/
+`Sealed`; `image.*` objects.
 
 ## User classdef (Phase 1: value classes)
 
@@ -56,15 +57,26 @@ Production coverage (all both-engine tested):
   `Engine::superConstruct` / `superMethod`. Only valid inside a classdef
   body (method bodies always run on the TreeWalker); the VM rejects a
   super-call at script scope with a clear error.
+- **Member-access enforcement**: `Access = private | protected` (properties
+  and methods), `GetAccess` / `SetAccess` (properties), and
+  `SetAccess = immutable`. Enforced via a class-execution **context stack**
+  on the Engine (`invokeClassMethod` / `invokeClassCtor` push the running
+  class; an access check compares the member's declaring class to the top
+  frame): private needs an exact class match, protected admits subclasses,
+  immutable is settable only inside the declaring class's constructor. The
+  checks live inside the `propGet`/`propSet`/method lambdas; non-public
+  members are recorded in per-descriptor maps so public-only classes pay
+  nothing and behave exactly as before.
 - **Introspection**: `class`, `isa(x,'Name'|'Base'|category)`, `isobject`,
   `properties(x)`, `methods(x)`.
 - **File-based classes**: a `Name.m` containing a classdef is loaded on
   demand from the path (resolveMFile_), registering the class + a
   constructor external.
 
-Not yet: `Access`/method-attribute *enforcement* (attributes are parsed;
-only `Static`/`Constant` change dispatch). Method bodies run on the
-TreeWalker under either backend (VM compilation of method bodies later).
+Not yet: access **class lists** (`Access = ?Other`), access enforcement on
+`Static`/`Constant` members (instance members are enforced), and
+`Hidden` / `Abstract` / `Sealed`. Method bodies run on the TreeWalker under
+either backend (VM compilation of method bodies later).
 
 ## Object arrays
 

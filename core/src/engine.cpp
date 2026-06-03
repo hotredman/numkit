@@ -348,6 +348,33 @@ void Engine::objectStoreSlice(Value &dst, const std::vector<std::vector<size_t>>
 // the std::functions in the class registry, and stored in classDefs_ so a
 // subclass can merge its bases. (Namespace-scope to match the engine.hpp
 // forward declaration used by Engine::classDefs_.)
+// classdef member-access levels (private/protected enforcement). `Immutable`
+// is a SetAccess-only level: the property is settable only inside its
+// declaring class's constructor.
+enum class Access
+{
+    Public,
+    Protected,
+    Private,
+    Immutable
+};
+
+// Access metadata recorded ONLY for non-public members (a member absent from
+// these maps is public → no check, no overhead). `declClass` is the class
+// that declared the member — needed because protected access admits
+// subclasses, and inherited members keep their original declaring class.
+struct PropAccess
+{
+    Access get = Access::Public;
+    Access set = Access::Public;
+    std::string declClass;
+};
+struct MethodAccess
+{
+    Access level = Access::Public;
+    std::string declClass;
+};
+
 struct ClassDefDesc
 {
     std::string name;
@@ -359,7 +386,98 @@ struct ClassDefDesc
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> getters; // get.Prop
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> setters; // set.Prop
     std::vector<std::string> superclasses;                           // transitive, for isa
+    // Non-public members only (public == absent).
+    std::unordered_map<std::string, PropAccess> propAccess;
+    std::unordered_map<std::string, MethodAccess> methodAccess;
 };
+
+// Translate an attribute keyword to an Access level. `Immutable` is only
+// meaningful for SetAccess; unknown / unsupported values (e.g. class lists
+// `?Foo`) map to Public so they parse without being (incorrectly) enforced.
+static Access parseAccessLevel(const std::string &v)
+{
+    if (v == "private")
+        return Access::Private;
+    if (v == "protected")
+        return Access::Protected;
+    if (v == "immutable")
+        return Access::Immutable;
+    return Access::Public; // "public" + anything we don't enforce in v1
+}
+
+// Resolve a properties/methods block's flattened attribute tokens
+// (e.g. {"Access","private","SetAccess","immutable"}) into get/set levels.
+// `Access` sets the default for both sides; `GetAccess` / `SetAccess`
+// override their side. Returns false in `any` when every side stays public.
+struct BlockAccess
+{
+    Access get = Access::Public;
+    Access set = Access::Public;
+    bool any = false;
+};
+static BlockAccess parseBlockAccess(const std::vector<std::string> &attrs)
+{
+    BlockAccess ba;
+    auto valueOf = [&](const char *key) -> const std::string * {
+        for (size_t i = 0; i + 1 < attrs.size(); ++i)
+            if (attrs[i] == key)
+                return &attrs[i + 1];
+        return nullptr;
+    };
+    // `Access` is the default for both sides; the specific `GetAccess` /
+    // `SetAccess` always override it (MATLAB is order-independent here, so
+    // resolve the general first, then the specific).
+    if (const std::string *a = valueOf("Access")) {
+        Access lvl = parseAccessLevel(*a);
+        ba.get = (lvl == Access::Immutable) ? Access::Public : lvl; // immutable is set-only
+        ba.set = lvl;
+    }
+    if (const std::string *g = valueOf("GetAccess")) {
+        Access lvl = parseAccessLevel(*g);
+        ba.get = (lvl == Access::Immutable) ? Access::Public : lvl;
+    }
+    if (const std::string *s = valueOf("SetAccess"))
+        ba.set = parseAccessLevel(*s);
+    ba.any = ba.get != Access::Public || ba.set != Access::Public;
+    return ba;
+}
+
+static const char *accessWord(Access a)
+{
+    switch (a) {
+    case Access::Private:
+        return "private";
+    case Access::Protected:
+        return "protected";
+    case Access::Immutable:
+        return "immutable";
+    default:
+        return "public";
+    }
+}
+
+// Throw a MATLAB-style error when the current execution context may not
+// touch a member with the given access level. `kind` is "property" or
+// "method". Public members and allowed contexts return silently.
+static void enforceAccess(Engine *engine, Access level, const std::string &declClass,
+                          const char *kind, const std::string &name)
+{
+    if (level == Access::Public)
+        return;
+    if (level == Access::Immutable) {
+        // Settable only inside the declaring class's own constructor.
+        if (engine->classCtxInCtorOf(declClass))
+            return;
+        throw std::runtime_error("Cannot set property '" + name
+                                 + "': it has immutable SetAccess (settable only in the "
+                                 + declClass + " constructor)");
+    }
+    if (engine->classCtxAllows(declClass, /*privateOnly=*/level == Access::Private))
+        return;
+    throw std::runtime_error(std::string("Cannot access ") + kind + " '" + name
+                             + "' of class '" + declClass + "': it has " + accessWord(level)
+                             + " access");
+}
 
 void Engine::registerClassDef(const ASTNode *cd)
 {
@@ -396,6 +514,10 @@ void Engine::registerClassDef(const ASTNode *cd)
             }
             desc->propNames.push_back(child->strValue);
             desc->propDefaults.push_back(def);
+            // Record non-public get/set access (this class is the declarer).
+            BlockAccess ba = parseBlockAccess(child->classAttrs);
+            if (ba.any)
+                desc->propAccess[child->strValue] = {ba.get, ba.set, desc->name};
         } else if (child->type == NodeType::FUNCTION_DEF) {
             auto uf = std::make_shared<UserFunction>();
             uf->name = desc->name + ">" + child->strValue;
@@ -424,9 +546,25 @@ void Engine::registerClassDef(const ASTNode *cd)
                 desc->ctor = uf; // constructor: method named like the class
             } else {
                 desc->methods[child->strValue] = uf;
+                // Record non-public method access (Access sets the level;
+                // immutable is meaningless for a method → treat as public).
+                BlockAccess ba = parseBlockAccess(child->classAttrs);
+                Access lvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
+                if (lvl != Access::Public)
+                    desc->methodAccess[child->strValue] = {lvl, desc->name};
             }
         }
     }
+
+    // Member names declared by THIS class, captured before the merge mutates
+    // the descriptor — so an inherited access entry never overrides a member
+    // the derived class declares itself (a public override of a protected
+    // base member stays public).
+    const std::vector<std::string> ownPropNames = desc->propNames;
+    std::vector<std::string> ownMethodNames;
+    ownMethodNames.reserve(desc->methods.size());
+    for (const auto &[mn, uf] : desc->methods)
+        ownMethodNames.push_back(mn);
 
     // ── Inheritance: merge registered superclasses (base members first,
     // derived overrides). `handle` is the semantics marker, not a classdef.
@@ -463,6 +601,17 @@ void Engine::registerClassDef(const ASTNode *cd)
         for (const auto &[pn, uf] : base->setters)
             if (!desc->setters.count(pn))
                 desc->setters[pn] = uf;
+        // Access metadata: inherit base entries (keeping the base's declaring
+        // class so `protected` still admits this subclass) unless the derived
+        // class declared the member itself (its own access — or public by
+        // omission — then wins).
+        for (const auto &[pn, pa] : base->propAccess)
+            if (std::find(ownPropNames.begin(), ownPropNames.end(), pn) == ownPropNames.end())
+                desc->propAccess.emplace(pn, pa);
+        for (const auto &[mn, ma] : base->methodAccess)
+            if (std::find(ownMethodNames.begin(), ownMethodNames.end(), mn)
+                == ownMethodNames.end())
+                desc->methodAccess.emplace(mn, ma);
         if (!desc->ctor)
             desc->ctor = base->ctor; // inherit base constructor if none defined
     }
@@ -487,6 +636,14 @@ void Engine::registerClassDef(const ASTNode *cd)
     cls.superclasses = desc->superclasses;
     cls.propGet = [desc](const Value &self, const std::string &name, Value &out,
                          CallContext &ctx) -> bool {
+        // Enforce GetAccess for restricted properties (public props absent
+        // from the map → no check).
+        if (!desc->propAccess.empty()) {
+            auto ait = desc->propAccess.find(name);
+            if (ait != desc->propAccess.end())
+                enforceAccess(ctx.engine, ait->second.get, ait->second.declClass, "property",
+                              name);
+        }
         // A `get.Prop` accessor overrides the stored value.
         auto git = desc->getters.find(name);
         if (git != desc->getters.end()) {
@@ -506,6 +663,13 @@ void Engine::registerClassDef(const ASTNode *cd)
     };
     cls.propSet = [desc](Value &self, const std::string &name, const Value &val,
                          CallContext &ctx) -> bool {
+        // Enforce SetAccess (incl. immutable) for restricted properties.
+        if (!desc->propAccess.empty()) {
+            auto ait = desc->propAccess.find(name);
+            if (ait != desc->propAccess.end())
+                enforceAccess(ctx.engine, ait->second.set, ait->second.declClass, "property",
+                              name);
+        }
         // A `set.Prop` accessor overrides the store. A value-class accessor
         // returns the modified object (`function obj = set.Prop(obj, v)`),
         // which we write back; a handle accessor mutates in place.
@@ -533,8 +697,18 @@ void Engine::registerClassDef(const ASTNode *cd)
     };
     for (const auto &[mname, uf] : desc->methods) {
         auto ufCopy = uf; // shared_ptr keeps the body alive
-        cls.methods[mname] = [ufCopy](Value &self, Span<const Value> args, size_t nargout,
-                                      Span<Value> outs, CallContext &ctx) {
+        std::string nameCopy = mname;
+        Access mlevel = Access::Public;
+        std::string mdecl;
+        if (auto mit = desc->methodAccess.find(mname); mit != desc->methodAccess.end()) {
+            mlevel = mit->second.level;
+            mdecl = mit->second.declClass;
+        }
+        cls.methods[mname] = [ufCopy, nameCopy, mlevel, mdecl](
+                                 Value &self, Span<const Value> args, size_t nargout,
+                                 Span<Value> outs, CallContext &ctx) {
+            if (mlevel != Access::Public)
+                enforceAccess(ctx.engine, mlevel, mdecl, "method", nameCopy);
             std::vector<Value> callArgs;
             callArgs.reserve(args.size() + 1);
             callArgs.push_back(self); // MATLAB: obj is the first parameter
@@ -568,19 +742,42 @@ void Engine::registerClassDef(const ASTNode *cd)
     registerClass(std::move(cls));
 }
 
+namespace {
+// Push the running class onto the access-context stack for the duration of a
+// method/constructor body; pops on scope exit (incl. exceptions). The class
+// name is the prefix of `uf.name` ("Class>member"); a name without '>'
+// (defensive) yields the whole string.
+struct ClassCtxGuard
+{
+    Engine *engine;
+    ClassCtxGuard(Engine *e, const std::string &ufName, bool isCtor)
+        : engine(e)
+    {
+        engine->pushClassCtx(ufName.substr(0, ufName.find('>')), isCtor);
+    }
+    ~ClassCtxGuard() { engine->popClassCtx(); }
+    ClassCtxGuard(const ClassCtxGuard &) = delete;
+    ClassCtxGuard &operator=(const ClassCtxGuard &) = delete;
+};
+} // namespace
+
 std::vector<Value> Engine::invokeClassMethod(const UserFunction &uf, Span<const Value> args,
                                              size_t nout)
 {
-    if (treeWalker_)
+    if (treeWalker_) {
+        ClassCtxGuard ctx(this, uf.name, /*isCtor=*/false);
         return treeWalker_->runClassMethod(uf, args, nout);
+    }
     throw std::runtime_error("classdef methods require the interpreter backend");
 }
 
 Value Engine::invokeClassCtor(const UserFunction &ctor, const Value &seed,
                               Span<const Value> args)
 {
-    if (treeWalker_)
+    if (treeWalker_) {
+        ClassCtxGuard ctx(this, ctor.name, /*isCtor=*/true);
         return treeWalker_->runClassCtor(ctor, seed, args);
+    }
     throw std::runtime_error("classdef constructor requires the interpreter backend");
 }
 
@@ -609,6 +806,40 @@ std::vector<Value> Engine::superMethod(const std::string &base, const std::strin
     if (mit == desc->methods.end())
         throw std::runtime_error("superclass '" + base + "' has no method '" + method + "'");
     return invokeClassMethod(*mit->second, args, nout);
+}
+
+void Engine::pushClassCtx(std::string className, bool isCtor)
+{
+    classCtx_.push_back({std::move(className), isCtor});
+}
+
+void Engine::popClassCtx()
+{
+    if (!classCtx_.empty())
+        classCtx_.pop_back();
+}
+
+bool Engine::classCtxAllows(const std::string &declClass, bool privateOnly) const
+{
+    if (classCtx_.empty())
+        return false; // script scope — only public members are reachable
+    const std::string &ctx = classCtx_.back().className;
+    if (ctx == declClass)
+        return true; // the declaring class itself (covers private + protected)
+    if (privateOnly)
+        return false;
+    // protected: the running class must be a subclass of the declaring class.
+    auto it = classDefs_.find(ctx);
+    if (it == classDefs_.end())
+        return false;
+    const auto &sc = it->second->superclasses;
+    return std::find(sc.begin(), sc.end(), declClass) != sc.end();
+}
+
+bool Engine::classCtxInCtorOf(const std::string &declClass) const
+{
+    return !classCtx_.empty() && classCtx_.back().isCtor
+           && classCtx_.back().className == declClass;
 }
 
 void Engine::registerFunction(const std::string &ns,
