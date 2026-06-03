@@ -850,7 +850,7 @@ ASTNodePtr Parser::parseClassDef()
         }
         return attrs;
     };
-    parseAttrBlock(); // class-level attributes (v1: ignored)
+    node->classAttrs = parseAttrBlock(); // class-level attributes (e.g. Sealed)
 
     node->strValue = consume(TokenType::IDENTIFIER, "class name").value;
 

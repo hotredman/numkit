@@ -2102,7 +2102,9 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             std::vector<std::string> names;
             if (cls)
                 for (const auto &[mn, fn] : cls->methods)
-                    names.push_back(mn);
+                    if (std::find(cls->hidden.begin(), cls->hidden.end(), mn)
+                        == cls->hidden.end()) // omit Hidden methods
+                        names.push_back(mn);
             std::sort(names.begin(), names.end());
             Value c = Value::cell(names.size(), 1, ctx.engine->resource());
             for (size_t i = 0; i < names.size(); ++i)

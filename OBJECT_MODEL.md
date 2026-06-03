@@ -86,6 +86,10 @@ Production coverage (all both-engine tested):
   factory — enforced at the user-facing `ClassName(args)` sites via
   `constructChecked`, while internal default-fill during object-array growth
   bypasses the check so preallocation never breaks).
+- **`Sealed`** (class attribute `classdef (Sealed)`): subclassing it throws.
+- **`Hidden`** (property/method attribute): the member is fully usable but
+  omitted from `properties()` / `methods()` introspection and the default
+  display.
 - **Abstract classes/methods**: a `methods (Abstract)` block declares method
   signatures with no body (`a = area(obj)`). A class with an unimplemented
   abstract method is abstract and cannot be instantiated; a subclass that
@@ -112,10 +116,10 @@ Production coverage (all both-engine tested):
   demand from the path (resolveMFile_), registering the class + a
   constructor external.
 
-Not yet: access **class lists** (`Access = ?Other`), `Hidden` / `Sealed`,
-`events` / listeners, and in-session class **redefinition** (the registry is
-idempotent). Method bodies run on the TreeWalker under either backend (VM
-compilation of method bodies later).
+Not yet: access **class lists** (`Access = ?Other`), `events` / listeners,
+in-session class **redefinition** (the registry is idempotent), and bare
+`x = MyClass` construction (use `MyClass()`). Method bodies run on the
+TreeWalker under either backend (VM compilation of method bodies later).
 
 ## Object arrays
 

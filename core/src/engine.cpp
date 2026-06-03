@@ -449,6 +449,8 @@ struct ClassDefDesc
     bool isEnum = false;                          // has an `enumeration` block
     std::vector<std::string> abstractMethods;     // declared Abstract (own + inherited)
     bool isAbstract = false;                      // an abstract method is unimplemented
+    bool isSealed = false;                        // `Sealed` — cannot be subclassed
+    std::vector<std::string> hiddenMembers;       // `Hidden` props/methods (own + inherited)
 };
 
 // Translate an attribute keyword to an Access level. `Immutable` is only
@@ -585,6 +587,7 @@ void Engine::registerClassDef(const ASTNode *cd)
                 return true;
         return false;
     };
+    desc->isSealed = hasAttr(cd, "Sealed"); // class-level attribute
     for (const auto &childPtr : cd->children) {
         const ASTNode *child = childPtr.get();
         if (child->type == NodeType::CLASSDEF_ENUM_MEMBER) {
@@ -604,6 +607,8 @@ void Engine::registerClassDef(const ASTNode *cd)
             desc->props.push_back(
                 {child->strValue, def, ba.get, ba.set, desc->name, hasAttr(child, "Constant")});
             desc->anyNonPublicProp = desc->anyNonPublicProp || ba.any;
+            if (hasAttr(child, "Hidden"))
+                desc->hiddenMembers.push_back(child->strValue);
         } else if (child->type == NodeType::FUNCTION_DEF) {
             // Abstract method: a signature with no body (no children[0]).
             // Record the name; a concrete subclass implements it. The class
@@ -649,6 +654,8 @@ void Engine::registerClassDef(const ASTNode *cd)
                 Access lvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
                 if (lvl != Access::Public)
                     desc->methodAccess[child->strValue] = {lvl, desc->name};
+                if (hasAttr(child, "Hidden"))
+                    desc->hiddenMembers.push_back(child->strValue);
             }
         }
     }
@@ -682,6 +689,8 @@ void Engine::registerClassDef(const ASTNode *cd)
         if (bit == classDefs_.end())
             continue; // unknown / non-classdef base — skip (still recorded below)
         const auto &base = bit->second;
+        if (base->isSealed)
+            throw std::runtime_error("Cannot subclass sealed class '" + superName + "'");
         desc->isHandle = desc->isHandle || base->isHandle;
         // Properties: base first; a derived property of the same name fully
         // replaces the inherited entry (default + access + declaring class),
@@ -718,6 +727,11 @@ void Engine::registerClassDef(const ASTNode *cd)
             if (std::find(desc->abstractMethods.begin(), desc->abstractMethods.end(), am)
                 == desc->abstractMethods.end())
                 desc->abstractMethods.push_back(am);
+        // Hidden members stay hidden in the subclass.
+        for (const auto &hm : base->hiddenMembers)
+            if (std::find(desc->hiddenMembers.begin(), desc->hiddenMembers.end(), hm)
+                == desc->hiddenMembers.end())
+                desc->hiddenMembers.push_back(hm);
         // Method access: inherit base entries (keeping the base's declaring
         // class so `protected` still admits this subclass) unless the derived
         // class declared the method itself (its own access — or public by
@@ -793,9 +807,11 @@ void Engine::registerClassDef(const ASTNode *cd)
     BuiltinClass cls;
     cls.name = desc->name;
     cls.isHandle = desc->isHandle;
+    cls.hidden = desc->hiddenMembers;
     cls.propNames.reserve(desc->props.size());
     for (const auto &p : desc->props)
-        cls.propNames.push_back(p.name);
+        if (std::find(cls.hidden.begin(), cls.hidden.end(), p.name) == cls.hidden.end())
+            cls.propNames.push_back(p.name); // Hidden props omitted from properties()/disp
     cls.superclasses = desc->superclasses;
     cls.propGet = [desc](const Value &self, const std::string &name, Value &out,
                          CallContext &ctx) -> bool {
