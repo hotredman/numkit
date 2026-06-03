@@ -173,11 +173,19 @@ Implements audit/findings/stats/normlike.md.
 
 Structured one-file-per-bug catalog (distinct from the flat append-only
 `BUGS.md` and from the auditor's `audit/findings/**`). **Every bug you find
-gets its own `bugs/<namespace>/<fn>.md`** with a self-contained repro
-(numkit output vs MATLAB R2025b) so any session can act on it cold. See
-[bugs/README.md](bugs/README.md) for the template + index. When you fix a
-bug, flip its file's status to ✅ FIXED with the commit hash and update the
-index row (keep the file as a regression record).
+gets TWO things:**
+
+1. its own `bugs/<namespace>/<fn>.md` with a self-contained repro (numkit
+   output vs MATLAB R2025b) so any session can act on it cold; and
+2. a matching **`DISABLED_` gtest** in `libs/<ns>/tests/known_bugs_test.cpp`
+   asserting the MATLAB-correct behaviour — **found a bug → add a test.**
+   `DISABLED_` keeps the green baseline green (it doesn't run normally) but
+   the test is real: it fails under `--gtest_also_run_disabled_tests` and
+   becomes a live regression guard the instant you remove the prefix.
+
+See [bugs/README.md](bugs/README.md) for the template + index. When you fix
+a bug, remove the test's `DISABLED_` prefix, flip the md status to ✅ FIXED
+with the commit hash, and update the index row (keep the md as a record).
 
 ## Memory
 
