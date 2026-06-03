@@ -1361,8 +1361,13 @@ Value diag(const Value &x, long k, std::pmr::memory_resource *mr)
 // both keys. Unlike min/max there is NO all-real fast path — a COMPLEX-typed
 // all-real input still sorts by |z|+angle (so sort([2 -2]+0i) = [2 -2]).
 std::tuple<Value, Value> sortComplex(const Value &x, int dim, bool descend,
+                                     NanPlace nanPlace,
                                      std::pmr::memory_resource *mr)
 {
+    // NaN side: Auto = first for descending / last for ascending; First/Last
+    // force the side regardless of direction (MATLAB 'MissingPlacement').
+    const bool nanFirst = (nanPlace == NanPlace::Auto) ? descend
+                                                       : (nanPlace == NanPlace::First);
     const size_t R = x.dims().rows(), C = x.dims().cols();
     const size_t P = x.dims().is3D() ? x.dims().pages() : 1;
     const int sortDim = (dim >= 1) ? std::min(dim - 1, 2)
@@ -1391,12 +1396,12 @@ std::tuple<Value, Value> sortComplex(const Value &x, int dim, bool descend,
                     buf[k] = {src[pIdx * R * C + cIdx * R + rIdx], k};
                 }
                 std::stable_sort(buf.begin(), buf.end(),
-                          [descend](const auto &a, const auto &b) {
+                          [descend, nanFirst](const auto &a, const auto &b) {
                               const double am = std::abs(a.first), bm = std::abs(b.first);
                               const bool an = std::isnan(am), bn = std::isnan(bm);
                               if (an || bn) {
                                   if (an && bn) return false;
-                                  return descend ? an : bn;
+                                  return nanFirst ? an : bn;
                               }
                               if (am != bm) return descend ? (am > bm) : (am < bm);
                               const double aa = std::arg(a.first), ba = std::arg(b.first);
@@ -1416,12 +1421,17 @@ std::tuple<Value, Value> sortComplex(const Value &x, int dim, bool descend,
 }
 
 std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
-                              std::pmr::memory_resource *mr)
+                              NanPlace nanPlace, std::pmr::memory_resource *mr)
 {
     if (x.isScalar())
         return std::make_tuple(x, Value::scalar(1.0, mr));
     if (x.type() == ValueType::COMPLEX)
-        return sortComplex(x, dim, descend, mr);
+        return sortComplex(x, dim, descend, nanPlace, mr);
+
+    // NaN side: Auto = first for descending / last for ascending; First/Last
+    // force the side regardless of direction (MATLAB 'MissingPlacement').
+    const bool nanFirst = (nanPlace == NanPlace::Auto) ? descend
+                                                       : (nanPlace == NanPlace::First);
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
     const size_t P = x.dims().is3D() ? x.dims().pages() : 1;
@@ -1455,12 +1465,12 @@ std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
                 // for descend. std::stable_sort keeps the original index
                 // order for ties (matches MATLAB's [s,i]).
                 std::stable_sort(buf.begin(), buf.end(),
-                          [descend](const auto &a, const auto &b) {
+                          [descend, nanFirst](const auto &a, const auto &b) {
                               const double av = a.first, bv = b.first;
                               const bool an = std::isnan(av), bn = std::isnan(bv);
                               if (an || bn) {
                                   if (an && bn) return false;
-                                  return descend ? an : bn;
+                                  return nanFirst ? an : bn;
                               }
                               return descend ? (av > bv) : (av < bv);
                           });
@@ -3249,13 +3259,24 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     // accepts sort(X,direction) and sort(X,dim,direction).
     int dim = -1;
     bool descend = false;
+    NanPlace nanPlace = NanPlace::Auto;
+    auto lower = [](std::string s) {
+        for (char &ch : s) if (ch >= 'A' && ch <= 'Z') ch = char(ch + 32);
+        return s;
+    };
     for (size_t i = 1; i < args.size(); ++i) {
         if (args[i].isEmpty()) continue;
         if (args[i].isChar() || args[i].isString()) {
-            std::string d = args[i].toString();
-            for (char &ch : d) if (ch >= 'A' && ch <= 'Z') ch = char(ch + 32);
+            const std::string d = lower(args[i].toString());
             if (d == "descend") descend = true;
             else if (d == "ascend") descend = false;
+            else if (d == "missingplacement" && i + 1 < args.size()) {
+                const std::string v = lower(args[i + 1].toString());
+                nanPlace = (v == "first") ? NanPlace::First
+                         : (v == "last")  ? NanPlace::Last
+                                          : NanPlace::Auto;
+                ++i;  // consume the placement value
+            }
             // ignore other Name-Value tokens (e.g. ComparisonMethod)
         } else {
             dim = static_cast<int>(args[i].toScalar());
@@ -3268,13 +3289,13 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (isIntegerType(args[0].type())) {
         const ValueType vt = args[0].type();
         Value xd = copyToDouble(args[0], mr);
-        auto [sortedD, idxD] = sort(xd, dim, descend, mr);
+        auto [sortedD, idxD] = sort(xd, dim, descend, nanPlace, mr);
         outs[0] = doubleToIntegerExact(sortedD, vt, mr);
         if (nargout > 1)
             outs[1] = std::move(idxD);
         return;
     }
-    auto [sorted, idx] = sort(args[0], dim, descend, mr);
+    auto [sorted, idx] = sort(args[0], dim, descend, nanPlace, mr);
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);
