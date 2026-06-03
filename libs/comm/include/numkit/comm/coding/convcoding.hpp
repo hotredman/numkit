@@ -93,4 +93,19 @@ Value vitdec(const Value &code, const Value &trellis, long long tblen,
              const std::string &dectype = "hard",
              std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Validate a trellis structure (`tf = istrellis(S)`).
+///
+/// Returns logical `true` iff `S` is a well-formed trellis struct: a 1×1
+/// struct carrying `numInputSymbols`, `numOutputSymbols`, `numStates`
+/// (positive powers of two), and `nextStates` / `outputs` matrices of size
+/// `numStates × numInputSymbols` whose entries lie in `[0, numStates)` and
+/// `[0, numOutputSymbols)` respectively. Any other value → `false` (never
+/// throws). MATLAB's 2nd `msg` output is a v1 gap.
+///
+/// @param S   Value to test.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Logical scalar.
+/// @see poly2trellis
+Value istrellis(const Value &S, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::comm

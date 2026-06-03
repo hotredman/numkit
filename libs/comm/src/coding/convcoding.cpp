@@ -272,6 +272,46 @@ Value vitdec(const Value &code, const Value &trellis, long long /*tblen*/,
     return out;
 }
 
+Value istrellis(const Value &S, std::pmr::memory_resource *mr)
+{
+    auto no = [&]() { return Value::logicalScalar(false, mr); };
+    auto isPow2 = [](double v) {
+        if (v < 1.0 || v != std::floor(v)) return false;
+        const std::uint64_t u = static_cast<std::uint64_t>(v);
+        return (u & (u - 1)) == 0;
+    };
+    if (!S.isStruct() || S.numel() != 1) return no();
+    const auto &el = S.structArrayElem(0);
+    for (const char *f : {"numInputSymbols", "numOutputSymbols", "numStates",
+                          "nextStates", "outputs"})
+        if (el.find(f) == el.end()) return no();
+
+    const Value &nIv = el.at("numInputSymbols");
+    const Value &nOv = el.at("numOutputSymbols");
+    const Value &nSv = el.at("numStates");
+    const Value &ns  = el.at("nextStates");
+    const Value &ou  = el.at("outputs");
+    if (!nIv.isScalar() || !nOv.isScalar() || !nSv.isScalar()) return no();
+    const double nI = nIv.toScalar(), nO = nOv.toScalar(), nS = nSv.toScalar();
+    if (!isPow2(nI) || !isPow2(nO) || !isPow2(nS)) return no();
+
+    if (ns.isStruct() || ns.isCell() || ou.isStruct() || ou.isCell()) return no();
+    const std::size_t Sn = static_cast<std::size_t>(nS);
+    const std::size_t In = static_cast<std::size_t>(nI);
+    if (ns.dims().rows() != Sn || ns.dims().cols() != In ||
+        ou.dims().rows() != Sn || ou.dims().cols() != In)
+        return no();
+
+    const std::size_t N = Sn * In;
+    for (std::size_t i = 0; i < N; ++i) {
+        const double v = ns.elemAsDouble(i);
+        if (v < 0.0 || v >= nS || v != std::floor(v)) return no();
+        const double w = ou.elemAsDouble(i);
+        if (w < 0.0 || w >= nO || w != std::floor(w)) return no();
+    }
+    return Value::logicalScalar(true, mr);
+}
+
 namespace detail {
 
 void poly2trellis_reg(Span<const Value> args, size_t /*nargout*/,
@@ -315,6 +355,15 @@ void vitdec_reg(Span<const Value> args, size_t /*nargout*/,
             ? args[4].toString() : std::string("hard");
     outs[0] = vitdec(args[0], args[1], tblen, opmode, dectype,
                      ctx.engine->resource());
+}
+
+void istrellis_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("istrellis: requires 1 argument",
+                    0, 0, "istrellis", "", "numkit:istrellis:nargin");
+    outs[0] = istrellis(args[0], ctx.engine->resource());
 }
 
 } // namespace detail

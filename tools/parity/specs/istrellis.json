@@ -1,0 +1,10 @@
+{
+  "name": "istrellis",
+  "namespace": "comm",
+  "setup": "t = poly2trellis(3,[6 7]); a = double(istrellis(t)); b = double(istrellis(struct('x',1))); c = double(istrellis(5));",
+  "expr": "y = 0;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["a", "b", "c"],
+  "comment": "Sig: tf = istrellis(S). Validates a trellis struct: poly2trellis output -> 1 (a); a plain struct/scalar -> 0 (b, c). New (Error Correction Codes) 2026-06. MATLAB R2025b -batch may crash on comm-toolbox shutdown; istrellis verified via gtest + smoke."
+}
