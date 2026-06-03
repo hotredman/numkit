@@ -1583,21 +1583,22 @@ void Engine::setVariable(const std::string &name, Value val)
 }
 Value *Engine::getVariable(const std::string &name)
 {
-    // NOTE (deep audit): this consults globalsEnv_ unconditionally, which leaks
-    // a function's `global G; G=5` into the base workspace (who / IDE variable
-    // viewer). The correct gate is `workspaceEnv_->isGlobal(name)`, BUT that
-    // alone breaks the legitimate case (`global gv` then read gv) because a
-    // VM top-level `global X` does not currently propagate its global-membership
-    // back into workspaceEnv_->globals_ (only globalsEnv_ gets the value). Fix
-    // requires that membership sync first; deferred to avoid regressing real
-    // global use. See FrameIntrospectionEdgesTest.GlobalInsideEvalinBase.
-    Value *gs = globalsEnv_->get(name);
-    if (gs && !gs->isUnset()) {
-        // Sync to workspaceEnv if different
-        Value *ge = workspaceEnv_->get(name);
-        if (!ge || ge->isUnset() || ge != gs)
-            workspaceEnv_->set(name, *gs);
-        return workspaceEnv_->get(name);
+    // A name resolves to the global store ONLY when the BASE workspace has
+    // itself declared it global (top-level `global X`). This gate is what stops
+    // a function's `global G; G=5` from leaking into the base workspace's
+    // who/exist/IDE-viewer view: globalsEnv_ holds G's value, but the base
+    // never declared G global, so it is not visible from here.
+    //
+    // Base-scope global membership is tracked per engine: the TreeWalker
+    // records it in workspaceEnv_->globals_ (execGlobalPersistent), the VM in
+    // topLevelGlobals_ (runOneChunk's updateTopLevelGlobals). A function's
+    // `global G` lands in neither (its decl belongs to the function's own
+    // chunk/scope), so the gate excludes it. See
+    // FrameIntrospectionEdgesTest.GlobalInsideEvalinBase.
+    if (workspaceEnv_->isGlobal(name) || topLevelGlobals_.count(name)) {
+        Value *gs = globalsEnv_->get(name);
+        if (gs && !gs->isUnset())
+            return gs;
     }
     return workspaceEnv_->get(name);
 }

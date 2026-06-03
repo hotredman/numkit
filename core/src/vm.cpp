@@ -2328,7 +2328,11 @@ void VM::exportTopLevelVariables()
             lastVarMap_.push_back({name, topFrame.R[reg]});
     }
 
-    // Export global declarations to globalsEnv (same logic as popCallFrame top-level path)
+    // Export top-level global declarations to globalsEnv_ (the value store) and
+    // mirror into workspaceEnv_ so the base workspace's who / variable viewer
+    // sees them. This is the legitimate base-scope path; the leak fix lives in
+    // popCallFrame's function branch (which must NOT mirror) and in
+    // Engine::getVariable's global-membership gate.
     for (auto &gname : topFrame.chunk->globalNames) {
         for (auto &[vname, reg] : topFrame.chunk->varMap) {
             if (vname == gname && reg < topFrame.nregs) {
@@ -2776,7 +2780,12 @@ void VM::popCallFrame(Value retVal)
 
     bool isTopLevel = (frames_.size() == 1);
 
-    // Export global variables back to globalsEnv
+    // Export global variables back to globalsEnv_ (the global value store).
+    // A top-level `global X` ALSO mirrors into workspaceEnv_ so the base
+    // workspace's who/viewer sees it. A function-scope `global X` must write
+    // ONLY globalsEnv_ — mirroring it into workspaceEnv_ is what leaked the
+    // name into the base workspace (exist/who). Reads of a base-undeclared
+    // global are blocked by Engine::getVariable's global-membership gate.
     for (auto &gname : frame.chunk->globalNames) {
         for (auto &[vname, reg] : frame.chunk->varMap) {
             if (vname == gname && reg < frame.nregs) {
@@ -2789,7 +2798,6 @@ void VM::popCallFrame(Value retVal)
                         engine_.workspaceEnv_->set(gname, *gsVal);
                 } else {
                     engine_.globalsEnv_->set(gname, frame.R[reg]);
-                    engine_.workspaceEnv_->set(gname, frame.R[reg]);
                 }
                 break;
             }
