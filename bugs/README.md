@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (50 entries):** ✅ 10 fixed · 🔴 40 open = **15 bug** + 6 stub +
+**Tally (52 entries):** ✅ 10 fixed · 🔴 42 open = **17 bug** + 6 stub +
 5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -139,11 +139,13 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 14
+### 🔴 OPEN — bug (defect on an implemented function) — 17
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(x,k[,'first'/'last']) ignores count + direction → all indices |
+| [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod throw on complex input |
+| [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm of a complex array throws (vecnorm works) |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
 | [stats/pdist-metrics](stats/pdist-metrics.md) | P2 | 'seuclidean'/'spearman' metrics missing + cosine zero-vector → 1 not NaN |

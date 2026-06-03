@@ -91,3 +91,14 @@ TEST_F(BuiltinKnownBug, DISABLED_FindCountDirection)
     EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 4.0);
     EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 5.0);
 }
+
+// bugs/builtin/cumsum-complex.md — cumsum/cumprod on complex input.
+TEST_F(BuiltinKnownBug, DISABLED_CumsumComplex)
+{
+    eval("c = cumsum([1+1i 2+2i]);");            // MATLAB: [1+1i, 3+3i]
+    EXPECT_NEAR(evalScalar("real(c(2))"), 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(c(2))"), 3.0, 1e-12);
+    eval("p = cumprod([1+1i 1-1i]);");           // MATLAB: [1+1i, 2+0i]
+    EXPECT_NEAR(evalScalar("real(p(2))"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(p(2))"), 0.0, 1e-12);
+}
