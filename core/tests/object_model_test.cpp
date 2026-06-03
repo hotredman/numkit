@@ -612,6 +612,48 @@ TEST_P(ObjectArrayTest, LinearAssignInto2DPreservesShape)
     EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 77.0);
 }
 
+TEST_P(ObjectArrayTest, Reshape)
+{
+    engine.eval("b = reshape([Box(1) Box(2) Box(3) Box(4)], 2, 2);");
+    EXPECT_EQ(evalStr("class(b)"), "Box");
+    EXPECT_DOUBLE_EQ(evalScalar("b(2,1).v"), 2.0); // column-major preserved
+    EXPECT_DOUBLE_EQ(evalScalar("b(1,2).v"), 3.0);
+}
+TEST_P(ObjectArrayTest, DeleteLinear)
+{
+    engine.eval("a=[Box(1) Box(2) Box(3)]; a(2)=[];");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(a)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1).v"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2).v"), 3.0);
+}
+TEST_P(ObjectArrayTest, DeleteColumn)
+{
+    engine.eval("a=[Box(1) Box(2); Box(3) Box(4)]; a(:,2)=[];");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,1).v"), 3.0);
+}
+TEST_P(ObjectArrayTest, DeleteRow)
+{
+    engine.eval("a=[Box(1) Box(2); Box(3) Box(4)]; a(1,:)=[];");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,1).v"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2).v"), 4.0);
+}
+TEST_P(ObjectArrayTest, TransposeVector)
+{
+    engine.eval("r = [Box(1) Box(2) Box(3)]; c = r.';");
+    EXPECT_DOUBLE_EQ(evalScalar("size(c,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(c,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2).v"), 2.0);
+}
+TEST_P(ObjectArrayTest, TransposeMatrix)
+{
+    engine.eval("m = [Box(1) Box(2); Box(3) Box(4)]; t = m';");
+    EXPECT_DOUBLE_EQ(evalScalar("t(1,2).v"), 3.0); // t(1,2) = m(2,1) = 3
+    EXPECT_DOUBLE_EQ(evalScalar("t(2,1).v"), 2.0); // t(2,1) = m(1,2) = 2
+}
+
 TEST_P(ObjectArrayTest, SliceAssignColumn)
 {
     engine.eval("a = [Box(1) Box(2); Box(3) Box(4)];"

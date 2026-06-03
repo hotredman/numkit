@@ -1819,6 +1819,17 @@ void Value::indexDelete(const size_t *indices, size_t count, std::pmr::memory_re
         return;
     }
 
+    if (t == ValueType::OBJECT) {
+        std::vector<size_t> kept;
+        kept.reserve(remaining);
+        for (size_t i = 0; i < n; ++i)
+            if (!del[i])
+                kept.push_back(i);
+        Dims rd = isRow ? Dims(size_t{1}, remaining) : Dims(remaining, size_t{1});
+        *this = objectGather(kept.data(), rd, mr);
+        return;
+    }
+
     size_t es = elementSize(t);
     auto result = isRow ? Value::matrix(1, remaining, t, mr)
                         : Value::matrix(remaining, 1, t, mr);
@@ -1869,6 +1880,14 @@ void Value::indexDelete2D(const size_t *rowIdx, size_t nrows,
                     ri++;
                 }
             *this = std::move(result);
+        } else if (t == ValueType::OBJECT) {
+            std::vector<size_t> kept;
+            kept.reserve(newR * C);
+            for (size_t c = 0; c < C; ++c)
+                for (size_t r = 0; r < R; ++r)
+                    if (!delR[r])
+                        kept.push_back(c * R + r);
+            *this = objectGather(kept.data(), Dims(newR, C), mr);
         } else {
             size_t es = elementSize(t);
             auto result = Value::matrix(newR, C, t, mr);
@@ -1906,6 +1925,14 @@ void Value::indexDelete2D(const size_t *rowIdx, size_t nrows,
                     ci++;
                 }
             *this = std::move(result);
+        } else if (t == ValueType::OBJECT) {
+            std::vector<size_t> kept;
+            kept.reserve(R * newC);
+            for (size_t c = 0; c < C; ++c)
+                if (!delC[c])
+                    for (size_t r = 0; r < R; ++r)
+                        kept.push_back(c * R + r);
+            *this = objectGather(kept.data(), Dims(R, newC), mr);
         } else {
             size_t es = elementSize(t);
             auto result = Value::matrix(R, newC, t, mr);
@@ -2347,6 +2374,31 @@ Value Value::objectSubArray(const std::vector<size_t> &idxs,
     // 1-D linear selection: one index → 1×1 scalar; several → 1×N row.
     Dims d = (idxs.size() == 1) ? Dims(1, 1) : Dims(size_t{1}, idxs.size());
     return objectGather(idxs.data(), d, mr);
+}
+
+Value Value::objectReshape(const Dims &newDims, std::pmr::memory_resource *mr) const
+{
+    if (!isObject())
+        return Value();
+    // Identity gather (column-major order preserved) into the new shape.
+    const size_t n = heap_->objStates.size();
+    std::vector<size_t> idx(n);
+    for (size_t i = 0; i < n; ++i)
+        idx[i] = i;
+    return objectGather(idx.data(), newDims, mr);
+}
+
+Value Value::objectTranspose(std::pmr::memory_resource *mr) const
+{
+    if (!isObject())
+        return Value();
+    const size_t R = heap_->dims.rows(), C = heap_->dims.cols();
+    std::vector<size_t> src(R * C);
+    // result is C×R; result(i,j) [col-major k=j*C+i] = src(j,i) [k=i*R+j].
+    for (size_t j = 0; j < R; ++j)     // result columns
+        for (size_t i = 0; i < C; ++i) // result rows
+            src[j * C + i] = i * R + j;
+    return objectGather(src.data(), Dims(C, R), mr);
 }
 
 // Make *this a fresh empty (0×0) object array of `proto`'s class, if it is
