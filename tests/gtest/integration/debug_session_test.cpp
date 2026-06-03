@@ -379,6 +379,36 @@ TEST_F(DebugSessionTest, BreakInsideCellfunCallback)
     EXPECT_DOUBLE_EQ(engine.eval("y(3)").toScalar(), 30.0);
 }
 
+// Same proof for arrayfun: a breakpoint inside an arrayfun callback pauses on
+// each element and resumes (state-machine callbacks over an array input).
+TEST_F(DebugSessionTest, BreakInsideArrayfunCallback)
+{
+    engine.eval(
+        "function r = dbgArrCb(x)\n" // 1
+        "\n"                         // 2
+        "\n"                         // 3
+        "  r = x + 100;\n"          // 4
+        "end\n");                    // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code =
+        "a = [1 2 3];\n"                 // 1
+        "y = arrayfun(@dbgArrCb, a);\n"; // 2  callbacks run as pausable VM frames
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "arrayfun callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 10) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_EQ(pauses, 3); // one breakpoint hit per array element
+    EXPECT_DOUBLE_EQ(engine.eval("y(1)").toScalar(), 101.0);
+    EXPECT_DOUBLE_EQ(engine.eval("y(3)").toScalar(), 103.0);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);
