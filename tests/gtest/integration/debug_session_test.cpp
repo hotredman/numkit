@@ -510,6 +510,34 @@ TEST_F(DebugSessionTest, BreakInsideBsxfunCallback)
     EXPECT_DOUBLE_EQ(engine.eval("y(3)").toScalar(), 13.0);
 }
 
+// bootstrp: the per-replicate statistic pauses on each bootstrap sample.
+// The statistic ignores the (random) sample so the result is deterministic.
+TEST_F(DebugSessionTest, BreakInsideBootstrpCallback)
+{
+    engine.eval(
+        "function r = dbgBoot(s)\n" // 1
+        "\n"                        // 2
+        "\n"                        // 3
+        "  r = 42;\n"             // 4
+        "end\n");                   // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "y = bootstrp(3, @dbgBoot, [1;2;3;4;5]);\n"; // 1
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "bootstrp callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 20) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_EQ(pauses, 3); // one per bootstrap replicate
+    EXPECT_DOUBLE_EQ(engine.eval("y(1)").toScalar(), 42.0);
+    EXPECT_DOUBLE_EQ(engine.eval("numel(y)").toScalar(), 3.0);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

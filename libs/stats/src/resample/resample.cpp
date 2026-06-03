@@ -4,9 +4,11 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 
+#include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/vm.hpp>
 
 #include <algorithm>
 #include <cstring>
@@ -312,6 +314,59 @@ static Value resampleRows(const Value &X, const int *idx, int N, std::pmr::memor
     return out;
 }
 
+// State-machine bootstrp (VM_CALLBACKS_PLAN.md): run each bootstrap replicate's
+// statistic as a pausable VM frame. Each sample is drawn lazily in makeArgs (so
+// the RNG draw order is interleaved with the callbacks, matching the synchronous
+// bootstrp_reg). Builtin handles / multi-output / bad args fall back to sync.
+struct BootstrpCallbackBuiltin : ::numkit::CallbackBuiltin
+{
+    std::shared_ptr<::numkit::VmContinuation> tryStart(Span<const Value> args,
+                                                       std::size_t nargout, Value *dest,
+                                                       Engine &eng) override
+    {
+        if (args.size() < 3 || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[1]))
+            return nullptr; // builtin handle → synchronous bootstrp
+        const int nboot = (int)args[0].toScalar();
+        if (nboot < 1)
+            return nullptr; // sync path reports badN
+        auto *mr = eng.resource();
+        Value X = args[2];
+        const int N = static_cast<int>(X.dims().dim(0));
+        if (N == 0)
+            return nullptr; // sync path reports empty
+        auto cont = std::make_shared<::numkit::LoopContinuation>();
+        cont->handle = args[1];
+        cont->n = static_cast<std::size_t>(nboot);
+        cont->dest = dest;
+        cont->makeArgs = [X, N, mr](std::size_t) -> std::vector<Value> {
+            std::vector<int> idx(static_cast<std::size_t>(N));
+            drawBootstrapIndices(N, idx.data());
+            return {resampleRows(X, idx.data(), N, mr)};
+        };
+        cont->pack = [mr](std::vector<Value> &results) -> Value {
+            const std::size_t nb = results.size();
+            const std::size_t K = results.empty() ? 0 : results[0].numel();
+            if (K == 0)
+                throw Error("bootstrp: bootfun returned empty", 0, 0, "bootstrp", "",
+                            "numkit:bootstrp:emptyStat");
+            auto out = Value::matrix(nb, K, ValueType::DOUBLE, mr);
+            double *od = out.doubleDataMut();
+            for (std::size_t b = 0; b < nb; ++b) {
+                if (results[b].numel() != K)
+                    throw Error("bootstrp: bootfun returned varying-size output", 0, 0, "bootstrp",
+                                "", "numkit:bootstrp:varyingStat");
+                for (std::size_t j = 0; j < K; ++j)
+                    od[b + j * nb] = results[b].elemAsDouble(j);
+            }
+            return out;
+        };
+        cont->results.reserve(cont->n);
+        return cont;
+    }
+};
+
 void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
 {
@@ -552,4 +607,11 @@ void combnk_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
+
+void registerBootstrpCallbackBuiltin(Engine &engine)
+{
+    engine.registerCallbackBuiltin("bootstrp",
+                                   std::make_shared<detail::BootstrpCallbackBuiltin>());
+}
+
 } // namespace numkit::stats

@@ -420,6 +420,12 @@ void copulacdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 namespace numkit {
 
+// Defined in resample/resample.cpp — registers bootstrp's VM-continuation
+// driver (state-machine callbacks).
+namespace stats {
+void registerBootstrpCallbackBuiltin(Engine &engine);
+}
+
 void StatsLibrary::install(Engine &engine)
 {
     // Local helper: stats is a MATLAB-mirror library, every function
@@ -712,6 +718,7 @@ void StatsLibrary::install(Engine &engine)
     reg("resample", "randsample", &stats::detail::randsample_reg);
     reg("resample", "datasample", &stats::detail::datasample_reg);
     reg("resample", "bootstrp",   &stats::detail::bootstrp_reg);
+    stats::registerBootstrpCallbackBuiltin(engine); // VM-pausable callbacks
     reg("resample", "bootci",     &stats::detail::bootci_reg);
     reg("resample", "crossval",   &stats::detail::crossval_reg);
     reg("resample", "jackknife",  &stats::detail::jackknife_reg);
