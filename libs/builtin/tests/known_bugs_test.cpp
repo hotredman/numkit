@@ -49,10 +49,5 @@ TEST_F(BuiltinKnownBug, DISABLED_UniqueLast)
     EXPECT_DOUBLE_EQ(evalScalar("ia(3)"), 5.0);   // value 3, last at idx 5
 }
 
-// bugs/builtin/max-all-linear.md — max over all + linear index.
-TEST_F(BuiltinKnownBug, DISABLED_MaxAllLinear)
-{
-    eval("[m, i] = max([3 1; 4 1; 2 9], [], 'all', 'linear');");
-    EXPECT_DOUBLE_EQ(evalScalar("m"), 9.0);
-    EXPECT_DOUBLE_EQ(evalScalar("i"), 6.0);
-}
+// bugs/builtin/max-all-linear.md — FIXED (max/min over 'all'); the live
+// test is MathReductionsBatchTest.MaxMinAll in math_reductions_batch_test.cpp.

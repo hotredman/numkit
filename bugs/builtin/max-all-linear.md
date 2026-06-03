@@ -1,35 +1,37 @@
-# builtin.max / min — 'all' + 'linear' combined option errors
+# builtin.max / min — the 'all' option was entirely broken
 
-- **Status:** 🔴 OPEN
-- **Severity:** P2 (missing option combo)
+- **Status:** ✅ FIXED (lib-dev, 2026-06)
+- **Severity:** P1 (very common idiom threw)
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom
-`[m, i] = max(A, [], 'all', 'linear')` (max over all elements, returning the
-linear index) throws. `max(A,[],'all')` and `max(A,[],dim,'linear')` each
-work alone — only the combination fails.
+`max(A, [], 'all')` and `min(A, [], 'all')` — reduce over EVERY element, a
+very common idiom — threw "Cannot convert char to scalar". (Originally
+mis-filed as only the `'all','linear'` combo; in fact plain `'all'` failed
+too, on 2-D and N-D alike. `sum(A,'all')` worked, but max/min did not.)
 
-## Repro
+## Repro (pre-fix)
 ```matlab
-[m, i] = max([3 1; 4 1; 2 9], [], 'all', 'linear')
-% numkit: Error — Cannot convert char to scalar
-% MATLAB: m = 9, i = 6   (linear index of the 9 at (3,2))
+max([1 2; 3 4], [], 'all')                 % numkit: Error "Cannot convert char to scalar"
+[m, i] = max([3 1; 4 1; 2 9], [], 'all')   % MATLAB: m = 9, i = 6 (linear index)
+max(reshape(1:24,2,3,4), [], 'all')        % MATLAB: 24
 ```
 
 ## Root cause
-The max/min argument parser (`libs/builtin/src/math/arithmetic/
-reductions.cpp`) handles a single trailing option string but mis-parses the
-second one: after consuming `'all'` it treats `'linear'` as the `dim`
-argument and calls `toScalar` on the char vector → "Cannot convert char to
-scalar".
+`max_reg`/`min_reg` (`libs/builtin/src/math/arithmetic/reductions.cpp`)
+parsed the reduction dim with `args[2].toScalar()`, which throws on the
+`'all'` char vector. There was no 'all' (reduce-all-elements) path.
 
-## Suggested fix
-In the max/min option parser, accept BOTH `'all'` and `'linear'` trailing
-strings (in either order), and when both are present return the linear index
-into the flattened array (the index `i` such that `A(i) == m`). Moderate —
-the reducer's all-reduction already finds the max; it needs to also report
-the flat index. Validate `m` and `i` vs MATLAB for 2-D and 3-D inputs.
+## Fix
+Detect the `'all'` string in `max_reg`/`min_reg`; reduce over the flattened
+array (`reshape(A, numel, 1)` then the existing min/max reduce). The column
+position IS the linear index — matching MATLAB's `'all'` 2nd output (always
+linear), so `'all'` and `'all','linear'` give the same result. Works for
+2-D, N-D, and `'omitnan'`. 4 artefacts: impl + parity correctness=OK
+(max_min_all.json) + gtest (MathReductionsBatchTest.MaxMinAll) + smoke.
 
 ## References
-- `libs/builtin/src/math/arithmetic/reductions.cpp` (max/min arg parsing)
+- `libs/builtin/src/math/arithmetic/reductions.cpp` (max_reg, min_reg)
+- `tools/parity/specs/max_min_all.json`
+- `libs/builtin/tests/math_reductions_batch_test.cpp`
 - MATLAB `doc max` ('all', 'linear')
