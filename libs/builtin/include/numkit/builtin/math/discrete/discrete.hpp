@@ -241,4 +241,62 @@ Value factorial(const Value &n, std::pmr::memory_resource *mr = nullptr);
 /// @see perms
 Value nchoosek(double n, double k, std::pmr::memory_resource *mr = nullptr);
 
+// ── Tolerance-aware set operations ────────────────────────────────────
+
+/// @brief Set symmetric difference (`c = setxor(a, b)`).
+///
+/// Sorted unique elements that appear in exactly one of `a` or `b`. This is
+/// the element-wise form; the script-level `'rows'` option and the
+/// `(ia, ib)` index outputs are handled by the adapter, not this entry.
+///
+/// @param a   First input array.
+/// @param b   Second input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Sorted unique symmetric difference.
+Value setxor(const Value &a, const Value &b,
+             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief True if every element is distinct (`tf = allunique(x)`).
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Logical scalar (`true` when `x` has no repeated values).
+/// @see numunique
+Value allunique(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Count of distinct elements (`n = numunique(x)`).
+///
+/// @param x   Input array.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    Scalar number of unique values.
+/// @see allunique
+Value numunique(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Tolerance-aware set membership (`tf = ismembertol(a, s, tol)`).
+///
+/// Logical mask (shape of `a`) marking each element of `a` that lies within
+/// `tol` of some element of `s`.
+///
+/// @param a    Query array.
+/// @param s    Set array.
+/// @param tol  Absolute tolerance (default `1e-6`).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Logical mask shaped like `a`.
+/// @see uniquetol
+Value ismembertol(const Value &a, const Value &s, double tol = 1e-6,
+                  std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Tolerance-aware unique (`u = uniquetol(x, tol)`).
+///
+/// Unique values of `x`, collapsing entries that lie within `tol` of one
+/// another.
+///
+/// @param x    Input array.
+/// @param tol  Absolute tolerance (default `1e-6`).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Sorted, tolerance-collapsed unique values.
+/// @see ismembertol
+Value uniquetol(const Value &x, double tol = 1e-6,
+                std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::builtin
