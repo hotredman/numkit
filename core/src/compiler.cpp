@@ -1279,10 +1279,12 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         else if (op == "-")  result = lv - rv;
         else if (op == "*")  result = lv * rv;
         else if (op == "/")  result = lv / rv;
-        else if (op == "^")  result = std::pow(lv, rv);
+        // negative base ^ non-integer exp is complex in MATLAB — don't
+        // constant-fold to a real NaN; let it run through power() at runtime.
+        else if (op == "^")  { if (lv < 0.0 && rv != std::floor(rv)) folded = false; else result = std::pow(lv, rv); }
         else if (op == ".*") result = lv * rv;
         else if (op == "./") result = lv / rv;
-        else if (op == ".^") result = std::pow(lv, rv);
+        else if (op == ".^") { if (lv < 0.0 && rv != std::floor(rv)) folded = false; else result = std::pow(lv, rv); }
         else folded = false;
         if (folded) {
             int16_t idx = addConstant(result);

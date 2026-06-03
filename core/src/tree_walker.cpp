@@ -480,6 +480,9 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
             out.setScalarFast(lv / rv);
             return true;
         } else if (opStr == ".^") {
+            // negative base ^ non-integer exp -> complex; let the full path handle it.
+            if (lv < 0.0 && rv != std::floor(rv))
+                return false;
             out.setScalarFast(std::pow(lv, rv));
             return true;
         } else if (opStr == "<=") {
