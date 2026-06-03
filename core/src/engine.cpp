@@ -929,7 +929,42 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
         } else if (ast->type == NodeType::FUNCTION_DEF && ast->strValue == leafName) {
             funcDef = ast.get();
         }
-        if (!funcDef) continue;
+
+        // classdef file `Name.m`: register the class and a constructor
+        // external under `name` so this very call resolves (subsequent calls
+        // hit findClass directly). Mirrors the FUNCTION_DEF path's caching.
+        if (!funcDef) {
+            const ASTNode *classDef = nullptr;
+            if (ast->type == NodeType::BLOCK) {
+                for (const auto &c : ast->children)
+                    if (c && c->type == NodeType::CLASSDEF_DEF && c->strValue == leafName) {
+                        classDef = c.get();
+                        break;
+                    }
+            } else if (ast->type == NodeType::CLASSDEF_DEF && ast->strValue == leafName) {
+                classDef = ast.get();
+            }
+            if (classDef) {
+                registerClassDef(classDef);
+                const std::string cn = leafName;
+                registerFunction(name, [cn](Span<const Value> args, size_t, Span<Value> outs,
+                                            CallContext &ctx) {
+                    const BuiltinClass *c = ctx.engine->findClass(cn);
+                    if (!c || !c->construct)
+                        throw std::runtime_error("classdef '" + cn
+                                                 + "' has no constructor");
+                    outs[0] = c->construct(args, ctx);
+                });
+                MFileCacheEntry ce;
+                ce.fullPath = userPath;
+                if (auto st = rp.fs->stat(rp.path))
+                    ce.mtime = st->mtime;
+                ce.sourceCode = std::make_shared<const std::string>(std::move(content));
+                mFileCache_[name] = std::move(ce);
+                return nullptr; // class + ctor-external resolve the call
+            }
+            continue;
+        }
 
         // Build UserFunction (mirrors TreeWalker::execFunctionDef). We
         // store under the QUALIFIED key (`name`) so multiple packages

@@ -30,8 +30,25 @@ method dispatch / value-semantics all ride the machinery above.
   `Engine::invokeClassMethod` / `invokeClassCtor` regardless of the active
   backend (v1; VM-compiled method bodies are a later optimisation).
 
-v1 limit: value classes only (no `< handle` semantics yet beyond the flag,
-no inheritance, no attributes/Static/Dependent, no get/set accessors).
+Production coverage (all both-engine tested):
+- **Value & handle classes** (`< handle` → reference semantics via the
+  clone rule).
+- **Inheritance** (`< Base`): base properties/defaults/methods/constructor
+  merged at registration (derived overrides win); transitive ancestry
+  drives `isa`.
+- **Static methods** (`methods (Static)`) and **Constant properties**
+  (`properties (Constant)`) exposed as `ClassName.member` (qualified
+  externals); bare `ClassName.Const` resolves via the qualified-field path.
+- **Introspection**: `class`, `isa(x,'Name'|'Base'|category)`, `isobject`,
+  `properties(x)`, `methods(x)`.
+- **File-based classes**: a `Name.m` containing a classdef is loaded on
+  demand from the path (resolveMFile_), registering the class + a
+  constructor external.
+
+Not yet: explicit superclass call `obj@Base(...)`, `get.Prop`/`set.Prop`
+accessor methods, `Dependent` properties, `Access`/`Static` *enforcement*
+(attributes are parsed; only Static/Constant change dispatch). Method
+bodies run on the TreeWalker under either backend (VM compilation later).
 
 ## Object arrays
 

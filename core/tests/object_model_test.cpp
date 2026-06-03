@@ -11,6 +11,8 @@
 #include <numkit/builtin/library.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <memory_resource>
 
@@ -856,6 +858,25 @@ TEST_P(ClassdefTest, ValueCopyIsIndependent)
     EXPECT_DOUBLE_EQ(evalScalar("q.x"), 3.0) << "value class — copy independent";
     EXPECT_DOUBLE_EQ(evalScalar("p.x"), 99.0);
 }
+TEST_P(ClassdefTest, Introspection)
+{
+    engine.eval("p = Pt(3, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("isobject(p)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isobject(5)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(properties(p))"), 2.0);   // x, y
+    EXPECT_DOUBLE_EQ(evalScalar("numel(properties('Pt'))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(methods(p))"), 2.0);      // mag, scale
+}
+TEST_P(ClassdefTest, ErrorOnUnknownProperty)
+{
+    engine.eval("p = Pt(3, 4);");
+    EXPECT_THROW(engine.eval("y = p.zzz;"), std::exception);
+}
+TEST_P(ClassdefTest, ErrorOnUnknownMethod)
+{
+    engine.eval("p = Pt(3, 4);");
+    EXPECT_THROW(engine.eval("y = p.nosuch();"), std::exception);
+}
 INSTANTIATE_TEST_SUITE_P(Backends, ClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
@@ -1014,6 +1035,33 @@ TEST_P(AttrClassdefTest, StaticMethodComposed)
 INSTANTIATE_TEST_SUITE_P(Backends, AttrClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
+
+// ── classdef loaded from a Name.m file on the path ──
+TEST(ClassdefMFile, LoadFromFile)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_classdef_mfile_test";
+    fs::create_directories(dir);
+    {
+        std::ofstream f(dir / "Vec2.m");
+        f << "classdef Vec2\n"
+             "  properties\n    x = 0\n    y = 0\n  end\n"
+             "  methods\n"
+             "    function obj = Vec2(a, b)\n      obj.x = a;\n      obj.y = b;\n    end\n"
+             "    function s = sumsq(obj)\n      s = obj.x^2 + obj.y^2;\n    end\n"
+             "  end\n"
+             "end\n";
+    }
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        EXPECT_DOUBLE_EQ(engine.eval("v = Vec2(3, 4); v.x").toScalar(), 3.0);
+        EXPECT_DOUBLE_EQ(engine.eval("v.sumsq()").toScalar(), 25.0);
+        EXPECT_EQ(engine.eval("class(v)").toString(), "Vec2");
+    }
+    fs::remove_all(dir);
+}
 
 // Object-array display goes through Engine::formatObjectDisplay (shared by
 // both engines), so test it directly on a C++-built array.
