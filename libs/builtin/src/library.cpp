@@ -143,6 +143,7 @@ void polyval_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void trapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // fzero / fminbnd / fminsearch moved to libs/optim (see OptimLibrary::install)
 void integral_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void gk15_nodes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void roots_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyint_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -676,6 +677,9 @@ namespace numkit {
 // driver (state-machine callbacks).
 namespace builtin {
 void registerSplitapplyCallbackBuiltin(Engine &engine);
+// Defined in math/integration/integration.cpp — installs the `.m` integral
+// wrapper (pausable integrand; the C++ Value integral(...) API stays).
+void registerIntegralM(Engine &engine);
 }
 
 
@@ -845,7 +849,10 @@ void BuiltinLibrary::install(Engine &engine)
             if (args.size() >= 3) outs[0] = args[2];
             else outs[0] = Value();
         });
-    engine.registerFunction("integral",  &builtin::detail::integral_reg);
+    // integral is an embedded `.m` wrapper (pausable integrand,
+    // VM_CALLBACKS_PLAN.md); __gk15_nodes is its C++ node/weight primitive.
+    engine.registerFunction("__gk15_nodes", &builtin::detail::gk15_nodes_reg);
+    builtin::registerIntegralM(engine);
     engine.registerFunction("roots",     &builtin::detail::roots_reg);
     engine.registerFunction("polyder",   &builtin::detail::polyder_reg);
     engine.registerFunction("polyint",   &builtin::detail::polyint_reg);

@@ -494,6 +494,28 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         outs[0] = cumtrapzMatrixCols(ys.doubleData(), dx, rows, cols, mr);
 }
 
+// C++ primitive for the embedded-.m integral: returns the Gauss-Kronrod-15
+// abscissae + weights (NO f-calls). The .m wrapper does the f-evaluations and
+// the adaptive recursion, so the integrand is pausable. xk/wk: 15-vectors,
+// wg: the 7 Gauss weights. (VM_CALLBACKS_PLAN.md)
+void gk15_nodes_reg(Span<const Value> /*args*/, size_t /*nargout*/, Span<Value> outs,
+                    CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    Value xk = Value::matrix(1, 15, ValueType::DOUBLE, mr);
+    Value wk = Value::matrix(1, 15, ValueType::DOUBLE, mr);
+    Value wg = Value::matrix(1, 7, ValueType::DOUBLE, mr);
+    for (int i = 0; i < 15; ++i) {
+        xk.doubleDataMut()[i] = kKronrodX[i];
+        wk.doubleDataMut()[i] = kKronrodW[i];
+    }
+    for (int i = 0; i < 7; ++i)
+        wg.doubleDataMut()[i] = kGaussW[i];
+    if (outs.size() >= 1) outs[0] = std::move(xk);
+    if (outs.size() >= 2) outs[1] = std::move(wk);
+    if (outs.size() >= 3) outs[2] = std::move(wg);
+}
+
 void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
@@ -559,6 +581,77 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 }
 
 } // namespace detail
+
+// ── integral as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ───────────────
+// The registered integral is implemented in `.m`: the integrand is evaluated
+// from bytecode (pausable), and the adaptive Gauss-Kronrod recursion is the
+// natural `.m` recursion. The `__gk15_nodes` C++ primitive supplies the
+// abscissae/weights (no f-calls); the per-node accumulation mirrors the C++
+// gaussKronrod15 loop exactly (fused K/G in node order) so results are
+// bit-identical to the synchronous `Value integral(...)` API, which is retained.
+static const char *kIntegralMSource = R"NKM(
+function r = integral(fn, a, b, opt, optval)
+  if ~(strcmp(class(fn), 'function_handle') || iscell(fn))
+    error('numkit:integral:fnType', 'integral: 1st argument must be a function handle');
+  end
+  absTol = 1e-10;
+  if nargin >= 4
+    if nargin < 5
+      error('numkit:integral:badFlag', 'integral: option name without a value');
+    end
+    if ~strcmp(lower(opt), 'abstol')
+      error('numkit:integral:badFlag', 'integral: unsupported option');
+    end
+    absTol = optval;
+  end
+  if ~(isfinite(a) && isfinite(b))
+    error('numkit:integral:badBounds', 'integral: bounds must be finite');
+  end
+  if absTol <= 0
+    error('numkit:integral:badTol', 'integral: absTol must be positive');
+  end
+  sgn = 1;
+  if b < a
+    t = a; a = b; b = t; sgn = -1;
+  end
+  if a == b
+    r = 0; return;
+  end
+  [xk, wk, wg] = __gk15_nodes();
+  r = sgn * nk_adaptint(fn, a, b, absTol, 0, xk, wk, wg);
+end
+
+function [K, G] = nk_gk15(fn, a, b, xk, wk, wg)
+  half = 0.5*(b - a);
+  mid = 0.5*(b + a);
+  K = 0; G = 0; gi = 1;
+  for j = 1:15
+    fvj = fn(mid + half*xk(j));
+    K = K + wk(j)*fvj;
+    if mod(j, 2) == 0
+      G = G + wg(gi)*fvj;
+      gi = gi + 1;
+    end
+  end
+  K = half*K;
+  G = half*G;
+end
+
+function r = nk_adaptint(fn, a, b, tol, depth, xk, wk, wg)
+  [K, G] = nk_gk15(fn, a, b, xk, wk, wg);
+  if abs(K - G) < tol || depth >= 20
+    r = K;
+    return;
+  end
+  mid = 0.5*(a + b);
+  r = nk_adaptint(fn, a, mid, tol*0.5, depth+1, xk, wk, wg) + nk_adaptint(fn, mid, b, tol*0.5, depth+1, xk, wk, wg);
+end
+)NKM";
+
+void registerIntegralM(Engine &engine)
+{
+    engine.registerBuiltinMSource(kIntegralMSource);
+}
 
 // ════════════════════════════════════════════════════════════════════════
 // trapz (moved from libs/fit) — uniform-spacing trapezoidal integration.

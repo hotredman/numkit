@@ -374,11 +374,22 @@ stays as the synchronous path for embedders. This is how real MATLAB ships these
   **Proven**: `DebugSessionTest.BreakInsideFzeroObjective` (breakpoint inside the
   objective pauses per Brent eval, `y ≈ 2`); all 20 fzero dual-engine tests
   green; full suite 10939. The C++ `Value fzero(...)` API is retained.
-- **Remaining (same pattern, follow-up):** `integral`, `ode23`/`ode45`,
-  `nlinfit`, `fminsearch` — port each user-facing builtin to embedded `.m`
-  (calling small C++ primitives for the heavy non-f numerics, e.g.
-  `__gk15_nodes` for integral). Until then they stay on `callReentrant`
-  (breakpoints fire but cannot suspend).
+- **integral (done)** — registered via `builtin::registerIntegralM` (embedded
+  `.m` adaptive Gauss-Kronrod recursion in `math/integration/integration.cpp`).
+  A C++ primitive `__gk15_nodes` supplies the abscissae/weights (no f-calls);
+  the `.m` does the per-node f-evaluations + recursion. The fused per-node K/G
+  accumulation mirrors the C++ `gaussKronrod15` loop in node order, so results
+  are bit-identical to the retained `Value integral(...)` API. `'AbsTol'` option
+  + reversed/equal bounds + finite/positive-tol checks match the C++.
+  **Proven**: `DebugSessionTest.BreakInsideIntegralIntegrand` (breakpoint inside
+  the integrand pauses on each GK15 node, `y ≈ 1/3`); all 22 integral
+  dual-engine tests green; full suite 10940.
+  - **Note:** numkit does not bind `varargin` when no extra args are passed, so
+    embedded `.m` builtins use fixed optional params (`function r = integral(fn,
+    a, b, opt, optval)` + `nargin` guards) rather than `varargin`.
+- **Remaining (same pattern, follow-up):** `ode23`/`ode45`, `nlinfit`,
+  `fminsearch` — port each user-facing builtin to embedded `.m`. Until then they
+  stay on `callReentrant` (breakpoints fire but cannot suspend).
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a
