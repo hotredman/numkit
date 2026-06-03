@@ -190,6 +190,36 @@ TEST_F(DebugSessionTest, BreakInsideFunctionHandleCall)
     EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 42.0);
 }
 
+// Proof that a `get.Prop` accessor body runs on the VM (P4): a breakpoint
+// inside the getter pauses. The getter is a same-stack VM frame (no C++
+// re-entry), so pause/resume works fully.
+TEST_F(DebugSessionTest, BreakInsideClassdefGetter)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({8}); // `tmp = o.base * 2;` inside get.scaled
+    std::string code =
+        "classdef DbgGet\n"            // 1
+        "  properties\n"               // 2
+        "    base = 10\n"             // 3
+        "    scaled = 0\n"            // 4
+        "  end\n"                      // 5
+        "  methods\n"                  // 6
+        "    function v = get.scaled(o)\n" // 7
+        "      tmp = o.base * 2;\n"    // 8  <- breakpoint
+        "      v = tmp + 1;\n"         // 9
+        "    end\n"                    // 10
+        "  end\n"                      // 11
+        "end\n"                        // 12
+        "g = DbgGet();\n"              // 13
+        "y = g.scaled;\n";             // 14  read triggers get.scaled
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "getter body did not run on the VM";
+    EXPECT_EQ(session.snapshot().line, 8);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 21.0); // 10*2 + 1
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

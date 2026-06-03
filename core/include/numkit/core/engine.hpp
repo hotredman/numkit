@@ -87,6 +87,19 @@ public:
     // (no-op for a public method). Used by the VM frame-dispatch path, which
     // bypasses the C++ method hook that would otherwise run the check.
     void enforceMethodAccess(const std::string &className, const std::string &method);
+    // A classdef property's `get.Prop` / `set.Prop` accessor UserFunction, or
+    // nullptr when the property has none (plain stored property) / the class is
+    // not a classdef. Used by the VM FIELD_GET/FIELD_SET opcode handlers to run
+    // an accessor body as a same-stack VM frame (pausable) instead of the C++
+    // propGet/propSet hook. enforceProp{Get,Set}Access enforces the property's
+    // GetAccess/SetAccess from the current context before the accessor runs
+    // (the access half that the propGet/propSet hook would otherwise perform).
+    const UserFunction *classGetter(const std::string &className,
+                                    const std::string &prop) const;
+    const UserFunction *classSetter(const std::string &className,
+                                    const std::string &prop) const;
+    void enforcePropGetAccess(const std::string &className, const std::string &prop);
+    void enforcePropSetAccess(const std::string &className, const std::string &prop);
     // Superclass-qualified calls from inside a classdef body
     // (`obj@Base(args)` / `method@Base(obj, args)`). superConstruct runs
     // Base's constructor with `seed` as the partially-built object and
