@@ -437,18 +437,23 @@ enter_frame:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     double base = asScalar(R[I.b]);
                     double exp = asScalar(R[I.c]);
-                    double result;
-                    if (exp == 2.0)
-                        result = base * base;
-                    else if (exp == 3.0)
-                        result = base * base * base;
-                    else if (exp == 0.5)
-                        result = std::sqrt(base);
-                    else if (exp == -1.0)
-                        result = 1.0 / base;
-                    else
-                        result = std::pow(base, exp);
-                    R[I.a].setScalarFast(result);
+                    if (base < 0.0 && exp != std::floor(exp)) {
+                        // negative base ^ non-integer exp -> complex; defer to power().
+                        R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    } else {
+                        double result;
+                        if (exp == 2.0)
+                            result = base * base;
+                        else if (exp == 3.0)
+                            result = base * base * base;
+                        else if (exp == 0.5)
+                            result = std::sqrt(base);
+                        else if (exp == -1.0)
+                            result = 1.0 / base;
+                        else
+                            result = std::pow(base, exp);
+                        R[I.a].setScalarFast(result);
+                    }
                 } else
                     R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
@@ -469,6 +474,11 @@ enter_frame:
             case OpCode::POW_SS: {
                 double base = R[I.b].scalarVal();
                 double exp = R[I.c].scalarVal();
+                if (base < 0.0 && exp != std::floor(exp)) {
+                    // negative base ^ non-integer exp -> complex; defer to power().
+                    R[I.a] = binarySlowPath(OpCode::EPOW, R[I.b], R[I.c]);
+                    break;
+                }
                 double result;
                 if (exp == 2.0)
                     result = base * base;

@@ -619,7 +619,7 @@ together.
 | `pagemtimes` | ✅ | Sig: C = pagemtimes(A, B). 20×20×20 batch matmul. 100 iters. |
 | `pagetranspose` | ✅ | 128x64x8 array, page-wise transpose. 100 iters. |
 | `plus` | ✅ | Sig: r = plus(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
-| `power` | ✅ | Sig: r = power(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
+| `power` | ✅ | Sig: r = power(...). Arithmetic op. A negative real base ^ non-integer exponent is COMPLEX like MATLAB: (-8)^(1/3)=1+1.732i (c1r=1, c1i=sqrt3), power([-8 8 -27],1/3)=[1+1.73i, 2, 1.5+2.60i]. Arrays promote per-pair: [-8 8].^[2 0.5] stays real (rp=1), [-8 8].^[0.5 2] is complex (cx=1). Integer exp / positive base stay real. Fixed 2026-06 (was real NaN across the power subsystem). |
 | `prod` | ✅ 🔬 | Sig: r = prod(...). Spec-extension batch 2026-05-09 — auditor "no major gap detected" verified bit-identical MATLAB R2025b. DEEP-PROBE 2026-05-29: empty-input identities — prod([])=1 (scalar, numel 1, NOT 1x0); partial empty keeps per-column shape: prod(zeros(0,3))=[1 1 1]. |
 | `rdivide` | ✅ | Sig: r = rdivide(...). Arithmetic op. Spec-extension batch 2026-05-09. Fingerprints scalar-only. |
 | `rem` | ✅ | Sig: r = rem(...). INTEGER input keeps the class: rem(int8(-7),int8(3))=-1 int8 (rem uses truncation toward zero, so the sign follows the dividend), rem(uint8(200),uint8(7))=4 uint8. numkit previously returned double / threw on integer arrays; fixed 2026-05-30. Spec-extension batch 2026-05-09 + integer-class. |
