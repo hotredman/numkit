@@ -114,8 +114,12 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 | [linalg/qr-pivoting](linalg/qr-pivoting.md) | P2 | 🔴 OPEN | column-pivoting [Q,R,P] missing |
 | [linalg/eig-left-vectors](linalg/eig-left-vectors.md) | P2 | 🔴 OPEN | 3rd output W (left eigenvectors) missing |
 | [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | 🔴 OPEN | automatic binning unsupported |
-| [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | 🔴 OPEN | p-value/cv wrong (statistic OK) |
+| [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | 🔴 OPEN | p-value/cv wrong (kstest + kstest2; statistic OK) |
 | [stats/friedman](stats/friedman.md) | P2 | 🔴 OPEN | function missing |
+| [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | 🔴 OPEN | [r,p]=corr missing the p-value output |
+| [stats/dwtest-pvalue](stats/dwtest-pvalue.md) | P2 | 🔴 OPEN | DW statistic OK, p-value method differs |
+| [stats/mahal-singular](stats/mahal-singular.md) | P2 | 🔴 OPEN | throws on rank-deficient reference |
+| [stats/combnk-scalar](stats/combnk-scalar.md) | P3 | 🔴 OPEN | scalar arg expanded to 1:N |
 | [builtin/unique-last](builtin/unique-last.md) | P1 | 🔴 OPEN | 'last' option ignored (ia = first occurrence) |
 | [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | 🔴 OPEN | wrong numerator for repeated poles |
 | [signal/stmcb](signal/stmcb.md) | P2 | 🔴 OPEN | function missing |

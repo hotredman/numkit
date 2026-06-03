@@ -31,10 +31,15 @@ lines ~175-214), falling back to the corrected asymptotic
 NOT simple. Implement the exact small-n KS distribution (Marsaglia-Tsang-Wang
 matrix method) for the p-value, and the Miller exact critical-value table
 (spline-interpolated in α) for `cv`; use the corrected asymptotic for large
-n. Validate p and cv vs MATLAB across n = 5…200. Related (separate, minor):
-jbtest / adtest match MATLAB inside the usable range but their tail
-p-values are not clamped to MATLAB's documented table bounds
-([0.001, 0.5] for jbtest) — a cosmetic tail difference, lower priority.
+n. Validate p and cv vs MATLAB across n = 5…200.
+
+**`kstest2` has the same defect** (found 2026-06): the 2-sample KS
+statistic is correct but the p-value diverges —
+`kstest2([1 2 3 4 5],[2 3 4 5 6 7])` gives ks=0.3333 (correct) but p=0.9223
+vs MATLAB 0.8471. Same fix family (asymptotic vs exact/corrected KS
+distribution). Related (separate, minor): jbtest / adtest match MATLAB
+inside the usable range but their tail p-values are not clamped to MATLAB's
+documented table bounds ([0.001, 0.5] for jbtest) — cosmetic, lower priority.
 
 ## References
 - `libs/stats/src/.../kstest*`
