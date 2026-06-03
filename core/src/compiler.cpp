@@ -2275,10 +2275,46 @@ uint8_t Compiler::compileFieldAccess(const ASTNode *node)
             const bool isLocalVar = varRegisters_.find(rootName) != varRegisters_.end();
             const bool isWsVar = engine_.workspaceEnv().getLocal(rootName) != nullptr;
             if (!isLocalVar && !isWsVar) {
+                // Split into dotted segments. Normally the whole name is one
+                // qualified reference (`pkg.sub.fn`, `Class.Const`). But when
+                // the full name is NOT registered yet a proper prefix IS
+                // (e.g. an enum member `Weekday.Monday`), that prefix is a
+                // VALUE and the trailing segments are field accesses on it
+                // (`Weekday.Monday.num` → (Weekday.Monday).num). If nothing is
+                // registered, keep the single CALL — the runtime resolves it
+                // (an m-file qualified name loaded lazily).
+                std::vector<std::string> segs;
+                for (size_t s = 0, e; s < qualified.size(); s = e + 1) {
+                    e = qualified.find('.', s);
+                    if (e == std::string::npos)
+                        e = qualified.size();
+                    segs.push_back(qualified.substr(s, e - s));
+                }
+                auto join = [&](size_t n) {
+                    std::string r = segs[0];
+                    for (size_t i = 1; i < n; ++i)
+                        r += "." + segs[i];
+                    return r;
+                };
+                size_t prefixLen = segs.size(); // default: the whole name
+                if (segs.size() >= 3 && !engine_.hasExternalFunction(qualified))
+                    for (size_t k = segs.size() - 1; k >= 2; --k)
+                        if (engine_.hasExternalFunction(join(k))) {
+                            prefixLen = k;
+                            break;
+                        }
                 uint8_t dst = tempReg();
                 uint8_t argBase = nextReg_;
-                int16_t funcIdx = addStringConstant(qualified);
+                int16_t funcIdx = addStringConstant(join(prefixLen));
                 emit(Instruction::make_abcde(OpCode::CALL, dst, argBase, 0, funcIdx, 0));
+                // Trailing segments (if the prefix was a value) → field reads.
+                for (size_t i = prefixLen; i < segs.size(); ++i) {
+                    uint8_t nd = tempReg();
+                    int16_t nameIdx = addStringConstant(segs[i]);
+                    emitABC(OpCode::FIELD_GET, nd, dst, 0);
+                    chunk_.code.back().d = nameIdx;
+                    dst = nd;
+                }
                 return dst;
             }
         }

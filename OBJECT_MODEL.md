@@ -115,8 +115,7 @@ Production coverage (all both-engine tested):
 Not yet: access **class lists** (`Access = ?Other`), `Hidden` / `Sealed`,
 `events` / listeners, and in-session class **redefinition** (the registry is
 idempotent). Method bodies run on the TreeWalker under either backend (VM
-compilation of method bodies later). Chained field access on a qualified
-external (`Weekday.Monday.num`) works on the TreeWalker but not yet the VM.
+compilation of method bodies later).
 
 ## Object arrays
 
