@@ -628,6 +628,10 @@ void Lexer::readIdentifier()
         {"catch", TokenType::KW_CATCH},
         {"global", TokenType::KW_GLOBAL},
         {"persistent", TokenType::KW_PERSISTENT},
+        // `classdef` is reserved in MATLAB. `properties`/`methods`/`events`/
+        // `enumeration` are NOT keywords (they're introspection builtins);
+        // the classdef parser recognises them contextually as section heads.
+        {"classdef", TokenType::KW_CLASSDEF},
     };
 
     auto it = keywords.find(word);

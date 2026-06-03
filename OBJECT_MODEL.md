@@ -5,9 +5,33 @@ properties, constructors, methods, subsref/subsasgn indexing,
 `dictionary` + `containers.Map`, object display, multi-output methods,
 binary + unary operator overloading, **N-D object arrays** — array-backed
 storage + builtin `()` index read/write with grow + concatenation
-`[a b]`/`[a;b]` + `[arr.prop]` CSL + array display) — both engines, on
-`core-dev`. Owner: CORE. Remaining: `image.*` objects, user `classdef`
-authoring.
+`[a b]`/`[a;b]` + `[arr.prop]` CSL + array display, **user `classdef`** —
+value classes: properties+defaults, constructor, methods) — both engines,
+on `core-dev`. Owner: CORE. Remaining: classdef handle classes /
+inheritance / attributes, `image.*` objects.
+
+## User classdef (Phase 1: value classes)
+
+`classdef Name … end` is a thin front-end over the existing object model
+— it just feeds the class registry, so construct / property get-set /
+method dispatch / value-semantics all ride the machinery above.
+
+- **Parse**: lexer reserves `classdef` (but NOT `properties`/`methods`,
+  which stay introspection builtins — the classdef parser recognises them
+  contextually). `Parser::parseClassDef` → `CLASSDEF_DEF` (strValue=name,
+  paramNames=superclasses, children = `CLASSDEF_PROPERTY` + `FUNCTION_DEF`).
+- **Register** (`Engine::registerClassDef`, idempotent, from both
+  `execNode` and the compiler): builds a `BuiltinClass` whose `propGet`/
+  `propSet` are generic over `ObjectState.props`; `construct` default-inits
+  the declared properties then runs the user constructor with `obj`
+  pre-seeded (MATLAB's implicit init); each method becomes a hook that
+  invokes the method's `UserFunction` with `self` prepended.
+- **Run**: method/constructor bodies execute on the TreeWalker via
+  `Engine::invokeClassMethod` / `invokeClassCtor` regardless of the active
+  backend (v1; VM-compiled method bodies are a later optimisation).
+
+v1 limit: value classes only (no `< handle` semantics yet beyond the flag,
+no inheritance, no attributes/Static/Dependent, no get/set accessors).
 
 ## Object arrays
 

@@ -50,6 +50,20 @@ public:
                                               Environment *env,
                                               size_t nout);
 
+    // classdef support (runs method/constructor bodies on the TreeWalker
+    // regardless of the active backend; the object dispatch that calls
+    // these may originate in the VM). `runClassMethod` passes args verbatim
+    // (the caller already prepends `self`). `runClassCtor` pre-seeds the
+    // constructor's output variable with the default-constructed instance
+    // (MATLAB's implicit `obj` initialisation), then returns it.
+    std::vector<Value> runClassMethod(const UserFunction &uf, Span<const Value> args,
+                                      size_t nout);
+    Value runClassCtor(const UserFunction &ctor, const Value &seed,
+                       Span<const Value> args);
+    // Evaluate a standalone expression AST (used for classdef property
+    // default values at registration time).
+    Value evalExpressionPublic(const ASTNode *expr, Environment *env);
+
 private:
     Engine &engine_;
 
