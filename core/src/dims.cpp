@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <new>
 #include <stdexcept>
 #include <string>
 
@@ -47,6 +48,8 @@ void Dims::setND(const size_t *dims, int nd)
     if (nd > kInlineCap) {
         const int extra = nd - kInlineCap;
         heap_ = static_cast<size_t *>(std::malloc(extra * sizeof(size_t)));
+        if (!heap_)
+            throw std::bad_alloc(); // don't memcpy into a null buffer on OOM
         std::memcpy(heap_, dims + kInlineCap, extra * sizeof(size_t));
     }
 }
@@ -65,6 +68,8 @@ Dims::Dims(const Dims &o) : heap_(nullptr), nd_(o.nd_)
     if (o.heap_) {
         const int extra = nd_ - kInlineCap;
         heap_ = static_cast<size_t *>(std::malloc(extra * sizeof(size_t)));
+        if (!heap_)
+            throw std::bad_alloc(); // don't memcpy into a null buffer on OOM
         std::memcpy(heap_, o.heap_, extra * sizeof(size_t));
     }
 }
@@ -86,6 +91,8 @@ Dims &Dims::operator=(const Dims &o)
     if (o.heap_) {
         const int extra = nd_ - kInlineCap;
         heap_ = static_cast<size_t *>(std::malloc(extra * sizeof(size_t)));
+        if (!heap_)
+            throw std::bad_alloc(); // don't memcpy into a null buffer on OOM
         std::memcpy(heap_, o.heap_, extra * sizeof(size_t));
     }
     return *this;
