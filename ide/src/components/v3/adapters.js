@@ -39,6 +39,7 @@ function parseLineSpec(s) {
       else if (key === 'fillOpacity' || key === 'fillopacity') out.fillOpacity = Number(val);
       else if (key === 'smoothNormals' || key === 'smoothnormals') out.smoothNormals = (val === '1' || val === 'true');
       else if (key === 'cometAnim' || key === 'cometanim') out.cometAnim = (val === '1' || val === 'true');
+      else if (key === 'filled') out.filled = (val === '1' || val === 'true' || val === '');
     }
     return out;
   }
@@ -547,6 +548,9 @@ function datasetToLayer(d, palette_idx, ctx) {
     // path render; lineStyle='-' default still applies when no marker.
     lineStyle: styleObj.lineStyle || (styleObj.marker ? 'none' : '-'),
     marker: styleObj.marker || (t === 'scatter' ? 'o' : null),
+    // MATLAB markers are open by default; scatter(...,'filled') / MarkerFaceColor
+    // fill them. The engine emits filled=1 in the style string when set.
+    filled: !!styleObj.filled,
     // comet animation hint — when true, CompositePlot animates the
     // polyline progressively via RAF on first mount.
     cometAnim: !!styleObj.cometAnim,

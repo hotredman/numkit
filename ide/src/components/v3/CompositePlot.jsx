@@ -29,16 +29,17 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
-import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange } from './plotUtils';
+import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange, previewStride } from './plotUtils';
 import { niceTicks, logTicks, applyTickFormat, fmtTick } from './plotTicks';
 import { decimateSeries, buildPyramid, decimateLOD } from './decimate';
 import GLChart from './glplot/GLChart';
 import { isWebGL2Available } from './glplot/glcontext';
 import { makeProjection } from './glplot/projection';
 import {
-  selectGLSeries, glOverlayEnabled, glFlagFromStorage, selectGLBigSeries,
+  selectGLSeries, glRoutable, glFlagFromStorage, selectGLBigSeries,
 } from './glplot/route';
 import { packXY } from './glplot/pack';
+import { renderGLPreviewDataURL } from './glplot/previewRaster';
 
 // Route a line/stairs layer to the WebGL overlay once it has more than this
 // many points (and the full data lives in JS — downsampled previews stay on
@@ -52,30 +53,32 @@ const DASH_FOR = { '-': undefined, '--': '6,4', ':': '1,3', '-.': '6,3,1,3' };
 
 // SVG marker glyph dispatcher used by both line-overlay and scatter
 // modes. r is the half-size in pixels (matches MATLAB MarkerSize ≈ r).
-function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
-  const stroke = 'var(--plot-frame)';
-  const sw = 0.6;
+function MarkerGlyph({ marker, cx, cy, r, color, idx, filled = false }) {
+  // MATLAB markers are OPEN (outline in the series colour) by default; `filled`
+  // fills them. '+'/'x'/'*' are always strokes; '.' is a small filled dot.
+  const fillC = filled ? color : 'none';
+  const sw = filled ? 0.6 : 1.4;
   switch (marker) {
     case 'o':
-      return <circle key={idx} cx={cx} cy={cy} r={r} fill={color} stroke={stroke} strokeWidth={sw} />;
+      return <circle key={idx} cx={cx} cy={cy} r={r} fill={fillC} stroke={color} strokeWidth={sw} />;
     case 's':
       return <rect key={idx} x={cx - r} y={cy - r} width={r * 2} height={r * 2}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case 'd':
       return <path key={idx} d={`M${cx},${cy - r} L${cx + r},${cy} L${cx},${cy + r} L${cx - r},${cy} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case '^':
       return <path key={idx} d={`M${cx},${cy - r} L${cx + r},${cy + r} L${cx - r},${cy + r} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case 'v':
       return <path key={idx} d={`M${cx},${cy + r} L${cx + r},${cy - r} L${cx - r},${cy - r} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case '<':
       return <path key={idx} d={`M${cx - r},${cy} L${cx + r},${cy - r} L${cx + r},${cy + r} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case '>':
       return <path key={idx} d={`M${cx + r},${cy} L${cx - r},${cy - r} L${cx - r},${cy + r} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case 'p': {  // pentagon (5-pointed) — approximate
       const pts = [];
       for (let k = 0; k < 5; k++) {
@@ -83,7 +86,7 @@ function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
         pts.push(`${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`);
       }
       return <polygon key={idx} points={pts.join(' ')}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     }
     case 'h': {  // hexagon
       const pts = [];
@@ -92,7 +95,7 @@ function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
         pts.push(`${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`);
       }
       return <polygon key={idx} points={pts.join(' ')}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     }
     case '+':
       return (
@@ -121,7 +124,7 @@ function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
       return <circle key={idx} cx={cx} cy={cy} r={Math.max(1, r * 0.4)}
         fill={color} stroke="none" />;
     default:
-      return <circle key={idx} cx={cx} cy={cy} r={r} fill={color} stroke={stroke} strokeWidth={sw} />;
+      return <circle key={idx} cx={cx} cy={cy} r={r} fill={fillC} stroke={color} strokeWidth={sw} />;
   }
 }
 
@@ -1443,20 +1446,19 @@ export default function CompositePlot({
   //   • engine-downsampled layers (>1M)       → selectGLBigSeries + a GPU-LOD
   //     decimated tile (see the glBig effect): bounded ~4*W points at any zoom,
   //     so no overdraw at full zoom-out and pan within the padded tile is O(1).
-  // GL is interactive-window only — preview cards (interactive=false) keep the
-  // SVG decimation path (scarce WebGL contexts; dense raw reads as a fill at
-  // thumbnail size). See glOverlayEnabled().
+  // GL is used whenever the flag + WebGL2 hold. The interactive window draws a
+  // live GL overlay; non-interactive preview cards rasterize the SAME GL series
+  // to an SVG <image> (previewRaster, one shared context) so previews match the
+  // window pixel-for-pixel without a WebGL context per card.
   const glFlag = glFlagFromStorage(
     typeof localStorage !== 'undefined' ? localStorage : null,
   );
-  const glEnabled = glOverlayEnabled({
-    interactive, flag: glFlag, webgl2: isWebGL2Available(),
-  });
+  const glUsable = glRoutable(glFlag, isWebGL2Available());
   const glState = useMemo(() => (
-    glEnabled
+    glUsable
       ? selectGLSeries(figure.layers, GL_MIN_POINTS)
       : { routed: new Set(), series: [] }
-  ), [figure.layers, glEnabled]);
+  ), [figure.layers, glUsable]);
   // >1M series: GPU LOD. Draw an engine-decimated tile (~4*W points) via GL
   // rather than all N raw points — at full zoom-out that's a min/max envelope,
   // not 50M overlapping segments, so there's no overdraw and the VBO stays
@@ -1474,7 +1476,7 @@ export default function CompositePlot({
       glBigCovRef.current = {};
       setGlBig((prev) => (prev.series.length ? { routed: new Set(), series: [] } : prev));
     };
-    if (!glEnabled || !engine || typeof engine.getSeriesTile !== 'function') { clear(); return undefined; }
+    if (!glUsable || !engine || typeof engine.getSeriesTile !== 'function') { clear(); return undefined; }
     const descs = selectGLBigSeries(figure.layers);
     if (!descs.length) { clear(); return undefined; }
     const vspan = xMax - xMin;
@@ -1504,7 +1506,10 @@ export default function CompositePlot({
         const t = engine.getSeriesTile(d.figId, d.axIdx, d.dsIdx, lo, hi, wbins, DECIM_ALGO);
         if (!t || t.error || !Array.isArray(t.x) || !t.x.length) continue;
         const packed = packXY(t.x, t.y);
-        series.push({ data: packed.data, segments: packed.segments, color: d.color });
+        series.push({ data: packed.data, segments: packed.segments, color: d.color, mode: 'line', marker: -1 });
+        if (d.marker >= 0) {   // marked >1M line → the decimated tile is the markers too
+          series.push({ data: packed.data, segments: packed.segments, color: d.color, mode: 'scatter', size: d.size, marker: d.marker, filled: d.filled });
+        }
         routed.add(d.idx);
         nextCov[d.idx] = { lo, hi, vspan };
       }
@@ -1513,9 +1518,9 @@ export default function CompositePlot({
       setGlBig({ routed, series });
     }, 50);
     return () => { cancelled = true; clearTimeout(h); };
-  }, [figure.layers, glEnabled, engine, xMin, xMax, W]);
+  }, [figure.layers, glUsable, engine, xMin, xMax, W]);
   // Union of both GL paths: hooks below skip these layer indices; the renderer
-  // draws them on the canvas overlay.
+  // (live overlay or preview <image>) draws them.
   const glRouted = useMemo(
     () => new Set([...glState.routed, ...glBig.routed]),
     [glState, glBig],
@@ -1525,6 +1530,8 @@ export default function CompositePlot({
     [glState, glBig],
   );
   const glActive = glSeries.length > 0;
+  const glLive = glActive && interactive;        // live GL canvas overlay
+  const glPreview = glActive && !interactive;    // rasterize to an SVG <image>
 
   // Phase 2c — refetch decimated tiles for engine-downsampled (huge) line
   // series on viewport / width / algorithm change, debounced so wheel-zoom
@@ -1663,6 +1670,17 @@ export default function CompositePlot({
   }), [xMin, xMax, yMin, yMax, xLogActive, yLogActive, xRev, yRev]);
   const glPlotRect = { x: padL, y: padT, w: W, h: H };
   const glDpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  // Preview cards (non-interactive) rasterize the GL series to a PNG via the
+  // shared offscreen context and embed it as an SVG <image> — identical to the
+  // live overlay but inside the SVG (export-safe) and contextless. Re-rendered
+  // only when data / projection / size change (a thumbnail is static).
+  const [previewImg, setPreviewImg] = useState(null);
+  useEffect(() => {
+    if (!glPreview) { setPreviewImg(null); return; }
+    setPreviewImg(renderGLPreviewDataURL({
+      series: glSeries, proj: glProj, pxW: W, pxH: H, dpr: glDpr,
+    }));
+  }, [glPreview, glSeries, glProj, W, H, glDpr]);
 
   return (
     <>
@@ -1675,7 +1693,7 @@ export default function CompositePlot({
         preview · downsampled from {hFullRows}×{hFullCols}
       </div>
     )}
-    <div style={glActive
+    <div style={glLive
         ? { position: 'relative', width: '100%', height: '100%' }
         : { display: 'contents' }}>
     <svg
@@ -1890,6 +1908,10 @@ export default function CompositePlot({
           doesn't bleed into colorbar / axis margins. */}
       {(seriesLayers.length > 0 || textLayers.length > 0) && (
         <g clipPath={`url(#${clipId})`}>
+          {previewImg && (
+            <image href={previewImg} x={padL} y={padT} width={W} height={H}
+              preserveAspectRatio="none" />
+          )}
           {layers.map((ly, idx) => {
             if (glRouted.has(idx)) return null;                // drawn on the WebGL overlay
             if (ly.kind === 'heatmap') return null;            // image already drawn above
@@ -1932,18 +1954,20 @@ export default function CompositePlot({
               if (mode === 'scatter') {
                 const mk = ly.marker || 'o';
                 const r = ly.size || 3;
-                return (
-                  <g key={`ly${idx}`} opacity={op}>
-                    {ly.x.map((xv, i) => {
-                      const yv = ly.y[i];
-                      if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
-                      const px = sx(xv), py = mySy(yv);
-                      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
-                      return <MarkerGlyph key={i} idx={i} marker={mk}
-                        cx={px} cy={py} r={r} color={ly.color} />;
-                    })}
-                  </g>
-                );
+                // Preview thumbnails subsample: one SVG node per marker would
+                // jank the window at 100k+ points (interactive uses GL).
+                const N = ly.x.length;
+                const step = previewStride(N, interactive);
+                const markers = [];
+                for (let i = 0; i < N; i += step) {
+                  const xv = ly.x[i], yv = ly.y[i];
+                  if (!Number.isFinite(xv) || !Number.isFinite(yv)) continue;
+                  const px = sx(xv), py = mySy(yv);
+                  if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+                  markers.push(<MarkerGlyph key={i} idx={i} marker={mk}
+                    cx={px} cy={py} r={r} color={ly.color} filled={ly.filled} />);
+                }
+                return <g key={`ly${idx}`} opacity={op}>{markers}</g>;
               }
               if (mode === 'stem') {
                 return (
@@ -2226,7 +2250,7 @@ export default function CompositePlot({
                   )}
                   {ly.marker && markerPts.map((p, i) => (
                     <MarkerGlyph key={`m${i}`} idx={i} marker={ly.marker}
-                      cx={p.px} cy={p.py} r={r} color={ly.color} />
+                      cx={p.px} cy={p.py} r={r} color={ly.color} filled={ly.filled} />
                   ))}
                 </g>
               );
@@ -2479,7 +2503,7 @@ export default function CompositePlot({
         </g>
       )}
     </svg>
-    {glActive && (
+    {glLive && (
       <GLChart series={glSeries} proj={glProj} plotRect={glPlotRect}
         width={width} height={height} dpr={glDpr} />
     )}

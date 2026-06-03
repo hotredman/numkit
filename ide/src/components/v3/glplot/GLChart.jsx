@@ -14,7 +14,7 @@ import { GLPlotRenderer } from './GLPlotRenderer';
 //   plotRect — { x, y, w, h } in viewBox units (the axes box)
 //   width, height — viewBox size (shared with the SVG)
 //   dpr      — devicePixelRatio
-export default function GLChart({ series, proj, plotRect, width, height, dpr = 1 }) {
+export default function GLChart({ series, proj, plotRect, width, height, dpr = 1, clip = null }) {
   const canvasRef = useRef(null);
   const rendRef = useRef(null);
 
@@ -49,8 +49,10 @@ export default function GLChart({ series, proj, plotRect, width, height, dpr = 1
     gl.enable(gl.SCISSOR_TEST);
     gl.scissor(vp.x, vp.y, vp.w, vp.h);
     rend.setProjection(proj);
+    rend.setPixelRatio(dpr);   // scatter marker size = radius × dpr (framebuffer px)
+    rend.setClip(clip);        // polar disc clip (cx,cy,radius); null = cartesian
     rend.draw();
-  }, [series, proj, plotRect, width, height, dpr]);
+  }, [series, proj, plotRect, width, height, dpr, clip]);
 
   return (
     <canvas
