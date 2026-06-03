@@ -1105,6 +1105,75 @@ INSTANTIATE_TEST_SUITE_P(Backends, AccessorClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── isprop / ismethod / superclasses (class introspection builtins) ──
+class IntrospectClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Animal\n"
+            "  properties\n    name = 'a'\n  end\n"
+            "  methods\n    function s = speak(obj)\n      s = 'generic';\n    end\n  end\n"
+            "end\n");
+        engine.eval(
+            "classdef Dog < Animal\n"
+            "  properties\n    breed = 'mutt'\n  end\n"
+            "  methods\n    function s = fetch(obj)\n      s = 'ball';\n    end\n  end\n"
+            "end\n");
+    }
+    Value eval(const std::string &c) { return engine.eval(c); }
+    bool evalBool(const std::string &c) { return engine.eval(c).toScalar() != 0.0; }
+};
+
+TEST_P(IntrospectClassdefTest, IspropOwnInheritedAndMissing)
+{
+    eval("d = Dog;");
+    EXPECT_TRUE(evalBool("isprop(d, 'breed')"));  // own property
+    EXPECT_TRUE(evalBool("isprop(d, 'name')"));   // inherited from Animal
+    EXPECT_FALSE(evalBool("isprop(d, 'nope')"));  // absent
+    EXPECT_FALSE(evalBool("isprop(3, 'x')"));     // non-object → false (not an error)
+}
+
+TEST_P(IntrospectClassdefTest, IsmethodOwnInheritedAndClassName)
+{
+    eval("d = Dog;");
+    EXPECT_TRUE(evalBool("ismethod(d, 'fetch')")); // own method
+    EXPECT_TRUE(evalBool("ismethod(d, 'speak')")); // inherited
+    EXPECT_FALSE(evalBool("ismethod(d, 'nope')"));
+    EXPECT_TRUE(evalBool("ismethod('Dog', 'speak')")); // class-name form
+    EXPECT_FALSE(evalBool("ismethod(d, 'breed')"));     // a property, not a method
+}
+
+TEST_P(IntrospectClassdefTest, SuperclassesList)
+{
+    Value sc = eval("superclasses('Dog')");
+    ASSERT_EQ(sc.numel(), 1u);
+    EXPECT_EQ(sc.cellAt(0).toString(), "Animal");
+    EXPECT_EQ(eval("superclasses('Animal')").numel(), 0u); // no ancestors
+}
+
+TEST_P(IntrospectClassdefTest, IspropAndIsmethodAcceptCellstr)
+{
+    eval("d = Dog;");
+    Value r = eval("isprop(d, {'name', 'nope', 'breed'})");
+    ASSERT_EQ(r.numel(), 3u);
+    EXPECT_NE(r.logicalData()[0], 0); // name
+    EXPECT_EQ(r.logicalData()[1], 0); // nope
+    EXPECT_NE(r.logicalData()[2], 0); // breed
+    Value m = eval("ismethod(d, {'speak', 'fetch', 'nope'})");
+    ASSERT_EQ(m.numel(), 3u);
+    EXPECT_NE(m.logicalData()[0], 0); // speak
+    EXPECT_NE(m.logicalData()[1], 0); // fetch
+    EXPECT_EQ(m.logicalData()[2], 0); // nope
+}
+
+INSTANTIATE_TEST_SUITE_P(Backends, IntrospectClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef superclass calls: obj@Base(args) + method@Base(obj,...) ──
 class SuperCallClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
