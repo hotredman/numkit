@@ -459,6 +459,57 @@ TEST_F(DebugSessionTest, BreakInsideFevalCallback)
     EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 43.0); // 50 - 7
 }
 
+// splitapply: the per-group callback pauses on each group and resumes.
+TEST_F(DebugSessionTest, BreakInsideSplitapplyCallback)
+{
+    engine.eval(
+        "function r = dbgGrpCb(x)\n" // 1
+        "\n"                         // 2
+        "\n"                         // 3
+        "  r = sum(x);\n"          // 4
+        "end\n");                    // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code =
+        "x = [1 2 3 4];\n"                    // 1
+        "g = [1 1 2 2];\n"                    // 2
+        "y = splitapply(@dbgGrpCb, x, g);\n"; // 3
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "splitapply callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 10) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_EQ(pauses, 2); // one per group
+    EXPECT_DOUBLE_EQ(engine.eval("y(1)").toScalar(), 3.0);  // 1+2
+    EXPECT_DOUBLE_EQ(engine.eval("y(2)").toScalar(), 7.0);  // 3+4
+}
+
+// bsxfun forwards the whole arrays to the handle in one call (single-shot).
+TEST_F(DebugSessionTest, BreakInsideBsxfunCallback)
+{
+    engine.eval(
+        "function r = dbgBsx(a, b)\n" // 1
+        "\n"                          // 2
+        "\n"                          // 3
+        "  r = a + b;\n"            // 4
+        "end\n");                     // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "y = bsxfun(@dbgBsx, [1 2 3], 10);\n"; // 1
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "bsxfun callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y(1)").toScalar(), 11.0);
+    EXPECT_DOUBLE_EQ(engine.eval("y(3)").toScalar(), 13.0);
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

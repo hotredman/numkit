@@ -668,9 +668,43 @@ struct FevalCallbackBuiltin : CallbackBuiltin
         return cont;
     }
 };
+
+// State-machine bsxfun: bsxfun(@userfunc, A, B) forwards the (whole) A, B to the
+// handle in one call, so it is single-shot (LoopContinuation, n == 1) — pausable
+// when the handle is user code. Builtin handles fall back to the synchronous
+// bsxfun.
+struct BsxfunCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.size() < 3 || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr;
+        std::vector<Value> callArgs{args[1], args[2]};
+        auto cont = std::make_shared<LoopContinuation>();
+        cont->handle = args[0];
+        cont->n = 1;
+        cont->dest = dest;
+        cont->makeArgs = [callArgs](std::size_t) -> std::vector<Value> { return callArgs; };
+        cont->pack = [](std::vector<Value> &results) -> Value {
+            return results.empty() ? Value() : std::move(results[0]);
+        };
+        cont->results.reserve(1);
+        return cont;
+    }
+};
 } // namespace numkit::builtin::detail
 
 namespace numkit {
+
+// Defined in math/group/group.cpp — registers splitapply's VM-continuation
+// driver (state-machine callbacks).
+namespace builtin {
+void registerSplitapplyCallbackBuiltin(Engine &engine);
+}
+
 
 // ── Warning helper for unsupported features ──────────────────
 static void warnNotSupported(CallContext &ctx, const std::string &feature)
@@ -780,6 +814,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("matchpairs", &builtin::detail::matchpairs_reg);
     engine.registerFunction("findgroups",  &builtin::detail::findgroups_reg);
     engine.registerFunction("splitapply",  &builtin::detail::splitapply_reg);
+    builtin::registerSplitapplyCallbackBuiltin(engine); // VM-pausable callbacks
     engine.registerFunction("groupcounts", &builtin::detail::groupcounts_reg);
     engine.registerFunction("groupsummary", &builtin::detail::groupsummary_reg);
     engine.registerFunction("grouptransform", &builtin::detail::grouptransform_reg);
@@ -959,6 +994,8 @@ void BuiltinLibrary::install(Engine &engine)
             outs[0] = ctx.engine->callFunctionHandle(
                 args[0], Span<const Value>(callArgs, 2), ctx.env);
         });
+    engine.registerCallbackBuiltin(
+        "bsxfun", std::make_shared<builtin::detail::BsxfunCallbackBuiltin>());
 
     // ── Pack 34: function-handle introspection ────────────────────────
     //
