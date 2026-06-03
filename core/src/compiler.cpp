@@ -3675,6 +3675,14 @@ const BytecodeChunk *Compiler::ensureClassMethodCompiled(const UserFunction &uf)
     BytecodeChunk chunk;
     try {
         chunk = compileFunction(&fn);
+    } catch (const RegisterExhaustionError &) {
+        // Size problem, not an unsupported construct — surface it loudly with
+        // the method name rather than silently dropping to a TW-only (non-
+        // debuggable) method body. Re-thrown as RegisterExhaustionError so it
+        // reaches the user with a clear cause.
+        throw RegisterExhaustionError("classdef method '" + uf.name
+            + "' needs more than the 255-register VM limit in one chunk — split it "
+            "into smaller helper methods/functions");
     } catch (const std::exception &) {
         // e.g. a super-call (SUPERCLASS_REF) the VM compiler doesn't handle
         // until P2 — fall back to running this method body on the TreeWalker.
