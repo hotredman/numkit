@@ -588,7 +588,7 @@ and `OC× s/l` = MATLAB_ms / numkit_ms and Octave_ms / numkit_ms
 | `ldivide` |  |  |  |  |  |  |  |
 | `minus` |  |  |  |  |  |  |  |
 | `mldivide` |  |  |  |  |  |  |  |
-| `mod` | 0.001814 | 9.07× |  | 3.435 | 0.13× |  |  |
+| `mod` | 0.000544 | 50.46× |  | 2.315 | 0.23× |  |  |
 | `movsum` |  |  |  |  |  |  |  |
 | `mpower` |  |  |  |  |  |  |  |
 | `mrdivide` |  |  |  |  |  |  |  |

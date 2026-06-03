@@ -2,7 +2,7 @@
   "name": "mod",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r1 = mod(10, 3); r2 = mod(-10, 3); r3 = mod(10, -3); r4 = mod(-10, -3); r5 = mod(0, 5); mi = mod(int8(-7), int8(3)); vmi = double(mi); cmi = double(strcmp(class(mi),'int8')); mv = mod(int8([7 8 9]), int8(3)); mv1 = double(mv(1)); mv3 = double(mv(3)); mx = mod(int8(7), 3); cmx = double(strcmp(class(mx),'int8'));",
+  "expr": "r1 = mod(10, 3); r2 = mod(-10, 3); r3 = mod(10, -3); r4 = mod(-10, -3); r5 = mod(0, 5); mi = mod(int8(-7), int8(3)); vmi = double(mi); cmi = double(strcmp(class(mi),'int8')); mv = mod(int8([7 8 9]), int8(3)); mv1 = double(mv(1)); mv3 = double(mv(3)); mx = mod(int8(7), 3); cmx = double(strcmp(class(mx),'int8')); va = mod([5.5 -5.5 7 -7 100.25 -100.25 0.1 1234.5], [3 3 4 4 7 7 0.3 13]); va1 = va(1); va6 = va(6); va8 = va(8); vsa = mod([5.5 -5.5 7 -7 100.25 -100.25 0.1 1234.5], 3); vsa2 = vsa(2); vsa8 = vsa(8);",
   "iters": 15,
   "tol": 1e-12,
   "fingerprint": [
@@ -15,9 +15,14 @@
     "cmi",
     "mv1",
     "mv3",
-    "cmx"
+    "cmx",
+    "va1",
+    "va6",
+    "va8",
+    "vsa2",
+    "vsa8"
   ],
-  "comment": "Sig: r = mod(...). INTEGER input keeps the class: mod(int8(-7),int8(3))=2 int8 (floored), mod(int8([7 8 9]),int8(3))=[1 2 0] int8; a double operand is promoted to the integer class (mod(int8(7),3)=1 int8). numkit previously returned double / threw on integer arrays; fixed 2026-05-30. Spec-extension batch 2026-05-09 + integer-class. NOTE: ; only inside matrix-literal INPUTS.",
+  "comment": "Sig: r = mod(...). INTEGER input keeps the class: mod(int8(-7),int8(3))=2 int8 (floored), mod(int8([7 8 9]),int8(3))=[1 2 0] int8; a double operand is promoted to the integer class (mod(int8(7),3)=1 int8). Real-DOUBLE arrays (va = vector%vector, vsa = vector%scalar) take the SIMD path (a-floor(a/b)*b, bit-identical to the scalar formula). numkit previously returned double / threw on integer arrays; fixed 2026-05-30. SIMD mod added 2026-06. NOTE: ; only inside matrix-literal INPUTS.",
   "bench_setup": "xb = mod((1:N)*7919,2000)*0.01 - 10;",
   "bench_expr": "rb=mod(xb,3);"
 }
