@@ -409,6 +409,36 @@ TEST_F(DebugSessionTest, BreakInsideArrayfunCallback)
     EXPECT_DOUBLE_EQ(engine.eval("y(3)").toScalar(), 103.0);
 }
 
+// Same proof for structfun: a breakpoint inside the per-field callback pauses
+// and resumes (state-machine callbacks over a struct's fields).
+TEST_F(DebugSessionTest, BreakInsideStructfunCallback)
+{
+    engine.eval(
+        "function r = dbgStructCb(x)\n" // 1
+        "\n"                            // 2
+        "\n"                            // 3
+        "  r = x * 2;\n"               // 4
+        "end\n");                       // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code =
+        "s.a = 5; s.b = 6;\n"               // 1  fields a, b
+        "y = structfun(@dbgStructCb, s);\n"; // 2  per-field pausable VM frames
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "structfun callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    int pauses = 1;
+    while (status == ExecStatus::Paused && pauses < 10) {
+        status = session.resume(DebugAction::Continue);
+        if (status == ExecStatus::Paused)
+            ++pauses;
+    }
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_EQ(pauses, 2); // one breakpoint hit per field
+    EXPECT_DOUBLE_EQ(engine.eval("y(1)").toScalar(), 10.0); // a: 5*2
+    EXPECT_DOUBLE_EQ(engine.eval("y(2)").toScalar(), 12.0); // b: 6*2
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

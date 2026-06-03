@@ -293,10 +293,22 @@ every preset including WASM.
   / size-mismatch fall back to the synchronous arrayfun. **Proven**:
   `DebugSessionTest.BreakInsideArrayfunCallback` (pauses per element, resumes;
   `y == [101 102 103]`); full suite 10931.
-- **Remaining (follow-up):** `structfun` and any other higher-order builtin that
-  loops over user code — same `CallbackBuiltin`/`VmContinuation` pattern.
-  Genuinely single-shot C++-initiated calls (`disp(obj)` from the display path,
-  a `sort` comparator) have no loop to suspend and stay on `callReentrant`.
+- **structfun (done)** — `libs/builtin` `StructfunContinuation` +
+  `StructfunCallbackBuiltin` (struct.cpp), registered via
+  `registerStructfunCallbackBuiltin`. Drives `structfun(@userfunc, S[,
+  'UniformOutput', tf])` field-by-field (in `structFields()` map order, matching
+  the synchronous helper) as pausable frames; `pack()` → uniform column vector
+  (DOUBLE/LOGICAL) or n×1 cell. Builtin handles / multi-output / non-scalar
+  struct fall back to the synchronous structfun. **Proven**:
+  `DebugSessionTest.BreakInsideStructfunCallback` (pauses per field, resumes;
+  `y == [10; 12]`); full suite 10932.
+
+The three common higher-order builtins (cellfun / arrayfun / structfun) now run
+their user-code callbacks as pausable VM frames. Genuinely single-shot
+C++-initiated calls (`disp(obj)` from the display path, a `sort` comparator)
+have no loop to suspend and stay on `callReentrant` (on the VM, breakpoints fire
+but cannot suspend). Any future higher-order builtin follows the same
+`CallbackBuiltin` / `VmContinuation` pattern.
   - **Found + filed** (task #49, pre-existing, NOT P1c): a parameter named
     `i`/`j` inside a VM function frame resolves to the imaginary unit instead
     of the parameter. General VM identifier-resolution bug — surfaced via a

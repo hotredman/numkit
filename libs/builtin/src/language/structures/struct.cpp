@@ -7,9 +7,11 @@
 #include <numkit/builtin/language/structures/struct.hpp>
 #include <numkit/builtin/library.hpp>
 
+#include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/vm.hpp>
 
 #include "language/handles/_handlefn_helpers.hpp"
 
@@ -375,6 +377,86 @@ void rmfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     outs[0] = rmfield(args[0], args[1], ctx.engine->resource());
 }
 
+// ── State-machine structfun (VM_CALLBACKS_PLAN.md) ───────────────────────────
+// Drives structfun(@userfunc, S [, 'UniformOutput', tf]) one field at a time
+// (field order = structFields() map order, matching the synchronous helper) as
+// pausable VM frames. Builtin handles, multi-output, non-scalar-struct and
+// unsupported options fall back to the synchronous structfun.
+struct StructfunContinuation : VmContinuation
+{
+    Value handle;
+    std::vector<Value> fieldVals; // field values in iteration order
+    bool uniform = true;
+    std::size_t n = 0;
+    std::size_t i = 0;
+    Value *dest = nullptr;
+    std::pmr::memory_resource *mr = nullptr;
+    std::vector<Value> results;
+
+    bool step(VM &vm, Value *prev, const std::shared_ptr<VmContinuation> &self) override
+    {
+        if (prev) {
+            results.push_back(std::move(*prev));
+            ++i;
+        }
+        if (i >= n) {
+            *dest = pack();
+            return false;
+        }
+        Value a1[1] = {fieldVals[i]};
+        return vm.pushCallbackFrame(handle, Span<const Value>(a1, 1), 1, self);
+    }
+
+    Value pack() const
+    {
+        if (uniform) {
+            const ValueType outT = (n > 0 && results[0].isLogical()) ? ValueType::LOGICAL
+                                                                     : ValueType::DOUBLE;
+            Value out = Value::matrix(n, 1, outT, mr);
+            for (std::size_t k = 0; k < n; ++k) {
+                const Value &v = results[k];
+                if (!v.isScalar())
+                    throw Error("structfun: fn returned a non-scalar; pass 'UniformOutput', false",
+                                 0, 0, "structfun", "", "numkit:structfun:notScalar");
+                if (outT == ValueType::LOGICAL)
+                    out.logicalDataMut()[k] = v.toBool() ? 1 : 0;
+                else
+                    out.doubleDataMut()[k] = v.toScalar();
+            }
+            return out;
+        }
+        Value out = Value::cell(n, 1);
+        for (std::size_t k = 0; k < n; ++k)
+            out.cellAt(k) = results[k];
+        return out;
+    }
+};
+
+struct StructfunCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.size() < 2 || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr; // builtin handle → fast synchronous path
+        if (!args[1].isStruct() || args[1].isStructArray())
+            return nullptr; // non-scalar-struct → synchronous path reports it
+        const bool uniform = hf::parseUniformOutputFlag(args, 2, "structfun");
+        auto cont = std::make_shared<StructfunContinuation>();
+        cont->handle = args[0];
+        for (const auto &kv : args[1].structFields())
+            cont->fieldVals.push_back(kv.second);
+        cont->uniform = uniform;
+        cont->n = cont->fieldVals.size();
+        cont->dest = dest;
+        cont->mr = eng.resource();
+        cont->results.reserve(cont->n);
+        return cont;
+    }
+};
+
 void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
@@ -453,5 +535,11 @@ void cell2struct_reg(Span<const Value> args, size_t, Span<Value> outs, CallConte
 }
 
 } // namespace detail
+
+void registerStructfunCallbackBuiltin(Engine &engine)
+{
+    engine.registerCallbackBuiltin("structfun",
+                                   std::make_shared<detail::StructfunCallbackBuiltin>());
+}
 
 } // namespace numkit::builtin
