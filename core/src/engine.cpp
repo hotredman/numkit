@@ -410,12 +410,21 @@ struct PropInfo
     Access getAccess = Access::Public;
     Access setAccess = Access::Public;
     std::string declClass;
+    bool isConstant = false; // `Constant` → also exposed as ClassName.Prop
 };
 // Method access recorded ONLY for non-public methods (absent == public →
 // no check, no overhead). `declClass` as above.
 struct MethodAccess
 {
     Access level = Access::Public;
+    std::string declClass;
+};
+// A Static method: callable as `ClassName.method(args)`. Stored so it can be
+// inherited (re-registered under a subclass name) and access-checked.
+struct StaticInfo
+{
+    std::shared_ptr<UserFunction> uf;
+    Access access = Access::Public;
     std::string declClass;
 };
 
@@ -429,6 +438,7 @@ struct ClassDefDesc
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> methods;
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> getters; // get.Prop
     std::unordered_map<std::string, std::shared_ptr<UserFunction>> setters; // set.Prop
+    std::unordered_map<std::string, StaticInfo> statics;             // Static methods
     std::vector<std::string> superclasses;                           // transitive, for isa
     // Non-public methods only (public == absent).
     std::unordered_map<std::string, MethodAccess> methodAccess;
@@ -580,23 +590,12 @@ void Engine::registerClassDef(const ASTNode *cd)
                 def = treeWalker_->evalExpressionPublic(child->children[0].get(),
                                                         &constantsEnv());
             // Record non-public get/set access (this class is the declarer).
+            // A `Constant` property is also exposed as `ClassName.Prop`; the
+            // qualified external is registered after the merge (so inherited
+            // constants resolve under a subclass too).
             BlockAccess ba = parseBlockAccess(child->classAttrs);
-            // Constant property: expose as `ClassName.Prop` (no instance). A
-            // non-public Constant enforces its GetAccess at the qualified-read
-            // site (the read is the only operation — it has no setter).
-            if (hasAttr(child, "Constant")) {
-                Value cval = def;
-                Access getLvl = ba.get;
-                std::string decl = desc->name, pn = child->strValue;
-                registerFunction(desc->name, child->strValue,
-                                 [cval, getLvl, decl, pn](Span<const Value>, size_t,
-                                                          Span<Value> outs, CallContext &ctx) {
-                                     if (getLvl != Access::Public)
-                                         enforceAccess(ctx.engine, getLvl, decl, "property", pn);
-                                     outs[0] = cval;
-                                 });
-            }
-            desc->props.push_back({child->strValue, def, ba.get, ba.set, desc->name});
+            desc->props.push_back(
+                {child->strValue, def, ba.get, ba.set, desc->name, hasAttr(child, "Constant")});
             desc->anyNonPublicProp = desc->anyNonPublicProp || ba.any;
         } else if (child->type == NodeType::FUNCTION_DEF) {
             auto uf = std::make_shared<UserFunction>();
@@ -612,24 +611,13 @@ void Engine::registerClassDef(const ASTNode *cd)
             } else if (mn.rfind("set.", 0) == 0) {
                 desc->setters[mn.substr(4)] = uf; // property set accessor
             } else if (hasAttr(child, "Static")) {
-                // Static method: callable as `ClassName.method(args)` (no self).
-                // A non-public Static enforces its access at the call site
-                // (`Access` governs; `immutable` is meaningless for a method).
+                // Static method: callable as `ClassName.method(args)` (no
+                // self). Stored now; the qualified external is registered
+                // after the merge (so a subclass inherits it). `immutable` is
+                // meaningless for a method.
                 BlockAccess ba = parseBlockAccess(child->classAttrs);
                 Access slvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
-                std::string decl = desc->name, mn2 = child->strValue;
-                registerFunction(
-                    desc->name, child->strValue,
-                    [uf, slvl, decl, mn2](Span<const Value> args, size_t nargout,
-                                          Span<Value> outs, CallContext &ctx) {
-                        if (slvl != Access::Public)
-                            enforceAccess(ctx.engine, slvl, decl, "method", mn2);
-                        const size_t nout = std::max<size_t>(nargout, 1);
-                        auto results = ctx.engine->invokeClassMethod(*uf, args, nout);
-                        const size_t writeN = std::min(nout, results.size());
-                        for (size_t i = 0; i < writeN && i < outs.size(); ++i)
-                            outs[i] = std::move(results[i]);
-                    });
+                desc->statics[child->strValue] = {uf, slvl, desc->name};
             } else if (child->strValue == desc->name) {
                 desc->ctor = uf; // constructor: method named like the class
                 BlockAccess ba = parseBlockAccess(child->classAttrs);
@@ -704,6 +692,11 @@ void Engine::registerClassDef(const ASTNode *cd)
         for (const auto &[pn, uf] : base->setters)
             if (!desc->setters.count(pn))
                 desc->setters[pn] = uf;
+        // Static methods: inherit those not overridden (keeping the base's
+        // declaring class for the access check).
+        for (const auto &[sn, si] : base->statics)
+            if (!desc->statics.count(sn))
+                desc->statics[sn] = si;
         // Method access: inherit base entries (keeping the base's declaring
         // class so `protected` still admits this subclass) unless the derived
         // class declared the method itself (its own access — or public by
@@ -734,6 +727,40 @@ void Engine::registerClassDef(const ASTNode *cd)
                     desc->superclasses.push_back(a);
     }
     classDefs_[desc->name] = desc;
+
+    // Register `ClassName.member` qualified externals for every Static method
+    // and Constant property — own AND inherited (the merged maps above hold
+    // both) — so e.g. `Subclass.baseStatic()` / `Subclass.BASE_CONST` resolve.
+    for (const auto &[sname, si] : desc->statics) {
+        auto uf = si.uf;
+        Access acc = si.access;
+        std::string decl = si.declClass, mn = sname;
+        registerFunction(desc->name, sname,
+                         [uf, acc, decl, mn](Span<const Value> args, size_t nargout,
+                                             Span<Value> outs, CallContext &ctx) {
+                             if (acc != Access::Public)
+                                 enforceAccess(ctx.engine, acc, decl, "method", mn);
+                             const size_t nout = std::max<size_t>(nargout, 1);
+                             auto results = ctx.engine->invokeClassMethod(*uf, args, nout);
+                             const size_t writeN = std::min(nout, results.size());
+                             for (size_t i = 0; i < writeN && i < outs.size(); ++i)
+                                 outs[i] = std::move(results[i]);
+                         });
+    }
+    for (const auto &p : desc->props) {
+        if (!p.isConstant)
+            continue;
+        Value cval = p.def;
+        Access getLvl = p.getAccess;
+        std::string decl = p.declClass, pn = p.name;
+        registerFunction(desc->name, p.name,
+                         [cval, getLvl, decl, pn](Span<const Value>, size_t, Span<Value> outs,
+                                                  CallContext &ctx) {
+                             if (getLvl != Access::Public)
+                                 enforceAccess(ctx.engine, getLvl, decl, "property", pn);
+                             outs[0] = cval;
+                         });
+    }
 
     BuiltinClass cls;
     cls.name = desc->name;

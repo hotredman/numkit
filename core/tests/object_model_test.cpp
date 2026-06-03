@@ -1034,6 +1034,7 @@ public:
             "    function r = add(a, b)\n      r = a + b;\n    end\n"
             "  end\n"
             "end\n");
+        engine.eval("classdef MathUtilSub < MathUtil\nend\n"); // inherits Static + Constant
     }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };
@@ -1051,6 +1052,16 @@ TEST_P(AttrClassdefTest, StaticMethod)
 TEST_P(AttrClassdefTest, StaticMethodComposed)
 {
     EXPECT_DOUBLE_EQ(evalScalar("MathUtil.add(MathUtil.square(2), MathUtil.Two)"), 6.0);
+}
+TEST_P(AttrClassdefTest, InheritedConstant)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtilSub.Answer"), 42.0); // inherited Constant
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtilSub.Two"), 2.0);
+}
+TEST_P(AttrClassdefTest, InheritedStaticMethod)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtilSub.square(6)"), 36.0); // inherited Static
+    EXPECT_DOUBLE_EQ(evalScalar("MathUtilSub.add(3, 4)"), 7.0);
 }
 INSTANTIATE_TEST_SUITE_P(Backends, AttrClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,

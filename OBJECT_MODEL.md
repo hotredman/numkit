@@ -44,6 +44,8 @@ Production coverage (all both-engine tested):
 - **Static methods** (`methods (Static)`) and **Constant properties**
   (`properties (Constant)`) exposed as `ClassName.member` (qualified
   externals); bare `ClassName.Const` resolves via the qualified-field path.
+  Both are **inherited** — a subclass registers the base's statics/constants
+  under its own name (`Subclass.baseStatic()` / `Subclass.BASE_CONST`).
 - **Property accessors** (`get.Prop` / `set.Prop`, i.e. `Dependent`
   properties): dotted method names captured into `getters`/`setters`,
   consulted by the generic `propGet`/`propSet` hooks (a value-class setter
