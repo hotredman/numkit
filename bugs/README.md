@@ -120,8 +120,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (43 entries):** ✅ 10 fixed · 🔴 33 open = **9 bug** + 6 stub +
-4 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
+**Tally (47 entries):** ✅ 10 fixed · 🔴 37 open = **12 bug** + 6 stub +
+5 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 ### ✅ FIXED (10)
@@ -139,10 +139,13 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 9
+### 🔴 OPEN — bug (defect on an implemented function) — 12
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
+| [builtin/cellfun-inputforms](builtin/cellfun-inputforms.md) | P2 | multi-cell + string-name forms unsupported (arrayfun has multi-array) |
+| [builtin/func2str-anonymous](builtin/func2str-anonymous.md) | P2 | anon handle returns '@__anon_N' not the source text |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | wrong numerator for repeated poles |
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
@@ -164,10 +167,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | automatic binning throws |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 
-### 🔴 OPEN — missing-output (Nth output not emitted) — 4
+### 🔴 OPEN — missing-output (Nth output not emitted) — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [signal/periodogram-pxxc](signal/periodogram-pxxc.md) | P2 | ConfidenceLevel / pxxc CI 3rd output |
 | [linalg/qr-pivoting](linalg/qr-pivoting.md) | P2 | column-pivoting [Q,R,P] |
 | [linalg/eig-left-vectors](linalg/eig-left-vectors.md) | P2 | 3rd output W (left eigenvectors) |
 | [stats/mle-output](stats/mle-output.md) | P2 | 2nd output pci |
