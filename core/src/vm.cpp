@@ -2899,6 +2899,21 @@ bool VM::pushCallbackFrame(const Value &handle, Span<const Value> args, size_t n
     return true;
 }
 
+bool LoopContinuation::step(VM &vm, Value *prevResult,
+                            const std::shared_ptr<VmContinuation> &self)
+{
+    if (prevResult) {
+        results.push_back(std::move(*prevResult));
+        ++i;
+    }
+    if (i >= n) {
+        *dest = pack ? pack(results) : Value();
+        return false; // finished — output written
+    }
+    std::vector<Value> a = makeArgs(i);
+    return vm.pushCallbackFrame(handle, Span<const Value>(a.data(), a.size()), 1, self);
+}
+
 void VM::setFrameDynVars(std::unordered_map<std::string, Value> *dv)
 {
     if (!frames_.empty())

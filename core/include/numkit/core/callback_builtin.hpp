@@ -4,7 +4,9 @@
 #include <numkit/core/value.hpp>
 
 #include <cstddef>
+#include <functional>
 #include <memory>
+#include <vector>
 
 // State-machine callbacks (VM_CALLBACKS_PLAN.md).
 //
@@ -59,6 +61,30 @@ struct CallbackBuiltin
     virtual ~CallbackBuiltin() = default;
     virtual std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
                                                      Value *dest, Engine &eng) = 0;
+};
+
+// Ready-made continuation for the common "apply a handle to each of N items,
+// collect the results, pack one output" shape shared by cellfun / arrayfun /
+// structfun / feval / splitapply / … A CallbackBuiltin builds one of these in
+// tryStart, supplying:
+//   handle   — the user-code function handle (plain or {handle, captures…}),
+//   n        — number of callbacks to run,
+//   makeArgs — per-index callback arguments,
+//   pack     — build the single output Value from the collected results,
+//   dest     — stable destination pointer (into the VM register stack).
+// step() is defined in vm.cpp (it needs VM::pushCallbackFrame). A single-shot
+// builtin (feval) is just n == 1.
+struct LoopContinuation : VmContinuation
+{
+    Value handle;
+    std::size_t n = 0;
+    std::size_t i = 0;
+    Value *dest = nullptr;
+    std::function<std::vector<Value>(std::size_t)> makeArgs;
+    std::function<Value(std::vector<Value> &)> pack;
+    std::vector<Value> results;
+
+    bool step(VM &vm, Value *prevResult, const std::shared_ptr<VmContinuation> &self) override;
 };
 
 } // namespace numkit
