@@ -169,6 +169,16 @@ stats: close audit ТЗ stats/normlike — add freq + censoring
 Implements audit/findings/stats/normlike.md.
 ```
 
+## Bug catalog (`bugs/`)
+
+Structured one-file-per-bug catalog (distinct from the flat append-only
+`BUGS.md` and from the auditor's `audit/findings/**`). **Every bug you find
+gets its own `bugs/<namespace>/<fn>.md`** with a self-contained repro
+(numkit output vs MATLAB R2025b) so any session can act on it cold. See
+[bugs/README.md](bugs/README.md) for the template + index. When you fix a
+bug, flip its file's status to ✅ FIXED with the commit hash and update the
+index row (keep the file as a regression record).
+
 ## Memory
 
 Auto-memory at
