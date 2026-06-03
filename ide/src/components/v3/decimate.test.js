@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   visibleRange, decimateM4, decimateM2, decimateLTTB, decimateSeries,
-  buildPyramid, decimateLOD,
+  buildPyramid, decimateLOD, isMonotonicX,
 } from './decimate';
 
 const ramp = (n) => Array.from({ length: n }, (_, i) => i);
@@ -188,6 +188,55 @@ describe('decimateLOD', () => {
     const out = decimateLOD(levels, 400000, 401000, W, 'm4');
     expect(out.x[0]).toBeGreaterThanOrEqual(399000);
     expect(out.x[out.x.length - 1]).toBeLessThanOrEqual(402000);
+    expect(out.x.length).toBeLessThanOrEqual(4 * W);
+  });
+});
+
+describe('non-monotonic x (voronoi / triplot / parametric)', () => {
+  // Regression: a multi-segment line whose x doubles back used to be sliced by
+  // the ascending-x binary search in visibleRange, dropping most segments — a
+  // voronoi diagram rendered with nearly all its cell edges missing. Such a
+  // series must now be handed back RAW (no x-window, no decimation).
+  const X = [0, 1, 2, 3, 9, 0.5, 1.5, 2.5];     // doubles back at index 5
+  const Y = [0, 1, 0, 1, 5, 2,   3,   2];
+
+  it('isMonotonicX flags ascending (with gaps) vs doubling-back', () => {
+    expect(isMonotonicX([0, 1, 2, 3])).toBe(true);
+    expect(isMonotonicX([0, 1, NaN, 2, 3])).toBe(true);    // gaps ignored
+    expect(isMonotonicX([5, 5, 5])).toBe(true);            // equal is fine
+    expect(isMonotonicX([0, 1, NaN, 0.5, 3])).toBe(false); // 0.5 < 1
+    expect(isMonotonicX(X)).toBe(false);
+    expect(isMonotonicX([3, 1])).toBe(false);
+  });
+
+  it('decimateSeries returns the WHOLE series, not a windowed slice', () => {
+    // visibleRange(X,-1,5) is [0,5] for this data → the old code sliced an
+    // [0,1,2,3,9] prefix and dropped the last three points.
+    const out = decimateSeries(X, Y, -1, 5, 700, 'm4');
+    expect(out.decimated).toBe(false);
+    expect(out.x).toEqual(X);
+    expect(out.y).toEqual(Y);
+  });
+
+  it('buildPyramid keeps only the raw level (cannot pyramid non-monotonic x)', () => {
+    const levels = buildPyramid(X, Y, 4);   // tiny target would force pooling if monotonic
+    expect(levels.length).toBe(1);
+    expect(levels[0].x).toBe(X);
+  });
+
+  it('decimateLOD renders the raw series unchanged', () => {
+    const levels = buildPyramid(X, Y);
+    const out = decimateLOD(levels, -1, 5, 700, 'm4');
+    expect(out.x).toEqual(X);
+    expect(out.y).toEqual(Y);
+  });
+
+  it('still decimates a normal ascending series (no behaviour change)', () => {
+    const N = 100000, W = 800;
+    const x = ramp(N);
+    const y = x.map((i) => Math.sin(i / 50));
+    const out = decimateSeries(x, y, 0, N - 1, W, 'm4');
+    expect(out.decimated).toBe(true);                 // monotonic path intact
     expect(out.x.length).toBeLessThanOrEqual(4 * W);
   });
 });
