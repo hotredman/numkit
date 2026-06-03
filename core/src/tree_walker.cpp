@@ -1000,6 +1000,12 @@ Value TreeWalker::execIdentifier(const ASTNode *node, Environment *env, size_t n
         (*fn)({}, nargout, Span<Value>(outBuf, 1), ctx);
         return outBuf[0].isEmpty() ? Value() : outBuf[0];
     }
+    // Bare class name constructs a default instance (`x = MyClass`), like
+    // MATLAB — when the name is a registered class and not shadowed above.
+    if (const BuiltinClass *cls = engine_.findClass(name); cls && cls->construct) {
+        CallContext ctx{&engine_, env};
+        return engine_.constructChecked(cls, Span<const Value>(nullptr, 0), ctx);
+    }
 
     // MATLAB-exact error for the nargin/nargout pseudo-vars when they're
     // referenced outside of any function scope. Inside a function they are

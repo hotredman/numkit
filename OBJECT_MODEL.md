@@ -117,9 +117,9 @@ Production coverage (all both-engine tested):
   constructor external.
 
 Not yet: access **class lists** (`Access = ?Other`), `events` / listeners,
-in-session class **redefinition** (the registry is idempotent), and bare
-`x = MyClass` construction (use `MyClass()`). Method bodies run on the
-TreeWalker under either backend (VM compilation of method bodies later).
+and in-session class **redefinition** (the registry is idempotent). Method
+bodies run on the TreeWalker under either backend (VM compilation of method
+bodies later).
 
 ## Object arrays
 

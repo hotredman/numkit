@@ -313,9 +313,13 @@ uint8_t Compiler::varRegRead(const std::string &name)
             return varRegLookup(name);
     }
 
-    // Check if it's a known function — emit zero-arg CALL
-    // In MATLAB, bare function name in expression context is a call: t1 = toc
-    if (engine_.hasFunction(name) || engine_.isKnownLeafName(name)) {
+    // Check if it's a known function — emit zero-arg CALL. In MATLAB a bare
+    // function name in expression context is a call (`t1 = toc`); likewise a
+    // bare class name constructs a default instance (`x = MyClass`), which the
+    // runtime CALL handler resolves via findClass + construct.
+    const BuiltinClass *kls = engine_.findClass(name);
+    if (engine_.hasFunction(name) || engine_.isKnownLeafName(name)
+        || (kls && kls->construct)) {
         uint8_t argBase = nextReg_;
         uint8_t dst = tempReg();
         int16_t funcIdx = addStringConstant(name);
