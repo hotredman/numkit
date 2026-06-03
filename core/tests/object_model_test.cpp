@@ -1151,6 +1151,131 @@ INSTANTIATE_TEST_SUITE_P(Backends, SuperCallClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef member-access enforcement: private / protected / SetAccess /
+// immutable ──
+class AccessClassdefTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override
+    {
+        engine.setBackend(GetParam());
+        engine.eval(
+            "classdef Account\n"
+            "  properties (Access = private)\n    balance = 0\n  end\n"
+            "  properties (SetAccess = private)\n    owner = 0\n  end\n"
+            "  properties (SetAccess = immutable)\n    id = 0\n  end\n"
+            // GetAccess overrides the general Access=private on the get side.
+            "  properties (Access = private, GetAccess = public)\n    note = 2\n  end\n"
+            "  properties\n    label = 1\n  end\n"
+            "  methods\n"
+            "    function obj = Account(theId, theOwner)\n"
+            "      obj.id = theId;\n"        // immutable — set in ctor OK
+            "      obj.owner = theOwner;\n"  // SetAccess private — OK in ctor
+            "      obj.balance = 100;\n"     // private — OK in ctor
+            "    end\n"
+            "    function b = getBalance(obj)\n      b = obj.balance;\n    end\n" // priv read OK
+            "    function obj = deposit(obj, amt)\n"
+            "      obj.balance = obj.balance + amt;\n" // priv write inside OK
+            "    end\n"
+            "    function r = callSecret(obj)\n      r = obj.secret();\n    end\n" // priv method OK
+            "  end\n"
+            "  methods (Access = private)\n"
+            "    function r = secret(obj)\n      r = 42;\n    end\n"
+            "  end\n"
+            "end\n");
+        engine.eval(
+            "classdef Base2\n"
+            "  properties (Access = protected)\n    p = 5\n  end\n"
+            "  methods (Access = protected)\n"
+            "    function r = prot(obj)\n      r = obj.p * 2;\n    end\n"
+            "  end\n"
+            "end\n");
+        engine.eval(
+            "classdef Deriv2 < Base2\n"
+            "  methods\n"
+            "    function r = useProt(obj)\n      r = obj.prot() + obj.p;\n    end\n"
+            "  end\n"
+            "end\n");
+    }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+};
+
+TEST_P(AccessClassdefTest, PrivatePropReadInsideMethod)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("a.getBalance()"), 100.0); // private read via method
+}
+TEST_P(AccessClassdefTest, PrivatePropReadFromOutsideThrows)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_THROW(engine.eval("a.balance;"), std::exception);
+}
+TEST_P(AccessClassdefTest, PrivatePropWriteInsideMethod)
+{
+    engine.eval("a = Account(7, 3);");
+    engine.eval("a = a.deposit(50);");
+    EXPECT_DOUBLE_EQ(evalScalar("a.getBalance()"), 150.0); // private write via method
+}
+TEST_P(AccessClassdefTest, PrivatePropWriteFromOutsideThrows)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_THROW(engine.eval("a.balance = 5;"), std::exception);
+}
+TEST_P(AccessClassdefTest, SetAccessPrivateReadOkWriteThrows)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("a.owner"), 3.0);          // GetAccess public
+    EXPECT_THROW(engine.eval("a.owner = 9;"), std::exception); // SetAccess private
+}
+TEST_P(AccessClassdefTest, ImmutableReadOkSetOutsideThrows)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("a.id"), 7.0);             // set in ctor, read OK
+    EXPECT_THROW(engine.eval("a.id = 9;"), std::exception); // immutable outside ctor
+}
+TEST_P(AccessClassdefTest, PrivateMethodFromOutsideThrows)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_THROW(engine.eval("a.secret();"), std::exception);
+}
+TEST_P(AccessClassdefTest, PrivateMethodFromSameClassOk)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("a.callSecret()"), 42.0); // private method via public method
+}
+TEST_P(AccessClassdefTest, GetAccessOverridesGeneralAccess)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("a.note"), 2.0);          // GetAccess public wins
+    EXPECT_THROW(engine.eval("a.note = 9;"), std::exception); // set side still private
+}
+TEST_P(AccessClassdefTest, PublicPropertyUnaffected)
+{
+    engine.eval("a = Account(7, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("a.label"), 1.0);
+    engine.eval("a.label = 8;");
+    EXPECT_DOUBLE_EQ(evalScalar("a.label"), 8.0);
+}
+TEST_P(AccessClassdefTest, ProtectedVisibleInSubclass)
+{
+    engine.eval("d = Deriv2();");
+    EXPECT_DOUBLE_EQ(evalScalar("d.useProt()"), 15.0); // prot()=10 + p=5
+}
+TEST_P(AccessClassdefTest, ProtectedPropFromOutsideThrows)
+{
+    engine.eval("d = Deriv2();");
+    EXPECT_THROW(engine.eval("d.p;"), std::exception);
+}
+TEST_P(AccessClassdefTest, ProtectedMethodFromOutsideThrows)
+{
+    engine.eval("d = Deriv2();");
+    EXPECT_THROW(engine.eval("d.prot();"), std::exception);
+}
+INSTANTIATE_TEST_SUITE_P(Backends, AccessClassdefTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef loaded from a Name.m file on the path ──
 TEST(ClassdefMFile, LoadFromFile)
 {

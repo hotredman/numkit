@@ -90,6 +90,17 @@ public:
                          Span<const Value> args);
     std::vector<Value> superMethod(const std::string &base, const std::string &method,
                                    Span<const Value> args, size_t nout);
+    // classdef member-access context (private/protected/immutable). Push the
+    // running method's/constructor's class on entry, pop on exit (RAII at the
+    // call sites). `classCtxAllows` answers "may code in the current context
+    // touch a member declared in `declClass`?": private (`privateOnly=true`)
+    // needs an exact class match; protected also admits subclasses of
+    // `declClass`. `classCtxInCtorOf` is true when the top frame is a
+    // constructor of `declClass` (used to gate `SetAccess = immutable`).
+    void pushClassCtx(std::string className, bool isCtor);
+    void popClassCtx();
+    bool classCtxAllows(const std::string &declClass, bool privateOnly) const;
+    bool classCtxInCtorOf(const std::string &declClass) const;
     // MATLAB-style display text for an OBJECT value. `name` empty →
     // bare body (disp); otherwise the `name =\n\n<body>\n` form.
     std::string formatObjectDisplay(const std::string &name, const Value &obj) const;
@@ -501,6 +512,19 @@ private:
     // UserFunctions), kept for inheritance merges. Full type in engine.cpp.
     std::unordered_map<std::string, std::shared_ptr<ClassDefDesc>> classDefs_;
     std::unordered_map<std::string, UserFunction> userFuncs_;
+
+    // Class-execution context stack for classdef member-access enforcement
+    // (private / protected / immutable). Each frame is the class whose
+    // method or constructor body is currently running; push/pop happens in
+    // invokeClassMethod / invokeClassCtor. An access check compares the
+    // member's declaring class against the top frame. Empty == script scope
+    // (only public members reachable).
+    struct ClassCtxFrame
+    {
+        std::string className;
+        bool isCtor;
+    };
+    std::vector<ClassCtxFrame> classCtx_;
 
     // Auxiliary indices into externalFuncs_, populated by registerFunction.
     // The full-name keys in externalFuncs_ are authoritative; these indices
