@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <string>
 #include <numkit/core/value.hpp>
 
 namespace numkit::builtin {
@@ -51,5 +52,33 @@ struct GroupcountsResult {
 /// @see findgroups
 GroupcountsResult groupcounts(const Value &g,
                               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Result of the array form of `groupsummary` — `[B, BG, BC]`.
+struct GroupsummaryResult {
+    Value B;   ///< `nGroups × cols(A)` per-group, per-column reduction.
+    Value BG;  ///< Group representatives (sorted unique; NaN trailing).
+    Value BC;  ///< Element count per group.
+};
+
+/// @brief Per-group reduction (`[B, BG, BC] = groupsummary(A, G, method)`).
+///
+/// Groups the rows of `A` (length-`size(A,1)` grouping vector `G`) and
+/// applies `method` per group, per column. Supported `method` strings:
+/// `"sum"`, `"mean"`, `"median"`, `"max"`, `"min"`, `"std"`, `"var"`,
+/// `"numunique"`, `"nnz"`, `"mode"`, `"all"`, `"any"`. `NaN` group values
+/// form a single trailing bucket. (Table inputs, `groupbins`, multi-group
+/// vars and function-handle methods are deferred — they need the table type
+/// / engine plumbing not available here.)
+///
+/// @param A       Column vector or matrix (DOUBLE).
+/// @param G       Grouping vector, length `size(A,1)`.
+/// @param method  Reduction method string (see list above).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        @ref GroupsummaryResult `{ B, BG, BC }`.
+/// @throws Error on `G` length mismatch or an unsupported `method`.
+/// @see findgroups, groupcounts
+GroupsummaryResult groupsummary(const Value &A, const Value &G,
+                                const std::string &method,
+                                std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

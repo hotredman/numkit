@@ -62,3 +62,26 @@ TEST(GroupPublicApi, Groupcounts)
     EXPECT_DOUBLE_EQ(rn.C.doubleData()[2], 1.0); // NaN bucket
     EXPECT_TRUE(std::isnan(rn.GR.doubleData()[2]));
 }
+
+TEST(GroupPublicApi, Groupsummary)
+{
+    Engine e;
+    Value A = gv(e, "[1;2;3;4]", "A");
+    Value G = gv(e, "[1;1;2;2]", "G");
+    builtin::GroupsummaryResult r = builtin::groupsummary(A, G, "sum", e.resource());
+    ASSERT_EQ(r.B.numel(), 2u);
+    EXPECT_DOUBLE_EQ(r.B.doubleData()[0], 3.0); // 1+2
+    EXPECT_DOUBLE_EQ(r.B.doubleData()[1], 7.0); // 3+4
+    EXPECT_DOUBLE_EQ(r.BG.doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(r.BG.doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(r.BC.doubleData()[0], 2.0); // count per group
+    // other reductions
+    EXPECT_DOUBLE_EQ(
+        builtin::groupsummary(A, G, "mean", e.resource()).B.doubleData()[0], 1.5);
+    EXPECT_DOUBLE_EQ(
+        builtin::groupsummary(A, G, "max", e.resource()).B.doubleData()[1], 4.0);
+    // unsupported method + shape mismatch throw
+    EXPECT_ANY_THROW(builtin::groupsummary(A, G, "bogus", e.resource()));
+    EXPECT_ANY_THROW(
+        builtin::groupsummary(A, gv(e, "[1;1;2]", "Gb"), "sum", e.resource()));
+}
