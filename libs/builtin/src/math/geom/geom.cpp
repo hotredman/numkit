@@ -96,127 +96,8 @@ void boundary_reg(Span<const Value> args, size_t nargout,
         convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
         return;
     }
-    auto *mr = ctx.engine->resource();
-    std::vector<double> X(n), Y(n);
-    for (size_t i = 0; i < n; ++i) {
-        X[i] = xv.elemAsDouble(i);
-        Y[i] = yv.elemAsDouble(i);
-    }
-    // Brute-force Delaunay (same as delaunay_reg).
-    auto sa2 = [&](size_t a, size_t b, size_t c) {
-        return (X[b]-X[a]) * (Y[c]-Y[a]) - (Y[b]-Y[a]) * (X[c]-X[a]);
-    };
-    auto inC = [&](size_t a, size_t b, size_t c, size_t p) {
-        const double ax=X[a]-X[p], ay=Y[a]-Y[p];
-        const double bx=X[b]-X[p], by=Y[b]-Y[p];
-        const double cx=X[c]-X[p], cy=Y[c]-Y[p];
-        const double a2=ax*ax+ay*ay;
-        const double b2=bx*bx+by*by;
-        const double c2=cx*cx+cy*cy;
-        return ax*(by*c2-cy*b2) - ay*(bx*c2-cx*b2) + a2*(bx*cy-cx*by);
-    };
-    std::vector<std::array<size_t, 3>> tris;
-    for (size_t a = 0; a < n; ++a)
-        for (size_t b = a + 1; b < n; ++b)
-            for (size_t c = b + 1; c < n; ++c) {
-                const double s = sa2(a, b, c);
-                if (std::abs(s) < 1e-15) continue;
-                size_t va=a, vb=b, vc=c;
-                if (s < 0) std::swap(vb, vc);
-                bool ok = true;
-                for (size_t p = 0; p < n; ++p) {
-                    if (p == va || p == vb || p == vc) continue;
-                    if (inC(va, vb, vc, p) > 1e-12) { ok = false; break; }
-                }
-                if (ok) tris.push_back({va, vb, vc});
-            }
-    if (tris.empty()) {
-        std::array<Value, 2> proxied{ args[0], args[1] };
-        convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
-        return;
-    }
-    // Longest edge per triangle.
-    auto edgeLen = [&](size_t a, size_t b) {
-        const double dx = X[a] - X[b], dy = Y[a] - Y[b];
-        return std::sqrt(dx * dx + dy * dy);
-    };
-    std::vector<double> longestEdge(tris.size());
-    for (size_t i = 0; i < tris.size(); ++i) {
-        const auto &T = tris[i];
-        longestEdge[i] = std::max({edgeLen(T[0], T[1]),
-                                   edgeLen(T[1], T[2]),
-                                   edgeLen(T[2], T[0])});
-    }
-    // Threshold = quantile at (1 - shrink).
-    std::vector<double> sortedLen = longestEdge;
-    std::sort(sortedLen.begin(), sortedLen.end());
-    const double q = 1.0 - shrink;
-    const size_t qi = std::min(sortedLen.size() - 1,
-                                (size_t)std::floor(q * sortedLen.size()));
-    const double threshold = sortedLen[qi];
-    // Keep triangles whose longest edge ≤ threshold.
-    std::vector<std::array<size_t, 3>> kept;
-    kept.reserve(tris.size());
-    for (size_t i = 0; i < tris.size(); ++i)
-        if (longestEdge[i] <= threshold) kept.push_back(tris[i]);
-    if (kept.empty()) {
-        std::array<Value, 2> proxied{ args[0], args[1] };
-        convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
-        return;
-    }
-    // Boundary edges = edges appearing in exactly one kept triangle.
-    // Edge key: ordered (min, max) so we don't double-count direction.
-    std::map<std::pair<size_t, size_t>, int> edgeCount;
-    auto bumpEdge = [&](size_t a, size_t b) {
-        if (a > b) std::swap(a, b);
-        edgeCount[{a, b}] += 1;
-    };
-    for (const auto &T : kept) {
-        bumpEdge(T[0], T[1]);
-        bumpEdge(T[1], T[2]);
-        bumpEdge(T[2], T[0]);
-    }
-    // Collect boundary edges into adjacency.
-    std::map<size_t, std::vector<size_t>> adj;
-    for (const auto &[edge, count] : edgeCount) {
-        if (count == 1) {
-            adj[edge.first].push_back(edge.second);
-            adj[edge.second].push_back(edge.first);
-        }
-    }
-    if (adj.empty()) {
-        std::array<Value, 2> proxied{ args[0], args[1] };
-        convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
-        return;
-    }
-    // Walk from arbitrary boundary vertex following adj edges,
-    // marking visited until we return to start.
-    std::vector<size_t> poly;
-    std::set<std::pair<size_t, size_t>> visited;
-    const size_t start = adj.begin()->first;
-    size_t cur = start;
-    poly.push_back(cur);
-    for (size_t step = 0; step < adj.size() + 2; ++step) {
-        bool moved = false;
-        for (size_t nxt : adj[cur]) {
-            std::pair<size_t, size_t> e{std::min(cur, nxt), std::max(cur, nxt)};
-            if (visited.count(e)) continue;
-            visited.insert(e);
-            poly.push_back(nxt);
-            cur = nxt;
-            moved = true;
-            if (cur == start) { moved = false; break; }
-            break;
-        }
-        if (!moved) break;
-    }
-    // Output as a column vector of 1-based indices, first repeated
-    // at end (MATLAB convention).
-    auto out = Value::matrix(poly.size(), 1, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    for (size_t i = 0; i < poly.size(); ++i)
-        dst[i] = (double)(poly[i] + 1);
-    outs[0] = std::move(out);
+    // Main alpha-shape path lives in the public C++ API.
+    outs[0] = boundary(args[0], args[1], shrink, ctx.engine->resource());
 }
 
 // ── polyarea ─────────────────────────────────────────────────────────
@@ -727,6 +608,119 @@ Value convhull(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < hull.size(); ++i)
         dst[i] = static_cast<double>(hull[i] + 1); // 1-based
+    return out;
+}
+
+// ── boundary (public C++ API) ────────────────────────────────────────
+
+Value boundary(const Value &x, const Value &y, double shrink,
+               std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n)
+        throw Error("boundary: x and y must have the same numel",
+                     0, 0, "boundary", "", "numkit:boundary:shape");
+    if (!std::isfinite(shrink)) shrink = 0.0;
+    if (shrink < 0) shrink = 0;
+    if (shrink > 1) shrink = 1;
+    // shrink == 0 (or too few points) → convex hull.
+    if (shrink == 0.0 || n < 4)
+        return convhull(x, y, mr);
+
+    std::vector<double> X(n), Y(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        X[i] = x.elemAsDouble(i);
+        Y[i] = y.elemAsDouble(i);
+    }
+    auto sa2 = [&](std::size_t a, std::size_t b, std::size_t c) {
+        return (X[b]-X[a]) * (Y[c]-Y[a]) - (Y[b]-Y[a]) * (X[c]-X[a]);
+    };
+    auto inC = [&](std::size_t a, std::size_t b, std::size_t c, std::size_t p) {
+        const double ax=X[a]-X[p], ay=Y[a]-Y[p];
+        const double bx=X[b]-X[p], by=Y[b]-Y[p];
+        const double cx=X[c]-X[p], cy=Y[c]-Y[p];
+        const double a2=ax*ax+ay*ay, b2=bx*bx+by*by, c2=cx*cx+cy*cy;
+        return ax*(by*c2-cy*b2) - ay*(bx*c2-cx*b2) + a2*(bx*cy-cx*by);
+    };
+    std::vector<std::array<std::size_t, 3>> tris;
+    for (std::size_t a = 0; a < n; ++a)
+        for (std::size_t b = a + 1; b < n; ++b)
+            for (std::size_t c = b + 1; c < n; ++c) {
+                const double s = sa2(a, b, c);
+                if (std::abs(s) < 1e-15) continue;
+                std::size_t va=a, vb=b, vc=c;
+                if (s < 0) std::swap(vb, vc);
+                bool ok = true;
+                for (std::size_t p = 0; p < n; ++p) {
+                    if (p == va || p == vb || p == vc) continue;
+                    if (inC(va, vb, vc, p) > 1e-12) { ok = false; break; }
+                }
+                if (ok) tris.push_back({va, vb, vc});
+            }
+    if (tris.empty())
+        return convhull(x, y, mr);
+    auto edgeLen = [&](std::size_t a, std::size_t b) {
+        const double dx = X[a] - X[b], dy = Y[a] - Y[b];
+        return std::sqrt(dx * dx + dy * dy);
+    };
+    std::vector<double> longestEdge(tris.size());
+    for (std::size_t i = 0; i < tris.size(); ++i) {
+        const auto &T = tris[i];
+        longestEdge[i] = std::max({edgeLen(T[0], T[1]),
+                                   edgeLen(T[1], T[2]),
+                                   edgeLen(T[2], T[0])});
+    }
+    std::vector<double> sortedLen = longestEdge;
+    std::sort(sortedLen.begin(), sortedLen.end());
+    const double q = 1.0 - shrink;
+    const std::size_t qi = std::min(sortedLen.size() - 1,
+                                    (std::size_t)std::floor(q * sortedLen.size()));
+    const double threshold = sortedLen[qi];
+    std::vector<std::array<std::size_t, 3>> kept;
+    kept.reserve(tris.size());
+    for (std::size_t i = 0; i < tris.size(); ++i)
+        if (longestEdge[i] <= threshold) kept.push_back(tris[i]);
+    if (kept.empty())
+        return convhull(x, y, mr);
+    std::map<std::pair<std::size_t, std::size_t>, int> edgeCount;
+    auto bumpEdge = [&](std::size_t a, std::size_t b) {
+        if (a > b) std::swap(a, b);
+        edgeCount[{a, b}] += 1;
+    };
+    for (const auto &T : kept) {
+        bumpEdge(T[0], T[1]); bumpEdge(T[1], T[2]); bumpEdge(T[2], T[0]);
+    }
+    std::map<std::size_t, std::vector<std::size_t>> adj;
+    for (const auto &[edge, count] : edgeCount)
+        if (count == 1) {
+            adj[edge.first].push_back(edge.second);
+            adj[edge.second].push_back(edge.first);
+        }
+    if (adj.empty())
+        return convhull(x, y, mr);
+    std::vector<std::size_t> poly;
+    std::set<std::pair<std::size_t, std::size_t>> visited;
+    const std::size_t start = adj.begin()->first;
+    std::size_t cur = start;
+    poly.push_back(cur);
+    for (std::size_t step = 0; step < adj.size() + 2; ++step) {
+        bool moved = false;
+        for (std::size_t nxt : adj[cur]) {
+            std::pair<std::size_t, std::size_t> e{std::min(cur, nxt), std::max(cur, nxt)};
+            if (visited.count(e)) continue;
+            visited.insert(e);
+            poly.push_back(nxt);
+            cur = nxt;
+            moved = true;
+            if (cur == start) { moved = false; break; }
+            break;
+        }
+        if (!moved) break;
+    }
+    auto out = Value::matrix(poly.size(), 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (std::size_t i = 0; i < poly.size(); ++i)
+        dst[i] = static_cast<double>(poly[i] + 1);
     return out;
 }
 
