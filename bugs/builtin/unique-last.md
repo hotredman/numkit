@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P1 (wrong result — option ignored)
+- **Kind:** bug
 - **Severity note:** affects `ia` only; `C` and `ic` are correct.
 - **Found:** 2026-06 via DEEP-PROBE
 

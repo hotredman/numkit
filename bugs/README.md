@@ -54,6 +54,22 @@ Source files, related commits, related specs/tests.
 - **P2** missing feature / option / output relative to MATLAB
 - **P3** test-only / style
 
+## Kind legend
+
+Distinguishes a true defect from a parity feature-gap — so the count of
+real bugs isn't inflated by unimplemented functions:
+
+- **bug** — an IMPLEMENTED function produces a wrong/divergent result,
+  crashes, or silently ignores a documented option. A genuine defect.
+- **stub** — the function exists but a documented option/branch throws
+  "not supported in this revision".
+- **missing-output** — the function exists but a documented Nth output is
+  missing ("Too many output arguments").
+- **missing-fn** — the function is not implemented at all. This is a
+  **parity feature-gap, not a defect** — also tracked in `PROGRESS.md`.
+
+Add `- **Kind:** <kind>` to each file (right after Severity).
+
 ## Every bug also gets a test
 
 **Found a bug → add a test.** Each OPEN bug has a matching `DISABLED_`
@@ -80,47 +96,73 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-| Bug | Sev | Status | Notes |
+**Tally (42 entries):** ✅ 5 fixed · 🔴 37 open = **12 bug** + 7 stub +
+5 missing-output + **13 missing-fn** (the 13 missing-fns are parity
+feature-gaps, not defects — also in PROGRESS.md).
+
+### ✅ FIXED (5)
+
+| Kind | Bug | Sev | Notes |
 |---|---|---|---|
-| [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | ✅ FIXED | 'MissingPlacement' option was ignored |
-| [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | ✅ FIXED 9fcf6872 | cepstrum garbage on non-2ⁿ lengths + rceps 2nd output |
-| [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | ✅ FIXED 1128db65 | missing 4th output (PSD) |
-| [signal/besself-digital](signal/besself-digital.md) | P1 | ✅ FIXED | ran digital path → binomial garbage |
-| [builtin/max-all-linear](builtin/max-all-linear.md) | P1 | ✅ FIXED | max/min(A,[],'all') was entirely broken |
-| [signal/resample-values](signal/resample-values.md) | P1 | 🔴 OPEN | wrong output values (multirate) |
-| [signal/dct-types](signal/dct-types.md) | P2 | 🔴 OPEN | Type 1/3/4 stubbed |
-| [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | 🔴 OPEN | non-2ⁿ phase (rcunwrap) + missing `nd` output |
-| [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P2 | 🔴 OPEN | only 1 of up to 5 outputs |
-| [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 🔴 OPEN | 'halfheight'/'halfprom' option |
-| [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | 🔴 OPEN | functions missing |
-| [signal/fillgaps](signal/fillgaps.md) | P2 | 🔴 OPEN | function missing |
-| [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | 🔴 OPEN | bandstop case throws |
-| [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | 🔴 OPEN | unknown property silently dropped |
-| [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | 🔴 OPEN | sgolay/lowess/loess throw |
-| [stats/isoutlier-gesd](stats/isoutlier-gesd.md) | P2 | 🔴 OPEN | 'gesd' method throws |
-| [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | 🔴 OPEN | wrong values (negative on a chirp) |
-| [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | 🔴 OPEN | matrix (column-per-group) form throws |
-| [stats/mle-output](stats/mle-output.md) | P2 | 🔴 OPEN | missing 2nd output (pci) |
-| [stats/distribution-dispatchers](stats/distribution-dispatchers.md) | P2 | 🔴 OPEN | cdf/pdf/icdf/random missing |
-| [control/lqr-hinfnorm](control/lqr-hinfnorm.md) | P2 | 🔴 OPEN | lqr/hinfnorm/dlqr/gram missing |
-| [image/watershed](image/watershed.md) | P2 | 🔴 OPEN | function missing |
-| [image/imfindcircles](image/imfindcircles.md) | P2 | 🔴 OPEN | function missing |
-| [wavelet/wpdec](wavelet/wpdec.md) | P2 | 🔴 OPEN | wavelet packets missing (needs tree type) |
-| [wavelet/wentropy-ddencmp](wavelet/wentropy-ddencmp.md) | P2 | 🔴 OPEN | functions missing (small) |
-| [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | 🔴 OPEN | bior*/rbio* families unsupported |
-| [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | 🔴 OPEN | am/fm/pm/ssb/msk demod missing (mods exist) |
-| [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | 🔴 OPEN | lsqcurvefit/lsqnonlin missing |
-| [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | 🔴 OPEN | fmincon/linprog/quadprog/fminunc missing |
-| [linalg/qr-pivoting](linalg/qr-pivoting.md) | P2 | 🔴 OPEN | column-pivoting [Q,R,P] missing |
-| [linalg/eig-left-vectors](linalg/eig-left-vectors.md) | P2 | 🔴 OPEN | 3rd output W (left eigenvectors) missing |
-| [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | 🔴 OPEN | automatic binning unsupported |
-| [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | 🔴 OPEN | p-value/cv wrong (kstest + kstest2; statistic OK) |
-| [stats/friedman](stats/friedman.md) | P2 | 🔴 OPEN | function missing |
-| [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | 🔴 OPEN | [r,p]=corr missing the p-value output |
-| [stats/dwtest-pvalue](stats/dwtest-pvalue.md) | P2 | 🔴 OPEN | DW statistic OK, p-value method differs |
-| [stats/mahal-singular](stats/mahal-singular.md) | P2 | 🔴 OPEN | throws on rank-deficient reference |
-| [stats/combnk-scalar](stats/combnk-scalar.md) | P3 | 🔴 OPEN | scalar arg expanded to 1:N |
-| [builtin/unique-last](builtin/unique-last.md) | P1 | 🔴 OPEN | 'last' option ignored (ia = first occurrence) |
-| [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | 🔴 OPEN | wrong numerator for repeated poles |
-| [signal/stmcb](signal/stmcb.md) | P2 | 🔴 OPEN | function missing |
-| [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | 🔴 OPEN | scalar w should be N points |
+| bug | [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | 'MissingPlacement' option was ignored |
+| bug | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | cepstrum garbage on non-2ⁿ + rceps 2nd output (9fcf6872) |
+| bug | [signal/besself-digital](signal/besself-digital.md) | P1 | ran digital path → binomial garbage |
+| bug | [builtin/max-all-linear](builtin/max-all-linear.md) | P1 | max/min(A,[],'all') was entirely broken |
+| missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
+
+### 🔴 OPEN — bug (defect on an implemented function) — 12
+
+| Bug | Sev | Notes |
+|---|---|---|
+| [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
+| [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | wrong numerator for repeated poles |
+| [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
+| [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | non-2ⁿ phase wrong (rcunwrap) + missing `nd` |
+| [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points |
+| [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | p-value/cv wrong (kstest + kstest2; stat OK) |
+| [stats/dwtest-pvalue](stats/dwtest-pvalue.md) | P2 | DW stat OK, p-value method differs |
+| [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
+| [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | matrix (column-per-group) form throws |
+| [stats/combnk-scalar](stats/combnk-scalar.md) | P3 | scalar arg expanded to 1:N |
+| [builtin/unique-last](builtin/unique-last.md) | P1 | 'last' option ignored (ia = first occurrence) |
+| [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
+
+### 🔴 OPEN — stub (option/branch throws "not supported") — 7
+
+| Bug | Sev | Notes |
+|---|---|---|
+| [signal/dct-types](signal/dct-types.md) | P2 | Type 1/3/4 throw |
+| [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
+| [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | bandstop case throws |
+| [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
+| [stats/isoutlier-gesd](stats/isoutlier-gesd.md) | P2 | 'gesd' method throws |
+| [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | automatic binning throws |
+| [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
+
+### 🔴 OPEN — missing-output (Nth output not emitted) — 5
+
+| Bug | Sev | Notes |
+|---|---|---|
+| [linalg/qr-pivoting](linalg/qr-pivoting.md) | P2 | column-pivoting [Q,R,P] |
+| [linalg/eig-left-vectors](linalg/eig-left-vectors.md) | P2 | 3rd output W (left eigenvectors) |
+| [stats/mle-output](stats/mle-output.md) | P2 | 2nd output pci |
+| [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | [r,p]=corr p-value |
+| [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P2 | only 1 of up to 5 outputs |
+
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 13
+
+| Bug | Sev | Notes |
+|---|---|---|
+| [stats/friedman](stats/friedman.md) | P2 | Friedman ANOVA |
+| [stats/distribution-dispatchers](stats/distribution-dispatchers.md) | P2 | cdf/pdf/icdf/random |
+| [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | pmusic/peig |
+| [signal/fillgaps](signal/fillgaps.md) | P2 | fillgaps |
+| [signal/stmcb](signal/stmcb.md) | P2 | stmcb |
+| [image/watershed](image/watershed.md) | P2 | watershed |
+| [image/imfindcircles](image/imfindcircles.md) | P2 | imfindcircles |
+| [wavelet/wpdec](wavelet/wpdec.md) | P2 | wavelet packets (needs tree type) |
+| [wavelet/wentropy-ddencmp](wavelet/wentropy-ddencmp.md) | P2 | wentropy / ddencmp |
+| [control/lqr-hinfnorm](control/lqr-hinfnorm.md) | P2 | lqr/hinfnorm/dlqr/gram |
+| [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
+| [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | lsqcurvefit/lsqnonlin |
+| [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon/linprog/quadprog/fminunc |

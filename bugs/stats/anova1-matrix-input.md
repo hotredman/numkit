@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P2 (missing input form)
+- **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom

@@ -2,6 +2,7 @@
 
 - **Status:** ✅ FIXED (1128db65, 2026-06)
 - **Severity:** P2 (missing output)
+- **Kind:** missing-output
 - **Found:** 2026-06 via signal.* DEEP-PROBE sweep
 
 ## Symptom

@@ -2,6 +2,7 @@
 
 - **Status:** ✅ FIXED (lib-dev, 2026-06)
 - **Severity:** P1 (wrong result)
+- **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom

@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P2 (missing wavelet family)
+- **Kind:** stub
 - **Found:** 2026-06 via DEEP-PROBE (long-standing KNOWN GAP)
 
 ## Symptom

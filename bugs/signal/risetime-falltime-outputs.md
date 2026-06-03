@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P2 (missing outputs)
+- **Kind:** missing-output
 - **Found:** 2026-06 via signal.* DEEP-PROBE sweep
 
 ## Symptom

@@ -2,6 +2,7 @@
 
 - **Status:** 🔴 OPEN
 - **Severity:** P3 (edge-case input)
+- **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE (stats coverage)
 
 ## Symptom
