@@ -43,6 +43,23 @@ export function visibleRange(x, x0, x1) {
   return [i0, i1];
 }
 
+// True when the finite x values never decrease (NaN/Inf gaps are ignored).
+// Both visibleRange's binary search and the M4 pixel-column bucketing assume
+// ascending x; a parametric / multi-segment line — a voronoi diagram, a
+// triplot mesh, any null-separated set of segments that double back in x —
+// violates that. Such a series must render RAW: windowing it by x would slice
+// a bogus index range and drop most of the segments.
+export function isMonotonicX(x) {
+  let prev = -Infinity;
+  for (let i = 0; i < x.length; i++) {
+    const v = x[i];
+    if (!Number.isFinite(v)) continue;     // gap marker — skip
+    if (v < prev) return false;
+    prev = v;
+  }
+  return true;
+}
+
 // M4: {first, min, max, last} per pixel column over the visible range.
 // Returns { x:[], y:[] } with at most 4*width points, in x order.
 export function decimateM4(x, y, x0, x1, width) {
@@ -180,6 +197,10 @@ export function decimateLTTB(x, y, x0, x1, threshold) {
 // Build the pyramid. O(N) total (geometric). Stops at ~baseTarget points.
 export function buildPyramid(x, y, baseTarget = 8000) {
   const levels = [{ x, y }];                 // level 0 = raw
+  // M4 (used to coarsen each level) assumes ascending x — a non-monotonic
+  // series can't be pyramided. Keep just the raw level; decimateLOD renders
+  // it unchanged.
+  if (!isMonotonicX(x)) return levels;
   let cx = x, cy = y;
   while (cx.length > baseTarget) {
     const cols = Math.max(1, Math.ceil(cx.length / 8));   // M4 → ≤ half
@@ -195,6 +216,12 @@ export function buildPyramid(x, y, baseTarget = 8000) {
 // as you zoom in). Per-frame cost is O(width) regardless of series size.
 export function decimateLOD(levels, x0, x1, width, algo = 'm4') {
   if (!levels || !levels.length) return { x: [], y: [], decimated: false, n: 0 };
+  // Non-monotonic x (parametric / multi-segment): the pyramid + x-window are
+  // both invalid, so render the raw series unchanged.
+  if (!isMonotonicX(levels[0].x)) {
+    const rx = levels[0].x, ry = levels[0].y;
+    return { x: rx, y: ry, decimated: false, n: rx.length };
+  }
   const w = Math.max(1, width | 0);
   let chosen = levels[0];                     // finest (raw) fallback
   for (let i = levels.length - 1; i >= 0; i--) {
@@ -210,6 +237,9 @@ export function decimateLOD(levels, x0, x1, width, algo = 'm4') {
 // pixel width.
 export function decimateSeries(x, y, x0, x1, width, algo = 'm4') {
   const w = Math.max(1, width | 0);
+  // Non-monotonic x can't be x-windowed (the binary search would slice a bogus
+  // range and drop segments) — hand back the whole series untouched.
+  if (!isMonotonicX(x)) return { x, y, decimated: false, n: x.length };
   const [i0, i1] = visibleRange(x, x0, x1);
   const n = i1 - i0;
   if (algo === 'none' || n <= w * 2) {
