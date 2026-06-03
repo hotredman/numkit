@@ -116,3 +116,6 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 | [stats/friedman](stats/friedman.md) | P2 | 🔴 OPEN | function missing |
 | [builtin/unique-last](builtin/unique-last.md) | P1 | 🔴 OPEN | 'last' option ignored (ia = first occurrence) |
 | [builtin/max-all-linear](builtin/max-all-linear.md) | P2 | 🔴 OPEN | max(A,[],'all','linear') errors |
+| [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | 🔴 OPEN | wrong numerator for repeated poles |
+| [signal/stmcb](signal/stmcb.md) | P2 | 🔴 OPEN | function missing |
+| [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | 🔴 OPEN | scalar w should be N points |

@@ -88,3 +88,25 @@ TEST_F(SignalKnownBug, DISABLED_EllipordBandstop)
     EXPECT_GT(evalScalar("n"), 0.0);
     EXPECT_EQ(static_cast<int>(evalScalar("numel(Wn)")), 2);
 }
+
+// bugs/signal/impinvar-repeated-poles.md — repeated-pole numerator wrong.
+TEST_F(SignalKnownBug, DISABLED_ImpinvarRepeatedPoles)
+{
+    eval("[bz, az] = impinvar(1, [1 2 1], 10);");   // double pole at -1
+    EXPECT_NEAR(evalScalar("bz(1)"), 0.0,         1e-9);
+    EXPECT_NEAR(evalScalar("bz(2)"), 0.00904837,  1e-7);
+}
+
+// bugs/signal/stmcb.md — Steiglitz-McBride IIR identification missing.
+TEST_F(SignalKnownBug, DISABLED_Stmcb)
+{
+    eval("[b, a] = stmcb([1 0.5 0.25 0.125 0.0625], 1, 1);");
+    EXPECT_NEAR(evalScalar("a(2)"), -0.5, 1e-4);
+}
+
+// bugs/signal/freqs-scalar-w.md — scalar w means N points (MATLAB), not a freq.
+TEST_F(SignalKnownBug, DISABLED_FreqsScalarIsNPoints)
+{
+    eval("h = freqs([1 0], [1 1 1], 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(h)")), 2);  // numkit currently 1
+}
