@@ -108,6 +108,49 @@ inline DecimatedSeries decimateM4(const double *x, const double *y, std::size_t 
     return out;
 }
 
+// M2: {min, max} per pixel column (2 points vs M4's 4) — a lighter mode for
+// dense data; keeps spikes / true extent. Mirrors decimate.js decimateM2.
+inline DecimatedSeries decimateM2(const double *x, const double *y, std::size_t n,
+                                  double x0, double x1, int width) {
+    DecimatedSeries out;
+    std::size_t i0, i1;
+    decimVisibleRange(x, n, x0, x1, i0, i1);
+    if (i1 <= i0) return out;
+    const int cols = width < 1 ? 1 : width;
+    const double span = (x1 - x0) != 0.0 ? (x1 - x0) : 1.0;
+    auto bucketOf = [&](double xv) -> int {
+        int b = static_cast<int>(std::floor(((xv - x0) / span) * cols));
+        if (b < 0) b = 0; else if (b >= cols) b = cols - 1;
+        return b;
+    };
+    out.x.reserve(static_cast<std::size_t>(cols) * 2);
+    out.y.reserve(static_cast<std::size_t>(cols) * 2);
+    int curBucket = -1;
+    std::size_t bMinI = i0, bMaxI = i0;
+    double bMinY = 0.0, bMaxY = 0.0;
+    auto flush = [&]() {
+        if (curBucket < 0) return;
+        std::size_t a = std::min(bMinI, bMaxI), b = std::max(bMinI, bMaxI);
+        out.x.push_back(x[a]); out.y.push_back(y[a]);
+        if (b != a) { out.x.push_back(x[b]); out.y.push_back(y[b]); }
+    };
+    for (std::size_t i = i0; i < i1; ++i) {
+        double xv = x[i], yv = y[i];
+        int bk = bucketOf(xv);
+        if (bk != curBucket) {
+            flush();
+            curBucket = bk; bMinI = i; bMaxI = i;
+            bMinY = std::isfinite(yv) ? yv : INFINITY;
+            bMaxY = std::isfinite(yv) ? yv : -INFINITY;
+        } else if (std::isfinite(yv)) {
+            if (yv < bMinY) { bMinY = yv; bMinI = i; }
+            if (yv > bMaxY) { bMaxY = yv; bMaxI = i; }
+        }
+    }
+    flush();
+    return out;
+}
+
 // LTTB: ~threshold points preserving visual shape (smooth trends).
 inline DecimatedSeries decimateLTTB(const double *x, const double *y, std::size_t n,
                                     double x0, double x1, int threshold) {
@@ -151,7 +194,7 @@ inline DecimatedSeries decimateLTTB(const double *x, const double *y, std::size_
 
 // Dispatcher. algo: 0 = M4 (default), 1 = LTTB, 2 = none (raw visible
 // slice). Also returns raw when the visible count is already <= 2*width.
-enum class DecimAlgo { M4 = 0, LTTB = 1, None = 2 };
+enum class DecimAlgo { M4 = 0, LTTB = 1, None = 2, M2 = 3 };
 
 inline DecimatedSeries decimateSeries(const double *x, const double *y, std::size_t n,
                                       double x0, double x1, int width, DecimAlgo algo) {
@@ -164,8 +207,9 @@ inline DecimatedSeries decimateSeries(const double *x, const double *y, std::siz
         for (std::size_t i = i0; i < i1; ++i) { out.x.push_back(x[i]); out.y.push_back(y[i]); }
         return out;
     }
-    return algo == DecimAlgo::LTTB ? decimateLTTB(x, y, n, x0, x1, w)
-                                   : decimateM4(x, y, n, x0, x1, w);
+    if (algo == DecimAlgo::LTTB) return decimateLTTB(x, y, n, x0, x1, w);
+    if (algo == DecimAlgo::M2)   return decimateM2(x, y, n, x0, x1, w);
+    return decimateM4(x, y, n, x0, x1, w);
 }
 
 // ── LOD pyramid (engine twin of decimate.js buildPyramid/decimateLOD) ───

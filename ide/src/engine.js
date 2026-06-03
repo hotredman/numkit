@@ -412,7 +412,7 @@ export async function createWasmEngine(createModule) {
     //   { x:number[], y:number[] } | { error } | null (binding missing)
     getSeriesTile(figId, axIdx, dsIdx, x0, x1, width, algo) {
       if (typeof Module.repl_get_series_tile !== 'function') return null;
-      const a = algo === 'lttb' ? 1 : (algo === 'none' ? 2 : 0);
+      const a = algo === 'lttb' ? 1 : algo === 'none' ? 2 : algo === 'm2' ? 3 : 0;
       try {
         return JSON.parse(Module.repl_get_series_tile(
           figId | 0, axIdx | 0, dsIdx | 0, x0, x1, width | 0, a));

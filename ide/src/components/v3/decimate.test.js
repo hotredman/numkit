@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  visibleRange, decimateM4, decimateLTTB, decimateSeries,
+  visibleRange, decimateM4, decimateM2, decimateLTTB, decimateSeries,
   buildPyramid, decimateLOD,
 } from './decimate';
 
@@ -51,6 +51,30 @@ describe('decimateM4', () => {
     const out = decimateM4(x, y, 100, 200, 50);
     expect(out.x[0]).toBeGreaterThanOrEqual(99);            // padded one left
     expect(out.x[out.x.length - 1]).toBeLessThanOrEqual(201); // padded one right
+  });
+});
+
+describe('decimateM2', () => {
+  it('preserves global min/max and emits ≤ 2*width points', () => {
+    const N = 100000, W = 800;
+    const x = ramp(N);
+    const y = x.map((i) => Math.sin(i / 50));
+    y[40000] = 77; y[90000] = -55;
+    const out = decimateM2(x, y, 0, N - 1, W);
+    expect(Math.max(...out.y)).toBe(77);
+    expect(Math.min(...out.y)).toBe(-55);
+    expect(out.x.length).toBeLessThanOrEqual(2 * W);
+    for (let i = 1; i < out.x.length; i++) {
+      expect(out.x[i]).toBeGreaterThanOrEqual(out.x[i - 1]);
+    }
+  });
+  it('is lighter than M4 on the same data', () => {
+    const N = 100000, W = 800;
+    const x = ramp(N);
+    const y = x.map((i) => Math.sin(i / 3) + (i % 7));   // dense extrema
+    const m2 = decimateM2(x, y, 0, N - 1, W);
+    const m4 = decimateM4(x, y, 0, N - 1, W);
+    expect(m2.x.length).toBeLessThanOrEqual(m4.x.length);
   });
 });
 
