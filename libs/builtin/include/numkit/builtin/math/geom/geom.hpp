@@ -1,8 +1,9 @@
 // libs/builtin/include/numkit/builtin/math/geom/geom.hpp
 //
-// Geometric / graph-algorithm primitives. Most fns in libs/builtin/src/
-// math/geom/geom.cpp are adapter-only (script-callable but no C++ API);
-// this header declares the ones with explicit typed entry points.
+// Geometric / graph-algorithm primitives. Every function in
+// libs/builtin/src/math/geom/geom.cpp now has an explicit typed C++ entry
+// point declared here; the script-callable `*_reg` adapters delegate to
+// these public functions (lifted from adapter-only over 2026-06).
 
 #pragma once
 
@@ -116,6 +117,29 @@ Value boundary(const Value &x, const Value &y, double shrink = 0.5,
 /// @return     `M × 3` matrix of 1-based triangle vertex indices.
 /// @throws Error on x/y numel mismatch.
 Value delaunay(const Value &x, const Value &y,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief 2-D scattered-data interpolation — `vq = griddata(x, y, v, xq, yq)`.
+///
+/// Interpolates the sample values `v` defined at the scattered points
+/// `(x, y)` onto the query points `(xq, yq)`. Builds a brute-force Delaunay
+/// triangulation of `(x, y)`, locates the triangle containing each query
+/// point, and returns the barycentric-weighted value. Query points outside
+/// the convex hull (and every query when fewer than 3 samples) → NaN. The
+/// result takes the shape of `xq`.
+///
+/// Only MATLAB's default `'linear'` method is implemented; `'nearest'`,
+/// `'natural'`, `'cubic'`, and `'v4'` are a v1 gap (the script form silently
+/// ignores a trailing method argument — same as the original adapter).
+///
+/// @param x,y    Sample point coordinates (same numel as `v`).
+/// @param v      Sample values at `(x, y)`.
+/// @param xq,yq  Query point coordinates (same numel; result takes xq's shape).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Interpolated values, shape of `xq` (NaN outside the hull).
+/// @throws Error on x/y/v numel mismatch or xq/yq numel mismatch.
+Value griddata(const Value &x, const Value &y, const Value &v,
+               const Value &xq, const Value &yq,
                std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Match-pairs result.

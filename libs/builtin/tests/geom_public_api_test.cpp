@@ -133,6 +133,36 @@ TEST(GeomPublicApiTest, Delaunay)
     EXPECT_ANY_THROW(builtin::delaunay(x, var(e, "[0 0 1]", "yb4"), e.resource()));
 }
 
+TEST(GeomPublicApiTest, Griddata)
+{
+    Engine e;
+    // Sample the plane v = 2x + 3y + 1 at the unit-square corners; linear
+    // (barycentric) interpolation of a plane is exact in every triangle.
+    Value x = var(e, "[0 1 0 1]", "x");
+    Value y = var(e, "[0 0 1 1]", "y");
+    Value v = var(e, "[1 3 4 6]", "v"); // f at each corner
+    Value xq = var(e, "[0.5 0.25 2.0]", "xq");
+    Value yq = var(e, "[0.5 0.25 2.0]", "yq");
+    Value vq = builtin::griddata(x, y, v, xq, yq, e.resource());
+    ASSERT_EQ(vq.numel(), 3u);
+    EXPECT_NEAR(vq.doubleData()[0], 3.5, 1e-12);  // f(0.5, 0.5)
+    EXPECT_NEAR(vq.doubleData()[1], 2.25, 1e-12); // f(0.25, 0.25)
+    EXPECT_TRUE(std::isnan(vq.doubleData()[2]));  // (2, 2) outside the hull
+    // result takes the shape of xq
+    EXPECT_EQ(vq.dims().rows(), xq.dims().rows());
+    EXPECT_EQ(vq.dims().cols(), xq.dims().cols());
+    // < 3 samples -> all NaN
+    Value vq0 = builtin::griddata(var(e, "[0 1]", "x2"), var(e, "[0 1]", "y2"),
+                                  var(e, "[1 2]", "v2"), xq, yq, e.resource());
+    EXPECT_TRUE(std::isnan(vq0.doubleData()[0]));
+    // x/y/v numel mismatch throws
+    EXPECT_ANY_THROW(
+        builtin::griddata(x, y, var(e, "[1 2 3]", "vb"), xq, yq, e.resource()));
+    // xq/yq numel mismatch throws
+    EXPECT_ANY_THROW(
+        builtin::griddata(x, y, v, xq, var(e, "[0 0]", "yqb"), e.resource()));
+}
+
 TEST(GeomPublicApiTest, Boundary)
 {
     Engine e;
