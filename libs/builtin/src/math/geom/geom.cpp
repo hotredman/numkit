@@ -284,24 +284,7 @@ void polyarea_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("polyarea: requires (x, y)",
                      0, 0, "polyarea", "", "numkit:polyarea:nargin");
-    const auto &xv = args[0];
-    const auto &yv = args[1];
-    const std::size_t n = xv.numel();
-    if (yv.numel() != n)
-        throw Error("polyarea: x and y must have the same numel",
-                     0, 0, "polyarea", "", "numkit:polyarea:shape");
-    auto *mr = ctx.engine->resource();
-    if (n < 3) {
-        outs[0] = Value::scalar(0.0, mr);
-        return;
-    }
-    double s = 0;
-    for (std::size_t i = 0; i < n; ++i) {
-        const std::size_t j = (i + 1) % n;
-        s += xv.elemAsDouble(i) * yv.elemAsDouble(j)
-           - xv.elemAsDouble(j) * yv.elemAsDouble(i);
-    }
-    outs[0] = Value::scalar(0.5 * std::abs(s), mr);
+    outs[0] = polyarea(args[0], args[1], ctx.engine->resource());
 }
 
 // ── convhull ─────────────────────────────────────────────────────────
@@ -730,6 +713,25 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
 }
 
 } // namespace detail
+
+// ── polyarea (public C++ API) ────────────────────────────────────────
+
+Value polyarea(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n)
+        throw Error("polyarea: x and y must have the same numel",
+                     0, 0, "polyarea", "", "numkit:polyarea:shape");
+    if (n < 3)
+        return Value::scalar(0.0, mr);
+    double s = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::size_t j = (i + 1) % n;
+        s += x.elemAsDouble(i) * y.elemAsDouble(j)
+           - x.elemAsDouble(j) * y.elemAsDouble(i);
+    }
+    return Value::scalar(0.5 * std::abs(s), mr);
+}
 
 // ── griddatan ────────────────────────────────────────────────────────
 //
