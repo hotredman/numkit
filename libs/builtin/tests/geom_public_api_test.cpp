@@ -63,3 +63,25 @@ TEST(GeomPublicApiTest, Inpolygon)
     // query shape mismatch throws
     EXPECT_ANY_THROW(builtin::inpolygon(xq, var(e, "[0 0]", "yqb"), xv, yv, e.resource()));
 }
+
+TEST(GeomPublicApiTest, Convhull)
+{
+    Engine e;
+    Value x = var(e, "[0 1 1 0]", "x"); // unit-square corners
+    Value y = var(e, "[0 0 1 1]", "y");
+    Value K = builtin::convhull(x, y, e.resource());
+    EXPECT_EQ(K.numel(), 5u); // 4 hull vertices + wrap
+    EXPECT_DOUBLE_EQ(K.doubleData()[0], K.doubleData()[4]); // first == last
+    // interior point (index 5) is excluded from the hull
+    Value xi = var(e, "[0 1 1 0 0.5]", "xi");
+    Value yi = var(e, "[0 0 1 1 0.5]", "yi");
+    Value K2 = builtin::convhull(xi, yi, e.resource());
+    EXPECT_EQ(K2.numel(), 5u);
+    for (std::size_t i = 0; i < K2.numel(); ++i)
+        EXPECT_NE(K2.doubleData()[i], 5.0);
+    // < 3 points -> [1; 2; 1]
+    Value K3 = builtin::convhull(var(e, "[0 1]", "x3"), var(e, "[0 1]", "y3"), e.resource());
+    EXPECT_EQ(K3.numel(), 3u);
+    // shape mismatch throws
+    EXPECT_ANY_THROW(builtin::convhull(x, var(e, "[0 0 1]", "yb2"), e.resource()));
+}

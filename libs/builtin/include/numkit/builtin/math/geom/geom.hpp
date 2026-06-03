@@ -67,6 +67,22 @@ Value polyarea(const Value &x, const Value &y,
 Value inpolygon(const Value &xq, const Value &yq, const Value &xv,
                 const Value &yv, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Convex hull of a 2-D point cloud — `K = convhull(x, y)`.
+///
+/// Andrew's monotone-chain algorithm (O(N log N)). Returns the 1-based
+/// indices of the hull vertices in CCW order, with the first vertex
+/// repeated at the end (MATLAB convention). Fewer than 3 points →
+/// `[1; 2; …; n; 1]`. (MATLAB's 2nd `v` output — the hull area — is a v1
+/// gap; only the index vector is returned. The script form auto-plots the
+/// hull when called with no output.)
+///
+/// @param x,y  Point coordinates (same numel).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Column of 1-based hull-vertex indices (first repeated last).
+/// @throws Error on x/y numel mismatch.
+Value convhull(const Value &x, const Value &y,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Match-pairs result.
 struct MatchpairsResult {
     Value M;   ///< `p × 2` matrix of `(row, col)` 1-based match pairs.

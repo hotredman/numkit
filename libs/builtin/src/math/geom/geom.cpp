@@ -254,88 +254,33 @@ void convhull_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("convhull: requires (x, y)",
                      0, 0, "convhull", "", "numkit:convhull:nargin");
-    const auto &xv = args[0];
-    const auto &yv = args[1];
-    const std::size_t n = xv.numel();
-    if (yv.numel() != n)
-        throw Error("convhull: x and y must have the same numel",
-                     0, 0, "convhull", "", "numkit:convhull:shape");
-    auto *mr = ctx.engine->resource();
-    if (n < 3) {
-        // Degenerate — return [1, 2, ..., n, 1] so the polygon wraps.
-        auto out = Value::matrix(n + 1, 1, ValueType::DOUBLE, mr);
-        double *dst = out.doubleDataMut();
-        for (std::size_t i = 0; i < n; ++i) dst[i] = static_cast<double>(i + 1);
-        dst[n] = 1.0;
-        outs[0] = std::move(out);
+    Value K = convhull(args[0], args[1], ctx.engine->resource());
+    if (nargout != 0) {
+        outs[0] = std::move(K);
         return;
     }
-
-    ScratchArena scratch(mr);
-    ScratchVec<std::size_t> idx(n, &scratch);
-    ScratchVec<double> X(n, &scratch);
-    ScratchVec<double> Y(n, &scratch);
-    for (std::size_t i = 0; i < n; ++i) {
-        X[i] = xv.elemAsDouble(i);
-        Y[i] = yv.elemAsDouble(i);
-        idx[i] = i;
+    // Auto-plot the hull polygon when called with no LHS (MATLAB
+    // convention). Reconstruct hull coordinates from the index vector K.
+    auto &fm = ctx.engine->figureManager();
+    fm.prepareForPlot();
+    const double *k = K.doubleData();
+    const std::size_t m = K.numel();
+    std::ostringstream xs, ys;
+    xs << '['; ys << '[';
+    for (std::size_t i = 0; i < m; ++i) {
+        if (i) { xs << ','; ys << ','; }
+        const std::size_t kk = static_cast<std::size_t>(k[i]) - 1;
+        xs << args[0].elemAsDouble(kk);
+        ys << args[1].elemAsDouble(kk);
     }
-    std::sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
-        if (X[a] != X[b]) return X[a] < X[b];
-        return Y[a] < Y[b];
-    });
-
-    auto cross = [&](std::size_t o, std::size_t a, std::size_t b) {
-        return (X[a] - X[o]) * (Y[b] - Y[o]) - (Y[a] - Y[o]) * (X[b] - X[o]);
-    };
-
-    // Build lower hull.
-    ScratchVec<std::size_t> hull(&scratch);
-    hull.reserve(2 * n);
-    for (std::size_t i = 0; i < n; ++i) {
-        const std::size_t p = idx[i];
-        while (hull.size() >= 2
-               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
-            hull.pop_back();
-        hull.push_back(p);
-    }
-    // Upper hull.
-    const std::size_t lowerSize = hull.size() + 1;
-    for (std::size_t i = n - 1; i-- > 0; ) {
-        const std::size_t p = idx[i];
-        while (hull.size() >= lowerSize
-               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
-            hull.pop_back();
-        hull.push_back(p);
-    }
-    // hull now ends with the start point repeated; that's MATLAB's
-    // convention.
-    auto out = Value::matrix(hull.size(), 1, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    for (std::size_t i = 0; i < hull.size(); ++i)
-        dst[i] = static_cast<double>(hull[i] + 1);   // 1-based
-    if (nargout > 0) outs[0] = std::move(out);
-
-    // Auto-plot when no LHS — MATLAB convention.
-    if (nargout == 0) {
-        auto &fm = ctx.engine->figureManager();
-        fm.prepareForPlot();
-        std::ostringstream xs, ys;
-        xs << '['; ys << '[';
-        for (std::size_t i = 0; i < hull.size(); ++i) {
-            if (i) { xs << ','; ys << ','; }
-            xs << X[hull[i]];
-            ys << Y[hull[i]];
-        }
-        xs << ']'; ys << ']';
-        DatasetInfo ds;
-        ds.type  = "line";
-        ds.xJson = xs.str();
-        ds.yJson = ys.str();
-        ds.style = "color=#1f77b4";
-        fm.pushDataset(std::move(ds));
-        fm.emitModified();
-    }
+    xs << ']'; ys << ']';
+    DatasetInfo ds;
+    ds.type  = "line";
+    ds.xJson = xs.str();
+    ds.yJson = ys.str();
+    ds.style = "color=#1f77b4";
+    fm.pushDataset(std::move(ds));
+    fm.emitModified();
 }
 
 // ── histcounts2 ──────────────────────────────────────────────────────
@@ -726,6 +671,62 @@ Value inpolygon(const Value &xq, const Value &yq, const Value &xv,
         }
         dst[q] = inside ? 1 : 0;
     }
+    return out;
+}
+
+// ── convhull (public C++ API) ────────────────────────────────────────
+
+Value convhull(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n)
+        throw Error("convhull: x and y must have the same numel",
+                     0, 0, "convhull", "", "numkit:convhull:shape");
+    if (n < 3) {
+        // Degenerate — return [1, 2, ..., n, 1] so the polygon wraps.
+        auto out = Value::matrix(n + 1, 1, ValueType::DOUBLE, mr);
+        double *dst = out.doubleDataMut();
+        for (std::size_t i = 0; i < n; ++i) dst[i] = static_cast<double>(i + 1);
+        dst[n] = 1.0;
+        return out;
+    }
+    ScratchArena scratch(mr);
+    ScratchVec<std::size_t> idx(n, &scratch);
+    ScratchVec<double> X(n, &scratch);
+    ScratchVec<double> Y(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        X[i] = x.elemAsDouble(i);
+        Y[i] = y.elemAsDouble(i);
+        idx[i] = i;
+    }
+    std::sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
+        if (X[a] != X[b]) return X[a] < X[b];
+        return Y[a] < Y[b];
+    });
+    auto cross = [&](std::size_t o, std::size_t a, std::size_t b) {
+        return (X[a] - X[o]) * (Y[b] - Y[o]) - (Y[a] - Y[o]) * (X[b] - X[o]);
+    };
+    ScratchVec<std::size_t> hull(&scratch);
+    hull.reserve(2 * n);
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::size_t p = idx[i];
+        while (hull.size() >= 2
+               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
+            hull.pop_back();
+        hull.push_back(p);
+    }
+    const std::size_t lowerSize = hull.size() + 1;
+    for (std::size_t i = n - 1; i-- > 0; ) {
+        const std::size_t p = idx[i];
+        while (hull.size() >= lowerSize
+               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
+            hull.pop_back();
+        hull.push_back(p);
+    }
+    auto out = Value::matrix(hull.size(), 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (std::size_t i = 0; i < hull.size(); ++i)
+        dst[i] = static_cast<double>(hull[i] + 1); // 1-based
     return out;
 }
 
