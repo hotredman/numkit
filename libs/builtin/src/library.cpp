@@ -1,5 +1,6 @@
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/language/cells/cell.hpp>
+#include <numkit/builtin/language/structures/struct.hpp>
 #include <numkit/builtin/language/operators/binary_ops.hpp>
 #include <numkit/builtin/language/types/types.hpp>
 #include <numkit/builtin/math/arithmetic/rounding.hpp>
@@ -1426,6 +1427,7 @@ void BuiltinLibrary::install(Engine &engine)
             }
         });
     engine.registerFunction("structfun",  &builtin::detail::structfun_reg);
+    builtin::registerStructfunCallbackBuiltin(engine); // VM-pausable callbacks
     engine.registerFunction("getfield",   &builtin::detail::getfield_reg);
     engine.registerFunction("setfield",   &builtin::detail::setfield_reg);
     engine.registerFunction("orderfields",&builtin::detail::orderfields_reg);

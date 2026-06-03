@@ -6,7 +6,18 @@
 #include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
+namespace numkit {
+class Engine;
+}
+
 namespace numkit::builtin {
+
+/// @brief Register structfun's VM-continuation driver (state-machine callbacks).
+///
+/// Under the VM backend, `structfun(@userfunc, S)` runs each field's callback as
+/// a pausable VM frame; builtin handles / multi-output / non-scalar-struct fall
+/// back to the synchronous `structfun`. Call once at engine setup.
+void registerStructfunCallbackBuiltin(Engine &engine);
 
 /// @brief Empty struct scalar (`s = struct()`).
 ///
