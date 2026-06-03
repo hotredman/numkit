@@ -210,3 +210,28 @@ TEST_F(SpectralTest, Ac2rcReflectionCoeffs)
     EXPECT_NEAR(evalScalar("k(2)"),  0.2,            1e-12);
     EXPECT_NEAR(evalScalar("k(3)"), -0.180555555556, 1e-10);
 }
+
+// ============================================================
+// spectrogram 4th output (ps = power spectral density) — DEEP-PROBE 2026-06
+// (was "Too many output arguments"). vs MATLAB R2025b.
+// ============================================================
+
+TEST_F(SpectralTest, SpectrogramPsdFourthOutput)
+{
+    // Explicit 8-pt Hamming window, 4 overlap, nfft 16, fs 100.
+    eval("[s, f, t, ps] = spectrogram((1:64)', 8, 4, 16, 100);");
+    EXPECT_EQ(eval("ps").dims().rows(), 9u);   // one-sided: nfft/2+1
+    EXPECT_NEAR(evalScalar("ps(1,1)"), 1.08212, 1e-4);   // DC bin (c=1)
+    EXPECT_NEAR(evalScalar("ps(3,2)"), 1.98718, 1e-4);   // interior (c=2)
+    EXPECT_NEAR(evalScalar("sum(ps(:))"), 3254.62, 1e-1);
+    // PSD is real and nonnegative.
+    EXPECT_GE(evalScalar("min(ps(:))"), 0.0);
+}
+
+TEST_F(SpectralTest, SpectrogramPsdDefaultWindow)
+{
+    // No fs / window: default hamming(floor(nx/4.5)), fs=2*pi, nfft=128.
+    eval("[s2, f2, t2, ps2] = spectrogram((1:50)');");
+    EXPECT_EQ(eval("ps2").dims().rows(), 129u);
+    EXPECT_NEAR(evalScalar("ps2(2,2)"), 344.941, 1e-2);
+}

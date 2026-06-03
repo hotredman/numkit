@@ -1,0 +1,10 @@
+{
+  "name": "spectrogram_ps",
+  "namespace": "signal",
+  "setup": "x = (1:64)';",
+  "expr": "[s, f, t, ps] = spectrogram(x, 8, 4, 16, 100); p11 = ps(1,1); p32 = ps(3,2); sp = sum(ps(:)); [s2,f2,t2,ps2] = spectrogram((1:50)'); q22 = ps2(2,2); sq = sum(ps2(:)); nr = double(size(ps2,1));",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": ["p11", "p32", "sp", "q22", "sq", "nr"],
+  "comment": "Sig: [s,f,t,ps] = spectrogram(...). DEEP-PROBE 2026-06: the 4th output ps (one-sided power spectral density) was missing ('Too many output arguments'). ps[k] = c[k]*|s[k]|^2/(fs*sum(win.^2)), c=2 on interior bins, 1 at DC and (when present) Nyquist — reuses the already-computed STFT. With an explicit window+fs (8-pt Hamming, fs=100): ps(1,1)=1.08212, ps(3,2)=1.98718. No-fs default-window case (hamming(floor(nx/4.5)), fs=2*pi, nfft=128): ps2 is 129xM. Bit-identical MATLAB R2025b."
+}
