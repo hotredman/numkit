@@ -575,8 +575,11 @@ struct ClassDefDesc
 };
 
 // Translate an attribute keyword to an Access level. `Immutable` is only
-// meaningful for SetAccess; unknown / unsupported values (e.g. class lists
-// `?Foo`) map to Public so they parse without being (incorrectly) enforced.
+// meaningful for SetAccess. Friend-class access (`Access = ?Foo` / a `{?A,?B}`
+// list) is NOT a silent downgrade here — the `?` is rejected at lex time, so
+// such a class fails to load loudly and never reaches this function. The
+// default below therefore only covers `public` and any access keyword we don't
+// yet model, which fall back to Public (permissive, forward-compatible).
 static Access parseAccessLevel(const std::string &v)
 {
     if (v == "private")
@@ -585,7 +588,7 @@ static Access parseAccessLevel(const std::string &v)
         return Access::Protected;
     if (v == "immutable")
         return Access::Immutable;
-    return Access::Public; // "public" + anything we don't enforce in v1
+    return Access::Public; // "public" + any not-yet-modeled keyword
 }
 
 // Inverse of parseAccessLevel — the MATLAB attribute string for reflection
