@@ -36,23 +36,38 @@ size_t bitReverse(size_t v, size_t bits)
     return r;
 }
 
-// fft of a real vector → complex column. Convenience wrapper that
-// zero-pads x to nfft and runs the in-place radix-2 over a scratch
-// arena. nfft must be a power of two.
-ScratchVec<Complex> fftReal(const Value &x, size_t nfft, std::pmr::memory_resource *mr)
+// In-place DFT at the EXACT length n, matching fftRadix2's twiddle
+// convention W[k] = exp(dir·2πi·k/N) (dir=-1 forward, dir=+1 inverse and
+// unscaled). Radix-2 when n is a power of two; otherwise a direct O(n²)
+// DFT. The cepstrum MUST transform at the signal length — zero-padding to
+// a power of two corrupts log|X| at the interpolated near-zero bins (a
+// padded spectral null sends log|X| to ~-690 and smears it across every
+// output sample), so the historical nextPow2 path produced garbage for
+// non-power-of-two lengths.
+void dftExact(Complex *buf, size_t n, int dir, std::pmr::memory_resource *mr)
 {
-    ScratchArena scratch(mr);
-    auto buf = ScratchVec<Complex>(nfft, &scratch);
-    const size_t n = x.numel();
-    for (size_t i = 0; i < n && i < nfft; ++i)
-        buf[i] = Complex(x.elemAsDouble(i), 0.0);
-    fftRadix2(mr, buf.data(), nfft, +1);
-    // Move out of scratch into a heap vector tied to caller's mr so
-    // the result outlives this function. (We can't return a ScratchVec
-    // backed by a stack-local arena.)
-    ScratchVec<Complex> out(nfft, mr);
-    for (size_t i = 0; i < nfft; ++i) out[i] = buf[i];
-    return out;
+    if (n <= 1) return;
+    if (isPow2(n)) { fftRadix2(mr, buf, n, dir); return; }
+    ScratchArena arena(mr);
+    auto out = ScratchVec<Complex>(n, &arena);
+    const double base = static_cast<double>(dir) * 2.0 * M_PI / static_cast<double>(n);
+    for (size_t k = 0; k < n; ++k) {
+        Complex s(0.0, 0.0);
+        for (size_t m = 0; m < n; ++m) {
+            const double a = base * static_cast<double>(k) * static_cast<double>(m);
+            s += buf[m] * Complex(std::cos(a), std::sin(a));
+        }
+        out[k] = s;
+    }
+    for (size_t i = 0; i < n; ++i) buf[i] = out[i];
+}
+
+// A real column (or row, to match the input orientation) of length n.
+Value realLike(const Value &x, size_t n, std::pmr::memory_resource *mr)
+{
+    const bool isRow = (x.dims().rows() == 1 && x.dims().cols() > 1);
+    return isRow ? Value::matrix(1, n, ValueType::DOUBLE, mr)
+                 : Value::matrix(n, 1, ValueType::DOUBLE, mr);
 }
 
 } // namespace
@@ -138,24 +153,57 @@ Value idst(const Value &y, std::pmr::memory_resource *mr)
 }
 
 // ── rceps ─────────────────────────────────────────────────────────────
+// Real cepstrum xhat = real(ifft(log|fft(x)|)), transformed at the exact
+// signal length n (see dftExact).
 Value rceps(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
-    if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
-    const size_t nfft = nextPow2(n);
-    auto X = fftReal(x, nfft, mr);
-    // log |X|, set imag part to 0 so the inverse transform produces a real cepstrum.
-    for (size_t i = 0; i < nfft; ++i) {
+    if (n == 0) return realLike(x, 0, mr);
+    ScratchArena arena(mr);
+    auto X = ScratchVec<Complex>(n, &arena);
+    for (size_t i = 0; i < n; ++i) X[i] = Complex(x.elemAsDouble(i), 0.0);
+    dftExact(X.data(), n, +1, mr);
+    for (size_t i = 0; i < n; ++i) {
         const double mag = std::abs(X[i]);
         X[i] = Complex(std::log(std::max(mag, 1e-300)), 0.0);
     }
-    fftRadix2(mr, X.data(), nfft, -1);    // inverse FFT (conjugate trick handled by sign)
-    const double invN = 1.0 / static_cast<double>(nfft);
-    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    dftExact(X.data(), n, -1, mr);
+    const double invN = 1.0 / static_cast<double>(n);
+    auto out = realLike(x, n, mr);
     double *dst = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i)
-        dst[i] = X[i].real() * invN;
+    for (size_t i = 0; i < n; ++i) dst[i] = X[i].real() * invN;
     return out;
+}
+
+// ── rceps (2-output) ───────────────────────────────────────────────────
+// Also returns the minimum-phase reconstruction
+//   ym = real(ifft(exp(fft(w .* xhat))))
+// where w is the cepstral folding window [1, 2,…,2, (1 if n even), 0,…,0].
+std::pair<Value, Value> rcepsMinPhase(const Value &x, std::pmr::memory_resource *mr)
+{
+    Value y = rceps(x, mr);
+    const size_t n = x.numel();
+    Value ym = realLike(x, n, mr);
+    if (n == 0) return {std::move(y), std::move(ym)};
+    const double *yd = y.doubleData();
+    ScratchArena arena(mr);
+    auto W = ScratchVec<Complex>(n, &arena);
+    const size_t khalf = (n - 1) / 2;
+    for (size_t i = 0; i < n; ++i) {
+        double w;
+        if (i == 0)                              w = 1.0;
+        else if (i <= khalf)                     w = 2.0;
+        else if (n % 2 == 0 && i == n / 2)       w = 1.0;   // Nyquist (even n)
+        else                                     w = 0.0;
+        W[i] = Complex(w * yd[i], 0.0);
+    }
+    dftExact(W.data(), n, -1, mr);                // fft
+    for (size_t i = 0; i < n; ++i) W[i] = std::exp(W[i]);
+    dftExact(W.data(), n, +1, mr);                // ifft (unscaled)
+    const double invN = 1.0 / static_cast<double>(n);
+    double *md = ym.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) md[i] = W[i].real() * invN;
+    return {std::move(y), std::move(ym)};
 }
 
 // ── cceps ─────────────────────────────────────────────────────────────
@@ -171,12 +219,14 @@ Value rceps(const Value &x, std::pmr::memory_resource *mr)
 Value cceps(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();
-    if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
-    const size_t nfft = nextPow2(n);
-    auto X = fftReal(x, nfft, mr);
+    if (n == 0) return realLike(x, 0, mr);
+    ScratchArena arena(mr);
+    auto X = ScratchVec<Complex>(n, &arena);
+    for (size_t i = 0; i < n; ++i) X[i] = Complex(x.elemAsDouble(i), 0.0);
+    dftExact(X.data(), n, +1, mr);
     // log + unwrap phase.
     double prevPhase = 0.0;
-    for (size_t i = 0; i < nfft; ++i) {
+    for (size_t i = 0; i < n; ++i) {
         const double mag = std::abs(X[i]);
         double phase = std::arg(X[i]);
         // Unwrap relative to previous bin.
@@ -185,12 +235,11 @@ Value cceps(const Value &x, std::pmr::memory_resource *mr)
         prevPhase = phase;
         X[i] = Complex(std::log(std::max(mag, 1e-300)), phase);
     }
-    fftRadix2(mr, X.data(), nfft, +1);
-    const double invN = 1.0 / static_cast<double>(nfft);
-    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    dftExact(X.data(), n, +1, mr);
+    const double invN = 1.0 / static_cast<double>(n);
+    auto out = realLike(x, n, mr);
     double *dst = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i)
-        dst[i] = X[i].real() * invN;
+    for (size_t i = 0; i < n; ++i) dst[i] = X[i].real() * invN;
     return out;
 }
 
@@ -200,17 +249,17 @@ Value cceps(const Value &x, std::pmr::memory_resource *mr)
 Value icceps(const Value &c, std::pmr::memory_resource *mr)
 {
     const size_t n = c.numel();
-    if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
-    const size_t nfft = nextPow2(n);
-    auto X = fftReal(c, nfft, mr);
-    for (size_t i = 0; i < nfft; ++i)
-        X[i] = std::exp(X[i]);
-    fftRadix2(mr, X.data(), nfft, +1);
-    const double invN = 1.0 / static_cast<double>(nfft);
-    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    if (n == 0) return realLike(c, 0, mr);
+    ScratchArena arena(mr);
+    auto X = ScratchVec<Complex>(n, &arena);
+    for (size_t i = 0; i < n; ++i) X[i] = Complex(c.elemAsDouble(i), 0.0);
+    dftExact(X.data(), n, +1, mr);
+    for (size_t i = 0; i < n; ++i) X[i] = std::exp(X[i]);
+    dftExact(X.data(), n, +1, mr);
+    const double invN = 1.0 / static_cast<double>(n);
+    auto out = realLike(c, n, mr);
     double *dst = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i)
-        dst[i] = X[i].real() * invN;
+    for (size_t i = 0; i < n; ++i) dst[i] = X[i].real() * invN;
     return out;
 }
 
@@ -270,12 +319,19 @@ void idst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     outs[0] = idst(args[0], ctx.engine->resource());
 }
 
-void rceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void rceps_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("rceps: requires x",
                      0, 0, "rceps", "", "numkit:rceps:nargin");
-    outs[0] = rceps(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (nargout >= 2) {
+        auto [y, ym] = rcepsMinPhase(args[0], mr);
+        outs[0] = std::move(y);
+        outs[1] = std::move(ym);
+        return;
+    }
+    outs[0] = rceps(args[0], mr);
 }
 
 void cceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

@@ -25,6 +25,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/enbw_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/envelope_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cceps_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rceps_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/goertzel_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_batch1_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_batch2_test.cpp
