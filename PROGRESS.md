@@ -1011,8 +1011,8 @@ the flat `gf*` function family below.
 | `encode` | ❌ | generic block encoder |
 | `decode` | ❌ | generic block decoder |
 | `gfweight` | ❌ | minimum distance |
-| `gen2par` | ❌ | generator ↔ parity-check matrix |
-| `hammgen` | ❌ | Hamming generator/parity-check |
+| `gen2par` | ✅ | Sig: h = gen2par(g). Systematic generator<->parity-check converter for linear block codes. r x c input (r<c): [P|I_r] -> [I_(c-r)|P'], [I_r|P] -> [P'|I_(c-r)]. Involution: gen2par(gen2par(g))==g. gen2par of Hamming(7,4) generator -> [I_3|P']=[1 0 0 1 0 1 1;0 1 0 1 1 1 0;0 0 1 0 1 1 1]. New (Error Correction Codes / block linear codes) 2026-06. GF(2) only. |
+| `hammgen` | ✅ | Sig: [h,g,n,k] = hammgen(m). (n,k) Hamming code, n=2^m-1, k=n-m. H(:,i)=coeffs of x^i mod p(x), p=default primitive poly of degree m, ascending power; first m cols = I_m so code is systematic and g=gen2par(h). hammgen(3): n=7 k=4, H=[1 0 0 1 0 1 1;0 1 0 1 1 1 0;0 0 1 0 1 1 1]. hammgen(4): n=15 k=11. orth: g*h'==0 (mod 2). New (Error Correction Codes / block linear codes) 2026-06. GF(2) only; custom primitive poly via 2nd arg. BCH/RS (gf type) deferred. |
 | `syndtable` | ❌ | syndrome decoding table |
 | `bchenc` | ❌ | BCH encoder |
 | `bchdec` | ❌ |  |

@@ -114,6 +114,10 @@ void poly2trellis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convenc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vitdec_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void istrellis_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// coding/blockcoding.cpp
+void gen2par_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hammgen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -206,6 +210,10 @@ void CommLibrary::install(Engine &engine)
     reg("coding", "convenc",      &comm::detail::convenc_reg);
     reg("coding", "vitdec",       &comm::detail::vitdec_reg);
     reg("coding", "istrellis",    &comm::detail::istrellis_reg);
+
+    // ── Error Correction Codes: block linear coding ──
+    reg("coding", "gen2par",      &comm::detail::gen2par_reg);
+    reg("coding", "hammgen",      &comm::detail::hammgen_reg);
 }
 
 } // namespace numkit

@@ -30,4 +30,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/convenc_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vitdec_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/istrellis_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gen2par_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hammgen_test.cpp
 )
