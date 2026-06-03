@@ -409,3 +409,36 @@ TEST(CompilerRegisterAlloc, MFileLoaderTooLargeThrowsLoudly)
     std::error_code ec;
     fs::remove_all(dir, ec); // best-effort cleanup
 }
+
+TEST(CompilerRegisterAlloc, MFileWithSyntaxErrorReportsLoudly)
+{
+    // resolveMFile_ de-crutch: a path-matched .m file that fails to lex/parse
+    // must surface the error (naming the file), not be silently skipped → a
+    // misleading "undefined function". Matches MATLAB (first path match's error
+    // is reported).
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_regtest_badmfile";
+    fs::create_directories(dir);
+    fs::path mf = dir / "brokenfn.m";
+    {
+        std::ofstream os(mf);
+        os << "function y = brokenfn(x)\n  y = ?x;\nend\n"; // '?' → lex error
+    }
+    Engine engine;
+    engine.addPath(dir.string());
+    bool threw = false;
+    std::string msg;
+    try {
+        engine.eval("z = brokenfn(3);"); // first reference → resolveMFile_ loads it
+    } catch (const std::exception &e) {
+        threw = true;
+        msg = e.what();
+    }
+    EXPECT_TRUE(threw) << "a broken .m on the path must throw, not be silently skipped";
+    EXPECT_NE(msg.find("brokenfn"), std::string::npos)
+        << "error must reference the matched file; got: " << msg;
+    EXPECT_EQ(msg.find("undefined function"), std::string::npos)
+        << "must not masquerade as 'undefined function'; got: " << msg;
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+}
