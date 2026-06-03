@@ -13,6 +13,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/symwavf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/orthfilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/families_public_api_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/qmf_wrev_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wfilters_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt_idwt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/appcoef_test.cpp

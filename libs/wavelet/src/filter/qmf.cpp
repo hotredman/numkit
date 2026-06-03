@@ -2,6 +2,8 @@
 //
 // Wavelet filter helpers: qmf, wrev.
 
+#include <numkit/wavelet/filter/qmf.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
@@ -26,38 +28,22 @@ Value sameShape(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-namespace detail {
+// ── Public C++ API (see filter/qmf.hpp) ───────────────────────────────
 
-// y = wrev(x): reverse along the first non-singleton dimension. MATLAB
-// behaviour:
-//   row vector    -> reverse element order (= flip).
-//   col vector    -> reverse element order.
-//   matrix (M×N)  -> reverse each column independently (= flipud).
-//   complex input -> preserve complex type.
-//
-// Bug fix 2026-05-08: previous impl treated the input as a flat
-// numel-element vector and reversed in column-major order. For matrices
-// that gave a full reversal (rows AND cols flipped) instead of MATLAB's
-// per-column reverse. Also dropped imaginary parts on complex input
-// (used elemAsDouble + doubleDataMut).
-void wrev_reg(Span<const Value> args, size_t /*nargout*/,
-              Span<Value> outs, CallContext &ctx)
+// wrev: reverse along the first non-singleton dimension. Row/col vector ->
+// element reverse; matrix (M×N) -> per-column reverse (= flipud). Complex
+// preserved. (2026-05-08 fix: per-column, not flat column-major; keep the
+// imaginary part on complex input.)
+Value wrev(const Value &x, std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("wrev: requires one input vector",
-                    0, 0, "wrev", "", "numkit:wrev:nargin");
-    const Value &x = args[0];
-    auto *mr = ctx.engine->resource();
     size_t rows, cols;
     readShape(x, rows, cols);
     const size_t N = rows * cols;
     const bool cplx = x.isComplex();
     Value y = cplx ? Value::complexMatrix(rows, cols, mr)
                    : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    if (N == 0) { outs[0] = y; return; }
+    if (N == 0) return y;
 
-    // Treat row vectors as 1-D reverse along cols; everything else is
-    // per-column reverse (= flipud).
     const bool isRowVec = (rows == 1);
     if (isRowVec) {
         if (cplx) {
@@ -89,7 +75,51 @@ void wrev_reg(Span<const Value> args, size_t /*nargout*/,
             }
         }
     }
-    outs[0] = std::move(y);
+    return y;
+}
+
+// qmf: quadrature mirror filter. y(k) = (-1)^(k-1) * x(N-k+1) for p == 0
+// (default); the whole result is negated for p == 1.
+//   qmf([1 2 3 4]) -> [4 -3 2 -1]; qmf([1 2 3 4], 1) -> [-4 3 -2 1].
+Value qmf(const Value &x, int p, std::pmr::memory_resource *mr)
+{
+    p = ((p % 2) + 2) % 2;          // collapse to {0,1}
+    size_t rows, cols;
+    readShape(x, rows, cols);
+    const size_t N = rows * cols;
+    Value y = sameShape(mr, rows, cols);
+    if (N == 0) return y;
+    double *yd = y.doubleDataMut();
+    for (size_t k = 0; k < N; ++k) {
+        const double v = x.elemAsDouble(N - 1 - k);
+        const bool neg = (k % 2 == 1);
+        const double s = (neg ^ (p == 1)) ? -v : v;
+        yd[k] = s;
+    }
+    return y;
+}
+
+namespace detail {
+
+// y = wrev(x): reverse along the first non-singleton dimension. MATLAB
+// behaviour:
+//   row vector    -> reverse element order (= flip).
+//   col vector    -> reverse element order.
+//   matrix (M×N)  -> reverse each column independently (= flipud).
+//   complex input -> preserve complex type.
+//
+// Bug fix 2026-05-08: previous impl treated the input as a flat
+// numel-element vector and reversed in column-major order. For matrices
+// that gave a full reversal (rows AND cols flipped) instead of MATLAB's
+// per-column reverse. Also dropped imaginary parts on complex input
+// (used elemAsDouble + doubleDataMut).
+void wrev_reg(Span<const Value> args, size_t /*nargout*/,
+              Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("wrev: requires one input vector",
+                    0, 0, "wrev", "", "numkit:wrev:nargin");
+    outs[0] = wrev(args[0], ctx.engine->resource());
 }
 
 // y = qmf(x[, p]): quadrature mirror filter.
@@ -105,24 +135,9 @@ void qmf_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("qmf: requires one input vector",
                     0, 0, "qmf", "", "numkit:qmf:nargin");
-    const Value &x = args[0];
     int p = 0;
     if (args.size() >= 2) p = static_cast<int>(args[1].toScalar());
-    p = ((p % 2) + 2) % 2;          // collapse to {0,1}
-
-    size_t rows, cols;
-    readShape(x, rows, cols);
-    const size_t N = rows * cols;
-    Value y = sameShape(ctx.engine->resource(), rows, cols);
-    if (N == 0) { outs[0] = y; return; }
-    double *yd = y.doubleDataMut();
-    for (size_t k = 0; k < N; ++k) {
-        const double v = x.elemAsDouble(N - 1 - k);
-        const bool neg = (k % 2 == 1);
-        const double s = (neg ^ (p == 1)) ? -v : v;
-        yd[k] = s;
-    }
-    outs[0] = y;
+    outs[0] = qmf(args[0], p, ctx.engine->resource());
 }
 
 } // namespace detail
