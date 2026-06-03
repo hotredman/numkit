@@ -79,6 +79,10 @@ public:
                                          size_t nout);
     Value invokeClassCtor(const UserFunction &ctor, const Value &seed,
                           Span<const Value> args);
+    // Compile a classdef method/constructor body into the VM's global compiled
+    // table (idempotent), returning its chunk — so the VM can run the body as
+    // a native frame. See VM_CALLBACKS_PLAN.md.
+    const BytecodeChunk *ensureClassMethodChunk(const UserFunction &uf);
     // Superclass-qualified calls from inside a classdef body
     // (`obj@Base(args)` / `method@Base(obj, args)`). superConstruct runs
     // Base's constructor with `seed` as the partially-built object and
