@@ -439,6 +439,26 @@ TEST_F(DebugSessionTest, BreakInsideStructfunCallback)
     EXPECT_DOUBLE_EQ(engine.eval("y(2)").toScalar(), 12.0); // b: 6*2
 }
 
+// feval into a user function pauses inside the callee (single-shot continuation).
+TEST_F(DebugSessionTest, BreakInsideFevalCallback)
+{
+    engine.eval(
+        "function r = dbgFevalCb(x)\n" // 1
+        "\n"                           // 2
+        "\n"                           // 3
+        "  r = x - 7;\n"             // 4
+        "end\n");                      // 5
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+    std::string code = "y = feval(@dbgFevalCb, 50);\n"; // 1
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "feval callback did not pause on the VM";
+    EXPECT_EQ(session.snapshot().line, 4);
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_DOUBLE_EQ(engine.eval("y").toScalar(), 43.0); // 50 - 7
+}
+
 TEST_F(DebugSessionTest, ContinueToCompletion)
 {
     DebugSession session(engine);

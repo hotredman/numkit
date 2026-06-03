@@ -642,6 +642,32 @@ struct ArrayfunCallbackBuiltin : CallbackBuiltin
         return cont;
     }
 };
+
+// State-machine feval: feval(@userfunc, args…) single-output runs the one call
+// as a pausable VM frame (a single-step LoopContinuation, n == 1). A
+// name/string handle or multi-output falls back to the synchronous feval.
+struct FevalCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.empty() || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr; // name/string/builtin handle → synchronous feval
+        std::vector<Value> callArgs(args.begin() + 1, args.end());
+        auto cont = std::make_shared<LoopContinuation>();
+        cont->handle = args[0];
+        cont->n = 1;
+        cont->dest = dest;
+        cont->makeArgs = [callArgs](std::size_t) -> std::vector<Value> { return callArgs; };
+        cont->pack = [](std::vector<Value> &results) -> Value {
+            return results.empty() ? Value() : std::move(results[0]);
+        };
+        cont->results.reserve(1);
+        return cont;
+    }
+};
 } // namespace numkit::builtin::detail
 
 namespace numkit {
@@ -1566,6 +1592,10 @@ void BuiltinLibrary::install(Engine &engine)
                                         outs[i] = std::move(rs[i]);
                                 }
                             });
+    // feval into a user-code handle runs as a pausable VM frame; a name/string
+    // handle or multi-output falls back to the synchronous feval above.
+    engine.registerCallbackBuiltin(
+        "feval", std::make_shared<builtin::detail::FevalCallbackBuiltin>());
 
     // str2func('name') — create a function handle by name.
     engine.registerFunction("str2func",
