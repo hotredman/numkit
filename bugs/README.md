@@ -87,3 +87,6 @@ Source files, related commits, related specs/tests.
 | [wavelet/wpdec](wavelet/wpdec.md) | P2 | 🔴 OPEN | wavelet packets missing (needs tree type) |
 | [wavelet/wentropy-ddencmp](wavelet/wentropy-ddencmp.md) | P2 | 🔴 OPEN | functions missing (small) |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | 🔴 OPEN | bior*/rbio* families unsupported |
+| [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | 🔴 OPEN | am/fm/pm/ssb/msk demod missing (mods exist) |
+| [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | 🔴 OPEN | lsqcurvefit/lsqnonlin missing |
+| [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | 🔴 OPEN | fmincon/linprog/quadprog/fminunc missing |
