@@ -112,7 +112,7 @@ void Compiler::preImportGlobals(const ASTNode *ast)
         // are legal MATLAB values). Only unset / deleted slots get skipped.
         if (existing && !existing->isUnset() && !existing->isDeleted()) {
             if (nextReg_ >= 255)
-                throw std::runtime_error(
+                throw RegisterExhaustionError(
                     "Compiler: register exhaustion during preImportGlobals");
             uint8_t r = static_cast<uint8_t>(nextReg_++);
             if (nextReg_ > peakReg_) peakReg_ = nextReg_;
@@ -134,15 +134,20 @@ void Compiler::preImportGlobals(const ASTNode *ast)
     // Pre-allocating clusters all variables at LOW slots and leaves
     // the high range free for transient temps. No code is emitted —
     // values land via assignment as usual.
+    preallocateAssignedVars(ast);
+}
+
+void Compiler::preallocateAssignedVars(const ASTNode *body)
+{
     std::vector<std::string> assignedNames;
-    collectAssignedNames(ast, assignedNames);
+    collectAssignedNames(body, assignedNames);
     for (auto &name : assignedNames) {
         if (varRegisters_.count(name))
             continue;
         if (engine_.isReservedName(name))
             continue; // reserved/pseudo-vars are looked up on demand
         if (nextReg_ >= 255)
-            throw std::runtime_error(
+            throw RegisterExhaustionError(
                 "Compiler: register exhaustion during pre-allocation of assigned vars");
         uint8_t r = static_cast<uint8_t>(nextReg_++);
         if (nextReg_ > peakReg_) peakReg_ = nextReg_;
@@ -254,7 +259,7 @@ uint8_t Compiler::varRegLookup(const std::string &name, bool preloadReserved)
     if (it != varRegisters_.end())
         return it->second;
     if (nextReg_ >= 255)
-        throw std::runtime_error(
+        throw RegisterExhaustionError(
             "Compiler: register exhaustion (>255 registers needed in chunk)");
     uint8_t r = static_cast<uint8_t>(nextReg_++);
     if (nextReg_ > peakReg_)
@@ -345,7 +350,7 @@ uint8_t Compiler::tempReg()
     // numRegisters is uint8_t, so its count must fit too: cap at 255.
     // Throw early rather than wrap nextReg_ and silently corrupt slot 0+.
     if (nextReg_ >= 255)
-        throw std::runtime_error(
+        throw RegisterExhaustionError(
             "Compiler: register exhaustion (>255 registers needed in chunk)");
     uint8_t r = static_cast<uint8_t>(nextReg_++);
     if (nextReg_ > peakReg_)
@@ -3769,6 +3774,15 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     // untouched so the snapshot still hides them via kBuiltinNames.
     varRegLookup("nargin");
     varRegLookup("nargout");
+
+    // Cluster all body-assigned locals at low contiguous slots BEFORE compiling
+    // the body — same pass the top-level script gets via preImportGlobals.
+    // Without it, locals adopt whatever high temp slot their first assignment
+    // landed in, fragmenting the range and creeping maxVarReg_ (the temp-release
+    // floor) until a moderately large function false-positives on register
+    // exhaustion. (params/returns/nargin/nargout are already allocated above and
+    // skipped by the count() guard.)
+    preallocateAssignedVars(funcDef->children[0].get());
 
     // Compile body
     compileNode(funcDef->children[0].get());

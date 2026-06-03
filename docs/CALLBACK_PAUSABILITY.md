@@ -208,22 +208,30 @@ the chunk via the `Engine::resolve*`/`classGetter` helpers, `pushCallFrame` +
 - **State-machine fast path:** a `CallbackBuiltin::tryStart` MUST return
   `nullptr` for builtin handles / unsupported forms so the synchronous builtin
   (and its fast paths) stays in charge.
-- **A `.m` chunk has a 255-register limit** (register VM). A big solver body
-  (e.g. DOPRI5: ~30 Butcher coefficients + `k1…k7` + per-stage temporaries)
-  overflows it and the VM compile fails. **Split the heavy arithmetic into a
-  helper `function`** — each `.m` function is its own chunk with its own
-  budget (ode45 factors the RK step into `nk_dopri5_step` and the dense
-  interpolant into `nk_ode_dense`). This is also cleaner: the Butcher step is a
-  natural unit.
-- **`registerBuiltinMSource` swallows a VM-compile failure silently** — on a
-  failed `registerFunctionAs` it keeps only the TreeWalker `userFuncs_`
-  registration (intended m-file fallback). So a too-big / malformed wrapper
-  registers on the TW but is **"undefined function" on the VM**, with no error
-  at install time. **Always add a VM-level pause-proof test** (`DebugSession`
-  break inside the callback) for every embedded `.m` wrapper — it is what
-  surfaces a silent VM-registration failure. A quick pre-build check: extract
-  the source and run it through `numkit_smoke.exe`, which compiles `.m` at
-  runtime and reports `register exhaustion` loudly.
+- **A `.m` chunk has a 255-register limit** (register VM — the operand byte
+  addresses 256 slots). Each function gets its own budget. After the
+  per-function pre-allocation fix (see below) the practical ceiling is ~248
+  *genuine* simultaneously-named locals — temporaries are reused per statement
+  (even in loops), so ordinary code never approaches it. Splitting a big solver
+  into helpers (ode45 → `nk_dopri5_step` + `nk_ode_dense`; nlinfit → `nk_nlinfit_jac`
+  + `nk_nlinfit_model`; fminsearch → `nk_nelder_mead`) is now a **clarity** choice,
+  not a workaround — the Butcher step / Jacobian / simplex are natural units.
+  - *Fixed bug (2026-06):* `compileFunction` used to skip the assigned-var
+    clustering pass that the top-level script gets, so locals adopted high temp
+    slots and `maxVarReg_` (the temp-release floor) crept upward — a ~73-local
+    inlined DOPRI5 false-positived at >255 (`maxVarReg` crept to 253).
+    `preallocateAssignedVars` now runs for functions too. Regression guard:
+    `CompilerRegisterAlloc.*` in `compiler_assigned_vars_test.cpp`.
+- **Register exhaustion now fails LOUDLY**, not silently. The compiler throws a
+  typed `RegisterExhaustionError`; `registerBuiltinMSource` re-throws it as a
+  clear `numkit:compiler:registerExhaustion` Error (our wrappers MUST run on the
+  VM), and the m-file loader (`resolveMFile_`) surfaces it instead of dropping to
+  a TW-only chunk that would later look like an "undefined function" on the VM.
+  (Other compile failures — e.g. a not-yet-supported construct — still fall back
+  to the TreeWalker.) Still: **add a VM-level pause-proof test** (`DebugSession`
+  break inside the callback) for every embedded `.m` wrapper, and a quick
+  pre-build `numkit_smoke.exe` run compiles the `.m` at runtime and reports any
+  exhaustion immediately.
 
 ---
 
