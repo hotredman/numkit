@@ -100,6 +100,18 @@ public:
                                     const std::string &prop) const;
     void enforcePropGetAccess(const std::string &className, const std::string &prop);
     void enforcePropSetAccess(const std::string &className, const std::string &prop);
+    // Resolve a classdef operator overload (binary / unary) to its compiled
+    // method chunk for an in-bytecode VM frame-push. Returns nullptr — caller
+    // uses the numeric fast path or the C++ slow path (`tryObject*Op`) — when no
+    // operand is an object, the class has no such overload, the overload is a
+    // synthetic non-UserFunction (enum eq/ne), or the body can't VM-compile. On
+    // success sets ownerClassOut to the dominant object's class and enforces the
+    // operator method's access. The method's parameters ARE the operands:
+    // binary args = [lhs, rhs], unary args = [operand]. P4, VM_CALLBACKS_PLAN.md.
+    const BytecodeChunk *resolveBinaryOpChunk(const std::string &op, const Value &lhs,
+                                              const Value &rhs, std::string &ownerClassOut);
+    const BytecodeChunk *resolveUnaryOpChunk(const std::string &op, const Value &operand,
+                                             std::string &ownerClassOut);
     // Superclass-qualified calls from inside a classdef body
     // (`obj@Base(args)` / `method@Base(obj, args)`). superConstruct runs
     // Base's constructor with `seed` as the partially-built object and

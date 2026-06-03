@@ -342,6 +342,17 @@ private:
     // Dispatch helpers (extracted from dispatchLoop for readability)
     Value binarySlowPath(OpCode op, const Value &lhs, const Value &rhs);
     Value unarySlowPath(OpCode op, const Value &operand);
+    // Object operator overloads as same-stack VM frames (P4 refinement):
+    // if an operand is an object whose class defines the operator method,
+    // push a frame for its body (pausable, no save/restore) and return true —
+    // the caller must `goto enter_frame`. Returns false for the numeric path
+    // and for object-no-overload (left to binary/unarySlowPath, which errors
+    // or falls back to callReentrant for an uncompilable body). Binary args
+    // are [lhs, rhs]; unary args are [operand].
+    bool tryBinaryOpFrame(uint8_t dst, OpCode op, uint8_t lhsReg, uint8_t rhsReg,
+                          CallFrame &frame, const Instruction *ip);
+    bool tryUnaryOpFrame(uint8_t dst, OpCode op, uint8_t operandReg,
+                         CallFrame &frame, const Instruction *ip);
     void execCallBuiltin(const Instruction &I, Value *R);
     bool execCallIndirect(const Instruction &I, Value *R,
                           CallFrame &frame, const Instruction *ip);
