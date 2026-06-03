@@ -2703,8 +2703,11 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
                 result += b;
             break;
         case 21: result = std::fmod(a, b); break;
-        case 22: result = (a >= b) ? a : b; break;
-        case 23: result = (a <= b) ? a : b; break;
+        // max/min ignore NaN (MATLAB): fmax/fmin return the non-NaN
+        // operand, NaN only if both are NaN. The old (a>=b)?a:b returned
+        // NaN for max(5,NaN) and disagreed with the TreeWalker (fmax).
+        case 22: result = std::fmax(a, b); break;
+        case 23: result = std::fmin(a, b); break;
         case 24: result = std::pow(a, b); break;
         case 25: result = std::atan2(a, b); break;
         default: handled = false; break;

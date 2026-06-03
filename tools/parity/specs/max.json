@@ -2,10 +2,10 @@
   "name": "max",
   "namespace": "core",
   "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = max(x); e0 = max([]); ne0 = numel(e0); ec = max(zeros(0,3)); er = max(zeros(3,0));",
+  "expr": "y = max(x); e0 = max([]); ne0 = numel(e0); ec = max(zeros(0,3)); er = max(zeros(3,0)); b1 = max(5, NaN); b2 = max(NaN, 5); bn = double(isnan(max(NaN, NaN))); va = max([NaN 6 8],[5 7 NaN]); va1 = va(1); va3 = va(3);",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: max of an EMPTY array returns empty and never errors — shape = input size with operating dim clamped to min(size,1): max([])=0x0, max(zeros(0,3))=0x3, max(zeros(3,0))=1x0.",
+  "comment": "Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: max of an EMPTY array returns empty and never errors. Two-arg max(a,b) IGNORES NaN like MATLAB (b1=max(5,NaN)=5, b2=max(NaN,5)=5, bn=isnan(max(NaN,NaN))=1, va=max([NaN 6 8],[5 7 NaN])=[5 7 8]) — fixed 2026-06 (VM fast path used (a>=b)?a:b, Value-level used std::max; both -> fmax).",
   "fingerprint": [
     "double(y)",
     "numel(y)",
@@ -15,7 +15,12 @@
     "size(ec,1)",
     "size(ec,2)",
     "size(er,1)",
-    "size(er,2)"
+    "size(er,2)",
+    "b1",
+    "b2",
+    "bn",
+    "va1",
+    "va3"
   ],
   "bench_setup": "xb = mod((1:N)*7919,1000)+0.5;",
   "bench_expr": "rb = max(xb);"

@@ -2,10 +2,10 @@
   "name": "min",
   "namespace": "core",
   "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = min(x); e0 = min([]); ne0 = numel(e0); ec = min(zeros(0,3)); er = min(zeros(3,0));",
+  "expr": "y = min(x); e0 = min([]); ne0 = numel(e0); ec = min(zeros(0,3)); er = min(zeros(3,0)); b1 = min(5, NaN); b2 = min(NaN, 5); bn = double(isnan(min(NaN, NaN))); va = min([NaN 6 8],[5 7 NaN]); va1 = va(1); va3 = va(3);",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: min of an EMPTY array returns empty and never errors — shape = input size with operating dim clamped to min(size,1): min([])=0x0, min(zeros(0,3))=0x3, min(zeros(3,0))=1x0.",
+  "comment": "Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. DEEP-PROBE 2026-05-29: min of an EMPTY array returns empty and never errors. Two-arg min(a,b) IGNORES NaN like MATLAB (b1=min(5,NaN)=5, b2=min(NaN,5)=5, bn=isnan(min(NaN,NaN))=1, va=min([NaN 6 8],[5 7 NaN])=[5 6 8]) — fixed 2026-06 (VM fast path + Value-level std::min -> fmin).",
   "fingerprint": [
     "double(y)",
     "numel(y)",
@@ -15,7 +15,12 @@
     "size(ec,1)",
     "size(ec,2)",
     "size(er,1)",
-    "size(er,2)"
+    "size(er,2)",
+    "b1",
+    "b2",
+    "bn",
+    "va1",
+    "va3"
   ],
   "bench_setup": "xb = mod((1:N)*7919,1000)+0.5;",
   "bench_expr": "rb = min(xb);"
