@@ -905,6 +905,42 @@ ASTNodePtr Parser::parseClassDef()
                 }
                 node->children.push_back(std::move(em));
                 match(TokenType::COMMA); // members may be comma-separated on a line
+            } else if (!check(TokenType::KW_FUNCTION)) {
+                // Abstract method: a signature with no `function`/body —
+                // `[o1,o2] = name(p…)`, `o = name(p…)`, `name(p…)`, or `name`.
+                auto [fln, fcl] = loc();
+                auto fn = makeNode(NodeType::FUNCTION_DEF, fln, fcl);
+                fn->classAttrs = blockAttrs; // carries the `Abstract` attribute
+                if (check(TokenType::LBRACKET)) {
+                    advance();
+                    while (!check(TokenType::RBRACKET)) {
+                        fn->returnNames.push_back(
+                            consume(TokenType::IDENTIFIER, "output name").value);
+                        if (!match(TokenType::COMMA))
+                            break;
+                    }
+                    consume(TokenType::RBRACKET, "]");
+                    consume(TokenType::ASSIGN, "=");
+                    fn->strValue = consume(TokenType::IDENTIFIER, "method name").value;
+                } else {
+                    std::string first = consume(TokenType::IDENTIFIER, "method name").value;
+                    if (match(TokenType::ASSIGN)) {
+                        fn->returnNames.push_back(first);
+                        fn->strValue = consume(TokenType::IDENTIFIER, "method name").value;
+                    } else {
+                        fn->strValue = first;
+                    }
+                }
+                if (match(TokenType::LPAREN)) {
+                    while (!check(TokenType::RPAREN)) {
+                        fn->paramNames.push_back(
+                            consume(TokenType::IDENTIFIER, "parameter").value);
+                        if (!match(TokenType::COMMA))
+                            break;
+                    }
+                    consume(TokenType::RPAREN, ")");
+                }
+                node->children.push_back(std::move(fn)); // empty body → abstract
             } else {
                 auto fn = parseFunctionDef();
                 fn->classAttrs = blockAttrs;
