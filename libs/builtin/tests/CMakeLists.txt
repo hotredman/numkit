@@ -118,5 +118,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/permutations_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/topkrows_ext_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/unique_last_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/find_count_direction_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

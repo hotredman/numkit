@@ -1,6 +1,6 @@
 # builtin.find — count `k` and 'first'/'last' direction ignored
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P1 (wrong result — silently returns too many indices)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (option sweep)
@@ -39,5 +39,19 @@ exceeding the count returns all. Apply to BOTH the single-output and the
 `[r,c]`/`[r,c,v]` multi-output forms. Small and mechanical.
 
 ## References
-- `libs/builtin/src/language/arrays/matrix.cpp` (find_reg, ~line 3405)
+- `libs/builtin/src/language/arrays/matrix.cpp` (find_reg, ~line 3415)
 - MATLAB `doc find` (k, direction)
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 1).
+- `find_reg` now parses `args[1]` as a positive-integer count `K` and
+  `args[2]` as the direction (`'first'` default / `'last'`), collects the
+  nonzero linear indices, and keeps the first/last `K` — applied to BOTH the
+  single-output (linear index) and `[r,c]` / `[r,c,v]` forms. `K` exceeding
+  the count returns all; `'last'` returns the last `K` in ascending order;
+  `K` must be a positive scalar integer (matches MATLAB `find(X,0)` error).
+  Single-output path also switched to the type-complete `forEachNonzero`
+  (so complex single-output `find` no longer reads real storage).
+- Live regression guard: `libs/builtin/tests/find_count_direction_test.cpp`
+  (10 cases). Parity: `tools/parity/specs/find.json` (correctness=OK).
+  Smoke: `libs/builtin/tests/smoke/find_count_direction_smoke.m`.
