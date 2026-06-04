@@ -16,7 +16,7 @@
  *   { r: [rMin, rMax] }
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import ContextMenu from './ContextMenu';
+import ContextMenu from '../ui/ContextMenu';
 import { fitCellViewport, exportSvgNode, exportPngNode, exportPngForPrint, previewStride } from './plotUtils';
 import GLChart from './glplot/GLChart';
 import { isWebGL2Available } from './glplot/glcontext';
