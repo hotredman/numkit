@@ -261,7 +261,8 @@ std::vector<DebugSession::WatchResult> DebugSession::evalWatches()
     // values and dbup/dbdown focus. eval() already turns failures into
     // "Error: ..." strings, so a bad watch never throws here.
     for (auto &expr : watches_)
-        out.push_back({expr, active_ ? eval(expr) : std::string()});
+        out.push_back({expr, active_ ? runInDebugScope(expr, /*applyChanges=*/false)
+                                     : std::string()});
     return out;
 }
 
@@ -282,11 +283,12 @@ ExecStatus DebugSession::skipFalseConditionalBreakpoints(ExecStatus status, bool
             break; // unconditional breakpoint → genuine stop
 
         // Evaluate the condition in the current (deepest) frame via the same
-        // inject/eval path the console uses, then read its truthiness.
+        // inject/eval path the console uses (read-only — no write-back), then
+        // read its truthiness.
         ws_.bindVMFrame(*engine_.vm_, engine_, 0);
         bool hold = true; // default: stop if the condition can't be evaluated
         try {
-            eval(cond);
+            runInDebugScope(cond, /*applyChanges=*/false);
             hold = lastEvalValue_.toBool();
         } catch (...) {
             hold = true;
@@ -378,6 +380,12 @@ std::string DebugSession::eval(const std::string &code)
             return formatDbStack();
     }
 
+    // Console input applies its changes back into the workspace.
+    return runInDebugScope(code, /*applyChanges=*/true);
+}
+
+std::string DebugSession::runInDebugScope(const std::string &code, bool applyChanges)
+{
     // 1. Save debug controller + paused VM state. The inner engine.eval()
     //    runs a full VM pass and stomps both.
     auto *ctl = engine_.debugController();
@@ -491,7 +499,9 @@ std::string DebugSession::eval(const std::string &code)
     //      console inputs like `cos(10)`.
     //
     //    Guarded: any failure still restores engine state before returning.
-    try {
+    //    Skipped entirely for read-only (condition / watch) eval, so it never
+    //    writes back — in particular it never leaves an `ans` in the overlay.
+    if (applyChanges) try {
         ws_.bindVMFrame(*engine_.vm_, engine_, selectedDepth_);
 
         auto wsNames = genv.localNames();

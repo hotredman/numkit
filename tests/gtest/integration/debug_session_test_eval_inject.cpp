@@ -1077,6 +1077,25 @@ TEST(DebugEvalInjectTest, ConditionalBreakpointStopsOnlyWhenTrue)
     EXPECT_NE(all.find("50"), std::string::npos) << "x should be 50 at end: [" << all << "]";
 }
 
+// Read-only eval (watch / breakpoint condition) must not write back to the
+// workspace — in particular a watch expression must not leave `ans` behind.
+TEST(DebugEvalInjectTest, WatchEvalDoesNotPolluteAns)
+{
+    Engine engine;
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+    session.start("x = 10;\ny = 20;\ndisp(x+y);\n");
+    session.addWatch("x + 1");
+    auto w = session.evalWatches();
+    ASSERT_EQ(w.size(), 1u);
+    EXPECT_NE(w[0].result.find("11"), std::string::npos); // watch still works
+    bool hasAns = false;
+    for (auto &v : session.snapshot().variables)
+        if (v.name == "ans") hasAns = true;
+    EXPECT_FALSE(hasAns) << "watch eval leaked 'ans' into the workspace";
+    session.resume(DebugAction::Continue);
+}
+
 // dbstop if error: an uncaught error pauses at the failing line (state
 // inspectable); resuming lets the error finally propagate.
 TEST(DebugEvalInjectTest, DbstopIfErrorPausesAtError)

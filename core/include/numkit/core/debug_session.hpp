@@ -146,6 +146,14 @@ private:
     // always stops). Returns the status of the real stop / completion.
     ExecStatus skipFalseConditionalBreakpoints(ExecStatus status, bool running);
 
+    // Core of eval(): inject the paused frame's variables into the workspace,
+    // run `code`, restore. When applyChanges is true (console input) the
+    // changes are diffed back into the DebugWorkspace; when false (read-only
+    // condition / watch evaluation) they are NOT — so a watch/condition never
+    // pollutes the workspace (e.g. with `ans`). Sets lastEvalValue_; returns the
+    // captured display output. Assumes the session is active.
+    std::string runInDebugScope(const std::string &code, bool applyChanges);
+
     Engine &engine_;
     bool active_ = false;
 
