@@ -405,6 +405,23 @@ export async function createWasmEngine(createModule) {
       }
     },
 
+    // Decimated viewport tile for a downsampled (huge) line series. The full
+    // x/y stay in the engine; this returns only the ~4*width points visible
+    // in [x0, x1], so zooming a multi-million-point plot reveals detail
+    // without ever shipping the full array. algo: 'm4' | 'lttb' | 'none'.
+    //   { x:number[], y:number[] } | { error } | null (binding missing)
+    getSeriesTile(figId, axIdx, dsIdx, x0, x1, width, algo) {
+      if (typeof Module.repl_get_series_tile !== 'function') return null;
+      const a = algo === 'lttb' ? 1 : algo === 'none' ? 2 : algo === 'm2' ? 3 : 0;
+      try {
+        return JSON.parse(Module.repl_get_series_tile(
+          figId | 0, axIdx | 0, dsIdx | 0, x0, x1, width | 0, a));
+      } catch (e) {
+        console.warn('[engine] getSeriesTile failed', e);
+        return { error: e?.message || String(e) };
+      }
+    },
+
     // Display-grid tile fetcher with binary transit. Returns a fresh
     // Uint8Array of size displayH × displayW row-major (idx 255 = NaN).
     // The engine resamples zQuantized to display resolution in one pass,

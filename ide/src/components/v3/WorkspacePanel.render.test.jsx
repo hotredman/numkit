@@ -30,7 +30,7 @@ describe('WorkspacePanel — toolbar column chooser', () => {
     const { container } = render(<WorkspacePanel variables={vars} onOpen={() => {}} />);
     const btn = container.querySelector('.ws-cols-btn');
     expect(btn).toBeTruthy();
-    expect(heads(container)).toEqual(['Name', 'Value', 'Size', 'Class']);  // default
+    expect(heads(container)).toEqual(['Name', 'Value', 'Size', 'Bytes', 'Class']);  // default
     fireEvent.click(btn);
     const meanItem = [...document.querySelectorAll('.ctx-item')].find((b) => /\bMean\b/.test(b.textContent));
     fireEvent.click(meanItem);
@@ -49,6 +49,6 @@ describe('WorkspacePanel — toolbar column chooser', () => {
     fireEvent.click(container.querySelector('.ws-cols-btn'));
     fireEvent.click([...document.querySelectorAll('.ctx-item')].find((b) => /Select all/.test(b.textContent)));
     expect(heads(container)).toEqual(
-      ['Name', 'Value', 'Size', 'Class', 'Min', 'Max', 'Range', 'Mean', 'Median', 'Mode', 'Var', 'Std']);
+      ['Name', 'Value', 'Size', 'Bytes', 'Class', 'Min', 'Max', 'Range', 'Mean', 'Median', 'Mode', 'Var', 'Std']);
   });
 });

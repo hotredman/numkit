@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   VALUE_COLUMNS, DEFAULT_VISIBLE, loadVisibleColumns, saveVisibleColumns,
-  toggleColumn, statValue, fmtStat,
+  toggleColumn, statValue, fmtStat, fmtBytes,
   STAT_BAR, DEFAULT_STAT_BAR, loadStatBar, saveStatBar, statBarValue, aggregateStats,
   toNumericCell, heatColor, heatmapCellBackground,
 } from './valueColumns';
@@ -55,10 +55,26 @@ describe('fmtStat', () => {
   });
 });
 
+describe('fmtBytes', () => {
+  it('formats B / KB / MB / GB with one decimal when it helps', () => {
+    expect(fmtBytes(8)).toBe('8 B');
+    expect(fmtBytes(512)).toBe('512 B');
+    expect(fmtBytes(1536)).toBe('1.5 KB');
+    expect(fmtBytes(2048)).toBe('2 KB');
+    expect(fmtBytes(8000000)).toBe('7.6 MB');
+    expect(fmtBytes(3 * 1024 ** 3)).toBe('3 GB');
+  });
+  it('blanks out absent / non-finite counts', () => {
+    expect(fmtBytes(null)).toBe('');
+    expect(fmtBytes(NaN)).toBe('');
+    expect(fmtBytes(undefined)).toBe('');
+  });
+});
+
 describe('VALUE_COLUMNS', () => {
-  it('covers the MATLAB stat set and excludes the name column', () => {
+  it('covers the identity + MATLAB stat set and excludes the name column', () => {
     const keys = VALUE_COLUMNS.map((c) => c.key);
-    expect(keys).toEqual(['value', 'size', 'class', 'min', 'max', 'range',
+    expect(keys).toEqual(['value', 'size', 'bytes', 'class', 'min', 'max', 'range',
       'mean', 'median', 'mode', 'var', 'std']);
   });
 });

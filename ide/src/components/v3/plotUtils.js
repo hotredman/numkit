@@ -94,6 +94,16 @@ export function logClampRange(lo, hi, minPositive) {
   return [l, Math.max(l * 10, h)];
 }
 
+/** Subsample stride for non-interactive preview thumbnails. A ~320px card
+ *  doesn't need every one of N markers / polar points, and rendering them all
+ *  (one DOM node each for scatter) janks the whole window. Interactive windows
+ *  render full data (large series there route to the WebGL overlay). Returns 1
+ *  (no subsampling) when interactive or already small. */
+export function previewStride(n, interactive, max = 2000) {
+  if (interactive || !(n > max)) return 1;
+  return Math.ceil(n / max);
+}
+
 /** Static viewport for a figure with log-axis safety baked in — for the
  *  non-interactive preview. Polar / 3-D fall back to defaultViewport. */
 export function previewViewport(figure) {
