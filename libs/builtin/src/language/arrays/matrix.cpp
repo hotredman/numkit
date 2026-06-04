@@ -2390,7 +2390,8 @@ void diffOnceDouble(const double *src, double *dst,
     }
 }
 
-Value makeDiffOutput(const Dims &srcDims, int d, size_t step, std::pmr::memory_resource *mr)
+Value makeDiffOutput(const Dims &srcDims, int d, size_t step, ValueType vt,
+                     std::pmr::memory_resource *mr)
 {
     const int nd = srcDims.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -2400,7 +2401,51 @@ Value makeDiffOutput(const Dims &srcDims, int d, size_t step, std::pmr::memory_r
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = srcDims.dim(i);
     outDims[d - 1] = (outDims[d - 1] >= step) ? outDims[d - 1] - step : 0;
-    return Value::matrixND(outDims, nd, ValueType::DOUBLE, mr);
+    return Value::matrixND(outDims, nd, vt, mr);
+}
+
+// Complex counterpart of diffOnceDouble — successive differences over Complex
+// storage (real and imaginary differenced together), same strided layout.
+void diffOnceComplex(const Complex *src, Complex *dst, const Dims &srcDims, int d)
+{
+    const int nd = srcDims.ndim();
+    const size_t sliceLen = srcDims.dim(d - 1);
+    if (sliceLen < 2) return;
+    size_t innerStride = 1;
+    for (int i = 0; i < d - 1; ++i) innerStride *= srcDims.dim(i);
+    size_t outerCount = 1;
+    for (int i = d; i < nd; ++i) outerCount *= srcDims.dim(i);
+    const size_t outSliceLen = sliceLen - 1;
+    if (innerStride == 1) {
+        for (size_t o = 0; o < outerCount; ++o) {
+            const Complex *s = src + o * sliceLen;
+            Complex *t = dst + o * outSliceLen;
+            for (size_t k = 0; k < outSliceLen; ++k) t[k] = s[k + 1] - s[k];
+        }
+    } else {
+        for (size_t o = 0; o < outerCount; ++o)
+            for (size_t b = 0; b < innerStride; ++b) {
+                const size_t srcBase = o * innerStride * sliceLen + b;
+                const size_t dstBase = o * innerStride * outSliceLen + b;
+                for (size_t k = 0; k < outSliceLen; ++k)
+                    dst[dstBase + k * innerStride] =
+                        src[srcBase + (k + 1) * innerStride] -
+                        src[srcBase + k * innerStride];
+            }
+    }
+}
+
+// Identity copy of a COMPLEX value (preserves shape + both parts).
+Value copyComplexSameShape(const Value &x, std::pmr::memory_resource *mr)
+{
+    const auto &dd = x.dims();
+    const int nd = dd.ndim();
+    size_t dims[Dims::kMaxRank];
+    for (int i = 0; i < nd; ++i) dims[i] = dd.dim(i);
+    auto r = Value::matrixND(dims, nd, ValueType::COMPLEX, mr);
+    if (x.numel() > 0)
+        std::memcpy(r.complexDataMut(), x.complexData(), x.numel() * sizeof(Complex));
+    return r;
 }
 
 Value copyToDouble(const Value &x, std::pmr::memory_resource *mr)
@@ -2503,9 +2548,10 @@ Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     const bool isInt = isIntegerType(x.type());
 
     if (n == 0) {
-        // Identity copy. Integer types keep their class (MATLAB); otherwise
-        // promote to DOUBLE shape.
+        // Identity copy. Integer types keep their class (MATLAB); complex
+        // keeps both parts; otherwise promote to DOUBLE shape.
         if (isInt) return copyIntegerSameClass(x, mr);
+        if (x.type() == ValueType::COMPLEX) return copyComplexSameShape(x, mr);
         return copyToDouble(x, mr);
     }
 
@@ -2527,19 +2573,31 @@ Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
             outDims[d - 1] = 0;
             return Value::matrixND(outDims, nd, x.type(), mr);
         }
-        return makeDiffOutput(dd, d, sliceLen, mr);
+        return makeDiffOutput(dd, d, sliceLen, ValueType::DOUBLE, mr);
     }
 
     // Integer types: keep the class and saturate at each pass (MATLAB).
     if (isInt)
         return diffInteger(x, n, d, mr);
 
+    // Complex: difference real and imaginary parts together (MATLAB).
+    if (x.type() == ValueType::COMPLEX) {
+        Value cur = copyComplexSameShape(x, mr);
+        for (int pass = 0; pass < n; ++pass) {
+            const auto &curDims = cur.dims();
+            auto out = makeDiffOutput(curDims, d, 1, ValueType::COMPLEX, mr);
+            diffOnceComplex(cur.complexData(), out.complexDataMut(), curDims, d);
+            cur = std::move(out);
+        }
+        return cur;
+    }
+
     // Promote logical to DOUBLE first.
     Value cur = copyToDouble(x, mr);
 
     for (int pass = 0; pass < n; ++pass) {
         const auto &curDims = cur.dims();
-        auto out = makeDiffOutput(curDims, d, 1, mr);
+        auto out = makeDiffOutput(curDims, d, 1, ValueType::DOUBLE, mr);
         diffOnceDouble(cur.doubleData(), out.doubleDataMut(), curDims, d);
         cur = std::move(out);
     }

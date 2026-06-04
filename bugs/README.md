@@ -120,16 +120,17 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (77 entries):** ✅ 12 fixed · 🔴 65 open = **21 bug** + 7 stub +
+**Tally (78 entries):** ✅ 13 fixed · 🔴 65 open = **21 bug** + 7 stub +
 6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (12)
+### ✅ FIXED (13)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
 | bug | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(X,k[,'first'/'last']) now honours count + direction (single + multi-output) (2026-06-05) |
 | bug | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm() of a complex array by \|z\| (vector 1/2/Inf/p + matrix 1/Inf/'fro'; spectral deferred) (2026-06-05) |
+| bug | [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff() now differences real + imaginary parts (n-th order + dim) (2026-06-05) |
 | bug | [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | 'MissingPlacement' option was ignored |
 | bug | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | cepstrum garbage on non-2ⁿ + rceps 2nd output (9fcf6872) |
 | bug | [signal/besself-digital](signal/besself-digital.md) | P1 | ran digital path → binomial garbage |
@@ -148,7 +149,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [builtin/gradient-3d](builtin/gradient-3d.md) | P2 | gradient of an N-D (3-D) array — 3rd output gz wrong/missing |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv don't broadcast ARRAY parameters (mu/sigma/n/a/b/df) |
-| [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff silently drops the imaginary part on complex input |
+| [builtin/diff-zero-order](builtin/diff-zero-order.md) | P3 | diff(X,0) returns identity; MATLAB errors (N must be positive integer) |
 | [builtin/acos-asin-complex](builtin/acos-asin-complex.md) | P2 | acos/asin return NaN for \|x\|>1 instead of a complex value |
 | [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod throw on complex input |
 | [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | conv/filter/trapz/cumtrapz/gradient/movmean/detrend/interp1/median reject complex |

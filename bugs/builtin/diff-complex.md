@@ -1,6 +1,6 @@
 # builtin.diff — silently drops the imaginary part on complex input
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P1 (silently wrong result)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (complex-input sweep)
@@ -36,3 +36,16 @@ Add a `ValueType::COMPLEX` branch: difference `complexData()` element-wise
 - MATLAB `doc diff`
 - Related: cumsum/cumprod also lack complex (bugs/builtin/cumsum-complex.md);
   a broader survey is bugs/builtin/complex-input-unsupported.md.
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 3).
+- Added `diffOnceComplex` (mirrors `diffOnceDouble` over `Complex` storage),
+  generalised `makeDiffOutput` with a `ValueType` parameter, and added a
+  `ValueType::COMPLEX` branch in `diff()` (n-th order + dim, via
+  `copyComplexSameShape` + the complex pass loop). The `n==0` identity path
+  now also preserves both parts.
+- Live guard: `libs/builtin/tests/diff_complex_test.cpp` (4 cases). Parity:
+  `tools/parity/specs/diff.json` extended (correctness=OK). Smoke:
+  `libs/builtin/tests/smoke/diff_complex_smoke.m`.
+- Spin-off finding: numkit accepts `diff(X,0)` (returns identity) where MATLAB
+  errors — catalogued separately as bugs/builtin/diff-zero-order.md.
