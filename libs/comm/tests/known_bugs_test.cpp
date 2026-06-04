@@ -46,3 +46,13 @@ TEST_F(CommKnownBug, DISABLED_MskDemodExists)
     eval("y=mskdemod(mskmod([1 0 1 1 0],8),8);");
     EXPECT_GT(evalScalar("numel(y)"), 0.0);
 }
+
+// bugs/comm/syndtable.md — syndrome decoding table (coset leaders).
+TEST_F(CommKnownBug, DISABLED_Syndtable)
+{
+    eval("H = [1 0 1 1 0 0; 0 1 1 0 1 0; 1 1 0 0 0 1];");  // 3x6, n-k=3
+    eval("t = syndtable(H);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(t,1)")), 8);   // 2^(n-k)
+    EXPECT_EQ(static_cast<int>(evalScalar("size(t,2)")), 6);   // n
+    EXPECT_DOUBLE_EQ(evalScalar("sum(t(1,:))"), 0.0);          // syndrome 0 -> no error
+}

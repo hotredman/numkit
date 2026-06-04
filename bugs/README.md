@@ -120,8 +120,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (59 entries):** ✅ 10 fixed · 🔴 49 open = **23 bug** + 6 stub +
-6 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
+**Tally (68 entries):** ✅ 10 fixed · 🔴 58 open = **23 bug** + 6 stub +
+6 missing-output + **22 missing-fn** + 1 perf (the 22 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 ### ✅ FIXED (10)
@@ -139,11 +139,13 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 20
+### 🔴 OPEN — bug (defect on an implemented function) — 23
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(x,k[,'first'/'last']) ignores count + direction → all indices |
+| [builtin/gradient-3d](builtin/gradient-3d.md) | P2 | gradient of an N-D (3-D) array — 3rd output gz wrong/missing |
+| [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv don't broadcast ARRAY parameters (mu/sigma/n/a/b/df) |
 | [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff silently drops the imaginary part on complex input |
 | [builtin/acos-asin-complex](builtin/acos-asin-complex.md) | P2 | acos/asin return NaN for \|x\|>1 instead of a complex value |
@@ -187,12 +189,13 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mle-output](stats/mle-output.md) | P2 | 2nd output pci |
 | [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | [r,p]=corr p-value |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 13
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 22
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [stats/friedman](stats/friedman.md) | P2 | Friedman ANOVA |
 | [stats/distribution-dispatchers](stats/distribution-dispatchers.md) | P2 | cdf/pdf/icdf/random |
+| [stats/autocorr](stats/autocorr.md) | P2 | autocorr/parcorr/crosscorr (Econometrics ACF/PACF/CCF) |
 | [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | pmusic/peig |
 | [signal/fillgaps](signal/fillgaps.md) | P2 | fillgaps |
 | [signal/stmcb](signal/stmcb.md) | P2 | stmcb |
@@ -200,8 +203,16 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [image/imfindcircles](image/imfindcircles.md) | P2 | imfindcircles |
 | [wavelet/wpdec](wavelet/wpdec.md) | P2 | wavelet packets (needs tree type) |
 | [wavelet/wentropy-ddencmp](wavelet/wentropy-ddencmp.md) | P2 | wentropy / ddencmp |
+| [wavelet/wenergy-upcoef](wavelet/wenergy-upcoef.md) | P2 | wenergy (energy %) / upcoef (coeff reconstruction) |
+| [wavelet/cwt](wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
 | [control/lqr-hinfnorm](control/lqr-hinfnorm.md) | P2 | lqr/hinfnorm/dlqr/gram |
+| [control/care-dare](control/care-dare.md) | P2 | algebraic Riccati solvers (care/dare) |
+| [control/minreal](control/minreal.md) | P2 | minimal realization (pole/zero cancellation) |
+| [control/initial](control/initial.md) | P2 | initial-condition response |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
+| [comm/syndtable](comm/syndtable.md) | P2 | syndrome decoding table (coset leaders) |
+| [builtin/numerical-integration-nd](builtin/numerical-integration-nd.md) | P2 | quadgk/integral2/integral3/quad2d |
+| [linalg/funm](linalg/funm.md) | P2 | general matrix function funm(A,fun) |
 | [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | lsqcurvefit/lsqnonlin |
 | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon/linprog/quadprog/fminunc |
 

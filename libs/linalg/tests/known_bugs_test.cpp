@@ -57,3 +57,12 @@ TEST_F(LinalgKnownBug, DISABLED_ComplexMatrixOps)
     EXPECT_NEAR(evalScalar("real(d)"), -1.0, 1e-10);
     EXPECT_NEAR(evalScalar("imag(d)"),  3.0, 1e-10);
 }
+
+// bugs/linalg/funm.md — general matrix function funm(A, fun).
+TEST_F(LinalgKnownBug, DISABLED_Funm)
+{
+    eval("F = funm([2 0; 0 3], @exp);");   // MATLAB: diag(e^2, e^3)
+    EXPECT_NEAR(evalScalar("F(1,1)"), 7.38905609893065, 1e-9);
+    EXPECT_NEAR(evalScalar("F(2,2)"), 20.0855369231877, 1e-9);
+    EXPECT_NEAR(evalScalar("F(1,2)"), 0.0, 1e-12);
+}
