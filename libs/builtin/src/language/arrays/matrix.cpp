@@ -3420,51 +3420,92 @@ void find_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
 
+    // Optional count K (args[1]) and direction (args[2]: 'first' default /
+    // 'last'). MATLAB: K must be a positive scalar integer; K exceeding the
+    // nonzero count returns all. 'last' returns the last K nonzeros, still in
+    // ascending index order. Applies to BOTH the single-output (linear
+    // indices) and the [r,c] / [r,c,v] subscript forms.
+    bool haveK = args.size() >= 2 && !args[1].isEmpty();
+    size_t kReq = 0;
+    if (haveK) {
+        if (args[1].numel() != 1)
+            throw Error("find: Second argument must be a positive scalar integer.",
+                         0, 0, "find", "", "numkit:find:badK");
+        const double kd = args[1].toScalar();
+        if (!std::isfinite(kd) || kd < 1.0 || kd != std::floor(kd))
+            throw Error("find: Second argument must be a positive scalar integer.",
+                         0, 0, "find", "", "numkit:find:badK");
+        kReq = static_cast<size_t>(kd);
+    }
+    bool fromLast = false;
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (!(args[2].isChar() || args[2].isString()))
+            throw Error("find: third argument must be 'first' or 'last'",
+                         0, 0, "find", "", "numkit:find:badDir");
+        std::string d = args[2].toString();
+        for (char &ch : d)
+            if (ch >= 'A' && ch <= 'Z') ch = static_cast<char>(ch + 32);
+        if (d == "last") fromLast = true;
+        else if (d == "first") fromLast = false;
+        else
+            throw Error("find: third argument must be 'first' or 'last'",
+                         0, 0, "find", "", "numkit:find:badDir");
+    }
+
+    ScratchArena scratch(mr);
+    auto lin = ScratchVec<size_t>(&scratch);
+    forEachNonzero(x, [&](size_t i) { lin.push_back(i); });
+
+    // Window of [start, start+count) into the ascending nonzero-index list.
+    size_t start = 0, count = lin.size();
+    if (haveK && kReq < lin.size()) {
+        count = kReq;
+        start = fromLast ? lin.size() - kReq : 0;
+    }
+
+    const size_t R = x.dims().rows() == 0 ? 1 : x.dims().rows();
+    const bool rowResult = !x.dims().is3D() && x.dims().rows() == 1;
+    auto mk = [&](ValueType t) {
+        return rowResult ? Value::matrix(1, count, t, mr)
+                         : Value::matrix(count, 1, t, mr);
+    };
+
     if (nargout <= 1) {
-        outs[0] = find(x, mr);
+        Value r = mk(ValueType::DOUBLE);
+        double *rd = r.doubleDataMut();
+        for (size_t t = 0; t < count; ++t)
+            rd[t] = static_cast<double>(lin[start + t] + 1);
+        outs[0] = std::move(r);
         return;
     }
 
     // [r, c] = find(X) / [r, c, v] = find(X): row/column subscripts (and the
     // nonzero values). Subscripts/values inherit X's vector orientation (row
     // vector → row results, otherwise column results), matching MATLAB.
-    // NOTE: the find(X, n) row-count limit is not applied to the multi-output
-    // forms here.
-    ScratchArena scratch(mr);
-    auto lin = ScratchVec<size_t>(&scratch);
-    forEachNonzero(x, [&](size_t i) { lin.push_back(i); });
-    const size_t k = lin.size();
-    const size_t R = x.dims().rows() == 0 ? 1 : x.dims().rows();
-    const bool rowResult = !x.dims().is3D() && x.dims().rows() == 1;
-    auto mk = [&](ValueType t) {
-        return rowResult ? Value::matrix(1, k, t, mr)
-                         : Value::matrix(k, 1, t, mr);
-    };
-
     Value rowV = mk(ValueType::DOUBLE);
     Value colV = mk(ValueType::DOUBLE);
     double *rd = rowV.doubleDataMut();
     double *cd = colV.doubleDataMut();
-    for (size_t t = 0; t < k; ++t) {
-        const size_t i = lin[t];
+    for (size_t t = 0; t < count; ++t) {
+        const size_t i = lin[start + t];
         rd[t] = static_cast<double>(i % R + 1);
         cd[t] = static_cast<double>(i / R + 1);
     }
-    outs[0] = rowV;
-    outs[1] = colV;
+    outs[0] = std::move(rowV);
+    outs[1] = std::move(colV);
 
     if (nargout >= 3) {
         if (x.type() == ValueType::COMPLEX) {
             Value valV = mk(ValueType::COMPLEX);
             const Complex *src = x.complexData();
             Complex *vd = valV.complexDataMut();
-            for (size_t t = 0; t < k; ++t) vd[t] = src[lin[t]];
-            outs[2] = valV;
+            for (size_t t = 0; t < count; ++t) vd[t] = src[lin[start + t]];
+            outs[2] = std::move(valV);
         } else {
             Value valV = mk(ValueType::DOUBLE);
             double *vd = valV.doubleDataMut();
-            for (size_t t = 0; t < k; ++t) vd[t] = x.elemAsDouble(lin[t]);
-            outs[2] = valV;
+            for (size_t t = 0; t < count; ++t) vd[t] = x.elemAsDouble(lin[start + t]);
+            outs[2] = std::move(valV);
         }
     }
 }

@@ -1,15 +1,20 @@
 {
   "name": "find",
   "namespace": "builtin",
-  "setup": "",
-  "expr": "ix = find([0, 1, 0, 1, 1]); r1 = ix(1); r2 = ix(2); r3 = ix(3); r4 = numel(ix);",
+  "setup": "v = [0 1 0 1 1]; A = [0 3; 4 0];",
+  "expr": "ix = find(v); a = find(v,2); b = find(v,1,'last'); c = find(v,2,'last'); fe = find(v,2,'first'); e = find(v,10); [r1,c1] = find(A,1); [r2,c2] = find(A,1,'last'); [r3,c3,v3] = find(A,1,'last');",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
-    "r1",
-    "r2",
-    "r3",
-    "r4"
+    "ix(1)", "ix(2)", "ix(3)", "numel(ix)",
+    "a(1)", "a(2)", "numel(a)",
+    "b", "numel(b)",
+    "c(1)", "c(2)", "numel(c)",
+    "fe(1)", "fe(2)",
+    "numel(e)",
+    "r1", "c1", "numel(r1)",
+    "r2", "c2", "numel(r2)",
+    "v3"
   ],
-  "comment": "Sig: r = find(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: idx = find(X, K, dir). Covers: no-count returns all nonzero indices; count K keeps the first K (find([0 1 0 1 1],2)=[2 4]); 'last' keeps the last K, still ascending (find(...,2,'last')=[4 5]; find(...,1,'last')=5); explicit 'first' == default; K>count returns all (numel 3); multi-output [r,c]=find(A,K) and [r,c,v]=find(A,K,'last') apply the same window (A=[0 3;4 0]: find(A,1)->r=2,c=1; find(A,1,'last')->r=1,c=2,v=3). Bug fixed 2026-06-05: single- AND multi-output previously ignored K + direction and returned all nonzeros. K must be a positive scalar integer (find(X,0) errors in MATLAB). Spec-extension batch 2026-05-09; K+dir extension 2026-06-05."
 }
