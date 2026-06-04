@@ -16,124 +16,9 @@ import {
   createHistory, pushSnapshot, undo as historyUndo, redo as historyRedo,
   canUndo, canRedo, classifyChange,
 } from './editorHistory';
-
-const KEYWORDS = new Set([
-  'for','end','while','if','else','elseif','switch','case','otherwise',
-  'try','catch','function','return','break','continue','global','persistent',
-  'classdef','properties','methods','events','enumeration',
-]);
-
-// Brief one-line descriptions for the most common MATLAB builtins.
-// Used to populate the native `title` tooltip on hover. Not exhaustive —
-// unknown builtins get the generic "builtin function" label. Extend
-// as needed; per-function help text would ideally come from the engine
-// (no public API yet), so this is a curated map covering the basics.
-const BUILTIN_INFO = {
-  disp:     'disp — display value',
-  fprintf:  'fprintf — formatted print to stdout/file',
-  sprintf:  'sprintf — formatted string',
-  plot:     'plot — 2-D line plot',
-  bar:      'bar — bar chart',
-  scatter:  'scatter — 2-D scatter plot',
-  hist:     'hist — histogram (legacy; prefer histogram)',
-  stem:     'stem — discrete-sequence plot',
-  stairs:   'stairs — stair-step plot',
-  polarplot:'polarplot — plot in polar coordinates',
-  figure:   'figure — create / select a figure window',
-  subplot:  'subplot — create axes in tiled positions',
-  title:    'title — set axes title',
-  xlabel:   'xlabel — set X-axis label',
-  ylabel:   'ylabel — set Y-axis label',
-  legend:   'legend — add legend',
-  xlim:     'xlim — get/set X-axis limits',
-  ylim:     'ylim — get/set Y-axis limits',
-  zeros:    'zeros(N) / zeros(M,N) — array of zeros',
-  ones:     'ones(N) / ones(M,N) — array of ones',
-  eye:      'eye(N) — identity matrix',
-  rand:     'rand(N) — uniform random in [0,1)',
-  randn:    'randn(N) — standard normal random',
-  linspace: 'linspace(a,b,N) — N points evenly between a and b',
-  logspace: 'logspace(a,b,N) — N log-spaced points 10^a to 10^b',
-  reshape:  'reshape(A, ...) — change array shape',
-  size:     'size(A) — array dimensions',
-  length:   'length(A) — longest dimension',
-  numel:    'numel(A) — total number of elements',
-  sum:      'sum(A) — sum along first non-singleton dim',
-  prod:     'prod(A) — product along first non-singleton dim',
-  mean:     'mean(A) — arithmetic mean',
-  min:      'min(A) — minimum value(s)',
-  max:      'max(A) — maximum value(s)',
-  sort:     'sort(A) — sort ascending',
-  find:     'find(A) — indices of nonzero elements',
-  sin:      'sin(x) — sine (radians)',
-  cos:      'cos(x) — cosine (radians)',
-  tan:      'tan(x) — tangent (radians)',
-  sqrt:     'sqrt(x) — square root',
-  abs:      'abs(x) — absolute value / complex magnitude',
-  exp:      'exp(x) — natural exponential',
-  log:      'log(x) — natural logarithm',
-  log2:     'log2(x) — base-2 logarithm',
-  log10:    'log10(x) — base-10 logarithm',
-  fft:      'fft(x) — Fast Fourier Transform',
-  ifft:     'ifft(X) — inverse FFT',
-  conv:     'conv(a,b) — convolution',
-  close:    'close — close figure window(s)',
-  clear:    'clear — remove variables from workspace',
-  hold:     'hold on/off — retain existing plots',
-  grid:     'grid on/off — show grid',
-  axis:     'axis — set axis behaviour (equal, tight, ...)',
-  clc:      'clc — clear command window',
-  imshow:   'imshow(I) — display image',
-  imagesc:  'imagesc(C) — scale data to colormap and display',
-};
-const BUILTINS = new Set([
-  'disp','fprintf','sprintf','plot','bar','scatter','hist','stem','stairs',
-  'polarplot','semilogx','semilogy','loglog','figure','subplot','title',
-  'xlabel','ylabel','legend','xlim','ylim','rlim','clf','cla','who','whos','which',
-  'zeros','ones','eye','rand','randn','linspace','logspace','reshape','size',
-  'length','numel','sum','prod','mean','min','max','cumsum','sort','find',
-  'sin','cos','tan','asin','acos','atan','atan2','sqrt','abs','exp','log',
-  'log2','log10','floor','ceil','round','mod','rem','sign','real','imag','conj',
-  'upper','lower','strcmp','strcmpi','strcat','strsplit','num2str',
-  'thetadir','thetazero','thetalim','exist','isempty','isnumeric','ischar',
-  'close','clear','hold','grid','axis','clc',
-  'input','error','warning','class','fieldnames','struct','cell',
-  'cat','horzcat','vertcat','repmat','cross','dot','norm','det','inv','eig',
-  'fft','ifft','conv','deconv','poly','roots','interp1',
-]);
-const CONSTANTS = new Set(['pi','eps','inf','Inf','nan','NaN','true','false','i','j','end']);
-const PARAMS = new Set(['on','off','all','minor','equal','tight','auto','ij','xy','clockwise','counterclockwise','top','bottom','left','right']);
-
-function tokenize(code) {
-  const tokens = []; let i = 0; const n = code.length;
-  while (i < n) {
-    if (code[i] === '%') { let j = i; while (j < n && code[j] !== '\n') j++; tokens.push({ text: code.slice(i, j), type: 'comment' }); i = j; continue; }
-    if (code[i] === "'") {
-      if (i > 0 && /[a-zA-Z0-9_)\].]/.test(code[i - 1])) { tokens.push({ text: "'", type: 'operator' }); i++; continue; }
-      let j = i + 1; while (j < n && code[j] !== "'" && code[j] !== '\n') j++; if (j < n && code[j] === "'") j++;
-      tokens.push({ text: code.slice(i, j), type: 'string' }); i = j; continue;
-    }
-    if (/[0-9]/.test(code[i]) || (code[i] === '.' && i + 1 < n && /[0-9]/.test(code[i + 1]))) {
-      let j = i; while (j < n && /[0-9]/.test(code[j])) j++;
-      if (j < n && code[j] === '.') { j++; while (j < n && /[0-9]/.test(code[j])) j++; }
-      if (j < n && (code[j] === 'e' || code[j] === 'E')) { j++; if (j < n && (code[j] === '+' || code[j] === '-')) j++; while (j < n && /[0-9]/.test(code[j])) j++; }
-      if (j < n && (code[j] === 'i' || code[j] === 'j') && (j + 1 >= n || !/[a-zA-Z0-9_]/.test(code[j + 1]))) j++;
-      tokens.push({ text: code.slice(i, j), type: 'number' }); i = j; continue;
-    }
-    if (/[a-zA-Z_]/.test(code[i])) {
-      let j = i; while (j < n && /[a-zA-Z0-9_]/.test(code[j])) j++; const w = code.slice(i, j);
-      let type = 'plain';
-      if (KEYWORDS.has(w)) type = 'keyword'; else if (CONSTANTS.has(w)) type = 'constant'; else if (BUILTINS.has(w)) type = 'builtin'; else if (PARAMS.has(w)) type = 'param';
-      tokens.push({ text: w, type }); i = j; continue;
-    }
-    if (i + 1 < n) { const two = code.slice(i, i + 2); if (['==','~=','<=','>=','&&','||','.*','./','.*','.^',".'",'.\\'].includes(two)) { tokens.push({ text: two, type: 'operator' }); i += 2; continue; } }
-    if ('+-*/\\^~<>=&|@;,'.includes(code[i])) { tokens.push({ text: code[i], type: 'operator' }); i++; continue; }
-    if (code[i] === '\n') { tokens.push({ text: '\n', type: 'newline' }); i++; continue; }
-    if (/\s/.test(code[i])) { let j = i; while (j < n && /\s/.test(code[j]) && code[j] !== '\n') j++; tokens.push({ text: code.slice(i, j), type: 'plain' }); i = j; continue; }
-    tokens.push({ text: code[i], type: 'plain' }); i++;
-  }
-  return tokens;
-}
+import { buildHighlightHtml } from './editorHighlight';
+import CompletionPopup from './CompletionPopup';
+import { EditorGutter, EditorMinimap } from './editorChrome';
 
 // ── Search-bar style helpers ───────────────────────────────────────
 // Pulled out of the forwardRef body so the closures aren't recreated
@@ -786,38 +671,16 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
 
   // Build HTML with per-line <span style="display:block"> for line highlighting.
   // This keeps everything inside a single <pre> so scroll sync works perfectly.
-  const tokens = tokenize(value || '');
-  const lines = [[]]; // array of arrays of tokens per line
-  for (const t of tokens) {
-    if (t.type === 'newline') lines.push([]);
-    else lines[lines.length - 1].push(t);
-  }
-
-  const html = lines.map((toks, i) => {
-    const ln = i + 1;
-    const inner = toks.map(t => {
-      const e = t.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      if (t.type === 'plain') return e;
-      const s = `color:${colorMap[t.type]||C.text};${t.type==='keyword'?'font-weight:600;':''}${t.type==='comment'?'font-style:italic;':''}`;
-      // Note: `title=` would be unreachable here — the highlight pre
-      // has pointer-events:none and the textarea above blocks hover.
-      // Hover-info is surfaced via the autocomplete popup (which
-      // shows BUILTIN_INFO descriptions next to each item).
-      return `<span style="${s}">${e}</span>`;
-    }).join('');
-
-    let style = 'display:block;height:20px;line-height:20px;padding-right:16px;';
-    if (ln === errorLine) style += `background:${C.red}18;border-left:2px solid ${C.red};margin-left:-2px;`;
-    else if (ln === debugLine) style += `background:${C.orange}22;border-left:2px solid ${C.orange};margin-left:-2px;`;
-    else if (showCurrentLine && ln === caretLine) style += `background:${C.text}0c;`;
-    return `<span style="${style}">${inner || ' '}</span>`;
-  }).join('');
+  // Line count is just newline count + 1 — cheap + independent of the
+  // highlight pipeline (which now lives in editorHighlight.js).
+  const lineCount = (value || '').split('\n').length;
+  const html = buildHighlightHtml(value, { colorMap, C, errorLine, debugLine, showCurrentLine, caretLine });
 
   // Line-number gutter content — one number per line, newline-joined.
   // Right-aligned in the gutter via CSS textAlign.
   const lineNumbers = useMemo(
-    () => Array.from({ length: lines.length }, (_, i) => String(i + 1)).join('\n'),
-    [lines.length]
+    () => Array.from({ length: lineCount }, (_, i) => String(i + 1)).join('\n'),
+    [lineCount]
   );
 
   // ── Minimap size tracking ────────────────────────────────────────
@@ -873,7 +736,7 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
     g.scale(dpr, dpr);
     g.clearRect(0, 0, W, H);
 
-    const totalLines = Math.max(1, lines.length);
+    const totalLines = Math.max(1, lineCount);
     const lineH = Math.max(1, H / totalLines);   // px per line on the minimap
     // Cap visible lines = how many editor lines fit on the canvas if
     // we render at 1 px per line. Used to find max line length for
@@ -914,7 +777,7 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
     const caretY = (caretLine - 1) * lineH;
     g.fillStyle = C.accent;
     g.fillRect(0, caretY, 2, Math.max(1, lineH));
-  }, [showMinimap, value, lines.length, scrollTop, caretLine,
+  }, [showMinimap, value, lineCount, scrollTop, caretLine,
       C.textDim, C.accent, mapSize.w, mapSize.h]);
 
   // VS Code-style minimap interaction:
@@ -938,10 +801,10 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
     const rect = cv.getBoundingClientRect();
     const y = clientY - rect.top;
     const editorLineH = 20;
-    const contentH = Math.max(1, lines.length * editorLineH);
+    const contentH = Math.max(1, lineCount * editorLineH);
     const target = (y / rect.height) * contentH - ta.clientHeight / 2;
     ta.scrollTop = Math.max(0, Math.min(target, contentH - ta.clientHeight));
-  }, [lines.length]);
+  }, [lineCount]);
 
   // Grab-scroll helper — keep the cursor pinned at its original
   // offset inside the viewport-rect so the rect tracks the grip.
@@ -952,13 +815,13 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
     const rect = cv.getBoundingClientRect();
     const y = clientY - rect.top;
     const editorLineH = 20;
-    const contentH = Math.max(1, lines.length * editorLineH);
+    const contentH = Math.max(1, lineCount * editorLineH);
     // Solve: (scrollTop / contentH) * H == newVpTop, where
     //   newVpTop = y - grabOffset
     const newVpTop = y - grabOffset;
     const target = (newVpTop / rect.height) * contentH;
     ta.scrollTop = Math.max(0, Math.min(target, contentH - ta.clientHeight));
-  }, [lines.length]);
+  }, [lineCount]);
 
   const onMinimapMouseDown = useCallback((e) => {
     e.preventDefault();
@@ -968,7 +831,7 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
     const rect = cv.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const editorLineH = 20;
-    const contentH = Math.max(1, lines.length * editorLineH);
+    const contentH = Math.max(1, lineCount * editorLineH);
     const vpTop = (ta.scrollTop / contentH) * rect.height;
     const vpH = (ta.clientHeight / contentH) * rect.height;
     const insideVp = y >= vpTop && y <= vpTop + vpH;
@@ -985,7 +848,7 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
         active: true, mode: 'absolute', grabOffset: 0,
       };
     }
-  }, [lines.length, scrollEditorToMinimapY]);
+  }, [lineCount, scrollEditorToMinimapY]);
 
   useEffect(() => {
     function onMove(e) {
@@ -1022,24 +885,8 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
   return (
     <div style={{ position:'relative', width:'100%', height:'100%',
                   display:'flex', overflow:'hidden', background: C.bg1 }}>
-      {/* Line-number gutter — fixed width, scroll-synced vertically with
-          the editor. Static colour, smaller padding-right to leave the
-          divider visually distinct from the code. */}
-      {showGutter && (
-        <div style={{ position:'relative', width:48, flexShrink:0,
-                      overflow:'hidden', borderRight:`1px solid ${C.border}`,
-                      background: C.bg0 }}>
-          <pre ref={gutterRef} aria-hidden="true" style={{
-            position:'absolute', top:0, left:0, right:0, bottom:0,
-            margin:0, padding:'8px 8px 0 0',
-            fontFamily:FONT, fontSize:13, lineHeight:'20px',
-            color: C.textMuted, background:'transparent',
-            overflow:'hidden', whiteSpace:'pre',
-            pointerEvents:'none', textAlign:'right',
-            userSelect:'none',
-          }}>{lineNumbers}</pre>
-        </div>
-      )}
+      {/* Line-number gutter — see EditorGutter (scroll-synced via gutterRef). */}
+      <EditorGutter show={showGutter} gutterRef={gutterRef} lineNumbers={lineNumbers} C={C} />
 
       {/* Editing area — the original two-layer stack (highlight pre +
           transparent textarea), now with optional indent-guide
@@ -1169,57 +1016,9 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
           className="nk-editor-textarea"
           style={{position:'relative',width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'auto',whiteSpace:'pre',zIndex:3}}/>
 
-        {/* Autocomplete popup — anchored at the start of the partial
-            being completed (so the dropdown lines up with what the
-            user is typing). Position uses ch unit for column math —
-            matches the monospace font width without measurement. */}
-        {acItems.length > 0 && (
-          <div style={{
-            position: 'absolute',
-            left: `calc(8px + ${acAnchor.col}ch)`,
-            top: acAnchor.line * 20 + 28,    // below the line
-            zIndex: 20,
-            background: C.bg2,
-            border: `1px solid ${C.border}`,
-            borderRadius: 3,
-            boxShadow: `0 4px 12px ${C.bg0}aa`,
-            maxHeight: 240,
-            minWidth: 140,
-            overflowY: 'auto',
-            fontFamily: FONT,
-            fontSize: 12,
-          }}>
-            {acItems.map((item, i) => {
-              const info = BUILTIN_INFO[item];
-              // Extract the bit AFTER " — " when present, since the
-              // function name itself is already shown on the left.
-              const desc = info ? info.split(' — ').slice(1).join(' — ') : '';
-              return (
-                <div key={item}
-                     onMouseDown={(e) => { e.preventDefault(); acceptCompletion(item); }}
-                     onMouseEnter={() => setAcIdx(i)}
-                     style={{
-                       display: 'flex', alignItems: 'baseline', gap: 8,
-                       padding: '2px 8px',
-                       cursor: 'pointer',
-                       background: i === acIdx ? C.accent : 'transparent',
-                       color: i === acIdx ? C.bg0 : C.text,
-                     }}>
-                  <span>{item}</span>
-                  {desc && (
-                    <span style={{
-                      fontSize: 11,
-                      color: i === acIdx ? `${C.bg0}cc` : C.textMuted,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>{desc}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Autocomplete popup — see CompletionPopup. */}
+        <CompletionPopup items={acItems} anchor={acAnchor} activeIdx={acIdx}
+                         onAccept={acceptCompletion} onHover={setAcIdx} C={C} />
 
         {/* Find / Replace / Go-to-line bar — overlays the top-right
             corner of the editor area, à la VS Code. Same input gets
@@ -1311,19 +1110,10 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
         )}
       </div>
 
-      {/* Minimap — canvas-based overview of the whole script. Click
-          jumps the editor viewport. Width is fixed; the canvas's
-          backing-store size is matched to its CSS size every render
-          inside the useEffect above. */}
-      {showMinimap && (
-        <div style={{ width:64, flexShrink:0, position:'relative',
-                      background: C.bg0,
-                      borderLeft:`1px solid ${C.border}`,
-                      cursor:'pointer' }}
-             onMouseDown={onMinimapMouseDown}>
-          <canvas ref={minimapRef} style={{ display:'block', width:'100%', height:'100%' }} />
-        </div>
-      )}
+      {/* Minimap — see EditorMinimap. The canvas is painted by the effect
+          above; click-to-jump is owned by onMinimapMouseDown. */}
+      <EditorMinimap show={showMinimap} minimapRef={minimapRef}
+                     onMouseDown={onMinimapMouseDown} C={C} />
     </div>
   );
 });
