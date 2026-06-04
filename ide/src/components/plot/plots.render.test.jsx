@@ -243,4 +243,20 @@ describe('CompositePlot — every layer type renders its glyph', () => {
     expect(c.querySelector('text')).toBeTruthy();
     expect(c.textContent).toContain('GLYPHTEST');
   });
+
+  it('legend → swatches + labels when legend() was called', () => {
+    const fig = {
+      ...compositeFig, id: 200, legend: ['AlphaLeg', 'BetaLeg'],
+      layers: [
+        { kind: 'series', mode: 'line', x: [1, 2, 3], y: [2, 4, 3], color: '#d10001', name: 'AlphaLeg' },
+        { kind: 'series', mode: 'scatter', marker: 'o', x: [1, 2, 3], y: [1, 3, 2], color: '#d10002', name: 'BetaLeg' },
+      ],
+    };
+    const c = render(
+      <CompositePlot figure={fig} width={400} height={300}
+        viewport={{ x: [0, 5], y: [0, 10] }} setViewport={noop} interactive={false} />,
+    ).container;
+    expect(c.textContent).toContain('AlphaLeg');
+    expect(c.textContent).toContain('BetaLeg');
+  });
 });
