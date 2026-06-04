@@ -78,19 +78,8 @@ TEST_F(BuiltinKnownBug, DISABLED_Func2StrAnonymous)
     EXPECT_EQ(eval("s").toString(), std::string("@(x)x+1"));
 }
 
-// bugs/builtin/find-count-direction.md — find(x,k[,'first'/'last']).
-TEST_F(BuiltinKnownBug, DISABLED_FindCountDirection)
-{
-    eval("a = find([0 1 0 1 1], 2);");           // MATLAB: [2 4]
-    EXPECT_EQ(static_cast<int>(evalScalar("numel(a)")), 2);
-    EXPECT_DOUBLE_EQ(evalScalar("a(2)"), 4.0);
-    eval("b = find([0 1 0 1 1], 1, 'last');");   // MATLAB: 5
-    EXPECT_EQ(static_cast<int>(evalScalar("numel(b)")), 1);
-    EXPECT_DOUBLE_EQ(evalScalar("b"), 5.0);
-    eval("c = find([0 1 0 1 1], 2, 'last');");   // MATLAB: [4 5]
-    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 4.0);
-    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 5.0);
-}
+// bugs/builtin/find-count-direction.md — FIXED (find(x,k[,'first'/'last'])).
+// Live regression guard moved to libs/builtin/tests/find_count_direction_test.cpp.
 
 // bugs/builtin/cumsum-complex.md — cumsum/cumprod on complex input.
 TEST_F(BuiltinKnownBug, DISABLED_CumsumComplex)

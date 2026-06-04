@@ -829,7 +829,7 @@ together.
 | `equilibrate` | ❌ |  |
 | `etree` | ❌ | **deferred — libs/sparse** |
 | `etreeplot` | ❌ | **deferred — libs/sparse** |
-| `find` | ✅ 🔬 | Sig: r = find(...). Spec-extension batch 2026-05-09. |
+| `find` | ✅ 🔬 | Sig: idx = find(X, K, dir). Covers: no-count returns all nonzero indices; count K keeps the first K (find([0 1 0 1 1],2)=[2 4]); 'last' keeps the last K, still ascending (find(...,2,'last')=[4 5]; find(...,1,'last')=5); explicit 'first' == default; K>count returns all (numel 3); multi-output [r,c]=find(A,K) and [r,c,v]=find(A,K,'last') apply the same window (A=[0 3;4 0]: find(A,1)->r=2,c=1; find(A,1,'last')->r=1,c=2,v=3). Bug fixed 2026-06-05: single- AND multi-output previously ignored K + direction and returned all nonzeros. K must be a positive scalar integer (find(X,0) errors in MATLAB). Spec-extension batch 2026-05-09; K+dir extension 2026-06-05. |
 | `full` | ❌ | **deferred — libs/sparse** |
 | `gmres` | ❌ | **deferred — libs/sparse** |
 | `gplot` | ❌ | **deferred — libs/sparse** |
