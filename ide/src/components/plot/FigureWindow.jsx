@@ -16,6 +16,7 @@ import {
 import {
   NumberInput, FwPopLocationSubmenu, DisplayToggle, MatrixHead, MatrixToggleRow,
 } from './figureWindow.controls';
+import { buildDelimited, buildJsonObject } from './figureExport';
 
 function renderFigure(figure, props, threeRef) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
@@ -683,161 +684,21 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // Build a CSV/TSV "name<sep>x<sep>y[<sep>z]" body from a series
   // source. Accepts either a polar figure (`series` with theta/rho),
   // an array of 2-D series layers (`x`, `y`), or 3-D series with z[].
-  function seriesBody(source, sep) {
-    const list = Array.isArray(source) ? source : (source.series || []);
-    const has3D = list.some((s) => Array.isArray(s.z));
-    const rows = [`name${sep}x${sep}y${has3D ? sep + 'z' : ''}`];
-    list.forEach((s) => {
-      const xs = s.x || s.theta || [];
-      const ys = s.y || s.rho   || [];
-      const zs = Array.isArray(s.z) ? s.z : null;
-      for (let i = 0; i < xs.length; i++) {
-        let row = `${s.name}${sep}${xs[i]}`;
-        if (ys[i] != null) row += sep + ys[i];
-        if (zs && zs[i] != null) row += sep + zs[i];
-        rows.push(row);
-      }
-    });
-    return rows.join('\n');
-  }
-  function get3DRows() {
-    return threeRef.current?.getCsvData?.() || [];
-  }
-  // Composite cell exporter — pulls heatmap layer's z if present, else series.
-  function compositeCellBody(cell, sep) {
-    const layers = cell.layers || [];
-    const hl = layers.find((l) => l.kind === 'heatmap');
-    if (hl) return hl.z.map((row) => row.map((v) => v == null ? '' : v).join(sep)).join('\n');
-    return seriesBody(layers.filter((l) => l.kind === 'series'), sep);
+  function exportCtx() {
+    return {
+      figure, is3D, isHeatmap, isSubplot, isComposite,
+      heatmapLayer, seriesLayers, compositeLayers,
+      threeRows: threeRef.current?.getCsvData?.() || [],
+    };
   }
   function exportCsv() {
-    if (is3D) {
-      downloadBlob(new Blob([seriesBody(get3DRows(), ',')], { type: 'text/csv' }),
-                   `figure_${figure.id}.csv`);
-      return;
-    }
-    if (isHeatmap) {
-      const z = heatmapLayer.z;
-      const rows = z.map((row) => row.map((v) => v == null ? '' : v).join(','));
-      downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
-      return;
-    }
-    if (isSubplot) {
-      const parts = figure.cells.map((c, i) => {
-        const tag = `# subplot ${c.subplotIndex || i + 1} — ${c.title || c.kind}`;
-        if (c.kind === 'composite') return `${tag}\n` + compositeCellBody(c, ',');
-        return `${tag}\n` + seriesBody(c, ',');
-      });
-      downloadBlob(new Blob([parts.join('\n\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
-      return;
-    }
-    if (isComposite) {
-      downloadBlob(new Blob([seriesBody(seriesLayers, ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
-      return;
-    }
-    downloadBlob(new Blob([seriesBody(figure, ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
+    downloadBlob(new Blob([buildDelimited(exportCtx(), ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
   }
   function exportTsv() {
-    if (is3D) {
-      downloadBlob(new Blob([seriesBody(get3DRows(), '\t')], { type: 'text/tab-separated-values' }),
-                   `figure_${figure.id}.tsv`);
-      return;
-    }
-    if (isHeatmap) {
-      const z = heatmapLayer.z;
-      const rows = z.map((row) => row.map((v) => v == null ? '' : v).join('\t'));
-      downloadBlob(new Blob([rows.join('\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
-      return;
-    }
-    if (isSubplot) {
-      const parts = figure.cells.map((c, i) => {
-        const tag = `# subplot ${c.subplotIndex || i + 1} — ${c.title || c.kind}`;
-        if (c.kind === 'composite') return `${tag}\n` + compositeCellBody(c, '\t');
-        return `${tag}\n` + seriesBody(c, '\t');
-      });
-      downloadBlob(new Blob([parts.join('\n\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
-      return;
-    }
-    if (isComposite) {
-      downloadBlob(new Blob([seriesBody(seriesLayers, '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
-      return;
-    }
-    downloadBlob(new Blob([seriesBody(figure, '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
+    downloadBlob(new Blob([buildDelimited(exportCtx(), '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
   }
   function exportJson() {
-    if (is3D) {
-      const obj = {
-        id: figure.id, kind: 'composite3d',
-        title: figure.title,
-        xLabel: figure.xLabel, yLabel: figure.yLabel, zLabel: figure.zLabel,
-        view: figure.view,
-        series: get3DRows(),
-      };
-      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }),
-                   `figure_${figure.id}.json`);
-      return;
-    }
-    if (isHeatmap) {
-      const obj = {
-        id: figure.id, kind: 'heatmap', title: figure.title,
-        xRange: figure.xRange, yRange: figure.yRange,
-        cmin: heatmapLayer.cmin, cmax: heatmapLayer.cmax,
-        colormap: heatmapLayer.colormap, z: heatmapLayer.z,
-      };
-      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
-      return;
-    }
-    if (isSubplot) {
-      const obj = {
-        id: figure.id, kind: 'subplot', title: figure.title, grid: figure.grid,
-        cells: figure.cells.map((c) => {
-          if (c.kind === 'composite') {
-            const layers = c.layers || [];
-            return {
-              subplotIndex: c.subplotIndex, kind: 'composite', title: c.title,
-              xLabel: c.xLabel, yLabel: c.yLabel,
-              xRange: c.xRange, yRange: c.yRange,
-              layers: layers.map((ly) => {
-                if (ly.kind === 'heatmap') return { kind: 'heatmap', z: ly.z, cmin: ly.cmin, cmax: ly.cmax };
-                if (ly.kind === 'series')  return { kind: 'series', mode: ly.mode, name: ly.name, color: ly.color, x: ly.x, y: ly.y };
-                return { ...ly };
-              }),
-            };
-          }
-          return { subplotIndex: c.subplotIndex, kind: c.kind, title: c.title,
-            xLabel: c.xLabel, yLabel: c.yLabel,
-            series: (c.series || []).map((s) => ({
-              name: s.name, color: s.color, x: s.x ?? s.theta, y: s.y ?? s.rho,
-            })),
-          };
-        }),
-      };
-      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
-      return;
-    }
-    if (isComposite) {
-      const obj = {
-        id: figure.id, kind: 'composite', title: figure.title,
-        xLabel: figure.xLabel, yLabel: figure.yLabel,
-        xRange: figure.xRange, yRange: figure.yRange,
-        layers: compositeLayers.map((ly) => {
-          if (ly.kind === 'heatmap') return { kind: 'heatmap', z: ly.z, cmin: ly.cmin, cmax: ly.cmax, colormap: ly.colormap };
-          if (ly.kind === 'series')  return { kind: 'series', mode: ly.mode, name: ly.name, color: ly.color, x: ly.x, y: ly.y };
-          return { ...ly };
-        }),
-      };
-      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
-      return;
-    }
-    const obj = {
-      id: figure.id, kind: figure.kind, title: figure.title,
-      xLabel: figure.xLabel, yLabel: figure.yLabel,
-      series: (figure.series || []).map((s) => ({
-        name: s.name, color: s.color,
-        x: s.x ?? s.theta, y: s.y ?? s.rho,
-      })),
-    };
-    downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
+    downloadBlob(new Blob([JSON.stringify(buildJsonObject(exportCtx()), null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
   }
 
   function applyFit(mode, axisMode) {
