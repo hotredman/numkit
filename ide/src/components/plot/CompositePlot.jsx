@@ -28,7 +28,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
-import ContextMenu, { foldRowsToSubmenu } from '../ui/ContextMenu';
+import ContextMenu from '../ui/ContextMenu';
 import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange, previewStride } from './plotUtils';
 import { niceTicks, logTicks, applyTickFormat, fmtTick } from './plotTicks';
 import { decimateSeries, buildPyramid, decimateLOD } from './decimate';

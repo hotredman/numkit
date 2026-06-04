@@ -26,9 +26,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import {
-  azElToCameraOffset, fmtTick, computeBBox, computeScales, toWorld,
+  azElToCameraOffset, fmtTick, computeBBox, computeScales,
   buildVertices, buildLineSegments, buildSurfaceMesh, buildBars3D,
   buildWaterfall, buildPolygon3D, buildQuiver3D, buildContour3D,
   buildPoints, buildAxesFrame, disposeTree, FACE_NORMALS, ALL_FACES,
