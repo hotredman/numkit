@@ -1008,3 +1008,35 @@ TEST(DebugEvalInjectTest, ConsoleDbupDbdownDbstack)
 
     session.resume(DebugAction::Continue);
 }
+
+// Watch expressions re-evaluate against the live (edited) frame at each pause.
+TEST(DebugEvalInjectTest, WatchExpressionsTrackEdits)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+    ASSERT_EQ(session.start("x = 10;\ny = 20;\ndisp(x + y);\n"), ExecStatus::Paused);
+
+    session.addWatch("x");
+    session.addWatch("x * 2");
+    auto w = session.evalWatches();
+    ASSERT_EQ(w.size(), 2u);
+    EXPECT_EQ(w[0].expr, "x");
+    EXPECT_NE(w[0].result.find("10"), std::string::npos);
+    EXPECT_NE(w[1].result.find("20"), std::string::npos); // x*2
+
+    session.eval("x = 100"); // edit; watches must follow
+    auto w2 = session.evalWatches();
+    EXPECT_NE(w2[0].result.find("100"), std::string::npos);
+    EXPECT_NE(w2[1].result.find("200"), std::string::npos);
+
+    session.removeWatch(0);
+    EXPECT_EQ(session.evalWatches().size(), 1u);
+    session.clearWatches();
+    EXPECT_EQ(session.evalWatches().size(), 0u);
+
+    session.resume(DebugAction::Continue);
+}

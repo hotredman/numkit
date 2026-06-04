@@ -215,6 +215,35 @@ std::string DebugSession::formatDbStack() const
     return out;
 }
 
+void DebugSession::addWatch(const std::string &expr)
+{
+    watches_.push_back(expr);
+}
+
+void DebugSession::removeWatch(size_t index)
+{
+    if (index < watches_.size())
+        watches_.erase(watches_.begin() + static_cast<std::ptrdiff_t>(index));
+}
+
+void DebugSession::clearWatches()
+{
+    watches_.clear();
+}
+
+std::vector<DebugSession::WatchResult> DebugSession::evalWatches()
+{
+    std::vector<WatchResult> out;
+    out.reserve(watches_.size());
+    // Each watch is evaluated in the currently focused frame via the same
+    // inject/eval path as the console — so it sees the live (possibly edited)
+    // values and dbup/dbdown focus. eval() already turns failures into
+    // "Error: ..." strings, so a bad watch never throws here.
+    for (auto &expr : watches_)
+        out.push_back({expr, active_ ? eval(expr) : std::string()});
+    return out;
+}
+
 void DebugSession::deactivate()
 {
     if (!active_)
