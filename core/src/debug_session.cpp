@@ -87,6 +87,7 @@ ExecStatus DebugSession::start(const std::string &code)
                                   : DebugAction::Continue;
 
         ExecStatus status = engine_.vm_->startExecution(chunk_, nullptr, 0, initial);
+        status = skipFalseConditionalBreakpoints(status, initial == DebugAction::Continue);
 
         if (status == ExecStatus::Paused) {
             selectedDepth_ = 0; // new pause → focus the deepest frame
@@ -127,6 +128,7 @@ ExecStatus DebugSession::resume(DebugAction action)
 
     try {
         ExecStatus status = engine_.debugResume(action);
+        status = skipFalseConditionalBreakpoints(status, action == DebugAction::Continue);
 
         if (status == ExecStatus::Paused) {
             selectedDepth_ = 0; // new pause → focus the deepest frame
@@ -242,6 +244,43 @@ std::vector<DebugSession::WatchResult> DebugSession::evalWatches()
     for (auto &expr : watches_)
         out.push_back({expr, active_ ? eval(expr) : std::string()});
     return out;
+}
+
+ExecStatus DebugSession::skipFalseConditionalBreakpoints(ExecStatus status, bool running)
+{
+    // Only when running into breakpoints (Continue); a single-step always stops
+    // where it lands, regardless of any breakpoint condition on that line.
+    if (!running)
+        return status;
+
+    while (status == ExecStatus::Paused) {
+        auto *ctl = engine_.debugController();
+        if (!ctl || ctl->callStack().empty())
+            break;
+        uint16_t line = ctl->currentFrame()->line;
+        std::string cond = engine_.breakpointManager().conditionForLine(line);
+        if (cond.empty())
+            break; // unconditional breakpoint → genuine stop
+
+        // Evaluate the condition in the current (deepest) frame via the same
+        // inject/eval path the console uses, then read its truthiness.
+        ws_.bindVMFrame(*engine_.vm_, engine_, 0);
+        bool hold = true; // default: stop if the condition can't be evaluated
+        try {
+            eval(cond);
+            hold = lastEvalValue_.toBool();
+        } catch (...) {
+            hold = true;
+        }
+        ws_.unbindFrame();
+        if (hold)
+            break; // condition true → stop here
+
+        // Condition false → keep running to the next breakpoint.
+        engine_.vm_->setFrameDynVars(ws_.overlay().empty() ? nullptr : &ws_.overlay());
+        status = engine_.debugResume(DebugAction::Continue);
+    }
+    return status;
 }
 
 void DebugSession::deactivate()
@@ -369,8 +408,9 @@ std::string DebugSession::eval(const std::string &code)
     // 5. Execute expression.
     std::string evalOutput;
     engine_.setOutputFunc([&evalOutput](const std::string &s) { evalOutput += s; });
+    lastEvalValue_ = Value();
     try {
-        engine_.eval(code);
+        lastEvalValue_ = engine_.eval(code);
     } catch (const std::exception &e) {
         evalOutput = std::string("Error: ") + e.what();
     }

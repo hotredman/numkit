@@ -75,10 +75,27 @@ std::vector<std::string> DebugContext::variableNames() const
 
 int BreakpointManager::addBreakpoint(uint16_t line)
 {
+    return addBreakpoint(line, std::string());
+}
+
+int BreakpointManager::addBreakpoint(uint16_t line, const std::string &condition)
+{
     int id = nextId_++;
-    breakpoints_.push_back({id, line, true});
+    breakpoints_.push_back({id, line, true, condition});
     indexDirty_ = true;
     return id;
+}
+
+std::string BreakpointManager::conditionForLine(uint16_t line) const
+{
+    if (breakpoints_.empty())
+        return std::string();
+    if (indexDirty_)
+        rebuildIndex();
+    auto it = lineIndex_.find(line);
+    if (it == lineIndex_.end())
+        return std::string();
+    return breakpoints_[it->second].condition;
 }
 
 void BreakpointManager::removeBreakpoint(int id)
