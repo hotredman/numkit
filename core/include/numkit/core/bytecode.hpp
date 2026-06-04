@@ -330,8 +330,18 @@ struct BytecodeChunk
     // in `whos` once they've been shadowed by an assignment.
     std::unordered_set<std::string> assignedVars;
 
-    // Global variable names (declared with 'global' keyword)
+    // Global variable names this chunk routes through globalsEnv_: this chunk's
+    // own `global X` declarations PLUS the base workspace's inherited globals
+    // (seeded at compile so `gv = 5` without a re-declaration still writes the
+    // global). Used by the import/export paths.
     std::vector<std::string> globalNames;
+
+    // Just this chunk's OWN top-level `global X` declarations (a subset of
+    // globalNames, excluding the inherited seed). Engine::runOneChunk uses it to
+    // record base-workspace membership and seed a freshly declared global as [].
+    // Excluding the inherited seed is what keeps `clear global g` from being
+    // resurrected by a later chunk that merely inherited g.
+    std::vector<std::string> ownGlobalDecls;
 
     // Per-CALL-site arg names — populated by the compiler for each
     // CALL / CALL_MULTI it emits. Key = index into `code` of the CALL

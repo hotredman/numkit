@@ -1493,9 +1493,15 @@ uint8_t Compiler::compileSwitch(const ASTNode *node)
 // ============================================================
 uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
 {
+    const bool isGlobal = (node->type == NodeType::GLOBAL_STMT);
     for (auto &name : node->paramNames) {
         varRegWrite(name); // allocate register, mark as assigned
         chunk_.globalNames.push_back(name);
+        // Record this chunk's OWN `global X` decls (not `persistent`, and not
+        // the inherited seed pushed in compile()) so runOneChunk can register
+        // base membership + seed [] without resurrecting a cleared global.
+        if (isGlobal)
+            chunk_.ownGlobalDecls.push_back(name);
     }
     return 0;
 }

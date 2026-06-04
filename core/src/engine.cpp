@@ -2186,13 +2186,20 @@ Value Engine::runOneChunk(const ASTNode *ast, std::shared_ptr<const std::string>
     vm_->setCompiledFuncs(&compiler_->compiledFuncs(),
                           &compiler_->scriptLocalCompiledFuncs());
 
-    // Record this chunk's `global X` declarations as base-workspace global
-    // membership (workspaceEnv_->globals_ — the single source of truth) so the
-    // next chunk's compile can see them (split-mode top-level globals) and so
-    // reads/writes of X route through globalsEnv_. Idempotent.
+    // Register this chunk's OWN `global X` declarations (NOT the inherited
+    // globalNames seed — iterating that would resurrect a global cleared
+    // earlier in the same chunk, e.g. `clear global g`) as base-workspace
+    // membership (workspaceEnv_->globals_, the single source of truth) so the
+    // next chunk's compile can see them and reads/writes route through
+    // globalsEnv_. A freshly declared global with no value yet IS [] (matches
+    // TreeWalker::execGlobalPersistent and MATLAB: visible to who/exist, reads
+    // as an empty matrix). Idempotent.
     auto updateTopLevelGlobals = [&]() {
-        for (auto &g : chunk.globalNames)
+        for (auto &g : chunk.ownGlobalDecls) {
             workspaceEnv_->declareGlobal(g);
+            if (!globalsEnv_->get(g))
+                globalsEnv_->set(g, Value::Empty);
+        }
     };
 
     try {
