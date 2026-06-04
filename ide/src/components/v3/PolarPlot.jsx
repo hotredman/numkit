@@ -17,7 +17,14 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ContextMenu from './ContextMenu';
-import { fitCellViewport, exportSvgNode, exportPngNode, exportPngForPrint } from './plotUtils';
+import { fitCellViewport, exportSvgNode, exportPngNode, exportPngForPrint, previewStride } from './plotUtils';
+import GLChart from './glplot/GLChart';
+import { isWebGL2Available } from './glplot/glcontext';
+import { makeProjection } from './glplot/projection';
+import {
+  glRoutable, glFlagFromStorage, selectGLPolarSeries, SCATTER_MIN,
+} from './glplot/route';
+import { renderGLPreviewDataURL } from './glplot/previewRaster';
 
 const PALETTE = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a',
                  '#d4a5e6', '#f2a37e', '#6fcfbf'];
@@ -158,6 +165,45 @@ export default function PolarPlot({
 
   const span = (rMax - rMin) || 1;
   const rScale = (rho) => ((rho - rMin) / span) * radius;
+
+  // ── WebGL overlay (polar) — large line / scatter series draw on GL in
+  // SCREEN space (polarToScreen → exactly the SVG's pixels), so it lands on the
+  // grid. Default-on (opt out 'numkit.plot.gl'=0). The interactive window draws
+  // a live canvas; preview cards rasterize the SAME series to an SVG <image>
+  // (previewRaster, one shared context) so they match the window. Small series
+  // and bubble/compass/bar/rose stay on SVG. polarscatter is the big win.
+  const glUsable = glRoutable(
+    glFlagFromStorage(typeof localStorage !== 'undefined' ? localStorage : null),
+    isWebGL2Available(),
+  );
+  const glPolar = useMemo(() => {
+    if (!glUsable || !Array.isArray(figure.series)) return { routed: new Set(), series: [] };
+    const resolved = figure.series.map((s, i) => ({
+      ...s, color: s.color || PALETTE[i % PALETTE.length],
+    }));
+    return selectGLPolarSeries(resolved, { cx, cy, radius, rMin, rMax, zero, dirSign },
+      { lineMin: 50000, scatterMin: SCATTER_MIN });
+  }, [glUsable, figure.series, cx, cy, radius, rMin, rMax, zero, dirSign]);
+  const glActive = glPolar.series.length > 0;
+  const glLive = glActive && interactive;        // live GL canvas overlay
+  const glPreview = glActive && !interactive;    // rasterize to an SVG <image>
+  // Polar data is already in viewBox px (y down) → screen→clip with y flipped.
+  const glProj = useMemo(() => makeProjection({
+    xMin: 0, xMax: width, yMin: 0, yMax: height, yRev: true,
+  }), [width, height]);
+  // Clip the overlay to the polar disc (like the SVG clipPath) so zoomed-in
+  // data never spills past the outer ring. Memoized for a stable draw dep.
+  const glClip = useMemo(() => [cx, cy, radius], [cx, cy, radius]);
+  const glDpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  // Preview cards rasterize the GL series to a PNG (shared context) embedded as
+  // an SVG <image> — matches the live overlay, export-safe, contextless.
+  const [previewImg, setPreviewImg] = useState(null);
+  useEffect(() => {
+    if (!glPreview) { setPreviewImg(null); return; }
+    setPreviewImg(renderGLPreviewDataURL({
+      series: glPolar.series, proj: glProj, pxW: width, pxH: height, dpr: glDpr, clip: glClip,
+    }));
+  }, [glPreview, glPolar, glProj, width, height, glDpr, glClip]);
 
   // Major rings on every nice step (skipping the centre at rMin) plus minor
   // rings at step/5 spacing — matches InteractivePlot's tick split.
@@ -509,6 +555,9 @@ export default function PolarPlot({
       <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxItems}
         onClose={() => setCtxMenu(null)} />
     )}
+    <div style={glLive
+        ? { position: 'relative', width: '100%', height: '100%' }
+        : { display: 'contents' }}>
     <svg
       ref={svgRef}
       width="100%" height="100%"
@@ -656,24 +705,37 @@ export default function PolarPlot({
           )}
         </clipPath>
         <g clipPath={`url(#pclip-${figure.id}-${Math.round(width)})`}>
+          {/* Preview: the GL series rasterized to an image. Coords are
+              absolute viewBox px, but this group is translated to the disc
+              centre, so offset by (-cx,-cy) to land at (0,0). */}
+          {previewImg && (
+            <image href={previewImg} x={-cx} y={-cy} width={width} height={height}
+              preserveAspectRatio="none" />
+          )}
           {figure.series?.map((s, idx) => {
             if (!s.theta?.length || !s.rho?.length) return null;
+            if (glPolar.routed.has(idx)) return null;   // drawn on the WebGL overlay
             const color = s.color || PALETTE[idx % PALETTE.length];
             const mode = s.mode || 'line';
 
             if (mode === 'scatter') {
-              // polarscatter — circle marker at each (theta, rho).
-              return (
-                <g key={s.name}>
-                  {s.theta.map((th, i) => {
-                    const norm = normalizePolar(th, s.rho[i]);
-                    if (!norm) return null;
-                    const [x, y] = ptFor(norm.theta, norm.rho);
-                    return <circle key={i} cx={x} cy={y} r="3"
-                      fill={color} stroke="var(--plot-frame)" strokeWidth="0.6" />;
-                  })}
-                </g>
-              );
+              // polarscatter — circle marker at each (theta, rho). Open
+              // (outline in the series colour) by default like MATLAB;
+              // 'filled' fills. Preview thumbnails subsample (one SVG circle
+              // per point janks the window at 10k+; interactive uses GL).
+              const N = s.theta.length;
+              const step = previewStride(N, interactive);
+              const filled = !!s.filled;
+              const markers = [];
+              for (let i = 0; i < N; i += step) {
+                const norm = normalizePolar(s.theta[i], s.rho[i]);
+                if (!norm) continue;
+                const [x, y] = ptFor(norm.theta, norm.rho);
+                markers.push(<circle key={i} cx={x} cy={y} r="3"
+                  fill={filled ? color : 'none'} stroke={color}
+                  strokeWidth={filled ? 0.6 : 1.2} />);
+              }
+              return <g key={s.name}>{markers}</g>;
             }
             if (mode === 'bubble') {
               // polarbubblechart — scatter with per-point area
@@ -811,10 +873,13 @@ export default function PolarPlot({
             }
 
             // Default: line / polyline. Negative-rho samples are
-            // reflected to the opposite angle (MATLAB semantics).
+            // reflected to the opposite angle (MATLAB semantics). Preview
+            // thumbnails subsample the path (interactive uses the GL overlay).
             let d = '';
             let started = false;
-            for (let i = 0; i < s.theta.length; i++) {
+            const Nl = s.theta.length;
+            const stepL = previewStride(Nl, interactive);
+            for (let i = 0; i < Nl; i += stepL) {
               const norm = normalizePolar(s.theta[i], s.rho[i]);
               if (!norm) { started = false; continue; }
               const [x, y] = ptFor(norm.theta, norm.rho);
@@ -915,6 +980,12 @@ export default function PolarPlot({
         );
       })()}
     </svg>
+    {glLive && (
+      <GLChart series={glPolar.series} proj={glProj}
+        plotRect={{ x: 0, y: 0, w: width, h: height }}
+        width={width} height={height} dpr={glDpr} clip={glClip} />
+    )}
+    </div>
     </>
   );
 }

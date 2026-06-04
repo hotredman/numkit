@@ -54,6 +54,20 @@
       ]
     },
     {
+      "name": "Big_Data",
+      "files": [
+        "line_10m.m",
+        "long_waveform.m",
+        "many_figures.m",
+        "marker_shapes.m",
+        "million_point_chirp.m",
+        "polar_scatter.m",
+        "polar_spiral.m",
+        "scatter_clusters.m",
+        "spikes_preserved.m"
+      ]
+    },
+    {
       "name": "CSV",
       "files": [
         "read_range.m",
@@ -222,6 +236,7 @@
         "quiver_field.m",
         "scatter3_clusters.m",
         "scatter_plot.m",
+        "scatter_styles.m",
         "sine_wave.m",
         "spy_sparsity.m",
         "stairs_plot.m",

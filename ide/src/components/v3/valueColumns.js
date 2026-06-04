@@ -13,6 +13,7 @@
 export const VALUE_COLUMNS = [
   { key: 'value',  label: 'Value' },
   { key: 'size',   label: 'Size',   align: 'right' },
+  { key: 'bytes',  label: 'Bytes',  align: 'right' },
   { key: 'class',  label: 'Class' },
   { key: 'min',    label: 'Min',    stat: 'min',    align: 'right' },
   { key: 'max',    label: 'Max',    stat: 'max',    align: 'right' },
@@ -27,7 +28,7 @@ export const VALUE_COLUMNS = [
 const KNOWN = new Set(VALUE_COLUMNS.map((c) => c.key));
 
 // MATLAB-like default: identity columns on, statistics off.
-export const DEFAULT_VISIBLE = ['value', 'size', 'class'];
+export const DEFAULT_VISIBLE = ['value', 'size', 'bytes', 'class'];
 
 /** Load the persisted visible-column set, falling back to the default.
  *  Unknown keys (e.g. from a renamed column) are dropped. */
@@ -86,6 +87,20 @@ export function statValue(stats, statKey) {
   }
   const v = stats[statKey];
   return typeof v === 'number' ? v : null;
+}
+
+/** Human-readable byte size — B / KB / MB / GB / TB (1024-based), with one
+ *  decimal when it helps (1.5 KB, 7.6 MB) and whole otherwise (2 KB, 512 B).
+ *  '' when absent / non-finite. */
+export function fmtBytes(n) {
+  if (n == null || !Number.isFinite(n)) return '';
+  if (n < 1024) return `${Math.round(n)} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let v = n / 1024;
+  let u = 0;
+  while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
+  const s = v >= 100 ? String(Math.round(v)) : String(Math.round(v * 10) / 10);
+  return `${s} ${units[u]}`;
 }
 
 /** Compact numeric formatting for a stat cell (— when absent). */
