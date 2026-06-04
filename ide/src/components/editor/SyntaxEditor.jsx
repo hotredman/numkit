@@ -18,6 +18,7 @@ import {
 } from './editorHistory';
 import { buildHighlightHtml } from './editorHighlight';
 import CompletionPopup from './CompletionPopup';
+import { EditorGutter, EditorMinimap } from './editorChrome';
 
 // ── Search-bar style helpers ───────────────────────────────────────
 // Pulled out of the forwardRef body so the closures aren't recreated
@@ -884,24 +885,8 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
   return (
     <div style={{ position:'relative', width:'100%', height:'100%',
                   display:'flex', overflow:'hidden', background: C.bg1 }}>
-      {/* Line-number gutter — fixed width, scroll-synced vertically with
-          the editor. Static colour, smaller padding-right to leave the
-          divider visually distinct from the code. */}
-      {showGutter && (
-        <div style={{ position:'relative', width:48, flexShrink:0,
-                      overflow:'hidden', borderRight:`1px solid ${C.border}`,
-                      background: C.bg0 }}>
-          <pre ref={gutterRef} aria-hidden="true" style={{
-            position:'absolute', top:0, left:0, right:0, bottom:0,
-            margin:0, padding:'8px 8px 0 0',
-            fontFamily:FONT, fontSize:13, lineHeight:'20px',
-            color: C.textMuted, background:'transparent',
-            overflow:'hidden', whiteSpace:'pre',
-            pointerEvents:'none', textAlign:'right',
-            userSelect:'none',
-          }}>{lineNumbers}</pre>
-        </div>
-      )}
+      {/* Line-number gutter — see EditorGutter (scroll-synced via gutterRef). */}
+      <EditorGutter show={showGutter} gutterRef={gutterRef} lineNumbers={lineNumbers} C={C} />
 
       {/* Editing area — the original two-layer stack (highlight pre +
           transparent textarea), now with optional indent-guide
@@ -1125,19 +1110,10 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
         )}
       </div>
 
-      {/* Minimap — canvas-based overview of the whole script. Click
-          jumps the editor viewport. Width is fixed; the canvas's
-          backing-store size is matched to its CSS size every render
-          inside the useEffect above. */}
-      {showMinimap && (
-        <div style={{ width:64, flexShrink:0, position:'relative',
-                      background: C.bg0,
-                      borderLeft:`1px solid ${C.border}`,
-                      cursor:'pointer' }}
-             onMouseDown={onMinimapMouseDown}>
-          <canvas ref={minimapRef} style={{ display:'block', width:'100%', height:'100%' }} />
-        </div>
-      )}
+      {/* Minimap — see EditorMinimap. The canvas is painted by the effect
+          above; click-to-jump is owned by onMinimapMouseDown. */}
+      <EditorMinimap show={showMinimap} minimapRef={minimapRef}
+                     onMouseDown={onMinimapMouseDown} C={C} />
     </div>
   );
 });
