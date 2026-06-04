@@ -759,7 +759,6 @@ export default function CompositePlot({
                                 { aspectMode: effectiveAxisMode }));
   }
 
-  const multiSeries = seriesLayers.length > 1;
   // Top-level Reset — prefer parent-supplied handler (modal: full reset
   // of viewport + display state, fans out to every cell in subplot
   // mode). Fallback to local viewport-only reset for preview cards

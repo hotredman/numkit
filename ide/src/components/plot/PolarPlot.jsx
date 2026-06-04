@@ -271,17 +271,6 @@ export default function PolarPlot({
     return [Math.cos(a) * r, -Math.sin(a) * r];
   }
 
-  /** Is the (radian) data theta inside the [thMin, thMax] sweep? */
-  function inSweep(thRad) {
-    if (isFullSweep) return true;
-    // Wrap into [0, 2π) so user-set thetalim like [-180, 180] still
-    // maps cleanly. We compare in radians since vp.theta was
-    // converted at the top of the component.
-    const TAU = 2 * Math.PI;
-    let a = thRad - thMin;
-    a = ((a % TAU) + TAU) % TAU;
-    return a <= (thMax - thMin) + 1e-9;
-  }
 
   /** Build an SVG arc path on a circle of radius `r` between two
    *  angles (radians, screen coords — i.e. already through `zero +
@@ -380,7 +369,6 @@ export default function PolarPlot({
     if (!setViewport) return;
     setViewport(fitCellViewport(figure, vp, 'both'));
   }
-  const multiSeries = Array.isArray(figure.series) && figure.series.length > 1;
 
   // ✓-prefix helper for active toggle rows — same `tag(active, label)`
   // pattern CompositePlot's ПКМ uses so toggle rows render checkmarks
