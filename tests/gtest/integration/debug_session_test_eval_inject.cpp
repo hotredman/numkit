@@ -1076,3 +1076,59 @@ TEST(DebugEvalInjectTest, ConditionalBreakpointStopsOnlyWhenTrue)
     std::string all = output + sessionOut;
     EXPECT_NE(all.find("50"), std::string::npos) << "x should be 50 at end: [" << all << "]";
 }
+
+// dbstop if error: an uncaught error pauses at the failing line (state
+// inspectable); resuming lets the error finally propagate.
+TEST(DebugEvalInjectTest, DbstopIfErrorPausesAtError)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setStopOnError(true);
+    std::string code =
+        "a = 5;\n"
+        "b = undefinedVar123 + 1;\n" // uncaught error
+        "c = 99;\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "should pause at the error";
+    EXPECT_TRUE(session.atErrorPause());
+    EXPECT_NE(session.errorPauseMessage().find("undefinedVar123"), std::string::npos)
+        << "msg: " << session.errorPauseMessage();
+
+    // State at the error point is inspectable: a == 5.
+    double aval = -1;
+    for (auto &v : session.snapshot().variables)
+        if (v.name == "a" && v.value)
+            aval = v.value->toScalar();
+    EXPECT_DOUBLE_EQ(aval, 5.0);
+
+    // Resuming lets the error fire; session ends with it.
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_FALSE(session.errorMessage().empty());
+    EXPECT_NE(session.errorMessage().find("undefinedVar123"), std::string::npos);
+}
+
+// dbstop if error must NOT fire on errors a try/catch handles.
+TEST(DebugEvalInjectTest, DbstopIfErrorIgnoresCaughtErrors)
+{
+    Engine engine;
+    DebugSession session(engine);
+    session.setStopOnError(true);
+    std::string code =
+        "try\n"
+        "  x = undefinedVar456;\n"
+        "catch\n"
+        "  y = 42;\n"
+        "end\n"
+        "disp(y);\n";
+
+    auto status = session.start(code);
+    EXPECT_EQ(status, ExecStatus::Completed) << "caught error must not pause";
+    EXPECT_FALSE(session.atErrorPause());
+    EXPECT_TRUE(session.errorMessage().empty());
+    EXPECT_NE(session.takeOutput().find("42"), std::string::npos);
+}

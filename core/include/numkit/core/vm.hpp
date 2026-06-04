@@ -7,7 +7,9 @@
 #include <numkit/core/environment.hpp>
 #include <numkit/core/value.hpp>
 
+#include <exception>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -180,6 +182,21 @@ public:
     // Saved/restored across re-entrant execute() boundaries via
     // PausedState.
     Environment *inheritedScope_ = nullptr;
+
+    // ── dbstop-if-error ──────────────────────────────────────
+    // When set by a debug session, an uncaught error pauses at the failing
+    // instruction (frames left intact) instead of unwinding, so the debugger
+    // can inspect state at the error point. Additionally gated on debugCtl()
+    // being live, so it never affects normal or console-eval execution.
+    // Resuming rethrows the stored exception (the error then propagates).
+    void setStopOnError(bool b) { stopOnError_ = b; }
+    bool atErrorPause() const { return atErrorPause_; }
+    const std::string &errorPauseMessage() const { return errorPauseMsg_; }
+
+    bool stopOnError_ = false;
+    bool atErrorPause_ = false;
+    std::exception_ptr pausedError_;
+    std::string errorPauseMsg_;
 
     // Find a frame whose lazy env equals `env` (any depth) and write
     // `val` into the register slot for `name` if name is in that
