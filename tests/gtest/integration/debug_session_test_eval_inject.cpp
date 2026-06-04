@@ -793,3 +793,34 @@ TEST(DebugEvalInjectTest, EditChangesTypeAndShape)
     EXPECT_NE(all.find("21"), std::string::npos) // 1+2+3+4+5+6
         << "edited matrix should take effect: [" << all << "]";
 }
+
+// An edit at the pause must drive the very next STEP (not just `continue`) —
+// the write-through to the live register is immediate, not deferred to resume.
+TEST(DebugEvalInjectTest, EditThenStepUsesNewValue)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+    std::string code =
+        "x = 1;\n"
+        "y = x + 1;\n" // 2 <-- pause; edit x, then step over this line
+        "disp(y);\n";  // 3
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 2);
+
+    session.eval("x = 40");
+    status = session.resume(DebugAction::StepOver); // execute line 2
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    double yval = -1;
+    for (auto &v : session.snapshot().variables)
+        if (v.name == "y" && v.value)
+            yval = v.value->toScalar();
+    EXPECT_DOUBLE_EQ(yval, 41.0) << "edit before a step must drive the stepped line";
+
+    session.resume(DebugAction::Continue);
+}
