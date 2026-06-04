@@ -1,8 +1,8 @@
 {
   "name": "sqrt",
   "namespace": "builtin",
-  "setup": "x = [0, 1, 4, 9, 100]; zn = sqrt(-4);",
-  "expr": "r = sqrt(x);",
+  "setup": "x = [0, 1, 4, 9, 100]; zn = sqrt(-4); xa = [-1 4 -9];",
+  "expr": "r = sqrt(x); ra = sqrt(xa);",
   "iters": 20,
   "tol": 1e-12,
   "fingerprint": [
@@ -12,9 +12,10 @@
     "r(4)",
     "r(5)",
     "real(zn)",
-    "imag(zn)"
+    "imag(zn)",
+    "real(ra(1))", "imag(ra(1))", "real(ra(2))", "imag(ra(2))", "real(ra(3))", "imag(ra(3))"
   ],
-  "comment": "Sig: r = sqrt(...). Element-wise libm-backed primitive (SIMD via Highway hn::Sqrt). Negative scalar promotes to complex: sqrt(-4)==0+2i (real(zn)=0, imag(zn)=2) — regression guard for the scalar fast path that used to return real NaN. Verified vs MATLAB R2025b.",
+  "comment": "Sig: r = sqrt(...). Element-wise libm-backed primitive (SIMD via Highway hn::Sqrt). Negative scalar promotes to complex: sqrt(-4)==0+2i (real(zn)=0, imag(zn)=2). ARRAY promotion (fixed 2026-06-05): any negative element promotes the WHOLE array — sqrt([-1 4 -9])=[0+1i 2+0i 0+3i] (previously the negatives became real NaN). Verified vs MATLAB R2025b.",
   "bench_setup": "xb = mod((1:N)*7919,1000)*0.001 + 0.001;",
   "bench_expr": "rb = sqrt(xb);"
 }

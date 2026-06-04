@@ -120,11 +120,11 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (79 entries):** ✅ 15 fixed · 🔴 64 open = **20 bug** + 7 stub +
+**Tally (79 entries):** ✅ 16 fixed · 🔴 63 open = **19 bug** + 7 stub +
 6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (15)
+### ✅ FIXED (16)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
@@ -133,6 +133,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | bug | [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff() now differences real + imaginary parts (n-th order + dim) (2026-06-05) |
 | bug | [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod accumulate complex element-wise (dim + reverse) (2026-06-05) |
 | bug | [builtin/acos-asin-complex](builtin/acos-asin-complex.md) | P2 | acos/asin go complex for \|x\|>1 (via acosh for the correct branch; array promotes) (2026-06-05) |
+| bug | [builtin/complex-promotion-arrays](builtin/complex-promotion-arrays.md) | P2 | sqrt/acosh/atanh promote whole real arrays to complex (+ atanh x<-1 branch sign) (2026-06-05) |
 | bug | [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | 'MissingPlacement' option was ignored |
 | bug | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | cepstrum garbage on non-2ⁿ + rceps 2nd output (9fcf6872) |
 | bug | [signal/besself-digital](signal/besself-digital.md) | P1 | ran digital path → binomial garbage |
@@ -144,7 +145,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 20
+### 🔴 OPEN — bug (defect on an implemented function) — 19
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -152,7 +153,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv don't broadcast ARRAY parameters (mu/sigma/n/a/b/df) |
 | [builtin/diff-zero-order](builtin/diff-zero-order.md) | P3 | diff(X,0) returns identity; MATLAB errors (N must be positive integer) |
-| [builtin/complex-promotion-arrays](builtin/complex-promotion-arrays.md) | P2 | sqrt/acosh/atanh promote only scalars; real arrays emit NaN not complex |
 | [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | conv/filter/trapz/cumtrapz/gradient/movmean/detrend/interp1/median reject complex |
 | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm of a complex array throws (vecnorm works) |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |

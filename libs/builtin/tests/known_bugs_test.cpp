@@ -116,18 +116,9 @@ TEST_F(BuiltinKnownBug, DISABLED_Gradient3D)
 // bugs/builtin/acos-asin-complex.md — FIXED (acos/asin go complex for |x|>1).
 // Live regression guard moved to libs/builtin/tests/acos_asin_complex_test.cpp.
 
-// bugs/builtin/complex-promotion-arrays.md — sqrt/acosh/atanh promote only the
-// SCALAR out-of-domain case; for an ARRAY they emit NaN instead of complex
-// (MATLAB promotes the whole array). Spotted while fixing acos/asin.
-TEST_F(BuiltinKnownBug, DISABLED_RealArrayComplexPromotion)
-{
-    eval("s = sqrt([-1 4]);");                 // MATLAB: [0+1i 2]
-    EXPECT_TRUE(eval("~isreal(s)").toBool());
-    EXPECT_NEAR(evalScalar("imag(s(1))"), 1.0, 1e-12);
-    eval("h = acosh([0.5 2]);");               // MATLAB: [0+1.0472i 1.31696]
-    EXPECT_TRUE(eval("~isreal(h)").toBool());
-    EXPECT_NEAR(evalScalar("imag(h(1))"), 1.0471975511965979, 1e-9);
-}
+// bugs/builtin/complex-promotion-arrays.md — FIXED (sqrt/acosh/atanh promote
+// whole real arrays + atanh x<-1 branch sign). Live regression guard moved to
+// libs/builtin/tests/complex_promotion_arrays_test.cpp.
 
 // bugs/builtin/numerical-integration-nd.md — quadgk/integral2/integral3/quad2d.
 TEST_F(BuiltinKnownBug, DISABLED_NumericalIntegrationND)
