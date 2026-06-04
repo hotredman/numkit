@@ -183,12 +183,21 @@ DebugSession::Snapshot DebugSession::snapshot() const
     snap.col = frame.col;
     snap.functionName = frame.functionName;
 
-    // Build variables list from the DebugWorkspace (live frame pointers +
-    // overlay). Deleted/unset slots are filtered out by names().
-    for (auto &name : ws_.names()) {
+    // Build the variables list from the DebugWorkspace (live frame pointers +
+    // overlay; deleted/unset slots are filtered out by names()). Each value is
+    // COPIED into snap.ownedValues so the Snapshot owns its data — its
+    // Variable.value pointers then survive a later resume() that reuses the VM
+    // registers. The vector is reserved up-front so push_back never reallocates
+    // and the &back() pointers stay valid.
+    auto names = ws_.names();
+    snap.ownedValues = std::make_shared<std::vector<Value>>();
+    snap.ownedValues->reserve(names.size());
+    for (auto &name : names) {
         auto *val = ws_.get(name);
-        if (val)
-            snap.variables.push_back({name, val});
+        if (val) {
+            snap.ownedValues->push_back(*val);
+            snap.variables.push_back({name, &snap.ownedValues->back()});
+        }
     }
 
     snap.callStack = stack;
