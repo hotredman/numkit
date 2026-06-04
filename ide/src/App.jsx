@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import IDE from './components/v3/IDE';
-import ErrorBoundary from './components/v3/ErrorBoundary';
+import IDE from './components/shell/IDE';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 import { createWasmEngine, createFallbackEngine } from './engine';
 import tempFS from './temporary';
 import { installVfsAdapters, installLocalAdapter } from './fs/vfs-adapter';

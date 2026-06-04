@@ -15,7 +15,7 @@
  * whether a row is a workspace variable or a struct field.
  */
 import { useState, useEffect } from 'react';
-import ContextMenu from './ContextMenu';
+import ContextMenu from '../ui/ContextMenu';
 import {
   VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns, buildChooserItems,
   statValue, fmtStat, fmtBytes,

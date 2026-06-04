@@ -5,7 +5,7 @@
  * which columns / statistics" UX isn't reimplemented per surface.
  */
 import { useState, useEffect } from 'react';
-import ContextMenu from './ContextMenu';
+import ContextMenu from '../ui/ContextMenu';
 import { buildChooserItems } from './valueColumns';
 
 /** Persisted on/off set. `load`/`save` are the column- or stat-specific

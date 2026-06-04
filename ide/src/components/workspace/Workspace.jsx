@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../theme';
 import { pathToMatlabLValue, valueToMatlabRHS, isValidIdentifier } from './inspectorOps';
-import ContextMenu from './ContextMenu';
+import ContextMenu from '../ui/ContextMenu';
 import ValueTable from './ValueTable';
 import StatsBar, { useStatChooser, StatChooserButton } from './StatsBar';
 import { aggregateStats, heatmapCellBackground, VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
 import { pageCount, pageToSubs, subsToPage } from './sliceNav';
 import { useChooser, ChooserButton } from './chooser';
-import { classify } from './adapters';
+import { classify } from '../plot/adapters';
 
 /* ======================================================================== */
 /* Type metadata + tone palette                                             */
