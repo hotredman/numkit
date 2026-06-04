@@ -1,0 +1,16 @@
+{
+  "name": "encode",
+  "namespace": "comm",
+  "setup": "ch = encode([1 0 1 1], 7, 4, 'hamming/binary'); c2 = encode([1 0 1 1 0 1 0 0], 7, 4, 'hamming/binary'); cc = encode([1 0 1 1], 7, 4, 'cyclic/binary'); [~,g] = hammgen(3); cl = encode([1 0 1 1], 7, 4, 'linear/binary', g); cd1 = encode(11, 7, 4, 'hamming/decimal'); [cp, added] = encode([1 0 1 1 0], 7, 4, 'hamming/binary');",
+  "expr": "y = 0;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "isequal(ch, [1 0 0 1 0 1 1])*1", "sum(ch)",
+    "numel(c2)", "isequal(c2, [1 0 0 1 0 1 1 0 1 1 0 1 0 0])*1",
+    "isequal(cc, [0 0 0 1 0 1 1])*1",
+    "isequal(cl, [1 0 0 1 0 1 1])*1",
+    "cd1", "added", "numel(cp)"
+  ],
+  "comment": "Sig: [code,added] = encode(msg,n,k,method,opt). Linear block encoder over GF(2): reshape msg into k-bit words, multiply (mod 2) by the k x n generator. Methods hamming/linear/cyclic with /binary (default) or /decimal format. encode([1 0 1 1],7,4,'hamming/binary')=[1 0 0 1 0 1 1]; cyclic=[0 0 0 1 0 1 1]; encode(11,...,'hamming/decimal')=88; 5-bit msg pads added=3. New (Error Correction Codes / block linear codes) 2026-06. BCH/RS (gf type) deferred."
+}

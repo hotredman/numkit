@@ -1,0 +1,16 @@
+{
+  "name": "cyclpoly",
+  "namespace": "comm",
+  "setup": "p74 = cyclpoly(7,4); p1511 = cyclpoly(15,11); pmin = cyclpoly(7,4,'min'); pmax = cyclpoly(7,4,'max'); pall = cyclpoly(7,4,'all'); pall15 = cyclpoly(15,5,'all');",
+  "expr": "y = 0;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "sum(p74)", "p74(1)", "p74(3)", "p74(4)",
+    "sum(p1511)", "p1511(4)", "p1511(5)",
+    "isequal(pmin,[1 0 1 1])*1", "isequal(pmax,[1 1 0 1])*1",
+    "size(pall,1)", "isequal(pall,[1 0 1 1;1 1 0 1])*1",
+    "size(pall15,1)", "size(pall15,2)", "sum(pall15(1,:))", "sum(pall15(3,:))"
+  ],
+  "comment": "Sig: p = cyclpoly(n,k[,opt]). Generator polynomial(s) of an (n,k) cyclic code: degree-(n-k) polys 1+...+x^(n-k) dividing x^n-1 over GF(2). Ascending powers. cyclpoly(7,4)=[1 0 1 1]; (15,11)=[1 0 0 1 1]. opt: ''=first, 'min'=fewest terms ([1 0 1 1]), 'max'=most terms ([1 1 0 1]), 'all'=every gen poly sorted by term count (7,4 -> [1 0 1 1;1 1 0 1]; 15,5 -> 3 rows). New (Error Correction Codes / block linear codes) 2026-06. GF(2) only."
+}

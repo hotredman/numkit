@@ -185,10 +185,30 @@ TEST_P(AccumTest, MismatchedValSizeThrows)
     EXPECT_THROW(eval("A = accumarray(subs, vals);"), std::exception);
 }
 
-TEST_P(AccumTest, UnsupportedReducerThrows)
+TEST_P(AccumTest, CustomFunctionHandle)
 {
+    // Arbitrary handles (named or anonymous) are applied to each cell's column
+    // of values, like MATLAB (was rejected: "unsupported function handle").
+    // Single-element cells: @sin maps each value.
+    eval("A = accumarray([1; 2], [10; 20], [], @sin);");
+    EXPECT_NEAR(evalScalar("A(1)"), -0.54402111088936981, 1e-12);
+    EXPECT_NEAR(evalScalar("A(2)"),  0.91294525072762767, 1e-12);
+    // Anonymous reducer over multi-element cells: sum of squares.
+    eval("B = accumarray([1;1;2], [1;2;3], [], @(x) sum(x.^2));");
+    EXPECT_DOUBLE_EQ(evalScalar("B(1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2)"), 9.0);
+    // Empty cells get the fill value (-1 here).
+    eval("C = accumarray([1;3], [10;30], [], @(x) mean(x), -1);");
+    EXPECT_DOUBLE_EQ(evalScalar("C(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2)"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(3)"), 30.0);
+}
+
+TEST_P(AccumTest, NonFunctionHandleReducerThrows)
+{
+    // A non-handle reducer argument is still rejected.
     eval("subs = [1; 2]; vals = [10; 20];");
-    EXPECT_THROW(eval("A = accumarray(subs, vals, [], @sin);"), std::exception);
+    EXPECT_THROW(eval("A = accumarray(subs, vals, [], 5);"), std::exception);
 }
 
 TEST_P(AccumTest, SparseFlagThrows)

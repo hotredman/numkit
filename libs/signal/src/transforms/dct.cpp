@@ -75,6 +75,55 @@ Value idctDirect(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
+// ── DCT Types 1 & 4 (orthonormal, direct O(N^2)). Both are symmetric
+// orthogonal transforms, hence SELF-INVERSE: idct Type 1 == dct Type 1 and
+// idct Type 4 == dct Type 4. (Type 3 reuses the existing idct core for the
+// forward transform, and the existing dct core for its inverse.)
+
+// DCT-I:  X[k] = sqrt(2/(N-1)) * b[k] * sum_n b[n] x[n] cos(pi n k/(N-1)),
+//   with b[0] = b[N-1] = 1/sqrt(2), b[i] = 1 otherwise.
+Value dctType1(const Value &x, std::pmr::memory_resource *mr)
+{
+    const size_t N = x.numel();
+    auto r = createLike(x, ValueType::DOUBLE, mr);
+    if (N == 0) return r;
+    const double *xd = x.doubleData();
+    double *X = r.doubleDataMut();
+    if (N == 1) { X[0] = xd[0]; return r; }   // DCT-I undefined for N<2
+    const double scale = std::sqrt(2.0 / static_cast<double>(N - 1));
+    const double s0 = 1.0 / std::sqrt(2.0);
+    const double piOverNm1 = M_PI / static_cast<double>(N - 1);
+    auto beta = [&](size_t i) { return (i == 0 || i == N - 1) ? s0 : 1.0; };
+    for (size_t k = 0; k < N; ++k) {
+        double acc = 0.0;
+        for (size_t n = 0; n < N; ++n)
+            acc += beta(n) * xd[n]
+                 * std::cos(piOverNm1 * static_cast<double>(n) * static_cast<double>(k));
+        X[k] = scale * beta(k) * acc;
+    }
+    return r;
+}
+
+// DCT-IV: X[k] = sqrt(2/N) * sum_n x[n] cos(pi/N (n+1/2)(k+1/2)).
+Value dctType4(const Value &x, std::pmr::memory_resource *mr)
+{
+    const size_t N = x.numel();
+    auto r = createLike(x, ValueType::DOUBLE, mr);
+    if (N == 0) return r;
+    const double *xd = x.doubleData();
+    double *X = r.doubleDataMut();
+    const double scale = std::sqrt(2.0 / static_cast<double>(N));
+    const double piOverN = M_PI / static_cast<double>(N);
+    for (size_t k = 0; k < N; ++k) {
+        double acc = 0.0;
+        const double kk = static_cast<double>(k) + 0.5;
+        for (size_t n = 0; n < N; ++n)
+            acc += xd[n] * std::cos(piOverN * (static_cast<double>(n) + 0.5) * kk);
+        X[k] = scale * acc;
+    }
+    return r;
+}
+
 } // anonymous
 
 // dct:  X[k] = w[k] * sum_n x[n] * cos(pi (2n+1) k / (2N))
@@ -281,6 +330,46 @@ Value idct(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     return out;
 }
 
+namespace {
+
+// 1-D core selector for a given DCT `type` (1..4) and direction. The
+// orthonormal DCT matrices satisfy: Type 1 and Type 4 are self-inverse;
+// Type 2 and Type 3 are each other's inverse (II = existing dct core,
+// III = existing idct core).
+Value dctCore1D(const Value &line, double type, bool inverse,
+                std::pmr::memory_resource *mr)
+{
+    if (type == 1.0) return dctType1(line, mr);              // self-inverse
+    if (type == 4.0) return dctType4(line, mr);              // self-inverse
+    if (type == 3.0) return inverse ? dct(line, mr) : idct(line, mr);
+    return inverse ? idct(line, mr) : dct(line, mr);         // Type 2 (default)
+}
+
+// Length-override / dim wrapper for an arbitrary DCT type (mirrors
+// dct(x,n,dim) but routes each line through dctCore1D).
+Value dctTyped(const Value &x, int n, int dim, double type, bool inverse,
+               std::pmr::memory_resource *mr)
+{
+    if (x.numel() == 0) return createLike(x, ValueType::DOUBLE, mr);
+    const int d = resolveDim(x, dim);
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    const size_t nNative = (d == 1) ? R : C;
+    const size_t nOut    = (n > 0) ? static_cast<size_t>(n) : nNative;
+    const size_t nLines  = (d == 1) ? C : R;
+    Value out;
+    if (d == 1) out = Value::matrix(nOut, C, ValueType::DOUBLE, mr);
+    else        out = Value::matrix(R, nOut, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < nLines; ++i) {
+        Value line = extractLine(x, d, i, nNative, nOut, mr);
+        Value tr   = dctCore1D(line, type, inverse, mr);
+        writeLine(out, tr, d, i);
+    }
+    return out;
+}
+
+} // anonymous
+
 namespace detail {
 
 // Helper: detect whether the user passed a length override / dim arg.
@@ -333,10 +422,12 @@ void dct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         return;
     }
     auto a = parseDctArgs(args, "dct");
-    if (a.hasType && a.typeVal != 2.0)
-        throw Error("dct: 'Type' values other than 2 are not yet implemented",
+    const double t = a.hasType ? a.typeVal : 2.0;
+    if (t != 1.0 && t != 2.0 && t != 3.0 && t != 4.0)
+        throw Error("dct: 'Type' must be 1, 2, 3, or 4",
                      0, 0, "dct", "", "numkit:dct:type");
-    outs[0] = dct(args[0], a.n, a.dim, mr);
+    if (t == 2.0) outs[0] = dct(args[0], a.n, a.dim, mr);
+    else          outs[0] = dctTyped(args[0], a.n, a.dim, t, /*inverse=*/false, mr);
 }
 
 void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -356,10 +447,12 @@ void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         return;
     }
     auto a = parseDctArgs(args, "idct");
-    if (a.hasType && a.typeVal != 2.0)
-        throw Error("idct: 'Type' values other than 2 are not yet implemented",
+    const double t = a.hasType ? a.typeVal : 2.0;
+    if (t != 1.0 && t != 2.0 && t != 3.0 && t != 4.0)
+        throw Error("idct: 'Type' must be 1, 2, 3, or 4",
                      0, 0, "idct", "", "numkit:idct:type");
-    outs[0] = idct(args[0], a.n, a.dim, mr);
+    if (t == 2.0) outs[0] = idct(args[0], a.n, a.dim, mr);
+    else          outs[0] = dctTyped(args[0], a.n, a.dim, t, /*inverse=*/true, mr);
 }
 
 } // namespace detail

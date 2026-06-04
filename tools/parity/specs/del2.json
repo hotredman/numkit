@@ -1,0 +1,5 @@
+{"name": "del2", "namespace": "builtin", "setup": "v = del2([1 4 9 16 25]); v2 = del2([1 4 9 16 25],2); U = [1 2 3; 4 5 6; 7 8 10]; L = del2(U); M = magic(4); LM = del2(M);",
+ "expr": "y = 0;",
+ "iters": 5, "tol": 1e-12,
+ "fingerprint": ["v(1)", "v(3)", "sum(v)", "v2(1)", "L(1,1)", "L(2,2)", "sum(L(:))", "sum(LM(:))", "LM(2,3)"],
+ "comment": "Sig: L = del2(U[,h]). Discrete Laplacian ~ div(grad U)/(2*ndims). Per dimension a centered 2nd difference on the interior divided by 2h^2, linearly extrapolated to the boundary, summed over dims and divided by ndims (=2 for both vectors and matrices). Vector x^2-ramp -> constant 0.5 (sum 2.5); scalar h scales 1/h^2 (h=2 -> 0.125); [1 2 3;4 5 6;7 8 10] -> sum 1.5, corners/centre 0; magic(4) -> sum 0, L(2,3)=-3. New (MATLAB datafun, was MISSING) 2026-06. v1: 1-D vector + 2-D matrix, scalar spacing; per-axis hx/hy and coordinate-vector spacing deferred. Bit-identical MATLAB R2025b."}

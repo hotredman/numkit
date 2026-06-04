@@ -1,13 +1,15 @@
 {
   "name": "str2func",
   "namespace": "core",
-  "setup": "name = 'sin';",
-  "expr": "y = str2func(name);",
-  "iters": 1000,
+  "setup": "",
+  "expr": "n = str2func('sin'); d = n(0); g = str2func('@cos'); a = g(0); h = str2func('@(x)x+1'); b = h(5); k = str2func('@(x,y)x*y'); c = k(3,4);",
+  "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
-    "double(y(0))",
-    "double(y(pi/2))"
+    "double(d)",
+    "double(a)",
+    "double(b)",
+    "double(c)"
   ],
-  "comment": "Sig: F = str2func(NAME). 10k iters. fp checks created handle works."
+  "comment": "Sig: F = str2func(STR). 2026-06-04: accepts '@name' (strip the '@') and '@(...)' anonymous source, not just a bare name (was storing the leading '@' -> unfindable '@@..'). 'sin'(0)=0, '@cos'(0)=1, '@(x)x+1'(5)=6, '@(x,y)x*y'(3,4)=12."
 }

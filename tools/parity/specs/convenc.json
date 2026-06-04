@@ -1,0 +1,10 @@
+{
+  "name": "convenc",
+  "namespace": "comm",
+  "setup": "t = poly2trellis(3,[6 7]); code = convenc([1 1 0 1 1 0 0], t); code3 = convenc([1 0 0 1 0 1 1 0], t);",
+  "expr": "y = 0;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["code(1)", "code(2)", "code(4)", "code(5)", "code(13)", "code(14)", "numel(code)", "sum(code)", "numel(code3)", "sum(code3)"],
+  "comment": "Sig: code = convenc(msg, trellis). Rate-1/2 K=3 [6 7], truncated. convenc([1 1 0 1 1 0 0],t)=[1 1 0 0 1 0 1 0 0 0 1 0 0 1] (numel14 sum6); convenc([1 0 0 1 0 1 1 0],t) numel16 sum11. New (Error Correction Codes) 2026-06. NOTE: MATLAB R2025b -batch crashes on shutdown (0xC0000005 in libmwcustom_holes_factory.dll); stdout capture is a flaky race so the harness may report FAIL even though convenc is verified correct via direct probe + gtest."
+}

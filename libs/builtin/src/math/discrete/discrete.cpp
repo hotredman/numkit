@@ -97,7 +97,8 @@ inline bool cxUniqEqual(Complex a, Complex b)
 }
 
 std::tuple<Value, Value, Value>
-uniqueComplexFull(const Value &x, std::pmr::memory_resource *mr, bool stable)
+uniqueComplexFull(const Value &x, std::pmr::memory_resource *mr, bool stable,
+                  bool last = false)
 {
     const size_t n = x.numel();
     const Complex *p = x.complexData();
@@ -114,7 +115,7 @@ uniqueComplexFull(const Value &x, std::pmr::memory_resource *mr, bool stable)
             for (size_t k = 0; k < uniq.size(); ++k)
                 if (cxUniqEqual(uniq[k].v, z)) { found = k; break; }
         if (found == static_cast<size_t>(-1)) { ic0[i] = uniq.size(); uniq.push_back({z, i}); }
-        else                                   { ic0[i] = found; }
+        else { ic0[i] = found; if (last) uniq[found].firstIdx = i; }  // 'last': keep last occurrence
     }
 
     const size_t u = uniq.size();
@@ -304,7 +305,8 @@ Value unique(const Value &x, std::pmr::memory_resource *mr, bool stable)
 }
 
 std::tuple<Value, Value, Value>
-uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable)
+uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable,
+                  bool last)
 {
     const size_t n = x.numel();
     if (n == 0) {
@@ -312,7 +314,7 @@ uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable)
                                emptyRow(mr));
     }
     if (x.type() == ValueType::COMPLEX)
-        return uniqueComplexFull(x, mr, stable);
+        return uniqueComplexFull(x, mr, stable, last);
 
     if (stable) {
         // First-occurrence order. C = X(ia); X = C(ic). Each NaN distinct.
@@ -357,8 +359,10 @@ uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable)
     for (size_t i = 0; i < n; ++i) {
         if (std::isnan(p[i])) {
             nanIdxOrder.push_back(i);
+        } else if (last) {
+            firstIdx[p[i]] = i;            // 'last': keep the last occurrence
         } else {
-            firstIdx.try_emplace(p[i], i);
+            firstIdx.try_emplace(p[i], i); // default: keep the first occurrence
         }
     }
 
@@ -455,7 +459,8 @@ Value uniqueRows(const Value &x, std::pmr::memory_resource *mr, bool stable)
 }
 
 std::tuple<Value, Value, Value>
-uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable)
+uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable,
+                      bool last)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
@@ -511,6 +516,8 @@ uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRowOrder.push_back(r);
+        } else if (last) {
+            firstIdx[extractRow(src, cols, rows, r, &scratch)] = r;  // 'last'
         } else {
             firstIdx.try_emplace(extractRow(src, cols, rows, r, &scratch), r);
         }
@@ -1448,6 +1455,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
     bool useRows = false;
     bool stable  = false;
+    bool last    = false;   // 'last': ia selects the LAST occurrence (sorted)
     for (size_t i = 1; i < args.size(); ++i) {
         const Value &a = args[i];
         if (a.type() != ValueType::CHAR)
@@ -1459,19 +1467,23 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (s == "rows") useRows = true;
         else if (s == "stable") stable = true;
         else if (s == "sorted") stable = false;
-        else if (s == "first" || s == "last") {
-            // occurrence selector — accepted but no-op (first is the default).
-        } else {
+        else if (s == "first") last = false;
+        else if (s == "last")  last = true;
+        else {
             throw Error("unique: unknown flag '" + s + "'",
                          0, 0, "unique", "", "numkit:unique:badFlag");
         }
     }
+    // NOTE: 'last' is honoured for the default (sorted) setOrder across the
+    // vector, complex and 'rows' paths. With 'stable' the occurrence ORDER
+    // (MATLAB orders by last occurrence) is not yet matched — 'stable' wins
+    // and 'last' is ignored there (rare combo; see bugs/builtin/unique-last.md).
 
     if (useRows) {
         // C is a matrix of unique rows; ia/ic are column vectors. 'stable'
         // keeps rows in first-occurrence order (default 'sorted').
         if (nargout <= 1) { outs[0] = uniqueRows(args[0], mr, stable); return; }
-        auto [c, ia, ic] = uniqueRowsWithIndices(args[0], mr, stable);
+        auto [c, ia, ic] = uniqueRowsWithIndices(args[0], mr, stable, last);
         outs[0] = std::move(c);
         if (nargout > 1) outs[1] = orientUniqueVec(ia, /*column=*/true, mr);
         if (nargout > 2) outs[2] = orientUniqueVec(ic, /*column=*/true, mr);
@@ -1482,7 +1494,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         outs[0] = orientUniqueVec(unique(args[0], mr, stable), !cIsRow, mr);
         return;
     }
-    auto [c, ia, ic] = uniqueWithIndices(args[0], mr, stable);
+    auto [c, ia, ic] = uniqueWithIndices(args[0], mr, stable, last);
     outs[0] = orientUniqueVec(c, !cIsRow, mr);
     if (nargout > 1) outs[1] = orientUniqueVec(ia, /*column=*/true, mr);
     if (nargout > 2) outs[2] = orientUniqueVec(ic, /*column=*/true, mr);

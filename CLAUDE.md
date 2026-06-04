@@ -169,6 +169,35 @@ stats: close audit ТЗ stats/normlike — add freq + censoring
 Implements audit/findings/stats/normlike.md.
 ```
 
+## Bug catalog (`bugs/`)
+
+Structured one-file-per-bug catalog (distinct from the flat append-only
+`BUGS.md` and from the auditor's `audit/findings/**`). **Every bug you find
+gets TWO things:**
+
+1. its own `bugs/<namespace>/<fn>.md` with a self-contained repro (numkit
+   output vs MATLAB R2025b) so any session can act on it cold; and
+2. a matching **`DISABLED_` gtest** in `libs/<ns>/tests/known_bugs_test.cpp`
+   asserting the MATLAB-correct behaviour — **found a bug → add a test.**
+   `DISABLED_` keeps the green baseline green (it doesn't run normally) but
+   the test is real: it fails under `--gtest_also_run_disabled_tests` and
+   becomes a live regression guard the instant you remove the prefix.
+
+Each file carries a **`Kind:`** tag separating real defects from parity
+feature-gaps: `bug` (implemented fn, wrong/divergent result or ignored
+option), `stub` (documented option/branch throws "not supported"),
+`missing-output` (documented Nth output not emitted), `missing-fn` (function
+not implemented at all — a **parity gap, also tracked in PROGRESS.md, NOT a
+defect**), `perf` (correct but slower than MATLAB — use a `Slowdown:` line +
+a benchmark, not a `DISABLED_` gtest). Don't conflate them — a missing
+function is not a bug. **`perf` threshold:** numkit is single-threaded vs
+MATLAB's multithreaded MKL/FFTW, so flag only ≥3× (or 1.5–3× with a FIXABLE
+cause, or ANY ratio if worse big-O); <1.5× is noise. See bugs/README.md.
+
+See [bugs/README.md](bugs/README.md) for the template + Kind legend + index.
+When you fix a bug, remove the test's `DISABLED_` prefix, flip the md status
+to ✅ FIXED with the commit hash, and update the index row (keep the md).
+
 ## Memory
 
 Auto-memory at

@@ -203,6 +203,23 @@ TEST_F(ConvolutionTest, DeconvRemainder)
     EXPECT_NEAR(evalScalar("r(4)"), 2.0, 1e-10);
 }
 
+TEST_F(ConvolutionTest, DeconvDivisorLongerThanDividend)
+{
+    // MATLAB: a divisor longer than the dividend -> quotient is the scalar 0,
+    // remainder is the numerator unchanged. (Was throwing "denominator longer
+    // than numerator".)
+    eval("[q, r] = deconv([1 2 3], [1 2 3 4]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(q)")), 1);
+    EXPECT_NEAR(evalScalar("q"), 0.0, 1e-12);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(r)")), 3);
+    EXPECT_NEAR(evalScalar("r(1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("r(3)"), 3.0, 1e-12);
+    // Scalar dividend over a longer divisor.
+    eval("[q2, r2] = deconv(5, [1 2]);");
+    EXPECT_NEAR(evalScalar("q2"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("r2"), 5.0, 1e-12);
+}
+
 // ============================================================
 // xcorr
 // ============================================================

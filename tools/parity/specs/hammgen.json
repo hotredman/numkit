@@ -1,0 +1,15 @@
+{
+  "name": "hammgen",
+  "namespace": "comm",
+  "setup": "[h, g, n, k] = hammgen(3); [h4, g4, n4, k4] = hammgen(4); orth = all(all(mod(g * h', 2) == 0)); sysI = all(all(h(:,1:3) == eye(3)));",
+  "expr": "y = 0;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "n", "k", "sum(h(:))", "sum(g(:))",
+    "h(1,4)", "h(2,5)", "h(3,7)", "g(1,1)", "g(4,7)",
+    "double(orth)", "double(sysI)",
+    "n4", "k4", "sum(h4(:))", "h4(1,5)", "h4(4,15)"
+  ],
+  "comment": "Sig: [h,g,n,k] = hammgen(m). (n,k) Hamming code, n=2^m-1, k=n-m. H(:,i)=coeffs of x^i mod p(x), p=default primitive poly of degree m, ascending power; first m cols = I_m so code is systematic and g=gen2par(h). hammgen(3): n=7 k=4, H=[1 0 0 1 0 1 1;0 1 0 1 1 1 0;0 0 1 0 1 1 1]. hammgen(4): n=15 k=11. orth: g*h'==0 (mod 2). New (Error Correction Codes / block linear codes) 2026-06. GF(2) only; custom primitive poly via 2nd arg. BCH/RS (gf type) deferred."
+}

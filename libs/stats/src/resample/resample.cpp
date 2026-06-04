@@ -163,9 +163,14 @@ Value combnkImpl(const std::vector<double> &items, int K,
                  std::pmr::memory_resource *mr)
 {
     const int N = static_cast<int>(items.size());
-    if (K < 0 || K > N)
-        throw Error("combnk: K must be in 0..N", 0, 0, "combnk", "",
+    if (K < 0)
+        throw Error("combnk: K must be non-negative", 0, 0, "combnk", "",
                     "numkit:combnk:badK");
+    // MATLAB: choosing K > N elements yields an empty 0xK result (not an
+    // error). E.g. combnk(1:4, 5) -> 0x5, combnk(5, 2) -> 0x2 (scalar 5 is
+    // the 1-element set {5}, so K=2 > N=1).
+    if (K > N)
+        return Value::matrix(0, static_cast<size_t>(K), ValueType::DOUBLE, mr);
 
     // Number of combinations.
     long long C = 1;
@@ -595,15 +600,13 @@ void combnk_reg(Span<const Value> args, size_t /*nargout*/,
     const int K = (int)args[1].toScalar();
     auto *mr = ctx.engine->resource();
     const Value &v = args[0];
-    if (v.numel() == 1) {
-        outs[0] = combnk(static_cast<int>(v.toScalar()), K, mr);
-    } else {
-        // Extract v's elements as doubles into a scratch buffer.
-        ScratchArena scratch(mr);
-        ScratchVec<double> buf(v.numel(), &scratch);
-        for (size_t i = 0; i < v.numel(); ++i) buf[i] = v.elemAsDouble(i);
-        outs[0] = combnk(Span<const double>(buf.data(), buf.size()), K, mr);
-    }
+    // MATLAB treats a SCALAR v as the 1-element set {v} (NOT 1:v): combnk(5,2)
+    // chooses 2 from {5} -> empty 0x2. So always route through the set
+    // (vector) path; the int->1:N overload is a separate convenience entry.
+    ScratchArena scratch(mr);
+    ScratchVec<double> buf(v.numel(), &scratch);
+    for (size_t i = 0; i < v.numel(); ++i) buf[i] = v.elemAsDouble(i);
+    outs[0] = combnk(Span<const double>(buf.data(), buf.size()), K, mr);
 }
 
 } // namespace detail

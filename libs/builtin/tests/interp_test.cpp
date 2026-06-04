@@ -186,6 +186,23 @@ TEST_F(InterpTest, SplineFunction)
     EXPECT_NEAR(evalScalar("yq"), 2.25, 0.3);
 }
 
+TEST_F(InterpTest, SplineThreePointsNotAKnot)
+{
+    // n==3: MATLAB not-a-knot reduces to the interpolating PARABOLA, so a
+    // 3-point spline of x^2 reproduces x^2 exactly. Was 6.3125 (natural BCs).
+    EXPECT_NEAR(evalScalar("spline([1 2 3], [1 4 9], 2.5)"), 6.25, 1e-10);
+    EXPECT_NEAR(evalScalar("spline([1 2 3], [1 4 9], 1.5)"), 2.25, 1e-10);
+    // Non-uniform knots: parabola through (0,1),(1,2),(3,10) = x^2 + 1.
+    EXPECT_NEAR(evalScalar("spline([0 1 3], [1 2 10], 2)"), 5.0, 1e-10);
+    // Non-uniform, non-quadratic data.
+    EXPECT_NEAR(evalScalar("spline([1 2 4], [3 1 5], 3)"), 5.0 / 3.0, 1e-9);
+    // Downward parabola; symmetric.
+    EXPECT_NEAR(evalScalar("spline([1 2 3], [0 1 0], 1.5)"), 0.75, 1e-10);
+    // pp-form path uses the same sigma.
+    eval("pp = spline([1 2 3], [1 4 9]); yq3 = ppval(pp, 2.5);");
+    EXPECT_NEAR(evalScalar("yq3"), 6.25, 1e-10);
+}
+
 // ============================================================
 // interp1 — pchip
 // ============================================================

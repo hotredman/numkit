@@ -1,10 +1,10 @@
 {
   "name": "anova1",
   "namespace": "stats",
-  "setup": "y = [1 2 3 4 5 6]; g = [1 1 2 2 3 3];",
-  "expr": "p = anova1(y, g, 'off'); r1 = double(p);",
+  "setup": "y = [1 2 3 4 5 6]; g = [1 1 2 2 3 3]; X = [1 2 3; 2 3 4; 3 4 5];",
+  "expr": "p = anova1(y, g, 'off'); r1 = double(p); pm = anova1(X); r2 = double(pm);",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: p = anova1(y, group['off']). One-way ANOVA p-value. Bit-identical with MATLAB R2025b on probed input (p=0.0251)."
+  "fingerprint": ["r1", "r2"],
+  "comment": "Sig: p = anova1(y,group['off']) OR anova1(X) matrix form (each column is a group). (y,g) p=0.0251; matrix [1 2 3;2 3 4;3 4 5] p=0.125. Matrix form fixes bugs/stats/anova1-matrix-input.md. Bit-identical with MATLAB R2025b."
 }

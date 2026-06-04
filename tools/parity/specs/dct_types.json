@@ -1,0 +1,10 @@
+{
+  "name": "dct_types",
+  "namespace": "signal",
+  "setup": "x = [1 2 3 4];",
+  "expr": "y1 = dct(x,4,'Type',1); y3 = dct(x,4,'Type',3); y4 = dct(x,4,'Type',4); i3 = idct(x,4,'Type',3); a=y1(1); b=y1(4); c=y3(2); d=y4(1); e=i3(1); f=i3(2);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["a", "b", "c", "d", "e", "f"],
+  "comment": "Sig: dct/idct(x,n,'Type',t), t in 1..4. Orthonormal DCT-I/III/IV (Type 2 is the default). DCT-I & DCT-IV are self-inverse; idct Type 3 == dct Type 2. Fixes bugs/signal/dct-types.md. Refs vs MATLAB R2025b."
+}

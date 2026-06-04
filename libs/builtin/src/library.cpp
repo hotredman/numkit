@@ -110,6 +110,7 @@ void perms_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void factorial_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void nchoosek_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void gradient_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void del2_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cumtrapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // interpolation/interp.cpp + math/elementary/polynomials.cpp
 //   + math/integration/integration.cpp (trapz)
@@ -839,6 +840,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("factorial", &builtin::detail::factorial_reg);
     engine.registerFunction("nchoosek",  &builtin::detail::nchoosek_reg);
     engine.registerFunction("gradient",  &builtin::detail::gradient_reg);
+    engine.registerFunction("del2",      &builtin::detail::del2_reg);
     engine.registerFunction("cumtrapz",  &builtin::detail::cumtrapz_reg);
     engine.registerFunction("interp1",   &builtin::detail::interp1_reg);
     engine.registerFunction("interp2",   &builtin::detail::interp2_reg);
@@ -1687,8 +1689,29 @@ void BuiltinLibrary::install(Engine &engine)
                                 if (!args[0].isChar() && !args[0].isString())
                                     throw std::runtime_error(
                                         "str2func: argument must be a string");
-                                outs[0] = Value::funcHandle(args[0].toString(),
-                                                             ctx.engine->resource());
+                                std::string s = args[0].toString();
+                                // MATLAB str2func accepts three forms:
+                                //   'sin'        -> named handle
+                                //   '@sin'       -> named handle (strip '@')
+                                //   '@(x) x+1'   -> anonymous function (parse)
+                                // Previously the whole string (including any
+                                // leading '@') was stored as the handle NAME,
+                                // so '@sin' / '@(x)..' became unfindable '@@..'.
+                                if (!s.empty() && s[0] == '@') {
+                                    size_t j = 1;
+                                    while (j < s.size() && (s[j] == ' ' || s[j] == '\t'))
+                                        ++j;
+                                    if (j < s.size() && s[j] == '(') {
+                                        // Anonymous function source — parse it.
+                                        outs[0] = ctx.engine->eval(s, true);
+                                    } else {
+                                        outs[0] = Value::funcHandle(
+                                            s.substr(j), ctx.engine->resource());
+                                    }
+                                } else {
+                                    outs[0] = Value::funcHandle(
+                                        s, ctx.engine->resource());
+                                }
                             });
 
     // func2str(@fn) — recover the name of a function handle.

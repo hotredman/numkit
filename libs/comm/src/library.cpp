@@ -108,6 +108,20 @@ void int2bit_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bi2de_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void de2bi_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vec2mat_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// coding/convcoding.cpp
+void poly2trellis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void convenc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void vitdec_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void istrellis_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// coding/blockcoding.cpp
+void gen2par_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hammgen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cyclpoly_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cyclgen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void encode_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void decode_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -194,6 +208,20 @@ void CommLibrary::install(Engine &engine)
     reg("rf", "bi2de",       &comm::detail::bi2de_reg);
     reg("rf", "de2bi",       &comm::detail::de2bi_reg);
     reg("rf", "vec2mat",     &comm::detail::vec2mat_reg);
+
+    // ── Error Correction Codes: convolutional coding ──
+    reg("coding", "poly2trellis", &comm::detail::poly2trellis_reg);
+    reg("coding", "convenc",      &comm::detail::convenc_reg);
+    reg("coding", "vitdec",       &comm::detail::vitdec_reg);
+    reg("coding", "istrellis",    &comm::detail::istrellis_reg);
+
+    // ── Error Correction Codes: block linear coding ──
+    reg("coding", "gen2par",      &comm::detail::gen2par_reg);
+    reg("coding", "hammgen",      &comm::detail::hammgen_reg);
+    reg("coding", "cyclpoly",     &comm::detail::cyclpoly_reg);
+    reg("coding", "cyclgen",      &comm::detail::cyclgen_reg);
+    reg("coding", "encode",       &comm::detail::encode_reg);
+    reg("coding", "decode",       &comm::detail::decode_reg);
 }
 
 } // namespace numkit

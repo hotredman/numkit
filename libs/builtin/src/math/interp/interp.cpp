@@ -106,8 +106,8 @@ interpNext(const double *x, const double *y, size_t n, const double *xq, size_t 
 }
 
 // Build the n-vector of second derivatives at knots (sigma) using
-// MATLAB's not-a-knot boundary conditions. Falls back to natural BCs
-// for n == 3 (NaK is degenerate). Tridiagonal system has the standard
+// MATLAB's not-a-knot boundary conditions. n == 3 is handled separately
+// (NaK reduces to the interpolating parabola). Tridiagonal system has the standard
 // interior rows (j=1..n-2) with the first/last rows modified to
 // substitute sigma_0 / sigma_{n-1} with their NaK linear combinations.
 ScratchVec<double>
@@ -115,6 +115,20 @@ computeSplineSigma(const double *x, const double *y, size_t n, const double *h, 
 {
     ScratchVec<double> sigma(n, 0.0, mr);
     if (n < 3) return sigma;
+
+    // n == 3: not-a-knot reduces to the unique interpolating PARABOLA, whose
+    // second derivative is the constant 2*f[x0,x1,x2] (MATLAB's convention).
+    // The general tridiagonal path below would leave the boundary sigmas at 0
+    // (natural BCs) for n==3, which diverges from MATLAB (e.g. spline of x^2
+    // on 3 points must reproduce x^2 exactly).
+    if (n == 3) {
+        const double c = 2.0 * ((y[2] - y[1]) / h[1] - (y[1] - y[0]) / h[0])
+                             / (h[0] + h[1]);
+        sigma[0] = c;
+        sigma[1] = c;
+        sigma[2] = c;
+        return sigma;
+    }
 
     const size_t m = n - 2;
     ScratchVec<double> diag(m, mr), upper(m, mr), lower(m, mr), rhs(m, mr);
@@ -127,8 +141,8 @@ computeSplineSigma(const double *x, const double *y, size_t n, const double *h, 
         if (i < m - 1)     upper[i] = h[j];
     }
 
-    // Not-a-knot modifications (only when n >= 4; for n==3 fall back
-    // to natural BCs). See BUGS.md note attached to spline parity:
+    // Not-a-knot modifications (n >= 4 here; n==3 handled above).
+    // See BUGS.md note attached to spline parity:
     //   sigma_0 = ((h_0 + h_1) * s_1 - h_0 * s_2) / h_1
     //   sigma_{n-1} = ((h_{n-3} + h_{n-2}) * s_{n-2}
     //                  - h_{n-2} * s_{n-3}) / h_{n-3}

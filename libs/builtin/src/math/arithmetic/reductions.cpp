@@ -9,6 +9,7 @@
 // math/random/rng.cpp.
 
 #include <numkit/builtin/library.hpp>
+#include <numkit/builtin/language/arrays/matrix.hpp>       // reshape (for 'all')
 #include <numkit/builtin/math/exp_log/exponents.hpp>      // exp / log adapters
 #include <numkit/builtin/math/arithmetic/reductions.hpp>
 #include <numkit/builtin/math/arithmetic/rounding.hpp>       // abs adapter
@@ -1849,7 +1850,10 @@ namespace {
 // and the omit flag.
 size_t stripTrailingNanFlag(Span<const Value> args, bool &omitNan)
 {
-    omitNan = false;
+    // MATLAB's DEFAULT for max/min is 'omitnan' (NaN is ignored unless every
+    // element is NaN). Only an explicit 'includenan' turns omission off.
+    // (sum/mean/etc. default to 'includenan'; max/min are the exception.)
+    omitNan = true;
     size_t n = args.size();
     if (n == 0) return 0;
     const Value &last = args[n - 1];
@@ -1857,8 +1861,8 @@ size_t stripTrailingNanFlag(Span<const Value> args, bool &omitNan)
     std::string s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return std::tolower(c); });
-    if (s == "omitnan") { omitNan = true; return n - 1; }
-    if (s == "includenan")               return n - 1;
+    if (s == "omitnan")    { omitNan = true;  return n - 1; }
+    if (s == "includenan") { omitNan = false; return n - 1; }
     return n;
 }
 
@@ -1879,6 +1883,18 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
             : max(args[0], args[1], ctx.engine->resource());
         return;
     }
+    // max(A, [], 'all'[, 'linear']) — reduce over EVERY element. Flatten to
+    // a column and reduce; the column position IS the linear index (matching
+    // MATLAB's 'all' 2nd output, which is always linear).
+    for (size_t i = 1; i < n; ++i)
+        if (isStringArg(args[i]) && lowercaseStr(args[i]) == "all") {
+            auto *mr = ctx.engine->resource();
+            Value flat = reshape(args[0], args[0].numel(), 1, 0, mr);
+            auto [v, ix] = omitNan ? maxOmitNan(flat, 0, mr) : max(flat, 0, mr);
+            outs[0] = std::move(v);
+            if (nargout > 1) outs[1] = std::move(ix);
+            return;
+        }
     // Reduction: optional dim as args[2].
     int dim = 0;
     if (n >= 3 && !args[2].isEmpty())
@@ -1904,6 +1920,16 @@ void min_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
             : min(args[0], args[1], ctx.engine->resource());
         return;
     }
+    // min(A, [], 'all'[, 'linear']) — reduce over every element (see max_reg).
+    for (size_t i = 1; i < n; ++i)
+        if (isStringArg(args[i]) && lowercaseStr(args[i]) == "all") {
+            auto *mr = ctx.engine->resource();
+            Value flat = reshape(args[0], args[0].numel(), 1, 0, mr);
+            auto [v, ix] = omitNan ? minOmitNan(flat, 0, mr) : min(flat, 0, mr);
+            outs[0] = std::move(v);
+            if (nargout > 1) outs[1] = std::move(ix);
+            return;
+        }
     int dim = 0;
     if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());

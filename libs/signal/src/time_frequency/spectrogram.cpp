@@ -498,11 +498,55 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
             td[j] /= fs;
     }
 
+    // 4th output: ps — one-sided power spectral density per (freq, time),
+    // ps = c[k]·|S|² / (fs·Σwin²), with c = 2 on interior bins and 1 at DC
+    // and (when present) Nyquist. Reuses the already-computed STFT S.
+    Value PS;
+    if (nargout > 3) {
+        const std::size_t R = S.dims().rows();
+        const std::size_t C = S.dims().cols();
+        const std::size_t nx = args[0].numel();
+        // Window coefficients — replicate the core's default (hamming of
+        // length floor(nx/4.5)) when none was supplied; keep in sync with
+        // resolveWindow() in this TU.
+        std::pmr::vector<double> win(ctx.engine->resource());
+        if (!window.isEmpty() && window.numel() > 0) {
+            const std::size_t L = window.numel();
+            win.resize(L);
+            for (std::size_t i = 0; i < L; ++i) win[i] = window.elemAsDouble(i);
+        } else {
+            std::size_t L = std::max<std::size_t>(
+                1, static_cast<std::size_t>(std::floor(static_cast<double>(nx) / 4.5)));
+            if (L > nx && nx > 0) L = nx;
+            win.resize(L);
+            if (L == 1) win[0] = 1.0;
+            else for (std::size_t i = 0; i < L; ++i)
+                win[i] = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / (L - 1));
+        }
+        double U = 0.0;
+        for (double w : win) U += w * w;
+        const std::size_t nfftEff = (R > 1) ? (R - 1) * 2 : 1;
+        const bool nyquist = (nfftEff % 2 == 0);   // last bin is Nyquist
+        const double denom = fs * U;
+        PS = Value::matrix(R, C, ValueType::DOUBLE, ctx.engine->resource());
+        const std::complex<double> *sd = S.complexData();
+        double *pd = PS.doubleDataMut();
+        for (std::size_t k = 0; k < R; ++k) {
+            const double c = (k == 0 || (nyquist && k == R - 1)) ? 1.0 : 2.0;
+            for (std::size_t m = 0; m < C; ++m) {
+                const std::complex<double> v = sd[m * R + k];
+                pd[m * R + k] = c * std::norm(v) / denom;
+            }
+        }
+    }
+
     outs[0] = std::move(S);
     if (nargout > 1)
         outs[1] = std::move(F);
     if (nargout > 2)
         outs[2] = std::move(T);
+    if (nargout > 3)
+        outs[3] = std::move(PS);
 }
 
 // Parse MATLAB-style trailing name-value pairs into the stft/istft

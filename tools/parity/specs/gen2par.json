@@ -1,0 +1,15 @@
+{
+  "name": "gen2par",
+  "namespace": "comm",
+  "setup": "G = [1 1 0 1 0 0 0; 0 1 1 0 1 0 0; 1 1 1 0 0 1 0; 1 0 1 0 0 0 1]; H = gen2par(G); G2 = [1 0 0 1 1; 0 1 0 0 1; 0 0 1 1 0]; H2 = gen2par(G2); inv = isequal(gen2par(H), G); orth = all(all(mod(G * H', 2) == 0));",
+  "expr": "y = 0;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "sum(H(:))", "size(H,1)", "size(H,2)",
+    "H(1,1)", "H(1,4)", "H(3,7)",
+    "sum(H2(:))", "H2(1,1)", "H2(2,5)", "H2(1,3)",
+    "double(inv)", "double(orth)"
+  ],
+  "comment": "Sig: h = gen2par(g). Systematic generator<->parity-check converter for linear block codes. r x c input (r<c): [P|I_r] -> [I_(c-r)|P'], [I_r|P] -> [P'|I_(c-r)]. Involution: gen2par(gen2par(g))==g. gen2par of Hamming(7,4) generator -> [I_3|P']=[1 0 0 1 0 1 1;0 1 0 1 1 1 0;0 0 1 0 1 1 1]. New (Error Correction Codes / block linear codes) 2026-06. GF(2) only."
+}

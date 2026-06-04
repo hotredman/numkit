@@ -293,11 +293,43 @@ namespace detail {
 void anova1_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("anova1: requires (y, group[, 'off'])",
+    if (args.empty())
+        throw Error("anova1: requires (y, group[, 'off']) or a data matrix",
                     0, 0, "anova1", "", "numkit:anova1:nargin");
     auto *mr = ctx.engine->resource();
-    auto [p, F, dfB, dfW, ssB, ssW] = anova1(args[0], args[1], mr);
+
+    // Two input forms:
+    //   anova1(y, group)  — y vector, group is the grouping variable
+    //   anova1(X)         — X a matrix (>=2 cols): each COLUMN is a group.
+    // For the matrix form, stack the columns into (y, group) with group =
+    // 1-based column index, then run the existing one-way ANOVA. NaNs are
+    // dropped by bucket(), matching MATLAB's column-per-group handling.
+    Value yStore, gStore;
+    const Value *yp = nullptr, *gp = nullptr;
+    if (args[0].dims().rows() > 1 && args[0].dims().cols() > 1) {
+        const Value &X = args[0];
+        const size_t R = X.dims().rows(), C = X.dims().cols();
+        yStore = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
+        gStore = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
+        double *yd = yStore.doubleDataMut();
+        double *gd = gStore.doubleDataMut();
+        size_t k = 0;
+        for (size_t c = 0; c < C; ++c)
+            for (size_t r = 0; r < R; ++r) {
+                yd[k] = X.elemAsDouble(c * R + r);
+                gd[k] = static_cast<double>(c + 1);
+                ++k;
+            }
+        yp = &yStore;
+        gp = &gStore;
+    } else {
+        if (args.size() < 2)
+            throw Error("anova1: requires (y, group[, 'off'])",
+                        0, 0, "anova1", "", "numkit:anova1:nargin");
+        yp = &args[0];
+        gp = &args[1];
+    }
+    auto [p, F, dfB, dfW, ssB, ssW] = anova1(*yp, *gp, mr);
     outs[0] = Value::scalar(p, mr);
     if (nargout > 1) {
         // 4×6 cell table { 'Source','SS','df','MS','F','Prob>F'
@@ -343,7 +375,7 @@ void anova1_reg(Span<const Value> args, size_t nargout,
         // post-hoc tools (multcompare, etc.). The data scan is cheap;
         // we only do it here, when the third output is actually
         // requested.
-        auto buckets = bucket(args[0], args[1]);
+        auto buckets = bucket(*yp, *gp);
         const std::size_t K = buckets.size();
         // means + per-group sizes.
         Value meansV = Value::matrix(K, 1, ValueType::DOUBLE, mr);

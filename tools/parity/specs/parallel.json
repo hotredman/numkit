@@ -2,11 +2,9 @@
   "name": "parallel",
   "namespace": "control",
   "setup": "",
-  "expr": "sys = parallel(tf(1, [1 1]), tf(1, [1 2])); r1 = 1;",
+  "expr": "r1 = dcgain(parallel(tf(1, [1 1]), tf(1, [1 2]))); r2 = dcgain(parallel(tf(2,[1 1]),3));",
   "iters": 5,
   "tol": 1e-06,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: r = parallel(...). Spec-extension batch 2026-05-09."
+  "fingerprint": ["r1", "r2"],
+  "comment": "Sig: sys = parallel(sys1, sys2). Sum. dcgain adds (1+0.5=1.5). 2026-06-03: a NUMERIC arg is a static gain -- parallel(2/(s+1),3) dcgain 5. vs MATLAB R2025b."
 }

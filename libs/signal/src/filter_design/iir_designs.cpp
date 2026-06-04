@@ -431,7 +431,11 @@ void besself_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const Value &Wn = args[1];
     auto t = parseTrailing(args, 2);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
-    auto [b, a] = besself(N, Wn, ftype, t.analog, ctx.engine->resource());
+    // besself is ALWAYS analog — MATLAB has no digital Bessel filter (the
+    // bilinear transform destroys the maximally-flat group delay). The 's'
+    // flag is therefore redundant; ignore the digital path entirely.
+    (void)t.analog;
+    auto [b, a] = besself(N, Wn, ftype, /*analog=*/true, ctx.engine->resource());
     outs[0] = std::move(b);
     if (outs.size() > 1) outs[1] = std::move(a);
 }
