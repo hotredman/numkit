@@ -120,15 +120,16 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (77 entries):** ✅ 11 fixed · 🔴 66 open = **22 bug** + 7 stub +
+**Tally (77 entries):** ✅ 12 fixed · 🔴 65 open = **21 bug** + 7 stub +
 6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (11)
+### ✅ FIXED (12)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
 | bug | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(X,k[,'first'/'last']) now honours count + direction (single + multi-output) (2026-06-05) |
+| bug | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm() of a complex array by \|z\| (vector 1/2/Inf/p + matrix 1/Inf/'fro'; spectral deferred) (2026-06-05) |
 | bug | [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | 'MissingPlacement' option was ignored |
 | bug | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | cepstrum garbage on non-2ⁿ + rceps 2nd output (9fcf6872) |
 | bug | [signal/besself-digital](signal/besself-digital.md) | P1 | ran digital path → binomial garbage |
@@ -140,7 +141,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 22
+### 🔴 OPEN — bug (defect on an implemented function) — 21
 
 | Bug | Sev | Notes |
 |---|---|---|

@@ -30,6 +30,15 @@ bool isVectorShape(const Value &x)
 
 inline std::size_t lin(std::size_t i, std::size_t j, std::size_t R) { return i + j * R; }
 
+// Magnitude of linear element i, complex-aware (|z| for COMPLEX, |x| for
+// real). Mirrors the getAbs branch in vecnorm so the scalar norm paths norm
+// complex inputs by element magnitude, matching MATLAB.
+inline double absLin(const Value &x, std::size_t i)
+{
+    return x.isComplex() ? std::abs(x.complexData()[i])
+                         : std::fabs(x.doubleData()[i]);
+}
+
 } // anonymous namespace
 
 Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
@@ -38,18 +47,17 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
 
     if (isVectorShape(x)) {
         const std::size_t n = x.numel();
-        const double *d = x.doubleData();
         if (p == 2.0) {
             double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += d[i] * d[i];
+            for (std::size_t i = 0; i < n; ++i) { const double a = absLin(x, i); s += a * a; }
             return Value::scalar(std::sqrt(s), mr);
         } else if (p == 1.0) {
             double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += std::fabs(d[i]);
+            for (std::size_t i = 0; i < n; ++i) s += absLin(x, i);
             return Value::scalar(s, mr);
         } else {
             double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i) s += std::pow(std::fabs(d[i]), p);
+            for (std::size_t i = 0; i < n; ++i) s += std::pow(absLin(x, i), p);
             return Value::scalar(std::pow(s, 1.0 / p), mr);
         }
     }
@@ -60,10 +68,14 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
                     0, 0, "norm", "", "numkit:norm:badShape");
     const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
-    const double *d = x.doubleData();
 
     if (p == 2.0) {
-        // Largest singular value.
+        // Largest singular value. Complex matrices need a complex SVD, which
+        // is not yet implemented (see bugs/linalg/complex-matrix-unsupported.md).
+        if (x.isComplex())
+            throw Error("norm: complex matrix 2-norm not yet supported "
+                        "(needs complex SVD); use 'fro' or a vector norm",
+                        0, 0, "norm", "", "numkit:norm:complexSpectral");
         auto sv = svd_values(x, mr);
         if (sv.numel() == 0) return Value::scalar(0.0, mr);
         return Value::scalar(sv.doubleData()[0], mr);
@@ -72,7 +84,7 @@ Value norm_value(const Value &x, double p, std::pmr::memory_resource *mr)
         double mx = 0.0;
         for (std::size_t j = 0; j < n; ++j) {
             double s = 0.0;
-            for (std::size_t i = 0; i < m; ++i) s += std::fabs(d[i + j * m]);
+            for (std::size_t i = 0; i < m; ++i) s += absLin(x, i + j * m);
             mx = std::max(mx, s);
         }
         return Value::scalar(mx, mr);
@@ -86,10 +98,9 @@ Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
     if (x.numel() == 0) return Value::scalar(0.0, mr);
     if (isVectorShape(x)) {
         const std::size_t n = x.numel();
-        const double *d = x.doubleData();
         double mx = 0.0;
         for (std::size_t i = 0; i < n; ++i)
-            mx = std::max(mx, std::fabs(d[i]));
+            mx = std::max(mx, absLin(x, i));
         return Value::scalar(mx, mr);
     }
     // Matrix inf-norm: max row sum.
@@ -98,11 +109,10 @@ Value norm_inf(const Value &x, std::pmr::memory_resource *mr)
                     0, 0, "norm", "", "numkit:norm:badShape");
     const std::size_t m = static_cast<std::size_t>(x.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(x.dims().dim(1));
-    const double *d = x.doubleData();
     double mx = 0.0;
     for (std::size_t i = 0; i < m; ++i) {
         double s = 0.0;
-        for (std::size_t j = 0; j < n; ++j) s += std::fabs(d[i + j * m]);
+        for (std::size_t j = 0; j < n; ++j) s += absLin(x, i + j * m);
         mx = std::max(mx, s);
     }
     return Value::scalar(mx, mr);
@@ -112,9 +122,8 @@ Value norm_fro(const Value &x, std::pmr::memory_resource *mr)
 {
     const std::size_t n = x.numel();
     if (n == 0) return Value::scalar(0.0, mr);
-    const double *d = x.doubleData();
     double s = 0.0;
-    for (std::size_t i = 0; i < n; ++i) s += d[i] * d[i];
+    for (std::size_t i = 0; i < n; ++i) { const double a = absLin(x, i); s += a * a; }
     return Value::scalar(std::sqrt(s), mr);
 }
 
