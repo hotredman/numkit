@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, within, fireEvent } from '@testing-library/react';
 import { VariableEditor as VE, MatrixPanel } from './Workspace';
-import SyntaxEditor from '../SyntaxEditor';
+import SyntaxEditor from '../editor/SyntaxEditor';
 
 // jsdom lacks ResizeObserver and a real canvas 2-D context (the editor's
 // minimap uses both). Stub them so the component's effects run — these

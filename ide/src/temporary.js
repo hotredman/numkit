@@ -29,7 +29,7 @@
  *   const tree = await tempFS.listTree();
  */
 
-import { makeBridge, isSupported as bridgeSupported } from './vfs/sync-bridge';
+import { makeBridge, isSupported as bridgeSupported } from './sab-bridge/sync-bridge';
 
 const DB_NAME = 'numkit-ide-vfs';
 const DB_VERSION = 1;
