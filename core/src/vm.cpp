@@ -327,6 +327,8 @@ ExecStatus VM::startExecution(const BytecodeChunk &chunk, const Value *args, uin
     regStackTop_ = 0;
     returnCount_ = 0;
     lastResult_ = Value();
+    atErrorPause_ = false; // fresh run — drop any stale dbstop-if-error state
+    pausedError_ = nullptr;
 
     // Allocate registers for top-level frame
     uint8_t nregs = chunk.numRegisters;
@@ -379,6 +381,22 @@ ExecStatus VM::resumeExecution()
 {
     if (frames_.empty())
         return ExecStatus::Completed;
+
+    // Resuming from a dbstop-if-error pause: the error was deferred, not
+    // handled — let it propagate now (the debug session ends with the error).
+    // Clean up the parked frames first, mirroring execute()'s guard.
+    if (atErrorPause_) {
+        atErrorPause_ = false;
+        std::exception_ptr ep = pausedError_;
+        pausedError_ = nullptr;
+        frames_.clear();
+        forStack_.clear();
+        tryStack_.clear();
+        regStackTop_ = 0;
+        R_ = nullptr;
+        if (ep)
+            std::rethrow_exception(ep);
+    }
 
     return dispatchLoop();
 }
@@ -2296,10 +2314,26 @@ enter_frame:
                                 chunk.name,
                                 describeInstruction(*ip, chunk));
         }
+        if (stopOnError_ && debugCtl()) {
+            // dbstop if error: pause at the failing instruction with frames
+            // intact; resumeExecution() rethrows the stored exception later.
+            frame.ip = ip;
+            errorPauseMsg_ = mle.what();
+            pausedError_ = std::current_exception();
+            atErrorPause_ = true;
+            return ExecStatus::Paused;
+        }
         throw;
     } catch (const std::exception &ex) {
         if (dispatchTryCatch(ex.what(), "numkit:error"))
             goto enter_frame;
+        if (stopOnError_ && debugCtl()) {
+            frame.ip = ip;
+            errorPauseMsg_ = ex.what();
+            pausedError_ = std::current_exception();
+            atErrorPause_ = true;
+            return ExecStatus::Paused;
+        }
         enrichAndThrow(ex, ip, chunk);
     }
 

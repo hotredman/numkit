@@ -54,6 +54,15 @@ public:
     // Stop the debug session (cleans up state).
     void stop();
 
+    // ── dbstop if error ──────────────────────────────────────
+    // When enabled, an uncaught error during the run pauses at the failing
+    // line (frames intact) instead of ending the session, so state can be
+    // inspected. Resuming lets the error finally propagate (session ends with
+    // it). Set before start().
+    void setStopOnError(bool enabled);
+    bool atErrorPause() const;
+    std::string errorPauseMessage() const;
+
     // ── Frame navigation (dbup / dbdown) ─────────────────────
     // Move the inspection focus one frame toward the base (frameUp / dbup) or
     // back toward the current frame (frameDown / dbdown), WITHOUT resuming.
@@ -174,6 +183,9 @@ private:
 
     // Watch expressions, re-evaluated at each pause (see evalWatches()).
     std::vector<std::string> watches_;
+
+    // dbstop-if-error mode requested for this session (applied to the VM).
+    bool stopOnError_ = false;
 
     // Result Value of the most recent eval() — used to read a breakpoint
     // condition's / watch's truthiness without re-parsing the display string.

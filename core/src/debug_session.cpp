@@ -80,11 +80,13 @@ ExecStatus DebugSession::start(const std::string &code)
         engine_.vm_->setCompiledFuncs(&compiler->compiledFuncs(),
                                       &compiler->scriptLocalCompiledFuncs());
 
-        // No breakpoints → pause on first line (StepInto) so the user can step.
-        // Breakpoints set → run (Continue) until the first one is hit.
-        DebugAction initial = engine_.breakpointManager().breakpoints().empty()
-                                  ? DebugAction::StepInto
-                                  : DebugAction::Continue;
+        engine_.vm_->setStopOnError(stopOnError_);
+
+        // No breakpoints and not stop-on-error → pause on the first line
+        // (StepInto) so the user can step. Otherwise run (Continue) until a
+        // breakpoint or an error.
+        bool runToStop = stopOnError_ || !engine_.breakpointManager().breakpoints().empty();
+        DebugAction initial = runToStop ? DebugAction::Continue : DebugAction::StepInto;
 
         ExecStatus status = engine_.vm_->startExecution(chunk_, nullptr, 0, initial);
         status = skipFalseConditionalBreakpoints(status, initial == DebugAction::Continue);
@@ -162,6 +164,23 @@ void DebugSession::stop()
 size_t DebugSession::frameCount() const
 {
     return (active_ && engine_.vm_) ? engine_.vm_->frameCount() : 0;
+}
+
+void DebugSession::setStopOnError(bool enabled)
+{
+    stopOnError_ = enabled;
+    if (engine_.vm_)
+        engine_.vm_->setStopOnError(enabled);
+}
+
+bool DebugSession::atErrorPause() const
+{
+    return active_ && engine_.vm_ && engine_.vm_->atErrorPause();
+}
+
+std::string DebugSession::errorPauseMessage() const
+{
+    return engine_.vm_ ? engine_.vm_->errorPauseMessage() : std::string();
 }
 
 bool DebugSession::frameUp()
@@ -289,6 +308,8 @@ void DebugSession::deactivate()
         return;
     active_ = false;
     engine_.setDebugObserver(nullptr);
+    if (engine_.vm_)
+        engine_.vm_->setStopOnError(false); // don't affect later non-debug runs
     // Pair with the beginScript() at the start of this session.
     engine_.endScript();
     ast_.reset();
