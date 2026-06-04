@@ -76,3 +76,18 @@ TEST_F(ControlKnownBug, DISABLED_Initial)
     EXPECT_NEAR(evalScalar("y(1)"),   1.0, 1e-9);
     EXPECT_NEAR(evalScalar("y(end)"), 0.00301995172040398, 1e-6);
 }
+
+// bugs/control/allmargin.md — all stability margins as a struct.
+TEST_F(ControlKnownBug, DISABLED_Allmargin)
+{
+    eval("S = allmargin(tf(1, [1 6 11 6]));");   // 1/((s+1)(s+2)(s+3))
+    EXPECT_DOUBLE_EQ(evalScalar("double(S.Stable)"), 1.0);
+    EXPECT_NEAR(evalScalar("S.GainMargin(1)"),  60.0,            1e-2);
+    EXPECT_NEAR(evalScalar("S.GMFrequency(1)"), 3.31662561934,   1e-6);  // sqrt(11)
+}
+
+// bugs/control/covar.md — output covariance from white-noise input.
+TEST_F(ControlKnownBug, DISABLED_Covar)
+{
+    EXPECT_NEAR(evalScalar("covar(ss(-1, 1, 1, 0), 1)"), 0.5, 1e-9);
+}

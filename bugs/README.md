@@ -120,8 +120,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (68 entries):** ✅ 10 fixed · 🔴 58 open = **23 bug** + 6 stub +
-6 missing-output + **22 missing-fn** + 1 perf (the 22 missing-fns are parity
+**Tally (73 entries):** ✅ 10 fixed · 🔴 63 open = **23 bug** + 6 stub +
+6 missing-output + **27 missing-fn** + 1 perf (the 27 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 ### ✅ FIXED (10)
@@ -189,7 +189,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mle-output](stats/mle-output.md) | P2 | 2nd output pci |
 | [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | [r,p]=corr p-value |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 22
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 27
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -201,14 +201,19 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/stmcb](signal/stmcb.md) | P2 | stmcb |
 | [image/watershed](image/watershed.md) | P2 | watershed |
 | [image/imfindcircles](image/imfindcircles.md) | P2 | imfindcircles |
+| [image/corner](image/corner.md) | P2 | corner-point detection (cornermetric exists) |
 | [wavelet/wpdec](wavelet/wpdec.md) | P2 | wavelet packets (needs tree type) |
 | [wavelet/wentropy-ddencmp](wavelet/wentropy-ddencmp.md) | P2 | wentropy / ddencmp |
 | [wavelet/wenergy-upcoef](wavelet/wenergy-upcoef.md) | P2 | wenergy (energy %) / upcoef (coeff reconstruction) |
 | [wavelet/cwt](wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
+| [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
+| [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [control/lqr-hinfnorm](control/lqr-hinfnorm.md) | P2 | lqr/hinfnorm/dlqr/gram |
 | [control/care-dare](control/care-dare.md) | P2 | algebraic Riccati solvers (care/dare) |
 | [control/minreal](control/minreal.md) | P2 | minimal realization (pole/zero cancellation) |
 | [control/initial](control/initial.md) | P2 | initial-condition response |
+| [control/allmargin](control/allmargin.md) | P2 | all gain/phase/delay margins struct |
+| [control/covar](control/covar.md) | P2 | output covariance from white noise |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
 | [comm/syndtable](comm/syndtable.md) | P2 | syndrome decoding table (coset leaders) |
 | [builtin/numerical-integration-nd](builtin/numerical-integration-nd.md) | P2 | quadgk/integral2/integral3/quad2d |

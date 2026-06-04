@@ -51,3 +51,11 @@ TEST_F(ImageKnownBug, DISABLED_ImresizeBilinear)
     EXPECT_NEAR(evalScalar("r(1,2)"), 1.25, 1e-4);   // numkit 0.9375
     EXPECT_NEAR(evalScalar("r(4,4)"), 4.0,  1e-4);   // numkit 2.25
 }
+
+// bugs/image/corner.md — corner-point detection (cornermetric exists, corner doesn't).
+TEST_F(ImageKnownBug, DISABLED_Corner)
+{
+    eval("I = zeros(20,20); I(6:15,6:15) = 1; C = corner(I);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C,2)")), 2);   // [x y] coords
+    EXPECT_GE(static_cast<int>(evalScalar("size(C,1)")), 4);   // 4 block corners
+}
