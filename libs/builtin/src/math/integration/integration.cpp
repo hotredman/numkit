@@ -444,6 +444,33 @@ Value trapzImpl(const Value &y, int dim, const double *xData,
                 std::pmr::memory_resource *mr)
 {
     const size_t R = y.dims().rows(), C = y.dims().cols();
+    // Complex y: trapezoidal sum over Complex storage (the integration
+    // variable x — xData — is always real). MATLAB accepts complex y.
+    if (y.type() == ValueType::COMPLEX) {
+        const Complex *yc = y.complexData();
+        if (dim != 2) {
+            Value out = Value::matrix(1, C, ValueType::COMPLEX, mr);
+            Complex *o = out.complexDataMut();
+            for (size_t c = 0; c < C; ++c) {
+                Complex s(0.0, 0.0);
+                for (size_t r = 1; r < R; ++r)
+                    s += 0.5 * (yc[c * R + r - 1] + yc[c * R + r])
+                             * (xData ? (xData[r] - xData[r - 1]) : 1.0);
+                o[c] = s;
+            }
+            return out;
+        }
+        Value out = Value::matrix(R, 1, ValueType::COMPLEX, mr);
+        Complex *o = out.complexDataMut();
+        for (size_t r = 0; r < R; ++r) {
+            Complex s(0.0, 0.0);
+            for (size_t c = 1; c < C; ++c)
+                s += 0.5 * (yc[(c - 1) * R + r] + yc[c * R + r])
+                         * (xData ? (xData[c] - xData[c - 1]) : 1.0);
+            o[r] = s;
+        }
+        return out;
+    }
     const double *yd = y.doubleData();
     if (dim != 2) {  // dim 1 (default for column reduction)
         Value out = Value::matrix(1, C, ValueType::DOUBLE, mr);

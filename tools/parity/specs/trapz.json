@@ -1,12 +1,15 @@
 {
   "name": "trapz",
   "namespace": "builtin",
-  "setup": "M = [1 2 3; 4 5 6];",
-  "expr": "v = trapz([1 4 9 16]); vx = trapz([0 1 2 3], [1 4 9 16]); tc = trapz(M); tr = trapz(M, 2); tx = trapz([10 20 30], M, 2);",
+  "setup": "M = [1 2 3; 4 5 6]; cz = [1+1i 2+2i 3+3i]; cM = [1+1i 2; 3 4i];",
+  "expr": "v = trapz([1 4 9 16]); vx = trapz([0 1 2 3], [1 4 9 16]); tc = trapz(M); tr = trapz(M, 2); tx = trapz([10 20 30], M, 2); cv = trapz(cz); cvx = trapz([0 1 2], [1+1i 2+2i 5+5i]); cmt = trapz(cM); crd = trapz(cz, 2);",
   "iters": 3,
   "tol": 1e-12,
   "fingerprint": [
-    "v", "vx", "tc(1)", "tc(2)", "tc(3)", "tr(1)", "tr(2)", "tx(1)", "tx(2)"
+    "v", "vx", "tc(1)", "tc(2)", "tc(3)", "tr(1)", "tr(2)", "tx(1)", "tx(2)",
+    "real(cv)", "imag(cv)", "real(cvx)", "imag(cvx)",
+    "real(cmt(1))", "imag(cmt(1))", "real(cmt(2))", "imag(cmt(2))",
+    "real(crd)", "imag(crd)"
   ],
-  "comment": "Sig trapz(Y[,dim]) / trapz(X,Y[,dim]): trapezoidal integral. Vector trapz([1 4 9 16])=21.5; trapz([0 1 2 3],[1 4 9 16])=21.5 (x-spacing). Matrix trapz(M) integrates each COLUMN -> [2.5 3.5 4.5]; trapz(M,2) integrates each ROW -> [4;10]; trapz(X,M,2) per-row with X spacing -> [40;100]. numkit previously FLATTENED the matrix (wrong) and ERRORED on the scalar-dim form trapz(M,2) -- fixed (dim/matrix/spacing-aware trapzImpl + reg disambiguation)."
+  "comment": "Sig trapz(Y[,dim]) / trapz(X,Y[,dim]): trapezoidal integral. Vector trapz([1 4 9 16])=21.5; trapz([0 1 2 3],[1 4 9 16])=21.5 (x-spacing). Matrix trapz(M) integrates each COLUMN -> [2.5 3.5 4.5]; trapz(M,2) integrates each ROW -> [4;10]; trapz(X,M,2) per-row with X spacing -> [40;100]. numkit previously FLATTENED the matrix (wrong) and ERRORED on the scalar-dim form trapz(M,2) -- fixed (dim/matrix/spacing-aware trapzImpl + reg disambiguation). COMPLEX y (fixed 2026-06-05): trapezoidal sum over Complex storage (x-spacing stays real): trapz([1+1i 2+2i 3+3i])=4+4i; trapz([0 1 2],[1+1i 2+2i 5+5i])=5+5i; trapz([1+1i 2;3 4i]) col-wise=[2+0.5i 1+2i]; trapz(row,2)=4+4i."
 }

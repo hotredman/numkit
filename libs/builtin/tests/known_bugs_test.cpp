@@ -95,12 +95,12 @@ TEST_F(BuiltinKnownBug, DISABLED_DiffZeroOrderErrors)
     EXPECT_ANY_THROW(eval("diff([1 2 3], 0);"));
 }
 
-// bugs/builtin/complex-input-unsupported.md — complex rejected (builtin fns).
+// bugs/builtin/complex-input-unsupported.md — umbrella; trapz now FIXED (live
+// guard in libs/builtin/tests/trapz_complex_test.cpp). Remaining gaps still
+// covered here: interp1 (and conv/filter/cumtrapz/gradient/movmean/detrend/
+// median — see the md table).
 TEST_F(BuiltinKnownBug, DISABLED_ComplexInputUnsupported)
 {
-    eval("t = trapz([1+1i 2+2i 3+3i]);");        // MATLAB: 4+4i
-    EXPECT_NEAR(evalScalar("real(t)"), 4.0, 1e-12);
-    EXPECT_NEAR(evalScalar("imag(t)"), 4.0, 1e-12);
     eval("y = interp1([1 2 3],[1+1i 2+2i 3+3i],2.5);");  // MATLAB: 2.5+2.5i
     EXPECT_NEAR(evalScalar("imag(y)"), 2.5, 1e-12);
 }
