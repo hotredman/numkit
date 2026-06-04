@@ -1,0 +1,10 @@
+{
+  "name": "groupcounts",
+  "namespace": "builtin",
+  "setup": "g=[10 20 10 30 20]';",
+  "expr": "[C, GR, P] = groupcounts(g);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["C(1)", "C(2)", "C(3)", "GR(1)", "GR(2)", "GR(3)", "P(1)", "P(3)", "numel(C)"],
+  "comment": "Sig: [C, GR, P] = groupcounts(g). Per-group counts over sorted-unique values; GR reps; P percentages. g=[10 20 10 30 20]' -> C=[2;2;1], GR=[10;20;30], P=[40;40;20]. Lifted to public C++ API numkit::builtin::groupcounts (GroupcountsResult) 2026-06."
+}

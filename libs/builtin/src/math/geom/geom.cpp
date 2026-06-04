@@ -46,57 +46,7 @@ void inpolygon_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 4)
         throw Error("inpolygon: requires (xq, yq, xv, yv)",
                      0, 0, "inpolygon", "", "numkit:inpolygon:nargin");
-    const auto &xq = args[0];
-    const auto &yq = args[1];
-    const auto &xv = args[2];
-    const auto &yv = args[3];
-    if (xq.numel() != yq.numel())
-        throw Error("inpolygon: xq and yq must have the same numel",
-                     0, 0, "inpolygon", "", "numkit:inpolygon:queryShape");
-    if (xv.numel() != yv.numel())
-        throw Error("inpolygon: xv and yv must have the same numel",
-                     0, 0, "inpolygon", "", "numkit:inpolygon:polyShape");
-
-    auto *mr = ctx.engine->resource();
-    const std::size_t nQ = xq.numel();
-    const std::size_t nV = xv.numel();
-    auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
-                             ValueType::LOGICAL, mr);
-    uint8_t *dst = out.logicalDataMut();
-    if (nV < 3) {
-        std::memset(dst, 0, nQ);
-        outs[0] = std::move(out);
-        return;
-    }
-
-    ScratchArena scratch(mr);
-    ScratchVec<double> px(nV, &scratch);
-    ScratchVec<double> py(nV, &scratch);
-    for (std::size_t i = 0; i < nV; ++i) {
-        px[i] = xv.elemAsDouble(i);
-        py[i] = yv.elemAsDouble(i);
-    }
-
-    for (std::size_t q = 0; q < nQ; ++q) {
-        const double X = xq.elemAsDouble(q);
-        const double Y = yq.elemAsDouble(q);
-        bool inside = false;
-        std::size_t j = nV - 1;
-        for (std::size_t i = 0; i < nV; ++i) {
-            const double xi = px[i], yi = py[i];
-            const double xj = px[j], yj = py[j];
-            // Edge straddles the horizontal line at y=Y?
-            const bool straddles = (yi > Y) != (yj > Y);
-            if (straddles) {
-                // X-coordinate of the edge's intersection with that line
-                const double xCross = xi + (Y - yi) * (xj - xi) / (yj - yi);
-                if (X < xCross) inside = !inside;
-            }
-            j = i;
-        }
-        dst[q] = inside ? 1 : 0;
-    }
-    outs[0] = std::move(out);
+    outs[0] = inpolygon(args[0], args[1], args[2], args[3], ctx.engine->resource());
 }
 
 // Forward decl — convhull_reg defined later in this file, used by
@@ -146,127 +96,8 @@ void boundary_reg(Span<const Value> args, size_t nargout,
         convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
         return;
     }
-    auto *mr = ctx.engine->resource();
-    std::vector<double> X(n), Y(n);
-    for (size_t i = 0; i < n; ++i) {
-        X[i] = xv.elemAsDouble(i);
-        Y[i] = yv.elemAsDouble(i);
-    }
-    // Brute-force Delaunay (same as delaunay_reg).
-    auto sa2 = [&](size_t a, size_t b, size_t c) {
-        return (X[b]-X[a]) * (Y[c]-Y[a]) - (Y[b]-Y[a]) * (X[c]-X[a]);
-    };
-    auto inC = [&](size_t a, size_t b, size_t c, size_t p) {
-        const double ax=X[a]-X[p], ay=Y[a]-Y[p];
-        const double bx=X[b]-X[p], by=Y[b]-Y[p];
-        const double cx=X[c]-X[p], cy=Y[c]-Y[p];
-        const double a2=ax*ax+ay*ay;
-        const double b2=bx*bx+by*by;
-        const double c2=cx*cx+cy*cy;
-        return ax*(by*c2-cy*b2) - ay*(bx*c2-cx*b2) + a2*(bx*cy-cx*by);
-    };
-    std::vector<std::array<size_t, 3>> tris;
-    for (size_t a = 0; a < n; ++a)
-        for (size_t b = a + 1; b < n; ++b)
-            for (size_t c = b + 1; c < n; ++c) {
-                const double s = sa2(a, b, c);
-                if (std::abs(s) < 1e-15) continue;
-                size_t va=a, vb=b, vc=c;
-                if (s < 0) std::swap(vb, vc);
-                bool ok = true;
-                for (size_t p = 0; p < n; ++p) {
-                    if (p == va || p == vb || p == vc) continue;
-                    if (inC(va, vb, vc, p) > 1e-12) { ok = false; break; }
-                }
-                if (ok) tris.push_back({va, vb, vc});
-            }
-    if (tris.empty()) {
-        std::array<Value, 2> proxied{ args[0], args[1] };
-        convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
-        return;
-    }
-    // Longest edge per triangle.
-    auto edgeLen = [&](size_t a, size_t b) {
-        const double dx = X[a] - X[b], dy = Y[a] - Y[b];
-        return std::sqrt(dx * dx + dy * dy);
-    };
-    std::vector<double> longestEdge(tris.size());
-    for (size_t i = 0; i < tris.size(); ++i) {
-        const auto &T = tris[i];
-        longestEdge[i] = std::max({edgeLen(T[0], T[1]),
-                                   edgeLen(T[1], T[2]),
-                                   edgeLen(T[2], T[0])});
-    }
-    // Threshold = quantile at (1 - shrink).
-    std::vector<double> sortedLen = longestEdge;
-    std::sort(sortedLen.begin(), sortedLen.end());
-    const double q = 1.0 - shrink;
-    const size_t qi = std::min(sortedLen.size() - 1,
-                                (size_t)std::floor(q * sortedLen.size()));
-    const double threshold = sortedLen[qi];
-    // Keep triangles whose longest edge ≤ threshold.
-    std::vector<std::array<size_t, 3>> kept;
-    kept.reserve(tris.size());
-    for (size_t i = 0; i < tris.size(); ++i)
-        if (longestEdge[i] <= threshold) kept.push_back(tris[i]);
-    if (kept.empty()) {
-        std::array<Value, 2> proxied{ args[0], args[1] };
-        convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
-        return;
-    }
-    // Boundary edges = edges appearing in exactly one kept triangle.
-    // Edge key: ordered (min, max) so we don't double-count direction.
-    std::map<std::pair<size_t, size_t>, int> edgeCount;
-    auto bumpEdge = [&](size_t a, size_t b) {
-        if (a > b) std::swap(a, b);
-        edgeCount[{a, b}] += 1;
-    };
-    for (const auto &T : kept) {
-        bumpEdge(T[0], T[1]);
-        bumpEdge(T[1], T[2]);
-        bumpEdge(T[2], T[0]);
-    }
-    // Collect boundary edges into adjacency.
-    std::map<size_t, std::vector<size_t>> adj;
-    for (const auto &[edge, count] : edgeCount) {
-        if (count == 1) {
-            adj[edge.first].push_back(edge.second);
-            adj[edge.second].push_back(edge.first);
-        }
-    }
-    if (adj.empty()) {
-        std::array<Value, 2> proxied{ args[0], args[1] };
-        convhull_reg(Span<const Value>(proxied.data(), 2), nargout, outs, ctx);
-        return;
-    }
-    // Walk from arbitrary boundary vertex following adj edges,
-    // marking visited until we return to start.
-    std::vector<size_t> poly;
-    std::set<std::pair<size_t, size_t>> visited;
-    const size_t start = adj.begin()->first;
-    size_t cur = start;
-    poly.push_back(cur);
-    for (size_t step = 0; step < adj.size() + 2; ++step) {
-        bool moved = false;
-        for (size_t nxt : adj[cur]) {
-            std::pair<size_t, size_t> e{std::min(cur, nxt), std::max(cur, nxt)};
-            if (visited.count(e)) continue;
-            visited.insert(e);
-            poly.push_back(nxt);
-            cur = nxt;
-            moved = true;
-            if (cur == start) { moved = false; break; }
-            break;
-        }
-        if (!moved) break;
-    }
-    // Output as a column vector of 1-based indices, first repeated
-    // at end (MATLAB convention).
-    auto out = Value::matrix(poly.size(), 1, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    for (size_t i = 0; i < poly.size(); ++i)
-        dst[i] = (double)(poly[i] + 1);
-    outs[0] = std::move(out);
+    // Main alpha-shape path lives in the public C++ API.
+    outs[0] = boundary(args[0], args[1], shrink, ctx.engine->resource());
 }
 
 // ── polyarea ─────────────────────────────────────────────────────────
@@ -284,24 +115,7 @@ void polyarea_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("polyarea: requires (x, y)",
                      0, 0, "polyarea", "", "numkit:polyarea:nargin");
-    const auto &xv = args[0];
-    const auto &yv = args[1];
-    const std::size_t n = xv.numel();
-    if (yv.numel() != n)
-        throw Error("polyarea: x and y must have the same numel",
-                     0, 0, "polyarea", "", "numkit:polyarea:shape");
-    auto *mr = ctx.engine->resource();
-    if (n < 3) {
-        outs[0] = Value::scalar(0.0, mr);
-        return;
-    }
-    double s = 0;
-    for (std::size_t i = 0; i < n; ++i) {
-        const std::size_t j = (i + 1) % n;
-        s += xv.elemAsDouble(i) * yv.elemAsDouble(j)
-           - xv.elemAsDouble(j) * yv.elemAsDouble(i);
-    }
-    outs[0] = Value::scalar(0.5 * std::abs(s), mr);
+    outs[0] = polyarea(args[0], args[1], ctx.engine->resource());
 }
 
 // ── convhull ─────────────────────────────────────────────────────────
@@ -321,88 +135,33 @@ void convhull_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 2)
         throw Error("convhull: requires (x, y)",
                      0, 0, "convhull", "", "numkit:convhull:nargin");
-    const auto &xv = args[0];
-    const auto &yv = args[1];
-    const std::size_t n = xv.numel();
-    if (yv.numel() != n)
-        throw Error("convhull: x and y must have the same numel",
-                     0, 0, "convhull", "", "numkit:convhull:shape");
-    auto *mr = ctx.engine->resource();
-    if (n < 3) {
-        // Degenerate — return [1, 2, ..., n, 1] so the polygon wraps.
-        auto out = Value::matrix(n + 1, 1, ValueType::DOUBLE, mr);
-        double *dst = out.doubleDataMut();
-        for (std::size_t i = 0; i < n; ++i) dst[i] = static_cast<double>(i + 1);
-        dst[n] = 1.0;
-        outs[0] = std::move(out);
+    Value K = convhull(args[0], args[1], ctx.engine->resource());
+    if (nargout != 0) {
+        outs[0] = std::move(K);
         return;
     }
-
-    ScratchArena scratch(mr);
-    ScratchVec<std::size_t> idx(n, &scratch);
-    ScratchVec<double> X(n, &scratch);
-    ScratchVec<double> Y(n, &scratch);
-    for (std::size_t i = 0; i < n; ++i) {
-        X[i] = xv.elemAsDouble(i);
-        Y[i] = yv.elemAsDouble(i);
-        idx[i] = i;
+    // Auto-plot the hull polygon when called with no LHS (MATLAB
+    // convention). Reconstruct hull coordinates from the index vector K.
+    auto &fm = ctx.engine->figureManager();
+    fm.prepareForPlot();
+    const double *k = K.doubleData();
+    const std::size_t m = K.numel();
+    std::ostringstream xs, ys;
+    xs << '['; ys << '[';
+    for (std::size_t i = 0; i < m; ++i) {
+        if (i) { xs << ','; ys << ','; }
+        const std::size_t kk = static_cast<std::size_t>(k[i]) - 1;
+        xs << args[0].elemAsDouble(kk);
+        ys << args[1].elemAsDouble(kk);
     }
-    std::sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
-        if (X[a] != X[b]) return X[a] < X[b];
-        return Y[a] < Y[b];
-    });
-
-    auto cross = [&](std::size_t o, std::size_t a, std::size_t b) {
-        return (X[a] - X[o]) * (Y[b] - Y[o]) - (Y[a] - Y[o]) * (X[b] - X[o]);
-    };
-
-    // Build lower hull.
-    ScratchVec<std::size_t> hull(&scratch);
-    hull.reserve(2 * n);
-    for (std::size_t i = 0; i < n; ++i) {
-        const std::size_t p = idx[i];
-        while (hull.size() >= 2
-               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
-            hull.pop_back();
-        hull.push_back(p);
-    }
-    // Upper hull.
-    const std::size_t lowerSize = hull.size() + 1;
-    for (std::size_t i = n - 1; i-- > 0; ) {
-        const std::size_t p = idx[i];
-        while (hull.size() >= lowerSize
-               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
-            hull.pop_back();
-        hull.push_back(p);
-    }
-    // hull now ends with the start point repeated; that's MATLAB's
-    // convention.
-    auto out = Value::matrix(hull.size(), 1, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    for (std::size_t i = 0; i < hull.size(); ++i)
-        dst[i] = static_cast<double>(hull[i] + 1);   // 1-based
-    if (nargout > 0) outs[0] = std::move(out);
-
-    // Auto-plot when no LHS — MATLAB convention.
-    if (nargout == 0) {
-        auto &fm = ctx.engine->figureManager();
-        fm.prepareForPlot();
-        std::ostringstream xs, ys;
-        xs << '['; ys << '[';
-        for (std::size_t i = 0; i < hull.size(); ++i) {
-            if (i) { xs << ','; ys << ','; }
-            xs << X[hull[i]];
-            ys << Y[hull[i]];
-        }
-        xs << ']'; ys << ']';
-        DatasetInfo ds;
-        ds.type  = "line";
-        ds.xJson = xs.str();
-        ds.yJson = ys.str();
-        ds.style = "color=#1f77b4";
-        fm.pushDataset(std::move(ds));
-        fm.emitModified();
-    }
+    xs << ']'; ys << ']';
+    DatasetInfo ds;
+    ds.type  = "line";
+    ds.xJson = xs.str();
+    ds.yJson = ys.str();
+    ds.style = "color=#1f77b4";
+    fm.pushDataset(std::move(ds));
+    fm.emitModified();
 }
 
 // ── histcounts2 ──────────────────────────────────────────────────────
@@ -497,33 +256,12 @@ void histcounts2_reg(Span<const Value> args, size_t /*nargout*/,
         return;
     }
 
-    auto out = Value::matrix((std::size_t)nx, (std::size_t)ny,
-                             ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    std::memset(dst, 0, sizeof(double) * nx * ny);
-
-    auto findBin = [](const std::vector<double> &edges, double v) -> int {
-        const int e = (int)edges.size();
-        if (v < edges[0] || v > edges[e - 1]) return -1;
-        // Inclusive on the right edge for the last bin (MATLAB).
-        for (int i = 0; i < e - 1; ++i) {
-            if (v >= edges[i] && (v < edges[i + 1]
-                                  || (i == e - 2 && v == edges[i + 1])))
-                return i;
-        }
-        return -1;
-    };
-    for (std::size_t i = 0; i < n; ++i) {
-        const double X = xv.elemAsDouble(i);
-        const double Y = yv.elemAsDouble(i);
-        if (!std::isfinite(X) || !std::isfinite(Y)) continue;
-        const int bx = findBin(xedges, X);
-        const int by = findBin(yedges, Y);
-        if (bx < 0 || by < 0) continue;
-        // Column-major: dst[col * nx + row], with row=bx, col=by.
-        dst[(std::size_t)by * (std::size_t)nx + (std::size_t)bx] += 1.0;
-    }
-    outs[0] = std::move(out);
+    // Wrap the resolved edges as Values and delegate to the public core.
+    Value xeV = Value::matrix(1, xedges.size(), ValueType::DOUBLE, mr);
+    Value yeV = Value::matrix(1, yedges.size(), ValueType::DOUBLE, mr);
+    std::copy(xedges.begin(), xedges.end(), xeV.doubleDataMut());
+    std::copy(yedges.begin(), yedges.end(), yeV.doubleDataMut());
+    outs[0] = histcounts2(xv, yv, xeV, yeV, mr);
 }
 
 // ── delaunay ─────────────────────────────────────────────────────────
@@ -546,24 +284,289 @@ void delaunay_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("delaunay: requires (x, y)",
                      0, 0, "delaunay", "", "numkit:delaunay:nargin");
-    const auto &xv = args[0];
-    const auto &yv = args[1];
-    const std::size_t n = xv.numel();
-    if (yv.numel() != n)
+    outs[0] = delaunay(args[0], args[1], ctx.engine->resource());
+}
+
+// ── griddata ─────────────────────────────────────────────────────────
+//
+// griddata(x, y, v, xq, yq) — interpolate the scattered samples
+// (x[i], y[i], v[i]) at the query points (xq[j], yq[j]). v1 uses
+// linear barycentric interpolation over the Delaunay triangulation.
+// Query points outside the convex hull get NaN.
+//
+// Forms supported:
+//   vq = griddata(x, y, v, xq, yq)
+//   vq = griddata(x, y, v, xq, yq, 'linear')   — only mode for v1
+//
+// 'nearest', 'natural', 'cubic', 'v4' modes are BACKLOG.
+void griddata_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 5)
+        throw Error("griddata: requires (x, y, v, xq, yq)",
+                     0, 0, "griddata", "", "numkit:griddata:nargin");
+    // NOTE: a trailing method arg (args[5], e.g. 'nearest') is currently
+    // ignored — only 'linear' is implemented (v1 gap, see header).
+    outs[0] = griddata(args[0], args[1], args[2], args[3], args[4],
+                       ctx.engine->resource());
+}
+
+} // namespace detail
+
+// ── polyarea (public C++ API) ────────────────────────────────────────
+
+Value polyarea(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n)
+        throw Error("polyarea: x and y must have the same numel",
+                     0, 0, "polyarea", "", "numkit:polyarea:shape");
+    if (n < 3)
+        return Value::scalar(0.0, mr);
+    double s = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::size_t j = (i + 1) % n;
+        s += x.elemAsDouble(i) * y.elemAsDouble(j)
+           - x.elemAsDouble(j) * y.elemAsDouble(i);
+    }
+    return Value::scalar(0.5 * std::abs(s), mr);
+}
+
+// ── inpolygon (public C++ API) ───────────────────────────────────────
+
+Value inpolygon(const Value &xq, const Value &yq, const Value &xv,
+                const Value &yv, std::pmr::memory_resource *mr)
+{
+    if (xq.numel() != yq.numel())
+        throw Error("inpolygon: xq and yq must have the same numel",
+                     0, 0, "inpolygon", "", "numkit:inpolygon:queryShape");
+    if (xv.numel() != yv.numel())
+        throw Error("inpolygon: xv and yv must have the same numel",
+                     0, 0, "inpolygon", "", "numkit:inpolygon:polyShape");
+    const std::size_t nQ = xq.numel();
+    const std::size_t nV = xv.numel();
+    auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
+                             ValueType::LOGICAL, mr);
+    uint8_t *dst = out.logicalDataMut();
+    if (nV < 3) {
+        std::memset(dst, 0, nQ);
+        return out;
+    }
+    ScratchArena scratch(mr);
+    ScratchVec<double> px(nV, &scratch);
+    ScratchVec<double> py(nV, &scratch);
+    for (std::size_t i = 0; i < nV; ++i) {
+        px[i] = xv.elemAsDouble(i);
+        py[i] = yv.elemAsDouble(i);
+    }
+    for (std::size_t q = 0; q < nQ; ++q) {
+        const double X = xq.elemAsDouble(q);
+        const double Y = yq.elemAsDouble(q);
+        bool inside = false;
+        std::size_t j = nV - 1;
+        for (std::size_t i = 0; i < nV; ++i) {
+            const double xi = px[i], yi = py[i];
+            const double xj = px[j], yj = py[j];
+            if ((yi > Y) != (yj > Y)) {
+                const double xCross = xi + (Y - yi) * (xj - xi) / (yj - yi);
+                if (X < xCross) inside = !inside;
+            }
+            j = i;
+        }
+        dst[q] = inside ? 1 : 0;
+    }
+    return out;
+}
+
+// ── convhull (public C++ API) ────────────────────────────────────────
+
+Value convhull(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n)
+        throw Error("convhull: x and y must have the same numel",
+                     0, 0, "convhull", "", "numkit:convhull:shape");
+    if (n < 3) {
+        // Degenerate — return [1, 2, ..., n, 1] so the polygon wraps.
+        auto out = Value::matrix(n + 1, 1, ValueType::DOUBLE, mr);
+        double *dst = out.doubleDataMut();
+        for (std::size_t i = 0; i < n; ++i) dst[i] = static_cast<double>(i + 1);
+        dst[n] = 1.0;
+        return out;
+    }
+    ScratchArena scratch(mr);
+    ScratchVec<std::size_t> idx(n, &scratch);
+    ScratchVec<double> X(n, &scratch);
+    ScratchVec<double> Y(n, &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        X[i] = x.elemAsDouble(i);
+        Y[i] = y.elemAsDouble(i);
+        idx[i] = i;
+    }
+    std::sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
+        if (X[a] != X[b]) return X[a] < X[b];
+        return Y[a] < Y[b];
+    });
+    auto cross = [&](std::size_t o, std::size_t a, std::size_t b) {
+        return (X[a] - X[o]) * (Y[b] - Y[o]) - (Y[a] - Y[o]) * (X[b] - X[o]);
+    };
+    ScratchVec<std::size_t> hull(&scratch);
+    hull.reserve(2 * n);
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::size_t p = idx[i];
+        while (hull.size() >= 2
+               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
+            hull.pop_back();
+        hull.push_back(p);
+    }
+    const std::size_t lowerSize = hull.size() + 1;
+    for (std::size_t i = n - 1; i-- > 0; ) {
+        const std::size_t p = idx[i];
+        while (hull.size() >= lowerSize
+               && cross(hull[hull.size() - 2], hull[hull.size() - 1], p) <= 0)
+            hull.pop_back();
+        hull.push_back(p);
+    }
+    auto out = Value::matrix(hull.size(), 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (std::size_t i = 0; i < hull.size(); ++i)
+        dst[i] = static_cast<double>(hull[i] + 1); // 1-based
+    return out;
+}
+
+// ── boundary (public C++ API) ────────────────────────────────────────
+
+Value boundary(const Value &x, const Value &y, double shrink,
+               std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n)
+        throw Error("boundary: x and y must have the same numel",
+                     0, 0, "boundary", "", "numkit:boundary:shape");
+    if (!std::isfinite(shrink)) shrink = 0.0;
+    if (shrink < 0) shrink = 0;
+    if (shrink > 1) shrink = 1;
+    // shrink == 0 (or too few points) → convex hull.
+    if (shrink == 0.0 || n < 4)
+        return convhull(x, y, mr);
+
+    std::vector<double> X(n), Y(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        X[i] = x.elemAsDouble(i);
+        Y[i] = y.elemAsDouble(i);
+    }
+    auto sa2 = [&](std::size_t a, std::size_t b, std::size_t c) {
+        return (X[b]-X[a]) * (Y[c]-Y[a]) - (Y[b]-Y[a]) * (X[c]-X[a]);
+    };
+    auto inC = [&](std::size_t a, std::size_t b, std::size_t c, std::size_t p) {
+        const double ax=X[a]-X[p], ay=Y[a]-Y[p];
+        const double bx=X[b]-X[p], by=Y[b]-Y[p];
+        const double cx=X[c]-X[p], cy=Y[c]-Y[p];
+        const double a2=ax*ax+ay*ay, b2=bx*bx+by*by, c2=cx*cx+cy*cy;
+        return ax*(by*c2-cy*b2) - ay*(bx*c2-cx*b2) + a2*(bx*cy-cx*by);
+    };
+    std::vector<std::array<std::size_t, 3>> tris;
+    for (std::size_t a = 0; a < n; ++a)
+        for (std::size_t b = a + 1; b < n; ++b)
+            for (std::size_t c = b + 1; c < n; ++c) {
+                const double s = sa2(a, b, c);
+                if (std::abs(s) < 1e-15) continue;
+                std::size_t va=a, vb=b, vc=c;
+                if (s < 0) std::swap(vb, vc);
+                bool ok = true;
+                for (std::size_t p = 0; p < n; ++p) {
+                    if (p == va || p == vb || p == vc) continue;
+                    if (inC(va, vb, vc, p) > 1e-12) { ok = false; break; }
+                }
+                if (ok) tris.push_back({va, vb, vc});
+            }
+    if (tris.empty())
+        return convhull(x, y, mr);
+    auto edgeLen = [&](std::size_t a, std::size_t b) {
+        const double dx = X[a] - X[b], dy = Y[a] - Y[b];
+        return std::sqrt(dx * dx + dy * dy);
+    };
+    std::vector<double> longestEdge(tris.size());
+    for (std::size_t i = 0; i < tris.size(); ++i) {
+        const auto &T = tris[i];
+        longestEdge[i] = std::max({edgeLen(T[0], T[1]),
+                                   edgeLen(T[1], T[2]),
+                                   edgeLen(T[2], T[0])});
+    }
+    std::vector<double> sortedLen = longestEdge;
+    std::sort(sortedLen.begin(), sortedLen.end());
+    const double q = 1.0 - shrink;
+    const std::size_t qi = std::min(sortedLen.size() - 1,
+                                    (std::size_t)std::floor(q * sortedLen.size()));
+    const double threshold = sortedLen[qi];
+    std::vector<std::array<std::size_t, 3>> kept;
+    kept.reserve(tris.size());
+    for (std::size_t i = 0; i < tris.size(); ++i)
+        if (longestEdge[i] <= threshold) kept.push_back(tris[i]);
+    if (kept.empty())
+        return convhull(x, y, mr);
+    std::map<std::pair<std::size_t, std::size_t>, int> edgeCount;
+    auto bumpEdge = [&](std::size_t a, std::size_t b) {
+        if (a > b) std::swap(a, b);
+        edgeCount[{a, b}] += 1;
+    };
+    for (const auto &T : kept) {
+        bumpEdge(T[0], T[1]); bumpEdge(T[1], T[2]); bumpEdge(T[2], T[0]);
+    }
+    std::map<std::size_t, std::vector<std::size_t>> adj;
+    for (const auto &[edge, count] : edgeCount)
+        if (count == 1) {
+            adj[edge.first].push_back(edge.second);
+            adj[edge.second].push_back(edge.first);
+        }
+    if (adj.empty())
+        return convhull(x, y, mr);
+    std::vector<std::size_t> poly;
+    std::set<std::pair<std::size_t, std::size_t>> visited;
+    const std::size_t start = adj.begin()->first;
+    std::size_t cur = start;
+    poly.push_back(cur);
+    for (std::size_t step = 0; step < adj.size() + 2; ++step) {
+        bool moved = false;
+        for (std::size_t nxt : adj[cur]) {
+            std::pair<std::size_t, std::size_t> e{std::min(cur, nxt), std::max(cur, nxt)};
+            if (visited.count(e)) continue;
+            visited.insert(e);
+            poly.push_back(nxt);
+            cur = nxt;
+            moved = true;
+            if (cur == start) { moved = false; break; }
+            break;
+        }
+        if (!moved) break;
+    }
+    auto out = Value::matrix(poly.size(), 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (std::size_t i = 0; i < poly.size(); ++i)
+        dst[i] = static_cast<double>(poly[i] + 1);
+    return out;
+}
+
+// ── delaunay ─────────────────────────────────────────────────────────
+//
+// See header for the public C++ API + Doxygen. This source unit hosts
+// the implementation plus its adapter.
+
+Value delaunay(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = x.numel();
+    if (y.numel() != n)
         throw Error("delaunay: x and y must have the same numel",
                      0, 0, "delaunay", "", "numkit:delaunay:shape");
-    auto *mr = ctx.engine->resource();
-    if (n < 3) {
-        outs[0] = Value::matrix(0, 3, ValueType::DOUBLE, mr);
-        return;
-    }
+    if (n < 3)
+        return Value::matrix(0, 3, ValueType::DOUBLE, mr);
 
     ScratchArena scratch(mr);
     ScratchVec<double> X(n, &scratch);
     ScratchVec<double> Y(n, &scratch);
     for (std::size_t i = 0; i < n; ++i) {
-        X[i] = xv.elemAsDouble(i);
-        Y[i] = yv.elemAsDouble(i);
+        X[i] = x.elemAsDouble(i);
+        Y[i] = y.elemAsDouble(i);
     }
 
     // Robert Lewis-style in-circle test via 3×3 determinant. Returns
@@ -616,56 +619,40 @@ void delaunay_reg(Span<const Value> args, size_t /*nargout*/,
         dst[1 * M + i] = static_cast<double>(tris[i][1] + 1);
         dst[2 * M + i] = static_cast<double>(tris[i][2] + 1);
     }
-    outs[0] = std::move(out);
+    return out;
 }
 
-// ── griddata ─────────────────────────────────────────────────────────
+// ── griddata (2-D) ───────────────────────────────────────────────────
 //
-// griddata(x, y, v, xq, yq) — interpolate the scattered samples
-// (x[i], y[i], v[i]) at the query points (xq[j], yq[j]). v1 uses
-// linear barycentric interpolation over the Delaunay triangulation.
-// Query points outside the convex hull get NaN.
-//
-// Forms supported:
-//   vq = griddata(x, y, v, xq, yq)
-//   vq = griddata(x, y, v, xq, yq, 'linear')   — only mode for v1
-//
-// 'nearest', 'natural', 'cubic', 'v4' modes are BACKLOG.
-void griddata_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
+// See header for the public C++ API + Doxygen. Linear-only scattered
+// interpolation; this source unit hosts the implementation plus its
+// adapter.
+
+Value griddata(const Value &x, const Value &y, const Value &v,
+               const Value &xq, const Value &yq, std::pmr::memory_resource *mr)
 {
-    if (args.size() < 5)
-        throw Error("griddata: requires (x, y, v, xq, yq)",
-                     0, 0, "griddata", "", "numkit:griddata:nargin");
-    const auto &xv = args[0];
-    const auto &yv = args[1];
-    const auto &vv = args[2];
-    const auto &xq = args[3];
-    const auto &yq = args[4];
-    const std::size_t n = xv.numel();
-    if (yv.numel() != n || vv.numel() != n)
+    const std::size_t n = x.numel();
+    if (y.numel() != n || v.numel() != n)
         throw Error("griddata: x, y, v must have the same numel",
                      0, 0, "griddata", "", "numkit:griddata:shape");
     if (xq.numel() != yq.numel())
         throw Error("griddata: xq and yq must have the same numel",
                      0, 0, "griddata", "", "numkit:griddata:queryShape");
-    auto *mr = ctx.engine->resource();
     auto out = Value::matrix(xq.dims().rows(), xq.dims().cols(),
                              ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const std::size_t nq = xq.numel();
     if (n < 3) {
         for (std::size_t i = 0; i < nq; ++i) dst[i] = std::nan("");
-        outs[0] = std::move(out);
-        return;
+        return out;
     }
 
     ScratchArena scratch(mr);
     ScratchVec<double> X(n, &scratch), Y(n, &scratch), V(n, &scratch);
     for (std::size_t i = 0; i < n; ++i) {
-        X[i] = xv.elemAsDouble(i);
-        Y[i] = yv.elemAsDouble(i);
-        V[i] = vv.elemAsDouble(i);
+        X[i] = x.elemAsDouble(i);
+        Y[i] = y.elemAsDouble(i);
+        V[i] = v.elemAsDouble(i);
     }
     // Reuse the brute-force Delaunay logic — emit triangle list as
     // index triples.
@@ -726,10 +713,59 @@ void griddata_reg(Span<const Value> args, size_t /*nargout*/,
         }
         if (!found) dst[q] = std::nan("");
     }
-    outs[0] = std::move(out);
+    return out;
 }
 
-} // namespace detail
+// ── histcounts2 (over explicit edges) ─────────────────────────────────
+//
+// See header for the public C++ API + Doxygen. This typed core bins the
+// (x, y) pairs into the bins defined by explicit edge vectors; the nbins /
+// auto-edge convenience forms are resolved in the adapter below.
+
+Value histcounts2(const Value &x, const Value &y, const Value &xedgesV,
+                  const Value &yedgesV, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = std::min(x.numel(), y.numel());
+    std::vector<double> xedges(xedgesV.numel()), yedges(yedgesV.numel());
+    for (std::size_t i = 0; i < xedges.size(); ++i)
+        xedges[i] = xedgesV.elemAsDouble(i);
+    for (std::size_t i = 0; i < yedges.size(); ++i)
+        yedges[i] = yedgesV.elemAsDouble(i);
+
+    const int nx = static_cast<int>(xedges.size()) - 1;
+    const int ny = static_cast<int>(yedges.size()) - 1;
+    if (nx < 1 || ny < 1 || n == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    auto out = Value::matrix(static_cast<std::size_t>(nx),
+                             static_cast<std::size_t>(ny), ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    std::memset(dst, 0, sizeof(double) * static_cast<std::size_t>(nx) * ny);
+
+    auto findBin = [](const std::vector<double> &edges, double v) -> int {
+        const int e = static_cast<int>(edges.size());
+        if (v < edges[0] || v > edges[e - 1]) return -1;
+        // Inclusive on the right edge for the last bin (MATLAB).
+        for (int i = 0; i < e - 1; ++i) {
+            if (v >= edges[i] && (v < edges[i + 1]
+                                  || (i == e - 2 && v == edges[i + 1])))
+                return i;
+        }
+        return -1;
+    };
+    for (std::size_t i = 0; i < n; ++i) {
+        const double X = x.elemAsDouble(i);
+        const double Y = y.elemAsDouble(i);
+        if (!std::isfinite(X) || !std::isfinite(Y)) continue;
+        const int bx = findBin(xedges, X);
+        const int by = findBin(yedges, Y);
+        if (bx < 0 || by < 0) continue;
+        // Column-major: dst[col * nx + row], row = bx, col = by.
+        dst[static_cast<std::size_t>(by) * static_cast<std::size_t>(nx) +
+            static_cast<std::size_t>(bx)] += 1.0;
+    }
+    return out;
+}
 
 // ── griddatan ────────────────────────────────────────────────────────
 //

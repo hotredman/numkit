@@ -18,7 +18,7 @@ import { useState, useEffect } from 'react';
 import ContextMenu from './ContextMenu';
 import {
   VALUE_COLUMNS, loadVisibleColumns, saveVisibleColumns, buildChooserItems,
-  statValue, fmtStat,
+  statValue, fmtStat, fmtBytes,
 } from './valueColumns';
 
 export default function ValueTable({
@@ -49,6 +49,7 @@ export default function ValueTable({
   const renderCell = (row, c) => {
     if (c.key === 'value') return <td key="value" className="vt-value" title={row.value}>{row.value}</td>;
     if (c.key === 'size')  return <td key="size" className="vt-right vt-muted">{row.size || ''}</td>;
+    if (c.key === 'bytes') return <td key="bytes" className="vt-right vt-muted">{fmtBytes(row.bytes)}</td>;
     if (c.key === 'class') return <td key="class" className="vt-class">{row.klass || ''}</td>;
     return <td key={c.key} className="vt-right vt-muted">{fmtStat(statValue(row.stats, c.stat))}</td>;
   };

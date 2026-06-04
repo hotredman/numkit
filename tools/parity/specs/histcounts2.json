@@ -1,0 +1,10 @@
+{
+  "name": "histcounts2",
+  "namespace": "builtin",
+  "setup": "x=[0.5 1.5 2.5 0.5]; y=[0.5 0.5 1.5 0.5]; xe=[0 1 2 3]; ye=[0 1 2];",
+  "expr": "N = histcounts2(x, y, xe, ye);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["N(1,1)", "N(2,1)", "N(3,2)", "sum(N(:))", "size(N,1)", "size(N,2)"],
+  "comment": "Sig: N = histcounts2(x, y, xedges, yedges). 2-D histogram over explicit edges (last bin right-inclusive). 4 points into a 3x2 grid: N(1,1)=2, N(2,1)=1, N(3,2)=1, sum=4. Lifted to public C++ API numkit::builtin::histcounts2 (typed core over explicit edges; nbins/auto resolved in the adapter) 2026-06."
+}

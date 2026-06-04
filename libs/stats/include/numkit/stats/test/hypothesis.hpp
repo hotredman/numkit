@@ -378,4 +378,24 @@ std::tuple<Value, Value, Value, Value>
 ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
               std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Lilliefors normality test
+/// (`[h, p, kstat, critval] = lillietest(x, alpha)`).
+///
+/// Tests the composite hypothesis that `x` comes from a normal distribution
+/// with unknown mean and variance. Computes the Kolmogorov-Smirnov statistic
+/// against the fitted normal, applies the Stephens (1974) modified statistic
+/// `D* = D·(sqrt(n) - 0.01 + 0.85/sqrt(n))`, and reads `p` / the critical
+/// value from the Lilliefors table (interpolated; `p` clamped to `[1e-10, 0.5]`).
+///
+/// @param x      Sample (numel >= 4).
+/// @param alpha  Significance level in `(0, 1)` (default 0.05).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       `(h, p, kstat, critval)` — reject flag, approximate
+///               p-value, KS statistic `D`, and critical `D` at `alpha`.
+/// @throws Error if `numel(x) < 4`, `alpha` is not in `(0, 1)`, or the
+///         sample has zero variance.
+std::tuple<Value, Value, Value, Value>
+lillietest(const Value &x, double alpha = 0.05,
+           std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

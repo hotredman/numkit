@@ -367,6 +367,41 @@ Value mldivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return matrixSolve(a, b, "mldivide", p);
 }
 
+// MATLAB raises a negative real base to a non-integer exponent to a COMPLEX
+// result (e.g. (-8)^(1/3) == 1+1.732i); an integer exponent stays real
+// ((-8)^3 == -512). Returns true if any element-pair (base, exp) would be
+// complex. Handles scalar / array.^scalar / scalar.^array / same-shape
+// precisely; other broadcasts keep the real path (pre-existing).
+static bool powNeedsComplex(const Value &a, const Value &b)
+{
+    if (a.type() != ValueType::DOUBLE || b.type() != ValueType::DOUBLE)
+        return false;
+    auto negBase = [](double x) { return x < 0.0; };
+    auto fracExp = [](double y) { return y != std::floor(y); };
+    if (a.isScalar() && b.isScalar())
+        return negBase(a.toScalar()) && fracExp(b.toScalar());
+    if (b.isScalar()) {
+        if (!fracExp(b.toScalar())) return false;
+        const double *da = a.doubleData();
+        for (std::size_t i = 0; i < a.numel(); ++i)
+            if (negBase(da[i])) return true;
+        return false;
+    }
+    if (a.isScalar()) {
+        if (!negBase(a.toScalar())) return false;
+        const double *db = b.doubleData();
+        for (std::size_t i = 0; i < b.numel(); ++i)
+            if (fracExp(db[i])) return true;
+        return false;
+    }
+    if (a.dims() == b.dims()) {
+        const double *da = a.doubleData(), *db = b.doubleData();
+        for (std::size_t i = 0; i < a.numel(); ++i)
+            if (negBase(da[i]) && fracExp(db[i])) return true;
+    }
+    return false;
+}
+
 Value power(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
@@ -378,8 +413,12 @@ Value power(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         auto [ca, cb] = promoteToComplex(a, b, p);
         return Value::complexScalar(std::pow(ca.toComplex(), cb.toComplex()), p);
     }
-    if (a.isScalar() && b.isScalar())
-        return Value::scalar(std::pow(a.toScalar(), b.toScalar()), p);
+    if (a.isScalar() && b.isScalar()) {
+        const double base = a.toScalar(), e = b.toScalar();
+        if (base < 0.0 && e != std::floor(e)) // negative base, non-integer exp -> complex
+            return Value::complexScalar(std::pow(Complex(base, 0.0), e), p);
+        return Value::scalar(std::pow(base, e), p);
+    }
     // Matrix power A^n: when a is a square numeric matrix and b is an
     // integer scalar exponent, compute the matrix product chain
     // A·A·…·A (n times). Non-integer or non-square fall through to
@@ -421,6 +460,16 @@ Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr
             a, b, [](const Complex &x, const Complex &y) { return std::pow(x, y); }, p);
     }
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
+        if (powNeedsComplex(a, b)) { // any negative base ^ non-integer exp -> complex
+            // Both operands are real here, so promoteToComplex (which only
+            // promotes when the OTHER is already complex) is a no-op; force
+            // both to complex before the elementwise complex pow.
+            Value ca = a, cb = b;
+            ca.promoteToComplex(p);
+            cb.promoteToComplex(p);
+            return elementwiseComplex(
+                ca, cb, [](const Complex &x, const Complex &y) { return std::pow(x, y); }, p);
+        }
         return elementwiseDouble(a, b, [](double x, double y) { return std::pow(x, y); }, p);
     }
     {

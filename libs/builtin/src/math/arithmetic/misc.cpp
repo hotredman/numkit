@@ -10,6 +10,7 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
+#include "mod_simd.hpp"
 
 #include <cmath>
 
@@ -105,6 +106,30 @@ Value modRemImpl(const Value &a, const Value &b, Op op,
 
 Value mod(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
+    // SIMD fast path for the hot real-double cases: same-shape arrays,
+    // array-by-scalar, scalar-by-array. Integer types, complex, empties,
+    // scalar-scalar and broadcasting fall through to the scalar reference
+    // (modRemImpl), which the SIMD loops are bit-identical to.
+    if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE
+        && !a.isEmpty() && !b.isEmpty()) {
+        const bool aScalar = a.isScalar();
+        const bool bScalar = b.isScalar();
+        if (!aScalar && !bScalar && a.dims() == b.dims()) {
+            Value r = createLike(a, ValueType::DOUBLE, mr);
+            detail::modLoopVV(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            return r;
+        }
+        if (!aScalar && bScalar) {
+            Value r = createLike(a, ValueType::DOUBLE, mr);
+            detail::modLoopVS(a.doubleData(), b.toScalar(), r.doubleDataMut(), a.numel());
+            return r;
+        }
+        if (aScalar && !bScalar) {
+            Value r = createLike(b, ValueType::DOUBLE, mr);
+            detail::modLoopSV(a.toScalar(), b.doubleData(), r.doubleDataMut(), b.numel());
+            return r;
+        }
+    }
     return modRemImpl(a, b,
                       [](double aa, double bb) {
                           return bb != 0 ? aa - std::floor(aa / bb) * bb : aa;

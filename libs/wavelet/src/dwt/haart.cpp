@@ -28,6 +28,8 @@
 // Complex input is supported only in 'noninteger' mode (lifting floor
 // is not defined on complex values; MATLAB also disallows it).
 
+#include <numkit/wavelet/dwt/haart.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
@@ -114,15 +116,11 @@ Buf load_x(const Value &x, bool /*integer_mode*/)
 
 } // anonymous
 
-namespace detail {
+// ── Public C++ API (see dwt/haart.hpp) ────────────────────────────────
 
-void haart_reg(Span<const Value> args, size_t nargout,
-               Span<Value> outs, CallContext &ctx)
+HaartResult haart(const Value &x, int level, bool integer,
+                  std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("haart: requires (x[, level[, integerflag]])",
-                    0, 0, "haart", "", "numkit:haart:nargin");
-    const Value &x = args[0];
     const size_t numel = x.numel();
     if (numel == 0)
         throw Error("haart: expected input number 1, X, to be nonempty",
@@ -138,8 +136,77 @@ void haart_reg(Span<const Value> args, size_t nargout,
                     0, 0, "haart", "", "numkit:haart:even");
 
     const int max_lev = max_haar_level(colLen);
+    const int lev = (level <= 0) ? max_lev : level;
+    if (lev > max_lev)
+        throw Error("haart: expected LEVEL to be a scalar with value <= " +
+                    std::to_string(max_lev),
+                    0, 0, "haart", "", "numkit:haart:level");
+    if (integer && buf.isComplex)
+        throw Error("haart: integer mode is not supported for complex data",
+                    0, 0, "haart", "", "numkit:haart:flag");
 
-    int level = max_lev;
+    const ValueType vt = buf.isComplex ? ValueType::COMPLEX : ValueType::DOUBLE;
+    std::vector<double>  curR = buf.real;
+    std::vector<Complex> curC = buf.cplx;
+    size_t inLen = colLen;
+
+    std::vector<Value> details;
+    details.reserve(static_cast<size_t>(lev));
+    HaartResult R;
+
+    for (int k = 0; k < lev; ++k) {
+        const size_t H = inLen / 2;
+        Value aMat = Value::matrix(H, ncols, vt, mr);
+        Value dMat = Value::matrix(H, ncols, vt, mr);
+
+        if (buf.isComplex) {
+            Complex *aP = aMat.complexDataMut();
+            Complex *dP = dMat.complexDataMut();
+            for (size_t c = 0; c < ncols; ++c)
+                haar_step_cplx(curC.data() + c * inLen, inLen,
+                               aP + c * H, dP + c * H);
+        } else {
+            double *aP = aMat.doubleDataMut();
+            double *dP = dMat.doubleDataMut();
+            for (size_t c = 0; c < ncols; ++c)
+                haar_step_real(curR.data() + c * inLen, inLen,
+                               aP + c * H, dP + c * H, integer);
+        }
+
+        if (buf.isComplex) {
+            const Complex *aP = aMat.complexData();
+            curC.assign(aP, aP + H * ncols);
+        } else {
+            const double *aP = aMat.doubleData();
+            curR.assign(aP, aP + H * ncols);
+        }
+        details.push_back(std::move(dMat));
+        if (k == lev - 1) R.a = std::move(aMat);
+        inLen = H;
+    }
+
+    if (lev == 1) {
+        R.d = std::move(details[0]);              // plain matrix
+    } else {
+        Value cellOut = Value::cell(static_cast<size_t>(lev), 1, mr);
+        for (int k = 0; k < lev; ++k)
+            cellOut.cellAt(static_cast<size_t>(k)) = std::move(details[k]);
+        R.d = std::move(cellOut);                 // d{1} is finest
+    }
+    return R;
+}
+
+namespace detail {
+
+void haart_reg(Span<const Value> args, size_t nargout,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("haart: requires (x[, level[, integerflag]])",
+                    0, 0, "haart", "", "numkit:haart:nargin");
+    // Parse level (positive integer) + integerflag string here for
+    // script-quality errors, then delegate to the public haart().
+    int level = 0;  // 0 -> auto (max level), resolved inside haart()
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double lvld = args[1].toScalar();
         if (!(lvld > 0.0))
@@ -149,10 +216,6 @@ void haart_reg(Span<const Value> args, size_t nargout,
             throw Error("haart: expected LEVEL to be an integer",
                         0, 0, "haart", "", "numkit:haart:level");
         level = static_cast<int>(lvld);
-        if (level > max_lev)
-            throw Error("haart: expected LEVEL to be a scalar with value <= " +
-                        std::to_string(max_lev),
-                        0, 0, "haart", "", "numkit:haart:level");
     }
 
     bool integer_mode = false;
@@ -170,69 +233,10 @@ void haart_reg(Span<const Value> args, size_t nargout,
                         flag + "')",
                         0, 0, "haart", "", "numkit:haart:flag");
     }
-    if (integer_mode && buf.isComplex)
-        throw Error("haart: integer mode is not supported for complex data",
-                    0, 0, "haart", "", "numkit:haart:flag");
 
-    auto *mr = ctx.engine->resource();
-    const ValueType vt = buf.isComplex ? ValueType::COMPLEX : ValueType::DOUBLE;
-
-    // Working "current" buffer: starts as x, halves each level. Stored
-    // column-major (size = inLen × ncols).
-    std::vector<double>  curR = buf.real;
-    std::vector<Complex> curC = buf.cplx;
-    size_t inLen = colLen;
-
-    std::vector<Value> details;
-    details.reserve(static_cast<size_t>(level));
-
-    for (int k = 0; k < level; ++k) {
-        const size_t H = inLen / 2;
-        Value aMat = Value::matrix(H, ncols, vt, mr);
-        Value dMat = Value::matrix(H, ncols, vt, mr);
-
-        if (buf.isComplex) {
-            Complex *aP = aMat.complexDataMut();
-            Complex *dP = dMat.complexDataMut();
-            for (size_t c = 0; c < ncols; ++c)
-                haar_step_cplx(curC.data() + c * inLen, inLen,
-                               aP + c * H, dP + c * H);
-        } else {
-            double *aP = aMat.doubleDataMut();
-            double *dP = dMat.doubleDataMut();
-            for (size_t c = 0; c < ncols; ++c)
-                haar_step_real(curR.data() + c * inLen, inLen,
-                               aP + c * H, dP + c * H, integer_mode);
-        }
-
-        // Move the new approximation back into the working buffer.
-        if (buf.isComplex) {
-            const Complex *aP = aMat.complexData();
-            curC.assign(aP, aP + H * ncols);
-        } else {
-            const double *aP = aMat.doubleData();
-            curR.assign(aP, aP + H * ncols);
-        }
-        details.push_back(std::move(dMat));
-
-        // Final-level approximation goes out as outs[0].
-        if (k == level - 1)
-            outs[0] = std::move(aMat);
-
-        inLen = H;
-    }
-
-    if (nargout >= 2) {
-        if (level == 1) {
-            outs[1] = std::move(details[0]);          // plain matrix
-        } else {
-            // Cell column of length `level` — d{1} is finest.
-            Value cellOut = Value::cell(static_cast<size_t>(level), 1, mr);
-            for (int k = 0; k < level; ++k)
-                cellOut.cellAt(static_cast<size_t>(k)) = std::move(details[k]);
-            outs[1] = std::move(cellOut);
-        }
-    }
+    HaartResult r = haart(args[0], level, integer_mode, ctx.engine->resource());
+    outs[0] = std::move(r.a);
+    if (nargout >= 2) outs[1] = std::move(r.d);
 }
 
 } // namespace detail

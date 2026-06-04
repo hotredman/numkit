@@ -49,6 +49,25 @@ TEST_F(FwdTrigBatchTest, TanTanhTand)
     EXPECT_NEAR(evalScalar("tanh(-1)"), -0.761594155955765, 1e-12);
 }
 
+// tan on an ARRAY runs through the SIMD xtan kernel (Cody-Waite reduction
+// + half-angle polynomial). Cover the 2-step (<15), extended (<1e6) and
+// scalar-fallback (>=1e6) ranges. Values pinned from MATLAB R2025b.
+TEST_F(FwdTrigBatchTest, TanArraySimd)
+{
+    eval("v = tan([0 0.5 1 -1 1.5 2 3 5]);"); // SIMD body, 2-step (|x|<15)
+    EXPECT_NEAR(evalScalar("v(2)"),  0.5463024898437905, 1e-12);
+    EXPECT_NEAR(evalScalar("v(3)"),  1.5574077246549023, 1e-12);
+    EXPECT_NEAR(evalScalar("v(4)"), -1.5574077246549023, 1e-12);
+    EXPECT_NEAR(evalScalar("v(5)"), 14.101419947171719,  1e-10); // near pi/2
+    eval("w = tan([10 100 1000 50000]);"); // extended reduction (15..1e6)
+    EXPECT_NEAR(evalScalar("w(1)"),  0.6483608274590866, 1e-12);
+    EXPECT_NEAR(evalScalar("w(2)"), -0.5872139151569290, 1e-11);
+    EXPECT_NEAR(evalScalar("w(3)"),  1.4703241557027185, 1e-11);
+    EXPECT_NEAR(evalScalar("w(4)"), 55.9280569098652,    1e-9);
+    // |x| >= 1e6 falls back to scalar std::tan; result is finite.
+    EXPECT_DOUBLE_EQ(evalScalar("double(all(isfinite(tan([2e6 -3e6 5e6]))))"), 1.0);
+}
+
 TEST_F(FwdTrigBatchTest, SecSechSecd)
 {
     EXPECT_NEAR(evalScalar("sec(0)"),    1.0,               1e-12);

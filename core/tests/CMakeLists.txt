@@ -27,4 +27,8 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/package_namespace_test.cpp
     # Variable-viewer integer/single serialization (numericCellJSON + stats)
     ${CMAKE_CURRENT_SOURCE_DIR}/value_json_test.cpp
+    # Value::deepBytes() — whos-correct deep struct/cell sizing (Bytes column)
+    ${CMAKE_CURRENT_SOURCE_DIR}/value_deepbytes_test.cpp
+    # Line-series decimation (M4 / LTTB) — twin of decimate.js
+    ${CMAKE_CURRENT_SOURCE_DIR}/decimate_test.cpp
 )

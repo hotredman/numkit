@@ -1,4 +1,7 @@
 target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/grp2idx_public_api_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lillietest_public_api_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filloutliers_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/normalize_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/randsample_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nancov_test.cpp

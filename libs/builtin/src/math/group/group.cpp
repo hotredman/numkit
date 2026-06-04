@@ -5,6 +5,7 @@
 //   splitapply   — apply function per group
 //   groupcounts  — count elements per group
 
+#include <numkit/builtin/math/group/group.hpp>
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
@@ -19,7 +20,6 @@
 #include <vector>
 
 namespace numkit::builtin {
-namespace detail {
 
 namespace {
 
@@ -63,244 +63,73 @@ void groupOf(const Value &g, std::vector<std::size_t> &out_groups,
 
 } // namespace
 
-// ── findgroups ───────────────────────────────────────────────────────
-// [G, ID] = findgroups(g) — G[i] is the group ID of g[i] (1-based,
-// based on sorted-unique order); ID is the column vector of unique
-// non-NaN values. NaN entries in g map to G[i]=NaN (matches MATLAB
-// R2025b: NaN treated as missing, not a group).
-void findgroups_reg(Span<const Value> args, size_t nargout,
-                    Span<Value> outs, CallContext &ctx)
+// ── Public C++ API (see math/group/group.hpp) ────────────────────────
+
+FindgroupsResult findgroups(const Value &g, std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("findgroups: requires 1 argument",
-                     0, 0, "findgroups", "", "numkit:findgroups:nargin");
-    auto *mr = ctx.engine->resource();
     std::vector<std::size_t> groups;
     std::vector<double> uniqueVals;
-    groupOf(args[0], groups, uniqueVals);
-    auto G = Value::matrix(args[0].dims().rows(), args[0].dims().cols(),
+    groupOf(g, groups, uniqueVals);
+    auto G = Value::matrix(g.dims().rows(), g.dims().cols(),
                            ValueType::DOUBLE, mr);
     double *gd = G.doubleDataMut();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     for (std::size_t i = 0; i < groups.size(); ++i)
         gd[i] = (groups[i] == 0) ? nan : double(groups[i]);
-    outs[0] = std::move(G);
-    if (nargout >= 2) {
-        auto ID = Value::matrix(uniqueVals.size(), 1, ValueType::DOUBLE, mr);
-        if (!uniqueVals.empty())
-            std::memcpy(ID.doubleDataMut(), uniqueVals.data(),
-                        uniqueVals.size() * sizeof(double));
-        outs[1] = std::move(ID);
-    }
+    auto ID = Value::matrix(uniqueVals.size(), 1, ValueType::DOUBLE, mr);
+    if (!uniqueVals.empty())
+        std::memcpy(ID.doubleDataMut(), uniqueVals.data(),
+                    uniqueVals.size() * sizeof(double));
+    return {std::move(G), std::move(ID)};
 }
 
-// ── splitapply ───────────────────────────────────────────────────────
-// splitapply(@fn, x [, x2, ...], G) — apply fn to elements of x
-// (and x2, ...) grouped by G. Returns a column vector with one entry
-// per group (in ascending group-ID order). When fn returns a
-// non-scalar the result is concatenated; v1 supports only scalar
-// returns from fn.
-// State-machine splitapply (VM_CALLBACKS_PLAN.md): apply a user-code handle to
-// each group's data slice as a pausable VM frame. Builtin handles / multi-output
-// / shape errors fall back to the synchronous splitapply_reg.
-struct SplitapplyCallbackBuiltin : CallbackBuiltin
+GroupcountsResult groupcounts(const Value &g, std::pmr::memory_resource *mr)
 {
-    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
-                                             Value *dest, Engine &eng) override
-    {
-        if (args.size() < 3 || nargout > 1)
-            return nullptr;
-        if (!eng.isUserCodeHandle(args[0]))
-            return nullptr;
-        const Value &G = args[args.size() - 1];
-        const std::size_t nIn = args.size() - 2;
-        if (nIn == 0)
-            return nullptr;
-        const std::size_t n = G.numel();
-        for (std::size_t k = 0; k < nIn; ++k)
-            if (args[1 + k].numel() != n)
-                return nullptr; // shape error → synchronous path reports it
-        auto *mr = eng.resource();
-        // Bucket indices by group id (sorted), mirroring splitapply_reg.
-        std::map<int, std::vector<std::size_t>> buckets;
-        for (std::size_t i = 0; i < n; ++i)
-            buckets[(int)G.elemAsDouble(i)].push_back(i);
-        auto groups = std::make_shared<std::vector<std::vector<std::size_t>>>();
-        for (auto &kv : buckets)
-            groups->push_back(std::move(kv.second));
-        auto inputs = std::make_shared<std::vector<Value>>();
-        for (std::size_t k = 0; k < nIn; ++k)
-            inputs->push_back(args[1 + k]);
-        auto cont = std::make_shared<LoopContinuation>();
-        cont->handle = args[0];
-        cont->n = groups->size();
-        cont->dest = dest;
-        cont->makeArgs = [inputs, groups, mr](std::size_t i) -> std::vector<Value> {
-            const auto &idxs = (*groups)[i];
-            std::vector<Value> callArgs(inputs->size());
-            for (std::size_t k = 0; k < inputs->size(); ++k) {
-                auto sub = Value::matrix(idxs.size(), 1, ValueType::DOUBLE, mr);
-                double *sd = sub.doubleDataMut();
-                for (std::size_t j = 0; j < idxs.size(); ++j)
-                    sd[j] = (*inputs)[k].elemAsDouble(idxs[j]);
-                callArgs[k] = std::move(sub);
-            }
-            return callArgs;
-        };
-        cont->pack = [mr](std::vector<Value> &results) -> Value {
-            auto out = Value::matrix(results.size(), 1, ValueType::DOUBLE, mr);
-            double *d = out.doubleDataMut();
-            for (std::size_t i = 0; i < results.size(); ++i)
-                d[i] = results[i].toScalar();
-            return out;
-        };
-        cont->results.reserve(cont->n);
-        return cont;
-    }
-};
-
-void splitapply_reg(Span<const Value> args, size_t /*nargout*/,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("splitapply: requires (@fn, x [, x2, ...], G)",
-                     0, 0, "splitapply", "", "numkit:splitapply:nargin");
-    if (!args[0].isFuncHandle())
-        throw Error("splitapply: first argument must be a function handle",
-                     0, 0, "splitapply", "", "numkit:splitapply:notHandle");
-    const Value &G = args[args.size() - 1];
-    const std::size_t nIn = args.size() - 2;   // excluding handle + G
-    if (nIn == 0)
-        throw Error("splitapply: at least one data array required",
-                     0, 0, "splitapply", "", "numkit:splitapply:noData");
-    const std::size_t n = G.numel();
-    for (std::size_t k = 0; k < nIn; ++k) {
-        if (args[1 + k].numel() != n)
-            throw Error("splitapply: data and G must have the same numel",
-                         0, 0, "splitapply", "", "numkit:splitapply:shape");
-    }
-    auto *mr = ctx.engine->resource();
-    // Bucket indices by group ID.
-    std::map<int, std::vector<std::size_t>> buckets;
-    for (std::size_t i = 0; i < n; ++i) {
-        const int gid = (int)G.elemAsDouble(i);
-        buckets[gid].push_back(i);
-    }
-    auto out = Value::matrix(buckets.size(), 1, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    std::size_t row = 0;
-    for (const auto &[gid, idxs] : buckets) {
-        (void)gid;
-        // Build per-input subset for this group.
-        std::vector<Value> callArgs(nIn);
-        for (std::size_t k = 0; k < nIn; ++k) {
-            const Value &src = args[1 + k];
-            auto sub = Value::matrix(idxs.size(), 1, ValueType::DOUBLE, mr);
-            double *sd = sub.doubleDataMut();
-            for (std::size_t j = 0; j < idxs.size(); ++j)
-                sd[j] = src.elemAsDouble(idxs[j]);
-            callArgs[k] = std::move(sub);
-        }
-        Value r = ctx.engine->callFunctionHandle(
-            args[0],
-            Span<const Value>(callArgs.data(), callArgs.size()),
-            ctx.env);
-        dst[row++] = r.toScalar();
-    }
-    outs[0] = std::move(out);
-}
-
-// ── groupcounts ──────────────────────────────────────────────────────
-// [C, GR, P] = groupcounts(g)
-//   C  — column vector of counts, one entry per unique value of g.
-//   GR — column of representative values (sorted-unique; NaN trailing
-//        if g contains any NaN, matching MATLAB R2025b).
-//   P  — column of percentages (100 * count / total).
-void groupcounts_reg(Span<const Value> args, size_t nargout,
-                     Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("groupcounts: requires 1 argument",
-                     0, 0, "groupcounts", "", "numkit:groupcounts:nargin");
-    auto *mr = ctx.engine->resource();
     std::vector<std::size_t> groups;
     std::vector<double> uniqueVals;
-    groupOf(args[0], groups, uniqueVals);
-    // Count NaN entries separately.
+    groupOf(g, groups, uniqueVals);
     std::size_t nan_count = 0;
-    for (auto g : groups) if (g == 0) ++nan_count;
+    for (auto gg : groups) if (gg == 0) ++nan_count;
     const bool have_nan = nan_count > 0;
     const std::size_t nGroups = uniqueVals.size() + (have_nan ? 1 : 0);
+    GroupcountsResult R;
     if (nGroups == 0) {
-        outs[0] = Value::matrix(0, 1, ValueType::DOUBLE, mr);
-        if (nargout >= 2) outs[1] = Value::matrix(0, 1, ValueType::DOUBLE, mr);
-        if (nargout >= 3) outs[2] = Value::matrix(0, 1, ValueType::DOUBLE, mr);
-        return;
+        R.C  = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        R.GR = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        R.P  = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        return R;
     }
     std::vector<std::size_t> counts(nGroups, 0);
-    for (auto g : groups) {
-        if (g == 0)        counts[uniqueVals.size()]++;  // trailing NaN bucket
-        else               counts[g - 1]++;
+    for (auto gg : groups) {
+        if (gg == 0) counts[uniqueVals.size()]++;  // trailing NaN bucket
+        else         counts[gg - 1]++;
     }
-    auto out = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    for (std::size_t i = 0; i < nGroups; ++i)
-        dst[i] = double(counts[i]);
-    outs[0] = std::move(out);
-
-    if (nargout >= 2) {
-        auto GR = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
-        double *gd = GR.doubleDataMut();
-        for (std::size_t i = 0; i < uniqueVals.size(); ++i)
-            gd[i] = uniqueVals[i];
+    R.C = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+    {
+        double *dst = R.C.doubleDataMut();
+        for (std::size_t i = 0; i < nGroups; ++i) dst[i] = double(counts[i]);
+    }
+    R.GR = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+    {
+        double *gd = R.GR.doubleDataMut();
+        for (std::size_t i = 0; i < uniqueVals.size(); ++i) gd[i] = uniqueVals[i];
         if (have_nan)
             gd[uniqueVals.size()] = std::numeric_limits<double>::quiet_NaN();
-        outs[1] = std::move(GR);
     }
-    if (nargout >= 3) {
-        const double total = double(groups.size());
-        auto P = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
-        double *pd = P.doubleDataMut();
+    const double total = double(groups.size());
+    R.P = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+    {
+        double *pd = R.P.doubleDataMut();
         for (std::size_t i = 0; i < nGroups; ++i)
             pd[i] = (total > 0.0) ? 100.0 * double(counts[i]) / total : 0.0;
-        outs[2] = std::move(P);
     }
+    return R;
 }
 
-// ── groupsummary ────────────────────────────────────────────────────
-// Array form:
-//   [B, BG, BC] = groupsummary(A, G, method)
-//
-//   A      column vector or matrix (DOUBLE).
-//   G      column vector of grouping values; same length as size(A,1).
-//   method scalar string: "sum" | "mean" | "median" | "max" | "min" |
-//          "std" | "var" | "numunique" | "nnz" | "mode" | "all" | "any"
-//
-//   B   nGroups × cols of A
-//   BG  column vector of unique group representatives (NaN trailing)
-//   BC  column vector of element counts per group
-//
-// Table form, groupbins, function-handle methods, multi-grouping vars,
-// IncludeMissingGroups/IncludeEmptyGroups NV — deferred (table type
-// not in numkit; binning + function-handle paths require additional
-// engine plumbing).
-void groupsummary_reg(Span<const Value> args, size_t nargout,
-                      Span<Value> outs, CallContext &ctx)
+GroupsummaryResult groupsummary(const Value &A, const Value &G,
+                                const std::string &method,
+                                std::pmr::memory_resource *mr)
 {
-    if (args.size() < 3)
-        throw Error("groupsummary: requires (A, groupvars, method) "
-                    "in this revision (table inputs + groupbins NV "
-                    "deferred)",
-                    0, 0, "groupsummary", "", "numkit:groupsummary:nargin");
-    if (!args[2].isChar() && !args[2].isString())
-        throw Error("groupsummary: method must be a string in this "
-                    "revision (function-handle methods deferred)",
-                    0, 0, "groupsummary", "", "numkit:groupsummary:method");
-    auto *mr = ctx.engine->resource();
-    const Value &A = args[0];
-    const Value &G = args[1];
-    const std::string method = args[2].toString();
-
     const std::size_t nRows = A.dims().rows();
     const std::size_t nCols = (A.dims().ndim() >= 2) ? A.dims().cols() : 1;
     if (G.numel() != nRows)
@@ -317,8 +146,7 @@ void groupsummary_reg(Span<const Value> args, size_t nargout,
     const bool have_nan = nan_count > 0;
     const std::size_t nGroups = uniqueVals.size() + (have_nan ? 1 : 0);
 
-    // Bucket row indices by group ID (0 = NaN bucket → group index
-    // uniqueVals.size()).
+    // Bucket row indices by group ID (0 = NaN bucket → trailing).
     std::vector<std::vector<std::size_t>> buckets(nGroups);
     for (std::size_t i = 0; i < groups.size(); ++i) {
         const std::size_t gi = (groups[i] == 0) ? uniqueVals.size()
@@ -326,12 +154,9 @@ void groupsummary_reg(Span<const Value> args, size_t nargout,
         buckets[gi].push_back(i);
     }
 
-    // Allocate B as nGroups × nCols.
     auto B = (nCols == 1) ? Value::matrix(nGroups, 1, ValueType::DOUBLE, mr)
                           : Value::matrix(nGroups, nCols, ValueType::DOUBLE, mr);
     double *bd = B.doubleDataMut();
-
-    // Per-group, per-column reduction.
     auto Aget = [&](std::size_t r, std::size_t c) {
         return A.elemAsDouble(r + c * nRows);
     };
@@ -420,22 +245,215 @@ void groupsummary_reg(Span<const Value> args, size_t nargout,
             bd[g + c * nGroups] = out;
         }
     }
-    outs[0] = std::move(B);
 
-    if (nargout >= 2) {
-        auto BG = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
-        double *gd = BG.doubleDataMut();
+    GroupsummaryResult R;
+    R.B = std::move(B);
+    R.BG = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+    {
+        double *gd = R.BG.doubleDataMut();
         for (std::size_t i = 0; i < uniqueVals.size(); ++i) gd[i] = uniqueVals[i];
         if (have_nan)
             gd[uniqueVals.size()] = std::numeric_limits<double>::quiet_NaN();
-        outs[1] = std::move(BG);
     }
-    if (nargout >= 3) {
-        auto BC = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
-        double *cd = BC.doubleDataMut();
+    R.BC = Value::matrix(nGroups, 1, ValueType::DOUBLE, mr);
+    {
+        double *cd = R.BC.doubleDataMut();
         for (std::size_t g = 0; g < nGroups; ++g) cd[g] = double(buckets[g].size());
-        outs[2] = std::move(BC);
     }
+    return R;
+}
+
+namespace detail {
+
+// ── splitapply ───────────────────────────────────────────────────────
+// splitapply(@fn, x [, x2, ...], G) — apply fn to elements of x
+// (and x2, ...) grouped by G. Returns a column vector with one entry
+// per group (in ascending group-ID order). When fn returns a
+// non-scalar the result is concatenated; v1 supports only scalar
+// returns from fn.
+// State-machine splitapply (VM_CALLBACKS_PLAN.md): apply a user-code handle to
+// each group's data slice as a pausable VM frame. Builtin handles / multi-output
+// / shape errors fall back to the synchronous splitapply_reg.
+struct SplitapplyCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.size() < 3 || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr;
+        const Value &G = args[args.size() - 1];
+        const std::size_t nIn = args.size() - 2;
+        if (nIn == 0)
+            return nullptr;
+        const std::size_t n = G.numel();
+        for (std::size_t k = 0; k < nIn; ++k)
+            if (args[1 + k].numel() != n)
+                return nullptr; // shape error → synchronous path reports it
+        auto *mr = eng.resource();
+        // Bucket indices by group id (sorted), mirroring splitapply_reg.
+        std::map<int, std::vector<std::size_t>> buckets;
+        for (std::size_t i = 0; i < n; ++i)
+            buckets[(int)G.elemAsDouble(i)].push_back(i);
+        auto groups = std::make_shared<std::vector<std::vector<std::size_t>>>();
+        for (auto &kv : buckets)
+            groups->push_back(std::move(kv.second));
+        auto inputs = std::make_shared<std::vector<Value>>();
+        for (std::size_t k = 0; k < nIn; ++k)
+            inputs->push_back(args[1 + k]);
+        auto cont = std::make_shared<LoopContinuation>();
+        cont->handle = args[0];
+        cont->n = groups->size();
+        cont->dest = dest;
+        cont->makeArgs = [inputs, groups, mr](std::size_t i) -> std::vector<Value> {
+            const auto &idxs = (*groups)[i];
+            std::vector<Value> callArgs(inputs->size());
+            for (std::size_t k = 0; k < inputs->size(); ++k) {
+                auto sub = Value::matrix(idxs.size(), 1, ValueType::DOUBLE, mr);
+                double *sd = sub.doubleDataMut();
+                for (std::size_t j = 0; j < idxs.size(); ++j)
+                    sd[j] = (*inputs)[k].elemAsDouble(idxs[j]);
+                callArgs[k] = std::move(sub);
+            }
+            return callArgs;
+        };
+        cont->pack = [mr](std::vector<Value> &results) -> Value {
+            auto out = Value::matrix(results.size(), 1, ValueType::DOUBLE, mr);
+            double *d = out.doubleDataMut();
+            for (std::size_t i = 0; i < results.size(); ++i)
+                d[i] = results[i].toScalar();
+            return out;
+        };
+        cont->results.reserve(cont->n);
+        return cont;
+    }
+};
+
+
+// ── findgroups ───────────────────────────────────────────────────────
+// [G, ID] = findgroups(g): G[i] is the 1-based group ID of g[i]; ID is the
+// column of unique non-NaN values. NaN -> G[i]=NaN (MATLAB R2025b).
+void findgroups_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("findgroups: requires 1 argument",
+                     0, 0, "findgroups", "", "numkit:findgroups:nargin");
+    FindgroupsResult r = findgroups(args[0], ctx.engine->resource());
+    outs[0] = std::move(r.G);
+    if (nargout >= 2) outs[1] = std::move(r.ID);
+}
+
+// ── splitapply ───────────────────────────────────────────────────────
+// splitapply(@fn, x [, x2, ...], G) — apply fn to elements of x
+// (and x2, ...) grouped by G. Returns a column vector with one entry
+// per group (in ascending group-ID order). When fn returns a
+// non-scalar the result is concatenated; v1 supports only scalar
+// returns from fn.
+void splitapply_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("splitapply: requires (@fn, x [, x2, ...], G)",
+                     0, 0, "splitapply", "", "numkit:splitapply:nargin");
+    if (!args[0].isFuncHandle())
+        throw Error("splitapply: first argument must be a function handle",
+                     0, 0, "splitapply", "", "numkit:splitapply:notHandle");
+    const Value &G = args[args.size() - 1];
+    const std::size_t nIn = args.size() - 2;   // excluding handle + G
+    if (nIn == 0)
+        throw Error("splitapply: at least one data array required",
+                     0, 0, "splitapply", "", "numkit:splitapply:noData");
+    const std::size_t n = G.numel();
+    for (std::size_t k = 0; k < nIn; ++k) {
+        if (args[1 + k].numel() != n)
+            throw Error("splitapply: data and G must have the same numel",
+                         0, 0, "splitapply", "", "numkit:splitapply:shape");
+    }
+    auto *mr = ctx.engine->resource();
+    // Bucket indices by group ID.
+    std::map<int, std::vector<std::size_t>> buckets;
+    for (std::size_t i = 0; i < n; ++i) {
+        const int gid = (int)G.elemAsDouble(i);
+        buckets[gid].push_back(i);
+    }
+    auto out = Value::matrix(buckets.size(), 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    std::size_t row = 0;
+    for (const auto &[gid, idxs] : buckets) {
+        (void)gid;
+        // Build per-input subset for this group.
+        std::vector<Value> callArgs(nIn);
+        for (std::size_t k = 0; k < nIn; ++k) {
+            const Value &src = args[1 + k];
+            auto sub = Value::matrix(idxs.size(), 1, ValueType::DOUBLE, mr);
+            double *sd = sub.doubleDataMut();
+            for (std::size_t j = 0; j < idxs.size(); ++j)
+                sd[j] = src.elemAsDouble(idxs[j]);
+            callArgs[k] = std::move(sub);
+        }
+        Value r = ctx.engine->callFunctionHandle(
+            args[0],
+            Span<const Value>(callArgs.data(), callArgs.size()),
+            ctx.env);
+        dst[row++] = r.toScalar();
+    }
+    outs[0] = std::move(out);
+}
+
+// ── groupcounts ──────────────────────────────────────────────────────
+// [C, GR, P] = groupcounts(g)
+//   C  — column vector of counts, one entry per unique value of g.
+//   GR — column of representative values (sorted-unique; NaN trailing
+//        if g contains any NaN, matching MATLAB R2025b).
+//   P  — column of percentages (100 * count / total).
+void groupcounts_reg(Span<const Value> args, size_t nargout,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("groupcounts: requires 1 argument",
+                     0, 0, "groupcounts", "", "numkit:groupcounts:nargin");
+    GroupcountsResult r = groupcounts(args[0], ctx.engine->resource());
+    outs[0] = std::move(r.C);
+    if (nargout >= 2) outs[1] = std::move(r.GR);
+    if (nargout >= 3) outs[2] = std::move(r.P);
+}
+
+// ── groupsummary ────────────────────────────────────────────────────
+// Array form:
+//   [B, BG, BC] = groupsummary(A, G, method)
+//
+//   A      column vector or matrix (DOUBLE).
+//   G      column vector of grouping values; same length as size(A,1).
+//   method scalar string: "sum" | "mean" | "median" | "max" | "min" |
+//          "std" | "var" | "numunique" | "nnz" | "mode" | "all" | "any"
+//
+//   B   nGroups × cols of A
+//   BG  column vector of unique group representatives (NaN trailing)
+//   BC  column vector of element counts per group
+//
+// Table form, groupbins, function-handle methods, multi-grouping vars,
+// IncludeMissingGroups/IncludeEmptyGroups NV — deferred (table type
+// not in numkit; binning + function-handle paths require additional
+// engine plumbing).
+void groupsummary_reg(Span<const Value> args, size_t nargout,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("groupsummary: requires (A, groupvars, method) "
+                    "in this revision (table inputs + groupbins NV "
+                    "deferred)",
+                    0, 0, "groupsummary", "", "numkit:groupsummary:nargin");
+    if (!args[2].isChar() && !args[2].isString())
+        throw Error("groupsummary: method must be a string in this "
+                    "revision (function-handle methods deferred)",
+                    0, 0, "groupsummary", "", "numkit:groupsummary:method");
+    GroupsummaryResult r = groupsummary(args[0], args[1], args[2].toString(),
+                                        ctx.engine->resource());
+    outs[0] = std::move(r.B);
+    if (nargout >= 2) outs[1] = std::move(r.BG);
+    if (nargout >= 3) outs[2] = std::move(r.BC);
 }
 
 // ── grouptransform ──────────────────────────────────────────────────

@@ -39,6 +39,7 @@ function parseLineSpec(s) {
       else if (key === 'fillOpacity' || key === 'fillopacity') out.fillOpacity = Number(val);
       else if (key === 'smoothNormals' || key === 'smoothnormals') out.smoothNormals = (val === '1' || val === 'true');
       else if (key === 'cometAnim' || key === 'cometanim') out.cometAnim = (val === '1' || val === 'true');
+      else if (key === 'filled') out.filled = (val === '1' || val === 'true' || val === '');
     }
     return out;
   }
@@ -547,6 +548,9 @@ function datasetToLayer(d, palette_idx, ctx) {
     // path render; lineStyle='-' default still applies when no marker.
     lineStyle: styleObj.lineStyle || (styleObj.marker ? 'none' : '-'),
     marker: styleObj.marker || (t === 'scatter' ? 'o' : null),
+    // MATLAB markers are open by default; scatter(...,'filled') / MarkerFaceColor
+    // fill them. The engine emits filled=1 in the style string when set.
+    filled: !!styleObj.filled,
     // comet animation hint — when true, CompositePlot animates the
     // polyline progressively via RAF on first mount.
     cometAnim: !!styleObj.cometAnim,
@@ -560,6 +564,14 @@ function datasetToLayer(d, palette_idx, ctx) {
     // Polygon fill opacity (mode='polygon'). Driven by the styleObj
     // 'fillOpacity' key parsed from the engine's style string.
     fillOpacity: styleObj.fillOpacity != null ? styleObj.fillOpacity : 0.7,
+    // Phase 2c — engine-downsampled huge series. x/y above is a small M4
+    // preview; the full data lives in the engine. CompositePlot refetches a
+    // decimated viewport tile on zoom via
+    // engine.getSeriesTile(figId, axIdx, dsIdx, x0, x1, width, algo).
+    seriesDownsampled: !!d.seriesDownsampled,
+    seriesN: d.n || 0,
+    seriesXRange: Array.isArray(d.xRange) ? d.xRange : null,
+    figId: ctx?.figId, axIdx: ctx?.axIdx, dsIdx: ctx?.dsIdx,
     // Raw 3-D z (pre-cabinet) so the WebGL renderer can use the real
     // depth when this figure is routed through composite3d. The 2-D
     // composite path ignores `z` and uses the cabinet-projected

@@ -27,6 +27,8 @@
 //   * Output orientation: vector-shaped a returns column; matrix
 //     returns matrix (columns reconstructed independently).
 
+#include <numkit/wavelet/dwt/ihaart.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
@@ -121,16 +123,11 @@ DetailLevel grab_level(const Value &d, bool isCell, size_t idx,
 
 } // anonymous
 
-namespace detail {
+// ── Public C++ API (see dwt/ihaart.hpp) ───────────────────────────────
 
-void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
+Value ihaart(const Value &aV, const Value &dV, int level, bool integer,
+             std::pmr::memory_resource *mr)
 {
-    if (args.size() < 2)
-        throw Error("ihaart: requires (a, d[, level[, integerflag]])",
-                    0, 0, "ihaart", "", "numkit:ihaart:nargin");
-    const Value &aV = args[0];
-    const Value &dV = args[1];
     if (aV.numel() == 0)
         throw Error("ihaart: expected input number 1, A, to be nonempty",
                     0, 0, "ihaart", "", "numkit:ihaart:emptyA");
@@ -154,7 +151,94 @@ void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
         Nlevels = 1;
     }
 
-    // Optional positional arguments: level (number) and/or integerflag (string).
+    if (level < 0)
+        throw Error("ihaart: expected input number 3, LEVEL, to be a scalar "
+                    "with value >= 0",
+                    0, 0, "ihaart", "", "numkit:ihaart:level");
+    if (level >= static_cast<int>(Nlevels))
+        throw Error("ihaart: expected input number 3, LEVEL, to be a scalar "
+                    "with value < " + std::to_string(Nlevels),
+                    0, 0, "ihaart", "", "numkit:ihaart:level");
+    if (integer && aV.isComplex())
+        throw Error("ihaart: integer mode is not supported for complex data",
+                    0, 0, "ihaart", "", "numkit:ihaart:flag");
+
+    // `a` is always shaped to match the detail dimensions (haart emits
+    // columns for vector inputs), so the matrix shape is read directly.
+    const size_t aRows = aV.dims().rows();
+    const size_t aCols = aV.dims().cols();
+    const size_t aLen  = aRows;
+    const size_t ncols = aCols;
+
+    const bool aIsComplex = aV.isComplex();
+    const ValueType vt = aIsComplex ? ValueType::COMPLEX : ValueType::DOUBLE;
+
+    // Working buffer: starts as `a`, doubles each level (column-major).
+    std::vector<double>  curR;
+    std::vector<Complex> curC;
+    if (aIsComplex) {
+        curC.resize(aLen * ncols);
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < aLen; ++r)
+                curC[c * aLen + r] = aV.complexElem(c * aRows + r);
+    } else {
+        curR.resize(aLen * ncols);
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < aLen; ++r)
+                curR[c * aLen + r] = aV.elemAsDouble(c * aRows + r);
+    }
+    size_t curLen = aLen;
+
+    // Reconstruct coarsest -> finest. For cells d{1} is finest, so
+    // iterating L = Nlevels down to 1 uses detail at index (L-1).
+    for (int L = static_cast<int>(Nlevels); L >= 1; --L) {
+        const size_t idx = static_cast<size_t>(L - 1);     // 0..Nlevels-1
+        const bool zero = (idx < static_cast<size_t>(level));
+        DetailLevel det = grab_level(dV, isCell, idx, curLen, ncols, zero);
+
+        const size_t outLen = curLen * 2;
+        std::vector<double>  newR;
+        std::vector<Complex> newC;
+        if (aIsComplex) {
+            newC.resize(outLen * ncols);
+            for (size_t c = 0; c < ncols; ++c)
+                ihaar_step_cplx(curC.data() + c * curLen,
+                                det.data.data() + c * curLen, curLen,
+                                newC.data() + c * outLen);
+            curC.swap(newC);
+        } else {
+            newR.resize(outLen * ncols);
+            for (size_t c = 0; c < ncols; ++c)
+                ihaar_step_real(curR.data() + c * curLen,
+                                det.data.data() + c * curLen, curLen,
+                                newR.data() + c * outLen, integer);
+            curR.swap(newR);
+        }
+        curLen = outLen;
+    }
+
+    // Pack the result. Vector input -> column output; matrix -> matrix.
+    Value out = Value::matrix(curLen, ncols, vt, mr);
+    if (aIsComplex) {
+        Complex *p = out.complexDataMut();
+        std::copy(curC.begin(), curC.end(), p);
+    } else {
+        double *p = out.doubleDataMut();
+        std::copy(curR.begin(), curR.end(), p);
+    }
+    return out;
+}
+
+namespace detail {
+
+void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ihaart: requires (a, d[, level[, integerflag]])",
+                    0, 0, "ihaart", "", "numkit:ihaart:nargin");
+    // Lax positional parse: level (number) and/or integerflag (string), in
+    // any order. The level < Nlevels range check is done inside ihaart().
     int level = 0;
     bool integer_mode = false;
     for (size_t i = 2; i < args.size(); ++i) {
@@ -179,89 +263,10 @@ void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
                 throw Error("ihaart: expected LEVEL to be an integer",
                             0, 0, "ihaart", "", "numkit:ihaart:level");
             level = static_cast<int>(lvld);
-            if (level >= static_cast<int>(Nlevels))
-                throw Error("ihaart: expected input number 3, LEVEL, to be a "
-                            "scalar with value < " + std::to_string(Nlevels),
-                            0, 0, "ihaart", "", "numkit:ihaart:level");
         }
     }
-    if (integer_mode && aV.isComplex())
-        throw Error("ihaart: integer mode is not supported for complex data",
-                    0, 0, "ihaart", "", "numkit:ihaart:flag");
-
-    // Determine the matrix shape of `a` directly (aRows × aCols). A
-    // pure row-vector 1×k input is treated as a 1-row matrix of width
-    // k (which is what haart returns for matrix inputs at deeper
-    // levels); a column N×1 stays a length-N single-column matrix.
-    // For ihaart this is unambiguous because `a` is always shaped to
-    // match the detail dimensions; we never need to coerce a row to a
-    // column (haart already emits columns for vector inputs).
-    const size_t aRows = aV.dims().rows();
-    const size_t aCols = aV.dims().cols();
-    const size_t aLen  = aRows;
-    const size_t ncols = aCols;
-
-    auto *mr = ctx.engine->resource();
-    const bool aIsComplex = aV.isComplex();
-    const ValueType vt = aIsComplex ? ValueType::COMPLEX : ValueType::DOUBLE;
-
-    // Working buffer: starts as `a`, doubles each level. Stored
-    // column-major (size = curLen × ncols).
-    std::vector<double>  curR;
-    std::vector<Complex> curC;
-    if (aIsComplex) {
-        curC.resize(aLen * ncols);
-        for (size_t c = 0; c < ncols; ++c)
-            for (size_t r = 0; r < aLen; ++r)
-                curC[c * aLen + r] = aV.complexElem(c * aRows + r);
-    } else {
-        curR.resize(aLen * ncols);
-        for (size_t c = 0; c < ncols; ++c)
-            for (size_t r = 0; r < aLen; ++r)
-                curR[c * aLen + r] = aV.elemAsDouble(c * aRows + r);
-    }
-    size_t curLen = aLen;
-
-    // Reconstruct from coarsest detail (last in the cell) to finest
-    // (first in the cell). For cell-arrays d{1} is finest. So when we
-    // iterate L = Nlevels down to 1, we use detail at index (L-1).
-    for (int L = static_cast<int>(Nlevels); L >= 1; --L) {
-        const size_t idx = static_cast<size_t>(L - 1);     // 0..Nlevels-1
-        const bool zero = (idx < static_cast<size_t>(level));
-        DetailLevel det = grab_level(dV, isCell, idx,
-                                     curLen, ncols, zero);
-
-        const size_t outLen = curLen * 2;
-        std::vector<double>  newR;
-        std::vector<Complex> newC;
-        if (aIsComplex) {
-            newC.resize(outLen * ncols);
-            for (size_t c = 0; c < ncols; ++c)
-                ihaar_step_cplx(curC.data() + c * curLen,
-                                det.data.data() + c * curLen, curLen,
-                                newC.data() + c * outLen);
-            curC.swap(newC);
-        } else {
-            newR.resize(outLen * ncols);
-            for (size_t c = 0; c < ncols; ++c)
-                ihaar_step_real(curR.data() + c * curLen,
-                                det.data.data() + c * curLen, curLen,
-                                newR.data() + c * outLen, integer_mode);
-            curR.swap(newR);
-        }
-        curLen = outLen;
-    }
-
-    // Pack the result. Vector input → column output; matrix → matrix.
-    Value out = Value::matrix(curLen, ncols, vt, mr);
-    if (aIsComplex) {
-        Complex *p = out.complexDataMut();
-        std::copy(curC.begin(), curC.end(), p);
-    } else {
-        double *p = out.doubleDataMut();
-        std::copy(curR.begin(), curR.end(), p);
-    }
-    outs[0] = std::move(out);
+    outs[0] = ihaart(args[0], args[1], level, integer_mode,
+                     ctx.engine->resource());
 }
 
 } // namespace detail

@@ -21,10 +21,13 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
+#include "sinpi_kernel.hpp"
 
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "math/trig/trig_highway.cpp"
@@ -167,14 +170,68 @@ void AtanhLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
 }
 
 // tan(x) = sin(x) / cos(x) — composed because Highway has no Tan.
+// tan via SLEEF's xtan kernel (Cody-Waite range reduction + a single
+// degree-7 polynomial in the half-angle + the tan double-angle formula),
+// replacing the old Div(Sin, Cos) which evaluated two full transcendentals.
+// Coefficients/constants from SLEEF sleefsimddp.c (BSL-1.0). 2-step
+// reduction for |x|<15, extended (PI_A..D) for |x|<1e6; lanes beyond that
+// (or NaN/Inf) fall to scalar std::tan per block.
+template <class D, class DI>
+HWY_INLINE hn::VFromD<D> TanVec(D d, DI di, hn::VFromD<D> v)
+{
+    const auto m2pi = hn::Set(d, 0.636619772367581343075535053490057448); // 2/pi
+    auto dql = hn::Round(hn::Mul(v, m2pi));
+    auto s = hn::MulAdd(dql, hn::Set(d, -3.141592653589793116 * 0.5), v);    // -PI_A2/2
+    s = hn::MulAdd(dql, hn::Set(d, -1.2246467991473532072e-16 * 0.5), s);    // -PI_B2/2
+    auto qlf = dql;
+    const auto big = hn::Ge(hn::Abs(v), hn::Set(d, 15.0));
+    if (!hn::AllFalse(d, big)) { // some lanes need the extended reduction
+        auto dqh = hn::Mul(hn::Trunc(hn::Mul(v, hn::Set(d, 0.636619772367581343075535053490057448 / 16777216.0))),
+                           hn::Set(d, 16777216.0));
+        auto dqe = hn::Round(hn::Sub(hn::Mul(v, m2pi), dqh));
+        auto u = hn::MulAdd(dqh, hn::Set(d, -3.1415926218032836914 * 0.5), v);
+        u = hn::MulAdd(dqe, hn::Set(d, -3.1415926218032836914 * 0.5), u);
+        u = hn::MulAdd(dqh, hn::Set(d, -3.1786509424591713469e-08 * 0.5), u);
+        u = hn::MulAdd(dqe, hn::Set(d, -3.1786509424591713469e-08 * 0.5), u);
+        u = hn::MulAdd(dqh, hn::Set(d, -1.2246467864107188502e-16 * 0.5), u);
+        u = hn::MulAdd(dqe, hn::Set(d, -1.2246467864107188502e-16 * 0.5), u);
+        u = hn::MulAdd(hn::Add(dqh, dqe), hn::Set(d, -1.2736634327021899816e-24 * 0.5), u);
+        s = hn::IfThenElse(big, u, s);
+        qlf = hn::IfThenElse(big, dqe, qlf);
+    }
+    const auto qi = hn::ConvertTo(di, qlf);
+    const auto x = hn::Mul(s, hn::Set(d, 0.5));
+    const auto s2 = hn::Mul(x, x);
+    auto p = hn::Set(d, 0.3245098826639276316e-3);
+    p = hn::MulAdd(p, s2, hn::Set(d, 0.5619219738114323735e-3));
+    p = hn::MulAdd(p, s2, hn::Set(d, 0.1460781502402784494e-2));
+    p = hn::MulAdd(p, s2, hn::Set(d, 0.3591611540792499519e-2));
+    p = hn::MulAdd(p, s2, hn::Set(d, 0.8863268409563113126e-2));
+    p = hn::MulAdd(p, s2, hn::Set(d, 0.2186948728185535498e-1));
+    p = hn::MulAdd(p, s2, hn::Set(d, 0.5396825399517272970e-1));
+    p = hn::MulAdd(p, s2, hn::Set(d, 0.1333333333330500581e+0));
+    p = hn::MulAdd(p, s2, hn::Set(d, 0.3333333333333343695e+0));
+    const auto u = hn::MulAdd(s2, hn::Mul(p, x), x);    // s2*(p*x) + x
+    const auto y = hn::MulAdd(u, u, hn::Set(d, -1.0));  // u^2 - 1
+    const auto xx = hn::Mul(u, hn::Set(d, -2.0));       // -2u
+    const auto odd = hn::RebindMask(d, hn::Ne(hn::And(qi, hn::Set(di, std::int64_t(1))), hn::Zero(di)));
+    auto r = hn::Div(hn::IfThenElse(odd, hn::Neg(y), xx), hn::IfThenElse(odd, xx, y));
+    return hn::IfThenElse(hn::Eq(v, hn::Zero(d)), v, r); // tan(0)=0, tan(-0)=-0
+}
+
 void TanLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
 {
     const hn::ScalableTag<double> d;
+    const hn::RebindToSigned<decltype(d)> di;
     const std::size_t N = hn::Lanes(d);
+    const auto rempiThreshold = hn::Set(d, 1.0e6);
     std::size_t i = 0;
     for (; i + N <= n; i += N) {
         auto v = hn::LoadU(d, in + i);
-        hn::StoreU(hn::Div(hn::Sin(d, v), hn::Cos(d, v)), d, out + i);
+        if (hn::AllTrue(d, hn::Lt(hn::Abs(v), rempiThreshold)))
+            hn::StoreU(TanVec(d, di, v), d, out + i);
+        else // |x| >= 1e6 or non-finite: scalar reference for the whole block
+            for (std::size_t j = 0; j < N; ++j) out[i + j] = std::tan(in[i + j]);
     }
     for (; i < n; ++i) out[i] = std::tan(in[i]);
 }
@@ -338,30 +395,83 @@ void Atan2dLoop(const double *HWY_RESTRICT y, const double *HWY_RESTRICT x,
 
 // ── Multiple-of-π variants. ──────────────────────────────────────────
 
+// Vectorised sin(pi*x) / cos(pi*x) via SLEEF's exact octant reduction
+// (q = nearest even integer to 4x, computed in int64 lanes so the range
+// is the full representable double, not SLEEF's 32-bit-lane limit) plus
+// the single-double sinpik/cospik polynomial. Cos==true selects cospi.
+// Matches detail::sinpi_kernel / cospi_kernel up to FMA rounding; an
+// array split across the SIMD body and the scalar tail stays <=2 ULP of
+// MATLAB on both halves.
+template <bool Cos, class D, class DI>
+HWY_INLINE hn::VFromD<D> SinCospiVec(D d, DI di, hn::VFromD<D> v)
+{
+    const auto izero    = hn::Zero(di);
+    const auto i_one    = hn::Set(di, std::int64_t(1));
+    const auto i_two    = hn::Set(di, std::int64_t(2));
+    const auto i_four   = hn::Set(di, std::int64_t(4));
+    const auto i_notone = hn::Set(di, ~std::int64_t(1));
+
+    const auto big = hn::Ge(hn::Abs(v), hn::Set(d, detail::kSinpiIntThreshold)); // incl. Inf
+    const auto nan = hn::IsNaN(v);
+    // Zero the reduction input on out-of-range / NaN lanes so the int64
+    // ConvertTo never sees a value it cannot represent; real results for
+    // those lanes are overlaid at the end.
+    const auto u = hn::Mul(hn::IfThenZeroElse(hn::Or(big, nan), v), hn::Set(d, 4.0));
+
+    auto qi = hn::ConvertTo(di, u); // truncate toward zero
+    qi = hn::And(hn::Add(qi, hn::IfThenElse(hn::Lt(qi, izero), izero, i_one)), i_notone);
+
+    const auto qAnd2 = hn::And(qi, i_two);
+    const auto omask = Cos ? hn::RebindMask(d, hn::Eq(qAnd2, izero))
+                           : hn::RebindMask(d, hn::Ne(qAnd2, izero));
+    const auto t = hn::Sub(u, hn::ConvertTo(d, qi));
+    const auto s = hn::Mul(t, t);
+
+    auto poly = hn::IfThenElse(omask, hn::Set(d, detail::kSinpiPoly_o[0]),
+                               hn::Set(d, detail::kSinpiPoly_e[0]));
+    for (int k = 1; k < 8; ++k)
+        poly = hn::MulAdd(poly, s,
+                          hn::IfThenElse(omask, hn::Set(d, detail::kSinpiPoly_o[k]),
+                                         hn::Set(d, detail::kSinpiPoly_e[k])));
+
+    auto x = hn::Mul(poly, hn::IfThenElse(omask, s, t));
+    x = hn::IfThenElse(omask, hn::Add(x, hn::Set(d, 1.0)), x);
+
+    const auto flipInt = Cos ? hn::And(hn::Add(qi, i_two), i_four) : hn::And(qi, i_four);
+    x = hn::IfThenElse(hn::RebindMask(d, hn::Ne(flipInt, izero)), hn::Neg(x), x);
+
+    // Match MATLAB's sign-of-zero: sinpi(integer) takes the input's
+    // sign (sinpi(1)==+0, sinpi(-1)==-0); cospi(half-integer) is +0.
+    const auto isZero = hn::Eq(x, hn::Zero(d));
+    x = hn::IfThenElse(isZero, Cos ? hn::Zero(d) : hn::CopySign(hn::Zero(d), v), x);
+
+    const auto qnan = hn::Set(d, std::numeric_limits<double>::quiet_NaN());
+    x = hn::IfThenElse(big, Cos ? hn::Set(d, 1.0) : hn::CopySign(hn::Zero(d), v), x);
+    x = hn::IfThenElse(hn::IsInf(v), qnan, x);
+    x = hn::IfThenElse(nan, v, x);
+    return x;
+}
+
 void SinpiLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
 {
     const hn::ScalableTag<double> d;
+    const hn::RebindToSigned<decltype(d)> di;
     const std::size_t N = hn::Lanes(d);
-    const auto k = hn::Set(d, deg_consts::kPi);
     std::size_t i = 0;
-    for (; i + N <= n; i += N) {
-        auto v = hn::LoadU(d, in + i);
-        hn::StoreU(hn::Sin(d, hn::Mul(v, k)), d, out + i);
-    }
-    for (; i < n; ++i) out[i] = std::sin(deg_consts::kPi * in[i]);
+    for (; i + N <= n; i += N)
+        hn::StoreU(SinCospiVec<false>(d, di, hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = detail::sinpi_kernel(in[i]);
 }
 
 void CospiLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
 {
     const hn::ScalableTag<double> d;
+    const hn::RebindToSigned<decltype(d)> di;
     const std::size_t N = hn::Lanes(d);
-    const auto k = hn::Set(d, deg_consts::kPi);
     std::size_t i = 0;
-    for (; i + N <= n; i += N) {
-        auto v = hn::LoadU(d, in + i);
-        hn::StoreU(hn::Cos(d, hn::Mul(v, k)), d, out + i);
-    }
-    for (; i < n; ++i) out[i] = std::cos(deg_consts::kPi * in[i]);
+    for (; i + N <= n; i += N)
+        hn::StoreU(SinCospiVec<true>(d, di, hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = detail::cospi_kernel(in[i]);
 }
 
 } // namespace HWY_NAMESPACE
@@ -440,27 +550,12 @@ inline double tand_scalar(double x)
     return std::tan(xr * kDeg2Rad);
 }
 
-inline double sinpi_scalar(double x)
-{
-    if (std::isnan(x)) return x;
-    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
-    const double xr = std::remainder(x, 2.0);
-    if (xr == 0.0 || xr == 1.0 || xr == -1.0) return 0.0;
-    if (xr ==  0.5) return  1.0;
-    if (xr == -0.5) return -1.0;
-    return std::sin(kPi * xr);
-}
-
-inline double cospi_scalar(double x)
-{
-    if (std::isnan(x)) return x;
-    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
-    const double xr = std::remainder(x, 2.0);
-    if (xr ==  0.5 || xr == -0.5) return 0.0;
-    if (xr ==  0.0) return  1.0;
-    if (xr ==  1.0 || xr == -1.0) return -1.0;
-    return std::cos(kPi * xr);
-}
+// Accurate sin(pi*x) / cos(pi*x): exact octant reduction + SLEEF
+// sinpik/cospik polynomial (see sinpi_kernel.hpp). Replaces the old
+// naive std::sin(pi*x), which drifted to ~1e-10 by x=1e7 and never
+// produced an exact zero at integer x.
+inline double sinpi_scalar(double x) { return detail::sinpi_kernel(x); }
+inline double cospi_scalar(double x) { return detail::cospi_kernel(x); }
 
 // Shared shape for sin/cos: delegate complex / scalar to the
 // reference path, route real vectors through the dispatcher. When
