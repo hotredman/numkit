@@ -480,6 +480,27 @@ Value interp1Dispatch(const Value &x, const Value &y, const Value &xq,
         throw Error("interp1: need at least 2 data points",
                      0, 0, "interp1", "", "numkit:interp1:tooFewPoints");
 
+    // Complex y: interpolate the real and imaginary parts separately and
+    // recombine (MATLAB). This wraps every method + the matrix-column path,
+    // and inherits the same extrapolation policy (NaN out-of-range → NaN+NaNi).
+    if (y.type() == ValueType::COMPLEX) {
+        const size_t m = y.numel();
+        Value yr = createLike(y, ValueType::DOUBLE, mr);
+        Value yi = createLike(y, ValueType::DOUBLE, mr);
+        double *rp = yr.doubleDataMut();
+        double *ip = yi.doubleDataMut();
+        const Complex *c = y.complexData();
+        for (size_t i = 0; i < m; ++i) { rp[i] = c[i].real(); ip[i] = c[i].imag(); }
+        Value rr = interp1Dispatch(x, yr, xq, method, mode, fill, mr);
+        Value ri = interp1Dispatch(x, yi, xq, method, mode, fill, mr);
+        Value out = createLike(rr, ValueType::COMPLEX, mr);
+        Complex *o = out.complexDataMut();
+        const double *re = rr.doubleData(), *im = ri.doubleData();
+        const size_t no = out.numel();
+        for (size_t i = 0; i < no; ++i) o[i] = Complex(re[i], im[i]);
+        return out;
+    }
+
     const double *xd = x.doubleData();
     const double *xqd = xq.doubleData();
 
