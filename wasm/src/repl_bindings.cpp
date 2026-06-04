@@ -442,6 +442,22 @@ public:
         return buildDebugResult(status);
     }
 
+    // dbup / dbdown: move the inspection focus without resuming. Returns the
+    // refreshed paused state (variables now belong to the selected frame).
+    std::string debugFrameUp() {
+        if (!debugSession_ || !debugSession_->isActive())
+            return "{\"status\":\"completed\"}";
+        debugSession_->frameUp();
+        return buildDebugResult(numkit::ExecStatus::Paused);
+    }
+
+    std::string debugFrameDown() {
+        if (!debugSession_ || !debugSession_->isActive())
+            return "{\"status\":\"completed\"}";
+        debugSession_->frameDown();
+        return buildDebugResult(numkit::ExecStatus::Paused);
+    }
+
     void debugStop() {
         if (debugSession_)
             debugSession_->stop();
@@ -1071,6 +1087,9 @@ private:
             result += ",\"col\":" + std::to_string(snap.col);
             result += ",\"function\":\"" + escapeJSON(snap.functionName) + "\"";
             result += ",\"reason\":\"" + std::string(reason) + "\"";
+            // dbup/dbdown focus: which stack frame these variables belong to.
+            result += ",\"selectedFrame\":" + std::to_string(debugSession_->selectedFrame());
+            result += ",\"frameCount\":" + std::to_string(debugSession_->frameCount());
 
             // Variables — structured format matching workspaceJSON
             result += ",\"variables\":{";
@@ -1280,6 +1299,16 @@ std::string repl_debug_resume(int action) {
     return g_session->debugResume(action);
 }
 
+std::string repl_debug_frame_up() {
+    if (!g_session) return "{\"status\":\"completed\"}";
+    return g_session->debugFrameUp();
+}
+
+std::string repl_debug_frame_down() {
+    if (!g_session) return "{\"status\":\"completed\"}";
+    return g_session->debugFrameDown();
+}
+
 void repl_debug_stop() {
     if (g_session) g_session->debugStop();
 }
@@ -1402,6 +1431,8 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
     emscripten::function("repl_debug_start",           &repl_debug_start);
     emscripten::function("repl_debug_resume",          &repl_debug_resume);
+    emscripten::function("repl_debug_frame_up",        &repl_debug_frame_up);
+    emscripten::function("repl_debug_frame_down",      &repl_debug_frame_down);
     emscripten::function("repl_debug_stop",            &repl_debug_stop);
     // Virtual filesystem bridge
     emscripten::function("repl_register_fs",           &repl_register_fs);
