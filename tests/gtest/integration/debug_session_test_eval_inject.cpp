@@ -824,3 +824,47 @@ TEST(DebugEvalInjectTest, EditThenStepUsesNewValue)
 
     session.resume(DebugAction::Continue);
 }
+
+// A `global` DECLARED at the debug prompt must persist across console evals
+// (its value lives in globalsEnv_, not lastVarMap — routed into the overlay).
+TEST(DebugEvalInjectTest, ConsoleDeclaredGlobalPersists)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+    auto status = session.start("a = 1;\nb = 2;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    session.eval("global gz; gz = 7;");
+    std::string r = session.eval("gz + 1"); // must still see gz
+    EXPECT_NE(r.find("8"), std::string::npos)
+        << "console-declared global must persist across evals: " << r;
+
+    bool seen = false;
+    for (auto &v : session.snapshot().variables)
+        if (v.name == "gz" && v.value && v.value->toScalar() == 7.0)
+            seen = true;
+    EXPECT_TRUE(seen) << "console-declared global should appear in the snapshot";
+
+    session.resume(DebugAction::Continue);
+}
+
+// `clear global X` typed at the prompt must not crash or hang the session.
+TEST(DebugEvalInjectTest, ClearGlobalInConsoleIsStable)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({3});
+    auto status = session.start("global g;\ng = 5;\ndisp(g);\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    session.eval("clear global g"); // murky but must be stable
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed) << "clear global in console must not wedge the session";
+}

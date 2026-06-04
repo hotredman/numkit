@@ -347,6 +347,22 @@ std::string DebugSession::eval(const std::string &code)
             if (!val.isUnset() && !val.isDeleted())
                 ws_.set(name, val);
         }
+
+        // Console-declared globals: a `global X` typed at the prompt records X
+        // in workspaceEnv's global set with its value in globalsEnv_ — NOT in
+        // lastVarMap (globals are excluded there). Route any NEW global into the
+        // overlay so it persists across evals and injects on continue. A
+        // pre-existing base global (in preEvalGlobals) is left alone — it's
+        // restored as-is by doRestore.
+        if (auto *gs = genv.globalsEnv()) {
+            for (auto &g : genv.globalNames()) {
+                if (preEvalGlobals.count(g) || injectedNames.count(g))
+                    continue;
+                if (auto *gv = gs->get(g))
+                    if (!gv->isUnset() && !gv->isDeleted())
+                        ws_.set(g, *gv);
+            }
+        }
     } catch (const std::exception &e) {
         doRestore();
         return std::string("Error: applying console changes: ") + e.what();
