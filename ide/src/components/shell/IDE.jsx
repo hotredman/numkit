@@ -297,7 +297,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   const [helpTopic, setHelpTopic] = useState(null);
   const [execTimeMs, setExecTimeMs] = useState(null);
   const [errorLine, setErrorLine] = useState(null);
-  const [consoleNotify, setConsoleNotify] = useState(false);
+  const [, setConsoleNotify] = useState(false);
   const [bottomTab, setBottomTab] = useState('console');
 
   // Tabs
