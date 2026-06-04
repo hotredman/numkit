@@ -69,6 +69,14 @@ public:
         std::string functionName;
         std::vector<Variable> variables;
         std::vector<StackFrame> callStack;
+
+        // Owned backing store for variables[].value. snapshot() copies each
+        // value here (COW — cheap) and points Variable.value into it, so the
+        // snapshot is self-contained: its pointers stay valid for the
+        // Snapshot's own lifetime — including across a resume() that reuses the
+        // VM registers the live values came from. shared_ptr so copies/moves of
+        // the Snapshot keep the same backing alive.
+        std::shared_ptr<std::vector<Value>> ownedValues;
     };
 
     Snapshot snapshot() const;

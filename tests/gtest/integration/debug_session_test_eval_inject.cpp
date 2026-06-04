@@ -868,3 +868,32 @@ TEST(DebugEvalInjectTest, ClearGlobalInConsoleIsStable)
     status = session.resume(DebugAction::Continue);
     EXPECT_EQ(status, ExecStatus::Completed) << "clear global in console must not wedge the session";
 }
+
+// A Snapshot is self-contained: its Variable.value pointers remain valid after
+// resume() reuses/tears down the VM registers the values came from. (Before the
+// owned-backing-store change, holding the snapshot across resume was UB.)
+TEST(DebugEvalInjectTest, SnapshotOutlivesResume)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+    auto status = session.start("v = [10 20 30];\ndisp(sum(v));\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    auto snap = session.snapshot();             // capture while paused
+    session.resume(DebugAction::Continue);      // registers reused / torn down
+
+    bool found = false;
+    for (auto &var : snap.variables) {
+        if (var.name == "v") {
+            found = true;
+            ASSERT_NE(var.value, nullptr);
+            EXPECT_EQ(var.value->numel(), 3u);
+            EXPECT_DOUBLE_EQ(var.value->elemAsDouble(0), 10.0);
+        }
+    }
+    EXPECT_TRUE(found) << "v should be in the snapshot and still readable post-resume";
+}
