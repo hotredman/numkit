@@ -2,14 +2,21 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
-import PolarPlot, { defaultPolarViewport } from './PolarPlot';
+import PolarPlot from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
-import { computeFitViewport, fitCellViewport, logClampRange,
+import { fitCellViewport, logClampRange,
   composeSvgsToString, exportSvgString, exportPngString,
   downloadBlob as utilDownloadBlob } from './plotUtils';
-import { initAxesFromCell, getProp, setProp, setAllAxes, setAxesAt,
+import { initAxesFromCell, getProp, setProp,
   everyAxes, isOn, onOff,
   defaultViewport, cellsArrayFromFigure, aggColormap } from './figureSchema';
+import {
+  axesToLegacyCell, legacyRead, legacyWrite, viewportFromAxes,
+} from './axesModel';
+import {
+  NumberInput, FwPopLocationSubmenu, DisplayToggle, MatrixHead, MatrixToggleRow,
+} from './figureWindow.controls';
+import { buildDelimited, buildJsonObject } from './figureExport';
 
 function renderFigure(figure, props, threeRef) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
@@ -35,178 +42,6 @@ function isPlaceholder3D(v) {
       && v.z[0] === -1 && v.z[1] === 1;
 }
 
-function NumberInput({ value, onCommit, width = 88 }) {
-  const [v, setV] = useState(value);
-  useEffect(() => { setV(value); }, [value]);
-  return (
-    <input
-      type="text"
-      value={typeof v === 'number' ? Number(v.toFixed(6)).toString() : v}
-      onChange={(e) => setV(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter')  { e.target.blur(); }
-        if (e.key === 'Escape') { setV(value); e.target.blur(); }
-      }}
-      onBlur={() => {
-        const n = parseFloat(v);
-        if (Number.isFinite(n)) onCommit(n);
-        else setV(value);
-      }}
-      className="fw-num-input"
-      style={{ width }}
-    />
-  );
-}
-
-/** Per-series rows for fit ▾. When `rows.length` is over `threshold`
- *  (default 5), wraps the list in a side-opening submenu so the
- *  popover doesn't grow tall. Below the threshold, renders inline.
- *  Each row is a JSX element produced by the caller.
- *
- *  Submenu uses position:fixed with coords computed from the trigger
- *  button's getBoundingClientRect — bypasses the parent .fw-pop's
- *  overflow:auto (which would otherwise clip the absolute-positioned
- *  child and surface a scrollbar instead of opening). */
-/** Side-opening submenu for picking one location value from a fixed
- *  list. Used by display ▾ for legend / colorbar location pickers.
- *  `value` is the current selection; null = "follow script". `options`
- *  is `[{ value, label }]`. ✓ marks the active one. */
-function FwPopLocationSubmenu({ label, value, options, onPick }) {
-  const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState(null);
-  const triggerRef = useRef(null);
-  useLayoutEffect(() => {
-    if (!open) return;
-    const el = triggerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setCoords({ left: r.right + 2, top: r.top - 4 });
-  }, [open]);
-  return (
-    <div className={`fw-pop-sub-wrap ${open ? 'is-open' : ''}`}
-         onMouseEnter={() => setOpen(true)}
-         onMouseLeave={() => setOpen(false)}>
-      <button ref={triggerRef}
-              className="fw-pop-sub-trigger"
-              onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}>
-        <span>{label}</span>
-        <span className="fw-pop-sub-arrow">▶</span>
-      </button>
-      {open && coords && (
-        <div className="fw-pop fw-pop-sub"
-             style={{ position: 'fixed', left: coords.left, top: coords.top }}>
-          {options.map((o) => {
-            const active = (value || null) === o.value;
-            return (
-              <button key={String(o.value)}
-                      className="fw-pop-toggle"
-                      onClick={() => { onPick(o.value); setOpen(false); }}>
-                <span>{o.label}</span>
-                <span className="fw-pop-check">{active ? '✓' : ''}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FwPopRowsOrSubmenu({ rows, label, threshold = 5 }) {
-  const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState(null);
-  const triggerRef = useRef(null);
-  useLayoutEffect(() => {
-    if (!open) return;
-    const el = triggerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setCoords({ left: r.right + 2, top: r.top - 4 });
-  }, [open]);
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  if (rows.length <= threshold) {
-    return <>{rows}</>;
-  }
-  return (
-    <div className={`fw-pop-sub-wrap ${open ? 'is-open' : ''}`}
-         onMouseEnter={() => setOpen(true)}
-         onMouseLeave={() => setOpen(false)}>
-      <button ref={triggerRef}
-              className="fw-pop-sub-trigger"
-              onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}>
-        <span>{label}</span>
-        <span className="fw-pop-sub-arrow">▶</span>
-      </button>
-      {open && coords && (
-        <div className="fw-pop fw-pop-sub"
-             style={{ position: 'fixed', left: coords.left, top: coords.top }}>
-          {rows}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Toggle row for the axes / decoration popovers. Two-column grid:
- *  [ label | ✓ ]. No per-item icon (button-level icon already telegraphs
- *  the menu's purpose). No active colour tint — only the ✓ marker.
- *
- *  `masked` = state-preserving "this toggle is currently no-op because
- *  another setting masks it" hint. Renders dimmed via `is-masked` CSS
- *  but stays fully clickable (the user can pre-set a value that'll
- *  apply once the mask lifts). Distinct from `disabled`, which blocks
- *  the click entirely. */
-function DisplayToggle({ label, active, disabled = false, disabledHint = '',
-                        masked = false, maskedHint = '', onClick }) {
-  const title = disabled ? disabledHint : (masked ? maskedHint : '');
-  return (
-    <button className={`fw-pop-toggle${masked ? ' is-masked' : ''}`}
-            disabled={disabled}
-            title={title}
-            onClick={onClick}>
-      <span>{label}</span>
-      <span className="fw-pop-check">{active ? '✓' : ''}</span>
-    </button>
-  );
-}
-
-/** Header row for any matrix-layout popover section — labels the
- *  N button columns. Rendered above the per-axis rows so users read
- *  the column headings once. */
-function MatrixHead({ labels }) {
-  return (
-    <div className="fw-pop-mrow fw-pop-mrow-head">
-      <span className="fw-pop-mrow-label" />
-      {labels.map((l, i) => <span key={i}>{l}</span>)}
-    </div>
-  );
-}
-
-/** Generic per-row matrix toggle. `label` is the row name (axis
- *  letter); `cols` is an array of column descriptors:
- *    { active, onClick, disabled?, title? }
- *  Each column renders as a square checkbox button (✓ when active).
- *  Used by:
- *    • grid ▾ matrix — cols = [major, minor]
- *    • axes ▾ matrix — cols = [reverse, log scale]
- *  Same `.fw-pop-mbtn` styling. Grid template columns set by the
- *  parent `.fw-pop-matrix` block based on column count. */
-function MatrixToggleRow({ label, cols }) {
-  return (
-    <div className="fw-pop-mrow">
-      <span className="fw-pop-mrow-label">{label}</span>
-      {cols.map((c, i) => (
-        <button key={i}
-                className={`fw-pop-mbtn${c.active ? ' is-active' : ''}`}
-                disabled={!!c.disabled}
-                title={c.title || ''}
-                onClick={c.onClick}>
-          {c.active ? '✓' : ''}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function FigureWindow({ figure, onClose, engine = null }) {
   const isPolar   = figure.kind === 'polar';
@@ -309,59 +144,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // cartesian cells per the schema initializer, so flipping the
   // combined toggle on a cartesian figure visually lights only X+Y
   // (R/θ are set in state but their renderer is in PolarPlot).
-  function axisGridOn(axes) {
-    return isOn(axes && axes.XGrid)     || isOn(axes && axes.YGrid)
-        || isOn(axes && axes.ZGrid)
-        || isOn(axes && axes.RGrid)     || isOn(axes && axes.ThetaGrid);
-  }
-  function axisGridMinorOn(axes) {
-    // Minor grids on every axis the schema models — cartesian X/Y/Z
-    // and polar R/θ. Mirrors MATLAB R2025b: `grid minor` lights the
-    // minor grid for every axis the current axes type supports.
-    return isOn(axes && axes.XMinorGrid)     || isOn(axes && axes.YMinorGrid)
-        || isOn(axes && axes.ZMinorGrid)
-        || isOn(axes && axes.RMinorGrid)     || isOn(axes && axes.ThetaMinorGrid);
-  }
-  // Adapter — same shape the old `cells: CellSettings[]` exposed.
-  // Used by SubplotGrid (fed via the cellState renderFigure prop).
-  function axesToLegacyCell(axes) {
-    if (!axes) return {};
-    return {
-      showMajor:    axisGridOn(axes),
-      showMinor:    axisGridMinorOn(axes),
-      // Per-axis grid (preserves XGrid/YGrid info for SubplotGrid →
-      // CompositePlot per-axis renderer split).
-      xGrid:        isOn(axes.XGrid),
-      yGrid:        isOn(axes.YGrid),
-      xMinor:       isOn(axes.XMinorGrid),
-      yMinor:       isOn(axes.YMinorGrid),
-      zMinor:       isOn(axes.ZMinorGrid),
-      rMinor:       isOn(axes.RMinorGrid),
-      thetaMinor:   isOn(axes.ThetaMinorGrid),
-      xLog:         axes.XScale === 'log',
-      yLog:         axes.YScale === 'log',
-      zLog:         axes.ZScale === 'log',
-      showTitle:    isOn(axes.Title    && axes.Title.Visible),
-      showXLabel:   isOn(axes.XLabel   && axes.XLabel.Visible),
-      showYLabel:   isOn(axes.YLabel   && axes.YLabel.Visible),
-      showZLabel:   isOn(axes.ZLabel   && axes.ZLabel.Visible),
-      showLegend:   isOn(axes.Legend   && axes.Legend.Visible),
-      showColorbar: isOn(axes.Colorbar && axes.Colorbar.Visible),
-      showAxis:     isOn(axes.Visible),
-      showBox:      isOn(axes.Box),
-      xReverse:     axes.XDir === 'reverse',
-      yReverse:     axes.YDir === 'reverse',
-      zReverse:     axes.ZDir === 'reverse',
-      // Aspect mode — UI-set value flows to CompositePlot's panel-
-      // shrink path. Defaults to '' (auto) when neither script nor UI
-      // set it. CompositePlot reads `axisMode` prop with fallback to
-      // figure.axisMode (script value).
-      axisMode:     axes.AxisMode || '',
-      legendLocation:   axes.Legend   && axes.Legend.Location,
-      colorbarLocation: axes.Colorbar && axes.Colorbar.Location,
-      colormap:     axes.Colormap || null,
-    };
-  }
   const cells = axesArr.map(axesToLegacyCell);
 
   // Compat: viewport / setViewport read-write pair, derived from
@@ -376,146 +158,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // ── Legacy ↔ MATLAB schema bridges ───────────────────────────────
   // Map flat boolean keys used throughout the existing UI / renderer
   // to MATLAB property paths.
-  function legacyRead(a, key) {
-    if (!a) return undefined;
-    switch (key) {
-      case 'showMajor':    return axisGridOn(a);
-      case 'showMinor':    return axisGridMinorOn(a);
-      case 'xGrid':        return isOn(a.XGrid);
-      case 'yGrid':        return isOn(a.YGrid);
-      case 'zGrid':        return isOn(a.ZGrid);
-      case 'rGrid':        return isOn(a.RGrid);
-      case 'thetaGrid':    return isOn(a.ThetaGrid);
-      case 'xMinor':       return isOn(a.XMinorGrid);
-      case 'yMinor':       return isOn(a.YMinorGrid);
-      case 'zMinor':       return isOn(a.ZMinorGrid);
-      case 'rMinor':       return isOn(a.RMinorGrid);
-      case 'thetaMinor':   return isOn(a.ThetaMinorGrid);
-      case 'xLog':         return a.XScale === 'log';
-      case 'yLog':         return a.YScale === 'log';
-      case 'zLog':         return a.ZScale === 'log';
-      case 'showTitle':    return isOn(a.Title    && a.Title.Visible);
-      case 'showXLabel':   return isOn(a.XLabel   && a.XLabel.Visible);
-      case 'showYLabel':   return isOn(a.YLabel   && a.YLabel.Visible);
-      case 'showZLabel':   return isOn(a.ZLabel   && a.ZLabel.Visible);
-      case 'showLegend':   return isOn(a.Legend   && a.Legend.Visible);
-      case 'showColorbar': return isOn(a.Colorbar && a.Colorbar.Visible);
-      case 'showAxis':     return isOn(a.Visible);
-      case 'showBox':      return isOn(a.Box);
-      case 'xReverse':     return a.XDir === 'reverse';
-      case 'yReverse':     return a.YDir === 'reverse';
-      case 'zReverse':     return a.ZDir === 'reverse';
-      case 'axisMode':     return a.AxisMode || 'auto';
-      case 'legendLocation':   return a.Legend   && a.Legend.Location;
-      case 'colorbarLocation': return a.Colorbar && a.Colorbar.Location;
-      case 'colormap':     return a.Colormap;
-      case 'viewport':     return viewportFromAxes(a);
-      default: return undefined;
-    }
-  }
-  function legacyWrite(a, key, value, cell) {
-    // Same kind-gates as initAxesFromCell: polar plots have no X/Y/Z,
-    // cartesian plots have no R/θ, only 3-D plots have Z. Used by the
-    // combined showMajor / showMinor fan-out so the toolbar "grid all"
-    // toggle on a polar figure doesn't silently set XGrid/YGrid (which
-    // would later confuse the aggregate ✓ when the user flips RGrid).
-    const kind = cell && cell.kind;
-    const cart  = kind !== 'polar';
-    const polar = kind === 'polar';
-    const d3    = kind === 'composite3d';
-    switch (key) {
-      case 'showMajor':    {
-        // Combined "grid" toggle — fan to only those per-axis grids
-        // that exist on this figure type. MATLAB R2025b: `grid on` on
-        // a polar axes lights RGrid+ThetaGrid only; cartesian lights
-        // XGrid+YGrid (+ZGrid for 3-D).
-        const f = onOff(!!value);
-        return { ...a,
-          XGrid: cart  ? f : a.XGrid,
-          YGrid: cart  ? f : a.YGrid,
-          ZGrid: d3    ? f : a.ZGrid,
-          RGrid: polar ? f : a.RGrid,
-          ThetaGrid: polar ? f : a.ThetaGrid };
-      }
-      case 'showMinor':    {
-        const f = onOff(!!value);
-        return { ...a,
-          XMinorGrid: cart  ? f : a.XMinorGrid,
-          YMinorGrid: cart  ? f : a.YMinorGrid,
-          ZMinorGrid: d3    ? f : a.ZMinorGrid,
-          RMinorGrid: polar ? f : a.RMinorGrid,
-          ThetaMinorGrid: polar ? f : a.ThetaMinorGrid };
-      }
-      case 'xGrid':        return { ...a, XGrid:          onOff(!!value) };
-      case 'yGrid':        return { ...a, YGrid:          onOff(!!value) };
-      case 'zGrid':        return { ...a, ZGrid:          onOff(!!value) };
-      case 'rGrid':        return { ...a, RGrid:          onOff(!!value) };
-      case 'thetaGrid':    return { ...a, ThetaGrid:      onOff(!!value) };
-      case 'xMinor':       return { ...a, XMinorGrid:     onOff(!!value) };
-      case 'yMinor':       return { ...a, YMinorGrid:     onOff(!!value) };
-      case 'zMinor':       return { ...a, ZMinorGrid:     onOff(!!value) };
-      case 'rMinor':       return { ...a, RMinorGrid:     onOff(!!value) };
-      case 'thetaMinor':   return { ...a, ThetaMinorGrid: onOff(!!value) };
-      case 'xLog':         return { ...a, XScale: value ? 'log' : 'linear' };
-      case 'yLog':         return { ...a, YScale: value ? 'log' : 'linear' };
-      case 'zLog':         return { ...a, ZScale: value ? 'log' : 'linear' };
-      case 'showTitle':    return setProp(a, ['Title',    'Visible'], onOff(!!value));
-      case 'showXLabel':   return setProp(a, ['XLabel',   'Visible'], onOff(!!value));
-      case 'showYLabel':   return setProp(a, ['YLabel',   'Visible'], onOff(!!value));
-      case 'showZLabel':   return setProp(a, ['ZLabel',   'Visible'], onOff(!!value));
-      case 'showLegend':   return setProp(a, ['Legend',   'Visible'], onOff(!!value));
-      case 'showColorbar': return setProp(a, ['Colorbar', 'Visible'], onOff(!!value));
-      case 'showAxis':     return { ...a, Visible: onOff(!!value) };
-      case 'showBox':      return { ...a, Box:     onOff(!!value) };
-      case 'xReverse':     return { ...a, XDir: value ? 'reverse' : 'normal' };
-      case 'yReverse':     return { ...a, YDir: value ? 'reverse' : 'normal' };
-      case 'zReverse':     return { ...a, ZDir: value ? 'reverse' : 'normal' };
-      case 'axisMode':     {
-        // Aspect — keeps the AxisMode shorthand in sync with the
-        // derived MATLAB property pair (DataAspectRatioMode /
-        // PlotBoxAspectRatioMode). Mirrors initAxesFromCell's mapping.
-        const v = String(value || 'auto');
-        return { ...a,
-          AxisMode: v,
-          DataAspectRatioMode:    (v === 'equal' || v === 'image') ? 'manual' : 'auto',
-          PlotBoxAspectRatioMode: (v === 'square') ? 'manual' : 'auto',
-        };
-      }
-      case 'legendLocation':   return setProp(a, ['Legend',   'Location'], value);
-      case 'colorbarLocation': return setProp(a, ['Colorbar', 'Location'], value);
-      case 'colormap':     return { ...a, Colormap: value };
-      case 'viewport':     return applyViewport(a, value);
-      default: return a;
-    }
-  }
-  // Polar uses the same array-pair schema as cartesian — { r: [lo, hi],
-  // theta: [lo, hi] } — so PolarPlot's vp.r / vp.theta accessors line up
-  // with what FigureWindow stores. Earlier {rmin,rmax} flat-field shape
-  // got dropped by PolarPlot's `Array.isArray(viewport.r)` guard, which
-  // made wheel-zoom / drag-zoom / inputs all no-ops.
-  function viewportFromAxes(a) {
-    if (!a) return null;
-    if (Array.isArray(a.RLim)) {
-      const out = { r: a.RLim.slice() };
-      if (Array.isArray(a.ThetaLim)) out.theta = a.ThetaLim.slice();
-      return out;
-    }
-    const out = {};
-    if (Array.isArray(a.XLim)) out.x = a.XLim.slice();
-    if (Array.isArray(a.YLim)) out.y = a.YLim.slice();
-    if (Array.isArray(a.ZLim)) out.z = a.ZLim.slice();
-    return Object.keys(out).length > 0 ? out : null;
-  }
-  function applyViewport(a, vp) {
-    if (!vp) return a;
-    const out = { ...a };
-    if (Array.isArray(vp.x))     out.XLim     = vp.x.slice();
-    if (Array.isArray(vp.y))     out.YLim     = vp.y.slice();
-    if (Array.isArray(vp.z))     out.ZLim     = vp.z.slice();
-    if (Array.isArray(vp.r))     out.RLim     = vp.r.slice();
-    if (Array.isArray(vp.theta)) out.ThetaLim = vp.theta.slice();
-    return out;
-  }
 
   // ── Legacy aggregate readers ─────────────────────────────────────
   // `showMajor` ✓ shows when EVERY cell has at least one grid axis on
@@ -1042,161 +684,21 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // Build a CSV/TSV "name<sep>x<sep>y[<sep>z]" body from a series
   // source. Accepts either a polar figure (`series` with theta/rho),
   // an array of 2-D series layers (`x`, `y`), or 3-D series with z[].
-  function seriesBody(source, sep) {
-    const list = Array.isArray(source) ? source : (source.series || []);
-    const has3D = list.some((s) => Array.isArray(s.z));
-    const rows = [`name${sep}x${sep}y${has3D ? sep + 'z' : ''}`];
-    list.forEach((s) => {
-      const xs = s.x || s.theta || [];
-      const ys = s.y || s.rho   || [];
-      const zs = Array.isArray(s.z) ? s.z : null;
-      for (let i = 0; i < xs.length; i++) {
-        let row = `${s.name}${sep}${xs[i]}`;
-        if (ys[i] != null) row += sep + ys[i];
-        if (zs && zs[i] != null) row += sep + zs[i];
-        rows.push(row);
-      }
-    });
-    return rows.join('\n');
-  }
-  function get3DRows() {
-    return threeRef.current?.getCsvData?.() || [];
-  }
-  // Composite cell exporter — pulls heatmap layer's z if present, else series.
-  function compositeCellBody(cell, sep) {
-    const layers = cell.layers || [];
-    const hl = layers.find((l) => l.kind === 'heatmap');
-    if (hl) return hl.z.map((row) => row.map((v) => v == null ? '' : v).join(sep)).join('\n');
-    return seriesBody(layers.filter((l) => l.kind === 'series'), sep);
+  function exportCtx() {
+    return {
+      figure, is3D, isHeatmap, isSubplot, isComposite,
+      heatmapLayer, seriesLayers, compositeLayers,
+      threeRows: threeRef.current?.getCsvData?.() || [],
+    };
   }
   function exportCsv() {
-    if (is3D) {
-      downloadBlob(new Blob([seriesBody(get3DRows(), ',')], { type: 'text/csv' }),
-                   `figure_${figure.id}.csv`);
-      return;
-    }
-    if (isHeatmap) {
-      const z = heatmapLayer.z;
-      const rows = z.map((row) => row.map((v) => v == null ? '' : v).join(','));
-      downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
-      return;
-    }
-    if (isSubplot) {
-      const parts = figure.cells.map((c, i) => {
-        const tag = `# subplot ${c.subplotIndex || i + 1} — ${c.title || c.kind}`;
-        if (c.kind === 'composite') return `${tag}\n` + compositeCellBody(c, ',');
-        return `${tag}\n` + seriesBody(c, ',');
-      });
-      downloadBlob(new Blob([parts.join('\n\n')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
-      return;
-    }
-    if (isComposite) {
-      downloadBlob(new Blob([seriesBody(seriesLayers, ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
-      return;
-    }
-    downloadBlob(new Blob([seriesBody(figure, ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
+    downloadBlob(new Blob([buildDelimited(exportCtx(), ',')], { type: 'text/csv' }), `figure_${figure.id}.csv`);
   }
   function exportTsv() {
-    if (is3D) {
-      downloadBlob(new Blob([seriesBody(get3DRows(), '\t')], { type: 'text/tab-separated-values' }),
-                   `figure_${figure.id}.tsv`);
-      return;
-    }
-    if (isHeatmap) {
-      const z = heatmapLayer.z;
-      const rows = z.map((row) => row.map((v) => v == null ? '' : v).join('\t'));
-      downloadBlob(new Blob([rows.join('\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
-      return;
-    }
-    if (isSubplot) {
-      const parts = figure.cells.map((c, i) => {
-        const tag = `# subplot ${c.subplotIndex || i + 1} — ${c.title || c.kind}`;
-        if (c.kind === 'composite') return `${tag}\n` + compositeCellBody(c, '\t');
-        return `${tag}\n` + seriesBody(c, '\t');
-      });
-      downloadBlob(new Blob([parts.join('\n\n')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
-      return;
-    }
-    if (isComposite) {
-      downloadBlob(new Blob([seriesBody(seriesLayers, '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
-      return;
-    }
-    downloadBlob(new Blob([seriesBody(figure, '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
+    downloadBlob(new Blob([buildDelimited(exportCtx(), '\t')], { type: 'text/tab-separated-values' }), `figure_${figure.id}.tsv`);
   }
   function exportJson() {
-    if (is3D) {
-      const obj = {
-        id: figure.id, kind: 'composite3d',
-        title: figure.title,
-        xLabel: figure.xLabel, yLabel: figure.yLabel, zLabel: figure.zLabel,
-        view: figure.view,
-        series: get3DRows(),
-      };
-      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }),
-                   `figure_${figure.id}.json`);
-      return;
-    }
-    if (isHeatmap) {
-      const obj = {
-        id: figure.id, kind: 'heatmap', title: figure.title,
-        xRange: figure.xRange, yRange: figure.yRange,
-        cmin: heatmapLayer.cmin, cmax: heatmapLayer.cmax,
-        colormap: heatmapLayer.colormap, z: heatmapLayer.z,
-      };
-      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
-      return;
-    }
-    if (isSubplot) {
-      const obj = {
-        id: figure.id, kind: 'subplot', title: figure.title, grid: figure.grid,
-        cells: figure.cells.map((c) => {
-          if (c.kind === 'composite') {
-            const layers = c.layers || [];
-            return {
-              subplotIndex: c.subplotIndex, kind: 'composite', title: c.title,
-              xLabel: c.xLabel, yLabel: c.yLabel,
-              xRange: c.xRange, yRange: c.yRange,
-              layers: layers.map((ly) => {
-                if (ly.kind === 'heatmap') return { kind: 'heatmap', z: ly.z, cmin: ly.cmin, cmax: ly.cmax };
-                if (ly.kind === 'series')  return { kind: 'series', mode: ly.mode, name: ly.name, color: ly.color, x: ly.x, y: ly.y };
-                return { ...ly };
-              }),
-            };
-          }
-          return { subplotIndex: c.subplotIndex, kind: c.kind, title: c.title,
-            xLabel: c.xLabel, yLabel: c.yLabel,
-            series: (c.series || []).map((s) => ({
-              name: s.name, color: s.color, x: s.x ?? s.theta, y: s.y ?? s.rho,
-            })),
-          };
-        }),
-      };
-      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
-      return;
-    }
-    if (isComposite) {
-      const obj = {
-        id: figure.id, kind: 'composite', title: figure.title,
-        xLabel: figure.xLabel, yLabel: figure.yLabel,
-        xRange: figure.xRange, yRange: figure.yRange,
-        layers: compositeLayers.map((ly) => {
-          if (ly.kind === 'heatmap') return { kind: 'heatmap', z: ly.z, cmin: ly.cmin, cmax: ly.cmax, colormap: ly.colormap };
-          if (ly.kind === 'series')  return { kind: 'series', mode: ly.mode, name: ly.name, color: ly.color, x: ly.x, y: ly.y };
-          return { ...ly };
-        }),
-      };
-      downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
-      return;
-    }
-    const obj = {
-      id: figure.id, kind: figure.kind, title: figure.title,
-      xLabel: figure.xLabel, yLabel: figure.yLabel,
-      series: (figure.series || []).map((s) => ({
-        name: s.name, color: s.color,
-        x: s.x ?? s.theta, y: s.y ?? s.rho,
-      })),
-    };
-    downloadBlob(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
+    downloadBlob(new Blob([JSON.stringify(buildJsonObject(exportCtx()), null, 2)], { type: 'application/json' }), `figure_${figure.id}.json`);
   }
 
   function applyFit(mode, axisMode) {

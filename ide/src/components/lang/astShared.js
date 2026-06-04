@@ -1,4 +1,4 @@
-// ide/src/components/v3/astShared.js
+// ide/src/components/lang/astShared.js
 //
 // Shared helpers / config for both AST views (graph and tree). Kept
 // in one place so adding a new NodeType / category is a one-file
