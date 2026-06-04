@@ -234,6 +234,15 @@ TEST_P(WorkspaceScopeTest, WhosMarksBaseGlobalAttribute)
     EXPECT_NE(capturedOutput.find("global"), std::string::npos); // the attribute
 }
 
+// A global declared but never assigned still lists in who (it is [] in MATLAB).
+TEST_P(WorkspaceScopeTest, WhoListsBareGlobal)
+{
+    eval("global gbare;");
+    capturedOutput.clear();
+    eval("who;");
+    EXPECT_NE(capturedOutput.find("gbare"), std::string::npos);
+}
+
 INSTANTIATE_DUAL(WorkspaceScopeTest);
 
 // ============================================================

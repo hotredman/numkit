@@ -2918,8 +2918,12 @@ Value TreeWalker::execGlobalPersistent(const ASTNode *node, Environment *env)
 {
     for (auto &name : node->paramNames) {
         env->declareGlobal(name);
+        // A freshly declared global with no value yet IS [] in MATLAB (visible
+        // to who/exist, reads as an empty matrix), not "unset". Seed the empty
+        // matrix so both reads and introspection match. The VM mirrors this in
+        // Engine::runOneChunk's updateTopLevelGlobals.
         if (!engine_.globalsEnv_->get(name))
-            engine_.globalsEnv_->set(name, Value());
+            engine_.globalsEnv_->set(name, Value::Empty);
     }
     return Value();
 }

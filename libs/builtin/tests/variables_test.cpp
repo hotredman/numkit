@@ -397,4 +397,15 @@ TEST_P(GlobalTest, BaseSeesGlobalModifiedByFunction)
     EXPECT_DOUBLE_EQ(getVar("gg"), 11.0);
 }
 
+// A global declared but never assigned is [] (empty matrix) in MATLAB —
+// visible to exist and readable as an empty value. Both engines seed the
+// empty matrix on declaration (TreeWalker::execGlobalPersistent /
+// Engine::updateTopLevelGlobals).
+TEST_P(GlobalTest, BareGlobalIsEmptyAndVisible)
+{
+    eval("global gbare;");
+    EXPECT_DOUBLE_EQ(evalScalar("exist('gbare','var')"), 1.0);
+    EXPECT_TRUE(evalBool("isempty(gbare)"));
+}
+
 INSTANTIATE_DUAL(GlobalTest);
