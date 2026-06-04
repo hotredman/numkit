@@ -320,11 +320,81 @@ double medianFromSlice(double *data, size_t n)
 
 } // namespace
 
+namespace {
+
+// Complex ordering: by magnitude, ties broken by phase angle (matches numkit
+// sort/max and MATLAB's complex median ordering).
+inline bool complexAbsAngleLess(const Complex &a, const Complex &b)
+{
+    const double aa = std::abs(a), ab = std::abs(b);
+    if (aa != ab) return aa < ab;
+    return std::arg(a) < std::arg(b);
+}
+
+// Median of a complex slice (mutates s by sorting). Propagates NaN (MATLAB
+// 'includenan' default). Even n → mean of the two middle values.
+Complex complexMedianFromSlice(Complex *s, size_t n)
+{
+    if (n == 0) return Complex(std::nan(""), std::nan(""));
+    for (size_t i = 0; i < n; ++i)
+        if (isComplexNaNStats(s[i])) return Complex(std::nan(""), std::nan(""));
+    std::sort(s, s + n, complexAbsAngleLess);
+    if (n & 1u) return s[n / 2];
+    return 0.5 * (s[n / 2 - 1] + s[n / 2]);
+}
+
+// Per-dim complex median (mirrors complexVarianceAlongDim; COMPLEX output).
+void complexMedianAlongDim(const Value &x, int redDim, Complex *dst,
+                           std::pmr::memory_resource *mr)
+{
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+    const Complex *src = x.complexData();
+    ScratchVec<Complex> scratch(sliceLen, mr);
+    auto reduceSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
+        for (size_t k = 0; k < sliceLen; ++k) scratch[k] = src[baseOff + k * stride];
+        dst[outOff] = complexMedianFromSlice(scratch.data(), sliceLen);
+    };
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) reduceSlice(o, o * sliceLen, 1);
+        return;
+    }
+    for (size_t o = 0; o < O; ++o)
+        for (size_t b = 0; b < B; ++b)
+            reduceSlice(o * B + b, o * sliceLen * B + b, B);
+}
+
+Value medianComplex(const Value &x, int dim, std::pmr::memory_resource *mr)
+{
+    if (x.isEmpty()) return emptyStatReductionNaN(x, dim, mr);
+    if (x.isScalar()) return Value::complexScalar(x.complexData()[0], mr);
+    const int d = resolveDim(x, dim, "median");
+    Value out;
+    if (x.dims().ndim() >= 4 && d >= 1 && d <= x.dims().ndim()) {
+        ScratchArena sc(mr);
+        auto shape = outShapeForDimND(&sc, x, d);
+        out = Value::matrixND(shape.data(), static_cast<int>(shape.size()),
+                              ValueType::COMPLEX, mr);
+    } else {
+        auto outShape = outShapeForDim(x, d);
+        out = createMatrix(outShape, ValueType::COMPLEX, mr);
+    }
+    ScratchArena scratch(mr);
+    complexMedianAlongDim(x, d, out.complexDataMut(), &scratch);
+    return out;
+}
+
+} // namespace
+
 Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX)
-        throw Error("median: complex inputs are not supported (no defined ordering)",
-                     0, 0, "median", "", "numkit:median:complex");
+        return medianComplex(x, dim, mr);   // sort by abs, ties by angle (MATLAB)
     if (x.isEmpty())
         return emptyStatReductionNaN(x, dim, mr);
     const int d = resolveDim(x, dim, "median");
@@ -1622,9 +1692,20 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     if (isAll) {
         // 'all' → flatten + median over all elements (skipping NaN if omitnan).
-        if (args[0].type() == ValueType::COMPLEX)
-            throw Error("median: complex inputs are not supported",
-                         0, 0, "median", "", "numkit:median:complex");
+        if (args[0].type() == ValueType::COMPLEX) {
+            const size_t total = args[0].numel();
+            ScratchArena scratch(ctx.engine->resource());
+            auto buf = ScratchVec<Complex>(total, &scratch);
+            const Complex *src = args[0].complexData();
+            size_t k = 0;
+            for (size_t i = 0; i < total; ++i) {
+                if (omitNan && isComplexNaNStats(src[i])) continue;
+                buf[k++] = src[i];
+            }
+            outs[0] = Value::complexScalar(complexMedianFromSlice(buf.data(), k),
+                                           ctx.engine->resource());
+            return;
+        }
         const size_t total = args[0].numel();
         ScratchArena scratch(ctx.engine->resource());
         auto buf = ScratchVec<double>(total, &scratch);
