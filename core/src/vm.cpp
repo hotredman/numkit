@@ -9,6 +9,8 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
+#include <unordered_set>
 
 // Forward-declarations from libs/builtin/src/backends/binary_ops_loops.hpp.
 // Linked from the same numkit_m library; lets the VM bypass the public
@@ -2311,28 +2313,39 @@ enter_frame:
 // Variable export from top-level frame
 // ============================================================
 
+// Rebuild `out` (lastVarMap_) as a chunk's assigned LOCAL variables, for syncing
+// back to the workspace. Only names the chunk actually wrote to are exported
+// (assignedVars) — reading `pi` or another reserved name must not shadow it in
+// the base workspace. Globals are excluded: their value round-trips through
+// globalsEnv_, and a bare `global X` is "assigned" with an unset register that
+// would otherwise make syncVMToWorkspace remove() it (cascading into globalsEnv_
+// and clobbering the live value). Global membership is O(1) via a set built once
+// — and skipped entirely when the chunk declares no globals (the common case).
+static void rebuildLocalVarMap(std::vector<std::pair<std::string, Value>> &out,
+                               const BytecodeChunk &chunk, const Value *R, uint8_t nregs)
+{
+    out.clear();
+    const auto &assigned = chunk.assignedVars;
+    if (chunk.globalNames.empty()) {
+        for (auto &[name, reg] : chunk.varMap)
+            if (reg < nregs && assigned.count(name))
+                out.push_back({name, R[reg]});
+        return;
+    }
+    std::unordered_set<std::string_view> globals(chunk.globalNames.begin(),
+                                                 chunk.globalNames.end());
+    for (auto &[name, reg] : chunk.varMap)
+        if (reg < nregs && assigned.count(name) && !globals.count(name))
+            out.push_back({name, R[reg]});
+}
+
 void VM::exportTopLevelVariables()
 {
     if (frames_.empty())
         return;
 
     CallFrame &topFrame = frames_[0];
-    lastVarMap_.clear();
-
-    // Export only names the chunk actually wrote to — reading `pi` or any
-    // other reserved name must not create a shadowing local in the base
-    // workspace. assignedVars is the compile-time set of write targets.
-    // Globals are excluded: their value lives in globalsEnv_ (exported below),
-    // and a bare `global X` marks X "assigned" with an unset register — letting
-    // it into lastVarMap_ would make syncVMToWorkspace remove() it, which for a
-    // global cascades into globalsEnv_ and clobbers the live value.
-    const auto &assigned = topFrame.chunk->assignedVars;
-    const auto &gnames = topFrame.chunk->globalNames;
-    for (auto &[name, reg] : topFrame.chunk->varMap) {
-        if (reg < topFrame.nregs && assigned.count(name)
-            && std::find(gnames.begin(), gnames.end(), name) == gnames.end())
-            lastVarMap_.push_back({name, topFrame.R[reg]});
-    }
+    rebuildLocalVarMap(lastVarMap_, *topFrame.chunk, topFrame.R, topFrame.nregs);
 
     // Export top-level globals: write the value to globalsEnv_ only. No
     // local-storage mirror into workspaceEnv_ — that dual-storage is what
@@ -2805,19 +2818,8 @@ void VM::popCallFrame(Value retVal)
         }
     }
 
-    if (isTopLevel) {
-        // Export only names the chunk actually wrote to (see
-        // exportTopLevelVariables for the rationale). Globals are excluded —
-        // they round-trip through globalsEnv_, not the local-var sync.
-        lastVarMap_.clear();
-        const auto &assigned = frame.chunk->assignedVars;
-        const auto &gnames = frame.chunk->globalNames;
-        for (auto &[name, reg] : frame.chunk->varMap) {
-            if (reg < frame.nregs && assigned.count(name)
-                && std::find(gnames.begin(), gnames.end(), name) == gnames.end())
-                lastVarMap_.push_back({name, frame.R[reg]});
-        }
-    }
+    if (isTopLevel)
+        rebuildLocalVarMap(lastVarMap_, *frame.chunk, frame.R, frame.nregs);
 
     // Cleanup: release heap objects in frame
     for (uint8_t i = 0; i < frame.nregs; ++i) {
