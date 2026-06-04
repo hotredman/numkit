@@ -92,12 +92,14 @@ TEST_F(BuiltinKnownBug, DISABLED_CumsumComplex)
     EXPECT_NEAR(evalScalar("imag(p(2))"), 0.0, 1e-12);
 }
 
-// bugs/builtin/diff-complex.md — diff drops the imaginary part (silent).
-TEST_F(BuiltinKnownBug, DISABLED_DiffComplex)
+// bugs/builtin/diff-complex.md — FIXED (diff differences both parts).
+// Live regression guard moved to libs/builtin/tests/diff_complex_test.cpp.
+
+// bugs/builtin/diff-zero-order.md — diff(X,0) should error (MATLAB: "N must
+// be a positive integer scalar"); numkit currently returns identity.
+TEST_F(BuiltinKnownBug, DISABLED_DiffZeroOrderErrors)
 {
-    eval("d = diff([1+2i 4+6i 9+12i]);");        // MATLAB: [3+4i, 5+6i]
-    EXPECT_NEAR(evalScalar("imag(d(1))"), 4.0, 1e-12);
-    EXPECT_NEAR(evalScalar("imag(d(2))"), 6.0, 1e-12);
+    EXPECT_ANY_THROW(eval("diff([1 2 3], 0);"));
 }
 
 // bugs/builtin/complex-input-unsupported.md — complex rejected (builtin fns).
