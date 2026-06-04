@@ -267,11 +267,37 @@ std::string DebugSession::eval(const std::string &code)
         innerAssigned[n] = v;
 
     // 6. Restore paused VM state BEFORE diffing back so ws_'s frame pointers
-    //    are pointing at the user's registers again.
+    //    are pointing at the user's registers again. restorePausedState is a
+    //    move-assign (does not throw); the rebind + diff-back below are guarded
+    //    by doRestore so a throw there can't leave the engine inconsistent.
     engine_.vm_->restorePausedState(std::move(savedVMState));
-    ws_.bindVMFrame(*engine_.vm_, engine_);
 
-    // 7. Apply the inner eval's effects to ws_.
+    // Return the base workspace + engine I/O / observer / controller to their
+    // pre-eval state. Defined as a lambda so it runs on the normal path AND if
+    // the diff-back below throws (e.g. bad_alloc): a throw must never leave the
+    // base workspace wiped, the observer detached, or output still redirected
+    // into the local capture buffer.
+    auto doRestore = [&]() {
+        // markClearAll() may have been set by a console `clear`; reset it so a
+        // later engine.eval() doesn't behave as if clearAll was requested.
+        // Global membership (wiped by clearAll, values still in globalsEnv_) is
+        // re-declared so base globals don't vanish.
+        genv.clearAll();
+        for (auto &[n, v] : preEvalEnv)
+            genv.set(n, v);
+        for (auto &g : preEvalGlobals)
+            genv.declareGlobal(g);
+        engine_.clearAllCalled_ = false;
+
+        engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
+        engine_.setDebugObserver(observer_);
+        if (auto *c = engine_.debugController()) {
+            c->callStack() = savedCallStack;
+            c->setLastLine(savedLine);
+        }
+    };
+
+    // 7. Rebind ws_ to the restored frame, then apply the inner eval's effects:
     //
     //    - Names the inner eval ASSIGNED (present in innerAssigned): write
     //      through to ws_. A built-in written here becomes a real shadow.
@@ -284,7 +310,11 @@ std::string DebugSession::eval(const std::string &code)
     //      in innerAssigned with a non-empty value): ws_.set() lands them
     //      in the overlay. This is the `ans` path for bare-expression
     //      console inputs like `cos(10)`.
-    {
+    //
+    //    Guarded: any failure still restores engine state before returning.
+    try {
+        ws_.bindVMFrame(*engine_.vm_, engine_);
+
         auto wsNames = genv.localNames();
         std::unordered_set<std::string> nowNames(wsNames.begin(), wsNames.end());
 
@@ -317,29 +347,13 @@ std::string DebugSession::eval(const std::string &code)
             if (!val.isUnset() && !val.isDeleted())
                 ws_.set(name, val);
         }
+    } catch (const std::exception &e) {
+        doRestore();
+        return std::string("Error: applying console changes: ") + e.what();
     }
 
-    // 8. Restore workspaceEnv to its pre-eval state. The flag markClearAll()
-    //    might have been set by a console `clear`; reset it so later
-    //    engine.eval() calls don't behave as if clearAll was requested.
-    genv.clearAll();
-    for (auto &[n, v] : preEvalEnv)
-        genv.set(n, v);
-    // Restore global membership wiped by clearAll (values are still in
-    // globalsEnv_); otherwise base globals silently disappear post-eval.
-    for (auto &g : preEvalGlobals)
-        genv.declareGlobal(g);
-    engine_.clearAllCalled_ = false;
-
-    // 9. Restore output capture, observer, and controller state.
-    engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
-    engine_.setDebugObserver(observer_);
-
-    ctl = engine_.debugController();
-    if (ctl) {
-        ctl->callStack() = std::move(savedCallStack);
-        ctl->setLastLine(savedLine);
-    }
+    // 8-9. Restore engine state on the normal path.
+    doRestore();
 
     while (!evalOutput.empty()
            && (evalOutput.back() == '\n' || evalOutput.back() == ' '))
