@@ -692,3 +692,104 @@ TEST(DebugEvalInjectTest, ClearThenReassignSurvivesContinue)
     EXPECT_NE(all.find("27"), std::string::npos)
         << "expected 7 + 20 = 27 on continue, got: [" << all << "]";
 }
+
+// ============================================================
+// A `global` declared in the debugged script: visible at the pause, editable
+// from the console, and the edit must take effect when execution resumes.
+// (Stresses the snapshot/inject/merge path against the global model.)
+// ============================================================
+
+TEST(DebugEvalInjectTest, GlobalVarVisibleAndEditableAtBreakpoint)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({4}); // pause before `y = g + x`
+
+    std::string code =
+        "global g;\n"   // 1
+        "g = 5;\n"      // 2
+        "x = 10;\n"     // 3
+        "y = g + x;\n"  // 4  <-- breakpoint
+        "disp(y);\n";   // 5
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 4);
+
+    // The global is visible with its current value.
+    double gval = -1;
+    for (auto &v : session.snapshot().variables)
+        if (v.name == "g" && v.value)
+            gval = v.value->toScalar();
+    EXPECT_DOUBLE_EQ(gval, 5.0) << "global g should be visible = 5 at the pause";
+
+    // Edit it from the console.
+    session.eval("g = 100");
+    EXPECT_NE(session.eval("g").find("100"), std::string::npos)
+        << "console read-back of edited global";
+
+    output.clear();
+    status = session.resume(DebugAction::Continue);
+    std::string sessionOut = session.takeOutput();
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_TRUE(session.errorMessage().empty()) << "Error: " << session.errorMessage();
+
+    std::string all = output + sessionOut;
+    EXPECT_NE(all.find("110"), std::string::npos)
+        << "edited global: y = g + x should be 100 + 10 = 110, got: [" << all << "]";
+}
+
+// A global that already exists in the BASE workspace (from prior REPL use) must
+// survive a debug-console eval. The eval clearAll()s + re-injects + restores
+// workspaceEnv; with globals living only in globalsEnv_ (not local storage),
+// the naive localNames() snapshot/restore would drop the global's membership.
+TEST(DebugEvalInjectTest, BaseGlobalSurvivesDebugEval)
+{
+    Engine engine;
+    engine.eval("global bg; bg = 7;");
+    ASSERT_NE(engine.getVariable("bg"), nullptr);
+    ASSERT_DOUBLE_EQ(engine.getVariable("bg")->toScalar(), 7.0);
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+    auto status = session.start("a = 1;\nb = 2;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    session.eval("a = 5"); // a console eval — triggers clearAll/inject/restore
+    session.resume(DebugAction::Continue);
+
+    auto *p = engine.getVariable("bg");
+    ASSERT_NE(p, nullptr) << "base global bg vanished after a debug eval";
+    EXPECT_DOUBLE_EQ(p->toScalar(), 7.0);
+}
+
+// Editing a variable to a different type/shape (scalar -> matrix) must take
+// effect on continue — the live register write is a full Value assignment.
+TEST(DebugEvalInjectTest, EditChangesTypeAndShape)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+    std::string code =
+        "v = 5;\n"
+        "disp(sum(v(:)));\n";
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    session.eval("v = [1 2 3; 4 5 6]"); // scalar -> 2x3 matrix
+
+    output.clear();
+    status = session.resume(DebugAction::Continue);
+    std::string sessionOut = session.takeOutput();
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_TRUE(session.errorMessage().empty()) << session.errorMessage();
+    std::string all = output + sessionOut;
+    EXPECT_NE(all.find("21"), std::string::npos) // 1+2+3+4+5+6
+        << "edited matrix should take effect: [" << all << "]";
+}
