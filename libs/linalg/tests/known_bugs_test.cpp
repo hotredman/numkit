@@ -39,12 +39,8 @@ TEST_F(LinalgKnownBug, DISABLED_EigLeftVectors)
     EXPECT_LT(evalScalar("max(max(abs(W'*A - D*W')))"), 1e-10);
 }
 
-// bugs/linalg/norm-complex.md — norm of a complex array (vecnorm handles it).
-TEST_F(LinalgKnownBug, DISABLED_NormComplex)
-{
-    EXPECT_NEAR(evalScalar("norm([3+4i 0])"), 5.0, 1e-12);        // 2-norm
-    EXPECT_NEAR(evalScalar("norm([3+4i 0], 'fro')"), 5.0, 1e-12); // Frobenius
-}
+// bugs/linalg/norm-complex.md — FIXED (norm of a complex array by magnitude).
+// Live regression guard moved to libs/linalg/tests/norm_complex_test.cpp.
 
 // bugs/linalg/complex-matrix-unsupported.md — complex matrix linear algebra.
 TEST_F(LinalgKnownBug, DISABLED_ComplexMatrixOps)
