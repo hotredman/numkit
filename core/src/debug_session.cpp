@@ -89,7 +89,8 @@ ExecStatus DebugSession::start(const std::string &code)
         ExecStatus status = engine_.vm_->startExecution(chunk_, nullptr, 0, initial);
 
         if (status == ExecStatus::Paused) {
-            ws_.bindVMFrame(*engine_.vm_, engine_);
+            selectedDepth_ = 0; // new pause → focus the deepest frame
+            ws_.bindVMFrame(*engine_.vm_, engine_, selectedDepth_);
         } else {
             engine_.syncVMToWorkspace();
             deactivate();
@@ -128,7 +129,8 @@ ExecStatus DebugSession::resume(DebugAction action)
         ExecStatus status = engine_.debugResume(action);
 
         if (status == ExecStatus::Paused) {
-            ws_.bindVMFrame(*engine_.vm_, engine_);
+            selectedDepth_ = 0; // new pause → focus the deepest frame
+            ws_.bindVMFrame(*engine_.vm_, engine_, selectedDepth_);
         } else {
             deactivate();
         }
@@ -155,6 +157,33 @@ void DebugSession::stop()
     ws_.reset();
 }
 
+size_t DebugSession::frameCount() const
+{
+    return (active_ && engine_.vm_) ? engine_.vm_->frameCount() : 0;
+}
+
+bool DebugSession::frameUp()
+{
+    // Move focus toward the base (caller). dbup.
+    if (!active_ || !engine_.vm_)
+        return false;
+    if (selectedDepth_ + 1 >= engine_.vm_->frameCount())
+        return false; // already at the base frame
+    ++selectedDepth_;
+    ws_.bindVMFrame(*engine_.vm_, engine_, selectedDepth_);
+    return true;
+}
+
+bool DebugSession::frameDown()
+{
+    // Move focus back toward the current (deepest) frame. dbdown.
+    if (!active_ || selectedDepth_ == 0)
+        return false;
+    --selectedDepth_;
+    ws_.bindVMFrame(*engine_.vm_, engine_, selectedDepth_);
+    return true;
+}
+
 void DebugSession::deactivate()
 {
     if (!active_)
@@ -178,7 +207,12 @@ DebugSession::Snapshot DebugSession::snapshot() const
     if (stack.empty())
         return snap;
 
-    auto &frame = stack.back();
+    // Report the dbup/dbdown-selected frame (0 = deepest). ws_ is already bound
+    // to this frame, so its variables match line/functionName below.
+    size_t depth = selectedDepth_;
+    if (depth >= stack.size())
+        depth = stack.size() - 1;
+    auto &frame = stack[stack.size() - 1 - depth];
     snap.line = frame.line;
     snap.col = frame.col;
     snap.functionName = frame.functionName;
@@ -322,7 +356,7 @@ std::string DebugSession::eval(const std::string &code)
     //
     //    Guarded: any failure still restores engine state before returning.
     try {
-        ws_.bindVMFrame(*engine_.vm_, engine_);
+        ws_.bindVMFrame(*engine_.vm_, engine_, selectedDepth_);
 
         auto wsNames = genv.localNames();
         std::unordered_set<std::string> nowNames(wsNames.begin(), wsNames.end());

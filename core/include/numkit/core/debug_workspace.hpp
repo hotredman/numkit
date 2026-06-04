@@ -51,8 +51,10 @@ public:
     // constants via Engine::isReservedName (keeps them out of the
     // user-visible snapshot the same way built-ins are hidden).
     // Call after every save/restore of paused state so pointers match the
-    // live register base.
-    void bindVMFrame(VM &vm, Engine &engine);
+    // live register base. depthFromTop selects which frame to bind: 0 = the
+    // current (deepest) frame, increasing toward the base — the dbup/dbdown
+    // axis. An out-of-range depth leaves the workspace unbound.
+    void bindVMFrame(VM &vm, Engine &engine, size_t depthFromTop = 0);
 
     // Drop framePtrs. Overlay is preserved across (re)binds.
     void unbindFrame();

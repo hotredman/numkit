@@ -20,13 +20,13 @@ bool DebugWorkspace::isHiddenName(const std::string &name) const
     return kBuiltinNames.count(name) > 0;
 }
 
-void DebugWorkspace::bindVMFrame(VM &vm, Engine &engine)
+void DebugWorkspace::bindVMFrame(VM &vm, Engine &engine, size_t depthFromTop)
 {
     engine_ = &engine;
     framePtrs_.clear();
     assignedInFrame_.clear();
 
-    auto frame = vm.currentFrameView();
+    auto frame = vm.frameViewAt(depthFromTop);
     if (!frame.chunk || !frame.registers)
         return;
 
