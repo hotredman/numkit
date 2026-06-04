@@ -36,7 +36,6 @@ function fmt(v, opts = {}) {
 
 const ROW_H    = 22;     // matches CSS .ve-table tbody td natural height
 const COL_W    = 88;     // matches CSS min-width: 88px
-const HEADER_H = 26;     // sticky thead row height
 const CORNER_W = 60;     // corner cell + row-head width
 const OVERSCAN = 6;      // extra rows/cols above/below to make scroll look continuous
 
