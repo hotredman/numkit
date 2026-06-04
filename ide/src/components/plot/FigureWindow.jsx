@@ -2,17 +2,16 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
-import PolarPlot, { defaultPolarViewport } from './PolarPlot';
+import PolarPlot from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
-import { computeFitViewport, fitCellViewport, logClampRange,
+import { fitCellViewport, logClampRange,
   composeSvgsToString, exportSvgString, exportPngString,
   downloadBlob as utilDownloadBlob } from './plotUtils';
-import { initAxesFromCell, getProp, setProp, setAllAxes, setAxesAt,
+import { initAxesFromCell, getProp, setProp,
   everyAxes, isOn, onOff,
   defaultViewport, cellsArrayFromFigure, aggColormap } from './figureSchema';
 import {
-  axisGridOn, axisGridMinorOn, axesToLegacyCell,
-  legacyRead, legacyWrite, viewportFromAxes, applyViewport,
+  axesToLegacyCell, legacyRead, legacyWrite, viewportFromAxes,
 } from './axesModel';
 
 function renderFigure(figure, props, threeRef) {

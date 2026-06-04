@@ -4,11 +4,10 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { pathToMatlabLValue, isValidIdentifier } from './inspectorOps';
 import ContextMenu from '../ui/ContextMenu';
-import StatsBar from './StatsBar';
 import { aggregateStats, loadVisibleColumns, saveVisibleColumns } from './valueColumns';
 import { useChooser } from './chooser';
 import { classify } from '../plot/adapters';
-import { VirtualTable, MatrixPanel } from './MatrixPanel';
+import { MatrixPanel } from './MatrixPanel';
 import { EntityBrowser } from './EntityBrowser';
 
 /* ======================================================================== */
