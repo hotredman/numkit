@@ -211,6 +211,29 @@ TEST_P(WorkspaceScopeTest, WhosWithArgs)
     EXPECT_EQ(capturedOutput.find("  y"), std::string::npos);
 }
 
+// ── who/whos list base-workspace globals (clean-refactor goal) ──
+// A `global g` at the base level must appear in who/whos on BOTH engines —
+// previously the VM listed it (via a local-storage mirror) while the
+// TreeWalker did not. Now both enumerate workspaceEnv_->globalNames(), the
+// single membership set; the value lives only in globalsEnv_.
+TEST_P(WorkspaceScopeTest, WhoListsBaseGlobal)
+{
+    eval("global gw; gw = 7; xloc = 3;");
+    capturedOutput.clear();
+    eval("who;");
+    EXPECT_NE(capturedOutput.find("gw"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("xloc"), std::string::npos);
+}
+
+TEST_P(WorkspaceScopeTest, WhosMarksBaseGlobalAttribute)
+{
+    eval("global gw; gw = 7;");
+    capturedOutput.clear();
+    eval("whos;");
+    EXPECT_NE(capturedOutput.find("gw"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("global"), std::string::npos); // the attribute
+}
+
 INSTANTIATE_DUAL(WorkspaceScopeTest);
 
 // ============================================================

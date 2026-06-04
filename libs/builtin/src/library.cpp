@@ -2013,6 +2013,11 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     auto src = env->localNames();
                                     for (auto &n : src)
                                         if (!isPseudo(n)) names.push_back(n);
+                                    // Globals declared in this workspace live in
+                                    // globalsEnv_, not local storage — MATLAB
+                                    // lists them too. Disjoint from localNames.
+                                    for (const auto &g : env->globalNames())
+                                        if (!isPseudo(g) && env->get(g)) names.push_back(g);
                                 } else {
                                     for (auto &a : args) {
                                         if (a.isChar()) {
@@ -2075,6 +2080,11 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     auto src = env->localNames();
                                     for (auto &n : src)
                                         if (!isPseudo(n)) names.push_back(n);
+                                    // Globals declared in this workspace (value
+                                    // in globalsEnv_, not local storage) — list
+                                    // them too, matching MATLAB.
+                                    for (const auto &g : env->globalNames())
+                                        if (!isPseudo(g) && env->get(g)) names.push_back(g);
                                 } else {
                                     for (auto &a : args) {
                                         if (a.isChar()) {

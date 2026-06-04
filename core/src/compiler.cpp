@@ -57,9 +57,10 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
     isTopLevel_ = true;
 
     // Inherit prior-chunk `global X` declarations so split-mode execution
-    // keeps routing writes through globalsEnv_. Engine::runOneChunk keeps
-    // this set in sync after every top-level chunk runs.
-    for (const auto &g : engine_.topLevelGlobalNames())
+    // keeps routing writes through globalsEnv_. The base workspace's global
+    // membership (workspaceEnv_->globals_) is the single source of truth,
+    // populated as each top-level `global X` runs on either engine.
+    for (const auto &g : engine_.workspaceEnv().globalNames())
         chunk_.globalNames.push_back(g);
 
     // Pre-import: scan AST for identifiers that exist in workspaceEnv,

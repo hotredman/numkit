@@ -2322,25 +2322,29 @@ void VM::exportTopLevelVariables()
     // Export only names the chunk actually wrote to — reading `pi` or any
     // other reserved name must not create a shadowing local in the base
     // workspace. assignedVars is the compile-time set of write targets.
+    // Globals are excluded: their value lives in globalsEnv_ (exported below),
+    // and a bare `global X` marks X "assigned" with an unset register — letting
+    // it into lastVarMap_ would make syncVMToWorkspace remove() it, which for a
+    // global cascades into globalsEnv_ and clobbers the live value.
     const auto &assigned = topFrame.chunk->assignedVars;
+    const auto &gnames = topFrame.chunk->globalNames;
     for (auto &[name, reg] : topFrame.chunk->varMap) {
-        if (reg < topFrame.nregs && assigned.count(name))
+        if (reg < topFrame.nregs && assigned.count(name)
+            && std::find(gnames.begin(), gnames.end(), name) == gnames.end())
             lastVarMap_.push_back({name, topFrame.R[reg]});
     }
 
-    // Export top-level global declarations to globalsEnv_ (the value store) and
-    // mirror into workspaceEnv_ so the base workspace's who / variable viewer
-    // sees them. This is the legitimate base-scope path; the leak fix lives in
-    // popCallFrame's function branch (which must NOT mirror) and in
-    // Engine::getVariable's global-membership gate.
+    // Export top-level global declarations. Mark each name global in the base
+    // workspace BEFORE writing its value, so the value lives only in
+    // globalsEnv_ (a subsequent workspaceEnv_->set would just delegate there).
+    // No local-storage mirror — that dual-storage is what diverged who/whos
+    // between the engines. who/whos enumerate workspaceEnv_->globalNames().
     for (auto &gname : topFrame.chunk->globalNames) {
+        engine_.workspaceEnv_->declareGlobal(gname);
         for (auto &[vname, reg] : topFrame.chunk->varMap) {
             if (vname == gname && reg < topFrame.nregs) {
                 if (!topFrame.R[reg].isUnset() && !topFrame.R[reg].isDeleted())
                     engine_.globalsEnv_->set(gname, topFrame.R[reg]);
-                Value *gsVal = engine_.globalsEnv_->get(gname);
-                if (gsVal)
-                    engine_.workspaceEnv_->set(gname, *gsVal);
                 break;
             }
         }
@@ -2780,22 +2784,23 @@ void VM::popCallFrame(Value retVal)
 
     bool isTopLevel = (frames_.size() == 1);
 
-    // Export global variables back to globalsEnv_ (the global value store).
-    // A top-level `global X` ALSO mirrors into workspaceEnv_ so the base
-    // workspace's who/viewer sees it. A function-scope `global X` must write
-    // ONLY globalsEnv_ — mirroring it into workspaceEnv_ is what leaked the
-    // name into the base workspace (exist/who). Reads of a base-undeclared
-    // global are blocked by Engine::getVariable's global-membership gate.
+    // Export global variables back to globalsEnv_ (the single global value
+    // store). A top-level `global X` ALSO records base-workspace membership
+    // (declareGlobal) so who/whos/getVariable see it — but stores NO local
+    // copy (the value lives in globalsEnv_). A function-scope `global X` writes
+    // ONLY globalsEnv_ and never touches the base workspace — that mirror was
+    // the leak. Reads of a base-undeclared global are blocked by
+    // Engine::getVariable's membership gate.
     for (auto &gname : frame.chunk->globalNames) {
+        if (isTopLevel)
+            engine_.workspaceEnv_->declareGlobal(gname);
         for (auto &[vname, reg] : frame.chunk->varMap) {
             if (vname == gname && reg < frame.nregs) {
                 if (isTopLevel) {
-                    // Top-level: only overwrite if assigned (not unset/deleted)
+                    // Bare `global X` (unset/deleted reg) must not clobber an
+                    // existing global value.
                     if (!frame.R[reg].isUnset() && !frame.R[reg].isDeleted())
                         engine_.globalsEnv_->set(gname, frame.R[reg]);
-                    Value *gsVal = engine_.globalsEnv_->get(gname);
-                    if (gsVal)
-                        engine_.workspaceEnv_->set(gname, *gsVal);
                 } else {
                     engine_.globalsEnv_->set(gname, frame.R[reg]);
                 }
@@ -2806,11 +2811,14 @@ void VM::popCallFrame(Value retVal)
 
     if (isTopLevel) {
         // Export only names the chunk actually wrote to (see
-        // exportTopLevelVariables for the rationale).
+        // exportTopLevelVariables for the rationale). Globals are excluded —
+        // they round-trip through globalsEnv_, not the local-var sync.
         lastVarMap_.clear();
         const auto &assigned = frame.chunk->assignedVars;
+        const auto &gnames = frame.chunk->globalNames;
         for (auto &[name, reg] : frame.chunk->varMap) {
-            if (reg < frame.nregs && assigned.count(name))
+            if (reg < frame.nregs && assigned.count(name)
+                && std::find(gnames.begin(), gnames.end(), name) == gnames.end())
                 lastVarMap_.push_back({name, frame.R[reg]});
         }
     }
