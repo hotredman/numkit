@@ -120,5 +120,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/unique_last_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/find_count_direction_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/diff_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cumsum_cumprod_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

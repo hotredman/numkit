@@ -1,6 +1,6 @@
 # builtin.cumsum / cumprod — complex input throws
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P2 (errors where MATLAB returns a value)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (complex-input sweep)
@@ -37,3 +37,16 @@ the complex accumulation logic to copy.
 - `libs/builtin/src/language/arrays/matrix.cpp` (cumsum/cumprod + regs)
 - `libs/builtin/src/math/arithmetic/cumsum_{highway,portable}.cpp`
 - MATLAB `doc cumsum`, `doc cumprod`
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 4).
+- Added `cumComplexAlongDim` (a general strided inclusive scan over `Complex`
+  storage — sum or product, vector/2D/3D/ND) + `firstNonSingletonDim`, and
+  dispatched to them from `cumsum(x,mr)`, `cumsum(x,dim,mr)` and
+  `cumprod(x,dim,mr)` when the input is COMPLEX. `dim` and `'reverse'`
+  (flip-scan-flip at the reg level) work; real/integer paths unchanged.
+  (Complex uses the portable scan, not the SIMD prefix kernel — correctness
+  over speed; complex cumsum isn't perf-critical.)
+- Live guard: `libs/builtin/tests/cumsum_cumprod_complex_test.cpp` (5 cases).
+  Parity: `tools/parity/specs/{cumsum,cumprod}.json` extended (correctness=OK).
+  Smoke: `libs/builtin/tests/smoke/cumsum_complex_smoke.m`.

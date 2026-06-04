@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (78 entries):** ✅ 13 fixed · 🔴 65 open = **21 bug** + 7 stub +
+**Tally (78 entries):** ✅ 14 fixed · 🔴 64 open = **20 bug** + 7 stub +
 6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -131,6 +131,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | bug | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(X,k[,'first'/'last']) now honours count + direction (single + multi-output) (2026-06-05) |
 | bug | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm() of a complex array by \|z\| (vector 1/2/Inf/p + matrix 1/Inf/'fro'; spectral deferred) (2026-06-05) |
 | bug | [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff() now differences real + imaginary parts (n-th order + dim) (2026-06-05) |
+| bug | [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod accumulate complex element-wise (dim + reverse) (2026-06-05) |
 | bug | [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | 'MissingPlacement' option was ignored |
 | bug | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | cepstrum garbage on non-2ⁿ + rceps 2nd output (9fcf6872) |
 | bug | [signal/besself-digital](signal/besself-digital.md) | P1 | ran digital path → binomial garbage |
@@ -142,7 +143,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 21
+### 🔴 OPEN — bug (defect on an implemented function) — 20
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -151,7 +152,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv don't broadcast ARRAY parameters (mu/sigma/n/a/b/df) |
 | [builtin/diff-zero-order](builtin/diff-zero-order.md) | P3 | diff(X,0) returns identity; MATLAB errors (N must be positive integer) |
 | [builtin/acos-asin-complex](builtin/acos-asin-complex.md) | P2 | acos/asin return NaN for \|x\|>1 instead of a complex value |
-| [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod throw on complex input |
 | [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | conv/filter/trapz/cumtrapz/gradient/movmean/detrend/interp1/median reject complex |
 | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm of a complex array throws (vecnorm works) |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
