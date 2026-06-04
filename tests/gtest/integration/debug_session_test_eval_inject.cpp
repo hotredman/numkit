@@ -1040,3 +1040,39 @@ TEST(DebugEvalInjectTest, WatchExpressionsTrackEdits)
 
     session.resume(DebugAction::Continue);
 }
+
+// A conditional breakpoint pauses only when its condition holds; iterations
+// where it's false are skipped transparently.
+TEST(DebugEvalInjectTest, ConditionalBreakpointStopsOnlyWhenTrue)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    std::string code =
+        "for i = 1:5\n"   // 1
+        "  x = i * 10;\n" // 2  <-- conditional breakpoint: i == 3
+        "end\n"          // 3
+        "disp(x);\n";     // 4
+
+    // Conditional breakpoint added directly (setBreakpoints only takes lines).
+    engine.breakpointManager().clearAll();
+    engine.breakpointManager().addBreakpoint(2, "i == 3");
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    double ival = -1;
+    for (auto &v : session.snapshot().variables)
+        if (v.name == "i" && v.value)
+            ival = v.value->toScalar();
+    EXPECT_DOUBLE_EQ(ival, 3.0) << "should pause only at i == 3";
+
+    output.clear();
+    status = session.resume(DebugAction::Continue); // i==3 won't recur → finish
+    std::string sessionOut = session.takeOutput();
+    EXPECT_EQ(status, ExecStatus::Completed);
+    std::string all = output + sessionOut;
+    EXPECT_NE(all.find("50"), std::string::npos) << "x should be 50 at end: [" << all << "]";
+}

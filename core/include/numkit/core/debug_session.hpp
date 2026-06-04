@@ -132,6 +132,11 @@ private:
     std::string frameFocusLine() const;
     std::string formatDbStack() const;
 
+    // After a run lands on a breakpoint, transparently keep running past any
+    // breakpoint whose condition evaluates false (only when `running` — a step
+    // always stops). Returns the status of the real stop / completion.
+    ExecStatus skipFalseConditionalBreakpoints(ExecStatus status, bool running);
+
     Engine &engine_;
     bool active_ = false;
 
@@ -169,6 +174,10 @@ private:
 
     // Watch expressions, re-evaluated at each pause (see evalWatches()).
     std::vector<std::string> watches_;
+
+    // Result Value of the most recent eval() — used to read a breakpoint
+    // condition's / watch's truthiness without re-parsing the display string.
+    Value lastEvalValue_;
 
     // Output capture
     std::string outputBuf_;

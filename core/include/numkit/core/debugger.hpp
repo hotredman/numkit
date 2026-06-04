@@ -114,13 +114,18 @@ public:
         int id;
         uint16_t line;
         bool enabled = true;
+        std::string condition; // empty = unconditional; else a boolean expr
     };
 
     int addBreakpoint(uint16_t line);
+    int addBreakpoint(uint16_t line, const std::string &condition);
     void removeBreakpoint(int id);
     void enableBreakpoint(int id, bool enabled);
     void clearAll();
     bool shouldBreak(uint16_t line) const;
+    // Condition text of the enabled breakpoint at `line` (empty if none or
+    // unconditional). The manager only stores it; the debugger evaluates it.
+    std::string conditionForLine(uint16_t line) const;
     const std::vector<Breakpoint> &breakpoints() const { return breakpoints_; }
 
 private:
