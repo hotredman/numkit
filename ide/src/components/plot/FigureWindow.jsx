@@ -357,50 +357,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     });
   };
 
-  // Compute new color override from a coarse-LOD scan of the visible
-  // source-rect. Mirrors Heatmap.fitColorsToVisible. Lives here so the
-  // toolbar fit menu can invoke it without lifting / via callback ref.
-  function fitColorsToVisible() {
-    if (!engine || typeof engine.getFigureTile !== 'function') return;
-    if (!heatmapLayer) return;
-    const figId = heatmapLayer._figId;
-    if (typeof figId !== 'number' || figId < 0) return;
-    const fullCols = heatmapLayer.originalCols;
-    const fullRows = heatmapLayer.originalRows;
-    if (!fullCols || !fullRows) return;
-    const xExt = figure.xRange[1] - figure.xRange[0];
-    const yExt = figure.yRange[1] - figure.yRange[0];
-    const colsPerUnit = fullCols / (xExt || 1);
-    const rowsPerUnit = fullRows / (yExt || 1);
-    const xMin = viewport.x[0], xMax = viewport.x[1];
-    const yMin = viewport.y[0], yMax = viewport.y[1];
-    const c0 = Math.max(0, Math.floor((Math.min(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
-    const c1 = Math.min(fullCols, Math.ceil((Math.max(xMin, xMax) - figure.xRange[0]) * colsPerUnit));
-    const r0 = Math.max(0, Math.floor((Math.min(yMin, yMax) - figure.yRange[0]) * rowsPerUnit));
-    const r1 = Math.min(fullRows, Math.ceil((Math.max(yMin, yMax) - figure.yRange[0]) * rowsPerUnit));
-    const tileW = c1 - c0, tileH = r1 - r0;
-    if (tileW <= 0 || tileH <= 0) return;
-    const lod = Math.max(1, Math.ceil(Math.max(tileH, tileW) / 256));
-    const tile = engine.getFigureTile(figId, heatmapLayer._axIdx, heatmapLayer._dsIdx,
-                                      r0, c0, tileH, tileW, lod);
-    if (!tile || tile.error || !tile.data) return;
-    let idxMn = 256, idxMx = -1;
-    for (let i = 0; i < tile.data.length; i++) {
-      const idx = tile.data[i];
-      if (idx === 255) continue;
-      if (idx < idxMn) idxMn = idx;
-      if (idx > idxMx) idxMx = idx;
-    }
-    if (idxMn > 254 || idxMx < 0 || idxMn === idxMx) return;
-    const cminOrig = heatmapLayer.cminOrig ?? heatmapLayer.cmin;
-    const cmaxOrig = heatmapLayer.cmaxOrig ?? heatmapLayer.cmax;
-    const range = cmaxOrig - cminOrig;
-    setColorOverride({
-      cmin: cminOrig + (idxMn / 254) * range,
-      cmax: cminOrig + (idxMx / 254) * range,
-    });
-  }
-
   // Toggle that also auto-clamps the viewport's lo bound to a positive
   // value when entering log mode. The clamp math (and its heatmap vs
   // line/scatter split) lives in logClampRange — the single source of
@@ -502,7 +458,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // the precondition (the toggle is global; per-cell handlers ignore
   // cells that can't apply).
   const cellsList = isSubplot && Array.isArray(figure.cells) ? figure.cells : [figure];
-  const anyCellHas = (pred) => cellsList.some(pred);
   // Find the first heatmap layer ANYWHERE in the figure (top-level or
   // inside a subplot cell). Drives the toolbar Colormap ▾ visibility +
   // its "script default" anchor for marking the active palette.
@@ -520,9 +475,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // toggles themselves are never disabled — that was deliberately
   // dropped because the aggregate disabled-rule lied about per-cell
   // state for fresh subplots.
-  const has3DCell = isSubplot
-    ? cellsList.some((c) => c.kind === 'composite3d')
-    : is3D;
   const wrapRef = useRef(null);
   const [size, setSize] = useState({ w: 1100, h: 600 });
 
@@ -663,7 +615,6 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       // 3-D path now resizes the renderer's drawing buffer to the
       // target pixel count, renders once at high res, snapshots, and
       // restores. The on-screen canvas CSS size is untouched.
-      const canvas = threeRef.current?.getCanvas?.();
       // We don't expose a getCanvas helper today — derive scale from
       // the live CSS width via the imperative handle's own caller-
       // visible size hint. Fall back to scale=2 if unknown.

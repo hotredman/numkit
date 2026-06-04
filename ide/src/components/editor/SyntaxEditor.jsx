@@ -9,12 +9,12 @@ import {
   findAllMatches, findNextMatch, findPrevMatch,
   applyReplace, applyReplaceAll, gotoLineOffset,
   findMatchingBracket, findWordOccurrences,
-  partialBeforeCaret, applyCompletion, wordAt,
+  partialBeforeCaret, applyCompletion,
   computeIndentGuides,
 } from './editorOps';
 import {
   createHistory, pushSnapshot, undo as historyUndo, redo as historyRedo,
-  canUndo, canRedo, classifyChange,
+  classifyChange,
 } from './editorHistory';
 import { buildHighlightHtml } from './editorHighlight';
 import CompletionPopup from './CompletionPopup';

@@ -51,7 +51,7 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 import 'reactflow/dist/style.css';
 
 import {
-  CATEGORIES, TYPE_TO_CAT, categoryOf, categoryColor, defaultFilters,
+  CATEGORIES, categoryOf, categoryColor, defaultFilters,
   hasAnyChildren, valueText, eachAstChild,
   findActiveAstId, collectCollapsibleIds,
 } from './astShared';

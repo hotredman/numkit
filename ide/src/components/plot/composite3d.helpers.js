@@ -757,8 +757,7 @@ export function gridVertsForFace(face, tickValues, tickW) {
   const inPlaneWorldAxes = [0, 1, 2].filter((a) => a !== constWorldAxis);
   // data-axis ↔ world-axis mapping (data-Y → world-Z with flipped sign
   // already baked into tickW).
-  const worldOf = { x: 0, y: 2, z: 1 };
-  const dataOf = { 0: 'x', 1: 'z', 2: 'y' };  // inverse of worldOf
+  const dataOf = { 0: 'x', 1: 'z', 2: 'y' };  // world-axis -> data-axis
   const verts = [];
   // For each in-plane world axis, draw lines at each tick value of
   // the corresponding data axis, running from -1 to +1 along the
