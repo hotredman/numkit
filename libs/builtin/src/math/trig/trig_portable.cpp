@@ -81,10 +81,53 @@ Value tanh(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::tanh(v); }, mr);
 }
 
+// asin/acos of a REAL argument outside [-1,1] go complex; if ANY element is
+// out of range the WHOLE array is promoted (MATLAB). std::acos/std::asin on
+// the complex axis use a branch cut whose imaginary SIGN disagrees with MATLAB
+// on [1,+inf), so compute via acosh to match exactly:
+//   acos(x>1)=0+i*acosh(x)  acos(x<-1)=pi-i*acosh(|x|)
+//   asin(x>1)=pi/2-i*acosh(x)  asin(x<-1)=-pi/2+i*acosh(|x|)
+namespace {
+constexpr double kPiUnitTrig_p  = 3.14159265358979323846;
+constexpr double kHalfPi_p      = 1.57079632679489661923;
+bool anyOutsideUnitInterval_p(const Value &x)
+{
+    const std::size_t n = x.numel();
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (v < -1.0 || v > 1.0) return true;
+    }
+    return false;
+}
+Complex acosRealToComplex_p(double v)
+{
+    if (v >= -1.0 && v <= 1.0) return Complex(std::acos(v), 0.0);
+    if (v > 1.0)               return Complex(0.0, std::acosh(v));
+    return Complex(kPiUnitTrig_p, -std::acosh(-v));
+}
+Complex asinRealToComplex_p(double v)
+{
+    if (v >= -1.0 && v <= 1.0) return Complex(std::asin(v), 0.0);
+    if (v > 1.0)               return Complex(kHalfPi_p, -std::acosh(v));
+    return Complex(-kHalfPi_p, std::acosh(-v));
+}
+Value mapRealToComplexUnit_p(const Value &x, Complex (*fn)(double),
+                             std::pmr::memory_resource *mr)
+{
+    Value cx = x; cx.promoteToComplex(mr);
+    Complex *d = cx.complexDataMut();
+    const std::size_t n = cx.numel();
+    for (std::size_t i = 0; i < n; ++i) d[i] = fn(d[i].real());
+    return cx;
+}
+} // namespace
+
 Value asin(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::asin(c); }, mr);
+    if (anyOutsideUnitInterval_p(x))
+        return mapRealToComplexUnit_p(x, asinRealToComplex_p, mr);
     return unaryDouble(x, [](double v) { return std::asin(v); }, mr);
 }
 
@@ -92,6 +135,8 @@ Value acos(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acos(c); }, mr);
+    if (anyOutsideUnitInterval_p(x))
+        return mapRealToComplexUnit_p(x, acosRealToComplex_p, mr);
     return unaryDouble(x, [](double v) { return std::acos(v); }, mr);
 }
 
