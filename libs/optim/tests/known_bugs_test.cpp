@@ -65,3 +65,12 @@ TEST_F(OptimKnownBug, DISABLED_Fmincon)
     EXPECT_NEAR(evalScalar("x(1)"), 0.0, 1e-3);
     EXPECT_NEAR(evalScalar("x(2)"), 0.0, 1e-3);
 }
+
+// bugs/optim/fsolve.md — nonlinear system solver (scalar + 2x2 system).
+TEST_F(OptimKnownBug, DISABLED_Fsolve)
+{
+    EXPECT_NEAR(evalScalar("fsolve(@(x) x^2 - 2, 1)"), 1.41421356237469, 1e-6);
+    eval("xv = fsolve(@(v) [v(1)^2+v(2)^2-1; v(1)-v(2)], [0.5 0.5]);");
+    EXPECT_NEAR(evalScalar("xv(1)"), 0.70710678118, 1e-5);
+    EXPECT_NEAR(evalScalar("xv(2)"), 0.70710678118, 1e-5);
+}

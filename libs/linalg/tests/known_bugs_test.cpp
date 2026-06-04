@@ -66,3 +66,25 @@ TEST_F(LinalgKnownBug, DISABLED_Funm)
     EXPECT_NEAR(evalScalar("F(2,2)"), 20.0855369231877, 1e-9);
     EXPECT_NEAR(evalScalar("F(1,2)"), 0.0, 1e-12);
 }
+
+// bugs/linalg/qz-gsvd.md — generalized Schur + generalized SVD.
+TEST_F(LinalgKnownBug, DISABLED_QzGsvd)
+{
+    eval("A = [1 2; 3 4]; B = [1 0; 0 1]; [AA, BB, Q, Z] = qz(A, B);");
+    EXPECT_LT(evalScalar("max(max(abs(Q*A*Z - AA)))"), 1e-10);   // reconstruction
+    EXPECT_LT(evalScalar("max(max(abs(Q*B*Z - BB)))"), 1e-10);
+    eval("S = sort(gsvd([1 2; 3 4], [1 0; 0 1]));");
+    EXPECT_NEAR(evalScalar("S(1)"), 0.365966190626, 1e-6);
+    EXPECT_NEAR(evalScalar("S(2)"), 5.46498570422,  1e-6);
+}
+
+// bugs/linalg/schur-nonsymmetric.md — real Schur form of a non-symmetric matrix.
+TEST_F(LinalgKnownBug, DISABLED_SchurNonsymmetric)
+{
+    eval("A = [2 1; 0 3]; [U, T] = schur(A);");
+    EXPECT_LT(evalScalar("max(max(abs(U*T*U' - A)))"),    1e-10);  // reconstruction
+    EXPECT_LT(evalScalar("max(max(abs(U'*U - eye(2))))"), 1e-10);  // U orthogonal
+    eval("d = sort(diag(T));");
+    EXPECT_NEAR(evalScalar("d(1)"), 2.0, 1e-9);
+    EXPECT_NEAR(evalScalar("d(2)"), 3.0, 1e-9);
+}

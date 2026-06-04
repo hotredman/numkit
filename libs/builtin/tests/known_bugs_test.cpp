@@ -146,3 +146,11 @@ TEST_F(BuiltinKnownBug, DISABLED_NumericalIntegrationND)
     EXPECT_NEAR(evalScalar("integral3(@(x,y,z)x+y+z,0,1,0,1,0,1)"), 1.5, 1e-9);
     EXPECT_NEAR(evalScalar("quad2d(@(x,y)x.*y,0,1,0,1)"), 0.25, 1e-9);
 }
+
+// bugs/builtin/ode-stiff.md — ode15s (stiff/multistep solver family).
+TEST_F(BuiltinKnownBug, DISABLED_Ode15s)
+{
+    eval("[t, y] = ode15s(@(t,y) -y, [0 1], 1);");   // y = e^{-t}
+    EXPECT_NEAR(evalScalar("y(1)"),   1.0,          1e-9);
+    EXPECT_NEAR(evalScalar("y(end)"), 0.367879441,  1e-2);   // e^-1, solver tol
+}

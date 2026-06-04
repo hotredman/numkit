@@ -120,8 +120,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (73 entries):** ✅ 10 fixed · 🔴 63 open = **23 bug** + 6 stub +
-6 missing-output + **27 missing-fn** + 1 perf (the 27 missing-fns are parity
+**Tally (77 entries):** ✅ 10 fixed · 🔴 67 open = **23 bug** + 7 stub +
+6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 ### ✅ FIXED (10)
@@ -167,10 +167,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 6
+### 🔴 OPEN — stub (option/branch throws "not supported") — 7
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | schur(A) throws on non-symmetric A (real Schur form deferred; eig values work) |
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
 | [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | bandstop case throws |
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
@@ -189,7 +190,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mle-output](stats/mle-output.md) | P2 | 2nd output pci |
 | [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | [r,p]=corr p-value |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 27
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 30
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -217,7 +218,10 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
 | [comm/syndtable](comm/syndtable.md) | P2 | syndrome decoding table (coset leaders) |
 | [builtin/numerical-integration-nd](builtin/numerical-integration-nd.md) | P2 | quadgk/integral2/integral3/quad2d |
+| [builtin/ode-stiff](builtin/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 | [linalg/funm](linalg/funm.md) | P2 | general matrix function funm(A,fun) |
+| [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | qz (generalized Schur) / gsvd (generalized SVD) |
+| [optim/fsolve](optim/fsolve.md) | P2 | nonlinear system solver fsolve |
 | [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | lsqcurvefit/lsqnonlin |
 | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon/linprog/quadprog/fminunc |
 
