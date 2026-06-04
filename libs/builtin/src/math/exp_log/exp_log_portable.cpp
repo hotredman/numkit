@@ -99,12 +99,24 @@ Value reallog(const Value &x, std::pmr::memory_resource *mr)
     }, mr);
 }
 
+// True if any real element is < 0 (NaN compares false → stays real). If ANY
+// element is negative the whole array is promoted to complex (MATLAB).
+static bool anyNegative_p(const Value &x)
+{
+    const std::size_t n = x.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (x.elemAsDouble(i) < 0.0) return true;
+    return false;
+}
+
 Value sqrt(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
-    if (x.isScalar() && x.toScalar() < 0.0)
-        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), mr);
+    if (anyNegative_p(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::sqrt(c); }, mr);
+    }
     return unaryDouble(x, [](double v) { return std::sqrt(v); }, mr);
 }
 

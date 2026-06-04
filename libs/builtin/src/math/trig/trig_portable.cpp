@@ -111,6 +111,21 @@ Complex asinRealToComplex_p(double v)
     if (v > 1.0)               return Complex(kHalfPi_p, -std::acosh(v));
     return Complex(-kHalfPi_p, std::acosh(-v));
 }
+// MATLAB atanh of real |x|>1: atanh(1/x) + i*sign(x)*pi/2 (std::atanh flips
+// the imaginary sign for x<-1).
+Complex atanhRealToComplex_p(double v)
+{
+    if (std::isnan(v))         return Complex(v, 0.0);
+    if (v >= -1.0 && v <= 1.0) return Complex(std::atanh(v), 0.0);
+    return Complex(std::atanh(1.0 / v), v > 0.0 ? kHalfPi_p : -kHalfPi_p);
+}
+bool anyLessThanOne_p(const Value &x)
+{
+    const std::size_t n = x.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (x.elemAsDouble(i) < 1.0) return true;
+    return false;
+}
 Value mapRealToComplexUnit_p(const Value &x, Complex (*fn)(double),
                              std::pmr::memory_resource *mr)
 {
@@ -158,11 +173,8 @@ Value atanh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atanh(c); }, mr);
-    if (x.isScalar()) {
-        const double v = x.toScalar();
-        if (v < -1.0 || v > 1.0)
-            return Value::complexScalar(std::atanh(Complex(v, 0.0)), mr);
-    }
+    if (anyOutsideUnitInterval_p(x))
+        return mapRealToComplexUnit_p(x, atanhRealToComplex_p, mr);
     return unaryDouble(x, [](double v) { return std::atanh(v); }, mr);
 }
 
@@ -182,8 +194,10 @@ Value acosh(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::acosh(c); }, mr);
-    if (x.isScalar() && x.toScalar() < 1.0)
-        return Value::complexScalar(std::acosh(Complex(x.toScalar(), 0.0)), mr);
+    if (anyLessThanOne_p(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::acosh(c); }, mr);
+    }
     return unaryDouble(x, [](double v) { return std::acosh(v); }, mr);
 }
 

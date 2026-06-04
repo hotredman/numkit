@@ -356,14 +356,27 @@ Value reallog(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
-// sqrt: a negative *scalar* promotes to complex (MATLAB: sqrt(-1)==i), but a
-// real vector's negatives just become NaN — same as std::sqrt. Mirrors log.
+// True if any real element is < 0 (NaN compares false → stays real). sqrt of
+// such an input goes complex; if ANY element is negative the WHOLE array is
+// promoted to complex (MATLAB: sqrt([-1 4]) = [0+1i 2]).
+static bool anyNegative(const Value &x)
+{
+    const std::size_t n = x.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (x.elemAsDouble(i) < 0.0) return true;
+    return false;
+}
+
+// sqrt: a negative input promotes to complex (MATLAB: sqrt(-1)==i). std::sqrt's
+// complex branch matches MATLAB, so apply it to the promoted array directly.
 Value sqrt(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
-    if (x.isScalar() && x.toScalar() < 0.0)
-        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), mr);
+    if (anyNegative(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::sqrt(c); }, mr);
+    }
     return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SqrtLoop)(in, out, n);
         }, [](double v) { return std::sqrt(v); }, mr);
