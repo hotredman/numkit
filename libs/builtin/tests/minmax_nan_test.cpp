@@ -55,4 +55,33 @@ TEST_P(MinMaxNanTest, NormalCasesUnchanged)
     EXPECT_DOUBLE_EQ(evalScalar("a(3)"), 9.0);
 }
 
+TEST_P(MinMaxNanTest, ReductionDefaultOmitsNaN)
+{
+    // MATLAB's DEFAULT for max/min over an array is 'omitnan': NaN is skipped
+    // (result is NaN only if every element is NaN), and the index points to
+    // the extremum among the non-NaN values. The reduction path used to be
+    // NaN-order-dependent (max([NaN 3 1]) -> NaN, idx 1).
+    eval("[v, i] = max([NaN 3 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("v"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i"), 2.0);
+    eval("[w, j] = min([NaN 3 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("w"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("j"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max([3 NaN 1])"), 3.0);
+    EXPECT_TRUE(evalBool("isnan(max([NaN NaN]))"));   // all-NaN -> NaN
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(max([]))")), 0);  // empty stays []
+    // Matrix: per-column omit.
+    eval("M = max([NaN 2; 3 NaN]);");
+    EXPECT_DOUBLE_EQ(evalScalar("M(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("M(2)"), 2.0);
+}
+
+TEST_P(MinMaxNanTest, ReductionOmitNanFlagAndIncludeNan)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("max([3 NaN 1],[],'omitnan')"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("min([3 NaN 1],[],'omitnan')"), 1.0);
+    // 'includenan' propagates NaN (leading-NaN case).
+    EXPECT_TRUE(evalBool("isnan(max([NaN 3 1],[],'includenan'))"));
+}
+
 INSTANTIATE_DUAL(MinMaxNanTest);

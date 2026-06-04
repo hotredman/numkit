@@ -1,0 +1,14 @@
+{
+  "name": "decode",
+  "namespace": "comm",
+  "setup": "cw = encode([1 0 1 1], 7, 4, 'hamming/binary'); [mc, ec] = decode(cw, 7, 4, 'hamming/binary'); rc = cw; rc(2) = 1 - rc(2); [me, ee] = decode(rc, 7, 4, 'hamming/binary'); dd = decode(88, 7, 4, 'hamming/decimal'); ccw = encode([1 0 1 1], 7, 4, 'cyclic/binary'); ccw(4) = 1 - ccw(4); mcy = decode(ccw, 7, 4, 'cyclic/binary'); okall = 1; for p = 1:7, r = cw; r(p) = 1 - r(p); okall = okall && isequal(decode(r,7,4,'hamming/binary'), [1 0 1 1]); end",
+  "expr": "y = 0;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "isequal(mc, [1 0 1 1])*1", "ec",
+    "isequal(me, [1 0 1 1])*1", "ee",
+    "dd", "isequal(mcy, [1 0 1 1])*1", "double(okall)"
+  ],
+  "comment": "Sig: [msg,err] = decode(code,n,k,method,opt). Syndrome decoder over GF(2): reshape code into n-bit words, syndrome = word*h' (mod 2), look up minimum-weight coset leader (syndtable), correct, extract systematic message. err = #bits corrected per word. Hamming(7,4) corrects any single-bit error (okall over all 7 positions); decode(88,...,'hamming/decimal')=11. New (Error Correction Codes / block linear codes) 2026-06. Coset-leader tie-breaking for weight>=2 patterns is lexicographic (exact for single-error-correcting codes). BCH/RS (gf type) deferred."
+}

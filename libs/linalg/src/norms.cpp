@@ -241,7 +241,21 @@ void norm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     }
     const double pv = p.toScalar();
     if (std::isinf(pv)) {
-        outs[0] = norm_inf(args[0], mr);
+        if (pv > 0.0) {
+            outs[0] = norm_inf(args[0], mr);
+            return;
+        }
+        // p = -Inf is a VECTOR norm only: min(|v|). MATLAB rejects it for
+        // matrices ("the only matrix norms are 1, 2, Inf, 'fro'"). Previously
+        // both +Inf and -Inf fell through to norm_inf (max) — wrong for -Inf.
+        const Value &X = args[0];
+        const bool isVec = !X.dims().is3D()
+                           && (X.dims().rows() <= 1 || X.dims().cols() <= 1);
+        if (!isVec)
+            throw Error("norm: the only matrix norms available are 1, 2, "
+                        "Inf, and 'fro'",
+                        0, 0, "norm", "", "numkit:norm:badMatrixP");
+        outs[0] = vecnorm(X, pv, 0, mr);  // vecnorm handles -Inf = min(|v|)
         return;
     }
     outs[0] = norm_value(args[0], pv, mr);

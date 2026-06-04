@@ -544,21 +544,36 @@ Value diag(const Value &x, long k, std::pmr::memory_resource *mr = nullptr);
 ///
 /// Indices are 1-based permutation. For 3-D input, operates per-slice.
 ///
+/// Where NaN / missing elements are placed by @ref sort (MATLAB's
+/// `'MissingPlacement'`): `Auto` = last for ascending, first for descending;
+/// `First` / `Last` force the side regardless of direction.
+enum class NanPlace { Auto, First, Last };
+
 /// @param x        Input array.
 /// @param dim      Sort dimension (1-based; <1 = first non-singleton).
 /// @param descend  Descending order if true (NaN sorts first); ascending
 ///                 if false (NaN sorts last) — MATLAB convention.
+/// @param nanPlace NaN placement (`MissingPlacement`); `Auto` matches the
+///                 direction-dependent MATLAB default.
 /// @param mr       Memory resource (nullptr → process default).
 /// @return         `(sorted, idx)` pair (stable; idx is a 1-based perm).
 /// @see sortrows
 std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
+                              NanPlace nanPlace,
                               std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Sort with the default (direction-dependent) NaN placement.
+inline std::tuple<Value, Value> sort(const Value &x, int dim, bool descend,
+                                     std::pmr::memory_resource *mr = nullptr)
+{
+    return sort(x, dim, descend, NanPlace::Auto, mr);
+}
 
 /// @brief Ascending sort along the first non-singleton dimension.
 inline std::tuple<Value, Value> sort(const Value &x,
                                      std::pmr::memory_resource *mr = nullptr)
 {
-    return sort(x, -1, false, mr);
+    return sort(x, -1, false, NanPlace::Auto, mr);
 }
 
 /// @brief Lex-sort rows ascending (`[sorted, idx] = sortrows(M)`).

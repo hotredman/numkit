@@ -1,0 +1,10 @@
+{
+  "name": "max_min_all",
+  "namespace": "builtin",
+  "setup": "A = [3 1; 4 1; 2 9]; B = reshape(1:24, 2, 3, 4);",
+  "expr": "[m,i] = max(A,[],'all'); [m2,i2] = max(A,[],'all','linear'); mn = min(A,[],'all'); mb = max(B,[],'all'); nb = min(B,[],'all'); [mo,io] = min([5 NaN 2 8],[],'all','omitnan');",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["m", "i", "m2", "i2", "mn", "mb", "nb", "mo", "io"],
+  "comment": "Sig: max/min(A,[],'all'[,'linear']). DEEP-PROBE 2026-06: the 'all' option was entirely broken — the adapter ran toScalar on the 'all' char vector ('Cannot convert char to scalar'), so max(A,[],'all') / min(...,'all') / the 'all','linear' combo all threw. Fixed: max_reg/min_reg detect the 'all' string and reduce over the flattened array (the column position is the linear index, matching MATLAB's always-linear 'all' 2nd output); works for 2-D, N-D, and 'omitnan'. max(A,[],'all')=9 at linear idx 6; min=1; 3-D max=24/min=1; min([5 NaN 2 8],'all','omitnan')=2 at idx 3. Bit-identical MATLAB R2025b. bugs/builtin/max-all-linear.md."
+}

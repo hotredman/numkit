@@ -2,9 +2,9 @@
   "name": "besself",
   "namespace": "signal",
   "setup": "",
-  "expr": "[b, a] = besself(4, 1000); r1 = double(numel(b) + numel(a));",
+  "expr": "[b2,a2]=besself(2,1); [b3,a3]=besself(3,1); [b4,a4]=besself(4,2); [bh,ah]=besself(3,2,'high'); n=numel(b3)+numel(a3);",
   "iters": 5,
-  "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [b,a] = besself(n, Wo). Spec-extension batch 2026-05-09 (cycle 43)."
+  "tol": 1e-06,
+  "fingerprint": ["a2(2)", "a3(2)", "a3(3)", "b3(4)", "a4(2)", "a4(5)", "ah(2)", "ah(4)", "n"],
+  "comment": "Sig: [b,a] = besself(n, Wo). Analog Bessel filter. DEEP-PROBE 2026-06: besself ran a DIGITAL (bilinear) path by default and returned binomial (s+Wo)^n garbage (besself(3,1) gave a=[1 3 3 1] instead of [1 2.432881 2.466212 1]); only besself(...,'s') was correct. MATLAB besself is ALWAYS analog (no digital Bessel — bilinear destroys the maximally-flat group delay), so besself now forces analog regardless of the 's' flag. Reuses the (already-correct) besselap prototype. besself(2,1): a=[1 1.732051 1]; besself(3,1): a=[1 2.432881 2.466212 1], b=[0 0 0 1]; besself(4,2): a=[1 6.24788 17.5662 25.6087 16]; besself(3,2,'high'): a=[1 4.932424 9.731523 8]. Bit-identical MATLAB R2025b. bugs/signal/besself-digital.md."
 }

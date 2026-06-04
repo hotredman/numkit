@@ -25,6 +25,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/enbw_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/envelope_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cceps_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rceps_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/goertzel_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_batch1_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_batch2_test.cpp
@@ -56,6 +57,10 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ctfutils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulate_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/demod_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/besself_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dct_types_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/risetime_falltime_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
 
 # fft_public_api_test reaches into libs/signal/src/transforms/backends/

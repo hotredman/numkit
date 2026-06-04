@@ -239,7 +239,7 @@ void bi2de_reg(Span<const Value> args, size_t /*nargout*/,
     for (size_t i = 1; i < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString())
             msb = parseMsbFlag(args[i], "bi2de");
-        else
+        else if (!args[i].isEmpty())  // empty [] base -> keep default 2
             base = static_cast<int>(args[i].toScalar());
     }
     if (base < 2)
@@ -262,10 +262,12 @@ void de2bi_reg(Span<const Value> args, size_t /*nargout*/,
         if (args[i].isChar() || args[i].isString())
             msb = parseMsbFlag(args[i], "de2bi");
         else if (numericFound == 0) {
-            n = static_cast<int>(args[i].toScalar());
+            // First positional numeric is n. An EMPTY [] means "auto width"
+            // (MATLAB: de2bi(d, [], base)) — keep n = -1, don't toScalar([]).
+            if (!args[i].isEmpty()) n = static_cast<int>(args[i].toScalar());
             ++numericFound;
         } else {
-            base = static_cast<int>(args[i].toScalar());
+            if (!args[i].isEmpty()) base = static_cast<int>(args[i].toScalar());
             ++numericFound;
         }
     }

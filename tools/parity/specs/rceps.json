@@ -1,12 +1,10 @@
 {
   "name": "rceps",
   "namespace": "signal",
-  "setup": "",
-  "expr": "r = rceps((1:8)'); r1 = double(numel(r));",
+  "setup": "x = [1 2 3 4 3 2 1];",
+  "expr": "[y, ym] = rceps(x); y1 = y(1); y2 = y(2); y4 = y(4); sy = sum(y); m1 = ym(1); m3 = ym(3); sm = sum(ym); r8 = rceps((1:8)'); r81 = r8(1); ny = double(numel(y));",
   "iters": 5,
-  "tol": 1e-06,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: r = rceps(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "tol": 1e-09,
+  "fingerprint": ["y1", "y2", "y4", "sy", "m1", "m3", "sm", "r81", "ny"],
+  "comment": "Sig: [y, ym] = rceps(x). Real cepstrum y = real(ifft(log|fft(x)|)) + minimum-phase reconstruction ym = real(ifft(exp(fft(w.*y)))), w the folding window [1,2,..,2,(1 if even),0,..,0]. DEEP-PROBE 2026-06: (1) the transform ran on a nextPow2-padded buffer, but log|X| blows up at the padded near-zero bins -> non-power-of-two lengths returned garbage (rceps([1 2 3 4 3 2 1]) gave ~[-258,87,..] vs MATLAB [0.396084,0.873038,..]); now transformed at the exact length n (radix-2 for power-of-two n, direct DFT otherwise). (2) the 2nd output ym (minimum-phase signal) was missing ('Too many output arguments') — added. n=7 y/ym bit-identical to MATLAB; n=8 (r81=2.007521) unchanged. Bit-identical MATLAB R2025b."
 }

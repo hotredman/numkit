@@ -26,4 +26,15 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mskmod_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/base_conversions_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pammod_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/poly2trellis_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convenc_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/vitdec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/istrellis_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gen2par_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hammgen_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cyclpoly_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cyclgen_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/encode_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/decode_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

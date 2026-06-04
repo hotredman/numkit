@@ -14,4 +14,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/polyeig_ordeig_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/expmv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cond_pnorm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

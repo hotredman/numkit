@@ -2,12 +2,15 @@
   "name": "combnk",
   "namespace": "stats",
   "setup": "",
-  "expr": "C = combnk(1:4, 2); r1 = double(size(C,1)); r2 = double(size(C,2));",
+  "expr": "C = combnk(1:4, 2); r1 = double(size(C,1)); r2 = double(size(C,2)); s2 = double(size(combnk(5,2),1)); s1v = double(combnk(5,1)); kgt = double(size(combnk(1:4,5),2));",
   "iters": 5,
   "tol": 1e-06,
   "fingerprint": [
     "r1",
-    "r2"
+    "r2",
+    "s2",
+    "s1v",
+    "kgt"
   ],
-  "comment": "Sig: r = combnk(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: C = combnk(v,K). Vector form C(4,2)=6x2. A SCALAR v is the 1-element set {v} (NOT 1:v): combnk(5,2)->0 rows, combnk(5,1)->[5]. K>N->empty 0xK (cols preserved). Fixes bugs/stats/combnk-scalar.md. Spec-extension 2026-06."
 }

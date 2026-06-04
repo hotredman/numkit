@@ -386,12 +386,17 @@ TEST_P(DspGapsTest, IdctMatrixRoundTrip)
     EXPECT_NEAR(evalScalar("R(4,2)"), 8.0, 1e-12);
 }
 
-TEST_P(DspGapsTest, DctTypeOtherThan2Errors)
+TEST_P(DspGapsTest, DctTypesImplemented)
 {
-    // 'Type' values other than 2 are not yet implemented; explicit
-    // error instead of silently doing Type-II.
+    // DCT Type 1/3/4 are now implemented (orthonormal); Type 2 is the
+    // default. An out-of-range Type still errors. See dct_types_test.cpp
+    // for the full value coverage.
+    eval("y1 = dct([1 2 3 4], 4, 'Type', 1);");
+    EXPECT_NEAR(evalScalar("y1(1)"), 4.927993, 1e-6);
+    eval("y4 = dct([1 2 3 4], 4, 'Type', 4);");
+    EXPECT_NEAR(evalScalar("y4(1)"), 3.599737, 1e-6);
     bool threw = false;
-    try { eval("dct((1:8)', 'Type', 1);"); } catch (...) { threw = true; }
+    try { eval("dct((1:8)', 'Type', 5);"); } catch (...) { threw = true; }
     EXPECT_TRUE(threw);
 }
 

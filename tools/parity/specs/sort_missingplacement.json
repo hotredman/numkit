@@ -1,0 +1,10 @@
+{
+  "name": "sort_missingplacement",
+  "namespace": "builtin",
+  "setup": "x = [3 NaN 1 2];",
+  "expr": "yf = sort(x,'MissingPlacement','first'); f1 = double(isnan(yf(1))); f2 = yf(2); f4 = yf(4); yl = sort(x,'descend','MissingPlacement','last'); l1 = yl(1); l4 = double(isnan(yl(4))); [s,i] = sort([5 NaN 1],'MissingPlacement','first'); i1 = i(1); i2 = i(2); i3 = i(3); ya = sort(x); a4 = double(isnan(ya(4)));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["f1", "f2", "f4", "l1", "l4", "i1", "i2", "i3", "a4"],
+  "comment": "Sig: sort(X,...,'MissingPlacement','first'|'last'|'auto'). DEEP-PROBE 2026-06: the option was silently ignored, so ascending+'first' left NaN LAST (and descending+'last' left it first). Fixed: a NanPlace flag threaded through sort/sortComplex — 'first'/'last' force the NaN side regardless of direction; 'auto' (default) = last for ascending, first for descending (unchanged). asc+'first' -> [NaN 1 2 3] (f1=1,f2=1,f4=3); desc+'last' -> [3 2 1 NaN] (l1=3,l4=1); index output follows placement ([5 NaN 1] first -> i=[2 3 1]); plain sort unchanged (a4=1, NaN last). Bit-identical MATLAB R2025b. bugs/builtin/sort-missingplacement.md."
+}

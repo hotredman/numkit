@@ -298,3 +298,28 @@ TEST_F(MathReductionsBatchTest, DiffIntegerClassSaturates)
     EXPECT_DOUBLE_EQ(evalScalar("dd(2)"), 5.0);
     EXPECT_DOUBLE_EQ(evalScalar("double(strcmp(class(dd),'double'))"), 1.0);
 }
+
+// max/min(A, [], 'all') — reduce over every element. Was broken entirely
+// (toScalar on the 'all' string). The 2nd output is the linear index.
+// vs MATLAB R2025b.
+TEST_F(MathReductionsBatchTest, MaxMinAll)
+{
+    eval("A = [3 1; 4 1; 2 9];");
+    eval("[m, i] = max(A, [], 'all');");
+    EXPECT_DOUBLE_EQ(evalScalar("m"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i"), 6.0);            // linear index of the 9
+    // 'all' + 'linear' (redundant — 'all' index is already linear).
+    eval("[m2, i2] = max(A, [], 'all', 'linear');");
+    EXPECT_DOUBLE_EQ(evalScalar("m2"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i2"), 6.0);
+    // min over all.
+    EXPECT_DOUBLE_EQ(evalScalar("min(A, [], 'all')"), 1.0);
+    // 3-D array.
+    eval("B = reshape(1:24, 2, 3, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("max(B, [], 'all')"), 24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("min(B, [], 'all')"), 1.0);
+    // omitnan over all.
+    eval("[mo, io] = min([5 NaN 2 8], [], 'all', 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("mo"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("io"), 3.0);
+}

@@ -718,6 +718,37 @@ TEST_P(SortFindTest, SortDescendAndNaNPlacement)
     EXPECT_DOUBLE_EQ(yd->doubleData()[4], 1.0);
 }
 
+// 'MissingPlacement' forces the NaN side regardless of direction (was
+// silently ignored — ascending+'first' left NaN last). vs MATLAB R2025b.
+TEST_P(SortFindTest, SortMissingPlacement)
+{
+    // ascending + 'first' -> NaN at the front.
+    eval("yf = sort([3 NaN 1 2], 'MissingPlacement', 'first');");
+    auto *yf = getVarPtr("yf");
+    ASSERT_NE(yf, nullptr);
+    EXPECT_TRUE(std::isnan(yf->doubleData()[0]));
+    EXPECT_DOUBLE_EQ(yf->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(yf->doubleData()[3], 3.0);
+    // descending + 'last' -> NaN at the end.
+    eval("yl = sort([3 NaN 1 2], 'descend', 'MissingPlacement', 'last');");
+    auto *yl = getVarPtr("yl");
+    ASSERT_NE(yl, nullptr);
+    EXPECT_DOUBLE_EQ(yl->doubleData()[0], 3.0);
+    EXPECT_TRUE(std::isnan(yl->doubleData()[3]));
+    // index output follows the NaN placement: [5 NaN 1] first -> idx [2 3 1].
+    eval("[s, i] = sort([5 NaN 1], 'MissingPlacement', 'first');");
+    auto *ii = getVarPtr("i");
+    ASSERT_NE(ii, nullptr);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(ii->doubleData()[2], 1.0);
+    // 'auto' / unspecified is unchanged (regression guard).
+    eval("ya = sort([3 NaN 1 2], 'MissingPlacement', 'auto');");
+    auto *ya = getVarPtr("ya");
+    ASSERT_NE(ya, nullptr);
+    EXPECT_TRUE(std::isnan(ya->doubleData()[3]));   // ascending auto -> NaN last
+}
+
 // Complex sort: MATLAB orders by magnitude |z|, ties by phase angle arg(z)
 // ascending; 'descend' reverses; NaN-component sorts last/first. Was
 // unsupported (threw "Not a double array"). vs MATLAB R2025b. 2026-05-29.
