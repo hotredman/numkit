@@ -12,7 +12,7 @@
 // Sidebar.render.test.jsx (stubs fetch / tolerates no-IDB).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import CompositePlot from './CompositePlot';
 import PolarPlot from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
@@ -258,5 +258,34 @@ describe('CompositePlot — every layer type renders its glyph', () => {
     ).container;
     expect(c.textContent).toContain('AlphaLeg');
     expect(c.textContent).toContain('BetaLeg');
+  });
+});
+
+// Net for the FigureWindow render decomposition: the toolbar + its popovers
+// are the bulk being extracted, so assert the chrome mounts and a popover
+// still opens (catches a dropped state/handler prop after extraction).
+describe('FigureWindow — toolbar + popover surfaces', () => {
+  const mountFW = (fig = compositeFig) => render(
+    <FigureWindow figure={fig} onClose={noop} engine={mockEngine} />,
+  ).container;
+
+  it('renders the titlebar + toolbar with a reset button', () => {
+    const c = mountFW();
+    expect(c.querySelector('.fw-titlebar')).toBeTruthy();
+    expect(c.querySelector('.fw-toolbar')).toBeTruthy();
+    expect(c.querySelector('[data-fw-reset="all"]')).toBeTruthy();
+  });
+
+  it('opens a popover (fit) on a toolbar-button click', () => {
+    const c = mountFW();
+    expect(c.querySelector('.fw-pop')).toBeFalsy();          // closed initially
+    const fitBtn = [...c.querySelectorAll('.ve-btn')].find((b) => /fit/.test(b.textContent));
+    expect(fitBtn).toBeTruthy();
+    fireEvent.click(fitBtn);
+    expect(c.querySelector('.fw-pop')).toBeTruthy();          // opened
+  });
+
+  it('mounts a polar figure window with its toolbar', () => {
+    expect(mountFW(polarFig).querySelector('.fw-toolbar')).toBeTruthy();
   });
 });
