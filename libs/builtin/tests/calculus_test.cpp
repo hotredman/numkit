@@ -256,9 +256,15 @@ TEST_P(CalculusTest, CumtrapzXYDim2RowWise)
     EXPECT_DOUBLE_EQ((*c)(1, 2), 2.0);
 }
 
-TEST_P(CalculusTest, CumtrapzComplexThrows)
+// cumtrapz accepts complex y as of 2026-06-05 (was: threw). The cumulative
+// trapezoid runs over Complex storage. MATLAB: cumtrapz([1+2i 3 5]) = [0 2+1i 6+1i].
+TEST_P(CalculusTest, CumtrapzComplexOk)
 {
-    EXPECT_THROW(eval("c = cumtrapz([1+2i, 3, 5]);"), std::exception);
+    eval("c = cumtrapz([1+2i, 3, 5]);");
+    EXPECT_NEAR(evalScalar("real(c(2));"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(c(2));"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("real(c(3));"), 6.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(c(3));"), 1.0, 1e-12);
 }
 
 // ── fzero ──────────────────────────────────────────────────────

@@ -267,6 +267,57 @@ Value cumtrapzMatrixRows(const double *src, const double *xData, size_t rows, si
     return out;
 }
 
+// ── COMPLEX counterparts (the integration variable x stays real) ────────
+Value cumtrapzVectorC(const Complex *y, const double *x, size_t n, const Dims &shape,
+                      bool unitSpacing, std::pmr::memory_resource *mr)
+{
+    auto out = Value::matrix(shape.rows(), shape.cols(), ValueType::COMPLEX, mr);
+    Complex *dst = out.complexDataMut();
+    if (n == 0) return out;
+    dst[0] = Complex(0.0, 0.0);
+    for (size_t i = 1; i < n; ++i) {
+        const double dx = unitSpacing ? 1.0 : (x[i] - x[i - 1]);
+        dst[i] = dst[i - 1] + 0.5 * (y[i - 1] + y[i]) * dx;
+    }
+    return out;
+}
+
+Value cumtrapzMatrixColsC(const Complex *src, const double *xData, size_t rows, size_t cols,
+                          std::pmr::memory_resource *mr)
+{
+    auto out = Value::matrix(rows, cols, ValueType::COMPLEX, mr);
+    Complex *dst = out.complexDataMut();
+    if (rows == 0 || cols == 0) return out;
+    for (size_t c = 0; c < cols; ++c) {
+        const Complex *col = src + c * rows;
+        const double *xCol = xData ? xData + c * rows : nullptr;
+        Complex *dCol = dst + c * rows;
+        dCol[0] = Complex(0.0, 0.0);
+        for (size_t r = 1; r < rows; ++r) {
+            const double dx = xCol ? (xCol[r] - xCol[r - 1]) : 1.0;
+            dCol[r] = dCol[r - 1] + 0.5 * (col[r - 1] + col[r]) * dx;
+        }
+    }
+    return out;
+}
+
+Value cumtrapzMatrixRowsC(const Complex *src, const double *xData, size_t rows, size_t cols,
+                          std::pmr::memory_resource *mr)
+{
+    auto out = Value::matrix(rows, cols, ValueType::COMPLEX, mr);
+    Complex *dst = out.complexDataMut();
+    if (rows == 0 || cols == 0) return out;
+    for (size_t r = 0; r < rows; ++r) {
+        dst[r] = Complex(0.0, 0.0);
+        for (size_t c = 1; c < cols; ++c) {
+            const double dx = xData ? (xData[c * rows + r] - xData[(c - 1) * rows + r]) : 1.0;
+            dst[c * rows + r] = dst[(c - 1) * rows + r]
+                              + 0.5 * (src[(c - 1) * rows + r] + src[c * rows + r]) * dx;
+        }
+    }
+    return out;
+}
+
 } // namespace
 
 // cumtrapz(Y, dim): unit-spacing cumulative trapezoid along dim (1 or 2).
@@ -275,12 +326,14 @@ Value cumtrapzMatrixRows(const double *src, const double *xData, size_t rows, si
 // cumtrapz([1 2 3 4], 1) → [0 0 0 0], cumtrapz([1 2 3 4], 2) → cumulative.
 Value cumtrapzDim(const Value &y, int dim, std::pmr::memory_resource *mr)
 {
-    if (y.type() == ValueType::COMPLEX)
-        throw Error("cumtrapz: complex inputs are not supported",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complex");
-    auto ys = toDoubleCopy(y, mr);
     const size_t rows = y.dims().rows(), cols = y.dims().cols();
     if (dim <= 0) dim = 1;
+    if (y.type() == ValueType::COMPLEX) {
+        const Complex *yc = y.complexData();
+        if (dim == 2) return cumtrapzMatrixRowsC(yc, nullptr, rows, cols, mr);
+        return cumtrapzMatrixColsC(yc, nullptr, rows, cols, mr);
+    }
+    auto ys = toDoubleCopy(y, mr);
     if (dim == 2)
         return cumtrapzMatrixRows(ys.doubleData(), nullptr, rows, cols, mr);
     return cumtrapzMatrixCols(ys.doubleData(), nullptr, rows, cols, mr);
@@ -288,10 +341,12 @@ Value cumtrapzDim(const Value &y, int dim, std::pmr::memory_resource *mr)
 
 Value cumtrapz(const Value &y, std::pmr::memory_resource *mr)
 {
-    if (y.type() == ValueType::COMPLEX)
-        throw Error("cumtrapz: complex inputs are not supported",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complex");
-
+    if (y.type() == ValueType::COMPLEX) {
+        const Complex *yc = y.complexData();
+        if (y.dims().isVector() || y.isScalar())
+            return cumtrapzVectorC(yc, nullptr, y.numel(), y.dims(), /*unitSpacing=*/true, mr);
+        return cumtrapzMatrixColsC(yc, nullptr, y.dims().rows(), y.dims().cols(), mr);
+    }
     auto ys = toDoubleCopy(y, mr);
     if (y.dims().isVector() || y.isScalar()) {
         return cumtrapzVector(ys.doubleData(), nullptr, y.numel(), y.dims(), /*unitSpacing=*/true, mr);
@@ -301,11 +356,16 @@ Value cumtrapz(const Value &y, std::pmr::memory_resource *mr)
 
 Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
-    if (x.type() == ValueType::COMPLEX || y.type() == ValueType::COMPLEX)
-        throw Error("cumtrapz: complex inputs are not supported",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complex");
+    // The X coordinate must be real; Y may be complex.
+    if (x.type() == ValueType::COMPLEX)
+        throw Error("cumtrapz: the X coordinate must be real",
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complexX");
+    const bool yIsC = (y.type() == ValueType::COMPLEX);
+    Value ys;
+    if (!yIsC) ys = toDoubleCopy(y, mr);
+    const double *yd = yIsC ? nullptr : ys.doubleData();
+    const Complex *yc = yIsC ? y.complexData() : nullptr;
 
-    auto ys = toDoubleCopy(y, mr);
     if (y.dims().isVector() || y.isScalar()) {
         if (!x.dims().isVector() && !x.isScalar())
             throw Error("cumtrapz: when y is a vector, x must also be a vector",
@@ -314,7 +374,8 @@ Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
             throw Error("cumtrapz: x and y must have the same length",
                          0, 0, "cumtrapz", "", "numkit:cumtrapz:lengthMismatch");
         auto xs = toDoubleCopy(x, mr);
-        return cumtrapzVector(ys.doubleData(), xs.doubleData(), y.numel(), y.dims(), /*unitSpacing=*/false, mr);
+        return yIsC ? cumtrapzVectorC(yc, xs.doubleData(), y.numel(), y.dims(), /*unitSpacing=*/false, mr)
+                    : cumtrapzVector(yd, xs.doubleData(), y.numel(), y.dims(), /*unitSpacing=*/false, mr);
     }
 
     // Matrix y. x may be a vector (broadcast across every column) or
@@ -329,12 +390,14 @@ Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr)
         const double *src = xs.doubleData();
         for (size_t c = 0; c < cols; ++c)
             std::memcpy(dx + c * rows, src, rows * sizeof(double));
-        return cumtrapzMatrixCols(ys.doubleData(), dx, rows, cols, mr);
+        return yIsC ? cumtrapzMatrixColsC(yc, dx, rows, cols, mr)
+                    : cumtrapzMatrixCols(yd, dx, rows, cols, mr);
     }
     if (x.dims().rows() != rows || x.dims().cols() != cols)
         throw Error("cumtrapz: x size must match y or be a column-length vector",
                      0, 0, "cumtrapz", "", "numkit:cumtrapz:shapeMismatch");
-    return cumtrapzMatrixCols(ys.doubleData(), xs.doubleData(), rows, cols, mr);
+    return yIsC ? cumtrapzMatrixColsC(yc, xs.doubleData(), rows, cols, mr)
+                : cumtrapzMatrixCols(yd, xs.doubleData(), rows, cols, mr);
 }
 
 // ── integral (adaptive Gauss-Kronrod) ────────────────────────────────
@@ -577,11 +640,13 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     // an X matrix the same size as Y (per-element spacing — extension).
     const int dim = static_cast<int>(args[2].toScalar());
     const Value &x = args[0], &y = args[1];
-    if (x.type() == ValueType::COMPLEX || y.type() == ValueType::COMPLEX)
-        throw Error("cumtrapz: complex inputs are not supported",
-                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complex");
+    if (x.type() == ValueType::COMPLEX)
+        throw Error("cumtrapz: the X coordinate must be real",
+                     0, 0, "cumtrapz", "", "numkit:cumtrapz:complexX");
+    const bool yIsC = (y.type() == ValueType::COMPLEX);
     const size_t rows = y.dims().rows(), cols = y.dims().cols();
-    auto ys = toDoubleCopy(y, mr);
+    Value ys;
+    if (!yIsC) ys = toDoubleCopy(y, mr);
     auto xs = toDoubleCopy(x, mr);
     const double *xsrc = xs.doubleData();
 
@@ -601,9 +666,11 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "cumtrapz", "", "numkit:cumtrapz:shapeMismatch");
     }
     if (dim == 2)
-        outs[0] = cumtrapzMatrixRows(ys.doubleData(), dx, rows, cols, mr);
+        outs[0] = yIsC ? cumtrapzMatrixRowsC(y.complexData(), dx, rows, cols, mr)
+                       : cumtrapzMatrixRows(ys.doubleData(), dx, rows, cols, mr);
     else
-        outs[0] = cumtrapzMatrixCols(ys.doubleData(), dx, rows, cols, mr);
+        outs[0] = yIsC ? cumtrapzMatrixColsC(y.complexData(), dx, rows, cols, mr)
+                       : cumtrapzMatrixCols(ys.doubleData(), dx, rows, cols, mr);
 }
 
 // C++ primitive for the embedded-.m integral: returns the Gauss-Kronrod-15
