@@ -174,3 +174,73 @@ describe('FiguresPane preview render smoke', () => {
     expect(container.querySelector('.fp-card')).toBeTruthy();
   });
 });
+
+// Per-layer-type render net. Each mounts a one-layer figure with a distinctive
+// colour and asserts the characteristic SVG glyph for that mode is present.
+// This is the safety net for the CompositePlot layer-renderer extraction: if a
+// renderer is dropped or mis-wired, its glyph stops appearing and the matching
+// test fails (vs. the old smoke tests which only caught mount-time throws).
+describe('CompositePlot — every layer type renders its glyph', () => {
+  const mountLayer = (layer) => render(
+    <CompositePlot figure={{ ...compositeFig, id: 100, layers: [layer] }}
+      width={400} height={300} viewport={{ x: [0, 5], y: [0, 10] }}
+      setViewport={noop} interactive={false} />,
+  ).container;
+  const S = { kind: 'series', x: [1, 2, 3], y: [2, 4, 3] };
+
+  it('line → stroked path', () => {
+    const c = mountLayer({ ...S, mode: 'line', color: '#c10001' });
+    expect(c.querySelector('path[stroke="#c10001"][fill="none"]')).toBeTruthy();
+  });
+  it('stairs → stroked path', () => {
+    const c = mountLayer({ ...S, mode: 'stairs', color: '#c10002' });
+    expect(c.querySelector('path[stroke="#c10002"]')).toBeTruthy();
+  });
+  it('scatter → marker circles', () => {
+    const c = mountLayer({ ...S, mode: 'scatter', marker: 'o', color: '#c10003' });
+    expect(c.querySelector('circle[stroke="#c10003"]')).toBeTruthy();
+  });
+  it('stem → stems + dots', () => {
+    const c = mountLayer({ ...S, mode: 'stem', color: '#c10004' });
+    expect(c.querySelector('line[stroke="#c10004"]')).toBeTruthy();
+    expect(c.querySelector('circle[fill="#c10004"]')).toBeTruthy();
+  });
+  it('bar → filled rects', () => {
+    const c = mountLayer({ ...S, mode: 'bar', color: '#c10005' });
+    expect(c.querySelector('rect[fill="#c10005"]')).toBeTruthy();
+  });
+  it('barh → filled rects', () => {
+    const c = mountLayer({ ...S, mode: 'barh', x: [2, 4, 3], y: [1, 2, 3], color: '#c10006' });
+    expect(c.querySelector('rect[fill="#c10006"]')).toBeTruthy();
+  });
+  it('area → filled path', () => {
+    const c = mountLayer({ ...S, mode: 'area', baseline: 0, color: '#c10007' });
+    expect(c.querySelector('path[fill="#c10007"]')).toBeTruthy();
+  });
+  it('polygon → filled path', () => {
+    const c = mountLayer({ ...S, mode: 'polygon', x: [1, 2, 3], y: [1, 3, 1], color: '#c10008' });
+    expect(c.querySelector('path[fill="#c10008"]')).toBeTruthy();
+  });
+  it('quiver → arrow lines', () => {
+    const c = mountLayer({ ...S, mode: 'quiver', x: [1, 2], y: [1, 2], u: [1, 1], v: [1, -1], color: '#c10009' });
+    expect(c.querySelector('line[stroke="#c10009"]')).toBeTruthy();
+  });
+  it('errorbar → bars + dot', () => {
+    const c = mountLayer({ ...S, mode: 'errorbar', eNeg: [0.5, 0.5, 0.5], ePos: [0.5, 0.5, 0.5], color: '#c1000a' });
+    expect(c.querySelector('line[stroke="#c1000a"]')).toBeTruthy();
+    expect(c.querySelector('circle[fill="#c1000a"]')).toBeTruthy();
+  });
+  it('xline → vertical reference line', () => {
+    const c = mountLayer({ ...S, mode: 'xline', x: [2], color: '#c1000b' });
+    expect(c.querySelector('line[stroke="#c1000b"]')).toBeTruthy();
+  });
+  it('yline → horizontal reference line', () => {
+    const c = mountLayer({ ...S, mode: 'yline', x: [5], color: '#c1000c' });
+    expect(c.querySelector('line[stroke="#c1000c"]')).toBeTruthy();
+  });
+  it('text layer → svg <text> with content', () => {
+    const c = mountLayer({ kind: 'text', x: 2, y: 5, text: 'GLYPHTEST', color: '#c1000d' });
+    expect(c.querySelector('text')).toBeTruthy();
+    expect(c.textContent).toContain('GLYPHTEST');
+  });
+});
