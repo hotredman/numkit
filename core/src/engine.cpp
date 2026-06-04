@@ -1583,23 +1583,16 @@ void Engine::setVariable(const std::string &name, Value val)
 }
 Value *Engine::getVariable(const std::string &name)
 {
-    // A name resolves to the global store ONLY when the BASE workspace has
-    // itself declared it global (top-level `global X`). This gate is what stops
-    // a function's `global G; G=5` from leaking into the base workspace's
-    // who/exist/IDE-viewer view: globalsEnv_ holds G's value, but the base
-    // never declared G global, so it is not visible from here.
-    //
-    // Base-scope global membership is the single set workspaceEnv_->globals_,
-    // populated by every top-level `global X` on both engines
-    // (TreeWalker::execGlobalPersistent and Engine::runOneChunk's
-    // updateTopLevelGlobals). A function's `global G` belongs to the function's
-    // own scope, never the base, so the gate excludes it. See
+    // Environment::get already routes a name the base workspace declared global
+    // to globalsEnv_ (its isGlobal delegation), and resolves everything else
+    // against local storage then the constants parent. That single call is the
+    // whole gate: a function's `global G; G=5` lives in globalsEnv_ but the base
+    // never declared G global, so workspaceEnv_->get("G") never consults
+    // globalsEnv_ — no leak into the base who/exist/IDE-viewer view. Base
+    // membership is the single set workspaceEnv_->globals_, populated by every
+    // top-level `global X` on both engines (TreeWalker::execGlobalPersistent and
+    // Engine::runOneChunk's updateTopLevelGlobals). See
     // FrameIntrospectionEdgesTest.GlobalInsideEvalinBase.
-    if (workspaceEnv_->isGlobal(name)) {
-        Value *gs = globalsEnv_->get(name);
-        if (gs && !gs->isUnset())
-            return gs;
-    }
     return workspaceEnv_->get(name);
 }
 

@@ -2334,13 +2334,12 @@ void VM::exportTopLevelVariables()
             lastVarMap_.push_back({name, topFrame.R[reg]});
     }
 
-    // Export top-level global declarations. Mark each name global in the base
-    // workspace BEFORE writing its value, so the value lives only in
-    // globalsEnv_ (a subsequent workspaceEnv_->set would just delegate there).
-    // No local-storage mirror — that dual-storage is what diverged who/whos
-    // between the engines. who/whos enumerate workspaceEnv_->globalNames().
+    // Export top-level globals: write the value to globalsEnv_ only. No
+    // local-storage mirror into workspaceEnv_ — that dual-storage is what
+    // diverged who/whos between the engines. Base-workspace membership
+    // (workspaceEnv_->globals_) is recorded by Engine::runOneChunk's
+    // updateTopLevelGlobals; who/whos enumerate it.
     for (auto &gname : topFrame.chunk->globalNames) {
-        engine_.workspaceEnv_->declareGlobal(gname);
         for (auto &[vname, reg] : topFrame.chunk->varMap) {
             if (vname == gname && reg < topFrame.nregs) {
                 if (!topFrame.R[reg].isUnset() && !topFrame.R[reg].isDeleted())
@@ -2784,16 +2783,13 @@ void VM::popCallFrame(Value retVal)
 
     bool isTopLevel = (frames_.size() == 1);
 
-    // Export global variables back to globalsEnv_ (the single global value
-    // store). A top-level `global X` ALSO records base-workspace membership
-    // (declareGlobal) so who/whos/getVariable see it — but stores NO local
-    // copy (the value lives in globalsEnv_). A function-scope `global X` writes
-    // ONLY globalsEnv_ and never touches the base workspace — that mirror was
-    // the leak. Reads of a base-undeclared global are blocked by
-    // Engine::getVariable's membership gate.
+    // Export globals back to globalsEnv_ (the single global value store) — no
+    // local copy in workspaceEnv_. A function-scope `global X` writes only
+    // globalsEnv_ and never touches the base workspace; mirroring it there was
+    // the leak. Base-workspace membership is recorded separately by
+    // runOneChunk's updateTopLevelGlobals, and reads of a base-undeclared
+    // global are blocked by Engine::getVariable's membership gate.
     for (auto &gname : frame.chunk->globalNames) {
-        if (isTopLevel)
-            engine_.workspaceEnv_->declareGlobal(gname);
         for (auto &[vname, reg] : frame.chunk->varMap) {
             if (vname == gname && reg < frame.nregs) {
                 if (isTopLevel) {
