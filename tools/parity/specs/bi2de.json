@@ -1,0 +1,10 @@
+{
+  "name": "bi2de",
+  "namespace": "comm",
+  "setup": "b = [1 0 1 0; 0 0 1 1];",
+  "expr": "d = bi2de(b);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["d(1)", "d(2)"],
+  "comment": "Sig: d = bi2de(b). Legacy binary->decimal per row, default base 2 right-msb (LSB-first). Rows [1 0 1 0]->5, [0 0 1 1]->12. MATLAB-deprecated synonym of bit2int but still ships R2025b. Lifted to public C++ API numkit::comm::bi2de 2026-06."
+}

@@ -382,6 +382,11 @@ public:
     // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;
     size_t rawBytes() const;
+    // whos-correct deep size: a struct/cell reports the sum of all its
+    // contents (recursively) plus its own schema (field-name bytes), instead
+    // of 0. Leaf arrays return rawBytes(). Use this for display (whos /
+    // workspace / struct inspector); use rawBytes() for flat-buffer ops.
+    size_t deepBytes() const;
 
     // ── Const typed access — double ──────────────────────────
     const double *doubleData() const;

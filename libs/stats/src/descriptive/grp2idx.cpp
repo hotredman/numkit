@@ -31,7 +31,6 @@
 #include <vector>
 
 namespace numkit::stats {
-namespace detail {
 
 namespace {
 
@@ -49,14 +48,10 @@ std::string fmtGroupNum(double v)
 
 } // namespace
 
-void grp2idx_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
-                 CallContext &ctx)
+// ── Public C++ API (see descriptive.hpp) ──────────────────────────────
+
+Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
 {
-    if (args.empty())
-        throw Error("grp2idx: requires (s)",
-                    0, 0, "grp2idx", "", "numkit:grp2idx:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &s = args[0];
     const size_t n = s.numel();
 
     std::vector<double>      g;        // index per element (NaN allowed)
@@ -102,24 +97,32 @@ void grp2idx_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         }
     }
 
+    Grp2idxResult r;
     // G: column vector.
-    Value gv = Value::matrix(g.size(), 1, ValueType::DOUBLE, mr);
-    std::copy(g.begin(), g.end(), gv.doubleDataMut());
-    outs[0] = std::move(gv);
-
+    r.G = Value::matrix(g.size(), 1, ValueType::DOUBLE, mr);
+    std::copy(g.begin(), g.end(), r.G.doubleDataMut());
     // GN / GL: column cell of char rows (GL == GN for these input types).
-    if (nargout >= 2) {
-        Value cn = Value::cell(names.size(), 1, mr);
-        for (size_t k = 0; k < names.size(); ++k)
-            cn.cellAt(k) = Value::fromString(names[k], mr);
-        outs[1] = std::move(cn);
+    r.GN = Value::cell(names.size(), 1, mr);
+    r.GL = Value::cell(names.size(), 1, mr);
+    for (size_t k = 0; k < names.size(); ++k) {
+        r.GN.cellAt(k) = Value::fromString(names[k], mr);
+        r.GL.cellAt(k) = Value::fromString(names[k], mr);
     }
-    if (nargout >= 3) {
-        Value cl = Value::cell(names.size(), 1, mr);
-        for (size_t k = 0; k < names.size(); ++k)
-            cl.cellAt(k) = Value::fromString(names[k], mr);
-        outs[2] = std::move(cl);
-    }
+    return r;
+}
+
+namespace detail {
+
+void grp2idx_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("grp2idx: requires (s)",
+                    0, 0, "grp2idx", "", "numkit:grp2idx:nargin");
+    Grp2idxResult r = grp2idx(args[0], ctx.engine->resource());
+    outs[0] = std::move(r.G);
+    if (nargout >= 2) outs[1] = std::move(r.GN);
+    if (nargout >= 3) outs[2] = std::move(r.GL);
 }
 
 } // namespace detail

@@ -5,9 +5,16 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/inv_trig_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/inv_trig_batch2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fwd_trig_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sinpi_cospi_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transcendentals_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/complex_promotion_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mod_simd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/minmax_nan_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/power_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/geom_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/special_fn_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/int_math_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math_reductions_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/misc_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/strings_batch_test.cpp
@@ -31,9 +38,11 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/stats_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rng_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/manip_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/manip_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ndmanip_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/numeric_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/setops_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/discrete_setops_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/accum_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cellfun_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory_test.cpp
@@ -103,7 +112,9 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/grouptransform_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/groupfilter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/splitapply_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/group_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/colperm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/symrcm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/permutations_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/topkrows_ext_test.cpp
 )

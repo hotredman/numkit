@@ -477,6 +477,9 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
             out.setScalarFast(lv / rv);
             return true;
         } else if (opStr == ".^") {
+            // negative base ^ non-integer exp -> complex; let the full path handle it.
+            if (lv < 0.0 && rv != std::floor(rv))
+                return false;
             out.setScalarFast(std::pow(lv, rv));
             return true;
         } else if (opStr == "<=") {
@@ -616,8 +619,9 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
             switch (bid) {
             case 1: // mod
                 if (nargs == 2) {
+                    // MATLAB: mod(a, 0) == a (std::fmod(a, 0) would be NaN).
                     if (argVals[1] == 0.0) {
-                        r = argVals[0]; // MATLAB: mod(a,0) == a (fmod → NaN)
+                        r = argVals[0];
                     } else {
                         r = std::fmod(argVals[0], argVals[1]);
                         if (r != 0 && ((r < 0) != (argVals[1] < 0)))
@@ -681,7 +685,9 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
                 }
                 break;
             case 11:
-                if (nargs == 1) {
+                // log of a negative promotes to complex — defer to the full
+                // builtin (mirrors the sqrt guard above).
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log(argVals[0]);
                     ok = true;
                 }
@@ -720,13 +726,13 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
                 }
                 break;
             case 16:
-                if (nargs == 1) {
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log2(argVals[0]);
                     ok = true;
                 }
                 break;
             case 17:
-                if (nargs == 1) {
+                if (nargs == 1 && argVals[0] >= 0) {
                     r = std::log10(argVals[0]);
                     ok = true;
                 }

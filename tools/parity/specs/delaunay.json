@@ -1,0 +1,13 @@
+{
+  "name": "delaunay",
+  "namespace": "builtin",
+  "setup": "x=[0.1;2.0;3.3;1.2;0.7]; y=[0.2;0.4;2.1;3.0;1.5];",
+  "expr": "T = delaunay(x, y); nT = size(T,1); A = sum(0.5*abs((x(T(:,2))-x(T(:,1))).*(y(T(:,3))-y(T(:,1))) - (x(T(:,3))-x(T(:,1))).*(y(T(:,2))-y(T(:,1)))));",
+  "iters": 10,
+  "tol": 1e-12,
+  "fingerprint": [
+    "nT",
+    "A"
+  ],
+  "comment": "Sig: T = delaunay(x, y). Brute-force empty-circumcircle triangulation of a generic 5-point set (no 4 cocircular). Row order + per-row vertex rotation are algorithm-specific and need NOT match MATLAB, so the fingerprint is order-invariant only: nT = number of triangles (= 2n-2-h, matches MATLAB for points in general position) and A = total triangle area (must equal the convex-hull area, tol 1e-12). Lifted to public C++ API numkit::builtin::delaunay (was adapter-only) 2026-06. NOTE on degeneracy: for cocircular sets (e.g. a square) the brute force keeps all C(4,3) triangles whereas MATLAB picks one diagonal — that case is intentionally excluded from this spec."
+}

@@ -1,9 +1,9 @@
 // libs/builtin/src/math/elementary/exponents.cpp
 //
-// Scalar exponentials/logarithms: sqrt, log2, log10, expm1, log1p.
-// exp / log live in libs/builtin/src/backends/MStdTranscendental_*.cpp
-// (SIMD-backed) and only their declarations are reproduced in
-// math/elementary/exponents.hpp.
+// Scalar exponentials: sqrt, pow2, realpow, realsqrt (+ engine adapters).
+// exp / log / log2 / log10 / log1p / expm1 / reallog are backend-split
+// (SIMD via Highway) and live in exp_log_highway.cpp / exp_log_portable.cpp;
+// only their declarations are reproduced in math/exp_log/exponents.hpp.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/math/exp_log/exponents.hpp>
@@ -25,30 +25,15 @@ Value exp(const Value &x, std::pmr::memory_resource *mr) { return exp(x, nullptr
 Value log(const Value &x, std::pmr::memory_resource *mr) { return log(x, nullptr, mr); }
 
 
-Value sqrt(const Value &x, std::pmr::memory_resource *mr)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
-    if (x.isScalar() && x.toScalar() < 0)
-        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), mr);
-    return unaryDouble(x, [](double v) { return std::sqrt(v); }, mr);
-}
+// sqrt / exp / log / log2 / log10 / log1p / expm1 / reallog / realsqrt are
+// all backend-split (SIMD via Highway) — see exp_log_highway.cpp /
+// exp_log_portable.cpp. Only their declarations live in exponents.hpp.
 
-Value log10(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) { return std::log10(v); }, mr);
-}
+// ── pow2 / realpow ───────────────────────────────────────────────────
 
-// log2 / expm1 / log1p are backend-split (SIMD via Highway) and now live in
-// exp_log_highway.cpp + exp_log_portable.cpp, like exp / log.
-
-// ── pow2 / realpow / reallog / realsqrt ──────────────────────────────
-
-Value pow2(const Value &y, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(y, [](double v) { return std::exp2(v); }, mr);
-}
-
+// pow2(y) == 2^y is backend-split (SIMD via Highway Exp2Loop) — see
+// exp_log_highway.cpp / exp_log_portable.cpp. The 2-arg pow2(f, e) below
+// stays here (it is an ldexp, already cheap).
 Value pow2(const Value &f, const Value &e, std::pmr::memory_resource *mr)
 {
     // ldexp(f, int_e) = f * 2^int_e. MATLAB's pow2(F, E) takes the
@@ -70,26 +55,6 @@ Value realpow(const Value &x, const Value &y, std::pmr::memory_resource *mr)
         return std::pow(xx, yy);
     };
     return elementwiseDouble(x, y, checkPair, mr);
-}
-
-Value reallog(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) {
-        if (v < 0.0)
-            throw std::runtime_error(
-                "reallog produced complex result — use log(...) instead");
-        return std::log(v);
-    }, mr);
-}
-
-Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
-{
-    return unaryDouble(x, [](double v) {
-        if (v < 0.0)
-            throw std::runtime_error(
-                "realsqrt produced complex result — use sqrt(...) instead");
-        return std::sqrt(v);
-    }, mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────

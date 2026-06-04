@@ -29,8 +29,22 @@ import { buildHeatmapLUT, renderHeatmapDataURLFromIndices,
          renderHeatmapDataURLFromFlat, getColormap,
          makeCustomColormap } from './colormaps';
 import ContextMenu, { foldRowsToSubmenu } from './ContextMenu';
-import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange } from './plotUtils';
+import { computeFitViewport, fitCellViewport, upgradeFitAxis, exportSvgNode, exportPngNode, exportPngForPrint, downloadBlob, logClampRange, previewStride } from './plotUtils';
 import { niceTicks, logTicks, applyTickFormat, fmtTick } from './plotTicks';
+import { decimateSeries, buildPyramid, decimateLOD } from './decimate';
+import GLChart from './glplot/GLChart';
+import { isWebGL2Available } from './glplot/glcontext';
+import { makeProjection } from './glplot/projection';
+import {
+  selectGLSeries, glRoutable, glFlagFromStorage, selectGLBigSeries,
+} from './glplot/route';
+import { packXY } from './glplot/pack';
+import { renderGLPreviewDataURL } from './glplot/previewRaster';
+
+// Route a line/stairs layer to the WebGL overlay once it has more than this
+// many points (and the full data lives in JS — downsampled previews stay on
+// the existing path until the binary-transport layer feeds the GPU).
+const GL_MIN_POINTS = 50000;
 
 // MATLAB linespec → SVG strokeDasharray. '-' (or absent) means solid;
 // returning undefined keeps the default solid stroke. Pixel patterns
@@ -39,30 +53,32 @@ const DASH_FOR = { '-': undefined, '--': '6,4', ':': '1,3', '-.': '6,3,1,3' };
 
 // SVG marker glyph dispatcher used by both line-overlay and scatter
 // modes. r is the half-size in pixels (matches MATLAB MarkerSize ≈ r).
-function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
-  const stroke = 'var(--plot-frame)';
-  const sw = 0.6;
+function MarkerGlyph({ marker, cx, cy, r, color, idx, filled = false }) {
+  // MATLAB markers are OPEN (outline in the series colour) by default; `filled`
+  // fills them. '+'/'x'/'*' are always strokes; '.' is a small filled dot.
+  const fillC = filled ? color : 'none';
+  const sw = filled ? 0.6 : 1.4;
   switch (marker) {
     case 'o':
-      return <circle key={idx} cx={cx} cy={cy} r={r} fill={color} stroke={stroke} strokeWidth={sw} />;
+      return <circle key={idx} cx={cx} cy={cy} r={r} fill={fillC} stroke={color} strokeWidth={sw} />;
     case 's':
       return <rect key={idx} x={cx - r} y={cy - r} width={r * 2} height={r * 2}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case 'd':
       return <path key={idx} d={`M${cx},${cy - r} L${cx + r},${cy} L${cx},${cy + r} L${cx - r},${cy} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case '^':
       return <path key={idx} d={`M${cx},${cy - r} L${cx + r},${cy + r} L${cx - r},${cy + r} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case 'v':
       return <path key={idx} d={`M${cx},${cy + r} L${cx + r},${cy - r} L${cx - r},${cy - r} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case '<':
       return <path key={idx} d={`M${cx - r},${cy} L${cx + r},${cy - r} L${cx + r},${cy + r} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case '>':
       return <path key={idx} d={`M${cx + r},${cy} L${cx - r},${cy - r} L${cx - r},${cy + r} Z`}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     case 'p': {  // pentagon (5-pointed) — approximate
       const pts = [];
       for (let k = 0; k < 5; k++) {
@@ -70,7 +86,7 @@ function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
         pts.push(`${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`);
       }
       return <polygon key={idx} points={pts.join(' ')}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     }
     case 'h': {  // hexagon
       const pts = [];
@@ -79,7 +95,7 @@ function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
         pts.push(`${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`);
       }
       return <polygon key={idx} points={pts.join(' ')}
-        fill={color} stroke={stroke} strokeWidth={sw} />;
+        fill={fillC} stroke={color} strokeWidth={sw} />;
     }
     case '+':
       return (
@@ -108,7 +124,7 @@ function MarkerGlyph({ marker, cx, cy, r, color, idx }) {
       return <circle key={idx} cx={cx} cy={cy} r={Math.max(1, r * 0.4)}
         fill={color} stroke="none" />;
     default:
-      return <circle key={idx} cx={cx} cy={cy} r={r} fill={color} stroke={stroke} strokeWidth={sw} />;
+      return <circle key={idx} cx={cx} cy={cy} r={r} fill={fillC} stroke={color} strokeWidth={sw} />;
   }
 }
 
@@ -285,12 +301,31 @@ export default function CompositePlot({
   const [hover, setHover] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null);
   const dragRef = useRef(null);
+  // rAF-throttle pointer moves: a high-rate mouse during a drag/hover would
+  // otherwise fire one re-render (re-decimate + SVG path rebuild) per raw
+  // event (100–1000/s). We keep only the latest position and apply it at
+  // most once per animation frame.
+  const moveRafRef = useRef(0);
+  const pendingMoveRef = useRef(null);
+  // While actively dragging we render the lighter M2 decimation (½ the
+  // points of M4, visually identical since both keep min/max) so panning
+  // stays smooth; M4's full fidelity returns the moment the drag ends.
+  const [isDragging, setIsDragging] = useState(false);
 
   // ── display-tile state ──────────────────────────────────────────────
   // tileOverlay holds the most recent display-pixel-grid sample of the
   // visible source-rect. Rendered as an SVG <image> filling the plot area.
   // Reset on figure identity change (new dataset → stale tile is wrong).
   const [tileOverlay, setTileOverlay] = useState(null);
+  // Phase 2c — engine tiles for downsampled (huge) line series, keyed by
+  // dataset index. The line renderer prefers a loaded tile (already
+  // decimated for the viewport) over the static preview ly.x/ly.y.
+  const [seriesTiles, setSeriesTiles] = useState({});
+  // LOD-pyramid cache for Phase-1 series, keyed by the raw x-array identity
+  // (stable across this plot's re-renders). Built once per series; lets the
+  // per-frame decimation stay O(W) at any zoom. WeakMap → GC'd with the data.
+  const seriesPyramids = useRef(null);
+  if (seriesPyramids.current === null) seriesPyramids.current = new WeakMap();
   const figIdRef = useRef(figure._raw?.id ?? figure.id);
   useEffect(() => {
     const fid = figure._raw?.id ?? figure.id;
@@ -311,6 +346,13 @@ export default function CompositePlot({
   // figure.xscale/yscale.
   const [xLogLocal, setXLogLocal] = useState(figure.xscale === 'log');
   const [yLogLocal, setYLogLocal] = useState(figure.yscale === 'log');
+  // Line-series downsampling is always pixel-faithful M4 now (the GL overlay
+  // makes the speed/quality knob moot, M4 keeps spikes + true extent). Big
+  // series are decimated to ~plot-width points in the VISIBLE x-range, so
+  // render cost is O(W) not O(N) and zoom reveals more detail. Pan on the SVG
+  // fallback uses lighter M2 (DECIM_DRAG) for smoothness.
+  const DECIM_ALGO = 'm4';
+  const DECIM_DRAG = 'm2';
   const xLog = (xLogProp !== undefined) ? xLogProp : xLogLocal;
   const yLog = (yLogProp !== undefined) ? yLogProp : yLogLocal;
   const setXLog = setXLogProp || setXLogLocal;
@@ -661,10 +703,16 @@ export default function CompositePlot({
     if (!interactive || e.button !== 0) return;
     const rect = svgRef.current.getBoundingClientRect();
     dragRef.current = { sx: e.clientX, sy: e.clientY, x0: viewport.x.slice(), y0: viewport.y.slice(), W, H, rect };
+    setIsDragging(true);
     e.currentTarget.style.cursor = 'grabbing';
   }
-  function onMouseMove(e) {
-    if (!svgRef.current || !interactive) return;
+  // Applies the latest pointer position (hover crosshair + drag-pan). Runs
+  // at most once per animation frame via onMouseMove's rAF throttle, so a
+  // fast mouse during a drag triggers ≤ 60 re-renders/s, not 100–1000.
+  function applyMove() {
+    moveRafRef.current = 0;
+    const e = pendingMoveRef.current;
+    if (!e || !svgRef.current || !interactive) return;
     const rect = svgRef.current.getBoundingClientRect();
     const px = (e.clientX - rect.left) * (width / rect.width);
     const py = (e.clientY - rect.top)  * (height / rect.height);
@@ -701,7 +749,13 @@ export default function CompositePlot({
     }
     setViewport({ x: nx, y: ny });
   }
-  function onMouseUp(e)    { dragRef.current = null; if (e.currentTarget) e.currentTarget.style.cursor = 'grab'; }
+  function onMouseMove(e) {
+    if (!interactive) return;
+    // Keep only the latest event; flush once per frame.
+    pendingMoveRef.current = { clientX: e.clientX, clientY: e.clientY };
+    if (!moveRafRef.current) moveRafRef.current = requestAnimationFrame(applyMove);
+  }
+  function onMouseUp(e)    { dragRef.current = null; setIsDragging(false); if (e.currentTarget) e.currentTarget.style.cursor = 'grab'; }
   function onMouseLeave(e) { setHover(null); onMouseUp(e); }
   function onDblClick()    { if (interactive) setViewport({ x: figure.xRange.slice(), y: figure.yRange.slice() }); }
   function onContextMenu(e) {
@@ -1385,6 +1439,165 @@ export default function CompositePlot({
       xMin, xMax, yMin, yMax, xLogActive, yLogActive,
       W, H, lut]);
 
+  // ── WebGL fast-path routing (on by default; opt out 'numkit.plot.gl'='0') ──
+  // Decide which line/stairs layers the WebGL overlay takes over BEFORE the
+  // tile/decimation hooks below, so those skip GL-routed layers entirely:
+  //   • full-data layers (<1M, already in JS) → selectGLSeries (synchronous)
+  //   • engine-downsampled layers (>1M)       → selectGLBigSeries + a GPU-LOD
+  //     decimated tile (see the glBig effect): bounded ~4*W points at any zoom,
+  //     so no overdraw at full zoom-out and pan within the padded tile is O(1).
+  // GL is used whenever the flag + WebGL2 hold. The interactive window draws a
+  // live GL overlay; non-interactive preview cards rasterize the SAME GL series
+  // to an SVG <image> (previewRaster, one shared context) so previews match the
+  // window pixel-for-pixel without a WebGL context per card.
+  const glFlag = glFlagFromStorage(
+    typeof localStorage !== 'undefined' ? localStorage : null,
+  );
+  const glUsable = glRoutable(glFlag, isWebGL2Available());
+  const glState = useMemo(() => (
+    glUsable
+      ? selectGLSeries(figure.layers, GL_MIN_POINTS)
+      : { routed: new Set(), series: [] }
+  ), [figure.layers, glUsable]);
+  // >1M series: GPU LOD. Draw an engine-decimated tile (~4*W points) via GL
+  // rather than all N raw points — at full zoom-out that's a min/max envelope,
+  // not 50M overlapping segments, so there's no overdraw and the VBO stays
+  // tiny. The tile covers GL_BIG_PAD_K× the viewport, so panning within it is a
+  // pure projection-uniform update (O(1), no refetch); we refetch (debounced)
+  // only when the viewport leaves the covered range or the zoom changes ≥2×
+  // (resolution stale). Reuses the existing getSeriesTile binding — the small
+  // tile makes JSON transit cheap, so no raw/binary transport is needed here.
+  const GL_BIG_PAD_K = 3;
+  const glBigCovRef = useRef({});     // { [idx]: {lo,hi,vspan} } — current tile coverage
+  const glBigSigRef = useRef('');     // dataset signature → drop coverage on figure change
+  const [glBig, setGlBig] = useState({ routed: new Set(), series: [] });
+  useEffect(() => {
+    const clear = () => {
+      glBigCovRef.current = {};
+      setGlBig((prev) => (prev.series.length ? { routed: new Set(), series: [] } : prev));
+    };
+    if (!glUsable || !engine || typeof engine.getSeriesTile !== 'function') { clear(); return undefined; }
+    const descs = selectGLBigSeries(figure.layers);
+    if (!descs.length) { clear(); return undefined; }
+    const vspan = xMax - xMin;
+    if (!(vspan > 0)) return undefined;
+    // New figure / dataset set → drop stale coverage so the first frame refetches.
+    const sig = descs.map((d) => `${d.figId}:${d.axIdx}:${d.dsIdx}`).join('|');
+    if (glBigSigRef.current !== sig) { glBigCovRef.current = {}; glBigSigRef.current = sig; }
+    // Covered (panned within pad, zoom within 2×) → no work; pan stays O(1).
+    const cov = glBigCovRef.current;
+    const stale = (d) => {
+      const c = cov[d.idx];
+      return !c || xMin < c.lo || xMax > c.hi || vspan < c.vspan / 2 || vspan > c.vspan * 2;
+    };
+    if (!descs.some(stale)) return undefined;
+    let cancelled = false;
+    const h = setTimeout(() => {
+      const half = (vspan * GL_BIG_PAD_K) / 2;
+      const mid = (xMin + xMax) / 2;
+      const lo = mid - half;
+      const hi = mid + half;
+      const wbins = Math.max(1, Math.round(W * GL_BIG_PAD_K));
+      const routed = new Set();
+      const series = [];
+      const nextCov = {};
+      for (const d of descs) {
+        // Always bounded M4 — raw would ship the whole signal (millions of pts).
+        const t = engine.getSeriesTile(d.figId, d.axIdx, d.dsIdx, lo, hi, wbins, DECIM_ALGO);
+        if (!t || t.error || !Array.isArray(t.x) || !t.x.length) continue;
+        const packed = packXY(t.x, t.y);
+        series.push({ data: packed.data, segments: packed.segments, color: d.color, mode: 'line', marker: -1 });
+        if (d.marker >= 0) {   // marked >1M line → the decimated tile is the markers too
+          series.push({ data: packed.data, segments: packed.segments, color: d.color, mode: 'scatter', size: d.size, marker: d.marker, filled: d.filled });
+        }
+        routed.add(d.idx);
+        nextCov[d.idx] = { lo, hi, vspan };
+      }
+      if (cancelled) return;
+      glBigCovRef.current = nextCov;
+      setGlBig({ routed, series });
+    }, 50);
+    return () => { cancelled = true; clearTimeout(h); };
+  }, [figure.layers, glUsable, engine, xMin, xMax, W]);
+  // Union of both GL paths: hooks below skip these layer indices; the renderer
+  // (live overlay or preview <image>) draws them.
+  const glRouted = useMemo(
+    () => new Set([...glState.routed, ...glBig.routed]),
+    [glState, glBig],
+  );
+  const glSeries = useMemo(
+    () => [...glState.series, ...glBig.series],
+    [glState, glBig],
+  );
+  const glActive = glSeries.length > 0;
+  const glLive = glActive && interactive;        // live GL canvas overlay
+  const glPreview = glActive && !interactive;    // rasterize to an SVG <image>
+
+  // Phase 2c — refetch decimated tiles for engine-downsampled (huge) line
+  // series on viewport / width / algorithm change, debounced so wheel-zoom
+  // doesn't hammer the engine. The full x/y never leave the engine; we get
+  // back only the ~4*W points visible in [xMin, xMax], so zoom reveals
+  // detail the static preview can't. GL-routed layers are skipped — the
+  // overlay already holds their full raw data.
+  useEffect(() => {
+    const downs = (figure.layers || []).filter(
+      (ly, i) => ly.kind === 'series' && ly.seriesDownsampled && ly.dsIdx != null
+        && !glRouted.has(i));
+    if (!downs.length || !engine || typeof engine.getSeriesTile !== 'function') {
+      setSeriesTiles((prev) => (Object.keys(prev).length ? {} : prev));
+      return undefined;
+    }
+    let cancelled = false;
+    const algo = isDragging ? DECIM_DRAG : DECIM_ALGO;
+    const h = setTimeout(() => {
+      const next = {};
+      for (const ly of downs) {
+        const t = engine.getSeriesTile(ly.figId, ly.axIdx, ly.dsIdx,
+                                       xMin, xMax, Math.round(W), algo);
+        if (t && !t.error && Array.isArray(t.x)) next[ly.dsIdx] = { x: t.x, y: t.y };
+      }
+      if (!cancelled) setSeriesTiles(next);
+    }, 40);
+    return () => { cancelled = true; clearTimeout(h); };
+  }, [figure.layers, engine, xMin, xMax, W, isDragging, glRouted]);
+
+  // Per-line-layer decimated points (keyed by layer index), recomputed only
+  // when the viewport / pixel width / algorithm / engine tiles / layer set
+  // change — NOT on hover or unrelated state. Engine-downsampled series use
+  // the loaded tile (preview until it arrives); other series decimate from a
+  // cached LOD pyramid so per-frame work stays O(W) at any zoom. comet falls
+  // through to the renderer's raw fallback.
+  const decimatedSeries = useMemo(() => {
+    const out = {};
+    // Lighter M2 while dragging (½ M4's points, same envelope) → smooth pan.
+    const algo = isDragging ? DECIM_DRAG : DECIM_ALGO;
+    const layers = figure.layers || [];
+    for (let i = 0; i < layers.length; i++) {
+      const ly = layers[i];
+      if (ly.kind !== 'series') continue;
+      if (glRouted.has(i)) continue;          // drawn on the WebGL overlay
+      if (ly.mode !== 'line' && ly.mode !== 'stairs') continue;
+      if (ly.cometAnim || !Array.isArray(ly.x)) continue;
+      if (ly.seriesDownsampled) {
+        const t = seriesTiles[ly.dsIdx];
+        out[i] = t ? { x: t.x, y: t.y }
+                   : decimateSeries(ly.x, ly.y, xMin, xMax, W, algo);
+        continue;
+      }
+      let pyr = seriesPyramids.current.get(ly.x);
+      if (!pyr) { pyr = buildPyramid(ly.x, ly.y); seriesPyramids.current.set(ly.x, pyr); }
+      out[i] = decimateLOD(pyr, xMin, xMax, W, algo);
+    }
+    return out;
+  }, [figure.layers, xMin, xMax, W, seriesTiles, isDragging, glRouted]);
+
+  // Cancel any pending pointer-move frame on unmount.
+  useEffect(() => () => {
+    if (moveRafRef.current && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(moveRafRef.current);
+    }
+  }, []);
+
   const clipId = `clip-h-${figure.id}-${Math.round(width)}`;
   // The heatmap image is stretched to fill the figure's xRange × yRange in
   // viewport coordinates — pan/zoom moves the SVG rect, the image follows.
@@ -1449,6 +1662,26 @@ export default function CompositePlot({
   }));
   const cbarGradId = `cbar-${figure.id}-${Math.round(width)}`;
 
+  // WebGL overlay projection + geometry (routing computed earlier, above the
+  // tile/decimation hooks). Projection is viewport-driven, so pan/zoom updates
+  // only this uniform — the VBOs never re-upload.
+  const glProj = useMemo(() => makeProjection({
+    xMin, xMax, yMin, yMax, xLog: xLogActive, yLog: yLogActive, xRev, yRev,
+  }), [xMin, xMax, yMin, yMax, xLogActive, yLogActive, xRev, yRev]);
+  const glPlotRect = { x: padL, y: padT, w: W, h: H };
+  const glDpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  // Preview cards (non-interactive) rasterize the GL series to a PNG via the
+  // shared offscreen context and embed it as an SVG <image> — identical to the
+  // live overlay but inside the SVG (export-safe) and contextless. Re-rendered
+  // only when data / projection / size change (a thumbnail is static).
+  const [previewImg, setPreviewImg] = useState(null);
+  useEffect(() => {
+    if (!glPreview) { setPreviewImg(null); return; }
+    setPreviewImg(renderGLPreviewDataURL({
+      series: glSeries, proj: glProj, pxW: W, pxH: H, dpr: glDpr,
+    }));
+  }, [glPreview, glSeries, glProj, W, H, glDpr]);
+
   return (
     <>
     {ctxMenu && (
@@ -1460,6 +1693,9 @@ export default function CompositePlot({
         preview · downsampled from {hFullRows}×{hFullCols}
       </div>
     )}
+    <div style={glLive
+        ? { position: 'relative', width: '100%', height: '100%' }
+        : { display: 'contents' }}>
     <svg
       ref={svgRef}
       width="100%" height="100%"
@@ -1672,7 +1908,12 @@ export default function CompositePlot({
           doesn't bleed into colorbar / axis margins. */}
       {(seriesLayers.length > 0 || textLayers.length > 0) && (
         <g clipPath={`url(#${clipId})`}>
+          {previewImg && (
+            <image href={previewImg} x={padL} y={padT} width={W} height={H}
+              preserveAspectRatio="none" />
+          )}
           {layers.map((ly, idx) => {
+            if (glRouted.has(idx)) return null;                // drawn on the WebGL overlay
             if (ly.kind === 'heatmap') return null;            // image already drawn above
             if (ly.kind === 'series') {
               const mode = ly.mode || 'line';
@@ -1713,18 +1954,20 @@ export default function CompositePlot({
               if (mode === 'scatter') {
                 const mk = ly.marker || 'o';
                 const r = ly.size || 3;
-                return (
-                  <g key={`ly${idx}`} opacity={op}>
-                    {ly.x.map((xv, i) => {
-                      const yv = ly.y[i];
-                      if (!Number.isFinite(xv) || !Number.isFinite(yv)) return null;
-                      const px = sx(xv), py = mySy(yv);
-                      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
-                      return <MarkerGlyph key={i} idx={i} marker={mk}
-                        cx={px} cy={py} r={r} color={ly.color} />;
-                    })}
-                  </g>
-                );
+                // Preview thumbnails subsample: one SVG node per marker would
+                // jank the window at 100k+ points (interactive uses GL).
+                const N = ly.x.length;
+                const step = previewStride(N, interactive);
+                const markers = [];
+                for (let i = 0; i < N; i += step) {
+                  const xv = ly.x[i], yv = ly.y[i];
+                  if (!Number.isFinite(xv) || !Number.isFinite(yv)) continue;
+                  const px = sx(xv), py = mySy(yv);
+                  if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+                  markers.push(<MarkerGlyph key={i} idx={i} marker={mk}
+                    cx={px} cy={py} r={r} color={ly.color} filled={ly.filled} />);
+                }
+                return <g key={`ly${idx}`} opacity={op}>{markers}</g>;
               }
               if (mode === 'stem') {
                 return (
@@ -1961,14 +2204,22 @@ export default function CompositePlot({
               let d = '';
               let started = false;
               const markerPts = [];   // collect finite pts for overlay
-              // Comet animation: render only first floor(progress·N)
-              // points. When cometAnim flag is false, use full length.
-              const totalN = ly.x.length;
+              // Downsample the visible x-range to ~W pixel columns for huge
+              // series — render cost O(N) → O(W). Skipped for comet
+              // animation (it steps through the raw points one by one).
+              // Decimated points precomputed once per (viewport, width,
+              // algorithm) in the decimatedSeries memo above — O(W) per frame
+              // at any zoom (engine tile / LOD pyramid / preview). comet falls
+              // through to raw.
+              const sr = decimatedSeries[idx] || { x: ly.x, y: ly.y };
+              const SX = sr.x, SY = sr.y;
+              // Comet animation: render only first floor(progress·N) points.
+              const totalN = SX.length;
               const animN = ly.cometAnim
                 ? Math.max(1, Math.floor(cometProgress * totalN))
                 : totalN;
               for (let i = 0; i < animN; i++) {
-                const xv = ly.x[i], yv = ly.y[i];
+                const xv = SX[i], yv = SY[i];
                 // Genuine non-finite data → break the line (MATLAB gap
                 // semantics for plot([1 NaN 3])).
                 if (!Number.isFinite(xv) || !Number.isFinite(yv)) { started = false; continue; }
@@ -1977,9 +2228,9 @@ export default function CompositePlot({
                 const px = sx(xv), py = mySy(yv);
                 if (!Number.isFinite(px) || !Number.isFinite(py)) { started = false; continue; }
                 if (mode === 'stairs' && started) {
-                  d += `L${px.toFixed(2)},${(mySy(ly.y[i - 1])).toFixed(2)} `;
+                  d += `L${Math.round(px)},${Math.round(mySy(SY[i - 1]))} `;
                 }
-                d += (started ? 'L' : 'M') + px.toFixed(2) + ',' + py.toFixed(2) + ' ';
+                d += (started ? 'L' : 'M') + Math.round(px) + ',' + Math.round(py) + ' ';
                 started = true;
                 if (ly.marker) markerPts.push({ px, py });
               }
@@ -1999,7 +2250,7 @@ export default function CompositePlot({
                   )}
                   {ly.marker && markerPts.map((p, i) => (
                     <MarkerGlyph key={`m${i}`} idx={i} marker={ly.marker}
-                      cx={p.px} cy={p.py} r={r} color={ly.color} />
+                      cx={p.px} cy={p.py} r={r} color={ly.color} filled={ly.filled} />
                   ))}
                 </g>
               );
@@ -2252,6 +2503,11 @@ export default function CompositePlot({
         </g>
       )}
     </svg>
+    {glLive && (
+      <GLChart series={glSeries} proj={glProj} plotRect={glPlotRect}
+        width={width} height={height} dpr={glDpr} />
+    )}
+    </div>
     </>
   );
 }

@@ -2536,7 +2536,7 @@ std::string Engine::workspaceJSON() const
         if (d.is3D())
             os << "x" << d.pages();
         os << "\"";
-        os << ",\"bytes\":" << val->rawBytes();
+        os << ",\"bytes\":" << val->deepBytes();
         os << ",\"preview\":";
         if (val->type() == ValueType::DOUBLE && val->isScalar()) {
             double v = val->toScalar();

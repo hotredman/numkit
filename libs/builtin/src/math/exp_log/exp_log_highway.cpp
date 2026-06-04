@@ -22,6 +22,9 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "math/exp_log/exp_log_highway.cpp"
@@ -92,6 +95,77 @@ void Log2Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size
     for (; i < n; ++i) out[i] = std::log2(in[i]);
 }
 
+// log10 had no SIMD path before — it was a scalar std::log10 in
+// exponents.cpp, ~10x slower than the vectorised log. reallog reuses
+// LogLoop (it is log with a negative-input domain guard).
+void Log10Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N)
+        hn::StoreU(hn::Log10(d, hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = std::log10(in[i]);
+}
+
+// sqrt / realsqrt were scalar std::sqrt in exponents.cpp. hn::Sqrt maps to
+// the hardware vsqrtpd, so the SIMD body is memory-bandwidth bound.
+void SqrtLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N)
+        hn::StoreU(hn::Sqrt(hn::LoadU(d, in + i)), d, out + i);
+    for (; i < n; ++i) out[i] = std::sqrt(in[i]);
+}
+
+// pow2 (2^x). Highway has no Exp2 primitive, so this ports SLEEF's xexp2:
+// q = rint(x); s = x - q in [-0.5, 0.5]; a single-double minimax polynomial
+// (coefficients from SLEEF sleefsimddp.c, BSL-1.0) gives 2^s; ldexp by the
+// integer q (two-step pow-of-two multiply, overflow-safe) gives 2^x. The
+// integer reduction makes 2^n exact, matching MATLAB pow2 / std::exp2.
+void Exp2Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const hn::RebindToSigned<decltype(d)> di;
+    const std::size_t N = hn::Lanes(d);
+    const auto bias = hn::Set(di, std::int64_t(1023));
+    // 2^q via IEEE exponent bits: bitcast((q + 1023) << 52).
+    auto pow2i = [&](decltype(hn::Zero(di)) q) {
+        return hn::BitCast(d, hn::ShiftLeft<52>(hn::Add(q, bias)));
+    };
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto x  = hn::LoadU(d, in + i);
+        auto qd = hn::Round(x);              // nearest integer (ties to even)
+        auto qi = hn::ConvertTo(di, qd);
+        auto s  = hn::Sub(x, qd);            // |s| <= 0.5
+        // 2^s, single-double Horner (degree 11): POLY10 + ln2 + 1.
+        auto p = hn::Set(d, 0.4434359082926529454e-9);
+        p = hn::MulAdd(p, s, hn::Set(d, 0.7073164598085707425e-8));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1017819260921760451e-6));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1321543872511327615e-5));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1525273353517584730e-4));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1540353045101147808e-3));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.1333355814670499073e-2));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.9618129107597600536e-2));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.5550410866482046596e-1));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.2402265069591012214e+0));
+        p = hn::MulAdd(p, s, hn::Set(d, 0.6931471805599452862e+0)); // ln2
+        p = hn::MulAdd(p, s, hn::Set(d, 1.0));
+        // ldexp2(p, q) = p * 2^(q>>1) * 2^(q - q>>1)  (overflow-safe split).
+        auto q1 = hn::ShiftRight<1>(qi);
+        auto r  = hn::Mul(hn::Mul(p, pow2i(q1)), pow2i(hn::Sub(qi, q1)));
+        // x >= 1024 -> +Inf; x < -2000 -> 0 (matches SLEEF/MATLAB edges).
+        r = hn::IfThenElse(hn::Ge(x, hn::Set(d, 1024.0)),
+                           hn::Set(d, std::numeric_limits<double>::infinity()), r);
+        r = hn::IfThenZeroElse(hn::Lt(x, hn::Set(d, -2000.0)), r);
+        hn::StoreU(r, d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::exp2(in[i]);
+}
+
 } // namespace HWY_NAMESPACE
 } // namespace numkit::builtin
 HWY_AFTER_NAMESPACE();
@@ -105,6 +179,9 @@ HWY_EXPORT(LogLoop);
 HWY_EXPORT(Expm1Loop);
 HWY_EXPORT(Log1pLoop);
 HWY_EXPORT(Log2Loop);
+HWY_EXPORT(Log10Loop);
+HWY_EXPORT(SqrtLoop);
+HWY_EXPORT(Exp2Loop);
 
 namespace {
 
@@ -224,11 +301,109 @@ Value log1p(const Value &x, std::pmr::memory_resource *mr)
         }, [](double v) { return std::log1p(v); }, mr);
 }
 
+// log2 / log10 of a negative scalar promote to complex like log
+// (MATLAB: log2(-1) == 4.532i, log10(-1) == 1.364i). log2(z) = log(z)/log(2).
 Value log2(const Value &x, std::pmr::memory_resource *mr)
 {
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::log(c) / std::log(2.0); }, mr);
+    if (x.isScalar() && x.toScalar() < 0.0)
+        return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)) / std::log(2.0), mr);
     return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(Log2Loop)(in, out, n);
         }, [](double v) { return std::log2(v); }, mr);
+}
+
+Value log10(const Value &x, std::pmr::memory_resource *mr)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::log10(c); }, mr);
+    if (x.isScalar() && x.toScalar() < 0.0)
+        return Value::complexScalar(std::log10(Complex(x.toScalar(), 0.0)), mr);
+    return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(Log10Loop)(in, out, n);
+        }, [](double v) { return std::log10(v); }, mr);
+}
+
+// reallog == log, but raises if any element is negative (MATLAB tells the
+// user to switch to log for a complex result). Complex / scalar / non-DOUBLE
+// stay on the reference path (preserves the per-element throw + type
+// handling); a real DOUBLE array does one domain pass, then the SIMD log.
+Value reallog(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto scalarOp = [](double v) {
+        if (v < 0.0)
+            throw std::runtime_error("reallog produced complex result — use log(...) instead");
+        return std::log(v);
+    };
+    if (x.isComplex() || x.isScalar() || x.type() != ValueType::DOUBLE)
+        return unaryDouble(x, scalarOp, mr);
+
+    const double     *in = x.doubleData();
+    const std::size_t n  = x.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (in[i] < 0.0)
+            throw std::runtime_error("reallog produced complex result — use log(...) instead");
+
+    Value r = createLike(x, ValueType::DOUBLE, mr);
+    if (n == 0)
+        return r;
+    double *out = r.doubleDataMut();
+    numkit::detail::parallel_for(n, numkit::detail::kTranscendentalThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(LogLoop)(in + s, out + s, e - s);
+        });
+    return r;
+}
+
+// sqrt: a negative *scalar* promotes to complex (MATLAB: sqrt(-1)==i), but a
+// real vector's negatives just become NaN — same as std::sqrt. Mirrors log.
+Value sqrt(const Value &x, std::pmr::memory_resource *mr)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
+    if (x.isScalar() && x.toScalar() < 0.0)
+        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), mr);
+    return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(SqrtLoop)(in, out, n);
+        }, [](double v) { return std::sqrt(v); }, mr);
+}
+
+// realsqrt: sqrt with a strict-nonnegative domain guard (now SIMD via SqrtLoop).
+Value realsqrt(const Value &x, std::pmr::memory_resource *mr)
+{
+    auto scalarOp = [](double v) {
+        if (v < 0.0)
+            throw std::runtime_error("realsqrt produced complex result — use sqrt(...) instead");
+        return std::sqrt(v);
+    };
+    if (x.isComplex() || x.isScalar() || x.type() != ValueType::DOUBLE)
+        return unaryDouble(x, scalarOp, mr);
+
+    const double     *in = x.doubleData();
+    const std::size_t n  = x.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (in[i] < 0.0)
+            throw std::runtime_error("realsqrt produced complex result — use sqrt(...) instead");
+
+    Value r = createLike(x, ValueType::DOUBLE, mr);
+    if (n == 0)
+        return r;
+    double *out = r.doubleDataMut();
+    numkit::detail::parallel_for(n, numkit::detail::kTranscendentalThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(SqrtLoop)(in + s, out + s, e - s);
+        });
+    return r;
+}
+
+// pow2(y) == 2^y, SIMD via Exp2Loop (was scalar std::exp2). The 2-arg
+// pow2(f, e) == f*2^e stays in exponents.cpp. Real-only, like MATLAB.
+Value pow2(const Value &y, std::pmr::memory_resource *mr)
+{
+    return unaryRealArray(y, [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(Exp2Loop)(in, out, n);
+        }, [](double v) { return std::exp2(v); }, mr);
 }
 
 } // namespace numkit::builtin

@@ -694,4 +694,55 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
 /// @return    Nearest valid correlation matrix.
 Value nearcorr(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Result of `grp2idx` — `[G, GN, GL]`.
+struct Grp2idxResult {
+    Value G;   ///< Column vector of 1-based group indices (NaN for NaN input).
+    Value GN;  ///< Column cell of group names (char rows), in group order.
+    Value GL;  ///< Group levels — equals `GN` for the non-categorical inputs.
+};
+
+/// @brief Grouping variable → index vector (`[G, GN, GL] = grp2idx(s)`).
+///
+/// Converts a grouping variable `s` into a 1-based group-index column plus
+/// the group names. Ordering rules (MATLAB R2025b):
+///   - Numeric/logical `s`: groups are the sorted-ascending unique values;
+///     each name is the value formatted like MATLAB (`num2str`-ish). `NaN`
+///     maps to a `NaN` index and is excluded from the group set.
+///   - cellstr / multi-element string `s`: unique strings in
+///     first-appearance order; the name is the string itself.
+///   - A single char row / string scalar is one group label.
+/// (Categorical input and column-aligned char matrices are not yet handled.)
+///
+/// @param s   Grouping variable (numeric, logical, char, string, or cellstr).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    @ref Grp2idxResult `{ G, GN, GL }` (GL == GN here).
+/// @throws Error if `s` is empty (no argument).
+Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Replace outliers (`B = filloutliers(A, fillMethod, findMethod, tf)`).
+///
+/// Detects outliers in `A` by `findMethod` and replaces them per
+/// `fillMethod`, returning the filled array. `fillMethod` is a numeric
+/// scalar (constant fill) or a string (`"center"`, `"clip"`, `"previous"`,
+/// `"next"`, `"nearest"`, `"linear"`, …, per the underlying engine). This
+/// C++ entry covers the `"median"` (default), `"mean"`, and `"quartiles"`
+/// find-methods; `"percentiles"` (needs a `[lo hi]` pair) and the
+/// `grubbs`/`gesd`/`movmedian`/`movmean` methods remain script-only.
+///
+/// @param A                Input vector / matrix (column-wise).
+/// @param fillMethod       Fill rule (numeric scalar or method string).
+/// @param findMethod       `"median"` (default), `"mean"`, or `"quartiles"`.
+/// @param thresholdFactor  Detection threshold; `NaN` (default) → the
+///                         per-method default (3 for median/mean; the
+///                         MATLAB `1.5·IQR` for quartiles). For quartiles a
+///                         finite value is the IQR multiplier `k`.
+/// @param mr               Memory resource (nullptr → process default).
+/// @return                 Array with outliers filled.
+/// @throws Error if `findMethod` is unsupported by this C++ entry.
+/// @see isoutlier
+Value filloutliers(const Value &A, const Value &fillMethod,
+                   const std::string &findMethod = "median",
+                   double thresholdFactor = std::numeric_limits<double>::quiet_NaN(),
+                   std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::stats

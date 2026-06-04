@@ -16,6 +16,7 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
+#include <sstream>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -82,6 +83,61 @@ TEST_F(FigureManagerTest, CloseFigureNonCurrentKeepsCurrent)
     fm.closeFigure(1);
     EXPECT_EQ(fm.currentFigureId(), 3); // unchanged
     EXPECT_EQ(fm.figures().size(), 2u);
+}
+
+// ── Phase 2 large line-series downsampling ──────────────────────────────
+
+TEST_F(FigureManagerTest, HugeLineSeriesShipsPreviewAndKeepsRawForTiles)
+{
+    fm.newFigure();
+    const size_t N = 1200000;           // > kSeriesPreviewThreshold (1M)
+    std::ostringstream xs, ys;
+    xs << "[";
+    ys << "[";
+    for (size_t i = 0; i < N; ++i) {
+        if (i) { xs << ","; ys << ","; }
+        xs << i;
+        ys << std::sin(i / 100.0);
+    }
+    xs << "]";
+    ys << "]";
+    DatasetInfo ds;
+    ds.type = "line";
+    ds.xJson = xs.str();
+    ds.yJson = ys.str();
+    fm.pushDataset(ds);
+
+    const auto &stored = fm.figures().at(fm.currentFigureId()).axes[0].datasets[0];
+    EXPECT_TRUE(stored.seriesDownsampled);
+    EXPECT_EQ(stored.seriesN, N);
+    EXPECT_EQ(stored.xRaw.size(), N);       // raw retained for tiles
+    // Inline JSON shrank to a small preview (≤ 4 * previewCols).
+    size_t previewPts = figdetail::countFlatElements(stored.xJson);
+    EXPECT_GT(previewPts, 0u);
+    EXPECT_LE(previewPts, 4u * 2000u);
+
+    // Tile fetch over a zoomed viewport → decimated points within range.
+    auto tile = fm.getSeriesDisplayTile(fm.currentFigureId(), 0, 0,
+                                        1000.0, 2000.0, 800, /*M4*/ 0);
+    EXPECT_GT(tile.x.size(), 0u);
+    EXPECT_LE(tile.x.size(), 4u * 800u);
+    EXPECT_GE(tile.x.front(), 999.0);
+    EXPECT_LE(tile.x.back(), 2001.0);
+}
+
+TEST_F(FigureManagerTest, SmallLineSeriesKeepsFullDataUntouched)
+{
+    fm.newFigure();
+    DatasetInfo ds;
+    ds.type = "line";
+    ds.xJson = "[0,1,2,3,4]";
+    ds.yJson = "[0,1,4,9,16]";
+    fm.pushDataset(ds);
+
+    const auto &stored = fm.figures().at(fm.currentFigureId()).axes[0].datasets[0];
+    EXPECT_FALSE(stored.seriesDownsampled);
+    EXPECT_TRUE(stored.xRaw.empty());
+    EXPECT_EQ(stored.xJson, "[0,1,2,3,4]");   // untouched
 }
 
 TEST_F(FigureManagerTest, CloseAllResetsToOne)

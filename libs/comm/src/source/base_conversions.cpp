@@ -17,6 +17,7 @@
 // Scratch via ScratchArena/ScratchVec. No std::vector for transient
 // buffers.
 
+#include <numkit/comm/source/base_conversions.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
@@ -57,8 +58,8 @@ bool parseMsbFlag(const Value &v, const char *who)
 // ── bit2int ───────────────────────────────────────────────────────────
 // Pack column-vector of bits (length divisible by n) into an integer
 // vector of length numel(b) / n. MSB-first by default.
-Value bit2int(std::pmr::memory_resource *mr, const Value &b,
-              int n, bool msbfirst)
+Value bit2int(const Value &b, int n, bool msbfirst,
+              std::pmr::memory_resource *mr)
 {
     if (n <= 0 || n > 64)
         throw Error("bit2int: n must be in 1..64",
@@ -85,8 +86,8 @@ Value bit2int(std::pmr::memory_resource *mr, const Value &b,
 // ── int2bit ───────────────────────────────────────────────────────────
 // Inverse of bit2int. d is a row/col vector of integers; returns
 // (n × numel(d)) bit matrix (each input contributes one column of n bits).
-Value int2bit(std::pmr::memory_resource *mr, const Value &d,
-              int n, bool msbfirst)
+Value int2bit(const Value &d, int n, bool msbfirst,
+              std::pmr::memory_resource *mr)
 {
     if (n <= 0 || n > 64)
         throw Error("int2bit: n must be in 1..64",
@@ -109,8 +110,8 @@ Value int2bit(std::pmr::memory_resource *mr, const Value &d,
 // ── bi2de ─────────────────────────────────────────────────────────────
 // Legacy synonym: rows of b are digit groups; convert each row to its
 // decimal value. Default LSB-first ('right-msb'), default base = 2.
-Value bi2de(std::pmr::memory_resource *mr, const Value &b,
-            int base, bool msbfirst)
+Value bi2de(const Value &b, int base, bool msbfirst,
+            std::pmr::memory_resource *mr)
 {
     if (b.dims().is3D())
         throw Error("bi2de: input must be 2D",
@@ -138,8 +139,8 @@ Value bi2de(std::pmr::memory_resource *mr, const Value &b,
 // Legacy inverse: each input integer becomes one row of digit values
 // (default LSB-first 'right-msb', default base = 2). Width n is the
 // minimum number of digits; if not given, computed from the largest input.
-Value de2bi(std::pmr::memory_resource *mr, const Value &d,
-            int n_user, int base, bool msbfirst)
+Value de2bi(const Value &d, int n_user, int base, bool msbfirst,
+            std::pmr::memory_resource *mr)
 {
     if (base < 2)
         throw Error("de2bi: base must be >= 2",
@@ -178,7 +179,7 @@ Value de2bi(std::pmr::memory_resource *mr, const Value &d,
 // last row to width N with `padval` (default 0). Returns the matrix and
 // the count of pad entries added.
 std::pair<Value, int>
-vec2mat(std::pmr::memory_resource *mr, const Value &v, int n, double padval)
+vec2mat(const Value &v, int n, double padval, std::pmr::memory_resource *mr)
 {
     if (n <= 0)
         throw Error("vec2mat: n must be positive",
@@ -212,7 +213,7 @@ void bit2int_reg(Span<const Value> args, size_t /*nargout*/,
     const int n = static_cast<int>(args[1].toScalar());
     bool msb = true;
     if (args.size() >= 3) msb = (args[2].toScalar() != 0.0);
-    outs[0] = bit2int(ctx.engine->resource(), args[0], n, msb);
+    outs[0] = bit2int(args[0], n, msb, ctx.engine->resource());
 }
 
 void int2bit_reg(Span<const Value> args, size_t /*nargout*/,
@@ -224,7 +225,7 @@ void int2bit_reg(Span<const Value> args, size_t /*nargout*/,
     const int n = static_cast<int>(args[1].toScalar());
     bool msb = true;
     if (args.size() >= 3) msb = (args[2].toScalar() != 0.0);
-    outs[0] = int2bit(ctx.engine->resource(), args[0], n, msb);
+    outs[0] = int2bit(args[0], n, msb, ctx.engine->resource());
 }
 
 void bi2de_reg(Span<const Value> args, size_t /*nargout*/,
@@ -244,7 +245,7 @@ void bi2de_reg(Span<const Value> args, size_t /*nargout*/,
     if (base < 2)
         throw Error("bi2de: base must be >= 2",
                     0, 0, "bi2de", "", "numkit:bi2de:BadBase");
-    outs[0] = bi2de(ctx.engine->resource(), args[0], base, msb);
+    outs[0] = bi2de(args[0], base, msb, ctx.engine->resource());
 }
 
 void de2bi_reg(Span<const Value> args, size_t /*nargout*/,
@@ -268,7 +269,7 @@ void de2bi_reg(Span<const Value> args, size_t /*nargout*/,
             ++numericFound;
         }
     }
-    outs[0] = de2bi(ctx.engine->resource(), args[0], n, base, msb);
+    outs[0] = de2bi(args[0], n, base, msb, ctx.engine->resource());
 }
 
 void vec2mat_reg(Span<const Value> args, size_t nargout,
@@ -280,7 +281,7 @@ void vec2mat_reg(Span<const Value> args, size_t nargout,
     const int n = static_cast<int>(args[1].toScalar());
     double padval = 0.0;
     if (args.size() >= 3) padval = args[2].toScalar();
-    auto [m, pad] = vec2mat(ctx.engine->resource(), args[0], n, padval);
+    auto [m, pad] = vec2mat(args[0], n, padval, ctx.engine->resource());
     outs[0] = m;
     if (nargout >= 2 && outs.size() >= 2)
         outs[1] = Value::scalar(static_cast<double>(pad), ctx.engine->resource());

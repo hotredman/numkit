@@ -1,0 +1,16 @@
+{
+  "name": "inpolygon",
+  "namespace": "builtin",
+  "setup": "xv=[0 1 1 0]; yv=[0 0 1 1]; xq=[0.5 2 0.5 0.99 -0.1]; yq=[0.5 0.5 -1 0.99 0.5];",
+  "expr": "in = inpolygon(xq, yq, xv, yv);",
+  "iters": 10,
+  "tol": 1e-12,
+  "fingerprint": [
+    "double(in(1))",
+    "double(in(2))",
+    "double(in(3))",
+    "double(in(4))",
+    "double(in(5))"
+  ],
+  "comment": "Sig: in = inpolygon(xq, yq, xv, yv). Crossing-number test vs the unit-square polygon: in1 (0.5,0.5) inside=1, in2 (2,0.5) outside=0, in3 (0.5,-1) outside=0, in4 (0.99,0.99) inside=1, in5 (-0.1,0.5) outside=0. Lifted to public C++ API numkit::builtin::inpolygon (was adapter-only) 2026-06. MATLAB's 2nd 'on' output is a v1 gap (only 'in' returned)."
+}

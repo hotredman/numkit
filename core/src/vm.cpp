@@ -557,18 +557,23 @@ enter_frame:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     double base = asScalar(R[I.b]);
                     double exp = asScalar(R[I.c]);
-                    double result;
-                    if (exp == 2.0)
-                        result = base * base;
-                    else if (exp == 3.0)
-                        result = base * base * base;
-                    else if (exp == 0.5)
-                        result = std::sqrt(base);
-                    else if (exp == -1.0)
-                        result = 1.0 / base;
-                    else
-                        result = std::pow(base, exp);
-                    R[I.a].setScalarFast(result);
+                    if (base < 0.0 && exp != std::floor(exp)) {
+                        // negative base ^ non-integer exp -> complex; defer to power().
+                        R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                    } else {
+                        double result;
+                        if (exp == 2.0)
+                            result = base * base;
+                        else if (exp == 3.0)
+                            result = base * base * base;
+                        else if (exp == 0.5)
+                            result = std::sqrt(base);
+                        else if (exp == -1.0)
+                            result = 1.0 / base;
+                        else
+                            result = std::pow(base, exp);
+                        R[I.a].setScalarFast(result);
+                    }
                 } else
                     { if (tryBinaryOpFrame(I.a, I.op, I.b, I.c, frame, ip)) goto enter_frame;
                           R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]); }
@@ -590,6 +595,11 @@ enter_frame:
             case OpCode::POW_SS: {
                 double base = R[I.b].scalarVal();
                 double exp = R[I.c].scalarVal();
+                if (base < 0.0 && exp != std::floor(exp)) {
+                    // negative base ^ non-integer exp -> complex; defer to power().
+                    R[I.a] = binarySlowPath(OpCode::EPOW, R[I.b], R[I.c]);
+                    break;
+                }
                 double result;
                 if (exp == 2.0)
                     result = base * base;
@@ -3223,11 +3233,15 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
         case 2:  result = std::ceil(v); break;
         case 3:  result = std::round(v); break;
         case 4:  result = std::trunc(v); break;
-        case 5:  result = std::sqrt(v); break;
+        // sqrt / log / log2 / log10 of a negative scalar promote to a
+        // complex result in MATLAB. The scalar fast path can only hold a
+        // real double, so for v < 0 we bail (handled = false) and let the
+        // full builtin (Value wrapper) produce the complex value.
+        case 5:  if (v < 0.0) { handled = false; break; } result = std::sqrt(v);  break;
         case 6:  result = std::exp(v); break;
-        case 7:  result = std::log(v); break;
-        case 8:  result = std::log2(v); break;
-        case 9:  result = std::log10(v); break;
+        case 7:  if (v < 0.0) { handled = false; break; } result = std::log(v);   break;
+        case 8:  if (v < 0.0) { handled = false; break; } result = std::log2(v);  break;
+        case 9:  if (v < 0.0) { handled = false; break; } result = std::log10(v); break;
         case 10: result = std::sin(v); break;
         case 11: result = std::cos(v); break;
         case 12: result = std::tan(v); break;
@@ -3253,18 +3267,19 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
         double result;
         bool handled = true;
         switch (bid) {
-        case 20: // mod
-            if (b == 0.0) {
-                result = a; // MATLAB: mod(a,0) == a  (fmod would give NaN)
-            } else {
-                result = std::fmod(a, b);
-                if (result != 0.0 && ((result > 0) != (b > 0)))
-                    result += b;
-            }
+        case 20:
+            // MATLAB: mod(a, 0) == a (std::fmod(a, 0) would be NaN).
+            if (b == 0.0) { result = a; break; }
+            result = std::fmod(a, b);
+            if (result != 0.0 && ((result > 0) != (b > 0)))
+                result += b;
             break;
-        case 21: result = std::fmod(a, b); break; // rem: rem(a,0)==NaN is correct
-        case 22: result = (a >= b) ? a : b; break;
-        case 23: result = (a <= b) ? a : b; break;
+        case 21: result = std::fmod(a, b); break;
+        // max/min ignore NaN (MATLAB): fmax/fmin return the non-NaN
+        // operand, NaN only if both are NaN. The old (a>=b)?a:b returned
+        // NaN for max(5,NaN) and disagreed with the TreeWalker (fmax).
+        case 22: result = std::fmax(a, b); break;
+        case 23: result = std::fmin(a, b); break;
         case 24: result = std::pow(a, b); break;
         case 25: result = std::atan2(a, b); break;
         default: handled = false; break;
@@ -3585,7 +3600,7 @@ void VM::execWhos(const Instruction &I, Value *R, const BytecodeChunk &chunk)
                                           + std::to_string(d.cols());
                     if (d.is3D())
                         sizeStr += "x" + std::to_string(d.pages());
-                    std::string bytesStr = std::to_string(val.rawBytes());
+                    std::string bytesStr = std::to_string(val.deepBytes());
                     std::string classStr = mtypeName(val.type());
                     std::string attrStr;
                     if (globalSet.count(n))

@@ -1,0 +1,10 @@
+{
+  "name": "int2bit",
+  "namespace": "comm",
+  "setup": "d = [10 12];",
+  "expr": "b = int2bit(d, 4);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["b(1,1)", "b(2,1)", "b(3,1)", "b(4,1)", "b(1,2)", "b(2,2)", "size(b,1)", "size(b,2)"],
+  "comment": "Sig: b = int2bit(d, n). Inverse of bit2int: each int -> one column of n MSB-first bits. d=[10 12] -> 4x2 with col1=[1;0;1;0] (10), col2=[1;1;0;0] (12). Lifted to public C++ API numkit::comm::int2bit 2026-06."
+}
