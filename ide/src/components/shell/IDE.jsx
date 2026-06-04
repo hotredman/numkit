@@ -1,6 +1,6 @@
 import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 
-import SyntaxEditor from '../SyntaxEditor';
+import SyntaxEditor from '../editor/SyntaxEditor';
 import Sidebar from './Sidebar';
 import ConsolePane from './ConsolePane';
 

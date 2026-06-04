@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { useTheme, FONT, FONT_UI } from '../theme';
+import { useTheme, FONT, FONT_UI } from '../../theme';
 import {
   applyTab, applyEnter,
   applyAutoClose, applyAutoSkip, applyAutoDeletePair,
