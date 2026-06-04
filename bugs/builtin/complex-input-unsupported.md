@@ -16,7 +16,7 @@ accepts complex for all of them.
 | `conv([1 1i],[1 1])` | Not a double array | `[1  1+1i  1i]` |
 | `filter([1 1],1,[1i 1i])` | Not a double array | `[1i  2i]` |
 | `trapz([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `4+4i` | `4+4i` |
-| `cumtrapz(...)` | "complex not supported" | `[…  4+4i]` |
+| `cumtrapz(...)` | ✅ FIXED 2026-06-05 → `[0 1.5+1.5i 4+4i]` | `[…  4+4i]` |
 | `gradient([1+1i 3+3i 5+5i])` | "complex not supported" | `[2+2i …]` |
 | `movmean([1+1i 2+2i 3+3i],2)` | Not a double array | `[…]` |
 | `detrend([1+1i 2+2i 3+3i])` | Not a double array | `~0` |
@@ -52,6 +52,12 @@ be closed incrementally; this entry is the tracking umbrella.
   branch covers them. Live guard `libs/builtin/tests/trapz_complex_test.cpp`,
   parity `tools/parity/specs/trapz.json` (OK), smoke
   `libs/builtin/tests/smoke/trapz_complex_smoke.m`.
-- ⏳ Remaining: conv, filter, cumtrapz, gradient, movmean, detrend, interp1,
-  median (cumtrapz next — its Vector/MatrixCols/MatrixRows helpers + reg need
-  Complex variants).
+- ✅ **cumtrapz** — 2026-06-05 (bug-fix loop, cycle 8). Added Complex
+  counterparts `cumtrapzVectorC`/`cumtrapzMatrixColsC`/`cumtrapzMatrixRowsC`
+  and routed `cumtrapz`/`cumtrapzDim`/the 3-arg reg path to them when y is
+  complex (x coordinate stays real). Removed the four "complex not supported"
+  throws. Live guard `libs/builtin/tests/cumtrapz_complex_test.cpp`, parity
+  `tools/parity/specs/cumtrapz.json` (OK), smoke
+  `libs/builtin/tests/smoke/cumtrapz_complex_smoke.m`. (Also updated the stale
+  CalculusTest.CumtrapzComplexThrows → CumtrapzComplexOk.)
+- ⏳ Remaining: conv, filter, gradient, movmean, detrend, interp1, median.
