@@ -572,21 +572,34 @@ public:
      * Storage in numkit is column-major (MATLAB convention) — we transpose
      * to row-major here so the table reads naturally.
      */
+    // Resolve a variable for inspection: prefer the paused debug frame, else
+    // the base workspace. Returns a COPY (COW — cheap) in `out`, so it never
+    // depends on the transient snapshot's lifetime (Snapshot owns its values).
+    // Returns false if the name is undefined.
+    bool resolveInspectValue(const std::string &name, numkit::Value &out) {
+        if (debugSession_ && debugSession_->isActive()) {
+            auto snap = debugSession_->snapshot();
+            for (auto &v : snap.variables)
+                if (v.name == name && v.value) {
+                    out = *v.value;
+                    return true;
+                }
+        }
+        if (const numkit::Value *gv = engine_->getVariable(name)) {
+            out = *gv;
+            return true;
+        }
+        return false;
+    }
+
     /* ---- Cheap dimension-only query (no data) ---- */
     std::string getVarShapeJSON(const std::string &name) {
         try {
-            const numkit::Value *valPtr = nullptr;
-            if (debugSession_ && debugSession_->isActive()) {
-                auto snap = debugSession_->snapshot();
-                for (auto &v : snap.variables) {
-                    if (v.name == name && v.value) { valPtr = v.value; break; }
-                }
-            }
-            if (!valPtr) valPtr = engine_->getVariable(name);
-            if (!valPtr) {
+            numkit::Value valStore;
+            if (!resolveInspectValue(name, valStore)) {
                 return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
             }
-            const auto &val = *valPtr;
+            const auto &val = valStore;
             const auto &d = val.dims();
             // pages = number of 2-D row×col slices (1 for 2-D). dims carries
             // the full shape so the viewer can build per-dimension (MATLAB
@@ -622,16 +635,9 @@ public:
     std::string getVarStatsJSON(const std::string &name, int page = -1) {
         try {
             using numkit::ValueType;
-            const numkit::Value *valPtr = nullptr;
-            if (debugSession_ && debugSession_->isActive()) {
-                auto snap = debugSession_->snapshot();
-                for (auto &v : snap.variables) {
-                    if (v.name == name && v.value) { valPtr = v.value; break; }
-                }
-            }
-            if (!valPtr) valPtr = engine_->getVariable(name);
-            if (!valPtr) return "{\"error\":\"variable not found\"}";
-            const auto &val = *valPtr;
+            numkit::Value valStore;
+            if (!resolveInspectValue(name, valStore)) return "{\"error\":\"variable not found\"}";
+            const auto &val = valStore;
             const auto &d = val.dims();
             const size_t totalRows = d.rows();
             const size_t totalCols = d.cols();
@@ -727,16 +733,9 @@ public:
     std::string getVarTileJSON(const std::string &name, int r0, int c0, int rowsIn, int colsIn, int page = 0) {
         try {
             using numkit::ValueType;
-            const numkit::Value *valPtr = nullptr;
-            if (debugSession_ && debugSession_->isActive()) {
-                auto snap = debugSession_->snapshot();
-                for (auto &v : snap.variables) {
-                    if (v.name == name && v.value) { valPtr = v.value; break; }
-                }
-            }
-            if (!valPtr) valPtr = engine_->getVariable(name);
-            if (!valPtr) return "{\"error\":\"variable not found\"}";
-            const auto &val = *valPtr;
+            numkit::Value valStore;
+            if (!resolveInspectValue(name, valStore)) return "{\"error\":\"variable not found\"}";
+            const auto &val = valStore;
             const auto &d = val.dims();
             const size_t totalRows = d.rows();
             const size_t totalCols = d.cols();
@@ -827,18 +826,11 @@ public:
         try {
             using numkit::ValueType;
             // During debug, prefer the paused frame's variable.
-            const numkit::Value *valPtr = nullptr;
-            if (debugSession_ && debugSession_->isActive()) {
-                auto snap = debugSession_->snapshot();
-                for (auto &v : snap.variables) {
-                    if (v.name == name && v.value) { valPtr = v.value; break; }
-                }
-            }
-            if (!valPtr) valPtr = engine_->getVariable(name);
-            if (!valPtr) {
+            numkit::Value valStore;
+            if (!resolveInspectValue(name, valStore)) {
                 return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
             }
-            const auto &val = *valPtr;
+            const auto &val = valStore;
             const auto &d = val.dims();
             const size_t rows = d.rows();
             const size_t cols = d.cols();
@@ -876,20 +868,13 @@ public:
     // paused debug frame's variable when a debug session is active.
     std::string getInspectPathJSON(const std::string &name, const std::string &pathStr) {
         try {
-            const numkit::Value *rootPtr = nullptr;
-            if (debugSession_ && debugSession_->isActive()) {
-                auto snap = debugSession_->snapshot();
-                for (auto &v : snap.variables) {
-                    if (v.name == name && v.value) { rootPtr = v.value; break; }
-                }
-            }
-            if (!rootPtr) rootPtr = engine_->getVariable(name);
-            if (!rootPtr) {
+            numkit::Value rootStore;
+            if (!resolveInspectValue(name, rootStore)) {
                 return "{\"error\":\"variable '" + escapeJSON(name) + "' not found\"}";
             }
             auto steps = parseInspectPath(pathStr);
             std::vector<numkit::Value> owned;
-            const numkit::Value *cur = resolveInspectPath(*rootPtr, steps, owned);
+            const numkit::Value *cur = resolveInspectPath(rootStore, steps, owned);
             if (!cur) return "{\"error\":\"invalid path\"}";
             return emitInspectPayload(*cur);
         } catch (const std::exception &e) {
