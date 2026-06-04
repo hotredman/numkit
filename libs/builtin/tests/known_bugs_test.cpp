@@ -137,3 +137,12 @@ TEST_F(BuiltinKnownBug, DISABLED_AcosAsinComplex)
     eval("b = asin(2);");   // MATLAB: 1.5708 - 1.31696i
     EXPECT_NEAR(evalScalar("imag(b)"), -1.3169579, 1e-5);
 }
+
+// bugs/builtin/numerical-integration-nd.md — quadgk/integral2/integral3/quad2d.
+TEST_F(BuiltinKnownBug, DISABLED_NumericalIntegrationND)
+{
+    EXPECT_NEAR(evalScalar("quadgk(@(x)exp(-x.^2),0,1)"), 0.746824132812427, 1e-9);
+    EXPECT_NEAR(evalScalar("integral2(@(x,y)x.*y,0,1,0,1)"), 0.25, 1e-9);
+    EXPECT_NEAR(evalScalar("integral3(@(x,y,z)x+y+z,0,1,0,1,0,1)"), 1.5, 1e-9);
+    EXPECT_NEAR(evalScalar("quad2d(@(x,y)x.*y,0,1,0,1)"), 0.25, 1e-9);
+}

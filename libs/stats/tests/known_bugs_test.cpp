@@ -124,4 +124,19 @@ TEST_F(StatsKnownBug, DISABLED_DistributionArrayParams)
     EXPECT_NEAR(evalScalar("g(3)"), 0.18393972, 1e-6);
 }
 
+// bugs/stats/autocorr.md — autocorr/parcorr/crosscorr (Econometrics) missing.
+TEST_F(StatsKnownBug, DISABLED_Autocorr)
+{
+    eval("ac = autocorr([1 2 3 2 1 2 3 2 1]);");   // default NumLags=min(20,N-1)=8
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(ac)")), 9);
+    EXPECT_NEAR(evalScalar("ac(1)"), 1.0, 1e-12);                // lag 0 == 1
+    EXPECT_NEAR(evalScalar("ac(2)"), 0.0202020202020202, 1e-9); // lag 1
+    eval("pc = parcorr([1 2 3 2 1 2 3 2 1]);");
+    EXPECT_NEAR(evalScalar("pc(1)"), 1.0, 1e-12);   // PACF lag 0 == 1
+    // crosscorr zero-lag of x and reversed x == -1 (perfectly anti-correlated)
+    eval("xc = crosscorr([1 2 3 4],[4 3 2 1],'NumLags',2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(xc)")), 5);
+    EXPECT_NEAR(evalScalar("xc(3)"), -1.0, 1e-9);
+}
+
 // NOTE: combnk scalar-set bug FIXED — see libs/stats/tests/combnk_test.cpp.

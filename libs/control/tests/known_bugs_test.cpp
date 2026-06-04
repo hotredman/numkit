@@ -47,3 +47,32 @@ TEST_F(ControlKnownBug, DISABLED_Gram)
     eval("W = gram(ss([-1 0; 0 -2], [1; 1], [1 1], 0), 'c');");
     EXPECT_NEAR(evalScalar("sum(W(:))"), 1.4166667, 1e-5);
 }
+
+// bugs/control/care-dare.md — continuous/discrete algebraic Riccati solvers.
+TEST_F(ControlKnownBug, DISABLED_CareDare)
+{
+    eval("X = care([0 1; 0 0], [0; 1], eye(2));");
+    EXPECT_NEAR(evalScalar("trace(X)"), 3.46410161513776, 1e-8);
+    EXPECT_NEAR(evalScalar("X(1,1)"),   1.73205080756888, 1e-8);  // sqrt(3)
+    eval("Y = dare([1 1; 0 1], [0; 1], eye(2), 1);");
+    EXPECT_NEAR(evalScalar("trace(Y)"), 7.56025722770319, 1e-7);
+}
+
+// bugs/control/minreal.md — minimal realization (pole/zero cancellation).
+TEST_F(ControlKnownBug, DISABLED_Minreal)
+{
+    // (s+1)/(s+1)^2 -> 1/(s+1)
+    eval("sysr = minreal(tf([1 1], [1 2 1])); [n, d] = tfdata(sysr, 'v');");
+    EXPECT_NEAR(evalScalar("n(end)"), 1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("d(1)"),   1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("d(end)"), 1.0, 1e-9);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(d)")), 2);   // reduced to first order
+}
+
+// bugs/control/initial.md — initial-condition response (zero input).
+TEST_F(ControlKnownBug, DISABLED_Initial)
+{
+    eval("[y, t] = initial(ss(-2, 0, 1, 0), 1);");   // y = e^{-2t}
+    EXPECT_NEAR(evalScalar("y(1)"),   1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("y(end)"), 0.00301995172040398, 1e-6);
+}
