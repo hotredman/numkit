@@ -897,3 +897,75 @@ TEST(DebugEvalInjectTest, SnapshotOutlivesResume)
     }
     EXPECT_TRUE(found) << "v should be in the snapshot and still readable post-resume";
 }
+
+// dbup/dbdown: at a pause inside a nested call, the caller frame's locals can be
+// inspected and EDITED, and the edit takes effect when the caller resumes.
+TEST(DebugEvalInjectTest, DbUpInspectsAndEditsCallerFrame)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    std::string code =
+        "function r = f()\n" // 1
+        "  a = 7;\n"         // 2
+        "  r = a;\n"         // 3  <-- breakpoint: a already assigned
+        "end\n"             // 4
+        "cv = 100;\n"        // 5
+        "r = f();\n"         // 6
+        "disp(cv + r);\n";   // 7
+    session.setBreakpoints({3});
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 3);
+    EXPECT_EQ(session.frameCount(), 2u); // script + f
+    EXPECT_EQ(session.selectedFrame(), 0u);
+
+    // Deepest frame (f): a visible, caller's cv not.
+    {
+        auto snap = session.snapshot();
+        bool hasA = false, hasCv = false;
+        for (auto &v : snap.variables) {
+            if (v.name == "a") hasA = true;
+            if (v.name == "cv") hasCv = true;
+        }
+        EXPECT_TRUE(hasA);
+        EXPECT_FALSE(hasCv) << "caller's cv must not be visible from inside f";
+    }
+
+    // dbup → caller (script) frame: cv visible, f's a not.
+    ASSERT_TRUE(session.frameUp());
+    EXPECT_EQ(session.selectedFrame(), 1u);
+    EXPECT_FALSE(session.frameUp()); // already at the base
+    {
+        auto snap = session.snapshot();
+        bool hasA = false;
+        double cv = -1;
+        for (auto &v : snap.variables) {
+            if (v.name == "a") hasA = true;
+            if (v.name == "cv" && v.value) cv = v.value->toScalar();
+        }
+        EXPECT_FALSE(hasA) << "f's locals must not show in the caller frame";
+        EXPECT_DOUBLE_EQ(cv, 100.0) << "caller's cv visible after dbup";
+    }
+
+    // Edit the caller's cv from the up-focused frame.
+    session.eval("cv = 500");
+
+    // Back down to f, then continue → disp(cv + r) = 500 + 7 = 507.
+    ASSERT_TRUE(session.frameDown());
+    EXPECT_EQ(session.selectedFrame(), 0u);
+    EXPECT_FALSE(session.frameDown());
+
+    output.clear();
+    status = session.resume(DebugAction::Continue);
+    std::string sessionOut = session.takeOutput();
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_TRUE(session.errorMessage().empty()) << session.errorMessage();
+
+    std::string all = output + sessionOut;
+    EXPECT_NE(all.find("507"), std::string::npos)
+        << "edited caller-frame var must take effect: [" << all << "]";
+}

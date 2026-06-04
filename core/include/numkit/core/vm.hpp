@@ -127,6 +127,21 @@ public:
         return { f.chunk, f.R };
     }
 
+    // Number of live frames at a pause (1 = top-level script only).
+    size_t frameCount() const { return frames_.size(); }
+
+    // Mutable view of a frame by depth from the top: 0 = current (deepest,
+    // where execution paused), increasing toward the base — the dbup/dbdown
+    // axis. Returns {} if out of range. Non-const registers so the debugger can
+    // edit a caller frame's variables, not just inspect them.
+    FrameView frameViewAt(size_t depthFromTop)
+    {
+        if (depthFromTop >= frames_.size())
+            return {};
+        auto &f = frames_[frames_.size() - 1 - depthFromTop];
+        return { f.chunk, f.R };
+    }
+
     // Call depth: 0 at top-level, +1 per user function call
     int callDepth() const { return std::max(0, static_cast<int>(frames_.size()) - 1); }
 

@@ -54,6 +54,19 @@ public:
     // Stop the debug session (cleans up state).
     void stop();
 
+    // ── Frame navigation (dbup / dbdown) ─────────────────────
+    // Move the inspection focus one frame toward the base (frameUp / dbup) or
+    // back toward the current frame (frameDown / dbdown), WITHOUT resuming.
+    // snapshot() and eval() that follow operate on the newly selected frame —
+    // so a caller's locals can be inspected and edited at a pause inside a
+    // nested call. Returns true if the focus moved (false at the stack ends).
+    // The focus resets to the deepest frame on every pause.
+    bool frameUp();
+    bool frameDown();
+    // Current focus depth (0 = deepest/current frame) and the live frame count.
+    size_t selectedFrame() const { return selectedDepth_; }
+    size_t frameCount() const;
+
     // ── State inspection (valid when paused) ─────────────────
 
     struct Variable
@@ -130,6 +143,10 @@ private:
 
     // Live view of variables at the pause point: frame pointers + overlay.
     DebugWorkspace ws_;
+
+    // Inspection focus for dbup/dbdown: 0 = deepest (current) frame, increasing
+    // toward the base. Reset to 0 on every pause; ws_ is bound to this frame.
+    size_t selectedDepth_ = 0;
 
     // Output capture
     std::string outputBuf_;
