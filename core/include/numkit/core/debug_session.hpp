@@ -113,6 +113,11 @@ private:
     // error unwind, explicit stop.
     void deactivate();
 
+    // One-line "In <fn> (line N)" status for the currently focused frame, and
+    // the MATLAB-style dbstack listing (deepest first, '>' marks the focus).
+    std::string frameFocusLine() const;
+    std::string formatDbStack() const;
+
     Engine &engine_;
     bool active_ = false;
 

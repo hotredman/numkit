@@ -969,3 +969,42 @@ TEST(DebugEvalInjectTest, DbUpInspectsAndEditsCallerFrame)
     EXPECT_NE(all.find("507"), std::string::npos)
         << "edited caller-frame var must take effect: [" << all << "]";
 }
+
+// dbup / dbdown / dbstack typed at the console move the focus / report the
+// stack (debugger meta-commands, intercepted before workspace eval).
+TEST(DebugEvalInjectTest, ConsoleDbupDbdownDbstack)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    std::string code =
+        "function r = f()\n" // 1
+        "  a = 7;\n"         // 2
+        "  r = a;\n"         // 3  <-- breakpoint
+        "end\n"             // 4
+        "cv = 100;\n"        // 5
+        "r = f();\n"         // 6
+        "disp(cv + r);\n";   // 7
+    session.setBreakpoints({3});
+    ASSERT_EQ(session.start(code), ExecStatus::Paused);
+
+    std::string st = session.eval("dbstack");
+    EXPECT_NE(st.find("f"), std::string::npos);
+    EXPECT_NE(st.find("<script>"), std::string::npos);
+    EXPECT_EQ(st.substr(0, 1), ">"); // focus marker on the deepest (f) frame
+
+    std::string up = session.eval("dbup");
+    EXPECT_NE(up.find("<script>"), std::string::npos);
+    EXPECT_EQ(session.selectedFrame(), 1u);
+    EXPECT_NE(session.eval("cv").find("100"), std::string::npos); // caller local now resolvable
+
+    EXPECT_NE(session.eval("dbup").find("Already at the top"), std::string::npos);
+
+    EXPECT_NE(session.eval("dbdown").find("f"), std::string::npos);
+    EXPECT_EQ(session.selectedFrame(), 0u);
+    EXPECT_NE(session.eval("dbdown").find("Already at the bottom"), std::string::npos);
+
+    session.resume(DebugAction::Continue);
+}

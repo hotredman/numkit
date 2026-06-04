@@ -184,6 +184,37 @@ bool DebugSession::frameDown()
     return true;
 }
 
+std::string DebugSession::frameFocusLine() const
+{
+    auto *ctl = engine_.debugController();
+    if (!ctl || ctl->callStack().empty())
+        return "";
+    auto &stack = ctl->callStack();
+    size_t depth = selectedDepth_ < stack.size() ? selectedDepth_ : stack.size() - 1;
+    const auto &sf = stack[stack.size() - 1 - depth];
+    std::string fn = sf.functionName.empty() ? "<script>" : sf.functionName;
+    return "In " + fn + " (line " + std::to_string(sf.line) + ")";
+}
+
+std::string DebugSession::formatDbStack() const
+{
+    auto *ctl = engine_.debugController();
+    if (!ctl)
+        return "";
+    auto &stack = ctl->callStack();
+    std::string out;
+    // Deepest frame first (MATLAB order); '>' marks the dbup/dbdown focus.
+    for (size_t i = 0; i < stack.size(); ++i) {
+        const auto &sf = stack[stack.size() - 1 - i];
+        out += (i == selectedDepth_) ? "> " : "  ";
+        std::string fn = sf.functionName.empty() ? "<script>" : sf.functionName;
+        out += "In " + fn + " (line " + std::to_string(sf.line) + ")\n";
+    }
+    if (!out.empty() && out.back() == '\n')
+        out.pop_back();
+    return out;
+}
+
 void DebugSession::deactivate()
 {
     if (!active_)
@@ -242,6 +273,21 @@ std::string DebugSession::eval(const std::string &code)
 {
     if (!active_)
         return "Error: no active debug session";
+
+    // Debugger meta-commands (dbup / dbdown / dbstack) move the inspection
+    // focus or report the call stack — they are NOT workspace evaluations, so
+    // intercept them here (MATLAB handles them the same way at K>>).
+    {
+        size_t b = code.find_first_not_of(" \t\r\n");
+        size_t e = code.find_last_not_of(" \t\r\n;");
+        std::string cmd = (b == std::string::npos) ? "" : code.substr(b, e - b + 1);
+        if (cmd == "dbup")
+            return frameUp() ? frameFocusLine() : "Already at the top of the stack.";
+        if (cmd == "dbdown")
+            return frameDown() ? frameFocusLine() : "Already at the bottom of the stack.";
+        if (cmd == "dbstack")
+            return formatDbStack();
+    }
 
     // 1. Save debug controller + paused VM state. The inner engine.eval()
     //    runs a full VM pass and stomps both.
