@@ -1589,13 +1589,13 @@ Value *Engine::getVariable(const std::string &name)
     // who/exist/IDE-viewer view: globalsEnv_ holds G's value, but the base
     // never declared G global, so it is not visible from here.
     //
-    // Base-scope global membership is tracked per engine: the TreeWalker
-    // records it in workspaceEnv_->globals_ (execGlobalPersistent), the VM in
-    // topLevelGlobals_ (runOneChunk's updateTopLevelGlobals). A function's
-    // `global G` lands in neither (its decl belongs to the function's own
-    // chunk/scope), so the gate excludes it. See
+    // Base-scope global membership is the single set workspaceEnv_->globals_,
+    // populated by every top-level `global X` on both engines
+    // (TreeWalker::execGlobalPersistent and Engine::runOneChunk's
+    // updateTopLevelGlobals). A function's `global G` belongs to the function's
+    // own scope, never the base, so the gate excludes it. See
     // FrameIntrospectionEdgesTest.GlobalInsideEvalinBase.
-    if (workspaceEnv_->isGlobal(name) || topLevelGlobals_.count(name)) {
+    if (workspaceEnv_->isGlobal(name)) {
         Value *gs = globalsEnv_->get(name);
         if (gs && !gs->isUnset())
             return gs;
@@ -2193,11 +2193,13 @@ Value Engine::runOneChunk(const ASTNode *ast, std::shared_ptr<const std::string>
     vm_->setCompiledFuncs(&compiler_->compiledFuncs(),
                           &compiler_->scriptLocalCompiledFuncs());
 
-    // Remember any `global X` declarations from this chunk so the next
-    // chunk's compile can see them (split-mode top-level globals).
+    // Record this chunk's `global X` declarations as base-workspace global
+    // membership (workspaceEnv_->globals_ — the single source of truth) so the
+    // next chunk's compile can see them (split-mode top-level globals) and so
+    // reads/writes of X route through globalsEnv_. Idempotent.
     auto updateTopLevelGlobals = [&]() {
         for (auto &g : chunk.globalNames)
-            topLevelGlobals_.insert(g);
+            workspaceEnv_->declareGlobal(g);
     };
 
     try {

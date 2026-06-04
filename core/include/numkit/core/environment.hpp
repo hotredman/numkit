@@ -50,6 +50,12 @@ public:
     void declareGlobal(const std::string &name);
     bool isGlobal(const std::string &name) const;
 
+    // Names this environment has declared `global`. The VALUE of each lives in
+    // globalsEnv_ (get/set delegate there), never in this env's local storage —
+    // so localNames() and globalNames() are disjoint. This set IS the base
+    // workspace's global membership when called on the engine's workspaceEnv.
+    const std::unordered_set<std::string> &globalNames() const { return globals_; }
+
     Environment *globalsEnv() const { return globalsEnv_; }
 
     // Iterate over local variables only

@@ -381,13 +381,10 @@ public:
                             UserFunction uf,
                             bool scriptScope = false);
 
-    // Names declared `global` at the base workspace level. Compiler reads
-    // these to seed each new top-level chunk's globalNames list — split-
-    // mode execution otherwise loses the declaration between statements.
-    const std::unordered_set<std::string> &topLevelGlobalNames() const
-    {
-        return topLevelGlobals_;
-    }
+    // Base-workspace global membership is the single set workspaceEnv_->globals_
+    // (see Environment::globalNames). The compiler reads it to seed each new
+    // top-level chunk's globalNames list — split-mode execution otherwise loses
+    // the declaration between statements.
 
     // ── M-file path registry (Phase 9) ─────────────────────────────
     // Directories searched (in order) by lookupUserFunction's m-file
@@ -650,13 +647,6 @@ private:
     // Tracks whether clear/clear all was called during VM execution
     // so that export wipes workspaceEnv before writing back.
     bool clearAllCalled_ = false;
-
-    // Names declared `global` at the base workspace level. Populated after
-    // each top-level chunk executes; the compiler mirrors them into every
-    // subsequent chunk's globalNames so that a split-mode
-    // `global X; X = 0;` keeps routing X through globalsEnv_, matching the
-    // single-chunk path.
-    std::unordered_set<std::string> topLevelGlobals_;
 
     // Host-registered constants — (name → value). Restored into
     // constantsEnv_ alongside the built-ins by reinstallConstants() so
