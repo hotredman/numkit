@@ -220,6 +220,12 @@ std::string DebugSession::eval(const std::string &code)
         if (auto *v = genv.getLocal(n))
             preEvalEnv.emplace(n, *v);
     }
+    // Global membership lives in workspaceEnv_->globals_, NOT local storage, so
+    // localNames() misses it. clearAll() below wipes it — capture it so step 9
+    // can restore it (the value is in globalsEnv_, untouched). Without this a
+    // pre-existing base global would vanish after any debug-console eval.
+    std::unordered_set<std::string> preEvalGlobals(genv.globalNames().begin(),
+                                                   genv.globalNames().end());
 
     // 3. Detach the observer so the inner eval doesn't trigger debug hooks.
     engine_.setDebugObserver(nullptr);
@@ -319,6 +325,10 @@ std::string DebugSession::eval(const std::string &code)
     genv.clearAll();
     for (auto &[n, v] : preEvalEnv)
         genv.set(n, v);
+    // Restore global membership wiped by clearAll (values are still in
+    // globalsEnv_); otherwise base globals silently disappear post-eval.
+    for (auto &g : preEvalGlobals)
+        genv.declareGlobal(g);
     engine_.clearAllCalled_ = false;
 
     // 9. Restore output capture, observer, and controller state.
