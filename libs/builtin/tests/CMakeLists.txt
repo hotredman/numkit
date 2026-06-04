@@ -125,5 +125,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/complex_promotion_arrays_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/trapz_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cumtrapz_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/interp1_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

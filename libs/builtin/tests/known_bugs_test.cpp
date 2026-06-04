@@ -95,14 +95,14 @@ TEST_F(BuiltinKnownBug, DISABLED_DiffZeroOrderErrors)
     EXPECT_ANY_THROW(eval("diff([1 2 3], 0);"));
 }
 
-// bugs/builtin/complex-input-unsupported.md — umbrella; trapz now FIXED (live
-// guard in libs/builtin/tests/trapz_complex_test.cpp). Remaining gaps still
-// covered here: interp1 (and conv/filter/cumtrapz/gradient/movmean/detrend/
-// median — see the md table).
+// bugs/builtin/complex-input-unsupported.md — umbrella; trapz/cumtrapz/median/
+// interp1 now FIXED (own live guards). Remaining gaps still covered here:
+// conv/filter/gradient/movmean/detrend. gradient is the live exemplar:
 TEST_F(BuiltinKnownBug, DISABLED_ComplexInputUnsupported)
 {
-    eval("y = interp1([1 2 3],[1+1i 2+2i 3+3i],2.5);");  // MATLAB: 2.5+2.5i
-    EXPECT_NEAR(evalScalar("imag(y)"), 2.5, 1e-12);
+    eval("g = gradient([1+1i 3+3i 5+5i]);");   // MATLAB: [2+2i 2+2i 2+2i]
+    EXPECT_NEAR(evalScalar("real(g(1))"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(g(1))"), 2.0, 1e-12);
 }
 
 // bugs/builtin/gradient-3d.md — gradient of an N-D (3-D) array.

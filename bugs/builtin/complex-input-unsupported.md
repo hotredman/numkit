@@ -20,7 +20,7 @@ accepts complex for all of them.
 | `gradient([1+1i 3+3i 5+5i])` | "complex not supported" | `[2+2i …]` |
 | `movmean([1+1i 2+2i 3+3i],2)` | Not a double array | `[…]` |
 | `detrend([1+1i 2+2i 3+3i])` | Not a double array | `~0` |
-| `interp1([1 2 3],[1+1i 2+2i 3+3i],2.5)` | Not a double array | `2.5+2.5i` |
+| `interp1([1 2 3],[1+1i 2+2i 3+3i],2.5)` | ✅ FIXED 2026-06-05 → `2.5+2.5i` | `2.5+2.5i` |
 | `median([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `2+2i` | `2+2i` (sort by abs, then angle) |
 
 `diff` is worse (silently wrong, not an error) — tracked separately in
@@ -69,4 +69,13 @@ be closed incrementally; this entry is the tracking umbrella.
   `libs/stats/tests/median_complex_test.cpp`, parity `tools/parity/specs/median.json`
   (OK), smoke `libs/stats/tests/smoke/median_complex_smoke.m`. (Also updated the
   stale ReductionDimTest.MedianComplexThrows → MedianComplexOk.)
-- ⏳ Remaining: conv, filter, gradient, movmean, detrend, interp1.
+- ✅ **interp1** — 2026-06-05 (bug-fix loop, cycle 10). At the top of
+  `interp1Dispatch` (`libs/builtin/src/math/interp/interp.cpp`), a complex y is
+  split into real + imag DOUBLE arrays, each interpolated by the existing real
+  path (so EVERY method — linear/nearest/previous/next/spline/pchip/makima/
+  cubic — and the matrix-column path are covered), then recombined; the
+  extrapolation policy carries through (out-of-range → NaN+NaNi). Live guard
+  `libs/builtin/tests/interp1_complex_test.cpp`, parity
+  `tools/parity/specs/interp1.json` (OK), smoke
+  `libs/builtin/tests/smoke/interp1_complex_smoke.m`.
+- ⏳ Remaining: conv, filter, gradient, movmean, detrend.

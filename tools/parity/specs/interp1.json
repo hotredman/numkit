@@ -1,8 +1,8 @@
 {
   "name": "interp1",
   "namespace": "builtin",
-  "setup": "x = [1 2 3]; y = [10 20 30]; Y = [10 100; 20 200; 30 300];",
-  "expr": "r1 = interp1(x,y,1.5); r2 = interp1(x,y,2.5); r3 = interp1(x,y,1); pn = interp1(x,y,1.5,'next'); pp = interp1(x,y,1.5,'previous'); pk = interp1(x,y,2,'next'); oob = interp1(x,y,3.5,'previous'); sq = interp1(x,y,1.4,\"nearest\"); se = interp1(x,y,4,\"linear\",\"extrap\"); sf = interp1(x,y,4,\"linear\",99); nt = interp1(x,y,2.5,'nearest'); ml = interp1(x,Y,2.5); mle = interp1(x,Y,[0 2.5 5]); mn = interp1(x,Y,[0 2.5 5],'nearest',-1); ms = interp1(x,Y,[0 2.5 5],'spline');",
+  "setup": "x = [1 2 3]; y = [10 20 30]; Y = [10 100; 20 200; 30 300]; cz = [1+1i 2+2i 3+3i]; cY = [1+1i 2; 3 4-1i; 5+5i 6];",
+  "expr": "r1 = interp1(x,y,1.5); r2 = interp1(x,y,2.5); r3 = interp1(x,y,1); pn = interp1(x,y,1.5,'next'); pp = interp1(x,y,1.5,'previous'); pk = interp1(x,y,2,'next'); oob = interp1(x,y,3.5,'previous'); sq = interp1(x,y,1.4,\"nearest\"); se = interp1(x,y,4,\"linear\",\"extrap\"); sf = interp1(x,y,4,\"linear\",99); nt = interp1(x,y,2.5,'nearest'); ml = interp1(x,Y,2.5); mle = interp1(x,Y,[0 2.5 5]); mn = interp1(x,Y,[0 2.5 5],'nearest',-1); ms = interp1(x,Y,[0 2.5 5],'spline'); cl = interp1(x,cz,2.5); cv = interp1([1 2 3],[1+1i 4 3-2i],[1.5 2.5]); cn = interp1([1 2 3],[1+1i 5 3-2i],2.4,'nearest'); cs = interp1([1 2 3 4],[1+1i 0 -1+2i 3],2.5,'spline'); ce = interp1(x,cz,5); cm = interp1(x,cY,1.5);",
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": [
@@ -14,8 +14,13 @@
     "ml(1)", "ml(2)", "size(ml,1)", "size(ml,2)",
     "mle(2,1)", "double(isnan(mle(1,1)))", "size(mle,1)", "size(mle,2)",
     "mn(2,1)", "mn(1,1)", "mn(3,2)",
-    "ms(1,1)", "ms(3,1)", "ms(2,2)"
+    "ms(1,1)", "ms(3,1)", "ms(2,2)",
+    "real(cl)", "imag(cl)",
+    "real(cv(1))", "imag(cv(1))", "real(cv(2))", "imag(cv(2))",
+    "real(cn)", "imag(cn)", "real(cs)", "imag(cs)",
+    "double(isnan(real(ce)))",
+    "real(cm(1))", "imag(cm(1))", "real(cm(2))", "imag(cm(2))"
   ],
-  "comment": "Sig r=interp1(x,y,xq[,method][,extrap]). linear (default), nearest, spline, pchip, makima, previous/next; queries outside [x(1),x(end)] -> NaN by default. method/extrapval accept STRING and char. DEEP-PROBE 2026-05-31: (a) MATRIX Y now interpolated DOWN each column (size(Y,1)==length(x)); output is length(xq) x size(Y,2) regardless of xq orientation (was: threw 'x and y must have same length'). interp1(x,[10 100;20 200;30 300],2.5)=[25 250]; linear NaN-extrap, nearest extrapval, spline all per-column. N-D Y deferred. (b) 'nearest' tie-break now rounds an exactly-halfway query UP to the higher neighbor (MATLAB): interp1([1 2 3],[10 20 30],2.5,'nearest')=30 (was 20). namespace=builtin. Matches MATLAB R2025b.",
+  "comment": "Sig r=interp1(x,y,xq[,method][,extrap]). linear (default), nearest, spline, pchip, makima, previous/next; queries outside [x(1),x(end)] -> NaN by default. method/extrapval accept STRING and char. DEEP-PROBE 2026-05-31: (a) MATRIX Y now interpolated DOWN each column (size(Y,1)==length(x)); output is length(xq) x size(Y,2) regardless of xq orientation (was: threw 'x and y must have same length'). interp1(x,[10 100;20 200;30 300],2.5)=[25 250]; linear NaN-extrap, nearest extrapval, spline all per-column. N-D Y deferred. (b) 'nearest' tie-break now rounds an exactly-halfway query UP to the higher neighbor (MATLAB): interp1([1 2 3],[10 20 30],2.5,'nearest')=30 (was 20). COMPLEX y (fixed 2026-06-05): interpolates real + imag parts separately for EVERY method, then recombines; interp1(x,[1+1i 2+2i 3+3i],2.5)=2.5+2.5i; vector queries; 'nearest'=5+0i; 'spline'=-0.8125+1.0625i; out-of-range -> NaN+NaNi; matrix per-column. namespace=builtin. Matches MATLAB R2025b.",
   "deep_verified": false
 }
