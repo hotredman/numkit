@@ -16,7 +16,8 @@ import {
   createHistory, pushSnapshot, undo as historyUndo, redo as historyRedo,
   canUndo, canRedo, classifyChange,
 } from './editorHistory';
-import { buildHighlightHtml, BUILTIN_INFO } from './editorHighlight';
+import { buildHighlightHtml } from './editorHighlight';
+import CompletionPopup from './CompletionPopup';
 
 // ── Search-bar style helpers ───────────────────────────────────────
 // Pulled out of the forwardRef body so the closures aren't recreated
@@ -1030,57 +1031,9 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
           className="nk-editor-textarea"
           style={{position:'relative',width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'auto',whiteSpace:'pre',zIndex:3}}/>
 
-        {/* Autocomplete popup — anchored at the start of the partial
-            being completed (so the dropdown lines up with what the
-            user is typing). Position uses ch unit for column math —
-            matches the monospace font width without measurement. */}
-        {acItems.length > 0 && (
-          <div style={{
-            position: 'absolute',
-            left: `calc(8px + ${acAnchor.col}ch)`,
-            top: acAnchor.line * 20 + 28,    // below the line
-            zIndex: 20,
-            background: C.bg2,
-            border: `1px solid ${C.border}`,
-            borderRadius: 3,
-            boxShadow: `0 4px 12px ${C.bg0}aa`,
-            maxHeight: 240,
-            minWidth: 140,
-            overflowY: 'auto',
-            fontFamily: FONT,
-            fontSize: 12,
-          }}>
-            {acItems.map((item, i) => {
-              const info = BUILTIN_INFO[item];
-              // Extract the bit AFTER " — " when present, since the
-              // function name itself is already shown on the left.
-              const desc = info ? info.split(' — ').slice(1).join(' — ') : '';
-              return (
-                <div key={item}
-                     onMouseDown={(e) => { e.preventDefault(); acceptCompletion(item); }}
-                     onMouseEnter={() => setAcIdx(i)}
-                     style={{
-                       display: 'flex', alignItems: 'baseline', gap: 8,
-                       padding: '2px 8px',
-                       cursor: 'pointer',
-                       background: i === acIdx ? C.accent : 'transparent',
-                       color: i === acIdx ? C.bg0 : C.text,
-                     }}>
-                  <span>{item}</span>
-                  {desc && (
-                    <span style={{
-                      fontSize: 11,
-                      color: i === acIdx ? `${C.bg0}cc` : C.textMuted,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>{desc}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Autocomplete popup — see CompletionPopup. */}
+        <CompletionPopup items={acItems} anchor={acAnchor} activeIdx={acIdx}
+                         onAccept={acceptCompletion} onHover={setAcIdx} C={C} />
 
         {/* Find / Replace / Go-to-line bar — overlays the top-right
             corner of the editor area, à la VS Code. Same input gets
