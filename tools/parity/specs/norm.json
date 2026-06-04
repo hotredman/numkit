@@ -1,13 +1,15 @@
 {
   "name": "norm",
   "namespace": "builtin",
-  "setup": "v = [3 4]; A = [1 2; 3 4];",
-  "expr": "n_v2 = norm(v); n_v1 = norm(v, 1); n_vinf = norm(v, Inf); n_vninf = norm(v, -Inf); n_vninf3 = norm([-7 2 5], -Inf); n_a2 = norm(A); n_a1 = norm(A, 1); n_ainf = norm(A, Inf); n_afro = norm(A, 'fro');",
+  "setup": "v = [3 4]; A = [1 2; 3 4]; cv = [3+4i 0 -2i]; cM = [1+1i 2; 3 4-1i];",
+  "expr": "n_v2 = norm(v); n_v1 = norm(v, 1); n_vinf = norm(v, Inf); n_vninf = norm(v, -Inf); n_vninf3 = norm([-7 2 5], -Inf); n_a2 = norm(A); n_a1 = norm(A, 1); n_ainf = norm(A, Inf); n_afro = norm(A, 'fro'); n_cv2 = norm(cv); n_cv1 = norm(cv, 1); n_cvinf = norm(cv, Inf); n_cvfro = norm(cv, 'fro'); n_cvp3 = norm(cv, 3); n_cm1 = norm(cM, 1); n_cminf = norm(cM, Inf); n_cmfro = norm(cM, 'fro'); n_csc = norm(3+4i);",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
     "n_v2", "n_v1", "n_vinf", "n_vninf", "n_vninf3",
-    "n_a2", "n_a1", "n_ainf", "n_afro"
+    "n_a2", "n_a1", "n_ainf", "n_afro",
+    "n_cv2", "n_cv1", "n_cvinf", "n_cvfro", "n_cvp3",
+    "n_cm1", "n_cminf", "n_cmfro", "n_csc"
   ],
-  "comment": "Sig: n = norm(X[, p]). Vector and matrix norms. Vector: 2-norm default, p-norm via sum(|x|^p)^(1/p), Inf -> max(|x|), -Inf -> min(|x|) (fixed 2026-06-03; was max), 1 -> sum(|x|). Matrix: 2-norm = largest singular, 1 -> max col sum, Inf -> max row sum, 'fro' -> Frobenius (-Inf invalid for matrices). Bit-identical with MATLAB R2025b."
+  "comment": "Sig: n = norm(X[, p]). Vector and matrix norms. Vector: 2-norm default, p-norm via sum(|x|^p)^(1/p), Inf -> max(|x|), -Inf -> min(|x|) (fixed 2026-06-03; was max), 1 -> sum(|x|). Matrix: 2-norm = largest singular, 1 -> max col sum, Inf -> max row sum, 'fro' -> Frobenius (-Inf invalid for matrices). COMPLEX (added 2026-06-05): vector 1/2/Inf/p and matrix 1/Inf/'fro' norm by element magnitude |z| (norm([3+4i 0 -2i])=sqrt(29); norm(cM,'fro')=sqrt(32)); complex matrix 2-norm (spectral) still needs a complex SVD and errors (see bugs/linalg/complex-matrix-unsupported.md). Bit-identical with MATLAB R2025b."
 }

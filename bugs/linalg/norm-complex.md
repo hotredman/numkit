@@ -1,6 +1,6 @@
 # linalg.norm — complex input throws (vecnorm already handles it)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P2 (errors where MATLAB returns a value)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (complex-input sweep)
@@ -35,5 +35,20 @@ norm, and for the matrix 2-norm route the complex matrix through the SVD
 pattern. Validate vs MATLAB on complex vectors (1/2/Inf/'fro') and matrices.
 
 ## References
-- `libs/linalg/src/norms.cpp` (norm_value, norm_fro, vecnorm getAbs)
+- `libs/linalg/src/norms.cpp` (norm_value, norm_fro, norm_inf, vecnorm getAbs)
 - MATLAB `doc norm`
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 2).
+- Added a complex-aware `absLin(x, i)` magnitude helper (mirrors `vecnorm`'s
+  `getAbs`) and routed `norm_value` (vector 1/2/p + matrix 1-norm),
+  `norm_inf` (vector + matrix), and `norm_fro` through it. Complex inputs now
+  norm by element magnitude `|z|`, matching MATLAB.
+- **Deferred:** the complex *matrix* 2-norm (spectral / largest singular
+  value) needs a complex SVD, which is still unimplemented — it now throws a
+  clear `numkit:norm:complexSpectral` error instead of the cryptic "Not a
+  double array". Tracked under bugs/linalg/complex-matrix-unsupported.md.
+- Live guard: `libs/linalg/tests/norm_complex_test.cpp` (6 cases incl. a
+  real-input regression + the spectral-throws guard). Parity:
+  `tools/parity/specs/norm.json` extended (correctness=OK). Smoke:
+  `libs/linalg/tests/smoke/norm_complex_smoke.m`.
