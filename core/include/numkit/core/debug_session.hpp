@@ -67,6 +67,20 @@ public:
     size_t selectedFrame() const { return selectedDepth_; }
     size_t frameCount() const;
 
+    // ── Watch expressions ────────────────────────────────────
+    // Expressions re-evaluated at each pause for an IDE watch panel.
+    struct WatchResult
+    {
+        std::string expr;
+        std::string result; // eval display, or "Error: ..." if it failed
+    };
+    void addWatch(const std::string &expr);
+    void removeWatch(size_t index);
+    void clearWatches();
+    const std::vector<std::string> &watchExpressions() const { return watches_; }
+    // Evaluate every watch in the currently focused frame. Valid while paused.
+    std::vector<WatchResult> evalWatches();
+
     // ── State inspection (valid when paused) ─────────────────
 
     struct Variable
@@ -152,6 +166,9 @@ private:
     // Inspection focus for dbup/dbdown: 0 = deepest (current) frame, increasing
     // toward the base. Reset to 0 on every pause; ws_ is bound to this frame.
     size_t selectedDepth_ = 0;
+
+    // Watch expressions, re-evaluated at each pause (see evalWatches()).
+    std::vector<std::string> watches_;
 
     // Output capture
     std::string outputBuf_;
