@@ -1,8 +1,8 @@
 {
   "name": "cumsum",
   "namespace": "builtin",
-  "setup": "x = [1 2 3 4]; M = [1 2 3; 4 5 6];",
-  "expr": "rf = cumsum(x); rr = cumsum(x, 'reverse'); ro = cumsum([1 NaN 3], 'omitnan'); rd = cumsum(M, 2, 'reverse'); ia = cumsum(int8([100 100 -100])); ia2 = double(ia(2)); ia3 = double(ia(3)); cia = double(strcmp(class(ia),'int8')); iu = cumsum(uint8([200 100])); iu2 = double(iu(2)); im = cumsum(int32([1 2;3 4]), 2); im12 = double(im(1,2)); cim = double(strcmp(class(im),'int32'));",
+  "setup": "x = [1 2 3 4]; M = [1 2 3; 4 5 6]; cz = [1+1i 2+2i 3+3i]; cM = [1+1i 2; 3 4i];",
+  "expr": "rf = cumsum(x); rr = cumsum(x, 'reverse'); ro = cumsum([1 NaN 3], 'omitnan'); rd = cumsum(M, 2, 'reverse'); ia = cumsum(int8([100 100 -100])); ia2 = double(ia(2)); ia3 = double(ia(3)); cia = double(strcmp(class(ia),'int8')); iu = cumsum(uint8([200 100])); iu2 = double(iu(2)); im = cumsum(int32([1 2;3 4]), 2); im12 = double(im(1,2)); cim = double(strcmp(class(im),'int32')); cs = cumsum(cz); csm = cumsum(cM); csr = cumsum(cz, 2, 'reverse');",
   "iters": 20,
   "tol": 1e-12,
   "fingerprint": [
@@ -19,9 +19,12 @@
     "cia",
     "iu2",
     "im12",
-    "cim"
+    "cim",
+    "real(cs(3))", "imag(cs(3))",
+    "real(csm(2,1))", "imag(csm(2,1))", "real(csm(2,2))", "imag(csm(2,2))",
+    "real(csr(1))", "imag(csr(1))"
   ],
-  "comment": "Sig cumsum(X[,dim][,direction][,nanflag]). forward (default) cumsum([1 2 3 4])(4)=10. 'reverse' = [10 9 7 4]. 'omitnan' treats NaN as 0: cumsum([1 NaN 3],'omitnan')=[1 1 4]. dim+reverse: cumsum([1 2 3;4 5 6],2,'reverse') row1=[6 5 3]. INTEGER input keeps the class and accumulates NATIVELY with saturation: cumsum(int8([100 100 -100]))=[100 127 27] int8 (the clamped 127 carries forward, then -100->27), cumsum(uint8([200 100]))=[200 255], cumsum(int32([1 2;3 4]),2)=[1 3;3 7] int32. numkit previously threw 'Not a double array' on integer input; fixed 2026-05-30. (Earlier: 'reverse'/'omitnan' flag parsing.) NOTE: ; only inside matrix-literal INPUTS.",
+  "comment": "Sig cumsum(X[,dim][,direction][,nanflag]). forward (default) cumsum([1 2 3 4])(4)=10. 'reverse' = [10 9 7 4]. 'omitnan' treats NaN as 0: cumsum([1 NaN 3],'omitnan')=[1 1 4]. dim+reverse: cumsum([1 2 3;4 5 6],2,'reverse') row1=[6 5 3]. INTEGER input keeps the class and accumulates NATIVELY with saturation: cumsum(int8([100 100 -100]))=[100 127 27] int8 (the clamped 127 carries forward, then -100->27), cumsum(uint8([200 100]))=[200 255], cumsum(int32([1 2;3 4]),2)=[1 3;3 7] int32. numkit previously threw 'Not a double array' on integer input; fixed 2026-05-30. COMPLEX (fixed 2026-06-05): accumulates Complex element-wise: cumsum([1+1i 2+2i 3+3i])=[1+1i 3+3i 6+6i]; per-column for a matrix; dim+reverse works (flip-scan-flip). (Earlier: 'reverse'/'omitnan' flag parsing.) NOTE: ; only inside matrix-literal INPUTS.",
   "bench_setup": "xb = mod((1:N)*7919, 1000) + 0.5;",
   "bench_expr": "rb = cumsum(xb);"
 }

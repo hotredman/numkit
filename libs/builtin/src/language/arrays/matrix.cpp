@@ -2031,12 +2031,60 @@ Value cumIntegerNative(const Value &x, int dim, bool isProd,
     return r;
 }
 
+// Inclusive cumulative scan of a COMPLEX array along the 1-based dim d (sum
+// when isProd=false, product when isProd=true). Output shape == input shape.
+// Uniform inner-block (B) / outer-count (O) strides cover vector/2D/3D/ND.
+// (Complex isn't perf-critical here — correctness over a SIMD prefix scan.)
+Value cumComplexAlongDim(const Value &x, int d, bool isProd,
+                         std::pmr::memory_resource *mr)
+{
+    const auto &dd = x.dims();
+    const int nd = dd.ndim();
+    constexpr int kMaxNd = Dims::kMaxRank;
+    if (nd > kMaxNd)
+        throw Error("cumsum: rank exceeds 32",
+                     0, 0, "cumsum", "", "numkit:cumsum:tooManyDims");
+    size_t outDims[kMaxNd];
+    for (int i = 0; i < nd; ++i) outDims[i] = dd.dim(i);
+    auto r = Value::matrixND(outDims, nd, ValueType::COMPLEX, mr);
+    if (x.numel() == 0) return r;
+    const size_t sliceLen = (d >= 1 && d <= nd) ? dd.dim(d - 1) : 1;
+    if (sliceLen == 0) return r;
+    size_t B = 1; for (int i = 0; i < d - 1 && i < nd; ++i) B *= dd.dim(i);
+    size_t O = 1; for (int i = d; i < nd; ++i) O *= dd.dim(i);
+    const Complex *src = x.complexData();
+    Complex *dst = r.complexDataMut();
+    for (size_t o = 0; o < O; ++o)
+        for (size_t b = 0; b < B; ++b) {
+            const size_t base = o * sliceLen * B + b;
+            Complex acc = src[base];
+            dst[base] = acc;
+            for (size_t k = 1; k < sliceLen; ++k) {
+                const Complex v = src[base + k * B];
+                acc = isProd ? acc * v : acc + v;
+                dst[base + k * B] = acc;
+            }
+        }
+    return r;
+}
+
+// First non-singleton dimension (1-based), default 1 — MATLAB's default op dim.
+int firstNonSingletonDim(const Value &x)
+{
+    const auto &dd = x.dims();
+    for (int k = 0; k < dd.ndim(); ++k)
+        if (dd.dim(k) > 1) return k + 1;
+    return 1;
+}
+
 } // namespace
 
 Value cumsum(const Value &x, std::pmr::memory_resource *mr)
 {
     if (isIntegerType(x.type()))
         return cumIntegerNative(x, 0, /*isProd=*/false, mr);
+    if (x.type() == ValueType::COMPLEX)
+        return cumComplexAlongDim(x, firstNonSingletonDim(x), /*isProd=*/false, mr);
     if (x.isScalar()) {
         auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = x.toScalar();
@@ -2063,6 +2111,9 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (isIntegerType(x.type()))
         return cumIntegerNative(x, dim, /*isProd=*/false, mr);
+    if (x.type() == ValueType::COMPLEX)
+        return cumComplexAlongDim(x, dim <= 0 ? firstNonSingletonDim(x) : dim,
+                                  /*isProd=*/false, mr);
     if (dim <= 0) return cumsum(x, mr);
     if (x.dims().isVector() || x.isScalar()) return cumsum(x, mr);
 
@@ -2326,6 +2377,9 @@ Value cumprod(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     if (isIntegerType(x.type()))
         return cumIntegerNative(x, dim, /*isProd=*/true, mr);
+    if (x.type() == ValueType::COMPLEX)
+        return cumComplexAlongDim(x, dim <= 0 ? firstNonSingletonDim(x) : dim,
+                                  /*isProd=*/true, mr);
     return cumScanDispatch(x, dim, cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
 }
 
