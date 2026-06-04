@@ -426,11 +426,45 @@ public:
     std::string debugStart(const std::string &code) {
         debugSession_ = std::make_unique<numkit::DebugSession>(*engine_);
 
-        // Set breakpoints from saved list
-        debugSession_->setBreakpoints(breakpointLines_);
+        // Apply breakpoints (with optional per-line conditions) directly so the
+        // conditions survive into the run.
+        auto &bpm = engine_->breakpointManager();
+        bpm.clearAll();
+        for (uint16_t line : breakpointLines_) {
+            auto it = breakpointConditions_.find(line);
+            bpm.addBreakpoint(line, it != breakpointConditions_.end() ? it->second
+                                                                      : std::string());
+        }
+
+        debugSession_->setStopOnError(stopOnError_);
+        for (auto &w : watches_)
+            debugSession_->addWatch(w);
 
         auto status = debugSession_->start(code);
         return buildDebugResult(status);
+    }
+
+    void setStopOnError(bool on) {
+        stopOnError_ = on;
+        if (debugSession_)
+            debugSession_->setStopOnError(on);
+    }
+
+    void setBreakpointCondition(int line, const std::string &cond) {
+        if (line > 0)
+            breakpointConditions_[static_cast<uint16_t>(line)] = cond;
+    }
+
+    void addWatch(const std::string &expr) {
+        watches_.push_back(expr);
+        if (debugSession_)
+            debugSession_->addWatch(expr);
+    }
+
+    void clearWatches() {
+        watches_.clear();
+        if (debugSession_)
+            debugSession_->clearWatches();
     }
 
     std::string debugResume(int action) {
@@ -472,6 +506,7 @@ public:
         // "removed" breakpoints to keep firing because the early return
         // on a bad parse skipped the bpm.clearAll().
         breakpointLines_.clear();
+        breakpointConditions_.clear(); // conditions are re-set after each setBreakpoints
         auto &bpm = engine_->breakpointManager();
         bpm.clearAll();
 
@@ -1011,6 +1046,9 @@ private:
     std::string outputBuf_;
     std::unique_ptr<numkit::DebugSession> debugSession_;
     std::vector<uint16_t> breakpointLines_;
+    std::map<uint16_t, std::string> breakpointConditions_; // line → condition expr
+    bool stopOnError_ = false;
+    std::vector<std::string> watches_;
     // Reused buffer for getFigureDisplayTile — JS gets a typed_memory_view
     // straight into here, so it must persist until the next call.
     std::vector<uint8_t> displayTileBuf_;
@@ -1078,15 +1116,18 @@ private:
         if (status == numkit::ExecStatus::Paused) {
             auto snap = debugSession_->snapshot();
 
-            // Determine pause reason: breakpoint or step
+            // Determine pause reason: error (dbstop if error) > breakpoint > step
+            bool atError = debugSession_->atErrorPause();
             bool onBreakpoint = engine_->breakpointManager().shouldBreak(snap.line);
-            const char *reason = onBreakpoint ? "breakpoint" : "step";
+            const char *reason = atError ? "error" : (onBreakpoint ? "breakpoint" : "step");
 
             result = "{\"status\":\"paused\",\"pauseState\":{";
             result += "\"line\":" + std::to_string(snap.line);
             result += ",\"col\":" + std::to_string(snap.col);
             result += ",\"function\":\"" + escapeJSON(snap.functionName) + "\"";
             result += ",\"reason\":\"" + std::string(reason) + "\"";
+            if (atError)
+                result += ",\"errorMessage\":\"" + escapeJSON(debugSession_->errorPauseMessage()) + "\"";
             // dbup/dbdown focus: which stack frame these variables belong to.
             result += ",\"selectedFrame\":" + std::to_string(debugSession_->selectedFrame());
             result += ",\"frameCount\":" + std::to_string(debugSession_->frameCount());
@@ -1132,6 +1173,18 @@ private:
                 result += ",\"line\":" + std::to_string(sf.line) + "}";
             }
             result += "]";
+
+            // Watch expressions, re-evaluated against the focused frame.
+            auto watchResults = debugSession_->evalWatches();
+            if (!watchResults.empty()) {
+                result += ",\"watches\":[";
+                for (size_t i = 0; i < watchResults.size(); ++i) {
+                    if (i > 0) result += ",";
+                    result += "{\"expr\":\"" + escapeJSON(watchResults[i].expr) + "\"";
+                    result += ",\"value\":\"" + escapeJSON(watchResults[i].result) + "\"}";
+                }
+                result += "]";
+            }
 
             result += "}";
             if (!output.empty())
@@ -1309,6 +1362,25 @@ std::string repl_debug_frame_down() {
     return g_session->debugFrameDown();
 }
 
+void repl_debug_set_stop_on_error(int on) {
+    if (!g_session) repl_init();
+    g_session->setStopOnError(on != 0);
+}
+
+void repl_debug_set_breakpoint_condition(int line, const std::string &cond) {
+    if (!g_session) repl_init();
+    g_session->setBreakpointCondition(line, cond);
+}
+
+void repl_debug_add_watch(const std::string &expr) {
+    if (!g_session) repl_init();
+    g_session->addWatch(expr);
+}
+
+void repl_debug_clear_watches() {
+    if (g_session) g_session->clearWatches();
+}
+
 void repl_debug_stop() {
     if (g_session) g_session->debugStop();
 }
@@ -1433,6 +1505,10 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_debug_resume",          &repl_debug_resume);
     emscripten::function("repl_debug_frame_up",        &repl_debug_frame_up);
     emscripten::function("repl_debug_frame_down",      &repl_debug_frame_down);
+    emscripten::function("repl_debug_set_stop_on_error", &repl_debug_set_stop_on_error);
+    emscripten::function("repl_debug_set_breakpoint_condition", &repl_debug_set_breakpoint_condition);
+    emscripten::function("repl_debug_add_watch",       &repl_debug_add_watch);
+    emscripten::function("repl_debug_clear_watches",   &repl_debug_clear_watches);
     emscripten::function("repl_debug_stop",            &repl_debug_stop);
     // Virtual filesystem bridge
     emscripten::function("repl_register_fs",           &repl_register_fs);
