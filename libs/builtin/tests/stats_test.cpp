@@ -1994,10 +1994,14 @@ TEST_P(ReductionDimTest, VarComplexAlongDim)
     EXPECT_DOUBLE_EQ(evalScalar("isreal(v);"), 1.0);
 }
 
-TEST_P(ReductionDimTest, MedianComplexThrows)
+// median accepts complex as of 2026-06-05 (was: threw). Orders by abs (ties by
+// angle); odd n → middle. MATLAB: median([1+2i 3+4i 5+6i]) = 3+4i.
+TEST_P(ReductionDimTest, MedianComplexOk)
 {
     eval("v = [1+2i, 3+4i, 5+6i];");
-    EXPECT_THROW(eval("m = median(v);"), std::exception);
+    eval("m = median(v);");
+    EXPECT_NEAR(evalScalar("real(m);"), 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(m);"), 4.0, 1e-12);
 }
 
 TEST_P(ReductionDimTest, VarSingleMatrixDimReturnsSingle)

@@ -153,7 +153,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv don't broadcast ARRAY parameters (mu/sigma/n/a/b/df) |
 | [builtin/diff-zero-order](builtin/diff-zero-order.md) | P3 | diff(X,0) returns identity; MATLAB errors (N must be positive integer) |
-| [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | conv/filter/gradient/movmean/detrend/interp1/median reject complex (trapz+cumtrapz ✅ 2026-06-05) |
+| [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | conv/filter/gradient/movmean/detrend/interp1 reject complex (trapz+cumtrapz+median ✅ 2026-06-05) |
 | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm of a complex array throws (vecnorm works) |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |

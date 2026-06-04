@@ -21,7 +21,7 @@ accepts complex for all of them.
 | `movmean([1+1i 2+2i 3+3i],2)` | Not a double array | `[…]` |
 | `detrend([1+1i 2+2i 3+3i])` | Not a double array | `~0` |
 | `interp1([1 2 3],[1+1i 2+2i 3+3i],2.5)` | Not a double array | `2.5+2.5i` |
-| `median([1+1i 2+2i 3+3i])` | "no defined ordering" stub | `2+2i` (sort by abs, then angle) |
+| `median([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `2+2i` | `2+2i` (sort by abs, then angle) |
 
 `diff` is worse (silently wrong, not an error) — tracked separately in
 bugs/builtin/diff-complex.md. `cumsum`/`cumprod` and `norm` are the same
@@ -60,4 +60,13 @@ be closed incrementally; this entry is the tracking umbrella.
   `tools/parity/specs/cumtrapz.json` (OK), smoke
   `libs/builtin/tests/smoke/cumtrapz_complex_smoke.m`. (Also updated the stale
   CalculusTest.CumtrapzComplexThrows → CumtrapzComplexOk.)
-- ⏳ Remaining: conv, filter, gradient, movmean, detrend, interp1, median.
+- ✅ **median** — 2026-06-05 (bug-fix loop, cycle 9). Orders a complex slice by
+  abs (ties by angle — the same comparator sort/max use); odd n → middle, even
+  n → mean of the two middle. New helpers `complexMedianFromSlice` /
+  `complexMedianAlongDim` / `medianComplex` in
+  `libs/stats/src/descriptive/descriptive.cpp`, routed from both `median()` and
+  the `median_reg` 'all' path (removed two throws). Live guard
+  `libs/stats/tests/median_complex_test.cpp`, parity `tools/parity/specs/median.json`
+  (OK), smoke `libs/stats/tests/smoke/median_complex_smoke.m`. (Also updated the
+  stale ReductionDimTest.MedianComplexThrows → MedianComplexOk.)
+- ⏳ Remaining: conv, filter, gradient, movmean, detrend, interp1.

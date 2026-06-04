@@ -1,11 +1,11 @@
 {
   "name": "median",
   "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 1000000));",
-  "expr": "y = median(x); e0 = median([]); ne0 = numel(e0); ie0 = double(isnan(e0)); ec = median(zeros(0,3)); er = median(zeros(3,0)); mi = median(int32([1 2 3 4])); vmi = double(mi); cmi = double(strcmp(class(mi),'int32')); mn = median(int8([-1 -2])); vmn = double(mn); cmn = double(strcmp(class(mn),'int8')); mu = median(uint8([10 20 30 41])); vmu = double(mu); cmu = double(strcmp(class(mu),'uint8'));",
+  "setup": "x = sin(linspace(0, 100, 1000000)); cM = [1+1i 2; 3 4i];",
+  "expr": "y = median(x); e0 = median([]); ne0 = numel(e0); ie0 = double(isnan(e0)); ec = median(zeros(0,3)); er = median(zeros(3,0)); mi = median(int32([1 2 3 4])); vmi = double(mi); cmi = double(strcmp(class(mi),'int32')); mn = median(int8([-1 -2])); vmn = double(mn); cmn = double(strcmp(class(mn),'int8')); mu = median(uint8([10 20 30 41])); vmu = double(mu); cmu = double(strcmp(class(mu),'uint8')); mco = median([1+1i 2+2i 3+3i]); mce = median([1+1i 2+2i 3+3i 10+10i]); mcm = median(cM); mcd = median([1+1i 5 2-3i], 2); mct = median([1 1i -1]); mca = median(cM, 'all');",
   "iters": 100,
   "tol": 1e-10,
-  "comment": "Sig: M = median(X). 1M-pt full sort + middle. Scalar fp. DEEP-PROBE 2026-05-29: median of an EMPTY array -> NaN (not 0x0). 2026-05-30: integer-typed input PRESERVES the integer class (round half-away-from-zero + saturate): median(int32([1 2 3 4]))=3 int32, median(int8([-1 -2]))=-2 int8, median(uint8([10 20 30 41]))=25 uint8 (numkit previously returned DOUBLE 2.5). NOTE: ; appears only inside matrix-literal INPUTS, never inside a quoted string.",
+  "comment": "Sig: M = median(X). 1M-pt full sort + middle. Scalar fp. DEEP-PROBE 2026-05-29: median of an EMPTY array -> NaN (not 0x0). 2026-05-30: integer-typed input PRESERVES the integer class (round half-away-from-zero + saturate): median(int32([1 2 3 4]))=3 int32, median(int8([-1 -2]))=-2 int8, median(uint8([10 20 30 41]))=25 uint8 (numkit previously returned DOUBLE 2.5). COMPLEX (fixed 2026-06-05): orders by abs, ties by angle (same as sort/max); even n -> mean of the two middle: median([1+1i 2+2i 3+3i])=2+2i; median([..10+10i])=2.5+2.5i; per-column matrix; dim 2; abs-tie median([1 1i -1])=0+1i; 'all' flattens (=2.5+0i). NOTE: ; appears only inside matrix-literal INPUTS, never inside a quoted string.",
   "fingerprint": [
     "double(y)",
     "numel(y)",
@@ -14,6 +14,10 @@
     "size(er,1)", "size(er,2)",
     "vmi", "cmi",
     "vmn", "cmn",
-    "vmu", "cmu"
+    "vmu", "cmu",
+    "real(mco)", "imag(mco)", "real(mce)", "imag(mce)",
+    "real(mcm(1))", "imag(mcm(1))", "real(mcm(2))", "imag(mcm(2))",
+    "real(mcd)", "imag(mcd)", "real(mct)", "imag(mct)",
+    "real(mca)", "imag(mca)"
   ]
 }
