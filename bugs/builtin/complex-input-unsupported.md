@@ -15,7 +15,7 @@ accepts complex for all of them.
 |---|---|---|
 | `conv([1 1i],[1 1])` | Not a double array | `[1  1+1i  1i]` |
 | `filter([1 1],1,[1i 1i])` | Not a double array | `[1i  2i]` |
-| `trapz([1+1i 2+2i 3+3i])` | Not a double array | `4+4i` |
+| `trapz([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `4+4i` | `4+4i` |
 | `cumtrapz(...)` | "complex not supported" | `[…  4+4i]` |
 | `gradient([1+1i 3+3i 5+5i])` | "complex not supported" | `[2+2i …]` |
 | `movmean([1+1i 2+2i 3+3i],2)` | Not a double array | `[…]` |
@@ -43,3 +43,15 @@ be closed incrementally; this entry is the tracking umbrella.
 - trapz/cumtrapz/gradient/movmean/detrend/interp1/median: `libs/builtin/src/`,
   `libs/stats/src/` (movmean/detrend)
 - MATLAB docs for each
+
+## Progress (incremental — umbrella stays OPEN until all rows close)
+- ✅ **trapz** — 2026-06-05 (bug-fix loop, cycle 7). Added a `ValueType::COMPLEX`
+  branch in `trapzImpl` (`libs/builtin/src/math/integration/integration.cpp`):
+  trapezoidal sum over `Complex` storage; the integration variable x stays real.
+  All trapz paths (Y / X,Y / dim / matrix) route through `trapzImpl`, so one
+  branch covers them. Live guard `libs/builtin/tests/trapz_complex_test.cpp`,
+  parity `tools/parity/specs/trapz.json` (OK), smoke
+  `libs/builtin/tests/smoke/trapz_complex_smoke.m`.
+- ⏳ Remaining: conv, filter, cumtrapz, gradient, movmean, detrend, interp1,
+  median (cumtrapz next — its Vector/MatrixCols/MatrixRows helpers + reg need
+  Complex variants).
