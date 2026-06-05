@@ -41,6 +41,21 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Scalar pdf kernel for the parameter-broadcast path (vector k). Owns its
+// per-element domain: k<0 → NaN, k==0 → 0 (degenerate Chi²(0)). Mirrors the
+// public chi2pdf formula exactly.
+inline double chi2pdfK(double x, double k)
+{
+    if (k < 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (k == 0.0) return 0.0;
+    if (x < 0.0) return 0.0;
+    const double half_k = 0.5 * k;
+    const double log_norm = -half_k * std::log(2.0) - std::lgamma(half_k);
+    if (x == 0.0)
+        return (k == 2.0) ? 0.5 : (k > 2.0 ? 0.0 : std::numeric_limits<double>::infinity());
+    return std::exp(log_norm + (half_k - 1.0) * std::log(x) - 0.5 * x);
+}
+
 } // anonymous
 
 Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr)
@@ -126,16 +141,33 @@ void chi2pdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("chi2pdf: requires (x, k)", 0, 0, "chi2pdf", "", "numkit:chi2pdf:nargin");
-    outs[0] = chi2pdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &k = args[1];
+    // Scalar k: hoisted fast path (unchanged). Vector k: broadcast.
+    if (k.isScalar())
+        outs[0] = chi2pdf(args[0], k.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist2(args[0], k, mr, "chi2pdf", chi2pdfK);
 }
 
 void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 2)
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    if (a.size() < 2)
         throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "numkit:chi2cdf:nargin");
-    Value v = chi2cdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &k = a[1];
+    Value v;
+    if (k.isScalar()) {
+        v = chi2cdf(a[0], k.toScalar(), mr);
+    } else {
+        // F(x; k) = gammainc(max(0,x/2), k/2); gammainc broadcasts (xs, k/2)
+        // and gammaincScalar gives NaN where k/2<=0 (matches k<=0 → NaN).
+        Value xs = elementwise(a[0], [](double xi) { return std::max(0.0, 0.5 * xi); }, mr);
+        Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
+        v = ::numkit::builtin::gammainc(xs, half_k, mr);
+    }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }

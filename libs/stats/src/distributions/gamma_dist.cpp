@@ -39,6 +39,23 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Scalar pdf kernel for the parameter-broadcast path (vector a/b). Owns its
+// per-element domain: a<0 or b<=0 → NaN, a==0 → 0. Mirrors public gampdf.
+inline double gampdfK(double x, double a, double b)
+{
+    if (a < 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (a == 0.0) return 0.0;
+    if (x < 0.0) return 0.0;
+    const double log_b = std::log(b);
+    const double lga   = std::lgamma(a);
+    if (x == 0.0) {
+        if (a < 1.0) return std::numeric_limits<double>::infinity();
+        if (a > 1.0) return 0.0;
+        return std::exp(-lga - log_b);   // a == 1 → 1/b
+    }
+    return std::exp((a - 1.0) * std::log(x) - x / b - a * log_b - lga);
+}
+
 } // anonymous
 
 Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
@@ -155,16 +172,37 @@ void gampdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("gampdf: requires (x, a, b)", 0, 0, "gampdf", "", "numkit:gampdf:nargin");
-    outs[0] = gampdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &a = args[1];
+    const Value &b = args[2];
+    if (a.isScalar() && b.isScalar())
+        outs[0] = gampdf(args[0], a.toScalar(), b.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist3(args[0], a, b, mr, "gampdf", gampdfK);
 }
 
 void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 3)
+    const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
+    if (a0.size() < 3)
         throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "numkit:gamcdf:nargin");
-    Value v = gamcdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &a = a0[1];
+    const Value &b = a0[2];
+    Value v;
+    if (a.isScalar() && b.isScalar()) {
+        v = gamcdf(a0[0], a.toScalar(), b.toScalar(), mr);
+    } else {
+        // F(x; a, b) = gammainc(x/b clamped at 0, a). xs broadcasts (x, b)
+        // (b<=0 → NaN), then gammainc broadcasts (xs, a) and gives NaN where
+        // a<=0 — matching the scalar path's a<=0||b<=0 → NaN.
+        Value xs = broadcast_dist2(a0[0], b, mr, "gamcdf", [](double xi, double bi) {
+            if (!(bi > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+            return (xi <= 0.0) ? 0.0 : xi / bi;
+        });
+        v = ::numkit::builtin::gammainc(xs, a, mr);
+    }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }

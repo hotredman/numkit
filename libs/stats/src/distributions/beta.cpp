@@ -37,6 +37,23 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Scalar pdf kernel for the parameter-broadcast path (vector a/b). Owns its
+// per-element domain: a<=0 or b<=0 → NaN. Mirrors public betapdf exactly,
+// including the x∈{0,1} boundary cases.
+inline double betapdfK(double x, double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+    if (x < 0.0 || x > 1.0) return 0.0;
+    if (x == 0.0)
+        return (a == 1.0) ? std::exp(-lbeta) * (b == 1.0 ? 1.0 : std::pow(1.0, b - 1.0))
+                          : (a > 1.0 ? 0.0 : std::numeric_limits<double>::infinity());
+    if (x == 1.0)
+        return (b == 1.0) ? std::exp(-lbeta) * (a == 1.0 ? 1.0 : std::pow(1.0, a - 1.0))
+                          : (b > 1.0 ? 0.0 : std::numeric_limits<double>::infinity());
+    return std::exp((a - 1.0) * std::log(x) + (b - 1.0) * std::log1p(-x) - lbeta);
+}
+
 } // anonymous
 
 Value betapdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
@@ -124,16 +141,37 @@ void betapdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("betapdf: requires (x, a, b)", 0, 0, "betapdf", "", "numkit:betapdf:nargin");
-    outs[0] = betapdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &a = args[1];
+    const Value &b = args[2];
+    if (a.isScalar() && b.isScalar())
+        outs[0] = betapdf(args[0], a.toScalar(), b.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist3(args[0], a, b, mr, "betapdf", betapdfK);
 }
 
 void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 3)
+    const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
+    if (a0.size() < 3)
         throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "numkit:betacdf:nargin");
-    Value v = betacdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &a = a0[1];
+    const Value &b = a0[2];
+    Value v;
+    if (a.isScalar() && b.isScalar()) {
+        v = betacdf(a0[0], a.toScalar(), b.toScalar(), mr);
+    } else {
+        // F(x; a, b) = betainc(clamp01(x), a, b); betainc broadcasts (xc, a, b)
+        // and betaincScalar gives NaN where a<=0 or b<=0.
+        Value xc = elementwise(a0[0], [](double xi) {
+            if (xi <= 0.0) return 0.0;
+            if (xi >= 1.0) return 1.0;
+            return xi;
+        }, mr);
+        v = ::numkit::builtin::betainc(xc, a, b, mr);
+    }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
