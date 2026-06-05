@@ -103,10 +103,11 @@ TEST_F(StatsKnownBug, DISABLED_MahalSingular)
 }
 
 // bugs/stats/pdist-metrics.md — 'seuclidean'/'spearman' + cosine zero-vector.
-TEST_F(StatsKnownBug, DISABLED_PdistMetrics)
+// FIXED 2026-06-05 (deep coverage in libs/stats/tests/pdist_metrics_test.cpp).
+TEST_F(StatsKnownBug, PdistMetrics)
 {
     eval("A = [1 2 3; 4 5 7; 1 0 2];");
-    // seuclidean currently throws "unknown metric"; MATLAB max dist 3.2433.
+    // seuclidean: was "unknown metric"; MATLAB max dist 3.2433.
     EXPECT_NEAR(evalScalar("max(pdist(A,'seuclidean'))"), 3.2433, 1e-3);
     EXPECT_NO_THROW(eval("pdist(A,'spearman');"));
     // cosine distance with a zero-norm row should be NaN (MATLAB), not 1.

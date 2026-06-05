@@ -19,7 +19,8 @@ namespace {
 
 // Distance metric IDs.
 enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev, Minkowski,
-                    Cosine, Correlation, Hamming, Jaccard, Mahalanobis };
+                    Cosine, Correlation, Hamming, Jaccard, Mahalanobis,
+                    Seuclidean, Spearman };
 
 Metric parse_metric(const std::string &raw) {
     // Case-insensitive + accept MATLAB-style aliases (e.g. 'sqEuclidean'
@@ -37,6 +38,8 @@ Metric parse_metric(const std::string &raw) {
     if (s == "hamming")          return Metric::Hamming;
     if (s == "jaccard")          return Metric::Jaccard;
     if (s == "mahalanobis")      return Metric::Mahalanobis;
+    if (s == "seuclidean")       return Metric::Seuclidean;
+    if (s == "spearman")         return Metric::Spearman;
     throw Error("pdist: unknown metric '" + raw + "'", 0, 0, "pdist", "",
                 "numkit:pdist:badmetric");
 }
@@ -125,6 +128,38 @@ inline double mahal_distance(const double *u, const double *v, size_t D,
     return std::sqrt(std::max(0.0, s));
 }
 
+// Standardized-euclidean distance: √Σ((xₖ−yₖ)·inv_scaleₖ)². `inv_scale[k]`
+// is 1/Sₖ where S defaults to the per-column sample std of the data set.
+inline double seuclidean_distance(const double *x, const double *y,
+                                  const double *inv_scale, size_t D)
+{
+    double s = 0.0;
+    for (size_t k = 0; k < D; ++k) {
+        const double d = (x[k] - y[k]) * inv_scale[k];
+        s += d * d;
+    }
+    return std::sqrt(s);
+}
+
+// Correlation distance 1 − corr(x, y). NaN when either vector is constant
+// (zero variance) — MATLAB's behaviour. Shared by the 'correlation' metric
+// and (applied to tied ranks) by 'spearman'.
+inline double correlation_distance(const double *x, const double *y, size_t D)
+{
+    double mx = 0, my = 0;
+    for (size_t k = 0; k < D; ++k) { mx += x[k]; my += y[k]; }
+    mx /= static_cast<double>(D);
+    my /= static_cast<double>(D);
+    double xy = 0, xx = 0, yy = 0;
+    for (size_t k = 0; k < D; ++k) {
+        const double dx = x[k] - mx, dy = y[k] - my;
+        xy += dx * dy; xx += dx * dx; yy += dy * dy;
+    }
+    const double denom = std::sqrt(xx) * std::sqrt(yy);
+    return (denom > 0.0) ? (1.0 - xy / denom)
+                         : std::numeric_limits<double>::quiet_NaN();
+}
+
 inline double row_distance(const double *x, const double *y, size_t D,
                            Metric m, double p)
 {
@@ -168,20 +203,12 @@ inline double row_distance(const double *x, const double *y, size_t D,
                 yy += y[k] * y[k];
             }
             const double denom = std::sqrt(xx) * std::sqrt(yy);
-            return (denom > 0.0) ? (1.0 - xy / denom) : 1.0;
+            // Zero-norm row → cosine undefined; MATLAB returns NaN (not 1).
+            return (denom > 0.0) ? (1.0 - xy / denom)
+                                 : std::numeric_limits<double>::quiet_NaN();
         }
-        case Metric::Correlation: {
-            double mx = 0, my = 0;
-            for (size_t k = 0; k < D; ++k) { mx += x[k]; my += y[k]; }
-            mx /= D; my /= D;
-            double xy = 0, xx = 0, yy = 0;
-            for (size_t k = 0; k < D; ++k) {
-                const double dx = x[k] - mx, dy = y[k] - my;
-                xy += dx * dy; xx += dx * dx; yy += dy * dy;
-            }
-            const double denom = std::sqrt(xx) * std::sqrt(yy);
-            return (denom > 0.0) ? (1.0 - xy / denom) : 1.0;
-        }
+        case Metric::Correlation:
+            return correlation_distance(x, y, D);
         case Metric::Hamming: {
             int diff = 0;
             for (size_t k = 0; k < D; ++k) if (x[k] != y[k]) ++diff;
@@ -199,8 +226,11 @@ inline double row_distance(const double *x, const double *y, size_t D,
             return considered > 0 ? double(diff) / double(considered) : 0.0;
         }
         case Metric::Mahalanobis:
-            // Mahalanobis needs the covariance matrix and is handled by a
-            // dedicated path (mahal_*), never via pairwise row_distance.
+        case Metric::Seuclidean:
+        case Metric::Spearman:
+            // These need data-set-wide pre-computation (covariance, per-column
+            // scale, or tied ranks) and are handled by dedicated paths in
+            // pdist/pdist2 — never via the pairwise row_distance switch.
             break;
     }
     return 0.0;
@@ -211,6 +241,60 @@ inline void read_row(const Value &X, size_t r, double *out) {
     const size_t M = X.dims().rows();
     const size_t D = X.dims().cols();
     for (size_t k = 0; k < D; ++k) out[k] = X.elemAsDouble(k * M + r);
+}
+
+// Per-column sample standard deviation (divisor n−1) of an M×D Value into
+// `scale_out` (length D). The default 'seuclidean' coordinate scale.
+inline void col_std(const Value &X, double *scale_out,
+                    std::pmr::memory_resource * /*scratch_mr*/)
+{
+    const size_t M = X.dims().rows();
+    const size_t D = X.dims().cols();
+    for (size_t c = 0; c < D; ++c) {
+        double mean = 0.0;
+        for (size_t r = 0; r < M; ++r) mean += X.elemAsDouble(c * M + r);
+        mean /= static_cast<double>(M);
+        double ss = 0.0;
+        for (size_t r = 0; r < M; ++r) {
+            const double d = X.elemAsDouble(c * M + r) - mean;
+            ss += d * d;
+        }
+        scale_out[c] = (M > 1) ? std::sqrt(ss / static_cast<double>(M - 1)) : 0.0;
+    }
+}
+
+// Average-tie ranks (MATLAB `tiedrank`) of the D values in `v`, written to
+// `r` in the same order. Ties share the mean of their 1-based ranks.
+inline void tiedrank_row(const double *v, size_t D, double *r,
+                         std::pmr::memory_resource *scratch_mr)
+{
+    ScratchVec<size_t> idx(D, scratch_mr);
+    for (size_t k = 0; k < D; ++k) idx[k] = k;
+    std::sort(idx.begin(), idx.end(),
+              [&](size_t a, size_t b) { return v[a] < v[b]; });
+    size_t i = 0;
+    while (i < D) {
+        size_t j = i;
+        while (j + 1 < D && v[idx[j + 1]] == v[idx[i]]) ++j;
+        const double avg = (static_cast<double>(i + 1) +
+                            static_cast<double>(j + 1)) / 2.0;
+        for (size_t t = i; t <= j; ++t) r[idx[t]] = avg;
+        i = j + 1;
+    }
+}
+
+// Build the M×D row-major tied-rank transform of X (each row ranked across
+// its D coordinates) into `R`. Backs the 'spearman' metric.
+inline void tiedrank_rows(const Value &X, double *R,
+                          std::pmr::memory_resource *scratch_mr)
+{
+    const size_t M = X.dims().rows();
+    const size_t D = X.dims().cols();
+    ScratchVec<double> row(D, scratch_mr);
+    for (size_t r = 0; r < M; ++r) {
+        read_row(X, r, row.data());
+        tiedrank_row(row.data(), D, R + r * D, scratch_mr);
+    }
 }
 
 } // anonymous
@@ -253,6 +337,46 @@ Value pdist(const Value &X, const std::string &metric, double p, const Value *C_
                                            Cinv.data(), diff.data());
             }
         }
+        return out;
+    }
+
+    if (m == Metric::Seuclidean) {
+        // Per-coordinate scaling: divide each difference by Sₖ (default
+        // Sₖ = per-column sample std of X; explicit scale vector via C_opt).
+        ScratchVec<double> inv_scale(D, &scratch);
+        if (C_opt) {
+            const Value &S = *C_opt;
+            if (S.numel() != D)
+                throw Error("pdist: seuclidean scale must have one element "
+                            "per column", 0, 0, "pdist", "",
+                            "numkit:pdist:seuclidean");
+            for (size_t k = 0; k < D; ++k) inv_scale[k] = 1.0 / S.elemAsDouble(k);
+        } else {
+            ScratchVec<double> sd(D, &scratch);
+            col_std(X, sd.data(), &scratch);
+            for (size_t k = 0; k < D; ++k) inv_scale[k] = 1.0 / sd[k];
+        }
+        size_t idx = 0;
+        for (size_t i = 0; i < M; ++i) {
+            read_row(X, i, xi.data());
+            for (size_t j = i + 1; j < M; ++j) {
+                read_row(X, j, xj.data());
+                od[idx++] = seuclidean_distance(xi.data(), xj.data(),
+                                                inv_scale.data(), D);
+            }
+        }
+        return out;
+    }
+
+    if (m == Metric::Spearman) {
+        // Tied-rank each row, then correlation distance on the ranks.
+        ScratchVec<double> R(M * D, &scratch);
+        tiedrank_rows(X, R.data(), &scratch);
+        size_t idx = 0;
+        for (size_t i = 0; i < M; ++i)
+            for (size_t j = i + 1; j < M; ++j)
+                od[idx++] = correlation_distance(R.data() + i * D,
+                                                 R.data() + j * D, D);
         return out;
     }
 
@@ -315,6 +439,46 @@ Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p
                                                 Cinv.data(), diff.data());
             }
         }
+        return out;
+    }
+
+    if (m == Metric::Seuclidean) {
+        // Default scale = per-column sample std of X (the FIRST arg), matching
+        // MATLAB; explicit scale vector via C_opt.
+        ScratchVec<double> inv_scale(Dx, &scratch);
+        if (C_opt) {
+            const Value &S = *C_opt;
+            if (S.numel() != Dx)
+                throw Error("pdist2: seuclidean scale must have one element "
+                            "per column", 0, 0, "pdist2", "",
+                            "numkit:pdist2:seuclidean");
+            for (size_t k = 0; k < Dx; ++k) inv_scale[k] = 1.0 / S.elemAsDouble(k);
+        } else {
+            ScratchVec<double> sd(Dx, &scratch);
+            col_std(X, sd.data(), &scratch);
+            for (size_t k = 0; k < Dx; ++k) inv_scale[k] = 1.0 / sd[k];
+        }
+        for (size_t j = 0; j < My; ++j) {
+            read_row(Y, j, yj.data());
+            for (size_t i = 0; i < Mx; ++i) {
+                read_row(X, i, xi.data());
+                od[j * Mx + i] = seuclidean_distance(xi.data(), yj.data(),
+                                                     inv_scale.data(), Dx);
+            }
+        }
+        return out;
+    }
+
+    if (m == Metric::Spearman) {
+        // Tied-rank rows of X and Y independently, then correlation distance.
+        ScratchVec<double> RX(Mx * Dx, &scratch);
+        ScratchVec<double> RY(My * Dy, &scratch);
+        tiedrank_rows(X, RX.data(), &scratch);
+        tiedrank_rows(Y, RY.data(), &scratch);
+        for (size_t j = 0; j < My; ++j)
+            for (size_t i = 0; i < Mx; ++i)
+                od[j * Mx + i] = correlation_distance(RX.data() + i * Dx,
+                                                      RY.data() + j * Dy, Dx);
         return out;
     }
 

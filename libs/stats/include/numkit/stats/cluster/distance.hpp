@@ -24,8 +24,10 @@ namespace numkit::stats {
 ///   | `"cityblock"`       | Σ|xᵢ − yᵢ|                              |
 ///   | `"chebychev"`       | max|xᵢ − yᵢ|                            |
 ///   | `"minkowski"`       | (Σ|xᵢ − yᵢ|^p)^(1/p) — uses `p`         |
-///   | `"cosine"`          | 1 − x·y / (‖x‖‖y‖)                      |
-///   | `"correlation"`     | 1 − corr(x, y)                          |
+///   | `"cosine"`          | 1 − x·y / (‖x‖‖y‖) (NaN if a norm is 0) |
+///   | `"correlation"`     | 1 − corr(x, y) (NaN if a row is const)  |
+///   | `"seuclidean"`      | √Σ((xᵢ−yᵢ)/Sᵢ)², Sᵢ=std(col) by default |
+///   | `"spearman"`        | 1 − corr of tied ranks of each row      |
 ///   | `"hamming"`         | mean(x ≠ y)                             |
 ///   | `"jaccard"`         | mean(x ≠ y given at least one nonzero)  |
 ///
