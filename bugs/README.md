@@ -124,6 +124,12 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
+> **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
+> notable* gaps. The complete list of **839 missing + 25 partial** MATLAB
+> functions (migrated out of PROGRESS.md, grouped by namespace) lives in
+> [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
+> they are NOT counted in the tally above.
+
 ### ✅ FIXED (53)
 
 | Kind | Bug | Sev | Notes |
@@ -215,6 +221,9 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (centroids) |
 
 ### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 30
+
+*(Curated/notable subset — the full 839-missing + 25-partial inventory is in
+[PARITY_GAPS.md](PARITY_GAPS.md).)*
 
 | Bug | Sev | Notes |
 |---|---|---|
