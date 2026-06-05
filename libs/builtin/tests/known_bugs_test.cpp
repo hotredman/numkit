@@ -159,3 +159,15 @@ TEST_F(BuiltinKnownBug, TrapzLogical)
     EXPECT_DOUBLE_EQ(evalScalar("trapz(logical([1 0 1 1]))"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("trapz([1 3 4 7], logical([1 0 1 1]))"), 4.5);
 }
+
+// bugs/builtin/sort-logical.md — FIXED (sort preserves the logical class on
+// values; index stays double). Full guard in sort_logical_test.cpp.
+TEST_F(BuiltinKnownBug, SortLogical)
+{
+    eval("[S, I] = sort(logical([0 1 0 1]));");
+    EXPECT_DOUBLE_EQ(evalScalar("S(2)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("S(3)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(S)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(I)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(2)"), 3.0);
+}
