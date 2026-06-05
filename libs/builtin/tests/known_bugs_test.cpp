@@ -88,9 +88,10 @@ TEST_F(BuiltinKnownBug, DISABLED_Func2StrAnonymous)
 // bugs/builtin/diff-complex.md — FIXED (diff differences both parts).
 // Live regression guard moved to libs/builtin/tests/diff_complex_test.cpp.
 
-// bugs/builtin/diff-zero-order.md — diff(X,0) should error (MATLAB: "N must
-// be a positive integer scalar"); numkit currently returns identity.
-TEST_F(BuiltinKnownBug, DISABLED_DiffZeroOrderErrors)
+// bugs/builtin/diff-zero-order.md — diff(X,0) errors (MATLAB: "Difference
+// order N must be a positive integer scalar"). FIXED 2026-06-05 (deep coverage
+// in libs/builtin/tests/diff_order_test.cpp).
+TEST_F(BuiltinKnownBug, DiffZeroOrderErrors)
 {
     EXPECT_ANY_THROW(eval("diff([1 2 3], 0);"));
 }

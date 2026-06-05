@@ -3137,14 +3137,12 @@ TEST_P(CumLogicalTest, DiffOrderExceedsLengthReturnsEmpty)
     EXPECT_EQ(cols(*d), 0u);
 }
 
-TEST_P(CumLogicalTest, DiffOrderZeroReturnsCopy)
+// diff order 0 is rejected as of 2026-06-05 (was: returned an identity copy).
+// MATLAB: "Difference order N must be a positive integer scalar."
+// (bugs/builtin/diff-zero-order.md FIXED)
+TEST_P(CumLogicalTest, DiffOrderZeroErrors)
 {
-    eval("d = diff([1 3 6 10 15], 0);");
-    auto *d = getVarPtr("d");
-    EXPECT_EQ(rows(*d), 1u);
-    EXPECT_EQ(cols(*d), 5u);
-    EXPECT_DOUBLE_EQ(d->doubleData()[0], 1.0);
-    EXPECT_DOUBLE_EQ(d->doubleData()[4], 15.0);
+    EXPECT_ANY_THROW(eval("d = diff([1 3 6 10 15], 0);"));
 }
 
 TEST_P(CumLogicalTest, DiffMatrixSecondOrderDim2)
