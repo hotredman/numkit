@@ -258,6 +258,16 @@ TEST_F(BuiltinKnownBug, GammaNegativeIntegerPoles)
     EXPECT_DOUBLE_EQ(evalScalar("isnan(gamma(NaN))"), 1.0);
 }
 
+// bugs/builtin/polyder-product.md — FIXED (polyder(a,b) single output = product
+// derivative, not the quotient numerator). Dedicated guard in poly_test.cpp.
+TEST_F(BuiltinKnownBug, PolyderProduct)
+{
+    eval("d = polyder([1 0], [1 1]);");   // d/dx[x*(x+1)] = 2x+1 -> [2 1]
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(d)"), 2.0);
+}
+
 // bugs/builtin/concat-integer-types.md — OPEN (CORE: promoteNumericType rejects
 // integer types). MATLAB concatenates integers preserving the class. Flip the
 // DISABLED_ prefix when the core fix lands.

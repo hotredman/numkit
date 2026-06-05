@@ -483,6 +483,22 @@ void polyder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
         outs[0] = polyder(args[0], mr);
         return;
     }
+    // Two polynomials. MATLAB polyder(a,b):
+    //   * ONE output  -> derivative of the PRODUCT a*b  ( = polyder(conv(a,b)) )
+    //   * TWO outputs -> quotient rule [num,den] = d/dx(a/b)
+    // The single-output form was incorrectly returning the quotient NUMERATOR
+    // (conv(a',b)-conv(a,b')) instead of the product derivative
+    // (conv(a',b)+conv(a,b')). bugs/builtin/polyder-product.md.
+    if (nargout <= 1) {
+        ScratchArena scratch(mr);
+        auto av = readPolyAsDouble(args[0], "polyder", &scratch);
+        auto bv = readPolyAsDouble(args[1], "polyder", &scratch);
+        auto prod = polyConv(av.data(), av.size(), bv.data(), bv.size(), &scratch);
+        auto deriv = polyderRaw(prod.data(), prod.size(), &scratch);
+        trimLeadingZeros(deriv);
+        outs[0] = rowFromVec(deriv.data(), deriv.size(), mr);
+        return;
+    }
     auto [num, den] = polyder(args[0], args[1], mr);
     outs[0] = std::move(num);
     if (nargout > 1) outs[1] = std::move(den);
