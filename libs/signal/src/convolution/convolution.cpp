@@ -9,6 +9,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/value_type.hpp>
 
 #include "../dsp_helpers.hpp"
 
@@ -34,8 +35,33 @@ inline bool conv_use_fft(size_t na, size_t nb)
     return direct > fft;
 }
 
-Value conv(const Value &a, const Value &b, const std::string &shape, std::pmr::memory_resource *mr)
+// MATLAB conv promotes integer/logical inputs to double — the result is
+// always double, never the integer class (unlike kron/cross). Promote up
+// front so the real fast-path's doubleData() accessors are valid.
+static Value convPromoteToDouble(const Value &v, std::pmr::memory_resource *mr)
 {
+    const auto &d = v.dims();
+    Value r = d.is3D() ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+                       : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    const size_t n = v.numel();
+    double *dst = r.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
+    return r;
+}
+
+Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pmr::memory_resource *mr)
+{
+    auto needsPromote = [](const Value &v) {
+        return !v.isComplex() && (v.isLogical() || isIntegerType(v.type()));
+    };
+    Value aHold, bHold;
+    const bool aProm = needsPromote(aIn);
+    const bool bProm = needsPromote(bIn);
+    if (aProm) aHold = convPromoteToDouble(aIn, mr);
+    if (bProm) bHold = convPromoteToDouble(bIn, mr);
+    const Value &a = aProm ? aHold : aIn;
+    const Value &b = bProm ? bHold : bIn;
+
     const size_t na = a.numel(), nb = b.numel();
 
     // Complex inputs: convolution is BILINEAR, so the real/imag split used for

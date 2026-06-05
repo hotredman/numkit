@@ -2,6 +2,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_core_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/conv_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/conv_integer_input_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_design_test.cpp
