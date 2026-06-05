@@ -92,8 +92,8 @@ Discrete families (pmf closed-form kernel; cdf via per-element
 params → noninteger n/N/K → NaN, noninteger k → 0):
 - [x] **binomial** — binopdf / binocdf / binoinv (cycle 35, 2026-06-05)
 - [x] **poisson** — poisspdf / poisscdf / poissinv (cycle 35, 2026-06-05)
-- [ ] unid — unidpdf / unidcdf / unidinv
-- [ ] geometric — geopdf / geocdf / geoinv
+- [x] **unid** — unidpdf / unidcdf / unidinv (cycle 36, 2026-06-05; closed-form)
+- [x] **geometric** — geopdf / geocdf / geoinv (cycle 36, 2026-06-05; closed-form)
 - [ ] negbin — nbinpdf / nbincdf / nbininv
 - [ ] hypergeom — hygepdf / hygecdf / hygeinv
 
