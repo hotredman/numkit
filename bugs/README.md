@@ -3,8 +3,8 @@
 Structured bug catalog. **Every bug gets its own `.md` file** here, with a
 self-contained repro (numkit output vs MATLAB R2025b) so any session can
 pick it up cold. This complements the flat append-only [BUGS.md](../BUGS.md)
-(quick running log) and is distinct from `audit/findings/**` (the parallel
-auditor worker's territory — do not write there from the main worker).
+(quick running log). The full MATLAB parity-gap inventory (missing / partial
+functions) lives in [PARITY_GAPS.md](PARITY_GAPS.md).
 
 ## Layout
 

@@ -300,10 +300,12 @@ and preview ↔ modal coherence).
       canvas data-URL, axisVisible suppresses ticks/frame.
       `axis off` / `axis on` builtin extension flips axisVisible.
       Tests: gtest `figure_test.cpp::ImshowTest` (7 cases), parity
-      spec, smoke .m, e2e `imshow.spec.js` (8 cases). Deferred
-      parts in `audit/findings/graphics/imshow.md`: filename input,
-      `'DisplayRange'`/`'XData'`/`'Colormap'` N-V parsing, RGBA
-      M×N×4, `imref2d` spatial referencing.
+      spec, smoke .m, e2e `imshow.spec.js` (8 cases). Implemented:
+      filename input, `'DisplayRange'`/`'XData'`/`'YData'`/`'Colormap'`
+      N-V parsing, RGBA M×N×4. Deferred (display-only / graphics-object,
+      out of headless scope): `'InitialMagnification'` (numeric),
+      `'Border'`, `'Reduce'` toggle, `'Parent'` handle, `imref2d`
+      spatial referencing.
 
 ## Backlog (remaining)
 
