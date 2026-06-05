@@ -1,9 +1,36 @@
 # signal.impinvar — wrong numerator for repeated poles
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P1 (wrong result for repeated-pole inputs)
 - **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 41),
+  `libs/signal/src/filter_design/analog_filters.cpp` (`impinvar`). Rewrote the
+  whole partial-fraction → z-domain path to handle ANY pole multiplicity
+  (distinct case reduces to the old formula and is unchanged). NO change to
+  `builtin::residue` (kept residues inline — partial-fraction ORDER is
+  irrelevant for the final bz/az sum, avoiding the fragile residue-ordering
+  match).
+- Algorithm (per the Investigation notes below, all verified bit-exact):
+  cluster the roots of `a` (mpoles-style, rel tol 1e-3), take each cluster
+  CENTROID and Newton-refine it on `a^{(m-1)}` (an m-fold root of `a` is a
+  SIMPLE root of `a^{(m-1)}`, so `s -= t_{m-1}/(m·t_m)` converges to the exact
+  pole — fixes the `roots()` spread that made the triple/quad cases imprecise);
+  residues with multiplicity via Taylor-series division of `B(p+u)/Ã(p+u)`
+  (`Ã` = `a` Taylor about `p` shifted by `M`), `r_m = c_{M-m}`; then the
+  impulse-invariant Eulerian z-kernel `r_m·Tᵐ/(m-1)!·N_m(α z⁻¹)·(1-α z⁻¹)^{M-m}`
+  times the co-factor, reassembled over `a_d = ∏(1-α z⁻¹)^M`.
+- Verified vs MATLAB R2025b: double `1/(s+1)²` → `bz=[0 0.00904837418]`,
+  `az=[1 -1.809674836 0.8187307531]`; triple `1/(s+1)³` →
+  `bz=[0 0.000452418709 0.0004093653765]`; quadruple `(s+1)⁴`; mixed
+  `[1 2]/((s+1)²(s+2))` → `bz=[0 0.00904837418 -0.007408182207]`; distinct
+  `1/((s+1)(s+2))` unchanged (regression).
+- Live guard: `libs/signal/tests/impinvar_test.cpp` (5 TEST_F) + flipped
+  `SignalKnownBug.ImpinvarRepeatedPoles` live. Parity:
+  `tools/parity/specs/impinvar.json` strengthened with real bz/az fingerprints
+  (was numel-only; correctness=OK). Smoke: `libs/signal/tests/smoke/impinvar_smoke.m`.
 
 ## Symptom
 `impinvar` (impulse-invariance analog→digital) gives the wrong **numerator**
