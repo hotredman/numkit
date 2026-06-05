@@ -95,14 +95,12 @@ TEST_F(BuiltinKnownBug, DISABLED_DiffZeroOrderErrors)
     EXPECT_ANY_THROW(eval("diff([1 2 3], 0);"));
 }
 
-// bugs/builtin/complex-input-unsupported.md — umbrella; all but FILTER now
-// FIXED (own live guards). Last remaining gap: filter (libs/signal):
-TEST_F(BuiltinKnownBug, DISABLED_ComplexInputUnsupported)
-{
-    eval("y = filter([1 1], 1, [1i 1i 1i]);");   // MATLAB: y(2) = 0+2i
-    EXPECT_NEAR(evalScalar("real(y(2))"), 0.0, 1e-12);
-    EXPECT_NEAR(evalScalar("imag(y(2))"), 2.0, 1e-12);
-}
+// bugs/builtin/complex-input-unsupported.md — FULLY FIXED 2026-06-05. All nine
+// members (trapz/cumtrapz/median/interp1/gradient/movmean/detrend/conv/filter)
+// accept complex now, each with its own live guard:
+//   libs/builtin/tests/{trapz,cumtrapz,interp1,gradient}_complex_test.cpp,
+//   libs/stats/tests/{median,movmean,detrend}_complex_test.cpp,
+//   libs/signal/tests/{conv,filter}_complex_test.cpp.
 
 // bugs/builtin/gradient-3d.md — gradient of an N-D (3-D) array.
 TEST_F(BuiltinKnownBug, DISABLED_Gradient3D)

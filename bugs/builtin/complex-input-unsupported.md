@@ -1,6 +1,6 @@
 # (cross-cutting) complex inputs unsupported across several functions
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05) — all nine members now accept complex
 - **Severity:** P2 (errors where MATLAB returns a value)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (complex-input sweep)
@@ -14,7 +14,7 @@ accepts complex for all of them.
 | Function | numkit | MATLAB |
 |---|---|---|
 | `conv([1 1i],[1 1])` | ✅ FIXED 2026-06-05 → `[1  1+1i  1i]` | `[1  1+1i  1i]` |
-| `filter([1 1],1,[1i 1i])` | Not a double array | `[1i  2i]` |
+| `filter([1 1],1,[1i 1i])` | ✅ FIXED 2026-06-05 → `[1i 2i]` | `[1i  2i]` |
 | `trapz([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `4+4i` | `4+4i` |
 | `cumtrapz(...)` | ✅ FIXED 2026-06-05 → `[0 1.5+1.5i 4+4i]` | `[…  4+4i]` |
 | `gradient([1+1i 3+3i 5+5i])` | ✅ FIXED 2026-06-05 → `[2+2i …]` | `[2+2i …]` |
@@ -113,5 +113,22 @@ be closed incrementally; this entry is the tracking umbrella.
   (`libs/signal/src/convolution/convolution.cpp`). Live guard
   `libs/signal/tests/conv_complex_test.cpp`, parity `tools/parity/specs/conv.json`
   (OK), smoke `libs/signal/tests/smoke/conv_complex_smoke.m`.
-- ⏳ Remaining: filter (libs/signal — likewise bilinear: complex b/a taps
-  and/or complex x). When filter closes, flip this umbrella to ✅ FIXED.
+- ✅ **filter** — 2026-06-05 (bug-fix loop, cycle 15). filter is BILINEAR (the
+  recursive a-part mixes terms), so the Direct Form II transposed recurrence
+  runs over Complex (NOT a split): a complex `applyFilterDf2tComplex` core +
+  complex branches in both `filter()` and the `filter_reg` zi/[y,zf] path
+  (`libs/signal/src/digital_filtering/filter.cpp`). Covers FIR/IIR, complex b/a
+  taps, complex x, zi initial conditions, the [y,zf] final state, and the
+  matrix-per-column form. Live guard `libs/signal/tests/filter_complex_test.cpp`,
+  parity `tools/parity/specs/filter.json` (OK), smoke
+  `libs/signal/tests/smoke/filter_complex_smoke.m`.
+
+## ✅ Umbrella fully closed (2026-06-05)
+All nine members accept complex now — trapz, cumtrapz, median, interp1,
+gradient, movmean, detrend, conv, filter — each with its own parity spec,
+live gtest and smoke. The linear ops use a real/imag split; conv/filter use a
+genuine complex multiply-accumulate (they are bilinear). The umbrella DISABLED
+guard was retired (every member has its own live guard). Related complex gaps
+remain tracked separately: N-D gradient (gradient-3d.md), complex MATRIX linear
+algebra (linalg/complex-matrix-unsupported.md), and the sqrt/acosh/atanh array
+promotion (complex-promotion-arrays.md, also FIXED).
