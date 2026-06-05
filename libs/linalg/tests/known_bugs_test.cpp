@@ -32,8 +32,9 @@ TEST_F(LinalgKnownBug, QrColumnPivoting)
     EXPECT_DOUBLE_EQ(evalScalar("p2(2)"), 1.0);
 }
 
-// bugs/linalg/eig-left-vectors.md — 3rd output W (left eigenvectors).
-TEST_F(LinalgKnownBug, DISABLED_EigLeftVectors)
+// bugs/linalg/eig-left-vectors.md — 3rd output W (left eigenvectors). FIXED
+// 2026-06-05 (deep coverage in libs/linalg/tests/eig_left_vectors_test.cpp).
+TEST_F(LinalgKnownBug, EigLeftVectors)
 {
     eval("A = [4 -2; 1 1]; [V, D, W] = eig(A);");
     // Left eigenvectors satisfy W'*A = D*W'.

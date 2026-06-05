@@ -737,6 +737,52 @@ std::tuple<Value, Value> eigVDAuto(const Value &M, std::pmr::memory_resource *mr
 
 } // namespace
 
+// Left eigenvectors W (the [V,D,W]=eig form): W'·A = D·W', i.e. the columns of
+// W are the right eigenvectors of Aᵀ. We eig(Mᵀ), reorder its columns to match
+// the eigenvalue order of D, and normalize each to unit 2-norm (MATLAB). For
+// symmetric M this reduces to W == V. Only real-eigenvalue M is supported (the
+// general eig path itself throws on complex eigenvalues).
+static Value leftEigenvectors(const Value &M, const Value &D,
+                              std::pmr::memory_resource *mr)
+{
+    const std::size_t n = static_cast<std::size_t>(M.dims().dim(0));
+    // Mᵀ.
+    Value Mt = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *mt = Mt.doubleDataMut();
+    for (std::size_t j = 0; j < n; ++j)
+        for (std::size_t i = 0; i < n; ++i)
+            mt[i + j * n] = M.elemAsDouble(j + i * n);   // Mᵀ(i,j) = M(j,i)
+
+    auto [VL, DL] = eigVDAuto(Mt, mr);
+
+    std::vector<double> d(n), dl(n);
+    for (std::size_t k = 0; k < n; ++k) d[k]  = D.elemAsDouble(k + k * n);
+    for (std::size_t k = 0; k < n; ++k) dl[k] = DL.elemAsDouble(k + k * n);
+
+    const double *vld = VL.doubleData();
+    Value W = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *wd = W.doubleDataMut();
+    std::vector<bool> used(n, false);
+    for (std::size_t k = 0; k < n; ++k) {
+        // Match D's k-th eigenvalue to the nearest unused eigenvalue of Mᵀ.
+        std::size_t best = n;
+        double bestErr = std::numeric_limits<double>::infinity();
+        for (std::size_t j = 0; j < n; ++j) {
+            if (used[j]) continue;
+            const double e = std::fabs(dl[j] - d[k]);
+            if (e < bestErr) { bestErr = e; best = j; }
+        }
+        used[best] = true;
+        double nrm = 0.0;
+        for (std::size_t i = 0; i < n; ++i)
+            nrm += vld[i + best * n] * vld[i + best * n];
+        nrm = std::sqrt(nrm);
+        for (std::size_t i = 0; i < n; ++i)
+            wd[i + k * n] = (nrm > 0.0) ? vld[i + best * n] / nrm : vld[i + best * n];
+    }
+    return W;
+}
+
 void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty() || args.size() > 3)
@@ -777,6 +823,8 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 
     if (nargout >= 2) {
         auto [V, D] = eigVDAuto(M, mr);
+        if (nargout >= 3)
+            outs[2] = leftEigenvectors(M, D, mr);   // left eigenvectors
         outs[0] = std::move(V);
         outs[1] = std::move(D);
         return;
