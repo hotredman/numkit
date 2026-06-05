@@ -56,14 +56,15 @@ TEST_F(BuiltinKnownBug, DISABLED_UniqueStableLast)
 // test is MathReductionsBatchTest.MaxMinAll in math_reductions_batch_test.cpp.
 
 // bugs/builtin/cellfun-inputforms.md — multiple cell arrays + string name.
-TEST_F(BuiltinKnownBug, DISABLED_CellfunMultiCell)
+// FIXED 2026-06-05 (deep coverage in libs/builtin/tests/cellfun_inputforms_test.cpp).
+TEST_F(BuiltinKnownBug, CellfunMultiCell)
 {
     eval("r = cellfun(@(a,b) a+b, {1,2}, {10,20});");   // MATLAB: [11 22]
     EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 11.0);
     EXPECT_DOUBLE_EQ(evalScalar("r(2)"), 22.0);
 }
 
-TEST_F(BuiltinKnownBug, DISABLED_CellfunStringName)
+TEST_F(BuiltinKnownBug, CellfunStringName)
 {
     eval("r = cellfun('isempty', {[], [1], []});");     // MATLAB: [1 0 1]
     EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 1.0);

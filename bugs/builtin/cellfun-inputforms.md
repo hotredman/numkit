@@ -1,6 +1,6 @@
 # builtin.cellfun — multiple cell arrays + string function-name forms unsupported
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P2 (missing input forms)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (function-handle sweep)
@@ -44,6 +44,30 @@ as the first argument.
   `ndims`, `prodofsize`, `size`, `isreal`, `islogical`, `isclass`) to the
   corresponding per-cell operation. Moderate; `arrayfun` multi-array is the
   model for the multi-cell part.
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 21),
+  `libs/builtin/src/language/cells/cell.cpp`.
+- **Multi-cell:** `cellfun_reg` now collects all leading cell-array positional
+  args (until the first option), requires equal sizes, and zips them through a
+  new `cellfunN` helper that calls `fn(C1{i}, C2{i}, …)` per element via the
+  engine handle (covers anonymous `@(a,b)…` and multi-arg builtins like
+  `@plus`). `'UniformOutput'` is parsed at `1 + nCells`. The pausable
+  state-machine path falls back to the synchronous reg when a second leading
+  cell is present (one added `args[2].isCell()` guard).
+- **String-name:** a new `cellfunStringForm` handles the legacy
+  `cellfun('name', C[, extra])` forms: `isempty`/`isreal`/`islogical` →
+  logical, `length`/`ndims`/`prodofsize` → double, `size`,C,k → `size(C{i},k)`,
+  `isclass`,C,'cls' → `isa(C{i},'cls')`. An unrecognised name errors with a
+  "pass a function handle" hint.
+- Verified vs MATLAB R2025b: `cellfun(@(a,b)a+b,{1,2,3},{10,20,30})=[11 22 33]`,
+  3-cell `[111 222]`, multi-cell `UniformOutput=false` → cell, all eight string
+  names (incl. `size` dim and `isclass`). Single-cell + builtin-handle
+  fast-paths unchanged.
+- Live guard: `libs/builtin/tests/cellfun_inputforms_test.cpp` (8 TEST_F) +
+  flipped `BuiltinKnownBug.CellfunMultiCell` / `CellfunStringName` live. Parity:
+  `tools/parity/specs/cellfun.json` (extended; correctness=OK). Smoke:
+  `libs/builtin/tests/smoke/cellfun_inputforms_smoke.m`.
 
 ## References
 - `libs/builtin/src/language/cells/cell.cpp` (cellfun, cellfun_reg)

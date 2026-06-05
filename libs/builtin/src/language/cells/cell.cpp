@@ -397,6 +397,11 @@ struct CellfunCallbackBuiltin : CallbackBuiltin
             return nullptr; // builtin handle → fast synchronous path
         if (!args[1].isCell())
             return nullptr; // synchronous path reports notCell
+        // Multi-cell form (cellfun(fn, C1, C2, ...)) → synchronous path, which
+        // zips the leading cell arrays; the pausable state machine only drives
+        // the single-cell user-handle case.
+        if (args.size() > 2 && args[2].isCell())
+            return nullptr;
         // Parse 'UniformOutput' exactly as the synchronous path (throws on
         // unsupported options — same error the user would otherwise get).
         const bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
@@ -442,37 +447,184 @@ struct CellfunCallbackBuiltin : CallbackBuiltin
     }
 };
 
+// Multi-cell cellfun: zip the leading cell arrays and apply `apply` per element
+// (apply receives {C1{i}, C2{i}, ...}). Packs a uniform (scalar) result or a
+// cell, with the shape of the first cell. Mirrors the single-cell cellfun().
+template <typename Apply>
+static Value cellfunN(Span<const Value> cells, bool uniformOutput, Apply apply,
+                      std::pmr::memory_resource *mr)
+{
+    const size_t nc = cells.size();
+    const Value &C0 = cells[0];
+    const size_t n  = C0.numel();
+    ScratchArena scratch(mr);
+    ScratchVec<Value> results(&scratch);
+    results.reserve(n);
+    ScratchVec<Value> argbuf(nc, &scratch);
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t k = 0; k < nc; ++k) argbuf[k] = cells[k].cellAt(i);
+        Value out;
+        Span<const Value> ar(argbuf.data(), nc);
+        Span<Value>       ou(&out, 1);
+        apply(ar, ou, mr);
+        results.push_back(std::move(out));
+    }
+    const auto &d = C0.dims();
+    const size_t r = d.rows(), cc = d.cols(), p = d.is3D() ? d.pages() : 0;
+    if (uniformOutput) {
+        const ValueType outT = (n > 0 && results[0].isLogical())
+                               ? ValueType::LOGICAL : ValueType::DOUBLE;
+        Value out = (p > 0) ? Value::matrix3d(r, cc, p, outT, mr)
+                            : Value::matrix(r, cc, outT, mr);
+        for (size_t i = 0; i < n; ++i) {
+            const Value &v = results[i];
+            if (!v.isScalar())
+                throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', false",
+                             0, 0, "cellfun", "", "numkit:cellfun:notScalar");
+            if (outT == ValueType::LOGICAL) out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
+            else                            out.doubleDataMut()[i]  = v.toScalar();
+        }
+        return out;
+    }
+    Value out = (p > 0) ? Value::cell3D(r, cc, p) : Value::cell(r, cc);
+    for (size_t i = 0; i < n; ++i) out.cellAt(i) = std::move(results[i]);
+    return out;
+}
+
+// Legacy string-function-name forms — MATLAB cellfun('name', C[, extra]):
+//   isempty | islogical | isreal  → logical per cell
+//   length | ndims | prodofsize   → double per cell
+//   size, C, k                    → size(C{i}, k)
+//   isclass, C, 'classname'       → isa(C{i}, classname)
+static Value cellfunStringForm(Span<const Value> args, std::pmr::memory_resource *mr)
+{
+    const std::string name = hf::lowerName(args[0].toString());
+    if (args.size() < 2 || !args[1].isCell())
+        throw Error("cellfun: the '" + name + "' form requires a cell array",
+                     0, 0, "cellfun", "", "numkit:cellfun:notCell");
+    const Value &C = args[1];
+    const size_t n = C.numel();
+
+    int sizeDim = 0;
+    std::string clsName;
+    const bool isSize    = (name == "size");
+    const bool isIsclass = (name == "isclass");
+    const bool wantLogical =
+        (name == "isempty" || name == "isreal" || name == "islogical" || isIsclass);
+
+    if (isSize) {
+        if (args.size() < 3)
+            throw Error("cellfun: the 'size' form needs a dimension: cellfun('size', C, k)",
+                         0, 0, "cellfun", "", "numkit:cellfun:badName");
+        sizeDim = static_cast<int>(args[2].toScalar());
+        if (sizeDim < 1)
+            throw Error("cellfun: 'size' dimension must be a positive integer",
+                         0, 0, "cellfun", "", "numkit:cellfun:badName");
+    } else if (isIsclass) {
+        if (args.size() < 3 || !(args[2].isChar() || args[2].isString()))
+            throw Error("cellfun: the 'isclass' form needs a class name: cellfun('isclass', C, 'cls')",
+                         0, 0, "cellfun", "", "numkit:cellfun:badName");
+        clsName = args[2].toString();
+    } else if (!(name == "isempty" || name == "length" || name == "ndims"
+              || name == "prodofsize" || name == "isreal" || name == "islogical")) {
+        throw Error("cellfun: '" + name + "' is not a recognised function name; "
+                    "pass a function handle (e.g. @" + name + ") instead",
+                     0, 0, "cellfun", "", "numkit:cellfun:badName");
+    }
+
+    const auto &d = C.dims();
+    const size_t r = d.rows(), cc = d.cols(), p = d.is3D() ? d.pages() : 0;
+    const ValueType outT = wantLogical ? ValueType::LOGICAL : ValueType::DOUBLE;
+    Value out = (p > 0) ? Value::matrix3d(r, cc, p, outT, mr)
+                        : Value::matrix(r, cc, outT, mr);
+    for (size_t i = 0; i < n; ++i) {
+        const Value e = C.cellAt(i);
+        double val = 0.0;
+        if (name == "isempty")          val = (e.isEmpty() || e.numel() == 0) ? 1.0 : 0.0;
+        else if (name == "islogical")   val = e.isLogical() ? 1.0 : 0.0;
+        else if (name == "isreal")      val = e.isComplex() ? 0.0 : 1.0;
+        else if (name == "ndims")       val = static_cast<double>(e.dims().ndim());
+        else if (name == "prodofsize")  val = static_cast<double>(e.numel());
+        else if (name == "length") {
+            if (e.numel() == 0) val = 0.0;
+            else {
+                size_t mx = 0; const auto &ed = e.dims();
+                for (int k = 0; k < ed.ndim(); ++k)
+                    if (ed.dim(k) > mx) mx = ed.dim(k);
+                val = static_cast<double>(mx);
+            }
+        }
+        else if (isSize)                val = static_cast<double>(e.dims().dim(sizeDim - 1));
+        else if (isIsclass)             val = (clsName == hf::classNameOf(e)) ? 1.0 : 0.0;
+        if (wantLogical) out.logicalDataMut()[i] = (val != 0.0) ? 1 : 0;
+        else             out.doubleDataMut()[i]  = val;
+    }
+    return out;
+}
+
 void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("cellfun: requires at least 2 arguments (fn, C)",
                      0, 0, "cellfun", "", "numkit:cellfun:nargin");
-    bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
-
     auto *mr = ctx.engine->resource();
-    hf::BuiltinFn f = hf::BuiltinFn::Numel;
-    const bool isBuiltin = hf::tryParseBuiltinHandle(args[0], f, "cellfun");
 
-    if (uniform && isBuiltin && hf::builtinReturnsString(f))
-        throw Error("cellfun: @class output must use UniformOutput=false",
-                     0, 0, "cellfun", "", "numkit:cellfun:nonUniform");
-
-    if (isBuiltin) {
-        auto cb = [f](Span<const Value> ar, Span<Value> ou,
-                      std::pmr::memory_resource *mr_) {
-            ou[0] = hf::applyBuiltin(mr_, f, ar[0], "cellfun");
-        };
-        outs[0] = cellfun(cb, args[1], uniform, mr);
-    } else {
-        const auto &handle = args[0];
-        auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
-                                   std::pmr::memory_resource * /*mr*/) {
-            auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
-            for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
-                ou[i] = std::move(r[i]);
-        };
-        outs[0] = cellfun(cb, args[1], uniform, mr);
+    // Legacy string-function-name form: cellfun('isempty', C), cellfun('size', C, k), …
+    if (args[0].isChar() || args[0].isString()) {
+        outs[0] = cellfunStringForm(args, mr);
+        return;
     }
+
+    // Collect the leading cell arrays (multi-cell zip); name/value options follow.
+    size_t nCells = 0;
+    while (1 + nCells < args.size() && args[1 + nCells].isCell()) ++nCells;
+    if (nCells == 0)
+        throw Error("cellfun: second argument must be a cell array",
+                     0, 0, "cellfun", "", "numkit:cellfun:notCell");
+    const bool uniform = hf::parseUniformOutputFlag(args, 1 + nCells, "cellfun");
+
+    if (nCells == 1) {
+        // Single cell — built-in fast-path or engine handle (unchanged behaviour).
+        hf::BuiltinFn f = hf::BuiltinFn::Numel;
+        const bool isBuiltin = hf::tryParseBuiltinHandle(args[0], f, "cellfun");
+        if (uniform && isBuiltin && hf::builtinReturnsString(f))
+            throw Error("cellfun: @class output must use UniformOutput=false",
+                         0, 0, "cellfun", "", "numkit:cellfun:nonUniform");
+        if (isBuiltin) {
+            auto cb = [f](Span<const Value> ar, Span<Value> ou,
+                          std::pmr::memory_resource *mr_) {
+                ou[0] = hf::applyBuiltin(mr_, f, ar[0], "cellfun");
+            };
+            outs[0] = cellfun(cb, args[1], uniform, mr);
+        } else {
+            const auto &handle = args[0];
+            auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                                       std::pmr::memory_resource * /*mr*/) {
+                auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+                for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+                    ou[i] = std::move(r[i]);
+            };
+            outs[0] = cellfun(cb, args[1], uniform, mr);
+        }
+        return;
+    }
+
+    // Multiple cells: all must be the same size; apply fn(C1{i}, …, Cn{i})
+    // through the engine handle (covers @(a,b)… and multi-arg builtins like
+    // @plus; the unary built-in fast-path doesn't fit a multi-cell call).
+    const size_t n0 = args[1].numel();
+    for (size_t k = 1; k < nCells; ++k)
+        if (args[1 + k].numel() != n0)
+            throw Error("cellfun: all of the input cell arrays must be the same size",
+                         0, 0, "cellfun", "", "numkit:cellfun:size");
+    const auto &handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = cellfunN(Span<const Value>(&args[1], nCells), uniform, cb, mr);
 }
 
 void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
