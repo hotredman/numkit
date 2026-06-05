@@ -730,6 +730,9 @@ void Engine::unregisterClassDef(const std::string &name)
     // instead of serving the stale cache — the core of the redefinition bug.
     if (compiler_)
         compiler_->eraseCompiledFuncsForClass(name);
+    // Source AST kept for derived-class re-merge — drop it too (the cascade in
+    // reregisterDerivedClasses holds its own shared_ptr across this erase).
+    classDefAst_.erase(name);
     // Drop the registry class last: registerClass throws on a duplicate, so the
     // re-registration that follows depends on this entry being gone.
     classes_.erase(name);
@@ -778,7 +781,8 @@ void Engine::registerClassDef(const ASTNode *cd, const std::string &qualifiedNam
     if (auto dot = classLeaf.rfind('.'); dot != std::string::npos)
         classLeaf = classLeaf.substr(dot + 1);
 
-    if (findClass(className))
+    const bool wasRedefinition = findClass(className) != nullptr;
+    if (wasRedefinition)
         // Redefinition (REPL / IDE re-run of `classdef Name … end`): evict the
         // old class wholesale, then fall through to re-register. The previous
         // idempotent early-return silently ignored the new body — so rewriting
@@ -1275,6 +1279,54 @@ void Engine::registerClassDef(const ASTNode *cd, const std::string &qualifiedNam
                                     CallContext &) { outs[0] = inst; });
         }
     }
+
+    // Remember the source AST so a later base-class redefinition can re-merge
+    // this class (see reregisterDerivedClasses). Cloned because `cd` may be
+    // transient — resolveMFile_'s parsed AST is freed once this returns, and on
+    // a redefinition `cd` may alias the very entry we overwrite here (the
+    // cascade holds its own shared_ptr to keep it alive across this clone).
+    classDefAst_[className] = std::shared_ptr<const ASTNode>(cloneNode(cd));
+
+    // Redefinition of an already-registered class → re-register every class that
+    // (transitively) derives from it so the new members propagate to subclasses
+    // (which hold a snapshot of the base's methods/props). Guarded so the nested
+    // registerClassDef calls don't each re-cascade.
+    if (wasRedefinition && !suppressDependentCascade_)
+        reregisterDerivedClasses(className);
+}
+
+void Engine::reregisterDerivedClasses(const std::string &base)
+{
+    // Classes whose transitive superclasses include `base`.
+    std::vector<std::string> deps;
+    for (const auto &[name, desc] : classDefs_) {
+        if (name == base)
+            continue;
+        if (std::find(desc->superclasses.begin(), desc->superclasses.end(), base)
+            != desc->superclasses.end())
+            deps.push_back(name);
+    }
+    if (deps.empty())
+        return;
+    // Parent-first: a subclass's transitive-ancestor set strictly contains each
+    // ancestor's, so ascending ancestor count is a valid topological order (a
+    // base is re-registered before any class that derives from it).
+    std::sort(deps.begin(), deps.end(), [&](const std::string &a, const std::string &b) {
+        return classDefs_[a]->superclasses.size() < classDefs_[b]->superclasses.size();
+    });
+    const bool prev = suppressDependentCascade_;
+    suppressDependentCascade_ = true;
+    for (const auto &name : deps) {
+        auto it = classDefAst_.find(name);
+        if (it == classDefAst_.end() || !it->second)
+            continue;
+        // Hold our own ref: registerClassDef → unregisterClassDef erases the map
+        // entry, then re-stores a fresh clone; this keeps the node alive in
+        // between. Re-register under the same (possibly qualified) name.
+        std::shared_ptr<const ASTNode> ast = it->second;
+        registerClassDef(ast.get(), name);
+    }
+    suppressDependentCascade_ = prev;
 }
 
 namespace {

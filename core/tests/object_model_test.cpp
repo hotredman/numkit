@@ -1190,6 +1190,47 @@ TEST_P(ClassdefRedefineTest, ClearAllRemovesUserClass)
         << "class must be gone after `clear all`";
 }
 
+TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesToDerived)
+{
+    // Redefining ONLY the base must propagate to subclasses, which hold a
+    // snapshot of the base's methods. Before the fix the derived kept the old
+    // base method body.
+    eval("classdef RBase\n  properties\n    tag = 0\n  end\n"
+         "  methods\n    function r = baseVal(obj)\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef RDer < RBase\n"
+         "  methods\n    function b = ownVal(obj)\n      b = 100;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("d = RDer; d.baseVal()"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d = RDer; d.ownVal()"), 100.0);
+    eval("classdef RBase\n  properties\n    tag = 0\n  end\n"
+         "  methods\n    function r = baseVal(obj)\n      r = 2;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("d = RDer; d.baseVal()"), 2.0)
+        << "derived must see the redefined base method (was 1 before the fix)";
+    EXPECT_DOUBLE_EQ(evalScalar("d = RDer; d.ownVal()"), 100.0) << "own method intact";
+}
+
+TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesProperty)
+{
+    eval("classdef RBP\n  properties\n    p = 1\n  end\nend\n");
+    eval("classdef RDP2 < RBP\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDP2; o.p"), 1.0);
+    eval("classdef RBP\n  properties\n    p = 9\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDP2; o.p"), 9.0)
+        << "derived must see the redefined base property default";
+}
+
+TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesTransitively)
+{
+    eval("classdef RG1\n  properties\n    tag = 0\n  end\n"
+         "  methods\n    function r = gv(obj)\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef RG2 < RG1\nend\n");
+    eval("classdef RG3 < RG2\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("x = RG3; x.gv()"), 1.0);
+    eval("classdef RG1\n  properties\n    tag = 0\n  end\n"
+         "  methods\n    function r = gv(obj)\n      r = 3;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("x = RG3; x.gv()"), 3.0)
+        << "grandchild must see the redefined grandparent method";
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ClassdefRedefineTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
