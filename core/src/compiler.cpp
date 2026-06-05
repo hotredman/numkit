@@ -3408,6 +3408,23 @@ void Compiler::registerFunctionAs(const std::string &qualifiedName,
     }
 }
 
+void Compiler::eraseCompiledFuncsForClass(const std::string &className)
+{
+    // Method chunks are keyed by their fully-qualified name "ClassName>method"
+    // (set in ensureClassMethodCompiled). Erase every such key so a redefined
+    // class recompiles fresh bodies rather than serving the stale cache — the
+    // root of "I rewrote the method but behaviour didn't change". Inherited
+    // methods keep their own "Base>method" keys and are untouched.
+    const std::string prefix = className + ">";
+    auto matches = [&](const std::string &k) {
+        return k.size() > prefix.size() && k.compare(0, prefix.size(), prefix) == 0;
+    };
+    for (auto it = compiledFuncs_.begin(); it != compiledFuncs_.end();)
+        it = matches(it->first) ? compiledFuncs_.erase(it) : std::next(it);
+    for (auto it = uncompilableClassMethods_.begin(); it != uncompilableClassMethods_.end();)
+        it = matches(*it) ? uncompilableClassMethods_.erase(it) : std::next(it);
+}
+
 const BytecodeChunk *Compiler::ensureClassMethodCompiled(const UserFunction &uf)
 {
     auto it = compiledFuncs_.find(uf.name);

@@ -1067,6 +1067,113 @@ INSTANTIATE_TEST_SUITE_P(Backends, AttrClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef redefinition: re-running `classdef Name … end` must REPLACE the
+//    class wholesale, not silently keep the old one. The previous idempotent
+//    early-return in registerClassDef ignored the new body, so rewriting a
+//    method/ctor/static/constant had no effect until a full restart — the
+//    "I rewrote the method but behaviour didn't change" bug. Stale compiled
+//    method chunks (keyed "Name>method") were the VM-side culprit; the
+//    qualified `Name.static` / `Name.CONST` externals (which throw on a
+//    duplicate registration) were the other half. ──
+class ClassdefRedefineTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override { engine.setBackend(GetParam()); }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    void eval(const std::string &c) { engine.eval(c); }
+};
+
+TEST_P(ClassdefRedefineTest, MethodBodyRedefinitionTakesEffect)
+{
+    eval("classdef RDM\n"
+         "  properties\n    seed = 0\n  end\n"
+         "  methods\n"
+         "    function obj = RDM(s)\n      obj.seed = s;\n    end\n"
+         "    function r = val(obj)\n      r = obj.seed + 10;\n    end\n"
+         "  end\n"
+         "end\n");
+    EXPECT_DOUBLE_EQ(evalScalar("c = RDM(5); c.val()"), 15.0);
+    // Rewrite the method body and re-run the classdef (REPL / IDE re-run).
+    eval("classdef RDM\n"
+         "  properties\n    seed = 0\n  end\n"
+         "  methods\n"
+         "    function obj = RDM(s)\n      obj.seed = s;\n    end\n"
+         "    function r = val(obj)\n      r = obj.seed + 20;\n    end\n"
+         "  end\n"
+         "end\n");
+    EXPECT_DOUBLE_EQ(evalScalar("c = RDM(5); c.val()"), 25.0)
+        << "redefined method body must take effect (was 15 before the fix)";
+}
+
+TEST_P(ClassdefRedefineTest, ConstructorBodyRedefinitionTakesEffect)
+{
+    eval("classdef RDC\n"
+         "  properties\n    seed = 0\n  end\n"
+         "  methods\n"
+         "    function obj = RDC(s)\n      obj.seed = s;\n    end\n"
+         "  end\n"
+         "end\n");
+    EXPECT_DOUBLE_EQ(evalScalar("c = RDC(5); c.seed"), 5.0);
+    eval("classdef RDC\n"
+         "  properties\n    seed = 0\n  end\n"
+         "  methods\n"
+         "    function obj = RDC(s)\n      obj.seed = s * 100;\n    end\n"
+         "  end\n"
+         "end\n");
+    EXPECT_DOUBLE_EQ(evalScalar("c = RDC(5); c.seed"), 500.0)
+        << "redefined constructor body must take effect";
+}
+
+TEST_P(ClassdefRedefineTest, PropertyDefaultRedefinitionTakesEffect)
+{
+    eval("classdef RDP\n  properties\n    tag = 1\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDP; o.tag"), 1.0);
+    eval("classdef RDP\n  properties\n    tag = 7\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDP; o.tag"), 7.0)
+        << "redefined property default must take effect";
+}
+
+TEST_P(ClassdefRedefineTest, StaticMethodRedefinitionTakesEffect)
+{
+    // Exercises the `Name.static` qualified-external eviction: re-registering
+    // the same full name throws on duplicate, so without eviction this CRASHES.
+    eval("classdef RDS\n  methods (Static)\n"
+         "    function r = s()\n      r = 1;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RDS.s()"), 1.0);
+    eval("classdef RDS\n  methods (Static)\n"
+         "    function r = s()\n      r = 2;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RDS.s()"), 2.0)
+        << "redefined static method must take effect";
+}
+
+TEST_P(ClassdefRedefineTest, ConstantRedefinitionTakesEffect)
+{
+    // Exercises the `Name.CONST` qualified-external eviction (same throw risk).
+    eval("classdef RDK\n  properties (Constant)\n    K = 10\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RDK.K"), 10.0);
+    eval("classdef RDK\n  properties (Constant)\n    K = 20\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RDK.K"), 20.0)
+        << "redefined constant must take effect";
+}
+
+TEST_P(ClassdefRedefineTest, RedefineDoesNotDisturbOtherClasses)
+{
+    // Prefix-isolation guard: evicting "RDA>" chunks must NOT touch "RDAB>".
+    eval("classdef RDA\n  methods\n    function r = f(obj)\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef RDAB\n  methods\n    function r = f(obj)\n      r = 99;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("a = RDA; a.f()"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b = RDAB; b.f()"), 99.0);
+    eval("classdef RDA\n  methods\n    function r = f(obj)\n      r = 2;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("a = RDA; a.f()"), 2.0) << "RDA redefined";
+    EXPECT_DOUBLE_EQ(evalScalar("b = RDAB; b.f()"), 99.0)
+        << "RDAB must be untouched by RDA's redefinition";
+}
+
+INSTANTIATE_TEST_SUITE_P(Backends, ClassdefRedefineTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef get/set property accessors (Dependent) ──
 class AccessorClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {

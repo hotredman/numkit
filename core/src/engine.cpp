@@ -704,12 +704,47 @@ static Value buildSubsStruct(const char *type, Span<const Value> subscripts,
     return s;
 }
 
+void Engine::unregisterClassDef(const std::string &name)
+{
+    auto dit = classDefs_.find(name);
+    if (dit != classDefs_.end()) {
+        const ClassDefDesc &desc = *dit->second;
+        // Remove the `Name.member` qualified externals registered for Static
+        // methods and Constant properties. registerFunctionImpl_ throws on a
+        // duplicate full name, so these MUST be cleared before re-registration.
+        auto dropExternal = [&](const std::string &leaf) {
+            const std::string full = name + "." + leaf;
+            externalFuncs_.erase(full);
+            auto range = shortNameIndex_.equal_range(leaf);
+            for (auto it = range.first; it != range.second;)
+                it = (it->second == full) ? shortNameIndex_.erase(it) : std::next(it);
+        };
+        for (const auto &[sname, si] : desc.statics)
+            dropExternal(sname);
+        for (const auto &p : desc.props)
+            if (p.isConstant)
+                dropExternal(p.name);
+        classDefs_.erase(dit);
+    }
+    // Drop compiled method chunks ("Name>method") so rewritten bodies recompile
+    // instead of serving the stale cache — the core of the redefinition bug.
+    if (compiler_)
+        compiler_->eraseCompiledFuncsForClass(name);
+    // Drop the registry class last: registerClass throws on a duplicate, so the
+    // re-registration that follows depends on this entry being gone.
+    classes_.erase(name);
+}
+
 void Engine::registerClassDef(const ASTNode *cd)
 {
     if (!cd || cd->type != NodeType::CLASSDEF_DEF || cd->strValue.empty())
         return;
     if (findClass(cd->strValue))
-        return; // idempotent — already registered this session
+        // Redefinition (REPL / IDE re-run of `classdef Name … end`): evict the
+        // old class wholesale, then fall through to re-register. The previous
+        // idempotent early-return silently ignored the new body — so rewriting
+        // a method had no effect until a full restart.
+        unregisterClassDef(cd->strValue);
 
     auto desc = std::make_shared<ClassDefDesc>();
     desc->name = cd->strValue;

@@ -637,6 +637,13 @@ private:
                                const std::string &leafName,
                                ExternalFunc func);
 
+    // Evict a previously-registered classdef so a redefinition fully replaces
+    // it (REPL / IDE re-run of `classdef Name … end`). Removes the registry
+    // class, the descriptor, the `Name.static` / `Name.CONST` qualified
+    // externals, and the compiled method chunks. Called by registerClassDef
+    // when `Name` is already registered, instead of the old idempotent skip.
+    void unregisterClassDef(const std::string &name);
+
     OutputFunc outputFunc_;
     FigureManager figureManager_;
 
