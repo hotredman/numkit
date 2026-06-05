@@ -1466,6 +1466,27 @@ static Value narrowUniqueClass(const Value &d, ValueType vt,
     return doubleToIntegerExact(d, vt, mr);   // INT8..UINT64
 }
 
+// ── setops type-class helpers (ismember/intersect/setdiff/union) ──────────
+// The setop machinery is double-only. Promote a char/logical/integer operand
+// to double; leave double/complex untouched. bugs/builtin/setops-typeclass.md.
+static bool setopNarrowable(ValueType t)
+{
+    return isIntegerType(t) || t == ValueType::LOGICAL || t == ValueType::CHAR;
+}
+static Value setopPromote(const Value &v, std::pmr::memory_resource *mr)
+{
+    return setopNarrowable(v.type()) ? toDoubleValue(v, mr) : v;
+}
+// The class to narrow the VALUES output back to (intersect/setdiff/union
+// preserve the input class). Only when BOTH operands share the same
+// char/logical/integer class; mixed classes or any double => DOUBLE (no narrow,
+// matching MATLAB's promote-to-double for mixed types).
+static ValueType setopNarrowClass(const Value &a, const Value &b)
+{
+    if (a.type() == b.type() && setopNarrowable(a.type())) return a.type();
+    return ValueType::DOUBLE;
+}
+
 void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 CallContext &ctx)
 {
@@ -1755,6 +1776,10 @@ void ismember_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("ismember: requires 2 arguments", 0, 0, "ismember", "", "numkit:ismember:nargin");
     auto *mr = ctx.engine->resource();
+    // ismember accepts char/logical/integer operands; its outputs are already
+    // logical (tf) + double (loc), so only the operands need promoting to
+    // double (no value-narrow). bugs/builtin/setops-typeclass.md.
+    Value A = setopPromote(args[0], mr), B = setopPromote(args[1], mr);
     // ismember(A,B,'rows'): each row is one element; outputs are columns.
     {
         bool rows = false;
@@ -1765,21 +1790,21 @@ void ismember_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                 if (s == "rows") rows = true;
             }
         if (rows) {
-            auto [tf, loc] = ismemberRows(args[0], args[1], /*wantLoc=*/nargout > 1, mr);
+            auto [tf, loc] = ismemberRows(A, B, /*wantLoc=*/nargout > 1, mr);
             outs[0] = std::move(tf);
             if (nargout > 1) outs[1] = std::move(loc);
             return;
         }
     }
-    if (args[0].type() == ValueType::COMPLEX || args[1].type() == ValueType::COMPLEX) {
-        auto [tf, loc] = ismemberComplex(args[0], args[1], /*wantLoc=*/nargout > 1, mr);
+    if (A.type() == ValueType::COMPLEX || B.type() == ValueType::COMPLEX) {
+        auto [tf, loc] = ismemberComplex(A, B, /*wantLoc=*/nargout > 1, mr);
         outs[0] = std::move(tf);
         if (nargout > 1) outs[1] = std::move(loc);
         return;
     }
-    outs[0] = ismember(args[0], args[1], mr);
+    outs[0] = ismember(A, B, mr);
     if (nargout > 1) {
-        const Value &a = args[0], &b = args[1];
+        const Value &a = A, &b = B;
         ScratchArena scratch(mr);
         std::pmr::unordered_map<double, double, DoubleHashEq0> idxB(&scratch);
         idxB.reserve(b.numel());
@@ -2040,18 +2065,27 @@ void union_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 2)
         throw Error("union: requires 2 arguments", 0, 0, "union", "", "numkit:union:nargin");
     auto *mr = ctx.engine->resource();
+    // char/logical/integer operands: promote to double, compute, then narrow
+    // the VALUES output back to the shared class (ia/ib stay double). The
+    // narrow runs AFTER emitSetopIndices, which needs the double values.
+    const ValueType setNarrow = setopNarrowClass(args[0], args[1]);
+    Value A = setopPromote(args[0], mr), B = setopPromote(args[1], mr);
+    auto narrowOut = [&]{ if (setNarrow != ValueType::DOUBLE)
+                              outs[0] = narrowUniqueClass(outs[0], setNarrow, mr); };
     if (wantsRows(args, 2)) {
         if (nargout >= 2)
             throw Error("union: 'rows' index outputs (ia, ib) are not yet "
                         "supported in this revision", 0, 0, "union", "",
                         "numkit:union:rowsIdx");
-        outs[0] = setOpRows(args[0], args[1], SetOpKind::Union, "union", mr);
+        outs[0] = setOpRows(A, B, SetOpKind::Union, "union", mr);
+        narrowOut();
         return;
     }
-    outs[0] = setUnion(args[0], args[1], mr, wantsStable(args, 2));
+    outs[0] = setUnion(A, B, mr, wantsStable(args, 2));
     if (nargout >= 2)
-        emitSetopIndices(SetOpKind::Union, args[0], args[1], outs[0], nargout, outs,
+        emitSetopIndices(SetOpKind::Union, A, B, outs[0], nargout, outs,
                          mr, "union");
+    narrowOut();
 }
 
 void intersect_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -2059,18 +2093,24 @@ void intersect_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("intersect: requires 2 arguments", 0, 0, "intersect", "", "numkit:intersect:nargin");
     auto *mr = ctx.engine->resource();
+    const ValueType setNarrow = setopNarrowClass(args[0], args[1]);
+    Value A = setopPromote(args[0], mr), B = setopPromote(args[1], mr);
+    auto narrowOut = [&]{ if (setNarrow != ValueType::DOUBLE)
+                              outs[0] = narrowUniqueClass(outs[0], setNarrow, mr); };
     if (wantsRows(args, 2)) {
         if (nargout >= 2)
             throw Error("intersect: 'rows' index outputs (ia, ib) are not yet "
                         "supported in this revision", 0, 0, "intersect", "",
                         "numkit:intersect:rowsIdx");
-        outs[0] = setOpRows(args[0], args[1], SetOpKind::Intersect, "intersect", mr);
+        outs[0] = setOpRows(A, B, SetOpKind::Intersect, "intersect", mr);
+        narrowOut();
         return;
     }
-    outs[0] = setIntersect(args[0], args[1], mr, wantsStable(args, 2));
+    outs[0] = setIntersect(A, B, mr, wantsStable(args, 2));
     if (nargout >= 2)
-        emitSetopIndices(SetOpKind::Intersect, args[0], args[1], outs[0], nargout, outs,
+        emitSetopIndices(SetOpKind::Intersect, A, B, outs[0], nargout, outs,
                          mr, "intersect");
+    narrowOut();
 }
 
 void setdiff_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -2078,18 +2118,24 @@ void setdiff_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("setdiff: requires 2 arguments", 0, 0, "setdiff", "", "numkit:setdiff:nargin");
     auto *mr = ctx.engine->resource();
+    const ValueType setNarrow = setopNarrowClass(args[0], args[1]);
+    Value A = setopPromote(args[0], mr), B = setopPromote(args[1], mr);
+    auto narrowOut = [&]{ if (setNarrow != ValueType::DOUBLE)
+                              outs[0] = narrowUniqueClass(outs[0], setNarrow, mr); };
     if (wantsRows(args, 2)) {
         if (nargout >= 2)
             throw Error("setdiff: 'rows' index output (ia) is not yet "
                         "supported in this revision", 0, 0, "setdiff", "",
                         "numkit:setdiff:rowsIdx");
-        outs[0] = setOpRows(args[0], args[1], SetOpKind::Setdiff, "setdiff", mr);
+        outs[0] = setOpRows(A, B, SetOpKind::Setdiff, "setdiff", mr);
+        narrowOut();
         return;
     }
-    outs[0] = setDiff(args[0], args[1], mr, wantsStable(args, 2));
+    outs[0] = setDiff(A, B, mr, wantsStable(args, 2));
     if (nargout >= 2)
-        emitSetopIndices(SetOpKind::Setdiff, args[0], args[1], outs[0], nargout, outs,
+        emitSetopIndices(SetOpKind::Setdiff, A, B, outs[0], nargout, outs,
                          mr, "setdiff");
+    narrowOut();
 }
 NK_BIN_SETOP_REG(discretize, discretize)
 
