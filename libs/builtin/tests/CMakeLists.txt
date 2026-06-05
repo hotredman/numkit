@@ -133,5 +133,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/gradient_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gradient_nd_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cumulative_logical_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/trapz_logical_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
