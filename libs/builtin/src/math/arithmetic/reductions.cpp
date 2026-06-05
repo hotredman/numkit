@@ -1875,12 +1875,18 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
                      0, 0, "max", "", "numkit:max:nargin");
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
+    auto *mr = ctx.engine->resource();
+    // MATLAB returns DOUBLE (the code points) for max/min of a CHAR array — the
+    // char class is NOT preserved (unlike sort/unique/cummax; note mode DOES
+    // keep char). Promote char operands to double up front so every form
+    // (reduction / 'all' / dim / binary / 2nd-output index) yields a double
+    // result. bugs/builtin/maxmin-char-double.md.
+    const Value a0 = args[0].isChar() ? toDoubleValue(args[0], mr) : args[0];
     if (n >= 2 && !args[1].isEmpty()) {
         // Elementwise max(A, B) — single-return form. NaN-aware variant
         // when 'omitnan' was passed.
-        outs[0] = omitNan
-            ? maxOmitNanBinary(args[0], args[1], ctx.engine->resource())
-            : max(args[0], args[1], ctx.engine->resource());
+        const Value a1 = args[1].isChar() ? toDoubleValue(args[1], mr) : args[1];
+        outs[0] = omitNan ? maxOmitNanBinary(a0, a1, mr) : max(a0, a1, mr);
         return;
     }
     // max(A, [], 'all'[, 'linear']) — reduce over EVERY element. Flatten to
@@ -1888,8 +1894,7 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     // MATLAB's 'all' 2nd output, which is always linear).
     for (size_t i = 1; i < n; ++i)
         if (isStringArg(args[i]) && lowercaseStr(args[i]) == "all") {
-            auto *mr = ctx.engine->resource();
-            Value flat = reshape(args[0], args[0].numel(), 1, 0, mr);
+            Value flat = reshape(a0, a0.numel(), 1, 0, mr);
             auto [v, ix] = omitNan ? maxOmitNan(flat, 0, mr) : max(flat, 0, mr);
             outs[0] = std::move(v);
             if (nargout > 1) outs[1] = std::move(ix);
@@ -1899,9 +1904,7 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     int dim = 0;
     if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    auto [val, idx] = omitNan
-        ? maxOmitNan(args[0], dim, ctx.engine->resource())
-        : max(args[0], dim, ctx.engine->resource());
+    auto [val, idx] = omitNan ? maxOmitNan(a0, dim, mr) : max(a0, dim, mr);
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -1914,17 +1917,19 @@ void min_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
                      0, 0, "min", "", "numkit:min:nargin");
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
+    auto *mr = ctx.engine->resource();
+    // MATLAB returns DOUBLE (code points) for min of a CHAR array — see max_reg
+    // + bugs/builtin/maxmin-char-double.md.
+    const Value a0 = args[0].isChar() ? toDoubleValue(args[0], mr) : args[0];
     if (n >= 2 && !args[1].isEmpty()) {
-        outs[0] = omitNan
-            ? minOmitNanBinary(args[0], args[1], ctx.engine->resource())
-            : min(args[0], args[1], ctx.engine->resource());
+        const Value a1 = args[1].isChar() ? toDoubleValue(args[1], mr) : args[1];
+        outs[0] = omitNan ? minOmitNanBinary(a0, a1, mr) : min(a0, a1, mr);
         return;
     }
     // min(A, [], 'all'[, 'linear']) — reduce over every element (see max_reg).
     for (size_t i = 1; i < n; ++i)
         if (isStringArg(args[i]) && lowercaseStr(args[i]) == "all") {
-            auto *mr = ctx.engine->resource();
-            Value flat = reshape(args[0], args[0].numel(), 1, 0, mr);
+            Value flat = reshape(a0, a0.numel(), 1, 0, mr);
             auto [v, ix] = omitNan ? minOmitNan(flat, 0, mr) : min(flat, 0, mr);
             outs[0] = std::move(v);
             if (nargout > 1) outs[1] = std::move(ix);
@@ -1933,9 +1938,7 @@ void min_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     int dim = 0;
     if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    auto [val, idx] = omitNan
-        ? minOmitNan(args[0], dim, ctx.engine->resource())
-        : min(args[0], dim, ctx.engine->resource());
+    auto [val, idx] = omitNan ? minOmitNan(a0, dim, mr) : min(a0, dim, mr);
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);

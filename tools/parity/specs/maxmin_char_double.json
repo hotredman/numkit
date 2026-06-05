@@ -1,0 +1,15 @@
+{
+  "name": "maxmin_char_double",
+  "namespace": "builtin",
+  "setup": "M = ['abc'; 'xyz'];",
+  "expr": "mx = max('abc'); mn = min('abc'); [v, idx] = max('abc'); cm = max(M); rd = max(M, [], 2); al = max('abc', [], 'all'); mo = double(mode('abc'));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "mx", "mn", "v", "idx",
+    "cm(1)", "cm(2)", "cm(3)",
+    "rd(1)", "rd(2)",
+    "al", "mo"
+  ],
+  "comment": "max/min of a CHAR array return DOUBLE (the code point), NOT char — MATLAB does not preserve the char class for max/min (mode DOES keep char). max('abc')=99, min('abc')=97, [v,idx]=max -> 99/3, column-wise max(['abc';'xyz'])=[120 121 122], dim2=[99 122], 'all'=99, mode('abc')='a' (double()=97). NOTE: the binary max('a','c') form is NOT tested here — MATLAB ERRORS on it ('Invalid second argument'); numkit is lenient (returns 99 double) but that is not a MATLAB-matched form. The ; inside ['abc';'xyz'] is a matrix-row separator. bugs/builtin/maxmin-char-double.md."
+}

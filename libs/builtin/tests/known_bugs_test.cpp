@@ -233,3 +233,13 @@ TEST_F(BuiltinKnownBug, SprintfComplex)
     EXPECT_EQ(eval("sprintf('%g', 1+2i)").toString(), "1");
     EXPECT_EQ(eval("sprintf('%d ', [1+2i 3+4i])").toString(), "1 3 ");
 }
+
+// bugs/builtin/maxmin-char-double.md — FIXED (max/min of char return double
+// code points; mode keeps char). Full guard in maxmin_char_double_test.cpp.
+TEST_F(BuiltinKnownBug, MaxMinCharDouble)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("max('abc')"), 99.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(max('abc'))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("min('abc')"), 97.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(mode('abc'))"), 1.0);   // mode keeps char
+}
