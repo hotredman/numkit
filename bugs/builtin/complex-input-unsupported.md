@@ -18,7 +18,7 @@ accepts complex for all of them.
 | `trapz([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `4+4i` | `4+4i` |
 | `cumtrapz(...)` | ✅ FIXED 2026-06-05 → `[0 1.5+1.5i 4+4i]` | `[…  4+4i]` |
 | `gradient([1+1i 3+3i 5+5i])` | ✅ FIXED 2026-06-05 → `[2+2i …]` | `[2+2i …]` |
-| `movmean([1+1i 2+2i 3+3i],2)` | Not a double array | `[…]` |
+| `movmean([1+1i 2+2i 3+3i],2)` | ✅ FIXED 2026-06-05 | `[…]` |
 | `detrend([1+1i 2+2i 3+3i])` | Not a double array | `~0` |
 | `interp1([1 2 3],[1+1i 2+2i 3+3i],2.5)` | ✅ FIXED 2026-06-05 → `2.5+2.5i` | `2.5+2.5i` |
 | `median([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `2+2i` | `2+2i` (sort by abs, then angle) |
@@ -87,4 +87,14 @@ be closed incrementally; this entry is the tracking umbrella.
   `libs/builtin/tests/smoke/gradient_complex_smoke.m`. (N-D `gradient` is still
   rank-limited — that's a separate bug, bugs/builtin/gradient-3d.md, still OPEN;
   a complex N-D input routes into the real path and errors the same way.)
-- ⏳ Remaining: conv, filter, movmean, detrend.
+- ✅ **movmean** — 2026-06-05 (bug-fix loop, cycle 12). Split-real/imag at the
+  top of `movmean_impl` (`libs/stats/src/moving/moving.cpp`): each part is
+  moving-meaned by the existing real driver (window / asymmetric [kb kf] /
+  Endpoints / dim all carry through), then recombined. Live guard
+  `libs/stats/tests/movmean_complex_test.cpp`, parity
+  `tools/parity/specs/movmean.json` (OK), smoke
+  `libs/stats/tests/smoke/movmean_complex_smoke.m`. (omitnan with a
+  partial-NaN complex element — one part finite, the other NaN — is a rare
+  edge that the independent-part split handles approximately; full NaN+NaNi
+  matches.)
+- ⏳ Remaining: conv, filter, detrend.

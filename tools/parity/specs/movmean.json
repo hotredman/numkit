@@ -1,8 +1,8 @@
 {
   "name": "movmean",
   "namespace": "stats",
-  "setup": "A = [1 3 2 5 4 6 NaN 8 7 10]'; A2 = (1:9)'; M2 = [A2 A2*2];",
-  "expr": "y_def = movmean(A, 3); y_omit = movmean(A, 3, 'omitnan'); y_omiss = movmean(A, 3, 'omitmissing'); y_inc = movmean(A, 3, 'includenan'); y_disc = movmean(A2, 3, 'Endpoints', 'discard'); y_fill = movmean(A2, 3, 'Endpoints', 'fill'); y_sca = movmean(A2, 3, 'Endpoints', 0); y_mat = movmean(M2, 3, 1, 'omitnan', 'Endpoints', 'discard'); ev = movmean([1 2 3 4], 2); evm = movmean([1 10; 2 20; 3 30; 4 40], 2, 1);",
+  "setup": "A = [1 3 2 5 4 6 NaN 8 7 10]'; A2 = (1:9)'; M2 = [A2 A2*2]; cz = [1+1i 2+2i 3+3i 4+4i]; cM = [1+1i 2; 3 4i; 5+5i 6];",
+  "expr": "y_def = movmean(A, 3); y_omit = movmean(A, 3, 'omitnan'); y_omiss = movmean(A, 3, 'omitmissing'); y_inc = movmean(A, 3, 'includenan'); y_disc = movmean(A2, 3, 'Endpoints', 'discard'); y_fill = movmean(A2, 3, 'Endpoints', 'fill'); y_sca = movmean(A2, 3, 'Endpoints', 0); y_mat = movmean(M2, 3, 1, 'omitnan', 'Endpoints', 'discard'); ev = movmean([1 2 3 4], 2); evm = movmean([1 10; 2 20; 3 30; 4 40], 2, 1); cw2 = movmean(cz, 2); cw3 = movmean([1+1i 5 3-2i 8 2+4i], 3); casym = movmean([1+1i 5 3-2i 8], [1 0]); cmat = movmean(cM, 2);",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
@@ -14,7 +14,10 @@
     "y_fill(1)", "y_fill(2)", "y_fill(9)",
     "y_sca(1)", "y_sca(2)", "y_sca(9)",
     "size(y_mat,1)", "size(y_mat,2)", "y_mat(1,1)", "y_mat(7,2)",
-    "ev(1)", "ev(2)", "ev(4)", "evm(1,1)", "evm(4,2)"
+    "ev(1)", "ev(2)", "ev(4)", "evm(1,1)", "evm(4,2)",
+    "real(cw2(1))", "imag(cw2(1))", "real(cw2(2))", "imag(cw2(2))", "real(cw2(4))", "imag(cw2(4))",
+    "real(cw3(3))", "imag(cw3(3))", "real(casym(3))", "imag(casym(3))",
+    "real(cmat(2,1))", "imag(cmat(2,1))", "real(cmat(2,2))", "imag(cmat(2,2))"
   ],
-  "comment": "Sig: M = movmean(A, k[, dim] [, nanflag] [, Name, Value]). nanflag in {includemissing|includenan (default)|omitmissing|omitnan}. Endpoints in {shrink (default)|discard|fill|scalar}. EVEN scalar window leans BACKWARD (MATLAB): movmean([1 2 3 4],2)=[1 1.5 2.5 3.5] (window [i-1,i]); per-column on a matrix likewise. numkit previously leaned forward for even k -- fixed 2026-05-29. SamplePoints not yet implemented (parity gap, throws). DataVariables/ReplaceValues table-only (throw). k=0 throws MATLAB-matching error. Verified: NaN propagation, omitnan/omitmissing alias, includenan, all four Endpoints modes, even-window backward, matrix+dim+nanflag+endpoints. Closes audit/findings/stats/movmean.md."
+  "comment": "Sig: M = movmean(A, k[, dim] [, nanflag] [, Name, Value]). nanflag in {includemissing|includenan (default)|omitmissing|omitnan}. Endpoints in {shrink (default)|discard|fill|scalar}. EVEN scalar window leans BACKWARD (MATLAB): movmean([1 2 3 4],2)=[1 1.5 2.5 3.5] (window [i-1,i]); per-column on a matrix likewise. numkit previously leaned forward for even k -- fixed 2026-05-29. COMPLEX (fixed 2026-06-05): moving-mean the real + imaginary parts separately, recombine: movmean([1+1i 2+2i 3+3i 4+4i],2)=[1+1i 1.5+1.5i 2.5+2.5i 3.5+3.5i]; centered odd window; asymmetric [kb kf]; per-column matrix. SamplePoints not yet implemented (parity gap, throws). DataVariables/ReplaceValues table-only (throw). k=0 throws MATLAB-matching error. Verified: NaN propagation, omitnan/omitmissing alias, includenan, all four Endpoints modes, even-window backward, matrix+dim+nanflag+endpoints. Closes audit/findings/stats/movmean.md."
 }
