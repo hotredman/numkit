@@ -1,0 +1,12 @@
+{
+  "name": "psi_zero",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "z = isinf(psi(0)); zs = psi(0) < 0; p1 = psi(1); p2 = psi(2); ph = psi(0.5); p10 = psi(10); v = psi([0 1 2]); vz = isinf(v(1)); v2 = v(2); v3 = v(3);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "z", "zs", "p1", "p2", "ph", "p10", "vz", "v2", "v3"
+  ],
+  "comment": "psi(0) = -Inf (digamma pole at 0), was NaN — matches MATLAB. Pole fingerprinted via isinf()+sign (z=1, zs=1 for -Inf). Finite values unchanged: psi(1)=-0.57721566, psi(2)=0.42278434, psi(0.5)=-1.96351, psi(10)=2.2517526; vector psi([0 1 2]) -> [-Inf -0.577216 0.422784]. psi(negative) left as-is (MATLAB errors). bugs/builtin/psi-zero-pole.md."
+}

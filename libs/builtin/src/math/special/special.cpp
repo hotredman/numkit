@@ -469,8 +469,13 @@ double expintScalar(double x)
 double psiScalar(double x)
 {
     if (std::isnan(x)) return x;
-    // Pole at non-positive integers.
-    if (x == std::floor(x) && x <= 0.0)
+    // Pole at 0: MATLAB ψ(0) = -Inf. bugs/builtin/psi-zero-pole.md.
+    if (x == 0.0)
+        return -std::numeric_limits<double>::infinity();
+    // Negative integers are also poles; numkit returns NaN here. (MATLAB
+    // rejects ALL negative input — "X must be nonnegative" — so its exact value
+    // at these points is moot; we keep the lenient NaN rather than erroring.)
+    if (x == std::floor(x) && x < 0.0)
         return std::numeric_limits<double>::quiet_NaN();
     // Reflection for x < 0.5: ψ(1-x) - ψ(x) = π·cot(π·x)
     double r = 0.0;
