@@ -9,6 +9,9 @@
 // Coverage in this file (filled in per /loop cycle as families land):
 //   - normal      (normpdf/normcdf/norminv)  — cycle 29
 //   - exponential (exppdf/expcdf/expinv)      — cycle 29
+//   - gamma       (gampdf/gamcdf)            — cycle 30 (gaminv pending)
+//   - beta        (betapdf/betacdf)          — cycle 30 (betainv pending)
+//   - chi2        (chi2pdf/chi2cdf)          — cycle 30 (chi2inv pending)
 // MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
@@ -112,6 +115,66 @@ TEST_F(DistBroadcastTest, ExppdfPerElementBadMu)
     EXPECT_NEAR(evalScalar("y(3)"), 0.3032653298563167, 1e-13);
 }
 
+// ── Gamma / Beta / Chi2: pdf + cdf parameter broadcast (cycle 30) ─────
+TEST_F(DistBroadcastTest, GampdfBroadcast)
+{
+    eval("y = gampdf(1, [1 2 3], 1);");        // vector shape a
+    EXPECT_NEAR(evalScalar("y(1)"), 0.3678794411714423, 1e-12);
+    EXPECT_NEAR(evalScalar("y(3)"), 0.1839397205857212, 1e-12);
+    eval("z = gampdf([1 2 3], 2, 2);");        // vector x, scalar a/b
+    EXPECT_NEAR(evalScalar("z(1)"), 0.1516326649281583, 1e-12);
+    EXPECT_NEAR(evalScalar("z(3)"), 0.1673476201113224, 1e-12);
+    // per-element domain: a==0 → 0, a<0 → NaN
+    eval("d = gampdf(1, [0 -1 2], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 0.0);
+    EXPECT_TRUE(eval("isnan(d(2))").toBool());
+}
+
+TEST_F(DistBroadcastTest, GamcdfBroadcast)
+{
+    eval("y = gamcdf(1, [1 2 3], 1);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.6321205588285577, 1e-10);
+    EXPECT_NEAR(evalScalar("y(3)"), 0.0803013970713942, 1e-10);
+    eval("z = gamcdf([1 2 3], 2, 2);");
+    EXPECT_NEAR(evalScalar("z(3)"), 0.4421745996289252, 1e-10);
+    // b<=0 → NaN per element ('upper' too)
+    eval("u = gamcdf(1, 2, [1 0 -1], 'upper');");
+    EXPECT_NEAR(evalScalar("u(1)"), 0.7357588823428847, 1e-10);
+    EXPECT_TRUE(eval("isnan(u(2))").toBool());
+}
+
+TEST_F(DistBroadcastTest, BetapdfBroadcast)
+{
+    eval("y = betapdf(0.5, [2 3], [2 2]);");   // both params vectors
+    EXPECT_NEAR(evalScalar("y(1)"), 1.5, 1e-12);
+    EXPECT_NEAR(evalScalar("y(2)"), 1.5, 1e-12);
+    eval("z = betapdf([.2 .5 .8], 2, 3);");
+    EXPECT_NEAR(evalScalar("z(1)"), 1.536, 1e-12);
+    EXPECT_NEAR(evalScalar("z(3)"), 0.384, 1e-12);
+    EXPECT_TRUE(eval("isnan(betapdf(0.5, -1, 2))").toBool());   // a<=0 → NaN
+}
+
+TEST_F(DistBroadcastTest, BetacdfBroadcast)
+{
+    eval("y = betacdf(0.5, [2 3], 2);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.5, 1e-10);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.3125, 1e-10);
+}
+
+TEST_F(DistBroadcastTest, Chi2pdfCdfBroadcast)
+{
+    eval("y = chi2pdf(2, [1 2 3]);");          // vector dof k
+    EXPECT_NEAR(evalScalar("y(1)"), 0.1037768743551486, 1e-12);
+    EXPECT_NEAR(evalScalar("y(3)"), 0.2075537487102976, 1e-12);
+    eval("c = chi2cdf(2, [1 2 3]);");
+    EXPECT_NEAR(evalScalar("c(1)"), 0.8427007929497149, 1e-10);
+    EXPECT_NEAR(evalScalar("c(3)"), 0.4275932955291202, 1e-10);
+    // k==0 → 0, k<0 → NaN
+    eval("d = chi2pdf(2, [0 -1 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 0.0);
+    EXPECT_TRUE(eval("isnan(d(2))").toBool());
+}
+
 // ── Regressions: scalar-parameter path unchanged; edges ──────────────
 TEST_F(DistBroadcastTest, ScalarPathUnchanged)
 {
@@ -120,6 +183,10 @@ TEST_F(DistBroadcastTest, ScalarPathUnchanged)
     EXPECT_NEAR(evalScalar("exppdf(2)"),      0.1353352832366127, 1e-15);
     EXPECT_NEAR(evalScalar("expcdf(2)"),      0.8646647167633873, 1e-15);   // mu=1 default
     EXPECT_DOUBLE_EQ(evalScalar("exppdf(-1, 2)"), 0.0);
+    // gamma/beta/chi2 scalar-parameter path unchanged
+    EXPECT_NEAR(evalScalar("gampdf(1,2,2)"),  0.1516326649281583, 1e-12);
+    EXPECT_NEAR(evalScalar("betapdf(0.3,2,3)"), 1.764, 1e-12);
+    EXPECT_NEAR(evalScalar("chi2cdf(3,4)"),   0.4421745996289252, 1e-10);
 }
 
 TEST_F(DistBroadcastTest, EmptyAndMismatch)
@@ -128,4 +195,6 @@ TEST_F(DistBroadcastTest, EmptyAndMismatch)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(exppdf([], 2))")), 0);
     EXPECT_THROW(eval("normpdf([1 2 3], [1 2], 1);"), std::exception);
     EXPECT_THROW(eval("exppdf([1 2 3], [1 2]);"), std::exception);
+    EXPECT_THROW(eval("gampdf(1, [1 2], [1 2 3]);"), std::exception);
+    EXPECT_THROW(eval("chi2pdf([1 2 3], [1 2]);"), std::exception);
 }

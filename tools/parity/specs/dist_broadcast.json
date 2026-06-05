@@ -2,7 +2,7 @@
   "name": "dist_broadcast",
   "namespace": "stats",
   "setup": "",
-  "expr": "np1 = normpdf(0,0,[1 2 4]); np2 = normpdf([0 1],[0 0],[1 2]); nc1 = normcdf([0 1 2],0,[1 2 4]); ni1 = norminv([.1 .5 .9],0,[1 2 3]); np5 = normpdf(0,0,[1 -1 2]); npS = normpdf(0,0,[1 2; 3 4]); ep1 = exppdf(1,[1 2 4]); ec1 = expcdf(1,[1 2 4]); ei1 = expinv(0.5,[1 2 4]); eu1 = expcdf(1,[1 2 4],'upper'); ep6 = exppdf(1,[1 0 2]); npS21 = npS(2,1);",
+  "expr": "np1 = normpdf(0,0,[1 2 4]); np2 = normpdf([0 1],[0 0],[1 2]); nc1 = normcdf([0 1 2],0,[1 2 4]); ni1 = norminv([.1 .5 .9],0,[1 2 3]); np5 = normpdf(0,0,[1 -1 2]); npS = normpdf(0,0,[1 2; 3 4]); ep1 = exppdf(1,[1 2 4]); ec1 = expcdf(1,[1 2 4]); ei1 = expinv(0.5,[1 2 4]); eu1 = expcdf(1,[1 2 4],'upper'); ep6 = exppdf(1,[1 0 2]); npS21 = npS(2,1); gp1 = gampdf(1,[1 2 3],1); gp2 = gampdf([1 2 3],2,2); gc1 = gamcdf(1,[1 2 3],1); gc2 = gamcdf([1 2 3],2,2); gu1 = gamcdf(1,2,[1 0 -1],'upper'); bp1 = betapdf(0.5,[2 3],[2 2]); bp2 = betapdf([.2 .5 .8],2,3); bc1 = betacdf(0.5,[2 3],2); cp1 = chi2pdf(2,[1 2 3]); cc1 = chi2cdf(2,[1 2 3]); cp4 = chi2pdf(2,[0 -1 4]);",
   "iters": 3,
   "tol": 1e-9,
   "fingerprint": [
@@ -16,7 +16,11 @@
     "ec1(1)", "ec1(3)",
     "ei1(2)",
     "eu1(1)", "eu1(3)",
-    "ep6(1)", "ep6(3)"
+    "ep6(1)", "ep6(3)",
+    "gp1(1)", "gp1(3)", "gp2(1)", "gp2(3)",
+    "gc1(1)", "gc1(3)", "gc2(3)", "gu1(1)",
+    "bp1(1)", "bp2(1)", "bp2(3)", "bc1(1)", "bc1(2)",
+    "cp1(1)", "cp1(3)", "cc1(1)", "cc1(3)", "cp4(3)"
   ],
-  "comment": "bugs/stats/distribution-array-params.md (cycle 29: normal + exponential). The *pdf/*cdf/*inv functions broadcast ARRAY distribution parameters (mu/sigma), not just the data x: scalar expands, equal sizes element-align, mismatched non-scalar sizes error ('Non-scalar arguments must match in size.'), shape follows the non-scalar operand (npS is 2x2). Per-element domain: sigma<=0 / mu<=0 -> NaN (np5(2), ep6(2) are NaN, fingerprinted around them). normpdf/normcdf/exppdf/expcdf/expinv match MATLAB to ~1e-15; norminv is limited to ~1e-11 by erfinvScalar's Newton convergence (pre-existing), so spec tol is 1e-9. 'upper' flag works under broadcast (eu1). Discrete + remaining continuous families (gam/beta/chi2/t/f/rayl/wbl/logn, bino/poiss/...) land in later cycles -- md stays OPEN. Matches MATLAB R2025b."
+  "comment": "bugs/stats/distribution-array-params.md (cycle 29: normal+exponential; cycle 30: gamma+beta+chi2 pdf+cdf). The *pdf/*cdf/*inv functions broadcast ARRAY distribution parameters (mu/sigma/a/b/k), not just the data x: scalar expands, equal sizes element-align, mismatched non-scalar sizes error ('Non-scalar arguments must match in size.'), shape follows the non-scalar operand (npS is 2x2). Per-element domain: sigma<=0/mu<=0/a<0/b<=0/k<0 -> NaN, gamma a==0 -> 0, chi2 k==0 -> 0 (NaN entries fingerprinted around). normpdf/normcdf/exppdf/expcdf/expinv/gampdf/betapdf/chi2pdf match MATLAB to ~1e-15; cdf's via incomplete gamma/beta (gamcdf/betacdf/chi2cdf) and norminv match to ~1e-9 to 1e-11, so spec tol is 1e-9. 'upper' flag works under broadcast (eu1, gu1). gamma/beta/chi2 INV (gaminv/betainv/chi2inv) + remaining families (t/f/rayl/wbl/logn, bino/poiss/...) land in later cycles -- md stays OPEN. Matches MATLAB R2025b."
 }
