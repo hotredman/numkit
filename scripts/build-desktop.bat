@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set PROJECT_DIR=%~dp0
+set PROJECT_DIR=%~dp0..\
 set IDE_DIR=%PROJECT_DIR%ide
 set DESKTOP_DIR=%IDE_DIR%\desktop
 :: cmake's `browser` preset writes to ${sourceDir}/build/browser/ (since the
@@ -58,7 +58,7 @@ if "%SKIP_WASM%"=="1" (
 )
 if not "%SKIP_WASM%"=="1" (
     echo [1/5] Rebuilding WASM engine -- parallel via browser preset jobs:0 ...
-    call "%PROJECT_DIR%build.bat" --wasm
+    call "%~dp0build.bat" --wasm
     if errorlevel 1 (
         echo WASM build failed!
         exit /b 1

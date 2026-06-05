@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set PROJECT_DIR=%~dp0
+set PROJECT_DIR=%~dp0..\
 set IDE_DIR=%PROJECT_DIR%ide
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
 set PAGES_DIR=%PROJECT_DIR%docs
@@ -22,7 +22,7 @@ if errorlevel 1 (
 if exist "%EMCC_DIR%\emcc.bat" (
     if not exist "%WASM_DIST%\numkit_ide.wasm" (
         echo Building WASM...
-        call "%PROJECT_DIR%build.bat" --wasm
+        call "%~dp0build.bat" --wasm
         if errorlevel 1 exit /b 1
     )
     echo Copying WASM files into ide\public\...

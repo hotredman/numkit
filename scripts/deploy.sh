@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 IDE_DIR="${PROJECT_DIR}/ide"
 WASM_DIST="${PROJECT_DIR}/build/browser/wasm/dist"
 PAGES_DIR="${PROJECT_DIR}/docs"
@@ -21,7 +21,7 @@ fi
 if command -v emcc &>/dev/null; then
     if [ ! -f "${WASM_DIST}/numkit_ide.wasm" ]; then
         echo "Building WASM..."
-        bash "${PROJECT_DIR}/build.sh" --wasm
+        bash "$(dirname "$0")/build.sh" --wasm
     fi
     echo "Copying freshly-built WASM into ide/public/..."
     cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"

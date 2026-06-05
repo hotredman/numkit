@@ -22,7 +22,7 @@ surface to the user**. Do not silently work on top of someone else's work.
 - Build dir = `build-<preset>/` per source root; runs of cmake never share
   binaryDir between worktrees.
 - Test runner: `build-<preset>/tests/gtest/Release/numkit_gtest.exe`.
-- WASM: `build.sh --wasm` with emsdk env sourced; redeploy IDE via `deploy.sh`.
+- WASM: `scripts/build.sh --wasm` with emsdk env sourced; redeploy IDE via `scripts/deploy.sh`.
 
 ## Commits
 
