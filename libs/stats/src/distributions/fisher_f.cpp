@@ -39,6 +39,28 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Scalar pdf kernel for the parameter-broadcast path (vector v1/v2). Owns its
+// per-element domain (v1<=0 or v2<=0 → NaN) and the x==0 boundary regimes.
+// Mirrors the public fpdf bit-identically.
+inline double fpdfK(double x, double v1, double v2)
+{
+    if (v1 <= 0.0 || v2 <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    const double a = 0.5 * v1;
+    const double b = 0.5 * v2;
+    const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+    const double log_v1 = std::log(v1);
+    const double log_v2 = std::log(v2);
+    if (x < 0.0) return 0.0;
+    if (x == 0.0) {
+        if (v1 < 2.0) return std::numeric_limits<double>::infinity();
+        if (v1 == 2.0)
+            return std::exp(a * log_v1 + b * log_v2 - (a + b) * std::log(v2) - lbeta);
+        return 0.0;
+    }
+    return std::exp(a * log_v1 + b * log_v2 + (a - 1.0) * std::log(x)
+                    - (a + b) * std::log(v2 + v1 * x) - lbeta);
+}
+
 } // anonymous
 
 Value fpdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
@@ -347,16 +369,46 @@ void fpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("fpdf: requires (x, v1, v2)", 0, 0, "fpdf", "", "numkit:fpdf:nargin");
-    outs[0] = fpdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &v1 = args[1];
+    const Value &v2 = args[2];
+    if (v1.isScalar() && v2.isScalar())
+        outs[0] = fpdf(args[0], v1.toScalar(), v2.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist3(args[0], v1, v2, mr, "fpdf", fpdfK);
 }
 
 void fcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 3)
+    const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
+    if (a0.size() < 3)
         throw Error("fcdf: requires (x, v1, v2[, 'upper'])", 0, 0, "fcdf", "", "numkit:fcdf:nargin");
-    Value v = fcdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &v1 = a0[1];
+    const Value &v2 = a0[2];
+    Value v;
+    if (v1.isScalar() && v2.isScalar()) {
+        v = fcdf(a0[0], v1.toScalar(), v2.toScalar(), mr);
+    } else {
+        // F(x; v1, v2) = I_y(v1/2, v2/2), y = v1*x/(v1*x+v2). y broadcasts
+        // (x,v1,v2) (v<=0 → NaN, x<=0 → 0); betainc broadcasts (y, v1/2, v2/2).
+        const Value &x = a0[0];
+        const size_t nx = x.numel(), n1 = v1.numel(), n2 = v2.numel();
+        if (nx == 0 || n1 == 0 || n2 == 0) {
+            v = dist_empty_like(nx == 0 ? x : (n1 == 0 ? v1 : v2), mr);
+        } else {
+            dist_match_numel({nx, n1, n2}, "fcdf");
+            Value y = broadcast_dist3(x, v1, v2, mr, "fcdf", [](double xi, double d1, double d2) -> double {
+                if (d1 <= 0.0 || d2 <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+                if (xi <= 0.0) return 0.0;
+                return (d1 * xi) / (d1 * xi + d2);
+            });
+            Value a = elementwise(v1, [](double d) { return 0.5 * d; }, mr);
+            Value b = elementwise(v2, [](double d) { return 0.5 * d; }, mr);
+            v = ::numkit::builtin::betainc(y, a, b, mr);
+        }
+    }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -365,7 +417,40 @@ void finv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 3)
         throw Error("finv: requires (p, v1, v2)", 0, 0, "finv", "", "numkit:finv:nargin");
-    outs[0] = finv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &v1 = args[1];
+    const Value &v2 = args[2];
+    if (v1.isScalar() && v2.isScalar()) {
+        outs[0] = finv(args[0], v1.toScalar(), v2.toScalar(), mr);
+        return;
+    }
+    // z = betaincinv(p, v1/2, v2/2); x = (v2/v1)·z/(1-z). Mirrors finv exactly
+    // (z<=0 → 0, z>=1 → Inf, NaN z propagates); v<=0 → NaN per element.
+    const Value &p = args[0];
+    const size_t np = p.numel(), n1 = v1.numel(), n2 = v2.numel();
+    if (np == 0 || n1 == 0 || n2 == 0) {
+        outs[0] = dist_empty_like(np == 0 ? p : (n1 == 0 ? v1 : v2), mr);
+        return;
+    }
+    const size_t N = dist_match_numel({np, n1, n2}, "finv");
+    Value a = elementwise(v1, [](double d) { return 0.5 * d; }, mr);
+    Value b = elementwise(v2, [](double d) { return 0.5 * d; }, mr);
+    Value z = ::numkit::builtin::betaincinv(p, a, b, mr);
+    const Value &ref = (n1 == N) ? v1 : (n2 == N ? v2 : p);
+    Value out = dist_empty_like(ref, mr);
+    double *od = out.doubleDataMut();
+    const size_t nz = z.numel();
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    for (size_t i = 0; i < N; ++i) {
+        const double d1 = v1.elemAsDouble(n1 == 1 ? 0 : i);
+        const double d2 = v2.elemAsDouble(n2 == 1 ? 0 : i);
+        if (d1 <= 0.0 || d2 <= 0.0) { od[i] = NaN; continue; }
+        const double zi = z.elemAsDouble(nz == 1 ? 0 : i);
+        if (zi <= 0.0) { od[i] = 0.0; continue; }
+        if (zi >= 1.0) { od[i] = std::numeric_limits<double>::infinity(); continue; }
+        od[i] = (d2 / d1) * zi / (1.0 - zi);
+    }
+    outs[0] = std::move(out);
 }
 
 void frnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
