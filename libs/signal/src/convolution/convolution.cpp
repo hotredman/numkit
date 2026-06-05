@@ -38,6 +38,46 @@ Value conv(const Value &a, const Value &b, const std::string &shape, std::pmr::m
 {
     const size_t na = a.numel(), nb = b.numel();
 
+    // Complex inputs: convolution is BILINEAR, so the real/imag split used for
+    // the linear ops does NOT apply — do a genuine complex multiply-accumulate
+    // full[n] = sum_k a[k]·b[n-k] (direct; correctness over an FFT path), then
+    // the same shape trim. Handles complex×complex and complex×real.
+    if (a.isComplex() || b.isComplex()) {
+        ScratchArena cscratch(mr);
+        const size_t nfull = (na == 0 || nb == 0) ? 0 : na + nb - 1;
+        auto toC = [&](const Value &v, size_t n) {
+            ScratchVec<Complex> out(n, &cscratch);
+            if (v.isComplex()) {
+                const Complex *cd = v.complexData();
+                for (size_t i = 0; i < n; ++i) out[i] = cd[i];
+            } else {
+                for (size_t i = 0; i < n; ++i) out[i] = Complex(v.elemAsDouble(i), 0.0);
+            }
+            return out;
+        };
+        auto av = toC(a, na);
+        auto bv = toC(b, nb);
+        ScratchVec<Complex> full(nfull, &cscratch);
+        for (size_t i = 0; i < nfull; ++i) full[i] = Complex(0.0, 0.0);
+        for (size_t i = 0; i < na; ++i)
+            for (size_t j = 0; j < nb; ++j)
+                full[i + j] += av[i] * bv[j];
+
+        size_t outStartC = 0, outLenC = nfull;
+        if (shape == "same") { outLenC = na; outStartC = nb / 2; }
+        else if (shape == "valid") {
+            outLenC = (na >= nb) ? na - nb + 1 : nb - na + 1;
+            outStartC = std::min(na, nb) - 1;
+        } else if (shape != "full") {
+            throw Error("conv: shape must be 'full', 'same', or 'valid'",
+                         0, 0, "conv", "", "numkit:conv:badShape");
+        }
+        auto rc = Value::matrix(1, outLenC, ValueType::COMPLEX, mr);
+        Complex *rcd = rc.complexDataMut();
+        for (size_t i = 0; i < outLenC; ++i) rcd[i] = full[outStartC + i];
+        return rc;
+    }
+
     ScratchArena scratch(mr);
     auto c = conv_use_fft(na, nb)
         ? convFFT  (&scratch, a.doubleData(), na, b.doubleData(), nb)
