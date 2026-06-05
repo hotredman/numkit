@@ -314,7 +314,13 @@ std::string formatCyclic(const std::string &fmt, Span<const Value> args, size_t 
             continue;
         }
         if (a.isChar() || a.isScalar()) {
-            stream.push_back(a);
+            // MATLAB uses the REAL part of a complex argument for every numeric
+            // conversion (sprintf('%g',1+2i) -> "1"); the imaginary part is
+            // discarded. Push the real part so formatOnce's toScalar succeeds.
+            if (a.type() == ValueType::COMPLEX)
+                stream.push_back(Value::scalar(a.complexData()[0].real(), p));
+            else
+                stream.push_back(a);
             continue;
         }
         size_t n = a.numel();
@@ -322,6 +328,7 @@ std::string formatCyclic(const std::string &fmt, Span<const Value> args, size_t 
             double v;
             if (a.type() == ValueType::DOUBLE) v = a.doubleData()[j];
             else if (a.isLogical())        v = a.logicalData()[j] ? 1.0 : 0.0;
+            else if (a.type() == ValueType::COMPLEX) v = a.complexData()[j].real();
             else                           v = a(j);
             stream.push_back(Value::scalar(v, p));
         }
