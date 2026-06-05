@@ -1392,7 +1392,7 @@ void gplike_reg(Span<const Value> args, size_t nargout,
 //
 // Custom 'pdf'/'logpdf'/'nloglf' with 'start' x0 deferred -- needs
 // Nelder-Mead simplex over a function-handle nLL.
-void mle_reg(Span<const Value> args, size_t /*nargout*/,
+void mle_reg(Span<const Value> args, size_t nargout,
              Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
@@ -1407,6 +1407,7 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
 
     std::string dist = "normal";
     bool custom_fn = false;
+    double alpha = 0.05;   // 100·(1-alpha)% confidence for the 2nd output pci
     for (std::size_t i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mle: option name must be a string",
@@ -1414,6 +1415,12 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         const std::string opt = args[i].toString();
         if (opt == "distribution" || opt == "Distribution")
             dist = args[i + 1].toString();
+        else if (opt == "alpha" || opt == "Alpha") {
+            alpha = args[i + 1].toScalar();
+            if (!(alpha > 0.0 && alpha < 1.0))
+                throw Error("mle: Alpha must be in (0, 1)",
+                            0, 0, "mle", "", "numkit:mle:badOption");
+        }
         else if (opt == "pdf" || opt == "PDF" ||
                  opt == "logpdf" || opt == "LogPDF" ||
                  opt == "nloglf" || opt == "NLogLF")
@@ -1423,6 +1430,23 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
             throw Error("mle: unknown option '" + opt + "'",
                         0, 0, "mle", "", "numkit:mle:badOption");
     }
+
+    // pci (2nd output): 2×k matrix, row 1 = lower bounds, row 2 = upper bounds,
+    // one column per parameter — taken from the matching *fit CI (which already
+    // matches MATLAB). emitNorm2: two-parameter (mu, sigma) layout.
+    auto emitPci2 = [&](const Value &ci1, const Value &ci2) {
+        Value pci = Value::matrix(2, 2, ValueType::DOUBLE, mr);
+        double *p = pci.doubleDataMut();
+        p[0] = ci1.elemAsDouble(0); p[1] = ci1.elemAsDouble(1);   // col 1
+        p[2] = ci2.elemAsDouble(0); p[3] = ci2.elemAsDouble(1);   // col 2
+        outs[1] = std::move(pci);
+    };
+    auto emitPci1 = [&](const Value &ci) {
+        Value pci = Value::matrix(2, 1, ValueType::DOUBLE, mr);
+        double *p = pci.doubleDataMut();
+        p[0] = ci.elemAsDouble(0); p[1] = ci.elemAsDouble(1);
+        outs[1] = std::move(pci);
+    };
     if (custom_fn)
         throw Error("mle: custom 'pdf'/'logpdf'/'nloglf' fitting via "
                     "Nelder-Mead is deferred -- supported distributions "
@@ -1446,6 +1470,11 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         out.doubleDataMut()[0] = mean;
         out.doubleDataMut()[1] = sigma;
         outs[0] = std::move(out);
+        if (nargout >= 2) {
+            auto [m, s, muci, sdci] = normfit(x, alpha, Value::Empty, Value::Empty, mr);
+            (void)m; (void)s;
+            emitPci2(muci, sdci);
+        }
         return;
     }
     if (dist == "exponential" || dist == "Exponential" || dist == "exp") {
@@ -1459,6 +1488,11 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = sum / static_cast<double>(N);
         outs[0] = std::move(out);
+        if (nargout >= 2) {
+            auto [m, ci] = expfit(x, alpha, Value::Empty, Value::Empty, mr);
+            (void)m;
+            emitPci1(ci);
+        }
         return;
     }
     if (dist == "poisson" || dist == "Poisson" || dist == "poiss") {
@@ -1472,6 +1506,11 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = sum / static_cast<double>(N);
         outs[0] = std::move(out);
+        if (nargout >= 2) {
+            auto [lam, ci] = poissfit(x, alpha, mr);
+            (void)lam;
+            emitPci1(ci);
+        }
         return;
     }
     if (dist == "lognormal" || dist == "Lognormal" || dist == "logn") {
@@ -1493,6 +1532,15 @@ void mle_reg(Span<const Value> args, size_t /*nargout*/,
         out.doubleDataMut()[0] = mu;
         out.doubleDataMut()[1] = sigma;
         outs[0] = std::move(out);
+        if (nargout >= 2) {
+            // CI on (mu, sigma) of log(x) — matches MATLAB's lognormal pci.
+            Value logx = Value::matrix(1, N, ValueType::DOUBLE, mr);
+            double *lx = logx.doubleDataMut();
+            for (std::size_t i = 0; i < N; ++i) lx[i] = std::log(xd[i]);
+            auto [m, s, muci, sdci] = normfit(logx, alpha, Value::Empty, Value::Empty, mr);
+            (void)m; (void)s;
+            emitPci2(muci, sdci);
+        }
         return;
     }
     throw Error("mle: distribution '" + dist + "' not supported "

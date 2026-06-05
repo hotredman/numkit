@@ -3110,7 +3110,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 | function | status | comment |
 |---|:---:|---|
-| `mle` | ⚠️ | Sig: mle(data[, 'distribution', name]). Closed-form MLE for normal (default) / exponential / poisson / lognormal. Bit-identical with MATLAB R2025b. Custom 'pdf'/'logpdf'/'nloglf' deferred. |
+| `mle` | ⚠️ | Sig: [phat, pci] = mle(data[, 'distribution', name][, 'Alpha', a]). Closed-form MLE for normal (default) / exponential / poisson / lognormal. The 2nd output pci (fixed 2026-06-05, bugs/stats/mle-output.md) is the 2xk confidence-interval matrix (row 1 lower, row 2 upper, one column per parameter), default Alpha=0.05, reusing the matching *fit CI machinery (normfit/expfit/poissfit; lognormal = normfit of log data) which already matches MATLAB. phat bit-identical; pci matches via tinv/chi2inv-based CIs. Custom 'pdf'/'logpdf'/'nloglf' deferred. |
 | `mlecov` | ❌ | covariance of MLE estimates |
 | `betafit` | ✅ | Sig: [ahat, bhat] = betafit(x) — Beta MLE via 2-D Newton on the digamma system. [rhat, phat] = nbinfit(x) — negative binomial MLE: profile log-likelihood, Newton on r with closed-form p = r / (r + mean). Stochastic samples in setup; fingerprint pins recoverability + output shapes. |
 | `betalike` | ✅ | Sig: [nL, AVAR] = betalike([a b], x). NLL for Beta(a, b). AVAR is the 2×2 inverse of the BHHH (outer-product-of-gradients) Fisher info — MATLAB's betalike uses BHHH, not the Hessian (verified by direct probe). Edge: invalid params or x outside (0,1) => NaN. |
