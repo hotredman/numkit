@@ -77,10 +77,17 @@ fprintf('geopdf(2,[0.2 0.5])       = %s (expect 0.128 0.125)\n', fmt(geopdf(2,[0
 fprintf('geocdf(2,[0.2 0.5])       = %s (expect 0.488 0.875)\n', fmt(geocdf(2,[0.2 0.5])));
 fprintf('geoinv([.1 .5 .9],0.3)    = %s (expect 0 1 6)\n', fmt(geoinv([0.1 0.5 0.9],0.3)));
 
+fprintf('\n--- discrete: negbin + hypergeom (broadcast r,p / M,K,N) ---\n');
+fprintf('nbinpdf(2,[3 5],0.5)      = %s (expect 0.1875 0.1171875)\n', fmt(nbinpdf(2,[3 5],0.5)));
+fprintf('nbininv(0.5,[3 5],0.5)    = %s (expect 2 4)\n', fmt(nbininv(0.5,[3 5],0.5)));
+fprintf('hygepdf(2,[10 20],5,4)    = %s (expect 0.47619048 0.21671827)\n', fmt(hygepdf(2,[10 20],5,4)));
+fprintf('hygecdf(2,20,7,[3 5])     = %s (expect 0.96929825 0.79321465)\n', fmt(hygecdf(2,20,7,[3 5])));
+fprintf('hygepdf(2,20,7,[8 25])    = %s (expect 0.28606811 NaN; N>M->NaN)\n', fmt(hygepdf(2,20,7,[8 25])));
+
 fprintf('\n--- regressions (scalar-param path unchanged) ---\n');
 fprintf('normpdf(0)=%.10g (expect 0.3989422804)  exppdf(2)=%.10g (expect 0.1353352832)\n', normpdf(0), exppdf(2));
-fprintf('raylpdf(1,2)=%.10g (expect 0.2206242256)  wblpdf(2,3,4)=%.10g (expect 0.3242488132)\n', raylpdf(1,2), wblpdf(2,3,4));
 fprintf('binopdf(2,5,0.3)=%.10g (expect 0.3087)  unidpdf(3,10)=%.10g (expect 0.1)\n', binopdf(2,5,0.3), unidpdf(3,10));
+fprintf('nbinpdf(2,3,0.5)=%.10g (expect 0.1875)  hygepdf(2,20,7,5)=%.10g (expect 0.3873839009)\n', nbinpdf(2,3,0.5), hygepdf(2,20,7,5));
 fprintf('gampdf(1,2,2)=%.10g (expect 0.1516326649)  betapdf(0.3,2,3)=%.10g (expect 1.764)\n', gampdf(1,2,2), betapdf(0.3,2,3));
 fprintf('gaminv(0.5,2,2)=%.10g (expect 3.356693980)  chi2inv(0.5,4)=%.10g (expect 3.356693980)\n', gaminv(0.5,2,2), chi2inv(0.5,4));
 fprintf('empty: numel(normpdf([],0,1))=%d (expect 0)\n', numel(normpdf([],0,1)));

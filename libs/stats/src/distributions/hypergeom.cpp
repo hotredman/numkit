@@ -98,6 +98,21 @@ inline double hyge_inv_scalar(double q, double M, double K, double N) {
     return k_max;
 }
 
+// Kernels for the parameter-broadcast path (vector M/K/N). Each wraps
+// params_valid + the scalar helper above (all pure double, no mr needed).
+inline double hygepdfK(double k, double M, double K, double N) {
+    return params_valid(M, K, N) ? hyge_pmf(k, M, K, N)
+                                 : std::numeric_limits<double>::quiet_NaN();
+}
+inline double hygecdfK(double k, double M, double K, double N) {
+    return params_valid(M, K, N) ? hyge_cdf_scalar(k, M, K, N)
+                                 : std::numeric_limits<double>::quiet_NaN();
+}
+inline double hygeinvK(double q, double M, double K, double N) {
+    return params_valid(M, K, N) ? hyge_inv_scalar(q, M, K, N)
+                                 : std::numeric_limits<double>::quiet_NaN();
+}
+
 } // anonymous
 
 Value hygepdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr)
@@ -154,20 +169,32 @@ std::tuple<double, double> hygestat(double M, double K, double N)
 
 namespace detail {
 
+// Helper: are all three params (args[i1..i1+2]) scalar?
+inline bool hyge_params_scalar(Span<const Value> a, size_t i) {
+    return a[i].isScalar() && a[i + 1].isScalar() && a[i + 2].isScalar();
+}
+
 void hygepdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
         throw Error("hygepdf: requires (k, M, K, N)", 0, 0, "hygepdf", "", "numkit:hygepdf:nargin");
-    outs[0] = hygepdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (hyge_params_scalar(args, 1))
+        outs[0] = hygepdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), mr);
+    else
+        outs[0] = broadcast_dist4(args[0], args[1], args[2], args[3], mr, "hygepdf", hygepdfK);
 }
 
 void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 4)
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    if (a.size() < 4)
         throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "numkit:hygecdf:nargin");
-    Value v = hygecdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value v = hyge_params_scalar(a, 1)
+                  ? hygecdf(a[0], a[1].toScalar(), a[2].toScalar(), a[3].toScalar(), mr)
+                  : broadcast_dist4(a[0], a[1], a[2], a[3], mr, "hygecdf", hygecdfK);
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -176,7 +203,11 @@ void hygeinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 4)
         throw Error("hygeinv: requires (q, M, K, N)", 0, 0, "hygeinv", "", "numkit:hygeinv:nargin");
-    outs[0] = hygeinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    if (hyge_params_scalar(args, 1))
+        outs[0] = hygeinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), mr);
+    else
+        outs[0] = broadcast_dist4(args[0], args[1], args[2], args[3], mr, "hygeinv", hygeinvK);
 }
 
 void hygernd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

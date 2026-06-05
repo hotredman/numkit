@@ -55,6 +55,36 @@ inline double nbin_cdf_scalar(double k, double r, double p, std::pmr::memory_res
     return rv.toScalar();
 }
 
+// (r, p) valid iff r>0 (r may be non-integer) and p ∈ (0, 1]. Else → NaN.
+inline bool nbin_params_ok(double r, double p) {
+    return r > 0.0 && p > 0.0 && p <= 1.0;
+}
+
+inline double nbinpdfK(double k, double r, double p) {
+    if (!nbin_params_ok(r, p)) return std::numeric_limits<double>::quiet_NaN();
+    return nbin_pmf(k, r, p);
+}
+
+// Smallest integer k with F(k; r, p) ≥ qival, via pmf-recurrence
+// pmf(k+1)/pmf(k) = (k+r)/(k+1)·(1-p). (r, p) assumed valid.
+inline double nbin_inv_scalar(double qival, double r, double p) {
+    if (!(qival >= 0.0 && qival <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
+    if (qival == 0.0) return 0.0;
+    if (qival >= 1.0) return std::numeric_limits<double>::infinity();
+    if (p == 1.0) return 0.0;
+    const double q1m = 1.0 - p;
+    double pmf = std::pow(p, r);   // pmf(0)
+    double cdf = pmf;
+    const double tol = std::max(1e-13, qival * 1e-13);
+    if (cdf >= qival - tol) return 0.0;
+    for (double k = 0.0; k < 1e12; k += 1.0) {
+        pmf *= (k + r) / (k + 1.0) * q1m;
+        cdf += pmf;
+        if (cdf >= qival - tol) return k + 1.0;
+    }
+    return std::numeric_limits<double>::infinity();
+}
+
 } // anonymous
 
 Value nbinpdf(const Value &k, double r, double p, std::pmr::memory_resource *mr)
@@ -73,26 +103,9 @@ Value nbincdf(const Value &k, double r, double p, std::pmr::memory_resource *mr)
 
 Value nbininv(const Value &q, double r, double p, std::pmr::memory_resource *mr)
 {
-    if (r <= 0.0 || p <= 0.0 || p > 1.0)
+    if (!nbin_params_ok(r, p))
         return elementwise(q, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(q, [=](double qi) {
-        if (!(qi >= 0.0 && qi <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
-        if (qi == 0.0) return 0.0;
-        if (qi >= 1.0) return std::numeric_limits<double>::infinity();
-        if (p == 1.0) return 0.0;
-        // pmf-recurrence walk: pmf(k+1) / pmf(k) = (k+r)/(k+1) · (1-p).
-        const double q1m = 1.0 - p;
-        double pmf = std::pow(p, r);   // pmf(0)
-        double cdf = pmf;
-        const double tol = std::max(1e-13, qi * 1e-13);
-        if (cdf >= qi - tol) return 0.0;
-        for (double k = 0.0; k < 1e12; k += 1.0) {
-            pmf *= (k + r) / (k + 1.0) * q1m;
-            cdf += pmf;
-            if (cdf >= qi - tol) return k + 1.0;
-        }
-        return std::numeric_limits<double>::infinity();
-    }, mr);
+    return elementwise(q, [=](double qi) { return nbin_inv_scalar(qi, r, p); }, mr);
 }
 
 Value nbinrnd(double r, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
@@ -138,16 +151,48 @@ void nbinpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("nbinpdf: requires (k, r, p)", 0, 0, "nbinpdf", "", "numkit:nbinpdf:nargin");
-    outs[0] = nbinpdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &r = args[1];
+    const Value &p = args[2];
+    if (r.isScalar() && p.isScalar())
+        outs[0] = nbinpdf(args[0], r.toScalar(), p.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist3(args[0], r, p, mr, "nbinpdf", nbinpdfK);
 }
 
 void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 3)
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    if (a.size() < 3)
         throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "numkit:nbincdf:nargin");
-    Value v = nbincdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &r = a[1];
+    const Value &p = a[2];
+    Value v;
+    if (r.isScalar() && p.isScalar()) {
+        v = nbincdf(a[0], r.toScalar(), p.toScalar(), mr);
+    } else {
+        // Per-element F(k_i; r_i, p_i) via nbin_cdf_scalar (betainc); invalid →
+        // NaN. Same per-element-betainc cost as the scalar nbincdf over a vec k.
+        const Value &k = a[0];
+        const size_t nk = k.numel(), nr = r.numel(), np = p.numel();
+        if (nk == 0 || nr == 0 || np == 0) {
+            v = dist_empty_like(nk == 0 ? k : (nr == 0 ? r : p), mr);
+        } else {
+            const size_t N = dist_match_numel({nk, nr, np}, "nbincdf");
+            const Value &ref = (nr == N) ? r : (np == N ? p : k);
+            v = dist_empty_like(ref, mr);
+            double *od = v.doubleDataMut();
+            const double NaN = std::numeric_limits<double>::quiet_NaN();
+            for (size_t i = 0; i < N; ++i) {
+                const double ri = r.elemAsDouble(nr == 1 ? 0 : i);
+                const double pi = p.elemAsDouble(np == 1 ? 0 : i);
+                const double ki = k.elemAsDouble(nk == 1 ? 0 : i);
+                od[i] = nbin_params_ok(ri, pi) ? nbin_cdf_scalar(ki, ri, pi, mr) : NaN;
+            }
+        }
+    }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -156,7 +201,31 @@ void nbininv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("nbininv: requires (q, r, p)", 0, 0, "nbininv", "", "numkit:nbininv:nargin");
-    outs[0] = nbininv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &r = args[1];
+    const Value &p = args[2];
+    if (r.isScalar() && p.isScalar()) {
+        outs[0] = nbininv(args[0], r.toScalar(), p.toScalar(), mr);
+        return;
+    }
+    const Value &q = args[0];
+    const size_t nq = q.numel(), nr = r.numel(), np = p.numel();
+    if (nq == 0 || nr == 0 || np == 0) {
+        outs[0] = dist_empty_like(nq == 0 ? q : (nr == 0 ? r : p), mr);
+        return;
+    }
+    const size_t N = dist_match_numel({nq, nr, np}, "nbininv");
+    const Value &ref = (nr == N) ? r : (np == N ? p : q);
+    Value out = dist_empty_like(ref, mr);
+    double *od = out.doubleDataMut();
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    for (size_t i = 0; i < N; ++i) {
+        const double ri = r.elemAsDouble(nr == 1 ? 0 : i);
+        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const double qi = q.elemAsDouble(nq == 1 ? 0 : i);
+        od[i] = nbin_params_ok(ri, pi) ? nbin_inv_scalar(qi, ri, pi) : NaN;
+    }
+    outs[0] = std::move(out);
 }
 
 void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

@@ -94,8 +94,11 @@ params → noninteger n/N/K → NaN, noninteger k → 0):
 - [x] **poisson** — poisspdf / poisscdf / poissinv (cycle 35, 2026-06-05)
 - [x] **unid** — unidpdf / unidcdf / unidinv (cycle 36, 2026-06-05; closed-form)
 - [x] **geometric** — geopdf / geocdf / geoinv (cycle 36, 2026-06-05; closed-form)
-- [ ] negbin — nbinpdf / nbincdf / nbininv
-- [ ] hypergeom — hygepdf / hygecdf / hygeinv
+- [x] **negbin** — nbinpdf / nbincdf / nbininv (cycle 37, 2026-06-05; betainc)
+- [x] **hypergeom** — hygepdf / hygecdf / hygeinv (cycle 37, 2026-06-05; 4-operand broadcast_dist4)
+
+**All 16 distribution families now broadcast array parameters (cycles
+29-37).** Finale (enable umbrella test + flip md to FIXED) is the next cycle.
 
 The umbrella `DISABLED_DistributionArrayParams` gtest (which checks
 `normpdf` / `binopdf` / `gampdf` — all three now broadcast) stays disabled
