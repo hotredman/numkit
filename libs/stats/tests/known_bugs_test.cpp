@@ -21,8 +21,9 @@ public:
 
 // NOTE: anova1 matrix-input bug FIXED — see libs/stats/tests/anova1_test.cpp.
 
-// bugs/stats/mle-output.md — 2nd output pci (confidence intervals).
-TEST_F(StatsKnownBug, DISABLED_MleConfidenceIntervals)
+// bugs/stats/mle-output.md — 2nd output pci (confidence intervals). FIXED
+// 2026-06-05 (deep coverage in libs/stats/tests/mle_pci_test.cpp).
+TEST_F(StatsKnownBug, MleConfidenceIntervals)
 {
     eval("[phat, pci] = mle([2 3 4 5 6 4 3]);");
     EXPECT_NEAR(evalScalar("pci(1,1)"), 2.613054, 1e-5);
