@@ -2932,9 +2932,137 @@ Value corrDispatch(bool twoArg, const Value &X, const Value &Y,
     return kendallMatrix(X, X, mr);
 }
 
+// ── corr p-values (the 2nd output of [r, p] = corr(...)) ─────────────
+// Each correlation r_ij is tested against H0: no association. The p-value
+// depends only on (r_ij, n, type): Pearson via the t-distribution; Kendall via
+// the EXACT permutation (Mahonian inversions) distribution; Spearman via the
+// EXACT permutation distribution (small n) with a t-approximation fallback for
+// large n. No-ties is assumed for the exact Kendall/Spearman forms.
+
+// Pearson: t = r·√((n-2)/(1-r²)), p = 2·tcdf(-|t|, n-2).
+inline double corrPearsonP(double r, std::size_t n, std::pmr::memory_resource *mr)
+{
+    if (n < 3 || std::isnan(r)) return std::numeric_limits<double>::quiet_NaN();
+    if (std::fabs(r) >= 1.0) return 0.0;
+    const double df = static_cast<double>(n) - 2.0;
+    const double t = r * std::sqrt(df / (1.0 - r * r));
+    const double cdf = tcdf(Value::scalar(-std::fabs(t), mr), df, mr).toScalar();
+    return std::min(1.0, 2.0 * cdf);
+}
+
+// Exact two-sided Kendall p from the normalized inversions distribution
+// (probabilities, so no factorial overflow). D = #discordant pairs. The DP
+// ping-pongs two arena buffers sized to the max support (Dmax+1) — no
+// per-iteration allocation.
+inline double corrKendallExactP(double tau, std::size_t n, std::pmr::memory_resource *mr)
+{
+    if (n < 2 || std::isnan(tau)) return std::numeric_limits<double>::quiet_NaN();
+    const std::size_t Dmax = n * (n - 1) / 2;
+    long Dobs = std::lround(static_cast<double>(Dmax) * (1.0 - tau) / 2.0);
+    if (Dobs < 0) Dobs = 0;
+    if (Dobs > static_cast<long>(Dmax)) Dobs = static_cast<long>(Dmax);
+    ScratchArena sc(mr);
+    ScratchVec<double> prob(Dmax + 1, 0.0, &sc);      // P(#inversions == d)
+    ScratchVec<double> next(Dmax + 1, 0.0, &sc);
+    prob[0] = 1.0;
+    std::size_t curLen = 1;                            // active prefix length
+    for (std::size_t k = 1; k < n; ++k) {
+        const std::size_t newLen = curLen + k;
+        std::fill(next.begin(), next.begin() + newLen, 0.0);
+        const double w = 1.0 / static_cast<double>(k + 1);
+        for (std::size_t d = 0; d < curLen; ++d) {
+            const double pv = prob[d] * w;
+            for (std::size_t s = 0; s <= k; ++s) next[d + s] += pv;
+        }
+        prob.swap(next);                              // O(1), same arena
+        curLen = newLen;
+    }
+    double lower = 0.0, upper = 0.0;
+    for (long d = 0; d <= Dobs; ++d) lower += prob[static_cast<std::size_t>(d)];
+    for (long d = Dobs; d < static_cast<long>(curLen); ++d)
+        upper += prob[static_cast<std::size_t>(d)];
+    return std::min(1.0, 2.0 * std::min(lower, upper));
+}
+
+// Exact two-sided Spearman p by enumerating permutations (small n).
+// D = Σ(rankX_i - rankY_i)²; under H0 it is the displacement of a random perm.
+inline double corrSpearmanExactP(double rho, std::size_t n, std::pmr::memory_resource *mr)
+{
+    const double scale = static_cast<double>(n) * (static_cast<double>(n) * n - 1.0) / 6.0;
+    long Dobs = std::lround((1.0 - rho) * scale);
+    if (Dobs < 0) Dobs = 0;
+    ScratchArena sc(mr);
+    ScratchVec<int> perm(n, &sc);
+    for (std::size_t i = 0; i < n; ++i) perm[i] = static_cast<int>(i);
+    std::size_t total = 0, leCount = 0, geCount = 0;
+    do {
+        long D = 0;
+        for (std::size_t i = 0; i < n; ++i) {
+            const long d = perm[i] - static_cast<long>(i);
+            D += d * d;
+        }
+        if (D <= Dobs) ++leCount;
+        if (D >= Dobs) ++geCount;
+        ++total;
+    } while (std::next_permutation(perm.begin(), perm.end()));
+    const double lower = static_cast<double>(leCount) / static_cast<double>(total);
+    const double upper = static_cast<double>(geCount) / static_cast<double>(total);
+    return std::min(1.0, 2.0 * std::min(lower, upper));
+}
+
+// Spearman p: exact enumeration for small n, t-approximation otherwise (NOTE:
+// MATLAB uses the AS 89 approximation for large n — that tail is approximate).
+inline double corrSpearmanP(double rho, std::size_t n, std::pmr::memory_resource *mr)
+{
+    if (n < 2 || std::isnan(rho)) return std::numeric_limits<double>::quiet_NaN();
+    if (n <= 10) return corrSpearmanExactP(rho, n, mr);
+    if (std::fabs(rho) >= 1.0) return 0.0;
+    const double df = static_cast<double>(n) - 2.0;
+    const double t = rho * std::sqrt(df / (1.0 - rho * rho));
+    const double cdf = tcdf(Value::scalar(-std::fabs(t), mr), df, mr).toScalar();
+    return std::min(1.0, 2.0 * cdf);
+}
+
+// Build the p-value matrix (same shape as r). isAuto → corr(X) form, so the
+// diagonal (variable with itself) is forced to 1, matching MATLAB.
+Value corrPValueMatrix(const Value &r, std::size_t n, CorrType ct, bool isAuto,
+                       std::pmr::memory_resource *mr)
+{
+    const std::size_t p = static_cast<std::size_t>(r.dims().dim(0));
+    const std::size_t q = static_cast<std::size_t>(r.dims().dim(1));
+    Value P = Value::matrix(p, q, ValueType::DOUBLE, mr);
+    double *pd = P.doubleDataMut();
+    const double *rd = r.doubleData();
+    // Kendall exact uses n only; compute the threshold for the large-n fallback.
+    const bool kendallExact = (ct == CorrType::Kendall && n <= 100);
+    for (std::size_t j = 0; j < q; ++j)
+        for (std::size_t i = 0; i < p; ++i) {
+            const double rij = rd[i + j * p];
+            if (isAuto && i == j) { pd[i + j * p] = 1.0; continue; }
+            double pv;
+            if (ct == CorrType::Pearson)
+                pv = corrPearsonP(rij, n, mr);
+            else if (ct == CorrType::Spearman)
+                pv = corrSpearmanP(rij, n, mr);
+            else if (kendallExact)
+                pv = corrKendallExactP(rij, n, mr);
+            else {  // large-n Kendall: tie-free normal approximation
+                if (std::isnan(rij)) pv = std::numeric_limits<double>::quiet_NaN();
+                else {
+                    const double z = 3.0 * rij * std::sqrt(static_cast<double>(n) * (n - 1))
+                                   / std::sqrt(2.0 * (2.0 * n + 5.0));
+                    // 2·Φ(-|z|) = erfc(|z|/√2)
+                    pv = std::min(1.0, std::erfc(std::fabs(z) / std::sqrt(2.0)));
+                }
+            }
+            pd[i + j * p] = pv;
+        }
+    return P;
+}
+
 } // namespace
 
-void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void corr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("corr: requires at least 1 argument",
@@ -2947,38 +3075,40 @@ void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const std::size_t nvStart = twoArg ? 2 : 1;
     const CorrType ct = parseCorrType(args, nvStart);
     const CorrRows rows = parseCorrRows(args, nvStart);
+    const bool isAuto = !twoArg;   // corr(X) auto-correlation → diagonal p = 1
 
+    Value r;
+    std::size_t n;
     if (rows == CorrRows::Pairwise) {
         // Pairwise deletion is currently supported for Pearson only.
         if (ct != CorrType::Pearson)
             throw Error("corr: 'pairwise' rows option is supported only for "
                         "the 'Pearson' type",
                         0, 0, "corr", "", "numkit:corr:PairwiseType");
-        if (twoArg)
-            outs[0] = corrPairwisePearson(args[0], args[1], mr);
-        else
-            outs[0] = corrPairwisePearson(args[0], args[0], mr);
-        return;
-    }
-
-    if (rows == CorrRows::Complete) {
+        r = corrPairwisePearson(args[0], twoArg ? args[1] : args[0], mr);
+        n = corrRows(args[0]);
+    } else if (rows == CorrRows::Complete) {
         // Listwise deletion: drop every row containing a NaN, then compute.
         Value Xc, Yc;
         if (twoArg) {
             dropNaNRows(args[0], &args[1], mr, Xc, &Yc);
-            outs[0] = corrDispatch(true, Xc, Yc, ct, mr);
+            r = corrDispatch(true, Xc, Yc, ct, mr);
         } else {
             dropNaNRows(args[0], nullptr, mr, Xc, nullptr);
-            outs[0] = corrDispatch(false, Xc, Xc, ct, mr);
+            r = corrDispatch(false, Xc, Xc, ct, mr);
         }
-        return;
+        n = corrRows(Xc);
+    } else {
+        // 'all' (default): NaN-poisoning behaviour, unchanged.
+        r = twoArg ? corrDispatch(true, args[0], args[1], ct, mr)
+                   : corrDispatch(false, args[0], args[0], ct, mr);
+        n = corrRows(args[0]);
     }
 
-    // 'all' (default): NaN-poisoning behaviour, unchanged.
-    if (twoArg)
-        outs[0] = corrDispatch(true, args[0], args[1], ct, mr);
-    else
-        outs[0] = corrDispatch(false, args[0], args[0], ct, mr);
+    Value pmat;
+    if (nargout >= 2) pmat = corrPValueMatrix(r, n, ct, isAuto, mr);
+    outs[0] = std::move(r);
+    if (nargout >= 2) outs[1] = std::move(pmat);
 }
 
 namespace {
