@@ -1,9 +1,39 @@
 # (cross-cutting) distribution functions don't broadcast ARRAY parameters
 
-- **Status:** 🔴 OPEN (in progress — broadcast landing family-by-family)
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P2 (errors where MATLAB broadcasts)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (vector-parameter sweep)
+
+## Fixed
+- Fixed: 2026-06-05 over a self-paced multi-cycle sweep (cycles 29-38). ALL
+  16 distribution families' `*pdf` / `*cdf` / `*inv` now broadcast ARRAY
+  distribution parameters, matching MATLAB: a scalar expands, equal non-scalar
+  sizes element-align, mismatched non-scalar sizes error ("Non-scalar
+  arguments must match in size."), the output shape follows the non-scalar
+  operand, and per-element domain is honoured (bad param → NaN, out-of-support
+  → 0, boundary → ±Inf).
+- Families: **continuous** normal, exponential, gamma, beta, chi2, students_t,
+  fisher_f, rayleigh, weibull, lognormal (c29-34); **discrete** binomial,
+  poisson, unid, geometric, negbin, hypergeom (c35-37).
+- Mechanism (`libs/stats/src/distributions/dist_helpers.hpp`):
+  `broadcast_dist2` / `broadcast_dist3` / `broadcast_dist4` apply a scalar
+  kernel under MATLAB broadcasting; `dist_param` resolves zero-copy defaults;
+  `dist_match_numel` enforces the size rule. Closed-form pdf/cdf/inv use a
+  scalar kernel; cdf/inv that compose incomplete beta/gamma reuse the
+  already-broadcasting `builtin::betainc` / `gammainc` / `*incinv` on a
+  broadcast-built argument plus a per-element fixup loop (x-sign for t,
+  degenerate quantile for gamma/chi2, nu→∞ Gaussian limit for t, discrete
+  quantile walks for the discrete families). Each adapter BRANCHES: scalar
+  parameters keep the untouched (hoisted-`lgamma`) public-fn fast path; only
+  non-scalar parameters take the broadcast path, so there is no perf or
+  behaviour change to the common scalar case.
+- Guards: `libs/stats/tests/dist_broadcast_test.cpp` (36 TEST_F, one block per
+  family), `tools/parity/specs/dist_broadcast.json` (correctness=OK vs MATLAB
+  R2025b), `libs/stats/tests/smoke/dist_broadcast_smoke.m`, and the now-live
+  umbrella `StatsKnownBug.DistributionArrayParams`. Also retrofitted the
+  `dist_match_numel` guard onto `betacdf`/`betainv` (the underlying
+  `builtin::betainc`/`betaincinv` don't validate sizes and would OOB-read).
 
 ## Symptom
 The `*pdf` / `*cdf` / `*inv` distribution functions vectorise the FIRST
