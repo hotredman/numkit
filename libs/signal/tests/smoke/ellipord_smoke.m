@@ -19,6 +19,13 @@ fprintf('\n[analog: Wp=2π·1000, Ws=2π·1500, ''s'' mode]\n');
 [n, Wn] = ellipord(2*pi*1000, 2*pi*1500, 1, 40, 's');
 fprintf('  n=%d Wn=%.4f (expect n=5 Wn=6283.19)\n', n, Wn);
 
-fprintf('\nBIT-EQUAL with MATLAB R2025b. Octave 11.1.0 also matches.\n');
-fprintf('KNOWN GAP: bandstop case (ftype=3) deferred — uses recursive\n');
-fprintf('digital→analog conversion not yet implemented.\n');
+fprintf('\n[bandstop: Wp=[0.1 0.6], Ws=[0.2 0.5], Rp=3, Rs=40]  (was a stub)\n');
+[n, Wn] = ellipord([0.1 0.6], [0.2 0.5], 3, 40);
+fprintf('  n=%d Wn=[%.4f %.4f] (expect n=4 Wn=[0.1 0.6])\n', n, Wn(1), Wn(2));
+
+fprintf('\n[bandstop analog: Wp=[100 600], Ws=[200 500], ''s'']\n');
+[n, Wn] = ellipord([100 600], [200 500], 3, 40, 's');
+fprintf('  n=%d Wn=[%.1f %.1f] (expect n=5 Wn=[100 600])\n', n, Wn(1), Wn(2));
+
+fprintf('\nBIT-EQUAL with MATLAB R2025b (incl. bandstop, fixed 2026-06-05).\n');
+fprintf('Octave 11.1.0 also matches.\n');

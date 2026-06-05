@@ -38,6 +38,26 @@ TEST_F(EllipordTest, BandpassDigital)
     EXPECT_NEAR(evalScalar("Wn(2)"), 0.4, 1e-9);
 }
 
+TEST_F(EllipordTest, BandstopDigital)
+{
+    // bugs/signal/ellipord-bandstop.md — passband edges straddle the stopband.
+    eval("[n, Wn] = ellipord([0.1 0.6], [0.2 0.5], 3, 40);");
+    EXPECT_EQ(static_cast<int>(evalScalar("n")), 4);     // MATLAB n=4
+    EXPECT_NEAR(evalScalar("Wn(1)"), 0.1, 1e-12);
+    EXPECT_NEAR(evalScalar("Wn(2)"), 0.6, 1e-12);
+    eval("[n2, W2] = ellipord([0.15 0.55], [0.25 0.45], 1, 60);");
+    EXPECT_EQ(static_cast<int>(evalScalar("n2")), 5);    // tighter spec
+    EXPECT_NEAR(evalScalar("W2(2)"), 0.55, 1e-12);
+}
+
+TEST_F(EllipordTest, BandstopAnalog)
+{
+    eval("[n, Wn] = ellipord([100 600], [200 500], 3, 40, 's');");
+    EXPECT_EQ(static_cast<int>(evalScalar("n")), 5);     // MATLAB n=5
+    EXPECT_NEAR(evalScalar("Wn(1)"), 100.0, 1e-9);
+    EXPECT_NEAR(evalScalar("Wn(2)"), 600.0, 1e-9);
+}
+
 TEST_F(EllipordTest, AnalogLowpass)
 {
     // 2π·1000 → 2π·1500 transition, Rp=1dB, Rs=40dB, analog 's' mode.

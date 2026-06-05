@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (80 entries):** ✅ 30 fixed · 🔴 50 open = **11 bug** + 6 stub +
+**Tally (80 entries):** ✅ 31 fixed · 🔴 49 open = **11 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (30)
+### ✅ FIXED (31)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| stub | [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | ellipord bandstop order/Wn — reciprocal bandpass→LP map WA=(WS·(WP1-WP2))/(WS²-WP1·WP2) (clean-room) (2026-06-05) |
 | bug | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv broadcast ARRAY params across all 16 distribution families — continuous + discrete (c29-38) |
 | missing-output | [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | [r,p]=corr 2nd output: Pearson p=2·tcdf(-\|t\|,n-2); Kendall/Spearman EXACT permutation p (small n); matrix diag=1 (2026-06-05) |
 | missing-output | [stats/mle-output](stats/mle-output.md) | P2 | [phat,pci]=mle(...) confidence intervals (normal/exp/poisson/lognormal, Alpha) via *fit CIs (2026-06-05) |
@@ -175,13 +176,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 6
+### 🔴 OPEN — stub (option/branch throws "not supported") — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | schur(A) throws on non-symmetric A (real Schur form deferred; eig values work) |
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
-| [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | bandstop case throws |
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
 | [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | automatic binning throws |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
