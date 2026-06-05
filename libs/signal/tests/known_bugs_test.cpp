@@ -37,6 +37,21 @@ TEST_F(SignalKnownBug, ConvIntegerInput)
     EXPECT_TRUE(eval("isa(conv(logical([1 0 1]), [1 1]), 'double')").toBool());
 }
 
+// bugs/signal/deconv-integer-input.md — deconv accepts integer/logical input
+// (promotes to double; quotient and remainder always double). FIXED
+// 2026-06-05; deep coverage in libs/signal/tests/deconv_integer_input_test.cpp.
+TEST_F(SignalKnownBug, DeconvIntegerInput)
+{
+    eval("q = deconv(int8([1 3 5 3]), int8([1 1]));");
+    EXPECT_TRUE(eval("isa(q, 'double')").toBool());
+    EXPECT_DOUBLE_EQ(evalScalar("q(2)"), 2.0);
+    eval("[q2, r2] = deconv(int8([1 3 5 3]), int8([1 1]));");
+    EXPECT_TRUE(eval("isa(r2, 'double')").toBool());
+    EXPECT_DOUBLE_EQ(evalScalar("q2(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(r2))"), 0.0);
+    EXPECT_TRUE(eval("isa(deconv([1 3 5 3], int8([1 1])), 'double')").toBool());
+}
+
 // bugs/signal/instfreq-instbw.md — instfreq must track a 10->40 Hz chirp.
 TEST_F(SignalKnownBug, DISABLED_InstfreqTracksChirp)
 {
