@@ -163,7 +163,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
-| [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv broadcast ARRAY params (mu/sigma/n/a/b/df) — norm+exp (c29), gam/beta/chi2 pdf+cdf (c30); their inv + t/f/rayl/wbl/logn + discrete pending |
+| [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv broadcast ARRAY params (mu/sigma/n/a/b/df) — norm+exp (c29), gamma/beta/chi2 full pdf+cdf+inv (c30-31); t/f/rayl/wbl/logn + discrete pending |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
 | [builtin/func2str-anonymous](builtin/func2str-anonymous.md) | P2 | anon handle returns '@__anon_N' not the source text |

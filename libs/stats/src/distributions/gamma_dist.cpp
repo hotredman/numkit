@@ -211,7 +211,39 @@ void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.size() < 3)
         throw Error("gaminv: requires (p, a, b)", 0, 0, "gaminv", "", "numkit:gaminv:nargin");
-    outs[0] = gaminv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &p = args[0];
+    const Value &a = args[1];
+    const Value &b = args[2];
+    if (a.isScalar() && b.isScalar()) {
+        outs[0] = gaminv(p, a.toScalar(), b.toScalar(), mr);   // unchanged fast path
+        return;
+    }
+    // Broadcast: q = gammaincinv(p, a) (broadcasts (p, a)); then scale by b and
+    // apply the degenerate quantile per element, matching the scalar gaminv:
+    // a<0 or b<=0 → NaN; a==0 → 0 (p∈[0,1]) / NaN; else b·gammaincinv(p, a).
+    const size_t np = p.numel(), na = a.numel(), nb = b.numel();
+    if (np == 0 || na == 0 || nb == 0) {
+        outs[0] = dist_empty_like(np == 0 ? p : (na == 0 ? a : b), mr);
+        return;
+    }
+    const size_t N = dist_match_numel({np, na, nb}, "gaminv");
+    Value q = ::numkit::builtin::gammaincinv(p, a, mr);
+    const size_t nq = q.numel();
+    const Value &ref = (np == N) ? p : (na == N ? a : b);
+    Value out = dist_empty_like(ref, mr);
+    double *od = out.doubleDataMut();
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    for (size_t i = 0; i < N; ++i) {
+        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const double ai = a.elemAsDouble(na == 1 ? 0 : i);
+        const double bi = b.elemAsDouble(nb == 1 ? 0 : i);
+        const double qi = q.elemAsDouble(nq == 1 ? 0 : i);
+        od[i] = (ai < 0.0 || !(bi > 0.0))
+                    ? NaN
+                    : (ai == 0.0 ? ((pi >= 0.0 && pi <= 1.0) ? 0.0 : NaN) : bi * qi);
+    }
+    outs[0] = std::move(out);
 }
 
 void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

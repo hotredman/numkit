@@ -34,7 +34,15 @@ fprintf('chi2pdf(2,[1 2 3])        = %s (expect 0.10377687 0.18393972 0.20755375
 fprintf('chi2cdf(2,[1 2 3])        = %s (expect 0.84270079 0.63212056 0.42759330)\n', fmt(chi2cdf(2,[1 2 3])));
 fprintf('chi2pdf(2,[0 -1 4])       = %s (expect 0 NaN 0.18393972; k==0->0, k<0->NaN)\n', fmt(chi2pdf(2,[0 -1 4])));
 
+fprintf('\n--- inverse (broadcast a/b/k) ---\n');
+fprintf('gaminv(0.5,[1 2 3],1)     = %s (expect 0.69314718 1.6783470 2.6740603)\n', fmt(gaminv(0.5,[1 2 3],1)));
+fprintf('gaminv(0.5,[0 2],1)       = %s (expect 0 1.6783470; a==0->0)\n', fmt(gaminv(0.5,[0 2],1)));
+fprintf('betainv([.1 .5 .9],2,3)   = %s (expect 0.14255932 0.38572757 0.67953942)\n', fmt(betainv([.1 .5 .9],2,3)));
+fprintf('chi2inv(0.5,[1 2 3])      = %s (expect 0.45493642 1.3862944 2.3659739)\n', fmt(chi2inv(0.5,[1 2 3])));
+fprintf('chi2inv(0.5,[0 4])        = %s (expect 0 3.3566940; k==0->0)\n', fmt(chi2inv(0.5,[0 4])));
+
 fprintf('\n--- regressions (scalar-param path unchanged) ---\n');
 fprintf('normpdf(0)=%.10g (expect 0.3989422804)  exppdf(2)=%.10g (expect 0.1353352832)\n', normpdf(0), exppdf(2));
 fprintf('gampdf(1,2,2)=%.10g (expect 0.1516326649)  betapdf(0.3,2,3)=%.10g (expect 1.764)\n', gampdf(1,2,2), betapdf(0.3,2,3));
+fprintf('gaminv(0.5,2,2)=%.10g (expect 3.356693980)  chi2inv(0.5,4)=%.10g (expect 3.356693980)\n', gaminv(0.5,2,2), chi2inv(0.5,4));
 fprintf('empty: numel(normpdf([],0,1))=%d (expect 0)\n', numel(normpdf([],0,1)));
