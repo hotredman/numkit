@@ -679,69 +679,150 @@ impinvar(const Value &b, const Value &a, double fs, double /*tol*/, std::pmr::me
     if (static_cast<int>(pv.size()) != N)
         throw std::runtime_error("impinvar: roots() returned unexpected count");
 
-    // 2) Compute residues r_k = b(p_k) / a'(p_k).
-    Value aprimeV = ::numkit::builtin::polyder(a, mr);
-    auto apv = readVec(aprimeV);
-    std::vector<Cd> r(N);
-    for (int k = 0; k < N; ++k) {
-        const Cd bp  = hornerReal(bv,  pv[k]);
-        const Cd app = hornerReal(apv, pv[k]);
-        r[k] = bp / app;
-    }
-
-    // 3) Digital poles α_k = exp(p_k · T).
-    std::vector<Cd> alpha(N);
-    for (int k = 0; k < N; ++k) alpha[k] = std::exp(pv[k] * T);
-
-    // 4) a_d = poly(α) — built straight in complex; cast to double at end.
-    std::vector<Cd> ad_c = polyFromRootsComplex(alpha);  // length N+1
-
-    // 5) b_d = Σ r_k · T · ∏_{j≠k} (1 - α_j · q), polynomial in q = z⁻¹
-    //    of degree N-1, length N. The ∏_{j≠k} (1 - α_j q) factor differs
-    //    from polyFromRootsComplex which produces ∏ (q - α_j); we adjust
-    //    by computing it on the fly.
-    auto polyExceptK = [&](int k) {
-        std::vector<Cd> p = { Cd(1.0, 0.0) };
-        for (int j = 0; j < N; ++j) {
-            if (j == k) continue;
-            // multiply by (1 - α_j · q): (existing p) * (1, -α_j) in q-order
-            std::vector<Cd> np(p.size() + 1, Cd(0.0, 0.0));
-            for (size_t i = 0; i < p.size(); ++i) {
-                np[i]     += p[i];                  // ·1
-                np[i + 1] += -alpha[j] * p[i];      // · (-α_j · q)
-            }
-            p = std::move(np);
-        }
-        return p;
+    // Complex polynomial multiply (z⁻¹ order, low→high).
+    auto polyMul = [](const std::vector<Cd> &a1, const std::vector<Cd> &b1) {
+        std::vector<Cd> r(a1.size() + b1.size() - 1, Cd(0.0, 0.0));
+        for (size_t i = 0; i < a1.size(); ++i)
+            for (size_t j = 0; j < b1.size(); ++j) r[i + j] += a1[i] * b1[j];
+        return r;
     };
 
-    std::vector<Cd> bd_c(N, Cd(0.0, 0.0));
-    for (int k = 0; k < N; ++k) {
-        const std::vector<Cd> partial = polyExceptK(k);   // length N (in q-order)
-        const Cd s = r[k] * T;
-        for (int i = 0; i < N; ++i) bd_c[i] += s * partial[i];
+    // Taylor coefficients of a real polynomial (high→low) about s = p:
+    //   t[j] = P^{(j)}(p)/j!  (repeated synthetic division by (s - p)).
+    auto taylorAbout = [](const std::vector<double> &cHL, Cd p) {
+        std::vector<Cd> c(cHL.size());
+        for (size_t i = 0; i < cHL.size(); ++i) c[i] = Cd(cHL[i], 0.0);
+        std::vector<Cd> t;
+        while (!c.empty()) {
+            if (c.size() == 1) { t.push_back(c[0]); break; }
+            std::vector<Cd> q(c.size() - 1);
+            q[0] = c[0];
+            for (size_t i = 1; i + 1 < c.size(); ++i) q[i] = c[i] + p * q[i - 1];
+            t.push_back(c.back() + p * q.back());   // remainder = P(p) = t_j
+            c = std::move(q);
+        }
+        return t;
+    };
+
+    // 2) Cluster analog poles into DISTINCT poles with multiplicity, mpoles-style
+    //    (tol 1e-3 rel). roots() of an m-fold root spreads it by ~ε^{1/m}
+    //    (~6e-6 for a triple root), so a tight tol mis-groups; the cluster
+    //    CENTROID recovers the true pole, then a Newton refinement makes it
+    //    exact: an m-fold root of a is a SIMPLE root of a^{(m-1)}, so
+    //    s -= a^{(m-1)}(s)/a^{(m)}(s) = s - t_{m-1}/(m·t_m) converges cleanly
+    //    (→ exactly -1 for (s+1)³), which also makes a_d / residues exact.
+    const double ptol = 1e-3;
+    auto samePole = [&](Cd q, Cd p) {
+        return std::abs(q - p) <= ptol * std::max(1.0, std::abs(p));
+    };
+    std::vector<Cd> distinct;
+    std::vector<int> mult;
+    {
+        std::vector<char> used(N, 0);
+        for (int k = 0; k < N; ++k) {
+            if (used[k]) continue;
+            Cd sum = pv[k]; int m = 1; used[k] = 1;
+            for (int j = k + 1; j < N; ++j)
+                if (!used[j] && samePole(pv[j], pv[k])) { used[j] = 1; sum += pv[j]; ++m; }
+            Cd p = sum / double(m);                  // centroid = true pole
+            if (m >= 2) {                            // Newton-refine on a^{(m-1)}
+                for (int it = 0; it < 12; ++it) {
+                    const std::vector<Cd> t = taylorAbout(av, p);
+                    if ((size_t)m >= t.size()) break;
+                    const Cd den = double(m) * t[m];
+                    if (std::abs(den) < 1e-300) break;
+                    const Cd step = t[m - 1] / den;
+                    p -= step;
+                    if (std::abs(step) <= 1e-15 * std::max(1.0, std::abs(p))) break;
+                }
+            }
+            distinct.push_back(p);
+            mult.push_back(m);
+        }
+    }
+    int maxM = 1;
+    for (int m : mult) maxM = std::max(maxM, m);
+
+    // 3) Resolved digital poles α (each centroid repeated its multiplicity) and
+    //    a_d(z⁻¹) = ∏ (1 - α z⁻¹), low→high z⁻¹ (degree N, MATLAB az order).
+    std::vector<Cd> alpha;
+    alpha.reserve(N);
+    for (size_t di = 0; di < distinct.size(); ++di) {
+        const Cd a_alpha = std::exp(distinct[di] * T);
+        for (int t = 0; t < mult[di]; ++t) alpha.push_back(a_alpha);
+    }
+    std::vector<Cd> ad(1, Cd(1.0, 0.0));
+    for (const Cd &a_ : alpha) ad = polyMul(ad, { Cd(1.0, 0.0), -a_ });
+
+    // 5) Eulerian numerators: Σ_{n≥0} n^{m-1} wⁿ = N_m(w)/(1-w)^m. Low→high in w.
+    //    N_1 = 1, N_{m+1}(w) = w·[(1-w)·N_m'(w) + m·N_m(w)].
+    std::vector<std::vector<Cd>> Npoly(maxM + 1);
+    Npoly[1] = { Cd(1.0, 0.0) };
+    for (int m = 1; m < maxM; ++m) {
+        const std::vector<Cd> &Nm = Npoly[m];
+        std::vector<Cd> s(Nm.size() + 1, Cd(0.0, 0.0));   // (1-w)N_m' + m·N_m
+        for (size_t i = 1; i < Nm.size(); ++i) {          // N_m'(w): w^i → i·w^{i-1}
+            const Cd d = double(i) * Nm[i];
+            s[i - 1] += d;                                // ·1
+            s[i]     += -d;                               // ·(-w)
+        }
+        for (size_t i = 0; i < Nm.size(); ++i) s[i] += double(m) * Nm[i];
+        std::vector<Cd> Nm1(s.size() + 1, Cd(0.0, 0.0));  // · w (shift)
+        for (size_t i = 0; i < s.size(); ++i) Nm1[i + 1] = s[i];
+        Npoly[m + 1] = std::move(Nm1);
     }
 
-    // 6) Express a_d in q-form. polyFromRootsComplex produced the
-    //    standard "high-to-low" polynomial coefficients of (z - α_k);
-    //    converted to q = z⁻¹ form, ∏ (1 - α_k · q) has the SAME
-    //    coefficients but ordered low-to-high. Concretely:
-    //    ∏ (z - α_k) =     z^N      - Σα·z^(N-1) + ... + (-1)^N ∏α
-    //    ∏ (1 - α_k q) =   1        - Σα·q       + ... + (-1)^N ∏α·q^N
-    //    so the two are reverses of each other. We want MATLAB-style
-    //    "high-z" first which equals the original ad_c (no reversal).
-    std::vector<double> ad_d(N + 1);
-    for (int i = 0; i <= N; ++i) ad_d[i] = ad_c[i].real();
+    // 6) b_d(z⁻¹) = Σ over distinct poles & orders of the impulse-invariant
+    //    z-kernel: r_m · T^m/(m-1)! · N_m(α z⁻¹) · (1-α z⁻¹)^{M-m} · ∏_{q∉grp}(1-α_q z⁻¹).
+    std::vector<Cd> bd(N, Cd(0.0, 0.0));   // degree N-1, low→high z⁻¹
+    for (size_t di = 0; di < distinct.size(); ++di) {
+        const Cd p = distinct[di];
+        const int M = mult[di];
+        const Cd a_alpha = std::exp(p * T);
 
-    // bd_c is in q-form (low-to-high q). To match MATLAB row-vector
-    // convention (high-to-low z, equivalently low-to-high z⁻¹ leading
-    // with z^0 coefficient), keep low-to-high order for b — that puts
-    // b[0] as the z^0 coefficient. Since the impulse-invariance design
-    // is strictly proper (no z^0 term), b[0] should be ~0; the next
-    // coefficients are the z⁻¹, z⁻², ... ones.
-    std::vector<double> bd_d(N);
-    for (int i = 0; i < N; ++i) bd_d[i] = bd_c[i].real();
+        // Residues r_m for (s-p)^{-m}: φ(p+u)=B(p+u)/Ã(p+u)=Σ c_j u^j, r_m=c_{M-m}.
+        // Ã coeffs about p = (Taylor of a about p) shifted down by M.
+        const std::vector<Cd> tA = taylorAbout(av, p);   // length N+1
+        const std::vector<Cd> tB = taylorAbout(bv, p);
+        auto Atil = [&](int i) { return (M + i < (int)tA.size()) ? tA[M + i] : Cd(0.0, 0.0); };
+        std::vector<Cd> cc(M, Cd(0.0, 0.0));
+        for (int j = 0; j < M; ++j) {
+            Cd acc = (j < (int)tB.size()) ? tB[j] : Cd(0.0, 0.0);
+            for (int i = 1; i <= j; ++i) acc -= Atil(i) * cc[j - i];
+            cc[j] = acc / Atil(0);
+        }
 
+        // Co-factor: ∏ over the OTHER distinct poles, each to its multiplicity
+        // (= a_d with the M copies of this pole's α removed), centroid-based.
+        std::vector<Cd> Cp(1, Cd(1.0, 0.0));
+        for (size_t dj = 0; dj < distinct.size(); ++dj) {
+            if (dj == di) continue;
+            const Cd aj = std::exp(distinct[dj] * T);
+            for (int t = 0; t < mult[dj]; ++t) Cp = polyMul(Cp, { Cd(1.0, 0.0), -aj });
+        }
+
+        for (int m = 1; m <= M; ++m) {
+            const Cd rm = cc[M - m];
+            double fact = 1.0;                 // (m-1)!
+            for (int q = 2; q < m; ++q) fact *= q;
+            const Cd scale = rm * std::pow(T, m) / fact;
+            // N_m(α z⁻¹): w^i → α^i z⁻ⁱ.
+            std::vector<Cd> Nz(Npoly[m].size());
+            Cd apw(1.0, 0.0);
+            for (size_t i = 0; i < Npoly[m].size(); ++i) { Nz[i] = Npoly[m][i] * apw; apw *= a_alpha; }
+            // (1 - α z⁻¹)^{M-m}.
+            std::vector<Cd> pw(1, Cd(1.0, 0.0));
+            for (int t = 0; t < M - m; ++t) pw = polyMul(pw, { Cd(1.0, 0.0), -a_alpha });
+            const std::vector<Cd> contrib = polyMul(polyMul(Nz, pw), Cp);   // degree N-1
+            for (size_t i = 0; i < contrib.size() && i < bd.size(); ++i)
+                bd[i] += scale * contrib[i];
+        }
+    }
+
+    // 7) Real row vectors (imag parts cancel for a real analog filter).
+    std::vector<double> ad_d(N + 1), bd_d(N);
+    for (int i = 0; i <= N; ++i) ad_d[i] = ad[i].real();
+    for (int i = 0; i < N; ++i)  bd_d[i] = bd[i].real();
     return std::make_tuple(packDoubleRow(bd_d, mr), packDoubleRow(ad_d, mr));
 }
 

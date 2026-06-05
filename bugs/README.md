@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (80 entries):** ✅ 31 fixed · 🔴 49 open = **11 bug** + 5 stub +
+**Tally (80 entries):** ✅ 32 fixed · 🔴 48 open = **10 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (31)
+### ✅ FIXED (32)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | repeated-pole impinvar numerator — multiplicity partial fractions + Eulerian impulse-invariant z-kernel + centroid/Newton pole refine (clean-room) (2026-06-05) |
 | stub | [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | ellipord bandstop order/Wn — reciprocal bandpass→LP map WA=(WS·(WP1-WP2))/(WS²-WP1·WP2) (clean-room) (2026-06-05) |
 | bug | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv broadcast ARRAY params across all 16 distribution families — continuous + discrete (c29-38) |
 | missing-output | [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | [r,p]=corr 2nd output: Pearson p=2·tcdf(-\|t\|,n-2); Kendall/Spearman EXACT permutation p (small n); matrix diag=1 (2026-06-05) |
@@ -160,7 +161,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 11
+### 🔴 OPEN — bug (defect on an implemented function) — 10
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -169,7 +170,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
 | [builtin/func2str-anonymous](builtin/func2str-anonymous.md) | P2 | anon handle returns '@__anon_N' not the source text |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
-| [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | wrong numerator for repeated poles |
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | non-2ⁿ phase wrong (rcunwrap) + missing `nd` |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |

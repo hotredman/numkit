@@ -34,3 +34,20 @@ fprintf('  MATLAB R2025b: bd = [0, 0.00861067], ad = [1, -1.72356817, 0.74081822
 % Round-trip test: sum bd / sum ad at z=1 should match analog H(0) ≈ 1/2 (for 1/(s²+3s+2))
 fprintf('  H_d(1) = %.6f  (analog H(0) = 1/2 = 0.5; impinvar approximates at low freq)\n', ...
     sum(bd2) / sum(ad2));
+
+% REPEATED poles (bugs/signal/impinvar-repeated-poles.md — was wrong, fixed 2026-06-05).
+fprintf('\nTest 3 — double pole 1/(s+1)^2, fs = 10:\n');
+[bz, az] = impinvar(1, [1 2 1], 10);
+fprintf('  bz = ['); for i=1:numel(bz); fprintf('%.10g ', bz(i)); end; fprintf(']\n');
+fprintf('  az = ['); for i=1:numel(az); fprintf('%.10g ', az(i)); end; fprintf(']\n');
+fprintf('  MATLAB: bz = [0 0.00904837418], az = [1 -1.809674836 0.8187307531]\n');
+
+fprintf('\nTest 4 — triple pole 1/(s+1)^3, fs = 10:\n');
+[bz, az] = impinvar(1, [1 3 3 1], 10);
+fprintf('  bz = ['); for i=1:numel(bz); fprintf('%.10g ', bz(i)); end; fprintf(']\n');
+fprintf('  MATLAB: bz = [0 0.000452418709 0.0004093653765]\n');
+
+fprintf('\nTest 5 — mixed [1 2]/((s+1)^2(s+2)), fs = 10:\n');
+[bz, az] = impinvar([1 2], [1 4 5 2], 10);
+fprintf('  bz = ['); for i=1:numel(bz); fprintf('%.10g ', bz(i)); end; fprintf(']\n');
+fprintf('  MATLAB: bz = [0 0.00904837418 -0.007408182207]\n');

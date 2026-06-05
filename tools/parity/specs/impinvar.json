@@ -2,9 +2,9 @@
   "name": "impinvar",
   "namespace": "signal",
   "setup": "",
-  "expr": "[bz, az] = impinvar([1], [1 1], 100); r1 = double(numel(bz) + numel(az));",
-  "iters": 5,
+  "expr": "[bd2, ad2] = impinvar(1, [1 2 1], 10); bd2_2 = bd2(2); ad2_2 = ad2(2); ad2_3 = ad2(3); [bd3, ad3] = impinvar(1, [1 3 3 1], 10); bd3_2 = bd3(2); bd3_3 = bd3(3); ad3_2 = ad3(2); ad3_4 = ad3(4); [bd4, ad4] = impinvar(1, [1 4 6 4 1], 10); bd4_3 = bd4(3); ad4_5 = ad4(5); [bdD, adD] = impinvar(1, [1 3 2], 10); bdD_2 = bdD(2); adD_2 = adD(2); [bdM, adM] = impinvar([1 2], [1 4 5 2], 10); bdM_2 = bdM(2); bdM_3 = bdM(3); adM_2 = adM(2);",
+  "iters": 3,
   "tol": 1e-09,
-  "fingerprint": ["r1"],
-  "comment": "Sig: [bz,az] = impinvar(b, a, fs). Spec-extension batch 2026-05-09 (cycle 43)."
+  "fingerprint": ["bd2_2", "ad2_2", "ad2_3", "bd3_2", "bd3_3", "ad3_2", "ad3_4", "bd4_3", "ad4_5", "bdD_2", "adD_2", "bdM_2", "bdM_3", "adM_2"],
+  "comment": "Sig: [bz,az] = impinvar(b, a, fs) — impulse-invariance analog→digital. 2026-06-05 (bugs/signal/impinvar-repeated-poles.md): REPEATED poles now correct. The distinct case used r_k=b(p_k)/a'(p_k) (blows up at a multiple root); general fix = cluster roots by distinct value (mpoles-style, centroid + Newton-refine on a^{(m-1)} since an m-fold root of a is a simple root of a^{(m-1)} → exact pole), partial fractions with multiplicity via Taylor-series division B(p+u)/Ã(p+u), then the impulse-invariant Eulerian z-kernel r·T^m/(m-1)!·N_m(αz⁻¹)/(1-αz⁻¹)^m (N_1=1, N_{m+1}=w[(1-w)N_m'+m N_m]) reassembled over a_d=∏(1-αz⁻¹)^M. Validated bit-exact vs MATLAB R2025b: double 1/(s+1)² bz=[0 0.00904837418]; triple 1/(s+1)³ bz=[0 0.000452418709 0.0004093653765]; quad (s+1)^4; distinct 1/((s+1)(s+2)) (regression); mixed [1 2]/((s+1)²(s+2)). Octave ships impinvar in the signal package (N/A in core)."
 }

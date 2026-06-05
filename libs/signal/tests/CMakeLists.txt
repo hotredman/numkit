@@ -45,6 +45,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shiftdata_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/kaiserord_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ellipord_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/impinvar_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/firpmord_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vco_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fir2_test.cpp

@@ -85,8 +85,9 @@ TEST_F(SignalKnownBug, EllipordBandstop)
     EXPECT_NEAR(evalScalar("Wn(2)"), 0.6, 1e-12);
 }
 
-// bugs/signal/impinvar-repeated-poles.md — repeated-pole numerator wrong.
-TEST_F(SignalKnownBug, DISABLED_ImpinvarRepeatedPoles)
+// bugs/signal/impinvar-repeated-poles.md — repeated-pole numerator. FIXED
+// 2026-06-05 (deep coverage in libs/signal/tests/impinvar_test.cpp).
+TEST_F(SignalKnownBug, ImpinvarRepeatedPoles)
 {
     eval("[bz, az] = impinvar(1, [1 2 1], 10);");   // double pole at -1
     EXPECT_NEAR(evalScalar("bz(1)"), 0.0,         1e-9);
