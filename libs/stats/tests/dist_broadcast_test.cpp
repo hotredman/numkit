@@ -15,6 +15,7 @@
 //   - rayleigh    (raylpdf/raylcdf/raylinv)  — cycle 32
 //   - weibull     (wblpdf/wblcdf/wblinv)     — cycle 32
 //   - lognormal   (lognpdf/logncdf/logninv)  — cycle 32
+//   - students_t  (tpdf/tcdf/tinv)           — cycle 33 (betainc-based + nu==Inf)
 // MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
@@ -270,6 +271,49 @@ TEST_F(DistBroadcastTest, LognormalBroadcast)
     EXPECT_NEAR(evalScalar("d(3)"), 0.1994711402007163, 1e-13);
 }
 
+// ── Student's t: betainc-based broadcast over nu (cycle 33) ──────────
+TEST_F(DistBroadcastTest, TpdfBroadcast)
+{
+    eval("y = tpdf(0, [1 2 10]);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.3183098861837907, 1e-12);
+    EXPECT_NEAR(evalScalar("y(3)"), 0.3891083839660307, 1e-12);
+    eval("z = tpdf([0 1 2], 5);");
+    EXPECT_NEAR(evalScalar("z(3)"), 0.0650903103262226, 1e-12);
+    eval("d = tpdf(0, [0 -1 2]);");                 // nu<=0 → NaN
+    EXPECT_TRUE(eval("isnan(d(1))").toBool());
+    EXPECT_TRUE(eval("isnan(d(2))").toBool());
+    EXPECT_NEAR(evalScalar("d(3)"), 0.3535533905932738, 1e-12);
+}
+
+TEST_F(DistBroadcastTest, TcdfBroadcast)
+{
+    eval("y = tcdf(1, [1 2 10]);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.75, 1e-10);
+    EXPECT_NEAR(evalScalar("y(3)"), 0.8295534338489997, 1e-10);
+    eval("s = tcdf([-1 0 1], 5);");                 // x-sign symmetry
+    EXPECT_NEAR(evalScalar("s(1)"), 0.1816087338246085, 1e-10);
+    EXPECT_NEAR(evalScalar("s(2)"), 0.5, 1e-12);
+    eval("u = tcdf(1, [1 2 10], 'upper');");
+    EXPECT_NEAR(evalScalar("u(1)"), 0.25, 1e-10);
+    // nu==Inf per element → normcdf
+    eval("w = tcdf(1, [5 Inf]);");
+    EXPECT_NEAR(evalScalar("w(2)"), 0.8413447460685429, 1e-12);
+}
+
+TEST_F(DistBroadcastTest, TinvBroadcast)
+{
+    eval("y = tinv(0.975, [1 2 10]);");
+    EXPECT_NEAR(evalScalar("y(1)"), 12.7062047361747, 1e-7);
+    EXPECT_NEAR(evalScalar("y(3)"), 2.2281388519649385, 1e-9);
+    eval("s = tinv([.025 .5 .975], 5);");
+    EXPECT_NEAR(evalScalar("s(1)"), -2.5705818356363, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("s(2)"), 0.0);
+    // nu==Inf per element → norminv
+    eval("w = tinv(0.975, [5 Inf]);");
+    EXPECT_NEAR(evalScalar("w(1)"), 2.5705818356363, 1e-9);
+    EXPECT_NEAR(evalScalar("w(2)"), 1.9599639845400, 1e-8);   // Winitzki norminv
+}
+
 // ── Regressions: scalar-parameter path unchanged; edges ──────────────
 TEST_F(DistBroadcastTest, ScalarPathUnchanged)
 {
@@ -289,6 +333,10 @@ TEST_F(DistBroadcastTest, ScalarPathUnchanged)
     EXPECT_NEAR(evalScalar("raylpdf(1,2)"),    0.2206242256460882, 1e-13);
     EXPECT_NEAR(evalScalar("wblpdf(2,3,4)"),   0.3242488131549144, 1e-12);
     EXPECT_NEAR(evalScalar("lognpdf(2,0,1)"),  0.1568740192789855, 1e-13);
+    // students_t scalar-parameter path unchanged
+    EXPECT_NEAR(evalScalar("tpdf(0.5,5)"),     0.3279185313226211, 1e-12);
+    EXPECT_NEAR(evalScalar("tcdf(2,10)"),      0.9633059826146113, 1e-10);
+    EXPECT_NEAR(evalScalar("tinv(0.9,8)"),     1.3968153097438420, 1e-9);
 }
 
 TEST_F(DistBroadcastTest, EmptyAndMismatch)
