@@ -1,8 +1,8 @@
 {
   "name": "log1p",
   "namespace": "builtin",
-  "setup": "x = [-0.5, 0, 1e-10, 1, 5];",
-  "expr": "r = log1p(x);",
+  "setup": "x = [-0.5, 0, 1e-10, 1, 5]; xc = [-2, -0.5, 0, 3]; z = 3+4i;",
+  "expr": "r = log1p(x); rs = log1p(-2); rc = log1p(xc); rz = log1p(z); rinf = double(isinf(log1p(-1)));",
   "iters": 15,
   "tol": 1e-12,
   "fingerprint": [
@@ -10,9 +10,18 @@
     "r(2)",
     "r(3)",
     "r(4)",
-    "r(5)"
+    "r(5)",
+    "real(rs)",
+    "imag(rs)",
+    "real(rc(1))",
+    "imag(rc(1))",
+    "real(rc(2))",
+    "real(rc(4))",
+    "real(rz)",
+    "imag(rz)",
+    "rinf"
   ],
-  "comment": "Sig: r = log1p(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b.",
+  "comment": "Sig: r = log1p(...). log1p(x)=log(1+x). For x<-1 the argument is negative so MATLAB returns complex (log1p(-2)=i*pi); any array element <-1 promotes the whole real array to complex, accurate per element (log1p kept for x>=-1, so r(3)=1e-10 stays accurate, not the lossy log(1+1e-10)). Complex input uses log(1+z): log1p(3+4i)=1.732868+0.785398i. log1p(-1)=-Inf. Complex branches added 2026-06-05 (bugs/builtin/gradient-3d sibling: bugs/builtin/log-complex-promotion-arrays.md, log1p follow-up). Real in-domain part is the original spec-extension batch 2026-05-09.",
   "bench_setup": "xb = mod((1:N)*7919,1000)*0.001 + 0.001;",
   "bench_expr": "rb=log1p(xb);"
 }
