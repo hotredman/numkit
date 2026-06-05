@@ -1,6 +1,6 @@
 # stats.pdist — 'seuclidean'/'spearman' metrics missing + cosine zero-vector
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P2 (missing metrics) + P3 (cosine edge)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (option-value sweep)
@@ -44,6 +44,30 @@ instead of propagating NaN.
 - 'cosine': when either row norm is 0, emit NaN (don't clamp to 1).
 Moderate (two metrics + the edge). pdist already has `tiedrank` and `corr`
 machinery in libs/stats to lean on.
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 17), `libs/stats/src/cluster/distance.cpp`.
+- **'seuclidean'** added to both `pdist` and `pdist2`: distance
+  `√Σ((xₖ−yₖ)/Sₖ)²` where the default scale `Sₖ` is the per-column **sample
+  std** (n−1) of the data set (`std(X)` — the *first* arg for `pdist2`,
+  matching MATLAB). An explicit scale vector is supported via the existing
+  `C_opt` slot (`pdist(X,'seuclidean',[1 2 3])`).
+- **'spearman'** added to both: each row is `tiedrank`-transformed (average
+  ranks for ties) and the **correlation distance** is taken on the ranks. A
+  constant rank-row (zero variance) yields NaN, as MATLAB does.
+- **'cosine'** and **'correlation'** now return **NaN** (not 1) when a row has
+  zero norm / zero variance. The md only named cosine, but MATLAB returns NaN
+  for `'correlation'` on a constant row too (verified R2025b) — both fixed and
+  tested.
+- Verified vs MATLAB R2025b: `pdist(A,'seuclidean')=[2.58974 0.88002 3.24327]`,
+  explicit-scale `[3.60940 …]`, `pdist(A,'spearman')=[~0 0.5 0.5]`, ties
+  `pdist([1 1 2;3 2 2],'spearman')=1.5`, `isnan(pdist([0 0;3 4],'cosine'))`,
+  `isnan(pdist([1 1;3 4],'correlation'))`, `pdist2(…,'seuclidean')(1,1)=1.00692`,
+  `pdist2(…,'spearman')` NaN column.
+- Live guard: `libs/stats/tests/pdist_metrics_test.cpp` (8 TEST_F) + the
+  catalog guard `StatsKnownBug.PdistMetrics` (flipped from DISABLED). Parity:
+  `tools/parity/specs/pdist_metrics.json` (correctness=OK). Smoke:
+  `libs/stats/tests/smoke/pdist_metrics_smoke.m`.
 
 ## References
 - `libs/stats/src/cluster/distance.cpp` (pdist metric dispatch)
