@@ -622,7 +622,7 @@ VFS-абстракцию, которая в native сборке делегиру
 - `bench*/` — benchmark harnesses
 - Host/IDE code — регистрирует VFS backends, не входит в WASM bundle
 
-**Enforcement:** [tools/check_vfs_invariant.sh](tools/check_vfs_invariant.sh)
+**Enforcement:** [tools/maintenance/check_vfs_invariant.sh](../../tools/maintenance/check_vfs_invariant.sh)
 — grep-based линтер. Прогоняется в CI / pre-commit. При нарушении —
 exit 1 с указанием файлов и строк.
 

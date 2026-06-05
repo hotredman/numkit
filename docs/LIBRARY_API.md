@@ -608,7 +608,7 @@ Value foo(int, int, double, int, std::string, double, std::string);
 
 ## The API lint
 
-`tools/lint/check_api.py` enforces the *mechanically checkable* subset
+`tools/maintenance/check_api.py` enforces the *mechanically checkable* subset
 of these rules over every `libs/<ns>/include/**/*.hpp` header:
 
 - **§13** — no `Engine` / `CallContext` by-ref/by-ptr in a public
@@ -619,7 +619,7 @@ of these rules over every `libs/<ns>/include/**/*.hpp` header:
 Run it directly or via the build:
 
 ```sh
-python tools/lint/check_api.py     # exit 0 = clean, 1 = violations
+python tools/maintenance/check_api.py     # exit 0 = clean, 1 = violations
 cmake --build build/<preset> --target lint
 ```
 
