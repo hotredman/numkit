@@ -87,11 +87,21 @@ arguments must match in size." (cycle 31 also retrofitted that guard onto
 `betacdf`/`betainv`, since `builtin::betainc`/`betaincinv` don't validate
 sizes and would otherwise read out of bounds).
 
-Discrete + remaining families (bino / poiss / unid / geo / nbin / hyge / …)
-follow once the continuous set is done. The umbrella
-`DISABLED_DistributionArrayParams` gtest (which also checks `binopdf` /
-`gampdf`) stays disabled until those families land; the completed families
-are guarded live by `libs/stats/tests/dist_broadcast_test.cpp`.
+Discrete families (pmf closed-form kernel; cdf via per-element
+`betainc`/`gammainc`; inv = discrete-quantile walk per element; integer-ish
+params → noninteger n/N/K → NaN, noninteger k → 0):
+- [x] **binomial** — binopdf / binocdf / binoinv (cycle 35, 2026-06-05)
+- [x] **poisson** — poisspdf / poisscdf / poissinv (cycle 35, 2026-06-05)
+- [ ] unid — unidpdf / unidcdf / unidinv
+- [ ] geometric — geopdf / geocdf / geoinv
+- [ ] negbin — nbinpdf / nbincdf / nbininv
+- [ ] hypergeom — hygepdf / hygecdf / hygeinv
+
+The umbrella `DISABLED_DistributionArrayParams` gtest (which checks
+`normpdf` / `binopdf` / `gampdf` — all three now broadcast) stays disabled
+until the remaining discrete families land, when it is enabled together with
+the md flip to FIXED; the completed families are guarded live by
+`libs/stats/tests/dist_broadcast_test.cpp`.
 
 Verified vs MATLAB R2025b (cycle 29): `normpdf(0,0,[1 2 4])`,
 `normcdf([0 1 2],0,[1 2 4])`, `norminv([.1 .5 .9],0,[1 2 3])`,

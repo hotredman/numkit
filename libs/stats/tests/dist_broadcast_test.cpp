@@ -17,6 +17,8 @@
 //   - lognormal   (lognpdf/logncdf/logninv)  — cycle 32
 //   - students_t  (tpdf/tcdf/tinv)           — cycle 33 (betainc-based + nu==Inf)
 //   - fisher_f    (fpdf/fcdf/finv)           — cycle 34 (betainc-based, 2-param)
+//   - binomial    (binopdf/binocdf/binoinv)  — cycle 35 (discrete)
+//   - poisson     (poisspdf/poisscdf/poissinv) — cycle 35 (discrete)
 // MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
@@ -356,6 +358,42 @@ TEST_F(DistBroadcastTest, FinvBroadcast)
     EXPECT_NEAR(evalScalar("d(2)"), 19.0, 1e-7);
 }
 
+// ── Discrete: binomial + poisson parameter broadcast (cycle 35) ──────
+TEST_F(DistBroadcastTest, BinomialBroadcast)
+{
+    eval("y = binopdf(2, [4 5 6], 0.5);");      // vector n
+    EXPECT_NEAR(evalScalar("y(1)"), 0.375, 1e-13);
+    EXPECT_NEAR(evalScalar("y(3)"), 0.234375, 1e-13);
+    eval("z = binopdf(2, 5, [0.1 0.5 0.9]);");  // vector p
+    EXPECT_NEAR(evalScalar("z(1)"), 0.0729, 1e-13);
+    EXPECT_NEAR(evalScalar("z(3)"), 0.0081, 1e-13);
+    EXPECT_DOUBLE_EQ(evalScalar("binopdf(1.5, 5, 0.5)"), 0.0);     // noninteger k → 0
+    EXPECT_TRUE(eval("isnan(binopdf(2, 4.5, 0.5))").toBool());     // noninteger n → NaN
+    eval("c = binocdf(2, [4 5 6], 0.5);");
+    EXPECT_NEAR(evalScalar("c(1)"), 0.6875, 1e-10);
+    EXPECT_NEAR(evalScalar("c(3)"), 0.34375, 1e-10);
+    eval("q = binoinv([.1 .5 .9], 10, 0.5);");  // discrete quantile
+    EXPECT_DOUBLE_EQ(evalScalar("q(1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q(3)"), 7.0);
+}
+
+TEST_F(DistBroadcastTest, PoissonBroadcast)
+{
+    eval("y = poisspdf(2, [1 2 3]);");          // vector lambda
+    EXPECT_NEAR(evalScalar("y(1)"), 0.1839397205857212, 1e-13);
+    EXPECT_NEAR(evalScalar("y(3)"), 0.2240418076553673, 1e-13);
+    eval("c = poisscdf(2, [1 2 3]);");
+    EXPECT_NEAR(evalScalar("c(1)"), 0.9196986029286058, 1e-10);
+    EXPECT_NEAR(evalScalar("c(3)"), 0.4231900811067840, 1e-9);
+    eval("q = poissinv(0.5, [1 5 10]);");
+    EXPECT_DOUBLE_EQ(evalScalar("q(2)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q(3)"), 10.0);
+    // per-element domain: lambda==0 → pmf 0 at k>0, lambda<0 → NaN
+    eval("d = poisspdf(2, [0 -1 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 0.0);
+    EXPECT_TRUE(eval("isnan(d(2))").toBool());
+}
+
 // ── Regressions: scalar-parameter path unchanged; edges ──────────────
 TEST_F(DistBroadcastTest, ScalarPathUnchanged)
 {
@@ -383,6 +421,11 @@ TEST_F(DistBroadcastTest, ScalarPathUnchanged)
     EXPECT_NEAR(evalScalar("fpdf(2,3,4)"),     0.1394274004635, 1e-12);
     EXPECT_NEAR(evalScalar("fcdf(2,5,10)"),    0.8358050491003, 1e-10);
     EXPECT_NEAR(evalScalar("finv(0.95,5,10)"), 3.325834530413, 1e-8);
+    // binomial/poisson scalar-parameter path unchanged
+    EXPECT_NEAR(evalScalar("binopdf(2,5,0.3)"), 0.3087, 1e-12);
+    EXPECT_NEAR(evalScalar("binocdf(2,5,0.3)"), 0.83692, 1e-10);
+    EXPECT_NEAR(evalScalar("poisscdf(3,4)"),    0.4334701203667, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("poissinv(0.7,5)"), 6.0);
 }
 
 TEST_F(DistBroadcastTest, EmptyAndMismatch)
