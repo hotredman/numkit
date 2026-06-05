@@ -130,9 +130,15 @@ TEST_P(CalculusTest, Gradient3DInputThrows)
     EXPECT_THROW(eval("g = gradient(A);"), std::exception);
 }
 
-TEST_P(CalculusTest, GradientComplexThrows)
+// gradient accepts complex as of 2026-06-05 (was: threw). Real + imaginary
+// parts gradiented separately. MATLAB: gradient([1+2i 3 5-1i]) = [2-2i 2-1.5i 2-1i].
+TEST_P(CalculusTest, GradientComplexOk)
 {
-    EXPECT_THROW(eval("g = gradient([1+2i, 3+0i, 5-1i]);"), std::exception);
+    eval("g = gradient([1+2i, 3+0i, 5-1i]);");
+    EXPECT_NEAR(evalScalar("real(g(2));"),  2.0,  1e-12);
+    EXPECT_NEAR(evalScalar("imag(g(2));"), -1.5,  1e-12);
+    EXPECT_NEAR(evalScalar("imag(g(1));"), -2.0,  1e-12);
+    EXPECT_NEAR(evalScalar("imag(g(3));"), -1.0,  1e-12);
 }
 
 // ── cumtrapz ───────────────────────────────────────────────────
