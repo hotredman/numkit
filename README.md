@@ -398,10 +398,11 @@ tools/parity/                         # Parity harness — runs MATLAB / Octave 
     diff_local_ref.py                 # MATLAB-doc TOC vs PROGRESS.md gap report
     specs/                            # JSON spec per function (input setup + tol)
 
+docs/                                 # Design notes + API ruleset
+    design/                           # NAMESPACE_DESIGN · OBJECT_MODEL · VM_CALLBACKS_PLAN · COORDINATION
+    LIBRARY_API.md · CALLBACK_PAUSABILITY.md
 PROGRESS.md                           # Live function-by-function parity map
 BUGS.md                               # Behavioural deviations + fix queue
-NAMESPACE_DESIGN.md                   # Lib namespace conventions
-COORDINATION.md                       # Multi-session protocol (currently dormant)
 ```
 
 ## License

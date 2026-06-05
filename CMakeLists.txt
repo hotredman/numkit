@@ -120,7 +120,7 @@ endif()
 # libs/CMakeLists.txt   exports NUMKIT_LIBS_SOURCES / NUMKIT_LIBS_HEADERS
 #                              / NUMKIT_LIBS_INCLUDE_DIRS
 # Each lib has its own libs/<name>/CMakeLists.txt for per-lib worker
-# ownership (see COORDINATION.md).
+# ownership (see docs/design/COORDINATION.md).
 
 add_subdirectory(core)
 add_subdirectory(libs)
