@@ -9,6 +9,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/randg_mvnrnd_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/partialcorri_canoncorr_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/adtest_dwtest_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwtest_exact_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nlinfit_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/robust_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glm_test.cpp

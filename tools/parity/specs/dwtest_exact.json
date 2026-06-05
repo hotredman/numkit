@@ -1,0 +1,10 @@
+{
+  "name": "dwtest_exact",
+  "namespace": "stats",
+  "setup": "r1=[1 2 1 3 2 4]'; X1=[ones(6,1) (1:6)']; r3=[1 -1 1 -1 1 -1 1 -1]'; X3=ones(8,1); r4=[2 1 4 3 6 5 8 7]'; X4=[ones(8,1) (1:8)'];",
+  "expr": "[p1,dw1]=dwtest(r1,X1); p1r=dwtest(r1,X1,'Tail','right'); p1l=dwtest(r1,X1,'Tail','left'); [p3,dw3]=dwtest(r3,X3); p3r=dwtest(r3,X3,'Tail','right'); p3l=dwtest(r3,X3,'Tail','left'); [p4,dw4]=dwtest(r4,X4);",
+  "iters": 5,
+  "tol": 1e-7,
+  "fingerprint": ["dw1", "p1", "p1r", "p1l", "dw3", "p3", "p3r", "p3l", "dw4", "p4"],
+  "comment": "Sig: [p, dw] = dwtest(r, X[, 'Tail', tail][, 'Method', m]). EXACT Durbin-Watson p-value via Imhof's characteristic-function inversion (fixed 2026-06-05, bugs/stats/dwtest-pvalue.md): under H0 the residuals are M*eps (M = I - X(X'X)^-1 X'), DW<d <=> eps'M(A-dI)M eps < 0, and the n-k residual-space eigenvalues of MAM feed Imhof's integral. Matches MATLAB's default 'exact' method to ~1e-9. Tails: 'right' p=P(DW<dw) (positive autocorrelation), 'left'=1-that, 'both'=2*min (default). low-DW design dw1=0.3142857 both~0 right~0 left=1; high-DW dw3=3.5 both=0.00569352 right=0.99715324 left=0.00284676; design2 dw4=0.1519608 both~0. ('Method','approximate' is numkit's own beta approximation, not MATLAB-identical, so not fingerprinted here.)"
+}

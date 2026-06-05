@@ -87,12 +87,13 @@ TEST_F(StatsKnownBug, DISABLED_Kstest2PValue)
     EXPECT_NEAR(evalScalar("p"), 0.8470543, 1e-5);   // numkit currently 0.9223
 }
 
-// bugs/stats/dwtest-pvalue.md — DW statistic correct, p-value method differs.
-TEST_F(StatsKnownBug, DISABLED_DwtestPValue)
+// bugs/stats/dwtest-pvalue.md — exact DW p-value (Imhof). FIXED 2026-06-05
+// (deep coverage in libs/stats/tests/dwtest_exact_test.cpp).
+TEST_F(StatsKnownBug, DwtestPValue)
 {
     eval("[p,dw]=dwtest([1 2 1 3 2 4]', [ones(6,1) (1:6)']);");
-    EXPECT_NEAR(evalScalar("dw"), 0.3142857, 1e-6);  // statistic already OK
-    EXPECT_LT(evalScalar("p"), 1e-4);                // MATLAB ~0; numkit ~0.017
+    EXPECT_NEAR(evalScalar("dw"), 0.3142857, 1e-6);  // statistic
+    EXPECT_LT(evalScalar("p"), 1e-4);                // MATLAB ~0 (was numkit ~0.017)
 }
 
 // bugs/stats/mahal-singular.md — mahal must handle a rank-deficient reference.
