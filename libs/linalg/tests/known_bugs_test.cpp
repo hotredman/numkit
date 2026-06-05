@@ -19,8 +19,9 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// bugs/linalg/qr-pivoting.md — column-pivoting QR, 3rd output P.
-TEST_F(LinalgKnownBug, DISABLED_QrColumnPivoting)
+// bugs/linalg/qr-pivoting.md — column-pivoting QR, 3rd output P. FIXED
+// 2026-06-05 (deep coverage in libs/linalg/tests/qr_pivoting_test.cpp).
+TEST_F(LinalgKnownBug, QrColumnPivoting)
 {
     eval("A = [1 2; 3 4; 5 6]; [Q, R, P] = qr(A);");
     // A*P == Q*R, columns ordered by decreasing norm -> P swaps the columns.

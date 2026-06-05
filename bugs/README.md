@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (80 entries):** ✅ 25 fixed · 🔴 55 open = **12 bug** + 6 stub +
-6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
+**Tally (80 entries):** ✅ 26 fixed · 🔴 54 open = **12 bug** + 6 stub +
+5 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (25)
+### ✅ FIXED (26)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-output | [linalg/qr-pivoting](linalg/qr-pivoting.md) | P2 | column-pivoting [Q,R,P]=qr(A) — A*P=Q*R, decreasing-norm order, 'vector'/econ P (2026-06-05) |
 | stub | [stats/isoutlier-gesd](stats/isoutlier-gesd.md) | P2 | isoutlier 'gesd' (Rosner generalized ESD) + MaxNumOutliers/ThresholdFactor (2026-06-05) |
 | bug | [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | kstest/kstest2 exact KS p-value (Marsaglia + Birnbaum-Tingey) + cv (2026-06-05) |
 | bug | [stats/dwtest-pvalue](stats/dwtest-pvalue.md) | P2 | exact Durbin-Watson p-value via Imhof CF inversion + Tail option (2026-06-05) |
@@ -182,13 +183,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | automatic binning throws |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 
-### 🔴 OPEN — missing-output (Nth output not emitted) — 6
+### 🔴 OPEN — missing-output (Nth output not emitted) — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [signal/periodogram-pxxc](signal/periodogram-pxxc.md) | P2 | ConfidenceLevel / pxxc CI 3rd output |
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (centroids) |
-| [linalg/qr-pivoting](linalg/qr-pivoting.md) | P2 | column-pivoting [Q,R,P] |
 | [linalg/eig-left-vectors](linalg/eig-left-vectors.md) | P2 | 3rd output W (left eigenvectors) |
 | [stats/mle-output](stats/mle-output.md) | P2 | 2nd output pci |
 | [stats/corr-pvalue](stats/corr-pvalue.md) | P2 | [r,p]=corr p-value |
