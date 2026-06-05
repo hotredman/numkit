@@ -73,8 +73,9 @@ TEST_F(StatsKnownBug, DISABLED_Friedman)
     EXPECT_NEAR(evalScalar("p"), 0.018315639, 1e-6);
 }
 
-// bugs/stats/corr-pvalue.md — [r,p]=corr missing the p-value 2nd output.
-TEST_F(StatsKnownBug, DISABLED_CorrPValue)
+// bugs/stats/corr-pvalue.md — [r,p]=corr 2nd output. FIXED 2026-06-05
+// (deep coverage in libs/stats/tests/corr_pvalue_test.cpp).
+TEST_F(StatsKnownBug, CorrPValue)
 {
     eval("x=[1 2 3 4 5]'; y=[2 1 4 3 6]'; [r,p]=corr(x,y,'type','Kendall');");
     EXPECT_NEAR(evalScalar("r"), 0.6,      1e-6);
