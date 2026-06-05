@@ -19,7 +19,7 @@ accepts complex for all of them.
 | `cumtrapz(...)` | ✅ FIXED 2026-06-05 → `[0 1.5+1.5i 4+4i]` | `[…  4+4i]` |
 | `gradient([1+1i 3+3i 5+5i])` | ✅ FIXED 2026-06-05 → `[2+2i …]` | `[2+2i …]` |
 | `movmean([1+1i 2+2i 3+3i],2)` | ✅ FIXED 2026-06-05 | `[…]` |
-| `detrend([1+1i 2+2i 3+3i])` | Not a double array | `~0` |
+| `detrend([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `~0` | `~0` |
 | `interp1([1 2 3],[1+1i 2+2i 3+3i],2.5)` | ✅ FIXED 2026-06-05 → `2.5+2.5i` | `2.5+2.5i` |
 | `median([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `2+2i` | `2+2i` (sort by abs, then angle) |
 
@@ -97,4 +97,13 @@ be closed incrementally; this entry is the tracking umbrella.
   partial-NaN complex element — one part finite, the other NaN — is a rare
   edge that the independent-part split handles approximately; full NaN+NaNi
   matches.)
-- ⏳ Remaining: conv, filter, detrend.
+- ✅ **detrend** — 2026-06-05 (bug-fix loop, cycle 13). Refactored
+  `detrend_reg` (`libs/stats/src/descriptive/descriptive_extras.cpp`) to parse
+  order/breakpoints once, then dispatch through a `runReal` lambda; a complex
+  input detrends the real + imaginary parts separately and recombines.
+  ('constant' subtracts the complex mean; 'linear'/order-N and breakpoints all
+  carry through.) Live guard `libs/stats/tests/detrend_complex_test.cpp`,
+  parity `tools/parity/specs/detrend.json` (OK), smoke
+  `libs/stats/tests/smoke/detrend_complex_smoke.m`.
+- ⏳ Remaining: conv, filter (both in libs/signal). When these close, flip this
+  umbrella to ✅ FIXED.
