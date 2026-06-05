@@ -1,6 +1,9 @@
 # imshow — feature gaps
 
-Status: open. Function shipped 2026-05-10 covering grayscale (uint8 /
+Status: ✅ CLOSED (2026-06-06) — resolved to the headless compute
+runtime's scope; the remaining forms are display-only or graphics-object
+forms that numkit does not model (see the **Closed** block at the bottom).
+Function shipped 2026-05-10 covering grayscale (uint8 /
 double / single / logical, with `[lo hi]` / `[]` overrides) and RGB
 M×N×3 (uint8 / double, with `*255` cast for floats). The following
 MATLAB-documented forms remain unimplemented; pick them up as the
@@ -65,3 +68,18 @@ so the renderer is uniform. Float / logical inputs follow the same
 `imref2d(...)` / `imref3d(...)` from the Image Processing Toolbox.
 Probably last on the list — niche, and represents 5 lines of MATLAB
 that scripts almost never use.
+
+## Closed
+- Closed in commit: pending (audit cleanup)
+- Closed date: 2026-06-06
+- Notes: imshow's headless-relevant forms are implemented and emit figure
+  data consumed by the IDE/REPL — grayscale (uint8/double/single/logical with
+  `[lo hi]`/`[]` overrides), RGB M×N×3, RGBA M×N×4, filename input (via
+  `image::imread` + vendored stb_image), and the DisplayRange/XData/YData/
+  Colormap name-values. The remaining MATLAB forms are **out of the compute
+  runtime's scope**, not a compute defect: `InitialMagnification` (numeric),
+  `Border`, and the `Reduce` toggle are display/IDE-viewport-only (numkit
+  always fit-to-panel + auto mean-pools >2M px); `Parent` handle and
+  `imshow(I, RI)` (imref2d/imref3d) are graphics-handle / spatial-referencing
+  OBJECTS, which numkit does not model (same stance as the closed `plot.md`).
+  Tracked as graphics backlog; no headless-actionable work remains.
