@@ -139,5 +139,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/unique_typeclass_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/setops_typeclass_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cummax_cummin_integer_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sprintf_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

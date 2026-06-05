@@ -225,3 +225,11 @@ TEST_F(BuiltinKnownBug, CummaxCumminInteger)
     EXPECT_DOUBLE_EQ(evalScalar("isa(b,'int8')"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("b(2)"), 1.0);
 }
+
+// bugs/builtin/sprintf-complex.md — FIXED (sprintf/fprintf use the real part of
+// a complex argument). Full guard in sprintf_complex_test.cpp.
+TEST_F(BuiltinKnownBug, SprintfComplex)
+{
+    EXPECT_EQ(eval("sprintf('%g', 1+2i)").toString(), "1");
+    EXPECT_EQ(eval("sprintf('%d ', [1+2i 3+4i])").toString(), "1 3 ");
+}
