@@ -1,0 +1,18 @@
+{
+  "name": "movfun_order_stats",
+  "namespace": "stats",
+  "setup": "J = int8([3 1 2 5 4]); N = int8([-1 -2 -4 -5]); L = logical([1 0 1 1 0]);",
+  "expr": "mx = movmax(J, 3); mn = movmin(J, 3); md3 = movmedian(J, 3); md2 = movmedian(J, 2); ndn = movmedian(N, 2); lx = movmax(L, 3); ln = movmin(L, 3); lmd = movmedian(L, 3);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "double(mx(1))", "double(mx(3))", "double(mx(5))",
+    "double(mn(1))", "double(mn(4))", "double(mn(5))",
+    "double(md3(1))", "double(md3(4))", "double(md3(5))",
+    "double(md2(3))", "double(md2(4))", "double(md2(5))",
+    "double(ndn(2))", "double(ndn(4))",
+    "double(lx(1))", "double(lx(5))", "double(ln(1))", "double(ln(3))",
+    "lmd(1)", "lmd(3)", "lmd(5)"
+  ],
+  "comment": "movmax/movmin/movmedian on integer/logical. MATLAB PRESERVES the class for these order statistics: movmax/movmin int->int (exact) & logical->logical; movmedian int->int with ROUND-half-away (1.5->2, 4.5->5, -1.5->-2) but logical->DOUBLE (0.5 median). Window 3 unless w2. Fingerprints read int/logical via double(...); lmd (logical movmedian) is already double. bugs/stats/movfun-order-stats.md."
+}

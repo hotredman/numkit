@@ -167,5 +167,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/corr_pvalue_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dist_broadcast_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/movfun_typeclass_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/movfun_order_stats_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

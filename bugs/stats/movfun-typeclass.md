@@ -44,12 +44,11 @@ movsum(logical([1 0 1 1 0]), 3)     % MATLAB: [1 2 2 2 1] double
 All mov* impls funnel through `movingDriverDim`, which reads `doubleData()`;
 no per-class promotion existed for the integer/logical case.
 
-## Related (NOT fixed here — separate, distinct rules)
-- **`movmax` / `movmin` / `movmedian` PRESERVE the integer/logical class**
-  (order statistics) — they also throw today and need a promote→run→**narrow**
-  fix. movmedian additionally needs a ROUNDING narrow (MATLAB rounds a
-  fractional window median to the int class, e.g. 4.5 → 5), unlike the exact
-  narrow used by cummax/cummin. Separate cycle.
+## Related
+- **`movmax` / `movmin` / `movmedian`** (the class-PRESERVING order statistics)
+  also threw — now FIXED 2026-06-05 (c50) in `bugs/stats/movfun-order-stats.md`
+  (movmax/movmin preserve int+logical; movmedian rounds int half-away,
+  logical→double). Together these close the mov* type-class sweep.
 - `movstd` / `movvar` correctly reject integer input — MATLAB also errors
   ("First input must be double or single"). Left as-is.
 
