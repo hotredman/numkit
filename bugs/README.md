@@ -120,11 +120,11 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (80 entries):** ✅ 23 fixed · 🔴 57 open = **13 bug** + 7 stub +
+**Tally (80 entries):** ✅ 24 fixed · 🔴 56 open = **12 bug** + 7 stub +
 6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (23)
+### ✅ FIXED (24)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
@@ -150,7 +150,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 13
+### 🔴 OPEN — bug (defect on an implemented function) — 12
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -165,7 +165,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | non-2ⁿ phase wrong (rcunwrap) + missing `nd` |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
-| [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | p-value/cv wrong (kstest + kstest2; stat OK) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
 

@@ -1,6 +1,6 @@
 # stats.kstest — p-value and critical value wrong (statistic is correct)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-05)
 - **Severity:** P1 (wrong result)
 - **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
@@ -42,6 +42,31 @@ distribution). Related (separate, minor): jbtest / adtest match MATLAB
 inside the usable range but their tail p-values are not clamped to MATLAB's
 documented table bounds ([0.001, 0.5] for jbtest) — cosmetic, lower priority.
 
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 23), `libs/stats/src/test/hypothesis.cpp`.
+- **kstest two-sided p** — exact `1 − K(n, D)` via the **Marsaglia-Tsang-Wang
+  (2003)** matrix method, with MATLAB's corrected asymptotic
+  `2·exp(−(2.000071 + .331/√n + 1.409/n)·n·D²)` when `s = n·D² > 7.24` or
+  `(s > 3.76 && n > 99)`.
+- **kstest one-sided p** (`'larger'`/`'smaller'`) — exact **Birnbaum-Tingey
+  (1951)** survival on the directional statistic.
+- **Critical value** — by inverting the matching p-function (bisection); this
+  reproduces MATLAB's exact kstest critical-value table to its 5-significant-
+  figure precision (n=6: 0.51926/0.46799/0.61661 at α=0.05/0.10/0.01). MATLAB
+  stores a rounded table, so cv is validated at 1e-4 (gtest) rather than 1e-6.
+- **kstest2** — **Stephens' corrected asymptotic**
+  `λ = (√ne + 0.12 + 0.11/√ne)·D`: two-sided `2·Σ(−1)^{k−1}exp(−2λ²k²)`,
+  one-sided `exp(−2λ²)`.
+- Verified vs MATLAB R2025b (~1e-9 on the p-values): n=6 two-sided
+  p=0.94998410 cv=0.51926; one-sided 0.97197377/0.57170523; n=12 p=0.98282723;
+  kstest2 two-sided 0.84705434, one-sided 0.47200535.
+- Live guard: `libs/stats/tests/kstest_exact_test.cpp` (6 TEST_F) + flipped
+  `StatsKnownBug.KstestPValue` / `Kstest2PValue` live. Parity:
+  `tools/parity/specs/kstest_exact.json` (correctness=OK). Smoke:
+  `libs/stats/tests/smoke/kstest_exact_smoke.m`.
+- Still OPEN (separate, minor, noted above): jbtest/adtest tail-p clamping to
+  MATLAB's documented table bounds — cosmetic, not tracked here.
+
 ## References
-- `libs/stats/src/.../kstest*`
+- `libs/stats/src/test/hypothesis.cpp` (kstest, kstest2, marsagliaK, birnbaumTingey)
 - MATLAB `toolbox/stats/stats/kstest.m`
