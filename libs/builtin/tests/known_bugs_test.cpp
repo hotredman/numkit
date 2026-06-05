@@ -171,3 +171,14 @@ TEST_F(BuiltinKnownBug, SortLogical)
     EXPECT_DOUBLE_EQ(evalScalar("islogical(I)"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("I(2)"), 3.0);
 }
+
+// bugs/builtin/sort-char.md — FIXED (sort sorts char by code point, preserving
+// the char class; index stays double). Full guard in sort_char_test.cpp.
+TEST_F(BuiltinKnownBug, SortChar)
+{
+    eval("[S, I] = sort('dcba');");
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(S,'abcd')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(S)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(I)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("I(1)"), 4.0);
+}

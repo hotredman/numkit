@@ -80,7 +80,6 @@ TEST_F(SortLogicalTest, Scalar)
     EXPECT_DOUBLE_EQ(evalScalar("islogical(y)"), 1.0);
 }
 
-// NOTE: sort of a CHAR array (MATLAB sorts by code point, stays char) is a
-// SEPARATE pre-existing gap — numkit's sort still throws "Not a double array"
-// on char. Tracked in bugs/builtin/sort-logical.md "Related"; not asserted
-// here (this file guards the logical fix only).
+// NOTE: sort of a CHAR array (MATLAB sorts by code point, stays char) is
+// guarded separately in sort_char_test.cpp (fixed 2026-06-05,
+// bugs/builtin/sort-char.md). This file guards the logical fix only.

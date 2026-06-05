@@ -120,15 +120,16 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (83 entries):** ✅ 35 fixed · 🔴 48 open = **10 bug** + 5 stub +
+**Tally (84 entries):** ✅ 36 fixed · 🔴 48 open = **10 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (35)
+### ✅ FIXED (36)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
-| bug | [builtin/sort-logical](builtin/sort-logical.md) | P2 | sort accepts logical — values preserve logical class, index stays double (mirrors integer path; char-sort still a separate gap) (2026-06-05) |
+| bug | [builtin/sort-char](builtin/sort-char.md) | P2 | sort accepts char — sorts by code point, preserves char class, index double (charizeSortResult narrow; shape-preserving, unlike toChar) (2026-06-05) |
+| bug | [builtin/sort-logical](builtin/sort-logical.md) | P2 | sort accepts logical — values preserve logical class, index stays double (mirrors integer path) (2026-06-05) |
 | bug | [builtin/trapz-logical](builtin/trapz-logical.md) | P2 | trapz accepts logical X/Y — promote→double at trapz_reg entry (class not preserved; matches cumtrapz) (2026-06-05) |
 | bug | [builtin/cumulative-logical](builtin/cumulative-logical.md) | P2 | cumsum/cumprod/cummax/cummin accept logical — cumsum/cumprod→double, cummax/cummin→logical (class preserved) (2026-06-05) |
 | bug | [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | repeated-pole impinvar numerator — multiplicity partial fractions + Eulerian impulse-invariant z-kernel + centroid/Newton pole refine (clean-room) (2026-06-05) |
