@@ -1,0 +1,18 @@
+{
+  "name": "gradient",
+  "namespace": "builtin",
+  "setup": "M = [1 2 4; 3 6 8]; cz = [1+1i 3+3i 5+5i]; cM = [1+1i 2 4; 3+1i 4i 6];",
+  "expr": "gv = gradient([1 4 9 16]); gh = gradient([1 4 9], 2); gx = gradient(M); [fx, fy] = gradient(M); cg = gradient(cz); cgx = gradient(cM); [cfx, cfy] = gradient(cM);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "gv(1)", "gv(2)", "gv(4)",
+    "gh(2)",
+    "gx(1,1)", "gx(1,2)", "gx(2,3)",
+    "fx(1,2)", "fy(2,1)",
+    "real(cg(1))", "imag(cg(1))", "real(cg(2))", "imag(cg(2))",
+    "real(cgx(1,1))", "imag(cgx(1,1))", "real(cgx(1,2))", "imag(cgx(1,2))",
+    "real(cfy(1,1))", "imag(cfy(1,1))"
+  ],
+  "comment": "Sig: g = gradient(F[,h]) / [FX,FY] = gradient(F[,hx,hy]). Central differences interior, one-sided at the ends. Single output = the dim-2 (x / column-direction) gradient; 2-output adds FY = dim-1 (y). Optional scalar spacing. COMPLEX F (fixed 2026-06-05): real + imaginary parts gradiented separately, then recombined: gradient([1+1i 3+3i 5+5i])=[2+2i 2+2i 2+2i]; matrix single + 2-output per-part. (N-D F still 1-D/2-D only — tracked by bugs/builtin/gradient-3d.md.) Matches MATLAB R2025b."
+}

@@ -112,14 +112,52 @@ Value toDoubleCopy(const Value &x, std::pmr::memory_resource *mr)
 
 } // namespace
 
+namespace {
+// Real / imaginary parts of a COMPLEX value as same-shape DOUBLE arrays, and
+// the inverse combine. (toDoubleCopy can't be used on complex — elemAsDouble
+// rejects a nonzero imaginary part.)
+Value realPartCopy(const Value &f, std::pmr::memory_resource *mr)
+{
+    auto r = createLike(f, ValueType::DOUBLE, mr);
+    double *d = r.doubleDataMut();
+    const Complex *c = f.complexData();
+    const size_t n = f.numel();
+    for (size_t i = 0; i < n; ++i) d[i] = c[i].real();
+    return r;
+}
+Value imagPartCopy(const Value &f, std::pmr::memory_resource *mr)
+{
+    auto r = createLike(f, ValueType::DOUBLE, mr);
+    double *d = r.doubleDataMut();
+    const Complex *c = f.complexData();
+    const size_t n = f.numel();
+    for (size_t i = 0; i < n; ++i) d[i] = c[i].imag();
+    return r;
+}
+Value combineComplexParts(const Value &re, const Value &im, std::pmr::memory_resource *mr)
+{
+    auto out = createLike(re, ValueType::COMPLEX, mr);
+    Complex *o = out.complexDataMut();
+    const double *r = re.doubleData(), *m = im.doubleData();
+    const size_t n = out.numel();
+    for (size_t i = 0; i < n; ++i) o[i] = Complex(r[i], m[i]);
+    return out;
+}
+} // namespace
+
 Value gradient(const Value &f, double h, std::pmr::memory_resource *mr)
 {
     if (h <= 0)
         throw Error("gradient: spacing h must be positive",
                      0, 0, "gradient", "", "numkit:gradient:badSpacing");
-    if (f.type() == ValueType::COMPLEX)
-        throw Error("gradient: complex inputs are not supported",
-                     0, 0, "gradient", "", "numkit:gradient:complex");
+    // Complex: gradient real + imaginary parts separately, recombine (MATLAB).
+    // (N-D complex still routes into the real path → same rank error, tracked
+    // by bugs/builtin/gradient-3d.md.)
+    if (f.type() == ValueType::COMPLEX) {
+        Value gr = gradient(realPartCopy(f, mr), h, mr);
+        Value gi = gradient(imagPartCopy(f, mr), h, mr);
+        return combineComplexParts(gr, gi, mr);
+    }
 
     auto src = toDoubleCopy(f, mr);
     auto out = createLike(f, ValueType::DOUBLE, mr);
@@ -185,9 +223,13 @@ gradient2(const Value &f, double hx, double hy, std::pmr::memory_resource *mr)
     if (hx <= 0 || hy <= 0)
         throw Error("gradient: spacing arguments must be positive",
                      0, 0, "gradient", "", "numkit:gradient:badSpacing");
-    if (f.type() == ValueType::COMPLEX)
-        throw Error("gradient: complex inputs are not supported",
-                     0, 0, "gradient", "", "numkit:gradient:complex");
+    // Complex: gradient real + imaginary parts separately, recombine (MATLAB).
+    if (f.type() == ValueType::COMPLEX) {
+        auto [grx, gry] = gradient2(realPartCopy(f, mr), hx, hy, mr);
+        auto [gix, giy] = gradient2(imagPartCopy(f, mr), hx, hy, mr);
+        return std::make_tuple(combineComplexParts(grx, gix, mr),
+                               combineComplexParts(gry, giy, mr));
+    }
     const auto &d = f.dims();
     if (d.is3D() || d.ndim() > 2)
         throw Error("gradient: 2-output form requires a 2D matrix input",

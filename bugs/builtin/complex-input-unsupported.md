@@ -17,7 +17,7 @@ accepts complex for all of them.
 | `filter([1 1],1,[1i 1i])` | Not a double array | `[1i  2i]` |
 | `trapz([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `4+4i` | `4+4i` |
 | `cumtrapz(...)` | ✅ FIXED 2026-06-05 → `[0 1.5+1.5i 4+4i]` | `[…  4+4i]` |
-| `gradient([1+1i 3+3i 5+5i])` | "complex not supported" | `[2+2i …]` |
+| `gradient([1+1i 3+3i 5+5i])` | ✅ FIXED 2026-06-05 → `[2+2i …]` | `[2+2i …]` |
 | `movmean([1+1i 2+2i 3+3i],2)` | Not a double array | `[…]` |
 | `detrend([1+1i 2+2i 3+3i])` | Not a double array | `~0` |
 | `interp1([1 2 3],[1+1i 2+2i 3+3i],2.5)` | ✅ FIXED 2026-06-05 → `2.5+2.5i` | `2.5+2.5i` |
@@ -78,4 +78,13 @@ be closed incrementally; this entry is the tracking umbrella.
   `libs/builtin/tests/interp1_complex_test.cpp`, parity
   `tools/parity/specs/interp1.json` (OK), smoke
   `libs/builtin/tests/smoke/interp1_complex_smoke.m`.
-- ⏳ Remaining: conv, filter, gradient, movmean, detrend.
+- ✅ **gradient** (complex) — 2026-06-05 (bug-fix loop, cycle 11). gradient real
+  + imaginary parts separately and recombine, for the vector + matrix
+  single-output and 2-output forms (`gradient`/`gradient2` in
+  `libs/builtin/src/math/integration/integration.cpp`). Live guard
+  `libs/builtin/tests/gradient_complex_test.cpp`, parity
+  `tools/parity/specs/gradient.json` (OK), smoke
+  `libs/builtin/tests/smoke/gradient_complex_smoke.m`. (N-D `gradient` is still
+  rank-limited — that's a separate bug, bugs/builtin/gradient-3d.md, still OPEN;
+  a complex N-D input routes into the real path and errors the same way.)
+- ⏳ Remaining: conv, filter, movmean, detrend.
