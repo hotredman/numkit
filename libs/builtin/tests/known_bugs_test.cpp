@@ -268,6 +268,15 @@ TEST_F(BuiltinKnownBug, PolyderProduct)
     EXPECT_DOUBLE_EQ(evalScalar("numel(d)"), 2.0);
 }
 
+// bugs/builtin/psi-zero-pole.md — FIXED (psi(0) = -Inf, was NaN). Dedicated
+// guard in special_funcs_test.cpp.
+TEST_F(BuiltinKnownBug, PsiZeroPole)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("isinf(psi(0))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("psi(0) < 0"), 1.0);   // -Inf
+    EXPECT_NEAR(evalScalar("psi(1)"), -0.5772156649, 1e-9);
+}
+
 // bugs/builtin/concat-integer-types.md — OPEN (CORE: promoteNumericType rejects
 // integer types). MATLAB concatenates integers preserving the class. Flip the
 // DISABLED_ prefix when the core fix lands.

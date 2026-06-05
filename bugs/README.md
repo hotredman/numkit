@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (94 entries):** ✅ 45 fixed · 🔴 49 open = **11 bug** + 5 stub +
+**Tally (95 entries):** ✅ 46 fixed · 🔴 49 open = **11 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (45)
+### ✅ FIXED (46)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [builtin/psi-zero-pole](builtin/psi-zero-pole.md) | P3 | psi(0) returns -Inf (digamma pole), was NaN; finite values + negative-domain unchanged, matches MATLAB (2026-06-05) |
 | bug | [builtin/polyder-product](builtin/polyder-product.md) | P2 | polyder(a,b) single-output = derivative of the PRODUCT a*b (was the quotient numerator); 2-output quotient form unchanged (2026-06-05) |
 | bug | [builtin/gamma-negative-integer-poles](builtin/gamma-negative-integer-poles.md) | P3 | gamma returns +Inf at non-positive integer poles (was NaN via std::tgamma); gamma(-Inf)=Inf, matches MATLAB (2026-06-05) |
 | bug | [builtin/maxmin-char-double](builtin/maxmin-char-double.md) | P2 | max/min of a char array return double (the code point), not char — MATLAB does not preserve char for max/min (mode does); flipped the stale char-return test (2026-06-05) |

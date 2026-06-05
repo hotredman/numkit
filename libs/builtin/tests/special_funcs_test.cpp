@@ -49,6 +49,18 @@ TEST_P(SpecialFuncsTest, GammaNegativeIntegerIsPole)
     EXPECT_GT(evalScalar("gamma(-2);"), 0.0);
 }
 
+TEST_P(SpecialFuncsTest, PsiZeroPole)
+{
+    // ψ(0) is a pole — MATLAB returns -Inf (not NaN).
+    // bugs/builtin/psi-zero-pole.md.
+    const double p0 = evalScalar("psi(0);");
+    EXPECT_TRUE(std::isinf(p0));
+    EXPECT_LT(p0, 0.0);   // -Inf
+    // numkit's psi uses an asymptotic series (~1e-11 accuracy), so 1e-9 tol.
+    EXPECT_NEAR(evalScalar("psi(1);"), -0.57721566490153287, 1e-9);   // unchanged
+    EXPECT_NEAR(evalScalar("psi(2);"),  0.42278433509846713, 1e-9);
+}
+
 TEST_P(SpecialFuncsTest, GammaArrayShape)
 {
     eval("y = gamma([1 2 3 4]);");
