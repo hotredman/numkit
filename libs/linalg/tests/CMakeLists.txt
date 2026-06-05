@@ -16,5 +16,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/cond_pnorm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/norm_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/qr_pivoting_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eig_left_vectors_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
