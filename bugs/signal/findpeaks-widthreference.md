@@ -48,6 +48,33 @@ defines the contour), which we could not pin from outputs alone. Need
 MATLAB's `findpeaks` source for `getHalfMaxBounds`/the width-bound clamp
 before implementing. Deferred as fiddly.
 
+## Reverse-engineering notes (probed 2026-06-05, c40 — still blocked)
+Confirmed: the CROSSING case is standard and matchable — e.g. strictly
+descending base `[3 4 5 6 9 6 5 4 3]` gives halfheight w=5.0 by ordinary
+linear interpolation at `h/2=4.5` (crossings at 2.5 and 7.5). numkit's
+existing `peakWidth` crossing+interp logic reproduces this once `ref=h/2`.
+The current prominence bounds (`peakProminence` lb/rb) span the WHOLE
+interval to the next-higher sample / array end, so the no-crossing fallback
+returns that span (8 for the pedestal) — NOT MATLAB's 6.0.
+Asymmetric-pedestal probe (all halfheight, base flat = 5, peak = 9, ref=4.5,
+no crossing) to pin the no-crossing bound rule:
+| signal | peak@ | MATLAB w |
+|---|---|---|
+| `[5 5 5 6 9 6 5 5 5]` | 5 | 6 |
+| `[5 5 6 9 6 5 5 5]`   | 4 | 5 |
+| `[5 5 5 6 9 6 5 5]`   | 5 | 6 |
+| `[5 6 9 6 5 5 5]`     | 3 | 4 |
+| `[5 6 9 6 5]`         | 3 | 4 |
+These widths {6,5,6,4,4} do NOT fit any single closed-form bound rule tried
+(middle-of-flat, innermost-of-flat, farthest, min-half-width-doubled all
+contradict at least one case — e.g. `[5 5 5 6 9 6 5 5 5]`→6 needs bounds at
+the flat midpoints 2/8, but `[5 6 9 6 5 5 5]`→4 needs the right bound at the
+innermost flat sample 5, not its midpoint 6). So the no-crossing width is
+governed by MATLAB's internal prominence base-INDEX bookkeeping and is not
+recoverable from black-box outputs. STILL blocked on MATLAB source; the
+crossing case alone is matchable but a partial (crossing-only) implementation
+would diverge on any high-pedestal peak, so not shipped.
+
 ## References
 - `libs/signal/src/measurements/findpeaks.cpp`
 - MATLAB `doc findpeaks` (WidthReference)
