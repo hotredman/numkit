@@ -81,3 +81,15 @@ tools/probe_tmp/
 # `npm run dev` / `npm run build` (predev / prebuild → generate-
 # manifest.js). Single source of truth: docs/examples/.
 ide/public/examples/
+
+# ── GitHub Pages / Vite deploy output ─────────────────
+# Pages is NOT served from this repo (the IDE repo owns deploys). docs/
+# here holds SOURCE docs only (*.md, design/, examples/, *.dox). Keep the
+# deploy bundle out so a stray deploy.* run can't re-commit it.
+docs/index.html
+docs/.nojekyll
+docs/favicon.svg
+docs/numkit-mark.svg
+docs/numkit_ide.js
+docs/numkit_ide.wasm
+docs/assets/
