@@ -86,6 +86,37 @@ inline double phiInv(double p)
     return x - u;
 }
 
+// Scalar kernels for the parameter-broadcast path (vector mu/sigma). Own
+// their per-element domain (sigma<=0 → NaN). Mirror the public fns
+// bit-identically (cdf/inv via phi / phiInv).
+inline double lognpdfK(double x, double mu, double sigma)
+{
+    if (sigma <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    const double inv_sig = 1.0 / sigma;
+    const double inv_sqrt2pi = 1.0 / kSqrt2Pi;
+    if (x <= 0.0) return 0.0;
+    const double z = (std::log(x) - mu) * inv_sig;
+    return inv_sqrt2pi * inv_sig * std::exp(-0.5 * z * z) / x;
+}
+
+inline double logncdfK(double x, double mu, double sigma)
+{
+    if (sigma <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    const double inv_sig = 1.0 / sigma;
+    if (x <= 0.0) return 0.0;
+    return phi((std::log(x) - mu) * inv_sig);
+}
+
+inline double logninvK(double p, double mu, double sigma)
+{
+    if (sigma <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (std::isnan(p) || p < 0.0 || p > 1.0)
+        return std::numeric_limits<double>::quiet_NaN();
+    if (p == 0.0) return 0.0;
+    if (p == 1.0) return std::numeric_limits<double>::infinity();
+    return std::exp(mu + sigma * phiInv(p));
+}
+
 } // anonymous
 
 Value lognpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
@@ -170,16 +201,29 @@ void lognpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("lognpdf: requires (x[, mu, sigma])", 0, 0, "lognpdf", "", "numkit:lognpdf:nargin");
-    outs[0] = lognpdf(args[0], argMu(args, 1), argSigma(args, 2), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value hmu, hsig;
+    const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
+    const Value &sig = dist_param(args, 2, 1.0, mr, hsig);
+    if (mu.isScalar() && sig.isScalar())
+        outs[0] = lognpdf(args[0], mu.toScalar(), sig.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist3(args[0], mu, sig, mr, "lognpdf", lognpdfK);
 }
 
 void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
-    if (stripped.empty())
+    const Span<const Value> s = args.subspan(0, stripUpperFlag(args, upper));
+    if (s.empty())
         throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "numkit:logncdf:nargin");
-    Value v = logncdf(stripped[0], argMu(stripped, 1), argSigma(stripped, 2), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value hmu, hsig;
+    const Value &mu  = dist_param(s, 1, 0.0, mr, hmu);
+    const Value &sig = dist_param(s, 2, 1.0, mr, hsig);
+    Value v = (mu.isScalar() && sig.isScalar())
+                  ? logncdf(s[0], mu.toScalar(), sig.toScalar(), mr)
+                  : broadcast_dist3(s[0], mu, sig, mr, "logncdf", logncdfK);
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -188,7 +232,14 @@ void logninv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.empty())
         throw Error("logninv: requires (p[, mu, sigma])", 0, 0, "logninv", "", "numkit:logninv:nargin");
-    outs[0] = logninv(args[0], argMu(args, 1), argSigma(args, 2), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value hmu, hsig;
+    const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
+    const Value &sig = dist_param(args, 2, 1.0, mr, hsig);
+    if (mu.isScalar() && sig.isScalar())
+        outs[0] = logninv(args[0], mu.toScalar(), sig.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist3(args[0], mu, sig, mr, "logninv", logninvK);
 }
 
 void lognrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

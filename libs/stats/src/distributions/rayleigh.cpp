@@ -37,6 +37,33 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Scalar kernels for the parameter-broadcast path (vector b). Own their
+// per-element domain (b<=0 → NaN). Mirror the public fns bit-identically.
+inline double raylpdfK(double x, double b)
+{
+    if (b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    const double inv_b2 = 1.0 / (b * b);
+    if (x < 0.0) return 0.0;
+    return x * inv_b2 * std::exp(-0.5 * x * x * inv_b2);
+}
+
+inline double raylcdfK(double x, double b)
+{
+    if (b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    const double inv_b2 = 1.0 / (b * b);
+    if (x <= 0.0) return 0.0;
+    return -std::expm1(-0.5 * x * x * inv_b2);
+}
+
+inline double raylinvK(double p, double b)
+{
+    if (b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (p < 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
+    if (p == 0.0) return 0.0;
+    if (p >= 1.0) return std::numeric_limits<double>::infinity();
+    return b * std::sqrt(-2.0 * std::log1p(-p));
+}
+
 } // anonymous
 
 Value raylpdf(const Value &x, double b, std::pmr::memory_resource *mr)
@@ -113,16 +140,24 @@ void raylpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("raylpdf: requires (x, b)", 0, 0, "raylpdf", "", "numkit:raylpdf:nargin");
-    outs[0] = raylpdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &b = args[1];
+    if (b.isScalar())
+        outs[0] = raylpdf(args[0], b.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist2(args[0], b, mr, "raylpdf", raylpdfK);
 }
 
 void raylcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 2)
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    if (a.size() < 2)
         throw Error("raylcdf: requires (x, b[, 'upper'])", 0, 0, "raylcdf", "", "numkit:raylcdf:nargin");
-    Value v = raylcdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &b = a[1];
+    Value v = b.isScalar() ? raylcdf(a[0], b.toScalar(), mr)
+                           : broadcast_dist2(a[0], b, mr, "raylcdf", raylcdfK);
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -131,7 +166,12 @@ void raylinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("raylinv: requires (p, b)", 0, 0, "raylinv", "", "numkit:raylinv:nargin");
-    outs[0] = raylinv(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &b = args[1];
+    if (b.isScalar())
+        outs[0] = raylinv(args[0], b.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist2(args[0], b, mr, "raylinv", raylinvK);
 }
 
 void raylrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

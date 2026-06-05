@@ -12,6 +12,9 @@
 //   - gamma       (gampdf/gamcdf/gaminv)     — cycle 30 pdf+cdf, 31 inv
 //   - beta        (betapdf/betacdf/betainv)  — cycle 30 pdf+cdf, 31 inv
 //   - chi2        (chi2pdf/chi2cdf/chi2inv)  — cycle 30 pdf+cdf, 31 inv
+//   - rayleigh    (raylpdf/raylcdf/raylinv)  — cycle 32
+//   - weibull     (wblpdf/wblcdf/wblinv)     — cycle 32
+//   - lognormal   (lognpdf/logncdf/logninv)  — cycle 32
 // MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
@@ -223,6 +226,50 @@ TEST_F(DistBroadcastTest, InvMismatchThrows)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(gaminv([], [2 2], 1))")), 0);
 }
 
+// ── Rayleigh / Weibull / Lognormal: closed-form broadcast (cycle 32) ─
+TEST_F(DistBroadcastTest, RayleighBroadcast)
+{
+    eval("y = raylpdf(1, [1 2 3]);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.6065306597126334, 1e-13);
+    EXPECT_NEAR(evalScalar("y(3)"), 0.1051066076562796, 1e-13);
+    eval("c = raylinv(0.5, [1 2 3]);");
+    EXPECT_NEAR(evalScalar("c(1)"), 1.1774100225154747, 1e-12);
+    EXPECT_NEAR(evalScalar("c(3)"), 3.5322300675464239, 1e-12);
+    eval("d = raylpdf(1, [0 -1 2]);");          // b<=0 → NaN
+    EXPECT_TRUE(eval("isnan(d(1))").toBool());
+    EXPECT_TRUE(eval("isnan(d(2))").toBool());
+    EXPECT_NEAR(evalScalar("d(3)"), 0.2206242256460882, 1e-13);
+}
+
+TEST_F(DistBroadcastTest, WeibullBroadcast)
+{
+    eval("y = wblpdf(1, [1 2], [1 2]);");       // both params vectors
+    EXPECT_NEAR(evalScalar("y(1)"), 0.3678794411714423, 1e-13);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.3894003915357024, 1e-13);
+    eval("c = wblcdf(1, [1 2], 2);");
+    EXPECT_NEAR(evalScalar("c(2)"), 0.2211992169285951, 1e-12);
+    eval("q = wblinv(0.5, [1 2], 2);");
+    EXPECT_NEAR(evalScalar("q(2)"), 1.6651092223153962, 1e-12);
+    EXPECT_TRUE(eval("isnan(wblpdf(1,0,1))").toBool());   // a<=0 → NaN
+}
+
+TEST_F(DistBroadcastTest, LognormalBroadcast)
+{
+    eval("y = lognpdf(1, [0 1], 1);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.3989422804014327, 1e-13);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.2419707245191434, 1e-13);
+    eval("c = logncdf([1 2 4], 0, 1);");
+    EXPECT_NEAR(evalScalar("c(2)"), 0.7558914042144173, 1e-10);
+    EXPECT_NEAR(evalScalar("c(3)"), 0.9171714809983015, 1e-10);
+    // logninv via Acklam phiInv (~1e-9) → looser tol
+    eval("q = logninv([.1 .5 .9], 0, 1);");
+    EXPECT_NEAR(evalScalar("q(1)"), 0.2776062418520098, 1e-8);
+    EXPECT_NEAR(evalScalar("q(3)"), 3.6022244792791974, 1e-8);
+    eval("d = lognpdf(1, 0, [0 -1 2]);");        // sigma<=0 → NaN
+    EXPECT_TRUE(eval("isnan(d(1))").toBool());
+    EXPECT_NEAR(evalScalar("d(3)"), 0.1994711402007163, 1e-13);
+}
+
 // ── Regressions: scalar-parameter path unchanged; edges ──────────────
 TEST_F(DistBroadcastTest, ScalarPathUnchanged)
 {
@@ -238,6 +285,10 @@ TEST_F(DistBroadcastTest, ScalarPathUnchanged)
     EXPECT_NEAR(evalScalar("gaminv(0.5,2,2)"), 3.3566939800333233, 1e-8);
     EXPECT_NEAR(evalScalar("betainv(0.5,2,3)"), 0.3857275681324743, 1e-8);
     EXPECT_NEAR(evalScalar("chi2inv(0.5,4)"),  3.3566939800333233, 1e-8);
+    // rayleigh/weibull/lognormal scalar-parameter path unchanged
+    EXPECT_NEAR(evalScalar("raylpdf(1,2)"),    0.2206242256460882, 1e-13);
+    EXPECT_NEAR(evalScalar("wblpdf(2,3,4)"),   0.3242488131549144, 1e-12);
+    EXPECT_NEAR(evalScalar("lognpdf(2,0,1)"),  0.1568740192789855, 1e-13);
 }
 
 TEST_F(DistBroadcastTest, EmptyAndMismatch)

@@ -33,6 +33,40 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Scalar kernels for the parameter-broadcast path (vector a/b). Own their
+// per-element domain (a<=0 or b<=0 → NaN). Mirror the public fns
+// bit-identically, including the x∈{0} boundary and NaN propagation.
+inline double wblpdfK(double x, double a, double b)
+{
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    if (!(a > 0.0) || !(b > 0.0)) return NaN;   // also catches NaN params
+    if (std::isnan(x)) return NaN;
+    if (x < 0.0) return 0.0;
+    if (x == 0.0) {
+        if (b < 1.0) return std::numeric_limits<double>::infinity();
+        if (b > 1.0) return 0.0;
+        return 1.0 / a;   // b == 1 (exponential)
+    }
+    const double r = x / a;
+    return (b / a) * std::pow(r, b - 1.0) * std::exp(-std::pow(r, b));
+}
+
+inline double wblcdfK(double x, double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (x <= 0.0) return 0.0;
+    return -std::expm1(-std::pow(x / a, b));
+}
+
+inline double wblinvK(double p, double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (p < 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
+    if (p == 0.0) return 0.0;
+    if (p >= 1.0) return std::numeric_limits<double>::infinity();
+    return a * std::pow(-std::log1p(-p), 1.0 / b);
+}
+
 } // anonymous
 
 Value wblpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
@@ -123,16 +157,29 @@ void wblpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("wblpdf: requires (x[, a, b])", 0, 0, "wblpdf", "", "numkit:wblpdf:nargin");
-    outs[0] = wblpdf(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value ha, hb;
+    const Value &a = dist_param(args, 1, 1.0, mr, ha);
+    const Value &b = dist_param(args, 2, 1.0, mr, hb);
+    if (a.isScalar() && b.isScalar())
+        outs[0] = wblpdf(args[0], a.toScalar(), b.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist3(args[0], a, b, mr, "wblpdf", wblpdfK);
 }
 
 void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
-    if (stripped.empty())
+    const Span<const Value> s = args.subspan(0, stripUpperFlag(args, upper));
+    if (s.empty())
         throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "numkit:wblcdf:nargin");
-    Value v = wblcdf(stripped[0], argA(stripped, 1), argB(stripped, 2), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value ha, hb;
+    const Value &a = dist_param(s, 1, 1.0, mr, ha);
+    const Value &b = dist_param(s, 2, 1.0, mr, hb);
+    Value v = (a.isScalar() && b.isScalar())
+                  ? wblcdf(s[0], a.toScalar(), b.toScalar(), mr)
+                  : broadcast_dist3(s[0], a, b, mr, "wblcdf", wblcdfK);
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -141,7 +188,14 @@ void wblinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("wblinv: requires (p[, a, b])", 0, 0, "wblinv", "", "numkit:wblinv:nargin");
-    outs[0] = wblinv(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value ha, hb;
+    const Value &a = dist_param(args, 1, 1.0, mr, ha);
+    const Value &b = dist_param(args, 2, 1.0, mr, hb);
+    if (a.isScalar() && b.isScalar())
+        outs[0] = wblinv(args[0], a.toScalar(), b.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist3(args[0], a, b, mr, "wblinv", wblinvK);
 }
 
 void wblrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
