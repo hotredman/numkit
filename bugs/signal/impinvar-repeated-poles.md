@@ -37,7 +37,27 @@ Moderate (the repeated-pole kernels + reassembly). Distinct-pole path is
 already correct, so this is isolated to the multiplicity≥2 branch. Validate
 vs MATLAB for double/triple poles.
 
+## Investigation (2026-06-05, c40) — coupled to a residue gap
+- **`builtin::residue` is ALSO gapped for repeated poles** — it throws
+  "repeated-pole case not yet supported (v1 distinct-poles only)". So this fix
+  is COUPLED: impinvar needs repeated-pole residues, which residue can't yet
+  provide. Either fix `residue` first (well-specified clean-room: Taylor-series
+  division B(p+u)/Ã(p+u) to order M-1, where Ã = A with the (s-p)^M factor
+  removed; residue for (s-p)^-m is the coeff of u^{M-m}), or compute the
+  multiplicity residues inline in impinvar.
+- The current impinvar uses the SIMPLE-pole residue r_k = b(p_k)/a'(p_k); at a
+  repeated pole a'(p_k)=0 → r_k = ∞/NaN → the observed garbage numerator.
+- **Verified clean-room z-kernel** (matches MATLAB): impulse invariance maps
+  r/(s-p)^m to r·T^m/(m-1)!·Σ_{n≥0} n^{m-1} α^n z^{-n} with α=e^{pT}, and
+  Σ n^{m-1} α^n z^{-n} = N_{m}(α z^{-1})/(1-α z^{-1})^m where the numerator
+  satisfies N_1=1, N_{m+1}(w)=w·[(1-w)·N_m'(w)+m·N_m(w)] (Eulerian:
+  N_2=w, N_3=w+w², N_4=w(1+4w+w²)). Reassemble over the common denominator
+  a_d = ∏(1-α_k z^{-1})^{M_k} (numkit already builds this correctly). For the
+  double-pole repro 1/(s+1)² @ fs=10: H_d = T²·α·z^{-1}/(1-α z^{-1})² with
+  T²α = 0.00904837, giving bz=[0, 0.00904837] — EXACTLY MATLAB. numkit's
+  output order (low→high z^{-1}) already equals MATLAB's bz, so no reordering.
+
 ## References
-- `libs/signal/src/.../impinvar*`
-- shipped: `residue` (poles/residues with multiplicity)
-- MATLAB `doc impinvar`
+- `libs/signal/src/filter_design/analog_filters.cpp` (`impinvar`)
+- BLOCKER: `builtin::residue` repeated-pole gap (libs/builtin/.../polynomials)
+- MATLAB `doc impinvar`, `doc residue`
