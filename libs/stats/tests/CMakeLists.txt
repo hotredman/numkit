@@ -157,5 +157,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/combnk_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/anova1_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/median_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/movmean_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

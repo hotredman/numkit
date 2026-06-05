@@ -474,8 +474,45 @@ double winMadInPlace(double *w, size_t n, ScratchArena &scratch)
 
 namespace {
 
+// Real / imaginary parts of a COMPLEX value as same-shape DOUBLE arrays, and
+// the inverse combine (movmean is linear, so it commutes with this split).
+Value cplxRealPart(const Value &f, std::pmr::memory_resource *mr)
+{
+    auto r = createLike(f, ValueType::DOUBLE, mr);
+    double *d = r.doubleDataMut();
+    const Complex *c = f.complexData();
+    const size_t n = f.numel();
+    for (size_t i = 0; i < n; ++i) d[i] = c[i].real();
+    return r;
+}
+Value cplxImagPart(const Value &f, std::pmr::memory_resource *mr)
+{
+    auto r = createLike(f, ValueType::DOUBLE, mr);
+    double *d = r.doubleDataMut();
+    const Complex *c = f.complexData();
+    const size_t n = f.numel();
+    for (size_t i = 0; i < n; ++i) d[i] = c[i].imag();
+    return r;
+}
+Value cplxCombine(const Value &re, const Value &im, std::pmr::memory_resource *mr)
+{
+    auto out = createLike(re, ValueType::COMPLEX, mr);
+    Complex *o = out.complexDataMut();
+    const double *r = re.doubleData(), *m = im.doubleData();
+    const size_t n = out.numel();
+    for (size_t i = 0; i < n; ++i) o[i] = Complex(r[i], m[i]);
+    return out;
+}
+
 Value movmean_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
+    // Complex: moving-mean the real + imaginary parts separately, recombine
+    // (window / endpoints / dim all carry through each recursive call).
+    if (x.type() == ValueType::COMPLEX) {
+        Value re = movmean_impl(cplxRealPart(x, mr), k, opt, mr);
+        Value im = movmean_impl(cplxImagPart(x, mr), k, opt, mr);
+        return cplxCombine(re, im, mr);
+    }
     const auto w = decodeWindow(k, "movmean");
     const int d = resolveDim(x, opt.dim, "movmean");
     return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winMean(win, n); }, mr);
