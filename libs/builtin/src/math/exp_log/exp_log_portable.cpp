@@ -74,8 +74,44 @@ Value expm1(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::expm1(v); }, mr);
 }
 
+// log1p of a real x as a (possibly) complex value, accurate per element:
+//   x >= -1 : log1p(x)  (real; -Inf at x == -1)
+//   x <  -1 : 1+x < 0 → log|1+x| + i·π   (MATLAB principal branch)
+static inline Complex log1pRealToComplex_p(double x)
+{
+    constexpr double kPi = 3.141592653589793;
+    if (x >= -1.0) return Complex(std::log1p(x), 0.0);
+    return Complex(std::log(-(1.0 + x)), kPi);
+}
+static inline bool anyLessThanMinusOne_p(const Value &x)
+{
+    const std::size_t n = x.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (x.elemAsDouble(i) < -1.0) return true;
+    return false;
+}
+
+// log1p(x) = log(1+x). For x < -1 the argument 1+x is negative → MATLAB returns
+// complex (log1p(-2) = i·π); any element < -1 promotes the whole real array.
+// Complex input uses log(1+z). The real (x >= -1) path keeps accurate log1p.
 Value log1p(const Value &x, std::pmr::memory_resource *mr)
 {
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) {
+            return std::log(Complex(1.0, 0.0) + c); }, mr);
+    if (x.isScalar()) {
+        const double v = x.toScalar();
+        if (v < -1.0) return Value::complexScalar(log1pRealToComplex_p(v), mr);
+        return Value::scalar(std::log1p(v), mr);
+    }
+    if (anyLessThanMinusOne_p(x)) {
+        Value r = createLike(x, ValueType::COMPLEX, mr);
+        Complex *out = r.complexDataMut();
+        const std::size_t n = x.numel();
+        for (std::size_t i = 0; i < n; ++i)
+            out[i] = log1pRealToComplex_p(x.elemAsDouble(i));
+        return r;
+    }
     return unaryDouble(x, [](double v) { return std::log1p(v); }, mr);
 }
 
