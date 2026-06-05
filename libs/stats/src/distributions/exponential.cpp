@@ -33,39 +33,49 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// ── Scalar kernels (single source of truth) ──────────────────────────
+// Each owns its per-element domain handling so they can be broadcast over a
+// vector mu: mu<=0 (or NaN) → NaN, matching MATLAB R2025b.
+
+inline double exppdfK(double x, double mu)
+{
+    if (!(mu > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+    if (x < 0.0) return 0.0;
+    const double inv_mu = 1.0 / mu;
+    return inv_mu * std::exp(-x * inv_mu);
+}
+
+inline double expcdfK(double x, double mu)
+{
+    if (!(mu > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+    if (x <= 0.0) return 0.0;
+    const double inv_mu = 1.0 / mu;
+    return -std::expm1(-x * inv_mu);
+}
+
+inline double expinvK(double p, double mu)
+{
+    if (!(mu > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+    if (p < 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
+    if (p >= 1.0) return std::numeric_limits<double>::infinity();
+    return -mu * std::log1p(-p);
+}
+
 } // anonymous
 
 Value exppdf(const Value &x, double mu, std::pmr::memory_resource *mr)
 {
-    if (mu <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_mu = 1.0 / mu;
-    return elementwise(x, [=](double xi) {
-        if (xi < 0.0) return 0.0;
-        return inv_mu * std::exp(-xi * inv_mu);
-    }, mr);
+    return elementwise(x, [=](double xi) { return exppdfK(xi, mu); }, mr);
 }
 
 Value expcdf(const Value &x, double mu, std::pmr::memory_resource *mr)
 {
-    if (mu <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_mu = 1.0 / mu;
-    return elementwise(x, [=](double xi) {
-        if (xi <= 0.0) return 0.0;
-        return -std::expm1(-xi * inv_mu);
-    }, mr);
+    return elementwise(x, [=](double xi) { return expcdfK(xi, mu); }, mr);
 }
 
 Value expinv(const Value &p, double mu, std::pmr::memory_resource *mr)
 {
-    if (mu <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p, [=](double pi) {
-        if (pi < 0.0 || pi > 1.0) return std::numeric_limits<double>::quiet_NaN();
-        if (pi >= 1.0) return std::numeric_limits<double>::infinity();
-        return -mu * std::log1p(-pi);
-    }, mr);
+    return elementwise(p, [=](double pi) { return expinvK(pi, mu); }, mr);
 }
 
 Value exprnd(double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
@@ -101,18 +111,24 @@ void exppdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("exppdf: requires (x[, mu])", 0, 0, "exppdf", "", "numkit:exppdf:nargin");
+    auto *mr = ctx.engine->resource();
     // MATLAB default: exppdf(x) ≡ exppdf(x, 1).
-    const double mu = (args.size() >= 2) ? args[1].toScalar() : 1.0;
-    outs[0] = exppdf(args[0], mu, ctx.engine->resource());
+    Value hmu;
+    const Value &mu = dist_param(args, 1, 1.0, mr, hmu);
+    outs[0] = broadcast_dist2(args[0], mu, mr, "exppdf", exppdfK);
 }
 
 void expcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 2)
-        throw Error("expcdf: requires (x, mu[, 'upper'])", 0, 0, "expcdf", "", "numkit:expcdf:nargin");
-    Value v = expcdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    if (a.empty())
+        throw Error("expcdf: requires (x[, mu][, 'upper'])", 0, 0, "expcdf", "", "numkit:expcdf:nargin");
+    auto *mr = ctx.engine->resource();
+    // MATLAB default: expcdf(x) ≡ expcdf(x, 1).
+    Value hmu;
+    const Value &mu = dist_param(a, 1, 1.0, mr, hmu);
+    Value v = broadcast_dist2(a[0], mu, mr, "expcdf", expcdfK);
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -121,9 +137,11 @@ void expinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 {
     if (args.empty())
         throw Error("expinv: requires (p[, mu])", 0, 0, "expinv", "", "numkit:expinv:nargin");
+    auto *mr = ctx.engine->resource();
     // MATLAB default: expinv(p) ≡ expinv(p, 1).
-    const double mu = (args.size() >= 2) ? args[1].toScalar() : 1.0;
-    outs[0] = expinv(args[0], mu, ctx.engine->resource());
+    Value hmu;
+    const Value &mu = dist_param(args, 1, 1.0, mr, hmu);
+    outs[0] = broadcast_dist2(args[0], mu, mr, "expinv", expinvK);
 }
 
 void exprnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

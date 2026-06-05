@@ -1,6 +1,6 @@
 # (cross-cutting) distribution functions don't broadcast ARRAY parameters
 
-- **Status:** 🔴 OPEN
+- **Status:** 🔴 OPEN (in progress — broadcast landing family-by-family)
 - **Severity:** P2 (errors where MATLAB broadcasts)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (vector-parameter sweep)
@@ -47,8 +47,46 @@ evaluate element-wise. Best done once in a shared helper that the
 distribution adapters route through, rather than per-function. Moderate but
 systemic — high value (vectorised pdf/cdf over parameter grids is common).
 
+## Progress (multi-cycle — md stays OPEN until all families broadcast)
+
+Shared broadcast helpers added in
+`libs/stats/src/distributions/dist_helpers.hpp`: `broadcast_dist2` (data +
+1 param) and `broadcast_dist3` (data + 2 params), plus `dist_param`
+(zero-copy default resolution). Each distribution supplies a scalar kernel
+that owns its per-element domain (param<=0 / NaN → NaN), and the adapter
+routes (x, params…) through the helper: scalar expands, equal non-scalar
+sizes element-align, mismatched non-scalar sizes error
+(`"Non-scalar arguments must match in size."`), output shape follows the
+non-scalar operand. The scalar-parameter fast path stays bit-identical
+(kernels mirror the old formulas exactly).
+
+Continuous location-scale family:
+- [x] **normal** — normpdf / normcdf / norminv (cycle 29, 2026-06-05)
+- [x] **exponential** — exppdf / expcdf / expinv (cycle 29, 2026-06-05)
+- [ ] gamma — gampdf / gamcdf / gaminv
+- [ ] beta — betapdf / betacdf / betainv
+- [ ] chi2 — chi2pdf / chi2cdf / chi2inv
+- [ ] students_t — tpdf / tcdf / tinv
+- [ ] fisher_f — fpdf / fcdf / finv
+- [ ] rayleigh — raylpdf / raylcdf / raylinv
+- [ ] weibull — wblpdf / wblcdf / wblinv
+- [ ] lognormal — lognpdf / logncdf / logninv
+
+Discrete + remaining families (bino / poiss / unid / geo / nbin / hyge / …)
+follow once the continuous set is done. The umbrella
+`DISABLED_DistributionArrayParams` gtest (which also checks `binopdf` /
+`gampdf`) stays disabled until those families land; the completed families
+are guarded live by `libs/stats/tests/dist_broadcast_test.cpp`.
+
+Verified vs MATLAB R2025b (cycle 29): `normpdf(0,0,[1 2 4])`,
+`normcdf([0 1 2],0,[1 2 4])`, `norminv([.1 .5 .9],0,[1 2 3])`,
+`exppdf(1,[1 2 4])`, `expcdf(1,[1 2 4][,'upper'])`, `expinv(0.5,[1 2 4])`,
+per-element bad-param → NaN, 2×2 shape, empty→empty, size-mismatch error.
+
 ## References
-- `libs/stats/src/distributions/*` (the *pdf/*cdf/*inv adapters)
+- `libs/stats/src/distributions/dist_helpers.hpp` (broadcast_dist2/3, dist_param)
+- `libs/stats/src/distributions/{normal,exponential}.cpp` (kernels + adapters)
+- `libs/stats/tests/dist_broadcast_test.cpp`, `tools/parity/specs/dist_broadcast.json`
 - MATLAB `doc normpdf` etc. ("inputs ... must be the same size, or any can be
   a scalar")
 - related lesson: betastat scalar-only (memory feedback_audit_no_gap_can_lie)

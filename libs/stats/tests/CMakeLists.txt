@@ -165,5 +165,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/detrend_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pdist_metrics_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/corr_pvalue_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dist_broadcast_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
