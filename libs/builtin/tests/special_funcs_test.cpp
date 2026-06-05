@@ -41,11 +41,12 @@ TEST_P(SpecialFuncsTest, GammaPole)
 
 TEST_P(SpecialFuncsTest, GammaNegativeIntegerIsPole)
 {
-    // Γ(-1) is a pole — std::tgamma signals it as either NaN or ±Inf.
-    // Both behaviours are defensible; the only invariant we check is
-    // that the result is *not* a finite number.
-    const double v = evalScalar("gamma(-1);");
-    EXPECT_FALSE(std::isfinite(v));
+    // Γ(-n) is a pole — MATLAB returns +Inf at every non-positive integer
+    // (and at -Inf), not NaN. bugs/builtin/gamma-negative-integer-poles.md.
+    EXPECT_TRUE(std::isinf(evalScalar("gamma(-1);")));
+    EXPECT_GT(evalScalar("gamma(-1);"), 0.0);   // +Inf, not -Inf
+    EXPECT_TRUE(std::isinf(evalScalar("gamma(-2);")));
+    EXPECT_GT(evalScalar("gamma(-2);"), 0.0);
 }
 
 TEST_P(SpecialFuncsTest, GammaArrayShape)

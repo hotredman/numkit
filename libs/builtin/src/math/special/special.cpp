@@ -340,7 +340,16 @@ double erfinvScalar(double y)
 
 Value gammaFn(const Value &x, std::pmr::memory_resource *mr)
 {
-    return unaryDouble(x, [](double v) { return std::tgamma(v); }, mr);
+    return unaryDouble(x, [](double v) {
+        // Gamma has poles at every non-positive integer; MATLAB returns +Inf
+        // there (and also gamma(-Inf)=Inf). std::tgamma yields NaN at NEGATIVE
+        // integers (it returns +Inf only at 0), so map v<=0 with v==floor(v) to
+        // +Inf — this also covers -Inf (floor(-Inf)==-Inf). +Inf (v>0) and NaN
+        // fall through to tgamma unchanged. bugs/builtin/gamma-negative-integer-poles.md.
+        if (v <= 0.0 && v == std::floor(v))
+            return std::numeric_limits<double>::infinity();
+        return std::tgamma(v);
+    }, mr);
 }
 
 Value gammaln(const Value &x, std::pmr::memory_resource *mr)

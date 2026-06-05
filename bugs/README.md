@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (92 entries):** ✅ 43 fixed · 🔴 49 open = **11 bug** + 5 stub +
+**Tally (93 entries):** ✅ 44 fixed · 🔴 49 open = **11 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (43)
+### ✅ FIXED (44)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [builtin/gamma-negative-integer-poles](builtin/gamma-negative-integer-poles.md) | P3 | gamma returns +Inf at non-positive integer poles (was NaN via std::tgamma); gamma(-Inf)=Inf, matches MATLAB (2026-06-05) |
 | bug | [builtin/maxmin-char-double](builtin/maxmin-char-double.md) | P2 | max/min of a char array return double (the code point), not char — MATLAB does not preserve char for max/min (mode does); flipped the stale char-return test (2026-06-05) |
 | bug | [builtin/sprintf-complex](builtin/sprintf-complex.md) | P2 | sprintf/fprintf use the real part of a complex argument for numeric conversions (was: throw); imaginary discarded, as MATLAB (2026-06-05) |
 | bug | [stats/movfun-order-stats](stats/movfun-order-stats.md) | P3 | movmax/movmin/movmedian accept integer/logical — movmax/movmin preserve class, movmedian rounds int half-away & logical→double (completes mov* sweep) (2026-06-05) |

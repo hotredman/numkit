@@ -244,6 +244,20 @@ TEST_F(BuiltinKnownBug, MaxMinCharDouble)
     EXPECT_DOUBLE_EQ(evalScalar("ischar(mode('abc'))"), 1.0);   // mode keeps char
 }
 
+// bugs/builtin/gamma-negative-integer-poles.md — FIXED (gamma returns +Inf at
+// non-positive integer poles, not NaN). Dedicated guard in special_funcs_test.cpp.
+TEST_F(BuiltinKnownBug, GammaNegativeIntegerPoles)
+{
+    eval("g = gamma([-1 -2 -3 0 -0.5 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("isinf(g(1))"), 1.0);   // -1  -> Inf
+    EXPECT_DOUBLE_EQ(evalScalar("isinf(g(3))"), 1.0);   // -3  -> Inf
+    EXPECT_DOUBLE_EQ(evalScalar("g(1)>0"), 1.0);        // +Inf
+    EXPECT_NEAR(evalScalar("g(5)"), -3.5449077, 1e-6);  // -0.5 unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("g(6)"), 24.0);         // 5! = 24
+    EXPECT_DOUBLE_EQ(evalScalar("isinf(gamma(-Inf))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isnan(gamma(NaN))"), 1.0);
+}
+
 // bugs/builtin/concat-integer-types.md — OPEN (CORE: promoteNumericType rejects
 // integer types). MATLAB concatenates integers preserving the class. Flip the
 // DISABLED_ prefix when the core fix lands.
