@@ -337,36 +337,124 @@ vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::
 
 namespace {
 
-// Asymptotic Kolmogorov distribution survival function (P(K > x)) for
-// the test statistic Dn·√n. Uses the fast-converging Smirnov series
-// for the upper tail (large x) and the slow Kolmogorov series for the
-// lower tail. Adequate for double precision.
-double ks_pvalue(double d) {
-    // d = Dn·√n. P(K ≥ d) = 2 · Σ_{k=1..∞} (-1)^(k-1) · exp(-2 k² d²).
-    if (d <= 0.0) return 1.0;
-    double total = 0.0;
-    double prev = 0.0;
-    for (int k = 1; k <= 100; ++k) {
-        const double term = std::exp(-2.0 * k * k * d * d);
-        if (term < 1e-20 && k > 4) break;
-        total += (k & 1) ? term : -term;
-        if (std::fabs(total - prev) < 1e-12 * std::fabs(total) && k > 4) break;
-        prev = total;
-    }
-    double p = 2.0 * total;
-    if (p < 0.0) p = 0.0;
-    if (p > 1.0) p = 1.0;
-    return p;
+// ── Exact Kolmogorov-Smirnov distributions ──────────────────────────
+// One-sample p-values use the EXACT finite-n distribution (MATLAB's default):
+// two-sided via the Marsaglia-Tsang-Wang (2003) matrix method, one-sided via
+// the Birnbaum-Tingey (1951) closed form. Two-sample uses Stephens' corrected
+// asymptotic. Critical values come from inverting the matching p-function.
+
+void mMultiply(const std::vector<double> &A, const std::vector<double> &B,
+               std::vector<double> &C, int m) {
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < m; ++j) {
+            double s = 0.0;
+            for (int k = 0; k < m; ++k) s += A[i*m+k] * B[k*m+j];
+            C[i*m+j] = s;
+        }
 }
 
-// Asymptotic critical value: solve ks_pvalue(d) = α for d ≈ -ln(α/2)/√…
-// Bisection is fine for doc-quality CV.
-double ks_critical(double alpha) {
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    double lo = 0.01, hi = 5.0;
-    for (int it = 0; it < 80; ++it) {
+// V = A^n with an explicit base-10 exponent eV (rescaled to dodge overflow).
+void mPower(const std::vector<double> &A, int eA, std::vector<double> &V,
+            int &eV, int m, int n) {
+    if (n == 1) { V = A; eV = eA; return; }
+    mPower(A, eA, V, eV, m, n / 2);
+    std::vector<double> B(m * m);
+    mMultiply(V, V, B, m);
+    int eB = 2 * eV;
+    if (n % 2 == 0) { V = B; eV = eB; }
+    else { mMultiply(A, B, V, m); eV = eA + eB; }
+    if (V[(m/2)*m + (m/2)] > 1e140) {
+        for (double &x : V) x *= 1e-140;
+        eV += 140;
+    }
+}
+
+// P(D_n < d) — exact two-sided Kolmogorov CDF (Marsaglia-Tsang-Wang 2003).
+double marsagliaK(int n, double d) {
+    if (d <= 0.0) return 0.0;
+    if (d >= 1.0) return 1.0;
+    const double nd = n * d;
+    const int k = static_cast<int>(nd) + 1;
+    const int m = 2 * k - 1;
+    const double h = k - nd;
+    std::vector<double> H(m * m), Q(m * m, 0.0);
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < m; ++j)
+            H[i*m+j] = (i - j + 1 < 0) ? 0.0 : 1.0;
+    for (int i = 0; i < m; ++i) {
+        H[i*m + 0]     -= std::pow(h, i + 1);
+        H[(m-1)*m + i] -= std::pow(h, m - i);
+    }
+    H[(m-1)*m + 0] += (2.0*h - 1.0 > 0.0) ? std::pow(2.0*h - 1.0, m) : 0.0;
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < m; ++j)
+            if (i - j + 1 > 0)
+                for (int g = 1; g <= i - j + 1; ++g) H[i*m+j] /= g;
+    int eQ = 0;
+    mPower(H, 0, Q, eQ, m, n);
+    double s = Q[(k-1)*m + (k-1)];
+    for (int i = 1; i <= n; ++i) {
+        s = s * i / n;
+        if (s < 1e-140) { s *= 1e140; eQ -= 140; }
+    }
+    return s * std::pow(10.0, static_cast<double>(eQ));
+}
+
+// P(D_n^+ >= d) — exact one-sided KS survival (Birnbaum-Tingey 1951), log space.
+double birnbaumTingey(int n, double d) {
+    if (d <= 0.0) return 1.0;
+    if (d >= 1.0) return 0.0;
+    const double dn = static_cast<double>(n);
+    const int jmax = static_cast<int>(std::floor(dn * (1.0 - d)));
+    double sum = 0.0;
+    for (int j = 0; j <= jmax; ++j) {
+        const double a = 1.0 - d - j / dn;
+        const double b = d + j / dn;
+        if (a <= 0.0 && n - j > 0) continue;     // a^(n-j) == 0
+        const double logC = std::lgamma(dn + 1.0) - std::lgamma(j + 1.0)
+                          - std::lgamma(dn - j + 1.0);
+        double logterm = logC + (j - 1) * std::log(b);
+        if (n - j > 0) logterm += (dn - j) * std::log(a);
+        sum += std::exp(logterm);
+    }
+    return std::min(1.0, std::max(0.0, d * sum));
+}
+
+// Two-sided one-sample p: exact for small statistics; MATLAB's corrected
+// asymptotic 2·exp(-(2.000071 + .331/√n + 1.409/n)·n·D²) for large ones.
+double ksOneSampleTwoSidedP(int n, double D) {
+    const double s = static_cast<double>(n) * D * D;
+    if (s > 7.24 || (s > 3.76 && n > 99))
+        return std::min(1.0, 2.0 * std::exp(-(2.000071 + 0.331/std::sqrt((double)n)
+                                              + 1.409/n) * s));
+    return 1.0 - marsagliaK(n, D);
+}
+
+// One-sided one-sample p (exact Birnbaum-Tingey on the directional statistic).
+double ksOneSampleOneSidedP(int n, double D) { return birnbaumTingey(n, D); }
+
+// Two-sample KS p (Stephens' corrected asymptotic): two-sided is the
+// alternating series, one-sided the single leading term.
+double ksTwoSampleP(double neff, double D, bool twoSided) {
+    const double lambda = (std::sqrt(neff) + 0.12 + 0.11/std::sqrt(neff)) * D;
+    if (!twoSided)
+        return std::min(1.0, std::max(0.0, std::exp(-2.0 * lambda * lambda)));
+    double total = 0.0;
+    for (int k = 1; k <= 101; ++k) {
+        const double term = std::exp(-2.0 * lambda * lambda * k * k);
+        total += (k & 1) ? term : -term;
+        if (term < 1e-20 && k > 4) break;
+    }
+    return std::min(1.0, std::max(0.0, 2.0 * total));
+}
+
+// Critical value: invert a monotone-decreasing p(D) so that p(cv) = alpha.
+template <typename PFn>
+double ksCriticalValue(PFn pfn, double alpha) {
+    double lo = 0.0, hi = 1.0;
+    for (int it = 0; it < 100; ++it) {
         const double mid = 0.5 * (lo + hi);
-        if (ks_pvalue(mid) > alpha) lo = mid; else hi = mid;
+        if (pfn(mid) > alpha) lo = mid; else hi = mid;
     }
     return 0.5 * (lo + hi);
 }
@@ -440,10 +528,18 @@ kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, std::pmr::
         case TestTail::Left:  D = Dminus;            break;
         default:              D = std::max(Dplus, Dminus);
     }
-    const double dn = D * std::sqrt(double(N));
-    const double p  = ks_pvalue(dn);
-    const int    h  = (p < alpha) ? 1 : 0;
-    const double cv = ks_critical(alpha) / std::sqrt(double(N));
+    // Exact finite-n KS distribution (MATLAB default): two-sided Marsaglia,
+    // one-sided Birnbaum-Tingey; critical value by inverting the same p(D).
+    const int ni = static_cast<int>(N);
+    double p, cv;
+    if (tail == TestTail::Both) {
+        p  = ksOneSampleTwoSidedP(ni, D);
+        cv = ksCriticalValue([ni](double dd){ return ksOneSampleTwoSidedP(ni, dd); }, alpha);
+    } else {
+        p  = ksOneSampleOneSidedP(ni, D);
+        cv = ksCriticalValue([ni](double dd){ return ksOneSampleOneSidedP(ni, dd); }, alpha);
+    }
+    const int h = (p < alpha) ? 1 : 0;
 
     return std::make_tuple(Value::scalar(double(h), mr),
                            Value::scalar(p, mr),
@@ -485,10 +581,13 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::m
         default:              D = std::max(Dplus, Dminus);
     }
     const double n_eff = double(Nx) * double(Ny) / double(Nx + Ny);
-    const double dn = D * std::sqrt(n_eff);
-    const double p  = ks_pvalue(dn);
+    // MATLAB kstest2: Stephens' corrected asymptotic (no exact small-sample
+    // path). Two-sided = alternating series, one-sided = single leading term.
+    const bool twoSided = (tail == TestTail::Both);
+    const double p  = ksTwoSampleP(n_eff, D, twoSided);
     const int    h  = (p < alpha) ? 1 : 0;
-    const double cv = ks_critical(alpha) / std::sqrt(n_eff);
+    const double cv = ksCriticalValue([n_eff, twoSided](double dd){
+                          return ksTwoSampleP(n_eff, dd, twoSided); }, alpha);
 
     return std::make_tuple(Value::scalar(double(h), mr),
                            Value::scalar(p, mr),

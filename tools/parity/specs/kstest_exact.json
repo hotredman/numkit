@@ -1,0 +1,10 @@
+{
+  "name": "kstest_exact",
+  "namespace": "stats",
+  "setup": "x = [-1 0 1 2 -0.5 0.5]; x12 = [0.1 0.3 -0.2 1.5 -1.1 0.6 -0.4 0.9 -0.8 0.2 -1.7 1.2]; a=[1 2 3 4 5]; b=[2 3 4 5 6 7];",
+  "expr": "[h1,p1,ks1,cv1]=kstest(x); [~,pl]=kstest(x,'Tail','larger'); [~,ps]=kstest(x,'Tail','smaller'); [~,~,~,c10]=kstest(x,'Alpha',0.10); [~,~,~,c01]=kstest(x,'Alpha',0.01); [h12,p12,ks12,cv12]=kstest(x12); [h2,p2,ks2]=kstest2(a,b); [~,p2l]=kstest2(a,b,'Tail','larger');",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["ks1", "p1", "pl", "ps", "ks12", "p12", "ks2", "p2", "p2l"],
+  "comment": "Sig: [h,p,ksstat,cv]=kstest(x[,'Tail',t][,'Alpha',a]); [h,p,ks2stat]=kstest2(x,y[,'Tail',t]). EXACT finite-n Kolmogorov-Smirnov (fixed 2026-06-05, bugs/stats/kstest-pvalue.md): one-sample two-sided p via Marsaglia-Tsang-Wang 2003 matrix method (corrected asymptotic 2*exp(-(2.000071+.331/sqrt(n)+1.409/n)*n*D^2) when s=n*D^2>7.24 or (s>3.76&&n>99)); one-sided p via Birnbaum-Tingey 1951; kstest2 via Stephens' corrected asymptotic (lambda=(sqrt(ne)+0.12+0.11/sqrt(ne))*D). The KS statistic was already correct; only D->p (and a->cv) were wrong (asymptotic). Validated to ~1e-9: n=6 two-sided p=0.94998410, one-sided 0.97197377/0.57170523, n=12 p=0.98282723, kstest2 two-sided 0.84705434 one-sided 0.47200535. NOTE: cv is obtained by inverting the same exact p-function and matches MATLAB's kstest critical-value table to its 5-significant-figure precision (n=6: 0.51926/0.46799/0.61661) — MATLAB stores a rounded table, so cv is validated at 1e-4 in libs/stats/tests/kstest_exact_test.cpp rather than fingerprinted here at 1e-6."
+}

@@ -54,14 +54,14 @@ TEST_F(StatsKnownBug, DISABLED_SmoothdataSgolay)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 11);
 }
 
-// bugs/stats/kstest-pvalue.md — statistic OK, p-value/critical value wrong
-// (numkit asymptotic vs MATLAB exact small-n Kolmogorov distribution).
-TEST_F(StatsKnownBug, DISABLED_KstestPValue)
+// bugs/stats/kstest-pvalue.md — exact small-n Kolmogorov distribution. FIXED
+// 2026-06-05 (deep coverage in libs/stats/tests/kstest_exact_test.cpp).
+TEST_F(StatsKnownBug, KstestPValue)
 {
     eval("[h, p, ks, cv] = kstest([-1 0 1 2 -0.5 0.5]);");
-    EXPECT_NEAR(evalScalar("ks"), 0.19146246, 1e-6);   // statistic already OK
-    EXPECT_NEAR(evalScalar("p"),  0.94998410, 1e-5);   // numkit currently 0.9804
-    EXPECT_NEAR(evalScalar("cv"), 0.51926000, 1e-4);   // numkit currently 0.5544
+    EXPECT_NEAR(evalScalar("ks"), 0.19146246, 1e-6);   // statistic
+    EXPECT_NEAR(evalScalar("p"),  0.94998410, 1e-5);   // was numkit 0.9804
+    EXPECT_NEAR(evalScalar("cv"), 0.51926000, 1e-4);   // was numkit 0.5544
 }
 
 // bugs/stats/friedman.md — Friedman's nonparametric two-way ANOVA missing.
@@ -79,12 +79,13 @@ TEST_F(StatsKnownBug, DISABLED_CorrPValue)
     EXPECT_NEAR(evalScalar("p"), 0.233333, 1e-5);
 }
 
-// bugs/stats/kstest-pvalue.md — kstest2 p-value wrong (statistic correct).
-TEST_F(StatsKnownBug, DISABLED_Kstest2PValue)
+// bugs/stats/kstest-pvalue.md — kstest2 p-value (Stephens corrected). FIXED
+// 2026-06-05 (deep coverage in libs/stats/tests/kstest_exact_test.cpp).
+TEST_F(StatsKnownBug, Kstest2PValue)
 {
     eval("[h,p,k]=kstest2([1 2 3 4 5],[2 3 4 5 6 7]);");
-    EXPECT_NEAR(evalScalar("k"), 0.3333333, 1e-6);   // statistic already OK
-    EXPECT_NEAR(evalScalar("p"), 0.8470543, 1e-5);   // numkit currently 0.9223
+    EXPECT_NEAR(evalScalar("k"), 0.3333333, 1e-6);   // statistic
+    EXPECT_NEAR(evalScalar("p"), 0.8470543, 1e-5);   // was numkit 0.9223
 }
 
 // bugs/stats/dwtest-pvalue.md — exact DW p-value (Imhof). FIXED 2026-06-05
