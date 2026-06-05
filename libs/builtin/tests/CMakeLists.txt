@@ -142,5 +142,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/sprintf_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/maxmin_char_double_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/str2double_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concat_integer_types_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

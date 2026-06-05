@@ -1,11 +1,32 @@
 # concat — integer types rejected (cat / [;] / [,] / vertcat / horzcat)
 
-- **Status:** 🔴 OPEN
-- **Severity:** P2 (throws on common valid input; integer arrays are widely used)
+- **Status:** ✅ FIXED (2026-06-05)
+- **Severity:** P2 (threw on common valid input; integer arrays are widely used)
 - **Kind:** bug
 - **Found:** 2026-06-05 via DEEP-PROBE (cycle 53)
-- **Scope:** CORE (out of scope for the libs-only bug-fix loop — flagged for a
-  supervised core-fix session)
+- **Scope:** CORE (fixed under user approval in cycle 59)
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 59, user-approved core change),
+  `core/src/value.cpp`. `promoteNumericType` now returns the class of the FIRST
+  integer operand when any operand is integer (MATLAB R2025b dominance — it is
+  NOT an error, even for mixed integer classes or integer+complex). `horzcat` /
+  `vertcat` compute an integer result in a DOUBLE workspace (the existing
+  `elemAsDouble` copy reads every operand class incl. the real part of complex)
+  and finish with `castConcatToInteger` (round-half-away + saturate). The N-D
+  `cat(3,...)` path inherits the fix.
+- Verified vs MATLAB R2025b (re-probed — R2025b is more permissive than the
+  original ticket assumed: mixed int classes and int+complex do NOT error):
+  `[int8;int8]`=int8 [1 2;3 4]; `[int8,int8]`=int8 1x4; `cat(1,uint16)`=uint16;
+  `cat(3,int8,int8)`=int8 1x2x2; `[int8(5);50.6]`=51 (round); `[int8(5);300]`=127
+  (sat hi); `[int8(5);-300]`=-128 (sat lo); `[int8(5);true]`=1;
+  `[int8,int16]`=int8 (first wins); `[int16,int8]`=int16; `[int8;2+3i]`=2
+  (real part). double / logical / complex / char concat unchanged (zero
+  regression; full suite 11575/11575).
+- Live guard: `libs/builtin/tests/concat_integer_types_test.cpp` (5 TEST_F) +
+  `BuiltinKnownBug.ConcatIntegerTypes` flipped live. Parity:
+  `tools/parity/specs/concat_integer_types.json` (correctness=OK). Smoke:
+  `libs/builtin/tests/smoke/concat_integer_types_smoke.m`.
 
 ## Symptom
 Concatenating integer-typed arrays throws "Concatenation not supported for

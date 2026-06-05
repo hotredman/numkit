@@ -290,10 +290,10 @@ TEST_F(BuiltinKnownBug, Str2doubleComplex)
     EXPECT_DOUBLE_EQ(evalScalar("isreal(str2double('5'))"), 1.0);
 }
 
-// bugs/builtin/concat-integer-types.md — OPEN (CORE: promoteNumericType rejects
-// integer types). MATLAB concatenates integers preserving the class. Flip the
-// DISABLED_ prefix when the core fix lands.
-TEST_F(BuiltinKnownBug, DISABLED_ConcatIntegerTypes)
+// bugs/builtin/concat-integer-types.md — FIXED (core promoteNumericType now
+// concatenates integers, preserving the class). Full guard in
+// concat_integer_types_test.cpp.
+TEST_F(BuiltinKnownBug, ConcatIntegerTypes)
 {
     eval("a = cat(1, int8([1 2]), int8([3 4]));");   // MATLAB: int8 [1 2; 3 4]
     EXPECT_DOUBLE_EQ(evalScalar("isa(a,'int8')"), 1.0);
