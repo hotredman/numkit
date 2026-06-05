@@ -2405,6 +2405,22 @@ Value logicalizeCumResult(const Value &d, std::pmr::memory_resource *mr)
     for (size_t i = 0; i < n; ++i) dst[i] = (src[i] != 0.0) ? 1 : 0;
     return r;
 }
+
+// Narrow a sorted DOUBLE result (exact char code points) back to a CHAR Value
+// of the SAME shape — used by the char branch of sort_reg (MATLAB sorts char
+// by code point, preserving the char class). Cannot reuse toChar(): it routes
+// through fromString and FLATTENS a matrix to a row. createLike preserves dims
+// (2-D / N-D); the column-major layout matches the double buffer 1:1.
+Value charizeSortResult(const Value &d, std::pmr::memory_resource *mr)
+{
+    Value r = createLike(d, ValueType::CHAR, mr);
+    char *dst = r.charDataMut();
+    const double *src = d.doubleData();
+    const size_t n = d.numel();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = static_cast<char>(static_cast<int>(src[i]));
+    return r;
+}
 } // namespace
 
 Value cummax(const Value &x, int dim, std::pmr::memory_resource *mr)
@@ -3450,6 +3466,18 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         Value xd = copyToDouble(args[0], mr);
         auto [sortedD, idxD] = sort(xd, dim, descend, nanPlace, mr);
         outs[0] = logicalizeCumResult(sortedD, mr);
+        if (nargout > 1)
+            outs[1] = std::move(idxD);
+        return;
+    }
+    // Char: MATLAB sorts char by code point and PRESERVES the char class on the
+    // VALUES (index stays double) — same shape as the integer/logical branches.
+    // Gated on isChar(); string arrays sort through a different path and are
+    // left untouched. bugs/builtin/sort-char.md.
+    if (args[0].isChar()) {
+        Value xd = copyToDouble(args[0], mr);
+        auto [sortedD, idxD] = sort(xd, dim, descend, nanPlace, mr);
+        outs[0] = charizeSortResult(sortedD, mr);
         if (nargout > 1)
             outs[1] = std::move(idxD);
         return;

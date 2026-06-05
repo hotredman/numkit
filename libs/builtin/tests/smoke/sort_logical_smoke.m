@@ -24,5 +24,5 @@ fprintf('sort(...,2) row = [%g %g; %g %g]   expect [0 1; 0 1]\n', R(1,1), R(1,2)
 y = sort(true);
 fprintf('sort(true) = %g   expect 1, islogical=%d (expect 1)\n', y, islogical(y));
 
-% NOTE: sort('dcba') (char) is a SEPARATE pre-existing gap — numkit still
-% throws "Not a double array" on char. Tracked in sort-logical.md "Related".
+% NOTE: sort('dcba') (char) is handled separately — see sort_char_smoke.m
+% (fixed 2026-06-05, bugs/builtin/sort-char.md).

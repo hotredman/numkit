@@ -53,14 +53,11 @@ sort(logical([0 1 0 1]))
 branch but no logical branch, so logical reached the DOUBLE `sort` overload's
 `doubleData()` and threw.
 
-## Related (NOT fixed here — separate gap found 2026-06-05)
-- **`sort` on a CHAR array also throws** "Not a double array" — MATLAB sorts
-  char by code point and keeps the char class (`sort('dcba')`=`'abcd'`). This
-  is a distinct pre-existing gap (not a regression from this fix; the logical
-  branch is gated on `isLogical()` and does not touch char). Fixing it follows
-  the same shape (copyToDouble → sort → narrow back to CHAR), but needs its own
-  MATLAB probe (index/descend/2-D char) + a double→char narrow — left for a
-  future cycle.
+## Related (now also FIXED)
+- **`sort` on a CHAR array** also threw "Not a double array" — fixed
+  2026-06-05 (c45) in `bugs/builtin/sort-char.md` (same shape: copyToDouble →
+  sort → narrow back to CHAR via `charizeSortResult`; char class preserved,
+  index double). Together these close the `sort` type-class sweep.
 
 ## References
 - `libs/builtin/src/language/arrays/matrix.cpp` (`sort_reg`)
