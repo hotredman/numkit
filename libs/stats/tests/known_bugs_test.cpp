@@ -120,7 +120,11 @@ TEST_F(StatsKnownBug, PdistMetrics)
 }
 
 // bugs/stats/distribution-array-params.md — broadcast array distribution params.
-TEST_F(StatsKnownBug, DISABLED_DistributionArrayParams)
+// FIXED 2026-06-05 (cycles 29-38): all 16 *pdf/*cdf/*inv families broadcast
+// ARRAY parameters. Deep per-family coverage in
+// libs/stats/tests/dist_broadcast_test.cpp (36 TEST_F) + the corr.json-style
+// parity spec tools/parity/specs/dist_broadcast.json.
+TEST_F(StatsKnownBug, DistributionArrayParams)
 {
     eval("y = normpdf(0, 0, [1 2 4]);");          // MATLAB [0.3989 0.1995 0.0997]
     EXPECT_NEAR(evalScalar("y(2)"), 0.19947114, 1e-6);
