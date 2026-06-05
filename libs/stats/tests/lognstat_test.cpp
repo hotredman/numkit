@@ -1,5 +1,5 @@
 // libs/stats/tests/lognstat_test.cpp
-// Audit ТЗ closure for lognstat. Closes audit/findings/stats/lognstat.md.
+// lognstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

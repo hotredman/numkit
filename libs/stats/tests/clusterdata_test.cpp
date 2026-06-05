@@ -1,5 +1,5 @@
 // libs/stats/tests/clusterdata_test.cpp
-// Audit ТЗ closure for clusterdata. Closes audit/findings/cluster/clusterdata.md.
+// clusterdata.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -19,7 +19,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// Auditor said "no major gap" — re-probe surfaced 4 real bugs in
+// Initial review said "no major gap" — re-probe surfaced 4 real bugs in
 // clusterdata's 2nd-arg shortcut + N-V parsing (case-sensitive,
 // missing 'Distance' / 'Depth' wiring).
 

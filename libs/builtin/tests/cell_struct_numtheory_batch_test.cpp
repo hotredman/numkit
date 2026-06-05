@@ -1,19 +1,15 @@
 // libs/builtin/tests/cell_struct_numtheory_batch_test.cpp
-//
-// Audit ТЗ batch closure for cell+struct + number theory:
+// cell+struct + number theory:
 //   cell:        cell · cellfun · cellstr · cell2mat · cell2struct
 //                arrayfun
 //   struct:      struct · struct2cell · fieldnames · isfield
 //   numtheory:   gcd · lcm · factorial · factor · isprime · primes
 //                nchoosek · perms
-//
-// Total: 18 functions. All flagged "no major gap detected" — bit-
+// Total: 18 functions. All  — bit-
 // identical MATLAB R2025b on probed inputs.
-//
 // Known sub-gap: numkit's arrayfun does NOT apply the function —
 // returns the input unchanged for both anonymous lambda (@(x) x*2)
 // and named-fn (@sin) handles. Real bug; only structural shape pinned.
-// Documented in audit/closed/builtin/arrayfun.md.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

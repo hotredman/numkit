@@ -1,5 +1,5 @@
 // libs/stats/tests/gevstat_test.cpp
-// Audit ТЗ closure for gevstat. Closes audit/findings/stats/gevstat.md.
+// gevstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

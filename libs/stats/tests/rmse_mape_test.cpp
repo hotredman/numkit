@@ -1,6 +1,5 @@
 // libs/stats/tests/rmse_mape_test.cpp
-//
-// Closes audit/closed/stats/{rmse,mape}.md (partial — 'all'/vecdim).
+// (partial — 'all'/vecdim).
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

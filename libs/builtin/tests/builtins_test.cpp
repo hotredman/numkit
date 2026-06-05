@@ -616,7 +616,7 @@ TEST_P(BuiltinTest, Dec2BaseBase2Dec)
 
 TEST_P(BuiltinTest, Rat)
 {
-    // After the audit ТЗ closure (2026-05-09) numkit's `rat()` returns
+    // After the spec-extension (2026-05-09) numkit's `rat()` returns
     // MATLAB R2025b's nested continued-fraction string format using the
     // regularized expansion (round() not floor()), e.g. 0.5 → '1 + 1/(-2)'
     // (NOT the simple-CF '0 + 1/(2)'). See libs/builtin/tests/rat_test.cpp
@@ -2217,7 +2217,6 @@ TEST_P(BuiltinTest, LogspaceSinglePoint)
 // ============================================================
 // Prod-grade test pack T1 — ND + non-DOUBLE coverage
 // ============================================================
-//
 // The original parity packs added scalar / 2-D / DOUBLE tests for each
 // builtin, which is enough to catch a flat-out wrong impl but misses
 // rank-3+ shape preservation and type preservation through byte-copy
@@ -2311,7 +2310,6 @@ TEST_P(BuiltinTest, PaddataColumnOrientation)
 // ============================================================
 // Prod-grade test pack T2 — roundtrip / property tests
 // ============================================================
-//
 // These check identities the impl must satisfy by construction. They
 // catch bugs that pointwise tests miss (e.g. an off-by-one in
 // poly/roots that still passes "this case looks right").
@@ -2425,7 +2423,6 @@ TEST_P(BuiltinTest, Sub2IndInd2SubRoundtrip)
 // ============================================================
 // Prod-grade test pack T3 — isstrprop full category coverage
 // ============================================================
-//
 // Sample 'Aa 1!\t' selected so each character lands in a different
 // subset:
 //   index 0: 'A'  — alpha, upper, alphanum, graphic, print
@@ -2529,7 +2526,6 @@ TEST_P(BuiltinTest, IsStrPropUnknownCategoryThrows)
 // ============================================================
 // Prod-grade test pack T4 — empty-input regression sweep
 // ============================================================
-//
 // For every new builtin that takes an array-shaped argument, [] must
 // not crash and must return a sensible empty / scalar result. These
 // are the cheap-to-write tests that catch the "didn't think about

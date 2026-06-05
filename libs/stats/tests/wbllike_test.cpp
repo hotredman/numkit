@@ -1,5 +1,5 @@
 // libs/stats/tests/wbllike_test.cpp
-// Audit ТЗ closure for wbllike. Closes audit/findings/stats/wbllike.md.
+// wbllike.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -48,7 +48,7 @@ TEST_F(WbllikeTest, WithCensoringAndFreq)
 TEST_F(WbllikeTest, InvalidParams)
 {
     eval(kSetup);
-    // ТЗ #5 fix: invalid params -> NaN (was +Inf).
+    // fix #5: invalid params -> NaN (was +Inf).
     EXPECT_TRUE(std::isnan(evalScalar("wbllike([0, 2], data)")));   // scale=0
     EXPECT_TRUE(std::isnan(evalScalar("wbllike([-1, 2], data)")));  // scale<0
     EXPECT_TRUE(std::isnan(evalScalar("wbllike([1, 0], data)")));   // shape=0

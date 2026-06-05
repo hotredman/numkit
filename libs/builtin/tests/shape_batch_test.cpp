@@ -1,13 +1,11 @@
 // libs/builtin/tests/shape_batch_test.cpp
-//
-// Audit ТЗ batch closure for shape/size/manipulation ops — 16 functions:
+// shape/size/manipulation ops — 16 functions:
 //   size / numel / length / ndims
 //   reshape / squeeze
 //   cat / horzcat / vertcat
 //   permute / ipermute
 //   circshift / fliplr / flipud / rot90 / flip
-//
-// All flagged "no major gap detected" — bit-identical MATLAB R2025b
+// All  — bit-identical MATLAB R2025b
 // on probed inputs.
 
 #include <numkit/builtin/library.hpp>

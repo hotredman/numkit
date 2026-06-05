@@ -12,5 +12,5 @@
     "h_un", "D_un",
     "h_a", "D_a"
   ],
-  "comment": "Sig: kstest2(x, y[, alpha, tail | name-value]). Tail accepts 'unequal' (default), 'larger', 'smaller' (synonyms for 'both', 'right', 'left' from kstest). Name-Value pairs: 'Alpha', 'Tail'. Closes audit/findings/stats/{kstest,kstest2}.md."
+  "comment": "Sig: kstest2(x, y[, alpha, tail | name-value]). Tail accepts 'unequal' (default), 'larger', 'smaller' (synonyms for 'both', 'right', 'left' from kstest). Name-Value pairs: 'Alpha', 'Tail'.
 }

@@ -1,6 +1,5 @@
 // libs/signal/tests/hilbert_test.cpp
-//
-// Closes audit/closed/signal/hilbert.md — sign convention fix.
+// — sign convention fix.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

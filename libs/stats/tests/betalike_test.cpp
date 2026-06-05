@@ -1,8 +1,6 @@
 // libs/stats/tests/betalike_test.cpp
-//
-// Backfill gtest + audit ТЗ closure for betalike. Reference values
-// from MATLAB R2025b probe (audit/closed/stats/betalike.md).
-//
+// Backfill gtest + betalike. Reference values
+// from MATLAB R2025b probe.
 // Note: betalike's AVAR uses BHHH (outer-product-of-gradients), NOT
 // the Hessian — verified by direct MATLAB probe. The two estimators
 // only coincide at the MLE.

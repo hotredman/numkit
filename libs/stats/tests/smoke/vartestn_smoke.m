@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % vartestn — k-sample variance equality test (5 variants).
-% Closes audit/findings/stats/vartestn.md.
+%
 %
 % New 2026-05-08:
 %   - 'TestType' N-V parsed: Bartlett (default), LeveneQuadratic,

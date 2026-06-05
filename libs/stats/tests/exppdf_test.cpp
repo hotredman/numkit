@@ -1,5 +1,5 @@
 // libs/stats/tests/exppdf_test.cpp
-// Audit ТЗ closure for exppdf. Closes audit/findings/stats/exppdf.md.
+// exppdf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

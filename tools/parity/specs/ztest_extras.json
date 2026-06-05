@@ -10,5 +10,5 @@
     "c95(2) - c95(1)", "c99(2) - c99(1)",
     "hr", "pr"
   ],
-  "comment": "Sig: ztest(x, m, sigma[, NV]). Alpha/Tail Name-Value pairs (case-insensitive). 'Dim' N-V throws (parity gap). 4th output is scalar zval (matches MATLAB which doesn't return a struct here). Closes audit/findings/stats/ztest.md."
+  "comment": "Sig: ztest(x, m, sigma[, NV]). Alpha/Tail Name-Value pairs (case-insensitive). 'Dim' N-V throws (parity gap). 4th output is scalar zval (matches MATLAB which doesn't return a struct here).
 }

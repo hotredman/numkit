@@ -1,8 +1,6 @@
 // libs/stats/src/moving/moving.cpp
-//
 // Sliding-window statistics: movmean / movmedian / movsum / movmin /
 // movmax / movstd / movvar / movmad / movprod, plus smoothdata + hampel.
-//
 // Strategy: a single per-slice driver walks the chosen dim; per-window
 // reduction is supplied as a callable. O(N·k) — not the asymptotically
 // optimal bound, but matches the rest of the library's "correctness
@@ -104,7 +102,6 @@ ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
 }
 
 // ── Mov-extras options (nanflag + Endpoints + SamplePoints) ───────────
-//
 // Parses the trailing args of mov*(x, k, ...). Supports MATLAB R2025b:
 //   * positional `dim` (numeric scalar, before any string)
 //   * positional `nanflag` ∈ {"includemissing","includenan",
@@ -179,7 +176,7 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
             }
         } else if (name == "samplepoints") {
             throw Error(std::string(fn) + ": 'SamplePoints' is not yet "
-                        "supported in numkit (parity gap; see audit findings)",
+                        "supported in numkit (parity gap)",
                         0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
         } else if (name == "datavariables" || name == "replacevalues") {
             throw Error(std::string(fn) + ": '" + name + "' is for table/"
@@ -207,13 +204,11 @@ Value allocSameShape(const Value &x, std::pmr::memory_resource *mr)
 // Apply per-window reducer F over a 1-D run [src, src+n) with stride
 // `step` (in elements). Output written to dst with the same stride.
 // F has signature `double(const double *win, size_t winLen)`.
-//
 // `ep` controls how out-of-range window positions are filled:
 //   Shrink — drop missing positions, the window shrinks at edges
 //   Fill   — pad missing positions with NaN (window keeps full length)
 //   Scalar — pad missing positions with `ep_fill`
 //   Discard — handled in driver, never reaches here
-//
 // `omit_nan == true` filters NaN out of the (possibly already padded)
 // window before the reducer; an empty filtered window collapses to NaN.
 template <typename F>
@@ -248,7 +243,6 @@ void runMoving(const double *src, size_t n, ptrdiff_t step,
 }
 
 // Driver with explicit dim + MovOpts. Handles vector / 2-D / 3-D.
-//
 // For Endpoints == Discard, output is shorter along the operating dim by
 // (kb + kf) elements. For Shrink/Fill/Scalar the output keeps the same
 // shape as input.
@@ -841,12 +835,10 @@ Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *m
 }
 
 // ── Engine adapters ───────────────────────────────────────────────────
-//
 // All mov*_reg adapters share the same trailing-argument grammar:
 //   mov*(x, k [, dim] [, nanflag] [, Name, Value]...)
 // where nanflag is one of {includemissing|includenan|omitmissing|omitnan}
 // and Name-Value pairs are {Endpoints} (SamplePoints currently throws).
-//
 // movvar / movstd insert one extra positional `normFlag` (numeric scalar
 // 0 or 1) between `k` and the optional trailing dim/nanflag/Name-Value.
 

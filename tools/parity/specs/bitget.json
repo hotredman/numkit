@@ -12,5 +12,5 @@
     "double(r(4))",
     "double(r(5))"
   ],
-  "comment": "Sig: r = bitget(...). Bitwise integer op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on scalar-k inputs."
+  "comment": "Sig: r = bitget(...). Bitwise integer op. Spec-extension batch 2026-05-09 \u2014 verified bit-identical MATLAB R2025b on scalar-k inputs."
 }

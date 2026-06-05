@@ -1,10 +1,8 @@
 // libs/builtin/tests/fwd_trig_batch_test.cpp
-//
-// Audit ТЗ batch closure for the forward-trig family — 18 functions:
+// forward-trig family — 18 functions:
 //   sin / sind / sinh    cos / cosd / cosh    tan / tand / tanh
 //   sec / secd / sech    csc / cscd / csch    cot / cotd / coth
-//
-// All flagged "no major gap detected" — libm-backed, bit-identical
+// All  — libm-backed, bit-identical
 // MATLAB R2025b on probed inputs (parity tol=1e-12).
 
 #include <numkit/builtin/library.hpp>

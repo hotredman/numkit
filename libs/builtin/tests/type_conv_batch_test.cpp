@@ -1,16 +1,13 @@
 // libs/builtin/tests/type_conv_batch_test.cpp
-//
-// Audit ТЗ batch closure for type-conversion family — 12 functions:
+// type-conversion family — 12 functions:
 //   int8 / int16 / int32 / int64
 //   uint8 / uint16 / uint32 / uint64
 //   double / single / logical / char
-//
-// All flagged "no major gap detected". Bit-identical MATLAB R2025b
+// All . Bit-identical MATLAB R2025b
 // on probed inputs.
-//
 // Known sub-gap: numkit's double("string") rejects with error;
 // MATLAB returns NaN, Octave returns ASCII codes. Documented in
-// audit/closed/builtin/double.md — only numeric→double paths
+// — only numeric→double paths
 // pinned here.
 
 #include <numkit/builtin/library.hpp>

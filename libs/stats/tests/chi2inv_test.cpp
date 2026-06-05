@@ -1,7 +1,5 @@
 // libs/stats/tests/chi2inv_test.cpp
-//
-// Audit ТЗ closure for chi2inv. Reference values from MATLAB R2025b.
-// Closes audit/findings/stats/chi2inv.md.
+// chi2inv. Reference values from MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

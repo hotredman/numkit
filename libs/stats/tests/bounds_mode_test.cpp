@@ -1,6 +1,5 @@
 // libs/stats/tests/bounds_mode_test.cpp
-//
-// Closes audit/closed/stats/{bounds,mode}.md — 'all' / vecdim dispatch.
+// — 'all' / vecdim dispatch.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -1,8 +1,6 @@
 // libs/wavelet/tests/swt_modwt_test.cpp
-//
-// Audit ТЗ batch closure for the SWT / MODWT family:
-//   audit/findings/wavelet/{swt, iswt, modwt, imodwt}.md
-//
+// SWT / MODWT family:
+// iswt, modwt, imodwt}.md
 // Two real fixes in this cycle:
 //   1. modwt argument order: was (x, lev, wname); fixed to MATLAB's
 //      (x, wname, lev) plus default wname='sym4' and default lev =
@@ -10,7 +8,6 @@
 //      string argument" at args[2].
 //   2. modwt now accepts the 3 MATLAB invocation forms:
 //        modwt(x), modwt(x, wname), modwt(x, wname, lev).
-//
 // One known sub-fix still pending (out of scope — kernel-level):
 //   a. swt detail rows differ from MATLAB by sign (Hi_D vs Hi_R QMF
 //      convention). Approximation row matches bit-identical.

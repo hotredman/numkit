@@ -1,7 +1,6 @@
 // libs/stats/tests/gamlike_test.cpp
-//
-// Backfill gtest + audit ТЗ closure for gamlike. Reference values
-// from MATLAB R2025b probe (audit/closed/stats/gamlike.md).
+// Backfill gtest + gamlike. Reference values
+// from MATLAB R2025b probe.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

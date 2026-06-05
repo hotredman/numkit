@@ -1,6 +1,5 @@
 // libs/stats/tests/ztest_extras_test.cpp
-//
-// Closes audit/closed/stats/ztest.md — Name-Value Alpha/Tail parsing.
+// — Name-Value Alpha/Tail parsing.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

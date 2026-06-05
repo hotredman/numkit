@@ -1,5 +1,5 @@
 // libs/stats/tests/kmedoids_test.cpp
-// Audit ТЗ closure for kmedoids. Closes audit/findings/cluster/kmedoids.md.
+// kmedoids.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -22,7 +22,7 @@ public:
 };
 
 // MATLAB and numkit assign different cluster IDs (RNG cascade depends
-// on normrnd parity — out of scope for this ТЗ); test partition
+// on normrnd parity — out of scope for this spec); test partition
 // equivalence and output shapes instead of literal labels.
 
 TEST_F(KmedoidsTest, ThreeClustersPartition)

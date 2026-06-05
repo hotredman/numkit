@@ -1,14 +1,11 @@
 // libs/builtin/tests/arith_batch_test.cpp
-//
-// Audit ТЗ batch closure for arithmetic ops — 10 functions:
+// arithmetic ops — 10 functions:
 //   plus / minus / times / rdivide / ldivide
 //   mtimes / uminus / uplus / power / mpower
-//
-// All flagged "no major gap detected" — bit-identical MATLAB R2025b
+// All  — bit-identical MATLAB R2025b
 // on probed inputs.
-//
 // Known sub-gap: numkit's mpower(matrix, n) (i.e. M^n) not
-// implemented — only scalar^scalar tested. See audit/closed/builtin/
+// implemented — only scalar^scalar tested.
 // mpower.md.
 
 #include <numkit/builtin/library.hpp>

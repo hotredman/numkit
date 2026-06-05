@@ -4,7 +4,7 @@ import compat.*
 
 % Batch closure: every cdf_reg adapter now strips the trailing 'upper'
 % string flag (case-insensitive) and returns 1 - F(x).  Probed below
-% across the nine ТЗ-touched distributions; expected lines hand-computed.
+% across the nine spec-touched distributions; expected lines hand-computed.
 
 fprintf('=== evcdf — extreme value (Gumbel-min) ===\n');
 fprintf('  evcdf(1, 0, 1)          = %.6f  (expect 0.934012)\n', evcdf(1, 0, 1));
@@ -37,7 +37,7 @@ fprintf('  nbincdf(2, 3, 0.4, ''upper'') = %.6f\n\n', nbincdf(2, 3, 0.4, 'upper'
 
 fprintf('=== ncx2cdf — non-central chi-squared ===\n');
 fprintf('  ncx2cdf(2, 3, 1)          = %.6f  (expect ~0.3083)\n', ncx2cdf(2, 3, 1));
-fprintf('  ncx2cdf(2, 3, 1, ''upper'') = %.6f  (expect ~0.6917 per ТЗ probe)\n\n', ncx2cdf(2, 3, 1, 'upper'));
+fprintf('  ncx2cdf(2, 3, 1, ''upper'') = %.6f  (expect ~0.6917 per probe)\n\n', ncx2cdf(2, 3, 1, 'upper'));
 
 fprintf('=== ricecdf — Rice (Rician) ===\n');
 fprintf('  ricecdf(1, 1, 1)          = %.6f\n', ricecdf(1, 1, 1));

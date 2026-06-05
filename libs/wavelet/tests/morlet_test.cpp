@@ -1,5 +1,5 @@
 // libs/wavelet/tests/morlet_test.cpp
-// Audit ТЗ closure for morlet. Closes audit/findings/wavelet/morlet.md.
+// morlet.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -1,7 +1,5 @@
 // libs/stats/tests/expstat_test.cpp
-//
-// Audit ТЗ closure for expstat. Reference values from MATLAB R2025b.
-// Closes audit/findings/stats/expstat.md.
+// expstat. Reference values from MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

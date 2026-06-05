@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Transcendentals + rounding batch — audit ТЗ closure 2026-05-09.
+% Transcendentals + rounding batch — spec closure 2026-05-09.
 % atan2/atan2d + exp/expm1 + log/log2/log10/log1p +
 % sqrt/hypot + floor/ceil/round/fix.
 

@@ -1,14 +1,11 @@
 // libs/stats/tests/cdf_upper_batch_test.cpp
-//
-// Batch-closure of nine cdf-family ТЗ that all shared the same gap:
+// Batch-closure of nine cdf-family specs that all shared the same gap:
 // the trailing `'upper'` string flag was silently ignored. After this
 // commit, every adapter strips the flag via stats::detail::stripUpperFlag
 // and applies stats::detail::applyUpperInPlace when it was present.
-//
 // Closes:
-//   audit/findings/stats/{evcdf, geocdf, gevcdf, gpcdf, hygecdf,
+// geocdf, gevcdf, gpcdf, hygecdf,
 //                         nakacdf, nbincdf, ncx2cdf, ricecdf}.md
-//
 // All hardcoded "upper" expected values are computed by hand as 1 - p
 // from the lower-tail value the function would otherwise return.
 
@@ -103,7 +100,7 @@ TEST_F(CdfUpperBatchTest, NbincdfUpper)
 
 TEST_F(CdfUpperBatchTest, Ncx2cdfUpper)
 {
-    // ТЗ probe: ncx2cdf(2, 3, 1, 'upper') = 0.6917 in MATLAB
+    // probe: ncx2cdf(2, 3, 1, 'upper') = 0.6917 in MATLAB
     EXPECT_NEAR(evalScalar("ncx2cdf(2, 3, 1, 'upper')"),
                 1.0 - evalScalar("ncx2cdf(2, 3, 1)"), 1e-12);
     eval("x = [0.5 1 2 5]; p = ncx2cdf(x, 4, 2); pu = ncx2cdf(x, 4, 2, 'upper');");

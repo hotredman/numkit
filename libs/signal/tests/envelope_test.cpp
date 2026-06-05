@@ -1,14 +1,11 @@
 // libs/signal/tests/envelope_test.cpp
-// Audit ТЗ closure for envelope (FULL MATLAB R2025b parity).
-// Closes audit/findings/signal/envelope.md.
-//
+// envelope (FULL MATLAB R2025b parity).
 // Covers all four documented signatures of envelope:
 //   [yu, yl] = envelope(x)                  -- default FFT |hilbert(x-mean)|
 //   [yu, yl] = envelope(x, n, 'analytic')   -- Kaiser(8)-tapered Hilbert FIR
 //   [yu, yl] = envelope(x, n, 'rms')        -- sliding-window RMS
 //   [yu, yl] = envelope(x, n, 'peak')       -- spline through findpeaks (MinPeakDistance n)
 //   yu      = envelope(x, n)                -- == envelope(x, n, 'analytic')
-//
 // All hardcoded values verified bit-identical against MATLAB R2025b's envelope.m.
 
 #include <numkit/builtin/library.hpp>

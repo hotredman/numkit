@@ -12,5 +12,5 @@
     "r(4)",
     "r(5)"
   ],
-  "comment": "Sig: r = cart2sph(...). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
+  "comment": "Sig: r = cart2sph(...). Spec-extension batch 2026-05-09 \u2014 verified MATLAB R2025b parity."
 }

@@ -1,17 +1,14 @@
 // libs/wavelet/src/filter/wfilters.cpp
-//
 // Scaling filter coefficients h[k] for the orthogonal wavelet families
 // haar / db / sym / coif. These are the standard Daubechies, Symlet
 // and Coiflet coefficients (I. Daubechies, "Ten Lectures on Wavelets",
 // SIAM, 1992) — mathematical constants reproduced identically across
 // PyWavelets, SciPy, GSL and the wavelet literature.
-//
 // From the synthesis lowpass Lo_R the rest are derived with the
 // standard QMF identities:
 //   Lo_D[k] = Lo_R[N-1-k]                  (time reversal)
 //   Hi_R[k] = (-1)^k * Lo_R[N-1-k]         (QMF: odd index sign flip on flipped Lo)
 //   Hi_D[k] = (-1)^(k+1) * Lo_R[k]         (QMF on the analysis side)
-//
 // Norms: sum(Lo) = sqrt(2), sum(Hi) = 0, ||Lo||² = 1, ||Hi||² = 1.
 // Sign convention and numerical parity are checked against MATLAB
 // R2025b in the parity harness.
@@ -486,7 +483,7 @@ FilterBank wavelet_filters(const std::string &name) {
                     0, 0, "wfilters", "", "numkit:wfilters:name");
     const int N = s->len;
 
-    // 2026-05-08 audit ТЗ wavelet/wfilters fix: previously the stored
+    // 2026-05-08 wavelet/wfilters fix: previously the stored
     // constant `s->Lo_R[]` (which holds the MATLAB-Lo_D-ordered
     // coefficients) was being assigned to `fb.Lo_R`, leaving numkit's
     // Lo_D / Lo_R labels SWAPPED relative to MATLAB R2025b. This was
@@ -577,7 +574,7 @@ void wfilters_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (outs.size() >= 4) outs[3] = std::move(r.Hi_R);
         (void)nargout;
     } else {
-        // 2026-05-08 audit ТЗ wavelet/wfilters fix: single-output form
+        // 2026-05-08 wavelet/wfilters fix: single-output form
         // returns a 2×Lf matrix `[a; b]` (per MATLAB R2025b), not two
         // separate row vectors. Pack column-major.
         const Value &a = (kind == "d") ? r.Lo_D

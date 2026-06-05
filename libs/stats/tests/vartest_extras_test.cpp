@@ -1,6 +1,5 @@
 // libs/stats/tests/vartest_extras_test.cpp
-//
-// Closes audit/closed/stats/{vartest,vartest2}.md — Name-Value parsing
+// — Name-Value parsing
 // for Alpha/Tail.
 
 #include <numkit/builtin/library.hpp>

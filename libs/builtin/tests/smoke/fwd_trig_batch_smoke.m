@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Forward-trig batch — audit ТЗ closure 2026-05-09. 18 functions.
+% Forward-trig batch — spec closure 2026-05-09. 18 functions.
 % sin/sind/sinh + cos/cosd/cosh + tan/tand/tanh +
 % sec/secd/sech + csc/cscd/csch + cot/cotd/coth.
 

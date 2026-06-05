@@ -1,5 +1,5 @@
 // libs/stats/tests/vartestn_test.cpp
-// Audit ТЗ closure for vartestn. Closes audit/findings/stats/vartestn.md.
+// vartestn.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -21,7 +21,7 @@ public:
 };
 
 // All 5 TestType variants + matrix-input form. All bit-identical to
-// MATLAB R2025b reference values from audit/findings/stats/vartestn.md.
+// MATLAB R2025b reference values from
 
 TEST_F(VartestnTest, BartlettDefault)
 {

@@ -1,12 +1,10 @@
 // libs/builtin/tests/special_fn_batch_test.cpp
-//
-// Audit ТЗ batch closure for the special-function family — 17 functions:
+// special-function family — 17 functions:
 //   bessel:  besselj / bessely / besseli / besselk / besselh
 //   beta:    beta / betainc / betaincinv / betaln
 //   gamma:   gamma / gammainc / gammaincinv / gammaln
 //   error:   erf / erfc / erfinv / erfcinv
-//
-// All flagged "no major gap detected" — verified bit-identical to
+// All  — verified bit-identical to
 // MATLAB R2025b on probed inputs (parity tol=1e-9, special-function
 // algorithms have ULP differences vs naive libm).
 

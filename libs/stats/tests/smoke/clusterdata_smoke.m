@@ -2,9 +2,9 @@ clear;
 import compat.*;
 
 % clusterdata — convenience wrapper: pdist + linkage + cluster.
-% Closes audit/findings/cluster/clusterdata.md.
 %
-% Bug fixes 2026-05-08 (auditor said "no major gap" but re-probe
+%
+% Bug fixes 2026-05-08 (initial review said "no major gap" but re-probe
 % surfaced 4 real bugs):
 %   1. scalar c < 2 was interpreted as maxclust (gave 0 → all
 %      singletons); MATLAB uses cutoff (inconsistency)

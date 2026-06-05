@@ -1,6 +1,5 @@
 // libs/stats/tests/runstest_extras_test.cpp
-//
-// Closes audit/closed/stats/runstest.md (partial — 'ud' up-down form
+// (partial — 'ud' up-down form
 // implemented; degenerate-case p-value for all-up sequences still
 // returns NaN, deferred).
 

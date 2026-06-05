@@ -1,5 +1,5 @@
 // libs/stats/tests/unifinv_test.cpp
-// Audit ТЗ closure for unifinv. Closes audit/findings/stats/unifinv.md.
+// unifinv.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

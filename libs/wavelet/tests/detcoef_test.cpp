@@ -1,5 +1,5 @@
 // libs/wavelet/tests/detcoef_test.cpp
-// Audit ТЗ closure for detcoef. Closes audit/findings/wavelet/detcoef.md.
+// detcoef.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -24,7 +24,7 @@ public:
 TEST_F(DetcoefTest, DefaultLevelIsDeepest)
 {
     // Bug fix 2026-05-08: 2-arg form was throwing. MATLAB default returns
-    // level numel(L)-2 (deepest), NOT level 1 as auditor's note claimed.
+    // level numel(L)-2 (deepest), NOT level 1 as an early note claimed.
     eval("[c, l] = wavedec(1:16, 3, 'db1');");
     eval("d = detcoef(c, l);");
     // Deepest detail (level 3) for db1 of (1:16): two values ~ -5.6569.

@@ -1,5 +1,5 @@
 // libs/stats/tests/poisstat_test.cpp
-// Audit ТЗ closure for poisstat. Closes audit/findings/stats/poisstat.md.
+// poisstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

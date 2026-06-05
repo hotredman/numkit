@@ -11,5 +11,5 @@
     "e_up", "r_up", "ln_up", "w_up", "uf_up",
     "ud_up", "bn_up", "p_up"
   ],
-  "comment": "Joint 'upper' flag verification across 14 CDFs (closes 14 audit ТЗ in stats.dist). MATLAB R2025b: every *cdf accepts trailing 'upper' string and returns 1 - F(x). normcdf double-checks lower tail unchanged. tol = 1e-9. Closes audit/findings/stats/{normcdf,chi2cdf,tcdf,fcdf,betacdf,gamcdf,expcdf,raylcdf,logncdf,wblcdf,unifcdf,unidcdf,binocdf,poisscdf}.md."
+  "comment": "Joint 'upper' flag verification across 14 CDFs (.dist). MATLAB R2025b: every *cdf accepts trailing 'upper' string and returns 1 - F(x). normcdf double-checks lower tail unchanged. tol = 1e-9.
 }

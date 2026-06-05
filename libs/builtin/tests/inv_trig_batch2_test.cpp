@@ -1,11 +1,9 @@
 // libs/builtin/tests/inv_trig_batch2_test.cpp
-//
-// Audit ТЗ batch closure for the inverse-trig family — second batch:
+// inverse-trig family — second batch:
 //   asin / asind / asinh
 //   atan / atand / atanh
 //   asec / asecd / asech
-//
-// All nine flagged "no major gap detected" by the auditor. Verified
+// All nine . Verified
 // bit-identical to MATLAB R2025b on domain-edge + interior probes.
 // Sibling of the first inverse-trig batch (acos/acot/acsc family).
 

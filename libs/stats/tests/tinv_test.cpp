@@ -1,5 +1,5 @@
 // libs/stats/tests/tinv_test.cpp
-// Audit ТЗ closure for tinv. Closes audit/findings/stats/tinv.md.
+// tinv.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

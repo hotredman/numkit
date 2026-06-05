@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% mov* family — nanflag + Endpoints support (audit ТЗ closures).
+% mov* family — nanflag + Endpoints support.
 A  = [1 3 2 5 4 6 NaN 8 7 10]';
 A2 = (1:9)';
 

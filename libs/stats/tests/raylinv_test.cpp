@@ -1,5 +1,5 @@
 // libs/stats/tests/raylinv_test.cpp
-// Audit ТЗ closure for raylinv. Closes audit/findings/stats/raylinv.md.
+// raylinv.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

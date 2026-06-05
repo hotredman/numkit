@@ -1,12 +1,9 @@
 // libs/builtin/tests/bitwise_batch_test.cpp
-//
-// Audit ТЗ batch closure for the bitwise family — 7 functions:
+// bitwise family — 7 functions:
 //   bitand / bitor / bitxor / bitshift / bitcmp / bitset / bitget
-//
-// All flagged "no major gap detected" — bit-identical MATLAB R2025b
+// All  — bit-identical MATLAB R2025b
 // on probed inputs (parity tol=0, exact integer match).
-//
-// Side observation noted in this commit's audit: numkit's bitset
+// Side observation noted in this commit's review: numkit's bitset
 // rejects uint32 first arg ("Not a double array") and uint32 array
 // concat fails — separate adapter-level gaps, NOT in scope here.
 // Probed only via inputs that work; full type matrix is a follow-up.

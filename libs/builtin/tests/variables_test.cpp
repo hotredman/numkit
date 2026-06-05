@@ -350,7 +350,7 @@ TEST_P(GlobalTest, GlobalVariable)
 // A `global G` declared inside a FUNCTION must not surface in the base
 // workspace when the base itself never declared it. Verified vs MATLAB
 // R2025b: after calling a function that does `global G; G=42`, the base's
-// exist('G','var') is 0. (Regression guard for the deep-audit global leak:
+// exist('G','var') is 0. (Regression guard for the deep global leak:
 // the VM used to mirror a function's global into workspaceEnv_.)
 TEST_P(GlobalTest, GlobalInFunctionDoesNotLeakToBase)
 {

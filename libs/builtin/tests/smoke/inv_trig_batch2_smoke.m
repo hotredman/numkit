@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Inverse-trig batch 2 — audit ТЗ closure 2026-05-09.
+% Inverse-trig batch 2 — spec closure 2026-05-09.
 % asin/asind/asinh + atan/atand/atanh + asec/asecd/asech.
 % All bit-identical MATLAB R2025b.
 

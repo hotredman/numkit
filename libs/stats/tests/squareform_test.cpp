@@ -1,5 +1,5 @@
 // libs/stats/tests/squareform_test.cpp
-// Audit ТЗ closure for squareform. Closes audit/findings/cluster/squareform.md.
+// squareform.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

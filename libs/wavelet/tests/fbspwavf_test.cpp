@@ -1,5 +1,5 @@
 // libs/wavelet/tests/fbspwavf_test.cpp
-// Audit ТЗ closure for fbspwavf. Closes audit/findings/wavelet/fbspwavf.md.
+// fbspwavf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

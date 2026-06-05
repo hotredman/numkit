@@ -1,5 +1,5 @@
 // libs/stats/tests/evlike_test.cpp
-// Audit ТЗ closure for evlike. Closes audit/findings/stats/evlike.md.
+// evlike.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -48,7 +48,7 @@ TEST_F(EvlikeTest, WithCensoringAndFreq)
 TEST_F(EvlikeTest, InvalidSigma)
 {
     eval(kSetup);
-    // ТЗ #5 fix: σ <= 0 -> NaN (was +Inf).
+    // fix #5: σ <= 0 -> NaN (was +Inf).
     EXPECT_TRUE(std::isnan(evalScalar("evlike([0, 0], data)")));
     EXPECT_TRUE(std::isnan(evalScalar("evlike([0, -1], data)")));
 }

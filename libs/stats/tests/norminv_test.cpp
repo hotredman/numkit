@@ -1,7 +1,5 @@
 // libs/stats/tests/norminv_test.cpp
-//
-// Audit ТЗ closure for norminv. Reference values from MATLAB R2025b.
-// Closes audit/findings/stats/norminv.md.
+// norminv. Reference values from MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % cluster — flatten a linkage tree into per-sample cluster labels.
-% Closes audit/findings/cluster/cluster.md gaps #1-#3:
+% gaps #1-#3:
 %   #1 default 'cutoff' criterion is 'inconsistent' (was 'distance');
 %   #2 'criterion' N-V parsed;
 %   #3 'depth' N-V parsed.

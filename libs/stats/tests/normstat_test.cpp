@@ -1,7 +1,5 @@
 // libs/stats/tests/normstat_test.cpp
-//
-// Audit ТЗ closure for normstat. Reference values from MATLAB R2025b.
-// Closes audit/findings/stats/normstat.md.
+// normstat. Reference values from MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

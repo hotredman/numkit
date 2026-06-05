@@ -1,6 +1,5 @@
 // libs/stats/tests/kstest_extras_test.cpp
-//
-// Closes audit/closed/stats/{kstest,kstest2}.md — Tail aliases
+// — Tail aliases
 // (unequal/larger/smaller) and Name-Value parsing (Alpha=, Tail=).
 
 #include <numkit/builtin/library.hpp>

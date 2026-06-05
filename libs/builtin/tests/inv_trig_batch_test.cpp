@@ -1,9 +1,7 @@
 // libs/builtin/tests/inv_trig_batch_test.cpp
-//
-// Audit ТЗ batch closure for the inverse-trig family:
+// inverse-trig family:
 //   acos / acosd / acosh / acot / acotd / acoth / acsc / acscd / acsch
-//
-// Each ТЗ flagged "no major gap detected — needs spec extension". This
+// Each spec . This
 // gtest pins libm-backed numerics against MATLAB R2025b on domain-edge
 // + interior probes (matching the corresponding parity-spec fingerprints).
 // All values verified bit-identical to MATLAB to tol=1e-12.

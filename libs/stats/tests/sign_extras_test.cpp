@@ -1,8 +1,6 @@
 // libs/stats/tests/sign_extras_test.cpp
-//
-// Closes audit/closed/stats/{signtest,signrank,ranksum,fishertest}.md.
 // signtest required adding zval=NaN to its stats struct; the other
-// three were already MATLAB-parity per the audit (no behavioural gap).
+// three were already MATLAB-parity verified (no behavioural gap).
 // gtest provides regression coverage for all four.
 
 #include <numkit/builtin/library.hpp>

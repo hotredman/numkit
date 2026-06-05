@@ -1,8 +1,7 @@
 // libs/stats/tests/binofit_test.cpp
-//
 // Backfill gtest for binofit (pre-2026-05-04 function). Reference
-// values from MATLAB R2025b probe (audit/closed/stats/binofit.md).
-// Closes audit/findings/stats/binofit.md (coverage gap).
+// values from MATLAB R2025b probe.
+// (coverage gap).
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

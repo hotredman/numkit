@@ -1,7 +1,5 @@
 // libs/stats/tests/fpdf_test.cpp
-//
-// Audit ТЗ closure for fpdf. Reference values from MATLAB R2025b.
-// Closes audit/findings/stats/fpdf.md.
+// fpdf. Reference values from MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

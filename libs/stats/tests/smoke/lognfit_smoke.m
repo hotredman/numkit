@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % lognfit — lognormal MLE with optional censoring + frequency weights.
-% Closes audit/findings/stats/lognfit.md.
+%
 %
 % New 2026-05-08:
 %   - censored MLE: EM iteration on log(x) until convergence

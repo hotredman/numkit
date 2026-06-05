@@ -1,6 +1,5 @@
 // libs/stats/tests/var_std_test.cpp
-//
-// Closes audit/closed/stats/{var,std}.md — 'all' / vecdim / weight-vec
+// — 'all' / vecdim / weight-vec
 // support. Reference values from MATLAB R2025b probe.
 
 #include <numkit/builtin/library.hpp>

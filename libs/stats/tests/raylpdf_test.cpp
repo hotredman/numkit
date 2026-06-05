@@ -1,5 +1,5 @@
 // libs/stats/tests/raylpdf_test.cpp
-// Audit ТЗ closure for raylpdf. Closes audit/findings/stats/raylpdf.md.
+// raylpdf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

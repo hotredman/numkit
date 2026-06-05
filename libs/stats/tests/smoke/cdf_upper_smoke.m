@@ -3,7 +3,7 @@ clear
 import compat.*
 
 % MATLAB R2025b 'upper' flag — survival functions for the CDF family.
-% Closes 14 audit ТЗ in stats.dist.
+%.dist.
 
 fprintf('=== continuous distributions ===\n');
 fprintf('  normcdf(1.96, 0, 1, "upper")  = %.8f (expect 0.02499790)\n', normcdf(1.96, 0, 1, 'upper'));

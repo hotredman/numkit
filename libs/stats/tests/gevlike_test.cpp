@@ -1,8 +1,6 @@
 // libs/stats/tests/gevlike_test.cpp
-//
-// Backfill gtest + audit ТЗ closure for gevlike. Reference values
-// from MATLAB R2025b probe (audit/closed/stats/gevlike.md).
-//
+// Backfill gtest + gevlike. Reference values
+// from MATLAB R2025b probe.
 // Note: gevlike's ACOV uses the analytical observed-Fisher Hessian
 // at k != 0 (matches FD). At exactly k=0 MATLAB uses an analytical
 // Gumbel-limit Hessian that differs from FD straddling; numkit's FD

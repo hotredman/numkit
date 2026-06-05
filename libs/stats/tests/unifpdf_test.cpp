@@ -1,5 +1,5 @@
 // libs/stats/tests/unifpdf_test.cpp
-// Audit ТЗ closure for unifpdf. Closes audit/findings/stats/unifpdf.md.
+// unifpdf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

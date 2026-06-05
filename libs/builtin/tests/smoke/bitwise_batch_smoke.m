@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Bitwise batch — audit ТЗ closure 2026-05-09. 7 functions.
+% Bitwise batch — spec closure 2026-05-09. 7 functions.
 
 fprintf('bitand(0xF0,0x0F)  = %d  (expect 0)\n',    bitand(uint32(0xF0), uint32(0x0F)));
 fprintf('bitor (0xF0,0x0F)  = %d  (expect 255)\n',  bitor(uint32(0xF0), uint32(0x0F)));

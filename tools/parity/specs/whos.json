@@ -6,5 +6,5 @@
   "iters": 1,
   "tol": 0,
   "fingerprint": ["r1"],
-  "comment": "Side-effect smoke test (no-throw command-form probe). whos command prints workspace summary to stdout; success = no exception. NOTE: numkit's `whos` is command-form only; functional `s = whos` returning struct is a known gap (see audit/closed/builtin/whos.md). evalc not available in numkit, so stdout content cannot be captured for content-level parity."
+  "comment": "Side-effect smoke test (no-throw command-form probe). whos command prints workspace summary to stdout; success = no exception. NOTE: numkit's `whos` is command-form only; functional `s = whos` returning struct is a known gap (). evalc not available in numkit, so stdout content cannot be captured for content-level parity."
 }

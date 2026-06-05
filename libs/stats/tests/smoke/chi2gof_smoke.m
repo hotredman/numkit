@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % chi2gof — chi-squared goodness-of-fit test.
-% Closes audit/findings/stats/chi2gof.md.
+%
 %
 % New 2026-05-08:
 %   - Auto-binning when no Frequency+Expected supplied (default

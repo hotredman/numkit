@@ -1,5 +1,5 @@
 // libs/wavelet/tests/meyeraux_test.cpp
-// Audit ТЗ closure for meyeraux. Closes audit/findings/wavelet/meyeraux.md.
+// meyeraux.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

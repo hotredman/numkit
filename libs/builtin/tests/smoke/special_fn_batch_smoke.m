@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Special-function batch — audit ТЗ closure 2026-05-09. 17 functions.
+% Special-function batch — spec closure 2026-05-09. 17 functions.
 % bessel{j,y,i,k,h} + beta/betainc/betaincinv/betaln +
 % gamma/gammainc/gammaincinv/gammaln + erf/erfc/erfinv/erfcinv.
 

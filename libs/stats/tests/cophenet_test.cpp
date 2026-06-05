@@ -1,5 +1,5 @@
 // libs/stats/tests/cophenet_test.cpp
-// Audit ТЗ closure for cophenet. Closes audit/findings/cluster/cophenet.md.
+// cophenet.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

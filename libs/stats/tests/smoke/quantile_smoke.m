@@ -3,7 +3,7 @@ clear
 import compat.*
 
 % quantile / prctile / iqr — joint MATLAB R2025b compliance smoke
-% (audit closures: stats/{quantile,prctile,iqr}).
+%.
 
 v10 = [1:10]';
 A   = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11];

@@ -1,5 +1,5 @@
 // libs/stats/tests/unidstat_test.cpp
-// Audit ТЗ closure for unidstat. Closes audit/findings/stats/unidstat.md.
+// unidstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

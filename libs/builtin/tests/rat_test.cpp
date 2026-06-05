@@ -1,9 +1,5 @@
 // libs/builtin/tests/rat_test.cpp
-//
-// Audit ТЗ closure for builtin/rat AND builtin/rats. Closes:
-//   audit/findings/builtin/rat.md
-//   audit/findings/builtin/rats.md
-//
+// builtin/rat AND builtin/rats. Closes:
 // Pre-fix:
 //   - rat() returned a "p / q" string (NOT MATLAB's nested CF format)
 //   - [N, D] = rat(...) threw "Undefined function or variable 'D'"
@@ -31,11 +27,11 @@ public:
     std::string evalString(const std::string &c) { return eval(c).toString(); }
 };
 
-// ─── 2-output [N, D] form (the core ТЗ gap) ──────────────────────────
+// ─── 2-output [N, D] form (the core gap) ──────────────────────────
 
 TEST_F(RatTest, TwoOutputPi)
 {
-    // ТЗ probe: [N, D] = rat(pi, 1e-3) → N=355, D=113.
+    // probe: [N, D] = rat(pi, 1e-3) → N=355, D=113.
     eval("[N, D] = rat(pi, 1e-3);");
     EXPECT_DOUBLE_EQ(evalScalar("N"), 355.0);
     EXPECT_DOUBLE_EQ(evalScalar("D"), 113.0);

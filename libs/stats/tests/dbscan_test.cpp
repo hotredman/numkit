@@ -1,5 +1,5 @@
 // libs/stats/tests/dbscan_test.cpp
-// Audit ТЗ closure for dbscan. Closes audit/findings/cluster/dbscan.md.
+// dbscan.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

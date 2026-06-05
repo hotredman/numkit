@@ -14,7 +14,7 @@
     "real(yc)", "imag(yc)", "real(yn)", "imag(yn)",
     "real(ya(1))", "imag(ya(1))", "real(ya(2))", "imag(ya(2))", "real(ya(3))", "imag(ya(3))"
   ],
-  "comment": "Sig: y = asin(x). Element-wise inverse-trig (libm). For a REAL argument outside [-1,1] the result is complex and the whole array is promoted (fixed 2026-06-05): asin(2)=pi/2-i*acosh(2)=1.5708-1.31696i; asin(-2)=-pi/2+i*acosh(2)=-1.5708+1.31696i. Computed via acosh because std::asin's complex branch cut flips the imaginary sign vs MATLAB on [1,inf). Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on domain edges.",
+  "comment": "Sig: y = asin(x). Element-wise inverse-trig (libm). For a REAL argument outside [-1,1] the result is complex and the whole array is promoted (fixed 2026-06-05): asin(2)=pi/2-i*acosh(2)=1.5708-1.31696i; asin(-2)=-pi/2+i*acosh(2)=-1.5708+1.31696i. Computed via acosh because std::asin's complex branch cut flips the imaginary sign vs MATLAB on [1,inf). Spec-extension batch 2026-05-09 verified bit-identical MATLAB R2025b on domain edges.",
   "bench_setup": "xb = mod((1:N)*7919,1998)*0.001 - 0.999;",
   "bench_expr": "rb=asin(xb);"
 }

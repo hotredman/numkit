@@ -1,5 +1,4 @@
 // libs/stats/src/fit/fit.cpp
-//
 // Distribution MLE fitters with confidence intervals.
 
 #include <numkit/stats/fit/fit.hpp>
@@ -521,7 +520,6 @@ double explike(double mu, const Value &x, std::pmr::memory_resource * /*mr*/)
 // Extended form for the adapter: cens + freq + scalar avar.
 // Returns nL via the function value; if `avarOut` is non-null, fills
 // it with the inverse observed Fisher info (1/I).
-//
 // Uncensored row, weight w:  contributes w·(log μ + x/μ)
 //   ∂²nL/∂μ² += w · (-1/μ² + 2 x / μ³)
 // Right-censored row, weight w: contributes w·(x/μ)
@@ -603,7 +601,6 @@ double lognlike(double mu, double sigma, const Value &x, std::pmr::memory_resour
 // Hessian wrt (mu, sigma) is structurally identical to the normal
 // Hessian on y = log x (the per-row `log x_i` baseline is a constant
 // in (mu, sigma)). Same uncensored / right-censored split as normlike.
-//
 // `avarOut` (4 doubles, column-major 2×2) filled iff non-null.
 static double lognlike_full(double mu, double sigma, const Value &x,
                             const Value &cens, const Value &freq,
@@ -1318,7 +1315,7 @@ void evlike_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = Value::scalar(nL, ctx.engine->resource());
     // AVAR (2-output form): not yet implemented — observed Fisher info
     // for Gumbel-min has nontrivial cross-terms; deferred. See
-    // audit/closed/stats/evlike.md for the partial-closure note.
+    // for the partial-closure note.
 }
 
 void explike_reg(Span<const Value> args, size_t nargout,
@@ -1383,13 +1380,11 @@ void gplike_reg(Span<const Value> args, size_t nargout,
 }
 
 // ── mle (closed-form max-likelihood estimator) ─────────────────────
-//
 // Supported distribution families (closed-form MLE -- no optimization):
 //   'normal':      [muhat, sigmahat], sigmahat uses N normalisation
 //   'exponential': muhat = mean(x)
 //   'poisson':     lambdahat = mean(x)
 //   'lognormal':   [muhat, sigmahat] of log(x)
-//
 // Custom 'pdf'/'logpdf'/'nloglf' with 'start' x0 deferred -- needs
 // Nelder-Mead simplex over a function-handle nLL.
 void mle_reg(Span<const Value> args, size_t nargout,
@@ -1550,7 +1545,6 @@ void mle_reg(Span<const Value> args, size_t nargout,
 }
 
 // ── fitdist (returns probability-distribution struct) ──────────────
-//
 // MATLAB returns a probability-distribution OBJECT with class methods
 // (.cdf, .pdf, .icdf etc). numkit doesn't ship full OOP for
 // distributions; we return a struct with:
@@ -1558,7 +1552,6 @@ void mle_reg(Span<const Value> args, size_t nargout,
 //   .ParameterValues   — 1xN row of fitted parameters
 //   .ParameterNames    — cell array of parameter-name strings
 //   .NumObservations   — sample size
-//
 // Wraps mle for the closed-form distributions; same set: normal,
 // exponential, poisson, lognormal.
 void fitdist_reg(Span<const Value> args, size_t /*nargout*/,

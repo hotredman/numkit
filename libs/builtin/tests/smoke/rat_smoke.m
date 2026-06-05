@@ -3,7 +3,7 @@ clear
 import compat.*
 
 % rat / rats — rational approximation via regularized continued fractions.
-% After the audit ТЗ closure (2026-05-09):
+% After the spec-extension (2026-05-09):
 %   rat(x[, tol])     1-output  → nested CF string  '3 + 1/(7 + 1/(16))'
 %   [N, D] = rat(...) 2-output  → numeric numerator + denominator
 %   rats(x[, len])               → fixed-width 'numer/denom' field

@@ -1,11 +1,9 @@
 // libs/builtin/tests/misc_batch_test.cpp
-//
-// Audit ТЗ batch closure: predicates + coord conversion + airy.
+// : predicates + coord conversion + airy.
 //   allfinite / allunique / anynan
 //   airy
 //   cart2pol / cart2sph
-//
-// All flagged "no major gap detected" — bit-identical MATLAB R2025b
+// All  — bit-identical MATLAB R2025b
 // on probed inputs (parity tol=1e-12).
 
 #include <numkit/builtin/library.hpp>

@@ -1,5 +1,5 @@
 // libs/stats/tests/lognfit_test.cpp
-// Audit ТЗ closure for lognfit. Closes audit/findings/stats/lognfit.md.
+// lognfit.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -21,7 +21,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// Reference values from MATLAB R2025b probe (audit/findings/stats/lognfit.md).
+// Reference values from MATLAB R2025b probe.
 
 TEST_F(LognfitTest, BasicNoCensNoFreq)
 {

@@ -1,5 +1,5 @@
 // libs/stats/tests/tstat_test.cpp
-// Audit ТЗ closure for tstat. Closes audit/findings/stats/tstat.md.
+// tstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

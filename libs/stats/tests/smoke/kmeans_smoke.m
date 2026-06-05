@@ -37,7 +37,7 @@ fprintf('C   = '); disp(C2);
 fprintf('sumd= %.4f\n', sumd2);
 fprintf('  expect: idx=[1;1;1], C=[3 4], sumd=8\n\n');
 
-% --- 2026-05-08 audit ТЗ closure: 4-output + N-V parsing ---
+% --- 2026-05-08 spec closure: 4-output + N-V parsing ---
 Xs = [0 0; 0.1 0; 0 0.1; 0.1 0.1; ...
       5 5; 5.1 5; 5 5.1; 5.1 5.1; ...
       10 0; 10.1 0; 10 0.1; 10.1 0.1];

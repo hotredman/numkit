@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Misc batch 3 — interp + ind2sub + predicates3 + helpers. Audit ТЗ 2026-05-09.
+% Misc batch 3 — interp + ind2sub + predicates3 + helpers.
 
 fprintf('interp1([1 2 3],[10 20 30],1.5) = %g\n', interp1([1 2 3],[10 20 30],1.5));
 fprintf('discretize([0.5 1.5 2.5],[0 1 2 3]) = '); disp(discretize([0.5 1.5 2.5],[0 1 2 3]));

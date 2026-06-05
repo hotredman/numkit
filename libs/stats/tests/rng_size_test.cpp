@@ -1,5 +1,5 @@
 // libs/stats/tests/rng_size_test.cpp
-// Audit ТЗ closure for the 14 stats.dist RNG functions.
+// the 14 stats.dist RNG functions.
 // Closes: betarnd, binornd, chi2rnd, exprnd, frnd, gamrnd, lognrnd,
 // normrnd, poissrnd, raylrnd, trnd, unidrnd, unifrnd, wblrnd.
 

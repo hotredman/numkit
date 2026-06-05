@@ -1,6 +1,5 @@
 // libs/builtin/tests/misc4_batch_test.cpp
-//
-// Audit ТЗ batch closure (20 functions):
+// (20 functions):
 //   convert:     convertCharsToStrings · convertContainedStringsToChars
 //                · convertStringsToChars
 //   interp ND:   interp3 · interpn (both deferred — adapter arg-shape gaps)
@@ -8,8 +7,7 @@
 //   collection:  iscellstr · ismembertol · issorted · isstrprop · mat2cell
 //   shape:       meshgrid · ndgrid
 //   misc:        newline · nnz · nonzeros · nthroot · num2cell · pad
-//
-// All flagged "no major gap detected". Bit-identical MATLAB R2025b.
+// All . Bit-identical MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

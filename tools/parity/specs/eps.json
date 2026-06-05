@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Sig: r = eps([x]). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on scalar-1 input. KNOWN GAPS (separate \u0422\u0417): eps() with no args returns empty (should return eps(1)); eps(fractional) is parser-confused as indexing; eps(vector) segfaults. Pinned only the working scalar path here."
+  "comment": "Sig: r = eps([x]). Spec-extension batch 2026-05-09 \u2014 verified bit-identical MATLAB R2025b on scalar-1 input. KNOWN GAPS (separate \u0422\u0417): eps() with no args returns empty (should return eps(1)); eps(fractional) is parser-confused as indexing; eps(vector) segfaults. Pinned only the working scalar path here."
 }

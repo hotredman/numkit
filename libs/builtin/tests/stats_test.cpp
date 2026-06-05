@@ -1,8 +1,6 @@
 // libs/builtin/tests/stats_test.cpp
-//
 // Phase-1 statistics: var, std, median, quantile, prctile, mode.
 // Tests run on both TreeWalker and VM backends via DualEngineTest.
-//
 // Coverage matrix per function:
 //   - Scalar input
 //   - Empty input (where defined)
@@ -406,7 +404,6 @@ TEST_P(StatsTest, Std3DDim2)
 }
 
 // ── Phase P5 SIMD two-pass var/std coverage ─────────────────
-//
 // The existing StatsTest cases work on tiny vectors that don't
 // exercise the 4× unrolled SIMD body of varianceTwoPass. These tests
 // hit N >> 4*lanes (Highway: 4 doubles on AVX2, 8 on AVX-512) so the
@@ -447,7 +444,6 @@ TEST_P(StatsTest, StdMatchesSqrtVar)
 // Covers cases where i + 4*N <= n is false but i + N <= n is true
 // (1× SIMD body), and where i < n is the only remainder (scalar tail).
 // ── 2D / 3D matrix-dim coverage that exercises the SIMD body ─
-//
 // Existing VarMatrixDim*/StdMatrixDim*/Var3DDim* use 3-row matrices;
 // the per-slice SIMD scan body needs slice length >= 4 (AVX2) or >= 8
 // (AVX-512) before the unrolled body fires. These cases use 64-row
@@ -819,7 +815,6 @@ INSTANTIATE_DUAL(StatsTest);
 // dim overloads for existing reductions
 // (sum, mean, prod, min, max, cumsum)
 // ============================================================
-//
 // The original implementations auto-detect the reduction axis (first
 // non-singleton). The three-arg form takes an explicit dim and routes
 // through applyAlongDim. These tests pin both shape and value behavior.
@@ -1169,7 +1164,7 @@ TEST_P(ReductionDimTest, Nansum4DAlongDim3)
     EXPECT_DOUBLE_EQ(evalScalar("s(2, 1, 1, 1);"), 2.0 + 8.0 + 14.0 + 20.0);
 }
 
-// ── Phase A audit: reductions assumed "free via applyAlongDim" ───
+// ── Phase A review: reductions assumed "free via applyAlongDim" ───
 // These exercise paths that should work without explicit ND code in
 // the per-op function. Failures here mean a missing dispatcher branch.
 
@@ -1269,7 +1264,6 @@ TEST_P(ReductionDimTest, Nanmedian4DAlongDim3)
 }
 
 // ── Phase 4 (round-3): min/max preserve source type ─────────────
-//
 // MATLAB rule: min/max default to 'native' mode, returning the same
 // element type as the input. Only the index output is always DOUBLE.
 
@@ -1442,7 +1436,6 @@ TEST_P(ReductionDimTest, BinaryMinMixedIntClassThrows)
 }
 
 // ── ND empty-input shape preservation (rank ≥ 4) ────────────────
-//
 // MATLAB collapses the reduced dim to 1 and preserves all other dims.
 // For zeros([2, 0, 3, 2]), reducing dim 2 (the empty axis) gives
 // 2×1×3×2 of zeros — the slice is empty so sum of empty slice = 0.
@@ -1487,7 +1480,6 @@ TEST_P(ReductionDimTest, Mean5DEmptyAlongEmptyDim)
 }
 
 // ── ND reductions on non-DOUBLE inputs ───────────────────────────
-//
 // MATLAB sum/mean/etc. on integer/logical ND inputs return DOUBLE
 // (since the cast int → accumulator → double is the natural path
 // for sum). We follow that convention: non-DOUBLE input is read via
@@ -1529,7 +1521,6 @@ TEST_P(ReductionDimTest, Sum4DUint8AlongDim4)
 }
 
 // ── 1D/2D/3D reductions on non-DOUBLE inputs (round-2 bonus) ────
-//
 // Same lift as the ND case: vector path + forEachSlice (2D/3D) +
 // reduce() now read non-DOUBLE input via elemAsDouble. Output stays
 // DOUBLE per MATLAB convention.
@@ -1586,7 +1577,6 @@ TEST_P(ReductionDimTest, Sum4DSingleAlongDim3)
 }
 
 // ── Phase 4 (round-4): mode preserves source type ───────────────
-//
 // MATLAB rule: mode preserves the input element type. Value array has
 // the same class as input; frequency stays DOUBLE. Tie → smallest.
 // COMPLEX rejected. NaN ignored for floating types.
@@ -1690,7 +1680,6 @@ TEST_P(ReductionDimTest, ModeAllNanReturnsNan)
 }
 
 // ── Phase 5 (round-4): 'native' / 'default' / 'double' output type ───
-//
 // MATLAB outtype flag for sum/prod/mean. 'default' and 'double' both
 // give DOUBLE output; 'native' preserves the input class. Integer
 // natives saturate; LOGICAL/CHAR/COMPLEX inputs reject 'native'.
@@ -1810,7 +1799,6 @@ TEST_P(ReductionDimTest, SumNative4DAlongDim)
 }
 
 // ── Round 5 Item 1: 'all' dim placeholder ───────────────────────
-//
 // MATLAB: sum(A, 'all') reduces across all dims to a scalar (same as
 // no-dim form). 'all' may be combined with the outtype flag.
 
@@ -1861,7 +1849,6 @@ TEST_P(ReductionDimTest, AllStringIsCaseInsensitive)
 }
 
 // ── Round 5 Item 2: implicit-default SINGLE / COMPLEX preservation ───
-//
 // MATLAB: sum(single(...)) returns single (not double). sum(complex(...))
 // returns complex (we used to silently drop the imaginary part because
 // `reduce()` called elemAsDouble — that returns just the real part).
@@ -2020,7 +2007,6 @@ TEST_P(ReductionDimTest, VarSingleMatrixDimReturnsSingle)
 }
 
 // ── Round 6 Item 2: 'omitnan' flag ────────────────────────────────
-//
 // MATLAB: sum/mean/prod/var/std/median accept 'omitnan' as a trailing
 // flag string that skips NaN inputs. Routes to the corresponding
 // nan* helper (nansum/nanmean/nanvar/nanstd/nanmedian) under the hood.
@@ -2209,7 +2195,6 @@ TEST_P(ReductionDimTest, MaxOmitnanAlongDim)
 }
 
 // ── Round 9: TW bracket-NaN literal regression ─────────────────
-//
 // BUG (pre-round-9): TW execMatrixLiteral fast-path "[A, x, y]" row
 // vector append fired on `[NaN, 1, NaN]` because `NaN` parses as an
 // IDENTIFIER and resolves to the global NaN constant. The fast-path
@@ -2343,7 +2328,6 @@ INSTANTIATE_DUAL(ReductionDimTest);
 // ============================================================
 // NaN-aware reductions (Phase 2)
 // ============================================================
-//
 // Semantics summary (matches MATLAB):
 //   * nansum   : all-NaN slice → 0
 //   * nanmean / nanmax / nanmin / nanvar / nanstd / nanmedian
@@ -2515,7 +2499,6 @@ TEST_P(NanReductionTest, NanmeanReturnsNaNForAllNaNSlice)
 }
 
 // ── Phase P2 SIMD single-pass coverage ───────────────────────
-//
 // The SIMD nansum/nanmean kernels read 4× lanes per iteration. Existing
 // tests work on tiny vectors that don't cross those unroll boundaries.
 // The cases below pin: large N + scattered NaN, NaN at SIMD-block
@@ -2798,7 +2781,6 @@ TEST_P(CumLogicalTest, AnyTreatsNaNAsTrue)
 }
 
 // ── Phase P1 SIMD any/all coverage ──────────────────────────
-//
 // These exercise the 4× unrolled SIMD scan in
 // logical_reductions_simd.cpp. Cover: large-N early-exit (any), full-
 // scan (all), LOGICAL-byte path (mask = x > 0 returns LOGICAL), DOUBLE
@@ -2834,7 +2816,6 @@ TEST_P(CumLogicalTest, AnyLogicalInputDirectByteScan)
 }
 
 // ── Cumulative SIMD-body coverage (Phase P6 followup) ───────
-//
 // Existing CumprodVector / CummaxVector / CumminVector tests use 5-8
 // element vectors that don't fully cross the 4× SIMD body / scalar
 // tail boundary. The cumsum/cumprod/cummax/cummin SIMD path uses a

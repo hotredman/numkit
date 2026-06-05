@@ -1,5 +1,5 @@
 // libs/stats/tests/unidinv_test.cpp
-// Audit ТЗ closure for unidinv. Closes audit/findings/stats/unidinv.md.
+// unidinv.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

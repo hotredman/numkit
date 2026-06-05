@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % dbscan — density-based clustering. Closes
-% audit/findings/cluster/dbscan.md.
+%
 %
 % Bug fixes 2026-05-08:
 %   - noise label was 0, MATLAB R2025b uses -1

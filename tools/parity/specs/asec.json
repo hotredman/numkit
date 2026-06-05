@@ -13,7 +13,7 @@
     "y(5)",
     "y(6)"
   ],
-  "comment": "Sig: y = asec(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on domain edges.",
+  "comment": "Sig: y = asec(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 verified bit-identical MATLAB R2025b on domain edges.",
   "bench_setup": "xb = mod((1:N)*7919,1000)*0.01 + 1;",
   "bench_expr": "rb=asec(xb);"
 }

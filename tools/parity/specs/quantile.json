@@ -13,5 +13,5 @@
     "q_all", "q_vec",
     "q_exact", "q_approx"
   ],
-  "comment": "Sig: Q = quantile(A, p [, dim | 'all' | vecdim] [, 'Method', m]). Default = the MATLAB 'exact' algorithm (R2007a linear-interpolation, positions (k-0.5)/N). MATLAB's documented Method values are 'exact' (default) and 'approximate'; numkit also keeps midpoint/inclusive/exclusive for compatibility. quantile([1 2 3 4],0.25,'exact') = 1.5. numkit previously rejected 'exact' -- alias added. Closes audit/findings/stats/quantile.md."
+  "comment": "Sig: Q = quantile(A, p [, dim | 'all' | vecdim] [, 'Method', m]). Default = the MATLAB 'exact' algorithm (R2007a linear-interpolation, positions (k-0.5)/N). MATLAB's documented Method values are 'exact' (default) and 'approximate'; numkit also keeps midpoint/inclusive/exclusive for compatibility. quantile([1 2 3 4],0.25,'exact') = 1.5. numkit previously rejected 'exact' -- alias added.
 }

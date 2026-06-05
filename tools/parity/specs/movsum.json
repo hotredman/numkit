@@ -13,5 +13,5 @@
     "e2(1)", "e2(2)", "e2(4)",
     "e4(1)", "e4(4)", "e4(6)"
   ],
-  "comment": "Sig: movsum(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. EVEN scalar window leans BACKWARD (current+previous), MATLAB rule: movsum([1 2 3 4],2)=[1 3 5 7] (window [i-1,i]); movsum([1 2 3 4 5 6],4)=[3 6 10 14 18 15] (window [i-2,i+1]). numkit previously leaned forward for even k -- fixed 2026-05-29. Closes audit/findings/stats/movsum.md."
+  "comment": "Sig: movsum(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. EVEN scalar window leans BACKWARD (current+previous), MATLAB rule: movsum([1 2 3 4],2)=[1 3 5 7] (window [i-1,i]); movsum([1 2 3 4 5 6],4)=[3 6 10 14 18 15] (window [i-2,i+1]). numkit previously leaned forward for even k -- fixed 2026-05-29.
 }

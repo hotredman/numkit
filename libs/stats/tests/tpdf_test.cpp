@@ -1,5 +1,5 @@
 // libs/stats/tests/tpdf_test.cpp
-// Audit ТЗ closure for tpdf. Closes audit/findings/stats/tpdf.md.
+// tpdf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -13,5 +13,5 @@
     "y(5)",
     "y(6)"
   ],
-  "comment": "Sig: y = asecd(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on domain edges."
+  "comment": "Sig: y = asecd(x). Element-wise inverse-trig (libm). Spec-extension batch 2026-05-09 \u2014 verified bit-identical MATLAB R2025b on domain edges."
 }

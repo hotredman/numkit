@@ -1,5 +1,4 @@
 // libs/signal/src/transforms/extras.cpp
-//
 // dftmtx / bitrevorder / dst / idst / rceps / cceps / icceps.
 
 #include <numkit/signal/transforms/extras.hpp>
@@ -210,12 +209,11 @@ std::pair<Value, Value> rcepsMinPhase(const Value &x, std::pmr::memory_resource 
 // Complex cepstrum: ifft(log(fft(x))) with simple phase unwrapping along
 // the frequency axis. Only the real part of x is used (matches MATLAB
 // when input is real).
-//
 // Sign-convention note (numkit's fftRadix2 dir argument):
 //   dir = -1  →  W[k] = exp(-2πj k/N)  →  FORWARD DFT
 //   dir = +1  →  W[k] = exp(+2πj k/N)  →  INVERSE DFT (caller scales by 1/N)
 // The inverse-step here MUST be dir=+1; using -1 produces a forward DFT
-// which time-reverses the output (audit ТЗ signal/cceps, 2026-05-09).
+// which time-reverses the output .
 Value cceps(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t n = x.numel();

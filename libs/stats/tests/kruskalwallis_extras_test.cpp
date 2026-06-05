@@ -1,6 +1,4 @@
 // libs/stats/tests/kruskalwallis_extras_test.cpp
-//
-// Closes audit/closed/stats/kruskalwallis.md.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -1,5 +1,5 @@
 // libs/stats/tests/linkage_test.cpp
-// Audit ТЗ closure for linkage. Closes audit/findings/cluster/linkage.md.
+// linkage.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

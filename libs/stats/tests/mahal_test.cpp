@@ -1,5 +1,5 @@
 // libs/stats/tests/mahal_test.cpp
-// Audit ТЗ closure for mahal. Closes audit/findings/cluster/mahal.md.
+// mahal.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

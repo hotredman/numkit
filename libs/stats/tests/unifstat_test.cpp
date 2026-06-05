@@ -1,5 +1,5 @@
 // libs/stats/tests/unifstat_test.cpp
-// Audit ТЗ closure for unifstat. Closes audit/findings/stats/unifstat.md.
+// unifstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

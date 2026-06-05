@@ -1,13 +1,11 @@
 // libs/builtin/tests/misc5_batch_test.cpp
-//
-// Audit ТЗ batch closure (19 functions):
+// (19 functions):
 //   poly:           polyfit · polyval · ppval
 //   string extras2: insertafter · insertbefore · join · matches ·
 //                   replace · replacebetween · rmfield · orderfields
 //   math2/extr:     legendre · psi · realmax · realmin
 //   error-handling: assert · error · warning · lastwarn
-//
-// All flagged "no major gap detected". Bit-identical MATLAB R2025b
+// All . Bit-identical MATLAB R2025b
 // (16 working, 3 deferred — insertafter/insertbefore/replacebetween
 // undefined in numkit).
 

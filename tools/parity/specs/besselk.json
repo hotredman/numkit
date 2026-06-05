@@ -11,5 +11,5 @@
     "real(r(3))",
     "real(r(4))"
   ],
-  "comment": "Sig: r = besselk(...). Bessel function. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
+  "comment": "Sig: r = besselk(...). Bessel function. Spec-extension batch 2026-05-09 \u2014 verified MATLAB R2025b parity."
 }

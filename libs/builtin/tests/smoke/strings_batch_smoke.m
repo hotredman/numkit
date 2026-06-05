@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Strings batch — audit ТЗ closure 2026-05-09. 14 functions.
+% Strings batch — spec closure 2026-05-09. 14 functions.
 
 fprintf('lower("Hello")     = "%s"\n',     lower("Hello"));
 fprintf('upper("xyz")       = "%s"\n',     upper("xyz"));

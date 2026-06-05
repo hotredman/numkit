@@ -1,8 +1,6 @@
 // libs/stats/tests/betapdf_test.cpp
-//
-// Audit ТЗ closure for betapdf — coverage gap fix (no behavioral
+// betapdf — coverage gap fix (no behavioral
 // change). Reference values from MATLAB R2025b probe.
-// Closes audit/findings/stats/betapdf.md.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

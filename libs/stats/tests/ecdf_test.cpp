@@ -1,5 +1,5 @@
 // libs/stats/tests/ecdf_test.cpp
-// Audit ТЗ closure for ecdf. Closes audit/findings/empirical/ecdf.md.
+// ecdf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
