@@ -191,6 +191,30 @@ TEST_P(PolyTest, PolyderComplexThrows)
     EXPECT_THROW(eval("d = polyder([1+2i, 3]);"), std::exception);
 }
 
+TEST_P(PolyTest, PolyderProductForm)
+{
+    // bugs/builtin/polyder-product.md: polyder(a,b) with ONE output is the
+    // derivative of the PRODUCT a*b (= polyder(conv(a,b))), NOT the quotient
+    // numerator. d/dx[x*(x+1)] = d/dx[x^2+x] = 2x+1.
+    eval("d = polyder([1 0], [1 1]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->numel(), 2u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[1], 1.0);
+    // (x+2)(x+3) = x^2+5x+6 -> 2x+5.
+    eval("e = polyder([1 2], [1 3]);");
+    auto *e = getVarPtr("e");
+    EXPECT_EQ(e->numel(), 2u);
+    EXPECT_DOUBLE_EQ(e->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(e->doubleData()[1], 5.0);
+    // The 2-output quotient form must be UNCHANGED.
+    eval("[q, dd] = polyder([1 0], [1 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("q;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dd(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dd(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("dd(3);"), 1.0);
+}
+
 // ── polyint ────────────────────────────────────────────────────
 
 TEST_P(PolyTest, PolyintQuadratic)
