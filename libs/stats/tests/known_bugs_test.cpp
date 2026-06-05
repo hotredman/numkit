@@ -37,8 +37,9 @@ TEST_F(StatsKnownBug, DISABLED_DistributionDispatchers)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(random('Normal',0,1,1,3))")), 3);
 }
 
-// bugs/stats/isoutlier-gesd.md — generalized ESD test.
-TEST_F(StatsKnownBug, DISABLED_IsoutlierGesd)
+// bugs/stats/isoutlier-gesd.md — generalized ESD test. FIXED 2026-06-05
+// (deep coverage in libs/stats/tests/isoutlier_gesd_test.cpp).
+TEST_F(StatsKnownBug, IsoutlierGesd)
 {
     eval("m = isoutlier([1 2 3 4 5 6 7 8 9 50], 'gesd');");
     EXPECT_DOUBLE_EQ(evalScalar("sum(double(m))"), 1.0);

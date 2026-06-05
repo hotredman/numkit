@@ -1,0 +1,10 @@
+{
+  "name": "isoutlier_gesd",
+  "namespace": "stats",
+  "setup": "x1 = [1 2 3 4 5 6 7 8 9 50]; x2 = [1 2 3 100 4 5]; x3 = [1 2 3 4 5 6 7 8 9 10]; x4 = [zeros(1,22) 20 30 40]; x5 = [zeros(1,10) 100 101 102 103 104]; x6 = [0 0 0 0 50];",
+  "expr": "g1 = double(isoutlier(x1,'gesd')); g2 = double(isoutlier(x2,'gesd')); g3 = double(isoutlier(x3,'gesd')); g4 = double(isoutlier(x4,'gesd')); s4 = sum(g4); g5d = sum(double(isoutlier(x5,'gesd'))); g5m = sum(double(isoutlier(x5,'gesd','MaxNumOutliers',5))); gtf = sum(double(isoutlier(x1,'gesd','ThresholdFactor',0.01))); g6 = double(isoutlier(x6,'gesd'));",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["g1(10)", "sum(g1)", "g2(4)", "sum(g2)", "sum(g3)", "s4", "g4(23)", "g4(25)", "g5d", "g5m", "gtf", "g6(5)", "sum(g6)"],
+  "comment": "Sig: isoutlier(x,'gesd'[,'ThresholdFactor',a][,'MaxNumOutliers',k]). Generalized ESD test (Rosner 1983), fixed 2026-06-05 (bugs/stats/isoutlier-gesd.md): peel the most-extreme studentized deviate for k iterations (default k = max(1,round(n/10))), critical value lambda_i = the Grubbs form at the current size m=N-i+1 (= ((m-1)/sqrt(m))*sqrt(t^2/((m-2)+t^2)), t=tinv(a/(2m),m-2)), flag every peeled point up to the LARGEST iteration whose deviate exceeds lambda (handles masking/swamping). ThresholdFactor a default 0.05. Validated vs MATLAB R2025b: single outlier (repro + mid-vector), clean->none, spread n=25 peels 3, masking n=15 default->0 but MaxNumOutliers=5->5, ThresholdFactor=0.01, small n=5."
+}

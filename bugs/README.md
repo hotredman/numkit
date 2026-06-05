@@ -120,16 +120,20 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (80 entries):** ✅ 24 fixed · 🔴 56 open = **12 bug** + 7 stub +
+**Tally (80 entries):** ✅ 25 fixed · 🔴 55 open = **12 bug** + 6 stub +
 6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (24)
+### ✅ FIXED (25)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| stub | [stats/isoutlier-gesd](stats/isoutlier-gesd.md) | P2 | isoutlier 'gesd' (Rosner generalized ESD) + MaxNumOutliers/ThresholdFactor (2026-06-05) |
+| bug | [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | kstest/kstest2 exact KS p-value (Marsaglia + Birnbaum-Tingey) + cv (2026-06-05) |
+| bug | [stats/dwtest-pvalue](stats/dwtest-pvalue.md) | P2 | exact Durbin-Watson p-value via Imhof CF inversion + Tail option (2026-06-05) |
 | bug | [builtin/cellfun-inputforms](builtin/cellfun-inputforms.md) | P2 | cellfun multi-cell zip + legacy string-name forms ('isempty'/'size'/'isclass'/…) (2026-06-05) |
 | bug | [builtin/diff-zero-order](builtin/diff-zero-order.md) | P3 | diff order N must be a positive integer scalar — 0/neg/frac/non-scalar now error (was identity at 0) (2026-06-05) |
+| bug | [builtin/gradient-3d](builtin/gradient-3d.md) | P2 | gradient supports N-D (3-D+) arrays — one gradient per dim up to nargout (2026-06-05) |
 | bug | [stats/pdist-metrics](stats/pdist-metrics.md) | P2 | pdist/pdist2 gain 'seuclidean' + 'spearman'; cosine/correlation → NaN (not 1) on zero-norm/const row (2026-06-05) |
 | bug | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(X,k[,'first'/'last']) now honours count + direction (single + multi-output) (2026-06-05) |
 | bug | [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | complex now accepted by trapz/cumtrapz/median/interp1/gradient/movmean/detrend/conv/filter (umbrella closed) (2026-06-05) |
@@ -156,7 +160,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv don't broadcast ARRAY parameters (mu/sigma/n/a/b/df) |
-| [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm of a complex array throws (vecnorm works) |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
 | [builtin/func2str-anonymous](builtin/func2str-anonymous.md) | P2 | anon handle returns '@__anon_N' not the source text |
@@ -168,7 +171,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 7
+### 🔴 OPEN — stub (option/branch throws "not supported") — 6
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -176,7 +179,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
 | [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | bandstop case throws |
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
-| [stats/isoutlier-gesd](stats/isoutlier-gesd.md) | P2 | 'gesd' method throws |
 | [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | automatic binning throws |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 

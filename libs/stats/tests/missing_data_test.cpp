@@ -59,8 +59,10 @@ TEST_F(MissingDataTest, IsoutlierMethods)
     eval("M = isoutlier([1 2;3 4;5 100;7 8;9 10]);");
     EXPECT_DOUBLE_EQ(evalScalar("double(M(3,2))"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("sum(double(M(:)))"), 1.0);
-    // gesd still deferred (throws).
-    EXPECT_THROW(eval("isoutlier([1 2 3 100 4 5], 'gesd');"), std::exception);
+    // gesd (generalized ESD) implemented 2026-06-05: only the 100 is flagged.
+    eval("g = isoutlier([1 2 3 100 4 5], 'gesd');");
+    EXPECT_DOUBLE_EQ(evalScalar("double(g(4))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(double(g))"), 1.0);
 }
 
 // DEEP-PROBE c172: isoutlier 'grubbs' — iterative Grubbs's test,
