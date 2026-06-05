@@ -1,7 +1,7 @@
 {
   "name": "log10",
   "namespace": "builtin",
-  "setup": "x = [0.1, 1, 10, 100, 1000]; zn = log10(-1);",
+  "setup": "x = [0.1, 1, 10, 100, 1000]; zn = log10(-1); xn = log10([-100 100]);",
   "expr": "r = log10(x);",
   "iters": 15,
   "tol": 1e-12,
@@ -12,9 +12,10 @@
     "r(4)",
     "r(5)",
     "real(zn)",
-    "imag(zn)"
+    "imag(zn)",
+    "real(xn(1))", "imag(xn(1))", "real(xn(2))", "imag(xn(2))"
   ],
-  "comment": "Sig: r = log10(...). Element-wise libm-backed primitive (SIMD via Highway hn::Log10). Negative scalar promotes to complex: log10(-1)==0+1.364i (real(zn)=0, imag(zn)=pi/ln10) — regression guard. Verified vs MATLAB R2025b.",
+  "comment": "Sig: r = log10(...). Element-wise libm-backed primitive (SIMD via Highway hn::Log10). Negative scalar promotes to complex: log10(-1)==0+1.364i. ARRAY promotion (fixed 2026-06-05): any negative element promotes the WHOLE array — log10([-100 100])=[2+1.36438i 2+0i] (previously the negative became real NaN). Verified vs MATLAB R2025b.",
   "bench_setup": "xb = mod((1:N)*7919,1000)*0.001 + 0.001;",
   "bench_expr": "rb=log10(xb);"
 }

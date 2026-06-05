@@ -120,16 +120,17 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (79 entries):** ✅ 17 fixed · 🔴 62 open = **18 bug** + 7 stub +
+**Tally (80 entries):** ✅ 18 fixed · 🔴 62 open = **18 bug** + 7 stub +
 6 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (17)
+### ✅ FIXED (18)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
 | bug | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(X,k[,'first'/'last']) now honours count + direction (single + multi-output) (2026-06-05) |
 | bug | [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | complex now accepted by trapz/cumtrapz/median/interp1/gradient/movmean/detrend/conv/filter (umbrella closed) (2026-06-05) |
+| bug | [builtin/log-complex-promotion-arrays](builtin/log-complex-promotion-arrays.md) | P2 | log/log10/log2 promote whole real arrays to complex (any negative element) (2026-06-05) |
 | bug | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm() of a complex array by \|z\| (vector 1/2/Inf/p + matrix 1/Inf/'fro'; spectral deferred) (2026-06-05) |
 | bug | [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff() now differences real + imaginary parts (n-th order + dim) (2026-06-05) |
 | bug | [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod accumulate complex element-wise (dim + reverse) (2026-06-05) |
