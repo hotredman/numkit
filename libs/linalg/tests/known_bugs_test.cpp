@@ -61,6 +61,23 @@ TEST_F(LinalgKnownBug, KronIntegerClass)
     EXPECT_TRUE(eval("isa(kron([1 2], [3 4]), 'double')").toBool());
 }
 
+// bugs/linalg/cross-integer-class.md — cross of integer operands kept the
+// integer class with per-operation saturation. FIXED 2026-06-05; deep
+// coverage in libs/linalg/tests/cross_integer_class_test.cpp.
+TEST_F(LinalgKnownBug, CrossIntegerClass)
+{
+    eval("c = cross(int8([1 2 3]), int8([4 5 6]));");
+    EXPECT_TRUE(eval("isa(c, 'int8')").toBool());
+    EXPECT_DOUBLE_EQ(evalScalar("double(c(2))"), 6.0);
+    // Per-operation saturation: 100*100 -> 127 BEFORE the subtraction, so
+    // component 2 = 0 - 127 = -127 (NOT -128).
+    eval("cs = cross(int8([100 100 0]), int8([0 100 100]));");
+    EXPECT_DOUBLE_EQ(evalScalar("double(cs(2))"), -127.0);
+    // int + double keeps the int class; double*double stays double.
+    EXPECT_TRUE(eval("isa(cross(int8([1 2 3]), [4 5 6]), 'int8')").toBool());
+    EXPECT_TRUE(eval("isa(cross([1 0 0], [0 1 0]), 'double')").toBool());
+}
+
 // bugs/linalg/complex-matrix-unsupported.md — complex matrix linear algebra.
 TEST_F(LinalgKnownBug, DISABLED_ComplexMatrixOps)
 {

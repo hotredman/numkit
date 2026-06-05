@@ -68,6 +68,95 @@ static ValueType kronIntegerClass(const Value &a, const Value &b)
     return ValueType::DOUBLE;
 }
 
+// Integer range [lo, hi] as doubles, for saturating casts.
+static void intTypeRange(ValueType vt, double &lo, double &hi)
+{
+    switch (vt) {
+    case ValueType::INT8:   lo = std::numeric_limits<int8_t>::min();   hi = std::numeric_limits<int8_t>::max();   break;
+    case ValueType::INT16:  lo = std::numeric_limits<int16_t>::min();  hi = std::numeric_limits<int16_t>::max();  break;
+    case ValueType::INT32:  lo = std::numeric_limits<int32_t>::min();  hi = std::numeric_limits<int32_t>::max();  break;
+    case ValueType::INT64:  lo = std::numeric_limits<int64_t>::min();  hi = std::numeric_limits<int64_t>::max();  break;
+    case ValueType::UINT8:  lo = 0; hi = std::numeric_limits<uint8_t>::max();  break;
+    case ValueType::UINT16: lo = 0; hi = std::numeric_limits<uint16_t>::max(); break;
+    case ValueType::UINT32: lo = 0; hi = std::numeric_limits<uint32_t>::max(); break;
+    case ValueType::UINT64: lo = 0; hi = std::numeric_limits<uint64_t>::max(); break;
+    default:                lo = 0; hi = 0; break;
+    }
+}
+
+// cross's integer-class rule (MATLAB R2025b): the result keeps an integer
+// class iff both operands share the same integer class, or one operand is
+// integer and the other a real double (ANY shape — unlike kron, because each
+// element product is int-scalar × double-scalar, an allowed mix). Different
+// integer classes and integer + logical ERROR in MATLAB; numkit stays lenient
+// there and computes in double.
+static ValueType crossIntegerClass(const Value &a, const Value &b)
+{
+    const bool aInt = isIntegerType(a.type());
+    const bool bInt = isIntegerType(b.type());
+    if (aInt && bInt && a.type() == b.type()) return a.type();
+    if (aInt && b.type() == ValueType::DOUBLE) return a.type();
+    if (bInt && a.type() == ValueType::DOUBLE) return b.type();
+    return ValueType::DOUBLE;
+}
+
+// Element-wise copy of any numeric Value to a fresh DOUBLE Value (via
+// elemAsDouble, so integer/logical operands are handled). DOUBLE is returned
+// as-is. Used for the lenient double-output cross path.
+static Value crossToDouble(const Value &v, std::pmr::memory_resource *mr)
+{
+    if (v.type() == ValueType::DOUBLE) return v;
+    const auto &d = v.dims();
+    Value r = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    const size_t n = v.numel();
+    double *dst = r.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) dst[i] = v.elemAsDouble(i);
+    return r;
+}
+
+// Integer-class cross product with MATLAB's per-operation saturating integer
+// arithmetic: each element product saturates to the int range BEFORE the
+// subtraction, and the subtraction saturates too. e.g. cross(int8([100 100 0]),
+// int8([0 100 100])) = [127 -127 127], not [127 -128 127]. Operands are read
+// class-agnostically (elemAsDouble); the result is narrowed to outType.
+static Value crossIntegerSaturating(const Value &a, const Value &b, int crossDim,
+                                    ValueType outType, size_t nr, size_t nc,
+                                    std::pmr::memory_resource *mr)
+{
+    double lo, hi;
+    intTypeRange(outType, lo, hi);
+    auto sat = [lo, hi](double v) {
+        v = std::round(v);
+        return v < lo ? lo : (v > hi ? hi : v);
+    };
+    auto comp = [&](double p, double q, double r, double s) {
+        return sat(sat(p * q) - sat(r * s));
+    };
+    Value dbl = Value::matrix(nr, nc, ValueType::DOUBLE, mr);
+    double *od = dbl.doubleDataMut();
+    auto ga = [&](size_t i) { return a.elemAsDouble(i); };
+    auto gb = [&](size_t i) { return b.elemAsDouble(i); };
+    if (crossDim == 0) {
+        for (size_t c = 0; c < nc; ++c) {
+            const size_t base = c * 3;
+            const double a0 = ga(base), a1 = ga(base + 1), a2 = ga(base + 2);
+            const double b0 = gb(base), b1 = gb(base + 1), b2 = gb(base + 2);
+            od[base]     = comp(a1, b2, a2, b1);
+            od[base + 1] = comp(a2, b0, a0, b2);
+            od[base + 2] = comp(a0, b1, a1, b0);
+        }
+    } else {
+        for (size_t r = 0; r < nr; ++r) {
+            const double a0 = ga(r), a1 = ga(r + nr), a2 = ga(r + 2 * nr);
+            const double b0 = gb(r), b1 = gb(r + nr), b2 = gb(r + 2 * nr);
+            od[r]          = comp(a1, b2, a2, b1);
+            od[r + nr]     = comp(a2, b0, a0, b2);
+            od[r + 2 * nr] = comp(a0, b1, a1, b0);
+        }
+    }
+    return narrowKronToInteger(dbl, outType, mr);
+}
+
 // Core cross-product along crossDim (0 = each column is a 3-vec / MATLAB
 // dim 1; 1 = each row is a 3-vec / MATLAB dim 2). Shape already validated.
 static Value crossCore(const Value &a, const Value &b, int crossDim,
@@ -110,9 +199,17 @@ static Value crossCore(const Value &a, const Value &b, int crossDim,
         return outc;
     }
 
+    // Integer/logical operands: same int class (or int + double) preserves the
+    // integer class with per-op saturation; other mixes (different int classes,
+    // int + logical) are lenient -> computed in double.
+    const ValueType intClass = crossIntegerClass(a, b);
+    if (intClass != ValueType::DOUBLE)
+        return crossIntegerSaturating(a, b, crossDim, intClass, nr, nc, mr);
+    Value aHold = crossToDouble(a, mr), bHold = crossToDouble(b, mr);
+
     auto out = Value::matrix(nr, nc, ValueType::DOUBLE, mr);
-    const double *ad = a.doubleData();
-    const double *bd = b.doubleData();
+    const double *ad = aHold.doubleData();
+    const double *bd = bHold.doubleData();
     double *od = out.doubleDataMut();
 
     if (crossDim == 0) {
