@@ -1315,10 +1315,20 @@ void Engine::reregisterDerivedClasses(const std::string &base)
     // ancestor's, so ascending ancestor count is a valid topological order (a
     // base is re-registered before any class that derives from it).
     std::sort(deps.begin(), deps.end(), [&](const std::string &a, const std::string &b) {
-        return classDefs_[a]->superclasses.size() < classDefs_[b]->superclasses.size();
+        return classDefs_.at(a)->superclasses.size() < classDefs_.at(b)->superclasses.size();
     });
-    const bool prev = suppressDependentCascade_;
-    suppressDependentCascade_ = true;
+    // RAII restore: a re-register that throws must NOT leave the flag stuck at
+    // true — that would silently disable propagation for the rest of the
+    // session. The guard restores the previous value on every exit path.
+    struct CascadeGuard
+    {
+        bool &flag;
+        bool prev;
+        explicit CascadeGuard(bool &f) : flag(f), prev(f) { flag = true; }
+        ~CascadeGuard() { flag = prev; }
+        CascadeGuard(const CascadeGuard &) = delete;
+        CascadeGuard &operator=(const CascadeGuard &) = delete;
+    } guard(suppressDependentCascade_);
     for (const auto &name : deps) {
         auto it = classDefAst_.find(name);
         if (it == classDefAst_.end() || !it->second)
@@ -1329,7 +1339,6 @@ void Engine::reregisterDerivedClasses(const std::string &base)
         std::shared_ptr<const ASTNode> ast = it->second;
         registerClassDef(ast.get(), name);
     }
-    suppressDependentCascade_ = prev;
 }
 
 namespace {

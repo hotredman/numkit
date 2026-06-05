@@ -1248,6 +1248,28 @@ TEST_P(ClassdefRedefineTest, ForwardReferencedBaseBackfillsSubclass)
     EXPECT_TRUE(engine.eval("isa(d, 'FAnimal')").toBool()) << "isa reflects the back-filled base";
 }
 
+TEST_P(ClassdefRedefineTest, FailedCascadeDoesNotWedgePropagation)
+{
+    // A cascade that THROWS (here: redefining a base as Sealed makes the
+    // re-register of its subclass fail with "cannot subclass sealed") must
+    // still restore the re-entrancy guard — otherwise all later propagation
+    // goes silently dead. Regression guard for the RAII restore in
+    // reregisterDerivedClasses.
+    eval("classdef SBaseX\n  methods\n    function r = v(obj)\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef SDerX < SBaseX\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("d = SDerX; d.v()"), 1.0);
+    EXPECT_THROW(engine.eval("classdef (Sealed) SBaseX\nend\n"), std::exception)
+        << "redefining a base as Sealed under a live subclass must error";
+    // An unrelated redefinition must STILL propagate to its derived — proving
+    // the guard was restored despite the throw above.
+    eval("classdef PBaseX\n  methods\n    function r = g(obj)\n      r = 10;\n    end\n  end\nend\n");
+    eval("classdef PDerX < PBaseX\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("p = PDerX; p.g()"), 10.0);
+    eval("classdef PBaseX\n  methods\n    function r = g(obj)\n      r = 20;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("p = PDerX; p.g()"), 20.0)
+        << "propagation must still work after an earlier cascade threw";
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ClassdefRedefineTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
