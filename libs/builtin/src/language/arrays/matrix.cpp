@@ -3441,6 +3441,19 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
             outs[1] = std::move(idxD);
         return;
     }
+    // Logical: MATLAB keeps the logical class on the sorted VALUES (the index
+    // output stays double) — same shape as the integer path above. Sort via
+    // the double path (order/indices identical) then narrow 0/1 -> LOGICAL.
+    // (Only logical is handled here; sorting a CHAR array is a separate
+    // still-unsupported case — see bugs/builtin/sort-logical.md "Related".)
+    if (args[0].isLogical()) {
+        Value xd = copyToDouble(args[0], mr);
+        auto [sortedD, idxD] = sort(xd, dim, descend, nanPlace, mr);
+        outs[0] = logicalizeCumResult(sortedD, mr);
+        if (nargout > 1)
+            outs[1] = std::move(idxD);
+        return;
+    }
     auto [sorted, idx] = sort(args[0], dim, descend, nanPlace, mr);
     outs[0] = std::move(sorted);
     if (nargout > 1)
