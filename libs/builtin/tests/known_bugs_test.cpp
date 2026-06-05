@@ -212,3 +212,16 @@ TEST_F(BuiltinKnownBug, SetopsTypeClass)
     eval("ci = intersect(int8([3 1 2]),int8([2 4 1]));");
     EXPECT_DOUBLE_EQ(evalScalar("isa(ci,'int8')"), 1.0);
 }
+
+// bugs/builtin/cummax-cummin-integer.md — FIXED (cummax/cummin preserve the
+// integer class). Full guard in cummax_cummin_integer_test.cpp.
+TEST_F(BuiltinKnownBug, CummaxCumminInteger)
+{
+    eval("a = cummax(int8([3 1 2 5 4]));");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(a,'int8')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(3)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(4)"), 5.0);
+    eval("b = cummin(int8([3 1 2 5 4]));");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(b,'int8')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b(2)"), 1.0);
+}
