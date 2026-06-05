@@ -269,6 +269,83 @@ void qrFullHouseholder(const double *A_in, std::size_t m, std::size_t n,
     }
 }
 
+// Column-pivoted Householder QR: A·P = Q·R, columns pivoted by decreasing
+// 2-norm of the not-yet-triangularized part (LAPACK xGEQP3 order). `permOut[k]`
+// is the original column index now in position k. The pivot norms are
+// recomputed exactly each step (robust; matches MATLAB's pivot order in
+// non-degenerate cases). The reflector is identical to the unpivoted path, so
+// Q/R share MATLAB's sign convention.
+void qrPivotedHouseholder(const double *A_in, std::size_t m, std::size_t n,
+                          double *Qout, double *Rout, std::size_t *permOut,
+                          std::pmr::memory_resource *mr)
+{
+    ScratchArena scratch(mr);
+    ScratchVec<double> R_work(m * n, &scratch);
+    ScratchVec<double> V(m * n, 0.0, &scratch);
+    ScratchVec<double> tau(n, 0.0, &scratch);
+    std::copy(A_in, A_in + m * n, R_work.begin());
+    for (std::size_t j = 0; j < n; ++j) permOut[j] = j;
+
+    for (std::size_t k = 0; k < n; ++k) {
+        // Pivot: column j >= k with the largest sub-column norm (ties → lowest j).
+        std::size_t pj = k;
+        double pmax = -1.0;
+        for (std::size_t j = k; j < n; ++j) {
+            double s = 0.0;
+            for (std::size_t i = k; i < m; ++i) {
+                const double e = R_work[i + j * m];
+                s += e * e;
+            }
+            if (s > pmax) { pmax = s; pj = j; }
+        }
+        if (pj != k) {
+            for (std::size_t i = 0; i < m; ++i)
+                std::swap(R_work[i + k * m], R_work[i + pj * m]);
+            std::swap(permOut[k], permOut[pj]);
+        }
+        // Householder reflector for column k (same convention as unpivoted QR).
+        double norm_sq = 0.0;
+        for (std::size_t i = k; i < m; ++i) {
+            const double e = R_work[i + k * m]; norm_sq += e * e;
+        }
+        if (norm_sq == 0.0) { tau[k] = 0.0; continue; }
+        const double xk = R_work[k + k * m];
+        const double norm = std::sqrt(norm_sq);
+        const double alpha = (xk >= 0.0) ? -norm : norm;
+        V[k + k * m] = xk - alpha;
+        for (std::size_t i = k + 1; i < m; ++i) V[i + k * m] = R_work[i + k * m];
+        double v_norm_sq = 0.0;
+        for (std::size_t i = k; i < m; ++i) v_norm_sq += V[i + k * m] * V[i + k * m];
+        if (v_norm_sq == 0.0) { R_work[k + k * m] = alpha; tau[k] = 0.0; continue; }
+        tau[k] = 2.0 / v_norm_sq;
+        for (std::size_t j = k + 1; j < n; ++j) {
+            double dot = 0.0;
+            for (std::size_t i = k; i < m; ++i) dot += V[i + k * m] * R_work[i + j * m];
+            const double s = tau[k] * dot;
+            for (std::size_t i = k; i < m; ++i) R_work[i + j * m] -= s * V[i + k * m];
+        }
+        R_work[k + k * m] = alpha;
+        for (std::size_t i = k + 1; i < m; ++i) R_work[i + k * m] = 0.0;
+    }
+
+    for (std::size_t j = 0; j < n; ++j)
+        for (std::size_t i = 0; i < m; ++i)
+            Rout[i + j * m] = (i <= j) ? R_work[i + j * m] : 0.0;
+
+    std::fill(Qout, Qout + m * m, 0.0);
+    for (std::size_t i = 0; i < m; ++i) Qout[i + i * m] = 1.0;
+    for (std::size_t kk = n; kk-- > 0;) {
+        const std::size_t k = kk;
+        if (tau[k] == 0.0) continue;
+        for (std::size_t j = 0; j < m; ++j) {
+            double dot = 0.0;
+            for (std::size_t i = k; i < m; ++i) dot += V[i + k * m] * Qout[i + j * m];
+            const double s = tau[k] * dot;
+            for (std::size_t i = k; i < m; ++i) Qout[i + j * m] -= s * V[i + k * m];
+        }
+    }
+}
+
 } // anonymous namespace
 
 std::tuple<Value, Value>
@@ -304,6 +381,30 @@ Value qr_R_only(const Value &A, std::pmr::memory_resource *mr)
     auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
     qrFullHouseholder(A.doubleData(), m, n, Q_unused.data(), R.doubleDataMut(), mr);
     return R;
+}
+
+// Column-pivoted QR (the [Q,R,P] form). Returns Q (m×m) and R (m×n) and fills
+// `perm` (0-based, length n) with the column permutation: A·P = Q·R where
+// column k of A·P is original column perm[k].
+std::tuple<Value, Value>
+qr_pivoted(const Value &A, std::vector<std::size_t> &perm,
+           std::pmr::memory_resource *mr)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("qr: input must be a 2D matrix",
+                    0, 0, "qr", "", "numkit:qr:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    if (m < n)
+        throw Error("qr: number of rows must be >= number of columns "
+                    "(wide matrices via row-pivoted QR are deferred)",
+                    0, 0, "qr", "", "numkit:qr:wide");
+    auto Q = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
+    perm.assign(n, 0);
+    qrPivotedHouseholder(A.doubleData(), m, n,
+                         Q.doubleDataMut(), R.doubleDataMut(), perm.data(), mr);
+    return std::make_tuple(std::move(Q), std::move(R));
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -998,12 +1099,61 @@ void lu_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
 
 void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    const bool econ = wantsEcon(args, "qr");
     auto *mr = ctx.engine->resource();
+
+    // Options: 'econ' or 0 → economy; 'vector'/'matrix' → P form (3-output only).
+    bool econ = false, vectorP = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        const Value &o = args[i];
+        if (o.type() == ValueType::CHAR || o.isString()) {
+            std::string s = o.toString();
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (s == "econ")        econ = true;
+            else if (s == "vector") vectorP = true;
+            else if (s == "matrix") vectorP = false;
+            else throw Error("qr: unknown option '" + s + "'",
+                             0, 0, "qr", "", "numkit:qr:option");
+        } else if (o.numel() == 1 && o.toScalar() == 0.0) {
+            econ = true;
+        } else {
+            throw Error("qr: invalid option argument",
+                        0, 0, "qr", "", "numkit:qr:option");
+        }
+    }
+
+    const size_t m = args[0].dims().rows(), n = args[0].dims().cols();
+
+    if (nargout >= 3) {
+        // Column-pivoted QR: A·P = Q·R. econ + 3-output → P as a vector (MATLAB).
+        std::vector<std::size_t> perm;
+        auto [Q, R] = qr_pivoted(args[0], perm, mr);
+        if (econ) {
+            const size_t k = std::min(m, n);
+            Q = firstCols(Q, k, mr);
+            R = topLeftBlock(R, k, n, mr);
+            vectorP = true;
+        }
+        outs[0] = std::move(Q);
+        outs[1] = std::move(R);
+        if (vectorP) {
+            Value p = Value::matrix(1, n, ValueType::DOUBLE, mr);
+            double *pd = p.doubleDataMut();
+            for (size_t k = 0; k < n; ++k) pd[k] = static_cast<double>(perm[k] + 1);
+            outs[2] = std::move(p);
+        } else {
+            Value P = Value::matrix(n, n, ValueType::DOUBLE, mr);
+            double *Pd = P.doubleDataMut();
+            std::fill(Pd, Pd + n * n, 0.0);
+            for (size_t k = 0; k < n; ++k) Pd[perm[k] + k * n] = 1.0;  // P[perm[k], k] = 1
+            outs[2] = std::move(P);
+        }
+        return;
+    }
+
     if (nargout >= 2) {
         auto [Q, R] = qr_decompose(args[0], mr);
         if (econ) {
-            const size_t m = args[0].dims().rows(), n = args[0].dims().cols();
             const size_t k = std::min(m, n);
             Q = firstCols(Q, k, mr);                // m×k
             R = topLeftBlock(R, k, n, mr);          // k×n
@@ -1012,10 +1162,7 @@ void qr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContex
         outs[1] = std::move(R);
     } else {
         Value R = qr_R_only(args[0], mr);
-        if (econ) {
-            const size_t m = args[0].dims().rows(), n = args[0].dims().cols();
-            R = topLeftBlock(R, std::min(m, n), n, mr);
-        }
+        if (econ) R = topLeftBlock(R, std::min(m, n), n, mr);
         outs[0] = std::move(R);
     }
 }

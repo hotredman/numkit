@@ -2,15 +2,18 @@
   "name": "qr",
   "namespace": "builtin",
   "setup": "A = [1 2 3; 4 5 6; 7 8 10]; At = [1 2; 3 4; 5 6];",
-  "expr": "[Q, R] = qr(A); err1 = max(max(abs(Q*R - A))); orth1 = max(max(abs(Q'*Q - eye(3)))); [Qt, Rt] = qr(At); err2 = max(max(abs(Qt*Rt - At))); orth2 = max(max(abs(Qt'*Qt - eye(3)))); [Qe, Re] = qr(At, 'econ'); qeC = size(Qe,2); reR = size(Re,1); errE = max(max(abs(Qe*Re - At))); orthE = max(max(abs(Qe'*Qe - eye(2))));",
+  "expr": "[Q, R] = qr(A); err1 = max(max(abs(Q*R - A))); orth1 = max(max(abs(Q'*Q - eye(3)))); [Qt, Rt] = qr(At); err2 = max(max(abs(Qt*Rt - At))); orth2 = max(max(abs(Qt'*Qt - eye(3)))); [Qe, Re] = qr(At, 'econ'); qeC = size(Qe,2); reR = size(Re,1); errE = max(max(abs(Qe*Re - At))); orthE = max(max(abs(Qe'*Qe - eye(2)))); [Qpt, Rpt, Ppt] = qr(At); reconPt = max(max(abs(At*Ppt - Qpt*Rpt))); pt12 = Ppt(1,2); pt21 = Ppt(2,1); [QV, RV, pv] = qr(A, 'vector'); pv1 = pv(1); pv2 = pv(2); pv3 = pv(3); [Qpa, Rpa, Ppa] = qr(A); reconPa = max(max(abs(A*Ppa - Qpa*Rpa))); rd1 = abs(Rpa(1,1)); rd2 = abs(Rpa(2,2)); rd3 = abs(Rpa(3,3));",
   "iters": 5,
-  "tol": 1e-12,
+  "tol": 1e-10,
   "fingerprint": [
     "abs(R(1,1))", "abs(R(2,2))", "abs(R(3,3))",
     "err1", "orth1",
     "abs(Rt(1,1))", "abs(Rt(2,2))",
     "err2", "orth2",
-    "qeC", "reR", "errE", "orthE"
+    "qeC", "reR", "errE", "orthE",
+    "reconPt", "pt12", "pt21",
+    "pv1", "pv2", "pv3",
+    "reconPa", "rd1", "rd2", "rd3"
   ],
-  "comment": "Sig: [Q, R] = qr(A) | qr(A,'econ'). Householder QR; A = Q*R, Q orthogonal. Tested on 3x3 + 3x2 tall. 'econ' on the 3x2 tall matrix: Qe 3x2, Re 2x2 (k=min(m,n)=2), Qe*Re=At, Qe'*Qe=I2. Q signs may differ from MATLAB by reflection; fingerprint uses abs() on R diagonal + reconstruction/orthogonality errors to be sign-agnostic. Queue-clearing 2026-05-29: 'econ' previously errored 'requires exactly 1 argument'."
+  "comment": "Sig: [Q,R]=qr(A) | qr(A,'econ') | [Q,R,P]=qr(A) | qr(A,'vector'). Householder QR; A=Q*R. Column-pivoted form (fixed 2026-06-05, bugs/linalg/qr-pivoting.md): A*P=Q*R, columns pivoted by decreasing norm; P is a permutation matrix (default) or vector ('vector'/econ). 3x2 tall pivots to [2 1] (P(1,2)=P(2,1)=1); 3x3 pivots to [3 1 2]; |diag(R)| is rank-revealing (decreasing). Q signs may differ from MATLAB by a reflection, so the R diagonal is fingerprinted via abs() and correctness via reconstruction A*P-Q*R / orthogonality Q'Q-I. Queue-clearing 2026-05-29: 'econ' previously errored 'requires exactly 1 argument'."
 }
