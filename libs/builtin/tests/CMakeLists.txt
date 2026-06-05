@@ -136,5 +136,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/trapz_logical_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sort_logical_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sort_char_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unique_typeclass_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

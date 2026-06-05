@@ -1440,6 +1440,32 @@ static Value orientUniqueVec(const Value &v, bool column,
     return out;
 }
 
+// Narrow a DOUBLE unique result (values or 'rows' matrix) back to the input's
+// class. MATLAB's unique preserves the class on the VALUES (the ia/ic indices
+// stay double) — same rule as sort. `d` is always double here (the unique
+// machinery runs on a promoted copy), so narrowing always round-trips exactly
+// for char codes / logical 0-1 / in-range integers. bugs/builtin/unique-typeclass.md.
+static Value narrowUniqueClass(const Value &d, ValueType vt,
+                               std::pmr::memory_resource *mr)
+{
+    if (vt == ValueType::LOGICAL) {
+        Value r = createForDims(d.dims(), ValueType::LOGICAL, mr);
+        uint8_t *dst = r.logicalDataMut();
+        const size_t n = d.numel();
+        for (size_t i = 0; i < n; ++i) dst[i] = (d.elemAsDouble(i) != 0.0) ? 1 : 0;
+        return r;
+    }
+    if (vt == ValueType::CHAR) {
+        Value r = createForDims(d.dims(), ValueType::CHAR, mr);
+        char *dst = r.charDataMut();
+        const size_t n = d.numel();
+        for (size_t i = 0; i < n; ++i)
+            dst[i] = static_cast<char>(static_cast<int>(d.elemAsDouble(i)));
+        return r;
+    }
+    return doubleToIntegerExact(d, vt, mr);   // INT8..UINT64
+}
+
 void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 CallContext &ctx)
 {
@@ -1448,10 +1474,26 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                      0, 0, "unique", "", "numkit:unique:nargin");
     auto *mr = ctx.engine->resource();
 
+    // MATLAB unique preserves the input class on the VALUES (integer / logical
+    // / char) while ia/ic stay double — but the unique machinery below is
+    // double-only and throws "Not a double array" otherwise. Promote a
+    // non-double/non-complex input to a double working copy, run unique on it,
+    // then narrow outs[0] back to the class. bugs/builtin/unique-typeclass.md.
+    const ValueType origType = args[0].type();
+    const bool needsNarrow = isIntegerType(origType)
+                          || origType == ValueType::LOGICAL
+                          || origType == ValueType::CHAR;
+    Value xd;
+    if (needsNarrow) xd = toDoubleValue(args[0], mr);
+    const Value &x = needsNarrow ? xd : args[0];
+    auto narrowVals = [&](Value v) -> Value {
+        return needsNarrow ? narrowUniqueClass(v, origType, mr) : v;
+    };
+
     // Unique values are a row vector only when the input is a row vector;
     // a column vector or matrix input produces a column.
     const bool cIsRow =
-        !args[0].dims().is3D() && args[0].dims().rows() == 1;
+        !x.dims().is3D() && x.dims().rows() == 1;
 
     bool useRows = false;
     bool stable  = false;
@@ -1482,20 +1524,20 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (useRows) {
         // C is a matrix of unique rows; ia/ic are column vectors. 'stable'
         // keeps rows in first-occurrence order (default 'sorted').
-        if (nargout <= 1) { outs[0] = uniqueRows(args[0], mr, stable); return; }
-        auto [c, ia, ic] = uniqueRowsWithIndices(args[0], mr, stable, last);
-        outs[0] = std::move(c);
+        if (nargout <= 1) { outs[0] = narrowVals(uniqueRows(x, mr, stable)); return; }
+        auto [c, ia, ic] = uniqueRowsWithIndices(x, mr, stable, last);
+        outs[0] = narrowVals(std::move(c));
         if (nargout > 1) outs[1] = orientUniqueVec(ia, /*column=*/true, mr);
         if (nargout > 2) outs[2] = orientUniqueVec(ic, /*column=*/true, mr);
         return;
     }
 
     if (nargout <= 1) {
-        outs[0] = orientUniqueVec(unique(args[0], mr, stable), !cIsRow, mr);
+        outs[0] = narrowVals(orientUniqueVec(unique(x, mr, stable), !cIsRow, mr));
         return;
     }
-    auto [c, ia, ic] = uniqueWithIndices(args[0], mr, stable, last);
-    outs[0] = orientUniqueVec(c, !cIsRow, mr);
+    auto [c, ia, ic] = uniqueWithIndices(x, mr, stable, last);
+    outs[0] = narrowVals(orientUniqueVec(c, !cIsRow, mr));
     if (nargout > 1) outs[1] = orientUniqueVec(ia, /*column=*/true, mr);
     if (nargout > 2) outs[2] = orientUniqueVec(ic, /*column=*/true, mr);
 }
