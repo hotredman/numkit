@@ -197,3 +197,18 @@ TEST_F(BuiltinKnownBug, UniqueTypeClass)
     EXPECT_DOUBLE_EQ(evalScalar("isa(uj,'int8')"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("uj(3)"), 3.0);
 }
+
+// bugs/builtin/setops-typeclass.md — FIXED (ismember/intersect/setdiff/union
+// accept char/logical/int; intersect/setdiff/union preserve class on values,
+// ismember -> logical tf + double loc). Full guard in setops_typeclass_test.cpp.
+TEST_F(BuiltinKnownBug, SetopsTypeClass)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("ismember('b','abcd')"), 1.0);
+    eval("c = intersect('cabc','bdc');");
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(c,'bc')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(c)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(setdiff('abce','bd'),'ace')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(union('ab','bc'),'abc')"), 1.0);
+    eval("ci = intersect(int8([3 1 2]),int8([2 4 1]));");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(ci,'int8')"), 1.0);
+}
