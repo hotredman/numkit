@@ -51,12 +51,19 @@ Value exp(const Value &x, Value *hint, std::pmr::memory_resource *mr)
     return unaryRealDoubleHint(x, hint, [](double v) { return std::exp(v); }, [](const Complex &c) { return std::exp(c); }, mr);
 }
 
+static bool anyNegative_p(const Value &x);  // defined below (shared with sqrt)
+
 Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::log(c); }, mr);
     if (x.isScalar() && x.toScalar() < 0)
         return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)), mr);
+    // Real array with any negative element -> promote the whole array (MATLAB).
+    if (anyNegative_p(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::log(c); }, mr);
+    }
     return unaryRealDoubleHint(x, hint, [](double v) { return std::log(v); }, [](const Complex &c) { return std::log(c); }, mr);
 }
 
@@ -78,6 +85,10 @@ Value log2(const Value &x, std::pmr::memory_resource *mr)
         return unaryComplex(x, [](const Complex &c) { return std::log(c) / std::log(2.0); }, mr);
     if (x.isScalar() && x.toScalar() < 0.0)
         return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)) / std::log(2.0), mr);
+    if (anyNegative_p(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::log(c) / std::log(2.0); }, mr);
+    }
     return unaryDouble(x, [](double v) { return std::log2(v); }, mr);
 }
 
@@ -87,6 +98,10 @@ Value log10(const Value &x, std::pmr::memory_resource *mr)
         return unaryComplex(x, [](const Complex &c) { return std::log10(c); }, mr);
     if (x.isScalar() && x.toScalar() < 0.0)
         return Value::complexScalar(std::log10(Complex(x.toScalar(), 0.0)), mr);
+    if (anyNegative_p(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::log10(c); }, mr);
+    }
     return unaryDouble(x, [](double v) { return std::log10(v); }, mr);
 }
 

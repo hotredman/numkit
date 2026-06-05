@@ -260,6 +260,8 @@ Value exp(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 // log(-1) → i·π), but the element-wise path on a real vector just
 // produces NaN for negatives — same as std::log. The SIMD Log()
 // mirrors that behaviour.
+static bool anyNegative(const Value &x);  // defined below (shared with sqrt)
+
 Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
     if (x.isComplex())
@@ -268,6 +270,12 @@ Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
         return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)), mr);
     if (x.isScalar())
         return Value::scalar(std::log(x.toScalar()), mr);
+    // Real array with any negative element -> promote the whole array to
+    // complex (MATLAB: log([-1 1]) = [pi*i 0]). std::log's branch matches MATLAB.
+    if (anyNegative(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::log(c); }, mr);
+    }
 
     Value r;
     if (hint && hint->isHeapDouble() && hint->heapRefCount() == 1
@@ -309,6 +317,10 @@ Value log2(const Value &x, std::pmr::memory_resource *mr)
         return unaryComplex(x, [](const Complex &c) { return std::log(c) / std::log(2.0); }, mr);
     if (x.isScalar() && x.toScalar() < 0.0)
         return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)) / std::log(2.0), mr);
+    if (anyNegative(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::log(c) / std::log(2.0); }, mr);
+    }
     return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(Log2Loop)(in, out, n);
         }, [](double v) { return std::log2(v); }, mr);
@@ -320,6 +332,10 @@ Value log10(const Value &x, std::pmr::memory_resource *mr)
         return unaryComplex(x, [](const Complex &c) { return std::log10(c); }, mr);
     if (x.isScalar() && x.toScalar() < 0.0)
         return Value::complexScalar(std::log10(Complex(x.toScalar(), 0.0)), mr);
+    if (anyNegative(x)) {
+        Value cx = x; cx.promoteToComplex(mr);
+        return unaryComplex(cx, [](const Complex &c) { return std::log10(c); }, mr);
+    }
     return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(Log10Loop)(in, out, n);
         }, [](double v) { return std::log10(v); }, mr);

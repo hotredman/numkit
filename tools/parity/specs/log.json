@@ -1,7 +1,7 @@
 {
   "name": "log",
   "namespace": "builtin",
-  "setup": "x = [0.5, 1, 2, 10, 100]; zn = log(-1);",
+  "setup": "x = [0.5, 1, 2, 10, 100]; zn = log(-1); xn = log([-1 4]);",
   "expr": "r = log(x);",
   "iters": 20,
   "tol": 1e-12,
@@ -12,9 +12,10 @@
     "r(4)",
     "r(5)",
     "real(zn)",
-    "imag(zn)"
+    "imag(zn)",
+    "real(xn(1))", "imag(xn(1))", "real(xn(2))", "imag(xn(2))"
   ],
-  "comment": "Sig: r = log(...). Element-wise libm-backed primitive (SIMD via Highway hn::Log). Negative scalar promotes to complex: log(-1)==0+pi*i (real(zn)=0, imag(zn)=pi) — regression guard for the scalar fast path that used to return real NaN. Verified vs MATLAB R2025b.",
+  "comment": "Sig: r = log(...). Element-wise libm-backed primitive (SIMD via Highway hn::Log). Negative scalar promotes to complex: log(-1)==0+pi*i. ARRAY promotion (fixed 2026-06-05): any negative element promotes the WHOLE array — log([-1 4])=[0+pi*i 1.3863+0i] (previously the negative became real NaN). std::log's branch matches MATLAB. Verified vs MATLAB R2025b.",
   "bench_setup": "xb = mod((1:N)*7919,1000)*0.001 + 0.001;",
   "bench_expr": "rb = log(xb);"
 }
