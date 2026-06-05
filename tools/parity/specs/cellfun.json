@@ -2,13 +2,22 @@
   "name": "cellfun",
   "namespace": "builtin",
   "setup": "",
-  "expr": "r = cellfun(@(x) x*2, {1, 2, 3}); r1 = r(1); r2 = r(2); r3 = r(3);",
+  "expr": "r = cellfun(@(x) x*2, {1, 2, 3}); r1 = r(1); r2 = r(2); r3 = r(3); mc = cellfun(@(a,b) a+b, {1,2,3}, {10,20,30}); mc1 = mc(1); mc3 = mc(3); m3 = cellfun(@(a,b,c) a+b+c, {1,2}, {10,20}, {100,200}); m3a = m3(2); ie = cellfun('isempty', {[],[1],[]}); ie1 = ie(1); ie2 = ie(2); ln = cellfun('length', {[1 2],[1 2 3]}); ln2 = ln(2); nd = cellfun('ndims', {1, ones(2,2,2)}); nd2 = nd(2); ps = cellfun('prodofsize', {[1 2 3], ones(2,3)}); ps2 = ps(2); irl = cellfun('isreal', {1, 1+2i}); irl2 = irl(2); sz = cellfun('size', {[1 2 3], ones(2,4)}, 2); sz1 = sz(1); sz2 = sz(2); ic = cellfun('isclass', {1, int8(2)}, 'double'); ic1 = ic(1); ic2 = ic(2);",
   "iters": 5,
   "tol": 0,
   "fingerprint": [
     "r1",
     "r2",
-    "r3"
+    "r3",
+    "mc1", "mc3",
+    "m3a",
+    "ie1", "ie2",
+    "ln2",
+    "nd2",
+    "ps2",
+    "irl2",
+    "sz1", "sz2",
+    "ic1", "ic2"
   ],
-  "comment": "Sig: r = cellfun(...). Spec-extension batch 2026-05-09."
+  "comment": "Sig: r = cellfun(fn, C[, C2, ...][,'UniformOutput',tf]). Multi-cell form cellfun(fn, C1, C2, ...) applies fn(C1{i},C2{i},...) -> [11 22 33], 3-cell -> [111 222]. Legacy string-function-name forms (fixed 2026-06-05, bugs/builtin/cellfun-inputforms.md): 'isempty'/'isreal'/'islogical' -> logical, 'length'/'ndims'/'prodofsize' -> double, 'size',C,k -> size(C{i},k), 'isclass',C,'cls' -> isa per cell. Single-cell @(x)x*2 path unchanged (original spec-extension batch 2026-05-09)."
 }

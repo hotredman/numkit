@@ -45,6 +45,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/discrete_setops_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/accum_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cellfun_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cellfun_inputforms_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/combinatorics_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/special_funcs_test.cpp

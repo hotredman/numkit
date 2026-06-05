@@ -435,7 +435,7 @@ together.
 | `cell2struct` | ✅ | Sig: r = cell2struct(...). Spec-extension batch 2026-05-09. |
 | `cell2table` | ❌ |  |
 | `celldisp` | ✅ | Sig: celldisp(c). Display cell array contents (output goes to stdout). Side-effect-only function -- spec just verifies it runs without error. Output format matches MATLAB R2025b qualitatively. |
-| `cellfun` | ✅ | Sig: r = cellfun(...). Spec-extension batch 2026-05-09. |
+| `cellfun` | ✅ | Sig: r = cellfun(fn, C[, C2, ...][,'UniformOutput',tf]). Multi-cell form cellfun(fn, C1, C2, ...) applies fn(C1{i},C2{i},...) -> [11 22 33], 3-cell -> [111 222]. Legacy string-function-name forms (fixed 2026-06-05, bugs/builtin/cellfun-inputforms.md): 'isempty'/'isreal'/'islogical' -> logical, 'length'/'ndims'/'prodofsize' -> double, 'size',C,k -> size(C{i},k), 'isclass',C,'cls' -> isa per cell. Single-cell @(x)x*2 path unchanged (original spec-extension batch 2026-05-09). |
 | `cellplot` | ❌ |  |
 | `cellstr` | ✅ | Sig: r = cellstr(...). Spec-extension batch 2026-05-09. |
 | `iscell` | ✅ | Sig: r = iscell(...). Predicate. Spec-extension batch 2026-05-09. |
