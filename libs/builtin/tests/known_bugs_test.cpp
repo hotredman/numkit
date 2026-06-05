@@ -136,3 +136,18 @@ TEST_F(BuiltinKnownBug, DISABLED_Ode15s)
     EXPECT_NEAR(evalScalar("y(1)"),   1.0,          1e-9);
     EXPECT_NEAR(evalScalar("y(end)"), 0.367879441,  1e-2);   // e^-1, solver tol
 }
+
+// bugs/builtin/cumulative-logical.md — FIXED (cumsum/cumprod/cummax/cummin
+// accept logical: cumsum/cumprod -> double, cummax/cummin -> logical).
+// Full guard in libs/builtin/tests/cumulative_logical_test.cpp; this is the
+// flipped-live known-bug sentinel.
+TEST_F(BuiltinKnownBug, CumulativeLogical)
+{
+    eval("s = cumsum(logical([1 0 1 1]));");        // -> double [1 1 2 3]
+    EXPECT_DOUBLE_EQ(evalScalar("s(4)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(s)"), 0.0);
+    eval("m = cummax(logical([0 1 0 1]));");        // -> logical [0 1 1 1]
+    EXPECT_DOUBLE_EQ(evalScalar("m(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(m)"), 1.0);
+}

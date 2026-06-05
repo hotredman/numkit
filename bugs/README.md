@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (80 entries):** ✅ 32 fixed · 🔴 48 open = **10 bug** + 5 stub +
+**Tally (81 entries):** ✅ 33 fixed · 🔴 48 open = **10 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (32)
+### ✅ FIXED (33)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [builtin/cumulative-logical](builtin/cumulative-logical.md) | P2 | cumsum/cumprod/cummax/cummin accept logical — cumsum/cumprod→double, cummax/cummin→logical (class preserved) (2026-06-05) |
 | bug | [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | repeated-pole impinvar numerator — multiplicity partial fractions + Eulerian impulse-invariant z-kernel + centroid/Newton pole refine (clean-room) (2026-06-05) |
 | stub | [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | ellipord bandstop order/Wn — reciprocal bandpass→LP map WA=(WS·(WP1-WP2))/(WS²-WP1·WP2) (clean-room) (2026-06-05) |
 | bug | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv broadcast ARRAY params across all 16 distribution families — continuous + discrete (c29-38) |

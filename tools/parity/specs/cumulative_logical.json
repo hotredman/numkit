@@ -1,0 +1,17 @@
+{
+  "name": "cumulative_logical",
+  "namespace": "builtin",
+  "setup": "L = logical([1 0 1 1]); P = logical([1 1 0 1]); Mx = logical([0 1 0 1]); Mn = logical([1 1 0 1]); A = logical([1 0; 1 1]);",
+  "expr": "ys = cumsum(L); yp = cumprod(P); ymx = cummax(Mx); ymn = cummin(Mn); c2 = cumsum(A); r2 = cumsum(A,2); rev = cumsum(L,'reverse');",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "ys(1)", "ys(2)", "ys(3)", "ys(4)",
+    "yp(3)", "yp(4)",
+    "ymx(1)", "ymx(2)", "ymx(4)",
+    "ymn(3)", "ymn(4)",
+    "c2(2,1)", "c2(2,2)", "r2(1,2)", "r2(2,2)",
+    "rev(1)", "rev(4)"
+  ],
+  "comment": "cumsum/cumprod/cummax/cummin on logical input. cumsum/cumprod PROMOTE logical->double; cummax/cummin PRESERVE the logical class (verified MATLAB R2025b). Covers vector, 2-D column + dim2, and 'reverse'. char still errors on both engines (numeric-or-logical only). bugs/builtin/cumulative-logical.md."
+}
