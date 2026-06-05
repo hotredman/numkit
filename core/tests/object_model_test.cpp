@@ -1248,6 +1248,27 @@ TEST_P(ClassdefRedefineTest, ForwardReferencedBaseBackfillsSubclass)
     EXPECT_TRUE(engine.eval("isa(d, 'FAnimal')").toBool()) << "isa reflects the back-filled base";
 }
 
+TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesStaticAndConstant)
+{
+    // Inherited Static methods + Constant properties are re-exposed as
+    // `Derived.member` qualified externals at merge time. Redefining the base
+    // must refresh those on the derived too (cascade re-registers the derived,
+    // which drops the old externals and re-registers from the new base).
+    eval("classdef RSBase\n"
+         "  properties (Constant)\n    K = 10\n  end\n"
+         "  methods (Static)\n    function r = s()\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef RSDer < RSBase\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RSDer.s()"), 1.0); // inherited static
+    EXPECT_DOUBLE_EQ(evalScalar("RSDer.K"), 10.0);  // inherited constant
+    eval("classdef RSBase\n"
+         "  properties (Constant)\n    K = 20\n  end\n"
+         "  methods (Static)\n    function r = s()\n      r = 2;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RSDer.s()"), 2.0)
+        << "derived must see the redefined inherited static method";
+    EXPECT_DOUBLE_EQ(evalScalar("RSDer.K"), 20.0)
+        << "derived must see the redefined inherited constant";
+}
+
 TEST_P(ClassdefRedefineTest, FailedCascadeDoesNotWedgePropagation)
 {
     // A cascade that THROWS (here: redefining a base as Sealed makes the
@@ -2298,6 +2319,38 @@ TEST(ClassdefMFile, RehashBaseRefreshesInlineSubclass)
         EXPECT_DOUBLE_EQ(engine.eval("s = RSubI; s.bval()").toScalar(), 20.0)
             << "inline subclass must re-merge the rehashed file base";
         EXPECT_DOUBLE_EQ(engine.eval("s = RSubI; s.own()").toScalar(), 1.0);
+    }
+    fs::remove_all(dir);
+}
+
+// Inline subclass of a PACKAGED file base: rehash of the edited base must
+// cascade to the inline subclass. Exercises the propagation cascade matching a
+// QUALIFIED superclass name (geo.Shape) — the packaged-class path.
+TEST(ClassdefMFile, RehashPackagedBaseRefreshesInlineSubclass)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_pkg_inherit_rehash_test";
+    fs::create_directories(dir / "+geo");
+    auto writeBase = [&](int k) {
+        std::ofstream f(dir / "+geo" / "Shape.m", std::ios::trunc);
+        f << "classdef Shape\n  properties\n    tag = 0\n  end\n"
+             "  methods\n    function a = area(obj)\n      a = "
+          << k << ";\n    end\n  end\nend\n";
+    };
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        writeBase(10);
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        engine.eval("classdef MyShape < geo.Shape\n"
+                    "  methods\n    function n = name(obj)\n      n = 5;\n    end\n  end\nend\n");
+        EXPECT_DOUBLE_EQ(engine.eval("s = MyShape; s.area()").toScalar(), 10.0);
+        EXPECT_TRUE(engine.eval("isa(s, 'geo.Shape')").toBool());
+        writeBase(20);
+        engine.eval("rehash");
+        EXPECT_DOUBLE_EQ(engine.eval("s = MyShape; s.area()").toScalar(), 20.0)
+            << "inline subclass must re-merge the rehashed packaged base";
+        EXPECT_DOUBLE_EQ(engine.eval("s = MyShape; s.name()").toScalar(), 5.0);
     }
     fs::remove_all(dir);
 }
