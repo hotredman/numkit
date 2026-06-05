@@ -134,8 +134,22 @@ Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pm
 
 // ── deconv ────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-deconv(const Value &b, const Value &a, std::pmr::memory_resource *mr)
+deconv(const Value &bIn, const Value &aIn, std::pmr::memory_resource *mr)
 {
+    // MATLAB deconv promotes integer/logical inputs to double — quotient and
+    // remainder are always double (never the integer class). Promote up front
+    // so the doubleData() accessors below are valid (same rule as conv).
+    auto needsPromote = [](const Value &v) {
+        return !v.isComplex() && (v.isLogical() || isIntegerType(v.type()));
+    };
+    Value bHold, aHold;
+    const bool bProm = needsPromote(bIn);
+    const bool aProm = needsPromote(aIn);
+    if (bProm) bHold = convPromoteToDouble(bIn, mr);
+    if (aProm) aHold = convPromoteToDouble(aIn, mr);
+    const Value &b = bProm ? bHold : bIn;
+    const Value &a = aProm ? aHold : aIn;
+
     const size_t nb = b.numel(), na = a.numel();
     if (na > nb) {
         // MATLAB: a divisor longer than the dividend can't be divided once —

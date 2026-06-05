@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (98 entries):** ✅ 50 fixed · 🔴 48 open = **10 bug** + 5 stub +
+**Tally (99 entries):** ✅ 51 fixed · 🔴 48 open = **10 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (50)
+### ✅ FIXED (51)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [signal/deconv-integer-input](signal/deconv-integer-input.md) | P2 | deconv accepts integer/logical input (was: throw "Not a double array") — promotes to double (reuses convPromoteToDouble); q+r always double. na>nb int is numkit-lenient (MATLAB errors there) (2026-06-05) |
 | bug | [signal/conv-integer-input](signal/conv-integer-input.md) | P2 | conv accepts integer/logical input (was: throw "Not a double array") — promotes to double; result always double (every shape), never the int class (2026-06-05) |
 | bug | [linalg/kron-integer-class](linalg/kron-integer-class.md) | P2 | kron preserves the integer class of integer operands (saturating) — same-int→that class, int+scalar-double→int (round+saturate), double*double unchanged (2026-06-05) |
 | bug | [builtin/concat-integer-types](builtin/concat-integer-types.md) | P2 | CORE (user-approved): cat/[;]/[,]/vertcat/horzcat preserve integer class — first-int wins, others cast (round+saturate); concat in double then narrow (2026-06-05) |
