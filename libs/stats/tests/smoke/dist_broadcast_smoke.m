@@ -62,10 +62,18 @@ fprintf('fpdf(0,[1 2 3],5)         = %s (expect Inf 1 0; x==0 regimes)\n', fmt(f
 fprintf('fcdf([0.5 1 2],5,10)      = %s (expect 0.22997512 0.53488057 0.83580505)\n', fmt(fcdf([0.5 1 2],5,10)));
 fprintf('finv([.1 .5 .9],5,10)     = %s (expect 0.30326909 0.93193316 2.5216407)\n', fmt(finv([.1 .5 .9],5,10)));
 
+fprintf('\n--- discrete: binomial + poisson (broadcast n/p/lambda) ---\n');
+fprintf('binopdf(2,[4 5 6],0.5)    = %s (expect 0.375 0.3125 0.234375)\n', fmt(binopdf(2,[4 5 6],0.5)));
+fprintf('binocdf(2,[4 5 6],0.5)    = %s (expect 0.6875 0.5 0.34375)\n', fmt(binocdf(2,[4 5 6],0.5)));
+fprintf('binoinv([.1 .5 .9],10,0.5)= %s (expect 3 5 7)\n', fmt(binoinv([.1 .5 .9],10,0.5)));
+fprintf('poisspdf(2,[1 2 3])       = %s (expect 0.18393972 0.27067057 0.22404181)\n', fmt(poisspdf(2,[1 2 3])));
+fprintf('poisscdf(2,[1 2 3])       = %s (expect 0.91969860 0.67667642 0.42319008)\n', fmt(poisscdf(2,[1 2 3])));
+fprintf('poisspdf(2,[0 -1 2])      = %s (expect 0 NaN 0.27067057; lam==0->0, lam<0->NaN)\n', fmt(poisspdf(2,[0 -1 2])));
+
 fprintf('\n--- regressions (scalar-param path unchanged) ---\n');
 fprintf('normpdf(0)=%.10g (expect 0.3989422804)  exppdf(2)=%.10g (expect 0.1353352832)\n', normpdf(0), exppdf(2));
 fprintf('raylpdf(1,2)=%.10g (expect 0.2206242256)  wblpdf(2,3,4)=%.10g (expect 0.3242488132)\n', raylpdf(1,2), wblpdf(2,3,4));
-fprintf('tcdf(2,10)=%.10g (expect 0.9633059826)  fcdf(2,5,10)=%.10g (expect 0.8358050491)\n', tcdf(2,10), fcdf(2,5,10));
+fprintf('fcdf(2,5,10)=%.10g (expect 0.8358050491)  binopdf(2,5,0.3)=%.10g (expect 0.3087)\n', fcdf(2,5,10), binopdf(2,5,0.3));
 fprintf('gampdf(1,2,2)=%.10g (expect 0.1516326649)  betapdf(0.3,2,3)=%.10g (expect 1.764)\n', gampdf(1,2,2), betapdf(0.3,2,3));
 fprintf('gaminv(0.5,2,2)=%.10g (expect 3.356693980)  chi2inv(0.5,4)=%.10g (expect 3.356693980)\n', gaminv(0.5,2,2), chi2inv(0.5,4));
 fprintf('empty: numel(normpdf([],0,1))=%d (expect 0)\n', numel(normpdf([],0,1)));
