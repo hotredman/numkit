@@ -182,3 +182,18 @@ TEST_F(BuiltinKnownBug, SortChar)
     EXPECT_DOUBLE_EQ(evalScalar("islogical(I)"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("I(1)"), 4.0);
 }
+
+// bugs/builtin/unique-typeclass.md — FIXED (unique preserves the input class on
+// values: char/logical/int; ia/ic stay double). Full guard in
+// unique_typeclass_test.cpp.
+TEST_F(BuiltinKnownBug, UniqueTypeClass)
+{
+    eval("uc = unique('cbabc');");
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(uc,'abc')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(uc)"), 1.0);
+    eval("ul = unique(logical([1 0 1 1]));");
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(ul)"), 1.0);
+    eval("uj = unique(int8([3 1 3 2]));");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(uj,'int8')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("uj(3)"), 3.0);
+}

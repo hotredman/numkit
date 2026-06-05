@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (84 entries):** ✅ 36 fixed · 🔴 48 open = **10 bug** + 5 stub +
+**Tally (85 entries):** ✅ 37 fixed · 🔴 48 open = **10 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (36)
+### ✅ FIXED (37)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [builtin/unique-typeclass](builtin/unique-typeclass.md) | P2 | unique accepts char/logical/integer — preserves class on values, ia/ic stay double (promote→unique→narrowUniqueClass) (2026-06-05) |
 | bug | [builtin/sort-char](builtin/sort-char.md) | P2 | sort accepts char — sorts by code point, preserves char class, index double (charizeSortResult narrow; shape-preserving, unlike toChar) (2026-06-05) |
 | bug | [builtin/sort-logical](builtin/sort-logical.md) | P2 | sort accepts logical — values preserve logical class, index stays double (mirrors integer path) (2026-06-05) |
 | bug | [builtin/trapz-logical](builtin/trapz-logical.md) | P2 | trapz accepts logical X/Y — promote→double at trapz_reg entry (class not preserved; matches cumtrapz) (2026-06-05) |
