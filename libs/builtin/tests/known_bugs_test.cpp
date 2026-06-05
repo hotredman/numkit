@@ -277,6 +277,18 @@ TEST_F(BuiltinKnownBug, PsiZeroPole)
     EXPECT_NEAR(evalScalar("psi(1)"), -0.5772156649, 1e-9);
 }
 
+// bugs/builtin/str2double-complex.md — OPEN (str2double doesn't parse complex
+// strings; MATLAB does). Flip the DISABLED_ prefix when implemented.
+TEST_F(BuiltinKnownBug, DISABLED_Str2doubleComplex)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("real(str2double('1+2i'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(str2double('1+2i'))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(str2double('2i'))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(str2double('i'))"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(str2double('1+2j'))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("str2double('1.5')"), 1.5);   // real path unchanged
+}
+
 // bugs/builtin/concat-integer-types.md — OPEN (CORE: promoteNumericType rejects
 // integer types). MATLAB concatenates integers preserving the class. Flip the
 // DISABLED_ prefix when the core fix lands.
