@@ -23,6 +23,20 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
+// bugs/signal/conv-integer-input.md — conv accepts integer/logical input
+// (promotes to double; result is always double). FIXED 2026-06-05; deep
+// coverage in libs/signal/tests/conv_integer_input_test.cpp.
+TEST_F(SignalKnownBug, ConvIntegerInput)
+{
+    eval("c = conv(int8([1 2 3]), int8([1 1]));");
+    EXPECT_TRUE(eval("isa(c, 'double')").toBool());
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(3)"), 5.0);
+    // mixed int+double and logical also promote to double.
+    EXPECT_TRUE(eval("isa(conv(int8([1 2 3]), [1 1]), 'double')").toBool());
+    EXPECT_TRUE(eval("isa(conv(logical([1 0 1]), [1 1]), 'double')").toBool());
+}
+
 // bugs/signal/instfreq-instbw.md — instfreq must track a 10->40 Hz chirp.
 TEST_F(SignalKnownBug, DISABLED_InstfreqTracksChirp)
 {
