@@ -544,18 +544,42 @@ Value movsum_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std:
     return movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winSum(win, n); }, mr);
 }
 
+// movmax/movmin PRESERVE the input class (order statistics): integer -> integer
+// (values are exact) and logical -> logical. movmedian preserves the INTEGER
+// class with ROUND-half-away (a window median can be fractional), but on LOGICAL
+// returns DOUBLE (a 0.5 median can't be logical). bugs/stats/movfun-order-stats.md.
+static Value movNarrowToLogical(const Value &d, std::pmr::memory_resource *mr)
+{
+    if (d.isScalar()) return Value::logicalScalar(d.toScalar() != 0.0, mr);
+    Value r = createLike(d, ValueType::LOGICAL, mr);
+    uint8_t *dst = r.logicalDataMut();
+    const size_t n = d.numel();
+    for (size_t i = 0; i < n; ++i) dst[i] = (d.elemAsDouble(i) != 0.0) ? 1 : 0;
+    return r;
+}
+
 Value movmin_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
+    const ValueType ot = x.type();
+    const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmin");
-    const int d = resolveDim(x, opt.dim, "movmin");
-    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winMin(win, n); }, mr);
+    const int d = resolveDim(xd, opt.dim, "movmin");
+    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winMin(win, n); }, mr);
+    if (isIntegerType(ot)) return doubleToIntegerExact(out, ot, mr);   // exact (subset)
+    if (ot == ValueType::LOGICAL) return movNarrowToLogical(out, mr);
+    return out;
 }
 
 Value movmax_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
+    const ValueType ot = x.type();
+    const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmax");
-    const int d = resolveDim(x, opt.dim, "movmax");
-    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winMax(win, n); }, mr);
+    const int d = resolveDim(xd, opt.dim, "movmax");
+    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winMax(win, n); }, mr);
+    if (isIntegerType(ot)) return doubleToIntegerExact(out, ot, mr);   // exact (subset)
+    if (ot == ValueType::LOGICAL) return movNarrowToLogical(out, mr);
+    return out;
 }
 
 Value movprod_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
@@ -568,9 +592,11 @@ Value movprod_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std
 
 Value movmedian_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
+    const ValueType ot = x.type();
+    const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmedian");
-    const int d = resolveDim(x, opt.dim, "movmedian");
-    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) {
+    const int d = resolveDim(xd, opt.dim, "movmedian");
+    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) {
             double tmp[1024];   // typical k <= a few hundred
             if (n <= sizeof(tmp) / sizeof(tmp[0])) {
                 std::copy(win, win + n, tmp);
@@ -579,6 +605,17 @@ Value movmedian_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, s
             std::vector<double> heap(win, win + n);
             return winMedianInPlace(heap.data(), n);
         }, mr);
+    if (isIntegerType(ot)) {
+        // MATLAB rounds a fractional window median to the int class (round half
+        // away from zero), unlike the truncating doubleToIntegerExact — so round
+        // into the double buffer first. LOGICAL input returns DOUBLE (a 0.5
+        // median has no logical representation), so no narrow there.
+        double *p = out.doubleDataMut();
+        const size_t n = out.numel();
+        for (size_t i = 0; i < n; ++i) p[i] = std::round(p[i]);
+        return doubleToIntegerExact(out, ot, mr);
+    }
+    return out;
 }
 
 Value movvar_impl(const Value &x, Span<const size_t> k, int normFlag, const MovOpts &opt, std::pmr::memory_resource *mr)

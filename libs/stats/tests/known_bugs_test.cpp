@@ -34,6 +34,21 @@ TEST_F(StatsKnownBug, MovfunTypeClass)
     EXPECT_DOUBLE_EQ(evalScalar("l(2)"), 2.0);
 }
 
+// bugs/stats/movfun-order-stats.md — FIXED (movmax/movmin preserve class;
+// movmedian rounds int half-away, logical->double). Full guard in
+// movfun_order_stats_test.cpp.
+TEST_F(StatsKnownBug, MovfunOrderStats)
+{
+    eval("a = movmax(int8([3 1 2 5 4]), 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(a,'int8')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(3)"), 5.0);
+    eval("m = movmedian(int8([3 1 2 5 4]), 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(m,'int8')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(5)"), 5.0);   // 4.5 -> 5
+    eval("lg = movmax(logical([1 0 1 1 0]), 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(lg)"), 1.0);
+}
+
 // bugs/stats/mle-output.md — 2nd output pci (confidence intervals). FIXED
 // 2026-06-05 (deep coverage in libs/stats/tests/mle_pci_test.cpp).
 TEST_F(StatsKnownBug, MleConfidenceIntervals)
