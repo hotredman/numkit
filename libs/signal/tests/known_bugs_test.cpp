@@ -74,13 +74,15 @@ TEST_F(SignalKnownBug, DISABLED_PmusicExists)
     EXPECT_GE(evalScalar("min(p)"), 0.0);
 }
 
-// bugs/signal/ellipord-bandstop.md — bandstop order estimate.
-// (Verify exact n/Wn vs MATLAB when enabling.)
-TEST_F(SignalKnownBug, DISABLED_EllipordBandstop)
+// bugs/signal/ellipord-bandstop.md — bandstop order estimate. FIXED
+// 2026-06-05 (deep coverage in libs/signal/tests/ellipord_test.cpp).
+TEST_F(SignalKnownBug, EllipordBandstop)
 {
     eval("[n, Wn] = ellipord([0.1 0.6], [0.2 0.5], 3, 40);");
-    EXPECT_GT(evalScalar("n"), 0.0);
+    EXPECT_EQ(static_cast<int>(evalScalar("n")), 4);          // MATLAB n=4
     EXPECT_EQ(static_cast<int>(evalScalar("numel(Wn)")), 2);
+    EXPECT_NEAR(evalScalar("Wn(1)"), 0.1, 1e-12);
+    EXPECT_NEAR(evalScalar("Wn(2)"), 0.6, 1e-12);
 }
 
 // bugs/signal/impinvar-repeated-poles.md — repeated-pole numerator wrong.

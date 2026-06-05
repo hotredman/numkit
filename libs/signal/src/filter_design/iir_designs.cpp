@@ -597,9 +597,17 @@ ellipord(const Value &Wp_v, const Value &Ws_v, double Rp, double Rs, bool analog
             N = static_cast<int>(findElliporderImpl(WA, Rp, Rs, mr));
             break;
         }
-        case 3: { // bandstop — KNOWN GAP, deferred
-            throw Error("ellipord: bandstop case not yet supported",
-                        0, 0, "ellipord", "", "numkit:ellipord:BandstopGap");
+        case 3: { // bandstop: reciprocal of the bandpass→lowpass map.
+            // Ω_LP = (Bw·Ω) / (Ω² - Ω0²), Bw = WP2-WP1, Ω0² = WP1·WP2; written
+            // here as the reciprocal of the case-4 expression so the shared
+            // sign/abs convention in findElliporderImpl (WAmin = min|WA|) picks
+            // the worst-case stopband edge. (Mirrors numkit buttord/cheb*ord.)
+            for (size_t i = 0; i < numW; ++i) {
+                const double w = WS[i];
+                WA.push_back((w * (WP[0] - WP[1])) / (w * w - WP[0] * WP[1]));
+            }
+            N = static_cast<int>(findElliporderImpl(WA, Rp, Rs, mr));
+            break;
         }
         case 4: { // bandpass: WA = (WS² - WP1·WP2) / (WS·(WP1-WP2))
             for (size_t i = 0; i < numW; ++i) {

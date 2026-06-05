@@ -2,9 +2,9 @@
   "name": "signal_ellipord",
   "namespace": "signal",
   "setup": "",
-  "expr": "[n_lp, Wn_lp] = ellipord(0.2, 0.3, 1, 40); [n_hp, Wn_hp] = ellipord(0.6, 0.4, 3, 60); [n_bp, Wn_bp] = ellipord([0.2 0.4], [0.1 0.5], 1, 40); Wn_bp_1 = Wn_bp(1); Wn_bp_2 = Wn_bp(2); [n_an, Wn_an] = ellipord(2*pi*1000, 2*pi*1500, 1, 40, 's');",
+  "expr": "[n_lp, Wn_lp] = ellipord(0.2, 0.3, 1, 40); [n_hp, Wn_hp] = ellipord(0.6, 0.4, 3, 60); [n_bp, Wn_bp] = ellipord([0.2 0.4], [0.1 0.5], 1, 40); Wn_bp_1 = Wn_bp(1); Wn_bp_2 = Wn_bp(2); [n_an, Wn_an] = ellipord(2*pi*1000, 2*pi*1500, 1, 40, 's'); [n_bs, Wn_bs] = ellipord([0.1 0.6], [0.2 0.5], 3, 40); Wn_bs_1 = Wn_bs(1); Wn_bs_2 = Wn_bs(2); [n_bs2, Wn_bs2] = ellipord([0.15 0.55], [0.25 0.45], 1, 60); [n_bsa, Wn_bsa] = ellipord([100 600], [200 500], 3, 40, 's'); Wn_bsa_1 = Wn_bsa(1); Wn_bsa_2 = Wn_bsa(2);",
   "iters": 5,
   "tol": 1e-6,
-  "fingerprint": ["n_lp", "Wn_lp", "n_hp", "Wn_hp", "n_bp", "Wn_bp_1", "Wn_bp_2", "n_an", "Wn_an"],
-  "comment": "MATLAB Signal Toolbox ellipord (Phase 4.6) — minimum-order Cauer/elliptic filter. Algorithm: prewarp digital→analog (tan(πw/2)), compute analog passband-edge ratio WA per filter type, findelliporder via complete elliptic integrals: ε=√(10^(0.1Rp)-1), k1=ε/√(10^(0.1Rs)-1), k=1/WA, N=ceil(K(k²)·E(1-k1²)/(K(1-k²)·K(k1²))). Bit-equal MATLAB R2025b on 9 fingerprints — lowpass, highpass, bandpass, analog 's' mode. KNOWN GAP: bandstop (ftype=3) deferred (recursive analog conversion not yet implemented). Octave 11.1.0 doesn't ship in core (signal package only)."
+  "fingerprint": ["n_lp", "Wn_lp", "n_hp", "Wn_hp", "n_bp", "Wn_bp_1", "Wn_bp_2", "n_an", "Wn_an", "n_bs", "Wn_bs_1", "Wn_bs_2", "n_bs2", "n_bsa", "Wn_bsa_1", "Wn_bsa_2"],
+  "comment": "MATLAB Signal Toolbox ellipord (Phase 4.6) — minimum-order Cauer/elliptic filter. Algorithm: prewarp digital→analog (tan(πw/2)), compute analog passband-edge ratio WA per filter type, findelliporder via complete elliptic integrals: ε=√(10^(0.1Rp)-1), k1=ε/√(10^(0.1Rs)-1), k=1/WA, N=ceil(K(k²)·E(1-k1²)/(K(1-k²)·K(k1²))). Bit-equal MATLAB R2025b — lowpass, highpass, bandpass, analog 's' mode. 2026-06-05 (bugs/signal/ellipord-bandstop.md): the BANDSTOP branch (ftype=3) now implemented — reciprocal of the bandpass→lowpass map WA=(WS·(WP1-WP2))/(WS²-WP1·WP2), worst-case edge via WAmin=min|WA| (mirrors numkit buttord/cheb*ord, clean-room). n_bs=4/Wn=[0.1 0.6], n_bs2=5, analog n_bsa=5/Wn=[100 600]. Octave 11.1.0 doesn't ship in core (signal package only)."
 }
