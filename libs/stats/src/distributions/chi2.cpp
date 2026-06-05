@@ -176,7 +176,35 @@ void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("chi2inv: requires (p, k)", 0, 0, "chi2inv", "", "numkit:chi2inv:nargin");
-    outs[0] = chi2inv(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &p = args[0];
+    const Value &k = args[1];
+    if (k.isScalar()) {
+        outs[0] = chi2inv(p, k.toScalar(), mr);   // unchanged fast path
+        return;
+    }
+    // Broadcast: x = 2·gammaincinv(p, k/2); k<0 → NaN; k==0 → 0 (p∈[0,1]) / NaN.
+    const size_t np = p.numel(), nk = k.numel();
+    if (np == 0 || nk == 0) {
+        outs[0] = dist_empty_like(np == 0 ? p : k, mr);
+        return;
+    }
+    const size_t N = dist_match_numel({np, nk}, "chi2inv");
+    Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
+    Value q = ::numkit::builtin::gammaincinv(p, half_k, mr);
+    const size_t nq = q.numel();
+    const Value &ref = (nk == N) ? k : p;
+    Value out = dist_empty_like(ref, mr);
+    double *od = out.doubleDataMut();
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    for (size_t i = 0; i < N; ++i) {
+        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const double ki = k.elemAsDouble(nk == 1 ? 0 : i);
+        const double qi = q.elemAsDouble(nq == 1 ? 0 : i);
+        od[i] = (ki < 0.0) ? NaN
+                           : (ki == 0.0 ? ((pi >= 0.0 && pi <= 1.0) ? 0.0 : NaN) : 2.0 * qi);
+    }
+    outs[0] = std::move(out);
 }
 
 void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

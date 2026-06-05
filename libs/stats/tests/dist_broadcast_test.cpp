@@ -9,9 +9,9 @@
 // Coverage in this file (filled in per /loop cycle as families land):
 //   - normal      (normpdf/normcdf/norminv)  — cycle 29
 //   - exponential (exppdf/expcdf/expinv)      — cycle 29
-//   - gamma       (gampdf/gamcdf)            — cycle 30 (gaminv pending)
-//   - beta        (betapdf/betacdf)          — cycle 30 (betainv pending)
-//   - chi2        (chi2pdf/chi2cdf)          — cycle 30 (chi2inv pending)
+//   - gamma       (gampdf/gamcdf/gaminv)     — cycle 30 pdf+cdf, 31 inv
+//   - beta        (betapdf/betacdf/betainv)  — cycle 30 pdf+cdf, 31 inv
+//   - chi2        (chi2pdf/chi2cdf/chi2inv)  — cycle 30 pdf+cdf, 31 inv
 // MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
@@ -175,6 +175,54 @@ TEST_F(DistBroadcastTest, Chi2pdfCdfBroadcast)
     EXPECT_TRUE(eval("isnan(d(2))").toBool());
 }
 
+// ── Gamma / Beta / Chi2: inv parameter broadcast (cycle 31) ──────────
+TEST_F(DistBroadcastTest, GaminvBroadcast)
+{
+    eval("y = gaminv(0.5, [1 2 3], 1);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.6931471805599453, 1e-9);
+    EXPECT_NEAR(evalScalar("y(3)"), 2.6740603137235100, 1e-9);
+    eval("z = gaminv([.1 .5 .9], 2, 2);");
+    EXPECT_NEAR(evalScalar("z(3)"), 7.7794403397348026, 1e-8);
+    // degenerate a==0 → 0, b<=0 → NaN
+    eval("d = gaminv(0.5, [0 2], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 0.0);
+    eval("e = gaminv(0.5, 2, [1 0 -1]);");
+    EXPECT_NEAR(evalScalar("e(1)"), 1.6783469900166607, 1e-9);
+    EXPECT_TRUE(eval("isnan(e(2))").toBool());
+    EXPECT_TRUE(eval("isnan(e(3))").toBool());
+}
+
+TEST_F(DistBroadcastTest, BetainvBroadcast)
+{
+    eval("y = betainv(0.5, [2 3], 2);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.5, 1e-9);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.6142724318676758, 1e-8);
+    eval("z = betainv([.1 .5 .9], 2, 3);");
+    EXPECT_NEAR(evalScalar("z(1)"), 0.1425593167080900, 1e-8);
+    EXPECT_NEAR(evalScalar("z(3)"), 0.6795394162777841, 1e-8);
+    EXPECT_TRUE(eval("isnan(betainv(0.5, -1, 2))").toBool());   // a<=0 → NaN
+}
+
+TEST_F(DistBroadcastTest, Chi2invBroadcast)
+{
+    eval("y = chi2inv(0.5, [1 2 3]);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.4549364231195724, 1e-9);
+    EXPECT_NEAR(evalScalar("y(3)"), 2.3659738843753377, 1e-9);
+    // degenerate k==0 → 0, k<0 → NaN
+    eval("d = chi2inv(0.5, [0 4]);");
+    EXPECT_DOUBLE_EQ(evalScalar("d(1)"), 0.0);
+    EXPECT_NEAR(evalScalar("d(2)"), 3.3566939800333233, 1e-8);
+    EXPECT_TRUE(eval("isnan(chi2inv(0.5, -1))").toBool());
+}
+
+TEST_F(DistBroadcastTest, InvMismatchThrows)
+{
+    EXPECT_THROW(eval("gaminv([.1 .5 .9], [1 2], 1);"), std::exception);
+    EXPECT_THROW(eval("betainv(0.5, [2 3 4], [1 2]);"), std::exception);
+    EXPECT_THROW(eval("chi2inv([.1 .5], [1 2 3]);"), std::exception);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(gaminv([], [2 2], 1))")), 0);
+}
+
 // ── Regressions: scalar-parameter path unchanged; edges ──────────────
 TEST_F(DistBroadcastTest, ScalarPathUnchanged)
 {
@@ -183,10 +231,13 @@ TEST_F(DistBroadcastTest, ScalarPathUnchanged)
     EXPECT_NEAR(evalScalar("exppdf(2)"),      0.1353352832366127, 1e-15);
     EXPECT_NEAR(evalScalar("expcdf(2)"),      0.8646647167633873, 1e-15);   // mu=1 default
     EXPECT_DOUBLE_EQ(evalScalar("exppdf(-1, 2)"), 0.0);
-    // gamma/beta/chi2 scalar-parameter path unchanged
+    // gamma/beta/chi2 scalar-parameter path unchanged (pdf/cdf/inv)
     EXPECT_NEAR(evalScalar("gampdf(1,2,2)"),  0.1516326649281583, 1e-12);
     EXPECT_NEAR(evalScalar("betapdf(0.3,2,3)"), 1.764, 1e-12);
     EXPECT_NEAR(evalScalar("chi2cdf(3,4)"),   0.4421745996289252, 1e-10);
+    EXPECT_NEAR(evalScalar("gaminv(0.5,2,2)"), 3.3566939800333233, 1e-8);
+    EXPECT_NEAR(evalScalar("betainv(0.5,2,3)"), 0.3857275681324743, 1e-8);
+    EXPECT_NEAR(evalScalar("chi2inv(0.5,4)"),  3.3566939800333233, 1e-8);
 }
 
 TEST_F(DistBroadcastTest, EmptyAndMismatch)

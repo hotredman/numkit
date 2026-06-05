@@ -63,9 +63,9 @@ non-scalar operand. The scalar-parameter fast path stays bit-identical
 Continuous location-scale family:
 - [x] **normal** — normpdf / normcdf / norminv (cycle 29, 2026-06-05)
 - [x] **exponential** — exppdf / expcdf / expinv (cycle 29, 2026-06-05)
-- [~] **gamma** — gampdf / gamcdf done (cycle 30, 2026-06-05); gaminv pending
-- [~] **beta** — betapdf / betacdf done (cycle 30, 2026-06-05); betainv pending
-- [~] **chi2** — chi2pdf / chi2cdf done (cycle 30, 2026-06-05); chi2inv pending
+- [x] **gamma** — gampdf / gamcdf / gaminv (cycle 30 pdf+cdf, 31 inv)
+- [x] **beta** — betapdf / betacdf / betainv (cycle 30 pdf+cdf, 31 inv)
+- [x] **chi2** — chi2pdf / chi2cdf / chi2inv (cycle 30 pdf+cdf, 31 inv)
 - [ ] students_t — tpdf / tcdf / tinv
 - [ ] fisher_f — fpdf / fcdf / finv
 - [ ] rayleigh — raylpdf / raylcdf / raylinv
@@ -74,12 +74,15 @@ Continuous location-scale family:
 
 Implementation note: closed-form PDFs broadcast via a scalar kernel +
 `broadcast_dist2/3`; CDFs reuse the already-broadcasting `builtin::gammainc`
-/ `betainc` on a broadcast-transformed `x` (and `a`/`b`/`k`). The INV
-functions (gaminv/betainv/chi2inv) are deferred to a follow-up cycle —
-they need the degenerate-quantile handling (gamma `a==0`→0, chi2 `k==0`→0)
-threaded through the parameter broadcast. Each adapter BRANCHES: scalar
-parameters keep the untouched (hoisted-`lgamma`) public-fn fast path; only
-non-scalar parameters take the broadcast path.
+/ `betainc` on a broadcast-transformed `x` (and `a`/`b`/`k`); INVs reuse the
+broadcasting `builtin::gammaincinv` / `betaincinv` plus a per-element fixup
+loop for the degenerate quantile (gamma `a==0`→0, chi2 `k==0`→0;
+`a<0`/`b<=0`/`k<0`→NaN). Each adapter BRANCHES: scalar parameters keep the
+untouched (hoisted-`lgamma`) public-fn fast path; only non-scalar parameters
+take the broadcast path. `dist_match_numel` enforces MATLAB's "Non-scalar
+arguments must match in size." (cycle 31 also retrofitted that guard onto
+`betacdf`/`betainv`, since `builtin::betainc`/`betaincinv` don't validate
+sizes and would otherwise read out of bounds).
 
 Discrete + remaining families (bino / poiss / unid / geo / nbin / hyge / …)
 follow once the continuous set is done. The umbrella

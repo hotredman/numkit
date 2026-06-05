@@ -214,12 +214,30 @@ inline const Value &dist_param(Span<const Value> args, size_t idx, double defv,
     return holder;
 }
 
+// Allocate (or, for a 0-element operand, produce an empty) DOUBLE Value with
+// the same shape as `x`. Used both for empty→empty and for sizing a
+// broadcast result buffer.
 inline Value dist_empty_like(const Value &x, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     if (d.is3D())
         return Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
     return Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+}
+
+// Validate MATLAB broadcasting across a set of element counts: every count
+// must be 1 or the common maximum N (0/empty is handled by the caller before
+// this). Throws MATLAB-style on a non-scalar size clash. Returns N.
+inline std::size_t dist_match_numel(std::initializer_list<std::size_t> sizes,
+                                    const char *fnName)
+{
+    std::size_t N = 0;
+    for (std::size_t s : sizes) N = std::max(N, s);
+    for (std::size_t s : sizes)
+        if (s != 1 && s != N)
+            throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
+                        0, 0, fnName, "", "numkit:dist:size");
+    return N;
 }
 
 // One data arg + one parameter: kernel(double x, double p) -> double.

@@ -164,13 +164,20 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         v = betacdf(a0[0], a.toScalar(), b.toScalar(), mr);
     } else {
         // F(x; a, b) = betainc(clamp01(x), a, b); betainc broadcasts (xc, a, b)
-        // and betaincScalar gives NaN where a<=0 or b<=0.
-        Value xc = elementwise(a0[0], [](double xi) {
-            if (xi <= 0.0) return 0.0;
-            if (xi >= 1.0) return 1.0;
-            return xi;
-        }, mr);
-        v = ::numkit::builtin::betainc(xc, a, b, mr);
+        // and betaincScalar gives NaN where a<=0 or b<=0. betainc does NOT
+        // validate sizes (would OOB), so guard empties + size clash first.
+        const size_t nx = a0[0].numel(), na = a.numel(), nb = b.numel();
+        if (nx == 0 || na == 0 || nb == 0) {
+            v = dist_empty_like(nx == 0 ? a0[0] : (na == 0 ? a : b), mr);
+        } else {
+            dist_match_numel({nx, na, nb}, "betacdf");
+            Value xc = elementwise(a0[0], [](double xi) {
+                if (xi <= 0.0) return 0.0;
+                if (xi >= 1.0) return 1.0;
+                return xi;
+            }, mr);
+            v = ::numkit::builtin::betainc(xc, a, b, mr);
+        }
     }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -180,7 +187,23 @@ void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 3)
         throw Error("betainv: requires (p, a, b)", 0, 0, "betainv", "", "numkit:betainv:nargin");
-    outs[0] = betainv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &p = args[0];
+    const Value &a = args[1];
+    const Value &b = args[2];
+    if (a.isScalar() && b.isScalar()) {
+        outs[0] = betainv(p, a.toScalar(), b.toScalar(), mr);   // unchanged fast path
+        return;
+    }
+    // betaincinv broadcasts (p, a, b) and gives NaN for a<=0||b<=0 (no other
+    // degenerate). It does NOT validate sizes (would OOB), so guard first.
+    const size_t np = p.numel(), na = a.numel(), nb = b.numel();
+    if (np == 0 || na == 0 || nb == 0) {
+        outs[0] = dist_empty_like(np == 0 ? p : (na == 0 ? a : b), mr);
+        return;
+    }
+    dist_match_numel({np, na, nb}, "betainv");
+    outs[0] = ::numkit::builtin::betaincinv(p, a, b, mr);
 }
 
 void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
