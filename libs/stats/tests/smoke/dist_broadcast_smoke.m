@@ -41,8 +41,18 @@ fprintf('betainv([.1 .5 .9],2,3)   = %s (expect 0.14255932 0.38572757 0.67953942
 fprintf('chi2inv(0.5,[1 2 3])      = %s (expect 0.45493642 1.3862944 2.3659739)\n', fmt(chi2inv(0.5,[1 2 3])));
 fprintf('chi2inv(0.5,[0 4])        = %s (expect 0 3.3566940; k==0->0)\n', fmt(chi2inv(0.5,[0 4])));
 
+fprintf('\n--- rayleigh / weibull / lognormal (closed-form broadcast) ---\n');
+fprintf('raylpdf(1,[1 2 3])        = %s (expect 0.60653066 0.22062423 0.10510661)\n', fmt(raylpdf(1,[1 2 3])));
+fprintf('raylinv(0.5,[1 2 3])      = %s (expect 1.1774100 2.3548200 3.5322301)\n', fmt(raylinv(0.5,[1 2 3])));
+fprintf('wblpdf(1,[1 2],[1 2])     = %s (expect 0.36787944 0.38940039)\n', fmt(wblpdf(1,[1 2],[1 2])));
+fprintf('wblinv(0.5,[1 2],2)       = %s (expect 0.83255461 1.6651092)\n', fmt(wblinv(0.5,[1 2],2)));
+fprintf('lognpdf(1,[0 1],1)        = %s (expect 0.39894228 0.24197072)\n', fmt(lognpdf(1,[0 1],1)));
+fprintf('logninv([.1 .5 .9],0,1)   = %s (expect 0.27760624 1 3.6022245)\n', fmt(logninv([.1 .5 .9],0,1)));
+fprintf('lognpdf(1,0,[0 -1 2])     = %s (expect NaN NaN 0.19947114; sigma<=0->NaN)\n', fmt(lognpdf(1,0,[0 -1 2])));
+
 fprintf('\n--- regressions (scalar-param path unchanged) ---\n');
 fprintf('normpdf(0)=%.10g (expect 0.3989422804)  exppdf(2)=%.10g (expect 0.1353352832)\n', normpdf(0), exppdf(2));
+fprintf('raylpdf(1,2)=%.10g (expect 0.2206242256)  wblpdf(2,3,4)=%.10g (expect 0.3242488132)\n', raylpdf(1,2), wblpdf(2,3,4));
 fprintf('gampdf(1,2,2)=%.10g (expect 0.1516326649)  betapdf(0.3,2,3)=%.10g (expect 1.764)\n', gampdf(1,2,2), betapdf(0.3,2,3));
 fprintf('gaminv(0.5,2,2)=%.10g (expect 3.356693980)  chi2inv(0.5,4)=%.10g (expect 3.356693980)\n', gaminv(0.5,2,2), chi2inv(0.5,4));
 fprintf('empty: numel(normpdf([],0,1))=%d (expect 0)\n', numel(normpdf([],0,1)));

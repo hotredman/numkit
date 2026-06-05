@@ -68,9 +68,9 @@ Continuous location-scale family:
 - [x] **chi2** — chi2pdf / chi2cdf / chi2inv (cycle 30 pdf+cdf, 31 inv)
 - [ ] students_t — tpdf / tcdf / tinv
 - [ ] fisher_f — fpdf / fcdf / finv
-- [ ] rayleigh — raylpdf / raylcdf / raylinv
-- [ ] weibull — wblpdf / wblcdf / wblinv
-- [ ] lognormal — lognpdf / logncdf / logninv
+- [x] **rayleigh** — raylpdf / raylcdf / raylinv (cycle 32, 2026-06-05)
+- [x] **weibull** — wblpdf / wblcdf / wblinv (cycle 32, 2026-06-05)
+- [x] **lognormal** — lognpdf / logncdf / logninv (cycle 32, 2026-06-05)
 
 Implementation note: closed-form PDFs broadcast via a scalar kernel +
 `broadcast_dist2/3`; CDFs reuse the already-broadcasting `builtin::gammainc`
