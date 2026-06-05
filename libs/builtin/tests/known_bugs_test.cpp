@@ -243,3 +243,17 @@ TEST_F(BuiltinKnownBug, MaxMinCharDouble)
     EXPECT_DOUBLE_EQ(evalScalar("min('abc')"), 97.0);
     EXPECT_DOUBLE_EQ(evalScalar("ischar(mode('abc'))"), 1.0);   // mode keeps char
 }
+
+// bugs/builtin/concat-integer-types.md — OPEN (CORE: promoteNumericType rejects
+// integer types). MATLAB concatenates integers preserving the class. Flip the
+// DISABLED_ prefix when the core fix lands.
+TEST_F(BuiltinKnownBug, DISABLED_ConcatIntegerTypes)
+{
+    eval("a = cat(1, int8([1 2]), int8([3 4]));");   // MATLAB: int8 [1 2; 3 4]
+    EXPECT_DOUBLE_EQ(evalScalar("isa(a,'int8')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(2,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a(1,2)"), 2.0);
+    eval("b = [int8([1 2]), int8([3 4])];");         // MATLAB: int8 [1 2 3 4]
+    EXPECT_DOUBLE_EQ(evalScalar("isa(b,'int8')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(b)"), 4.0);
+}
