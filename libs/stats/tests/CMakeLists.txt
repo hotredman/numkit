@@ -138,6 +138,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/chi2gof_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive_six_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/missing_data_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/isoutlier_gesd_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/corr_detrend_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/partialcorr_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lillietest_test.cpp

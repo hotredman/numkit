@@ -3109,9 +3109,69 @@ static void grubbsColumnMask(const double *x, std::size_t n, double alpha,
     }
 }
 
+// Generalized ESD (Rosner 1983) outlier test for one column. Like grubbs but
+// it does NOT stop at the first non-exceedance: it peels the most-extreme point
+// for up to `maxOut` iterations, then flags every point removed up to the
+// LARGEST iteration whose studentized deviate R_i exceeds the critical value
+// λ_i — which equals the Grubbs critical value at the current sample size m
+// (= N-i+1). This handles masking/swamping (multiple outliers inflating s).
+// `alpha` is the significance level (ThresholdFactor, default 0.05).
+// `maxOutArg < 0` selects the MATLAB default max(1, round(N/10)).
+static void gesdColumnMask(const double *x, std::size_t n, double alpha,
+                           long maxOutArg, uint8_t *maskOut,
+                           std::pmr::memory_resource *mr)
+{
+    for (std::size_t i = 0; i < n; ++i) maskOut[i] = 0;
+    std::vector<double> v;
+    std::vector<std::size_t> pos;
+    v.reserve(n); pos.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+        if (!std::isnan(x[i])) { v.push_back(x[i]); pos.push_back(i); }
+    const std::size_t N = v.size();
+    if (N < 3) return;
+    std::size_t r = (maxOutArg >= 0)
+        ? static_cast<std::size_t>(maxOutArg)
+        : static_cast<std::size_t>(std::max(1.0, std::round(double(N) / 10.0)));
+    if (r > N - 2) r = N - 2;   // need ≥2 points left to form a std
+
+    std::vector<std::size_t> removed;   // position removed at each iteration
+    std::vector<char>        exceed;    // R_i > λ_i ?
+    removed.reserve(r); exceed.reserve(r);
+    for (std::size_t it = 0; it < r; ++it) {
+        const std::size_t m = v.size();
+        if (m < 3) break;
+        double s = 0.0;
+        for (double e : v) s += e;
+        const double mean = s / double(m);
+        double ss = 0.0;
+        for (double e : v) ss += (e - mean) * (e - mean);
+        const double sd = std::sqrt(ss / double(m - 1));
+        if (!(sd > 0.0)) break;
+        std::size_t jmax = 0;
+        double gmax = -1.0;
+        for (std::size_t j = 0; j < m; ++j) {
+            const double g = std::fabs(v[j] - mean) / sd;
+            if (g > gmax) { gmax = g; jmax = j; }
+        }
+        const double dof   = double(m) - 2.0;
+        const double pp    = alpha / (2.0 * double(m));
+        const double tcrit = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
+        const double lam   = ((double(m) - 1.0) / std::sqrt(double(m)))
+                           * std::sqrt(tcrit * tcrit / (dof + tcrit * tcrit));
+        removed.push_back(pos[jmax]);
+        exceed.push_back(gmax > lam ? 1 : 0);
+        v.erase(v.begin() + static_cast<std::ptrdiff_t>(jmax));
+        pos.erase(pos.begin() + static_cast<std::ptrdiff_t>(jmax));
+    }
+    long last = -1;
+    for (long it = 0; it < static_cast<long>(exceed.size()); ++it)
+        if (exceed[it]) last = it;
+    for (long it = 0; it <= last; ++it) maskOut[removed[it]] = 1;
+}
+
 static Value isoutlierMethod(const Value &x, const std::string &method,
                              double detectTf, std::pmr::memory_resource *mr,
-                             long hb = 0, long hf = 0)
+                             long hb = 0, long hf = 0, long maxOut = -1)
 {
     if (x.numel() == 0) return Value::matrix(0, 0, ValueType::LOGICAL, mr);
     const std::size_t r = static_cast<std::size_t>(x.dims().dim(0));
@@ -3141,6 +3201,17 @@ static Value isoutlierMethod(const Value &x, const std::string &method,
         } else {
             for (std::size_t col = 0; col < c; ++col)
                 grubbsColumnMask(xd + col * r, r, detectTf, od + col * r, mr);
+        }
+        return out;
+    }
+    if (method == "gesd") {
+        // Generalized ESD; per-column. detectTf is the significance level
+        // alpha; maxOut is MaxNumOutliers (<0 → MATLAB default).
+        if (r == 1 || c == 1) {
+            gesdColumnMask(xd, x.numel(), detectTf, maxOut, od, mr);
+        } else {
+            for (std::size_t col = 0; col < c; ++col)
+                gesdColumnMask(xd + col * r, r, detectTf, maxOut, od + col * r, mr);
         }
         return out;
     }
@@ -3203,26 +3274,36 @@ void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             }
             ai = 3;
         } else if (m == "gesd") {
-            throw Error("isoutlier: method 'gesd' is not supported in this "
-                        "revision (median, mean, quartiles, grubbs, movmedian, "
-                        "movmean only)",
-                         0, 0, "isoutlier", "", "numkit:isoutlier:method");
+            method = m;
+            ai = 2;
         }
         // else: not a method token — leave as a Name-Value name parsed below.
     }
 
-    // Default ThresholdFactor per method: quartiles 1.5, grubbs 0.05
+    // Default ThresholdFactor per method: quartiles 1.5, grubbs/gesd 0.05
     // (significance level), median/mean/movmedian/movmean 3.
-    double userTf = (method == "quartiles") ? 1.5
-                  : (method == "grubbs")    ? 0.05
-                                            : 3.0;
+    double userTf = (method == "quartiles")          ? 1.5
+                  : (method == "grubbs" ||
+                     method == "gesd")               ? 0.05
+                                                     : 3.0;
+    long maxOut = -1;   // gesd MaxNumOutliers (<0 → MATLAB default)
     for (std::size_t i = ai; i + 1 < args.size(); i += 2) {
         if (args[i].isChar() || args[i].isString()) {
             std::string nm = args[i].toString();
             for (char &ch : nm) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
             if (nm == "thresholdfactor")
                 userTf = args[i + 1].toScalar();
-            else
+            else if (nm == "maxnumoutliers") {
+                if (method != "gesd")
+                    throw Error("isoutlier: 'MaxNumOutliers' applies only to the "
+                                "'gesd' method",
+                                0, 0, "isoutlier", "", "numkit:isoutlier:option");
+                const double mo = args[i + 1].toScalar();
+                if (!(mo >= 1.0) || mo != std::floor(mo))
+                    throw Error("isoutlier: MaxNumOutliers must be a positive integer",
+                                0, 0, "isoutlier", "", "numkit:isoutlier:maxout");
+                maxOut = static_cast<long>(mo);
+            } else
                 throw Error("isoutlier: unknown option '" + args[i].toString() + "'",
                              0, 0, "isoutlier", "", "numkit:isoutlier:option");
         }
@@ -3232,7 +3313,7 @@ void isoutlier_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "isoutlier", "", "numkit:isoutlier:tf");
 
     const double detectTf = (method == "quartiles") ? 2.0 * userTf : userTf;
-    outs[0] = isoutlierMethod(args[0], method, detectTf, mr, hb, hf);
+    outs[0] = isoutlierMethod(args[0], method, detectTf, mr, hb, hf, maxOut);
 }
 
 // Per-column outlier mask for rmoutliers. Adds the rmoutliers-specific
