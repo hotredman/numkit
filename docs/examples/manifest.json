@@ -76,6 +76,17 @@
       ]
     },
     {
+      "name": "Classes",
+      "files": [
+        "dependent_properties.m",
+        "handle_class.m",
+        "inheritance.m",
+        "operator_overloading.m",
+        "static_and_constant.m",
+        "value_class.m"
+      ]
+    },
+    {
       "name": "Communications",
       "files": [
         "awgn_channel.m",
