@@ -16,6 +16,7 @@
 //   - weibull     (wblpdf/wblcdf/wblinv)     — cycle 32
 //   - lognormal   (lognpdf/logncdf/logninv)  — cycle 32
 //   - students_t  (tpdf/tcdf/tinv)           — cycle 33 (betainc-based + nu==Inf)
+//   - fisher_f    (fpdf/fcdf/finv)           — cycle 34 (betainc-based, 2-param)
 // MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
@@ -314,6 +315,47 @@ TEST_F(DistBroadcastTest, TinvBroadcast)
     EXPECT_NEAR(evalScalar("w(2)"), 1.9599639845400, 1e-8);   // Winitzki norminv
 }
 
+// ── Fisher F: betainc-based broadcast over d1,d2 (cycle 34) ──────────
+TEST_F(DistBroadcastTest, FpdfBroadcast)
+{
+    eval("y = fpdf(1, [1 2], [1 2]);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.1591549430918954, 1e-12);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.25, 1e-12);
+    eval("z = fpdf([0.5 1 2], 5, 10);");
+    EXPECT_NEAR(evalScalar("z(1)"), 0.6876070027706, 1e-11);
+    EXPECT_NEAR(evalScalar("z(3)"), 0.1620057421801, 1e-11);
+    // x==0 boundary regimes: v1<2 → Inf, v1==2 → finite, v1>2 → 0
+    eval("e = fpdf(0, [1 2 3], 5);");
+    EXPECT_TRUE(eval("isinf(e(1))").toBool());
+    EXPECT_NEAR(evalScalar("e(2)"), 1.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("e(3)"), 0.0);
+    EXPECT_TRUE(eval("isnan(fpdf(1,0,2))").toBool());   // d1<=0 → NaN
+}
+
+TEST_F(DistBroadcastTest, FcdfBroadcast)
+{
+    eval("y = fcdf(2, [1 5], [1 5]);");
+    EXPECT_NEAR(evalScalar("y(1)"), 0.6081734479694, 1e-10);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.7674886808696, 1e-10);
+    eval("z = fcdf([0.5 1 2], 5, 10);");
+    EXPECT_NEAR(evalScalar("z(3)"), 0.8358050491003, 1e-10);
+    eval("u = fcdf(2, [1 5], [1 5], 'upper');");
+    EXPECT_NEAR(evalScalar("u(2)"), 0.2325113191304, 1e-10);
+}
+
+TEST_F(DistBroadcastTest, FinvBroadcast)
+{
+    eval("y = finv(0.95, [1 5], [1 5]);");
+    EXPECT_NEAR(evalScalar("y(1)"), 161.4476387976, 1e-6);
+    EXPECT_NEAR(evalScalar("y(2)"), 5.050329057633, 1e-8);
+    eval("z = finv([.1 .5 .9], 5, 10);");
+    EXPECT_NEAR(evalScalar("z(1)"), 0.3032690890211, 1e-9);
+    EXPECT_NEAR(evalScalar("z(3)"), 2.52164068621, 1e-8);
+    eval("d = finv(0.95, [0 2], 2);");           // d1<=0 → NaN
+    EXPECT_TRUE(eval("isnan(d(1))").toBool());
+    EXPECT_NEAR(evalScalar("d(2)"), 19.0, 1e-7);
+}
+
 // ── Regressions: scalar-parameter path unchanged; edges ──────────────
 TEST_F(DistBroadcastTest, ScalarPathUnchanged)
 {
@@ -337,6 +379,10 @@ TEST_F(DistBroadcastTest, ScalarPathUnchanged)
     EXPECT_NEAR(evalScalar("tpdf(0.5,5)"),     0.3279185313226211, 1e-12);
     EXPECT_NEAR(evalScalar("tcdf(2,10)"),      0.9633059826146113, 1e-10);
     EXPECT_NEAR(evalScalar("tinv(0.9,8)"),     1.3968153097438420, 1e-9);
+    // fisher_f scalar-parameter path unchanged
+    EXPECT_NEAR(evalScalar("fpdf(2,3,4)"),     0.1394274004635, 1e-12);
+    EXPECT_NEAR(evalScalar("fcdf(2,5,10)"),    0.8358050491003, 1e-10);
+    EXPECT_NEAR(evalScalar("finv(0.95,5,10)"), 3.325834530413, 1e-8);
 }
 
 TEST_F(DistBroadcastTest, EmptyAndMismatch)

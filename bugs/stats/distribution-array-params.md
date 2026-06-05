@@ -67,7 +67,10 @@ Continuous location-scale family:
 - [x] **beta** — betapdf / betacdf / betainv (cycle 30 pdf+cdf, 31 inv)
 - [x] **chi2** — chi2pdf / chi2cdf / chi2inv (cycle 30 pdf+cdf, 31 inv)
 - [x] **students_t** — tpdf / tcdf / tinv (cycle 33, 2026-06-05; betainc-based, nu==Inf Gaussian limit per element)
-- [ ] fisher_f — fpdf / fcdf / finv
+- [x] **fisher_f** — fpdf / fcdf / finv (cycle 34, 2026-06-05; betainc-based, 2-param)
+
+**All 10 continuous families broadcast (cycles 29-34).** Remaining: the
+DISCRETE families below (integer-ish params, different domains).
 - [x] **rayleigh** — raylpdf / raylcdf / raylinv (cycle 32, 2026-06-05)
 - [x] **weibull** — wblpdf / wblcdf / wblinv (cycle 32, 2026-06-05)
 - [x] **lognormal** — lognpdf / logncdf / logninv (cycle 32, 2026-06-05)

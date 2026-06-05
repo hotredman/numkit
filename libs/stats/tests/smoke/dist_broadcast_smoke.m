@@ -56,10 +56,16 @@ fprintf('tcdf([-1 0 1],5)          = %s (expect 0.18160873 0.5 0.81839127)\n', f
 fprintf('tinv(0.975,[1 2 10])      = %s (expect 12.706205 4.3026527 2.2281389)\n', fmt(tinv(0.975,[1 2 10])));
 fprintf('tcdf(1,[5 Inf])           = %s (expect 0.81839127 0.84134475; nu==Inf->normcdf)\n', fmt(tcdf(1,[5 Inf])));
 
+fprintf('\n--- fisher_f (betainc-based broadcast over d1,d2) ---\n');
+fprintf('fpdf([0.5 1 2],5,10)      = %s (expect 0.68760700 0.49547978 0.16200574)\n', fmt(fpdf([0.5 1 2],5,10)));
+fprintf('fpdf(0,[1 2 3],5)         = %s (expect Inf 1 0; x==0 regimes)\n', fmt(fpdf(0,[1 2 3],5)));
+fprintf('fcdf([0.5 1 2],5,10)      = %s (expect 0.22997512 0.53488057 0.83580505)\n', fmt(fcdf([0.5 1 2],5,10)));
+fprintf('finv([.1 .5 .9],5,10)     = %s (expect 0.30326909 0.93193316 2.5216407)\n', fmt(finv([.1 .5 .9],5,10)));
+
 fprintf('\n--- regressions (scalar-param path unchanged) ---\n');
 fprintf('normpdf(0)=%.10g (expect 0.3989422804)  exppdf(2)=%.10g (expect 0.1353352832)\n', normpdf(0), exppdf(2));
 fprintf('raylpdf(1,2)=%.10g (expect 0.2206242256)  wblpdf(2,3,4)=%.10g (expect 0.3242488132)\n', raylpdf(1,2), wblpdf(2,3,4));
-fprintf('tcdf(2,10)=%.10g (expect 0.9633059826)  tinv(0.9,8)=%.10g (expect 1.396815310)\n', tcdf(2,10), tinv(0.9,8));
+fprintf('tcdf(2,10)=%.10g (expect 0.9633059826)  fcdf(2,5,10)=%.10g (expect 0.8358050491)\n', tcdf(2,10), fcdf(2,5,10));
 fprintf('gampdf(1,2,2)=%.10g (expect 0.1516326649)  betapdf(0.3,2,3)=%.10g (expect 1.764)\n', gampdf(1,2,2), betapdf(0.3,2,3));
 fprintf('gaminv(0.5,2,2)=%.10g (expect 3.356693980)  chi2inv(0.5,4)=%.10g (expect 3.356693980)\n', gaminv(0.5,2,2), chi2inv(0.5,4));
 fprintf('empty: numel(normpdf([],0,1))=%d (expect 0)\n', numel(normpdf([],0,1)));
