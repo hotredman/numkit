@@ -8,10 +8,65 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/span.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/value_type.hpp>
 
+#include <cmath>
 #include <complex>
+#include <limits>
 
 namespace numkit::linalg {
+
+// Narrow a DOUBLE workspace to an integer class with MATLAB's saturating
+// round-half-away-from-zero cast (mirrors core's castConcatToInteger). Used
+// by kron to preserve the integer class of integer operands.
+static Value narrowKronToInteger(const Value &d, ValueType vt,
+                                 std::pmr::memory_resource *mr)
+{
+    const auto &dd = d.dims();
+    Value r = Value::matrix(dd.rows(), dd.cols(), vt, mr);
+    const size_t n = d.numel();
+    const double *src = d.doubleData();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = std::round(src[i]);
+            if (v < lo) v = lo; else if (v > hi) v = hi;
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (vt) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
+// kron's integer-class rule (MATLAB R2025b): the result keeps an integer
+// class iff both operands share the same integer class, or one operand is
+// integer and the other a real scalar double (the scalar is cast). Mixed
+// integer classes, integer + non-scalar double, and integer + logical all
+// ERROR in MATLAB; numkit stays lenient there and returns double.
+static ValueType kronIntegerClass(const Value &a, const Value &b)
+{
+    const bool aInt = isIntegerType(a.type());
+    const bool bInt = isIntegerType(b.type());
+    auto realScalarDouble = [](const Value &v) {
+        return v.numel() == 1 && v.type() == ValueType::DOUBLE;
+    };
+    if (aInt && bInt && a.type() == b.type()) return a.type();
+    if (aInt && !bInt && realScalarDouble(b)) return a.type();
+    if (bInt && !aInt && realScalarDouble(a)) return b.type();
+    return ValueType::DOUBLE;
+}
 
 // Core cross-product along crossDim (0 = each column is a 3-vec / MATLAB
 // dim 1; 1 = each row is a 3-vec / MATLAB dim 2). Shape already validated.
@@ -280,8 +335,16 @@ Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         return outc;
     }
 
+    // Integer operands keep their class (saturating) per MATLAB; otherwise
+    // the result is double. The element products are computed in a double
+    // workspace via elemAsDouble (correct for every integer operand class)
+    // and narrowed at the end.
+    const ValueType intClass = kronIntegerClass(a, b);
+
     auto out = Value::matrix(rOut, cOut, ValueType::DOUBLE, mr);
-    if (rOut == 0 || cOut == 0) return out;
+    if (rOut == 0 || cOut == 0)
+        return intClass == ValueType::DOUBLE ? out
+                                             : narrowKronToInteger(out, intClass, mr);
 
     double *dst = out.doubleDataMut();
     for (size_t ja = 0; ja < cA; ++ja)
@@ -296,7 +359,8 @@ Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr)
                 }
             }
         }
-    return out;
+    return intClass == ValueType::DOUBLE ? out
+                                         : narrowKronToInteger(out, intClass, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════════

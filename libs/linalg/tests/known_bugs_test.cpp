@@ -44,6 +44,23 @@ TEST_F(LinalgKnownBug, EigLeftVectors)
 // bugs/linalg/norm-complex.md — FIXED (norm of a complex array by magnitude).
 // Live regression guard moved to libs/linalg/tests/norm_complex_test.cpp.
 
+// bugs/linalg/kron-integer-class.md — kron of integer operands kept the
+// integer class (saturating). FIXED 2026-06-05; deep coverage in
+// libs/linalg/tests/kron_integer_class_test.cpp.
+TEST_F(LinalgKnownBug, KronIntegerClass)
+{
+    eval("k = kron(int8([1 2]), int8([1 1]));");
+    EXPECT_TRUE(eval("isa(k, 'int8')").toBool());
+    EXPECT_DOUBLE_EQ(evalScalar("double(k(3))"), 2.0);
+    // Saturating product: int8(100)*int8(2) = 200 -> 127.
+    EXPECT_DOUBLE_EQ(evalScalar("double(kron(int8(100), int8(2)))"), 127.0);
+    // int + scalar double keeps the integer class (scalar cast, round-away).
+    EXPECT_TRUE(eval("isa(kron(int8([2 3]), 2), 'int8')").toBool());
+    EXPECT_DOUBLE_EQ(evalScalar("double(kron(int8(2), 1.5))"), 3.0);
+    // double*double stays double.
+    EXPECT_TRUE(eval("isa(kron([1 2], [3 4]), 'double')").toBool());
+}
+
 // bugs/linalg/complex-matrix-unsupported.md — complex matrix linear algebra.
 TEST_F(LinalgKnownBug, DISABLED_ComplexMatrixOps)
 {
