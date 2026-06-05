@@ -1,5 +1,5 @@
-{"name": "detrend", "namespace": "stats", "setup": "y = (1:10)'; yq = (1:10)'.^2;",
- "expr": "yd = detrend(2*y + 5); err1 = max(abs(yd)); ydq = detrend(yq, 2); err2 = max(abs(ydq));",
+{"name": "detrend", "namespace": "stats", "setup": "y = (1:10)'; yq = (1:10)'.^2; cz = [1+2i 5+1i 3-2i 8+0i]; cM = [1+1i 10; 2 8+2i; 5+1i 6];",
+ "expr": "yd = detrend(2*y + 5); err1 = max(abs(yd)); ydq = detrend(yq, 2); err2 = max(abs(ydq)); cl = detrend(cz); cc = detrend(cz, 'constant'); cmt = detrend(cM);",
  "iters": 5, "tol": 1e-10,
- "fingerprint": ["err1", "err2", "yd(1)", "yd(end)"],
- "comment": "Sig: y = detrend(x[, order]). Remove polynomial trend (default linear). Vector form."}
+ "fingerprint": ["err1", "err2", "yd(1)", "yd(end)", "real(cl(1))", "imag(cl(1))", "real(cl(2))", "imag(cl(2))", "real(cl(4))", "imag(cl(4))", "real(cc(1))", "imag(cc(1))", "real(cmt(1,1))", "imag(cmt(1,1))", "real(cmt(2,2))", "imag(cmt(2,2))"],
+ "comment": "Sig: y = detrend(x[, order]). Remove polynomial trend (default linear). Vector form. COMPLEX (fixed 2026-06-05): detrend the real + imaginary parts separately, recombine: detrend([1+2i 5+1i 3-2i 8+0i])=[-0.4+0.4i 1.7+0.3i ...]; 'constant' subtracts the complex mean (-3.25+1.75i); per-column matrix. Matches MATLAB R2025b."}

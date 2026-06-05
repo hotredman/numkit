@@ -2981,6 +2981,39 @@ void corr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         outs[0] = corrDispatch(false, args[0], args[0], ct, mr);
 }
 
+namespace {
+// Real / imaginary parts of a COMPLEX value as same-shape DOUBLE arrays + the
+// inverse combine. detrend (least-squares trend removal) is linear, so it
+// commutes with this split.
+Value cplxRealPartDt(const Value &f, std::pmr::memory_resource *mr)
+{
+    auto r = createLike(f, ValueType::DOUBLE, mr);
+    double *d = r.doubleDataMut();
+    const Complex *c = f.complexData();
+    const size_t n = f.numel();
+    for (size_t i = 0; i < n; ++i) d[i] = c[i].real();
+    return r;
+}
+Value cplxImagPartDt(const Value &f, std::pmr::memory_resource *mr)
+{
+    auto r = createLike(f, ValueType::DOUBLE, mr);
+    double *d = r.doubleDataMut();
+    const Complex *c = f.complexData();
+    const size_t n = f.numel();
+    for (size_t i = 0; i < n; ++i) d[i] = c[i].imag();
+    return r;
+}
+Value cplxCombineDt(const Value &re, const Value &im, std::pmr::memory_resource *mr)
+{
+    auto out = createLike(re, ValueType::COMPLEX, mr);
+    Complex *o = out.complexDataMut();
+    const double *r = re.doubleData(), *m = im.doubleData();
+    const size_t n = out.numel();
+    for (size_t i = 0; i < n; ++i) o[i] = Complex(r[i], m[i]);
+    return out;
+}
+} // namespace
+
 void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
@@ -3002,17 +3035,26 @@ void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     // breakpoints. Supported for linear (order 1) only — order-0 +
     // breakpoints is a rare, ill-defined MATLAB edge and is deferred
     // (the bp argument is then ignored, matching the prior behaviour).
-    if (args.size() >= 3 && order == 1 && !args[2].isEmpty()
-        && !args[2].isChar() && !args[2].isString()) {
+    const bool hasBP = (args.size() >= 3 && order == 1 && !args[2].isEmpty()
+                        && !args[2].isChar() && !args[2].isString());
+    std::vector<double> bp;
+    if (hasBP) {
         const Value &bpv = args[2];
-        std::vector<double> bp;
         bp.reserve(bpv.numel());
         for (std::size_t i = 0; i < bpv.numel(); ++i)
             bp.push_back(bpv.elemAsDouble(i));
-        outs[0] = detrendBP_of(args[0], bp, ctx.engine->resource());
+    }
+    auto *mr = ctx.engine->resource();
+    auto runReal = [&](const Value &x) -> Value {
+        return hasBP ? detrendBP_of(x, bp, mr) : detrend_of(x, order, mr);
+    };
+    // Complex: detrend the real + imaginary parts separately, recombine.
+    if (args[0].type() == ValueType::COMPLEX) {
+        outs[0] = cplxCombineDt(runReal(cplxRealPartDt(args[0], mr)),
+                                runReal(cplxImagPartDt(args[0], mr)), mr);
         return;
     }
-    outs[0] = detrend_of(args[0], order, ctx.engine->resource());
+    outs[0] = runReal(args[0]);
 }
 
 // ── missing-data adapters ────────────────────────────────────────────
