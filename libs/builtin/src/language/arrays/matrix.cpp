@@ -2085,6 +2085,10 @@ Value cumsum(const Value &x, std::pmr::memory_resource *mr)
         return cumIntegerNative(x, 0, /*isProd=*/false, mr);
     if (x.type() == ValueType::COMPLEX)
         return cumComplexAlongDim(x, firstNonSingletonDim(x), /*isProd=*/false, mr);
+    // MATLAB promotes logical → double for cumsum (char/string error out and
+    // keep doing so via the doubleData() path below — only logical is valid).
+    if (x.isLogical())
+        return cumsum(toDoubleValue(x, mr), mr);
     if (x.isScalar()) {
         auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = x.toScalar();
@@ -2114,6 +2118,8 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
     if (x.type() == ValueType::COMPLEX)
         return cumComplexAlongDim(x, dim <= 0 ? firstNonSingletonDim(x) : dim,
                                   /*isProd=*/false, mr);
+    if (x.isLogical())
+        return cumsum(toDoubleValue(x, mr), dim, mr);
     if (dim <= 0) return cumsum(x, mr);
     if (x.dims().isVector() || x.isScalar()) return cumsum(x, mr);
 
@@ -2380,11 +2386,31 @@ Value cumprod(const Value &x, int dim, std::pmr::memory_resource *mr)
     if (x.type() == ValueType::COMPLEX)
         return cumComplexAlongDim(x, dim <= 0 ? firstNonSingletonDim(x) : dim,
                                   /*isProd=*/true, mr);
+    if (x.isLogical())
+        return cumprod(toDoubleValue(x, mr), dim, mr);
     return cumScanDispatch(x, dim, cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
 }
 
+namespace {
+// cummax / cummin PRESERVE the logical class (unlike cumsum / cumprod, which
+// promote logical → double). Run the double kernel on a promoted copy, then
+// narrow the 0/1 result back to LOGICAL — mirrors xorOf's double→logical step.
+Value logicalizeCumResult(const Value &d, std::pmr::memory_resource *mr)
+{
+    if (d.isScalar()) return Value::logicalScalar(d.toScalar() != 0.0, mr);
+    Value r = createLike(d, ValueType::LOGICAL, mr);
+    uint8_t *dst = r.logicalDataMut();
+    const double *src = d.doubleData();
+    const size_t n = d.numel();
+    for (size_t i = 0; i < n; ++i) dst[i] = (src[i] != 0.0) ? 1 : 0;
+    return r;
+}
+} // namespace
+
 Value cummax(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
+    if (x.isLogical())
+        return logicalizeCumResult(cummax(toDoubleValue(x, mr), dim, mr), mr);
     // NaN propagation: MATLAB cummax skips NaN if 'omitnan' is passed
     // and propagates otherwise. Default = 'omitnan' since R2018a; we
     // skip NaN here, treating them as identity.
@@ -2397,6 +2423,8 @@ Value cummax(const Value &x, int dim, std::pmr::memory_resource *mr)
 
 Value cummin(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
+    if (x.isLogical())
+        return logicalizeCumResult(cummin(toDoubleValue(x, mr), dim, mr), mr);
     return cumScanDispatch(x, dim, cumminScan, [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
