@@ -2595,19 +2595,15 @@ Value diffInteger(const Value &x, int n, int d, std::pmr::memory_resource *mr)
 
 Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
 {
-    if (n < 0)
-        throw Error("diff: order n must be non-negative",
+    // MATLAB: the difference order N must be a positive integer scalar; n == 0
+    // (identity) and negative orders are errors. The reg validates the
+    // user-facing path; this guards the C++ primitive too (no internal caller
+    // passes 0).
+    if (n < 1)
+        throw Error("diff: Difference order N must be a positive integer scalar",
                      0, 0, "diff", "", "numkit:diff:badOrder");
 
     const bool isInt = isIntegerType(x.type());
-
-    if (n == 0) {
-        // Identity copy. Integer types keep their class (MATLAB); complex
-        // keeps both parts; otherwise promote to DOUBLE shape.
-        if (isInt) return copyIntegerSameClass(x, mr);
-        if (x.type() == ValueType::COMPLEX) return copyComplexSameShape(x, mr);
-        return copyToDouble(x, mr);
-    }
 
     // Scalar: MATLAB returns 1×0 empty (class preserved for integer input).
     if (x.isScalar())
@@ -3900,9 +3896,14 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     int n = 1;
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty()) {
+        // MATLAB: the difference order N must be a positive integer scalar
+        // (a zero, negative, fractional or non-scalar order is an error).
+        if (args[1].numel() != 1)
+            throw Error("diff: Difference order N must be a positive integer scalar",
+                         0, 0, "diff", "", "numkit:diff:badOrder");
         const double nv = args[1].toScalar();
-        if (nv != std::floor(nv) || nv < 0)
-            throw Error("diff: order n must be a non-negative integer",
+        if (!std::isfinite(nv) || nv != std::floor(nv) || nv < 1.0)
+            throw Error("diff: Difference order N must be a positive integer scalar",
                          0, 0, "diff", "", "numkit:diff:badOrder");
         n = static_cast<int>(nv);
     }
