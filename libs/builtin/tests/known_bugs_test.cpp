@@ -303,3 +303,20 @@ TEST_F(BuiltinKnownBug, ConcatIntegerTypes)
     EXPECT_DOUBLE_EQ(evalScalar("isa(b,'int8')"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("numel(b)"), 4.0);
 }
+
+// bugs/builtin/accumarray-integer-vals.md — accumarray accepts integer/logical
+// vals (was: throw "vals must be DOUBLE"). Output class follows the reducer:
+// sum/prod/mean -> double, max/min preserve the integer class. FIXED
+// 2026-06-05; deep coverage in accumarray_integer_vals_test.cpp.
+TEST_F(BuiltinKnownBug, AccumarrayIntegerVals)
+{
+    eval("s = accumarray([1;2;1], int8([10;20;30]));");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(s,'double')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(1)"), 40.0);
+    eval("mx = accumarray([1;2;1], int8([100;100;30]), [], @max);");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(mx,'int8')"), 1.0);   // max preserves int class
+    EXPECT_DOUBLE_EQ(evalScalar("double(mx(1))"), 100.0);
+    eval("lg = accumarray([1;2;1], logical([1;0;1]));");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(lg,'double')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("lg(1)"), 2.0);
+}

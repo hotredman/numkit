@@ -17,6 +17,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/value_type.hpp>
 
 #include "helpers.hpp"
 
@@ -369,10 +370,31 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
                          0, 0, "accumarray", "", "numkit:accumarray:sparse");
     }
 
+    // MATLAB accumarray accepts integer/logical vals. The output class follows
+    // the reducer: sum/prod/mean -> double, but max/min PRESERVE the integer
+    // class of vals (like the reductions). Promote to double for the
+    // double-only inner loops, then narrow max/min back to the int class.
+    const Value &valsArg = args[1];
+    const bool valsInt = !valsArg.isComplex() && isIntegerType(valsArg.type());
+    const bool valsProm = valsInt || valsArg.isLogical();
+    Value valsHold;
+    if (valsProm) valsHold = toDoubleValue(valsArg, mr);
+    const Value &vals = valsProm ? valsHold : valsArg;
+
     Span<const size_t> shapeSpan(shape.data(), shape.size());
-    outs[0] = customFn
-        ? accumarrayGeneral(args[0], args[1], shapeSpan, *customFn, fillVal, ctx, mr)
-        : accumarray(args[0], args[1], shapeSpan, op, fillVal, mr);
+    if (customFn) {
+        // Custom function handle: numkit applies the handle to a double group,
+        // so the result is double. MATLAB passes the original-class group and
+        // follows the handle's output class (e.g. @(x)x(1) on int8 -> int8) —
+        // numkit stays lenient (double) on that niche; @max/@min/@sum/... are
+        // recognised as built-in reducers above and take the typed path.
+        outs[0] = accumarrayGeneral(args[0], vals, shapeSpan, *customFn, fillVal, ctx, mr);
+    } else {
+        Value res = accumarray(args[0], vals, shapeSpan, op, fillVal, mr);
+        if (valsInt && (op == AccumReducer::Max || op == AccumReducer::Min))
+            res = doubleToIntegerExact(res, valsArg.type(), mr);
+        outs[0] = std::move(res);
+    }
 }
 
 } // namespace detail

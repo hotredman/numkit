@@ -1,0 +1,22 @@
+{
+  "name": "accumarray_integer_vals",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "s = accumarray([1;2;1], int8([10;20;30])); mx = accumarray([1;2;1], int8([100;100;30]), [], @max); mn = accumarray([1;2;1], int8([10;20;30]), [], @min); pd = accumarray([1;2;1], int8([10;20;30]), [], @prod); mu = accumarray([1;2;1], int8([10;20;30]), [], @mean); mxu = accumarray([1;2;1], uint16([100;200;30]), [], @max); t2 = accumarray([1 1;2 2], int8([5;7])); sz3 = accumarray([1;2;1], int8([10;20;30]), [3 1]); fv = accumarray([1;3], int8([5;7]), [4 1], @sum, -1); lg = accumarray([1;2;1], logical([1;0;1])); dd = accumarray([1;2;1], [10;20;30]);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "s(1)", "s(2)", "double(isa(s,'double'))",
+    "double(mx(1))", "double(mx(2))", "double(isa(mx,'int8'))",
+    "double(mn(1))", "double(mn(2))", "double(isa(mn,'int8'))",
+    "pd(1)", "double(isa(pd,'double'))",
+    "mu(1)", "double(isa(mu,'double'))",
+    "double(mxu(2))", "double(isa(mxu,'uint16'))",
+    "t2(1)", "t2(4)", "numel(t2)",
+    "sz3(3)", "numel(sz3)",
+    "fv(2)", "fv(4)",
+    "lg(1)", "lg(2)", "double(isa(lg,'double'))",
+    "dd(1)", "dd(2)"
+  ],
+  "comment": "accumarray accepts integer/logical vals (was: throw 'vals must be DOUBLE'). MATLAB R2025b output class follows the reducer: sum/prod/mean -> double, but max/min PRESERVE the integer class of vals (like the reductions). Branches: default sum int8 [40 20] double; @max int8 [100 100] int8; @min int8 [10 20] int8; @prod double [300 20]; @mean double [20 20]; @max uint16 [100 200] uint16; 2-D subs [5 0 0 7]; sz [3 1] -> [40 20 0]; fillval -1 -> [5 -1 7 -1]; logical default-sum -> double [2 0]; double unchanged. Class checked via isa(). NOTE not fingerprinted (numkit-lenient niches, see md): logical+@max -> MATLAB logical / numkit double; custom non-builtin handle (e.g. @(x)x(1)) follows handle class in MATLAB / numkit double. bugs/builtin/accumarray-integer-vals.md."
+}
