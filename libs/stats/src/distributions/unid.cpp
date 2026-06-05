@@ -33,6 +33,28 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Scalar kernels for the parameter-broadcast path (vector N). Own their
+// per-element domain (N<1 or noninteger N → NaN). Mirror the public fns.
+inline double unidpdfK(double k, double N) {
+    if (N < 1.0 || std::floor(N) != N) return std::numeric_limits<double>::quiet_NaN();
+    if (k < 1.0 || k > N || std::floor(k) != k) return 0.0;
+    return 1.0 / N;
+}
+
+inline double unidcdfK(double k, double N) {
+    if (N < 1.0 || std::floor(N) != N) return std::numeric_limits<double>::quiet_NaN();
+    if (k < 1.0) return 0.0;
+    if (k >= N) return 1.0;
+    return std::floor(k) / N;
+}
+
+inline double unidinvK(double p, double N) {
+    if (!(N >= 1.0) || std::floor(N) != N) return std::numeric_limits<double>::quiet_NaN();
+    if (std::isnan(p) || p <= 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
+    const double r = std::ceil(p * N);
+    return r < 1.0 ? 1.0 : (r > N ? N : r);
+}
+
 } // anonymous
 
 Value unidpdf(const Value &k, double N, std::pmr::memory_resource *mr)
@@ -105,16 +127,24 @@ void unidpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("unidpdf: requires (k, N)", 0, 0, "unidpdf", "", "numkit:unidpdf:nargin");
-    outs[0] = unidpdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &N = args[1];
+    if (N.isScalar())
+        outs[0] = unidpdf(args[0], N.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist2(args[0], N, mr, "unidpdf", unidpdfK);
 }
 
 void unidcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 2)
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    if (a.size() < 2)
         throw Error("unidcdf: requires (k, N[, 'upper'])", 0, 0, "unidcdf", "", "numkit:unidcdf:nargin");
-    Value v = unidcdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &N = a[1];
+    Value v = N.isScalar() ? unidcdf(a[0], N.toScalar(), mr)
+                           : broadcast_dist2(a[0], N, mr, "unidcdf", unidcdfK);
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -123,7 +153,12 @@ void unidinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 {
     if (args.size() < 2)
         throw Error("unidinv: requires (p, N)", 0, 0, "unidinv", "", "numkit:unidinv:nargin");
-    outs[0] = unidinv(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &N = args[1];
+    if (N.isScalar())
+        outs[0] = unidinv(args[0], N.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist2(args[0], N, mr, "unidinv", unidinvK);
 }
 
 void unidrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

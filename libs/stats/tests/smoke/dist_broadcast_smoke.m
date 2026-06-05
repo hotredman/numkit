@@ -70,10 +70,17 @@ fprintf('poisspdf(2,[1 2 3])       = %s (expect 0.18393972 0.27067057 0.22404181
 fprintf('poisscdf(2,[1 2 3])       = %s (expect 0.91969860 0.67667642 0.42319008)\n', fmt(poisscdf(2,[1 2 3])));
 fprintf('poisspdf(2,[0 -1 2])      = %s (expect 0 NaN 0.27067057; lam==0->0, lam<0->NaN)\n', fmt(poisspdf(2,[0 -1 2])));
 
+fprintf('\n--- discrete closed-form: unid + geometric (broadcast N/p) ---\n');
+fprintf('unidpdf(3,[5 10])         = %s (expect 0.2 0.1)\n', fmt(unidpdf(3,[5 10])));
+fprintf('unidinv(0.5,[10 20])      = %s (expect 5 10)\n', fmt(unidinv(0.5,[10 20])));
+fprintf('geopdf(2,[0.2 0.5])       = %s (expect 0.128 0.125)\n', fmt(geopdf(2,[0.2 0.5])));
+fprintf('geocdf(2,[0.2 0.5])       = %s (expect 0.488 0.875)\n', fmt(geocdf(2,[0.2 0.5])));
+fprintf('geoinv([.1 .5 .9],0.3)    = %s (expect 0 1 6)\n', fmt(geoinv([0.1 0.5 0.9],0.3)));
+
 fprintf('\n--- regressions (scalar-param path unchanged) ---\n');
 fprintf('normpdf(0)=%.10g (expect 0.3989422804)  exppdf(2)=%.10g (expect 0.1353352832)\n', normpdf(0), exppdf(2));
 fprintf('raylpdf(1,2)=%.10g (expect 0.2206242256)  wblpdf(2,3,4)=%.10g (expect 0.3242488132)\n', raylpdf(1,2), wblpdf(2,3,4));
-fprintf('fcdf(2,5,10)=%.10g (expect 0.8358050491)  binopdf(2,5,0.3)=%.10g (expect 0.3087)\n', fcdf(2,5,10), binopdf(2,5,0.3));
+fprintf('binopdf(2,5,0.3)=%.10g (expect 0.3087)  unidpdf(3,10)=%.10g (expect 0.1)\n', binopdf(2,5,0.3), unidpdf(3,10));
 fprintf('gampdf(1,2,2)=%.10g (expect 0.1516326649)  betapdf(0.3,2,3)=%.10g (expect 1.764)\n', gampdf(1,2,2), betapdf(0.3,2,3));
 fprintf('gaminv(0.5,2,2)=%.10g (expect 3.356693980)  chi2inv(0.5,4)=%.10g (expect 3.356693980)\n', gaminv(0.5,2,2), chi2inv(0.5,4));
 fprintf('empty: numel(normpdf([],0,1))=%d (expect 0)\n', numel(normpdf([],0,1)));

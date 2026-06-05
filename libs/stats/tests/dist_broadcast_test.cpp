@@ -19,6 +19,8 @@
 //   - fisher_f    (fpdf/fcdf/finv)           — cycle 34 (betainc-based, 2-param)
 //   - binomial    (binopdf/binocdf/binoinv)  — cycle 35 (discrete)
 //   - poisson     (poisspdf/poisscdf/poissinv) — cycle 35 (discrete)
+//   - unid        (unidpdf/unidcdf/unidinv)  — cycle 36 (discrete closed-form)
+//   - geometric   (geopdf/geocdf/geoinv)     — cycle 36 (discrete closed-form)
 // MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
@@ -394,6 +396,43 @@ TEST_F(DistBroadcastTest, PoissonBroadcast)
     EXPECT_TRUE(eval("isnan(d(2))").toBool());
 }
 
+// ── Discrete closed-form: unid + geometric broadcast (cycle 36) ──────
+TEST_F(DistBroadcastTest, UnidBroadcast)
+{
+    eval("y = unidpdf(3, [5 10]);");            // vector N
+    EXPECT_NEAR(evalScalar("y(1)"), 0.2, 1e-13);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.1, 1e-13);
+    eval("z = unidpdf([1 3 7], 5);");           // k>N → 0
+    EXPECT_NEAR(evalScalar("z(2)"), 0.2, 1e-13);
+    EXPECT_DOUBLE_EQ(evalScalar("z(3)"), 0.0);
+    eval("c = unidcdf(3, [5 10]);");
+    EXPECT_NEAR(evalScalar("c(1)"), 0.6, 1e-13);
+    eval("q = unidinv(0.5, [10 20]);");
+    EXPECT_DOUBLE_EQ(evalScalar("q(1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q(2)"), 10.0);
+    // N<1 / noninteger N → NaN per element
+    eval("d = unidpdf(3, [0 -1 5]);");
+    EXPECT_TRUE(eval("isnan(d(1))").toBool());
+    EXPECT_NEAR(evalScalar("d(3)"), 0.2, 1e-13);
+    EXPECT_TRUE(eval("isnan(unidpdf(3, 4.5))").toBool());
+}
+
+TEST_F(DistBroadcastTest, GeometricBroadcast)
+{
+    eval("y = geopdf(2, [0.2 0.5]);");          // vector p
+    EXPECT_NEAR(evalScalar("y(1)"), 0.128, 1e-13);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.125, 1e-13);
+    eval("c = geocdf(2, [0.2 0.5]);");
+    EXPECT_NEAR(evalScalar("c(1)"), 0.488, 1e-13);
+    EXPECT_NEAR(evalScalar("c(2)"), 0.875, 1e-13);
+    eval("q = geoinv([.1 .5 .9], 0.3);");       // MATLAB geo starts at 0
+    EXPECT_DOUBLE_EQ(evalScalar("q(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q(3)"), 6.0);
+    EXPECT_TRUE(eval("isnan(geopdf(2, 1.5))").toBool());   // p>1 → NaN
+    EXPECT_DOUBLE_EQ(evalScalar("geopdf(1.5, 0.3)"), 0.0); // noninteger k → 0
+}
+
 // ── Regressions: scalar-parameter path unchanged; edges ──────────────
 TEST_F(DistBroadcastTest, ScalarPathUnchanged)
 {
@@ -426,6 +465,10 @@ TEST_F(DistBroadcastTest, ScalarPathUnchanged)
     EXPECT_NEAR(evalScalar("binocdf(2,5,0.3)"), 0.83692, 1e-10);
     EXPECT_NEAR(evalScalar("poisscdf(3,4)"),    0.4334701203667, 1e-9);
     EXPECT_DOUBLE_EQ(evalScalar("poissinv(0.7,5)"), 6.0);
+    // unid/geometric scalar-parameter path unchanged
+    EXPECT_NEAR(evalScalar("unidpdf(3,10)"),    0.1, 1e-13);
+    EXPECT_NEAR(evalScalar("geopdf(2,0.3)"),    0.147, 1e-13);
+    EXPECT_DOUBLE_EQ(evalScalar("geoinv(0.7,0.3)"), 3.0);
 }
 
 TEST_F(DistBroadcastTest, EmptyAndMismatch)
