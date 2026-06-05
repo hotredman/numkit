@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set PROJECT_DIR=%~dp0
+set PROJECT_DIR=%~dp0..\
 set IDE_DIR=%PROJECT_DIR%ide
 set DESKTOP_DIR=%IDE_DIR%\desktop
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist

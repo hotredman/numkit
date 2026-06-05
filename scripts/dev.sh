@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 IDE_DIR="${PROJECT_DIR}/ide"
 WASM_DIST="${PROJECT_DIR}/build/browser/wasm/dist"
 

@@ -16,7 +16,7 @@ merge cadence; workers only push their own feature branches.
 |---|---|---|---|
 | **CORE** | `core/` (engine, parser, lexer, compiler, VM, TreeWalker, AST, value, environment, debugger, vfs, scratch) · `core/tests/` · top-level `tests/` · `core/CMakeLists.txt` · `NAMESPACE_DESIGN.md` | `main` (or `feature/core` for big refactors) | `numkit-m/` (main worktree) |
 | **LIBS-`<area>`** (1+ workers) | `libs/<area>/` for one or more areas (signal / stats / image / comm / control / wavelet / graphics / io / optim / builtin / fitting). Includes `include/`, `src/`, `tests/`, `benchmarks/`, and the per-lib `CMakeLists.txt`. Plus `tools/parity/` · `PROGRESS.md` · `BUGS.md` | `feature/libs-<area>` | `numkit-m-libs-<area>/` |
-| **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `docs/` (GitHub Pages output) · `brand/` · scripts: `dev.{sh,bat}`, `desktop.{sh,bat}`, `deploy.{sh,bat}`, `build-desktop.bat`, `build.{sh,bat}` (the `--wasm` path) | `feature/ide` | `numkit-m-ide/` |
+| **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `docs/` (GitHub Pages output) · `brand/` · scripts in `scripts/`: dev / desktop / deploy / build-desktop / build (the `--wasm` path) | `feature/ide` | `numkit-m-ide/` |
 
 Multiple LIBS-workers can run concurrently — each owns one or more libs by
 name, never the same lib as another. Example split for a busy session:
@@ -109,7 +109,7 @@ git push origin --delete feature/libs-signal   # remote (if pushed)
 - For a CORE API change (`Value`, `Engine`, `CallContext`): the LIBS build
   is a strict downstream — must be verified.
 - For a libc++-incompatible change (e.g. `std::cyl_bessel_*`,
-  `std::format` other than the basics): WASM build (`build.bat --wasm`)
+  `std::format` other than the basics): WASM build (`scripts/build.bat --wasm`)
   must succeed. Emscripten ships libc++ which lacks several optional
   C++17/20 features. See BUGS.md #36 for what NOT to do.
 

@@ -132,7 +132,7 @@ cmake --preset=portable         # reference build, no optimizations
 cmake --build --preset=portable
 ```
 
-Or use the wrapper scripts: `./build.sh` (Linux/macOS) or `build.bat` (Windows).
+Or use the wrapper scripts: `./scripts/build.sh` (Linux/macOS) or `scripts/build.bat` (Windows).
 
 ### Run Tests
 
@@ -152,7 +152,7 @@ npm install
 npm run build
 ```
 
-Or: `./build.sh --wasm` / `build.bat --wasm`.
+Or: `./scripts/build.sh --wasm` / `scripts/build.bat --wasm`.
 
 ---
 
@@ -393,10 +393,10 @@ ide/                                  # Numkit IDE — React + Vite frontend
     desktop/                          # Electron shell
     public/examples/                  # 80 example .m scripts
 
-tools/parity/                         # Parity harness — runs MATLAB / Octave / numkit
-    run_parity.py                     # Per-spec runner; updates PROGRESS.md rows
-    diff_local_ref.py                 # MATLAB-doc TOC vs PROGRESS.md gap report
-    specs/                            # JSON spec per function (input setup + tol)
+tools/                                # Dev tooling
+    parity/                           # Parity harness (run_parity.py) + 1500+ JSON specs
+    maintenance/                      # check_api.py · cleanup_pages · check_vfs_invariant
+scripts/                              # build / dev / deploy / desktop wrappers (sh + bat)
 
 docs/                                 # Design notes + API ruleset
     design/                           # NAMESPACE_DESIGN · OBJECT_MODEL · VM_CALLBACKS_PLAN · COORDINATION
