@@ -1231,6 +1231,23 @@ TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesTransitively)
         << "grandchild must see the redefined grandparent method";
 }
 
+TEST_P(ClassdefRedefineTest, ForwardReferencedBaseBackfillsSubclass)
+{
+    // Define the subclass BEFORE its base. The base's later definition must
+    // back-fill the subclass, which recorded the base name but registered
+    // without the not-yet-defined base's members.
+    eval("classdef FDog < FAnimal\n"
+         "  methods\n    function b = bark(obj)\n      b = 7;\n    end\n  end\nend\n");
+    eval("classdef FAnimal\n  properties\n    legs = 4\n  end\n"
+         "  methods\n    function s = sound(obj)\n      s = 42;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("d = FDog; d.sound()"), 42.0)
+        << "subclass must inherit a base defined AFTER it (forward reference)";
+    EXPECT_DOUBLE_EQ(evalScalar("d = FDog; d.legs"), 4.0) << "inherited property too";
+    EXPECT_DOUBLE_EQ(evalScalar("d = FDog; d.bark()"), 7.0) << "own method intact";
+    engine.eval("d = FDog;");
+    EXPECT_TRUE(engine.eval("isa(d, 'FAnimal')").toBool()) << "isa reflects the back-filled base";
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ClassdefRedefineTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
@@ -2226,6 +2243,39 @@ TEST(ClassdefMFile, PackagedClassQualifiedIdentity)
         engine.eval("rehash");
         EXPECT_DOUBLE_EQ(engine.eval("w = geo.Vec(5); w.bump()").toScalar(), 25.0)
             << "edited packaged class must reload after rehash";
+    }
+    fs::remove_all(dir);
+}
+
+// An inline subclass of a FILE base must re-merge the base after `rehash`
+// reloads an edited base file. The inline subclass survives rehash (it is not
+// an m-file), so rehash reloads the base and cascades the refresh to it.
+TEST(ClassdefMFile, RehashBaseRefreshesInlineSubclass)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_rehash_inline_sub_test";
+    fs::create_directories(dir);
+    auto writeBase = [&](int k) {
+        std::ofstream f(dir / "RBaseF.m", std::ios::trunc);
+        f << "classdef RBaseF\n  properties\n    tag = 0\n  end\n"
+             "  methods\n    function r = bval(obj)\n      r = "
+          << k << ";\n    end\n  end\nend\n";
+    };
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        writeBase(10);
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        // Inline subclass of the FILE base (the base loads via the path).
+        engine.eval("classdef RSubI < RBaseF\n"
+                    "  methods\n    function b = own(obj)\n      b = 1;\n    end\n  end\nend\n");
+        EXPECT_DOUBLE_EQ(engine.eval("s = RSubI; s.bval()").toScalar(), 10.0);
+        // Edit the base file, rehash → the inline subclass must re-merge it.
+        writeBase(20);
+        engine.eval("rehash");
+        EXPECT_DOUBLE_EQ(engine.eval("s = RSubI; s.bval()").toScalar(), 20.0)
+            << "inline subclass must re-merge the rehashed file base";
+        EXPECT_DOUBLE_EQ(engine.eval("s = RSubI; s.own()").toScalar(), 1.0);
     }
     fs::remove_all(dir);
 }
