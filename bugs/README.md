@@ -120,14 +120,15 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (86 entries):** ✅ 38 fixed · 🔴 48 open = **10 bug** + 5 stub +
+**Tally (87 entries):** ✅ 39 fixed · 🔴 48 open = **10 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
-### ✅ FIXED (38)
+### ✅ FIXED (39)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [builtin/cummax-cummin-integer](builtin/cummax-cummin-integer.md) | P3 | cummax/cummin accept integer — preserve int class (promote→cummax/cummin→doubleToIntegerExact; exact, order stats) (2026-06-05) |
 | bug | [builtin/setops-typeclass](builtin/setops-typeclass.md) | P2 | ismember/intersect/setdiff/union accept char/logical/integer — values preserve class, ia/ib & ismember loc stay double (2026-06-05) |
 | bug | [builtin/unique-typeclass](builtin/unique-typeclass.md) | P2 | unique accepts char/logical/integer — preserves class on values, ia/ic stay double (promote→unique→narrowUniqueClass) (2026-06-05) |
 | bug | [builtin/sort-char](builtin/sort-char.md) | P2 | sort accepts char — sorts by code point, preserves char class, index double (charizeSortResult narrow; shape-preserving, unlike toChar) (2026-06-05) |

@@ -1,0 +1,17 @@
+{
+  "name": "cummax_cummin_integer",
+  "namespace": "builtin",
+  "setup": "J = int8([3 1 2 5 4]); K = uint16([30 10 50 20]); M = int8([3 1; 1 5]); N = int8([0 -3 2 -5]);",
+  "expr": "a = cummax(J); b = cummin(J); k = cummax(K); c2 = cummax(M, 2); rv = cummax(J, 'reverse'); ng = cummin(N);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "double(a(1))", "double(a(3))", "double(a(4))", "double(a(5))",
+    "double(b(1))", "double(b(2))", "double(b(5))",
+    "double(k(2))", "double(k(3))",
+    "double(c2(1,2))", "double(c2(2,2))",
+    "double(rv(1))", "double(rv(5))",
+    "double(ng(2))", "double(ng(3))", "double(ng(4))"
+  ],
+  "comment": "cummax/cummin on integer input. MATLAB PRESERVES the integer class (order statistics — result is a subset of the input, exact double round-trip). Fingerprints read values via double(...). Covers int8 ([3 3 3 5 5] / [3 1 1 1 1]), uint16, 2-D dim2, 'reverse', negative signed. bugs/builtin/cummax-cummin-integer.md."
+}
