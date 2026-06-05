@@ -1,0 +1,15 @@
+{
+  "name": "concat_integer_types",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = [int8([1 2]); int8([3 4])]; b = [int8([1 2]), int8([3 4])]; c = cat(1, uint16([10 20]), uint16([30 40])); d = [int8(5); 50.6]; sa = [int8(5); 300]; sl = [int8(5); -300]; g = [int8(5); true]; m = [int8(5), int16(6)]; z = [int8(5); 2+3i];",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "double(a(2,1))", "double(a(1,2))", "double(b(3))", "numel(b)",
+    "double(c(2,2))",
+    "double(d(2))", "double(sa(2))", "double(sl(2))",
+    "double(g(2))", "double(m(2))", "double(z(2))"
+  ],
+  "comment": "Integer concatenation (cat/[;]/[,]/vertcat/horzcat). MATLAB R2025b: the FIRST integer operand's class wins; double/logical/a different int class/the real part of complex are cast with round-half-away + saturate. [int8;int8]=int8 [1 2;3 4]; [int8,int8]=int8 1x4; cat(1,uint16)=uint16; [int8;50.6]=51 (round); [int8;300]=127 (sat hi); [int8;-300]=-128 (sat lo); [int8;true]=1; [int8,int16]=int8 (first wins); [int8;2+3i]=2 (real part). Values read via double(...). bugs/builtin/concat-integer-types.md."
+}

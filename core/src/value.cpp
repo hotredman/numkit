@@ -4,8 +4,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 
 namespace numkit {
 
@@ -491,17 +493,27 @@ Value Value::colonRangeTyped(double start, double step, double stop,
 // Concat helpers: type promotion and element access
 // ============================================================
 
-// Type promotion order: LOGICAL → DOUBLE → COMPLEX.
-// Integer types (INT8..UINT64) are declared but not yet creatable at runtime;
-// when they are, add them here with appropriate promotion rules.
+// Type promotion order for concatenation. An INTEGER operand dominates: MATLAB
+// R2025b returns the class of the FIRST integer operand, casting every other
+// operand (double / logical / a different integer class / the real part of a
+// complex) to it with round-half-away + saturate — it is NOT an error. With no
+// integer present: COMPLEX > DOUBLE > LOGICAL. (char / cell / complex have their
+// own dedicated concat paths before this is reached; single stays unsupported.)
 static ValueType promoteNumericType(const Value *elems, size_t count)
 {
     bool hasDouble = false;
     bool hasComplex = false;
+    bool hasInt = false;
+    ValueType firstInt = ValueType::DOUBLE;
     for (size_t i = 0; i < count; ++i) {
         if (elems[i].isEmpty())
             continue;
-        switch (elems[i].type()) {
+        const ValueType t = elems[i].type();
+        if (isIntegerType(t)) {
+            if (!hasInt) { hasInt = true; firstInt = t; }
+            continue;
+        }
+        switch (t) {
         case ValueType::COMPLEX:
             hasComplex = true;
             break;
@@ -516,11 +528,48 @@ static ValueType promoteNumericType(const Value *elems, size_t count)
                 + mtypeName(elems[i].type()) + "'");
         }
     }
+    if (hasInt)
+        return firstInt;          // integer class dominates (cast the rest)
     if (hasComplex)
         return ValueType::COMPLEX;
     if (hasDouble)
         return ValueType::DOUBLE;
     return ValueType::LOGICAL; // all-logical stays logical
+}
+
+// Cast a DOUBLE working buffer to an integer class with MATLAB's conversion
+// (round half away from zero, then saturate to the class range). Used to finish
+// an integer concatenation that was computed in double precision.
+static Value castConcatToInteger(const Value &d, ValueType vt,
+                                 std::pmr::memory_resource *mr)
+{
+    const auto &dd = d.dims();
+    Value r = dd.is3D() ? Value::matrix3d(dd.rows(), dd.cols(), dd.pages(), vt, mr)
+                        : Value::matrix(dd.rows(), dd.cols(), vt, mr);
+    const size_t n = d.numel();
+    const double *src = d.doubleData();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = std::round(src[i]);
+            if (v < lo) v = lo; else if (v > hi) v = hi;
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (vt) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
 }
 
 // Read one element as double. Supports every numeric ValueType plus CHAR
@@ -809,9 +858,13 @@ Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource
         rows = 1;
 
     ValueType outType = promoteNumericType(elems, count);
+    // Integer output is computed in DOUBLE then cast (round+saturate) at the
+    // end — the elemAsDouble copy path already reads every operand class.
+    const bool intOut = isIntegerType(outType);
+    const ValueType workType = intOut ? ValueType::DOUBLE : outType;
 
-    auto result = (pages > 1) ? Value::matrix3d(rows, totalCols, pages, outType, mr)
-                              : Value::matrix(rows, totalCols, outType, mr);
+    auto result = (pages > 1) ? Value::matrix3d(rows, totalCols, pages, workType, mr)
+                              : Value::matrix(rows, totalCols, workType, mr);
 
     size_t colOff = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -820,10 +873,10 @@ Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource
         size_t eR, eC, eP;
         getElemDims(elems[i], eR, eC, eP);
 
-        if (outType == ValueType::COMPLEX)
+        if (workType == ValueType::COMPLEX)
             copyBlock(result.complexDataMut(), rows, totalCols,
                       elems[i], eR, eC, eP, 0, colOff, pages, readElemAsComplex);
-        else if (outType == ValueType::LOGICAL)
+        else if (workType == ValueType::LOGICAL)
             copyBlock(result.logicalDataMut(), rows, totalCols,
                       elems[i], eR, eC, eP, 0, colOff, pages, readElemAsLogical);
         else
@@ -831,7 +884,7 @@ Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource
                       elems[i], eR, eC, eP, 0, colOff, pages, [](const Value &v, size_t i) { return v.elemAsDouble(i); });
         colOff += eC;
     }
-    return result;
+    return intOut ? castConcatToInteger(result, outType, mr) : result;
 }
 
 // ============================================================
@@ -955,9 +1008,12 @@ Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource
     }
 
     ValueType outType = promoteNumericType(elems, count);
+    // Integer output computed in DOUBLE then cast (round+saturate) — see horzcat.
+    const bool intOut = isIntegerType(outType);
+    const ValueType workType = intOut ? ValueType::DOUBLE : outType;
 
-    auto result = (pages > 1) ? Value::matrix3d(totalRows, cols, pages, outType, mr)
-                              : Value::matrix(totalRows, cols, outType, mr);
+    auto result = (pages > 1) ? Value::matrix3d(totalRows, cols, pages, workType, mr)
+                              : Value::matrix(totalRows, cols, workType, mr);
 
     size_t rowOff = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -966,10 +1022,10 @@ Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource
         size_t eR, eC, eP;
         getElemDims(elems[i], eR, eC, eP);
 
-        if (outType == ValueType::COMPLEX)
+        if (workType == ValueType::COMPLEX)
             copyBlock(result.complexDataMut(), totalRows, cols,
                       elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsComplex);
-        else if (outType == ValueType::LOGICAL)
+        else if (workType == ValueType::LOGICAL)
             copyBlock(result.logicalDataMut(), totalRows, cols,
                       elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsLogical);
         else
@@ -977,7 +1033,7 @@ Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource
                       elems[i], eR, eC, eP, rowOff, 0, pages, [](const Value &v, size_t i) { return v.elemAsDouble(i); });
         rowOff += eR;
     }
-    return result;
+    return intOut ? castConcatToInteger(result, outType, mr) : result;
 }
 
 // ============================================================
