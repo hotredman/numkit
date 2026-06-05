@@ -1170,6 +1170,26 @@ TEST_P(ClassdefRedefineTest, RedefineDoesNotDisturbOtherClasses)
         << "RDAB must be untouched by RDA's redefinition";
 }
 
+TEST_P(ClassdefRedefineTest, ClearClassesRemovesUserClass)
+{
+    // `clear classes` must actually remove an inline user class. Before the fix
+    // the class survived (classes_/classDefs_ untouched) so it still constructed.
+    eval("classdef RDClr\n  properties\n    v = 7\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDClr; o.v"), 7.0);
+    eval("clear classes");
+    EXPECT_THROW(engine.eval("o = RDClr;"), std::exception)
+        << "class must be gone after `clear classes` (no .m on path to reload)";
+}
+
+TEST_P(ClassdefRedefineTest, ClearAllRemovesUserClass)
+{
+    eval("classdef RDClrA\n  properties\n    v = 3\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDClrA; o.v"), 3.0);
+    eval("clear all");
+    EXPECT_THROW(engine.eval("o = RDClrA;"), std::exception)
+        << "class must be gone after `clear all`";
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ClassdefRedefineTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
@@ -2092,6 +2112,41 @@ TEST(ClassdefMFile, LoadFromFile)
         EXPECT_DOUBLE_EQ(engine.eval("v = Vec2(3, 4); v.x").toScalar(), 3.0);
         EXPECT_DOUBLE_EQ(engine.eval("v.sumsq()").toScalar(), 25.0);
         EXPECT_EQ(engine.eval("class(v)").toString(), "Vec2");
+    }
+    fs::remove_all(dir);
+}
+
+// Editing a class .m file then calling `rehash` must reload the new
+// definition, not keep serving the stale class machinery (registry +
+// `Name>method` chunks + bare ctor external). Before the fix rehash only
+// dropped the bare-key chunk (a no-op for a class), so the old class lingered.
+TEST(ClassdefMFile, RehashReloadsEditedClass)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_classdef_rehash_test";
+    fs::create_directories(dir);
+    auto writeVer = [&](int k) {
+        std::ofstream f(dir / "RhVec.m", std::ios::trunc);
+        f << "classdef RhVec\n"
+             "  properties\n    x = 0\n  end\n"
+             "  methods\n"
+             "    function obj = RhVec(a)\n      obj.x = a;\n    end\n"
+             "    function r = bump(obj)\n      r = obj.x + "
+          << k << ";\n    end\n"
+             "  end\n"
+             "end\n";
+    };
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        writeVer(10);
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        EXPECT_DOUBLE_EQ(engine.eval("v = RhVec(5); v.bump()").toScalar(), 15.0);
+        // Rewrite the method body, then rehash → next reference reloads it.
+        writeVer(20);
+        engine.eval("rehash");
+        EXPECT_DOUBLE_EQ(engine.eval("v = RhVec(5); v.bump()").toScalar(), 25.0)
+            << "edited class file must reload after rehash";
     }
     fs::remove_all(dir);
 }
