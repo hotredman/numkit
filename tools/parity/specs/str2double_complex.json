@@ -1,0 +1,18 @@
+{
+  "name": "str2double_complex",
+  "namespace": "builtin",
+  "setup": "",
+  "expr": "a = str2double('1+2i'); b = str2double('1-2i'); p = str2double('2i'); n = str2double('-3i'); ii = str2double('i'); ni = str2double('-i'); jf = str2double('1+2j'); ex = str2double('1e-3+2i'); e3 = str2double('1e3i'); nn = str2double('-2-3i'); oi = str2double('1+i'); sp = str2double(' 2 + 3i '); rr = str2double('5'); cI = str2double('1+2I'); cm = str2double({'1+2i','3','4-1i'});",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "real(a)", "imag(a)", "imag(b)",
+    "real(p)", "imag(p)", "imag(n)", "imag(ii)", "imag(ni)",
+    "real(jf)", "imag(jf)", "real(ex)", "imag(ex)", "imag(e3)",
+    "real(nn)", "imag(nn)", "real(oi)", "imag(oi)",
+    "real(sp)", "imag(sp)",
+    "rr", "isreal(rr)", "isnan(cI)",
+    "real(cm(3))", "imag(cm(3))", "isreal(cm)"
+  ],
+  "comment": "str2double parses complex-number strings (was NaN). Trailing lowercase i/j marks imaginary; real/imag split at the last non-exponent +/-; pure-imaginary + bare-i forms; '1e-3+2i'=0.001+2i (exponent edge); '1e3i'=1000i; '1+i'=1+1i; ' 2 + 3i '=2+3i (spaces); '5' stays real (isreal=1); capital '1+2I'=NaN; cell mix {'1+2i','3','4-1i'} -> COMPLEX (isreal=0). bugs/builtin/str2double-complex.md."
+}

@@ -1,9 +1,27 @@
 # builtin.str2double — does not parse complex-number strings
 
-- **Status:** 🔴 OPEN
-- **Severity:** P3 (returns NaN where MATLAB parses a complex value)
+- **Status:** ✅ FIXED (2026-06-05)
+- **Severity:** P3 (returned NaN where MATLAB parses a complex value)
 - **Kind:** bug
 - **Found:** 2026-06-05 via DEEP-PROBE (string-function sweep, cycle 57)
+
+## Fixed
+- Fixed: 2026-06-05 (bug-fix loop, cycle 58),
+  `libs/builtin/src/language/strings/strings.cpp`. Replaced the real-only
+  `str2doubleOne` with `str2doubleParse` (returns `{re, im, isComplex}`):
+  strips commas + ALL whitespace, treats a trailing lowercase `i`/`j` as the
+  imaginary mark, splits real/imag at the LAST `+`/`-` that is not an exponent
+  sign, and handles pure-imaginary / bare-`i` forms. `str2double` now emits a
+  COMPLEX Value when ANY element parses complex (real elements carry 0
+  imaginary), else keeps the DOUBLE path (zero regression on real strings).
+- Verified vs MATLAB R2025b: `1+2i`, `1-2i`, `2i`, `-3i`, `i`, `-i`, `+i`,
+  `1+2j`→1+2i, `3.5+1.5i`, `' 2 + 3i '`→2+3i, `1e-3+2i`→0.001+2i (exponent
+  edge), `1e3i`→1000i, `-2-3i`, `.5i`, `1+i`→1+1i, `Infi`→Inf·i; reals
+  (`5`/`Inf`/`NaN`/`1.5`) stay real double; capital `1+2I`→NaN; cell mix
+  `{'1+2i','3','4-1i'}`→COMPLEX `[1+2i 3 4-1i]`.
+- Live guard: `Str2doubleComplexTest` (dedicated) + `BuiltinKnownBug.Str2doubleComplex`
+  flipped live. Parity: `tools/parity/specs/str2double_complex.json`
+  (correctness=OK). Smoke: `libs/builtin/tests/smoke/str2double_complex_smoke.m`.
 
 ## Symptom
 `str2double` of a complex-number string returns NaN; MATLAB parses it to the
