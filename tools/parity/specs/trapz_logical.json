@@ -1,0 +1,15 @@
+{
+  "name": "trapz_logical",
+  "namespace": "builtin",
+  "setup": "Y = logical([1 0 1 1]); X = [1 3 4 7]; LX = logical([0 1 1 1]); DY = [1 2 3 4]; M = logical([1 0; 1 1]);",
+  "expr": "u = trapz(Y); nx = trapz(X, Y); lx = trapz(LX, DY); cc = trapz(M); rr = trapz(M, 2); sc = trapz(true); em = trapz(logical([]));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "u", "nx", "lx",
+    "cc(1)", "cc(2)",
+    "rr(1)", "rr(2)",
+    "sc", "em"
+  ],
+  "comment": "trapz on logical input. MATLAB promotes a logical X and/or Y to double (class NOT preserved — integration returns double). Covers unit-spacing vector, non-uniform X, logical-X+double-Y, 2-D column + dim2, scalar (->0) and empty (->0). char still errors on both engines. bugs/builtin/trapz-logical.md."
+}

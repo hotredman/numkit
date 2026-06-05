@@ -874,26 +874,33 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("trapz: requires at least 1 argument",
                      0, 0, "trapz", "", "numkit:trapz:nargin");
     auto *mr = ctx.engine->resource();
+    // MATLAB promotes a logical X and/or Y to double (trapz(logical([1 0 1 1]))
+    // = 2, class double — bugs/builtin/trapz-logical.md). Only logical is
+    // coerced; the doubleData() paths below still throw for char / other
+    // non-numeric, which matches MATLAB ("numeric or logical" only). The
+    // sibling cumtrapz already handles this via its toDoubleCopy reader.
+    Value a0 = args[0].isLogical() ? toDoubleValue(args[0], mr) : args[0];
     if (args.size() == 1) {
-        outs[0] = trapz(args[0], mr);
+        outs[0] = trapz(a0, mr);
         return;
     }
+    Value a1 = args[1].isLogical() ? toDoubleValue(args[1], mr) : args[1];
     if (args.size() == 2) {
         // trapz(Y, dim) when the 2nd arg is a scalar; trapz(X, Y) otherwise.
-        if (!args[1].isChar() && !args[1].isString() && args[1].numel() == 1)
-            outs[0] = trapzImpl(args[0], static_cast<int>(args[1].toScalar()),
+        if (!a1.isChar() && !a1.isString() && a1.numel() == 1)
+            outs[0] = trapzImpl(a0, static_cast<int>(a1.toScalar()),
                                 nullptr, mr);
         else
-            outs[0] = trapz(args[0], args[1], mr);
+            outs[0] = trapz(a0, a1, mr);
         return;
     }
     // trapz(X, Y, dim): integrate Y along dim with X spacing.
     const int dim = static_cast<int>(args[2].toScalar());
-    const size_t along = (dim != 2) ? args[1].dims().rows() : args[1].dims().cols();
-    if (args[0].numel() != along)
+    const size_t along = (dim != 2) ? a1.dims().rows() : a1.dims().cols();
+    if (a0.numel() != along)
         throw Error("trapz: numel(x) must match size(y, dim)",
                      0, 0, "trapz", "", "numkit:trapz:lengthMismatch");
-    outs[0] = trapzImpl(args[1], dim, args[0].doubleData(), mr);
+    outs[0] = trapzImpl(a1, dim, a0.doubleData(), mr);
 }
 
 } // namespace detail

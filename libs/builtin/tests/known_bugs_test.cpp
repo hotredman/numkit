@@ -151,3 +151,11 @@ TEST_F(BuiltinKnownBug, CumulativeLogical)
     EXPECT_DOUBLE_EQ(evalScalar("m(2)"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("islogical(m)"), 1.0);
 }
+
+// bugs/builtin/trapz-logical.md — FIXED (trapz promotes logical X/Y -> double).
+// Full guard in libs/builtin/tests/trapz_logical_test.cpp.
+TEST_F(BuiltinKnownBug, TrapzLogical)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("trapz(logical([1 0 1 1]))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("trapz([1 3 4 7], logical([1 0 1 1]))"), 4.5);
+}
