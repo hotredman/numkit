@@ -1,5 +1,5 @@
 // libs/stats/tests/lognpdf_test.cpp
-// Audit ТЗ closure for lognpdf. Closes audit/findings/stats/lognpdf.md.
+// lognpdf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

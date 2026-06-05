@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Arithmetic ops batch — audit ТЗ closure 2026-05-09. 10 functions.
+% Arithmetic ops batch — spec closure 2026-05-09. 10 functions.
 
 fprintf('plus(2,3)         = %g\n', plus(2,3));
 fprintf('minus(5,2)        = %g\n', minus(5,2));

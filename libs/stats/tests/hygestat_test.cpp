@@ -1,5 +1,5 @@
 // libs/stats/tests/hygestat_test.cpp
-// Coverage for hygestat (no audit ТЗ but vectorised in sweep 5dd32c38).
+// Coverage for hygestat (vectorised in sweep 5dd32c38).
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Misc batch 5 — poly + string-extras2 + math2 + error-handling. ТЗ closure 2026-05-09.
+% Misc batch 5 — poly + string-extras2 + math2 + error-handling. spec closure 2026-05-09.
 
 p = polyfit([1 2 3 4], [1 4 9 16], 2);
 fprintf('polyfit y=x^2: p = '); disp(p);

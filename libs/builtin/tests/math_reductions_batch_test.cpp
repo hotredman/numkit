@@ -1,17 +1,14 @@
 // libs/builtin/tests/math_reductions_batch_test.cpp
-//
-// Audit ТЗ batch closure for math primitives + reductions — 11 functions:
+// math primitives + reductions — 11 functions:
 //   cospi / sinpi
 //   deg2rad / rad2deg
 //   eps
 //   cumsum / cumprod / diff
 //   diag
 //   prod / sum
-//
-// All flagged "no major gap detected" — bit-identical MATLAB R2025b
+// All  — bit-identical MATLAB R2025b
 // on probed inputs (parity tol=1e-12).
-//
-// eps has 3 known sub-gaps documented in audit/closed/builtin/eps.md
+// eps has 3 known sub-gaps
 // (no-arg form, fractional input, vector input) — only the working
 // scalar-positive path is pinned here.
 

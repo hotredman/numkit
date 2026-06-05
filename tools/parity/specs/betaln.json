@@ -11,5 +11,5 @@
     "r(3)",
     "r(4)"
   ],
-  "comment": "Sig: r = betaln(...). Special function. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified MATLAB R2025b parity."
+  "comment": "Sig: r = betaln(...). Special function. Spec-extension batch 2026-05-09 \u2014 verified MATLAB R2025b parity."
 }

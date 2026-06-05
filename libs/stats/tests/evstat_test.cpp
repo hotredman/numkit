@@ -1,5 +1,5 @@
 // libs/stats/tests/evstat_test.cpp
-// Audit ТЗ closure for evstat. Closes audit/findings/stats/evstat.md.
+// evstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -1,5 +1,5 @@
 // libs/stats/tests/expfit_test.cpp
-// Audit ТЗ closure for expfit. Closes audit/findings/stats/expfit.md.
+// expfit.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -16,7 +16,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// Reference inputs (match audit ТЗ + parity spec).
+// Reference inputs (match parity spec).
 static const char *kSetup =
     "x    = [1 2 3 4 5 6 7 8 9 10]';"
     "cens = [0 0 0 0 0 0 0 1 1 1]';"

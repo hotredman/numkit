@@ -1,11 +1,9 @@
 // libs/builtin/tests/strings_batch_test.cpp
-//
-// Audit ТЗ batch closure for string ops — 14 functions:
+// string ops — 14 functions:
 //   lower / upper / strtrim / deblank / blanks
 //   strlength / strrep / strfind / strcat / strsplit / strtok
 //   contains / startsWith / endsWith
-//
-// All flagged "no major gap detected" — bit-identical MATLAB R2025b
+// All  — bit-identical MATLAB R2025b
 // on probed inputs.
 
 #include <numkit/builtin/library.hpp>

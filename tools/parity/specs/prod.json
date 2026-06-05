@@ -16,7 +16,7 @@
     "ec(1)",
     "ec(3)"
   ],
-  "comment": "Sig: r = prod(...). Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b. DEEP-PROBE 2026-05-29: empty-input identities — prod([])=1 (scalar, numel 1, NOT 1x0); partial empty keeps per-column shape: prod(zeros(0,3))=[1 1 1].",
+  "comment": "Sig: r = prod(...). Spec-extension batch 2026-05-09 verified bit-identical MATLAB R2025b. DEEP-PROBE 2026-05-29: empty-input identities — prod([])=1 (scalar, numel 1, NOT 1x0); partial empty keeps per-column shape: prod(zeros(0,3))=[1 1 1].",
   "bench_setup": "xb = 1 + sin(1:N)*1e-6;",
   "bench_expr": "rb = prod(xb);"
 }

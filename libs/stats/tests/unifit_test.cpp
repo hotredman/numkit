@@ -1,5 +1,5 @@
 // libs/stats/tests/unifit_test.cpp
-// Audit ТЗ closure for unifit. Closes audit/findings/stats/unifit.md.
+// unifit.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

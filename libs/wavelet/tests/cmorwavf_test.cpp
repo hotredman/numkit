@@ -1,5 +1,5 @@
 // libs/wavelet/tests/cmorwavf_test.cpp
-// Audit ТЗ closure for cmorwavf. Closes audit/findings/wavelet/cmorwavf.md.
+// cmorwavf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

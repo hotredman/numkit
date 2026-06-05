@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Misc batch 6 + signal batch — audit ТЗ closure 2026-05-09.
+% Misc batch 6 + signal batch — spec closure 2026-05-09.
 
 rng(42); v = randi(10, 1, 5);
 fprintf('randi(10,1,5) = '); disp(v);

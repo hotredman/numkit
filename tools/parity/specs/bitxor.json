@@ -10,5 +10,5 @@
     "double(r(2))",
     "double(r(3))"
   ],
-  "comment": "Sig: r = bitxor(...). Bitwise integer op. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
+  "comment": "Sig: r = bitxor(...). Bitwise integer op. Spec-extension batch 2026-05-09 \u2014 verified bit-identical MATLAB R2025b."
 }

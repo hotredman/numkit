@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % wfilters — wavelet filter quadruple. Closes
-% audit/findings/wavelet/wfilters.md.
+%
 %
 % CRITICAL fix 2026-05-08:
 %   - Lo_D / Lo_R labels were SWAPPED relative to MATLAB R2025b (root

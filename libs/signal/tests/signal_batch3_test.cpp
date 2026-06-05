@@ -1,13 +1,11 @@
 // libs/signal/tests/signal_batch3_test.cpp
-//
 // Signal batch 3 closure (20 functions):
 //   filter impl:    filter · filtfilt · sosfilt · medfilt1 · sgolayfilt · sgolay
 //   bilinear:       bilinear
 //   multirate:      decimate · interp · downsample · upsample · upfirdn (deferred) · resample
 //   spectral:       cpsd · mscohere · tfestimate · pburg · pyulear · pwelch · periodogram
 //                   (5 deferred — default-NFFT convention differs)
-//
-// 14 verified bit-identical MATLAB R2025b; 6 deferred with separate-ТЗ
+// 14 verified bit-identical MATLAB R2025b; 6 deferred with separate specs
 // notes for default-NFFT or boundary-handling gaps.
 
 #include <numkit/builtin/library.hpp>

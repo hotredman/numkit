@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % normfit — normal MLE with optional censoring + frequency weights.
-% Closes audit/findings/stats/normfit.md.
+%
 %
 % New 2026-05-08:
 %   - censored MLE: EM iteration on x (truncated-normal moments)

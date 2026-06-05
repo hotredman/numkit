@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Predicates2 + set ops + format/transpose batch — audit ТЗ closure 2026-05-09.
+% Predicates2 + set ops + format/transpose batch — spec closure 2026-05-09.
 
 fprintf('isempty([])  = %d, isempty([1]) = %d\n', isempty([]), isempty([1]));
 fprintf('isvector([1 2 3]) = %d, ismatrix([1;2]) = %d\n', isvector([1 2 3]), ismatrix([1;2]));

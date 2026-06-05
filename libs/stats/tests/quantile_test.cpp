@@ -1,7 +1,5 @@
 // libs/stats/tests/quantile_test.cpp
-//
-// Joint regression tests for quantile / prctile / iqr — closes audit
-// findings (audit/closed/stats/{quantile,prctile,iqr}.md). Hardcoded
+// Joint regression tests for quantile / prctile / iqr. Hardcoded
 // expected values captured from MATLAB R2025b probe.
 
 #include <numkit/builtin/library.hpp>

@@ -1,5 +1,5 @@
 // libs/stats/tests/kmeans_test.cpp
-// Audit ТЗ closure for kmeans. Closes audit/findings/cluster/kmeans.md.
+// kmeans.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

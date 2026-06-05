@@ -9,5 +9,5 @@
     "p(1)", "p(2)", "p(3)", "p(4)", "p(5)",
     "pu(1)", "pu(2)", "pu(3)"
   ],
-  "comment": "Sig: p = ricecdf(x, s, sigma[, 'upper']). Rice CDF via Marcum Q: F(x) = 1 - Q1(s/sigma, x/sigma). 'upper' returns 1 - F(x) = Q1(s/sigma, x/sigma). MATLAB R2025b does NOT ship a top-level ricecdf — only makedist('Rician')+cdf — so reference comes from Octave's statistics package. Tolerance 1e-4 reflects an existing ~1e-5 numerical-accuracy gap between numkit's marcumq series and Octave's; this ТЗ closes the 'upper' flag only, the accuracy gap is tracked separately."
+  "comment": "Sig: p = ricecdf(x, s, sigma[, 'upper']). Rice CDF via Marcum Q: F(x) = 1 - Q1(s/sigma, x/sigma). 'upper' returns 1 - F(x) = Q1(s/sigma, x/sigma). MATLAB R2025b does NOT ship a top-level ricecdf — only makedist('Rician')+cdf — so reference comes from Octave's statistics package. Tolerance 1e-4 reflects an existing ~1e-5 numerical-accuracy gap between numkit's marcumq series and Octave's; this spec closes the 'upper' flag only, the accuracy gap is tracked separately."
 }

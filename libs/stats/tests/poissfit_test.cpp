@@ -1,5 +1,5 @@
 // libs/stats/tests/poissfit_test.cpp
-// Audit ТЗ closure for poissfit. Closes audit/findings/stats/poissfit.md.
+// poissfit.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

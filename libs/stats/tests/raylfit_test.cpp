@@ -1,5 +1,5 @@
 // libs/stats/tests/raylfit_test.cpp
-// Audit ТЗ closure for raylfit. Closes audit/findings/stats/raylfit.md.
+// raylfit.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

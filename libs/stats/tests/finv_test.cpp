@@ -1,7 +1,5 @@
 // libs/stats/tests/finv_test.cpp
-//
-// Audit ТЗ closure for finv. Reference values from MATLAB R2025b.
-// Closes audit/findings/stats/finv.md.
+// finv. Reference values from MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

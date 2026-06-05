@@ -1,8 +1,7 @@
 // libs/stats/tests/explike_test.cpp
-//
-// Audit ТЗ closure for explike. Reference values from MATLAB R2025b.
+// explike. Reference values from MATLAB R2025b.
 // Covers cens + freq + scalar avar + edge fixes (mu<=0 => NaN,
-// empty => 0). Closes audit/findings/stats/explike.md.
+// empty => 0).
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

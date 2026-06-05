@@ -1,5 +1,5 @@
 // libs/stats/tests/gaminv_test.cpp
-// Audit ТЗ closure for gaminv. Closes audit/findings/stats/gaminv.md.
+// gaminv.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

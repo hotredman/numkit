@@ -1,5 +1,5 @@
 // libs/stats/tests/binostat_test.cpp
-// Audit ТЗ closure for binostat. Closes audit/findings/stats/binostat.md.
+// binostat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -1,8 +1,6 @@
 // libs/stats/tests/gplike_test.cpp
-//
-// Backfill gtest + audit ТЗ closure for gplike. Reference values
-// from MATLAB R2025b probe (audit/closed/stats/gplike.md).
-//
+// Backfill gtest + gplike. Reference values
+// from MATLAB R2025b probe.
 // Note on edges (matching MATLAB R2025b — asymmetric vs gevlike):
 //   sigma == 0 → NaN
 //   sigma  < 0 → -Inf (not NaN)

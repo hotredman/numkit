@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-09,
   "fingerprint": ["r1"],
-  "comment": "Sig: z = tzero(sys). SISO transmission zeros via ss2tf + roots. Bit-identical with MATLAB R2025b on probed system (z = 1.0). MIMO requires QZ generalised eigenvalue solver (separate ТЗ)."
+  "comment": "Sig: z = tzero(sys). SISO transmission zeros via ss2tf + roots. Bit-identical with MATLAB R2025b on probed system (z = 1.0). MIMO requires QZ generalised eigenvalue solver (separate spec)."
 }

@@ -13,5 +13,5 @@
     "s_e0", "s_ne0",
     "sMw(1)", "sMw(2)", "size(sMw,2)", "sMd2(1)", "size(sMd2,1)"
   ],
-  "comment": "Sig: S = std(A[, w | W][, dim | 'all' | vecdim][, nanflag]). Same surface as var. Single-element std = 0 (NOT NaN): std(5)=0, std([7])=0. EMPTY std -> NaN scalar (not 0x0): std([])=NaN. Closes audit/findings/stats/std.md + DEEP-PROBE 2026-05-29 n==1 + empty fixes. DEEP-PROBE 2026-05-31: weight VECTOR on a MATRIX now reduces per-slice along the operating dim (was: threw). std(Mw,wc)=[1.490711985 1.490711985] (1x2 dim-1 default), std(Mw,[1 3],2) per-row (3x1). N-D weighted reduction deferred."
+  "comment": "Sig: S = std(A[, w | W][, dim | 'all' | vecdim][, nanflag]). Same surface as var. Single-element std = 0 (NOT NaN): std(5)=0, std([7])=0. EMPTY std -> NaN scalar (not 0x0): std([])=NaN. + DEEP-PROBE 2026-05-29 n==1 + empty fixes. DEEP-PROBE 2026-05-31: weight VECTOR on a MATRIX now reduces per-slice along the operating dim (was: threw). std(Mw,wc)=[1.490711985 1.490711985] (1x2 dim-1 default), std(Mw,[1 3],2) per-row (3x1). N-D weighted reduction deferred."
 }

@@ -1,5 +1,5 @@
 // libs/stats/tests/cluster_test.cpp
-// Audit ТЗ closure for cluster. Closes audit/findings/cluster/cluster.md.
+// cluster.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

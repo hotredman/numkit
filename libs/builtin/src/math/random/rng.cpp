@@ -1,10 +1,8 @@
 // libs/builtin/src/math/random/rng.cpp
-//
 // Shared RNG manager + integer random generators + rng() control.
 // Routes rand/randn/randi/randperm through one process-static engine
 // so MATLAB-style rng(seed) gives reproducible sequences across the
 // whole RNG-using API surface.
-//
 // Engine: MATLAB-canonical MT19937 (Matsumoto-Nishimura reference,
 // init_by_array seeding). For 53-bit double precision uniform values
 // (rand()), genRes53 is used directly -- this gives bit-for-bit
@@ -149,7 +147,7 @@ Value randn(detail::MatlabMT19937 &rng, size_t rows, size_t cols, size_t pages, 
 {
     // NOTE: std::normal_distribution is NOT MATLAB-bit-identical (MATLAB
     // uses Marsaglia-Tsang Ziggurat with specific tables). Bit-identity
-    // for randn() is a separate ТЗ (Phase 0a-1b). Sequence is still
+    // for randn() is a separate spec (Phase 0a-1b). Sequence is still
     // deterministic and seedable via rng().
     std::normal_distribution<double> dist(0.0, 1.0);
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
@@ -223,7 +221,6 @@ Value randi(int64_t imin, int64_t imax, size_t rows, size_t cols, size_t pages, 
 // ────────────────────────────────────────────────────────────────────
 // Permutations
 // ────────────────────────────────────────────────────────────────────
-//
 // randperm(n)    : Fisher-Yates shuffle of [1..n].
 // randperm(n, k) : partial Fisher-Yates — k iterations are enough to
 // produce k unique values without fully shuffling the rest.
@@ -463,7 +460,6 @@ void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 //   rng('default')     rng(0)
 //   rng('shuffle')     seed from random_device
 //   rng(state_struct)  restore previously-snapshotted state
-//
 // nargout > 0 : return the current state BEFORE seeding/restoring.
 // (Matches MATLAB: `prev = rng(123)` snapshots the old state and seeds.)
 void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,

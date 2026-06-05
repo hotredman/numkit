@@ -1,14 +1,12 @@
 // libs/builtin/tests/predicates2_batch_test.cpp
-//
-// Audit ТЗ batch closure for predicates batch 2 + set ops + format/matrix:
+// predicates batch 2 + set ops + format/matrix:
 //   predicates: isempty/isscalar/isvector/ismatrix/isrow/iscolumn/
 //               isnumeric/isreal/isfinite/isinf/isnan/islogical/
 //               ischar/isstring/isstruct/iscell
 //   set ops:    union/intersect/setdiff/setxor/ismember
 //   format:     sprintf/num2str/str2double
 //   matrix:     transpose/ctranspose
-//
-// Total: 26 functions. All flagged "no major gap detected" — bit-
+// Total: 26 functions. All  — bit-
 // identical MATLAB R2025b on probed inputs.
 
 #include <numkit/builtin/library.hpp>

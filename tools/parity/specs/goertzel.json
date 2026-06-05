@@ -12,5 +12,5 @@
     "real(yfull(5))", "imag(yfull(5))",
     "real(yfull(16))", "imag(yfull(16))"
   ],
-  "comment": "Sig: y = goertzel(x[, ind]). Single-bin DFT via 2nd-order IIR. Audit ТЗ 2026-05-09: 1-arg form `goertzel(x)` defaults ind = 1:N (full DFT) per MATLAB R2025b — previously THREW. Fingerprint covers both partial-bin (ind=[5 15]) and full-DFT default forms."
+  "comment": "Sig: y = goertzel(x[, ind]). Single-bin DFT via 2nd-order IIR. 1-arg form `goertzel(x)` defaults ind = 1:N (full DFT) per MATLAB R2025b — previously THREW. Fingerprint covers both partial-bin (ind=[5 15]) and full-DFT default forms."
 }

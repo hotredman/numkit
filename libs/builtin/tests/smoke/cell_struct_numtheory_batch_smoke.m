@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Cell+struct + number-theory batch — audit ТЗ closure 2026-05-09. 18 funcs.
+% Cell+struct + number-theory batch — spec closure 2026-05-09. 18 funcs.
 
 c = cell(2,3); fprintf('cell(2,3) numel=%d, iscell=%d\n', numel(c), iscell(c));
 fprintf('cellfun @(x)x*2 on {1,2,3}: '); disp(cellfun(@(x) x*2, {1,2,3}));

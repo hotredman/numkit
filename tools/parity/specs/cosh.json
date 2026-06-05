@@ -12,7 +12,7 @@
     "y(4)",
     "y(5)"
   ],
-  "comment": "Sig: y = cosh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b.",
+  "comment": "Sig: y = cosh(x). Forward-trig, libm-backed. Spec-extension batch 2026-05-09 verified bit-identical MATLAB R2025b.",
   "bench_setup": "xb = mod((1:N)*7919,6283)*0.001;",
   "bench_expr": "rb=cosh(xb);"
 }

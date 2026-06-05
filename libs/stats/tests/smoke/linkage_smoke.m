@@ -50,7 +50,7 @@ fprintf('--- linkage(Y, ''average'') ---\n');
 disp(Za);
 fprintf('  expect: final distance averaged ≈ 14.18\n\n');
 
-% --- 2026-05-08 audit ТЗ closure: tie-break + 3-arg form ---
+% --- 2026-05-08 spec closure: tie-break + 3-arg form ---
 Xt = [1 1; 1.5 1.5; 5 5; 5.5 5.5; 10 10; 1 2; 6 6; 11 11];
 
 fprintf('--- linkage(pdist(Xt), ''single'') tie-break ---\n');

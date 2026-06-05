@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Misc batch 2 — string extras + special-fn + helpers. Audit ТЗ closure 2026-05-09.
+% Misc batch 2 — string extras + special-fn + helpers. spec closure 2026-05-09.
 
 fprintf('append("ab","cd") = "%s"\n', append("ab","cd"));
 fprintf('count("hello","l") = %d\n', count("hello","l"));

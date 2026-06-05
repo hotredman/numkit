@@ -12,5 +12,5 @@
     "p_all",
     "p_inc"
   ],
-  "comment": "Sig: P = prctile(A, p [, dim | 'all' | vecdim] [, Method=method]). Same surface as quantile but p in [0, 100]. Closes audit/findings/stats/prctile.md."
+  "comment": "Sig: P = prctile(A, p [, dim | 'all' | vecdim] [, Method=method]). Same surface as quantile but p in [0, 100].
 }

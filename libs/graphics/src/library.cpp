@@ -1,5 +1,4 @@
 // libs/graphics/src/library.cpp
-//
 // Registration hub for the graphics library. Namespace layout —
 // sub-namespaces by plot family (NAMESPACE_DESIGN.md §5, §9.5):
 //   layout/   — figure / subplot / hold / axes / labels / limits / legend
@@ -48,7 +47,6 @@ void GraphicsLibrary::install(Engine &engine)
     };
 
     // ── Triple-register: graphics.<sub>.<name> + compat.<name> + core ──
-    //
     // For session/workspace-style commands that conceptually live on
     // par with `clear` / `who` (not data-plotting). These are reachable
     // by short name without any `import` (the third registration into
@@ -563,11 +561,9 @@ void GraphicsLibrary::install(Engine &engine)
     // coordinate system. Each (U_i, V_i) becomes an arrow with
     // tail at origin and head at (theta_i, rho_i) where
     // theta = atan2(V, U) and rho = hypot(U, V). MATLAB-equivalent.
-    //
     //   compass(Z)        — Z complex; (U, V) = (real(Z), imag(Z))
     //   compass(U, V)     — explicit pair
     //   compass(..., spec) — optional LineSpec string
-    //
     // Wire format: type="compass" dataset on a polar axes — the
     // renderer (PolarPlot.jsx) treats xJson as theta, yJson as rho.
     reg("polar", "compass",
@@ -1488,15 +1484,13 @@ void GraphicsLibrary::install(Engine &engine)
     //   imshow(I, [])        — grayscale auto-range (== imagesc behaviour)
     //   imshow(RGB)          — truecolor, RGB is M×N×3 (uint8 or double).
     //                          double in [0,1] → cast *255 to uint8.
-    //
     // Compared to imagesc, imshow:
     //   • defaults colormap to "gray" (grayscale only; RGB ignores cmap)
     //   • forces axisMode='image' (1:1 pixels, equal aspect)
     //   • forces axisVisible=false (no ticks / labels / box)
     //   • forces yDir='reverse' (matrix-row=1 at top)
     // Existing user-set values for colormap/axisMode survive.
-    //
-    // Deferred (audit/findings/graphics/imshow.md): filename input,
+    // Deferred: filename input,
     // 'XData','YData','InitialMagnification','Border','Reduce',
     // 'Colormap' name-value pairs.
     auto imshowImpl = [](Span<const Value> args, size_t nargout,
@@ -1543,7 +1537,6 @@ void GraphicsLibrary::install(Engine &engine)
         //   imshow(I, 'DisplayRange', [lo hi])
         //   imshow(I, 'XData', xv, 'YData', yv, ...)
         //   imshow(I, [lo hi], 'XData', xv, ...)
-        //
         // After args[0], a non-char Value is a positional range; the
         // first char Value starts N-V parsing.
         const Value *rangeArg = nullptr;       // [] / [lo hi] / null
@@ -1568,8 +1561,7 @@ void GraphicsLibrary::install(Engine &engine)
             // for script compatibility but currently no-op since the
             // renderer always fits the image to the panel and applies
             // the existing >2M-pixel mean-pool downsample. Calls don't
-            // crash; visual effect is BACKLOG. See audit/findings/
-            // graphics/imshow.md.
+            // crash; visual effect is BACKLOG.
             else if (key == "border" || key == "reduce"
                      || key == "initialmagnification" || key == "parent") {
                 // accept-and-ignore
@@ -2075,13 +2067,11 @@ void GraphicsLibrary::install(Engine &engine)
 
     // ────────────────────────────────────────────────────────────────
     // contourf — filled bands between consecutive levels.
-    //
     // Strategy: for each level L from highest to lowest, draw the
     // closed polygon "Z >= L" with a colour from the colormap at that
     // level. Because levels are drawn in descending order each layer
     // overdraws a smaller region of the previous one, producing the
     // classic MATLAB filled-contour banded effect.
-    //
     // Per cell with values (v_TL, v_TR, v_BR, v_BL) and the four
     // corner-points (TL, TR, BR, BL), we compute a 4-bit bitmask of
     // "corner is inside (z >= L)" and look up the polygon vertices
@@ -2435,11 +2425,9 @@ void GraphicsLibrary::install(Engine &engine)
 
     // ────────────────────────────────────────────────────────────────
     // slice — axis-aligned cross sections of a 3-D scalar volume.
-    //
     // Forms supported:
     //   slice(V, sx, sy, sz)           — V is M×N×P
     //   slice(X, Y, Z, V, sx, sy, sz)  — explicit grid coords
-    //
     // sx / sy / sz are vectors (or empty) of slice coordinates along
     // each axis. Each entry produces one 2-D plane of quads at that
     // axis position, picking volume values via nearest-neighbour
@@ -2699,11 +2687,9 @@ void GraphicsLibrary::install(Engine &engine)
 
     // ────────────────────────────────────────────────────────────────
     // isosurface(V, isovalue) — marching cubes.
-    //
     // Forms supported:
     //   isosurface(V, iso)
     //   isosurface(X, Y, Z, V, iso)
-    //
     // The volume V is M×N×P (rows = Y, cols = X, pages = Z). For each
     // cube cell we compute an 8-bit code from "corner < iso", look up
     // the edge bitmask + triangle list from the standard Bourke
@@ -3167,7 +3153,6 @@ void GraphicsLibrary::install(Engine &engine)
 
     // ────────────────────────────────────────────────────────────────
     // coneplot — cone-headed arrows over a 3-D vector field.
-    //
     // Forms supported:
     //   coneplot(U, V, W)
     //     — cones at integer grid (1..N, 1..M, 1..P) aligned with
@@ -3178,7 +3163,6 @@ void GraphicsLibrary::install(Engine &engine)
     //     — cones at user-specified positions with U/V/W taken as the
     //       value AT those positions (nearest-neighbour for the v1).
     //       S is a scalar magnitude factor.
-    //
     // Each cone is a 6-sided pyramid (apex + 6-vertex base ring) →
     // 6 side triangles + 4 cap triangles = 10 triangles per cone,
     // emitted into a single fill3 dataset (null-separated triangles).
@@ -3387,7 +3371,6 @@ void GraphicsLibrary::install(Engine &engine)
     // vector field. Forms supported:
     //   streamtube(X, Y, Z, U, V, W, sx, sy, sz)
     //   streamtube(U, V, W, sx, sy, sz)         — implicit grid
-    //
     // Per seed point, integrate the field with fixed-step Euler (RK1)
     // forward. Tube generated with an N-vertex ring around each
     // streamline sample; radii proportional to local |V| with a hard
@@ -4946,7 +4929,6 @@ void GraphicsLibrary::install(Engine &engine)
     // errorbar(x, y, neg, pos)      — asymmetric error bounds
     // errorbar(x, y, e, 'spec')     — symmetric, with line spec
     // errorbar(x, y, neg, pos, 'spec')
-    //
     // The dataset's xJson/yJson hold the centre points; eJson (sym) or
     // eNegJson + ePosJson (asym) hold the magnitudes. The renderer
     // draws vertical bars from y-eNeg to y+ePos with caps at each end.
@@ -5089,7 +5071,6 @@ void GraphicsLibrary::install(Engine &engine)
     // text dataset (single-point) to the current axes. For arrays, the
     // user iterates via for-loop in script. Trailing name-value pairs
     // (Color, FontSize) parsed minimally — extra pairs are ignored.
-    //
     // The IDE renders text overlays after the image / line layers so
     // labels stay on top of imagesc / scatter.
     reg("layout", "text",
@@ -5235,7 +5216,6 @@ void GraphicsLibrary::install(Engine &engine)
             // Other (Name, Value) pairs (FontSize, NumColumns, ...) are
             // not yet honoured but parsed-and-skipped so they don't
             // pollute legendLabels.
-            //
             // Special arg: 'boxoff'/'boxon' alone should NOT clear
             // existing labels (it's a frame-only toggle). Detect that
             // up front before zapping legendLabels.
@@ -5982,13 +5962,11 @@ void GraphicsLibrary::install(Engine &engine)
     //   clearpoints(h);
     //   [x, y] = getpoints(h);
     //   drawnow;                   — flush
-    //
     // numkit doesn't model graphics handles, so animatedline-cluster
     // calls target the most recent animated dataset on the current
     // axes (axes::animatedDatasetIdx). animatedline returns an
     // opaque scalar (1-based index) for script compat, but every
     // op walks animatedDatasetIdx.
-    //
     // Wire: the dataset uses ds.type='line' with isAnimated=true and
     // animatedX/animatedY holding the raw points. xJson/yJson are
     // rebuilt on every push.
@@ -6131,7 +6109,6 @@ void GraphicsLibrary::install(Engine &engine)
     // BACKLOG; for v1 these route through plot/scatter with
     // (X = lon, Y = lat) so user scripts that target geographic
     // axes still produce the right scatter / line shape.
-    //
     // Forms supported (matching MATLAB):
     //   geoplot(lat, lon)
     //   geoplot(lat, lon, lineSpec)
@@ -6297,7 +6274,6 @@ void GraphicsLibrary::install(Engine &engine)
 
     // ────────────────────────────────────────────────────────────────
     // triplot(TRI, X, Y [, LineSpec, ...]) — plot a triangulation.
-    //
     // TRI is M×3 (column-major) with 1-based vertex indices into X/Y.
     // Emits ONE `line` dataset with null-separated triangle loops:
     //   a → b → c → a → null → a' → b' → c' → a' → null …
@@ -6306,7 +6282,6 @@ void GraphicsLibrary::install(Engine &engine)
     // This matches MATLAB's triplot semantics — the canonical way to
     // visualise `delaunay(x, y)` output without exploding the series
     // count.
-    //
     // Optional 4th positional arg = LineSpec ("b-", "k--", etc). After
     // that, standard plot N-V pairs (LineWidth / MarkerSize) flow
     // through parsePlotArgs.
@@ -6363,7 +6338,6 @@ void GraphicsLibrary::install(Engine &engine)
 
     // ────────────────────────────────────────────────────────────────
     // voronoi(x, y) — Voronoi diagram via Delaunay dual.
-    //
     // Algorithm:
     //   1. Compute brute-force Delaunay triangulation of the cloud
     //      (same logic as delaunay_reg in libs/builtin).
@@ -6374,7 +6348,6 @@ void GraphicsLibrary::install(Engine &engine)
     //   4. Emit as a single `line` dataset with null separators
     //      between segments, plus scatter markers at the input
     //      points.
-    //
     // Cells touching the convex hull don't have a finite second
     // endpoint (the cell is unbounded); v1 just omits those edges.
     // Properly-extended infinite rays are BACKLOG.
@@ -6558,7 +6531,6 @@ void GraphicsLibrary::install(Engine &engine)
     // column label strings ('RowNames' / 'ColumnNames') are accepted
     // but currently flow through as labels only — full table-style
     // heatmap with cell-text overlays + row/col headers is BACKLOG.
-    //
     // Forms supported (subset):
     //   heatmap(C)
     //   heatmap(C, 'Colormap', name)

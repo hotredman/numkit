@@ -1,6 +1,5 @@
 // libs/wavelet/tests/dwt_idwt_test.cpp
-// Audit ТЗ closure for dwt + idwt + wavedec + waverec.
-// Closes audit/findings/wavelet/{dwt,idwt,wavedec,waverec}.md.
+// dwt + idwt + wavedec + waverec.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

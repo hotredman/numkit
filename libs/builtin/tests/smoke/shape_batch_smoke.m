@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Shape ops batch — audit ТЗ closure 2026-05-09. 16 functions.
+% Shape ops batch — spec closure 2026-05-09. 16 functions.
 
 A = [1 2 3; 4 5 6];
 fprintf('size(A)         = '); disp(size(A));

@@ -11,5 +11,5 @@
     "r(3)",
     "r(4)"
   ],
-  "comment": "Sig: r = atan2(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 \u2014 auditor \"no major gap detected\" verified bit-identical MATLAB R2025b."
+  "comment": "Sig: r = atan2(...). Element-wise libm-backed primitive. Spec-extension batch 2026-05-09 \u2014 verified bit-identical MATLAB R2025b."
 }

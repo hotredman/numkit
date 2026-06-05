@@ -1,13 +1,10 @@
 // libs/builtin/tests/mldivide_test.cpp
-// Audit ТЗ closure for builtin/mrdivide (and the symmetric mldivide).
-// Closes audit/findings/builtin/mrdivide.md.
-//
+// builtin/mrdivide (and the symmetric mldivide).
 // Covers the matrix-solve paths:
 //   - Square A : LU with partial pivoting
 //   - Tall A   : QR via Householder + R back-solve (least squares)
 //   - Wide A   : explicit error (deferred)
 //   - Scalar/scalar and matrix/scalar : pre-existing elementwise paths
-//
 // All hardcoded expected values verified bit-identical vs MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>

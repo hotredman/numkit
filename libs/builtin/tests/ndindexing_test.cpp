@@ -1,5 +1,4 @@
 // libs/builtin/tests/ndindexing_test.cpp — Phase 6: parser/interp ND indexing
-//
 // Subscript indexing with 4+ indices: read, write, slice, end-keyword,
 // colon-all, OOB errors. Verifies both the TreeWalker (execIndexAccess /
 // execIndexedAssign) and VM (CALL_INDIRECT and INDEX_GET_ND/INDEX_SET_ND)
@@ -249,7 +248,7 @@ TEST_P(NDIndexingTest, NDZeroDimShape)
     EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 2.0);
 }
 
-// ── Phase A audit: end-keyword 5D, 2-arg subscript-write 4D, ND broadcast row×col
+// ── Phase A review: end-keyword 5D, 2-arg subscript-write 4D, ND broadcast row×col
 
 TEST_P(NDIndexingTest, EndKeyword5D)
 {
@@ -300,7 +299,6 @@ TEST_P(NDIndexingTest, NDBroadcastRowAndColumnOn4D)
 }
 
 // ── CELL ND indexing (Polish round-2 item 5) ───────────────────────
-//
 // Build a 2×2×2×2 cell, write per-element MValues, then read scalar +
 // slice + delete a slab. Exercises indexGetND/indexSetND/indexDeleteND
 // CELL paths and the cellND factory.

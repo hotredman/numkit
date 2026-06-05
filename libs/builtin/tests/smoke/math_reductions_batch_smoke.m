@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Math primitives + reductions batch — audit ТЗ closure 2026-05-09.
+% Math primitives + reductions batch — spec closure 2026-05-09.
 % cospi/sinpi + deg2rad/rad2deg + eps + cumsum/cumprod/diff +
 % diag + prod/sum.
 

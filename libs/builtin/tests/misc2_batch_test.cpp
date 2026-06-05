@@ -1,14 +1,12 @@
 // libs/builtin/tests/misc2_batch_test.cpp
-//
-// Audit ТЗ batch closure: string extras + special functions + helpers.
+// : string extras + special functions + helpers.
 //   string:    append · compose · count · erase · extract
 //   specials:  ellipj · ellipke · erfcx · expint · flintmax · freqspace
 //   helpers:   cast · blkdiag · getfield · func2str · feval
-//
 // Total: 16 working + 5 deferred = 21. All flagged "no major gap";
 // 5 surfaced numkit-side gaps (extract* family + erasebetween not
 // implemented; freqspace size convention differs). Documented as
-// separate ТЗ in their respective audit/closed/builtin/<name>.md.
+// separate spec in their respective files
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

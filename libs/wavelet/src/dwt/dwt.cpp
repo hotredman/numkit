@@ -1,7 +1,5 @@
 // libs/wavelet/src/dwt/dwt.cpp
-//
 // Single-level discrete wavelet transform and its inverse.
-//
 // Conventions (MATLAB R2025b default — `dwtmode('sym')`):
 //   * Extension: whole-point symmetric reflection by Lf-1 samples on
 //     each side, where Lf is the filter length.
@@ -11,7 +9,6 @@
 //     (1-based: Lf, Lf+2, …) — equivalently y(2:2:end-1) of the
 //     length-(Lext+Lf-1) full convolution after dropping the symmetric
 //     boundary tail. Output length per band: floor((N + Lf - 1) / 2).
-//
 // Reconstruction (idwt):
 //   * Upsample cA, cD by 2 (insert zeros).
 //   * Convolve with synthesis filters Lo_R, Hi_R (full conv).
@@ -107,7 +104,7 @@ dwt_with_filters(const Value &x,
 
     auto convAndDown = [&](const std::vector<double> &h) {
         auto y = conv_full(ext, h);
-        // 2026-05-08 audit ТЗ wavelet/dwt fix: aligned with MATLAB
+        // 2026-05-08 wavelet/dwt fix: aligned with MATLAB
         // R2025b convention (Mallat 1989). After symmetric extension
         // and full conv with the analysis filter, MATLAB downsamples
         // taking samples at indices [Lf-1, Lf+1, Lf+3, ...] — offset

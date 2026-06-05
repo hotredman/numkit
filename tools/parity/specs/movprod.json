@@ -11,5 +11,5 @@
     "numel(y_disc)", "y_disc(1)",
     "y_fill(1)", "y_fill(2)"
   ],
-  "comment": "Sig: movprod(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movprod.md."
+  "comment": "Sig: movprod(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean.
 }

@@ -441,7 +441,6 @@ INSTANTIATE_DUAL(LogicalTest);
 
 // ============================================================
 // 3D heap-safety regressions
-//
 // These exercise code paths that used to allocate a 2D result buffer
 // (Value::matrix(rows, cols)) and then iterate over numel() elements.
 // For 3D inputs numel = rows*cols*pages, so the write ran past the
@@ -1177,7 +1176,7 @@ TEST_P(NDElementwiseTest, FourDDivideByFourD)
     EXPECT_DOUBLE_EQ(evalScalar("max(C(:));"), 2.0);
 }
 
-// ── Phase A audit: complex elementwise + unaryDouble ND ─────────
+// ── Phase A review: complex elementwise + unaryDouble ND ─────────
 
 TEST_P(NDElementwiseTest, Complex4DPlusComplex4D)
 {

@@ -1,5 +1,5 @@
 // libs/stats/tests/ecdfhist_test.cpp
-// Audit ТЗ closure for ecdfhist. Closes audit/findings/empirical/ecdfhist.md.
+// ecdfhist.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

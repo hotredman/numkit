@@ -1,13 +1,11 @@
 // libs/builtin/tests/misc3_batch_test.cpp
-//
-// Audit ТЗ batch closure: interp + ind2sub + predicates3 + helpers (18).
+// : interp + ind2sub + predicates3 + helpers (18).
 //   interp:        interp1 · interp2 · discretize
 //   ind/sub:       ind2sub · sub2ind
 //   predicates3:   isfloat · isinteger · iskeyword · isletter · isspace
 //   helpers:       disp · celldisp · ans · inf · nan · idivide
 //   deferred:      functions · formattedDisplayText (numkit gaps)
-//
-// All flagged "no major gap detected". Bit-identical MATLAB R2025b
+// All . Bit-identical MATLAB R2025b
 // on probed inputs.
 
 #include <numkit/builtin/library.hpp>

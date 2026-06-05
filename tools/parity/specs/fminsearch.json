@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 0.01,
   "fingerprint": ["r1"],
-  "comment": "Sig: x = fminsearch(fn, x0[, tol]). N-D Nelder-Mead unconstrained minimization. Converges to MATLAB R2025b's solution within tol on probed quadratic (x = [2 3]). NOTE: multi-output [x, fval, exitflag, output] form is a separate ТЗ."
+  "comment": "Sig: x = fminsearch(fn, x0[, tol]). N-D Nelder-Mead unconstrained minimization. Converges to MATLAB R2025b's solution within tol on probed quadratic (x = [2 3]). NOTE: multi-output [x, fval, exitflag, output] form is a separate spec."
 }

@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % kmedoids — k-medoids clustering. Closes
-% audit/findings/cluster/kmedoids.md.
+%
 %
 % Bug fixes 2026-05-08:
 %   - default 'Distance' was 'euclidean', MATLAB R2025b uses

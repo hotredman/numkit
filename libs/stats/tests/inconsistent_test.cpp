@@ -1,5 +1,5 @@
 // libs/stats/tests/inconsistent_test.cpp
-// Audit ТЗ closure for inconsistent. Closes audit/findings/cluster/inconsistent.md.
+// inconsistent.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -1,13 +1,10 @@
 // libs/signal/tests/cceps_test.cpp
-//
-// Audit ТЗ closure for signal/cceps. Closes audit/findings/signal/cceps.md.
-//
+// signal/cceps.
 // The bug: numkit's cceps implementation called fftRadix2(..., -1) for
 // the inverse-DFT pass — but in numkit's sign convention, dir=-1 is the
 // FORWARD DFT (W[k] = exp(-2πj k/N)) and dir=+1 is the INVERSE DFT.
 // Calling fft twice on log(fft(x)) gives a time-reversed cepstrum
 // (MATLAB output reversed bin-for-bin except DC).
-//
 // Fix in libs/signal/src/transforms/extras.cpp: change `-1` → `+1` in
 // both cceps() and icceps(), restoring the correct ifft pass.
 
@@ -28,7 +25,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// ─── canonical ТЗ probe — bit-identical to MATLAB R2025b ────────────
+// ─── canonical probe — bit-identical to MATLAB R2025b ────────────
 
 TEST_F(CcepsTest, MatchesMatlabOnRange1To8)
 {

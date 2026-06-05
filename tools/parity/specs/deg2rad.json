@@ -12,7 +12,7 @@
     "r(4)",
     "r(5)"
   ],
-  "comment": "Sig: r = deg2rad(...). Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b.",
+  "comment": "Sig: r = deg2rad(...). Spec-extension batch 2026-05-09 verified bit-identical MATLAB R2025b.",
   "bench_setup": "xb = mod((1:N)*7919,3600)*0.1;",
   "bench_expr": "rb=deg2rad(xb);"
 }

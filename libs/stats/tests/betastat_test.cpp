@@ -1,7 +1,5 @@
 // libs/stats/tests/betastat_test.cpp
-//
-// Audit ТЗ closure for betastat. Reference values from MATLAB R2025b.
-// Closes audit/findings/stats/betastat.md.
+// betastat. Reference values from MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

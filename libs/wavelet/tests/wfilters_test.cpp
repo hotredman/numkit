@@ -1,5 +1,5 @@
 // libs/wavelet/tests/wfilters_test.cpp
-// Audit ТЗ closure for wfilters. Closes audit/findings/wavelet/wfilters.md.
+// wfilters.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

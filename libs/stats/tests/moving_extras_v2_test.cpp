@@ -1,7 +1,6 @@
 // libs/stats/tests/moving_extras_v2_test.cpp
-//
 // Regression tests for the mov* family's nanflag + Endpoints support
-// (closes audit/findings/stats/{movmean,movmedian,movsum,movmin,movmax,
+// (
 // movprod,movmad,movstd,movvar}.md). Hardcoded expected values
 // captured from MATLAB R2025b probe runs.
 

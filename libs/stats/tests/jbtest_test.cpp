@@ -1,5 +1,5 @@
 // libs/stats/tests/jbtest_test.cpp
-// Audit ТЗ closure for jbtest. Closes audit/findings/stats/jbtest.md.
+// jbtest.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -13,7 +13,7 @@ public:
     Engine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
-        // Reference dataset from audit/findings/stats/jbtest.md.
+        // Reference dataset from
         engine.eval("xn = [-0.5 0.3 0.7 1.1 -0.2 0.1 -0.4 0.8 -0.1 0.5]';");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

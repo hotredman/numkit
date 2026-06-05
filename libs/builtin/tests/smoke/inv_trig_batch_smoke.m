@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Inverse-trig family — audit ТЗ batch closure 2026-05-09.
+% Inverse-trig family — 2026-05-09.
 % All 9 functions verified bit-identical to MATLAB R2025b.
 
 fprintf('=== acos / acosd  (radians + degrees) ===\n');

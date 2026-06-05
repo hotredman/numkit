@@ -6,5 +6,5 @@
   "iters": 1,
   "tol": 0,
   "fingerprint": ["r1"],
-  "comment": "Side-effect smoke test (no-throw command-form probe). who command prints variable names to stdout; success = no exception. NOTE: numkit's `who` is command-form only; functional `names = who` returning cellstr is a known gap (see audit/closed/builtin/who.md). evalc not available in numkit, so stdout content cannot be captured for content-level parity."
+  "comment": "Side-effect smoke test (no-throw command-form probe). who command prints variable names to stdout; success = no exception. NOTE: numkit's `who` is command-form only; functional `names = who` returning cellstr is a known gap (). evalc not available in numkit, so stdout content cannot be captured for content-level parity."
 }

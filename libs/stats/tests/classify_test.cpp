@@ -1,5 +1,5 @@
 // libs/stats/tests/classify_test.cpp
-// Audit ТЗ closure for classify. Closes audit/findings/lda/classify.md.
+// classify.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

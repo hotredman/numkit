@@ -3,7 +3,7 @@ import compat.*;
 
 % pdist2 — pairwise distance between two row sets, with optional
 % N-V 'Smallest'/'Largest' k-mode and Mahalanobis cov override.
-% Closes audit/findings/cluster/pdist2.md gaps #1-#2.
+% gaps #1-#2.
 
 A = [1 2; 3 4; 5 6; 7 8; 9 10];
 B = [1 2; 5 5; 9 9];

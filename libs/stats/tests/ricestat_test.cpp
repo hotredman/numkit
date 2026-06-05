@@ -1,5 +1,5 @@
 // libs/stats/tests/ricestat_test.cpp
-// Coverage for ricestat (no audit ТЗ; MATLAB R2025b does not ship it).
+// Coverage for ricestat (MATLAB R2025b does not ship it).
 // Reference values from Octave statistics package.
 
 #include <numkit/builtin/library.hpp>

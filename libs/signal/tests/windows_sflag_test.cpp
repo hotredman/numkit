@@ -1,10 +1,8 @@
 // libs/signal/tests/windows_sflag_test.cpp
-//
 // MATLAB R2025b 'periodic'/'symmetric' sflag for the 6 windows that
 // accept it, and rejection of 'periodic' on the 6 windows that only
 // accept 'double'/'single' typeName.
-//
-// Closes 12 audit ТЗ in signal.windows.
+//.windows.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

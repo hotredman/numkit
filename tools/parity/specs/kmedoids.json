@@ -18,5 +18,5 @@
     "double(idx2(1)==idx2(2))", "double(idx2(5)==idx2(6))",
     "numel(unique(idx3))"
   ],
-  "comment": "Sig: [idx, C, sumd, D, midx, info] = kmedoids(X, K, 'Distance'/'MaxIter'/'Replicates'/'Algorithm'/'Start', val, ...). Default Distance is 'sqeuclidean' (per R2025b — not 'euclidean'). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests + output shapes) because RNG init differs between engines (joint with normrnd ТЗ for full label parity)."
+  "comment": "Sig: [idx, C, sumd, D, midx, info] = kmedoids(X, K, 'Distance'/'MaxIter'/'Replicates'/'Algorithm'/'Start', val, ...). Default Distance is 'sqeuclidean' (per R2025b — not 'euclidean'). Fingerprints are label-permutation-invariant (cluster counts + same-cluster boolean tests + output shapes) because RNG init differs between engines (joint with normrnd spec for full label parity)."
 }

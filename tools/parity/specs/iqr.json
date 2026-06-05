@@ -11,5 +11,5 @@
     "rD2(1)", "rD2(3)", "rD2(5)",
     "r_all", "r_vec"
   ],
-  "comment": "Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). Closes audit/findings/stats/iqr.md (joint with quantile + prctile)."
+  "comment": "Sig: r = iqr(A[, dim | 'all' | vecdim]). MATLAB R2025b uses midpoint (R2007a) interpolation: iqr = prctile(A, 75) - prctile(A, 25). (joint with quantile + prctile)."
 }

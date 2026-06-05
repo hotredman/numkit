@@ -1,5 +1,5 @@
 // libs/image/tests/wcodemat_test.cpp
-// Audit ТЗ closure for wcodemat. Closes audit/findings/wavelet/wcodemat.md.
+// wcodemat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -12,5 +12,5 @@
     "h2", "p2",
     "h2t", "p2t"
   ],
-  "comment": "Sig: vartest(x, v[, NV]) and vartest2(x, y[, NV]). Both adapters now parse Alpha and Tail Name-Value pairs (case-insensitive). 'Dim' N-V throws (parity gap). 4th output remains scalar T/F (struct deferred). Closes audit/findings/stats/{vartest,vartest2}.md (partial)."
+  "comment": "Sig: vartest(x, v[, NV]) and vartest2(x, y[, NV]). Both adapters now parse Alpha and Tail Name-Value pairs (case-insensitive). 'Dim' N-V throws (parity gap). 4th output remains scalar T/F (struct deferred). (partial)."
 }

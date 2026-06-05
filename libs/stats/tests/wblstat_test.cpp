@@ -1,5 +1,5 @@
 // libs/stats/tests/wblstat_test.cpp
-// Audit ТЗ closure for wblstat. Closes audit/findings/stats/wblstat.md.
+// wblstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

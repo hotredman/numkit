@@ -13,5 +13,5 @@
     "ft_s(2)",  "ft_p(2)",
     "nu_s(2)",  "nu_p(2)"
   ],
-  "comment": "Joint 'periodic' / 'symmetric' (default) sflag verification across 6 signal.windows that accept it. Implementation trick: periodic(N) = first N samples of symmetric(N+1) — works for any window. The other 6 windows (bartlett/triang/parzenwin/bohmanwin/barthannwin/rectwin) accept ONLY 'double'/'single' typeName and throw on 'periodic' (gtest covers that branch). Closes audit/findings/signal/{hamming,hann,blackman,blackmanharris,flattopwin,nuttallwin,bartlett,triang,parzenwin,bohmanwin,barthannwin,rectwin}.md."
+  "comment": "Joint 'periodic' / 'symmetric' (default) sflag verification across 6 signal.windows that accept it. Implementation trick: periodic(N) = first N samples of symmetric(N+1) — works for any window. The other 6 windows (bartlett/triang/parzenwin/bohmanwin/barthannwin/rectwin) accept ONLY 'double'/'single' typeName and throw on 'periodic' (gtest covers that branch).
 }

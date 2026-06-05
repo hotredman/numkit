@@ -11,5 +11,5 @@
     "H8(2,2)", "H8(4,7)", "sum(H8(1,:))",
     "H16(1,1)", "H16(8,9)", "sum(sum(H16))"
   ],
-  "comment": "Sig: H = hadamard(N). Sylvester construction: H_1=[1], H_{2k}=[Hk Hk; Hk -Hk]. Power-of-2 N only (1,2,4,8,16,...). MATLAB R2025b also accepts 12·2^k and 20·2^k via Paley constructions -- those are deferred (separate ТЗ)."
+  "comment": "Sig: H = hadamard(N). Sylvester construction: H_1=[1], H_{2k}=[Hk Hk; Hk -Hk]. Power-of-2 N only (1,2,4,8,16,...). MATLAB R2025b also accepts 12·2^k and 20·2^k via Paley constructions -- those are deferred (separate spec)."
 }

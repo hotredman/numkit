@@ -1,5 +1,5 @@
 // libs/stats/tests/logninv_test.cpp
-// Audit ТЗ closure for logninv. Closes audit/findings/stats/logninv.md.
+// logninv.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -1,5 +1,5 @@
 // libs/stats/tests/poisspdf_test.cpp
-// Audit ТЗ closure for poisspdf. Closes audit/findings/stats/poisspdf.md.
+// poisspdf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

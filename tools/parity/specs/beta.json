@@ -11,7 +11,7 @@
     "r(3)",
     "r(4)"
   ],
-  "comment": "Sig: r = beta(...). Special function. Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified MATLAB R2025b parity.",
+  "comment": "Sig: r = beta(...). Special function. Spec-extension batch 2026-05-09 verified MATLAB R2025b parity.",
   "bench_setup": "xb = mod((1:N)*7919,500)*0.01 + 0.5; yb = mod((1:N)*104729,500)*0.01 + 0.5;",
   "bench_expr": "rb=beta(xb,yb);"
 }

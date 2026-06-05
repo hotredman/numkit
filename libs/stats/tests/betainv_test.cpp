@@ -1,8 +1,6 @@
 // libs/stats/tests/betainv_test.cpp
-//
-// Audit ТЗ closure for betainv — coverage gap fix (no behavioral
+// betainv — coverage gap fix (no behavioral
 // change). Reference values from MATLAB R2025b probe.
-// Closes audit/findings/stats/betainv.md.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

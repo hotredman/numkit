@@ -2,14 +2,14 @@ clear
 
 import compat.*
 
-% SWT / MODWT batch smoke — audit ТЗ closure 2026-05-09.
+% SWT / MODWT batch smoke — spec closure 2026-05-09.
 %
 % Real fixes this cycle:
 %   - modwt argument order: (x, lev, wname) → (x, wname, lev) per
 %     MATLAB R2025b. Plus default wname='sym4' and default lev =
 %     floor(log2(N)). Pre-fix, modwt(x, 'haar', 3) THREW.
 %
-% Known kernel-level gaps (out of scope, separate audit):
+% Known kernel-level gaps (out of scope):
 %   - swt detail-row sign differs from MATLAB (Hi_D vs Hi_R QMF).
 %     Approximation row matches.
 %   - modwt per-coefficient values diverge from MATLAB (sqrt(2)

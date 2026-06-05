@@ -1,5 +1,5 @@
 // libs/stats/tests/ksdensity_test.cpp
-// Audit ТЗ closure for ksdensity. Closes audit/findings/empirical/ksdensity.md.
+// ksdensity.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

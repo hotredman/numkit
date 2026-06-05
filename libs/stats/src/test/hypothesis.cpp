@@ -2309,7 +2309,7 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
     // Apply EMin: merge tail bins with E < emin (working from each end
     // inward, merging the small bin into its inward neighbour). MATLAB
     // also merges contiguous low-E interior runs, but tail-only is the
-    // common case; this matches the audit reference output.
+    // common case; this matches the MATLAB reference output.
     auto merge_left = [&]() {
         while (O.size() > 1 && E[0] < emin) {
             O[1] += O[0]; E[1] += E[0];
@@ -2668,7 +2668,6 @@ void signtest_reg(Span<const Value> args, size_t nargout,
 }
 
 // ── lillietest (Lilliefors normality test) ─────────────────────────
-//
 // Tests H0: x ~ N(mu, sigma^2) for unspecified mu, sigma. Uses KS
 // statistic against a fitted normal CDF (mean and std estimated
 // from sample). p-value via Stephens (1974) approximation.

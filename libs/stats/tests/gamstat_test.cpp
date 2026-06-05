@@ -1,5 +1,5 @@
 // libs/stats/tests/gamstat_test.cpp
-// Audit ТЗ closure for gamstat. Closes audit/findings/stats/gamstat.md.
+// gamstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

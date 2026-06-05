@@ -1,6 +1,5 @@
 // libs/stats/tests/maxk_mink_test.cpp
-//
-// Closes audit/closed/stats/{maxk,mink}.md. ComparisonMethod real/auto/abs
+// ComparisonMethod real/auto/abs
 // all supported ('abs' added DEEP-PROBE c171).
 
 #include <numkit/builtin/library.hpp>

@@ -2,7 +2,7 @@ clear
 
 import compat.*
 
-% Type-conversion batch — audit ТЗ closure 2026-05-09. 12 functions.
+% Type-conversion batch — spec closure 2026-05-09. 12 functions.
 
 fprintf('int8(127)        = %d\n',  int8(127));
 fprintf('int16(32767)     = %d\n',  int16(32767));

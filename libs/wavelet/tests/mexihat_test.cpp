@@ -1,5 +1,5 @@
 // libs/wavelet/tests/mexihat_test.cpp
-// Audit ТЗ closure for mexihat. Closes audit/findings/wavelet/mexihat.md.
+// mexihat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

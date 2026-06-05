@@ -1,5 +1,5 @@
 // libs/stats/tests/nbinstat_test.cpp
-// Audit ТЗ closure for nbinstat. Closes audit/findings/stats/nbinstat.md.
+// nbinstat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

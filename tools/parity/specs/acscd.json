@@ -13,5 +13,5 @@
     "y(5)",
     "y(6)"
   ],
-  "comment": "Sig: y = acscd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 \u2014 fingerprint covers domain edges + a few interior points. Audit \u0422\u0417: \"no major gap detected\" \u2014 verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences)."
+  "comment": "Sig: y = acscd(x). Element-wise inverse-trig (libm-backed). Spec-extension batch 2026-05-09 \u2014 fingerprint covers domain edges + a few interior points. verified bit-identical to MATLAB R2025b (tol=1e-12 covers libm vs Intel-SVML differences)."
 }

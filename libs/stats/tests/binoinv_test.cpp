@@ -1,5 +1,5 @@
 // libs/stats/tests/binoinv_test.cpp
-// Audit ТЗ closure for binoinv. Closes audit/findings/stats/binoinv.md.
+// binoinv.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

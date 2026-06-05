@@ -1,13 +1,11 @@
 // libs/builtin/tests/transcendentals_batch_test.cpp
-//
-// Audit ТЗ batch closure for the transcendental + rounding family:
+// transcendental + rounding family:
 //   atan2 / atan2d
 //   exp / expm1
 //   log / log2 / log10 / log1p
 //   sqrt / hypot
 //   floor / ceil / round / fix
-//
-// All 14 flagged "no major gap detected" — libm-backed, bit-identical
+// All 14  — libm-backed, bit-identical
 // MATLAB R2025b on probed inputs (parity tol=1e-12).
 
 #include <numkit/builtin/library.hpp>

@@ -1,5 +1,5 @@
 // libs/wavelet/tests/appcoef_test.cpp
-// Audit ТЗ closure for appcoef. Closes audit/findings/wavelet/appcoef.md.
+// appcoef.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

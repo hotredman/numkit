@@ -8,5 +8,5 @@
   "fingerprint": [
     "numel(y)", "y(1)", "max(y)", "min(y)", "sum(y)"
   ],
-  "comment": "Sig: y = icceps(c). Inverse complex cepstrum: ifft(exp(fft(c))). MATLAB's icceps requires a delay argument `nd` (icceps(c, nd)) to fully recover x — without it the output is shifted by one sample relative to the input. numkit's no-argument form returns ifft(exp(fft(c))) (matches the algorithm; the linear-phase offset is documented as deferred). Sign-convention fix applied alongside cceps (audit ТЗ signal/cceps closed 2026-05-09 — was using forward DFT for the inverse pass). Fingerprint pins API contract (length, max, min, sum) which IS bit-identical to MATLAB; the per-sample order shift is a separate ТЗ for icceps.nd."
+  "comment": "Sig: y = icceps(c). Inverse complex cepstrum: ifft(exp(fft(c))). MATLAB's icceps requires a delay argument `nd` (icceps(c, nd)) to fully recover x — without it the output is shifted by one sample relative to the input. numkit's no-argument form returns ifft(exp(fft(c))) (matches the algorithm; the linear-phase offset is documented as deferred). Sign-convention fix applied alongside cceps (was using forward DFT for the inverse pass). Fingerprint pins API contract (length, max, min, sum) which IS bit-identical to MATLAB; the per-sample order shift is a separate spec for icceps.nd."
 }

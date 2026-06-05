@@ -12,5 +12,5 @@
     "numel(y_disc)", "y_disc(1)",
     "y_k2(1)", "y_z(5)", "y_o2(7)", "y_o2(8)"
   ],
-  "comment": "Sig: movstd(A, k[, normFlag] [, dim] [, nanflag] [, Name, Value]). normFlag in {0 (default, N-1), 1 (N)}. Same nanflag/Endpoints surface as movmean. Closes audit/findings/stats/movstd.md. 2026-05-30: single-element-window std is 0, not NaN (MATLAB parity) — y_k2(1)=0 (edge of a length-2 window), y_z(5)=0 (length-1 window everywhere via [0 0]), y_o2(7)=y_o2(8)=0 (omitnan reduces those windows to one valid element)."
+  "comment": "Sig: movstd(A, k[, normFlag] [, dim] [, nanflag] [, Name, Value]). normFlag in {0 (default, N-1), 1 (N)}. Same nanflag/Endpoints surface as movmean. 2026-05-30: single-element-window std is 0, not NaN (MATLAB parity) — y_k2(1)=0 (edge of a length-2 window), y_z(5)=0 (length-1 window everywhere via [0 0]), y_o2(7)=y_o2(8)=0 (omitnan reduces those windows to one valid element)."
 }

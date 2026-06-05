@@ -1,5 +1,5 @@
 // libs/stats/tests/pdist_test.cpp
-// Audit ТЗ closure for pdist. Closes audit/findings/cluster/pdist.md.
+// pdist.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -76,8 +76,8 @@ TEST_F(PdistTest, Pdist2MahalanobisDefault)
     EXPECT_EQ(static_cast<size_t>(evalScalar("size(d, 2)")), 2u);
 }
 
-// 2026-05-08: pdist2 'Smallest'/'Largest' k mode (closes ТЗ
-// audit/findings/cluster/pdist2.md gaps #1-#2).
+// 2026-05-08: pdist2 'Smallest'/'Largest' k mode (closes spec
+// gaps #1-#2).
 
 TEST_F(PdistTest, Pdist2SmallestK)
 {

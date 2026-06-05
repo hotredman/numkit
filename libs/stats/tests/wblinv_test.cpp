@@ -1,5 +1,5 @@
 // libs/stats/tests/wblinv_test.cpp
-// Audit ТЗ closure for wblinv. Closes audit/findings/stats/wblinv.md.
+// wblinv.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

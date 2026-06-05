@@ -14,7 +14,7 @@
     "real(yp)", "imag(yp)", "real(yn)", "imag(yn)",
     "real(ya(1))", "imag(ya(1))", "real(ya(2))", "imag(ya(2))", "real(ya(3))", "imag(ya(3))"
   ],
-  "comment": "Sig: y = atanh(x). Element-wise inverse-trig (libm). Out-of-domain |x|>1 → complex (fixed 2026-06-05, scalar AND array). KEY: std::atanh's complex branch flips the imaginary SIGN vs MATLAB for x<-1, so use atanh(x)=atanh(1/x)+i*sign(x)*pi/2: atanh(2)=0.5493+1.5708i, atanh(-2)=-0.5493-1.5708i (numkit previously gave -0.5493+1.5708i for the scalar too). atanh([2 -2 0.5]) mixes complex + a real in-range element. Spec-extension batch 2026-05-09 — auditor \"no major gap detected\" verified bit-identical MATLAB R2025b on domain edges.",
+  "comment": "Sig: y = atanh(x). Element-wise inverse-trig (libm). Out-of-domain |x|>1 → complex (fixed 2026-06-05, scalar AND array). KEY: std::atanh's complex branch flips the imaginary SIGN vs MATLAB for x<-1, so use atanh(x)=atanh(1/x)+i*sign(x)*pi/2: atanh(2)=0.5493+1.5708i, atanh(-2)=-0.5493-1.5708i (numkit previously gave -0.5493+1.5708i for the scalar too). atanh([2 -2 0.5]) mixes complex + a real in-range element. Spec-extension batch 2026-05-09 verified bit-identical MATLAB R2025b on domain edges.",
   "bench_setup": "xb = mod((1:N)*7919,1998)*0.001 - 0.999;",
   "bench_expr": "rb=atanh(xb);"
 }

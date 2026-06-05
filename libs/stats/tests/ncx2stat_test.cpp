@@ -1,5 +1,5 @@
 // libs/stats/tests/ncx2stat_test.cpp
-// Audit ТЗ closure for ncx2stat. Closes audit/findings/stats/ncx2stat.md.
+// ncx2stat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

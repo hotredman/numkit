@@ -1,12 +1,10 @@
 // libs/builtin/tests/construct_search_batch_test.cpp
-//
-// Audit ТЗ batch closure for matrix-construction + search/sort/mod:
+// matrix-construction + search/sort/mod:
 //   construction: zeros / ones / eye / linspace / logspace / repmat
 //   search/sort:  sort / find / unique
 //   mod/rem:      mod / rem
 //   booleans:     true / false
-//
-// All flagged "no major gap detected" — bit-identical MATLAB R2025b
+// All  — bit-identical MATLAB R2025b
 // on probed inputs.
 
 #include <numkit/builtin/library.hpp>

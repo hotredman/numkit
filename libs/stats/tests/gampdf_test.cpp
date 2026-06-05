@@ -1,5 +1,5 @@
 // libs/stats/tests/gampdf_test.cpp
-// Audit ТЗ closure for gampdf. Closes audit/findings/stats/gampdf.md.
+// gampdf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

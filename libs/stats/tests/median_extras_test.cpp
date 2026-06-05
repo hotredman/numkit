@@ -1,6 +1,4 @@
 // libs/stats/tests/median_extras_test.cpp
-//
-// Closes audit/closed/stats/median.md.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

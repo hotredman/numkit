@@ -1,5 +1,5 @@
 // libs/stats/tests/chi2gof_test.cpp
-// Audit ТЗ closure for chi2gof. Closes audit/findings/stats/chi2gof.md.
+// chi2gof.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

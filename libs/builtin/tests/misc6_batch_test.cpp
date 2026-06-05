@@ -1,12 +1,10 @@
 // libs/builtin/tests/misc6_batch_test.cpp
-//
-// Audit ТЗ batch closure (11 builtin functions):
+// (11 builtin functions):
 //   rng:       randi · randperm
 //   shape:     shiftdim · pol2cart · sph2cart
 //   typecast:  typecast
 //   strings:   split · splitlines · strjoin · strncmp · strncmpi
-//
-// All flagged "no major gap detected". Bit-identical MATLAB R2025b.
+// All . Bit-identical MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

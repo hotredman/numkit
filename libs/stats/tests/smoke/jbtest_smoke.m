@@ -2,7 +2,7 @@ clear;
 import compat.*;
 
 % jbtest — Jarque-Bera normality test. Closes
-% audit/findings/stats/jbtest.md.
+%
 %
 % New 2026-05-08:
 %   - Small-sample (n < 2000) p-value via Monte-Carlo simulation

@@ -1,5 +1,5 @@
 // libs/stats/tests/normfit_test.cpp
-// Audit ТЗ closure for normfit. Closes audit/findings/stats/normfit.md.
+// normfit.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -21,7 +21,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// Reference values from MATLAB R2025b probe (audit/findings/stats/normfit.md).
+// Reference values from MATLAB R2025b probe.
 
 TEST_F(NormfitTest, BasicNoCensNoFreq)
 {

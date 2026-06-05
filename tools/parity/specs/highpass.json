@@ -6,5 +6,5 @@
   "iters": 1,
   "tol": 1e-12,
   "fingerprint": ["r1"],
-  "comment": "DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path. See audit/closed/signal/highpass.md."
+  "comment": "DEFERRED -- numkit uses order-8 Butterworth + forward filter; MATLAB uses min-order FIR (firgr/firpm with steepness=0.85) + zero-phase filtfilt by default. Same SHAPE (numel matches), different VALUES. Fix requires implementing min-order FIR design path.
 }

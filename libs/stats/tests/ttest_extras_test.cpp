@@ -1,6 +1,4 @@
 // libs/stats/tests/ttest_extras_test.cpp
-//
-// Closes audit/closed/stats/{ttest,ttest2}.md.
 // Reference values from MATLAB R2025b probe.
 
 #include <numkit/builtin/library.hpp>

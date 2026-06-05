@@ -1,7 +1,6 @@
 // libs/stats/tests/cdf_upper_test.cpp
-//
 // Joint regression test for the 'upper' flag added to all stats.dist
-// CDFs. Closes 14 audit ТЗ:
+// CDFs. covers:
 //   normcdf, chi2cdf, tcdf, fcdf, betacdf, gamcdf, expcdf, raylcdf,
 //   logncdf, wblcdf, unifcdf, unidcdf, binocdf, poisscdf
 // Reference values from MATLAB R2025b probes.

@@ -1,7 +1,5 @@
 // libs/stats/tests/chi2pdf_test.cpp
-//
-// Audit ТЗ closure for chi2pdf. Reference values from MATLAB R2025b.
-// Closes audit/findings/stats/chi2pdf.md.
+// chi2pdf. Reference values from MATLAB R2025b.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

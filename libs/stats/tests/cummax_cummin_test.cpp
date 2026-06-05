@@ -1,6 +1,4 @@
 // libs/stats/tests/cummax_cummin_test.cpp
-//
-// Closes audit/closed/stats/{cummax,cummin}.md.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

@@ -1,5 +1,5 @@
 // libs/stats/tests/geostat_test.cpp
-// Audit ТЗ closure for geostat. Closes audit/findings/stats/geostat.md.
+// geostat.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

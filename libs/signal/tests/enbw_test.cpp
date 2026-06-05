@@ -1,5 +1,5 @@
 // libs/signal/tests/enbw_test.cpp
-// Audit ТЗ closure for enbw. Closes audit/findings/signal/enbw.md.
+// enbw.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>

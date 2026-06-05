@@ -1,5 +1,5 @@
 // libs/wavelet/tests/shanwavf_test.cpp
-// Audit ТЗ closure for shanwavf. Closes audit/findings/wavelet/shanwavf.md.
+// shanwavf.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
