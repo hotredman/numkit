@@ -124,10 +124,17 @@ TEST_P(CalculusTest, GradientBadSpacingThrows)
     EXPECT_THROW(eval("g = gradient([1 2 3], -1);"), std::exception);
 }
 
-TEST_P(CalculusTest, Gradient3DInputThrows)
+// gradient now supports N-D arrays (was: threw). Single output = the dim-2 (x)
+// gradient; [gx,gy,gz] adds dim-1 (y) and dim-3 (z). MATLAB gz(1,1,1)=4.
+// (bugs/builtin/gradient-3d.md FIXED 2026-06-05.)
+TEST_P(CalculusTest, Gradient3DInput)
 {
-    eval("A = zeros(2, 2, 2);");
-    EXPECT_THROW(eval("g = gradient(A);"), std::exception);
+    eval("A = reshape(1:8, 2, 2, 2);");
+    eval("g = gradient(A);");
+    EXPECT_NEAR(evalScalar("g(1,1,1)"), 2.0, 1e-12);
+    eval("[gx, gy, gz] = gradient(A);");
+    EXPECT_NEAR(evalScalar("gy(1,1,1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("gz(1,1,1)"), 4.0, 1e-12);
 }
 
 // gradient accepts complex as of 2026-06-05 (was: threw). Real + imaginary

@@ -3,9 +3,8 @@
 // Regression guard for the gradient part of
 // bugs/builtin/complex-input-unsupported.md (umbrella; gradient now FIXED).
 // gradient of a complex array gradients the real and imaginary parts
-// separately, then recombines (vector + matrix single/2-output). N-D complex
-// is still rank-limited — tracked by bugs/builtin/gradient-3d.md.
-// MATLAB R2025b reference values.
+// separately, then recombines (vector + matrix single/2-output + N-D as of
+// 2026-06-05, bugs/builtin/gradient-3d.md). MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -68,8 +67,12 @@ TEST_F(GradientComplexTest, RealUnchanged)
     EXPECT_TRUE(eval("isreal(g)").toBool());
 }
 
-// N-D complex is still rank-limited (tracked separately); must error cleanly.
-TEST_F(GradientComplexTest, NDComplexStillErrors)
+// N-D complex now works (was: threw) — real + imaginary parts gradiented
+// separately and recombined. bugs/builtin/gradient-3d.md FIXED 2026-06-05.
+TEST_F(GradientComplexTest, NDComplexOk)
 {
-    EXPECT_ANY_THROW(eval("gradient(reshape((1:8)+1i, 2, 2, 2));"));
+    eval("Z = reshape(1:8,2,2,2) + 1i*reshape(8:-1:1,2,2,2); [zx,zy,zz] = gradient(Z);");
+    EXPECT_TRUE(eval("~isreal(zx)").toBool());
+    EXPECT_NEAR(evalScalar("real(zx(1,1,1))"), 2.0,  1e-12);   // d/dx of real part
+    EXPECT_NEAR(evalScalar("imag(zx(1,1,1))"), -2.0, 1e-12);   // d/dx of imag part
 }

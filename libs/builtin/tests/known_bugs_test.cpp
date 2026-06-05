@@ -102,8 +102,9 @@ TEST_F(BuiltinKnownBug, DISABLED_DiffZeroOrderErrors)
 //   libs/stats/tests/{median,movmean,detrend}_complex_test.cpp,
 //   libs/signal/tests/{conv,filter}_complex_test.cpp.
 
-// bugs/builtin/gradient-3d.md — gradient of an N-D (3-D) array.
-TEST_F(BuiltinKnownBug, DISABLED_Gradient3D)
+// bugs/builtin/gradient-3d.md — gradient of an N-D (3-D) array. FIXED 2026-06-05
+// (deep coverage in libs/builtin/tests/gradient_nd_test.cpp).
+TEST_F(BuiltinKnownBug, Gradient3D)
 {
     eval("A = reshape(1:8,2,2,2); [gx,gy,gz] = gradient(A);");  // MATLAB gz(1,1,1)=4
     EXPECT_NEAR(evalScalar("gz(1,1,1)"), 4.0, 1e-12);
