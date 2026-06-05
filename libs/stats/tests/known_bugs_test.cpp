@@ -21,6 +21,19 @@ public:
 
 // NOTE: anova1 matrix-input bug FIXED — see libs/stats/tests/anova1_test.cpp.
 
+// bugs/stats/movfun-typeclass.md — FIXED (movsum/movprod/movmean promote
+// integer/logical input to double). Full guard in movfun_typeclass_test.cpp.
+TEST_F(StatsKnownBug, MovfunTypeClass)
+{
+    eval("y = movsum(int8([3 1 2 5 4]), 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("isa(y,'double')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), 11.0);
+    eval("m = movmean(int8([3 1 2 5 4]), 3);");
+    EXPECT_NEAR(evalScalar("m(5)"), 4.5, 1e-12);
+    eval("l = movsum(logical([1 0 1 1 0]), 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("l(2)"), 2.0);
+}
+
 // bugs/stats/mle-output.md — 2nd output pci (confidence intervals). FIXED
 // 2026-06-05 (deep coverage in libs/stats/tests/mle_pci_test.cpp).
 TEST_F(StatsKnownBug, MleConfidenceIntervals)

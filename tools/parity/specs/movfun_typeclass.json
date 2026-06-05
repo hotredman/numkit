@@ -1,0 +1,16 @@
+{
+  "name": "movfun_typeclass",
+  "namespace": "stats",
+  "setup": "J = int8([3 1 2 5 4]); L = logical([1 0 1 1 0]); U = uint16([30 10 50 20]);",
+  "expr": "s = movsum(J, 3); p = movprod(J, 3); m = movmean(J, 3); ls = movsum(L, 3); us = movsum(U, 2);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "s(1)", "s(3)", "s(4)", "s(5)",
+    "p(1)", "p(4)", "p(5)",
+    "m(1)", "m(3)", "m(4)", "m(5)",
+    "ls(1)", "ls(2)", "ls(5)",
+    "us(2)", "us(3)"
+  ],
+  "comment": "movsum/movprod/movmean on integer/logical input. MATLAB PROMOTES integer/logical to double for these arithmetic moving functions (class NOT preserved). Window 3 (and 2 for uint16), endpoints 'shrink'. movsum(int8([3 1 2 5 4]))=[4 6 8 11 9], movprod=[3 6 10 40 20], movmean=[2 2 2.6667 3.6667 4.5], movsum(logical)=[1 2 2 2 1]. char is NOT promoted (MATLAB errors); movmax/movmin/movmedian preserve class (separate). bugs/stats/movfun-typeclass.md."
+}
