@@ -23,7 +23,7 @@ TOC_FILES = [
     Path(r"C:/Program Files/MATLAB/R2025b/help/signal/helpfuncbycat.xml"),
     Path(r"C:/Program Files/MATLAB/R2025b/help/stats/helpfuncbycat.xml"),
 ]
-PROGRESS = ROOT / "PROGRESS.md"
+PROGRESS = ROOT / "tools" / "parity" / "PROGRESS.md"
 
 # ── Out-of-scope ────────────────────────────────────────────────────
 # Top-level sections to drop entirely (per project decision: numkit is

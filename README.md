@@ -32,7 +32,7 @@ Numkit IDE is built with React + Vite and runs the C++ engine via WebAssembly:
 
 Live function-by-function status, native runtime, and side-by-side
 performance against MATLAB R2025b and Octave 11.x is tracked in
-**[PROGRESS.md](PROGRESS.md)**.
+**[PROGRESS.md](tools/parity/PROGRESS.md)**.
 
 Known issues, behavioural deviations, and open bugs are tracked in
 **[BUGS.md](BUGS.md)**.
@@ -342,7 +342,7 @@ status = session.resume(DebugAction::StepOver);
 - **Linear algebra** — basic factorisations only (`mldivide`, `mrdivide`,
   `inv`, `det`, named-fn variants); BLAS/LAPACK-grade `eig` / `svd` /
   `qr` / `chol` are work-in-progress. Tracked under `## Linear Algebra`
-  in [PROGRESS.md](PROGRESS.md).
+  in [PROGRESS.md](tools/parity/PROGRESS.md).
 - **Sparse matrices** — no sparse value type yet.
 - **Datetime / Tables / Categorical** — datatype scaffolding only,
   not feature-complete.
@@ -353,7 +353,7 @@ status = session.resume(DebugAction::StepOver);
 
 Behavioural deviations from MATLAB R2025b on individual functions are
 tracked in **[BUGS.md](BUGS.md)** alongside their fix queue. Function-
-level coverage is in **[PROGRESS.md](PROGRESS.md)**.
+level coverage is in **[PROGRESS.md](tools/parity/PROGRESS.md)**.
 
 ---
 
@@ -394,14 +394,15 @@ ide/                                  # Numkit IDE — React + Vite frontend
     public/examples/                  # 80 example .m scripts
 
 tools/                                # Dev tooling
-    parity/                           # Parity harness (run_parity.py) + 1500+ JSON specs
+    parity/                           # Parity harness (run_parity.py) + 1500+ specs
+        PROGRESS.md                   # Live function-by-function parity map
+        BENCHMARK.md                  # Per-function timings vs MATLAB / Octave
     maintenance/                      # check_api.py · cleanup_pages · check_vfs_invariant
 scripts/                              # build / dev / deploy / desktop wrappers (sh + bat)
 
 docs/                                 # Design notes + API ruleset
     design/                           # NAMESPACE_DESIGN · OBJECT_MODEL · VM_CALLBACKS_PLAN · COORDINATION
     LIBRARY_API.md · CALLBACK_PAUSABILITY.md
-PROGRESS.md                           # Live function-by-function parity map
 BUGS.md                               # Behavioural deviations + fix queue
 ```
 
