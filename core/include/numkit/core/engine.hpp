@@ -92,8 +92,14 @@ public:
     // Register a user `classdef` (parsed CLASSDEF_DEF node) as a BuiltinClass
     // via the adapter: generic property get/set over ObjectState.props,
     // default-init + user constructor on construct, and method hooks that
-    // run the method bodies. Idempotent (skips if already registered).
+    // run the method bodies. Re-running a `classdef` for an already-registered
+    // class REPLACES it wholesale (see unregisterClassDef) so REPL / IDE edits
+    // take effect.
     void registerClassDef(const ASTNode *classdef);
+    // `clear classes` / `clear all`: remove every USER classdef so the next
+    // reference re-loads (file classes) or errors as undefined (inline ones).
+    // Built-in classes (containers.Map, …) are not in classDefs_ and survive.
+    void clearClassDefs();
     // Run a classdef method body (args already include `self` first) /
     // constructor body (with `obj` seeded to the default instance) on the
     // TreeWalker, regardless of the active backend.
@@ -643,6 +649,11 @@ private:
     // externals, and the compiled method chunks. Called by registerClassDef
     // when `Name` is already registered, instead of the old idempotent skip.
     void unregisterClassDef(const std::string &name);
+    // Remove the bare constructor external `externalFuncs_[name]` that
+    // resolveMFile_ registers for a class loaded from `Name.m`. Guarded by
+    // mFileCache_ membership so an inline `classdef sum` can never erase the
+    // core `sum` builtin that merely shares the name.
+    void dropFileClassCtorExternal_(const std::string &name);
 
     OutputFunc outputFunc_;
     FigureManager figureManager_;

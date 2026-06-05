@@ -735,6 +735,35 @@ void Engine::unregisterClassDef(const std::string &name)
     classes_.erase(name);
 }
 
+void Engine::dropFileClassCtorExternal_(const std::string &name)
+{
+    // resolveMFile_ registers a bare constructor external for a class loaded
+    // from `Name.m`. Guard on mFileCache_ membership: only a file-loaded class
+    // has this external, so we never erase a core builtin that merely shares a
+    // name with an inline classdef.
+    if (!mFileCache_.count(name))
+        return;
+    externalFuncs_.erase(name);
+    auto range = shortNameIndex_.equal_range(name);
+    for (auto it = range.first; it != range.second;)
+        it = (it->second == name) ? shortNameIndex_.erase(it) : std::next(it);
+}
+
+void Engine::clearClassDefs()
+{
+    // Collect names first — unregisterClassDef mutates classDefs_ as it goes.
+    // Built-in classes live in classes_ but NOT classDefs_, so iterating
+    // classDefs_ touches only user classes.
+    std::vector<std::string> names;
+    names.reserve(classDefs_.size());
+    for (const auto &kv : classDefs_)
+        names.push_back(kv.first);
+    for (const auto &name : names) {
+        dropFileClassCtorExternal_(name); // enable file-class reload on next ref
+        unregisterClassDef(name);
+    }
+}
+
 void Engine::registerClassDef(const ASTNode *cd)
 {
     if (!cd || cd->type != NodeType::CLASSDEF_DEF || cd->strValue.empty())
@@ -1789,6 +1818,16 @@ void Engine::rehashMFiles()
         userFuncs_.erase(name);
         if (compiler_)
             compiler_->eraseCompiledFunc(name);
+        if (classDefs_.count(name)) {
+            // A class loaded from `Name.m`: evicting the bare chunk above is not
+            // enough — the class machinery (registry, descriptor, `Name>method`
+            // chunks, qualified externals) and the bare constructor external all
+            // persist and would shadow the edited file. Drop them so the next
+            // reference re-reads and re-registers. (mFileCache_ is still
+            // populated here, so the ctor-external guard passes.)
+            dropFileClassCtorExternal_(name);
+            unregisterClassDef(name);
+        }
     }
     mFileCache_.clear();
 }
