@@ -1,0 +1,10 @@
+{
+  "name": "gradient_nd",
+  "namespace": "builtin",
+  "setup": "A = reshape(1:8,2,2,2); B = reshape(1:27,3,3,3); C = reshape(1:12,2,3,2); D = reshape(1:16,2,2,2,2); Z = reshape(1:8,2,2,2) + 1i*reshape(8:-1:1,2,2,2);",
+  "expr": "g1 = gradient(A); [gx,gy,gz] = gradient(A); [bx,by,bz] = gradient(B); [hx,hy,hz] = gradient(A,2,3,4); [sa,sb,sc] = gradient(A,2); [cx,cy,cz] = gradient(C); [d1,d2,d3,d4] = gradient(D); [zx,zy,zz] = gradient(Z);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["g1(1,1,1)", "gx(1,1,1)", "gy(1,1,1)", "gz(1,1,1)", "sum(gx(:))", "sum(gz(:))", "bx(1,2,1)", "by(2,1,1)", "bz(1,1,2)", "sum(bx(:))", "hx(1,1,1)", "hy(1,1,1)", "hz(1,1,1)", "sb(1,1,1)", "cx(1,2,1)", "cy(2,1,1)", "cz(1,1,2)", "d4(1,1,1,1)", "d1(1,1,1,1)", "real(zx(1,1,1))", "imag(zx(1,1,1))", "imag(zz(1,1,2))"],
+  "comment": "Sig: g = gradient(F); [gx,gy,gz,...] = gradient(F[,hx,hy,hz,...]). Covers the gradient N-D fix (bugs/builtin/gradient-3d.md): N-D (3-D + 4-D) input, one gradient per dimension up to nargout with the MATLAB output->dim map out1=dim2(x) out2=dim1(y) out_k=dim(k+1); single output = the x (dim-2) gradient; central differences interior + one-sided ends (sum fingerprints catch any element-level drift); per-dim spacing (2,3,4) and single-spacing broadcast (sb=A/2); non-cube 2x3x2; complex 3-D gradiented part-wise (real/imag). 2-D + vector paths unchanged."
+}

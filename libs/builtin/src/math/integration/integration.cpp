@@ -75,6 +75,35 @@ void gradientAlongRows(const double *src, double *dst, size_t R, size_t C, doubl
     (void)invH;
 }
 
+// Gradient along an arbitrary dimension `dim` (0-based) of an N-D array in
+// column-major layout. Central differences on the interior, one-sided at the
+// ends, uniform scalar spacing h. A singleton dimension yields all zeros.
+// Generalises gradientAlongCols (dim==1) / gradientAlongRows (dim==0).
+void gradientAlongDim(const double *src, double *dst, const Dims &shape,
+                      int dim, double h)
+{
+    const size_t N = shape.numel();
+    if (N == 0) return;
+    const size_t L = shape.dim(dim);
+    if (L <= 1) { for (size_t i = 0; i < N; ++i) dst[i] = 0.0; return; }
+    size_t inner = 1;
+    for (int k = 0; k < dim; ++k) inner *= shape.dim(k);
+    const size_t block = L * inner;
+    const size_t outer = N / block;
+    const double inv2h = 0.5 / h, invH = 1.0 / h;
+    for (size_t o = 0; o < outer; ++o) {
+        for (size_t in = 0; in < inner; ++in) {
+            const size_t base = o * block + in;
+            const size_t last = base + (L - 1) * inner;
+            dst[base] = (src[base + inner] - src[base]) * invH;
+            dst[last] = (src[last] - src[last - inner]) * invH;
+            for (size_t k = 1; k + 1 < L; ++k)
+                dst[base + k * inner] =
+                    (src[base + (k + 1) * inner] - src[base + (k - 1) * inner]) * inv2h;
+        }
+    }
+}
+
 // One dimension's discrete-Laplacian term (g) along a strided line of
 // length n (element stride s, uniform spacing h). Centered second
 // difference on the interior, divided by 2h^2; the boundary values are a
@@ -151,8 +180,6 @@ Value gradient(const Value &f, double h, std::pmr::memory_resource *mr)
         throw Error("gradient: spacing h must be positive",
                      0, 0, "gradient", "", "numkit:gradient:badSpacing");
     // Complex: gradient real + imaginary parts separately, recombine (MATLAB).
-    // (N-D complex still routes into the real path → same rank error, tracked
-    // by bugs/builtin/gradient-3d.md.)
     if (f.type() == ValueType::COMPLEX) {
         Value gr = gradient(realPartCopy(f, mr), h, mr);
         Value gi = gradient(imagPartCopy(f, mr), h, mr);
@@ -167,9 +194,12 @@ Value gradient(const Value &f, double h, std::pmr::memory_resource *mr)
         gradient1D(src.doubleData(), out.doubleDataMut(), f.numel(), h);
         return out;
     }
-    if (d.is3D() || d.ndim() > 2)
-        throw Error("gradient: only 1D vector and 2D matrix inputs are supported",
-                     0, 0, "gradient", "", "numkit:gradient:rank");
+    if (d.is3D() || d.ndim() > 2) {
+        // N-D single output = gradient along the dim-2 (x / column) direction,
+        // i.e. 0-based dim 1, matching MATLAB. (bugs/builtin/gradient-3d.md)
+        gradientAlongDim(src.doubleData(), out.doubleDataMut(), d, 1, h);
+        return out;
+    }
     gradientAlongCols(src.doubleData(), out.doubleDataMut(),
                       d.rows(), d.cols(), h);
     return out;
@@ -250,6 +280,48 @@ gradient2(const Value &f, double hx, double hy, std::pmr::memory_resource *mr)
                       d.rows(), d.cols(), hy);
     return std::make_tuple(std::move(fx), std::move(fy));
 }
+
+namespace {
+// N-D gradient: emit `nout` arrays. Output o is taken along dimension perm(o)
+// where perm = {1, 0, 2, 3, ...} (0-based) — i.e. out0 = dim-2 (x), out1 =
+// dim-1 (y), out_k = dim-(k+1) for k>=2, matching MATLAB. `hs[o]` is the
+// scalar spacing for output o. Complex F is gradiented part-wise then
+// recombined. Throws if more outputs than dimensions are requested.
+std::pmr::vector<Value> gradientND(const Value &f, const double *hs, size_t nh,
+                                   size_t nout, std::pmr::memory_resource *mr)
+{
+    if (f.type() == ValueType::COMPLEX) {
+        auto re = gradientND(realPartCopy(f, mr), hs, nh, nout, mr);
+        auto im = gradientND(imagPartCopy(f, mr), hs, nh, nout, mr);
+        std::pmr::vector<Value> out(mr);
+        out.reserve(nout);
+        for (size_t o = 0; o < nout; ++o)
+            out.push_back(combineComplexParts(re[o], im[o], mr));
+        return out;
+    }
+
+    const Dims &shape = f.dims();
+    const int R = shape.ndim();
+    auto src = toDoubleCopy(f, mr);
+    std::pmr::vector<Value> outs(mr);
+    outs.reserve(nout);
+    for (size_t o = 0; o < nout; ++o) {
+        const int dim = (o == 0) ? 1 : (o == 1) ? 0 : static_cast<int>(o);
+        if (dim >= R)
+            throw Error("gradient: too many output arguments for the input "
+                        "dimensionality",
+                        0, 0, "gradient", "", "numkit:gradient:nargout");
+        const double h = (o < nh) ? hs[o] : 1.0;
+        if (h <= 0)
+            throw Error("gradient: spacing arguments must be positive",
+                        0, 0, "gradient", "", "numkit:gradient:badSpacing");
+        Value out = createLike(f, ValueType::DOUBLE, mr);
+        gradientAlongDim(src.doubleData(), out.doubleDataMut(), shape, dim, h);
+        outs.push_back(std::move(out));
+    }
+    return outs;
+}
+} // namespace
 
 // ── cumtrapz ─────────────────────────────────────────────────────────
 namespace {
@@ -620,19 +692,42 @@ void gradient_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         throw Error("gradient: requires at least 1 argument",
                      0, 0, "gradient", "", "numkit:gradient:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
+    const Dims &shape = args[0].dims();
+    const bool isND = shape.is3D() || shape.ndim() > 2;
 
-    double hx = 1.0, hy = 1.0;
-    if (args.size() >= 2) hx = args[1].toScalar();
-    if (args.size() >= 3) hy = args[2].toScalar();
-    else                  hy = hx;  // single spacing applies to both axes
+    if (!isND) {
+        // Vector / 2-D matrix — unchanged fast paths.
+        double hx = 1.0, hy = 1.0;
+        if (args.size() >= 2) hx = args[1].toScalar();
+        if (args.size() >= 3) hy = args[2].toScalar();
+        else                  hy = hx;  // single spacing applies to both axes
 
-    if (nargout <= 1) {
-        outs[0] = gradient(args[0], hx, mr);
+        if (nargout <= 1) {
+            outs[0] = gradient(args[0], hx, mr);
+            return;
+        }
+        auto [fx, fy] = gradient2(args[0], hx, hy, mr);
+        outs[0] = std::move(fx);
+        outs[1] = std::move(fy);
         return;
     }
-    auto [fx, fy] = gradient2(args[0], hx, hy, mr);
-    outs[0] = std::move(fx);
-    outs[1] = std::move(fy);
+
+    // N-D (3-D+) array: one gradient per dimension, up to nargout.
+    const size_t nout = (nargout < 1) ? 1 : nargout;
+    ScratchArena arena(mr);
+    auto hs = ScratchVec<double>(&arena);
+    const size_t nspac = (args.size() >= 2) ? args.size() - 1 : 0;
+    if (nspac == 0) {
+        hs.assign(nout, 1.0);
+    } else if (nspac == 1) {
+        hs.assign(nout, args[1].toScalar());  // single spacing → every dim
+    } else {
+        for (size_t i = 1; i < args.size(); ++i) hs.push_back(args[i].toScalar());
+        while (hs.size() < nout) hs.push_back(1.0);
+    }
+    auto results = gradientND(args[0], hs.data(), hs.size(), nout, mr);
+    for (size_t o = 0; o < nout && o < outs.size(); ++o)
+        outs[o] = std::move(results[o]);
 }
 
 void del2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
