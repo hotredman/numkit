@@ -1287,11 +1287,14 @@ void Engine::registerClassDef(const ASTNode *cd, const std::string &qualifiedNam
     // cascade holds its own shared_ptr to keep it alive across this clone).
     classDefAst_[className] = std::shared_ptr<const ASTNode>(cloneNode(cd));
 
-    // Redefinition of an already-registered class → re-register every class that
-    // (transitively) derives from it so the new members propagate to subclasses
-    // (which hold a snapshot of the base's methods/props). Guarded so the nested
-    // registerClassDef calls don't each re-cascade.
-    if (wasRedefinition && !suppressDependentCascade_)
+    // Re-register every class that (transitively) derives from this one, so the
+    // new members propagate to subclasses (which hold a snapshot of the base's
+    // methods/props). Fires on EVERY registration, not just redefinitions: it
+    // also back-fills a subclass that was defined BEFORE its base (forward
+    // reference — the subclass recorded the base name but registered without its
+    // members). No-op when nothing derives from `className`. Guarded so the
+    // nested registerClassDef calls don't each re-cascade.
+    if (!suppressDependentCascade_)
         reregisterDerivedClasses(className);
 }
 
@@ -1876,6 +1879,7 @@ void Engine::rehashMFiles()
     // (qualified for +pkg/foo.m, bare for plain foo.m), so erase that exact
     // key — NOT clearCompiledFuncs(), which would also nuke script-defined
     // compiled functions (contradicting the "kept" promise above).
+    std::vector<std::string> unregisteredClasses;
     for (const auto &[name, _] : mFileCache_) {
         userFuncs_.erase(name);
         if (compiler_)
@@ -1889,9 +1893,29 @@ void Engine::rehashMFiles()
             // populated here, so the ctor-external guard passes.)
             dropFileClassCtorExternal_(name);
             unregisterClassDef(name);
+            unregisteredClasses.push_back(name);
         }
     }
     mFileCache_.clear();
+
+    // An INLINE subclass of a just-unregistered file base survives rehash still
+    // holding the old base snapshot (it is not in mFileCache_, so the loop above
+    // didn't touch it). Reload each such base now; registerClassDef's cascade
+    // then re-merges every surviving class that derives from it. File subclasses
+    // need no help — they were unregistered too and reload lazily on next use.
+    for (const auto &base : unregisteredClasses) {
+        if (findClass(base))
+            continue; // already pulled back in by an earlier base's reload
+        bool hasLiveDependent = false;
+        for (const auto &[cn, desc] : classDefs_)
+            if (std::find(desc->superclasses.begin(), desc->superclasses.end(), base)
+                != desc->superclasses.end()) {
+                hasLiveDependent = true;
+                break;
+            }
+        if (hasLiveDependent)
+            resolveMFile_(base); // reload from the edited file + cascade to subclasses
+    }
 }
 
 const UserFunction *Engine::resolveMFile_(const std::string &name)
