@@ -504,6 +504,23 @@ Value cplxCombine(const Value &re, const Value &im, std::pmr::memory_resource *m
     return out;
 }
 
+// MATLAB promotes an integer/logical operand to DOUBLE for the arithmetic
+// moving functions (movsum/movprod/movmean) — e.g. movsum(int8(...)) returns
+// double, NOT int8. Promote element-wise here; double/single/complex pass
+// through unchanged. char is NOT promoted (MATLAB errors: "First input must be
+// double or single"), so the doubleData() path keeps throwing for it.
+// bugs/builtin/movfun-typeclass.md.
+static Value movPromoteIntLogical(const Value &x, std::pmr::memory_resource *mr)
+{
+    const ValueType t = x.type();
+    if (!(isIntegerType(t) || t == ValueType::LOGICAL)) return x;
+    Value r = createLike(x, ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) dst[i] = x.elemAsDouble(i);
+    return r;
+}
+
 Value movmean_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
     // Complex: moving-mean the real + imaginary parts separately, recombine
@@ -513,16 +530,18 @@ Value movmean_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std
         Value im = movmean_impl(cplxImagPart(x, mr), k, opt, mr);
         return cplxCombine(re, im, mr);
     }
+    const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmean");
-    const int d = resolveDim(x, opt.dim, "movmean");
-    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winMean(win, n); }, mr);
+    const int d = resolveDim(xd, opt.dim, "movmean");
+    return movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winMean(win, n); }, mr);
 }
 
 Value movsum_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
+    const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movsum");
-    const int d = resolveDim(x, opt.dim, "movsum");
-    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winSum(win, n); }, mr);
+    const int d = resolveDim(xd, opt.dim, "movsum");
+    return movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winSum(win, n); }, mr);
 }
 
 Value movmin_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
@@ -541,9 +560,10 @@ Value movmax_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std:
 
 Value movprod_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
 {
+    const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movprod");
-    const int d = resolveDim(x, opt.dim, "movprod");
-    return movingDriverDim(x, w, d, opt, [](const double *win, size_t n) { return winProd(win, n); }, mr);
+    const int d = resolveDim(xd, opt.dim, "movprod");
+    return movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winProd(win, n); }, mr);
 }
 
 Value movmedian_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
