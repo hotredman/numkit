@@ -13,7 +13,7 @@ accepts complex for all of them.
 
 | Function | numkit | MATLAB |
 |---|---|---|
-| `conv([1 1i],[1 1])` | Not a double array | `[1  1+1i  1i]` |
+| `conv([1 1i],[1 1])` | ✅ FIXED 2026-06-05 → `[1  1+1i  1i]` | `[1  1+1i  1i]` |
 | `filter([1 1],1,[1i 1i])` | Not a double array | `[1i  2i]` |
 | `trapz([1+1i 2+2i 3+3i])` | ✅ FIXED 2026-06-05 → `4+4i` | `4+4i` |
 | `cumtrapz(...)` | ✅ FIXED 2026-06-05 → `[0 1.5+1.5i 4+4i]` | `[…  4+4i]` |
@@ -105,5 +105,13 @@ be closed incrementally; this entry is the tracking umbrella.
   carry through.) Live guard `libs/stats/tests/detrend_complex_test.cpp`,
   parity `tools/parity/specs/detrend.json` (OK), smoke
   `libs/stats/tests/smoke/detrend_complex_smoke.m`.
-- ⏳ Remaining: conv, filter (both in libs/signal). When these close, flip this
-  umbrella to ✅ FIXED.
+- ✅ **conv** — 2026-06-05 (bug-fix loop, cycle 14). conv is BILINEAR (it
+  multiplies the two sequences), so the real/imag split does NOT apply — a
+  genuine complex multiply-accumulate `full[n] = sum_k a[k]·b[n-k]` (direct;
+  correctness over an FFT path), then the same 'full'/'same'/'valid' trim.
+  Handles complex×complex and complex×real
+  (`libs/signal/src/convolution/convolution.cpp`). Live guard
+  `libs/signal/tests/conv_complex_test.cpp`, parity `tools/parity/specs/conv.json`
+  (OK), smoke `libs/signal/tests/smoke/conv_complex_smoke.m`.
+- ⏳ Remaining: filter (libs/signal — likewise bilinear: complex b/a taps
+  and/or complex x). When filter closes, flip this umbrella to ✅ FIXED.
