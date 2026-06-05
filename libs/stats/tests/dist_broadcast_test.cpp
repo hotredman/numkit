@@ -21,6 +21,8 @@
 //   - poisson     (poisspdf/poisscdf/poissinv) — cycle 35 (discrete)
 //   - unid        (unidpdf/unidcdf/unidinv)  — cycle 36 (discrete closed-form)
 //   - geometric   (geopdf/geocdf/geoinv)     — cycle 36 (discrete closed-form)
+//   - negbin      (nbinpdf/nbincdf/nbininv)  — cycle 37 (discrete, betainc)
+//   - hypergeom   (hygepdf/hygecdf/hygeinv)  — cycle 37 (discrete, 4-operand)
 // MATLAB R2025b reference values.
 
 #include <numkit/builtin/library.hpp>
@@ -433,6 +435,46 @@ TEST_F(DistBroadcastTest, GeometricBroadcast)
     EXPECT_DOUBLE_EQ(evalScalar("geopdf(1.5, 0.3)"), 0.0); // noninteger k → 0
 }
 
+// ── Discrete: negbin (betainc) + hypergeom (4-operand) broadcast (c37) ─
+TEST_F(DistBroadcastTest, NegbinBroadcast)
+{
+    eval("y = nbinpdf(2, [3 5], 0.5);");        // vector r
+    EXPECT_NEAR(evalScalar("y(1)"), 0.1875, 1e-12);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.1171875, 1e-12);
+    eval("z = nbinpdf(2, 3, [0.2 0.8]);");      // vector p
+    EXPECT_NEAR(evalScalar("z(1)"), 0.03072, 1e-12);
+    EXPECT_NEAR(evalScalar("z(2)"), 0.12288, 1e-12);
+    eval("c = nbincdf(2, [3 5], 0.5);");
+    EXPECT_NEAR(evalScalar("c(1)"), 0.5, 1e-10);
+    EXPECT_NEAR(evalScalar("c(2)"), 0.2265625, 1e-10);
+    eval("q = nbininv(0.5, [3 5], 0.5);");
+    EXPECT_DOUBLE_EQ(evalScalar("q(1)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q(2)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nbinpdf(1.5,3,0.5)"), 0.0);   // noninteger k → 0
+    EXPECT_TRUE(eval("isnan(nbinpdf(2,0,0.5))").toBool());     // r<=0 → NaN
+}
+
+TEST_F(DistBroadcastTest, HypergeomBroadcast)
+{
+    eval("y = hygepdf(2, [10 20], 5, 4);");     // vector M (4-operand broadcast)
+    EXPECT_NEAR(evalScalar("y(1)"), 0.4761904761905, 1e-11);
+    EXPECT_NEAR(evalScalar("y(2)"), 0.2167182662539, 1e-11);
+    eval("z = hygepdf([0 1 2], 20, 7, 5);");    // vector k
+    EXPECT_NEAR(evalScalar("z(3)"), 0.3873839009288, 1e-11);
+    eval("c = hygecdf(2, 20, 7, [3 5]);");      // vector N
+    EXPECT_NEAR(evalScalar("c(1)"), 0.969298245614, 1e-10);
+    EXPECT_NEAR(evalScalar("c(2)"), 0.7932146542828, 1e-10);
+    eval("q = hygeinv(0.5, 20, 7, [3 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("q(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q(2)"), 2.0);
+    // per-element domain: k>min(N,K) → 0; N>M → NaN
+    EXPECT_DOUBLE_EQ(evalScalar("hygepdf(10,20,7,5)"), 0.0);
+    eval("d = hygepdf(2, 20, 7, [8 25]);");
+    EXPECT_NEAR(evalScalar("d(1)"), 0.2860681114551, 1e-11);
+    EXPECT_TRUE(eval("isnan(d(2))").toBool());                // N=25 > M=20 → NaN
+    EXPECT_THROW(eval("hygepdf(2, [10 20], [5 6 7], 4);"), std::exception);  // size clash
+}
+
 // ── Regressions: scalar-parameter path unchanged; edges ──────────────
 TEST_F(DistBroadcastTest, ScalarPathUnchanged)
 {
@@ -469,6 +511,11 @@ TEST_F(DistBroadcastTest, ScalarPathUnchanged)
     EXPECT_NEAR(evalScalar("unidpdf(3,10)"),    0.1, 1e-13);
     EXPECT_NEAR(evalScalar("geopdf(2,0.3)"),    0.147, 1e-13);
     EXPECT_DOUBLE_EQ(evalScalar("geoinv(0.7,0.3)"), 3.0);
+    // negbin/hypergeom scalar-parameter path unchanged
+    EXPECT_NEAR(evalScalar("nbinpdf(2,3,0.5)"), 0.1875, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("nbininv(0.7,3,0.5)"), 4.0);
+    EXPECT_NEAR(evalScalar("hygepdf(2,20,7,5)"), 0.3873839009288, 1e-11);
+    EXPECT_DOUBLE_EQ(evalScalar("hygeinv(0.6,20,7,5)"), 2.0);
 }
 
 TEST_F(DistBroadcastTest, EmptyAndMismatch)
