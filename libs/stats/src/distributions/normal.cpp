@@ -71,50 +71,51 @@ double erfinvScalar(double y)
     return x;
 }
 
+// ── Scalar kernels (single source of truth) ──────────────────────────
+// Each owns its per-element domain handling so they can be broadcast over
+// vector parameters: sigma<=0 (or NaN) → NaN, matching MATLAB R2025b.
+
+inline double normpdfK(double x, double mu, double sigma)
+{
+    if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+    const double inv = 1.0 / (sigma * kSqrt2Pi);
+    const double inv2s2 = 1.0 / (2.0 * sigma * sigma);
+    const double d = x - mu;
+    return inv * std::exp(-d * d * inv2s2);
+}
+
+inline double normcdfK(double x, double mu, double sigma)
+{
+    if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+    return 0.5 * (1.0 + std::erf((x - mu) / (sigma * kSqrt2)));
+}
+
+inline double norminvK(double p, double mu, double sigma)
+{
+    if (!(sigma > 0.0) || std::isnan(p) || p < 0.0 || p > 1.0)
+        return std::numeric_limits<double>::quiet_NaN();
+    if (p == 0.0) return -std::numeric_limits<double>::infinity();
+    if (p == 1.0) return  std::numeric_limits<double>::infinity();
+    return mu + sigma * kSqrt2 * erfinvScalar(2.0 * p - 1.0);
+}
+
 } // anonymous
 
 Value normpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
 {
-    if (sigma <= 0.0) {
-        return elementwise(x, [](double){
-            return std::numeric_limits<double>::quiet_NaN();
-        }, mr);
-    }
-    const double inv = 1.0 / (sigma * kSqrt2Pi);
-    const double inv2s2 = 1.0 / (2.0 * sigma * sigma);
-    return elementwise(x, [=](double xi) {
-        const double d = xi - mu;
-        return inv * std::exp(-d * d * inv2s2);
-    }, mr);
+    return elementwise(x, [=](double xi) { return normpdfK(xi, mu, sigma); }, mr);
 }
 
 Value normcdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
 {
-    if (sigma <= 0.0)
-        return elementwise(x, [](double){
-            return std::numeric_limits<double>::quiet_NaN();
-        }, mr);
-    const double inv = 1.0 / (sigma * kSqrt2);
-    return elementwise(x, [=](double xi) {
-        return 0.5 * (1.0 + std::erf((xi - mu) * inv));
-    }, mr);
+    return elementwise(x, [=](double xi) { return normcdfK(xi, mu, sigma); }, mr);
 }
 
 Value norminv(const Value &p, double mu, double sigma, std::pmr::memory_resource *mr)
 {
-    if (sigma <= 0.0)
-        return elementwise(p, [](double){
-            return std::numeric_limits<double>::quiet_NaN();
-        }, mr);
-    return elementwise(p, [=](double pi) {
-        // Boundary p ∈ {0, 1} → ±Inf; out-of-range or NaN p → NaN
-        // (matches MATLAB R2025b — Octave too).
-        if (std::isnan(pi) || pi < 0.0 || pi > 1.0)
-            return std::numeric_limits<double>::quiet_NaN();
-        if (pi == 0.0) return -std::numeric_limits<double>::infinity();
-        if (pi == 1.0) return  std::numeric_limits<double>::infinity();
-        return mu + sigma * kSqrt2 * erfinvScalar(2.0 * pi - 1.0);
-    }, mr);
+    // Boundary p ∈ {0, 1} → ±Inf; out-of-range or NaN p → NaN; sigma<=0 → NaN
+    // (matches MATLAB R2025b — Octave too). See norminvK.
+    return elementwise(p, [=](double pi) { return norminvK(pi, mu, sigma); }, mr);
 }
 
 Value normrnd(double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
@@ -147,29 +148,16 @@ std::tuple<double, double> normstat(double mu, double sigma)
 
 namespace detail {
 
-namespace {
-
-// Helper: parse optional (mu, sigma) from args[1..]. Returns defaults
-// (0, 1) when not supplied.
-std::pair<double, double> parseMuSigma(Span<const Value> args, size_t start)
-{
-    double mu = 0.0, sigma = 1.0;
-    if (args.size() > start && !args[start].isEmpty())
-        mu = args[start].toScalar();
-    if (args.size() > start + 1 && !args[start + 1].isEmpty())
-        sigma = args[start + 1].toScalar();
-    return {mu, sigma};
-}
-
-} // anonymous
-
 void normpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("normpdf: requires at least 1 argument",
                      0, 0, "normpdf", "", "numkit:normpdf:nargin");
-    auto [mu, sigma] = parseMuSigma(args, 1);
-    outs[0] = normpdf(args[0], mu, sigma, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value hmu, hsig;
+    const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
+    const Value &sig = dist_param(args, 2, 1.0, mr, hsig);
+    outs[0] = broadcast_dist3(args[0], mu, sig, mr, "normpdf", normpdfK);
 }
 
 void normcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -177,10 +165,13 @@ void normcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("normcdf: requires at least 1 argument",
                      0, 0, "normcdf", "", "numkit:normcdf:nargin");
+    auto *mr = ctx.engine->resource();
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    auto [mu, sigma] = parseMuSigma(args.subspan(0, n), 1);
-    Value v = normcdf(args[0], mu, sigma, ctx.engine->resource());
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    Value hmu, hsig;
+    const Value &mu  = dist_param(a, 1, 0.0, mr, hmu);
+    const Value &sig = dist_param(a, 2, 1.0, mr, hsig);
+    Value v = broadcast_dist3(a[0], mu, sig, mr, "normcdf", normcdfK);
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -190,8 +181,11 @@ void norminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("norminv: requires at least 1 argument",
                      0, 0, "norminv", "", "numkit:norminv:nargin");
-    auto [mu, sigma] = parseMuSigma(args, 1);
-    outs[0] = norminv(args[0], mu, sigma, ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    Value hmu, hsig;
+    const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
+    const Value &sig = dist_param(args, 2, 1.0, mr, hsig);
+    outs[0] = broadcast_dist3(args[0], mu, sig, mr, "norminv", norminvK);
 }
 
 void normrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

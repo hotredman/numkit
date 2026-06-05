@@ -189,6 +189,96 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(out_v);
 }
 
+// ── *pdf / *cdf / *inv parameter-broadcast helpers ───────────────────
+//
+// The distribution density/cdf/quantile functions broadcast ALL arguments
+// (the data x AND the distribution parameters mu/sigma/a/b/df/…) to a common
+// size: a scalar expands; equal non-scalar sizes element-align; mismatched
+// non-scalar sizes error like MATLAB ("Non-scalar arguments must match in
+// size."). Each function supplies a scalar kernel (its formula, evaluated for
+// one element, owning its own per-element domain handling, e.g. sigma<=0 →
+// NaN). The helpers below apply that kernel under MATLAB broadcasting.
+//
+// NOTE (consistent with the *stat helpers above): broadcasting is by element
+// COUNT, not strict shape — two same-numel/different-shape non-scalars align
+// by linear index rather than erroring. Rare; matches existing behaviour.
+
+// Resolve an optional parameter arg with a scalar default WITHOUT copying a
+// present argument: returns a const ref to args[idx] when supplied and
+// non-empty, else fills `holder` with the scalar default and refs that.
+inline const Value &dist_param(Span<const Value> args, size_t idx, double defv,
+                               std::pmr::memory_resource *mr, Value &holder)
+{
+    if (idx < args.size() && !args[idx].isEmpty()) return args[idx];
+    holder = Value::scalar(defv, mr);
+    return holder;
+}
+
+inline Value dist_empty_like(const Value &x, std::pmr::memory_resource *mr)
+{
+    const auto &d = x.dims();
+    if (d.is3D())
+        return Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
+    return Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+}
+
+// One data arg + one parameter: kernel(double x, double p) -> double.
+template <class K>
+inline Value broadcast_dist2(const Value &av, const Value &bv,
+                             std::pmr::memory_resource *mr,
+                             const char *fnName, K kernel)
+{
+    const size_t na = av.numel(), nb = bv.numel();
+    if (na == 0) return dist_empty_like(av, mr);
+    if (nb == 0) return dist_empty_like(bv, mr);
+    if (na == 1 && nb == 1)
+        return Value::scalar(kernel(av.toScalar(), bv.toScalar()), mr);
+    if (na > 1 && nb > 1 && na != nb)
+        throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
+                    0, 0, fnName, "", "numkit:dist:size");
+    const Value &ref = (na >= nb) ? av : bv;
+    const auto &d = ref.dims();
+    Value out = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const size_t n = ref.numel();
+    for (size_t i = 0; i < n; ++i)
+        od[i] = kernel(av.elemAsDouble(na == 1 ? 0 : i),
+                       bv.elemAsDouble(nb == 1 ? 0 : i));
+    return out;
+}
+
+// One data arg + two parameters: kernel(double x, double p1, double p2).
+template <class K>
+inline Value broadcast_dist3(const Value &av, const Value &bv, const Value &cv,
+                             std::pmr::memory_resource *mr,
+                             const char *fnName, K kernel)
+{
+    const size_t na = av.numel(), nb = bv.numel(), nc = cv.numel();
+    if (na == 0) return dist_empty_like(av, mr);
+    if (nb == 0) return dist_empty_like(bv, mr);
+    if (nc == 0) return dist_empty_like(cv, mr);
+    const size_t nmax = std::max({na, nb, nc});
+    if (nmax == 1)
+        return Value::scalar(kernel(av.toScalar(), bv.toScalar(), cv.toScalar()), mr);
+    auto ok = [&](size_t k) { return k == 1 || k == nmax; };
+    if (!ok(na) || !ok(nb) || !ok(nc))
+        throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
+                    0, 0, fnName, "", "numkit:dist:size");
+    const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : cv);
+    const auto &d = ref.dims();
+    Value out = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (size_t i = 0; i < nmax; ++i)
+        od[i] = kernel(av.elemAsDouble(na == 1 ? 0 : i),
+                       bv.elemAsDouble(nb == 1 ? 0 : i),
+                       cv.elemAsDouble(nc == 1 ? 0 : i));
+    return out;
+}
+
 // ── RNG size-arg parser ──────────────────────────────────────────────
 // Parses MATLAB-style trailing size arguments shared by every *rnd
 // distribution adapter:
