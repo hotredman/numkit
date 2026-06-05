@@ -2151,6 +2151,44 @@ TEST(ClassdefMFile, RehashReloadsEditedClass)
     fs::remove_all(dir);
 }
 
+// Packaged classes (`+pkg/Name.m`) are registered under their QUALIFIED name so
+// class()/isa() report `pkg.Name` (not the bare leaf), and clear/rehash key on
+// the same `pkg.Name` the ctor external + mFileCache_ use — so eviction works.
+TEST(ClassdefMFile, PackagedClassQualifiedIdentity)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_pkgclass_test";
+    fs::create_directories(dir / "+geo");
+    auto writeVer = [&](int k) {
+        std::ofstream f(dir / "+geo" / "Vec.m", std::ios::trunc);
+        f << "classdef Vec\n"
+             "  properties\n    x = 0\n  end\n"
+             "  methods\n"
+             "    function obj = Vec(a)\n      obj.x = a;\n    end\n"
+             "    function r = bump(obj)\n      r = obj.x + "
+          << k << ";\n    end\n"
+             "  end\n"
+             "end\n";
+    };
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        writeVer(10);
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        EXPECT_DOUBLE_EQ(engine.eval("v = geo.Vec(5); v.x").toScalar(), 5.0);
+        EXPECT_DOUBLE_EQ(engine.eval("v.bump()").toScalar(), 15.0);
+        EXPECT_EQ(engine.eval("class(v)").toString(), "geo.Vec"); // qualified, not "Vec"
+        EXPECT_TRUE(engine.eval("isa(v, 'geo.Vec')").toBool());
+        EXPECT_FALSE(engine.eval("isa(v, 'Vec')").toBool());
+        // rehash reloads the edited packaged class (keys now align).
+        writeVer(20);
+        engine.eval("rehash");
+        EXPECT_DOUBLE_EQ(engine.eval("w = geo.Vec(5); w.bump()").toScalar(), 25.0)
+            << "edited packaged class must reload after rehash";
+    }
+    fs::remove_all(dir);
+}
+
 // Inheritance must not depend on which file is referenced (loaded) first:
 // referencing the subclass before the base still pulls the base in.
 TEST(ClassdefMFile, InheritanceOrderIndependent)
