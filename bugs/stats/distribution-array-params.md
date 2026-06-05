@@ -66,7 +66,7 @@ Continuous location-scale family:
 - [x] **gamma** — gampdf / gamcdf / gaminv (cycle 30 pdf+cdf, 31 inv)
 - [x] **beta** — betapdf / betacdf / betainv (cycle 30 pdf+cdf, 31 inv)
 - [x] **chi2** — chi2pdf / chi2cdf / chi2inv (cycle 30 pdf+cdf, 31 inv)
-- [ ] students_t — tpdf / tcdf / tinv
+- [x] **students_t** — tpdf / tcdf / tinv (cycle 33, 2026-06-05; betainc-based, nu==Inf Gaussian limit per element)
 - [ ] fisher_f — fpdf / fcdf / finv
 - [x] **rayleigh** — raylpdf / raylcdf / raylinv (cycle 32, 2026-06-05)
 - [x] **weibull** — wblpdf / wblcdf / wblinv (cycle 32, 2026-06-05)

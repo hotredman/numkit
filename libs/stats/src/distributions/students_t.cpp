@@ -46,6 +46,44 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 // scalar Values produced by the helpers). Avoids extra copies.
 double scalarOf(const Value &v) { return v.toScalar(); }
 
+// ── Central-t scalar helpers for the parameter-broadcast path (vector nu) ──
+// tpdf is closed-form; tcdf/tinv compose betainc/betaincinv so they use a
+// per-element fixup loop in the adapter, but the nu→∞ Gaussian limit (which
+// the public scalar fns special-case) is handled per element via these.
+inline double tpdfK(double x, double nu)
+{
+    if (!(nu > 0.0)) return std::numeric_limits<double>::quiet_NaN();   // nu<=0 / NaN
+    if (std::isinf(nu)) {
+        const double inv = 1.0 / std::sqrt(2.0 * M_PI);
+        return inv * std::exp(-0.5 * x * x);
+    }
+    const double log_norm = std::lgamma(0.5 * (nu + 1.0))
+                          - std::lgamma(0.5 * nu)
+                          - 0.5 * std::log(nu * M_PI);
+    return std::exp(log_norm - 0.5 * (nu + 1.0) * std::log1p(x * x / nu));
+}
+
+inline double tNormCdf(double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
+
+// norminv via Winitzki erfinv + 2 Newton steps (same construction as the
+// public tinv's nu==Inf branch).
+inline double tNormInv(double p)
+{
+    const double y = 2.0 * p - 1.0;
+    if (y >= 1.0) return std::numeric_limits<double>::infinity();
+    if (y <= -1.0) return -std::numeric_limits<double>::infinity();
+    const double a = 0.147;
+    const double ln1m = std::log(1.0 - y * y);
+    const double term = 2.0 / (M_PI * a) + 0.5 * ln1m;
+    double xv = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
+    for (int it = 0; it < 2; ++it) {
+        const double e  = std::erf(xv) - y;
+        const double de = 2.0 * std::exp(-xv * xv) / std::sqrt(M_PI);
+        xv -= e / de;
+    }
+    return std::sqrt(2.0) * xv;
+}
+
 } // anonymous
 
 Value tpdf(const Value &x, double nu, std::pmr::memory_resource *mr)
@@ -448,16 +486,56 @@ void tpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("tpdf: requires (x, nu)", 0, 0, "tpdf", "", "numkit:tpdf:nargin");
-    outs[0] = tpdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &nu = args[1];
+    if (nu.isScalar())
+        outs[0] = tpdf(args[0], nu.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist2(args[0], nu, mr, "tpdf", tpdfK);
 }
 
 void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 2)
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    if (a.size() < 2)
         throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "numkit:tcdf:nargin");
-    Value v = tcdf(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &nu = a[1];
+    Value v;
+    if (nu.isScalar()) {
+        v = tcdf(a[0], nu.toScalar(), mr);
+    } else {
+        // F(x; nu) = 1 - ½·I_z(nu/2, ½) for x≥0 (½·I_z for x<0), z=nu/(nu+x²);
+        // nu→∞ → normcdf. betainc broadcasts (z, nu/2, ½); sign + Inf per element.
+        const Value &x = a[0];
+        const size_t nx = x.numel(), nnu = nu.numel();
+        if (nx == 0 || nnu == 0) {
+            v = dist_empty_like(nx == 0 ? x : nu, mr);
+        } else {
+            const size_t N = dist_match_numel({nx, nnu}, "tcdf");
+            Value z = broadcast_dist2(x, nu, mr, "tcdf", [](double xi, double nui) -> double {
+                if (!(nui > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+                if (std::isinf(nui)) return 1.0;   // placeholder (overridden below)
+                return nui / (nui + xi * xi);
+            });
+            Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
+            Value Iz = ::numkit::builtin::betainc(z, hnu, Value::scalar(0.5, mr), mr);
+            const Value &ref = (nnu == N) ? nu : x;
+            v = dist_empty_like(ref, mr);
+            double *od = v.doubleDataMut();
+            const size_t nIz = Iz.numel();
+            const double NaN = std::numeric_limits<double>::quiet_NaN();
+            for (size_t i = 0; i < N; ++i) {
+                const double nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
+                const double xi = x.elemAsDouble(nx == 1 ? 0 : i);
+                if (!(nui > 0.0)) { od[i] = NaN; continue; }
+                if (std::isinf(nui)) { od[i] = tNormCdf(xi); continue; }
+                const double Ii = Iz.elemAsDouble(nIz == 1 ? 0 : i);
+                od[i] = (xi >= 0.0) ? 1.0 - 0.5 * Ii : 0.5 * Ii;
+            }
+        }
+    }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
 }
@@ -466,7 +544,46 @@ void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 {
     if (args.size() < 2)
         throw Error("tinv: requires (p, nu)", 0, 0, "tinv", "", "numkit:tinv:nargin");
-    outs[0] = tinv(args[0], args[1].toScalar(), ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    const Value &nu = args[1];
+    if (nu.isScalar()) {
+        outs[0] = tinv(args[0], nu.toScalar(), mr);
+        return;
+    }
+    // z = betaincinv(2·min(p,1-p), nu/2, ½); x = sign·sqrt(nu(1/z - 1));
+    // nu→∞ → norminv(p). Per-element fixup mirrors the scalar tinv exactly.
+    const Value &p = args[0];
+    const size_t np = p.numel(), nnu = nu.numel();
+    if (np == 0 || nnu == 0) {
+        outs[0] = dist_empty_like(np == 0 ? p : nu, mr);
+        return;
+    }
+    const size_t N = dist_match_numel({np, nnu}, "tinv");
+    Value qv = elementwise(p, [](double pi) {
+        if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return 0.5;
+        return (pi >= 0.5) ? 2.0 * (1.0 - pi) : 2.0 * pi;
+    }, mr);
+    Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
+    Value zv = ::numkit::builtin::betaincinv(qv, hnu, Value::scalar(0.5, mr), mr);
+    const Value &ref = (nnu == N) ? nu : p;
+    Value out = dist_empty_like(ref, mr);
+    double *od = out.doubleDataMut();
+    const size_t nzv = zv.numel();
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    const double PINF = std::numeric_limits<double>::infinity();
+    for (size_t i = 0; i < N; ++i) {
+        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const double nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
+        if (!(nui > 0.0) || std::isnan(pi) || pi < 0.0 || pi > 1.0) { od[i] = NaN; continue; }
+        if (pi == 0.0) { od[i] = -PINF; continue; }
+        if (pi == 1.0) { od[i] = PINF; continue; }
+        if (std::isinf(nui)) { od[i] = tNormInv(pi); continue; }
+        const double zi = zv.elemAsDouble(nzv == 1 ? 0 : i);
+        if (zi <= 0.0) { od[i] = (pi >= 0.5) ? PINF : -PINF; continue; }
+        const double mag = std::sqrt(nui * (1.0 / zi - 1.0));
+        od[i] = (pi >= 0.5) ? mag : -mag;
+    }
+    outs[0] = std::move(out);
 }
 
 void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
