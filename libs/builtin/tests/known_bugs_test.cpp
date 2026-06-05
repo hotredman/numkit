@@ -277,9 +277,9 @@ TEST_F(BuiltinKnownBug, PsiZeroPole)
     EXPECT_NEAR(evalScalar("psi(1)"), -0.5772156649, 1e-9);
 }
 
-// bugs/builtin/str2double-complex.md — OPEN (str2double doesn't parse complex
-// strings; MATLAB does). Flip the DISABLED_ prefix when implemented.
-TEST_F(BuiltinKnownBug, DISABLED_Str2doubleComplex)
+// bugs/builtin/str2double-complex.md — FIXED (str2double parses complex
+// strings). Full guard in str2double_complex_test.cpp.
+TEST_F(BuiltinKnownBug, Str2doubleComplex)
 {
     EXPECT_DOUBLE_EQ(evalScalar("real(str2double('1+2i'))"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("imag(str2double('1+2i'))"), 2.0);
@@ -287,6 +287,7 @@ TEST_F(BuiltinKnownBug, DISABLED_Str2doubleComplex)
     EXPECT_DOUBLE_EQ(evalScalar("imag(str2double('i'))"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("imag(str2double('1+2j'))"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("str2double('1.5')"), 1.5);   // real path unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(str2double('5'))"), 1.0);
 }
 
 // bugs/builtin/concat-integer-types.md — OPEN (CORE: promoteNumericType rejects

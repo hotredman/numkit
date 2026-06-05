@@ -413,32 +413,77 @@ Value str2num(const Value &s, std::pmr::memory_resource *mr)
     }
 }
 
-// Parse ONE token the way MATLAB str2double does: strip ALL commas
-// (thousands separators), trim surrounding whitespace, then the ENTIRE
-// remaining token must parse as a single real number — otherwise NaN. So
-// '1,234' -> 1234, '1,2,3' -> 123, '  42  ' -> 42, 'Inf'/'-Inf'/'NaN' parse,
-// but '42abc' / '42 7' / ',' / '' -> NaN. (std::stod was lenient: it parsed a
-// numeric PREFIX, so '42abc' wrongly gave 42 and '1,234' gave 1. Complex
-// literals like '2i'/'3+4i' remain a separate unimplemented gap -> NaN.)
-static double str2doubleOne(const std::string &str)
+// Parse a numeric substring with strtod; the ENTIRE string must be consumed
+// (else NaN). Empty -> defVal. ('42abc' / '42 7' -> NaN; 'Inf'/'-Inf'/'NaN'
+// parse.) strtod parses leading "inf"/"nan" case-insensitively.
+static double strtodFull(const std::string &t, double defVal)
 {
-    const double nan = std::numeric_limits<double>::quiet_NaN();
-    std::string t;
-    t.reserve(str.size());
-    for (char c : str)
-        if (c != ',') t.push_back(c);
-    const char *ws = " \t\n\r\f\v";
-    const size_t b = t.find_first_not_of(ws);
-    if (b == std::string::npos) return nan;   // empty / all-whitespace
-    const size_t e = t.find_last_not_of(ws);
-    t = t.substr(b, e - b + 1);
-
+    if (t.empty()) return defVal;
     const char *cs = t.c_str();
     char *end = nullptr;
     const double v = std::strtod(cs, &end);
-    if (end == cs || *end != '\0')            // no parse, or trailing junk
-        return nan;
+    if (end == cs || *end != '\0') return std::numeric_limits<double>::quiet_NaN();
     return v;
+}
+
+// Parse ONE token the way MATLAB str2double does: strip ALL commas (thousands
+// separators) and ALL whitespace (MATLAB tolerates spaces even inside complex
+// literals, e.g. ' 2 + 3i '), then the ENTIRE remaining token must parse as a
+// single real OR complex number — otherwise NaN. Complex: a trailing lowercase
+// 'i' or 'j' marks the imaginary part ('2i', '1+2i', '1-2j', 'i', '-i',
+// '3.5+1.5i', '1e-3+2i', 'Infi'); the real/imag split is the LAST '+'/'-' that
+// is not an exponent sign. Capital 'I'/'J' are NOT imaginary (-> real parse).
+struct Str2DoubleResult { double re; double im; bool isComplex; };
+
+static Str2DoubleResult str2doubleParse(const std::string &str)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    auto isWs = [](char c) {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+    };
+    // Strip commas (thousands separators); trim SURROUNDING whitespace only.
+    std::string t;
+    t.reserve(str.size());
+    for (char c : str) if (c != ',') t.push_back(c);
+    const char *ws = " \t\n\r\f\v";
+    const size_t b = t.find_first_not_of(ws);
+    if (b == std::string::npos) return {nan, 0.0, false};   // empty / all-whitespace
+    const size_t e = t.find_last_not_of(ws);
+    t = t.substr(b, e - b + 1);
+
+    const char last = t.back();
+    if (last != 'i' && last != 'j')               // pure real
+        return { strtodFull(t, nan), 0.0, false };   // internal whitespace -> NaN
+
+    // COMPLEX: MATLAB tolerates whitespace around the +/- and the i/j
+    // (e.g. ' 2 + 3i '), so strip ALL remaining whitespace before splitting.
+    std::string c2;
+    c2.reserve(t.size());
+    for (char ch : t) if (!isWs(ch)) c2.push_back(ch);
+    const std::string body = c2.substr(0, c2.size() - 1);   // drop the i/j
+    // Split at the rightmost +/- at index >= 1 whose predecessor is not e/E
+    // (so exponent signs like the '-' in '1e-3' are not treated as a split).
+    std::size_t split = std::string::npos;
+    for (std::size_t k = body.size(); k-- > 1; ) {
+        const char c = body[k];
+        if ((c == '+' || c == '-') && body[k - 1] != 'e' && body[k - 1] != 'E') {
+            split = k; break;
+        }
+    }
+    auto parseImag = [&](const std::string &is) -> double {
+        std::string m = is;
+        double sign = 1.0;
+        if (!m.empty() && (m[0] == '+' || m[0] == '-')) {
+            if (m[0] == '-') sign = -1.0;
+            m = m.substr(1);
+        }
+        if (m.empty()) return sign;               // bare i / +i / -i  -> ±1
+        return sign * strtodFull(m, nan);
+    };
+    double re, im;
+    if (split == std::string::npos) { re = 0.0; im = parseImag(body); }
+    else { re = strtodFull(body.substr(0, split), nan); im = parseImag(body.substr(split)); }
+    return { re, im, true };
 }
 
 Value str2double(const Value &s, std::pmr::memory_resource *mr)
@@ -446,29 +491,48 @@ Value str2double(const Value &s, std::pmr::memory_resource *mr)
     const double nan = std::numeric_limits<double>::quiet_NaN();
 
     // A cell array of char/string vectors OR a non-scalar string array maps
-    // element-wise to a DOUBLE matrix of the SAME shape (MATLAB str2double).
-    // NaN where an element fails to parse, is empty, or is not char/string.
+    // element-wise to a matrix of the SAME shape (MATLAB str2double). NaN where
+    // an element fails to parse, is empty, or is not char/string. The output is
+    // COMPLEX iff ANY element parses as a complex literal (real elements then
+    // carry a zero imaginary part); otherwise it stays DOUBLE (zero regression).
     if (s.isCell() || (s.isString() && s.numel() != 1)) {
         const size_t r = static_cast<size_t>(s.dims().rows());
         const size_t c = static_cast<size_t>(s.dims().cols());
-        Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
         const size_t n = s.numel();
+        ScratchArena scratch(mr);
+        ScratchVec<Str2DoubleResult> res(n, &scratch);
+        bool anyComplex = false;
         for (size_t i = 0; i < n; ++i) {
             if (s.isCell()) {
                 const Value &el = s.cellAt(i);
-                od[i] = (el.isChar() || el.isString())
-                            ? str2doubleOne(el.toString())
-                            : nan;
+                res[i] = (el.isChar() || el.isString())
+                             ? str2doubleParse(el.toString())
+                             : Str2DoubleResult{nan, 0.0, false};
             } else {
-                od[i] = str2doubleOne(s.stringElem(i));
+                res[i] = str2doubleParse(s.stringElem(i));
             }
+            anyComplex = anyComplex || res[i].isComplex;
         }
+        if (anyComplex) {
+            Value out = Value::matrix(r, c, ValueType::COMPLEX, mr);
+            Complex *od = out.complexDataMut();
+            for (size_t i = 0; i < n; ++i) od[i] = Complex(res[i].re, res[i].im);
+            return out;
+        }
+        Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t i = 0; i < n; ++i) od[i] = res[i].re;
         return out;
     }
 
-    // Scalar char array / string scalar → scalar double.
-    return Value::scalar(str2doubleOne(s.toString()), mr);
+    // Scalar char array / string scalar → scalar double (or complex scalar).
+    const Str2DoubleResult res = str2doubleParse(s.toString());
+    if (res.isComplex) {
+        Value out = Value::matrix(1, 1, ValueType::COMPLEX, mr);
+        out.complexDataMut()[0] = Complex(res.re, res.im);
+        return out;
+    }
+    return Value::scalar(res.re, mr);
 }
 
 Value toString(const Value &x, std::pmr::memory_resource *mr)
