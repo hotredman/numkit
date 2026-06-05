@@ -764,19 +764,29 @@ void Engine::clearClassDefs()
     }
 }
 
-void Engine::registerClassDef(const ASTNode *cd)
+void Engine::registerClassDef(const ASTNode *cd, const std::string &qualifiedName)
 {
     if (!cd || cd->type != NodeType::CLASSDEF_DEF || cd->strValue.empty())
         return;
-    if (findClass(cd->strValue))
+    // Registry identity: the qualified name for a `+pkg/Name.m` class, else the
+    // node's own (leaf == full for inline / unpackaged classes).
+    const std::string className = qualifiedName.empty() ? cd->strValue : qualifiedName;
+    // The in-source constructor / accessor names are always the LEAF (`Vec`,
+    // never `geo.Vec`), so ctor detection compares against the leaf even though
+    // the class is registered under its qualified name.
+    std::string classLeaf = className;
+    if (auto dot = classLeaf.rfind('.'); dot != std::string::npos)
+        classLeaf = classLeaf.substr(dot + 1);
+
+    if (findClass(className))
         // Redefinition (REPL / IDE re-run of `classdef Name … end`): evict the
         // old class wholesale, then fall through to re-register. The previous
         // idempotent early-return silently ignored the new body — so rewriting
         // a method had no effect until a full restart.
-        unregisterClassDef(cd->strValue);
+        unregisterClassDef(className);
 
     auto desc = std::make_shared<ClassDefDesc>();
-    desc->name = cd->strValue;
+    desc->name = className;
     for (const auto &super : cd->paramNames)
         if (super == "handle")
             desc->isHandle = true;
@@ -839,8 +849,8 @@ void Engine::registerClassDef(const ASTNode *cd)
                 BlockAccess ba = parseBlockAccess(child->classAttrs);
                 Access slvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
                 desc->statics[child->strValue] = {uf, slvl, desc->name};
-            } else if (child->strValue == desc->name) {
-                desc->ctor = uf; // constructor: method named like the class
+            } else if (child->strValue == classLeaf) {
+                desc->ctor = uf; // constructor: method named like the class (leaf)
                 BlockAccess ba = parseBlockAccess(child->classAttrs);
                 Access clvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
                 if (clvl != Access::Public) {
@@ -1957,8 +1967,13 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
                 classDef = ast.get();
             }
             if (classDef) {
-                registerClassDef(classDef);
-                const std::string cn = leafName;
+                // Register under the QUALIFIED lookup name so a `+pkg/Name.m`
+                // class is identified as `pkg.Name` (class()/isa()/registry keys)
+                // — the source node carries only the leaf. The ctor external and
+                // mFileCache_ key below already use the qualified `name`, so all
+                // three now agree (clear/rehash evict cleanly).
+                registerClassDef(classDef, name);
+                const std::string cn = name;
                 registerFunction(name, [cn](Span<const Value> args, size_t, Span<Value> outs,
                                             CallContext &ctx) {
                     const BuiltinClass *c = ctx.engine->findClass(cn);

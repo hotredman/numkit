@@ -94,8 +94,12 @@ public:
     // default-init + user constructor on construct, and method hooks that
     // run the method bodies. Re-running a `classdef` for an already-registered
     // class REPLACES it wholesale (see unregisterClassDef) so REPL / IDE edits
-    // take effect.
-    void registerClassDef(const ASTNode *classdef);
+    // take effect. `qualifiedName` (e.g. "geo.Vec") names a class loaded from a
+    // `+pkg/Name.m` file: the source node carries only the leaf (`Vec`), so the
+    // package qualification — which lives in the path — is threaded in here and
+    // becomes the registry identity (class()/isa()/registry keys all use it).
+    // Empty (the default) → use the node's own name (inline / unpackaged).
+    void registerClassDef(const ASTNode *classdef, const std::string &qualifiedName = "");
     // `clear classes` / `clear all`: remove every USER classdef so the next
     // reference re-loads (file classes) or errors as undefined (inline ones).
     // Built-in classes (containers.Map, …) are not in classDefs_ and survive.
