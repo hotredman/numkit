@@ -1,5 +1,4 @@
 // libs/audio/tests/pitch_harmonics_test.cpp
-//
 // Regression guard for Audio Cycle E (FINAL): pitch + harmonicRatio.
 
 #include <numkit/core/engine.hpp>
@@ -111,7 +110,7 @@ TEST_F(PitchHarmonicsTest, PitchMethodCaseInsensitive)
 // ── pitch PEF method (Pitch Estimation Filter) ───────────────────────
 // Clean-room implementation of the published PEF method — PEFAC without
 // amplitude compression (Gonzalez & Brookes, EUSIPCO 2011); see
-// cleanroom/specs/pitchPEF.md. On a clean tone this agrees with MATLAB's
+//. On a clean tone this agrees with MATLAB's
 // PEF to ~0.06 % (220.471 vs 220.604) — within the parity tolerance —
 // but it is a paper-faithful implementation, not bit-matched to MATLAB
 // (whose PEF uses a different comb-filter formula).
@@ -140,7 +139,7 @@ TEST_F(PitchHarmonicsTest, PitchLHS220HzSineFirstFrames)
 
 // ── pitch SRH method (Summation of Residual Harmonics) ───────────────
 // Clean-room implementation of the published SRH method (Drugman &
-// Alwan, Interspeech 2011) — see cleanroom/specs/pitchSRH.md. It is a
+// Alwan, Interspeech 2011). It is a
 // faithful paper implementation, intentionally NOT bit-matched to
 // MATLAB's SRH (whose internal pipeline is undocumented). These values
 // are a regression anchor for numkit's paper-SRH, not a MATLAB-parity

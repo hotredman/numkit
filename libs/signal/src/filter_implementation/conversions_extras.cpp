@@ -1,5 +1,4 @@
 // libs/signal/src/filter_implementation/conversions_extras.cpp
-//
 // sos2tf / sos2zp / tf2zpk + tf↔ss + sos↔ss + zpk↔ss adapters.
 
 #include <numkit/signal/filter_implementation/conversions_extras.hpp>
@@ -190,7 +189,6 @@ tf2ss(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     //   B = [1; 0; 0; ...; 0]
     //   C = [b2 - a2*b1, b3 - a3*b1, ..., b(N+1) - a(N+1)*b1]
     //   D = b1
-    //
     // Here ah[0]=1 (post-normalisation) and ah[1..N] are -a2..-a(N+1)
     // when negated.
     auto AVal = Value::matrix(N, N, ValueType::DOUBLE, mr);
@@ -280,7 +278,6 @@ ss2tf(const Value &A, const Value &B, const Value &C, double D,
 
     // Faddeev–LeVerrier driving the characteristic polynomial AND
     // adj(sI - A) = sum_{k=0}^{N-1} M_k s^{N-1-k}.
-    //
     // a_coeffs are stored from s^0 (index 0) up to s^N (index N);
     // adjoint coefficients C·M_k·B are accumulated into CMB[k] for
     // k=0..N-1 and then placed into b_coeffs[N-1-k]:
@@ -458,8 +455,7 @@ ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_res
 }
 
 // ── scaleFilterSections — scale cascaded-transfer-function numerators ─
-//
-// Clean-room implementation written from cleanroom/specs/scaleFilterSections.md
+// Clean-room implementation written from public references
 // and the public references it cites:
 //   * L. B. Jackson, Digital Filters and Signal Processing, 3rd ed.,
 //     1996 — cascade (series) IIR realisation and distribution of an
@@ -468,7 +464,6 @@ ctf2zp(const Value &NUM, const Value &DEN, const Value &SV, std::pmr::memory_res
 //     3rd ed., 2010 — §6.3, cascade-form filter structures (the overall
 //     transfer function is the product of the section transfer
 //     functions).
-//
 // Bg = scaleFilterSections(B, g). B (CTFNum) is a K×Q matrix — row k is
 // the length-Q numerator polynomial of cascade section k. g (SV) is a
 // scalar, or a vector of length K+1: the first K entries are per-section

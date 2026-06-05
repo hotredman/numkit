@@ -1,13 +1,10 @@
 // libs/comm/src/source/dpcmopt.cpp
-//
 // DPCM parameter optimiser — clean-room reimplementation.
-//
 // Designs an FIR linear predictor of order `ord` from a training
 // signal by the autocorrelation method (Yule-Walker normal equations
 // solved by the Levinson-Durbin recursion), and optionally a Lloyd-Max
 // scalar quantiser for the resulting prediction residual.
-//
-// Clean-room implementation written from cleanroom/specs/dpcmopt.md and
+// Clean-room implementation written from public references and
 // the public references it cites:
 //  - J. Makhoul, "Linear Prediction: A Tutorial Review",
 //    Proc. IEEE 63(4):561-580, 1975 (autocorrelation method +
@@ -37,9 +34,7 @@ namespace {
 
 // Estimate the autocorrelation of `x` (length N) for lags 0..ord using
 // the unbiased, sample-variance-style estimator
-//
 //   r[k] = ( sum_{n=0}^{N-1-k} x[n]*x[n+k] ) / (N - 1 - k)
-//
 // The lag-k sum has N-k terms; the denominator is N-1-k (one less than
 // the term count). The caller guarantees N >= ord + 3 so every
 // denominator (N-1-k for k <= ord) is strictly positive.
@@ -56,14 +51,12 @@ void autocorrelation(const double *x, std::size_t N, int ord, double *r)
 
 // Levinson-Durbin recursion: solve the order-`ord` Yule-Walker normal
 // equations for the prediction-error filter A(z) = [1, a1, ..., a_ord].
-//
 // `a` is initialised to [1, 0, ..., 0] and D <- r[0]; then for
 // m = 0..ord-1:
 //   beta = sum_{j=0}^{m} a[j] * r[m+1-j]
 //   K    = -beta / D
 //   a[1..m+1] += K * reverse(a[0..m])     (update in place)
 //   D    = (1 - K*K) * D
-//
 // Scratch `prev` (length ord+1) holds a snapshot of `a` before the
 // in-place update so the reversed term is read from the pre-update
 // coefficients.

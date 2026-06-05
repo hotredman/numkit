@@ -1,11 +1,9 @@
 // libs/image/tests/adapthisteq_test.cpp
-//
 // gtest coverage for adapthisteq — Contrast-Limited Adaptive Histogram
 // Equalisation (CLAHE).
-//
 // adapthisteq is a clean-room implementation from public references
 // (Zuiderveld 1994; Pizer et al. 1990 / 1987 — see
-// cleanroom/specs/adapthisteq.md). It is functionally equivalent to
+//). It is functionally equivalent to
 // MATLAB's adapthisteq but not bit-identical: MATLAB's clip/redistribute
 // and interpolation rounding have undocumented details. Accordingly the
 // pixel-value tests below are *regression anchors* pinned to the

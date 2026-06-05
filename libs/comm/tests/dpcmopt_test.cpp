@@ -1,10 +1,8 @@
 // libs/comm/tests/dpcmopt_test.cpp
-//
 // gtest coverage for dpcmopt() — DPCM parameter optimiser.
-//
 // dpcmopt is a clean-room implementation from public references
 // (Makhoul 1975; Proakis & Manolakis; Jayant & Noll 1984 — see
-// cleanroom/specs/dpcmopt.md): the autocorrelation method of linear
+//): the autocorrelation method of linear
 // prediction (Yule-Walker via Levinson-Durbin) plus lloyds() on the
 // prediction residual. The hardcoded predictor / codebook values are
 // MATLAB R2025b reference output; the property test at the end checks

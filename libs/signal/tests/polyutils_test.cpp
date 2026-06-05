@@ -1,10 +1,8 @@
 // libs/signal/tests/polyutils_test.cpp
-//
 // gtest coverage for polyscale + polystab.
-//
 // Both functions are clean-room implementations from public references
 // (Oppenheim & Schafer; Markel & Gray; Hayes — see
-// cleanroom/specs/polystab_polyscale.md). The pixel/coefficient values
+//). The pixel/coefficient values
 // below match MATLAB R2025b on the documented argument set; the
 // property tests at the end verify correctness MATLAB-independently
 // (polyscale must scale the roots by the factor; polystab must move

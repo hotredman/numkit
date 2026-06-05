@@ -1,9 +1,7 @@
 // libs/image/tests/bwmorph_test.cpp
-//
 // gtest coverage for bwmorph — binary morphology dispatcher.
-//
 // bwmorph is a clean-room implementation: the dispatcher is written
-// from cleanroom/specs/bwmorph.md (public references — Gonzalez &
+// from public references (public references — Gonzalez &
 // Woods, Pratt, Lam/Lee/Suen) and consumes the 512-entry neighbourhood
 // truth tables in bwmorph_luts.h. The sum-pixel values below are
 // MATLAB R2025b reference output (a 5x5 figure and a deterministic

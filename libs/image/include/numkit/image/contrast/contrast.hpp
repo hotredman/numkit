@@ -1,5 +1,4 @@
 // libs/image/include/numkit/image/contrast/contrast.hpp
-//
 // Histogram-based contrast operations.
 
 #pragma once
@@ -140,7 +139,7 @@ struct AdaptHistEqOptions {
 ///
 /// Clean-room implementation from public references (CLAHE — Zuiderveld
 /// 1994; contrast limiting — Pizer et al. 1990; non-uniform target
-/// distributions — Pizer et al. 1987). See cleanroom/specs/adapthisteq.md.
+/// distributions — Pizer et al. 1987). See.
 ///
 /// @param I     2-D greyscale image. Returned in the same class.
 /// @param opts  Algorithm parameters; see @ref AdaptHistEqOptions.

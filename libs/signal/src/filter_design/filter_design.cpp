@@ -1,5 +1,4 @@
 // libs/signal/src/filter_design/filter_design.cpp
-//
 // Butterworth IIR design (butter) + windowed-sinc FIR design (fir1).
 // freqz / phasez / grpdelay (frequency-domain analysis of an existing
 // filter) live in filter_analysis/frequency_response.cpp.
@@ -432,7 +431,6 @@ void fir2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 } // namespace detail
 
 // ── cell2sos (Phase 4.10) ─────────────────────────────────────────────
-//
 // Convert cell array C = {{B1, A1}, {B2, A2}, ...} → L×6 SOS matrix.
 // Each Bi/Ai is zero-padded on the right to length 3. 2-output form
 // extracts a leading scalar gain section if present.
@@ -510,8 +508,7 @@ void cell2sos_reg(Span<const Value> args, size_t nargout,
 } // namespace detail
 
 // ── fir2 — frequency-sampling FIR filter design ──────────────────────
-//
-// Clean-room implementation written from cleanroom/specs/fir2.md and the
+// Clean-room implementation written from the
 // public references it cites:
 //   * A. V. Oppenheim & R. W. Schafer, Discrete-Time Signal Processing,
 //     3rd ed., 2010 — §7.4-7.5, FIR design by the frequency-sampling
@@ -520,9 +517,7 @@ void cell2sos_reg(Span<const Value> args, size_t nargout,
 //   * L. R. Rabiner & B. Gold, Theory and Application of Digital Signal
 //     Processing, 1975 — frequency-sampling FIR design;
 //   * T. W. Parks & C. S. Burrus, Digital Filter Design, 1987.
-//
 //   b = fir2(n, f, m [, npt] [, lap] [, window])
-//
 // Piecewise-linearly interpolate the desired (f, m) magnitude response
 // onto a uniform DC..Nyquist grid, apply a linear-phase delay, inverse-
 // transform, and window. Full MATLAB argument set: npt, lap, window,
@@ -727,16 +722,13 @@ Value fir2(int n, const Value &f, const Value &m,
 
 
 // ── firpm (Parks-McClellan, Type I only — even N) ────────────────────
-//
 // Equiripple FIR design via Remez exchange. Reference: McClellan, Parks,
 // Rabiner, 1973 (FORTRAN), Burrus DSP texts. Algorithm:
-//
 //   For Type I (N even, h symmetric of length N+1):
 //     H(ω) = Σ_{k=0..L} a[k] cos(kω),  L = N/2
 //   Minimize  max_ω∈F  |W(ω) · (D(ω) - H(ω))|  via the alternation
 //   theorem: H equioscillates at L+2 extremal frequencies with sign
 //   (-1)^k · δ where δ is the peak ripple.
-//
 //   1. Dense grid: lgrid·(L+2) points covering all bands proportionally.
 //   2. Initial extremals: equispaced over the grid.
 //   3. Repeat until max|E| - |δ| ≈ 0:
@@ -818,7 +810,6 @@ firpm(int N, const Value &Farg, const Value &Aarg, const Value &Warg,
     // problem via the Q(ω) type factor: D'(ω) = D / Q, W'(ω) = W · Q,
     // then run the same Remez kernel. Reconstruction back to h[k]
     // differs per type — handled in the final section.
-    //
     // Polynomial degree L (so we have L+1 cosine coefficients a[0..L]):
     //   Type I  : L = N/2
     //   Type II : L = (N-1)/2
