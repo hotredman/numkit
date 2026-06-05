@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (95 entries):** ✅ 46 fixed · 🔴 49 open = **11 bug** + 5 stub +
+**Tally (96 entries):** ✅ 46 fixed · 🔴 50 open = **12 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -175,10 +175,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 11
+### 🔴 OPEN — bug (defect on an implemented function) — 12
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [builtin/str2double-complex](builtin/str2double-complex.md) | P3 | str2double returns NaN on complex strings ('1+2i'/'2i'/'i'/'1+2j'); MATLAB parses them — LIBS, moderate (complex token parser + COMPLEX output) |
 | [builtin/concat-integer-types](builtin/concat-integer-types.md) | P2 | CORE: cat/[;]/[,]/vertcat/horzcat reject integer types (promoteNumericType throws); MATLAB preserves int class — needs supervised core fix |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
