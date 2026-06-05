@@ -1342,12 +1342,18 @@ TEST_P(ReductionDimTest, MaxLogicalReturnsLogical)
     EXPECT_DOUBLE_EQ(evalScalar("islogical(m);"), 1.0);
 }
 
-TEST_P(ReductionDimTest, MaxCharReturnsChar)
+TEST_P(ReductionDimTest, MaxCharReturnsDouble)
 {
+    // MATLAB max/min of a CHAR array return DOUBLE (the code point), NOT char
+    // (mode keeps char, but max/min do not). bugs/builtin/maxmin-char-double.md.
     eval("s = 'banana'; m = max(s);");
-    // ASCII: 'a'=97, 'b'=98, 'n'=110 → max = 'n'
-    EXPECT_DOUBLE_EQ(evalScalar("ischar(m);"), 1.0);
-    EXPECT_DOUBLE_EQ(evalScalar("double(m);"), 110.0);
+    // ASCII: 'a'=97, 'b'=98, 'n'=110 → max code = 110, class double
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(m);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isa(m,'double');"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 110.0);
+    eval("mn = min(s);");
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(mn);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mn;"), 97.0);   // 'a'
 }
 
 // COMPLEX min/max — MATLAB rule: compare by |z| (modulus); ties broken
