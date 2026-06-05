@@ -1,7 +1,5 @@
 // libs/audio/src/features/pitch_harmonics.cpp
-//
 // Audio Cycle E: pitch + harmonicRatio.
-//
 // pitch (NCF method, MATLAB R2025b default):
 //   For each frame, compute autocorrelation R[k]; normalize via
 //   R[k] / sqrt(totalPower * partialPower(k)); search peak in valid
@@ -10,15 +8,12 @@
 //   Defaults: Window = hamming(round(0.052*fs)) (~52 ms),
 //             Overlap = round(0.042*fs)            (~42 ms),
 //             Range   = [50, 400] Hz.
-//
 // harmonicRatio:
 //   Same autocorrelation + normalization as pitch's NCF, but the
 //   metric is the MAX of the normalized correlation in the valid lag
 //   range (rather than the lag of the peak). Range [0, 1] roughly.
 //   Defaults: Window = hamming(round(0.03*fs)), Overlap = round(0.02*fs).
-//
 // PMR HARD RULE.
-//
 // KNOWN GAPs (post cycles E-F-K-K2-K3):
 //   * pitch shipped methods: NCF (default, cycle E), CEP (cycle K),
 //     PEF (cycle K-2), LHS (cycle K-3). SRH still deferred (uses LPC
@@ -107,16 +102,13 @@ size_t nextPow2(size_t x)
 
 // ── pitch CEP method ──────────────────────────────────────────────────
 // Cepstrum-based fundamental-frequency (pitch) estimation.
-//
 // Reference: A. M. Noll, "Cepstrum Pitch Determination", Journal of the
 // Acoustical Society of America 41(2):293-309, 1967.
-//
-// Clean-room reimplementation — see cleanroom/specs/pitchCEP.md. Per
+// Clean-room reimplementation. Per
 // frame: window, zero-pad, DFT, log power spectrum, inverse DFT back to
 // the quefrency domain; the cepstral peak inside the quefrency band for
 // [minF, maxF] gives f0. The frame is zero-padded to nextPow2(2*winLen-1)
 // so the cepstrum is free of time-domain aliasing.
-//
 // Compatibility: MATLAB's CEP reports the period from a 1-based
 // quefrency index, so a cepstrum sample at 0-based array index q
 // corresponds to a period of (q+1) samples; hence f0 = fs/(q+1) and the
@@ -214,15 +206,12 @@ Value pitchCEP(const Value &x, double fs, double minF, double maxF,
 
 // ──────────────────────────────────────────────────────────────────────
 // pitchPEF — Pitch-Estimation-Filter fundamental-frequency estimation.
-//
 // Public reference:
 //   S. Gonzalez and M. Brookes, "A Pitch Estimation Filter robust to
 //   high levels of noise (PEFAC)", Proc. EUSIPCO 2011, pp. 451-455.
-//
 // This is the "PEF" variant of the published method — PEFAC without the
 // amplitude-compression stage (the paper's Fig. 6 "algorithm without the
 // amplitude compression stage").
-//
 // Idea: on a natural-log frequency axis q = ln f, the harmonics of a
 // tone at f0 sit at q = ln f0 + ln k (k = 1..K) — a comb pattern whose
 // spacing is independent of f0. Correlating the log-frequency power
@@ -232,14 +221,12 @@ Value pitchCEP(const Value &x, double fs, double minF, double maxF,
 //     g(q) = ln(γ − cos(2π·e^q)),   h(q) = β − g(q)
 // with β chosen so Σh = 0, which makes h reject white / smoothly-varying
 // noise. γ controls tooth width.
-//
 // Per analysis frame: window (periodic Hamming) → zero-pad to NFFT and
 // FFT → one-sided power spectrum P → for each candidate f0 on a uniform
 // log-frequency grid, score(f0) = Σ_j h_j · P_interp(f0·e^{q'_j}); the
 // candidate with the largest score is the frame's f0, clipped to
 // [minF, maxF].
-//
-// Clean-room reimplementation — see cleanroom/specs/pitchPEF.md. This is
+// Clean-room reimplementation. This is
 // a faithful implementation of the paper's filter (Eq. 4); MATLAB's PEF
 // uses a different comb formula, so this is not bit-matched to MATLAB.
 // ──────────────────────────────────────────────────────────────────────
@@ -401,7 +388,6 @@ Value pitchPEF(const Value &x, double fs, double minF, double maxF,
 
 // ── pitch LHS method ──────────────────────────────────────────────────
 // pitchLHS — fundamental-frequency estimation by log harmonic summation.
-//
 // Principle (Hermes, "Measurement of pitch by subharmonic summation",
 // JASA 83(1):257-264, 1988): a voiced signal whose fundamental is f has
 // spectral energy concentrated at the integer harmonics f, 2f, 3f, ...
@@ -411,8 +397,7 @@ Value pitchPEF(const Value &x, double fs, double minF, double maxF,
 // (compressing toward a virtual-pitch percept); here we use the direct
 // harmonic-summation form ("log harmonic summation", LHS), which sums the
 // log-magnitude spectrum over the first H harmonics of each candidate.
-//
-// Clean-room reimplementation — see cleanroom/specs/pitchLHS.md.
+// Clean-room reimplementation.
 // Per analysis frame:
 //   1. Window the frame with a periodic Hamming window.
 //   2. Zero-pad to NFFT = round(fs) and take the DFT; with NFFT = fs each
@@ -423,7 +408,6 @@ Value pitchPEF(const Value &x, double fs, double minF, double maxF,
 //   4. domain[j] = sum_{m=1..H} S[j*m] is the harmonic-sum score for a
 //      fundamental of j Hz.
 //   5. f0 = argmax over the search range; clip to [minF, maxF].
-//
 // Compatibility: MATLAB's LHS reports f0 from a 1-based bin index, so a
 // harmonic-sum peak at 0-based bin j is reported as f0 = j + 1 Hz.
 Value pitchLHS(const Value &x, double fs, double minF, double maxF,
@@ -557,12 +541,10 @@ Value pitchLHS(const Value &x, double fs, double minF, double maxF,
 // ─────────────────────────────────────────────────────────────────────
 // pitchSRH — Summation-of-Residual-Harmonics fundamental-frequency
 //            estimation, one f0 per analysis frame.
-//
 // Reference:
 //   T. Drugman and A. Alwan, "Joint Robust Voicing Detection and Pitch
 //   Estimation Based on Residual Harmonics", Interspeech 2011,
 //   pp. 1973-1976.
-//
 // Algorithm (paper-faithful, NOT bit-matched to MATLAB pitch(...,'SRH')):
 //   The signal is cut into overlapping frames. Each frame is windowed
 //   with a periodic Hann window, then an order-P linear-prediction model
@@ -578,8 +560,7 @@ Value pitchLHS(const Value &x, double fs, double minF, double maxF,
 //   a frame is the candidate maximising SRH. A two-step range refinement
 //   first estimates a global mean f0 over all frames, then re-runs the
 //   search per frame with the candidate range narrowed around that mean.
-//
-// Clean-room reimplementation — see cleanroom/specs/pitchSRH.md. This is
+// Clean-room reimplementation. This is
 // a faithful implementation of the published SRH method; it does not
 // replicate MATLAB's SRH pipeline and is not bit-matched to MATLAB.
 // ─────────────────────────────────────────────────────────────────────
@@ -899,10 +880,8 @@ namespace detail {
 //   'CEP' (cycle K)
 //   'PEF' (cycle K-2)
 // 'LHS'/'SRH' deferred — fall through to NCF for now.
-//
 // Cycle L (partial) added 'Range' NV pair → minF/maxF override default
 // [50, 400] Hz pitch search range.
-//
 // Calling convention supports Name-Value pairs:
 //   pitch(x, fs)                                — NCF default
 //   pitch(x, fs, 'Method', 'CEP')

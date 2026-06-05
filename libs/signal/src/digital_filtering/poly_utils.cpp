@@ -1,8 +1,6 @@
 // libs/signal/src/digital_filtering/poly_utils.cpp
-//
 // Signal Processing toolbox polynomial utilities — polyscale + polystab.
-//
-// Clean-room implementation written from cleanroom/specs/polystab_polyscale.md
+// Clean-room implementation written from public references
 // and the public references it cites:
 //   * A. V. Oppenheim & R. W. Schafer, Discrete-Time Signal Processing,
 //     3rd ed., Pearson, 2010 — z-transform scaling property (§3.2),
@@ -11,7 +9,6 @@
 //     1976 — radial root scaling as LPC bandwidth expansion;
 //   * M. H. Hayes, Statistical Digital Signal Processing and Modeling,
 //     Wiley, 1996 — spectral factorisation / stabilisation.
-//
 // polyscale scales every root of a polynomial by a factor (coefficient
 // k is multiplied by alpha^k). polystab returns the minimum-phase
 // polynomial with the same magnitude response, reflecting any root with
@@ -62,13 +59,10 @@ inline bool isVectorShape(const Value &v)
 
 // ─────────────────────────────────────────────────────────────────────
 // polyscale — scale every root of a polynomial by a factor.
-//
 // Spec §1.  Scaling the roots of A(z) by α is the z-transform scaling
 // property A(z) ↦ A(z/α): the coefficient of z^(N-1-k) is multiplied by
 // α^k, so for a length-N coefficient row in descending-power order
-//
 //     b[k] = a[k] · p(k),   k = 0 .. N-1
-//
 // where p(k) = α^k for scalar α, or p(k) = alpha[k]^k for a row-vector
 // alpha (per-coefficient factor). A matrix `a` is treated as one
 // polynomial per row, each scaled with the same power factors.
@@ -158,13 +152,11 @@ Value polyscale(const Value &p, const Value &scale,
 
 // ─────────────────────────────────────────────────────────────────────
 // polystab — stabilise a polynomial (minimum-phase version).
-//
 // Spec §2.  Returns a polynomial with the same magnitude response as the
 // input but with every root inside or on the unit circle. A root r with
 // |r| > 1 is reflected to its conjugate reciprocal 1/conj(r) — magnitude
 // 1/|r|, same angle — which preserves |A(e^jω)| and changes only the
 // phase (Oppenheim & Schafer §5.6, minimum-phase systems).
-//
 // Procedure:
 //   1. roots r_k of a            (builtin::roots)
 //   2. r_k ← 1/conj(r_k)  when |r_k| > 1, else keep

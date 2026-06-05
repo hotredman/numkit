@@ -1,10 +1,8 @@
 // libs/signal/tests/fir2_test.cpp
-//
 // gtest coverage for fir2 — frequency-sampling FIR filter design.
-//
 // fir2 is a clean-room implementation from public references (Oppenheim
 // & Schafer §7.4-7.5; Rabiner & Gold 1975; Parks & Burrus 1987 — see
-// cleanroom/specs/fir2.md). Hardcoded coefficient values are MATLAB
+//). Hardcoded coefficient values are MATLAB
 // R2025b reference output. The property test at the end verifies the
 // design MATLAB-independently (the realised frequency response matches
 // the request, and the filter is linear-phase / symmetric).

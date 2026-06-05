@@ -241,9 +241,7 @@ Value histeq(const Value &I, int n, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════
 // adapthisteq — Contrast Limited Adaptive Histogram Equalisation
 // ════════════════════════════════════════════════════════════════════
-//
-// Clean-room implementation of CLAHE — see cleanroom/specs/adapthisteq.md.
-//
+// Clean-room implementation of CLAHE.
 // Public references:
 //   * K. Zuiderveld, "Contrast Limited Adaptive Histogram
 //     Equalization", in Graphics Gems IV (P. S. Heckbert, ed.),
@@ -256,7 +254,6 @@ Value histeq(const Value &I, int n, std::pmr::memory_resource *mr)
 //   * S. M. Pizer et al., "Adaptive Histogram Equalization and Its
 //     Variations", Computer Vision, Graphics, and Image Processing
 //     39:355-368, 1987 — the AHE family and non-uniform distributions.
-//
 // The image is split into numTilesR x numTilesC tiles; each tile gets a
 // clipped+redistributed histogram whose CDF, shaped by the target
 // Distribution (uniform/rayleigh/exponential), is the tile mapping LUT.
@@ -616,11 +613,9 @@ namespace {
 // Single-threshold Otsu on a histogram of L bins. Returns the
 // MEAN of all tied-maximum bin indices (as MATLAB's graythresh does),
 // plus the effectiveness metric eta in [0, 1].
-//
 // MATLAB algorithm (from graythresh.m):
 //   idx = mean(find(sigma_b_squared == max(sigma_b_squared)));
 // then level = (idx - 1) / (num_bins - 1).
-//
 // We return the 0-based mean directly; the caller divides by L-1.
 std::pair<double, double> otsu_one_level(const std::vector<double> &counts) {
     const int L = (int)counts.size();
@@ -963,7 +958,6 @@ Value imquantize(const Value &I, const Value &levels, std::pmr::memory_resource 
 // ════════════════════════════════════════════════════════════════════
 // imhistmatch — histogram matching to a reference image
 // ════════════════════════════════════════════════════════════════════
-//
 // MATLAB R2025b: J = imhistmatch(I, ref, nbins) is exactly
 // histeq(I, imhist(ref, nbins)). The transform is built at the input
 // class's FULL resolution NPTS (256 for uint8/float, 65536 for
@@ -1076,7 +1070,6 @@ Value imhistmatch(const Value &I, const Value &ref, int nbins,
 // ════════════════════════════════════════════════════════════════════
 // adaptthresh — locally adaptive threshold matrix
 // ════════════════════════════════════════════════════════════════════
-//
 // Computes T(x, y) ∈ [0, 1] from a local statistic (box mean or
 // Gaussian-smoothed mean) of a neighborhood centered at each pixel.
 // `sensitivity` scales the threshold relative to the local statistic.

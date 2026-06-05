@@ -1,16 +1,12 @@
 // libs/audio/src/spectral/cepstral.cpp
-//
 // Audio Cycle D + G: cepstral coefficients (cepstralCoefficients / mfcc / gtcc).
-//
 // cepstralCoefficients pipeline:
 //   S (L bands × M frames) → log10 rectification → DCT-II (unitary)
 //                          → keep first NumCoeffs → permute to M × NumCoeffs
-//
 // DCT-II unitary matrix (Ahmed, Natarajan & Rao, IEEE TC, 1974):
 //   N = NumCoeffs, K = NumFilters
 //   matrix(1, k)   = sqrt(1/K)  (DC row)
 //   matrix(n, k)   = sqrt(2/K) * cos(π·(n-1)·(k-0.5)/K)  for n = 2..N
-//
 // mfcc pipeline (standard MFCC; Davis & Mermelstein, IEEE TASSP, 1980):
 //   1. y = buffer(x, winLen=round(0.03*fs), hop=winLen-round(0.02*fs))
 //   2. logE = log(sum(y.^2))   ← natural log of UNWINDOWED frame energy
@@ -20,12 +16,10 @@
 //   6. melMag = filterBank.' * Z   (numBands × numFrames)
 //   7. coeffs = cepstralCoefficients(melMag, NumCoeffs=13, Rectification='log')
 //   8. out = [logE.', coeffs]   (numFrames × (NumCoeffs+1))
-//
 // Slaney mel band edges (Slaney, "Auditory Toolbox", Apple TR #45, 1998):
 //   factor = 133.33333333333333
 //   bE[1..13] = factor + (factor/2)*(i-1)        (linear up to 866.66 Hz)
 //   bE[14..42] = bE[i-1] * 1.0711703             (log-spaced, ~27 bands/octave)
-//
 // PMR HARD RULE.
 
 #include <numkit/audio/spectral/cepstral.hpp>
@@ -90,7 +84,6 @@ void slaneyBandEdges(double *edges, size_t numEdges = 42)
 
 // ---------------------------------------------------------------------------
 // designMelFilterBankSlaney — Slaney-style triangular mel filterbank.
-//
 // Each band k places one triangular filter spanning three consecutive mel
 // band edges edges[k] < edges[k+1] < edges[k+2]: the filter rises linearly
 // from 0 at edges[k] to 1 at edges[k+1], then falls linearly back to 0 at
@@ -100,9 +93,7 @@ void slaneyBandEdges(double *edges, size_t numEdges = 42)
 // weight of band k is divided by half its base width, (edges[k+2]-edges[k])/2,
 // giving each triangle unit area (Slaney, Auditory Toolbox v2, 1998 —
 // Normalization='Bandwidth'). Output FB is column-major, length H*(numEdges-2).
-//
-// Clean-room reimplementation — see cleanroom/specs/designMelFilterBankSlaney.md.
-//
+// Clean-room reimplementation.
 // References:
 //   S. B. Davis and P. Mermelstein, "Comparison of Parametric Representations
 //   for Monosyllabic Word Recognition in Continuously Spoken Sentences",
@@ -172,7 +163,6 @@ inline double erb2hzVal(double e)  { return (std::pow(10.0, e / erbScale()) - 1.
 // magnitude (one-sided H × NumBands). Filter coefficients per Slaney,
 // "An Efficient Implementation of the Patterson-Holdsworth Auditory
 // Filter Bank", Apple Tech. Report #35, 1993.
-//
 // For each band i with center frequency Fc[i] (Hz):
 //   ERB[i] = Fc[i]/9.26449 + 24.7
 //   B      = 1.019 * 2π * ERB[i]
@@ -182,13 +172,11 @@ inline double erb2hzVal(double e)  { return (std::pow(10.0, e / erbScale()) - 1.
 //   A0     = T;  A2 = 0
 //   A11..A14 = -(2T cos(2π Fc T)/exp(B T) ± 2 sqrt(3 ± 2^(3/2)) T sin(2π Fc T)/exp(B T))/2
 //   gain   = (complex polynomial — see Slaney 1993, eq. 4.6)
-//
 // Each band is a CASCADE of 4 biquads:
 //   sec1: [A0/gain, A11/gain, A2/gain]/[B0, B1, B2]   (gain applied here)
 //   sec2: [A0,      A12,      A2]    /[B0, B1, B2]
 //   sec3: [A0,      A13,      A2]    /[B0, B1, B2]
 //   sec4: [A0,      A14,      A2]    /[B0, B1, B2]
-//
 // freqz(...,'whole') evaluates H at ω = 2π k/N for k=0..N-1.
 // We compute one-sided (k=0..N/2) since H is conjugate-symmetric for
 // real coefficients.
@@ -412,7 +400,6 @@ mfcc(const Value &x, double fs, int numCoeffs, std::pmr::memory_resource *mr)
 // ── gtcc ──────────────────────────────────────────────────────────────
 // Same STFT pipeline as mfcc but with a Patterson-Holdsworth gammatone
 // filterbank in the frequency domain (Slaney 1993).
-//
 // Pipeline:
 //   1. winLen=round(0.03*fs), overlap=round(0.02*fs), fftLen=winLen.
 //   2. Per-frame logE = log(sum(unwindowed_frame.^2)).

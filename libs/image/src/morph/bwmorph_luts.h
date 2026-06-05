@@ -1,22 +1,19 @@
 // bwmorph 3x3-neighbourhood lookup tables — reference data.
-//
 // Each table has 512 entries indexed by a 9-bit 3x3 neighbourhood
 // (makelut bit convention: bit k = neighbour at row offset (k%3)-1,
 // col offset (k/3)-1; bit 4 = the centre pixel; column-major).
-//
 // Each table is the truth table of a binary-morphology operation: for
 // every one of the 2^9 possible 3x3 neighbourhoods, the entry is the
 // resulting centre value. A truth table is the unique, mechanical
 // tabulation of an operation's per-neighbourhood definition — numeric
 // reference data (facts), not authored expression. Consumed by the
-// clean-room bwmorph dispatcher; see cleanroom/specs/bwmorph.md.
-//
+// clean-room bwmorph dispatcher;.
 // NOTE: the dilate/erode/bridge/clean/diag/fill/hbreak/majority/perim/
 // remove/endpoints/fatten/branchpoints tables tabulate operations with
 // definitions documented in `doc bwmorph`. The thinning (thin1/thin2)
 // and skeleton (skel1..8) sub-tables tabulate a specific thinning /
 // skeletonisation algorithm; they are retained as numeric reference
-// data pending IP-counsel review (see cleanroom/PROTOCOL.md).
+// data pending IP-counsel review (.md).
 
 inline constexpr std::array<std::uint8_t, 512> lutdilate = {{
     0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,

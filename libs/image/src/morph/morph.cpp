@@ -569,7 +569,6 @@ Value imclose(const Value &I, const Value &SE, std::pmr::memory_resource *mr) {
 // ════════════════════════════════════════════════════════════════════
 // imreconstruct — morphological reconstruction by dilation
 // ════════════════════════════════════════════════════════════════════
-//
 // J_{k+1} = min(imdilate(J_k, SE), mask), J_0 = marker.
 // The fixed point exists because the iteration is monotone non-
 // decreasing (each dilation only adds; the min-cap can never push a
@@ -702,7 +701,6 @@ Value imreconstruct(const Value &marker, const Value &mask, int conn, std::pmr::
 // ════════════════════════════════════════════════════════════════════
 // imfill('holes')  — composes imreconstruct
 // ════════════════════════════════════════════════════════════════════
-//
 // A "hole" is a 0-pixel NOT connectivity-reachable from the image
 // border. We reconstruct the border-touching part of the complement
 // (background reachable from the rim) through ~BW, then take the
@@ -748,14 +746,12 @@ Value imfill_holes(const Value &BW, int conn, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════
 // imregionalmax / imregionalmin
 // ════════════════════════════════════════════════════════════════════
-//
 // Standard formula:  regmax(I) = (I − imreconstruct(I − 1, I)) > 0.
 // The marker (I − 1) is below I except at regional maxima, where the
 // reconstruction can't grow back up to I (because dilation only takes
 // from neighbours that are themselves capped at I − 1). So pixels
 // where the reconstruction equals I lie outside any regional max,
 // and pixels where it stays below I are exactly the maxima.
-//
 // imregionalmin reuses imregionalmax on a value-inverted copy of I:
 //   typeMax − I    for unsigned integer classes
 //   − I             for signed / floating-point
@@ -773,7 +769,6 @@ Value imregionalmax(const Value &I, int conn, std::pmr::memory_resource *mr)
     // Build the marker = max(I − 1, lower_bound). Use DOUBLE through
     // the operation to avoid the integer-saturation surprise for
     // I = 0 / I = INT_MIN / etc.
-    //
     // Edge case: a +Inf pixel breaks the naïve "marker = I − 1" recipe
     // because (+Inf) − 1 = +Inf, and (mask = +Inf) > (recon = +Inf) is
     // false — so a +Inf would never be flagged. We fix this by clamping
@@ -837,10 +832,8 @@ Value imregionalmin(const Value &I, int conn, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════
 // imhmax / imhmin — h-extrema transforms
 // ════════════════════════════════════════════════════════════════════
-//
 //   imhmax(I, h) = imreconstruct(I − h, I)
 //   imhmin(I, h) = invert(imhmax(invert(I), h))
-//
 // h-maxima suppresses regional maxima shallower than h. Used as a
 // precursor to imregionalmax to ignore small / noise-like peaks.
 
@@ -901,10 +894,8 @@ Value imhmin(const Value &I, double h, int conn, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════
 // imextendedmax / imextendedmin — extended-extrema transforms
 // ════════════════════════════════════════════════════════════════════
-//
 //   imextendedmax(I, h) = imregionalmax(imhmax(I, h))
 //   imextendedmin(I, h) = imregionalmin(imhmin(I, h))
-//
 // First flatten any peak shallower than h (imhmax), then locate the
 // regional maxima of the result. Pixels in the output are exactly
 // those that belong to a regional maximum at least h units above its
@@ -923,24 +914,19 @@ Value imextendedmin(const Value &I, double h, int conn, std::pmr::memory_resourc
 // ════════════════════════════════════════════════════════════════════
 // imimposemin — minima imposition (Soille 1999, §6.3.1)
 // ════════════════════════════════════════════════════════════════════
-//
 // Force the regional minima of `I` to be exactly the pixels marked
 // in `BW`. Recipe matching MATLAB R2025b / Octave's imimposemin:
-//
 //   marker fm = −∞ at BW, +∞ elsewhere      (sentinel marker)
 //   mask    m = min(I + h, fm)              (lifted image, drops back
 //                                            to −∞ at marker pixels)
 //   J         = R^E_m(fm)                   (erosion-reconstruction)
-//
 // where `h` is the per-class step:
 //   integer classes  → h = 1
 //   floating classes → h = (max(I) − min(I)) / 1000
-//
 // `h` lifts non-marker pixels just enough that any old regional
 // minimum is no longer one (its old neighbours' value at I + h is
 // strictly higher than I along the path to a marker). Marker pixels
 // stay at −∞ and are the only regional minima of the result.
-//
 // Reconstruction by erosion is realised by complementing into the
 // dilation domain. For floating-point we use ±Inf directly (matches
 // MATLAB exactly); the existing imreconstruct propagates ±Inf as
@@ -1015,12 +1001,10 @@ Value imimposemin(const Value &I, const Value &BW, int conn, std::pmr::memory_re
 // ════════════════════════════════════════════════════════════════════
 // imclearborder — strip components touching the image rim
 // ════════════════════════════════════════════════════════════════════
-//
 //   marker = BW restricted to the border pixels
 //   R      = imreconstruct(marker, BW, conn)   — all FG reachable
 //                                                from the rim
 //   J      = BW & ~R                           — interior FG only
-//
 // For grayscale inputs the same recipe applies treating non-zero as
 // foreground; we coerce to LOGICAL since MATLAB documents the result
 // as a logical mask.
@@ -1061,10 +1045,8 @@ Value imclearborder(const Value &BW, int conn, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════
 // imtophat / imbothat — top-hat residuals
 // ════════════════════════════════════════════════════════════════════
-//
 //   imtophat(I, SE) = I − imopen(I, SE)
 //   imbothat(I, SE) = imclose(I, SE) − I
-//
 // Both are subtractions in the image domain. We compute pixel-wise
 // in double then store back in the input class with saturation
 // (matching MATLAB's behaviour for integer types).
@@ -1832,8 +1814,7 @@ void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
 // ════════════════════════════════════════════════════════════════════
 // bwmorph — binary morphology operation dispatcher
 // ════════════════════════════════════════════════════════════════════
-//
-// Clean-room reimplementation written from cleanroom/specs/bwmorph.md
+// Clean-room reimplementation written from public references
 // and the public references it cites:
 //   * R. C. Gonzalez & R. E. Woods, Digital Image Processing, 4th ed.,
 //     2018 — Ch. 9, binary morphology (dilate / erode / open / close /
@@ -1842,7 +1823,6 @@ void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
 //     morphological processing and 3x3 lookup-table pixel operations;
 //   * L. Lam, S.-W. Lee, C. Y. Suen, "Thinning Methodologies — A
 //     Comprehensive Survey", IEEE Trans. PAMI 14(9), 1992.
-//
 // The 512-entry 3x3-neighbourhood lookup tables are reference data
 // (truth tables of the documented operations) — see bwmorph_luts.h.
 
@@ -1852,7 +1832,6 @@ using Lut = std::array<std::uint8_t, 512>;
 
 // ──────────────────────────────────────────────────────────────────
 // The 3x3-neighbourhood lookup primitive.
-//
 // All buffers are column-major uint8 logical (0/1), size R*C; index
 // (r,c) = r + c*R. For every pixel a 9-bit index is formed: bit k is
 // the neighbour at row offset (k%3)-1, col offset (k/3)-1, with bit 4
@@ -1955,7 +1934,6 @@ void opClose(std::uint8_t *bw, std::size_t R, std::size_t C,
 }
 
 // shrink — four checkerboard sub-iterations.
-//
 // For sub-iteration s = 0..3:
 //   1. m    = lutshrink(bw)
 //   2. cand = bw AND (NOT m)
@@ -1983,7 +1961,6 @@ void opShrink(std::uint8_t *bw, std::size_t R, std::size_t C,
 }
 
 // spur.
-//
 //   1. bw = NOT bw
 //   2. endPoints = lutspur(bw)
 //   3. sub-field 0, offsets (0,0): bw = bw XOR endPoints on that field
@@ -2336,13 +2313,10 @@ Value bwmorph(const Value &BW, const std::string &op, int n,
 }
 
 // ── bwtraceboundary (Moore-Neighbor boundary tracing) ─────────────
-//
 // Reverse-engineered from MATLAB R2025b (closed-source
 // images.internal.builtins.bwtraceboundary):
-//
 //   8-conn dirs (CW order):  N NE E SE S SW W NW
 //   4-conn dirs (CW order):  N E S W
-//
 //   Initial back_dir = opposite(fstep) (the notional "previous"
 //   pixel direction).
 //   Search start = (back_dir + 1) % nd for clockwise tracing
@@ -2355,7 +2329,6 @@ Value bwmorph(const Value &BW, const std::string &op, int n,
 //     * len(B) >= m, or
 //     * we just moved to P (loop closed, |B| >= 2), or
 //     * no foreground neighbour found (isolated → append P, done).
-//
 // Reference: Moore-Neighbor tracing,
 //   Pavlidis 1982 §7.5; classic 8-connected variant.
 namespace {
