@@ -385,13 +385,14 @@ libs/                                 # Domain libraries (one per H2 in PROGRESS
     <each lib>/{include,src,tests}/   # Same layout per library
 
 tests/                                # Top-level integration & cross-cutting tests
+examples/                             # 80 MATLAB-style example scripts (IDE source-of-truth)
 
 wasm/                                 # WebAssembly REPL bindings (Emscripten)
 ide/                                  # Numkit IDE — React + Vite frontend
     src/components/                   # IDE.jsx · Console · Figures · FileBrowser · …
     src/engine.js                     # WASM engine wrapper
     desktop/                          # Electron shell
-    public/examples/                  # 80 example .m scripts
+    public/examples/                  # mirror of /examples (regenerated on build)
 
 tools/                                # Dev tooling
     parity/                           # Parity harness (run_parity.py) + 1500+ specs

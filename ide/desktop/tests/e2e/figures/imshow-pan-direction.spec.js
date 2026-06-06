@@ -113,7 +113,7 @@ test.describe('Imshow pan direction', () => {
   });
 
   test('subplot + imshow (morphology_pipeline shape) + drag DOWN', async ({ ide, page }) => {
-    // Mirrors docs/examples/Image/morphology_pipeline.m: figure with a 2×3
+    // Mirrors examples/Image/morphology_pipeline.m: figure with a 2×3
     // subplot grid, imshow in each cell. Verifies pan direction works
     // inside SubplotGrid → CompositePlot, not just on top-level figures.
     // Each subplot cell has its own viewport state; we pan the first cell.
