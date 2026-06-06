@@ -46,7 +46,7 @@ private:
 class MFileResolverTest : public ::testing::TestWithParam<Engine::Backend>
 {
 protected:
-    StdEngine engine;
+    StandardEngine engine;
     std::filesystem::path workDir;
 
     void SetUp() override

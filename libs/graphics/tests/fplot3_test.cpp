@@ -21,7 +21,7 @@ using namespace numkit;
 class Fplot3Test : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
 };
 

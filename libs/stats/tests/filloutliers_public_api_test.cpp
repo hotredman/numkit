@@ -22,7 +22,7 @@ Value fv(Engine &e, const char *expr, const char *name)
 
 TEST(FilloutliersPublicApi, Basic)
 {
-    StdEngine e;
+    StandardEngine e;
     Value A = fv(e, "[1 2 3 4 100]", "A"); // 100 is the lone outlier
     // constant-0 fill, default median detection + NaN (method-default) tf, mr
     Value B = stats::filloutliers(A, fv(e, "0", "f0"));

@@ -18,7 +18,7 @@ using namespace numkit;
 class LocalLapFiltTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.eval(

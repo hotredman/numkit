@@ -14,7 +14,7 @@ using namespace numkit;
 class GradientweightTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;"
                     "I = double(magic(8)) / 100;");

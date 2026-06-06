@@ -1,9 +1,9 @@
-// bundle/include/numkit/bundle/std_engine.hpp
+// bundle/include/numkit/bundle/standard_engine.hpp
 //
-// StdEngine — an Engine with the standard library already installed, as a
+// StandardEngine — an Engine with the standard library already installed, as a
 // stack-constructible convenience:
 //
-//     numkit::StdEngine engine;          // ready to eval("sin(1)") etc.
+//     numkit::StandardEngine engine;          // ready to eval("sin(1)") etc.
 //
 // It is a thin subclass over the public installStandardLibrary() composition
 // API — no new behaviour, just "construct + install" in one step. The three
@@ -22,10 +22,10 @@
 
 namespace numkit {
 
-struct StdEngine : Engine
+struct StandardEngine : Engine
 {
-    StdEngine() { installStandardLibrary(*this); }
-    explicit StdEngine(std::pmr::memory_resource *mr) : Engine(mr)
+    StandardEngine() { installStandardLibrary(*this); }
+    explicit StandardEngine(std::pmr::memory_resource *mr) : Engine(mr)
     {
         installStandardLibrary(*this);
     }

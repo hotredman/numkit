@@ -16,7 +16,7 @@ using namespace numkit;
 class IllumPcaImcdTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;"
                     "A = zeros(10, 10, 3);"

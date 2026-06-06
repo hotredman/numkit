@@ -17,7 +17,7 @@ using namespace numkit;
 class EnvelopeTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("sig = sin(2*pi*0.1*(0:31)') .* exp(-0.05*(0:31)');");

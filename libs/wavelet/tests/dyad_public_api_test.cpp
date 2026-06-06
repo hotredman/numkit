@@ -22,7 +22,7 @@ Value dvar(Engine &e, const char *expr, const char *name)
 
 TEST(DyadPublicApi, Dyaddown)
 {
-    StdEngine e;
+    StandardEngine e;
     Value x = dvar(e, "[10 20 30 40 50 60 70]", "x");
     // defaults: odd = 0 (keep even-indexed), type = 'c', mr defaulted
     Value y = wavelet::dyaddown(x);
@@ -44,7 +44,7 @@ TEST(DyadPublicApi, Dyaddown)
 
 TEST(DyadPublicApi, Dyadup)
 {
-    StdEngine e;
+    StandardEngine e;
     Value x = dvar(e, "[1 2 3]", "x");
     // default odd = 1 -> [0 1 0 2 0 3 0]
     Value y = wavelet::dyadup(x);
@@ -62,7 +62,7 @@ TEST(DyadPublicApi, Dyadup)
 
 TEST(DyadPublicApi, Wmaxlev)
 {
-    StdEngine e;
+    StandardEngine e;
     EXPECT_DOUBLE_EQ(wavelet::wmaxlev(dvar(e, "64", "n64"), "db2").toScalar(), 4.0);
     EXPECT_DOUBLE_EQ(
         wavelet::wmaxlev(dvar(e, "[8 8]", "n88"), "db1", e.resource()).toScalar(),

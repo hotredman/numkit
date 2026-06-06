@@ -11,7 +11,7 @@ using namespace numkit;
 class Imrotate3Test : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("A = reshape(double(1:27), 3, 3, 3);");

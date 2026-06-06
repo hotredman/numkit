@@ -8,7 +8,7 @@
 class ModefiltTest : public ::testing::Test
 {
 public:
-    numkit::StdEngine engine;
+    numkit::StandardEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");

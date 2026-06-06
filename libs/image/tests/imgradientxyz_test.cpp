@@ -13,7 +13,7 @@ using namespace numkit;
 class ImgradientxyzTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;"
                     "V = double(reshape(1:60, 3, 4, 5));");

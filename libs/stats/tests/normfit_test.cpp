@@ -10,7 +10,7 @@ using namespace numkit;
 class NormfitTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("x = [1.2 2.4 3.1 4.5 5.0 6.2 7.1]';");

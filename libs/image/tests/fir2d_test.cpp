@@ -16,7 +16,7 @@ using namespace numkit;
 class FIR2DTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.eval(

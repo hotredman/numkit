@@ -19,7 +19,7 @@ using namespace numkit;
 class OptimizationRegressionTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     std::string capturedOutput;
 
     void SetUp() override

@@ -11,7 +11,7 @@
 //   node build-browser/example/numkit_example.js path/to/script.m
 
 #include <numkit/core/engine.hpp>
-#include <numkit/bundle/std_engine.hpp>   // StdEngine — Engine + standard library
+#include <numkit/bundle/standard_engine.hpp>   // StandardEngine — Engine + standard library
 #include <numkit/core/lexer.hpp>
 
 #include <fstream>
@@ -108,7 +108,7 @@ int runScript(const std::string &path)
     std::ostringstream ss;
     ss << f.rdbuf();
 
-    StdEngine engine;
+    StandardEngine engine;
     auto r = engine.evalSafe(ss.str());
     if (!r.ok) {
         reportError(r, path + ": ");
@@ -119,7 +119,7 @@ int runScript(const std::string &path)
 
 int runRepl()
 {
-    StdEngine engine;
+    StandardEngine engine;
     std::cout << "numkit-m REPL  (type 'quit' or 'exit' to leave)\n\n";
 
     std::string accum;

@@ -12,7 +12,7 @@ using namespace numkit;
 class ColfiltTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*; A = magic(5); A6 = magic(6);");
     }

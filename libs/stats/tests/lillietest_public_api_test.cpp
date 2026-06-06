@@ -23,7 +23,7 @@ Value lv(Engine &e, const char *expr, const char *name)
 
 TEST(LillietestPublicApi, Basic)
 {
-    StdEngine e;
+    StandardEngine e;
     // normal-ish sample -> fail to reject (h = 0); default alpha, mr
     auto [h1, p1, ks1, cv1] = stats::lillietest(lv(
         e, "[0.1 0.5 -0.3 1.2 -0.7 0.4 -0.1 0.8 -0.4 0.3 0.6 -0.2 0.7 -0.5 0.1]",

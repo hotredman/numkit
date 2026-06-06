@@ -21,7 +21,7 @@ Value cv(Engine &e, const char *expr, const char *name)
 
 TEST(CusumPublicApi, StepDetection)
 {
-    StdEngine e;
+    StandardEngine e;
     // explicit tmean=0, tdev=1, climit=2, mshift=1 -> z = x, half_shift = 0.5.
     // Upper sum first exceeds 2 at sample 4 (value 5 - 0.5 = 4.5).
     Value x = cv(e, "[0 0 0 5 5 5 5 5]", "x");
@@ -37,7 +37,7 @@ TEST(CusumPublicApi, StepDetection)
 
 TEST(CusumPublicApi, DefaultsConstantSignal)
 {
-    StdEngine e;
+    StandardEngine e;
     // all defaults (climit=5, mshift=1, tmean/tdev auto), mr default.
     // A constant signal has zero deviation -> no detection.
     Value x = cv(e, "ones(1,30)", "x");

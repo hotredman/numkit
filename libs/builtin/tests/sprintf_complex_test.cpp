@@ -13,7 +13,7 @@ using namespace numkit;
 class SprintfComplexTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     Value eval(const std::string &c) { return engine.eval(c); }
     std::string evalStr(const std::string &c) { return eval(c).toString(); }

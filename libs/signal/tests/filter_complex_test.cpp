@@ -14,7 +14,7 @@
 class FilterComplexTest : public ::testing::Test
 {
 public:
-    numkit::StdEngine engine;
+    numkit::StandardEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     numkit::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

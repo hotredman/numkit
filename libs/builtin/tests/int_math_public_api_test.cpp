@@ -22,7 +22,7 @@ Value bvar(Engine &e, const char *expr, const char *name)
 
 TEST(IntMathPublicApi, Bitget)
 {
-    StdEngine e;
+    StandardEngine e;
     Value a = bvar(e, "10", "a"); // 1010, bit1=0 bit2=1 bit3=0 bit4=1
     EXPECT_DOUBLE_EQ(builtin::bitget(a, bvar(e, "2", "n2")).toScalar(), 1.0);
     EXPECT_DOUBLE_EQ(
@@ -39,7 +39,7 @@ TEST(IntMathPublicApi, Bitget)
 
 TEST(IntMathPublicApi, Bitset)
 {
-    StdEngine e;
+    StandardEngine e;
     // val omitted -> Value::Empty -> defaults to 1: bitset(0,3) = 4
     EXPECT_DOUBLE_EQ(
         builtin::bitset(bvar(e, "0", "z"), bvar(e, "3", "n3")).toScalar(), 4.0);

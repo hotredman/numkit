@@ -57,14 +57,14 @@ target_link_libraries(numkit_gtest
         GTest::gtest_main
 )
 
-# Force-include StdEngine into every test TU, so the suite's `StdEngine engine;`
+# Force-include StandardEngine into every test TU, so the suite's `StandardEngine engine;`
 # (a fully-loaded engine — the standard library auto-installed) needs no
 # per-file include. Resolved via numkit's public bundle/ include dir, which the
 # link above propagates. (core's Engine ctor no longer installs libraries.)
 if(MSVC)
-    target_compile_options(numkit_gtest PRIVATE /FInumkit/bundle/std_engine.hpp)
+    target_compile_options(numkit_gtest PRIVATE /FInumkit/bundle/standard_engine.hpp)
 else()
-    target_compile_options(numkit_gtest PRIVATE -include numkit/bundle/std_engine.hpp)
+    target_compile_options(numkit_gtest PRIVATE -include numkit/bundle/standard_engine.hpp)
 endif()
 
 include(GoogleTest)

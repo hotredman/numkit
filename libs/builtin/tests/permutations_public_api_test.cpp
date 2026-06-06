@@ -22,7 +22,7 @@ Value pv(Engine &e, const char *expr, const char *name)
 
 TEST(PermutationsPublicApi, Colperm)
 {
-    StdEngine e;
+    StandardEngine e;
     // columns by ascending nnz -> [3 4 1 2]  (mr defaulted)
     Value p =
         builtin::colperm(pv(e, "[0 1 0 1; 1 1 1 0; 0 1 0 0; 1 0 0 0]", "S"));
@@ -42,7 +42,7 @@ TEST(PermutationsPublicApi, Colperm)
 
 TEST(PermutationsPublicApi, Symrcm)
 {
-    StdEngine e;
+    StandardEngine e;
     // tridiagonal 5x5 -> reversed ordering [5 4 3 2 1]
     Value p = builtin::symrcm(
         pv(e, "[1 1 0 0 0; 1 1 1 0 0; 0 1 1 1 0; 0 0 1 1 1; 0 0 0 1 1]", "T"),

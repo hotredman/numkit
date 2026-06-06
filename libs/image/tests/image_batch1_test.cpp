@@ -20,7 +20,7 @@ using namespace numkit;
 class ImageBatch1Test : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

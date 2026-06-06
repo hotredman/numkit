@@ -17,7 +17,7 @@ using namespace numkit;
 class StringsBatchTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
     std::string evalString(const std::string &c) { return eval(c).toString(); }
