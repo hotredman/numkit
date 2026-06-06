@@ -2,10 +2,11 @@
 
 ## STOP — read first
 
-This repo is worked on by **two parallel Claude sessions**. Before doing
-anything, read [COORDINATION.md](dev-docs/COORDINATION.md). It defines:
+This repo is worked on by **three parallel Claude sessions** (core / ide / lib).
+Before doing anything, read [COORDINATION.md](dev-docs/COORDINATION.md). It
+defines:
 
-- which territory each session owns (kernel vs toolbox libs)
+- which territory each session owns (core engine / libs toolbox / IDE)
 - shared-surface rules (when full-suite tests are mandatory)
 - build isolation (separate worktrees, separate build dirs)
 - commit/branch protocol
