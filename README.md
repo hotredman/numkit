@@ -398,7 +398,7 @@ tools/                                # Dev tooling
     parity/                           # Parity harness (run_parity.py) + 1500+ specs
         PROGRESS.md                   # Live function-by-function parity map
         BENCHMARK.md                  # Per-function timings vs MATLAB / Octave
-    maintenance/                      # check_api.py · cleanup_pages · check_vfs_invariant
+    maintenance/                      # check_api.py · check_vfs_invariant
 scripts/                              # build / dev / deploy / desktop wrappers (sh + bat)
 
 docs/                                 # Doxygen API-reference source (doxygen_mainpage.dox → build/docs/html)
