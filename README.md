@@ -404,7 +404,7 @@ scripts/                              # build / dev / deploy / desktop wrappers 
 docs/                                 # Doxygen API-reference source (doxygen_mainpage.dox → build/docs/html)
 dev-docs/                             # Developer / AI coding + design/process docs (flat; index in dev-docs/README.md)
     LIBRARY_API.md · CALLBACK_PAUSABILITY.md · FORMAT_HOMES.md
-    NAMESPACE_DESIGN.md · OBJECT_MODEL.md · VM_CALLBACKS_PLAN.md · COORDINATION.md
+    NAMESPACE_DESIGN.md · OBJECT_MODEL.md · VM_CALLBACKS_PLAN.md · COORDINATION.md · PARITY_AGENT_PROMPT.md
 bugs/                                 # Structured bug catalog (one file per bug) + PARITY_GAPS.md
 ```
 

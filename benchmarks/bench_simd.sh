@@ -28,22 +28,22 @@ MIN_TIME='0.2s'
 # the exe sits directly in the bench dir. Pick whichever exists.
 find_exe() {
     local base="$1"
-    for p in "$base/benchmarks/Release/m_bench.exe" \
-             "$base/benchmarks/m_bench.exe" \
-             "$base/benchmarks/m_bench"; do
+    for p in "$base/benchmarks/Release/numkit_bench.exe" \
+             "$base/benchmarks/numkit_bench.exe" \
+             "$base/benchmarks/numkit_bench"; do
         [ -x "$p" ] && { printf '%s' "$p"; return 0; }
     done
     return 1
 }
 
-PORTABLE="$(find_exe "$PROJECT_DIR/build-bench")" || {
-    echo "Portable bench exe not found under $PROJECT_DIR/build-bench/benchmarks/"
+PORTABLE="$(find_exe "$PROJECT_DIR/build/bench")" || {
+    echo "Portable bench exe not found under $PROJECT_DIR/build/bench/benchmarks/"
     echo "Build the scalar baseline first:"
     echo "  cmake --preset=bench && cmake --build --preset=bench"
     exit 1
 }
-SIMD="$(find_exe "$PROJECT_DIR/build-bench-simd")" || {
-    echo "SIMD bench exe not found under $PROJECT_DIR/build-bench-simd/benchmarks/"
+SIMD="$(find_exe "$PROJECT_DIR/build/bench-simd")" || {
+    echo "SIMD bench exe not found under $PROJECT_DIR/build/bench-simd/benchmarks/"
     echo "Build the Highway-SIMD variant first:"
     echo "  cmake --preset=bench-simd && cmake --build --preset=bench-simd"
     exit 1

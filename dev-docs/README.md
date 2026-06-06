@@ -22,6 +22,7 @@ Two groups, by when you reach for them:
 | [OBJECT_MODEL.md](OBJECT_MODEL.md) | Object-model design: type + registry + clone infrastructure. |
 | [VM_CALLBACKS_PLAN.md](VM_CALLBACKS_PLAN.md) | Build log + rationale behind VM-native pausable callbacks — the companion to the `CALLBACK_PAUSABILITY.md` guide. (Status: substantially implemented; a known tail is intentionally deferred.) |
 | [COORDINATION.md](COORDINATION.md) | Multi-session worker-territory protocol. **Currently dormant** — the repo runs in single-session mode. |
+| [PARITY_AGENT_PROMPT.md](PARITY_AGENT_PROMPT.md) | Cold-start runbook/prompt for the autonomous MATLAB-parity cron agent. **Reference only** — not currently scheduled. |
 
 ---
 
