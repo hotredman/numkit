@@ -1,6 +1,12 @@
 # VM-native callbacks — make VM a complete parallel engine
 
-Status: **planned**, on `core-dev`. Owner: CORE.
+Status: **substantially implemented** — Phases 1–4 (all classdef callbacks),
+the state-machine higher-order builtins, and the embedded-`.m` solvers have
+landed (see the per-item `(done, <hash>)` markers below). What remains is a
+known, intentionally-deferred tail: the "Remaining class-1" higher-order
+builtins that lack a clean `LoopContinuation` fit, plus the genuinely
+C++-initiated paths listed under "On the VM but not suspendable". On
+`core-dev`. Owner: CORE.
 
 > **Adding a pausable callback?** The decision rule (frame-push vs state machine
 > vs `.m` wrapper), the mechanisms, and step-by-step recipes live in the guide
