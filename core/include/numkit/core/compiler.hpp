@@ -74,6 +74,11 @@ public:
     // Drop a single compiled chunk by name (used by rehash to invalidate just
     // the reloaded m-file, not every compiled function).
     void eraseCompiledFunc(const std::string &name) { compiledFuncs_.erase(name); }
+    // Drop every compiled classdef-method chunk for `className` — keys of the
+    // form "ClassName>method" — plus any "uncompilable" marks, so redefining
+    // the class recompiles its bodies from scratch instead of reusing the
+    // stale cached chunks. See Engine::unregisterClassDef.
+    void eraseCompiledFuncsForClass(const std::string &className);
 
     // Script-scope compiled functions. Populated by beginScriptScope
     // via compileFunctionDef routing. NEVER cleared by

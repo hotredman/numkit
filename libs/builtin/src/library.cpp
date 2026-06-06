@@ -1842,6 +1842,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         } else {
                                             env->clearAll();
                                             ctx.engine->clearUserFunctions();
+                                            ctx.engine->clearClassDefs();
                                             ctx.engine->figureManager().closeAll();
                                             ctx.engine->reinstallConstants();
                                             ctx.engine->markClearAll();
