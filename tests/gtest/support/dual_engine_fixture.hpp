@@ -38,7 +38,7 @@ inline std::string backendName(const ::testing::TestParamInfo<BackendParam> &inf
 class DualEngineTest : public ::testing::TestWithParam<BackendParam>
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     std::string capturedOutput;
 
     void SetUp() override

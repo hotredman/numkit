@@ -12,7 +12,7 @@ using namespace numkit;
 class TopkRowsExtTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("A = [3 1; 1 2; 4 5; 4 3; 2 0];");
     }

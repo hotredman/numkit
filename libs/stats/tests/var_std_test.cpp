@@ -11,7 +11,7 @@ using namespace numkit;
 class VarStdTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");

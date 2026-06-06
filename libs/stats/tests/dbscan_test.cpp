@@ -10,7 +10,7 @@ using namespace numkit;
 class DbscanTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("X = [0 0; 0.1 0; 0 0.1; 0.1 0.1; "

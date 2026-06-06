@@ -11,7 +11,7 @@ using namespace numkit;
 class UquantTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("u = [-1.2 -1 -0.5 0 0.5 1 1.2];");

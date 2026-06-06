@@ -22,7 +22,7 @@ Value qvar(Engine &e, const char *expr, const char *name)
 
 TEST(QmfWrevPublicApi, Wrev)
 {
-    StdEngine e;
+    StandardEngine e;
     // row vector reverse (mr defaulted)
     Value y = wavelet::wrev(qvar(e, "[1 2 3 4 5]", "x"));
     ASSERT_EQ(y.numel(), 5u);
@@ -47,7 +47,7 @@ TEST(QmfWrevPublicApi, Wrev)
 
 TEST(QmfWrevPublicApi, Qmf)
 {
-    StdEngine e;
+    StandardEngine e;
     // default parity p = 0, mr defaulted
     Value y = wavelet::qmf(qvar(e, "[1 2 3 4 5]", "x"));
     ASSERT_EQ(y.numel(), 5u);

@@ -13,7 +13,7 @@ using namespace numkit;
 class CornermetricTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval(
             "import compat.*;"

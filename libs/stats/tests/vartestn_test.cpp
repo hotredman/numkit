@@ -10,7 +10,7 @@ using namespace numkit;
 class VartestnTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("xg = [1.2 1.5 1.8 2.1 5.0 5.5 4.8 6.0 4.5 9.1 8.5 10.0 9.5]';");

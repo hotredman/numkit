@@ -16,7 +16,7 @@ using namespace numkit;
 class SpecDrivenTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");

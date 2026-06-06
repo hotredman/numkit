@@ -17,7 +17,7 @@ using namespace numkit;
 class WaveformExtrasTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
@@ -132,7 +132,7 @@ TEST_F(WaveformExtrasTest, DiricVectorShape)
 // `regNoCompat`-style omission won't silently break short-name access.
 TEST_F(WaveformExtrasTest, SquareAliasedIntoCompat)
 {
-    StdEngine fresh;
+    StandardEngine fresh;
     fresh.eval("import compat.*;");
     // Builtin reachable by short name → returns the waveform value (+1
     // inside first half-period), not an error.

@@ -21,7 +21,7 @@ Value wv(Engine &e, const char *expr, const char *name)
 
 TEST(WkeepPublicApi, OneD)
 {
-    StdEngine e;
+    StandardEngine e;
     Value x = wv(e, "1:10", "x");
     // centered (opt default Value::Empty) -> [4 5 6 7]
     Value c = wavelet::wkeep(x, wv(e, "4", "n4"));
@@ -46,7 +46,7 @@ TEST(WkeepPublicApi, OneD)
 
 TEST(WkeepPublicApi, TwoD)
 {
-    StdEngine e;
+    StandardEngine e;
     Value M = wv(e, "reshape(1:25,5,5)", "M");
     // top-left 3x3 (corner [1 1])
     Value tl = wavelet::wkeep(M, wv(e, "[3 3]", "sz"), wv(e, "[1 1]", "cn"),

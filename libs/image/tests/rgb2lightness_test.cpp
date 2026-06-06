@@ -10,7 +10,7 @@ using namespace numkit;
 class RGB2LightnessTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.eval(

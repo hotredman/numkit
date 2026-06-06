@@ -24,7 +24,7 @@ Value var(Engine &e, const char *expr, const char *name)
 
 TEST(GeomPublicApiTest, Polyarea)
 {
-    StdEngine e;
+    StandardEngine e;
     Value x = var(e, "[0 1 1 0]", "x");
     Value y = var(e, "[0 0 1 1]", "y");
     // unit square -> area 1
@@ -46,7 +46,7 @@ TEST(GeomPublicApiTest, Polyarea)
 
 TEST(GeomPublicApiTest, Inpolygon)
 {
-    StdEngine e;
+    StandardEngine e;
     Value xv = var(e, "[0 1 1 0]", "xv"); // unit square
     Value yv = var(e, "[0 0 1 1]", "yv");
     Value xq = var(e, "[0.5 2 0.5]", "xq");
@@ -67,7 +67,7 @@ TEST(GeomPublicApiTest, Inpolygon)
 
 TEST(GeomPublicApiTest, Convhull)
 {
-    StdEngine e;
+    StandardEngine e;
     Value x = var(e, "[0 1 1 0]", "x"); // unit-square corners
     Value y = var(e, "[0 0 1 1]", "y");
     Value K = builtin::convhull(x, y, e.resource());
@@ -89,7 +89,7 @@ TEST(GeomPublicApiTest, Convhull)
 
 TEST(GeomPublicApiTest, Delaunay)
 {
-    StdEngine e;
+    StandardEngine e;
     // 3 points -> exactly one triangle, vertices {1,2,3} in some rotation
     Value T1 = builtin::delaunay(var(e, "[0 1 0]", "xt"), var(e, "[0 0 1]", "yt"),
                                  e.resource());
@@ -135,7 +135,7 @@ TEST(GeomPublicApiTest, Delaunay)
 
 TEST(GeomPublicApiTest, Griddata)
 {
-    StdEngine e;
+    StandardEngine e;
     // Sample the plane v = 2x + 3y + 1 at the unit-square corners; linear
     // (barycentric) interpolation of a plane is exact in every triangle.
     Value x = var(e, "[0 1 0 1]", "x");
@@ -165,7 +165,7 @@ TEST(GeomPublicApiTest, Griddata)
 
 TEST(GeomPublicApiTest, Boundary)
 {
-    StdEngine e;
+    StandardEngine e;
     Value x = var(e, "[0 1 1 0 0.5]", "x"); // square corners + interior point
     Value y = var(e, "[0 0 1 1 0.5]", "y");
     // shrink == 0 -> convex hull
@@ -182,7 +182,7 @@ TEST(GeomPublicApiTest, Boundary)
 
 TEST(GeomPublicApiTest, Histcounts2)
 {
-    StdEngine e;
+    StandardEngine e;
     // 4 points into a 3x2 grid (explicit edges); mr defaulted
     Value x = var(e, "[0.5 1.5 2.5 0.5]", "x");
     Value y = var(e, "[0.5 0.5 1.5 0.5]", "y");

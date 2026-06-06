@@ -10,7 +10,7 @@ using namespace numkit;
 class GroupFilterTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("A = [10; 20; 30; 40; 50; 60]; G = [1; 2; 1; 2; 1; 2];");
     }

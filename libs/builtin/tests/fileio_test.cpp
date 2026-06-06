@@ -2045,7 +2045,7 @@ TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
     // engine's lifetime, so we can inspect it after engine destruction.
     std::map<std::string, std::string> persisted;
     {
-        numkit::StdEngine local;
+        numkit::StandardEngine local;
         local.eval("import compat.*;");
         if (GetParam() == BackendParam::TreeWalker)
             local.setBackend(Engine::Backend::TreeWalker);

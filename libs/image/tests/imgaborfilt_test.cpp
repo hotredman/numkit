@@ -12,7 +12,7 @@ using namespace numkit;
 class ImgaborfiltTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval(
             "import compat.*;"

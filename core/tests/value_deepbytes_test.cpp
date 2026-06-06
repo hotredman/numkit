@@ -9,7 +9,7 @@
 
 class DeepBytesTest : public ::testing::Test {
 public:
-    numkit::StdEngine engine;
+    numkit::StandardEngine engine;
     // Trailing bare expression (e.g. `...; s`) makes eval return that value
     // rather than the last assignment's RHS.
     numkit::Value eval(const std::string &c) { return engine.eval(c); }

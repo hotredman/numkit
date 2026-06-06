@@ -22,7 +22,7 @@ Value sv(Engine &e, const char *expr, const char *name)
 
 TEST(DiscreteSetopsPublicApi, SetxorAllNumUnique)
 {
-    StdEngine e;
+    StandardEngine e;
     // setxor([1 2 3],[2 3 4]) -> [1 4]  (mr defaulted)
     Value c = builtin::setxor(sv(e, "[1 2 3]", "a"), sv(e, "[2 3 4]", "b"));
     ASSERT_EQ(c.numel(), 2u);
@@ -41,7 +41,7 @@ TEST(DiscreteSetopsPublicApi, SetxorAllNumUnique)
 
 TEST(DiscreteSetopsPublicApi, IsmemberUniqueTol)
 {
-    StdEngine e;
+    StandardEngine e;
     // ismembertol([1 5],[1 2 3]) -> [1 0] (exact membership; default tol)
     Value tf = builtin::ismembertol(sv(e, "[1 5]", "q"), sv(e, "[1 2 3]", "s"));
     ASSERT_EQ(tf.numel(), 2u);

@@ -1,7 +1,7 @@
 # bundle/CMakeLists.txt
 #
 # The composition layer: installStandardLibrary() + makeStandardEngine() +
-# StdEngine. Depends on core (Engine) and every toolbox (their install()).
+# StandardEngine. Depends on core (Engine) and every toolbox (their install()).
 #
 # For now its single TU is compiled into the `numkit` aggregate (which already
 # contains core + libs), and its public headers are published on the aggregate.

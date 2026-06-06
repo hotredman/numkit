@@ -12,7 +12,7 @@ using namespace numkit;
 class GrayDiffWeightTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;"
                     "I = double([1 2 3; 2 3 4; 3 4 5]);"

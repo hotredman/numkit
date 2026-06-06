@@ -9,7 +9,7 @@ using namespace numkit;
 class CummaxCumminTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");

@@ -12,7 +12,7 @@ using namespace numkit;
 class RoipolyTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;"
                     "A = zeros(5,5); xi = [1 4 4 1]; yi = [1 1 4 4];");

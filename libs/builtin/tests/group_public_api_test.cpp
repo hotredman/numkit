@@ -24,7 +24,7 @@ Value gv(Engine &e, const char *expr, const char *name)
 
 TEST(GroupPublicApi, Findgroups)
 {
-    StdEngine e;
+    StandardEngine e;
     // sorted-unique groups {10,20,30}; G keeps the input shape (row)
     builtin::FindgroupsResult r = builtin::findgroups(gv(e, "[10 20 10 30]", "g"));
     ASSERT_EQ(r.G.numel(), 4u);
@@ -46,7 +46,7 @@ TEST(GroupPublicApi, Findgroups)
 
 TEST(GroupPublicApi, Groupcounts)
 {
-    StdEngine e;
+    StandardEngine e;
     builtin::GroupcountsResult r =
         builtin::groupcounts(gv(e, "[10 20 10 30]", "g"), e.resource());
     ASSERT_EQ(r.C.numel(), 3u);
@@ -65,7 +65,7 @@ TEST(GroupPublicApi, Groupcounts)
 
 TEST(GroupPublicApi, Groupsummary)
 {
-    StdEngine e;
+    StandardEngine e;
     Value A = gv(e, "[1;2;3;4]", "A");
     Value G = gv(e, "[1;1;2;2]", "G");
     builtin::GroupsummaryResult r = builtin::groupsummary(A, G, "sum", e.resource());

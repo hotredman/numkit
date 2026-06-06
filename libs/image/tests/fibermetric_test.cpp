@@ -15,7 +15,7 @@ using namespace numkit;
 class FiberMetricTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.eval(

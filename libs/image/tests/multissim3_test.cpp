@@ -12,7 +12,7 @@ using namespace numkit;
 class MultiSSIM3Test : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.eval(

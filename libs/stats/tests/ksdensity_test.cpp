@@ -11,7 +11,7 @@ using namespace numkit;
 class KsdensityTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("x = [1 2 2.5 3 3.5 4 5 6 7 9]';");

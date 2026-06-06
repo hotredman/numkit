@@ -17,7 +17,7 @@ using namespace numkit;
 class VMTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     Compiler compiler{engine};
     VM vm{engine};
     std::string capturedOutput;

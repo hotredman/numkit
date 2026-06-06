@@ -127,7 +127,7 @@ add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-onl
 add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
 add_subdirectory(libs)
-add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StdEngine
+add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
 set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
 set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS})

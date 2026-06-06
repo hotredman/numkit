@@ -11,7 +11,7 @@ using namespace numkit;
 class Imcrop3Test : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;"
                     "V = reshape(1:60, 3, 4, 5);"

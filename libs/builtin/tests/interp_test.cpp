@@ -14,7 +14,7 @@ using namespace numkit;
 class InterpTest : public ::testing::Test
 {
 public:
-    StdEngine engine;
+    StandardEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
