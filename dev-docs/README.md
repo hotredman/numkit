@@ -14,14 +14,14 @@ Two groups, by when you reach for them:
 | [CALLBACK_PAUSABILITY.md](CALLBACK_PAUSABILITY.md) | How-to guide for making a VM callback pausable (debugger-visible): the decision rule (in-bytecode frame-push vs C++ state machine vs embedded-`.m` wrapper) + per-mechanism recipes and gotchas. |
 | [FORMAT_HOMES.md](FORMAT_HOMES.md) | Number-display / `format` reference. |
 
-## Architecture & process (`dev-docs/design/`)
+## Architecture & process (`dev-docs/`)
 
 | File | What it is |
 |------|------------|
-| [design/NAMESPACE_DESIGN.md](design/NAMESPACE_DESIGN.md) | `libs/` namespace layout + conventions; how the MATLAB documentation taxonomy maps onto the source tree. |
-| [design/OBJECT_MODEL.md](design/OBJECT_MODEL.md) | Object-model design: type + registry + clone infrastructure. |
-| [design/VM_CALLBACKS_PLAN.md](design/VM_CALLBACKS_PLAN.md) | Build log + rationale behind VM-native pausable callbacks — the companion to the `CALLBACK_PAUSABILITY.md` guide. (Status: substantially implemented; a known tail is intentionally deferred.) |
-| [design/COORDINATION.md](design/COORDINATION.md) | Multi-session worker-territory protocol. **Currently dormant** — the repo runs in single-session mode. |
+| [NAMESPACE_DESIGN.md](NAMESPACE_DESIGN.md) | `libs/` namespace layout + conventions; how the MATLAB documentation taxonomy maps onto the source tree. |
+| [OBJECT_MODEL.md](OBJECT_MODEL.md) | Object-model design: type + registry + clone infrastructure. |
+| [VM_CALLBACKS_PLAN.md](VM_CALLBACKS_PLAN.md) | Build log + rationale behind VM-native pausable callbacks — the companion to the `CALLBACK_PAUSABILITY.md` guide. (Status: substantially implemented; a known tail is intentionally deferred.) |
+| [COORDINATION.md](COORDINATION.md) | Multi-session worker-territory protocol. **Currently dormant** — the repo runs in single-session mode. |
 
 ---
 

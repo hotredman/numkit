@@ -3,7 +3,7 @@
 ## STOP — read first
 
 This repo is worked on by **two parallel Claude sessions**. Before doing
-anything, read [COORDINATION.md](dev-docs/design/COORDINATION.md). It defines:
+anything, read [COORDINATION.md](dev-docs/COORDINATION.md). It defines:
 
 - which territory each session owns (kernel vs toolbox libs)
 - shared-surface rules (when full-suite tests are mandatory)

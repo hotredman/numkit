@@ -13,7 +13,7 @@ stats, graphics, linalg, sparse, ode, table, …) и numkit-специфичны
    numkit-only от MATLAB-mirror)
 
 Связанные документы:
-- [PROGRESS.md](../../tools/parity/PROGRESS.md) — живая карта парити со
+- [PROGRESS.md](../tools/parity/PROGRESS.md) — живая карта парити со
   всеми функциями MATLAB-doc, разбитая по секциям/namespace. Колонки:
   status (✅/❌/⚠️), numkit_ms, vs_MATLAB, vs_Octave, correctness.
 
@@ -622,7 +622,7 @@ VFS-абстракцию, которая в native сборке делегиру
 - `bench*/` — benchmark harnesses
 - Host/IDE code — регистрирует VFS backends, не входит в WASM bundle
 
-**Enforcement:** [tools/maintenance/check_vfs_invariant.sh](../../tools/maintenance/check_vfs_invariant.sh)
+**Enforcement:** [tools/maintenance/check_vfs_invariant.sh](../tools/maintenance/check_vfs_invariant.sh)
 — grep-based линтер. Прогоняется в CI / pre-commit. При нарушении —
 exit 1 с указанием файлов и строк.
 
