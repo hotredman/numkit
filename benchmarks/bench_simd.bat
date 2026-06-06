@@ -21,8 +21,8 @@ setlocal
 
 set PROJECT_DIR=%~dp0..\
 set FILTER=BM_Abs^|BM_Sin^|BM_Cos^|BM_Exp^|BM_Log^|BM_Plus^|BM_Times^|BM_Mtimes_Square^|BM_Fft_PowerOfTwo
-set PORTABLE=%PROJECT_DIR%build-bench\benchmarks\Release\m_bench.exe
-set SIMD=%PROJECT_DIR%build-bench-simd\benchmarks\Release\m_bench.exe
+set PORTABLE=%PROJECT_DIR%build\bench\benchmarks\Release\numkit_bench.exe
+set SIMD=%PROJECT_DIR%build\bench-simd\benchmarks\Release\numkit_bench.exe
 set COMPARE=%~dp0compare_simd.py
 set BASELINE_JSON=%~dp0baseline.json
 set SIMD_JSON=%~dp0simd.json
