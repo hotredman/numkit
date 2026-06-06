@@ -152,6 +152,25 @@ target_link_libraries(numkit PUBLIC
     $<BUILD_INTERFACE:numkit_ops>
     $<BUILD_INTERFACE:numkit_fs>)
 
+# ── Architectural layering guard ────────────────────────────────────
+#
+# Fails the build if value/ fs/ ops/ core/ gain a forbidden *upward*
+# dependency (e.g. core including a toolbox, ops including core). Runs on every
+# build so the three parallel sessions can't silently re-couple the layers.
+# Skipped when Python is unavailable so it never blocks a build it can't
+# perform — it is a guard, not a hard build dependency.
+if(NUMKIT_BUILD_TESTS)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_FOUND)
+        add_custom_target(numkit_layering_check ALL
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_layering.py
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Checking architectural layering (value/fs/ops/core)"
+            VERBATIM)
+    endif()
+endif()
+
 # ── Build-info header (regenerated on every build) ──────────────────
 #
 # Writes <build>/generated/numkit/core/build_info.hpp containing a
