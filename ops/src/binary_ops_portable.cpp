@@ -4,11 +4,11 @@
 // real double arrays. Compiled when NUMKIT_WITH_SIMD=OFF. The
 // Highway-dispatched variant lives in binary_ops_highway.cpp.
 
-#include "binary_ops_loops.hpp"
+#include <numkit/ops/binary_ops.hpp>
 
 #include <cstddef>
 
-namespace numkit::builtin::detail {
+namespace numkit::ops::detail {
 
 void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
@@ -49,4 +49,4 @@ void matmulDoubleLoop(const double *a, const double *b, double *c,
     }
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::ops::detail

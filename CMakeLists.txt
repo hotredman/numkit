@@ -122,8 +122,9 @@ endif()
 # Each lib has its own libs/<name>/CMakeLists.txt for per-lib worker
 # ownership (see dev-docs/COORDINATION.md).
 
-add_subdirectory(value)   # L0: Value substrate (numkit_value) — STL-only
-add_subdirectory(fs)      # L0: filesystem abstraction (numkit_fs) — STL-only
+add_subdirectory(value)   # L0:   Value substrate (numkit_value) — STL-only
+add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-only
+add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
 add_subdirectory(libs)
 
@@ -147,6 +148,7 @@ add_library(numkit::numkit ALIAS numkit)
 # all we need.
 target_link_libraries(numkit PUBLIC
     $<BUILD_INTERFACE:numkit_value>
+    $<BUILD_INTERFACE:numkit_ops>
     $<BUILD_INTERFACE:numkit_fs>)
 
 # ── Build-info header (regenerated on every build) ──────────────────

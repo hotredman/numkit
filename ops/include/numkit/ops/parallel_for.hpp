@@ -1,4 +1,4 @@
-// core/include/numkit/core/parallel_for.hpp
+// core/include/numkit/ops/parallel_for.hpp
 //
 // `parallel_for(n, threshold, fn)` — call `fn(start, end)` over a
 // non-overlapping cover of [0, n).
@@ -23,7 +23,7 @@
 #include <cstddef>
 
 #if defined(NUMKIT_WITH_THREADS)
-#include <numkit/core/thread_pool.hpp>
+#include <numkit/ops/thread_pool.hpp>
 #endif
 
 namespace numkit::detail {

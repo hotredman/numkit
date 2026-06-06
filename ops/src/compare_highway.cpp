@@ -14,23 +14,22 @@
 // complex, broadcast across mismatched non-scalar shapes) falls through
 // to the generic scalar `compareImpl` in binary_ops.cpp.
 
-#include "compare.hpp"
+#include <numkit/ops/compare.hpp>
+#include <numkit/ops/value_factory.hpp>
 
-#include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
 
-#include "helpers.hpp"
 
 #include <cstddef>
 #include <cstdint>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "language/operators/backends/compare_highway.cpp"
+#define HWY_TARGET_INCLUDE "compare_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -129,11 +128,11 @@ NK_CMP_LOOP(GeLoop, NK_VEC_GE,  >=)
 #undef NK_IEEE_NE
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::builtin {
+namespace numkit::ops {
 
 #define NK_CMP_EXPORT(NAME) \
     HWY_EXPORT(NAME##VV);   \
@@ -221,5 +220,5 @@ NK_CMP_PUBLIC(geFast, GeLoop)
 
 #undef NK_CMP_PUBLIC
 
-} // namespace numkit::builtin
+} // namespace numkit::ops
 #endif // HWY_ONCE

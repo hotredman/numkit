@@ -9,7 +9,7 @@
 #include "helpers.hpp"
 #include "reduction_helpers.hpp"
 #include "rows_helpers.hpp"
-#include "language/operators/backends/binary_ops_loops.hpp"
+#include <numkit/ops/binary_ops.hpp>
 #include "language/operators/la_solve.hpp"
 #include "math/arithmetic/cumsum.hpp"
 #include <numkit/builtin/math/poly/polynomials.hpp>
@@ -1075,7 +1075,7 @@ template <>
 inline void runPageMatmul<double>(const double *a, const double *b, double *c,
                                   size_t M, size_t N, size_t K)
 {
-    detail::matmulDoubleLoop(a, b, c, M, N, K);
+    ops::detail::matmulDoubleLoop(a, b, c, M, N, K);
 }
 
 template <>

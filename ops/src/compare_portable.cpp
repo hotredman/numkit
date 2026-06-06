@@ -6,17 +6,16 @@
 // scalar broadcast), otherwise returns an unset Value so the generic
 // `compareImpl` in binary_ops.cpp handles it.
 
-#include "compare.hpp"
+#include <numkit/ops/compare.hpp>
+#include <numkit/ops/value_factory.hpp>
 
-#include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
 
-#include "helpers.hpp"
 
 #include <cstddef>
 #include <cstdint>
 
-namespace numkit::builtin {
+namespace numkit::ops {
 namespace {
 
 bool isDoubleish(const Value &v)
@@ -76,4 +75,4 @@ Value gtFast(const Value &a, const Value &b) { return dispatchFast(a, b, [](doub
 Value leFast(const Value &a, const Value &b) { return dispatchFast(a, b, [](double x, double y){ return x <= y; }); }
 Value geFast(const Value &a, const Value &b) { return dispatchFast(a, b, [](double x, double y){ return x >= y; }); }
 
-} // namespace numkit::builtin
+} // namespace numkit::ops

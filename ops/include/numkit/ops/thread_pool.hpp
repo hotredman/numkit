@@ -1,4 +1,4 @@
-// core/include/numkit/core/thread_pool.hpp
+// core/include/numkit/ops/thread_pool.hpp
 //
 // Persistent worker pool used by SIMD kernels above their parallel
 // thresholds. The pool is built once at first use (singleton) with

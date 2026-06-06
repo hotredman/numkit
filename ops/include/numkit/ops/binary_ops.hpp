@@ -11,7 +11,7 @@
 
 #include <cstddef>
 
-namespace numkit::builtin::detail {
+namespace numkit::ops::detail {
 
 void plusLoop   (const double *a, const double *b, double *out, std::size_t n);
 void minusLoop  (const double *a, const double *b, double *out, std::size_t n);
@@ -28,4 +28,4 @@ void rdivideLoop(const double *a, const double *b, double *out, std::size_t n);
 void matmulDoubleLoop(const double *a, const double *b, double *c,
                       std::size_t M, std::size_t N, std::size_t K);
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::ops::detail

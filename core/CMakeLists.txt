@@ -28,9 +28,7 @@ set(NUMKIT_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/debug_workspace.cpp
 )
 
-if(NUMKIT_WITH_THREADS)
-    list(APPEND NUMKIT_CORE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
-endif()
+# (thread_pool.cpp + parallel_for.hpp/thread_pool.hpp moved to ops/ → numkit_ops)
 
 set(NUMKIT_CORE_HEADERS
     # (Value substrate headers — value/span/heap_object/data_buffer/dims/
@@ -48,8 +46,6 @@ set(NUMKIT_CORE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/figure_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/lexer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/parser.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/parallel_for.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/thread_pool.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/tree_walker.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/types.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/vm.hpp

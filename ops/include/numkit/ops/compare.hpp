@@ -18,7 +18,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::ops {
 
 Value eqFast(const Value &a, const Value &b);
 Value neFast(const Value &a, const Value &b);
@@ -27,4 +27,4 @@ Value gtFast(const Value &a, const Value &b);
 Value leFast(const Value &a, const Value &b);
 Value geFast(const Value &a, const Value &b);
 
-} // namespace numkit::builtin
+} // namespace numkit::ops
