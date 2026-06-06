@@ -16,7 +16,7 @@
 PROJECT_NAME           = "numkit-m"
 PROJECT_NUMBER         = "1.0.0"
 PROJECT_BRIEF          = "C++ MATLAB-compatible runtime — public C++ API"
-PROJECT_LOGO           = docs/numkit-mark.svg
+PROJECT_LOGO           = brand/numkit-logo-light.svg
 OUTPUT_DIRECTORY       = build/docs
 OUTPUT_LANGUAGE        = English
 

@@ -1,5 +1,5 @@
 // plotting-examples.spec.js — sanity-run a sample of the new
-// docs/examples/Plotting/*.m files through the IDE to confirm
+// examples/Plotting/*.m files through the IDE to confirm
 // they execute clean. We don't run all 49 (that's a stress-test,
 // not a smoke); a representative slice covering 3-D + new 2-D
 // builtins is enough.
@@ -46,7 +46,7 @@ const SAMPLE_FILES = [
   'patch_polygon.m',
 ];
 
-test.describe('docs/examples/Plotting — runtime sanity', () => {
+test.describe('examples/Plotting — runtime sanity', () => {
   for (const fname of SAMPLE_FILES) {
     test(`${fname} runs clean`, async ({ ide, page }) => {
       const src = readFileSync(path.join(EXAMPLES_DIR, fname), 'utf8');

@@ -493,7 +493,7 @@ INSTANTIATE_DUAL(ColonLinearAssign);
 // preserves a geometric capacity — amortised O(1) per append.
 //
 // Tests below validate semantics, not timing. The benchmark that
-// motivated the fix lives in docs/examples/Benchmark/.
+// motivated the fix lives in examples/Benchmark/.
 // ============================================================
 
 class GrowByOneAssign : public DualEngineTest {};

@@ -69,7 +69,7 @@ __pycache__/
 # ── Temporary MATLAB / Octave probe scripts ───────────
 # Throwaway .m files used to probe reference output during dev
 # (probe_*.m and any scratch-named .m at repo root). Real .m fixtures
-# live under docs/examples/ and tools/parity/specs/.
+# live under examples/ and tools/parity/specs/.
 /probe_*.m
 /scratch*.m
 # Per-cycle scratch probe directory (main worker dumps .m files
@@ -77,14 +77,14 @@ __pycache__/
 tools/probe_tmp/
 
 # ── Generated example mirror ──────────────────────────
-# ide/public/examples/ is regenerated from docs/examples/ on every
+# ide/public/examples/ is regenerated from examples/ on every
 # `npm run dev` / `npm run build` (predev / prebuild → generate-
-# manifest.js). Single source of truth: docs/examples/.
+# manifest.js). Single source of truth: examples/.
 ide/public/examples/
 
 # ── GitHub Pages / Vite deploy output ─────────────────
 # Pages is NOT served from this repo (the IDE repo owns deploys). docs/
-# here holds SOURCE docs only (*.md, design/, examples/, *.dox). Keep the
+# here holds SOURCE docs only (*.md, design/, *.dox). Keep the
 # deploy bundle out so a stray deploy.* run can't re-commit it.
 docs/index.html
 docs/.nojekyll

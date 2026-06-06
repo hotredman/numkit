@@ -35,7 +35,7 @@ test.describe('imhist auto-plot', () => {
   });
 
   test('subplot grid with imhist in cells 3 and 4', async ({ ide, page }) => {
-    // Mirrors docs/examples/Image/histogram_equalization.m shape.
+    // Mirrors examples/Image/histogram_equalization.m shape.
     await ide.runScript(
       'import compat.*;\n'
       + '[X, Y] = meshgrid(linspace(0, 1, 64));\n'

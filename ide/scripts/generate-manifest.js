@@ -2,13 +2,13 @@
 /**
  * generate-manifest.js
  *
- * Single source of truth for example .m files: ../../docs/examples/.
+ * Single source of truth for example .m files: ../../examples/.
  * GitHub Pages browses that tree directly (linked from README); the
  * Vite build needs them inside ide/public/examples/. Rather than
  * keeping two copies in git that silently drift (we got bitten once
  * — see commit a975c106), this script:
  *
- *   1. Walks docs/examples/ to compute the desired tree.
+ *   1. Walks examples/ to compute the desired tree.
  *   2. Mirrors that tree into ide/public/examples/ in rsync style:
  *      copy missing/changed files, delete leftover files/folders.
  *      No nuke-and-recreate — that triggers EBUSY on Windows when
@@ -31,7 +31,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = join(__dirname, '..', '..', 'docs', 'examples');
+const SRC = join(__dirname, '..', '..', 'examples');
 const DST = join(__dirname, '..', 'public', 'examples');
 
 if (!existsSync(SRC)) {
