@@ -35,7 +35,7 @@ performance against MATLAB R2025b and Octave 11.x is tracked in
 **[PROGRESS.md](tools/parity/PROGRESS.md)**.
 
 Known issues, behavioural deviations, and open bugs are tracked in
-**[BUGS.md](BUGS.md)**.
+the **[bugs/](bugs/README.md)** catalog.
 
 ### Library Surface
 
@@ -352,7 +352,7 @@ status = session.resume(DebugAction::StepOver);
   for the IDE's SVG renderer).
 
 Behavioural deviations from MATLAB R2025b on individual functions are
-tracked in **[BUGS.md](BUGS.md)** alongside their fix queue. Function-
+tracked in the **[bugs/](bugs/README.md)** catalog. Function-
 level coverage is in **[PROGRESS.md](tools/parity/PROGRESS.md)**.
 
 ---
@@ -403,7 +403,7 @@ scripts/                              # build / dev / deploy / desktop wrappers 
 docs/                                 # Design notes + API ruleset
     design/                           # NAMESPACE_DESIGN · OBJECT_MODEL · VM_CALLBACKS_PLAN · COORDINATION
     LIBRARY_API.md · CALLBACK_PAUSABILITY.md
-BUGS.md                               # Behavioural deviations + fix queue
+bugs/                                 # Structured bug catalog (one file per bug) + PARITY_GAPS.md
 ```
 
 ## License

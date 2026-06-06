@@ -2,8 +2,8 @@
 
 Structured bug catalog. **Every bug gets its own `.md` file** here, with a
 self-contained repro (numkit output vs MATLAB R2025b) so any session can
-pick it up cold. This complements the flat append-only [BUGS.md](../BUGS.md)
-(quick running log). The full MATLAB parity-gap inventory (missing / partial
+pick it up cold. This is the sole bug tracker (the old flat BUGS.md was retired —
+its open items migrated here). The full MATLAB parity-gap inventory (missing / partial
 functions) lives in [PARITY_GAPS.md](PARITY_GAPS.md).
 
 ## Layout
@@ -47,7 +47,7 @@ large algorithm).
 Source files, related commits, related specs/tests.
 ```
 
-## Severity legend (matches BUGS.md)
+## Severity legend
 
 - **P0** crash / data loss
 - **P1** wrong result (silently incorrect output)
@@ -120,7 +120,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (101 entries):** ✅ 53 fixed · 🔴 48 open = **10 bug** + 5 stub +
+**Tally (102 entries):** ✅ 53 fixed · 🔴 49 open = **11 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -188,10 +188,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 10
+### 🔴 OPEN — bug (defect on an implemented function) — 11
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [builtin/interpn-nan](builtin/interpn-nan.md) | P2 | interpn 1-D grid-vector query returns NaN (2-D/3-D dispatch OK; 4+-D unimplemented) — migrated from old BUGS.md #31 |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |

@@ -119,8 +119,8 @@ expected values: trust the reference engine.
 
 ## Bug catalog (`bugs/`)
 
-Structured one-file-per-bug catalog (distinct from the flat append-only
-`BUGS.md`). **Every bug you find gets TWO things:**
+Structured one-file-per-bug catalog.
+**Every bug you find gets TWO things:**
 
 1. its own `bugs/<namespace>/<fn>.md` with a self-contained repro (numkit
    output vs MATLAB R2025b) so any session can act on it cold; and
