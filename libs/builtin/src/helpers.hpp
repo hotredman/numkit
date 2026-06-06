@@ -1,6 +1,7 @@
 #pragma once
 
 #include <numkit/core/engine.hpp>
+#include <numkit/ops/value_factory.hpp>   // DimsArg/createMatrix/createForDims/createLike (now in numkit::ops)
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/shape_ops.hpp>
 
@@ -78,40 +79,15 @@ inline size_t broadcastOffset3D(size_t r, size_t c, size_t p,
 // definition time, not at instantiation).
 // ============================================================
 
-struct DimsArg { size_t rows = 1, cols = 1, pages = 0; };
-
-// Create a zero matrix/3D array with given dimensions
-inline Value createMatrix(DimsArg d, ValueType type, std::pmr::memory_resource *mr)
-{
-    if (d.pages > 0)
-        return Value::matrix3d(d.rows, d.cols, d.pages, type, mr);
-    return Value::matrix(d.rows, d.cols, type, mr);
-}
-
-// Allocate an Value with the given Dims, picking the rank-appropriate
-// Value ctor (matrix / matrix3d / matrixND).
-inline Value createForDims(const Dims &d, ValueType type, std::pmr::memory_resource *mr)
-{
-    const int nd = d.ndim();
-    if (nd >= 4) {
-        constexpr int kMaxNd = Dims::kMaxRank;
-        size_t dims[kMaxNd];
-        for (int i = 0; i < nd; ++i) dims[i] = d.dim(i);
-        return Value::matrixND(dims, nd, type, mr);
-    }
-    return createMatrix({d.rows(), d.cols(),
-                         d.is3D() ? d.pages() : 0},
-                        type, mr);
-}
-
-// Allocate an Value with the same shape as `src`, optionally of a
-// different type. Required for any "elementwise" output: callers that
-// write numel() elements into a 2D-only allocation silently corrupt
-// the heap when src is 3D+.
-inline Value createLike(const Value &src, ValueType type, std::pmr::memory_resource *mr)
-{
-    return createForDims(src.dims(), type, mr);
-}
+// The Value-shape factories moved to the L0.5 ops layer
+// (<numkit/ops/value_factory.hpp>). Re-export them into numkit:: so the ~90
+// existing unqualified `createMatrix` / `createForDims` / `createLike` / DimsArg
+// call sites (here and in the toolboxes) are unchanged. ops owns the one
+// definition; toolboxes going pure will include ops/value_factory.hpp directly.
+using ops::DimsArg;
+using ops::createMatrix;
+using ops::createForDims;
+using ops::createLike;
 
 // abs() for an integer-typed Value: MATLAB keeps the integer class and
 // SATURATES, so abs(intmin) -> intmax (abs(int8(-128))=127 int8); unsigned
