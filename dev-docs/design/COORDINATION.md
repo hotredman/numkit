@@ -1,5 +1,11 @@
 # Parallel Worker Coordination
 
+> **Status (2026-06): DORMANT — single-session mode.** Right now ONE Claude
+> session works the whole tree; the A/B territory split described below is
+> inactive. The "libs/ only" convention some loops use is a *scope* choice,
+> not a territory boundary. Re-read and re-activate this protocol only when
+> two or more sessions actually run in parallel again.
+
 This repository can be worked on by **multiple parallel Claude sessions**
 ("workers"), each owning a defined territory. Read this before touching
 anything. Crossing territory without protocol is a coordination failure.
