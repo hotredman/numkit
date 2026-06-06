@@ -401,9 +401,10 @@ tools/                                # Dev tooling
     maintenance/                      # check_api.py · cleanup_pages · check_vfs_invariant
 scripts/                              # build / dev / deploy / desktop wrappers (sh + bat)
 
-docs/                                 # Design notes + API ruleset
+docs/                                 # Doxygen API-reference source (doxygen_mainpage.dox → build/docs/html)
+dev/                                  # Developer / AI coding guidance + design notes
+    LIBRARY_API.md · CALLBACK_PAUSABILITY.md · FORMAT_HOMES.md
     design/                           # NAMESPACE_DESIGN · OBJECT_MODEL · VM_CALLBACKS_PLAN · COORDINATION
-    LIBRARY_API.md · CALLBACK_PAUSABILITY.md
 bugs/                                 # Structured bug catalog (one file per bug) + PARITY_GAPS.md
 ```
 

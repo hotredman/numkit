@@ -84,8 +84,9 @@ ide/public/examples/
 
 # ── GitHub Pages / Vite deploy output ─────────────────
 # Pages is NOT served from this repo (the IDE repo owns deploys). docs/
-# here holds SOURCE docs only (*.md, design/, *.dox). Keep the
-# deploy bundle out so a stray deploy.* run can't re-commit it.
+# here holds Doxygen source only (doxygen_mainpage.dox); prose docs +
+# design/ moved to dev/. Keep the deploy bundle out so a stray deploy.*
+# run can't re-commit it.
 docs/index.html
 docs/.nojekyll
 docs/favicon.svg
