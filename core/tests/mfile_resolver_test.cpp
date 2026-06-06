@@ -10,7 +10,7 @@
 //   * `rehashMFiles` drops the cache wholesale
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <chrono>
 #include <filesystem>

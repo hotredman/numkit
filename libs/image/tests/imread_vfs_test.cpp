@@ -18,7 +18,7 @@
 // explicit `mem:` scheme.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 #include <gtest/gtest.h>
 
 #include <fstream>

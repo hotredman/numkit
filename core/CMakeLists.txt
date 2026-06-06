@@ -17,7 +17,7 @@ set(NUMKIT_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/value.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/environment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs.cpp
+    # (vfs.cpp moved to fs/ → numkit_fs L0 module)
     # lexer / parser / AST / compiler
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lexer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/parser.cpp
@@ -61,7 +61,6 @@ set(NUMKIT_CORE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/types.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/value.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/value_type.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/vfs.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/vm.hpp
 )
 

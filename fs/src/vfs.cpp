@@ -1,6 +1,6 @@
 // src/vfs.cpp
 
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <chrono>
 #include <filesystem>

@@ -7,7 +7,7 @@
 // the engine path).
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <filesystem>
 #include <fstream>

@@ -26,7 +26,7 @@
 #include <numkit/core/environment.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <cstdint>
 #include <cstdlib>
