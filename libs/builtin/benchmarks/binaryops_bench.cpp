@@ -104,7 +104,7 @@ static void BM_PlusKernel(benchmark::State &state)
     const double *bd = b.doubleData();
     double       *cd = c.doubleDataMut();
     for (auto _ : state) {
-        builtin::detail::plusLoop(ad, bd, cd, n);
+        ops::detail::plusLoop(ad, bd, cd, n);
         benchmark::DoNotOptimize(cd);
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));

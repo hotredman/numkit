@@ -17,12 +17,12 @@
 // builtin::plus()/etc. wrappers (which always allocate a fresh result
 // Value) when it can write straight into a uniquely-owned destination
 // buffer of the right shape.
-namespace numkit::builtin::detail {
+namespace numkit::ops::detail {
 void plusLoop   (const double *a, const double *b, double *out, std::size_t n);
 void minusLoop  (const double *a, const double *b, double *out, std::size_t n);
 void timesLoop  (const double *a, const double *b, double *out, std::size_t n);
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace numkit::ops::detail
 
 namespace numkit {
 
@@ -52,10 +52,10 @@ static bool tryInPlaceBinaryOp(Value &dst, OpCode op,
     const double *b = rhs.doubleData();
     double       *o = dst.doubleDataMut();   // refCount==1 → no detach copy
     switch (op) {
-    case OpCode::ADD:   builtin::detail::plusLoop   (a, b, o, n); return true;
-    case OpCode::SUB:   builtin::detail::minusLoop  (a, b, o, n); return true;
-    case OpCode::EMUL:  builtin::detail::timesLoop  (a, b, o, n); return true;
-    case OpCode::ERDIV: builtin::detail::rdivideLoop(a, b, o, n); return true;
+    case OpCode::ADD:   ops::detail::plusLoop   (a, b, o, n); return true;
+    case OpCode::SUB:   ops::detail::minusLoop  (a, b, o, n); return true;
+    case OpCode::EMUL:  ops::detail::timesLoop  (a, b, o, n); return true;
+    case OpCode::ERDIV: ops::detail::rdivideLoop(a, b, o, n); return true;
     default: return false;
     }
 }

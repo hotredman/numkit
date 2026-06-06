@@ -20,7 +20,7 @@
 #include <numkit/builtin/math/trig/trigonometry.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/parallel_for.hpp>
+#include <numkit/ops/parallel_for.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"

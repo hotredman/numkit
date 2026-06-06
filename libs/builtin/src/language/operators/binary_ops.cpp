@@ -9,8 +9,8 @@
 
 #include "helpers.hpp"
 #include "la_solve.hpp"
-#include "backends/binary_ops_loops.hpp"
-#include "backends/compare.hpp"
+#include <numkit/ops/binary_ops.hpp>
+#include <numkit/ops/compare.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -72,7 +72,7 @@ Value plus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
         if (sameShapeDoubleFastPath(a, b)) {
             auto r = createLike(a, ValueType::DOUBLE, p);
-            detail::plusLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            ops::detail::plusLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
             return r;
         }
         return elementwiseDouble(a, b, std::plus<double>{}, p);
@@ -124,7 +124,7 @@ Value minus(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
         if (sameShapeDoubleFastPath(a, b)) {
             auto r = createLike(a, ValueType::DOUBLE, p);
-            detail::minusLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            ops::detail::minusLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
             return r;
         }
         return elementwiseDouble(a, b, std::minus<double>{}, p);
@@ -148,7 +148,7 @@ Value times(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
         if (sameShapeDoubleFastPath(a, b)) {
             auto r = createLike(a, ValueType::DOUBLE, p);
-            detail::timesLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            ops::detail::timesLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
             return r;
         }
         return elementwiseDouble(a, b, std::multiplies<double>{}, p);
@@ -207,7 +207,7 @@ Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
             throw Error("Inner matrix dimensions must agree", 0, 0, "mtimes", "",
                          "numkit:innerdim");
         auto r = Value::matrix(M, N, ValueType::DOUBLE, p);
-        detail::matmulDoubleLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(),
+        ops::detail::matmulDoubleLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(),
                                  M, N, K);
         return r;
     }
@@ -226,7 +226,7 @@ Value rdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
         if (sameShapeDoubleFastPath(a, b)) {
             auto r = createLike(a, ValueType::DOUBLE, p);
-            detail::rdivideLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            ops::detail::rdivideLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
             return r;
         }
         return elementwiseDouble(a, b, std::divides<double>{}, p);
@@ -612,12 +612,12 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
     {
         Value r;
         switch (c) {
-        case Cmp::EQ: r = eqFast(a, b); break;
-        case Cmp::NE: r = neFast(a, b); break;
-        case Cmp::LT: r = ltFast(a, b); break;
-        case Cmp::GT: r = gtFast(a, b); break;
-        case Cmp::LE: r = leFast(a, b); break;
-        case Cmp::GE: r = geFast(a, b); break;
+        case Cmp::EQ: r = ops::eqFast(a, b); break;
+        case Cmp::NE: r = ops::neFast(a, b); break;
+        case Cmp::LT: r = ops::ltFast(a, b); break;
+        case Cmp::GT: r = ops::gtFast(a, b); break;
+        case Cmp::LE: r = ops::leFast(a, b); break;
+        case Cmp::GE: r = ops::geFast(a, b); break;
         }
         if (!r.isUnset()) return r;
     }

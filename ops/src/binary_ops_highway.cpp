@@ -7,9 +7,9 @@
 // / times() / rdivide() in binary_ops.cpp are unchanged; they
 // call these loops only for the 2D same-shape DOUBLE fast path.
 
-#include "binary_ops_loops.hpp"
+#include <numkit/ops/binary_ops.hpp>
 
-#include <numkit/core/parallel_for.hpp>
+#include <numkit/ops/parallel_for.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -18,12 +18,12 @@
 #include <hwy/cache_control.h>  // hwy::FlushStream() — sfence on x86
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "language/operators/backends/binary_ops_highway.cpp"
+#define HWY_TARGET_INCLUDE "binary_ops_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -378,12 +378,12 @@ void MatmulLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin::detail {
+namespace numkit::ops::detail {
 
 HWY_EXPORT(PlusLoop);
 HWY_EXPORT(MinusLoop);
@@ -473,6 +473,6 @@ void matmulDoubleLoop(const double *a, const double *b, double *c,
         });
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::ops::detail
 
 #endif // HWY_ONCE

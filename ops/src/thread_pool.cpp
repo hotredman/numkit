@@ -1,6 +1,6 @@
 // core/src/thread_pool.cpp — see thread_pool.hpp for the contract.
 
-#include <numkit/core/thread_pool.hpp>
+#include <numkit/ops/thread_pool.hpp>
 
 #include <algorithm>
 #include <utility>
