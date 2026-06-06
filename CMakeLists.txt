@@ -122,6 +122,7 @@ endif()
 # Each lib has its own libs/<name>/CMakeLists.txt for per-lib worker
 # ownership (see dev-docs/COORDINATION.md).
 
+add_subdirectory(fs)      # L0: filesystem abstraction (numkit_fs) — STL-only
 add_subdirectory(core)
 add_subdirectory(libs)
 
@@ -137,6 +138,12 @@ endif()
 # Match install-tree NAMESPACE so add_subdirectory consumers can use the
 # same `numkit::numkit` target as find_package() consumers do.
 add_library(numkit::numkit ALIAS numkit)
+
+# L0 filesystem module. BUILD_INTERFACE genex keeps numkit_fs out of the
+# exported target set (mirrors the matio / hwy pattern) — its PUBLIC include
+# dir + objects propagate to numkit (and to build-tree consumers like the
+# tests) at build time, which is all we need.
+target_link_libraries(numkit PUBLIC $<BUILD_INTERFACE:numkit_fs>)
 
 # ── Build-info header (regenerated on every build) ──────────────────
 #

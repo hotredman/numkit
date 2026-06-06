@@ -10,7 +10,7 @@
 //   * Mtime-based re-parse after editing a +pkg file
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <chrono>
 #include <filesystem>

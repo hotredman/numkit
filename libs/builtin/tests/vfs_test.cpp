@@ -1,6 +1,6 @@
 // tests/stdlib/vfs_test.cpp — VirtualFS routing, setenv/getenv, script origin
 
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 #include "dual_engine_fixture.hpp"
 
 #include <map>

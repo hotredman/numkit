@@ -5,7 +5,7 @@
 #include <numkit/core/figure_manager.hpp>
 #include <numkit/core/object.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 #include <numkit/core/vm.hpp>
 
 #include <atomic>

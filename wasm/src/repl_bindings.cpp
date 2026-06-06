@@ -14,7 +14,7 @@
 #include <numkit/core/value_json.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/debug_session.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
 #include <numkit/graph/ast_serialize.hpp>
