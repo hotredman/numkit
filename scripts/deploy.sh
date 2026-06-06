@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 IDE_DIR="${PROJECT_DIR}/ide"
 WASM_DIST="${PROJECT_DIR}/build/browser/wasm/dist"
-PAGES_DIR="${PROJECT_DIR}/docs"
+DEPLOY_DIR="${PROJECT_DIR}/deploy"
 
 if ! command -v node &>/dev/null; then
     echo "node not found. Install Node.js 18+."
@@ -46,15 +46,13 @@ cd "${IDE_DIR}"
 echo "Building Vite production bundle..."
 npm run build
 
-# Copy to docs/ for GitHub Pages
-rm -rf "${PAGES_DIR}"
-mkdir -p "${PAGES_DIR}"
-cp -r "${IDE_DIR}/dist/"* "${PAGES_DIR}/"
-touch "${PAGES_DIR}/.nojekyll"
+# Copy the built site into deploy/ (local output dir; gitignored)
+rm -rf "${DEPLOY_DIR}"
+mkdir -p "${DEPLOY_DIR}"
+cp -r "${IDE_DIR}/dist/"* "${DEPLOY_DIR}/"
+touch "${DEPLOY_DIR}/.nojekyll"
 
 echo ""
-echo "Deploy complete! Files in docs/"
-echo ""
-echo "  git add docs/"
-echo "  git commit -m 'Deploy to GitHub Pages'"
-echo "  git push"
+echo "Build complete! Static IDE site in deploy/ (gitignored)."
+echo "GitHub Pages is served from the separate IDE repo, not this one --"
+echo "upload deploy/ to your host or serve it locally."

@@ -82,15 +82,9 @@ tools/probe_tmp/
 # manifest.js). Single source of truth: examples/.
 ide/public/examples/
 
-# ── GitHub Pages / Vite deploy output ─────────────────
-# Pages is NOT served from this repo (the IDE repo owns deploys). docs/
-# here holds Doxygen source only (doxygen_mainpage.dox); prose docs +
-# design/ moved to dev-docs/. Keep the deploy bundle out so a stray deploy.*
-# run can't re-commit it.
-docs/index.html
-docs/.nojekyll
-docs/favicon.svg
-docs/numkit-mark.svg
-docs/numkit_ide.js
-docs/numkit_ide.wasm
-docs/assets/
+# ── Local deploy output ───────────────────────────────
+# deploy.{bat,sh} build the IDE static site into deploy/ for local preview
+# or manual upload. GitHub Pages is NOT served from this repo (the IDE repo
+# owns deploys), so this output is never committed. docs/ now holds only the
+# Doxygen source (doxygen_mainpage.dox) and is no longer a deploy target.
+deploy/
