@@ -11,7 +11,9 @@
 # Threads (under NUMKIT_WITH_THREADS) — never on core, fs, or any toolbox.
 
 # Always-on primitives (no SIMD/threads gating).
-set(NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp)
+set(NUMKIT_OPS_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp)
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()
