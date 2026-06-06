@@ -13,7 +13,7 @@
 class FftnTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     void   SetUp() override { engine.eval("import compat.*;"); }
     double eval_scalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };

@@ -12,7 +12,7 @@ using namespace numkit;
 class EdgetaperTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;"
                     "I = double(reshape(1:64, 8, 8));"

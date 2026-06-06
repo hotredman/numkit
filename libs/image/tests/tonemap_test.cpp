@@ -13,7 +13,7 @@ using namespace numkit;
 class TonemapTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval(
             "import compat.*;"

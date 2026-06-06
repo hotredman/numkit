@@ -226,7 +226,7 @@ TEST_F(FigureManagerTest, DefaultAxesState)
 class FigureEngineTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     std::string capturedOutput;
 
     void SetUp() override

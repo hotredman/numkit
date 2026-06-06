@@ -63,7 +63,7 @@ public:
 class ImreadVfsTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     MemFS *mem = nullptr;
 
     void SetUp() override

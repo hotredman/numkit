@@ -11,7 +11,7 @@
 class GraycomatrixTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     void   SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("I = uint8([1 2 3 4; 2 3 4 1; 3 4 1 2; 4 1 2 3] * 32);");

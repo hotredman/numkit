@@ -12,7 +12,7 @@
 class ImreadTiffTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     std::filesystem::path fixtures;
 
     void SetUp() override
@@ -194,7 +194,7 @@ TEST_F(ImreadTiffTest, PaletteReturnsIndexed)
 class TiffWriterTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
     void roundTrip(const std::string &mat, const std::string &comp) {

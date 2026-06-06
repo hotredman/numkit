@@ -8,7 +8,7 @@ using namespace numkit;
 // Test 1: Modify existing variable during debug, verify change persists
 TEST(DebugEvalInjectTest, ModifiedVarSurvivesContinue)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -45,7 +45,7 @@ TEST(DebugEvalInjectTest, ModifiedVarSurvivesContinue)
 // Test 2: New variable created in eval appears in snapshot
 TEST(DebugEvalInjectTest, NewVarInSnapshot)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -73,7 +73,7 @@ TEST(DebugEvalInjectTest, NewVarInSnapshot)
 // Test 3: Eval-created var persists across multiple evals
 TEST(DebugEvalInjectTest, NewVarPersistsAcrossEvals)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -91,7 +91,7 @@ TEST(DebugEvalInjectTest, NewVarPersistsAcrossEvals)
 // Test 4: New undeclared variable created in eval, used after continue
 TEST(DebugEvalInjectTest, UndeclaredVarSurvivesContinue)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -130,7 +130,7 @@ TEST(DebugEvalInjectTest, UndeclaredVarSurvivesContinue)
 // Test 5: clear x in debug eval should make x undefined
 TEST(DebugEvalInjectTest, ClearVarDuringDebug)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -172,7 +172,7 @@ TEST(DebugEvalInjectTest, ClearVarDuringDebug)
 // Test 6: Clear in debug eval does not break continue
 TEST(DebugEvalInjectTest, ClearDuringDebugThenContinue)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -208,7 +208,7 @@ TEST(DebugEvalInjectTest, ClearDuringDebugThenContinue)
 // Test 7: Clear all during debug then continue
 TEST(DebugEvalInjectTest, ClearAllDuringDebugThenContinue)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -241,7 +241,7 @@ TEST(DebugEvalInjectTest, ClearAllDuringDebugThenContinue)
 // Test 8: Modified frame var propagates to VM execution
 TEST(DebugEvalInjectTest, ModifiedFrameVarInFunction)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -281,7 +281,7 @@ TEST(DebugEvalInjectTest, ModifiedFrameVarInFunction)
 
 TEST(DebugEvalInjectTest, ClearReferencedVarThenContinueErrors)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -321,7 +321,7 @@ TEST(DebugEvalInjectTest, ClearReferencedVarThenContinueErrors)
 
 TEST(DebugEvalInjectTest, FrameVarWritesSurviveMultipleEvals)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -361,7 +361,7 @@ TEST(DebugEvalInjectTest, FrameVarWritesSurviveMultipleEvals)
 
 TEST(DebugEvalInjectTest, OverlayVarVisibleToContinuedScript)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -427,7 +427,7 @@ static bool snapshotHas(const DebugSession::Snapshot &snap, const std::string &n
 
 TEST(DebugEvalInjectTest, ScriptShadowsBuiltinVisibleInDebug)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -452,7 +452,7 @@ TEST(DebugEvalInjectTest, ScriptShadowsBuiltinVisibleInDebug)
 
 TEST(DebugEvalInjectTest, ScriptReadsBuiltinHiddenInDebug)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -473,7 +473,7 @@ TEST(DebugEvalInjectTest, ScriptReadsBuiltinHiddenInDebug)
 
 TEST(DebugEvalInjectTest, ConsoleShadowOfBuiltinVisibleAfterwards)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -498,7 +498,7 @@ TEST(DebugEvalInjectTest, ConsoleShadowOfBuiltinVisibleAfterwards)
 
 TEST(DebugEvalInjectTest, ConsoleShadowPersistsAcrossResume)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -527,7 +527,7 @@ TEST(DebugEvalInjectTest, ConsoleShadowPersistsAcrossResume)
 // the paused script must NOT leak into the snapshot.
 TEST(DebugEvalInjectTest, ConsoleBareExpressionMakesAnsVisible)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -562,7 +562,7 @@ TEST(DebugEvalInjectTest, ConsoleBareExpressionDoesNotExposeReferencedBuiltins)
     // preImport. A console bare-expression must not incidentally surface
     // `pi` (or any other reserved name) in the snapshot — only the
     // `ans` it actually set.
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -588,7 +588,7 @@ TEST(DebugEvalInjectTest, ConsoleShadowRoundTrip)
 {
     // pi shadowed via console then cleared — must no longer show up in the
     // snapshot. Guards against shadowedBuiltins_ accumulating stale entries.
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -608,7 +608,7 @@ TEST(DebugEvalInjectTest, ConsoleShadowRoundTrip)
 
 TEST(DebugEvalInjectTest, NarginNotShownInSnapshotButReachable)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -637,7 +637,7 @@ TEST(DebugEvalInjectTest, NarginNotShownInSnapshotButReachable)
 
 TEST(DebugEvalInjectTest, BuiltinConstantsHiddenFromWorkspace)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -663,7 +663,7 @@ TEST(DebugEvalInjectTest, BuiltinConstantsHiddenFromWorkspace)
 
 TEST(DebugEvalInjectTest, ClearThenReassignSurvivesContinue)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -701,7 +701,7 @@ TEST(DebugEvalInjectTest, ClearThenReassignSurvivesContinue)
 
 TEST(DebugEvalInjectTest, GlobalVarVisibleAndEditableAtBreakpoint)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -748,7 +748,7 @@ TEST(DebugEvalInjectTest, GlobalVarVisibleAndEditableAtBreakpoint)
 // the naive localNames() snapshot/restore would drop the global's membership.
 TEST(DebugEvalInjectTest, BaseGlobalSurvivesDebugEval)
 {
-    Engine engine;
+    StdEngine engine;
     engine.eval("global bg; bg = 7;");
     ASSERT_NE(engine.getVariable("bg"), nullptr);
     ASSERT_DOUBLE_EQ(engine.getVariable("bg")->toScalar(), 7.0);
@@ -770,7 +770,7 @@ TEST(DebugEvalInjectTest, BaseGlobalSurvivesDebugEval)
 // effect on continue — the live register write is a full Value assignment.
 TEST(DebugEvalInjectTest, EditChangesTypeAndShape)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -798,7 +798,7 @@ TEST(DebugEvalInjectTest, EditChangesTypeAndShape)
 // the write-through to the live register is immediate, not deferred to resume.
 TEST(DebugEvalInjectTest, EditThenStepUsesNewValue)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -829,7 +829,7 @@ TEST(DebugEvalInjectTest, EditThenStepUsesNewValue)
 // (its value lives in globalsEnv_, not lastVarMap — routed into the overlay).
 TEST(DebugEvalInjectTest, ConsoleDeclaredGlobalPersists)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -855,7 +855,7 @@ TEST(DebugEvalInjectTest, ConsoleDeclaredGlobalPersists)
 // `clear global X` typed at the prompt must not crash or hang the session.
 TEST(DebugEvalInjectTest, ClearGlobalInConsoleIsStable)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -874,7 +874,7 @@ TEST(DebugEvalInjectTest, ClearGlobalInConsoleIsStable)
 // owned-backing-store change, holding the snapshot across resume was UB.)
 TEST(DebugEvalInjectTest, SnapshotOutlivesResume)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -902,7 +902,7 @@ TEST(DebugEvalInjectTest, SnapshotOutlivesResume)
 // inspected and EDITED, and the edit takes effect when the caller resumes.
 TEST(DebugEvalInjectTest, DbUpInspectsAndEditsCallerFrame)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -974,7 +974,7 @@ TEST(DebugEvalInjectTest, DbUpInspectsAndEditsCallerFrame)
 // stack (debugger meta-commands, intercepted before workspace eval).
 TEST(DebugEvalInjectTest, ConsoleDbupDbdownDbstack)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -1012,7 +1012,7 @@ TEST(DebugEvalInjectTest, ConsoleDbupDbdownDbstack)
 // Watch expressions re-evaluate against the live (edited) frame at each pause.
 TEST(DebugEvalInjectTest, WatchExpressionsTrackEdits)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -1045,7 +1045,7 @@ TEST(DebugEvalInjectTest, WatchExpressionsTrackEdits)
 // where it's false are skipped transparently.
 TEST(DebugEvalInjectTest, ConditionalBreakpointStopsOnlyWhenTrue)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -1081,7 +1081,7 @@ TEST(DebugEvalInjectTest, ConditionalBreakpointStopsOnlyWhenTrue)
 // workspace — in particular a watch expression must not leave `ans` behind.
 TEST(DebugEvalInjectTest, WatchEvalDoesNotPolluteAns)
 {
-    Engine engine;
+    StdEngine engine;
     DebugSession session(engine);
     session.setBreakpoints({2});
     session.start("x = 10;\ny = 20;\ndisp(x+y);\n");
@@ -1100,7 +1100,7 @@ TEST(DebugEvalInjectTest, WatchEvalDoesNotPolluteAns)
 // inspectable); resuming lets the error finally propagate.
 TEST(DebugEvalInjectTest, DbstopIfErrorPausesAtError)
 {
-    Engine engine;
+    StdEngine engine;
     std::string output;
     engine.setOutputFunc([&output](const std::string &s) { output += s; });
 
@@ -1134,7 +1134,7 @@ TEST(DebugEvalInjectTest, DbstopIfErrorPausesAtError)
 // dbstop if error must NOT fire on errors a try/catch handles.
 TEST(DebugEvalInjectTest, DbstopIfErrorIgnoresCaughtErrors)
 {
-    Engine engine;
+    StdEngine engine;
     DebugSession session(engine);
     session.setStopOnError(true);
     std::string code =

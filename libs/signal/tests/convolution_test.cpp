@@ -10,7 +10,7 @@ using namespace numkit;
 class ConvolutionTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     std::string capturedOutput;
 
     void SetUp() override

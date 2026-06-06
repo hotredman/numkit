@@ -10,7 +10,7 @@ using namespace numkit;
 class ClassifyTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("training = [1 1; 1 2; 2 1; 2 2; "

@@ -5,19 +5,9 @@
 #include <numkit/core/compiler.hpp>
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
-#include <numkit/builtin/library.hpp>
-#include <numkit/linalg/library.hpp>
-#include <numkit/signal/library.hpp>
-#include <numkit/stats/library.hpp>
-#include <numkit/image/library.hpp>
-#include <numkit/comm/library.hpp>
-#include <numkit/wavelet/library.hpp>
-#include <numkit/control/library.hpp>
-#include <numkit/graphics/library.hpp>
-#include <numkit/io/library.hpp>
-#include <numkit/optim/library.hpp>
-#include <numkit/audio/library.hpp>
-#include <numkit/ode/library.hpp>
+// NOTE: core is library-agnostic — it includes ZERO <numkit/<lib>/library.hpp>.
+// The standard library is installed by bundle/ (installStandardLibrary), not
+// by the Engine ctor. This is what keeps core free of any toolbox dependency.
 #include <numkit/core/tree_walker.hpp>
 #include <numkit/core/vm.hpp>
 #include <algorithm>
@@ -73,19 +63,9 @@ Engine::Engine(std::pmr::memory_resource *mr)
 
     reinstallConstants();
     registerVirtualFS(std::make_unique<NativeFS>());
-    BuiltinLibrary::install(*this);
-    LinalgLibrary::install(*this);
-    SignalLibrary::install(*this);
-    StatsLibrary::install(*this);
-    ImageLibrary::install(*this);
-    CommLibrary::install(*this);
-    WaveletLibrary::install(*this);
-    ControlLibrary::install(*this);
-    GraphicsLibrary::install(*this);
-    IoLibrary::install(*this);
-    OptimLibrary::install(*this);
-    AudioLibrary::install(*this);
-    OdeLibrary::install(*this);
+    // No library installs here — a bare Engine has the language runtime,
+    // constants and primitive arithmetic, but no named functions. Call
+    // numkit::installStandardLibrary(engine) (bundle/) to load the full set.
 }
 
 Engine::~Engine()

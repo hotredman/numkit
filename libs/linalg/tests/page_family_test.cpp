@@ -12,7 +12,7 @@ using namespace numkit;
 class PageFamilyTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };

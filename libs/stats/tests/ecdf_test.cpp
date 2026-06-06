@@ -10,7 +10,7 @@ using namespace numkit;
 class EcdfTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("y = [1 2 2 3 5 5 5 7 8]';");

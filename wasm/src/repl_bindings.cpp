@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/bundle/standard_library.hpp>  // installStandardLibrary (Engine ctor no longer installs libs)
 #include <numkit/core/value_stats.hpp>
 #include <numkit/core/value_json.hpp>
 #include <numkit/builtin/library.hpp>
@@ -346,6 +347,7 @@ class ReplSession {
 public:
     ReplSession() {
         engine_ = std::make_unique<numkit::Engine>();
+        numkit::installStandardLibrary(*engine_);
         restoreOutputFunc();
     }
 
@@ -533,6 +535,7 @@ public:
     void reset() {
         debugSession_.reset();
         engine_ = std::make_unique<numkit::Engine>();
+        numkit::installStandardLibrary(*engine_);
         restoreOutputFunc();
         // Re-install VFS handlers on the fresh engine so csvread/csvwrite
         // keep routing through tempFS/localFS after a reset.

@@ -10,7 +10,7 @@ using namespace numkit;
 class FillOutliersTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("x = [1 2 3 4 100 5 6 7];");

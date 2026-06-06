@@ -23,7 +23,7 @@ Value hv(Engine &e, const char *expr, const char *name)
 
 TEST(HaartPublicApi, Level1)
 {
-    Engine e;
+    StdEngine e;
     Value x = hv(e, "[1 2 3 4 5 6 7 8]", "x");
     wavelet::HaartResult r = wavelet::haart(x, 1); // level 1, mr defaulted
     ASSERT_EQ(r.a.numel(), 4u);
@@ -40,7 +40,7 @@ TEST(HaartPublicApi, Level1)
 
 TEST(HaartPublicApi, MultiLevelAndInteger)
 {
-    Engine e;
+    StdEngine e;
     Value x = hv(e, "[1 2 3 4 5 6 7 8]", "x");
     // auto level (= 3 for length 8): final approximation is a scalar,
     // detail is a 3-element cell (d{1} finest).

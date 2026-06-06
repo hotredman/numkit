@@ -9,7 +9,7 @@ using namespace numkit;
 class PitchHarmonicsTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("fs = 16000; t = (0:1/fs:1)';");

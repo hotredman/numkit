@@ -10,7 +10,7 @@ using namespace numkit;
 class KmedoidsTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("X = [0 0; 0.1 0; 0 0.1; 0.1 0.1; "

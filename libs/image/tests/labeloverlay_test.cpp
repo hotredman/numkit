@@ -17,7 +17,7 @@ using namespace numkit;
 class LabelOverlayTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override
     {
         engine.eval(

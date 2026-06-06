@@ -25,7 +25,7 @@ double sumOf(const Value &v)
 
 TEST(WaveletFamiliesPublicApi, Dbwavf)
 {
-    Engine e;
+    StdEngine e;
     Value h = wavelet::dbwavf("db2"); // mr defaulted (process default)
     ASSERT_EQ(h.numel(), 4u);
     EXPECT_NEAR(h.doubleData()[0], 0.341506, 1e-5);
@@ -42,7 +42,7 @@ TEST(WaveletFamiliesPublicApi, Dbwavf)
 
 TEST(WaveletFamiliesPublicApi, CoifwavfSymwavf)
 {
-    Engine e;
+    StdEngine e;
     Value c = wavelet::coifwavf("coif1", e.resource());
     ASSERT_EQ(c.numel(), 6u); // length 6K, K = 1
     EXPECT_NEAR(c.doubleData()[0], -0.051430, 1e-5);
@@ -60,7 +60,7 @@ TEST(WaveletFamiliesPublicApi, CoifwavfSymwavf)
 
 TEST(WaveletFamiliesPublicApi, Orthfilt)
 {
-    Engine e;
+    StdEngine e;
     wavelet::OrthfiltResult r =
         wavelet::orthfilt(wavelet::dbwavf("db2"), e.resource());
     ASSERT_EQ(r.Lo_D.numel(), 4u);

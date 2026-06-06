@@ -10,7 +10,7 @@ using namespace numkit;
 class TtestExtrasTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");

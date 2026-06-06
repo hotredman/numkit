@@ -563,7 +563,7 @@ INSTANTIATE_DUAL(DebugPhase234Test);
 
 TEST(DebugVMBackend, StopExceptionPropagates)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setBackend(Engine::Backend::VM);
 
     auto obs = std::make_shared<RecordingObserver>();
@@ -578,7 +578,7 @@ TEST(DebugVMBackend, StopExceptionPropagates)
 
 TEST(DebugVMBackend, BreakpointContinueThenStop)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setBackend(Engine::Backend::VM);
 
     auto obs = std::make_shared<RecordingObserver>();
@@ -605,7 +605,7 @@ TEST(DebugVMBackend, BreakpointContinueThenStop)
 
 TEST(DebugVMBackend, FunctionAtBottomWithClear)
 {
-    Engine engine;
+    StdEngine engine;
     engine.setBackend(Engine::Backend::VM);
 
     std::string output;

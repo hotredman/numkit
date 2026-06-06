@@ -22,7 +22,7 @@ Value gv(Engine &e, const char *expr, const char *name)
 
 TEST(Grp2idxPublicApi, Numeric)
 {
-    Engine e;
+    StdEngine e;
     // numeric: sorted-ascending unique groups {1,2,3}; mr defaulted
     stats::Grp2idxResult r = stats::grp2idx(gv(e, "[3 1 1 3 2]", "s"));
     ASSERT_EQ(r.G.numel(), 5u);
@@ -41,7 +41,7 @@ TEST(Grp2idxPublicApi, Numeric)
 
 TEST(Grp2idxPublicApi, Cellstr)
 {
-    Engine e;
+    StdEngine e;
     // cellstr: groups in first-appearance order {'b','a'}
     stats::Grp2idxResult r = stats::grp2idx(gv(e, "{'b','a','b'}", "c"), e.resource());
     ASSERT_EQ(r.G.numel(), 3u);

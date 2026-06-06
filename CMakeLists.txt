@@ -127,8 +127,9 @@ add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-onl
 add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
 add_subdirectory(libs)
+add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StdEngine
 
-set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES})
+set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
 set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
@@ -184,7 +185,7 @@ set_source_files_properties(
 
 # Public include paths — collected from per-area CMakeLists. Wrap each
 # in BUILD_INTERFACE so the export set stays clean for find_package.
-foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS})
+foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
     target_include_directories(numkit PUBLIC $<BUILD_INTERFACE:${_dir}>)
 endforeach()
 target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)

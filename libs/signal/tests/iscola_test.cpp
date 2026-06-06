@@ -9,7 +9,7 @@
 class IscolaTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");
