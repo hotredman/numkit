@@ -402,7 +402,7 @@ tools/                                # Dev tooling
 scripts/                              # build / dev / deploy / desktop wrappers (sh + bat)
 
 docs/                                 # Doxygen API-reference source (doxygen_mainpage.dox → build/docs/html)
-dev/                                  # Developer / AI coding guidance + design notes
+dev-docs/                             # Developer / AI coding guidance + design notes
     LIBRARY_API.md · CALLBACK_PAUSABILITY.md · FORMAT_HOMES.md
     design/                           # NAMESPACE_DESIGN · OBJECT_MODEL · VM_CALLBACKS_PLAN · COORDINATION
 bugs/                                 # Structured bug catalog (one file per bug) + PARITY_GAPS.md

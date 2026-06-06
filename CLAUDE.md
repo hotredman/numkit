@@ -3,7 +3,7 @@
 ## STOP — read first
 
 This repo is worked on by **two parallel Claude sessions**. Before doing
-anything, read [COORDINATION.md](dev/design/COORDINATION.md). It defines:
+anything, read [COORDINATION.md](dev-docs/design/COORDINATION.md). It defines:
 
 - which territory each session owns (kernel vs toolbox libs)
 - shared-surface rules (when full-suite tests are mandatory)
@@ -33,7 +33,7 @@ surface to the user**. Do not silently work on top of someone else's work.
 ## Public API conventions
 
 Every public function in `libs/<ns>/include/numkit/<ns>/**` follows
-[dev/LIBRARY_API.md](dev/LIBRARY_API.md) — the authoritative API
+[dev-docs/LIBRARY_API.md](dev-docs/LIBRARY_API.md) — the authoritative API
 ruleset (argument order, native scalar types vs `const Value &` vs
 `Span<const double>`, `FnHandle` callbacks, no `Engine *` in public
 signatures, magic-polymorphism → typed overloads, multi-output return
