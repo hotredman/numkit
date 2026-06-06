@@ -92,8 +92,18 @@ public:
     // Register a user `classdef` (parsed CLASSDEF_DEF node) as a BuiltinClass
     // via the adapter: generic property get/set over ObjectState.props,
     // default-init + user constructor on construct, and method hooks that
-    // run the method bodies. Idempotent (skips if already registered).
-    void registerClassDef(const ASTNode *classdef);
+    // run the method bodies. Re-running a `classdef` for an already-registered
+    // class REPLACES it wholesale (see unregisterClassDef) so REPL / IDE edits
+    // take effect. `qualifiedName` (e.g. "geo.Vec") names a class loaded from a
+    // `+pkg/Name.m` file: the source node carries only the leaf (`Vec`), so the
+    // package qualification — which lives in the path — is threaded in here and
+    // becomes the registry identity (class()/isa()/registry keys all use it).
+    // Empty (the default) → use the node's own name (inline / unpackaged).
+    void registerClassDef(const ASTNode *classdef, const std::string &qualifiedName = "");
+    // `clear classes` / `clear all`: remove every USER classdef so the next
+    // reference re-loads (file classes) or errors as undefined (inline ones).
+    // Built-in classes (containers.Map, …) are not in classDefs_ and survive.
+    void clearClassDefs();
     // Run a classdef method body (args already include `self` first) /
     // constructor body (with `obj` seeded to the default instance) on the
     // TreeWalker, regardless of the active backend.
@@ -602,6 +612,14 @@ private:
     // Parsed user classdef descriptors (property defaults, ctor + method
     // UserFunctions), kept for inheritance merges. Full type in engine.cpp.
     std::unordered_map<std::string, std::shared_ptr<ClassDefDesc>> classDefs_;
+    // Cloned source AST per registered classdef, so a base-class redefinition
+    // can re-merge its (transitive) subclasses from scratch. Keyed by the
+    // class's registry name (qualified for packaged classes).
+    std::unordered_map<std::string, std::shared_ptr<const ASTNode>> classDefAst_;
+    // Re-entrancy guard for reregisterDerivedClasses: while a cascade is
+    // re-registering subclasses, their own registerClassDef calls must not each
+    // launch another (redundant, overlapping) cascade.
+    bool suppressDependentCascade_ = false;
     // Higher-order builtins that can run callbacks as pausable VM frames
     // (state-machine callbacks). Keyed by builtin name; consulted by the VM
     // before the synchronous external path. Full type in callback_builtin.hpp.
@@ -636,6 +654,23 @@ private:
     void registerFunctionImpl_(const std::string &fullName,
                                const std::string &leafName,
                                ExternalFunc func);
+
+    // Evict a previously-registered classdef so a redefinition fully replaces
+    // it (REPL / IDE re-run of `classdef Name … end`). Removes the registry
+    // class, the descriptor, the `Name.static` / `Name.CONST` qualified
+    // externals, and the compiled method chunks. Called by registerClassDef
+    // when `Name` is already registered, instead of the old idempotent skip.
+    void unregisterClassDef(const std::string &name);
+    // Remove the bare constructor external `externalFuncs_[name]` that
+    // resolveMFile_ registers for a class loaded from `Name.m`. Guarded by
+    // mFileCache_ membership so an inline `classdef sum` can never erase the
+    // core `sum` builtin that merely shares the name.
+    void dropFileClassCtorExternal_(const std::string &name);
+    // After `base` is (re)registered, re-register every class that transitively
+    // derives from it (parent-first), so subclasses — which hold a snapshot of
+    // the base's methods/props — pick up the new definition. Guarded by
+    // suppressDependentCascade_ against re-entrant fan-out.
+    void reregisterDerivedClasses(const std::string &base);
 
     OutputFunc outputFunc_;
     FigureManager figureManager_;

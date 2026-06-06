@@ -1067,6 +1067,234 @@ INSTANTIATE_TEST_SUITE_P(Backends, AttrClassdefTest,
                          ::testing::Values(Engine::Backend::TreeWalker,
                                            Engine::Backend::VM));
 
+// ── classdef redefinition: re-running `classdef Name … end` must REPLACE the
+//    class wholesale, not silently keep the old one. The previous idempotent
+//    early-return in registerClassDef ignored the new body, so rewriting a
+//    method/ctor/static/constant had no effect until a full restart — the
+//    "I rewrote the method but behaviour didn't change" bug. Stale compiled
+//    method chunks (keyed "Name>method") were the VM-side culprit; the
+//    qualified `Name.static` / `Name.CONST` externals (which throw on a
+//    duplicate registration) were the other half. ──
+class ClassdefRedefineTest : public ::testing::TestWithParam<Engine::Backend>
+{
+public:
+    Engine engine;
+    void SetUp() override { engine.setBackend(GetParam()); }
+    double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
+    void eval(const std::string &c) { engine.eval(c); }
+};
+
+TEST_P(ClassdefRedefineTest, MethodBodyRedefinitionTakesEffect)
+{
+    eval("classdef RDM\n"
+         "  properties\n    seed = 0\n  end\n"
+         "  methods\n"
+         "    function obj = RDM(s)\n      obj.seed = s;\n    end\n"
+         "    function r = val(obj)\n      r = obj.seed + 10;\n    end\n"
+         "  end\n"
+         "end\n");
+    EXPECT_DOUBLE_EQ(evalScalar("c = RDM(5); c.val()"), 15.0);
+    // Rewrite the method body and re-run the classdef (REPL / IDE re-run).
+    eval("classdef RDM\n"
+         "  properties\n    seed = 0\n  end\n"
+         "  methods\n"
+         "    function obj = RDM(s)\n      obj.seed = s;\n    end\n"
+         "    function r = val(obj)\n      r = obj.seed + 20;\n    end\n"
+         "  end\n"
+         "end\n");
+    EXPECT_DOUBLE_EQ(evalScalar("c = RDM(5); c.val()"), 25.0)
+        << "redefined method body must take effect (was 15 before the fix)";
+}
+
+TEST_P(ClassdefRedefineTest, ConstructorBodyRedefinitionTakesEffect)
+{
+    eval("classdef RDC\n"
+         "  properties\n    seed = 0\n  end\n"
+         "  methods\n"
+         "    function obj = RDC(s)\n      obj.seed = s;\n    end\n"
+         "  end\n"
+         "end\n");
+    EXPECT_DOUBLE_EQ(evalScalar("c = RDC(5); c.seed"), 5.0);
+    eval("classdef RDC\n"
+         "  properties\n    seed = 0\n  end\n"
+         "  methods\n"
+         "    function obj = RDC(s)\n      obj.seed = s * 100;\n    end\n"
+         "  end\n"
+         "end\n");
+    EXPECT_DOUBLE_EQ(evalScalar("c = RDC(5); c.seed"), 500.0)
+        << "redefined constructor body must take effect";
+}
+
+TEST_P(ClassdefRedefineTest, PropertyDefaultRedefinitionTakesEffect)
+{
+    eval("classdef RDP\n  properties\n    tag = 1\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDP; o.tag"), 1.0);
+    eval("classdef RDP\n  properties\n    tag = 7\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDP; o.tag"), 7.0)
+        << "redefined property default must take effect";
+}
+
+TEST_P(ClassdefRedefineTest, StaticMethodRedefinitionTakesEffect)
+{
+    // Exercises the `Name.static` qualified-external eviction: re-registering
+    // the same full name throws on duplicate, so without eviction this CRASHES.
+    eval("classdef RDS\n  methods (Static)\n"
+         "    function r = s()\n      r = 1;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RDS.s()"), 1.0);
+    eval("classdef RDS\n  methods (Static)\n"
+         "    function r = s()\n      r = 2;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RDS.s()"), 2.0)
+        << "redefined static method must take effect";
+}
+
+TEST_P(ClassdefRedefineTest, ConstantRedefinitionTakesEffect)
+{
+    // Exercises the `Name.CONST` qualified-external eviction (same throw risk).
+    eval("classdef RDK\n  properties (Constant)\n    K = 10\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RDK.K"), 10.0);
+    eval("classdef RDK\n  properties (Constant)\n    K = 20\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RDK.K"), 20.0)
+        << "redefined constant must take effect";
+}
+
+TEST_P(ClassdefRedefineTest, RedefineDoesNotDisturbOtherClasses)
+{
+    // Prefix-isolation guard: evicting "RDA>" chunks must NOT touch "RDAB>".
+    eval("classdef RDA\n  methods\n    function r = f(obj)\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef RDAB\n  methods\n    function r = f(obj)\n      r = 99;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("a = RDA; a.f()"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b = RDAB; b.f()"), 99.0);
+    eval("classdef RDA\n  methods\n    function r = f(obj)\n      r = 2;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("a = RDA; a.f()"), 2.0) << "RDA redefined";
+    EXPECT_DOUBLE_EQ(evalScalar("b = RDAB; b.f()"), 99.0)
+        << "RDAB must be untouched by RDA's redefinition";
+}
+
+TEST_P(ClassdefRedefineTest, ClearClassesRemovesUserClass)
+{
+    // `clear classes` must actually remove an inline user class. Before the fix
+    // the class survived (classes_/classDefs_ untouched) so it still constructed.
+    eval("classdef RDClr\n  properties\n    v = 7\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDClr; o.v"), 7.0);
+    eval("clear classes");
+    EXPECT_THROW(engine.eval("o = RDClr;"), std::exception)
+        << "class must be gone after `clear classes` (no .m on path to reload)";
+}
+
+TEST_P(ClassdefRedefineTest, ClearAllRemovesUserClass)
+{
+    eval("classdef RDClrA\n  properties\n    v = 3\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDClrA; o.v"), 3.0);
+    eval("clear all");
+    EXPECT_THROW(engine.eval("o = RDClrA;"), std::exception)
+        << "class must be gone after `clear all`";
+}
+
+TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesToDerived)
+{
+    // Redefining ONLY the base must propagate to subclasses, which hold a
+    // snapshot of the base's methods. Before the fix the derived kept the old
+    // base method body.
+    eval("classdef RBase\n  properties\n    tag = 0\n  end\n"
+         "  methods\n    function r = baseVal(obj)\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef RDer < RBase\n"
+         "  methods\n    function b = ownVal(obj)\n      b = 100;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("d = RDer; d.baseVal()"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d = RDer; d.ownVal()"), 100.0);
+    eval("classdef RBase\n  properties\n    tag = 0\n  end\n"
+         "  methods\n    function r = baseVal(obj)\n      r = 2;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("d = RDer; d.baseVal()"), 2.0)
+        << "derived must see the redefined base method (was 1 before the fix)";
+    EXPECT_DOUBLE_EQ(evalScalar("d = RDer; d.ownVal()"), 100.0) << "own method intact";
+}
+
+TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesProperty)
+{
+    eval("classdef RBP\n  properties\n    p = 1\n  end\nend\n");
+    eval("classdef RDP2 < RBP\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDP2; o.p"), 1.0);
+    eval("classdef RBP\n  properties\n    p = 9\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("o = RDP2; o.p"), 9.0)
+        << "derived must see the redefined base property default";
+}
+
+TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesTransitively)
+{
+    eval("classdef RG1\n  properties\n    tag = 0\n  end\n"
+         "  methods\n    function r = gv(obj)\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef RG2 < RG1\nend\n");
+    eval("classdef RG3 < RG2\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("x = RG3; x.gv()"), 1.0);
+    eval("classdef RG1\n  properties\n    tag = 0\n  end\n"
+         "  methods\n    function r = gv(obj)\n      r = 3;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("x = RG3; x.gv()"), 3.0)
+        << "grandchild must see the redefined grandparent method";
+}
+
+TEST_P(ClassdefRedefineTest, ForwardReferencedBaseBackfillsSubclass)
+{
+    // Define the subclass BEFORE its base. The base's later definition must
+    // back-fill the subclass, which recorded the base name but registered
+    // without the not-yet-defined base's members.
+    eval("classdef FDog < FAnimal\n"
+         "  methods\n    function b = bark(obj)\n      b = 7;\n    end\n  end\nend\n");
+    eval("classdef FAnimal\n  properties\n    legs = 4\n  end\n"
+         "  methods\n    function s = sound(obj)\n      s = 42;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("d = FDog; d.sound()"), 42.0)
+        << "subclass must inherit a base defined AFTER it (forward reference)";
+    EXPECT_DOUBLE_EQ(evalScalar("d = FDog; d.legs"), 4.0) << "inherited property too";
+    EXPECT_DOUBLE_EQ(evalScalar("d = FDog; d.bark()"), 7.0) << "own method intact";
+    engine.eval("d = FDog;");
+    EXPECT_TRUE(engine.eval("isa(d, 'FAnimal')").toBool()) << "isa reflects the back-filled base";
+}
+
+TEST_P(ClassdefRedefineTest, BaseRedefinitionPropagatesStaticAndConstant)
+{
+    // Inherited Static methods + Constant properties are re-exposed as
+    // `Derived.member` qualified externals at merge time. Redefining the base
+    // must refresh those on the derived too (cascade re-registers the derived,
+    // which drops the old externals and re-registers from the new base).
+    eval("classdef RSBase\n"
+         "  properties (Constant)\n    K = 10\n  end\n"
+         "  methods (Static)\n    function r = s()\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef RSDer < RSBase\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RSDer.s()"), 1.0); // inherited static
+    EXPECT_DOUBLE_EQ(evalScalar("RSDer.K"), 10.0);  // inherited constant
+    eval("classdef RSBase\n"
+         "  properties (Constant)\n    K = 20\n  end\n"
+         "  methods (Static)\n    function r = s()\n      r = 2;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("RSDer.s()"), 2.0)
+        << "derived must see the redefined inherited static method";
+    EXPECT_DOUBLE_EQ(evalScalar("RSDer.K"), 20.0)
+        << "derived must see the redefined inherited constant";
+}
+
+TEST_P(ClassdefRedefineTest, FailedCascadeDoesNotWedgePropagation)
+{
+    // A cascade that THROWS (here: redefining a base as Sealed makes the
+    // re-register of its subclass fail with "cannot subclass sealed") must
+    // still restore the re-entrancy guard — otherwise all later propagation
+    // goes silently dead. Regression guard for the RAII restore in
+    // reregisterDerivedClasses.
+    eval("classdef SBaseX\n  methods\n    function r = v(obj)\n      r = 1;\n    end\n  end\nend\n");
+    eval("classdef SDerX < SBaseX\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("d = SDerX; d.v()"), 1.0);
+    EXPECT_THROW(engine.eval("classdef (Sealed) SBaseX\nend\n"), std::exception)
+        << "redefining a base as Sealed under a live subclass must error";
+    // An unrelated redefinition must STILL propagate to its derived — proving
+    // the guard was restored despite the throw above.
+    eval("classdef PBaseX\n  methods\n    function r = g(obj)\n      r = 10;\n    end\n  end\nend\n");
+    eval("classdef PDerX < PBaseX\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("p = PDerX; p.g()"), 10.0);
+    eval("classdef PBaseX\n  methods\n    function r = g(obj)\n      r = 20;\n    end\n  end\nend\n");
+    EXPECT_DOUBLE_EQ(evalScalar("p = PDerX; p.g()"), 20.0)
+        << "propagation must still work after an earlier cascade threw";
+}
+
+INSTANTIATE_TEST_SUITE_P(Backends, ClassdefRedefineTest,
+                         ::testing::Values(Engine::Backend::TreeWalker,
+                                           Engine::Backend::VM));
+
 // ── classdef get/set property accessors (Dependent) ──
 class AccessorClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
@@ -1985,6 +2213,144 @@ TEST(ClassdefMFile, LoadFromFile)
         EXPECT_DOUBLE_EQ(engine.eval("v = Vec2(3, 4); v.x").toScalar(), 3.0);
         EXPECT_DOUBLE_EQ(engine.eval("v.sumsq()").toScalar(), 25.0);
         EXPECT_EQ(engine.eval("class(v)").toString(), "Vec2");
+    }
+    fs::remove_all(dir);
+}
+
+// Editing a class .m file then calling `rehash` must reload the new
+// definition, not keep serving the stale class machinery (registry +
+// `Name>method` chunks + bare ctor external). Before the fix rehash only
+// dropped the bare-key chunk (a no-op for a class), so the old class lingered.
+TEST(ClassdefMFile, RehashReloadsEditedClass)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_classdef_rehash_test";
+    fs::create_directories(dir);
+    auto writeVer = [&](int k) {
+        std::ofstream f(dir / "RhVec.m", std::ios::trunc);
+        f << "classdef RhVec\n"
+             "  properties\n    x = 0\n  end\n"
+             "  methods\n"
+             "    function obj = RhVec(a)\n      obj.x = a;\n    end\n"
+             "    function r = bump(obj)\n      r = obj.x + "
+          << k << ";\n    end\n"
+             "  end\n"
+             "end\n";
+    };
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        writeVer(10);
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        EXPECT_DOUBLE_EQ(engine.eval("v = RhVec(5); v.bump()").toScalar(), 15.0);
+        // Rewrite the method body, then rehash → next reference reloads it.
+        writeVer(20);
+        engine.eval("rehash");
+        EXPECT_DOUBLE_EQ(engine.eval("v = RhVec(5); v.bump()").toScalar(), 25.0)
+            << "edited class file must reload after rehash";
+    }
+    fs::remove_all(dir);
+}
+
+// Packaged classes (`+pkg/Name.m`) are registered under their QUALIFIED name so
+// class()/isa() report `pkg.Name` (not the bare leaf), and clear/rehash key on
+// the same `pkg.Name` the ctor external + mFileCache_ use — so eviction works.
+TEST(ClassdefMFile, PackagedClassQualifiedIdentity)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_pkgclass_test";
+    fs::create_directories(dir / "+geo");
+    auto writeVer = [&](int k) {
+        std::ofstream f(dir / "+geo" / "Vec.m", std::ios::trunc);
+        f << "classdef Vec\n"
+             "  properties\n    x = 0\n  end\n"
+             "  methods\n"
+             "    function obj = Vec(a)\n      obj.x = a;\n    end\n"
+             "    function r = bump(obj)\n      r = obj.x + "
+          << k << ";\n    end\n"
+             "  end\n"
+             "end\n";
+    };
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        writeVer(10);
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        EXPECT_DOUBLE_EQ(engine.eval("v = geo.Vec(5); v.x").toScalar(), 5.0);
+        EXPECT_DOUBLE_EQ(engine.eval("v.bump()").toScalar(), 15.0);
+        EXPECT_EQ(engine.eval("class(v)").toString(), "geo.Vec"); // qualified, not "Vec"
+        EXPECT_TRUE(engine.eval("isa(v, 'geo.Vec')").toBool());
+        EXPECT_FALSE(engine.eval("isa(v, 'Vec')").toBool());
+        // rehash reloads the edited packaged class (keys now align).
+        writeVer(20);
+        engine.eval("rehash");
+        EXPECT_DOUBLE_EQ(engine.eval("w = geo.Vec(5); w.bump()").toScalar(), 25.0)
+            << "edited packaged class must reload after rehash";
+    }
+    fs::remove_all(dir);
+}
+
+// An inline subclass of a FILE base must re-merge the base after `rehash`
+// reloads an edited base file. The inline subclass survives rehash (it is not
+// an m-file), so rehash reloads the base and cascades the refresh to it.
+TEST(ClassdefMFile, RehashBaseRefreshesInlineSubclass)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_rehash_inline_sub_test";
+    fs::create_directories(dir);
+    auto writeBase = [&](int k) {
+        std::ofstream f(dir / "RBaseF.m", std::ios::trunc);
+        f << "classdef RBaseF\n  properties\n    tag = 0\n  end\n"
+             "  methods\n    function r = bval(obj)\n      r = "
+          << k << ";\n    end\n  end\nend\n";
+    };
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        writeBase(10);
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        // Inline subclass of the FILE base (the base loads via the path).
+        engine.eval("classdef RSubI < RBaseF\n"
+                    "  methods\n    function b = own(obj)\n      b = 1;\n    end\n  end\nend\n");
+        EXPECT_DOUBLE_EQ(engine.eval("s = RSubI; s.bval()").toScalar(), 10.0);
+        // Edit the base file, rehash → the inline subclass must re-merge it.
+        writeBase(20);
+        engine.eval("rehash");
+        EXPECT_DOUBLE_EQ(engine.eval("s = RSubI; s.bval()").toScalar(), 20.0)
+            << "inline subclass must re-merge the rehashed file base";
+        EXPECT_DOUBLE_EQ(engine.eval("s = RSubI; s.own()").toScalar(), 1.0);
+    }
+    fs::remove_all(dir);
+}
+
+// Inline subclass of a PACKAGED file base: rehash of the edited base must
+// cascade to the inline subclass. Exercises the propagation cascade matching a
+// QUALIFIED superclass name (geo.Shape) — the packaged-class path.
+TEST(ClassdefMFile, RehashPackagedBaseRefreshesInlineSubclass)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_pkg_inherit_rehash_test";
+    fs::create_directories(dir / "+geo");
+    auto writeBase = [&](int k) {
+        std::ofstream f(dir / "+geo" / "Shape.m", std::ios::trunc);
+        f << "classdef Shape\n  properties\n    tag = 0\n  end\n"
+             "  methods\n    function a = area(obj)\n      a = "
+          << k << ";\n    end\n  end\nend\n";
+    };
+    for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
+        writeBase(10);
+        Engine engine;
+        engine.setBackend(backend);
+        engine.addPath(dir.string());
+        engine.eval("classdef MyShape < geo.Shape\n"
+                    "  methods\n    function n = name(obj)\n      n = 5;\n    end\n  end\nend\n");
+        EXPECT_DOUBLE_EQ(engine.eval("s = MyShape; s.area()").toScalar(), 10.0);
+        EXPECT_TRUE(engine.eval("isa(s, 'geo.Shape')").toBool());
+        writeBase(20);
+        engine.eval("rehash");
+        EXPECT_DOUBLE_EQ(engine.eval("s = MyShape; s.area()").toScalar(), 20.0)
+            << "inline subclass must re-merge the rehashed packaged base";
+        EXPECT_DOUBLE_EQ(engine.eval("s = MyShape; s.name()").toScalar(), 5.0);
     }
     fs::remove_all(dir);
 }

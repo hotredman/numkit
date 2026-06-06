@@ -704,15 +704,93 @@ static Value buildSubsStruct(const char *type, Span<const Value> subscripts,
     return s;
 }
 
-void Engine::registerClassDef(const ASTNode *cd)
+void Engine::unregisterClassDef(const std::string &name)
+{
+    auto dit = classDefs_.find(name);
+    if (dit != classDefs_.end()) {
+        const ClassDefDesc &desc = *dit->second;
+        // Remove the `Name.member` qualified externals registered for Static
+        // methods and Constant properties. registerFunctionImpl_ throws on a
+        // duplicate full name, so these MUST be cleared before re-registration.
+        auto dropExternal = [&](const std::string &leaf) {
+            const std::string full = name + "." + leaf;
+            externalFuncs_.erase(full);
+            auto range = shortNameIndex_.equal_range(leaf);
+            for (auto it = range.first; it != range.second;)
+                it = (it->second == full) ? shortNameIndex_.erase(it) : std::next(it);
+        };
+        for (const auto &[sname, si] : desc.statics)
+            dropExternal(sname);
+        for (const auto &p : desc.props)
+            if (p.isConstant)
+                dropExternal(p.name);
+        classDefs_.erase(dit);
+    }
+    // Drop compiled method chunks ("Name>method") so rewritten bodies recompile
+    // instead of serving the stale cache — the core of the redefinition bug.
+    if (compiler_)
+        compiler_->eraseCompiledFuncsForClass(name);
+    // Source AST kept for derived-class re-merge — drop it too (the cascade in
+    // reregisterDerivedClasses holds its own shared_ptr across this erase).
+    classDefAst_.erase(name);
+    // Drop the registry class last: registerClass throws on a duplicate, so the
+    // re-registration that follows depends on this entry being gone.
+    classes_.erase(name);
+}
+
+void Engine::dropFileClassCtorExternal_(const std::string &name)
+{
+    // resolveMFile_ registers a bare constructor external for a class loaded
+    // from `Name.m`. Guard on mFileCache_ membership: only a file-loaded class
+    // has this external, so we never erase a core builtin that merely shares a
+    // name with an inline classdef.
+    if (!mFileCache_.count(name))
+        return;
+    externalFuncs_.erase(name);
+    auto range = shortNameIndex_.equal_range(name);
+    for (auto it = range.first; it != range.second;)
+        it = (it->second == name) ? shortNameIndex_.erase(it) : std::next(it);
+}
+
+void Engine::clearClassDefs()
+{
+    // Collect names first — unregisterClassDef mutates classDefs_ as it goes.
+    // Built-in classes live in classes_ but NOT classDefs_, so iterating
+    // classDefs_ touches only user classes.
+    std::vector<std::string> names;
+    names.reserve(classDefs_.size());
+    for (const auto &kv : classDefs_)
+        names.push_back(kv.first);
+    for (const auto &name : names) {
+        dropFileClassCtorExternal_(name); // enable file-class reload on next ref
+        unregisterClassDef(name);
+    }
+}
+
+void Engine::registerClassDef(const ASTNode *cd, const std::string &qualifiedName)
 {
     if (!cd || cd->type != NodeType::CLASSDEF_DEF || cd->strValue.empty())
         return;
-    if (findClass(cd->strValue))
-        return; // idempotent — already registered this session
+    // Registry identity: the qualified name for a `+pkg/Name.m` class, else the
+    // node's own (leaf == full for inline / unpackaged classes).
+    const std::string className = qualifiedName.empty() ? cd->strValue : qualifiedName;
+    // The in-source constructor / accessor names are always the LEAF (`Vec`,
+    // never `geo.Vec`), so ctor detection compares against the leaf even though
+    // the class is registered under its qualified name.
+    std::string classLeaf = className;
+    if (auto dot = classLeaf.rfind('.'); dot != std::string::npos)
+        classLeaf = classLeaf.substr(dot + 1);
+
+    const bool wasRedefinition = findClass(className) != nullptr;
+    if (wasRedefinition)
+        // Redefinition (REPL / IDE re-run of `classdef Name … end`): evict the
+        // old class wholesale, then fall through to re-register. The previous
+        // idempotent early-return silently ignored the new body — so rewriting
+        // a method had no effect until a full restart.
+        unregisterClassDef(className);
 
     auto desc = std::make_shared<ClassDefDesc>();
-    desc->name = cd->strValue;
+    desc->name = className;
     for (const auto &super : cd->paramNames)
         if (super == "handle")
             desc->isHandle = true;
@@ -775,8 +853,8 @@ void Engine::registerClassDef(const ASTNode *cd)
                 BlockAccess ba = parseBlockAccess(child->classAttrs);
                 Access slvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
                 desc->statics[child->strValue] = {uf, slvl, desc->name};
-            } else if (child->strValue == desc->name) {
-                desc->ctor = uf; // constructor: method named like the class
+            } else if (child->strValue == classLeaf) {
+                desc->ctor = uf; // constructor: method named like the class (leaf)
                 BlockAccess ba = parseBlockAccess(child->classAttrs);
                 Access clvl = (ba.set == Access::Immutable) ? Access::Public : ba.set;
                 if (clvl != Access::Public) {
@@ -1200,6 +1278,66 @@ void Engine::registerClassDef(const ASTNode *cd)
                              [inst](Span<const Value>, size_t, Span<Value> outs,
                                     CallContext &) { outs[0] = inst; });
         }
+    }
+
+    // Remember the source AST so a later base-class redefinition can re-merge
+    // this class (see reregisterDerivedClasses). Cloned because `cd` may be
+    // transient — resolveMFile_'s parsed AST is freed once this returns, and on
+    // a redefinition `cd` may alias the very entry we overwrite here (the
+    // cascade holds its own shared_ptr to keep it alive across this clone).
+    classDefAst_[className] = std::shared_ptr<const ASTNode>(cloneNode(cd));
+
+    // Re-register every class that (transitively) derives from this one, so the
+    // new members propagate to subclasses (which hold a snapshot of the base's
+    // methods/props). Fires on EVERY registration, not just redefinitions: it
+    // also back-fills a subclass that was defined BEFORE its base (forward
+    // reference — the subclass recorded the base name but registered without its
+    // members). No-op when nothing derives from `className`. Guarded so the
+    // nested registerClassDef calls don't each re-cascade.
+    if (!suppressDependentCascade_)
+        reregisterDerivedClasses(className);
+}
+
+void Engine::reregisterDerivedClasses(const std::string &base)
+{
+    // Classes whose transitive superclasses include `base`.
+    std::vector<std::string> deps;
+    for (const auto &[name, desc] : classDefs_) {
+        if (name == base)
+            continue;
+        if (std::find(desc->superclasses.begin(), desc->superclasses.end(), base)
+            != desc->superclasses.end())
+            deps.push_back(name);
+    }
+    if (deps.empty())
+        return;
+    // Parent-first: a subclass's transitive-ancestor set strictly contains each
+    // ancestor's, so ascending ancestor count is a valid topological order (a
+    // base is re-registered before any class that derives from it).
+    std::sort(deps.begin(), deps.end(), [&](const std::string &a, const std::string &b) {
+        return classDefs_.at(a)->superclasses.size() < classDefs_.at(b)->superclasses.size();
+    });
+    // RAII restore: a re-register that throws must NOT leave the flag stuck at
+    // true — that would silently disable propagation for the rest of the
+    // session. The guard restores the previous value on every exit path.
+    struct CascadeGuard
+    {
+        bool &flag;
+        bool prev;
+        explicit CascadeGuard(bool &f) : flag(f), prev(f) { flag = true; }
+        ~CascadeGuard() { flag = prev; }
+        CascadeGuard(const CascadeGuard &) = delete;
+        CascadeGuard &operator=(const CascadeGuard &) = delete;
+    } guard(suppressDependentCascade_);
+    for (const auto &name : deps) {
+        auto it = classDefAst_.find(name);
+        if (it == classDefAst_.end() || !it->second)
+            continue;
+        // Hold our own ref: registerClassDef → unregisterClassDef erases the map
+        // entry, then re-stores a fresh clone; this keeps the node alive in
+        // between. Re-register under the same (possibly qualified) name.
+        std::shared_ptr<const ASTNode> ast = it->second;
+        registerClassDef(ast.get(), name);
     }
 }
 
@@ -1750,12 +1888,43 @@ void Engine::rehashMFiles()
     // (qualified for +pkg/foo.m, bare for plain foo.m), so erase that exact
     // key — NOT clearCompiledFuncs(), which would also nuke script-defined
     // compiled functions (contradicting the "kept" promise above).
+    std::vector<std::string> unregisteredClasses;
     for (const auto &[name, _] : mFileCache_) {
         userFuncs_.erase(name);
         if (compiler_)
             compiler_->eraseCompiledFunc(name);
+        if (classDefs_.count(name)) {
+            // A class loaded from `Name.m`: evicting the bare chunk above is not
+            // enough — the class machinery (registry, descriptor, `Name>method`
+            // chunks, qualified externals) and the bare constructor external all
+            // persist and would shadow the edited file. Drop them so the next
+            // reference re-reads and re-registers. (mFileCache_ is still
+            // populated here, so the ctor-external guard passes.)
+            dropFileClassCtorExternal_(name);
+            unregisterClassDef(name);
+            unregisteredClasses.push_back(name);
+        }
     }
     mFileCache_.clear();
+
+    // An INLINE subclass of a just-unregistered file base survives rehash still
+    // holding the old base snapshot (it is not in mFileCache_, so the loop above
+    // didn't touch it). Reload each such base now; registerClassDef's cascade
+    // then re-merges every surviving class that derives from it. File subclasses
+    // need no help — they were unregistered too and reload lazily on next use.
+    for (const auto &base : unregisteredClasses) {
+        if (findClass(base))
+            continue; // already pulled back in by an earlier base's reload
+        bool hasLiveDependent = false;
+        for (const auto &[cn, desc] : classDefs_)
+            if (std::find(desc->superclasses.begin(), desc->superclasses.end(), base)
+                != desc->superclasses.end()) {
+                hasLiveDependent = true;
+                break;
+            }
+        if (hasLiveDependent)
+            resolveMFile_(base); // reload from the edited file + cascade to subclasses
+    }
 }
 
 const UserFunction *Engine::resolveMFile_(const std::string &name)
@@ -1883,8 +2052,13 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
                 classDef = ast.get();
             }
             if (classDef) {
-                registerClassDef(classDef);
-                const std::string cn = leafName;
+                // Register under the QUALIFIED lookup name so a `+pkg/Name.m`
+                // class is identified as `pkg.Name` (class()/isa()/registry keys)
+                // — the source node carries only the leaf. The ctor external and
+                // mFileCache_ key below already use the qualified `name`, so all
+                // three now agree (clear/rehash evict cleanly).
+                registerClassDef(classDef, name);
+                const std::string cn = name;
                 registerFunction(name, [cn](Span<const Value> args, size_t, Span<Value> outs,
                                             CallContext &ctx) {
                     const BuiltinClass *c = ctx.engine->findClass(cn);

@@ -854,13 +854,25 @@ ASTNodePtr Parser::parseClassDef()
 
     node->strValue = consume(TokenType::IDENTIFIER, "class name").value;
 
-    // Superclasses: `< Base1 & Base2 & ...` → paramNames.
+    // Superclasses: `< Base1 & Base2 & ...` → paramNames. A superclass may be
+    // a package-qualified name (`< pkg.sub.Base`), so read a dotted run, not a
+    // single identifier — otherwise the trailing `.Base` falls through to the
+    // body parser and errors as a missing block.
+    auto parseSuperclassName = [&]() -> std::string {
+        std::string name = consume(TokenType::IDENTIFIER, "superclass").value;
+        while (check(TokenType::DOT)) {
+            advance();
+            name += '.';
+            name += consume(TokenType::IDENTIFIER, "superclass").value;
+        }
+        return name;
+    };
     if (check(TokenType::LT)) {
         advance();
-        node->paramNames.push_back(consume(TokenType::IDENTIFIER, "superclass").value);
+        node->paramNames.push_back(parseSuperclassName());
         while (check(TokenType::AND)) {
             advance();
-            node->paramNames.push_back(consume(TokenType::IDENTIFIER, "superclass").value);
+            node->paramNames.push_back(parseSuperclassName());
         }
     }
     skipTerminators();
