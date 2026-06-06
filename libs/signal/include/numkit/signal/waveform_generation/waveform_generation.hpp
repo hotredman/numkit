@@ -5,9 +5,9 @@
 #pragma once
 
 #include <memory_resource>
-#include <numkit/core/fn_handle.hpp>
-#include <numkit/core/span.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/fn_handle.hpp>
+#include <numkit/value/span.hpp>
+#include <numkit/value/value.hpp>
 
 #include <string>
 

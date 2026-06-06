@@ -9,7 +9,7 @@
 #include "compare.hpp"
 
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include "helpers.hpp"
 

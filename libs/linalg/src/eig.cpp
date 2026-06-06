@@ -21,8 +21,8 @@
 #include <numkit/builtin/language/arrays/matrix.hpp>  // (header path; symbols moved)
 #include <numkit/builtin/language/operators/binary_ops.hpp>  // mtimes (eig(A,B))
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

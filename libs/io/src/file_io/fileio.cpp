@@ -8,7 +8,7 @@
 #include <numkit/io/file_io/fileio.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "io_helpers.hpp"

@@ -1,9 +1,9 @@
 // include/heap_object.hpp
 #pragma once
 
-#include <numkit/core/data_buffer.hpp>
-#include <numkit/core/dims.hpp>
-#include <numkit/core/value_type.hpp>
+#include <numkit/value/data_buffer.hpp>
+#include <numkit/value/dims.hpp>
+#include <numkit/value/value_type.hpp>
 
 #include <atomic>
 #include <map>

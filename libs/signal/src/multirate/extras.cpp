@@ -9,7 +9,7 @@
 #include <numkit/signal/multirate/extras.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/signal/digital_filtering/filter.hpp>
 #include <numkit/signal/filter_design/filter_design.hpp>   // firls

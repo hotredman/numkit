@@ -6,7 +6,7 @@
 
 #include <limits>
 #include <memory_resource>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include <tuple>
 

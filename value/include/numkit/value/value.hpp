@@ -1,7 +1,7 @@
 #pragma once
 
-#include <numkit/core/heap_object.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/heap_object.hpp>
+#include <numkit/value/span.hpp>
 
 #include <array>
 #include <atomic>

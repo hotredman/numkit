@@ -5,7 +5,7 @@
 #include <numkit/signal/convolution/extras.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/signal/convolution/convolution.hpp>     // xcorr
 #include <numkit/signal/transforms/fft.hpp>              // fft / ifft

@@ -7,7 +7,7 @@
 
 #include <memory_resource>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 
 // Private headers — exposed via libs/signal/src include path in the

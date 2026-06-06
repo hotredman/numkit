@@ -16,9 +16,9 @@
 #include <numkit/comm/coding/blockcoding.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include <algorithm>
 #include <cctype>

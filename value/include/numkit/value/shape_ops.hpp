@@ -1,4 +1,4 @@
-// core/include/numkit/core/shape_ops.hpp
+// core/include/numkit/value/shape_ops.hpp
 //
 // Pure-function helpers for ND tensor shape ops: broadcasting, strides,
 // coord-walking. Used by builtin and DSP ops that need to generalise
@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include <numkit/core/dims.hpp>
+#include <numkit/value/dims.hpp>
 
 #include <algorithm>
 #include <cstddef>

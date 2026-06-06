@@ -3,7 +3,7 @@
 #pragma once
 
 #include <memory_resource>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <string>
 
 namespace numkit::wavelet {

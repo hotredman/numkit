@@ -19,7 +19,7 @@
 #include <numkit/core/bytecode.hpp>
 #include <numkit/core/debugger.hpp>
 #include <numkit/core/debug_workspace.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/core/vm.hpp>
 
 #include <memory>

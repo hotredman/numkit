@@ -10,7 +10,7 @@
 #include <numkit/linalg/decompositions.hpp>     // qr_decompose, svd_decompose
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

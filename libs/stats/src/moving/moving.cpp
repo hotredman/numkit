@@ -9,7 +9,7 @@
 #include <numkit/stats/moving/moving.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"            // createLike, createForDims (libs/builtin/src/)

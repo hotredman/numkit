@@ -7,7 +7,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include <cctype>
 #include <cmath>

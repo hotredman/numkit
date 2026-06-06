@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 
 #include <cstddef>
 #include <memory_resource>

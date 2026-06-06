@@ -10,7 +10,7 @@
 #include <numkit/builtin/language/operators/binary_ops.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 

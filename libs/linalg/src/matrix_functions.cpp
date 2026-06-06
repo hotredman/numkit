@@ -8,8 +8,8 @@
 #include <numkit/linalg/eig.hpp>                  // eig_symmetric
 #include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

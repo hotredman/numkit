@@ -5,8 +5,8 @@
 #pragma once
 
 #include <memory_resource>
-#include <numkit/core/span.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/span.hpp>
+#include <numkit/value/value.hpp>
 
 #include <numkit/builtin/math/random/matlab_mt19937.hpp>
 

@@ -1,5 +1,5 @@
 // core/src/value_type.cpp
-#include <numkit/core/value_type.hpp>
+#include <numkit/value/value_type.hpp>
 
 namespace numkit {
 

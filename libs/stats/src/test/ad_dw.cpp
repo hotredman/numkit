@@ -12,7 +12,7 @@
 #include <numkit/linalg/eig.hpp>   // eig_symmetric — exact DW p-value (Imhof)
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

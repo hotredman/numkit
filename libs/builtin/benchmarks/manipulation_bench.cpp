@@ -13,7 +13,7 @@
 #include <numkit/builtin/language/arrays/nd_manip.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 

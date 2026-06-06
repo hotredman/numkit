@@ -6,7 +6,7 @@
 
 #include <memory_resource>
 #include <tuple>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 namespace numkit::linalg {
 

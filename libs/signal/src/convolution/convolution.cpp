@@ -7,9 +7,9 @@
 #include <numkit/signal/convolution/convolution.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value_type.hpp>
+#include <numkit/value/value_type.hpp>
 
 #include "../dsp_helpers.hpp"
 

@@ -8,7 +8,7 @@
 #include <numkit/builtin/math/random/rng.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

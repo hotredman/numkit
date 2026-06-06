@@ -8,7 +8,7 @@
 #include <numkit/builtin/math/interp/interp.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 

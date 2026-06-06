@@ -1,6 +1,6 @@
-#include <numkit/core/shape_ops.hpp>
-#include <numkit/core/value.hpp>
-#include <numkit/core/object.hpp> // ObjectState (deepCopy) for object arrays
+#include <numkit/value/shape_ops.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/object.hpp> // ObjectState (deepCopy) for object arrays
 #include <algorithm>
 #include <cmath>
 #include <cstring>

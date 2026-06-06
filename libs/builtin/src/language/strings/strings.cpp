@@ -10,7 +10,7 @@
 #include <numkit/builtin/language/strings/format.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"

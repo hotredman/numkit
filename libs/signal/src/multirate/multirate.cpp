@@ -3,7 +3,7 @@
 #include <numkit/signal/multirate/multirate.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #define _USE_MATH_DEFINES

@@ -25,7 +25,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/environment.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/fs/vfs.hpp>
 
 #include <cstdint>

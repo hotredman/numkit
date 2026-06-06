@@ -3,7 +3,7 @@
 #include <numkit/signal/smoothing/sgolay.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"

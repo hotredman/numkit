@@ -5,8 +5,8 @@
 #include <numkit/builtin/language/strings/format.hpp>
 
 #include <memory_resource>
-#include <numkit/core/span.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/span.hpp>
+#include <numkit/value/value.hpp>
 
 #include <cmath>
 #include <limits>

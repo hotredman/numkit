@@ -6,9 +6,9 @@
 #include <numkit/linalg/vector_ops.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value_type.hpp>
+#include <numkit/value/value_type.hpp>
 
 #include <cmath>
 #include <complex>
