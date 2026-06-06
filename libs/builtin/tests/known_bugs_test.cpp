@@ -320,3 +320,11 @@ TEST_F(BuiltinKnownBug, AccumarrayIntegerVals)
     EXPECT_DOUBLE_EQ(evalScalar("isa(lg,'double')"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("lg(1)"), 2.0);
 }
+
+// bugs/builtin/interpn-nan.md — interpn 1-D grid-vector query returns NaN
+// (2-D/3-D dispatch works; 1-D + 4+-D broken). Migrated from old BUGS.md #31.
+TEST_F(BuiltinKnownBug, DISABLED_InterpnOneDimNaN)
+{
+    // MATLAB: interpn([1 2 3],[1 4 9],2.5) = 6.5 (linear). numkit -> NaN.
+    EXPECT_NEAR(evalScalar("interpn([1 2 3], [1 4 9], 2.5)"), 6.5, 1e-12);
+}

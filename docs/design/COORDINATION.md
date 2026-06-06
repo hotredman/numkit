@@ -15,7 +15,7 @@ merge cadence; workers only push their own feature branches.
 | Worker | Territory (exclusive write) | Branch (suggested) | Worktree path |
 |---|---|---|---|
 | **CORE** | `core/` (engine, parser, lexer, compiler, VM, TreeWalker, AST, value, environment, debugger, vfs, scratch) · `core/tests/` · top-level `tests/` · `core/CMakeLists.txt` · `NAMESPACE_DESIGN.md` | `main` (or `feature/core` for big refactors) | `numkit-m/` (main worktree) |
-| **LIBS-`<area>`** (1+ workers) | `libs/<area>/` for one or more areas (signal / stats / image / comm / control / wavelet / graphics / io / optim / builtin / fitting). Includes `include/`, `src/`, `tests/`, `benchmarks/`, and the per-lib `CMakeLists.txt`. Plus `tools/parity/` · `PROGRESS.md` · `BUGS.md` | `feature/libs-<area>` | `numkit-m-libs-<area>/` |
+| **LIBS-`<area>`** (1+ workers) | `libs/<area>/` for one or more areas (signal / stats / image / comm / control / wavelet / graphics / io / optim / builtin / fitting). Includes `include/`, `src/`, `tests/`, `benchmarks/`, and the per-lib `CMakeLists.txt`. Plus `tools/parity/` (PROGRESS.md / BENCHMARK.md) · `bugs/` | `feature/libs-<area>` | `numkit-m-libs-<area>/` |
 | **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `docs/` (GitHub Pages output) · `brand/` · scripts in `scripts/`: dev / desktop / deploy / build-desktop / build (the `--wasm` path) | `feature/ide` | `numkit-m-ide/` |
 
 Multiple LIBS-workers can run concurrently — each owns one or more libs by
@@ -43,7 +43,7 @@ others. The rule:
 | `CMakePresets.json` | mostly CORE | Full build + tests |
 | `README.md` | all | Append-style sections |
 | `MEMORY.md` (index) | all | Append-only list of links; do not reorder |
-| `BUGS.md` | LIBS workers (file new entries) and CORE (file kernel bugs) | Append; if two workers race on the same `## N.` number, renumber one |
+| `bugs/` | LIBS + CORE workers file bugs | One `.md` per bug under `bugs/<ns>/`; no number collisions |
 | `PROGRESS.md` | LIBS workers via `tools/parity/run_parity.py` (rewrites rows in place) | Row-level updates rarely overlap; if they do, accept whichever ran last |
 | `.gitignore` / `.gitattributes` / `.claude/settings.json` | any | Append-only |
 
@@ -111,7 +111,7 @@ git push origin --delete feature/libs-signal   # remote (if pushed)
 - For a libc++-incompatible change (e.g. `std::cyl_bessel_*`,
   `std::format` other than the basics): WASM build (`scripts/build.bat --wasm`)
   must succeed. Emscripten ships libc++ which lacks several optional
-  C++17/20 features. See BUGS.md #36 for what NOT to do.
+  C++17/20 features. See the retired BUGS.md #36 (git history) for what NOT to do.
 
 ### Pushing
 
