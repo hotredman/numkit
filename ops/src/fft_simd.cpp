@@ -11,11 +11,11 @@
 // kernel based on the size predicate (pow-of-4, pow-of-8, …) and
 // hands off through the per-kernel dispatcher exported from each TU.
 
-#include "fft_kernels.hpp"
+#include <numkit/ops/fft_kernels.hpp>
 
 #include <cstddef>
 
-namespace numkit::signal::detail {
+namespace numkit::ops::detail {
 
 // Forward decls for the per-kernel dispatchers exported from the
 // individual radix files. Each is a HWY_DYNAMIC_DISPATCH wrapper
@@ -134,4 +134,4 @@ void fftSoaStagesDispatch(double *re, double *im, std::size_t N, const Complex *
 #endif
 }
 
-} // namespace numkit::signal::detail
+} // namespace numkit::ops::detail
