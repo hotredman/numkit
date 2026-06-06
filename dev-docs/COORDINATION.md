@@ -1,10 +1,15 @@
 # Parallel Worker Coordination
 
-> **Status (2026-06): DORMANT — single-session mode.** Right now ONE Claude
-> session works the whole tree; the A/B territory split described below is
-> inactive. The "libs/ only" convention some loops use is a *scope* choice,
-> not a territory boundary. Re-read and re-activate this protocol only when
-> two or more sessions actually run in parallel again.
+> **Status (2026-06): ACTIVE — parallel multi-worktree model.** Work runs in
+> three worktrees, one chat per directory/territory:
+> `numkit-m-core` (`core-dev`, owns `core/`), `numkit-m-ide` (`ide-dev`, owns
+> `ide/` + `wasm/`), `numkit-m-lib` (`lib-dev`, owns `libs/`). `numkit-m/` is
+> the **base** — it holds the shared `.git` and stays on `main` (the
+> integration branch + the user's view); it is not a work dir.
+>
+> **HARD RULE: a chat merges/pushes its branch into `main` ONLY on the user's
+> explicit command — never auto-fast-forward.** Each chat commits to its own
+> branch, pushes that branch for visibility, and waits.
 
 This repository can be worked on by **multiple parallel Claude sessions**
 ("workers"), each owning a defined territory. Read this before touching
@@ -18,14 +23,18 @@ merge cadence; workers only push their own feature branches.
 
 ## Worker types
 
-| Worker | Territory (exclusive write) | Branch (suggested) | Worktree path |
+| Worker | Territory (exclusive write) | Branch | Worktree path |
 |---|---|---|---|
-| **CORE** | `core/` (engine, parser, lexer, compiler, VM, TreeWalker, AST, value, environment, debugger, vfs, scratch) · `core/tests/` · top-level `tests/` · `core/CMakeLists.txt` · `NAMESPACE_DESIGN.md` | `main` (or `feature/core` for big refactors) | `numkit-m/` (main worktree) |
-| **LIBS-`<area>`** (1+ workers) | `libs/<area>/` for one or more areas (signal / stats / image / comm / control / wavelet / graphics / io / optim / builtin / fitting). Includes `include/`, `src/`, `tests/`, `benchmarks/`, and the per-lib `CMakeLists.txt`. Plus `tools/parity/` (PROGRESS.md / BENCHMARK.md) · `bugs/` | `feature/libs-<area>` | `numkit-m-libs-<area>/` |
-| **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `docs/` (GitHub Pages output) · `brand/` · scripts in `scripts/`: dev / desktop / deploy / build-desktop / build (the `--wasm` path) | `feature/ide` | `numkit-m-ide/` |
+| **CORE** | `core/` (engine, parser, lexer, compiler, VM, TreeWalker, AST, value, environment, debugger, vfs, scratch) · `core/tests/` · top-level `tests/` · `core/CMakeLists.txt` · `NAMESPACE_DESIGN.md` | `core-dev` | `numkit-m-core/` |
+| **LIBS** | all of `libs/` (signal / stats / image / comm / control / wavelet / graphics / io / optim / builtin / fitting): `include/`, `src/`, `tests/`, `benchmarks/`, per-lib `CMakeLists.txt`. Plus `tools/parity/` (PROGRESS.md / BENCHMARK.md) · `bugs/` | `lib-dev` | `numkit-m-lib/` |
+| **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `brand/` · scripts in `scripts/`: dev / desktop / deploy / build-desktop / build (the `--wasm` path) | `ide-dev` | `numkit-m-ide/` |
 
-Multiple LIBS-workers can run concurrently — each owns one or more libs by
-name, never the same lib as another. Example split for a busy session:
+`numkit-m/` (the base, on `main`) is the integration target, not a worker.
+
+Currently a single LIBS worker (`lib-dev` in `numkit-m-lib/`) owns all of
+`libs/`. If `libs/` work ever needs to fan out across concurrent chats, split
+by lib name — each chat owning disjoint libs (never the same lib as another),
+on its own branch + worktree. Example split:
 
 - LIBS-signal — `libs/signal/`
 - LIBS-image — `libs/image/`
