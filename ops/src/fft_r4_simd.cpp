@@ -5,19 +5,19 @@
 // r4 butterfly and its base-4 digit-reversal away from the r2 / r8
 // kernels lets MSVC inline within each file's budget.
 
-#include "fft_kernels.hpp"
+#include <numkit/ops/fft_kernels.hpp>
 
 #include <cstddef>
 #include <utility>
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "transforms/backends/fft_r4_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft_r4_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::signal {
+namespace numkit::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -161,12 +161,12 @@ void Radix4Pow4(Complex *buf, std::size_t N, const Complex *W)
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::signal
+} // namespace numkit::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::signal::detail {
+namespace numkit::ops::detail {
 
 HWY_EXPORT(Radix4Pow4);
 
@@ -175,6 +175,6 @@ void fftRadix4Pow4Dispatch(Complex *buf, std::size_t N, const Complex *W)
     HWY_DYNAMIC_DISPATCH(Radix4Pow4)(buf, N, W);
 }
 
-} // namespace numkit::signal::detail
+} // namespace numkit::ops::detail
 
 #endif // HWY_ONCE

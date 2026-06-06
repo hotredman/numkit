@@ -58,19 +58,9 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/windows/windows.cpp
 )
 
-# Backend-split FFT kernel — the SIMD path itself splits across
-# several TUs (one per radix family) so MSVC's per-TU inliner
-# budget isn't shared across butterflies; see
-# feedback_fft_msvc_limits memory for the rationale.
-if(NUMKIT_WITH_SIMD)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_r2_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_r4_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_stockham_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_r2_soa_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_r4_soa_simd.cpp)
-else()
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_portable.cpp)
-endif()
+# The backend-split FFT kernel (radix-2/4 / Stockham / SoA, portable + SIMD
+# TUs) moved to ops/ (numkit_ops) — a reusable raw-buffer transform primitive.
+# transforms/fft.cpp (the Value-level fft/ifft) stays here and calls it via the
+# numkit::signal::detail re-export shim (backends/fft_kernels.hpp).
 
 set(SIGNALLIB_SOURCES ${SIGNALLIB_SOURCES} PARENT_SCOPE)

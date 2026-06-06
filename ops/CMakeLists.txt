@@ -21,11 +21,21 @@ endif()
 if(NUMKIT_WITH_SIMD)
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_highway.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_highway.cpp
+        # Backend-split FFT kernel — the SIMD path splits across several TUs
+        # (one per radix family) so MSVC's per-TU inliner budget isn't shared
+        # across butterflies; see feedback_fft_msvc_limits memory.
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_r2_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_r4_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_stockham_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_r2_soa_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_r4_soa_simd.cpp)
 else()
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_portable.cpp)
 endif()
 
 add_library(numkit_ops STATIC ${NUMKIT_OPS_SOURCES})
