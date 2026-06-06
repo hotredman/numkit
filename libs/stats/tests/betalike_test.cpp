@@ -14,7 +14,7 @@ using namespace numkit;
 class BetalikeTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");

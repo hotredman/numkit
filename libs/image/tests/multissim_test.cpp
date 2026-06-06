@@ -16,7 +16,7 @@ using namespace numkit;
 class MultiSSIMTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override
     {
         engine.eval(

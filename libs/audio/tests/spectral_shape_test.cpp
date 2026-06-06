@@ -13,7 +13,7 @@ using namespace numkit;
 class SpectralShapeTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("X = [4; 3; 2; 1]; F = [100; 200; 300; 400];");

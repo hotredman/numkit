@@ -17,7 +17,7 @@ using namespace numkit;
 class ImReduceHazeTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override
     {
         engine.eval(

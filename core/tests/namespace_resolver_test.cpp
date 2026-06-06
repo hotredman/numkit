@@ -31,7 +31,7 @@ void answer_reg(Span<const Value>, size_t, Span<Value> outs, CallContext &ctx)
 class NamespaceResolverTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StdEngine engine;
 
     void SetUp() override
     {

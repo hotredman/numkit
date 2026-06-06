@@ -25,7 +25,7 @@ namespace {
 class PackageNamespaceTest : public ::testing::TestWithParam<Engine::Backend>
 {
 protected:
-    Engine engine;
+    StdEngine engine;
     std::filesystem::path workDir;
 
     void SetUp() override

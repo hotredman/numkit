@@ -12,7 +12,7 @@ using namespace numkit;
 class DemodTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("fs = 200; t = (0:1/fs:0.1)'; x = sin(2*pi*5*t);");

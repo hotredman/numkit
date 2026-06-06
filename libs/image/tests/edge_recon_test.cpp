@@ -26,7 +26,7 @@ using namespace numkit;
 class EdgeReconTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     Value eval(const std::string &c) { return engine.eval(c); }
     double sc(const std::string &c) { return eval(c).toScalar(); }

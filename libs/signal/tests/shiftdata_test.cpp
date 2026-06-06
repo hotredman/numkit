@@ -11,7 +11,7 @@ using namespace numkit;
 class ShiftDataTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("A = [1 2 3; 4 5 6; 7 8 9];");

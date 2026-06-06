@@ -15,7 +15,7 @@
 class BwmorphTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     void   SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("BW = logical([0 0 0 0 0;"

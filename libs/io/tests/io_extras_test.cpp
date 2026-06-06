@@ -16,7 +16,7 @@ using namespace numkit;
 class IoExtrasTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     std::string capturedOut;
     std::filesystem::path tmpFile;
 

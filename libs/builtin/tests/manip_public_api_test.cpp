@@ -23,7 +23,7 @@ Value mvar(Engine &e, const char *expr, const char *name)
 
 TEST(ManipPublicApi, Sub2ind)
 {
-    Engine e;
+    StdEngine e;
     Value siz = mvar(e, "[3 4]", "siz");
     // scalar subscripts: (row 2, col 3) in a 3x4 array -> linear 8
     std::vector<Value> subs1 = {mvar(e, "2", "r"), mvar(e, "3", "c")};
@@ -44,7 +44,7 @@ TEST(ManipPublicApi, Sub2ind)
 
 TEST(ManipPublicApi, Ind2sub)
 {
-    Engine e;
+    StdEngine e;
     Value siz = mvar(e, "[3 4]", "siz");
     // scalar ind, nout defaults to numel(siz) = 2 -> (row 2, col 3)
     std::vector<Value> rs = builtin::ind2sub(siz, mvar(e, "8", "ind"));

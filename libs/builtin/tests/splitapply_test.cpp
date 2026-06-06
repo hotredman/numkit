@@ -12,7 +12,7 @@ using namespace numkit;
 class SplitApplyTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("g = [1 2 1 2 1]; x = [10 20 30 40 50];");
     }

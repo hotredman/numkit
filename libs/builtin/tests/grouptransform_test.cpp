@@ -12,7 +12,7 @@ using namespace numkit;
 class GroupTransformTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("A = [10; 20; 30; 40; 50]; G = [1; 2; 1; 2; 1];");
     }

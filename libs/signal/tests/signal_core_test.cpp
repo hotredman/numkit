@@ -14,7 +14,7 @@ using namespace numkit;
 class SignalCoreTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     std::string capturedOutput;
 
     void SetUp() override

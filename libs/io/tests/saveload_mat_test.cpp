@@ -23,7 +23,7 @@ using namespace numkit;
 class SaveLoadMatTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     std::filesystem::path matPath;
 
     void SetUp() override

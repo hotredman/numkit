@@ -21,7 +21,7 @@ Value wv(Engine &e, const char *expr, const char *name)
 
 TEST(WextendPublicApi, OneD)
 {
-    Engine e;
+    StdEngine e;
     Value x = wv(e, "[1 2 3 4 5]", "x");
     Value t1 = wv(e, "1", "t1");
     // 'sym' both, lf=2 -> [2 1 | 1 2 3 4 5 | 5 4]  (side "b", mr defaulted)
@@ -48,7 +48,7 @@ TEST(WextendPublicApi, OneD)
 
 TEST(WextendPublicApi, TwoD)
 {
-    Engine e;
+    StdEngine e;
     Value M = wv(e, "[1 2; 3 4]", "M");
     // type 2, zpd, lf=1 both axes -> 4x4
     Value y2 = wavelet::wextend(wv(e, "2", "t2"), "zpd", M, 1, "b", e.resource());

@@ -14,7 +14,7 @@ using namespace numkit;
 class CdfUpperTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

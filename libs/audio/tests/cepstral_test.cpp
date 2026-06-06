@@ -11,7 +11,7 @@ using namespace numkit;
 class CepstralTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("S = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05];");

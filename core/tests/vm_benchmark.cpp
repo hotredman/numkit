@@ -18,7 +18,7 @@ using namespace numkit;
 class VMBenchmark : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     Compiler compiler{engine};
     VM vm{engine};
 

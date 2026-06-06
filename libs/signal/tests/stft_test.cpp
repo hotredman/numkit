@@ -11,7 +11,7 @@
 class StftTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     void   SetUp() override {
         engine.eval("import compat.*;");
         engine.eval("x = sin(2*pi*0.05*(0:511));");

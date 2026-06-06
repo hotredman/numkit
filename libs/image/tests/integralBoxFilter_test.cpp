@@ -9,7 +9,7 @@
 class IntegralBoxFilterTest : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");
@@ -107,7 +107,7 @@ TEST_F(IntegralBoxFilterTest, UnknownNVKeyThrows)
 class IntegralBoxFilter3Test : public ::testing::Test
 {
 public:
-    numkit::Engine engine;
+    numkit::StdEngine engine;
     void SetUp() override
     {
         engine.eval("import compat.*;");

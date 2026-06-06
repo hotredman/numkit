@@ -18,7 +18,7 @@ using namespace numkit;
 class WindowsExtrasTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StdEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }

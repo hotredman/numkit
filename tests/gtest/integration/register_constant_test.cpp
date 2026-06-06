@@ -154,7 +154,7 @@ INSTANTIATE_DUAL(RegisterConstantTest);
 
 TEST(RegisterConstantDebugTest, HiddenFromDebugSnapshot)
 {
-    Engine engine;
+    StdEngine engine;
     engine.registerConstant("G", Value::scalar(6.674e-11, engine.resource()));
     engine.setOutputFunc([](const std::string &) {});
 
@@ -175,7 +175,7 @@ TEST(RegisterConstantDebugTest, HiddenFromDebugSnapshot)
 
 TEST(RegisterConstantDebugTest, ShadowingRegisteredConstantInScriptShowsInSnapshot)
 {
-    Engine engine;
+    StdEngine engine;
     engine.registerConstant("G", Value::scalar(6.674e-11, engine.resource()));
     engine.setOutputFunc([](const std::string &) {});
 
@@ -201,7 +201,7 @@ TEST(RegisterConstantDebugTest, ShadowingRegisteredConstantInScriptShowsInSnapsh
 
 TEST(RegisterConstantDebugTest, ShadowingFromConsoleShowsInSnapshot)
 {
-    Engine engine;
+    StdEngine engine;
     engine.registerConstant("G", Value::scalar(6.674e-11, engine.resource()));
     engine.setOutputFunc([](const std::string &) {});
 
