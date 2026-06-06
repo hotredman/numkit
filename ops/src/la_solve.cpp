@@ -1,6 +1,6 @@
 // libs/builtin/src/language/operators/la_solve.cpp
 
-#include "la_solve.hpp"
+#include <numkit/ops/la_solve.hpp>
 
 #include <numkit/value/scratch.hpp>
 
@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstdint>
 
-namespace numkit::builtin::detail {
+namespace numkit::ops {
 
 namespace {
 
@@ -174,4 +174,4 @@ bool la_solve(const double *A, std::size_t m, std::size_t n, const double *B, st
     return qr_solve_house(A_qr.data(), m, n, B_qr.data(), nrhs, X, &arena);
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::ops
