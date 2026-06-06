@@ -1,8 +1,13 @@
 // ops/include/numkit/ops/value_factory.hpp
 //
-// Small Value-shape factories shared by the op kernels. Built only on the
-// Value substrate (value.hpp) — no engine, no toolbox. The element-wise
-// kernels use these to allocate a result Value matching an input's shape.
+// Value-shape factories shared by the op kernels and the toolboxes: allocate a
+// Value of a given shape/type. Built only on the Value substrate (value.hpp) —
+// no engine, no toolbox — so they live at the L0.5 ops layer and every layer
+// above can use them.
+//
+// (Historically in libs/builtin/src/helpers.hpp under namespace numkit;
+// helpers.hpp now re-exports these into numkit:: so existing unqualified
+// callers are unaffected.)
 
 #pragma once
 
@@ -13,10 +18,24 @@
 
 namespace numkit::ops {
 
-// Create a (zero-filled) Value of `src`'s shape with the given element type.
-inline Value createLike(const Value &src, ValueType type, std::pmr::memory_resource *mr)
+// 2D/3D shape descriptor for createMatrix (pages == 0 → 2D).
+struct DimsArg
 {
-    const Dims &d = src.dims();
+    std::size_t rows = 1, cols = 1, pages = 0;
+};
+
+// Create a zero matrix / 3D array with the given dimensions + element type.
+inline Value createMatrix(DimsArg d, ValueType type, std::pmr::memory_resource *mr)
+{
+    if (d.pages > 0)
+        return Value::matrix3d(d.rows, d.cols, d.pages, type, mr);
+    return Value::matrix(d.rows, d.cols, type, mr);
+}
+
+// Allocate a Value with the given Dims, picking the rank-appropriate ctor
+// (matrix / matrix3d / matrixND).
+inline Value createForDims(const Dims &d, ValueType type, std::pmr::memory_resource *mr)
+{
     const int nd = d.ndim();
     if (nd >= 4) {
         std::size_t dims[Dims::kMaxRank];
@@ -24,9 +43,15 @@ inline Value createLike(const Value &src, ValueType type, std::pmr::memory_resou
             dims[i] = d.dim(i);
         return Value::matrixND(dims, nd, type, mr);
     }
-    if (d.is3D())
-        return Value::matrix3d(d.rows(), d.cols(), d.pages(), type, mr);
-    return Value::matrix(d.rows(), d.cols(), type, mr);
+    return createMatrix({d.rows(), d.cols(), d.is3D() ? d.pages() : 0}, type, mr);
+}
+
+// Allocate a Value with the same shape as `src`, optionally of a different
+// type. Required for any elementwise output (a numel()-into-2D allocation
+// corrupts the heap when src is 3D+).
+inline Value createLike(const Value &src, ValueType type, std::pmr::memory_resource *mr)
+{
+    return createForDims(src.dims(), type, mr);
 }
 
 } // namespace numkit::ops
