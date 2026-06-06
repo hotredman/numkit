@@ -3,7 +3,7 @@
 // Direct C++ API guard for the bit accessors lifted from adapter-only to
 // public typed entry points: numkit::builtin::bitget and bitset (the
 // latter now takes its optional value as const Value& = Value::Empty per
-// docs/LIBRARY_API.md, replacing the old const Value* parameter).
+// dev/LIBRARY_API.md, replacing the old const Value* parameter).
 
 #include <numkit/builtin/language/bitwise/int_math.hpp>
 #include <numkit/core/engine.hpp>

@@ -120,7 +120,7 @@ endif()
 # libs/CMakeLists.txt   exports NUMKIT_LIBS_SOURCES / NUMKIT_LIBS_HEADERS
 #                              / NUMKIT_LIBS_INCLUDE_DIRS
 # Each lib has its own libs/<name>/CMakeLists.txt for per-lib worker
-# ownership (see docs/design/COORDINATION.md).
+# ownership (see dev/design/COORDINATION.md).
 
 add_subdirectory(core)
 add_subdirectory(libs)
@@ -376,7 +376,7 @@ include(cmake/Doxygen.cmake)
 
 # ── API lint ─────────────────────────────────────────────────────────
 # `lint` target — checks libs/* public headers against the mechanically
-# checkable subset of docs/LIBRARY_API.md (no Engine in signatures, mr
+# checkable subset of dev/LIBRARY_API.md (no Engine in signatures, mr
 # by pointer, no const Value*). Not wired into the default build; run
 # explicitly or from CI. Safe no-op if Python 3 is not found.
 find_package(Python3 COMPONENTS Interpreter QUIET)
@@ -385,6 +385,6 @@ if(Python3_FOUND)
         COMMAND ${Python3_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/lint/check_api.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Linting libs/* public API headers (docs/LIBRARY_API.md)"
+        COMMENT "Linting libs/* public API headers (dev/LIBRARY_API.md)"
         VERBATIM)
 endif()

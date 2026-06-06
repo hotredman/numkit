@@ -3,7 +3,7 @@
 // Exercises the PUBLIC C++ entry points of libs/builtin math/geom
 // (numkit::builtin::*) directly — no engine dispatch. Guards the lift of
 // geom primitives from adapter-only (`*_reg`, script-callable) to typed
-// C++ API functions per docs/LIBRARY_API.md. Inputs are built via a
+// C++ API functions per dev/LIBRARY_API.md. Inputs are built via a
 // throwaway Engine; the assertions call the C++ function itself.
 
 #include <numkit/builtin/math/geom/geom.hpp>
