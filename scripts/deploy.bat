@@ -4,11 +4,11 @@ setlocal
 set PROJECT_DIR=%~dp0..\
 set IDE_DIR=%PROJECT_DIR%ide
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
-set PAGES_DIR=%PROJECT_DIR%docs
+set DEPLOY_DIR=%PROJECT_DIR%deploy
 set EMSDK=C:\Users\User\Repo\emsdk
 set EMCC_DIR=%EMSDK%\upstream\emscripten
 
-echo === Numkit IDE Deploy to GitHub Pages ===
+echo === Numkit IDE Static Build -- output to deploy\ ===
 echo.
 
 :: Check Node.js
@@ -54,15 +54,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Copy to docs/ for GitHub Pages
-if exist "%PAGES_DIR%" rmdir /s /q "%PAGES_DIR%"
-mkdir "%PAGES_DIR%"
-xcopy /e /i /q "%IDE_DIR%\dist\*" "%PAGES_DIR%\" >nul
-echo.> "%PAGES_DIR%\.nojekyll"
+:: Copy the built site into deploy\ (local output dir; gitignored)
+if exist "%DEPLOY_DIR%" rmdir /s /q "%DEPLOY_DIR%"
+mkdir "%DEPLOY_DIR%"
+xcopy /e /i /q "%IDE_DIR%\dist\*" "%DEPLOY_DIR%\" >nul
+echo.> "%DEPLOY_DIR%\.nojekyll"
 
 echo.
-echo === Deploy complete! Files in docs/ ===
+echo === Build complete! Static IDE site in deploy\ ===
 echo.
-echo   git add docs/
-echo   git commit -m "Deploy to GitHub Pages"
-echo   git push
+echo deploy\ is gitignored. GitHub Pages is served from the separate IDE
+echo repo, not this one -- upload deploy\ to your host or serve it locally.
