@@ -28,7 +28,8 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/bitwise/int_math.cpp
     # math/ — MATLAB Mathematics
     ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/random/matlab_mt19937.cpp
+    # matlab_mt19937.cpp moved to ops/ (numkit_ops) — the MT19937 engine is a
+    # shared primitive; builtin's rng.cpp uses it via numkit::ops.
     ${CMAKE_CURRENT_SOURCE_DIR}/math/complex/complex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete.cpp

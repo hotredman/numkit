@@ -10,7 +10,8 @@
 # L0.5 layer: depends on numkit_value (Value), Highway (under SIMD) and
 # Threads (under NUMKIT_WITH_THREADS) — never on core, fs, or any toolbox.
 
-set(NUMKIT_OPS_SOURCES "")
+# Always-on primitives (no SIMD/threads gating).
+set(NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp)
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()
