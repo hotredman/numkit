@@ -13,7 +13,8 @@
 # Always-on primitives (no SIMD/threads gating).
 set(NUMKIT_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp)
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()
