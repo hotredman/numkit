@@ -1,4 +1,4 @@
-// core/include/numkit/core/data_buffer.hpp
+// core/include/numkit/value/data_buffer.hpp
 #pragma once
 
 #include <atomic>

@@ -5,7 +5,7 @@
 
 #include <numkit/builtin/math/poly/polynomials.hpp>      // tf2zp / zp2tf / roots
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/signal/filter_implementation/conversions.hpp>  // tf2sos
 

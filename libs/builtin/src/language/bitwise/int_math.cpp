@@ -12,7 +12,7 @@
 #include <numkit/builtin/language/types/types.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value_type.hpp>
+#include <numkit/value/value_type.hpp>
 
 #include "helpers.hpp"
 

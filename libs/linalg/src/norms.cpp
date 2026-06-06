@@ -10,7 +10,7 @@
 
 #include <numkit/linalg/decompositions.hpp> // svd_values
 #include <numkit/core/engine.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

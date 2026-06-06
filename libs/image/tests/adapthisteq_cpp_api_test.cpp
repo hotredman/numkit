@@ -4,7 +4,7 @@
 // numkit::image::adapthisteq directly from C++ without engine.eval,
 // using the AdaptHistEqOptions struct + the mr-last convention.
 
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/image/contrast/contrast.hpp>
 
 #include <gtest/gtest.h>

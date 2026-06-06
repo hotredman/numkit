@@ -9,7 +9,7 @@
 #include <numkit/builtin/math/discrete/discrete.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include <benchmark/benchmark.h>
 

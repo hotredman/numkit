@@ -13,7 +13,7 @@
 #include <numkit/builtin/math/random/rng.hpp>   // sharedEngine / rngMutex
 #include <numkit/builtin/math/special/special.hpp>  // betainc (used by mvtcdf d=1)
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "dist_helpers.hpp"

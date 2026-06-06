@@ -5,7 +5,7 @@
 #include <numkit/builtin/language/strings/print.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/shape_ops.hpp>
+#include <numkit/value/shape_ops.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cmath>

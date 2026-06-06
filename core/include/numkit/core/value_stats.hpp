@@ -12,7 +12,7 @@
 // blank the whole row. complex → magnitude, logical → 0/1. Variance is the
 // sample (N-1) form; mode is the smallest most-frequent value (MATLAB).
 
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <vector>
 #include <algorithm>
 #include <cmath>

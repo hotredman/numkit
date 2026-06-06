@@ -17,8 +17,8 @@
 #include <numkit/linalg/balance.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

@@ -14,7 +14,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/signal/digital_filtering/filter.hpp>
 #include <numkit/signal/digital_filtering/sosfilt.hpp>
 #include <numkit/signal/filter_design/filter_design.hpp>

@@ -1,5 +1,5 @@
 // src/dims.cpp
-#include <numkit/core/dims.hpp>
+#include <numkit/value/dims.hpp>
 
 #include <algorithm>
 #include <cstdlib>

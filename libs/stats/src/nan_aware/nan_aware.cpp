@@ -7,7 +7,7 @@
 #include <numkit/stats/nan_aware/nan_aware.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"

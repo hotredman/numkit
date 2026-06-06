@@ -11,8 +11,8 @@
 
 #include <numkit/builtin/language/arrays/matrix.hpp>  // reshape, horzcat, vertcat
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
-#include <numkit/core/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"

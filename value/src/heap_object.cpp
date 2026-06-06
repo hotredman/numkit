@@ -1,7 +1,7 @@
 // src/heap_object.cpp
-#include <numkit/core/heap_object.hpp>
-#include <numkit/core/object.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/heap_object.hpp>
+#include <numkit/value/object.hpp>
+#include <numkit/value/value.hpp>
 
 #include <cstring>
 

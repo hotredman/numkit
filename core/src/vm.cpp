@@ -1,7 +1,7 @@
 // src/vm.cpp
 #include <numkit/core/vm.hpp>
 #include <numkit/core/engine.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>

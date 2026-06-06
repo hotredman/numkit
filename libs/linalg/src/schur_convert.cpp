@@ -17,7 +17,7 @@
 #include <numkit/linalg/schur_convert.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

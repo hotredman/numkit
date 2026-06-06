@@ -12,7 +12,7 @@
 // library user would, ensuring the public surface compiles cleanly and
 // produces correct results without any interpreter involvement.
 
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/signal/filter_design/filter_design.hpp>
 
 #include <gtest/gtest.h>

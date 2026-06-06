@@ -4,7 +4,7 @@
 #include <numkit/signal/transforms/extras.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/signal/filter_analysis/unwrap.hpp>      // (used externally; not needed here)
 #include <numkit/signal/transforms/fft.hpp>

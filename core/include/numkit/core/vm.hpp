@@ -5,7 +5,7 @@
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/debugger.hpp>
 #include <numkit/core/environment.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 #include <exception>
 #include <memory>

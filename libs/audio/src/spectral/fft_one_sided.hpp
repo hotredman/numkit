@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <numkit/core/scratch.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 
 #include <complex>

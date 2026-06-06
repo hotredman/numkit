@@ -6,7 +6,7 @@
 
 #include <numkit/builtin/math/poly/polynomials.hpp>     // roots()
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/signal/digital_filtering/filter.hpp>   // filter()
 #include <numkit/signal/filter_analysis/frequency_response.hpp>  // freqz, phasez

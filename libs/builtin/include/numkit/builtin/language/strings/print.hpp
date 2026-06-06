@@ -1,8 +1,8 @@
 // libs/builtin/include/numkit/builtin/language/strings/print.hpp
 #pragma once
 
-#include <numkit/core/span.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/span.hpp>
+#include <numkit/value/value.hpp>
 
 #include <string>
 

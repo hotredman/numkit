@@ -8,10 +8,10 @@
 #include <numkit/core/build_info.hpp>
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
-#include <numkit/core/object.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/object.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/value_type.hpp>
+#include <numkit/value/value_type.hpp>
 #include <numkit/core/vm.hpp>
 
 #include <algorithm>

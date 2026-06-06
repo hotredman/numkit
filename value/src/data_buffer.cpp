@@ -1,5 +1,5 @@
 // core/src/data_buffer.cpp
-#include <numkit/core/data_buffer.hpp>
+#include <numkit/value/data_buffer.hpp>
 
 #include <new>
 #include <stdexcept>

@@ -8,7 +8,7 @@
 
 #include <memory_resource>
 #include <numkit/core/types.hpp>  // Error
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 
 // Private kernel-dispatch headers, exposed to this test target via

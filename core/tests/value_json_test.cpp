@@ -16,8 +16,8 @@
 
 #include <gtest/gtest.h>
 
-#include <numkit/core/value.hpp>
-#include <numkit/core/value_type.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/value_type.hpp>
 #include <numkit/core/value_stats.hpp>
 #include <numkit/core/value_json.hpp>
 

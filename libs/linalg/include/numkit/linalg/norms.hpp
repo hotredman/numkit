@@ -12,7 +12,7 @@
 #pragma once
 
 #include <memory_resource>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 namespace numkit::linalg {
 

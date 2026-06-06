@@ -4,7 +4,7 @@
 // the regression guard for the Workspace / struct-inspector "Bytes" column,
 // which previously showed 0 for any struct.
 #include <numkit/core/engine.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <gtest/gtest.h>
 
 class DeepBytesTest : public ::testing::Test {

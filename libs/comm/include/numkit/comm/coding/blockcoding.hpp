@@ -13,7 +13,7 @@
 
 #include <memory_resource>
 #include <string>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 
 namespace numkit::comm {
 

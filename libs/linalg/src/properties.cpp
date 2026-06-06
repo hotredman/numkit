@@ -15,8 +15,8 @@
 #include <numkit/linalg/norms.hpp>                // cond_pnorm uses norm_*
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
-#include <numkit/core/span.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>

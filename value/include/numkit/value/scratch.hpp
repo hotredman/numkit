@@ -1,4 +1,4 @@
-// core/include/numkit/core/scratch.hpp
+// core/include/numkit/value/scratch.hpp
 //
 // numkit memory layer — two thin classes over std::pmr.
 //

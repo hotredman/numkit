@@ -2,7 +2,7 @@
 
 #include "la_solve.hpp"
 
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>

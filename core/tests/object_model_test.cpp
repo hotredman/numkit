@@ -6,7 +6,7 @@
 // level construct / dispatch arrives in P2/P3.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/object.hpp>
+#include <numkit/value/object.hpp>
 #include <numkit/builtin/containers.hpp>
 #include <numkit/builtin/library.hpp>
 #include <gtest/gtest.h>

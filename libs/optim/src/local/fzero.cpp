@@ -14,7 +14,7 @@
 #include <numkit/optim/local/fzero.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../_callback_helpers.hpp"
