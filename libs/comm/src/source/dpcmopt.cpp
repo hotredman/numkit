@@ -19,10 +19,9 @@
 #include <numkit/comm/source/dpcmopt.hpp>
 #include <numkit/comm/source/lloyds.hpp>
 
-#include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cstddef>
 #include <tuple>
@@ -174,30 +173,5 @@ DpcmOptResult dpcmopt(const Value &training_set, int ord,
     result.codebook = std::move(codebook);
     return result;
 }
-
-namespace detail {
-
-void dpcmopt_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("dpcmopt: requires (training_set, ord [, ini_codebook])",
-                    0, 0, "dpcmopt", "", "numkit:dpcmopt:nargin");
-    auto *mr = ctx.engine->resource();
-    const int ord = static_cast<int>(args[1].toScalar());
-
-    const Value &ini = (args.size() >= 3 && !args[2].isEmpty())
-                          ? args[2] : Value::Empty;
-    if (ini.isEmpty() && nargout > 1)
-        throw Error("dpcmopt: ini_codebook required for codebook/partition outputs",
-                    0, 0, "dpcmopt", "", "numkit:dpcmopt:NeedIniCodebook");
-
-    auto res = dpcmopt(args[0], ord, ini, mr);
-    outs[0] = std::move(res.predictor);
-    if (nargout > 1) outs[1] = std::move(res.codebook);
-    if (nargout > 2) outs[2] = std::move(res.partition);
-}
-
-} // namespace detail
 
 } // namespace numkit::comm
