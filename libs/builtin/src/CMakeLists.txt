@@ -50,7 +50,8 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/reductions.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/reductions_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding.cpp # compute (engine-free)
