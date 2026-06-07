@@ -11,7 +11,8 @@ set(LINALGLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/norms_reg.cpp            # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/properties.cpp          # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/properties_reg.cpp      # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/decompositions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/decompositions.cpp      # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/decompositions_reg.cpp  # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/pseudo_subspace.cpp     # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/pseudo_subspace_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/balance.cpp             # compute (engine-free)
