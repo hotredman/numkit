@@ -20,8 +20,10 @@
 #include <numkit/control/lyapunov/lyapunov.hpp>
 #include <numkit/control/internal/numerics.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The lyap / dlyap
+// builtins (CallContext wrappers) live in lyapunov/lyapunov_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -165,25 +167,5 @@ Value dlyap(const Value &Av, const Value &Qv, std::pmr::memory_resource *mr)
             X[j * n + i] = x[i + n * j];
     return matFromVec(n, n, X, mr);
 }
-
-namespace detail {
-
-void lyap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
-{
-    if (a.size() < 2)
-        throw Error("lyap: requires (A, Q)",
-                    0, 0, "lyap", "", "numkit:lyap:nargin");
-    o[0] = lyap(a[0], a[1], c.engine->resource());
-}
-
-void dlyap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
-{
-    if (a.size() < 2)
-        throw Error("dlyap: requires (A, Q)",
-                    0, 0, "dlyap", "", "numkit:dlyap:nargin");
-    o[0] = dlyap(a[0], a[1], c.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::control
