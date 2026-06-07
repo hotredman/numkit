@@ -18,7 +18,8 @@ set(LINALGLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/balance_reg.cpp         # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/ldl.cpp                 # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/ldl_reg.cpp             # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/eig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eig.cpp                  # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eig_reg.cpp             # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions.cpp     # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/predicates.cpp          # compute (engine-free)

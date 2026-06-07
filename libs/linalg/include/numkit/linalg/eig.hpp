@@ -23,6 +23,14 @@ eig_symmetric(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @brief Eigenvalues only (`e = eig(A)` single-output form, symmetric).
 Value eig_values(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Approximate-symmetry test used to pick the symmetric (Jacobi)
+/// vs general (char-poly) eig path.
+///
+/// True iff `A` is square and every off-diagonal pair matches within
+/// `tol·(1 + max(|A(i,j)|, |A(j,i)|))`. Shared by `eig_symmetric`'s own
+/// guard and the eig register-side auto-dispatch.
+bool isSymmetricApprox(const Value &A, double tol);
+
 /// @brief Characteristic polynomial of a matrix (`p = poly(A)`).
 ///
 /// Souriau-Faddeev-LeVerrier. `roots(p) == eig(A)`.
