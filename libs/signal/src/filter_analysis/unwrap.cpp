@@ -5,8 +5,8 @@
 
 #include <numkit/signal/filter_analysis/unwrap.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "helpers.hpp"
 
@@ -35,18 +35,5 @@ Value unwrap(const Value &phase, std::pmr::memory_resource *mr)
     }
     return r;
 }
-
-// ── Engine adapter ────────────────────────────────────────────────────
-namespace detail {
-
-void unwrap_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("unwrap: requires 1 argument",
-                     0, 0, "unwrap", "", "numkit:unwrap:nargin");
-    outs[0] = unwrap(args[0], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::signal

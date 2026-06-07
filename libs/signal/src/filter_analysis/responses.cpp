@@ -5,9 +5,10 @@
 #include <numkit/signal/filter_analysis/responses.hpp>
 
 #include <numkit/builtin/math/poly/polynomials.hpp>     // roots()
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
+#include <tuple>
 #include <numkit/signal/digital_filtering/filter.hpp>   // filter()
 #include <numkit/signal/filter_analysis/frequency_response.hpp>  // freqz, phasez
 
@@ -176,72 +177,5 @@ zerophase(const Value &b, const Value &a, size_t n, std::pmr::memory_resource *m
     }
     return std::make_tuple(std::move(Hr), std::move(w));
 }
-
-namespace detail {
-
-void impz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("impz: requires at least 1 argument (b)",
-                     0, 0, "impz", "", "numkit:impz:nargin");
-    const Value &b = args[0];
-    Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
-    auto [h, t] = impz(b, a, n, ctx.engine->resource());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(t);
-}
-
-void impzlength_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("impzlength: requires at least 1 argument (b)",
-                     0, 0, "impzlength", "", "numkit:impzlength:nargin");
-    const Value &b = args[0];
-    Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    const size_t n = impzlength(b, a, ctx.engine->resource());
-    outs[0] = Value::scalar(static_cast<double>(n), ctx.engine->resource());
-}
-
-void stepz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("stepz: requires at least 1 argument (b)",
-                     0, 0, "stepz", "", "numkit:stepz:nargin");
-    const Value &b = args[0];
-    Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
-    auto [s, t] = stepz(b, a, n, ctx.engine->resource());
-    outs[0] = std::move(s);
-    if (nargout > 1) outs[1] = std::move(t);
-}
-
-void phasedelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("phasedelay: requires at least 1 argument (b)",
-                     0, 0, "phasedelay", "", "numkit:phasedelay:nargin");
-    const Value &b = args[0];
-    Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [pd, w] = phasedelay(b, a, n, ctx.engine->resource());
-    outs[0] = std::move(pd);
-    if (nargout > 1) outs[1] = std::move(w);
-}
-
-void zerophase_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("zerophase: requires at least 1 argument (b)",
-                     0, 0, "zerophase", "", "numkit:zerophase:nargin");
-    const Value &b = args[0];
-    Value a = (args.size() >= 2) ? args[1] : Value::scalar(1.0, ctx.engine->resource());
-    size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [Hr, w] = zerophase(b, a, n, ctx.engine->resource());
-    outs[0] = std::move(Hr);
-    if (nargout > 1) outs[1] = std::move(w);
-}
-
-} // namespace detail
 
 } // namespace numkit::signal

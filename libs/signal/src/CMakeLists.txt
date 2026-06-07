@@ -5,10 +5,14 @@ set(SIGNALLIB_SOURCES
     # filter_design/
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/filter_design.cpp
     # filter_analysis/
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/frequency_response.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/unwrap.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/responses.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/predicates.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/frequency_response.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/frequency_response_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/unwrap.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/unwrap_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/responses.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/responses_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/predicates.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/predicates_reg.cpp # register (CallContext)
     # digital_filtering/
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/buffer.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/buffer_reg.cpp # register (CallContext)
@@ -25,11 +29,15 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven_reg.cpp # register (CallContext)
     # filter_implementation/
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions_extras.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions_extras.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions_extras_reg.cpp # register (CallContext)
     # multirate/
-    ${CMAKE_CURRENT_SOURCE_DIR}/multirate/multirate.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/multirate/extras.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/multirate/multirate.cpp   # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/multirate/multirate_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/multirate/extras.cpp      # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/multirate/extras_reg.cpp # register (CallContext)
     # convolution/
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution/convolution.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution/convolution_reg.cpp # register (CallContext)
@@ -44,8 +52,10 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/extras.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fwht.cpp
     # smoothing/
-    ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/sgolay.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/medfilt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/sgolay.cpp      # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/sgolay_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/medfilt.cpp     # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/medfilt_reg.cpp # register (CallContext)
     # measurements/
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/findpeaks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/dbconv.cpp
@@ -64,7 +74,8 @@ set(SIGNALLIB_SOURCES
     # time_frequency/
     ${CMAKE_CURRENT_SOURCE_DIR}/time_frequency/spectrogram.cpp
     # windows/
-    ${CMAKE_CURRENT_SOURCE_DIR}/windows/windows.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/windows/windows.cpp       # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/windows/windows_reg.cpp # register (CallContext)
 )
 
 # The backend-split FFT kernel (radix-2/4 / Stockham / SoA, portable + SIMD
