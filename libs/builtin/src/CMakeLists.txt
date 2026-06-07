@@ -46,7 +46,8 @@ set(STDLIB_SOURCES
     # shared primitive; builtin's rng.cpp uses it via numkit::ops.
     ${CMAKE_CURRENT_SOURCE_DIR}/math/complex/complex.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/complex/complex_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry.cpp # compute (engine-free)
