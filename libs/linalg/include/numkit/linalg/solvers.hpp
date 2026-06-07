@@ -6,6 +6,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <string>
 #include <numkit/value/value.hpp>
 
 namespace numkit::linalg {
@@ -23,5 +24,23 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr = n
 /// deficient A returns the unique min-norm solution.
 Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
                  std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Result of @ref lsqnonneg_impl.
+struct NnlsResult {
+    Value x;             ///< Non-negative solution column.
+    double resnorm;      ///< Squared 2-norm of the residual `‖C·x − d‖²`.
+    Value residual;      ///< Residual column `d − C·x`.
+    int exitflag;        ///< 1 on convergence.
+    int iterations;      ///< Outer-loop iteration count.
+    std::string algorithm; ///< Always "active-set".
+    std::string message; ///< Termination message.
+};
+
+/// @brief Non-negative least-squares (`x = lsqnonneg(C, d)`).
+///
+/// Lawson-Hanson active-set NNLS: minimises `‖C·x − d‖₂` subject to
+/// `x ≥ 0`. Returns the full @ref NnlsResult for the multi-output forms.
+NnlsResult lsqnonneg_impl(const Value &C, const Value &d,
+                          std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::linalg

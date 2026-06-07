@@ -9,10 +9,13 @@
 #include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
 #include <numkit/builtin/language/operators/binary_ops.hpp>  // mtimes
 
-#include <numkit/core/engine.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The linsolve /
+// lsqminnorm / lsqnonneg builtins (CallContext wrappers) live in
+// solvers_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
-#include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -70,19 +73,9 @@ Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
 }
 
 // ── lsqnonneg ─────────────────────────────────────────────────────────
-// Lawson-Hanson active-set NNLS.
+// Lawson-Hanson active-set NNLS. NnlsResult declared in solvers.hpp.
 
-struct NnlsResult {
-    Value x;
-    double resnorm;
-    Value residual;
-    int exitflag;
-    int iterations;
-    std::string algorithm;
-    std::string message;
-};
-
-static NnlsResult
+NnlsResult
 lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
 {
     if (C.dims().is3D() || d.dims().is3D())
@@ -236,61 +229,5 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
     R.iterations = outer_iter;
     return R;
 }
-
-// ════════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void linsolve_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2 || args.size() > 3)
-        throw Error("linsolve: requires (A, B[, opts])",
-                    0, 0, "linsolve", "", "numkit:linsolve:nargin");
-    // 3rd arg (opts struct) accepted for MATLAB-compat but ignored.
-    outs[0] = linsolve(args[0], args[1], ctx.engine->resource());
-}
-
-void lsqminnorm_reg(Span<const Value> args, size_t /*nargout*/,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("lsqminnorm: requires (A, B [, tol])",
-                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:nargin");
-    bool have_tol = (args.size() >= 3);
-    double tol = have_tol ? args[2].toScalar() : 0.0;
-    outs[0] = lsqminnorm(args[0], args[1], have_tol, tol, ctx.engine->resource());
-}
-
-void lsqnonneg_reg(Span<const Value> args, size_t nargout,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("lsqnonneg: requires (C, d)",
-                    0, 0, "lsqnonneg", "", "numkit:lsqnonneg:nargin");
-    auto R = lsqnonneg_impl(args[0], args[1], ctx.engine->resource());
-    outs[0] = R.x;
-    if (nargout >= 2 && outs.size() >= 2)
-        outs[1] = Value::scalar(R.resnorm, ctx.engine->resource());
-    if (nargout >= 3 && outs.size() >= 3)
-        outs[2] = R.residual;
-    if (nargout >= 4 && outs.size() >= 4)
-        outs[3] = Value::scalar(static_cast<double>(R.exitflag),
-                                ctx.engine->resource());
-    if (nargout >= 5 && outs.size() >= 5) {
-        Value out_struct = Value::structure(ctx.engine->resource());
-        out_struct.structFields()["iterations"] =
-            Value::scalar(static_cast<double>(R.iterations),
-                          ctx.engine->resource());
-        out_struct.structFields()["algorithm"] =
-            Value::fromString(R.algorithm, ctx.engine->resource());
-        out_struct.structFields()["message"] =
-            Value::fromString(R.message, ctx.engine->resource());
-        outs[4] = std::move(out_struct);
-    }
-}
-
-} // namespace detail
 
 } // namespace numkit::linalg
