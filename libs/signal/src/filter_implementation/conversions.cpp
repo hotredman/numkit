@@ -5,9 +5,10 @@
 
 #include <numkit/signal/filter_implementation/conversions.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
+#include <tuple>
 
 #include "../dsp_helpers.hpp"
 #include "poly_helpers.hpp"
@@ -335,44 +336,5 @@ Value tf2sos(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     p[2 * L + 0] *= g;
     return sos;
 }
-
-namespace detail {
-
-void zp2sos_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2 || args.size() > 3)
-        throw Error("zp2sos: requires (z, p[, k])",
-                     0, 0, "zp2sos", "", "numkit:zp2sos:nargin");
-    const double gain = (args.size() >= 3 && !args[2].isEmpty())
-                            ? args[2].toScalar()
-                            : 1.0;
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [sos, g] = zp2sosWithGain(args[0], args[1], gain, mr);
-        outs[0] = std::move(sos);
-        outs[1] = Value::scalar(g, mr);
-    } else {
-        outs[0] = zp2sos(args[0], args[1], gain, mr);
-    }
-}
-
-void tf2sos_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 2)
-        throw Error("tf2sos: requires (b, a)",
-                     0, 0, "tf2sos", "", "numkit:tf2sos:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [sos, g] = tf2sosWithGain(args[0], args[1], mr);
-        outs[0] = std::move(sos);
-        outs[1] = Value::scalar(g, mr);
-    } else {
-        outs[0] = tf2sos(args[0], args[1], mr);
-    }
-}
-
-} // namespace detail
 
 } // namespace numkit::signal
