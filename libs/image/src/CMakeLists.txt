@@ -15,11 +15,16 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/color/raw_planar.cpp   # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/raw_planar_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_design.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter/locallapfilt.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter/imreducehaze.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter/fibermetric.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter/fir2d.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_design.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_design_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/locallapfilt.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/locallapfilt_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/imreducehaze.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/imreducehaze_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/fibermetric.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/fibermetric_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/fir2d.cpp       # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/fir2d_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/contrast/contrast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/morph/morph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/region/region.cpp
