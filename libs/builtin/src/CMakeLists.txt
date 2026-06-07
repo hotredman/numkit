@@ -19,9 +19,11 @@ set(STDLIB_SOURCES
     # lsq.cpp all migrated to libs/linalg.
     ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/strings.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/format.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/print.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/print.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/print_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/scan.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/cells/cell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/structures/struct.cpp
@@ -35,16 +37,21 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/reductions.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/misc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/reductions.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/reductions_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/misc.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/misc_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/interp/interp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/geom/geom.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/group/group.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/permutations.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/permutations.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/permutations_reg.cpp # register (CallContext)
     # math/optim/ moved to libs/optim/
     # programming/ — MATLAB Programming and Scripts
     ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp
