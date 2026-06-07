@@ -2,7 +2,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive_extras.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/normalize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/normalize.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/normalize_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/corrcov.cpp # compute (engine-free)
@@ -84,7 +85,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/linkage_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/silhouette.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/silhouette_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/cluster/knnsearch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cluster/knnsearch.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/cluster/knnsearch_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/hypothesis.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw.cpp

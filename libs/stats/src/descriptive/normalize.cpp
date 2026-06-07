@@ -6,13 +6,15 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <vector>
+
+#include "normalize_detail.hpp"
 
 namespace numkit::stats {
 
@@ -311,9 +313,9 @@ Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *m
 // standard deviation, matching MATLAB's [Z, MU, SIGMA] = zscore(X). They have
 // the operating dimension collapsed to length 1 (row vector for dim 1,
 // column vector for dim 2).
-static Value zscoreCore(const Value &A, int flag, int dim,
-                        std::pmr::memory_resource *mr,
-                        Value *muOut = nullptr, Value *sigmaOut = nullptr)
+Value zscoreCore(const Value &A, int flag, int dim,
+                 std::pmr::memory_resource *mr,
+                 Value *muOut, Value *sigmaOut)
 {
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
@@ -367,92 +369,5 @@ Value zscore(const Value &A, std::pmr::memory_resource *mr)
 {
     return zscoreCore(A, /*flag=*/0, /*dim=*/0, mr);
 }
-
-namespace detail {
-
-void normalize_reg(Span<const Value> args, size_t nargout,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("normalize: requires (A [, method])",
-                    0, 0, "normalize", "", "numkit:normalize:nargin");
-    std::string method = "zscore";
-    const Value *param = nullptr;
-    if (args.size() >= 2 && !args[1].isEmpty()) {
-        if (!args[1].isChar() && !args[1].isString())
-            throw Error("normalize: method must be a string",
-                        0, 0, "normalize", "", "numkit:normalize:type");
-        method = args[1].toString();
-        // Optional method parameter: range bounds / norm-p / scale divisor
-        // / center reference. (Previously dropped -> options were ignored.)
-        if (args.size() >= 3 && !args[2].isEmpty())
-            param = &args[2];
-    }
-    // MATLAB [N, C, S] = normalize(...): C is the centering value, S the
-    // scaling value, with N == (A - C) ./ S.
-    Value cVal, sVal;
-    Value *cPtr = (nargout >= 2 && outs.size() >= 2) ? &cVal : nullptr;
-    Value *sPtr = (nargout >= 3 && outs.size() >= 3) ? &sVal : nullptr;
-    outs[0] = normalize(args[0], method, ctx.engine->resource(), param, cPtr, sPtr);
-    if (cPtr) outs[1] = std::move(cVal);
-    if (sPtr) outs[2] = std::move(sVal);
-}
-
-void rescale_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("rescale: requires (A [, lo, hi])",
-                    0, 0, "rescale", "", "numkit:rescale:nargin");
-    double lo = 0.0, hi = 1.0;
-    double inputMin = std::numeric_limits<double>::quiet_NaN();
-    double inputMax = std::numeric_limits<double>::quiet_NaN();
-
-    // Positional lo/hi come first (only when arg[1] is not a NV-name).
-    size_t i = 1;
-    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()) {
-        if (!args[1].isEmpty()) lo = args[1].toScalar();
-        i = 2;
-        if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()) {
-            if (!args[2].isEmpty()) hi = args[2].toScalar();
-            i = 3;
-        }
-    }
-    // Name-Value: 'InputMin' / 'InputMax' (case-insensitive).
-    for (; i + 1 < args.size(); i += 2) {
-        if (!args[i].isChar() && !args[i].isString())
-            throw Error("rescale: expected 'InputMin'/'InputMax'",
-                        0, 0, "rescale", "", "numkit:rescale:badOpt");
-        std::string nm = args[i].toString();
-        for (char &c : nm) if (c >= 'A' && c <= 'Z') c = char(c + 32);
-        if      (nm == "inputmin") inputMin = args[i + 1].toScalar();
-        else if (nm == "inputmax") inputMax = args[i + 1].toScalar();
-        else
-            throw Error("rescale: name must be 'InputMin' or 'InputMax'",
-                        0, 0, "rescale", "", "numkit:rescale:badOpt");
-    }
-    outs[0] = rescale(args[0], lo, hi, ctx.engine->resource(), inputMin, inputMax);
-}
-
-void zscore_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("zscore: requires (A [, flag [, dim]])",
-                    0, 0, "zscore", "", "numkit:zscore:nargin");
-    int flag = 0, dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty()) flag = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty()) dim  = static_cast<int>(args[2].toScalar());
-    auto *mr = ctx.engine->resource();
-    // [Z, MU, SIGMA] = zscore(...): expose the centring mean and scaling std.
-    Value mu, sigma;
-    outs[0] = zscoreCore(args[0], flag, dim, mr,
-                         nargout >= 2 ? &mu : nullptr,
-                         nargout >= 3 ? &sigma : nullptr);
-    if (nargout >= 2) outs[1] = mu;
-    if (nargout >= 3) outs[2] = sigma;
-}
-
-} // namespace detail
 
 } // namespace numkit::stats
