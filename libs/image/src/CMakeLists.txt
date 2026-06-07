@@ -1,6 +1,7 @@
 set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic/arithmetic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic/arithmetic.cpp           # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic/arithmetic_reg.cpp       # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/type_convert/type_convert.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color_extras.cpp
