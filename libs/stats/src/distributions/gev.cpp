@@ -184,7 +184,7 @@ void gevrnd_reg(Span<const Value> args, size_t /*nargout*/,
 void gevstat_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_3arg(args, nargout, outs, ctx, "gevstat",
+    emit_vec_stat_3arg(args, nargout, outs, ctx.engine->resource(), "gevstat",
                        [](double k, double sigma, double mu) {
                            return gevstat(k, sigma, mu);
                        });

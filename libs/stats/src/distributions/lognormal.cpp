@@ -253,7 +253,7 @@ void lognrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void lognstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "lognstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "lognstat",
                        [](double mu, double sigma) { return lognstat(mu, sigma); });
 }
 

@@ -598,7 +598,7 @@ void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 void tstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_1arg(args, nargout, outs, ctx, "tstat",
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "tstat",
                        [](double nu) { return tstat(nu); });
 }
 

@@ -168,7 +168,7 @@ void evrnd_reg(Span<const Value> args, size_t /*nargout*/,
 void evstat_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "evstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "evstat",
                        [](double mu, double sigma) { return evstat(mu, sigma); });
 }
 

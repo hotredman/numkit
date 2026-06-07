@@ -209,7 +209,7 @@ void wblrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void wblstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "wblstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "wblstat",
                        [](double a, double b) { return wblstat(a, b); });
 }
 

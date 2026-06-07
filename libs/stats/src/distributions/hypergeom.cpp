@@ -226,7 +226,7 @@ void hygernd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void hygestat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_3arg(args, nargout, outs, ctx, "hygestat",
+    emit_vec_stat_3arg(args, nargout, outs, ctx.engine->resource(), "hygestat",
                        [](double M, double K, double N) {
                            return hygestat(M, K, N);
                        });

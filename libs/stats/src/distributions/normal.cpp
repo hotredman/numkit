@@ -202,7 +202,7 @@ void normrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void normstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "normstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "normstat",
                        [](double mu, double sigma) { return normstat(mu, sigma); });
 }
 

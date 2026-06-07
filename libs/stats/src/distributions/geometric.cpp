@@ -200,7 +200,7 @@ void geornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void geostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_1arg(args, nargout, outs, ctx, "geostat",
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "geostat",
                        [](double p) { return geostat(p); });
 }
 

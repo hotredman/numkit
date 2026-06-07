@@ -212,7 +212,7 @@ void ncx2rnd_reg(Span<const Value> args, size_t /*nargout*/,
 void ncx2stat_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "ncx2stat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "ncx2stat",
                        [](double k, double lambda) { return ncx2stat(k, lambda); });
 }
 

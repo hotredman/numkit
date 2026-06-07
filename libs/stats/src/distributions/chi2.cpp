@@ -219,7 +219,7 @@ void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void chi2stat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_1arg(args, nargout, outs, ctx, "chi2stat",
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "chi2stat",
                        [](double k) { return chi2stat(k); });
 }
 

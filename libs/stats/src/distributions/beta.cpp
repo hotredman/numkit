@@ -219,7 +219,7 @@ void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void betastat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "betastat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "betastat",
                        [](double a, double b) { return betastat(a, b); });
 }
 
