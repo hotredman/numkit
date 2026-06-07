@@ -32,9 +32,10 @@
 
 #include <numkit/wavelet/dwt/multilevel.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The wrcoef builtin
+// (CallContext wrapper) lives in dwt/wrcoef_reg.cpp.
 #include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <string>
@@ -136,47 +137,4 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
     return waverec(cMod, l, wname, mr);
 }
 
-namespace detail {
-
-void wrcoef_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 4)
-        throw Error("wrcoef: requires (type, c, l, wname[, n])",
-                    0, 0, "wrcoef", "", "numkit:wrcoef:nargin");
-
-    if (!args[0].isChar() && !args[0].isString())
-        throw Error("wrcoef: type must be a character vector ('a' or 'd')",
-                    0, 0, "wrcoef", "", "numkit:wrcoef:type");
-    std::string type = args[0].toString();
-    for (auto &ch : type)
-        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-
-    // MATLAB also accepts (Lo_R, Hi_R) in place of wname — guard
-    // against that misuse with a clear message.
-    if (!args[3].isChar() && !args[3].isString())
-        throw Error("wrcoef: numkit only supports the wname form "
-                    "wrcoef(type, c, l, wname[, n]). The (Lo_R, Hi_R) "
-                    "two-filter form is not implemented.",
-                    0, 0, "wrcoef", "", "numkit:wrcoef:wname");
-    const std::string wname = args[3].toString();
-
-    int n = -1;     // sentinel meaning "default"
-    if (args.size() >= 5) {
-        if (args[4].isEmpty()) {
-            // empty → keep default
-        } else {
-            const double nd = args[4].toScalar();
-            if (nd < 0.0 || nd != std::floor(nd))
-                throw Error("wrcoef: level n must be a non-negative integer",
-                            0, 0, "wrcoef", "", "numkit:wrcoef:level");
-            n = static_cast<int>(nd);
-        }
-    }
-
-    outs[0] = wrcoef(type, args[1], args[2], wname, n,
-                     ctx.engine->resource());
-}
-
-} // namespace detail
 } // namespace numkit::wavelet

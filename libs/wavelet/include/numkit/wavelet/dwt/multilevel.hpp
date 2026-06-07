@@ -77,6 +77,28 @@ Value appcoef(const Value &C, const Value &L, const std::string &wname,
               int level,
               std::pmr::memory_resource *mr = nullptr);
 
+/// Internal entry: appcoef with explicit synthesis filters.
+///
+/// Used by the `appcoef(C, L, Lo_R, Hi_R[, level])` custom-filter form so
+/// the register TU can invoke it without re-resolving filters by name.
+/// Public so other libs/wavelet TUs can call it; not commonly needed by
+/// end users.
+///
+/// @param C      Coefficient row from @ref wavedec.
+/// @param L      Bookkeeping row.
+/// @param Lo_R   Synthesis lowpass filter coefficients.
+/// @param Hi_R   Synthesis highpass filter coefficients.
+/// @param level  Target level (or -1 for default = coarsest).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Row vector of approximation coefficients.
+///
+/// @see appcoef
+Value appcoef_with_filters_pub(const Value &C, const Value &L,
+                               const std::vector<double> &Lo_R,
+                               const std::vector<double> &Hi_R,
+                               int level,
+                               std::pmr::memory_resource *mr = nullptr);
+
 /// Extract detail coefficients at a given level (`detcoef(C, L, level)`).
 ///
 /// `level` is 1-based: level = 1 is the finest detail, level =
