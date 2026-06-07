@@ -16,7 +16,8 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/color/demosaic_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/raw_planar.cpp   # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/raw_planar_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter.cpp      # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_design.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_design_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/locallapfilt.cpp # compute (engine-free)
@@ -27,8 +28,10 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/fibermetric_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/fir2d.cpp       # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/fir2d_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrast/contrast.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/morph/morph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/contrast/contrast.cpp  # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/contrast/contrast_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/morph/morph.cpp        # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/morph/morph_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/region/region.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/region/region_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/object/object.cpp      # compute (engine-free)
