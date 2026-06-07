@@ -6,7 +6,7 @@
 #include <numkit/linalg/solvers.hpp>
 
 #include <numkit/linalg/pseudo_subspace.hpp>      // pinv
-#include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
+#include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
 #include <numkit/builtin/language/operators/binary_ops.hpp>  // mtimes
 
 #include <numkit/core/engine.hpp>
@@ -43,7 +43,7 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
     std::copy(B.doubleData(), B.doubleData() + m * nrhs, B_buf.begin());
 
     auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
-    if (!numkit::builtin::detail::la_solve(A_buf.data(), m, n, B_buf.data(), nrhs,
+    if (!numkit::ops::la_solve(A_buf.data(), m, n, B_buf.data(), nrhs,
                                             out.doubleDataMut(), &scratch))
         throw Error("linsolve: A is singular or rank-deficient",
                     0, 0, "linsolve", "", "numkit:linsolve:singular");
@@ -193,7 +193,7 @@ lsqnonneg_impl(const Value &C, const Value &d, std::pmr::memory_resource *mr)
                 Ctd[a] = sum;
             }
             sP.assign(p, 0.0);
-            if (!numkit::builtin::detail::la_solve(CtC.data(), p, p, Ctd.data(), 1,
+            if (!numkit::ops::la_solve(CtC.data(), p, p, Ctd.data(), 1,
                                                     sP.data(), &scratch)) {
                 R.exitflag = 1;
                 break;

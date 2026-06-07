@@ -8,7 +8,7 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
-#include "la_solve.hpp"
+#include <numkit/ops/la_solve.hpp>
 #include <numkit/ops/binary_ops.hpp>
 #include <numkit/ops/compare.hpp>
 
@@ -282,7 +282,7 @@ Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::
 
     Value X = Value::matrix(n, k, ValueType::DOUBLE, mr);
     double *Xd = X.doubleDataMut();
-    if (!detail::la_solve(A_buf.data(), m, n, B_buf.data(), k, Xd, &arena))
+    if (!numkit::ops::la_solve(A_buf.data(), m, n, B_buf.data(), k, Xd, &arena))
         throw Error(std::string(opname)
                     + ": matrix is singular or rank-deficient",
                     0, 0, opname, "",

@@ -9,7 +9,7 @@
 
 #include <numkit/linalg/properties.hpp>
 
-#include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
+#include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
 #include <numkit/linalg/decompositions.hpp>       // svd_values
 #include <numkit/linalg/eig.hpp>                  // condeig uses eig_symmetric / eig_general_VD
 #include <numkit/linalg/norms.hpp>                // cond_pnorm uses norm_*
@@ -35,7 +35,7 @@ bool laSolveWrap(const double *A_buf, std::size_t m, std::size_t n,
                  const double *B_buf, std::size_t nrhs, double *outX,
                  std::pmr::memory_resource *mr)
 {
-    return numkit::builtin::detail::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
+    return numkit::ops::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
 }
 
 // Build an n×n identity into a contiguous column-major buffer.
@@ -386,7 +386,7 @@ Value condeig(const Value &A, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = 1.0;
 
     ScratchVec<double> Vinv(n * n, &scratch);
-    if (!numkit::builtin::detail::la_solve(V_buf.data(), n, n, I_buf.data(), n,
+    if (!numkit::ops::la_solve(V_buf.data(), n, n, I_buf.data(), n,
                                             Vinv.data(), &scratch))
         throw Error("condeig: right eigenvector matrix is singular",
                     0, 0, "condeig", "", "numkit:condeig:singular");

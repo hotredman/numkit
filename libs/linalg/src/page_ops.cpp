@@ -11,7 +11,7 @@
 #include <numkit/linalg/properties.hpp>       // inv
 #include <numkit/linalg/pseudo_subspace.hpp>  // pinv
 #include <numkit/linalg/solvers.hpp>          // linsolve / lsqminnorm
-#include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
+#include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
 
 #include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>
@@ -94,7 +94,7 @@ Value pageinv(const Value &A, std::pmr::memory_resource *mr)
     for (std::size_t p = 0; p < pages; ++p) {
         std::copy(src + p * stride, src + (p + 1) * stride, A_buf.begin());
         fillIdentity(I_buf.data(), n);
-        if (!numkit::builtin::detail::la_solve(A_buf.data(), m, n,
+        if (!numkit::ops::la_solve(A_buf.data(), m, n,
                                                 I_buf.data(), n,
                                                 dst + p * stride, &scratch))
             throw Error("pageinv: page is singular",

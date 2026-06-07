@@ -9,13 +9,12 @@
 //   matrix operators *, \, /, ^, ', .'  — those live in
 //   libs/builtin/src/language/operators/ because they are compiled
 //   directly from the parser/VM (`mldivide` is the runtime backing
-//   of  `\` ). They depend only on the in-builtin internal kernel
-//   `la_solve` (libs/builtin/src/language/operators/la_solve.hpp).
+//   of  `\` ). Both they and this toolbox call the shared linear-solve
+//   kernel `numkit::ops::la_solve` (<numkit/ops/la_solve.hpp>), which
+//   lives in the L0.5 ops layer below both builtin and linalg.
 //
-//   This toolbox library REUSES the same `la_solve` kernel for its
-//   user-facing `lu` / `qr` / `linsolve` etc. Edge direction:
-//     core → builtin → linalg
-//   builtin MUST NOT include any header from linalg.
+//   This toolbox library REUSES that `la_solve` kernel for its
+//   user-facing `lu` / `qr` / `linsolve` etc.
 
 #pragma once
 
