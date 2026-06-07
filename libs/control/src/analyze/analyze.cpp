@@ -10,8 +10,10 @@
 #include <numkit/control/freq/freq.hpp>
 #include <numkit/control/response/response.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The dcgain/margin/
+// stepinfo builtins (CallContext wrappers) live in analyze_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -245,37 +247,5 @@ Value stepinfo(const Value &sys, std::pmr::memory_resource *mr)
     s.field("PeakTime")     = Value::scalar(peakTime, mr);
     return s;
 }
-
-namespace detail {
-
-void dcgain_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
-{
-    if (a.empty())
-        throw Error("dcgain: requires sys",
-                    0, 0, "dcgain", "", "numkit:dcgain:nargin");
-    o[0] = dcgain(a[0], c.engine->resource());
-}
-
-void margin_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
-{
-    if (a.empty())
-        throw Error("margin: requires sys",
-                    0, 0, "margin", "", "numkit:margin:nargin");
-    auto m = margin(a[0], c.engine->resource());
-    if (o.size() >= 1) o[0] = std::move(m.Gm);
-    if (o.size() >= 2) o[1] = std::move(m.Pm);
-    if (o.size() >= 3) o[2] = std::move(m.Wcg);
-    if (o.size() >= 4) o[3] = std::move(m.Wcp);
-}
-
-void stepinfo_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
-{
-    if (a.empty())
-        throw Error("stepinfo: requires sys",
-                    0, 0, "stepinfo", "", "numkit:stepinfo:nargin");
-    o[0] = stepinfo(a[0], c.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::control

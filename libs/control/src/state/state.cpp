@@ -8,8 +8,10 @@
 #include <numkit/control/state/state.hpp>
 #include <numkit/control/conversion/conversion.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The ctrb / obsv
+// builtins (CallContext wrappers) live in state/state_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -156,36 +158,5 @@ Value obsv_sys(const Value &sys, std::pmr::memory_resource *mr) {
     auto abc = pullABC(sys, mr);
     return obsv_AC(abc.A, abc.C, mr);
 }
-
-namespace detail {
-
-void ctrb_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
-{
-    if (a.empty())
-        throw Error("ctrb: requires (A, B) or (sys)",
-                    0, 0, "ctrb", "", "numkit:ctrb:nargin");
-    auto *mr = c.engine->resource();
-    if (a.size() == 1) {
-        // Single-arg form: must be a sys struct.
-        o[0] = ctrb_sys(a[0], mr);
-        return;
-    }
-    o[0] = ctrb_AB(a[0], a[1], mr);
-}
-
-void obsv_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
-{
-    if (a.empty())
-        throw Error("obsv: requires (A, C) or (sys)",
-                    0, 0, "obsv", "", "numkit:obsv:nargin");
-    auto *mr = c.engine->resource();
-    if (a.size() == 1) {
-        o[0] = obsv_sys(a[0], mr);
-        return;
-    }
-    o[0] = obsv_AC(a[0], a[1], mr);
-}
-
-} // namespace detail
 
 } // namespace numkit::control

@@ -16,8 +16,10 @@
 #include <numkit/builtin/math/poly/polynomials.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The series / parallel
+// / feedback builtins (CallContext wrappers) live in connect/connect_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -162,33 +164,5 @@ Value feedback(const Value &G, const Value &H, int sign, std::pmr::memory_resour
     const double Ts = Ts_combine(sampleTime(G), sampleTime(H), "feedback");
     return tf(rowOf(numT, mr), rowOf(denT, mr), Ts, mr);
 }
-
-namespace detail {
-
-void series_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
-    if (a.size() < 2)
-        throw Error("series: requires (sys1, sys2)",
-                    0, 0, "series", "", "numkit:series:nargin");
-    o[0] = series(a[0], a[1], c.engine->resource());
-}
-
-void parallel_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
-    if (a.size() < 2)
-        throw Error("parallel: requires (sys1, sys2)",
-                    0, 0, "parallel", "", "numkit:parallel:nargin");
-    o[0] = parallel(a[0], a[1], c.engine->resource());
-}
-
-void feedback_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c) {
-    if (a.size() < 2)
-        throw Error("feedback: requires (G, H [, sign])",
-                    0, 0, "feedback", "", "numkit:feedback:nargin");
-    int sign = -1;
-    if (a.size() >= 3 && !a[2].isEmpty())
-        sign = static_cast<int>(a[2].toScalar());
-    o[0] = feedback(a[0], a[1], sign, c.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::control
