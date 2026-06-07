@@ -5,9 +5,9 @@
 
 #include <numkit/comm/eq/errors.hpp>
 
-#include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -95,40 +95,5 @@ std::pair<Value, Value> symerr(const Value &x, const Value &y,
     return {Value::scalar(static_cast<double>(count), mr),
             Value::scalar(ratio, mr)};
 }
-
-namespace detail {
-
-// biterr(x, y[, k]): out[0] = total bit count, out[1] = ratio.
-void biterr_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("biterr: requires (x, y[, k])",
-                    0, 0, "biterr", "", "numkit:biterr:nargin");
-    int k = 0;  // 0 -> auto width
-    if (args.size() >= 3 && !args[2].isEmpty()) {
-        k = static_cast<int>(args[2].toScalar());
-        if (k < 1)
-            throw Error("biterr: k must be >= 1",
-                        0, 0, "biterr", "", "numkit:biterr:k");
-    }
-    auto [number, ratio] = biterr(args[0], args[1], k, ctx.engine->resource());
-    outs[0] = std::move(number);
-    if (nargout > 1) outs[1] = std::move(ratio);
-}
-
-// symerr(x, y): out[0] = symbol error count, out[1] = ratio.
-void symerr_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 2)
-        throw Error("symerr: requires (x, y)",
-                    0, 0, "symerr", "", "numkit:symerr:nargin");
-    auto [count, ratio] = symerr(args[0], args[1], ctx.engine->resource());
-    outs[0] = std::move(count);
-    if (nargout > 1) outs[1] = std::move(ratio);
-}
-
-} // namespace detail
 
 } // namespace numkit::comm

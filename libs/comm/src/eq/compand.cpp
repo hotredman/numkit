@@ -20,8 +20,8 @@
 
 #include <numkit/comm/eq/compand.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <string>
@@ -115,24 +115,5 @@ Value compand(const Value &x, double param, double V,
     }
     return out;
 }
-
-namespace detail {
-
-void compand_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 4)
-        throw Error("compand: requires (x, param, V, method)",
-                    0, 0, "compand", "", "numkit:compand:nargin");
-    if (!args[3].isChar() && !args[3].isString())
-        throw Error("compand: method must be a string",
-                    0, 0, "compand", "", "numkit:compand:method");
-    const double param = args[1].toScalar();
-    const double V     = args[2].toScalar();
-    const std::string method = args[3].toString();
-    outs[0] = compand(args[0], param, V, method, ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::comm

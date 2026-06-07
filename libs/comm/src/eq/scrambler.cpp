@@ -20,10 +20,11 @@
 
 #include <numkit/comm/eq/scrambler.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 namespace numkit::comm {
@@ -116,29 +117,5 @@ Value descrambler(const Value &y, const Value &poly,
     }
     return packDoubles(mr, x);
 }
-
-namespace detail {
-
-void scrambler_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("scrambler: requires (x, poly, initState)",
-                    0, 0, "scrambler", "", "numkit:scrambler:nargin");
-    outs[0] = scrambler(args[0], args[1], args[2],
-                        ctx.engine->resource());
-}
-
-void descrambler_reg(Span<const Value> args, size_t /*nargout*/,
-                     Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("descrambler: requires (y, poly, initState)",
-                    0, 0, "descrambler", "", "numkit:descrambler:nargin");
-    outs[0] = descrambler(args[0], args[1], args[2],
-                          ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::comm

@@ -9,10 +9,14 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/mil188.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/fading.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/eq/scrambler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/eq/errors.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/eq/compand.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse.cpp                     # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse_reg.cpp                # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/scrambler.cpp                # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/scrambler_reg.cpp           # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/errors.cpp                   # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/errors_reg.cpp              # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/compand.cpp                  # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/compand_reg.cpp             # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/random_source.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/huffman.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcm.cpp                   # compute (engine-free)
