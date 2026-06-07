@@ -30,8 +30,10 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/source/arithcoding.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/base_conversions.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/base_conversions_reg.cpp  # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/coding/convcoding.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/coding/blockcoding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/coding/convcoding.cpp           # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/coding/convcoding_reg.cpp      # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/coding/blockcoding.cpp          # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/coding/blockcoding_reg.cpp     # register (CallContext)
 )
 
 set(COMMLIB_SOURCES ${COMMLIB_SOURCES} PARENT_SCOPE)
