@@ -12,7 +12,8 @@ set(STDLIB_SOURCES
     # used by builtin `\` and libs/linalg; ops/ sits below both.
     ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/unary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/matrix.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/nd_manip.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/nd_manip_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/accum.cpp
@@ -40,7 +41,8 @@ set(STDLIB_SOURCES
     # shared primitive; builtin's rng.cpp uses it via numkit::ops.
     ${CMAKE_CURRENT_SOURCE_DIR}/math/complex/complex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents.cpp # compute (engine-free)
