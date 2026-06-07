@@ -26,9 +26,9 @@
 
 #include <numkit/builtin/math/random/matlab_mt19937.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>

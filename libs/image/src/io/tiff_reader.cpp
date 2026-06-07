@@ -23,8 +23,8 @@
 
 #include <numkit/image/io/io.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cstdint>

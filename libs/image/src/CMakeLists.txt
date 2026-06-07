@@ -43,8 +43,8 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/io/stb_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/io/io.cpp              # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/io/io_reg.cpp      # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/io/tiff_reader.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/io/tiff_writer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/tiff_reader.cpp     # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/tiff_writer.cpp     # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/geom/geom.cpp          # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/geom/geom_reg.cpp  # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/segment/segment.cpp    # compute (engine-free)

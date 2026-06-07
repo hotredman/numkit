@@ -9,9 +9,9 @@
 #include <numkit/image/filter/filter.hpp>
 #include <numkit/image/type_convert/type_convert.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <tuple>
