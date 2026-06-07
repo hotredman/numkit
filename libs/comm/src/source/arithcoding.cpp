@@ -15,8 +15,8 @@
 
 #include <numkit/comm/source/arithcoding.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -243,28 +243,5 @@ Value arithdeco(const Value &code, const Value &counts, size_t len,
     if (len > 0) std::copy(dseq.begin(), dseq.end(), out.doubleDataMut());
     return out;
 }
-
-namespace detail {
-
-void arithenco_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("arithenco: requires (seq, counts)",
-                    0, 0, "arithenco", "", "numkit:arithenco:nargin");
-    outs[0] = arithenco(args[0], args[1], ctx.engine->resource());
-}
-
-void arithdeco_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("arithdeco: requires (code, counts, len)",
-                    0, 0, "arithdeco", "", "numkit:arithdeco:nargin");
-    const size_t len = static_cast<size_t>(args[2].toScalar());
-    outs[0] = arithdeco(args[0], args[1], len, ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::comm
