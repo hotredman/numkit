@@ -7,9 +7,9 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -20,145 +20,12 @@
 #include <mutex>
 #include <random>
 
+#include "kmeans_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-inline double sq_dist(const double *a, const double *b, size_t D) {
-    double s = 0.0;
-    for (size_t k = 0; k < D; ++k) { double d = a[k] - b[k]; s += d * d; }
-    return s;
-}
-
-// k-means++ centroid initialisation. Returns K rows of D values each
-// (flattened K*D-length buffer).
-ScratchVec<double> kmeanspp_init(const ScratchVec<double> &X,
-                                 size_t N, size_t D, int K,
-                                 numkit::builtin::detail::MatlabMT19937 &gen,
-                                 std::pmr::memory_resource *scratch_mr)
-{
-    ScratchVec<double> C((size_t)K * D, scratch_mr);
-    std::uniform_int_distribution<size_t> first(0, N - 1);
-    const size_t i0 = first(gen);
-    std::copy(X.begin() + i0 * D, X.begin() + (i0 + 1) * D, C.begin());
-
-    ScratchVec<double> dist(N, std::numeric_limits<double>::infinity(),
-                            scratch_mr);
-    for (int k = 1; k < K; ++k) {
-        // Update each point's nearest-centroid distance against the new
-        // centroid (k-1).
-        const double *cprev = &C[(size_t)(k - 1) * D];
-        for (size_t i = 0; i < N; ++i) {
-            const double d = sq_dist(&X[i * D], cprev, D);
-            if (d < dist[i]) dist[i] = d;
-        }
-        // Sample next centroid with probability proportional to dist.
-        double total = 0.0;
-        for (auto v : dist) total += v;
-        if (total <= 0.0) {
-            // All points coincide with existing centroids; pick uniformly.
-            const size_t pick = first(gen);
-            std::copy(X.begin() + pick * D, X.begin() + (pick + 1) * D,
-                      C.begin() + (size_t)k * D);
-            continue;
-        }
-        std::uniform_real_distribution<double> ud(0.0, total);
-        const double r = ud(gen);
-        double acc = 0.0;
-        size_t pick = N - 1;
-        for (size_t i = 0; i < N; ++i) {
-            acc += dist[i];
-            if (acc >= r) { pick = i; break; }
-        }
-        std::copy(X.begin() + pick * D, X.begin() + (pick + 1) * D,
-                  C.begin() + (size_t)k * D);
-    }
-    return C;
-}
-
-// Lloyd iteration. Returns (assignments, centroids, sum-of-squared-dist
-// per cluster, total-WCSS). Stops when no assignment changes or when
-// max_iter reached.
-struct LloydResult {
-    ScratchVec<int>    idx;
-    ScratchVec<double> C;
-    ScratchVec<double> sumd;
-    double             total{};
-
-    LloydResult(std::pmr::memory_resource *scratch_mr)
-        : idx(scratch_mr), C(scratch_mr), sumd(scratch_mr) {}
-};
-
-LloydResult lloyd(const ScratchVec<double> &X, size_t N, size_t D, int K,
-                  ScratchVec<double> &&C0, int max_iter,
-                  std::pmr::memory_resource *scratch_mr)
-{
-    LloydResult res(scratch_mr);
-    res.idx.assign(N, 0);
-    res.C    = std::move(C0);
-    res.sumd.assign(K, 0.0);
-    res.total = 0.0;
-
-    ScratchVec<int>    counts((size_t)K, 0, scratch_mr);
-    ScratchVec<double> Cnext((size_t)K * D, 0.0, scratch_mr);
-
-    for (int iter = 0; iter < max_iter; ++iter) {
-        // Assign each point to nearest centroid.
-        bool changed = false;
-        std::fill(counts.begin(), counts.end(), 0);
-        std::fill(Cnext.begin(), Cnext.end(), 0.0);
-        std::fill(res.sumd.begin(), res.sumd.end(), 0.0);
-        res.total = 0.0;
-
-        for (size_t i = 0; i < N; ++i) {
-            const double *xi = &X[i * D];
-            int best = 0;
-            double bd = std::numeric_limits<double>::infinity();
-            for (int k = 0; k < K; ++k) {
-                const double d = sq_dist(xi, &res.C[(size_t)k * D], D);
-                if (d < bd) { bd = d; best = k; }
-            }
-            if (res.idx[i] != best) { res.idx[i] = best; changed = true; }
-            counts[best] += 1;
-            for (size_t k = 0; k < D; ++k) Cnext[(size_t)best * D + k] += xi[k];
-            res.sumd[best] += bd;
-            res.total += bd;
-        }
-        // Update centroids.
-        for (int k = 0; k < K; ++k) {
-            if (counts[k] > 0) {
-                const double inv = 1.0 / double(counts[k]);
-                for (size_t d = 0; d < D; ++d)
-                    res.C[(size_t)k * D + d] = Cnext[(size_t)k * D + d] * inv;
-            }
-            // Empty cluster: leave centroid where it was (could re-seed,
-            // but Lloyd-classic keeps it).
-        }
-        if (!changed) break;
-    }
-    // Final pass: recompute sumd against the current (post-update) centroids
-    // so the reported WCSS reflects the converged solution.
-    std::fill(res.sumd.begin(), res.sumd.end(), 0.0);
-    res.total = 0.0;
-    for (size_t i = 0; i < N; ++i) {
-        const double *xi = &X[i * D];
-        const int k = res.idx[i];
-        const double d = sq_dist(xi, &res.C[(size_t)k * D], D);
-        res.sumd[k] += d;
-        res.total   += d;
-    }
-    return res;
-}
-
-} // anonymous
 
 // Full kmeans with optional 4th D output (N×K squared distances).
-struct KmeansResult {
-    Value idx;
-    Value C;
-    Value sumd;
-    Value D;     // optional N×K
-};
 
 KmeansResult
 kmeans_full(const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
@@ -242,54 +109,4 @@ kmeans(const Value &X, int K, int max_iter, int replicates, std::pmr::memory_res
                            std::move(R.sumd));
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void kmeans_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("kmeans: requires (X, K[, N-V pairs])",
-                    0, 0, "kmeans", "", "numkit:kmeans:nargin");
-    const int K = (int)args[1].toScalar();
-    int max_iter  = 100;
-    int replicates = 1;
-    auto lower = [](std::string s) {
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
-        return s;
-    };
-    for (size_t i = 2; i + 1 < args.size(); i += 2) {
-        if (!(args[i].isChar() || args[i].isString())) continue;
-        const std::string key = lower(args[i].toString());
-        const Value &v = args[i + 1];
-        if      (key == "maxiter")    max_iter   = (int)v.toScalar();
-        else if (key == "replicates") replicates = (int)v.toScalar();
-        else if (key == "distance") {
-            const std::string dn = lower(v.toString());
-            if (dn != "sqeuclidean" && dn != "squaredeuclidean")
-                throw Error("kmeans: only Distance = 'sqeuclidean' is "
-                            "implemented (got '" + dn + "')",
-                            0, 0, "kmeans", "", "numkit:kmeans:distance");
-        }
-        else if (key == "start") {
-            const std::string sn = lower(v.toString());
-            if (sn != "plus")
-                throw Error("kmeans: only Start = 'plus' is implemented "
-                            "(got '" + sn + "')",
-                            0, 0, "kmeans", "", "numkit:kmeans:start");
-        }
-        // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently
-        // accepted (no-op).
-    }
-    auto R = kmeans_full(args[0], K, max_iter, replicates, ctx.engine->resource());
-    outs[0] = std::move(R.idx);
-    if (nargout > 1) outs[1] = std::move(R.C);
-    if (nargout > 2) outs[2] = std::move(R.sumd);
-    if (nargout > 3) outs[3] = std::move(R.D);
-}
-
-} // namespace detail
 } // namespace numkit::stats
