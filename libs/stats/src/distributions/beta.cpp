@@ -8,8 +8,8 @@
 #include <numkit/builtin/math/random/rng.hpp>
 #include <numkit/builtin/math/special/special.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -18,43 +18,10 @@
 #include <mutex>
 #include <random>
 
+#include "beta_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
-{
-    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
-    const auto &d = x.dims();
-    Value out;
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
-    return out;
-}
-
-// Scalar pdf kernel for the parameter-broadcast path (vector a/b). Owns its
-// per-element domain: a<=0 or b<=0 → NaN. Mirrors public betapdf exactly,
-// including the x∈{0,1} boundary cases.
-inline double betapdfK(double x, double a, double b)
-{
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
-    const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
-    if (x < 0.0 || x > 1.0) return 0.0;
-    if (x == 0.0)
-        return (a == 1.0) ? std::exp(-lbeta) * (b == 1.0 ? 1.0 : std::pow(1.0, b - 1.0))
-                          : (a > 1.0 ? 0.0 : std::numeric_limits<double>::infinity());
-    if (x == 1.0)
-        return (b == 1.0) ? std::exp(-lbeta) * (a == 1.0 ? 1.0 : std::pow(1.0, a - 1.0))
-                          : (b > 1.0 ? 0.0 : std::numeric_limits<double>::infinity());
-    return std::exp((a - 1.0) * std::log(x) + (b - 1.0) * std::log1p(-x) - lbeta);
-}
-
-} // anonymous
 
 Value betapdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
@@ -131,97 +98,4 @@ std::tuple<double, double> betastat(double a, double b)
     return std::make_tuple(mean, var);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void betapdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("betapdf: requires (x, a, b)", 0, 0, "betapdf", "", "numkit:betapdf:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &a = args[1];
-    const Value &b = args[2];
-    if (a.isScalar() && b.isScalar())
-        outs[0] = betapdf(args[0], a.toScalar(), b.toScalar(), mr);
-    else
-        outs[0] = broadcast_dist3(args[0], a, b, mr, "betapdf", betapdfK);
-}
-
-void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    bool upper = false;
-    const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
-    if (a0.size() < 3)
-        throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "numkit:betacdf:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &a = a0[1];
-    const Value &b = a0[2];
-    Value v;
-    if (a.isScalar() && b.isScalar()) {
-        v = betacdf(a0[0], a.toScalar(), b.toScalar(), mr);
-    } else {
-        // F(x; a, b) = betainc(clamp01(x), a, b); betainc broadcasts (xc, a, b)
-        // and betaincScalar gives NaN where a<=0 or b<=0. betainc does NOT
-        // validate sizes (would OOB), so guard empties + size clash first.
-        const size_t nx = a0[0].numel(), na = a.numel(), nb = b.numel();
-        if (nx == 0 || na == 0 || nb == 0) {
-            v = dist_empty_like(nx == 0 ? a0[0] : (na == 0 ? a : b), mr);
-        } else {
-            dist_match_numel({nx, na, nb}, "betacdf");
-            Value xc = elementwise(a0[0], [](double xi) {
-                if (xi <= 0.0) return 0.0;
-                if (xi >= 1.0) return 1.0;
-                return xi;
-            }, mr);
-            v = ::numkit::builtin::betainc(xc, a, b, mr);
-        }
-    }
-    if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
-}
-
-void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("betainv: requires (p, a, b)", 0, 0, "betainv", "", "numkit:betainv:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &p = args[0];
-    const Value &a = args[1];
-    const Value &b = args[2];
-    if (a.isScalar() && b.isScalar()) {
-        outs[0] = betainv(p, a.toScalar(), b.toScalar(), mr);   // unchanged fast path
-        return;
-    }
-    // betaincinv broadcasts (p, a, b) and gives NaN for a<=0||b<=0 (no other
-    // degenerate). It does NOT validate sizes (would OOB), so guard first.
-    const size_t np = p.numel(), na = a.numel(), nb = b.numel();
-    if (np == 0 || na == 0 || nb == 0) {
-        outs[0] = dist_empty_like(np == 0 ? p : (na == 0 ? a : b), mr);
-        return;
-    }
-    dist_match_numel({np, na, nb}, "betainv");
-    outs[0] = ::numkit::builtin::betaincinv(p, a, b, mr);
-}
-
-void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("betarnd: requires (a, b[, sz...])", 0, 0, "betarnd", "", "numkit:betarnd:nargin");
-    const double a = args[0].toScalar();
-    const double b = args[1].toScalar();
-    size_t rows, cols;
-    parse_rng_size(args, 2, rows, cols);
-    outs[0] = betarnd(a, b, rows, cols, ctx.engine->resource());
-}
-
-void betastat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "betastat",
-                       [](double a, double b) { return betastat(a, b); });
-}
-
-} // namespace detail
 } // namespace numkit::stats

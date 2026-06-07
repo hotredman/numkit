@@ -4,8 +4,8 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -14,41 +14,10 @@
 #include <mutex>
 #include <random>
 
+#include "gev_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-constexpr double kEulerGamma = 0.5772156649015328606065120900824024;
-constexpr double kPi2Over6   = 1.6449340668482264364724151666460252;
-
-template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
-{
-    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
-    const auto &d = x.dims();
-    Value out;
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
-    return out;
-}
-
-// Sample inverse-cdf: x = mu + sigma · ((-log(u))^(-k) - 1)/k for k≠0,
-// x = mu − sigma·log(−log(u)) for k=0.
-inline double gev_inv_one(double u, double k, double sigma, double mu) {
-    if (!(u >= 0.0 && u <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
-    if (u == 0.0) return (k > 0) ? mu - sigma / k
-                                 : -std::numeric_limits<double>::infinity();
-    if (u == 1.0) return (k < 0) ? mu - sigma / k
-                                 :  std::numeric_limits<double>::infinity();
-    if (k == 0.0) return mu - sigma * std::log(-std::log(u));
-    return mu + sigma * (std::pow(-std::log(u), -k) - 1.0) / k;
-}
-
-} // anonymous
 
 Value gevpdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr)
 {
@@ -128,68 +97,4 @@ std::tuple<double, double> gevstat(double k, double sigma, double mu)
     return std::make_tuple(mean, var);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void gevpdf_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 4)
-        throw Error("gevpdf: requires (x, k, sigma, mu)",
-                    0, 0, "gevpdf", "", "numkit:gevpdf:nargin");
-    outs[0] = gevpdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
-}
-
-void gevcdf_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
-{
-    bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 4)
-        throw Error("gevcdf: requires (x, k, sigma, mu[, 'upper'])",
-                    0, 0, "gevcdf", "", "numkit:gevcdf:nargin");
-    Value v = gevcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
-    if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
-}
-
-void gevinv_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 4)
-        throw Error("gevinv: requires (p, k, sigma, mu)",
-                    0, 0, "gevinv", "", "numkit:gevinv:nargin");
-    outs[0] = gevinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
-}
-
-void gevrnd_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("gevrnd: requires (k, sigma, mu[, m, n])",
-                    0, 0, "gevrnd", "", "numkit:gevrnd:nargin");
-    const double k     = args[0].toScalar();
-    const double sigma = args[1].toScalar();
-    const double mu    = args[2].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 4 && !args[3].isEmpty()) rows = static_cast<size_t>(args[3].toScalar());
-    if (args.size() >= 5 && !args[4].isEmpty()) cols = static_cast<size_t>(args[4].toScalar());
-    else if (args.size() >= 4) cols = rows;
-    outs[0] = gevrnd(k, sigma, mu, rows, cols, ctx.engine->resource());
-}
-
-void gevstat_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
-{
-    emit_vec_stat_3arg(args, nargout, outs, ctx.engine->resource(), "gevstat",
-                       [](double k, double sigma, double mu) {
-                           return gevstat(k, sigma, mu);
-                       });
-    return;
-}
-
-} // namespace detail
 } // namespace numkit::stats
