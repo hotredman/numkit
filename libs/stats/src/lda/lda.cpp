@@ -2,8 +2,8 @@
 
 #include <numkit/stats/lda/lda.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -221,27 +221,4 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     return {std::move(cV), std::move(errV), std::move(postV), std::move(logpV)};
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapter
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void classify_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("classify: requires (sample, training, group[, type])",
-                    0, 0, "classify", "", "numkit:classify:nargin");
-    std::string type;
-    if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
-        type = args[3].toString();
-    auto [c, err, post, logp] = classify(args[0], args[1], args[2], type, ctx.engine->resource());
-    outs[0] = std::move(c);
-    if (nargout > 1) outs[1] = std::move(err);
-    if (nargout > 2) outs[2] = std::move(post);
-    if (nargout > 3) outs[3] = std::move(logp);
-}
-
-} // namespace detail
 } // namespace numkit::stats

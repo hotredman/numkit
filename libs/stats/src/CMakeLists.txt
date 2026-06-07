@@ -12,7 +12,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grpstats.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/nearcorr.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/partial_canon.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/normal.cpp # compute (engine-free)
@@ -76,19 +77,26 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/resample/resample.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/anova/anova.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/anova/multcompare.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/spline/spline.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/qmc/qmc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/anova/multcompare.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/anova/multcompare_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/spline/spline.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/spline/spline_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/qmc/qmc.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/qmc/qmc_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/regress.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/nlinfit.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/robust.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/glm.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/lasso.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/lda/lda.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/sampling/lhs.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/copulas/copulas.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lda/lda.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/lda/lda_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/sampling/lhs.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/sampling/lhs_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/copulas/copulas.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/copulas/copulas_reg.cpp # register (CallContext)
 )
 
 # Backend-split functions: one definition per TU, picked at configure

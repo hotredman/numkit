@@ -6,8 +6,8 @@
 
 #include <numkit/stats/moments/moments.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "helpers.hpp"
 #include "reduction_helpers.hpp"
@@ -129,40 +129,5 @@ Value kurtosis(const Value &x, int normFlag, int dim, std::pmr::memory_resource 
 {
     return dispatchMomentReduction(x, dim, normFlag, "kurtosis", kurtosisFromSlice, mr);
 }
-
-// ── Engine adapters ──────────────────────────────────────────────────
-namespace detail {
-
-void skewness_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
-                  CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("skewness: requires at least 1 argument",
-                     0, 0, "skewness", "", "numkit:skewness:nargin");
-    int normFlag = 1;  // MATLAB default
-    int dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        normFlag = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
-    outs[0] = skewness(args[0], normFlag, dim, ctx.engine->resource());
-}
-
-void kurtosis_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
-                  CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("kurtosis: requires at least 1 argument",
-                     0, 0, "kurtosis", "", "numkit:kurtosis:nargin");
-    int normFlag = 1;
-    int dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        normFlag = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
-    outs[0] = kurtosis(args[0], normFlag, dim, ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::stats

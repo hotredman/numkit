@@ -9,9 +9,9 @@
 
 #include <numkit/stats/distributions/students_t.hpp>   // tinv, tcdf
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -104,33 +104,4 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
     return out;
 }
 
-// ── Adapter ─────────────────────────────────────────────────────────
-namespace detail {
-
-void multcompare_reg(Span<const Value> args, size_t /*nargout*/,
-                     Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("multcompare: requires (stats [, alpha [, ctype]])",
-                    0, 0, "multcompare", "", "numkit:multcompare:nargin");
-    double alpha = 0.05;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        alpha = args[1].toScalar();
-    McCorrection ctype = McCorrection::Bonferroni;
-    if (args.size() >= 3 && args[2].isChar()) {
-        const std::string s = args[2].toString();
-        if (s == "bonferroni") ctype = McCorrection::Bonferroni;
-        else if (s == "lsd")   ctype = McCorrection::LSD;
-        else if (s == "tukey-kramer" || s == "hsd")
-            throw Error("multcompare: 'tukey-kramer' not yet supported "
-                        "(v1 ships 'bonferroni' and 'lsd' only)",
-                        0, 0, "multcompare", "", "numkit:multcompare:badCtype");
-        else
-            throw Error("multcompare: unknown ctype '" + s + "'",
-                        0, 0, "multcompare", "", "numkit:multcompare:badCtype");
-    }
-    outs[0] = multcompare(args[0], alpha, ctype, ctx.engine->resource());
-}
-
-} // namespace detail
 } // namespace numkit::stats
