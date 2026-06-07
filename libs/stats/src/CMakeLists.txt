@@ -25,7 +25,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/partial_canon_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/normal.cpp # compute (engine-free)
@@ -106,11 +107,15 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/spline/spline_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/qmc/qmc.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/qmc/qmc_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/regress/regress.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/regress.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/regress_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/regress/nlinfit.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/regress/robust.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/regress/glm.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/regress/lasso.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/robust.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/robust_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/glm.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/glm_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/lasso.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/regress/lasso_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/lda/lda.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/lda/lda_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/sampling/lhs.cpp # compute (engine-free)
