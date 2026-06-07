@@ -15,8 +15,8 @@
 
 #include <numkit/image/color/color.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cstdint>
 #include <cstring>
@@ -119,27 +119,5 @@ Value planar2raw(const Value &I, std::pmr::memory_resource *mr)
     }
     return cfa;
 }
-
-namespace detail {
-
-void raw2planar_reg(Span<const Value> args, size_t /*nargout*/,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1)
-        throw Error("raw2planar: requires (cfa)",
-                    0, 0, "raw2planar", "", "numkit:raw2planar:nargin");
-    outs[0] = raw2planar(args[0], ctx.engine->resource());
-}
-
-void planar2raw_reg(Span<const Value> args, size_t /*nargout*/,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1)
-        throw Error("planar2raw: requires (I)",
-                    0, 0, "planar2raw", "", "numkit:planar2raw:nargin");
-    outs[0] = planar2raw(args[0], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::image

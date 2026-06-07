@@ -38,8 +38,8 @@
 #include <numkit/image/color/color.hpp>
 #include <numkit/image/type_convert/type_convert.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <array>
@@ -475,37 +475,4 @@ Value chromadapt(const Value &A, const Value &illuminant_in,
     return rgb_to_value(out_rgb, origClass, mr);
 }
 
-namespace detail {
-
-void chromadapt_reg(Span<const Value> args, std::size_t /*nargout*/,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("chromadapt: requires (A, illuminant [, NV...])",
-                    0, 0, "chromadapt", "", "numkit:chromadapt:nargin");
-    auto *mr = ctx.engine->resource();
-    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
-    std::string method = "bradford";
-    std::string colorSpace = "srgb";
-    std::size_t i = 2;
-    while (i + 1 < args.size()) {
-        if (!is_string(args[i]))
-            throw Error("chromadapt: expected NV-pair name string",
-                        0, 0, "chromadapt", "", "numkit:chromadapt:badNv");
-        std::string name = args[i].toString();
-        std::string nlo;
-        for (char ch : name)
-            nlo += static_cast<char>(std::tolower(
-                static_cast<unsigned char>(ch)));
-        if (nlo == "method")           method     = args[i + 1].toString();
-        else if (nlo == "colorspace")  colorSpace = args[i + 1].toString();
-        else throw Error("chromadapt: unknown option '" + name + "'",
-                         0, 0, "chromadapt", "",
-                         "numkit:chromadapt:unknownNv");
-        i += 2;
-    }
-    outs[0] = chromadapt(args[0], args[1], method, colorSpace, mr);
-}
-
-}  // namespace detail
-}  // namespace numkit::image
+} // namespace numkit::image
