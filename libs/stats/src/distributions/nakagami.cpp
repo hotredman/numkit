@@ -172,7 +172,7 @@ void nakarnd_reg(Span<const Value> args, size_t /*nargout*/,
 void nakastat_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "nakastat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "nakastat",
                        [](double mu, double omega) { return nakastat(mu, omega); });
 }
 

@@ -149,7 +149,7 @@ void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void unifstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "unifstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "unifstat",
                        [](double a, double b) { return unifstat(a, b); });
 }
 

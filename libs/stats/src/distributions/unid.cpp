@@ -173,7 +173,7 @@ void unidrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void unidstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_1arg(args, nargout, outs, ctx, "unidstat",
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "unidstat",
                        [](double N) { return unidstat(N); });
 }
 

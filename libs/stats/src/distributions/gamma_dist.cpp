@@ -259,7 +259,7 @@ void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "gamstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "gamstat",
                        [](double a, double b) { return gamstat(a, b); });
 }
 

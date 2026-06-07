@@ -243,7 +243,7 @@ void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void nbinstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "nbinstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "nbinstat",
                        [](double r, double p) { return nbinstat(r, p); });
 }
 

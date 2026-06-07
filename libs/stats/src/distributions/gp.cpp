@@ -182,7 +182,7 @@ void gprnd_reg(Span<const Value> args, size_t /*nargout*/,
 void gpstat_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_3arg(args, nargout, outs, ctx, "gpstat",
+    emit_vec_stat_3arg(args, nargout, outs, ctx.engine->resource(), "gpstat",
                        [](double k, double sigma, double theta) {
                            return gpstat(k, sigma, theta);
                        });

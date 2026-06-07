@@ -156,7 +156,7 @@ void exprnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 
 void expstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_1arg(args, nargout, outs, ctx, "expstat",
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "expstat",
                        [](double mu) { return expstat(mu); });
 }
 

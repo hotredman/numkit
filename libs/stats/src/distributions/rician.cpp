@@ -208,7 +208,7 @@ void ricestat_reg(Span<const Value> args, size_t nargout,
                   Span<Value> outs, CallContext &ctx)
 {
     auto *mr = ctx.engine->resource();
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "ricestat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "ricestat",
                        [mr](double s, double sigma) { return ricestat(s, sigma, mr); });
 }
 

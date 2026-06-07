@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
@@ -66,13 +66,12 @@ inline void applyUpperInPlace(Value &y)
 
 template <class Stat1>
 inline void emit_vec_stat_1arg(Span<const Value> args, size_t nargout,
-                                Span<Value> outs, CallContext &ctx,
+                                Span<Value> outs, std::pmr::memory_resource *mr,
                                 const char *fnName, Stat1 stat_impl)
 {
     if (args.empty())
         throw Error(std::string(fnName) + ": requires 1 arg",
                     0, 0, fnName, "", "numkit:nargin");
-    auto *mr = ctx.engine->resource();
     const Value &p = args[0];
     if (p.isScalar()) {
         auto [m, v] = stat_impl(p.toScalar());
@@ -101,13 +100,12 @@ inline void emit_vec_stat_1arg(Span<const Value> args, size_t nargout,
 
 template <class Stat2>
 inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
-                                Span<Value> outs, CallContext &ctx,
+                                Span<Value> outs, std::pmr::memory_resource *mr,
                                 const char *fnName, Stat2 stat_impl)
 {
     if (args.size() < 2)
         throw Error(std::string(fnName) + ": requires 2 args",
                     0, 0, fnName, "", "numkit:nargin");
-    auto *mr = ctx.engine->resource();
     const Value &av = args[0];
     const Value &bv = args[1];
     const size_t na = av.numel();
@@ -145,13 +143,12 @@ inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
 
 template <class Stat3>
 inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
-                                Span<Value> outs, CallContext &ctx,
+                                Span<Value> outs, std::pmr::memory_resource *mr,
                                 const char *fnName, Stat3 stat_impl)
 {
     if (args.size() < 3)
         throw Error(std::string(fnName) + ": requires 3 args",
                     0, 0, fnName, "", "numkit:nargin");
-    auto *mr = ctx.engine->resource();
     const Value &av = args[0];
     const Value &bv = args[1];
     const Value &cv = args[2];

@@ -235,7 +235,7 @@ void binornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void binostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "binostat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "binostat",
                        [](double n, double p) { return binostat(n, p); });
 }
 

@@ -323,7 +323,7 @@ void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 
 void poisstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_1arg(args, nargout, outs, ctx, "poisstat",
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "poisstat",
                        [](double lambda) { return poisstat(lambda); });
 }
 

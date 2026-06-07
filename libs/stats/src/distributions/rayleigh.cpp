@@ -186,7 +186,7 @@ void raylrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void raylstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_1arg(args, nargout, outs, ctx, "raylstat",
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "raylstat",
                        [](double b) { return raylstat(b); });
 }
 

@@ -466,7 +466,7 @@ void frnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
 
 void fstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    emit_vec_stat_2arg(args, nargout, outs, ctx, "fstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "fstat",
                        [](double v1, double v2) { return fstat(v1, v2); });
 }
 
