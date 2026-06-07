@@ -10,7 +10,7 @@
 
 #include "casts.hpp"
 
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <cstddef>

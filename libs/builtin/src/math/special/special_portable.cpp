@@ -6,7 +6,7 @@
 
 #include <numkit/builtin/math/special/special.hpp>
 
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include "helpers.hpp"
 

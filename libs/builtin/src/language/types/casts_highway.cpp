@@ -16,7 +16,7 @@
 #include "casts.hpp"
 
 #include <numkit/ops/parallel_for.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <cstddef>
