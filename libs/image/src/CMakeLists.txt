@@ -2,7 +2,8 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic/arithmetic.cpp           # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic/arithmetic_reg.cpp       # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/type_convert/type_convert.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/type_convert/type_convert.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/type_convert/type_convert_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color.cpp        # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color_extras.cpp
@@ -27,18 +28,26 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/fir2d_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/contrast/contrast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/morph/morph.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/region/region.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/region/region.cpp      # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/region/region_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/object/object.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/quality/quality.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/transform/transform.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/quality/quality.cpp    # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/quality/quality_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transform/transform.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transform/transform_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/io/stb_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/io/io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/io.cpp              # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/io_reg.cpp      # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/io/tiff_reader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/io/tiff_writer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/geom/geom.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/segment/segment.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/region/bwpropfilt.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/texture/texture.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/geom/geom.cpp          # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/geom/geom_reg.cpp  # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/segment/segment.cpp    # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/segment/segment_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/region/bwpropfilt.cpp  # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/region/bwpropfilt_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/texture/texture.cpp    # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/texture/texture_reg.cpp # register (CallContext)
 )
 
 set(IMAGELIB_SOURCES ${IMAGELIB_SOURCES} PARENT_SCOPE)
