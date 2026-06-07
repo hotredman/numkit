@@ -4,9 +4,9 @@
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/language/strings/print.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/shape_ops.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <cstring>
@@ -169,34 +169,5 @@ std::size_t fprintf(Engine &engine, Span<const Value> args)
     }
     return result.size();
 }
-
-// ════════════════════════════════════════════════════════════════════════
-// Adapters
-// ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void disp_reg(Span<const Value> args, size_t, Span<Value>, CallContext &ctx)
-{
-    // OBJECT: disp(obj) uses the class display hook (no name header).
-    if (!args.empty() && args[0].isObject()) {
-        ctx.engine->outputText(ctx.engine->formatObjectDisplay("", args[0]));
-        return;
-    }
-    disp(*ctx.engine, args);
-}
-
-void fprintf_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
-                 CallContext &ctx)
-{
-    std::size_t count = fprintf(*ctx.engine, args);
-    // MATLAB: `count = fprintf(...)` returns the number of bytes written.
-    // Only materialise the output when explicitly requested — a bare
-    // `fprintf(...)` sets no `ans`.
-    if (nargout >= 1 && !outs.empty())
-        outs[0] = Value::scalar(static_cast<double>(count), ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::builtin
