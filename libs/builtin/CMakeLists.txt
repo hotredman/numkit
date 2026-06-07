@@ -10,9 +10,7 @@ list(APPEND NUMKIT_LIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/library.hpp
-    # internal/  — published-but-namespaced-detail kernels (callable
-    # from sibling libs/linalg; not part of the stable user API).
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/internal/la_solve.hpp
+    # (la_solve internal kernel moved to ops/ — numkit::ops::la_solve.)
     # math/
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/misc.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/reductions.hpp
