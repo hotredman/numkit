@@ -23,7 +23,8 @@ set(LINALGLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/predicates.cpp          # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/predicates_reg.cpp      # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/solvers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solvers.cpp             # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solvers_reg.cpp         # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/misc.cpp                # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/misc_reg.cpp            # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/page_ops.cpp            # compute (engine-free)
