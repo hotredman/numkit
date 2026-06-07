@@ -5,8 +5,8 @@
 #include <numkit/builtin/math/special/special.hpp>   // gammainc, gammaincinv
 #include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -15,40 +15,10 @@
 #include <mutex>
 #include <random>
 
+#include "nakagami_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
-{
-    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
-    const auto &d = x.dims();
-    Value out;
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
-    return out;
-}
-
-inline double gammainc_scalar(double xx, double a, std::pmr::memory_resource *mr)
-{
-    Value xv = Value::scalar(xx, mr);
-    Value av = Value::scalar(a,  mr);
-    return ::numkit::builtin::gammainc(xv, av, mr).toScalar();
-}
-
-inline double gammaincinv_scalar(double p, double a, std::pmr::memory_resource *mr)
-{
-    Value pv = Value::scalar(p, mr);
-    Value av = Value::scalar(a, mr);
-    return ::numkit::builtin::gammaincinv(pv, av, mr).toScalar();
-}
-
-} // anonymous
 
 Value nakapdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr)
 {
@@ -117,64 +87,4 @@ std::tuple<double, double> nakastat(double mu, double omega)
     return std::make_tuple(mean, var);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void nakapdf_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("nakapdf: requires (x, mu, omega)",
-                    0, 0, "nakapdf", "", "numkit:nakapdf:nargin");
-    outs[0] = nakapdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
-}
-
-void nakacdf_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 3)
-        throw Error("nakacdf: requires (x, mu, omega[, 'upper'])",
-                    0, 0, "nakacdf", "", "numkit:nakacdf:nargin");
-    Value v = nakacdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
-    if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
-}
-
-void nakainv_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("nakainv: requires (p, mu, omega)",
-                    0, 0, "nakainv", "", "numkit:nakainv:nargin");
-    outs[0] = nakainv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
-}
-
-void nakarnd_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("nakarnd: requires (mu, omega[, m, n])",
-                    0, 0, "nakarnd", "", "numkit:nakarnd:nargin");
-    const double mu    = args[0].toScalar();
-    const double omega = args[1].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
-    else if (args.size() >= 3) cols = rows;
-    outs[0] = nakarnd(mu, omega, rows, cols, ctx.engine->resource());
-}
-
-void nakastat_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
-{
-    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "nakastat",
-                       [](double mu, double omega) { return nakastat(mu, omega); });
-}
-
-} // namespace detail
 } // namespace numkit::stats

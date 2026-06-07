@@ -4,8 +4,8 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -14,26 +14,10 @@
 #include <mutex>
 #include <random>
 
+#include "uniform_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
-{
-    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
-    const auto &d = x.dims();
-    Value out;
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
-    return out;
-}
-
-} // anonymous
 
 Value unifpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
@@ -95,63 +79,4 @@ std::tuple<double, double> unifstat(double a, double b)
     return std::make_tuple(0.5 * (a + b), (w * w) / 12.0);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-namespace {
-// MATLAB defaults: a = 0, b = 1 when omitted.
-inline double argA(Span<const Value> args, size_t i) {
-    return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 0.0;
-}
-inline double argB(Span<const Value> args, size_t i) {
-    return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 1.0;
-}
-}
-
-void unifpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("unifpdf: requires (x[, a, b])", 0, 0, "unifpdf", "", "numkit:unifpdf:nargin");
-    outs[0] = unifpdf(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
-}
-
-void unifcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    bool upper = false;
-    const Span<const Value> stripped = args.subspan(0, stripUpperFlag(args, upper));
-    if (stripped.empty())
-        throw Error("unifcdf: requires (x[, a, b][, 'upper'])", 0, 0, "unifcdf", "", "numkit:unifcdf:nargin");
-    Value v = unifcdf(stripped[0], argA(stripped, 1), argB(stripped, 2), ctx.engine->resource());
-    if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
-}
-
-void unifinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("unifinv: requires (p[, a, b])", 0, 0, "unifinv", "", "numkit:unifinv:nargin");
-    outs[0] = unifinv(args[0], argA(args, 1), argB(args, 2), ctx.engine->resource());
-}
-
-void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("unifrnd: requires (a, b[, sz...])", 0, 0, "unifrnd", "", "numkit:unifrnd:nargin");
-    const double a = args[0].toScalar();
-    const double b = args[1].toScalar();
-    size_t rows, cols;
-    parse_rng_size(args, 2, rows, cols);
-    outs[0] = unifrnd(a, b, rows, cols, ctx.engine->resource());
-}
-
-void unifstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "unifstat",
-                       [](double a, double b) { return unifstat(a, b); });
-}
-
-} // namespace detail
 } // namespace numkit::stats

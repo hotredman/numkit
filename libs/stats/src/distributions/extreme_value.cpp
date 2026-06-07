@@ -4,8 +4,8 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -14,29 +14,10 @@
 #include <mutex>
 #include <random>
 
+#include "extreme_value_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-constexpr double kEulerGamma = 0.5772156649015328606065120900824024;
-constexpr double kPi2Over6   = 1.6449340668482264364724151666460252;  // π²/6
-
-template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
-{
-    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
-    const auto &d = x.dims();
-    Value out;
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
-    return out;
-}
-
-} // anonymous
 
 Value evpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
 {
@@ -107,70 +88,4 @@ std::tuple<double, double> evstat(double mu, double sigma)
                            sigma * sigma * kPi2Over6);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void evpdf_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("evpdf: requires x[, mu, sigma]",
-                    0, 0, "evpdf", "", "numkit:evpdf:nargin");
-    const double mu    = (args.size() >= 2) ? args[1].toScalar() : 0.0;
-    const double sigma = (args.size() >= 3) ? args[2].toScalar() : 1.0;
-    outs[0] = evpdf(args[0], mu, sigma, ctx.engine->resource());
-}
-
-void evcdf_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 1)
-        throw Error("evcdf: requires x[, mu, sigma][, 'upper']",
-                    0, 0, "evcdf", "", "numkit:evcdf:nargin");
-    const double mu    = (n >= 2) ? args[1].toScalar() : 0.0;
-    const double sigma = (n >= 3) ? args[2].toScalar() : 1.0;
-    Value v = evcdf(args[0], mu, sigma, ctx.engine->resource());
-    if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
-}
-
-void evinv_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("evinv: requires p[, mu, sigma]",
-                    0, 0, "evinv", "", "numkit:evinv:nargin");
-    const double mu    = (args.size() >= 2) ? args[1].toScalar() : 0.0;
-    const double sigma = (args.size() >= 3) ? args[2].toScalar() : 1.0;
-    outs[0] = evinv(args[0], mu, sigma, ctx.engine->resource());
-}
-
-void evrnd_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("evrnd: requires (mu, sigma[, m, n])",
-                    0, 0, "evrnd", "", "numkit:evrnd:nargin");
-    const double mu    = args[0].toScalar();
-    const double sigma = args[1].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
-    else if (args.size() >= 3) cols = rows;
-    outs[0] = evrnd(mu, sigma, rows, cols, ctx.engine->resource());
-}
-
-void evstat_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "evstat",
-                       [](double mu, double sigma) { return evstat(mu, sigma); });
-}
-
-} // namespace detail
 } // namespace numkit::stats

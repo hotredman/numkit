@@ -4,8 +4,8 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -14,37 +14,10 @@
 #include <mutex>
 #include <random>
 
+#include "gp_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
-{
-    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
-    const auto &d = x.dims();
-    Value out;
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
-    return out;
-}
-
-// Sample inverse-cdf: x = theta + sigma · ((1-u)^(-k) - 1)/k for k≠0,
-// x = theta − sigma·log1p(−u) for k=0.
-inline double gp_inv_one(double u, double k, double sigma, double theta) {
-    if (!(u >= 0.0 && u <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
-    if (u == 0.0) return theta;
-    if (u == 1.0) return (k < 0) ? theta - sigma / k
-                                 :  std::numeric_limits<double>::infinity();
-    if (k == 0.0) return theta - sigma * std::log1p(-u);
-    return theta + sigma * (std::pow(1.0 - u, -k) - 1.0) / k;
-}
-
-} // anonymous
 
 Value gppdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr)
 {
@@ -126,67 +99,4 @@ std::tuple<double, double> gpstat(double k, double sigma, double theta)
     return std::make_tuple(mean, var);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void gppdf_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 4)
-        throw Error("gppdf: requires (x, k, sigma, theta)",
-                    0, 0, "gppdf", "", "numkit:gppdf:nargin");
-    outs[0] = gppdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
-}
-
-void gpcdf_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 4)
-        throw Error("gpcdf: requires (x, k, sigma, theta[, 'upper'])",
-                    0, 0, "gpcdf", "", "numkit:gpcdf:nargin");
-    Value v = gpcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
-    if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
-}
-
-void gpinv_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 4)
-        throw Error("gpinv: requires (p, k, sigma, theta)",
-                    0, 0, "gpinv", "", "numkit:gpinv:nargin");
-    outs[0] = gpinv(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
-}
-
-void gprnd_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("gprnd: requires (k, sigma, theta[, m, n])",
-                    0, 0, "gprnd", "", "numkit:gprnd:nargin");
-    const double k     = args[0].toScalar();
-    const double sigma = args[1].toScalar();
-    const double theta = args[2].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 4 && !args[3].isEmpty()) rows = static_cast<size_t>(args[3].toScalar());
-    if (args.size() >= 5 && !args[4].isEmpty()) cols = static_cast<size_t>(args[4].toScalar());
-    else if (args.size() >= 4) cols = rows;
-    outs[0] = gprnd(k, sigma, theta, rows, cols, ctx.engine->resource());
-}
-
-void gpstat_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    emit_vec_stat_3arg(args, nargout, outs, ctx.engine->resource(), "gpstat",
-                       [](double k, double sigma, double theta) {
-                           return gpstat(k, sigma, theta);
-                       });
-}
-
-} // namespace detail
 } // namespace numkit::stats

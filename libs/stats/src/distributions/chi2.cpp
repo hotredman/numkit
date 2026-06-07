@@ -8,8 +8,8 @@
 #include <numkit/builtin/math/random/rng.hpp>      // sharedEngine, rngMutex
 #include <numkit/builtin/math/special/special.hpp> // gammainc, gammaincinv
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -22,41 +22,10 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+#include "chi2_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
-{
-    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
-    const auto &d = x.dims();
-    Value out;
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
-    return out;
-}
-
-// Scalar pdf kernel for the parameter-broadcast path (vector k). Owns its
-// per-element domain: k<0 → NaN, k==0 → 0 (degenerate Chi²(0)). Mirrors the
-// public chi2pdf formula exactly.
-inline double chi2pdfK(double x, double k)
-{
-    if (k < 0.0) return std::numeric_limits<double>::quiet_NaN();
-    if (k == 0.0) return 0.0;
-    if (x < 0.0) return 0.0;
-    const double half_k = 0.5 * k;
-    const double log_norm = -half_k * std::log(2.0) - std::lgamma(half_k);
-    if (x == 0.0)
-        return (k == 2.0) ? 0.5 : (k > 2.0 ? 0.0 : std::numeric_limits<double>::infinity());
-    return std::exp(log_norm + (half_k - 1.0) * std::log(x) - 0.5 * x);
-}
-
-} // anonymous
 
 Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr)
 {
@@ -131,97 +100,4 @@ std::tuple<double, double> chi2stat(double k)
     return std::make_tuple(k, 2.0 * k);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void chi2pdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("chi2pdf: requires (x, k)", 0, 0, "chi2pdf", "", "numkit:chi2pdf:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &k = args[1];
-    // Scalar k: hoisted fast path (unchanged). Vector k: broadcast.
-    if (k.isScalar())
-        outs[0] = chi2pdf(args[0], k.toScalar(), mr);
-    else
-        outs[0] = broadcast_dist2(args[0], k, mr, "chi2pdf", chi2pdfK);
-}
-
-void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    bool upper = false;
-    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
-    if (a.size() < 2)
-        throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "numkit:chi2cdf:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &k = a[1];
-    Value v;
-    if (k.isScalar()) {
-        v = chi2cdf(a[0], k.toScalar(), mr);
-    } else {
-        // F(x; k) = gammainc(max(0,x/2), k/2); gammainc broadcasts (xs, k/2)
-        // and gammaincScalar gives NaN where k/2<=0 (matches k<=0 → NaN).
-        Value xs = elementwise(a[0], [](double xi) { return std::max(0.0, 0.5 * xi); }, mr);
-        Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
-        v = ::numkit::builtin::gammainc(xs, half_k, mr);
-    }
-    if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
-}
-
-void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("chi2inv: requires (p, k)", 0, 0, "chi2inv", "", "numkit:chi2inv:nargin");
-    auto *mr = ctx.engine->resource();
-    const Value &p = args[0];
-    const Value &k = args[1];
-    if (k.isScalar()) {
-        outs[0] = chi2inv(p, k.toScalar(), mr);   // unchanged fast path
-        return;
-    }
-    // Broadcast: x = 2·gammaincinv(p, k/2); k<0 → NaN; k==0 → 0 (p∈[0,1]) / NaN.
-    const size_t np = p.numel(), nk = k.numel();
-    if (np == 0 || nk == 0) {
-        outs[0] = dist_empty_like(np == 0 ? p : k, mr);
-        return;
-    }
-    const size_t N = dist_match_numel({np, nk}, "chi2inv");
-    Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
-    Value q = ::numkit::builtin::gammaincinv(p, half_k, mr);
-    const size_t nq = q.numel();
-    const Value &ref = (nk == N) ? k : p;
-    Value out = dist_empty_like(ref, mr);
-    double *od = out.doubleDataMut();
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
-    for (size_t i = 0; i < N; ++i) {
-        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
-        const double ki = k.elemAsDouble(nk == 1 ? 0 : i);
-        const double qi = q.elemAsDouble(nq == 1 ? 0 : i);
-        od[i] = (ki < 0.0) ? NaN
-                           : (ki == 0.0 ? ((pi >= 0.0 && pi <= 1.0) ? 0.0 : NaN) : 2.0 * qi);
-    }
-    outs[0] = std::move(out);
-}
-
-void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("chi2rnd: requires k[, sz...]", 0, 0, "chi2rnd", "", "numkit:chi2rnd:nargin");
-    const double k = args[0].toScalar();
-    size_t rows, cols;
-    parse_rng_size(args, 1, rows, cols);
-    outs[0] = chi2rnd(k, rows, cols, ctx.engine->resource());
-}
-
-void chi2stat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "chi2stat",
-                       [](double k) { return chi2stat(k); });
-}
-
-} // namespace detail
 } // namespace numkit::stats

@@ -5,8 +5,8 @@
 #include <numkit/builtin/math/special/special.hpp>   // besseli, gammainc
 #include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
@@ -15,59 +15,10 @@
 #include <mutex>
 #include <random>
 
+#include "ncx2_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
-{
-    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
-    const auto &d = x.dims();
-    Value out;
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
-    return out;
-}
-
-inline double besseli_scalar(double nu, double xx, std::pmr::memory_resource *mr)
-{
-    Value nv = Value::scalar(nu, mr);
-    Value xv = Value::scalar(xx, mr);
-    return ::numkit::builtin::besseli(nv, xv, mr).toScalar();
-}
-
-inline double gammainc_scalar(double xx, double a, std::pmr::memory_resource *mr)
-{
-    Value xv = Value::scalar(xx, mr);
-    Value av = Value::scalar(a,  mr);
-    return ::numkit::builtin::gammainc(xv, av, mr).toScalar();
-}
-
-double ncx2cdf_one(double x, double k, double lambda, std::pmr::memory_resource *mr)
-{
-    if (x <= 0.0) return 0.0;
-    if (lambda == 0.0) return gammainc_scalar(x / 2.0, k / 2.0, mr);
-    const double halfL = lambda / 2.0;
-    const double halfX = x / 2.0;
-    double Pj = std::exp(-halfL);
-    double sum = 0.0;
-    const int maxIter = 2000;
-    for (int j = 0; j < maxIter; ++j) {
-        const double cdfTerm = gammainc_scalar(halfX, k / 2.0 + double(j), mr);
-        const double contrib = Pj * cdfTerm;
-        sum += contrib;
-        if (j > 5 && contrib < 1e-16 * (sum + 1e-300)) break;
-        Pj *= halfL / double(j + 1);
-    }
-    return std::min(1.0, sum);
-}
-
-} // anonymous
 
 Value ncx2pdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr)
 {
@@ -157,64 +108,4 @@ std::tuple<double, double> ncx2stat(double k, double lambda)
     return std::make_tuple(k + lambda, 2.0 * (k + 2.0 * lambda));
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void ncx2pdf_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("ncx2pdf: requires (x, k, lambda)",
-                    0, 0, "ncx2pdf", "", "numkit:ncx2pdf:nargin");
-    outs[0] = ncx2pdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
-}
-
-void ncx2cdf_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    bool upper = false;
-    const size_t n = stripUpperFlag(args, upper);
-    if (n < 3)
-        throw Error("ncx2cdf: requires (x, k, lambda[, 'upper'])",
-                    0, 0, "ncx2cdf", "", "numkit:ncx2cdf:nargin");
-    Value v = ncx2cdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
-    if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
-}
-
-void ncx2inv_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("ncx2inv: requires (p, k, lambda)",
-                    0, 0, "ncx2inv", "", "numkit:ncx2inv:nargin");
-    outs[0] = ncx2inv(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
-}
-
-void ncx2rnd_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("ncx2rnd: requires (k, lambda[, m, n])",
-                    0, 0, "ncx2rnd", "", "numkit:ncx2rnd:nargin");
-    const double k      = args[0].toScalar();
-    const double lambda = args[1].toScalar();
-    size_t rows = 1, cols = 1;
-    if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
-    else if (args.size() >= 3) cols = rows;
-    outs[0] = ncx2rnd(k, lambda, rows, cols, ctx.engine->resource());
-}
-
-void ncx2stat_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
-{
-    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "ncx2stat",
-                       [](double k, double lambda) { return ncx2stat(k, lambda); });
-}
-
-} // namespace detail
 } // namespace numkit::stats
