@@ -18,8 +18,8 @@
 
 #include <numkit/builtin/language/arrays/matrix.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
 #include "helpers.hpp"

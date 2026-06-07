@@ -7,8 +7,8 @@
 
 #include <numkit/builtin/math/exp_log/exponents.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "helpers.hpp"
 
