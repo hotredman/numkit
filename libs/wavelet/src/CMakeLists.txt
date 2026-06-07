@@ -3,7 +3,8 @@ set(WAVELETLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/wfilters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/qmf.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/families.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt.cpp           # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt_reg.cpp       # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/multilevel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt2.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dyad.cpp

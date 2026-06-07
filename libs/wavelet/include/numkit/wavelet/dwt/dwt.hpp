@@ -37,6 +37,26 @@ std::pair<Value, Value>
 dwt(const Value &x, const std::string &wname,
     std::pmr::memory_resource *mr = nullptr);
 
+/// Internal entry: dwt with explicit analysis filters.
+///
+/// Mirrors @ref idwt_with_filters_pub for the forward transform — lets
+/// the `dwt(x, Lo_D, Hi_D)` custom-filter form be invoked without
+/// re-resolving filters by name. Public so the register TU (and other
+/// libs/wavelet TUs) can call it; not commonly needed by end users.
+///
+/// @param x    Input signal (vector).
+/// @param Lo_D Analysis lowpass filter coefficients.
+/// @param Hi_D Analysis highpass filter coefficients.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `(cA, cD)` approximation / detail bands.
+///
+/// @see dwt, idwt_with_filters_pub
+std::pair<Value, Value>
+dwt_with_filters_pub(const Value &x,
+                     const std::vector<double> &Lo_D,
+                     const std::vector<double> &Hi_D,
+                     std::pmr::memory_resource *mr = nullptr);
+
 /// Inverse single-level discrete wavelet transform.
 ///
 /// Reconstructs the original signal from an approximation / detail
