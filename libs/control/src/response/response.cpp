@@ -24,8 +24,10 @@
 
 #include <numkit/builtin/math/poly/polynomials.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The step/impulse/lsim
+// builtins (CallContext wrappers) live in response_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -350,59 +352,5 @@ Value lsim(const Value &sys, const Value &uIn, const Value &tIn,
     if (xOut) *xOut = matFromTraj(xTraj, t.size(), s.n, mr);
     return rowFromVec(y, mr);
 }
-
-namespace detail {
-
-void step_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
-              CallContext &c)
-{
-    if (a.empty())
-        throw Error("step: requires (sys [, t])",
-                    0, 0, "step", "", "numkit:step:nargin");
-    Value tArg = (a.size() >= 2) ? a[1] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
-    Value xOut;
-    auto [y, t] = step_response(a[0], tArg, c.engine->resource(),
-                                outs.size() >= 3 ? &xOut : nullptr);
-    if (outs.size() >= 1) outs[0] = std::move(y);
-    if (outs.size() >= 2) outs[1] = std::move(t);
-    if (outs.size() >= 3) outs[2] = std::move(xOut);
-}
-
-void impulse_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
-                 CallContext &c)
-{
-    if (a.empty())
-        throw Error("impulse: requires (sys [, t])",
-                    0, 0, "impulse", "", "numkit:impulse:nargin");
-    Value tArg = (a.size() >= 2) ? a[1] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
-    Value xOut;
-    auto [y, t] = impulse_response(a[0], tArg, c.engine->resource(),
-                                   outs.size() >= 3 ? &xOut : nullptr);
-    if (outs.size() >= 1) outs[0] = std::move(y);
-    if (outs.size() >= 2) outs[1] = std::move(t);
-    if (outs.size() >= 3) outs[2] = std::move(xOut);
-}
-
-void lsim_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
-              CallContext &c)
-{
-    if (a.size() < 3)
-        throw Error("lsim: requires (sys, u, t [, x0])",
-                    0, 0, "lsim", "", "numkit:lsim:nargin");
-    Value x0 = (a.size() >= 4) ? a[3] : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
-    Value xOut;
-    outs[0] = lsim(a[0], a[1], a[2], x0, c.engine->resource(),
-                   outs.size() >= 3 ? &xOut : nullptr);
-    // MATLAB: [y, t, x] = lsim(...). t echoes the input time grid.
-    if (outs.size() >= 2) {
-        Value t = Value::matrix(a[2].numel(), 1, ValueType::DOUBLE, c.engine->resource());
-        for (std::size_t i = 0; i < a[2].numel(); ++i)
-            t.doubleDataMut()[i] = a[2].elemAsDouble(i);
-        outs[1] = std::move(t);
-    }
-    if (outs.size() >= 3) outs[2] = std::move(xOut);
-}
-
-} // namespace detail
 
 } // namespace numkit::control
