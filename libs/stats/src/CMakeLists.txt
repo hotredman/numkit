@@ -25,7 +25,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/normal.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/normal_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/chi2.cpp # compute (engine-free)
