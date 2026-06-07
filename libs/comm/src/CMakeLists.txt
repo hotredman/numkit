@@ -7,8 +7,10 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/generic_qam.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/apsk.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/mil188.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/channel/fading.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel.cpp             # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel_reg.cpp        # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/channel/fading.cpp             # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/channel/fading_reg.cpp         # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse.cpp                     # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse_reg.cpp                # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/scrambler.cpp                # compute (engine-free)

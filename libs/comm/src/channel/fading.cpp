@@ -9,8 +9,8 @@
 
 #include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <complex>
@@ -80,28 +80,5 @@ Value ricianchan(const Value &x, double K, std::pmr::memory_resource *mr)
     }
     return y;
 }
-
-namespace detail {
-
-void rayleighchan_reg(Span<const Value> args, size_t /*nargout*/,
-                      Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("rayleighchan: requires (x)",
-                    0, 0, "rayleighchan", "", "numkit:rayleighchan:nargin");
-    outs[0] = rayleighchan(args[0], ctx.engine->resource());
-}
-
-void ricianchan_reg(Span<const Value> args, size_t /*nargout*/,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("ricianchan: requires (x, K)",
-                    0, 0, "ricianchan", "", "numkit:ricianchan:nargin");
-    outs[0] = ricianchan(args[0], args[1].toScalar(),
-                         ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::comm
