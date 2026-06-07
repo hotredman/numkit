@@ -3,9 +3,9 @@
 #include <numkit/builtin/language/strings/format.hpp>
 #include <numkit/builtin/library.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cctype>
 #include <cmath>
@@ -356,24 +356,5 @@ Value sprintf(const Value &fmt, Span<const Value> args, std::pmr::memory_resourc
     std::string result = formatCyclic(fmt.toString(), args, 0, mr);
     return Value::fromString(result, p);
 }
-
-// ════════════════════════════════════════════════════════════════════════
-// Adapter
-// ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void sprintf_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
-{
-    std::pmr::memory_resource *mr = ctx.engine->resource();
-    if (args.empty()) {
-        outs[0] = Value::fromString("", mr);
-        return;
-    }
-    Span<const Value> rest{args.data() + 1, args.size() - 1};
-    outs[0] = sprintf(args[0], rest, mr);
-}
-
-} // namespace detail
 
 } // namespace numkit::builtin

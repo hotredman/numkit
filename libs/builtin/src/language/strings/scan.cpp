@@ -6,9 +6,9 @@
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/language/strings/scan.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include "io_helpers.hpp"
 
@@ -879,28 +879,5 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     }
     outs[0] = std::move(result);
 }
-
-// ════════════════════════════════════════════════════════════════════════
-// Adapters
-// ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void fscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    fscanf(*ctx.engine, args, nargout, outs);
-}
-
-void sscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    sscanf(args, nargout, outs, ctx.engine->resource());
-}
-
-void textscan_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    textscan(*ctx.engine, args, nargout, outs);
-}
-
-} // namespace detail
 
 } // namespace numkit::builtin
