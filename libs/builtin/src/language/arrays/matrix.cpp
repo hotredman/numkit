@@ -10,7 +10,7 @@
 #include "reduction_helpers.hpp"
 #include "rows_helpers.hpp"
 #include <numkit/ops/binary_ops.hpp>
-#include "language/operators/la_solve.hpp"
+#include <numkit/ops/la_solve.hpp>
 #include "math/arithmetic/cumsum.hpp"
 #include <numkit/builtin/math/poly/polynomials.hpp>
 

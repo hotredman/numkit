@@ -6,7 +6,7 @@
 #include <numkit/linalg/matrix_functions.hpp>
 
 #include <numkit/linalg/eig.hpp>                  // eig_symmetric
-#include <numkit/builtin/internal/la_solve.hpp>   // detail::la_solve
+#include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
 #include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
@@ -125,7 +125,7 @@ Value expm(const Value &A, std::pmr::memory_resource *mr)
 
     // Solve Q * X = P for X.
     auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!numkit::builtin::detail::la_solve(Q.data(), n, n, P.data(), n,
+    if (!numkit::ops::la_solve(Q.data(), n, n, P.data(), n,
                                             out.doubleDataMut(), &scratch))
         throw Error("expm: Padé denominator is singular",
                     0, 0, "expm", "", "numkit:expm:singular");
