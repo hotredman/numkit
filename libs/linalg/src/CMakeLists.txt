@@ -9,7 +9,8 @@ set(LINALGLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/vector_ops_reg.cpp      # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/norms.cpp                # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/norms_reg.cpp            # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/properties.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/properties.cpp          # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/properties_reg.cpp      # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/decompositions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pseudo_subspace.cpp     # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/pseudo_subspace_reg.cpp # register (CallContext)
@@ -25,7 +26,8 @@ set(LINALGLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/solvers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/misc.cpp                # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/misc_reg.cpp            # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/page_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/page_ops.cpp            # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/page_ops_reg.cpp        # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/schur_convert.cpp       # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/schur_convert_reg.cpp   # register (CallContext)
 )
