@@ -18,8 +18,8 @@
 
 #include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -188,39 +188,5 @@ pburg(const Value &x, int p, size_t nfft, std::pmr::memory_resource *mr)
     }
     return arSpectrum(a, sigma2, nfft, mr);
 }
-
-namespace detail {
-
-void pyulear_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("pyulear: requires (x, p[, nfft])",
-                    0, 0, "pyulear", "", "numkit:pyulear:nargin");
-    const int p     = static_cast<int>(args[1].toScalar());
-    const size_t nf = (args.size() >= 3 && !args[2].isEmpty())
-                      ? static_cast<size_t>(args[2].toScalar()) : 0;
-    auto [Pxx, F] = pyulear(args[0], p, nf, ctx.engine->resource());
-    outs[0] = std::move(Pxx);
-    if (nargout > 1) outs[1] = std::move(F);
-}
-
-void pburg_reg(Span<const Value> args, size_t nargout,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("pburg: requires (x, p[, nfft])",
-                    0, 0, "pburg", "", "numkit:pburg:nargin");
-    const int p     = static_cast<int>(args[1].toScalar());
-    const size_t nf = (args.size() >= 3 && !args[2].isEmpty())
-                      ? static_cast<size_t>(args[2].toScalar()) : 0;
-    auto [Pxx, F] = pburg(args[0], p, nf, ctx.engine->resource());
-    outs[0] = std::move(Pxx);
-    if (nargout > 1) outs[1] = std::move(F);
-}
-
-// aryule_reg / lpc_reg live in signal_modeling.cpp.
-
-} // namespace detail
 
 } // namespace numkit::signal
