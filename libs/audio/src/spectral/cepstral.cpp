@@ -25,9 +25,12 @@
 #include <numkit/audio/spectral/cepstral.hpp>
 #include <numkit/audio/spectral/melspec_delta.hpp>
 
-#include <numkit/core/engine.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The
+// cepstralCoefficients / mfcc / gtcc builtins (CallContext wrappers) live
+// in spectral/cepstral_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
 
 #include "fft_one_sided.hpp"
 
@@ -535,51 +538,5 @@ gtcc(const Value &x, double fs, int numCoeffs, std::pmr::memory_resource *mr)
     Value deltaDelta = audioDelta(delta, 9, mr);
     return {out, delta, deltaDelta};
 }
-
-namespace detail {
-
-void cepstralCoefficients_reg(Span<const Value> args, size_t /*nargout*/,
-                               Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("cepstralCoefficients: requires (S [, NumCoeffs])",
-                    0, 0, "cepstralCoefficients", "",
-                    "numkit:cepstralCoefficients:nargin");
-    int nc = 13;
-    if (args.size() >= 2) nc = static_cast<int>(args[1].toScalar());
-    outs[0] = cepstralCoefficients(args[0], nc, ctx.engine->resource());
-}
-
-void mfcc_reg(Span<const Value> args, size_t nargout,
-              Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("mfcc: requires (x, fs [, NumCoeffs])",
-                    0, 0, "mfcc", "", "numkit:mfcc:nargin");
-    int nc = 13;
-    if (args.size() >= 3) nc = static_cast<int>(args[2].toScalar());
-    auto [c, d, dd] = mfcc(args[0], args[1].toScalar(), nc,
-                            ctx.engine->resource());
-    outs[0] = c;
-    if (nargout >= 2 && outs.size() >= 2) outs[1] = d;
-    if (nargout >= 3 && outs.size() >= 3) outs[2] = dd;
-}
-
-void gtcc_reg(Span<const Value> args, size_t nargout,
-              Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("gtcc: requires (x, fs [, NumCoeffs])",
-                    0, 0, "gtcc", "", "numkit:gtcc:nargin");
-    int nc = 13;
-    if (args.size() >= 3) nc = static_cast<int>(args[2].toScalar());
-    auto [c, d, dd] = gtcc(args[0], args[1].toScalar(), nc,
-                            ctx.engine->resource());
-    outs[0] = c;
-    if (nargout >= 2 && outs.size() >= 2) outs[1] = d;
-    if (nargout >= 3 && outs.size() >= 3) outs[2] = dd;
-}
-
-} // namespace detail
 
 } // namespace numkit::audio
