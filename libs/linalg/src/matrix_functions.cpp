@@ -7,10 +7,12 @@
 
 #include <numkit/linalg/eig.hpp>                  // eig_symmetric
 #include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
-#include <numkit/core/engine.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The expm/logm/sqrtm/
+// expmv builtins (CallContext wrappers) live in matrix_functions_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
-#include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -297,45 +299,5 @@ Value expmv(double t, const Value &A, const Value &v, std::pmr::memory_resource 
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void expm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("expm: requires exactly 1 argument",
-                    0, 0, "expm", "", "numkit:expm:nargin");
-    outs[0] = expm(args[0], ctx.engine->resource());
-}
-
-void logm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("logm: requires exactly 1 argument",
-                    0, 0, "logm", "", "numkit:logm:nargin");
-    outs[0] = logm_sym(args[0], ctx.engine->resource());
-}
-
-void sqrtm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 1)
-        throw Error("sqrtm: requires exactly 1 argument",
-                    0, 0, "sqrtm", "", "numkit:sqrtm:nargin");
-    outs[0] = sqrtm_sym(args[0], ctx.engine->resource());
-}
-
-// MATLAB signature: w = expmv(t, A, v) — three positional args, t first.
-// Some flavours (e.g. expmv from Higham's package) use (A, v) and an
-// optional t; we mirror MATLAB's documented order with t leading.
-void expmv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 3)
-        throw Error("expmv: requires (t, A, v)",
-                    0, 0, "expmv", "", "numkit:expmv:nargin");
-    const double t = args[0].toScalar();
-    outs[0] = expmv(t, args[1], args[2], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::linalg

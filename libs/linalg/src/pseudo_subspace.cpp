@@ -6,10 +6,12 @@
 #include <numkit/linalg/pseudo_subspace.hpp>
 
 #include <numkit/linalg/decompositions.hpp>   // svd_decompose / svd_values
-#include <numkit/core/engine.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The pinv/orth/null/
+// subspace builtins (CallContext wrappers) live in pseudo_subspace_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
-#include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -179,44 +181,5 @@ Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters — registered in LinalgLibrary::install
 // ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void pinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("pinv: requires (A) or (A, tol)",
-                    0, 0, "pinv", "", "numkit:pinv:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = pinv(args[0], tol, ctx.engine->resource());
-}
-
-void orth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("orth: requires (A) or (A, tol)",
-                    0, 0, "orth", "", "numkit:orth:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = orth(args[0], tol, ctx.engine->resource());
-}
-
-void null_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 1 || args.size() > 2)
-        throw Error("null: requires (A) or (A, tol)",
-                    0, 0, "null", "", "numkit:null:nargin");
-    const double tol = (args.size() >= 2) ? args[1].toScalar() : -1.0;
-    outs[0] = null_basis(args[0], tol, ctx.engine->resource());
-}
-
-void subspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() != 2)
-        throw Error("subspace: requires (A, B)",
-                    0, 0, "subspace", "", "numkit:subspace:nargin");
-    outs[0] = subspace(args[0], args[1], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::linalg

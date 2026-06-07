@@ -5,24 +5,29 @@
 
 set(LINALGLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/vector_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/vector_ops.cpp          # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/vector_ops_reg.cpp      # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/norms.cpp                # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/norms_reg.cpp            # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/properties.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/decompositions.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/pseudo_subspace.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pseudo_subspace.cpp     # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/pseudo_subspace_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/balance.cpp             # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/balance_reg.cpp         # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/ldl.cpp                 # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/ldl_reg.cpp             # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/eig.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/predicates.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions.cpp     # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/predicates.cpp          # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/predicates_reg.cpp      # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/solvers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/misc.cpp                # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/misc_reg.cpp            # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/page_ops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/schur_convert.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/schur_convert.cpp       # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/schur_convert_reg.cpp   # register (CallContext)
 )
 
 set(LINALGLIB_SOURCES ${LINALGLIB_SOURCES} PARENT_SCOPE)
