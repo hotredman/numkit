@@ -12,8 +12,10 @@
 
 #include <numkit/comm/source/quantiz.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
+
+#include <utility>
 
 namespace numkit::comm {
 
@@ -74,31 +76,5 @@ quantiz(const Value &sig, const Value &partition, const Value &codebook,
     return {std::move(indx), std::move(quantv),
             N > 0 ? sse / static_cast<double>(N) : 0.0};
 }
-
-namespace detail {
-
-void quantiz_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("quantiz: requires (sig, partition [, codebook])",
-                    0, 0, "quantiz", "", "numkit:quantiz:nargin");
-    auto *mr = ctx.engine->resource();
-
-    if (nargout <= 1 && args.size() == 2) {
-        // 2-arg form, single output: just indx.
-        outs[0] = quantiz_indx(args[0], args[1], mr);
-        return;
-    }
-    if (args.size() < 3)
-        throw Error("quantiz: codebook required for quantv/distor outputs",
-                    0, 0, "quantiz", "", "numkit:quantiz:fewInputs");
-    auto r = quantiz(args[0], args[1], args[2], mr);
-    outs[0] = std::move(r.indx);
-    if (nargout > 1) outs[1] = std::move(r.quantv);
-    if (nargout > 2) outs[2] = Value::scalar(r.distor, mr);
-}
-
-} // namespace detail
 
 } // namespace numkit::comm

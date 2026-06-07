@@ -16,9 +16,10 @@
 
 #include <numkit/comm/source/dpcm.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
+#include <utility>
 #include <vector>
 
 namespace numkit::comm {
@@ -132,33 +133,5 @@ dpcmdeco(const Value &indx, const Value &codebook,
     }
     return {std::move(sig_v), std::move(quanterr_v)};
 }
-
-namespace detail {
-
-void dpcmenco_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 4)
-        throw Error("dpcmenco: requires (sig, codebook, partition, predictor)",
-                    0, 0, "dpcmenco", "", "numkit:dpcmenco:nargin");
-    auto *mr = ctx.engine->resource();
-    auto [indx, quanterr] = dpcmenco(args[0], args[1], args[2], args[3], mr);
-    outs[0] = std::move(indx);
-    if (nargout > 1) outs[1] = std::move(quanterr);
-}
-
-void dpcmdeco_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("dpcmdeco: requires (indx, codebook, predictor)",
-                    0, 0, "dpcmdeco", "", "numkit:dpcmdeco:nargin");
-    auto *mr = ctx.engine->resource();
-    auto [sig, quanterr] = dpcmdeco(args[0], args[1], args[2], mr);
-    outs[0] = std::move(sig);
-    if (nargout > 1) outs[1] = std::move(quanterr);
-}
-
-} // namespace detail
 
 } // namespace numkit::comm
