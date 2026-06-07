@@ -9,9 +9,9 @@
 
 #include <numkit/linalg/decompositions.hpp>     // qr_decompose, svd_decompose
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -320,30 +320,4 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     return { std::move(A), std::move(B), std::move(r) };
 }
 
-// ── Engine adapters ─────────────────────────────────────────────────
-namespace detail {
-
-void partialcorri_reg(Span<const Value> args, size_t /*nargout*/,
-                       Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("partialcorri: requires (Y, X [, Z])",
-                    0, 0, "partialcorri", "", "numkit:partialcorri:nargin");
-    const Value Z = (args.size() >= 3) ? args[2] : Value();
-    outs[0] = partialcorri(args[0], args[1], Z, ctx.engine->resource());
-}
-
-void canoncorr_reg(Span<const Value> args, size_t nargout,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("canoncorr: requires (X, Y)",
-                    0, 0, "canoncorr", "", "numkit:canoncorr:nargin");
-    auto res = canoncorr(args[0], args[1], ctx.engine->resource());
-    outs[0] = std::move(res.A);
-    if (nargout > 1) outs[1] = std::move(res.B);
-    if (nargout > 2) outs[2] = std::move(res.r);
-}
-
-} // namespace detail
 } // namespace numkit::stats

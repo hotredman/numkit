@@ -15,8 +15,8 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <limits>
@@ -65,21 +65,5 @@ corrcov(const Value &C, std::pmr::memory_resource *mr)
 
     return {std::move(Rv), std::move(Sv)};
 }
-
-namespace detail {
-
-void corrcov_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("corrcov: requires (C)",
-                    0, 0, "corrcov", "", "numkit:corrcov:nargin");
-    auto *mr = ctx.engine->resource();
-    auto [Rv, Sv] = corrcov(args[0], mr);
-    outs[0] = std::move(Rv);
-    if (nargout > 1) outs[1] = std::move(Sv);
-}
-
-} // namespace detail
 
 } // namespace numkit::stats

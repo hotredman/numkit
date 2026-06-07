@@ -3,15 +3,24 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive_extras.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/normalize.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/corrcov.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tabulate.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grp2idx.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/cholcov.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/crosstab.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grpstats.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/nearcorr.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/partial_canon.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/corrcov.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/corrcov_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tabulate.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tabulate_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grp2idx.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grp2idx_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/cholcov.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/cholcov_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/crosstab.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/crosstab_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grpstats.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grpstats_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/nearcorr.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/nearcorr_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/partial_canon.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/partial_canon_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
@@ -70,7 +79,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/kmeans.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/kmedoids.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/linkage.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/cluster/silhouette.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cluster/silhouette.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/cluster/silhouette_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/knnsearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test/hypothesis.cpp

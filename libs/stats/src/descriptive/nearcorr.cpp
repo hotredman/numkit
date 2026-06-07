@@ -25,8 +25,8 @@
 
 #include <numkit/builtin/language/arrays/matrix.hpp>
 #include <numkit/linalg/eig.hpp>             // eig_symmetric (migrated)
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -135,18 +135,5 @@ Value nearcorr(const Value &A, std::pmr::memory_resource *mr)
             o[i + j * R] = 0.5 * (Y[i + j * R] + Y[j + i * R]);
     return out;
 }
-
-namespace detail {
-
-void nearcorr_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("nearcorr: requires (A)",
-                    0, 0, "nearcorr", "", "numkit:nearcorr:nargin");
-    outs[0] = nearcorr(args[0], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::stats
