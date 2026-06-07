@@ -6,7 +6,8 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/type_convert/type_convert_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color.cpp        # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/color/color_extras.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/color_extras.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/color_extras_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/chromadapt.cpp   # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/chromadapt_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/illum.cpp        # compute (engine-free)
@@ -30,7 +31,8 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/morph/morph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/region/region.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/region/region_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/object/object.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/object/object.cpp      # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/object/object_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/quality/quality.cpp    # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/quality/quality_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/transform/transform.cpp # compute (engine-free)
