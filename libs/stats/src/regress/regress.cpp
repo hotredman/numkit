@@ -5,58 +5,17 @@
 #include <numkit/stats/distributions/students_t.hpp>
 #include <numkit/stats/distributions/fisher_f.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <limits>
 #include <vector>
 
+#include "regress_detail.hpp"
+
 namespace numkit::stats {
 
-namespace {
-
-// Cholesky factor of d×d symmetric PSD matrix M (column-major)
-// into L (lower-triangular, column-major). Returns true on success.
-bool cholesky(const double *M, double *L, size_t d)
-{
-    for (size_t i = 0; i < d * d; ++i) L[i] = 0.0;
-    for (size_t j = 0; j < d; ++j) {
-        double s = M[j + j * d];
-        for (size_t k = 0; k < j; ++k) s -= L[j + k * d] * L[j + k * d];
-        if (s <= 0.0) return false;
-        const double Ljj = std::sqrt(s);
-        L[j + j * d] = Ljj;
-        for (size_t i = j + 1; i < d; ++i) {
-            double t = M[i + j * d];
-            for (size_t k = 0; k < j; ++k) t -= L[i + k * d] * L[j + k * d];
-            L[i + j * d] = t / Ljj;
-        }
-    }
-    return true;
-}
-
-// Solve L · z = b (forward substitution).
-void fwd_solve(const double *L, double *z, const double *b, size_t d)
-{
-    for (size_t i = 0; i < d; ++i) {
-        double s = b[i];
-        for (size_t k = 0; k < i; ++k) s -= L[i + k * d] * z[k];
-        z[i] = s / L[i + i * d];
-    }
-}
-
-// Solve L^T · x = z (backward substitution).
-void back_solve(const double *L, double *x, const double *z, size_t d)
-{
-    for (size_t i = d; i-- > 0;) {
-        double s = z[i];
-        for (size_t k = i + 1; k < d; ++k) s -= L[k + i * d] * x[k];
-        x[i] = s / L[i + i * d];
-    }
-}
-
-} // anonymous
 
 // 5-output form: [b, bint, r, rint, stats]. rint = residual CI for
 // outlier detection — added 2026-05-08.
@@ -416,55 +375,4 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std:
     return B;
 }
 
-// ════════════════════════════════════════════════════════════════════
-// Engine adapters
-// ════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void regress_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("regress: requires (y, X[, alpha])",
-                    0, 0, "regress", "", "numkit:regress:nargin");
-    const double alpha = (args.size() >= 3 && !args[2].isEmpty())
-                         ? args[2].toScalar() : 0.05;
-    auto [b, bint, r, rint, stats] = regress_full(args[0], args[1], alpha, ctx.engine->resource());
-    outs[0] = std::move(b);
-    if (nargout > 1) outs[1] = std::move(bint);
-    if (nargout > 2) outs[2] = std::move(r);
-    if (nargout > 3) outs[3] = std::move(rint);
-    if (nargout > 4) outs[4] = std::move(stats);
-}
-
-void ridge_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw Error("ridge: requires (y, X, k[, scaled])",
-                    0, 0, "ridge", "", "numkit:ridge:nargin");
-    bool scaled = true;
-    if (args.size() >= 4 && !args[3].isEmpty())
-        scaled = (args[3].toScalar() != 0.0);
-    outs[0] = ridge(args[0], args[1], args[2], scaled, ctx.engine->resource());
-}
-
-void lscov_reg(Span<const Value> args, size_t nargout,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("lscov: requires (A, b[, w])",
-                    0, 0, "lscov", "", "numkit:lscov:nargin");
-    auto *mr = ctx.engine->resource();
-    Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    const Value &w = (args.size() >= 3) ? args[2] : w_empty;
-    auto [x, stdx, mse, S] = lscov(args[0], args[1], w, mr);
-    outs[0] = std::move(x);
-    if (nargout > 1) outs[1] = std::move(stdx);
-    if (nargout > 2) outs[2] = std::move(mse);
-    if (nargout > 3) outs[3] = std::move(S);
-}
-
-} // namespace detail
 } // namespace numkit::stats
