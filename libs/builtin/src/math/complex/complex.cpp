@@ -3,8 +3,8 @@
 #include <numkit/builtin/math/complex/complex.hpp>
 #include <numkit/builtin/library.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "helpers.hpp"
 
@@ -103,48 +103,6 @@ Value angle(const Value &x, std::pmr::memory_resource *mr)
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
 
-namespace detail {
-
-void real_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("real: requires 1 argument", 0, 0, "real", "", "numkit:real:nargin");
-    outs[0] = real(args[0], ctx.engine->resource());
-}
-
-void imag_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("imag: requires 1 argument", 0, 0, "imag", "", "numkit:imag:nargin");
-    outs[0] = imag(args[0], ctx.engine->resource());
-}
-
-void conj_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("conj: requires 1 argument", 0, 0, "conj", "", "numkit:conj:nargin");
-    outs[0] = conj(args[0], ctx.engine->resource());
-}
-
-void complex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("complex: requires 1 or 2 arguments", 0, 0, "complex", "",
-                     "numkit:complex:nargin");
-    if (args.size() == 1)
-        outs[0] = complex(args[0], ctx.engine->resource());
-    else
-        outs[0] = complex(args[0], args[1], ctx.engine->resource());
-}
-
-void angle_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("angle: requires 1 argument", 0, 0, "angle", "", "numkit:angle:nargin");
-    outs[0] = angle(args[0], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::builtin
 
