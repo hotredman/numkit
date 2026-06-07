@@ -22,8 +22,8 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -118,21 +118,5 @@ tiedrank(const Value &x, std::pmr::memory_resource *mr)
     }
     return {std::move(r), std::move(ta)};
 }
-
-namespace detail {
-
-void tiedrank_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("tiedrank: requires at least one argument",
-                    0, 0, "tiedrank", "", "numkit:tiedrank:nargin");
-    auto *mr = ctx.engine->resource();
-    auto [r, ta] = tiedrank(args[0], mr);
-    outs[0] = std::move(r);
-    if (nargout > 1) outs[1] = std::move(ta);
-}
-
-} // namespace detail
 
 } // namespace numkit::stats

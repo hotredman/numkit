@@ -20,8 +20,8 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -111,19 +111,4 @@ Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
     return r;
 }
 
-namespace detail {
-
-void grp2idx_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
-                 CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("grp2idx: requires (s)",
-                    0, 0, "grp2idx", "", "numkit:grp2idx:nargin");
-    Grp2idxResult r = grp2idx(args[0], ctx.engine->resource());
-    outs[0] = std::move(r.G);
-    if (nargout >= 2) outs[1] = std::move(r.GN);
-    if (nargout >= 3) outs[2] = std::move(r.GL);
-}
-
-} // namespace detail
 } // namespace numkit::stats

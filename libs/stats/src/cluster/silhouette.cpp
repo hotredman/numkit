@@ -7,8 +7,8 @@
 #include <numkit/stats/cluster/silhouette.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -85,27 +85,5 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
     }
     return out;
 }
-
-namespace detail {
-
-void silhouette_reg(Span<const Value> args, size_t /*nargout*/,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("silhouette: requires (X, clust [, metric [, p]])",
-                    0, 0, "silhouette", "", "numkit:silhouette:nargin");
-    std::string metric = "sqeuclidean";
-    if (args.size() >= 3 && !args[2].isEmpty()) {
-        if (!args[2].isChar() && !args[2].isString())
-            throw Error("silhouette: metric must be a string",
-                        0, 0, "silhouette", "", "numkit:silhouette:metric");
-        metric = args[2].toString();
-    }
-    double p = 2.0;
-    if (args.size() >= 4 && !args[3].isEmpty()) p = args[3].toScalar();
-    outs[0] = silhouette(args[0], args[1], metric, p, ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::stats

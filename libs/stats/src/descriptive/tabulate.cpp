@@ -22,8 +22,8 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -98,21 +98,5 @@ Value tabulate(const Value &x, std::pmr::memory_resource *mr)
     }
     return T;
 }
-
-namespace detail {
-
-void tabulate_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("tabulate: requires (x)",
-                    0, 0, "tabulate", "", "numkit:tabulate:nargin");
-    if (args[0].isChar() || args[0].isString())
-        throw Error("tabulate: string/cell inputs not yet supported",
-                    0, 0, "tabulate", "", "numkit:tabulate:NotSupported");
-    outs[0] = tabulate(args[0], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::stats

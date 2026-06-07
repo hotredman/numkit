@@ -25,8 +25,8 @@
 #include <numkit/builtin/language/arrays/matrix.hpp>
 #include <numkit/linalg/decompositions.hpp>   // chol (migrated)
 #include <numkit/linalg/eig.hpp>              // eig_symmetric (migrated)
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -126,21 +126,5 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
     }
     return {std::move(T), Value::scalar(0.0, mr)};
 }
-
-namespace detail {
-
-void cholcov_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("cholcov: requires (SIGMA)",
-                    0, 0, "cholcov", "", "numkit:cholcov:nargin");
-    auto *mr = ctx.engine->resource();
-    auto [T, p] = cholcov(args[0], mr);
-    outs[0] = std::move(T);
-    if (nargout > 1) outs[1] = std::move(p);
-}
-
-} // namespace detail
 
 } // namespace numkit::stats
