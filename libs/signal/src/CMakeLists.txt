@@ -64,13 +64,20 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/medfilt.cpp     # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/medfilt_reg.cpp # register (CallContext)
     # measurements/
-    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/findpeaks.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/dbconv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/signal_stats.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/pulse_metrics.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/vibration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sigroi.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sig_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/findpeaks.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/findpeaks_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/dbconv.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/dbconv_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/signal_stats.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/signal_stats_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/pulse_metrics.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/pulse_metrics_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/vibration.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/vibration_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sigroi.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sigroi_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sig_utils.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/sig_utils_reg.cpp # register (CallContext)
     # spectral_analysis/
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/periodogram_pwelch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/spectral_metrics.cpp
