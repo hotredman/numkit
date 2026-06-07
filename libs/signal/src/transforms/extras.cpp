@@ -3,13 +3,14 @@
 
 #include <numkit/signal/transforms/extras.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/signal/filter_analysis/unwrap.hpp>      // (used externally; not needed here)
 #include <numkit/signal/transforms/fft.hpp>
 
 #include "../dsp_helpers.hpp"   // fftRadix2, fillFftTwiddles, nextPow2, Complex
+#include "extras_detail.hpp"    // bitReverse (shared compute/register)
 
 #include <algorithm>
 #include <cmath>
@@ -21,10 +22,9 @@
 
 namespace numkit::signal {
 
-namespace {
-
-bool isPow2(size_t n) { return n > 0 && (n & (n - 1)) == 0; }
-
+// External linkage (declared in extras_detail.hpp): bit-reversal permutation
+// index, shared by the engine-free compute (bitrevorder) and the CallContext
+// register half (bitrevorder_reg's 2nd index output) in extras_reg.cpp.
 size_t bitReverse(size_t v, size_t bits)
 {
     size_t r = 0;
@@ -34,6 +34,10 @@ size_t bitReverse(size_t v, size_t bits)
     }
     return r;
 }
+
+namespace {
+
+bool isPow2(size_t n) { return n > 0 && (n & (n - 1)) == 0; }
 
 // In-place DFT at the EXACT length n, matching fftRadix2's twiddle
 // convention W[k] = exp(dir·2πi·k/N) (dir=-1 forward, dir=+1 inverse and
@@ -260,94 +264,5 @@ Value icceps(const Value &c, std::pmr::memory_resource *mr)
     for (size_t i = 0; i < n; ++i) dst[i] = X[i].real() * invN;
     return out;
 }
-
-namespace detail {
-
-void dftmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("dftmtx: requires N",
-                     0, 0, "dftmtx", "", "numkit:dftmtx:nargin");
-    outs[0] = dftmtx(static_cast<size_t>(args[0].toScalar()), ctx.engine->resource());
-}
-
-void bitrevorder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("bitrevorder: requires x",
-                     0, 0, "bitrevorder", "", "numkit:bitrevorder:nargin");
-    auto *mr = ctx.engine->resource();
-    outs[0] = bitrevorder(args[0], mr);
-    // 2nd output: 1-based index vector I such that Y(k) = X(I(k)).
-    // Same permutation applied to (1:N), preserving the input shape.
-    if (nargout > 1) {
-        const size_t n = args[0].numel();
-        if (n == 0) {
-            outs[1] = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-            return;
-        }
-        size_t bits = 0;
-        for (size_t v = n; v > 1; v >>= 1) ++bits;
-        const bool isRow = (args[0].dims().rows() == 1);
-        Value I = isRow
-                    ? Value::matrix(1, n, ValueType::DOUBLE, mr)
-                    : Value::matrix(n, 1, ValueType::DOUBLE, mr);
-        double *id = I.doubleDataMut();
-        for (size_t i = 0; i < n; ++i) {
-            // dst[bitReverse(i, bits)] = i+1 (1-based MATLAB index).
-            id[bitReverse(i, bits)] = static_cast<double>(i + 1);
-        }
-        outs[1] = std::move(I);
-    }
-}
-
-void dst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("dst: requires x",
-                     0, 0, "dst", "", "numkit:dst:nargin");
-    outs[0] = dst(args[0], ctx.engine->resource());
-}
-
-void idst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("idst: requires y",
-                     0, 0, "idst", "", "numkit:idst:nargin");
-    outs[0] = idst(args[0], ctx.engine->resource());
-}
-
-void rceps_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("rceps: requires x",
-                     0, 0, "rceps", "", "numkit:rceps:nargin");
-    auto *mr = ctx.engine->resource();
-    if (nargout >= 2) {
-        auto [y, ym] = rcepsMinPhase(args[0], mr);
-        outs[0] = std::move(y);
-        outs[1] = std::move(ym);
-        return;
-    }
-    outs[0] = rceps(args[0], mr);
-}
-
-void cceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("cceps: requires x",
-                     0, 0, "cceps", "", "numkit:cceps:nargin");
-    outs[0] = cceps(args[0], ctx.engine->resource());
-}
-
-void icceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("icceps: requires c",
-                     0, 0, "icceps", "", "numkit:icceps:nargin");
-    outs[0] = icceps(args[0], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::signal

@@ -25,9 +25,9 @@
 
 #include <numkit/signal/transforms/fwht.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -245,51 +245,4 @@ Value ifwht(const Value &y, std::size_t n, const std::string &ordering,
     return runWalshHadamard(y, n, ordering, /*forward=*/false, mr);
 }
 
-// ── Engine adapters ─────────────────────────────────────────────────
-namespace detail {
-
-static void parseFwhtArgs(Span<const Value> args,
-                           std::size_t &n, std::string &ordering)
-{
-    n = 0;
-    ordering = "sequency";
-    if (args.size() >= 2 && !args[1].isEmpty()) {
-        if (args[1].isChar() || args[1].isString()) {
-            // (x, ordering) — n omitted.
-            ordering = args[1].toString();
-            return;
-        }
-        n = static_cast<std::size_t>(args[1].toScalar());
-    }
-    if (args.size() >= 3 && !args[2].isEmpty()) {
-        if (!(args[2].isChar() || args[2].isString()))
-            throw Error("fwht: ordering must be a string",
-                         0, 0, "fwht", "", "numkit:fwht:badOrdering");
-        ordering = args[2].toString();
-    }
-}
-
-void fwht_reg(Span<const Value> args, size_t /*nargout*/,
-              Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("fwht: requires (x [, n [, ordering]])",
-                     0, 0, "fwht", "", "numkit:fwht:nargin");
-    std::size_t n; std::string ordering;
-    parseFwhtArgs(args, n, ordering);
-    outs[0] = fwht(args[0], n, ordering, ctx.engine->resource());
-}
-
-void ifwht_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("ifwht: requires (y [, n [, ordering]])",
-                     0, 0, "ifwht", "", "numkit:ifwht:nargin");
-    std::size_t n; std::string ordering;
-    parseFwhtArgs(args, n, ordering);
-    outs[0] = ifwht(args[0], n, ordering, ctx.engine->resource());
-}
-
-} // namespace detail
 } // namespace numkit::signal

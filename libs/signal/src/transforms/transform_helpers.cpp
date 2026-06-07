@@ -4,8 +4,8 @@
 
 #include <numkit/signal/transforms/transform_helpers.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include "../dsp_helpers.hpp"  // Complex typedef
 #include "helpers.hpp"         // createLike
@@ -168,49 +168,5 @@ Value ifftshift(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
     return cyclicShiftOneDim(x, dim, -1, mr);
 }
-
-namespace detail {
-
-void nextpow2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("nextpow2: requires 1 argument",
-                     0, 0, "nextpow2", "", "numkit:nextpow2:nargin");
-    outs[0] = nextpow2(args[0], ctx.engine->resource());
-}
-
-void fftshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("fftshift: requires 1 argument",
-                     0, 0, "fftshift", "", "numkit:fftshift:nargin");
-    if (args.size() >= 2) {
-        const int dim = static_cast<int>(args[1].toScalar());
-        if (dim < 1 || dim > 3)
-            throw Error("fftshift: dim must be 1, 2, or 3",
-                         0, 0, "fftshift", "", "numkit:fftshift:dim");
-        outs[0] = fftshift(args[0], dim, ctx.engine->resource());
-    } else {
-        outs[0] = fftshift(args[0], ctx.engine->resource());
-    }
-}
-
-void ifftshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("ifftshift: requires 1 argument",
-                     0, 0, "ifftshift", "", "numkit:ifftshift:nargin");
-    if (args.size() >= 2) {
-        const int dim = static_cast<int>(args[1].toScalar());
-        if (dim < 1 || dim > 3)
-            throw Error("ifftshift: dim must be 1, 2, or 3",
-                         0, 0, "ifftshift", "", "numkit:ifftshift:dim");
-        outs[0] = ifftshift(args[0], dim, ctx.engine->resource());
-    } else {
-        outs[0] = ifftshift(args[0], ctx.engine->resource());
-    }
-}
-
-} // namespace detail
 
 } // namespace numkit::signal
