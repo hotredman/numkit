@@ -29,9 +29,10 @@
 
 #include <numkit/wavelet/dwt/ihaart.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The ihaart builtin
+// (CallContext wrapper) lives in dwt/haar_reg.cpp.
 #include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <complex>
@@ -229,45 +230,4 @@ Value ihaart(const Value &aV, const Value &dV, int level, bool integer,
     return out;
 }
 
-namespace detail {
-
-void ihaart_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("ihaart: requires (a, d[, level[, integerflag]])",
-                    0, 0, "ihaart", "", "numkit:ihaart:nargin");
-    // Lax positional parse: level (number) and/or integerflag (string), in
-    // any order. The level < Nlevels range check is done inside ihaart().
-    int level = 0;
-    bool integer_mode = false;
-    for (size_t i = 2; i < args.size(); ++i) {
-        const Value &arg = args[i];
-        if (arg.isChar() || arg.isString()) {
-            std::string flag = arg.toString();
-            for (auto &c : flag)
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            if      (flag == "integer")    integer_mode = true;
-            else if (flag == "noninteger") integer_mode = false;
-            else
-                throw Error("ihaart: integerflag must be 'noninteger' or "
-                            "'integer' (got '" + flag + "')",
-                            0, 0, "ihaart", "", "numkit:ihaart:flag");
-        } else {
-            const double lvld = arg.toScalar();
-            if (!(lvld >= 0.0))
-                throw Error("ihaart: expected input number 3, LEVEL, to be a "
-                            "scalar with value >= 0",
-                            0, 0, "ihaart", "", "numkit:ihaart:level");
-            if (lvld != std::floor(lvld))
-                throw Error("ihaart: expected LEVEL to be an integer",
-                            0, 0, "ihaart", "", "numkit:ihaart:level");
-            level = static_cast<int>(lvld);
-        }
-    }
-    outs[0] = ihaart(args[0], args[1], level, integer_mode,
-                     ctx.engine->resource());
-}
-
-} // namespace detail
 } // namespace numkit::wavelet

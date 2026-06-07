@@ -30,9 +30,10 @@
 
 #include <numkit/wavelet/dwt/haart.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The haart builtin
+// (CallContext wrapper) lives in dwt/haar_reg.cpp.
 #include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <cmath>
 #include <complex>
@@ -196,48 +197,4 @@ HaartResult haart(const Value &x, int level, bool integer,
     return R;
 }
 
-namespace detail {
-
-void haart_reg(Span<const Value> args, size_t nargout,
-               Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("haart: requires (x[, level[, integerflag]])",
-                    0, 0, "haart", "", "numkit:haart:nargin");
-    // Parse level (positive integer) + integerflag string here for
-    // script-quality errors, then delegate to the public haart().
-    int level = 0;  // 0 -> auto (max level), resolved inside haart()
-    if (args.size() >= 2 && !args[1].isEmpty()) {
-        const double lvld = args[1].toScalar();
-        if (!(lvld > 0.0))
-            throw Error("haart: expected LEVEL to be positive",
-                        0, 0, "haart", "", "numkit:haart:level");
-        if (lvld != std::floor(lvld))
-            throw Error("haart: expected LEVEL to be an integer",
-                        0, 0, "haart", "", "numkit:haart:level");
-        level = static_cast<int>(lvld);
-    }
-
-    bool integer_mode = false;
-    if (args.size() >= 3) {
-        if (!args[2].isChar() && !args[2].isString())
-            throw Error("haart: integerflag must be 'noninteger' or 'integer'",
-                        0, 0, "haart", "", "numkit:haart:flag");
-        std::string flag = args[2].toString();
-        for (auto &c : flag)
-            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if      (flag == "integer")    integer_mode = true;
-        else if (flag == "noninteger") integer_mode = false;
-        else
-            throw Error("haart: integerflag must be 'noninteger' or 'integer' (got '" +
-                        flag + "')",
-                        0, 0, "haart", "", "numkit:haart:flag");
-    }
-
-    HaartResult r = haart(args[0], level, integer_mode, ctx.engine->resource());
-    outs[0] = std::move(r.a);
-    if (nargout >= 2) outs[1] = std::move(r.d);
-}
-
-} // namespace detail
 } // namespace numkit::wavelet
