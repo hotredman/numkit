@@ -7,10 +7,12 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/version_string.cpp
     # language/ — MATLAB Language Fundamentals
     ${CMAKE_CURRENT_SOURCE_DIR}/language/commands/env.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/binary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/binary_ops.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/binary_ops_reg.cpp # register (CallContext)
     # la_solve.cpp moved to ops/ (numkit_ops) — shared linear-solve kernel
     # used by builtin `\` and libs/linalg; ops/ sits below both.
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/unary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/unary_ops.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/unary_ops_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/matrix.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip_reg.cpp # register (CallContext)
