@@ -87,14 +87,17 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/silhouette_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/knnsearch.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/knnsearch_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/test/hypothesis.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/resample/resample.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/anova/anova.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/anova/anova.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/anova/anova_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/anova/multcompare.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/anova/multcompare_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/spline/spline.cpp # compute (engine-free)
