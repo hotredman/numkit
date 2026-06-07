@@ -44,13 +44,20 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution/extras.cpp    # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution/extras_reg.cpp # register (CallContext)
     # transforms/
-    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fft.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/hilbert.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/dct.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/goertzel.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/transform_helpers.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/extras.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fwht.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fft.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fft_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/hilbert.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/hilbert_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/dct.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/dct_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/goertzel.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/goertzel_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/transform_helpers.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/transform_helpers_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/extras.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/extras_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fwht.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fwht_reg.cpp # register (CallContext)
     # smoothing/
     ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/sgolay.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/sgolay_reg.cpp # register (CallContext)
