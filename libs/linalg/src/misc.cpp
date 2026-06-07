@@ -5,10 +5,12 @@
 
 #include <numkit/linalg/misc.hpp>
 
-#include <numkit/core/engine.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The rref/planerot
+// builtins (CallContext wrappers) live in misc_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
-#include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -153,33 +155,5 @@ planerot(const Value &xy, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void rref_reg(Span<const Value> args, size_t nargout,
-              Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("rref: requires (A [, tol])",
-                    0, 0, "rref", "", "numkit:rref:nargin");
-    bool have_tol = (args.size() >= 2);
-    double tol = have_tol ? args[1].toScalar() : 0.0;
-    auto [R, jb] = rref(args[0], have_tol, tol, ctx.engine->resource());
-    outs[0] = R;
-    if (nargout >= 2 && outs.size() >= 2) outs[1] = jb;
-}
-
-void planerot_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("planerot: requires ([x; y])",
-                    0, 0, "planerot", "", "numkit:planerot:nargin");
-    auto [G, y] = planerot(args[0], ctx.engine->resource());
-    outs[0] = G;
-    if (nargout >= 2 && outs.size() >= 2) outs[1] = y;
-}
-
-} // namespace detail
 
 } // namespace numkit::linalg
