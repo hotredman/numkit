@@ -1,7 +1,8 @@
 set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     # waveform_generation/
-    ${CMAKE_CURRENT_SOURCE_DIR}/waveform_generation/waveform_generation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/waveform_generation/waveform_generation.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/waveform_generation/waveform_generation_reg.cpp # register (CallContext)
     # filter_design/
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/filter_design.cpp
     # filter_analysis/
@@ -87,10 +88,12 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/signal_modeling_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/ar.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/ar_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/analog_filters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/analog_filters.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/analog_filters_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/iir_designs.cpp
     # time_frequency/
-    ${CMAKE_CURRENT_SOURCE_DIR}/time_frequency/spectrogram.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/time_frequency/spectrogram.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/time_frequency/spectrogram_reg.cpp # register (CallContext)
     # windows/
     ${CMAKE_CURRENT_SOURCE_DIR}/windows/windows.cpp       # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/windows/windows_reg.cpp # register (CallContext)
