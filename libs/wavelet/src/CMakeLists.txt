@@ -6,8 +6,10 @@ set(WAVELETLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt.cpp           # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt_reg.cpp       # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/multilevel.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt2.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dyad.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt2.cpp          # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt2_reg.cpp      # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dyad.cpp          # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dyad_reg.cpp      # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/wkeep_wextend.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/haart.cpp        # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/ihaart.cpp       # compute (engine-free)
