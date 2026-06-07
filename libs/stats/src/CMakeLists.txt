@@ -2,7 +2,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive_extras.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive_extras.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive_extras_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/normalize.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/normalize_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank.cpp # compute (engine-free)
