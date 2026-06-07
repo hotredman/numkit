@@ -18,12 +18,14 @@
 
 #include <numkit/comm/source/huffman.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <queue>
+#include <utility>
 #include <vector>
 
 namespace numkit::comm {
@@ -295,40 +297,5 @@ Value huffmandeco(const Value &bits, const Value &dict,
     if (M > 0) std::copy(emitted.begin(), emitted.end(), out.doubleDataMut());
     return out;
 }
-
-namespace detail {
-
-void huffmandict_reg(Span<const Value> args, size_t nargout,
-                     Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("huffmandict: requires (symbols, probs)",
-                    0, 0, "huffmandict", "", "numkit:huffmandict:nargin");
-    auto *mr = ctx.engine->resource();
-    auto [dict, avglen] = huffmandict(args[0], args[1], mr);
-    outs[0] = std::move(dict);
-    if (nargout > 1)
-        outs[1] = Value::scalar(avglen, mr);
-}
-
-void huffmanenco_reg(Span<const Value> args, size_t /*nargout*/,
-                     Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("huffmanenco: requires (sig, dict)",
-                    0, 0, "huffmanenco", "", "numkit:huffmanenco:nargin");
-    outs[0] = huffmanenco(args[0], args[1], ctx.engine->resource());
-}
-
-void huffmandeco_reg(Span<const Value> args, size_t /*nargout*/,
-                     Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("huffmandeco: requires (bits, dict)",
-                    0, 0, "huffmandeco", "", "numkit:huffmandeco:nargin");
-    outs[0] = huffmandeco(args[0], args[1], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::comm

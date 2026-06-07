@@ -17,8 +17,10 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/errors_reg.cpp              # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/compand.cpp                  # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/eq/compand_reg.cpp             # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/random_source.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/huffman.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/random_source.cpp         # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/random_source_reg.cpp     # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/huffman.cpp               # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/huffman_reg.cpp           # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcm.cpp                   # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcm_reg.cpp              # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/quantiz.cpp               # compute (engine-free)
@@ -27,7 +29,8 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/source/lloyds_reg.cpp            # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcmopt.cpp               # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/dpcmopt_reg.cpp           # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/arithcoding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/arithcoding.cpp           # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/arithcoding_reg.cpp       # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/base_conversions.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/source/base_conversions_reg.cpp  # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/coding/convcoding.cpp           # compute (engine-free)
