@@ -98,7 +98,8 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/test/ad_dw_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/resample/resample.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/fit/fit_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist/mvdist_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/anova/anova.cpp # compute (engine-free)
