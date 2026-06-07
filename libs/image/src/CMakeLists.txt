@@ -3,12 +3,17 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic/arithmetic.cpp           # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic/arithmetic_reg.cpp       # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/type_convert/type_convert.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/color/color.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/color.cpp        # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/color_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color_extras.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/color/chromadapt.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/color/illum.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/color/demosaic.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/color/raw_planar.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/chromadapt.cpp   # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/chromadapt_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/illum.cpp        # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/illum_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/demosaic.cpp     # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/demosaic_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/raw_planar.cpp   # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/color/raw_planar_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter_design.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/locallapfilt.cpp
