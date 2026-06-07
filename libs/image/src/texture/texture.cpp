@@ -4,9 +4,10 @@
 
 #include <numkit/image/texture/texture.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
+#include "texture_detail.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -22,52 +23,6 @@ namespace {
 inline double elem_as_double(const Value &v, std::size_t i)
 {
     return v.elemAsDouble(i);
-}
-
-// Default GrayLimits per MATLAB:
-//   - uint8  -> [0, 255]
-//   - uint16 -> [0, 65535]
-//   - int16  -> [-32768, 32767]
-//   - logical-> [0, 1]
-//   - single / double -> [min(I), max(I)] (computed by caller)
-inline void default_gray_limits(const Value &I, double &lo, double &hi)
-{
-    switch (I.type()) {
-        case ValueType::UINT8:   lo = 0.0;     hi = 255.0;    return;
-        case ValueType::UINT16:  lo = 0.0;     hi = 65535.0;  return;
-        case ValueType::INT16:   lo = -32768;  hi = 32767;    return;
-        case ValueType::LOGICAL: lo = 0.0;     hi = 1.0;      return;
-        default: break;
-    }
-    // single / double: scan for min/max.
-    const std::size_t N = I.numel();
-    if (N == 0) { lo = 0.0; hi = 1.0; return; }
-    double mn = elem_as_double(I, 0);
-    double mx = mn;
-    for (std::size_t i = 1; i < N; ++i) {
-        const double v = elem_as_double(I, i);
-        if (v < mn) mn = v;
-        if (v > mx) mx = v;
-    }
-    lo = mn; hi = mx;
-}
-
-// Data-range limits = [min(I(:)) max(I(:))] over the ACTUAL pixel values,
-// regardless of class. This is what MATLAB's graycomatrix uses when the
-// caller passes 'GrayLimits', [] (an empty value) — distinct from the
-// class-range default in default_gray_limits().
-inline void data_gray_limits(const Value &I, double &lo, double &hi)
-{
-    const std::size_t N = I.numel();
-    if (N == 0) { lo = 0.0; hi = 1.0; return; }
-    double mn = elem_as_double(I, 0);
-    double mx = mn;
-    for (std::size_t i = 1; i < N; ++i) {
-        const double v = elem_as_double(I, i);
-        if (v < mn) mn = v;
-        if (v > mx) mx = v;
-    }
-    lo = mn; hi = mx;
 }
 
 } // anonymous namespace
@@ -197,90 +152,5 @@ Value graycoprops(const Value &G, std::pmr::memory_resource *mr)
     out.field("Homogeneity") = field_scalar(homogeneity);
     return out;
 }
-
-// ── Engine adapters ──────────────────────────────────────────────────
-namespace detail {
-
-static bool eqIgnoreCase(const std::string &a, const char *b)
-{
-    if (a.size() != std::strlen(b)) return false;
-    for (std::size_t i = 0; i < a.size(); ++i)
-        if (std::tolower(a[i]) != std::tolower(b[i])) return false;
-    return true;
-}
-
-void graycomatrix_reg(Span<const Value> args, std::size_t /*nargout*/,
-                      Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("graycomatrix: requires (I[, NV-pairs])",
-                     0, 0, "graycomatrix", "", "numkit:graycomatrix:nargin");
-
-    const Value &I = args[0];
-
-    int numLevels = (I.type() == ValueType::LOGICAL) ? 2
-                  : (I.type() == ValueType::UINT8)   ? 8
-                                                     : 8;
-    int offR = 0, offC = 1;
-    double gLow = 0.0, gHigh = 0.0;
-    bool   limitsSet = false;
-    bool   symmetric = false;
-
-    for (std::size_t i = 1; i + 1 < args.size(); i += 2) {
-        if (!args[i].isChar())
-            throw Error("graycomatrix: NV-pair name must be a string",
-                         0, 0, "graycomatrix", "",
-                         "numkit:graycomatrix:badNVName");
-        const std::string key = args[i].toString();
-        const Value &v        = args[i + 1];
-        if (eqIgnoreCase(key, "NumLevels"))   numLevels = static_cast<int>(v.toScalar());
-        else if (eqIgnoreCase(key, "Offset")) {
-            if (v.numel() < 2)
-                throw Error("graycomatrix: Offset must be 2-element",
-                             0, 0, "graycomatrix", "",
-                             "numkit:graycomatrix:badOffset");
-            offR = static_cast<int>(v.elemAsDouble(0));
-            offC = static_cast<int>(v.elemAsDouble(1));
-        }
-        else if (eqIgnoreCase(key, "GrayLimits")) {
-            if (v.isEmpty()) {
-                // 'GrayLimits', [] -> auto [min(I(:)) max(I(:))] over the
-                // actual data (MATLAB-documented), for any class.
-                data_gray_limits(I, gLow, gHigh);
-                limitsSet = true;
-            }
-            else if (v.numel() < 2)
-                throw Error("graycomatrix: GrayLimits must be 2-element",
-                             0, 0, "graycomatrix", "",
-                             "numkit:graycomatrix:badLimits");
-            else {
-                gLow  = v.elemAsDouble(0);
-                gHigh = v.elemAsDouble(1);
-                limitsSet = true;
-            }
-        }
-        else if (eqIgnoreCase(key, "Symmetric")) {
-            symmetric = (v.toScalar() != 0.0);
-        }
-        else
-            throw Error("graycomatrix: unknown NV-pair key '" + key + "'",
-                         0, 0, "graycomatrix", "",
-                         "numkit:graycomatrix:badNVKey");
-    }
-    if (!limitsSet) default_gray_limits(I, gLow, gHigh);
-
-    outs[0] = graycomatrix(I, numLevels, offR, offC, gLow, gHigh, symmetric, ctx.engine->resource());
-}
-
-void graycoprops_reg(Span<const Value> args, std::size_t /*nargout*/,
-                     Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("graycoprops: requires (G)",
-                     0, 0, "graycoprops", "", "numkit:graycoprops:nargin");
-    outs[0] = graycoprops(args[0], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::image
