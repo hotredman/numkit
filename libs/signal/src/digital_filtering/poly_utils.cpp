@@ -18,9 +18,9 @@
 
 #include <numkit/builtin/math/poly/polynomials.hpp>  // builtin::roots / builtin::poly
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
 #include <complex>
@@ -301,27 +301,5 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
     }
     return out;
 }
-
-namespace detail {
-
-void polyscale_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("polyscale: requires (p, scale)",
-                    0, 0, "polyscale", "", "numkit:polyscale:nargin");
-    outs[0] = polyscale(args[0], args[1], ctx.engine->resource());
-}
-
-void polystab_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("polystab: requires (a)",
-                    0, 0, "polystab", "", "numkit:polystab:nargin");
-    outs[0] = polystab(args[0], ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::signal

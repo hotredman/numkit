@@ -19,9 +19,11 @@
 
 #include <numkit/signal/digital_filtering/buffer.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/error.hpp>
+#include <tuple>
+#include <cctype>
 
 #include <algorithm>
 #include <cmath>
@@ -215,28 +217,5 @@ buffer2(const Value &x, int n, int p, const Value &opt, std::pmr::memory_resourc
     Value z = makePartialZ(x, r.partialStart, r.partialEnd, rowOrCol(x), mr);
     return {r.Y, z};
 }
-
-namespace detail {
-
-void buffer_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("buffer: requires (x, n [, p [, opt]])",
-                    0, 0, "buffer", "", "numkit:buffer:nargin");
-    const int n = static_cast<int>(args[1].toScalar());
-    int p = 0;
-    if (args.size() >= 3 && !args[2].isEmpty()) p = static_cast<int>(args[2].toScalar());
-    const Value &opt = (args.size() >= 4) ? args[3] : Value::Empty;
-    if (nargout >= 2 && outs.size() >= 2) {
-        auto [Y, Z] = buffer2(args[0], n, p, opt, ctx.engine->resource());
-        outs[0] = Y;
-        outs[1] = Z;
-    } else {
-        outs[0] = buffer(args[0], n, p, opt, ctx.engine->resource());
-    }
-}
-
-} // namespace detail
 
 } // namespace numkit::signal

@@ -10,13 +10,20 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/responses.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/predicates.cpp
     # digital_filtering/
-    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/buffer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/poly_utils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/quantizers.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/shiftdata.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/buffer.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/buffer_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/poly_utils.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/poly_utils_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/quantizers.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/quantizers_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/shiftdata.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/shiftdata_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven_reg.cpp # register (CallContext)
     # filter_implementation/
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions_extras.cpp
@@ -24,8 +31,10 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/multirate/multirate.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/multirate/extras.cpp
     # convolution/
-    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/convolution.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/extras.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/convolution.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/convolution_reg.cpp # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/extras.cpp    # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/extras_reg.cpp # register (CallContext)
     # transforms/
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fft.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/hilbert.cpp

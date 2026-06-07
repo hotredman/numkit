@@ -23,8 +23,8 @@
 
 #include <numkit/signal/digital_filtering/quantizers.hpp>
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -165,53 +165,5 @@ Value udecode(const Value &u, int N, double V, bool wrapOnOverflow, std::pmr::me
     }
     return out;
 }
-
-namespace detail {
-
-void uencode_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("uencode: requires (u, N [, V [, 'signed'/'unsigned']])",
-                    0, 0, "uencode", "", "numkit:uencode:nargin");
-    const int N = static_cast<int>(args[1].toScalar());
-    double V = 1.0;
-    if (args.size() >= 3 && !args[2].isEmpty()) V = args[2].toScalar();
-    bool signedOut = false;
-    if (args.size() >= 4 && !args[3].isEmpty()) {
-        std::string s = args[3].toString();
-        std::transform(s.begin(), s.end(), s.begin(),
-                        [](unsigned char c) { return std::tolower(c); });
-        if (s == "signed")        signedOut = true;
-        else if (s == "unsigned") signedOut = false;
-        else throw Error("uencode: 4th arg must be 'signed' or 'unsigned'",
-                          0, 0, "uencode", "", "numkit:uencode:Polarity");
-    }
-    outs[0] = uencode(args[0], N, V, signedOut, ctx.engine->resource());
-}
-
-void udecode_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("udecode: requires (u, N [, V [, 'saturate'/'wrap']])",
-                    0, 0, "udecode", "", "numkit:udecode:nargin");
-    const int N = static_cast<int>(args[1].toScalar());
-    double V = 1.0;
-    if (args.size() >= 3 && !args[2].isEmpty()) V = args[2].toScalar();
-    bool wrap = false;
-    if (args.size() >= 4 && !args[3].isEmpty()) {
-        std::string s = args[3].toString();
-        std::transform(s.begin(), s.end(), s.begin(),
-                        [](unsigned char c) { return std::tolower(c); });
-        if (s == "wrap")          wrap = true;
-        else if (s == "saturate") wrap = false;
-        else throw Error("udecode: 4th arg must be 'saturate' or 'wrap'",
-                          0, 0, "udecode", "", "numkit:udecode:BadOpt");
-    }
-    outs[0] = udecode(args[0], N, V, wrap, ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::signal
