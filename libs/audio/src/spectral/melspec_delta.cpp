@@ -27,9 +27,12 @@
 
 #include <numkit/audio/spectral/melspec_delta.hpp>
 
-#include <numkit/core/engine.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The melSpectrogram
+// / audioDelta builtins (CallContext wrappers) live in
+// spectral/melspec_delta_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
 
 #include "fft_one_sided.hpp"
 
@@ -118,8 +121,8 @@ MelFB designMelFilterBank(std::pmr::memory_resource *mr,
 } // anon
 
 std::tuple<Value, Value, Value>
-melSpectrogram(std::pmr::memory_resource *mr, const Value &x, double fs,
-               int numBands)
+melSpectrogram(const Value &x, double fs, int numBands,
+               std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
     const size_t winLen  = static_cast<size_t>(std::round(fs * 0.03));
@@ -218,34 +221,5 @@ Value audioDelta(const Value &x, int windowLength, std::pmr::memory_resource *mr
     return out;
 }
 
-namespace detail {
-
-void melSpectrogram_reg(Span<const Value> args, size_t nargout,
-                        Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("melSpectrogram: requires (x, fs [, NumBands])",
-                    0, 0, "melSpectrogram", "", "numkit:melSpectrogram:nargin");
-    int numBands = 32;
-    if (args.size() >= 3) numBands = static_cast<int>(args[2].toScalar());
-    auto [S, F, T] = melSpectrogram(ctx.engine->resource(), args[0],
-                                     args[1].toScalar(), numBands);
-    outs[0] = S;
-    if (nargout >= 2 && outs.size() >= 2) outs[1] = F;
-    if (nargout >= 3 && outs.size() >= 3) outs[2] = T;
-}
-
-void audioDelta_reg(Span<const Value> args, size_t /*nargout*/,
-                    Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("audioDelta: requires (x [, windowLength])",
-                    0, 0, "audioDelta", "", "numkit:audioDelta:nargin");
-    int wl = 9;
-    if (args.size() >= 2) wl = static_cast<int>(args[1].toScalar());
-    outs[0] = audioDelta(args[0], wl, ctx.engine->resource());
-}
-
-} // namespace detail
 
 } // namespace numkit::audio

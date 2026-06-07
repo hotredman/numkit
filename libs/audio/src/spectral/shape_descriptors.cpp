@@ -21,9 +21,11 @@
 
 #include <numkit/audio/spectral/shape_descriptors.hpp>
 
-#include <numkit/core/engine.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The spectral*
+// builtins (CallContext wrappers) live in spectral/shape_descriptors_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
 
 #include "fft_one_sided.hpp"
 
@@ -170,7 +172,7 @@ double centroidOf(const double *X, const double *F, size_t M)
 } // anon
 
 // ── Centroid ──────────────────────────────────────────────────────────
-Value spectralCentroid(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralCentroid(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     const double *Fd = d.F.doubleData();
@@ -180,7 +182,7 @@ Value spectralCentroid(std::pmr::memory_resource *mr, const Value &x, const Valu
 }
 
 // ── Spread ────────────────────────────────────────────────────────────
-Value spectralSpread(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralSpread(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     const double *Fd = d.F.doubleData();
@@ -197,8 +199,8 @@ Value spectralSpread(std::pmr::memory_resource *mr, const Value &x, const Value 
 }
 
 // ── Rolloff point ─────────────────────────────────────────────────────
-Value spectralRolloffPoint(std::pmr::memory_resource *mr, const Value &x,
-                           const Value &f, double percentile)
+Value spectralRolloffPoint(const Value &x, const Value &f, double percentile,
+                           std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     const double *Fd = d.F.doubleData();
@@ -217,7 +219,7 @@ Value spectralRolloffPoint(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // ── Decrease ──────────────────────────────────────────────────────────
-Value spectralDecrease(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralDecrease(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     return perColumn(mr, d.X, [](const double *col, size_t M) {
@@ -236,7 +238,7 @@ Value spectralDecrease(std::pmr::memory_resource *mr, const Value &x, const Valu
 // Ordinary-least-squares regression slope of mean-power-magnitude X
 // vs frequency:
 //   slope = sum((F - mean(F)) .* (X - mean(X))) / sum((F - mean(F))^2)
-Value spectralSlope(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralSlope(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     const double *Fd = d.F.doubleData();
@@ -262,7 +264,7 @@ Value spectralSlope(std::pmr::memory_resource *mr, const Value &x, const Value &
 // input via shared computeStft + prepareInput).
 
 // spectralCrest = max(X) / mean(X) per column.
-Value spectralCrest(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralCrest(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     return perColumn(mr, d.X, [](const double *col, size_t M) {
@@ -277,7 +279,7 @@ Value spectralCrest(std::pmr::memory_resource *mr, const Value &x, const Value &
 // spectralEntropy = -Σ P log2(P) / log2(M) per column, where P = X / Σ X.
 // Matches MATLAB R2025b spectralEntropy with default Scaled=true,
 // Instantaneous=true.
-Value spectralEntropy(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralEntropy(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     return perColumn(mr, d.X, [](const double *col, size_t M) {
@@ -298,7 +300,7 @@ Value spectralEntropy(std::pmr::memory_resource *mr, const Value &x, const Value
 // spectralFlatness = exp(mean(log(X+eps))) / mean(X) per column —
 // geometric mean / arithmetic mean (Peeters 2004), with eps
 // regularization inside the geometric-mean log.
-Value spectralFlatness(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralFlatness(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     return perColumn(mr, d.X, [](const double *col, size_t M) {
@@ -318,7 +320,7 @@ Value spectralFlatness(std::pmr::memory_resource *mr, const Value &x, const Valu
 // spectralKurtosis = Σ((F-c)⁴ X) / (spread⁴ ΣX) per column — X-weighted
 // 4th central frequency moment normalized by the 4th power of spread
 // (Peeters 2004). NOT the Pearson form — no -3 subtraction.
-Value spectralKurtosis(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralKurtosis(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     const double *Fd = d.F.doubleData();
@@ -344,7 +346,7 @@ Value spectralKurtosis(std::pmr::memory_resource *mr, const Value &x, const Valu
 
 // spectralSkewness = Σ((F-c)³ X) / (spread³ ΣX) per column — X-weighted
 // 3rd central frequency moment normalized by spread³ (Peeters 2004).
-Value spectralSkewness(std::pmr::memory_resource *mr, const Value &x, const Value &f)
+Value spectralSkewness(const Value &x, const Value &f, std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     const double *Fd = d.F.doubleData();
@@ -371,8 +373,8 @@ Value spectralSkewness(std::pmr::memory_resource *mr, const Value &x, const Valu
 // Spectral flux (Peeters 2004) — per-frame metric of spectrum change.
 // flux(t) = (Σ|X_t(k) - X_{t-1}(k)|^p)^(1/p) for k = 1..M.
 // First frame compared against zero (=> result = ||X_1||_p).
-Value spectralFlux(std::pmr::memory_resource *mr, const Value &x,
-                   const Value &f, double p)
+Value spectralFlux(const Value &x, const Value &f, double p,
+                   std::pmr::memory_resource *mr)
 {
     auto d = prepareInput(mr, x, f);
     const size_t M = d.X.dims().rows();
@@ -395,56 +397,5 @@ Value spectralFlux(std::pmr::memory_resource *mr, const Value &x,
     }
     return out;
 }
-
-namespace detail {
-
-// Per-fn registration adapters share the (x, f) argument shape.
-#define NK_SPEC_REG(FN)                                                          \
-    void FN##_reg(Span<const Value> args, size_t /*nargout*/,                    \
-                  Span<Value> outs, CallContext &ctx)                            \
-    {                                                                            \
-        if (args.size() < 2)                                                     \
-            throw Error(#FN ": requires (x, fs) or (X, F)",                      \
-                        0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
-        outs[0] = FN(ctx.engine->resource(), args[0], args[1]);                  \
-    }
-
-NK_SPEC_REG(spectralCentroid)
-NK_SPEC_REG(spectralSpread)
-NK_SPEC_REG(spectralDecrease)
-NK_SPEC_REG(spectralSlope)
-NK_SPEC_REG(spectralCrest)
-NK_SPEC_REG(spectralEntropy)
-NK_SPEC_REG(spectralFlatness)
-NK_SPEC_REG(spectralKurtosis)
-NK_SPEC_REG(spectralSkewness)
-
-#undef NK_SPEC_REG
-
-void spectralRolloffPoint_reg(Span<const Value> args, size_t /*nargout*/,
-                              Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("spectralRolloffPoint: requires (x, fs [, threshold])",
-                    0, 0, "spectralRolloffPoint", "",
-                    "numkit:spectralRolloffPoint:nargin");
-    double pct = 0.95;
-    if (args.size() >= 3) pct = args[2].toScalar();
-    outs[0] = spectralRolloffPoint(ctx.engine->resource(),
-                                    args[0], args[1], pct);
-}
-
-void spectralFlux_reg(Span<const Value> args, size_t /*nargout*/,
-                      Span<Value> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw Error("spectralFlux: requires (x, fs [, p])",
-                    0, 0, "spectralFlux", "", "numkit:spectralFlux:nargin");
-    double p = 2.0;
-    if (args.size() >= 3) p = args[2].toScalar();
-    outs[0] = spectralFlux(ctx.engine->resource(), args[0], args[1], p);
-}
-
-} // namespace detail
 
 } // namespace numkit::audio

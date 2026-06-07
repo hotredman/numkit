@@ -16,10 +16,13 @@
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 
 #include <numkit/audio/scale/freq_scales.hpp>
-#include <numkit/builtin/math/interp/interp.hpp>
+#include <numkit/builtin/math/interp/interp.hpp>   // builtin::pchip (engine-free)
 
-#include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
+// Compute-only TU: Value substrate + Error, no engine. The hz2mel / mel2hz
+// / hz2bark / bark2hz / hz2erb / erb2hz / phon2sone / sone2phon builtins
+// (CallContext wrappers) live in scale/freq_scales_reg.cpp.
+#include <numkit/value/value.hpp>
+#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -55,14 +58,14 @@ inline double erbScale()
 } // namespace
 
 // ── Mel (O'Shaughnessy default) ───────────────────────────────────────
-Value hz2mel(std::pmr::memory_resource *mr, const Value &hz)
+Value hz2mel(const Value &hz, std::pmr::memory_resource *mr)
 {
     return elementwise(mr, hz, [](double f) {
         return 2595.0 * std::log10(1.0 + f / 700.0);
     });
 }
 
-Value mel2hz(std::pmr::memory_resource *mr, const Value &mel)
+Value mel2hz(const Value &mel, std::pmr::memory_resource *mr)
 {
     return elementwise(mr, mel, [](double m) {
         return 700.0 * (std::pow(10.0, m / 2595.0) - 1.0);
@@ -70,7 +73,7 @@ Value mel2hz(std::pmr::memory_resource *mr, const Value &mel)
 }
 
 // ── Bark (Traunmüller with corrections) ───────────────────────────────
-Value hz2bark(std::pmr::memory_resource *mr, const Value &hz)
+Value hz2bark(const Value &hz, std::pmr::memory_resource *mr)
 {
     return elementwise(mr, hz, [](double f) {
         double bark = 26.81 * f / (1960.0 + f) - 0.53;
@@ -80,7 +83,7 @@ Value hz2bark(std::pmr::memory_resource *mr, const Value &hz)
     });
 }
 
-Value bark2hz(std::pmr::memory_resource *mr, const Value &bark)
+Value bark2hz(const Value &bark, std::pmr::memory_resource *mr)
 {
     return elementwise(mr, bark, [](double b) {
         if (b < 2.0)         b = (b - 0.3) / 0.85;
@@ -93,7 +96,7 @@ Value bark2hz(std::pmr::memory_resource *mr, const Value &bark)
 }
 
 // ── ERB (Glasberg-Moore) ──────────────────────────────────────────────
-Value hz2erb(std::pmr::memory_resource *mr, const Value &hz)
+Value hz2erb(const Value &hz, std::pmr::memory_resource *mr)
 {
     const double scale = erbScale();
     return elementwise(mr, hz, [scale](double f) {
@@ -101,7 +104,7 @@ Value hz2erb(std::pmr::memory_resource *mr, const Value &hz)
     });
 }
 
-Value erb2hz(std::pmr::memory_resource *mr, const Value &erb)
+Value erb2hz(const Value &erb, std::pmr::memory_resource *mr)
 {
     const double scale = erbScale();
     return elementwise(mr, erb, [scale](double e) {
@@ -169,8 +172,8 @@ inline double linearExtrap(const double *xs, const double *ys, size_t N, double 
 
 } // anon
 
-Value phon2sone(std::pmr::memory_resource *mr, const Value &phon,
-                bool standardIs532_2)
+Value phon2sone(const Value &phon, bool standardIs532_2,
+                std::pmr::memory_resource *mr)
 {
     if (!standardIs532_2) {
         return elementwise(mr, phon, [](double p) {
@@ -240,8 +243,8 @@ Value phon2sone(std::pmr::memory_resource *mr, const Value &phon,
     });
 }
 
-Value sone2phon(std::pmr::memory_resource *mr, const Value &sone,
-                bool standardIs532_2)
+Value sone2phon(const Value &sone, bool standardIs532_2,
+                std::pmr::memory_resource *mr)
 {
     if (!standardIs532_2) {
         return elementwise(mr, sone, [](double s) {
@@ -267,65 +270,5 @@ Value sone2phon(std::pmr::memory_resource *mr, const Value &sone,
         return phon;
     });
 }
-
-namespace detail {
-
-#define NK_ELEM_REG(FN)                                                          \
-    void FN##_reg(Span<const Value> args, size_t /*nargout*/,                    \
-                  Span<Value> outs, CallContext &ctx)                            \
-    {                                                                            \
-        if (args.empty())                                                        \
-            throw Error(#FN ": requires (x)",                                    \
-                        0, 0, #FN, "", "numkit:" #FN ":nargin");                      \
-        outs[0] = FN(ctx.engine->resource(), args[0]);                           \
-    }
-
-NK_ELEM_REG(hz2mel)
-NK_ELEM_REG(mel2hz)
-NK_ELEM_REG(hz2bark)
-NK_ELEM_REG(bark2hz)
-NK_ELEM_REG(hz2erb)
-NK_ELEM_REG(erb2hz)
-
-#undef NK_ELEM_REG
-
-// phon2sone / sone2phon take an optional second arg = "ISO 532-1"
-// (default) or "ISO 532-2". Cycle M added the ISO 532-2 path.
-namespace {
-bool isStandard532_2(const Value &v)
-{
-    if (v.type() == ValueType::CHAR || v.type() == ValueType::STRING) {
-        std::string s = v.toString();
-        // Case-insensitive compare.
-        std::string lower = s;
-        std::transform(lower.begin(), lower.end(), lower.begin(),
-                        [](unsigned char c) { return std::tolower(c); });
-        return (lower == "iso 532-2");
-    }
-    return false;
-}
-} // anon
-
-void phon2sone_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("phon2sone: requires (phon [, standard])",
-                    0, 0, "phon2sone", "", "numkit:phon2sone:nargin");
-    bool iso532_2 = (args.size() >= 2) && isStandard532_2(args[1]);
-    outs[0] = phon2sone(ctx.engine->resource(), args[0], iso532_2);
-}
-
-void sone2phon_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
-{
-    if (args.empty())
-        throw Error("sone2phon: requires (sone [, standard])",
-                    0, 0, "sone2phon", "", "numkit:sone2phon:nargin");
-    bool iso532_2 = (args.size() >= 2) && isStandard532_2(args[1]);
-    outs[0] = sone2phon(ctx.engine->resource(), args[0], iso532_2);
-}
-
-} // namespace detail
 
 } // namespace numkit::audio
