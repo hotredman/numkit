@@ -6,11 +6,14 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/qam_reg.cpp         # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/fsk_ofdm.cpp         # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/fsk_ofdm_reg.cpp    # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/analog.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/analog.cpp           # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/analog_reg.cpp      # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/generic_qam.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/generic_qam_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/apsk.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/mil188.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/apsk.cpp             # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/apsk_reg.cpp        # register (CallContext)
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/mil188.cpp           # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/modulation/mil188_reg.cpp      # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel.cpp             # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel_reg.cpp        # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/fading.cpp             # compute (engine-free)
