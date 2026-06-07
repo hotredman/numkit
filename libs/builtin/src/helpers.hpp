@@ -1,6 +1,9 @@
 #pragma once
 
-#include <numkit/core/engine.hpp>
+// NOTE: helpers.hpp is engine-free — it uses only the Value substrate + ops
+// factories, never Engine/CallContext. Keeping it off <numkit/core/engine.hpp>
+// is what lets toolbox compute files include it without dragging in the engine.
+#include <numkit/value/value.hpp>
 #include <numkit/ops/value_factory.hpp>   // DimsArg/createMatrix/createForDims/createLike (now in numkit::ops)
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/shape_ops.hpp>
