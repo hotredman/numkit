@@ -1,7 +1,6 @@
 // src/engine.cpp
 #include <numkit/core/engine.hpp>
 #include <numkit/core/value_stats.hpp>
-#include <numkit/fs/branding.hpp>
 #include <numkit/core/compiler.hpp>
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
@@ -2742,142 +2741,58 @@ std::string Engine::workspaceJSON() const
 
 // ============================================================
 // Virtual filesystem registry + path resolver
+//
+// State + logic live in FsContext (fs/, L0). Engine HAS-A FsContext and
+// forwards; resolvePath additionally rethrows the fs-layer std::runtime_error
+// as numkit::Error so the MATLAB-visible error type is unchanged for
+// in-engine callers.
 // ============================================================
 
 void Engine::registerVirtualFS(std::unique_ptr<VirtualFS> fs)
 {
-    if (!fs)
-        return;
-    auto n = fs->name();
-    virtualFs_[n] = std::move(fs);
+    fsCtx_.registerVirtualFS(std::move(fs));
 }
 
 VirtualFS *Engine::findVirtualFS(const std::string &name) const
 {
-    auto it = virtualFs_.find(name);
-    return (it != virtualFs_.end()) ? it->second.get() : nullptr;
+    return fsCtx_.findVirtualFS(name);
 }
 
 void Engine::pushScriptOrigin(const std::string &fsName)
 {
-    scriptOriginStack_.push_back({fsName, std::string{}});
+    fsCtx_.pushScriptOrigin(fsName);
 }
 
 void Engine::pushScriptOrigin(const std::string &fsName, const std::string &scriptDir)
 {
-    scriptOriginStack_.push_back({fsName, scriptDir});
+    fsCtx_.pushScriptOrigin(fsName, scriptDir);
 }
 
 void Engine::popScriptOrigin()
 {
-    if (!scriptOriginStack_.empty())
-        scriptOriginStack_.pop_back();
+    fsCtx_.popScriptOrigin();
 }
 
 const std::string *Engine::currentScriptOrigin() const
 {
-    return scriptOriginStack_.empty() ? nullptr : &scriptOriginStack_.back().fsName;
+    return fsCtx_.currentScriptOrigin();
 }
 
 const std::string *Engine::currentScriptDir() const
 {
-    return scriptOriginStack_.empty() ? nullptr : &scriptOriginStack_.back().scriptDir;
+    return fsCtx_.currentScriptDir();
 }
-
-namespace {
-
-// Split "prefix:rest" into {prefix, rest} if `prefix` is a known FS name,
-// otherwise return {"", path}. Two guards against false positives on
-// paths that happen to contain ':':
-//   • colon must be at index >= 2, so Windows drive letters (C:/foo) and
-//     empty prefixes (":foo") never look like a scheme. This forbids
-//     single-character FS names by construction — acceptable because all
-//     current FS names ('native', 'temporary', 'local') are longer.
-//   • the prefix must match a registered FS. So a path like "http://..."
-//     or "mailto:..." falls through to the default FS untouched.
-std::pair<std::string, std::string> splitFsScheme(const std::string &path,
-                                                  const std::unordered_map<std::string, std::unique_ptr<VirtualFS>> &fsMap)
-{
-    auto colon = path.find(':');
-    if (colon == std::string::npos || colon < 2)
-        return {"", path};
-    std::string scheme = path.substr(0, colon);
-    if (fsMap.find(scheme) == fsMap.end())
-        return {"", path};
-    return {scheme, path.substr(colon + 1)};
-}
-
-bool isAbsolutePath(const std::string &p)
-{
-    if (p.empty())
-        return false;
-    if (p[0] == '/' || p[0] == '\\')
-        return true;
-#ifdef _WIN32
-    if (p.size() >= 2 && p[1] == ':' && ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')))
-        return true;
-#endif
-    return false;
-}
-
-std::string joinPath(const std::string &base, const std::string &rel)
-{
-    if (base.empty())
-        return rel;
-    if (rel.empty())
-        return base;
-    char last = base.back();
-    if (last == '/' || last == '\\')
-        return base + rel;
-    return base + "/" + rel;
-}
-
-} // namespace
 
 Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
 {
-    // 1. Explicit scheme in the path wins.
-    auto [scheme, rest] = splitFsScheme(userPath, virtualFs_);
-    if (!scheme.empty()) {
-        auto *fs = findVirtualFS(scheme);
-        if (!fs)
-            throw Error("unknown filesystem '" + scheme + "' in path");
-        return {fs, rest};
+    // FsContext throws std::runtime_error for unknown/unavailable
+    // filesystems; rethrow as numkit::Error so the MATLAB-visible error type
+    // (and message) is exactly what in-engine callers saw before.
+    try {
+        return fsCtx_.resolvePath(userPath);
+    } catch (const std::runtime_error &e) {
+        throw Error(e.what());
     }
-
-    // 2. NUMKIT_FS env var selects the backend.
-    std::string fsName = envGet(envVarName("FS").c_str());
-    if (fsName == "auto")
-        fsName.clear();
-
-    // 3. Fall back to script origin, then to "native".
-    if (fsName.empty()) {
-        if (auto *o = currentScriptOrigin())
-            fsName = *o;
-    }
-    if (fsName.empty())
-        fsName = "native";
-
-    VirtualFS *fs = findVirtualFS(fsName);
-    if (!fs)
-        throw Error("filesystem '" + fsName + "' is not available");
-
-    // Normalize path: if relative, prepend the engine's cwd. Precedence:
-    //   1. Engine::cwd_ when set (`cd`/`setCwd` write here — canonical).
-    //   2. NUMKIT_CWD env var (host-runtime override; only consulted
-    //      when the engine hasn't been told a cwd of its own).
-    // No "two sources diverge" risk: cwd_ wins whenever it's non-empty.
-    // The env fallback exists so hosts can `setenv NUMKIT_CWD` after
-    // engine construction without needing to call setCwd explicitly.
-    std::string path = userPath;
-    if (!isAbsolutePath(path)) {
-        std::string cwd = !cwd_.empty() ? cwd_
-                                        : envGet(envVarName("CWD").c_str());
-        if (!cwd.empty())
-            path = joinPath(cwd, path);
-    }
-
-    return {fs, path};
 }
 
 // ============================================================

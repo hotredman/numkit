@@ -6,6 +6,7 @@
 #include <numkit/value/object.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/fs/vfs.hpp>
+#include <numkit/fs/fs_context.hpp>
 #include <numkit/core/vm.hpp>
 
 #include <atomic>
@@ -544,14 +545,12 @@ public:
     // The two-tier model lets hosts seed cwd via `setenv NUMKIT_CWD`
     // without having to call setCwd, while still letting in-engine
     // `cd` calls take precedence once they happen.
-    const std::string &cwd() const { return cwd_; }
-    void setCwd(const std::string &p) { cwd_ = p; }
+    const std::string &cwd() const { return fsCtx_.cwd(); }
+    void setCwd(const std::string &p) { fsCtx_.setCwd(p); }
 
-    struct ResolvedPath
-    {
-        VirtualFS *fs;
-        std::string path;
-    };
+    // The path-resolution result type lives on FsContext (fs/, L0); aliased
+    // here so existing callers keep writing Engine::ResolvedPath.
+    using ResolvedPath = FsContext::ResolvedPath;
     ResolvedPath resolvePath(const std::string &userPath) const;
 
     // ── MATLAB-style file descriptor table ────────────────────
@@ -717,15 +716,11 @@ private:
     BreakpointManager breakpointManager_;
     std::unique_ptr<DebugController> debugController_;  // created when observer is set
 
-    // Virtual filesystem registry + script-origin stack
-    std::unordered_map<std::string, std::unique_ptr<VirtualFS>> virtualFs_;
-    struct ScriptOriginEntry
-    {
-        std::string fsName;
-        std::string scriptDir;
-    };
-    std::vector<ScriptOriginEntry> scriptOriginStack_;
-    std::string cwd_;
+    // Virtual filesystem session: VFS registry + script-origin stack + cwd +
+    // path resolver. Engine forwards its filesystem API to this (see the
+    // delegating wrappers in engine.cpp). Owned by value — FsContext is
+    // STL-only (fs/, L0).
+    FsContext fsCtx_;
 
     // MATLAB-style open-file table
     std::unordered_map<int, OpenFile> openFiles_;
