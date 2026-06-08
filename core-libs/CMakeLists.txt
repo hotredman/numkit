@@ -5,7 +5,7 @@
 # unlike the pure-compute toolboxes/ in toolboxes/. Same source-aggregation pattern;
 # each sub-lib exports into NUMKIT_CORELIBS_* via PARENT_SCOPE.
 
-foreach(_lib io optim ode)
+foreach(_lib io)
     add_subdirectory(${_lib})
 endforeach()
 
