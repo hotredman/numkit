@@ -127,7 +127,7 @@ add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-onl
 add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
 add_subdirectory(toolboxes)       # L2: pure-compute MATLAB toolboxes
-add_subdirectory(core-libs)  # L2: engine-coupled support libs (io/optim/ode)
+add_subdirectory(core-libs)  # L2: language-runtime libs (io workspace; eval/import to come). Pure-compute math (ode/optim) lives in toolboxes/.
 add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
 set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_CORELIBS_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
@@ -303,12 +303,12 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
-    foreach(_test_lib builtin linalg signal stats graphics wavelet comm control image audio graph)
+    foreach(_test_lib builtin linalg signal stats graphics wavelet comm control image audio graph optim ode)
         if(EXISTS ${CMAKE_SOURCE_DIR}/toolboxes/${_test_lib}/tests/CMakeLists.txt)
             add_subdirectory(toolboxes/${_test_lib}/tests)
         endif()
     endforeach()
-    foreach(_test_lib io optim ode)
+    foreach(_test_lib io)
         if(EXISTS ${CMAKE_SOURCE_DIR}/core-libs/${_test_lib}/tests/CMakeLists.txt)
             add_subdirectory(core-libs/${_test_lib}/tests)
         endif()
