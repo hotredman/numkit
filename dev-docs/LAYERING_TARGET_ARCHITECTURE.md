@@ -21,6 +21,24 @@ This is the second half of the original cycle-break: `core → libs` is already
 broken (core is library-agnostic, guard-enforced); this breaks `libs → core`
 for all pure compute.
 
+**Corollary — the Engine-free C++ API (the product payoff).** `core-free ⟺
+callable from C++ without the interpreter`. So the entire core-free surface —
+`value / ops / fs / math / lang / io / toolboxes` — *is* the Engine-free C++ API.
+An embedder links it and calls `math::roots`, `signal::fft`, `io::csvread(fs, …)`
+without spinning up an Engine. Specifics:
+- **io is in the C++ API**, two tiers: (1) pure codecs `*FromString`/`*ToString`
+  (Engine-free **and** fs-free — bytes↔Value); (2) file functions
+  (`csvread(FsContext&, path, mr)`, …) — Engine-free, over `fs`/VFS.
+- **save/load**: the codec (`saveMatToString`/`loadMatFromString`, name↔Value↔bytes)
+  is Engine-free C++ API; the bare `save`/`load` bind the workspace (`Environment`
+  = core) so they live in `runtime`, not the Engine-free API.
+- **callbacks/solvers**: the algorithm (in `ops`/toolbox, `FnHandle`-parameterized)
+  is in the C++ API; only the @f→FnHandle adapter needs the Engine.
+- **`runtime`** is the *only* library not in the Engine-free C++ API — it *is* the
+  engine binding (eval/workspace/registry).
+- stateful `fopen`-family: Engine-free iff its file-handle table lives in
+  `FsContext` (fs-state), not the Engine.
+
 ---
 
 ## 1. Target diagram
