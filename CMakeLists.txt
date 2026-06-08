@@ -127,12 +127,11 @@ add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-onl
 add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
 add_subdirectory(toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
-# core-libs/ (L2 language runtime: eval/who/clear/import/workspace) — to be created
-# by extracting the runtime builtins out of toolboxes/builtin; see project_layering_refactor.
+add_subdirectory(core-libs)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
 add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
-set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
-set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS})
+set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_CORELIBS_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
+set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_CORELIBS_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
     add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
@@ -206,7 +205,7 @@ set_source_files_properties(
 
 # Public include paths — collected from per-area CMakeLists. Wrap each
 # in BUILD_INTERFACE so the export set stays clean for find_package.
-foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
+foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_CORELIBS_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
     target_include_directories(numkit PUBLIC $<BUILD_INTERFACE:${_dir}>)
 endforeach()
 target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)
@@ -374,7 +373,7 @@ if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
     )
 
     # Public headers — install each per-area include-dir's numkit/ subtree
-    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS})
+    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_CORELIBS_INCLUDE_DIRS})
         install(DIRECTORY ${_dir}/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     endforeach()
 
