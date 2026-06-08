@@ -12,6 +12,7 @@
 
 add_library(numkit_fs STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/fs_context.cpp
 )
 
 target_include_directories(numkit_fs PUBLIC
