@@ -35,7 +35,6 @@ set(NUMKIT_CORE_HEADERS
     #  value_type/object/shape_ops/fn_handle/function_ref/scratch — moved to
     #  value/ → numkit_value L0 module)
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/ast.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/branding.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/bytecode.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/compiler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/debugger.hpp

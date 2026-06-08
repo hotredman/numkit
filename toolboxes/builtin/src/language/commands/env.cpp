@@ -5,7 +5,7 @@
 #include <numkit/builtin/language/commands/env.hpp>
 #include <numkit/builtin/library.hpp>
 
-#include <numkit/core/branding.hpp>     // for envGet
+#include <numkit/fs/branding.hpp>     // for envGet
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 

@@ -1,7 +1,7 @@
 // src/engine.cpp
 #include <numkit/core/engine.hpp>
 #include <numkit/core/value_stats.hpp>
-#include <numkit/core/branding.hpp>
+#include <numkit/fs/branding.hpp>
 #include <numkit/core/compiler.hpp>
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>

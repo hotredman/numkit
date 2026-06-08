@@ -11,7 +11,7 @@ namespace numkit::builtin {
 /// @brief Process-environment builtins.
 ///
 /// Thin wrappers over `_putenv_s` / `::setenv` and the cross-platform
-/// `envGet` from `numkit/core/branding.hpp`. No Engine state required;
+/// `envGet` from `numkit/fs/branding.hpp`. No Engine state required;
 /// `getenv` just needs a memory resource for its Value result.
 
 /// @brief Set / unset an environment variable (`setenv(name, value)`).
