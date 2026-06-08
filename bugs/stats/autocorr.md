@@ -39,5 +39,5 @@ All small-medium and share one helper. Verify ACF/PACF vs MATLAB on a short
 deterministic series (lag-0 must be exactly 1).
 
 ## References
-- new file under `libs/stats/src/...` (or reuse `libs/signal` xcorr/levinson)
+- new file under `toolboxes/stats/src/...` (or reuse `toolboxes/signal` xcorr/levinson)
 - MATLAB `doc autocorr`, `doc parcorr`, `doc crosscorr` (Econometrics TB)

@@ -27,7 +27,7 @@ func2str(@sin)      % named handle — numkit == MATLAB == 'sin'
 numkit does not retain the source text (or the AST) of an anonymous function;
 the parser assigns each lambda an internal `__anon_<N>` name, and `func2str`
 falls back to that name with an `@` prefix (see the comment in
-`libs/builtin/src/library.cpp` func2str + BUGS.md #16).
+`toolboxes/builtin/src/library.cpp` func2str + BUGS.md #16).
 
 ## Suggested fix
 Store the anonymous function's source text (or re-serialise its AST body and
@@ -39,6 +39,6 @@ through the parser (fixed 2026-06-04), so a stored source string would make
 `str2func(func2str(h))` work for anon handles too.
 
 ## References
-- `libs/builtin/src/library.cpp` (func2str lambda)
+- `toolboxes/builtin/src/library.cpp` (func2str lambda)
 - the parser's anonymous-function handling (`__anon_<N>` naming)
 - MATLAB `doc func2str`

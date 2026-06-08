@@ -1,4 +1,4 @@
-// libs/builtin/src/lang/operators/backends/compare_portable.cpp
+// toolboxes/builtin/src/lang/operators/backends/compare_portable.cpp
 //
 // Scalar reference for the comparison fast path. Compiled when
 // NUMKIT_WITH_SIMD=OFF. Same dispatch contract as the Highway variant —

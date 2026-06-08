@@ -18,7 +18,7 @@ biorthogonal (`rbio*`) wavelet names; only haar/db/sym/coif are known.
 ```
 
 ## Root cause
-`libs/wavelet/src/.../wfilters*` only tabulates the orthogonal families.
+`toolboxes/wavelet/src/.../wfilters*` only tabulates the orthogonal families.
 Biorthogonal wavelets have **distinct decomposition and reconstruction**
 filter pairs (Lo_D/Hi_D ≠ Lo_R/Hi_R), which the current orthogonal-only
 filter machinery doesn't model.
@@ -31,5 +31,5 @@ tables + the analysis/synthesis filter split). Validate coefficients vs
 MATLAB per family.
 
 ## References
-- `libs/wavelet/src/.../wfilters*`, `dwt*`, `idwt*`
+- `toolboxes/wavelet/src/.../wfilters*`, `dwt*`, `idwt*`
 - MATLAB `doc waveinfo` (bior, rbio)

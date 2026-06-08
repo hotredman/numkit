@@ -5,7 +5,7 @@
 // no engine, no toolbox — so they live at the L0.5 ops layer and every layer
 // above can use them.
 //
-// (Historically in libs/builtin/src/helpers.hpp under namespace numkit;
+// (Historically in toolboxes/builtin/src/helpers.hpp under namespace numkit;
 // helpers.hpp now re-exports these into numkit:: so existing unqualified
 // callers are unaffected.)
 

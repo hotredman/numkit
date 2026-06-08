@@ -31,5 +31,5 @@ DEFERRED GAP (A); a fixed `t` input works without it). Small once wired to
 the existing simulator. Verify `y` decay vs MATLAB.
 
 ## References
-- new file under `libs/control/src/...`; reuse `lsim`/`step`/`c2d` kernels
+- new file under `toolboxes/control/src/...`; reuse `lsim`/`step`/`c2d` kernels
 - MATLAB `doc initial`

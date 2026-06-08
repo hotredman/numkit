@@ -321,7 +321,7 @@ Instances store only `objClass` + `objState`; the `BuiltinClass`
 | `ClassName(a)` | `execCall` | `CALL` | if name is a registered class → `construct` |
 | `obj(i)` / `obj(i)=v` | `execIndexAccess` / `execIndexedAssign` | `INDEX_GET`/`INDEX_SET` | `subsref` / `subsasgn` overload |
 | `a OP b` | `execBinaryOp` | op opcodes | if operand is OBJECT with `ops[OP]` → dispatch (later phase) |
-| `class/isa/isobject/disp/properties/methods` | builtins (libs/builtin) | — | consult registry |
+| `class/isa/isobject/disp/properties/methods` | builtins (toolboxes/builtin) | — | consult registry |
 
 Method dispatch precedence (MATLAB): a class method on the first object
 argument beats a same-named global/builtin function. Constructor for a

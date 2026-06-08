@@ -1,4 +1,4 @@
-// libs/builtin/src/lang/operators/backends/binary_ops_highway.cpp
+// toolboxes/builtin/src/lang/operators/backends/binary_ops_highway.cpp
 //
 // Highway dynamic-dispatch inner loops for plus / minus / times /
 // rdivide on real double arrays. One HWY_EXPORT / HWY_DYNAMIC_DISPATCH

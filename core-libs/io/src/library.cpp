@@ -1,4 +1,4 @@
-// libs/io/src/library.cpp
+// toolboxes/io/src/library.cpp
 //
 // Registration hub for the Data Import and Export library.
 // Namespace layout (NAMESPACE_DESIGN.md §5, §9.4):

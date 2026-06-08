@@ -36,5 +36,5 @@ scalar logical Stable). Reuse `margin`'s crossover solver. Medium. Verify
 the GM/GMFrequency and Stable flag vs MATLAB on a 3rd-order plant.
 
 ## References
-- new file under `libs/control/src/...`; reuse `margin`/`bode`
+- new file under `toolboxes/control/src/...`; reuse `margin`/`bode`
 - MATLAB `doc allmargin`

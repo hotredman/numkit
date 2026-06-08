@@ -290,7 +290,7 @@ def build_batch_script(specs: list[Spec], *, engine: str) -> str:
     is why specs are chunked rather than run as one giant script.
     """
     if engine == "numkit":
-        # libs/{signal,stats,…} fns are aliased into `compat.<name>`;
+        # toolboxes/{signal,stats,…} fns are aliased into `compat.<name>`;
         # MATLAB has no compat package so this is numkit-only.
         prelude = "import compat.*\n"
     elif engine == "octave":

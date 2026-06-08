@@ -11,7 +11,7 @@
   sorted paths record the LAST occurrence (`map[key]=i`) instead of
   `try_emplace`. Verified `ia`/`ic` vs MATLAB for vector, complex, `'rows'`
   and NaN inputs. Default ('first') byte-identical. Guard:
-  `libs/builtin/tests/unique_last_test.cpp`.
+  `toolboxes/builtin/tests/unique_last_test.cpp`.
 
 ## Remaining (deferred sub-gap)
 `unique(A,'stable','last')`: MATLAB R2025b does NOT error (the original note
@@ -34,7 +34,7 @@ ignored.
 The default ('first') is correct, and `'stable'` works.
 
 ## Root cause
-`libs/builtin/src/math/discrete/discrete.cpp` records first occurrence via
+`toolboxes/builtin/src/math/discrete/discrete.cpp` records first occurrence via
 `firstIdx.try_emplace(p[i], i)` (keeps the first) in every path
 (`uniqueWithIndices` sorted, `uniqueComplexFull`, `uniqueRows`); the
 `'last'` token isn't threaded from `unique_reg`.
@@ -48,6 +48,6 @@ byte-identical. Mechanical but spans 3 paths (sorted / complex / rows) so
 not a one-spot change. Validate `ia` for vector, complex, and `'rows'`.
 
 ## References
-- `libs/builtin/src/math/discrete/discrete.cpp` (uniqueWithIndices,
+- `toolboxes/builtin/src/math/discrete/discrete.cpp` (uniqueWithIndices,
   uniqueComplexFull, uniqueRows, unique_reg)
 - MATLAB `doc unique` ('last')

@@ -1,6 +1,6 @@
-# libs/ode/tests/CMakeLists.txt
+# toolboxes/ode/tests/CMakeLists.txt
 #
-# Gtest unit tests for libs/ode. Each *_test.cpp is appended to the
+# Gtest unit tests for toolboxes/ode. Each *_test.cpp is appended to the
 # global numkit_gtest target. Smoke .m files in tests/smoke/ are
 # hand-runnable demos for numkit_smoke (not built into gtest).
 

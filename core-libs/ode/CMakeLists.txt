@@ -1,4 +1,4 @@
-# libs/ode/CMakeLists.txt
+# toolboxes/ode/CMakeLists.txt
 #
 # Ordinary Differential Equations Toolbox.
 # Solvers: ode45, ode23, ode113, ode15s, ode23s, ode23t, ode23tb, ode78, ode89.

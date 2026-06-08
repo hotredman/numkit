@@ -8,7 +8,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 48),
-  `libs/builtin/src/language/arrays/matrix.cpp` (`cummax` / `cummin`). c44
+  `toolboxes/builtin/src/language/arrays/matrix.cpp` (`cummax` / `cummin`). c44
   added a LOGICAL branch to these but no integer branch, so an integer input
   still reached the double-only `cumScanDispatch` → `doubleData()` → "Not a
   double array". (cumsum/cumprod already had `cumIntegerNative`; cummax/cummin
@@ -27,10 +27,10 @@
   `cummax(uint16([30 10 50 20]))`=uint16; 2-D dim2 `cummax(int8([3 1;1 5]),2)`
   =`[3 3;1 5]`; `'reverse'` `[5 5 5 5 4]`; negatives `cummin(int8([0 -3 2 -5]))`
   =`[0 -3 -3 -5]`.
-- Live guard: `libs/builtin/tests/cummax_cummin_integer_test.cpp` (5 TEST_F) +
+- Live guard: `toolboxes/builtin/tests/cummax_cummin_integer_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.CummaxCumminInteger` flipped live. Parity:
   `tools/parity/specs/cummax_cummin_integer.json` (correctness=OK). Smoke:
-  `libs/builtin/tests/smoke/cummax_cummin_integer_smoke.m`.
+  `toolboxes/builtin/tests/smoke/cummax_cummin_integer_smoke.m`.
 
 ## Symptom
 `cummax` / `cummin` throw on an integer array; MATLAB returns the running
@@ -47,7 +47,7 @@ cummax/cummin route everything except logical into the double-only
 `cumScanDispatch`, which reads `doubleData()` and throws for integer storage.
 
 ## References
-- `libs/builtin/src/language/arrays/matrix.cpp` (`cummax`, `cummin`)
+- `toolboxes/builtin/src/language/arrays/matrix.cpp` (`cummax`, `cummin`)
 - Related still-open (separate, larger): the mov* family (movmax/movmin/
   movsum/movmean) is also double-only and throws on logical/integer.
 - MATLAB `doc cummax`, `doc cummin`

@@ -33,5 +33,5 @@ Taylor series). Medium-large. Verify on a diagonal matrix (closed form)
 and a non-normal 2×2 vs MATLAB.
 
 ## References
-- new file under `libs/linalg/src/...` (reuse Schur + the expm block code)
+- new file under `toolboxes/linalg/src/...` (reuse Schur + the expm block code)
 - MATLAB `doc funm`

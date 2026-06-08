@@ -82,12 +82,12 @@ void Engine::reinstallConstants()
     // `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions, not
     // constants. Bare `nan` calls nan() → scalar NaN; `nan(M, N)` calls
     // nan(M, N) → MxN matrix of NaN; `nan(M, N, 'single')` returns
-    // single-precision. Registration lives in libs/builtin/src/library.cpp
+    // single-precision. Registration lives in toolboxes/builtin/src/library.cpp
     // via nan_reg / inf_reg. Same pattern as true/false (BUGS.md #30).
     // `true` and `false` are MATLAB built-in functions, not constants.
     // Bare `true` calls true() → scalar logical 1; `true(M, N)` calls
     // true(M, N) → MxN logical array. Registration lives in
-    // libs/builtin/src/library.cpp via true_reg / false_reg. See
+    // toolboxes/builtin/src/library.cpp via true_reg / false_reg. See
     // BUGS.md #30.
     constantsEnv_->set("i", Value::complexScalar(0.0, 1.0, mr_));
     constantsEnv_->set("j", Value::complexScalar(0.0, 1.0, mr_));

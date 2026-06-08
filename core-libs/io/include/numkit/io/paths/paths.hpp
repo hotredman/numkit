@@ -1,4 +1,4 @@
-// libs/io/include/numkit/io/paths/paths.hpp
+// toolboxes/io/include/numkit/io/paths/paths.hpp
 //
 // File-name construction utilities.
 

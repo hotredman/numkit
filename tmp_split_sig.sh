@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase-2b compute/register splitter for libs/signal single-detail-block files.
+# Phase-2b compute/register splitter for toolboxes/signal single-detail-block files.
 # Usage: tmp_split_sig.sh <compute.cpp relative to repo root>
 # Produces <name>_reg.cpp and truncates the compute TU at its detail block.
 set -euo pipefail
@@ -7,8 +7,8 @@ set -euo pipefail
 f="$1"
 base="${f%.cpp}"
 reg="${base}_reg.cpp"
-# rel for the banner comment: strip "libs/<lib>/src/"
-rel="${f#libs/*/src/}"
+# rel for the banner comment: strip "toolboxes/<lib>/src/"
+rel="${f#toolboxes/*/src/}"
 relbase="${rel%.cpp}"
 # Auto-detect the toolbox namespace (numkit::signal / numkit::stats / …) so the
 # reg wrapper + compute re-close use the file's real namespace, not a hardcode.
@@ -30,7 +30,7 @@ fi
 
 # --- register TU ---------------------------------------------------------
 {
-  echo "// libs/signal/src/${relbase}_reg.cpp"
+  echo "// toolboxes/signal/src/${relbase}_reg.cpp"
   echo "//"
   echo "// CallContext register half of ${rel} (Phase 2b compute/register split)."
   echo "// Engine-coupled glue: marshals CallContext args/outs into the engine-free"

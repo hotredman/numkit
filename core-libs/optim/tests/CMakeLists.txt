@@ -1,4 +1,4 @@
-# libs/optim/tests/CMakeLists.txt
+# toolboxes/optim/tests/CMakeLists.txt
 #
 # Optimization Toolbox unit tests. Each new function adds a TU here via
 # target_sources(numkit_gtest PRIVATE ...). Hand-runnable .m smokes live

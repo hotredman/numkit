@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-check_api.py — lint public libs/ API headers against dev-docs/LIBRARY_API.md.
+check_api.py — lint public toolboxes/ API headers against dev-docs/LIBRARY_API.md.
 
 Covers the *mechanically checkable* subset of the API ruleset. Human-
 judgement rules (§3 test coverage, §5 reference citations) are enforced
 by the PR checklist in dev-docs/LIBRARY_API.md, not here.
 
-Checks, over every libs/<ns>/include/**/*.hpp header:
+Checks, over every toolboxes/<ns>/include/**/*.hpp header:
   §13  no `Engine` / `CallContext` by-ref/by-ptr in a public signature
   §7   `memory_resource` is passed by pointer, never by reference
   §10  no `const Value *` in a public signature
 
 §13 exceptions (see dev-docs/LIBRARY_API.md §13):
   * library.hpp        — the install(Engine&) registration hook.
-  * libs/io/**         — file I/O needs the engine's virtual filesystem.
+  * toolboxes/io/**         — file I/O needs the engine's virtual filesystem.
   * a line marked      `// lint: engine-io` — an engine text-sink / fid
-                         I/O function living outside libs/io.
+                         I/O function living outside toolboxes/io.
 
 Run:   python tools/lint/check_api.py
 Exit:  0 = clean, 1 = violations found.
@@ -30,7 +30,7 @@ ENGINE_IO_MARKER = "lint: engine-io"
 
 def engine_bulk_exempt(rel: str) -> bool:
     """Files where an `Engine` parameter is categorically allowed."""
-    return rel.endswith("library.hpp") or rel.startswith("libs/io/")
+    return rel.endswith("library.hpp") or rel.startswith("toolboxes/io/")
 
 
 def strip_comments_and_strings(text: str) -> str:
@@ -82,7 +82,7 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
 
-    headers = sorted(REPO.glob("libs/*/include/**/*.hpp"))
+    headers = sorted(REPO.glob("toolboxes/*/include/**/*.hpp"))
     violations = []
     for path in headers:
         rel = path.relative_to(REPO).as_posix()
@@ -94,7 +94,7 @@ def main() -> int:
             if RX_ENGINE.search(code):
                 if not bulk and ENGINE_IO_MARKER not in raw_line:
                     violations.append((rel, lineno, "§13",
-                        "Engine/CallContext in a public libs/ signature "
+                        "Engine/CallContext in a public toolboxes/ signature "
                         "— use FnHandle (§12), or mark `// lint: engine-io`"))
             if RX_MR_REF.search(code):
                 violations.append((rel, lineno, "§7",

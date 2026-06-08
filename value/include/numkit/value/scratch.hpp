@@ -12,7 +12,7 @@
 // Per-call bump arena. IS-A std::pmr::monotonic_buffer_resource —
 // pass `&arena` directly to anything pmr-aware (pmr containers, the
 // nested ScratchVec, etc.). 64 KiB inline storage absorbs the typical
-// scratch footprint of every public libs/builtin and libs/signal
+// scratch footprint of every public toolboxes/builtin and toolboxes/signal
 // function (incl. set-op hash maps at small N and tridiagonal scratches
 // in interp1Spline). Spillover paths still work for inputs that exceed
 // this. Stack burden +60 KiB per arena is fine on every supported

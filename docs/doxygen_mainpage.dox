@@ -35,7 +35,7 @@
 ///     source coding, equalisation
 ///
 /// - **Files** tab — same content browsable by physical layout
-///   (`libs/<lib>/include/numkit/<lib>/.../*.hpp`).
+///   (`toolboxes/<lib>/include/numkit/<lib>/.../*.hpp`).
 ///
 /// - **Classes** tab — small set; mostly named-return structs
 ///   (e.g. @ref numkit::builtin::BalanceResult,

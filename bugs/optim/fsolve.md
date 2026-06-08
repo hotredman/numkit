@@ -33,5 +33,5 @@ case (√2) and a 2×2 system vs MATLAB. Shares the Jacobian/step machinery
 with `lsqnonlin` (see optim/nonlinear-lsq.md).
 
 ## References
-- new file under `libs/optim/src/...`; cf. `fzero`/`fminunc`/`lsqnonlin`
+- new file under `toolboxes/optim/src/...`; cf. `fzero`/`fminunc`/`lsqnonlin`
 - MATLAB `doc fsolve`

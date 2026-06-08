@@ -97,7 +97,7 @@ Add `- **Kind:** <kind>` to each file (right after Severity).
 ## Every bug also gets a test
 
 **Found a bug → add a test.** Each OPEN bug has a matching `DISABLED_`
-gtest in `libs/<lib>/tests/known_bugs_test.cpp` that asserts the
+gtest in `toolboxes/<lib>/tests/known_bugs_test.cpp` that asserts the
 MATLAB-correct behaviour. Disabled means it does NOT run in the normal
 suite (the green baseline stays green), but it is visible
 (`YOU HAVE N DISABLED TESTS`) and **fails when force-run**
@@ -113,7 +113,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 ## Lifecycle
 
 1. Find a bug → create `bugs/<ns>/<fn>.md` (status OPEN) with full repro,
-   AND add a `DISABLED_` test in `libs/<ns>/tests/known_bugs_test.cpp`.
+   AND add a `DISABLED_` test in `toolboxes/<ns>/tests/known_bugs_test.cpp`.
 2. Fix it (4 artefacts) → remove `DISABLED_` (or promote the assertion into
    the function's own test file), flip the md status to ✅ FIXED with the
    commit hash, and update the index row. Keep the md (repro stays useful).

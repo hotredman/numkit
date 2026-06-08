@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 49),
-  `libs/stats/src/moving/moving.cpp`. The moving functions run through the
+  `toolboxes/stats/src/moving/moving.cpp`. The moving functions run through the
   double-only `movingDriverDim` (reads `doubleData()`), so an integer/logical
   input threw "Not a double array".
 - MATLAB PROMOTES an integer/logical operand to **double** for the arithmetic
@@ -23,10 +23,10 @@
   `movprod(...)`=`[3 6 10 40 20]` double;
   `movmean(...)`=`[2 2 2.6667 3.6667 4.5]` double;
   `movsum(logical([1 0 1 1 0]),3)`=`[1 2 2 2 1]` double.
-- Live guard: `libs/stats/tests/movfun_typeclass_test.cpp` (5 TEST_F) +
+- Live guard: `toolboxes/stats/tests/movfun_typeclass_test.cpp` (5 TEST_F) +
   `StatsKnownBug.MovfunTypeClass` flipped live. Parity:
   `tools/parity/specs/movfun_typeclass.json` (correctness=OK). Smoke:
-  `libs/stats/tests/smoke/movfun_typeclass_smoke.m`.
+  `toolboxes/stats/tests/smoke/movfun_typeclass_smoke.m`.
 
 ## Symptom
 `movsum` / `movprod` / `movmean` throw on an integer/logical array; MATLAB
@@ -53,6 +53,6 @@ no per-class promotion existed for the integer/logical case.
   ("First input must be double or single"). Left as-is.
 
 ## References
-- `libs/stats/src/moving/moving.cpp` (`movmean_impl`/`movsum_impl`/
+- `toolboxes/stats/src/moving/moving.cpp` (`movmean_impl`/`movsum_impl`/
   `movprod_impl`, `movPromoteIntLogical`)
 - MATLAB `doc movsum` / `doc movmean`

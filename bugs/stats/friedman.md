@@ -30,6 +30,6 @@ p-value (and the table) vs MATLAB; pairs with `kruskalwallis` (already
 shipped).
 
 ## References
-- new file under `libs/stats/src/...`
+- new file under `toolboxes/stats/src/...`
 - shipped: `tiedrank`, `chi2cdf`, `kruskalwallis`, `anova1`
 - MATLAB `doc friedman`

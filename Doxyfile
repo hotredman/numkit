@@ -1,6 +1,6 @@
 # Doxyfile for numkit-m
 #
-# Generates API documentation for the public headers of libs/*/include/.
+# Generates API documentation for the public headers of toolboxes/*/include/.
 # HTML output renders LaTeX formulas via MathJax (no toolchain needed for
 # HTML). PDF output requires pdflatex (MiKTeX on Windows, TeX Live on
 # Unix); set GENERATE_LATEX = NO to skip if pdflatex is not installed.
@@ -22,18 +22,18 @@ OUTPUT_LANGUAGE        = English
 
 # ── Input ────────────────────────────────────────────────────────────
 # Only the public include trees of each lib. Implementation .cpp files
-# under libs/*/src are excluded (they're not user-facing API).
+# under toolboxes/*/src are excluded (they're not user-facing API).
 INPUT                  = docs/doxygen_mainpage.dox \
-                         libs/audio/include    \
-                         libs/image/include    \
-                         libs/signal/include   \
-                         libs/stats/include    \
-                         libs/builtin/include  \
-                         libs/wavelet/include  \
-                         libs/control/include  \
-                         libs/comm/include     \
-                         libs/graphics/include \
-                         libs/io/include
+                         toolboxes/audio/include    \
+                         toolboxes/image/include    \
+                         toolboxes/signal/include   \
+                         toolboxes/stats/include    \
+                         toolboxes/builtin/include  \
+                         toolboxes/wavelet/include  \
+                         toolboxes/control/include  \
+                         toolboxes/comm/include     \
+                         toolboxes/graphics/include \
+                         toolboxes/io/include
 FILE_PATTERNS          = *.hpp *.h *.dox
 RECURSIVE              = YES
 EXCLUDE                = build build-* .claude

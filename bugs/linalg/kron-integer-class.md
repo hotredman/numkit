@@ -7,7 +7,7 @@
   newly reachable since integer concatenation was fixed in cycle 59)
 
 ## Fixed
-- Fixed: 2026-06-05 (bug-fix loop, cycle 60), `libs/linalg/src/vector_ops.cpp`.
+- Fixed: 2026-06-05 (bug-fix loop, cycle 60), `toolboxes/linalg/src/vector_ops.cpp`.
   `kron` now keeps the integer class of integer operands. `kronIntegerClass`
   picks the output class (same-int-class → that class; integer + real scalar
   double → that integer class; otherwise double); element products are still
@@ -19,10 +19,10 @@
   `kron(int8(-100),int8(2))`=-128 (sat lo); `kron(int8([2 3]),2)`=int8 [4 6]
   (scalar double cast); `kron(2,int8([2 3]))`=int8 [4 6]; `kron(int8(2),1.5)`=3
   (round-half-away); `kron([1 2],[3 4])`=double [3 4 6 8] (unchanged).
-- Live guard: `libs/linalg/tests/kron_integer_class_test.cpp` (6 TEST_F) +
+- Live guard: `toolboxes/linalg/tests/kron_integer_class_test.cpp` (6 TEST_F) +
   `LinalgKnownBug.KronIntegerClass` (flipped live). Parity:
   `tools/parity/specs/kron_integer_class.json` (correctness=OK). Smoke:
-  `libs/linalg/tests/smoke/kron_integer_class_smoke.m`.
+  `toolboxes/linalg/tests/smoke/kron_integer_class_smoke.m`.
 
 ## Symptom
 `kron` of two integer arrays returned a `double` result. MATLAB R2025b
@@ -42,7 +42,7 @@ kron(int8([2 3]), 2)             % numkit: double [4 6]
 ```
 
 ## Root cause
-`libs/linalg/src/vector_ops.cpp` `kron` always allocated a `DOUBLE` result
+`toolboxes/linalg/src/vector_ops.cpp` `kron` always allocated a `DOUBLE` result
 matrix and wrote `double` element products, ignoring the operand classes.
 
 ## MATLAB class rule (R2025b)
@@ -56,11 +56,11 @@ matrix and wrote `double` element products, ignoring the operand classes.
   and is not part of this fix.
 
 ## Guard
-`libs/linalg/tests/known_bugs_test.cpp` → `LinalgKnownBug.KronIntegerClass`
+`toolboxes/linalg/tests/known_bugs_test.cpp` → `LinalgKnownBug.KronIntegerClass`
 (live) plus the dedicated `kron_integer_class_test.cpp`.
 
 ## References
-- `libs/linalg/src/vector_ops.cpp` (`kron`, `kronIntegerClass`,
+- `toolboxes/linalg/src/vector_ops.cpp` (`kron`, `kronIntegerClass`,
   `narrowKronToInteger`)
 - `core/src/value.cpp` (`castConcatToInteger` — the saturating-narrow pattern
   this mirrors)

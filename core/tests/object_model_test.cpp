@@ -2402,7 +2402,7 @@ TEST(ObjectArrayDisplay, ArrayHeaderAndProps)
 // ============================================================
 // Public engine-free C++ API for the container objects
 // (numkit::containers::map/dictionary/set/get/...). No Engine — just
-// Value + memory_resource, like the rest of libs/builtin.
+// Value + memory_resource, like the rest of toolboxes/builtin.
 // ============================================================
 namespace c = numkit::containers;
 

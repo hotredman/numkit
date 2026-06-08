@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-12,
   "fingerprint": ["r1"],
-  "comment": "Sig: [X,Y,Z] = cylinder([R, n]). Bit-identical with MATLAB R2025b when called with explicit parens. KNOWN ENGINE GAP: cylinder() vs cylinder (no parens) -- parenless multi-output assignment segfaults numkit; that's a core parser/dispatcher issue, not a libs/cylinder bug. Documented in BUGS.md."
+  "comment": "Sig: [X,Y,Z] = cylinder([R, n]). Bit-identical with MATLAB R2025b when called with explicit parens. KNOWN ENGINE GAP: cylinder() vs cylinder (no parens) -- parenless multi-output assignment segfaults numkit; that's a core parser/dispatcher issue, not a toolboxes/cylinder bug. Documented in BUGS.md."
 }

@@ -7,10 +7,10 @@
 # callback type, and the ScratchArena.
 #
 # An L0 foundation: depends ONLY on the C++ standard library — never on the
-# engine, parser, VM, fs, or any toolbox. `core` and the pure `libs/*` build
+# engine, parser, VM, fs, or any toolbox. `core` and the pure `toolboxes/*` build
 # on it without pulling each other in. (Primitive element-wise operator
 # kernels land here in a follow-up step; until then the VM still calls them
-# from libs/builtin.)
+# from toolboxes/builtin.)
 
 add_library(numkit_value STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/value_type.cpp

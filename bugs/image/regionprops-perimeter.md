@@ -25,7 +25,7 @@ Extrema, ConvexHull, Orientation?` (verify which are still missing).
 
 ## Root cause
 The property-name parser ignores unrecognized names instead of either
-computing them or raising "unsupported property". `libs/image/src/.../regionprops*`.
+computing them or raising "unsupported property". `toolboxes/image/src/.../regionprops*`.
 
 ## Suggested fix
 Two parts: (a) **immediate, cheap** — make an unknown/unimplemented property
@@ -37,5 +37,5 @@ specific weighting) and the other deferred fields. Do (a) now, (b) as
 separate items.
 
 ## References
-- `libs/image/src/...regionprops...`
+- `toolboxes/image/src/...regionprops...`
 - MATLAB `doc regionprops`

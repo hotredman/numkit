@@ -29,6 +29,6 @@ vector with a finite-difference Jacobian. `lsqcurvefit(fun,p0,x,y)` is
 Medium. Outputs `[p, resnorm, residual, exitflag, output]`.
 
 ## References
-- new file under `libs/optim/src/...`
+- new file under `toolboxes/optim/src/...`
 - shipped: `lsqnonneg`, `fminsearch`, `fzero`, `fminbnd`
 - MATLAB `doc lsqcurvefit`, `doc lsqnonlin`

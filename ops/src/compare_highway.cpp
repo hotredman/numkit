@@ -1,4 +1,4 @@
-// libs/builtin/src/lang/operators/backends/compare_highway.cpp
+// toolboxes/builtin/src/lang/operators/backends/compare_highway.cpp
 //
 // Highway dynamic-dispatch SIMD comparisons (==, ~=, <, >, <=, >=) for
 // DOUBLE × DOUBLE inputs. Phase P1.5 — surfaced as the residual bottleneck
