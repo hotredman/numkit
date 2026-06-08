@@ -126,12 +126,13 @@ add_subdirectory(value)   # L0:   Value substrate (numkit_value) — STL-only
 add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-only
 add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
-add_subdirectory(toolboxes)       # L2: pure-compute MATLAB toolboxes
-add_subdirectory(core-libs)  # L2: language-runtime libs (io workspace; eval/import to come). Pure-compute math (ode/optim) lives in toolboxes/.
+add_subdirectory(toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
+# core-libs/ (L2 language runtime: eval/who/clear/import/workspace) — to be created
+# by extracting the runtime builtins out of toolboxes/builtin; see project_layering_refactor.
 add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
-set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_CORELIBS_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
-set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_CORELIBS_HEADERS})
+set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
+set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
     add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
@@ -205,7 +206,7 @@ set_source_files_properties(
 
 # Public include paths — collected from per-area CMakeLists. Wrap each
 # in BUILD_INTERFACE so the export set stays clean for find_package.
-foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_CORELIBS_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
+foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
     target_include_directories(numkit PUBLIC $<BUILD_INTERFACE:${_dir}>)
 endforeach()
 target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)
@@ -220,7 +221,7 @@ target_include_directories(numkit
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/builtin/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/core-libs/io/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src
         # Vendored single-header libs (stb_image, stb_image_write).
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
 )
@@ -303,14 +304,9 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
-    foreach(_test_lib builtin linalg signal stats graphics wavelet comm control image audio graph optim ode)
+    foreach(_test_lib builtin linalg signal stats graphics wavelet comm control image audio graph optim ode io)
         if(EXISTS ${CMAKE_SOURCE_DIR}/toolboxes/${_test_lib}/tests/CMakeLists.txt)
             add_subdirectory(toolboxes/${_test_lib}/tests)
-        endif()
-    endforeach()
-    foreach(_test_lib io)
-        if(EXISTS ${CMAKE_SOURCE_DIR}/core-libs/${_test_lib}/tests/CMakeLists.txt)
-            add_subdirectory(core-libs/${_test_lib}/tests)
         endif()
     endforeach()
 endif()
