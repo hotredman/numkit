@@ -170,11 +170,10 @@ void dense_eval(double theta, double dir, double h,
     }
 }
 
-// Evaluate the RHS callback at (t, y) → dy/dt (length d). Uses the
-// Engine to call the function-handle Value directly (FnHandle-based
-// path had brittle capture semantics when the Engine round-trips back
-// into the lambda).
-void eval_rhs(Engine &eng, const Value &fnh, double t,
+// Evaluate the RHS callback at (t, y) → dy/dt (length d). Engine-free: the
+// RHS is a numkit::FnHandle (args = {t, y}, outs[0] = dy/dt). The MATLAB
+// adapter (ode45_reg) wraps Engine::callFunctionHandle into such a handle.
+void eval_rhs(FnHandle rhs, double t,
               const std::vector<double> &y,
               std::vector<double> &dydt, std::pmr::memory_resource *mr)
 {
@@ -183,8 +182,8 @@ void eval_rhs(Engine &eng, const Value &fnh, double t,
     Value yv = Value::matrix(d, 1, ValueType::DOUBLE, mr);
     for (std::size_t i = 0; i < d; ++i) yv.doubleDataMut()[i] = y[i];
     std::array<Value, 2> args_buf{tv, yv};
-    Value out_buf = eng.callFunctionHandle(
-        fnh, Span<const Value>(args_buf.data(), 2));
+    Value out_buf;
+    rhs(Span<const Value>(args_buf.data(), 2), Span<Value>(&out_buf, 1), mr);
     if (out_buf.numel() != d)
         throw Error("ode45: RHS returned " + std::to_string(out_buf.numel())
                   + " values but expected " + std::to_string(d),
@@ -196,7 +195,7 @@ void eval_rhs(Engine &eng, const Value &fnh, double t,
 } // anonymous
 
 std::tuple<Value, Value>
-ode45(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
+ode45(FnHandle rhs, const Value &tspan, const Value &y0,
       const Value &opts, std::pmr::memory_resource *mr)
 {
     // ── Validate inputs ────────────────────────────────────────────
@@ -232,7 +231,7 @@ ode45(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
 
     // ── Initial step size (Hairer-Nørsett-Wanner I, Eq. (4.14)) ────
     std::vector<double> k1(d), k2(d), k3(d), k4(d), k5(d), k6(d), k7(d);
-    eval_rhs(eng, fnh, t0, y, k1, mr);
+    eval_rhs(rhs, t0, y, k1, mr);
 
     double h = O.initial_step;
     if (!(h > 0.0)) {
@@ -248,7 +247,7 @@ ode45(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
         // Trial step.
         std::vector<double> y1(d), k2_trial(d);
         for (std::size_t i = 0; i < d; ++i) y1[i] = y[i] + dir * h0 * k1[i];
-        eval_rhs(eng, fnh, t0 + dir * h0, y1, k2_trial, mr);
+        eval_rhs(rhs, t0 + dir * h0, y1, k2_trial, mr);
         double d2 = 0.0;
         for (std::size_t i = 0; i < d; ++i) {
             const double sc = atol_i(i) + O.rel_tol * std::fabs(y[i]);
@@ -296,27 +295,27 @@ ode45(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
         // k2 at (t + c2 h, y + h a21 k1)
         for (std::size_t i = 0; i < d; ++i)
             ytmp[i] = y[i] + dir * trial_h * (a21 * k1[i]);
-        eval_rhs(eng, fnh, t + dir * c2 * trial_h, ytmp, k2, mr);
+        eval_rhs(rhs, t + dir * c2 * trial_h, ytmp, k2, mr);
         // k3 at (t + c3 h, y + h (a31 k1 + a32 k2))
         for (std::size_t i = 0; i < d; ++i)
             ytmp[i] = y[i] + dir * trial_h * (a31 * k1[i] + a32 * k2[i]);
-        eval_rhs(eng, fnh, t + dir * c3 * trial_h, ytmp, k3, mr);
+        eval_rhs(rhs, t + dir * c3 * trial_h, ytmp, k3, mr);
         // k4
         for (std::size_t i = 0; i < d; ++i)
             ytmp[i] = y[i] + dir * trial_h
                     * (a41 * k1[i] + a42 * k2[i] + a43 * k3[i]);
-        eval_rhs(eng, fnh, t + dir * c4 * trial_h, ytmp, k4, mr);
+        eval_rhs(rhs, t + dir * c4 * trial_h, ytmp, k4, mr);
         // k5
         for (std::size_t i = 0; i < d; ++i)
             ytmp[i] = y[i] + dir * trial_h
                     * (a51 * k1[i] + a52 * k2[i] + a53 * k3[i] + a54 * k4[i]);
-        eval_rhs(eng, fnh, t + dir * c5 * trial_h, ytmp, k5, mr);
+        eval_rhs(rhs, t + dir * c5 * trial_h, ytmp, k5, mr);
         // k6
         for (std::size_t i = 0; i < d; ++i)
             ytmp[i] = y[i] + dir * trial_h
                     * (a61 * k1[i] + a62 * k2[i] + a63 * k3[i]
                      + a64 * k4[i] + a65 * k5[i]);
-        eval_rhs(eng, fnh, t + dir * trial_h, ytmp, k6, mr);
+        eval_rhs(rhs, t + dir * trial_h, ytmp, k6, mr);
         // 5th-order solution
         std::vector<double> y_new(d);
         for (std::size_t i = 0; i < d; ++i)
@@ -324,7 +323,7 @@ ode45(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
                      * (b1 * k1[i] + b3 * k3[i] + b4 * k4[i]
                       + b5 * k5[i] + b6 * k6[i]);
         // k7 at (t + h, y_new) — FSAL
-        eval_rhs(eng, fnh, t + dir * trial_h, y_new, k7, mr);
+        eval_rhs(rhs, t + dir * trial_h, y_new, k7, mr);
         // Error estimate
         double err_norm = 0.0;
         for (std::size_t i = 0; i < d; ++i) {
@@ -436,7 +435,15 @@ void ode45_reg(Span<const Value> args, size_t nargout,
                     0, 0, "ode45", "", "numkit:ode45:nargin");
     auto *mr = ctx.engine->resource();
     const Value opts_v = (args.size() > 3) ? args[3] : Value::Empty;
-    auto [tv, yv] = ode45(*ctx.engine, args[0], args[1], args[2], opts_v, mr);
+    // Bridge the MATLAB function-handle into an Engine-free FnHandle: the
+    // engine dispatches it (single output dy/dt), the library core just calls.
+    const Value handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> a, Span<Value> o,
+                              std::pmr::memory_resource * /*mr*/) {
+        Value r = ctx.engine->callFunctionHandle(handle, a);
+        if (!o.empty()) o[0] = std::move(r);
+    };
+    auto [tv, yv] = ode45(cb, args[1], args[2], opts_v, mr);
     outs[0] = std::move(tv);
     if (nargout >= 2) outs[1] = std::move(yv);
 }
