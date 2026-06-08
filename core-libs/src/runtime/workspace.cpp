@@ -5,22 +5,204 @@
 // runtime — NOT a math/io toolbox). Behaviour unchanged. registerWorkspaceRuntime
 // is composed by installRuntimeLibrary (runtime.cpp).
 //
-// Cluster so far: assignin / inputname. (clear / clearvars / who / whos / exist
-// follow as the extraction proceeds.)
+// Cluster so far: clear / import / assignin / inputname. (who / whos / exist /
+// clearvars follow as the extraction proceeds.)
 #include <numkit/corelibs/runtime.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
+#include <numkit/core/environment.hpp>
 #include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
+#include <regex>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace numkit::corelibs {
 
 void registerWorkspaceRuntime(Engine &engine)
 {
+    // ── clear ──────────────────────────────────────────────────
+    engine.registerFunction("clear",
+                            [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+                                auto *env = ctx.env;
+                                bool insideFunc = ctx.engine->isInsideFunctionCall();
+
+                                if (args.empty()) {
+                                    // MATLAB: bare 'clear' clears workspace variables only,
+                                    // NOT user functions or figures.
+                                    env->clearAll();
+                                    if (!insideFunc) {
+                                        ctx.engine->reinstallConstants();
+                                        ctx.engine->markClearAll();
+                                    }
+                                } else {
+                                    std::string first = args[0].isChar() ? args[0].toString() : "";
+
+                                    if (first == "-regexp") {
+                                        // clear -regexp pat1 pat2 ... — drop every workspace
+                                        // variable whose name matches at least one pattern.
+                                        // MATLAB uses regexp-style partial match (so `^foo`
+                                        // matches "foo1"), not whole-string regex_match.
+                                        // std::regex is slow but the workspace is tiny.
+                                        std::vector<std::regex> pats;
+                                        for (size_t i = 1; i < args.size(); ++i) {
+                                            if (!args[i].isChar() && !args[i].isString()) continue;
+                                            try { pats.emplace_back(args[i].toString()); }
+                                            catch (const std::regex_error &) {
+                                                throw std::runtime_error(
+                                                    "clear -regexp: invalid pattern '"
+                                                    + args[i].toString() + "'");
+                                            }
+                                        }
+                                        // Inside a function `env` is the local frame; the
+                                        // user's intent for `clear -regexp` is the SAME
+                                        // workspace they'd see via plain `clear x`. Apply
+                                        // to both env and (when distinct) the engine's base
+                                        // workspace so VM-mode top-level evals work too.
+                                        auto applyTo = [&](Environment *e) {
+                                            if (!e) return;
+                                            for (const auto &n : e->localNames()) {
+                                                for (const auto &re : pats) {
+                                                    if (std::regex_search(n, re)) {
+                                                        e->remove(n);
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        };
+                                        applyTo(env);
+                                        if (env != &ctx.engine->workspaceEnv())
+                                            applyTo(&ctx.engine->workspaceEnv());
+                                        outs[0] = Value();
+                                        return;
+                                    }
+                                    if (first == "global") {
+                                        auto *gs = ctx.env->globalsEnv();
+                                        if (args.size() == 1) {
+                                            // clear global — clear all globals
+                                            if (gs)
+                                                gs->clearAll();
+                                            env->clearAll();
+                                            ctx.engine->markClearAll();
+                                        } else {
+                                            // clear global x y — clear specific globals
+                                            for (size_t i = 1; i < args.size(); ++i) {
+                                                if (args[i].isChar()) {
+                                                    std::string gname = args[i].toString();
+                                                    if (gs)
+                                                        gs->remove(gname);
+                                                    env->remove(gname);
+                                                }
+                                            }
+                                        }
+                                        outs[0] = Value();
+                                        return;
+                                    }
+                                    if (first == "import") {
+                                        // Drop every active import in the current scope.
+                                        // Subsequent unqualified lookups fall back to core +
+                                        // parent-scope imports (if any).
+                                        env->clearImports();
+                                        outs[0] = Value();
+                                        return;
+                                    }
+
+                                    if (first == "all" || first == "classes") {
+                                        if (insideFunc) {
+                                            env->clearAll();
+                                        } else {
+                                            env->clearAll();
+                                            ctx.engine->clearUserFunctions();
+                                            ctx.engine->clearClassDefs();
+                                            ctx.engine->figureManager().closeAll();
+                                            ctx.engine->reinstallConstants();
+                                            ctx.engine->markClearAll();
+                                        }
+                                    } else if (first == "functions") {
+                                        if (!insideFunc)
+                                            ctx.engine->clearUserFunctions();
+                                    } else {
+                                        // `clear x`, `clear pi`, etc.
+                                        // Un-shadow a built-in by removing the
+                                        // workspace slot — the next read then
+                                        // falls back to constantsEnv_. No
+                                        // special filtering: MATLAB allows it.
+                                        for (auto &a : args) {
+                                            if (a.isChar())
+                                                env->remove(a.toString());
+                                        }
+                                    }
+                                }
+                                outs[0] = Value();
+                            });
+
+    // ── import ────────────────────────────────────────────────
+    // Command-style: `import signal.*` → import('signal.*').
+    // Function-style: `import('signal', 'as', 's')` → alias form.
+    // Each string arg is one of:
+    //   'a.b.c'   — single-symbol import (path = [a, b, c])
+    //   'a.b.*'   — wildcard import      (path = [a, b], wildcard=true)
+    //   3-arg form 'a.b' / 'as' / 'name'  → alias
+    // Multiple args allowed: `import a.* b.*` pushes two imports.
+    engine.registerFunction(
+        "import", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            auto fail = [](const std::string &msg) {
+                throw std::runtime_error("import: " + msg);
+            };
+            auto asString = [&](const Value &v, size_t i) {
+                if (!v.isChar() && !v.isString())
+                    fail("argument " + std::to_string(i + 1) + " must be a string");
+                return v.toString();
+            };
+            auto parseSpec = [&](const std::string &spec, Import &imp) {
+                if (spec.empty()) fail("empty import specifier");
+                size_t pos = 0;
+                while (pos < spec.size()) {
+                    size_t dot = spec.find('.', pos);
+                    std::string seg = spec.substr(pos, dot == std::string::npos ? std::string::npos
+                                                                                : dot - pos);
+                    if (seg == "*") {
+                        if (dot != std::string::npos)
+                            fail("'*' must be the last component in '" + spec + "'");
+                        imp.wildcard = true;
+                        return;
+                    }
+                    if (seg.empty())
+                        fail("empty path component in '" + spec + "'");
+                    imp.path.push_back(std::move(seg));
+                    if (dot == std::string::npos) break;
+                    pos = dot + 1;
+                }
+                if (imp.path.empty()) fail("missing path in '" + spec + "'");
+            };
+
+            if (args.empty()) fail("requires at least one argument");
+
+            // Alias form: import('a.b', 'as', 'name') — exactly 3 args, args[1] == 'as'.
+            if (args.size() == 3 && (args[1].isChar() || args[1].isString())
+                && args[1].toString() == "as") {
+                Import imp;
+                parseSpec(asString(args[0], 0), imp);
+                if (imp.wildcard) fail("'as' alias is not allowed with wildcard import");
+                imp.alias = asString(args[2], 2);
+                if (imp.alias.empty()) fail("alias name must be non-empty");
+                ctx.env->pushImport(std::move(imp));
+                outs[0] = Value();
+                return;
+            }
+
+            for (size_t i = 0; i < args.size(); ++i) {
+                std::string spec = asString(args[i], i);
+                Import imp;
+                parseSpec(spec, imp);
+                ctx.env->pushImport(std::move(imp));
+            }
+            outs[0] = Value();
+        });
+
     // ── assignin ──────────────────────────────────────────────
     // assignin(workspace, name, val) — write `name = val` in
     // `workspace`, where `workspace` is 'base' (top-level) or 'caller'
