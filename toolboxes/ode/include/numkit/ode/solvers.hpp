@@ -13,11 +13,10 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/value/fn_handle.hpp>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
-
-namespace numkit { class Engine; }
 
 namespace numkit::ode {
 
@@ -36,14 +35,12 @@ namespace numkit::ode {
 ///                              computed by shortening the integration
 ///                              step to land exactly on each target.
 ///
-/// The RHS is passed in as a MATLAB function-handle `Value` so the
-/// solver can invoke it directly through `Engine::callFunctionHandle`.
-/// The FnHandle wrapper path was abandoned because `function_ref`'s
-/// type-erasure dropped func-handle semantics when the Engine
-/// round-tripped back into the lambda.
+/// The RHS is an Engine-free @ref numkit::FnHandle callback: it receives
+/// `args = {t, y}` and writes `dy/dt` into `outs[0]`. C++ embedders pass a
+/// stack lambda directly (no Engine needed); the MATLAB-facing adapter wraps
+/// the script function-handle via `Engine::callFunctionHandle` into an FnHandle.
 ///
-/// @param eng    Engine used to dispatch the RHS function-handle.
-/// @param fnh    Function-handle Value `@(t,y) ...` returning `dy/dt`.
+/// @param rhs    RHS callback: `args={t (scalar), y (d×1)}` → `outs[0]=dy/dt (d×1)`.
 /// @param tspan  Time vector (length ≥ 2, strictly monotonic).
 /// @param y0     Initial state (column or row vector; flattened).
 /// @param opts   Options struct from `odeset` (or `Value::Empty`).
@@ -51,7 +48,7 @@ namespace numkit::ode {
 /// @return       `{t, y}` — `t` is an `m × 1` column of accepted/sampled
 ///               times; `y` is an `m × d` matrix with each row a state.
 std::tuple<Value, Value>
-ode45(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
+ode45(FnHandle rhs, const Value &tspan, const Value &y0,
       const Value &opts, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Explicit Bogacki-Shampine 3(2) RK solver
@@ -71,8 +68,8 @@ ode45(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
 /// `(y_{n+1}, k4)`, which is 3rd-order accurate — matching MATLAB
 /// (Shampine-Reichelt 1997).
 ///
-/// @param eng    Engine used to dispatch the RHS function-handle.
-/// @param fnh    Function-handle Value `@(t,y) ...` returning `dy/dt`.
+/// @param rhs    RHS callback (Engine-free @ref numkit::FnHandle): `args={t,y}`
+///               → `outs[0]=dy/dt`.
 /// @param tspan  Time vector (length ≥ 2, strictly monotonic).
 /// @param y0     Initial state (column or row vector; flattened).
 /// @param opts   Options struct from `odeset` (or `Value::Empty`).
@@ -80,7 +77,7 @@ ode45(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
 /// @return       `{t, y}` — `t` is an `m × 1` column of accepted/sampled
 ///               times; `y` is an `m × d` matrix with each row a state.
 std::tuple<Value, Value>
-ode23(Engine &eng, const Value &fnh, const Value &tspan, const Value &y0,
+ode23(FnHandle rhs, const Value &tspan, const Value &y0,
       const Value &opts, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::ode
