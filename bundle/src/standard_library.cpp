@@ -23,11 +23,14 @@
 #include <numkit/audio/library.hpp>
 #include <numkit/ode/library.hpp>
 
+#include <numkit/corelibs/runtime.hpp>
+
 namespace numkit {
 
 void installStandardLibrary(Engine &engine)
 {
     BuiltinLibrary::install(engine);
+    corelibs::installRuntimeLibrary(engine);  // L2 language runtime (eval-family; more to follow)
     LinalgLibrary::install(engine);
     SignalLibrary::install(engine);
     StatsLibrary::install(engine);
