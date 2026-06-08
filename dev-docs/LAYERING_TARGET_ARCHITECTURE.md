@@ -52,7 +52,7 @@ the diagram's edges become **link** edges, not just include-discipline.
 |-------|----------|-----------|------------|
 | `value` (L0) | Value substrate, FnHandle, scratch | — | ✅ (separate lib) |
 | `fs` (L0) | VFS abstraction **+ FsContext** (path/cwd/script-origin resolution) | — | ✅ (separate lib) |
-| `ops` (L0.5) | raw-buffer kernels: binary_ops/reductions/compare/fft/rng/la_solve | value(/fs) | ✅ (separate lib) |
+| `ops` (L0.5) | **the kernel home** — raw numerical kernels: binary_ops/reductions/compare/fft/rng/la_solve, AND any new numerical primitive incl. **solver kernels** (RK step, Brent, Nelder-Mead, Levenberg-Marquardt — `FnHandle`-parameterized) carved out of ode/optim | value(/fs) | ✅ (separate lib) |
 | `core` (L1) | engine: parser/AST/TreeWalker/bytecode VM/Engine/Environment/CallContext | value/fs/ops | ✅ library-agnostic |
 | `math` (L2) | poly/special/interp/geom/trig/exp_log/complex/arithmetic/discrete/permutations. ns `numkit::math` | value/ops/fs | ✅ |
 | `lang` (L2) | strings/arrays/types/bitwise/operators/handles/datatypes/cells/structs (data ops). ns `numkit::lang` | value/ops/fs | ✅ |
@@ -79,6 +79,23 @@ abstraction so the dependency points **down** (value/fs/ops), not up (core):
 | file codec | `*FromString` / `*ToString` pure cores | the toolbox itself | csv/extras ✅; rest TODO |
 | memory_resource | plain `mr` parameter | — | ✅ everywhere |
 | registry reflection (`str2func`/`func2str`) | *none possible* — it IS engine state | → stays in `runtime` | intrinsic |
+
+**Where a decoupled algorithm lands — the 3-way split (esp. solvers).** `ops` is
+the **kernel home**: the raw numerical kernel (RK step, Brent, Nelder-Mead,
+Levenberg-Marquardt — `FnHandle`-parameterized) goes to `ops`, alongside
+`la_solve`/`fft` which are already numerical-algorithm kernels there — core-free.
+The Value-level MATLAB-API wrapper (option parsing, output shaping) goes to its
+toolbox (`ode`/`optim`/`math`) — core-free, passes the `FnHandle` through. The
+engine adapter (@objfun→`FnHandle` + pausable harness) goes to `runtime`. So a
+solver is a **3-way split**:
+
+```
+ops kernel (core-free, FnHandle) → toolbox Value-API (core-free) → runtime adapter (core-aware)
+```
+
+`ops` never depends on core. ode/optim toolboxes become thin once their kernels
+move down to `ops`. The same applies to any numerical primitive currently buried
+in a toolbox — its kernel belongs in `ops`.
 
 ---
 
@@ -206,3 +223,8 @@ Order is adjustable; A and B are the safest first real steps.
   (codecs) / `mr` param. Registry reflection has no core-free form → runtime.
 - `runtime` = the single core-dependent library.
 - `env`/`containers.Map` classified by the rule "pulls core → runtime".
+- **`ops` is the kernel home** (core-free, L0.5): raw numerical kernels live here
+  (already `la_solve`/`fft`); solver kernels (RK/Brent/Nelder-Mead/LM) and any
+  numerical primitive buried in a toolbox migrate **down into `ops`**, not into a
+  toolbox or runtime. Solvers are a 3-way split: `ops` kernel → toolbox Value-API
+  → `runtime` adapter. `ops` never depends on core.
