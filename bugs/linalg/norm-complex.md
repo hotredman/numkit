@@ -22,7 +22,7 @@ vecnorm([3+4i 0])      % numkit == MATLAB == 5  (already correct)
 ```
 
 ## Root cause
-`norm_value` and `norm_fro` (`libs/linalg/src/norms.cpp:35` / `:111`) read
+`norm_value` and `norm_fro` (`toolboxes/linalg/src/norms.cpp:35` / `:111`) read
 `x.doubleData()` unconditionally. `vecnorm` in the same file uses a `getAbs`
 helper that branches on `A.isComplex()` (→ `std::abs(complexElem)`); `norm`'s
 scalar paths never got that branch.
@@ -35,7 +35,7 @@ norm, and for the matrix 2-norm route the complex matrix through the SVD
 pattern. Validate vs MATLAB on complex vectors (1/2/Inf/'fro') and matrices.
 
 ## References
-- `libs/linalg/src/norms.cpp` (norm_value, norm_fro, norm_inf, vecnorm getAbs)
+- `toolboxes/linalg/src/norms.cpp` (norm_value, norm_fro, norm_inf, vecnorm getAbs)
 - MATLAB `doc norm`
 
 ## Fixed
@@ -48,7 +48,7 @@ pattern. Validate vs MATLAB on complex vectors (1/2/Inf/'fro') and matrices.
   value) needs a complex SVD, which is still unimplemented — it now throws a
   clear `numkit:norm:complexSpectral` error instead of the cryptic "Not a
   double array". Tracked under bugs/linalg/complex-matrix-unsupported.md.
-- Live guard: `libs/linalg/tests/norm_complex_test.cpp` (6 cases incl. a
+- Live guard: `toolboxes/linalg/tests/norm_complex_test.cpp` (6 cases incl. a
   real-input regression + the spectral-throws guard). Parity:
   `tools/parity/specs/norm.json` extended (correctness=OK). Smoke:
-  `libs/linalg/tests/smoke/norm_complex_smoke.m`.
+  `toolboxes/linalg/tests/smoke/norm_complex_smoke.m`.

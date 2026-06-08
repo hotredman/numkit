@@ -93,7 +93,7 @@ TEST_P(NamespaceResolverTest, CompatNamespaceWorks)
 
 TEST_P(NamespaceResolverTest, WildcardImportFindsSubNamespaceFunction)
 {
-    // libs/signal registers functions under signal.<sub>.<name> (e.g.
+    // toolboxes/signal registers functions under signal.<sub>.<name> (e.g.
     // signal.transforms.fft). `import signal.*; fft(x)` must find them
     // — wildcard imports look one level deeper than just "signal.<name>".
     auto result = engine.eval("import signal.*; y = fft([1, 1, 1, 1]);");

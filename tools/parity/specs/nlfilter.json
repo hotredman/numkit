@@ -19,5 +19,5 @@
     "Class preservation              output class = first fun() return class",
     "Even neighbourhood              [2 3] with top-left bias for the centre"
   ],
-  "comment": "MATLAB R2025b nlfilter.m: B(i,j) = fun(window_at(i,j)) where window is m × n centred on (i,j) with top-left bias for even sizes. Pads with 0 by default, with 1 for single/double in 'indexed' form. Output class = class of the FIRST fun() return. Dispatch goes through Engine::callFunctionHandle, matching the pattern adopted in libs/ode/ode45 (function_ref couldn't carry func-handle semantics through the round-trip). Bit-equal MATLAB on the magic(5) test image across mean/max/median/sum kernels, [3 3] and [2 3] neighbourhoods, double/uint8 classes, and 'indexed' mode."
+  "comment": "MATLAB R2025b nlfilter.m: B(i,j) = fun(window_at(i,j)) where window is m × n centred on (i,j) with top-left bias for even sizes. Pads with 0 by default, with 1 for single/double in 'indexed' form. Output class = class of the FIRST fun() return. Dispatch goes through Engine::callFunctionHandle, matching the pattern adopted in toolboxes/ode/ode45 (function_ref couldn't carry func-handle semantics through the round-trip). Bit-equal MATLAB on the magic(5) test image across mean/max/median/sum kernels, [3 3] and [2 3] neighbourhoods, double/uint8 classes, and 'indexed' mode."
 }

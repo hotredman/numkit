@@ -1,4 +1,4 @@
-// libs/builtin/src/reduction_helpers.hpp
+// toolboxes/builtin/src/reduction_helpers.hpp
 //
 // Shared infrastructure for "reduce-along-dim" style operations.
 // Used by Phase-1 stats (var/std/median/quantile/prctile/mode) and

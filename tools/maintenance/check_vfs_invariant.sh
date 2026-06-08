@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check_vfs_invariant.sh
 #
-# Enforces the VFS invariant: any filesystem access from core/ or libs/
+# Enforces the VFS invariant: any filesystem access from core/ or toolboxes/
 # must go through numkit::VirtualFS, never directly via std::filesystem,
 # stdio FILE*, fstream, or OS-native APIs.
 #
@@ -86,12 +86,12 @@ scan_dir() {
              --include='*.cxx' --include='*.hxx' || true)
 }
 
-echo "Scanning core/ and libs/ for VFS invariant violations..."
+echo "Scanning core/ and toolboxes/ for VFS invariant violations..."
 
 scan_dir "core" "$FORBIDDEN_INCLUDES" "include"
 scan_dir "core" "$FORBIDDEN_SYMBOLS"  "symbol"
-scan_dir "libs" "$FORBIDDEN_INCLUDES" "include"
-scan_dir "libs" "$FORBIDDEN_SYMBOLS"  "symbol"
+scan_dir "toolboxes" "$FORBIDDEN_INCLUDES" "include"
+scan_dir "toolboxes" "$FORBIDDEN_SYMBOLS"  "symbol"
 
 if [ "$violations" -eq 0 ]; then
     echo "OK: no VFS invariant violations."
@@ -100,7 +100,7 @@ fi
 
 echo ""
 echo "FAIL: $violations violation(s) found."
-echo "All filesystem access from core/ and libs/ must go through numkit::VirtualFS."
+echo "All filesystem access from core/ and toolboxes/ must go through numkit::VirtualFS."
 echo "If you have a legitimate reason (e.g., a new VFS backend), add the file"
 echo "to ALLOW_LIST in tools/check_vfs_invariant.sh."
 exit 1

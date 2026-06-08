@@ -13,7 +13,7 @@
 //     opt out of threading on small inputs where the hand-off
 //     would dominate.
 //
-// SIMD kernels in libs/*/src/backends/*_simd.cpp use this exclusively
+// SIMD kernels in toolboxes/*/src/backends/*_simd.cpp use this exclusively
 // for parallelism. Output buffers must be disjoint per chunk and
 // inputs read-only — both already true for our element-wise SIMD
 // kernels.

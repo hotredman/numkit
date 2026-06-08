@@ -3,7 +3,7 @@
 # numkit_fs — the filesystem abstraction (VirtualFS interface + NativeFS +
 # CallbackFS). An L0 foundation module: it depends ONLY on the C++ standard
 # library — never on Value, the engine, the parser, or any toolbox. Both
-# `core` and the pure `libs/*` build on it WITHOUT pulling each other in.
+# `core` and the pure `toolboxes/*` build on it WITHOUT pulling each other in.
 #
 # Concrete non-native backends (a DB/IndexedDB-backed temp store, an Electron
 # mount) are supplied by the embedder via CallbackFS hooks — they live outside

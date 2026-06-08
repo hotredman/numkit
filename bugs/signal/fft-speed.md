@@ -44,12 +44,12 @@ codegen for other sizes or loses (see `feedback_fft_msvc_limits.md`,
 External FFTW/pocketfft and output-MValue caching were rejected by the user.
 
 ## Benchmark (the "test" for a perf entry — not a DISABLED gtest)
-`libs/signal/benchmarks/fft_bench.cpp` — `BM_Fft_KernelOnly_*`,
+`toolboxes/signal/benchmarks/fft_bench.cpp` — `BM_Fft_KernelOnly_*`,
 `BM_Fft_RfftPackOnly`, `BM_Fft_RfftTwistOnlyScalar`. Re-measure with these
 before any change; the bottleneck split may have moved.
 
 ## References
-- `libs/signal/src/transforms/fft.cpp` + `backends/`
+- `toolboxes/signal/src/transforms/fft.cpp` + `backends/`
 - memory: `feedback_fft_optimization_dead_ends.md`,
   `feedback_fft_msvc_limits.md`, `project_fft_native_cliff.md`
 - MATLAB `doc fft` (FFTW)

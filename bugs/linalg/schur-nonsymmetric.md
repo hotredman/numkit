@@ -39,6 +39,6 @@ kernel `qz`/general `eig`-vectors need (see linalg/qz-gsvd.md). Medium-large
 `diag(T)` = eigenvalues vs MATLAB.
 
 ## References
-- `libs/linalg/src/...` (schur kernel; symmetric-only branch)
+- `toolboxes/linalg/src/...` (schur kernel; symmetric-only branch)
 - related: linalg/qz-gsvd.md (same Hessenberg/QZ machinery)
 - MATLAB `doc schur`

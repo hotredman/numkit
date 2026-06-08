@@ -7,7 +7,7 @@ Enforces the acyclic dependency direction established by the layering refactor:
     fs/     (L0)    STL only
     ops/    (L0.5)  -> value (+ Highway / Threads)
     core/   (L1)    -> value, fs, ops
-    libs/*  (L2)    -> value, fs, ops, core         (toolboxes; not pinned yet)
+    toolboxes/*  (L2)    -> value, fs, ops, core         (toolboxes; not pinned yet)
     bundle/ (L3)    -> everything
 
 This checker pins the lower layers only: value, fs, ops and core must NOT

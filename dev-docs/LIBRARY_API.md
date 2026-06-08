@@ -1,9 +1,9 @@
-# numkit `libs/*` — Public API Conventions
+# numkit `toolboxes/*` — Public API Conventions
 
 These rules govern every **public** function declared in a
-`libs/<ns>/include/numkit/<ns>/**/*.hpp` header.
+`toolboxes/<ns>/include/numkit/<ns>/**/*.hpp` header.
 
-**Why this document exists.** `libs/` is a real C++ numerical library,
+**Why this document exists.** `toolboxes/` is a real C++ numerical library,
 not just a backend for the interpreter. An external caller must be able
 to write
 
@@ -20,7 +20,7 @@ carries. That ergonomic bar drives every rule below.
 (`namespace detail`, anonymous namespaces, `.cpp`-local functions) are
 exempt — see [§21](#21-internal-helpers-are-exempt).
 
-**API stability.** The `libs/` C++ API is **unstable until numkit 1.0** —
+**API stability.** The `toolboxes/` C++ API is **unstable until numkit 1.0** —
 public signatures may change without a deprecation cycle. After 1.0,
 changes to a public signature follow semantic versioning with a
 documented deprecation period.
@@ -347,9 +347,9 @@ auto root = numkit::optim::fzero(
 
 ## 13. No `Engine` in the public API
 
-A `libs/` function must be callable **without an interpreter
+A `toolboxes/` function must be callable **without an interpreter
 instance**. `Engine &` / `Engine *` / `CallContext &` must not appear in
-a public `libs/` signature. Anything that needs to call back into user
+a public `toolboxes/` signature. Anything that needs to call back into user
 code takes a [`FnHandle`](#12-fnhandle-for-callbacks) instead; `Engine`
 lives in the interpreter glue — the `*_reg` adapters
 ([§20](#20-the-engine-adapter-pattern)).
@@ -361,7 +361,7 @@ function fundamentally needs:
    hook, not a numerical function.
 2. **I/O through the engine's text sink / fid table.** Console and file
    output must route through the engine so an embedder's output
-   redirection and capture work. This covers all of `libs/io`, plus
+   redirection and capture work. This covers all of `toolboxes/io`, plus
    `disp` / `fprintf` / `fscanf` / `textscan` / `warning`. Such a
    function carries a `// lint: engine-io` marker and, where one is
    meaningful, pairs with a pure engine-free variant (e.g. `dispFormat`
@@ -485,8 +485,8 @@ opportunistically, never as a mass find-and-replace.
 
 ## 20. The Engine-adapter pattern
 
-The interpreter reaches a `libs/` function through a thin `*_reg`
-adapter (registered in `libs/<ns>/src/library.cpp`). The adapter is the
+The interpreter reaches a `toolboxes/` function through a thin `*_reg`
+adapter (registered in `toolboxes/<ns>/src/library.cpp`). The adapter is the
 **only** place `Engine *` / `CallContext &` is allowed. It:
 
 1. unpacks runtime `Value` arguments into native types,
@@ -521,16 +521,16 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/,
 
 Functions in `namespace detail`, anonymous namespaces, or `.cpp`-local
 helpers may use whatever signature is convenient. Only public-facing
-declarations in `libs/<ns>/include/**` must follow these rules.
+declarations in `toolboxes/<ns>/include/**` must follow these rules.
 
 ## 22. File-format I/O placement
 
 Readers and writers for on-disk file formats live in the **domain
 library that owns the data type they handle**, not in a unified formats
-library. Image formats → `libs/image/src/io/`. Audio formats →
-`libs/audio/src/io/`. General / cross-domain (CSV, .mat, future HDF5 /
-Parquet / Zarr) → `libs/io/`. Raw byte-stream primitives (`fopen`,
-`fread`, …) live in `libs/io/src/file_io/`.
+library. Image formats → `toolboxes/image/src/io/`. Audio formats →
+`toolboxes/audio/src/io/`. General / cross-domain (CSV, .mat, future HDF5 /
+Parquet / Zarr) → `toolboxes/io/`. Raw byte-stream primitives (`fopen`,
+`fread`, …) live in `toolboxes/io/src/file_io/`.
 
 Decision tree, current layout, and the reasoning behind the per-domain
 split are in [`FORMAT_HOMES.md`](FORMAT_HOMES.md). Consult it before
@@ -543,17 +543,17 @@ adding a new format implementation.
 `adapthisteq` (the §7-§21 pilot, landed in commit `93b205cc`) is the
 reference implementation to copy the *shape* of:
 
-- [`libs/image/include/numkit/image/contrast/contrast.hpp`](../libs/image/include/numkit/image/contrast/contrast.hpp)
+- [`toolboxes/image/include/numkit/image/contrast/contrast.hpp`](../toolboxes/image/include/numkit/image/contrast/contrast.hpp)
   — `const Value &` input, an `AdaptHistEqOptions` struct (§14), `mr`
   last, full Doxygen.
-- [`libs/image/src/contrast/contrast.cpp`](../libs/image/src/contrast/contrast.cpp)
+- [`toolboxes/image/src/contrast/contrast.cpp`](../toolboxes/image/src/contrast/contrast.cpp)
   — clean-room implementation with a cited-reference header (§5) and the
   `*_reg` adapter (§20).
-- [`libs/image/tests/adapthisteq_test.cpp`](../libs/image/tests/adapthisteq_test.cpp)
+- [`toolboxes/image/tests/adapthisteq_test.cpp`](../toolboxes/image/tests/adapthisteq_test.cpp)
   — engine-level gtest, one `TEST_F` per documented branch (§3).
-- [`libs/image/tests/adapthisteq_cpp_api_test.cpp`](../libs/image/tests/adapthisteq_cpp_api_test.cpp)
+- [`toolboxes/image/tests/adapthisteq_cpp_api_test.cpp`](../toolboxes/image/tests/adapthisteq_cpp_api_test.cpp)
   — exercises the C++ API directly, without the interpreter.
-- [`libs/image/tests/smoke/adapthisteq_smoke.m`](../libs/image/tests/smoke/adapthisteq_smoke.m)
+- [`toolboxes/image/tests/smoke/adapthisteq_smoke.m`](../toolboxes/image/tests/smoke/adapthisteq_smoke.m)
   — hand-runnable smoke.
 
 For the `FnHandle` callback pattern (§12), see the worked example in the
@@ -609,7 +609,7 @@ Value foo(int, int, double, int, std::string, double, std::string);
 ## The API lint
 
 `tools/maintenance/check_api.py` enforces the *mechanically checkable* subset
-of these rules over every `libs/<ns>/include/**/*.hpp` header:
+of these rules over every `toolboxes/<ns>/include/**/*.hpp` header:
 
 - **§13** — no `Engine` / `CallContext` by-ref/by-ptr in a public
   signature (honouring the two exceptions above).

@@ -1,4 +1,4 @@
-// libs/builtin/src/lang/operators/backends/binary_ops_portable.cpp
+// toolboxes/builtin/src/lang/operators/backends/binary_ops_portable.cpp
 //
 // Scalar reference inner loops for plus / minus / times / rdivide on
 // real double arrays. Compiled when NUMKIT_WITH_SIMD=OFF. The

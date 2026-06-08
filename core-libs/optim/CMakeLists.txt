@@ -1,4 +1,4 @@
-# libs/optim/CMakeLists.txt
+# toolboxes/optim/CMakeLists.txt
 #
 # Optimization: fzero, fminbnd, fminsearch (constrained / global solvers
 # landing). Depends on builtin.

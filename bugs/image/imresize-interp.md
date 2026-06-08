@@ -44,5 +44,5 @@ known deferred imresize gap. Validate the full output matrix vs MATLAB on
 up- and down-scaling.
 
 ## References
-- `libs/image/src/.../imresize*`
+- `toolboxes/image/src/.../imresize*`
 - MATLAB `doc imresize`

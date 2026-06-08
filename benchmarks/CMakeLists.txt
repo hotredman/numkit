@@ -1,10 +1,10 @@
 # benchmarks/CMakeLists.txt — owner of the single numkit_bench executable.
 #
 # Mirrors the numkit_gtest pattern: this directory creates the target;
-# per-lib libs/<name>/benchmarks/CMakeLists.txt contributes sources via
+# per-lib toolboxes/<name>/benchmarks/CMakeLists.txt contributes sources via
 #   target_sources(numkit_bench PRIVATE ...)
 # (and may also extend target_include_directories — fft_bench needs
-# libs/signal/src for kernel internals).
+# toolboxes/signal/src for kernel internals).
 #
 # Enabled by NUMKIT_BUILD_BENCHMARKS=ON at configure time. Run examples:
 #   ./numkit_bench                                  # all benches
@@ -21,11 +21,11 @@ target_link_libraries(numkit_bench PRIVATE
 )
 
 # Pull in per-lib benchmark sources. Each lib that contributes benches
-# has libs/<name>/benchmarks/CMakeLists.txt with target_sources() calls.
+# has toolboxes/<name>/benchmarks/CMakeLists.txt with target_sources() calls.
 foreach(_bench_lib builtin signal stats image comm control wavelet graphics io optim)
-    if(EXISTS ${CMAKE_SOURCE_DIR}/libs/${_bench_lib}/benchmarks/CMakeLists.txt)
-        add_subdirectory(${CMAKE_SOURCE_DIR}/libs/${_bench_lib}/benchmarks
-                         ${CMAKE_BINARY_DIR}/libs/${_bench_lib}/benchmarks)
+    if(EXISTS ${CMAKE_SOURCE_DIR}/toolboxes/${_bench_lib}/benchmarks/CMakeLists.txt)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/toolboxes/${_bench_lib}/benchmarks
+                         ${CMAKE_BINARY_DIR}/toolboxes/${_bench_lib}/benchmarks)
     endif()
 endforeach()
 

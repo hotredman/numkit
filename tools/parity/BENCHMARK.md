@@ -26,7 +26,7 @@ and `OC× s/l` = MATLAB_ms / numkit_ms and Octave_ms / numkit_ms
 > numkit). At the large size the kernel dominates → that is the honest
 > throughput number, where numkit's single-thread Highway-SIMD kernels are
 > usually **slower** than MATLAB's multithreaded ones. The C++
-> micro-benchmarks under `benchmarks/` and `libs/*/benchmarks/` remain the
+> micro-benchmarks under `benchmarks/` and `toolboxes/*/benchmarks/` remain the
 > deepest perf source.
 ## Table of Contents
 
@@ -2099,9 +2099,9 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 **Namespace:** `linalg.*` — 12 ✅ + 0 ⚠️ / 82 = 15%
 
-> Library is live (libs/linalg/, 2026-05-25). User-facing surface migrated
-> from libs/builtin — see commits `30b06660`..`d71b472c`. Functions still
-> marked **deferred — libs/linalg** below are not-yet-implemented (the
+> Library is live (toolboxes/linalg/, 2026-05-25). User-facing surface migrated
+> from toolboxes/builtin — see commits `30b06660`..`d71b472c`. Functions still
+> marked **deferred — toolboxes/linalg** below are not-yet-implemented (the
 > library is the destination, not the blocker). 22 ❌ on this page wait
 > on first-time implementation; the per-function migration is complete
 > for everything that was previously shipped.
@@ -2225,7 +2225,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ### Local
 
-**Namespace:** `optim.*` (top-level promoted: `fzero, fminbnd, fminsearch`) · `optimset/optimget` registered top-level from libs/builtin — 5 ✅ + 0 ⚠️ / 7 = 71%
+**Namespace:** `optim.*` (top-level promoted: `fzero, fminbnd, fminsearch`) · `optimset/optimget` registered top-level from toolboxes/builtin — 5 ✅ + 0 ⚠️ / 7 = 71%
 
 | function | nk small (ms) | ML× s | OC× s | nk large (ms) | ML× l | OC× l | notes |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -2810,7 +2810,7 @@ intentionally omitted — flat solver functions only.
 
 ## Audio
 
-Audio functions live (or will live) under `libs/audio/`. The existing
+Audio functions live (or will live) under `toolboxes/audio/`. The existing
 `spectral*` family was originally shipped under
 `signal/spectral_analysis` (camelCase aliases added 2026-05-09); per
 2026-05-10 plan they migrate to `audio/spectral` so the entire

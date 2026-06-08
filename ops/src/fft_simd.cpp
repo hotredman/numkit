@@ -1,4 +1,4 @@
-// libs/signal/src/transforms/backends/fft_simd.cpp
+// toolboxes/signal/src/transforms/backends/fft_simd.cpp
 //
 // Thin FFT dispatcher. The actual radix kernels live in their own
 // translation units (fft_r2_simd.cpp / fft_r4_simd.cpp /

@@ -1,4 +1,4 @@
-// libs/builtin/src/math/random/matlab_mt19937.hpp
+// toolboxes/builtin/src/math/random/matlab_mt19937.hpp
 //
 // MATLAB-canonical MT19937 RNG.
 //

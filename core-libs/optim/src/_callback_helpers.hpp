@@ -1,7 +1,7 @@
-// libs/optim/src/_callback_helpers.hpp
+// toolboxes/optim/src/_callback_helpers.hpp
 //
 // Thin Value↔double wrappers around a numkit::FnHandle MATLAB-style
-// callback. Used by libs/optim's scalar / vector iterative solvers
+// callback. Used by toolboxes/optim's scalar / vector iterative solvers
 // (fzero, fminbnd, fminsearch) so the math kernels can stay in
 // native double-precision while the public API remains a generic
 // `void(Span<const Value>, Span<Value>)` callback.

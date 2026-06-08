@@ -284,7 +284,7 @@ every preset including WASM.
   cont); CALL dispatch consults `Engine::callbackBuiltin(name)` before the
   synchronous external path. `Engine` registry + `isUserCodeHandle`. Inert
   until a consumer registers.
-- **cellfun (done)** — `libs/builtin` `CellfunContinuation` +
+- **cellfun (done)** — `toolboxes/builtin` `CellfunContinuation` +
   `CellfunCallbackBuiltin`, registered via `registerCellfunCallbackBuiltin`.
   Drives `cellfun(@userfunc, c [, 'UniformOutput', tf])` one element at a time
   as pausable frames; `pack()` mirrors the synchronous `cellfun` helper's output
@@ -294,7 +294,7 @@ every preset including WASM.
   dispatch loop). **Proven**: `DebugSessionTest.BreakInsideCellfunCallback`
   (breakpoint inside the callback pauses on each of the 3 elements and resumes;
   `y == [10 20 30]`); 48 cellfun dual-engine tests green; full suite 10930.
-- **arrayfun (done)** — `libs/builtin` `ArrayfunContinuation` +
+- **arrayfun (done)** — `toolboxes/builtin` `ArrayfunContinuation` +
   `ArrayfunCallbackBuiltin` (in library.cpp, where arrayfun is defined),
   registered alongside the synchronous `arrayfun`. Drives
   `arrayfun(@userfunc, A[, B…][, 'UniformOutput', tf])` element-by-element as
@@ -304,7 +304,7 @@ every preset including WASM.
   / size-mismatch fall back to the synchronous arrayfun. **Proven**:
   `DebugSessionTest.BreakInsideArrayfunCallback` (pauses per element, resumes;
   `y == [101 102 103]`); full suite 10931.
-- **structfun (done)** — `libs/builtin` `StructfunContinuation` +
+- **structfun (done)** — `toolboxes/builtin` `StructfunContinuation` +
   `StructfunCallbackBuiltin` (struct.cpp), registered via
   `registerStructfunCallbackBuiltin`. Drives `structfun(@userfunc, S[,
   'UniformOutput', tf])` field-by-field (in `structFields()` map order, matching
@@ -324,11 +324,11 @@ every preset including WASM.
     `makeArgs`/`pack` lambdas, so EVERY consumer now drives off the single
     `LoopContinuation::step` (one loop-driver, no per-builtin duplication).
     Their suites + debugger pause-proofs stay green.
-- **splitapply + bsxfun (done, `2c956815`)** — `libs/builtin`. splitapply per
+- **splitapply + bsxfun (done, `2c956815`)** — `toolboxes/builtin`. splitapply per
   group (bucket → makeArgs slices → pack column); bsxfun single-shot (forwards
   whole arrays). accumarray takes no user handle (untouched). Proof:
   `BreakInsideSplitapplyCallback` (`y == [3;7]`), `BreakInsideBsxfunCallback`.
-- **bootstrp (done, `5e6b46e6`)** — `libs/stats`. Each replicate's statistic as
+- **bootstrp (done, `5e6b46e6`)** — `toolboxes/stats`. Each replicate's statistic as
   a pausable frame; sample drawn lazily in makeArgs so RNG order matches the sync
   path. Proof: `BreakInsideBootstrpCallback`.
 

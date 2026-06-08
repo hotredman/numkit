@@ -1,4 +1,4 @@
-// libs/optim/src/local/fzero.cpp
+// toolboxes/optim/src/local/fzero.cpp
 //
 // fzero — scalar root finding via Brent's method (with outward bracket
 // expansion for the x0-only form).

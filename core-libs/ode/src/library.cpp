@@ -1,4 +1,4 @@
-// libs/ode/src/library.cpp
+// toolboxes/ode/src/library.cpp
 //
 // Registers all ODE-toolbox functions under ode.<name> and the flat
 // compat.<name> alias.

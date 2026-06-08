@@ -1,4 +1,4 @@
-// libs/ode/include/numkit/ode/solvers.hpp
+// toolboxes/ode/include/numkit/ode/solvers.hpp
 //
 // Initial-value problem (IVP) solvers for `y' = f(t, y)`.
 //

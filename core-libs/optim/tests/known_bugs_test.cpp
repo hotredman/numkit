@@ -1,4 +1,4 @@
-// libs/optim/tests/known_bugs_test.cpp
+// toolboxes/optim/tests/known_bugs_test.cpp
 //
 // One DISABLED_ test per OPEN bug in bugs/optim/*.md. Disabled until fixed;
 // remove `DISABLED_` to turn into a live regression guard. MATLAB R2025b.

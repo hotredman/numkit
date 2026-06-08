@@ -12,7 +12,7 @@
 #include <string_view>
 #include <unordered_set>
 
-// Forward-declarations from libs/builtin/src/backends/binary_ops_loops.hpp.
+// Forward-declarations from toolboxes/builtin/src/backends/binary_ops_loops.hpp.
 // Linked from the same numkit_m library; lets the VM bypass the public
 // builtin::plus()/etc. wrappers (which always allocate a fresh result
 // Value) when it can write straight into a uniquely-owned destination

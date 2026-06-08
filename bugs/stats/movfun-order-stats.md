@@ -8,7 +8,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 50),
-  `libs/stats/src/moving/moving.cpp` (`movmin_impl`/`movmax_impl`/
+  `toolboxes/stats/src/moving/moving.cpp` (`movmin_impl`/`movmax_impl`/
   `movmedian_impl`). Like the arithmetic mov* (c49), these ran through the
   double-only `movingDriverDim` and threw "Not a double array" on
   integer/logical — but unlike sum/prod/mean, MATLAB PRESERVES the class for
@@ -36,10 +36,10 @@
   `movmedian(int8([-1 -2 -4 -5]),2)`=`[-1 -2 -3 -5]`;
   `movmax(logical([1 0 1 1 0]),3)`=`[1 1 1 1 1]` logical;
   `movmedian(logical([1 0 1 1 0]),3)`=`[0.5 1 1 1 0.5]` double.
-- Live guard: `libs/stats/tests/movfun_order_stats_test.cpp` (6 TEST_F) +
+- Live guard: `toolboxes/stats/tests/movfun_order_stats_test.cpp` (6 TEST_F) +
   `StatsKnownBug.MovfunOrderStats` flipped live. Parity:
   `tools/parity/specs/movfun_order_stats.json` (correctness=OK). Smoke:
-  `libs/stats/tests/smoke/movfun_order_stats_smoke.m`. This completes the mov*
+  `toolboxes/stats/tests/smoke/movfun_order_stats_smoke.m`. This completes the mov*
   type-class sweep (with bugs/stats/movfun-typeclass.md for the arithmetic
   half).
 
@@ -60,7 +60,7 @@ All mov* impls funnel through `movingDriverDim` (reads `doubleData()`); no
 per-class promotion/narrow existed for the order-statistic mov* functions.
 
 ## References
-- `libs/stats/src/moving/moving.cpp`
+- `toolboxes/stats/src/moving/moving.cpp`
   (`movmin_impl`/`movmax_impl`/`movmedian_impl`, `movNarrowToLogical`,
   `movPromoteIntLogical`)
 - Arithmetic half: bugs/stats/movfun-typeclass.md (c49)

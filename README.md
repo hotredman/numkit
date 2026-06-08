@@ -211,7 +211,7 @@ int main()
 }
 ```
 
-Every documented function in `libs/<lib>/include/numkit/<lib>/...` is a
+Every documented function in `toolboxes/<lib>/include/numkit/<lib>/...` is a
 pure C++ entry point following the same signature pattern: `Value fn(
 memory_resource *mr, ...)` — single-output functions return a `Value`,
 multi-output ones return `std::tuple<Value, Value, ...>` (here `butter`
@@ -369,7 +369,7 @@ core/                                 # Runtime: parser → AST → VM / TreeWal
     src/                              # Implementations matching the headers
     tests/                            # Frontend / backend / debugger tests
 
-libs/                                 # Domain libraries (one per H2 in PROGRESS.md)
+toolboxes/                                 # Domain libraries (one per H2 in PROGRESS.md)
     builtin/                          # Base layer — language fundamentals + math
         include/numkit/builtin/{language,math,programming}/
         src/{language,math,programming}/

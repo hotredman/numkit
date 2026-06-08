@@ -1,7 +1,7 @@
 # tests/smoke/CMakeLists.txt — owner of the numkit_smoke binary.
 #
 # Runs `.m` smoke scripts via the numkit engine. Used by
-#   libs/<lib>/tests/smoke/*_smoke.m
+#   toolboxes/<lib>/tests/smoke/*_smoke.m
 # scripts that are hand-runnable demos with `fprintf` of expected
 # values inline. Not a "demo app" — it's a thin runner for the
 # MATLAB-flavoured smoke files that ship per-library.

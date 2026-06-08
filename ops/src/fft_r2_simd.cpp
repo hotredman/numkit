@@ -1,4 +1,4 @@
-// libs/signal/src/transforms/backends/fft_r2_simd.cpp
+// toolboxes/signal/src/transforms/backends/fft_r2_simd.cpp
 //
 // Radix-2 FFT kernel as a standalone Highway translation unit.
 // Lives in its own .cpp so MSVC's per-TU inliner budget isn't shared

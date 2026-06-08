@@ -50,8 +50,8 @@ reaching for `sharedEngine()`. Keep MATLAB `rng(seed)` semantics per engine.
 This changes seeding/reproducibility semantics, so it needs explicit sign-off +
 parity re-validation, NOT a mechanical pass.
 
-**Affected.** `numkit::builtin::sharedEngine` / `rngMutex` (libs/builtin RNG
+**Affected.** `numkit::builtin::sharedEngine` / `rngMutex` (toolboxes/builtin RNG
 infra, relocated to `ops/rng.{hpp,cpp}` in the layering refactor) and every
-`*rnd` / sampling / noise builtin across libs/stats, libs/builtin, libs/comm
+`*rnd` / sampling / noise builtin across toolboxes/stats, toolboxes/builtin, toolboxes/comm
 (`grep -rl "sharedEngine()" libs`). Original authorship: pre-layering
 (commit 67a702c3d, 2026-05-03) — not introduced by the compute/register split.

@@ -1,6 +1,6 @@
-// libs/optim/src/library.cpp
+// toolboxes/optim/src/library.cpp
 //
-// Registration hub for libs/optim. Three currently-implemented MATLAB-base
+// Registration hub for toolboxes/optim. Three currently-implemented MATLAB-base
 // optimization functions live here: fzero, fminbnd, fminsearch — all
 // promoted to the top-level (no namespace) so MATLAB-base UX is preserved
 // without requiring `import optim.*` (same precedent as Signal's 6

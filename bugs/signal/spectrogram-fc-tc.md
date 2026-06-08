@@ -32,6 +32,6 @@ and 6th outputs by `nargout`. Validate `fc`/`tc` vs MATLAB on a tone +
 chirp. Moderate; reuses the `ps` already computed.
 
 ## References
-- `libs/signal/src/time_frequency/spectrogram.cpp` (spectrogram_reg)
+- `toolboxes/signal/src/time_frequency/spectrogram.cpp` (spectrogram_reg)
 - bugs/signal/spectrogram-ps.md (the ps 4th-output fix)
 - MATLAB `doc spectrogram` (fc, tc)

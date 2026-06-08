@@ -17,7 +17,7 @@ file(WRITE "${OUT}"
 #define NUMKIT_BUILD_TIMESTAMP \"${TS}\"
 
 namespace numkit {
-// Defined in libs/builtin/src/version_string.cpp.
+// Defined in toolboxes/builtin/src/version_string.cpp.
 const char *buildTimestamp();
 }
 "

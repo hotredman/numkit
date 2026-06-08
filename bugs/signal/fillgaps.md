@@ -27,6 +27,6 @@ has `arburg`/`aryule`/`levinson`). Moderate; validate the AR order defaults
 and the bidirectional blend against MATLAB.
 
 ## References
-- new file under `libs/signal/src/smoothing/` or `.../measurements/`
+- new file under `toolboxes/signal/src/smoothing/` or `.../measurements/`
 - MATLAB `doc fillgaps`
 - related shipped: `arburg`, `aryule`, `levinson`

@@ -3,10 +3,10 @@
 // Internal linear-solve kernel: solve `A · X = B` (LU for square A,
 // Householder QR for tall A). An L0.5 ops primitive — raw column-major
 // double buffers + a memory_resource, no Value, no engine. It backs both the
-// `\` operator in libs/builtin (mldivide / mrdivide) AND the user-facing
-// wrappers (inv / linsolve / pageinv / eig …) in libs/linalg.
+// `\` operator in toolboxes/builtin (mldivide / mrdivide) AND the user-facing
+// wrappers (inv / linsolve / pageinv / eig …) in toolboxes/linalg.
 //
-// It used to live in libs/builtin/include/numkit/builtin/internal/ precisely
+// It used to live in toolboxes/builtin/include/numkit/builtin/internal/ precisely
 // because "builtin must not include linalg" left nowhere shared for it. ops/
 // (below both builtin and linalg) is its proper home; builtin's internal
 // header now re-exports it for back-compat.

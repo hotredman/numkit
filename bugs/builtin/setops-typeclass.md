@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 47),
-  `libs/builtin/src/math/discrete/discrete.cpp`. The set-operation machinery
+  `toolboxes/builtin/src/math/discrete/discrete.cpp`. The set-operation machinery
   (`setUnion`/`setIntersect`/`setDiff`/`ismember`/`setOpRows`/`emitSetopIndices`)
   is DOUBLE-only and reads `doubleData()`, so a char / logical / integer
   operand threw "Not a double array".
@@ -35,10 +35,10 @@
   `union('bca','db','stable')`=`'bcad'`;
   `intersect(logical([1 0 1]),logical([0 0 1]))`=`[0 1]` logical;
   `intersect(int8([3 1 2]),int8([2 4 1]))`=`int8 [1 2]`.
-- Live guard: `libs/builtin/tests/setops_typeclass_test.cpp` (8 TEST_F) +
+- Live guard: `toolboxes/builtin/tests/setops_typeclass_test.cpp` (8 TEST_F) +
   `BuiltinKnownBug.SetopsTypeClass` flipped live. Parity:
   `tools/parity/specs/setops_typeclass.json` (correctness=OK). Smoke:
-  `libs/builtin/tests/smoke/setops_typeclass_smoke.m`.
+  `toolboxes/builtin/tests/smoke/setops_typeclass_smoke.m`.
 
 ## Symptom
 `ismember`/`intersect`/`setdiff`/`union` throw on char / logical / integer
@@ -58,7 +58,7 @@ The setop reg functions passed operands straight into the double-only setop
 machinery; no per-class handling existed (same root cause as the unique gap).
 
 ## References
-- `libs/builtin/src/math/discrete/discrete.cpp`
+- `toolboxes/builtin/src/math/discrete/discrete.cpp`
   (`ismember_reg`/`union_reg`/`intersect_reg`/`setdiff_reg`, `setopPromote`,
   `setopNarrowClass`, `narrowUniqueClass`)
 - MATLAB `doc ismember` / `doc intersect` / `doc setdiff` / `doc union`

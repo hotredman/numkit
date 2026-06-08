@@ -45,6 +45,6 @@ a user needs the finite (unstable) value rather than just "doesn't throw".
 DISABLED guard `DISABLED_MahalSingular` stays.
 
 ## References
-- `libs/stats/src/.../mahal*`
+- `toolboxes/stats/src/.../mahal*`
 - shipped: `qr`, `cov`
 - MATLAB `doc mahal`

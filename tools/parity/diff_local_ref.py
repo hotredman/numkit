@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 # Include MATLAB core + Signal Processing + Stats toolboxes — these
-# correspond to our libs/builtin + libs/signal + libs/stats.
+# correspond to our toolboxes/builtin + toolboxes/signal + toolboxes/stats.
 TOC_FILES = [
     Path(r"C:/Program Files/MATLAB/R2025b/help/matlab/helpfuncbycat.xml"),
     Path(r"C:/Program Files/MATLAB/R2025b/help/signal/helpfuncbycat.xml"),

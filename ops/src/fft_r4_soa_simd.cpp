@@ -1,4 +1,4 @@
-// libs/signal/src/transforms/backends/fft_r4_soa_simd.cpp
+// toolboxes/signal/src/transforms/backends/fft_r4_soa_simd.cpp
 //
 // Radix-4 FFT for power-of-4 sizes with SoA (split real/imag) layout.
 // Same algorithm as fft_r4_simd.cpp; the difference is internal

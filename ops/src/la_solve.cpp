@@ -1,4 +1,4 @@
-// libs/builtin/src/language/operators/la_solve.cpp
+// toolboxes/builtin/src/language/operators/la_solve.cpp
 
 #include <numkit/ops/la_solve.hpp>
 

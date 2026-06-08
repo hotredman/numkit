@@ -32,7 +32,7 @@ include(NumkitOptions)
 # Pulled only when NUMKIT_WITH_SIMD=ON. Dispatch strategy is dynamic —
 # the library ships with backends for every ISA Highway supports and
 # picks one at first call (see HWY_DYNAMIC_DISPATCH in the _simd.cpp
-# files under libs/*/src/backends/).
+# files under toolboxes/*/src/backends/).
 
 if(NUMKIT_WITH_SIMD)
     include(FetchContent)
@@ -63,7 +63,7 @@ endif()
 # matio (MATLAB .mat file I/O) — gated by NUMKIT_WITH_MATIO
 # ──────────────────────────────────────────────
 #
-# Used by libs/io/src/workspace/saveload_mat.cpp to back save/load on
+# Used by toolboxes/io/src/workspace/saveload_mat.cpp to back save/load on
 # .mat files (v4 / v5 / v7). HDF5 backend (v7.3) is intentionally
 # disabled — adds a heavy dependency we don't need yet. ZLIB compression
 # (for `-v7`) is also off for the same reason; matio silently falls back
@@ -73,7 +73,7 @@ endif()
 #
 # Target: `matio` (static, PIC). Linked PRIVATE to numkit so matio.h
 # never leaks into our public headers (only the matio-backed cpp under
-# libs/io/src/ includes it).
+# toolboxes/io/src/ includes it).
 if(NUMKIT_WITH_MATIO)
     include(FetchContent)
 
@@ -117,16 +117,16 @@ endif()
 #
 # core/CMakeLists.txt   exports NUMKIT_CORE_SOURCES / NUMKIT_CORE_HEADERS
 #                              / NUMKIT_CORE_INCLUDE_DIRS
-# libs/CMakeLists.txt   exports NUMKIT_LIBS_SOURCES / NUMKIT_LIBS_HEADERS
+# toolboxes/CMakeLists.txt   exports NUMKIT_LIBS_SOURCES / NUMKIT_LIBS_HEADERS
 #                              / NUMKIT_LIBS_INCLUDE_DIRS
-# Each lib has its own libs/<name>/CMakeLists.txt for per-lib worker
+# Each lib has its own toolboxes/<name>/CMakeLists.txt for per-lib worker
 # ownership (see dev-docs/COORDINATION.md).
 
 add_subdirectory(value)   # L0:   Value substrate (numkit_value) — STL-only
 add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-only
 add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
-add_subdirectory(libs)       # L2: pure-compute MATLAB toolboxes
+add_subdirectory(toolboxes)       # L2: pure-compute MATLAB toolboxes
 add_subdirectory(core-libs)  # L2: engine-coupled support libs (io/optim/ode)
 add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
@@ -177,7 +177,7 @@ endif()
 # Writes <build>/generated/numkit/core/build_info.hpp containing a
 # NUMKIT_BUILD_TIMESTAMP macro with current wall-clock time. The
 # `numkit_build_info` custom target is part of ALL so it runs on
-# every build; libs/builtin/src/version_string.cpp depends on the
+# every build; toolboxes/builtin/src/version_string.cpp depends on the
 # generated header so only that tiny TU recompiles per build, not
 # the huge library.cpp.
 set(NUMKIT_BUILD_INFO_DIR    "${CMAKE_BINARY_DIR}/generated")
@@ -199,7 +199,7 @@ add_custom_target(numkit_build_info ALL
 add_dependencies(numkit numkit_build_info)
 target_include_directories(numkit PRIVATE "${NUMKIT_BUILD_INFO_DIR}")
 set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src/version_string.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/builtin/src/version_string.cpp"
     PROPERTIES OBJECT_DEPENDS "${NUMKIT_BUILD_INFO_HEADER}"
 )
 
@@ -212,14 +212,14 @@ target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)
 
 target_include_directories(numkit
     PRIVATE
-        # Shared library-internal helpers (helpers.hpp under libs/*/src/)
+        # Shared library-internal helpers (helpers.hpp under toolboxes/*/src/)
         # AND the resolution root for every Highway HWY_TARGET_INCLUDE string
-        # (e.g. "transforms/backends/fft_r2_simd.cpp", relative to libs/<lib>/src/).
+        # (e.g. "transforms/backends/fft_r2_simd.cpp", relative to toolboxes/<lib>/src/).
         # TODO: formalize the helpers.hpp leak as public "detail/" headers
         #       or a common utility lib.
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/stats/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/builtin/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
         ${CMAKE_CURRENT_SOURCE_DIR}/core-libs/io/src
         # Vendored single-header libs (stb_image, stb_image_write).
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
@@ -232,7 +232,7 @@ if(EMSCRIPTEN)
     target_link_options(numkit PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
 endif()
 
-# matio is linked when NUMKIT_WITH_MATIO is ON — libs/io's .mat backend
+# matio is linked when NUMKIT_WITH_MATIO is ON — toolboxes/io's .mat backend
 # (saveload_mat.cpp) pulls in matio.h directly. PRIVATE: matio's header
 # never appears in any of our public include/ trees. BUILD_INTERFACE
 # genex keeps the link dep out of the exported target set — matio isn't
@@ -242,7 +242,7 @@ if(NUMKIT_WITH_MATIO)
     target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:matio>)
     target_compile_definitions(numkit PRIVATE NUMKIT_WITH_MATIO)
     # zlib comes with matio's FetchContent block — used by the TIFF
-    # reader's Deflate path (libs/image/src/io/tiff_reader.cpp).
+    # reader's Deflate path (toolboxes/image/src/io/tiff_reader.cpp).
     if(TARGET zlibstatic)
         target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:zlibstatic>)
         target_compile_definitions(numkit PRIVATE NUMKIT_WITH_ZLIB)
@@ -251,7 +251,7 @@ endif()
 
 if(NUMKIT_WITH_SIMD)
     # PRIVATE — our public headers never mention Highway types; it's a pure
-    # implementation detail confined to libs/*/src/backends/*_simd.cpp.
+    # implementation detail confined to toolboxes/*/src/backends/*_simd.cpp.
     # BUILD_INTERFACE genex keeps the link dep out of the exported target
     # set (install(EXPORT) would otherwise complain that hwy / hwy_contrib
     # aren't themselves exported).
@@ -304,8 +304,8 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(tests)
     add_subdirectory(core/tests)
     foreach(_test_lib builtin linalg signal stats graphics wavelet comm control image audio graph)
-        if(EXISTS ${CMAKE_SOURCE_DIR}/libs/${_test_lib}/tests/CMakeLists.txt)
-            add_subdirectory(libs/${_test_lib}/tests)
+        if(EXISTS ${CMAKE_SOURCE_DIR}/toolboxes/${_test_lib}/tests/CMakeLists.txt)
+            add_subdirectory(toolboxes/${_test_lib}/tests)
         endif()
     endforeach()
     foreach(_test_lib io optim ode)
@@ -414,7 +414,7 @@ endif()
 include(cmake/Doxygen.cmake)
 
 # ── API lint ─────────────────────────────────────────────────────────
-# `lint` target — checks libs/* public headers against the mechanically
+# `lint` target — checks toolboxes/* public headers against the mechanically
 # checkable subset of dev-docs/LIBRARY_API.md (no Engine in signatures, mr
 # by pointer, no const Value*). Not wired into the default build; run
 # explicitly or from CI. Safe no-op if Python 3 is not found.
@@ -424,6 +424,6 @@ if(Python3_FOUND)
         COMMAND ${Python3_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/lint/check_api.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Linting libs/* public API headers (dev-docs/LIBRARY_API.md)"
+        COMMENT "Linting toolboxes/* public API headers (dev-docs/LIBRARY_API.md)"
         VERBATIM)
 endif()

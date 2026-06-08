@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 56),
-  `libs/builtin/src/math/special/special.cpp` (`psiScalar`). The digamma kernel
+  `toolboxes/builtin/src/math/special/special.cpp` (`psiScalar`). The digamma kernel
   returned NaN at every non-positive integer; MATLAB returns **-Inf** at the
   pole `psi(0)`.
 - Fix: special-case `x == 0.0 -> -Inf` before the generic non-positive-integer
@@ -20,7 +20,7 @@
   `psi([0 1 2])=[-Inf -0.577216 0.422784]`.
 - Live guard: `SpecialFuncsTest.PsiZeroPole` (new) + `BuiltinKnownBug.PsiZeroPole`.
   Parity: `tools/parity/specs/psi_zero.json` (correctness=OK). Smoke:
-  `libs/builtin/tests/smoke/psi_zero_smoke.m`.
+  `toolboxes/builtin/tests/smoke/psi_zero_smoke.m`.
 
 ## Symptom
 `psi(0)` returns NaN; MATLAB returns -Inf (digamma has a pole at 0).
@@ -43,5 +43,5 @@ genuine pole that MATLAB reports as -Inf.
 - `gammaln(-1)` similarly: MATLAB errors, numkit lenient.
 
 ## References
-- `libs/builtin/src/math/special/special.cpp` (`psiScalar`)
+- `toolboxes/builtin/src/math/special/special.cpp` (`psiScalar`)
 - MATLAB `doc psi` (ψ(0) = -Inf; input must be nonnegative)

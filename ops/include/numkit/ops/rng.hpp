@@ -7,7 +7,7 @@
 // without depending on builtin/the engine.
 //
 // The user-facing rand/randn/randi/randperm/rng *builtins* (the CallContext
-// wrappers that parse shape/type args) stay in libs/builtin and call these.
+// wrappers that parse shape/type args) stay in toolboxes/builtin and call these.
 
 #pragma once
 

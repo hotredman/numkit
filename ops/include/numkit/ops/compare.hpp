@@ -1,4 +1,4 @@
-// libs/builtin/src/lang/operators/backends/compare.hpp
+// toolboxes/builtin/src/lang/operators/backends/compare.hpp
 //
 // Internal contract between binary_ops.cpp's compareImpl and the
 // SIMD/portable Compare backends. Six fast-path entry points — one per

@@ -3,7 +3,7 @@
 > **Status (2026-06): ACTIVE — parallel multi-worktree model.** Work runs in
 > three worktrees, one chat per directory/territory:
 > `numkit-m-core` (`core-dev`, owns `core/`), `numkit-m-ide` (`ide-dev`, owns
-> `ide/` + `wasm/`), `numkit-m-lib` (`lib-dev`, owns `libs/`). `numkit-m/` is
+> `ide/` + `wasm/`), `numkit-m-lib` (`lib-dev`, owns `toolboxes/`). `numkit-m/` is
 > the **base** — it holds the shared `.git` and stays on `main` (the
 > integration branch + the user's view); it is not a work dir.
 >
@@ -26,20 +26,20 @@ merge cadence; workers only push their own feature branches.
 | Worker | Territory (exclusive write) | Branch | Worktree path |
 |---|---|---|---|
 | **CORE** | `core/` (engine, parser, lexer, compiler, VM, TreeWalker, AST, value, environment, debugger, vfs, scratch) · `core/tests/` · top-level `tests/` · `core/CMakeLists.txt` · `NAMESPACE_DESIGN.md` | `core-dev` | `numkit-m-core/` |
-| **LIBS** | all of `libs/` (signal / stats / image / comm / control / wavelet / graphics / io / optim / builtin / fitting): `include/`, `src/`, `tests/`, `benchmarks/`, per-lib `CMakeLists.txt`. Plus `tools/parity/` (PROGRESS.md / BENCHMARK.md) · `bugs/` | `lib-dev` | `numkit-m-lib/` |
+| **LIBS** | all of `toolboxes/` (signal / stats / image / comm / control / wavelet / graphics / io / optim / builtin / fitting): `include/`, `src/`, `tests/`, `benchmarks/`, per-lib `CMakeLists.txt`. Plus `tools/parity/` (PROGRESS.md / BENCHMARK.md) · `bugs/` | `lib-dev` | `numkit-m-lib/` |
 | **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `brand/` · scripts in `scripts/`: dev / desktop / deploy / build-desktop / build (the `--wasm` path) | `ide-dev` | `numkit-m-ide/` |
 
 `numkit-m/` (the base, on `main`) is the integration target, not a worker.
 
 Currently a single LIBS worker (`lib-dev` in `numkit-m-lib/`) owns all of
-`libs/`. If `libs/` work ever needs to fan out across concurrent chats, split
+`toolboxes/`. If `toolboxes/` work ever needs to fan out across concurrent chats, split
 by lib name — each chat owning disjoint libs (never the same lib as another),
 on its own branch + worktree. Example split:
 
-- LIBS-signal — `libs/signal/`
-- LIBS-image — `libs/image/`
-- LIBS-stats — `libs/{builtin,stats}/`
-- LIBS-comm — `libs/{comm,wavelet,control}/`
+- LIBS-signal — `toolboxes/signal/`
+- LIBS-image — `toolboxes/image/`
+- LIBS-stats — `toolboxes/{builtin,stats}/`
+- LIBS-comm — `toolboxes/{comm,wavelet,control}/`
 
 ---
 
@@ -54,7 +54,7 @@ others. The rule:
 | Shared file | Who typically touches | Protocol |
 |---|---|---|
 | `CMakeLists.txt` (top-level) | rarely after the per-area split — project setup, options (Highway / Threads / Emscripten), final target assembly | Full build + tests on all three areas before commit |
-| `libs/CMakeLists.txt` | LIBS workers when adding a NEW lib (one-line append in the lib-list loop) | Trivial conflict resolution; both adds keep both libs |
+| `toolboxes/CMakeLists.txt` | LIBS workers when adding a NEW lib (one-line append in the lib-list loop) | Trivial conflict resolution; both adds keep both libs |
 | `CMakePresets.json` | mostly CORE | Full build + tests |
 | `README.md` | all | Append-style sections |
 | `MEMORY.md` (index) | all | Append-only list of links; do not reorder |
@@ -118,9 +118,9 @@ git push origin --delete feature/libs-signal   # remote (if pushed)
   ./build/desktop-fast/tests/gtest/Release/numkit_gtest.exe --gtest_brief=1
   ```
   All 6300+ tests except the 1 documented skip + 4 disabled.
-- For an API-breaking change in `libs/<area>/include/`: also rebuild any
-  downstream lib that depends on you. `libs/image` / `libs/control` /
-  `libs/comm` depend on `libs/signal`; `libs/builtin` is the base.
+- For an API-breaking change in `toolboxes/<area>/include/`: also rebuild any
+  downstream lib that depends on you. `toolboxes/image` / `toolboxes/control` /
+  `toolboxes/comm` depend on `toolboxes/signal`; `toolboxes/builtin` is the base.
 - For a CORE API change (`Value`, `Engine`, `CallContext`): the LIBS build
   is a strict downstream — must be verified.
 - For a libc++-incompatible change (e.g. `std::cyl_bessel_*`,
@@ -203,10 +203,10 @@ The dependency DAG (verified 2026-05-04):
 
 **Rules:**
 
-- `Builtin` is self-contained — depends on nothing in `libs/`. **Invariant.**
+- `Builtin` is self-contained — depends on nothing in `toolboxes/`. **Invariant.**
 - All toolbox libs depend on `Builtin`.
 - `Image`, `Control`, `Communications` depend on `Signal` (DSP primitives:
-  conv, FFT, DCT). Document as: if you change `libs/signal` public C++ API
+  conv, FFT, DCT). Document as: if you change `toolboxes/signal` public C++ API
   (`include/numkit/signal/...`), rebuild + test these three.
 
 **Practical consequence for multi-LIBS-workers:**
@@ -258,11 +258,11 @@ entry, append a line at the end of the relevant section; do not reorder.
 **You are CORE?** Touch `core/` and `core/tests/`. Full test suite + WASM
 smoke after public-API changes.
 
-**You are LIBS-`<area>`?** Touch `libs/<area>/` (whatever areas you own
+**You are LIBS-`<area>`?** Touch `toolboxes/<area>/` (whatever areas you own
 this session). Use the parity harness. Never touch `core/` or `ide/`.
 
 **You are IDE?** Touch `ide/`, `wasm/`, `docs/`, `brand/`, deploy/dev
-scripts. Never touch `core/` or `libs/`.
+scripts. Never touch `core/` or `toolboxes/`.
 
 **You see uncommitted changes outside your territory?** Surface them to
 the user. Do not work on top of them.
@@ -272,6 +272,6 @@ Fix or revert.
 
 **Public API change?** Rebuild + test downstream. Document in commit.
 
-**Adding a new lib (LIBS only)?** Create `libs/<name>/{include,src,tests,
-benchmarks}/`, give it its own `libs/<name>/CMakeLists.txt`, append the
-name to the loop in `libs/CMakeLists.txt`. Run full build to verify.
+**Adding a new lib (LIBS only)?** Create `toolboxes/<name>/{include,src,tests,
+benchmarks}/`, give it its own `toolboxes/<name>/CMakeLists.txt`, append the
+name to the loop in `toolboxes/CMakeLists.txt`. Run full build to verify.

@@ -39,89 +39,89 @@ the cumsum/norm fixes). For `median`, MATLAB's complex ordering is "sort by
 be closed incrementally; this entry is the tracking umbrella.
 
 ## References
-- conv/filter: `libs/signal/src/convolution/`, `.../digital_filtering/`
-- trapz/cumtrapz/gradient/movmean/detrend/interp1/median: `libs/builtin/src/`,
-  `libs/stats/src/` (movmean/detrend)
+- conv/filter: `toolboxes/signal/src/convolution/`, `.../digital_filtering/`
+- trapz/cumtrapz/gradient/movmean/detrend/interp1/median: `toolboxes/builtin/src/`,
+  `toolboxes/stats/src/` (movmean/detrend)
 - MATLAB docs for each
 
 ## Progress (incremental — umbrella stays OPEN until all rows close)
 - ✅ **trapz** — 2026-06-05 (bug-fix loop, cycle 7). Added a `ValueType::COMPLEX`
-  branch in `trapzImpl` (`libs/builtin/src/math/integration/integration.cpp`):
+  branch in `trapzImpl` (`toolboxes/builtin/src/math/integration/integration.cpp`):
   trapezoidal sum over `Complex` storage; the integration variable x stays real.
   All trapz paths (Y / X,Y / dim / matrix) route through `trapzImpl`, so one
-  branch covers them. Live guard `libs/builtin/tests/trapz_complex_test.cpp`,
+  branch covers them. Live guard `toolboxes/builtin/tests/trapz_complex_test.cpp`,
   parity `tools/parity/specs/trapz.json` (OK), smoke
-  `libs/builtin/tests/smoke/trapz_complex_smoke.m`.
+  `toolboxes/builtin/tests/smoke/trapz_complex_smoke.m`.
 - ✅ **cumtrapz** — 2026-06-05 (bug-fix loop, cycle 8). Added Complex
   counterparts `cumtrapzVectorC`/`cumtrapzMatrixColsC`/`cumtrapzMatrixRowsC`
   and routed `cumtrapz`/`cumtrapzDim`/the 3-arg reg path to them when y is
   complex (x coordinate stays real). Removed the four "complex not supported"
-  throws. Live guard `libs/builtin/tests/cumtrapz_complex_test.cpp`, parity
+  throws. Live guard `toolboxes/builtin/tests/cumtrapz_complex_test.cpp`, parity
   `tools/parity/specs/cumtrapz.json` (OK), smoke
-  `libs/builtin/tests/smoke/cumtrapz_complex_smoke.m`. (Also updated the stale
+  `toolboxes/builtin/tests/smoke/cumtrapz_complex_smoke.m`. (Also updated the stale
   CalculusTest.CumtrapzComplexThrows → CumtrapzComplexOk.)
 - ✅ **median** — 2026-06-05 (bug-fix loop, cycle 9). Orders a complex slice by
   abs (ties by angle — the same comparator sort/max use); odd n → middle, even
   n → mean of the two middle. New helpers `complexMedianFromSlice` /
   `complexMedianAlongDim` / `medianComplex` in
-  `libs/stats/src/descriptive/descriptive.cpp`, routed from both `median()` and
+  `toolboxes/stats/src/descriptive/descriptive.cpp`, routed from both `median()` and
   the `median_reg` 'all' path (removed two throws). Live guard
-  `libs/stats/tests/median_complex_test.cpp`, parity `tools/parity/specs/median.json`
-  (OK), smoke `libs/stats/tests/smoke/median_complex_smoke.m`. (Also updated the
+  `toolboxes/stats/tests/median_complex_test.cpp`, parity `tools/parity/specs/median.json`
+  (OK), smoke `toolboxes/stats/tests/smoke/median_complex_smoke.m`. (Also updated the
   stale ReductionDimTest.MedianComplexThrows → MedianComplexOk.)
 - ✅ **interp1** — 2026-06-05 (bug-fix loop, cycle 10). At the top of
-  `interp1Dispatch` (`libs/builtin/src/math/interp/interp.cpp`), a complex y is
+  `interp1Dispatch` (`toolboxes/builtin/src/math/interp/interp.cpp`), a complex y is
   split into real + imag DOUBLE arrays, each interpolated by the existing real
   path (so EVERY method — linear/nearest/previous/next/spline/pchip/makima/
   cubic — and the matrix-column path are covered), then recombined; the
   extrapolation policy carries through (out-of-range → NaN+NaNi). Live guard
-  `libs/builtin/tests/interp1_complex_test.cpp`, parity
+  `toolboxes/builtin/tests/interp1_complex_test.cpp`, parity
   `tools/parity/specs/interp1.json` (OK), smoke
-  `libs/builtin/tests/smoke/interp1_complex_smoke.m`.
+  `toolboxes/builtin/tests/smoke/interp1_complex_smoke.m`.
 - ✅ **gradient** (complex) — 2026-06-05 (bug-fix loop, cycle 11). gradient real
   + imaginary parts separately and recombine, for the vector + matrix
   single-output and 2-output forms (`gradient`/`gradient2` in
-  `libs/builtin/src/math/integration/integration.cpp`). Live guard
-  `libs/builtin/tests/gradient_complex_test.cpp`, parity
+  `toolboxes/builtin/src/math/integration/integration.cpp`). Live guard
+  `toolboxes/builtin/tests/gradient_complex_test.cpp`, parity
   `tools/parity/specs/gradient.json` (OK), smoke
-  `libs/builtin/tests/smoke/gradient_complex_smoke.m`. (N-D `gradient` is still
+  `toolboxes/builtin/tests/smoke/gradient_complex_smoke.m`. (N-D `gradient` is still
   rank-limited — that's a separate bug, bugs/builtin/gradient-3d.md, still OPEN;
   a complex N-D input routes into the real path and errors the same way.)
 - ✅ **movmean** — 2026-06-05 (bug-fix loop, cycle 12). Split-real/imag at the
-  top of `movmean_impl` (`libs/stats/src/moving/moving.cpp`): each part is
+  top of `movmean_impl` (`toolboxes/stats/src/moving/moving.cpp`): each part is
   moving-meaned by the existing real driver (window / asymmetric [kb kf] /
   Endpoints / dim all carry through), then recombined. Live guard
-  `libs/stats/tests/movmean_complex_test.cpp`, parity
+  `toolboxes/stats/tests/movmean_complex_test.cpp`, parity
   `tools/parity/specs/movmean.json` (OK), smoke
-  `libs/stats/tests/smoke/movmean_complex_smoke.m`. (omitnan with a
+  `toolboxes/stats/tests/smoke/movmean_complex_smoke.m`. (omitnan with a
   partial-NaN complex element — one part finite, the other NaN — is a rare
   edge that the independent-part split handles approximately; full NaN+NaNi
   matches.)
 - ✅ **detrend** — 2026-06-05 (bug-fix loop, cycle 13). Refactored
-  `detrend_reg` (`libs/stats/src/descriptive/descriptive_extras.cpp`) to parse
+  `detrend_reg` (`toolboxes/stats/src/descriptive/descriptive_extras.cpp`) to parse
   order/breakpoints once, then dispatch through a `runReal` lambda; a complex
   input detrends the real + imaginary parts separately and recombines.
   ('constant' subtracts the complex mean; 'linear'/order-N and breakpoints all
-  carry through.) Live guard `libs/stats/tests/detrend_complex_test.cpp`,
+  carry through.) Live guard `toolboxes/stats/tests/detrend_complex_test.cpp`,
   parity `tools/parity/specs/detrend.json` (OK), smoke
-  `libs/stats/tests/smoke/detrend_complex_smoke.m`.
+  `toolboxes/stats/tests/smoke/detrend_complex_smoke.m`.
 - ✅ **conv** — 2026-06-05 (bug-fix loop, cycle 14). conv is BILINEAR (it
   multiplies the two sequences), so the real/imag split does NOT apply — a
   genuine complex multiply-accumulate `full[n] = sum_k a[k]·b[n-k]` (direct;
   correctness over an FFT path), then the same 'full'/'same'/'valid' trim.
   Handles complex×complex and complex×real
-  (`libs/signal/src/convolution/convolution.cpp`). Live guard
-  `libs/signal/tests/conv_complex_test.cpp`, parity `tools/parity/specs/conv.json`
-  (OK), smoke `libs/signal/tests/smoke/conv_complex_smoke.m`.
+  (`toolboxes/signal/src/convolution/convolution.cpp`). Live guard
+  `toolboxes/signal/tests/conv_complex_test.cpp`, parity `tools/parity/specs/conv.json`
+  (OK), smoke `toolboxes/signal/tests/smoke/conv_complex_smoke.m`.
 - ✅ **filter** — 2026-06-05 (bug-fix loop, cycle 15). filter is BILINEAR (the
   recursive a-part mixes terms), so the Direct Form II transposed recurrence
   runs over Complex (NOT a split): a complex `applyFilterDf2tComplex` core +
   complex branches in both `filter()` and the `filter_reg` zi/[y,zf] path
-  (`libs/signal/src/digital_filtering/filter.cpp`). Covers FIR/IIR, complex b/a
+  (`toolboxes/signal/src/digital_filtering/filter.cpp`). Covers FIR/IIR, complex b/a
   taps, complex x, zi initial conditions, the [y,zf] final state, and the
-  matrix-per-column form. Live guard `libs/signal/tests/filter_complex_test.cpp`,
+  matrix-per-column form. Live guard `toolboxes/signal/tests/filter_complex_test.cpp`,
   parity `tools/parity/specs/filter.json` (OK), smoke
-  `libs/signal/tests/smoke/filter_complex_smoke.m`.
+  `toolboxes/signal/tests/smoke/filter_complex_smoke.m`.
 
 ## ✅ Umbrella fully closed (2026-06-05)
 All nine members accept complex now — trapz, cumtrapz, median, interp1,

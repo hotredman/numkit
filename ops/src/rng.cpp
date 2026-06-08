@@ -4,7 +4,7 @@
 // RNG through one engine so MATLAB-style rng(seed) reproduces sequences across
 // the whole RNG-using surface. Bit-identical with MATLAB R2025b's rng()+rand()
 // (53-bit genRes53). Engine-free (Value + MatlabMT19937 only) — the builtins
-// that parse shape/type args live in libs/builtin and call these.
+// that parse shape/type args live in toolboxes/builtin and call these.
 
 #include <numkit/ops/rng.hpp>
 
