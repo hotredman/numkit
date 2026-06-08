@@ -11,7 +11,9 @@
 # toolboxes/<name>/CMakeLists.txt.
 
 list(APPEND NUMKIT_CORELIBS_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/eval.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/workspace.cpp
 )
 list(APPEND NUMKIT_CORELIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_CORELIBS_HEADERS
