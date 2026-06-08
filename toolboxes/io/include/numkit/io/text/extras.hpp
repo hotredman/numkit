@@ -21,6 +21,29 @@ using ::numkit::Engine;
 /// All routes go through the engine's VFS so callers see consistent
 /// path resolution (script origin, `NUMKIT_FS`, native fallback).
 
+/// @brief Parse delimited text into a numeric DOUBLE matrix — **Engine-free**.
+///
+/// Pure text→Value (no Engine, no VFS), mirroring `csvreadFromString` /
+/// `image::imreadFromBytes`. Comma / semicolon / tab delimited; a leading
+/// all-non-numeric header row is skipped automatically; unparseable cells
+/// read as 0. The MATLAB-facing `readmatrix` adds VFS read on top of this.
+///
+/// @param content  Delimited text.
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         DOUBLE matrix.
+Value readmatrixFromString(const std::string &content,
+                           std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Serialize a numeric matrix to CSV text — **Engine-free**.
+///
+/// Comma-delimited; integer-valued doubles printed without decimals. Pure
+/// Value→text (no Engine); `writematrix` adds VFS write on top.
+///
+/// @param m  Numeric (non-complex, ≤2-D) matrix.
+/// @return   CSV text, one row per line, trailing newline.
+/// @throws Error  Complex or 3-D input.
+std::string writematrixToString(const Value &m);
+
 /// @brief Read entire file into a CHAR row (`s = fileread(filename)`).
 ///
 /// @param engine    Engine context (VFS).
