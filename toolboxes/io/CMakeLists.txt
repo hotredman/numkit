@@ -1,7 +1,7 @@
 # toolboxes/io/CMakeLists.txt
 #
 # File I/O: low-level + CSV / readtable + spreadsheets + path helpers.
-# (Workspace save/load moved to core-libs/workspace.) Depends on builtin.
+# (Workspace save/load moved to runtime.) Depends on builtin.
 
 add_subdirectory(src)  # exports IOLIB_SOURCES via PARENT_SCOPE
 

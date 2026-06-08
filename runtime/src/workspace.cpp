@@ -1,13 +1,13 @@
-// core-libs/src/runtime/workspace.cpp
+// runtime/src/workspace.cpp
 //
 // Language-runtime workspace builtins, extracted verbatim from toolboxes/builtin's
-// registerWorkspaceBuiltins into the core-libs layer (L2, engine-coupled scripting
+// registerWorkspaceBuiltins into the runtime layer (L2, engine-coupled scripting
 // runtime — NOT a math/io toolbox). Behaviour unchanged. registerWorkspaceRuntime
 // is composed by installRuntimeLibrary (runtime.cpp).
 //
 // Cluster: clear / import / assignin / inputname / who / whos / exist / clearvars.
 // (clc / which stay in toolboxes/builtin — path/meta, not workspace runtime.)
-#include <numkit/corelibs/runtime.hpp>
+#include <numkit/runtime/runtime.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::corelibs {
+namespace numkit::runtime {
 
 // save / load (workspace persistence) — impl + matio v5 .mat backend live
 // in workspace/saveload.cpp (+ saveload_mat.cpp). Their reg adapters are
@@ -561,4 +561,4 @@ void registerWorkspaceRuntime(Engine &engine)
     engine.registerFunction("load", &detail::load_reg);
 }
 
-} // namespace numkit::corelibs
+} // namespace numkit::runtime

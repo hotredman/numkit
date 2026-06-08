@@ -63,7 +63,7 @@ endif()
 # matio (MATLAB .mat file I/O) — gated by NUMKIT_WITH_MATIO
 # ──────────────────────────────────────────────
 #
-# Used by core-libs/src/workspace/saveload_mat.cpp to back save/load on
+# Used by runtime/src/saveload_mat.cpp to back save/load on
 # .mat files (v4 / v5 / v7). HDF5 backend (v7.3) is intentionally
 # disabled — adds a heavy dependency we don't need yet. ZLIB compression
 # (for `-v7`) is also off for the same reason; matio silently falls back
@@ -73,7 +73,7 @@ endif()
 #
 # Target: `matio` (static, PIC). Linked PRIVATE to numkit so matio.h
 # never leaks into our public headers (only the matio-backed cpp under
-# toolboxes/io/src/ includes it).
+# runtime/src/ includes it).
 if(NUMKIT_WITH_MATIO)
     include(FetchContent)
 
@@ -127,11 +127,11 @@ add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-onl
 add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
 add_subdirectory(toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
-add_subdirectory(core-libs)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
+add_subdirectory(runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
 add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
-set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_CORELIBS_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
-set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_CORELIBS_HEADERS})
+set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_RUNTIME_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
+set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
     add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
@@ -205,7 +205,7 @@ set_source_files_properties(
 
 # Public include paths — collected from per-area CMakeLists. Wrap each
 # in BUILD_INTERFACE so the export set stays clean for find_package.
-foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_CORELIBS_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
+foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
     target_include_directories(numkit PUBLIC $<BUILD_INTERFACE:${_dir}>)
 endforeach()
 target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)
@@ -232,8 +232,8 @@ if(EMSCRIPTEN)
     target_link_options(numkit PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
 endif()
 
-# matio is linked when NUMKIT_WITH_MATIO is ON — core-libs' .mat backend
-# (core-libs/src/workspace/saveload_mat.cpp) pulls in matio.h directly. PRIVATE: matio's header
+# matio is linked when NUMKIT_WITH_MATIO is ON — runtime' .mat backend
+# (runtime/src/saveload_mat.cpp) pulls in matio.h directly. PRIVATE: matio's header
 # never appears in any of our public include/ trees. BUILD_INTERFACE
 # genex keeps the link dep out of the exported target set — matio isn't
 # exported via install(EXPORT) on our side. The compile-definition lets
@@ -373,7 +373,7 @@ if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
     )
 
     # Public headers — install each per-area include-dir's numkit/ subtree
-    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_CORELIBS_INCLUDE_DIRS})
+    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS})
         install(DIRECTORY ${_dir}/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     endforeach()
 

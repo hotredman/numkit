@@ -5,7 +5,7 @@
 //   * Text files (csvread, csvwrite, readmatrix, writematrix, ...)
 //   * Path-name construction (filesep, fullfile, fileparts, ...)
 //
-// (Workspace save/load moved to core-libs/workspace — workspace runtime.)
+// (Workspace save/load moved to runtime — workspace runtime.)
 //
 // Functions are dual-registered: in their natural sub-namespace
 // (io.file_io.* / io.text.* / io.paths.*) AND aliased into compat.*

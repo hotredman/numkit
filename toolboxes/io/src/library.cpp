@@ -5,7 +5,7 @@
 //   file_io/   → io.file_io.<fn>   (fopen, fclose, fread, fwrite, ...)
 //   text/      → io.text.<fn>      (csvread, csvwrite, ...)
 //   paths/     → io.paths.<fn>     (filesep, fullfile, fileparts, ...)
-// (save / load moved to core-libs/workspace — they are workspace runtime,
+// (save / load moved to runtime — they are workspace runtime,
 //  not data import/export, and register bare via registerWorkspaceRuntime.)
 // Each function is also aliased into `compat.<fn>` so MATLAB-style
 // scripts can call them flat after `import compat.*`.
