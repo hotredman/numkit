@@ -1,11 +1,11 @@
-// core-libs/src/workspace/saveload.cpp
+// runtime/src/saveload.cpp
 //
 // Workspace-persistence builtins (save / load). Dispatches between the
 // ascii backend (this file) and the matio v5 .mat backend
 // (saveload_mat.cpp) based on flags and the filename's extension —
 // matching MATLAB's defaults (binary .mat unless `-ascii` is given).
 
-#include <numkit/corelibs/workspace/saveload.hpp>
+#include <numkit/runtime/saveload.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/environment.hpp>
@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::corelibs {
+namespace numkit::runtime {
 
 // Implemented in saveload_mat.cpp when NUMKIT_WITH_MATIO is defined.
 // When matio is disabled at build time, stubs below throw with a clear
@@ -305,4 +305,4 @@ void load_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 
 } // namespace detail
 
-} // namespace numkit::corelibs
+} // namespace numkit::runtime

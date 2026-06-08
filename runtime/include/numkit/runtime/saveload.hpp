@@ -1,4 +1,4 @@
-// core-libs/include/numkit/corelibs/workspace/saveload.hpp
+// runtime/include/numkit/runtime/saveload.hpp
 #pragma once
 
 #include <numkit/value/span.hpp>
@@ -9,14 +9,14 @@ class Engine;
 class Environment;
 }
 
-namespace numkit::corelibs {
+namespace numkit::runtime {
 
 /// @file
 /// @brief Workspace persistence — `save` / `load` (ASCII + matio v5 .mat).
 ///
 /// Companion to the session-state workspace runtime builtins (`clear` /
 /// `who` / `whos` / `clearvars`) registered alongside these via
-/// `corelibs::registerWorkspaceRuntime`; those live in-process, these
+/// `runtime::registerWorkspaceRuntime`; those live in-process, these
 /// read/write files. Both touch the VM's variable environment, so the
 /// public C++ API takes `Engine&` (for VFS) and `Environment&` (for var
 /// lookup / assignment).
@@ -60,4 +60,4 @@ void save(Engine &engine, Environment &env, Span<const Value> args);
 void load(Engine &engine, Environment &env, Span<const Value> args,
           size_t nargout, Span<Value> outs);
 
-} // namespace numkit::corelibs
+} // namespace numkit::runtime

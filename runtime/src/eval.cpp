@@ -1,12 +1,12 @@
-// core-libs/src/runtime/eval.cpp
+// runtime/src/eval.cpp
 //
 // Language-runtime eval-family builtins (run / eval / evalin), extracted from
-// toolboxes/builtin's registerWorkspaceBuiltins into the core-libs layer
+// toolboxes/builtin's registerWorkspaceBuiltins into the runtime layer
 // (L2, engine-coupled scripting runtime — NOT a math/io toolbox). The shared
 // resolveEvalScope helper moved with them. Behaviour is unchanged; only the
 // owning translation unit / layer differs. registerEvalFamily is composed by
 // installRuntimeLibrary (runtime.cpp), which bundle/installStandardLibrary calls.
-#include <numkit/corelibs/runtime.hpp>
+#include <numkit/runtime/runtime.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>
@@ -17,7 +17,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace numkit::corelibs {
+namespace numkit::runtime {
 
 void registerEvalFamily(Engine &engine)
 {
@@ -121,4 +121,4 @@ void registerEvalFamily(Engine &engine)
         });
 }
 
-} // namespace numkit::corelibs
+} // namespace numkit::runtime

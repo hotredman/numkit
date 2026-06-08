@@ -1,4 +1,4 @@
-# core-libs/CMakeLists.txt
+# runtime/CMakeLists.txt
 #
 # Language-runtime layer (L2, engine-coupled): the scripting runtime itself
 # (eval-family + workspace clear/import/assignin/inputname/who/whos/exist/
@@ -11,26 +11,26 @@
 # headers / include dirs and propagates them upward via PARENT_SCOPE, mirroring
 # toolboxes/<name>/CMakeLists.txt.
 
-list(APPEND NUMKIT_CORELIBS_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/runtime.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/eval.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/workspace.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/workspace/saveload.cpp
+list(APPEND NUMKIT_RUNTIME_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/eval.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/workspace.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/saveload.cpp
 )
 # Binary .mat backend pulls in matio.h directly — only compile it when the
 # matio dep is linked (NUMKIT_WITH_MATIO=ON). matio.h and the
 # NUMKIT_WITH_MATIO define reach this TU via the umbrella `numkit` target
 # (matio is linked PRIVATE there), into which these sources compile.
 if(NUMKIT_WITH_MATIO)
-    list(APPEND NUMKIT_CORELIBS_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/workspace/saveload_mat.cpp)
+    list(APPEND NUMKIT_RUNTIME_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/saveload_mat.cpp)
 endif()
-list(APPEND NUMKIT_CORELIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-list(APPEND NUMKIT_CORELIBS_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/corelibs/runtime.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/corelibs/workspace/saveload.hpp
+list(APPEND NUMKIT_RUNTIME_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
+list(APPEND NUMKIT_RUNTIME_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/runtime.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/saveload.hpp
 )
 
-set(NUMKIT_CORELIBS_SOURCES      ${NUMKIT_CORELIBS_SOURCES}      PARENT_SCOPE)
-set(NUMKIT_CORELIBS_HEADERS      ${NUMKIT_CORELIBS_HEADERS}      PARENT_SCOPE)
-set(NUMKIT_CORELIBS_INCLUDE_DIRS ${NUMKIT_CORELIBS_INCLUDE_DIRS} PARENT_SCOPE)
+set(NUMKIT_RUNTIME_SOURCES      ${NUMKIT_RUNTIME_SOURCES}      PARENT_SCOPE)
+set(NUMKIT_RUNTIME_HEADERS      ${NUMKIT_RUNTIME_HEADERS}      PARENT_SCOPE)
+set(NUMKIT_RUNTIME_INCLUDE_DIRS ${NUMKIT_RUNTIME_INCLUDE_DIRS} PARENT_SCOPE)

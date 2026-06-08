@@ -1750,12 +1750,12 @@ void BuiltinLibrary::install(Engine &engine)
 
 void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
 {
-    // clear / import extracted to the core-libs language-runtime layer:
-    //   core-libs/src/runtime/workspace.cpp → numkit::corelibs::registerWorkspaceRuntime
+    // clear / import extracted to the runtime language-runtime layer:
+    //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).
 
-    // assignin / inputname extracted to the core-libs language-runtime layer:
-    //   core-libs/src/runtime/workspace.cpp → numkit::corelibs::registerWorkspaceRuntime
+    // assignin / inputname extracted to the runtime language-runtime layer:
+    //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).
 
     // ── clc ────────────────────────────────────────────────────
@@ -1765,8 +1765,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = Value();
                             });
 
-    // who / whos extracted to the core-libs language-runtime layer:
-    //   core-libs/src/runtime/workspace.cpp → numkit::corelibs::registerWorkspaceRuntime
+    // who / whos extracted to the runtime language-runtime layer:
+    //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).
 
     // ── which ──────────────────────────────────────────────────
@@ -1810,8 +1810,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = Value();
                             });
 
-    // exist extracted to the core-libs language-runtime layer:
-    //   core-libs/src/runtime/workspace.cpp → numkit::corelibs::registerWorkspaceRuntime
+    // exist extracted to the runtime language-runtime layer:
+    //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).
 
     // ── class ──────────────────────────────────────────────────
@@ -3817,8 +3817,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     // imports + variable assignments to that scope.
     //
     // eval-family (run / eval / evalin) + the shared resolveEvalScope helper
-    // were extracted to the core-libs language-runtime layer:
-    //   core-libs/src/runtime/eval.cpp → numkit::corelibs::installRuntimeLibrary
+    // were extracted to the runtime language-runtime layer:
+    //   runtime/src/eval.cpp → numkit::runtime::installRuntimeLibrary
     // which bundle/installStandardLibrary calls right after BuiltinLibrary::install.
 
     // ── pwd / cd (Phase 9c) ────────────────────────────────────
@@ -4060,8 +4060,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
 
     // ── Pack 25: workspace / display utilities ────────────────────────
 
-    // clearvars extracted to the core-libs language-runtime layer:
-    //   core-libs/src/runtime/workspace.cpp → numkit::corelibs::registerWorkspaceRuntime
+    // clearvars extracted to the runtime language-runtime layer:
+    //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).
 
     // formatteddisplaytext(x) — return what disp(x) would print, but
