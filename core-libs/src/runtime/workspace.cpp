@@ -30,6 +30,15 @@
 
 namespace numkit::corelibs {
 
+// save / load (workspace persistence) — impl + matio v5 .mat backend live
+// in workspace/saveload.cpp (+ saveload_mat.cpp). Their reg adapters are
+// defined there; declared here so registerWorkspaceRuntime can register
+// them bare (MATLAB save/load are base builtins).
+namespace detail {
+void save_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void load_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+} // namespace detail
+
 void registerWorkspaceRuntime(Engine &engine)
 {
     // ── clear ──────────────────────────────────────────────────
@@ -543,6 +552,13 @@ void registerWorkspaceRuntime(Engine &engine)
             }
             outs[0] = Value();
         });
+
+    // ── save / load ────────────────────────────────────────────
+    // Workspace persistence (ASCII + matio v5 .mat). Registered BARE
+    // because MATLAB save/load are base builtins, not io-toolbox fns;
+    // the old io.workspace.* / compat.* aliases are retired (unused).
+    engine.registerFunction("save", &detail::save_reg);
+    engine.registerFunction("load", &detail::load_reg);
 }
 
 } // namespace numkit::corelibs

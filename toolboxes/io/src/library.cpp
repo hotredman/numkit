@@ -4,7 +4,9 @@
 // Namespace layout (NAMESPACE_DESIGN.md §5, §9.4):
 //   file_io/   → io.file_io.<fn>   (fopen, fclose, fread, fwrite, ...)
 //   text/      → io.text.<fn>      (csvread, csvwrite, ...)
-//   workspace/ → io.workspace.<fn> (save, load)
+//   paths/     → io.paths.<fn>     (filesep, fullfile, fileparts, ...)
+// (save / load moved to core-libs/workspace — they are workspace runtime,
+//  not data import/export, and register bare via registerWorkspaceRuntime.)
 // Each function is also aliased into `compat.<fn>` so MATLAB-style
 // scripts can call them flat after `import compat.*`.
 
@@ -29,10 +31,6 @@ void fseek_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void frewind_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fread_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fwrite_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-
-// workspace/saveload.cpp
-void save_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void load_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // text/extras.cpp (C1 — modern text helpers)
 void fileread_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -87,9 +85,6 @@ void IoLibrary::install(Engine &engine)
     reg("paths", "fileparts", &io::detail::fileparts_reg);
     reg("paths", "tempdir",   &io::detail::tempdir_reg);
     reg("paths", "tempname",  &io::detail::tempname_reg);
-
-    reg("workspace", "save", &io::detail::save_reg);
-    reg("workspace", "load", &io::detail::load_reg);
 }
 
 } // namespace numkit

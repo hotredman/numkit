@@ -1,7 +1,7 @@
 # toolboxes/io/CMakeLists.txt
 #
-# File I/O: low-level + CSV / readtable + spreadsheets + workspace
-# save/load + path helpers. Depends on builtin.
+# File I/O: low-level + CSV / readtable + spreadsheets + path helpers.
+# (Workspace save/load moved to core-libs/workspace.) Depends on builtin.
 
 add_subdirectory(src)  # exports IOLIB_SOURCES via PARENT_SCOPE
 
@@ -14,7 +14,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/io/paths/paths.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/io/text/csv.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/io/text/extras.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/io/workspace/saveload.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)

@@ -1,4 +1,4 @@
-// toolboxes/io/src/workspace/saveload_mat.cpp
+// core-libs/src/workspace/saveload_mat.cpp
 //
 // matio-backed save / load for MATLAB v5 .mat files. v7.3 (HDF5) is
 // intentionally not linked, so attempts to use -v7.3 throw.
@@ -38,7 +38,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::io {
+namespace numkit::corelibs {
 
 namespace {
 
@@ -500,4 +500,4 @@ void loadMat(Engine &engine, Environment &env,
         outs[0] = std::move(asStruct);
 }
 
-} // namespace numkit::io
+} // namespace numkit::corelibs
