@@ -7,6 +7,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/fs/vfs.hpp>
+#include <numkit/value/scratch.hpp>
 
 #include <cmath>
 #include <cstring>
@@ -117,6 +118,90 @@ std::string trimWs(const std::string &s)
 
 } // namespace
 
+// ════════════════════════════════════════════════════════════════════════
+// Engine-free PARSE / SERIALIZE cores (pure text ↔ Value — no Engine/VFS)
+//
+// Mirrors csvreadFromString / csvwriteToString: a C++ embedder can turn a
+// delimited text blob into a numeric matrix (and back) with no Engine. The
+// MATLAB-facing readmatrix / writematrix add VFS read/write on top.
+// ════════════════════════════════════════════════════════════════════════
+
+Value readmatrixFromString(const std::string &content, std::pmr::memory_resource *mr)
+{
+    auto lines = splitLines(content);
+
+    // Skip leading non-numeric (header) rows: a row whose tokens are
+    // all non-numeric (or which has any unparseable token) is considered
+    // a header. Common case: header on row 1, numeric on row 2+.
+    size_t skip = 0;
+    for (; skip < lines.size(); ++skip) {
+        if (trimWs(lines[skip]).empty()) continue;
+        auto toks = splitRow(lines[skip]);
+        bool anyNum = false;
+        for (auto &t : toks) {
+            double dummy;
+            if (tryParseDouble(trimWs(t), dummy)) { anyNum = true; break; }
+        }
+        if (anyNum) break;
+    }
+
+    ScratchArena scratch(mr);
+    ScratchVec<ScratchVec<double>> rows(&scratch);
+    size_t maxCols = 0;
+    for (size_t i = skip; i < lines.size(); ++i) {
+        if (trimWs(lines[i]).empty()) continue;
+        auto toks = splitRow(lines[i]);
+        ScratchVec<double> row(&scratch);
+        row.reserve(toks.size());
+        for (auto &t : toks) {
+            double v = 0.0;
+            tryParseDouble(trimWs(t), v);     // unparseable → 0 (MATLAB compat)
+            row.push_back(v);
+        }
+        if (row.size() > maxCols) maxCols = row.size();
+        rows.push_back(std::move(row));
+    }
+
+    const size_t R = rows.size();
+    auto out = Value::matrix(R, maxCols, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (size_t r = 0; r < R; ++r) {
+        for (size_t c = 0; c < maxCols; ++c) {
+            const double v = (c < rows[r].size()) ? rows[r][c] : 0.0;
+            dst[c * R + r] = v;     // column-major
+        }
+    }
+    return out;
+}
+
+std::string writematrixToString(const Value &m)
+{
+    if (m.isComplex())
+        throw Error("writematrix: complex matrices are not supported",
+                     0, 0, "writematrix", "", "numkit:writematrix:complex");
+    const auto &d = m.dims();
+    if (d.is3D())
+        throw Error("writematrix: 3-D arrays are not supported",
+                     0, 0, "writematrix", "", "numkit:writematrix:nd");
+    const size_t R = d.rows(), C = d.cols();
+
+    std::ostringstream os;
+    os.precision(15);
+    for (size_t r = 0; r < R; ++r) {
+        for (size_t c = 0; c < C; ++c) {
+            if (c) os << ',';
+            const double v = m.elemAsDouble(c * R + r);
+            if (std::isfinite(v) && std::floor(v) == v && std::abs(v) < 1e16) {
+                os << static_cast<long long>(v);
+            } else {
+                os << v;
+            }
+        }
+        os << '\n';
+    }
+    return os.str();
+}
+
 // ── fileread ──────────────────────────────────────────────────────────
 Value fileread(Engine &engine, const std::string &filename,
                std::pmr::memory_resource *mr)
@@ -176,77 +261,13 @@ void writelines(Engine &engine, const Value &lines, const std::string &filename)
 Value readmatrix(Engine &engine, const std::string &filename,
                  std::pmr::memory_resource *mr)
 {
-    auto lines = splitLines(slurpFile(engine, filename, "readmatrix"));
-
-    // Skip leading non-numeric (header) rows: a row whose tokens are
-    // all non-numeric (or which has any unparseable token) is considered
-    // a header. Common case: header on row 1, numeric on row 2+.
-    size_t skip = 0;
-    for (; skip < lines.size(); ++skip) {
-        if (trimWs(lines[skip]).empty()) continue;
-        auto toks = splitRow(lines[skip]);
-        bool anyNum = false;
-        for (auto &t : toks) {
-            double dummy;
-            if (tryParseDouble(trimWs(t), dummy)) { anyNum = true; break; }
-        }
-        if (anyNum) break;
-    }
-
-    std::vector<std::vector<double>> rows;
-    size_t maxCols = 0;
-    for (size_t i = skip; i < lines.size(); ++i) {
-        if (trimWs(lines[i]).empty()) continue;
-        auto toks = splitRow(lines[i]);
-        std::vector<double> row;
-        row.reserve(toks.size());
-        for (auto &t : toks) {
-            double v = 0.0;
-            tryParseDouble(trimWs(t), v);     // unparseable → 0 (MATLAB compat)
-            row.push_back(v);
-        }
-        if (row.size() > maxCols) maxCols = row.size();
-        rows.push_back(std::move(row));
-    }
-
-    auto out = Value::matrix(rows.size(), maxCols, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    for (size_t r = 0; r < rows.size(); ++r) {
-        for (size_t c = 0; c < maxCols; ++c) {
-            const double v = (c < rows[r].size()) ? rows[r][c] : 0.0;
-            dst[c * rows.size() + r] = v;     // column-major
-        }
-    }
-    return out;
+    return readmatrixFromString(slurpFile(engine, filename, "readmatrix"), mr);
 }
 
 // ── writematrix ───────────────────────────────────────────────────────
 void writematrix(Engine &engine, const Value &m, const std::string &filename)
 {
-    if (m.isComplex())
-        throw Error("writematrix: complex matrices are not supported",
-                     0, 0, "writematrix", "", "numkit:writematrix:complex");
-    const auto &d = m.dims();
-    if (d.is3D())
-        throw Error("writematrix: 3-D arrays are not supported",
-                     0, 0, "writematrix", "", "numkit:writematrix:nd");
-    const size_t R = d.rows(), C = d.cols();
-
-    std::ostringstream os;
-    os.precision(15);
-    for (size_t r = 0; r < R; ++r) {
-        for (size_t c = 0; c < C; ++c) {
-            if (c) os << ',';
-            const double v = m.elemAsDouble(c * R + r);
-            if (std::isfinite(v) && std::floor(v) == v && std::abs(v) < 1e16) {
-                os << static_cast<long long>(v);
-            } else {
-                os << v;
-            }
-        }
-        os << '\n';
-    }
-    spitFile(engine, filename, os.str(), "writematrix");
+    spitFile(engine, filename, writematrixToString(m), "writematrix");
 }
 
 // ── type ──────────────────────────────────────────────────────────────
