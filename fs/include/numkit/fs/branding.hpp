@@ -1,4 +1,11 @@
-// include/branding.hpp
+// fs/include/numkit/fs/branding.hpp
+//
+// Lives in fs/ (L0) because that is the lowest layer reachable by every
+// consumer under the layering guard (value:{value}, fs:{fs}): FsContext (fs/)
+// needs envGet for the NUMKIT_FS / NUMKIT_CWD path-resolution fallbacks, and
+// core/ + toolboxes may include fs/. Header-only (inline/constexpr), no deps
+// beyond <cstdlib>/<string>. The NUMKIT_FS/NUMKIT_CWD vars it serves are
+// themselves filesystem config, so fs/ is a natural home.
 #pragma once
 
 #include <cstdlib>
