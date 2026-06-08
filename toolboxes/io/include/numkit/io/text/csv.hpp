@@ -4,11 +4,31 @@
 #include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
+#include <memory_resource>
+#include <string>
+
 namespace numkit {
 class Engine;
 }
 
 namespace numkit::io {
+
+/// @brief Parse CSV text into a numeric DOUBLE matrix — **Engine-free** C++ API.
+///
+/// Pure text→Value: no Engine, no VFS (mirrors `image::imreadFromBytes`). The
+/// MATLAB-facing `csvread` adds VFS path resolution + file read on top of this.
+/// Missing / non-numeric cells read as 0.
+Value csvreadFromString(const std::string &content,
+                        std::pmr::memory_resource *mr = nullptr);
+
+/// @brief As above, skipping the first `skipRows` rows / `skipCols` cols
+/// (0-based origin, like `csvread(file, R0, C0)`). Engine-free.
+Value csvreadFromString(const std::string &content, size_t skipRows, size_t skipCols,
+                        std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Serialize a numeric matrix to CSV text — **Engine-free** C++ API.
+/// `offR`/`offC` prepend blank rows/cols.
+std::string csvwriteToString(const Value &M, size_t offR = 0, size_t offC = 0);
 
 /// @file
 /// @brief CSV text I/O.

@@ -1,6 +1,10 @@
-// toolboxes/builtin/src/data_io/csv.cpp
+// toolboxes/io/src/text/csv.cpp
 //
-// CSV text I/O (csvread / csvwrite), routed through Engine's Vfs.
+// CSV text I/O (csvread / csvwrite). The PARSE / SERIALIZE cores are Engine-free
+// (csvreadFromString / csvwriteToString — pure text↔Value, usable from the C++
+// library API with no Engine, mirroring image::imreadFromBytes). The MATLAB-facing
+// entries (csvread/csvwrite + the detail reg adapters) add VFS path resolution +
+// read/write via the Engine.
 
 #include <numkit/io/text/csv.hpp>
 
@@ -74,51 +78,14 @@ ScratchVec<double> parseCsvLine(std::pmr::memory_resource *mr, const std::string
 } // namespace
 
 // ════════════════════════════════════════════════════════════════════════
-// csvread / csvwrite — CSV text I/O via the Engine's Vfs
-//
-//   csvread(filename)                         → full numeric CSV → matrix
-//   csvread(filename, R1, C1)                 → skip first R1 rows / C1 cols
-//   csvread(filename, R1, C1, [R1 C1 R2 C2])  → read a rectangular range
-//
-//   csvwrite(filename, M)                     → write M as CSV
-//   csvwrite(filename, M, R, C)               → write with row/col offsets
-//
-// Missing cells are read as 0. Filenames with no extension get ".csv".
+// Engine-free PARSE / SERIALIZE cores (pure text ↔ Value — no Engine/VFS)
 // ════════════════════════════════════════════════════════════════════════
 
-Value csvread(Engine &engine, Span<const Value> args)
+Value csvreadFromString(const std::string &content, size_t skipRows, size_t skipCols,
+                        bool haveRange, size_t lastRow, size_t lastCol,
+                        std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
-    if (args.empty() || !args[0].isChar())
-        throw Error("csvread requires a filename as the first argument");
-
-    std::string filename = resolveCsvPath(args[0].toString());
-
-    size_t r1 = 0, c1 = 0, r2 = 0, c2 = 0;
-    bool haveRange = false;
-
-    if (args.size() >= 2)
-        r1 = static_cast<size_t>(args[1].toScalar());
-    if (args.size() >= 3)
-        c1 = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4) {
-        if (args[3].numel() != 4)
-            throw Error("csvread: range argument must be [R1 C1 R2 C2]");
-        haveRange = true;
-        r2 = static_cast<size_t>(args[3](2));
-        c2 = static_cast<size_t>(args[3](3));
-        if (r2 < r1 || c2 < c1)
-            throw Error("csvread: invalid range [R1 C1 R2 C2]");
-    }
-
-    auto resolved = engine.resolvePath(filename);
-    std::string content;
-    try {
-        content = resolved.fs->readFile(resolved.path);
-    } catch (const std::exception &e) {
-        throw Error(std::string("csvread: ") + e.what());
-    }
-
+    const size_t r1 = skipRows, c1 = skipCols, r2 = lastRow, c2 = lastCol;
     ScratchArena scratch(mr);
     // Outer + inner ScratchVec — uses-allocator construction propagates
     // the arena into each inner row that we move-construct from
@@ -180,27 +147,23 @@ Value csvread(Engine &engine, Span<const Value> args)
     return M;
 }
 
-void csvwrite(Engine &engine, Span<const Value> args)
+Value csvreadFromString(const std::string &content, size_t skipRows, size_t skipCols,
+                        std::pmr::memory_resource *mr)
 {
-    if (args.size() < 2)
-        throw Error("csvwrite requires filename and matrix arguments");
-    if (!args[0].isChar())
-        throw Error("csvwrite: first argument must be a filename");
+    return csvreadFromString(content, skipRows, skipCols, false, 0, 0, mr);
+}
 
-    std::string filename = resolveCsvPath(args[0].toString());
-    const Value &M = args[1];
+Value csvreadFromString(const std::string &content, std::pmr::memory_resource *mr)
+{
+    return csvreadFromString(content, 0, 0, false, 0, 0, mr);
+}
 
-    size_t offR = 0, offC = 0;
-    if (args.size() >= 3)
-        offR = static_cast<size_t>(args[2].toScalar());
-    if (args.size() >= 4)
-        offC = static_cast<size_t>(args[3].toScalar());
-
+std::string csvwriteToString(const Value &M, size_t offR, size_t offC)
+{
     size_t R = M.dims().rows();
     size_t C = M.dims().cols();
 
     std::ostringstream os;
-
     for (size_t r = 0; r < offR; ++r)
         os << '\n';
 
@@ -231,10 +194,76 @@ void csvwrite(Engine &engine, Span<const Value> args)
         }
         os << '\n';
     }
+    return os.str();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// csvread / csvwrite — MATLAB-facing entries: VFS path resolution + read/write
+//
+//   csvread(filename)                         → full numeric CSV → matrix
+//   csvread(filename, R1, C1)                 → skip first R1 rows / C1 cols
+//   csvread(filename, R1, C1, [R1 C1 R2 C2])  → read a rectangular range
+//   csvwrite(filename, M[, R, C])             → write M as CSV (with offsets)
+//
+// Missing cells are read as 0. Filenames with no extension get ".csv".
+// ════════════════════════════════════════════════════════════════════════
+
+Value csvread(Engine &engine, Span<const Value> args)
+{
+    std::pmr::memory_resource *mr = engine.resource();
+    if (args.empty() || !args[0].isChar())
+        throw Error("csvread requires a filename as the first argument");
+
+    std::string filename = resolveCsvPath(args[0].toString());
+
+    size_t r1 = 0, c1 = 0, r2 = 0, c2 = 0;
+    bool haveRange = false;
+
+    if (args.size() >= 2)
+        r1 = static_cast<size_t>(args[1].toScalar());
+    if (args.size() >= 3)
+        c1 = static_cast<size_t>(args[2].toScalar());
+    if (args.size() >= 4) {
+        if (args[3].numel() != 4)
+            throw Error("csvread: range argument must be [R1 C1 R2 C2]");
+        haveRange = true;
+        r2 = static_cast<size_t>(args[3](2));
+        c2 = static_cast<size_t>(args[3](3));
+        if (r2 < r1 || c2 < c1)
+            throw Error("csvread: invalid range [R1 C1 R2 C2]");
+    }
+
+    auto resolved = engine.resolvePath(filename);
+    std::string content;
+    try {
+        content = resolved.fs->readFile(resolved.path);
+    } catch (const std::exception &e) {
+        throw Error(std::string("csvread: ") + e.what());
+    }
+    return csvreadFromString(content, r1, c1, haveRange, r2, c2, mr);
+}
+
+void csvwrite(Engine &engine, Span<const Value> args)
+{
+    if (args.size() < 2)
+        throw Error("csvwrite requires filename and matrix arguments");
+    if (!args[0].isChar())
+        throw Error("csvwrite: first argument must be a filename");
+
+    std::string filename = resolveCsvPath(args[0].toString());
+    const Value &M = args[1];
+
+    size_t offR = 0, offC = 0;
+    if (args.size() >= 3)
+        offR = static_cast<size_t>(args[2].toScalar());
+    if (args.size() >= 4)
+        offC = static_cast<size_t>(args[3].toScalar());
+
+    const std::string out = csvwriteToString(M, offR, offC);
 
     auto resolved = engine.resolvePath(filename);
     try {
-        resolved.fs->writeFile(resolved.path, os.str());
+        resolved.fs->writeFile(resolved.path, out);
     } catch (const std::exception &e) {
         throw Error(std::string("csvwrite: ") + e.what());
     }

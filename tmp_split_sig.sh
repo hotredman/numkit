@@ -30,9 +30,9 @@ fi
 
 # --- register TU ---------------------------------------------------------
 {
-  echo "// toolboxes/signal/src/${relbase}_reg.cpp"
+  echo "// ${base}_reg.cpp"
   echo "//"
-  echo "// CallContext register half of ${rel} (Phase 2b compute/register split)."
+  echo "// CallContext register half of ${f} (Phase 2b compute/register split)."
   echo "// Engine-coupled glue: marshals CallContext args/outs into the engine-free"
   echo "// compute API declared in the headers below. See project_layering_refactor."
   echo "#include <numkit/core/engine.hpp>"
