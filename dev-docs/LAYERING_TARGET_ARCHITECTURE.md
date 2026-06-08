@@ -76,12 +76,22 @@ the diagram's edges become **link** edges, not just include-discipline.
 | `lang` (L2) | strings/arrays/types/bitwise/operators/handles/datatypes/cells/structs (data ops). ns `numkit::lang` | value/ops/fs | ✅ |
 | `io` (L2) | file_io/text/paths/spreadsheets. ns `numkit::io` | **fs (FsContext)** + value/ops | ✅ (after FsContext) |
 | toolboxes (L2) | signal/stats/image/comm/control/audio/wavelet/graphics/linalg/optim/ode | value/ops/fs + math/lang | ✅ |
-| `runtime` (L2, core-aware) | eval/evalin/run + who/whos/clear/clearvars/exist/assignin/inputname/import + save/load + str2func/func2str + callback engine-adapters + pausable harnesses | **core** + value/fs/ops + compute libs (for the algorithms it adapts) | ❌ (by design — THE core-dependent library) |
-| `bundle` (L3) | installStandardLibrary + **all registration** (per-domain `register/*.cpp`) + StandardEngine | everything | n/a |
+| `runtime` (L2, core-aware) | eval/evalin/run + who/whos/clear/clearvars/exist/assignin/inputname/import + save/load + str2func/func2str/feval (function-handle/registry ops) | **core** + value/fs/ops (+matio for save) — **NOT** math/lang/io/toolboxes | ❌ (core-dependent, but toolbox-free) |
+| `bundle` (L3) | installStandardLibrary + **all registration** (per-domain `register/*.cpp`) + **all core×compute glue** (callback/solver adapters + pausable continuations) + StandardEngine | everything | n/a |
 
 `math` + `lang` are foundation toolboxes other toolboxes may depend on (e.g.
 control→`math::roots`, stats→`linalg::eig`). The relocated `linalg` keeps
 `numkit::linalg` (a second namespace hosted under the foundation tier).
+
+**Dependency rules (acyclic DAG — no cross-deps).**
+- compute (`math/lang/io/toolboxes`) → `value/ops/fs` only (+ `math`/`lang` as the
+  foundation other toolboxes may use). **Never `core`, never `runtime`.**
+- `core` → `value/ops/fs` only. Never a library.
+- `runtime` → `core` + `value/fs/ops` (+matio). **Never a compute lib / toolbox** —
+  `runtime` holds engine-operating functions, not toolbox algorithms.
+- `bundle` → everything — the only "knows-all" layer; holds all registration AND
+  the core×compute glue (callback/solver adapters, pausable continuations).
+No sibling-toolbox cross-deps (except the math/lang foundation); no cycles.
 
 ---
 
@@ -126,23 +136,32 @@ Criterion: compute that **intrinsically needs the live Engine** (eval / workspac
 eval, evalin, run · who, whos, clear, clearvars, exist, assignin, inputname,
 import · save, load.
 
-**Group 2 — registry reflection (whole function; moves in):** str2func, func2str.
+**Group 2 — function-handle / registry ops (core-only, whole function):**
+str2func, func2str, feval. Resolve/invoke via the engine; **no compute-lib dep**.
 
-**Group 3 — callbacks: only the engine-adapter + pausable harness; the
-core-free algorithm stays in math/lang/toolbox:**
-- iterators: cellfun, arrayfun, structfun, feval, bsxfun
-- grouping (the fn-taking ones): splitapply, grouptransform, groupfilter,
-  groupsummary(with fn), accumarray  *(findgroups is callback-free → stays in lang/math)*
-- solver adapters: ode45, ode23, integral, fzero, fminsearch, nlinfit, bootstrp/bootci
-
-**Borderline, resolved by the rule (pulls core → runtime):**
-- `containers.Map` → runtime (engine object system).
+**Borderline, resolved by "pulls core, no compute-lib dep → runtime":**
+- `containers.Map` → runtime (engine object system; standalone, touches no toolbox).
 - `getenv`/`setenv` → runtime *unless* `core/branding::envGet` is relocated to a
   core-free util, in which case env moves to `lang`.
 
-**NOT runtime:** `version_string` (build metadata, stays at build/bundle);
-io file functions (core-free after FsContext); the callback **algorithms**
-(core-free, in math/lang/toolbox).
+### NOT runtime — callback/solver adapters live in `bundle`
+
+cellfun/arrayfun/structfun/bsxfun · splitapply/grouptransform/groupfilter/
+groupsummary(fn)/accumarray · ode45/ode23/integral/fzero/fminsearch/nlinfit/
+bootstrp — their **adapters** reach into BOTH the compute algorithm
+(ops/math/lang/toolbox) AND the engine (callback via `FnHandle` + `LoopContinuation`).
+The only layer allowed to depend on both is **bundle** (top) — putting these in
+`runtime` would create a forbidden `runtime → toolboxes` cross-dependency. So:
+- **algorithm** → `ops` kernel / `math` / `lang` / toolbox (core-free, `FnHandle`);
+- **adapter + continuation** → `bundle/register/<domain>` (the core×compute glue).
+`findgroups` is callback-free → core-free, in lang/math.
+
+**Also NOT runtime:** `version_string` (build metadata); io file fns (core-free via
+FsContext); all callback **algorithms** (core-free).
+
+**Runtime's dependency rule (restated):** `runtime` depends ONLY on
+core/fs/value/ops (+matio). If something would force `runtime → a compute lib`,
+it is not runtime — it is bundle registration.
 
 ---
 
@@ -239,8 +258,11 @@ Order is adjustable; A and B are the safest first real steps.
 - All compute is core-free; **registration lives in bundle** (per-domain files).
 - Decoupling pattern: `FnHandle` (callbacks) / `FsContext` (VFS) / `*FromString`
   (codecs) / `mr` param. Registry reflection has no core-free form → runtime.
-- `runtime` = the single core-dependent library.
-- `env`/`containers.Map` classified by the rule "pulls core → runtime".
+- `runtime` = the single core-dependent library, and it is **toolbox-free**:
+  `runtime` depends ONLY on core/fs/value/ops, NEVER on a compute lib. Anything
+  that would force `runtime → toolbox` (callback/solver adapters) is registration
+  → `bundle`. No `runtime → toolboxes` cross-dependency.
+- `env`/`containers.Map` classified by the rule "pulls core (no compute-lib dep) → runtime".
 - **`ops` is the kernel home** (core-free, L0.5): raw numerical kernels live here
   (already `la_solve`/`fft`); solver kernels (RK/Brent/Nelder-Mead/LM) and any
   numerical primitive buried in a toolbox migrate **down into `ops`**, not into a
