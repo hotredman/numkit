@@ -4,7 +4,8 @@
 // toolboxes/builtin's registerWorkspaceBuiltins into the core-libs layer
 // (L2, engine-coupled scripting runtime — NOT a math/io toolbox). The shared
 // resolveEvalScope helper moved with them. Behaviour is unchanged; only the
-// owning translation unit / layer differs. Wired by installStandardLibrary.
+// owning translation unit / layer differs. registerEvalFamily is composed by
+// installRuntimeLibrary (runtime.cpp), which bundle/installStandardLibrary calls.
 #include <numkit/corelibs/runtime.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
@@ -18,7 +19,7 @@
 
 namespace numkit::corelibs {
 
-void installRuntimeLibrary(Engine &engine)
+void registerEvalFamily(Engine &engine)
 {
     // Legacy compat: env var NUMKIT_LEGACY_EVAL_SCOPE=1 reverts to the
     // pre-2026-05 behaviour where eval/run from inside a function
