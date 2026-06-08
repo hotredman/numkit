@@ -63,7 +63,7 @@ endif()
 # matio (MATLAB .mat file I/O) — gated by NUMKIT_WITH_MATIO
 # ──────────────────────────────────────────────
 #
-# Used by toolboxes/io/src/workspace/saveload_mat.cpp to back save/load on
+# Used by core-libs/src/workspace/saveload_mat.cpp to back save/load on
 # .mat files (v4 / v5 / v7). HDF5 backend (v7.3) is intentionally
 # disabled — adds a heavy dependency we don't need yet. ZLIB compression
 # (for `-v7`) is also off for the same reason; matio silently falls back
@@ -232,8 +232,8 @@ if(EMSCRIPTEN)
     target_link_options(numkit PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
 endif()
 
-# matio is linked when NUMKIT_WITH_MATIO is ON — toolboxes/io's .mat backend
-# (saveload_mat.cpp) pulls in matio.h directly. PRIVATE: matio's header
+# matio is linked when NUMKIT_WITH_MATIO is ON — core-libs' .mat backend
+# (core-libs/src/workspace/saveload_mat.cpp) pulls in matio.h directly. PRIVATE: matio's header
 # never appears in any of our public include/ trees. BUILD_INTERFACE
 # genex keeps the link dep out of the exported target set — matio isn't
 # exported via install(EXPORT) on our side. The compile-definition lets

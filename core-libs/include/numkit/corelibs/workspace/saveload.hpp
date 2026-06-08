@@ -1,4 +1,4 @@
-// toolboxes/io/include/numkit/io/workspace/saveload.hpp
+// core-libs/include/numkit/corelibs/workspace/saveload.hpp
 #pragma once
 
 #include <numkit/value/span.hpp>
@@ -9,17 +9,17 @@ class Engine;
 class Environment;
 }
 
-namespace numkit::io {
+namespace numkit::corelibs {
 
 /// @file
-/// @brief Workspace persistence — `save` / `load` (ASCII).
+/// @brief Workspace persistence — `save` / `load` (ASCII + matio v5 .mat).
 ///
-/// Separate from the session-state workspace builtins (`clear` /
-/// `who` / `whos` / `tic` / `toc`) registered via
-/// `BuiltinLibrary::registerWorkspaceBuiltins`; those live
-/// in-process, these read/write files. Both touch the VM's variable
-/// environment, so the public C++ API takes `Engine&` (for VFS) and
-/// `Environment&` (for var lookup / assignment).
+/// Companion to the session-state workspace runtime builtins (`clear` /
+/// `who` / `whos` / `clearvars`) registered alongside these via
+/// `corelibs::registerWorkspaceRuntime`; those live in-process, these
+/// read/write files. Both touch the VM's variable environment, so the
+/// public C++ API takes `Engine&` (for VFS) and `Environment&` (for var
+/// lookup / assignment).
 ///
 /// `load`'s no-LHS branch writes into `Environment` using a
 /// stem-derived var name; the `(nargout, outs)` pair lets the same
@@ -60,4 +60,4 @@ void save(Engine &engine, Environment &env, Span<const Value> args);
 void load(Engine &engine, Environment &env, Span<const Value> args,
           size_t nargout, Span<Value> outs);
 
-} // namespace numkit::io
+} // namespace numkit::corelibs
