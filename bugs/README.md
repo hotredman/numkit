@@ -130,7 +130,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (53)
+### ✅ FIXED (54)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
@@ -187,6 +187,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | stub | [signal/dct-types](signal/dct-types.md) | P2 | dct/idct Type 1/3/4 implemented (c181) |
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
+| bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
 ### 🔴 OPEN — bug (defect on an implemented function) — 11
 

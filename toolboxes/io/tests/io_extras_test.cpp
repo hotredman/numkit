@@ -108,6 +108,19 @@ TEST_F(IoExtrasTest, WritelinesCellRoundtrip)
     EXPECT_EQ(v.stringElem(0), "one");
 }
 
+TEST_F(IoExtrasTest, WritelinesStringArrayOneLinePerElement)
+{
+    // Regression for bugs/io/writelines.md: a multi-element string array must
+    // write ONE LINE PER ELEMENT. Previously the (isChar||isString) branch
+    // caught the whole array and wrote only toString() == element [0] ("a").
+    eval("writelines([\"a\";\"b\";\"c\"], '" + tmpPathForMatlab() + "');");
+    auto v = eval("readlines('" + tmpPathForMatlab() + "');");
+    ASSERT_EQ(v.numel(), 3u);
+    EXPECT_EQ(v.stringElem(0), "a");
+    EXPECT_EQ(v.stringElem(1), "b");
+    EXPECT_EQ(v.stringElem(2), "c");
+}
+
 TEST_F(IoExtrasTest, ReadmatrixSimple)
 {
     writeTempFile("1,2,3\n4,5,6\n");

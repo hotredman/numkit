@@ -234,8 +234,16 @@ void writelines(Engine &engine, const Value &lines, const std::string &filename)
 #endif
     };
 
-    if (lines.isChar() || lines.isString()) {
-        // Single string → one line.
+    if (lines.isString() && lines.numel() != 1) {
+        // String ARRAY → one line per element (MATLAB writelines contract).
+        // Must precede the scalar branch: Value::toString() on a string array
+        // returns only element [0], so the old (isChar||isString) catch-all
+        // silently wrote just the first line. See bugs/io/writelines.md.
+        const size_t n = lines.numel();
+        for (size_t i = 0; i < n; ++i)
+            append(lines.stringElem(i));
+    } else if (lines.isChar() || lines.isString()) {
+        // Single char row / scalar string → one line.
         append(lines.toString());
     } else if (lines.isCell()) {
         const size_t n = lines.numel();
@@ -246,10 +254,6 @@ void writelines(Engine &engine, const Value &lines, const std::string &filename)
                              0, 0, "writelines", "", "numkit:writelines:badCell");
             append(cell.toString());
         }
-    } else if (lines.isString()) {
-        const size_t n = lines.numel();
-        for (size_t i = 0; i < n; ++i)
-            append(lines.stringElem(i));
     } else {
         throw Error("writelines: lines must be a string, string array, or cell of strings",
                      0, 0, "writelines", "", "numkit:writelines:badArg");
