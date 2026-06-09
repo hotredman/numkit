@@ -65,8 +65,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/interp/interp.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/interp/interp_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/geom/geom.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/geom/geom_reg.cpp # register (CallContext)
+    # geom/ moved to the math library (math/src/geom/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/group/group.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/permutations.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/permutations_reg.cpp # register (CallContext)

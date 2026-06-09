@@ -126,12 +126,13 @@ add_subdirectory(value)   # L0:   Value substrate (numkit_value) — STL-only
 add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-only
 add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
+add_subdirectory(math)    # L2: MATLAB Mathematics compute (numkit math) — extracted from builtin (Phase 3-A step C)
 add_subdirectory(toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
 add_subdirectory(runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
 add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
-set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_RUNTIME_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
-set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
+set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_MATH_SOURCES} ${NUMKIT_RUNTIME_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
+set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_MATH_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
     add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
@@ -205,7 +206,7 @@ set_source_files_properties(
 
 # Public include paths — collected from per-area CMakeLists. Wrap each
 # in BUILD_INTERFACE so the export set stays clean for find_package.
-foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
+foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
     target_include_directories(numkit PUBLIC $<BUILD_INTERFACE:${_dir}>)
 endforeach()
 target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)
@@ -373,7 +374,7 @@ if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
     )
 
     # Public headers — install each per-area include-dir's numkit/ subtree
-    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS})
+    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS})
         install(DIRECTORY ${_dir}/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     endforeach()
 
