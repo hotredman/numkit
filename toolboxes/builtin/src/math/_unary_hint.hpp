@@ -1,30 +1,7 @@
-// toolboxes/builtin/src/math/_unary_hint.hpp
-//
-// Internal SIMD reuse-buffer overloads for the unary functions
-// sin/cos/exp/log/abs. Public 2-arg signatures live in the
-// respective public headers (trig/trigonometry.hpp,
-// exp_log/exponents.hpp, arithmetic/rounding.hpp).
-//
-// `hint` is the VM's "destination register Value" — when it's a
-// uniquely-owned heap double of matching shape, the implementation
-// MAY overwrite its existing buffer instead of allocating a fresh
-// one. Used by NK_UNARY_ADAPTER_HINT in math/arithmetic/reductions.cpp
-// to make tight loops like `z = sin(x)` reuse z's buffer.
-//
-// Not exposed in <numkit/builtin/...> — only the cpp side of toolboxes/builtin
-// includes this file.
-
 #pragma once
-
-#include <memory_resource>
-#include <numkit/value/value.hpp>
-
-namespace numkit::builtin {
-
-Value sin(const Value &x, Value *hint, std::pmr::memory_resource *mr);
-Value cos(const Value &x, Value *hint, std::pmr::memory_resource *mr);
-Value exp(const Value &x, Value *hint, std::pmr::memory_resource *mr);
-Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr);
-Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr);
-
-} // namespace numkit::builtin
+// _unary_hint.hpp moved to math/src/ as the Phase 3-A step C1 SIMD prerequisite
+// (the relocated SIMD math areas reference it via "../_unary_hint.hpp"; it must
+// live below them). This forwarding stub keeps the still-in-builtin SIMD compute
+// files (exp_log / arithmetic, which include "../_unary_hint.hpp") working until
+// they relocate to the math library; removed in the C4 cleanup.
+#include "../../../../math/src/_unary_hint.hpp"
