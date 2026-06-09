@@ -27,7 +27,7 @@
 #include <stdexcept>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/exp_log/exp_log_highway.cpp"
+#define HWY_TARGET_INCLUDE "exp_log/exp_log_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 #include <hwy/contrib/math/math-inl.h>

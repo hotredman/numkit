@@ -31,7 +31,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/special/special_highway.cpp"
+#define HWY_TARGET_INCLUDE "special/special_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
