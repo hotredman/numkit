@@ -38,6 +38,10 @@ list(APPEND NUMKIT_MATH_SOURCES
     # random/ (rand / randn / randi / randperm / rng — engine in ops, wrappers here)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/random/rng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/random/rng_reg.cpp
+    # trig/ (sin/cos/tan/asin/... compute + register; SIMD backends in the
+    # NUMKIT_WITH_SIMD block below)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trigonometry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trigonometry_reg.cpp
 )
 list(APPEND NUMKIT_MATH_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_MATH_HEADERS
@@ -48,7 +52,20 @@ list(APPEND NUMKIT_MATH_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/poly/polynomials.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/permutations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/random/rng.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/trig/trigonometry.hpp
 )
+
+# Backend-split SIMD sources — one variant picked at configure time via
+# NUMKIT_WITH_SIMD (mirrors toolboxes/builtin/src/CMakeLists). Relocated from
+# builtin in Phase 3-A step C1. The relocated *_highway.cpp set their
+# HWY_TARGET_INCLUDE relative to math/src (on the numkit PRIVATE -I).
+if(NUMKIT_WITH_SIMD)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_recip_highway.cpp)
+else()
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_recip_portable.cpp)
+endif()
 
 set(NUMKIT_MATH_SOURCES      ${NUMKIT_MATH_SOURCES}      PARENT_SCOPE)
 set(NUMKIT_MATH_HEADERS      ${NUMKIT_MATH_HEADERS}      PARENT_SCOPE)

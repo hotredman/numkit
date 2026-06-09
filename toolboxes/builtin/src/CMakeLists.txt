@@ -46,8 +46,7 @@ set(STDLIB_SOURCES
     # complex/ moved to the math library (math/src/complex/) — Phase 3-A step C1
     # poly/ moved to the math library (math/src/poly/) — Phase 3-A step C1
     # discrete/ moved to the math library (math/src/discrete/) — Phase 3-A step C1
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry_reg.cpp # register (CallContext)
+    # trig/ moved to the math library (math/src/trig/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special.cpp # compute (engine-free)
@@ -84,8 +83,7 @@ if(NUMKIT_WITH_SIMD)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/isfinite_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/mod_highway.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_highway.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_recip_highway.cpp)
+    # trig SIMD backends moved to the math library (math/src/trig/) — Phase 3-A step C1
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exp_log_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special_highway.cpp)
     # (binary_ops_highway.cpp + compare_highway.cpp moved to ops/ → numkit_ops)
@@ -98,8 +96,7 @@ else()
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/isfinite_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/mod_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_recip_portable.cpp)
+    # trig SIMD backends moved to the math library (math/src/trig/) — Phase 3-A step C1
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exp_log_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special_portable.cpp)
     # (binary_ops_portable.cpp + compare_portable.cpp moved to ops/ → numkit_ops)
