@@ -224,6 +224,10 @@ target_include_directories(numkit
         # math helpers + the Highway HWY_TARGET_INCLUDE resolution root for the
         # relocated SIMD backends under math/src/<area>/.
         ${CMAKE_CURRENT_SOURCE_DIR}/math/src
+        # lang/ relocated from builtin (Phase 3-A step C2) — same role: Highway
+        # HWY_TARGET_INCLUDE resolution root for the relocated casts SIMD backend
+        # under lang/src/types/.
+        ${CMAKE_CURRENT_SOURCE_DIR}/lang/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src

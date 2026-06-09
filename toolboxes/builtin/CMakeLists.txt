@@ -18,7 +18,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/cells/cell.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/commands/env.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/structures/struct.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/types/types.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/containers.hpp
     # programming/
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/programming/errors/diagnostics.hpp

@@ -46,6 +46,9 @@ list(APPEND NUMKIT_LANG_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/manip_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/nd_manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/nd_manip_reg.cpp
+    # types/ (class/isa/cast/double/single/int*/logical/char...; casts SIMD below)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/types/types.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/types/types_reg.cpp
 )
 list(APPEND NUMKIT_LANG_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_LANG_HEADERS
@@ -60,7 +63,18 @@ list(APPEND NUMKIT_LANG_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/arrays/matrix.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/arrays/manip.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/arrays/nd_manip.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/types/types.hpp
 )
+
+# Backend-split SIMD sources — one variant picked at configure time via
+# NUMKIT_WITH_SIMD (mirrors math/CMakeLists). Relocated from builtin in step C2.
+# The relocated casts_highway.cpp sets HWY_TARGET_INCLUDE relative to lang/src
+# (on the numkit PRIVATE -I).
+if(NUMKIT_WITH_SIMD)
+    list(APPEND NUMKIT_LANG_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/types/casts_highway.cpp)
+else()
+    list(APPEND NUMKIT_LANG_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/types/casts_portable.cpp)
+endif()
 
 set(NUMKIT_LANG_SOURCES      ${NUMKIT_LANG_SOURCES}      PARENT_SCOPE)
 set(NUMKIT_LANG_HEADERS      ${NUMKIT_LANG_HEADERS}      PARENT_SCOPE)
