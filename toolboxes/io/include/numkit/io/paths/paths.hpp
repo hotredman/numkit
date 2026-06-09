@@ -11,17 +11,17 @@
 #include <string>
 #include <tuple>
 
-namespace numkit { class Engine; }
+namespace numkit { class FsContext; }
 
 namespace numkit::io {
 
-using ::numkit::Engine;
+using ::numkit::FsContext;
 
 /// @file
 /// @brief Pure path-string manipulation + host temp-area access.
 ///
 /// `filesep` / `fullfile` / `fileparts` are path-string ops; `tempdir`
-/// and `tempname` reach into the host's temp area via the engine VFS.
+/// and `tempname` reach into the host's temp area via the VFS (FsContext).
 /// All work on the host's native path conventions.
 
 /// @brief Host path separator (`s = filesep()`).
@@ -64,11 +64,11 @@ fileparts(const std::string &path,
 ///
 /// Includes a trailing separator. Routes through the engine VFS.
 ///
-/// @param engine  Engine context (for VFS lookup).
+/// @param fs      Filesystem session (VFS registry + resolver).
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        CHAR path.
 /// @see tempname
-Value tempdir(Engine &engine, std::pmr::memory_resource *mr = nullptr);
+Value tempdir(FsContext &fs, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Unique temp file path (`p = tempname()`).
 ///
@@ -76,10 +76,10 @@ Value tempdir(Engine &engine, std::pmr::memory_resource *mr = nullptr);
 /// Uses a process-static counter combined with a random element so
 /// consecutive calls don't collide.
 ///
-/// @param engine  Engine context.
+/// @param fs      Filesystem session (VFS registry + resolver).
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        CHAR path.
 /// @see tempdir
-Value tempname(Engine &engine, std::pmr::memory_resource *mr = nullptr);
+Value tempname(FsContext &fs, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::io
