@@ -15,6 +15,7 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/eval.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/workspace.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/function_handles.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/saveload.cpp
 )
 # Binary .mat backend pulls in matio.h directly — only compile it when the
