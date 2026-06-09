@@ -6,7 +6,7 @@ set(STDLIB_SOURCES
     # reflects the actual link time instead of stale __DATE__.
     ${CMAKE_CURRENT_SOURCE_DIR}/version_string.cpp
     # language/ — MATLAB Language Fundamentals
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/commands/env.cpp
+    # commands/env moved to runtime (runtime/src/language/commands/) — Phase 3-A step C3
     # operators/ (binary_ops, unary_ops) moved to the lang library (lang/src/operators/) — Phase 3-A step C2
     # la_solve.cpp moved to ops/ (numkit_ops) — shared linear-solve kernel
     # used by builtin `\` and toolboxes/linalg; ops/ sits below both.
