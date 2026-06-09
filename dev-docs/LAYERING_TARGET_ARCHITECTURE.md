@@ -268,7 +268,21 @@ re-layering); G is the risky enforcement step.
   ns-rename numkit::builtin → numkit::math / numkit::lang over all relocated dirs
   + include-path cleanup + drop ALL forwarding stubs/shims), C5 (registration →
   bundle = F), then D / F / G / H.
-- **D. FnHandle-ize remaining callbacks** (cellfun-family, group, integration,
+
+  **C3 ✅** — the runtime layer now holds all 7 core-coupled areas relocated from
+  builtin: commands/env (`d3bde36f`), arrays/accum (`da95cbae`), datatypes/
+  containers + math/group + math/integration (`a1021996`; the math-level
+  `_callback_helpers.hpp` moved alongside integration), cells/cell +
+  structures/struct (`820784ef`; the vm/callback_builtin pair). All clean relocates
+  — library.cpp keeps registering their `*_reg` / `register*` symbols, which compile
+  into the single numkit target; `_handlefn_helpers.hpp` (cell/struct-only) stays in
+  builtin/src, reachable via the global -I. builtin/ now holds only library.cpp +
+  programming/diagnostics + version_string + the `_reg` adapters + the forwarding
+  stubs/shims. **Next: C4** — the single mechanical ns-rename (numkit::builtin →
+  numkit::math / numkit::lang over the relocated math/ + lang/ dirs) + ~185
+  call-site retarget + include-path cleanup + drop ALL stubs/shims. Open question
+  for C4: whether the runtime-relocated areas keep ns numkit::builtin or move to a
+  runtime ns — decide (or surface) when C4 starts.
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
