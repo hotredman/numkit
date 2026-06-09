@@ -14,7 +14,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     # math/
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/integration/integration.hpp
     # language/
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/arrays/accum.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/cells/cell.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/structures/struct.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/containers.hpp

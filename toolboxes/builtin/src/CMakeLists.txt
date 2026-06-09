@@ -11,7 +11,7 @@ set(STDLIB_SOURCES
     # la_solve.cpp moved to ops/ (numkit_ops) — shared linear-solve kernel
     # used by builtin `\` and toolboxes/linalg; ops/ sits below both.
     # arrays/ (matrix, manip, nd_manip) moved to the lang library (lang/src/arrays/) — Phase 3-A step C2
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/accum.cpp
+    # arrays/accum moved to runtime (runtime/src/language/arrays/) — Phase 3-A step C3
     # predicates.cpp / linalg_extras.cpp / ldl.cpp / balance.cpp /
     # lsq.cpp all migrated to toolboxes/linalg.
     # types/ (types + casts SIMD) moved to the lang library (lang/src/types/) — Phase 3-A step C2
