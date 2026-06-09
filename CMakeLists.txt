@@ -219,6 +219,10 @@ target_include_directories(numkit
         # TODO: formalize the helpers.hpp leak as public "detail/" headers
         #       or a common utility lib.
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/builtin/src
+        # math/ relocated from builtin (Phase 3-A step C) — same role: shared
+        # math helpers + the Highway HWY_TARGET_INCLUDE resolution root for the
+        # relocated SIMD backends under math/src/<area>/.
+        ${CMAKE_CURRENT_SOURCE_DIR}/math/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src
