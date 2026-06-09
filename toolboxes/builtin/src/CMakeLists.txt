@@ -37,8 +37,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/cells/cell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/structures/struct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/datatypes/containers.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/bitwise/int_math.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/bitwise/int_math_reg.cpp # register (CallContext)
+    # bitwise/ (int_math) moved to the lang library (lang/src/bitwise/) — Phase 3-A step C2
     # math/ — MATLAB Mathematics
     # random/ (rng.cpp / rng_reg.cpp) moved to the math library (math/src/random/) — Phase 3-A step C1
     # matlab_mt19937.cpp moved to ops/ (numkit_ops) — the MT19937 engine is a

@@ -18,7 +18,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/arrays/manip.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/arrays/matrix.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/arrays/nd_manip.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/bitwise/int_math.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/cells/cell.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/commands/env.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/operators/binary_ops.hpp
