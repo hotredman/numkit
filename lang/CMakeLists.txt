@@ -34,6 +34,11 @@ list(APPEND NUMKIT_LANG_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/print_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/scan.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/scan_reg.cpp
+    # operators/ (arithmetic/relational/logical binary + unary; SIMD kernels in ops)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/binary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/binary_ops_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/unary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/unary_ops_reg.cpp
 )
 list(APPEND NUMKIT_LANG_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_LANG_HEADERS
@@ -43,6 +48,8 @@ list(APPEND NUMKIT_LANG_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/format.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/print.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/scan.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/operators/binary_ops.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/operators/unary_ops.hpp
 )
 
 set(NUMKIT_LANG_SOURCES      ${NUMKIT_LANG_SOURCES}      PARENT_SCOPE)
