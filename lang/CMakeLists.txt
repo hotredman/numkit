@@ -39,6 +39,13 @@ list(APPEND NUMKIT_LANG_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/binary_ops_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/unary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/unary_ops_reg.cpp
+    # arrays/ (matrix ops / manip flip-rot-sort / N-D manip — accum stays in builtin: core-coupled)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/matrix.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/matrix_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/manip.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/manip_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/nd_manip.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/nd_manip_reg.cpp
 )
 list(APPEND NUMKIT_LANG_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_LANG_HEADERS
@@ -50,6 +57,9 @@ list(APPEND NUMKIT_LANG_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/scan.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/operators/binary_ops.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/operators/unary_ops.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/arrays/matrix.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/arrays/manip.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/arrays/nd_manip.hpp
 )
 
 set(NUMKIT_LANG_SOURCES      ${NUMKIT_LANG_SOURCES}      PARENT_SCOPE)

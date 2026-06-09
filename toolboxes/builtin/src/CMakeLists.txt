@@ -10,12 +10,7 @@ set(STDLIB_SOURCES
     # operators/ (binary_ops, unary_ops) moved to the lang library (lang/src/operators/) — Phase 3-A step C2
     # la_solve.cpp moved to ops/ (numkit_ops) — shared linear-solve kernel
     # used by builtin `\` and toolboxes/linalg; ops/ sits below both.
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/matrix.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/matrix_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/manip_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/nd_manip.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/nd_manip_reg.cpp # register (CallContext)
+    # arrays/ (matrix, manip, nd_manip) moved to the lang library (lang/src/arrays/) — Phase 3-A step C2
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/accum.cpp
     # predicates.cpp / linalg_extras.cpp / ldl.cpp / balance.cpp /
     # lsq.cpp all migrated to toolboxes/linalg.
