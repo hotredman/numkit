@@ -20,8 +20,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/arrays/nd_manip.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/cells/cell.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/commands/env.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/operators/binary_ops.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/operators/unary_ops.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/structures/struct.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/types/types.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/containers.hpp
