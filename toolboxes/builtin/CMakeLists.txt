@@ -12,9 +12,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/library.hpp
     # (la_solve internal kernel moved to ops/ — numkit::ops::la_solve.)
     # math/
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/misc.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/reductions.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/rounding.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/integration/integration.hpp
     # language/
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/arrays/accum.hpp
