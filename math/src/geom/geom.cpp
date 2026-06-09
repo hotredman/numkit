@@ -1,11 +1,11 @@
-// toolboxes/builtin/src/math/geom/geom.cpp
+// math/src/geom/geom.cpp
 //
 // Computational-geometry primitives:
 //   inpolygon — point-in-polygon test (ray-casting)
 //   convhull  — convex hull of a 2-D point cloud (Andrew's monotone chain)
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/geom/geom.hpp>
+#include <numkit/math/geom/geom.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
