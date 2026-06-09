@@ -23,11 +23,15 @@ list(APPEND NUMKIT_MATH_SOURCES
     # complex/ (abs/angle/conj/real/imag/complex/iscomplex/...)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/complex/complex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/complex/complex_reg.cpp
+    # discrete/ (unique/ismember/union/intersect/setdiff/primes/factor/perms/histc...)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/discrete/discrete.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/discrete/discrete_reg.cpp
 )
 list(APPEND NUMKIT_MATH_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_MATH_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/geom/geom.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/complex/complex.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/discrete/discrete.hpp
 )
 
 set(NUMKIT_MATH_SOURCES      ${NUMKIT_MATH_SOURCES}      PARENT_SCOPE)

@@ -47,8 +47,7 @@ set(STDLIB_SOURCES
     # complex/ moved to the math library (math/src/complex/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete_reg.cpp # register (CallContext)
+    # discrete/ moved to the math library (math/src/discrete/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents.cpp # compute (engine-free)

@@ -15,7 +15,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/misc.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/reductions.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/rounding.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/discrete/discrete.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/exp_log/exponents.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/integration/integration.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/interp/interp.hpp
