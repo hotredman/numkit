@@ -7,6 +7,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/fs/vfs.hpp>
+#include <numkit/fs/fs_context.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -114,12 +115,17 @@ fileparts(const std::string &path, std::pmr::memory_resource *mr)
                             charValue(mr, ext));
 }
 
-Value tempdir(Engine &engine, std::pmr::memory_resource *mr)
+Value tempdir(FsContext &fs, std::pmr::memory_resource *mr)
 {
     // Prefer the resolved-FS temp area when available (lets hosts hook
     // a virtual temp area — IDE / WASM use this). Fall back to host OS.
     std::string td;
-    auto resolved = engine.resolvePath(".");
+    FsContext::ResolvedPath resolved{};
+    try {
+        resolved = fs.resolvePath(".");
+    } catch (const std::runtime_error &e) {
+        throw Error(e.what());
+    }
     if (resolved.fs) {
         try { td = resolved.fs->tempArea(); } catch (...) { td.clear(); }
     }
@@ -133,7 +139,7 @@ Value tempdir(Engine &engine, std::pmr::memory_resource *mr)
     return charValue(mr, td);
 }
 
-Value tempname(Engine &engine, std::pmr::memory_resource *mr)
+Value tempname(FsContext &fs, std::pmr::memory_resource *mr)
 {
     static std::atomic<uint64_t> counter{0};
     const uint64_t n = counter.fetch_add(1, std::memory_order_relaxed);
@@ -146,7 +152,7 @@ Value tempname(Engine &engine, std::pmr::memory_resource *mr)
             std::chrono::high_resolution_clock::now().time_since_epoch().count())};
     const uint64_t r = rng();
 
-    auto td = tempdir(engine, mr).toString();
+    auto td = tempdir(fs, mr).toString();
     std::ostringstream os;
     os << td << "tp"
        << std::hex << ns << "_" << r << "_" << n;
@@ -190,12 +196,12 @@ void fileparts_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 
 void tempdir_reg(Span<const Value> /*args*/, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = tempdir(*ctx.engine, ctx.engine->resource());
+    outs[0] = tempdir(ctx.engine->fsContext(), ctx.engine->resource());
 }
 
 void tempname_reg(Span<const Value> /*args*/, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = tempname(*ctx.engine, ctx.engine->resource());
+    outs[0] = tempname(ctx.engine->fsContext(), ctx.engine->resource());
 }
 
 } // namespace detail
