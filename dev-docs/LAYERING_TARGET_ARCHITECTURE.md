@@ -236,6 +236,27 @@ re-layering); G is the risky enforcement step.
   · C2 `lang` lib (same) · C3 core-coupled tail → `runtime` · C4 migrate the 185
   call-sites + drop shims · C5 registration → bundle (overlaps **F**). Each phase = its
   own green commit. **Invasive — touches every toolbox; coordinate. Multi-session.**
+
+  **STATUS (2026-06-10).** **C0 ✅** — shared engine-free helpers (`helpers` /
+  `rows_helpers` / `poly_helpers`) → `ops`, re-export shims left at the old
+  `builtin/src` paths. **C1 ✅** — all **11 math areas** relocated into `math/`
+  (geom, complex, discrete, interp, poly, permutations, random, trig, exp_log,
+  special, arithmetic). DEVIATION chosen for trivially-green per-area commits:
+  this was a **relocate-only** pass — files `git-mv`'d into `math/{src,include}`,
+  but the **namespace stays `numkit::builtin`** and forwarding stubs sit at every
+  old header path; the `numkit::builtin → numkit::math` rename + stub removal is
+  folded into **C4** (one mechanical pass over the relocated dirs). Key enablers:
+  (a) `toolboxes/builtin/src` is already on the `numkit` PRIVATE -I, so relocated
+  files' relative helper includes still resolve through the shims; (b) **SIMD
+  prerequisite** (commit `fa5ae9f9`): `math/src` added to that PRIVATE -I (Highway
+  `HWY_TARGET_INCLUDE` root) + the math-level shared helper `_unary_hint.hpp` moved
+  to `math/src/` (stub in builtin/src); each relocated `*_highway.cpp` had its
+  `HWY_TARGET_INCLUDE` de-prefixed (`"math/<area>/…"` → `"<area>/…"`); (c)
+  arithmetic additionally needed forwarding stubs at
+  `builtin/src/math/arithmetic/{cumsum,var_reduction}.hpp` for cross-toolbox
+  consumers (builtin matrix, stats descriptive). `group/` + `integration/` stay in
+  builtin (core-coupled → C3). Commits: geom `1fd555e5` … arithmetic `b8f9a126`.
+  **Next: C2 `lang`** (same relocate-only recipe).
 - **D. FnHandle-ize remaining callbacks** (cellfun-family, group, integration,
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
