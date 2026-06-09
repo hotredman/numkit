@@ -23,10 +23,26 @@ list(APPEND NUMKIT_LANG_SOURCES
     # bitwise/ (bitand/bitor/bitxor/bitshift/bitcmp/... — C2 pilot)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bitwise/int_math.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bitwise/int_math_reg.cpp
+    # strings/ (string ops / regexp / sprintf-family / disp-print / sscanf-family)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/strings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/strings_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/regex.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/regex_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/format.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/format_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/print.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/print_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/scan.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/scan_reg.cpp
 )
 list(APPEND NUMKIT_LANG_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_LANG_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/bitwise/int_math.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/strings.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/regex.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/format.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/print.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/lang/strings/scan.hpp
 )
 
 set(NUMKIT_LANG_SOURCES      ${NUMKIT_LANG_SOURCES}      PARENT_SCOPE)
