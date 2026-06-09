@@ -22,11 +22,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/commands/env.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/operators/binary_ops.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/operators/unary_ops.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/strings/format.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/strings/print.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/strings/regex.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/strings/scan.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/strings/strings.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/structures/struct.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/types/types.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/containers.hpp

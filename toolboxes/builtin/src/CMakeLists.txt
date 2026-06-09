@@ -24,16 +24,7 @@ set(STDLIB_SOURCES
     # lsq.cpp all migrated to toolboxes/linalg.
     ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/strings.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/strings_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/regex_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/format.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/format_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/print.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/print_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/scan.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/strings/scan_reg.cpp # register (CallContext)
+    # strings/ (strings/regex/format/print/scan) moved to the lang library (lang/src/strings/) — Phase 3-A step C2
     ${CMAKE_CURRENT_SOURCE_DIR}/language/cells/cell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/structures/struct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/datatypes/containers.cpp
