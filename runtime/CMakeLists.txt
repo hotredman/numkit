@@ -21,6 +21,9 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     # compute pulls core/engine|vm|callback_builtin, so they belong in runtime.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/commands/env.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/arrays/accum.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/datatypes/containers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/math/group/group.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/math/integration/integration.cpp
 )
 # Binary .mat backend pulls in matio.h directly — only compile it when the
 # matio dep is linked (NUMKIT_WITH_MATIO=ON). matio.h and the
@@ -36,6 +39,9 @@ list(APPEND NUMKIT_RUNTIME_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/saveload.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/commands/env.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/arrays/accum.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/containers.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/math/group/group.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/math/integration/integration.hpp
 )
 
 set(NUMKIT_RUNTIME_SOURCES      ${NUMKIT_RUNTIME_SOURCES}      PARENT_SCOPE)

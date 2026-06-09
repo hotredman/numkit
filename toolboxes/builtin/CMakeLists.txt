@@ -11,12 +11,10 @@ list(APPEND NUMKIT_LIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/library.hpp
     # (la_solve internal kernel moved to ops/ — numkit::ops::la_solve.)
-    # math/
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/integration/integration.hpp
+    # math/ — all relocated (integration.hpp -> runtime in C3; the rest -> math lib in C1)
     # language/
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/cells/cell.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/language/structures/struct.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/containers.hpp
     # programming/
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/programming/errors/diagnostics.hpp
 )
