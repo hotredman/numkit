@@ -44,8 +44,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng_reg.cpp # register (CallContext)
     # matlab_mt19937.cpp moved to ops/ (numkit_ops) — the MT19937 engine is a
     # shared primitive; builtin's rng.cpp uses it via numkit::ops.
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/complex/complex.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/complex/complex_reg.cpp # register (CallContext)
+    # complex/ moved to the math library (math/src/complex/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/discrete/discrete.cpp # compute (engine-free)

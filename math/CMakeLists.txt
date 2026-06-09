@@ -20,10 +20,14 @@ list(APPEND NUMKIT_MATH_SOURCES
     # geom/ (C1 pilot — inpolygon / convhull)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/geom/geom.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/geom/geom_reg.cpp
+    # complex/ (abs/angle/conj/real/imag/complex/iscomplex/...)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/complex/complex.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/complex/complex_reg.cpp
 )
 list(APPEND NUMKIT_MATH_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_MATH_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/geom/geom.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/complex/complex.hpp
 )
 
 set(NUMKIT_MATH_SOURCES      ${NUMKIT_MATH_SOURCES}      PARENT_SCOPE)
