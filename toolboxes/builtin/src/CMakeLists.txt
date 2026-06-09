@@ -45,8 +45,7 @@ set(STDLIB_SOURCES
     # matlab_mt19937.cpp moved to ops/ (numkit_ops) — the MT19937 engine is a
     # shared primitive; builtin's rng.cpp uses it via numkit::ops.
     # complex/ moved to the math library (math/src/complex/) — Phase 3-A step C1
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/poly/polynomials_reg.cpp # register (CallContext)
+    # poly/ moved to the math library (math/src/poly/) — Phase 3-A step C1
     # discrete/ moved to the math library (math/src/discrete/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trigonometry_reg.cpp # register (CallContext)
@@ -60,13 +59,11 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/misc.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/misc_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/interp/interp.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/interp/interp_reg.cpp # register (CallContext)
+    # interp/ moved to the math library (math/src/interp/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
     # geom/ moved to the math library (math/src/geom/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/group/group.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/permutations.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/permutations_reg.cpp # register (CallContext)
+    # permutations moved to the math library (math/src/permutations.cpp) — Phase 3-A step C1
     # math/optim/ moved to toolboxes/optim/
     # programming/ — MATLAB Programming and Scripts
     ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp # compute (engine-free)
