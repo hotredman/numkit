@@ -42,6 +42,12 @@ list(APPEND NUMKIT_MATH_SOURCES
     # NUMKIT_WITH_SIMD block below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trigonometry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trigonometry_reg.cpp
+    # exp_log/ (exp/log/log2/log10/sqrt/pow/... compute + register; SIMD below)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exponents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exponents_reg.cpp
+    # special/ (gamma/beta/erf/factorial-ish... compute + register; SIMD below)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special_reg.cpp
 )
 list(APPEND NUMKIT_MATH_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_MATH_HEADERS
@@ -53,6 +59,8 @@ list(APPEND NUMKIT_MATH_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/permutations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/random/rng.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/trig/trigonometry.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/exp_log/exponents.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/special/special.hpp
 )
 
 # Backend-split SIMD sources — one variant picked at configure time via
@@ -62,9 +70,13 @@ list(APPEND NUMKIT_MATH_HEADERS
 if(NUMKIT_WITH_SIMD)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_highway.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_recip_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exp_log_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special_highway.cpp)
 else()
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_portable.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_recip_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exp_log_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special_portable.cpp)
 endif()
 
 set(NUMKIT_MATH_SOURCES      ${NUMKIT_MATH_SOURCES}      PARENT_SCOPE)

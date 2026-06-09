@@ -47,10 +47,7 @@ set(STDLIB_SOURCES
     # poly/ moved to the math library (math/src/poly/) — Phase 3-A step C1
     # discrete/ moved to the math library (math/src/discrete/) — Phase 3-A step C1
     # trig/ moved to the math library (math/src/trig/) — Phase 3-A step C1
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exponents_reg.cpp # register (CallContext)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special_reg.cpp # register (CallContext)
+    # exp_log + special moved to the math library (math/src/) — Phase 3-A step C1
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/reductions.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/reductions_reg.cpp # register (CallContext)
     ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding.cpp # compute (engine-free)
@@ -84,8 +81,7 @@ if(NUMKIT_WITH_SIMD)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding_highway.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/mod_highway.cpp)
     # trig SIMD backends moved to the math library (math/src/trig/) — Phase 3-A step C1
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exp_log_highway.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special_highway.cpp)
+    # exp_log + special SIMD backends moved to the math library — Phase 3-A step C1
     # (binary_ops_highway.cpp + compare_highway.cpp moved to ops/ → numkit_ops)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/language/types/casts_highway.cpp)
 else()
@@ -97,8 +93,7 @@ else()
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/rounding_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/mod_portable.cpp)
     # trig SIMD backends moved to the math library (math/src/trig/) — Phase 3-A step C1
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exp_log_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/special/special_portable.cpp)
+    # exp_log + special SIMD backends moved to the math library — Phase 3-A step C1
     # (binary_ops_portable.cpp + compare_portable.cpp moved to ops/ → numkit_ops)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/language/types/casts_portable.cpp)
 endif()
