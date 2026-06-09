@@ -24,6 +24,8 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/datatypes/containers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/math/group/group.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/math/integration/integration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/cells/cell.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/structures/struct.cpp
 )
 # Binary .mat backend pulls in matio.h directly — only compile it when the
 # matio dep is linked (NUMKIT_WITH_MATIO=ON). matio.h and the
@@ -42,6 +44,8 @@ list(APPEND NUMKIT_RUNTIME_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/containers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/math/group/group.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/math/integration/integration.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/cells/cell.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/structures/struct.hpp
 )
 
 set(NUMKIT_RUNTIME_SOURCES      ${NUMKIT_RUNTIME_SOURCES}      PARENT_SCOPE)
