@@ -16,8 +16,7 @@ set(STDLIB_SOURCES
     # lsq.cpp all migrated to toolboxes/linalg.
     # types/ (types + casts SIMD) moved to the lang library (lang/src/types/) — Phase 3-A step C2
     # strings/ (strings/regex/format/print/scan) moved to the lang library (lang/src/strings/) — Phase 3-A step C2
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/cells/cell.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/structures/struct.cpp
+    # cells/cell + structures/struct moved to runtime (runtime/src/language/) — Phase 3-A step C3
     # datatypes/containers moved to runtime (runtime/src/language/datatypes/) — Phase 3-A step C3
     # bitwise/ (int_math) moved to the lang library (lang/src/bitwise/) — Phase 3-A step C2
     # math/ — MATLAB Mathematics
