@@ -553,6 +553,13 @@ public:
     using ResolvedPath = FsContext::ResolvedPath;
     ResolvedPath resolvePath(const std::string &userPath) const;
 
+    // Direct handle to the filesystem session (VFS registry + script-origin
+    // stack + cwd + resolver). Lets core-free toolbox code (io codecs, …)
+    // resolve paths through fs::FsContext WITHOUT depending on Engine — the
+    // Engine-free C++ API surface. Registration adapters pass engine.fsContext().
+    FsContext &fsContext() noexcept { return fsCtx_; }
+    const FsContext &fsContext() const noexcept { return fsCtx_; }
+
     // ── MATLAB-style file descriptor table ────────────────────
     //
     // fopen / fclose / fprintf(fid, …) machinery. File IDs 0, 1, 2 are
