@@ -17,7 +17,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/arithmetic/rounding.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/exp_log/exponents.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/integration/integration.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/random/rng.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/special/special.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/math/trig/trigonometry.hpp
     # language/

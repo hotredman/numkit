@@ -40,8 +40,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/bitwise/int_math.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/language/bitwise/int_math_reg.cpp # register (CallContext)
     # math/ — MATLAB Mathematics
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng_reg.cpp # register (CallContext)
+    # random/ (rng.cpp / rng_reg.cpp) moved to the math library (math/src/random/) — Phase 3-A step C1
     # matlab_mt19937.cpp moved to ops/ (numkit_ops) — the MT19937 engine is a
     # shared primitive; builtin's rng.cpp uses it via numkit::ops.
     # complex/ moved to the math library (math/src/complex/) — Phase 3-A step C1
