@@ -12,7 +12,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/arithmetic/rounding_highway.cpp"
+#define HWY_TARGET_INCLUDE "arithmetic/rounding_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

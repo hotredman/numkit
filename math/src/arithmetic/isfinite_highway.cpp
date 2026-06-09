@@ -15,7 +15,7 @@
 #include <cstdint>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/arithmetic/isfinite_highway.cpp"
+#define HWY_TARGET_INCLUDE "arithmetic/isfinite_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

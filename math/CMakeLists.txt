@@ -48,6 +48,13 @@ list(APPEND NUMKIT_MATH_SOURCES
     # special/ (gamma/beta/erf/factorial-ish... compute + register; SIMD below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special_reg.cpp
+    # arithmetic/ (misc/reductions/rounding compute + register; SIMD backends below)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/misc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/misc_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/reductions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/reductions_reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/rounding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/rounding_reg.cpp
 )
 list(APPEND NUMKIT_MATH_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_MATH_HEADERS
@@ -61,6 +68,9 @@ list(APPEND NUMKIT_MATH_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/trig/trigonometry.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/exp_log/exponents.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/special/special.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/arithmetic/misc.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/arithmetic/reductions.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/arithmetic/rounding.hpp
 )
 
 # Backend-split SIMD sources — one variant picked at configure time via
@@ -72,11 +82,25 @@ if(NUMKIT_WITH_SIMD)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_recip_highway.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exp_log_highway.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/abs_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/cumsum_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/logical_reductions_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/var_reduction_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/isfinite_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/rounding_highway.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/mod_highway.cpp)
 else()
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_portable.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_recip_portable.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exp_log_portable.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/abs_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/cumsum_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/logical_reductions_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/var_reduction_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/isfinite_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/rounding_portable.cpp)
+    list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/mod_portable.cpp)
 endif()
 
 set(NUMKIT_MATH_SOURCES      ${NUMKIT_MATH_SOURCES}      PARENT_SCOPE)
