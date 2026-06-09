@@ -11,11 +11,13 @@ namespace numkit::runtime {
 // Per-cluster registrars (defined in sibling TUs).
 void registerEvalFamily(Engine &engine);        // eval.cpp     — run / eval / evalin
 void registerWorkspaceRuntime(Engine &engine);  // workspace.cpp — assignin / inputname / …
+void registerFunctionHandles(Engine &engine);   // function_handles.cpp — str2func / func2str
 
 void installRuntimeLibrary(Engine &engine)
 {
     registerEvalFamily(engine);
     registerWorkspaceRuntime(engine);
+    registerFunctionHandles(engine);
 }
 
 } // namespace numkit::runtime
