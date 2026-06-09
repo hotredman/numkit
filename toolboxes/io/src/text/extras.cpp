@@ -7,6 +7,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/fs/vfs.hpp>
+#include <numkit/fs/fs_context.hpp>
 #include <numkit/value/scratch.hpp>
 
 #include <cmath>
@@ -20,9 +21,14 @@ namespace numkit::io {
 namespace {
 
 // Resolve via the engine and read the whole file as a string.
-std::string slurpFile(Engine &engine, const std::string &filename, const char *fnName)
+std::string slurpFile(FsContext &fs, const std::string &filename, const char *fnName)
 {
-    auto resolved = engine.resolvePath(filename);
+    FsContext::ResolvedPath resolved{};
+    try {
+        resolved = fs.resolvePath(filename);
+    } catch (const std::runtime_error &e) {
+        throw Error(e.what());
+    }
     if (!resolved.fs)
         throw Error(std::string(fnName) + ": cannot resolve filesystem for '" + filename + "'",
                      0, 0, fnName, "", std::string("numkit:") + fnName + ":noFs");
@@ -34,10 +40,15 @@ std::string slurpFile(Engine &engine, const std::string &filename, const char *f
     }
 }
 
-void spitFile(Engine &engine, const std::string &filename, const std::string &content,
+void spitFile(FsContext &fs, const std::string &filename, const std::string &content,
               const char *fnName)
 {
-    auto resolved = engine.resolvePath(filename);
+    FsContext::ResolvedPath resolved{};
+    try {
+        resolved = fs.resolvePath(filename);
+    } catch (const std::runtime_error &e) {
+        throw Error(e.what());
+    }
     if (!resolved.fs)
         throw Error(std::string(fnName) + ": cannot resolve filesystem for '" + filename + "'",
                      0, 0, fnName, "", std::string("numkit:") + fnName + ":noFs");
@@ -203,18 +214,18 @@ std::string writematrixToString(const Value &m)
 }
 
 // ── fileread ──────────────────────────────────────────────────────────
-Value fileread(Engine &engine, const std::string &filename,
+Value fileread(FsContext &fs, const std::string &filename,
                std::pmr::memory_resource *mr)
 {
-    return charRow(mr, slurpFile(engine, filename, "fileread"));
+    return charRow(mr, slurpFile(fs, filename, "fileread"));
 }
 
 // ── readlines ─────────────────────────────────────────────────────────
 // Returns a STRING array (column vector), N×1.
-Value readlines(Engine &engine, const std::string &filename,
+Value readlines(FsContext &fs, const std::string &filename,
                 std::pmr::memory_resource *mr)
 {
-    auto lines = splitLines(slurpFile(engine, filename, "readlines"));
+    auto lines = splitLines(slurpFile(fs, filename, "readlines"));
     auto out = Value::stringArray(lines.size(), 1, mr);
     for (size_t i = 0; i < lines.size(); ++i)
         out.stringElemSet(i, lines[i]);
@@ -222,7 +233,7 @@ Value readlines(Engine &engine, const std::string &filename,
 }
 
 // ── writelines ────────────────────────────────────────────────────────
-void writelines(Engine &engine, const Value &lines, const std::string &filename)
+void writelines(FsContext &fs, const Value &lines, const std::string &filename)
 {
     std::ostringstream os;
     auto append = [&](const std::string &s) {
@@ -258,26 +269,26 @@ void writelines(Engine &engine, const Value &lines, const std::string &filename)
         throw Error("writelines: lines must be a string, string array, or cell of strings",
                      0, 0, "writelines", "", "numkit:writelines:badArg");
     }
-    spitFile(engine, filename, os.str(), "writelines");
+    spitFile(fs, filename, os.str(), "writelines");
 }
 
 // ── readmatrix ────────────────────────────────────────────────────────
-Value readmatrix(Engine &engine, const std::string &filename,
+Value readmatrix(FsContext &fs, const std::string &filename,
                  std::pmr::memory_resource *mr)
 {
-    return readmatrixFromString(slurpFile(engine, filename, "readmatrix"), mr);
+    return readmatrixFromString(slurpFile(fs, filename, "readmatrix"), mr);
 }
 
 // ── writematrix ───────────────────────────────────────────────────────
-void writematrix(Engine &engine, const Value &m, const std::string &filename)
+void writematrix(FsContext &fs, const Value &m, const std::string &filename)
 {
-    spitFile(engine, filename, writematrixToString(m), "writematrix");
+    spitFile(fs, filename, writematrixToString(m), "writematrix");
 }
 
 // ── type ──────────────────────────────────────────────────────────────
 void type(Engine &engine, const std::string &filename)
 {
-    auto content = slurpFile(engine, filename, "type");
+    auto content = slurpFile(engine.fsContext(), filename, "type");
     engine.outputText(content);
     if (content.empty() || content.back() != '\n')
         engine.outputText("\n");
@@ -290,7 +301,7 @@ void fileread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("fileread: requires a filename string",
                      0, 0, "fileread", "", "numkit:fileread:nargin");
-    outs[0] = fileread(*ctx.engine, args[0].toString(), ctx.engine->resource());
+    outs[0] = fileread(ctx.engine->fsContext(), args[0].toString(), ctx.engine->resource());
 }
 
 void readlines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -298,7 +309,7 @@ void readlines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("readlines: requires a filename string",
                      0, 0, "readlines", "", "numkit:readlines:nargin");
-    outs[0] = readlines(*ctx.engine, args[0].toString(), ctx.engine->resource());
+    outs[0] = readlines(ctx.engine->fsContext(), args[0].toString(), ctx.engine->resource());
 }
 
 void writelines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -309,7 +320,7 @@ void writelines_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (!args[1].isChar() && !args[1].isString())
         throw Error("writelines: filename must be a string",
                      0, 0, "writelines", "", "numkit:writelines:badFilename");
-    writelines(*ctx.engine, args[0], args[1].toString());
+    writelines(ctx.engine->fsContext(), args[0], args[1].toString());
     outs[0] = Value();
 }
 
@@ -318,7 +329,7 @@ void readmatrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
         throw Error("readmatrix: requires a filename string",
                      0, 0, "readmatrix", "", "numkit:readmatrix:nargin");
-    outs[0] = readmatrix(*ctx.engine, args[0].toString(), ctx.engine->resource());
+    outs[0] = readmatrix(ctx.engine->fsContext(), args[0].toString(), ctx.engine->resource());
 }
 
 void writematrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -329,7 +340,7 @@ void writematrix_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
     if (!args[1].isChar() && !args[1].isString())
         throw Error("writematrix: filename must be a string",
                      0, 0, "writematrix", "", "numkit:writematrix:badFilename");
-    writematrix(*ctx.engine, args[0], args[1].toString());
+    writematrix(ctx.engine->fsContext(), args[0], args[1].toString());
     outs[0] = Value();
 }
 
