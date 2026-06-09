@@ -256,7 +256,18 @@ re-layering); G is the risky enforcement step.
   `builtin/src/math/arithmetic/{cumsum,var_reduction}.hpp` for cross-toolbox
   consumers (builtin matrix, stats descriptive). `group/` + `integration/` stay in
   builtin (core-coupled → C3). Commits: geom `1fd555e5` … arithmetic `b8f9a126`.
-  **Next: C2 `lang`** (same relocate-only recipe).
+  **C2 ✅** — the `lang` library now holds all five core-free language areas:
+  bitwise (`3c95afab`), strings (`becd493d`), operators (`a2c6c709`), arrays
+  {matrix/manip/nd_manip} (`b96a7e40`), types {+casts SIMD} (`3f5da7b2`). Same
+  relocate-only recipe; the casts SIMD backend needed the same prerequisite as
+  math (lang/src on the numkit PRIVATE -I + casts_highway HWY_TARGET_INCLUDE
+  de-prefix), mirroring trig. Core-COUPLED language areas stay in builtin →
+  **C3**: cells/cell, structures/struct, datatypes/containers, arrays/accum, and
+  commands/env (env's compute pulls core/engine, so it is NOT core-free despite
+  the §E note). **Next: C3** (core-coupled tail → runtime), then C4 (the single
+  ns-rename numkit::builtin → numkit::math / numkit::lang over all relocated dirs
+  + include-path cleanup + drop ALL forwarding stubs/shims), C5 (registration →
+  bundle = F), then D / F / G / H.
 - **D. FnHandle-ize remaining callbacks** (cellfun-family, group, integration,
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
