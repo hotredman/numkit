@@ -210,20 +210,39 @@ re-layering); G is the risky enforcement step.
 - **0. DONE:** value/fs/ops separate libs; core↔libs cycle broken; runtime layer
   (currently `core-libs`) holds eval/workspace/save-load; ode/optim FnHandle;
   csv/extras `*FromString`.
-- **A. `core-libs → runtime`** rename: dir, ns `numkit::corelibs → numkit::runtime`,
-  `NUMKIT_CORELIBS_* → NUMKIT_RUNTIME_*`. Small, mechanical.
-- **B. FsContext:** extract path-resolution state+logic from `Engine` into a
-  `fs/` type; Engine composes one; migrate io + save/load file-access onto it.
-  → io becomes core-free. (core + fs + io territory)
-- **C. `builtin → math + lang`** out of `toolboxes/`: move dirs, ns
-  `numkit::builtin → numkit::{math,lang}`, retarget all callers. Core-coupled
-  builtin TUs (cell/struct/accum/group/integration/containers/env) → `runtime`
-  whole (for now). **Invasive — touches every toolbox; coordinate.**
+- **A. ✅ DONE (ddfb1e38)** `core-libs → runtime` rename: dir, ns
+  `numkit::corelibs → numkit::runtime`, `NUMKIT_CORELIBS_* → NUMKIT_RUNTIME_*`.
+- **B. ✅ DONE (B0/B1/B2a)** FsContext: B0 branding→fs (41a0dbd7); B1 extracted
+  `fs::FsContext` + Engine delegates (f23ee5fc); B2a io VFS-wrappers (csv/extras/
+  paths + Engine::fsContext()) take `FsContext&` not `Engine&` (f2a172c6, 5df57ba7,
+  f24c8928). `type`/`fileio` legitimately stay `Engine&`. B2b (io TUs truly
+  core-free = move in-TU `_reg` adapters to bundle) folded into **F**.
+- **C. `builtin → math + lang`** out of `toolboxes/` (decision LOCKED 2026-06-09:
+  full rename, ns `numkit::builtin → numkit::{math,lang}`, headers
+  `<numkit/builtin/...>` → `<numkit/{math,lang}/...>`). **Per-TU map** (mirrors the
+  existing `builtin/src/{language,math}/` sub-trees): `math/` subtree
+  (arithmetic·complex·discrete·exp_log·geom·interp·permutations·poly·random·special·
+  trig) → **`math`**; `language/` subtree (strings·arrays-manip·types·bitwise·
+  operators) → **`lang`**; `env` → **`lang`** (core-free since B0). Core-coupled tail
+  (cell·struct·accum·group·integration·containers registration) → **`runtime`** whole.
+  containers `containers::` compute → `lang`. **SAFE INCREMENTAL STRATEGY** — callers
+  reference `numkit::builtin::` 185× across 78 files and include the umbrella
+  `<numkit/builtin/library.hpp>` (NOT specific headers): (1) keep `library.hpp` as a
+  FORWARDING umbrella that re-includes the relocated headers; (2) add transitional
+  `namespace numkit::builtin { using namespace math; using namespace lang; }` shim so
+  ALL 185 call-sites compile UNCHANGED during the move; (3) migrate call-sites
+  `builtin::`→`math::`/`lang::` in a later mechanical pass; (4) drop the shim. **Phases:**
+  C1 create `math` lib (git-mv math/ .cpp+headers, ns→`numkit::math`, shims, CMake, green)
+  · C2 `lang` lib (same) · C3 core-coupled tail → `runtime` · C4 migrate the 185
+  call-sites + drop shims · C5 registration → bundle (overlaps **F**). Each phase = its
+  own green commit. **Invasive — touches every toolbox; coordinate. Multi-session.**
 - **D. FnHandle-ize remaining callbacks** (cellfun-family, group, integration,
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
-- **E. str2func/func2str + containers.Map → runtime**; decide env (runtime vs
-  relocate envGet → lang).
+- **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
+  feval stays in builtin until F because of its FevalCallbackBuiltin adapter).
+  containers.Map: `containers::` compute → `lang`, registry hooks → bundle (lands
+  with C3/F, not a plain runtime move). env → `lang` (core-free since B0; lands with C).
 - **F. Registration → bundle:** after the adapter audit, relocate `*_reg` +
   `install` per-domain into `bundle/src/register/`. **Invasive — coordinate.**
 - **G. Target split:** separate `.lib` per layer; **WASM/emscripten
