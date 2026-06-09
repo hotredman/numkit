@@ -35,6 +35,9 @@ list(APPEND NUMKIT_MATH_SOURCES
     # permutations (top-level: perms / nchoosek / factorial / ...)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/permutations.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/permutations_reg.cpp
+    # random/ (rand / randn / randi / randperm / rng — engine in ops, wrappers here)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/random/rng.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/random/rng_reg.cpp
 )
 list(APPEND NUMKIT_MATH_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_MATH_HEADERS
@@ -44,6 +47,7 @@ list(APPEND NUMKIT_MATH_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/interp/interp.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/poly/polynomials.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/permutations.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/math/random/rng.hpp
 )
 
 set(NUMKIT_MATH_SOURCES      ${NUMKIT_MATH_SOURCES}      PARENT_SCOPE)
