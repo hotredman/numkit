@@ -14,8 +14,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/language/arrays/accum.cpp
     # predicates.cpp / linalg_extras.cpp / ldl.cpp / balance.cpp /
     # lsq.cpp all migrated to toolboxes/linalg.
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/types/types_reg.cpp # register (CallContext)
+    # types/ (types + casts SIMD) moved to the lang library (lang/src/types/) — Phase 3-A step C2
     # strings/ (strings/regex/format/print/scan) moved to the lang library (lang/src/strings/) — Phase 3-A step C2
     ${CMAKE_CURRENT_SOURCE_DIR}/language/cells/cell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/structures/struct.cpp
@@ -54,13 +53,13 @@ if(NUMKIT_WITH_SIMD)
     # trig SIMD backends moved to the math library (math/src/trig/) — Phase 3-A step C1
     # exp_log + special SIMD backends moved to the math library — Phase 3-A step C1
     # (binary_ops_highway.cpp + compare_highway.cpp moved to ops/ → numkit_ops)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/language/types/casts_highway.cpp)
+    # casts SIMD backend (highway) moved to the lang library (lang/src/types/) — Phase 3-A step C2
 else()
     # arithmetic SIMD backends moved to the math library (math/src/arithmetic/) — Phase 3-A step C1
     # trig SIMD backends moved to the math library (math/src/trig/) — Phase 3-A step C1
     # exp_log + special SIMD backends moved to the math library — Phase 3-A step C1
     # (binary_ops_portable.cpp + compare_portable.cpp moved to ops/ → numkit_ops)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/language/types/casts_portable.cpp)
+    # casts SIMD backend (portable) moved to the lang library (lang/src/types/) — Phase 3-A step C2
 endif()
 
 set(STDLIB_SOURCES ${STDLIB_SOURCES} PARENT_SCOPE)
