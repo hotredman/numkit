@@ -9,6 +9,7 @@
 #include <numkit/io/text/csv.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/fs/fs_context.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
@@ -208,9 +209,8 @@ std::string csvwriteToString(const Value &M, size_t offR, size_t offC)
 // Missing cells are read as 0. Filenames with no extension get ".csv".
 // ════════════════════════════════════════════════════════════════════════
 
-Value csvread(Engine &engine, Span<const Value> args)
+Value csvread(FsContext &fs, Span<const Value> args, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty() || !args[0].isChar())
         throw Error("csvread requires a filename as the first argument");
 
@@ -233,7 +233,12 @@ Value csvread(Engine &engine, Span<const Value> args)
             throw Error("csvread: invalid range [R1 C1 R2 C2]");
     }
 
-    auto resolved = engine.resolvePath(filename);
+    FsContext::ResolvedPath resolved{};
+    try {
+        resolved = fs.resolvePath(filename);
+    } catch (const std::runtime_error &e) {
+        throw Error(e.what());
+    }
     std::string content;
     try {
         content = resolved.fs->readFile(resolved.path);
@@ -243,7 +248,7 @@ Value csvread(Engine &engine, Span<const Value> args)
     return csvreadFromString(content, r1, c1, haveRange, r2, c2, mr);
 }
 
-void csvwrite(Engine &engine, Span<const Value> args)
+void csvwrite(FsContext &fs, Span<const Value> args)
 {
     if (args.size() < 2)
         throw Error("csvwrite requires filename and matrix arguments");
@@ -261,7 +266,12 @@ void csvwrite(Engine &engine, Span<const Value> args)
 
     const std::string out = csvwriteToString(M, offR, offC);
 
-    auto resolved = engine.resolvePath(filename);
+    FsContext::ResolvedPath resolved{};
+    try {
+        resolved = fs.resolvePath(filename);
+    } catch (const std::runtime_error &e) {
+        throw Error(e.what());
+    }
     try {
         resolved.fs->writeFile(resolved.path, out);
     } catch (const std::exception &e) {
@@ -278,14 +288,14 @@ namespace detail {
 void csvread_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     (void)nargout;
-    outs[0] = csvread(*ctx.engine, args);
+    outs[0] = csvread(ctx.engine->fsContext(), args, ctx.engine->resource());
 }
 
 void csvwrite_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     (void)nargout;
     (void)outs;
-    csvwrite(*ctx.engine, args);
+    csvwrite(ctx.engine->fsContext(), args);
 }
 
 } // namespace detail

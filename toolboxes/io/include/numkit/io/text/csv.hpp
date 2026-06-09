@@ -8,7 +8,7 @@
 #include <string>
 
 namespace numkit {
-class Engine;
+class FsContext;
 }
 
 namespace numkit::io {
@@ -33,10 +33,11 @@ std::string csvwriteToString(const Value &M, size_t offR = 0, size_t offC = 0);
 /// @file
 /// @brief CSV text I/O.
 ///
-/// Both routes go through the engine's VirtualFS (`resolvePath` +
-/// `readFile` / `writeFile`), so `Engine &` is required. Signatures are
-/// Span-based because `csvread` / `csvwrite` are inherently
-/// variadic (range arg, offsets).
+/// Both routes go through the VirtualFS via `FsContext::resolvePath` +
+/// `readFile` / `writeFile`, so a `FsContext &` is required (NOT an Engine —
+/// path resolution is Engine-free; registration adapters pass
+/// `engine.fsContext()`). Signatures are Span-based because `csvread` /
+/// `csvwrite` are inherently variadic (range arg, offsets).
 
 /// @brief `csvread` (`M = csvread(filename, R0, C0, range)`).
 ///
@@ -47,12 +48,14 @@ std::string csvwriteToString(const Value &M, size_t offR = 0, size_t offC = 0);
 ///                                        (0-based).
 /// - `(filename, R0, C0, [R1 C1 R2 C2])` — explicit range.
 ///
-/// @param engine  Engine context (VFS).
-/// @param args    Variadic arguments as documented above.
+/// @param fs    Filesystem session (VFS registry + resolver).
+/// @param args  Variadic arguments as documented above.
+/// @param mr    Allocator for the result Value (defaults to default resource).
 /// @return        DOUBLE matrix.
 /// @throws Error  Bad args / file not found / parse failure.
 /// @see csvwrite, readmatrix
-Value csvread(Engine &engine, Span<const Value> args);
+Value csvread(FsContext &fs, Span<const Value> args,
+              std::pmr::memory_resource *mr = nullptr);
 
 /// @brief `csvwrite` (`csvwrite(filename, M, R0, C0)`).
 ///
@@ -61,10 +64,10 @@ Value csvread(Engine &engine, Span<const Value> args);
 /// - `(filename, M, R0, C0)`      — start writing at `(R0, C0)`
 ///   (file is overwritten; offsets prepend blank columns / rows).
 ///
-/// @param engine  Engine context (VFS).
-/// @param args    Variadic arguments as documented above.
+/// @param fs    Filesystem session (VFS registry + resolver).
+/// @param args  Variadic arguments as documented above.
 /// @throws Error  Bad args / write failure.
 /// @see csvread, writematrix
-void csvwrite(Engine &engine, Span<const Value> args);
+void csvwrite(FsContext &fs, Span<const Value> args);
 
 } // namespace numkit::io
