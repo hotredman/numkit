@@ -18,7 +18,7 @@ set(STDLIB_SOURCES
     # strings/ (strings/regex/format/print/scan) moved to the lang library (lang/src/strings/) — Phase 3-A step C2
     ${CMAKE_CURRENT_SOURCE_DIR}/language/cells/cell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/language/structures/struct.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/language/datatypes/containers.cpp
+    # datatypes/containers moved to runtime (runtime/src/language/datatypes/) — Phase 3-A step C3
     # bitwise/ (int_math) moved to the lang library (lang/src/bitwise/) — Phase 3-A step C2
     # math/ — MATLAB Mathematics
     # random/ (rng.cpp / rng_reg.cpp) moved to the math library (math/src/random/) — Phase 3-A step C1
@@ -31,9 +31,9 @@ set(STDLIB_SOURCES
     # exp_log + special moved to the math library (math/src/) — Phase 3-A step C1
     # arithmetic/ (misc/reductions/rounding) moved to the math library (math/src/arithmetic/) — Phase 3-A step C1
     # interp/ moved to the math library (math/src/interp/) — Phase 3-A step C1
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
+    # math/integration moved to runtime (runtime/src/math/integration/) — Phase 3-A step C3
     # geom/ moved to the math library (math/src/geom/) — Phase 3-A step C1
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/group/group.cpp
+    # math/group moved to runtime (runtime/src/math/group/) — Phase 3-A step C3
     # permutations moved to the math library (math/src/permutations.cpp) — Phase 3-A step C1
     # math/optim/ moved to toolboxes/optim/
     # programming/ — MATLAB Programming and Scripts
