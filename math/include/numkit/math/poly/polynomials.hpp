@@ -9,7 +9,7 @@
 
 #include <tuple>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @file
 /// @brief Polynomial-domain builtins.
@@ -212,4 +212,4 @@ struct PadeCoef {
 PadeCoef padecoef(double T, int N,
                   std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

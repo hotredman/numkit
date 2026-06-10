@@ -18,7 +18,7 @@
 
 #include "polynomials_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 Value roots(const Value &p, std::pmr::memory_resource *mr)
 {
@@ -37,7 +37,7 @@ Value roots(const Value &p, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < n; ++i)
         coeffs[i] = p.elemAsDouble(i);
 
-    auto rs = detail::polyRootsDurandKerner(&scratch, coeffs.data(), coeffs.size());
+    auto rs = numkit::ops::polyRootsDurandKerner(&scratch, coeffs.data(), coeffs.size());
     const std::size_t k = rs.size();
 
     // If every root is real, return a real column. Otherwise return COMPLEX.
@@ -140,13 +140,13 @@ tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr)
     if (bv.empty() || bnz == bv.size()) {
         // Numerator is empty or all zeros → no zeros, gain 0.
         auto z = Value::matrix(0, 1, ValueType::DOUBLE, mr);
-        auto pRoots = detail::polyRootsDurandKerner(&scratch, av.data(), av.size());
+        auto pRoots = numkit::ops::polyRootsDurandKerner(&scratch, av.data(), av.size());
         auto p = realColIfFlat(pRoots.data(), pRoots.size(), mr);
         auto k = Value::scalar(0.0, mr);
         return std::make_tuple(std::move(z), std::move(p), std::move(k));
     }
-    auto zRoots = detail::polyRootsDurandKerner(&scratch, bv.data(), bv.size());
-    auto pRoots = detail::polyRootsDurandKerner(&scratch, av.data(), av.size());
+    auto zRoots = numkit::ops::polyRootsDurandKerner(&scratch, bv.data(), bv.size());
+    auto pRoots = numkit::ops::polyRootsDurandKerner(&scratch, av.data(), av.size());
     const double k = bv[bnz] / av[0];
 
     return std::make_tuple(realColIfFlat(zRoots.data(), zRoots.size(), mr),
@@ -160,8 +160,8 @@ zp2tf(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr)
     ScratchArena scratch(mr);
     auto zv = readVecAsComplex(z, "zp2tf", &scratch);
     auto pv = readVecAsComplex(p, "zp2tf", &scratch);
-    auto bRaw = detail::polyExpandFromRoots(&scratch, zv.data(), zv.size());
-    auto aRaw = detail::polyExpandFromRoots(&scratch, pv.data(), pv.size());
+    auto bRaw = numkit::ops::polyExpandFromRoots(&scratch, zv.data(), zv.size());
+    auto aRaw = numkit::ops::polyExpandFromRoots(&scratch, pv.data(), pv.size());
     for (auto &v : bRaw) v *= k;
     // MATLAB returns b with the SAME length as a: when there are fewer
     // zeros than poles, the numerator is left-padded with zeros (the
@@ -197,7 +197,7 @@ Value poly(const Value &r, std::pmr::memory_resource *mr)
         const double *p = r.doubleData();
         for (size_t i = 0; i < n; ++i) cv[i] = Complex(p[i], 0.0);
     }
-    auto coeffs = detail::polyExpandFromRoots(&scratch, cv.data(), n);
+    auto coeffs = numkit::ops::polyExpandFromRoots(&scratch, cv.data(), n);
     return rowFromVec(coeffs.data(), coeffs.size(), mr);
 }
 
@@ -493,7 +493,7 @@ ResidueResult residueS(const Value &b, const Value &a,
 
     // Roots of A → s-domain poles.
     ScratchArena scratch(mr);
-    auto rs = detail::polyRootsDurandKerner(&scratch, A.data(), A.size());
+    auto rs = numkit::ops::polyRootsDurandKerner(&scratch, A.data(), A.size());
     std::vector<Complex> poles(rs.begin(), rs.end());
 
     if (hasRepeatedPoles(poles))
@@ -556,7 +556,7 @@ ResidueResult residueZ(const Value &b, const Value &a,
     // as MATLAB-descending; for our purpose both readings have the
     // same roots (a + b·z^-1 mult by z → a·z + b, roots match s-form).
     ScratchArena scratch(mr);
-    auto rs = detail::polyRootsDurandKerner(&scratch, A.data(), A.size());
+    auto rs = numkit::ops::polyRootsDurandKerner(&scratch, A.data(), A.size());
     std::vector<Complex> poles(rs.begin(), rs.end());
 
     if (hasRepeatedPoles(poles))
@@ -718,4 +718,4 @@ Value polyval(const Value &p, const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

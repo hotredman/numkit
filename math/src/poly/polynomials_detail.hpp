@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 namespace {
 
@@ -93,24 +93,24 @@ void trimLeadingZeros(ScratchVec<double> &v)
 } // namespace
 namespace {
 
-ScratchVec<detail::Complex> readVecAsComplex(const Value &v, const char *fn, std::pmr::memory_resource *mr)
+ScratchVec<numkit::ops::Complex> readVecAsComplex(const Value &v, const char *fn, std::pmr::memory_resource *mr)
 {
     if (!v.dims().isVector() && !v.isScalar() && !v.isEmpty())
         throw Error(std::string(fn) + ": argument must be a vector",
                      0, 0, fn, "", std::string("numkit:") + fn + ":notVector");
     const std::size_t n = v.numel();
-    ScratchVec<detail::Complex> r(n, mr);
+    ScratchVec<numkit::ops::Complex> r(n, mr);
     if (v.type() == ValueType::COMPLEX) {
         const auto *p = v.complexData();
         for (std::size_t i = 0; i < n; ++i) r[i] = p[i];
     } else {
         for (std::size_t i = 0; i < n; ++i)
-            r[i] = detail::Complex(v.elemAsDouble(i), 0.0);
+            r[i] = numkit::ops::Complex(v.elemAsDouble(i), 0.0);
     }
     return r;
 }
 
-Value complexColFromVec(const detail::Complex *v, std::size_t n, std::pmr::memory_resource *mr)
+Value complexColFromVec(const numkit::ops::Complex *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     auto out = Value::complexMatrix(n, 1, mr);
     for (std::size_t i = 0; i < n; ++i)
@@ -118,7 +118,7 @@ Value complexColFromVec(const detail::Complex *v, std::size_t n, std::pmr::memor
     return out;
 }
 
-Value realColIfFlat(const detail::Complex *v, std::size_t n, std::pmr::memory_resource *mr)
+Value realColIfFlat(const numkit::ops::Complex *v, std::size_t n, std::pmr::memory_resource *mr)
 {
     bool anyComplex = false;
     for (std::size_t i = 0; i < n; ++i)
@@ -137,4 +137,4 @@ Value realColIfFlat(const detail::Complex *v, std::size_t n, std::pmr::memory_re
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace numkit::math
