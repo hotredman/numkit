@@ -118,8 +118,8 @@ Value randsrc(size_t m, size_t n, const Value &alphabet,
             o[i] = alpha[idx];
         }
     } else {
-        auto &gen = ::numkit::builtin::sharedEngine();
-        auto &mtx = ::numkit::builtin::rngMutex();
+        auto &gen = ::numkit::math::sharedEngine();
+        auto &mtx = ::numkit::math::rngMutex();
         std::lock_guard<std::mutex> lk(mtx);
         for (size_t i = 0; i < N; ++i) {
             const double r = gen.genRes53();
@@ -268,8 +268,8 @@ Value randerr(size_t m, size_t n, const Value &errspec,
         for (size_t i = 0; i < m; ++i)
             fillOneRow(o, i, m, n, counts, prob, K, local, rs, p);
     } else {
-        auto &gen = ::numkit::builtin::sharedEngine();
-        auto &mtx = ::numkit::builtin::rngMutex();
+        auto &gen = ::numkit::math::sharedEngine();
+        auto &mtx = ::numkit::math::rngMutex();
         std::lock_guard<std::mutex> lk(mtx);
         for (size_t i = 0; i < m; ++i)
             fillOneRow(o, i, m, n, counts, prob, K, gen, rs, p);

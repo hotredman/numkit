@@ -93,8 +93,8 @@ Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
 
 Value frnd(double v1, double v2, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (v1 <= 0.0 || v2 <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
@@ -173,8 +173,8 @@ Value ncfrnd(double nu1, double nu2, double delta,
              std::size_t rows, std::size_t cols,
              std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0 || rows * cols == 0)
         return out;

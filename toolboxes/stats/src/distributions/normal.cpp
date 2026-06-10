@@ -48,8 +48,8 @@ Value norminv(const Value &p, double mu, double sigma, std::pmr::memory_resource
 Value normrnd(double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     if (sigma < 0.0) sigma = 0.0;
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;

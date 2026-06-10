@@ -138,8 +138,8 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
 
 Value trnd(double nu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (nu <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
@@ -209,8 +209,8 @@ std::tuple<double, double> nctstat(double nu, double delta)
 Value nctrnd(double nu, double delta, std::size_t rows, std::size_t cols,
              std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!(nu > 0.0) || rows * cols == 0) return out;
     double *od = out.doubleDataMut();

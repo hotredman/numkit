@@ -31,8 +31,8 @@ Value randsample(int N, int K, bool with_replacement, const Value &weights, std:
         throw Error("randsample: weights length must equal N",
                     0, 0, "randsample", "", "numkit:randsample:size");
 
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::vector<int> idx;
     {
         std::lock_guard<std::mutex> lk(mtx);
@@ -59,8 +59,8 @@ Value datasample(const Value &X, int K, int dim, bool with_replacement, const Va
         throw Error("datasample: weights length must equal sample-axis size",
                     0, 0, "datasample", "", "numkit:datasample:size");
 
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::vector<int> idx;
     {
         std::lock_guard<std::mutex> lk(mtx);

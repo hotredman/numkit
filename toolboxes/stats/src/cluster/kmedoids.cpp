@@ -138,8 +138,8 @@ kmedoids_full(const Value &X, int K, int max_iter, int replicates, const std::st
 
     ScratchArena scratch(mr);
     ScratchVec<double> Xv = read_rows(X, &scratch);
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
 
     ScratchVec<int>    best_med((size_t)K, &scratch);
     ScratchVec<int>    best_idx(N, &scratch);

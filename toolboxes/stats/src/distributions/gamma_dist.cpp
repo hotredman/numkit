@@ -78,8 +78,8 @@ Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
 
 Value gamrnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
@@ -105,8 +105,8 @@ Value randg(const Value &shapeArray, std::pmr::memory_resource *mr)
     const std::size_t n = rows * cols;
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::lock_guard<std::mutex> lk(mtx);
     for (std::size_t i = 0; i < n; ++i) {
         const double a = shapeArray.elemAsDouble(i);

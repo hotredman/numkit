@@ -47,8 +47,8 @@ kmeans_full(const Value &X, int K, int max_iter, int replicates, std::pmr::memor
         for (size_t c = 0; c < D; ++c)
             Xv[r * D + c] = X.elemAsDouble(c * N + r);
 
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
 
     LloydResult best(&scratch);
     double best_total = std::numeric_limits<double>::infinity();

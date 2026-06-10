@@ -10,6 +10,7 @@
 #include <string>
 
 namespace numkit::builtin {
+using namespace numkit::lang;  // C4c (formatOnce)
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
