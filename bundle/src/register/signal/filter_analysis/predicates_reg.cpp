@@ -8,7 +8,7 @@
 
 #include <numkit/signal/filter_analysis/predicates.hpp>
 #include <numkit/signal/filter_analysis/frequency_response.hpp>
-#include "predicates_detail.hpp"
+#include "filter_analysis/predicates_detail.hpp"
 
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
 #include <numkit/value/value.hpp>

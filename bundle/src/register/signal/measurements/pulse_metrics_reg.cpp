@@ -5,7 +5,7 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
 #include <numkit/signal/measurements/pulse_metrics.hpp>
-#include "pulse_metrics_detail.hpp"
+#include "measurements/pulse_metrics_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

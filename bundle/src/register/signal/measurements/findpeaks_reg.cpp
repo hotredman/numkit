@@ -5,7 +5,7 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
 #include <numkit/signal/measurements/findpeaks.hpp>
-#include "findpeaks_detail.hpp"
+#include "measurements/findpeaks_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
