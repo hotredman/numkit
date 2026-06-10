@@ -22,33 +22,21 @@
 list(APPEND NUMKIT_LANG_SOURCES
     # bitwise/ (bitand/bitor/bitxor/bitshift/bitcmp/... — C2 pilot)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bitwise/int_math.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/bitwise/int_math_reg.cpp
     # strings/ (string ops / regexp / sprintf-family / disp-print / sscanf-family)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/strings.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/strings_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/regex.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/regex_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/format.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/format_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/print.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/print_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/scan.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/scan_reg.cpp
     # operators/ (arithmetic/relational/logical binary + unary; SIMD kernels in ops)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/binary_ops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/binary_ops_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/unary_ops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/unary_ops_reg.cpp
     # arrays/ (matrix ops / manip flip-rot-sort / N-D manip — accum stays in builtin: core-coupled)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/matrix.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/matrix_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/manip.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/manip_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/nd_manip.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/nd_manip_reg.cpp
     # types/ (class/isa/cast/double/single/int*/logical/char...; casts SIMD below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/types/types.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/types/types_reg.cpp
 )
 list(APPEND NUMKIT_LANG_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_LANG_HEADERS

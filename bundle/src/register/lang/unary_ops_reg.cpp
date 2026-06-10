@@ -7,7 +7,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "helpers.hpp"
-#include "unary_ops_detail.hpp"
+#include "operators/unary_ops_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>

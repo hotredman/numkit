@@ -10,7 +10,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
-#include "binary_ops_detail.hpp"
+#include "operators/binary_ops_detail.hpp"
 #include "helpers.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
