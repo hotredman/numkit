@@ -328,16 +328,28 @@ re-layering); G is the risky enforcement step.
   programming/diagnostics formatOnce, runtime cells/struct). Forwarding stubs remain as
   pure #include forwards (dropped wholesale in the later include-path migration). 11657
   pass / 1 skip / 0 fail and layering guard green at every step. **H ✅ DONE**
-  (`d3d25e65`) — the layering guard now pins math/lang compute too. **Remaining:
-  C5** (reg → bundle = F) / G (target-split + WASM, "THE risk").
+  (`d3d25e65`) — the layering guard now pins math/lang compute too. **C5 ✅ DONE**
+  (999117bd→5a5b5949) — all 223 `*_reg.cpp` relocated to bundle/src/register/. **Remaining:
+  G** (target-split + WASM, "THE risk").
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
   feval stays in builtin until F because of its FevalCallbackBuiltin adapter).
   containers.Map: `containers::` compute → `lang`, registry hooks → bundle (lands
   with C3/F, not a plain runtime move). env → `lang` (core-free since B0; lands with C).
-- **F. Registration → bundle:** after the adapter audit, relocate `*_reg` +
-  `install` per-domain into `bundle/src/register/`. **Invasive — coordinate.**
+- **F. ✅ DONE (= C5, 2026-06-10, 999117bd→5a5b5949, +152 vs main).** All 223
+  `*_reg.cpp` registration adapters relocated from the compute trees (math/lang/
+  toolboxes) into `bundle/src/register/<domain>/<subarea>/` (subarea preserved to
+  avoid basename collisions). bundle/CMakeLists GLOB_RECURSEs src/register/*.cpp
+  (CONFIGURE_DEPENDS); each domain's compute CMakeLists drops its _reg lines; the 6
+  not-previously-on-`-I` toolboxes (image/comm/control/audio/wavelet/linalg) got
+  their src root added to the global -I so the relocated adapters' area-own
+  ("<subarea>/X_detail.hpp") includes resolve. Zero _reg remain under math/lang/
+  toolboxes — compute trees export pure functions only. library.cpp registration
+  hub stays in builtin (forward-decls + registers the relocated symbols; still one
+  monolith target — the target split is G). 11657 pass / 1 skip / 0 fail + layering
+  guard green at every per-domain commit. `install`/library.cpp move to bundle is
+  deferred to the target-split (G), where it matters.
 - **G. Target split:** separate `.lib` per layer; **WASM/emscripten
   `-fexceptions` migration to the OBJECT libs**; validate ALL 12 presets + WASM.
 - **H. ✅ DONE (2026-06-10, `d3d25e65`).** Extended check_layering.py to pin the
