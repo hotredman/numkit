@@ -9,7 +9,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @brief Column permutation by ascending nonzero count (`j = colperm(S)`).
 ///
@@ -38,4 +38,4 @@ Value colperm(const Value &S, std::pmr::memory_resource *mr = nullptr);
 /// @see colperm
 Value symrcm(const Value &S, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

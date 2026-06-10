@@ -11,7 +11,7 @@
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -104,7 +104,7 @@ Value angle(const Value &x, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════════
 
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 
 // ════════════════════════════════════════════════════════════════════════
 // Registration — hand off to library.cpp install() via forward decls.
