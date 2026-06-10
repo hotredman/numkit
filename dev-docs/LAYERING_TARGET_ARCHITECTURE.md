@@ -327,8 +327,9 @@ re-layering); G is the risky enforcement step.
   runtime TU calls a lang fn (reductions_reg/polynomials_reg reshape/poly_of_matrix,
   programming/diagnostics formatOnce, runtime cells/struct). Forwarding stubs remain as
   pure #include forwards (dropped wholesale in the later include-path migration). 11657
-  pass / 1 skip / 0 fail and layering guard green at every step. **Next: C5** (reg →
-  bundle = F) / G (target-split + WASM) / H (extend layering guard to math/lang).
+  pass / 1 skip / 0 fail and layering guard green at every step. **H ✅ DONE**
+  (`d3d25e65`) — the layering guard now pins math/lang compute too. **Remaining:
+  C5** (reg → bundle = F) / G (target-split + WASM, "THE risk").
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
@@ -339,7 +340,10 @@ re-layering); G is the risky enforcement step.
   `install` per-domain into `bundle/src/register/`. **Invasive — coordinate.**
 - **G. Target split:** separate `.lib` per layer; **WASM/emscripten
   `-fexceptions` migration to the OBJECT libs**; validate ALL 12 presets + WASM.
-- **H. Extend the layering guard** (§6.1).
+- **H. ✅ DONE (2026-06-10, `d3d25e65`).** Extended check_layering.py to pin the
+  math/ and lang/ compute layers: they must not include core/runtime/toolbox
+  headers (the `*_reg.cpp` glue is exempt; `builtin` transitionally allowed). Locks
+  in the C4 split. Passes clean; negative-tested. (§6.1)
 
 Order is adjustable; A and B are the safest first real steps.
 
