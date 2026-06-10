@@ -2,6 +2,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>
+#include <numkit/ops/fft_radix2.hpp>   // numkit::fftRadix2(buf,N,W) base butterfly (ops-layer)
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
@@ -40,44 +41,12 @@ inline void fillFftTwiddles(Complex *W, size_t N, int dir)
     }
 }
 
-// ============================================================
-// Iterative radix-2 Cooley-Tukey FFT (in-place).
-// N must be a power of 2. Takes a precomputed twiddle table W of
-// length N/2; see fillFftTwiddles above for how to build it.
-//
-// Decoupled from any container type so callers can back the buffer
-// with std::vector, std::pmr::vector, a stack array, or any other
-// contiguous Complex storage.
-// ============================================================
-inline void fftRadix2(Complex *buf, size_t N, const Complex *W)
-{
-    if (N <= 1)
-        return;
-
-    // Bit-reversal permutation
-    for (size_t i = 1, j = 0; i < N; ++i) {
-        size_t bit = N >> 1;
-        for (; j & bit; bit >>= 1)
-            j ^= bit;
-        j ^= bit;
-        if (i < j)
-            std::swap(buf[i], buf[j]);
-    }
-
-    // Butterfly stages — look up twiddles from the precomputed table.
-    for (size_t len = 2; len <= N; len <<= 1) {
-        const size_t step = N / len;
-        for (size_t i = 0; i < N; i += len) {
-            for (size_t j = 0; j < len / 2; ++j) {
-                const Complex w = W[j * step];
-                const Complex u = buf[i + j];
-                const Complex v = buf[i + j + len / 2] * w;
-                buf[i + j]           = u + v;
-                buf[i + j + len / 2] = u - v;
-            }
-        }
-    }
-}
+// The base radix-2 butterfly — fftRadix2(Complex*, size_t, const Complex*) — now
+// lives in <numkit/ops/fft_radix2.hpp> (included above): it is an ops-layer
+// numerical kernel shared with ops/src/fft_portable.cpp (previously this signal
+// header was its only home, which made ops reach up into the signal toolbox — a
+// layering inversion that broke SIMD-off builds). The convenience overloads below
+// build the twiddle table and delegate to that base.
 
 // Convenience overload: builds a one-shot twiddle table from the
 // caller-provided arena (`mr`) on each call. Still used by callers that
