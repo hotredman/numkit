@@ -7,7 +7,7 @@
 
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @brief Format a single printf-style invocation.
 ///
@@ -66,4 +66,4 @@ std::string formatCyclic(const std::string &fmt, Span<const Value> args,
 Value sprintf(const Value &fmt, Span<const Value> args,
               std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

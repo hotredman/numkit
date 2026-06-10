@@ -17,7 +17,7 @@
 
 #include "regex_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 
 Value regexpFind(const Value &s, const Value &pat, const std::string &option, bool ignoreCase, std::pmr::memory_resource *mr)
@@ -365,4 +365,4 @@ Value regexptranslate(const std::string &op, const std::string &s, std::pmr::mem
                  0, 0, "regexptranslate", "", "numkit:regexptranslate:badOp");
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

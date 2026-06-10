@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <sstream>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 namespace {
 
@@ -357,4 +357,4 @@ Value sprintf(const Value &fmt, Span<const Value> args, std::pmr::memory_resourc
     return Value::fromString(result, p);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

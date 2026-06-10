@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 namespace {
 // Format a SCALAR complex value as "re±|im|i" (MATLAB num2str). A common
@@ -758,4 +758,4 @@ void splitKeepEmpty(const std::string &s, const std::string &delim,
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

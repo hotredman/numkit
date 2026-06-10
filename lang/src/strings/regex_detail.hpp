@@ -28,7 +28,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 namespace {
 
@@ -129,4 +129,4 @@ Value rowCellOfStrings(const std::string *v, std::size_t n, std::pmr::memory_res
 Value regexpFindOnce(const Value &s, const Value &pat, const std::string &option,
                      bool ignoreCase, std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

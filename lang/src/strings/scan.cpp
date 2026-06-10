@@ -23,7 +23,7 @@
 #include <string>
 #include <utility>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 // ════════════════════════════════════════════════════════════════════════
 // scanf-cycle primitives (shared between fscanf and sscanf)
@@ -278,7 +278,7 @@ Value makeCharRow(const double *vals, size_t n, std::pmr::memory_resource *mr)
 // Column-major char matrix from the flat `vals` buffer. Unfilled
 // cells stay zero (MATLAB's documented fill for partial char reads).
 Value makeCharMatrix(const double *vals, size_t n,
-                     detail::SizeSpec sz, std::pmr::memory_resource *mr)
+                     ::numkit::builtin::detail::SizeSpec sz, std::pmr::memory_resource *mr)
 {
     size_t cols_out = (sz.cols == SIZE_MAX)
                          ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
@@ -307,7 +307,7 @@ Value shapeScanfOutput(const double *vals, size_t n,
 // Common fscanf/sscanf body once the input buffer has been materialised.
 // Fills outs[0] with the shaped result and, if requested, outs[1] with
 // the count. The caller handles optional outputs beyond that.
-void scanfEmit(const std::string &input, const std::string &fmt, detail::SizeSpec sz,
+void scanfEmit(const std::string &input, const std::string &fmt, ::numkit::builtin::detail::SizeSpec sz,
                size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr, ScanfOut &r)
 {
     ScratchArena scratch(mr);
@@ -318,7 +318,7 @@ void scanfEmit(const std::string &input, const std::string &fmt, detail::SizeSpe
     // pure-text format → char matrix. Flat size keeps the
     // per-format column-or-row shape from shapeScanfOutput.
     if (sz.matrix() && hasNum)
-        outs[0] = detail::shapeFreadOutput(values.data(), values.size(), sz, mr);
+        outs[0] = ::numkit::builtin::detail::shapeFreadOutput(values.data(), values.size(), sz, mr);
     else if (sz.matrix())
         outs[0] = makeCharMatrix(values.data(), values.size(), sz, mr);
     else
@@ -363,9 +363,9 @@ void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> 
     if (!f || !f->forRead)
         throw Error("fscanf: invalid file identifier");
 
-    detail::SizeSpec sz{detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    ::numkit::builtin::detail::SizeSpec sz{::numkit::builtin::detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 3)
-        sz = detail::parseReadSize(args[2], "fscanf");
+        sz = ::numkit::builtin::detail::parseReadSize(args[2], "fscanf");
 
     std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
     std::string fmt = args[1].toString();
@@ -387,9 +387,9 @@ void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::
     if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
         throw Error("sscanf: requires (str, format [, size])");
 
-    detail::SizeSpec sz{detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    ::numkit::builtin::detail::SizeSpec sz{::numkit::builtin::detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 3)
-        sz = detail::parseReadSize(args[2], "sscanf");
+        sz = ::numkit::builtin::detail::parseReadSize(args[2], "sscanf");
 
     std::string fmt = args[1].toString();
     ScanfOut r{0, 0};
@@ -880,4 +880,4 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     outs[0] = std::move(result);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

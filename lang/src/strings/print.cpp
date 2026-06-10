@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <sstream>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -170,4 +170,4 @@ std::size_t fprintf(Engine &engine, Span<const Value> args)
     return result.size();
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

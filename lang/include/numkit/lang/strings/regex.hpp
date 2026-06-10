@@ -6,7 +6,7 @@
 
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @brief `regexp` / `regexpi` (`y = regexpFind(s, pat, option, ignoreCase)`).
 ///
@@ -66,4 +66,4 @@ Value regexprep(const Value &s, const Value &pat, const Value &rep,
 Value regexptranslate(const std::string &op, const std::string &s,
                       std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
