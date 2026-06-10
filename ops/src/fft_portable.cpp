@@ -4,7 +4,7 @@
 // fftRadix2 in helpers.hpp. Compiled when NUMKIT_WITH_SIMD=OFF.
 
 #include <numkit/ops/fft_kernels.hpp>
-#include "dsp_helpers.hpp"
+#include <numkit/ops/fft_radix2.hpp>
 
 namespace numkit::ops::detail {
 
