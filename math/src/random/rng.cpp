@@ -18,6 +18,6 @@
 #include <random>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
-} // namespace numkit::builtin
+} // namespace numkit::math
