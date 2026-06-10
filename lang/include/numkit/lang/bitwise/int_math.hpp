@@ -7,7 +7,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @file
 /// @brief Integer-flavoured arithmetic and bitwise operations.
@@ -123,4 +123,4 @@ Value bitget(const Value &a, const Value &n,
 Value bitset(const Value &a, const Value &n, const Value &val = Value::Empty,
              std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

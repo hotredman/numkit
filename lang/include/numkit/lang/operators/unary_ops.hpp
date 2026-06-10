@@ -4,7 +4,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @brief Unary minus (`y = -x`).
 ///
@@ -63,4 +63,4 @@ Value ctranspose(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @see ctranspose
 Value transposeNC(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

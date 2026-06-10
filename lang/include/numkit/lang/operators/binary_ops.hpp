@@ -4,7 +4,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @file
 /// @brief Binary operators (`+`, `-`, `.*`, `*`, `./`, `/`, `\`, `^`,
@@ -185,4 +185,4 @@ Value logicalAnd(const Value &a, const Value &b, std::pmr::memory_resource *mr =
 /// @see logicalAnd
 Value logicalOr(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
