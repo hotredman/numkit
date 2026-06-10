@@ -132,13 +132,17 @@ add_subdirectory(toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via
 add_subdirectory(runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
 add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
-set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES} ${NUMKIT_MATH_SOURCES} ${NUMKIT_LANG_SOURCES} ${NUMKIT_RUNTIME_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
+# G1 (target-split): core compiled as the numkit_core_obj OBJECT library (defined
+# at the end of this file, after the dependency targets exist); aggregated into
+# numkit below via $<TARGET_OBJECTS>. Remaining layers still flow as source vars
+# until they are converted in turn.
+set(NUMKIT_SOURCES ${NUMKIT_LIBS_SOURCES} ${NUMKIT_MATH_SOURCES} ${NUMKIT_LANG_SOURCES} ${NUMKIT_RUNTIME_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
 set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_MATH_HEADERS} ${NUMKIT_LANG_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
-    add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
+    add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} $<TARGET_OBJECTS:numkit_core_obj>)
 else()
-    add_library(numkit STATIC ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
+    add_library(numkit STATIC ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} $<TARGET_OBJECTS:numkit_core_obj>)
 endif()
 
 # Match install-tree NAMESPACE so add_subdirectory consumers can use the
@@ -293,6 +297,61 @@ if(NUMKIT_WITH_THREADS)
     target_link_libraries(numkit PUBLIC Threads::Threads)
     target_compile_definitions(numkit PUBLIC NUMKIT_WITH_THREADS=1)
 endif()
+
+# ── G1 (target-split): per-layer OBJECT libraries ───────────────────
+#
+# Each compute/engine layer compiles into its own OBJECT library that the final
+# `numkit` aggregates via $<TARGET_OBJECTS:...>. The final binary is identical to
+# the old monolith (same object set, grouped). numkit_configure_layer() applies
+# the exact compile config the monolith used (include roots + SIMD/threads/matio
+# definitions + usage-requirement links for include dirs + the WASM -fexceptions).
+# Defined here so the dependency targets (hwy/matio/Threads) already exist.
+function(numkit_configure_layer tgt)
+    target_compile_features(${tgt} PRIVATE cxx_std_17)
+    target_include_directories(${tgt} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/builtin/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/math/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/lang/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/image/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/comm/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/control/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/audio/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/wavelet/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/linalg/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
+        ${NUMKIT_BUILD_INFO_DIR})
+    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
+        target_include_directories(${tgt} PRIVATE $<BUILD_INTERFACE:${_dir}>)
+    endforeach()
+    target_link_libraries(${tgt} PRIVATE
+        $<BUILD_INTERFACE:numkit_value> $<BUILD_INTERFACE:numkit_ops> $<BUILD_INTERFACE:numkit_fs>)
+    if(NUMKIT_WITH_SIMD)
+        target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:hwy> $<BUILD_INTERFACE:hwy_contrib>)
+        target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_SIMD=1)
+    endif()
+    if(NUMKIT_WITH_THREADS)
+        find_package(Threads REQUIRED)
+        target_link_libraries(${tgt} PRIVATE Threads::Threads)
+        target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_THREADS=1)
+    endif()
+    if(NUMKIT_WITH_MATIO)
+        target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:matio>)
+        target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_MATIO)
+        if(TARGET zlibstatic)
+            target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:zlibstatic>)
+            target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_ZLIB)
+        endif()
+    endif()
+    if(EMSCRIPTEN)
+        target_compile_options(${tgt} PRIVATE -fexceptions)
+    endif()
+endfunction()
+
+add_library(numkit_core_obj OBJECT ${NUMKIT_CORE_SOURCES})
+numkit_configure_layer(numkit_core_obj)
 
 # Smoke binary (numkit_smoke) is now owned by tests/smoke/CMakeLists.txt;
 # add_subdirectory(tests) below pulls it in via tests/CMakeLists.txt.
