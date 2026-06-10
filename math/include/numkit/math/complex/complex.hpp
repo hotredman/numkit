@@ -4,7 +4,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @brief Real part (`y = real(x)`).
 ///
@@ -70,4 +70,4 @@ Value complex(const Value &re, const Value &im, std::pmr::memory_resource *mr = 
 /// @return    Phase angles in `(-π, π]`.
 Value angle(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

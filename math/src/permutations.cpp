@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // ── Public C++ API (see math/permutations.hpp) ────────────────────────
 
@@ -164,4 +164,4 @@ Value symrcm(const Value &S, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
