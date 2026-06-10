@@ -313,8 +313,21 @@ re-layering); G is the risky enforcement step.
   isfinite backend fwd-declared in numkit::math::detail; lang/arrays anyOf/allOf
   (defined in arithmetic) declared numkit::math in matrix.hpp; io_helpers (shared
   with the io toolbox) stays numkit::builtin::detail so scan qualifies its refs.
-  **C4c (optional, deferred):** drop the umbrella + per-stub shims and migrate the
-  ~185 call-sites to the qualified numkit::math|lang names. **Next: C5** (reg →
+  **C4c ✅ DONE (2026-06-10, HEAD `ca9c86ae`, +143).** All shims removed, all
+  call-sites qualified. Step 1 (`2a922f36`): dropped the library.hpp umbrella shim;
+  replaced its broad effect with localized `using namespace numkit::math|lang;` in the
+  25 _reg adapters that call their area's relocated compute. Step 2a (`25dc0466`):
+  bulk-qualified ~584 `builtin::X` / `numkit::builtin::X` cross-toolbox refs to
+  numkit::math::X / numkit::lang::X via a fn→ns map built from the public headers (60
+  math + 103 lang fns; sed with optional-numkit::-prefix handling to avoid double
+  qualification); 20 genuinely-builtin names left untouched. Step 2b (`ca9c86ae`):
+  removed all 24 per-stub re-export shims; fixed the unqualified-via-shim stragglers the
+  bulk pass couldn't see — sharedEngine/rngMutex (numkit::ops, re-exported via
+  numkit::math) requalified, and localized using-directives added where a math/builtin/
+  runtime TU calls a lang fn (reductions_reg/polynomials_reg reshape/poly_of_matrix,
+  programming/diagnostics formatOnce, runtime cells/struct). Forwarding stubs remain as
+  pure #include forwards (dropped wholesale in the later include-path migration). 11657
+  pass / 1 skip / 0 fail and layering guard green at every step. **Next: C5** (reg →
   bundle = F) / G (target-split + WASM) / H (extend layering guard to math/lang).
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
