@@ -39,7 +39,7 @@ static void BM_Mtimes_Square(benchmark::State &state)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value C = builtin::mtimes(mr, A, B);
+        Value C = numkit::lang::mtimes(mr, A, B);
         benchmark::DoNotOptimize(C);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -73,7 +73,7 @@ static void BM_Mtimes_Large(benchmark::State &state)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value C = builtin::mtimes(mr, A, B);
+        Value C = numkit::lang::mtimes(mr, A, B);
         benchmark::DoNotOptimize(C);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

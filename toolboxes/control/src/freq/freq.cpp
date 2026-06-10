@@ -284,12 +284,12 @@ rlocus(const Value &sys, const Value &kArg, std::pmr::memory_resource *mr)
             const double k = ks[row];
             for (size_t i = 0; i < den.size(); ++i)
                 charPoly[i] = den[i] + k * numAligned[i];
-            // Pack as a row Value and run builtin::roots.
+            // Pack as a row Value and run numkit::math::roots.
             Value cp = Value::matrix(1, charPoly.size(),
                                      ValueType::DOUBLE, mr);
             std::copy(charPoly.begin(), charPoly.end(),
                       cp.doubleDataMut());
-            Value rs = builtin::roots(cp, mr);
+            Value rs = numkit::math::roots(cp, mr);
             // rs is a column of length n (for this n-th order polynomial).
             // Pack into row `row` of R (column-major: R[row, j] is at
             // index j*K + row).

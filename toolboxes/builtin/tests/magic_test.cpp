@@ -1,6 +1,6 @@
 // toolboxes/builtin/tests/magic_test.cpp
 //
-// Regression guard for builtin::magic. Hardcoded expected values
+// Regression guard for numkit::lang::magic. Hardcoded expected values
 // captured from MATLAB R2025b parity probe.
 
 #include <numkit/core/engine.hpp>

@@ -58,7 +58,7 @@ void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         // and gammaincScalar gives NaN where k/2<=0 (matches k<=0 → NaN).
         Value xs = elementwise(a[0], [](double xi) { return std::max(0.0, 0.5 * xi); }, mr);
         Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
-        v = ::numkit::builtin::gammainc(xs, half_k, mr);
+        v = ::numkit::math::gammainc(xs, half_k, mr);
     }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -83,7 +83,7 @@ void chi2inv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     }
     const size_t N = dist_match_numel({np, nk}, "chi2inv");
     Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
-    Value q = ::numkit::builtin::gammaincinv(p, half_k, mr);
+    Value q = ::numkit::math::gammaincinv(p, half_k, mr);
     const size_t nq = q.numel();
     const Value &ref = (nk == N) ? k : p;
     Value out = dist_empty_like(ref, mr);

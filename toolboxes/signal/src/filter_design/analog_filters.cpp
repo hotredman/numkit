@@ -674,7 +674,7 @@ impinvar(const Value &b, const Value &a, double fs, double /*tol*/, std::pmr::me
     const double T = 1.0 / fs;
 
     // 1) Roots of a → analog poles.
-    Value pV = ::numkit::builtin::roots(a, mr);
+    Value pV = ::numkit::math::roots(a, mr);
     auto pv = readComplexVec(pV);
     if (static_cast<int>(pv.size()) != N)
         throw std::runtime_error("impinvar: roots() returned unexpected count");

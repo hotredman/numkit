@@ -100,7 +100,7 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 Value eig_general_values(const Value &A, std::pmr::memory_resource *mr)
 {
     auto p = poly_of_matrix(A, mr);
-    return numkit::builtin::roots(p, mr);
+    return numkit::math::roots(p, mr);
 }
 
 std::tuple<Value, Value>

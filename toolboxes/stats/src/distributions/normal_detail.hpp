@@ -50,7 +50,7 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 }
 
 // MATLAB's erfinv uses the Beasley-Springer-Moro initial + 1 Newton
-// step. For our purposes the existing builtin::erfinv is sufficient
+// step. For our purposes the existing numkit::math::erfinv is sufficient
 // (already tested at ULP-10 in the parity bench).
 
 double erfinvScalar(double y)

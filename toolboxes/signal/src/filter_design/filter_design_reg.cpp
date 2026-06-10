@@ -46,7 +46,7 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         // [z, p, k] = butter(...): digital zero/pole/gain. The denominator
         // is monic so the ZPK gain equals b(1); tf2zp recovers z/p as the
         // roots of b/a (same set MATLAB returns; order may differ).
-        auto [z, p, k] = ::numkit::builtin::tf2zp(bv, av, ctx.engine->resource());
+        auto [z, p, k] = ::numkit::math::tf2zp(bv, av, ctx.engine->resource());
         outs[0] = std::move(z);
         outs[1] = std::move(p);
         outs[2] = std::move(k);

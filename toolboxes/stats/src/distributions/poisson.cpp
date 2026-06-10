@@ -39,7 +39,7 @@ Value poisscdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
         return std::floor(ki) + 1.0;
     }, mr);
     Value lam = Value::scalar(lambda, mr);
-    Value lower = ::numkit::builtin::gammainc(lam, xs, mr);
+    Value lower = ::numkit::math::gammainc(lam, xs, mr);
     // F = 1 - P, but: for ki < 0, xs = 0 and we want F = 0. gammainc(λ, 0) is
     // technically undefined; if it returns 0, F = 1 — wrong. Patch via a
     // walk that knows the original ki.

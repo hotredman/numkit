@@ -5,7 +5,7 @@
 //   K = [0 … 0 1] · ctrb(A, B)⁻¹ · φ(A),
 //
 // where φ(s) = ∏ (s − p_i) is the desired closed-loop characteristic
-// polynomial. We use builtin::poly to expand p into coefficients in
+// polynomial. We use numkit::math::poly to expand p into coefficients in
 // MATLAB convention (descending powers, leading 1), then evaluate
 // φ(A) by Horner-style matrix multiplications, and finally solve
 // the n×n linear system  ctrb(A, B)ᵀ · Kᵀ = (e_nᵀ · φ(A))ᵀ via the
@@ -87,7 +87,7 @@ Value acker(const Value &Av, const Value &Bv, const Value &pv, std::pmr::memory_
     auto B = readMat(Bv, n, 1);
 
     // Desired characteristic polynomial φ(s) = ∏(s − p_i).
-    Value coeffs = builtin::poly(pv, mr);
+    Value coeffs = numkit::math::poly(pv, mr);
     Vec c(coeffs.numel());
     for (size_t i = 0; i < coeffs.numel(); ++i) c[i] = coeffs.elemAsDouble(i);
     if (c.size() != n + 1)

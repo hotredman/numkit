@@ -1013,18 +1013,18 @@ void BuiltinLibrary::install(Engine &engine)
 
             // Compose: round(A ./ B). rdivide on integer arrays returns
             // double, so the rounding helpers see DOUBLE input.
-            const Value a = builtin::toDouble(args[0], mr);
-            const Value b = builtin::toDouble(args[1], mr);
-            Value q = builtin::rdivide(a, b, mr);
-            if (opt == "fix" || opt.empty()) q = builtin::fix(q, mr);
-            else if (opt == "floor")          q = builtin::floor(q, mr);
-            else if (opt == "ceil")           q = builtin::ceil(q, mr);
-            else if (opt == "round")          q = builtin::round(q, mr);
+            const Value a = numkit::lang::toDouble(args[0], mr);
+            const Value b = numkit::lang::toDouble(args[1], mr);
+            Value q = numkit::lang::rdivide(a, b, mr);
+            if (opt == "fix" || opt.empty()) q = numkit::math::fix(q, mr);
+            else if (opt == "floor")          q = numkit::math::floor(q, mr);
+            else if (opt == "ceil")           q = numkit::math::ceil(q, mr);
+            else if (opt == "round")          q = numkit::math::round(q, mr);
             else
                 throw std::runtime_error(
                     "idivide: opt must be 'fix', 'floor', 'ceil', or 'round'");
 
-            outs[0] = builtin::cast(q, mtypeName(resultType), mr);
+            outs[0] = numkit::lang::cast(q, mtypeName(resultType), mr);
         });
 
     // bsxfun(fn, A, B) — apply fn elementwise to (A, B). numkit's

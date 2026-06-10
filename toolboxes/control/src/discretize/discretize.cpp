@@ -245,8 +245,8 @@ Value packResult(const Mat &Ad, const Vec &Bd, const Vec &Cd, double Dd, size_t 
         return tf(numV, denV, Ts, mr);
     }
     if (origKind == "zpk") {
-        Value zV = builtin::roots(numV, mr);
-        Value pV = builtin::roots(denV, mr);
+        Value zV = numkit::math::roots(numV, mr);
+        Value pV = numkit::math::roots(denV, mr);
         // Gain = num(1)/den(1) (after stripping leading zeros).
         Vec numVec = coeffsReal(numV);
         Vec denVec = coeffsReal(denV);

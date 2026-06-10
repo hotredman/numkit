@@ -1,7 +1,7 @@
 // toolboxes/control/src/conversion/conversion.cpp
 //
 // Inter-form conversions tf ↔ zpk ↔ ss. Built on the existing
-// builtin::roots / builtin::poly polynomial primitives, plus a local
+// numkit::math::roots / numkit::math::poly polynomial primitives, plus a local
 // Faddeev–LeVerrier expansion for ss2tf.
 
 #include <numkit/control/conversion/conversion.hpp>
@@ -72,10 +72,10 @@ Tf2ZpResult tf2zp(const Value &num, const Value &den,
     // Gain is num(1)/den(1) (after stripping leading zeros).
     const double k = numV.empty() ? 0.0 : numV[0] / denV[0];
 
-    // Roots of num and den. The existing builtin::roots already
+    // Roots of num and den. The existing numkit::math::roots already
     // handles both real-and-complex output and trailing-zero roots.
-    Value zRoots = builtin::roots(num, mr);
-    Value pRoots = builtin::roots(den, mr);
+    Value zRoots = numkit::math::roots(num, mr);
+    Value pRoots = numkit::math::roots(den, mr);
 
     return {std::move(zRoots), std::move(pRoots),
             Value::scalar(k, mr)};
@@ -85,11 +85,11 @@ std::pair<Value, Value>
 zp2tf(const Value &z, const Value &p, const Value &k,
       std::pmr::memory_resource *mr)
 {
-    // num = k * poly(z), den = poly(p). builtin::poly takes a column
+    // num = k * poly(z), den = poly(p). numkit::math::poly takes a column
     // vector of roots and returns the row of polynomial coefficients
     // (leading 1, descending powers).
-    Value den = builtin::poly(p, mr);
-    Value num = builtin::poly(z, mr);
+    Value den = numkit::math::poly(p, mr);
+    Value num = numkit::math::poly(z, mr);
 
     // Multiply num by the gain (real scalar in our zpk; we handle the
     // complex-product case by promoting num if k or num is complex).

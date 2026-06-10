@@ -61,11 +61,11 @@ void runElementwiseBench(benchmark::State &state, Fn fn, double lo, double hi)
 // 2^10 fits L1, 2^22 is ~32 MiB and overflows L3 on most boxes.
 // The memory-bound region (post-L3) is where SIMD buys the least —
 // useful to see the plateau.
-static void BM_Sin(benchmark::State &s) { runElementwiseBench(s, numkit::builtin::sin, -10.0, 10.0); }
-static void BM_Cos(benchmark::State &s) { runElementwiseBench(s, numkit::builtin::cos, -10.0, 10.0); }
-static void BM_Exp(benchmark::State &s) { runElementwiseBench(s, numkit::builtin::exp, -5.0,  5.0);  }
-static void BM_Log(benchmark::State &s) { runElementwiseBench(s, numkit::builtin::log,  0.01, 100.0); }
-static void BM_Abs(benchmark::State &s) { runElementwiseBench(s, numkit::builtin::abs, -1e6,  1e6);   }
+static void BM_Sin(benchmark::State &s) { runElementwiseBench(s, numkit::math::sin, -10.0, 10.0); }
+static void BM_Cos(benchmark::State &s) { runElementwiseBench(s, numkit::math::cos, -10.0, 10.0); }
+static void BM_Exp(benchmark::State &s) { runElementwiseBench(s, numkit::math::exp, -5.0,  5.0);  }
+static void BM_Log(benchmark::State &s) { runElementwiseBench(s, numkit::math::log,  0.01, 100.0); }
+static void BM_Abs(benchmark::State &s) { runElementwiseBench(s, numkit::math::abs, -1e6,  1e6);   }
 
 BENCHMARK(BM_Sin)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 BENCHMARK(BM_Cos)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);

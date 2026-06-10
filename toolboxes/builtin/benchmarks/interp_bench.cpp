@@ -61,7 +61,7 @@ static void BM_Interp1Linear(benchmark::State &s)
     auto xq = makeQuery(nx, nq);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = builtin::interp1(mr, x, y, xq, "linear");
+        auto out = numkit::math::interp1(mr, x, y, xq, "linear");
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -77,7 +77,7 @@ static void BM_Interp1Spline(benchmark::State &s)
     auto xq = makeQuery(nx, nq);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = builtin::interp1(mr, x, y, xq, "spline");
+        auto out = numkit::math::interp1(mr, x, y, xq, "spline");
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -92,7 +92,7 @@ static void BM_Polyval(benchmark::State &s)
     auto xq = makeY(n, 5);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = builtin::polyval(mr, p, xq);
+        auto y = numkit::math::polyval(mr, p, xq);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

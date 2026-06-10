@@ -497,9 +497,9 @@ Value psf2otf(const Value &PSF, Span<const size_t> outsize, std::pmr::memory_res
     const int64_t shiftC = -static_cast<int64_t>(inW / 2);
     Value shifted;
     if (is1D) {
-        shifted = builtin::circshift(padded, (inH == 1) ? shiftC : shiftR, mr);
+        shifted = numkit::lang::circshift(padded, (inH == 1) ? shiftC : shiftR, mr);
     } else {
-        shifted = builtin::circshift(padded, shiftR, shiftC, mr);
+        shifted = numkit::lang::circshift(padded, shiftR, shiftC, mr);
     }
 
     // FFT.
@@ -549,9 +549,9 @@ Value otf2psf(const Value &OTF, Span<const size_t> outsize, std::pmr::memory_res
     const int64_t shiftC = static_cast<int64_t>(outW / 2);
     Value shifted;
     if (is1D) {
-        shifted = builtin::circshift(psf, (inH == 1) ? shiftC : shiftR, mr);
+        shifted = numkit::lang::circshift(psf, (inH == 1) ? shiftC : shiftR, mr);
     } else {
-        shifted = builtin::circshift(psf, shiftR, shiftC, mr);
+        shifted = numkit::lang::circshift(psf, shiftR, shiftC, mr);
     }
 
     // Crop to the requested outsize (top-left sub-matrix). After the

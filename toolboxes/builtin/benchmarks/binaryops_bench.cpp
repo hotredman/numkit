@@ -53,8 +53,8 @@ void runBinaryBench(benchmark::State &state, Fn fn)
 
 } // namespace
 
-static void BM_Plus(benchmark::State &s)  { runBinaryBench(s, numkit::builtin::plus);  }
-static void BM_Times(benchmark::State &s) { runBinaryBench(s, numkit::builtin::times); }
+static void BM_Plus(benchmark::State &s)  { runBinaryBench(s, numkit::lang::plus);  }
+static void BM_Times(benchmark::State &s) { runBinaryBench(s, numkit::lang::times); }
 
 BENCHMARK(BM_Plus)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 BENCHMARK(BM_Times)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
