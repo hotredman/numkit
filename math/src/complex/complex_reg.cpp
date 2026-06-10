@@ -20,6 +20,8 @@
 
 namespace numkit::builtin {
 
+using namespace numkit::math;  // C4c: localized using (umbrella shim removed)
+
 namespace detail {
 
 void real_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

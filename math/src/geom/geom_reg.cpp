@@ -25,6 +25,7 @@
 #include <vector>
 
 namespace numkit::builtin {
+using namespace numkit::math;  // C4c localized (umbrella removed)
 
 namespace detail {
 
