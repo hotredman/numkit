@@ -8,7 +8,7 @@
 #include <numkit/builtin/math/exp_log/exponents.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include "../_unary_hint.hpp"   // 3-arg exp/log hint overloads
+#include "_unary_hint.hpp"   // 3-arg exp/log hint overloads
 #include "helpers.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>

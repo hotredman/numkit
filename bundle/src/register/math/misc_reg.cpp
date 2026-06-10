@@ -9,7 +9,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "helpers.hpp"
-#include "mod_simd.hpp"
+#include "arithmetic/mod_simd.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
