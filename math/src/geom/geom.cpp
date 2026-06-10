@@ -21,7 +21,7 @@
 #include <sstream>
 #include <vector>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 
 // ── polyarea (public C++ API) ────────────────────────────────────────
@@ -778,4 +778,4 @@ MatchpairsResult matchpairs(const Value &C, double cU,
 }
 
 
-} // namespace numkit::builtin
+} // namespace numkit::math
