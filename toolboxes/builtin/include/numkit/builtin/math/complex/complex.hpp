@@ -5,4 +5,3 @@
 // retarget to <numkit/math/complex/complex.hpp> in the C4 cleanup. Functions
 // are still in namespace numkit::builtin for now (ns rename is the C4 pass).
 #include <numkit/math/complex/complex.hpp>
-namespace numkit::builtin { using namespace numkit::math; }  // C4 re-export shim (dropped in C4c)

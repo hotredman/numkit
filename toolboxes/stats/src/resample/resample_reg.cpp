@@ -92,8 +92,8 @@ void datasample_reg(Span<const Value> args, size_t /*nargout*/,
 // Helper: draw N indices in [0, N-1] with replacement, write into idx_out.
 static void drawBootstrapIndices(int N, int *idx_out)
 {
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::lock_guard<std::mutex> lk(mtx);
     std::uniform_int_distribution<int> dist(0, N - 1);
     for (int i = 0; i < N; ++i) idx_out[i] = dist(gen);

@@ -32,6 +32,7 @@
 #include <vector>
 
 namespace numkit::builtin {
+using namespace numkit::lang;  // C4c cross-area (reshape/poly_of_matrix)
 using namespace numkit::math;  // C4c localized (umbrella removed)
 
 namespace detail {

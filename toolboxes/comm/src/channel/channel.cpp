@@ -82,8 +82,8 @@ Value awgn(const Value &x, double snr_db, double sigpower_db,
     else if (d.is3D())out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ty, mr);
     else              out = Value::matrix(d.rows(), d.cols(), ty, mr);
 
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::normal_distribution<double> nd(0.0, sigma);
     std::lock_guard<std::mutex> lk(mtx);
     if (is_complex) {
@@ -109,8 +109,8 @@ Value wgn(int m, int n, double p, const std::string &type,
     if (power_lin < 0.0) power_lin = 0.0;
     const double sigma = std::sqrt(complex_out ? power_lin / 2.0 : power_lin);
 
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::normal_distribution<double> nd(0.0, sigma);
     std::lock_guard<std::mutex> lk(mtx);
 
@@ -132,8 +132,8 @@ Value bsc(const Value &x, double p, std::pmr::memory_resource *mr) {
     if (p < 0.0 || p > 1.0)
         throw Error("bsc: p must be in [0, 1]", 0, 0, "bsc", "",
                     "numkit:bsc:badp");
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::uniform_real_distribution<double> ud(0.0, 1.0);
 
     const size_t N = x.numel();

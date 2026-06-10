@@ -142,8 +142,8 @@ Value lhsdesign(std::size_t n, std::size_t p,
     if (iterations < 1) iterations = 1;
     if (criterion == LhsCriterion::None) iterations = 1;
 
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::lock_guard<std::mutex> lk(mtx);
 
     // First trial → direct write into `od`. Subsequent trials go to a

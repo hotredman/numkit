@@ -1675,8 +1675,8 @@ Value imnoise(const Value &I, const std::string &mode, const Value &p1, const Va
 
     Value out = Value::matrix(H, W, T, mr);
 
-    auto &rng = numkit::builtin::sharedEngine();
-    std::lock_guard<std::mutex> lk(numkit::builtin::rngMutex());
+    auto &rng = numkit::math::sharedEngine();
+    std::lock_guard<std::mutex> lk(numkit::math::rngMutex());
 
     if (mode == "gaussian") {
         const double m = (p1.numel() > 0) ? p1.toScalar() : 0.0;

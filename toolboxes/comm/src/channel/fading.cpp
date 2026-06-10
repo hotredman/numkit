@@ -29,8 +29,8 @@ using Cd = std::complex<double>;
 std::vector<Cd> sampleCN01(size_t N) {
     std::vector<Cd> h(N);
     if (N == 0) return h;
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::normal_distribution<double> nd(0.0, std::sqrt(0.5));
     std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < N; ++i) {

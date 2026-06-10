@@ -17,6 +17,8 @@
 #include "language/handles/_handlefn_helpers.hpp"
 
 namespace numkit::builtin {
+using namespace numkit::lang;  // C4c cross-area
+using namespace numkit::math;  // C4c cross-area
 
 namespace hf = ::numkit::builtin::detail::handlefn;
 

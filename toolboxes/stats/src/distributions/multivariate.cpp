@@ -92,8 +92,8 @@ Value mvnrnd(const Value &mu, const Value &Sigma, std::size_t n,
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::normal_distribution<double> Nz(0.0, 1.0);
 
     std::lock_guard<std::mutex> lk(mtx);
@@ -210,8 +210,8 @@ Value mvtrnd(const Value &C, double df, std::size_t n,
 
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::normal_distribution<double> Nz(0.0, 1.0);
     std::chi_squared_distribution<double> Chi(df);
 
@@ -254,8 +254,8 @@ Value mnrnd(std::size_t N, const Value &P, std::size_t m,
 
     auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::uniform_real_distribution<double> U(0.0, 1.0);
 
     std::lock_guard<std::mutex> lk(mtx);
@@ -339,8 +339,8 @@ wishrnd_factor(const Value &Sigma, double df, const Value &D_in,
     }
 
     // Sample Bartlett factor B (lower-tri).
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::normal_distribution<double> Nz(0.0, 1.0);
     std::lock_guard<std::mutex> lk(mtx);
 
@@ -446,8 +446,8 @@ iwishrnd_factor(const Value &Tau, double df, const Value &DI_in,
     }
 
     // Bartlett sample Y ~ W(inv(Tau), df).
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     std::normal_distribution<double> Nz(0.0, 1.0);
     std::lock_guard<std::mutex> lk(mtx);
 

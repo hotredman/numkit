@@ -73,8 +73,8 @@ Value poissinv(const Value &p, double lambda, std::pmr::memory_resource *mr)
 
 Value poissrnd(double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::builtin::sharedEngine();
-    auto &mtx = ::numkit::builtin::rngMutex();
+    auto &gen = ::numkit::math::sharedEngine();
+    auto &mtx = ::numkit::math::rngMutex();
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (lambda < 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
