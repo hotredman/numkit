@@ -37,7 +37,6 @@ set(STDLIB_SOURCES
     # math/optim/ moved to toolboxes/optim/
     # programming/ — MATLAB Programming and Scripts
     ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics_reg.cpp # register (CallContext)
 )
 
 # Backend-split functions: one definition per TU, picked at configure
