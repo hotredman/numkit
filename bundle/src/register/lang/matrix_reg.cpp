@@ -15,7 +15,7 @@
 #include <numkit/value/value.hpp>
 #include "helpers.hpp"
 #include "math/arithmetic/cumsum.hpp"
-#include "matrix_detail.hpp"
+#include "arrays/matrix_detail.hpp"
 #include "reduction_helpers.hpp"
 #include "rows_helpers.hpp"
 #include <numkit/value/error.hpp>

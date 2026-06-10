@@ -8,7 +8,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "helpers.hpp"
-#include "types_detail.hpp"
+#include "types/types_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
