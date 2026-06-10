@@ -283,6 +283,39 @@ re-layering); G is the risky enforcement step.
   call-site retarget + include-path cleanup + drop ALL stubs/shims. Open question
   for C4: whether the runtime-relocated areas keep ns numkit::builtin or move to a
   runtime ns — decide (or surface) when C4 starts.
+
+  **C4 ✅ COMPLETE (2026-06-10, 16/16 areas, HEAD `3dc4225d`, branch
+  refactor/layering, +139 vs main).** All relocated compute renamed
+  numkit::builtin → **numkit::math** (11: geom `77738e34`, complex+permutations
+  `abf50916`, interp+random `f1f3d27b`, discrete `82e365e2`, poly `df06d976`,
+  SIMD cluster trig/exp_log/special/arithmetic `d63cbcc2`) / **numkit::lang**
+  (5: bitwise+operators `80a27b37`, arrays `bc3881cf`, strings `b032a94a`, types
+  `3dc4225d`). Verified: no `^namespace numkit::builtin {` remains in math/src or
+  lang/src compute — only the `*_reg` adapters keep numkit::builtin, by design.
+  desktop-fast 11657 pass / 1 skip / 0 fail throughout; layering guard green at
+  every commit.
+  **Deviations from the original C4 plan (kept the relocate-only spirit):** stubs
+  and the ~185 call-site retarget were NOT dropped — instead builtin-side
+  reachability is preserved by a 2-shim mechanism: (1) an umbrella shim in
+  library.hpp `namespace numkit::builtin { using namespace numkit::math; using
+  namespace numkit::lang; }`, and (2) a per-stub `using namespace numkit::math|lang`
+  in each forwarding stub. `_reg` adapters stay numkit::builtin (registration via
+  the monolith). **Two area classes emerged:** (A) self-contained areas renamed by
+  a plain robust-sed; (B) areas whose compute reached C0 ops-helpers via `detail::`
+  (collectRowsByIndex / rowLexCmp* / resolveDim / applyAlongDim / outShapeForDim* /
+  firstNonSingletonDim / polyRoots* / polyExpand* / Complex) — those refs were
+  retargeted `detail::X → numkit::ops::X` before renaming. The SIMD-math areas
+  (trig/exp_log/special/arithmetic) are interdependent (shared `_unary_hint.hpp`
+  3-arg hint overloads; trig→arithmetic hypot; arrays→arithmetic cumsumScan) so
+  they renamed together as one keystone commit. Forced **cross-consumer fixups**
+  (symbol moved out of numkit::builtin): stats descriptive `using
+  ::numkit::builtin::varianceTwoPass` → `::numkit::math::`; lang/types isnan/isinf/
+  isfinite backend fwd-declared in numkit::math::detail; lang/arrays anyOf/allOf
+  (defined in arithmetic) declared numkit::math in matrix.hpp; io_helpers (shared
+  with the io toolbox) stays numkit::builtin::detail so scan qualifies its refs.
+  **C4c (optional, deferred):** drop the umbrella + per-stub shims and migrate the
+  ~185 call-sites to the qualified numkit::math|lang names. **Next: C5** (reg →
+  bundle = F) / G (target-split + WASM) / H (extend layering guard to math/lang).
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
