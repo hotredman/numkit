@@ -30,7 +30,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 namespace {
 
@@ -558,11 +558,11 @@ sortRowsImpl(const Value &x, const int *cols, std::size_t nCols, std::pmr::memor
     const double *src = m.doubleData();
     std::stable_sort(perm.begin(), perm.end(),
         [&](size_t a, size_t b) {
-            return detail::rowLexCmpByCols(src, C, R, a, b,
+            return numkit::ops::rowLexCmpByCols(src, C, R, a, b,
                                             sortKeys.data(), sortKeys.size()) < 0;
         });
 
-    auto sorted = detail::collectRowsByIndex(mr, m, perm.data(), perm.size());
+    auto sorted = numkit::ops::collectRowsByIndex(mr, m, perm.data(), perm.size());
     auto idx = Value::matrix(R, 1, ValueType::DOUBLE, mr);
     double *idxP = idx.doubleDataMut();
     for (size_t i = 0; i < R; ++i)
@@ -728,7 +728,7 @@ Value cumIntegerNative(const Value &x, int dim, bool isProd,
     const int nd = dd.ndim();
     int d;
     if (dim > 0) {
-        d = detail::resolveDim(x, dim, isProd ? "cumprod" : "cumsum");
+        d = numkit::ops::resolveDim(x, dim, isProd ? "cumprod" : "cumsum");
     } else {
         d = 1;                          // first non-singleton dim (MATLAB default)
         for (int k = 0; k < nd; ++k)
@@ -871,7 +871,7 @@ Value cumImpl(const Value &x, int dim, Op op, const char *fn, std::pmr::memory_r
         return r;
     }
 
-    const int d = detail::resolveDim(x, dim, fn);
+    const int d = numkit::ops::resolveDim(x, dim, fn);
     const auto &dd = x.dims();
     auto r = dd.is3D() ? Value::matrix3d(dd.rows(), dd.cols(), dd.pages(),
                                           ValueType::DOUBLE, mr)
@@ -902,7 +902,7 @@ Value cumScanDispatch(const Value &x, int dim, ScanFn scan, Op scalarOp, const c
         return r;
     }
 
-    const int d = detail::resolveDim(x, dim, fn);
+    const int d = numkit::ops::resolveDim(x, dim, fn);
     const auto &dd = x.dims();
 
     // ND fallback (rank ≥ 4): per-slice scan along axis d-1.
@@ -1203,4 +1203,4 @@ Value topkrows_full(const Value &A, std::size_t k,
                     std::vector<std::size_t> *out_idx,
                     std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

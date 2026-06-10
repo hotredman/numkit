@@ -21,7 +21,7 @@
 
 #include "manip_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 // ────────────────────────────────────────────────────────────────────
 // repmat
@@ -1016,4 +1016,4 @@ std::vector<Value> ind2sub(const Value &siz, const Value &ind, size_t nout,
     return rs;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
