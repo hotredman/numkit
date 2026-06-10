@@ -63,13 +63,40 @@ LAYER_DIRS = {
 }
 
 INCLUDE_RE = re.compile(r'#\s*include\s*<numkit/([a-zA-Z0-9_]+)/')
+QUOTED_INCLUDE_RE = re.compile(r'#\s*include\s*"([^"]+)"')
 SRC_SUFFIXES = {".cpp", ".hpp", ".h", ".cc", ".cxx", ".ipp"}
+HEADER_SUFFIXES = {".hpp", ".h", ".ipp", ".cuh", ".hh", ".hxx"}
+
+# Layers that must be fully self-contained: a quoted `#include "X"` from one of
+# these layers must resolve to a header that physically lives inside the layer's
+# own tree. A quoted include whose basename isn't found in the layer resolves via
+# some external -I — a cross-layer leak. The convention is <numkit/...> for ANY
+# cross-module dependency; quoted form is for same-component headers only. This is
+# the bug class the angle-include check misses: ops/src/fft_portable.cpp once did
+# `#include "dsp_helpers.hpp"`, reaching up into the signal toolbox (+ core),
+# invisible because it was a quoted include. math/lang are intentionally excluded
+# (their compile uses a broad shared -I + transitional builtin helpers).
+STRICT_QUOTED = ("value", "fs", "ops", "core")
+
+
+def _header_basenames(base: Path) -> set[str]:
+    """Every header file basename living under `base` (recursively)."""
+    return {h.name for h in base.rglob("*") if h.suffix in HEADER_SUFFIXES}
 
 
 def scan(repo: Path) -> list[str]:
     violations: list[str] = []
     for layer, dirs in LAYER_DIRS.items():
         allowed = ALLOWED[layer]
+        strict = layer in STRICT_QUOTED
+        # For strict layers, the set of header basenames the layer owns — a
+        # quoted include resolving outside this set is a cross-layer leak.
+        own_headers: set[str] = set()
+        if strict:
+            for d in dirs:
+                base = repo / d
+                if base.is_dir():
+                    own_headers |= _header_basenames(base)
         for d in dirs:
             base = repo / d
             if not base.is_dir():
@@ -87,14 +114,26 @@ def scan(repo: Path) -> list[str]:
                 # so they are exempt from the compute-layer purity check.
                 if f.name.endswith("_reg.cpp"):
                     continue
+                rel = f.relative_to(repo).as_posix()
                 for n, line in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
                     m = INCLUDE_RE.search(line)
                     if m and m.group(1) not in allowed:
-                        rel = f.relative_to(repo).as_posix()
                         violations.append(
                             f"{rel}:{n}: layer '{layer}' must not include "
                             f"<numkit/{m.group(1)}/...>  (allowed: {sorted(allowed)})"
                         )
+                    # Quoted-include cross-layer-leak check (strict layers only).
+                    if strict:
+                        mq = QUOTED_INCLUDE_RE.search(line)
+                        if mq:
+                            basename = mq.group(1).rsplit("/", 1)[-1]
+                            if basename not in own_headers:
+                                violations.append(
+                                    f"{rel}:{n}: layer '{layer}' quoted-includes "
+                                    f'"{mq.group(1)}" — not part of the {layer}/ tree '
+                                    f"(cross-layer leak: use <numkit/...> for a cross-module "
+                                    f"dependency, or relocate the header into {layer}/)"
+                                )
     return violations
 
 
