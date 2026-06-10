@@ -10,7 +10,7 @@
 #include <numkit/value/error.hpp>
 
 #include "helpers.hpp"
-#include "rows_helpers.hpp"  // detail::collectRowsByIndex
+#include "rows_helpers.hpp"  // numkit::ops::collectRowsByIndex
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 
 #include "discrete_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // ════════════════════════════════════════════════════════════════════════
 // Set operations
@@ -209,7 +209,7 @@ Value uniqueRows(const Value &x, std::pmr::memory_resource *mr, bool stable)
                 uniqRows.push_back(r);
             }
         }
-        return detail::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
+        return numkit::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
     }
 
     std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(&scratch);
@@ -232,7 +232,7 @@ Value uniqueRows(const Value &x, std::pmr::memory_resource *mr, bool stable)
               });
     uniqRows.insert(uniqRows.end(), nanRows.begin(), nanRows.end());
 
-    return detail::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
+    return numkit::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
 }
 
 std::tuple<Value, Value, Value>
@@ -283,7 +283,7 @@ uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable
             ia[i] = static_cast<double>(uniqRows[i] + 1);
 
         return std::make_tuple(
-            detail::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
+            numkit::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
             std::move(iaCol), std::move(icRow));
     }
 
@@ -332,7 +332,7 @@ uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable
     for (size_t i = 0; i < uniqRows.size(); ++i)
         ia[i] = static_cast<double>(uniqRows[i] + 1);
 
-    return std::make_tuple(detail::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
+    return std::make_tuple(numkit::ops::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
                            std::move(iaCol), std::move(icRow));
 }
 
@@ -1110,4 +1110,4 @@ Value uniquetol(const Value &x, double tol, std::pmr::memory_resource *mr)
     return rowFromVec(out.data(), out.size(), mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
